@@ -1495,8 +1495,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "transform": {
+      const _tfCursed = blMult < 1, _tfBlessed = blMult > 1;
       if (kind === "monster") {
-        const nt = MONS[rng(0, MONS.length - 1)];
+        const curIdx = MONS.findIndex(m => m.name === target.name);
+        let nt;
+        if (_tfBlessed) {
+          /* 祝福：弱いモンスターに変化（配列の前方向） */
+          const weakerPool = MONS.filter((_, i) => i < Math.max(curIdx, 1));
+          nt = weakerPool.length > 0 ? weakerPool[rng(0, weakerPool.length - 1)] : MONS[0];
+        } else if (_tfCursed) {
+          /* 呪い：強いモンスターに変化（配列の後方向） */
+          const strongerPool = MONS.filter((_, i) => i > curIdx && !_.wallWalker);
+          nt = strongerPool.length > 0 ? strongerPool[rng(0, strongerPool.length - 1)] : MONS[MONS.length - 1];
+        } else {
+          nt = MONS[rng(0, MONS.length - 1)];
+        }
         ml.push(`${target.name}は${nt.name}に変化した！`);
         const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id:target.id, x:ox, y:oy, maxHp:nt.hp,
@@ -1736,19 +1749,18 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "sleep": {
       const _slCursed = blMult < 1, _slBlessed = blMult > 1;
       if (_slCursed) {
-        /* 呪い：1ターンだけ眠る */
+        /* 呪い：怒り状態（攻撃力2倍＋倍速） */
         if (kind === "monster") {
-          target.sleepTurns = 1;
-          ml.push(`${target.name}は一瞬うとうとした。(1ターン)`);
+          target.atk = (target.atk || 1) * 2;
+          target.speed = (target.speed || 1) * 2;
+          target.enraged = true;
+          ml.push(`${target.name}は怒り状態になった！攻撃力と速度が上がった！`);
           break;
         }
         if (kind === "player") {
-          if (p.armor?.ability === "sleep_proof") {
-            ml.push("しかし眠れなかった！(耐眠)");
-          } else {
-            p.sleepTurns = 1;
-            ml.push("一瞬うとうとした...(1ターン)");
-          }
+          p.atk = Math.floor(p.atk * 2);
+          p.hasteTurns = (p.hasteTurns || 0) + 10;
+          ml.push("怒りに燃えた！攻撃力と速度が上がった！");
           break;
         }
         ml.push("魔法弾は効果なく消えた。");
@@ -2030,7 +2042,33 @@ export function getFarcastMode(x, y, dg) {
   return fcPent.cursed ? "cursed" : "farcast";
 }
 
+/* 祝福された飛びつきの杖：着地後に周囲8マスにダメージ */
+function _leapLandingAoE(px, py, dg, p, ml, luFn) {
+  const dmg = rng(10, 20);
+  ml.push(`着地の衝撃が周囲に広がった！`);
+  for (const [adx, ady] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+    const ax = px + adx, ay = py + ady;
+    if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+    const am = dg.monsters.find(m => m.x === ax && m.y === ay);
+    if (am) {
+      am.hp -= dmg;
+      ml.push(`${am.name}に${dmg}ダメージ！`);
+      if (am.hp <= 0) {
+        ml.push(`${am.name}を倒した！(+${am.exp}exp)`);
+        p.exp += am.exp;
+        monsterDrop(am, dg, ml, p);
+        dg.monsters = dg.monsters.filter(m => m !== am);
+        luFn(p, ml);
+      }
+    }
+  }
+}
+
 export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null) {
+  /* 呪われた飛びつき：方向が逆になる */
+  if (eff === "leap" && blMult < 1) {
+    dx = -dx; dy = -dy;
+  }
   /* 呪われた穴掘り：1マス先に壊せる壁を生成 */
   if (eff === "dig" && blMult < 1) {
     const wx = p.x + dx, wy = p.y + dy;
@@ -2058,20 +2096,32 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         ml.push(dug > 0 ? `穴掘りの魔法弾が壁を${dug}マス掘り進んだ！` : "魔法弾は壁に消えた。");
         return;
       }
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push("壁の前に飛びついた！"); return; }
+      if (eff === "leap") {
+        p.x = lastX; p.y = lastY; ml.push("壁の前に飛びついた！");
+        if (blMult > 1) _leapLandingAoE(p.x, p.y, dg, p, ml, luFn);
+        return;
+      }
       ml.push("魔法弾は壁に跳ね返った！");
       applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const mon = dg.monsters.find(m => m.x === tx && m.y === ty);
     if (mon) {
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push(`${mon.name}の前に飛びついた！`); return; }
+      if (eff === "leap") {
+        p.x = lastX; p.y = lastY; ml.push(`${mon.name}の前に飛びついた！`);
+        if (blMult > 1) _leapLandingAoE(p.x, p.y, dg, p, ml, luFn);
+        return;
+      }
       applyWandEffect(eff, "monster", mon, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const it = dg.items.find(i => i.x === tx && i.y === ty);
     if (it) {
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
+      if (eff === "leap") {
+        p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`);
+        if (blMult > 1) _leapLandingAoE(p.x, p.y, dg, p, ml, luFn);
+        return;
+      }
       /* water bottle → matching potion */
       const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬" };
       if (it.name === "水の入った瓶" && BOTTLE_XFORM[eff]) {
@@ -2086,19 +2136,31 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push(`${trap.name}の前に飛びついた！`); return; }
+      if (eff === "leap") {
+        p.x = lastX; p.y = lastY; ml.push(`${trap.name}の前に飛びついた！`);
+        if (blMult > 1) _leapLandingAoE(p.x, p.y, dg, p, ml, luFn);
+        return;
+      }
       applyWandEffect(eff, "trap", trap, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
     if (bb) {
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push(`${bb.name}の前に飛びついた！`); return; }
+      if (eff === "leap") {
+        p.x = lastX; p.y = lastY; ml.push(`${bb.name}の前に飛びついた！`);
+        if (blMult > 1) _leapLandingAoE(p.x, p.y, dg, p, ml, luFn);
+        return;
+      }
       applyWandEffect(eff, "bigbox", bb, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     lastX = tx; lastY = ty;
   }
-  if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push("虚空の先に飛びついた！"); return; }
+  if (eff === "leap") {
+    p.x = lastX; p.y = lastY; ml.push("虚空の先に飛びついた！");
+    if (blMult > 1) _leapLandingAoE(p.x, p.y, dg, p, ml, luFn);
+    return;
+  }
   ml.push("魔法弾は虚空に消えた。");
 }
 
