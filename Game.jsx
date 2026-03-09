@@ -1038,10 +1038,10 @@ export default function RoguelikeGame() {
         const _pent = dg.pentacles?.find((pc) => pc.x === x && pc.y === y);
         if (_pent && vis) {
           const _pentClr =
-            _pent.kind === "sanctuary"    ? (_pent.blessed ? "#c0ffd8" : "#40ff80") :
-            _pent.kind === "vulnerability"? (_pent.blessed ? "#ff9060" : "#ff6020") :
-            _pent.kind === "magic_seal"   ? (_pent.blessed ? "#c0a0ff" : "#8060ff") :
-            _pent.kind === "thunder_trap" ? (_pent.blessed ? "#ffffa0" : "#ffe040") : "#ff6020";
+            _pent.kind === "sanctuary"    ? (_pent.blessed ? "#c0ffd8" : _pent.cursed ? "#800040" : "#40ff80") :
+            _pent.kind === "vulnerability"? (_pent.blessed ? "#ff9060" : _pent.cursed ? "#804020" : "#ff6020") :
+            _pent.kind === "magic_seal"   ? (_pent.blessed ? "#c0a0ff" : _pent.cursed ? "#403080" : "#8060ff") :
+            _pent.kind === "thunder_trap" ? (_pent.blessed ? "#ffffa0" : _pent.cursed ? "#806020" : "#ffe040") : "#ff6020";
           ctx.globalAlpha = 0.28;
           ctx.fillStyle = _pentClr;
           ctx.fillRect(px2, py2, sz, sz);
@@ -1374,10 +1374,17 @@ export default function RoguelikeGame() {
       }
       /* MPクールダウンカウント */
       if ((p.mpCooldownTurns || 0) > 0) p.mpCooldownTurns--;
-      /* 雷の魔方陣：真上にいると毎ターン25ダメージ（プレイヤー） */
+      /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
+      const _cursedSancOn = st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
+      if (_cursedSancOn && p.hp > 0) {
+        p.deathCause = `${_cursedSancOn.name}により`;
+        p.hp = 0;
+        ml.push(`${_cursedSancOn.name}に触れた！呪いの力で即死した！`);
+      }
+      /* 雷の魔方陣：真上にいると毎ターンダメージ */
       const _thunderPent = st.dungeon.pentacles?.find((pc) => pc.kind === "thunder_trap" && pc.x === p.x && pc.y === p.y);
       if (_thunderPent && p.hp > 0) {
-        const _tdmg = _thunderPent.blessed ? 50 : 25;
+        const _tdmg = _thunderPent.blessed ? 50 : _thunderPent.cursed ? 10 : 25;
         p.deathCause = `${_thunderPent.name}の雷撃により`;
         p.hp -= _tdmg;
         ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！`);
@@ -1389,7 +1396,7 @@ export default function RoguelikeGame() {
         for (const _m of [...st.dungeon.monsters]) {
           const _tp = st.dungeon.pentacles.find((pc) => pc.kind === "thunder_trap" && pc.x === _m.x && pc.y === _m.y);
           if (_tp) {
-            const _tmdmg = _tp.blessed ? 50 : 25;
+            const _tmdmg = _tp.blessed ? 50 : _tp.cursed ? 10 : 25;
             _m.hp -= _tmdmg;
             ml.push(`${_tp.name}が${_m.name}を打った！${_tmdmg}ダメージ！`);
             if (_m.hp <= 0) {
@@ -1620,10 +1627,10 @@ export default function RoguelikeGame() {
                 d *= 2;
                 crit = true;
               }
-              /* 脆弱の魔方陣チェック：モンスターのいる部屋に魔方陣があればダメージ2倍（祝福は4倍） */
+              /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
               const _vulnPc = _vulnRoom && dg.pentacles?.find((pc) => pc.kind === "vulnerability" && pc.x >= _vulnRoom.x && pc.x < _vulnRoom.x + _vulnRoom.w && pc.y >= _vulnRoom.y && pc.y < _vulnRoom.y + _vulnRoom.h);
-              if (_vulnPc) d *= _vulnPc.blessed ? 4 : 2;
+              if (_vulnPc) d = _vulnPc.cursed ? Math.max(1, Math.floor(d / 2)) : d * (_vulnPc.blessed ? 4 : 2);
               /* 壁の中の壁歩きモンスターへの攻撃：ダメージ半減 */
               const _atkInWall = attackMon.wallWalker && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
@@ -1664,6 +1671,11 @@ export default function RoguelikeGame() {
               acted = true;
             }
           } else if (dg.map[ny][nx] !== T.WALL) {
+            /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
+            const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
+            if (_cursedSanc) {
+              ml.push("呪われた魔方陣が行く手を阻んでいる！");
+            } else {
             p.x = nx;
             p.y = ny;
             acted = true;
@@ -1684,6 +1696,7 @@ export default function RoguelikeGame() {
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
             if (_pentStep) ml.push(`${_pentStep.name}の上にいる。`);
+            }
           }
         }
       } else if (type === "wait") acted = true;
@@ -1916,6 +1929,7 @@ export default function RoguelikeGame() {
         )
           break;
         if (dg.monsters.find((m) => m.x === nx && m.y === ny)) break;
+        if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny)) break;
         p.x = nx;
         p.y = ny;
         steps++;
@@ -3754,15 +3768,18 @@ export default function RoguelikeGame() {
       } else {
         dg.pentacles = dg.pentacles || [];
         const _isBlessed = it.blessed || false;
+        const _isCursed = it.cursed || false;
         const _penIK = getIdentKey(it); // "n:sanctuary" etc
         const _penIsIdent = !_penIK || sr.current.ident.has(_penIK);
+        const _bcPrefix = _isBlessed ? "祝福された" : _isCursed ? "呪われた" : "";
         let _pName;
         if (_penIsIdent) {
-          _pName =
-            it.effect === "sanctuary"    ? (_isBlessed ? "祝福された聖域の魔方陣"   : "聖域の魔方陣") :
-            it.effect === "vulnerability"? (_isBlessed ? "祝福された脆弱の魔方陣"   : "脆弱の魔方陣") :
-            it.effect === "magic_seal"   ? (_isBlessed ? "祝福された魔封じの魔方陣" : "魔封じの魔方陣") :
-            it.effect === "thunder_trap" ? (_isBlessed ? "祝福された雷の魔方陣"     : "雷の魔方陣") : "魔方陣";
+          const _baseName =
+            it.effect === "sanctuary"    ? "聖域の魔方陣" :
+            it.effect === "vulnerability"? "脆弱の魔方陣" :
+            it.effect === "magic_seal"   ? "魔封じの魔方陣" :
+            it.effect === "thunder_trap" ? "雷の魔方陣" : "魔方陣";
+          _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
           let _circleBase;
@@ -3772,18 +3789,35 @@ export default function RoguelikeGame() {
             const _fake = sr.current.fakeNames?.[_penIK] ?? it.name;
             _circleBase = _fake.replace(/ペン$/, '魔方陣'); // "朱色のペン"→"朱色の魔方陣"
           }
-          _pName = _isBlessed ? `祝福された${_circleBase}` : _circleBase;
+          _pName = _bcPrefix ? `${_bcPrefix}${_circleBase}` : _circleBase;
         }
-        dg.pentacles.push({ x: p.x, y: p.y, kind: it.effect, name: _pName, blessed: _isBlessed });
+        dg.pentacles.push({ x: p.x, y: p.y, kind: it.effect, name: _pName, blessed: _isBlessed, cursed: _isCursed });
         it.charges = (it.charges || 1) - 1;
         if (it.charges <= 0) {
           ml.push(`足元に${_pName}を描いた！ペンのインクが尽きた。(充填の大箱で補充できる)`);
         } else {
           ml.push(`足元に${_pName}を描いた！(残り${it.charges}回)`);
         }
+        /* 呪われた聖域の魔方陣：描いた直後に隣のマスに弾き出される */
+        if (it.effect === "sanctuary" && _isCursed) {
+          const _dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+          let _pushed = false;
+          for (const [_pdx, _pdy] of _dirs) {
+            const _px = p.x + _pdx, _py = p.y + _pdy;
+            if (_px >= 0 && _px < MW && _py >= 0 && _py < MH && dg.map[_py][_px] !== T.WALL &&
+                !dg.monsters.some(m => m.x === _px && m.y === _py) &&
+                !dg.pentacles.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === _px && pc.y === _py)) {
+              p.x = _px; p.y = _py;
+              ml.push("呪われた魔方陣に弾き出された！");
+              _pushed = true;
+              break;
+            }
+          }
+          if (!_pushed) ml.push("逃げ場がない！");
+        }
         /* 雷の魔方陣：描いたそのターンにも即座に発動 */
         if (it.effect === "thunder_trap") {
-          const _tdrawDmg = _isBlessed ? 50 : 25;
+          const _tdrawDmg = _isBlessed ? 50 : _isCursed ? 10 : 25;
           if (p.hp > 0) {
             p.deathCause = `${_pName}の雷撃により`;
             p.hp -= _tdrawDmg;

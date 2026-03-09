@@ -303,7 +303,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         let dmg = Math.max(1, m.atk + rng(-2, 2));
         const _arRoom = findRoom(dg.rooms, pl.x, pl.y);
         const _arVulnPc = _arRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" && pc.x >= _arRoom.x && pc.x < _arRoom.x + _arRoom.w && pc.y >= _arRoom.y && pc.y < _arRoom.y + _arRoom.h);
-        if (_arVulnPc) dmg *= _arVulnPc.blessed ? 4 : 2;
+        if (_arVulnPc) dmg = _arVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_arVulnPc.blessed ? 4 : 2);
         pl.deathCause = `${m.name}の矢の攻撃で`;
         pl.hp -= dmg;
         ml.push(`${m.name}の矢が命中！${dmg}ダメージ！`);
@@ -365,7 +365,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _cVulnPc = _cPlRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" &&
           pc.x >= _cPlRoom.x && pc.x < _cPlRoom.x + _cPlRoom.w &&
           pc.y >= _cPlRoom.y && pc.y < _cPlRoom.y + _cPlRoom.h);
-        if (_cVulnPc) dmg *= _cVulnPc.blessed ? 4 : 2;
+        if (_cVulnPc) dmg = _cVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_cVulnPc.blessed ? 4 : 2);
         pl.deathCause = `${m.name}の攻撃で`;
         pl.hp -= dmg;
         ml.push(`混乱した${m.name}の攻撃！${dmg}ダメージ！`);
@@ -451,7 +451,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _wwVulnPc = _wwRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" &&
         pc.x >= _wwRoom.x && pc.x < _wwRoom.x + _wwRoom.w &&
         pc.y >= _wwRoom.y && pc.y < _wwRoom.y + _wwRoom.h);
-      if (_wwVulnPc) dmg *= _wwVulnPc.blessed ? 4 : 2;
+      if (_wwVulnPc) dmg = _wwVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_wwVulnPc.blessed ? 4 : 2);
       pl.deathCause = `${m.name}の攻撃で`;
       pl.hp -= dmg;
       const _wwInWall = dg.map[m.y]?.[m.x] === T.WALL;
@@ -521,7 +521,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* 脆弱チェック：プレイヤーのいる部屋に脆弱の魔方陣があれば2倍（祝福は4倍） */
       const _adjPlRoom = findRoom(rooms, pl.x, pl.y);
       const _adjVulnPc = _adjPlRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" && pc.x >= _adjPlRoom.x && pc.x < _adjPlRoom.x + _adjPlRoom.w && pc.y >= _adjPlRoom.y && pc.y < _adjPlRoom.y + _adjPlRoom.h);
-      if (_adjVulnPc) dmg *= _adjVulnPc.blessed ? 4 : 2;
+      if (_adjVulnPc) dmg = _adjVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_adjVulnPc.blessed ? 4 : 2);
       pl.deathCause = `${m.name}の攻撃で`;
       pl.hp -= dmg;
       ml.push(`${m.name}の攻撃！${dmg}ダメージ！`);
@@ -558,7 +558,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         /* 脆弱チェック：プレイヤーのいる部屋に脆弱の魔方陣があれば2倍（祝福は4倍） */
         const _mvPlRoom = findRoom(rooms, pl.x, pl.y);
         const _mvVulnPc = _mvPlRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" && pc.x >= _mvPlRoom.x && pc.x < _mvPlRoom.x + _mvPlRoom.w && pc.y >= _mvPlRoom.y && pc.y < _mvPlRoom.y + _mvPlRoom.h);
-        if (_mvVulnPc) dmg *= _mvVulnPc.blessed ? 4 : 2;
+        if (_mvVulnPc) dmg = _mvVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_mvVulnPc.blessed ? 4 : 2);
         pl.deathCause = `${m.name}の攻撃で`;
         pl.hp -= dmg;
         ml.push(`${m.name}の攻撃！${dmg}ダメージ！`);
