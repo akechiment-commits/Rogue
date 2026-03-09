@@ -4972,7 +4972,115 @@ export default function RoguelikeGame() {
                 setRevealMode(null);
                 return;
               }
-              if (bigboxMode || springMode || putMode || markerMode || spellListMode) return;
+              /* === インベントリ表示中：上下で選択、左右でページ送り === */
+              if (showInv) {
+                const inv = sr.current?.player?.inventory || [];
+                const totalPages = Math.ceil(inv.length / 10) || 1;
+                const pageItems = inv.slice(invPage * 10, (invPage + 1) * 10);
+                const len = pageItems.length;
+                if (dy !== 0 && dx === 0 && len > 0) {
+                  setSelIdx((prev) => {
+                    if (prev === null) return dy > 0 ? 0 : len - 1;
+                    return (prev + dy + len) % len;
+                  });
+                  setShowDesc(null);
+                } else if (dx !== 0 && dy === 0 && totalPages > 1) {
+                  setInvPage((p) => (p + dx + totalPages) % totalPages);
+                  setSelIdx(null); setInvMenuSel(null); setShowDesc(null);
+                }
+                return;
+              }
+              /* === 識別モード：上下で選択 === */
+              if (identifyMode) {
+                if (!sr.current) return;
+                const _p = sr.current.player;
+                const _filt = _p.inventory
+                  .map((_it, _i) => ({ it: _it, i: _i }))
+                  .filter(({ it, i }) => {
+                    const _k = getIdentKey(it);
+                    if (!_k) return false;
+                    if (identifyMode.scrollIdx === i) return false;
+                    return identifyMode.mode === 'identify' ? !sr.current.ident.has(_k) : sr.current.ident.has(_k);
+                  });
+                const _len = _filt.length;
+                if (dy !== 0 && dx === 0 && _len > 0) {
+                  setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + dy + _len) % _len });
+                }
+                return;
+              }
+              /* === 壺に入れるモード：上下で選択、左右でページ送り === */
+              if (putMode) {
+                if (!sr.current) return;
+                const inv4 = sr.current.player.inventory;
+                const pItems4 = inv4.map((it, i) => ({ it, i })).filter(({ i }) => i !== putMode.potIdx);
+                const _ps4 = 10;
+                const _tp4 = Math.max(1, Math.ceil(pItems4.length / _ps4));
+                const _plen4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4).length;
+                if (dy !== 0 && dx === 0 && _plen4 > 0) {
+                  setPutMenuSel((s) => (s + dy + _plen4) % _plen4);
+                } else if (dx !== 0 && dy === 0 && _tp4 > 1) {
+                  setPutPage((p) => (p + dx + _tp4) % _tp4);
+                  setPutMenuSel(0);
+                }
+                return;
+              }
+              /* === マーカーモード：上下で選択 === */
+              if (markerMode) {
+                if (!sr.current) return;
+                if (dy !== 0 && dx === 0) {
+                  const inv5 = sr.current.player.inventory;
+                  let listLen = 0;
+                  if (markerMode.step === "select_blank") {
+                    listLen = inv5.filter(it => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell)).length;
+                  } else if (markerMode.step === "select_type") {
+                    listLen = ITEMS.filter(it => it.type === "scroll").length;
+                  } else if (markerMode.step === "select_spellbook_type") {
+                    listLen = SPELLBOOKS.filter(it => it.spell).length;
+                  }
+                  if (listLen > 0) setMarkerMenuSel((s) => (s + dy + listLen) % listLen);
+                }
+                return;
+              }
+              /* === 大箱モード：上下で選択、左右でページ送り === */
+              if (bigboxMode) {
+                if (bigboxMode === "menu") {
+                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 2) % 2);
+                } else if (bigboxMode === "put") {
+                  const inv2 = sr.current?.player?.inventory || [];
+                  const _ps = 10;
+                  const _tp = Math.max(1, Math.ceil(inv2.length / _ps));
+                  const _pil = inv2.slice(bigboxPage * _ps, (bigboxPage + 1) * _ps).length;
+                  if (dy !== 0 && dx === 0 && _pil > 0) {
+                    setBigboxMenuSel((p) => (p + dy + _pil) % _pil);
+                  } else if (dx !== 0 && dy === 0 && _tp > 1) {
+                    setBigboxPage((p) => (p + dx + _tp) % _tp);
+                    setBigboxMenuSel(0);
+                  }
+                }
+                return;
+              }
+              /* === 泉モード：上下で選択 === */
+              if (springMode) {
+                if (dy !== 0 && dx === 0) {
+                  if (springMode === "menu") {
+                    setSpringMenuSel((p) => (p + dy + 3) % 3);
+                  } else if (springMode === "soak") {
+                    const inv = sr.current?.player?.inventory || [];
+                    const ilen = inv.length;
+                    if (ilen > 0) setSpringMenuSel((p) => (p + dy + ilen) % ilen);
+                  }
+                }
+                return;
+              }
+              /* === 魔法選択モード：上下で選択 === */
+              if (spellListMode) {
+                if (dy !== 0 && dx === 0) {
+                  const knownSpells = sr.current?.player?.spells || [];
+                  const slen = knownSpells.length;
+                  if (slen > 0) setSpellMenuSel((s) => (s + dy + slen) % slen);
+                }
+                return;
+              }
               if (facingMode) {
                 if (sr.current) {
                   sr.current.player.facing = { dx, dy };
