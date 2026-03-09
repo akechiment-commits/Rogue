@@ -1525,6 +1525,7 @@ export default function RoguelikeGame() {
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
       if (dead || !sr.current) return;
+      if (revealMode) return;
       if (bigboxMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -1865,6 +1866,7 @@ export default function RoguelikeGame() {
       checkTrap,
       lu,
       endTurn,
+      revealMode,
     ],
   );
   const doDash = useCallback(
@@ -5151,25 +5153,25 @@ export default function RoguelikeGame() {
                 <AB
                   label="走"
                   sub={dashMode ? "ON" : "dash"}
-                  onClick={() => setDashMode((v) => !v)}
+                  onClick={() => { if (revealMode) return; setDashMode((v) => !v); }}
                   color={dashMode ? "#f44" : "#a8f"}
                 />
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { setSpellListMode((f) => !f); setSpellMenuSel(0); }}
+                  onClick={() => { if (revealMode) return; setSpellListMode((f) => !f); setSpellMenuSel(0); }}
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB
                   label="🎨"
                   sub="タイル"
-                  onClick={() => setShowTileEditor(true)}
+                  onClick={() => { if (revealMode) return; setShowTileEditor(true); }}
                   color="#888"
                 />
                 <AB
                   label="📜"
                   sub="記録"
-                  onClick={() => setShowScores(true)}
+                  onClick={() => { if (revealMode) return; setShowScores(true); }}
                   color="#8cf"
                 />
               </div>{" "}
