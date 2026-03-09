@@ -968,7 +968,7 @@ export default function RoguelikeGame() {
     /* モバイル縦：画面高さからUI要素分を引いてマップ表示行数を動的計算 */
     let vh;
     if (mobile && !landscape) {
-      const uiH = 200; /* ステータスバー+HPバー+メッセージログ+操作ボタン+余白 */
+      const uiH = 224; /* ステータスバー+HPバー+メッセージログ(4行)+操作ボタン+余白 */
       const availH = window.innerHeight - uiH;
       vh = Math.max(VH_M, Math.min(Math.floor(availH / sz), MH));
     } else {
@@ -4920,7 +4920,7 @@ export default function RoguelikeGame() {
       />{" "}
       <div
         style={{
-          height: mobile ? 28 : 52,
+          height: mobile ? 52 : 52,
           overflowY: "auto",
           borderTop: "1px solid #252530",
           padding: "2px",
@@ -4934,7 +4934,7 @@ export default function RoguelikeGame() {
           setRevealMode(null);
         } : undefined}
       >
-        {msgs.slice(mobile ? -5 : -8).map((m, i, a) => (
+        {msgs.slice(mobile ? -4 : -8).map((m, i, a) => (
           <div key={i} style={{ opacity: i === a.length - 1 ? 1 : 0.5 }}>
             {m}
           </div>
