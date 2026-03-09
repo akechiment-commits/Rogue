@@ -163,7 +163,7 @@ export function hasLOS(map, x0, y0, x1, y1) {
     cy = y0;
   while (true) {
     if (cx === x1 && cy === y1) return true;
-    if (map[cy][cx] === T.WALL && !(cx === x0 && cy === y0)) return false;
+    if ((map[cy][cx] === T.WALL || map[cy][cx] === T.BWALL) && !(cx === x0 && cy === y0)) return false;
     const e2 = 2 * err;
     if (e2 > -dy) {
       err -= dy;
@@ -201,7 +201,7 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
       const nx = cur.x + dx,
         ny = cur.y + dy;
       if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) continue;
-      if (map[ny][nx] === T.WALL) continue;
+      if (map[ny][nx] === T.WALL || map[ny][nx] === T.BWALL) continue;
       /* 聖域の魔方陣は通行不可（目標地点でなければ迂回） */
       if (pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny) &&
           !(nx === tx && ny === ty)) continue;
@@ -237,7 +237,7 @@ export function getOpenDirs(map, x, y) {
   for (const [dx, dy] of ds) {
     const nx = x + dx,
       ny = y + dy;
-    if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T.WALL)
+    if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T.WALL && map[ny][nx] !== T.BWALL)
       res.push({ x: dx, y: dy });
   }
   return res;
@@ -251,7 +251,7 @@ export function inStraightLine(x0, y0, x1, y1) {
 
 /* 矢の落下位置を魔方陣のないマスに調整するヘルパー */
 function _arrowBlocked(x, y, dg) {
-  if (dg.map[y]?.[x] === T.WALL) return true;
+  if (dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL) return true;
   if (dg.map[y]?.[x] === T.SD || dg.map[y]?.[x] === T.SU) return true;
   if (dg.bigboxes?.some(b => b.x === x && b.y === y)) return true;
   if (dg.pentacles?.some(pc => pc.x === x && pc.y === y)) return true;
@@ -283,7 +283,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   let lx = m.x, ly = m.y;
   for (let d = 1; d <= maxDist; d++) {
     const tx = m.x + dx * d, ty = m.y + dy * d;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) {
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       /* arrow hits wall — drop at last valid position (avoid pentacle) */
       const _wd = safeArrowDrop(lx, ly, dg);
       dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_wd.x, y:_wd.y });
@@ -387,7 +387,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             dg.monsters = dg.monsters.filter(o => o !== _other);
             ml.push(`${_other.name}は倒れた！`);
           }
-        } else if (dg.map[_cny]?.[_cnx] !== T.WALL) {
+        } else if (dg.map[_cny]?.[_cnx] !== T.WALL && dg.map[_cny]?.[_cnx] !== T.BWALL) {
           m.x = _cnx; m.y = _cny;
         }
       }
@@ -593,7 +593,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       for (const [_fdx, _fdy] of _fd4) {
         const _fnx = m.x + _fdx, _fny = m.y + _fdy;
         if (_fnx < 0 || _fnx >= MW || _fny < 0 || _fny >= MH) continue;
-        if (map[_fny][_fnx] === T.WALL) continue;
+        if (map[_fny][_fnx] === T.WALL || map[_fny][_fnx] === T.BWALL) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
@@ -616,15 +616,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       ) {
         const exits = [];
         for (let ex = room.x; ex < room.x + room.w; ex++) {
-          if (room.y > 0 && map[room.y - 1][ex] !== T.WALL)
+          if (room.y > 0 && map[room.y - 1][ex] !== T.WALL && map[room.y - 1][ex] !== T.BWALL)
             exits.push({ x: ex, y: room.y - 1 });
-          if (room.y + room.h < MH && map[room.y + room.h][ex] !== T.WALL)
+          if (room.y + room.h < MH && map[room.y + room.h][ex] !== T.WALL && map[room.y + room.h][ex] !== T.BWALL)
             exits.push({ x: ex, y: room.y + room.h });
         }
         for (let ey = room.y; ey < room.y + room.h; ey++) {
-          if (room.x > 0 && map[ey][room.x - 1] !== T.WALL)
+          if (room.x > 0 && map[ey][room.x - 1] !== T.WALL && map[ey][room.x - 1] !== T.BWALL)
             exits.push({ x: room.x - 1, y: ey });
-          if (room.x + room.w < MW && map[ey][room.x + room.w] !== T.WALL)
+          if (room.x + room.w < MW && map[ey][room.x + room.w] !== T.WALL && map[ey][room.x + room.w] !== T.BWALL)
             exits.push({ x: room.x + room.w, y: ey });
         }
         if (exits.length > 0) {
@@ -646,7 +646,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           nx < MW &&
           ny >= 0 &&
           ny < MH &&
-          map[ny][nx] !== T.WALL &&
+          map[ny][nx] !== T.WALL && map[ny][nx] !== T.BWALL &&
           !dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny) &&
           !(nx === pl.x && ny === pl.y)
         ) {
@@ -666,7 +666,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       for (const [rdx, rdy] of _pPool) {
         const nx = m.x + rdx, ny = m.y + rdy;
         if (
-          map[ny]?.[nx] !== T.WALL &&
+          map[ny]?.[nx] !== T.WALL && map[ny]?.[nx] !== T.BWALL &&
           !dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny) &&
           !(nx === pl.x && ny === pl.y)
         ) {
@@ -687,7 +687,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         nx < MW &&
         ny >= 0 &&
         ny < MH &&
-        map[ny][nx] !== T.WALL &&
+        map[ny][nx] !== T.WALL && map[ny][nx] !== T.BWALL &&
         !dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny) &&
         !(nx === pl.x && ny === pl.y)
       ) {
