@@ -1686,9 +1686,12 @@ export function inMagicSealRoom(x, y, dg) {
   if (!dg.pentacles?.length || !dg.rooms) return false;
   /* 祝福された魔封じの魔方陣があればフロア全体に効果 */
   if (dg.pentacles.some(pc => pc.kind === "magic_seal" && pc.blessed)) return true;
+  /* 呪われた魔封じの魔方陣：真上のマスのみ封じる */
+  if (dg.pentacles.some(pc => pc.kind === "magic_seal" && pc.cursed && pc.x === x && pc.y === y)) return true;
+  /* 通常の魔封じ：部屋全体 */
   const room = dg.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
   if (!room) return false;
-  return dg.pentacles.some(pc => pc.kind === "magic_seal" &&
+  return dg.pentacles.some(pc => pc.kind === "magic_seal" && !pc.cursed &&
     pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h);
 }
 
