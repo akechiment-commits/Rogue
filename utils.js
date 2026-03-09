@@ -1,7 +1,7 @@
 export const MW = 60,
   MH = 30;
 
-export const T = { WALL: "#", FLOOR: ".", DOOR: "+", SD: ">", SU: "<" };
+export const T = { WALL: "#", FLOOR: ".", DOOR: "+", SD: ">", SU: "<", BWALL: "B" };
 
 /* Tile indices in spritesheet (8 cols x 4 rows, 16x16 each) */
 export const TI = {
@@ -70,7 +70,7 @@ export function computeFOV(map, px, py, rad, vis, exp) {
       if (ix < 0 || ix >= MW || iy < 0 || iy >= MH) break;
       vis[iy][ix] = true;
       exp[iy][ix] = true;
-      if (map[iy][ix] === T.WALL && !(ix === px && iy === py)) break;
+      if ((map[iy][ix] === T.WALL || map[iy][ix] === T.BWALL) && !(ix === px && iy === py)) break;
       x += ddx * 0.5;
       y += ddy * 0.5;
     }

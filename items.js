@@ -669,12 +669,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "arrow_trap": {
       ml.push(`${trap.name}が発動！`);
       let wx = tx;
-      while (wx > 0 && dg.map[ty][wx - 1] !== T.WALL) wx--;
+      while (wx > 0 && dg.map[ty][wx - 1] !== T.WALL && dg.map[ty][wx - 1] !== T.BWALL) wx--;
       wx = Math.max(0, wx - 1);
       const ar = makeArrow(1);
       let hit = false, ex = wx;
       for (let fx = wx + 1; fx < MW; fx++) {
-        if (dg.map[ty][fx] === T.WALL) { ex = fx - 1; break; }
+        if (dg.map[ty][fx] === T.WALL || dg.map[ty][fx] === T.BWALL) { ex = fx - 1; break; }
         const m = dg.monsters.find(m2 => m2.x === fx && m2.y === ty);
         if (m) {
           const d = ar.atk + rng(0, 3);
@@ -955,7 +955,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn) {
   for (let dy2 = -1; dy2 <= 1; dy2++)
     for (let dx2 = -1; dx2 <= 1; dx2++) {
       const tx = cx + dx2, ty = cy + dy2;
-      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL)
+      if (tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL)
         tiles.push({ x:tx, y:ty });
     }
   for (const { x, y } of tiles) {
@@ -1055,7 +1055,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
   for (const [dx, dy] of DRO) {
     const cx = tx + dx, cy = ty + dy;
     if (cx < 0 || cx >= MW || cy < 0 || cy >= MH ||
-        dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU) continue;
+        dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL || dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU) continue;
     const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
     if (trap) {
       ft.add(trap.id);
@@ -1130,7 +1130,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn) {
   let cx = x, cy = y;
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
-    if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL) {
+    if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
       if (kind === "monster") { entity.hp -= 5; ml.push(`${entity.name}は壁に叩きつけられた！5ダメージ！`); }
       if (kind === "player")  { p.deathCause = "吹き飛ばされての壁への激突により"; p.hp -= 5; ml.push("壁に叩きつけられた！5ダメージ！"); }
       break;
@@ -1229,7 +1229,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       let bbx = target.x, bby = target.y, bbroke = false;
       for (let i = 0; i < 5; i++) {
         const nx = bbx + dx, ny = bby + dy;
-        if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL) {
+        if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
           bbroke = true; break;
         }
         bbx = nx; bby = ny;
@@ -1283,9 +1283,42 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
 
   switch (eff) {
     case "knockback": {
-      const d = 5;
+      const _blessed = blMult > 1, _cursed = blMult < 1;
+      if (_cursed) {
+        /* 呪い：引き寄せ（方向を逆にして目の前まで引っ張る） */
+        if (kind === "monster") {
+          const _pullX = p.x + dx, _pullY = p.y + dy;
+          if (_pullX >= 0 && _pullX < MW && _pullY >= 0 && _pullY < MH &&
+              dg.map[_pullY][_pullX] !== T.WALL && dg.map[_pullY][_pullX] !== T.BWALL &&
+              !dg.monsters.some(m2 => m2 !== target && m2.x === _pullX && m2.y === _pullY)) {
+            target.x = _pullX; target.y = _pullY;
+            ml.push(`${target.name}を引き寄せた！`);
+          } else {
+            ml.push(`${target.name}を引き寄せようとしたが失敗した。`);
+          }
+          break;
+        }
+        if (kind === "player") {
+          ml.push("引き寄せの力が自分に！");
+          break;
+        }
+        if (kind === "item") {
+          /* アイテムを目の前に引き寄せる */
+          const _pullIx = p.x + dx, _pullIy = p.y + dy;
+          if (_pullIx >= 0 && _pullIx < MW && _pullIy >= 0 && _pullIy < MH && dg.map[_pullIy][_pullIx] !== T.WALL && dg.map[_pullIy][_pullIx] !== T.BWALL) {
+            dg.items = dg.items.filter(i => i !== target);
+            const ft = new Set();
+            placeItemAt(dg, _pullIx, _pullIy, target, ml, ft);
+            ml.push(`${target.name}を引き寄せた！`);
+          }
+          break;
+        }
+        break;
+      }
+      const d = _blessed ? 50 : 5; /* 祝福：壁まで飛ばす */
+      const _kbDmgBase = _blessed ? 10 : 5; /* 祝福：ダメ2倍 */
       if (kind === "monster") {
-        const _kbDmg = Math.max(1, Math.round(5 * blMult));
+        const _kbDmg = _kbDmgBase;
         ml.push(`${target.name}は吹き飛ばされた！`);
         target.hp -= _kbDmg;
         pushEntity(dg, target.x, target.y, dx, dy, d, ml, "monster", target, p, luFn);
@@ -1308,7 +1341,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         ml.push("自分が吹き飛ばされた！");
-        p.hp -= 5;
+        p.hp -= _kbDmgBase;
         pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn);
         break;
       }
@@ -1344,7 +1377,25 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "lightning": {
-      let dmg = Math.max(1, Math.round(rng(15, 25) * blMult));
+      const _lCursed = blMult < 1;
+      if (_lCursed) {
+        /* 呪い：25回復 */
+        if (kind === "monster") {
+          const _lheal = Math.min(25, target.maxHp - target.hp);
+          if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); }
+          else ml.push(`${target.name}には効果がなかった。`);
+          break;
+        }
+        if (kind === "player") {
+          const _lheal = Math.min(25, p.maxHp - p.hp);
+          if (_lheal > 0) { p.hp += _lheal; ml.push(`癒しの光に包まれた！HP+${_lheal}`); }
+          else ml.push("HPは既に満タンだ。");
+          break;
+        }
+      }
+      /* 祝福：ダメ2倍 (blMult=1.5→×2にオーバーライド) */
+      const _lBlessMult = blMult > 1 ? 2 : 1;
+      let dmg = Math.max(1, Math.round(rng(15, 25) * _lBlessMult));
       if (kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
       if (kind === "monster") {
         target.hp -= dmg;
@@ -1406,15 +1457,39 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "slow": {
-      if (kind === "monster") {
-        target.speed = Math.max(0.25, target.speed * 0.5);
-        ml.push(`${target.name}は鈍足になった！`);
-        break;
-      }
-      if (kind === "player") {
-        p.slowTurns = (p.slowTurns || 0) + 10;
-        ml.push("体が重くなった...(鈍足10ターン)");
-        break;
+      const _sBless = blMult > 1, _sCurse = blMult < 1;
+      if (_sCurse) {
+        /* 呪い：2倍速にする */
+        if (kind === "monster") {
+          target.speed = Math.min(4, target.speed * 2);
+          ml.push(`${target.name}は2倍速になった！`);
+          break;
+        }
+        if (kind === "player") {
+          p.hasteTurns = (p.hasteTurns || 0) + 10;
+          ml.push("体が軽くなった！(2倍速10ターン)");
+          break;
+        }
+      } else {
+        if (kind === "monster") {
+          target.speed = Math.max(0.25, target.speed * 0.5);
+          ml.push(`${target.name}は鈍足になった！`);
+          if (_sBless) {
+            /* 祝福：金縛りも追加 */
+            target.paralyzed = true;
+            ml.push(`さらに${target.name}は金縛りになった！`);
+          }
+          break;
+        }
+        if (kind === "player") {
+          p.slowTurns = (p.slowTurns || 0) + 10;
+          ml.push("体が重くなった...(鈍足10ターン)");
+          if (_sBless) {
+            p.paralyzeTurns = Math.max(p.paralyzeTurns || 0, 10);
+            ml.push("さらに金縛りになった！(10ターン)");
+          }
+          break;
+        }
       }
       ml.push("魔法弾は効果なく消えた。");
       break;
@@ -1456,6 +1531,30 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "swap": {
+      const _swBless = blMult > 1, _swCurse = blMult < 1;
+      if (_swCurse) {
+        /* 呪い：飛びつきの杖と同じ効果（fireWandBolt内のleap処理で対応不可なのでここで実装） */
+        /* 対象の1マス手前に移動 */
+        if (kind === "monster") {
+          const _leapX = target.x - dx, _leapY = target.y - dy;
+          if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH &&
+              dg.map[_leapY][_leapX] !== T.WALL && dg.map[_leapY][_leapX] !== T.BWALL &&
+              !dg.monsters.some(m2 => m2 !== target && m2.x === _leapX && m2.y === _leapY) &&
+              !(_leapX === p.x && _leapY === p.y)) {
+            p.x = _leapX; p.y = _leapY;
+            ml.push(`${target.name}の前に飛びついた！`);
+          } else {
+            ml.push("飛びつけなかった。");
+          }
+        } else if (kind === "item" || kind === "trap") {
+          const _leapX = target.x - dx, _leapY = target.y - dy;
+          if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH && dg.map[_leapY][_leapX] !== T.WALL && dg.map[_leapY][_leapX] !== T.BWALL) {
+            p.x = _leapX; p.y = _leapY;
+            ml.push(`${target.name}の前に飛びついた！`);
+          }
+        }
+        break;
+      }
       if (kind === "monster") {
         const [ox, oy] = [p.x, p.y];
         p.x = target.x; p.y = target.y;
@@ -1468,6 +1567,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           monsterDrop(target, dg, ml, p);
           dg.monsters = dg.monsters.filter(m => m !== target);
           luFn(p, ml);
+        } else if (_swBless) {
+          /* 祝福：入れ替わった先で金縛り */
+          target.paralyzed = true;
+          ml.push(`${target.name}は金縛りになった！`);
         }
         break;
       }
@@ -1482,7 +1585,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "dig": {
-      let dmg = Math.max(1, Math.round(rng(10, 18) * blMult));
+      const _digBlessMult = blMult > 1 ? 2 : 1; /* 祝福：ダメージ2倍 */
+      let dmg = Math.max(1, Math.round(rng(10, 18) * _digBlessMult));
       if (kind === "monster") {
         if (inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
         target.hp -= dmg;
@@ -1526,6 +1630,52 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "warp": {
+      const _wCursed = blMult < 1, _wBlessed = blMult > 1;
+      if (_wCursed) {
+        /* 呪い：1マスだけテレポート（振った方向に1歩移動） */
+        const _w1x = (kind === "monster" ? target.x : p.x) + dx;
+        const _w1y = (kind === "monster" ? target.y : p.y) + dy;
+        if (_w1x >= 0 && _w1x < MW && _w1y >= 0 && _w1y < MH &&
+            dg.map[_w1y][_w1x] !== T.WALL && dg.map[_w1y][_w1x] !== T.BWALL &&
+            !dg.monsters.some(m => m.x === _w1x && m.y === _w1y) &&
+            !(kind === "monster" && p.x === _w1x && p.y === _w1y)) {
+          if (kind === "monster") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少しだけテレポートした。`); }
+          else if (kind === "player") { p.x = _w1x; p.y = _w1y; ml.push("少しだけテレポートした。"); }
+          else if (kind === "item") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少し移動した。`); }
+          else if (kind === "trap") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少し移動した。`); }
+        } else {
+          ml.push("テレポートに失敗した。");
+        }
+        break;
+      }
+      if (_wBlessed) {
+        /* 祝福：下り階段の位置にテレポート＋金縛り */
+        let stairsX = -1, stairsY = -1;
+        for (let fy = 0; fy < MH; fy++)
+          for (let fx = 0; fx < MW; fx++)
+            if (dg.map[fy][fx] === T.SD) { stairsX = fx; stairsY = fy; }
+        if (stairsX >= 0) {
+          if (kind === "monster") {
+            target.x = stairsX; target.y = stairsY;
+            target.paralyzed = true;
+            ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！`);
+          } else if (kind === "player") {
+            p.x = stairsX; p.y = stairsY;
+            p.paralyzeTurns = 10;
+            ml.push("階段の上にテレポートした！しかし金縛りになった！(10ターン)");
+          } else if (kind === "item") {
+            target.x = stairsX; target.y = stairsY;
+            ml.push(`${target.name}は階段の上に飛んだ！`);
+          } else if (kind === "trap") {
+            target.x = stairsX; target.y = stairsY;
+            ml.push(`${target.name}は階段の上に飛んだ！`);
+          }
+        } else {
+          ml.push("テレポートに失敗した。");
+        }
+        break;
+      }
+      /* 通常テレポート */
       const floors = [];
       for (let fy = 0; fy < MH; fy++)
         for (let fx = 0; fx < MW; fx++)
@@ -1724,14 +1874,28 @@ export function getFarcastMode(x, y, dg) {
 }
 
 export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null) {
+  /* 呪われた穴掘り：1マス先に壊せる壁を生成 */
+  if (eff === "dig" && blMult < 1) {
+    const wx = p.x + dx, wy = p.y + dy;
+    if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && dg.map[wy][wx] === T.FLOOR &&
+        !dg.monsters.some(m => m.x === wx && m.y === wy) &&
+        !(p.x === wx && p.y === wy)) {
+      dg.map[wy][wx] = T.BWALL;
+      ml.push("壊せる壁が出現した！");
+    } else {
+      ml.push("魔法弾は消えた。");
+    }
+    return;
+  }
   let lastX = p.x, lastY = p.y;
   for (let d = 1; d < 20; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) {
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) {
       if (eff === "dig") {
+        const _digMax = blMult > 1 ? 20 : 10; /* 祝福：2倍距離 */
         let dug = 0, cx = tx, cy = ty;
-        while (dug < 10 && cx >= 0 && cx < MW && cy >= 0 && cy < MH && dg.map[cy][cx] === T.WALL) {
+        while (dug < _digMax && cx >= 0 && cx < MW && cy >= 0 && cy < MH && (dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL)) {
           dg.map[cy][cx] = T.FLOOR; dug++; cx += dx; cy += dy;
         }
         ml.push(dug > 0 ? `穴掘りの魔法弾が壁を${dug}マス掘り進んだ！` : "魔法弾は壁に消えた。");
@@ -1786,7 +1950,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
   for (let d = 1; d < 20; d++) {
     const tx = cx + dx * d, ty = cy + dy * d;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) {
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       ml.push("魔法弾は壁に消えた。");
       return;
     }
@@ -1828,9 +1992,24 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
   ml.push("魔法弾は虚空に消えた。");
 }
 
-export function breakWandAoE(p, dg, eff, ml, luFn) {
+export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
   if (eff === "leap") { ml.push("杖が壊れたが何も起こらなかった。"); return; }
   if (eff === "dig") {
+    if (blMult < 1) {
+      /* 呪われた穴掘りの杖を壊した：周囲8方向を壊せる壁で囲む */
+      const digDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+      let walled = 0;
+      for (const [adx, ady] of digDirs) {
+        const wx = p.x + adx, wy = p.y + ady;
+        if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && dg.map[wy][wx] === T.FLOOR &&
+            !dg.monsters.some(m => m.x === wx && m.y === wy)) {
+          dg.map[wy][wx] = T.BWALL;
+          walled++;
+        }
+      }
+      ml.push(walled > 0 ? "壊せる壁に囲まれた！" : "杖が壊れたが何も起こらなかった。");
+      return;
+    }
     let dmg = rng(8, 15);
     if (inCursedMagicSealRoom(p.x, p.y, dg)) dmg *= 2;
     p.deathCause = "穴掘りの杖の自壊爆発により";
@@ -1839,7 +2018,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn) {
     const digDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
     for (const [adx, ady] of digDirs) {
       const wx = p.x + adx, wy = p.y + ady;
-      if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && dg.map[wy][wx] === T.WALL)
+      if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && (dg.map[wy][wx] === T.WALL || dg.map[wy][wx] === T.BWALL))
         dg.map[wy][wx] = T.FLOOR;
     }
     const _pfBlocked =
@@ -1902,7 +2081,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
   let lx = p.x, ly = p.y, hit = false;
   for (let d = 1; d <= _maxR; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) break;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
     const m = dg.monsters.find(m2 => m2.x === tx && m2.y === ty);
     if (m) {
       m.hp -= dmg;
@@ -2012,7 +2191,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn) {
   for (let d = 1; d <= spell.range; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) {
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       ml.push("魔法弾は壁に消えた。");
       return;
     }

@@ -944,6 +944,8 @@ export default function RoguelikeGame() {
       paralyzeTurns: 0,
       slowTurns: 0,
       slowSkip: false,
+      hasteTurns: 0,
+      hasteUsed: false,
       confusedTurns: 0,
       facing: { dx: 0, dy: 1 },
       isThief: false,
@@ -1003,7 +1005,7 @@ export default function RoguelikeGame() {
         const vis = dg.visible[y][x],
           exp2 = dg.explored[y][x];
         if (!vis && !exp2) {
-          if (tpSelectMode && dg.map[y][x] !== T.WALL) {
+          if (tpSelectMode && dg.map[y][x] !== T.WALL && dg.map[y][x] !== T.BWALL) {
             ctx.fillStyle = "#0d0d1a";
             ctx.fillRect(px2, py2, sz, sz);
           }
@@ -1011,7 +1013,7 @@ export default function RoguelikeGame() {
         }
         /* Draw base tile */ const t = dg.map[y][x];
         let ti = TI.FLOOR;
-        if (t === T.WALL) ti = TI.WALL;
+        if (t === T.WALL || t === T.BWALL) ti = TI.WALL;
         else if (t === T.SD) ti = TI.SD;
         else if (t === T.SU) ti = TI.SU;
         /* Check if in corridor (not in any room) */ if (
@@ -1022,6 +1024,22 @@ export default function RoguelikeGame() {
         )
           ti = TI.CORR;
         drawTile(ctx, ts, ti, px2, py2, sz);
+        /* 壊せる壁にヒビ表示 */
+        if (t === T.BWALL && (vis || exp2)) {
+          if (!vis) ctx.globalAlpha = 0.4;
+          ctx.strokeStyle = "#aa8844";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(px2 + sz * 0.3, py2 + sz * 0.15);
+          ctx.lineTo(px2 + sz * 0.5, py2 + sz * 0.5);
+          ctx.lineTo(px2 + sz * 0.7, py2 + sz * 0.85);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(px2 + sz * 0.5, py2 + sz * 0.5);
+          ctx.lineTo(px2 + sz * 0.7, py2 + sz * 0.35);
+          ctx.stroke();
+          if (!vis) ctx.globalAlpha = 1;
+        }
         /* Spring */ const spr = dg.springs?.find(
           (s) => s.x === x && s.y === y,
         );
@@ -1138,7 +1156,7 @@ export default function RoguelikeGame() {
       const { cx: _tcx, cy: _tcy } = tpSelectMode;
       if (_tcx >= sx && _tcx < sx + vw && _tcy >= sy && _tcy < sy + vh) {
         const _cpx = (_tcx - sx) * sz, _cpy = (_tcy - sy) * sz;
-        const _tgtWall = dg.map[_tcy]?.[_tcx] === T.WALL;
+        const _tgtWall = dg.map[_tcy]?.[_tcx] === T.WALL || dg.map[_tcy]?.[_tcx] === T.BWALL;
         ctx.fillStyle = _tgtWall ? "rgba(255,60,60,0.25)" : "rgba(255,220,40,0.25)";
         ctx.fillRect(_cpx, _cpy, sz, sz);
         ctx.strokeStyle = _tgtWall ? "#ff4040" : "#ffe040";
@@ -1237,7 +1255,7 @@ export default function RoguelikeGame() {
           for (let _d = 1; _d < 20; _d++) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _cwHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL) { ml.push("呪いの魔法弾は壁に消えた。"); _cwHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { ml.push("呪いの魔法弾は壁に消えた。"); _cwHit = true; break; }
             if (_tx === pl.x && _ty === pl.y) {
               /* 聖域チェック */
               if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
@@ -1611,7 +1629,7 @@ export default function RoguelikeGame() {
             nx < MW &&
             ny >= 0 &&
             ny < MH &&
-            dg.map[ny]?.[nx] !== T.WALL
+            dg.map[ny]?.[nx] !== T.WALL && dg.map[ny]?.[nx] !== T.BWALL
           ) {
             const rx = nx + dx,
               ry = ny + dy;
@@ -1664,7 +1682,7 @@ export default function RoguelikeGame() {
                   kx < MW &&
                   ky >= 0 &&
                   ky < MH &&
-                  dg.map[ky][kx] !== T.WALL &&
+                  dg.map[ky][kx] !== T.WALL && dg.map[ky][kx] !== T.BWALL &&
                   !dg.monsters.some(
                     (m2) => m2 !== attackMon && m2.x === kx && m2.y === ky,
                   )
@@ -1683,7 +1701,7 @@ export default function RoguelikeGame() {
               }
               acted = true;
             }
-          } else if (dg.map[ny][nx] !== T.WALL) {
+          } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
             if (_cursedSanc) {
@@ -1859,7 +1877,20 @@ export default function RoguelikeGame() {
         } else ml.push("ここには何もない。");
       }
       if (acted) {
-        endTurn(st, p, ml);
+        /* 2倍速：1回目の行動はendTurnせず、2回目でendTurn */
+        if ((p.hasteTurns || 0) > 0 && !p.hasteUsed) {
+          p.hasteUsed = true;
+          /* FOVだけ更新して行動完了（モンスターは動かない） */
+          computeFOV(st.dungeon.map, p.x, p.y, 6, st.dungeon.visible, st.dungeon.explored);
+        } else {
+          if (p.hasteUsed) p.hasteUsed = false;
+          endTurn(st, p, ml);
+        }
+        /* 2倍速ターン減少 */
+        if ((p.hasteTurns || 0) > 0) {
+          p.hasteTurns--;
+          if (p.hasteTurns <= 0) { p.hasteUsed = false; ml.push("2倍速が解けた！"); }
+        }
         /* 鈍足：行動後に次のターンをスキップ予約 */
         if ((p.slowTurns || 0) > 0) {
           p.slowTurns--;
@@ -1926,7 +1957,7 @@ export default function RoguelikeGame() {
             sx < MW &&
             sy >= 0 &&
             sy < MH &&
-            dg.map[sy][sx] !== T.WALL
+            dg.map[sy][sx] !== T.WALL && dg.map[sy][sx] !== T.BWALL
           );
         }).length;
       let prevPerps = getP(p.x, p.y);
@@ -1938,7 +1969,7 @@ export default function RoguelikeGame() {
           nx >= MW ||
           ny < 0 ||
           ny >= MH ||
-          dg.map[ny][nx] === T.WALL
+          dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL
         )
           break;
         if (dg.monsters.find((m) => m.x === nx && m.y === ny)) break;
@@ -2021,7 +2052,7 @@ export default function RoguelikeGame() {
           fnx >= MW ||
           fny < 0 ||
           fny >= MH ||
-          dg.map[fny][fnx] === T.WALL ||
+          dg.map[fny][fnx] === T.WALL || dg.map[fny][fnx] === T.BWALL ||
           !!dg.monsters.find((m) => m.x === fnx && m.y === fny);
         endTurn(st, p, ml);
         if (p.hp <= 0 || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
@@ -2444,7 +2475,7 @@ export default function RoguelikeGame() {
         if (ncx !== cx || ncy !== cy) { setTpSelectMode({ cx: ncx, cy: ncy }); return; }
         const doTpConfirm = (tx, ty) => {
           const ml = [];
-          const isWalkable = dg.map[ty]?.[tx] !== T.WALL && dg.map[ty]?.[tx] !== undefined;
+          const isWalkable = dg.map[ty]?.[tx] !== T.WALL && dg.map[ty]?.[tx] !== T.BWALL && dg.map[ty]?.[tx] !== undefined;
           if (isWalkable) {
             p.x = tx; p.y = ty;
             ml.push("テレポートした！（目的地指定）【祝】");
@@ -3291,6 +3322,16 @@ export default function RoguelikeGame() {
               ny < MH &&
               nx >= 0 &&
               nx < MW &&
+              dg.map[ny]?.[nx] === T.BWALL
+            ) {
+              dg.map[ny][nx] = T.FLOOR;
+              act("wait");
+              setMsgs((prev) => [...prev.slice(-80), "壁を叩き壊した！"]);
+            } else if (
+              ny >= 0 &&
+              ny < MH &&
+              nx >= 0 &&
+              nx < MW &&
               dg.map[ny]?.[nx] === T.WALL
             ) {
               act("wait");
@@ -3589,7 +3630,7 @@ export default function RoguelikeGame() {
         if (it.cursed) {
           const _adjCands = DRO.filter(([adx, ady]) => {
             const tx = p.x + adx, ty = p.y + ady;
-            return tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL;
+            return tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL;
           });
           if (_adjCands.length > 0) {
             const [adx, ady] = _adjCands[rng(0, _adjCands.length - 1)];
@@ -3684,7 +3725,7 @@ export default function RoguelikeGame() {
           for (const [_dx, _dy] of DRO) {
             const _cx = p.x + _dx, _cy = p.y + _dy;
             if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
-            if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.SD || dg.map[_cy][_cx] === T.SU) continue;
+            if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL || dg.map[_cy][_cx] === T.SD || dg.map[_cy][_cx] === T.SU) continue;
             const _gb = dg.bigboxes?.find((b) => b.x === _cx && b.y === _cy);
             if (_gb) { bigboxAddItem(_gb, gi, dg, ml); _placed = true; break; }
             const _gs = dg.springs?.find((s) => s.x === _cx && s.y === _cy);
@@ -3819,7 +3860,7 @@ export default function RoguelikeGame() {
           let _pushed = false;
           for (const [_pdx, _pdy] of _dirs) {
             const _px = p.x + _pdx, _py = p.y + _pdy;
-            if (_px >= 0 && _px < MW && _py >= 0 && _py < MH && dg.map[_py][_px] !== T.WALL &&
+            if (_px >= 0 && _px < MW && _py >= 0 && _py < MH && dg.map[_py][_px] !== T.WALL && dg.map[_py][_px] !== T.BWALL &&
                 !dg.monsters.some(m => m.x === _px && m.y === _py) &&
                 !dg.pentacles.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === _px && pc.y === _py)) {
               p.x = _px; p.y = _py;
@@ -4000,7 +4041,8 @@ export default function RoguelikeGame() {
         ml.push("魔封じの魔方陣で魔法が封じられた！効果は発動しなかった。");
       } else {
         const times = Math.max(1, Math.ceil(it.charges / 2));
-        for (let t = 0; t < times; t++) breakWandAoE(p, dg, it.effect, ml, lu);
+        const _bwBlMult = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
+        for (let t = 0; t < times; t++) breakWandAoE(p, dg, it.effect, ml, lu, _bwBlMult);
       }
       endTurn(sr.current, p, ml);
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -4289,7 +4331,8 @@ export default function RoguelikeGame() {
             tx >= MW ||
             ty < 0 ||
             ty >= MH ||
-            dg.map[ty][tx] === T.WALL
+            dg.map[ty][tx] === T.WALL ||
+            dg.map[ty][tx] === T.BWALL
           )
             break;
           const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
@@ -4394,7 +4437,7 @@ export default function RoguelikeGame() {
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) break;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
             const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
             if (m) {
               if (_isFarcast) {
@@ -4442,7 +4485,7 @@ export default function RoguelikeGame() {
           let lx = p.x, ly = p.y, sprHit = null;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) break;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
             const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
             if (m) {
               const td = 3 + rng(0, 3);
@@ -4486,7 +4529,7 @@ export default function RoguelikeGame() {
           let lx = p.x, ly = p.y, hit = false, sprHit = null;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) break;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
             const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
             if (m) {
               m.hp -= td;
@@ -4903,6 +4946,9 @@ export default function RoguelikeGame() {
         {(p.slowTurns || 0) > 0 && (
           <span style={{ color: "#80c0ff" }}>🐢{p.slowTurns}</span>
         )}{" "}
+        {(p.hasteTurns || 0) > 0 && (
+          <span style={{ color: "#ff4040" }}>⚡{p.hasteTurns}</span>
+        )}{" "}
         {(p.confusedTurns || 0) > 0 && (
           <span style={{ color: "#ff9020" }}>🌀{p.confusedTurns}</span>
         )}{" "}
@@ -5305,7 +5351,7 @@ export default function RoguelikeGame() {
           <span style={{ fontWeight: "bold" }}>テレポート先選択【祝】</span>
           <span style={{ color: "#cc0", marginLeft: 8 }}>
             ({tpSelectMode.cx}, {tpSelectMode.cy})
-            {gs?.dungeon?.map?.[tpSelectMode.cy]?.[tpSelectMode.cx] === T.WALL ? " ⚠ 壁→ランダム" : ""}
+            {(gs?.dungeon?.map?.[tpSelectMode.cy]?.[tpSelectMode.cx] === T.WALL || gs?.dungeon?.map?.[tpSelectMode.cy]?.[tpSelectMode.cx] === T.BWALL) ? " ⚠ 壁→ランダム" : ""}
           </span>
           <span style={{ color: "#888", marginLeft: 8 }}>
             方向キー:移動 Z/Enter:決定 X:キャンセル(ランダム)
