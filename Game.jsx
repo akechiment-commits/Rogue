@@ -709,6 +709,8 @@ function _itemPickupSuffix(it, ident) {
   const _key = getIdentKey(it);
   const _isIdent = !_key || ident?.has(_key);
   if (!_isIdent) return "";  // 未識別なら何も表示しない
+  /* 識別対象アイテムはfullIdentのみ回数・祝呪を表示 */
+  if (_key && !it.fullIdent) return "";
   const _chgTypes = new Set(["wand", "pen", "marker"]);
   const _bcTypes  = new Set(["wand", "pen", "marker", "potion", "scroll", "bottle"]);
   if (!_bcTypes.has(it.type)) return "";
@@ -968,7 +970,7 @@ export default function RoguelikeGame() {
     /* モバイル縦：画面高さからUI要素分を引いてマップ表示行数を動的計算 */
     let vh;
     if (mobile && !landscape) {
-      const uiH = 200; /* ステータスバー+HPバー+メッセージログ+操作ボタン+余白 */
+      const uiH = 224; /* ステータスバー+HPバー+メッセージログ(4行)+操作ボタン+余白 */
       const availH = window.innerHeight - uiH;
       vh = Math.max(VH_M, Math.min(Math.floor(availH / sz), MH));
     } else {
@@ -2682,8 +2684,10 @@ export default function RoguelikeGame() {
           const _selKey = getIdentKey(_selIt);
           if (identifyMode.mode === 'identify') {
             sr.current.ident.add(_selKey);
+            _selIt.fullIdent = true; /* 完全識別 */
           } else {
             sr.current.ident.delete(_selKey);
+            _selIt.fullIdent = false;
           }
           // 巻物の消費（識別の巻物の場合）
           if (identifyMode.scrollIdx != null) {
@@ -3691,10 +3695,10 @@ export default function RoguelikeGame() {
         }
       } else if (it.effect === "identify") {
         if (it.blessed) {
-          // 全アイテム識別
+          // 全アイテム完全識別
           for (const _ii of p.inventory) {
             const _k = getIdentKey(_ii);
-            if (_k) sr.current.ident.add(_k);
+            if (_k) { sr.current.ident.add(_k); _ii.fullIdent = true; }
           }
           ml.push("全てのアイテムが識別された！");
         } else if (it.cursed) {
@@ -4712,7 +4716,10 @@ export default function RoguelikeGame() {
     const _eq = _ep?.weapon === it ? "【武器】" : _ep?.armor === it ? "【防具】" : _ep?.arrow === it ? "【矢】" : "";
     const _key = getIdentKey(it);
     const _isIdent = !_key || gs?.ident?.has(_key);
-    const _bc = _isIdent ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
+    /* 識別対象アイテムはfullIdentのみ祝呪表示、それ以外(武器・防具等)は常に表示 */
+    const _needFullIdent = !!_key; /* 識別キーがあるアイテム=識別対象 */
+    const _showBC = _needFullIdent ? it.fullIdent : true;
+    const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
     let s = (_eq ? _eq : "") + _bc + dname(it);
     if (it.type === "arrow") s += ` (${it.count}本)`;
     else if (it.type === "weapon") {
@@ -4750,9 +4757,9 @@ export default function RoguelikeGame() {
       if (!it.cooked) s += " 生";
       if (it.potionEffects?.length) s += " ★";
       s += ")";
-    } else if (it.type === "wand")   s += _isIdent ? ` [${it.charges}回]` : "";
+    } else if (it.type === "wand")   s += it.fullIdent ? ` [${it.charges}回]` : "";
     else if (it.type === "marker") s += ` [${it.charges}回]`;
-    else if (it.type === "pen")    s += _isIdent ? ` [${it.charges || 0}回]` : "";
+    else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
     else if (it.type === "pot")    s += _isIdent ? ` [${it.contents?.length || 0}/${it.capacity}]` : "";
     if (it.shopPrice) s += ` 〔未払:${it.shopPrice}G〕`;
     return s;
@@ -4920,7 +4927,7 @@ export default function RoguelikeGame() {
       />{" "}
       <div
         style={{
-          height: mobile ? 28 : 52,
+          height: mobile ? 52 : 52,
           overflowY: "auto",
           borderTop: "1px solid #252530",
           padding: "2px",
@@ -4934,7 +4941,7 @@ export default function RoguelikeGame() {
           setRevealMode(null);
         } : undefined}
       >
-        {msgs.slice(mobile ? -5 : -8).map((m, i, a) => (
+        {msgs.slice(mobile ? -4 : -8).map((m, i, a) => (
           <div key={i} style={{ opacity: i === a.length - 1 ? 1 : 0.5 }}>
             {m}
           </div>
@@ -5992,8 +5999,10 @@ export default function RoguelikeGame() {
           const _selKey = getIdentKey(_selIt);
           if (identifyMode.mode === 'identify') {
             sr.current.ident.add(_selKey);
+            _selIt.fullIdent = true; /* 完全識別 */
           } else {
             sr.current.ident.delete(_selKey);
+            _selIt.fullIdent = false;
           }
           if (identifyMode.scrollIdx != null) {
             sr.current.player.inventory.splice(identifyMode.scrollIdx, 1);
