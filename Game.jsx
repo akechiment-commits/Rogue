@@ -61,6 +61,7 @@ import {
   BB_TYPES,
   inMagicSealRoom,
   inCursedMagicSealRoom,
+  getFarcastMode,
   monsterDrop,
   getIdentKey,
   generateFakeNames,
@@ -1042,7 +1043,8 @@ export default function RoguelikeGame() {
             _pent.kind === "sanctuary"    ? (_pent.blessed ? "#c0ffd8" : _pent.cursed ? "#800040" : "#40ff80") :
             _pent.kind === "vulnerability"? (_pent.blessed ? "#ff9060" : _pent.cursed ? "#804020" : "#ff6020") :
             _pent.kind === "magic_seal"   ? (_pent.blessed ? "#c0a0ff" : _pent.cursed ? "#403080" : "#8060ff") :
-            _pent.kind === "thunder_trap" ? (_pent.blessed ? "#ffffa0" : _pent.cursed ? "#806020" : "#ffe040") : "#ff6020";
+            _pent.kind === "thunder_trap" ? (_pent.blessed ? "#ffffa0" : _pent.cursed ? "#806020" : "#ffe040") :
+            _pent.kind === "farcast"      ? (_pent.blessed ? "#a0ffff" : _pent.cursed ? "#204060" : "#40c0e0") : "#ff6020";
           ctx.globalAlpha = 0.28;
           ctx.fillStyle = _pentClr;
           ctx.fillRect(px2, py2, sz, sz);
@@ -3790,7 +3792,8 @@ export default function RoguelikeGame() {
             it.effect === "sanctuary"    ? "聖域の魔方陣" :
             it.effect === "vulnerability"? "脆弱の魔方陣" :
             it.effect === "magic_seal"   ? "魔封じの魔方陣" :
-            it.effect === "thunder_trap" ? "雷の魔方陣" : "魔方陣";
+            it.effect === "thunder_trap" ? "雷の魔方陣" :
+            it.effect === "farcast"      ? "遠投の魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
@@ -4259,6 +4262,12 @@ export default function RoguelikeGame() {
       const { idx, mode } = throwMode;
       const { player: p, dungeon: dg } = sr.current;
       const ml = [];
+      /* 遠投判定（投げ・射撃にのみ影響） */
+      const _fcMode = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode)
+        ? getFarcastMode(p.x, p.y, dg) : false;
+      const _isFarcast = _fcMode === "farcast";
+      const _isCursedFc = _fcMode === "cursed";
+      const _maxRange = _isCursedFc ? 1 : _isFarcast ? 50 : 10;
       if (mode === "shoot_equipped") {
         if (!p.arrow || p.arrow.count <= 0) {
           ml.push("矢がない！");
@@ -4272,7 +4281,7 @@ export default function RoguelikeGame() {
         let lx = p.x,
           ly = p.y,
           hit = false;
-        for (let d = 1; d <= 10; d++) {
+        for (let d = 1; d <= _maxRange; d++) {
           const tx = p.x + dx * d,
             ty = p.y + dy * d;
           if (
@@ -4294,18 +4303,24 @@ export default function RoguelikeGame() {
               dg.monsters = dg.monsters.filter((m2) => m2 !== m);
               lu(p, ml);
             }
-            hit = true;
-            break;
+            if (!_isFarcast) { hit = true; break; }
+            /* 遠投：貫通して飛び続ける */
           }
-          const bb = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-          if (bb) {
-            ml.push("矢を射った。");
-            bigboxAddItem(bb, ar, dg, ml);
-            hit = true;
-            break;
+          if (!_isFarcast) {
+            const bb = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
+            if (bb) {
+              ml.push("矢を射った。");
+              bigboxAddItem(bb, ar, dg, ml);
+              hit = true;
+              break;
+            }
           }
           lx = tx;
           ly = ty;
+        }
+        if (_isFarcast || _isCursedFc) {
+          ml.push("矢を射った。矢は消滅した。");
+          hit = true;
         }
         if (!hit) {
           ml.push("矢を射った。");
@@ -4375,45 +4390,48 @@ export default function RoguelikeGame() {
         if (p.arrow  === it) p.arrow  = null;
         p.inventory.splice(idx, 1);
         if (it.type === "potion") {
-          let lx = p.x,
-            ly = p.y,
-            sprHit = null;
-          for (let d = 1; d <= 10; d++) {
-            const tx = p.x + dx * d,
-              ty = p.y + dy * d;
-            if (
-              tx < 0 ||
-              tx >= MW ||
-              ty < 0 ||
-              ty >= MH ||
-              dg.map[ty][tx] === T.WALL
-            )
-              break;
+          let lx = p.x, ly = p.y, sprHit = null;
+          const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
+          for (let d = 1; d <= _maxRange; d++) {
+            const tx = p.x + dx * d, ty = p.y + dy * d;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) break;
             const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
             if (m) {
-              lx = tx;
-              ly = ty;
-              break;
+              if (_isFarcast) {
+                /* 遠投：splash せず個別に薬効果を適用、貫通 */
+                _potHits.push(m);
+              } else {
+                lx = tx; ly = ty; break;
+              }
             }
-            const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
-            if (spr) {
-              lx = tx;
-              ly = ty;
-              sprHit = spr;
-              break;
+            if (!_isFarcast && !_isCursedFc) {
+              const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
+              if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
+              const bb3 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
+              if (bb3) { lx = tx; ly = ty; sprHit = bb3; break; }
             }
-            const bb3 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-            if (bb3) {
-              lx = tx;
-              ly = ty;
-              sprHit = bb3;
-              break;
-            }
-            lx = tx;
-            ly = ty;
+            lx = tx; ly = ty;
           }
           ml.push(`${dnameRef(it)}を投げた！`);
-          if (sprHit?.kind) {
+          if (_isFarcast) {
+            /* 遠投：軌道上の全モンスターに個別に効果 */
+            if (_potHits.length > 0) {
+              for (const _pm of _potHits) {
+                applyPotionEffect(it.effect, it.value || 0, "monster", _pm, dg, p, ml, lu);
+                if (_pm.hp <= 0) {
+                  ml.push(`${_pm.name}を倒した！(+${_pm.exp}exp)`);
+                  p.exp += _pm.exp;
+                  monsterDrop(_pm, dg, ml, p);
+                  dg.monsters = dg.monsters.filter((m2) => m2 !== _pm);
+                  lu(p, ml);
+                }
+              }
+            }
+            ml.push(`${dnameRef(it)}は消滅した。`);
+          } else if (_isCursedFc) {
+            /* 呪い遠投：1マスで落ちてsplash */
+            splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu);
+          } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
             soakItemIntoSpring(sprHit, it, ml, dg);
@@ -4421,20 +4439,10 @@ export default function RoguelikeGame() {
             splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu);
           }
         } else if (it.type === "pot") {
-          let lx = p.x,
-            ly = p.y,
-            sprHit = null;
-          for (let d = 1; d <= 10; d++) {
-            const tx = p.x + dx * d,
-              ty = p.y + dy * d;
-            if (
-              tx < 0 ||
-              tx >= MW ||
-              ty < 0 ||
-              ty >= MH ||
-              dg.map[ty][tx] === T.WALL
-            )
-              break;
+          let lx = p.x, ly = p.y, sprHit = null;
+          for (let d = 1; d <= _maxRange; d++) {
+            const tx = p.x + dx * d, ty = p.y + dy * d;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) break;
             const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
             if (m) {
               const td = 3 + rng(0, 3);
@@ -4447,29 +4455,21 @@ export default function RoguelikeGame() {
                 dg.monsters = dg.monsters.filter((m2) => m2 !== m);
                 lu(p, ml);
               }
-              lx = tx;
-              ly = ty;
-              break;
+              if (!_isFarcast) { lx = tx; ly = ty; break; }
             }
-            const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
-            if (spr) {
-              lx = tx;
-              ly = ty;
-              sprHit = spr;
-              break;
+            if (!_isFarcast && !_isCursedFc) {
+              const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
+              if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
+              const bb4 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
+              if (bb4) { lx = tx; ly = ty; sprHit = bb4; break; }
             }
-            const bb4 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-            if (bb4) {
-              lx = tx;
-              ly = ty;
-              sprHit = bb4;
-              break;
-            }
-            lx = tx;
-            ly = ty;
+            lx = tx; ly = ty;
           }
           ml.push(`${dnameRef(it)}を投げた！`);
-          if (sprHit?.kind) {
+          if (_isFarcast || _isCursedFc) {
+            /* 遠投/呪い遠投：壺は消滅（中身もろとも） */
+            ml.push(`${dnameRef(it)}は消滅した。`);
+          } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
             soakItemIntoSpring(sprHit, it, ml, dg);
@@ -4483,26 +4483,14 @@ export default function RoguelikeGame() {
               : it.type === "arrow"
                 ? it.atk * Math.min(it.count, 5) + it.count
                 : 3) + rng(0, 3);
-          let lx = p.x,
-            ly = p.y,
-            hit = false,
-            sprHit = null;
-          for (let d = 1; d <= 10; d++) {
-            const tx = p.x + dx * d,
-              ty = p.y + dy * d;
-            if (
-              tx < 0 ||
-              tx >= MW ||
-              ty < 0 ||
-              ty >= MH ||
-              dg.map[ty][tx] === T.WALL
-            )
-              break;
+          let lx = p.x, ly = p.y, hit = false, sprHit = null;
+          for (let d = 1; d <= _maxRange; d++) {
+            const tx = p.x + dx * d, ty = p.y + dy * d;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) break;
             const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
             if (m) {
               m.hp -= td;
-              const lb =
-                it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
+              const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
               ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
               if (m.hp <= 0) {
                 ml.push(`${m.name}を倒した！(+${m.exp}exp)`);
@@ -4511,27 +4499,20 @@ export default function RoguelikeGame() {
                 dg.monsters = dg.monsters.filter((m2) => m2 !== m);
                 lu(p, ml);
               }
-              hit = true;
-              break;
+              if (!_isFarcast) { hit = true; break; }
             }
-            const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
-            if (spr) {
-              lx = tx;
-              ly = ty;
-              sprHit = spr;
-              break;
+            if (!_isFarcast && !_isCursedFc) {
+              const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
+              if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
+              const bb5 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
+              if (bb5) { lx = tx; ly = ty; sprHit = bb5; break; }
             }
-            const bb5 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-            if (bb5) {
-              lx = tx;
-              ly = ty;
-              sprHit = bb5;
-              break;
-            }
-            lx = tx;
-            ly = ty;
+            lx = tx; ly = ty;
           }
-          if (!hit) {
+          if (_isFarcast || _isCursedFc) {
+            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
+            ml.push(`${lb}を投げた。${lb}は消滅した。`);
+          } else if (!hit) {
             const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
             ml.push(`${lb}を投げた。`);
             if (sprHit?.kind) {

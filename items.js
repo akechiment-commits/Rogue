@@ -24,7 +24,7 @@ const _FAKE = {
   wand:   ["カシの杖","バオバブの杖","ヒノキの杖","カエデの杖","マホガニーの杖",
            "ケヤキの杖","ブナの杖","クスノキの杖","ポプラの杖","イチョウの杖",
            "シラカバの杖","クリの杖","ナラの杖","スギの杖","ヤナギの杖"],
-  pen:    ["朱色のペン","群青のペン","黄金のペン","翠色のペン"],
+  pen:    ["朱色のペン","群青のペン","黄金のペン","翠色のペン","銀色のペン"],
   pot:    ["丸い壺","四角い壺","細長い壺","平たい壺","瓢箪型の壺","古い壺",
            "新しい壺","大きな壺","小さな壺","模様入りの壺","光沢のある壺",
            "素焼きの壺","裂けた壺"],
@@ -80,6 +80,7 @@ export const ITEMS = [
   { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, desc:"足元に脆弱の魔方陣を描く。同じ部屋にいる者全員の受けるダメージが2倍になる。チャージ制。", tile:42 },
   { name:"魔封じのペン",     type:"pen",    effect:"magic_seal",    charges:2, desc:"足元に魔封じの魔方陣を描く。部屋内では一切の魔法が無効になる。外からの魔法弾も消える。チャージ制。", tile:42 },
   { name:"雷のペン",         type:"pen",    effect:"thunder_trap",  charges:2, desc:"足元に雷の魔方陣を描く。真上にいると毎ターン25ダメージを受ける。チャージ制。", tile:42 },
+  { name:"遠投のペン",       type:"pen",    effect:"farcast",       charges:2, desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。チャージ制。", tile:42 },
   { name:"短剣",             type:"weapon", atk:3,                       desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      desc:"重厚な戦斧。",                     tile:20 },
@@ -1707,6 +1708,21 @@ export function inCursedMagicSealRoom(x, y, dg) {
     pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h);
 }
 
+/* 遠投の魔方陣判定: "farcast"|"cursed"|false */
+export function getFarcastMode(x, y, dg) {
+  if (!dg.pentacles?.length || !dg.rooms) return false;
+  /* 祝福された遠投の魔方陣があればフロア全体 */
+  const blessedFc = dg.pentacles.find(pc => pc.kind === "farcast" && pc.blessed);
+  if (blessedFc) return "farcast";
+  /* 呪われた遠投の魔方陣が部屋内にあれば1マス */
+  const room = dg.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  if (!room) return false;
+  const fcPent = dg.pentacles.find(pc => pc.kind === "farcast" &&
+    pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h);
+  if (!fcPent) return false;
+  return fcPent.cursed ? "cursed" : "farcast";
+}
+
 export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null) {
   let lastX = p.x, lastY = p.y;
   for (let d = 1; d < 20; d++) {
@@ -1880,8 +1896,11 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
   st.count--;
   if (st.count <= 0) p.inventory.splice(idx, 1);
   const ar = makeArrow(1), dmg = ar.atk + rng(1, 4);
+  const _fc = getFarcastMode(p.x, p.y, dg);
+  const _isFc = _fc === "farcast";
+  const _maxR = _fc === "cursed" ? 1 : _isFc ? 50 : 10;
   let lx = p.x, ly = p.y, hit = false;
-  for (let d = 1; d <= 10; d++) {
+  for (let d = 1; d <= _maxR; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL) break;
     const m = dg.monsters.find(m2 => m2.x === tx && m2.y === ty);
@@ -1895,18 +1914,22 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
         dg.monsters = dg.monsters.filter(m2 => m2 !== m);
         luFn(p, ml);
       }
-      hit = true; break;
+      if (!_isFc) { hit = true; break; }
     }
-    const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
-    if (bb) {
-      ml.push("矢を射った。");
-      if (bbFn) bbFn(bb, ar, dg, ml);
-      else { const ft = new Set(); placeItemAt(dg, tx, ty, ar, ml, ft); }
-      hit = true; break;
+    if (!_isFc) {
+      const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
+      if (bb) {
+        ml.push("矢を射った。");
+        if (bbFn) bbFn(bb, ar, dg, ml);
+        else { const ft = new Set(); placeItemAt(dg, tx, ty, ar, ml, ft); }
+        hit = true; break;
+      }
     }
     lx = tx; ly = ty;
   }
-  if (!hit) {
+  if (_isFc || _fc === "cursed") {
+    ml.push("矢を射った。矢は消滅した。");
+  } else if (!hit) {
     ml.push("矢を射った。");
     const ft = new Set();
     placeItemAt(dg, lx, ly, ar, ml, ft);
