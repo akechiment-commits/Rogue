@@ -752,6 +752,8 @@ export default function RoguelikeGame() {
   const [gs, setGs] = useState(null);
   const [msgs, setMsgs] = useState(["冒険が始まった！"]);
   const [showInv, setShowInv] = useState(false);
+  const [dropMode, setDropMode] = useState(false);
+  const dropModeRef = useRef(false);
   const [selIdx, setSelIdx] = useState(null);
   const [invPage, setInvPage] = useState(0);
   const [invMenuSel, setInvMenuSel] = useState(null);
@@ -1578,7 +1580,10 @@ export default function RoguelikeGame() {
       const ml = [];
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || p.slowSkip) return;
       if (type === "inventory") {
-        setShowInv((v) => !v);
+        setShowInv((v) => {
+          if (v) { dropModeRef.current = false; setDropMode(false); }
+          return !v;
+        });
         setSelIdx(null);
         setShowDesc(null);
         setThrowMode(null);
@@ -3201,6 +3206,13 @@ export default function RoguelikeGame() {
         act("inventory");
         return;
       }
+      if (k === "d" && showInv) {
+        e.preventDefault();
+        const newMode = !dropModeRef.current;
+        dropModeRef.current = newMode;
+        setDropMode(newMode);
+        return;
+      }
       if (showInv) return;
       const numpadGame = {
         Numpad1: [-1, 1],
@@ -3994,7 +4006,9 @@ export default function RoguelikeGame() {
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
     setSelIdx(null);
     setShowDesc(null);
-    // インベントリを閉じずに連続で置けるようにする
+    if (!dropModeRef.current) {
+      setShowInv(false);
+    }
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
   }, [endTurn]);
@@ -6538,7 +6552,29 @@ export default function RoguelikeGame() {
               </button>
               <button
                 onClick={() => {
+                  const newMode = !dropModeRef.current;
+                  dropModeRef.current = newMode;
+                  setDropMode(newMode);
+                }}
+                style={{
+                  background: dropMode ? "#2a1a1a" : "#1a1a2a",
+                  color: dropMode ? "#f88" : "#aaa",
+                  border: `1px solid ${dropMode ? "#8a3030" : "#3a3a5a"}`,
+                  borderRadius: 4,
+                  padding: "3px 8px",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  touchAction: "manipulation",
+                  fontWeight: dropMode ? "bold" : "normal",
+                }}
+              >
+                置く[D]
+              </button>
+              <button
+                onClick={() => {
                   setShowInv(false);
+                  dropModeRef.current = false;
+                  setDropMode(false);
                   setSelIdx(null);
                   setShowDesc(null);
                   setInvPage(0);
@@ -6752,6 +6788,10 @@ export default function RoguelikeGame() {
                 >
                   <div
                     onClick={() => {
+                      if (dropModeRef.current) {
+                        doDropItem(i);
+                        return;
+                      }
                       setSelIdx(selIdx === j ? null : j);
                       setInvMenuSel(null);
                       setShowDesc(null);
