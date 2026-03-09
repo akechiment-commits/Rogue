@@ -4542,7 +4542,7 @@ export default function RoguelikeGame() {
                 dg.monsters = dg.monsters.filter((m2) => m2 !== m);
                 lu(p, ml);
               }
-              if (!_isFarcast) { hit = true; break; }
+              if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; }
             }
             if (!_isFarcast) {
               const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
@@ -4555,7 +4555,7 @@ export default function RoguelikeGame() {
           if (_isFarcast) {
             const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
             ml.push(`${lb}を投げた。${lb}は消滅した。`);
-          } else if (!hit) {
+          } else if (!hit || _isCursedFc) {
             const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
             ml.push(`${lb}を投げた。`);
             if (sprHit?.kind) {
