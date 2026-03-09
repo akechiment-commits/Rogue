@@ -4361,7 +4361,7 @@ export default function RoguelikeGame() {
           lx = tx;
           ly = ty;
         }
-        if (_isFarcast || _isCursedFc) {
+        if (_isFarcast) {
           ml.push("矢を射った。矢は消滅した。");
           hit = true;
         }
@@ -4447,7 +4447,7 @@ export default function RoguelikeGame() {
                 lx = tx; ly = ty; break;
               }
             }
-            if (!_isFarcast && !_isCursedFc) {
+            if (!_isFarcast) {
               const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
               if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
               const bb3 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
@@ -4500,7 +4500,7 @@ export default function RoguelikeGame() {
               }
               if (!_isFarcast) { lx = tx; ly = ty; break; }
             }
-            if (!_isFarcast && !_isCursedFc) {
+            if (!_isFarcast) {
               const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
               if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
               const bb4 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
@@ -4509,8 +4509,8 @@ export default function RoguelikeGame() {
             lx = tx; ly = ty;
           }
           ml.push(`${dnameRef(it)}を投げた！`);
-          if (_isFarcast || _isCursedFc) {
-            /* 遠投/呪い遠投：壺は消滅（中身もろとも） */
+          if (_isFarcast) {
+            /* 遠投：壺は消滅（中身もろとも） */
             ml.push(`${dnameRef(it)}は消滅した。`);
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
@@ -4544,7 +4544,7 @@ export default function RoguelikeGame() {
               }
               if (!_isFarcast) { hit = true; break; }
             }
-            if (!_isFarcast && !_isCursedFc) {
+            if (!_isFarcast) {
               const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
               if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
               const bb5 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
@@ -4552,7 +4552,7 @@ export default function RoguelikeGame() {
             }
             lx = tx; ly = ty;
           }
-          if (_isFarcast || _isCursedFc) {
+          if (_isFarcast) {
             const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
             ml.push(`${lb}を投げた。${lb}は消滅した。`);
           } else if (!hit) {
