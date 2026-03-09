@@ -1690,6 +1690,36 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "paralyze": {
+      const _pCursed = blMult < 1, _pBlessed = blMult > 1;
+      if (_pCursed) {
+        /* 呪い：テレポート */
+        const _pFloors = [];
+        for (let fy = 0; fy < MH; fy++)
+          for (let fx = 0; fx < MW; fx++)
+            if (dg.map[fy][fx] === T.FLOOR && !dg.monsters.find(m => m.x === fx && m.y === fy))
+              _pFloors.push({ x:fx, y:fy });
+        if (_pFloors.length === 0) { ml.push("テレポートに失敗した。"); break; }
+        const _pd = _pFloors[rng(0, _pFloors.length - 1)];
+        if (kind === "monster") { target.x = _pd.x; target.y = _pd.y; ml.push(`${target.name}はどこかへテレポートした！`); }
+        else if (kind === "player") { p.x = _pd.x; p.y = _pd.y; ml.push("テレポートした！"); }
+        break;
+      }
+      if (_pBlessed && (kind === "monster" || kind === "player")) {
+        /* 祝福：着弾点の周囲8マスにも金縛り */
+        const _cx = kind === "monster" ? target.x : p.x;
+        const _cy = kind === "monster" ? target.y : p.y;
+        if (kind === "monster") { target.paralyzed = true; ml.push(`${target.name}は金縛りになった！`); }
+        else { p.paralyzeTurns = 10; ml.push("金縛りになった！(10ターン)"); }
+        for (const [adx, ady] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+          const ax = _cx + adx, ay = _cy + ady;
+          if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+          const am = dg.monsters.find(m => m.x === ax && m.y === ay);
+          if (am) { am.paralyzed = true; ml.push(`${am.name}は金縛りになった！`); }
+          if (ax === p.x && ay === p.y && kind !== "player") { p.paralyzeTurns = 10; ml.push("金縛りになった！(10ターン)"); }
+        }
+        break;
+      }
+      /* 通常 */
       if (kind === "monster") {
         target.paralyzed = true;
         ml.push(`${target.name}は金縛りになった！動けない！`);
@@ -1704,7 +1734,49 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "sleep": {
+      const _slCursed = blMult < 1, _slBlessed = blMult > 1;
+      if (_slCursed) {
+        /* 呪い：1ターンだけ眠る */
+        if (kind === "monster") {
+          target.sleepTurns = 1;
+          ml.push(`${target.name}は一瞬うとうとした。(1ターン)`);
+          break;
+        }
+        if (kind === "player") {
+          if (p.armor?.ability === "sleep_proof") {
+            ml.push("しかし眠れなかった！(耐眠)");
+          } else {
+            p.sleepTurns = 1;
+            ml.push("一瞬うとうとした...(1ターン)");
+          }
+          break;
+        }
+        ml.push("魔法弾は効果なく消えた。");
+        break;
+      }
       const st = rng(3, 6);
+      if (_slBlessed && (kind === "monster" || kind === "player")) {
+        /* 祝福：周囲8マスにも眠り */
+        const _sx = kind === "monster" ? target.x : p.x;
+        const _sy = kind === "monster" ? target.y : p.y;
+        if (kind === "monster") { target.sleepTurns = (target.sleepTurns || 0) + st; ml.push(`${target.name}は眠りに落ちた！(${st}ターン)`); }
+        else {
+          if (p.armor?.ability === "sleep_proof") { ml.push("しかし眠れなかった！(耐眠)"); }
+          else { p.sleepTurns = (p.sleepTurns || 0) + st; ml.push(`眠りに落ちた...(${st}ターン)`); }
+        }
+        for (const [adx, ady] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+          const ax = _sx + adx, ay = _sy + ady;
+          if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+          const am = dg.monsters.find(m => m.x === ax && m.y === ay);
+          if (am) { am.sleepTurns = (am.sleepTurns || 0) + st; ml.push(`${am.name}は眠りに落ちた！(${st}ターン)`); }
+          if (ax === p.x && ay === p.y && kind !== "player") {
+            if (p.armor?.ability === "sleep_proof") { ml.push("しかし眠れなかった！(耐眠)"); }
+            else { p.sleepTurns = (p.sleepTurns || 0) + st; ml.push(`眠りに落ちた...(${st}ターン)`); }
+          }
+        }
+        break;
+      }
+      /* 通常 */
       if (kind === "monster") {
         target.sleepTurns = (target.sleepTurns || 0) + st;
         ml.push(`${target.name}は眠りに落ちた！(${st}ターン)`);
@@ -1723,6 +1795,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "bless_wand": {
+      const _bwCursed = blMult < 1, _bwBlessed = blMult > 1;
+      if (_bwCursed) {
+        /* 呪われた祝福の杖 = 通常の呪いの杖と同じ効果 */
+        applyWandEffect("curse_wand", kind, target, dx, dy, dg, p, ml, luFn, bbFn, 1, nameFn);
+        break;
+      }
       if (kind === "item") {
         if (target.type === "pot") {
           target.capacity = (target.capacity || 1) + 1;
@@ -1740,21 +1818,38 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
-        const _bh = rng(10, 20);
-        target.hp = Math.min(target.maxHp, target.hp + _bh);
-        ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！`);
+        const _bhAmt = _bwBlessed ? 100 : 50;
+        const _bh = Math.min(_bhAmt, target.maxHp - target.hp);
+        if (_bh > 0) { target.hp += _bh; ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！`); }
+        else ml.push(`${target.name}には効果がなかった。`);
         break;
       }
       if (kind === "player") {
-        const _bh = Math.min(rng(15, 25), p.maxHp - p.hp);
-        p.hp += _bh;
-        ml.push(_bh > 0 ? `祝福の光に包まれ、HPが${_bh}回復した！` : "祝福されたが、HPは既に満タンだ。");
+        /* 自分に当たると所持品をランダムに祝福（祝福杖=2個、通常=1個） */
+        const _bwCount = _bwBlessed ? 2 : 1;
+        const _bwInv = p.inventory?.filter(i => i.type !== "gold" && i.type !== "arrow" && !i.blessed) || [];
+        if (_bwInv.length === 0) {
+          ml.push("祝福できる所持品がなかった。");
+        } else {
+          const _bwShuf = [..._bwInv].sort(() => Math.random() - 0.5);
+          for (let _bi = 0; _bi < Math.min(_bwCount, _bwShuf.length); _bi++) {
+            const _bit = _bwShuf[_bi];
+            _bit.blessed = true; _bit.cursed = false;
+            ml.push(`${_bit.name}が祝福された！【祝】`);
+          }
+        }
         break;
       }
       ml.push("魔法弾は効果なく消えた。");
       break;
     }
     case "curse_wand": {
+      const _cwCursed = blMult < 1, _cwBlessed = blMult > 1;
+      if (_cwCursed) {
+        /* 呪われた呪いの杖 = 通常の祝福の杖と同じ効果 */
+        applyWandEffect("bless_wand", kind, target, dx, dy, dg, p, ml, luFn, bbFn, 1, nameFn);
+        break;
+      }
       if (kind === "item") {
         if (target.type === "arrow") {
           ml.push("矢には呪いが効かない。");
@@ -1763,7 +1858,6 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (target.type === "pot") {
           const _newCap = Math.max(0, (target.capacity || 1) - 1);
           if ((target.contents?.length || 0) > _newCap) {
-            /* 容量オーバー → 壺ごと割れる */
             dg.items = dg.items.filter(i => i !== target);
             const _fts = new Set();
             for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
@@ -1780,14 +1874,19 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
-        target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-        ml.push(`${target.name}が呪いで鈍足になった！`);
+        if (_cwBlessed) {
+          /* 祝福された呪いの杖：鈍足効果 */
+          target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+          ml.push(`${target.name}が呪いで鈍足になった！`);
+        } else {
+          target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+          ml.push(`${target.name}が呪いで鈍足になった！`);
+        }
         break;
       }
       if (kind === "bigbox") {
         const _newCap = Math.max(0, (target.capacity || 1) - 1);
         if ((target.contents?.length || 0) > _newCap) {
-          /* 容量オーバー → 大箱が壊れて中身が飛び出す */
           const _fts = new Set();
           for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
           dg.bigboxes = dg.bigboxes.filter(b => b !== target);
@@ -1799,20 +1898,40 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        /* ランダムな所持品を呪う（金貨・矢を除く） */
-        const _inv = p.inventory?.filter(i => i.type !== "gold" && i.type !== "arrow") || [];
-        if (_inv.length === 0) {
-          ml.push("所持品がないので呪いの効果がなかった。");
-        } else {
-          const _cit = _inv[rng(0, _inv.length - 1)];
-          if (_cit.cursed) {
-            ml.push(`${_cit.name}は既に呪われていた！（効果なし）`);
-          } else if (_cit.blessed) {
-            _cit.blessed = false;
-            ml.push(`${_cit.name}の祝福が解けた！`);
+        if (_cwBlessed) {
+          /* 祝福された呪いの杖：所持品をランダムに2つ呪う */
+          const _cwInv = p.inventory?.filter(i => i.type !== "gold" && i.type !== "arrow" && !i.cursed) || [];
+          if (_cwInv.length === 0) {
+            ml.push("呪える所持品がなかった。");
           } else {
-            _cit.cursed = true;
-            ml.push(`${_cit.name}が呪われた！【呪】`);
+            const _cwShuf = [..._cwInv].sort(() => Math.random() - 0.5);
+            for (let _ci2 = 0; _ci2 < Math.min(2, _cwShuf.length); _ci2++) {
+              const _cit2 = _cwShuf[_ci2];
+              if (_cit2.blessed) {
+                _cit2.blessed = false;
+                ml.push(`${_cit2.name}の祝福が解けた！`);
+              } else {
+                _cit2.cursed = true;
+                ml.push(`${_cit2.name}が呪われた！【呪】`);
+              }
+            }
+          }
+        } else {
+          /* 通常の呪いの杖：ランダムな所持品を1つ呪う */
+          const _inv = p.inventory?.filter(i => i.type !== "gold" && i.type !== "arrow") || [];
+          if (_inv.length === 0) {
+            ml.push("所持品がないので呪いの効果がなかった。");
+          } else {
+            const _cit = _inv[rng(0, _inv.length - 1)];
+            if (_cit.cursed) {
+              ml.push(`${_cit.name}は既に呪われていた！（効果なし）`);
+            } else if (_cit.blessed) {
+              _cit.blessed = false;
+              ml.push(`${_cit.name}の祝福が解けた！`);
+            } else {
+              _cit.cursed = true;
+              ml.push(`${_cit.name}が呪われた！【呪】`);
+            }
           }
         }
         break;
@@ -1821,6 +1940,44 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "confuse": {
+      const _cfCursed = blMult < 1, _cfBlessed = blMult > 1;
+      if (_cfCursed) {
+        /* 呪い：状態異常を全て治す */
+        if (kind === "monster") {
+          target.paralyzed = false;
+          target.sleepTurns = 0;
+          target.confusedTurns = 0;
+          target.speed = target.baseSpeed || 1;
+          ml.push(`${target.name}の状態異常が全て治った！`);
+          break;
+        }
+        if (kind === "player") {
+          p.paralyzeTurns = 0;
+          p.sleepTurns = 0;
+          p.confusedTurns = 0;
+          p.blindTurns = 0;
+          ml.push("状態異常が全て治った！");
+          break;
+        }
+        ml.push("魔法弾は効果なく消えた。");
+        break;
+      }
+      if (_cfBlessed && (kind === "monster" || kind === "player")) {
+        /* 祝福：周囲8マスにも混乱 */
+        const _cfx = kind === "monster" ? target.x : p.x;
+        const _cfy = kind === "monster" ? target.y : p.y;
+        if (kind === "monster") { target.confusedTurns = (target.confusedTurns || 0) + 20; ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)`); }
+        else { p.confusedTurns = (p.confusedTurns || 0) + 5; ml.push(`混乱した！(${p.confusedTurns}ターン)`); }
+        for (const [adx, ady] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+          const ax = _cfx + adx, ay = _cfy + ady;
+          if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+          const am = dg.monsters.find(m => m.x === ax && m.y === ay);
+          if (am) { am.confusedTurns = (am.confusedTurns || 0) + 20; ml.push(`${am.name}が混乱した！(${am.confusedTurns}ターン)`); }
+          if (ax === p.x && ay === p.y && kind !== "player") { p.confusedTurns = (p.confusedTurns || 0) + 5; ml.push(`混乱した！(${p.confusedTurns}ターン)`); }
+        }
+        break;
+      }
+      /* 通常 */
       if (kind === "monster") {
         target.confusedTurns = (target.confusedTurns || 0) + 20;
         ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)`);
