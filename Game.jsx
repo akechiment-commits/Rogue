@@ -962,10 +962,18 @@ export default function RoguelikeGame() {
       ctx = cvs.getContext("2d");
     const ts = null;
     const { player: p, dungeon: dg } = gs;
-    const vw = mobile ? (landscape ? VW_L : VW_M) : VW_D,
-      vh = mobile ? (landscape ? VH_L : VH_M) : VH_D;
+    const vw = mobile ? (landscape ? VW_L : VW_M) : VW_D;
     const contW = cvs.parentElement?.clientWidth || 600;
     const sz = Math.max(12, Math.floor(contW / vw));
+    /* モバイル縦：画面高さからUI要素分を引いてマップ表示行数を動的計算 */
+    let vh;
+    if (mobile && !landscape) {
+      const uiH = 200; /* ステータスバー+HPバー+メッセージログ+操作ボタン+余白 */
+      const availH = window.innerHeight - uiH;
+      vh = Math.max(VH_M, Math.min(Math.floor(availH / sz), MH));
+    } else {
+      vh = mobile ? VH_L : VH_D;
+    }
     const cw = vw * sz,
       ch = vh * sz;
     cvs.width = cw;
@@ -4515,7 +4523,7 @@ export default function RoguelikeGame() {
         throw: "投げる方向",
       }[throwMode.mode] || "方向選択"
     : "";
-  const B = ({ label, onClick, w = 46, h = 46, fs = 16, style: s = {} }) => (
+  const B = ({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) => (
     <button
       onPointerDown={(e) => {
         e.preventDefault();
@@ -4551,8 +4559,8 @@ export default function RoguelikeGame() {
       }}
       style={{
         flex: 1,
-        minWidth: 44,
-        height: 44,
+        minWidth: 38,
+        height: 36,
         background: "#181828",
         color,
         border: "1px solid #3a3a4a",
@@ -4600,18 +4608,18 @@ export default function RoguelikeGame() {
           <B
             label="↖"
             onClick={() => onClick(-1, -1)}
-            w={36}
-            h={36}
-            fs={13}
+            w={32}
+            h={32}
+            fs={12}
             style={ds}
           />
           <B label="↑" onClick={() => onClick(0, -1)} style={ds} />
           <B
             label="↗"
             onClick={() => onClick(1, -1)}
-            w={36}
-            h={36}
-            fs={13}
+            w={32}
+            h={32}
+            fs={12}
             style={ds}
           />
         </div>
@@ -4670,8 +4678,8 @@ export default function RoguelikeGame() {
           />
           <B
             label="向"
-            w={32}
-            h={36}
+            w={28}
+            h={32}
             fs={10}
             onClick={() => setFacingMode((f) => !f)}
             style={
@@ -4689,18 +4697,18 @@ export default function RoguelikeGame() {
           <B
             label="↙"
             onClick={() => onClick(-1, 1)}
-            w={36}
-            h={36}
-            fs={13}
+            w={32}
+            h={32}
+            fs={12}
             style={ds}
           />
           <B label="↓" onClick={() => onClick(0, 1)} style={ds} />
           <B
             label="↘"
             onClick={() => onClick(1, 1)}
-            w={36}
-            h={36}
-            fs={13}
+            w={32}
+            h={32}
+            fs={12}
             style={ds}
           />
         </div>
@@ -4925,7 +4933,7 @@ export default function RoguelikeGame() {
       />{" "}
       <div
         style={{
-          height: mobile ? 36 : 52,
+          height: mobile ? 28 : 52,
           overflowY: "auto",
           borderTop: "1px solid #252530",
           padding: "2px",
@@ -4955,7 +4963,7 @@ export default function RoguelikeGame() {
         <div
           style={{
             borderTop: `1px solid ${throwMode ? "#5a3a3a" : "#252530"}`,
-            padding: "6px 2px 10px",
+            padding: "4px 2px 6px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -4990,7 +4998,7 @@ export default function RoguelikeGame() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: 4,
+                gap: 2,
                 flex: 1,
                 maxWidth: 200,
               }}
