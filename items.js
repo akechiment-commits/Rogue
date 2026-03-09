@@ -1343,7 +1343,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "lightning": {
-      const dmg = Math.max(1, Math.round(rng(15, 25) * blMult));
+      let dmg = Math.max(1, Math.round(rng(15, 25) * blMult));
+      if (kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
       if (kind === "monster") {
         target.hp -= dmg;
         ml.push(`雷撃が${target.name}に命中！${dmg}ダメージ！`);
@@ -1357,6 +1358,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
+        if (inCursedMagicSealRoom(p.x, p.y, dg)) dmg *= 2;
         p.deathCause = "雷の杖の魔法により";
         p.hp -= dmg;
         ml.push(`雷撃が自分に命中！${dmg}ダメージ！`);
@@ -1479,8 +1481,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "dig": {
-      const dmg = Math.max(1, Math.round(rng(10, 18) * blMult));
+      let dmg = Math.max(1, Math.round(rng(10, 18) * blMult));
       if (kind === "monster") {
+        if (inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
         target.hp -= dmg;
         ml.push(`穴掘りの魔法弾が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) {
@@ -1492,6 +1495,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
       }
       if (kind === "player") {
+        if (inCursedMagicSealRoom(p.x, p.y, dg)) dmg *= 2;
         p.deathCause = "穴掘りの魔法弾により";
         p.hp -= dmg;
         ml.push(`穴掘りの魔法弾が自分に命中！${dmg}ダメージ！`);
@@ -1686,12 +1690,20 @@ export function inMagicSealRoom(x, y, dg) {
   if (!dg.pentacles?.length || !dg.rooms) return false;
   /* 祝福された魔封じの魔方陣があればフロア全体に効果 */
   if (dg.pentacles.some(pc => pc.kind === "magic_seal" && pc.blessed)) return true;
-  /* 呪われた魔封じの魔方陣：真上のマスのみ封じる */
-  if (dg.pentacles.some(pc => pc.kind === "magic_seal" && pc.cursed && pc.x === x && pc.y === y)) return true;
+  /* 呪われた魔封じは封じない（代わりに魔法ダメージ2倍） */
   /* 通常の魔封じ：部屋全体 */
   const room = dg.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
   if (!room) return false;
   return dg.pentacles.some(pc => pc.kind === "magic_seal" && !pc.cursed &&
+    pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h);
+}
+
+/* 呪われた魔封じの魔方陣：部屋内で魔法ダメージ2倍 */
+export function inCursedMagicSealRoom(x, y, dg) {
+  if (!dg.pentacles?.length || !dg.rooms) return false;
+  const room = dg.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  if (!room) return false;
+  return dg.pentacles.some(pc => pc.kind === "magic_seal" && pc.cursed &&
     pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h);
 }
 
@@ -1766,7 +1778,8 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       /* 祝福された聖域の魔方陣は飛び道具（雷撃）を防ぐ */
       const _lBlessedSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
       if (_lBlessedSanc) { ml.push("祝福された聖域の加護が雷撃を防いだ！"); return; }
-      const dmg = rng(15, 25);
+      let dmg = rng(15, 25);
+      if (inCursedMagicSealRoom(pl.x, pl.y, dg)) dmg *= 2;
       pl.deathCause = `${monName}の雷撃により`;
       pl.hp -= dmg;
       ml.push(`雷撃が命中！${dmg}ダメージ！`);
@@ -1802,7 +1815,8 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
 export function breakWandAoE(p, dg, eff, ml, luFn) {
   if (eff === "leap") { ml.push("杖が壊れたが何も起こらなかった。"); return; }
   if (eff === "dig") {
-    const dmg = rng(8, 15);
+    let dmg = rng(8, 15);
+    if (inCursedMagicSealRoom(p.x, p.y, dg)) dmg *= 2;
     p.deathCause = "穴掘りの杖の自壊爆発により";
     p.hp -= dmg;
     ml.push(`穴掘りの杖が壊れた！爆発で${dmg}ダメージ！`);
@@ -1930,7 +1944,48 @@ export const SPELLBOOKS=[
   {name:"変化の魔法書",type:"spellbook",spell:"transform_magic",desc:"変化の魔法を習得できる。火に弱い。",tile:18},
   {name:"識別の魔法書",type:"spellbook",spell:"identify_magic",desc:"識別の魔法を習得できる。火に弱い。",tile:18},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
-export function applySpellEffect(eff,kind,target,dx,dy,dg,p,ml,luFn){switch(eff){case"fire_bolt":{const dmg=rng(20,30);if(kind==="monster"){target.hp-=dmg;ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！`);if(target.hp<=0){ml.push(`${target.name}を倒した！(+${target.exp}exp)`);p.exp+=target.exp;monsterDrop(target,dg,ml,p);dg.monsters=dg.monsters.filter(m=>m!==target);luFn(p,ml);}}break;}case"ice_bolt":{const dmg=rng(15,22);if(kind==="monster"){target.hp-=dmg;target.speed=Math.max(0.25,target.speed*0.5);ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！動きが鈍くなった！`);if(target.hp<=0){ml.push(`${target.name}を倒した！(+${target.exp}exp)`);p.exp+=target.exp;monsterDrop(target,dg,ml,p);dg.monsters=dg.monsters.filter(m=>m!==target);luFn(p,ml);}}break;}case"lightning_magic":{const dmg=rng(22,32);if(kind==="monster"){target.hp-=dmg;ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);if(target.hp<=0){ml.push(`${target.name}を倒した！(+${target.exp}exp)`);p.exp+=target.exp;monsterDrop(target,dg,ml,p);dg.monsters=dg.monsters.filter(m=>m!==target);luFn(p,ml);}}if(kind==="item"){if(target.type==="potion"||target.type==="scroll"||target.type==="spellbook"){dg.items=dg.items.filter(i=>i!==target);ml.push(`${target.name}は雷の魔法で焼けた！`);}}break;}case"sleep_bolt":{if(kind==="monster"){const t=rng(3,6);target.sleepTurns=(target.sleepTurns||0)+t;ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`);}break;}case"transform_magic":{if(kind==="monster"){const nt=MONS[rng(0,MONS.length-1)];const prevName=target.name;const ox=target.x,oy=target.y;Object.assign(target,{...nt,id:target.id,x:ox,y:oy,maxHp:nt.hp,turnAccum:0,aware:target.aware,dir:target.dir,lastPx:target.lastPx,lastPy:target.lastPy,subtype:nt.subtype,wandEffect:nt.wandEffect,wallWalker:nt.wallWalker});ml.push(`${prevName}は${target.name}に変化した！`);}break;}default:ml.push("魔法弾は効果なく消えた。");}}
+export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
+  const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
+  switch (eff) {
+    case "fire_bolt": {
+      const dmg = rng(20, 30) * _cmsBoost;
+      if (kind === "monster") {
+        target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！`);
+        if (target.hp <= 0) { ml.push(`${target.name}を倒した！(+${target.exp}exp)`); p.exp += target.exp; monsterDrop(target, dg, ml, p); dg.monsters = dg.monsters.filter(m => m !== target); luFn(p, ml); }
+      } break;
+    }
+    case "ice_bolt": {
+      const dmg = rng(15, 22) * _cmsBoost;
+      if (kind === "monster") {
+        target.hp -= dmg; target.speed = Math.max(0.25, target.speed * 0.5);
+        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！動きが鈍くなった！`);
+        if (target.hp <= 0) { ml.push(`${target.name}を倒した！(+${target.exp}exp)`); p.exp += target.exp; monsterDrop(target, dg, ml, p); dg.monsters = dg.monsters.filter(m => m !== target); luFn(p, ml); }
+      } break;
+    }
+    case "lightning_magic": {
+      const dmg = rng(22, 32) * _cmsBoost;
+      if (kind === "monster") {
+        target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);
+        if (target.hp <= 0) { ml.push(`${target.name}を倒した！(+${target.exp}exp)`); p.exp += target.exp; monsterDrop(target, dg, ml, p); dg.monsters = dg.monsters.filter(m => m !== target); luFn(p, ml); }
+      }
+      if (kind === "item") {
+        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") { dg.items = dg.items.filter(i => i !== target); ml.push(`${target.name}は雷の魔法で焼けた！`); }
+      } break;
+    }
+    case "sleep_bolt": {
+      if (kind === "monster") { const t = rng(3, 6); target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`); }
+      break;
+    }
+    case "transform_magic": {
+      if (kind === "monster") {
+        const nt = MONS[rng(0, MONS.length - 1)]; const prevName = target.name; const ox = target.x, oy = target.y;
+        Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, wallWalker: nt.wallWalker });
+        ml.push(`${prevName}は${target.name}に変化した！`);
+      } break;
+    }
+    default: ml.push("魔法弾は効果なく消えた。");
+  }
+}
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn) {
   for (let d = 1; d <= spell.range; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;

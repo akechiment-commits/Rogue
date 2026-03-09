@@ -60,6 +60,7 @@ import {
   ARMOR_ABILITIES,
   BB_TYPES,
   inMagicSealRoom,
+  inCursedMagicSealRoom,
   monsterDrop,
   getIdentKey,
   generateFakeNames,
@@ -1381,13 +1382,18 @@ export default function RoguelikeGame() {
         p.hp = 0;
         ml.push(`${_cursedSancOn.name}に触れた！呪いの力で即死した！`);
       }
-      /* 雷の魔方陣：真上にいると毎ターンダメージ */
+      /* 雷の魔方陣：真上にいると毎ターンダメージ（呪いは回復） */
       const _thunderPent = st.dungeon.pentacles?.find((pc) => pc.kind === "thunder_trap" && pc.x === p.x && pc.y === p.y);
       if (_thunderPent && p.hp > 0) {
-        const _tdmg = _thunderPent.blessed ? 50 : _thunderPent.cursed ? 10 : 25;
-        p.deathCause = `${_thunderPent.name}の雷撃により`;
-        p.hp -= _tdmg;
-        ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！`);
+        if (_thunderPent.cursed) {
+          const _theal = Math.min(25, p.maxHp - p.hp);
+          if (_theal > 0) { p.hp += _theal; ml.push(`${_thunderPent.name}の力でHPが${_theal}回復した！`); }
+        } else {
+          const _tdmg = _thunderPent.blessed ? 50 : 25;
+          p.deathCause = `${_thunderPent.name}の雷撃により`;
+          p.hp -= _tdmg;
+          ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！`);
+        }
       }
       checkShopTheft(p, st.dungeon, ml);
       moveMons(st.dungeon, p, ml);
@@ -1396,15 +1402,20 @@ export default function RoguelikeGame() {
         for (const _m of [...st.dungeon.monsters]) {
           const _tp = st.dungeon.pentacles.find((pc) => pc.kind === "thunder_trap" && pc.x === _m.x && pc.y === _m.y);
           if (_tp) {
-            const _tmdmg = _tp.blessed ? 50 : _tp.cursed ? 10 : 25;
-            _m.hp -= _tmdmg;
-            ml.push(`${_tp.name}が${_m.name}を打った！${_tmdmg}ダメージ！`);
-            if (_m.hp <= 0) {
-              ml.push(`${_m.name}を倒した！(+${_m.exp}exp)`);
-              p.exp += _m.exp;
-              monsterDrop(_m, st.dungeon, ml, p);
-              st.dungeon.monsters = st.dungeon.monsters.filter((mn) => mn !== _m);
-              lu(p, ml);
+            if (_tp.cursed) {
+              const _mheal = Math.min(25, _m.maxHp - _m.hp);
+              if (_mheal > 0) { _m.hp += _mheal; ml.push(`${_tp.name}の力で${_m.name}のHPが${_mheal}回復した！`); }
+            } else {
+              const _tmdmg = _tp.blessed ? 50 : 25;
+              _m.hp -= _tmdmg;
+              ml.push(`${_tp.name}が${_m.name}を打った！${_tmdmg}ダメージ！`);
+              if (_m.hp <= 0) {
+                ml.push(`${_m.name}を倒した！(+${_m.exp}exp)`);
+                p.exp += _m.exp;
+                monsterDrop(_m, st.dungeon, ml, p);
+                st.dungeon.monsters = st.dungeon.monsters.filter((mn) => mn !== _m);
+                lu(p, ml);
+              }
             }
           }
         }
@@ -3634,7 +3645,8 @@ export default function RoguelikeGame() {
           ml.push("雷が走るが、視界に敵はいない。");
         } else {
           for (const _m of _tvis) {
-            const _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
+            let _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
+            if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             if (_m.hp <= 0) {
@@ -3817,22 +3829,27 @@ export default function RoguelikeGame() {
         }
         /* 雷の魔方陣：描いたそのターンにも即座に発動 */
         if (it.effect === "thunder_trap") {
-          const _tdrawDmg = _isBlessed ? 50 : _isCursed ? 10 : 25;
-          if (p.hp > 0) {
-            p.deathCause = `${_pName}の雷撃により`;
-            p.hp -= _tdrawDmg;
-            ml.push(`描いた瞬間、雷が落ちた！${_tdrawDmg}ダメージ！`);
-          }
-          for (const _tm of [...dg.monsters]) {
-            if (_tm.x === p.x && _tm.y === p.y) {
-              _tm.hp -= _tdrawDmg;
-              ml.push(`${_pName}が${_tm.name}を打った！${_tdrawDmg}ダメージ！`);
-              if (_tm.hp <= 0) {
-                ml.push(`${_tm.name}を倒した！(+${_tm.exp}exp)`);
-                p.exp += _tm.exp;
-                monsterDrop(_tm, dg, ml, p);
-                dg.monsters = dg.monsters.filter((mn) => mn !== _tm);
-                lu(p, ml);
+          if (_isCursed) {
+            const _drawHeal = Math.min(25, p.maxHp - p.hp);
+            if (_drawHeal > 0) { p.hp += _drawHeal; ml.push(`描いた瞬間、癒しの力が湧き上がった！HPが${_drawHeal}回復！`); }
+          } else {
+            const _tdrawDmg = _isBlessed ? 50 : 25;
+            if (p.hp > 0) {
+              p.deathCause = `${_pName}の雷撃により`;
+              p.hp -= _tdrawDmg;
+              ml.push(`描いた瞬間、雷が落ちた！${_tdrawDmg}ダメージ！`);
+            }
+            for (const _tm of [...dg.monsters]) {
+              if (_tm.x === p.x && _tm.y === p.y) {
+                _tm.hp -= _tdrawDmg;
+                ml.push(`${_pName}が${_tm.name}を打った！${_tdrawDmg}ダメージ！`);
+                if (_tm.hp <= 0) {
+                  ml.push(`${_tm.name}を倒した！(+${_tm.exp}exp)`);
+                  p.exp += _tm.exp;
+                  monsterDrop(_tm, dg, ml, p);
+                  dg.monsters = dg.monsters.filter((mn) => mn !== _tm);
+                  lu(p, ml);
+                }
               }
             }
           }
