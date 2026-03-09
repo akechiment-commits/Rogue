@@ -4634,7 +4634,8 @@ export default function RoguelikeGame() {
             }
           />
           <B
-            label={facingMode ? "✕" : throwMode ? "✕" : dashMode ? "⇒" : "·"}
+            label={facingMode ? "✕" : throwMode ? "✕" : dashMode ? "⇒" : "向"}
+            fs={facingMode || throwMode || dashMode ? 15 : 11}
             onClick={() => {
               if (facingMode) {
                 setFacingMode(false);
@@ -4643,7 +4644,9 @@ export default function RoguelikeGame() {
                 setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
               } else if (dashMode) {
                 setDashMode(false);
-              } else act("wait");
+              } else {
+                setFacingMode((f) => !f);
+              }
             }}
             style={
               facingMode
@@ -4664,7 +4667,7 @@ export default function RoguelikeGame() {
                         border: "1px solid #4a3a6a",
                         color: "#c8f",
                       }
-                    : { opacity: 0.4 }
+                    : { opacity: 0.7 }
             }
           />
           <B
@@ -4674,22 +4677,6 @@ export default function RoguelikeGame() {
               facingMode
                 ? { background: "#2a2a0a", border: "1px solid #aa0" }
                 : ds
-            }
-          />
-          <B
-            label="向"
-            w={28}
-            h={32}
-            fs={10}
-            onClick={() => setFacingMode((f) => !f)}
-            style={
-              facingMode
-                ? {
-                    background: "#2a2a0a",
-                    border: "1px solid #aa0",
-                    color: "#ff4",
-                  }
-                : { opacity: 0.7 }
             }
           />
         </div>
