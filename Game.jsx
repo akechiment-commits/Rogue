@@ -3571,6 +3571,7 @@ export default function RoguelikeGame() {
             if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _cured.push("混乱"); }
             if ((p.slowTurns || 0) > 0) { p.slowTurns = 0; _cured.push("鈍足"); }
             if (_curePoison()) _cured.push("毒");
+            if (!p.poisoned && (p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; _cured.push("毒による攻撃力低下"); }
             if (_cured.length > 0) _hMsg += ` ${_cured.join("・")}も解消！`;
           }
           ml.push(_hMsg);
@@ -3578,7 +3579,10 @@ export default function RoguelikeGame() {
       } else if (it.effect === "poison") {
         if (it.cursed) {
           // 呪い：反転→解毒薬
-          if (_curePoison()) {
+          const _wasPoison = _curePoison();
+          const _hadAtkLoss = !p.poisoned && (p.poisonAtkLoss || 0) > 0;
+          if (_hadAtkLoss) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+          if (_wasPoison || _hadAtkLoss) {
             ml.push(`${it.name}を飲んだ。毒が体から消えた！攻撃力も回復！【呪→解毒】`);
           } else {
             ml.push(`${it.name}を飲んだ。変な味がするが…毒はかかっていなかった。【呪→解毒】`);
@@ -3761,6 +3765,9 @@ export default function RoguelikeGame() {
           p.poisoned = false;
           if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
           _acured.push("毒");
+        } else if ((p.poisonAtkLoss || 0) > 0) {
+          p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0;
+          _acured.push("毒による攻撃力低下");
         }
         if (_acured.length > 0) ml.push(`状態異常が消えた！(${_acured.join("・")})`);
         const h2 = rng(3, 8);
