@@ -1537,7 +1537,10 @@ export default function RoguelikeGame() {
               maxHp: _mt.hp,
               turnAccum: 0,
               aware: false,
-              dir: { dx: 0, dy: 1 },
+              dir: { x: 0, y: 1 },
+              lastPx: 0,
+              lastPy: 0,
+              patrolTarget: null,
             });
           }
           _dg.nextSpawnTurn = p.turns + rng(10, 50);
@@ -1647,9 +1650,9 @@ export default function RoguelikeGame() {
       }
       if (p.sleepTurns > 0) {
         p.sleepTurns--;
-        ml.push(
-          `p.sleepTurns>0?眠っている...あと${p.sleepTurns}ターン:"目が覚めた！"`,
-        );
+        ml.push(p.sleepTurns > 0
+          ? `眠っている...あと${p.sleepTurns}ターン`
+          : "目が覚めた！");
         endTurn(st, p, ml);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         sr.current = { ...st };
