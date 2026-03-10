@@ -108,7 +108,8 @@ export function getBlessMultiplier(it) {
   return 1;
 }
 
-export const ARROW_T      = { name:"矢",          type:"arrow",  atk:4, desc:"99本まで束にできる矢。",          count:1, tile:23 };
+export const ARROW_T        = { name:"矢",   type:"arrow", atk:4, desc:"99本まで束にできる矢。",          count:1, tile:23 };
+export const POISON_ARROW_T = { name:"毒矢", type:"arrow", atk:4, poison:true, desc:"毒を持つ矢。99本まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",        desc:"空の瓶。今のところ使い道はない。",         tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10, desc:"泉の水。飲むと少しHPが回復する。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",   desc:"何も書かれていない。魔法のマーカーで書き込める。", tile:18 };
@@ -571,12 +572,19 @@ export const ARMOR_ABILITIES = [
 
 /* ===== TRAPS ===== */
 export const TRAPS = [
-  { name:"地雷",     effect:"explode",    tile:25 },
-  { name:"矢の罠",   effect:"arrow_trap", tile:26 },
-  { name:"落とし穴", effect:"pitfall",    tile:27 },
-  { name:"錆の罠",   effect:"rust",       tile:28 },
-  { name:"回転板",   effect:"spin",       tile:29 },
-  { name:"睡眠ガス", effect:"sleep",      tile:30 },
+  { name:"地雷",           effect:"explode",      tile:25 },
+  { name:"矢の罠",         effect:"arrow_trap",   tile:26 },
+  { name:"落とし穴",       effect:"pitfall",      tile:27 },
+  { name:"錆の罠",         effect:"rust",         tile:28 },
+  { name:"回転板",         effect:"spin",         tile:29 },
+  { name:"睡眠ガスの罠",   effect:"sleep",        tile:30 },
+  { name:"毒矢の罠",       effect:"poison_arrow", tile:45 },
+  { name:"召喚の罠",       effect:"summon_trap",  tile:46 },
+  { name:"鈍足の罠",       effect:"slow_trap",    tile:47 },
+  { name:"封印の罠",       effect:"seal_trap",    tile:48 },
+  { name:"盗みの罠",       effect:"steal_trap",   tile:49 },
+  { name:"空腹の罠",       effect:"hunger_trap",  tile:50 },
+  { name:"吹き飛ばしの罠", effect:"blowback_trap",tile:51 },
 ];
 
 export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null) {
@@ -748,6 +756,132 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       }
       return "restart";
     }
+    case "poison_arrow": {
+      ml.push(`${trap.name}が発動！`);
+      let _pawx = tx;
+      while (_pawx > 0 && dg.map[ty][_pawx - 1] !== T.WALL && dg.map[ty][_pawx - 1] !== T.BWALL) _pawx--;
+      _pawx = Math.max(0, _pawx - 1);
+      const _par = makePoisonArrow(1);
+      let _pahit = false, _paex = _pawx;
+      for (let fx = _pawx + 1; fx < MW; fx++) {
+        if (dg.map[ty][fx] === T.WALL || dg.map[ty][fx] === T.BWALL) { _paex = fx - 1; break; }
+        const m = dg.monsters.find(m2 => m2.x === fx && m2.y === ty);
+        if (m) {
+          const d = _par.atk + rng(0, 3);
+          m.hp -= d;
+          m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+          ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
+          if (m.hp <= 0) { ml.push(`${m.name}は倒れた！`); monsterDrop(m, dg, ml, p); dg.monsters = dg.monsters.filter(m2 => m2 !== m); }
+          _pahit = true; break;
+        }
+        if (p && p.x === fx && p.y === ty) {
+          const d = _par.atk + rng(0, 3);
+          p.deathCause = `${trap.name}により`;
+          p.hp -= d;
+          p.poisoned = true;
+          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
+          _pahit = true; break;
+        }
+        _paex = fx;
+      }
+      if (!_pahit) placeItemAt(dg, _paex, ty, _par, ml, ft);
+      return "restart";
+    }
+    case "summon_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _sumDepth = (p ? p.depth : 1) || 1;
+      const _sumCount = rng(2, 4);
+      let _sumSpawned = 0;
+      const _dirs8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+      for (const [_dy, _dx] of _dirs8) {
+        if (_sumSpawned >= _sumCount) break;
+        const _nx = tx + _dx, _ny = ty + _dy;
+        if (dg.map[_ny]?.[_nx] === T.FLOOR && !dg.monsters.some(m => m.x === _nx && m.y === _ny) && (!p || _nx !== p.x || _ny !== p.y)) {
+          const _mt = MONS[clamp(rng(0, _sumDepth + 1), 0, MONS.length - 1)];
+          dg.monsters.push({ ..._mt, id: uid(), x: _nx, y: _ny, maxHp: _mt.hp, turnAccum: 0, aware: true, dir: { x: 0, y: 0 }, lastPx: tx, lastPy: ty, patrolTarget: null });
+          _sumSpawned++;
+        }
+      }
+      if (_sumSpawned < _sumCount) {
+        for (let _si = _sumSpawned; _si < _sumCount; _si++) {
+          for (let _att = 0; _att < 30; _att++) {
+            const _sr = dg.rooms[rng(0, dg.rooms.length - 1)];
+            const _sx = rng(_sr.x + 1, _sr.x + _sr.w - 2);
+            const _sy = rng(_sr.y + 1, _sr.y + _sr.h - 2);
+            if (dg.map[_sy]?.[_sx] === T.FLOOR && !dg.monsters.some(m => m.x === _sx && m.y === _sy) && (!p || _sx !== p.x || _sy !== p.y)) {
+              const _mt = MONS[clamp(rng(0, _sumDepth + 1), 0, MONS.length - 1)];
+              dg.monsters.push({ ..._mt, id: uid(), x: _sx, y: _sy, maxHp: _mt.hp, turnAccum: 0, aware: false, dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null });
+              _sumSpawned++; break;
+            }
+          }
+        }
+      }
+      ml.push(`${_sumSpawned}体の敵が現れた！`);
+      return "restart";
+    }
+    case "slow_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _slwm = dg.monsters.find(m => m.x === tx && m.y === ty);
+      if (_slwm) { _slwm.speed = Math.max(0.25, _slwm.speed * 0.5); ml.push(`${_slwm.name}が鈍足になった！`); }
+      if (p && p.x === tx && p.y === ty) { p.slowTurns = (p.slowTurns || 0) + 10; ml.push(`体が重くなった...(鈍足10ターン)`); }
+      return "restart";
+    }
+    case "seal_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _seam = dg.monsters.find(m => m.x === tx && m.y === ty);
+      if (_seam) { _seam.sealed = true; ml.push(`${_seam.name}の特技が封印された！`); }
+      if (p && p.x === tx && p.y === ty) { p.sealedTurns = (p.sealedTurns || 0) + 50; ml.push(`魔法が封印された！(50ターン)`); }
+      return "restart";
+    }
+    case "steal_trap": {
+      ml.push(`${trap.name}が発動！`);
+      if (p && p.x === tx && p.y === ty && p.inventory && p.inventory.length > 0) {
+        const _stIdx = rng(0, p.inventory.length - 1);
+        const _stItem = p.inventory.splice(_stIdx, 1)[0];
+        const _stFt = new Set();
+        const _stRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
+        const _stX = rng(_stRoom.x, _stRoom.x + _stRoom.w - 1);
+        const _stY = rng(_stRoom.y, _stRoom.y + _stRoom.h - 1);
+        placeItemAt(dg, _stX, _stY, _stItem, ml, _stFt);
+        ml.push(`${nameFn ? nameFn(_stItem) : _stItem.name}がどこかへ飛んでいった！`);
+      }
+      return "restart";
+    }
+    case "hunger_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _hngm = dg.monsters.find(m => m.x === tx && m.y === ty);
+      if (_hngm) { _hngm.atk = Math.max(1, Math.floor((_hngm.atk || 1) / 2)); ml.push(`${_hngm.name}の攻撃力が半減した！`); }
+      if (p && p.x === tx && p.y === ty) { p.hunger = Math.max(0, p.hunger - Math.floor((p.maxHunger || 100) * 0.1)); ml.push(`急に空腹を感じた！満腹度が10%下がった。`); }
+      return "restart";
+    }
+    case "blowback_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _bbm = dg.monsters.find(m => m.x === tx && m.y === ty);
+      if (_bbm) {
+        const _bbd = _bbm.dir || { x: 1, y: 0 };
+        const _bbdx = -(_bbd.x || 0), _bbdy = -(_bbd.y || 0);
+        if (_bbdx !== 0 || _bbdy !== 0) {
+          for (let i = 0; i < 10; i++) {
+            const _bnx = _bbm.x + _bbdx, _bny = _bbm.y + _bbdy;
+            if (_bnx < 0 || _bnx >= MW || _bny < 0 || _bny >= MH || dg.map[_bny][_bnx] === T.WALL || dg.map[_bny][_bnx] === T.BWALL) break;
+            if (dg.monsters.some(o => o !== _bbm && o.x === _bnx && o.y === _bny)) break;
+            _bbm.x = _bnx; _bbm.y = _bny;
+          }
+          ml.push(`${_bbm.name}が吹き飛ばされた！`);
+        }
+      }
+      if (p && p.x === tx && p.y === ty) {
+        const _pfd = p.facing || { dx: 0, dy: 1 };
+        const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
+        for (let i = 0; i < 10; i++) {
+          const _pnx = p.x + _pbdx, _pny = p.y + _pbdy;
+          if (_pnx < 0 || _pnx >= MW || _pny < 0 || _pny >= MH || dg.map[_pny][_pnx] === T.WALL || dg.map[_pny][_pnx] === T.BWALL) break;
+          p.x = _pnx; p.y = _pny;
+        }
+        ml.push(`向いていた方向と逆に吹き飛ばされた！`);
+      }
+      return "restart";
+    }
     default:
       ml.push(`${trap.name}が発動！`);
       return "restart";
@@ -756,6 +890,10 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
 
 export function makeArrow(c = 1) {
   return { ...ARROW_T, id:uid(), count:Math.min(99, c) };
+}
+
+export function makePoisonArrow(c = 1) {
+  return { ...POISON_ARROW_T, id:uid(), count:Math.min(99, c) };
 }
 
 export function addArrowsInv(inv, c) {

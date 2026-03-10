@@ -112,6 +112,13 @@ import { fireTrapPlayer } from "./traps.js";
     39: "archer",
     40: "wizard",
     41: "magic_marker",
+    45: "trap_poison_arrow",
+    46: "trap_summon",
+    47: "trap_slow",
+    48: "trap_seal",
+    49: "trap_steal",
+    50: "trap_hunger",
+    51: "trap_blowback",
   };
 const CUSTOM_TILE_PATH = "./tiles";
 let customTileImages = {};
@@ -685,6 +692,13 @@ function genDungeon(depth) {
     42: { bg: null, fg: "#a060ff", ch: "◇" },
     43: { bg: null, fg: "#9988cc", ch: "Φ" },
     44: { bg: null, fg: "#b020e0", ch: "C" },
+    45: { bg: null, fg: "#60d060", ch: "^" },
+    46: { bg: null, fg: "#d020d0", ch: "^" },
+    47: { bg: null, fg: "#20d0d0", ch: "^" },
+    48: { bg: null, fg: "#8040e0", ch: "^" },
+    49: { bg: null, fg: "#d0d020", ch: "^" },
+    50: { bg: null, fg: "#d06000", ch: "^" },
+    51: { bg: null, fg: "#20e0c0", ch: "^" },
   };
   const td = TILE_RENDER[idx];
   if (td) {
@@ -961,6 +975,7 @@ export default function RoguelikeGame() {
       confusedTurns: 0,
       poisoned: false,
       poisonAtkLoss: 0,
+      sealedTurns: 0,
       maxInventory: 30,
       facing: { dx: 0, dy: 1 },
       isThief: false,
@@ -1416,6 +1431,11 @@ export default function RoguelikeGame() {
       }
       /* MPクールダウンカウント */
       if ((p.mpCooldownTurns || 0) > 0) p.mpCooldownTurns--;
+      /* 封印カウントダウン */
+      if ((p.sealedTurns || 0) > 0) {
+        p.sealedTurns--;
+        if (p.sealedTurns === 0) ml.push("封印が解けた！");
+      }
       /* 毒：3ターンごとに攻撃力-1 */
       if (p.poisoned && p.turns % 3 === 0) {
         if ((p.poisonAtkLoss || 0) >= 3) {
@@ -3040,8 +3060,8 @@ export default function RoguelikeGame() {
             if (!sr.current) return;
             const { player: p2, dungeon: dg2 } = sr.current;
             const ml2 = [];
-            if (inMagicSealRoom(p2.x, p2.y, dg2)) {
-              ml2.push(`魔封じの魔方陣で魔法が封じられた！MPは消費しない。`);
+            if (inMagicSealRoom(p2.x, p2.y, dg2) || (p2.sealedTurns || 0) > 0) {
+              ml2.push(`魔法が封印されている！MPは消費しない。`);
               endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
             } else if (spell.effect === "identify_magic") {
               const _idt = p2.inventory.filter(_ii => {
@@ -3824,8 +3844,8 @@ export default function RoguelikeGame() {
       const _scrBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
-      if (inMagicSealRoom(p.x, p.y, dg)) {
-        ml.push(`${it.name}を読んだが、魔封じの魔方陣で効果が封じられた！`);
+      if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+        ml.push(`${it.name}を読んだが、魔法が封印されている！`);
       } else if (it.effect === "teleport") {
         if (it.cursed) {
           const _adjCands = DRO.filter(([adx, ady]) => {
@@ -4431,8 +4451,8 @@ export default function RoguelikeGame() {
       p.inventory.splice(idx, 1);
       const ml = [];
       ml.push(`${dnameRef(it)}を壊した！`);
-      if (inMagicSealRoom(p.x, p.y, dg)) {
-        ml.push("魔封じの魔方陣で魔法が封じられた！効果は発動しなかった。");
+      if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+        ml.push("魔法が封印されている！効果は発動しなかった。");
       } else {
         const times = Math.max(1, Math.ceil(it.charges / 2));
         const _bwBlMult = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
@@ -4488,9 +4508,9 @@ export default function RoguelikeGame() {
     const _revReal = _wasUnknown ? it.name : null;
     /* 識別 */
     if (_sbIK && _wasUnknown) sr.current.ident.add(_sbIK);
-    if (inMagicSealRoom(p.x, p.y, dg)) {
+    if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
       p.inventory.splice(idx, 1);
-      ml.push(`${it.name}を読んだが、魔封じの魔方陣で効果が封じられた！魔法書は消えた。`);
+      ml.push(`${it.name}を読んだが、魔法が封印されている！魔法書は消えた。`);
     } else if (it.cursed) {
       // 呪い：この魔法以外のランダムな魔法を1つ選んで習得 or レベルアップ
       if (!p.spellLevels) p.spellLevels = {};
@@ -4819,8 +4839,8 @@ export default function RoguelikeGame() {
         }
         const _wandBm = getBlessMultiplier(it);
         it.charges--;
-        if (inMagicSealRoom(p.x, p.y, dg)) {
-          ml.push(`${dnameRef(it)}を振ったが、魔封じの魔方陣で魔法が封じられた！[残${it.charges}回]`);
+        if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+          ml.push(`${dnameRef(it)}を振ったが、魔法が封印されている！[残${it.charges}回]`);
         } else {
           ml.push(`${dnameRef(it)}を振った！[残${it.charges}回]${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
           const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -4835,8 +4855,8 @@ export default function RoguelikeGame() {
         if (!spellDef) { setThrowMode(null); return; }
         const _csLv = (p.spellLevels?.[spellDef.id] || 1);
         const _csCost = Math.max(1, 20 - (_csLv - 1) * 3);
-        if (inMagicSealRoom(p.x, p.y, dg)) {
-          ml.push(`魔封じの魔方陣で魔法が封じられた！MPは消費しない。`);
+        if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+          ml.push(`魔法が封印されている！MPは消費しない。`);
         } else if ((p.mp || 0) < _csCost) {
           ml.push(`MPが足りない！(必要:${_csCost} 現在:${p.mp || 0})`);
         } else {
@@ -5384,6 +5404,9 @@ export default function RoguelikeGame() {
         )}{" "}
         {(p.confusedTurns || 0) > 0 && (
           <span style={{ color: "#ff9020" }}>🌀{p.confusedTurns}</span>
+        )}{" "}
+        {(p.sealedTurns || 0) > 0 && (
+          <span style={{ color: "#8040e0" }}>🔒{p.sealedTurns}</span>
         )}{" "}
       </div>{" "}
       <div
@@ -6164,8 +6187,8 @@ export default function RoguelikeGame() {
                         if (!sr.current) return;
                         const { player: p2, dungeon: dg2 } = sr.current;
                         const ml2 = [];
-                        if (inMagicSealRoom(p2.x, p2.y, dg2)) {
-                          ml2.push(`魔封じの魔方陣で魔法が封じられた！MPは消費しない。`);
+                        if (inMagicSealRoom(p2.x, p2.y, dg2) || (p2.sealedTurns || 0) > 0) {
+                          ml2.push(`魔法が封印されている！MPは消費しない。`);
                           endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
                         } else if (spell.effect === "identify_magic") {
                           const _idt = p2.inventory.filter(_ii => {

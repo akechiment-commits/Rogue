@@ -488,12 +488,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
 
-      if (m.subtype === "archer" && inLine && lineLen >= 2 && lineLen <= 10) {
+      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 2 && lineLen <= 10) {
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
       }
 
-      if (m.subtype === "wanduser" && inLine && lineLen >= 2 && lineLen <= 10 && opts.monsterWandFn) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 2 && lineLen <= 10 && opts.monsterWandFn) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>
