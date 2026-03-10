@@ -2826,10 +2826,20 @@ export default function RoguelikeGame() {
             return identifyMode.mode === 'identify' ? !sr.current.ident.has(_k) : sr.current.ident.has(_k);
           });
         const _len_id = _filt_id.length;
-        const _isUp_id   = k === "arrowup"   || e.code === "Numpad8";
-        const _isDown_id = k === "arrowdown" || e.code === "Numpad2";
+        const _idPage    = identifyMode.page || 0;
+        const _idTotalPg = Math.max(1, Math.ceil(_len_id / 10));
+        const _idPageItems = _filt_id.slice(_idPage * 10, (_idPage + 1) * 10);
+        const _idPageLen   = _idPageItems.length;
+        const _isUp_id    = k === "arrowup"    || e.code === "Numpad8";
+        const _isDown_id  = k === "arrowdown"  || e.code === "Numpad2";
+        const _isLeft_id  = k === "arrowleft"  || e.code === "Numpad4";
+        const _isRight_id = k === "arrowright" || e.code === "Numpad6";
         if (_isUp_id || _isDown_id) {
-          if (_len_id > 0) setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + (_isDown_id ? 1 : -1) + _len_id) % _len_id });
+          if (_idPageLen > 0) setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + (_isDown_id ? 1 : -1) + _idPageLen) % _idPageLen });
+          return;
+        }
+        if (_isLeft_id || _isRight_id) {
+          if (_idTotalPg > 1) setIdentifyMode({ ...identifyMode, page: ((_idPage + (_isRight_id ? 1 : -1)) + _idTotalPg) % _idTotalPg, sel: 0 });
           return;
         }
         if (k === "escape" || k === "x") {
@@ -2837,9 +2847,9 @@ export default function RoguelikeGame() {
           setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
           return;
         }
-        if ((k === "enter" || k === "z") && _len_id > 0) {
-          const _curSel_id = Math.min(identifyMode.sel || 0, _len_id - 1);
-          const { it: _selIt } = _filt_id[_curSel_id];
+        if ((k === "enter" || k === "z") && _idPageLen > 0) {
+          const _curSel_id = Math.min(identifyMode.sel || 0, _idPageLen - 1);
+          const { it: _selIt } = _idPageItems[_curSel_id];
           let _msgResult;
           if (identifyMode.mode === 'bless') {
             _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true;
@@ -5440,7 +5450,7 @@ export default function RoguelikeGame() {
                 }
                 return;
               }
-              /* === 識別モード：上下で選択 === */
+              /* === 識別モード：上下で選択、左右でページ送り === */
               if (identifyMode) {
                 if (!sr.current) return;
                 const _p = sr.current.player;
@@ -5459,8 +5469,13 @@ export default function RoguelikeGame() {
                     return identifyMode.mode === 'identify' ? !sr.current.ident.has(_k) : sr.current.ident.has(_k);
                   });
                 const _len = _filt.length;
-                if (dy !== 0 && dx === 0 && _len > 0) {
-                  setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + dy + _len) % _len });
+                const _idPg_t = identifyMode.page || 0;
+                const _idTotalPg_t = Math.max(1, Math.ceil(_len / 10));
+                const _idPgLen_t = Math.min(10, Math.max(0, _len - _idPg_t * 10));
+                if (dy !== 0 && dx === 0 && _idPgLen_t > 0) {
+                  setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + dy + _idPgLen_t) % _idPgLen_t });
+                } else if (dx !== 0 && dy === 0 && _idTotalPg_t > 1) {
+                  setIdentifyMode({ ...identifyMode, page: ((_idPg_t + dx) + _idTotalPg_t) % _idTotalPg_t, sel: 0 });
                 }
                 return;
               }
@@ -6599,10 +6614,14 @@ export default function RoguelikeGame() {
             if (!k) return false;
             return identifyMode.mode === 'identify' ? !gs.ident?.has(k) : gs.ident?.has(k);
           });
-        const _curSel_ui = Math.min(identifyMode.sel || 0, Math.max(0, _filtered.length - 1));
+        const _idPage_ui   = identifyMode.page || 0;
+        const _idTotalPg_ui = Math.max(1, Math.ceil(_filtered.length / 10));
+        const _idPageItems_ui = _filtered.slice(_idPage_ui * 10, (_idPage_ui + 1) * 10);
+        const _curSel_ui = Math.min(identifyMode.sel || 0, Math.max(0, _idPageItems_ui.length - 1));
         const doConfirmUI = (vi) => {
           if (!sr.current) return;
-          const { it: _selIt } = _filtered[vi] ?? _filtered[_curSel_ui] ?? {};
+          const _absIdx = _idPage_ui * 10 + vi;
+          const { it: _selIt } = _filtered[_absIdx] ?? _filtered[_idPage_ui * 10 + _curSel_ui] ?? {};
           if (!_selIt) return;
           let _msgResult;
           if (identifyMode.mode === 'bless') {
@@ -6658,9 +6677,18 @@ export default function RoguelikeGame() {
                   : identifyMode.mode === 'identify' ? "識別するアイテムを選んでください"
                   : "識別を解除するアイテムを選んでください【呪】"}
               </div>
-              <div style={{ color:"#556", fontSize:10, marginBottom:8 }}>↑↓/8,2:選択　Ｚ/Enter:決定　ESC:キャンセル</div>
-              {_filtered.length === 0 && <div style={{ color:"#888" }}>該当するアイテムがない。</div>}
-              {_filtered.map(({ it, i }, vi) => {
+              <div style={{ color:"#556", fontSize:10, marginBottom:4 }}>↑↓/8,2:選択　←→/4,6:ページ　Ｚ/Enter:決定　ESC:キャンセル</div>
+              {_idTotalPg_ui > 1 && (
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                  <button onClick={() => setIdentifyMode({ ...identifyMode, page: ((_idPage_ui - 1 + _idTotalPg_ui) % _idTotalPg_ui), sel: 0 })}
+                    style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"2px 8px", cursor:"pointer", touchAction:"manipulation" }}>◀</button>
+                  <span style={{ color:"#8af", fontSize:11 }}>{_idPage_ui + 1} / {_idTotalPg_ui}</span>
+                  <button onClick={() => setIdentifyMode({ ...identifyMode, page: ((_idPage_ui + 1) % _idTotalPg_ui), sel: 0 })}
+                    style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"2px 8px", cursor:"pointer", touchAction:"manipulation" }}>▶</button>
+                </div>
+              )}
+              {_idPageItems_ui.length === 0 && <div style={{ color:"#888" }}>該当するアイテムがない。</div>}
+              {_idPageItems_ui.map(({ it, i }, vi) => {
                 const _isSel = vi === _curSel_ui;
                 return (
                   <div key={i} onClick={() => doConfirmUI(vi)}
