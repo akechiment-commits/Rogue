@@ -7029,7 +7029,7 @@ export default function RoguelikeGame() {
             }}
           >
             <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>
-              所持品 ({p.inventory.length}/30)
+              所持品 ({p.inventory.length}/{p.maxInventory || 30})
             </span>
             <div style={{ display: "flex", gap: 6 }}>
               <button
