@@ -99,6 +99,8 @@ export const ITEMS = [
     desc:"敵を4体召喚する。祝福：8体に囲まれる。呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
   { name:"収納上手の巻物", type:"scroll", effect:"expand_inv",
     desc:"最大所持数が1～3増える。祝福：2～6増える。呪い：1～3減る。", tile:18 },
+  { name:"毒矢",     type:"arrow", atk:4, poison:true, count:3,  desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
+  { name:"貫きの矢", type:"arrow", atk:4, pierce:true, count:3,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
 ];
 
 export function getBlessMultiplier(it) {
@@ -108,8 +110,9 @@ export function getBlessMultiplier(it) {
   return 1;
 }
 
-export const ARROW_T        = { name:"矢",   type:"arrow", atk:4, desc:"99本まで束にできる矢。",          count:1, tile:23 };
-export const POISON_ARROW_T = { name:"毒矢", type:"arrow", atk:4, poison:true, desc:"毒を持つ矢。99本まで束にできる。", count:1, tile:23 };
+export const ARROW_T        = { name:"矢",       type:"arrow", atk:4,                 desc:"99本まで束にできる矢。",                 count:1, tile:23 };
+export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:4, poison:true,     desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
+export const PIERCING_ARROW_T={ name:"貫きの矢", type:"arrow", atk:4, pierce:true,     desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",        desc:"空の瓶。今のところ使い道はない。",         tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10, desc:"泉の水。飲むと少しHPが回復する。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",   desc:"何も書かれていない。魔法のマーカーで書き込める。", tile:18 };
@@ -871,24 +874,34 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _bbd = _bbm.dir || { x: 1, y: 0 };
         const _bbdx = -(_bbd.x || 0), _bbdy = -(_bbd.y || 0);
         if (_bbdx !== 0 || _bbdy !== 0) {
+          let _bbHitWall = false, _bbHitOther = null;
           for (let i = 0; i < 10; i++) {
             const _bnx = _bbm.x + _bbdx, _bny = _bbm.y + _bbdy;
-            if (_bnx < 0 || _bnx >= MW || _bny < 0 || _bny >= MH || dg.map[_bny][_bnx] === T.WALL || dg.map[_bny][_bnx] === T.BWALL) break;
-            if (dg.monsters.some(o => o !== _bbm && o.x === _bnx && o.y === _bny)) break;
+            if (_bnx < 0 || _bnx >= MW || _bny < 0 || _bny >= MH || dg.map[_bny][_bnx] === T.WALL || dg.map[_bny][_bnx] === T.BWALL) { _bbHitWall = true; break; }
+            const _bom = dg.monsters.find(o => o !== _bbm && o.x === _bnx && o.y === _bny);
+            if (_bom) { _bbHitOther = _bom; break; }
             _bbm.x = _bnx; _bbm.y = _bny;
           }
           ml.push(`${_bbm.name}が吹き飛ばされた！`);
+          if (_bbHitWall) { _bbm.hp -= 10; ml.push(`${_bbm.name}が壁に激突！10ダメージ！`); }
+          if (_bbHitOther) { _bbm.hp -= 10; _bbHitOther.hp -= 10; ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！お互いに10ダメージ！`); }
+          dg.monsters = dg.monsters.filter(m => m.hp > 0);
         }
       }
       if (p && p.x === tx && p.y === ty) {
         const _pfd = p.facing || { dx: 0, dy: 1 };
         const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
+        let _pHitWall = false, _pHitMon = null;
         for (let i = 0; i < 10; i++) {
           const _pnx = p.x + _pbdx, _pny = p.y + _pbdy;
-          if (_pnx < 0 || _pnx >= MW || _pny < 0 || _pny >= MH || dg.map[_pny][_pnx] === T.WALL || dg.map[_pny][_pnx] === T.BWALL) break;
+          if (_pnx < 0 || _pnx >= MW || _pny < 0 || _pny >= MH || dg.map[_pny][_pnx] === T.WALL || dg.map[_pny][_pnx] === T.BWALL) { _pHitWall = true; break; }
+          const _pm = dg.monsters.find(m => m.x === _pnx && m.y === _pny);
+          if (_pm) { _pHitMon = _pm; break; }
           p.x = _pnx; p.y = _pny;
         }
         ml.push(`向いていた方向と逆に吹き飛ばされた！`);
+        if (_pHitWall) { p.deathCause = `${trap.name}による壁への衝突により`; p.hp -= 10; ml.push("壁に激突！10ダメージ！"); }
+        if (_pHitMon) { p.hp -= 10; _pHitMon.hp -= 10; ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`); dg.monsters = dg.monsters.filter(m => m.hp > 0); }
       }
       return "restart";
     }
@@ -906,10 +919,14 @@ export function makePoisonArrow(c = 1) {
   return { ...POISON_ARROW_T, id:uid(), count:Math.min(99, c) };
 }
 
-export function addArrowsInv(inv, c) {
+export function makePiercingArrow(c = 1) {
+  return { ...PIERCING_ARROW_T, id:uid(), count:Math.min(99, c) };
+}
+
+export function addArrowsInv(inv, c, poison = false, pierce = false) {
   let r = c;
   for (const i of inv) {
-    if (i.type === "arrow" && i.count < 99) {
+    if (i.type === "arrow" && !!i.poison === poison && !!i.pierce === pierce && i.count < 99) {
       const a = Math.min(r, 99 - i.count);
       i.count += a;
       r -= a;
@@ -919,7 +936,7 @@ export function addArrowsInv(inv, c) {
   while (r > 0) {
     if (inv.length >= 30) return false;
     const n = Math.min(r, 99);
-    inv.push(makeArrow(n));
+    inv.push(pierce ? makePiercingArrow(n) : poison ? makePoisonArrow(n) : makeArrow(n));
     r -= n;
   }
   return true;
@@ -2577,10 +2594,15 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
   if (!st || st.type !== "arrow") return;
   st.count--;
   if (st.count <= 0) p.inventory.splice(idx, 1);
-  const ar = makeArrow(1), dmg = ar.atk + rng(1, 4);
+  const _isPoison = !!st.poison;
+  const _isPierce = !!st.pierce;
+  const dmg = (st.atk || 4) + rng(1, 4);
   const _fc = getFarcastMode(p.x, p.y, dg);
   const _isFc = _fc === "farcast";
-  const _maxR = _fc === "cursed" ? 1 : _isFc ? 50 : 10;
+  const _pierceMode = _isPierce || _isFc;
+  const _maxR = _fc === "cursed" ? 1 : _pierceMode ? 50 : 10;
+  const _arName = st.name || "矢";
+  const _dropItem = () => _isPierce ? makePiercingArrow(1) : _isPoison ? makePoisonArrow(1) : makeArrow(1);
   let lx = p.x, ly = p.y, hit = false;
   for (let d = 1; d <= _maxR; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
@@ -2588,7 +2610,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
     const m = dg.monsters.find(m2 => m2.x === tx && m2.y === ty);
     if (m) {
       m.hp -= dmg;
-      ml.push(`矢が${m.name}に命中！${dmg}ダメージ！`);
+      if (_isPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+      ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
       if (m.hp <= 0) {
         ml.push(`${m.name}を倒した！(+${m.exp}exp)`);
         p.exp += m.exp;
@@ -2596,25 +2619,26 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
         dg.monsters = dg.monsters.filter(m2 => m2 !== m);
         luFn(p, ml);
       }
-      if (!_isFc) { hit = true; break; }
+      if (!_pierceMode) { hit = true; break; }
     }
-    if (!_isFc) {
+    if (!_pierceMode) {
       const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
       if (bb) {
-        ml.push("矢を射った。");
-        if (bbFn) bbFn(bb, ar, dg, ml);
-        else { const ft = new Set(); placeItemAt(dg, tx, ty, ar, ml, ft); }
+        ml.push(`${_arName}を射った。`);
+        const _ar = _dropItem();
+        if (bbFn) bbFn(bb, _ar, dg, ml);
+        else { const ft = new Set(); placeItemAt(dg, tx, ty, _ar, ml, ft); }
         hit = true; break;
       }
     }
     lx = tx; ly = ty;
   }
-  if (_isFc || _fc === "cursed") {
-    ml.push("矢を射った。矢は消滅した。");
+  if (_pierceMode || _fc === "cursed") {
+    ml.push(`${_arName}を射った。矢は消滅した。`);
   } else if (!hit) {
-    ml.push("矢を射った。");
+    ml.push(`${_arName}を射った。`);
     const ft = new Set();
-    placeItemAt(dg, lx, ly, ar, ml, ft);
+    placeItemAt(dg, lx, ly, _dropItem(), ml, ft);
   }
 }
 

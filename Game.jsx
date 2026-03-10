@@ -34,6 +34,8 @@ import {
   wPick,
   genFood,
   makeArrow,
+  makePoisonArrow,
+  makePiercingArrow,
   addArrowsInv,
   applyPotEffect,
   makePot,
@@ -1224,12 +1226,12 @@ export default function RoguelikeGame() {
         dg.items = dg.items.filter((i) => i !== it);
         go = true;
       } else if (it.type === "arrow" && !it.shopPrice) {
-        if (addArrowsInv(p.inventory, it.count)) {
-          ml.push(`矢(${it.count}本)を拾った。`);
+        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce)) {
+          ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
           dg.items = dg.items.filter((i) => i !== it);
           go = true;
         } else {
-          ml.push("矢がある。持ち物がいっぱいだ！");
+          ml.push(`${it.name || "矢"}がある。持ち物がいっぱいだ！`);
           break;
         }
       } else if (it.shopPrice) {
@@ -1816,8 +1818,8 @@ export default function RoguelikeGame() {
             ml.push(`${it.value}枚の金貨を拾った！`);
             dg.items = dg.items.filter((i) => i !== it);
           } else if (it.type === "arrow" && !it.shopPrice) {
-            if (addArrowsInv(p.inventory, it.count)) {
-              ml.push(`矢(${it.count}本)を拾った。`);
+            if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce)) {
+              ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
               dg.items = dg.items.filter((i) => i !== it);
             } else ml.push("持ち物がいっぱいだ！");
           } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
@@ -4759,13 +4761,19 @@ export default function RoguelikeGame() {
           if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
           return;
         }
+        const _arItem = p.arrow;
+        const _arIsPoison = !!_arItem.poison;
+        const _arIsPierce = !!_arItem.pierce;
+        const _arName = _arItem.name || "矢";
+        const _arPierceMode = _arIsPierce || _isFarcast;
+        const _arMaxRange = _isCursedFc ? 1 : _arPierceMode ? 50 : 10;
+        const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
         p.arrow.count--;
-        const ar = makeArrow(1),
-          dmg = ar.atk + rng(1, 4);
+        const dmg = (_arItem.atk || 4) + rng(1, 4);
         let lx = p.x,
           ly = p.y,
           hit = false;
-        for (let d = 1; d <= _maxRange; d++) {
+        for (let d = 1; d <= _arMaxRange; d++) {
           const tx = p.x + dx * d,
             ty = p.y + dy * d;
           if (
@@ -4780,7 +4788,8 @@ export default function RoguelikeGame() {
           const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
           if (m) {
             m.hp -= dmg;
-            ml.push(`矢が${m.name}に命中！${dmg}ダメージ！`);
+            if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+            ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
             if (m.hp <= 0) {
               ml.push(`${m.name}を倒した！(+${m.exp}exp)`);
               p.exp += m.exp;
@@ -4788,14 +4797,14 @@ export default function RoguelikeGame() {
               dg.monsters = dg.monsters.filter((m2) => m2 !== m);
               lu(p, ml);
             }
-            if (!_isFarcast) { hit = true; break; }
-            /* 遠投：貫通して飛び続ける */
+            if (!_arPierceMode) { hit = true; break; }
+            /* 貫通：飛び続ける */
           }
-          if (!_isFarcast) {
+          if (!_arPierceMode) {
             const bb = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
             if (bb) {
-              ml.push("矢を射った。");
-              bigboxAddItem(bb, ar, dg, ml);
+              ml.push(`${_arName}を射った。`);
+              bigboxAddItem(bb, _arDropItem(), dg, ml);
               hit = true;
               break;
             }
@@ -4803,16 +4812,16 @@ export default function RoguelikeGame() {
           lx = tx;
           ly = ty;
         }
-        if (_isFarcast) {
-          ml.push("矢を射った。矢は消滅した。");
+        if (_arPierceMode || _isCursedFc) {
+          ml.push(`${_arName}を射った。矢は消滅した。`);
           hit = true;
         }
         if (!hit) {
-          ml.push("矢を射った。");
+          ml.push(`${_arName}を射った。`);
           const ft = new Set();
           const _arPfBag = [];
           setPitfallBag(_arPfBag);
-          placeItemAt(dg, lx, ly, ar, ml, ft);
+          placeItemAt(dg, lx, ly, _arDropItem(), ml, ft);
           clearPitfallBag();
           if (!sr.current.floors) sr.current.floors = {};
           processPitfallBag(_arPfBag, sr.current.floors, p.depth);
@@ -4821,7 +4830,7 @@ export default function RoguelikeGame() {
           const _ex = p.arrow;
           p.arrow = null;
           p.inventory = p.inventory.filter(i => i !== _ex);
-          ml.push("矢を撃ち尽くした。");
+          ml.push(`${_arName}を撃ち尽くした。`);
         }
       } else if (mode === "shoot") {
         const it = p.inventory[idx];

@@ -239,15 +239,33 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
     case "blowback_trap": {
       const _pfd = p.facing || { dx: 0, dy: 1 };
       const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
+      ml.push(`${trap.name}が発動！向いていた方向と逆に吹き飛ばされた！`);
       if (_pbdx !== 0 || _pbdy !== 0) {
+        let _bbHitWall = false, _bbHitMon = null;
         for (let i = 0; i < 10; i++) {
           const _pnx = p.x + _pbdx, _pny = p.y + _pbdy;
           if (_pnx < 0 || _pnx >= MW || _pny < 0 || _pny >= MH ||
-              dg.map[_pny][_pnx] === T.WALL || dg.map[_pny][_pnx] === T.BWALL) break;
+              dg.map[_pny][_pnx] === T.WALL || dg.map[_pny][_pnx] === T.BWALL) {
+            _bbHitWall = true; break;
+          }
+          const _bm = dg.monsters.find(m => m.x === _pnx && m.y === _pny);
+          if (_bm) { _bbHitMon = _bm; break; }
           p.x = _pnx; p.y = _pny;
         }
+        if (_bbHitWall) {
+          p.deathCause = `${trap.name}による壁への衝突により`;
+          p.hp -= 10;
+          ml.push("壁に激突！10ダメージ！");
+        } else if (_bbHitMon) {
+          p.hp -= 10;
+          _bbHitMon.hp -= 10;
+          ml.push(`${_bbHitMon.name}に激突！お互いに10ダメージ！`);
+          if (_bbHitMon.hp <= 0) {
+            ml.push(`${_bbHitMon.name}は倒れた！`);
+            dg.monsters = dg.monsters.filter(m => m !== _bbHitMon);
+          }
+        }
       }
-      ml.push(`${trap.name}が発動！向いていた方向と逆に吹き飛ばされた！`);
       break;
     }
   }
