@@ -1249,6 +1249,58 @@ export default function RoguelikeGame() {
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn);
   }, []);
+  /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
+  const doExamineFront = useCallback(() => {
+    if (!sr.current) return;
+    const { player: p, dungeon: dg } = sr.current;
+    const fd = p.facing || { dx: 0, dy: 1 };
+    const nx = p.x + fd.dx, ny = p.y + fd.dy;
+    const mon = dg.monsters.find((m) => m.x === nx && m.y === ny);
+    if (mon) {
+      if (mon.type === "shopkeeper" && mon.state !== "hostile") {
+        if (sr.current?.dungeon?.shop) {
+          const dg6 = sr.current.dungeon;
+          const fis2 = dg6.items.filter(
+            (i) => !i.shopPrice && i.x >= dg6.shop.room.x && i.x < dg6.shop.room.x + dg6.shop.room.w &&
+              i.y >= dg6.shop.room.y && i.y < dg6.shop.room.y + dg6.shop.room.h,
+          );
+          if (fis2.length > 0) {
+            setShopMode("sell"); setShopMenuSel(0);
+            setMsgs((prev) => [...prev.slice(-80), "店主：「買い取りましょうか？」"]);
+          } else if (dg6.shop.unpaidTotal > 0) {
+            setShopMode("pay"); setShopMenuSel(0);
+            setMsgs((prev) => [...prev.slice(-80), `店主：「お代は${dg6.shop.unpaidTotal}Gです。」`]);
+          } else {
+            setMsgs((prev) => [...prev.slice(-80), "店主：「いらっしゃいませ！」"]);
+          }
+        }
+      } else act("move", fd.dx, fd.dy);
+    } else {
+      /* BWALLチェックを最優先（大箱・泉の上に壁がある場合は壁破壊のみ） */
+      if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.BWALL) {
+        dg.map[ny][nx] = T.FLOOR;
+        act("wait");
+        setMsgs((prev) => [...prev.slice(-80), "壁を叩き壊した！"]);
+      } else if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.WALL) {
+        act("wait");
+        setMsgs((prev) => [...prev.slice(-80), "壁を叩いた。ゴツン！"]);
+      } else {
+        const spr = dg.springs?.find((s) => s.x === nx && s.y === ny);
+        const bb6 = dg.bigboxes?.find((b) => b.x === nx && b.y === ny);
+        if (spr) {
+          springTargetRef.current = spr;
+          setSpringMode("menu"); setSpringMenuSel(0);
+          setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
+        } else if (bb6) {
+          bigboxRef.current = bb6;
+          setBigboxMode("menu"); setBigboxMenuSel(0);
+          setMsgs((prev) => [...prev.slice(-80), `${bb6.name}がある。どうする？`]);
+        } else {
+          setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
+        }
+      }
+    }
+  }, [act]);
   const moveMons = useCallback((dg, pl, ml) => {
     const opts = {
       bbFn: bigboxAddItem,
@@ -1868,36 +1920,33 @@ export default function RoguelikeGame() {
           }
         } else ml.push("ここに上り階段はない。");
       } else if (type === "interact") {
-        {
-          const _fd = p.facing || { dx: 0, dy: 1 };
-          const _nx = p.x + _fd.dx,
-            _ny = p.y + _fd.dy;
-          const bb2 = dg.bigboxes?.find(
-            (b) => (b.x === _nx && b.y === _ny) || (b.x === p.x && b.y === p.y),
-          );
+        /* 足元の階段チェック */
+        if (dg.map[p.y][p.x] === T.SD) {
+          const nd = chgFloor(p, 1);
+          if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に降りた。`); acted = true; }
+        } else if (dg.map[p.y][p.x] === T.SU) {
+          if (p.depth === 1) ml.push("まだ帰れない！");
+          else {
+            const nd = chgFloor(p, -1);
+            if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に昇った。`); acted = true; }
+          }
+        } else {
+          /* 足元の大箱チェック（前方は除く） */
+          const bb2 = dg.bigboxes?.find((b) => b.x === p.x && b.y === p.y);
           if (bb2) {
             bigboxRef.current = bb2;
-            setBigboxMode("menu");
-            setBigboxMenuSel(0);
-            setMsgs((prev) => [
-              ...prev.slice(-80),
-              `${bb2.name}がある。どうする？`,
-            ]);
-            sr.current = { ...st };
-            setGs({ ...st });
-            return;
+            setBigboxMode("menu"); setBigboxMenuSel(0);
+            setMsgs((prev) => [...prev.slice(-80), `${bb2.name}がある。どうする？`]);
+            sr.current = { ...st }; setGs({ ...st }); return;
           }
+          const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
+          if (spr) {
+            springTargetRef.current = spr;
+            setSpringMode("menu"); setSpringMenuSel(0);
+            setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
+            sr.current = { ...st }; setGs({ ...st }); return;
+          } else ml.push("ここには何もない。");
         }
-        const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
-        if (spr) {
-          springTargetRef.current = spr;
-          setSpringMode("menu");
-          setSpringMenuSel(0);
-          setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
-          sr.current = { ...st };
-          setGs({ ...st });
-          return;
-        } else ml.push("ここには何もない。");
       }
       if (acted) {
         /* 2倍速：1回目の行動はendTurnせず、2回目でendTurn */
@@ -3315,85 +3364,7 @@ export default function RoguelikeGame() {
         !putMode
       ) {
         e.preventDefault();
-        if (sr.current) {
-          const { player: p, dungeon: dg } = sr.current;
-          const fd = p.facing || { dx: 0, dy: 1 };
-          const nx = p.x + fd.dx,
-            ny = p.y + fd.dy;
-          const mon = dg.monsters.find((m) => m.x === nx && m.y === ny);
-          if (mon) {
-            if (mon.type === "shopkeeper" && mon.state !== "hostile") {
-              if (sr.current?.dungeon?.shop) {
-                const dg6 = sr.current.dungeon;
-                const fis2 = dg6.items.filter(
-                  (i) =>
-                    !i.shopPrice &&
-                    i.x >= dg6.shop.room.x &&
-                    i.x < dg6.shop.room.x + dg6.shop.room.w &&
-                    i.y >= dg6.shop.room.y &&
-                    i.y < dg6.shop.room.y + dg6.shop.room.h,
-                );
-                if (fis2.length > 0) {
-                  setShopMode("sell");
-                  setShopMenuSel(0);
-                  setMsgs((prev) => [
-                    ...prev.slice(-80),
-                    "店主：「買い取りましょうか？」",
-                  ]);
-                } else if (dg6.shop.unpaidTotal > 0) {
-                  setShopMode("pay");
-                  setShopMenuSel(0);
-                  setMsgs((prev) => [
-                    ...prev.slice(-80),
-                    `店主：「お代は${dg6.shop.unpaidTotal}Gです。」`,
-                  ]);
-                } else
-                  setMsgs((prev) => [
-                    ...prev.slice(-80),
-                    "店主：「いらっしゃいませ！」",
-                  ]);
-              }
-            } else act("move", fd.dx, fd.dy);
-          } else {
-            const spr = dg.springs?.find((s) => s.x === nx && s.y === ny);
-            const bb6 = dg.bigboxes?.find((b) => b.x === nx && b.y === ny);
-            if (spr) {
-              springTargetRef.current = spr;
-              setSpringMode("menu");
-              setSpringMenuSel(0);
-              setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
-            } else if (bb6) {
-              bigboxRef.current = bb6;
-              setBigboxMode("menu");
-              setBigboxMenuSel(0);
-              setMsgs((prev) => [
-                ...prev.slice(-80),
-                `${bb6.name}がある。どうする？`,
-              ]);
-            } else if (
-              ny >= 0 &&
-              ny < MH &&
-              nx >= 0 &&
-              nx < MW &&
-              dg.map[ny]?.[nx] === T.BWALL
-            ) {
-              dg.map[ny][nx] = T.FLOOR;
-              act("wait");
-              setMsgs((prev) => [...prev.slice(-80), "壁を叩き壊した！"]);
-            } else if (
-              ny >= 0 &&
-              ny < MH &&
-              nx >= 0 &&
-              nx < MW &&
-              dg.map[ny]?.[nx] === T.WALL
-            ) {
-              act("wait");
-              setMsgs((prev) => [...prev.slice(-80), "壁を叩いた。ゴツン！"]);
-            } else {
-              setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
-            }
-          }
-        }
+        doExamineFront();
       } else if (
         k === "c" &&
         !showInv &&
@@ -5371,21 +5342,15 @@ export default function RoguelikeGame() {
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label="▼"
-                  sub="降りる"
-                  onClick={() => act("stairs_down")}
+                  label="足"
+                  sub="足元"
+                  onClick={() => act("interact")}
                   color="#0ff"
-                />
-                <AB
-                  label="▲"
-                  sub="昇る"
-                  onClick={() => act("stairs_up")}
-                  color="#0f0"
                 />
                 <AB
                   label="調"
                   sub="調べる"
-                  onClick={() => act("interact")}
+                  onClick={() => doExamineFront()}
                   color="#4af"
                 />
                 <AB

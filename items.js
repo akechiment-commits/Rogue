@@ -1979,14 +1979,22 @@ export function getFarcastMode(x, y, dg) {
 }
 
 export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null) {
-  /* 呪われた穴掘り：1マス先に壊せる壁を生成 */
+  /* 呪われた穴掘り：1マス先に壊せる壁を生成（敵がいたらダメージのみ） */
   if (eff === "dig" && blMult < 1) {
     const wx = p.x + dx, wy = p.y + dy;
-    if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && dg.map[wy][wx] === T.FLOOR &&
-        !dg.monsters.some(m => m.x === wx && m.y === wy) &&
-        !(p.x === wx && p.y === wy)) {
-      dg.map[wy][wx] = T.BWALL;
-      ml.push("壊せる壁が出現した！");
+    if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && !(p.x === wx && p.y === wy)) {
+      const _mon = dg.monsters.find(m => m.x === wx && m.y === wy);
+      if (_mon) {
+        const _dmg = rng(5, 15);
+        _mon.hp -= _dmg;
+        ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
+        if (_mon.hp <= 0) { luFn(_mon, ml); dg.monsters = dg.monsters.filter(m => m !== _mon); }
+      } else if (dg.map[wy][wx] === T.FLOOR) {
+        dg.map[wy][wx] = T.BWALL;
+        ml.push("壊せる壁が出現した！");
+      } else {
+        ml.push("魔法弾は消えた。");
+      }
     } else {
       ml.push("魔法弾は消えた。");
     }
@@ -2101,15 +2109,22 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
   if (eff === "leap") { ml.push("杖が壊れたが何も起こらなかった。"); return; }
   if (eff === "dig") {
     if (blMult < 1) {
-      /* 呪われた穴掘りの杖を壊した：周囲8方向を壊せる壁で囲む */
+      /* 呪われた穴掘りの杖を壊した：周囲8方向を壊せる壁で囲む（敵がいたらダメージのみ） */
       const digDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
       let walled = 0;
       for (const [adx, ady] of digDirs) {
         const wx = p.x + adx, wy = p.y + ady;
-        if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && dg.map[wy][wx] === T.FLOOR &&
-            !dg.monsters.some(m => m.x === wx && m.y === wy)) {
-          dg.map[wy][wx] = T.BWALL;
-          walled++;
+        if (wx >= 0 && wx < MW && wy >= 0 && wy < MH) {
+          const _mon = dg.monsters.find(m => m.x === wx && m.y === wy);
+          if (_mon) {
+            const _dmg = rng(5, 15);
+            _mon.hp -= _dmg;
+            ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
+            if (_mon.hp <= 0) { luFn(_mon, ml); dg.monsters = dg.monsters.filter(m => m !== _mon); }
+          } else if (dg.map[wy][wx] === T.FLOOR) {
+            dg.map[wy][wx] = T.BWALL;
+            walled++;
+          }
         }
       }
       ml.push(walled > 0 ? "壊せる壁に囲まれた！" : "杖が壊れたが何も起こらなかった。");
