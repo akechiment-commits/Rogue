@@ -2634,7 +2634,11 @@ export default function RoguelikeGame() {
           pageItems[selIdx]
         ) {
           e.preventDefault();
-          setInvMenuSel(0);
+          if (dropModeRef.current) {
+            doDropItem(invPage * 10 + selIdx);
+          } else {
+            setInvMenuSel(0);
+          }
           return;
         }
         if (k === "s") {
