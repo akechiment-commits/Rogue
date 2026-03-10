@@ -1619,7 +1619,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push("テレポートに失敗した。");
         }
       } else {
-        ml.push("効果がなかった。");
+        // 通常/祝福：大箱の1マス手前に飛びつく
+        const _lpx = target.x - dx, _lpy = target.y - dy;
+        if ((dx !== 0 || dy !== 0) && _lpx >= 0 && _lpx < MW && _lpy >= 0 && _lpy < MH &&
+            dg.map[_lpy][_lpx] !== T.WALL && dg.map[_lpy][_lpx] !== T.BWALL &&
+            !(_lpx === p.x && _lpy === p.y)) {
+          p.x = _lpx; p.y = _lpy;
+          ml.push(`${target.name}の前に飛びついた！`);
+        } else {
+          ml.push("飛びつけなかった。");
+        }
       }
       return;
     }
@@ -1635,6 +1644,46 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       target.name = nt.name;
       target.capacity = nt.cap();
       ml.push(`${oldName}は${target.name}に変化した！`);
+      return;
+    }
+    if (eff === "bless_wand") {
+      const _bwBlessed = blMult > 1, _bwCursed = blMult < 1;
+      if (_bwCursed) {
+        const _newCap = Math.max(0, (target.capacity || 1) - 1);
+        if ((target.contents?.length || 0) > _newCap) {
+          const _fts = new Set();
+          for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
+          dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
+          ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！【呪】`);
+        } else {
+          target.capacity = _newCap;
+          ml.push(`${target.name}が呪われた！(容量-1 → ${target.capacity})【呪】`);
+        }
+      } else {
+        const _gain = _bwBlessed ? 2 : 1;
+        target.capacity = (target.capacity || 0) + _gain;
+        ml.push(`${target.name}が祝福された！(容量+${_gain} → ${target.capacity})${_bwBlessed ? "【祝】" : ""}`);
+      }
+      return;
+    }
+    if (eff === "curse_wand") {
+      const _cwBlessed = blMult > 1, _cwCursed = blMult < 1;
+      if (_cwCursed) {
+        target.capacity = (target.capacity || 0) + 1;
+        ml.push(`${target.name}が祝福された！(容量+1 → ${target.capacity})【呪→祝】`);
+      } else {
+        const _loss = _cwBlessed ? 2 : 1;
+        const _newCap = Math.max(0, (target.capacity || 1) - _loss);
+        if ((target.contents?.length || 0) > _newCap) {
+          const _fts = new Set();
+          for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
+          dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
+          ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
+        } else {
+          target.capacity = _newCap;
+          ml.push(`${target.name}が呪われた！(容量-${_loss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
+        }
+      }
       return;
     }
     /* default: break and scatter (dig, lightning, etc.) */
@@ -2168,26 +2217,6 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         break;
       }
-      if (kind === "bigbox") {
-        if (_bwCursed) {
-          // 呪われた祝福の杖→大箱の容量を1減らす
-          const _newCap = Math.max(0, (target.capacity || 1) - 1);
-          if ((target.contents?.length || 0) > _newCap) {
-            const _fts = new Set();
-            for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-            dg.bigboxes = dg.bigboxes.filter(b => b !== target);
-            ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！【呪】`);
-          } else {
-            target.capacity = _newCap;
-            ml.push(`${target.name}が呪われた！(容量-1 → ${target.capacity})【呪】`);
-          }
-        } else {
-          const _gain = _bwBlessed ? 2 : 1;
-          target.capacity = (target.capacity || 0) + _gain;
-          ml.push(`${target.name}が祝福された！(容量+${_gain} → ${target.capacity})${_bwBlessed ? "【祝】" : ""}`);
-        }
-        break;
-      }
       if (kind === "monster") {
         if (_bwCursed) {
           // 呪われた祝福の杖→敵を鈍足にする
@@ -2264,27 +2293,6 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else {
           target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
           ml.push(`${target.name}が呪いで鈍足になった！`);
-        }
-        break;
-      }
-      if (kind === "bigbox") {
-        if (_cwCursed) {
-          // 呪われた呪いの杖→大箱の容量を+1（反転）
-          target.capacity = (target.capacity || 0) + 1;
-          ml.push(`${target.name}が祝福された！(容量+1 → ${target.capacity})【呪→祝】`);
-        } else {
-          // 通常→-1、祝福された呪いの杖→-2
-          const _loss = _cwBlessed ? 2 : 1;
-          const _newCap = Math.max(0, (target.capacity || 1) - _loss);
-          if ((target.contents?.length || 0) > _newCap) {
-            const _fts = new Set();
-            for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-            dg.bigboxes = dg.bigboxes.filter(b => b !== target);
-            ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
-          } else {
-            target.capacity = _newCap;
-            ml.push(`${target.name}が呪われた！(容量-${_loss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
-          }
         }
         break;
       }
