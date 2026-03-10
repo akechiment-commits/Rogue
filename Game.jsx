@@ -1133,6 +1133,11 @@ export default function RoguelikeGame() {
         } else if (exp2) {
           /* Dim explored tiles */ ctx.fillStyle = "rgba(0,0,8,0.6)";
           ctx.fillRect(px2, py2, sz, sz);
+          /* 祝福マップ：探索済みタイルにアイテムを薄く表示 */
+          if (dg.itemsRevealed) {
+            const ri = dg.items.find((i) => i.x === x && i.y === y);
+            if (ri) { ctx.globalAlpha = 0.35; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
+          }
           /* Show revealed traps dimly */ const tr = dg.traps.find(
             (t2) => t2.x === x && t2.y === y && t2.revealed,
           );
@@ -3792,8 +3797,19 @@ export default function RoguelikeGame() {
       } else if (it.effect === "reveal") {
         for (let y = 0; y < MH; y++)
           for (let x = 0; x < MW; x++) dg.explored[y][x] = true;
-        dg.traps.forEach((t) => (t.revealed = true));
-        ml.push("フロア全体と罠が明らかになった！");
+        if (it.cursed) {
+          // 呪い：床は全開示だが罠は非開示
+          ml.push("フロアが明らかになった…しかし罠の場所はわからない！【呪】");
+        } else {
+          dg.traps.forEach((t) => (t.revealed = true));
+          if (it.blessed) {
+            // 祝福：全開示＋アイテム位置も地図に表示
+            dg.itemsRevealed = true;
+            ml.push("フロア全体・罠・アイテムの位置が明らかになった！【祝】");
+          } else {
+            ml.push("フロア全体と罠が明らかになった！");
+          }
+        }
       } else if (it.effect === "weapon_up") {
         if (p.weapon) {
           const _bef = p.weapon.plus || 0;
@@ -3819,11 +3835,17 @@ export default function RoguelikeGame() {
           ml.push("防具を装備していないので効果がなかった。");
         }
       } else if (it.effect === "thunder") {
-        const _tvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-        if (_tvis.length === 0) {
+        // 祝福：フロア全モンスターに雷、通常：視界内のみ、呪い：視界内＋自分にも雷
+        const _tTargets = it.blessed
+          ? dg.monsters
+          : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+        if (_tTargets.length === 0 && !it.cursed) {
           ml.push("雷が走るが、視界に敵はいない。");
         } else {
-          for (const _m of _tvis) {
+          if (it.blessed && _tTargets.length === 0) {
+            ml.push("雷が走るが、フロアに敵はいない。【祝】");
+          }
+          for (const _m of _tTargets) {
             let _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
@@ -3836,68 +3858,135 @@ export default function RoguelikeGame() {
               lu(p, ml);
             }
           }
+          // 呪い：自分にも雷が落ちる
+          if (it.cursed) {
+            const _selfDmg = Math.max(1, rng(10, 20));
+            p.hp -= _selfDmg;
+            p.deathCause = "呪われた雷の巻物で";
+            ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！【呪】`);
+          }
         }
       } else if (it.effect === "recovery") {
-        const _rh = Math.max(1, Math.round(rng(15, 25) * _scrBm));
-        const _ra = Math.min(_rh, p.maxHp - p.hp);
-        p.hp += _ra;
-        ml.push(`体が回復した！HP+${_ra}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
-        const _rvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-        for (const _m of _rvis) {
-          const _mh = Math.max(1, Math.round(rng(10, 20) * _scrBm));
-          const _ma = Math.min(_mh, _m.maxHp - _m.hp);
-          _m.hp += _ma;
-          ml.push(`${_m.name}も回復した！HP+${_ma}`);
+        if (it.cursed) {
+          // 呪い：自分がダメージ、視界内モンスターが回復
+          const _rdmg = Math.max(1, rng(10, 20));
+          p.hp -= _rdmg;
+          p.deathCause = "呪われた回復の巻物で";
+          ml.push(`体が焼けるような痛みが走った！${_rdmg}ダメージ！【呪】`);
+          const _rvisC = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+          for (const _m of _rvisC) {
+            const _ma = Math.min(rng(10, 20), _m.maxHp - _m.hp);
+            if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); }
+          }
+        } else {
+          const _rh = Math.max(1, Math.round(rng(15, 25) * _scrBm));
+          const _ra = Math.min(_rh, p.maxHp - p.hp);
+          p.hp += _ra;
+          if (it.blessed) {
+            // 祝福：自分だけ回復（敵は回復しない）
+            ml.push(`体が癒された！HP+${_ra}（祝福：自分だけ回復！）`);
+          } else {
+            // 通常：自分と視界内モンスターも回復
+            ml.push(`体が回復した！HP+${_ra}`);
+            const _rvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+            for (const _m of _rvis) {
+              const _mh = Math.max(1, Math.round(rng(10, 20)));
+              const _ma = Math.min(_mh, _m.maxHp - _m.hp);
+              if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); }
+            }
+          }
         }
       } else if (it.effect === "item_gather") {
-        const _gft = new Set();
         const _toG = dg.items.filter((gi) => !gi.shopPrice);
-        dg.items = dg.items.filter((gi) => gi.shopPrice);
         const _cnt = _toG.length;
-        const _igPfBag = [];
-        setPitfallBag(_igPfBag);
-        for (const gi of _toG) {
-          let _placed = false;
-          for (const [_dx, _dy] of DRO) {
-            const _cx = p.x + _dx, _cy = p.y + _dy;
-            if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
-            if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL || dg.map[_cy][_cx] === T.SD || dg.map[_cy][_cx] === T.SU) continue;
-            const _gb = dg.bigboxes?.find((b) => b.x === _cx && b.y === _cy);
-            if (_gb) { bigboxAddItem(_gb, gi, dg, ml); _placed = true; break; }
-            const _gs = dg.springs?.find((s) => s.x === _cx && s.y === _cy);
-            if (_gs) { soakItemIntoSpring(_gs, gi, ml, dg); _placed = true; break; }
-            const _gt = dg.traps.find((t) => t.x === _cx && t.y === _cy && !_gft.has(t.id));
-            if (_gt) {
-              _gft.add(_gt.id);
-              _gt.revealed = true;
-              const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef);
-              if (Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
-              if (_gr === "destroyed") { _placed = true; break; }
-              if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
-              continue;
-            }
-            if (dg.items.some((i) => i.x === _cx && i.y === _cy)) continue;
-            gi.x = _cx; gi.y = _cy;
+        if (_cnt === 0) {
+          ml.push("引き寄せるアイテムがなかった。");
+        } else if (it.cursed) {
+          // 呪い：フロアのアイテムをランダムな場所に飛ばす
+          dg.items = dg.items.filter((gi) => gi.shopPrice);
+          const _floorCands = [];
+          for (let _fy = 0; _fy < MH; _fy++)
+            for (let _fx = 0; _fx < MW; _fx++)
+              if (dg.map[_fy][_fx] !== T.WALL && dg.map[_fy][_fx] !== T.BWALL &&
+                  dg.map[_fy][_fx] !== T.SD && dg.map[_fy][_fx] !== T.SU)
+                _floorCands.push([_fx, _fy]);
+          for (const gi of _toG) {
+            const [_rx, _ry] = _floorCands[rng(0, _floorCands.length - 1)];
+            gi.x = _rx; gi.y = _ry;
             dg.items.push(gi);
-            _placed = true;
-            break;
           }
-          if (!_placed) ml.push(`${gi.name}は引き寄せられなかった！`);
-        }
-        clearPitfallBag();
-        if (!sr.current.floors) sr.current.floors = {};
-        processPitfallBag(_igPfBag, sr.current.floors, p.depth);
-        if (_cnt > 0) ml.push(`${_cnt}個のアイテムを引き寄せた！`);
-        else ml.push("引き寄せるアイテムがなかった。");
-      } else if (it.effect === "sleep_scroll") {
-        const _svis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-        if (_svis.length === 0) {
-          ml.push("眠気が漂うが、視界に敵はいない。");
+          ml.push(`${_cnt}個のアイテムがフロアに散らばった！【呪】`);
+        } else if (it.blessed) {
+          // 祝福：フロアのアイテムを直接インベントリに吸収（満杯分は足元に落とす）
+          dg.items = dg.items.filter((gi) => gi.shopPrice);
+          let _picked = 0, _dropped = 0;
+          for (const gi of _toG) {
+            if (p.inventory.length < 30) {
+              p.inventory.push(gi);
+              _picked++;
+            } else {
+              gi.x = p.x; gi.y = p.y;
+              dg.items.push(gi);
+              _dropped++;
+            }
+          }
+          ml.push(`${_picked}個のアイテムを拾った！【祝】${_dropped > 0 ? `（${_dropped}個は満杯で足元に）` : ""}`);
         } else {
-          for (const _m of _svis) {
-            const _st = Math.max(1, Math.round(rng(3, 6) * _scrBm));
-            _m.sleepTurns = (_m.sleepTurns || 0) + _st;
-            ml.push(`${_m.name}が眠りに落ちた！(${_st}ターン)${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
+          // 通常：隣接マスに引き寄せる
+          dg.items = dg.items.filter((gi) => gi.shopPrice);
+          const _gft = new Set();
+          const _igPfBag = [];
+          setPitfallBag(_igPfBag);
+          for (const gi of _toG) {
+            let _placed = false;
+            for (const [_dx, _dy] of DRO) {
+              const _cx = p.x + _dx, _cy = p.y + _dy;
+              if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
+              if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL || dg.map[_cy][_cx] === T.SD || dg.map[_cy][_cx] === T.SU) continue;
+              const _gb = dg.bigboxes?.find((b) => b.x === _cx && b.y === _cy);
+              if (_gb) { bigboxAddItem(_gb, gi, dg, ml); _placed = true; break; }
+              const _gs = dg.springs?.find((s) => s.x === _cx && s.y === _cy);
+              if (_gs) { soakItemIntoSpring(_gs, gi, ml, dg); _placed = true; break; }
+              const _gt = dg.traps.find((t) => t.x === _cx && t.y === _cy && !_gft.has(t.id));
+              if (_gt) {
+                _gft.add(_gt.id);
+                _gt.revealed = true;
+                const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef);
+                if (Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
+                if (_gr === "destroyed") { _placed = true; break; }
+                if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
+                continue;
+              }
+              if (dg.items.some((i) => i.x === _cx && i.y === _cy)) continue;
+              gi.x = _cx; gi.y = _cy;
+              dg.items.push(gi);
+              _placed = true;
+              break;
+            }
+            if (!_placed) ml.push(`${gi.name}は引き寄せられなかった！`);
+          }
+          clearPitfallBag();
+          if (!sr.current.floors) sr.current.floors = {};
+          processPitfallBag(_igPfBag, sr.current.floors, p.depth);
+          ml.push(`${_cnt}個のアイテムを引き寄せた！`);
+        }
+      } else if (it.effect === "sleep_scroll") {
+        if (it.cursed) {
+          // 呪い：プレイヤーが眠る
+          const _pst = Math.max(2, rng(3, 5));
+          p.sleepTurns = (p.sleepTurns || 0) + _pst;
+          ml.push(`眠気が自分を襲った！${_pst}ターン眠ってしまう…【呪】`);
+        } else {
+          // 通常：視界内、祝福：フロア全モンスター
+          const _sSleep = it.blessed ? dg.monsters : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+          if (_sSleep.length === 0) {
+            ml.push(it.blessed ? "眠気が漂うが、フロアに敵はいない。【祝】" : "眠気が漂うが、視界に敵はいない。");
+          } else {
+            for (const _m of _sSleep) {
+              const _st = Math.max(1, Math.round(rng(3, 6) * _scrBm));
+              _m.sleepTurns = (_m.sleepTurns || 0) + _st;
+              ml.push(`${_m.name}が眠りに落ちた！(${_st}ターン)${it.blessed ? "【祝】" : ""}`);
+            }
           }
         }
       } else if (it.effect === "identify") {
