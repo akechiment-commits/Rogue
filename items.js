@@ -96,6 +96,8 @@ export const ITEMS = [
     desc:"持ち物から1つ選んで複製する。祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
   { name:"召喚の巻物", type:"scroll", effect:"summon",
     desc:"敵を4体召喚する。祝福：8体に囲まれる。呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
+  { name:"収納上手の巻物", type:"scroll", effect:"expand_inv",
+    desc:"最大所持数が1～3増える。祝福：2～6増える。呪い：1～3減る。", tile:18 },
 ];
 
 export function getBlessMultiplier(it) {

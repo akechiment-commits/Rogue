@@ -958,6 +958,7 @@ export default function RoguelikeGame() {
       confusedTurns: 0,
       poisoned: false,
       poisonAtkLoss: 0,
+      maxInventory: 30,
       facing: { dx: 0, dy: 1 },
       isThief: false,
       deathCause: "不明の原因により",
@@ -1216,7 +1217,7 @@ export default function RoguelikeGame() {
       } else if (it.shopPrice) {
         ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}がある（商品：${it.shopPrice}G）gキーで拾う`);
         break;
-      } else if (p.inventory.length < 30) {
+      } else if (p.inventory.length < (p.maxInventory || 30)) {
         p.inventory.push(it);
         {
           const _w = it.type === "weapon",
@@ -1789,7 +1790,7 @@ export default function RoguelikeGame() {
               ml.push(`矢(${it.count}本)を拾った。`);
               dg.items = dg.items.filter((i) => i !== it);
             } else ml.push("持ち物がいっぱいだ！");
-          } else if (p.inventory.length >= 30) ml.push("持ち物がいっぱいだ！");
+          } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
           else {
             p.inventory.push(it);
             if (it.shopPrice && dg.shop) {
@@ -3655,7 +3656,7 @@ export default function RoguelikeGame() {
           ml.push(`${it.name}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
         }
       }
-      if (p.inventory.length < 30) {
+      if (p.inventory.length < (p.maxInventory || 30)) {
         const bottle = { ...EMPTY_BOTTLE, id: uid() };
         p.inventory.push(bottle);
         ml.push("空き瓶が残った。");
@@ -3958,7 +3959,7 @@ export default function RoguelikeGame() {
           let _picked = 0, _dropped = 0;
           const _blessFt = new Set();
           for (const gi of _toG) {
-            if (p.inventory.length < 30) {
+            if (p.inventory.length < (p.maxInventory || 30)) {
               p.inventory.push(gi);
               _picked++;
             } else {
@@ -4136,6 +4137,30 @@ export default function RoguelikeGame() {
             }
           }
           ml.push(it.blessed ? `${_spawned}体の敵に囲まれた！【祝】` : `${_spawned}体の敵が召喚された！`);
+        }
+      } else if (it.effect === "expand_inv") {
+        // 収納上手の巻物
+        const _curMax = p.maxInventory || 30;
+        if (it.cursed) {
+          const _loss = rng(1, 3);
+          const _newMax = Math.max(10, _curMax - _loss);
+          const _actual = _curMax - _newMax;
+          p.maxInventory = _newMax;
+          // 超過分のアイテムを足元に落とす
+          if (p.inventory.length > _newMax) {
+            const _excess = p.inventory.splice(_newMax);
+            const _fts = new Set();
+            for (const _ei of _excess) placeItemAt(dg, p.x, p.y, _ei, ml, _fts, 0, p);
+            ml.push(`最大所持数が${_actual}減った…(${_curMax}→${_newMax}) 超過分が落ちた！【呪】`);
+          } else {
+            ml.push(`最大所持数が${_actual}減った…(${_curMax}→${_newMax})【呪】`);
+          }
+        } else {
+          const _gain = it.blessed ? rng(2, 6) : rng(1, 3);
+          p.maxInventory = _curMax + _gain;
+          ml.push(it.blessed
+            ? `収納が上手くなった！最大所持数が${_gain}増えた！(${_curMax}→${p.maxInventory})【祝】`
+            : `収納が上手くなった！最大所持数が${_gain}増えた！(${_curMax}→${p.maxInventory})`);
         }
       }
     } else if (it.type === "pen") {
