@@ -798,7 +798,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _nx = tx + _dx, _ny = ty + _dy;
         if (dg.map[_ny]?.[_nx] === T.FLOOR && !dg.monsters.some(m => m.x === _nx && m.y === _ny) && (!p || _nx !== p.x || _ny !== p.y)) {
           const _mt = MONS[clamp(rng(0, _sumDepth + 1), 0, MONS.length - 1)];
-          dg.monsters.push({ ..._mt, id: uid(), x: _nx, y: _ny, maxHp: _mt.hp, turnAccum: 0, aware: true, dir: { x: 0, y: 0 }, lastPx: tx, lastPy: ty, patrolTarget: null });
+          dg.monsters.push({ ..._mt, id: uid(), x: _nx, y: _ny, maxHp: _mt.hp, turnAccum: -(_mt.speed || 1), aware: true, dir: { x: 0, y: 0 }, lastPx: tx, lastPy: ty, patrolTarget: null });
           _sumSpawned++;
         }
       }
@@ -810,7 +810,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             const _sy = rng(_sr.y + 1, _sr.y + _sr.h - 2);
             if (dg.map[_sy]?.[_sx] === T.FLOOR && !dg.monsters.some(m => m.x === _sx && m.y === _sy) && (!p || _sx !== p.x || _sy !== p.y)) {
               const _mt = MONS[clamp(rng(0, _sumDepth + 1), 0, MONS.length - 1)];
-              dg.monsters.push({ ..._mt, id: uid(), x: _sx, y: _sy, maxHp: _mt.hp, turnAccum: 0, aware: false, dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null });
+              dg.monsters.push({ ..._mt, id: uid(), x: _sx, y: _sy, maxHp: _mt.hp, turnAccum: -(_mt.speed || 1), aware: false, dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null });
               _sumSpawned++; break;
             }
           }
@@ -835,6 +835,16 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "steal_trap": {
       ml.push(`${trap.name}が発動！`);
+      const _stm = dg.monsters.find(m => m.x === tx && m.y === ty);
+      if (_stm) {
+        const _stNewItem = { ...ITEMS[rng(0, ITEMS.length - 1)], id: uid() };
+        const _stFtm = new Set();
+        const _stRoomm = dg.rooms[rng(0, dg.rooms.length - 1)];
+        const _stXm = rng(_stRoomm.x, _stRoomm.x + _stRoomm.w - 1);
+        const _stYm = rng(_stRoomm.y, _stRoomm.y + _stRoomm.h - 1);
+        placeItemAt(dg, _stXm, _stYm, _stNewItem, ml, _stFtm);
+        ml.push(`フロアのどこかにアイテムが出現した！`);
+      }
       if (p && p.x === tx && p.y === ty && p.inventory && p.inventory.length > 0) {
         const _stIdx = rng(0, p.inventory.length - 1);
         const _stItem = p.inventory.splice(_stIdx, 1)[0];

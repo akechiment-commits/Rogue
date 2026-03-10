@@ -184,7 +184,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
             !dg.monsters.some((m) => m.x === _nx && m.y === _ny) &&
             (_nx !== p.x || _ny !== p.y)) {
           const _mt = MONS[clamp(rng(0, _sumDepth + 1), 0, MONS.length - 1)];
-          dg.monsters.push({ ..._mt, id: uid(), x: _nx, y: _ny, maxHp: _mt.hp, turnAccum: 0, aware: true, dir: { x: 0, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null });
+          dg.monsters.push({ ..._mt, id: uid(), x: _nx, y: _ny, maxHp: _mt.hp, turnAccum: -(_mt.speed || 1), aware: true, dir: { x: 0, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null });
           _sumSpawned++;
         }
       }
@@ -197,7 +197,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
               !dg.monsters.some((m) => m.x === _sx && m.y === _sy) &&
               (_sx !== p.x || _sy !== p.y)) {
             const _mt = MONS[clamp(rng(0, _sumDepth + 1), 0, MONS.length - 1)];
-            dg.monsters.push({ ..._mt, id: uid(), x: _sx, y: _sy, maxHp: _mt.hp, turnAccum: 0, aware: false, dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null });
+            dg.monsters.push({ ..._mt, id: uid(), x: _sx, y: _sy, maxHp: _mt.hp, turnAccum: -(_mt.speed || 1), aware: false, dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null });
             _sumSpawned++; break;
           }
         }
