@@ -939,6 +939,7 @@ export default function RoguelikeGame() {
         { name:"呪いの杖",     type:"wand",      effect:"curse_wand", charges:3, desc:"振ると対象のアイテムを呪う。", tile:24 },
         { name:"祝福の杖",     type:"wand",      effect:"bless_wand", charges:3, desc:"振ると対象のアイテムを祝福する。", tile:24 },
         { name:"遠投のペン",   type:"pen",       effect:"farcast",    charges:2, desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。チャージ制。", tile:42 },
+        { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
       ],
       spells: [],
       spellLevels: {},
