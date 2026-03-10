@@ -1588,6 +1588,7 @@ export default function RoguelikeGame() {
         setSelIdx(null);
         setShowDesc(null);
         setThrowMode(null);
+        setTimeout(() => ref.current?.focus(), 0);
         return;
       }
       if (p.sleepTurns > 0) {
@@ -6793,11 +6794,13 @@ export default function RoguelikeGame() {
                     onClick={() => {
                       if (dropModeRef.current) {
                         doDropItem(i);
+                        setTimeout(() => ref.current?.focus(), 0);
                         return;
                       }
                       setSelIdx(selIdx === j ? null : j);
                       setInvMenuSel(null);
                       setShowDesc(null);
+                      setTimeout(() => ref.current?.focus(), 0);
                     }}
                     style={{
                       padding: "7px 8px",
