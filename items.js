@@ -768,114 +768,161 @@ export function addArrowsInv(inv, c) {
   return true;
 }
 
-export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn) {
+export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false) {
+  const _monKill = (mon) => {
+    if (mon.hp <= 0) {
+      ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
+      p.exp += mon.exp;
+      monsterDrop(mon, dg, ml, p);
+      dg.monsters = dg.monsters.filter(m => m !== mon);
+      if (luFn) luFn(p, ml);
+    }
+  };
+  const _fireResist = (pl) =>
+    pl.armor?.ability === "fire_resist" || !!pl.armor?.abilities?.includes("fire_resist");
   switch (eff) {
     case "heal":
-      if (kind === "monster") {
-        const h = Math.min(val, target.maxHp - target.hp);
-        if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); }
-      }
-      if (kind === "player") {
-        const h = Math.min(val, p.maxHp - p.hp);
-        if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！`); }
+      if (cursed) {
+        // 反転→ダメージ
+        const d = Math.max(1, Math.round(val * 0.7));
+        if (kind === "monster") { target.hp -= d; ml.push(`${target.name}は変な薬を浴びた！${d}ダメージ！`); _monKill(target); }
+        if (kind === "player") { p.deathCause = "呪われた回復薬の飛散により"; p.hp -= d; ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`); }
+      } else {
+        const _mult = blessed ? 1.5 : 1;
+        if (kind === "monster") { const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp); if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); } }
+        if (kind === "player") { const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp); if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); } }
       }
       break;
     case "poison": {
-      const dmg = val + rng(-3, 3);
       if (kind === "monster") {
-        target.hp -= dmg;
-        ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！`);
-        if (target.hp <= 0) {
-          ml.push(`${target.name}を倒した！(+${target.exp}exp)`);
-          p.exp += target.exp;
-          monsterDrop(target, dg, ml, p);
-          dg.monsters = dg.monsters.filter(m => m !== target);
-          if (luFn) luFn(p, ml);
-        }
-      }
-      if (kind === "player") { p.deathCause = "毒の薬の飛散により"; p.hp -= dmg; ml.push(`毒を浴びた！${dmg}ダメージ！`); }
-      break;
-    }
-    case "fire": {
-      const dmg = val + rng(-5, 5);
-      if (kind === "monster") {
-        target.hp -= dmg;
-        ml.push(`${target.name}は炎に包まれた！${dmg}ダメージ！`);
-        if (target.hp <= 0) {
-          ml.push(`${target.name}を倒した！(+${target.exp}exp)`);
-          p.exp += target.exp;
-          monsterDrop(target, dg, ml, p);
-          dg.monsters = dg.monsters.filter(m => m !== target);
-          if (luFn) luFn(p, ml);
+        if (cursed) {
+          // 反転→モンスター回復
+          const h = Math.min(Math.round(val * 0.5), target.maxHp - target.hp);
+          if (h > 0) { target.hp += h; ml.push(`${target.name}は変な薬で回復した！${h}HP`); }
+        } else {
+          const dmg = Math.max(1, Math.round((val + rng(-3, 3)) * (blessed ? 1.5 : 1)));
+          target.hp -= dmg;
+          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！${blessed ? "(強毒)" : ""}`);
+          _monKill(target);
         }
       }
       if (kind === "player") {
-        const fd = p.armor?.ability === "fire_resist" ? Math.floor(dmg / 2) : dmg;
-        p.deathCause = "炎の薬の飛散により";
-        p.hp -= fd;
-        ml.push(`炎に包まれた！${fd}ダメージ！${p.armor?.ability === "fire_resist" ? "(耐火)" : ""}`);
-        const burnedBooks = p.inventory.filter(i => i.type === "spellbook" && Math.random() < 0.5);
-        if (burnedBooks.length > 0) {
-          p.inventory = p.inventory.filter(i => !burnedBooks.includes(i));
-          burnedBooks.forEach(b => ml.push(`所持していた「${b.name}」が燃えてなくなった！`));
+        if (cursed) {
+          // 反転→解毒
+          if (p.poisoned) {
+            p.poisoned = false;
+            if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+            ml.push("毒が体から消えた！攻撃力も回復！【呪→解毒】");
+          } else {
+            ml.push("変な味がするが…毒はかかっていなかった。【呪→解毒】");
+          }
+        } else {
+          p.poisoned = true;
+          if (blessed) {
+            const extraLoss = Math.min(3, p.atk - 1);
+            p.atk -= extraLoss;
+            p.poisonAtkLoss = (p.poisonAtkLoss || 0) + extraLoss;
+            ml.push(`強烈な毒を浴びた！毒状態になり攻撃力が${extraLoss}下がった！(強毒)`);
+          } else {
+            ml.push("毒状態になった！攻撃力が徐々に下がっていく…");
+          }
+        }
+      }
+      break;
+    }
+    case "fire": {
+      if (cursed) {
+        // 反転→回復
+        if (kind === "monster") { const h = Math.min(Math.round(val * 0.5), target.maxHp - target.hp); if (h > 0) { target.hp += h; ml.push(`${target.name}は炎の薬で温まった！${h}HP回復`); } }
+        if (kind === "player") { const h = Math.min(val, p.maxHp - p.hp); p.hp += h; ml.push(`体が温まりHP+${h}回復した！【呪→回復】`); }
+      } else {
+        const dmg = val + rng(-5, 5);
+        if (kind === "monster") {
+          const d = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1)));
+          target.hp -= d;
+          ml.push(`${target.name}は炎に包まれた！${d}ダメージ！${blessed ? "(強炎)" : ""}`);
+          _monKill(target);
+        }
+        if (kind === "player") {
+          const rd = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1)));
+          const fd = _fireResist(p) ? Math.floor(rd / 2) : rd;
+          p.deathCause = "炎の薬の飛散により";
+          p.hp -= fd;
+          ml.push(`炎に包まれた！${fd}ダメージ！${_fireResist(p) ? "(耐火)" : ""}${blessed ? "(強炎)" : ""}`);
+          const burnedBooks = p.inventory.filter(i => i.type === "spellbook" && Math.random() < 0.5);
+          if (burnedBooks.length > 0) {
+            p.inventory = p.inventory.filter(i => !burnedBooks.includes(i));
+            burnedBooks.forEach(b => ml.push(`所持していた「${b.name}」が燃えてなくなった！`));
+          }
         }
       }
       break;
     }
     case "sleep": {
-      const t = val + rng(-1, 1);
-      if (kind === "monster") {
-        target.sleepTurns = (target.sleepTurns || 0) + Math.max(1, t);
-        ml.push(`${target.name}は眠りに落ちた！`);
-      }
-      if (kind === "player") {
-        p.sleepTurns = (p.sleepTurns || 0) + Math.max(1, t);
-        ml.push(`眠りに落ちた...(${Math.max(1, t)}ターン)`);
+      if (cursed) {
+        // 反転→覚醒（眠り解消 / プレイヤーは2倍速）
+        if (kind === "monster") { target.sleepTurns = 0; ml.push(`${target.name}が目を覚ました！(覚醒)`); }
+        if (kind === "player") { p.sleepTurns = 0; p.hasteTurns = (p.hasteTurns || 0) + 5; ml.push("眠気が吹き飛んだ！体が覚醒した！(2倍速5ターン)【呪→覚醒】"); }
+      } else {
+        const t = Math.max(1, Math.round((val + rng(-1, 1)) * (blessed ? 2 : 1)));
+        if (kind === "monster") { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！${blessed ? "(強眠)" : ""}`); }
+        if (kind === "player") { p.sleepTurns = (p.sleepTurns || 0) + t; ml.push(`眠りに落ちた...(${t}ターン)${blessed ? "(強眠)" : ""}`); }
       }
       break;
     }
     case "power":
-      if (kind === "monster") { target.atk += val; ml.push(`${target.name}の攻撃力が上がった！`); }
-      if (kind === "player")  { p.atk += val; ml.push(`攻撃力が${val}上がった！`); }
+      if (cursed) {
+        // 反転→攻撃力減少
+        if (kind === "monster") { const _pv = Math.max(1, Math.round(val * 0.5)); target.atk = Math.max(1, target.atk - _pv); ml.push(`${target.name}の攻撃力が下がった！`); }
+        if (kind === "player") { const _pv = Math.max(1, Math.round(val * 0.5)); p.atk = Math.max(1, p.atk - _pv); ml.push(`力が抜けた...攻撃力-${_pv}【呪】`); }
+      } else {
+        const _pv = Math.max(1, Math.round(val * (blessed ? 1.5 : 1)));
+        if (kind === "monster") { target.atk += _pv; ml.push(`${target.name}の攻撃力が上がった！`); }
+        if (kind === "player") { p.atk += _pv; ml.push(`攻撃力が${_pv}上がった！${blessed ? "(祝福)" : ""}`); }
+      }
       break;
     case "slow":
-      if (kind === "monster") {
-        target.speed = Math.max(0.25, target.speed * 0.5);
-        ml.push(`${target.name}は鈍足になった！`);
-      }
-      if (kind === "player") {
-        p.slowTurns = (p.slowTurns || 0) + 10;
-        ml.push("体が重くなった...(鈍足10ターン)");
+      if (cursed) {
+        // 反転→加速
+        if (kind === "monster") { target.speed = Math.min(2, (target.speed || 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
+        if (kind === "player") { p.hasteTurns = (p.hasteTurns || 0) + 10; ml.push("体が軽くなった！(2倍速10ターン)【呪→加速】"); }
+      } else {
+        if (kind === "monster") { target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5)); ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`); }
+        if (kind === "player") { const _st = blessed ? 20 : 10; p.slowTurns = (p.slowTurns || 0) + _st; ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`); }
       }
       break;
     case "paralyze":
-      if (kind === "monster") {
-        target.paralyzed = true;
-        ml.push(`${target.name}は金縛りになった！`);
-      }
-      if (kind === "player") {
-        p.paralyzeTurns = 10;
-        ml.push("金縛りになった！(10ターン)");
+      if (cursed) {
+        // 反転→金縛り解消
+        if (kind === "monster") { target.paralyzed = false; ml.push(`${target.name}の金縛りが解けた！`); }
+        if (kind === "player") { p.paralyzeTurns = 0; ml.push("体がすっきりした。金縛りが解けた！【呪→解金縛り】"); }
+      } else {
+        if (kind === "monster") { target.paralyzed = true; ml.push(`${target.name}は金縛りになった！${blessed ? "(強力)" : ""}`); }
+        if (kind === "player") { const _pt = blessed ? 20 : 10; p.paralyzeTurns = _pt; ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強力)" : ""}`); }
       }
       break;
     case "confuse":
-      if (kind === "monster") {
-        target.confusedTurns = (target.confusedTurns || 0) + 20;
-        ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)`);
-      }
-      if (kind === "player") {
-        p.confusedTurns = (p.confusedTurns || 0) + 5;
-        ml.push(`混乱した！(${p.confusedTurns}ターン)`);
+      if (cursed) {
+        // 反転→混乱解消
+        if (kind === "monster") { target.confusedTurns = 0; ml.push(`${target.name}の混乱が解けた！`); }
+        if (kind === "player") { p.confusedTurns = 0; ml.push("頭が冷えた！混乱が解けた！【呪→解混乱】"); }
+      } else {
+        if (kind === "monster") { const _ct = blessed ? 40 : 20; target.confusedTurns = (target.confusedTurns || 0) + _ct; ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
+        if (kind === "player") { const _ct = blessed ? 10 : 5; p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
       }
       break;
     case "mana":
       if (kind === "player") {
-        if ((p.mpCooldownTurns || 0) > 0) {
+        if (cursed) {
+          // 反転→MP封印
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 10;
+          ml.push("魔力が封じられた！(MP封印10ターン)【呪】");
+        } else if ((p.mpCooldownTurns || 0) > 0) {
           ml.push(`MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
         } else {
-          const add = Math.min(val, (p.maxMp || 20) - (p.mp || 0));
+          const add = Math.min(Math.round(val * (blessed ? 1.5 : 1)), (p.maxMp || 20) - (p.mp || 0));
           p.mp = (p.mp || 0) + add;
-          if (add > 0) ml.push(`MPが${add}回復した！`);
+          if (add > 0) ml.push(`MPが${add}回復した！${blessed ? "(祝福)" : ""}`);
         }
       }
       break;
@@ -949,7 +996,7 @@ export function applyPotionToItem(eff, val, item, dg, ml) {
   ml.push(`${item.name}になった！`);
 }
 
-export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn) {
+export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false, cursed = false) {
   ml.push("瓶が割れて中身が飛び散った！");
   const tiles = [];
   for (let dy2 = -1; dy2 <= 1; dy2++)
@@ -962,9 +1009,9 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn) {
     const mon = dg.monsters.find(m => m.x === x && m.y === y);
     if (mon) {
       if (mon.paralyzed) { mon.paralyzed = false; ml.push(`${mon.name}の金縛りが解けた！`); }
-      applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn);
+      applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed);
     }
-    if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn);
+    if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
     const trap = dg.traps.find(t => t.x === x && t.y === y);
     if (trap) {
       dg.traps = dg.traps.filter(t => t !== trap);
@@ -1360,7 +1407,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (bbFn) bbFn(res.bigbox, target, dg, ml);
           else { const ft = new Set(); placeItemAt(dg, res.x, res.y, target, ml, ft); }
         } else if (target.type === "potion") {
-          splashPotion(dg, res.x, res.y, target.effect, target.value || 0, p, ml, luFn);
+          splashPotion(dg, res.x, res.y, target.effect, target.value || 0, p, ml, luFn, target.blessed || false, target.cursed || false);
         } else if (target.type === "pot") {
           scatterPotContents(target, dg, res.x, res.y, p, ml, luFn);
         } else if (!res.consumed) {

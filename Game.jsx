@@ -4351,13 +4351,13 @@ export default function RoguelikeGame() {
           ml.push(`${dnameRef(it)}を加熱の壺に投じた！薬効が部屋中に広がった！`);
           const _boilRoom = findRoom(dg.rooms, p.x, p.y);
           if (_boilRoom) {
-            applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu);
+            applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
             const _boilMons = dg.monsters.filter(
               (m) => m.x >= _boilRoom.x && m.x < _boilRoom.x + _boilRoom.w &&
                      m.y >= _boilRoom.y && m.y < _boilRoom.y + _boilRoom.h,
             );
             for (const _bm of _boilMons) {
-              applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu);
+              applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
             }
             const _boilBurnSet = [];
             for (const _bi of dg.items.filter(
@@ -4370,7 +4370,7 @@ export default function RoguelikeGame() {
             if (_boilBurnSet.length > 0) dg.items = dg.items.filter((fi) => !_boilBurnSet.includes(fi));
           } else {
             ml.push("（回廊では薬効が拡散しにくい…自分にだけ効いた）");
-            applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu);
+            applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
           }
           pot.capacity = Math.max(0, pot.capacity - 1);
         } else if (it.type === "scroll" || it.type === "spellbook") {
@@ -4603,7 +4603,7 @@ export default function RoguelikeGame() {
             /* 遠投：軌道上の全モンスターに個別に効果 */
             if (_potHits.length > 0) {
               for (const _pm of _potHits) {
-                applyPotionEffect(it.effect, it.value || 0, "monster", _pm, dg, p, ml, lu);
+                applyPotionEffect(it.effect, it.value || 0, "monster", _pm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
                 if (_pm.hp <= 0) {
                   ml.push(`${_pm.name}を倒した！(+${_pm.exp}exp)`);
                   p.exp += _pm.exp;
@@ -4616,13 +4616,13 @@ export default function RoguelikeGame() {
             ml.push(`${dnameRef(it)}は消滅した。`);
           } else if (_isCursedFc) {
             /* 呪い遠投：1マスで落ちてsplash */
-            splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu);
+            splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
             soakItemIntoSpring(sprHit, it, ml, dg);
           } else if (!sprHit) {
-            splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu);
+            splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
           }
         } else if (it.type === "pot") {
           let lx = p.x, ly = p.y, sprHit = null;
