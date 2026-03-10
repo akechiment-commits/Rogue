@@ -944,6 +944,7 @@ export default function RoguelikeGame() {
         { name:"遠投のペン",   type:"pen",       effect:"farcast",    charges:2, desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。チャージ制。", tile:42 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
+        { name:"テレポートの巻物", type:"scroll", effect:"warp", blessed:true, bcKnown:true, desc:"テレポートする。祝福：目的地指定。呪い：近くにテレポート。", tile:18 },
       ],
       spells: [],
       spellLevels: {},
@@ -3446,6 +3447,7 @@ export default function RoguelikeGame() {
       nicknameMode,
       identifyMode,
       revealMode,
+      tpSelectMode,
     ],
   );
   useEffect(() => {
@@ -5415,6 +5417,11 @@ export default function RoguelikeGame() {
                 setRevealMode(null);
                 return;
               }
+              /* === テレポート先選択モード === */
+              if (tpSelectMode) {
+                setTpSelectMode({ cx: Math.max(0, Math.min(MW - 1, tpSelectMode.cx + dx)), cy: Math.max(0, Math.min(MH - 1, tpSelectMode.cy + dy)) });
+                return;
+              }
               /* === インベントリ表示中：上下で選択、左右でページ送り === */
               if (showInv) {
                 const inv = sr.current?.player?.inventory || [];
@@ -5719,6 +5726,38 @@ export default function RoguelikeGame() {
           <span style={{ color: "#888", marginLeft: 8 }}>
             方向キー:移動 Z/Enter:決定 X:キャンセル(ランダム)
           </span>
+          {mobile && (
+            <span style={{ marginLeft: 8 }}>
+              <button onClick={() => {
+                const { player: _p, dungeon: _dg } = sr.current || {};
+                if (!_p || !_dg) return;
+                const { cx: _tx, cy: _ty } = tpSelectMode;
+                const _ml = [];
+                const _walk = _dg.map[_ty]?.[_tx] !== T.WALL && _dg.map[_ty]?.[_tx] !== T.BWALL && _dg.map[_ty]?.[_tx] !== undefined;
+                if (_walk) { _p.x = _tx; _p.y = _ty; _ml.push("テレポートした！（目的地指定）【祝】"); }
+                else { const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1); _ml.push("壁の中！ランダムにテレポートした。"); }
+                endTurn(sr.current, _p, _ml);
+                computeFOV(_dg.map, _p.x, _p.y, 6, _dg.visible, _dg.explored);
+                setTpSelectMode(null);
+                setMsgs(prev => [...prev.slice(-80), ..._ml]);
+                sr.current = { ...sr.current };
+                setGs({ ...sr.current });
+              }} style={{ background: "#363", color: "#afa", border: "1px solid #6a6", borderRadius: 4, padding: "2px 8px", cursor: "pointer", marginRight: 4, touchAction: "manipulation" }}>決定</button>
+              <button onClick={() => {
+                const { player: _p, dungeon: _dg } = sr.current || {};
+                if (!_p || !_dg) return;
+                const _ml = [];
+                const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1);
+                _ml.push("テレポートした！");
+                endTurn(sr.current, _p, _ml);
+                computeFOV(_dg.map, _p.x, _p.y, 6, _dg.visible, _dg.explored);
+                setTpSelectMode(null);
+                setMsgs(prev => [...prev.slice(-80), ..._ml]);
+                sr.current = { ...sr.current };
+                setGs({ ...sr.current });
+              }} style={{ background: "#333", color: "#aaa", border: "1px solid #666", borderRadius: 4, padding: "2px 8px", cursor: "pointer", touchAction: "manipulation" }}>キャンセル</button>
+            </span>
+          )}
         </div>
       )}{" "}
       {putMode &&
