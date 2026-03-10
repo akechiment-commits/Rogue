@@ -1773,6 +1773,25 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _bwBlessed = blMult > 1;
       const _bwCursed  = blMult < 1;
       if (kind === "item") {
+        if (_bwCursed) {
+          // 呪われた祝福の杖→落ちてるアイテムを呪う
+          if (target.type === "pot") {
+            const _newCap = Math.max(0, (target.capacity || 1) - 1);
+            if ((target.contents?.length || 0) > _newCap) {
+              dg.items = dg.items.filter(i => i !== target);
+              const _fts = new Set();
+              for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
+              ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！`);
+            } else {
+              target.capacity = _newCap; target.cursed = true; target.blessed = false;
+              ml.push(`${_dname_item(target)}が呪われた！(容量-1 → ${target.capacity})【呪】`);
+            }
+          } else {
+            target.cursed = true; target.blessed = false;
+            ml.push(`${_dname_item(target)}が呪われた！【呪】`);
+          }
+          break;
+        }
         if (target.type === "pot") {
           target.capacity = (target.capacity || 1) + 1;
           target.blessed = true; target.cursed = false;
