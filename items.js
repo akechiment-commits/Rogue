@@ -2182,7 +2182,9 @@ export const SPELLS=[
   {id:"teleport_magic",name:"テレポート",mpCost:5,effect:"teleport_magic",needsDir:false,desc:"ランダムな場所に飛ぶ。MP:5"},
   {id:"heal_magic",name:"回復の魔法",mpCost:15,effect:"heal_magic",needsDir:false,desc:"HPを25〜35回復する。MP:15"},
   {id:"transform_magic",name:"変化の魔法",mpCost:12,effect:"transform_magic",range:8,needsDir:true,desc:"対象を変化させる。MP:12"},
-  {id:"identify_magic",name:"識別の魔法",mpCost:10,effect:"identify_magic",needsDir:false,desc:"持ち物から1つ選んで識別する。MP:10"},];
+  {id:"identify_magic",name:"識別の魔法",mpCost:1,fixedMpCost:true,effect:"identify_magic",needsDir:false,desc:"持ち物から1つ選んで識別する。MP:1"},
+  {id:"bless_magic",name:"祝福の魔法",mpCost:1,fixedMpCost:true,effect:"bless_magic",needsDir:false,desc:"アイテムを1つ選んで祝福する。MP:1"},
+  {id:"curse_magic",name:"呪いの魔法",mpCost:1,fixedMpCost:true,effect:"curse_magic",needsDir:false,desc:"アイテムを1つ選んで呪う。MP:1"},];
 export const SPELLBOOKS=[
   {name:"炎の魔法書",type:"spellbook",spell:"fire_bolt",desc:"炎の魔法を習得できる。火に弱い。",tile:18},
   {name:"氷の魔法書",type:"spellbook",spell:"ice_bolt",desc:"氷の魔法を習得できる。火に弱い。",tile:18},
@@ -2191,7 +2193,9 @@ export const SPELLBOOKS=[
   {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic",desc:"テレポートの魔法を習得できる。火に弱い。",tile:18},
   {name:"回復の魔法書",type:"spellbook",spell:"heal_magic",desc:"回復の魔法を習得できる。火に弱い。",tile:18},
   {name:"変化の魔法書",type:"spellbook",spell:"transform_magic",desc:"変化の魔法を習得できる。火に弱い。",tile:18},
-  {name:"識別の魔法書",type:"spellbook",spell:"identify_magic",desc:"識別の魔法を習得できる。火に弱い。",tile:18},];
+  {name:"識別の魔法書",type:"spellbook",spell:"identify_magic",desc:"識別の魔法を習得できる。火に弱い。",tile:18},
+  {name:"祝福の魔法書",type:"spellbook",spell:"bless_magic",desc:"祝福の魔法を習得できる。火に弱い。",tile:18},
+  {name:"呪いの魔法書",type:"spellbook",spell:"curse_magic",desc:"呪いの魔法を習得できる。火に弱い。",tile:18},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
   const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;

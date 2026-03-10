@@ -935,6 +935,8 @@ export default function RoguelikeGame() {
       inventory: [
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
         { name:"識別の魔法書", type:"spellbook", spell:"identify_magic", desc:"識別の魔法を習得できる。火に弱い。", tile:18 },
+        { name:"祝福の魔法書", type:"spellbook", spell:"bless_magic",    desc:"祝福の魔法を習得できる。火に弱い。", tile:18 },
+        { name:"呪いの魔法書", type:"spellbook", spell:"curse_magic",    desc:"呪いの魔法を習得できる。火に弱い。", tile:18 },
         { name:"加熱の壺",     type:"pot",       potEffect:"boil",    capacity:3, contents:[], desc:"薬を入れると部屋中に薬効が広がる。", tile:32 },
         { name:"呪いの杖",     type:"wand",      effect:"curse_wand", charges:3, desc:"振ると対象のアイテムを呪う。", tile:24 },
         { name:"祝福の杖",     type:"wand",      effect:"bless_wand", charges:3, desc:"振ると対象のアイテムを祝福する。", tile:24 },
@@ -2750,12 +2752,14 @@ export default function RoguelikeGame() {
         e.preventDefault();
         if (!sr.current) return;
         const _p_id = sr.current.player;
+        const _isBCMode = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
         const _filt_id = _p_id.inventory
           .map((_it, _i) => ({ it: _it, i: _i }))
           .filter(({ it, i }) => {
+            if (_isBCMode) return it.type !== "gold";
             const _k = getIdentKey(it);
             if (!_k) return false;
-            if (identifyMode.scrollIdx === i) return false; // exclude the scroll being consumed
+            if (identifyMode.scrollIdx === i) return false;
             return identifyMode.mode === 'identify' ? !sr.current.ident.has(_k) : sr.current.ident.has(_k);
           });
         const _len_id = _filt_id.length;
@@ -2773,26 +2777,32 @@ export default function RoguelikeGame() {
         if ((k === "enter" || k === "z") && _len_id > 0) {
           const _curSel_id = Math.min(identifyMode.sel || 0, _len_id - 1);
           const { it: _selIt } = _filt_id[_curSel_id];
-          const _selKey = getIdentKey(_selIt);
-          if (identifyMode.mode === 'identify') {
-            sr.current.ident.add(_selKey);
-            _selIt.fullIdent = true; /* 完全識別 */
+          if (identifyMode.mode === 'bless') {
+            _selIt.blessed = true; _selIt.cursed = false;
+          } else if (identifyMode.mode === 'curse') {
+            _selIt.cursed = true; _selIt.blessed = false;
           } else {
-            sr.current.ident.delete(_selKey);
-            _selIt.fullIdent = false;
+            const _selKey = getIdentKey(_selIt);
+            if (identifyMode.mode === 'identify') {
+              sr.current.ident.add(_selKey); _selIt.fullIdent = true;
+            } else {
+              sr.current.ident.delete(_selKey); _selIt.fullIdent = false;
+            }
           }
-          // 巻物の消費（識別の巻物の場合）
           if (identifyMode.scrollIdx != null) {
             sr.current.player.inventory.splice(identifyMode.scrollIdx, 1);
           }
-          // MPの消費（識別の魔法の場合）、endTurn
           if (identifyMode.spellCost != null) {
             sr.current.player.mp -= identifyMode.spellCost;
             endTurn(sr.current, sr.current.player, []);
           }
-          const _msgResult = identifyMode.mode === 'identify'
-            ? `${_selIt.name}と判明した！`
-            : `${_selIt.name}の識別が失われた...`;
+          const _msgResult = identifyMode.mode === 'bless'
+            ? `${_selIt.name}を祝福した！【祝】`
+            : identifyMode.mode === 'curse'
+              ? `${_selIt.name}を呪った！【呪】`
+              : identifyMode.mode === 'identify'
+                ? `${_selIt.name}と判明した！`
+                : `${_selIt.name}の識別が失われた...`;
           const _ml_id = identifyMode.spellMsg ? [identifyMode.spellMsg, _msgResult] : [_msgResult];
           setIdentifyMode(null);
           setMsgs((prev) => [...prev.slice(-80), ..._ml_id]);
@@ -2903,7 +2913,7 @@ export default function RoguelikeGame() {
           const s = SPELLS.find((sp) => sp.id === id);
           if (!s) return null;
           const _lv = (sr.current?.player?.spellLevels?.[id] || 1);
-          return { ...s, mpCost: Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
+          return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
         }).filter(Boolean);
         const slen = knownSpells.length;
         const isUpS = k === "arrowup" || e.code === "Numpad8";
@@ -2930,12 +2940,18 @@ export default function RoguelikeGame() {
                 ml2.push("未識別のアイテムがない。");
                 endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
               } else {
-                // MP消費・endTurnは選択確定後に行う
                 setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
                 setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
                 setShowInv(false); setSelIdx(null); setShowDesc(null);
                 sr.current = { ...sr.current }; setGs({ ...sr.current });
               }
+            } else if (spell.effect === "bless_magic" || spell.effect === "curse_magic") {
+              const _bcMode = spell.effect === "bless_magic" ? 'bless' : 'curse';
+              const _bcPrompt = _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。";
+              setMsgs((prev) => [...prev.slice(-80), _bcPrompt]);
+              setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
+              setShowInv(false); setSelIdx(null); setShowDesc(null);
+              sr.current = { ...sr.current }; setGs({ ...sr.current });
             } else {
             p2.mp -= spell.mpCost;
             ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
@@ -5219,9 +5235,11 @@ export default function RoguelikeGame() {
               if (identifyMode) {
                 if (!sr.current) return;
                 const _p = sr.current.player;
+                const _isBCMode_t = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
                 const _filt = _p.inventory
                   .map((_it, _i) => ({ it: _it, i: _i }))
                   .filter(({ it, i }) => {
+                    if (_isBCMode_t) return it.type !== "gold";
                     const _k = getIdentKey(it);
                     if (!_k) return false;
                     if (identifyMode.scrollIdx === i) return false;
@@ -5797,7 +5815,7 @@ export default function RoguelikeGame() {
           const s = SPELLS.find((sp) => sp.id === id);
           if (!s) return null;
           const _lv = (gs?.player?.spellLevels?.[id] || 1);
-          return { ...s, mpCost: Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
+          return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
         }).filter(Boolean);
         const safeSel = Math.min(spellMenuSel, Math.max(0, knownSpells.length - 1));
         return (
@@ -5841,12 +5859,18 @@ export default function RoguelikeGame() {
                             ml2.push("未識別のアイテムがない。");
                             endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
                           } else {
-                            // MP消費・endTurnは選択確定後に行う
                             setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
                             setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
                             setShowInv(false); setSelIdx(null); setShowDesc(null);
                             sr.current = { ...sr.current }; setGs({ ...sr.current });
                           }
+                        } else if (spell.effect === "bless_magic" || spell.effect === "curse_magic") {
+                          const _bcMode = spell.effect === "bless_magic" ? 'bless' : 'curse';
+                          const _bcPrompt = _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。";
+                          setMsgs((prev) => [...prev.slice(-80), _bcPrompt]);
+                          setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
+                          setShowInv(false); setSelIdx(null); setShowDesc(null);
+                          sr.current = { ...sr.current }; setGs({ ...sr.current });
                         } else {
                         p2.mp -= spell.mpCost;
                         ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
@@ -6316,12 +6340,14 @@ export default function RoguelikeGame() {
       )}
       {identifyMode && gs && (() => {
         const _p = gs.player;
+        const _isBCMode_ui = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
         const _filtered = _p.inventory
           .map((it, i) => ({ it, i }))
           .filter(({ it, i }) => {
+            if (_isBCMode_ui) return it.type !== "gold";
             const k = getIdentKey(it);
             if (!k) return false;
-            if (identifyMode.scrollIdx === i) return false; // 消費対象の巻物は除外
+            if (identifyMode.scrollIdx === i) return false;
             return identifyMode.mode === 'identify' ? !gs.ident?.has(k) : gs.ident?.has(k);
           });
         const _curSel_ui = Math.min(identifyMode.sel || 0, Math.max(0, _filtered.length - 1));
@@ -6329,13 +6355,17 @@ export default function RoguelikeGame() {
           if (!sr.current) return;
           const { it: _selIt } = _filtered[vi] ?? _filtered[_curSel_ui] ?? {};
           if (!_selIt) return;
-          const _selKey = getIdentKey(_selIt);
-          if (identifyMode.mode === 'identify') {
-            sr.current.ident.add(_selKey);
-            _selIt.fullIdent = true; /* 完全識別 */
+          if (identifyMode.mode === 'bless') {
+            _selIt.blessed = true; _selIt.cursed = false;
+          } else if (identifyMode.mode === 'curse') {
+            _selIt.cursed = true; _selIt.blessed = false;
           } else {
-            sr.current.ident.delete(_selKey);
-            _selIt.fullIdent = false;
+            const _selKey = getIdentKey(_selIt);
+            if (identifyMode.mode === 'identify') {
+              sr.current.ident.add(_selKey); _selIt.fullIdent = true;
+            } else {
+              sr.current.ident.delete(_selKey); _selIt.fullIdent = false;
+            }
           }
           if (identifyMode.scrollIdx != null) {
             sr.current.player.inventory.splice(identifyMode.scrollIdx, 1);
@@ -6344,9 +6374,13 @@ export default function RoguelikeGame() {
             sr.current.player.mp -= identifyMode.spellCost;
             endTurn(sr.current, sr.current.player, []);
           }
-          const _msgResult = identifyMode.mode === 'identify'
-            ? `${_selIt.name}と判明した！`
-            : `${_selIt.name}の識別が失われた...`;
+          const _msgResult = identifyMode.mode === 'bless'
+            ? `${_selIt.name}を祝福した！【祝】`
+            : identifyMode.mode === 'curse'
+              ? `${_selIt.name}を呪った！【呪】`
+              : identifyMode.mode === 'identify'
+                ? `${_selIt.name}と判明した！`
+                : `${_selIt.name}の識別が失われた...`;
           const _ml_id = identifyMode.spellMsg ? [identifyMode.spellMsg, _msgResult] : [_msgResult];
           setIdentifyMode(null);
           setMsgs((prev) => [...prev.slice(-80), ..._ml_id]);
@@ -6357,7 +6391,10 @@ export default function RoguelikeGame() {
                         display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:300 }}>
             <div style={{ background:"#1a2a3a", padding:16, borderRadius:8, maxWidth:400, width:"90%", maxHeight:"80dvh", overflowY:"auto" }}>
               <div style={{ color:"#ff0", marginBottom:4, fontWeight:"bold" }}>
-                {identifyMode.mode === 'identify' ? "識別するアイテムを選んでください" : "識別を解除するアイテムを選んでください【呪】"}
+                {identifyMode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
+                  : identifyMode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
+                  : identifyMode.mode === 'identify' ? "識別するアイテムを選んでください"
+                  : "識別を解除するアイテムを選んでください【呪】"}
               </div>
               <div style={{ color:"#556", fontSize:10, marginBottom:8 }}>↑↓/8,2:選択　Ｚ/Enter:決定　ESC:キャンセル</div>
               {_filtered.length === 0 && <div style={{ color:"#888" }}>該当するアイテムがない。</div>}
