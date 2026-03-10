@@ -1281,10 +1281,10 @@ export default function RoguelikeGame() {
                   if (_cit.cursed) {
                     ml.push(`${_citDN}は既に呪われていた！（効果なし）`);
                   } else if (_cit.blessed) {
-                    _cit.blessed = false;
+                    _cit.blessed = false; _cit.bcKnown = true;
                     ml.push(`${_citDN}の祝福が解けた！`);
                   } else {
-                    _cit.cursed = true;
+                    _cit.cursed = true; _cit.bcKnown = true;
                     ml.push(`${_citDN}が呪われた！【呪】`);
                   }
                 }
@@ -2829,9 +2829,9 @@ export default function RoguelikeGame() {
           const _curSel_id = Math.min(identifyMode.sel || 0, _len_id - 1);
           const { it: _selIt } = _filt_id[_curSel_id];
           if (identifyMode.mode === 'bless') {
-            _selIt.blessed = true; _selIt.cursed = false;
+            _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true;
           } else if (identifyMode.mode === 'curse') {
-            _selIt.cursed = true; _selIt.blessed = false;
+            _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true;
           } else {
             const _selKey = getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
@@ -4928,9 +4928,9 @@ export default function RoguelikeGame() {
     const _eq = _ep?.weapon === it ? "【武器】" : _ep?.armor === it ? "【防具】" : _ep?.arrow === it ? "【矢】" : "";
     const _key = getIdentKey(it);
     const _isIdent = !_key || gs?.ident?.has(_key);
-    /* 識別対象アイテムはfullIdentのみ祝呪表示、それ以外(武器・防具等)は常に表示 */
+    /* 識別対象アイテムはfullIdentまたはbcKnownのみ祝呪表示、それ以外(武器・防具等)は常に表示 */
     const _needFullIdent = !!_key; /* 識別キーがあるアイテム=識別対象 */
-    const _showBC = _needFullIdent ? it.fullIdent : true;
+    const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown) : true;
     const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
     let s = (_eq ? _eq : "") + _bc + dname(it);
     if (it.type === "arrow") s += ` (${it.count}本)`;
@@ -6329,9 +6329,9 @@ export default function RoguelikeGame() {
           const { it: _selIt } = _filtered[vi] ?? _filtered[_curSel_ui] ?? {};
           if (!_selIt) return;
           if (identifyMode.mode === 'bless') {
-            _selIt.blessed = true; _selIt.cursed = false;
+            _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true;
           } else if (identifyMode.mode === 'curse') {
-            _selIt.cursed = true; _selIt.blessed = false;
+            _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true;
           } else {
             const _selKey = getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
@@ -6917,6 +6917,8 @@ export default function RoguelikeGame() {
                 }
               }
               const _isUnidentInv = (() => { const _kk = getIdentKey(it); return !!(_kk && gs?.ident && !gs.ident.has(_kk)); })();
+              /* 名前は識別済みだが祝呪未判明（緑表示） */
+              const _isIdentBCUnknown = (() => { const _kk = getIdentKey(it); return !!(  _kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown); })();
               return (
                 <div
                   key={i}
@@ -6947,7 +6949,7 @@ export default function RoguelikeGame() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      color: _isUnidentInv ? "#ff8" : "#ccc",
+                      color: _isUnidentInv ? "#ff8" : _isIdentBCUnknown ? "#6d6" : "#ccc",
                     }}
                   >
                     <span>{iLabel(it)}</span>

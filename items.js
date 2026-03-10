@@ -493,6 +493,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   if (pe === "bless_pot") {
     item.blessed = true;
     item.cursed  = false;
+    item.bcKnown = true;
     ml.push(`${_in}が祝福された！【祝】`);
     return;
   }
@@ -500,6 +501,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     if (item.type === "arrow") { ml.push(`${_in}は呪いを受け付けない。`); return; }
     item.cursed  = true;
     item.blessed = false;
+    item.bcKnown = true;
     ml.push(`${_in}が呪われた！【呪】`);
     return;
   }
@@ -1783,21 +1785,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
               ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！`);
             } else {
-              target.capacity = _newCap; target.cursed = true; target.blessed = false;
+              target.capacity = _newCap; target.cursed = true; target.blessed = false; target.bcKnown = true;
               ml.push(`${_dname_item(target)}が呪われた！(容量-1 → ${target.capacity})【呪】`);
             }
           } else {
-            target.cursed = true; target.blessed = false;
+            target.cursed = true; target.blessed = false; target.bcKnown = true;
             ml.push(`${_dname_item(target)}が呪われた！【呪】`);
           }
           break;
         }
         if (target.type === "pot") {
           target.capacity = (target.capacity || 1) + 1;
-          target.blessed = true; target.cursed = false;
+          target.blessed = true; target.cursed = false; target.bcKnown = true;
           ml.push(`${_dname_item(target)}が祝福された！(容量+1 → ${target.capacity})`);
         } else {
-          target.blessed = true; target.cursed = false;
+          target.blessed = true; target.cursed = false; target.bcKnown = true;
           ml.push(`${_dname_item(target)}が祝福された！【祝】`);
         }
         break;
@@ -1825,14 +1827,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた祝福の杖→所持品を1つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _t = _inv[rng(0, _inv.length - 1)];
-          _t.cursed = true; _t.blessed = false;
+          _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
           ml.push(`${_t.name}が呪われた！【呪】`);
         } else {
           // 通常→1つ祝福、祝福→2つ祝福
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _count = _bwBlessed ? 2 : 1;
           const _pool = [..._inv].sort(() => Math.random() - 0.5).slice(0, _count);
-          for (const _t of _pool) { _t.blessed = true; _t.cursed = false; ml.push(`${_t.name}が祝福された！【祝】`); }
+          for (const _t of _pool) { _t.blessed = true; _t.cursed = false; _t.bcKnown = true; ml.push(`${_t.name}が祝福された！【祝】`); }
           if (_bwBlessed) ml.push("（祝福の杖の力で2つ祝福された！）");
         }
         break;
@@ -1848,10 +1850,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた呪いの杖→落ちてるアイテムを祝福する（反転）
           if (target.type === "pot") {
             target.capacity = (target.capacity || 1) + 1;
-            target.blessed = true; target.cursed = false;
+            target.blessed = true; target.cursed = false; target.bcKnown = true;
             ml.push(`${_dname_item(target)}が祝福された！(容量+1 → ${target.capacity})【呪→祝】`);
           } else {
-            target.blessed = true; target.cursed = false;
+            target.blessed = true; target.cursed = false; target.bcKnown = true;
             ml.push(`${_dname_item(target)}が祝福された！【呪→祝】`);
           }
           break;
@@ -1865,11 +1867,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
             ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！`);
           } else {
-            target.capacity = _newCap; target.cursed = true; target.blessed = false;
+            target.capacity = _newCap; target.cursed = true; target.blessed = false; target.bcKnown = true;
             ml.push(`${_dname_item(target)}が呪われた！(容量-1 → ${target.capacity})`);
           }
         } else {
-          target.cursed = true; target.blessed = false;
+          target.cursed = true; target.blessed = false; target.bcKnown = true;
           ml.push(`${_dname_item(target)}が呪われた！【呪】`);
         }
         break;
@@ -1910,14 +1912,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた呪いの杖→所持品を1つ祝福（反転）
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _t = _inv[rng(0, _inv.length - 1)];
-          _t.blessed = true; _t.cursed = false;
+          _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
           ml.push(`${_t.name}が祝福された！【呪→祝】`);
         } else {
           // 通常→1つ呪う、祝福→2つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _count = _cwBlessed ? 2 : 1;
           const _pool = [..._inv].sort(() => Math.random() - 0.5).slice(0, _count);
-          for (const _t of _pool) { _t.cursed = true; _t.blessed = false; ml.push(`${_t.name}が呪われた！【呪】`); }
+          for (const _t of _pool) { _t.cursed = true; _t.blessed = false; _t.bcKnown = true; ml.push(`${_t.name}が呪われた！【呪】`); }
           if (_cwBlessed) ml.push("（祝福された呪いの杖の力で2つ呪われた！）");
         }
         break;
