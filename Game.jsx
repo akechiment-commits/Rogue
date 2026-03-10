@@ -41,6 +41,7 @@ import {
   applyPotionEffect,
   applyPotionToItem,
   splashPotion,
+  applyWaterSplash,
   soakItemIntoSpring,
   placeItemAt,
   pushEntity,
@@ -762,6 +763,7 @@ export default function RoguelikeGame() {
   const [throwMode, setThrowMode] = useState(null);
   const [springMode, setSpringMode] = useState(null);
   const [springMenuSel, setSpringMenuSel] = useState(0);
+  const [springPage, setSpringPage] = useState(0);
   const [bigboxMode, setBigboxMode] = useState(null);
   const [bigboxMenuSel, setBigboxMenuSel] = useState(0);
   const [bigboxPage, setBigboxPage] = useState(0);
@@ -2419,8 +2421,11 @@ export default function RoguelikeGame() {
       if (it.type === "bottle") {
         p.inventory.splice(idx, 1);
         const wb = { ...WATER_BOTTLE, id: uid() };
+        if (it.blessed) { wb.blessed = true; wb.bcKnown = true; }
+        else if (it.cursed) { wb.cursed = true; wb.bcKnown = true; }
+        const _sfx = it.blessed ? "【祝】" : it.cursed ? "【呪】" : "";
         p.inventory.push(wb);
-        ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！`);
+        ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
         const _op = it.plus || 0;
         it.plus = _op - 1;
@@ -2862,11 +2867,19 @@ export default function RoguelikeGame() {
           const { it: _selIt } = _idPageItems[_curSel_id];
           let _msgResult;
           if (identifyMode.mode === 'bless') {
-            _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true;
-            _msgResult = `${_selIt.name}を祝福した！【祝】`;
+            if (_selIt.type === 'pot') {
+              _selIt.capacity = (_selIt.capacity || 1) + 1;
+              _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
+            } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を祝福した！【祝】`; }
           } else if (identifyMode.mode === 'curse') {
-            _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true;
-            _msgResult = `${_selIt.name}を呪った！【呪】`;
+            if (_selIt.type === 'pot') {
+              const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
+              if ((_selIt.contents?.length || 0) > _nc) {
+                const _rmIdx = _p_id.inventory.indexOf(_selIt);
+                if (_rmIdx !== -1) { const _fts2 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_id.x, _p_id.y, _ci, [], _fts2); _p_id.inventory.splice(_rmIdx, 1); }
+                _msgResult = `${_selIt.name}が呪いで割れた！中身が足元に落ちた！【呪】`;
+              } else { _selIt.capacity = _nc; _msgResult = `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
+            } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を呪った！【呪】`; }
           } else if (identifyMode.mode === 'duplicate') {
             const _dupCount = identifyMode.blessed ? 2 : identifyMode.cursed ? 0 : 1;
             if (_dupCount === 0) {
@@ -3291,16 +3304,18 @@ export default function RoguelikeGame() {
         if (springMode === "soak") {
           const inv = sr.current?.player?.inventory || [];
           const ilen = inv.length;
+          const _spTotalPg = Math.max(1, Math.ceil(ilen / 10));
+          const isLeft = k === "arrowleft" || e.code === "Numpad4";
+          const isRight = k === "arrowright" || e.code === "Numpad6";
           if ((isUp || isDown) && ilen > 0) {
-            setSpringMenuSel((p) => (p + (isDown ? 1 : -1) + ilen) % ilen);
+            setSpringMenuSel((s) => (s + (isDown ? 1 : -1) + 10) % 10);
             return;
           }
-          if (
-            (k === "enter" || k === "z") &&
-            springMenuSel !== null &&
-            inv[springMenuSel]
-          ) {
-            springDoSoak(springMenuSel);
+          if (isLeft) { setSpringPage((pg) => (pg - 1 + _spTotalPg) % _spTotalPg); setSpringMenuSel(0); return; }
+          if (isRight) { setSpringPage((pg) => (pg + 1) % _spTotalPg); setSpringMenuSel(0); return; }
+          if ((k === "enter" || k === "z") && ilen > 0) {
+            const _spAbsIdx = springPage * 10 + springMenuSel;
+            if (inv[_spAbsIdx]) { springDoSoak(_spAbsIdx); setSpringPage(0); setSpringMenuSel(0); }
             return;
           }
           return;
@@ -4880,13 +4895,15 @@ export default function RoguelikeGame() {
             ml.push(`${dnameRef(it)}は消滅した。`);
           } else if (_isCursedFc) {
             /* 呪い遠投：1マスで落ちてsplash */
-            splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
+            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
+            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
             soakItemIntoSpring(sprHit, it, ml, dg);
           } else if (!sprHit) {
-            splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
+            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
+            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
           }
         } else if (it.type === "pot") {
           let lx = p.x, ly = p.y, sprHit = null;
@@ -5580,8 +5597,7 @@ export default function RoguelikeGame() {
                     setSpringMenuSel((p) => (p + dy + 3) % 3);
                   } else if (springMode === "soak") {
                     const inv = sr.current?.player?.inventory || [];
-                    const ilen = inv.length;
-                    if (ilen > 0) setSpringMenuSel((p) => (p + dy + ilen) % ilen);
+                    if (inv.length > 0) setSpringMenuSel((s) => (s + dy + 10) % 10);
                   }
                 }
                 return;
@@ -6669,11 +6685,20 @@ export default function RoguelikeGame() {
           if (!_selIt) return;
           let _msgResult;
           if (identifyMode.mode === 'bless') {
-            _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true;
-            _msgResult = `${_selIt.name}を祝福した！【祝】`;
+            if (_selIt.type === 'pot') {
+              _selIt.capacity = (_selIt.capacity || 1) + 1;
+              _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
+            } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を祝福した！【祝】`; }
           } else if (identifyMode.mode === 'curse') {
-            _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true;
-            _msgResult = `${_selIt.name}を呪った！【呪】`;
+            if (_selIt.type === 'pot') {
+              const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
+              const _p_ui = sr.current.player;
+              if ((_selIt.contents?.length || 0) > _nc) {
+                const _rmIdx2 = _p_ui.inventory.indexOf(_selIt);
+                if (_rmIdx2 !== -1) { const _fts3 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_ui.x, _p_ui.y, _ci, [], _fts3); _p_ui.inventory.splice(_rmIdx2, 1); }
+                _msgResult = `${_selIt.name}が呪いで割れた！中身が足元に落ちた！【呪】`;
+              } else { _selIt.capacity = _nc; _msgResult = `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
+            } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を呪った！【呪】`; }
           } else if (identifyMode.mode === 'duplicate') {
             const _dupCount = identifyMode.blessed ? 2 : identifyMode.cursed ? 0 : 1;
             const _p_dup = sr.current.player;
@@ -6920,92 +6945,61 @@ export default function RoguelikeGame() {
               </div>
             </div>
           )}
-          {springMode === "soak" && (
-            <div
-              style={{ maxHeight: mobile ? "50dvh" : "60%", overflowY: "auto" }}
-            >
-              <div style={{ color: "#8ac", fontSize: 11, marginBottom: 6 }}>
-                泉に浸すアイテムを選んでください
-              </div>
-              {p.inventory.length === 0 ? (
-                <div style={{ color: "#666", fontSize: 11 }}>
-                  持ち物がない。
+          {springMode === "soak" && (() => {
+            const _spInv = p.inventory;
+            const _spLen = _spInv.length;
+            const _spTotalPg = Math.max(1, Math.ceil(_spLen / 10));
+            const _spCurPg = Math.min(springPage, _spTotalPg - 1);
+            const _spPageItems = _spInv.slice(_spCurPg * 10, (_spCurPg + 1) * 10);
+            return (
+              <div style={{ maxHeight: mobile ? "50dvh" : "60%", overflowY: "auto" }}>
+                <div style={{ color: "#8ac", fontSize: 11, marginBottom: 4 }}>
+                  泉に浸すアイテムを選んでください
                 </div>
-              ) : (
-                p.inventory.map((it, i) => (
-                  <div
-                    key={i}
-                    onClick={() => springDoSoak(i)}
-                    style={{
-                      padding: "5px 8px",
-                      margin: "2px 0",
-                      background:
-                        springMenuSel === i
-                          ? it.type === "bottle"
-                            ? "#2a4a2a"
-                            : it.type === "weapon" || it.type === "armor"
-                              ? "#4a2a2a"
-                              : "#2a2a4a"
-                          : it.type === "bottle"
-                            ? "#1a2a1a"
-                            : it.type === "weapon" || it.type === "armor"
-                              ? "#2a1a1a"
-                              : "#18182a",
-                      border:
-                        "1px solid " +
-                        (springMenuSel === i
-                          ? it.type === "bottle"
-                            ? "#6afa6a"
-                            : it.type === "weapon" || it.type === "armor"
-                              ? "#fa6a6a"
-                              : "#6a6afa"
-                          : it.type === "bottle"
-                            ? "#3a6a3a"
-                            : it.type === "weapon" || it.type === "armor"
-                              ? "#6a3a3a"
-                              : "#3a3a5a"),
-                      borderRadius: 4,
-                      cursor: "pointer",
-                      fontSize: 11,
-                      color:
-                        it.type === "bottle"
-                          ? "#6f6"
-                          : it.type === "weapon" || it.type === "armor"
-                            ? "#f88"
-                            : "#aab",
-                      fontWeight: springMenuSel === i ? "bold" : "normal",
-                    }}
-                  >
-                    {iLabel(it)}
-                    {it.type === "bottle" && " → 水を汲める"}
-                    {(it.type === "weapon" || it.type === "armor") &&
-                      " ⚠ 錆びる"}
+                {_spLen > 10 && (
+                  <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
+                    <button onClick={() => { setSpringPage(pg => (pg - 1 + _spTotalPg) % _spTotalPg); setSpringMenuSel(0); }}
+                      style={{ padding: "2px 8px", background: "#223", color: "#8ac", border: "1px solid #446", borderRadius: 3, fontSize: 11, cursor: "pointer" }}>◀</button>
+                    <span style={{ color: "#8ac", fontSize: 11 }}>{_spCurPg + 1}/{_spTotalPg}</span>
+                    <button onClick={() => { setSpringPage(pg => (pg + 1) % _spTotalPg); setSpringMenuSel(0); }}
+                      style={{ padding: "2px 8px", background: "#223", color: "#8ac", border: "1px solid #446", borderRadius: 3, fontSize: 11, cursor: "pointer" }}>▶</button>
                   </div>
-                ))
-              )}
-              <div style={{ color: "#556", fontSize: 10, marginTop: 4 }}>
-                ↑↓:選択 Z:決定 X:戻る
+                )}
+                {_spLen === 0 ? (
+                  <div style={{ color: "#666", fontSize: 11 }}>持ち物がない。</div>
+                ) : (
+                  _spPageItems.map((it, pi) => {
+                    const absI = _spCurPg * 10 + pi;
+                    const isSel = springMenuSel === pi;
+                    return (
+                      <div key={absI} onClick={() => { springDoSoak(absI); setSpringPage(0); setSpringMenuSel(0); }}
+                        style={{
+                          padding: "5px 8px", margin: "2px 0", borderRadius: 4, cursor: "pointer", fontSize: 11,
+                          background: isSel ? (it.type === "bottle" ? "#2a4a2a" : it.type === "weapon" || it.type === "armor" ? "#4a2a2a" : "#2a2a4a")
+                                           : (it.type === "bottle" ? "#1a2a1a" : it.type === "weapon" || it.type === "armor" ? "#2a1a1a" : "#18182a"),
+                          border: "1px solid " + (isSel ? (it.type === "bottle" ? "#6afa6a" : it.type === "weapon" || it.type === "armor" ? "#fa6a6a" : "#6a6afa")
+                                                       : (it.type === "bottle" ? "#3a6a3a" : it.type === "weapon" || it.type === "armor" ? "#6a3a3a" : "#3a3a5a")),
+                          color: it.type === "bottle" ? "#6f6" : it.type === "weapon" || it.type === "armor" ? "#f88" : "#aab",
+                          fontWeight: isSel ? "bold" : "normal",
+                        }}
+                      >
+                        {iLabel(it)}
+                        {it.type === "bottle" && " → 水を汲める"}
+                        {(it.type === "weapon" || it.type === "armor") && " ⚠ 錆びる"}
+                      </div>
+                    );
+                  })
+                )}
+                <div style={{ color: "#556", fontSize: 10, marginTop: 4 }}>
+                  ↑↓:選択　←→:ページ　Z:決定　X:戻る
+                </div>
+                <button onClick={() => { setSpringMode("menu"); setSpringMenuSel(0); setSpringPage(0); }}
+                  style={{ marginTop: 4, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 11, cursor: "pointer" }}>
+                  戻る
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  setSpringMode("menu");
-                  setSpringMenuSel(0);
-                }}
-                style={{
-                  marginTop: 4,
-                  padding: "5px 16px",
-                  background: "#222",
-                  color: "#888",
-                  border: "1px solid #444",
-                  borderRadius: 5,
-                  fontSize: 11,
-                  cursor: "pointer",
-                }}
-              >
-                戻る
-              </button>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}{" "}
       {showInv && (

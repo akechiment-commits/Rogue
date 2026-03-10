@@ -51,7 +51,8 @@ export function generateFakeNames(items, pots, spellbooks = []) {
     keys.forEach((k, i) => { fakeNames[k] = shuffled[i % shuffled.length]; });
   };
   const uniq = (arr) => [...new Set(arr)];
-  assign(uniq(items.filter(i => i.type === 'potion').map(i => `p:${i.effect}`)), _FAKE.potion);
+  assign(uniq(items.filter(i => i.type === 'potion' && i.effect !== 'water').map(i => `p:${i.effect}`)), _FAKE.potion);
+  fakeNames['p:water'] = "透明な薬"; // 水は常に透明な薬
   assign(uniq(items.filter(i => i.type === 'scroll' && i.effect !== 'blank').map(i => `s:${i.effect}`)), _FAKE.scroll);
   assign(uniq(items.filter(i => i.type === 'wand').map(i => `w:${i.effect}`)), _FAKE.wand);
   assign(uniq(items.filter(i => i.type === 'pen').map(i => `n:${i.effect}`)), _FAKE.pen);
@@ -109,7 +110,7 @@ export function getBlessMultiplier(it) {
 
 export const ARROW_T      = { name:"矢",          type:"arrow",  atk:4, desc:"99本まで束にできる矢。",          count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",        desc:"空の瓶。今のところ使い道はない。",         tile:16 };
-export const WATER_BOTTLE = { name:"水の入った瓶", type:"potion", effect:"heal", value:10, desc:"泉の水。飲むと少しHPが回復する。", tile:16 };
+export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10, desc:"泉の水。飲むと少しHPが回復する。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",   desc:"何も書かれていない。魔法のマーカーで書き込める。", tile:18 };
 export const MAGIC_MARKER  = { name:"魔法のマーカー", type:"marker", charges:1, desc:"白紙の巻物に好きな魔法を書き込める。充填の大箱で回数を増やせる。合成の大箱でマーカー同士を合成すると容量を合算できる。", tile:41 };
 
@@ -789,6 +790,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   const _fireResist = (pl) =>
     pl.armor?.ability === "fire_resist" || !!pl.armor?.abilities?.includes("fire_resist");
   switch (eff) {
+    case "water": // 水は通常のhealと同じ挙動
     case "heal":
       if (cursed) {
         // 反転→ダメージ
@@ -1042,11 +1044,46 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   }
 }
 
+/* 祝福・呪いの水を投擲：着弾点のアイテム1つのみに祝呪効果（周囲8マス無効） */
+export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml) {
+  ml.push("瓶が割れた！");
+  const it = dg.items.find(i => i.x === cx && i.y === cy);
+  if (!it) { if (blessed || cursed) ml.push("着弾点にアイテムがなかった…"); return; }
+  if (it.type === "pot") {
+    if (blessed) {
+      it.capacity = (it.capacity || 1) + 1;
+      ml.push(`${it.name}が祝福の水を浴びた！(容量+1 → ${it.capacity})【祝】`);
+    } else if (cursed) {
+      const _nc = Math.max(0, (it.capacity || 1) - 1);
+      if ((it.contents?.length || 0) > _nc) {
+        const _fts = new Set();
+        for (const _ci of (it.contents || [])) placeItemAt(dg, cx, cy, _ci, ml, _fts);
+        dg.items = dg.items.filter(i => i !== it);
+        ml.push(`${it.name}が呪いの水を浴びて割れた！中身が飛び出した！【呪】`);
+      } else {
+        it.capacity = _nc;
+        ml.push(`${it.name}が呪いの水を浴びた！(容量-1 → ${it.capacity})【呪】`);
+      }
+    }
+  } else if (it.type !== "gold" && it.type !== "arrow") {
+    if (blessed) {
+      it.blessed = true; it.cursed = false; it.bcKnown = true;
+      ml.push(`${it.name}が祝福の水を浴びた！【祝】`);
+    } else if (cursed) {
+      it.cursed = true; it.blessed = false; it.bcKnown = true;
+      ml.push(`${it.name}が呪いの水を浴びた！【呪】`);
+    }
+  }
+}
+
 export function soakItemIntoSpring(spr, item, ml, dg = null) {
   spr.contents = spr.contents || [];
   if (item.type === "bottle") {
     const wb = { ...WATER_BOTTLE, id:uid() };
-    ml.push(item.name + "が泉に落ちて水になった！");
+    if (item.blessed) { wb.blessed = true; wb.bcKnown = true; }
+    else if (item.cursed) { wb.cursed = true; wb.bcKnown = true; }
+    const _wbSuffix = item.blessed ? "【祝】" : item.cursed ? "【呪】" : "";
+    ml.push(item.name + "が泉に落ちて水になった！" + _wbSuffix);
     spr.contents.push(wb);
   } else if (item.type === "weapon") {
     let _wNote = "";
@@ -1947,8 +1984,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
               ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！`);
             } else {
-              target.capacity = _newCap; target.cursed = true; target.blessed = false; target.bcKnown = true;
-              ml.push(`${_dname_item(target)}が呪われた！(容量-1 → ${target.capacity})【呪】`);
+              target.capacity = _newCap;
+              ml.push(`${_dname_item(target)}が呪いで容量が減った！(容量-1 → ${target.capacity})【呪】`);
             }
           } else {
             target.cursed = true; target.blessed = false; target.bcKnown = true;
@@ -1959,8 +1996,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (target.type === "pot") {
           const _potGain = _bwBlessed ? 2 : 1;
           target.capacity = (target.capacity || 1) + _potGain;
-          target.blessed = true; target.cursed = false; target.bcKnown = true;
-          ml.push(`${_dname_item(target)}が祝福された！(容量+${_potGain} → ${target.capacity})${_bwBlessed ? "【祝】" : ""}`);
+          ml.push(`${_dname_item(target)}が祝福の光を受け容量が増えた！(容量+${_potGain} → ${target.capacity})${_bwBlessed ? "【祝】" : ""}`);
         } else {
           target.blessed = true; target.cursed = false; target.bcKnown = true;
           ml.push(`${_dname_item(target)}が祝福された！【祝】`);
@@ -2028,8 +2064,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた呪いの杖→落ちてるアイテムを祝福する（反転）
           if (target.type === "pot") {
             target.capacity = (target.capacity || 1) + 1;
-            target.blessed = true; target.cursed = false; target.bcKnown = true;
-            ml.push(`${_dname_item(target)}が祝福された！(容量+1 → ${target.capacity})【呪→祝】`);
+            ml.push(`${_dname_item(target)}が呪いの反動で容量が増えた！(容量+1 → ${target.capacity})【呪→祝】`);
           } else {
             target.blessed = true; target.cursed = false; target.bcKnown = true;
             ml.push(`${_dname_item(target)}が祝福された！【呪→祝】`);
@@ -2046,8 +2081,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
             ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
           } else {
-            target.capacity = _newCap; target.cursed = true; target.blessed = false; target.bcKnown = true;
-            ml.push(`${_dname_item(target)}が呪われた！(容量-${_potLoss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
+            target.capacity = _newCap;
+            ml.push(`${_dname_item(target)}が呪いで容量が減った！(容量-${_potLoss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
           }
         } else {
           target.cursed = true; target.blessed = false; target.bcKnown = true;
@@ -2226,10 +2261,10 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
       const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬" };
-      if (it.name === "水の入った瓶" && BOTTLE_XFORM[eff]) {
+      if (it.effect === "water" && BOTTLE_XFORM[eff]) {
         const nm = BOTTLE_XFORM[eff];
         Object.assign(it, { name: nm, effect: eff, value: eff === "sleep" ? 4 : 0 });
-        ml.push(`水の入った瓶が${nm}に変化した！`);
+        ml.push(`水が${nm}に変化した！`);
         return;
       }
       applyWandEffect(eff, "item", it, dx, dy, dg, p, ml, luFn, bbFn, blMult, nameFn);
