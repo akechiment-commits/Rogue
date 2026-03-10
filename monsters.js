@@ -1,4 +1,5 @@
 import { rng, uid, MW, MH, T, DRO } from "./utils.js";
+import { getFarcastMode } from "./items.js";
 
 /* ===== MONSTER DEFINITIONS ===== */
 export const MONS = [
@@ -279,9 +280,13 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   const dx = Math.sign(adx), dy = Math.sign(ady);
   const maxDist = Math.max(Math.abs(adx), Math.abs(ady));
   const miss = Math.random() < 0.25;
+  const _fcMode = getFarcastMode(pl.x, pl.y, dg);
+  const _isFc = _fcMode === "farcast";
+  const _travelMax = _isFc ? 50 : maxDist;
   ml.push(`${m.name}が矢を放った！`);
   let lx = m.x, ly = m.y;
-  for (let d = 1; d <= maxDist; d++) {
+  let _plHit = false;
+  for (let d = 1; d <= _travelMax; d++) {
     const tx = m.x + dx * d, ty = m.y + dy * d;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       /* arrow hits wall — drop at last valid position (avoid pentacle) */
@@ -289,7 +294,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
       dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_wd.x, y:_wd.y });
       return;
     }
-    if (tx === pl.x && ty === pl.y) {
+    if (tx === pl.x && ty === pl.y && !_plHit) {
       /* 祝福された聖域の魔方陣のみ矢を防ぐ（通常聖域は近接のみ） */
       const _arSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
       if (miss || _arSanc) {
@@ -299,6 +304,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         else ml.push(`${m.name}の矢は外れた！矢が落ちた。`);
         const trap = dg.traps.find(t => t.x === pl.x && t.y === pl.y);
         if (trap && opts.fireTrapFn) opts.fireTrapFn(trap, pl, dg, ml);
+        if (!_isFc) return;
       } else {
         let dmg = Math.max(1, m.atk + rng(-2, 2));
         const _arRoom = findRoom(dg.rooms, pl.x, pl.y);
@@ -309,8 +315,11 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         ml.push(`${m.name}の矢が命中！${dmg}ダメージ！`);
         if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
         if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+        if (!_isFc) return;
+        /* farcast: arrow continues past player */
+        _plHit = true;
+        ml.push(`矢は貫通して飛んでいく！`);
       }
-      return;
     }
     /* intermediate monster */
     const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
@@ -323,7 +332,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         opts.monsterDropFn?.(hitMon, dg, ml);
         dg.monsters = dg.monsters.filter(o => o !== hitMon);
       }
-      return;
+      if (!_isFc) return;
     }
     /* bigbox */
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
@@ -332,11 +341,11 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
       ml.push(`${m.name}の矢が${bb.name}に当たった。`);
       if (opts.bbFn) opts.bbFn(bb, ar, dg, ml);
       else dg.items.push({ ...ar, x:tx, y:ty });
-      return;
+      if (!_isFc) return;
     }
     lx = tx; ly = ty;
   }
-  /* fell through (shouldn't happen) — drop at last position */
+  /* fell through — drop at last position */
   const _fd = safeArrowDrop(lx, ly, dg);
   dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_fd.x, y:_fd.y });
 }
