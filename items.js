@@ -92,6 +92,10 @@ export const ITEMS = [
   { name:"金貨",             type:"gold",   value:0,                     desc:"金貨。",                           tile:22 },
   { name:"識別の巻物", type:"scroll", effect:"identify",
     desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
+  { name:"複製の巻物", type:"scroll", effect:"duplicate",
+    desc:"持ち物から1つ選んで複製する。祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
+  { name:"召喚の巻物", type:"scroll", effect:"summon",
+    desc:"敵を4体召喚する。祝福：8体に囲まれる。呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
 ];
 
 export function getBlessMultiplier(it) {

@@ -2810,10 +2810,11 @@ export default function RoguelikeGame() {
         if (!sr.current) return;
         const _p_id = sr.current.player;
         const _isBCMode = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
+        const _isDupMode = identifyMode.mode === 'duplicate';
         const _filt_id = _p_id.inventory
           .map((_it, _i) => ({ it: _it, i: _i }))
           .filter(({ it, i }) => {
-            if (_isBCMode) return it.type !== "gold";
+            if (_isBCMode || _isDupMode) return it.type !== "gold";
             const _k = getIdentKey(it);
             if (!_k) return false;
             if (identifyMode.scrollIdx === i) return false;
@@ -2834,32 +2835,40 @@ export default function RoguelikeGame() {
         if ((k === "enter" || k === "z") && _len_id > 0) {
           const _curSel_id = Math.min(identifyMode.sel || 0, _len_id - 1);
           const { it: _selIt } = _filt_id[_curSel_id];
+          let _msgResult;
           if (identifyMode.mode === 'bless') {
             _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true;
+            _msgResult = `${_selIt.name}を祝福した！【祝】`;
           } else if (identifyMode.mode === 'curse') {
             _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true;
+            _msgResult = `${_selIt.name}を呪った！【呪】`;
+          } else if (identifyMode.mode === 'duplicate') {
+            const _dupCount = identifyMode.blessed ? 2 : identifyMode.cursed ? 0 : 1;
+            if (_dupCount === 0) {
+              const _rmIdx = _p_id.inventory.indexOf(_selIt);
+              if (_rmIdx !== -1) _p_id.inventory.splice(_rmIdx, 1);
+              _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
+            } else {
+              for (let _di = 0; _di < _dupCount; _di++) _p_id.inventory.push({ ..._selIt, id: uid() });
+              _msgResult = identifyMode.blessed ? `${_selIt.name}が2つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
+            }
           } else {
             const _selKey = getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
               sr.current.ident.add(_selKey); _selIt.fullIdent = true;
+              _msgResult = `${_selIt.name}と判明した！`;
             } else {
               sr.current.ident.delete(_selKey); _selIt.fullIdent = false;
+              _msgResult = `${_selIt.name}の識別が失われた...`;
             }
           }
-          if (identifyMode.scrollIdx != null) {
+          if (identifyMode.mode !== 'duplicate' && identifyMode.scrollIdx != null) {
             sr.current.player.inventory.splice(identifyMode.scrollIdx, 1);
           }
           if (identifyMode.spellCost != null) {
             sr.current.player.mp -= identifyMode.spellCost;
           }
           endTurn(sr.current, sr.current.player, []);
-          const _msgResult = identifyMode.mode === 'bless'
-            ? `${_selIt.name}を祝福した！【祝】`
-            : identifyMode.mode === 'curse'
-              ? `${_selIt.name}を呪った！【呪】`
-              : identifyMode.mode === 'identify'
-                ? `${_selIt.name}と判明した！`
-                : `${_selIt.name}の識別が失われた...`;
           const _ml_id = identifyMode.spellMsg ? [identifyMode.spellMsg, _msgResult] : [_msgResult];
           setIdentifyMode(null);
           setMsgs((prev) => [...prev.slice(-80), ..._ml_id]);
@@ -3795,12 +3804,15 @@ export default function RoguelikeGame() {
           ml.push("テレポートした！");
         }
       } else if (it.effect === "reveal") {
-        for (let y = 0; y < MH; y++)
-          for (let x = 0; x < MW; x++) dg.explored[y][x] = true;
         if (it.cursed) {
-          // 呪い：床は全開示だが罠は非開示
-          ml.push("フロアが明らかになった…しかし罠の場所はわからない！【呪】");
+          // 呪い：マップも罠の位置も全て忘れる
+          for (let y = 0; y < MH; y++)
+            for (let x = 0; x < MW; x++) dg.explored[y][x] = false;
+          dg.traps.forEach((t) => (t.revealed = false));
+          ml.push("記憶が消えた…マップと罠の位置を全て忘れてしまった！【呪】");
         } else {
+          for (let y = 0; y < MH; y++)
+            for (let x = 0; x < MW; x++) dg.explored[y][x] = true;
           dg.traps.forEach((t) => (t.revealed = true));
           if (it.blessed) {
             // 祝福：全開示＋アイテム位置も地図に表示
@@ -4023,6 +4035,76 @@ export default function RoguelikeGame() {
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
           }
+        }
+      } else if (it.effect === "duplicate") {
+        // 複製の巻物：アイテムを選んで複製（巻物はすでにsplice済み）
+        const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
+        if (_dupTargets.length === 0) {
+          ml.push("複製できるアイテムがない。");
+        } else {
+          { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
+            setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml]); }
+          setIdentifyMode({ mode: 'duplicate', blessed: it.blessed || false, cursed: it.cursed || false });
+          setShowInv(false); setSelIdx(null); setShowDesc(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        }
+      } else if (it.effect === "summon") {
+        // 召喚の巻物
+        if (it.cursed) {
+          // 呪い：同じ部屋の敵を別の部屋に飛ばす
+          const _sumRoom = findRoom(dg.rooms, p.x, p.y);
+          const _inRoom = _sumRoom
+            ? dg.monsters.filter((m) => findRoom(dg.rooms, m.x, m.y) === _sumRoom)
+            : [];
+          if (_inRoom.length === 0) {
+            ml.push("部屋に敵がいないのに呪いが発動した…【呪】");
+          } else {
+            const _otherRooms = dg.rooms.filter((r) => r !== _sumRoom);
+            for (const _sm of _inRoom) {
+              const _tr = _otherRooms[rng(0, _otherRooms.length - 1)];
+              if (!_tr) continue;
+              for (let _att = 0; _att < 20; _att++) {
+                const _tx = rng(_tr.x + 1, _tr.x + _tr.w - 2);
+                const _ty = rng(_tr.y + 1, _tr.y + _tr.h - 2);
+                if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.monsters.some((m) => m.x === _tx && m.y === _ty) && (_tx !== p.x || _ty !== p.y)) {
+                  _sm.x = _tx; _sm.y = _ty; _sm.aware = false; break;
+                }
+              }
+            }
+            ml.push(`${_inRoom.length}体の敵が別の部屋へ飛んだ！【呪】`);
+          }
+        } else {
+          // 通常4体、祝福8体召喚
+          const _sumCount = it.blessed ? 8 : 4;
+          let _spawned = 0;
+          // 祝福時は隣接マスから優先
+          if (it.blessed) {
+            const _dirs8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+            for (const [_dy, _dx] of _dirs8) {
+              const _nx = p.x + _dx, _ny = p.y + _dy;
+              if (dg.map[_ny]?.[_nx] === T.FLOOR && !dg.monsters.some((m) => m.x === _nx && m.y === _ny)) {
+                const _mt = MONS[clamp(rng(0, p.depth + 1), 0, MONS.length - 1)];
+                dg.monsters.push({ ..._mt, id: uid(), x: _nx, y: _ny, maxHp: _mt.hp, turnAccum: 0, aware: true, dir: { x: 1, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null });
+                _spawned++;
+              }
+            }
+          }
+          // 残り分（または通常時）: フロア内ランダム
+          for (let _si = _spawned; _si < _sumCount; _si++) {
+            for (let _att = 0; _att < 30; _att++) {
+              const _sRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
+              const _sx = rng(_sRoom.x + 1, _sRoom.x + _sRoom.w - 2);
+              const _sy = rng(_sRoom.y + 1, _sRoom.y + _sRoom.h - 2);
+              if (dg.map[_sy]?.[_sx] === T.FLOOR && !dg.monsters.some((m) => m.x === _sx && m.y === _sy) && (_sx !== p.x || _sy !== p.y)) {
+                const _mt = MONS[clamp(rng(0, p.depth + 1), 0, MONS.length - 1)];
+                dg.monsters.push({ ..._mt, id: uid(), x: _sx, y: _sy, maxHp: _mt.hp, turnAccum: 0, aware: false, dir: { x: 1, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null });
+                _spawned++;
+                break;
+              }
+            }
+          }
+          ml.push(it.blessed ? `${_spawned}体の敵に囲まれた！【祝】` : `${_spawned}体の敵が召喚された！`);
         }
       }
     } else if (it.type === "pen") {
@@ -5307,10 +5389,11 @@ export default function RoguelikeGame() {
                 if (!sr.current) return;
                 const _p = sr.current.player;
                 const _isBCMode_t = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
+                const _isDupMode_t = identifyMode.mode === 'duplicate';
                 const _filt = _p.inventory
                   .map((_it, _i) => ({ it: _it, i: _i }))
                   .filter(({ it, i }) => {
-                    if (_isBCMode_t) return it.type !== "gold";
+                    if (_isBCMode_t || _isDupMode_t) return it.type !== "gold";
                     const _k = getIdentKey(it);
                     if (!_k) return false;
                     if (identifyMode.scrollIdx === i) return false;
@@ -6409,10 +6492,11 @@ export default function RoguelikeGame() {
       {identifyMode && gs && (() => {
         const _p = gs.player;
         const _isBCMode_ui = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
+        const _isDupMode_ui = identifyMode.mode === 'duplicate';
         const _filtered = _p.inventory
           .map((it, i) => ({ it, i }))
           .filter(({ it, i }) => {
-            if (_isBCMode_ui) return it.type !== "gold";
+            if (_isBCMode_ui || _isDupMode_ui) return it.type !== "gold";
             const k = getIdentKey(it);
             if (!k) return false;
             if (identifyMode.scrollIdx === i) return false;
@@ -6423,32 +6507,41 @@ export default function RoguelikeGame() {
           if (!sr.current) return;
           const { it: _selIt } = _filtered[vi] ?? _filtered[_curSel_ui] ?? {};
           if (!_selIt) return;
+          let _msgResult;
           if (identifyMode.mode === 'bless') {
             _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true;
+            _msgResult = `${_selIt.name}を祝福した！【祝】`;
           } else if (identifyMode.mode === 'curse') {
             _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true;
+            _msgResult = `${_selIt.name}を呪った！【呪】`;
+          } else if (identifyMode.mode === 'duplicate') {
+            const _dupCount = identifyMode.blessed ? 2 : identifyMode.cursed ? 0 : 1;
+            const _p_dup = sr.current.player;
+            if (_dupCount === 0) {
+              const _rmIdx = _p_dup.inventory.indexOf(_selIt);
+              if (_rmIdx !== -1) _p_dup.inventory.splice(_rmIdx, 1);
+              _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
+            } else {
+              for (let _di = 0; _di < _dupCount; _di++) _p_dup.inventory.push({ ..._selIt, id: uid() });
+              _msgResult = identifyMode.blessed ? `${_selIt.name}が2つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
+            }
           } else {
             const _selKey = getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
               sr.current.ident.add(_selKey); _selIt.fullIdent = true;
+              _msgResult = `${_selIt.name}と判明した！`;
             } else {
               sr.current.ident.delete(_selKey); _selIt.fullIdent = false;
+              _msgResult = `${_selIt.name}の識別が失われた...`;
             }
           }
-          if (identifyMode.scrollIdx != null) {
+          if (identifyMode.mode !== 'duplicate' && identifyMode.scrollIdx != null) {
             sr.current.player.inventory.splice(identifyMode.scrollIdx, 1);
           }
           if (identifyMode.spellCost != null) {
             sr.current.player.mp -= identifyMode.spellCost;
           }
           endTurn(sr.current, sr.current.player, []);
-          const _msgResult = identifyMode.mode === 'bless'
-            ? `${_selIt.name}を祝福した！【祝】`
-            : identifyMode.mode === 'curse'
-              ? `${_selIt.name}を呪った！【呪】`
-              : identifyMode.mode === 'identify'
-                ? `${_selIt.name}と判明した！`
-                : `${_selIt.name}の識別が失われた...`;
           const _ml_id = identifyMode.spellMsg ? [identifyMode.spellMsg, _msgResult] : [_msgResult];
           setIdentifyMode(null);
           setMsgs((prev) => [...prev.slice(-80), ..._ml_id]);
@@ -6461,6 +6554,7 @@ export default function RoguelikeGame() {
               <div style={{ color:"#ff0", marginBottom:4, fontWeight:"bold" }}>
                 {identifyMode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
                   : identifyMode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
+                  : identifyMode.mode === 'duplicate' ? (identifyMode.blessed ? "複製するアイテムを選んでください（2つ増える）【祝】" : identifyMode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
                   : identifyMode.mode === 'identify' ? "識別するアイテムを選んでください"
                   : "識別を解除するアイテムを選んでください【呪】"}
               </div>
