@@ -944,7 +944,8 @@ export default function RoguelikeGame() {
         { name:"遠投のペン",   type:"pen",       effect:"farcast",    charges:2, desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。チャージ制。", tile:42 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
-        { name:"テレポートの巻物", type:"scroll", effect:"warp", blessed:true, bcKnown:true, desc:"テレポートする。祝福：目的地指定。呪い：近くにテレポート。", tile:18 },
+        { name:"収納上手の巻物", type:"scroll",  effect:"expand_inv", desc:"最大所持数が1～3増える。祝福：2～6増える。呪い：1～3減る。", tile:18 },
+        { name:"複製の巻物",   type:"scroll",    effect:"duplicate",  desc:"持ち物から1つ選んで複製する。祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
       ],
       spells: [],
       spellLevels: {},
@@ -1415,10 +1416,17 @@ export default function RoguelikeGame() {
       if ((p.mpCooldownTurns || 0) > 0) p.mpCooldownTurns--;
       /* 毒：3ターンごとに攻撃力-1 */
       if (p.poisoned && p.turns % 3 === 0) {
-        if (p.atk > 1) {
+        if ((p.poisonAtkLoss || 0) >= 3) {
+          p.poisoned = false;
+          ml.push("毒の効果が切れた。攻撃力の低下は残っている...");
+        } else if (p.atk > 1) {
           p.atk--;
           p.poisonAtkLoss = (p.poisonAtkLoss || 0) + 1;
           ml.push("毒に冒されている！攻撃力が下がった...");
+          if (p.poisonAtkLoss >= 3) {
+            p.poisoned = false;
+            ml.push("毒の効果が切れた。");
+          }
         }
       }
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
@@ -5320,7 +5328,14 @@ export default function RoguelikeGame() {
         </span>{" "}
         <span>
           攻:
-          <span style={{ color: "#fa0" }}>{p.atk + (p.weapon?.atk || 0)}</span>
+          {(p.poisonAtkLoss || 0) > 0 ? (
+            <span style={{ color: "#fa0" }}>
+              {p.atk + (p.weapon?.atk || 0)}/
+              <span style={{ color: "#aaa", fontSize: "0.9em" }}>{p.atk + (p.poisonAtkLoss || 0) + (p.weapon?.atk || 0)}</span>
+            </span>
+          ) : (
+            <span style={{ color: "#fa0" }}>{p.atk + (p.weapon?.atk || 0)}</span>
+          )}
         </span>{" "}
         <span>
           防:
