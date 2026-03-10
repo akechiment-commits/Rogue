@@ -3929,20 +3929,20 @@ export default function RoguelikeGame() {
           }
           ml.push(`${_cnt}個のアイテムがフロアに散らばった！【呪】`);
         } else if (it.blessed) {
-          // 祝福：フロアのアイテムを直接インベントリに吸収（満杯分は足元に落とす）
+          // 祝福：フロアのアイテムを直接インベントリに吸収（満杯分は通常の落下ルールで配置）
           dg.items = dg.items.filter((gi) => gi.shopPrice);
           let _picked = 0, _dropped = 0;
+          const _blessFt = new Set();
           for (const gi of _toG) {
             if (p.inventory.length < 30) {
               p.inventory.push(gi);
               _picked++;
             } else {
-              gi.x = p.x; gi.y = p.y;
-              dg.items.push(gi);
+              placeItemAt(dg, p.x, p.y, gi, ml, _blessFt, 0, p);
               _dropped++;
             }
           }
-          ml.push(`${_picked}個のアイテムを拾った！【祝】${_dropped > 0 ? `（${_dropped}個は満杯で足元に）` : ""}`);
+          ml.push(`${_picked}個のアイテムを拾った！【祝】${_dropped > 0 ? `（${_dropped}個は満杯で周囲に配置）` : ""}`);
         } else {
           // 通常：隣接マスに引き寄せる
           dg.items = dg.items.filter((gi) => gi.shopPrice);
