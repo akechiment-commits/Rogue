@@ -2557,6 +2557,7 @@ export default function RoguelikeGame() {
             p.y = rng(rm.y, rm.y + rm.h - 1);
             ml.push("壁の中！ランダムにテレポートした。");
           }
+          endTurn(sr.current, p, ml);
           computeFOV(dg.map, p.x, p.y, 6, dg.visible, dg.explored);
           setTpSelectMode(null);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -2845,8 +2846,8 @@ export default function RoguelikeGame() {
           }
           if (identifyMode.spellCost != null) {
             sr.current.player.mp -= identifyMode.spellCost;
-            endTurn(sr.current, sr.current.player, []);
           }
+          endTurn(sr.current, sr.current.player, []);
           const _msgResult = identifyMode.mode === 'bless'
             ? `${_selIt.name}を祝福した！【祝】`
             : identifyMode.mode === 'curse'
@@ -3713,7 +3714,9 @@ export default function RoguelikeGame() {
       }
     } else if (it.type === "scroll") {
       if (it.effect === "blank") {
-        setMsgs((prev) => [...prev.slice(-80), "白紙の巻物だ。魔法のマーカーで書き込めるかもしれない。"]);
+        ml.push("白紙の巻物だ。魔法のマーカーで書き込めるかもしれない。");
+        endTurn(sr.current, p, ml);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
         setSelIdx(null);
         setShowDesc(null);
         setShowInv(false);
@@ -3936,7 +3939,8 @@ export default function RoguelikeGame() {
     } else if (it.type === "pen") {
       if ((it.charges || 0) <= 0) {
         ml.push(`${it.name}のインクが尽きている。充填の大箱で補充できる。`);
-        if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        endTurn(sr.current, p, ml);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
         setSelIdx(null); setShowDesc(null); setShowInv(false);
         sr.current = { ...sr.current }; setGs({ ...sr.current });
         return;
@@ -4076,13 +4080,14 @@ export default function RoguelikeGame() {
     } else {
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
     }
+    endTurn(sr.current, p, ml);
     computeFOV(dg.map, p.x, p.y, 6, dg.visible, dg.explored);
     setSelIdx(null);
     setShowDesc(null);
     setShowInv(false);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
-  }, [lu]);
+  }, [lu, endTurn]);
   const doDropItem = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
@@ -6345,8 +6350,8 @@ export default function RoguelikeGame() {
           }
           if (identifyMode.spellCost != null) {
             sr.current.player.mp -= identifyMode.spellCost;
-            endTurn(sr.current, sr.current.player, []);
           }
+          endTurn(sr.current, sr.current.player, []);
           const _msgResult = identifyMode.mode === 'bless'
             ? `${_selIt.name}を祝福した！【祝】`
             : identifyMode.mode === 'curse'
