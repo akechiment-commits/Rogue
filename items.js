@@ -1809,8 +1809,23 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "bigbox") {
-        target.capacity = (target.capacity || 0) + 1;
-        ml.push(`${target.name}が祝福された！(容量+1 → ${target.capacity})`);
+        if (_bwCursed) {
+          // 呪われた祝福の杖→大箱の容量を1減らす
+          const _newCap = Math.max(0, (target.capacity || 1) - 1);
+          if ((target.contents?.length || 0) > _newCap) {
+            const _fts = new Set();
+            for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
+            dg.bigboxes = dg.bigboxes.filter(b => b !== target);
+            ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！【呪】`);
+          } else {
+            target.capacity = _newCap;
+            ml.push(`${target.name}が呪われた！(容量-1 → ${target.capacity})【呪】`);
+          }
+        } else {
+          const _gain = _bwBlessed ? 2 : 1;
+          target.capacity = (target.capacity || 0) + _gain;
+          ml.push(`${target.name}が祝福された！(容量+${_gain} → ${target.capacity})${_bwBlessed ? "【祝】" : ""}`);
+        }
         break;
       }
       if (kind === "monster") {
@@ -1894,18 +1909,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "bigbox") {
         if (_cwCursed) {
+          // 呪われた呪いの杖→大箱の容量を+1（反転）
           target.capacity = (target.capacity || 0) + 1;
           ml.push(`${target.name}が祝福された！(容量+1 → ${target.capacity})【呪→祝】`);
         } else {
-          const _newCap = Math.max(0, (target.capacity || 1) - 1);
+          // 通常→-1、祝福された呪いの杖→-2
+          const _loss = _cwBlessed ? 2 : 1;
+          const _newCap = Math.max(0, (target.capacity || 1) - _loss);
           if ((target.contents?.length || 0) > _newCap) {
             const _fts = new Set();
             for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
             dg.bigboxes = dg.bigboxes.filter(b => b !== target);
-            ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！`);
+            ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
           } else {
             target.capacity = _newCap;
-            ml.push(`${target.name}が呪われた！(容量-1 → ${target.capacity})`);
+            ml.push(`${target.name}が呪われた！(容量-${_loss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
           }
         }
         break;
@@ -2172,7 +2190,9 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
       const wi = dg.items.find(i => i.x === ax && i.y === ay);
       if (wi) { wTargets.push({ kind:"item", t:wi }); continue; }
       const wt = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
-      if (wt) wTargets.push({ kind:"trap", t:wt });
+      if (wt) { wTargets.push({ kind:"trap", t:wt }); continue; }
+      const wb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
+      if (wb) wTargets.push({ kind:"bigbox", t:wb });
     }
     applyWandEffect(eff, "player", p, 0, 0, dg, p, ml, luFn);
     for (const { kind, t } of wTargets) applyWandEffect(eff, kind, t, 0, 0, dg, p, ml, luFn);
@@ -2190,9 +2210,11 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
     const it = dg.items.find(i => i.x === ax && i.y === ay);
     if (it)  { targets.push({ kind:"item", t:it, dx:adx, dy:ady }); continue; }
     const trap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
-    if (trap) { trap.revealed = true; targets.push({ kind:"trap", t:trap, dx:adx, dy:ady }); }
+    if (trap) { trap.revealed = true; targets.push({ kind:"trap", t:trap, dx:adx, dy:ady }); continue; }
+    const bb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
+    if (bb) targets.push({ kind:"bigbox", t:bb, dx:adx, dy:ady });
   }
-  for (const { kind, t, dx, dy } of targets) applyWandEffect(eff, kind, t, dx, dy, dg, p, ml, luFn);
+  for (const { kind, t, dx, dy } of targets) applyWandEffect(eff, kind, t, dx, dy, dg, p, ml, luFn, null, blMult);
 }
 
 export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
