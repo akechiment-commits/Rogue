@@ -1267,7 +1267,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         for (let fx = 0; fx < MW; fx++)
           if (dg.map[fy][fx] === T.FLOOR &&
               !dg.bigboxes?.find(b => b.x === fx && b.y === fy) &&
-              !dg.monsters.find(m => m.x === fx && m.y === fy))
+              !dg.monsters.find(m => m.x === fx && m.y === fy) &&
+              !dg.items.some(i => i.x === fx && i.y === fy) &&
+              !dg.traps.some(t => t.x === fx && t.y === fy) &&
+              !dg.springs?.some(s => s.x === fx && s.y === fy) &&
+              !dg.pentacles?.some(pc => pc.x === fx && pc.y === fy))
             wbf.push({ x:fx, y:fy });
       if (wbf.length > 0) {
         const wbd = wbf[rng(0, wbf.length - 1)];
@@ -1285,6 +1289,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
           bbroke = true; break;
         }
+        // アイテム・罠・泉・魔方陣・階段と重ならないよう手前で止まる
+        if (dg.map[ny][nx] === T.SD || dg.map[ny][nx] === T.SU ||
+            dg.items.some(i => i.x === nx && i.y === ny) ||
+            dg.traps.some(t => t.x === nx && t.y === ny) ||
+            dg.springs?.some(s => s.x === nx && s.y === ny) ||
+            dg.pentacles?.some(pc => pc.x === nx && pc.y === ny)) break;
         bbx = nx; bby = ny;
       }
       if (bbroke) {
@@ -2021,6 +2031,22 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       }
     } else {
       ml.push("魔法弾は消えた。");
+    }
+    return;
+  }
+  /* 呪われた飛びつきの杖：制御不能でランダムテレポート */
+  if (eff === "leap" && blMult < 1) {
+    const _lp = [];
+    for (let ly = 0; ly < MH; ly++)
+      for (let lx = 0; lx < MW; lx++)
+        if (dg.map[ly][lx] === T.FLOOR && !dg.monsters.some(m => m.x === lx && m.y === ly) && !(p.x === lx && p.y === ly))
+          _lp.push({ x: lx, y: ly });
+    if (_lp.length > 0) {
+      const _d = _lp[rng(0, _lp.length - 1)];
+      p.x = _d.x; p.y = _d.y;
+      ml.push("呪いで制御が効かず、ランダムな場所にテレポートした！【呪】");
+    } else {
+      ml.push("テレポートに失敗した。");
     }
     return;
   }

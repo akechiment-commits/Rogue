@@ -736,15 +736,16 @@ function processPitfallBag(bag, floors, depth) {
   }
 }
 
-/* アイテム表示名を返す（未識別なら偽名 or ニックネーム） */
+/* アイテム表示名を返す（未識別なら偽名 or ニックネーム、識別済みなら本名優先） */
 function itemDisplayName(it, fakeNames, ident, nicknames) {
   const key = getIdentKey(it);
   if (!key) return it.name;
+  // 識別済みなら本名を優先（ニックネームより優先）
+  if (ident?.has(key)) return it.name;
   if (nicknames?.[key]) {
     const _pfx = key[0]==='p' ? '薬' : key[0]==='s' ? '巻' : key[0]==='w' ? '杖' : key[0]==='n' ? 'ペン' : key[0]==='b' ? '書' : '壺';
     return `${_pfx}:${nicknames[key]}`;
   }
-  if (ident?.has(key)) return it.name;
   return fakeNames?.[key] ?? it.name;
 }
 
