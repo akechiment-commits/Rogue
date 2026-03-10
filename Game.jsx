@@ -968,7 +968,7 @@ export default function RoguelikeGame() {
   }, []);
   useEffect(init, [init]);
   useEffect(() => {
-    msgRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (msgRef.current) msgRef.current.scrollTop = msgRef.current.scrollHeight;
   }, [msgs]);
 
   /* Canvas render */ useEffect(() => {
@@ -5148,6 +5148,7 @@ export default function RoguelikeGame() {
         }}
       />{" "}
       <div
+        ref={msgRef}
         style={{
           height: mobile ? 52 : 52,
           overflowY: "auto",
@@ -5157,13 +5158,14 @@ export default function RoguelikeGame() {
           color: "#8f8",
           lineHeight: "1.3em",
           cursor: revealMode ? "pointer" : "default",
+          WebkitOverflowScrolling: "touch",
         }}
         onClick={revealMode ? () => {
           if (revealMode.pendingMsgs.length) setMsgs(prev => [...prev.slice(-80), ...revealMode.pendingMsgs]);
           setRevealMode(null);
         } : undefined}
       >
-        {msgs.slice(mobile ? -4 : -8).map((m, i, a) => (
+        {msgs.slice(-50).map((m, i, a) => (
           <div key={i} style={{ opacity: i === a.length - 1 ? 1 : 0.5 }}>
             {m}
           </div>
@@ -5173,7 +5175,6 @@ export default function RoguelikeGame() {
             ▼ {mobile ? "タップで続ける" : "何かキーを押す..."}
           </div>
         )}
-        <div ref={msgRef} />
       </div>{" "}
       {mobile && (
         <div
