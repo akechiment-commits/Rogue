@@ -952,6 +952,8 @@ export default function RoguelikeGame() {
       hasteTurns: 0,
       hasteUsed: false,
       confusedTurns: 0,
+      poisoned: false,
+      poisonAtkLoss: 0,
       facing: { dx: 0, dy: 1 },
       isThief: false,
       deathCause: "不明の原因により",
@@ -1400,6 +1402,14 @@ export default function RoguelikeGame() {
       }
       /* MPクールダウンカウント */
       if ((p.mpCooldownTurns || 0) > 0) p.mpCooldownTurns--;
+      /* 毒：3ターンごとに攻撃力-1 */
+      if (p.poisoned && p.turns % 3 === 0) {
+        if (p.atk > 1) {
+          p.atk--;
+          p.poisonAtkLoss = (p.poisonAtkLoss || 0) + 1;
+          ml.push("毒に冒されている！攻撃力が下がった...");
+        }
+      }
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
       const _cursedSancOn = st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
       if (_cursedSancOn && p.hp > 0) {
@@ -3456,13 +3466,24 @@ export default function RoguelikeGame() {
       const _potBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+      // 毒回復ヘルパー
+      const _curePoison = () => {
+        if (p.poisoned) {
+          p.poisoned = false;
+          if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+          return true;
+        }
+        return false;
+      };
       if (it.effect === "heal") {
         if (it.cursed) {
-          const d = Math.max(1, Math.round(it.value * 0.5));
+          // 呪い：反転→ダメージ
+          const d = Math.max(1, Math.round(it.value * 0.7));
           p.deathCause = "呪われた回復薬を飲んで";
           p.hp -= d;
           ml.push(`${it.name}を飲んだ。まずい！${d}ダメージ！【呪】`);
         } else {
+          // 通常/祝福：HP回復（祝福=1.5x + 全状態異常回復）
           const h = Math.min(Math.round(it.value * _potBm), p.maxHp - p.hp);
           p.hp += h;
           let _hMsg = `${it.name}を飲んだ。HP+${h}${it.blessed ? "（祝福）" : ""}`;
@@ -3471,45 +3492,40 @@ export default function RoguelikeGame() {
             if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _cured.push("睡眠"); }
             if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _cured.push("混乱"); }
             if ((p.slowTurns || 0) > 0) { p.slowTurns = 0; _cured.push("鈍足"); }
+            if (_curePoison()) _cured.push("毒");
             if (_cured.length > 0) _hMsg += ` ${_cured.join("・")}も解消！`;
           }
           ml.push(_hMsg);
         }
       } else if (it.effect === "poison") {
-        if (it.blessed) {
-          // 祝福：HP回復（解毒効果）
-          const h = Math.min(it.value, p.maxHp - p.hp);
-          p.hp += h;
-          ml.push(`${it.name}を飲んだ。体の毒が消えHP+${h}回復した！【祝】`);
-        } else {
-          const d = Math.max(1, Math.round((it.value + rng(-3, 3)) * (it.cursed ? 1.5 : 1)));
-          p.deathCause = "毒の薬を飲んで";
-          p.hp -= d;
-          ml.push(`${it.name}を飲んだ。${d}ダメージ！${it.cursed ? "強烈な毒だ！【呪】" : ""}`);
-        }
-      } else if (it.effect === "fire") {
-        if (it.blessed) {
-          // 祝福：視界内の敵に炎ダメージ
-          const _fvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-          if (_fvis.length === 0) {
-            ml.push(`${it.name}を飲んだ。体から炎が噴き出したが、周囲に敵はいない。【祝】`);
+        if (it.cursed) {
+          // 呪い：反転→解毒薬
+          if (_curePoison()) {
+            ml.push(`${it.name}を飲んだ。毒が体から消えた！攻撃力も回復！【呪→解毒】`);
           } else {
-            ml.push(`${it.name}を飲んだ。体から炎が噴き出した！【祝】`);
-            for (const _m of [..._fvis]) {
-              const _fd = Math.max(1, it.value + rng(-5, 5));
-              _m.hp -= _fd;
-              ml.push(`${_m.name}に炎が炸裂！${_fd}ダメージ！`);
-              if (_m.hp <= 0) {
-                ml.push(`${_m.name}を倒した！(+${_m.exp}exp)`);
-                p.exp += _m.exp;
-                monsterDrop(_m, dg, ml, p);
-                dg.monsters = dg.monsters.filter((mn) => mn !== _m);
-                if (lu) lu(p, ml);
-              }
-            }
+            ml.push(`${it.name}を飲んだ。変な味がするが…毒はかかっていなかった。【呪→解毒】`);
           }
         } else {
-          const rd = Math.max(1, Math.round((it.value + rng(-5, 5)) * (it.cursed ? 1.5 : 1)));
+          // 通常：毒状態を付与。祝福=即時ATK-3の追加ペナルティ
+          p.poisoned = true;
+          if (it.blessed) {
+            const _extraLoss = Math.min(3, p.atk - 1);
+            p.atk -= _extraLoss;
+            p.poisonAtkLoss = (p.poisonAtkLoss || 0) + _extraLoss;
+            ml.push(`${it.name}を飲んだ。強烈な毒を浴びた！毒状態になり攻撃力が${_extraLoss}下がった！【祝=強毒】`);
+          } else {
+            ml.push(`${it.name}を飲んだ。毒状態になった！攻撃力が徐々に下がっていく…`);
+          }
+        }
+      } else if (it.effect === "fire") {
+        if (it.cursed) {
+          // 呪い：反転→HP回復
+          const h = Math.min(it.value, p.maxHp - p.hp);
+          p.hp += h;
+          ml.push(`${it.name}を飲んだ。体が温まりHP+${h}回復した！【呪→回復】`);
+        } else {
+          // 通常/祝福：炎ダメージ（祝福=1.5x）
+          const rd = Math.max(1, Math.round((it.value + rng(-5, 5)) * _potBm));
           const d =
             p.armor?.ability === "fire_resist" ||
             !!p.armor?.abilities?.includes("fire_resist")
@@ -3518,25 +3534,18 @@ export default function RoguelikeGame() {
           p.deathCause = "炎の薬を飲んで";
           p.hp -= d;
           ml.push(
-            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${p.armor?.ability === "fire_resist" || !!p.armor?.abilities?.includes("fire_resist") ? "(耘火)" : ""}${it.cursed ? "【呪】" : ""}`,
+            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${p.armor?.ability === "fire_resist" || !!p.armor?.abilities?.includes("fire_resist") ? "(耘火)" : ""}${it.blessed ? "【祝=強炎】" : ""}`,
           );
         }
       } else if (it.effect === "sleep") {
-        if (it.blessed) {
-          // 祝福：視界内の敵を眠らせる
-          const _svis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-          if (_svis.length === 0) {
-            ml.push(`${it.name}を飲んだ。眠気が漂うが、視界に敵はいない。【祝】`);
-          } else {
-            ml.push(`${it.name}を飲んだ。眠気が周囲に広がった！【祝】`);
-            for (const _m of _svis) {
-              const _st = Math.max(1, it.value + rng(-1, 1));
-              _m.sleepTurns = (_m.sleepTurns || 0) + _st;
-              ml.push(`${_m.name}が眠りに落ちた！(${_st}ターン)`);
-            }
-          }
+        if (it.cursed) {
+          // 呪い：反転→眠気が吹き飛び2倍速
+          p.sleepTurns = 0;
+          p.hasteTurns = (p.hasteTurns || 0) + 5;
+          ml.push(`${it.name}を飲んだ。眠気が吹き飛んだ！体が覚醒した！(2倍速5ターン)【呪→覚醒】`);
         } else {
-          const t = Math.max(1, Math.round((it.value + rng(-1, 1)) * (it.cursed ? 1.5 : 1)));
+          // 通常/祝福：プレイヤーを眠らせる（祝福=2倍ターン）
+          const t = Math.max(1, Math.round((it.value + rng(-1, 1)) * (it.blessed ? 2 : 1)));
           if (
             p.armor?.ability === "sleep_proof" ||
             !!p.armor?.abilities?.includes("sleep_proof")
@@ -3545,74 +3554,73 @@ export default function RoguelikeGame() {
           } else {
             p.sleepTurns = (p.sleepTurns || 0) + t;
             ml.push(
-              `${it.name}を飲んだ。眠くなってきた...(${t}ターン)${it.cursed ? "【呪】" : ""}`,
+              `${it.name}を飲んだ。眠くなってきた...(${t}ターン)${it.blessed ? "【祝=強眠】" : ""}`,
             );
           }
         }
       } else if (it.effect === "power") {
         if (it.cursed) {
+          // 呪い：反転→攻撃力減少
           const _pv = Math.max(1, Math.round(it.value * 0.5));
           p.atk = Math.max(1, p.atk - _pv);
           ml.push(`${it.name}を飲んだ。力が抜けた...攻撃力-${_pv}【呪】`);
         } else {
+          // 通常/祝福：攻撃力増加（祝福=1.5x）
           const _pv = Math.max(1, Math.round(it.value * _potBm));
           p.atk += _pv;
           ml.push(`${it.name}を飲んだ。力が湧いてきた！攻撃力+${_pv}${it.blessed ? "（祝福）" : ""}`);
         }
       } else if (it.effect === "slow") {
-        if (it.blessed) {
-          // 祝福：速度アップ（鈍足の逆）
+        if (it.cursed) {
+          // 呪い：反転→2倍速
           p.hasteTurns = (p.hasteTurns || 0) + 10;
-          ml.push(`${it.name}を飲んだ。体が軽くなった！(2倍速10ターン)【祝】`);
+          ml.push(`${it.name}を飲んだ。体が軽くなった！(2倍速10ターン)【呪→加速】`);
         } else {
-          const _st = it.cursed ? 15 : 10;
+          // 通常/祝福：鈍足（祝福=2倍ターン）
+          const _st = it.blessed ? 20 : 10;
           p.slowTurns = (p.slowTurns || 0) + _st;
-          ml.push(`${it.name}を飲んだ。体が重くなった...(鈍足${_st}ターン)${it.cursed ? "【呪】" : ""}`);
+          ml.push(`${it.name}を飲んだ。体が重くなった...(鈍足${_st}ターン)${it.blessed ? "【祝=強鈍】" : ""}`);
         }
       } else if (it.effect === "confuse") {
-        if (it.blessed) {
-          // 祝福：視界内の敵を混乱させる
+        if (it.cursed) {
+          // 呪い：反転→混乱解消（+ 視界内の敵を混乱）
+          const _wasCon = (p.confusedTurns || 0) > 0;
+          p.confusedTurns = 0;
           const _cvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-          if (_cvis.length === 0) {
-            ml.push(`${it.name}を飲んだ。混乱の気が漂うが、視界に敵はいない。【祝】`);
-          } else {
-            ml.push(`${it.name}を飲んだ。混乱の気が周囲に広がった！【祝】`);
-            for (const _m of _cvis) {
-              _m.confusedTurns = (_m.confusedTurns || 0) + 20;
-              ml.push(`${_m.name}が混乱した！(${_m.confusedTurns}ターン)`);
-            }
+          if (_wasCon) ml.push(`${it.name}を飲んだ。頭が冷えた！混乱が消えた！【呪→解混乱】`);
+          else ml.push(`${it.name}を飲んだ。不思議な味がするが…【呪→解混乱】`);
+          for (const _m of _cvis) {
+            _m.confusedTurns = (_m.confusedTurns || 0) + 15;
+            ml.push(`混乱の気が${_m.name}に向かった！(${_m.confusedTurns}ターン)`);
           }
         } else {
-          const _cturns = it.cursed ? 8 : 5;
+          // 通常/祝福：混乱（祝福=2倍ターン）
+          const _cturns = it.blessed ? 10 : 5;
           p.confusedTurns = (p.confusedTurns || 0) + _cturns;
-          ml.push(`${it.name}を飲んだ。頭がくらくらする！(混乱${p.confusedTurns}ターン)${it.cursed ? "【呪】" : ""}`);
+          ml.push(`${it.name}を飲んだ。頭がくらくらする！(混乱${p.confusedTurns}ターン)${it.blessed ? "【祝=強混乱】" : ""}`);
         }
       } else if (it.effect === "paralyze") {
-        if (it.blessed) {
-          // 祝福：視界内の敵を金縛りにする
-          const _pvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-          if (_pvis.length === 0) {
-            ml.push(`${it.name}を飲んだ。金縛りの気が漂うが、視界に敵はいない。【祝】`);
-          } else {
-            ml.push(`${it.name}を飲んだ。金縛りの気が周囲に広がった！【祝】`);
-            for (const _m of _pvis) {
-              _m.paralyzed = true;
-              ml.push(`${_m.name}が金縛りになった！`);
-            }
-          }
+        if (it.cursed) {
+          // 呪い：反転→金縛り解消
+          const _wasPar = (p.paralyzeTurns || 0) > 0;
+          p.paralyzeTurns = 0;
+          if (_wasPar) ml.push(`${it.name}を飲んだ。体が動くようになった！金縛りが解けた！【呪→解金縛り】`);
+          else ml.push(`${it.name}を飲んだ。体がすっきりした。【呪→解金縛り】`);
         } else {
-          const _pt = it.cursed ? 15 : 10;
+          // 通常/祝福：金縛り（祝福=2倍ターン）
+          const _pt = it.blessed ? 20 : 10;
           p.paralyzeTurns = _pt;
-          ml.push(`${it.name}を飲んだ。体が動かない！(${_pt}ターン金縛り)${it.cursed ? "【呪】" : ""}`);
+          ml.push(`${it.name}を飲んだ。体が動かない！(${_pt}ターン金縛り)${it.blessed ? "【祝=強金縛り】" : ""}`);
         }
       } else if (it.effect === "mana") {
         if (it.cursed) {
-          // 呪い：MPを封印する
+          // 呪い：反転→MP封印
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 10;
           ml.push(`${it.name}を飲んだ。魔力が封じられた！(MP封印10ターン)【呪】`);
         } else if ((p.mpCooldownTurns || 0) > 0) {
           ml.push(`${it.name}を飲んだ。MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
         } else {
+          // 通常/祝福：MP回復（祝福=1.5x）
           const _madd = Math.min(Math.round(it.value * _potBm), (p.maxMp || 20) - (p.mp || 0));
           p.mp = (p.mp || 0) + _madd;
           ml.push(`${it.name}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
@@ -3668,11 +3676,15 @@ export default function RoguelikeGame() {
         dg.traps.forEach((t2) => (t2.revealed = true));
         ml.push("目が冴えてフロア全体が見えた！");
       } else if (fe === "antidote_food") {
-        if (p.sleepTurns > 0 || p.paralyzeTurns > 0) {
-          p.sleepTurns = 0;
-          p.paralyzeTurns = 0;
-          ml.push("状態異常が消えた！");
+        const _acured = [];
+        if (p.sleepTurns > 0) { p.sleepTurns = 0; _acured.push("睡眠"); }
+        if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; _acured.push("金縛り"); }
+        if (p.poisoned) {
+          p.poisoned = false;
+          if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+          _acured.push("毒");
         }
+        if (_acured.length > 0) ml.push(`状態異常が消えた！(${_acured.join("・")})`);
         const h2 = rng(3, 8);
         p.hp = Math.min(p.maxHp, p.hp + h2);
         ml.push(`体の調子が良くなった。HP+${h2}`);
@@ -3687,10 +3699,8 @@ export default function RoguelikeGame() {
             p.hp += pah;
             if (pah > 0) ml.push(`回復効果でHP+${pah}`);
           } else if (pe === "poison") {
-            const pd = rng(8, 18);
-            p.deathCause = "壺の毒薬の毒により";
-            p.hp -= pd;
-            ml.push(`猛毒で${pd}ダメージ！`);
+            p.poisoned = true;
+            ml.push("毒が混じっていた！毒状態になった！攻撃力が徐々に下がっていく…");
           } else if (pe === "sleep") {
             const st = rng(3, 6);
             p.sleepTurns = (p.sleepTurns || 0) + st;
@@ -5071,6 +5081,9 @@ export default function RoguelikeGame() {
         <span style={{ color: "#ffd700" }}>${p.gold}</span>{" "}
         {p.arrow && (
           <span style={{ color: "#dda050" }}>矢:{p.arrow.count}</span>
+        )}{" "}
+        {p.poisoned && (
+          <span style={{ color: "#80ff40" }}>☠毒</span>
         )}{" "}
         {p.sleepTurns > 0 && (
           <span style={{ color: "#af0" }}>💤{p.sleepTurns}</span>
