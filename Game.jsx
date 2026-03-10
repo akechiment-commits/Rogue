@@ -957,14 +957,13 @@ export default function RoguelikeGame() {
         { name:"祝福の魔法書", type:"spellbook", spell:"bless_magic",    desc:"祝福の魔法を習得できる。火に弱い。", tile:18 },
         { name:"呪いの魔法書", type:"spellbook", spell:"curse_magic",    desc:"呪いの魔法を習得できる。火に弱い。", tile:18 },
         { name:"加熱の壺",     type:"pot",       potEffect:"boil",    capacity:3, contents:[], desc:"薬を入れると部屋中に薬効が広がる。", tile:32 },
-        { name:"呪いの杖",     type:"wand",      effect:"curse_wand", charges:3, desc:"振ると対象のアイテムを呪う。", tile:24 },
-        { name:"祝福の杖",     type:"wand",      effect:"bless_wand", charges:3, desc:"振ると対象のアイテムを祝福する。", tile:24 },
         { name:"遠投のペン",   type:"pen",       effect:"farcast",    charges:2, desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。チャージ制。", tile:42 },
-        { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
         { name:"マップの巻物", type:"scroll",    effect:"reveal",     blessed:true, desc:"フロア全体と罠が明らかになる。",                                 tile:18 },
         { name:"収納上手の巻物", type:"scroll",  effect:"expand_inv", desc:"最大所持数が1～3増える。祝福：2～6増える。呪い：1～3減る。", tile:18 },
-        { name:"複製の巻物",   type:"scroll",    effect:"duplicate",  desc:"持ち物から1つ選んで複製する。祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
+        { name:"複製の巻物",   type:"scroll",    effect:"duplicate",  blessed:true, desc:"持ち物から1つ選んで複製する。祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
+        { name:"複製の巻物",   type:"scroll",    effect:"duplicate",  blessed:true, desc:"持ち物から1つ選んで複製する。祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
+        { name:"雷の巻物",     type:"scroll",    effect:"thunder",    blessed:true, desc:"視界内の敵全てに雷ダメージを与える。",                           tile:18 },
       ],
       spells: [],
       spellLevels: {},
@@ -2167,8 +2166,9 @@ export default function RoguelikeGame() {
           fny >= MH ||
           dg.map[fny][fnx] === T.WALL || dg.map[fny][fnx] === T.BWALL ||
           !!dg.monsters.find((m) => m.x === fnx && m.y === fny);
+        const _hpBefore = p.hp;
         endTurn(st, p, ml);
-        if (p.hp <= 0 || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
+        if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
         if (startInRoom) {
           if (!curInRoom || blocked) break;
         } else {
