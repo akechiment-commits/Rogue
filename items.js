@@ -1294,6 +1294,55 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         return;
       }
+      if (blMult > 1) {
+        // 祝福：下り階段の隣の空きマスへ
+        let _stx = -1, _sty = -1;
+        for (let fy = 0; fy < MH; fy++)
+          for (let fx = 0; fx < MW; fx++)
+            if (dg.map[fy][fx] === T.SD) { _stx = fx; _sty = fy; }
+        if (_stx >= 0) {
+          const _bbAdj = [];
+          for (const [_ax, _ay] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+            const _nx = _stx + _ax, _ny = _sty + _ay;
+            if (_nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH && dg.map[_ny][_nx] === T.FLOOR &&
+                !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny) &&
+                !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
+                !dg.items.some(i => i.x === _nx && i.y === _ny) &&
+                !dg.traps.some(t => t.x === _nx && t.y === _ny) &&
+                !dg.springs?.some(s => s.x === _nx && s.y === _ny) &&
+                !dg.pentacles?.some(pc => pc.x === _nx && pc.y === _ny))
+              _bbAdj.push({ x: _nx, y: _ny });
+          }
+          if (_bbAdj.length > 0) {
+            const _bd = _bbAdj[rng(0, _bbAdj.length - 1)];
+            target.x = _bd.x; target.y = _bd.y;
+            ml.push(`${target.name}は階段の隣にテレポートした！【祝】`);
+          } else {
+            // 隣に空きがない場合はランダムテレポート（以下の通常処理へ fall-through しない）
+            const _wbf2 = [];
+            for (let fy = 0; fy < MH; fy++)
+              for (let fx = 0; fx < MW; fx++)
+                if (dg.map[fy][fx] === T.FLOOR &&
+                    !dg.bigboxes?.find(b => b.x === fx && b.y === fy) &&
+                    !dg.monsters.find(m => m.x === fx && m.y === fy) &&
+                    !dg.items.some(i => i.x === fx && i.y === fy) &&
+                    !dg.traps.some(t => t.x === fx && t.y === fy) &&
+                    !dg.springs?.some(s => s.x === fx && s.y === fy) &&
+                    !dg.pentacles?.some(pc => pc.x === fx && pc.y === fy))
+                  _wbf2.push({ x:fx, y:fy });
+            if (_wbf2.length > 0) {
+              const _wbd2 = _wbf2[rng(0, _wbf2.length - 1)];
+              target.x = _wbd2.x; target.y = _wbd2.y;
+              ml.push(`${target.name}はどこかへテレポートした！`);
+            } else {
+              ml.push("テレポートに失敗した。");
+            }
+          }
+        } else {
+          ml.push("テレポートに失敗した。");
+        }
+        return;
+      }
       const wbf = [];
       for (let fy = 0; fy < MH; fy++)
         for (let fx = 0; fx < MW; fx++)
@@ -1798,12 +1847,37 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             p.x = stairsX; p.y = stairsY;
             p.paralyzeTurns = 10;
             ml.push("階段の上にテレポートした！しかし金縛りになった！(10ターン)");
-          } else if (kind === "item") {
-            target.x = stairsX; target.y = stairsY;
-            ml.push(`${target.name}は階段の上に飛んだ！`);
-          } else if (kind === "trap") {
-            target.x = stairsX; target.y = stairsY;
-            ml.push(`${target.name}は階段の上に飛んだ！`);
+          } else if (kind === "item" || kind === "trap") {
+            // 下り階段の隣の空きマスへ
+            const _wbAdj = [];
+            for (const [_ax, _ay] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+              const _nx = stairsX + _ax, _ny = stairsY + _ay;
+              if (_nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH && dg.map[_ny][_nx] === T.FLOOR &&
+                  !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny) &&
+                  !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
+                  !dg.items.some(i => i !== target && i.x === _nx && i.y === _ny) &&
+                  !dg.traps.some(t => t !== target && t.x === _nx && t.y === _ny) &&
+                  !dg.springs?.some(s => s.x === _nx && s.y === _ny) &&
+                  !dg.pentacles?.some(pc => pc.x === _nx && pc.y === _ny))
+                _wbAdj.push({ x: _nx, y: _ny });
+            }
+            if (_wbAdj.length > 0) {
+              const _wd = _wbAdj[rng(0, _wbAdj.length - 1)];
+              target.x = _wd.x; target.y = _wd.y;
+              ml.push(`${target.name}は階段の隣に飛んだ！`);
+            } else {
+              // 隣に空きがない場合はランダムテレポート
+              const _wf = [];
+              for (let fy = 0; fy < MH; fy++)
+                for (let fx = 0; fx < MW; fx++)
+                  if (dg.map[fy][fx] === T.FLOOR && !dg.monsters.find(m => m.x === fx && m.y === fy))
+                    _wf.push({ x:fx, y:fy });
+              if (_wf.length > 0) {
+                const _wd2 = _wf[rng(0, _wf.length - 1)];
+                target.x = _wd2.x; target.y = _wd2.y;
+                ml.push(`${target.name}はどこかへ飛んだ！`);
+              }
+            }
           }
         } else {
           ml.push("テレポートに失敗した。");
@@ -2130,7 +2204,10 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       }
       if (eff === "leap") {
         if (blMult >= 1) { p.x = lastX; p.y = lastY; ml.push("壁の前に飛びついた！"); return; }
-        ml.push("魔法弾は壁に消えた。"); return;
+        // 呪い：跳ね返って自分に当たる → プレイヤーがランダムテレポート
+        ml.push("魔法弾が跳ね返って自分に当たった！【呪】");
+        applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
+        return;
       }
       ml.push("魔法弾は壁に跳ね返った！");
       applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
