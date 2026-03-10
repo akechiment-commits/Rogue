@@ -3416,6 +3416,10 @@ export default function RoguelikeGame() {
       revealMode,
     ],
   );
+  useEffect(() => {
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [handleKey]);
   const useLabel = (it) => {
     const _p = gs?.player;
     if (it.type === "weapon") return _p?.weapon === it ? "外す" : "装備";
@@ -4884,7 +4888,6 @@ export default function RoguelikeGame() {
     <div
       ref={ref}
       tabIndex={0}
-      onKeyDown={handleKey}
       onClick={() => ref.current?.focus()}
       style={{
         width: "100%",
