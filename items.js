@@ -1770,6 +1770,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "bless_wand": {
+      const _bwBlessed = blMult > 1;
+      const _bwCursed  = blMult < 1;
       if (kind === "item") {
         if (target.type === "pot") {
           target.capacity = (target.capacity || 1) + 1;
@@ -1787,37 +1789,64 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
-        const _bh = rng(10, 20);
-        target.hp = Math.min(target.maxHp, target.hp + _bh);
-        ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！`);
+        if (_bwCursed) {
+          // 呪われた祝福の杖→敵を鈍足にする
+          target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+          ml.push(`${target.name}が呪いで鈍足になった！【呪】`);
+        } else {
+          const _bh = Math.round(rng(10, 20) * blMult);
+          target.hp = Math.min(target.maxHp, target.hp + _bh);
+          ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！${_bwBlessed ? "（祝福）" : ""}`);
+        }
         break;
       }
       if (kind === "player") {
-        const _bh = Math.min(rng(15, 25), p.maxHp - p.hp);
-        p.hp += _bh;
-        ml.push(_bh > 0 ? `祝福の光に包まれ、HPが${_bh}回復した！` : "祝福されたが、HPは既に満タンだ。");
+        const _inv = (p.inventory || []).filter(i => i.type !== "gold" && i.type !== "arrow");
+        if (_bwCursed) {
+          // 呪われた祝福の杖→所持品を1つ呪う
+          if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
+          const _t = _inv[rng(0, _inv.length - 1)];
+          _t.cursed = true; _t.blessed = false;
+          ml.push(`${_t.name}が呪われた！【呪】`);
+        } else {
+          // 通常→1つ祝福、祝福→2つ祝福
+          if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
+          const _count = _bwBlessed ? 2 : 1;
+          const _pool = [..._inv].sort(() => Math.random() - 0.5).slice(0, _count);
+          for (const _t of _pool) { _t.blessed = true; _t.cursed = false; ml.push(`${_t.name}が祝福された！【祝】`); }
+          if (_bwBlessed) ml.push("（祝福の杖の力で2つ祝福された！）");
+        }
         break;
       }
       ml.push("魔法弾は効果なく消えた。");
       break;
     }
     case "curse_wand": {
+      const _cwBlessed = blMult > 1;
+      const _cwCursed  = blMult < 1;
       if (kind === "item") {
-        if (target.type === "arrow") {
-          ml.push("矢には呪いが効かない。");
+        if (_cwCursed) {
+          // 呪われた呪いの杖→落ちてるアイテムを祝福する（反転）
+          if (target.type === "pot") {
+            target.capacity = (target.capacity || 1) + 1;
+            target.blessed = true; target.cursed = false;
+            ml.push(`${_dname_item(target)}が祝福された！(容量+1 → ${target.capacity})【呪→祝】`);
+          } else {
+            target.blessed = true; target.cursed = false;
+            ml.push(`${_dname_item(target)}が祝福された！【呪→祝】`);
+          }
           break;
         }
+        if (target.type === "arrow") { ml.push("矢には呪いが効かない。"); break; }
         if (target.type === "pot") {
           const _newCap = Math.max(0, (target.capacity || 1) - 1);
           if ((target.contents?.length || 0) > _newCap) {
-            /* 容量オーバー → 壺ごと割れる */
             dg.items = dg.items.filter(i => i !== target);
             const _fts = new Set();
             for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
             ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！`);
           } else {
-            target.capacity = _newCap;
-            target.cursed = true; target.blessed = false;
+            target.capacity = _newCap; target.cursed = true; target.blessed = false;
             ml.push(`${_dname_item(target)}が呪われた！(容量-1 → ${target.capacity})`);
           }
         } else {
@@ -1827,40 +1856,50 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
-        target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-        ml.push(`${target.name}が呪いで鈍足になった！`);
+        if (_cwCursed) {
+          // 呪われた呪いの杖→敵を回復する（反転）
+          const _ch = rng(10, 20);
+          target.hp = Math.min(target.maxHp, target.hp + _ch);
+          ml.push(`${target.name}は呪いの魔法で回復した！${_ch}HP【呪→回復】`);
+        } else {
+          target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+          ml.push(`${target.name}が呪いで鈍足になった！`);
+        }
         break;
       }
       if (kind === "bigbox") {
-        const _newCap = Math.max(0, (target.capacity || 1) - 1);
-        if ((target.contents?.length || 0) > _newCap) {
-          /* 容量オーバー → 大箱が壊れて中身が飛び出す */
-          const _fts = new Set();
-          for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-          dg.bigboxes = dg.bigboxes.filter(b => b !== target);
-          ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！`);
+        if (_cwCursed) {
+          target.capacity = (target.capacity || 0) + 1;
+          ml.push(`${target.name}が祝福された！(容量+1 → ${target.capacity})【呪→祝】`);
         } else {
-          target.capacity = _newCap;
-          ml.push(`${target.name}が呪われた！(容量-1 → ${target.capacity})`);
+          const _newCap = Math.max(0, (target.capacity || 1) - 1);
+          if ((target.contents?.length || 0) > _newCap) {
+            const _fts = new Set();
+            for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
+            dg.bigboxes = dg.bigboxes.filter(b => b !== target);
+            ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！`);
+          } else {
+            target.capacity = _newCap;
+            ml.push(`${target.name}が呪われた！(容量-1 → ${target.capacity})`);
+          }
         }
         break;
       }
       if (kind === "player") {
-        /* ランダムな所持品を呪う（金貨・矢を除く） */
-        const _inv = p.inventory?.filter(i => i.type !== "gold" && i.type !== "arrow") || [];
-        if (_inv.length === 0) {
-          ml.push("所持品がないので呪いの効果がなかった。");
+        const _inv = (p.inventory || []).filter(i => i.type !== "gold" && i.type !== "arrow");
+        if (_cwCursed) {
+          // 呪われた呪いの杖→所持品を1つ祝福（反転）
+          if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
+          const _t = _inv[rng(0, _inv.length - 1)];
+          _t.blessed = true; _t.cursed = false;
+          ml.push(`${_t.name}が祝福された！【呪→祝】`);
         } else {
-          const _cit = _inv[rng(0, _inv.length - 1)];
-          if (_cit.cursed) {
-            ml.push(`${_cit.name}は既に呪われていた！（効果なし）`);
-          } else if (_cit.blessed) {
-            _cit.blessed = false;
-            ml.push(`${_cit.name}の祝福が解けた！`);
-          } else {
-            _cit.cursed = true;
-            ml.push(`${_cit.name}が呪われた！【呪】`);
-          }
+          // 通常→1つ呪う、祝福→2つ呪う
+          if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
+          const _count = _cwBlessed ? 2 : 1;
+          const _pool = [..._inv].sort(() => Math.random() - 0.5).slice(0, _count);
+          for (const _t of _pool) { _t.cursed = true; _t.blessed = false; ml.push(`${_t.name}が呪われた！【呪】`); }
+          if (_cwBlessed) ml.push("（祝福された呪いの杖の力で2つ呪われた！）");
         }
         break;
       }
