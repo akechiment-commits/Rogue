@@ -4231,6 +4231,7 @@ export default function RoguelikeGame() {
         else { p.weapon = null; ml.push(`${it.name}を外した。`); }
       } else {
         p.weapon = it;
+        it.bcKnown = true;
         ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
       }
     } else if (it.type === "armor") {
@@ -4239,6 +4240,7 @@ export default function RoguelikeGame() {
         else { p.armor = null; ml.push(`${it.name}を外した。`); }
       } else {
         p.armor = it;
+        it.bcKnown = true;
         ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
       }
     } else if (it.type === "arrow") {
@@ -4426,8 +4428,32 @@ export default function RoguelikeGame() {
     if (inMagicSealRoom(p.x, p.y, dg)) {
       p.inventory.splice(idx, 1);
       ml.push(`${it.name}を読んだが、魔封じの魔方陣で効果が封じられた！魔法書は消えた。`);
+    } else if (it.cursed) {
+      // 呪い：この魔法以外のランダムな魔法を1つ選んで習得 or レベルアップ
+      if (!p.spellLevels) p.spellLevels = {};
+      const _otherSpells = SPELLS.filter((s) => s.id !== it.spell);
+      const _candidates = _otherSpells.filter((s) => {
+        if (!p.spells.includes(s.id)) return true;          // 未習得 → 習得できる
+        return (p.spellLevels[s.id] || 1) < 6;              // 習得済みでも最大未満ならLvUP
+      });
+      p.inventory.splice(idx, 1);
+      if (_candidates.length === 0) {
+        ml.push(`${it.name}を読んだが、呪いで魔力が乱れ何も起きなかった。【呪】`);
+      } else {
+        const _tgt = _candidates[rng(0, _candidates.length - 1)];
+        if (p.spells.includes(_tgt.id)) {
+          const _curLv = p.spellLevels[_tgt.id] || 1;
+          const _newLv = _curLv + 1;
+          p.spellLevels[_tgt.id] = _newLv;
+          ml.push(`${it.name}を読んだ。呪いで魔力が乱れ「${_tgt.name}」がレベルアップした！(Lv.${_newLv})【呪】`);
+        } else {
+          p.spells = [...p.spells, _tgt.id];
+          p.spellLevels[_tgt.id] = 1;
+          ml.push(`${it.name}を読んだ。呪いで魔力が乱れ「${_tgt.name}」を習得した！(Lv.1)【呪】`);
+        }
+      }
     } else if (p.spells.includes(it.spell)) {
-      // 既習得 → レベルアップ
+      // 既習得 → レベルアップ（祝福なら+2）
       if (!p.spellLevels) p.spellLevels = {};
       const _curLv = p.spellLevels[it.spell] || 1;
       const spellDef = SPELLS.find((s) => s.id === it.spell);
@@ -4436,19 +4462,23 @@ export default function RoguelikeGame() {
         ml.push(`「${_spName}」はすでに最大レベルだ。(Lv.${_curLv} MP:${Math.max(1, 20 - (_curLv - 1) * 3)})`);
         // 最大レベルの場合は魔法書を消費しない
       } else {
-        const _newLv = _curLv + 1;
+        const _gain = it.blessed ? 2 : 1;
+        const _newLv = Math.min(6, _curLv + _gain);
         p.spellLevels[it.spell] = _newLv;
         p.inventory.splice(idx, 1);
         const _newCost = Math.max(1, 20 - (_newLv - 1) * 3);
-        ml.push(`${it.name}を読んだ。「${_spName}」がレベルアップ！(Lv.${_newLv} 消費MP:${_newCost})`);
+        ml.push(`${it.name}を読んだ。「${_spName}」がレベルアップ！(Lv.${_newLv} 消費MP:${_newCost})${it.blessed ? "【祝】" : ""}`);
       }
     } else {
+      // 未習得 → 習得（祝福ならLv.2から）
       if (!p.spellLevels) p.spellLevels = {};
-      p.spellLevels[it.spell] = 1;
+      const _startLv = it.blessed ? 2 : 1;
+      p.spellLevels[it.spell] = _startLv;
       p.spells = [...p.spells, it.spell];
       p.inventory.splice(idx, 1);
       const spellDef = SPELLS.find((s) => s.id === it.spell);
-      ml.push(`${it.name}を読んだ。「${spellDef ? spellDef.name : it.spell}」を習得した！(Lv.1 消費MP:20)`);
+      const _initCost = Math.max(1, 20 - (_startLv - 1) * 3);
+      ml.push(`${it.name}を読んだ。「${spellDef ? spellDef.name : it.spell}」を習得した！(Lv.${_startLv} 消費MP:${_initCost})${it.blessed ? "【祝】" : ""}`);
     }
     setShowInv(false); setSelIdx(null); setShowDesc(null);
     endTurn(sr.current, p, ml);
