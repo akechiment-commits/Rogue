@@ -1246,7 +1246,8 @@ export default function RoguelikeGame() {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
     if (isDash && trap.revealed) return null;
-    return fireTrapPlayer(trap, p, dg, ml);
+    const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+    return fireTrapPlayer(trap, p, dg, ml, _nameFn);
   }, []);
   const moveMons = useCallback((dg, pl, ml) => {
     const opts = {
@@ -1822,7 +1823,8 @@ export default function RoguelikeGame() {
         } else {
           const trapHere = dg.traps.find((t) => t.x === p.x && t.y === p.y);
           if (trapHere) {
-            const tr2 = fireTrapPlayer(trapHere, p, dg, ml);
+            const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+            const tr2 = fireTrapPlayer(trapHere, p, dg, ml, _tnFn);
             if (tr2 === "pitfall") {
               const nd2 = chgFloor(p, 1, true);
               if (nd2) {
@@ -2242,7 +2244,7 @@ export default function RoguelikeGame() {
         }
         const idx = bb.contents.indexOf(item);
         if (idx >= 0) bb.contents[idx] = nit;
-        ml.push(`${_idn}が${nit.name}に変化した！`);
+        ml.push(`${_idn}が${itemDisplayName(nit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に変化した！`);
       } else if (bb.kind === "enhance") {
         if (item.type === "weapon" || item.type === "armor") {
           const before = item.plus || 0;
@@ -2932,7 +2934,10 @@ export default function RoguelikeGame() {
             if (!sr.current) return;
             const { player: p2, dungeon: dg2 } = sr.current;
             const ml2 = [];
-            if (spell.effect === "identify_magic") {
+            if (inMagicSealRoom(p2.x, p2.y, dg2)) {
+              ml2.push(`魔封じの魔方陣で魔法が封じられた！MPは消費しない。`);
+              endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
+            } else if (spell.effect === "identify_magic") {
               const _idt = p2.inventory.filter(_ii => { const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k); });
               if (_idt.length === 0) {
                 p2.mp -= spell.mpCost;
@@ -3745,8 +3750,8 @@ export default function RoguelikeGame() {
         setGs({ ...sr.current });
         return;
       }
-      // 識別の巻物でダイアログが必要な場合は消費せず early-return
-      if (it.effect === "identify" && !it.blessed) {
+      // 識別の巻物でダイアログが必要な場合は消費せず early-return（魔封じの魔方陣内は除く）
+      if (it.effect === "identify" && !it.blessed && !inMagicSealRoom(p.x, p.y, dg)) {
         const _ik_scr = getIdentKey(it); // "s:identify"
         if (it.cursed) {
           const _tgts = p.inventory.filter((_ii, _i) => {
@@ -5851,7 +5856,10 @@ export default function RoguelikeGame() {
                         if (!sr.current) return;
                         const { player: p2, dungeon: dg2 } = sr.current;
                         const ml2 = [];
-                        if (spell.effect === "identify_magic") {
+                        if (inMagicSealRoom(p2.x, p2.y, dg2)) {
+                          ml2.push(`魔封じの魔方陣で魔法が封じられた！MPは消費しない。`);
+                          endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
+                        } else if (spell.effect === "identify_magic") {
                           const _idt = p2.inventory.filter(_ii => { const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k); });
                           if (_idt.length === 0) {
                             p2.mp -= spell.mpCost;

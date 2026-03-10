@@ -1566,7 +1566,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const ni = { ...nt, id:uid(), x:ox, y:oy };
         if (ni.type === "gold") ni.value = rng(5, 50);
         dg.items.push(ni);
-        ml.push(`${target.name}は${ni.name}に変化した！`);
+        ml.push(`${_dname_item(target)}は${nameFn ? nameFn(ni) : ni.name}に変化した！`);
         break;
       }
       if (kind === "trap") {

@@ -1,7 +1,7 @@
 import { rng, T, MW } from "./utils.js";
 import { ARROW_T, makeArrow, placeItemAt } from "./items.js";
 
-export function fireTrapPlayer(trap, p, dg, ml) {
+export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
   trap.revealed = true;
   let r = null;
 
@@ -29,10 +29,10 @@ export function fireTrapPlayer(trap, p, dg, ml) {
           for (const it of dg.items.filter((i) => i.x === ax && i.y === ay)) {
             if (it.type === "scroll") {
               blasted.add(it);
-              ml.push(`巻物「${it.name}」が燃えてなくなった！`);
+              ml.push(`巻物「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
             } else if (it.type === "potion") {
               blasted.add(it);
-              ml.push(`薬「${it.name}」が割れてなくなった！`);
+              ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
             } else if (it.type === "food" && !it.cooked) {
               it.value *= 2;
               it.cooked = true;
@@ -44,9 +44,9 @@ export function fireTrapPlayer(trap, p, dg, ml) {
                 const ft2 = new Set([trap.id]);
                 for (const ci of it.contents)
                   placeItemAt(dg, ax, ay, ci, ml, ft2);
-                ml.push(`壺「${it.name}」が爆発で割れ、中身が飛び出した！`);
+                ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
               } else {
-                ml.push(`壺「${it.name}」が爆発で割れた！`);
+                ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`);
               }
             }
           }
