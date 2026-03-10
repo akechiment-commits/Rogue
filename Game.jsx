@@ -2600,6 +2600,8 @@ export default function RoguelikeGame() {
             setShowDesc(null);
           } else {
             setShowInv(false);
+            dropModeRef.current = false;
+            setDropMode(false);
             setInvPage(0);
           }
           return;
@@ -2635,6 +2637,13 @@ export default function RoguelikeGame() {
         if (k === "s") {
           e.preventDefault();
           sortInventory();
+          return;
+        }
+        if (k === "d") {
+          e.preventDefault();
+          const newMode = !dropModeRef.current;
+          dropModeRef.current = newMode;
+          setDropMode(newMode);
           return;
         }
         return;
@@ -3204,13 +3213,6 @@ export default function RoguelikeGame() {
       if (k === "i" || k === "escape") {
         e.preventDefault();
         act("inventory");
-        return;
-      }
-      if (k === "d" && showInv) {
-        e.preventDefault();
-        const newMode = !dropModeRef.current;
-        dropModeRef.current = newMode;
-        setDropMode(newMode);
         return;
       }
       if (showInv) return;
