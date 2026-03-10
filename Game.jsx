@@ -962,6 +962,7 @@ export default function RoguelikeGame() {
         { name:"遠投のペン",   type:"pen",       effect:"farcast",    charges:2, desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。チャージ制。", tile:42 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
+        { name:"マップの巻物", type:"scroll",    effect:"reveal",     blessed:true, desc:"フロア全体と罠が明らかになる。",                                 tile:18 },
         { name:"収納上手の巻物", type:"scroll",  effect:"expand_inv", desc:"最大所持数が1～3増える。祝福：2～6増える。呪い：1～3減る。", tile:18 },
         { name:"複製の巻物",   type:"scroll",    effect:"duplicate",  desc:"持ち物から1つ選んで複製する。祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
       ],
