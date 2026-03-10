@@ -1255,6 +1255,19 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   /* ── big box pre-handler ── */
   if (kind === "bigbox") {
     if (eff === "swap") {
+      if (blMult < 1) {
+        // 呪い：プレイヤーが大箱の1マス手前に引き寄せられる
+        const _lpx = target.x - dx, _lpy = target.y - dy;
+        if (_lpx >= 0 && _lpx < MW && _lpy >= 0 && _lpy < MH &&
+            dg.map[_lpy][_lpx] !== T.WALL && dg.map[_lpy][_lpx] !== T.BWALL &&
+            !dg.monsters.some(m => m.x === _lpx && m.y === _lpy)) {
+          p.x = _lpx; p.y = _lpy;
+          ml.push(`${target.name}に引き寄せられた！`);
+        } else {
+          ml.push("引き寄せられなかった。");
+        }
+        return;
+      }
       const [ox, oy] = [p.x, p.y];
       p.x = target.x; p.y = target.y;
       target.x = ox;  target.y = oy;
@@ -1262,6 +1275,25 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     if (eff === "warp") {
+      if (blMult < 1) {
+        // 呪い：振った方向に1マス移動（障害物があれば失敗）
+        const _w1x = target.x + dx, _w1y = target.y + dy;
+        if (_w1x >= 0 && _w1x < MW && _w1y >= 0 && _w1y < MH &&
+            dg.map[_w1y][_w1x] !== T.WALL && dg.map[_w1y][_w1x] !== T.BWALL &&
+            dg.map[_w1y][_w1x] !== T.SD && dg.map[_w1y][_w1x] !== T.SU &&
+            !dg.bigboxes?.some(b => b !== target && b.x === _w1x && b.y === _w1y) &&
+            !dg.monsters.some(m => m.x === _w1x && m.y === _w1y) &&
+            !dg.items.some(i => i.x === _w1x && i.y === _w1y) &&
+            !dg.traps.some(t => t.x === _w1x && t.y === _w1y) &&
+            !dg.springs?.some(s => s.x === _w1x && s.y === _w1y) &&
+            !dg.pentacles?.some(pc => pc.x === _w1x && pc.y === _w1y)) {
+          target.x = _w1x; target.y = _w1y;
+          ml.push(`${target.name}が少し動いた。`);
+        } else {
+          ml.push(`${target.name}は動けなかった。`);
+        }
+        return;
+      }
       const wbf = [];
       for (let fy = 0; fy < MH; fy++)
         for (let fx = 0; fx < MW; fx++)
@@ -1312,7 +1344,33 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       return;
     }
-    if (eff === "slow" || eff === "paralyze" || eff === "sleep" || eff === "leap") {
+    if (eff === "leap") {
+      if (blMult < 1) {
+        // 呪い：大箱をランダムワープ
+        const _lbf = [];
+        for (let fy = 0; fy < MH; fy++)
+          for (let fx = 0; fx < MW; fx++)
+            if (dg.map[fy][fx] === T.FLOOR &&
+                !dg.bigboxes?.some(b => b.x === fx && b.y === fy) &&
+                !dg.monsters.some(m => m.x === fx && m.y === fy) &&
+                !dg.items.some(i => i.x === fx && i.y === fy) &&
+                !dg.traps.some(t => t.x === fx && t.y === fy) &&
+                !dg.springs?.some(s => s.x === fx && s.y === fy) &&
+                !dg.pentacles?.some(pc => pc.x === fx && pc.y === fy))
+              _lbf.push({ x:fx, y:fy });
+        if (_lbf.length > 0) {
+          const _lbd = _lbf[rng(0, _lbf.length - 1)];
+          target.x = _lbd.x; target.y = _lbd.y;
+          ml.push(`${target.name}はどこかへランダムにテレポートした！【呪】`);
+        } else {
+          ml.push("テレポートに失敗した。");
+        }
+      } else {
+        ml.push("効果がなかった。");
+      }
+      return;
+    }
+    if (eff === "slow" || eff === "paralyze" || eff === "sleep") {
       ml.push("効果がなかった。");
       return;
     }
@@ -1690,6 +1748,20 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "leap": {
+      if (blMult < 1) {
+        // 呪い：対象をランダムワープ
+        const _lpf = [];
+        for (let ly = 0; ly < MH; ly++)
+          for (let lx = 0; lx < MW; lx++)
+            if (dg.map[ly][lx] === T.FLOOR && !dg.monsters.some(m => m.x === lx && m.y === ly))
+              _lpf.push({ x:lx, y:ly });
+        if (_lpf.length === 0) { ml.push("テレポートに失敗した。"); break; }
+        const _lpd = _lpf[rng(0, _lpf.length - 1)];
+        if (kind === "monster") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${target.name}はどこかへテレポートした！【呪】`); }
+        else if (kind === "item") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${_dname_item(target)}はどこかへ飛んだ！【呪】`); }
+        else if (kind === "trap") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${target.name}はどこかへ飛んだ！【呪】`); }
+        else if (kind === "player") { p.x = _lpd.x; p.y = _lpd.y; ml.push("ランダムにテレポートした！【呪】"); }
+      }
       break;
     }
     case "warp": {
@@ -1809,9 +1881,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (target.type === "pot") {
-          target.capacity = (target.capacity || 1) + 1;
+          const _potGain = _bwBlessed ? 2 : 1;
+          target.capacity = (target.capacity || 1) + _potGain;
           target.blessed = true; target.cursed = false; target.bcKnown = true;
-          ml.push(`${_dname_item(target)}が祝福された！(容量+1 → ${target.capacity})`);
+          ml.push(`${_dname_item(target)}が祝福された！(容量+${_potGain} → ${target.capacity})${_bwBlessed ? "【祝】" : ""}`);
         } else {
           target.blessed = true; target.cursed = false; target.bcKnown = true;
           ml.push(`${_dname_item(target)}が祝福された！【祝】`);
@@ -1889,15 +1962,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         if (target.type === "arrow") { ml.push("矢には呪いが効かない。"); break; }
         if (target.type === "pot") {
-          const _newCap = Math.max(0, (target.capacity || 1) - 1);
+          const _potLoss = _cwBlessed ? 2 : 1;
+          const _newCap = Math.max(0, (target.capacity || 1) - _potLoss);
           if ((target.contents?.length || 0) > _newCap) {
             dg.items = dg.items.filter(i => i !== target);
             const _fts = new Set();
             for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-            ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！`);
+            ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
           } else {
             target.capacity = _newCap; target.cursed = true; target.blessed = false; target.bcKnown = true;
-            ml.push(`${_dname_item(target)}が呪われた！(容量-1 → ${target.capacity})`);
+            ml.push(`${_dname_item(target)}が呪われた！(容量-${_potLoss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
           }
         } else {
           target.cursed = true; target.blessed = false; target.bcKnown = true;
@@ -2034,20 +2108,10 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     }
     return;
   }
-  /* 呪われた飛びつきの杖：制御不能でランダムテレポート */
-  if (eff === "leap" && blMult < 1) {
-    const _lp = [];
-    for (let ly = 0; ly < MH; ly++)
-      for (let lx = 0; lx < MW; lx++)
-        if (dg.map[ly][lx] === T.FLOOR && !dg.monsters.some(m => m.x === lx && m.y === ly) && !(p.x === lx && p.y === ly))
-          _lp.push({ x: lx, y: ly });
-    if (_lp.length > 0) {
-      const _d = _lp[rng(0, _lp.length - 1)];
-      p.x = _d.x; p.y = _d.y;
-      ml.push("呪いで制御が効かず、ランダムな場所にテレポートした！【呪】");
-    } else {
-      ml.push("テレポートに失敗した。");
-    }
+  /* 呪われた吹きとばし：魔法弾は飛ばず、プレイヤー自身が逆方向に吹き飛ぶ */
+  if (eff === "knockback" && blMult < 1) {
+    ml.push("自分が逆方向に吹き飛ばされた！【呪】");
+    applyWandEffect("knockback", "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, 1);
     return;
   }
   let lastX = p.x, lastY = p.y;
@@ -2064,20 +2128,23 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         ml.push(dug > 0 ? `穴掘りの魔法弾が壁を${dug}マス掘り進んだ！` : "魔法弾は壁に消えた。");
         return;
       }
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push("壁の前に飛びついた！"); return; }
+      if (eff === "leap") {
+        if (blMult >= 1) { p.x = lastX; p.y = lastY; ml.push("壁の前に飛びついた！"); return; }
+        ml.push("魔法弾は壁に消えた。"); return;
+      }
       ml.push("魔法弾は壁に跳ね返った！");
       applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const mon = dg.monsters.find(m => m.x === tx && m.y === ty);
     if (mon) {
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push(`${mon.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${mon.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "monster", mon, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const it = dg.items.find(i => i.x === tx && i.y === ty);
     if (it) {
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
       const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬" };
       if (it.name === "水の入った瓶" && BOTTLE_XFORM[eff]) {
@@ -2092,19 +2159,19 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push(`${trap.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${trap.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "trap", trap, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
     if (bb) {
-      if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push(`${bb.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${bb.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "bigbox", bb, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     lastX = tx; lastY = ty;
   }
-  if (eff === "leap") { p.x = lastX; p.y = lastY; ml.push("虚空の先に飛びついた！"); return; }
+  if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push("虚空の先に飛びついた！"); return; }
   ml.push("魔法弾は虚空に消えた。");
 }
 
