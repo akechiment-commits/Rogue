@@ -2815,9 +2815,12 @@ export default function RoguelikeGame() {
           .map((_it, _i) => ({ it: _it, i: _i }))
           .filter(({ it, i }) => {
             if (_isBCMode || _isDupMode) return it.type !== "gold";
+            if (identifyMode.scrollIdx === i) return false;
+            if (it.type === 'weapon' || it.type === 'armor') {
+              return identifyMode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
+            }
             const _k = getIdentKey(it);
             if (!_k) return false;
-            if (identifyMode.scrollIdx === i) return false;
             return identifyMode.mode === 'identify' ? !sr.current.ident.has(_k) : sr.current.ident.has(_k);
           });
         const _len_id = _filt_id.length;
@@ -2853,12 +2856,15 @@ export default function RoguelikeGame() {
               _msgResult = identifyMode.blessed ? `${_selIt.name}が2つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
             }
           } else {
-            const _selKey = getIdentKey(_selIt);
+            const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';
+            const _selKey = _isWA ? null : getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
-              sr.current.ident.add(_selKey); _selIt.fullIdent = true;
-              _msgResult = `${_selIt.name}と判明した！`;
+              if (_selKey) sr.current.ident.add(_selKey);
+              _selIt.fullIdent = true;
+              _msgResult = _isWA ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
             } else {
-              sr.current.ident.delete(_selKey); _selIt.fullIdent = false;
+              if (_selKey) sr.current.ident.delete(_selKey);
+              _selIt.fullIdent = false; _selIt.bcKnown = false;
               _msgResult = `${_selIt.name}の識別が失われた...`;
             }
           }
@@ -3002,7 +3008,10 @@ export default function RoguelikeGame() {
               ml2.push(`魔封じの魔方陣で魔法が封じられた！MPは消費しない。`);
               endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
             } else if (spell.effect === "identify_magic") {
-              const _idt = p2.inventory.filter(_ii => { const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k); });
+              const _idt = p2.inventory.filter(_ii => {
+                if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
+                const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k);
+              });
               if (_idt.length === 0) {
                 p2.mp -= spell.mpCost;
                 ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
@@ -3744,6 +3753,7 @@ export default function RoguelikeGame() {
         if (it.cursed) {
           const _tgts = p.inventory.filter((_ii, _i) => {
             if (_i === idx) return false;
+            if (_ii.type === 'weapon' || _ii.type === 'armor') return _ii.fullIdent || _ii.bcKnown;
             const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
           });
           if (_tgts.length > 0) {
@@ -3758,6 +3768,7 @@ export default function RoguelikeGame() {
         } else {
           const _tgts = p.inventory.filter((_ii, _i) => {
             if (_i === idx) return false;
+            if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
             const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k);
           });
           if (_tgts.length > 0) {
@@ -4003,15 +4014,19 @@ export default function RoguelikeGame() {
         }
       } else if (it.effect === "identify") {
         if (it.blessed) {
-          // 全アイテム完全識別
+          // 全アイテム完全識別（武器・防具も含む）
           for (const _ii of p.inventory) {
             const _k = getIdentKey(_ii);
             if (_k) { sr.current.ident.add(_k); _ii.fullIdent = true; }
+            else if (_ii.type === 'weapon' || _ii.type === 'armor') { _ii.fullIdent = true; }
           }
           ml.push("全てのアイテムが識別された！");
         } else if (it.cursed) {
-          // 識別済みアイテムを1つ選んで未識別に戻す
-          const _targets = p.inventory.filter(_ii => { const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k); });
+          // 識別済みアイテムを1つ選んで未識別に戻す（武器・防具も含む）
+          const _targets = p.inventory.filter(_ii => {
+            if (_ii.type === 'weapon' || _ii.type === 'armor') return _ii.fullIdent || _ii.bcKnown;
+            const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
+          });
           if (_targets.length === 0) {
             ml.push("未識別に戻せるアイテムがない。");
           } else {
@@ -4023,8 +4038,11 @@ export default function RoguelikeGame() {
             return;
           }
         } else {
-          // 通常: 1つ選んで識別
-          const _targets = p.inventory.filter(_ii => { const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k); });
+          // 通常: 1つ選んで識別（武器・防具も含む）
+          const _targets = p.inventory.filter(_ii => {
+            if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
+            const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k);
+          });
           if (_targets.length === 0) {
             ml.push("未識別のアイテムがない。");
           } else {
@@ -5105,7 +5123,7 @@ export default function RoguelikeGame() {
     const _key = getIdentKey(it);
     const _isIdent = !_key || gs?.ident?.has(_key);
     /* 識別対象アイテムはfullIdentまたはbcKnownのみ祝呪表示、それ以外(武器・防具等)は常に表示 */
-    const _needFullIdent = !!_key; /* 識別キーがあるアイテム=識別対象 */
+    const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor';
     const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown) : true;
     const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
     let s = (_eq ? _eq : "") + _bc + dname(it);
@@ -5394,9 +5412,12 @@ export default function RoguelikeGame() {
                   .map((_it, _i) => ({ it: _it, i: _i }))
                   .filter(({ it, i }) => {
                     if (_isBCMode_t || _isDupMode_t) return it.type !== "gold";
+                    if (identifyMode.scrollIdx === i) return false;
+                    if (it.type === 'weapon' || it.type === 'armor') {
+                      return identifyMode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
+                    }
                     const _k = getIdentKey(it);
                     if (!_k) return false;
-                    if (identifyMode.scrollIdx === i) return false;
                     return identifyMode.mode === 'identify' ? !sr.current.ident.has(_k) : sr.current.ident.has(_k);
                   });
                 const _len = _filt.length;
@@ -6003,7 +6024,10 @@ export default function RoguelikeGame() {
                           ml2.push(`魔封じの魔方陣で魔法が封じられた！MPは消費しない。`);
                           endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
                         } else if (spell.effect === "identify_magic") {
-                          const _idt = p2.inventory.filter(_ii => { const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k); });
+                          const _idt = p2.inventory.filter(_ii => {
+                if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
+                const _k = getIdentKey(_ii); return _k && !sr.current.ident.has(_k);
+              });
                           if (_idt.length === 0) {
                             p2.mp -= spell.mpCost;
                             ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
@@ -6497,9 +6521,12 @@ export default function RoguelikeGame() {
           .map((it, i) => ({ it, i }))
           .filter(({ it, i }) => {
             if (_isBCMode_ui || _isDupMode_ui) return it.type !== "gold";
+            if (identifyMode.scrollIdx === i) return false;
+            if (it.type === 'weapon' || it.type === 'armor') {
+              return identifyMode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
+            }
             const k = getIdentKey(it);
             if (!k) return false;
-            if (identifyMode.scrollIdx === i) return false;
             return identifyMode.mode === 'identify' ? !gs.ident?.has(k) : gs.ident?.has(k);
           });
         const _curSel_ui = Math.min(identifyMode.sel || 0, Math.max(0, _filtered.length - 1));
@@ -6526,12 +6553,15 @@ export default function RoguelikeGame() {
               _msgResult = identifyMode.blessed ? `${_selIt.name}が2つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
             }
           } else {
-            const _selKey = getIdentKey(_selIt);
+            const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';
+            const _selKey = _isWA ? null : getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
-              sr.current.ident.add(_selKey); _selIt.fullIdent = true;
-              _msgResult = `${_selIt.name}と判明した！`;
+              if (_selKey) sr.current.ident.add(_selKey);
+              _selIt.fullIdent = true;
+              _msgResult = _isWA ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
             } else {
-              sr.current.ident.delete(_selKey); _selIt.fullIdent = false;
+              if (_selKey) sr.current.ident.delete(_selKey);
+              _selIt.fullIdent = false; _selIt.bcKnown = false;
               _msgResult = `${_selIt.name}の識別が失われた...`;
             }
           }
@@ -7106,8 +7136,11 @@ export default function RoguelikeGame() {
                 }
               }
               const _isUnidentInv = (() => { const _kk = getIdentKey(it); return !!(_kk && gs?.ident && !gs.ident.has(_kk)); })();
-              /* 名前は識別済みだが祝呪未判明（緑表示） */
-              const _isIdentBCUnknown = (() => { const _kk = getIdentKey(it); return !!(  _kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown); })();
+              /* 名前は識別済みだが祝呪未判明（緑表示）：武器・防具も対象 */
+              const _isIdentBCUnknown = (() => {
+                if (it.type === 'weapon' || it.type === 'armor') return !it.fullIdent && !it.bcKnown;
+                const _kk = getIdentKey(it); return !!(_kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown);
+              })();
               return (
                 <div
                   key={i}
