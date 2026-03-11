@@ -1,6 +1,13 @@
 import { rng, uid, clamp, MW, MH, T, TI, DRO } from './utils.js';
 import { MONS } from './monsters.js';
 
+/* ===== 状態異常防止チェックヘルパー ===== */
+function isStatusImmune(entity, ml, name = null) {
+  if ((entity.statusImmune || 0) <= 0) return false;
+  ml.push(name ? `${name}には効かなかった！(状態防止中)` : "状態防止中のため効かなかった！");
+  return true;
+}
+
 /* ===== 金縛り弱体/解除ヘルパー ===== */
 function weakenOrClearParalysis(mon, ml) {
   if (!mon.paralyzed) return;
@@ -1058,12 +1065,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       } else {
         const t = Math.max(1, Math.round((val + rng(-1, 1)) * (blessed ? 2 : 1)));
         if (kind === "monster") {
-          if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); }
-          else { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！${blessed ? "(強眠)" : ""}`); }
+          if (!isStatusImmune(target, ml, target.name)) { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！${blessed ? "(強眠)" : ""}`); }
         }
         if (kind === "player") {
-          if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため効かなかった！"); }
-          else { p.sleepTurns = (p.sleepTurns || 0) + t; ml.push(`眠りに落ちた...(${t}ターン)${blessed ? "(強眠)" : ""}`); }
+          if (!isStatusImmune(p, ml)) { p.sleepTurns = (p.sleepTurns || 0) + t; ml.push(`眠りに落ちた...(${t}ターン)${blessed ? "(強眠)" : ""}`); }
         }
       }
       break;
@@ -1096,13 +1101,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player")  { p.statusImmune = (p.statusImmune || 0) + 200; ml.push("状態異常を防ぐ力が宿った！(200ターン)【呪→状態防止】"); }
       } else {
         if (kind === "monster") {
-          if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); break; }
+          if (isStatusImmune(target, ml, target.name)) break;
           target.paralyzed = true;
           if (blessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
           else ml.push(`${target.name}は金縛りになった！`);
         }
         if (kind === "player") {
-          if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため効かなかった！"); break; }
+          if (isStatusImmune(p, ml)) break;
           const _pt = blessed ? 20 : 10;
           p.paralyzeTurns = _pt;
           ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
@@ -1993,7 +1998,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
       } else {
         if (kind === "monster") {
-          if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); break; }
+          if (isStatusImmune(target, ml, target.name)) break;
           target.speed = Math.max(0.25, target.speed * 0.5);
           ml.push(`${target.name}は鈍足になった！`);
           if (_sBless) {
@@ -2004,7 +2009,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
-          if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため効かなかった！"); break; }
+          if (isStatusImmune(p, ml)) break;
           p.slowTurns = (p.slowTurns || 0) + 10;
           ml.push("体が重くなった...(鈍足10ターン)");
           if (_sBless) {
@@ -2260,14 +2265,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push("魔法弾は効果なく消えた。"); break;
       }
       if (kind === "monster") {
-        if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); break; }
+        if (isStatusImmune(target, ml, target.name)) break;
         target.paralyzed = true;
         if (_pzBlessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
         else ml.push(`${target.name}は金縛りになった！動けない！`);
         break;
       }
       if (kind === "player") {
-        if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため効かなかった！"); break; }
+        if (isStatusImmune(p, ml)) break;
         p.paralyzeTurns = _pzBlessed ? 20 : 10;
         ml.push(`金縛りになった！(${p.paralyzeTurns}ターン)${_pzBlessed ? "(強金縛り)" : ""}`);
         break;
@@ -2278,7 +2283,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "sleep": {
       const st = rng(3, 6);
       if (kind === "monster") {
-        if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); break; }
+        if (isStatusImmune(target, ml, target.name)) break;
         target.sleepTurns = (target.sleepTurns || 0) + st;
         ml.push(`${target.name}は眠りに落ちた！(${st}ターン)`);
         break;
