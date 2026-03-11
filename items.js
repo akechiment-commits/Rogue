@@ -1128,8 +1128,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "darkness":
       if (kind === "player") {
         if (cursed) {
-          for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
-          ml.push("呪われた薬！フロア全体が見えた！【呪→透視】");
+          p.monsterSenseTurns = (p.monsterSenseTurns || 0) + 100;
+          ml.push("呪われた薬！フロアのモンスターが感知できる！(100ターン)【呪→感知】");
         } else {
           const _dt = blessed ? 50 : 20;
           p.darknessTurns = (p.darknessTurns || 0) + _dt;
@@ -1195,7 +1195,7 @@ export const POTION_FOOD_PREFIX = {
   c_mana:     "封印の",
   c_confuse:  "必中の",
   c_slow:     "加速の",
-  c_darkness: "地図の",
+  c_darkness: "感知の",
   c_bewitch:  "看破の",
   c_paralyze: "予防の",
 };

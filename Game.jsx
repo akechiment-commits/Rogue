@@ -311,6 +311,7 @@ function triggerMonsterHouse(dg, p, ml) {
   }
   sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; });
   ml.push(`モンスターハウスだ！敵が一斉に目覚めた！(${sleeping.length}体)`);
+  dg.monsterSenseActive = true; /* このフロアの全モンスター位置が見えるようになる */
   dg.monsterHouseRoom = null;
 }
 
@@ -1392,6 +1393,21 @@ export default function RoguelikeGame() {
         }
       }
     }
+    /* ===== モンスター感知：視界外モンスターを薄く表示 ===== */
+    if ((p.monsterSenseTurns || 0) > 0 || dg.monsterSenseActive) {
+      for (const _sm of dg.monsters) {
+        if (_sm.wallWalker) continue; /* 壁歩きは別パスで描画 */
+        if (dg.visible[_sm.y]?.[_sm.x]) continue; /* 視界内は通常描画済み */
+        if (_sm.x < sx || _sm.x >= sx + vw || _sm.y < sy || _sm.y >= sy + vh) continue;
+        const _spx = (_sm.x - sx) * sz, _spy = (_sm.y - sy) * sz;
+        ctx.globalAlpha = 0.45;
+        /* 感知は赤みがかった色調でオーバーレイ */
+        ctx.fillStyle = "rgba(200,30,30,0.25)";
+        ctx.fillRect(_spx, _spy, sz, sz);
+        drawTile(ctx, ts, _sm.tile, _spx, _spy, sz);
+        ctx.globalAlpha = 1;
+      }
+    }
     /* ===== 壁歩きモンスターを常に最前面に描画（壁の中でも可視） ===== */
     for (const _wm of dg.monsters) {
       if (!_wm.wallWalker) continue;
@@ -1694,26 +1710,6 @@ export default function RoguelikeGame() {
         }
       }
       checkShopTheft(p, st.dungeon, ml);
-      /* ビッグルーム：15ターンごとに新規モンスター出現 */
-      if (st.dungeon.isBigRoom && p.turns % 15 === 0) {
-        const _br = st.dungeon.rooms[0];
-        if (_br) {
-          let _spawned = false;
-          for (let _a = 0; _a < 60 && !_spawned; _a++) {
-            const _bx = rng(_br.x + 1, _br.x + _br.w - 2);
-            const _by = rng(_br.y + 1, _br.y + _br.h - 2);
-            if (st.dungeon.map[_by]?.[_bx] !== T.FLOOR) continue;
-            if (_bx === p.x && _by === p.y) continue;
-            if (st.dungeon.monsters.some(_m => _m.x === _bx && _m.y === _by)) continue;
-            if (st.dungeon.traps.some(_t => _t.x === _bx && _t.y === _by)) continue;
-            const _bt = MONS[clamp(rng(0, p.depth + 1), 0, MONS.length - 1)];
-            st.dungeon.monsters.push({ ..._bt, id: uid(), x: _bx, y: _by, maxHp: _bt.hp,
-              turnAccum: 0, aware: true, dir: { x: 0, y: 1 }, lastPx: 0, lastPy: 0, patrolTarget: null });
-            ml.push(`${_bt.name}が現れた！`);
-            _spawned = true;
-          }
-        }
-      }
       moveMons(st.dungeon, p, ml);
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
       if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap")) {
@@ -1758,14 +1754,16 @@ export default function RoguelikeGame() {
           const _cands = [];
           for (let _sy = 0; _sy < MH; _sy++) {
             for (let _sx = 0; _sx < MW; _sx++) {
-              if (
-                _dg.map[_sy][_sx] === T.FLOOR &&
-                !_dg.visible[_sy][_sx] &&
-                !(_sx === p.x && _sy === p.y) &&
-                !_dg.monsters.find((m) => m.x === _sx && m.y === _sy)
-              ) {
-                _cands.push([_sx, _sy]);
+              if (_dg.map[_sy][_sx] !== T.FLOOR) continue;
+              if (_sx === p.x && _sy === p.y) continue;
+              if (_dg.monsters.find((m) => m.x === _sx && m.y === _sy)) continue;
+              /* ビッグルームはプレイヤーから8マス以上離れていれば可 */
+              if (_dg.isBigRoom) {
+                if (Math.abs(_sx - p.x) + Math.abs(_sy - p.y) < 8) continue;
+              } else {
+                if (_dg.visible[_sy][_sx]) continue;
               }
+              _cands.push([_sx, _sy]);
             }
           }
           if (_cands.length > 0) {
@@ -2206,6 +2204,11 @@ export default function RoguelikeGame() {
         if ((p.bewitchedTurns || 0) > 0) {
           p.bewitchedTurns--;
           if (p.bewitchedTurns <= 0) ml.push("幻惑が解けた！周囲の見た目が正常に戻った！");
+        }
+        /* モンスター感知 */
+        if ((p.monsterSenseTurns || 0) > 0) {
+          p.monsterSenseTurns--;
+          if (p.monsterSenseTurns <= 0) ml.push("モンスター感知が切れた！");
         }
         /* 状態異常防止 */
         if ((p.statusImmune || 0) > 0) {
@@ -4096,8 +4099,8 @@ export default function RoguelikeGame() {
             p.hasteTurns = (p.hasteTurns || 0) + 10;
             ml.push("加速成分が！体が軽くなった！(2倍速10ターン)");
           } else if (pe === "c_darkness") {
-            for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
-            ml.push("地図成分が！フロア全体が見えた！");
+            p.monsterSenseTurns = (p.monsterSenseTurns || 0) + 100;
+            ml.push("感知成分が！フロアのモンスターが見えるようになった！(100ターン)");
           } else if (pe === "c_bewitch") {
             dg.traps.forEach(t => t.revealed = true);
             ml.push("看破成分が！フロアの罠が全て見えた！");
@@ -5734,6 +5737,9 @@ export default function RoguelikeGame() {
         )}{" "}
         {(p.sureHitTurns || 0) > 0 && (
           <span style={{ color: "#ffe000" }}>🎯{p.sureHitTurns}</span>
+        )}{" "}
+        {(p.monsterSenseTurns || 0) > 0 && (
+          <span style={{ color: "#ff6060" }}>👁‍🗨{p.monsterSenseTurns}</span>
         )}{" "}
         {(p.bewitchedTurns || 0) > 0 && (
           <span style={{ color: "#c040c0" }}>👁{p.bewitchedTurns}</span>
