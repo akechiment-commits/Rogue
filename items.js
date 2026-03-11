@@ -1,6 +1,19 @@
 import { rng, uid, clamp, MW, MH, T, TI, DRO } from './utils.js';
 import { MONS } from './monsters.js';
 
+/* ===== 金縛り弱体/解除ヘルパー ===== */
+function weakenOrClearParalysis(mon, ml) {
+  if (!mon.paralyzed) return;
+  if ((mon.paralyzeHits || 0) > 1) {
+    mon.paralyzeHits--;
+    ml.push(`${mon.name}の強い金縛りが弱まった！(あと1回で解除)`);
+  } else {
+    mon.paralyzed = false;
+    mon.paralyzeHits = 0;
+    ml.push(`${mon.name}の金縛りが解けた！`);
+  }
+}
+
 /* ===== PITFALL BAG ===== */
 /* Game.jsx が setPitfallBag でセットしておくと、落とし穴発動時に
    落下したアイテム/モンスターをここに蓄積し、後で次の階に配置する */
@@ -1271,10 +1284,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   for (const { x, y } of tiles) {
     const mon = dg.monsters.find(m => m.x === x && m.y === y);
     if (mon) {
-      if (mon.paralyzed) {
-        if ((mon.paralyzeHits || 0) > 1) { mon.paralyzeHits--; ml.push(`${mon.name}の強い金縛りが弱まった！(あと1回で解除)`); }
-        else { mon.paralyzed = false; mon.paralyzeHits = 0; ml.push(`${mon.name}の金縛りが解けた！`); }
-      }
+      weakenOrClearParalysis(mon, ml);
       applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed);
     }
     if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
@@ -1496,10 +1506,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn) {
       } else {
         const mon = dg.monsters.find(m => m.x === nx && m.y === ny);
         if (mon) {
-          if (mon.paralyzed) {
-            if ((mon.paralyzeHits || 0) > 1) { mon.paralyzeHits--; ml.push(`${mon.name}の強い金縛りが弱まった！(あと1回で解除)`); }
-            else { mon.paralyzed = false; mon.paralyzeHits = 0; ml.push(`${mon.name}の金縛りが解けた！`); }
-          }
+          weakenOrClearParalysis(mon, ml);
           const dmg = rng(3, 8);
           mon.hp -= dmg;
           ml.push(`飛んできた${entity.name}が${mon.name}に命中！${dmg}ダメージ！`);
@@ -1793,16 +1800,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   }
 
   /* any wand bolt hitting a monster weakens/clears its paralysis */
-  if (kind === "monster" && target.paralyzed) {
-    if ((target.paralyzeHits || 0) > 1) {
-      target.paralyzeHits--;
-      ml.push(`${target.name}の強い金縛りが弱まった！(あと1回で解除)`);
-    } else {
-      target.paralyzed = false;
-      target.paralyzeHits = 0;
-      ml.push(`${target.name}の金縛りが解けた！`);
-    }
-  }
+  if (kind === "monster") weakenOrClearParalysis(target, ml);
 
   switch (eff) {
     case "knockback": {

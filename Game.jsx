@@ -246,7 +246,8 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   }
   /* 多めのアイテム */
   const itemCount = rng(8, 14);
-  for (let i = 0; i < itemCount * 20 && items.length < items.length + itemCount; i++) {
+  let itemsPlaced = 0;
+  for (let i = 0; i < itemCount * 20 && itemsPlaced < itemCount; i++) {
     const ix = rng(room.x, room.x + room.w - 1);
     const iy = rng(room.y, room.y + room.h - 1);
     if (map[iy][ix] !== T.FLOOR) continue;
@@ -260,11 +261,12 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
       else if (_br < 0.28) it.cursed = true;
     }
     items.push(it);
-    if (items.filter(ii => ii.x >= room.x && ii.x < room.x + room.w && ii.y >= room.y && ii.y < room.y + room.h).length >= itemCount) break;
+    itemsPlaced++;
   }
   /* 多めの罠 */
   const trapCount = rng(4, 8);
-  for (let i = 0; i < trapCount * 20; i++) {
+  let trapsPlaced = 0;
+  for (let i = 0; i < trapCount * 20 && trapsPlaced < trapCount; i++) {
     const tx = rng(room.x + 1, room.x + room.w - 2);
     const ty = rng(room.y + 1, room.y + room.h - 2);
     if (map[ty][tx] !== T.FLOOR) continue;
@@ -272,7 +274,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     if (allOcc(tx, ty)) continue;
     const t = TRAPS[rng(0, TRAPS.length - 1)];
     traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
-    if (traps.filter(tt => tt.x >= room.x && tt.x < room.x + room.w && tt.y >= room.y && tt.y < room.y + room.h).length >= trapCount) break;
+    trapsPlaced++;
   }
   /* 高確率で大箱・泉を追加 */
   for (let bi = 0; bi < rng(2, 4); bi++) {
