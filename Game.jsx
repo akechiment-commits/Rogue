@@ -1657,6 +1657,7 @@ export default function RoguelikeGame() {
       const ml = [];
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || p.slowSkip) return;
       if (type === "inventory") {
+        setSpellListMode(false);
         setShowInv((v) => {
           if (v) { dropModeRef.current = false; setDropMode(false); }
           return !v;
@@ -5828,7 +5829,7 @@ export default function RoguelikeGame() {
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (revealMode) return; setSpellListMode((f) => !f); setSpellMenuSel(0); }}
+                  onClick={() => { if (revealMode || showInv) return; setSpellListMode((f) => !f); setSpellMenuSel(0); }}
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB
