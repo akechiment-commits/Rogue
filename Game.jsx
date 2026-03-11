@@ -1254,7 +1254,7 @@ export default function RoguelikeGame() {
           break;
         }
       } else if (it.shopPrice) {
-        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}がある（商品：${it.shopPrice}G）gキーで拾う`);
+        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}がある（商品：${it.shopPrice}G）fキーで拾う`);
         break;
       } else if (p.inventory.length < (p.maxInventory || 30)) {
         p.inventory.push(it);
@@ -1833,71 +1833,6 @@ export default function RoguelikeGame() {
         if (found.length > 0) ml.push(`罠を発見！：${found.join("、")}`);
         else ml.push("周囲に罠はない。");
         acted = true;
-      } else if (type === "grab") {
-        const it = dg.items.find((i) => i.x === p.x && i.y === p.y);
-        if (it) {
-          if (it.type === "gold") {
-            p.gold += it.value;
-            ml.push(`${it.value}枚の金貨を拾った！`);
-            dg.items = dg.items.filter((i) => i !== it);
-          } else if (it.type === "arrow" && !it.shopPrice) {
-            if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30)) {
-              ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
-              dg.items = dg.items.filter((i) => i !== it);
-            } else ml.push("持ち物がいっぱいだ！");
-          } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
-          else {
-            p.inventory.push(it);
-            if (it.shopPrice && dg.shop) {
-              dg.shop.unpaidTotal += it.shopPrice;
-              const sk2 = dg.monsters.find(
-                (m) => m.type === "shopkeeper" && m.state === "friendly",
-              );
-              if (sk2) sk2.state = "blocking";
-              ml.push(
-                `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${it.shopPrice}G) 店主が入り口をふさいだ。`,
-              );
-            } else {
-              const _w2 = it.type === "weapon",
-                _a2 = it.type === "armor";
-              let _lbl2 = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              if (_w2 || _a2) {
-                if (it.plus) _lbl2 += (it.plus > 0 ? "+" : "") + it.plus;
-                _lbl2 += _w2
-                  ? " (攻+" + (it.atk + (it.plus || 0)) + ")"
-                  : " (防+" + (it.def + (it.plus || 0)) + ")";
-                const _AB2 = _w2 ? WEAPON_ABILITIES : ARMOR_ABILITIES;
-                const _ids2 = [
-                  ...new Set([
-                    ...(it.abilities || []),
-                    ...(it.ability ? [it.ability] : []),
-                  ]),
-                ];
-                const _ns2 = _ids2
-                  .map((id) => _AB2.find((a) => a.id === id)?.name)
-                  .filter(Boolean);
-                if (_ns2.length) _lbl2 += " [" + _ns2.join("・") + "]";
-              }
-              ml.push(_lbl2 + _itemPickupSuffix(it, sr.current?.ident) + "を拾った。");
-            }
-            dg.items = dg.items.filter((i) => i !== it);
-          }
-          acted = true;
-        } else {
-          const trapHere = dg.traps.find((t) => t.x === p.x && t.y === p.y);
-          if (trapHere) {
-            const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-            const tr2 = fireTrapPlayer(trapHere, p, dg, ml, _tnFn);
-            if (tr2 === "pitfall") {
-              const nd2 = chgFloor(p, 1, true);
-              if (nd2) {
-                st.dungeon = nd2;
-                ml.push(`地下${p.depth}階に落ちた！`);
-              }
-            }
-            acted = true;
-          } else ml.push("ここには何もない。");
-        }
       } else if (type === "shoot_arrow") {
         if (p.arrow && p.arrow.count > 0) {
           setThrowMode({ idx: -1, mode: "shoot_equipped" });
@@ -1956,7 +1891,56 @@ export default function RoguelikeGame() {
             setSpringMode("menu"); setSpringMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
             sr.current = { ...st }; setGs({ ...st }); return;
-          } else ml.push("ここには何もない。");
+          }
+          /* 足元のアイテムを拾う */
+          const _grIt = dg.items.find((i) => i.x === p.x && i.y === p.y);
+          if (_grIt) {
+            if (_grIt.type === "gold") {
+              p.gold += _grIt.value;
+              ml.push(`${_grIt.value}枚の金貨を拾った！`);
+              dg.items = dg.items.filter((i) => i !== _grIt);
+            } else if (_grIt.type === "arrow" && !_grIt.shopPrice) {
+              if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30)) {
+                ml.push(`${_grIt.name || "矢"}(${_grIt.count}本)を拾った。`);
+                dg.items = dg.items.filter((i) => i !== _grIt);
+              } else ml.push("持ち物がいっぱいだ！");
+            } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
+            else {
+              p.inventory.push(_grIt);
+              if (_grIt.shopPrice && dg.shop) {
+                dg.shop.unpaidTotal += _grIt.shopPrice;
+                const _sk2 = dg.monsters.find((m) => m.type === "shopkeeper" && m.state === "friendly");
+                if (_sk2) _sk2.state = "blocking";
+                ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
+              } else {
+                const _w2 = _grIt.type === "weapon", _a2 = _grIt.type === "armor";
+                let _lbl2 = itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                if (_w2 || _a2) {
+                  if (_grIt.plus) _lbl2 += (_grIt.plus > 0 ? "+" : "") + _grIt.plus;
+                  _lbl2 += _w2 ? " (攻+" + (_grIt.atk + (_grIt.plus || 0)) + ")" : " (防+" + (_grIt.def + (_grIt.plus || 0)) + ")";
+                  const _AB2 = _w2 ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+                  const _ids2 = [...new Set([...(_grIt.abilities || []), ...(_grIt.ability ? [_grIt.ability] : [])])];
+                  const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
+                  if (_ns2.length) _lbl2 += " [" + _ns2.join("・") + "]";
+                }
+                ml.push(_lbl2 + _itemPickupSuffix(_grIt, sr.current?.ident) + "を拾った。");
+              }
+              dg.items = dg.items.filter((i) => i !== _grIt);
+            }
+            acted = true;
+          } else {
+            /* 足元の罠を起動 */
+            const _trapHere = dg.traps.find((t) => t.x === p.x && t.y === p.y);
+            if (_trapHere) {
+              const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn);
+              if (_tr2 === "pitfall") {
+                const nd2 = chgFloor(p, 1, true);
+                if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
+              }
+              acted = true;
+            } else ml.push("ここには何もない。");
+          }
         }
       }
       if (acted) {
@@ -3478,7 +3462,7 @@ export default function RoguelikeGame() {
       } else if (k === "s") {
         e.preventDefault();
         act("search_traps");
-      } else if (k === "g" || k === ",") act("grab");
+
       else if (k === "q") act("shoot_arrow");
       else if (k === ">") act("stairs_down");
       else if (k === "<") act("stairs_up");
@@ -5785,7 +5769,6 @@ export default function RoguelikeGame() {
             >
               {" "}
               <div style={{ display: "flex", gap: 3 }}>
-                <AB label="拾" sub="grab" onClick={() => act("grab")} />
                 <AB
                   label="矢"
                   sub="shoot"
@@ -5900,8 +5883,8 @@ export default function RoguelikeGame() {
             marginTop: 2,
           }}
         >
-          矢印/WASD/hjkl:移動　Shift+矢印/テンキー:ダッシュ　yubn:斜め　.:待機　g:拾う　i:所持品(↑↓で選択/Z:使用/X:閉じる)　
-          {"<>"}:階段　q:矢を射る　z:アクション　f:調べる　t:向き変更
+          矢印/WASD/hjkl:移動　Shift+矢印/テンキー:ダッシュ　yubn:斜め　.:待機　i:所持品(↑↓で選択/Z:使用/X:閉じる)
+          {"<>"}:階段　q:矢を射る　z:アクション　f:足元(拾う/罠/階段/大箱/泉)　t:向き変更
         </div>
       )}{" "}
       {!mobile && throwMode && (
