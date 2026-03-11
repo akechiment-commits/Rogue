@@ -1098,9 +1098,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       break;
     case "confuse":
       if (cursed) {
-        // 反転→混乱解消
+        // 呪い→混乱解消 + 必中100ターン（攻撃・投擲が外れなくなる。未実装中は予約のみ）
         if (kind === "monster") { target.confusedTurns = 0; ml.push(`${target.name}の混乱が解けた！`); }
-        if (kind === "player") { p.confusedTurns = 0; ml.push("頭が冷えた！混乱が解けた！【呪→解混乱】"); }
+        if (kind === "player") {
+          p.confusedTurns = 0;
+          p.sureHitTurns = (p.sureHitTurns || 0) + 100;
+          ml.push("頭が冴えた！混乱が消え、必中状態になった！(100ターン)【呪→必中】");
+        }
       } else {
         if (kind === "monster") { const _ct = blessed ? 40 : 20; target.confusedTurns = (target.confusedTurns || 0) + _ct; ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
         if (kind === "player") { const _ct = blessed ? 10 : 5; p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }

@@ -2002,6 +2002,11 @@ export default function RoguelikeGame() {
           p.statusImmune--;
           if (p.statusImmune <= 0) ml.push("状態防止が切れた！");
         }
+        /* 必中 */
+        if ((p.sureHitTurns || 0) > 0) {
+          p.sureHitTurns--;
+          if (p.sureHitTurns <= 0) ml.push("必中状態が切れた！");
+        }
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
@@ -3708,16 +3713,10 @@ export default function RoguelikeGame() {
         }
       } else if (it.effect === "confuse") {
         if (it.cursed) {
-          // 呪い：反転→混乱解消（+ 視界内の敵を混乱）
-          const _wasCon = (p.confusedTurns || 0) > 0;
+          // 呪い：混乱解消 + 必中100ターン
           p.confusedTurns = 0;
-          const _cvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-          if (_wasCon) ml.push(`${it.name}を飲んだ。頭が冷えた！混乱が消えた！【呪→解混乱】`);
-          else ml.push(`${it.name}を飲んだ。不思議な味がするが…【呪→解混乱】`);
-          for (const _m of _cvis) {
-            _m.confusedTurns = (_m.confusedTurns || 0) + 15;
-            ml.push(`混乱の気が${_m.name}に向かった！(${_m.confusedTurns}ターン)`);
-          }
+          p.sureHitTurns = (p.sureHitTurns || 0) + 100;
+          ml.push(`${it.name}を飲んだ。頭が冴えた！混乱が消え、必中状態になった！(100ターン)【呪→必中】`);
         } else {
           // 通常/祝福：混乱（祝福=2倍ターン）
           const _cturns = it.blessed ? 10 : 5;
@@ -3846,6 +3845,10 @@ export default function RoguelikeGame() {
               p.mp = (p.mp || 0) + _mpRec;
               if (_mpRec > 0) ml.push(`魔力効果でMP+${_mpRec}`);
             }
+          } else if (pe === "confuse") {
+            const _ct = rng(3, 8);
+            p.confusedTurns = (p.confusedTurns || 0) + _ct;
+            ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`);
           }
         }
       }
@@ -5473,6 +5476,9 @@ export default function RoguelikeGame() {
         )}{" "}
         {(p.statusImmune || 0) > 0 && (
           <span style={{ color: "#40c080" }}>🛡{p.statusImmune}</span>
+        )}{" "}
+        {(p.sureHitTurns || 0) > 0 && (
+          <span style={{ color: "#ffe000" }}>🎯{p.sureHitTurns}</span>
         )}{" "}
         {(p.bewitchedTurns || 0) > 0 && (
           <span style={{ color: "#c040c0" }}>👁{p.bewitchedTurns}</span>
