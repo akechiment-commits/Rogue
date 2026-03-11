@@ -7,6 +7,8 @@ import {
   findRoom,
   getOpenDirs,
   monsterAI,
+  makeMonster,
+  spawnMonsters,
 } from "./monsters.js";
 import {
   ITEM_TILES,
@@ -1756,20 +1758,7 @@ export default function RoguelikeGame() {
           }
           if (_cands.length > 0) {
             const [_cx, _cy] = pick(_cands);
-            const _mt = MONS[clamp(rng(0, p.depth), 0, MONS.length - 1)];
-            _dg.monsters.push({
-              ..._mt,
-              id: uid(),
-              x: _cx,
-              y: _cy,
-              maxHp: _mt.hp,
-              turnAccum: 0,
-              aware: false,
-              dir: { x: 0, y: 1 },
-              lastPx: 0,
-              lastPy: 0,
-              patrolTarget: null,
-            });
+            _dg.monsters.push(makeMonster(p.depth, _cx, _cy));
           }
           _dg.nextSpawnTurn = p.turns + rng(10, 50);
         }
@@ -4448,32 +4437,7 @@ export default function RoguelikeGame() {
           // 通常4体、祝福8体召喚
           const _sumCount = it.blessed ? 8 : 4;
           let _spawned = 0;
-          // 祝福時は隣接マスから優先
-          if (it.blessed) {
-            const _dirs8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-            for (const [_dy, _dx] of _dirs8) {
-              const _nx = p.x + _dx, _ny = p.y + _dy;
-              if (dg.map[_ny]?.[_nx] === T.FLOOR && !dg.monsters.some((m) => m.x === _nx && m.y === _ny)) {
-                const _mt = MONS[clamp(rng(0, p.depth + 1), 0, MONS.length - 1)];
-                dg.monsters.push({ ..._mt, id: uid(), x: _nx, y: _ny, maxHp: _mt.hp, turnAccum: 0, aware: true, dir: { x: 1, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null });
-                _spawned++;
-              }
-            }
-          }
-          // 残り分（または通常時）: フロア内ランダム
-          for (let _si = _spawned; _si < _sumCount; _si++) {
-            for (let _att = 0; _att < 30; _att++) {
-              const _sRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
-              const _sx = rng(_sRoom.x + 1, _sRoom.x + _sRoom.w - 2);
-              const _sy = rng(_sRoom.y + 1, _sRoom.y + _sRoom.h - 2);
-              if (dg.map[_sy]?.[_sx] === T.FLOOR && !dg.monsters.some((m) => m.x === _sx && m.y === _sy) && (_sx !== p.x || _sy !== p.y)) {
-                const _mt = MONS[clamp(rng(0, p.depth + 1), 0, MONS.length - 1)];
-                dg.monsters.push({ ..._mt, id: uid(), x: _sx, y: _sy, maxHp: _mt.hp, turnAccum: 0, aware: false, dir: { x: 1, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null });
-                _spawned++;
-                break;
-              }
-            }
-          }
+          _spawned = spawnMonsters(dg, _sumCount, p.depth + 1, p.x, p.y, p, { aware: !!it.blessed });
           ml.push(it.blessed ? `${_spawned}体の敵に囲まれた！【祝】` : `${_spawned}体の敵が召喚された！`);
         }
       } else if (it.effect === "expand_inv") {

@@ -1,6 +1,6 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster } from "./utils.js";
 import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt } from "./items.js";
-import { MONS } from "./monsters.js";
+import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
   trap.revealed = true;
@@ -175,33 +175,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
       ml.push(`${trap.name}が発動！`);
       const _sumCount = rng(2, 4);
       const _sumDepth = p.depth || 1;
-      let _sumSpawned = 0;
-      const _dirs8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-      for (const [_dy, _dx] of _dirs8) {
-        if (_sumSpawned >= _sumCount) break;
-        const _nx = p.x + _dx, _ny = p.y + _dy;
-        if (dg.map[_ny]?.[_nx] === T.FLOOR &&
-            !dg.monsters.some((m) => m.x === _nx && m.y === _ny) &&
-            (_nx !== p.x || _ny !== p.y)) {
-          const _mt = MONS[clamp(rng(0, _sumDepth + 1), 0, MONS.length - 1)];
-          dg.monsters.push({ ..._mt, id: uid(), x: _nx, y: _ny, maxHp: _mt.hp, turnAccum: -(_mt.speed || 1), aware: true, dir: { x: 0, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null });
-          _sumSpawned++;
-        }
-      }
-      for (let _si = _sumSpawned; _si < _sumCount; _si++) {
-        for (let _att = 0; _att < 30; _att++) {
-          const _sr = dg.rooms[rng(0, dg.rooms.length - 1)];
-          const _sx = rng(_sr.x + 1, _sr.x + _sr.w - 2);
-          const _sy = rng(_sr.y + 1, _sr.y + _sr.h - 2);
-          if (dg.map[_sy]?.[_sx] === T.FLOOR &&
-              !dg.monsters.some((m) => m.x === _sx && m.y === _sy) &&
-              (_sx !== p.x || _sy !== p.y)) {
-            const _mt = MONS[clamp(rng(0, _sumDepth + 1), 0, MONS.length - 1)];
-            dg.monsters.push({ ..._mt, id: uid(), x: _sx, y: _sy, maxHp: _mt.hp, turnAccum: -(_mt.speed || 1), aware: false, dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null });
-            _sumSpawned++; break;
-          }
-        }
-      }
+      const _sumSpawned = spawnMonsters(dg, _sumCount, _sumDepth + 1, p.x, p.y, p, { aware: true, immediateAct: true });
       ml.push(`${_sumSpawned}体の敵が現れた！`);
       break;
     }

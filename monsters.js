@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp } from "./utils.js";
 import { getFarcastMode } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
@@ -179,6 +179,42 @@ export const MONS = [
     wallWalker: true,
   },
 ];
+
+/* ===== モンスター生成ヘルパー ===== */
+/** ランダムにモンスター1体を生成してオブジェクトを返す */
+export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false } = {}) {
+  const mt = MONS[clamp(rng(0, depth), 0, MONS.length - 1)];
+  return { ...mt, id: uid(), x, y, maxHp: mt.hp, turnAccum: immediateAct ? -(mt.speed || 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
+}
+
+/** count 体のモンスターを centerX,centerY 周辺 → ランダム部屋にスポーンさせる */
+export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = false, immediateAct = false } = {}) {
+  const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  let spawned = 0;
+  /* 隣接マスに優先配置 */
+  for (const [dy, dx] of DIRS8) {
+    if (spawned >= count) break;
+    const nx = centerX + dx, ny = centerY + dy;
+    if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => m.x === nx && m.y === ny) && (!p || nx !== p.x || ny !== p.y)) {
+      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct }));
+      spawned++;
+    }
+  }
+  /* 残りはランダム部屋に配置 */
+  for (let i = spawned; i < count; i++) {
+    for (let att = 0; att < 30; att++) {
+      const room = dg.rooms[rng(0, dg.rooms.length - 1)];
+      const sx = rng(room.x + 1, room.x + room.w - 2);
+      const sy = rng(room.y + 1, room.y + room.h - 2);
+      if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => m.x === sx && m.y === sy) && (!p || sx !== p.x || sy !== p.y)) {
+        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct }));
+        spawned++;
+        break;
+      }
+    }
+  }
+  return spawned;
+}
 
 /* ===== LINE OF SIGHT (Bresenham) ===== */
 export function hasLOS(map, x0, y0, x1, y1) {
