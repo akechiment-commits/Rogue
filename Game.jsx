@@ -66,6 +66,7 @@ import {
   inCursedMagicSealRoom,
   getFarcastMode,
   monsterDrop,
+  killMonster,
   getIdentKey,
   generateFakeNames,
 } from "./items.js";
@@ -1725,13 +1726,7 @@ export default function RoguelikeGame() {
               const _tmdmg = _tp.blessed ? 50 : 25;
               _m.hp -= _tmdmg;
               ml.push(`${_tp.name}が${_m.name}を打った！${_tmdmg}ダメージ！`);
-              if (_m.hp <= 0) {
-                ml.push(`${_m.name}を倒した！(+${_m.exp}exp)`);
-                p.exp += _m.exp;
-                monsterDrop(_m, st.dungeon, ml, p);
-                st.dungeon.monsters = st.dungeon.monsters.filter((mn) => mn !== _m);
-                lu(p, ml);
-              }
+              if (_m.hp <= 0) killMonster(_m, st.dungeon, p, ml, lu);
             }
           }
         }
@@ -1991,13 +1986,7 @@ export default function RoguelikeGame() {
                   ml.push(`${attackMon.name}は吹き飛んだ！`);
                 }
               }
-              if (attackMon.hp <= 0) {
-                ml.push(`${attackMon.name}を倒した！(+${attackMon.exp}exp)`);
-                p.exp += attackMon.exp;
-                monsterDrop(attackMon, dg, ml, p);
-                dg.monsters = dg.monsters.filter((m) => m !== attackMon);
-                lu(p, ml);
-              }
+              if (attackMon.hp <= 0) killMonster(attackMon, dg, p, ml, lu);
               acted = true;
             }
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
@@ -4241,13 +4230,7 @@ export default function RoguelikeGame() {
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
-            if (_m.hp <= 0) {
-              ml.push(`${_m.name}を倒した！(+${_m.exp}exp)`);
-              p.exp += _m.exp;
-              monsterDrop(_m, dg, ml, p);
-              dg.monsters = dg.monsters.filter((mn) => mn !== _m);
-              lu(p, ml);
-            }
+            if (_m.hp <= 0) killMonster(_m, dg, p, ml, lu);
           }
           // 呪い：自分にも雷が落ちる
           if (it.cursed) {
@@ -4606,13 +4589,7 @@ export default function RoguelikeGame() {
               if (_tm.x === p.x && _tm.y === p.y) {
                 _tm.hp -= _tdrawDmg;
                 ml.push(`${_pName}が${_tm.name}を打った！${_tdrawDmg}ダメージ！`);
-                if (_tm.hp <= 0) {
-                  ml.push(`${_tm.name}を倒した！(+${_tm.exp}exp)`);
-                  p.exp += _tm.exp;
-                  monsterDrop(_tm, dg, ml, p);
-                  dg.monsters = dg.monsters.filter((mn) => mn !== _tm);
-                  lu(p, ml);
-                }
+                if (_tm.hp <= 0) killMonster(_tm, dg, p, ml, lu);
               }
             }
           }
@@ -5098,13 +5075,7 @@ export default function RoguelikeGame() {
             m.hp -= dmg;
             if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
             ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
-            if (m.hp <= 0) {
-              ml.push(`${m.name}を倒した！(+${m.exp}exp)`);
-              p.exp += m.exp;
-              monsterDrop(m, dg, ml, p);
-              dg.monsters = dg.monsters.filter((m2) => m2 !== m);
-              lu(p, ml);
-            }
+            if (m.hp <= 0) killMonster(m, dg, p, ml, lu);
             if (!_arPierceMode) { hit = true; break; }
             /* 貫通：飛び続ける */
           }
@@ -5220,13 +5191,7 @@ export default function RoguelikeGame() {
             if (_potHits.length > 0) {
               for (const _pm of _potHits) {
                 applyPotionEffect(it.effect, it.value || 0, "monster", _pm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
-                if (_pm.hp <= 0) {
-                  ml.push(`${_pm.name}を倒した！(+${_pm.exp}exp)`);
-                  p.exp += _pm.exp;
-                  monsterDrop(_pm, dg, ml, p);
-                  dg.monsters = dg.monsters.filter((m2) => m2 !== _pm);
-                  lu(p, ml);
-                }
+                if (_pm.hp <= 0) killMonster(_pm, dg, p, ml, lu);
               }
             }
             ml.push(`${dnameRef(it)}は消滅した。`);
@@ -5252,13 +5217,7 @@ export default function RoguelikeGame() {
               const td = 3 + rng(0, 3);
               m.hp -= td;
               ml.push(`${dnameRef(it)}が${m.name}に命中！${td}ダメージ！`);
-              if (m.hp <= 0) {
-                ml.push(`${m.name}を倒した！(+${m.exp}exp)`);
-                p.exp += m.exp;
-                monsterDrop(m, dg, ml, p);
-                dg.monsters = dg.monsters.filter((m2) => m2 !== m);
-                lu(p, ml);
-              }
+              if (m.hp <= 0) killMonster(m, dg, p, ml, lu);
               if (!_isFarcast) { lx = tx; ly = ty; break; }
             }
             if (!_isFarcast) {
@@ -5296,13 +5255,7 @@ export default function RoguelikeGame() {
               m.hp -= td;
               const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
               ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
-              if (m.hp <= 0) {
-                ml.push(`${m.name}を倒した！(+${m.exp}exp)`);
-                p.exp += m.exp;
-                monsterDrop(m, dg, ml, p);
-                dg.monsters = dg.monsters.filter((m2) => m2 !== m);
-                lu(p, ml);
-              }
+              if (m.hp <= 0) killMonster(m, dg, p, ml, lu);
               if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; }
             }
             if (!_isFarcast) {

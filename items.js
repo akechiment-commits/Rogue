@@ -968,13 +968,7 @@ export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30
 
 export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false) {
   const _monKill = (mon) => {
-    if (mon.hp <= 0) {
-      ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
-      p.exp += mon.exp;
-      monsterDrop(mon, dg, ml, p);
-      removeMonster(dg, mon);
-      if (luFn) luFn(p, ml);
-    }
+    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
   };
   const _fireResist = (pl) =>
     pl.armor?.ability === "fire_resist" || !!pl.armor?.abilities?.includes("fire_resist");
@@ -1489,6 +1483,15 @@ export function monsterDrop(m, dg, ml, p = null) {
   }
 }
 
+/** プレイヤーがモンスターを倒した時の共通処理 */
+export function killMonster(mon, dg, p, ml, luFn) {
+  ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
+  p.exp += mon.exp;
+  monsterDrop(mon, dg, ml, p);
+  removeMonster(dg, mon);
+  if (luFn) luFn(p, ml);
+}
+
 export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn) {
   let cx = x, cy = y;
   for (let i = 0; i < dist; i++) {
@@ -1857,11 +1860,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           removeMonster(dg, target);
           luFn(p, ml);
         } else if (target.hp <= 0) {
-          ml.push(`${target.name}を倒した！(+${target.exp}exp)`);
-          p.exp += target.exp;
-          monsterDrop(target, dg, ml, p);
-          removeMonster(dg, target);
-          luFn(p, ml);
+          killMonster(target, dg, p, ml, luFn);
         }
         break;
       }
@@ -1926,13 +1925,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         target.hp -= dmg;
         ml.push(`雷撃が${target.name}に命中！${dmg}ダメージ！`);
-        if (target.hp <= 0) {
-          ml.push(`${target.name}を倒した！(+${target.exp}exp)`);
-          p.exp += target.exp;
-          monsterDrop(target, dg, ml, p);
-          removeMonster(dg, target);
-          luFn(p, ml);
-        }
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
         break;
       }
       if (kind === "player") {
@@ -2119,13 +2112,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
         target.hp -= dmg;
         ml.push(`穴掘りの魔法弾が${target.name}に命中！${dmg}ダメージ！`);
-        if (target.hp <= 0) {
-          ml.push(`${target.name}を倒した！(+${target.exp}exp)`);
-          p.exp += target.exp;
-          monsterDrop(target, dg, ml, p);
-          removeMonster(dg, target);
-          luFn(p, ml);
-        }
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "player") {
         if (inCursedMagicSealRoom(p.x, p.y, dg)) dmg *= 2;
@@ -2780,13 +2767,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
       m.hp -= dmg;
       if (_isPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
       ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
-      if (m.hp <= 0) {
-        ml.push(`${m.name}を倒した！(+${m.exp}exp)`);
-        p.exp += m.exp;
-        monsterDrop(m, dg, ml, p);
-        removeMonster(dg, m);
-        luFn(p, ml);
-      }
+      if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }
     }
     if (!_pierceMode) {
@@ -2852,7 +2833,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       const dmg = rng(20, 30) * _cmsBoost;
       if (kind === "monster") {
         target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！`);
-        if (target.hp <= 0) { ml.push(`${target.name}を倒した！(+${target.exp}exp)`); p.exp += target.exp; monsterDrop(target, dg, ml, p); removeMonster(dg, target); luFn(p, ml); }
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
     }
     case "ice_bolt": {
@@ -2860,14 +2841,14 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       if (kind === "monster") {
         target.hp -= dmg; target.speed = Math.max(0.25, target.speed * 0.5);
         ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！動きが鈍くなった！`);
-        if (target.hp <= 0) { ml.push(`${target.name}を倒した！(+${target.exp}exp)`); p.exp += target.exp; monsterDrop(target, dg, ml, p); removeMonster(dg, target); luFn(p, ml); }
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
     }
     case "lightning_magic": {
       const dmg = rng(22, 32) * _cmsBoost;
       if (kind === "monster") {
         target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);
-        if (target.hp <= 0) { ml.push(`${target.name}を倒した！(+${target.exp}exp)`); p.exp += target.exp; monsterDrop(target, dg, ml, p); removeMonster(dg, target); luFn(p, ml); }
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item") {
         if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") { removeFloorItem(dg, target); ml.push(`${target.name}は雷の魔法で焼けた！`); }
