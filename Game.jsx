@@ -1997,6 +1997,11 @@ export default function RoguelikeGame() {
           p.bewitchedTurns--;
           if (p.bewitchedTurns <= 0) ml.push("幻惑が解けた！周囲の見た目が正常に戻った！");
         }
+        /* 状態異常防止 */
+        if ((p.statusImmune || 0) > 0) {
+          p.statusImmune--;
+          if (p.statusImmune <= 0) ml.push("状態防止が切れた！");
+        }
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
@@ -3665,6 +3670,8 @@ export default function RoguelikeGame() {
             !!p.armor?.abilities?.includes("sleep_proof")
           ) {
             ml.push(`${it.name}を飲んだ。なんとも無い。(耔眠)`);
+          } else if ((p.statusImmune || 0) > 0) {
+            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
           } else {
             p.sleepTurns = (p.sleepTurns || 0) + t;
             ml.push(
@@ -3692,8 +3699,12 @@ export default function RoguelikeGame() {
         } else {
           // 通常/祝福：鈍足（祝福=2倍ターン）
           const _st = it.blessed ? 20 : 10;
-          p.slowTurns = (p.slowTurns || 0) + _st;
-          ml.push(`${it.name}を飲んだ。体が重くなった...(鈍足${_st}ターン)${it.blessed ? "【祝=強鈍】" : ""}`);
+          if ((p.statusImmune || 0) > 0) {
+            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+          } else {
+            p.slowTurns = (p.slowTurns || 0) + _st;
+            ml.push(`${it.name}を飲んだ。体が重くなった...(鈍足${_st}ターン)${it.blessed ? "【祝=強鈍】" : ""}`);
+          }
         }
       } else if (it.effect === "confuse") {
         if (it.cursed) {
@@ -3715,16 +3726,18 @@ export default function RoguelikeGame() {
         }
       } else if (it.effect === "paralyze") {
         if (it.cursed) {
-          // 呪い：反転→金縛り解消
-          const _wasPar = (p.paralyzeTurns || 0) > 0;
-          p.paralyzeTurns = 0;
-          if (_wasPar) ml.push(`${it.name}を飲んだ。体が動くようになった！金縛りが解けた！【呪→解金縛り】`);
-          else ml.push(`${it.name}を飲んだ。体がすっきりした。【呪→解金縛り】`);
+          // 呪い→状態異常防止200ターン
+          p.statusImmune = (p.statusImmune || 0) + 200;
+          ml.push(`${it.name}を飲んだ。状態異常を防ぐ力が宿った！(200ターン)【呪→状態防止】`);
         } else {
           // 通常/祝福：金縛り（祝福=2倍ターン）
-          const _pt = it.blessed ? 20 : 10;
-          p.paralyzeTurns = _pt;
-          ml.push(`${it.name}を飲んだ。体が動かない！(${_pt}ターン金縛り)${it.blessed ? "【祝=強金縛り】" : ""}`);
+          if ((p.statusImmune || 0) > 0) {
+            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+          } else {
+            const _pt = it.blessed ? 20 : 10;
+            p.paralyzeTurns = _pt;
+            ml.push(`${it.name}を飲んだ。体が動かない！(${_pt}ターン金縛り)${it.blessed ? "【祝=強金縛り】" : ""}`);
+          }
         }
       } else if (it.effect === "mana") {
         if (it.cursed) {
@@ -3820,8 +3833,8 @@ export default function RoguelikeGame() {
             ml.push("毒が混じっていた！毒状態になった！攻撃力が徐々に下がっていく…");
           } else if (pe === "sleep") {
             const st = rng(3, 6);
-            p.sleepTurns = (p.sleepTurns || 0) + st;
-            ml.push(`睡眠効果で${st}ターン眠ってしまった...`);
+            if ((p.statusImmune || 0) > 0) ml.push("睡眠効果！状態防止中のため効かなかった！");
+            else { p.sleepTurns = (p.sleepTurns || 0) + st; ml.push(`睡眠効果で${st}ターン眠ってしまった...`); }
           } else if (pe === "power") {
             p.atk += 2;
             ml.push("強化効果で攻撃力+2！");
@@ -4098,8 +4111,8 @@ export default function RoguelikeGame() {
         if (it.cursed) {
           // 呪い：プレイヤーが眠る
           const _pst = Math.max(2, rng(3, 5));
-          p.sleepTurns = (p.sleepTurns || 0) + _pst;
-          ml.push(`眠気が自分を襲った！${_pst}ターン眠ってしまう…【呪】`);
+          if ((p.statusImmune || 0) > 0) ml.push("眠気が自分を襲った！状態防止中のため効かなかった！【呪】");
+          else { p.sleepTurns = (p.sleepTurns || 0) + _pst; ml.push(`眠気が自分を襲った！${_pst}ターン眠ってしまう…【呪】`); }
         } else {
           // 通常：視界内、祝福：フロア全モンスター
           const _sSleep = it.blessed ? dg.monsters : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
@@ -4108,6 +4121,7 @@ export default function RoguelikeGame() {
           } else {
             for (const _m of _sSleep) {
               const _st = Math.max(1, Math.round(rng(3, 6) * _scrBm));
+              if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
               _m.sleepTurns = (_m.sleepTurns || 0) + _st;
               ml.push(`${_m.name}が眠りに落ちた！(${_st}ターン)${it.blessed ? "【祝】" : ""}`);
             }
@@ -5456,6 +5470,9 @@ export default function RoguelikeGame() {
         )}{" "}
         {(p.darknessTurns || 0) > 0 && (
           <span style={{ color: "#4040a0" }}>🌑{p.darknessTurns}</span>
+        )}{" "}
+        {(p.statusImmune || 0) > 0 && (
+          <span style={{ color: "#40c080" }}>🛡{p.statusImmune}</span>
         )}{" "}
         {(p.bewitchedTurns || 0) > 0 && (
           <span style={{ color: "#c040c0" }}>👁{p.bewitchedTurns}</span>

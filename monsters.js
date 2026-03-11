@@ -352,6 +352,11 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
 
 /* ===== MONSTER AI ===== */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
+  /* 状態異常防止：毎ターンカウントダウン */
+  if ((m.statusImmune || 0) > 0) {
+    m.statusImmune--;
+    if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
+  }
   if (m.sleepTurns > 0) {
     m.sleepTurns--;
     return;

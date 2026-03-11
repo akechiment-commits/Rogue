@@ -426,7 +426,7 @@ export const WANDS = [
   { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, desc:"壁に当てると一直線上の壁を掘り進む。壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
   { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, desc:"振ると対象の目の前に瞬間移動する。壊しても何も起こらない。",                     tile:24 },
   { name:"テレポートの杖", type:"wand", effect:"warp",      charges:4, desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
-  { name:"金縛りの杖",   type:"wand", effect:"paralyze",  charges:5, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。",               tile:24 },
+  { name:"金縛りの杖",   type:"wand", effect:"paralyze",  charges:5, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。祝福：2回アクションが必要な強金縛り。呪い：対象が200ターン状態異常（金縛り・眠り・鈍足）を防ぐ力を得る。",               tile:24 },
   { name:"眠りの杖",     type:"wand", effect:"sleep",      charges:5, desc:"振ると対象を眠りに落とす。眠りの罠と同様の効果。",                                   tile:24 },
   { name:"祝福の杖",     type:"wand", effect:"bless_wand", charges:3, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
   { name:"呪いの杖",     type:"wand", effect:"curse_wand", charges:3, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
@@ -1044,8 +1044,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") { p.sleepTurns = 0; p.hasteTurns = (p.hasteTurns || 0) + 5; ml.push("眠気が吹き飛んだ！体が覚醒した！(2倍速5ターン)【呪→覚醒】"); }
       } else {
         const t = Math.max(1, Math.round((val + rng(-1, 1)) * (blessed ? 2 : 1)));
-        if (kind === "monster") { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！${blessed ? "(強眠)" : ""}`); }
-        if (kind === "player") { p.sleepTurns = (p.sleepTurns || 0) + t; ml.push(`眠りに落ちた...(${t}ターン)${blessed ? "(強眠)" : ""}`); }
+        if (kind === "monster") {
+          if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); }
+          else { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！${blessed ? "(強眠)" : ""}`); }
+        }
+        if (kind === "player") {
+          if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため効かなかった！"); }
+          else { p.sleepTurns = (p.sleepTurns || 0) + t; ml.push(`眠りに落ちた...(${t}ターン)${blessed ? "(強眠)" : ""}`); }
+        }
       }
       break;
     }
@@ -1072,12 +1078,22 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       break;
     case "paralyze":
       if (cursed) {
-        // 反転→金縛り解消
-        if (kind === "monster") { target.paralyzed = false; ml.push(`${target.name}の金縛りが解けた！`); }
-        if (kind === "player") { p.paralyzeTurns = 0; ml.push("体がすっきりした。金縛りが解けた！【呪→解金縛り】"); }
+        // 呪い→状態異常防止200ターン
+        if (kind === "monster") { target.statusImmune = (target.statusImmune || 0) + 200; ml.push(`${target.name}は状態異常を防ぐ力を得た！(200ターン)`); }
+        if (kind === "player")  { p.statusImmune = (p.statusImmune || 0) + 200; ml.push("状態異常を防ぐ力が宿った！(200ターン)【呪→状態防止】"); }
       } else {
-        if (kind === "monster") { target.paralyzed = true; ml.push(`${target.name}は金縛りになった！${blessed ? "(強力)" : ""}`); }
-        if (kind === "player") { const _pt = blessed ? 20 : 10; p.paralyzeTurns = _pt; ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強力)" : ""}`); }
+        if (kind === "monster") {
+          if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); break; }
+          target.paralyzed = true;
+          if (blessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
+          else ml.push(`${target.name}は金縛りになった！`);
+        }
+        if (kind === "player") {
+          if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため効かなかった！"); break; }
+          const _pt = blessed ? 20 : 10;
+          p.paralyzeTurns = _pt;
+          ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
+        }
       }
       break;
     case "confuse":
@@ -1232,7 +1248,10 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   for (const { x, y } of tiles) {
     const mon = dg.monsters.find(m => m.x === x && m.y === y);
     if (mon) {
-      if (mon.paralyzed) { mon.paralyzed = false; ml.push(`${mon.name}の金縛りが解けた！`); }
+      if (mon.paralyzed) {
+        if ((mon.paralyzeHits || 0) > 1) { mon.paralyzeHits--; ml.push(`${mon.name}の強い金縛りが弱まった！(あと1回で解除)`); }
+        else { mon.paralyzed = false; mon.paralyzeHits = 0; ml.push(`${mon.name}の金縛りが解けた！`); }
+      }
       applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed);
     }
     if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
@@ -1454,7 +1473,10 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn) {
       } else {
         const mon = dg.monsters.find(m => m.x === nx && m.y === ny);
         if (mon) {
-          if (mon.paralyzed) { mon.paralyzed = false; ml.push(`${mon.name}の金縛りが解けた！`); }
+          if (mon.paralyzed) {
+            if ((mon.paralyzeHits || 0) > 1) { mon.paralyzeHits--; ml.push(`${mon.name}の強い金縛りが弱まった！(あと1回で解除)`); }
+            else { mon.paralyzed = false; mon.paralyzeHits = 0; ml.push(`${mon.name}の金縛りが解けた！`); }
+          }
           const dmg = rng(3, 8);
           mon.hp -= dmg;
           ml.push(`飛んできた${entity.name}が${mon.name}に命中！${dmg}ダメージ！`);
@@ -1747,10 +1769,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     return;
   }
 
-  /* any wand bolt hitting a monster clears its paralysis */
+  /* any wand bolt hitting a monster weakens/clears its paralysis */
   if (kind === "monster" && target.paralyzed) {
-    target.paralyzed = false;
-    ml.push(`${target.name}の金縛りが解けた！`);
+    if ((target.paralyzeHits || 0) > 1) {
+      target.paralyzeHits--;
+      ml.push(`${target.name}の強い金縛りが弱まった！(あと1回で解除)`);
+    } else {
+      target.paralyzed = false;
+      target.paralyzeHits = 0;
+      ml.push(`${target.name}の金縛りが解けた！`);
+    }
   }
 
   switch (eff) {
@@ -1944,6 +1972,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
       } else {
         if (kind === "monster") {
+          if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); break; }
           target.speed = Math.max(0.25, target.speed * 0.5);
           ml.push(`${target.name}は鈍足になった！`);
           if (_sBless) {
@@ -1954,6 +1983,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
+          if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため効かなかった！"); break; }
           p.slowTurns = (p.slowTurns || 0) + 10;
           ml.push("体が重くなった...(鈍足10ターン)");
           if (_sBless) {
@@ -2201,14 +2231,24 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "paralyze": {
+      const _pzBlessed = blMult > 1, _pzCursed = blMult < 1;
+      if (_pzCursed) {
+        // 呪い→対象が状態異常防止状態200ターン
+        if (kind === "monster") { target.statusImmune = (target.statusImmune || 0) + 200; ml.push(`${target.name}は状態異常を防ぐ力を得た！(200ターン)【呪】`); break; }
+        if (kind === "player")  { p.statusImmune = (p.statusImmune || 0) + 200; ml.push("状態異常を防ぐ力が宿った！(200ターン)【呪→状態防止】"); break; }
+        ml.push("魔法弾は効果なく消えた。"); break;
+      }
       if (kind === "monster") {
+        if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); break; }
         target.paralyzed = true;
-        ml.push(`${target.name}は金縛りになった！動けない！`);
+        if (_pzBlessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
+        else ml.push(`${target.name}は金縛りになった！動けない！`);
         break;
       }
       if (kind === "player") {
-        p.paralyzeTurns = 10;
-        ml.push("金縛りになった！(10ターン)");
+        if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため効かなかった！"); break; }
+        p.paralyzeTurns = _pzBlessed ? 20 : 10;
+        ml.push(`金縛りになった！(${p.paralyzeTurns}ターン)${_pzBlessed ? "(強金縛り)" : ""}`);
         break;
       }
       ml.push("魔法弾は効果なく消えた。");
@@ -2217,11 +2257,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "sleep": {
       const st = rng(3, 6);
       if (kind === "monster") {
+        if ((target.statusImmune || 0) > 0) { ml.push(`${target.name}には効かなかった！(状態防止中)`); break; }
         target.sleepTurns = (target.sleepTurns || 0) + st;
         ml.push(`${target.name}は眠りに落ちた！(${st}ターン)`);
         break;
       }
       if (kind === "player") {
+        if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため眠れなかった！"); break; }
         if (p.armor?.ability === "sleep_proof") {
           ml.push("しかし眠れなかった！(耐眠)");
         } else {
