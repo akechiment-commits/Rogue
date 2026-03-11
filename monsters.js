@@ -504,7 +504,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const map = dg.map,
     rooms = dg.rooms;
   const dist = Math.abs(pl.x - m.x) + Math.abs(pl.y - m.y);
-  const canSee = dist <= 10 && hasLOS(map, m.x, m.y, pl.x, pl.y);
+  const canSee = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y);
 
   if (canSee) {
     m.aware = true;
