@@ -1245,7 +1245,7 @@ export default function RoguelikeGame() {
         dg.items = dg.items.filter((i) => i !== it);
         go = true;
       } else if (it.type === "arrow" && !it.shopPrice) {
-        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce)) {
+        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30)) {
           ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
           dg.items = dg.items.filter((i) => i !== it);
           go = true;
@@ -1840,7 +1840,7 @@ export default function RoguelikeGame() {
             ml.push(`${it.value}枚の金貨を拾った！`);
             dg.items = dg.items.filter((i) => i !== it);
           } else if (it.type === "arrow" && !it.shopPrice) {
-            if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce)) {
+            if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30)) {
               ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
               dg.items = dg.items.filter((i) => i !== it);
             } else ml.push("持ち物がいっぱいだ！");

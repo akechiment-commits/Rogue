@@ -927,7 +927,7 @@ export function makePiercingArrow(c = 1) {
   return { ...PIERCING_ARROW_T, id:uid(), count:Math.min(99, c) };
 }
 
-export function addArrowsInv(inv, c, poison = false, pierce = false) {
+export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30) {
   let r = c;
   for (const i of inv) {
     if (i.type === "arrow" && !!i.poison === poison && !!i.pierce === pierce && i.count < 99) {
@@ -938,7 +938,7 @@ export function addArrowsInv(inv, c, poison = false, pierce = false) {
     }
   }
   while (r > 0) {
-    if (inv.length >= 30) return false;
+    if (inv.length >= maxInv) return false;
     const n = Math.min(r, 99);
     inv.push(pierce ? makePiercingArrow(n) : poison ? makePoisonArrow(n) : makeArrow(n));
     r -= n;
