@@ -352,6 +352,17 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
 
 /* ===== MONSTER AI ===== */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
+  /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
+  if (m.dormantHouse) return;
+  /* 通常仮眠：視界に入ったら個別に覚醒 */
+  if (m.dormant) {
+    if (dg.visible?.[m.y]?.[m.x]) {
+      m.dormant = false;
+      ml.push(`${m.name}が目を覚ました！`);
+    } else {
+      return;
+    }
+  }
   /* 状態異常防止：毎ターンカウントダウン */
   if ((m.statusImmune || 0) > 0) {
     m.statusImmune--;
