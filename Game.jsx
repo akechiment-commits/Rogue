@@ -3849,6 +3849,52 @@ export default function RoguelikeGame() {
             const _ct = rng(3, 8);
             p.confusedTurns = (p.confusedTurns || 0) + _ct;
             ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`);
+          } else if (pe === "slow") {
+            if ((p.statusImmune || 0) > 0) ml.push("鈍足成分！状態防止中のため効かなかった！");
+            else { p.slowTurns = (p.slowTurns || 0) + 10; ml.push("鈍足成分が！体が重くなった...(鈍足10ターン)"); }
+          } else if (pe === "darkness") {
+            p.darknessTurns = (p.darknessTurns || 0) + 20;
+            ml.push("暗闇成分が！視界が1マスになった...(20ターン)");
+          } else if (pe === "bewitch") {
+            p.bewitchedTurns = (p.bewitchedTurns || 0) + 50;
+            ml.push("幻惑成分が！周囲の見た目がおかしくなった！(50ターン)");
+          } else if (pe === "paralyze") {
+            if ((p.statusImmune || 0) > 0) ml.push("金縛り成分！状態防止中のため効かなかった！");
+            else { p.paralyzeTurns = (p.paralyzeTurns || 0) + 10; ml.push("金縛り成分が！体が動かない！(10ターン)"); }
+          // 呪い系効果
+          } else if (pe === "c_heal") {
+            p.poisoned = true;
+            ml.push("呪いの回復成分が！毒状態になった！攻撃力が徐々に下がっていく…");
+          } else if (pe === "c_poison") {
+            if (p.poisoned) {
+              p.poisoned = false;
+              if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+              ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
+            } else ml.push("解毒成分が入っていたが毒ではなかった。");
+          } else if (pe === "c_sleep") {
+            p.hasteTurns = (p.hasteTurns || 0) + 5;
+            ml.push("覚醒成分が！体が覚醒した！(2倍速5ターン)");
+          } else if (pe === "c_power") {
+            p.atk = Math.max(1, p.atk - 2);
+            ml.push("弱化成分が！攻撃力-2...");
+          } else if (pe === "c_mana") {
+            p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
+            ml.push("封印成分が！MP封印50ターン！");
+          } else if (pe === "c_confuse") {
+            p.sureHitTurns = (p.sureHitTurns || 0) + 100;
+            ml.push("必中成分が！必中状態になった！(100ターン)");
+          } else if (pe === "c_slow") {
+            p.hasteTurns = (p.hasteTurns || 0) + 10;
+            ml.push("加速成分が！体が軽くなった！(2倍速10ターン)");
+          } else if (pe === "c_darkness") {
+            for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
+            ml.push("地図成分が！フロア全体が見えた！");
+          } else if (pe === "c_bewitch") {
+            dg.traps.forEach(t => t.revealed = true);
+            ml.push("看破成分が！フロアの罠が全て見えた！");
+          } else if (pe === "c_paralyze") {
+            p.statusImmune = (p.statusImmune || 0) + 100;
+            ml.push("予防成分が！状態異常防止100ターン！");
           }
         }
       }
@@ -4722,7 +4768,7 @@ export default function RoguelikeGame() {
               (fi) => fi.x >= _boilRoom.x && fi.x < _boilRoom.x + _boilRoom.w &&
                       fi.y >= _boilRoom.y && fi.y < _boilRoom.y + _boilRoom.h,
             )) {
-              const _br = applyPotionToItem(it.effect, it.value || 0, _bi, dg, ml);
+              const _br = applyPotionToItem(it.effect, it.value || 0, _bi, dg, ml, it.cursed || false);
               if (_br === "burn") _boilBurnSet.push(_bi);
             }
             if (_boilBurnSet.length > 0) dg.items = dg.items.filter((fi) => !_boilBurnSet.includes(fi));

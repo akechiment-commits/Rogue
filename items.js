@@ -1174,16 +1174,33 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
 }
 
 export const POTION_FOOD_PREFIX = {
-  heal:   "回復の",
-  poison: "猛毒の",
-  fire:   "焼いた",
-  sleep:  "睡眠の",
-  power:  "強化の",
-  confuse:"混乱の",
-  mana:   "魔力の",
+  // 通常/祝福
+  heal:     "回復の",
+  poison:   "猛毒の",
+  fire:     "焼いた",  // special-cased
+  sleep:    "睡眠の",
+  power:    "強化の",
+  confuse:  "混乱の",
+  mana:     "魔力の",
+  slow:     "鈍足の",
+  darkness: "暗闇の",
+  bewitch:  "幻惑の",
+  paralyze: "金縛りの",
+  // 呪い（食べた時の効果が反転）
+  c_heal:     "猛毒の",
+  c_poison:   "解毒の",
+  // c_fire = 通常と同じ（焼いた、special-cased）
+  c_sleep:    "覚醒の",
+  c_power:    "弱化の",
+  c_mana:     "封印の",
+  c_confuse:  "必中の",
+  c_slow:     "加速の",
+  c_darkness: "地図の",
+  c_bewitch:  "看破の",
+  c_paralyze: "予防の",
 };
 
-export function applyPotionToItem(eff, val, item, dg, ml) {
+export function applyPotionToItem(eff, val, item, dg, ml, cursed = false) {
   if (item.type === "spellbook") {
     if (eff === "fire") {
       ml.push(`魔法書「${item.name}」が燃えてなくなった！`);
@@ -1219,6 +1236,7 @@ export function applyPotionToItem(eff, val, item, dg, ml) {
   if (item.type !== "food") return;
   if (!item.potionEffects) item.potionEffects = [];
   if (eff === "fire") {
+    // 呪いでも通常でも同じ（焼き調理）
     if (!item.cooked) {
       item.value = item.value * 2;
       item.cooked = true;
@@ -1229,13 +1247,14 @@ export function applyPotionToItem(eff, val, item, dg, ml) {
     }
     return;
   }
-  const pf = POTION_FOOD_PREFIX[eff];
+  const key = cursed ? `c_${eff}` : eff;
+  const pf = POTION_FOOD_PREFIX[key];
   if (!pf) return;
-  if (item.potionEffects.includes(eff)) {
+  if (item.potionEffects.includes(key)) {
     ml.push(`${item.name}は既に${pf}効果を持っている。`);
     return;
   }
-  item.potionEffects.push(eff);
+  item.potionEffects.push(key);
   item.name = pf + item.name;
   ml.push(`${item.name}になった！`);
 }
@@ -1272,7 +1291,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     }
     const it = dg.items.find(i => i.x === x && i.y === y);
     if (it) {
-      const br = applyPotionToItem(eff, val, it, dg, ml);
+      const br = applyPotionToItem(eff, val, it, dg, ml, cursed);
       if (br === "burn") {
         dg.items = dg.items.filter(i => i !== it);
         chargeShopItem(it, dg, ml);
