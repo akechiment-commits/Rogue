@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MW, MH, T, TI, rng, uid, clamp, DRO, computeFOV, corridorRange } from "./utils.js";
+import { MW, MH, T, TI, rng, uid, clamp, DRO, refreshFOV } from "./utils.js";
 import {
   MONS,
   hasLOS,
@@ -1203,7 +1203,7 @@ export default function RoguelikeGame() {
       isThief: false,
       deathCause: "不明の原因により",
     };
-    computeFOV(d.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), d.visible, d.explored, d.rooms, d);
+    refreshFOV(d, p);
     const s = { player: p, dungeon: d, floors: {}, ident: new Set(), fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {} };
     sr.current = s;
     setGs(s);
@@ -1637,7 +1637,7 @@ export default function RoguelikeGame() {
       pl.x = dir > 0 ? d.stairUp.x : d.stairDown.x;
       pl.y = dir > 0 ? d.stairUp.y : d.stairDown.y;
     }
-    computeFOV(d.map, pl.x, pl.y, (pl.darknessTurns || 0) > 0 ? 1 : corridorRange(pl.depth), d.visible, d.explored, d.rooms, d);
+    refreshFOV(d, pl);
     d.nextSpawnTurn = pl.turns + rng(10, 50);
     return d;
   }, []);
@@ -1736,16 +1736,7 @@ export default function RoguelikeGame() {
           }
         }
       }
-      computeFOV(
-        st.dungeon.map,
-        p.x,
-        p.y,
-        corridorRange(p.depth),
-        st.dungeon.visible,
-        st.dungeon.explored,
-        st.dungeon.rooms,
-        st.dungeon,
-      );
+      refreshFOV(st.dungeon, p);
       {
         const _dg = st.dungeon;
         if (
@@ -2173,7 +2164,7 @@ export default function RoguelikeGame() {
         if ((p.hasteTurns || 0) > 0 && !p.hasteUsed) {
           p.hasteUsed = true;
           /* FOVだけ更新して行動完了（モンスターは動かない） */
-          computeFOV(st.dungeon.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), st.dungeon.visible, st.dungeon.explored, st.dungeon.rooms, st.dungeon);
+          refreshFOV(st.dungeon, p);
         } else {
           if (p.hasteUsed) p.hasteUsed = false;
           endTurn(st, p, ml);
@@ -2859,7 +2850,7 @@ export default function RoguelikeGame() {
             ml.push("壁の中！ランダムにテレポートした。");
           }
           endTurn(sr.current, p, ml);
-          computeFOV(dg.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), dg.visible, dg.explored, dg.rooms, dg);
+          refreshFOV(dg, p);
           setTpSelectMode(null);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
           sr.current = { ...sr.current };
@@ -4674,7 +4665,7 @@ export default function RoguelikeGame() {
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
     }
     endTurn(sr.current, p, ml);
-    computeFOV(dg.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), dg.visible, dg.explored, dg.rooms, dg);
+    refreshFOV(dg, p);
     setSelIdx(null);
     setShowDesc(null);
     setShowInv(false);
@@ -6174,7 +6165,7 @@ export default function RoguelikeGame() {
                 if (_walk) { _p.x = _tx; _p.y = _ty; _ml.push("テレポートした！（目的地指定）【祝】"); }
                 else { const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1); _ml.push("壁の中！ランダムにテレポートした。"); }
                 endTurn(sr.current, _p, _ml);
-                computeFOV(_dg.map, _p.x, _p.y, (_p.darknessTurns || 0) > 0 ? 1 : corridorRange(_p.depth), _dg.visible, _dg.explored, _dg.rooms, _dg);
+                refreshFOV(_dg, _p);
                 setTpSelectMode(null);
                 setMsgs(prev => [...prev.slice(-80), ..._ml]);
                 sr.current = { ...sr.current };
@@ -6187,7 +6178,7 @@ export default function RoguelikeGame() {
                 const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1);
                 _ml.push("テレポートした！");
                 endTurn(sr.current, _p, _ml);
-                computeFOV(_dg.map, _p.x, _p.y, (_p.darknessTurns || 0) > 0 ? 1 : corridorRange(_p.depth), _dg.visible, _dg.explored, _dg.rooms, _dg);
+                refreshFOV(_dg, _p);
                 setTpSelectMode(null);
                 setMsgs(prev => [...prev.slice(-80), ..._ml]);
                 sr.current = { ...sr.current };
