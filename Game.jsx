@@ -226,8 +226,14 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     traps.some(t => t.x === x && t.y === y) ||
     springs.some(s => s.x === x && s.y === y) ||
     bigboxes.some(b => b.x === x && b.y === y);
-  const monCount = rng(6, 10) + depth;
-  for (let i = 0; i < monCount * 30 && mons.filter(m => m.dormantHouse).length < monCount; i++) {
+  /* 部屋の床タイル数の約40%を敵で埋める（みっちり） */
+  const roomFloorTiles = [];
+  for (let fy = room.y + 1; fy < room.y + room.h - 1; fy++)
+    for (let fx = room.x + 1; fx < room.x + room.w - 1; fx++)
+      if (map[fy][fx] === T.FLOOR && !(fx === su.x && fy === su.y) && !(fx === sd.x && fy === sd.y))
+        roomFloorTiles.push([fx, fy]);
+  const monCount = Math.max(10, Math.floor(roomFloorTiles.length * 0.4) + depth * 2);
+  for (let i = 0; i < monCount * 40 && mons.filter(m => m.dormantHouse).length < monCount; i++) {
     const mx = rng(room.x + 1, room.x + room.w - 2);
     const my = rng(room.y + 1, room.y + room.h - 2);
     if (map[my]?.[mx] !== T.FLOOR) continue;
@@ -296,10 +302,8 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
 function triggerMonsterHouse(dg, p, ml) {
   if (!dg.monsterHouseRoom) return;
   const r = dg.monsterHouseRoom;
-  /* プレイヤーが部屋内 or 隣接マスにいるか */
-  const inOrAdjacentToRoom = (px, py) =>
-    (px >= r.x - 1 && px < r.x + r.w + 1 && py >= r.y - 1 && py < r.y + r.h + 1);
-  if (!inOrAdjacentToRoom(p.x, p.y)) return;
+  /* プレイヤーが部屋内に入ったときのみ発動 */
+  if (p.x < r.x || p.x >= r.x + r.w || p.y < r.y || p.y >= r.y + r.h) return;
   const sleeping = dg.monsters.filter(m => m.dormantHouse);
   if (sleeping.length === 0) {
     dg.monsterHouseRoom = null;
@@ -1690,6 +1694,26 @@ export default function RoguelikeGame() {
         }
       }
       checkShopTheft(p, st.dungeon, ml);
+      /* ビッグルーム：15ターンごとに新規モンスター出現 */
+      if (st.dungeon.isBigRoom && p.turns % 15 === 0) {
+        const _br = st.dungeon.rooms[0];
+        if (_br) {
+          let _spawned = false;
+          for (let _a = 0; _a < 60 && !_spawned; _a++) {
+            const _bx = rng(_br.x + 1, _br.x + _br.w - 2);
+            const _by = rng(_br.y + 1, _br.y + _br.h - 2);
+            if (st.dungeon.map[_by]?.[_bx] !== T.FLOOR) continue;
+            if (_bx === p.x && _by === p.y) continue;
+            if (st.dungeon.monsters.some(_m => _m.x === _bx && _m.y === _by)) continue;
+            if (st.dungeon.traps.some(_t => _t.x === _bx && _t.y === _by)) continue;
+            const _bt = MONS[clamp(rng(0, p.depth + 1), 0, MONS.length - 1)];
+            st.dungeon.monsters.push({ ..._bt, id: uid(), x: _bx, y: _by, maxHp: _bt.hp,
+              turnAccum: 0, aware: true, dir: { x: 0, y: 1 }, lastPx: 0, lastPy: 0, patrolTarget: null });
+            ml.push(`${_bt.name}が現れた！`);
+            _spawned = true;
+          }
+        }
+      }
       moveMons(st.dungeon, p, ml);
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
       if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap")) {

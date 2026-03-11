@@ -97,9 +97,8 @@ export function computeFOV(map, px, py, rad, vis, exp, rooms = [], dg = null) {
     }
   }
 
-  // 視界内のオブジェクトを発見済みとしてマーク
+  // 視界内のアイテムを発見済みとしてマーク（罠は踏むまで非表示）
   if (dg) {
-    for (const t of dg.traps)  { if (vis[t.y]?.[t.x])  t.revealed    = true; }
     for (const it of dg.items) { if (vis[it.y]?.[it.x]) it.discovered = true; }
   }
 }
