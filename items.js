@@ -1109,7 +1109,6 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "player") {
         if (cursed) {
           for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
-          dg.traps.forEach(t => t.revealed = true);
           ml.push("呪われた薬！フロア全体が見えた！【呪→透視】");
         } else {
           const _dt = blessed ? 50 : 20;
@@ -2377,7 +2376,6 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _dkBlessed = blMult > 1, _dkCursed = blMult < 1;
       if (_dkCursed) {
         for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
-        dg.traps.forEach(t => t.revealed = true);
         if (kind === "player") ml.push("呪われた暗闇の杖！フロア全体が見えた！【呪→透視】");
         else ml.push("呪われた魔法弾がフロアを照らした！【呪→透視】");
         break;
