@@ -614,7 +614,11 @@ export const TRAPS = [
   { name:"吹き飛ばしの罠", effect:"blowback_trap",tile:51 },
 ];
 
+let _fireTrapDepth = 0;
 export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null) {
+  if (_fireTrapDepth > 5) return "stop";
+  _fireTrapDepth++;
+  try {
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は爆発で消し飛んだ！`);
@@ -909,6 +913,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       return "restart";
   }
+  } finally { _fireTrapDepth--; }
 }
 
 export function makeArrow(c = 1) {
