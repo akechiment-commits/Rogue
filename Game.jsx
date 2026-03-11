@@ -3462,8 +3462,7 @@ export default function RoguelikeGame() {
       } else if (k === "s") {
         e.preventDefault();
         act("search_traps");
-
-      else if (k === "q") act("shoot_arrow");
+      } else if (k === "q") act("shoot_arrow");
       else if (k === ">") act("stairs_down");
       else if (k === "<") act("stairs_up");
       else if (k === "f") act("interact");
