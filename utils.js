@@ -56,8 +56,29 @@ export const DRO = [
   [2, 2],
 ];
 
-export function computeFOV(map, px, py, rad, vis, exp) {
+export function corridorRange(depth) {
+  return depth >= 2 ? 2 : 6;
+}
+
+export function computeFOV(map, px, py, rad, vis, exp, rooms = []) {
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) vis[y][x] = false;
+
+  // 部屋内なら同じ部屋全体（+ 隣接壁）を表示（暗闇中は無効）
+  if (rad > 1) {
+    const playerRoom = rooms.find(r => px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h);
+    if (playerRoom) {
+      for (let ry = playerRoom.y - 1; ry <= playerRoom.y + playerRoom.h; ry++) {
+        for (let rx = playerRoom.x - 1; rx <= playerRoom.x + playerRoom.w; rx++) {
+          if (rx >= 0 && rx < MW && ry >= 0 && ry < MH) {
+            vis[ry][rx] = true;
+            exp[ry][rx] = true;
+          }
+        }
+      }
+    }
+  }
+
+  // 通路視界（レイキャスト）
   for (let a = 0; a < 360; a++) {
     const r = (a * Math.PI) / 180,
       ddx = Math.cos(r),
