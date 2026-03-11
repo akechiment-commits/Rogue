@@ -1,0 +1,715 @@
+import { rng, pick, uid, clamp, MW, MH, T, TI } from './utils.js';
+import { MONS } from './monsters.js';
+import {
+  ITEMS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
+  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice,
+} from './items.js';
+
+/* ===== BIG ROOM DUNGEON GENERATOR ===== */
+function genBigRoom(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rw = MW - 4, rh = MH - 4;
+  const rx = 2, ry = 2;
+  for (let dy = 0; dy < rh; dy++)
+    for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+  const room = { x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw / 2), cy: Math.floor(ry + rh / 2) };
+  const rooms = [room];
+  const su = { x: rx + 1, y: ry + 1 };
+  map[su.y][su.x] = T.SU;
+  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  map[sd.y][sd.x] = T.SD;
+  const mons = [];
+  const monCount = rng(8, 14) + depth;
+  for (let i = 0; i < monCount * 20 && mons.length < monCount; i++) {
+    const mx = rng(rx + 1, rx + rw - 2), my = rng(ry + 1, ry + rh - 2);
+    if (map[my]?.[mx] !== T.FLOOR) continue;
+    if (mx === su.x && my === su.y) continue;
+    if (mx === sd.x && my === sd.y) continue;
+    if (mons.some((m) => m.x === mx && m.y === my)) continue;
+    const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
+    mons.push({ ...t, id: uid(), x: mx, y: my, maxHp: t.hp, turnAccum: 0, aware: false,
+      dir: { x: [-1,1][rng(0,1)], y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
+      dormant: Math.random() < 0.15 });
+  }
+  const items = [];
+  const occ = (x, y) => items.some((i) => i.x === x && i.y === y) || mons.some((m) => m.x === x && m.y === y);
+  const placeInRoom = (obj) => {
+    for (let a = 0; a < 200; a++) {
+      const ix = rng(rx + 1, rx + rw - 2), iy = rng(ry + 1, ry + rh - 2);
+      if (map[iy][ix] !== T.FLOOR) continue;
+      if (ix === su.x && iy === su.y) continue;
+      if (ix === sd.x && iy === sd.y) continue;
+      if (occ(ix, iy)) continue;
+      obj.x = ix; obj.y = iy;
+      return true;
+    }
+    return false;
+  };
+  for (let i = 0; i < rng(20, 30); i++) {
+    const t = pick(ITEMS);
+    const it = { ...t, id: uid(), x: 0, y: 0 };
+    if (it.type === "gold") it.value = rng(5, 20 + depth * 10);
+    if (it.type !== "gold" && it.type !== "arrow") {
+      const _blessRoll = Math.random();
+      if (_blessRoll < 0.10) it.blessed = true;
+      else if (_blessRoll < 0.25) it.cursed = true;
+    }
+    if (placeInRoom(it)) items.push(it);
+  }
+  const traps = [];
+  const trapOcc = (x, y) => traps.some((t) => t.x === x && t.y === y) || occ(x, y);
+  for (let i = 0; i < rng(10, 20) + depth * 2; i++) {
+    for (let a = 0; a < 100; a++) {
+      const tx = rng(rx + 1, rx + rw - 2), ty = rng(ry + 1, ry + rh - 2);
+      if (map[ty][tx] !== T.FLOOR) continue;
+      if (tx === su.x && ty === su.y) continue;
+      if (tx === sd.x && ty === sd.y) continue;
+      if (trapOcc(tx, ty)) continue;
+      const t = pick(TRAPS);
+      traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
+      break;
+    }
+  }
+  const springs = [];
+  for (let i = 0; i < rng(2, 4); i++) {
+    for (let a = 0; a < 100; a++) {
+      const sx = rng(rx + 1, rx + rw - 2), sy = rng(ry + 1, ry + rh - 2);
+      if (map[sy][sx] !== T.FLOOR) continue;
+      if (occ(sx, sy) || traps.some(t => t.x === sx && t.y === sy) || springs.some(s => s.x === sx && s.y === sy)) continue;
+      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+      break;
+    }
+  }
+  const bigboxes = [];
+  for (let bi = 0; bi < rng(3, 6); bi++) {
+    for (let a = 0; a < 100; a++) {
+      const bx = rng(rx + 1, rx + rw - 2), by = rng(ry + 1, ry + rh - 2);
+      if (map[by][bx] !== T.FLOOR) continue;
+      if (occ(bx, by) || traps.some(t => t.x === bx && t.y === by) || springs.some(s => s.x === bx && s.y === by) || bigboxes.some(b => b.x === bx && b.y === by)) continue;
+      const bbt = pick(BB_TYPES);
+      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+      break;
+    }
+  }
+  const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
+  const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd,
+    visible: vis, explored: exp, shop: null, pentacles: [], isBigRoom: true };
+}
+
+/* ===== MONSTER HOUSE CONTENT GENERATOR ===== */
+function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, bigboxes, su, sd) {
+  const allOcc = (x, y) =>
+    mons.some(m => m.x === x && m.y === y) ||
+    items.some(i => i.x === x && i.y === y) ||
+    traps.some(t => t.x === x && t.y === y) ||
+    springs.some(s => s.x === x && s.y === y) ||
+    bigboxes.some(b => b.x === x && b.y === y);
+  /* 部屋の床タイル数の約40%を敵で埋める（みっちり） */
+  const roomFloorTiles = [];
+  for (let fy = room.y + 1; fy < room.y + room.h - 1; fy++)
+    for (let fx = room.x + 1; fx < room.x + room.w - 1; fx++)
+      if (map[fy][fx] === T.FLOOR && !(fx === su.x && fy === su.y) && !(fx === sd.x && fy === sd.y))
+        roomFloorTiles.push([fx, fy]);
+  const monCount = Math.max(10, Math.floor(roomFloorTiles.length * 0.4) + depth * 2);
+  for (let i = 0; i < monCount * 40 && mons.filter(m => m.dormantHouse).length < monCount; i++) {
+    const mx = rng(room.x + 1, room.x + room.w - 2);
+    const my = rng(room.y + 1, room.y + room.h - 2);
+    if (map[my]?.[mx] !== T.FLOOR) continue;
+    if ((mx === su.x && my === su.y) || (mx === sd.x && my === sd.y)) continue;
+    if (mons.some(m => m.x === mx && m.y === my)) continue;
+    const t = MONS[clamp(rng(0, depth + 2), 0, MONS.length - 1)];
+    mons.push({ ...t, id: uid(), x: mx, y: my, maxHp: t.hp, turnAccum: 0, aware: false,
+      dir: { x: [-1,1][rng(0,1)], y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
+      dormantHouse: true });
+  }
+  /* 多めのアイテム */
+  const itemCount = rng(8, 14);
+  let itemsPlaced = 0;
+  for (let i = 0; i < itemCount * 20 && itemsPlaced < itemCount; i++) {
+    const ix = rng(room.x, room.x + room.w - 1);
+    const iy = rng(room.y, room.y + room.h - 1);
+    if (map[iy][ix] !== T.FLOOR) continue;
+    if (allOcc(ix, iy)) continue;
+    const t = pick(ITEMS);
+    const it = { ...t, id: uid(), x: ix, y: iy };
+    if (it.type === "gold") it.value = rng(10, 30 + depth * 15);
+    if (it.type !== "gold" && it.type !== "arrow") {
+      const _br = Math.random();
+      if (_br < 0.12) it.blessed = true;
+      else if (_br < 0.28) it.cursed = true;
+    }
+    items.push(it);
+    itemsPlaced++;
+  }
+  /* 多めの罠 */
+  const trapCount = rng(4, 8);
+  let trapsPlaced = 0;
+  for (let i = 0; i < trapCount * 20 && trapsPlaced < trapCount; i++) {
+    const tx = rng(room.x + 1, room.x + room.w - 2);
+    const ty = rng(room.y + 1, room.y + room.h - 2);
+    if (map[ty][tx] !== T.FLOOR) continue;
+    if ((tx === su.x && ty === su.y) || (tx === sd.x && ty === sd.y)) continue;
+    if (allOcc(tx, ty)) continue;
+    const t = pick(TRAPS);
+    traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
+    trapsPlaced++;
+  }
+  /* 高確率で大箱・泉を追加 */
+  for (let bi = 0; bi < rng(2, 4); bi++) {
+    for (let a = 0; a < 80; a++) {
+      const bx = rng(room.x + 1, room.x + room.w - 2);
+      const by = rng(room.y + 1, room.y + room.h - 2);
+      if (map[by][bx] !== T.FLOOR) continue;
+      if (allOcc(bx, by)) continue;
+      const bbt = pick(BB_TYPES);
+      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+      break;
+    }
+  }
+  for (let si = 0; si < rng(1, 3); si++) {
+    for (let a = 0; a < 80; a++) {
+      const sx = rng(room.x + 1, room.x + room.w - 2);
+      const sy = rng(room.y + 1, room.y + room.h - 2);
+      if (map[sy][sx] !== T.FLOOR) continue;
+      if (allOcc(sx, sy)) continue;
+      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+      break;
+    }
+  }
+}
+
+/* ===== TRIGGER MONSTER HOUSE ===== */
+export function triggerMonsterHouse(dg, p, ml) {
+  if (!dg.monsterHouseRoom) return;
+  const r = dg.monsterHouseRoom;
+  /* プレイヤーが部屋内に入ったときのみ発動 */
+  if (p.x < r.x || p.x >= r.x + r.w || p.y < r.y || p.y >= r.y + r.h) return;
+  const sleeping = dg.monsters.filter(m => m.dormantHouse);
+  if (sleeping.length === 0) {
+    dg.monsterHouseRoom = null;
+    return;
+  }
+  sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; });
+  ml.push(`モンスターハウスだ！敵が一斉に目覚めた！(${sleeping.length}体)`);
+  dg.monsterSenseActive = true; /* このフロアの全モンスター位置が見えるようになる */
+  dg.monsterHouseRoom = null;
+}
+
+export function genDungeon(depth) {
+  /* テスト用: 3階(depth=2)は必ずビッグルーム */
+  if (depth === 2) return genBigRoom(depth);
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rooms = [];
+  const tgt = rng(4, 7);
+  for (let i = 0; i < tgt * 60 && rooms.length < tgt; i++) {
+    const roll = Math.random();
+    let rw,
+      rh,
+      isL = false;
+    if (roll < 0.06) {
+      rw = rng(3, 4);
+      rh = rng(3, 4);
+    } else if (roll < 0.12) {
+      rw = rng(12, Math.min(15, MW - 4));
+      rh = rng(8, Math.min(10, MH - 4));
+    } else if (roll < 0.2) {
+      isL = true;
+      rw = rng(6, 10);
+      rh = rng(5, 8);
+    } else {
+      rw = rng(4, 9);
+      rh = rng(3, 6);
+    }
+    const rx = rng(1, MW - rw - 2),
+      ry = rng(1, MH - rh - 2);
+    if (rx < 1 || ry < 1 || rx + rw > MW - 1 || ry + rh > MH - 1) continue;
+    if (
+      rooms.some(
+        (r) =>
+          rx < r.x + r.w && rx + rw > r.x && ry < r.y + r.h && ry + rh > r.y,
+      )
+    )
+      continue;
+    let rcx, rcy;
+    if (isL) {
+      const qx = rng(0, 1),
+        qy = rng(0, 1),
+        hw = Math.floor(rw / 2),
+        hh = Math.floor(rh / 2);
+      rcx = qx === 0 ? Math.floor(rx + (rw * 3) / 4) : Math.floor(rx + rw / 4);
+      rcy = qy === 0 ? Math.floor(ry + (rh * 3) / 4) : Math.floor(ry + rh / 4);
+      rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rcx, cy: rcy });
+      for (let dy = 0; dy < rh; dy++)
+        for (let dx = 0; dx < rw; dx++) {
+          const inQX = qx === 0 ? dx < hw : dx >= rw - hw;
+          const inQY = qy === 0 ? dy < hh : dy >= rh - hh;
+          if (!(inQX && inQY)) map[ry + dy][rx + dx] = T.FLOOR;
+        }
+    } else {
+      rcx = Math.floor(rx + rw / 2);
+      rcy = Math.floor(ry + rh / 2);
+      rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rcx, cy: rcy });
+      for (let dy = 0; dy < rh; dy++)
+        for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+    }
+  }
+  if (rooms.length < 2) return genDungeon(depth);
+  const conn = new Set([0]),
+    pairs = [];
+  while (conn.size < rooms.length) {
+    let best = Infinity,
+      fromI = -1,
+      toJ = -1;
+    for (const i of conn)
+      for (let j = 0; j < rooms.length; j++) {
+        if (conn.has(j)) continue;
+        const d =
+          Math.abs(rooms[i].cx - rooms[j].cx) +
+          Math.abs(rooms[i].cy - rooms[j].cy);
+        if (d < best) {
+          best = d;
+          fromI = i;
+          toJ = j;
+        }
+      }
+    if (fromI === -1) break;
+    pairs.push([fromI, toJ]);
+    conn.add(toJ);
+  }
+  for (const [ai, bi] of pairs) {
+    let { cx: x1, cy: y1 } = rooms[ai],
+      { cx: x2, cy: y2 } = rooms[bi];
+    if (Math.random() < 0.15) {
+      const mx = clamp(x1 + rng(-5, 5), 2, MW - 3),
+        my = clamp(y1 + rng(-5, 5), 2, MH - 3);
+      let tx = x1,
+        ty = y1;
+      while (tx !== mx) {
+        map[ty][tx] = T.FLOOR;
+        tx += tx < mx ? 1 : -1;
+      }
+      while (ty !== my) {
+        map[ty][tx] = T.FLOOR;
+        ty += ty < my ? 1 : -1;
+      }
+      while (tx !== x2) {
+        map[ty][tx] = T.FLOOR;
+        tx += tx < x2 ? 1 : -1;
+      }
+      while (ty !== y2) {
+        map[ty][tx] = T.FLOOR;
+        ty += ty < y2 ? 1 : -1;
+      }
+    } else if (Math.random() < 0.5) {
+      while (x1 !== x2) {
+        map[y1][x1] = T.FLOOR;
+        x1 += x1 < x2 ? 1 : -1;
+      }
+      while (y1 !== y2) {
+        map[y1][x1] = T.FLOOR;
+        y1 += y1 < y2 ? 1 : -1;
+      }
+    } else {
+      while (y1 !== y2) {
+        map[y1][x1] = T.FLOOR;
+        y1 += y1 < y2 ? 1 : -1;
+      }
+      while (x1 !== x2) {
+        map[y1][x1] = T.FLOOR;
+        x1 += x1 < x2 ? 1 : -1;
+      }
+    }
+  }
+  const roomConn = Array(rooms.length).fill(0);
+  for (const [ai2, bi2] of pairs) {
+    roomConn[ai2]++;
+    roomConn[bi2]++;
+  }
+  const shopLeaves = rooms
+    .map((_, i) => i)
+    .filter((i) => roomConn[i] === 1 && i !== 0 && i !== rooms.length - 1);
+  const shopFallback = rooms
+    .map((_, i) => i)
+    .filter((i) => i !== 0 && i !== rooms.length - 1);
+  const shopPool = shopLeaves.length > 0 ? shopLeaves : shopFallback;
+  let shopRoomIdx =
+    shopPool.length > 0 ? pick(shopPool) : -1;
+  const inShop = (x, y) =>
+    shopRoomIdx >= 0 &&
+    rooms[shopRoomIdx] &&
+    x >= rooms[shopRoomIdx].x &&
+    x < rooms[shopRoomIdx].x + rooms[shopRoomIdx].w &&
+    y >= rooms[shopRoomIdx].y &&
+    y < rooms[shopRoomIdx].y + rooms[shopRoomIdx].h;
+  const su = { x: rooms[0].cx, y: rooms[0].cy };
+  map[su.y][su.x] = T.SU;
+  const sd = { x: rooms[rooms.length - 1].cx, y: rooms[rooms.length - 1].cy };
+  map[sd.y][sd.x] = T.SD;
+  const mons = [];
+  for (let i = 0; i < rng(6, 10) + depth; i++) {
+    const rm = rooms[rng(1, rooms.length - 1)];
+    if (!rm || rm === rooms[shopRoomIdx]) continue;
+    const mx = rng(rm.x + 1, rm.x + rm.w - 2),
+      my = rng(rm.y + 1, rm.y + rm.h - 2);
+    if (
+      map[my]?.[mx] === T.FLOOR &&
+      !mons.some((m) => m.x === mx && m.y === my)
+    ) {
+      const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
+      mons.push({
+        ...t,
+        id: uid(),
+        x: mx,
+        y: my,
+        maxHp: t.hp,
+        turnAccum: 0,
+        aware: false,
+        dir: { x: [-1, 1][rng(0, 1)], y: 0 },
+        lastPx: 0,
+        lastPy: 0,
+        patrolTarget: null,
+        dormant: Math.random() < 0.12,
+      });
+    }
+  }
+  /* 呪術師スポーン (2階以降に1体確定) */
+  if (depth >= 1) {
+    const _cwDef = MONS.find((m) => m.wandEffect === "curse_wand");
+    if (_cwDef) {
+      const _cwRm = rooms[rng(1, rooms.length - 1)];
+      if (_cwRm) {
+        const _cwx = rng(_cwRm.x + 1, _cwRm.x + _cwRm.w - 2);
+        const _cwy = rng(_cwRm.y + 1, _cwRm.y + _cwRm.h - 2);
+        if (map[_cwy]?.[_cwx] === T.FLOOR && !mons.some((m) => m.x === _cwx && m.y === _cwy)) {
+          mons.push({
+            ..._cwDef, id: uid(), x: _cwx, y: _cwy, maxHp: _cwDef.hp,
+            turnAccum: 0, aware: false, dir: { x: 1, y: 0 },
+            lastPx: 0, lastPy: 0, patrolTarget: null,
+          });
+        }
+      }
+    }
+  }
+  /* 岩霊スポーン (2階以降に1体確定) */
+  if (depth >= 2) {
+    const _wwDef = MONS.find((m) => m.wallWalker);
+    if (_wwDef) {
+      const _wwRm = rooms[rng(1, rooms.length - 1)];
+      if (_wwRm) {
+        const _wwx = rng(_wwRm.x + 1, _wwRm.x + _wwRm.w - 2);
+        const _wwy = rng(_wwRm.y + 1, _wwRm.y + _wwRm.h - 2);
+        if (map[_wwy]?.[_wwx] === T.FLOOR && !mons.some((m) => m.x === _wwx && m.y === _wwy)) {
+          mons.push({
+            ..._wwDef, id: uid(), x: _wwx, y: _wwy, maxHp: _wwDef.hp,
+            turnAccum: 0, aware: false, dir: { x: 1, y: 0 },
+            lastPx: 0, lastPy: 0, patrolTarget: null,
+          });
+        }
+      }
+    }
+  }
+  const items = [];
+  const occ = (x, y) =>
+    inShop(x, y) || items.some((i) => i.x === x && i.y === y);
+  for (let i = 0; i < rng(15, 25); i++) {
+    const rm = pick(rooms);
+    const ix = rng(rm.x, rm.x + rm.w - 1),
+      iy = rng(rm.y, rm.y + rm.h - 1);
+    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
+      const t = pick(ITEMS);
+      const it = { ...t, id: uid(), x: ix, y: iy };
+      if (it.type === "gold") it.value = rng(5, 20 + depth * 10);
+      if (it.type !== "gold" && it.type !== "arrow") {
+        const _blessRoll = Math.random();
+        if (_blessRoll < 0.10)      it.blessed = true;
+        else if (_blessRoll < 0.25) it.cursed  = true;
+      }
+      if (it.type === "weapon" || it.type === "armor") {
+        const pr = Math.random();
+        if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
+        else if (pr < 0.2 + depth * 0.02) it.plus = 1;
+        if (Math.random() < 0.25) {
+          const abls =
+            it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+          it.ability = pick(abls).id;
+        }
+      }
+      items.push(it);
+    }
+  }
+  for (let i = 0; i < rng(3, 6); i++) {
+    const rm = pick(rooms);
+    const ix = rng(rm.x, rm.x + rm.w - 1),
+      iy = rng(rm.y, rm.y + rm.h - 1);
+    if (map[iy][ix] === T.FLOOR && !occ(ix, iy))
+      items.push({ ...ARROW_T, id: uid(), x: ix, y: iy, count: rng(3, 15) });
+  }
+  for (let i = 0; i < rng(2, 4); i++) {
+    const rm = pick(rooms);
+    const ix = rng(rm.x, rm.x + rm.w - 1),
+      iy = rng(rm.y, rm.y + rm.h - 1);
+    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
+      const t = pick(WANDS);
+      items.push({
+        ...t,
+        id: uid(),
+        x: ix,
+        y: iy,
+        charges: t.charges + rng(-1, 2),
+      });
+    }
+  }
+  for (let i = 0; i < rng(0, 2); i++) {
+    const rm = pick(rooms);
+    const ix = rng(rm.x, rm.x + rm.w - 1),
+      iy = rng(rm.y, rm.y + rm.h - 1);
+    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
+      items.push({
+        ...MAGIC_MARKER,
+        id: uid(),
+        x: ix,
+        y: iy,
+        charges: rng(1, 2),
+      });
+    }
+  }
+  /* Pen spawn (0〜1個/フロア) */
+  if (Math.random() < 0.4) {
+    const _penPool = ITEMS.filter((it) => it.type === "pen");
+    if (_penPool.length > 0) {
+      const rm = pick(rooms);
+      const ix = rng(rm.x, rm.x + rm.w - 1),
+        iy = rng(rm.y, rm.y + rm.h - 1);
+      if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
+        const _pt = pick(_penPool);
+        items.push({ ..._pt, id: uid(), x: ix, y: iy, charges: rng(2, 3) });
+      }
+    }
+  }
+  for (let i = 0; i < rng(1, 3); i++) {
+    const rm = pick(rooms);
+    const ix = rng(rm.x, rm.x + rm.w - 1),
+      iy = rng(rm.y, rm.y + rm.h - 1);
+    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
+      const sb = pick(SPELLBOOKS);
+      items.push({ ...sb, id: uid(), x: ix, y: iy });
+    }
+  }
+  for (let i = 0; i < rng(5, 10); i++) {
+    const rm = pick(rooms);
+    const ix = rng(rm.x, rm.x + rm.w - 1),
+      iy = rng(rm.y, rm.y + rm.h - 1);
+    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
+      const f = genFood();
+      items.push({ ...f, id: uid(), x: ix, y: iy });
+    }
+  }
+  for (let i = 0; i < rng(1, 3); i++) {
+    const rm = pick(rooms);
+    const ix = rng(rm.x, rm.x + rm.w - 1),
+      iy = rng(rm.y, rm.y + rm.h - 1);
+    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
+      const pt = makePot();
+      pt.x = ix;
+      pt.y = iy;
+      items.push(pt);
+    }
+  }
+  const traps = [];
+  const tc = rng(8, 15) + depth * 2;
+  for (let i = 0; i < tc; i++) {
+    const rm = pick(rooms);
+    const tx = rng(rm.x + 1, rm.x + rm.w - 2),
+      ty = rng(rm.y + 1, rm.y + rm.h - 2);
+    if (
+      map[ty][tx] === T.FLOOR &&
+      !(tx === su.x && ty === su.y) &&
+      !(tx === sd.x && ty === sd.y) &&
+      !traps.some((t) => t.x === tx && t.y === ty) &&
+      !occ(tx, ty)
+    ) {
+      const t = pick(TRAPS);
+      traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
+    }
+  }
+  const springs = [];
+  for (let i = 0; i < rng(1, 3); i++) {
+    const rm = pick(rooms);
+    const sx2 = rng(rm.x + 1, rm.x + rm.w - 2),
+      sy2 = rng(rm.y + 1, rm.y + rm.h - 2);
+    if (
+      map[sy2][sx2] === T.FLOOR &&
+      !(sx2 === su.x && sy2 === su.y) &&
+      !(sx2 === sd.x && sy2 === sd.y) &&
+      !traps.some((t) => t.x === sx2 && t.y === sy2) &&
+      !occ(sx2, sy2) &&
+      !springs.some((s) => s.x === sx2 && s.y === sy2)
+    ) {
+      springs.push({
+        id: uid(),
+        x: sx2,
+        y: sy2,
+        tile: TI.SPRING,
+        contents: [],
+      });
+    }
+  }
+  const bigboxes = [];
+  for (let bi = 0; bi < 3; bi++) {
+    {
+      const br = pick(rooms);
+      for (let ba = 0; ba < 60; ba++) {
+        const bx = rng(br.x + 1, br.x + br.w - 2),
+          by = rng(br.y + 1, br.y + br.h - 2);
+        if (map[by][bx] !== T.FLOOR) continue;
+        if (bx === su.x && by === su.y) continue;
+        if (bx === sd.x && by === sd.y) continue;
+        if (traps.some((t) => t.x === bx && t.y === by)) continue;
+        if (springs.some((s) => s.x === bx && s.y === by)) continue;
+        if (items.some((i) => i.x === bx && i.y === by)) continue;
+        if (bigboxes.some((b) => b.x === bx && b.y === by)) continue;
+        if (occ(bx, by)) continue;
+        const bbt = pick(BB_TYPES);
+        bigboxes.push({
+          id: uid(),
+          x: bx,
+          y: by,
+          tile: TI.BIGBOX,
+          kind: bbt.kind,
+          name: bbt.name,
+          capacity: bbt.cap(),
+          contents: [],
+        });
+        break;
+      }
+    }
+  }
+  const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
+  const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
+  let shopData = null;
+  if (shopRoomIdx >= 0) {
+    const sr2 = rooms[shopRoomIdx];
+    let entrance = null;
+    for (let xi = sr2.x - 1; xi <= sr2.x + sr2.w && !entrance; xi++) {
+      if (
+        xi >= 0 &&
+        xi < MW &&
+        sr2.y - 1 >= 0 &&
+        map[sr2.y - 1]?.[xi] === T.FLOOR
+      )
+        entrance = { x: xi, y: sr2.y - 1 };
+      if (
+        xi >= 0 &&
+        xi < MW &&
+        sr2.y + sr2.h < MH &&
+        map[sr2.y + sr2.h]?.[xi] === T.FLOOR
+      )
+        entrance = { x: xi, y: sr2.y + sr2.h };
+    }
+    for (let yi = sr2.y; yi < sr2.y + sr2.h && !entrance; yi++) {
+      if (sr2.x - 1 >= 0 && map[yi]?.[sr2.x - 1] === T.FLOOR)
+        entrance = { x: sr2.x - 1, y: yi };
+      if (sr2.x + sr2.w < MW && map[yi]?.[sr2.x + sr2.w] === T.FLOOR)
+        entrance = { x: sr2.x + sr2.w, y: yi };
+    }
+    if (!entrance) entrance = { x: sr2.cx, y: sr2.cy };
+    let insidePos;
+    if (entrance.y < sr2.y) insidePos = { x: entrance.x, y: sr2.y };
+    else if (entrance.y >= sr2.y + sr2.h)
+      insidePos = { x: entrance.x, y: sr2.y + sr2.h - 1 };
+    else if (entrance.x < sr2.x) insidePos = { x: sr2.x, y: entrance.y };
+    else insidePos = { x: sr2.x + sr2.w - 1, y: entrance.y };
+    const socc2 = (x, y) => items.some((i) => i.x === x && i.y === y);
+    const shopCands = [
+      ...ITEMS.filter((i) => i.type !== "gold"),
+      ...WANDS.map((w) => ({
+        ...w,
+        charges: Math.max(1, w.charges + rng(-1, 1)),
+      })),
+      ...SPELLBOOKS,
+      { ...ARROW_T },
+      { ...MAGIC_MARKER, charges: rng(1, 2) },
+    ];
+    const shopCols = clamp(Math.floor(sr2.w / 2), 2, 5);
+    const shopRows = clamp(Math.floor(sr2.h / 2), 2, 5);
+    const shopStartX = sr2.x + Math.floor((sr2.w - shopCols) / 2);
+    const shopStartY = sr2.y + Math.floor((sr2.h - shopRows) / 2);
+    for (let row = 0; row < shopRows; row++) {
+      for (let col = 0; col < shopCols; col++) {
+        const six = shopStartX + col;
+        const siy = shopStartY + row;
+        if (
+          map[siy]?.[six] === T.FLOOR &&
+          !socc2(six, siy) &&
+          !(six === insidePos.x && siy === insidePos.y)
+        ) {
+          const base = pick(shopCands);
+          const sit = { ...base, id: uid(), x: six, y: siy };
+          if (sit.type === "arrow") sit.count = rng(5, 20);
+          sit.shopPrice = Math.ceil(itemPrice(sit) * (1 + depth * 0.1));
+          items.push(sit);
+        }
+      }
+    }
+    const sk = {
+      id: uid(),
+      name: "店主",
+      hp: 100,
+      maxHp: 100,
+      atk: 12,
+      def: 6,
+      exp: 0,
+      speed: 1,
+      tile: TI.SHOPKEEPER,
+      type: "shopkeeper",
+      state: "friendly",
+      blockPos: { ...entrance },
+      homePos: { ...insidePos },
+      x: insidePos.x,
+      y: insidePos.y,
+      turnAccum: 0,
+      aware: false,
+      dir: { x: 0, y: 1 },
+      lastPx: 0,
+      lastPy: 0,
+      patrolTarget: null,
+      sleepTurns: 0,
+    };
+    mons.push(sk);
+    shopData = {
+      roomIdx: shopRoomIdx,
+      room: sr2,
+      entrance,
+      shopkeeperId: sk.id,
+      unpaidTotal: 0,
+    };
+  }
+  /* テスト用: 2階(depth=1)は必ずモンスターハウス */
+  let monsterHouseRoom = null;
+  if (depth === 1) {
+    /* 部屋0(スタート)と最後(ゴール)と店以外から最大の部屋を選ぶ */
+    const mhCands = rooms.filter((r, i) => i !== 0 && i !== rooms.length - 1 && i !== shopRoomIdx);
+    if (mhCands.length > 0) {
+      const mhRoom = mhCands.reduce((best, r) => (r.w * r.h > best.w * best.h ? r : best), mhCands[0]);
+      genMonsterHouseContent(mhRoom, depth, map, mons, items, traps, springs, bigboxes, su, sd);
+      monsterHouseRoom = mhRoom;
+    }
+  }
+  return {
+    map,
+    rooms,
+    monsters: mons,
+    items,
+    traps,
+    springs,
+    bigboxes,
+    stairUp: su,
+    stairDown: sd,
+    visible: vis,
+    explored: exp,
+    shop: shopData,
+    pentacles: [],
+    monsterHouseRoom,
+  };
+}
