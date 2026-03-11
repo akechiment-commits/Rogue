@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MW, MH, T, TI, rng, uid, clamp, DRO, refreshFOV } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem } from "./utils.js";
 import {
   MONS,
   hasLOS,
@@ -167,7 +167,7 @@ function genBigRoom(depth) {
     return false;
   };
   for (let i = 0; i < rng(20, 30); i++) {
-    const t = ITEMS[rng(0, ITEMS.length - 1)];
+    const t = pick(ITEMS);
     const it = { ...t, id: uid(), x: 0, y: 0 };
     if (it.type === "gold") it.value = rng(5, 20 + depth * 10);
     if (it.type !== "gold" && it.type !== "arrow") {
@@ -186,7 +186,7 @@ function genBigRoom(depth) {
       if (tx === su.x && ty === su.y) continue;
       if (tx === sd.x && ty === sd.y) continue;
       if (trapOcc(tx, ty)) continue;
-      const t = TRAPS[rng(0, TRAPS.length - 1)];
+      const t = pick(TRAPS);
       traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
       break;
     }
@@ -207,7 +207,7 @@ function genBigRoom(depth) {
       const bx = rng(rx + 1, rx + rw - 2), by = rng(ry + 1, ry + rh - 2);
       if (map[by][bx] !== T.FLOOR) continue;
       if (occ(bx, by) || traps.some(t => t.x === bx && t.y === by) || springs.some(s => s.x === bx && s.y === by) || bigboxes.some(b => b.x === bx && b.y === by)) continue;
-      const bbt = BB_TYPES[rng(0, BB_TYPES.length - 1)];
+      const bbt = pick(BB_TYPES);
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -252,7 +252,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     const iy = rng(room.y, room.y + room.h - 1);
     if (map[iy][ix] !== T.FLOOR) continue;
     if (allOcc(ix, iy)) continue;
-    const t = ITEMS[rng(0, ITEMS.length - 1)];
+    const t = pick(ITEMS);
     const it = { ...t, id: uid(), x: ix, y: iy };
     if (it.type === "gold") it.value = rng(10, 30 + depth * 15);
     if (it.type !== "gold" && it.type !== "arrow") {
@@ -272,7 +272,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     if (map[ty][tx] !== T.FLOOR) continue;
     if ((tx === su.x && ty === su.y) || (tx === sd.x && ty === sd.y)) continue;
     if (allOcc(tx, ty)) continue;
-    const t = TRAPS[rng(0, TRAPS.length - 1)];
+    const t = pick(TRAPS);
     traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
     trapsPlaced++;
   }
@@ -283,7 +283,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
       const by = rng(room.y + 1, room.y + room.h - 2);
       if (map[by][bx] !== T.FLOOR) continue;
       if (allOcc(bx, by)) continue;
-      const bbt = BB_TYPES[rng(0, BB_TYPES.length - 1)];
+      const bbt = pick(BB_TYPES);
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -455,7 +455,7 @@ function genDungeon(depth) {
     .filter((i) => i !== 0 && i !== rooms.length - 1);
   const shopPool = shopLeaves.length > 0 ? shopLeaves : shopFallback;
   let shopRoomIdx =
-    shopPool.length > 0 ? shopPool[rng(0, shopPool.length - 1)] : -1;
+    shopPool.length > 0 ? pick(shopPool) : -1;
   const inShop = (x, y) =>
     shopRoomIdx >= 0 &&
     rooms[shopRoomIdx] &&
@@ -534,11 +534,11 @@ function genDungeon(depth) {
   const occ = (x, y) =>
     inShop(x, y) || items.some((i) => i.x === x && i.y === y);
   for (let i = 0; i < rng(15, 25); i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const t = ITEMS[rng(0, ITEMS.length - 1)];
+      const t = pick(ITEMS);
       const it = { ...t, id: uid(), x: ix, y: iy };
       if (it.type === "gold") it.value = rng(5, 20 + depth * 10);
       if (it.type !== "gold" && it.type !== "arrow") {
@@ -553,25 +553,25 @@ function genDungeon(depth) {
         if (Math.random() < 0.25) {
           const abls =
             it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
-          it.ability = abls[rng(0, abls.length - 1)].id;
+          it.ability = pick(abls).id;
         }
       }
       items.push(it);
     }
   }
   for (let i = 0; i < rng(3, 6); i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy))
       items.push({ ...ARROW_T, id: uid(), x: ix, y: iy, count: rng(3, 15) });
   }
   for (let i = 0; i < rng(2, 4); i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const t = WANDS[rng(0, WANDS.length - 1)];
+      const t = pick(WANDS);
       items.push({
         ...t,
         id: uid(),
@@ -582,7 +582,7 @@ function genDungeon(depth) {
     }
   }
   for (let i = 0; i < rng(0, 2); i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
@@ -599,26 +599,26 @@ function genDungeon(depth) {
   if (Math.random() < 0.4) {
     const _penPool = ITEMS.filter((it) => it.type === "pen");
     if (_penPool.length > 0) {
-      const rm = rooms[rng(0, rooms.length - 1)];
+      const rm = pick(rooms);
       const ix = rng(rm.x, rm.x + rm.w - 1),
         iy = rng(rm.y, rm.y + rm.h - 1);
       if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-        const _pt = _penPool[rng(0, _penPool.length - 1)];
+        const _pt = pick(_penPool);
         items.push({ ..._pt, id: uid(), x: ix, y: iy, charges: rng(2, 3) });
       }
     }
   }
   for (let i = 0; i < rng(1, 3); i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const sb = SPELLBOOKS[rng(0, SPELLBOOKS.length - 1)];
+      const sb = pick(SPELLBOOKS);
       items.push({ ...sb, id: uid(), x: ix, y: iy });
     }
   }
   for (let i = 0; i < rng(5, 10); i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
@@ -627,7 +627,7 @@ function genDungeon(depth) {
     }
   }
   for (let i = 0; i < rng(1, 3); i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
@@ -640,7 +640,7 @@ function genDungeon(depth) {
   const traps = [];
   const tc = rng(8, 15) + depth * 2;
   for (let i = 0; i < tc; i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const tx = rng(rm.x + 1, rm.x + rm.w - 2),
       ty = rng(rm.y + 1, rm.y + rm.h - 2);
     if (
@@ -650,13 +650,13 @@ function genDungeon(depth) {
       !traps.some((t) => t.x === tx && t.y === ty) &&
       !occ(tx, ty)
     ) {
-      const t = TRAPS[rng(0, TRAPS.length - 1)];
+      const t = pick(TRAPS);
       traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
     }
   }
   const springs = [];
   for (let i = 0; i < rng(1, 3); i++) {
-    const rm = rooms[rng(0, rooms.length - 1)];
+    const rm = pick(rooms);
     const sx2 = rng(rm.x + 1, rm.x + rm.w - 2),
       sy2 = rng(rm.y + 1, rm.y + rm.h - 2);
     if (
@@ -679,7 +679,7 @@ function genDungeon(depth) {
   const bigboxes = [];
   for (let bi = 0; bi < 3; bi++) {
     {
-      const br = rooms[rng(0, rooms.length - 1)];
+      const br = pick(rooms);
       for (let ba = 0; ba < 60; ba++) {
         const bx = rng(br.x + 1, br.x + br.w - 2),
           by = rng(br.y + 1, br.y + br.h - 2);
@@ -691,7 +691,7 @@ function genDungeon(depth) {
         if (items.some((i) => i.x === bx && i.y === by)) continue;
         if (bigboxes.some((b) => b.x === bx && b.y === by)) continue;
         if (occ(bx, by)) continue;
-        const bbt = BB_TYPES[rng(0, BB_TYPES.length - 1)];
+        const bbt = pick(BB_TYPES);
         bigboxes.push({
           id: uid(),
           x: bx,
@@ -765,7 +765,7 @@ function genDungeon(depth) {
           !socc2(six, siy) &&
           !(six === insidePos.x && siy === insidePos.y)
         ) {
-          const base = shopCands[rng(0, shopCands.length - 1)];
+          const base = pick(shopCands);
           const sit = { ...base, id: uid(), x: six, y: siy };
           if (sit.type === "arrow") sit.count = rng(5, 20);
           sit.shopPrice = Math.ceil(itemPrice(sit) * (1 + depth * 0.1));
@@ -1461,12 +1461,12 @@ export default function RoguelikeGame() {
       if (it.type === "gold") {
         p.gold += it.value;
         ml.push(`${it.value}枚の金貨を拾った！`);
-        dg.items = dg.items.filter((i) => i !== it);
+        removeFloorItem(dg, it);
         go = true;
       } else if (it.type === "arrow" && !it.shopPrice) {
         if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30)) {
           ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
-          dg.items = dg.items.filter((i) => i !== it);
+          removeFloorItem(dg, it);
           go = true;
         } else {
           ml.push(`${it.name || "矢"}がある。持ち物がいっぱいだ！`);
@@ -1500,7 +1500,7 @@ export default function RoguelikeGame() {
           }
           ml.push(_lbl + _itemPickupSuffix(it, sr.current?.ident) + "を拾った。");
         }
-        dg.items = dg.items.filter((i) => i !== it);
+        removeFloorItem(dg, it);
         go = true;
       } else {
         ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}がある。持ち物がいっぱいだ！`);
@@ -1542,7 +1542,7 @@ export default function RoguelikeGame() {
                 if (_inv.length === 0) {
                   ml.push("所持品がないので呪いは無効だった。");
                 } else {
-                  const _cit = _inv[rng(0, _inv.length - 1)];
+                  const _cit = pick(_inv);
                   const _citDN = itemDisplayName(_cit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                   if (_cit.cursed) {
                     ml.push(`${_citDN}は既に呪われていた！（効果なし）`);
@@ -1760,7 +1760,7 @@ export default function RoguelikeGame() {
             }
           }
           if (_cands.length > 0) {
-            const [_cx, _cy] = _cands[rng(0, _cands.length - 1)];
+            const [_cx, _cy] = pick(_cands);
             const _mt = MONS[clamp(rng(0, p.depth), 0, MONS.length - 1)];
             _dg.monsters.push({
               ..._mt,
@@ -1908,7 +1908,7 @@ export default function RoguelikeGame() {
         /* ===== 混乱状態：移動方向をランダム化 ===== */
         if ((p.confusedTurns || 0) > 0) {
           const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
-          const _crd = _cdirs[rng(0, _cdirs.length - 1)];
+          const _crd = pick(_cdirs);
           dx = _crd[0]; dy = _crd[1];
           ml.push("混乱して違う方向に動いた！");
         }
@@ -2112,11 +2112,11 @@ export default function RoguelikeGame() {
             if (_grIt.type === "gold") {
               p.gold += _grIt.value;
               ml.push(`${_grIt.value}枚の金貨を拾った！`);
-              dg.items = dg.items.filter((i) => i !== _grIt);
+              removeFloorItem(dg, _grIt);
             } else if (_grIt.type === "arrow" && !_grIt.shopPrice) {
               if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30)) {
                 ml.push(`${_grIt.name || "矢"}(${_grIt.count}本)を拾った。`);
-                dg.items = dg.items.filter((i) => i !== _grIt);
+                removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");
             } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
             else {
@@ -2139,7 +2139,7 @@ export default function RoguelikeGame() {
                 }
                 ml.push(_lbl2 + _itemPickupSuffix(_grIt, sr.current?.ident) + "を拾った。");
               }
-              dg.items = dg.items.filter((i) => i !== _grIt);
+              removeFloorItem(dg, _grIt);
             }
             acted = true;
           } else {
@@ -2560,12 +2560,12 @@ export default function RoguelikeGame() {
         trySynthesize(bb, ml);
       } else if (bb.kind === "change") {
         const kinds = ["potion", "weapon", "armor", "food", "wand", "arrow", "pot"];
-        const rt = kinds[rng(0, kinds.length - 1)];
+        const rt = pick(kinds);
         let nit;
         if (rt === "food") {
           nit = { ...genFood(), id: uid() };
         } else if (rt === "wand") {
-          const wt = WANDS[rng(0, WANDS.length - 1)];
+          const wt = pick(WANDS);
           nit = { ...wt, id: uid() };
         } else if (rt === "arrow") {
           nit = makeArrow(rng(3, 15));
@@ -2575,8 +2575,8 @@ export default function RoguelikeGame() {
           const pool = ITEMS.filter((i) => i.type === rt);
           nit = {
             ...(pool.length
-              ? pool[rng(0, pool.length - 1)]
-              : ITEMS[rng(0, ITEMS.length - 1)]),
+              ? pick(pool)
+              : pick(ITEMS)),
             id: uid(),
           };
         }
@@ -4162,7 +4162,7 @@ export default function RoguelikeGame() {
             return tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL;
           });
           if (_adjCands.length > 0) {
-            const [adx, ady] = _adjCands[rng(0, _adjCands.length - 1)];
+            const [adx, ady] = pick(_adjCands);
             p.x += adx; p.y += ady;
             ml.push("テレポートしたが...すぐ近くだ！【呪】");
           } else {
@@ -4302,7 +4302,7 @@ export default function RoguelikeGame() {
                   dg.map[_fy][_fx] !== T.SD && dg.map[_fy][_fx] !== T.SU)
                 _floorCands.push([_fx, _fy]);
           for (const gi of _toG) {
-            const [_rx, _ry] = _floorCands[rng(0, _floorCands.length - 1)];
+            const [_rx, _ry] = pick(_floorCands);
             gi.x = _rx; gi.y = _ry;
             dg.items.push(gi);
           }
@@ -4449,7 +4449,7 @@ export default function RoguelikeGame() {
           } else {
             const _otherRooms = dg.rooms.filter((r) => r !== _sumRoom);
             for (const _sm of _inRoom) {
-              const _tr = _otherRooms[rng(0, _otherRooms.length - 1)];
+              const _tr = pick(_otherRooms);
               if (!_tr) continue;
               for (let _att = 0; _att < 20; _att++) {
                 const _tx = rng(_tr.x + 1, _tr.x + _tr.w - 2);
@@ -4833,7 +4833,7 @@ export default function RoguelikeGame() {
       if (_candidates.length === 0) {
         ml.push(`${it.name}を読んだが、呪いで魔力が乱れ何も起きなかった。【呪】`);
       } else {
-        const _tgt = _candidates[rng(0, _candidates.length - 1)];
+        const _tgt = pick(_candidates);
         if (p.spells.includes(_tgt.id)) {
           const _curLv = p.spellLevels[_tgt.id] || 1;
           const _newLv = _curLv + 1;

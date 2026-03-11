@@ -22,7 +22,9 @@ export const TI = {
 };
 
 export const rng = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+export const pick = (arr) => arr[rng(0, arr.length - 1)];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+export const removeFloorItem = (dg, item) => { dg.items = dg.items.filter(i => i !== item); };
 
 let _u = 0;
 export const uid = () => `u${++_u}_${Date.now()}`;

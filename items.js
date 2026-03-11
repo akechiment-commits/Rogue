@@ -1,4 +1,4 @@
-import { rng, uid, clamp, MW, MH, T, TI, DRO } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem } from './utils.js';
 import { MONS } from './monsters.js';
 
 /* ===== 状態異常防止チェックヘルパー ===== */
@@ -427,7 +427,7 @@ export function genFood() {
   const cooked = Math.random() < 0.5;
   const names = cooked ? COOKED_FOODS : RAW_FOODS;
   const sizes = cooked ? COOKED_SIZES : RAW_SIZES;
-  const fn = names[rng(0, names.length - 1)];
+  const fn = pick(names);
   const sz = wPick(sizes);
   const ef = wPick(FOOD_EFFECTS);
   const nm = ef.l + sz.l + fn;
@@ -563,7 +563,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
 }
 
 export function makePot() {
-  const t = POTS[rng(0, POTS.length - 1)];
+  const t = pick(POTS);
   return { ...t, id:uid(), contents:[] };
 }
 
@@ -864,7 +864,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _stm = dg.monsters.find(m => m.x === tx && m.y === ty);
       if (_stm) {
-        const _stNewItem = { ...ITEMS[rng(0, ITEMS.length - 1)], id: uid() };
+        const _stNewItem = { ...pick(ITEMS), id: uid() };
         const _stFtm = new Set();
         const _stRoomm = dg.rooms[rng(0, dg.rooms.length - 1)];
         const _stXm = rng(_stRoomm.x, _stRoomm.x + _stRoomm.w - 1);
@@ -1308,7 +1308,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     if (it) {
       const br = applyPotionToItem(eff, val, it, dg, ml, cursed);
       if (br === "burn") {
-        dg.items = dg.items.filter(i => i !== it);
+        removeFloorItem(dg, it);
         chargeShopItem(it, dg, ml);
       }
     }
@@ -1329,7 +1329,7 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml) {
       if ((it.contents?.length || 0) > _nc) {
         const _fts = new Set();
         for (const _ci of (it.contents || [])) placeItemAt(dg, cx, cy, _ci, ml, _fts);
-        dg.items = dg.items.filter(i => i !== it);
+        removeFloorItem(dg, it);
         ml.push(`${it.name}が呪いの水を浴びて割れた！中身が飛び出した！【呪】`);
       } else {
         it.capacity = _nc;
@@ -1465,13 +1465,13 @@ export function monsterDrop(m, dg, ml, p = null) {
     drops.push(makeArrow(rng(3, 8)));
   }
   if (m.subtype === "wanduser") {
-    const _wt = WANDS[rng(0, WANDS.length - 1)];
+    const _wt = pick(WANDS);
     drops.push({ ..._wt, id: uid(), charges: Math.max(1, rng(1, _wt.charges)) });
   }
   /* 50% random drop from general item pool */
   if (Math.random() < 0.5) {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS];
-    const _t = _pool[rng(0, _pool.length - 1)];
+    const _t = pick(_pool);
     const _di = { ..._t, id: uid() };
     if (_di.type === "pen")  _di.charges = rng(2, 3);
     else if (_di.type === "wand") _di.charges = Math.max(1, _di.charges + rng(-1, 1));
@@ -1624,7 +1624,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               _bbAdj.push({ x: _nx, y: _ny });
           }
           if (_bbAdj.length > 0) {
-            const _bd = _bbAdj[rng(0, _bbAdj.length - 1)];
+            const _bd = pick(_bbAdj);
             target.x = _bd.x; target.y = _bd.y;
             ml.push(`${target.name}は階段の隣にテレポートした！【祝】`);
           } else {
@@ -1641,7 +1641,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                     !dg.pentacles?.some(pc => pc.x === fx && pc.y === fy))
                   _wbf2.push({ x:fx, y:fy });
             if (_wbf2.length > 0) {
-              const _wbd2 = _wbf2[rng(0, _wbf2.length - 1)];
+              const _wbd2 = pick(_wbf2);
               target.x = _wbd2.x; target.y = _wbd2.y;
               ml.push(`${target.name}はどこかへテレポートした！`);
             } else {
@@ -1665,7 +1665,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               !dg.pentacles?.some(pc => pc.x === fx && pc.y === fy))
             wbf.push({ x:fx, y:fy });
       if (wbf.length > 0) {
-        const wbd = wbf[rng(0, wbf.length - 1)];
+        const wbd = pick(wbf);
         target.x = wbd.x; target.y = wbd.y;
         ml.push(`${target.name}はどこかへテレポートした！`);
       } else {
@@ -1718,7 +1718,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 !dg.pentacles?.some(pc => pc.x === fx && pc.y === fy))
               _lbf.push({ x:fx, y:fy });
         if (_lbf.length > 0) {
-          const _lbd = _lbf[rng(0, _lbf.length - 1)];
+          const _lbd = pick(_lbf);
           target.x = _lbd.x; target.y = _lbd.y;
           ml.push(`${target.name}はどこかへランダムにテレポートした！【呪】`);
         } else {
@@ -1744,7 +1744,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     if (eff === "transform") {
       const others = BB_TYPES.filter(t => t.kind !== target.kind);
-      const nt = others[rng(0, others.length - 1)];
+      const nt = pick(others);
       const oldName = target.name;
       target.kind = nt.kind;
       target.name = nt.name;
@@ -1832,7 +1832,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           /* アイテムを目の前に引き寄せる */
           const _pullIx = p.x + dx, _pullIy = p.y + dy;
           if (_pullIx >= 0 && _pullIx < MW && _pullIy >= 0 && _pullIy < MH && dg.map[_pullIy][_pullIx] !== T.WALL && dg.map[_pullIy][_pullIx] !== T.BWALL) {
-            dg.items = dg.items.filter(i => i !== target);
+            removeFloorItem(dg, target);
             const ft = new Set();
             placeItemAt(dg, _pullIx, _pullIy, target, ml, ft);
             ml.push(`${target.name}を引き寄せた！`);
@@ -1873,7 +1873,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "item") {
         ml.push(`${target.name}が吹き飛んだ！`);
-        dg.items = dg.items.filter(i => i !== target);
+        removeFloorItem(dg, target);
         const res = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "item", target, p, luFn);
         if (target.shopPrice && dg.shop) {
           const r = dg.shop.room;
@@ -1949,16 +1949,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "item") {
         if (target.type === "potion" || target.type === "scroll") {
-          dg.items = dg.items.filter(i => i !== target);
+          removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`${target.name}は雷で焼けた！`);
         } else if (target.type === "pot") {
-          dg.items = dg.items.filter(i => i !== target);
+          removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`雷撃で${_dname_item(target)}が割れた！`);
           scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn);
         } else if (target.type === "bottle") {
-          dg.items = dg.items.filter(i => i !== target);
+          removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`${target.name}が雷撃で砕けた！`);
         } else if (target.type === "food") {
@@ -2024,7 +2024,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     case "transform": {
       if (kind === "monster") {
-        const nt = MONS[rng(0, MONS.length - 1)];
+        const nt = pick(MONS);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id:target.id, x:ox, y:oy, maxHp:nt.hp,
@@ -2042,7 +2042,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "item") {
         const nt = ITEMS[rng(0, ITEMS.length - 2)];
         const ox = target.x, oy = target.y;
-        dg.items = dg.items.filter(i => i !== target);
+        removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
         const ni = { ...nt, id:uid(), x:ox, y:oy };
         if (ni.type === "gold") ni.value = rng(5, 50);
@@ -2051,7 +2051,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
-        const nt = TRAPS[rng(0, TRAPS.length - 1)];
+        const nt = pick(TRAPS);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         Object.assign(target, { ...nt, id:target.id, x:target.x, y:target.y, revealed:true });
         break;
@@ -2134,7 +2134,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`穴掘りの魔法弾が自分に命中！${dmg}ダメージ！`);
       }
       if (kind === "item") {
-        dg.items = dg.items.filter(i => i !== target);
+        removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
         if (target.type === "pot") {
           if (target.contents && target.contents.length > 0) {
@@ -2163,7 +2163,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             if (dg.map[ly][lx] === T.FLOOR && !dg.monsters.some(m => m.x === lx && m.y === ly))
               _lpf.push({ x:lx, y:ly });
         if (_lpf.length === 0) { ml.push("テレポートに失敗した。"); break; }
-        const _lpd = _lpf[rng(0, _lpf.length - 1)];
+        const _lpd = pick(_lpf);
         if (kind === "monster") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${target.name}はどこかへテレポートした！【呪】`); }
         else if (kind === "item") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${_dname_item(target)}はどこかへ飛んだ！【呪】`); }
         else if (kind === "trap") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${target.name}はどこかへ飛んだ！【呪】`); }
@@ -2220,7 +2220,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 _wbAdj.push({ x: _nx, y: _ny });
             }
             if (_wbAdj.length > 0) {
-              const _wd = _wbAdj[rng(0, _wbAdj.length - 1)];
+              const _wd = pick(_wbAdj);
               target.x = _wd.x; target.y = _wd.y;
               ml.push(`${target.name}は階段の隣に飛んだ！`);
             } else {
@@ -2231,7 +2231,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                   if (dg.map[fy][fx] === T.FLOOR && !dg.monsters.find(m => m.x === fx && m.y === fy))
                     _wf.push({ x:fx, y:fy });
               if (_wf.length > 0) {
-                const _wd2 = _wf[rng(0, _wf.length - 1)];
+                const _wd2 = pick(_wf);
                 target.x = _wd2.x; target.y = _wd2.y;
                 ml.push(`${target.name}はどこかへ飛んだ！`);
               }
@@ -2249,7 +2249,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (dg.map[fy][fx] === T.FLOOR && !dg.monsters.find(m => m.x === fx && m.y === fy))
             floors.push({ x:fx, y:fy });
       if (floors.length === 0) { ml.push("テレポートに失敗した。"); break; }
-      const dest = floors[rng(0, floors.length - 1)];
+      const dest = pick(floors);
       if (kind === "monster") { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへテレポートした！`); }
       if (kind === "player")  { p.x = dest.x; p.y = dest.y; ml.push("テレポートした！"); }
       if (kind === "item")    { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへ飛んだ！`); }
@@ -2310,7 +2310,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.type === "pot") {
             const _newCap = Math.max(0, (target.capacity || 1) - 1);
             if ((target.contents?.length || 0) > _newCap) {
-              dg.items = dg.items.filter(i => i !== target);
+              removeFloorItem(dg, target);
               const _fts = new Set();
               for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
               ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！`);
@@ -2351,7 +2351,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (_bwCursed) {
           // 呪われた祝福の杖→所持品を1つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
-          const _t = _inv[rng(0, _inv.length - 1)];
+          const _t = pick(_inv);
           _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
           ml.push(`${_t.name}が呪われた！【呪】`);
         } else {
@@ -2387,7 +2387,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _potLoss = _cwBlessed ? 2 : 1;
           const _newCap = Math.max(0, (target.capacity || 1) - _potLoss);
           if ((target.contents?.length || 0) > _newCap) {
-            dg.items = dg.items.filter(i => i !== target);
+            removeFloorItem(dg, target);
             const _fts = new Set();
             for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
             ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
@@ -2418,7 +2418,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (_cwCursed) {
           // 呪われた呪いの杖→所持品を1つ祝福（反転）
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
-          const _t = _inv[rng(0, _inv.length - 1)];
+          const _t = pick(_inv);
           _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
           ml.push(`${_t.name}が祝福された！【呪→祝】`);
         } else {
@@ -2739,7 +2739,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
     return;
   }
   const dirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-  const rd = dirs[rng(0, dirs.length - 1)];
+  const rd = pick(dirs);
   applyWandEffect(eff, "player", p, rd[0], rd[1], dg, p, ml, luFn);
   const targets = [];
   for (const [adx, ady] of dirs) {
@@ -2870,7 +2870,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
         if (target.hp <= 0) { ml.push(`${target.name}を倒した！(+${target.exp}exp)`); p.exp += target.exp; monsterDrop(target, dg, ml, p); dg.monsters = dg.monsters.filter(m => m !== target); luFn(p, ml); }
       }
       if (kind === "item") {
-        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") { dg.items = dg.items.filter(i => i !== target); ml.push(`${target.name}は雷の魔法で焼けた！`); }
+        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") { removeFloorItem(dg, target); ml.push(`${target.name}は雷の魔法で焼けた！`); }
       } break;
     }
     case "sleep_bolt": {
@@ -2879,7 +2879,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
     }
     case "transform_magic": {
       if (kind === "monster") {
-        const nt = MONS[rng(0, MONS.length - 1)]; const prevName = target.name; const ox = target.x, oy = target.y;
+        const nt = pick(MONS); const prevName = target.name; const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, wallWalker: nt.wallWalker });
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;

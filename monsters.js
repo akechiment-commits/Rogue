@@ -1,4 +1,4 @@
-import { rng, uid, MW, MH, T, DRO } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO } from "./utils.js";
 import { getFarcastMode } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
@@ -400,7 +400,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   if ((m.confusedTurns || 0) > 0) {
     m.confusedTurns--;
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
-    const _rd = _cdirs[rng(0, _cdirs.length - 1)];
+    const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
       if (_cnx === pl.x && _cny === pl.y) {
@@ -431,7 +431,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (!_isPerm) m.darknessTurns--;
     if (!m.darkDir) {
       const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
-      m.darkDir = _ddirs[rng(0, _ddirs.length - 1)];
+      m.darkDir = pick(_ddirs);
     }
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
     if (isWalkable(dg.map, _dnx, _dny)) {
@@ -650,7 +650,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             (e) => !(m.dir && e.x === m.x - m.dir.x && e.y === m.y - m.dir.y),
           );
           const pool = filtered.length > 0 ? filtered : exits;
-          m.patrolTarget = pool[rng(0, pool.length - 1)];
+          m.patrolTarget = pick(pool);
         }
       }
 
@@ -705,11 +705,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       );
       let picked = null;
       if (nonRev.length > 0) {
-        picked = nonRev[rng(0, nonRev.length - 1)];
+        picked = pick(nonRev);
       } else {
         const revOpt = open.find((d) => d.x === rev.x && d.y === rev.y);
         if (revOpt) picked = revOpt;
-        else if (open.length > 0) picked = open[rng(0, open.length - 1)];
+        else if (open.length > 0) picked = pick(open);
       }
       if (picked) {
         const px2 = m.x + picked.x,
