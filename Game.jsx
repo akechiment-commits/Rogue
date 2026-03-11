@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem, monsterAt, itemAt } from "./utils.js";
 import {
   MONS,
   hasLOS,
@@ -1557,7 +1557,7 @@ export default function RoguelikeGame() {
               }
               _cwHit = true; break;
             }
-            const _hm = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty);
+            const _hm = monsterAt(dg, _tx, _ty);
             if (_hm) {
               _hm.speed = Math.max(0.25, (_hm.speed || 1) * 0.5);
               ml.push(`呪いの魔法弾が${_hm.name}に命中！鈍足になった！`);
@@ -1577,7 +1577,7 @@ export default function RoguelikeGame() {
               }
               _cwHit = true; break;
             }
-            const _hit = dg.items.find(i => i.x === _tx && i.y === _ty);
+            const _hit = itemAt(dg, _tx, _ty);
             if (_hit) {
               const _hitDN = itemDisplayName(_hit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               if (_hit.type !== "gold" && _hit.type !== "arrow") {
@@ -1749,7 +1749,7 @@ export default function RoguelikeGame() {
             for (let _sx = 0; _sx < MW; _sx++) {
               if (_dg.map[_sy][_sx] !== T.FLOOR) continue;
               if (_sx === p.x && _sy === p.y) continue;
-              if (_dg.monsters.find((m) => m.x === _sx && m.y === _sy)) continue;
+              if (_monsterAt(dg, _sx, _sy)) continue;
               /* ビッグルームはプレイヤーから8マス以上離れていれば可 */
               if (_dg.isBigRoom) {
                 if (Math.abs(_sx - p.x) + Math.abs(_sy - p.y) < 8) continue;
@@ -1919,7 +1919,7 @@ export default function RoguelikeGame() {
           const wab = p.weapon?.ability;
           const wabHas = (id) =>
             id === wab || p.weapon?.abilities?.includes(id) || false;
-          const mon = dg.monsters.find((m) => m.x === nx && m.y === ny);
+          const mon = monsterAt(dg, nx, ny);
           let reachMon = null;
           if (
             !mon &&
@@ -1934,7 +1934,7 @@ export default function RoguelikeGame() {
               ry = ny + dy;
             if (rx >= 0 && rx < MW && ry >= 0 && ry < MH)
               reachMon =
-                dg.monsters.find((m) => m.x === rx && m.y === ry) || null;
+                monsterAt(dg, rx, ry) || null;
           }
           const attackMon = mon || reachMon;
           if (attackMon) {
@@ -2240,7 +2240,7 @@ export default function RoguelikeGame() {
     const { player: p, dungeon: dg } = sr.current;
     const fd = p.facing || { dx: 0, dy: 1 };
     const nx = p.x + fd.dx, ny = p.y + fd.dy;
-    const mon = dg.monsters.find((m) => m.x === nx && m.y === ny);
+    const mon = monsterAt(dg, nx, ny);
     if (mon) {
       if (mon.type === "shopkeeper" && mon.state !== "hostile") {
         if (sr.current?.dungeon?.shop) {
@@ -2332,7 +2332,7 @@ export default function RoguelikeGame() {
           dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL
         )
           break;
-        if (dg.monsters.find((m) => m.x === nx && m.y === ny)) break;
+        if (monsterAt(dg, nx, ny)) break;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny)) break;
         p.x = nx;
         p.y = ny;
@@ -2413,7 +2413,7 @@ export default function RoguelikeGame() {
           fny < 0 ||
           fny >= MH ||
           dg.map[fny][fnx] === T.WALL || dg.map[fny][fnx] === T.BWALL ||
-          !!dg.monsters.find((m) => m.x === fnx && m.y === fny);
+          !!monsterAt(dg, fnx, fny);
         const _hpBefore = p.hp;
         endTurn(st, p, ml);
         if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
@@ -5093,7 +5093,7 @@ export default function RoguelikeGame() {
             dg.map[ty][tx] === T.BWALL
           )
             break;
-          const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
+          const m = monsterAt(dg, tx, ty);
           if (m) {
             m.hp -= dmg;
             if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
@@ -5197,7 +5197,7 @@ export default function RoguelikeGame() {
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-            const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
+            const m = monsterAt(dg, tx, ty);
             if (m) {
               if (_isFarcast) {
                 /* 遠投：splash せず個別に薬効果を適用、貫通 */
@@ -5247,7 +5247,7 @@ export default function RoguelikeGame() {
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-            const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
+            const m = monsterAt(dg, tx, ty);
             if (m) {
               const td = 3 + rng(0, 3);
               m.hp -= td;
@@ -5291,7 +5291,7 @@ export default function RoguelikeGame() {
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-            const m = dg.monsters.find((m2) => m2.x === tx && m2.y === ty);
+            const m = monsterAt(dg, tx, ty);
             if (m) {
               m.hp -= td;
               const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;

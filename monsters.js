@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster } from "./utils.js";
 import { getFarcastMode } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
@@ -352,7 +352,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
       if (hitMon.hp <= 0) {
         ml.push(`${hitMon.name}は倒れた！`);
         opts.monsterDropFn?.(hitMon, dg, ml);
-        dg.monsters = dg.monsters.filter(o => o !== hitMon);
+        removeMonster(dg, hitMon);
       }
       if (!_isFc) return;
     }
@@ -413,7 +413,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           _other.hp -= _odmg;
           ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
           if (_other.hp <= 0) {
-            dg.monsters = dg.monsters.filter(o => o !== _other);
+            removeMonster(dg, _other);
             ml.push(`${_other.name}は倒れた！`);
           }
         } else if (isWalkable(dg.map, _cnx, _cny)) {
@@ -444,7 +444,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           _dother.hp -= _dodmg;
           ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
           if (_dother.hp <= 0) {
-            dg.monsters = dg.monsters.filter(o => o !== _dother);
+            removeMonster(dg, _dother);
             ml.push(`${_dother.name}は倒れた！`);
           }
         } else {

@@ -1,4 +1,4 @@
-import { rng, T, MW, MH, uid, clamp } from "./utils.js";
+import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster } from "./utils.js";
 import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt } from "./items.js";
 import { MONS } from "./monsters.js";
 
@@ -74,7 +74,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
           hp = true;
           break;
         }
-        const m = dg.monsters.find((m2) => m2.x === fx && m2.y === trap.y);
+        const m = monsterAt(dg, fx, trap.y);
         if (m) {
           const d = ARROW_T.atk + rng(0, 3);
           m.hp -= d;
@@ -150,7 +150,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
           _pahp = true;
           break;
         }
-        const m = dg.monsters.find((m2) => m2.x === fx && m2.y === trap.y);
+        const m = monsterAt(dg, fx, trap.y);
         if (m) {
           const d = ARROW_T.atk + rng(0, 3);
           m.hp -= d;
@@ -248,7 +248,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
               dg.map[_pny][_pnx] === T.WALL || dg.map[_pny][_pnx] === T.BWALL) {
             _bbHitWall = true; break;
           }
-          const _bm = dg.monsters.find(m => m.x === _pnx && m.y === _pny);
+          const _bm = monsterAt(dg, _pnx, _pny);
           if (_bm) { _bbHitMon = _bm; break; }
           p.x = _pnx; p.y = _pny;
         }
@@ -262,7 +262,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
           ml.push(`${_bbHitMon.name}に激突！お互いに10ダメージ！`);
           if (_bbHitMon.hp <= 0) {
             ml.push(`${_bbHitMon.name}は倒れた！`);
-            dg.monsters = dg.monsters.filter(m => m !== _bbHitMon);
+            removeMonster(dg, _bbHitMon);
           }
         }
       }

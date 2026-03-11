@@ -25,6 +25,9 @@ export const rng = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 export const pick = (arr) => arr[rng(0, arr.length - 1)];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const removeFloorItem = (dg, item) => { dg.items = dg.items.filter(i => i !== item); };
+export const monsterAt = (dg, x, y) => dg.monsters.find(m => m.x === x && m.y === y);
+export const itemAt = (dg, x, y) => dg.items.find(i => i.x === x && i.y === y);
+export const removeMonster = (dg, mon) => { dg.monsters = dg.monsters.filter(m => m !== mon); };
 
 let _u = 0;
 export const uid = () => `u${++_u}_${Date.now()}`;
