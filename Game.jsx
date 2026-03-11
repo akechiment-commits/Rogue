@@ -996,7 +996,7 @@ export default function RoguelikeGame() {
       isThief: false,
       deathCause: "不明の原因により",
     };
-    computeFOV(d.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), d.visible, d.explored, d.rooms);
+    computeFOV(d.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), d.visible, d.explored, d.rooms, d);
     const s = { player: p, dungeon: d, floors: {}, ident: new Set(), fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {} };
     sr.current = s;
     setGs(s);
@@ -1175,18 +1175,15 @@ export default function RoguelikeGame() {
         } else if (exp2) {
           /* Dim explored tiles */ ctx.fillStyle = "rgba(0,0,8,0.6)";
           ctx.fillRect(px2, py2, sz, sz);
-          /* 祝福マップ：探索済みタイルにアイテムを薄く表示 */
-          if (dg.itemsRevealed) {
-            const ri = dg.items.find((i) => i.x === x && i.y === y);
-            if (ri) { ctx.globalAlpha = 0.35; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
-          }
-          /* Show revealed traps dimly */ const tr = dg.traps.find(
-            (t2) => t2.x === x && t2.y === y && t2.revealed,
-          );
-          if (tr) {
-            ctx.globalAlpha = 0.3;
-            drawTile(ctx, ts, tr.tile, px2, py2, sz);
-            ctx.globalAlpha = 1;
+          /* 暗闇中は発見済みオブジェクトを非表示 */
+          const _inDark = (p.darknessTurns || 0) > 0;
+          if (!_inDark) {
+            /* 発見済みアイテムを薄く表示（祝福マップ時は未発見も含む） */
+            const ri = dg.items.find((i) => i.x === x && i.y === y && (i.discovered || dg.itemsRevealed));
+            if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
+            /* 発見済み罠を薄く表示 */
+            const tr = dg.traps.find((t2) => t2.x === x && t2.y === y && t2.revealed);
+            if (tr) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, tr.tile, px2, py2, sz); ctx.globalAlpha = 1; }
           }
         }
       }
@@ -1418,7 +1415,7 @@ export default function RoguelikeGame() {
       pl.x = dir > 0 ? d.stairUp.x : d.stairDown.x;
       pl.y = dir > 0 ? d.stairUp.y : d.stairDown.y;
     }
-    computeFOV(d.map, pl.x, pl.y, (pl.darknessTurns || 0) > 0 ? 1 : corridorRange(pl.depth), d.visible, d.explored, d.rooms);
+    computeFOV(d.map, pl.x, pl.y, (pl.darknessTurns || 0) > 0 ? 1 : corridorRange(pl.depth), d.visible, d.explored, d.rooms, d);
     d.nextSpawnTurn = pl.turns + rng(10, 50);
     return d;
   }, []);
@@ -1525,6 +1522,7 @@ export default function RoguelikeGame() {
         st.dungeon.visible,
         st.dungeon.explored,
         st.dungeon.rooms,
+        st.dungeon,
       );
       {
         const _dg = st.dungeon;
@@ -1949,7 +1947,7 @@ export default function RoguelikeGame() {
         if ((p.hasteTurns || 0) > 0 && !p.hasteUsed) {
           p.hasteUsed = true;
           /* FOVだけ更新して行動完了（モンスターは動かない） */
-          computeFOV(st.dungeon.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), st.dungeon.visible, st.dungeon.explored, st.dungeon.rooms);
+          computeFOV(st.dungeon.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), st.dungeon.visible, st.dungeon.explored, st.dungeon.rooms, st.dungeon);
         } else {
           if (p.hasteUsed) p.hasteUsed = false;
           endTurn(st, p, ml);
@@ -2630,7 +2628,7 @@ export default function RoguelikeGame() {
             ml.push("壁の中！ランダムにテレポートした。");
           }
           endTurn(sr.current, p, ml);
-          computeFOV(dg.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), dg.visible, dg.explored, dg.rooms);
+          computeFOV(dg.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), dg.visible, dg.explored, dg.rooms, dg);
           setTpSelectMode(null);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
           sr.current = { ...sr.current };
@@ -4445,7 +4443,7 @@ export default function RoguelikeGame() {
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
     }
     endTurn(sr.current, p, ml);
-    computeFOV(dg.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), dg.visible, dg.explored, dg.rooms);
+    computeFOV(dg.map, p.x, p.y, (p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth), dg.visible, dg.explored, dg.rooms, dg);
     setSelIdx(null);
     setShowDesc(null);
     setShowInv(false);
@@ -5942,7 +5940,7 @@ export default function RoguelikeGame() {
                 if (_walk) { _p.x = _tx; _p.y = _ty; _ml.push("テレポートした！（目的地指定）【祝】"); }
                 else { const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1); _ml.push("壁の中！ランダムにテレポートした。"); }
                 endTurn(sr.current, _p, _ml);
-                computeFOV(_dg.map, _p.x, _p.y, (_p.darknessTurns || 0) > 0 ? 1 : corridorRange(_p.depth), _dg.visible, _dg.explored, _dg.rooms);
+                computeFOV(_dg.map, _p.x, _p.y, (_p.darknessTurns || 0) > 0 ? 1 : corridorRange(_p.depth), _dg.visible, _dg.explored, _dg.rooms, _dg);
                 setTpSelectMode(null);
                 setMsgs(prev => [...prev.slice(-80), ..._ml]);
                 sr.current = { ...sr.current };
@@ -5955,7 +5953,7 @@ export default function RoguelikeGame() {
                 const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1);
                 _ml.push("テレポートした！");
                 endTurn(sr.current, _p, _ml);
-                computeFOV(_dg.map, _p.x, _p.y, (_p.darknessTurns || 0) > 0 ? 1 : corridorRange(_p.depth), _dg.visible, _dg.explored, _dg.rooms);
+                computeFOV(_dg.map, _p.x, _p.y, (_p.darknessTurns || 0) > 0 ? 1 : corridorRange(_p.depth), _dg.visible, _dg.explored, _dg.rooms, _dg);
                 setTpSelectMode(null);
                 setMsgs(prev => [...prev.slice(-80), ..._ml]);
                 sr.current = { ...sr.current };

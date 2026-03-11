@@ -60,7 +60,7 @@ export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }
 
-export function computeFOV(map, px, py, rad, vis, exp, rooms = []) {
+export function computeFOV(map, px, py, rad, vis, exp, rooms = [], dg = null) {
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) vis[y][x] = false;
 
   // 部屋内なら同じ部屋全体（+ 隣接壁）を表示（暗闇中は無効）
@@ -95,5 +95,11 @@ export function computeFOV(map, px, py, rad, vis, exp, rooms = []) {
       x += ddx * 0.5;
       y += ddy * 0.5;
     }
+  }
+
+  // 視界内のオブジェクトを発見済みとしてマーク
+  if (dg) {
+    for (const t of dg.traps)  { if (vis[t.y]?.[t.x])  t.revealed    = true; }
+    for (const it of dg.items) { if (vis[it.y]?.[it.x]) it.discovered = true; }
   }
 }
