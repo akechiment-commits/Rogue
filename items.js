@@ -90,6 +90,8 @@ export const ITEMS = [
   { name:"プレートメイル",   type:"armor",  def:8,                       desc:"最強の重装鎧。",                   tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, desc:"MPを20回復する。",                 tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  desc:"飲むと5ターン混乱する。投げると命中した敵を20ターン混乱させる。", tile:16 },
+  { name:"暗闇の薬",         type:"potion", effect:"darkness",           desc:"飲むと視界が1マスになる(20ターン)。投げると命中した敵を50ターン暗闇状態にする。", tile:16 },
+  { name:"惑わしの薬",       type:"potion", effect:"bewitch",            desc:"飲むと50ターン周囲の見た目が狂う。投げると命中した敵を50ターン逃走させる。", tile:16 },
   { name:"金貨",             type:"gold",   value:0,                     desc:"金貨。",                           tile:22 },
   { name:"識別の巻物", type:"scroll", effect:"identify",
     desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
@@ -429,6 +431,8 @@ export const WANDS = [
   { name:"祝福の杖",     type:"wand", effect:"bless_wand", charges:3, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
   { name:"呪いの杖",     type:"wand", effect:"curse_wand", charges:3, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
   { name:"混乱の杖",     type:"wand", effect:"confuse",    charges:5, desc:"振ると対象を混乱させる。自分なら5ターン、敵なら20ターン混乱する。水の瓶に当てると混乱の薬になる。", tile:24 },
+  { name:"暗闇の杖",    type:"wand", effect:"darkness",   charges:5, desc:"振ると対象を暗闇状態にする。自分なら視界が1マスになる(20ターン)。敵なら50ターンこちらを認識できず壁まで直進し途中の者を攻撃する。祝福：自分50ターン・敵永続。呪い：フロア全体が見えるようになる。水の瓶に当てると暗闇の薬になる。", tile:24 },
+  { name:"惑わしの杖",  type:"wand", effect:"bewitch",    charges:4, desc:"振ると対象を幻惑状態にする。自分なら50ターン周囲の見た目が狂う。敵なら50ターン逃げ回る。祝福：自分100ターン・敵永続。呪い：フロアの罠が全て見えるようになる。水の瓶に当てると惑わしの薬になる。", tile:24 },
 ];
 
 /* ===== BIG BOX TYPES ===== */
@@ -1098,6 +1102,52 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           const add = Math.min(Math.round(val * (blessed ? 1.5 : 1)), (p.maxMp || 20) - (p.mp || 0));
           p.mp = (p.mp || 0) + add;
           if (add > 0) ml.push(`MPが${add}回復した！${blessed ? "(祝福)" : ""}`);
+        }
+      }
+      break;
+    case "darkness":
+      if (kind === "player") {
+        if (cursed) {
+          for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
+          dg.traps.forEach(t => t.revealed = true);
+          ml.push("呪われた薬！フロア全体が見えた！【呪→透視】");
+        } else {
+          const _dt = blessed ? 50 : 20;
+          p.darknessTurns = (p.darknessTurns || 0) + _dt;
+          ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${blessed ? "(祝福)" : ""}`);
+        }
+      }
+      if (kind === "monster") {
+        if (cursed) {
+          target.darknessTurns = 0;
+          target.darkDir = null;
+          ml.push(`${target.name}の暗闇が晴れた！【呪→解除】`);
+        } else {
+          target.darknessTurns = blessed ? 9999 : 50;
+          target.darkDir = null;
+          target.aware = false;
+          ml.push(`${target.name}は暗闇に包まれた！${blessed ? "(永続)" : "(50ターン)"}`);
+        }
+      }
+      break;
+    case "bewitch":
+      if (kind === "player") {
+        if (cursed) {
+          dg.traps.forEach(t => t.revealed = true);
+          ml.push("呪われた薬！フロアの罠が全て見えた！【呪→罠看破】");
+        } else {
+          const _bt = blessed ? 100 : 50;
+          p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
+          ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${blessed ? "(祝福)" : ""}`);
+        }
+      }
+      if (kind === "monster") {
+        if (cursed) {
+          target.fleeingTurns = 0;
+          ml.push(`${target.name}の幻惑が解けた！【呪→解除】`);
+        } else {
+          target.fleeingTurns = blessed ? 9999 : 50;
+          ml.push(`${target.name}は幻惑状態になり逃げ出した！${blessed ? "(永続)" : "(50ターン)"}`);
         }
       }
       break;
@@ -2331,6 +2381,50 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       ml.push("魔法弾は効果なく消えた。");
       break;
     }
+    case "darkness": {
+      const _dkBlessed = blMult > 1, _dkCursed = blMult < 1;
+      if (_dkCursed) {
+        for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
+        dg.traps.forEach(t => t.revealed = true);
+        if (kind === "player") ml.push("呪われた暗闇の杖！フロア全体が見えた！【呪→透視】");
+        else ml.push("呪われた魔法弾がフロアを照らした！【呪→透視】");
+        break;
+      }
+      if (kind === "monster") {
+        target.darknessTurns = _dkBlessed ? 9999 : 50;
+        target.darkDir = null;
+        target.aware = false;
+        ml.push(`${target.name}は暗闇に包まれた！${_dkBlessed ? "(永続)" : "(50ターン)"}`);
+        break;
+      }
+      if (kind === "player") {
+        p.darknessTurns = (p.darknessTurns || 0) + (_dkBlessed ? 50 : 20);
+        ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${_dkBlessed ? "(祝福)" : ""}`);
+        break;
+      }
+      ml.push("魔法弾は効果なく消えた。");
+      break;
+    }
+    case "bewitch": {
+      const _bwBlessed = blMult > 1, _bwCursed = blMult < 1;
+      if (_bwCursed) {
+        dg.traps.forEach(t => t.revealed = true);
+        ml.push("呪われた惑わしの杖！フロアの罠が全て見えた！【呪→罠看破】");
+        break;
+      }
+      if (kind === "monster") {
+        target.fleeingTurns = _bwBlessed ? 9999 : 50;
+        ml.push(`${target.name}は幻惑状態になり逃げ出した！${_bwBlessed ? "(永続)" : "(50ターン)"}`);
+        break;
+      }
+      if (kind === "player") {
+        p.bewitchedTurns = (p.bewitchedTurns || 0) + (_bwBlessed ? 100 : 50);
+        ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${_bwBlessed ? "(祝福)" : ""}`);
+        break;
+      }
+      ml.push("魔法弾は効果なく消えた。");
+      break;
+    }
   }
 }
 
@@ -2433,7 +2527,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     if (it) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
-      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬" };
+      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬" };
       if (it.effect === "water" && BOTTLE_XFORM[eff]) {
         const nm = BOTTLE_XFORM[eff];
         Object.assign(it, { name: nm, effect: eff, value: eff === "sleep" ? 4 : 0 });

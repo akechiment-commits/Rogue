@@ -405,6 +405,66 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     return;
   }
 
+  /* ===== 暗闇状態：まっすぐ進み途中の者を攻撃 ===== */
+  if ((m.darknessTurns || 0) > 0) {
+    const _isPerm = m.darknessTurns >= 9999;
+    if (!_isPerm) m.darknessTurns--;
+    if (!m.darkDir) {
+      const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
+      m.darkDir = _ddirs[rng(0, _ddirs.length - 1)];
+    }
+    const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
+    if (_dnx >= 0 && _dnx < MW && _dny >= 0 && _dny < MH &&
+        dg.map[_dny]?.[_dnx] !== T.WALL && dg.map[_dny]?.[_dnx] !== T.BWALL) {
+      if (_dnx === pl.x && _dny === pl.y) {
+        const _pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
+        const _ddmg = Math.max(1, m.atk - _pdef + rng(-2, 2));
+        pl.deathCause = `${m.name}の攻撃で`;
+        pl.hp -= _ddmg;
+        ml.push(`暗闇の${m.name}が突進して攻撃！${_ddmg}ダメージ！`);
+        if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+        if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+      } else {
+        const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
+        if (_dother) {
+          const _dodmg = Math.max(1, m.atk - (_dother.def || 0) + rng(-1, 1));
+          _dother.hp -= _dodmg;
+          ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
+          if (_dother.hp <= 0) {
+            dg.monsters = dg.monsters.filter(o => o !== _dother);
+            ml.push(`${_dother.name}は倒れた！`);
+          }
+        } else {
+          m.x = _dnx; m.y = _dny;
+        }
+      }
+    } else {
+      m.darkDir = null; // 壁に当たったら方向リセット
+    }
+    if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`);
+    return;
+  }
+
+  /* ===== 幻惑状態：プレイヤーから逃げ回る ===== */
+  if ((m.fleeingTurns || 0) > 0) {
+    const _isPerm = m.fleeingTurns >= 9999;
+    if (!_isPerm) m.fleeingTurns--;
+    const _fcands = [];
+    for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+      const _fnx = m.x + _fmx, _fny = m.y + _fmy;
+      if (_fnx < 0 || _fnx >= MW || _fny < 0 || _fny >= MH) continue;
+      if (dg.map[_fny]?.[_fnx] === T.WALL || dg.map[_fny]?.[_fnx] === T.BWALL) continue;
+      if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+      if (_fnx === pl.x && _fny === pl.y) continue;
+      const _score = (_fnx - pl.x) * (_fnx - pl.x) + (_fny - pl.y) * (_fny - pl.y);
+      _fcands.push({ x: _fnx, y: _fny, score: _score });
+    }
+    _fcands.sort((a, b) => b.score - a.score);
+    if (_fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
+    if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`);
+    return;
+  }
+
   /* ===== 詰まり検出（位置履歴で停滞・往復を判定） ===== */
   m.posHistory = m.posHistory || [];
   m.posHistory.push({ x: m.x, y: m.y });
