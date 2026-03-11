@@ -1749,7 +1749,7 @@ export default function RoguelikeGame() {
             for (let _sx = 0; _sx < MW; _sx++) {
               if (_dg.map[_sy][_sx] !== T.FLOOR) continue;
               if (_sx === p.x && _sy === p.y) continue;
-              if (_monsterAt(dg, _sx, _sy)) continue;
+              if (monsterAt(_dg, _sx, _sy)) continue;
               /* ビッグルームはプレイヤーから8マス以上離れていれば可 */
               if (_dg.isBigRoom) {
                 if (Math.abs(_sx - p.x) + Math.abs(_sy - p.y) < 8) continue;
