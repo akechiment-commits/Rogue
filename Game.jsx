@@ -125,7 +125,194 @@ import { fireTrapPlayer } from "./traps.js";
 const CUSTOM_TILE_PATH = "./tiles";
 let customTileImages = {};
 const ST = 16;
+
+/* ===== BIG ROOM DUNGEON GENERATOR ===== */
+function genBigRoom(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rw = MW - 4, rh = MH - 4;
+  const rx = 2, ry = 2;
+  for (let dy = 0; dy < rh; dy++)
+    for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+  const room = { x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw / 2), cy: Math.floor(ry + rh / 2) };
+  const rooms = [room];
+  const su = { x: rx + 1, y: ry + 1 };
+  map[su.y][su.x] = T.SU;
+  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  map[sd.y][sd.x] = T.SD;
+  const mons = [];
+  const monCount = rng(8, 14) + depth;
+  for (let i = 0; i < monCount * 20 && mons.length < monCount; i++) {
+    const mx = rng(rx + 1, rx + rw - 2), my = rng(ry + 1, ry + rh - 2);
+    if (map[my]?.[mx] !== T.FLOOR) continue;
+    if (mx === su.x && my === su.y) continue;
+    if (mx === sd.x && my === sd.y) continue;
+    if (mons.some((m) => m.x === mx && m.y === my)) continue;
+    const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
+    mons.push({ ...t, id: uid(), x: mx, y: my, maxHp: t.hp, turnAccum: 0, aware: false,
+      dir: { x: [-1,1][rng(0,1)], y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
+      dormant: Math.random() < 0.15 });
+  }
+  const items = [];
+  const occ = (x, y) => items.some((i) => i.x === x && i.y === y) || mons.some((m) => m.x === x && m.y === y);
+  const placeInRoom = (obj) => {
+    for (let a = 0; a < 200; a++) {
+      const ix = rng(rx + 1, rx + rw - 2), iy = rng(ry + 1, ry + rh - 2);
+      if (map[iy][ix] !== T.FLOOR) continue;
+      if (ix === su.x && iy === su.y) continue;
+      if (ix === sd.x && iy === sd.y) continue;
+      if (occ(ix, iy)) continue;
+      obj.x = ix; obj.y = iy;
+      return true;
+    }
+    return false;
+  };
+  for (let i = 0; i < rng(20, 30); i++) {
+    const t = ITEMS[rng(0, ITEMS.length - 1)];
+    const it = { ...t, id: uid(), x: 0, y: 0 };
+    if (it.type === "gold") it.value = rng(5, 20 + depth * 10);
+    if (it.type !== "gold" && it.type !== "arrow") {
+      const _blessRoll = Math.random();
+      if (_blessRoll < 0.10) it.blessed = true;
+      else if (_blessRoll < 0.25) it.cursed = true;
+    }
+    if (placeInRoom(it)) items.push(it);
+  }
+  const traps = [];
+  const trapOcc = (x, y) => traps.some((t) => t.x === x && t.y === y) || occ(x, y);
+  for (let i = 0; i < rng(10, 20) + depth * 2; i++) {
+    for (let a = 0; a < 100; a++) {
+      const tx = rng(rx + 1, rx + rw - 2), ty = rng(ry + 1, ry + rh - 2);
+      if (map[ty][tx] !== T.FLOOR) continue;
+      if (tx === su.x && ty === su.y) continue;
+      if (tx === sd.x && ty === sd.y) continue;
+      if (trapOcc(tx, ty)) continue;
+      const t = TRAPS[rng(0, TRAPS.length - 1)];
+      traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
+      break;
+    }
+  }
+  const springs = [];
+  for (let i = 0; i < rng(2, 4); i++) {
+    for (let a = 0; a < 100; a++) {
+      const sx = rng(rx + 1, rx + rw - 2), sy = rng(ry + 1, ry + rh - 2);
+      if (map[sy][sx] !== T.FLOOR) continue;
+      if (occ(sx, sy) || traps.some(t => t.x === sx && t.y === sy) || springs.some(s => s.x === sx && s.y === sy)) continue;
+      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+      break;
+    }
+  }
+  const bigboxes = [];
+  for (let bi = 0; bi < rng(3, 6); bi++) {
+    for (let a = 0; a < 100; a++) {
+      const bx = rng(rx + 1, rx + rw - 2), by = rng(ry + 1, ry + rh - 2);
+      if (map[by][bx] !== T.FLOOR) continue;
+      if (occ(bx, by) || traps.some(t => t.x === bx && t.y === by) || springs.some(s => s.x === bx && s.y === by) || bigboxes.some(b => b.x === bx && b.y === by)) continue;
+      const bbt = BB_TYPES[rng(0, BB_TYPES.length - 1)];
+      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+      break;
+    }
+  }
+  const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
+  const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd,
+    visible: vis, explored: exp, shop: null, pentacles: [], isBigRoom: true };
+}
+
+/* ===== MONSTER HOUSE CONTENT GENERATOR ===== */
+function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, bigboxes, su, sd) {
+  const allOcc = (x, y) =>
+    mons.some(m => m.x === x && m.y === y) ||
+    items.some(i => i.x === x && i.y === y) ||
+    traps.some(t => t.x === x && t.y === y) ||
+    springs.some(s => s.x === x && s.y === y) ||
+    bigboxes.some(b => b.x === x && b.y === y);
+  const monCount = rng(6, 10) + depth;
+  for (let i = 0; i < monCount * 30 && mons.filter(m => m.dormantHouse).length < monCount; i++) {
+    const mx = rng(room.x + 1, room.x + room.w - 2);
+    const my = rng(room.y + 1, room.y + room.h - 2);
+    if (map[my]?.[mx] !== T.FLOOR) continue;
+    if ((mx === su.x && my === su.y) || (mx === sd.x && my === sd.y)) continue;
+    if (mons.some(m => m.x === mx && m.y === my)) continue;
+    const t = MONS[clamp(rng(0, depth + 2), 0, MONS.length - 1)];
+    mons.push({ ...t, id: uid(), x: mx, y: my, maxHp: t.hp, turnAccum: 0, aware: false,
+      dir: { x: [-1,1][rng(0,1)], y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
+      dormantHouse: true });
+  }
+  /* 多めのアイテム */
+  const itemCount = rng(8, 14);
+  for (let i = 0; i < itemCount * 20 && items.length < items.length + itemCount; i++) {
+    const ix = rng(room.x, room.x + room.w - 1);
+    const iy = rng(room.y, room.y + room.h - 1);
+    if (map[iy][ix] !== T.FLOOR) continue;
+    if (allOcc(ix, iy)) continue;
+    const t = ITEMS[rng(0, ITEMS.length - 1)];
+    const it = { ...t, id: uid(), x: ix, y: iy };
+    if (it.type === "gold") it.value = rng(10, 30 + depth * 15);
+    if (it.type !== "gold" && it.type !== "arrow") {
+      const _br = Math.random();
+      if (_br < 0.12) it.blessed = true;
+      else if (_br < 0.28) it.cursed = true;
+    }
+    items.push(it);
+    if (items.filter(ii => ii.x >= room.x && ii.x < room.x + room.w && ii.y >= room.y && ii.y < room.y + room.h).length >= itemCount) break;
+  }
+  /* 多めの罠 */
+  const trapCount = rng(4, 8);
+  for (let i = 0; i < trapCount * 20; i++) {
+    const tx = rng(room.x + 1, room.x + room.w - 2);
+    const ty = rng(room.y + 1, room.y + room.h - 2);
+    if (map[ty][tx] !== T.FLOOR) continue;
+    if ((tx === su.x && ty === su.y) || (tx === sd.x && ty === sd.y)) continue;
+    if (allOcc(tx, ty)) continue;
+    const t = TRAPS[rng(0, TRAPS.length - 1)];
+    traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
+    if (traps.filter(tt => tt.x >= room.x && tt.x < room.x + room.w && tt.y >= room.y && tt.y < room.y + room.h).length >= trapCount) break;
+  }
+  /* 高確率で大箱・泉を追加 */
+  for (let bi = 0; bi < rng(2, 4); bi++) {
+    for (let a = 0; a < 80; a++) {
+      const bx = rng(room.x + 1, room.x + room.w - 2);
+      const by = rng(room.y + 1, room.y + room.h - 2);
+      if (map[by][bx] !== T.FLOOR) continue;
+      if (allOcc(bx, by)) continue;
+      const bbt = BB_TYPES[rng(0, BB_TYPES.length - 1)];
+      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+      break;
+    }
+  }
+  for (let si = 0; si < rng(1, 3); si++) {
+    for (let a = 0; a < 80; a++) {
+      const sx = rng(room.x + 1, room.x + room.w - 2);
+      const sy = rng(room.y + 1, room.y + room.h - 2);
+      if (map[sy][sx] !== T.FLOOR) continue;
+      if (allOcc(sx, sy)) continue;
+      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+      break;
+    }
+  }
+}
+
+/* ===== TRIGGER MONSTER HOUSE ===== */
+function triggerMonsterHouse(dg, p, ml) {
+  if (!dg.monsterHouseRoom) return;
+  const r = dg.monsterHouseRoom;
+  /* プレイヤーが部屋内 or 隣接マスにいるか */
+  const inOrAdjacentToRoom = (px, py) =>
+    (px >= r.x - 1 && px < r.x + r.w + 1 && py >= r.y - 1 && py < r.y + r.h + 1);
+  if (!inOrAdjacentToRoom(p.x, p.y)) return;
+  const sleeping = dg.monsters.filter(m => m.dormantHouse);
+  if (sleeping.length === 0) {
+    dg.monsterHouseRoom = null;
+    return;
+  }
+  sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; });
+  ml.push(`モンスターハウスだ！敵が一斉に目覚めた！(${sleeping.length}体)`);
+  dg.monsterHouseRoom = null;
+}
+
 function genDungeon(depth) {
+  /* テスト用: 3階(depth=2)は必ずビッグルーム */
+  if (depth === 2) return genBigRoom(depth);
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
   const tgt = rng(4, 7);
@@ -296,6 +483,7 @@ function genDungeon(depth) {
         lastPx: 0,
         lastPy: 0,
         patrolTarget: null,
+        dormant: Math.random() < 0.12,
       });
     }
   }
@@ -611,6 +799,17 @@ function genDungeon(depth) {
       unpaidTotal: 0,
     };
   }
+  /* テスト用: 2階(depth=1)は必ずモンスターハウス */
+  let monsterHouseRoom = null;
+  if (depth === 1) {
+    /* 部屋0(スタート)と最後(ゴール)と店以外から最大の部屋を選ぶ */
+    const mhCands = rooms.filter((r, i) => i !== 0 && i !== rooms.length - 1 && i !== shopRoomIdx);
+    if (mhCands.length > 0) {
+      const mhRoom = mhCands.reduce((best, r) => (r.w * r.h > best.w * best.h ? r : best), mhCands[0]);
+      genMonsterHouseContent(mhRoom, depth, map, mons, items, traps, springs, bigboxes, su, sd);
+      monsterHouseRoom = mhRoom;
+    }
+  }
   return {
     map,
     rooms,
@@ -625,6 +824,7 @@ function genDungeon(depth) {
     explored: exp,
     shop: shopData,
     pentacles: [],
+    monsterHouseRoom,
   };
 }
 /* Canvas drawing helper */ function drawTile(ctx, ts, idx, dx, dy, sz) {
@@ -1943,6 +2143,8 @@ export default function RoguelikeGame() {
         }
       }
       if (acted) {
+        /* モンスターハウストリガー */
+        triggerMonsterHouse(st.dungeon, p, ml);
         /* 2倍速：1回目の行動はendTurnせず、2回目でendTurn */
         if ((p.hasteTurns || 0) > 0 && !p.hasteUsed) {
           p.hasteUsed = true;
