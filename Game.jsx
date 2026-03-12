@@ -640,7 +640,7 @@ export default function RoguelikeGame() {
     const parts = [];
     if (tile === T.SD) parts.push("下り階段");
     else if (tile === T.SU) parts.push("上り階段");
-    const mon = dg.monsters.find(m => m.x === cx && m.y === cy);
+    const mon = dg.visible[cy]?.[cx] && dg.monsters.find(m => m.x === cx && m.y === cy);
     if (mon) parts.push(`${mon.name} HP:${mon.hp}/${mon.maxHp}`);
     const floorItems = dg.items.filter(i => i.x === cx && i.y === cy);
     for (const it of floorItems) {
@@ -2011,9 +2011,9 @@ export default function RoguelikeGame() {
       }
       if (dead) {
         if (!showScores) {
-          if (k === "arrowleft" || k === "arrowup" || k === "h" || k === "a") {
+          if (k === "arrowleft" || k === "arrowup" || k === "h") {
             e.preventDefault(); setGameOverSel(0);
-          } else if (k === "arrowright" || k === "arrowdown" || k === "l" || k === "d") {
+          } else if (k === "arrowright" || k === "arrowdown" || k === "l") {
             e.preventDefault(); setGameOverSel(1);
           } else if (k === "enter" || k === " " || k === "z") {
             e.preventDefault();
@@ -2032,8 +2032,8 @@ export default function RoguelikeGame() {
         const { player: _fsp } = sr.current || {};
         if (!_fsp) return;
         const MAX_FLOOR = 30;
-        const isUp   = k === "arrowup"   || k === "w" || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || k === "s" || e.code === "Numpad2";
+        const isUp   = k === "arrowup"   || e.code === "Numpad8";
+        const isDown = k === "arrowdown" || e.code === "Numpad2";
         if (isUp)   { setFloorSelectMode({ sel: Math.max(1, floorSelectMode.sel - 1) }); return; }
         if (isDown) { setFloorSelectMode({ sel: Math.min(MAX_FLOOR, floorSelectMode.sel + 1) }); return; }
         if (k === "z" || k === "enter") {
@@ -2068,10 +2068,10 @@ export default function RoguelikeGame() {
         const { player: p, dungeon: dg } = sr.current || {};
         if (!p || !dg) return;
         const { cx, cy } = tpSelectMode;
-        const isUp    = k === "arrowup"    || k === "w" || e.code === "Numpad8";
-        const isDown  = k === "arrowdown"  || k === "s" || e.code === "Numpad2";
-        const isLeft  = k === "arrowleft"  || k === "a" || e.code === "Numpad4";
-        const isRight = k === "arrowright" || k === "d" || e.code === "Numpad6";
+        const isUp    = k === "arrowup"    || e.code === "Numpad8";
+        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
+        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
+        const isRight = k === "arrowright" || e.code === "Numpad6";
         const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
         const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
         let ncx = cx, ncy = cy;
@@ -2116,10 +2116,10 @@ export default function RoguelikeGame() {
         const { player: p2, dungeon: dg2 } = sr.current || {};
         if (!p2 || !dg2) return;
         const { cx, cy } = lookMode;
-        const isUp    = k === "arrowup"    || k === "w" || e.code === "Numpad8";
-        const isDown  = k === "arrowdown"  || k === "s" || e.code === "Numpad2";
-        const isLeft  = k === "arrowleft"  || k === "a" || e.code === "Numpad4";
-        const isRight = k === "arrowright" || k === "d" || e.code === "Numpad6";
+        const isUp    = k === "arrowup"    || e.code === "Numpad8";
+        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
+        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
+        const isRight = k === "arrowright" || e.code === "Numpad6";
         const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
         const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
         let ncx = cx, ncy = cy;
@@ -2908,7 +2908,7 @@ export default function RoguelikeGame() {
         }
         return;
       }
-      if (k === "i" || k === "escape") {
+      if (k === "i" || k === "x" || k === "escape") {
         e.preventDefault();
         act("inventory");
         return;
