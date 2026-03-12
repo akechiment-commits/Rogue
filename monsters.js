@@ -470,7 +470,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           }
         }
       } else {
-        if (m.x !== _bp.x || m.y !== _bp.y) { m.x = _bp.x; m.y = _bp.y; }
+        if (m.x !== _bp.x || m.y !== _bp.y) {
+          /* 他のモンスターが既に同マスにいる場合はテレポートしない */
+          if (!dg.monsters.some(o => o !== m && o.x === _bp.x && o.y === _bp.y)) {
+            m.x = _bp.x; m.y = _bp.y;
+          }
+        }
       }
       return;
     }
@@ -656,8 +661,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           (_blocker.aware ? (_blocker.lastPx ?? pl.x) : (m.x)),
           (_blocker.aware ? (_blocker.lastPy ?? pl.y) : (m.y)),
           _blocker, 4, dg.pentacles);
-        if (_bNext && _bNext.x === m.x && _bNext.y === m.y) {
-          /* 正面衝突：スワップ */
+        if (_bNext && _bNext.x === m.x && _bNext.y === m.y && _blocker.type !== "shopkeeper") {
+          /* 正面衝突：スワップ（店主はスワップ不可） */
           _blocker.x = m.x; _blocker.y = m.y;
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
