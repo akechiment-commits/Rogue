@@ -615,11 +615,21 @@ export function genDungeon(depth) {
     }
     if (!entrance) entrance = { x: sr2.cx, y: sr2.cy };
     let insidePos;
-    if (entrance.y < sr2.y) insidePos = { x: entrance.x, y: sr2.y };
+    if (entrance.y < sr2.y) insidePos = { x: clamp(entrance.x, sr2.x, sr2.x + sr2.w - 1), y: sr2.y };
     else if (entrance.y >= sr2.y + sr2.h)
-      insidePos = { x: entrance.x, y: sr2.y + sr2.h - 1 };
-    else if (entrance.x < sr2.x) insidePos = { x: sr2.x, y: entrance.y };
-    else insidePos = { x: sr2.x + sr2.w - 1, y: entrance.y };
+      insidePos = { x: clamp(entrance.x, sr2.x, sr2.x + sr2.w - 1), y: sr2.y + sr2.h - 1 };
+    else if (entrance.x < sr2.x) insidePos = { x: sr2.x, y: clamp(entrance.y, sr2.y, sr2.y + sr2.h - 1) };
+    else insidePos = { x: sr2.x + sr2.w - 1, y: clamp(entrance.y, sr2.y, sr2.y + sr2.h - 1) };
+    /* insidePos がフロアタイルでない場合は部屋内の最初のフロアに補正 */
+    if (map[insidePos.y]?.[insidePos.x] !== T.FLOOR) {
+      let _fixed = false;
+      outer: for (let _iy = sr2.y; _iy < sr2.y + sr2.h; _iy++) {
+        for (let _ix = sr2.x; _ix < sr2.x + sr2.w; _ix++) {
+          if (map[_iy][_ix] === T.FLOOR) { insidePos = { x: _ix, y: _iy }; _fixed = true; break outer; }
+        }
+      }
+      if (!_fixed) insidePos = { x: sr2.cx, y: sr2.cy };
+    }
     const socc2 = (x, y) => items.some((i) => i.x === x && i.y === y);
     const shopCands = [
       ...ITEMS.filter((i) => i.type !== "gold"),

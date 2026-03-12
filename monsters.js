@@ -75,6 +75,13 @@ export const MONS = [
   { name: "デーモン",     hp: 80,  atk: 28, def: 9,  exp: 160, speed: 2,   tile: 58, kind: "beast", maxAttacks: 3 },
 ];
 
+/* ===== 警備員テンプレート ===== */
+export const GUARD_TEMPLATE = { name: "警備員", hp: 35, atk: 14, def: 5, exp: 25, speed: 1, tile: 59, kind: "humanoid" };
+export function makeGuard(x, y, plx, ply) {
+  return { ...GUARD_TEMPLATE, id: uid(), x, y, maxHp: GUARD_TEMPLATE.hp, type: "guard",
+    turnAccum: 0, aware: true, dir: { x: 0, y: 0 }, lastPx: plx, lastPy: ply, patrolTarget: null };
+}
+
 /* ===== モンスター生成ヘルパー ===== */
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
 export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false } = {}) {
@@ -429,11 +436,37 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
   /* shopkeeper */
   if (m.type === "shopkeeper") {
-    if (m.state === "friendly") return;
+    if (m.state === "friendly") {
+      /* 聖域の魔法陣の上にいる場合は隣接フロアタイルに退く */
+      if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === m.x && pc.y === m.y)) {
+        const _dirs4 = [[0,1],[0,-1],[1,0],[-1,0]];
+        for (const [_dx, _dy] of _dirs4) {
+          const _nx = m.x + _dx, _ny = m.y + _dy;
+          if (dg.map[_ny]?.[_nx] === T.FLOOR &&
+              !dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny) &&
+              !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) {
+            m.x = _nx; m.y = _ny; break;
+          }
+        }
+      }
+      return;
+    }
     if (m.state === "blocking") {
-      if (m.x !== m.blockPos.x || m.y !== m.blockPos.y) {
-        m.x = m.blockPos.x;
-        m.y = m.blockPos.y;
+      const _bp = m.blockPos;
+      const _bpSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bp.x && pc.y === _bp.y);
+      if (_bpSanc) {
+        /* 聖域なら隣接の別タイルに立つ */
+        const _dirs4 = [[0,1],[0,-1],[1,0],[-1,0]];
+        for (const [_dx, _dy] of _dirs4) {
+          const _nx = _bp.x + _dx, _ny = _bp.y + _dy;
+          if (dg.map[_ny]?.[_nx] === T.FLOOR &&
+              !dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny) &&
+              !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) {
+            m.x = _nx; m.y = _ny; return;
+          }
+        }
+      } else {
+        if (m.x !== _bp.x || m.y !== _bp.y) { m.x = _bp.x; m.y = _bp.y; }
       }
       return;
     }

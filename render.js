@@ -60,6 +60,7 @@ export const TILE_NAMES = {
   56: "wolf",
   57: "golem",
   58: "demon",
+  59: "guard",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -150,6 +151,7 @@ export function drawTile(ctx, ts, idx, dx, dy, sz) {
     56: { bg: null, fg: "#ddaa44", ch: "w" },
     57: { bg: null, fg: "#aaaaaa", ch: "O" },
     58: { bg: null, fg: "#cc2200", ch: "D" },
+    59: { bg: null, fg: "#4488ee", ch: "g" },
   };
   const td = TILE_RENDER[idx];
   if (td) {
