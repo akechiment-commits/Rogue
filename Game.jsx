@@ -8,6 +8,7 @@ import {
   getOpenDirs,
   monsterAI,
   makeMonster,
+  makeGuard,
   spawnMonsters,
 } from "./monsters.js";
 import {
@@ -919,9 +920,14 @@ export default function RoguelikeGame() {
           }
           if (_cands.length > 0) {
             const [_cx, _cy] = pick(_cands);
-            _dg.monsters.push(makeMonster(p.depth, _cx, _cy));
+            if (_dg.shopTheft) {
+              _dg.monsters.push(makeGuard(_cx, _cy, p.x, p.y));
+              ml.push("手配犯として警備員が現れた！");
+            } else {
+              _dg.monsters.push(makeMonster(p.depth, _cx, _cy));
+            }
           }
-          _dg.nextSpawnTurn = p.turns + rng(10, 50);
+          _dg.nextSpawnTurn = p.turns + (_dg.shopTheft ? rng(5, 15) : rng(10, 50));
         }
       }
       if (p.hp <= 0) {
@@ -1110,7 +1116,7 @@ export default function RoguelikeGame() {
               const _atkInWall = attackMon.wallWalker && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
               attackMon.hp -= d;
-              if (attackMon.type === "shopkeeper") attackMon.state = "hostile";
+              if (attackMon.type === "shopkeeper") { attackMon.state = "hostile"; dg.shopTheft = true; }
               const atkSfx =
                 (crit ? "会心！" : "") +
                 (wab?.startsWith("bane_") && attackMon.kind === wab.slice(5)
@@ -1262,6 +1268,7 @@ export default function RoguelikeGame() {
               p.inventory.push(_grIt);
               if (_grIt.shopPrice && dg.shop) {
                 dg.shop.unpaidTotal += _grIt.shopPrice;
+                dg.shopTheft = true;
                 const _sk2 = dg.monsters.find((m) => m.type === "shopkeeper" && m.state === "friendly");
                 if (_sk2) _sk2.state = "blocking";
                 ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
