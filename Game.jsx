@@ -765,6 +765,7 @@ export default function RoguelikeGame() {
     };
     dg.monsters.forEach((m) => {
       m.turnAccum += m.speed;
+      m.turnAttacks = 0;
       while (m.turnAccum >= 1) {
         m.turnAccum -= 1;
         monsterAI(m, dg, pl, ml, opts);
