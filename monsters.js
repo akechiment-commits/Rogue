@@ -619,21 +619,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* move toward target */
-    /* チェビシェフ最適な直接1歩を優先。壁に当たる場合のみBFSにフォールバック。
-       これにより斜め逃げへの追跡が正しく機能する。 */
-    const _ddx = Math.sign(tx - m.x), _ddy = Math.sign(ty - m.y);
-    let next = null;
-    if (_ddx !== 0 || _ddy !== 0) {
-      const _dnx = m.x + _ddx, _dny = m.y + _ddy;
-      /* 対角移動のコーナーすり抜け防止（BFSと同一ルール） */
-      const _cornerOk = (_ddx === 0 || _ddy === 0) ||
-        isWalkable(map, m.x + _ddx, m.y) || isWalkable(map, m.x, m.y + _ddy);
-      if (isWalkable(map, _dnx, _dny) && _cornerOk &&
-          !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _dnx && pc.y === _dny)) {
-        next = { x: _dnx, y: _dny };
-      }
-    }
-    if (!next) next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles);
+    /* BFSで最短経路を求める。部屋内での壁ぶつかりを防ぎ、通路への最適経路を辿る。 */
+    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles);
     if (next && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) return;
     if (next) {
       if (next.x === pl.x && next.y === pl.y) {
