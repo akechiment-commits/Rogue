@@ -771,6 +771,11 @@ export default function RoguelikeGame() {
       },
       monsterDropFn: (m, dg2, ml2) => monsterDrop(m, dg2, ml2, pl),
     };
+    /* 近い敵から処理することで通路でのチェーン移動を自然に解決する */
+    dg.monsters.sort((a, b) =>
+      (Math.abs(a.x - pl.x) + Math.abs(a.y - pl.y)) -
+      (Math.abs(b.x - pl.x) + Math.abs(b.y - pl.y))
+    );
     dg.monsters.forEach((m) => {
       m.turnAccum += m.speed;
       m.turnAttacks = 0;
@@ -3373,9 +3378,10 @@ export default function RoguelikeGame() {
             for (let x = 0; x < MW; x++) dg.explored[y][x] = true;
           dg.traps.forEach((t) => (t.revealed = true));
           if (it.blessed) {
-            // 祝福：全開示＋アイテム位置も地図に表示
+            // 祝福：全開示＋アイテム・敵の位置も地図に常時表示
             dg.itemsRevealed = true;
-            ml.push("フロア全体・罠・アイテムの位置が明らかになった！【祝】");
+            dg.monsterSenseActive = true;
+            ml.push("フロア全体・罠・アイテム・敵の位置が明らかになった！【祝】");
           } else {
             ml.push("フロア全体と罠が明らかになった！");
           }

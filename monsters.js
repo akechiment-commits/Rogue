@@ -475,7 +475,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const map = dg.map,
     rooms = dg.rooms;
   const dist = Math.abs(pl.x - m.x) + Math.abs(pl.y - m.y);
-  const canSee = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y);
+  /* 同じ部屋にいる場合は常に相互認識（大部屋でFOV外でも同様） */
+  const _monRoom = findRoom(rooms, m.x, m.y);
+  const _plRoom  = findRoom(rooms, pl.x, pl.y);
+  const _sameRoom = _monRoom !== null && _plRoom !== null &&
+    _monRoom.x === _plRoom.x && _monRoom.y === _plRoom.y;
+  const canSee = _sameRoom || ((dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y));
 
   if (canSee) {
     m.aware = true;
