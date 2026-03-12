@@ -485,7 +485,7 @@ export default function RoguelikeGame() {
             }
             continue;
           }
-          /* Item */ const it = dg.items.find((i) => i.x === x && i.y === y);
+          /* Item */ const it = dg.items.find((i) => i.x === x && i.y === y && !i.wallEmbedded);
           if (it) {
             const _itTile = (p.bewitchedTurns || 0) > 0
               ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 11 + y * 19) % 9]
@@ -506,7 +506,7 @@ export default function RoguelikeGame() {
           const _inDark = (p.darknessTurns || 0) > 0;
           if (!_inDark) {
             /* 発見済みアイテムを薄く表示（祝福マップ時は未発見も含む） */
-            const ri = dg.items.find((i) => i.x === x && i.y === y && (i.discovered || dg.itemsRevealed));
+            const ri = dg.items.find((i) => i.x === x && i.y === y && !i.wallEmbedded && (i.discovered || dg.itemsRevealed));
             if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
             /* 発見済み罠を薄く表示 */
             const tr = dg.traps.find((t2) => t2.x === x && t2.y === y && t2.revealed);
@@ -4360,15 +4360,8 @@ export default function RoguelikeGame() {
         for (let d = 1; d <= _arMaxRange; d++) {
           const tx = p.x + dx * d,
             ty = p.y + dy * d;
-          if (
-            tx < 0 ||
-            tx >= MW ||
-            ty < 0 ||
-            ty >= MH ||
-            dg.map[ty][tx] === T.WALL ||
-            dg.map[ty][tx] === T.BWALL
-          )
-            break;
+          if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+          if (!_arPierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
           const m = monsterAt(dg, tx, ty);
           if (m) {
             m.hp -= dmg;
@@ -4466,7 +4459,8 @@ export default function RoguelikeGame() {
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             const m = monsterAt(dg, tx, ty);
             if (m) {
               if (_isFarcast) {
@@ -4510,7 +4504,8 @@ export default function RoguelikeGame() {
           let lx = p.x, ly = p.y, sprHit = null;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const td = 3 + rng(0, 3);
@@ -4548,7 +4543,8 @@ export default function RoguelikeGame() {
           let lx = p.x, ly = p.y, hit = false, sprHit = null;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             const m = monsterAt(dg, tx, ty);
             if (m) {
               m.hp -= td;
