@@ -2681,8 +2681,27 @@ export default function RoguelikeGame() {
                   const sk5 = dg2.monsters.find((m) => m.type === "shopkeeper");
                   if (sk5) {
                     sk5.state = "friendly";
-                    sk5.x = sk5.homePos.x;
-                    sk5.y = sk5.homePos.y;
+                    /* homePos から近い順に空きタイルを探してテレポート */
+                    const _skCandidates = [];
+                    for (let _r = 0; _r <= 4; _r++) {
+                      for (let _dy = -_r; _dy <= _r; _dy++) {
+                        for (let _dx = -_r; _dx <= _r; _dx++) {
+                          if (Math.abs(_dx) !== _r && Math.abs(_dy) !== _r) continue;
+                          const _cx = sk5.homePos.x + _dx, _cy = sk5.homePos.y + _dy;
+                          const _ct = dg2.map[_cy]?.[_cx];
+                          if (_ct !== T.FLOOR && _ct !== T.SD && _ct !== T.SU) continue;
+                          if (_cx === p2.x && _cy === p2.y) continue;
+                          if (dg2.monsters.some(o => o !== sk5 && o.x === _cx && o.y === _cy)) continue;
+                          _skCandidates.push({ x: _cx, y: _cy, d: Math.abs(_dx) + Math.abs(_dy) });
+                        }
+                      }
+                      if (_skCandidates.length > 0) break;
+                    }
+                    if (_skCandidates.length > 0) {
+                      _skCandidates.sort((a, b) => a.d - b.d);
+                      sk5.x = _skCandidates[0].x;
+                      sk5.y = _skCandidates[0].y;
+                    }
                   }
                   setMsgs((prev) => [
                     ...prev.slice(-80),
