@@ -165,6 +165,10 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
     for (const [dx, dy] of dirs) {
       const nx = cur.x + dx, ny = cur.y + dy;
       if (!isWalkable(map, nx, ny)) continue;
+      /* 対角移動：両隣の直交タイルが両方とも壁ならコーナーすり抜けを禁止 */
+      if (dx !== 0 && dy !== 0) {
+        if (!isWalkable(map, cur.x + dx, cur.y) && !isWalkable(map, cur.x, cur.y + dy)) continue;
+      }
       const nk = nx + ny * MW;
       if (sanctSet.has(nk) && !(nx === tx && ny === ty)) continue;
       if (visited.has(nk)) continue;
@@ -418,11 +422,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== 詰まり検出（位置履歴で停滞・往復を判定） ===== */
   m.posHistory = m.posHistory || [];
   m.posHistory.push({ x: m.x, y: m.y });
-  if (m.posHistory.length > 10) m.posHistory.shift();
+  if (m.posHistory.length > 6) m.posHistory.shift();
   let _forceAlt = false;
-  if (m.posHistory.length >= 10) {
+  if (m.posHistory.length >= 6) {
     const _ph = m.posHistory;
-    /* パターン1: 10ターン全く同じ位置（完全停止） */
+    /* パターン1: 6ターン全く同じ位置（完全停止） */
     const _allSame = _ph.every(p => p.x === _ph[0].x && p.y === _ph[0].y);
     /* パターン2: A↔B を交互に往復（A,B,A,B,...） */
     const _isOsc = (_ph[0].x !== _ph[1].x || _ph[0].y !== _ph[1].y) &&
@@ -728,12 +732,31 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         /* 次マスが別モンスターに占有 → ターゲットリセット＋向き反転で方向転換
-           （出入り口での硬直・通路での正面衝突デッドロックを防ぐ） */
+           （_forceAlt 時はこのまま後続の脱出処理にフォールスルーする） */
         m.patrolTarget = null;
         if (m.dir) m.dir = { x: -m.dir.x, y: -m.dir.y };
-        return;
+        if (!_forceAlt) return;
       }
       /* BFS経路なし（壁で遮断）→ 次ターンで目標を再選択 */
+      if (!_forceAlt) { m.patrolTarget = null; return; }
+      m.patrolTarget = null;
+    }
+    /* ===== パトロール詰まり脱出（_forceAlt 時のみ）===== */
+    if (_forceAlt) {
+      const _fd4 = [[0,-1],[0,1],[-1,0],[1,0]].sort(() => Math.random() - 0.5);
+      for (const [_fdx, _fdy] of _fd4) {
+        const _fnx = m.x + _fdx, _fny = m.y + _fdy;
+        if (!isWalkable(map, _fnx, _fny)) continue;
+        if (_fnx === pl.x && _fny === pl.y) continue;
+        if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
+        if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+        m.dir = { x: _fdx, y: _fdy };
+        m.x = _fnx; m.y = _fny;
+        m.posHistory = [];
+        m.patrolTarget = null;
+        return;
+      }
+      m.posHistory = [];
       m.patrolTarget = null;
     }
   }
