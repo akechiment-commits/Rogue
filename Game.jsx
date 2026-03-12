@@ -551,7 +551,7 @@ export default function RoguelikeGame() {
       p.maxHp += 5;
       p.hp = Math.min(p.hp + 10, p.maxHp);
       p.atk++;
-      p.def++;
+      if (p.level % 2 === 0) p.def++;
       ml.push(`レベルアップ！Lv.${p.level}！`);
     }
   }, []);
