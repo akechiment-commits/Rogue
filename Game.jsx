@@ -1088,7 +1088,7 @@ export default function RoguelikeGame() {
               let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0);
               if (wab?.startsWith("bane_") && attackMon.kind === wab.slice(5))
                 ap *= 2;
-              let d = Math.max(1, ap - attackMon.def + rng(-2, 2));
+              let d = Math.max(1, Math.floor(ap * ap / (ap + attackMon.def)) + rng(-2, 2));
               let crit = false;
               if (wabHas("critical") && Math.random() < 0.25) {
                 d *= 2;
