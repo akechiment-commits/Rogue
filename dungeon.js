@@ -265,9 +265,79 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs) {
   }
 }
 
+/* ===== ROOM PROTRUSION GENERATOR ===== */
+/* 部屋の壁から小さな突起（出っ張り）を生成し、怪しい壁タイルの座標セットを返す */
+function genProtrusions(map, rooms) {
+  const suspicious = new Set(); // "x,y" 形式の怪しい壁座標
+  const DIRS = [
+    { side: 0, ddx: 0, ddy: -1 }, // top
+    { side: 1, ddx: 0, ddy:  1 }, // bottom
+    { side: 2, ddx: -1, ddy: 0 }, // left
+    { side: 3, ddx:  1, ddy: 0 }, // right
+  ];
+  for (const room of rooms) {
+    if (room.w < 4 || room.h < 4) continue;
+    // 60% で突起なし、35% で1個、5% で2個
+    const numP = Math.random() < 0.60 ? 0 : Math.random() < 0.93 ? 1 : 2;
+    let placed = 0;
+    for (let attempt = 0; attempt < numP * 8 && placed < numP; attempt++) {
+      const { side, ddx, ddy } = pick(DIRS);
+      const isHoriz = ddy !== 0; // 上下方向に突き出す
+      const wallLen = isHoriz ? room.w : room.h;   // 壁の長さ
+      const pw = rng(2, Math.min(3, wallLen - 2));  // 突起の幅（壁に沿う方向）
+      const pd = rng(1, 2);                         // 突起の奥行き（壁から外側）
+      const maxOfs = wallLen - pw - 1;
+      if (maxOfs < 1) continue;
+      const ofs = rng(1, maxOfs);
+      // 突起の左上角座標を計算
+      let sx, sy;
+      if (isHoriz) {
+        sx = room.x + ofs;
+        sy = side === 0 ? room.y - pd : room.y + room.h;
+      } else {
+        sx = side === 2 ? room.x - pd : room.x + room.w;
+        sy = room.y + ofs;
+      }
+      const ex = sx + (isHoriz ? pw : pd); // 突起の右端+1
+      const ey = sy + (isHoriz ? pd : pw); // 突起の下端+1
+      // 境界チェック
+      if (sx < 1 || ex > MW - 1 || sy < 1 || ey > MH - 1) continue;
+      // 他のルームと重ならないか（1タイルマージン付き）
+      const clash = rooms.some(r => r !== room &&
+        sx - 1 < r.x + r.w && ex + 1 > r.x &&
+        sy - 1 < r.y + r.h && ey + 1 > r.y);
+      if (clash) continue;
+      // 突起エリアが全部 WALL であること（通路に上書きしない）
+      let allWall = true;
+      for (let cy = sy; cy < ey && allWall; cy++)
+        for (let cx = sx; cx < ex && allWall; cx++)
+          if (map[cy][cx] !== T.WALL) allWall = false;
+      if (!allWall) continue;
+      // 床として開通
+      for (let cy = sy; cy < ey; cy++)
+        for (let cx = sx; cx < ex; cx++)
+          map[cy][cx] = T.FLOOR;
+      // 突起周辺の壁を走査して「怪しい壁」を登録
+      for (let cy = sy - 1; cy <= ey; cy++) {
+        for (let cx = sx - 1; cx <= ex; cx++) {
+          if (cy < 0 || cy >= MH || cx < 0 || cx >= MW) continue;
+          if (map[cy][cx] !== T.WALL) continue;
+          let fa = 0;
+          for (const [ddx2, ddy2] of [[-1,0],[1,0],[0,-1],[0,1]])
+            if (map[cy + ddy2]?.[cx + ddx2] === T.FLOOR) fa++;
+          if (fa >= 2) suspicious.add(`${cx},${cy}`);
+        }
+      }
+      placed++;
+    }
+  }
+  return suspicious;
+}
+
 /* ===== WALL-EMBEDDED ITEM GENERATOR ===== */
-function genWallItems(map, depth, items) {
+function genWallItems(map, depth, items, suspicious = new Set()) {
   /* 床タイルに2方向以上隣接する壁タイルを候補とする（L字型の出っ張り角など） */
+  /* 突起コーナー（suspicious）は重みを高くして選ばれやすくする */
   const wallCands = [];
   for (let y = 1; y < MH - 1; y++) {
     for (let x = 1; x < MW - 1; x++) {
@@ -275,7 +345,10 @@ function genWallItems(map, depth, items) {
       let floorAdj = 0;
       for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]])
         if (map[y + dy]?.[x + dx] === T.FLOOR) floorAdj++;
-      if (floorAdj >= 2) wallCands.push([x, y]);
+      if (floorAdj >= 2) {
+        const weight = suspicious.has(`${x},${y}`) ? 5 : 1;
+        for (let w = 0; w < weight; w++) wallCands.push([x, y]);
+      }
     }
   }
   if (wallCands.length === 0) return;
@@ -420,6 +493,9 @@ export function genDungeon(depth) {
       }
     }
   }
+  /* 部屋の壁に出っ張りを追加（アイテム埋め込み候補となる怪しい壁を生成） */
+  const suspiciousWalls = genProtrusions(map, rooms);
+
   const roomConn = Array(rooms.length).fill(0);
   for (const [ai2, bi2] of pairs) {
     roomConn[ai2]++;
@@ -797,8 +873,8 @@ export function genDungeon(depth) {
   /* 隠し部屋を生成してアイテム等を配置 */
   const hiddenRooms = genHiddenRooms(map, depth);
   for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs);
-  /* 壁埋めアイテムを生成（L字型などの出っ張り壁） */
-  genWallItems(map, depth, items);
+  /* 壁埋めアイテムを生成（突起コーナーは高確率） */
+  genWallItems(map, depth, items, suspiciousWalls);
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
   if (depth === 1) {
