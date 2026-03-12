@@ -565,8 +565,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         } else {
           /* 傷ついた味方へ接近 */
-          const _hn = bfsNext(map, dg.monsters, m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles);
-          if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y)) {
+          const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles);
+          if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
+              !dg.monsters.some(o => o !== m && o.x === _hn.x && o.y === _hn.y)) {
             m.x = _hn.x; m.y = _hn.y;
             return;
           }
@@ -604,11 +605,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* move toward target */
-    /* BFSに聖域データを渡して経路探索の段階で回避させる */
-    /* _forceAlt 時は他モンスターを障害物として扱わず迂回経路を優先する */
-    const _bfsMons = _forceAlt ? [] : dg.monsters;
-    const next = bfsNext(map, _bfsMons, m.x, m.y, tx, ty, m, 20, dg.pentacles);
-    /* 念のため：次のタイルが聖域なら移動しない（BFSで迂回済みのはずだが保険） */
+    /* BFSは壁のみを障害物とする（他モンスターは一時的な遮断なので無視）。
+       実際に踏めるかは取得した first-step で改めてチェックする。 */
+    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 20, dg.pentacles);
     if (next && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) return;
     if (next) {
       if (next.x === pl.x && next.y === pl.y) {
@@ -621,17 +620,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
         return;
       }
-      if (
-        !dg.monsters.some((o) => o !== m && o.x === next.x && o.y === next.y)
-      ) {
+      if (!dg.monsters.some((o) => o !== m && o.x === next.x && o.y === next.y)) {
         m.dir = { x: next.x - m.x, y: next.y - m.y };
         m.x = next.x;
         m.y = next.y;
         if (_forceAlt) m.posHistory = [];
         return;
       }
+      /* 次マスが別モンスターに占有されているため待機（自然なキューイング） */
+      return;
     }
-    /* _forceAlt フォールバック：隣接4方向をランダム順に試して空きタイルへ移動 */
+    /* BFS 経路なし（壁で完全遮断）：_forceAlt 時のみランダム脱出を試みる */
     if (_forceAlt) {
       const _fd4 = [[0,-1],[0,1],[-1,0],[1,0]].sort(() => Math.random() - 0.5);
       for (const [_fdx, _fdy] of _fd4) {
@@ -645,7 +644,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.posHistory = [];
         return;
       }
-      m.posHistory = []; /* 完全に動けない場合もリセットして次ターン再試行 */
+      m.posHistory = [];
     }
   } else {
     /* ===== 未覚醒：パトロール ===== */
@@ -697,17 +696,21 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* BFSで1歩進む（壁破壊・出入口の多い部屋・廊下詰まりを全て自然に処理） */
+    /* BFSで1歩進む（壁のみ障害物、モンスターは無視して経路探索） */
     if (m.patrolTarget) {
-      const next = bfsNext(map, dg.monsters, m.x, m.y,
+      const next = bfsNext(map, [], m.x, m.y,
         m.patrolTarget.x, m.patrolTarget.y, m, 20, dg.pentacles);
       if (next && !(next.x === pl.x && next.y === pl.y) &&
           !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) {
-        m.dir = { x: next.x - m.x, y: next.y - m.y };
-        m.x = next.x; m.y = next.y;
+        if (!dg.monsters.some(o => o !== m && o.x === next.x && o.y === next.y)) {
+          m.dir = { x: next.x - m.x, y: next.y - m.y };
+          m.x = next.x; m.y = next.y;
+          return;
+        }
+        /* 次マスが別モンスターに占有 → 今ターンは待機、ターゲットは維持 */
         return;
       }
-      /* BFS失敗（完全に囲まれた等）→ 次ターンで再選択 */
+      /* BFS経路なし（壁で遮断）→ 次ターンで目標を再選択 */
       m.patrolTarget = null;
     }
   }
