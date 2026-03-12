@@ -789,6 +789,8 @@ export default function RoguelikeGame() {
     const nd = pl.depth + dir;
     if (nd < 1) return null;
     if (!sr.current.floors) sr.current.floors = {};
+    /* 未払いのまま階段を使った場合はその階を泥棒状態にする */
+    if (sr.current.dungeon?.shop?.unpaidTotal > 0) sr.current.dungeon.shopTheft = true;
     sr.current.floors[pl.depth] = sr.current.dungeon;
     const _saved = sr.current.floors[nd];
     let d;
@@ -1272,7 +1274,6 @@ export default function RoguelikeGame() {
               p.inventory.push(_grIt);
               if (_grIt.shopPrice && dg.shop) {
                 dg.shop.unpaidTotal += _grIt.shopPrice;
-                dg.shopTheft = true;
                 const _sk2 = dg.monsters.find((m) => m.type === "shopkeeper" && m.state === "friendly");
                 if (_sk2) _sk2.state = "blocking";
                 ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
