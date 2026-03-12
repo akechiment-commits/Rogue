@@ -632,8 +632,23 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_forceAlt) m.posHistory = [];
         return;
       }
-      /* 次マスが別モンスターに占有されているため待機（自然なキューイング） */
-      return;
+      /* 次マスが別モンスターに占有 */
+      /* 対向（互いに相手のマスへ向かっている）なら位置を交換してデッドロック解消 */
+      const _blocker = dg.monsters.find(o => o !== m && o.x === next.x && o.y === next.y);
+      if (_blocker) {
+        const _bNext = bfsNext(map, [], _blocker.x, _blocker.y,
+          (_blocker.aware ? (_blocker.lastPx ?? pl.x) : (m.x)),
+          (_blocker.aware ? (_blocker.lastPy ?? pl.y) : (m.y)),
+          _blocker, 4, dg.pentacles);
+        if (_bNext && _bNext.x === m.x && _bNext.y === m.y) {
+          /* 正面衝突：スワップ */
+          _blocker.x = m.x; _blocker.y = m.y;
+          m.dir = { x: next.x - m.x, y: next.y - m.y };
+          m.x = next.x; m.y = next.y;
+          return;
+        }
+      }
+      return; /* 前の敵が動けない場合は自然なキューイングで待機 */
     }
     /* BFS 経路なし（壁で完全遮断）：_forceAlt 時のみランダム脱出を試みる */
     if (_forceAlt) {
@@ -712,7 +727,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           m.x = next.x; m.y = next.y;
           return;
         }
-        /* 次マスが別モンスターに占有 → 今ターンは待機、ターゲットは維持 */
+        /* 次マスが別モンスターに占有 → ターゲットリセット＋向き反転で方向転換
+           （出入り口での硬直・通路での正面衝突デッドロックを防ぐ） */
+        m.patrolTarget = null;
+        if (m.dir) m.dir = { x: -m.dir.x, y: -m.dir.y };
         return;
       }
       /* BFS経路なし（壁で遮断）→ 次ターンで目標を再選択 */
