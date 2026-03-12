@@ -719,10 +719,10 @@ export default function RoguelikeGame() {
                 ml.push("祝福された聖域の加護が魔法弾を防いだ！");
               } else {
                 ml.push("吹き飛ばしの魔法弾が命中！");
-                /* プレイヤーをdx,dy方向に最大5マス吹き飛ばす */
+                /* プレイヤーをdx,dy方向に1マスずつ最大5マス吹き飛ばす */
                 let _blown = 0;
-                for (let _bd = 1; _bd <= 5; _bd++) {
-                  const _bx = pl.x + dx * _bd, _by = pl.y + dy * _bd;
+                for (let _bd = 0; _bd < 5; _bd++) {
+                  const _bx = pl.x + dx, _by = pl.y + dy;
                   if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH) break;
                   if (dg.map[_by][_bx] === T.WALL || dg.map[_by][_bx] === T.BWALL) {
                     const _colDmg = rng(2, 6);
@@ -746,8 +746,8 @@ export default function RoguelikeGame() {
             const _bwMon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty);
             if (_bwMon) {
               ml.push(`吹き飛ばしの魔法弾が${_bwMon.name}に命中！`);
-              for (let _bd = 1; _bd <= 5; _bd++) {
-                const _bx = _bwMon.x + dx * _bd, _by = _bwMon.y + dy * _bd;
+              for (let _bd = 0; _bd < 5; _bd++) {
+                const _bx = _bwMon.x + dx, _by = _bwMon.y + dy;
                 if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH) break;
                 if (dg.map[_by][_bx] === T.WALL || dg.map[_by][_bx] === T.BWALL) break;
                 if (dg.monsters.some(o => o !== _bwMon && o.x === _bx && o.y === _by)) break;
