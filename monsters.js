@@ -615,108 +615,67 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.posHistory = []; /* 完全に動けない場合もリセットして次ターン再試行 */
     }
   } else {
-    /* patrol / wander */
+    /* ===== 未覚醒：パトロール ===== */
     const room = findRoom(rooms, m.x, m.y);
-    if (room) {
-      /* pick patrol target */
-      if (
-        !m.patrolTarget ||
-        (m.x === m.patrolTarget.x && m.y === m.patrolTarget.y) ||
-        Math.random() < 0.02
-      ) {
+    const _arrived = m.patrolTarget &&
+      m.x === m.patrolTarget.x && m.y === m.patrolTarget.y;
+
+    /* ターゲット到着・未設定・稀なリセット → 次の目標を選ぶ */
+    if (_arrived || !m.patrolTarget || Math.random() < 0.02) {
+      /* 直前に訪れたターゲットを記録（往復防止に使う） */
+      if (_arrived) m.lastPatrolTarget = { x: m.patrolTarget.x, y: m.patrolTarget.y };
+      m.patrolTarget = null;
+
+      if (room) {
+        /* 部屋の4辺外側にある通行可能タイル（出口）を収集 */
         const exits = [];
         for (let ex = room.x; ex < room.x + room.w; ex++) {
-          if (isWalkable(map, ex, room.y - 1)) exits.push({ x: ex, y: room.y - 1 });
+          if (isWalkable(map, ex, room.y - 1))     exits.push({ x: ex, y: room.y - 1 });
           if (isWalkable(map, ex, room.y + room.h)) exits.push({ x: ex, y: room.y + room.h });
         }
         for (let ey = room.y; ey < room.y + room.h; ey++) {
-          if (isWalkable(map, room.x - 1, ey)) exits.push({ x: room.x - 1, y: ey });
+          if (isWalkable(map, room.x - 1, ey))     exits.push({ x: room.x - 1, y: ey });
           if (isWalkable(map, room.x + room.w, ey)) exits.push({ x: room.x + room.w, y: ey });
         }
         if (exits.length > 0) {
-          const filtered = exits.filter(
-            (e) => !(m.dir && e.x === m.x - m.dir.x && e.y === m.y - m.dir.y),
-          );
-          const pool = filtered.length > 0 ? filtered : exits;
-          m.patrolTarget = pick(pool);
+          /* 直前に訪れた出口を除外して往復を防止 */
+          const _prev = m.lastPatrolTarget;
+          const cands = _prev
+            ? exits.filter(e => e.x !== _prev.x || e.y !== _prev.y)
+            : exits;
+          m.patrolTarget = pick(cands.length > 0 ? cands : exits);
+        }
+      } else {
+        /* 廊下・壁破壊後エリア：来た方向の逆を避けて進行方向を決定 */
+        const dirs4 = [[0,1],[0,-1],[1,0],[-1,0]];
+        const open = dirs4.filter(([dx,dy]) => isWalkable(map, m.x + dx, m.y + dy));
+        /* m.dir の逆方向（戻る方向）を除外 */
+        const notRev = m.dir
+          ? open.filter(([dx,dy]) => !(dx === -m.dir.x && dy === -m.dir.y))
+          : open;
+        const chosen = pick(notRev.length > 0 ? notRev : open);
+        if (chosen) {
+          /* 選んだ方向に8マス先を目標に設定（BFSが実際の経路を処理する） */
+          m.patrolTarget = {
+            x: clamp(m.x + chosen[0] * 8, 0, MW - 1),
+            y: clamp(m.y + chosen[1] * 8, 0, MH - 1),
+          };
         }
       }
+    }
 
-      if (m.patrolTarget) {
-        const dx = Math.sign(m.patrolTarget.x - m.x);
-        const dy = Math.sign(m.patrolTarget.y - m.y);
-        const nx = m.x + dx,
-          ny = m.y + dy;
-        if (isWalkable(map, nx, ny) &&
-          !dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny) &&
-          !(nx === pl.x && ny === pl.y)) {
-          m.dir = { x: dx, y: dy }; m.x = nx; m.y = ny; return;
-        }
-      }
-
-      /* random step fallback */
-      /* _forceAlt 時は全方向をシャッフルして必ず空きを探す（パトロール詰まり解消） */
-      const _pDirs = [[0,1],[0,-1],[1,0],[-1,0]];
-      const _pPool = _forceAlt
-        ? [..._pDirs].sort(() => Math.random() - 0.5)
-        : [_pDirs[rng(0, 3)]];
-      for (const [rdx, rdy] of _pPool) {
-        const nx = m.x + rdx, ny = m.y + rdy;
-        if (isWalkable(map, nx, ny) &&
-          !dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny) &&
-          !(nx === pl.x && ny === pl.y)) {
-          m.dir = { x: rdx, y: rdy };
-          m.x = nx;
-          m.y = ny;
-          if (_forceAlt) { m.posHistory = []; m.patrolTarget = null; }
-          break;
-        }
-      }
-    } else {
-      /* corridor wander */
-      if (!m.dir) m.dir = { x: 1, y: 0 };
-      const nx = m.x + m.dir.x,
-        ny = m.y + m.dir.y;
-      if (isWalkable(map, nx, ny) &&
-        !dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny) &&
-        !(nx === pl.x && ny === pl.y)) {
-        m.x = nx;
-        m.y = ny;
+    /* BFSで1歩進む（壁破壊・出入口の多い部屋・廊下詰まりを全て自然に処理） */
+    if (m.patrolTarget) {
+      const next = bfsNext(map, dg.monsters, m.x, m.y,
+        m.patrolTarget.x, m.patrolTarget.y, m, 20, dg.pentacles);
+      if (next && !(next.x === pl.x && next.y === pl.y) &&
+          !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) {
+        m.dir = { x: next.x - m.x, y: next.y - m.y };
+        m.x = next.x; m.y = next.y;
         return;
       }
-      const open = getOpenDirs(map, m.x, m.y);
-      const rev = { x: -m.dir.x, y: -m.dir.y };
-      const nonRev = open.filter(
-        (d) =>
-          !(d.x === rev.x && d.y === rev.y) &&
-          !(d.x === m.dir.x && d.y === m.dir.y),
-      );
-      let picked = null;
-      if (nonRev.length > 0) {
-        picked = pick(nonRev);
-      } else {
-        const revOpt = open.find((d) => d.x === rev.x && d.y === rev.y);
-        if (revOpt) picked = revOpt;
-        else if (open.length > 0) picked = pick(open);
-      }
-      if (picked) {
-        const px2 = m.x + picked.x,
-          py2 = m.y + picked.y;
-        if (
-          !dg.monsters.some((o) => o !== m && o.x === px2 && o.y === py2) &&
-          !(px2 === pl.x && py2 === pl.y)
-        ) {
-          m.dir = picked;
-          m.x = px2;
-          m.y = py2;
-          if (_forceAlt) m.posHistory = [];
-        } else if (_forceAlt) {
-          /* 完全に動けない廊下詰まり：1ターン待機してリセット（往復を断ち切る） */
-          m.posHistory = [];
-        }
-      } else if (_forceAlt) {
-        m.posHistory = [];
-      }
+      /* BFS失敗（完全に囲まれた等）→ 次ターンで再選択 */
+      m.patrolTarget = null;
     }
   }
 }
