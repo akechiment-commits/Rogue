@@ -1599,7 +1599,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
   let lx = p.x, ly = p.y, hit = false;
   for (let d = 1; d <= _maxR; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+    if (!_pierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
     const m = monsterAt(dg, tx, ty);
     if (m) {
       m.hp -= dmg;
