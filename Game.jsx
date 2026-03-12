@@ -517,10 +517,13 @@ export default function RoguelikeGame() {
         ctx.globalAlpha = 1;
       }
     }
-    /* ===== 壁歩きモンスターを常に最前面に描画（壁の中でも可視） ===== */
+    /* ===== 壁歩きモンスターを最前面に描画（視界内か隣接マスのみ） ===== */
     for (const _wm of dg.monsters) {
       if (!_wm.wallWalker) continue;
       if (_wm.x < sx || _wm.x >= sx + vw || _wm.y < sy || _wm.y >= sy + vh) continue;
+      const _wVisible = dg.visible?.[_wm.y]?.[_wm.x];
+      const _wAdj = Math.abs(_wm.x - p.x) <= 1 && Math.abs(_wm.y - p.y) <= 1;
+      if (!_wVisible && !_wAdj) continue;
       const _wpx = (_wm.x - sx) * sz, _wpy = (_wm.y - sy) * sz;
       const _onWall = dg.map[_wm.y]?.[_wm.x] === T.WALL;
       if (_onWall) ctx.globalAlpha = 0.75;
