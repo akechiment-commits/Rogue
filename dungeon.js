@@ -196,6 +196,105 @@ export function triggerMonsterHouse(dg, p, ml) {
   dg.monsterHouseRoom = null;
 }
 
+/* ===== HIDDEN ROOM GENERATOR ===== */
+function genHiddenRooms(map, depth) {
+  const hiddenRooms = [];
+  const count = rng(0, 2);
+  for (let attempt = 0; attempt < count * 60 && hiddenRooms.length < count; attempt++) {
+    const rw = rng(3, 5), rh = rng(3, 4);
+    const rx = rng(2, MW - rw - 2);
+    const ry = rng(2, MH - rh - 2);
+    /* 既存の床タイルから1マス離れていること */
+    let ok = true;
+    for (let dy = -1; dy <= rh && ok; dy++)
+      for (let dx = -1; dx <= rw && ok; dx++) {
+        const nx = rx + dx, ny = ry + dy;
+        if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) { ok = false; break; }
+        if (map[ny][nx] !== T.WALL) { ok = false; break; }
+      }
+    if (!ok) continue;
+    for (let dy = 0; dy < rh; dy++)
+      for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+    hiddenRooms.push({ x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw / 2), cy: Math.floor(ry + rh / 2), hidden: true });
+  }
+  return hiddenRooms;
+}
+
+function populateHiddenRoom(hr, map, depth, items, bigboxes, springs) {
+  const allOcc = (x, y) =>
+    items.some(i => i.x === x && i.y === y) ||
+    bigboxes.some(b => b.x === x && b.y === y) ||
+    springs.some(s => s.x === x && s.y === y);
+  const floorTiles = [];
+  for (let dy = 0; dy < hr.h; dy++)
+    for (let dx = 0; dx < hr.w; dx++) {
+      const fx = hr.x + dx, fy = hr.y + dy;
+      if (map[fy][fx] === T.FLOOR) floorTiles.push([fx, fy]);
+    }
+  if (floorTiles.length === 0) return;
+  /* アイテム 2〜4個（床タイル数を超えない） */
+  const itemCount = rng(2, Math.min(4, floorTiles.length));
+  let placed = 0;
+  for (let i = 0; i < itemCount * 30 && placed < itemCount; i++) {
+    const [ix, iy] = pick(floorTiles);
+    if (allOcc(ix, iy)) continue;
+    const t = pick(ITEMS);
+    const it = { ...t, id: uid(), x: ix, y: iy };
+    if (it.type === 'gold') it.value = rng(40, 120 + depth * 25);
+    items.push(it);
+    placed++;
+  }
+  /* 大箱 (50%) */
+  if (Math.random() < 0.5) {
+    for (let a = 0; a < 40; a++) {
+      const [bx, by] = pick(floorTiles);
+      if (allOcc(bx, by)) continue;
+      const bbt = pick(BB_TYPES);
+      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+      break;
+    }
+  }
+  /* 泉 (30%) */
+  if (Math.random() < 0.3) {
+    for (let a = 0; a < 40; a++) {
+      const [sx, sy] = pick(floorTiles);
+      if (allOcc(sx, sy)) continue;
+      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
+      break;
+    }
+  }
+}
+
+/* ===== WALL-EMBEDDED ITEM GENERATOR ===== */
+function genWallItems(map, depth, items) {
+  /* 床タイルに2方向以上隣接する壁タイルを候補とする（L字型の出っ張り角など） */
+  const wallCands = [];
+  for (let y = 1; y < MH - 1; y++) {
+    for (let x = 1; x < MW - 1; x++) {
+      if (map[y][x] !== T.WALL) continue;
+      let floorAdj = 0;
+      for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]])
+        if (map[y + dy]?.[x + dx] === T.FLOOR) floorAdj++;
+      if (floorAdj >= 2) wallCands.push([x, y]);
+    }
+  }
+  if (wallCands.length === 0) return;
+  const count = rng(2, Math.min(5, wallCands.length));
+  const used = new Set();
+  let placed = 0;
+  for (let i = 0; i < count * 30 && placed < count; i++) {
+    const [wx, wy] = pick(wallCands);
+    const key = `${wx},${wy}`;
+    if (used.has(key) || items.some(it => it.x === wx && it.y === wy)) continue;
+    used.add(key);
+    const t = pick(ITEMS);
+    const it = { ...t, id: uid(), x: wx, y: wy, wallEmbedded: true };
+    if (it.type === 'gold') it.value = rng(20, 80 + depth * 15);
+    items.push(it);
+    placed++;
+  }
+}
+
 export function genDungeon(depth) {
   /* テスト用: 3階(depth=2)は必ずビッグルーム */
   if (depth === 2) return genBigRoom(depth);
@@ -695,6 +794,11 @@ export function genDungeon(depth) {
       unpaidTotal: 0,
     };
   }
+  /* 隠し部屋を生成してアイテム等を配置 */
+  const hiddenRooms = genHiddenRooms(map, depth);
+  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs);
+  /* 壁埋めアイテムを生成（L字型などの出っ張り壁） */
+  genWallItems(map, depth, items);
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
   if (depth === 1) {
@@ -721,5 +825,6 @@ export function genDungeon(depth) {
     shop: shopData,
     pentacles: [],
     monsterHouseRoom,
+    hiddenRooms,
   };
 }

@@ -377,9 +377,9 @@ export default function RoguelikeGame() {
         if (t === T.WALL || t === T.BWALL) ti = TI.WALL;
         else if (t === T.SD) ti = TI.SD;
         else if (t === T.SU) ti = TI.SU;
-        /* Check if in corridor (not in any room) */ if (
+        /* Check if in corridor (not in any room, including hidden rooms) */ if (
           t === T.FLOOR &&
-          !dg.rooms.some(
+          ![...dg.rooms, ...(dg.hiddenRooms || [])].some(
             (r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h,
           )
         )
@@ -400,6 +400,17 @@ export default function RoguelikeGame() {
           ctx.lineTo(px2 + sz * 0.7, py2 + sz * 0.35);
           ctx.stroke();
           if (!vis) ctx.globalAlpha = 1;
+        }
+        /* 壁埋めアイテム：祝福マップ使用後に壁タイル上で薄く表示 */
+        if ((t === T.WALL || t === T.BWALL) && (vis || exp2) && dg.itemsRevealed) {
+          const _wi = dg.items.find(i => i.x === x && i.y === y && i.wallEmbedded);
+          if (_wi) {
+            ctx.globalAlpha = 0.55;
+            ctx.fillStyle = "rgba(255,220,60,0.25)";
+            ctx.fillRect(px2, py2, sz, sz);
+            drawTile(ctx, ts, _wi.tile, px2, py2, sz);
+            ctx.globalAlpha = 1;
+          }
         }
         /* Spring */ const spr = dg.springs?.find(
           (s) => s.x === x && s.y === y,
@@ -637,12 +648,23 @@ export default function RoguelikeGame() {
     const tile = dg.map[cy]?.[cx];
     if (tile === T.WALL || tile === T.BWALL) return "壁";
     if (!dg.explored[cy]?.[cx]) return "未探索";
+    /* 壁タイルの場合 */
+    if (tile === T.WALL || tile === T.BWALL) {
+      if (dg.itemsRevealed) {
+        const _wi = dg.items.find(i => i.x === cx && i.y === cy && i.wallEmbedded);
+        if (_wi) {
+          const _nm = itemDisplayName(_wi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+          return `壁の中: ${_nm}`;
+        }
+      }
+      return tile === T.BWALL ? "壊せる壁" : "壁";
+    }
     const parts = [];
     if (tile === T.SD) parts.push("下り階段");
     else if (tile === T.SU) parts.push("上り階段");
     const mon = dg.visible[cy]?.[cx] && dg.monsters.find(m => m.x === cx && m.y === cy);
     if (mon) parts.push(`${mon.name} HP:${mon.hp}/${mon.maxHp}`);
-    const floorItems = dg.items.filter(i => i.x === cx && i.y === cy);
+    const floorItems = dg.items.filter(i => i.x === cx && i.y === cy && !i.wallEmbedded);
     for (const it of floorItems) {
       const nm = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       parts.push(it.shopPrice ? `${nm}(${it.shopPrice}G)` : nm);
@@ -3586,6 +3608,7 @@ export default function RoguelikeGame() {
           for (const gi of _toG) {
             const [_rx, _ry] = pick(_floorCands);
             gi.x = _rx; gi.y = _ry;
+            delete gi.wallEmbedded;
             dg.items.push(gi);
           }
           ml.push(`${_cnt}個のアイテムがフロアに散らばった！【呪】`);
@@ -3595,6 +3618,7 @@ export default function RoguelikeGame() {
           let _picked = 0, _dropped = 0;
           const _blessFt = new Set();
           for (const gi of _toG) {
+            delete gi.wallEmbedded;
             if (p.inventory.length < (p.maxInventory || 30)) {
               p.inventory.push(gi);
               _picked++;
@@ -3632,6 +3656,7 @@ export default function RoguelikeGame() {
               }
               if (dg.items.some((i) => i.x === _cx && i.y === _cy)) continue;
               gi.x = _cx; gi.y = _cy;
+              delete gi.wallEmbedded;
               dg.items.push(gi);
               _placed = true;
               break;
