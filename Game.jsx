@@ -75,7 +75,7 @@ import {
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, triggerMonsterHouse } from "./dungeon.js";
 import { TILE_NAMES, CUSTOM_TILE_PATH, customTileImages, clearCustomTileImages, ST, drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
-import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal } from "./GameModals.jsx";
 export default function RoguelikeGame() {
   const [gs, setGs] = useState(null);
   const [msgs, setMsgs] = useState(["冒険が始まった！"]);
@@ -108,6 +108,7 @@ export default function RoguelikeGame() {
   const [spellMenuSel, setSpellMenuSel] = useState(0);
   /* null | {potIdx:number} */ const [dashMode, setDashMode] = useState(false);
   /* null | {cx:number, cy:number} */ const [tpSelectMode, setTpSelectMode] = useState(null);
+  /* null | {sel:number} */ const [floorSelectMode, setFloorSelectMode] = useState(null);
   /* null | { mode:'identify'|'unidentify' } */ const [identifyMode, setIdentifyMode] = useState(null);
   /* null | { identKey:string } */ const [nicknameMode, setNicknameMode] = useState(null);
   /* null | { pendingMsgs:string[] } */ const [revealMode, setRevealMode] = useState(null);
@@ -262,6 +263,9 @@ export default function RoguelikeGame() {
       armor: null,
       arrow: null,
       inventory: [
+        { name:"テレポートの巻物", type:"scroll", effect:"teleport", cursed:true, desc:"呪：好きな階層を選んでテレポートする。", tile:18 },
+        { name:"テレポートの巻物", type:"scroll", effect:"teleport", cursed:true, desc:"呪：好きな階層を選んでテレポートする。", tile:18 },
+        { name:"テレポートの巻物", type:"scroll", effect:"teleport", cursed:true, desc:"呪：好きな階層を選んでテレポートする。", tile:18 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
         { name:"識別の魔法書", type:"spellbook", spell:"identify_magic", desc:"識別の魔法を習得できる。火に弱い。", tile:18 },
         { name:"祝福の魔法書", type:"spellbook", spell:"bless_magic",    desc:"祝福の魔法を習得できる。火に弱い。", tile:18 },
@@ -1948,6 +1952,42 @@ export default function RoguelikeGame() {
         }
         return;
       }
+      if (floorSelectMode) {
+        e.preventDefault();
+        const { player: _fsp } = sr.current || {};
+        if (!_fsp) return;
+        const MAX_FLOOR = 30;
+        const isUp   = k === "arrowup"   || k === "w" || e.code === "Numpad8";
+        const isDown = k === "arrowdown" || k === "s" || e.code === "Numpad2";
+        if (isUp)   { setFloorSelectMode({ sel: Math.max(1, floorSelectMode.sel - 1) }); return; }
+        if (isDown) { setFloorSelectMode({ sel: Math.min(MAX_FLOOR, floorSelectMode.sel + 1) }); return; }
+        if (k === "z" || k === "enter") {
+          const _f = floorSelectMode.sel;
+          const _ml = [];
+          if (!sr.current.floors) sr.current.floors = {};
+          sr.current.floors[_fsp.depth] = sr.current.dungeon;
+          const _saved = sr.current.floors[_f];
+          let _d;
+          if (_saved) { _d = _saved; delete sr.current.floors[_f]; }
+          else { _d = genDungeon(_f - 1); }
+          _fsp.depth = _f;
+          const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
+          _fsp.x = rng(_rm.x, _rm.x + _rm.w - 1);
+          _fsp.y = rng(_rm.y, _rm.y + _rm.h - 1);
+          refreshFOV(_d, _fsp);
+          _d.nextSpawnTurn = _fsp.turns + rng(10, 50);
+          sr.current.dungeon = _d;
+          _ml.push(`${_f}階へテレポートした！【呪】`);
+          endTurn(sr.current, _fsp, _ml);
+          setFloorSelectMode(null);
+          setMsgs((prev) => [...prev.slice(-80), ..._ml]);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
+        if (k === "x" || k === "escape") { setFloorSelectMode(null); return; }
+        return;
+      }
       if (tpSelectMode) {
         e.preventDefault();
         const { player: p, dungeon: dg } = sr.current || {};
@@ -2886,6 +2926,7 @@ export default function RoguelikeGame() {
       identifyMode,
       revealMode,
       tpSelectMode,
+      floorSelectMode,
     ],
   );
   useEffect(() => {
@@ -3289,17 +3330,13 @@ export default function RoguelikeGame() {
         ml.push(`${it.name}を読んだが、魔法が封印されている！`);
       } else if (it.effect === "teleport") {
         if (it.cursed) {
-          const _adjCands = DRO.filter(([adx, ady]) => {
-            const tx = p.x + adx, ty = p.y + ady;
-            return tx >= 0 && tx < MW && ty >= 0 && ty < MH && dg.map[ty][tx] !== T.WALL && dg.map[ty][tx] !== T.BWALL;
-          });
-          if (_adjCands.length > 0) {
-            const [adx, ady] = pick(_adjCands);
-            p.x += adx; p.y += ady;
-            ml.push("テレポートしたが...すぐ近くだ！【呪】");
-          } else {
-            ml.push("テレポートしようとしたが動けなかった！【呪】");
-          }
+          setFloorSelectMode({ sel: p.depth });
+          { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
+            setMsgs((prev) => [...prev.slice(-80), ..._rp, "飛びたい階層を選んでください... (↑↓:選択 Z/Enter:決定)"]); }
+          setSelIdx(null); setShowDesc(null); setShowInv(false);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
         } else if (it.blessed) {
           setTpSelectMode({ cx: p.x, cy: p.y });
           { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
@@ -5205,6 +5242,7 @@ export default function RoguelikeGame() {
         </div>
       )}{" "}
       <TpSelectModal mode={tpSelectMode} setMode={setTpSelectMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} mobile={mobile} />{" "}
+      <FloorSelectModal mode={floorSelectMode} setMode={setFloorSelectMode} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} genDungeon={genDungeon} refreshFOV={refreshFOV} rng={rng} />{" "}
       <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} />{" "}
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
