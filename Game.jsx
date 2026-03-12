@@ -789,8 +789,14 @@ export default function RoguelikeGame() {
     const nd = pl.depth + dir;
     if (nd < 1) return null;
     if (!sr.current.floors) sr.current.floors = {};
-    /* 未払いのまま階段を使った場合はその階を泥棒状態にする */
-    if (sr.current.dungeon?.shop?.unpaidTotal > 0) sr.current.dungeon.shopTheft = true;
+    /* 店の部屋内で落とし穴等により階層を離脱した場合は泥棒状態にする */
+    if (sr.current.dungeon?.shop?.unpaidTotal > 0) {
+      const _sroom = sr.current.dungeon.shop.room;
+      if (pl.x >= _sroom.x && pl.x < _sroom.x + _sroom.w &&
+          pl.y >= _sroom.y && pl.y < _sroom.y + _sroom.h) {
+        sr.current.dungeon.shopTheft = true;
+      }
+    }
     sr.current.floors[pl.depth] = sr.current.dungeon;
     const _saved = sr.current.floors[nd];
     let d;
@@ -1157,8 +1163,16 @@ export default function RoguelikeGame() {
             if (_cursedSanc) {
               ml.push("呪われた魔方陣が行く手を阻んでいる！");
             } else {
+            const _wasInShop = dg.shop?.unpaidTotal > 0 && dg.shop.room &&
+              p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
+              p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h;
             p.x = nx;
             p.y = ny;
+            if (_wasInShop && !(p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
+                p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h)) {
+              dg.shopTheft = true;
+              ml.push("店から盗んで逃げた！");
+            }
             acted = true;
             const tr = checkTrap(p, dg, ml);
             if (tr === "pitfall") {
@@ -1485,8 +1499,16 @@ export default function RoguelikeGame() {
           break;
         if (monsterAt(dg, nx, ny)) break;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny)) break;
+        const _wasInShopD = dg.shop?.unpaidTotal > 0 && dg.shop.room &&
+          p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
+          p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h;
         p.x = nx;
         p.y = ny;
+        if (_wasInShopD && !(p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
+            p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h)) {
+          dg.shopTheft = true;
+          ml.push("店から盗んで逃げた！");
+        }
         steps++;
         const tr = checkTrap(p, dg, ml, true);
         if (tr === "pitfall") {
