@@ -652,6 +652,36 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
       }
+      /* 塞がれた場合：ターゲットに近づける別マスがあれば移動（室内での一列整列を防ぐ） */
+      const _curDist = Math.abs(tx - m.x) + Math.abs(ty - m.y);
+      const _altMoves = [];
+      for (const [_adx, _ady] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
+        const _anx = m.x + _adx, _any = m.y + _ady;
+        if (_anx === next.x && _any === next.y) continue;
+        if (!isWalkable(map, _anx, _any)) continue;
+        if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
+        if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+        if (_adx !== 0 && _ady !== 0) {
+          if (!isWalkable(map, m.x + _adx, m.y) && !isWalkable(map, m.x, m.y + _ady)) continue;
+        }
+        const _nd = Math.abs(tx - _anx) + Math.abs(ty - _any);
+        if (_nd < _curDist) _altMoves.push({ x: _anx, y: _any, dist: _nd });
+      }
+      if (_altMoves.length > 0) {
+        _altMoves.sort((a, b) => a.dist - b.dist);
+        const _ab = _altMoves[0];
+        if (_ab.x === pl.x && _ab.y === pl.y) {
+          if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
+              m.turnAttacks < (m.maxAttacks ?? 1)) {
+            m.turnAttacks++; m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
+            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+          }
+          return;
+        }
+        m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
+        m.x = _ab.x; m.y = _ab.y;
+        return;
+      }
       return; /* 前の敵が動けない場合は自然なキューイングで待機 */
     }
     /* BFS 経路なし（壁で完全遮断）：_forceAlt 時のみランダム脱出を試みる */
