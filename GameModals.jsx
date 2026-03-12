@@ -1675,3 +1675,48 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, loadPortrait, cle
     </div>
   );
 }
+
+/* ===== Floor Select Modal (cursed teleport) ===== */
+export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, genDungeon, refreshFOV, rng }) {
+  if (!mode) return null;
+  const MAX_FLOOR = 30;
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+      <div style={{ background: "#111", border: "1px solid #550", borderRadius: 6, padding: "12px 20px", color: "#ffe", minWidth: 180, maxHeight: "70vh", overflowY: "auto" }}>
+        <div style={{ color: "#fa0", fontWeight: "bold", marginBottom: 8, textAlign: "center" }}>階層テレポート【呪】</div>
+        <div style={{ color: "#888", fontSize: 11, marginBottom: 8, textAlign: "center" }}>↑↓:選択　Z/Enter:決定</div>
+        {Array.from({ length: MAX_FLOOR }, (_, i) => i + 1).map(f => (
+          <div key={f}
+            style={{ padding: "2px 8px", background: f === mode.sel ? "#443300" : "transparent", color: f === mode.sel ? "#ffcc00" : "#aaa", cursor: "pointer" }}
+            onClick={() => {
+              const { player: _p } = sr.current || {};
+              if (!_p) return;
+              const _ml = [];
+              if (!sr.current.floors) sr.current.floors = {};
+              sr.current.floors[_p.depth] = sr.current.dungeon;
+              const _saved = sr.current.floors[f];
+              let _d;
+              if (_saved) { _d = _saved; delete sr.current.floors[f]; }
+              else { _d = genDungeon(f - 1); }
+              _p.depth = f;
+              const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
+              _p.x = rng(_rm.x, _rm.x + _rm.w - 1);
+              _p.y = rng(_rm.y, _rm.y + _rm.h - 1);
+              refreshFOV(_d, _p);
+              _d.nextSpawnTurn = _p.turns + rng(10, 50);
+              sr.current.dungeon = _d;
+              _ml.push(`${f}階へテレポートした！【呪】`);
+              endTurn(sr.current, _p, _ml);
+              setMode(null);
+              setMsgs(prev => [...prev.slice(-80), ..._ml]);
+              sr.current = { ...sr.current };
+              setGs({ ...sr.current });
+            }}
+          >
+            {f === mode.sel ? "▶ " : "  "}{f}階
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
