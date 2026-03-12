@@ -50,6 +50,16 @@ export const MONS = [
     tile: 7,
     kind: "humanoid",
   },
+  {
+    name: "インプ",
+    hp: 10,
+    atk: 6,
+    def: 1,
+    exp: 20,
+    speed: 2,
+    tile: 53,
+    kind: "beast",
+  },
   /* ── 遠距離攻撃敵 (テスト: 二階から出現) ── */
   {
     name: "アーチャー",
@@ -118,6 +128,17 @@ export const MONS = [
     kind: "undead",
   },
   {
+    name: "シャーマン",
+    hp: 22,
+    atk: 5,
+    def: 2,
+    exp: 48,
+    speed: 1,
+    tile: 55,
+    kind: "humanoid",
+    subtype: "supporter",
+  },
+  {
     name: "オーク",
     hp: 18,
     atk: 8,
@@ -135,6 +156,28 @@ export const MONS = [
     exp: 32,
     speed: 1,
     tile: 12,
+    kind: "beast",
+  },
+  {
+    name: "ウィンドメイジ",
+    hp: 20,
+    atk: 7,
+    def: 2,
+    exp: 52,
+    speed: 1,
+    tile: 54,
+    kind: "humanoid",
+    subtype: "wanduser",
+    wandEffect: "blowback_wand",
+  },
+  {
+    name: "ガーゴイル",
+    hp: 50,
+    atk: 14,
+    def: 9,
+    exp: 75,
+    speed: 0.5,
+    tile: 52,
     kind: "beast",
   },
   {
@@ -608,6 +651,50 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
         // 魔封じの部屋にいる場合は杖を使えず通常行動へフォールスルー
       }
+    }
+
+    /* ── supporter（シャーマン等）：近くの味方を回復・強化 ── */
+    if (m.subtype === "supporter") {
+      /* 傷ついた味方を探す（範囲8マス） */
+      const _injured = dg.monsters.filter(o =>
+        o !== m && (o.maxHp != null ? o.hp < o.maxHp : false) &&
+        Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 8
+      );
+      if (_injured.length > 0) {
+        const _healTarget = _injured.reduce((a, b) =>
+          (Math.abs(a.x - m.x) + Math.abs(a.y - m.y)) <=
+          (Math.abs(b.x - m.x) + Math.abs(b.y - m.y)) ? a : b
+        );
+        const _hdist = Math.abs(_healTarget.x - m.x) + Math.abs(_healTarget.y - m.y);
+        if (_hdist <= 1) {
+          /* 隣接：回復 */
+          const _heal = rng(5, 12);
+          _healTarget.hp = Math.min(_healTarget.maxHp, _healTarget.hp + _heal);
+          ml.push(`${m.name}が${_healTarget.name}を回復した！(+${_heal}HP)`);
+          return;
+        } else {
+          /* 傷ついた味方へ接近 */
+          const _hn = bfsNext(map, dg.monsters, m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles);
+          if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y)) {
+            m.x = _hn.x; m.y = _hn.y;
+            return;
+          }
+        }
+      }
+      /* 傷なし：隣の味方に攻撃バフ（未付与のみ） */
+      const _buffable = dg.monsters.filter(o =>
+        o !== m && !o.atkBuffed &&
+        Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 1
+      );
+      if (_buffable.length > 0) {
+        const _bt = _buffable[rng(0, _buffable.length - 1)];
+        const _buffAmt = rng(2, 4);
+        _bt.atk += _buffAmt;
+        _bt.atkBuffed = true;
+        ml.push(`${m.name}が${_bt.name}を強化！攻撃力+${_buffAmt}！`);
+        return;
+      }
+      /* 強化・回復対象なし → 通常行動（プレイヤーへ接近）にフォールスルー */
     }
 
     const tx = canSee ? pl.x : m.lastPx;

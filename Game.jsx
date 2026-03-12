@@ -706,6 +706,59 @@ export default function RoguelikeGame() {
             }
           }
           if (!_cwHit) ml.push("呪いの魔法弾は虚空に消えた。");
+        } else if (_we === "blowback_wand") {
+          ml.push(`${m.name}が吹き飛ばしの杖を振った！`);
+          let _bwHit = false;
+          for (let _d = 1; _d < 20; _d++) {
+            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
+            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _bwHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _bwHit = true; break; }
+            /* プレイヤーに命中 */
+            if (_tx === pl.x && _ty === pl.y) {
+              if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+                ml.push("祝福された聖域の加護が魔法弾を防いだ！");
+              } else {
+                ml.push("吹き飛ばしの魔法弾が命中！");
+                /* プレイヤーをdx,dy方向に最大5マス吹き飛ばす */
+                let _blown = 0;
+                for (let _bd = 1; _bd <= 5; _bd++) {
+                  const _bx = pl.x + dx * _bd, _by = pl.y + dy * _bd;
+                  if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH) break;
+                  if (dg.map[_by][_bx] === T.WALL || dg.map[_by][_bx] === T.BWALL) {
+                    const _colDmg = rng(2, 6);
+                    pl.hp -= _colDmg;
+                    pl.deathCause = `${m.name}の吹き飛ばしで壁に激突して`;
+                    ml.push(`壁に激突！${_colDmg}ダメージ！`);
+                    break;
+                  }
+                  if (dg.monsters.some(o => o.x === _bx && o.y === _by)) break;
+                  if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bx && pc.y === _by)) break;
+                  pl.x = _bx; pl.y = _by;
+                  _blown++;
+                }
+                if (_blown > 0) ml.push(`${_blown}マス吹き飛んだ！`);
+                if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+                if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+              }
+              _bwHit = true; break;
+            }
+            /* 途中のモンスターに命中 → 吹き飛ばす */
+            const _bwMon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty);
+            if (_bwMon) {
+              ml.push(`吹き飛ばしの魔法弾が${_bwMon.name}に命中！`);
+              for (let _bd = 1; _bd <= 5; _bd++) {
+                const _bx = _bwMon.x + dx * _bd, _by = _bwMon.y + dy * _bd;
+                if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH) break;
+                if (dg.map[_by][_bx] === T.WALL || dg.map[_by][_bx] === T.BWALL) break;
+                if (dg.monsters.some(o => o !== _bwMon && o.x === _bx && o.y === _by)) break;
+                if (_bx === pl.x && _by === pl.y) break;
+                _bwMon.x = _bx; _bwMon.y = _by;
+              }
+              ml.push(`${_bwMon.name}は吹き飛んだ！`);
+              _bwHit = true; break;
+            }
+          }
+          if (!_bwHit) ml.push("吹き飛ばしの魔法弾は虚空に消えた。");
         }
       },
       monsterDropFn: (m, dg2, ml2) => monsterDrop(m, dg2, ml2, pl),
