@@ -817,15 +817,6 @@ export default function RoguelikeGame() {
       const _etPfBag = [];
       setPitfallBag(_etPfBag);
       p.turns++;
-      if (p.hp > 0 && p.hp < p.maxHp) {
-        const regenAmt =
-          Math.max(1, Math.floor(p.maxHp / 100)) +
-          (p.armor?.ability === "regen" ||
-          !!p.armor?.abilities?.includes("regen")
-            ? 1
-            : 0);
-        p.hp = Math.min(p.maxHp, p.hp + regenAmt);
-      }
       const hd =
         p.armor?.ability === "slow_hunger" ||
         !!p.armor?.abilities?.includes("slow_hunger")
@@ -833,11 +824,19 @@ export default function RoguelikeGame() {
           : 1;
       if (p.turns % (15 * hd) === 0) {
         p.hunger = Math.max(0, p.hunger - 1);
-        if (p.hunger === 0) {
-          p.deathCause = "空腹により";
-          p.hp--;
-          if (p.turns % (30 * hd) === 0) ml.push("空腹でHPが減っている...");
-        }
+      }
+      if (p.hunger === 0) {
+        p.deathCause = "空腹により";
+        p.hp--;
+        if (p.turns % 10 === 0) ml.push("空腹でHPが減っている...");
+      } else if (p.hp > 0 && p.hp < p.maxHp) {
+        const regenAmt =
+          Math.max(1, Math.floor(p.maxHp / 100)) +
+          (p.armor?.ability === "regen" ||
+          !!p.armor?.abilities?.includes("regen")
+            ? 1
+            : 0);
+        p.hp = Math.min(p.maxHp, p.hp + regenAmt);
       }
       /* MPクールダウンカウント */
       if ((p.mpCooldownTurns || 0) > 0) p.mpCooldownTurns--;
@@ -2559,10 +2558,8 @@ export default function RoguelikeGame() {
                 if (p2.gold >= dg2.shop.unpaidTotal) {
                   p2.gold -= dg2.shop.unpaidTotal;
                   dg2.shop.unpaidTotal = 0;
+                  dg2.shopTheft = false;
                   p2.inventory.forEach((it2) => {
-                    if (it2.shopPrice) delete it2.shopPrice;
-                  });
-                  dg2.items.forEach((it2) => {
                     if (it2.shopPrice) delete it2.shopPrice;
                   });
                   const sk5 = dg2.monsters.find((m) => m.type === "shopkeeper");

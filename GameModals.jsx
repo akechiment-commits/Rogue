@@ -637,10 +637,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   if (p2.gold >= dg2.shop.unpaidTotal) {
                     p2.gold -= dg2.shop.unpaidTotal;
                     dg2.shop.unpaidTotal = 0;
+                    dg2.shopTheft = false;
                     p2.inventory.forEach((it2) => {
-                      if (it2.shopPrice) delete it2.shopPrice;
-                    });
-                    dg2.items.forEach((it2) => {
                       if (it2.shopPrice) delete it2.shopPrice;
                     });
                     const sk5 = dg2.monsters.find(
