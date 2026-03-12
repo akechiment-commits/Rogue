@@ -616,7 +616,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* move toward target */
     /* BFSは壁のみを障害物とする（他モンスターは一時的な遮断なので無視）。
        実際に踏めるかは取得した first-step で改めてチェックする。 */
-    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 20, dg.pentacles);
+    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles);
     if (next && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) return;
     if (next) {
       if (next.x === pl.x && next.y === pl.y) {
@@ -711,11 +711,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           : open;
         const chosen = pick(notRev.length > 0 ? notRev : open);
         if (chosen) {
-          /* 選んだ方向に8マス先を目標に設定（BFSが実際の経路を処理する） */
-          m.patrolTarget = {
-            x: clamp(m.x + chosen[0] * 8, 0, MW - 1),
-            y: clamp(m.y + chosen[1] * 8, 0, MH - 1),
-          };
+          /* 選んだ方向の廊下を実際に走査し、最初の壁手前の床タイルを目標にする */
+          let _ptx = m.x, _pty = m.y;
+          for (let _s = 1; _s <= 16; _s++) {
+            const _nx = m.x + chosen[0] * _s, _ny = m.y + chosen[1] * _s;
+            if (!isWalkable(map, _nx, _ny)) break;
+            _ptx = _nx; _pty = _ny;
+          }
+          m.patrolTarget = { x: _ptx, y: _pty };
         }
       }
     }
