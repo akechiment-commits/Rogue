@@ -963,6 +963,9 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         const _digMax = blMult > 1 ? 20 : 10; /* 祝福：2倍距離 */
         let dug = 0, cx = tx, cy = ty;
         while (dug < _digMax && cx >= 0 && cx < MW && cy >= 0 && cy < MH && (dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL)) {
+          /* 壁埋めアイテムを解放 */
+          const _wi = dg.items.find(i => i.x === cx && i.y === cy && i.wallEmbedded);
+          if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
           dg.map[cy][cx] = T.FLOOR; dug++; cx += dx; cy += dy;
         }
         ml.push(dug > 0 ? `穴掘りの魔法弾が壁を${dug}マス掘り進んだ！` : "魔法弾は壁に消えた。");
@@ -1098,8 +1101,11 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
     const digDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
     for (const [adx, ady] of digDirs) {
       const wx = p.x + adx, wy = p.y + ady;
-      if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && (dg.map[wy][wx] === T.WALL || dg.map[wy][wx] === T.BWALL))
+      if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && (dg.map[wy][wx] === T.WALL || dg.map[wy][wx] === T.BWALL)) {
+        const _wi2 = dg.items.find(i => i.x === wx && i.y === wy && i.wallEmbedded);
+        if (_wi2) { delete _wi2.wallEmbedded; _wi2.discovered = true; }
         dg.map[wy][wx] = T.FLOOR;
+      }
     }
     const _pfBlocked =
       dg.traps.find(t => t.x === p.x && t.y === p.y) ||
