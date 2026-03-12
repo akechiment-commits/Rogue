@@ -488,13 +488,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
 
-      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 2 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && Math.random() < 0.5) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
       }
 
-      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 2 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && Math.random() < 0.5) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>
@@ -512,7 +512,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── supporter（シャーマン等）：近くの味方を回復・強化 ── */
-    if (m.subtype === "supporter") {
+    if (m.subtype === "supporter" && Math.random() < 0.5) {
       /* 傷ついた味方を探す（範囲8マス） */
       const _injured = dg.monsters.filter(o =>
         o !== m && (o.maxHp != null ? o.hp < o.maxHp : false) &&
