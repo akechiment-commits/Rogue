@@ -8,7 +8,7 @@ function isWalkable(map, x, y) { return inBounds(x, y) && map[y][x] !== T.WALL &
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false } = {}) {
   const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
-  let dmg = Math.max(1, m.atk - pdef + rng(-2, 2));
+  let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   if (!skipVuln) {
     const plRoom = findRoom(dg.rooms, pl.x, pl.y);
     const vulnPc = plRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" &&
@@ -488,7 +488,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
         if (_other) {
           /* 他のモンスターを攻撃 */
-          const _odmg = Math.max(1, m.atk - (_other.def || 0) + rng(-1, 1));
+          const _odmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_other.def || 0))) + rng(-1, 1));
           _other.hp -= _odmg;
           ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
           if (_other.hp <= 0) {
@@ -519,7 +519,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       } else {
         const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
         if (_dother) {
-          const _dodmg = Math.max(1, m.atk - (_dother.def || 0) + rng(-1, 1));
+          const _dodmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_dother.def || 0))) + rng(-1, 1));
           _dother.hp -= _dodmg;
           ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
           if (_dother.hp <= 0) {
