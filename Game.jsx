@@ -109,6 +109,7 @@ export default function RoguelikeGame() {
   const [spellMenuSel, setSpellMenuSel] = useState(0);
   /* null | {potIdx:number} */ const [dashMode, setDashMode] = useState(false);
   /* null | {cx:number, cy:number} */ const [tpSelectMode, setTpSelectMode] = useState(null);
+  /* null | {cx:number, cy:number} */ const [lookMode, setLookMode] = useState(null);
   /* null | {sel:number} */ const [floorSelectMode, setFloorSelectMode] = useState(null);
   /* null | { mode:'identify'|'unidentify' } */ const [identifyMode, setIdentifyMode] = useState(null);
   /* null | { identKey:string } */ const [nicknameMode, setNicknameMode] = useState(null);
@@ -349,8 +350,8 @@ export default function RoguelikeGame() {
     ctx.imageSmoothingEnabled = false;
     const hw = Math.floor(vw / 2),
       hh = Math.floor(vh / 2);
-    const _camCx = tpSelectMode ? tpSelectMode.cx : p.x;
-    const _camCy = tpSelectMode ? tpSelectMode.cy : p.y;
+    const _camCx = lookMode ? lookMode.cx : (tpSelectMode ? tpSelectMode.cx : p.x);
+    const _camCy = lookMode ? lookMode.cy : (tpSelectMode ? tpSelectMode.cy : p.y);
     const sx = clamp(_camCx - hw, 0, Math.max(0, MW - vw)),
       sy = clamp(_camCy - hh, 0, Math.max(0, MH - vh));
     ctx.fillStyle = "#080810";
@@ -537,6 +538,18 @@ export default function RoguelikeGame() {
         ctx.fillRect(_wpx + 1, _wpy, Math.max(1, bw * hpR), bh);
       }
     }
+    /* lookMode cursor overlay */
+    if (lookMode) {
+      const { cx: _lcx, cy: _lcy } = lookMode;
+      if (_lcx >= sx && _lcx < sx + vw && _lcy >= sy && _lcy < sy + vh) {
+        const _cpx = (_lcx - sx) * sz, _cpy = (_lcy - sy) * sz;
+        ctx.fillStyle = "rgba(0,220,255,0.2)";
+        ctx.fillRect(_cpx, _cpy, sz, sz);
+        ctx.strokeStyle = "#00e5ff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(_cpx + 1, _cpy + 1, sz - 2, sz - 2);
+      }
+    }
     /* tpSelectMode cursor overlay */
     if (tpSelectMode) {
       const { cx: _tcx, cy: _tcy } = tpSelectMode;
@@ -550,7 +563,7 @@ export default function RoguelikeGame() {
         ctx.strokeRect(_cpx + 1, _cpy + 1, sz - 2, sz - 2);
       }
     }
-  }, [gs, mobile, landscape, ctLoaded, tpSelectMode]);
+  }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode]);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
       p.level++;
@@ -618,6 +631,31 @@ export default function RoguelikeGame() {
         break;
       }
     }
+  }, []);
+  const getLookDesc = useCallback((cx, cy, dg) => {
+    if (!dg) return "";
+    const tile = dg.map[cy]?.[cx];
+    if (tile === T.WALL || tile === T.BWALL) return "壁";
+    if (!dg.explored[cy]?.[cx]) return "未探索";
+    const parts = [];
+    if (tile === T.SD) parts.push("下り階段");
+    else if (tile === T.SU) parts.push("上り階段");
+    const mon = dg.monsters.find(m => m.x === cx && m.y === cy);
+    if (mon) parts.push(`${mon.name} HP:${mon.hp}/${mon.maxHp}`);
+    const floorItems = dg.items.filter(i => i.x === cx && i.y === cy);
+    for (const it of floorItems) {
+      const nm = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+      parts.push(it.shopPrice ? `${nm}(${it.shopPrice}G)` : nm);
+    }
+    const trap = dg.traps.find(t => t.x === cx && t.y === cy && t.revealed);
+    if (trap) parts.push(`罠:${trap.name}`);
+    const spring = dg.springs?.find(s => s.x === cx && s.y === cy);
+    if (spring) parts.push(spring.name || "泉");
+    const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
+    if (bb) parts.push(`${bb.name}(${bb.contents?.length || 0}/${bb.capacity ?? "∞"})`);
+    const pent = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
+    if (pent) parts.push(pent.name);
+    return parts.length > 0 ? parts.join(" / ") : "何もない";
   }, []);
   const checkTrap = useCallback((p, dg, ml, isDash = false) => {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
@@ -2073,6 +2111,39 @@ export default function RoguelikeGame() {
         }
         return;
       }
+      if (lookMode) {
+        e.preventDefault();
+        const { player: p2, dungeon: dg2 } = sr.current || {};
+        if (!p2 || !dg2) return;
+        const { cx, cy } = lookMode;
+        const isUp    = k === "arrowup"    || k === "w" || e.code === "Numpad8";
+        const isDown  = k === "arrowdown"  || k === "s" || e.code === "Numpad2";
+        const isLeft  = k === "arrowleft"  || k === "a" || e.code === "Numpad4";
+        const isRight = k === "arrowright" || k === "d" || e.code === "Numpad6";
+        const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
+        const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
+        let ncx = cx, ncy = cy;
+        if (isUp)         ncy = Math.max(0, cy - 1);
+        else if (isDown)  ncy = Math.min(MH - 1, cy + 1);
+        else if (isLeft)  ncx = Math.max(0, cx - 1);
+        else if (isRight) ncx = Math.min(MW - 1, cx + 1);
+        else if (isUL) { ncx = Math.max(0, cx - 1); ncy = Math.max(0, cy - 1); }
+        else if (isUR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.max(0, cy - 1); }
+        else if (isDL) { ncx = Math.max(0, cx - 1); ncy = Math.min(MH - 1, cy + 1); }
+        else if (isDR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.min(MH - 1, cy + 1); }
+        if (ncx !== cx || ncy !== cy) {
+          setLookMode({ cx: ncx, cy: ncy });
+          const _lookDesc = getLookDesc(ncx, ncy, dg2);
+          if (_lookDesc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_lookDesc}`]);
+          return;
+        }
+        if (k === "x" || k === "escape") {
+          setLookMode(null);
+          setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
+          return;
+        }
+        return;
+      }
       if (showInv) {
         const inv = sr.current?.player?.inventory || [];
         const totalPages = Math.ceil(inv.length / 10) || 1;
@@ -2884,6 +2955,16 @@ export default function RoguelikeGame() {
         }
         return;
       }
+      if (k === "w" && !showInv && !bigboxMode && !springMode && !throwMode && !putMode) {
+        e.preventDefault();
+        const { player: _lp, dungeon: _ld } = sr.current || {};
+        if (_lp && _ld) {
+          setLookMode({ cx: _lp.x, cy: _lp.y });
+          const _initDesc = getLookDesc(_lp.x, _lp.y, _ld);
+          setMsgs(prev => [...prev.slice(-80), `[見渡す] 矢印キーで移動、xでキャンセル / ${_initDesc}`]);
+        }
+        return;
+      }
       if (k === "." || k === " ") {
         e.preventDefault();
         act("wait");
@@ -2962,6 +3043,8 @@ export default function RoguelikeGame() {
       revealMode,
       tpSelectMode,
       floorSelectMode,
+      lookMode,
+      getLookDesc,
     ],
   );
   useEffect(() => {
@@ -4985,6 +5068,18 @@ export default function RoguelikeGame() {
                 setRevealMode(null);
                 return;
               }
+              /* === 見渡しモード === */
+              if (lookMode) {
+                const ncx = Math.max(0, Math.min(MW - 1, lookMode.cx + dx));
+                const ncy = Math.max(0, Math.min(MH - 1, lookMode.cy + dy));
+                setLookMode({ cx: ncx, cy: ncy });
+                const { dungeon: _ld } = sr.current || {};
+                if (_ld) {
+                  const _desc = getLookDesc(ncx, ncy, _ld);
+                  if (_desc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_desc}`]);
+                }
+                return;
+              }
               /* === テレポート先選択モード === */
               if (tpSelectMode) {
                 setTpSelectMode({ cx: Math.max(0, Math.min(MW - 1, tpSelectMode.cx + dx)), cy: Math.max(0, Math.min(MH - 1, tpSelectMode.cy + dy)) });
@@ -5168,8 +5263,33 @@ export default function RoguelikeGame() {
                   onClick={() => act("wait")}
                   color="#666"
                 />
+                <AB
+                  label="罠"
+                  sub="探る"
+                  onClick={() => act("search_traps")}
+                  color="#fa0"
+                />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
+                <AB
+                  label="見"
+                  sub="見渡す"
+                  onClick={() => {
+                    if (revealMode) return;
+                    if (lookMode) {
+                      setLookMode(null);
+                      setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
+                      return;
+                    }
+                    const { player: _lp, dungeon: _ld } = sr.current || {};
+                    if (_lp && _ld) {
+                      setLookMode({ cx: _lp.x, cy: _lp.y });
+                      const _initDesc = getLookDesc(_lp.x, _lp.y, _ld);
+                      setMsgs(prev => [...prev.slice(-80), `[見渡す] Dパッドで移動、もう一度タップでキャンセル / ${_initDesc}`]);
+                    }
+                  }}
+                  color={lookMode ? "#00e5ff" : "#08f"}
+                />
                 <AB
                   label="走"
                   sub={dashMode ? "ON" : "dash"}
