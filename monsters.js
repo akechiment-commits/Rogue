@@ -665,7 +665,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           if (!isWalkable(map, m.x + _adx, m.y) && !isWalkable(map, m.x, m.y + _ady)) continue;
         }
         const _nd = Math.abs(tx - _anx) + Math.abs(ty - _any);
-        if (_nd < _curDist) _altMoves.push({ x: _anx, y: _any, dist: _nd });
+        if (_nd <= _curDist) _altMoves.push({ x: _anx, y: _any, dist: _nd });
       }
       if (_altMoves.length > 0) {
         _altMoves.sort((a, b) => a.dist - b.dist);
