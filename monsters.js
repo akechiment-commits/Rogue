@@ -471,9 +471,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       } else {
         if (m.x !== _bp.x || m.y !== _bp.y) {
-          /* 他のモンスターが既に同マスにいる場合はテレポートしない */
-          if (!dg.monsters.some(o => o !== m && o.x === _bp.x && o.y === _bp.y)) {
+          /* プレイヤーや他のモンスターが既に同マスにいる場合は近傍の空きタイルへ */
+          const _bpFree = (_bp.x !== pl.x || _bp.y !== pl.y) &&
+            !dg.monsters.some(o => o !== m && o.x === _bp.x && o.y === _bp.y) &&
+            (dg.map[_bp.y]?.[_bp.x] === T.FLOOR || dg.map[_bp.y]?.[_bp.x] === T.SD || dg.map[_bp.y]?.[_bp.x] === T.SU);
+          if (_bpFree) {
             m.x = _bp.x; m.y = _bp.y;
+          } else {
+            /* blockPos が塞がれていたらBFSで1歩近づく */
+            const _bn = bfsNext(dg.map, dg.monsters, m.x, m.y, _bp.x, _bp.y, m, 10);
+            if (_bn && (_bn.x !== pl.x || _bn.y !== pl.y) &&
+                !dg.monsters.some(o => o !== m && o.x === _bn.x && o.y === _bn.y)) {
+              m.x = _bn.x; m.y = _bn.y;
+            }
           }
         }
       }
