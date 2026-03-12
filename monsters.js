@@ -46,7 +46,7 @@ export const MONS = [
   /* 6: 7階〜 遠距離 */
   { name: "アーチャー",   hp: 22,  atk: 10, def: 2,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", subtype: "archer" },
   /* 7: 8階〜 速攻獣 */
-  { name: "ウルフ",       hp: 20,  atk: 11, def: 1,  exp: 40,  speed: 1.5, tile: 56, kind: "beast" },
+  { name: "ウルフ",       hp: 20,  atk: 11, def: 1,  exp: 40,  speed: 2,   tile: 56, kind: "beast" },
   /* 8: 9階〜 杖使い */
   { name: "ウィザード",   hp: 18,  atk: 9,  def: 2,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", subtype: "wanduser", wandEffect: "lightning" },
   /* 9: 10階〜 壁歩き (固定スポーンは3階〜) */
@@ -62,11 +62,11 @@ export const MONS = [
   /* 14: 15階〜 吹き飛ばし杖 */
   { name: "ウィンドメイジ", hp: 28, atk: 11, def: 3, exp: 65,  speed: 1,   tile: 54, kind: "humanoid", subtype: "wanduser", wandEffect: "blowback_wand" },
   /* 15: 16階〜 */
-  { name: "トロル",       hp: 50,  atk: 16, def: 6,  exp: 75,  speed: 0.8, tile: 13, kind: "humanoid" },
+  { name: "トロル",       hp: 50,  atk: 16, def: 6,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid" },
   /* 16: 17階〜 鈍足・超硬 */
   { name: "ガーゴイル",   hp: 65,  atk: 18, def: 11, exp: 90,  speed: 0.5, tile: 52, kind: "beast" },
   /* 17: 18階〜 速攻不死 */
-  { name: "ヴァンパイア", hp: 60,  atk: 18, def: 7,  exp: 92,  speed: 1.2, tile: 15, kind: "undead" },
+  { name: "ヴァンパイア", hp: 60,  atk: 18, def: 7,  exp: 92,  speed: 2,   tile: 15, kind: "undead" },
   /* 18: 19階〜 */
   { name: "ドラゴン",     hp: 90,  atk: 24, def: 10, exp: 140, speed: 1,   tile: 14, kind: "dragon" },
   /* 19: 20階〜 鈍足・超DEF */
@@ -335,7 +335,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
       if (_cnx === pl.x && _cny === pl.y) {
-        monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`);
+        if (m.turnAttacks === 0) { m.turnAttacks = 1; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`); }
       } else {
         const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
         if (_other) {
@@ -367,7 +367,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
     if (isWalkable(dg.map, _dnx, _dny)) {
       if (_dnx === pl.x && _dny === pl.y) {
-        monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true });
+        if (m.turnAttacks === 0) { m.turnAttacks = 1; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true }); }
       } else {
         const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
         if (_dother) {
@@ -457,11 +457,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* 隣接していれば攻撃 */
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
-      const _wwInWall = dg.map[m.y]?.[m.x] === T.WALL;
-      monsterAttackPlayer(m, dg, pl, ml, d => _wwInWall
-        ? `${m.name}が壁を突き抜けて攻撃！${d}ダメージ！`
-        : `${m.name}の攻撃！${d}ダメージ！`);
-      return;
+      if (m.turnAttacks === 0) {
+        m.turnAttacks = 1;
+        const _wwInWall = dg.map[m.y]?.[m.x] === T.WALL;
+        monsterAttackPlayer(m, dg, pl, ml, d => _wwInWall
+          ? `${m.name}が壁を突き抜けて攻撃！${d}ダメージ！`
+          : `${m.name}の攻撃！${d}ダメージ！`);
+        return;
+      }
+      /* 2回目以降は移動のみ → 直進コードへフォールスルー */
     }
     /* 壁を無視してプレイヤーへ1歩直進 */
     const _wdx = Math.sign(pl.x - m.x), _wdy = Math.sign(pl.y - m.y);
@@ -484,12 +488,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
 
-      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 2 && lineLen <= 10) {
+      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 2 && lineLen <= 10 && m.turnAttacks === 0) {
+        m.turnAttacks = 1;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
       }
 
-      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 2 && lineLen <= 10 && opts.monsterWandFn) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 2 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks === 0) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>
@@ -498,6 +503,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             pc.y >= _wRoom.y && pc.y < _wRoom.y + _wRoom.h
           ));
         if (!_wSeal) {
+          m.turnAttacks = 1;
           opts.monsterWandFn(m, Math.sign(adx), Math.sign(ady));
           return;
         }
@@ -556,8 +562,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
-      monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
-      return;
+      if (m.turnAttacks === 0) {
+        m.turnAttacks = 1;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+        return;
+      }
+      /* 2回目以降：攻撃せずBFSで移動を試みる */
     }
 
     /* move toward target */
@@ -572,7 +582,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
         m.dir = { x: next.x - m.x, y: next.y - m.y };
-        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+        if (m.turnAttacks === 0) {
+          m.turnAttacks = 1;
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+        }
         return;
       }
       if (
