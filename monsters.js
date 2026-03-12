@@ -29,198 +29,50 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
 }
 
 /* ===== MONSTER DEFINITIONS ===== */
+/* ── MONS配列の順番 = 出現階層（index N → N+1階から出現可能）── */
 export const MONS = [
-  {
-    name: "ネズミ",
-    hp: 4,
-    atk: 2,
-    def: 0,
-    exp: 3,
-    speed: 1,
-    tile: 6,
-    kind: "beast",
-  },
-  {
-    name: "コボルド",
-    hp: 8,
-    atk: 4,
-    def: 1,
-    exp: 8,
-    speed: 1,
-    tile: 7,
-    kind: "humanoid",
-  },
-  {
-    name: "インプ",
-    hp: 10,
-    atk: 6,
-    def: 1,
-    exp: 20,
-    speed: 2,
-    tile: 53,
-    kind: "beast",
-  },
-  /* ── 遠距離攻撃敵 (テスト: 二階から出現) ── */
-  {
-    name: "アーチャー",
-    hp: 18,
-    atk: 8,
-    def: 2,
-    exp: 30,
-    speed: 1,
-    tile: 39,
-    kind: "humanoid",
-    subtype: "archer",
-  },
-  {
-    name: "ウィザード",
-    hp: 14,
-    atk: 6,
-    def: 1,
-    exp: 35,
-    speed: 1,
-    tile: 40,
-    kind: "humanoid",
-    subtype: "wanduser",
-    wandEffect: "lightning",
-  },
-  /* ── 呪術師 (2階から出現・固定スポーン) ── */
-  {
-    name: "呪術師",
-    hp: 18,
-    atk: 5,
-    def: 2,
-    exp: 42,
-    speed: 1,
-    tile: 44,
-    kind: "humanoid",
-    subtype: "wanduser",
-    wandEffect: "curse_wand",
-  },
-  {
-    name: "ゴブリン",
-    hp: 10,
-    atk: 5,
-    def: 2,
-    exp: 12,
-    speed: 1,
-    tile: 8,
-    kind: "humanoid",
-  },
-  {
-    name: "スケルトン",
-    hp: 14,
-    atk: 6,
-    def: 3,
-    exp: 18,
-    speed: 1,
-    tile: 9,
-    kind: "undead",
-  },
-  {
-    name: "ゾンビ",
-    hp: 20,
-    atk: 7,
-    def: 2,
-    exp: 22,
-    speed: 0.5,
-    tile: 10,
-    kind: "undead",
-  },
-  {
-    name: "シャーマン",
-    hp: 22,
-    atk: 5,
-    def: 2,
-    exp: 48,
-    speed: 1,
-    tile: 55,
-    kind: "humanoid",
-    subtype: "supporter",
-  },
-  {
-    name: "オーク",
-    hp: 18,
-    atk: 8,
-    def: 4,
-    exp: 28,
-    speed: 1,
-    tile: 11,
-    kind: "humanoid",
-  },
-  {
-    name: "大蛇",
-    hp: 22,
-    atk: 9,
-    def: 3,
-    exp: 32,
-    speed: 1,
-    tile: 12,
-    kind: "beast",
-  },
-  {
-    name: "ウィンドメイジ",
-    hp: 20,
-    atk: 7,
-    def: 2,
-    exp: 52,
-    speed: 1,
-    tile: 54,
-    kind: "humanoid",
-    subtype: "wanduser",
-    wandEffect: "blowback_wand",
-  },
-  {
-    name: "ガーゴイル",
-    hp: 50,
-    atk: 14,
-    def: 9,
-    exp: 75,
-    speed: 0.5,
-    tile: 52,
-    kind: "beast",
-  },
-  {
-    name: "トロル",
-    hp: 35,
-    atk: 12,
-    def: 5,
-    exp: 50,
-    speed: 0.8,
-    tile: 13,
-    kind: "humanoid",
-  },
-  {
-    name: "ドラゴン",
-    hp: 60,
-    atk: 18,
-    def: 8,
-    exp: 100,
-    speed: 1,
-    tile: 14,
-    kind: "dragon",
-  },
-  {
-    name: "ヴァンパイア",
-    hp: 45,
-    atk: 14,
-    def: 6,
-    exp: 70,
-    speed: 1.2,
-    tile: 15,
-    kind: "undead",
-  },
-  {
-    name: "岩霊",
-    hp: 22,
-    atk: 8,
-    def: 2,
-    exp: 35,
-    speed: 1,
-    tile: 43,
-    kind: "undead",
-    wallWalker: true,
-  },
+  /* 0: 1階〜 */
+  { name: "ネズミ",       hp: 5,   atk: 3,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast" },
+  /* 1: 2階〜 */
+  { name: "コボルド",     hp: 10,  atk: 5,  def: 1,  exp: 8,   speed: 1,   tile: 7,  kind: "humanoid" },
+  /* 2: 3階〜 */
+  { name: "ゴブリン",     hp: 12,  atk: 6,  def: 1,  exp: 12,  speed: 1,   tile: 8,  kind: "humanoid" },
+  /* 3: 4階〜 速攻型 */
+  { name: "インプ",       hp: 14,  atk: 7,  def: 1,  exp: 20,  speed: 2,   tile: 53, kind: "beast" },
+  /* 4: 5階〜 */
+  { name: "スケルトン",   hp: 18,  atk: 8,  def: 3,  exp: 22,  speed: 1,   tile: 9,  kind: "undead" },
+  /* 5: 6階〜 鈍足・硬め */
+  { name: "ゾンビ",       hp: 25,  atk: 9,  def: 2,  exp: 28,  speed: 0.5, tile: 10, kind: "undead" },
+  /* 6: 7階〜 遠距離 */
+  { name: "アーチャー",   hp: 22,  atk: 10, def: 2,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", subtype: "archer" },
+  /* 7: 8階〜 速攻獣 */
+  { name: "ウルフ",       hp: 20,  atk: 11, def: 1,  exp: 40,  speed: 1.5, tile: 56, kind: "beast" },
+  /* 8: 9階〜 杖使い */
+  { name: "ウィザード",   hp: 18,  atk: 9,  def: 2,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", subtype: "wanduser", wandEffect: "lightning" },
+  /* 9: 10階〜 壁歩き (固定スポーンは3階〜) */
+  { name: "岩霊",         hp: 28,  atk: 10, def: 3,  exp: 45,  speed: 1,   tile: 43, kind: "undead", wallWalker: true },
+  /* 10: 11階〜 */
+  { name: "オーク",       hp: 30,  atk: 12, def: 5,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid" },
+  /* 11: 12階〜 */
+  { name: "大蛇",         hp: 35,  atk: 13, def: 3,  exp: 52,  speed: 1,   tile: 12, kind: "beast" },
+  /* 12: 13階〜 呪い杖 (固定スポーンは2階〜) */
+  { name: "呪術師",       hp: 25,  atk: 9,  def: 3,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", subtype: "wanduser", wandEffect: "curse_wand" },
+  /* 13: 14階〜 サポーター */
+  { name: "シャーマン",   hp: 30,  atk: 9,  def: 3,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", subtype: "supporter" },
+  /* 14: 15階〜 吹き飛ばし杖 */
+  { name: "ウィンドメイジ", hp: 28, atk: 11, def: 3, exp: 65,  speed: 1,   tile: 54, kind: "humanoid", subtype: "wanduser", wandEffect: "blowback_wand" },
+  /* 15: 16階〜 */
+  { name: "トロル",       hp: 50,  atk: 16, def: 6,  exp: 75,  speed: 0.8, tile: 13, kind: "humanoid" },
+  /* 16: 17階〜 鈍足・超硬 */
+  { name: "ガーゴイル",   hp: 65,  atk: 18, def: 11, exp: 90,  speed: 0.5, tile: 52, kind: "beast" },
+  /* 17: 18階〜 速攻不死 */
+  { name: "ヴァンパイア", hp: 60,  atk: 18, def: 7,  exp: 92,  speed: 1.2, tile: 15, kind: "undead" },
+  /* 18: 19階〜 */
+  { name: "ドラゴン",     hp: 90,  atk: 24, def: 10, exp: 140, speed: 1,   tile: 14, kind: "dragon" },
+  /* 19: 20階〜 鈍足・超DEF */
+  { name: "ゴーレム",     hp: 100, atk: 20, def: 16, exp: 115, speed: 0.5, tile: 57, kind: "beast" },
+  /* 20: 21階〜 高ATK速攻 */
+  { name: "デーモン",     hp: 80,  atk: 28, def: 9,  exp: 160, speed: 1,   tile: 58, kind: "beast" },
 ];
 
 /* ===== モンスター生成ヘルパー ===== */
