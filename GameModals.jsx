@@ -222,7 +222,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
 }
 
 /* ===== Game Over Modal ===== */
-export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobile }) {
+export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobile, onReturnToHub }) {
   if (!dead) return null;
   return (
     <div
@@ -304,6 +304,24 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
         >
           {gameOverSel === 1 ? "▶ " : "　"}スコアを見る
         </button>
+        {onReturnToHub && (
+          <button
+            onClick={onReturnToHub}
+            style={{
+              padding: "10px 20px",
+              background: gameOverSel === 2 ? "#1a1208" : "#181828",
+              color: "#f0c040",
+              border: `1px solid ${gameOverSel === 2 ? "#f0c040" : "#3a2a08"}`,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: 14,
+              borderRadius: 6,
+              boxShadow: gameOverSel === 2 ? "0 0 8px #c09020" : "none",
+            }}
+          >
+            {gameOverSel === 2 ? "▶ " : "　"}地上に戻る
+          </button>
+        )}
       </div>
     </div>
   );

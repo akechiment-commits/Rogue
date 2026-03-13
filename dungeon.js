@@ -1239,3 +1239,72 @@ export function genDungeon(depth) {
     hiddenRooms,
   };
 }
+
+/* ===== DEBUG DUNGEON (全アイテム・全モンスター・全罠 配置) ===== */
+export function genDebugDungeon() {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rx = 1, ry = 1, rw = MW - 2, rh = MH - 2;
+  for (let dy = 0; dy < rh; dy++)
+    for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+  const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
+  const su = { x: rx + 1, y: ry + 1 };
+  map[su.y][su.x] = T.SU;
+  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  map[sd.y][sd.x] = T.SD;
+
+  const items = [], traps = [], springs = [], bigboxes = [];
+  const mons = [];
+  const occ = (x, y) =>
+    items.some(i => i.x === x && i.y === y) ||
+    mons.some(m => m.x === x && m.y === y) ||
+    traps.some(t => t.x === x && t.y === y) ||
+    springs.some(s => s.x === x && s.y === y) ||
+    bigboxes.some(b => b.x === x && b.y === y);
+
+  let col = rx + 2, row = ry + 2;
+  const nextPos = () => {
+    while (occ(col, row) || (col === su.x && row === su.y) || (col === sd.x && row === sd.y)) {
+      col++;
+      if (col >= rx + rw - 1) { col = rx + 2; row++; }
+      if (row >= ry + rh - 1) break;
+    }
+    const pos = { x: col, y: row };
+    col++;
+    if (col >= rx + rw - 1) { col = rx + 2; row++; }
+    return pos;
+  };
+
+  /* 全アイテムを1個ずつ配置 */
+  for (const tmpl of ITEMS) {
+    const p = nextPos();
+    const it = { ...tmpl, id: uid(), x: p.x, y: p.y };
+    if (it.type === 'gold') it.value = 9999;
+    items.push(it);
+  }
+  /* 全罠を1個ずつ配置 */
+  for (const tmpl of TRAPS) {
+    const p = nextPos();
+    traps.push({ ...tmpl, id: uid(), x: p.x, y: p.y, revealed: true });
+  }
+  /* 全モンスターを1体ずつ配置（弱体化） */
+  for (const tmpl of MONS) {
+    const p = nextPos();
+    mons.push({
+      ...tmpl, id: uid(), x: p.x, y: p.y, maxHp: tmpl.hp,
+      hp: tmpl.hp, turnAccum: 0, aware: false,
+      dir: { x: 1, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
+      dormant: true,
+    });
+  }
+  /* 泉 */
+  const sp = nextPos();
+  springs.push({ id: uid(), x: sp.x, y: sp.y, tile: TI.SPRING, contents: [] });
+
+  const { visible, explored } = mkVis();
+  return {
+    map, rooms: [room], monsters: mons, items, traps, springs, bigboxes,
+    stairUp: su, stairDown: sd, visible, explored,
+    shop: null, hiddenRooms: [], monsterHouseRoom: null,
+    isBigRoom: true, floorType: "debugDungeon",
+  };
+}
