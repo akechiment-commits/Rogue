@@ -1026,11 +1026,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.deathCause = "炎の薬の飛散により";
           p.hp -= fd;
           ml.push(`炎に包まれた！${fd}ダメージ！${_fireResist(p) ? "(耐火)" : ""}${blessed ? "(強炎)" : ""}`);
-          const burnedBooks = p.inventory.filter(i => i.type === "spellbook" && Math.random() < 0.5);
-          if (burnedBooks.length > 0) {
-            p.inventory = p.inventory.filter(i => !burnedBooks.includes(i));
-            burnedBooks.forEach(b => ml.push(`所持していた「${b.name}」が燃えてなくなった！`));
-          }
+          applyLightningToInventory(p, dg, ml, luFn);
         }
       }
       break;
@@ -1695,17 +1691,34 @@ export const SPELLS=[
   {id:"bless_magic",name:"祝福の魔法",mpCost:1,fixedMpCost:true,effect:"bless_magic",needsDir:false,desc:"アイテムを1つ選んで祝福する。MP:1"},
   {id:"curse_magic",name:"呪いの魔法",mpCost:1,fixedMpCost:true,effect:"curse_magic",needsDir:false,desc:"アイテムを1つ選んで呪う。MP:1"},];
 export const SPELLBOOKS=[
-  {name:"炎の魔法書",type:"spellbook",spell:"fire_bolt",desc:"炎の魔法を習得できる。火に弱い。",tile:18},
-  {name:"氷の魔法書",type:"spellbook",spell:"ice_bolt",desc:"氷の魔法を習得できる。火に弱い。",tile:18},
-  {name:"雷の魔法書",type:"spellbook",spell:"lightning_magic",desc:"雷の魔法を習得できる。火に弱い。",tile:18},
-  {name:"眠りの魔法書",type:"spellbook",spell:"sleep_bolt",desc:"眠りの魔法を習得できる。火に弱い。",tile:18},
-  {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic",desc:"テレポートの魔法を習得できる。火に弱い。",tile:18},
-  {name:"回復の魔法書",type:"spellbook",spell:"heal_magic",desc:"回復の魔法を習得できる。火に弱い。",tile:18},
-  {name:"変化の魔法書",type:"spellbook",spell:"transform_magic",desc:"変化の魔法を習得できる。火に弱い。",tile:18},
-  {name:"識別の魔法書",type:"spellbook",spell:"identify_magic",desc:"識別の魔法を習得できる。火に弱い。",tile:18},
-  {name:"祝福の魔法書",type:"spellbook",spell:"bless_magic",desc:"祝福の魔法を習得できる。火に弱い。",tile:18},
-  {name:"呪いの魔法書",type:"spellbook",spell:"curse_magic",desc:"呪いの魔法を習得できる。火に弱い。",tile:18},];
+  {name:"炎の魔法書",type:"spellbook",spell:"fire_bolt",desc:"炎の魔法を習得できる。火に弱い。",tile:43},
+  {name:"氷の魔法書",type:"spellbook",spell:"ice_bolt",desc:"氷の魔法を習得できる。火に弱い。",tile:43},
+  {name:"雷の魔法書",type:"spellbook",spell:"lightning_magic",desc:"雷の魔法を習得できる。火に弱い。",tile:43},
+  {name:"眠りの魔法書",type:"spellbook",spell:"sleep_bolt",desc:"眠りの魔法を習得できる。火に弱い。",tile:43},
+  {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic",desc:"テレポートの魔法を習得できる。火に弱い。",tile:43},
+  {name:"回復の魔法書",type:"spellbook",spell:"heal_magic",desc:"回復の魔法を習得できる。火に弱い。",tile:43},
+  {name:"変化の魔法書",type:"spellbook",spell:"transform_magic",desc:"変化の魔法を習得できる。火に弱い。",tile:43},
+  {name:"識別の魔法書",type:"spellbook",spell:"identify_magic",desc:"識別の魔法を習得できる。火に弱い。",tile:43},
+  {name:"祝福の魔法書",type:"spellbook",spell:"bless_magic",desc:"祝福の魔法を習得できる。火に弱い。",tile:43},
+  {name:"呪いの魔法書",type:"spellbook",spell:"curse_magic",desc:"呪いの魔法を習得できる。火に弱い。",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
+
+/* 雷・炎ダメージを受けたとき所持品1つにランダムで影響を与える */
+export function applyLightningToInventory(p, dg, ml, luFn) {
+  const targets = p.inventory.filter(i =>
+    i.type === "scroll" || i.type === "potion" || i.type === "spellbook" || i.type === "pot"
+  );
+  if (targets.length === 0) return;
+  const victim = targets[Math.floor(Math.random() * targets.length)];
+  p.inventory = p.inventory.filter(i => i !== victim);
+  if (victim.type === "pot") {
+    ml.push(`所持していた「${victim.name}」が雷で割れた！`);
+    scatterPotContents(victim, dg, p.x, p.y, p, ml, luFn);
+  } else {
+    const verb = victim.type === "potion" ? "割れてなくなった" : "燃えてなくなった";
+    ml.push(`所持していた「${victim.name}」が${verb}！`);
+  }
+}
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
   const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
   switch (eff) {

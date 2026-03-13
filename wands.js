@@ -4,7 +4,7 @@ import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
-  chargeShopItem, burnFoodItem,
+  chargeShopItem, burnFoodItem, applyLightningToInventory,
 } from './items.js';
 
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null) {
@@ -378,15 +378,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.deathCause = "雷の杖の魔法により";
         p.hp -= dmg;
         ml.push(`雷撃が自分に命中！${dmg}ダメージ！`);
-        const burnedBooks2 = p.inventory.filter(i => i.type === "spellbook" && Math.random() < 0.5);
-        if (burnedBooks2.length > 0) {
-          p.inventory = p.inventory.filter(i => !burnedBooks2.includes(i));
-          burnedBooks2.forEach(b => ml.push(`所持していた「${b.name}」が雷で燃えてなくなった！`));
-        }
+        applyLightningToInventory(p, dg, ml, luFn);
         break;
       }
       if (kind === "item") {
-        if (target.type === "potion" || target.type === "scroll") {
+        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`${target.name}は雷で焼けた！`);

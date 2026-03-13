@@ -63,6 +63,7 @@ import {
   checkShopTheft,
   castSpellBolt,
   applySpellEffect,
+  applyLightningToInventory,
   WEAPON_ABILITIES,
   ARMOR_ABILITIES,
   BB_TYPES,
@@ -280,9 +281,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         { name:"テレポートの巻物", type:"scroll", effect:"teleport", cursed:true, desc:"呪：好きな階層を選んでテレポートする。", tile:18 },
         { name:"テレポートの巻物", type:"scroll", effect:"teleport", cursed:true, desc:"呪：好きな階層を選んでテレポートする。", tile:18 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
-        { name:"識別の魔法書", type:"spellbook", spell:"identify_magic", desc:"識別の魔法を習得できる。火に弱い。", tile:18 },
-        { name:"祝福の魔法書", type:"spellbook", spell:"bless_magic",    desc:"祝福の魔法を習得できる。火に弱い。", tile:18 },
-        { name:"呪いの魔法書", type:"spellbook", spell:"curse_magic",    desc:"呪いの魔法を習得できる。火に弱い。", tile:18 },
+        { name:"識別の魔法書", type:"spellbook", spell:"identify_magic", desc:"識別の魔法を習得できる。火に弱い。", tile:43 },
+        { name:"祝福の魔法書", type:"spellbook", spell:"bless_magic",    desc:"祝福の魔法を習得できる。火に弱い。", tile:43 },
+        { name:"呪いの魔法書", type:"spellbook", spell:"curse_magic",    desc:"呪いの魔法を習得できる。火に弱い。", tile:43 },
         { name:"加熱の壺",     type:"pot",       potEffect:"boil",    capacity:3, contents:[], desc:"薬を入れると部屋中に薬効が広がる。", tile:32 },
         { name:"遠投のペン",   type:"pen",       effect:"farcast",    charges:2, desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。チャージ制。", tile:42 },
         { name:"識別の巻物",   type:"scroll",    effect:"identify",   blessed:true, desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
@@ -968,6 +969,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           p.deathCause = `${_thunderPent.name}の雷撃により`;
           p.hp -= _tdmg;
           ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！`);
+          applyLightningToInventory(p, st.dungeon, ml, lu);
         }
       }
       checkShopTheft(p, st.dungeon, ml);
@@ -3955,6 +3957,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               p.deathCause = `${_pName}の雷撃により`;
               p.hp -= _tdrawDmg;
               ml.push(`描いた瞬間、雷が落ちた！${_tdrawDmg}ダメージ！`);
+              applyLightningToInventory(p, dg, ml, lu);
             }
             for (const _tm of [...dg.monsters]) {
               if (_tm.x === p.x && _tm.y === p.y) {

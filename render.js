@@ -61,6 +61,7 @@ export const TILE_NAMES = {
   57: "golem",
   58: "demon",
   59: "guard",
+  43: "spellbook",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -116,7 +117,7 @@ export function drawTile(ctx, ts, idx, dx, dy, sz) {
     15: { bg: null, fg: "#9040d0", ch: "V" },
     16: { bg: null, fg: "#f050e0", ch: "!" },
     17: { bg: null, fg: "#f090f0", ch: "!" },
-    18: { bg: null, fg: "#f0f050", ch: "?" },
+    18: { bg: null, fg: "#e8e060", ch: "?" },
     19: { bg: null, fg: "#50c050", ch: "%" },
     20: { bg: null, fg: "#a0a0a0", ch: "/" },
     21: { bg: null, fg: "#5090c0", ch: "[" },
@@ -135,7 +136,7 @@ export function drawTile(ctx, ts, idx, dx, dy, sz) {
     40: { bg: null, fg: "#60a0ff", ch: "W" },
     41: { bg: null, fg: "#ff80c0", ch: "P" },
     42: { bg: null, fg: "#a060ff", ch: "◇" },
-    43: { bg: null, fg: "#9988cc", ch: "Φ" },
+    43: { bg: null, fg: "#88aaff", ch: "+" },
     44: { bg: null, fg: "#b020e0", ch: "C" },
     45: { bg: null, fg: "#60d060", ch: "^" },
     46: { bg: null, fg: "#d020d0", ch: "^" },
