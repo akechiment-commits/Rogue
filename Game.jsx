@@ -1462,11 +1462,13 @@ export default function RoguelikeGame() {
       lu,
       endTurn,
       revealMode,
+      lookMode,
     ],
   );
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
   const doExamineFront = useCallback(() => {
     if (!sr.current) return;
+    if (lookMode) return;
     const { player: p, dungeon: dg } = sr.current;
     const fd = p.facing || { dx: 0, dy: 1 };
     const nx = p.x + fd.dx, ny = p.y + fd.dy;
@@ -1515,7 +1517,7 @@ export default function RoguelikeGame() {
         }
       }
     }
-  }, [act]);
+  }, [act, lookMode]);
   const doDash = useCallback(
     (dx, dy) => {
       if (dead || !sr.current) return;
