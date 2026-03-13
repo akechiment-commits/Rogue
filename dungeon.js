@@ -1,7 +1,7 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI } from './utils.js';
 import { MONS } from './monsters.js';
 import {
-  ITEMS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
+  ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice,
 } from './items.js';
 
@@ -1240,55 +1240,69 @@ export function genDungeon(depth) {
   };
 }
 
-/* ===== DEBUG DUNGEON (全アイテム・全モンスター・全罠 配置) ===== */
-export function genDebugDungeon() {
+/* ===== DEBUG DUNGEON SHARED HELPERS ===== */
+/* アイテム部屋（上半分）とモンスター部屋（下半分）を分けた2部屋レイアウトを生成 */
+function makeDebugLayout() {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
-  const rx = 1, ry = 1, rw = MW - 2, rh = MH - 2;
-  for (let dy = 0; dy < rh; dy++)
-    for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
-  const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
-  const su = { x: rx + 1, y: ry + 1 };
+
+  /* アイテム部屋: rows 1-17, cols 1-(MW-2) */
+  const IR = { x: 1, y: 1, w: MW - 2, h: 17 };
+  for (let dy = 0; dy < IR.h; dy++)
+    for (let dx = 0; dx < IR.w; dx++) map[IR.y + dy][IR.x + dx] = T.FLOOR;
+
+  /* モンスター部屋: rows 19-28, cols 1-(MW-2) — row 18は壁で隔離 */
+  const MR = { x: 1, y: 19, w: MW - 2, h: 10 };
+  for (let dy = 0; dy < MR.h; dy++)
+    for (let dx = 0; dx < MR.w; dx++) map[MR.y + dy][MR.x + dx] = T.FLOOR;
+
+  const su = { x: IR.x + 1, y: IR.y + 1 };
   map[su.y][su.x] = T.SU;
-  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  const sd = { x: IR.x + IR.w - 2, y: IR.y + IR.h - 2 };
   map[sd.y][sd.x] = T.SD;
 
-  const items = [], traps = [], springs = [], bigboxes = [];
-  const mons = [];
-  const occ = (x, y) =>
+  /* アイテム部屋用nextPos */
+  const items = [], traps = [], springs = [], bigboxes = [], mons = [];
+  const occI = (x, y) =>
     items.some(i => i.x === x && i.y === y) ||
-    mons.some(m => m.x === x && m.y === y) ||
     traps.some(t => t.x === x && t.y === y) ||
-    springs.some(s => s.x === x && s.y === y) ||
-    bigboxes.some(b => b.x === x && b.y === y);
-
-  let col = rx + 2, row = ry + 2;
-  const nextPos = () => {
-    while (occ(col, row) || (col === su.x && row === su.y) || (col === sd.x && row === sd.y)) {
-      col++;
-      if (col >= rx + rw - 1) { col = rx + 2; row++; }
-      if (row >= ry + rh - 1) break;
+    springs.some(s => s.x === x && s.y === y);
+  let ic = IR.x + 2, ir = IR.y + 2;
+  const nextItemPos = () => {
+    while (occI(ic, ir) || (ic === su.x && ir === su.y) || (ic === sd.x && ir === sd.y)) {
+      ic++;
+      if (ic >= IR.x + IR.w - 1) { ic = IR.x + 2; ir++; }
+      if (ir >= IR.y + IR.h - 1) break;
     }
-    const pos = { x: col, y: row };
-    col++;
-    if (col >= rx + rw - 1) { col = rx + 2; row++; }
+    const pos = { x: ic, y: ir };
+    ic++;
+    if (ic >= IR.x + IR.w - 1) { ic = IR.x + 2; ir++; }
     return pos;
   };
 
-  /* 全アイテムを1個ずつ配置 */
-  for (const tmpl of ITEMS) {
-    const p = nextPos();
-    const it = { ...tmpl, id: uid(), x: p.x, y: p.y };
-    if (it.type === 'gold') it.value = 9999;
-    items.push(it);
-  }
-  /* 全罠を1個ずつ配置 */
-  for (const tmpl of TRAPS) {
-    const p = nextPos();
-    traps.push({ ...tmpl, id: uid(), x: p.x, y: p.y, revealed: true });
-  }
-  /* 全モンスターを1体ずつ配置（弱体化） */
+  /* モンスター部屋用nextPos */
+  const occM = (x, y) => mons.some(m => m.x === x && m.y === y);
+  let mc = MR.x + 2, mr = MR.y + 1;
+  const nextMonPos = () => {
+    while (occM(mc, mr)) {
+      mc++;
+      if (mc >= MR.x + MR.w - 1) { mc = MR.x + 2; mr++; }
+      if (mr >= MR.y + MR.h - 1) break;
+    }
+    const pos = { x: mc, y: mr };
+    mc++;
+    if (mc >= MR.x + MR.w - 1) { mc = MR.x + 2; mr++; }
+    return pos;
+  };
+
+  const IR_room = { x: IR.x, y: IR.y, w: IR.w, h: IR.h, cx: IR.x + Math.floor(IR.w / 2), cy: IR.y + Math.floor(IR.h / 2) };
+  const MR_room = { x: MR.x, y: MR.y, w: MR.w, h: MR.h, cx: MR.x + Math.floor(MR.w / 2), cy: MR.y + Math.floor(MR.h / 2) };
+  return { map, su, sd, items, traps, springs, bigboxes, mons, nextItemPos, nextMonPos, rooms: [IR_room, MR_room] };
+}
+
+/* モンスター部屋に全MONSを配置（休眠状態） */
+function placeDebugMons(mons, nextMonPos) {
   for (const tmpl of MONS) {
-    const p = nextPos();
+    const p = nextMonPos();
     mons.push({
       ...tmpl, id: uid(), x: p.x, y: p.y, maxHp: tmpl.hp,
       hp: tmpl.hp, turnAccum: 0, aware: false,
@@ -1296,13 +1310,83 @@ export function genDebugDungeon() {
       dormant: true,
     });
   }
-  /* 泉 */
-  const sp = nextPos();
+}
+
+/* ===== DEBUG DUNGEON B1F (全アイテム・全杖・壺・魔法書・全罠 + 敵は隔離部屋) ===== */
+export function genDebugDungeon() {
+  const { map, su, sd, items, traps, springs, bigboxes, mons, nextItemPos, nextMonPos, rooms } = makeDebugLayout();
+
+  /* アイテム部屋: ITEMS + WANDS + SPELLBOOKS + POTS + TRAPS + 泉 */
+  for (const tmpl of ITEMS) {
+    const p = nextItemPos();
+    const it = { ...tmpl, id: uid(), x: p.x, y: p.y };
+    if (it.type === 'gold') it.value = 9999;
+    items.push(it);
+  }
+  for (const tmpl of WANDS) {
+    const p = nextItemPos();
+    items.push({ ...tmpl, charges: tmpl.maxCharges ?? tmpl.charges ?? 5, id: uid(), x: p.x, y: p.y });
+  }
+  for (const tmpl of SPELLBOOKS) {
+    const p = nextItemPos();
+    items.push({ ...tmpl, id: uid(), x: p.x, y: p.y });
+  }
+  for (const tmpl of POTS) {
+    const p = nextItemPos();
+    items.push({ ...tmpl, id: uid(), x: p.x, y: p.y, contents: [] });
+  }
+  for (const tmpl of TRAPS) {
+    const p = nextItemPos();
+    traps.push({ ...tmpl, id: uid(), x: p.x, y: p.y, revealed: true });
+  }
+  const sp = nextItemPos();
   springs.push({ id: uid(), x: sp.x, y: sp.y, tile: TI.SPRING, contents: [] });
+
+  /* モンスター隔離部屋 */
+  placeDebugMons(mons, nextMonPos);
 
   const { visible, explored } = mkVis();
   return {
-    map, rooms: [room], monsters: mons, items, traps, springs, bigboxes,
+    map, rooms, monsters: mons, items, traps, springs, bigboxes,
+    stairUp: su, stairDown: sd, visible, explored,
+    shop: null, hiddenRooms: [], monsterHouseRoom: null,
+    isBigRoom: true, floorType: "debugDungeon",
+  };
+}
+
+/* ===== DEBUG DUNGEON B2F以降 (祝福・呪いアイテム + 敵は隔離部屋) ===== */
+export function genDebugDungeonFloor2() {
+  const { map, su, sd, items, traps, springs, bigboxes, mons, nextItemPos, nextMonPos, rooms } = makeDebugLayout();
+
+  /* 祝福版・呪い版を各アイテム/杖/魔法書ごとに配置 */
+  const blessedCursedTargets = [
+    ...ITEMS.filter(t => t.type !== 'gold'),
+    ...WANDS,
+    ...SPELLBOOKS,
+  ];
+  for (const variant of [{ blessed: true }, { cursed: true }]) {
+    for (const tmpl of blessedCursedTargets) {
+      const p = nextItemPos();
+      const it = { ...tmpl, ...variant, id: uid(), x: p.x, y: p.y };
+      if (tmpl.type === 'wand') it.charges = tmpl.maxCharges ?? tmpl.charges ?? 5;
+      items.push(it);
+    }
+  }
+  /* 壺（祝呪なし）*/
+  for (const tmpl of POTS) {
+    const p = nextItemPos();
+    items.push({ ...tmpl, id: uid(), x: p.x, y: p.y, contents: [] });
+  }
+  /* 泉 */
+  const sp = nextItemPos();
+  springs.push({ id: uid(), x: sp.x, y: sp.y, tile: TI.SPRING, contents: [] });
+
+  /* モンスター隔離部屋 */
+  placeDebugMons(mons, nextMonPos);
+
+  const { visible, explored } = mkVis();
+  return {
+    map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored,
     shop: null, hiddenRooms: [], monsterHouseRoom: null,
     isBigRoom: true, floorType: "debugDungeon",

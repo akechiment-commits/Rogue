@@ -75,7 +75,7 @@ import {
   generateFakeNames,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
-import { genDungeon, genDebugDungeon, triggerMonsterHouse } from "./dungeon.js";
+import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { TILE_NAMES, CUSTOM_TILE_PATH, customTileImages, clearCustomTileImages, ST, drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal } from "./GameModals.jsx";
@@ -272,7 +272,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       weapon: null,
       armor: null,
       arrow: null,
-      inventory: [
+      inventory: dungeonConfig?.dungeonType === "debug" ? [
         { name:"レベルアップの薬", type:"potion", effect:"levelup",  desc:"飲むとレベルが1上がる。祝福：2レベル上がる。投げると命中した敵が次の形態に変化する。", tile:17 },
         { name:"レベルアップの薬", type:"potion", effect:"levelup",  blessed:true, desc:"飲むとレベルが1上がる。祝福：2レベル上がる。投げると命中した敵が次の形態に変化する。", tile:17 },
         { name:"レベルアップの薬", type:"potion", effect:"levelup",  cursed:true, desc:"飲むとレベルが1上がる。祝福：2レベル上がる。投げると命中した敵が次の形態に変化する。", tile:17 },
@@ -304,6 +304,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         { name:"道具寄せの巻物", type:"scroll",  effect:"item_gather",blessed:true, desc:"フロアのアイテムを自分の周りに引き寄せる。",                     tile:18 },
         { name:"道具寄せの巻物", type:"scroll",  effect:"item_gather",blessed:true, desc:"フロアのアイテムを自分の周りに引き寄せる。",                     tile:18 },
         { name:"雷の巻物",     type:"scroll",    effect:"thunder",    blessed:true, desc:"視界内の敵全てに雷ダメージを与える。",                           tile:18 },
+      ] : [
+        { name:"満腹の特盛りおにぎり", type:"food", effect:"satiate_food", value:120, desc:"とても腹持ちが良さそうだ。", tile:19, cooked:true, id: uid() },
       ],
       spells: [],
       spellLevels: {},
@@ -318,7 +320,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       poisoned: false,
       poisonAtkLoss: 0,
       sealedTurns: 0,
-      maxInventory: 100,
+      maxInventory: dungeonConfig?.dungeonType === "debug" ? 100 : 30,
       facing: { dx: 0, dy: 1 },
       isThief: false,
       deathCause: "不明の原因により",
@@ -329,7 +331,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
     }
     refreshFOV(d, p);
-    const s = { player: p, dungeon: d, floors: {}, ident: new Set(), fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {} };
+    const s = { player: p, dungeon: d, floors: {}, ident: new Set(), fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {}, isDebugRun: dungeonConfig?.dungeonType === "debug" };
     sr.current = s;
     setGs(s);
     ref.current?.focus();
@@ -881,6 +883,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (_saved) {
       d = _saved;
       delete sr.current.floors[nd];
+    } else if (sr.current.isDebugRun && nd >= 2) {
+      d = genDebugDungeonFloor2();
     } else {
       d = genDungeon(nd - 1);
     }
