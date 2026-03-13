@@ -3299,7 +3299,7 @@ export default function RoguelikeGame() {
             ml.push(`${it.name}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
           } else {
             ml.push(`${it.name}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
-            const _luNd = chgFloor(p, -1);
+            const _luNd = chgFloor(p, -1, true);
             if (_luNd) sr.current.dungeon = _luNd;
           }
         } else {
@@ -4311,7 +4311,7 @@ export default function RoguelikeGame() {
           if (p._pendingWarpUp) {
             delete p._pendingWarpUp;
             if (p.depth > 1) {
-              const _boilWarpNd = chgFloor(p, -1);
+              const _boilWarpNd = chgFloor(p, -1, true);
               if (_boilWarpNd) sr.current.dungeon = _boilWarpNd;
             }
           }
@@ -4485,7 +4485,7 @@ export default function RoguelikeGame() {
           if (p._pendingWarpUp) {
             delete p._pendingWarpUp;
             if (p.depth > 1) {
-              const _warpNd = chgFloor(p, -1);
+              const _warpNd = chgFloor(p, -1, true);
               if (_warpNd) sr.current.dungeon = _warpNd;
             } else {
               ml.push("ここは1階だ。何も起こらなかった。");
