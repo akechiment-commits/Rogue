@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster } from './utils.js';
-import { MONS, spawnMonsters } from './monsters.js';
+import { MONS, spawnMonsters, monLevelUp } from './monsters.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
@@ -115,6 +115,7 @@ export const ITEMS = [
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  desc:"飲むと5ターン混乱する。投げると命中した敵を20ターン混乱させる。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           desc:"飲むと視界が1マスになる(20ターン)。投げると命中した敵を50ターン暗闇状態にする。", tile:16 },
   { name:"惑わしの薬",       type:"potion", effect:"bewitch",            desc:"飲むと50ターン周囲の見た目が狂う。投げると命中した敵を50ターン逃走させる。", tile:16 },
+  { name:"レベルアップの薬", type:"potion", effect:"levelup",            desc:"飲むとレベルが1上がる。祝福：2レベル上がる。投げると命中した敵が次の形態に変化する。", tile:17 },
   { name:"金貨",             type:"gold",   value:0,                     desc:"金貨。",                           tile:22 },
   { name:"識別の巻物", type:"scroll", effect:"identify",
     desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
@@ -1163,6 +1164,22 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           target.fleeingTurns = blessed ? 9999 : 50;
           ml.push(`${target.name}は幻惑状態になり逃げ出した！${blessed ? "(永続)" : "(50ターン)"}`);
+        }
+      }
+      break;
+    case "levelup":
+      if (kind === "player") {
+        const _times = blessed ? 2 : 1;
+        for (let _i = 0; _i < _times; _i++) {
+          p.exp = p.nextExp;
+          if (luFn) luFn(p, ml);
+        }
+        if (!blessed) ml.push("レベルアップの薬を飲んだ！");
+      }
+      if (kind === "monster") {
+        const _times2 = blessed ? 2 : 1;
+        for (let _i = 0; _i < _times2; _i++) {
+          monLevelUp(target, dg, ml);
         }
       }
       break;
