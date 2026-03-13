@@ -378,7 +378,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.deathCause = "雷の杖の魔法により";
         p.hp -= dmg;
         ml.push(`雷撃が自分に命中！${dmg}ダメージ！`);
-        applyLightningToInventory(p, dg, ml, luFn);
+        applyLightningToInventory(p, dg, ml, luFn, nameFn);
         break;
       }
       if (kind === "item") {
@@ -1042,7 +1042,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 }
 
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
-export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター") {
+export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null) {
   for (let d = 1; d < 20; d++) {
     const tx = cx + dx * d, ty = cy + dy * d;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
@@ -1059,6 +1059,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       pl.deathCause = `${monName}の雷撃により`;
       pl.hp -= dmg;
       ml.push(`雷撃が命中！${dmg}ダメージ！`);
+      applyLightningToInventory(pl, dg, ml, luFn, nameFn);
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
       if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       return;

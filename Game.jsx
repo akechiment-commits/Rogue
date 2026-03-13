@@ -715,7 +715,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         const _we = m.wandEffect || "lightning";
         if (_we === "lightning") {
           ml.push(`${m.name}が雷の杖を振った！`);
-          monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name);
+          monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
+            (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames));
         } else if (_we === "curse_wand") {
           ml.push(`${m.name}が呪いの杖を振った！`);
           /* 呪いボルトを発射（魔封じチェック・障害物チェックあり） */
@@ -969,7 +970,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           p.deathCause = `${_thunderPent.name}の雷撃により`;
           p.hp -= _tdmg;
           ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！`);
-          applyLightningToInventory(p, st.dungeon, ml, lu);
+          applyLightningToInventory(p, st.dungeon, ml, lu,
+            (it) => itemDisplayName(it, st.fakeNames, st.ident, st.nicknames));
         }
       }
       checkShopTheft(p, st.dungeon, ml);
@@ -3957,7 +3959,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               p.deathCause = `${_pName}の雷撃により`;
               p.hp -= _tdrawDmg;
               ml.push(`描いた瞬間、雷が落ちた！${_tdrawDmg}ダメージ！`);
-              applyLightningToInventory(p, dg, ml, lu);
+              applyLightningToInventory(p, dg, ml, lu,
+                (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames));
             }
             for (const _tm of [...dg.monsters]) {
               if (_tm.x === p.x && _tm.y === p.y) {

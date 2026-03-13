@@ -1704,19 +1704,21 @@ export const SPELLBOOKS=[
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /* 雷・炎ダメージを受けたとき所持品1つにランダムで影響を与える */
-export function applyLightningToInventory(p, dg, ml, luFn) {
-  const targets = p.inventory.filter(i =>
-    i.type === "scroll" || i.type === "potion" || i.type === "spellbook" || i.type === "pot"
-  );
-  if (targets.length === 0) return;
-  const victim = targets[Math.floor(Math.random() * targets.length)];
-  p.inventory = p.inventory.filter(i => i !== victim);
+export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null) {
+  if (p.inventory.length === 0) return;
+  const dn = (it) => nameFn ? nameFn(it) : it.name;
+  const idx = Math.floor(Math.random() * p.inventory.length);
+  const victim = p.inventory[idx];
   if (victim.type === "pot") {
-    ml.push(`所持していた「${victim.name}」が雷で割れた！`);
+    p.inventory = p.inventory.filter((_, i) => i !== idx);
+    ml.push(`所持していた「${dn(victim)}」が雷で割れた！`);
     scatterPotContents(victim, dg, p.x, p.y, p, ml, luFn);
-  } else {
+  } else if (victim.type === "scroll" || victim.type === "potion" || victim.type === "spellbook") {
+    p.inventory = p.inventory.filter((_, i) => i !== idx);
     const verb = victim.type === "potion" ? "割れてなくなった" : "燃えてなくなった";
-    ml.push(`所持していた「${victim.name}」が${verb}！`);
+    ml.push(`所持していた「${dn(victim)}」が${verb}！`);
+  } else {
+    ml.push(`所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
   }
 }
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
