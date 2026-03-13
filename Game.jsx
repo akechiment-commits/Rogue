@@ -3455,7 +3455,9 @@ export default function RoguelikeGame() {
             p.statusImmune = (p.statusImmune || 0) + 100;
             ml.push("予防成分が！状態異常防止100ターン！");
           } else if (pe === "levelup") {
-            p.exp = p.nextExp;
+            const _luEx = rng(5, 10 + p.level * 3);
+            p.exp += _luEx;
+            ml.push(`知恵が付いた。経験値+${_luEx}`);
             lu(p, ml);
           } else if (pe === "c_levelup") {
             p.atk = Math.max(1, p.atk - 2);
