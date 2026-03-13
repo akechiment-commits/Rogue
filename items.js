@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster } from './utils.js';
-import { MONS, spawnMonsters, monLevelUp } from './monsters.js';
+import { MONS, spawnMonsters, monLevelUp, monLevelDown } from './monsters.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
@@ -1169,17 +1169,27 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       break;
     case "levelup":
       if (kind === "player") {
-        const _times = blessed ? 2 : 1;
-        for (let _i = 0; _i < _times; _i++) {
-          p.exp = p.nextExp;
-          if (luFn) luFn(p, ml);
+        if (cursed) {
+          // 呪い：1階上へワープ（フラグ経由でGame.jsx側が処理）
+          p._pendingWarpUp = true;
+          ml.push("呪われたレベルアップの薬！天井を突き破って上の階へ飛ばされた！【呪】");
+        } else {
+          const _times = blessed ? 2 : 1;
+          for (let _i = 0; _i < _times; _i++) {
+            p.exp = p.nextExp;
+            if (luFn) luFn(p, ml);
+          }
+          if (!blessed) ml.push("レベルアップの薬を飲んだ！");
         }
-        if (!blessed) ml.push("レベルアップの薬を飲んだ！");
       }
       if (kind === "monster") {
-        const _times2 = blessed ? 2 : 1;
-        for (let _i = 0; _i < _times2; _i++) {
-          monLevelUp(target, dg, ml);
+        if (cursed) {
+          monLevelDown(target, dg, ml);
+        } else {
+          const _times2 = blessed ? 2 : 1;
+          for (let _i = 0; _i < _times2; _i++) {
+            monLevelUp(target, dg, ml);
+          }
         }
       }
       break;
@@ -1199,6 +1209,7 @@ export const POTION_FOOD_PREFIX = {
   darkness: "暗闇の",
   bewitch:  "幻惑の",
   paralyze: "金縛りの",
+  levelup:  "経験の",
   // 呪い（食べた時の効果が反転）
   c_heal:     "猛毒の",
   c_poison:   "解毒の",
@@ -1209,8 +1220,9 @@ export const POTION_FOOD_PREFIX = {
   c_confuse:  "必中の",
   c_slow:     "加速の",
   c_darkness: "感知の",
-  c_bewitch:  "看破の",
-  c_paralyze: "予防の",
+  c_bewitch:   "看破の",
+  c_paralyze:  "予防の",
+  c_levelup:   "退化の",
 };
 
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false) {

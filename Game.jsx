@@ -265,6 +265,9 @@ export default function RoguelikeGame() {
       armor: null,
       arrow: null,
       inventory: [
+        { name:"レベルアップの薬", type:"potion", effect:"levelup",  desc:"飲むとレベルが1上がる。祝福：2レベル上がる。投げると命中した敵が次の形態に変化する。", tile:17 },
+        { name:"レベルアップの薬", type:"potion", effect:"levelup",  blessed:true, desc:"飲むとレベルが1上がる。祝福：2レベル上がる。投げると命中した敵が次の形態に変化する。", tile:17 },
+        { name:"レベルアップの薬", type:"potion", effect:"levelup",  cursed:true, desc:"飲むとレベルが1上がる。祝福：2レベル上がる。投げると命中した敵が次の形態に変化する。", tile:17 },
         { name:"テレポートの巻物", type:"scroll", effect:"teleport", cursed:true, desc:"呪：好きな階層を選んでテレポートする。", tile:18 },
         { name:"テレポートの巻物", type:"scroll", effect:"teleport", cursed:true, desc:"呪：好きな階層を選んでテレポートする。", tile:18 },
         { name:"テレポートの巻物", type:"scroll", effect:"teleport", cursed:true, desc:"呪：好きな階層を選んでテレポートする。", tile:18 },
@@ -3289,6 +3292,24 @@ export default function RoguelikeGame() {
           p.mp = (p.mp || 0) + _madd;
           ml.push(`${it.name}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
         }
+      } else if (it.effect === "levelup") {
+        if (it.cursed) {
+          // 呪い：1階上へワープ（1階なら効果なし）
+          if (p.depth <= 1) {
+            ml.push(`${it.name}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
+          } else {
+            ml.push(`${it.name}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
+            const _luNd = chgFloor(p, -1);
+            if (_luNd) sr.current.dungeon = _luNd;
+          }
+        } else {
+          const _luTimes = it.blessed ? 2 : 1;
+          for (let _lui = 0; _lui < _luTimes; _lui++) {
+            p.exp = p.nextExp;
+            lu(p, ml);
+          }
+          ml.push(`${it.name}を飲んだ。${it.blessed ? "【祝=2レベルアップ】" : ""}`);
+        }
       }
       if (p.inventory.length < (p.maxInventory || 30)) {
         const bottle = { ...EMPTY_BOTTLE, id: uid() };
@@ -3433,6 +3454,12 @@ export default function RoguelikeGame() {
           } else if (pe === "c_paralyze") {
             p.statusImmune = (p.statusImmune || 0) + 100;
             ml.push("予防成分が！状態異常防止100ターン！");
+          } else if (pe === "levelup") {
+            p.exp = p.nextExp;
+            lu(p, ml);
+          } else if (pe === "c_levelup") {
+            p.atk = Math.max(1, p.atk - 2);
+            ml.push("退化成分が！攻撃力-2...");
           }
         }
       }
@@ -3967,7 +3994,7 @@ export default function RoguelikeGame() {
     setShowInv(false);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
-  }, [lu, endTurn]);
+  }, [lu, endTurn, chgFloor]);
   const doDropItem = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
@@ -4278,6 +4305,14 @@ export default function RoguelikeGame() {
             applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
           }
           pot.capacity = Math.max(0, pot.capacity - 1);
+          // 呪われたレベルアップの薬でワープフラグが立った場合
+          if (p._pendingWarpUp) {
+            delete p._pendingWarpUp;
+            if (p.depth > 1) {
+              const _boilWarpNd = chgFloor(p, -1);
+              if (_boilWarpNd) sr.current.dungeon = _boilWarpNd;
+            }
+          }
         } else if (it.type === "scroll" || it.type === "spellbook") {
           ml.push(`${dnameRef(it)}は加熱の壺の熱で燃えてなくなった！`);
           pot.capacity = Math.max(0, pot.capacity - 1);

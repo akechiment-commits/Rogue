@@ -125,6 +125,34 @@ export function monLevelUp(mon, dg, ml) {
   return true;
 }
 
+/** モンスターのレベルを1下げ、前形態に変化させる。変化した場合 true を返す */
+export function monLevelDown(mon, dg, ml) {
+  const currentLevel = mon.monLevel || 1;
+  if (!mon.baseKind || currentLevel <= 1) {
+    ml.push(`${mon.name}はすでに最弱形態だ！`);
+    return false;
+  }
+  const prevLevel = currentLevel - 1;
+  let template;
+  if (prevLevel === 1) {
+    template = MONS.find(m => m.baseKind === mon.baseKind && m.monLevel === 1);
+  } else {
+    template = MON_LEVELS[mon.baseKind]?.[prevLevel - 2]; // level2=index0, level3=index1
+  }
+  if (!template) return false;
+  const hpRatio = mon.maxHp > 0 ? mon.hp / mon.maxHp : 1;
+  const oldName = mon.name;
+  mon.name   = template.name;
+  mon.atk    = template.atk;
+  mon.def    = template.def;
+  mon.exp    = template.exp;
+  mon.maxHp  = template.hp;
+  mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
+  mon.monLevel = prevLevel;
+  ml.push(`${oldName}がレベルダウンして${mon.name}になった！`);
+  return true;
+}
+
 /* ===== 警備員テンプレート ===== */
 export const GUARD_TEMPLATE = { name: "警備員", hp: 35, atk: 14, def: 5, exp: 25, speed: 1, tile: 59, kind: "humanoid" };
 export function makeGuard(x, y, plx, ply) {
