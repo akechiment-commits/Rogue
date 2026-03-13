@@ -260,15 +260,21 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const bestDepth = saveData.bestDepth || 0;
 
   const DUNGEON_TYPES = [
-    { id:"normal",  label:"通常ダンジョン",     desc:"B1Fから探索開始", color:"#8cf" },
-    { id:"debug",   label:"デバッグダンジョン", desc:"全アイテム・全モンスター配置（テスト用）", color:"#fa0" },
+    { id:"beginner",     label:"初心者ダンジョン", desc:"全10階",                                    color:"#8cf", maxFloors:10  },
+    { id:"intermediate", label:"中級者ダンジョン", desc:"全30階",                                    color:"#fc8", maxFloors:30  },
+    { id:"advanced",     label:"上級者ダンジョン", desc:"全50階",                                    color:"#f88", maxFloors:50  },
+    { id:"debug",        label:"デバッグダンジョン", desc:"全アイテム・全モンスター配置（テスト用）", color:"#fa0", maxFloors:null },
   ];
-  const [dtype, setDtype] = useState("normal");
+  const [dtype, setDtype] = useState("beginner");
+  const currentType = DUNGEON_TYPES.find(dt => dt.id === dtype);
+  const isDebug = dtype === "debug";
+  const maxStart = isDebug ? 1 : Math.min(Math.max(1, bestDepth), currentType.maxFloors);
 
   const handleStart = () => {
     onStart({
       dungeonType: dtype,
-      startDepth: dtype === "debug" ? 1 : startDepth,
+      startDepth: isDebug ? 1 : startDepth,
+      maxFloors: currentType.maxFloors,
       startGold: 0,
       startInventory: chosenItems,
     });
@@ -303,15 +309,15 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
         ))}
       </div>
 
-      {/* 開始階選択 (通常ダンジョンのみ) */}
-      {dtype === "normal" && (
+      {/* 開始階選択 (デバッグ以外) */}
+      {!isDebug && (
         <div style={{ marginBottom:12 }}>
           <div style={{ color:"#888", fontSize:12, marginBottom:6 }}>開始階: B{startDepth}F</div>
-          <input type="range" min={1} max={Math.max(1, bestDepth)} value={startDepth}
+          <input type="range" min={1} max={maxStart} value={Math.min(startDepth, maxStart)}
             onChange={e => setStartDepth(Number(e.target.value))}
             style={{ width:"100%", accentColor:"#44f" }} />
           <div style={{ color:"#555", fontSize:11 }}>
-            解放済み: B{Math.max(1, bestDepth)}F {bestDepth === 0 && "(B1Fのみ)"}
+            解放済み: B{maxStart}F {bestDepth === 0 && "(B1Fのみ)"}
           </div>
         </div>
       )}

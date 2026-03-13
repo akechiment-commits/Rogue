@@ -702,8 +702,11 @@ function genGridRoom(depth) {
 
 export function genDungeon(depth) {
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
+  /* B1F（depth=0）は店のみ許可・それ以外の特殊フロアは出現しない */
   if (Math.random() < 0.25) {
-    const specials = [genBigRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom];
+    const specials = depth === 0
+      ? [genShoppingMall]
+      : [genBigRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom];
     return pick(specials)(depth);
   }
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
