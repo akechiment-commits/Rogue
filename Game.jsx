@@ -4160,9 +4160,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
         ml.push("魔法が封印されている！効果は発動しなかった。");
       } else {
-        const times = Math.max(1, Math.ceil(it.charges / 2));
+        const times = Math.max(1, Math.ceil((it.charges ?? 0) / 2));
         const _bwBlMult = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
         for (let t = 0; t < times; t++) breakWandAoE(p, dg, it.effect, ml, lu, _bwBlMult);
+        /* 呪われたレベルアップの杖の壊し：上の階へワープ */
+        if (p._pendingWarpUp) {
+          delete p._pendingWarpUp;
+          if (p.depth > 1) {
+            const _bwNd = chgFloor(p, -1);
+            if (_bwNd) sr.current.dungeon = _bwNd;
+          } else {
+            ml.push("ここは1階だ。何も起こらなかった。");
+          }
+        }
       }
       endTurn(sr.current, p, ml);
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -5559,7 +5569,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             marginTop: 2,
           }}
         >
-          矢印/WASD/hjkl:移動　Shift+矢印/テンキー:ダッシュ　yubn:斜め　.:待機　i:所持品(↑↓で選択/Z:使用/X:閉じる)
+          矢印/テンキー:移動　Shift+矢印/テンキー:ダッシュ　.:待機　x:所持品(↑↓で選択/Z:使用/X:閉じる)　w:見渡す　c:魔法
           {"<>"}:階段　q:矢を射る　z:アクション　f:足元(拾う/罠/階段/大箱/泉)　t:向き変更
         </div>
       )}{" "}

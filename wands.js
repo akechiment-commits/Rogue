@@ -470,7 +470,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "player") {
         const h = rng(-10, 10);
         p.hp += h;
-        ml.push(`h>=0?体に変化が...HP+${h}:体に異変が...HP${h}`);
+        ml.push(h >= 0 ? `体に変化が...HP+${h}` : `体に異変が...HP${h}`);
         break;
       }
       if (kind === "item") {
@@ -1163,7 +1163,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
   }
   const dirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
   const rd = pick(dirs);
-  applyWandEffect(eff, "player", p, rd[0], rd[1], dg, p, ml, luFn);
+  applyWandEffect(eff, "player", p, rd[0], rd[1], dg, p, ml, luFn, null, blMult);
   const targets = [];
   for (const [adx, ady] of dirs) {
     const ax = p.x + adx, ay = p.y + ady;
