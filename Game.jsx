@@ -51,6 +51,7 @@ import {
   placeItemAt,
   pushEntity,
   fireTrapItem,
+  burnFoodItem,
   setPitfallBag,
   clearPitfallBag,
   applyWandEffect,
@@ -4324,6 +4325,9 @@ export default function RoguelikeGame() {
           it.cooked = true;
           it.name = "焼いた" + it.name;
           ml.push(`加熱の壺で${it.name}になった！`);
+          pot.contents.push(it);
+        } else if (it.type === "food" && it.cooked) {
+          burnFoodItem(it, ml);
           pot.contents.push(it);
         } else {
           ml.push(`${dnameRef(it)}を加熱の壺に入れた。`);

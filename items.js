@@ -652,11 +652,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             } else if (it.type === "potion") {
               blasted.add(it);
               ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
-            } else if (it.type === "food" && !it.cooked) {
-              it.value *= 2;
-              it.cooked = true;
-              it.name = "焼いた" + it.name;
-              ml.push(`${it.name}になった！`);
+            } else if (it.type === "food") {
+              if (!it.cooked) { it.value *= 2; it.cooked = true; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+              else { burnFoodItem(it, ml); }
             } else if (it.type === "pot") {
               blasted.add(it);
               if (it.contents && it.contents.length > 0) {
@@ -1226,6 +1224,19 @@ export const POTION_FOOD_PREFIX = {
   c_levelup:   "退化の",
 };
 
+/** 調理済み食糧をさらに加熱して「焦げた」状態にする共通ヘルパー */
+export function burnFoodItem(item, ml) {
+  if (item.burnt) { ml.push(`${item.name}はこれ以上焦げられない。`); return; }
+  if (item.name.startsWith("焼いた")) {
+    item.name = "焦げた" + item.name.slice("焼いた".length);
+  } else {
+    item.name = "焦げた" + item.name;
+  }
+  item.value = Math.max(1, Math.floor(item.value / 2));
+  item.burnt = true;
+  ml.push(`${item.name}になった！`);
+}
+
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false) {
   if (item.type === "spellbook") {
     if (eff === "fire") {
@@ -1269,7 +1280,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false) {
       item.name = "焼いた" + item.name;
       ml.push(`${item.name}になった！`);
     } else {
-      ml.push(`${item.name}は既に調理済みだ。`);
+      burnFoodItem(item, ml);
     }
     return;
   }

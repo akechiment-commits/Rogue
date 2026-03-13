@@ -4,7 +4,7 @@ import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
-  chargeShopItem,
+  chargeShopItem, burnFoodItem,
 } from './items.js';
 
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null) {
@@ -406,7 +406,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             target.name = "焼いた" + target.name;
             ml.push(`${target.name}になった！`);
           } else {
-            ml.push(`${target.name}は既に調理済みだ。`);
+            burnFoodItem(target, ml);
           }
         } else {
           ml.push(`雷撃が${target.name}に落ちた！`);
