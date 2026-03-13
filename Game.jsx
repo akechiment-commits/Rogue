@@ -4437,21 +4437,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     useMarker: doUseMarker,
     readSpellbook: doReadSpellbook,
   };
-  /* 投げたものがモンスター足元の罠を発動させるヘルパー */
-  const _triggerTrapOnMonster = (trap, m, dg2, ml2) => {
-    trap.revealed = true;
-    if (trap.effect === "explode") {
-      const _td = rng(10, 20);
-      m.hp -= _td;
-      ml2.push(`${trap.name}が発動！${m.name}に${_td}ダメージ！`);
-    } else if (trap.effect === "arrow_trap") {
-      const _td = 4 + rng(1, 4);
-      m.hp -= _td;
-      ml2.push(`${trap.name}が発動！矢が${m.name}に命中！${_td}ダメージ！`);
-    } else {
-      ml2.push(`${trap.name}が発動したが${m.name}には効果がなかった。`);
-    }
-  };
   const execDirection = useCallback(
     (dx, dy) => {
       if (!throwMode || !sr.current) return;
@@ -4658,7 +4643,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 lx = tx; ly = ty;
                 ml.push(`${dnameRef(it)}は${m.name}に外れ、足元に落ちた！`);
                 const _ptTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_ptTrap) { _triggerTrapOnMonster(_ptTrap, m, dg, ml); if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); } }
+                if (_ptTrap) fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef);
                 break;
               }
               const td = 3 + rng(0, 3);
@@ -4708,7 +4693,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 lx = tx; ly = ty; hit = true;
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
                 const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_thTrap) { _triggerTrapOnMonster(_thTrap, m, dg, ml); if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); } }
+                if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef);
                 break;
               }
               m.hp -= td;
