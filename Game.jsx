@@ -4482,6 +4482,15 @@ export default function RoguelikeGame() {
           ml.push(`${dnameRef(it)}を振った！[残${it.charges}回]${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
           const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
           fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName);
+          if (p._pendingWarpUp) {
+            delete p._pendingWarpUp;
+            if (p.depth > 1) {
+              const _warpNd = chgFloor(p, -1);
+              if (_warpNd) sr.current.dungeon = _warpNd;
+            } else {
+              ml.push("ここは1階だ。何も起こらなかった。");
+            }
+          }
         }
         if (it.charges <= 0) {
           ml.push(`${dnameRef(it)}は力を失った...`);
@@ -4648,7 +4657,7 @@ export default function RoguelikeGame() {
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
     },
-    [throwMode, lu, endTurn],
+    [throwMode, lu, endTurn, chgFloor],
   );
   execRef.current = execDirection;
   if (!gs) return null;

@@ -454,6 +454,7 @@ export const WANDS = [
   { name:"眠りの杖",     type:"wand", effect:"sleep",      charges:5, desc:"振ると対象を眠りに落とす。眠りの罠と同様の効果。",                                   tile:24 },
   { name:"祝福の杖",     type:"wand", effect:"bless_wand", charges:3, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
   { name:"呪いの杖",     type:"wand", effect:"curse_wand", charges:3, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
+  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, desc:"振ると対象をレベルアップさせる。自分に使えば1レベル上がる。敵に当てると次の形態に変化する。呪い：自分なら1階上へ飛ばされ、敵ならレベルダウンする。水の瓶に当てるとレベルアップの薬になる。", tile:24 },
   { name:"混乱の杖",     type:"wand", effect:"confuse",    charges:5, desc:"振ると対象を混乱させる。自分なら5ターン、敵なら20ターン混乱する。水の瓶に当てると混乱の薬になる。", tile:24 },
   { name:"暗闇の杖",    type:"wand", effect:"darkness",   charges:5, desc:"振ると対象を暗闇状態にする。自分なら視界が1マスになる(20ターン)。敵なら50ターンこちらを認識できず壁まで直進し途中の者を攻撃する。祝福：自分50ターン・敵永続。呪い：フロア全体が見えるようになる。水の瓶に当てると暗闇の薬になる。", tile:24 },
   { name:"惑わしの杖",  type:"wand", effect:"bewitch",    charges:4, desc:"振ると対象を幻惑状態にする。自分なら50ターン周囲の見た目が狂う。敵なら50ターン逃げ回る。祝福：自分100ターン・敵永続。呪い：フロアの罠が全て見えるようになる。水の瓶に当てると惑わしの薬になる。", tile:24 },

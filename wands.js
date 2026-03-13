@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster } from './utils.js';
-import { MONS } from './monsters.js';
+import { MONS, monLevelUp, monLevelDown } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
@@ -923,6 +923,30 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       ml.push("魔法弾は効果なく消えた。");
       break;
     }
+    case "levelup": {
+      const _luCursed = blMult < 1, _luBlessed = blMult > 1;
+      if (kind === "monster") {
+        if (_luCursed) {
+          monLevelDown(target, dg, ml);
+        } else {
+          const _times = _luBlessed ? 2 : 1;
+          for (let _i = 0; _i < _times; _i++) monLevelUp(target, dg, ml);
+        }
+        break;
+      }
+      if (kind === "player") {
+        if (_luCursed) {
+          p._pendingWarpUp = true;
+          ml.push("呪われた杖！天井を突き破って上の階へ飛ばされた！【呪】");
+        } else {
+          const _times = _luBlessed ? 2 : 1;
+          for (let _i = 0; _i < _times; _i++) { p.exp = p.nextExp; luFn(p, ml); }
+        }
+        break;
+      }
+      ml.push("魔法弾は効果なく消えた。");
+      break;
+    }
   }
 }
 
@@ -992,7 +1016,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     if (it) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
-      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬" };
+      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬" };
       if (it.effect === "water" && BOTTLE_XFORM[eff]) {
         const nm = BOTTLE_XFORM[eff];
         Object.assign(it, { name: nm, effect: eff, value: eff === "sleep" ? 4 : 0 });
