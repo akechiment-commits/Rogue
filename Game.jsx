@@ -1195,6 +1195,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             ) {
               ml.push("店主に話しかけるにはキーで。");
             } else {
+              /* 近接命中率95%（必中状態なら100%） */
+              const _meleeSureHit = (p.sureHitTurns || 0) > 0;
+              if (!_meleeSureHit && Math.random() >= 0.95) {
+                ml.push(`${attackMon.name}への攻撃は外れた！`);
+                acted = true;
+              } else {
               if (attackMon.paralyzed) {
                 attackMon.paralyzed = false;
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
@@ -1244,6 +1250,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               }
               if (attackMon.hp <= 0) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
               acted = true;
+              } /* end else (hit) */
             }
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
@@ -4430,6 +4437,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     useMarker: doUseMarker,
     readSpellbook: doReadSpellbook,
   };
+  /* 投げたものがモンスター足元の罠を発動させるヘルパー */
+  const _triggerTrapOnMonster = (trap, m, dg2, ml2) => {
+    trap.revealed = true;
+    if (trap.effect === "explode") {
+      const _td = rng(10, 20);
+      m.hp -= _td;
+      ml2.push(`${trap.name}が発動！${m.name}に${_td}ダメージ！`);
+    } else if (trap.effect === "arrow_trap") {
+      const _td = 4 + rng(1, 4);
+      m.hp -= _td;
+      ml2.push(`${trap.name}が発動！矢が${m.name}に命中！${_td}ダメージ！`);
+    } else {
+      ml2.push(`${trap.name}が発動したが${m.name}には効果がなかった。`);
+    }
+  };
   const execDirection = useCallback(
     (dx, dy) => {
       if (!throwMode || !sr.current) return;
@@ -4468,12 +4490,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (!_arPierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
           const m = monsterAt(dg, tx, ty);
           if (m) {
-            m.hp -= dmg;
-            if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-            ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
-            if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
-            if (!_arPierceMode) { hit = true; break; }
-            /* 貫通：飛び続ける */
+            /* 矢の命中率90%（必中状態なら100%） */
+            const _arSureHit = (p.sureHitTurns || 0) > 0;
+            const _arMiss = !_arSureHit && Math.random() >= 0.90;
+            if (_arMiss) {
+              ml.push(`${_arName}は${m.name}に外れた！`);
+              /* 矢はそのまま飛び続ける */
+            } else {
+              m.hp -= dmg;
+              if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+              ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
+              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              if (!_arPierceMode) { hit = true; break; }
+              /* 貫通：飛び続ける */
+            }
           }
           if (!_arPierceMode) {
             const bb = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
@@ -4621,6 +4651,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             const m = monsterAt(dg, tx, ty);
             if (m) {
+              const _potSureHit = (p.sureHitTurns || 0) > 0;
+              const _potMiss = !_isFarcast && !_potSureHit && Math.random() >= 0.90;
+              if (_potMiss) {
+                /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
+                lx = tx; ly = ty;
+                ml.push(`${dnameRef(it)}は${m.name}に外れ、足元に落ちた！`);
+                const _ptTrap = dg.traps.find(t => t.x === tx && t.y === ty);
+                if (_ptTrap) { _triggerTrapOnMonster(_ptTrap, m, dg, ml); if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); } }
+                break;
+              }
               const td = 3 + rng(0, 3);
               m.hp -= td;
               ml.push(`${dnameRef(it)}が${m.name}に命中！${td}ダメージ！`);
@@ -4660,8 +4700,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             const m = monsterAt(dg, tx, ty);
             if (m) {
-              m.hp -= td;
+              const _thSureHit = (p.sureHitTurns || 0) > 0;
+              const _thMiss = !_isFarcast && !_thSureHit && Math.random() >= 0.90;
               const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
+              if (_thMiss) {
+                /* 外れ：敵の足元に落ちる */
+                lx = tx; ly = ty; hit = true;
+                ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
+                const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
+                if (_thTrap) { _triggerTrapOnMonster(_thTrap, m, dg, ml); if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); } }
+                break;
+              }
+              m.hp -= td;
               ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
               if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
               if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; }

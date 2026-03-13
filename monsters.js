@@ -7,6 +7,11 @@ function isWalkable(map, x, y) { return inBounds(x, y) && map[y][x] !== T.WALL &
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false } = {}) {
+  /* 12% ミス */
+  if (Math.random() >= 0.88) {
+    ml.push(`${m.name}の攻撃は外れた！`);
+    return;
+  }
   const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
   let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   if (!skipVuln) {
