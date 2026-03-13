@@ -666,7 +666,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const getLookDesc = useCallback((cx, cy, dg) => {
     if (!dg) return "";
     const tile = dg.map[cy]?.[cx];
-    if (tile === T.WALL || tile === T.BWALL) return "壁";
     if (!dg.explored[cy]?.[cx]) return "未探索";
     /* 壁タイルの場合 */
     if (tile === T.WALL || tile === T.BWALL) {
