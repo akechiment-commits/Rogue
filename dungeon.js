@@ -204,10 +204,10 @@ function genHiddenRooms(map, depth) {
     const rw = rng(3, 5), rh = rng(3, 4);
     const rx = rng(2, MW - rw - 2);
     const ry = rng(2, MH - rh - 2);
-    /* 既存の床タイルから1マス離れていること */
+    /* 既存の床タイルから2マス離れていること（通常部屋・廊下と確実に分離） */
     let ok = true;
-    for (let dy = -1; dy <= rh && ok; dy++)
-      for (let dx = -1; dx <= rw && ok; dx++) {
+    for (let dy = -2; dy <= rh + 1 && ok; dy++)
+      for (let dx = -2; dx <= rw + 1 && ok; dx++) {
         const nx = rx + dx, ny = ry + dy;
         if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) { ok = false; break; }
         if (map[ny][nx] !== T.WALL) { ok = false; break; }
@@ -220,11 +220,12 @@ function genHiddenRooms(map, depth) {
   return hiddenRooms;
 }
 
-function populateHiddenRoom(hr, map, depth, items, bigboxes, springs) {
+function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
   const allOcc = (x, y) =>
     items.some(i => i.x === x && i.y === y) ||
     bigboxes.some(b => b.x === x && b.y === y) ||
-    springs.some(s => s.x === x && s.y === y);
+    springs.some(s => s.x === x && s.y === y) ||
+    traps.some(t => t.x === x && t.y === y);
   const floorTiles = [];
   for (let dy = 0; dy < hr.h; dy++)
     for (let dx = 0; dx < hr.w; dx++) {
@@ -262,6 +263,14 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs) {
       springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
       break;
     }
+  }
+  /* 回転板を必ず1枚配置 */
+  const spinTrap = { name: "回転板", effect: "spin", tile: 29 };
+  for (let a = 0; a < 60; a++) {
+    const [tx, ty] = pick(floorTiles);
+    if (allOcc(tx, ty)) continue;
+    traps.push({ ...spinTrap, id: uid(), x: tx, y: ty, revealed: false });
+    break;
   }
 }
 
@@ -872,7 +881,7 @@ export function genDungeon(depth) {
   }
   /* 隠し部屋を生成してアイテム等を配置 */
   const hiddenRooms = genHiddenRooms(map, depth);
-  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs);
+  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps);
   /* 壁埋めアイテムを生成（突起コーナーは高確率） */
   genWallItems(map, depth, items, suspiciousWalls);
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
