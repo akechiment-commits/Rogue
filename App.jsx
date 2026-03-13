@@ -39,8 +39,9 @@ export default function App() {
     */
     updateSave(prev => {
       const next = { ...prev };
-      /* 50% of earned gold converts to hub gold */
-      next.hubGold = (prev.hubGold || 0) + Math.floor((result.earnedGold || 0) * 0.5);
+      /* survived=true: 100% gold; death: 50% gold */
+      const goldRate = result.survived ? 1.0 : 0.5;
+      next.hubGold = (prev.hubGold || 0) + Math.floor((result.earnedGold || 0) * goldRate);
       next.totalRuns = (prev.totalRuns || 0) + 1;
       next.bestDepth = Math.max(prev.bestDepth || 0, result.depth || 0);
       next.bestGold  = Math.max(prev.bestGold  || 0, result.earnedGold || 0);

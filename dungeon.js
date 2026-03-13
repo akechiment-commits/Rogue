@@ -1265,7 +1265,8 @@ function makeDebugLayout() {
   const occI = (x, y) =>
     items.some(i => i.x === x && i.y === y) ||
     traps.some(t => t.x === x && t.y === y) ||
-    springs.some(s => s.x === x && s.y === y);
+    springs.some(s => s.x === x && s.y === y) ||
+    bigboxes.some(b => b.x === x && b.y === y);
   let ic = IR.x + 2, ir = IR.y + 2;
   const nextItemPos = () => {
     while (occI(ic, ir) || (ic === su.x && ir === su.y) || (ic === sd.x && ir === sd.y)) {
@@ -1339,8 +1340,21 @@ export function genDebugDungeon() {
     const p = nextItemPos();
     traps.push({ ...tmpl, id: uid(), x: p.x, y: p.y, revealed: true });
   }
-  const sp = nextItemPos();
-  springs.push({ id: uid(), x: sp.x, y: sp.y, tile: TI.SPRING, contents: [] });
+  /* 食料（生×4, 調理済み×4） */
+  for (let i = 0; i < 8; i++) {
+    const p = nextItemPos();
+    items.push({ ...genFood(), id: uid(), x: p.x, y: p.y });
+  }
+  /* 泉×4 */
+  for (let i = 0; i < 4; i++) {
+    const sp = nextItemPos();
+    springs.push({ id: uid(), x: sp.x, y: sp.y, tile: TI.SPRING, contents: [] });
+  }
+  /* 大箱：各種1つずつ */
+  for (const bbt of BB_TYPES) {
+    const p = nextItemPos();
+    bigboxes.push({ id: uid(), x: p.x, y: p.y, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+  }
 
   /* モンスター隔離部屋 */
   placeDebugMons(mons, nextMonPos);

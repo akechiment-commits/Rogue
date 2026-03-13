@@ -1322,8 +1322,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
         if (dg.map[p.y][p.x] === T.SU) {
-          if (p.depth === 1) ml.push("まだ帰れない！");
-          else {
+          if (p.depth === 1) {
+            if (onReturnToHub) {
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
+              return;
+            }
+          } else {
             const nd = chgFloor(p, -1);
             if (nd) {
               st.dungeon = nd;
@@ -1338,8 +1342,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           const nd = chgFloor(p, 1);
           if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に降りた。`); acted = true; }
         } else if (dg.map[p.y][p.x] === T.SU) {
-          if (p.depth === 1) ml.push("まだ帰れない！");
-          else {
+          if (p.depth === 1) {
+            if (onReturnToHub) {
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
+              return;
+            }
+          } else {
             const nd = chgFloor(p, -1);
             if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に昇った。`); acted = true; }
           }
@@ -3323,7 +3331,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (it.cursed) {
           // 呪い：1階上へワープ（1階なら効果なし）
           if (p.depth <= 1) {
-            ml.push(`${it.name}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
+            if (onReturnToHub) {
+              ml.push(`${it.name}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
+              sr.current = { ...st };
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
+              return;
+            } else {
+              ml.push(`${it.name}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
+            }
           } else {
             ml.push(`${it.name}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
             const _luNd = chgFloor(p, -1, true);
