@@ -4720,16 +4720,16 @@ export default function RoguelikeGame() {
             w={32}
             h={32}
             fs={12}
-            style={ds}
+            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
           />
-          <B label="↑" onClick={() => onClick(0, -1)} style={ds} />
+          <B label="↑" onClick={() => onClick(0, -1)} style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds} />
           <B
             label="↗"
             onClick={() => onClick(1, -1)}
             w={32}
             h={32}
             fs={12}
-            style={ds}
+            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
           />
         </div>
         <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
@@ -4796,16 +4796,16 @@ export default function RoguelikeGame() {
             w={32}
             h={32}
             fs={12}
-            style={ds}
+            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
           />
-          <B label="↓" onClick={() => onClick(0, 1)} style={ds} />
+          <B label="↓" onClick={() => onClick(0, 1)} style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds} />
           <B
             label="↘"
             onClick={() => onClick(1, 1)}
             w={32}
             h={32}
             fs={12}
-            style={ds}
+            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
           />
         </div>
       </div>
