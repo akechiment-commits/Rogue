@@ -377,9 +377,335 @@ function genWallItems(map, depth, items, suspicious = new Set()) {
   }
 }
 
+/* ===== SHARED HELPERS FOR SPECIAL FLOORS ===== */
+function mkVis() {
+  return {
+    visible:  Array.from({ length: MH }, () => Array(MW).fill(false)),
+    explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
+  };
+}
+function mkMon(depth, x, y) {
+  const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
+  return {
+    ...t, id: uid(), x, y, maxHp: t.hp, turnAccum: 0, aware: false,
+    dir: { x: [-1, 1][rng(0, 1)], y: 0 }, lastPx: 0, lastPy: 0,
+    patrolTarget: null, dormant: Math.random() < 0.12,
+  };
+}
+/* 部屋をショップにセットアップし、shopDataを返す */
+function setupShopRoom(room, map, depth, items, mons) {
+  let entrance = null;
+  for (let xi = room.x - 1; xi <= room.x + room.w && !entrance; xi++) {
+    if (xi >= 0 && xi < MW && room.y - 1 >= 0 && map[room.y - 1]?.[xi] === T.FLOOR)
+      entrance = { x: xi, y: room.y - 1 };
+    if (xi >= 0 && xi < MW && room.y + room.h < MH && map[room.y + room.h]?.[xi] === T.FLOOR)
+      entrance = { x: xi, y: room.y + room.h };
+  }
+  for (let yi = room.y; yi < room.y + room.h && !entrance; yi++) {
+    if (room.x - 1 >= 0 && map[yi]?.[room.x - 1] === T.FLOOR) entrance = { x: room.x - 1, y: yi };
+    if (room.x + room.w < MW && map[yi]?.[room.x + room.w] === T.FLOOR) entrance = { x: room.x + room.w, y: yi };
+  }
+  if (!entrance) entrance = { x: room.cx, y: room.cy };
+  let insidePos;
+  if (entrance.y < room.y) insidePos = { x: clamp(entrance.x, room.x, room.x + room.w - 1), y: room.y };
+  else if (entrance.y >= room.y + room.h) insidePos = { x: clamp(entrance.x, room.x, room.x + room.w - 1), y: room.y + room.h - 1 };
+  else if (entrance.x < room.x) insidePos = { x: room.x, y: clamp(entrance.y, room.y, room.y + room.h - 1) };
+  else insidePos = { x: room.x + room.w - 1, y: clamp(entrance.y, room.y, room.y + room.h - 1) };
+  if (map[insidePos.y]?.[insidePos.x] !== T.FLOOR) {
+    outer_s: for (let iy = room.y; iy < room.y + room.h; iy++)
+      for (let ix = room.x; ix < room.x + room.w; ix++)
+        if (map[iy][ix] === T.FLOOR) { insidePos = { x: ix, y: iy }; break outer_s; }
+  }
+  const socc = (x, y) => items.some(i => i.x === x && i.y === y);
+  const cands = [
+    ...ITEMS.filter(i => i.type !== 'gold'),
+    ...WANDS.map(w => ({ ...w, charges: Math.max(1, w.charges + rng(-1, 1)) })),
+    ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
+  ];
+  const cols = clamp(Math.floor(room.w / 2), 2, 5);
+  const rows2 = clamp(Math.floor(room.h / 2), 2, 5);
+  const sx0 = room.x + Math.floor((room.w - cols) / 2);
+  const sy0 = room.y + Math.floor((room.h - rows2) / 2);
+  for (let r = 0; r < rows2; r++)
+    for (let c = 0; c < cols; c++) {
+      const six = sx0 + c, siy = sy0 + r;
+      if (map[siy]?.[six] === T.FLOOR && !socc(six, siy) && !(six === insidePos.x && siy === insidePos.y)) {
+        const base = pick(cands);
+        const sit = { ...base, id: uid(), x: six, y: siy };
+        if (sit.type === 'arrow') sit.count = rng(5, 20);
+        sit.shopPrice = Math.ceil(itemPrice(sit) * (1 + depth * 0.1));
+        items.push(sit);
+      }
+    }
+  const sk = {
+    id: uid(), name: '店主', hp: 100, maxHp: 100, atk: 12, def: 6, exp: 0,
+    speed: 1, tile: TI.SHOPKEEPER, type: 'shopkeeper', state: 'friendly',
+    blockPos: { ...entrance }, homePos: { ...insidePos },
+    x: insidePos.x, y: insidePos.y, turnAccum: 0, aware: false,
+    dir: { x: 0, y: 1 }, lastPx: 0, lastPy: 0, patrolTarget: null, sleepTurns: 0,
+  };
+  mons.push(sk);
+  return { room, entrance, shopkeeperId: sk.id, unpaidTotal: 0 };
+}
+
+/* ===== MINI BIG ROOM (ビッグルーム小型版) ===== */
+function genMiniRoom(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rw = Math.floor(MW * 0.55), rh = Math.floor(MH * 0.60);
+  const rx = Math.floor((MW - rw) / 2), ry = Math.floor((MH - rh) / 2);
+  for (let dy = 0; dy < rh; dy++)
+    for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+  const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
+  const rooms = [room];
+  const su = { x: rx + 1, y: ry + 1 };
+  map[su.y][su.x] = T.SU;
+  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  map[sd.y][sd.x] = T.SD;
+  const mons = [];
+  for (let i = 0; i < rng(5, 9) + depth; i++) {
+    for (let a = 0; a < 40; a++) {
+      const mx = rng(rx, rx + rw - 1), my = rng(ry, ry + rh - 1);
+      if (map[my][mx] !== T.FLOOR || (mx === su.x && my === su.y) || (mx === sd.x && my === sd.y)) continue;
+      if (mons.some(m => m.x === mx && m.y === my)) continue;
+      mons.push(mkMon(depth, mx, my)); break;
+    }
+  }
+  const items = [], traps = [], springs = [], bigboxes = [];
+  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y) || springs.some(s => s.x === x && s.y === y) || bigboxes.some(b => b.x === x && b.y === y);
+  const rndFloor = () => { for (let a = 0; a < 80; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
+  for (let i = 0; i < rng(12, 18); i++) { const p = rndFloor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 20 + depth * 10); items.push(it); } }
+  for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
+  for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
+  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pick(BB_TYPES); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
+  const { visible, explored } = mkVis();
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "miniRoom" };
+}
+
+/* ===== SHOPPING MALL (複数店舗フロア) ===== */
+function genShoppingMall(depth) {
+  /* 3列×2行のグリッドに部屋を配置 */
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rooms = [];
+  const COLS = 3, ROWS = 2;
+  const cellW = Math.floor(MW / COLS), cellH = Math.floor(MH / ROWS);
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const rw = rng(4, Math.min(8, cellW - 4)), rh = rng(3, Math.min(6, cellH - 4));
+      const rx = col * cellW + Math.floor((cellW - rw) / 2);
+      const ry = row * cellH + Math.floor((cellH - rh) / 2);
+      if (rx < 1 || ry < 1 || rx + rw >= MW - 1 || ry + rh >= MH - 1) { rooms.push(null); continue; }
+      for (let dy = 0; dy < rh; dy++)
+        for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+      rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) });
+    }
+  }
+  const validRooms = rooms.filter(Boolean);
+  if (validRooms.length < 2) return genShoppingMall(depth);
+  /* 水平・垂直廊下で隣接セルを接続 */
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS - 1; col++) {
+      const a = rooms[row * COLS + col], b = rooms[row * COLS + col + 1];
+      if (!a || !b) continue;
+      let x = a.cx, y = a.cy;
+      while (x !== b.cx) { map[y][x] = T.FLOOR; x += x < b.cx ? 1 : -1; }
+      while (y !== b.cy) { map[y][x] = T.FLOOR; y += y < b.cy ? 1 : -1; }
+    }
+  }
+  for (let col = 0; col < COLS; col++) {
+    for (let row = 0; row < ROWS - 1; row++) {
+      const a = rooms[row * COLS + col], b = rooms[(row + 1) * COLS + col];
+      if (!a || !b) continue;
+      let x = a.cx, y = a.cy;
+      while (y !== b.cy) { map[y][x] = T.FLOOR; y += y < b.cy ? 1 : -1; }
+      while (x !== b.cx) { map[y][x] = T.FLOOR; x += x < b.cx ? 1 : -1; }
+    }
+  }
+  const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  /* 階段は廊下上（最初の有効部屋の外）に配置 */
+  const fr = validRooms[0], lr = validRooms[validRooms.length - 1];
+  const su = { x: clamp(fr.cx - Math.floor(fr.w / 2) - 1, 1, MW - 2), y: fr.cy };
+  map[su.y][su.x] = T.SU;
+  const sd = { x: clamp(lr.cx + Math.floor(lr.w / 2) + 1, 1, MW - 2), y: lr.cy };
+  map[sd.y][sd.x] = T.SD;
+  /* 各部屋をショップにセットアップ */
+  let shopData = null;
+  for (const room of validRooms) {
+    const sd2 = setupShopRoom(room, map, depth, items, mons);
+    if (!shopData) shopData = sd2; /* 最初の店が主ショップ */
+  }
+  /* 廊下にモンスター・罠を少量配置 */
+  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y);
+  const inAnyRoom = (x, y) => validRooms.some(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  for (let i = 0; i < rng(2, 4); i++) {
+    for (let a = 0; a < 80; a++) {
+      const mx = rng(1, MW - 2), my = rng(1, MH - 2);
+      if (map[my][mx] !== T.FLOOR || occ(mx, my) || inAnyRoom(mx, my)) continue;
+      mons.push(mkMon(depth, mx, my)); break;
+    }
+  }
+  for (let i = 0; i < rng(3, 6); i++) {
+    for (let a = 0; a < 80; a++) {
+      const tx = rng(1, MW - 2), ty = rng(1, MH - 2);
+      if (map[ty][tx] !== T.FLOOR || occ(tx, ty) || inAnyRoom(tx, ty)) continue;
+      traps.push({ ...pick(TRAPS), id: uid(), x: tx, y: ty, revealed: false }); break;
+    }
+  }
+  const { visible, explored } = mkVis();
+  return { map, rooms: validRooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: shopData, hiddenRooms: [], monsterHouseRoom: null, floorType: "shoppingMall" };
+}
+
+/* ===== SPIN FLOOR (完全独立部屋＋回転板移動) ===== */
+function genSpinFloor(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rooms = [];
+  const spinTrap = { name: '回転板', effect: 'spin', tile: 29 };
+  /* 独立した部屋を5〜7個ランダム配置（2タイルバッファ） */
+  const roomCount = rng(5, 7);
+  for (let attempt = 0; attempt < roomCount * 80 && rooms.length < roomCount; attempt++) {
+    const rw = rng(4, 7), rh = rng(3, 5);
+    const rx = rng(2, MW - rw - 2), ry = rng(2, MH - rh - 2);
+    let ok = true;
+    for (let dy = -2; dy <= rh + 1 && ok; dy++)
+      for (let dx = -2; dx <= rw + 1 && ok; dx++) {
+        const nx = rx + dx, ny = ry + dy;
+        if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) { ok = false; break; }
+        if (map[ny][nx] !== T.WALL) { ok = false; break; }
+      }
+    if (!ok) continue;
+    for (let dy = 0; dy < rh; dy++)
+      for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+    rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) });
+  }
+  if (rooms.length < 2) return genSpinFloor(depth);
+  /* 階段は最初と最後の部屋 */
+  const su = { x: rooms[0].cx, y: rooms[0].cy };
+  map[su.y][su.x] = T.SU;
+  const sd = { x: rooms[rooms.length - 1].cx, y: rooms[rooms.length - 1].cy };
+  map[sd.y][sd.x] = T.SD;
+  const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y) || springs.some(s => s.x === x && s.y === y) || bigboxes.some(b => b.x === x && b.y === y);
+  for (const room of rooms) {
+    const floorTiles = [];
+    for (let dy = 0; dy < room.h; dy++)
+      for (let dx = 0; dx < room.w; dx++) {
+        const fx = room.x + dx, fy = room.y + dy;
+        if (map[fy][fx] === T.FLOOR && !(fx === su.x && fy === su.y) && !(fx === sd.x && fy === sd.y)) floorTiles.push([fx, fy]);
+      }
+    if (floorTiles.length === 0) continue;
+    /* 回転板を2〜3枚 */
+    const spinCount = Math.min(rng(2, 3), floorTiles.length);
+    let placed = 0;
+    for (let a = 0; a < spinCount * 30 && placed < spinCount; a++) {
+      const [tx, ty] = pick(floorTiles);
+      if (occ(tx, ty)) continue;
+      traps.push({ ...spinTrap, id: uid(), x: tx, y: ty, revealed: false });
+      placed++;
+    }
+    /* アイテムを1〜3個 */
+    const itemCount = Math.min(rng(1, 3), floorTiles.length);
+    let iPlaced = 0;
+    for (let a = 0; a < itemCount * 30 && iPlaced < itemCount; a++) {
+      const [ix, iy] = pick(floorTiles);
+      if (occ(ix, iy)) continue;
+      const it = { ...pick(ITEMS), id: uid(), x: ix, y: iy };
+      if (it.type === 'gold') it.value = rng(10, 50 + depth * 20);
+      items.push(it); iPlaced++;
+    }
+    /* モンスターを1体 */
+    for (let a = 0; a < 30; a++) {
+      const [mx, my] = pick(floorTiles);
+      if (occ(mx, my)) continue;
+      mons.push(mkMon(depth, mx, my)); break;
+    }
+  }
+  const { visible, explored } = mkVis();
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "spinFloor" };
+}
+
+/* ===== CORRIDOR FLOOR (全部廊下だけ) ===== */
+function genCorridorFloor(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  /* 水平メイン通路を中央に1本 */
+  const mainY = Math.floor(MH / 2);
+  for (let x = 1; x < MW - 1; x++) map[mainY][x] = T.FLOOR;
+  /* 垂直支線を4〜6本 */
+  const branchXs = [];
+  const branchCount = rng(4, 6);
+  for (let i = 0; i < branchCount; i++) branchXs.push(rng(3, MW - 4));
+  for (const bx of branchXs) {
+    const yTop = rng(2, mainY - 1), yBot = rng(mainY + 1, MH - 3);
+    for (let y = yTop; y <= yBot; y++) map[y][bx] = T.FLOOR;
+    /* 支線先端から水平に短い通路 */
+    const hLen = rng(2, 5);
+    const dir2 = Math.random() < 0.5 ? 1 : -1;
+    for (let dx = 1; dx <= hLen; dx++) {
+      const nx = clamp(bx + dir2 * dx, 1, MW - 2);
+      map[yTop][nx] = T.FLOOR;
+      map[yBot][nx] = T.FLOOR;
+    }
+  }
+  /* 階段を廊下上に設置 */
+  const suX = 2, suY = mainY;
+  map[suY][suX] = T.SU;
+  const sdX = MW - 3, sdY = mainY;
+  map[sdY][sdX] = T.SD;
+  const su = { x: suX, y: suY }, sd = { x: sdX, y: sdY };
+  /* "仮想部屋"（階段周辺の1マス）をroomsに登録（spin罠用・モンスタースポーン用） */
+  const rooms = [
+    { x: suX - 1, y: suY - 1, w: 3, h: 3, cx: suX, cy: suY },
+    { x: sdX - 1, y: sdY - 1, w: 3, h: 3, cx: sdX, cy: sdY },
+  ];
+  /* 廊下のフロアタイルリスト */
+  const corTiles = [];
+  for (let y = 0; y < MH; y++)
+    for (let x = 0; x < MW; x++)
+      if (map[y][x] === T.FLOOR) corTiles.push([x, y]);
+  const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y) || springs.some(s => s.x === x && s.y === y) || bigboxes.some(b => b.x === x && b.y === y);
+  const rndCor = () => { for (let a = 0; a < 60; a++) { const [x, y] = pick(corTiles); if (!occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
+  for (let i = 0; i < rng(6, 10) + depth; i++) { const p = rndCor(); if (p) mons.push(mkMon(depth, p[0], p[1])); }
+  for (let i = 0; i < rng(8, 14) + depth; i++) { const p = rndCor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 30 + depth * 10); items.push(it); } }
+  for (let i = 0; i < rng(10, 18) + depth; i++) { const p = rndCor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
+  for (let i = 0; i < rng(1, 3); i++) { const p = rndCor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
+  const { visible, explored } = mkVis();
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, floorType: "corridorFloor" };
+}
+
+/* ===== GRID ROOM (格子状壁の大部屋) ===== */
+function genGridRoom(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rx = 2, ry = 2, rw = MW - 4, rh = MH - 4;
+  for (let dy = 0; dy < rh; dy++)
+    for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+  /* 格子状に柱を配置（3マスおきに1マスの壁） */
+  for (let gy = ry + 2; gy < ry + rh - 1; gy += 3)
+    for (let gx = rx + 2; gx < rx + rw - 1; gx += 3)
+      map[gy][gx] = T.WALL;
+  const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
+  const rooms = [room];
+  const su = { x: rx + 1, y: ry + 1 };
+  map[su.y][su.x] = T.SU;
+  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  map[sd.y][sd.x] = T.SD;
+  const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y) || springs.some(s => s.x === x && s.y === y) || bigboxes.some(b => b.x === x && b.y === y);
+  const rndFloor = () => { for (let a = 0; a < 100; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
+  for (let i = 0; i < rng(8, 13) + depth; i++) { const p = rndFloor(); if (p) mons.push(mkMon(depth, p[0], p[1])); }
+  for (let i = 0; i < rng(15, 22); i++) { const p = rndFloor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 20 + depth * 10); items.push(it); } }
+  for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
+  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
+  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pick(BB_TYPES); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
+  const { visible, explored } = mkVis();
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "gridRoom" };
+}
+
+
 export function genDungeon(depth) {
-  /* テスト用: 3階(depth=2)は必ずビッグルーム */
-  if (depth === 2) return genBigRoom(depth);
+  /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
+  if (Math.random() < 0.25) {
+    const specials = [genBigRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom];
+    return pick(specials)(depth);
+  }
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
   const tgt = rng(4, 7);
