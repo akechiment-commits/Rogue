@@ -1086,6 +1086,7 @@ export default function RoguelikeGame() {
       if (dead || !sr.current) return;
       if (revealMode) return;
       if (bigboxMode) return;
+      if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
       if (markerMode) return;
@@ -1518,7 +1519,7 @@ export default function RoguelikeGame() {
   const doDash = useCallback(
     (dx, dy) => {
       if (dead || !sr.current) return;
-      if (springMode || putMode || markerMode || spellListMode || throwMode || showInv) return;
+      if (springMode || putMode || markerMode || spellListMode || throwMode || showInv || lookMode) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
@@ -5390,7 +5391,7 @@ export default function RoguelikeGame() {
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (revealMode || showInv) return; setSpellListMode((f) => !f); setSpellMenuSel(0); }}
+                  onClick={() => { if (revealMode || showInv || lookMode) return; setSpellListMode((f) => !f); setSpellMenuSel(0); }}
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB
