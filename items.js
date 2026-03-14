@@ -1257,14 +1257,15 @@ export function burnFoodItem(item, ml) {
   ml.push(`${item.name}になった！`);
 }
 
-export function applyPotionToItem(eff, val, item, dg, ml, cursed = false) {
+export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
+  const _dn = dnFn ? dnFn(item) : item.name;
   if (item.type === "spellbook") {
     if (eff === "fire") {
-      ml.push(`魔法書「${item.name}」が燃えてなくなった！`);
+      ml.push(`魔法書「${_dn}」が燃えてなくなった！`);
       return "burn";
     }
     if (item.spell) {
-      const oldName = item.name;
+      const oldName = _dn; /* 名前変更前に取得 */
       item.name = "白紙の魔法書";
       item.spell = null;
       item.desc = "魔法が消えてしまった。魔法のマーカー(5回分)で好きな魔法書に変えられる。";
@@ -1276,11 +1277,11 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false) {
   }
   if (item.type === "scroll") {
     if (eff === "fire") {
-      ml.push(`巻物「${item.name}」が炎で燃えてなくなった！`);
+      ml.push(`巻物「${_dn}」が炎で燃えてなくなった！`);
       return "burn";
     }
     if (item.effect !== "blank") {
-      const oldName = item.name;
+      const oldName = _dn; /* 名前変更前に取得 */
       item.name = "白紙の巻物";
       item.effect = "blank";
       item.desc = "何も書かれていない。魔法のマーカーで書き込める。";
@@ -1316,7 +1317,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false) {
   ml.push(`${item.name}になった！`);
 }
 
-export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false, cursed = false) {
+export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false, cursed = false, dnFn = null) {
   ml.push("瓶が割れて中身が飛び散った！");
   const tiles = [];
   for (let dy2 = -1; dy2 <= 1; dy2++)
@@ -1345,7 +1346,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     }
     const it = itemAt(dg, x, y);
     if (it) {
-      const br = applyPotionToItem(eff, val, it, dg, ml, cursed);
+      const br = applyPotionToItem(eff, val, it, dg, ml, cursed, dnFn);
       if (br === "burn") {
         removeFloorItem(dg, it);
         chargeShopItem(it, dg, ml);

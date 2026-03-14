@@ -3028,7 +3028,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         return;
       }
       if (throwMode !== null) {
-        if (k === "escape") {
+        if (k === "escape" || k === "x") {
           e.preventDefault();
           setThrowMode(null);
           setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
@@ -4179,7 +4179,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setSelIdx(null);
     setShowDesc(null);
     setThrowMode({ idx, mode: "throw" });
-    setMsgs((prev) => [...prev.slice(-80), "投げる方向を選んでください..."]);
+    const _it = sr.current?.player?.inventory[idx];
+    const _nm = _it ? itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames) : "アイテム";
+    setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
   }, []);
   const doShoot = useCallback((idx) => {
     setShowInv(false);
@@ -4436,7 +4438,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               (fi) => fi.x >= _boilRoom.x && fi.x < _boilRoom.x + _boilRoom.w &&
                       fi.y >= _boilRoom.y && fi.y < _boilRoom.y + _boilRoom.h,
             )) {
-              const _br = applyPotionToItem(it.effect, it.value || 0, _bi, dg, ml, it.cursed || false);
+              const _br = applyPotionToItem(it.effect, it.value || 0, _bi, dg, ml, it.cursed || false, dnameRef);
               if (_br === "burn") _boilBurnSet.push(_bi);
             }
             if (_boilBurnSet.length > 0) dg.items = dg.items.filter((fi) => !_boilBurnSet.includes(fi));
@@ -4706,14 +4708,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           } else if (_isCursedFc) {
             /* 呪い遠投：1マスで落ちてsplash */
             if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
-            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
+            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
             soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
           } else if (!sprHit) {
             if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
-            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
+            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           }
         } else if (it.type === "pot") {
           let lx = p.x, ly = p.y, sprHit = null;
