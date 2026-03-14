@@ -61,6 +61,16 @@ export const DRO = [
   [2, 2],
 ];
 
+const _WH_ORDER = ["weapon","armor","arrow","potion","scroll","food","wand","marker","pen","pot","bottle","gold"];
+export function sortWarehouseItems(items) {
+  return [...items].sort((a, b) => {
+    const oa = _WH_ORDER.indexOf(a.type), ob = _WH_ORDER.indexOf(b.type);
+    const ca = oa >= 0 ? oa : _WH_ORDER.length, cb = ob >= 0 ? ob : _WH_ORDER.length;
+    if (ca !== cb) return ca - cb;
+    return a.name.localeCompare(b.name, "ja");
+  });
+}
+
 export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }

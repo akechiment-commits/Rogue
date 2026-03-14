@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { loadSave, writeSave, clearSave, mergeDiscoveries } from "./SaveData.js";
 import { resetDiscoveries } from "./DiscoveryTracker.js";
+import { sortWarehouseItems } from "./utils.js";
 import RoguelikeGame from "./Game.jsx";
 import HubScreen from "./HubScreen.jsx";
 
@@ -49,11 +50,11 @@ export default function App() {
       next.discovered = mergeDiscoveries(prev.discovered, result.discoveries || {});
       /* Voluntary exit: carry items to warehouse */
       if (result.survived && result.returnItems?.length) {
-        const newWarehouse = [
-          ...prev.warehouse,
+        const merged = [
+          ...(prev.warehouse || []),
           ...result.returnItems.map(it => ({ ...it })),
-        ].slice(0, 30);
-        next.warehouse = newWarehouse;
+        ].slice(0, prev.warehouseMax || 100);
+        next.warehouse = sortWarehouseItems(merged);
       }
       return next;
     });

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { uid } from "./utils.js";
+import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
 import { itemPrice } from "./items.js";
 
@@ -243,7 +243,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
     updateSave(prev => ({
       ...prev,
       hubGold: prev.hubGold - item.price,
-      warehouse: [...(prev.warehouse || []), newItem].slice(0, prev.warehouseMax || 100),
+      warehouse: sortWarehouseItems([...(prev.warehouse || []), newItem].slice(0, prev.warehouseMax || 100)),
     }));
   };
 
