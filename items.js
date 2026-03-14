@@ -1488,14 +1488,19 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
     item.x = cx;
     item.y = cy;
     dg.items.push(item);
-    if (item.shopPrice && dg.shop && dg.shop.unpaidTotal > 0) {
-      const r = dg.shop.room;
-      if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
-        dg.shop.unpaidTotal = Math.max(0, dg.shop.unpaidTotal - item.shopPrice);
-        if (dg.shop.unpaidTotal === 0) {
-          const sk = dg.monsters.find(m => m.type === "shopkeeper" && m.state === "blocking");
-          if (sk) { sk.state = "friendly"; sk.x = sk.homePos.x; sk.y = sk.homePos.y; }
-          if (ml) ml.push("残高がゼロになった。店主が入り口を開けた。");
+    if (item.shopPrice) {
+      const _allS = dg.shops || (dg.shop ? [dg.shop] : []);
+      const _iShop = _allS.find(s => s.id === item._shopId && s.unpaidTotal > 0) ||
+                     _allS.find(s => s.unpaidTotal > 0);
+      if (_iShop) {
+        const r = _iShop.room;
+        if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
+          _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - item.shopPrice);
+          if (_iShop.unpaidTotal === 0) {
+            const sk = dg.monsters.find(m => m.id === _iShop.shopkeeperId && m.state === "blocking");
+            if (sk) { sk.state = "friendly"; sk.x = sk.homePos.x; sk.y = sk.homePos.y; }
+            if (ml) ml.push("残高がゼロになった。店主が入り口を開けた。");
+          }
         }
       }
     }
@@ -1617,9 +1622,12 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn) {
 }
 
 export function chargeShopItem(item, dg, ml) {
-  if (!item.shopPrice || !dg.shop) return;
-  dg.shop.unpaidTotal += item.shopPrice;
-  const sk = dg.monsters.find(m => m.type === "shopkeeper" && m.state === "friendly");
+  if (!item.shopPrice) return;
+  const _allS = dg.shops || (dg.shop ? [dg.shop] : []);
+  const _shop = _allS.find(s => s.id === item._shopId) || _allS[0];
+  if (!_shop) return;
+  _shop.unpaidTotal += item.shopPrice;
+  const sk = dg.monsters.find(m => m.id === _shop.shopkeeperId && m.state === "friendly");
   if (sk) sk.state = "blocking";
   ml.push(`${item.name}(${item.shopPrice}G)の代金が請求された！`);
 }
@@ -1709,14 +1717,19 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
 }
 
 export function checkShopTheft(p, dg, ml) {
-  if (!dg || !dg.shop || p.isThief || dg.shop.unpaidTotal <= 0) return;
-  const inShop = p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
-                 p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h;
-  if (!inShop) {
-    p.isThief = true;
-    const sk = dg.monsters.find(m => m.type === "shopkeeper");
-    if (sk) { sk.state = "hostile"; sk.aware = true; sk.lastPx = p.x; sk.lastPy = p.y; }
-    ml.push("商品を持ったまま店を出た！泥棒扱いになった！");
+  if (!dg || p.isThief) return;
+  const shops = dg.shops || (dg.shop ? [dg.shop] : []);
+  for (const s of shops) {
+    if (s.unpaidTotal <= 0) continue;
+    const inShop = p.x >= s.room.x && p.x < s.room.x + s.room.w &&
+                   p.y >= s.room.y && p.y < s.room.y + s.room.h;
+    if (!inShop) {
+      p.isThief = true;
+      const sk = dg.monsters.find(m => m.id === s.shopkeeperId);
+      if (sk) { sk.state = "hostile"; sk.aware = true; sk.lastPx = p.x; sk.lastPy = p.y; }
+      ml.push("商品を持ったまま店を出た！泥棒扱いになった！");
+      return;
+    }
   }
 }
 

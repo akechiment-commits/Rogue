@@ -892,11 +892,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (nd < 1) return null;
     if (!sr.current.floors) sr.current.floors = {};
     /* 店の部屋内で落とし穴等により階層を離脱した場合は泥棒状態にする */
-    if (sr.current.dungeon?.shop?.unpaidTotal > 0) {
-      const _sroom = sr.current.dungeon.shop.room;
-      if (pl.x >= _sroom.x && pl.x < _sroom.x + _sroom.w &&
-          pl.y >= _sroom.y && pl.y < _sroom.y + _sroom.h) {
+    const _chgShops = sr.current.dungeon?.shops || (sr.current.dungeon?.shop ? [sr.current.dungeon.shop] : []);
+    for (const _cs of _chgShops) {
+      if (_cs.unpaidTotal > 0 && _cs.room &&
+          pl.x >= _cs.room.x && pl.x < _cs.room.x + _cs.room.w &&
+          pl.y >= _cs.room.y && pl.y < _cs.room.y + _cs.room.h) {
         sr.current.dungeon.shopTheft = true;
+        break;
       }
     }
     sr.current.floors[pl.depth] = sr.current.dungeon;
@@ -1286,15 +1288,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (_cursedSanc) {
               ml.push("呪われた魔方陣が行く手を阻んでいる！");
             } else {
-            const _wasInShop = dg.shop?.unpaidTotal > 0 && dg.shop.room &&
-              p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
-              p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h;
+            const _allShopsM = dg.shops || (dg.shop ? [dg.shop] : []);
+            const _wasInShopOf = _allShopsM.filter(s => s.unpaidTotal > 0 && s.room &&
+              p.x >= s.room.x && p.x < s.room.x + s.room.w &&
+              p.y >= s.room.y && p.y < s.room.y + s.room.h);
             p.x = nx;
             p.y = ny;
-            if (_wasInShop && !(p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
-                p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h)) {
-              dg.shopTheft = true;
-              ml.push("店から盗んで逃げた！");
+            for (const _esh of _wasInShopOf) {
+              if (!(p.x >= _esh.room.x && p.x < _esh.room.x + _esh.room.w &&
+                  p.y >= _esh.room.y && p.y < _esh.room.y + _esh.room.h)) {
+                dg.shopTheft = true;
+                ml.push("店から盗んで逃げた！");
+                break;
+              }
             }
             acted = true;
             const tr = checkTrap(p, dg, ml);
@@ -1438,10 +1444,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
             else {
               p.inventory.push(_grIt);
-              if (_grIt.shopPrice && dg.shop) {
-                dg.shop.unpaidTotal += _grIt.shopPrice;
-                const _sk2 = dg.monsters.find((m) => m.type === "shopkeeper" && m.state === "friendly");
-                if (_sk2) _sk2.state = "blocking";
+              if (_grIt.shopPrice) {
+                const _allS2 = dg.shops || (dg.shop ? [dg.shop] : []);
+                const _pickShop = _allS2.find(s => s.id === _grIt._shopId) || _allS2[0];
+                if (_pickShop) {
+                  _pickShop.unpaidTotal += _grIt.shopPrice;
+                  const _sk2 = dg.monsters.find((m) => m.id === _pickShop.shopkeeperId && m.state === "friendly");
+                  if (_sk2) _sk2.state = "blocking";
+                }
                 ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
               } else {
                 const _w2 = _grIt.type === "weapon", _a2 = _grIt.type === "armor";
@@ -1671,15 +1681,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           break;
         if (monsterAt(dg, nx, ny)) break;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny)) break;
-        const _wasInShopD = dg.shop?.unpaidTotal > 0 && dg.shop.room &&
-          p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
-          p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h;
+        const _allShopsD = dg.shops || (dg.shop ? [dg.shop] : []);
+        const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
+          p.x >= s.room.x && p.x < s.room.x + s.room.w &&
+          p.y >= s.room.y && p.y < s.room.y + s.room.h);
         p.x = nx;
         p.y = ny;
-        if (_wasInShopD && !(p.x >= dg.shop.room.x && p.x < dg.shop.room.x + dg.shop.room.w &&
-            p.y >= dg.shop.room.y && p.y < dg.shop.room.y + dg.shop.room.h)) {
-          dg.shopTheft = true;
-          ml.push("店から盗んで逃げた！");
+        for (const _eshD of _wasInShopDOf) {
+          if (!(p.x >= _eshD.room.x && p.x < _eshD.room.x + _eshD.room.w &&
+              p.y >= _eshD.room.y && p.y < _eshD.room.y + _eshD.room.h)) {
+            dg.shopTheft = true;
+            ml.push("店から盗んで逃げた！");
+            break;
+          }
         }
         steps++;
         const tr = checkTrap(p, dg, ml, true);
@@ -1887,6 +1901,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         ability: _mabs[0] || undefined,
         abilities: _mabs.length ? _mabs : undefined,
       };
+      /* pickaxe能力を持つ場合、耐久値をベース/素材から引き継ぐ */
+      if (_mabs.includes("pickaxe")) {
+        merged.durability = merged.durability ?? mat.durability ?? 30;
+      } else {
+        delete merged.durability;
+      }
       bb.contents = bb.contents.filter((i) => i !== base && i !== mat);
       bb.contents.push(merged);
       bb.capacity = bb.contents.length;
@@ -4138,7 +4158,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     p.inventory.splice(idx, 1);
     const ml = [],
       ft = new Set();
-    const prevDebt = dg.shop?.unpaidTotal ?? 0;
+    const _allShopsDrop = dg.shops || (dg.shop ? [dg.shop] : []);
+    const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
+    const prevDebt = _itemShopDrop?.unpaidTotal ?? 0;
     /* 足元に泉があればアイテムを泉に落とす */
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (_dropSpr) {
@@ -4160,11 +4182,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     if (
       it.shopPrice &&
-      dg.shop &&
-      dg.shop.unpaidTotal < prevDebt &&
-      dg.shop.unpaidTotal > 0
+      _itemShopDrop &&
+      _itemShopDrop.unpaidTotal < prevDebt &&
+      _itemShopDrop.unpaidTotal > 0
     )
-      ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を戻した。（残り${dg.shop.unpaidTotal}G）`);
+      ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を戻した。（残り${_itemShopDrop.unpaidTotal}G）`);
     if (ml.length === 0) ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}を置いた。`);
     endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -4243,7 +4265,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
     },
-    [lu, endTurn],
+    [lu, endTurn, chgFloor],
   );
   const doUseMarker = useCallback((idx) => {
     if (!sr.current) return;

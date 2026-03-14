@@ -319,10 +319,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${target.name}が吹き飛んだ！`);
         removeFloorItem(dg, target);
         const res = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "item", target, p, luFn);
-        if (target.shopPrice && dg.shop) {
-          const r = dg.shop.room;
-          const inShop = res.x >= r.x && res.x < r.x + r.w && res.y >= r.y && res.y < r.y + r.h;
-          if (!inShop) chargeShopItem(target, dg, ml);
+        if (target.shopPrice) {
+          const _allShopsW = dg.shops || (dg.shop ? [dg.shop] : []);
+          const _iShopW = _allShopsW.find(s => s.id === target._shopId) || _allShopsW.find(s => s.unpaidTotal > 0);
+          if (_iShopW) {
+            const r = _iShopW.room;
+            const inShop = res.x >= r.x && res.x < r.x + r.w && res.y >= r.y && res.y < r.y + r.h;
+            if (!inShop) chargeShopItem(target, dg, ml);
+          }
         }
         if (res.spring) {
           soakItemIntoSpring(res.spring, target, ml, dg);
@@ -1177,8 +1181,8 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
       const wb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
       if (wb) wTargets.push({ kind:"bigbox", t:wb });
     }
-    applyWandEffect(eff, "player", p, 0, 0, dg, p, ml, luFn);
-    for (const { kind, t } of wTargets) applyWandEffect(eff, kind, t, 0, 0, dg, p, ml, luFn);
+    applyWandEffect(eff, "player", p, 0, 0, dg, p, ml, luFn, null, blMult);
+    for (const { kind, t } of wTargets) applyWandEffect(eff, kind, t, 0, 0, dg, p, ml, luFn, null, blMult);
     return;
   }
   const dirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];

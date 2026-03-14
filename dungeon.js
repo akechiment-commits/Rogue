@@ -394,6 +394,7 @@ function mkMon(depth, x, y) {
 }
 /* 部屋をショップにセットアップし、shopDataを返す */
 function setupShopRoom(room, map, depth, items, mons) {
+  const shopId = uid();
   let entrance = null;
   for (let xi = room.x - 1; xi <= room.x + room.w && !entrance; xi++) {
     if (xi >= 0 && xi < MW && room.y - 1 >= 0 && map[room.y - 1]?.[xi] === T.FLOOR)
@@ -434,6 +435,7 @@ function setupShopRoom(room, map, depth, items, mons) {
         const sit = { ...base, id: uid(), x: six, y: siy };
         if (sit.type === 'arrow') sit.count = rng(5, 20);
         sit.shopPrice = Math.ceil(itemPrice(sit) * (1 + depth * 0.1));
+        sit._shopId = shopId;
         items.push(sit);
       }
     }
@@ -445,7 +447,7 @@ function setupShopRoom(room, map, depth, items, mons) {
     dir: { x: 0, y: 1 }, lastPx: 0, lastPy: 0, patrolTarget: null, sleepTurns: 0,
   };
   mons.push(sk);
-  return { room, entrance, shopkeeperId: sk.id, unpaidTotal: 0 };
+  return { id: shopId, room, entrance, shopkeeperId: sk.id, unpaidTotal: 0 };
 }
 
 /* ===== MINI BIG ROOM (ビッグルーム小型版) ===== */
@@ -528,11 +530,11 @@ function genShoppingMall(depth) {
   const sd = { x: clamp(lr.cx + Math.floor(lr.w / 2) + 1, 1, MW - 2), y: lr.cy };
   map[sd.y][sd.x] = T.SD;
   /* 各部屋をショップにセットアップ */
-  let shopData = null;
+  const allShops = [];
   for (const room of validRooms) {
-    const sd2 = setupShopRoom(room, map, depth, items, mons);
-    if (!shopData) shopData = sd2; /* 最初の店が主ショップ */
+    allShops.push(setupShopRoom(room, map, depth, items, mons));
   }
+  const shopData = allShops[0] || null;
   /* 廊下にモンスター・罠を少量配置 */
   const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y);
   const inAnyRoom = (x, y) => validRooms.some(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
@@ -551,7 +553,7 @@ function genShoppingMall(depth) {
     }
   }
   const { visible, explored } = mkVis();
-  return { map, rooms: validRooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: shopData, hiddenRooms: [], monsterHouseRoom: null, floorType: "shoppingMall" };
+  return { map, rooms: validRooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: shopData, shops: allShops, hiddenRooms: [], monsterHouseRoom: null, floorType: "shoppingMall" };
 }
 
 /* ===== SPIN FLOOR (完全独立部屋＋回転板移動) ===== */
