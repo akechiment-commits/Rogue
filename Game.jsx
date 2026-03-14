@@ -5589,7 +5589,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 {tmL}
               </div>{" "}
               <div style={{ color: "#a66", fontSize: 10 }}>
-                {tmI?.name || "?"}
+                {tmI ? dname(tmI) : "?"}
                 {tmI?.type === "arrow"
                   ? ` (${tmI.count}本)`
                   : tmI?.type === "wand"
@@ -5647,11 +5647,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         >
           <span style={{ fontWeight: "bold" }}>{tmL}</span>
           <span style={{ color: "#a66", marginLeft: 8 }}>
-            [{tmI?.name}
+            [{tmI ? dname(tmI) : "?"}
             {tmI?.type === "wand" ? ` ${tmI.charges}回` : ""}]
           </span>
           <span style={{ color: "#666", marginLeft: 8 }}>
-            方向キー — Esc:キャンセル
+            方向キー — Esc/x:キャンセル
           </span>
         </div>
       )}{" "}
