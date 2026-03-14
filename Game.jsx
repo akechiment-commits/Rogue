@@ -252,7 +252,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const startDepth = dungeonConfig?.startDepth || 1;
     const d = dungeonConfig?.dungeonType === "debug"
       ? genDebugDungeon()
-      : genDungeon(startDepth - 1);
+      : genDungeon(startDepth - 1, dungeonConfig?.dungeonType || "beginner");
     d.nextSpawnTurn = rng(10, 50);
     const p = {
       x: d.stairUp.x,
@@ -332,7 +332,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
     }
     refreshFOV(d, p);
-    const s = { player: p, dungeon: d, floors: {}, ident: new Set(), fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {}, isDebugRun: dungeonConfig?.dungeonType === "debug", maxDepth: dungeonConfig?.maxFloors ?? null };
+    const s = { player: p, dungeon: d, floors: {}, ident: new Set(), fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {}, isDebugRun: dungeonConfig?.dungeonType === "debug", dungeonType: dungeonConfig?.dungeonType || "beginner", maxDepth: dungeonConfig?.maxFloors ?? null };
     sr.current = s;
     setGs(s);
     ref.current?.focus();
@@ -908,7 +908,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     } else if (sr.current.isDebugRun && nd >= 2) {
       d = genDebugDungeonFloor2();
     } else {
-      d = genDungeon(nd - 1);
+      d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
     }
     pl.depth = nd;
     if (pitfall) {
@@ -2181,7 +2181,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           const _saved = sr.current.floors[_f];
           let _d;
           if (_saved) { _d = _saved; delete sr.current.floors[_f]; }
-          else { _d = genDungeon(_f - 1); }
+          else { _d = genDungeon(_f - 1, sr.current.dungeonType || "beginner"); }
           _fsp.depth = _f;
           const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
           _fsp.x = rng(_rm.x, _rm.x + _rm.w - 1);

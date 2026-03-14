@@ -700,14 +700,14 @@ function genGridRoom(depth) {
 }
 
 
-export function genDungeon(depth) {
+export function genDungeon(depth, dungeonType = "beginner") {
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
   /* B1F（depth=0）は店のみ許可・それ以外の特殊フロアは出現しない */
   if (Math.random() < 0.25) {
     const specials = depth === 0
       ? [genShoppingMall]
       : [genBigRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom];
-    return pick(specials)(depth);
+    return pick(specials)(depth, dungeonType);
   }
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
@@ -925,7 +925,8 @@ export function genDungeon(depth) {
   const items = [];
   const occ = (x, y) =>
     inShop(x, y) || items.some((i) => i.x === x && i.y === y);
-  for (let i = 0; i < rng(15, 25); i++) {
+  const _itemCount = dungeonType === "advanced" ? rng(4, 7) : dungeonType === "intermediate" ? rng(6, 9) : rng(9, 12);
+  for (let i = 0; i < _itemCount; i++) {
     const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
@@ -1030,7 +1031,8 @@ export function genDungeon(depth) {
     }
   }
   const traps = [];
-  const tc = rng(8, 15) + depth * 2;
+  const _trapsPerRoom = dungeonType === "advanced" ? 3 : dungeonType === "intermediate" ? 2 : 1;
+  const tc = rooms.length * _trapsPerRoom;
   for (let i = 0; i < tc; i++) {
     const rm = pick(rooms);
     const tx = rng(rm.x + 1, rm.x + rm.w - 2),
