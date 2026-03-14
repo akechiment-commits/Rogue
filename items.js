@@ -1386,23 +1386,24 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml) {
   }
 }
 
-export function soakItemIntoSpring(spr, item, ml, dg = null) {
+export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
+  const _dn = (it) => dnFn ? dnFn(it) : it.name;
   spr.contents = spr.contents || [];
   if (item.type === "bottle") {
     const wb = { ...WATER_BOTTLE, id:uid() };
     if (item.blessed) { wb.blessed = true; wb.bcKnown = true; }
     else if (item.cursed) { wb.cursed = true; wb.bcKnown = true; }
     const _wbSuffix = item.blessed ? "【祝】" : item.cursed ? "【呪】" : "";
-    ml.push(item.name + "が泉に落ちて水になった！" + _wbSuffix);
+    ml.push(_dn(item) + "が泉に落ちて水になった！" + _wbSuffix);
     spr.contents.push(wb);
   } else if (item.type === "weapon") {
     let _wNote = "";
     if (item.cursed) { item.cursed = false; _wNote += " 呪いが解けた！"; }
     if (item.atk > 1) {
       item.atk = Math.max(1, item.atk - rng(1, 2));
-      ml.push(item.name + "が泉に落ちた...錆びた！(攻撃力" + item.atk + ")" + _wNote);
+      ml.push(_dn(item) + "が泉に落ちた...錆びた！(攻撃力" + item.atk + ")" + _wNote);
     } else {
-      ml.push(item.name + "が泉に落ちたがこれ以上錆びない。" + _wNote);
+      ml.push(_dn(item) + "が泉に落ちたがこれ以上錆びない。" + _wNote);
     }
     spr.contents.push(item);
   } else if (item.type === "armor") {
@@ -1410,14 +1411,14 @@ export function soakItemIntoSpring(spr, item, ml, dg = null) {
     if (item.cursed) { item.cursed = false; _aNote += " 呪いが解けた！"; }
     if (item.def > 1) {
       item.def = Math.max(1, item.def - rng(1, 2));
-      ml.push(item.name + "が泉に落ちた...錆びた！(防御力" + item.def + ")" + _aNote);
+      ml.push(_dn(item) + "が泉に落ちた...錆びた！(防御力" + item.def + ")" + _aNote);
     } else {
-      ml.push(item.name + "が泉に落ちたがこれ以上錆びない。" + _aNote);
+      ml.push(_dn(item) + "が泉に落ちたがこれ以上錆びない。" + _aNote);
     }
     spr.contents.push(item);
   } else if (item.type === "scroll") {
     if (item.effect !== "blank") {
-      const oldName = item.name;
+      const oldName = _dn(item); /* 名前変更前に取得 */
       item.name = "白紙の巻物";
       item.effect = "blank";
       item.desc = "何も書かれていない。魔法のマーカーで書き込める。";
@@ -1428,7 +1429,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null) {
     spr.contents.push(item);
   } else if (item.type === "spellbook") {
     if (item.spell) {
-      const oldName = item.name;
+      const oldName = _dn(item); /* 名前変更前に取得 */
       item.name = "白紙の魔法書";
       item.spell = null;
       item.desc = "魔法が消えてしまった。魔法のマーカー(5回分)で好きな魔法書に変えられる。";
@@ -1438,11 +1439,11 @@ export function soakItemIntoSpring(spr, item, ml, dg = null) {
     }
     spr.contents.push(item);
   } else {
-    ml.push(item.name + "が泉に落ちた。");
+    ml.push(_dn(item) + "が泉に落ちた。");
     spr.contents.push(item);
   }
-  /* 11個目が入ったら泉が干上がる */
-  if (dg && spr.contents.length >= 11) {
+  /* 5個目が入ったら泉が干上がる（容量4） */
+  if (dg && spr.contents.length >= 5) {
     ml.push("泉が干上がった！中のアイテムが飛び出した！");
     const _ft = new Set();
     for (const _ci of spr.contents) {

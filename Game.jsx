@@ -3630,6 +3630,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       }
+      /* 複製の巻物：アイテム選択ダイアログが必要な場合はsplice前にreturn（identify同様） */
+      if (it.effect === "duplicate" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
+        const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
+        if (_dupTargets.length > 0) {
+          const _ik_dup = getIdentKey(it);
+          if (_ik_dup) sr.current.ident.add(_ik_dup);
+          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
+          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
+          setIdentifyMode({ mode: 'duplicate', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx });
+          setShowInv(false); setSelIdx(null); setShowDesc(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        }
+      }
       const _scrBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
@@ -3810,7 +3824,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _gb = dg.bigboxes?.find((b) => b.x === _cx && b.y === _cy);
               if (_gb) { bigboxAddItem(_gb, gi, dg, ml); _placed = true; break; }
               const _gs = dg.springs?.find((s) => s.x === _cx && s.y === _cy);
-              if (_gs) { soakItemIntoSpring(_gs, gi, ml, dg); _placed = true; break; }
+              if (_gs) { soakItemIntoSpring(_gs, gi, ml, dg, dnameRef); _placed = true; break; }
               const _gt = dg.traps.find((t) => t.x === _cx && t.y === _cy && !_gft.has(t.id));
               if (_gt) {
                 _gft.add(_gt.id);
@@ -3898,16 +3912,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       } else if (it.effect === "duplicate") {
-        // 複製の巻物：アイテムを選んで複製（巻物はすでにsplice済み）
+        // ここに到達するのは「アイテムなし」または「魔封じ」の場合のみ
         const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
         if (_dupTargets.length === 0) {
           ml.push("複製できるアイテムがない。");
         } else {
-          { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-            setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml]); }
-          setIdentifyMode({ mode: 'duplicate', blessed: it.blessed || false, cursed: it.cursed || false });
-          setShowInv(false); setSelIdx(null); setShowDesc(null);
-          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          /* 魔封じ時は魔法封印メッセージが ml に入っているので何もしない */
+          {
           return;
         }
       } else if (it.effect === "summon") {
@@ -4132,7 +4143,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     /* 足元に泉があればアイテムを泉に落とす */
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (_dropSpr) {
-      soakItemIntoSpring(_dropSpr, it, ml, dg);
+      soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef);
     } else {
       const _dropPfBag = [];
       setPitfallBag(_dropPfBag);
@@ -4702,7 +4713,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
-            soakItemIntoSpring(sprHit, it, ml, dg);
+            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
           } else if (!sprHit) {
             if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false);
@@ -4746,7 +4757,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
-            soakItemIntoSpring(sprHit, it, ml, dg);
+            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
           } else {
             scatterPotContents(it, dg, lx, ly, p, ml, lu, dnameRef);
           }
@@ -4766,7 +4777,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thMiss = !_isFarcast && !_thSureHit && Math.random() >= 0.90;
-              const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
+              const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
                 lx = tx; ly = ty; hit = true;
@@ -4789,15 +4800,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             lx = tx; ly = ty;
           }
           if (_isFarcast) {
-            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
+            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
             ml.push(`${lb}を投げた。${lb}は消滅した。`);
           } else if (!hit) {
-            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : it.name;
+            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
             ml.push(`${lb}を投げた。`);
             if (sprHit?.kind) {
               bigboxAddItem(sprHit, it, dg, ml);
             } else if (sprHit && !sprHit.kind) {
-              soakItemIntoSpring(sprHit, it, ml, dg);
+              soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
             } else if (it.type === "bottle") {
               ml.push(`${it.name}は割れてしまった！`);
             } else {

@@ -534,7 +534,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         _msgResult = `${_selIt.name}の識別が失われた...`;
       }
     }
-    if (mode.mode !== 'duplicate' && mode.scrollIdx != null) {
+    if (mode.scrollIdx != null) {
       sr.current.player.inventory.splice(mode.scrollIdx, 1);
     }
     if (mode.spellCost != null) {
