@@ -3916,11 +3916,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
         if (_dupTargets.length === 0) {
           ml.push("複製できるアイテムがない。");
-        } else {
-          /* 魔封じ時は魔法封印メッセージが ml に入っているので何もしない */
-          {
-          return;
         }
+        /* 魔封じ時は魔法封印メッセージが ml に入っているので何もしない */
       } else if (it.effect === "summon") {
         // 召喚の巻物
         if (it.cursed) {
