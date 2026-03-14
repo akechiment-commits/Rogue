@@ -55,12 +55,15 @@ function Panel({ title, onClose, children, wide }) {
   return (
     <div style={{
       position:"fixed", inset:0, background:"rgba(0,0,0,0.88)",
-      display:"flex", alignItems:"center", justifyContent:"center", zIndex:50,
+      display:"flex", alignItems:"flex-start", justifyContent:"center",
+      paddingTop:"max(24px, env(safe-area-inset-top, 24px))",
+      paddingBottom:16, overflowY:"auto", zIndex:50,
     }}>
       <div style={{
         background:CARD, border:`1px solid ${BDR}`, borderRadius:8,
         width: wide ? "min(680px,96vw)" : "min(420px,96vw)",
-        maxHeight:"88vh", overflow:"auto",
+        maxHeight:"calc(100dvh - max(40px, env(safe-area-inset-top, 40px)) - 16px)",
+        overflow:"auto",
         padding:0, display:"flex", flexDirection:"column",
       }}>
         {/* Header */}
@@ -77,8 +80,9 @@ function Panel({ title, onClose, children, wide }) {
 /* ===== 倉庫パネル ===== */
 function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, selectionMode }) {
   const [selected, setSelected] = useState(new Set());
-  const wh = saveData.warehouse || [];
-  const MAX = 30;
+  const wh  = saveData.warehouse || [];
+  const MAX = saveData.warehouseMax || 100;
+  const EXPAND_COST = 500;
 
   const toggle = (idx) => setSelected(prev => {
     const next = new Set(prev);
@@ -86,14 +90,25 @@ function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, select
     return next;
   });
 
-  const removeItems = () => {
+  const sellItems = () => {
+    if (selected.size === 0) return;
     const indices = [...selected].sort((a,b) => b-a);
+    const total = [...selected].reduce((sum, i) => sum + (wh[i]?.value || 5), 0);
     updateSave(prev => {
       const wh2 = [...prev.warehouse];
       indices.forEach(i => wh2.splice(i, 1));
-      return { ...prev, warehouse: wh2 };
+      return { ...prev, warehouse: wh2, hubGold: (prev.hubGold || 0) + total };
     });
     setSelected(new Set());
+  };
+
+  const expandWarehouse = () => {
+    if ((saveData.hubGold || 0) < EXPAND_COST) return;
+    updateSave(prev => ({
+      ...prev,
+      hubGold: (prev.hubGold || 0) - EXPAND_COST,
+      warehouseMax: (prev.warehouseMax || 100) + 50,
+    }));
   };
 
   const takeToAdventure = () => {
@@ -102,8 +117,27 @@ function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, select
     onItemsSelected && onItemsSelected(takenItems);
   };
 
+  const sellTotal = [...selected].reduce((sum, i) => sum + (wh[i]?.value || 5), 0);
+
   return (
     <Panel title={`倉庫 (${wh.length}/${MAX})`} onClose={onClose}>
+      {/* 拡張ボタン（通常モードのみ） */}
+      {!selectionMode && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+          marginBottom:10, padding:"6px 8px", background:"#0d0d18", borderRadius:4,
+          border:`1px solid ${BDR}` }}>
+          <span style={{ color:"#888", fontSize:12 }}>倉庫を拡張 +50スロット</span>
+          <button
+            onClick={expandWarehouse}
+            disabled={(saveData.hubGold || 0) < EXPAND_COST}
+            style={{ ...BTN, padding:"4px 12px", fontSize:12,
+              color: (saveData.hubGold || 0) >= EXPAND_COST ? GOLD : "#555",
+              background:"#0a1800", borderColor:(saveData.hubGold || 0) >= EXPAND_COST ? "#3a2a00" : "#222" }}
+          >
+            {EXPAND_COST}G
+          </button>
+        </div>
+      )}
       {wh.length === 0 ? (
         <div style={{ color:"#555", textAlign:"center", padding:"24px 0" }}>倉庫は空です。</div>
       ) : (
@@ -125,6 +159,7 @@ function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, select
               <span style={{ color:TXT, flex:1 }}>{item.name}</span>
               {item.blessed && <span style={{ color:"#4af", fontSize:11 }}>【祝】</span>}
               {item.cursed  && <span style={{ color:"#f44", fontSize:11 }}>【呪】</span>}
+              {!selectionMode && <span style={{ color:"#666", fontSize:11 }}>{item.value || 5}G</span>}
             </div>
           ))}
         </div>
@@ -134,8 +169,12 @@ function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, select
           {selectionMode ? (
             <Btn label={`選択アイテムを持っていく (${selected.size})`} onClick={takeToAdventure} color="#0f0" />
           ) : (
-            <Btn label={`選択アイテムを捨てる (${selected.size})`} onClick={removeItems} color="#f44"
-              style={{ opacity: selected.size === 0 ? 0.4 : 1 }} />
+            <Btn
+              label={`選択アイテムを売る (${selected.size}個 / +${sellTotal}G)`}
+              onClick={sellItems}
+              color={selected.size === 0 ? "#555" : GOLD}
+              style={{ opacity: selected.size === 0 ? 0.4 : 1 }}
+            />
           )}
         </div>
       )}
@@ -203,7 +242,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
     updateSave(prev => ({
       ...prev,
       hubGold: prev.hubGold - item.price,
-      warehouse: [...(prev.warehouse || []), newItem].slice(0, 30),
+      warehouse: [...(prev.warehouse || []), newItem].slice(0, prev.warehouseMax || 100),
     }));
   };
 
@@ -446,7 +485,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onClea
         </div>
         <div style={{ width:1, background:BDR }} />
         <div style={{ textAlign:"center" }}>
-          <div style={{ color:"#8af", fontWeight:"bold", fontSize:18 }}>{warehouseCount}/30</div>
+          <div style={{ color:"#8af", fontWeight:"bold", fontSize:18 }}>{warehouseCount}/{saveData.warehouseMax || 100}</div>
           <div style={{ color:"#555", fontSize:10 }}>倉庫</div>
         </div>
         <div style={{ width:1, background:BDR }} />
@@ -477,7 +516,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onClea
       {/* サブ機能ボタン */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center",
         width:"min(360px,90vw)", marginBottom:20 }}>
-        <HubBtn icon="📦" label="倉庫"     sub={`${warehouseCount}/30`} onClick={() => setPanel("warehouse")} color="#8af" />
+        <HubBtn icon="📦" label="倉庫"     sub={`${warehouseCount}/${saveData.warehouseMax || 100}`} onClick={() => setPanel("warehouse")} color="#8af" />
         <HubBtn icon="🏪" label="ショップ" sub="装備・道具"             onClick={() => setPanel("shop")}      color={GOLD}  />
         <HubBtn icon="📖" label="図鑑"     sub="発見記録"               onClick={() => setPanel("encyclopedia")} color="#a8f" />
         <HubBtn icon="💾" label="データ"   sub="セーブ管理"             onClick={() => setPanel("savedata")}  color="#888"  />

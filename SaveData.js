@@ -4,7 +4,8 @@ const SAVE_KEY = 'roguelike_hub_v1';
 export const DEFAULT_SAVE = {
   version: 1,
   hubGold: 0,
-  warehouse: [],          /* array of item objects (max 30) */
+  warehouse: [],          /* array of item objects */
+  warehouseMax: 100,      /* current max capacity */
   discovered: {
     items:    {},         /* { effectKey: { name, tile, type, count } } */
     monsters: {},         /* { name: { name, tile, count } } */
