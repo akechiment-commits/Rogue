@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { uid } from "./utils.js";
 import { clearSave } from "./SaveData.js";
+import { itemPrice } from "./items.js";
 
 /* ===== 拠点ショップの商品ラインナップ ===== */
 const HUB_SHOP_ITEMS = [
@@ -24,7 +25,7 @@ const HUB_SHOP_ITEMS = [
   { name:"鎖帷子",           type:"armor",  def:5,   tile:21, desc:"斬撃に強い鎧。",         price:200  },
   { name:"プレートメイル",   type:"armor",  def:8,   tile:21, desc:"最強の重装鎧。",         price:400  },
   /* 食料 */
-  { name:"パン",             type:"food",   effect:"food_bread",  tile:19, desc:"空腹を満たす。",             price: 20  },
+  { name:"パン",             type:"food",   effect:"satiate_food", value:35, cooked:true, tile:19, desc:"空腹を満たす。とても腹持ちが良い。", price: 20  },
 ];
 
 /* ===== 共通スタイル ===== */
@@ -93,7 +94,7 @@ function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, select
   const sellItems = () => {
     if (selected.size === 0) return;
     const indices = [...selected].sort((a,b) => b-a);
-    const total = [...selected].reduce((sum, i) => sum + (wh[i]?.value || 5), 0);
+    const total = [...selected].reduce((sum, i) => sum + Math.max(1, Math.floor(itemPrice(wh[i]) / 2)), 0);
     updateSave(prev => {
       const wh2 = [...prev.warehouse];
       indices.forEach(i => wh2.splice(i, 1));
@@ -117,7 +118,7 @@ function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, select
     onItemsSelected && onItemsSelected(takenItems);
   };
 
-  const sellTotal = [...selected].reduce((sum, i) => sum + (wh[i]?.value || 5), 0);
+  const sellTotal = [...selected].reduce((sum, i) => sum + Math.max(1, Math.floor(itemPrice(wh[i]) / 2)), 0);
 
   return (
     <Panel title={`倉庫 (${wh.length}/${MAX})`} onClose={onClose}>
@@ -159,7 +160,7 @@ function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, select
               <span style={{ color:TXT, flex:1 }}>{item.name}</span>
               {item.blessed && <span style={{ color:"#4af", fontSize:11 }}>【祝】</span>}
               {item.cursed  && <span style={{ color:"#f44", fontSize:11 }}>【呪】</span>}
-              {!selectionMode && <span style={{ color:"#666", fontSize:11 }}>{item.value || 5}G</span>}
+              {!selectionMode && <span style={{ color:"#666", fontSize:11 }}>{Math.max(1, Math.floor(itemPrice(item) / 2))}G</span>}
             </div>
           ))}
         </div>
