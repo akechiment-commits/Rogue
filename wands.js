@@ -1054,12 +1054,32 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       /* 祝福された聖域の魔方陣は飛び道具（雷撃）を防ぐ */
       const _lBlessedSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
       if (_lBlessedSanc) { ml.push("祝福された聖域の加護が雷撃を防いだ！"); return; }
+      /* 反射の鎧: 雷撃を発射源のモンスターに反射 */
+      const _hasReflect = pl.armor?.ability === "wand_reflect" || pl.armor?.abilities?.includes("wand_reflect");
+      if (_hasReflect) {
+        ml.push("反射の鎧が雷撃を反射した！");
+        const _srcMon = monsterAt(dg, cx, cy);
+        if (_srcMon) {
+          const _rdmg = rng(15, 25);
+          _srcMon.hp -= _rdmg;
+          ml.push(`反射した雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
+          if (_srcMon.hp <= 0) luFn(_srcMon, ml);
+        }
+        return;
+      }
+      /* ゴムゴムの胴: 雷ダメージ半減・所持品破壊を防ぐ */
+      const _hasLightRes = pl.armor?.ability === "lightning_resist" || pl.armor?.abilities?.includes("lightning_resist");
       let dmg = rng(15, 25);
+      if (_hasLightRes) dmg = Math.max(1, Math.floor(dmg / 2));
       if (inCursedMagicSealRoom(pl.x, pl.y, dg)) dmg *= 2;
       pl.deathCause = `${monName}の雷撃により`;
       pl.hp -= dmg;
-      ml.push(`雷撃が命中！${dmg}ダメージ！`);
-      applyLightningToInventory(pl, dg, ml, luFn, nameFn);
+      ml.push(`雷撃が命中！${dmg}ダメージ！${_hasLightRes ? "（雷耐性）" : ""}`);
+      if (!_hasLightRes) {
+        applyLightningToInventory(pl, dg, ml, luFn, nameFn);
+      } else {
+        ml.push("ゴムゴムの胴がアイテムへの雷を弾いた！");
+      }
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
       if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       return;

@@ -725,6 +725,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _cwHit = true; break; }
             if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { ml.push("呪いの魔法弾は壁に消えた。"); _cwHit = true; break; }
             if (_tx === pl.x && _ty === pl.y) {
+              /* 反射の鎧チェック */
+              if (pl.armor?.ability === "wand_reflect" || pl.armor?.abilities?.includes("wand_reflect")) {
+                ml.push("反射の鎧が呪いの魔法弾を反射した！");
+                m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
+                ml.push(`呪いが${m.name}に反射！鈍足になった！`);
+                _cwHit = true; break;
+              }
               /* 聖域チェック */
               if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
                 ml.push("祝福された聖域の加護が呪いを防いだ！");
@@ -804,6 +811,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _bwHit = true; break; }
             /* プレイヤーに命中 */
             if (_tx === pl.x && _ty === pl.y) {
+              /* 反射の鎧チェック */
+              if (pl.armor?.ability === "wand_reflect" || pl.armor?.abilities?.includes("wand_reflect")) {
+                ml.push("反射の鎧が吹き飛ばしの魔法弾を反射した！");
+                /* 発射元のモンスターを逆方向に吹き飛ばす */
+                for (let _rbd = 0; _rbd < 3; _rbd++) {
+                  const _rbx = m.x - dx, _rby = m.y - dy;
+                  if (_rbx < 0 || _rbx >= MW || _rby < 0 || _rby >= MH) break;
+                  if (dg.map[_rby][_rbx] === T.WALL || dg.map[_rby][_rbx] === T.BWALL) break;
+                  if (dg.monsters.some(o => o !== m && o.x === _rbx && o.y === _rby)) break;
+                  m.x = _rbx; m.y = _rby;
+                }
+                ml.push(`${m.name}が吹き飛ばされた！`);
+                _bwHit = true; break;
+              }
               if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
                 ml.push("祝福された聖域の加護が魔法弾を防いだ！");
               } else {
@@ -965,12 +986,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           const _theal = Math.min(25, p.maxHp - p.hp);
           if (_theal > 0) { p.hp += _theal; ml.push(`${_thunderPent.name}の力でHPが${_theal}回復した！`); }
         } else {
-          const _tdmg = _thunderPent.blessed ? 50 : 25;
+          const _thasLR = p.armor?.ability === "lightning_resist" || p.armor?.abilities?.includes("lightning_resist");
+          const _tdmg = Math.max(1, Math.floor((_thunderPent.blessed ? 50 : 25) * (_thasLR ? 0.5 : 1)));
           p.deathCause = `${_thunderPent.name}の雷撃により`;
           p.hp -= _tdmg;
-          ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！`);
-          applyLightningToInventory(p, st.dungeon, ml, lu,
-            (it) => itemDisplayName(it, st.fakeNames, st.ident, st.nicknames));
+          ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！${_thasLR ? "（雷耐性）" : ""}`);
+          if (!_thasLR) {
+            applyLightningToInventory(p, st.dungeon, ml, lu,
+              (it) => itemDisplayName(it, st.fakeNames, st.ident, st.nicknames));
+          } else {
+            ml.push("ゴムゴムの胴がアイテムへの雷を弾いた！");
+          }
         }
       }
       checkShopTheft(p, st.dungeon, ml);
@@ -1205,8 +1231,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
               let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0);
-              if (wab?.startsWith("bane_") && attackMon.kind === wab.slice(5))
-                ap *= 2;
+              const _isBane = wab?.startsWith("bane_") && (
+                (wab === "bane_float" ? attackMon.float : attackMon.kind === wab.slice(5)) ||
+                (p.weapon?.abilities?.some(a => a.startsWith("bane_") && (
+                  a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5)
+                )))
+              );
+              if (_isBane) ap *= 2;
               let d = Math.max(1, Math.floor(ap * ap / (ap + attackMon.def)) + rng(-2, 2));
               let crit = false;
               if (wabHas("critical") && Math.random() < 0.25) {
@@ -1224,9 +1255,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (attackMon.type === "shopkeeper") { attackMon.state = "hostile"; dg.shopTheft = true; }
               const atkSfx =
                 (crit ? "会心！" : "") +
-                (wab?.startsWith("bane_") && attackMon.kind === wab.slice(5)
-                  ? "特効！"
-                  : "") +
+                (_isBane ? "特効！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
               if (wabHas("knockback") && attackMon.hp > 0) {
@@ -1251,6 +1280,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               acted = true;
               } /* end else (hit) */
             }
+          } else if (dg.map[ny][nx] === T.WALL && wabHas("pickaxe") && p.weapon) {
+            /* つるはし：通常壁を掘る */
+            dg.map[ny][nx] = T.FLOOR;
+            p.weapon.durability = (p.weapon.durability ?? 1) - 1;
+            if (p.weapon.durability <= 0) {
+              const _pkName = p.weapon.name;
+              p.weapon = null;
+              ml.push(`壁を掘った！${_pkName}が壊れてしまった！`);
+            } else {
+              ml.push(`壁を掘った！(耐久: ${p.weapon.durability})`);
+            }
+            refreshFOV(dg, p);
+            acted = true;
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
@@ -1997,13 +2039,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.inventory.push(wb);
         ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
-        const _op = it.plus || 0;
-        it.plus = _op - 1;
-        const _fp = (v) =>
-          v > 0 ? `+${v}` : v === 0 ? `\u7121\u5370` : `${v}`;
-        ml.push(
-          `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})`,
-        );
+        if (it.ability === "no_degrade" || it.abilities?.includes("no_degrade")) {
+          ml.push(`${it.name}が水に浸かったが金でできているので錆びなかった！`);
+        } else {
+          const _op = it.plus || 0;
+          it.plus = _op - 1;
+          const _fp = (v) =>
+            v > 0 ? `+${v}` : v === 0 ? `\u7121\u5370` : `${v}`;
+          ml.push(
+            `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})`,
+          );
+        }
       } else if (it.type === "scroll") {
         if (it.effect !== "blank") {
           const _scrDN = dnameRef(it);

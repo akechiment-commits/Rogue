@@ -7,6 +7,11 @@ function isWalkable(map, x, y) { return inBounds(x, y) && map[y][x] !== T.WALL &
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false } = {}) {
+  /* dodge: 25% 完全回避 */
+  if ((pl.armor?.ability === "dodge" || pl.armor?.abilities?.includes("dodge")) && Math.random() < 0.25) {
+    ml.push(`${m.name}の攻撃をひらりとかわした！`);
+    return;
+  }
   /* 12% ミス */
   if (Math.random() >= 0.88) {
     ml.push(`${m.name}の攻撃は外れた！`);
@@ -43,7 +48,7 @@ export const MONS = [
   /* 2: 3階〜 */
   { name: "ゴブリン",     hp: 12,  atk: 6,  def: 1,  exp: 12,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",     monLevel: 1 },
   /* 3: 4階〜 速攻型 */
-  { name: "インプ",       hp: 14,  atk: 7,  def: 1,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",        monLevel: 1 },
+  { name: "インプ",       hp: 14,  atk: 7,  def: 1,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",        monLevel: 1, float: true },
   /* 4: 5階〜 */
   { name: "スケルトン",   hp: 18,  atk: 8,  def: 3,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",   monLevel: 1 },
   /* 5: 6階〜 鈍足・硬め */
@@ -69,15 +74,15 @@ export const MONS = [
   /* 15: 16階〜 */
   { name: "トロル",       hp: 50,  atk: 16, def: 6,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",      monLevel: 1 },
   /* 16: 17階〜 鈍足・超硬 */
-  { name: "ガーゴイル",   hp: 65,  atk: 18, def: 11, exp: 90,  speed: 0.5, tile: 52, kind: "beast",    baseKind: "gargoyle",   monLevel: 1 },
+  { name: "ガーゴイル",   hp: 65,  atk: 18, def: 11, exp: 90,  speed: 0.5, tile: 52, kind: "beast",    baseKind: "gargoyle",   monLevel: 1, float: true },
   /* 17: 18階〜 速攻不死 */
-  { name: "ヴァンパイア", hp: 60,  atk: 18, def: 7,  exp: 92,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",    monLevel: 1, maxAttacks: 2 },
+  { name: "ヴァンパイア", hp: 60,  atk: 18, def: 7,  exp: 92,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",    monLevel: 1, maxAttacks: 2, float: true },
   /* 18: 19階〜 */
   { name: "ドラゴン",     hp: 90,  atk: 24, def: 10, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",     monLevel: 1 },
   /* 19: 20階〜 鈍足・超DEF */
   { name: "ゴーレム",     hp: 100, atk: 20, def: 16, exp: 115, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",      monLevel: 1 },
   /* 20: 21階〜 高ATK速攻 */
-  { name: "デーモン",     hp: 80,  atk: 28, def: 9,  exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",     monLevel: 1, maxAttacks: 3 },
+  { name: "デーモン",     hp: 80,  atk: 28, def: 9,  exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",     monLevel: 1, maxAttacks: 3, float: true },
 ];
 
 /* ===== モンスターレベルアップテーブル ===== */

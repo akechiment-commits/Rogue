@@ -108,9 +108,21 @@ export const ITEMS = [
   { name:"短剣",             type:"weapon", atk:3,                       desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      desc:"重厚な戦斧。",                     tile:20 },
+  { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   desc:"ドラゴン系に2倍ダメージを与える特効剣。",         tile:20 },
+  { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   desc:"アンデッド系に2倍ダメージを与える聖剣。",         tile:20 },
+  { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    desc:"浮遊している敵に2倍ダメージを与える槍。",         tile:20 },
+  { name:"金の斧",           type:"weapon", atk:9,  ability:"no_degrade",    desc:"錆びず＋値が下がらない黄金の斧。",               tile:20 },
+  { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical",      desc:"25%の確率で会心の一撃（2倍ダメージ）が出る斧。",  tile:20 },
+  { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, desc:"壁を掘れる。使い過ぎると壊れる。",    tile:20 },
   { name:"革の鎧",           type:"armor",  def:2,                       desc:"軽い鎧。",                         tile:21 },
   { name:"鎖帷子",           type:"armor",  def:5,                       desc:"斬撃に強い鎧。",                   tile:21 },
   { name:"プレートメイル",   type:"armor",  def:8,                       desc:"最強の重装鎧。",                   tile:21 },
+  { name:"腹持ちの胴",       type:"armor",  def:3,  ability:"slow_hunger",   desc:"装備すると空腹の進行が半分になる特製の胴鎧。",    tile:21 },
+  { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", desc:"雷ダメージを半減し、雷によるアイテム破壊を防ぐ。", tile:21 },
+  { name:"ドラゴンメイル",   type:"armor",  def:8,  ability:"fire_resist",   desc:"竜の鱗製。炎ダメージを半減しアイテムを炎から守る。", tile:21 },
+  { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
+  { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
+  { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, desc:"MPを20回復する。",                 tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  desc:"飲むと5ターン混乱する。投げると命中した敵を20ターン混乱させる。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           desc:"飲むと視界が1マスになる(20ターン)。投げると命中した敵を50ターン暗闇状態にする。", tile:16 },
@@ -407,8 +419,8 @@ export function itemPrice(it) {
     return 40;
   }
   if (it.type === "scroll")   return it.effect === "blank" ? 5 : it.effect === "reveal" ? 60 : 80;
-  if (it.type === "weapon")   return 50 + (it.atk || 0) * 20;
-  if (it.type === "armor")    return 60 + (it.def || 0) * 25;
+  if (it.type === "weapon")   return 50 + (it.atk || 0) * 20 + (it.ability ? 150 : 0);
+  if (it.type === "armor")    return 60 + (it.def || 0) * 25 + (it.ability ? 150 : 0);
   if (it.type === "food")     return Math.max(10, Math.floor((it.value || 20) * 0.6));
   if (it.type === "arrow")    return Math.max(10, (it.count || 1) * 5);
   if (it.type === "wand")     return 150 + (it.charges || 0) * 30;
@@ -590,16 +602,22 @@ export const WEAPON_ABILITIES = [
   { id:"bane_undead",   name:"聖属性",    desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に2倍ダメージ" },
   { id:"bane_humanoid", name:"人特効",    desc:"人型の敵(コボルド・ゴブリン・オーク・トロル)に2倍ダメージ" },
   { id:"bane_dragon",   name:"竜特効",    desc:"竜系の敵(ドラゴン)に2倍ダメージ" },
+  { id:"bane_float",    name:"浮遊特効",  desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に2倍ダメージ" },
   { id:"knockback",     name:"吹き飛ばし",desc:"攻撃した敵を1マス吹き飛ばす" },
   { id:"critical",      name:"会心",      desc:"25%の確率でダメージ2倍のクリティカルヒット" },
+  { id:"no_degrade",    name:"不錆",      desc:"錆の罠や泉に落ちても＋値が下がらない" },
+  { id:"pickaxe",       name:"穴掘り",    desc:"装備して壁に体当たりすると壁を掘れる（耐久制）" },
 ];
 
 export const ARMOR_ABILITIES = [
-  { id:"fire_resist", name:"耐火",   desc:"炎のダメージを半減する" },
-  { id:"slow_hunger", name:"節食",   desc:"空腹の進行が半分になる" },
-  { id:"regen",       name:"回復",   desc:"毎ターン追加でHP+1回復する" },
-  { id:"sleep_proof", name:"眠れず", desc:"睡眠効果を無効化する" },
-  { id:"thorn",       name:"反射",   desc:"攻撃を受けた時にダメージの1/3を反射する" },
+  { id:"fire_resist",      name:"耐火",     desc:"炎のダメージを半減しアイテムを炎から守る" },
+  { id:"slow_hunger",      name:"節食",     desc:"空腹の進行が半分になる" },
+  { id:"regen",            name:"回復",     desc:"毎ターン追加でHP+1回復する" },
+  { id:"sleep_proof",      name:"眠れず",   desc:"睡眠効果を無効化する" },
+  { id:"thorn",            name:"刃反射",   desc:"近接攻撃を受けた時にダメージの1/3を反射する" },
+  { id:"lightning_resist", name:"雷耐性",   desc:"雷のダメージを半減しアイテムが雷で壊れなくなる" },
+  { id:"dodge",            name:"みかわし", desc:"25%の確率で攻撃を完全回避する" },
+  { id:"wand_reflect",     name:"魔法反射", desc:"モンスターの杖魔法を反射する" },
 ];
 
 /* ===== TRAPS ===== */
@@ -709,10 +727,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (p && p.x === tx && p.y === ty) {
         const _peq = p.weapon || p.armor;
         if (_peq) {
-          const _pop = _peq.plus || 0;
-          _peq.plus = _pop - 1;
-          const _pfp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
-          ml.push(`${_peq.name}も錆びた！(${_pfp(_pop)}→${_pfp(_peq.plus)})`);
+          if (_peq.ability === "no_degrade" || _peq.abilities?.includes("no_degrade")) {
+            ml.push(`${_peq.name}は金でできているので錆びなかった！`);
+          } else {
+            const _pop = _peq.plus || 0;
+            _peq.plus = _pop - 1;
+            const _pfp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
+            ml.push(`${_peq.name}も錆びた！(${_pfp(_pop)}→${_pfp(_peq.plus)})`);
+          }
         }
       }
       return "restart";
