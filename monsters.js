@@ -662,25 +662,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── thief（コソドロ等）：隣接時に所持品を1つ盗んでワープ ── */
+    /* ── thief（コソドロ等）：隣接時に所持品を1つ盗んでワープ、その後また近づく ── */
     if (m.subtype === "thief" && !m.sealed) {
       const _tdx = pl.x - m.x, _tdy = pl.y - m.y;
       const _adj = Math.abs(_tdx) <= 1 && Math.abs(_tdy) <= 1;
-      /* 既に盗んだ場合はプレイヤーから逃げる */
-      if (m.stolen) {
-        const _fcands = [];
-        for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-          const _fnx = m.x + _fmx, _fny = m.y + _fmy;
-          if (!isWalkable(dg.map, _fnx, _fny)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
-          if (_fnx === pl.x && _fny === pl.y) continue;
-          const _score = (_fnx - pl.x) * (_fnx - pl.x) + (_fny - pl.y) * (_fny - pl.y);
-          _fcands.push({ x: _fnx, y: _fny, score: _score });
-        }
-        _fcands.sort((a, b) => b.score - a.score);
-        if (_fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
-        return;
-      }
       if (_adj) {
         const _hasAntiSteal = pl.armor?.ability === "anti_steal" || pl.armor?.abilities?.includes("anti_steal");
         if (_hasAntiSteal) {
@@ -716,7 +701,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             _wy = rng(_room.y, _room.y + _room.h - 1);
           }
           m.x = _wx; m.y = _wy;
-          m.stolen = true;
           const _ft = new Set();
           placeItemAt(dg, _wx, _wy, _stolen, ml, _ft);
           ml.push(`${m.name}が${_stolen.name}を盗んで煙の中に消えた！`);
