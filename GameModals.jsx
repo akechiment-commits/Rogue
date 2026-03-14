@@ -2,6 +2,7 @@ import { ITEMS, POTS, SPELLS, SPELLBOOKS, WEAPON_ABILITIES, ARMOR_ABILITIES, ite
 import { inMagicSealRoom } from "./items.js";
 import { T, uid, rng, refreshFOV } from "./utils.js";
 import { TILE_NAMES, customTileImages } from "./render.js";
+import { getDiscoveries } from "./DiscoveryTracker.js";
 
 /* ===== Tile Editor Modal ===== */
 export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile, setCtLoaded }) {
@@ -412,18 +413,11 @@ export function ScoresModal({ show, setShow, mobile }) {
 export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs }) {
   if (!mode) return null;
   const _typePrefix = mode.identKey[0];
-  const _knownNames = [...(gs?.ident || [])]
-    .filter(k => k[0] === _typePrefix)
-    .map(k => {
-      const _eff = k.slice(2);
-      const _item = ITEMS.find(i =>
-        (_typePrefix === 'p' && i.type === 'potion' && i.effect === _eff) ||
-        (_typePrefix === 's' && i.type === 'scroll' && i.effect === _eff) ||
-        (_typePrefix === 'w' && i.type === 'wand' && i.effect === _eff) ||
-        (_typePrefix === 'n' && i.type === 'pen' && i.effect === _eff)
-      ) || POTS.find(pp => _typePrefix === 'o' && pp.potEffect === _eff);
-      return _item?.name;
-    })
+  const _typeMap = { p: 'potion', s: 'scroll', w: 'wand', n: 'pen', o: 'pot' };
+  const _targetType = _typeMap[_typePrefix];
+  const _knownNames = Object.values(getDiscoveries().items)
+    .filter(entry => entry.type === _targetType)
+    .map(entry => entry.name)
     .filter(Boolean);
   const confirm = () => {
     const _k = mode.identKey;
@@ -451,7 +445,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         />
         {_knownNames.length > 0 && (
           <div style={{ marginTop:8 }}>
-            <div style={{ color:"#888", fontSize:11 }}>識別済みの名前から選ぶ：</div>
+            <div style={{ color:"#888", fontSize:11 }}>図鑑に載ってる名前から選ぶ：</div>
             {_knownNames.map((n, ni) => (
               <div key={ni} onClick={() => setInput(n)}
                 style={{ padding:"2px 6px", cursor:"pointer", color:"#8cf", background:"#1a3a5a", margin:"1px 0", borderRadius:3 }}>
