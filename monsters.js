@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp } from "./utils.js";
-import { getFarcastMode, placeItemAt } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
 function inBounds(x, y) { return x >= 0 && x < MW && y >= 0 && y < MH; }
@@ -53,6 +53,8 @@ export const MONS = [
   { name: "スケルトン",   hp: 18,  atk: 8,  def: 3,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",   monLevel: 1 },
   /* 5: 6階〜 鈍足・硬め */
   { name: "ゾンビ",       hp: 25,  atk: 9,  def: 2,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",     monLevel: 1 },
+  /* 5.5: 6階〜 石投げ */
+  { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 8,  kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow" },
   /* 6: 7階〜 遠距離 */
   { name: "アーチャー",   hp: 22,  atk: 10, def: 2,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",     monLevel: 1, subtype: "archer" },
   /* 7: 8階〜 速攻獣 */
@@ -98,6 +100,7 @@ export const MON_LEVELS = {
   "imp":        [ { name: "強インプ",         hp: 22,  atk: 10, def: 3,  exp: 32  }, { name: "覇インプ",         hp: 35,  atk: 13, def: 6,  exp: 50  } ],
   "skeleton":   [ { name: "強スケルトン",     hp: 29,  atk: 11, def: 6,  exp: 35  }, { name: "アンデッドナイト", hp: 45,  atk: 14, def: 9,  exp: 55  } ],
   "zombie":     [ { name: "強ゾンビ",         hp: 40,  atk: 13, def: 5,  exp: 45  }, { name: "屍鬼",             hp: 63,  atk: 16, def: 8,  exp: 70  } ],
+  "wokka":      [ { name: "強ワッカ",         hp: 28,  atk: 13, def: 3,  exp: 45  }, { name: "覇ワッカ",         hp: 45,  atk: 18, def: 5,  exp: 72  } ],
   "archer":     [ { name: "古参アーチャー",   hp: 35,  atk: 14, def: 5,  exp: 54  }, { name: "弓の達人",         hp: 55,  atk: 18, def: 8,  exp: 85  } ],
   "wolf":       [ { name: "強ウルフ",         hp: 32,  atk: 15, def: 4,  exp: 64  }, { name: "フェンリル",       hp: 50,  atk: 20, def: 7,  exp: 100 } ],
   "thief":      [ { name: "大盗賊",           hp: 20,  atk: 6,  def: 1,  exp: 56  }, { name: "怪盗",             hp: 32,  atk: 8,  def: 2,  exp: 88  } ],
@@ -409,6 +412,51 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_fd.x, y:_fd.y });
 }
 
+/* ===== MONSTER STONE THROW (ワッカ) ===== */
+function monsterThrowStone(m, dg, pl, ml) {
+  const lvl = m.monLevel || 1;
+  const isMagic = lvl >= 3;
+  const hitChance = lvl >= 3 ? 0.99 : lvl >= 2 ? 0.90 : 0.75;
+  const stoneName = isMagic ? "魔法の石" : "石";
+  ml.push(`${m.name}が${stoneName}を投げた！`);
+
+  /* みかわし（防具の効果） */
+  const dodged = (pl.armor?.ability === "dodge" || pl.armor?.abilities?.includes("dodge")) && Math.random() < 0.25;
+  if (dodged) {
+    ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
+    const _sd = safeArrowDrop(pl.x, pl.y, dg);
+    const newSt = isMagic ? makeMagicStone(1) : makeStone(1);
+    newSt.x = _sd.x; newSt.y = _sd.y;
+    dg.items.push(newSt);
+    return;
+  }
+
+  const miss = Math.random() >= hitChance;
+  if (miss) {
+    ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
+    const _sd = safeArrowDrop(pl.x, pl.y, dg);
+    const newSt = isMagic ? makeMagicStone(1) : makeStone(1);
+    newSt.x = _sd.x; newSt.y = _sd.y;
+    dg.items.push(newSt);
+    return;
+  }
+
+  /* 命中 */
+  const _stRoom = findRoom(dg.rooms, pl.x, pl.y);
+  const _stVulnPc = _stRoom && dg.pentacles?.find(pc =>
+    pc.kind === "vulnerability" &&
+    pc.x >= _stRoom.x && pc.x < _stRoom.x + _stRoom.w &&
+    pc.y >= _stRoom.y && pc.y < _stRoom.y + _stRoom.h
+  );
+  let dmg = Math.max(1, m.atk + rng(-2, 2));
+  if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
+  pl.deathCause = `${m.name}の石投げで`;
+  pl.hp -= dmg;
+  ml.push(`${m.name}の${stoneName}が命中！${dmg}ダメージ！`);
+  if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+  if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+}
+
 /* ===== MONSTER AI ===== */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
@@ -646,6 +694,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
+      }
+
+      if (m.subtype === "stonethrow" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        const _stLvl = m.monLevel || 1;
+        const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
+        const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+        if (_stDist <= _stRange && Math.random() < 0.5) {
+          m.turnAttacks++;
+          monsterThrowStone(m, dg, pl, ml);
+          return;
+        }
       }
 
       if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && Math.random() < 0.5) {

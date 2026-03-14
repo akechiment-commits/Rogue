@@ -39,7 +39,10 @@ import {
   makeArrow,
   makePoisonArrow,
   makePiercingArrow,
+  makeStone,
+  makeMagicStone,
   addArrowsInv,
+  addStonesInv,
   applyPotEffect,
   makePot,
   scatterPotContents,
@@ -617,6 +620,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         ml.push(`${it.value}枚の金貨を拾った！`);
         removeFloorItem(dg, it);
         go = true;
+      } else if (it.type === "arrow" && (it.stone || it.magicStone) && !it.shopPrice) {
+        if (addStonesInv(p.inventory, it.count, !!it.magicStone, p.maxInventory || 30)) {
+          ml.push(`${it.name}(${it.count}個)を拾った。`);
+          removeFloorItem(dg, it);
+          go = true;
+        } else {
+          ml.push(`${it.name}がある。持ち物がいっぱいだ！`);
+          break;
+        }
       } else if (it.type === "arrow" && !it.shopPrice) {
         if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30)) {
           ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
@@ -1438,6 +1450,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               p.gold += _grIt.value;
               ml.push(`${_grIt.value}枚の金貨を拾った！`);
               removeFloorItem(dg, _grIt);
+            } else if (_grIt.type === "arrow" && (_grIt.stone || _grIt.magicStone) && !_grIt.shopPrice) {
+              if (addStonesInv(p.inventory, _grIt.count, !!_grIt.magicStone, p.maxInventory || 30)) {
+                ml.push(`${_grIt.name}(${_grIt.count}個)を拾った。`);
+                removeFloorItem(dg, _grIt);
+              } else ml.push("持ち物がいっぱいだ！");
             } else if (_grIt.type === "arrow" && !_grIt.shopPrice) {
               if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30)) {
                 ml.push(`${_grIt.name || "矢"}(${_grIt.count}本)を拾った。`);
@@ -1603,6 +1620,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           /* つるはし：壁を掘る */
           dg.map[ny][nx] = T.FLOOR;
           _pweapon.durability = (_pweapon.durability ?? 1) - 1;
+          /* 稀に石が出てくる */
+          if (Math.random() < 0.15) {
+            const _stCount = rng(1, 3);
+            const _stItem = makeStone(_stCount);
+            _stItem.x = nx; _stItem.y = ny;
+            sr.current.dungeon.items.push(_stItem);
+          }
           if (_pweapon.durability <= 0) {
             const _pkName = _pweapon.name;
             sr.current.player.weapon = null;
@@ -4115,7 +4139,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
     } else if (it.type === "arrow") {
       if (p.arrow === it) { p.arrow = null; ml.push(`${it.name}を外した。`); }
-      else { p.arrow = it; ml.push(`${it.name}(${it.count}本)を装備した。`); }
+      else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone) ? "個" : "本"})を装備した。`); }
     } else if (it.type === "pot") {
       if (it.contents.length >= it.capacity) {
         ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`);
@@ -4577,6 +4601,94 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           return;
         }
         const _arItem = p.arrow;
+
+        /* ── 石 / 魔法の石 専用処理 ── */
+        if (_arItem.stone || _arItem.magicStone) {
+          const _stName = _arItem.name;
+          p.arrow.count--;
+          if (_isFarcast) {
+            /* 遠投：消滅 */
+            ml.push(`${_stName}を投げた。${_stName}は消滅した。`);
+          } else if (_arItem.magicStone) {
+            /* 魔法の石：10マス以内の最近敵にホーミング */
+            const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
+            const _msTarget = [...dg.monsters]
+              .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
+              .sort((a, b) => _msDist(a) - _msDist(b))[0];
+            ml.push(`${_stName}を投げた！`);
+            if (!_msTarget) {
+              ml.push(`近くに敵がいない！${_stName}は消えた。`);
+            } else {
+              const _msSureHit = (p.sureHitTurns || 0) > 0;
+              const _msMiss = !_msSureHit && Math.random() >= 0.90;
+              const _msDmg = (_arItem.atk || 5) + rng(0, 3);
+              if (_msMiss) {
+                ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
+                const _msft = new Set(); const _msPfBag = [];
+                setPitfallBag(_msPfBag);
+                placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
+                clearPitfallBag();
+                if (!sr.current.floors) sr.current.floors = {};
+                processPitfallBag(_msPfBag, sr.current.floors, p.depth);
+              } else {
+                _msTarget.hp -= _msDmg;
+                ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
+                if (_msTarget.hp <= 0) { trackMonster(_msTarget); killMonster(_msTarget, dg, p, ml, lu); }
+              }
+            }
+          } else {
+            /* 通常の石：必ず3マス先（呪い遠投は1マス先）に着弾 */
+            const _stRange = _isCursedFc ? 1 : 3;
+            let _stLx = p.x, _stLy = p.y;
+            for (let d = 1; d <= _stRange; d++) {
+              const tx = p.x + dx * d, ty = p.y + dy * d;
+              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+              _stLx = tx; _stLy = ty;
+            }
+            const _stM = monsterAt(dg, _stLx, _stLy);
+            const _stSureHit = (p.sureHitTurns || 0) > 0;
+            const _stDmg = (_arItem.atk || 3) + rng(0, 3);
+            ml.push(`${_stName}を投げた！`);
+            if (_stM) {
+              const _stMiss = !_stSureHit && Math.random() >= 0.90;
+              if (_stMiss) {
+                ml.push(`${_stName}は${_stM.name}に外れた！`);
+                const _stft = new Set(); const _stPfBag = [];
+                setPitfallBag(_stPfBag);
+                placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft);
+                clearPitfallBag();
+                if (!sr.current.floors) sr.current.floors = {};
+                processPitfallBag(_stPfBag, sr.current.floors, p.depth);
+              } else {
+                _stM.hp -= _stDmg;
+                ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
+                if (_stM.hp <= 0) { trackMonster(_stM); killMonster(_stM, dg, p, ml, lu); }
+              }
+            } else {
+              /* 敵なし：着弾点に落ちる（罠も起動） */
+              const _stft = new Set(); const _stPfBag = [];
+              setPitfallBag(_stPfBag);
+              placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft);
+              clearPitfallBag();
+              if (!sr.current.floors) sr.current.floors = {};
+              processPitfallBag(_stPfBag, sr.current.floors, p.depth);
+            }
+          }
+          if (p.arrow.count <= 0) {
+            const _stEx = p.arrow;
+            p.arrow = null;
+            p.inventory = p.inventory.filter(i => i !== _stEx);
+            ml.push(`${_stName}を投げ尽くした。`);
+          }
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
+
         const _arIsPoison = !!_arItem.poison;
         const _arIsPierce = !!_arItem.pierce;
         const _arName = _arItem.name || "矢";
@@ -4701,6 +4813,85 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (p.weapon === it) p.weapon = null;
         if (p.armor  === it) p.armor  = null;
         if (p.arrow  === it) p.arrow  = null;
+
+        /* ── インベントリから投げる石／魔法の石 専用処理 ── */
+        if (it.type === "arrow" && (it.stone || it.magicStone)) {
+          /* スタックから1個だけ使う */
+          it.count--;
+          if (it.count <= 0) p.inventory.splice(idx, 1);
+          const _invStName = it.name;
+          const _invStAtk = it.atk || (it.magicStone ? 5 : 3);
+          if (_isFarcast) {
+            ml.push(`${_invStName}を投げた。${_invStName}は消滅した。`);
+          } else if (it.magicStone) {
+            const _msDist2 = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
+            const _msTarget2 = [...dg.monsters]
+              .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
+              .sort((a, b) => _msDist2(a) - _msDist2(b))[0];
+            ml.push(`${_invStName}を投げた！`);
+            if (!_msTarget2) {
+              ml.push(`近くに敵がいない！${_invStName}は消えた。`);
+            } else {
+              const _msMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
+              const _msDmg2 = _invStAtk + rng(0, 3);
+              if (_msMiss2) {
+                ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
+                const _msft2 = new Set(); const _msPfBag2 = [];
+                setPitfallBag(_msPfBag2);
+                placeItemAt(dg, _msTarget2.x, _msTarget2.y, makeMagicStone(1), ml, _msft2);
+                clearPitfallBag();
+                if (!sr.current.floors) sr.current.floors = {};
+                processPitfallBag(_msPfBag2, sr.current.floors, p.depth);
+              } else {
+                _msTarget2.hp -= _msDmg2;
+                ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
+                if (_msTarget2.hp <= 0) { trackMonster(_msTarget2); killMonster(_msTarget2, dg, p, ml, lu); }
+              }
+            }
+          } else {
+            const _stRange2 = _isCursedFc ? 1 : 3;
+            let _stLx2 = p.x, _stLy2 = p.y;
+            for (let d = 1; d <= _stRange2; d++) {
+              const tx = p.x + dx * d, ty = p.y + dy * d;
+              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+              _stLx2 = tx; _stLy2 = ty;
+            }
+            const _stM2 = monsterAt(dg, _stLx2, _stLy2);
+            const _stDmg2 = _invStAtk + rng(0, 3);
+            ml.push(`${_invStName}を投げた！`);
+            if (_stM2) {
+              const _stMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
+              if (_stMiss2) {
+                ml.push(`${_invStName}は${_stM2.name}に外れた！`);
+                const _stft2 = new Set(); const _stPfBag2 = [];
+                setPitfallBag(_stPfBag2);
+                placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2);
+                clearPitfallBag();
+                if (!sr.current.floors) sr.current.floors = {};
+                processPitfallBag(_stPfBag2, sr.current.floors, p.depth);
+              } else {
+                _stM2.hp -= _stDmg2;
+                ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
+                if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
+              }
+            } else {
+              const _stft2 = new Set(); const _stPfBag2 = [];
+              setPitfallBag(_stPfBag2);
+              placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2);
+              clearPitfallBag();
+              if (!sr.current.floors) sr.current.floors = {};
+              processPitfallBag(_stPfBag2, sr.current.floors, p.depth);
+            }
+          }
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
+
         p.inventory.splice(idx, 1);
         if (it.type === "potion") {
           let lx = p.x, ly = p.y, sprHit = null;
@@ -4807,7 +4998,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thMiss = !_isFarcast && !_thSureHit && Math.random() >= 0.90;
-              const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
+              const lb = it.type === "arrow" ? ((it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`) : dnameRef(it);
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
                 lx = tx; ly = ty; hit = true;
@@ -5075,7 +5266,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown) : true;
     const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
     let s = (_eq ? _eq : "") + _bc + dname(it);
-    if (it.type === "arrow") s += ` (${it.count}本)`;
+    if (it.type === "arrow") s += ` (${it.count}${(it.stone || it.magicStone) ? "個" : "本"})`;
     else if (it.type === "weapon") {
       if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
       s += ` (攻+${it.atk + (it.plus || 0)})`;
@@ -5221,7 +5412,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         </span>{" "}
         <span style={{ color: "#ffd700" }}>${p.gold}</span>{" "}
         {p.arrow && (
-          <span style={{ color: "#dda050" }}>矢:{p.arrow.count}</span>
+          <span style={{ color: "#dda050" }}>{p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : "矢"}:{p.arrow.count}</span>
         )}{" "}
         {p.poisoned && (
           <span style={{ color: "#80ff40" }}>☠毒</span>

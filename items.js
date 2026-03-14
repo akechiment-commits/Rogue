@@ -153,6 +153,8 @@ export function getBlessMultiplier(it) {
 export const ARROW_T        = { name:"矢",       type:"arrow", atk:4,                 desc:"99本まで束にできる矢。",                 count:1, tile:23 };
 export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:4, poison:true,     desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
 export const PIERCING_ARROW_T={ name:"貫きの矢", type:"arrow", atk:4, pierce:true,     desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
+export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
+export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",        desc:"空の瓶。今のところ使い道はない。",         tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10, desc:"泉の水。飲むと少しHPが回復する。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",   desc:"何も書かれていない。魔法のマーカーで書き込める。", tile:18 };
@@ -957,6 +959,33 @@ export function makePiercingArrow(c = 1) {
   return { ...PIERCING_ARROW_T, id:uid(), count:Math.min(99, c) };
 }
 
+export function makeStone(c = 1) {
+  return { ...STONE_T, id:uid(), count:Math.min(99, c) };
+}
+
+export function makeMagicStone(c = 1) {
+  return { ...MAGIC_STONE_T, id:uid(), count:Math.min(99, c) };
+}
+
+export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
+  let r = c;
+  for (const i of inv) {
+    if (i.type === "arrow" && !!i.stone === !isMagic && !!i.magicStone === isMagic && i.count < 99) {
+      const a = Math.min(r, 99 - i.count);
+      i.count += a;
+      r -= a;
+      if (r <= 0) return true;
+    }
+  }
+  while (r > 0) {
+    if (inv.length >= maxInv) return false;
+    const n = Math.min(r, 99);
+    inv.push(isMagic ? makeMagicStone(n) : makeStone(n));
+    r -= n;
+  }
+  return true;
+}
+
 export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30) {
   let r = c;
   for (const i of inv) {
@@ -1515,6 +1544,10 @@ export function monsterDrop(m, dg, ml, p = null) {
   /* Fixed drops for item-using enemy subtypes */
   if (m.subtype === "archer") {
     drops.push(makeArrow(rng(3, 8)));
+  }
+  if (m.subtype === "stonethrow") {
+    const lvl = m.monLevel || 1;
+    drops.push(lvl >= 3 ? makeMagicStone(rng(1, 3)) : makeStone(rng(2, 5)));
   }
   if (m.subtype === "wanduser") {
     const _wt = pick(WANDS);
