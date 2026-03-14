@@ -1594,6 +1594,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (_pweapon.durability <= 0) {
             const _pkName = _pweapon.name;
             sr.current.player.weapon = null;
+            const _pkIdx = sr.current.player.inventory.findIndex(i => i === _pweapon);
+            if (_pkIdx !== -1) sr.current.player.inventory.splice(_pkIdx, 1);
             act("wait");
             setMsgs((prev) => [...prev.slice(-80), `壁を掘った！${_pkName}が壊れてしまった！`]);
           } else {
