@@ -879,10 +879,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       (Math.abs(b.x - pl.x) + Math.abs(b.y - pl.y))
     );
     dg.monsters.forEach((m) => {
+      if (m.hp <= 0) return;
       m.turnAccum += m.speed;
       m.turnAttacks = 0;
       while (m.turnAccum >= 1) {
         m.turnAccum -= 1;
+        if (m.hp <= 0) break;
         monsterAI(m, dg, pl, ml, opts);
       }
     });
@@ -4240,22 +4242,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       p.inventory.splice(idx, 1);
       const ml = [];
       ml.push(`${dnameRef(it)}を壊した！`);
-      if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-        ml.push("魔法が封印されている！効果は発動しなかった。");
-      } else {
-        const times = Math.max(1, Math.ceil((it.charges ?? 0) / 2));
-        const _bwBlMult = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
-        for (let t = 0; t < times; t++) breakWandAoE(p, dg, it.effect, ml, lu, _bwBlMult);
-        /* 呪われたレベルアップの杖の壊し：上の階へワープ */
-        if (p._pendingWarpUp) {
-          delete p._pendingWarpUp;
-          if (p.depth > 1) {
-            const _bwNd = chgFloor(p, -1);
-            if (_bwNd) sr.current.dungeon = _bwNd;
-          } else {
-            ml.push("ここは1階だ。何も起こらなかった。");
+      try {
+        if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+          ml.push("魔法が封印されている！効果は発動しなかった。");
+        } else {
+          const times = Math.max(1, Math.ceil((it.charges ?? 0) / 2));
+          const _bwBlMult = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
+          for (let t = 0; t < times; t++) breakWandAoE(p, dg, it.effect, ml, lu, _bwBlMult);
+          /* 呪われたレベルアップの杖の壊し：上の階へワープ */
+          if (p._pendingWarpUp) {
+            delete p._pendingWarpUp;
+            if (p.depth > 1) {
+              const _bwNd = chgFloor(p, -1);
+              if (_bwNd) sr.current.dungeon = _bwNd;
+            } else {
+              ml.push("ここは1階だ。何も起こらなかった。");
+            }
           }
         }
+      } catch (e) {
+        console.error("doBreakWand error:", e);
+        ml.push("杖の破砕中にエラーが発生した。");
       }
       endTurn(sr.current, p, ml);
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
