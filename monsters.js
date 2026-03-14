@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp } from "./utils.js";
-import { getFarcastMode } from "./items.js";
+import { getFarcastMode, placeItemAt } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
 function inBounds(x, y) { return x >= 0 && x < MW && y >= 0 && y < MH; }
@@ -57,6 +57,8 @@ export const MONS = [
   { name: "アーチャー",   hp: 22,  atk: 10, def: 2,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",     monLevel: 1, subtype: "archer" },
   /* 7: 8階〜 速攻獣 */
   { name: "ウルフ",       hp: 20,  atk: 11, def: 1,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",       monLevel: 1 },
+  /* 7.5: 8階〜 盗みモンスター (arrayインデックス上は7の後) */
+  { name: "コソドロ",     hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief" },
   /* 8: 9階〜 杖使い */
   { name: "ウィザード",   hp: 18,  atk: 9,  def: 2,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",     monLevel: 1, subtype: "wanduser", wandEffect: "lightning" },
   /* 9: 10階〜 壁歩き (固定スポーンは3階〜) */
@@ -96,6 +98,7 @@ export const MON_LEVELS = {
   "zombie":     [ { name: "強ゾンビ",         hp: 40,  atk: 13, def: 5,  exp: 45  }, { name: "屍鬼",             hp: 63,  atk: 16, def: 8,  exp: 70  } ],
   "archer":     [ { name: "古参アーチャー",   hp: 35,  atk: 14, def: 5,  exp: 54  }, { name: "弓の達人",         hp: 55,  atk: 18, def: 8,  exp: 85  } ],
   "wolf":       [ { name: "強ウルフ",         hp: 32,  atk: 15, def: 4,  exp: 64  }, { name: "フェンリル",       hp: 50,  atk: 20, def: 7,  exp: 100 } ],
+  "thief":      [ { name: "大盗賊",           hp: 20,  atk: 6,  def: 1,  exp: 56  }, { name: "怪盗",             hp: 32,  atk: 8,  def: 2,  exp: 88  } ],
   "wizard":     [ { name: "強ウィザード",     hp: 29,  atk: 13, def: 5,  exp: 67  }, { name: "大魔導士",         hp: 45,  atk: 16, def: 8,  exp: 105 } ],
   "rockspirit": [ { name: "強岩霊",           hp: 45,  atk: 14, def: 6,  exp: 72  }, { name: "岩の王",           hp: 70,  atk: 18, def: 9,  exp: 113 } ],
   "orc":        [ { name: "オーク将",         hp: 48,  atk: 17, def: 8,  exp: 77  }, { name: "オーク王",         hp: 75,  atk: 22, def: 11, exp: 120 } ],
@@ -656,6 +659,72 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         // 魔封じの部屋にいる場合は杖を使えず通常行動へフォールスルー
+      }
+    }
+
+    /* ── thief（コソドロ等）：隣接時に所持品を1つ盗んでワープ ── */
+    if (m.subtype === "thief" && !m.sealed) {
+      const _tdx = pl.x - m.x, _tdy = pl.y - m.y;
+      const _adj = Math.abs(_tdx) <= 1 && Math.abs(_tdy) <= 1;
+      /* 既に盗んだ場合はプレイヤーから逃げる */
+      if (m.stolen) {
+        const _fcands = [];
+        for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+          const _fnx = m.x + _fmx, _fny = m.y + _fmy;
+          if (!isWalkable(dg.map, _fnx, _fny)) continue;
+          if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+          if (_fnx === pl.x && _fny === pl.y) continue;
+          const _score = (_fnx - pl.x) * (_fnx - pl.x) + (_fny - pl.y) * (_fny - pl.y);
+          _fcands.push({ x: _fnx, y: _fny, score: _score });
+        }
+        _fcands.sort((a, b) => b.score - a.score);
+        if (_fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
+        return;
+      }
+      if (_adj) {
+        const _hasAntiSteal = pl.armor?.ability === "anti_steal" || pl.armor?.abilities?.includes("anti_steal");
+        if (_hasAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+          /* 盗めないので通常攻撃 */
+          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`); }
+          return;
+        }
+        const _stealable = pl.inventory.filter(i => i.type !== "gold");
+        if (_stealable.length > 0) {
+          const _stolen = pick(_stealable);
+          const _sidx = pl.inventory.indexOf(_stolen);
+          pl.inventory.splice(_sidx, 1);
+          /* ワープ先：罠の隣を優先 */
+          let _wx = m.x, _wy = m.y;
+          const _trapList = dg.traps || [];
+          let _placed = false;
+          if (_trapList.length > 0) {
+            const _tgt = pick(_trapList);
+            const _tdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+            for (const [_ddx, _ddy] of _tdirs) {
+              const _cx = _tgt.x + _ddx, _cy = _tgt.y + _ddy;
+              if (isWalkable(dg.map, _cx, _cy) &&
+                  !dg.monsters.some(o => o.x === _cx && o.y === _cy) &&
+                  !(_cx === pl.x && _cy === pl.y)) {
+                _wx = _cx; _wy = _cy; _placed = true; break;
+              }
+            }
+            if (!_placed) { _wx = _tgt.x; _wy = _tgt.y; }
+          } else {
+            const _room = dg.rooms[rng(0, dg.rooms.length - 1)];
+            _wx = rng(_room.x, _room.x + _room.w - 1);
+            _wy = rng(_room.y, _room.y + _room.h - 1);
+          }
+          m.x = _wx; m.y = _wy;
+          m.stolen = true;
+          const _ft = new Set();
+          placeItemAt(dg, _wx, _wy, _stolen, ml, _ft);
+          ml.push(`${m.name}が${_stolen.name}を盗んで煙の中に消えた！`);
+          return;
+        }
+        /* 盗めるものがなければ通常攻撃 */
+        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`); }
+        return;
       }
     }
 

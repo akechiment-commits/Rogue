@@ -123,6 +123,7 @@ export const ITEMS = [
   { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
   { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
   { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
+  { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    desc:"装備するとコソドロに所持品を盗まれなくなる。",    tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, desc:"MPを20回復する。",                 tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  desc:"飲むと5ターン混乱する。投げると命中した敵を20ターン混乱させる。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           desc:"飲むと視界が1マスになる(20ターン)。投げると命中した敵を50ターン暗闇状態にする。", tile:16 },
@@ -618,6 +619,7 @@ export const ARMOR_ABILITIES = [
   { id:"lightning_resist", name:"雷耐性",   desc:"雷のダメージを半減しアイテムが雷で壊れなくなる" },
   { id:"dodge",            name:"みかわし", desc:"25%の確率で攻撃を完全回避する" },
   { id:"wand_reflect",     name:"魔法反射", desc:"モンスターの杖魔法を反射する" },
+  { id:"anti_steal",       name:"護盗",     desc:"コソドロに所持品を盗まれなくなる" },
 ];
 
 /* ===== TRAPS ===== */

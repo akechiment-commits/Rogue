@@ -1280,19 +1280,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               acted = true;
               } /* end else (hit) */
             }
-          } else if (dg.map[ny][nx] === T.WALL && wabHas("pickaxe") && p.weapon) {
-            /* つるはし：通常壁を掘る */
-            dg.map[ny][nx] = T.FLOOR;
-            p.weapon.durability = (p.weapon.durability ?? 1) - 1;
-            if (p.weapon.durability <= 0) {
-              const _pkName = p.weapon.name;
-              p.weapon = null;
-              ml.push(`壁を掘った！${_pkName}が壊れてしまった！`);
-            } else {
-              ml.push(`壁を掘った！(耐久: ${p.weapon.durability})`);
-            }
-            refreshFOV(dg, p);
-            acted = true;
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
@@ -1599,8 +1586,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         act("wait");
         setMsgs((prev) => [...prev.slice(-80), "壁を叩き壊した！"]);
       } else if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.WALL) {
-        act("wait");
-        setMsgs((prev) => [...prev.slice(-80), "壁を叩いた。ゴツン！"]);
+        const _pweapon = sr.current.player.weapon;
+        if (_pweapon?.ability === "pickaxe" || _pweapon?.abilities?.includes("pickaxe")) {
+          /* つるはし：壁を掘る */
+          dg.map[ny][nx] = T.FLOOR;
+          _pweapon.durability = (_pweapon.durability ?? 1) - 1;
+          if (_pweapon.durability <= 0) {
+            const _pkName = _pweapon.name;
+            sr.current.player.weapon = null;
+            act("wait");
+            setMsgs((prev) => [...prev.slice(-80), `壁を掘った！${_pkName}が壊れてしまった！`]);
+          } else {
+            act("wait");
+            setMsgs((prev) => [...prev.slice(-80), `壁を掘った！(耐久: ${_pweapon.durability})`]);
+          }
+        } else {
+          act("wait");
+          setMsgs((prev) => [...prev.slice(-80), "壁を叩いた。ゴツン！"]);
+        }
       } else {
         const spr = dg.springs?.find((s) => s.x === nx && s.y === ny);
         const bb6 = dg.bigboxes?.find((b) => b.x === nx && b.y === ny);
