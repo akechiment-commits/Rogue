@@ -124,6 +124,7 @@ export const ITEMS = [
   { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
   { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
   { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    desc:"装備するとコソドロに所持品を盗まれなくなる。",    tile:21 },
+  { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, desc:"MPを20回復する。",                 tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  desc:"飲むと5ターン混乱する。投げると命中した敵を20ターン混乱させる。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           desc:"飲むと視界が1マスになる(20ターン)。投げると命中した敵を50ターン暗闇状態にする。", tile:16 },
@@ -620,6 +621,7 @@ export const ARMOR_ABILITIES = [
   { id:"dodge",            name:"みかわし", desc:"25%の確率で攻撃を完全回避する" },
   { id:"wand_reflect",     name:"魔法反射", desc:"モンスターの杖魔法を反射する" },
   { id:"anti_steal",       name:"護盗",     desc:"コソドロに所持品を盗まれなくなる" },
+  { id:"no_degrade",       name:"不錆",     desc:"錆の罠や泉に落ちても＋値が下がらない" },
 ];
 
 /* ===== TRAPS ===== */
@@ -1400,21 +1402,25 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   } else if (item.type === "weapon") {
     let _wNote = "";
     if (item.cursed) { item.cursed = false; _wNote += " 呪いが解けた！"; }
-    if (item.atk > 1) {
-      item.atk = Math.max(1, item.atk - rng(1, 2));
-      ml.push(_dn(item) + "が泉に落ちた...錆びた！(攻撃力" + item.atk + ")" + _wNote);
+    if (item.ability === "no_degrade" || item.abilities?.includes("no_degrade")) {
+      ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _wNote);
     } else {
-      ml.push(_dn(item) + "が泉に落ちたがこれ以上錆びない。" + _wNote);
+      const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
+      const _op = item.plus || 0;
+      item.plus = _op - 1;
+      ml.push(_dn(item) + "が泉に落ちた...錆びた！(" + _fp(_op) + "→" + _fp(item.plus) + ")" + _wNote);
     }
     spr.contents.push(item);
   } else if (item.type === "armor") {
     let _aNote = "";
     if (item.cursed) { item.cursed = false; _aNote += " 呪いが解けた！"; }
-    if (item.def > 1) {
-      item.def = Math.max(1, item.def - rng(1, 2));
-      ml.push(_dn(item) + "が泉に落ちた...錆びた！(防御力" + item.def + ")" + _aNote);
+    if (item.ability === "no_degrade" || item.abilities?.includes("no_degrade")) {
+      ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _aNote);
     } else {
-      ml.push(_dn(item) + "が泉に落ちたがこれ以上錆びない。" + _aNote);
+      const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
+      const _op = item.plus || 0;
+      item.plus = _op - 1;
+      ml.push(_dn(item) + "が泉に落ちた...錆びた！(" + _fp(_op) + "→" + _fp(item.plus) + ")" + _aNote);
     }
     spr.contents.push(item);
   } else if (item.type === "scroll") {
