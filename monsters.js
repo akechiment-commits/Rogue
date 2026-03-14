@@ -57,8 +57,10 @@ export const MONS = [
   { name: "アーチャー",   hp: 22,  atk: 10, def: 2,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",     monLevel: 1, subtype: "archer" },
   /* 7: 8階〜 速攻獣 */
   { name: "ウルフ",       hp: 20,  atk: 11, def: 1,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",       monLevel: 1 },
-  /* 7.5: 8階〜 盗みモンスター (arrayインデックス上は7の後) */
-  { name: "コソドロ",     hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief" },
+  /* 7.5: 8階〜 盗みモンスター */
+  { name: "コソドロ",       hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief" },
+  /* 7.6: 5階〜 逃げるボーナスモンスター */
+  { name: "コロポックル",   hp: 8,   atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 53, kind: "beast",    baseKind: "runner",     monLevel: 1, subtype: "runner" },
   /* 8: 9階〜 杖使い */
   { name: "ウィザード",   hp: 18,  atk: 9,  def: 2,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",     monLevel: 1, subtype: "wanduser", wandEffect: "lightning" },
   /* 9: 10階〜 壁歩き (固定スポーンは3階〜) */
@@ -99,6 +101,7 @@ export const MON_LEVELS = {
   "archer":     [ { name: "古参アーチャー",   hp: 35,  atk: 14, def: 5,  exp: 54  }, { name: "弓の達人",         hp: 55,  atk: 18, def: 8,  exp: 85  } ],
   "wolf":       [ { name: "強ウルフ",         hp: 32,  atk: 15, def: 4,  exp: 64  }, { name: "フェンリル",       hp: 50,  atk: 20, def: 7,  exp: 100 } ],
   "thief":      [ { name: "大盗賊",           hp: 20,  atk: 6,  def: 1,  exp: 56  }, { name: "怪盗",             hp: 32,  atk: 8,  def: 2,  exp: 88  } ],
+  "runner":     [ { name: "大コロポックル",   hp: 12,  atk: 0,  def: 0,  exp: 80  }, { name: "精霊コロポックル", hp: 18,  atk: 0,  def: 0,  exp: 120 } ],
   "wizard":     [ { name: "強ウィザード",     hp: 29,  atk: 13, def: 5,  exp: 67  }, { name: "大魔導士",         hp: 45,  atk: 16, def: 8,  exp: 105 } ],
   "rockspirit": [ { name: "強岩霊",           hp: 45,  atk: 14, def: 6,  exp: 72  }, { name: "岩の王",           hp: 70,  atk: 18, def: 9,  exp: 113 } ],
   "orc":        [ { name: "オーク将",         hp: 48,  atk: 17, def: 8,  exp: 77  }, { name: "オーク王",         hp: 75,  atk: 22, def: 11, exp: 120 } ],
@@ -660,6 +663,22 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
         // 魔封じの部屋にいる場合は杖を使えず通常行動へフォールスルー
       }
+    }
+
+    /* ── runner（コロポックル等）：常にプレイヤーから逃げる。攻撃しない ── */
+    if (m.subtype === "runner") {
+      const _rcands = [];
+      for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+        const _rnx = m.x + _rmx, _rny = m.y + _rmy;
+        if (!isWalkable(dg.map, _rnx, _rny)) continue;
+        if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
+        if (_rnx === pl.x && _rny === pl.y) continue;
+        const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
+        _rcands.push({ x: _rnx, y: _rny, score: _score });
+      }
+      _rcands.sort((a, b) => b.score - a.score);
+      if (_rcands.length > 0) { m.x = _rcands[0].x; m.y = _rcands[0].y; }
+      return;
     }
 
     /* ── thief（コソドロ等）：隣接時に所持品を1つ盗んでワープ、その後また近づく ── */
