@@ -139,6 +139,8 @@ export const ITEMS = [
     desc:"敵を4体召喚する。祝福：8体に囲まれる。呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
   { name:"収納上手の巻物", type:"scroll", effect:"expand_inv",
     desc:"最大所持数が1～3増える。祝福：2～6増える。呪い：1～3減る。", tile:18 },
+  { name:"罠の巻物", type:"scroll", effect:"trap_scatter",
+    desc:"読むと同じフロアの部屋内に大量の罠が出現する。祝福：さらに多く出現。呪い：フロア内の全ての罠が消える。", tile:18 },
   { name:"毒矢",     type:"arrow", atk:4, poison:true, count:3,  desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
   { name:"貫きの矢", type:"arrow", atk:4, pierce:true, count:3,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
 ];
@@ -1592,7 +1594,7 @@ export function killMonster(mon, dg, p, ml, luFn) {
   if (luFn) luFn(p, ml);
 }
 
-export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn) {
+export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0) {
   let cx = x, cy = y;
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
@@ -1600,6 +1602,18 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn) {
       if (kind === "monster") { entity.hp -= 5; ml.push(`${entity.name}は壁に叩きつけられた！5ダメージ！`); }
       if (kind === "player")  { p.deathCause = "吹き飛ばされての壁への激突により"; p.hp -= 5; ml.push("壁に叩きつけられた！5ダメージ！"); }
       break;
+    }
+    /* 飛んでいる罠がキャラクターに命中 → 呼び出し元でfireTrapを処理できるよう即返却 */
+    if (kind === "trap") {
+      if (p && p.x === nx && p.y === ny) {
+        entity.x = nx; entity.y = ny;
+        return { x: nx, y: ny, hitPlayer: true };
+      }
+      const _trapM = monsterAt(dg, nx, ny);
+      if (_trapM) {
+        entity.x = nx; entity.y = ny;
+        return { x: nx, y: ny, hitMonster: _trapM };
+      }
     }
     if (kind === "item") {
       if (entity.type === "potion") {
@@ -1646,7 +1660,41 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn) {
         if (bbI) return { x:nx, y:ny, consumed:true, bigbox:bbI };
       }
     }
-    if (kind === "monster" && dg.monsters.some(m => m !== entity && m.x === nx && m.y === ny)) break;
+    if (kind === "monster") {
+      /* プレイヤーとの衝突 */
+      if (p && p.x === nx && p.y === ny) {
+        if (collisionAtk > 0) {
+          entity.hp -= collisionAtk;
+          p.deathCause = `${entity.name}との衝突により`;
+          p.hp -= collisionAtk;
+          ml.push(`${entity.name}がプレイヤーに激突！お互いに${collisionAtk}ダメージ！`);
+        }
+        break;
+      }
+      /* 別モンスターとの衝突 */
+      const _colM = dg.monsters.find(m => m !== entity && m.x === nx && m.y === ny);
+      if (_colM) {
+        if (collisionAtk > 0) {
+          entity.hp -= collisionAtk;
+          _colM.hp -= collisionAtk;
+          ml.push(`${entity.name}が${_colM.name}に激突！お互いに${collisionAtk}ダメージ！`);
+        }
+        break;
+      }
+    }
+    if (kind === "player") {
+      /* モンスターとの衝突 */
+      const _pColM = monsterAt(dg, nx, ny);
+      if (_pColM) {
+        if (collisionAtk > 0) {
+          p.hp -= collisionAtk;
+          p.deathCause = `${_pColM.name}との衝突により`;
+          _pColM.hp -= collisionAtk;
+          ml.push(`${_pColM.name}に激突！お互いに${collisionAtk}ダメージ！`);
+        }
+        break;
+      }
+    }
     cx = nx; cy = ny;
   }
   if (kind === "monster" || kind === "player") { entity.x = cx; entity.y = cy; }

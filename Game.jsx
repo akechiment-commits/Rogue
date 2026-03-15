@@ -816,121 +816,45 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (!_cwHit) ml.push("呪いの魔法弾は虚空に消えた。");
         } else if (_we === "blowback_wand") {
           ml.push(`${m.name}が吹き飛ばしの杖を振った！`);
+          const _nameFn = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
           let _bwHit = false;
           for (let _d = 1; _d < 20; _d++) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _bwHit = true; break; }
             if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _bwHit = true; break; }
-            /* 罠：魔法弾が通過するときに起動 */
+            /* 罠：吹き飛ばす（プレイヤーの杖と同様） */
             const _bwTrap = dg.traps?.find(t => t.x === _tx && t.y === _ty);
-            if (_bwTrap) opts.fireTrapFn?.(_bwTrap, pl, dg, ml);
-            /* 床アイテム：命中で同方向に吹き飛ばす */
-            const _bwFloorItem = dg.items.find(fi => fi.x === _tx && fi.y === _ty && !fi.wallEmbedded);
-            if (_bwFloorItem) {
-              dg.items = dg.items.filter(fi => fi !== _bwFloorItem);
-              ml.push(`${_bwFloorItem.name}が吹き飛ばされた！`);
-              let _biLx = _tx, _biLy = _ty, _biHit = false;
-              for (let _bid = 1; _bid <= 15 && !_biHit; _bid++) {
-                const _bix = _tx + dx * _bid, _biy = _ty + dy * _bid;
-                if (_bix < 0 || _bix >= MW || _biy < 0 || _biy >= MH) break;
-                if (dg.map[_biy][_bix] === T.WALL || dg.map[_biy][_bix] === T.BWALL) break;
-                if (_bix === pl.x && _biy === pl.y) {
-                  if (_bwFloorItem.type === "potion") {
-                    splashPotion(dg, _bix, _biy, _bwFloorItem.effect, _bwFloorItem.value || 0, pl, ml, lu, _bwFloorItem.blessed || false, _bwFloorItem.cursed || false, (it) => it.name);
-                  } else {
-                    const _biDmg = Math.max(1, (_bwFloorItem.atk || 3) + rng(0, 3));
-                    pl.hp -= _biDmg; pl.deathCause = `${m.name}の吹き飛ばしで飛んできた${_bwFloorItem.name}に`;
-                    ml.push(`飛んできた${_bwFloorItem.name}がプレイヤーに命中！${_biDmg}ダメージ！`);
-                  }
-                  _biHit = true;
-                } else {
-                  const _biMon = dg.monsters.find(mn => mn.x === _bix && mn.y === _biy);
-                  if (_biMon) {
-                    if (_bwFloorItem.type === "potion") {
-                      applyPotionEffect(_bwFloorItem.effect, _bwFloorItem.value || 0, "monster", _biMon, dg, pl, ml, lu, _bwFloorItem.blessed || false, _bwFloorItem.cursed || false);
-                      if (_biMon.hp <= 0) { trackMonster(_biMon); killMonster(_biMon, dg, pl, ml, lu); }
-                    } else {
-                      const _biDmg = Math.max(1, (_bwFloorItem.atk || 3) + rng(0, 3));
-                      _biMon.hp -= _biDmg;
-                      ml.push(`飛んできた${_bwFloorItem.name}が${_biMon.name}に命中！${_biDmg}ダメージ！`);
-                      if (_biMon.hp <= 0) { trackMonster(_biMon); killMonster(_biMon, dg, pl, ml, lu); }
-                    }
-                    _biHit = true;
-                  }
-                }
-                if (!_biHit) { _biLx = _bix; _biLy = _biy; }
-              }
-              if (!_biHit) {
-                /* 着弾：罠があれば起動、なければ落とす */
-                if (_bwFloorItem.type === "potion") {
-                  splashPotion(dg, _biLx, _biLy, _bwFloorItem.effect, _bwFloorItem.value || 0, pl, ml, lu, _bwFloorItem.blessed || false, _bwFloorItem.cursed || false, (it) => it.name);
-                } else {
-                  const _biLandTrap = dg.traps?.find(t => t.x === _biLx && t.y === _biLy);
-                  if (_biLandTrap) {
-                    fireTrapItem(_biLandTrap, _bwFloorItem, dg, _biLx, _biLy, ml, new Set(), pl, (it) => it.name);
-                  } else {
-                    _bwFloorItem.x = _biLx; _bwFloorItem.y = _biLy;
-                    dg.items.push(_bwFloorItem);
-                  }
-                }
-              }
-              /* 魔法弾は継続 */
+            if (_bwTrap) {
+              _bwTrap.revealed = true;
+              applyWandEffect("knockback", "trap", _bwTrap, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
+              _bwHit = true; break;
+            }
+            /* 床アイテム：吹き飛ばす（プレイヤーの杖と同様） */
+            const _bwIt = itemAt(dg, _tx, _ty);
+            if (_bwIt) {
+              applyWandEffect("knockback", "item", _bwIt, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
+              _bwHit = true; break;
             }
             /* プレイヤーに命中 */
             if (_tx === pl.x && _ty === pl.y) {
-              /* 反射の鎧チェック */
               if (pl.armor?.ability === "wand_reflect" || pl.armor?.abilities?.includes("wand_reflect")) {
                 ml.push("反射の鎧が吹き飛ばしの魔法弾を反射した！");
-                /* 発射元のモンスターを逆方向に吹き飛ばす */
-                for (let _rbd = 0; _rbd < 3; _rbd++) {
-                  const _rbx = m.x - dx, _rby = m.y - dy;
-                  if (_rbx < 0 || _rbx >= MW || _rby < 0 || _rby >= MH) break;
-                  if (dg.map[_rby][_rbx] === T.WALL || dg.map[_rby][_rbx] === T.BWALL) break;
-                  if (dg.monsters.some(o => o !== m && o.x === _rbx && o.y === _rby)) break;
-                  m.x = _rbx; m.y = _rby;
-                }
-                ml.push(`${m.name}が吹き飛ばされた！`);
-                _bwHit = true; break;
-              }
-              if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+                applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, pl.atk || 3);
+                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); }
+              } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
                 ml.push("祝福された聖域の加護が魔法弾を防いだ！");
               } else {
-                ml.push("吹き飛ばしの魔法弾が命中！");
-                /* プレイヤーをdx,dy方向に1マスずつ最大5マス吹き飛ばす */
-                let _blown = 0;
-                for (let _bd = 0; _bd < 5; _bd++) {
-                  const _bx = pl.x + dx, _by = pl.y + dy;
-                  if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH) break;
-                  if (dg.map[_by][_bx] === T.WALL || dg.map[_by][_bx] === T.BWALL) {
-                    const _colDmg = rng(2, 6);
-                    pl.hp -= _colDmg;
-                    pl.deathCause = `${m.name}の吹き飛ばしで壁に激突して`;
-                    ml.push(`壁に激突！${_colDmg}ダメージ！`);
-                    break;
-                  }
-                  if (dg.monsters.some(o => o.x === _bx && o.y === _by)) break;
-                  if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bx && pc.y === _by)) break;
-                  pl.x = _bx; pl.y = _by;
-                  _blown++;
-                }
-                if (_blown > 0) ml.push(`${_blown}マス吹き飛んだ！`);
+                applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
                 if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
                 if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
               }
               _bwHit = true; break;
             }
-            /* 途中のモンスターに命中 → 吹き飛ばす */
+            /* 途中のモンスターに命中 */
             const _bwMon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty);
-            if (_bwMon) {              ml.push(`吹き飛ばしの魔法弾が${_bwMon.name}に命中！`);
-              for (let _bd = 0; _bd < 5; _bd++) {
-                const _bx = _bwMon.x + dx, _by = _bwMon.y + dy;
-                if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH) break;
-                if (dg.map[_by][_bx] === T.WALL || dg.map[_by][_bx] === T.BWALL) break;
-                if (dg.monsters.some(o => o !== _bwMon && o.x === _bx && o.y === _by)) break;
-                if (_bx === pl.x && _by === pl.y) break;
-                _bwMon.x = _bx; _bwMon.y = _by;
-              }
-              ml.push(`${_bwMon.name}は吹き飛んだ！`);
+            if (_bwMon) {
+              applyWandEffect("knockback", "monster", _bwMon, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
+              if (_bwMon.hp <= 0) { trackMonster(_bwMon); killMonster(_bwMon, dg, pl, ml, lu); }
               _bwHit = true; break;
             }
           }
@@ -4051,6 +3975,30 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           let _spawned = 0;
           _spawned = spawnMonsters(dg, _sumCount, p.depth + 1, p.x, p.y, p, { aware: !!it.blessed });
           ml.push(it.blessed ? `${_spawned}体の敵に囲まれた！【祝】` : `${_spawned}体の敵が召喚された！`);
+        }
+      } else if (it.effect === "trap_scatter") {
+        // 罠の巻物
+        if (it.cursed) {
+          dg.traps = [];
+          ml.push("罠の巻物を読んだ！フロア内の全ての罠が消えた！【呪】");
+        } else {
+          const _tCount = it.blessed ? rng(15, 25) : rng(8, 15);
+          let _placed = 0;
+          for (let _ti = 0; _ti < _tCount * 3 && _placed < _tCount; _ti++) {
+            const _tr = dg.rooms[rng(0, dg.rooms.length - 1)];
+            const _tx = rng(_tr.x, _tr.x + _tr.w - 1);
+            const _ty = rng(_tr.y, _tr.y + _tr.h - 1);
+            if (_tx === p.x && _ty === p.y) continue;
+            if (dg.map[_ty][_tx] !== T.FLOOR) continue;
+            if (dg.traps.some(t => t.x === _tx && t.y === _ty)) continue;
+            if (dg.items.some(i => i.x === _tx && i.y === _ty)) continue;
+            const _td = pick(TRAPS);
+            dg.traps.push({ ..._td, id: uid(), x: _tx, y: _ty, revealed: false });
+            _placed++;
+          }
+          ml.push(it.blessed
+            ? `罠の巻物を読んだ！大量の罠がフロアに出現した！(${_placed}個)【祝】`
+            : `罠の巻物を読んだ！罠がフロアに出現した！(${_placed}個)`);
         }
       } else if (it.effect === "expand_inv") {
         // 収納上手の巻物

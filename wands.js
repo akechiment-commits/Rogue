@@ -6,8 +6,9 @@ import {
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory,
 } from './items.js';
+import { fireTrapPlayer } from './traps.js';
 
-export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null) {
+export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0) {
   /* 地面のアイテムは未識別名で表示するため、呼び出し元から nameFn を受け取る */
   const _dname_item = (t) => (nameFn && kind === "item") ? nameFn(t) : t.name;
   /* ── big box pre-handler ── */
@@ -295,7 +296,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _kbDmg = _kbDmgBase;
         ml.push(`${target.name}は吹き飛ばされた！`);
         target.hp -= _kbDmg;
-        pushEntity(dg, target.x, target.y, dx, dy, d, ml, "monster", target, p, luFn);
+        pushEntity(dg, target.x, target.y, dx, dy, d, ml, "monster", target, p, luFn, collisionAtk);
         /* 聖域の上に強制移動した敵は即死（壁激突によるHP0チェックより先に判定） */
         if (dg.monsters.includes(target) &&
             dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
@@ -312,7 +313,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "player") {
         ml.push("自分が吹き飛ばされた！");
         p.hp -= _kbDmgBase;
-        pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn);
+        pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn, collisionAtk);
         break;
       }
       if (kind === "item") {
@@ -345,7 +346,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "trap") {
         ml.push(`${target.name}が吹き飛んだ！`);
-        pushEntity(dg, target.x, target.y, dx, dy, d, ml, "trap", target, p, luFn);
+        const _trapRes = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "trap", target, p, luFn);
+        if (_trapRes.hitPlayer) {
+          ml.push(`飛んできた${target.name}がプレイヤーに命中！`);
+          fireTrapPlayer(target, p, dg, ml, nameFn);
+          dg.traps = dg.traps.filter(t => t !== target);
+        } else if (_trapRes.hitMonster) {
+          ml.push(`飛んできた${target.name}が${_trapRes.hitMonster.name}に命中し消えた！`);
+          dg.traps = dg.traps.filter(t => t !== target);
+        }
         break;
       }
       break;
