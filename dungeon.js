@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI } from './utils.js';
-import { MONS } from './monsters.js';
+import { MONS, MON_LEVELS } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice,
@@ -1400,7 +1400,23 @@ export function genDebugDungeonFloor2() {
   springs.push({ id: uid(), x: sp.x, y: sp.y, tile: TI.SPRING, contents: [] });
 
   /* モンスター隔離部屋 */
-  placeDebugMons(mons, nextMonPos);
+  /* 2階デバッグ：ワッカとウィンドメイジのLv1〜3のみ配置 */
+  const _f2Kinds = ["wokka", "windmage"];
+  const _f2Mons = MONS.filter(m => _f2Kinds.includes(m.baseKind));
+  for (const tmpl of _f2Mons) {
+    for (let lv = 1; lv <= 3; lv++) {
+      const _mp = nextMonPos();
+      const _base = lv === 1 ? { ...tmpl } : { ...tmpl, ...(MON_LEVELS[tmpl.baseKind]?.[lv - 2] || {}) };
+      mons.push({
+        ..._base, id: uid(), x: _mp.x, y: _mp.y, maxHp: _base.hp,
+        hp: _base.hp, turnAccum: 0, aware: false, monLevel: lv,
+        dir: { x: 1, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
+        dormant: true,
+        ...(tmpl.subtype ? { subtype: tmpl.subtype } : {}),
+        ...(tmpl.wandEffect ? { wandEffect: tmpl.wandEffect } : {}),
+      });
+    }
+  }
 
   const { visible, explored } = mkVis();
   return {
