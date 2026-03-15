@@ -1744,6 +1744,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
           if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${it.name}」が燃えてなくなった！`); }
           else if (it.type === "potion") { blasted.add(it); ml.push(`薬「${it.name}」が割れてなくなった！`); }
+          else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${it.name}」が燃えてなくなった！`); }
           else if (it.type === "pot") { blasted.add(it); ml.push(`壺「${it.name}」が爆発で割れた！`); }
         }
         /* 罠の破壊 */
