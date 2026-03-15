@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
@@ -8,54 +8,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
 
   switch (trap.effect) {
     case "explode": {
-      const d = rng(10, 20);
-      p.deathCause = `${trap.name}により`;
-      p.hp -= d;
-      ml.push(`${trap.name}が発動！${d}ダメージ！`);
-      const tx = trap.x,
-        ty = trap.y;
-      const blasted = new Set();
-      for (let ddx = -1; ddx <= 1; ddx++) {
-        for (let ddy = -1; ddy <= 1; ddy++) {
-          if (ddx === 0 && ddy === 0) continue;
-          const ax = tx + ddx,
-            ay = ty + ddy;
-          dg.monsters
-            .filter((m) => m.x === ax && m.y === ay)
-            .forEach((m) => {
-              const md = rng(8, 15);
-              m.hp -= md;
-              ml.push(`爆風で${m.name}に${md}ダメージ！`);
-            });
-          for (const it of dg.items.filter((i) => i.x === ax && i.y === ay)) {
-            if (it.type === "scroll") {
-              blasted.add(it);
-              ml.push(`巻物「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
-            } else if (it.type === "potion") {
-              blasted.add(it);
-              ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
-            } else if (it.type === "food" && !it.cooked) {
-              it.value *= 2;
-              it.cooked = true;
-              it.name = "焼いた" + it.name;
-              ml.push(`${it.name}になった！`);
-            } else if (it.type === "pot") {
-              blasted.add(it);
-              if (it.contents && it.contents.length > 0) {
-                const ft2 = new Set([trap.id]);
-                for (const ci of it.contents)
-                  placeItemAt(dg, ax, ay, ci, ml, ft2);
-                ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
-              } else {
-                ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`);
-              }
-            }
-          }
-        }
-      }
-      if (blasted.size > 0)
-        dg.items = dg.items.filter((it) => !blasted.has(it));
-      dg.monsters = dg.monsters.filter((m) => m.hp > 0);
+      ml.push(`${trap.name}が発動！`);
+      doExplosion(trap.x, trap.y, dg, p, ml, nameFn, trap.name);
       break;
     }
     case "arrow_trap": {

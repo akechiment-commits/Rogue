@@ -141,6 +141,8 @@ export const ITEMS = [
     desc:"最大所持数が1～3増える。祝福：2～6増える。呪い：1～3減る。", tile:18 },
   { name:"罠の巻物", type:"scroll", effect:"trap_scatter",
     desc:"読むと同じフロアの部屋内に大量の罠が出現する。祝福：さらに多く出現。呪い：フロア内の全ての罠が消える。", tile:18 },
+  { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,
+    desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:4, poison:true, count:3,  desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
   { name:"貫きの矢", type:"arrow", atk:4, pierce:true, count:3,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
 ];
@@ -157,6 +159,7 @@ export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:4, poison:t
 export const PIERCING_ARROW_T={ name:"貫きの矢", type:"arrow", atk:4, pierce:true,     desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
+export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。",                            count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",        desc:"空の瓶。今のところ使い道はない。",         tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10, desc:"泉の水。飲むと少しHPが回復する。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",   desc:"何も書かれていない。魔法のマーカーで書き込める。", tile:18 };
@@ -645,6 +648,66 @@ export const TRAPS = [
   { name:"吹き飛ばしの罠", effect:"blowback_trap",tile:51 },
 ];
 
+/**
+ * 爆発共通処理 (地雷・爆弾矢などから呼ぶ)
+ * cx, cy: 爆発の中心。周囲8マス＋中心の計9マスを処理する。
+ * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
+ */
+export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null) {
+  /* プレイヤーへのダメージ（中心含む1タイル以内） */
+  if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
+    const dmg = rng(10, 20);
+    p.deathCause = `${srcLabel}により`;
+    p.hp -= dmg;
+    ml.push(`${srcLabel}！${dmg}ダメージ！`);
+  }
+  const blasted = new Set();
+  for (let ddx = -1; ddx <= 1; ddx++) {
+    for (let ddy = -1; ddy <= 1; ddy++) {
+      const ax = cx + ddx, ay = cy + ddy;
+      if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+      /* 壁の破壊（外周を除く） */
+      if ((dg.map[ay][ax] === T.BWALL || dg.map[ay][ax] === T.WALL) && ax > 0 && ax < MW - 1 && ay > 0 && ay < MH - 1) {
+        const _wi = dg.items.find(i => i.x === ax && i.y === ay && i.wallEmbedded);
+        if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
+        dg.map[ay][ax] = T.FLOOR;
+        ml.push("爆風で壁が崩れた！");
+        if (Math.random() < 0.3) {
+          const ft = new Set();
+          placeItemAt(dg, ax, ay, makeStone(rng(1, 2)), ml, ft);
+        }
+        continue; /* 壁タイルにキャラ・アイテムはいない */
+      }
+      /* モンスターダメージ */
+      dg.monsters.filter(m => m.x === ax && m.y === ay).forEach(m => {
+        const md = rng(8, 15);
+        m.hp -= md;
+        ml.push(`爆風で${m.name}に${md}ダメージ！`);
+      });
+      /* アイテム破壊 */
+      for (const it of dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)) {
+        if (it.type === "scroll") {
+          blasted.add(it); ml.push(`巻物「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
+        } else if (it.type === "potion") {
+          blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
+        } else if (it.type === "food") {
+          if (!it.cooked) { it.value *= 2; it.cooked = true; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          else { burnFoodItem(it, ml); }
+        } else if (it.type === "pot") {
+          blasted.add(it);
+          if (it.contents?.length > 0) {
+            const ft2 = new Set();
+            for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
+            ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
+          } else { ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`); }
+        }
+      }
+    }
+  }
+  if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
+  dg.monsters = dg.monsters.filter(m => m.hp > 0);
+}
+
 let _fireTrapDepth = 0;
 export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null) {
   if (_fireTrapDepth > 5) return "stop";
@@ -653,48 +716,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は爆発で消し飛んだ！`);
-      dg.monsters.forEach(m => {
-        if (Math.abs(m.x - tx) <= 1 && Math.abs(m.y - ty) <= 1) {
-          m.hp -= 15;
-          ml.push(`爆風で${m.name}に15ダメージ！`);
-        }
-      });
-      dg.monsters = dg.monsters.filter(m => m.hp > 0);
-      if (p && Math.abs(p.x - tx) <= 1 && Math.abs(p.y - ty) <= 1) {
-        const _epd = rng(8, 15);
-        p.deathCause = "アイテムの爆発の罠の爆風により";
-        p.hp -= _epd;
-        ml.push(`爆風で${_epd}ダメージを受けた！`);
-      }
-      const blasted = new Set();
-      for (let ddx = -1; ddx <= 1; ddx++) {
-        for (let ddy = -1; ddy <= 1; ddy++) {
-          if (ddx === 0 && ddy === 0) continue;
-          const ax = tx + ddx, ay = ty + ddy;
-          for (const it of dg.items.filter(i => i !== item && i.x === ax && i.y === ay)) {
-            if (it.type === "scroll") {
-              blasted.add(it);
-              ml.push(`巻物「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
-            } else if (it.type === "potion") {
-              blasted.add(it);
-              ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
-            } else if (it.type === "food") {
-              if (!it.cooked) { it.value *= 2; it.cooked = true; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
-              else { burnFoodItem(it, ml); }
-            } else if (it.type === "pot") {
-              blasted.add(it);
-              if (it.contents && it.contents.length > 0) {
-                const ft2 = new Set([trap.id]);
-                for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
-                ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
-              } else {
-                ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`);
-              }
-            }
-          }
-        }
-      }
-      if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
+      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item);
       return "destroyed";
     }
     case "pitfall": {
@@ -963,6 +985,10 @@ export function makePiercingArrow(c = 1) {
 
 export function makeStone(c = 1) {
   return { ...STONE_T, id:uid(), count:Math.min(99, c) };
+}
+
+export function makeBombArrow(c = 1) {
+  return { ...BOMB_ARROW_T, id:uid(), count:Math.min(99, c) };
 }
 
 export function makeMagicStone(c = 1) {

@@ -41,8 +41,10 @@ import {
   makePiercingArrow,
   makeStone,
   makeMagicStone,
+  makeBombArrow,
   addArrowsInv,
   addStonesInv,
+  doExplosion,
   applyPotEffect,
   makePot,
   scatterPotContents,
@@ -1590,6 +1592,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       /* BWALLチェックを最優先（大箱・泉の上に壁がある場合は壁破壊のみ） */
       if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.BWALL) {
         dg.map[ny][nx] = T.FLOOR;
+        /* 稀に石が出てくる */
+        if (Math.random() < 0.15) {
+          const _bwStItem = makeStone(rng(1, 3));
+          _bwStItem.x = nx; _bwStItem.y = ny;
+          sr.current.dungeon.items.push(_bwStItem);
+        }
         act("wait");
         setMsgs((prev) => [...prev.slice(-80), "壁を叩き壊した！"]);
       } else if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.WALL) {
@@ -4240,8 +4248,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setSelIdx(null);
     setShowDesc(null);
     const _it = sr.current?.player?.inventory[idx];
-    /* 石・魔法の石は投げるモードで処理（装備時と同じ挙動） */
-    if (_it?.stone || _it?.magicStone) {
+    /* 石・魔法の石・爆弾矢は投げるモードで処理（装備時と同じ挙動） */
+    if (_it?.stone || _it?.magicStone || _it?.bombArrow) {
       setThrowMode({ idx, mode: "throw" });
       const _nm = itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
@@ -4699,6 +4707,48 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           return;
         }
 
+        /* ── 爆弾矢 専用処理 ── */
+        if (_arItem.bombArrow) {
+          const _baName = _arItem.name;
+          const _baNF = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
+          p.arrow.count--;
+          ml.push(`${_baName}を射った！`);
+          if (_isFarcast) {
+            ml.push(`${_baName}は消滅した。`);
+          } else {
+            let _baLx = p.x, _baLy = p.y;
+            const _baMaxR = _isCursedFc ? 1 : 10;
+            for (let d = 1; d <= _baMaxR; d++) {
+              const tx = p.x + dx * d, ty = p.y + dy * d;
+              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+              const _baM = monsterAt(dg, tx, ty);
+              if (_baM) {
+                const _baDmg = (_arItem.atk || 6) + rng(1, 4);
+                _baM.hp -= _baDmg;
+                ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
+                if (_baM.hp <= 0) { trackMonster(_baM); killMonster(_baM, dg, p, ml, lu); }
+                _baLx = tx; _baLy = ty;
+                break;
+              }
+              _baLx = tx; _baLy = ty;
+            }
+            ml.push("爆発！");
+            doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発");
+          }
+          if (p.arrow.count <= 0) {
+            const _baEx = p.arrow;
+            p.arrow = null;
+            p.inventory = p.inventory.filter(i => i !== _baEx);
+            ml.push(`${_baName}を使い切った。`);
+          }
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        }
+
         const _arIsPoison = !!_arItem.poison;
         const _arIsPierce = !!_arItem.pierce;
         const _arName = _arItem.name || "矢";
@@ -4899,6 +4949,43 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           setThrowMode(null);
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
+          return;
+        }
+
+        /* ── 爆弾矢 (道具欄から) 専用処理 ── */
+        if (it.type === "arrow" && it.bombArrow) {
+          it.count--;
+          if (it.count <= 0) p.inventory.splice(idx, 1);
+          const _baName2 = it.name;
+          const _baNF2 = (gi) => itemDisplayName(gi, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
+          ml.push(`${_baName2}を射った！`);
+          if (_isFarcast) {
+            ml.push(`${_baName2}は消滅した。`);
+          } else {
+            let _baLx2 = p.x, _baLy2 = p.y;
+            const _baMaxR2 = _isCursedFc ? 1 : 10;
+            for (let d = 1; d <= _baMaxR2; d++) {
+              const tx = p.x + dx * d, ty = p.y + dy * d;
+              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+              const _baM2 = monsterAt(dg, tx, ty);
+              if (_baM2) {
+                const _baDmg2 = (it.atk || 6) + rng(1, 4);
+                _baM2.hp -= _baDmg2;
+                ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
+                if (_baM2.hp <= 0) { trackMonster(_baM2); killMonster(_baM2, dg, p, ml, lu); }
+                _baLx2 = tx; _baLy2 = ty;
+                break;
+              }
+              _baLx2 = tx; _baLy2 = ty;
+            }
+            ml.push("爆発！");
+            doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発");
+          }
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
         }
 

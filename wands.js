@@ -4,7 +4,7 @@ import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
-  chargeShopItem, burnFoodItem, applyLightningToInventory,
+  chargeShopItem, burnFoodItem, applyLightningToInventory, makeStone,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 
@@ -999,7 +999,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
           /* 壁埋めアイテムを解放 */
           const _wi = dg.items.find(i => i.x === cx && i.y === cy && i.wallEmbedded);
           if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
-          dg.map[cy][cx] = T.FLOOR; dug++; cx += dx; cy += dy;
+          dg.map[cy][cx] = T.FLOOR;
+          /* 稀に石が出てくる */
+          if (Math.random() < 0.15) {
+            const ft = new Set();
+            placeItemAt(dg, cx, cy, makeStone(rng(1, 3)), ml, ft);
+          }
+          dug++; cx += dx; cy += dy;
         }
         ml.push(dug > 0 ? `穴掘りの魔法弾が壁を${dug}マス掘り進んだ！` : "魔法弾は壁に消えた。");
         return;
