@@ -177,12 +177,12 @@ export const VW_M = 21,
   VH_L = 18;
 
 /* 拾い/置き/商品メッセージ用：杖・ペン・マーカーは残り回数、対象アイテムは祝呪を付加 */
-export function _itemPickupSuffix(it, ident, allBcKnown = false) {
+export function _itemPickupSuffix(it, ident) {
   if (!it) return "";
   const _key = getIdentKey(it);
   const _isIdent = !_key || ident?.has(_key);
   if (!_isIdent) return "";
-  if (_key && !it.fullIdent && !allBcKnown) return "";
+  if (_key && !it.fullIdent) return "";
   const _chgTypes = new Set(["wand", "pen", "marker"]);
   const _bcTypes  = new Set(["wand", "pen", "marker", "potion", "scroll", "bottle"]);
   if (!_bcTypes.has(it.type)) return "";

@@ -347,6 +347,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         ])
       : new Set();
     const _allBcKnown = _dt === "debug" || _dt === "beginner";
+    if (_allBcKnown) {
+      [...p.inventory, ...d.items].forEach(it => { it.fullIdent = true; it.bcKnown = true; });
+    }
     const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown };
     sr.current = s;
     setGs(s);
@@ -651,9 +654,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           break;
         }
       } else if (it.shopPrice) {
-        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident, sr.current?.allBcKnown)}がある（商品：${it.shopPrice}G）fキーで拾う`);
+        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}がある（商品：${it.shopPrice}G）fキーで拾う`);
         break;
       } else if (p.inventory.length < (p.maxInventory || 30)) {
+        if (sr.current.allBcKnown) { it.fullIdent = true; it.bcKnown = true; }
         trackItem(it);
         p.inventory.push(it);
         {
@@ -677,7 +681,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               .filter(Boolean);
             if (_ns.length) _lbl += " [" + _ns.join("・") + "]";
           }
-          ml.push(_lbl + _itemPickupSuffix(it, sr.current?.ident, sr.current?.allBcKnown) + "を拾った。");
+          ml.push(_lbl + _itemPickupSuffix(it, sr.current?.ident) + "を拾った。");
         }
         removeFloorItem(dg, it);
         go = true;
@@ -917,6 +921,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
     }
     pl.depth = nd;
+    if (sr.current.allBcKnown) {
+      d.items.forEach(it => { it.fullIdent = true; it.bcKnown = true; });
+    }
     if (pitfall) {
       const _pr = d.rooms[rng(0, d.rooms.length - 1)];
       pl.x = rng(_pr.x, _pr.x + _pr.w - 1);
@@ -1452,6 +1459,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               } else ml.push("持ち物がいっぱいだ！");
             } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
             else {
+              if (sr.current.allBcKnown) { _grIt.fullIdent = true; _grIt.bcKnown = true; }
               p.inventory.push(_grIt);
               if (_grIt.shopPrice) {
                 const _allS2 = dg.shops || (dg.shop ? [dg.shop] : []);
@@ -1473,7 +1481,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
                   if (_ns2.length) _lbl2 += " [" + _ns2.join("・") + "]";
                 }
-                ml.push(_lbl2 + _itemPickupSuffix(_grIt, sr.current?.ident, sr.current?.allBcKnown) + "を拾った。");
+                ml.push(_lbl2 + _itemPickupSuffix(_grIt, sr.current?.ident) + "を拾った。");
               }
               removeFloorItem(dg, _grIt);
             }
@@ -1742,7 +1750,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
               if (_ns2.length) _lbl += " [" + _ns2.join("・") + "]";
             }
-            ml.push(_lbl + _itemPickupSuffix(_dashIt, sr.current?.ident, sr.current?.allBcKnown) + "がある。");
+            ml.push(_lbl + _itemPickupSuffix(_dashIt, sr.current?.ident) + "がある。");
             endTurn(st, p, ml);
             break;
           }
@@ -4258,7 +4266,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       _itemShopDrop.unpaidTotal > 0
     )
       ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を戻した。（残り${_itemShopDrop.unpaidTotal}G）`);
-    if (ml.length === 0) ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident, sr.current?.allBcKnown)}を置いた。`);
+    if (ml.length === 0) ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}を置いた。`);
     endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
     setSelIdx(null);
@@ -5395,7 +5403,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const _isIdent = !_key || gs?.ident?.has(_key);
     /* 識別対象アイテムはfullIdentまたはbcKnownのみ祝呪表示、それ以外(武器・防具等)は常に表示 */
     const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor';
-    const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown || gs?.allBcKnown) : true;
+    const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown) : true;
     const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
     let s = (_eq ? _eq : "") + _bc + dname(it);
     if (it.type === "arrow") s += ` (${it.count}${(it.stone || it.magicStone) ? "個" : "本"})`;
