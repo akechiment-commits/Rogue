@@ -879,51 +879,36 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* 2回目以降：攻撃せずBFSで移動を試みる */
     }
 
-    /* ── 同室内チェイス：軸優先追跡（対角ぐるぐる防止） ── */
-    /* BFSは常に対角を選びがちでプレイヤーが逃げ続けられるため、 */
-    /* |dx|>|dy|なら横優先、|dy|>|dx|なら縦優先、同値時はランダム1軸で追い詰める */
+    /* ── 同室・完全対角ロック解消：|dx|==|dy|のときのみ一軸を先に詰める ── */
+    /* プレイヤーが同方向に逃げ続けると永久に距離が縮まないため、直交移動を優先 */
     if (_sameRoom && canSee) {
-      const _rx = tx - m.x, _ry = ty - m.y;
-      const _sdx = Math.sign(_rx), _sdy = Math.sign(_ry);
-      let _axisMoveCands;
-      if (Math.abs(_rx) > Math.abs(_ry)) {
-        _axisMoveCands = [[_sdx, 0], [_sdx, _sdy], [0, _sdy]];
-      } else if (Math.abs(_ry) > Math.abs(_rx)) {
-        _axisMoveCands = [[0, _sdy], [_sdx, _sdy], [_sdx, 0]];
-      } else {
-        /* 完全対角：どちらか一軸のみ詰めてプレイヤーの行か列に揃える */
-        _axisMoveCands = Math.random() < 0.5
-          ? [[_sdx, 0], [0, _sdy], [_sdx, _sdy]]
-          : [[0, _sdy], [_sdx, 0], [_sdx, _sdy]];
-      }
-      let _axisMoved = false;
-      for (const [_cdx, _cdy] of _axisMoveCands) {
-        if (_cdx === 0 && _cdy === 0) continue;
-        const _cnx = m.x + _cdx, _cny = m.y + _cdy;
-        if (!isWalkable(map, _cnx, _cny)) continue;
-        if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _cnx && pc.y === _cny)) continue;
-        /* 対角移動コーナーすり抜け禁止 */
-        if (_cdx !== 0 && _cdy !== 0) {
-          if (!isWalkable(map, m.x + _cdx, m.y) && !isWalkable(map, m.x, m.y + _cdy)) continue;
-        }
-        if (_cnx === pl.x && _cny === pl.y) {
-          if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
-              m.turnAttacks < (m.maxAttacks ?? 1)) {
-            m.turnAttacks++;
-            m.dir = { x: _cdx, y: _cdy };
-            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+      const _adx = Math.abs(tx - m.x), _ady = Math.abs(ty - m.y);
+      if (_adx > 0 && _adx === _ady) {
+        const _sdx = Math.sign(tx - m.x), _sdy = Math.sign(ty - m.y);
+        const _orthos = Math.random() < 0.5
+          ? [[_sdx, 0], [0, _sdy]]
+          : [[0, _sdy], [_sdx, 0]];
+        for (const [_cdx, _cdy] of _orthos) {
+          const _cnx = m.x + _cdx, _cny = m.y + _cdy;
+          if (!isWalkable(map, _cnx, _cny)) continue;
+          if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _cnx && pc.y === _cny)) continue;
+          if (_cnx === pl.x && _cny === pl.y) {
+            if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
+                m.turnAttacks < (m.maxAttacks ?? 1)) {
+              m.turnAttacks++;
+              m.dir = { x: _cdx, y: _cdy };
+              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+            }
+            return;
           }
+          if (dg.monsters.some(o => o !== m && o.x === _cnx && o.y === _cny)) continue;
+          m.dir = { x: _cdx, y: _cdy };
+          m.x = _cnx; m.y = _cny;
+          if (_forceAlt) m.posHistory = [];
           return;
         }
-        if (dg.monsters.some(o => o !== m && o.x === _cnx && o.y === _cny)) continue;
-        m.dir = { x: _cdx, y: _cdy };
-        m.x = _cnx; m.y = _cny;
-        if (_forceAlt) m.posHistory = [];
-        _axisMoved = true;
-        break;
+        /* 両方塞がれていればBFSへフォールスルー */
       }
-      if (_axisMoved) return;
-      /* 全候補が塞がれた場合はBFSにフォールスルー */
     }
 
     /* move toward target */
