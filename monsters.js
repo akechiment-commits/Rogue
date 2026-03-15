@@ -922,8 +922,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
       }
-      /* 塞がれた場合：ターゲットに近づける別マスがあれば移動（室内での一列整列を防ぐ） */
-      const _curDist = Math.abs(tx - m.x) + Math.abs(ty - m.y);
+      /* 塞がれた場合：チェビシェフ距離でソートして隣接を維持できる方向を選ぶ */
+      const _curDist = Math.max(Math.abs(tx - m.x), Math.abs(ty - m.y));
       const _altMoves = [];
       for (const [_adx, _ady] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
         const _anx = m.x + _adx, _any = m.y + _ady;
@@ -934,7 +934,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_adx !== 0 && _ady !== 0) {
           if (!isWalkable(map, m.x + _adx, m.y) && !isWalkable(map, m.x, m.y + _ady)) continue;
         }
-        const _nd = Math.abs(tx - _anx) + Math.abs(ty - _any);
+        const _nd = Math.max(Math.abs(tx - _anx), Math.abs(ty - _any));
         if (_nd <= _curDist) _altMoves.push({ x: _anx, y: _any, dist: _nd });
       }
       if (_altMoves.length > 0) {
