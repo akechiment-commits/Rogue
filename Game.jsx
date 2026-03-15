@@ -4971,8 +4971,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               }
               _baLx = tx; _baLy = ty;
             }
-            ml.push("爆発！");
-            doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発");
+            if (hasCursedExplosionPentacle(dg)) {
+              ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
+            } else {
+              ml.push("爆発！");
+              doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発");
+            }
           }
           if (p.arrow.count <= 0) {
             const _baEx = p.arrow;
@@ -5217,8 +5221,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               }
               _baLx2 = tx; _baLy2 = ty;
             }
-            ml.push("爆発！");
-            doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発");
+            if (hasCursedExplosionPentacle(dg)) {
+              ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
+            } else {
+              ml.push("爆発！");
+              doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発");
+            }
           }
           endTurn(sr.current, p, ml);
           if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
