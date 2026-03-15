@@ -1698,6 +1698,8 @@ export function hasCursedExplosionPentacle(dg) {
 let _explosionDepth = 0;
 function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
   if (_explosionDepth > 4 || !dg.pentacles?.length) return;
+  /* 呪われた爆発の魔方陣がある場合は爆発を起こさない */
+  if (hasCursedExplosionPentacle(dg)) return;
   _explosionDepth++;
   try {
     const mRoom = dg.rooms?.find(r => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h);
