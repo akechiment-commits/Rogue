@@ -1617,6 +1617,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     }
     if (kind === "item") {
       if (entity.type === "potion") {
+        if (p && p.x === nx && p.y === ny) return { x:nx, y:ny, consumed:true, splash:true };
         const mon = monsterAt(dg, nx, ny);
         if (mon) return { x:nx, y:ny, consumed:true, splash:true };
         const trap = dg.traps.find(t => t.x === nx && t.y === ny);
@@ -1626,6 +1627,13 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
         const bbP = dg.bigboxes?.find(b => b.x === nx && b.y === ny);
         if (bbP) return { x:nx, y:ny, consumed:true, bigbox:bbP };
       } else {
+        if (p && p.x === nx && p.y === ny) {
+          const dmg = rng(3, 8);
+          p.deathCause = `飛んできた${entity.name}に`;
+          p.hp -= dmg;
+          ml.push(`飛んできた${entity.name}がプレイヤーに命中！${dmg}ダメージ！`);
+          return { x:nx, y:ny, consumed:true };
+        }
         const mon = monsterAt(dg, nx, ny);
         if (mon) {
           weakenOrClearParalysis(mon, ml);

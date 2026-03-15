@@ -4239,6 +4239,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setShowInv(false);
     setSelIdx(null);
     setShowDesc(null);
+    const _it = sr.current?.player?.inventory[idx];
+    /* 石・魔法の石は投げるモードで処理（装備時と同じ挙動） */
+    if (_it?.stone || _it?.magicStone) {
+      setThrowMode({ idx, mode: "throw" });
+      const _nm = itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+      setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
+      return;
+    }
     setThrowMode({ idx, mode: "shoot" });
     setMsgs((prev) => [...prev.slice(-80), "矢を射る方向を選んでください..."]);
   }, []);
