@@ -838,6 +838,35 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const tx = canSee ? pl.x : m.lastPx;
     const ty = canSee ? pl.y : m.lastPy;
 
+    /* ── 遠距離タイプが部屋内で射線が合っていない場合：軸合わせ優先 ── */
+    if (canSee && _sameRoom &&
+        (m.subtype === "archer" || m.subtype === "wanduser") && !m.sealed) {
+      const _ralDx = pl.x - m.x, _ralDy = pl.y - m.y;
+      const _inLineNow = _ralDx === 0 || _ralDy === 0 || Math.abs(_ralDx) === Math.abs(_ralDy);
+      if (!_inLineNow) {
+        const _alignCands = [];
+        for (const [_amx, _amy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
+          const _anx = m.x + _amx, _any = m.y + _amy;
+          if (!isWalkable(map, _anx, _any)) continue;
+          if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
+          if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+          if (_anx === pl.x && _any === pl.y) continue;
+          const _dx2 = pl.x - _anx, _dy2 = pl.y - _any;
+          if (_dx2 === 0 || _dy2 === 0 || Math.abs(_dx2) === Math.abs(_dy2)) {
+            _alignCands.push({ x: _anx, y: _any, dist: Math.max(Math.abs(_dx2), Math.abs(_dy2)) });
+          }
+        }
+        if (_alignCands.length > 0) {
+          _alignCands.sort((a, b) => a.dist - b.dist);
+          const _ab = _alignCands[0];
+          m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
+          m.x = _ab.x; m.y = _ab.y;
+          if (_forceAlt) m.posHistory = [];
+          return;
+        }
+      }
+    }
+
     /* adjacent attack */
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
       /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */

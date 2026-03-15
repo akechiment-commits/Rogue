@@ -821,6 +821,61 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _bwHit = true; break; }
             if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _bwHit = true; break; }
+            /* 罠：魔法弾が通過するときに起動 */
+            const _bwTrap = dg.traps?.find(t => t.x === _tx && t.y === _ty);
+            if (_bwTrap) opts.fireTrapFn?.(_bwTrap, pl, dg, ml);
+            /* 床アイテム：命中で同方向に吹き飛ばす */
+            const _bwFloorItem = dg.items.find(fi => fi.x === _tx && fi.y === _ty && !fi.wallEmbedded);
+            if (_bwFloorItem) {
+              dg.items = dg.items.filter(fi => fi !== _bwFloorItem);
+              ml.push(`${_bwFloorItem.name}が吹き飛ばされた！`);
+              let _biLx = _tx, _biLy = _ty, _biHit = false;
+              for (let _bid = 1; _bid <= 15 && !_biHit; _bid++) {
+                const _bix = _tx + dx * _bid, _biy = _ty + dy * _bid;
+                if (_bix < 0 || _bix >= MW || _biy < 0 || _biy >= MH) break;
+                if (dg.map[_biy][_bix] === T.WALL || dg.map[_biy][_bix] === T.BWALL) break;
+                if (_bix === pl.x && _biy === pl.y) {
+                  if (_bwFloorItem.type === "potion") {
+                    splashPotion(dg, _bix, _biy, _bwFloorItem.effect, _bwFloorItem.value || 0, pl, ml, lu, _bwFloorItem.blessed || false, _bwFloorItem.cursed || false, (it) => it.name);
+                  } else {
+                    const _biDmg = Math.max(1, (_bwFloorItem.atk || 3) + rng(0, 3));
+                    pl.hp -= _biDmg; pl.deathCause = `${m.name}の吹き飛ばしで飛んできた${_bwFloorItem.name}に`;
+                    ml.push(`飛んできた${_bwFloorItem.name}がプレイヤーに命中！${_biDmg}ダメージ！`);
+                  }
+                  _biHit = true;
+                } else {
+                  const _biMon = dg.monsters.find(mn => mn.x === _bix && mn.y === _biy);
+                  if (_biMon) {
+                    if (_bwFloorItem.type === "potion") {
+                      applyPotionEffect(_bwFloorItem.effect, _bwFloorItem.value || 0, "monster", _biMon, dg, pl, ml, lu, _bwFloorItem.blessed || false, _bwFloorItem.cursed || false);
+                      if (_biMon.hp <= 0) { trackMonster(_biMon); killMonster(_biMon, dg, pl, ml, lu); }
+                    } else {
+                      const _biDmg = Math.max(1, (_bwFloorItem.atk || 3) + rng(0, 3));
+                      _biMon.hp -= _biDmg;
+                      ml.push(`飛んできた${_bwFloorItem.name}が${_biMon.name}に命中！${_biDmg}ダメージ！`);
+                      if (_biMon.hp <= 0) { trackMonster(_biMon); killMonster(_biMon, dg, pl, ml, lu); }
+                    }
+                    _biHit = true;
+                  }
+                }
+                if (!_biHit) { _biLx = _bix; _biLy = _biy; }
+              }
+              if (!_biHit) {
+                /* 着弾：罠があれば起動、なければ落とす */
+                if (_bwFloorItem.type === "potion") {
+                  splashPotion(dg, _biLx, _biLy, _bwFloorItem.effect, _bwFloorItem.value || 0, pl, ml, lu, _bwFloorItem.blessed || false, _bwFloorItem.cursed || false, (it) => it.name);
+                } else {
+                  const _biLandTrap = dg.traps?.find(t => t.x === _biLx && t.y === _biLy);
+                  if (_biLandTrap) {
+                    fireTrapItem(_biLandTrap, _bwFloorItem, dg, _biLx, _biLy, ml, new Set(), pl, (it) => it.name);
+                  } else {
+                    _bwFloorItem.x = _biLx; _bwFloorItem.y = _biLy;
+                    dg.items.push(_bwFloorItem);
+                  }
+                }
+              }
+              /* 魔法弾は継続 */
+            }
             /* プレイヤーに命中 */
             if (_tx === pl.x && _ty === pl.y) {
               /* 反射の鎧チェック */
@@ -866,8 +921,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
             /* 途中のモンスターに命中 → 吹き飛ばす */
             const _bwMon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty);
-            if (_bwMon) {
-              ml.push(`吹き飛ばしの魔法弾が${_bwMon.name}に命中！`);
+            if (_bwMon) {              ml.push(`吹き飛ばしの魔法弾が${_bwMon.name}に命中！`);
               for (let _bd = 0; _bd < 5; _bd++) {
                 const _bx = _bwMon.x + dx, _by = _bwMon.y + dy;
                 if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH) break;
