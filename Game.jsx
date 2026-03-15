@@ -80,6 +80,8 @@ import {
   killMonster,
   getIdentKey,
   generateFakeNames,
+  hasCursedExplosionPentacle,
+  applyFireInventoryDamage,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse } from "./dungeon.js";
@@ -97,6 +99,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [invMenuSel, setInvMenuSel] = useState(null);
   const [showDesc, setShowDesc] = useState(null);
   const [throwMode, setThrowMode] = useState(null);
+  /* null | item ref (ただのペン being merged) */
+  const [penMergeMode, setPenMergeMode] = useState(null);
   const [springMode, setSpringMode] = useState(null);
   const [springMenuSel, setSpringMenuSel] = useState(0);
   const [springPage, setSpringPage] = useState(0);
@@ -476,7 +480,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             _pent.kind === "teleport_trap"  ? (_pent.blessed ? "#c0a0ff" : _pent.cursed ? "#200040" : "#8040ff") :
             _pent.kind === "trap_gen"       ? (_pent.blessed ? "#ff8080" : _pent.cursed ? "#401010" : "#cc4040") :
             _pent.kind === "stone_throw"    ? (_pent.blessed ? "#80c0ff" : _pent.cursed ? "#102040" : "#4080cc") :
-            _pent.kind === "knockback_aura" ? (_pent.blessed ? "#ffcc80" : _pent.cursed ? "#402010" : "#ff8040") : "#ff6020";
+            _pent.kind === "knockback_aura" ? (_pent.blessed ? "#ffcc80" : _pent.cursed ? "#402010" : "#ff8040") :
+            _pent.kind === "explosion"      ? (_pent.blessed ? "#ff8844" : _pent.cursed ? "#301008" : "#ff5500") :
+            _pent.kind === "plain"          ? (_pent.blessed ? "#dddddd" : _pent.cursed ? "#555555" : "#999999") : "#ff6020";
           ctx.globalAlpha = 0.28;
           ctx.fillStyle = _pentClr;
           ctx.fillRect(px2, py2, sz, sz);
@@ -1000,7 +1006,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       /* 雷の魔方陣：真上にいると毎ターンダメージ（呪いは回復） */
       const _thunderPent = st.dungeon.pentacles?.find((pc) => pc.kind === "thunder_trap" && pc.x === p.x && pc.y === p.y);
       if (_thunderPent && p.hp > 0) {
-        if (_thunderPent.cursed) {
+        if (!_thunderPent.cursed && hasCursedExplosionPentacle(st.dungeon)) {
+          ml.push("呪われた爆発の魔方陣が雷を打ち消した！");
+        } else if (_thunderPent.cursed) {
           const _theal = Math.min(25, p.maxHp - p.hp);
           if (_theal > 0) { p.hp += _theal; ml.push(`${_thunderPent.name}の力でHPが${_theal}回復した！`); }
         } else {
@@ -1020,7 +1028,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       checkShopTheft(p, st.dungeon, ml);
       moveMons(st.dungeon, p, ml);
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
-      if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap")) {
+      if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap") && !hasCursedExplosionPentacle(st.dungeon)) {
         for (const _m of [...st.dungeon.monsters]) {
           const _tp = st.dungeon.pentacles.find((pc) => pc.kind === "thunder_trap" && pc.x === _m.x && pc.y === _m.y);
           if (_tp) {
@@ -1298,6 +1306,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || p.slowSkip) return;
       if (type === "inventory") {
         setSpellListMode(false);
+        setPenMergeMode(null);
         setShowInv((v) => {
           if (v) { dropModeRef.current = false; setDropMode(false); }
           return !v;
@@ -3430,6 +3439,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const it = p.inventory[idx];
     if (!it) return;
     if (p.sleepTurns > 0 || p.paralyzeTurns > 0) return;
+    /* ただのペン合成モード：選ばれたアイテムが別のペンならインクを移す */
+    if (penMergeMode) {
+      const srcPen = penMergeMode;
+      if (it !== srcPen && it.type === "pen" && it.effect !== "plain") {
+        const added = srcPen.charges || 0;
+        it.charges = (it.charges || 0) + added;
+        p.inventory = p.inventory.filter(i => i !== srcPen);
+        const ml2 = [];
+        ml2.push(`ただのペンを${it.name}に合成した！インク+${added}（残り${it.charges}回）`);
+        setPenMergeMode(null);
+        setMsgs((prev) => [...prev.slice(-80), ...ml2]);
+        sr.current = { ...sr.current }; setGs({ ...sr.current });
+        return;
+      } else if (it === srcPen) {
+        setPenMergeMode(null);
+        setMsgs((prev) => [...prev.slice(-80), "合成をキャンセルした。"]);
+        sr.current = { ...sr.current }; setGs({ ...sr.current });
+        return;
+      } else {
+        setMsgs((prev) => [...prev.slice(-80), "ペンを選んでください。（ただのペンを選ぶとキャンセル）"]);
+        return;
+      }
+    }
     const ml = [];
     // 未識別消耗品の判定（使用前に取得）
     const _ik_reveal = (it.type === 'potion' || it.type === 'scroll') ? getIdentKey(it) : null;
@@ -3505,7 +3537,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       } else if (it.effect === "fire") {
-        if (it.cursed) {
+        if (!it.cursed && dg.pentacles?.some(pc => pc.kind === "explosion" && pc.cursed)) {
+          ml.push(`${it.name}を飲んだが、呪われた爆発の魔方陣が炎を打ち消した！`);
+        } else if (it.cursed) {
           // 呪い：反転→HP回復
           const h = Math.min(it.value, p.maxHp - p.hp);
           p.hp += h;
@@ -4243,6 +4277,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
     } else if (it.type === "pen") {
+      /* ただのペン：他のペンに合成してインクを補充 */
+      if (it.effect === "plain") {
+        if ((it.charges || 0) <= 0) {
+          ml.push("インクが尽きている。合成に使えない。");
+        } else {
+          const _otherPens = p.inventory.filter(i => i !== it && i.type === "pen" && i.effect !== "plain");
+          if (_otherPens.length === 0) {
+            ml.push("合成できる他のペンがない。");
+          } else {
+            setPenMergeMode(it);
+            setMsgs((prev) => [...prev.slice(-80), "合成するペンを選んでください。（ただのペンを選ぶとキャンセル）"]);
+            setSelIdx(null); setShowDesc(null); setShowInv(true);
+            sr.current = { ...sr.current }; setGs({ ...sr.current });
+            return;
+          }
+        }
+        endTurn(sr.current, p, ml);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        setSelIdx(null); setShowDesc(null); setShowInv(false);
+        sr.current = { ...sr.current }; setGs({ ...sr.current });
+        return;
+      }
       if ((it.charges || 0) <= 0) {
         ml.push(`${it.name}のインクが尽きている。充填の大箱で補充できる。`);
         endTurn(sr.current, p, ml);
@@ -4282,7 +4338,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             it.effect === "teleport_trap"  ? "テレポートの魔方陣" :
             it.effect === "trap_gen"       ? "罠の魔方陣" :
             it.effect === "stone_throw"    ? "石飛ばしの魔方陣" :
-            it.effect === "knockback_aura" ? "吹き飛ばしの魔方陣" : "魔方陣";
+            it.effect === "knockback_aura" ? "吹き飛ばしの魔方陣" :
+            it.effect === "explosion"      ? "爆発の魔方陣" :
+            it.effect === "plain"          ? "無の魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
@@ -6205,7 +6263,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
-      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} />{" "}
+      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} penMergeMode={penMergeMode} />{" "}
       <GameOverModal dead={dead} p={p} gameOverSel={gameOverSel} setShowScores={setShowScores} init={init} mobile={mobile} onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined} />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} />

@@ -110,6 +110,8 @@ export const ITEMS = [
   { name:"罠のペン",         type:"pen",    effect:"trap_gen",      charges:2, desc:"足元に罠の魔方陣を描く。毎ターン確率で部屋に罠が増える。祝福でフロア全体。呪いで毎ターン確率でフロアの罠が消える。チャージ制。", tile:42 },
   { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, desc:"足元に石飛ばしの魔方陣を描く。部屋内のキャラに毎ターン確率で魔法の石が飛ぶ。祝福で2倍ダメージ。呪いで回復効果。チャージ制。", tile:42 },
   { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, desc:"足元に吹き飛ばしの魔方陣を描く。同じ部屋での近接攻撃を受けた者が5マス吹き飛ぶ。祝福で何かに当たるまで飛ぶ。呪いで1マスだけ。チャージ制。", tile:42 },
+  { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, desc:"足元に爆発の魔方陣を描く。部屋内で倒された敵が爆発し周囲8マスに現HPの3/4ダメージ。壁・罠・大箱も破壊。祝福でフロア全体。呪いでフロアの炎・雷を不発にする。チャージ制。", tile:42 },
+  { name:"ただのペン",       type:"pen",    effect:"plain",         charges:2, desc:"何も起こらない魔方陣を描く。他のペンに合成してインクを補充することができる。チャージ制。", tile:42 },
   { name:"短剣",             type:"weapon", atk:3,                       desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      desc:"重厚な戦斧。",                     tile:20 },
@@ -1109,6 +1111,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       break;
     }
     case "fire": {
+      /* 呪われた爆発の魔方陣：炎を不発にする */
+      if (!cursed && hasCursedExplosionPentacle(dg)) {
+        ml.push("呪われた爆発の魔方陣が炎を打ち消した！");
+        break;
+      }
       if (cursed) {
         // 反転→回復
         if (kind === "monster") { const h = Math.min(Math.round(val * 0.5), target.maxHp - target.hp); if (h > 0) { target.hp += h; ml.push(`${target.name}は炎の薬で温まった！${h}HP回復`); } }
@@ -1682,13 +1689,98 @@ export function monsterDrop(m, dg, ml, p = null) {
   }
 }
 
+/* フロアに呪われた爆発の魔方陣があるか */
+export function hasCursedExplosionPentacle(dg) {
+  return dg.pentacles?.some(pc => pc.kind === "explosion" && pc.cursed) ?? false;
+}
+
+/* 爆発の魔方陣：死亡したモンスターの位置で爆発を起こす */
+let _explosionDepth = 0;
+function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
+  if (_explosionDepth > 4 || !dg.pentacles?.length) return;
+  _explosionDepth++;
+  try {
+    const mRoom = dg.rooms?.find(r => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h);
+    const exPc = dg.pentacles.find(pc =>
+      pc.kind === "explosion" && !pc.cursed &&
+      (pc.blessed || dg.rooms?.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h) === mRoom)
+    );
+    if (!exPc) return;
+    ml.push(`${exPc.name}の力で爆発した！`);
+    const blasted = new Set();
+    for (let ddx = -1; ddx <= 1; ddx++) {
+      for (let ddy = -1; ddy <= 1; ddy++) {
+        const ax = mx + ddx, ay = my + ddy;
+        if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+        /* 壁の破壊 */
+        if ((dg.map[ay][ax] === T.BWALL || dg.map[ay][ax] === T.WALL) && ax > 0 && ax < MW-1 && ay > 0 && ay < MH-1) {
+          dg.map[ay][ax] = T.FLOOR;
+          if (dg.explored?.[ay]?.[ax] !== undefined) dg.explored[ay][ax] = true;
+          if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
+          ml.push("爆発で壁が崩れた！");
+          wallBreakDrop(dg, ax, ay);
+          continue;
+        }
+        /* モンスターへのダメージ（現HP3/4） */
+        for (const m of [...dg.monsters]) {
+          if (m.x === ax && m.y === ay) {
+            const dmg = Math.max(1, Math.floor(m.hp * 3 / 4));
+            m.hp -= dmg;
+            ml.push(`爆発で${m.name}に${dmg}ダメージ！`);
+            if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
+          }
+        }
+        /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
+        if (p && p.x === ax && p.y === ay) {
+          const _hasFireR = p.armor?.ability === "fire_resist" || p.armor?.abilities?.includes("fire_resist");
+          const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
+          const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
+          p.deathCause = `${exPc.name}の爆発により`;
+          p.hp -= dmg;
+          ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
+          if (!_hasFireR) applyFireInventoryDamage(p, ml);
+        }
+        /* アイテム破壊（巻物・薬・壺） */
+        for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
+          if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${it.name}」が燃えてなくなった！`); }
+          else if (it.type === "potion") { blasted.add(it); ml.push(`薬「${it.name}」が割れてなくなった！`); }
+          else if (it.type === "pot") { blasted.add(it); ml.push(`壺「${it.name}」が爆発で割れた！`); }
+        }
+        /* 罠の破壊 */
+        const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay);
+        if (ti >= 0) { ml.push("罠が爆発で壊れた！"); dg.traps.splice(ti, 1); }
+        /* 大箱の破壊 */
+        if (dg.bigboxes) {
+          const bi = dg.bigboxes.findIndex(b => b.x === ax && b.y === ay);
+          if (bi >= 0) { ml.push("大箱が爆発で壊れた！"); dg.bigboxes.splice(bi, 1); }
+        }
+      }
+    }
+    dg.items = dg.items.filter(i => !blasted.has(i));
+  } finally {
+    _explosionDepth--;
+  }
+}
+
+/* 炎によるインベントリ損傷（巻物・薬・魔法書のどれか1つをランダムに消去） */
+export function applyFireInventoryDamage(p, ml) {
+  const burnables = p.inventory.filter(i => i.type === "scroll" || i.type === "potion" || i.type === "spellbook");
+  if (burnables.length === 0) return;
+  const victim = burnables[Math.floor(Math.random() * burnables.length)];
+  p.inventory = p.inventory.filter(i => i !== victim);
+  const verb = victim.type === "potion" ? "割れてなくなった" : "燃えてなくなった";
+  ml.push(`爆発の熱で所持していた「${victim.name}」が${verb}！`);
+}
+
 /** プレイヤーがモンスターを倒した時の共通処理 */
 export function killMonster(mon, dg, p, ml, luFn) {
+  const mx = mon.x, my = mon.y;
   ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
   p.exp += mon.exp;
   monsterDrop(mon, dg, ml, p);
   removeMonster(dg, mon);
   if (luFn) luFn(p, ml);
+  _triggerExplosionPentacle(mx, my, dg, p, ml, luFn);
 }
 
 export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0) {

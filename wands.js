@@ -5,6 +5,7 @@ import {
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
+  hasCursedExplosionPentacle,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 
@@ -361,6 +362,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "lightning": {
+      /* 呪われた爆発の魔方陣：雷を不発にする */
+      if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が雷を打ち消した！"); break; }
       const _lCursed = blMult < 1;
       if (_lCursed) {
         /* 呪い：25回復 */

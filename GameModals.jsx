@@ -1506,13 +1506,18 @@ export function InventoryModal({
   setNicknameMode, setNicknameInput,
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
-  containerRef
+  containerRef, penMergeMode
 }) {
   if (!show) return null;
   return (
     <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
       background: "#12121c", border: "1px solid #4a4a5a", padding: mobile ? 10 : 14, zIndex: 10,
       maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto", borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.7)" }}>
+      {penMergeMode && (
+        <div style={{ color: "#ffcc44", fontSize: 12, fontWeight: "bold", marginBottom: 8, padding: "4px 8px", background: "#2a1a00", borderRadius: 4, border: "1px solid #886600" }}>
+          ✦ 合成先のペンを選んでください（ただのペンを選ぶとキャンセル）
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>所持品 ({p.inventory.length}/{p.maxInventory || 30})</span>
         <div style={{ display: "flex", gap: 6 }}>
