@@ -338,7 +338,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
     }
     refreshFOV(d, p);
-    const s = { player: p, dungeon: d, floors: {}, ident: new Set(), fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {}, isDebugRun: dungeonConfig?.dungeonType === "debug", dungeonType: dungeonConfig?.dungeonType || "beginner", maxDepth: dungeonConfig?.maxFloors ?? null };
+    const _dt = dungeonConfig?.dungeonType || "beginner";
+    const _allIdentKeys = (_dt === "debug" || _dt === "beginner")
+      ? new Set([
+          ...[...ITEMS, ...WANDS].map(getIdentKey).filter(Boolean),
+          ...POTS.map(pot => `o:${pot.potEffect}`),
+          ...SPELLBOOKS.filter(sb => sb.spell).map(sb => `b:${sb.spell}`),
+        ])
+      : new Set();
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null };
     sr.current = s;
     setGs(s);
     ref.current?.focus();
