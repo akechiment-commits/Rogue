@@ -3281,8 +3281,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else {
           // 通常/祝福：HP回復（祝福=1.5x + 全状態異常回復）
           const h = Math.min(Math.round(it.value * _potBm), p.maxHp - p.hp);
-          p.hp += h;
-          let _hMsg = `${it.name}を飲んだ。HP+${h}${it.blessed ? "（祝福）" : ""}`;
+          let _hMsg;
+          if (h <= 0) {
+            // HPが最大：最大HP上昇（回復薬+1/+2、大回復薬+2/+4）
+            const _maxHpGain = (it.value >= 30 ? 2 : 1) * (it.blessed ? 2 : 1);
+            p.maxHp += _maxHpGain;
+            p.hp += _maxHpGain;
+            _hMsg = `${it.name}を飲んだ。HPが最大なので最大HP+${_maxHpGain}！${it.blessed ? "（祝福）" : ""}`;
+          } else {
+            p.hp += h;
+            _hMsg = `${it.name}を飲んだ。HP+${h}${it.blessed ? "（祝福）" : ""}`;
+          }
           if (it.blessed) {
             const _cured = [];
             if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _cured.push("睡眠"); }
@@ -3339,10 +3348,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       } else if (it.effect === "sleep") {
         if (it.cursed) {
-          // 呪い：反転→眠気が吹き飛び2倍速
-          p.sleepTurns = 0;
-          p.hasteTurns = (p.hasteTurns || 0) + 5;
-          ml.push(`${it.name}を飲んだ。眠気が吹き飛んだ！体が覚醒した！(2倍速5ターン)【呪→覚醒】`);
+          // 呪い：反転→フロア中全ての敵の位置が常に見通せる
+          dg.monsterSenseActive = true;
+          ml.push(`${it.name}を飲んだ。幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】`);
         } else {
           // 通常/祝福：プレイヤーを眠らせる（祝福=2倍ターン）
           const t = Math.max(1, Math.round((it.value + rng(-1, 1)) * (it.blessed ? 2 : 1)));
@@ -3416,16 +3424,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       } else if (it.effect === "mana") {
         if (it.cursed) {
-          // 呪い：反転→MP封印
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 10;
-          ml.push(`${it.name}を飲んだ。魔力が封じられた！(MP封印10ターン)【呪】`);
+          // 呪い：反転→MP封印50ターン
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
+          ml.push(`${it.name}を飲んだ。魔力が封じられた！(MP封印50ターン)【呪】`);
         } else if ((p.mpCooldownTurns || 0) > 0) {
           ml.push(`${it.name}を飲んだ。MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
         } else {
-          // 通常/祝福：MP回復（祝福=1.5x）
+          // 通常/祝福：MP回復（祝福=1.5x）。MP最大時は最大MP増加
           const _madd = Math.min(Math.round(it.value * _potBm), (p.maxMp || 20) - (p.mp || 0));
-          p.mp = (p.mp || 0) + _madd;
-          ml.push(`${it.name}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
+          if (_madd <= 0) {
+            const _maxMpGain = it.blessed ? 2 : 1;
+            p.maxMp = (p.maxMp || 20) + _maxMpGain;
+            p.mp = (p.mp || 0) + _maxMpGain;
+            ml.push(`${it.name}を飲んだ。MPが最大なので最大MP+${_maxMpGain}！${it.blessed ? "（祝福）" : ""}`);
+          } else {
+            p.mp = (p.mp || 0) + _madd;
+            ml.push(`${it.name}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
+          }
         }
       } else if (it.effect === "levelup") {
         if (it.cursed) {

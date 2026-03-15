@@ -695,7 +695,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
 
-      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && Math.random() < 0.5) {
+      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
@@ -705,14 +705,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-        if (_stDist <= _stRange && Math.random() < 0.5) {
+        if (_stDist <= _stRange && (m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
           monsterThrowStone(m, dg, pl, ml);
           return;
         }
       }
 
-      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && Math.random() < 0.5) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>
@@ -796,7 +796,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── supporter（シャーマン等）：近くの味方を回復・強化 ── */
-    if (m.subtype === "supporter" && Math.random() < 0.5) {
+    if (m.subtype === "supporter" && (m.alwaysUseSpecial || Math.random() < 0.5)) {
       /* 傷ついた味方を探す（範囲8マス） */
       const _injured = dg.monsters.filter(o =>
         o !== m && (o.maxHp != null ? o.hp < o.maxHp : false) &&

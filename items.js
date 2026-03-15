@@ -1127,9 +1127,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     }
     case "sleep": {
       if (cursed) {
-        // 反転→覚醒（眠り解消 / プレイヤーは2倍速）
+        // 反転→覚醒（モンスター）/ フロア中全敵透視（プレイヤー）
         if (kind === "monster") { target.sleepTurns = 0; ml.push(`${target.name}が目を覚ました！(覚醒)`); }
-        if (kind === "player") { p.sleepTurns = 0; p.hasteTurns = (p.hasteTurns || 0) + 5; ml.push("眠気が吹き飛んだ！体が覚醒した！(2倍速5ターン)【呪→覚醒】"); }
+        if (kind === "player") { dg.monsterSenseActive = true; ml.push("幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】"); }
       } else {
         const t = Math.max(1, Math.round((val + rng(-1, 1)) * (blessed ? 2 : 1)));
         if (kind === "monster") {
@@ -1199,15 +1199,34 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "mana":
       if (kind === "player") {
         if (cursed) {
-          // 反転→MP封印
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 10;
-          ml.push("魔力が封じられた！(MP封印10ターン)【呪】");
+          // 反転→MP封印50ターン
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
+          ml.push("魔力が封じられた！(MP封印50ターン)【呪】");
         } else if ((p.mpCooldownTurns || 0) > 0) {
           ml.push(`MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
         } else {
           const add = Math.min(Math.round(val * (blessed ? 1.5 : 1)), (p.maxMp || 20) - (p.mp || 0));
-          p.mp = (p.mp || 0) + add;
-          if (add > 0) ml.push(`MPが${add}回復した！${blessed ? "(祝福)" : ""}`);
+          if (add <= 0) {
+            const _maxMpGain = blessed ? 2 : 1;
+            p.maxMp = (p.maxMp || 20) + _maxMpGain;
+            p.mp = (p.mp || 0) + _maxMpGain;
+            ml.push(`MPが最大なので最大MP+${_maxMpGain}！${blessed ? "(祝福)" : ""}`);
+          } else {
+            p.mp = (p.mp || 0) + add;
+            ml.push(`MPが${add}回復した！${blessed ? "(祝福)" : ""}`);
+          }
+        }
+      }
+      if (kind === "monster") {
+        if (cursed) {
+          // 呪い：永続封印
+          target.sealed = true;
+          target.mpCooldownTurns = 9999;
+          ml.push(`${target.name}は永続的に封印された！【呪→永続封印】`);
+        } else {
+          // 通常/祝福：特技使用率100%
+          target.alwaysUseSpecial = true;
+          ml.push(`${target.name}は魔力が高まり特技を必ず使うようになった！`);
         }
       }
       break;
