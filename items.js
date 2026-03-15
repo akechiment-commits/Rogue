@@ -654,17 +654,6 @@ export const TRAPS = [
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
  */
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null) {
-  /* デバッグ: 爆発中心周囲のタイルを確認 */
-  console.log(`[doExplosion] center=(${cx},${cy}) src=${srcLabel}`);
-  for (let _ddy = -1; _ddy <= 1; _ddy++) {
-    let _row = "";
-    for (let _ddx = -1; _ddx <= 1; _ddx++) {
-      const _ax = cx + _ddx, _ay = cy + _ddy;
-      if (_ax < 0 || _ax >= MW || _ay < 0 || _ay >= MH) { _row += "?"; continue; }
-      _row += dg.map[_ay][_ax];
-    }
-    console.log(`  row ${cy + _ddy}: [${_row}]`);
-  }
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
     const dmg = rng(10, 20);
@@ -684,7 +673,6 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         dg.map[ay][ax] = T.FLOOR;
         if (dg.explored?.[ay]?.[ax] !== undefined) dg.explored[ay][ax] = true;
         if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
-        console.log(`[doExplosion] wall broken at (${ax},${ay})`);
         ml.push("爆風で壁が崩れた！");
         wallBreakDrop(dg, ax, ay);
         continue; /* 壁タイルにキャラ・アイテムはいない */
