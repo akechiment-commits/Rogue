@@ -667,7 +667,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       const ax = cx + ddx, ay = cy + ddy;
       if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
       /* 壁の破壊 */
-      if (dg.map[ay][ax] === T.BWALL || dg.map[ay][ax] === T.WALL) {
+      if ((dg.map[ay][ax] === T.BWALL || dg.map[ay][ax] === T.WALL) &&
+          ax > 0 && ax < MW - 1 && ay > 0 && ay < MH - 1) {
         const _wi = dg.items.find(i => i.x === ax && i.y === ay && i.wallEmbedded);
         if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
         dg.map[ay][ax] = T.FLOOR;

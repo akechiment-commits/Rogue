@@ -1591,12 +1591,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else act("move", fd.dx, fd.dy);
     } else {
       /* BWALLチェックを最優先（大箱・泉の上に壁がある場合は壁破壊のみ） */
-      if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.BWALL) {
+      if (ny > 0 && ny < MH - 1 && nx > 0 && nx < MW - 1 && dg.map[ny]?.[nx] === T.BWALL) {
         dg.map[ny][nx] = T.FLOOR;
         wallBreakDrop(dg, nx, ny);
         act("wait");
         setMsgs((prev) => [...prev.slice(-80), "壁を叩き壊した！"]);
-      } else if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.WALL) {
+      } else if (ny > 0 && ny < MH - 1 && nx > 0 && nx < MW - 1 && dg.map[ny]?.[nx] === T.WALL) {
         const _pweapon = sr.current.player.weapon;
         if (_pweapon?.ability === "pickaxe" || _pweapon?.abilities?.includes("pickaxe")) {
           /* つるはし：壁を掘る */

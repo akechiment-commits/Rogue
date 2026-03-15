@@ -678,7 +678,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _wdx = Math.sign(pl.x - m.x), _wdy = Math.sign(pl.y - m.y);
     if (_wdx !== 0 || _wdy !== 0) {
       const _wnx = m.x + _wdx, _wny = m.y + _wdy;
-      if (inBounds(_wnx, _wny) &&
+      if (_wnx > 0 && _wnx < MW - 1 && _wny > 0 && _wny < MH - 1 &&
           !(_wnx === pl.x && _wny === pl.y) &&
           !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
           !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny)) {
