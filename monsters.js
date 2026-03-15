@@ -251,10 +251,15 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
   const visited = new Set();
   visited.add(sx + sy * MW);
   const queue = [{ x: sx, y: sy, firstX: null, firstY: null }];
+  const _sdx = Math.sign(tx - sx), _sdy = Math.sign(ty - sy);
   const dirs = [
     [0, -1], [0, 1], [-1, 0], [1, 0],
     [-1, -1], [1, -1], [-1, 1], [1, 1],
   ];
+  /* ターゲット方向に最も近い向きを先頭に：同コスト経路のタイブレーカー */
+  dirs.sort((a, b) =>
+    ((a[0]-_sdx)**2 + (a[1]-_sdy)**2) - ((b[0]-_sdx)**2 + (b[1]-_sdy)**2)
+  );
   let steps = 0;
   while (queue.length > 0 && steps < maxDist * 50) {
     const cur = queue.shift();
