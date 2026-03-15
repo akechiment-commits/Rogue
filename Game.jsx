@@ -1047,7 +1047,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           /* --- 明かりの魔方陣 --- */
           /* (rendering only; handled in refreshFOV override below) */
           /* --- テレポートの魔方陣：毎ターン20%でテレポート（呪いは無効化フラグのみ） --- */
-          if (_pc.kind === "teleport_trap" && !_pc.cursed && _inRange && Math.random() < 0.2) {
+          if (_pc.kind === "teleport_trap" && !_pc.cursed && _inRange && Math.random() < 0.1) {
             const _tpFloorBlocked = _dg2.pentacles.some(pc2 => pc2 !== _pc && pc2.kind === "teleport_trap" && pc2.cursed);
             if (!_tpFloorBlocked) {
               const _tpRm2 = _dg2.rooms[rng(0, _dg2.rooms.length - 1)];
@@ -1057,7 +1057,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
           }
           /* --- 罠の魔方陣：毎ターン30%で罠が増える --- */
-          if (_pc.kind === "trap_gen" && _inRange && Math.random() < 0.3) {
+          if (_pc.kind === "trap_gen" && _inRange && Math.random() < 0.1) {
             if (_pc.cursed) {
               /* 呪い：フロア内の罠をランダムに1つ消す */
               if (_dg2.traps.length > 0) {
@@ -1071,12 +1071,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (_tgScope.length > 0) {
                 const _tgR = pick(_tgScope);
                 let _placed = false;
-                for (let _att = 0; _att < 10 && !_placed; _att++) {
+                for (let _att = 0; _att < 20 && !_placed; _att++) {
                   const _tx2 = rng(_tgR.x, _tgR.x + _tgR.w - 1);
                   const _ty2 = rng(_tgR.y, _tgR.y + _tgR.h - 1);
                   if (_tx2 === p.x && _ty2 === p.y) continue;
                   if (_dg2.map[_ty2][_tx2] !== T.FLOOR) continue;
                   if (_dg2.traps.some(t => t.x === _tx2 && t.y === _ty2)) continue;
+                  if (_dg2.items.some(i => i.x === _tx2 && i.y === _ty2)) continue;
+                  if (_dg2.monsters.some(m => m.x === _tx2 && m.y === _ty2)) continue;
+                  if (_dg2.springs?.some(s => s.x === _tx2 && s.y === _ty2)) continue;
+                  if (_dg2.bigboxes?.some(b => b.x === _tx2 && b.y === _ty2)) continue;
+                  if (_dg2.pentacles?.some(pc3 => pc3.x === _tx2 && pc3.y === _ty2)) continue;
                   const _td2 = pick(TRAPS);
                   _dg2.traps.push({ ..._td2, id: uid(), x: _tx2, y: _ty2, revealed: false });
                   _placed = true;
