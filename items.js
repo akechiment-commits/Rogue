@@ -672,10 +672,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
         dg.map[ay][ax] = T.FLOOR;
         ml.push("爆風で壁が崩れた！");
-        if (Math.random() < 0.3) {
-          const ft = new Set();
-          placeItemAt(dg, ax, ay, makeStone(rng(1, 2)), ml, ft);
-        }
+        wallBreakDrop(dg, ax, ay);
         continue; /* 壁タイルにキャラ・アイテムはいない */
       }
       /* モンスターダメージ */
@@ -706,6 +703,17 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
+}
+
+/** 壁破壊時の石ドロップ共通処理。方法を問わず 10%で石、1%で魔法の石 */
+export function wallBreakDrop(dg, x, y) {
+  const r = Math.random();
+  let drop = null;
+  if (r < 0.01) drop = makeMagicStone(1);
+  else if (r < 0.11) drop = makeStone(1);
+  if (!drop) return;
+  drop.x = x; drop.y = y;
+  dg.items.push(drop);
 }
 
 let _fireTrapDepth = 0;

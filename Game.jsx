@@ -45,6 +45,7 @@ import {
   addArrowsInv,
   addStonesInv,
   doExplosion,
+  wallBreakDrop,
   applyPotEffect,
   makePot,
   scatterPotContents,
@@ -1592,12 +1593,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       /* BWALLチェックを最優先（大箱・泉の上に壁がある場合は壁破壊のみ） */
       if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.BWALL) {
         dg.map[ny][nx] = T.FLOOR;
-        /* 稀に石が出てくる */
-        if (Math.random() < 0.15) {
-          const _bwStItem = makeStone(rng(1, 3));
-          _bwStItem.x = nx; _bwStItem.y = ny;
-          sr.current.dungeon.items.push(_bwStItem);
-        }
+        wallBreakDrop(dg, nx, ny);
         act("wait");
         setMsgs((prev) => [...prev.slice(-80), "壁を叩き壊した！"]);
       } else if (ny >= 0 && ny < MH && nx >= 0 && nx < MW && dg.map[ny]?.[nx] === T.WALL) {
@@ -1606,13 +1602,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           /* つるはし：壁を掘る */
           dg.map[ny][nx] = T.FLOOR;
           _pweapon.durability = (_pweapon.durability ?? 1) - 1;
-          /* 稀に石が出てくる */
-          if (Math.random() < 0.15) {
-            const _stCount = rng(1, 3);
-            const _stItem = makeStone(_stCount);
-            _stItem.x = nx; _stItem.y = ny;
-            sr.current.dungeon.items.push(_stItem);
-          }
+          wallBreakDrop(dg, nx, ny);
           if (_pweapon.durability <= 0) {
             const _pkName = _pweapon.name;
             sr.current.player.weapon = null;
