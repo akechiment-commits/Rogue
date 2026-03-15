@@ -6,7 +6,7 @@ import {
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop,
 } from './items.js';
-import { fireTrapPlayer } from './traps.js';
+import { fireTrapPlayer, fireTrapMonster } from './traps.js';
 
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0) {
   /* 地面のアイテムは未識別名で表示するため、呼び出し元から nameFn を受け取る */
@@ -352,7 +352,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           fireTrapPlayer(target, p, dg, ml, nameFn);
           dg.traps = dg.traps.filter(t => t !== target);
         } else if (_trapRes.hitMonster) {
-          ml.push(`飛んできた${target.name}が${_trapRes.hitMonster.name}に命中し消えた！`);
+          ml.push(`飛んできた${target.name}が${_trapRes.hitMonster.name}に命中！`);
+          fireTrapMonster(target, _trapRes.hitMonster, dg, ml);
           dg.traps = dg.traps.filter(t => t !== target);
         }
         break;
