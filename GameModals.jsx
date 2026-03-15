@@ -1576,6 +1576,7 @@ export function InventoryModal({
           }
           const _isUnidentInv = (() => { const _kk = getIdentKey(it); return !!(_kk && gs?.ident && !gs.ident.has(_kk)); })();
           const _isIdentBCUnknown = (() => {
+            if (gs?.allBcKnown) return false;
             if (it.type === 'weapon' || it.type === 'armor') return !it.fullIdent && !it.bcKnown;
             const _kk = getIdentKey(it); return !!(_kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown);
           })();
