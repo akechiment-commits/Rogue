@@ -682,6 +682,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         const _wi = dg.items.find(i => i.x === ax && i.y === ay && i.wallEmbedded);
         if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
         dg.map[ay][ax] = T.FLOOR;
+        if (dg.explored?.[ay]?.[ax] !== undefined) dg.explored[ay][ax] = true;
+        if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
+        console.log(`[doExplosion] wall broken at (${ax},${ay})`);
         ml.push("爆風で壁が崩れた！");
         wallBreakDrop(dg, ax, ay);
         continue; /* 壁タイルにキャラ・アイテムはいない */
