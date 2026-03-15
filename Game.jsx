@@ -1046,14 +1046,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           const _inRange = _floorWide || (_pRoom && _pcRoom && _pRoom === _pcRoom);
           /* --- 明かりの魔方陣 --- */
           /* (rendering only; handled in refreshFOV override below) */
-          /* --- テレポートの魔方陣：毎ターン20%でテレポート（呪いは無効化フラグのみ） --- */
-          if (_pc.kind === "teleport_trap" && !_pc.cursed && _inRange && Math.random() < 0.1) {
+          /* --- テレポートの魔方陣：毎ターン10%で部屋内の全生物をテレポート --- */
+          if (_pc.kind === "teleport_trap" && !_pc.cursed && Math.random() < 0.1) {
             const _tpFloorBlocked = _dg2.pentacles.some(pc2 => pc2 !== _pc && pc2.kind === "teleport_trap" && pc2.cursed);
             if (!_tpFloorBlocked) {
-              const _tpRm2 = _dg2.rooms[rng(0, _dg2.rooms.length - 1)];
-              p.x = rng(_tpRm2.x, _tpRm2.x + _tpRm2.w - 1);
-              p.y = rng(_tpRm2.y, _tpRm2.y + _tpRm2.h - 1);
-              ml.push(`${_pc.name}の力でテレポートした！`);
+              const _doTp = () => {
+                const _r = _dg2.rooms[rng(0, _dg2.rooms.length - 1)];
+                return { x: rng(_r.x, _r.x + _r.w - 1), y: rng(_r.y, _r.y + _r.h - 1) };
+              };
+              /* プレイヤーが対象範囲内なら */
+              if (_inRange) {
+                const _tp = _doTp(); p.x = _tp.x; p.y = _tp.y;
+                ml.push(`${_pc.name}の力でテレポートした！`);
+              }
+              /* 魔方陣と同じ部屋にいるモンスター（祝福ならフロア全体） */
+              for (const _tpM of _dg2.monsters) {
+                const _tpMRoom = findRoom(_dg2.rooms, _tpM.x, _tpM.y);
+                if (_pc.blessed ? true : _tpMRoom === _pcRoom) {
+                  const _tp = _doTp(); _tpM.x = _tp.x; _tpM.y = _tp.y;
+                  ml.push(`${_pc.name}の力で${_tpM.name}がテレポートした！`);
+                }
+              }
             }
           }
           /* --- 罠の魔方陣：毎ターン30%で罠が増える --- */
