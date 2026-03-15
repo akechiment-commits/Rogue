@@ -99,8 +99,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [invMenuSel, setInvMenuSel] = useState(null);
   const [showDesc, setShowDesc] = useState(null);
   const [throwMode, setThrowMode] = useState(null);
-  /* null | item ref (ただのペン being merged) */
-  const [penMergeMode, setPenMergeMode] = useState(null);
   const [springMode, setSpringMode] = useState(null);
   const [springMenuSel, setSpringMenuSel] = useState(0);
   const [springPage, setSpringPage] = useState(0);
@@ -1306,7 +1304,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || p.slowSkip) return;
       if (type === "inventory") {
         setSpellListMode(false);
-        setPenMergeMode(null);
         setShowInv((v) => {
           if (v) { dropModeRef.current = false; setDropMode(false); }
           return !v;
@@ -3439,29 +3436,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const it = p.inventory[idx];
     if (!it) return;
     if (p.sleepTurns > 0 || p.paralyzeTurns > 0) return;
-    /* ただのペン合成モード：選ばれたアイテムが別のペンならインクを移す */
-    if (penMergeMode) {
-      const srcPen = penMergeMode;
-      if (it !== srcPen && it.type === "pen" && it.effect !== "plain") {
-        const added = srcPen.charges || 0;
-        it.charges = (it.charges || 0) + added;
-        p.inventory = p.inventory.filter(i => i !== srcPen);
-        const ml2 = [];
-        ml2.push(`ただのペンを${it.name}に合成した！インク+${added}（残り${it.charges}回）`);
-        setPenMergeMode(null);
-        setMsgs((prev) => [...prev.slice(-80), ...ml2]);
-        sr.current = { ...sr.current }; setGs({ ...sr.current });
-        return;
-      } else if (it === srcPen) {
-        setPenMergeMode(null);
-        setMsgs((prev) => [...prev.slice(-80), "合成をキャンセルした。"]);
-        sr.current = { ...sr.current }; setGs({ ...sr.current });
-        return;
-      } else {
-        setMsgs((prev) => [...prev.slice(-80), "ペンを選んでください。（ただのペンを選ぶとキャンセル）"]);
-        return;
-      }
-    }
+
     const ml = [];
     // 未識別消耗品の判定（使用前に取得）
     const _ik_reveal = (it.type === 'potion' || it.type === 'scroll') ? getIdentKey(it) : null;
@@ -4277,28 +4252,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
     } else if (it.type === "pen") {
-      /* ただのペン：他のペンに合成してインクを補充 */
-      if (it.effect === "plain") {
-        if ((it.charges || 0) <= 0) {
-          ml.push("インクが尽きている。合成に使えない。");
-        } else {
-          const _otherPens = p.inventory.filter(i => i !== it && i.type === "pen" && i.effect !== "plain");
-          if (_otherPens.length === 0) {
-            ml.push("合成できる他のペンがない。");
-          } else {
-            setPenMergeMode(it);
-            setMsgs((prev) => [...prev.slice(-80), "合成するペンを選んでください。（ただのペンを選ぶとキャンセル）"]);
-            setSelIdx(null); setShowDesc(null); setShowInv(true);
-            sr.current = { ...sr.current }; setGs({ ...sr.current });
-            return;
-          }
-        }
-        endTurn(sr.current, p, ml);
-        setMsgs((prev) => [...prev.slice(-80), ...ml]);
-        setSelIdx(null); setShowDesc(null); setShowInv(false);
-        sr.current = { ...sr.current }; setGs({ ...sr.current });
-        return;
-      }
       if ((it.charges || 0) <= 0) {
         ml.push(`${it.name}のインクが尽きている。充填の大箱で補充できる。`);
         endTurn(sr.current, p, ml);
@@ -6263,7 +6216,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
-      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} penMergeMode={penMergeMode} />{" "}
+      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} />{" "}
       <GameOverModal dead={dead} p={p} gameOverSel={gameOverSel} setShowScores={setShowScores} init={init} mobile={mobile} onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined} />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} />
