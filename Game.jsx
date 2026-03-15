@@ -3442,6 +3442,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             ml.push(`${it.name}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
           }
         }
+      } else if (it.effect === "seal") {
+        if (it.cursed) {
+          // 呪い：MP封印解除
+          p.mpCooldownTurns = 0;
+          ml.push(`${it.name}を飲んだ。MP封印が解けた！【呪→解封】`);
+        } else {
+          // 通常/祝福：MP封印50ターン（祝福：さらに鈍足10ターン）
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
+          let _seMsg = `${it.name}を飲んだ。魔力が封じられた！(MP封印50ターン)${it.blessed ? "（祝福）" : ""}`;
+          if (it.blessed) {
+            p.slowTurns = (p.slowTurns || 0) + 10;
+            _seMsg += " さらに鈍足10ターン！";
+          }
+          ml.push(_seMsg);
+        }
       } else if (it.effect === "levelup") {
         if (it.cursed) {
           // 呪い：1階上へワープ（1階なら効果なし）
@@ -3619,6 +3634,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           } else if (pe === "c_levelup") {
             p.atk = Math.max(1, p.atk - 2);
             ml.push("退化成分が！攻撃力-2...");
+          } else if (pe === "seal") {
+            p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
+            ml.push("封魔成分が！MP封印50ターン！");
+          } else if (pe === "c_seal") {
+            p.mpCooldownTurns = 0;
+            ml.push("解封成分が！MP封印が解けた！");
           }
         }
       }

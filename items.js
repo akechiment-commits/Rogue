@@ -126,6 +126,7 @@ export const ITEMS = [
   { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    desc:"装備するとコソドロに所持品を盗まれなくなる。",    tile:21 },
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, desc:"MPを20回復する。",                 tile:16 },
+  { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  desc:"飲むとMP封印50ターン。祝福：さらに鈍足10ターン。呪い：MP封印を解除。投げると命中した敵を封印状態にする。", tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  desc:"飲むと5ターン混乱する。投げると命中した敵を20ターン混乱させる。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           desc:"飲むと視界が1マスになる(20ターン)。投げると命中した敵を50ターン暗闇状態にする。", tile:16 },
   { name:"惑わしの薬",       type:"potion", effect:"bewitch",            desc:"飲むと50ターン周囲の見た目が狂う。投げると命中した敵を50ターン逃走させる。", tile:16 },
@@ -479,6 +480,7 @@ export const WANDS = [
   { name:"混乱の杖",     type:"wand", effect:"confuse",    charges:5, desc:"振ると対象を混乱させる。自分なら5ターン、敵なら20ターン混乱する。水の瓶に当てると混乱の薬になる。", tile:24 },
   { name:"暗闇の杖",    type:"wand", effect:"darkness",   charges:5, desc:"振ると対象を暗闇状態にする。自分なら視界が1マスになる(20ターン)。敵なら50ターンこちらを認識できず壁まで直進し途中の者を攻撃する。祝福：自分50ターン・敵永続。呪い：フロア全体が見えるようになる。水の瓶に当てると暗闇の薬になる。", tile:24 },
   { name:"惑わしの杖",  type:"wand", effect:"bewitch",    charges:4, desc:"振ると対象を幻惑状態にする。自分なら50ターン周囲の見た目が狂う。敵なら50ターン逃げ回る。祝福：自分100ターン・敵永続。呪い：フロアの罠が全て見えるようになる。水の瓶に当てると惑わしの薬になる。", tile:24 },
+  { name:"封印の杖",    type:"wand", effect:"seal",       charges:5, desc:"振ると対象を封印状態にする。自分に当たるとMP封印50ターン。祝福：敵に鈍足も付与、自分は鈍足10ターンも追加。呪い：敵の特技使用率が100%に、自分はMP封印が治る。水の瓶に当てると封印の薬になる。", tile:24 },
 ];
 
 /* ===== BIG BOX TYPES ===== */
@@ -1301,6 +1303,38 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       }
       break;
+    case "seal":
+      if (kind === "monster") {
+        if (cursed) {
+          // 呪い：特技使用率100%
+          target.alwaysUseSpecial = true;
+          ml.push(`${target.name}の特技使用率が100%になった！【呪】`);
+        } else {
+          // 通常/祝福：封印状態（祝福：さらに鈍足）
+          target.sealed = true;
+          ml.push(`${target.name}は封印された！`);
+          if (blessed) {
+            target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+            ml.push(`さらに${target.name}は鈍足になった！(祝福)`);
+          }
+        }
+      }
+      if (kind === "player") {
+        if (cursed) {
+          // 呪い：MP封印解除
+          p.mpCooldownTurns = 0;
+          ml.push("MP封印が解けた！【呪→解封】");
+        } else {
+          // 通常/祝福：MP封印50ターン（祝福：さらに鈍足10ターン）
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
+          ml.push(`魔力が封じられた！(MP封印50ターン)${blessed ? "(祝福)" : ""}`);
+          if (blessed) {
+            p.slowTurns = (p.slowTurns || 0) + 10;
+            ml.push("さらに鈍足10ターン！");
+          }
+        }
+      }
+      break;
   }
 }
 
@@ -1318,6 +1352,7 @@ export const POTION_FOOD_PREFIX = {
   bewitch:  "幻惑の",
   paralyze: "金縛りの",
   levelup:  "経験の",
+  seal:     "封魔の",
   // 呪い（食べた時の効果が反転）
   c_heal:     "猛毒の",
   c_poison:   "解毒の",
@@ -1331,6 +1366,7 @@ export const POTION_FOOD_PREFIX = {
   c_bewitch:   "看破の",
   c_paralyze:  "予防の",
   c_levelup:   "退化の",
+  c_seal:      "解封の",
 };
 
 /** 調理済み食糧をさらに加熱して「焦げた」状態にする共通ヘルパー */

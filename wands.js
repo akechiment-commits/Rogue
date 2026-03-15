@@ -743,6 +743,44 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       ml.push("魔法弾は効果なく消えた。");
       break;
     }
+    case "seal": {
+      const _seBlessed = blMult > 1, _seCursed = blMult < 1;
+      if (_seCursed) {
+        // 呪い：敵→特技使用率100%、プレイヤー→MP封印解除
+        if (kind === "monster") {
+          target.alwaysUseSpecial = true;
+          ml.push(`${target.name}の特技使用率が100%になった！【呪】`);
+          break;
+        }
+        if (kind === "player") {
+          p.mpCooldownTurns = 0;
+          ml.push("MP封印が解けた！【呪→解封】");
+          break;
+        }
+      } else {
+        if (kind === "monster") {
+          if (isStatusImmune(target, ml, target.name)) break;
+          target.sealed = true;
+          ml.push(`${target.name}は封印された！`);
+          if (_seBlessed) {
+            target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+            ml.push(`さらに${target.name}は鈍足になった！(祝福)`);
+          }
+          break;
+        }
+        if (kind === "player") {
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
+          ml.push("魔力が封じられた！(MP封印50ターン)");
+          if (_seBlessed) {
+            p.slowTurns = (p.slowTurns || 0) + 10;
+            ml.push("さらに鈍足10ターン！(祝福)");
+          }
+          break;
+        }
+      }
+      ml.push("魔法弾は効果なく消えた。");
+      break;
+    }
     case "bless_wand": {
       const _bwBlessed = blMult > 1;
       const _bwCursed  = blMult < 1;
@@ -1028,7 +1066,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     if (it) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
-      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬" };
+      const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬", seal:"封印の薬" };
       if (it.effect === "water" && BOTTLE_XFORM[eff]) {
         const nm = BOTTLE_XFORM[eff];
         Object.assign(it, { name: nm, effect: eff, value: eff === "sleep" ? 4 : 0 });
