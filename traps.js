@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
@@ -8,6 +8,11 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
 
   switch (trap.effect) {
     case "explode": {
+      if (hasCursedExplosionPentacle(dg)) {
+        trap.revealed = true;
+        ml.push(`${trap.name}が発動したが、呪われた爆発の魔方陣が爆発を打ち消した！`);
+        break;
+      }
       ml.push(`${trap.name}が発動！`);
       doExplosion(trap.x, trap.y, dg, p, ml, nameFn, trap.name);
       break;

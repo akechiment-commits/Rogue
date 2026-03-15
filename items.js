@@ -1034,10 +1034,10 @@ export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
   return true;
 }
 
-export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30) {
+export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false) {
   let r = c;
   for (const i of inv) {
-    if (i.type === "arrow" && !!i.poison === poison && !!i.pierce === pierce && i.count < 99) {
+    if (i.type === "arrow" && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && i.count < 99) {
       const a = Math.min(r, 99 - i.count);
       i.count += a;
       r -= a;
@@ -1047,7 +1047,7 @@ export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30
   while (r > 0) {
     if (inv.length >= maxInv) return false;
     const n = Math.min(r, 99);
-    inv.push(pierce ? makePiercingArrow(n) : poison ? makePoisonArrow(n) : makeArrow(n));
+    inv.push(bomb ? makeBombArrow(n) : pierce ? makePiercingArrow(n) : poison ? makePoisonArrow(n) : makeArrow(n));
     r -= n;
   }
   return true;
@@ -2058,6 +2058,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
   const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
   switch (eff) {
     case "fire_bolt": {
+      if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が炎の魔法を打ち消した！"); break; }
       const dmg = rng(20, 30) * _cmsBoost;
       if (kind === "monster") {
         target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！`);
@@ -2073,6 +2074,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       } break;
     }
     case "lightning_magic": {
+      if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が雷の魔法を打ち消した！"); break; }
       const dmg = rng(22, 32) * _cmsBoost;
       if (kind === "monster") {
         target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);

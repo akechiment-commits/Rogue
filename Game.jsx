@@ -654,7 +654,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           break;
         }
       } else if (it.type === "arrow" && !it.shopPrice) {
-        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30)) {
+        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30, !!it.bombArrow)) {
           ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
           removeFloorItem(dg, it);
           go = true;
@@ -1620,7 +1620,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");
             } else if (_grIt.type === "arrow" && !_grIt.shopPrice) {
-              if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30)) {
+              if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30, !!_grIt.bombArrow)) {
                 ml.push(`${_grIt.name || "矢"}(${_grIt.count}本)を拾った。`);
                 removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");
@@ -3969,6 +3969,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           ml.push("防具を装備していないので効果がなかった。");
         }
       } else if (it.effect === "thunder") {
+        if (hasCursedExplosionPentacle(dg)) {
+          ml.push("呪われた爆発の魔方陣が雷を打ち消した！");
+        } else {
         // 祝福：フロア全モンスターに雷、通常：視界内のみ、呪い：視界内＋自分にも雷
         const _tTargets = it.blessed
           ? dg.monsters
@@ -3994,6 +3997,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！【呪】`);
           }
         }
+        } // end hasCursedExplosionPentacle else
       } else if (it.effect === "recovery") {
         if (it.cursed) {
           // 呪い：自分がダメージ、視界内モンスターが回復
@@ -4342,6 +4346,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (_isCursed) {
             const _drawHeal = Math.min(25, p.maxHp - p.hp);
             if (_drawHeal > 0) { p.hp += _drawHeal; ml.push(`描いた瞬間、癒しの力が湧き上がった！HPが${_drawHeal}回復！`); }
+          } else if (hasCursedExplosionPentacle(dg)) {
+            ml.push("呪われた爆発の魔方陣が雷を打ち消した！");
           } else {
             const _tdrawDmg = _isBlessed ? 50 : 25;
             if (p.hp > 0) {
