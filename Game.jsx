@@ -471,7 +471,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             _pent.kind === "vulnerability"? (_pent.blessed ? "#ff9060" : _pent.cursed ? "#804020" : "#ff6020") :
             _pent.kind === "magic_seal"   ? (_pent.blessed ? "#c0a0ff" : _pent.cursed ? "#403080" : "#8060ff") :
             _pent.kind === "thunder_trap" ? (_pent.blessed ? "#ffffa0" : _pent.cursed ? "#806020" : "#ffe040") :
-            _pent.kind === "farcast"      ? (_pent.blessed ? "#a0ffff" : _pent.cursed ? "#204060" : "#40c0e0") : "#ff6020";
+            _pent.kind === "farcast"        ? (_pent.blessed ? "#a0ffff" : _pent.cursed ? "#204060" : "#40c0e0") :
+            _pent.kind === "light"          ? (_pent.blessed ? "#ffffff" : _pent.cursed ? "#303030" : "#ffffaa") :
+            _pent.kind === "teleport_trap"  ? (_pent.blessed ? "#c0a0ff" : _pent.cursed ? "#200040" : "#8040ff") :
+            _pent.kind === "trap_gen"       ? (_pent.blessed ? "#ff8080" : _pent.cursed ? "#401010" : "#cc4040") :
+            _pent.kind === "stone_throw"    ? (_pent.blessed ? "#80c0ff" : _pent.cursed ? "#102040" : "#4080cc") :
+            _pent.kind === "knockback_aura" ? (_pent.blessed ? "#ffcc80" : _pent.cursed ? "#402010" : "#ff8040") : "#ff6020";
           ctx.globalAlpha = 0.28;
           ctx.fillStyle = _pentClr;
           ctx.fillRect(px2, py2, sz, sz);
@@ -1031,7 +1036,121 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       }
+      /* ===== 新ペン魔方陣の毎ターン効果 ===== */
+      if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
+        const _dg2 = st.dungeon;
+        const _pRoom = findRoom(_dg2.rooms, p.x, p.y);
+        for (const _pc of _dg2.pentacles) {
+          const _pcRoom = findRoom(_dg2.rooms, _pc.x, _pc.y);
+          const _floorWide = _pc.blessed; // 祝福はフロア全体
+          const _inRange = _floorWide || (_pRoom && _pcRoom && _pRoom === _pcRoom);
+          /* --- 明かりの魔方陣 --- */
+          /* (rendering only; handled in refreshFOV override below) */
+          /* --- テレポートの魔方陣：毎ターン20%でテレポート（呪いは無効化フラグのみ） --- */
+          if (_pc.kind === "teleport_trap" && !_pc.cursed && _inRange && Math.random() < 0.2) {
+            const _tpFloorBlocked = _dg2.pentacles.some(pc2 => pc2 !== _pc && pc2.kind === "teleport_trap" && pc2.cursed);
+            if (!_tpFloorBlocked) {
+              const _tpRm2 = _dg2.rooms[rng(0, _dg2.rooms.length - 1)];
+              p.x = rng(_tpRm2.x, _tpRm2.x + _tpRm2.w - 1);
+              p.y = rng(_tpRm2.y, _tpRm2.y + _tpRm2.h - 1);
+              ml.push(`${_pc.name}の力でテレポートした！`);
+            }
+          }
+          /* --- 罠の魔方陣：毎ターン30%で罠が増える --- */
+          if (_pc.kind === "trap_gen" && _inRange && Math.random() < 0.3) {
+            if (_pc.cursed) {
+              /* 呪い：フロア内の罠をランダムに1つ消す */
+              if (_dg2.traps.length > 0) {
+                const _ri = rng(0, _dg2.traps.length - 1);
+                _dg2.traps.splice(_ri, 1);
+                ml.push(`${_pc.name}の呪いで罠が消えた！`);
+              }
+            } else {
+              /* 通常/祝福：対象エリアにランダム罠を配置 */
+              const _tgScope = _pc.blessed ? _dg2.rooms : (_pcRoom ? [_pcRoom] : []);
+              if (_tgScope.length > 0) {
+                const _tgR = pick(_tgScope);
+                let _placed = false;
+                for (let _att = 0; _att < 10 && !_placed; _att++) {
+                  const _tx2 = rng(_tgR.x, _tgR.x + _tgR.w - 1);
+                  const _ty2 = rng(_tgR.y, _tgR.y + _tgR.h - 1);
+                  if (_tx2 === p.x && _ty2 === p.y) continue;
+                  if (_dg2.map[_ty2][_tx2] !== T.FLOOR) continue;
+                  if (_dg2.traps.some(t => t.x === _tx2 && t.y === _ty2)) continue;
+                  const _td2 = pick(TRAPS);
+                  _dg2.traps.push({ ..._td2, id: uid(), x: _tx2, y: _ty2, revealed: false });
+                  _placed = true;
+                }
+              }
+            }
+          }
+          /* --- 石飛ばしの魔方陣：毎ターン25%で部屋内キャラに魔法の石を飛ばす --- */
+          if (_pc.kind === "stone_throw" && _pcRoom && Math.random() < 0.25) {
+            /* 部屋内の全キャラ（プレイヤー＋モンスター）をターゲット候補に */
+            const _stTargets = [];
+            const _plInRoom = _pRoom === _pcRoom;
+            if (_plInRoom) _stTargets.push({ kind: "player" });
+            for (const _stM of _dg2.monsters) {
+              const _stMRoom = findRoom(_dg2.rooms, _stM.x, _stM.y);
+              if (_stMRoom === _pcRoom) _stTargets.push({ kind: "monster", m: _stM });
+            }
+            if (_stTargets.length > 0) {
+              const _stTgt = pick(_stTargets);
+              const _baseDmg = rng(5, 10);
+              if (_pc.cursed) {
+                /* 呪い：回復効果 */
+                if (_stTgt.kind === "player") {
+                  const _heal = Math.min(_baseDmg, p.maxHp - p.hp);
+                  if (_heal > 0) { p.hp += _heal; ml.push(`${_pc.name}の魔法の石がプレイヤーに当たった！${_heal}回復！`); }
+                } else {
+                  const _heal = Math.min(_baseDmg, _stTgt.m.maxHp - _stTgt.m.hp);
+                  if (_heal > 0) { _stTgt.m.hp += _heal; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_heal}回復！`); }
+                }
+              } else {
+                const _dmg = _pc.blessed ? _baseDmg * 2 : _baseDmg;
+                if (_stTgt.kind === "player") {
+                  p.deathCause = `${_pc.name}の魔法の石により`;
+                  p.hp -= _dmg;
+                  ml.push(`${_pc.name}の魔法の石がプレイヤーに当たった！${_dmg}ダメージ！`);
+                } else {
+                  _stTgt.m.hp -= _dmg;
+                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_dmg}ダメージ！`);
+                  if (_stTgt.m.hp <= 0) { trackMonster(_stTgt.m); killMonster(_stTgt.m, _dg2, p, ml, lu); }
+                }
+              }
+            }
+          }
+        }
+      }
       refreshFOV(st.dungeon, p);
+      /* ===== 明かりの魔方陣：FOVオーバーライド（refreshFOV後に適用） ===== */
+      if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
+        const _dg3 = st.dungeon;
+        const _pRoom3 = findRoom(_dg3.rooms, p.x, p.y);
+        for (const _lpc of _dg3.pentacles) {
+          if (_lpc.kind !== "light") continue;
+          if (_lpc.cursed) {
+            /* 呪い：プレイヤーが同じ部屋にいるなら視界を1マスに制限 */
+            const _lRoom = findRoom(_dg3.rooms, _lpc.x, _lpc.y);
+            if (_pRoom3 && _lRoom && _pRoom3 === _lRoom) {
+              for (let _ly = 0; _ly < MH; _ly++)
+                for (let _lx = 0; _lx < MW; _lx++)
+                  if (Math.abs(_lx - p.x) > 1 || Math.abs(_ly - p.y) > 1) _dg3.visible[_ly][_lx] = false;
+            }
+          } else if (_lpc.blessed) {
+            /* 祝福：フロア全体を可視化 */
+            for (let _ly = 0; _ly < MH; _ly++)
+              for (let _lx = 0; _lx < MW; _lx++) { _dg3.visible[_ly][_lx] = true; _dg3.explored[_ly][_lx] = true; }
+          } else {
+            /* 通常：魔方陣と同じ部屋全体を可視化 */
+            const _lRoom = findRoom(_dg3.rooms, _lpc.x, _lpc.y);
+            if (_lRoom) {
+              for (let _ly = _lRoom.y; _ly < _lRoom.y + _lRoom.h; _ly++)
+                for (let _lx = _lRoom.x; _lx < _lRoom.x + _lRoom.w; _lx++) { _dg3.visible[_ly][_lx] = true; _dg3.explored[_ly][_lx] = true; }
+            }
+          }
+        }
+      }
       {
         const _dg = st.dungeon;
         if (
@@ -1289,7 +1408,31 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   ml.push(`${attackMon.name}は吹き飛んだ！`);
                 }
               }
-              if (attackMon.hp <= 0) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
+              /* 吹き飛ばしの魔方陣：プレイヤーが近接攻撃したモンスターを吹き飛ばす */
+              if (attackMon.hp > 0 && dg.pentacles?.length > 0) {
+                const _kbRoom = findRoom(dg.rooms, p.x, p.y);
+                const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
+                  pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
+                if (_kbPcP) {
+                  const _kbDist = _kbPcP.cursed ? 1 : _kbPcP.blessed ? 99 : 5;
+                  let _kbCx = attackMon.x, _kbCy = attackMon.y, _kbMoved = 0;
+                  for (let _kbi = 0; _kbi < _kbDist; _kbi++) {
+                    const _knx = _kbCx + dx, _kny = _kbCy + dy;
+                    if (_knx < 0 || _knx >= MW || _kny < 0 || _kny >= MH || dg.map[_kny][_knx] === T.WALL || dg.map[_kny][_knx] === T.BWALL) {
+                      attackMon.hp -= 5; ml.push(`${attackMon.name}は壁に叩きつけられた！5ダメージ！`);
+                      break;
+                    }
+                    if (dg.monsters.some(m2 => m2 !== attackMon && m2.x === _knx && m2.y === _kny)) {
+                      attackMon.hp -= 5; ml.push(`${attackMon.name}は別のモンスターに激突した！5ダメージ！`);
+                      break;
+                    }
+                    _kbCx = _knx; _kbCy = _kny; _kbMoved++;
+                  }
+                  if (_kbMoved > 0) { attackMon.x = _kbCx; attackMon.y = _kbCy; ml.push(`${_kbPcP.name}の力で${attackMon.name}が${_kbMoved}マス吹き飛んだ！`); }
+                  if (attackMon.hp <= 0) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
+                }
+              }
+              if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
               acted = true;
               } /* end else (hit) */
             }
@@ -3744,10 +3887,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           setGs({ ...sr.current });
           return;
         } else {
-          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-          p.x = rng(rm.x, rm.x + rm.w - 1);
-          p.y = rng(rm.y, rm.y + rm.h - 1);
-          ml.push("テレポートした！");
+          const _tpBlocked = dg.pentacles?.some(pc => pc.kind === "teleport_trap" && pc.cursed);
+          if (_tpBlocked) {
+            ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
+          } else {
+            const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
+            p.x = rng(rm.x, rm.x + rm.w - 1);
+            p.y = rng(rm.y, rm.y + rm.h - 1);
+            ml.push("テレポートした！");
+          }
         }
       } else if (it.effect === "reveal") {
         if (it.cursed) {
@@ -4107,11 +4255,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         let _pName;
         if (_penIsIdent) {
           const _baseName =
-            it.effect === "sanctuary"    ? "聖域の魔方陣" :
-            it.effect === "vulnerability"? "脆弱の魔方陣" :
-            it.effect === "magic_seal"   ? "魔封じの魔方陣" :
-            it.effect === "thunder_trap" ? "雷の魔方陣" :
-            it.effect === "farcast"      ? "遠投の魔方陣" : "魔方陣";
+            it.effect === "sanctuary"      ? "聖域の魔方陣" :
+            it.effect === "vulnerability"  ? "脆弱の魔方陣" :
+            it.effect === "magic_seal"     ? "魔封じの魔方陣" :
+            it.effect === "thunder_trap"   ? "雷の魔方陣" :
+            it.effect === "farcast"        ? "遠投の魔方陣" :
+            it.effect === "light"          ? "明かりの魔方陣" :
+            it.effect === "teleport_trap"  ? "テレポートの魔方陣" :
+            it.effect === "trap_gen"       ? "罠の魔方陣" :
+            it.effect === "stone_throw"    ? "石飛ばしの魔方陣" :
+            it.effect === "knockback_aura" ? "吹き飛ばしの魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
@@ -4147,6 +4300,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
           }
           if (!_pushed) ml.push("逃げ場がない！");
+        }
+        /* テレポートの魔方陣：描いた瞬間に即テレポート（呪い以外） */
+        if (it.effect === "teleport_trap" && !_isCursed) {
+          const _tpRm = dg.rooms[rng(0, dg.rooms.length - 1)];
+          p.x = rng(_tpRm.x, _tpRm.x + _tpRm.w - 1);
+          p.y = rng(_tpRm.y, _tpRm.y + _tpRm.h - 1);
+          ml.push("魔方陣を描いた瞬間、テレポートした！");
         }
         /* 雷の魔方陣：描いたそのターンにも即座に発動 */
         if (it.effect === "thunder_trap") {

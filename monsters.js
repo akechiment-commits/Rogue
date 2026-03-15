@@ -36,6 +36,33 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
+  if (dg.pentacles?.length > 0 && dmg > 0) {
+    const _plRoom = findRoom(dg.rooms, pl.x, pl.y);
+    const _kbPc = _plRoom && dg.pentacles.find(pc =>
+      pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _plRoom);
+    if (_kbPc) {
+      const _kdx = Math.sign(pl.x - m.x), _kdy = Math.sign(pl.y - m.y);
+      if (_kdx !== 0 || _kdy !== 0) {
+        const _dist = _kbPc.cursed ? 1 : _kbPc.blessed ? 99 : 5;
+        let _cx2 = pl.x, _cy2 = pl.y;
+        let _moved = 0;
+        for (let _ki = 0; _ki < _dist; _ki++) {
+          const _nx = _cx2 + _kdx, _ny = _cy2 + _kdy;
+          if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
+            pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= 5; ml.push("壁に叩きつけられた！5ダメージ！");
+            break;
+          }
+          if (dg.monsters.some(mon2 => mon2 !== m && mon2.x === _nx && mon2.y === _ny)) {
+            pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= 5; ml.push("モンスターに激突した！5ダメージ！");
+            break;
+          }
+          _cx2 = _nx; _cy2 = _ny; _moved++;
+        }
+        if (_moved > 0) { pl.x = _cx2; pl.y = _cy2; ml.push(`${_kbPc.name}の力で${_moved}マス吹き飛ばされた！`); }
+      }
+    }
+  }
 }
 
 /* ===== MONSTER DEFINITIONS ===== */
