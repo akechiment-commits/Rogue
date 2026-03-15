@@ -879,38 +879,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* 2回目以降：攻撃せずBFSで移動を試みる */
     }
 
-    /* ── 同室・完全対角ロック解消：|dx|==|dy|のときのみ一軸を先に詰める ── */
-    /* プレイヤーが同方向に逃げ続けると永久に距離が縮まないため、直交移動を優先 */
-    if (_sameRoom && canSee) {
-      const _adx = Math.abs(tx - m.x), _ady = Math.abs(ty - m.y);
-      if (_adx > 0 && _adx === _ady) {
-        const _sdx = Math.sign(tx - m.x), _sdy = Math.sign(ty - m.y);
-        const _orthos = Math.random() < 0.5
-          ? [[_sdx, 0], [0, _sdy]]
-          : [[0, _sdy], [_sdx, 0]];
-        for (const [_cdx, _cdy] of _orthos) {
-          const _cnx = m.x + _cdx, _cny = m.y + _cdy;
-          if (!isWalkable(map, _cnx, _cny)) continue;
-          if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _cnx && pc.y === _cny)) continue;
-          if (_cnx === pl.x && _cny === pl.y) {
-            if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
-                m.turnAttacks < (m.maxAttacks ?? 1)) {
-              m.turnAttacks++;
-              m.dir = { x: _cdx, y: _cdy };
-              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
-            }
-            return;
-          }
-          if (dg.monsters.some(o => o !== m && o.x === _cnx && o.y === _cny)) continue;
-          m.dir = { x: _cdx, y: _cdy };
-          m.x = _cnx; m.y = _cny;
-          if (_forceAlt) m.posHistory = [];
-          return;
-        }
-        /* 両方塞がれていればBFSへフォールスルー */
-      }
-    }
-
     /* move toward target */
     /* BFSで最短経路を求める。部屋内での壁ぶつかりを防ぎ、通路への最適経路を辿る。 */
     const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles);
