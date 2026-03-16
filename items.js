@@ -162,6 +162,9 @@ export function getBlessMultiplier(it) {
   return 1;
 }
 
+export const CAT_CLAW_T     = { name:"猫の爪",       type:"weapon", atk:13, ability:"critical", desc:"短剣3つの合成で生まれる鋭い爪。25%の確率で会心の一撃。", tile:20 };
+export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead", desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ。", tile:20 };
+
 export const ARROW_T        = { name:"矢",       type:"arrow", atk:4,                 desc:"99本まで束にできる矢。",                 count:1, tile:23 };
 export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:4, poison:true,     desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
 export const PIERCING_ARROW_T={ name:"貫きの矢", type:"arrow", atk:4, pierce:true,     desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
@@ -1754,7 +1757,20 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   } else if (item.type === "weapon") {
     let _wNote = "";
     if (item.cursed) { item.cursed = false; _wNote += " 呪いが解けた！"; }
-    if (hasAbility(item, "no_degrade")) {
+    /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
+    if (item.name === "ロングソード" && Math.random() < 0.05) {
+      const _oldPlus = item.plus || 0;
+      Object.assign(item, { ...EXCALIBUR_T, id: item.id, plus: _oldPlus });
+      if (item.abilities) { item.abilities = [...new Set([...item.abilities, EXCALIBUR_T.ability])]; item.ability = item.abilities[0]; }
+      ml.push("ロングソードが泉の中で聖なる光を放ち...エクスカリバーに変化した！");
+    } else if ((item.name === "バトルアクス" || item.name === "戦神の斧") && Math.random() < 0.20) {
+      const _oldName = item.name;
+      const _oldPlus = item.plus || 0;
+      const _goldAxe = ITEMS.find(i => i.name === "金の斧");
+      Object.assign(item, { ..._goldAxe, id: item.id, plus: _oldPlus });
+      if (item.abilities) { item.abilities = [...new Set([...item.abilities, _goldAxe.ability])]; item.ability = item.abilities[0]; }
+      ml.push(_oldName + "が泉の中で黄金の輝きを放ち...金の斧に変化した！");
+    } else if (hasAbility(item, "no_degrade")) {
       ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _wNote);
     } else {
       const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;

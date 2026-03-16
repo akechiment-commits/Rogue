@@ -9,6 +9,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, TRAPS,
+  CAT_CLAW_T, EXCALIBUR_T,
   genFood, makeArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
@@ -1870,6 +1871,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         return;
       }
+      /* 短剣×3 → 猫の爪 */
+      const _daggers = bb.contents.filter((i) => i.type === "weapon" && i.name === "短剣");
+      if (_daggers.length >= 3) {
+        const _catClaw = { ...CAT_CLAW_T, id: uid(), plus: _daggers.reduce((s, d) => s + (d.plus || 0), 0) };
+        bb.contents = bb.contents.filter((i) => !_daggers.includes(i));
+        bb.contents.push(_catClaw);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！短剣3本が融合して猫の爪に変化した！`);
+        return;
+      }
       const ws = bb.contents.filter((i) => i.type === "weapon");
       const as = bb.contents.filter((i) => i.type === "armor");
       const pair = ws.length >= 2 ? ws : as.length >= 2 ? as : null;
@@ -2055,7 +2066,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.inventory.push(wb);
         ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
-        if (hasAbility(it, "no_degrade")) {
+        /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
+        if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
+          const _oldPlus = it.plus || 0;
+          Object.assign(it, { ...EXCALIBUR_T, id: it.id, plus: _oldPlus });
+          if (it.abilities) { it.abilities = [...new Set([...it.abilities, EXCALIBUR_T.ability])]; it.ability = it.abilities[0]; }
+          ml.push(`${it.name}が聖なる光を放ち...エクスカリバーに変化した！`);
+        } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧") && Math.random() < 0.20) {
+          const _oldPlus = it.plus || 0;
+          const _oldName = it.name;
+          const _goldAxe = ITEMS.find(i => i.name === "金の斧");
+          Object.assign(it, { ..._goldAxe, id: it.id, plus: _oldPlus });
+          if (it.abilities) { it.abilities = [...new Set([...it.abilities, _goldAxe.ability])]; it.ability = it.abilities[0]; }
+          ml.push(`${_oldName}が黄金の輝きを放ち...金の斧に変化した！`);
+        } else if (hasAbility(it, "no_degrade")) {
           ml.push(`${it.name}が水に浸かったが金でできているので錆びなかった！`);
         } else {
           const _op = it.plus || 0;
