@@ -476,15 +476,28 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         } else { _selIt.capacity = _nc; _msgResult = `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
       } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を呪った！【呪】`; }
     } else if (mode.mode === 'duplicate') {
-      const _dupCount = mode.blessed ? 2 : mode.cursed ? 0 : 1;
+      const _dupCount = mode.cursed ? 0 : 1;
       const _p_dup = sr.current.player;
       if (_dupCount === 0) {
-        const _rmIdx = _p_dup.inventory.indexOf(_selIt);
-        if (_rmIdx !== -1) _p_dup.inventory.splice(_rmIdx, 1);
-        _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
+        if (_selIt.type === "goal") {
+          _msgResult = `${_selIt.name}は呪いに耐えた！【呪】`;
+        } else {
+          const _rmIdx = _p_dup.inventory.indexOf(_selIt);
+          if (_rmIdx !== -1) {
+            _p_dup.inventory.splice(_rmIdx, 1);
+            if (mode.scrollIdx != null && _rmIdx < mode.scrollIdx) mode.scrollIdx--;
+          }
+          _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
+        }
       } else {
-        for (let _di = 0; _di < _dupCount; _di++) _p_dup.inventory.push({ ..._selIt, id: uid() });
-        _msgResult = mode.blessed ? `${_selIt.name}が2つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
+        const _makeFreshM = () => {
+          const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, ...rest } = _selIt;
+          return { ...rest, id: uid() };
+        };
+        const _newItM = _makeFreshM();
+        if (mode.blessed) { _newItM.blessed = true; _newItM.cursed = false; _newItM.bcKnown = true; }
+        _p_dup.inventory.push(_newItM);
+        _msgResult = mode.blessed ? `祝福された${_selIt.name}が1つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
       }
     } else {
       const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';

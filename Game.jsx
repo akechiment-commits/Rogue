@@ -1,93 +1,30 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility } from "./utils.js";
+import { useState, useEffect, useCallback, useRef, useReducer } from "react";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility } from "./utils.js";
 import {
-  MONS,
-  hasLOS,
-  bfsNext,
   findRoom,
-  getOpenDirs,
   monsterAI,
   makeMonster,
   makeGuard,
-  spawnMonsters,
   wakeIfDormant,
 } from "./monsters.js";
 import {
-  ITEM_TILES,
-  ITEMS,
-  ARROW_T,
-  EMPTY_BOTTLE,
-  WATER_BOTTLE,
-  BLANK_SCROLL,
-  MAGIC_MARKER,
-  SPELLBOOKS,
-  SPELLS,
-  WANDS,
-  POTS,
-  TRAPS,
-  RAW_FOODS,
-  COOKED_FOODS,
-  RAW_SIZES,
-  COOKED_SIZES,
-  FOOD_EFFECTS,
-  FOOD_DESCS,
-  POT_FOOD_PREFIX,
-  POT_FOOD_DESCS,
-  POTION_FOOD_PREFIX,
-  itemPrice,
-  wPick,
-  genFood,
-  makeArrow,
-  makePoisonArrow,
-  makePiercingArrow,
-  makeStone,
-  makeMagicStone,
-  makeBombArrow,
-  addArrowsInv,
-  addStonesInv,
-  doExplosion,
-  wallBreakDrop,
-  applyPotEffect,
-  makePot,
-  scatterPotContents,
-  applyPotionEffect,
-  applyPotionToItem,
-  splashPotion,
-  applyWaterSplash,
-  soakItemIntoSpring,
-  placeItemAt,
-  pushEntity,
-  fireTrapItem,
-  burnFoodItem,
-  setPitfallBag,
-  clearPitfallBag,
-  applyWandEffect,
-  fireWandBolt,
-  getBlessMultiplier,
-  breakWandAoE,
-  shootArrow,
-  monsterFireLightning,
-  checkShopTheft,
-  castSpellBolt,
-  applySpellEffect,
-  applyLightningToInventory,
-  WEAPON_ABILITIES,
-  ARMOR_ABILITIES,
-  BB_TYPES,
-  inMagicSealRoom,
-  inCursedMagicSealRoom,
-  getFarcastMode,
-  monsterDrop,
-  killMonster,
-  getIdentKey,
-  generateFakeNames,
+  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, TRAPS,
+  CAT_CLAW_T, EXCALIBUR_T,
+  genFood, makeArrow, addArrowsInv, addStonesInv,
+  wallBreakDrop, makePot, placeItemAt,
+  setPitfallBag, clearPitfallBag, applyWandEffect,
+  monsterFireLightning, checkShopTheft, applyLightningToInventory,
+  WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
+  monsterDrop, killMonster, getIdentKey, generateFakeNames,
   hasCursedExplosionPentacle,
-  randPotCapacity,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
-import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse } from "./dungeon.js";
+import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
-import { TILE_NAMES, CUSTOM_TILE_PATH, customTileImages, clearCustomTileImages, ST, drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
+import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
+import { useGameRenderer } from './useGameRenderer.js';
+import { useItemActions } from './useItemActions.js';
+import { useKeyHandler } from './useKeyHandler.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
   bigRoom:      "ビッグルームだ！",
@@ -96,7 +33,19 @@ const FLOOR_TITLES = {
   spinFloor:    "回転板の間だ！",
   corridorFloor:"廊下フロアだ！",
   gridRoom:     "格子の大部屋だ！",
+  treasureRoom: "隠し宝部屋だ！",
 };
+
+const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, spellMenuSel: 0, nicknameInput: '', data: null };
+
+function modalReducer(state, action) {
+  switch (action.type) {
+    case 'SET_MODAL': return { ...MODAL_INIT, type: action.modal, data: action.data || null };
+    case 'CLOSE_MODAL': return MODAL_INIT;
+    case 'UPDATE': return { ...state, ...action.payload };
+    default: return state;
+  }
+}
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [gs, setGs] = useState(null);
@@ -109,33 +58,60 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [invMenuSel, setInvMenuSel] = useState(null);
   const [showDesc, setShowDesc] = useState(null);
   const [throwMode, setThrowMode] = useState(null);
-  const [springMode, setSpringMode] = useState(null);
-  const [springMenuSel, setSpringMenuSel] = useState(0);
-  const [springPage, setSpringPage] = useState(0);
-  const [bigboxMode, setBigboxMode] = useState(null);
-  const [bigboxMenuSel, setBigboxMenuSel] = useState(0);
-  const [bigboxPage, setBigboxPage] = useState(0);
+  /* ── modal state (mutually exclusive) via useReducer ── */
+  const [modal, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
+
+  // convenience accessors
+  const springMode    = modal.type === 'spring'      ? modal.data : null;
+  const springMenuSel = modal.springMenuSel;
+  const springPage    = modal.springPage;
+  const bigboxMode    = modal.type === 'bigbox'       ? modal.data : null;
+  const bigboxMenuSel = modal.bigboxMenuSel;
+  const bigboxPage    = modal.bigboxPage;
   const bigboxRef = useRef(null);
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
-  const [shopMode, setShopMode] = useState(null);
-  const [shopMenuSel, setShopMenuSel] = useState(0);
-  const [putMenuSel, setPutMenuSel] = useState(0);
-  const [putPage, setPutPage] = useState(0);
-  /* null | "menu" | "soak" */ const [putMode, setPutMode] = useState(null);
-  /* null | {markerIdx,step:"select_blank"|"select_type",blankIdx:number|null} */
-  const [markerMode, setMarkerMode] = useState(null);
-  const [markerMenuSel, setMarkerMenuSel] = useState(0);
-  const [spellListMode, setSpellListMode] = useState(false);
-  const [spellMenuSel, setSpellMenuSel] = useState(0);
+  const shopMode      = modal.type === 'shop'         ? modal.data : null;
+  const shopMenuSel   = modal.shopMenuSel;
+  const putMode       = modal.type === 'put'          ? modal.data : null;
+  const putMenuSel    = modal.putMenuSel;
+  const putPage       = modal.putPage;
+  const markerMode    = modal.type === 'marker'       ? modal.data : null;
+  const markerMenuSel = modal.markerMenuSel;
+  const spellListMode = modal.type === 'spellList'    ? modal.data : null;
+  const spellMenuSel  = modal.spellMenuSel;
   /* null | {potIdx:number} */ const [dashMode, setDashMode] = useState(false);
-  /* null | {cx:number, cy:number} */ const [tpSelectMode, setTpSelectMode] = useState(null);
-  /* null | {cx:number, cy:number} */ const [lookMode, setLookMode] = useState(null);
-  /* null | {sel:number} */ const [floorSelectMode, setFloorSelectMode] = useState(null);
-  /* null | { mode:'identify'|'unidentify' } */ const [identifyMode, setIdentifyMode] = useState(null);
-  /* null | { identKey:string } */ const [nicknameMode, setNicknameMode] = useState(null);
-  /* null | { pendingMsgs:string[] } */ const [revealMode, setRevealMode] = useState(null);
-  const [nicknameInput, setNicknameInput] = useState('');
+  const tpSelectMode     = modal.type === 'tpSelect'     ? modal.data : null;
+  const lookMode         = modal.type === 'look'         ? modal.data : null;
+  const floorSelectMode  = modal.type === 'floorSelect'  ? modal.data : null;
+  const identifyMode     = modal.type === 'identify'     ? modal.data : null;
+  const nicknameMode     = modal.type === 'nickname'     ? modal.data : null;
+  const revealMode       = modal.type === 'reveal'       ? modal.data : null;
+  const nicknameInput    = modal.nicknameInput;
+
+  // setter functions (support both direct values and updater functions)
+  const setSpringMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spring', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setSpringMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { springMenuSel: typeof v === 'function' ? v(modal.springMenuSel) : v } });
+  const setSpringPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { springPage: typeof v === 'function' ? v(modal.springPage) : v } });
+  const setBigboxMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'bigbox', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setBigboxMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxMenuSel: typeof v === 'function' ? v(modal.bigboxMenuSel) : v } });
+  const setBigboxPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxPage: typeof v === 'function' ? v(modal.bigboxPage) : v } });
+  const setShopMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'shop', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setShopMenuSel   = (v) => dispatchModal({ type: 'UPDATE', payload: { shopMenuSel: typeof v === 'function' ? v(modal.shopMenuSel) : v } });
+  const setPutMode       = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'put', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setPutMenuSel    = (v) => dispatchModal({ type: 'UPDATE', payload: { putMenuSel: typeof v === 'function' ? v(modal.putMenuSel) : v } });
+  const setPutPage       = (v) => dispatchModal({ type: 'UPDATE', payload: { putPage: typeof v === 'function' ? v(modal.putPage) : v } });
+  const setMarkerMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'marker', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setMarkerMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { markerMenuSel: typeof v === 'function' ? v(modal.markerMenuSel) : v } });
+  const setSpellListMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel) : v } });
+  const setTpSelectMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'tpSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setLookMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'look', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setFloorSelectMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'floorSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setIdentifyMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'identify', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setNicknameMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'nickname', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setRevealMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'reveal', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setNicknameInput = (v) => dispatchModal({ type: 'UPDATE', payload: { nicknameInput: typeof v === 'function' ? v(modal.nicknameInput) : v } });
   /* mobile dash toggle */ const [dead, setDead] = useState(false);
   const [gameOverResult, setGameOverResult] = useState(null);
   const [showScores, setShowScores] = useState(false);
@@ -268,9 +244,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setDashMode(false);
     resetDiscoveries();
     const startDepth = dungeonConfig?.startDepth || 1;
-    const d = dungeonConfig?.dungeonType === "debug"
+    const _initDt = dungeonConfig?.dungeonType || "beginner";
+    const d = _initDt === "debug"
       ? genDebugDungeon()
-      : genDungeon(startDepth - 1, dungeonConfig?.dungeonType || "beginner");
+      : genDungeon(startDepth - 1, _initDt);
+    /* 最下層の場合は下り階段を消して目標アイテムを配置 */
+    const _initMaxD = dungeonConfig?.maxFloors ?? null;
+    if (_initMaxD !== null && startDepth >= _initMaxD && _initDt !== "debug") {
+      prepareLastFloor(d, _initDt);
+    }
     d.nextSpawnTurn = rng(10, 50);
     const p = {
       x: d.stairUp.x,
@@ -372,265 +354,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (msgRef.current) msgRef.current.scrollTop = msgRef.current.scrollHeight;
   }, [msgs]);
 
-  /* Canvas render */ useEffect(() => {
-    if (!gs || !canvasRef.current) return;
-    const cvs = canvasRef.current,
-      ctx = cvs.getContext("2d");
-    const ts = null;
-    const { player: p, dungeon: dg } = gs;
-    const vw = mobile ? (landscape ? VW_L : VW_M) : VW_D;
-    const contW = cvs.parentElement?.clientWidth || 600;
-    const sz = Math.max(12, Math.floor(contW / vw));
-    /* モバイル縦：画面高さからUI要素分を引いてマップ表示行数を動的計算 */
-    let vh;
-    if (mobile && !landscape) {
-      const uiH = 224; /* ステータスバー+HPバー+メッセージログ(4行)+操作ボタン+余白 */
-      const availH = window.innerHeight - uiH;
-      vh = Math.max(VH_M, Math.min(Math.floor(availH / sz), MH));
-    } else {
-      vh = mobile ? VH_L : VH_D;
-    }
-    const cw = vw * sz,
-      ch = vh * sz;
-    cvs.width = cw;
-    cvs.height = ch;
-    cvs.style.width = cw + "px";
-    cvs.style.height = ch + "px";
-    ctx.imageSmoothingEnabled = false;
-    const hw = Math.floor(vw / 2),
-      hh = Math.floor(vh / 2);
-    const _camCx = lookMode ? lookMode.cx : (tpSelectMode ? tpSelectMode.cx : p.x);
-    const _camCy = lookMode ? lookMode.cy : (tpSelectMode ? tpSelectMode.cy : p.y);
-    const sx = clamp(_camCx - hw, 0, Math.max(0, MW - vw)),
-      sy = clamp(_camCy - hh, 0, Math.max(0, MH - vh));
-    ctx.fillStyle = "#080810";
-    ctx.fillRect(0, 0, cw, ch);
-    for (let vy = 0; vy < vh; vy++) {
-      for (let vx = 0; vx < vw; vx++) {
-        const x = sx + vx,
-          y = sy + vy;
-        if (x < 0 || x >= MW || y < 0 || y >= MH) continue;
-        const px2 = vx * sz,
-          py2 = vy * sz;
-        const vis = dg.visible[y][x],
-          exp2 = dg.explored[y][x];
-        if (!vis && !exp2) {
-          if (tpSelectMode && dg.map[y][x] !== T.WALL && dg.map[y][x] !== T.BWALL) {
-            ctx.fillStyle = "#0d0d1a";
-            ctx.fillRect(px2, py2, sz, sz);
-          }
-          continue;
-        }
-        /* Draw base tile */ const t = dg.map[y][x];
-        let ti = TI.FLOOR;
-        if (t === T.WALL || t === T.BWALL) ti = TI.WALL;
-        else if (t === T.SD) ti = TI.SD;
-        else if (t === T.SU) ti = TI.SU;
-        /* Check if in corridor (not in any room, including hidden rooms) */ if (
-          t === T.FLOOR &&
-          ![...dg.rooms, ...(dg.hiddenRooms || [])].some(
-            (r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h,
-          )
-        )
-          ti = TI.CORR;
-        drawTile(ctx, ts, ti, px2, py2, sz);
-        /* 壊せる壁にヒビ表示 */
-        if (t === T.BWALL && (vis || exp2)) {
-          if (!vis) ctx.globalAlpha = 0.4;
-          ctx.strokeStyle = "#aa8844";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(px2 + sz * 0.3, py2 + sz * 0.15);
-          ctx.lineTo(px2 + sz * 0.5, py2 + sz * 0.5);
-          ctx.lineTo(px2 + sz * 0.7, py2 + sz * 0.85);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(px2 + sz * 0.5, py2 + sz * 0.5);
-          ctx.lineTo(px2 + sz * 0.7, py2 + sz * 0.35);
-          ctx.stroke();
-          if (!vis) ctx.globalAlpha = 1;
-        }
-        /* 壁埋めアイテム：祝福マップ使用後に壁タイル上で薄く表示 */
-        if ((t === T.WALL || t === T.BWALL) && (vis || exp2) && dg.itemsRevealed) {
-          const _wi = dg.items.find(i => i.x === x && i.y === y && i.wallEmbedded);
-          if (_wi) {
-            ctx.globalAlpha = 0.55;
-            ctx.fillStyle = "rgba(255,220,60,0.25)";
-            ctx.fillRect(px2, py2, sz, sz);
-            drawTile(ctx, ts, _wi.tile, px2, py2, sz);
-            ctx.globalAlpha = 1;
-          }
-        }
-        /* Spring */ const spr = dg.springs?.find(
-          (s) => s.x === x && s.y === y,
-        );
-        if (spr && (vis || exp2)) {
-          if (!vis) ctx.globalAlpha = 0.4;
-          drawTile(ctx, ts, TI.SPRING, px2, py2, sz);
-          if (!vis) ctx.globalAlpha = 1;
-        }
-        const bba = dg.bigboxes?.find((b) => b.x === x && b.y === y);
-        if (bba && (vis || exp2)) {
-          if (!vis) ctx.globalAlpha = 0.4;
-          drawTile(ctx, ts, TI.BIGBOX, px2, py2, sz);
-          if (!vis) ctx.globalAlpha = 1;
-        }
-        /* Pentacle (魔方陣) */
-        const _pent = dg.pentacles?.find((pc) => pc.x === x && pc.y === y);
-        if (_pent && vis) {
-          const _pentClr =
-            _pent.kind === "sanctuary"    ? (_pent.blessed ? "#c0ffd8" : _pent.cursed ? "#800040" : "#40ff80") :
-            _pent.kind === "vulnerability"? (_pent.blessed ? "#ff9060" : _pent.cursed ? "#804020" : "#ff6020") :
-            _pent.kind === "magic_seal"   ? (_pent.blessed ? "#c0a0ff" : _pent.cursed ? "#403080" : "#8060ff") :
-            _pent.kind === "thunder_trap" ? (_pent.blessed ? "#ffffa0" : _pent.cursed ? "#806020" : "#ffe040") :
-            _pent.kind === "farcast"        ? (_pent.blessed ? "#a0ffff" : _pent.cursed ? "#204060" : "#40c0e0") :
-            _pent.kind === "light"          ? (_pent.blessed ? "#ffffff" : _pent.cursed ? "#303030" : "#ffffaa") :
-            _pent.kind === "teleport_trap"  ? (_pent.blessed ? "#c0a0ff" : _pent.cursed ? "#200040" : "#8040ff") :
-            _pent.kind === "trap_gen"       ? (_pent.blessed ? "#ff8080" : _pent.cursed ? "#401010" : "#cc4040") :
-            _pent.kind === "stone_throw"    ? (_pent.blessed ? "#80c0ff" : _pent.cursed ? "#102040" : "#4080cc") :
-            _pent.kind === "knockback_aura" ? (_pent.blessed ? "#ffcc80" : _pent.cursed ? "#402010" : "#ff8040") :
-            _pent.kind === "explosion"      ? (_pent.blessed ? "#ff8844" : _pent.cursed ? "#301008" : "#ff5500") :
-            _pent.kind === "plain"          ? (_pent.blessed ? "#dddddd" : _pent.cursed ? "#555555" : "#999999") : "#ff6020";
-          ctx.globalAlpha = 0.28;
-          ctx.fillStyle = _pentClr;
-          ctx.fillRect(px2, py2, sz, sz);
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = _pentClr;
-          ctx.font = `bold ${Math.floor(sz * 0.78)}px monospace`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("✦", px2 + sz / 2, py2 + sz / 2);
-        }
-        if (vis) {
-          /* Player */ if (x === p.x && y === p.y) {
-            const pf = p.facing || { dx: 0, dy: 1 };
-            const pti =
-              pf.dy > 0
-                ? TI.PLAYER_DOWN
-                : pf.dy < 0
-                  ? TI.PLAYER_UP
-                  : pf.dx < 0
-                    ? TI.PLAYER_LEFT
-                    : TI.PLAYER_RIGHT;
-            drawTile(
-              ctx,
-              ts,
-              customTileImages[pti] ? pti : TI.PLAYER,
-              px2,
-              py2,
-              sz,
-            );
-            continue;
-          }
-          /* Monster (壁歩きは別パスで描画) */ const mon = dg.monsters.find(
-            (m) => m.x === x && m.y === y && !m.wallWalker,
-          );
-          if (mon) {
-            const _monTile = (p.bewitchedTurns || 0) > 0
-              ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 7 + y * 13) % 9]
-              : mon.tile;
-            drawTile(ctx, ts, _monTile, px2, py2, sz);
-            /* HP bar */ if (mon.hp < mon.maxHp) {
-              const bw = sz - 2,
-                bh = 2,
-                hpR = mon.hp / mon.maxHp;
-              ctx.fillStyle = "#300";
-              ctx.fillRect(px2 + 1, py2, bw, bh);
-              ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
-              ctx.fillRect(px2 + 1, py2, Math.max(1, bw * hpR), bh);
-            }
-            continue;
-          }
-          /* Item */ const it = dg.items.find((i) => i.x === x && i.y === y && !i.wallEmbedded);
-          if (it) {
-            const _itTile = (p.bewitchedTurns || 0) > 0
-              ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 11 + y * 19) % 9]
-              : it.tile;
-            drawTile(ctx, ts, _itTile, px2, py2, sz);
-            continue;
-          }
-          /* Trap */ const tr = dg.traps.find(
-            (t2) => t2.x === x && t2.y === y && t2.revealed,
-          );
-          if (tr) {
-            drawTile(ctx, ts, tr.tile, px2, py2, sz);
-          }
-        } else if (exp2) {
-          /* Dim explored tiles */ ctx.fillStyle = "rgba(0,0,8,0.6)";
-          ctx.fillRect(px2, py2, sz, sz);
-          /* 暗闇中は発見済みオブジェクトを非表示 */
-          const _inDark = (p.darknessTurns || 0) > 0;
-          if (!_inDark) {
-            /* 発見済みアイテムを薄く表示（祝福マップ時は未発見も含む） */
-            const ri = dg.items.find((i) => i.x === x && i.y === y && !i.wallEmbedded && (i.discovered || dg.itemsRevealed));
-            if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
-            /* 発見済み罠を薄く表示 */
-            const tr = dg.traps.find((t2) => t2.x === x && t2.y === y && t2.revealed);
-            if (tr) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, tr.tile, px2, py2, sz); ctx.globalAlpha = 1; }
-          }
-        }
-      }
-    }
-    /* ===== モンスター感知：視界外モンスターを薄く表示 ===== */
-    if ((p.monsterSenseTurns || 0) > 0 || dg.monsterSenseActive) {
-      for (const _sm of dg.monsters) {
-        if (_sm.wallWalker) continue; /* 壁歩きは別パスで描画 */
-        if (dg.visible[_sm.y]?.[_sm.x]) continue; /* 視界内は通常描画済み */
-        if (_sm.x < sx || _sm.x >= sx + vw || _sm.y < sy || _sm.y >= sy + vh) continue;
-        const _spx = (_sm.x - sx) * sz, _spy = (_sm.y - sy) * sz;
-        ctx.globalAlpha = 0.45;
-        /* 感知は赤みがかった色調でオーバーレイ */
-        ctx.fillStyle = "rgba(200,30,30,0.25)";
-        ctx.fillRect(_spx, _spy, sz, sz);
-        drawTile(ctx, ts, _sm.tile, _spx, _spy, sz);
-        ctx.globalAlpha = 1;
-      }
-    }
-    /* ===== 壁歩きモンスターを最前面に描画（視界内か隣接マスのみ） ===== */
-    for (const _wm of dg.monsters) {
-      if (!_wm.wallWalker) continue;
-      if (_wm.x < sx || _wm.x >= sx + vw || _wm.y < sy || _wm.y >= sy + vh) continue;
-      const _wVisible = dg.visible?.[_wm.y]?.[_wm.x];
-      const _wAdj = Math.abs(_wm.x - p.x) <= 1 && Math.abs(_wm.y - p.y) <= 1;
-      if (!_wVisible && !_wAdj) continue;
-      const _wpx = (_wm.x - sx) * sz, _wpy = (_wm.y - sy) * sz;
-      const _onWall = dg.map[_wm.y]?.[_wm.x] === T.WALL;
-      if (_onWall) ctx.globalAlpha = 0.75;
-      drawTile(ctx, ts, _wm.tile, _wpx, _wpy, sz);
-      ctx.globalAlpha = 1;
-      if (_wm.hp < _wm.maxHp) {
-        const bw = sz - 2, bh = 2, hpR = _wm.hp / _wm.maxHp;
-        ctx.fillStyle = "#300"; ctx.fillRect(_wpx + 1, _wpy, bw, bh);
-        ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
-        ctx.fillRect(_wpx + 1, _wpy, Math.max(1, bw * hpR), bh);
-      }
-    }
-    /* lookMode cursor overlay */
-    if (lookMode) {
-      const { cx: _lcx, cy: _lcy } = lookMode;
-      if (_lcx >= sx && _lcx < sx + vw && _lcy >= sy && _lcy < sy + vh) {
-        const _cpx = (_lcx - sx) * sz, _cpy = (_lcy - sy) * sz;
-        ctx.fillStyle = "rgba(0,220,255,0.2)";
-        ctx.fillRect(_cpx, _cpy, sz, sz);
-        ctx.strokeStyle = "#00e5ff";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(_cpx + 1, _cpy + 1, sz - 2, sz - 2);
-      }
-    }
-    /* tpSelectMode cursor overlay */
-    if (tpSelectMode) {
-      const { cx: _tcx, cy: _tcy } = tpSelectMode;
-      if (_tcx >= sx && _tcx < sx + vw && _tcy >= sy && _tcy < sy + vh) {
-        const _cpx = (_tcx - sx) * sz, _cpy = (_tcy - sy) * sz;
-        const _tgtWall = dg.map[_tcy]?.[_tcx] === T.WALL || dg.map[_tcy]?.[_tcx] === T.BWALL;
-        ctx.fillStyle = _tgtWall ? "rgba(255,60,60,0.25)" : "rgba(255,220,40,0.25)";
-        ctx.fillRect(_cpx, _cpy, sz, sz);
-        ctx.strokeStyle = _tgtWall ? "#ff4040" : "#ffe040";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(_cpx + 1, _cpy + 1, sz - 2, sz - 2);
-      }
-    }
-  }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode]);
+  /* Canvas render */
+  useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
       p.level++;
@@ -672,6 +397,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           ml.push(`${it.name || "矢"}がある。持ち物がいっぱいだ！`);
           break;
         }
+      } else if (it.type === "goal") {
+        trackItem(it);
+        p.inventory.push(it);
+        ml.push(`★${it.name}を手に入れた！地上に持ち帰ろう！★`);
+        removeFloorItem(dg, it);
+        go = true;
       } else if (it.shopPrice) {
         ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}がある（商品：${it.shopPrice}G）fキーで拾う`);
         break;
@@ -917,6 +648,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const chgFloor = useCallback((pl, dir, pitfall = false) => {
     const nd = pl.depth + dir;
     if (nd < 1) return null;
+    const _maxD = sr.current.maxDepth;
+    /* 最下層から落とし穴 → 隠し宝部屋 */
+    const _isLastFloorPitfall = pitfall && _maxD !== null && pl.depth >= _maxD && dir > 0;
     if (!sr.current.floors) sr.current.floors = {};
     /* 店の部屋内で落とし穴等により階層を離脱した場合は泥棒状態にする */
     const _chgShops = sr.current.dungeon?.shops || (sr.current.dungeon?.shop ? [sr.current.dungeon.shop] : []);
@@ -931,15 +665,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     sr.current.floors[pl.depth] = sr.current.dungeon;
     const _saved = sr.current.floors[nd];
     let d;
-    if (_saved) {
+    if (_isLastFloorPitfall) {
+      /* 隠し宝部屋を生成 */
+      d = _saved || genTreasureRoom(pl.depth);
+      if (_saved) delete sr.current.floors[nd];
+    } else if (_saved) {
       d = _saved;
       delete sr.current.floors[nd];
     } else if (sr.current.isDebugRun && nd >= 2) {
       d = genDebugDungeonFloor2();
     } else {
       d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
+      /* 最下層は下り階段を消して目標アイテムを配置 */
+      if (_maxD !== null && nd >= _maxD) {
+        prepareLastFloor(d, sr.current.dungeonType || "beginner");
+      }
     }
     pl.depth = nd;
+    /* 最深層に到着時、goalアイテムが所持品にもフロアにもなければ再配置 */
+    if (_maxD !== null && nd >= _maxD && d.isLastFloor) {
+      const _hasGoalInv = pl.inventory?.some(i => i.type === "goal");
+      const _hasGoalFloor = d.items.some(i => i.type === "goal");
+      if (!_hasGoalInv && !_hasGoalFloor) {
+        const _dt = sr.current.dungeonType || "beginner";
+        const _gtmpl = GOAL_ITEMS[_dt] || GOAL_ITEMS.beginner;
+        const _gr = d.rooms[d.rooms.length - 1];
+        const _gx = _gr.cx ?? (_gr.x + Math.floor(_gr.w / 2));
+        const _gy = _gr.cy ?? (_gr.y + Math.floor(_gr.h / 2));
+        d.items.push({ ..._gtmpl, id: uid(), x: _gx, y: _gy });
+      }
+    }
     if (sr.current.allBcKnown) {
       d.items.forEach(it => { it.fullIdent = true; it.bcKnown = true; });
     }
@@ -948,8 +703,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       pl.x = rng(_pr.x, _pr.x + _pr.w - 1);
       pl.y = rng(_pr.y, _pr.y + _pr.h - 1);
     } else {
-      pl.x = dir > 0 ? d.stairUp.x : d.stairDown.x;
-      pl.y = dir > 0 ? d.stairUp.y : d.stairDown.y;
+      const _stTarget = dir > 0 ? d.stairUp : (d.stairDown || d.stairUp);
+      pl.x = _stTarget.x;
+      pl.y = _stTarget.y;
     }
     refreshFOV(d, pl);
     d.nextSpawnTurn = pl.turns + rng(10, 50);
@@ -974,7 +730,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         hasAbility(p.armor, "slow_hunger")
           ? 2
           : 1;
-      if (p.turns % (15 * hd) === 0) {
+      if (p.turns % (10 * hd) === 0) {
         p.hunger = Math.max(0, p.hunger - 1);
       }
       if (p.hunger === 0) {
@@ -1412,7 +1168,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 attackMon.paralyzed = false;
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
-              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0);
+              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0);
               const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;
@@ -1477,6 +1233,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   }
                   if (_kbMoved > 0) { attackMon.x = _kbCx; attackMon.y = _kbCy; ml.push(`${_kbPcP.name}の力で${attackMon.name}が${_kbMoved}マス吹き飛んだ！`); }
                   if (attackMon.hp <= 0) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
+                }
+              }
+              /* 武器の状態異常付与（10%） */
+              if (attackMon.hp > 0 && p.weapon) {
+                const _inflicts = [
+                  ["inflict_slow",     () => { attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); ml.push(`${attackMon.name}は鈍足になった！`); }],
+                  ["inflict_paralyze", () => { attackMon.paralyzed = true; ml.push(`${attackMon.name}は金縛りになった！`); }],
+                  ["inflict_sleep",    () => { attackMon.sleepTurns = (attackMon.sleepTurns || 0) + rng(3, 6); ml.push(`${attackMon.name}は眠りに落ちた！`); }],
+                  ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + 50; ml.push(`${attackMon.name}は暗闇になった！`); }],
+                  ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + 20; ml.push(`${attackMon.name}は混乱した！`); }],
+                  ["inflict_bewitch",  () => { attackMon.bewitched = true; attackMon.bewitchedTurns = (attackMon.bewitchedTurns || 0) + 50; ml.push(`${attackMon.name}は幻惑状態になった！`); }],
+                  ["inflict_seal",     () => { attackMon.sealed = true; attackMon.sealedTurns = (attackMon.sealedTurns || 0) + 50; ml.push(`${attackMon.name}は封印された！`); }],
+                ];
+                for (const [abId, fn] of _inflicts) {
+                  if (wabHas(abId) && Math.random() < 0.1) fn();
                 }
               }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
@@ -1555,24 +1326,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else ml.push("矢を装備していない。");
       } else if (type === "stairs_down") {
         if (dg.map[p.y][p.x] === T.SD) {
-          const _maxD = sr.current.maxDepth;
-          if (_maxD !== null && p.depth >= _maxD) {
-            /* 最下層クリア → 地上帰還 */
-            if (onReturnToHub) {
-              ml.push(`地下${p.depth}階の最深部を踏破した！地上へ帰還する…`);
-              sr.current = { ...st };
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
-              return;
-            }
-          } else {
-            doStair(1);
-          }
+          doStair(1);
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
         if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
+              const _hasGoal = p.inventory.some(it => it.type === "goal");
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal });
               return;
             }
           } else {
@@ -1582,21 +1343,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (type === "interact") {
         /* 足元の階段チェック */
         if (dg.map[p.y][p.x] === T.SD) {
-          const _maxD2 = sr.current.maxDepth;
-          if (_maxD2 !== null && p.depth >= _maxD2) {
-            if (onReturnToHub) {
-              ml.push(`地下${p.depth}階の最深部を踏破した！地上へ帰還する…`);
-              sr.current = { ...st };
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
-              return;
-            }
-          } else {
-            doStair(1);
-          }
+          doStair(1);
         } else if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
+              const _hasGoal2 = p.inventory.some(it => it.type === "goal");
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal2 });
               return;
             }
           } else {
@@ -1735,6 +1487,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           p.sureHitTurns--;
           if (p.sureHitTurns <= 0) ml.push("必中状態が切れた！");
         }
+        /* 攻撃力ブースト（唐辛子等） */
+        if ((p.spicyAtkTurns || 0) > 0) {
+          p.spicyAtkTurns--;
+          if (p.spicyAtkTurns <= 0) ml.push("辛さによる攻撃力ブーストが切れた！");
+        }
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
@@ -1839,10 +1596,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
       const ml = [];
       let steps = 0;
-      const startInRoom =
-        dg.rooms?.some(
-          (r) => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h,
-        ) ?? false;
+      /* ダッシュ用座標マップ構築 */
+      const _dk = (x, y) => y * MW + x;
+      const _dRoomSet = new Set();
+      for (const r of (dg.rooms || [])) { for (let ry = r.y; ry < r.y + r.h; ry++) for (let rx = r.x; rx < r.x + r.w; rx++) _dRoomSet.add(_dk(rx, ry)); }
+      const startInRoom = _dRoomSet.has(_dk(p.x, p.y));
       const getP = (x, y) =>
         (dx !== 0
           ? [
@@ -1865,6 +1623,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           );
         }).length;
       let prevPerps = getP(p.x, p.y);
+
+      const _dItemMap = new Map(); for (const i of dg.items) { if (!_dItemMap.has(_dk(i.x, i.y))) _dItemMap.set(_dk(i.x, i.y), i); }
+      const _dTrapMap = new Map(); for (const t of dg.traps) _dTrapMap.set(_dk(t.x, t.y), t);
+      const _dSprMap = new Map(); if (dg.springs) for (const s of dg.springs) _dSprMap.set(_dk(s.x, s.y), s);
+      const _dBbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _dBbMap.set(_dk(b.x, b.y), b);
+      const _dPentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _dPentMap.set(_dk(pc.x, pc.y), pc);
       while (steps < 50) {
         const nx = p.x + dx,
           ny = p.y + dy;
@@ -1877,7 +1641,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         )
           break;
         if (monsterAt(dg, nx, ny)) break;
-        if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny)) break;
+        { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         const _allShopsD = getShops(dg);
         const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
           p.x >= s.room.x && p.x < s.room.x + s.room.w &&
@@ -1907,14 +1671,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           endTurn(st, p, ml);
           break;
         }
-        const _dashRevTrap = dg.traps.find((t) => t.x === p.x && t.y === p.y && t.revealed);
+        const _dashRevTrap = (() => { const _t = _dTrapMap.get(_dk(p.x, p.y)); return _t?.revealed ? _t : undefined; })();
         if (_dashRevTrap) {
           ml.push(`${_dashRevTrap.name}がある。`);
           endTurn(st, p, ml);
           break;
         }
         {
-          const _dashIt = st.dungeon.items.find((i) => i.x === p.x && i.y === p.y);
+          const _dashIt = _dItemMap.get(_dk(p.x, p.y));
           if (_dashIt) {
             const _w = _dashIt.type === "weapon", _a = _dashIt.type === "armor";
             let _lbl = itemDisplayName(_dashIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -1943,23 +1707,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           endTurn(st, p, ml);
           break;
         }
-        const _dashSpr = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
+        const _dashSpr = _dSprMap.get(_dk(p.x, p.y));
         if (_dashSpr) {
           ml.push("泉がある。");
           endTurn(st, p, ml);
           break;
         }
-        const _dashBb = st.dungeon.bigboxes?.find((b) => b.x === p.x && b.y === p.y);
+        const _dashBb = _dBbMap.get(_dk(p.x, p.y));
         if (_dashBb) {
           ml.push(`${_dashBb.name}がある。`);
           endTurn(st, p, ml);
           break;
         }
-        const curInRoom =
-          dg.rooms?.some(
-            (r) =>
-              p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h,
-          ) ?? false;
+        const curInRoom = _dRoomSet.has(_dk(p.x, p.y));
         const curPerps = getP(p.x, p.y);
         const fnx = p.x + dx,
           fny = p.y + dy;
@@ -1973,10 +1733,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         const _hpBefore = p.hp;
         endTurn(st, p, ml);
         if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
+        /* endTurn後にモンスターが移動している可能性があるため再チェック */
+        const blockedAfter = blocked || !!monsterAt(dg, fnx, fny);
         if (startInRoom) {
-          if (!curInRoom || blocked) break;
+          if (!curInRoom || blockedAfter) break;
         } else {
-          if ((curPerps > prevPerps && curPerps > 0) || blocked) break;
+          if ((curPerps > prevPerps && curPerps > 0) || blockedAfter) break;
         }
         prevPerps = curPerps;
       }
@@ -2078,6 +1840,37 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         bb.capacity = bb.contents.length;
         return;
       }
+      /* 杖 + 武器/防具 → 状態異常アビリティ付与 */
+      const _WAND_SYNTH = {
+        slow:     { weapon: "inflict_slow",     armor: "slow_proof" },
+        paralyze: { weapon: "inflict_paralyze", armor: "paralyze_proof" },
+        sleep:    { weapon: "inflict_sleep",    armor: "sleep_proof" },
+        darkness: { weapon: "inflict_darkness", armor: "darkness_proof" },
+        confuse:  { weapon: "inflict_confuse",  armor: "confuse_proof" },
+        bewitch:  { weapon: "inflict_bewitch",  armor: "bewitch_proof" },
+        seal:     { weapon: "inflict_seal",     armor: "seal_proof" },
+      };
+      const _swWand = bb.contents.find(i => i.type === "wand" && _WAND_SYNTH[i.effect]);
+      const _swEquip = _swWand && bb.contents.find(i => i !== _swWand && (i.type === "weapon" || i.type === "armor"));
+      if (_swWand && _swEquip) {
+        const _swEntry = _WAND_SYNTH[_swWand.effect];
+        const _swAbId = _swEquip.type === "weapon" ? _swEntry.weapon : _swEntry.armor;
+        const _toAbs = (it) => [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean))];
+        const _curAbs = _toAbs(_swEquip);
+        if (_curAbs.includes(_swAbId)) {
+          ml.push(`${_swEquip.name}には既にその能力がある。合成できなかった。`);
+        } else {
+          const _newAbs = [..._curAbs, _swAbId];
+          const merged = { ..._swEquip, id: uid(), ability: _newAbs[0], abilities: _newAbs };
+          bb.contents = bb.contents.filter(i => i !== _swWand && i !== _swEquip);
+          bb.contents.push(merged);
+          bb.capacity = bb.contents.length;
+          const _AB = _swEquip.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+          const _abName = _AB.find(a => a.id === _swAbId)?.name || _swAbId;
+          ml.push(`合成完了！${_swEquip.name}に${_swWand.name}の力が宿った！[${_abName}]`);
+        }
+        return;
+      }
       const ws = bb.contents.filter((i) => i.type === "weapon");
       const as = bb.contents.filter((i) => i.type === "armor");
       const pair = ws.length >= 2 ? ws : as.length >= 2 ? as : null;
@@ -2098,6 +1891,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         ability: _mabs[0] || undefined,
         abilities: _mabs.length ? _mabs : undefined,
       };
+      /* 短剣の合成カウント: 短剣同士なら加算、短剣+他なら消失 */
+      if (base.name === "短剣" && mat.name === "短剣") {
+        merged.daggerMerge = (base.daggerMerge || 1) + (mat.daggerMerge || 1);
+      } else {
+        delete merged.daggerMerge;
+      }
       /* pickaxe能力を持つ場合、耐久値をベース/素材から引き継ぐ */
       if (_mabs.includes("pickaxe")) {
         merged.durability = merged.durability ?? mat.durability ?? 30;
@@ -2105,9 +1904,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         delete merged.durability;
       }
       bb.contents = bb.contents.filter((i) => i !== base && i !== mat);
-      bb.contents.push(merged);
-      bb.capacity = bb.contents.length;
-      ml.push(`合成完了！${base.name}と${mat.name}が融合した！`);
+      /* 短剣カウントが3以上なら猫の爪に変化 */
+      if (merged.daggerMerge >= 3) {
+        const _catClaw = { ...CAT_CLAW_T, id: uid(), plus: merged.plus };
+        bb.contents.push(_catClaw);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！短剣が融合して猫の爪に変化した！`);
+      } else {
+        bb.contents.push(merged);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！${base.name}と${mat.name}が融合した！`);
+      }
     },
     [uid],
   );
@@ -2121,6 +1928,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       );
       if (bb.kind === "synthesis") {
         trySynthesize(bb, ml);
+      } else if (bb.kind === "change" && item.type === "goal") {
+        ml.push(`${item.name}は変化しなかった！`);
       } else if (bb.kind === "change") {
         const kinds = ["potion", "weapon", "armor", "food", "wand", "arrow", "pot"];
         const rt = pick(kinds);
@@ -2261,7 +2070,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.inventory.push(wb);
         ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
-        if (hasAbility(it, "no_degrade")) {
+        /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
+        if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
+          const _oldPlus = it.plus || 0;
+          Object.assign(it, { ...EXCALIBUR_T, id: it.id, plus: _oldPlus });
+          if (it.abilities) { it.abilities = [...new Set([...it.abilities, EXCALIBUR_T.ability])]; it.ability = it.abilities[0]; }
+          ml.push(`${it.name}が聖なる光を放ち...エクスカリバーに変化した！`);
+        } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧") && Math.random() < 0.20) {
+          const _oldPlus = it.plus || 0;
+          const _oldName = it.name;
+          const _goldAxe = ITEMS.find(i => i.name === "金の斧");
+          Object.assign(it, { ..._goldAxe, id: it.id, plus: _oldPlus });
+          if (it.abilities) { it.abilities = [...new Set([...it.abilities, _goldAxe.ability])]; it.ability = it.abilities[0]; }
+          ml.push(`${_oldName}が黄金の輝きを放ち...金の斧に変化した！`);
+        } else if (hasAbility(it, "no_degrade")) {
           ml.push(`${it.name}が水に浸かったが金でできているので錆びなかった！`);
         } else {
           const _op = it.plus || 0;
@@ -2368,1094 +2190,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     window.addEventListener("keyup", onUp);
     return () => window.removeEventListener("keyup", onUp);
   }, []);
-  const handleKey = useCallback(
-    (e) => {
-      const k = e.key.toLowerCase();
-      if (k === "shift") {
-        shiftRef.current = true;
-      }
-      if (dead) {
-        if (!showScores) {
-          if (k === "arrowleft" || k === "arrowup" || k === "h") {
-            e.preventDefault(); setGameOverSel(0);
-          } else if (k === "arrowright" || k === "arrowdown" || k === "l") {
-            e.preventDefault(); setGameOverSel(1);
-          } else if (k === "enter" || k === " " || k === "z") {
-            e.preventDefault();
-            if (gameOverSel === 0) init();
-            else setShowScores(true);
-          }
-        } else {
-          if (k === "escape" || k === "enter" || k === " " || k === "z") {
-            e.preventDefault(); setShowScores(false);
-          }
-        }
-        return;
-      }
-      if (floorSelectMode) {
-        e.preventDefault();
-        const { player: _fsp } = sr.current || {};
-        if (!_fsp) return;
-        const MAX_FLOOR = 30;
-        const isUp   = k === "arrowup"   || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || e.code === "Numpad2";
-        if (isUp)   { setFloorSelectMode({ sel: Math.max(1, floorSelectMode.sel - 1) }); return; }
-        if (isDown) { setFloorSelectMode({ sel: Math.min(MAX_FLOOR, floorSelectMode.sel + 1) }); return; }
-        if (k === "z" || k === "enter") {
-          const _f = floorSelectMode.sel;
-          const _ml = [];
-          if (!sr.current.floors) sr.current.floors = {};
-          sr.current.floors[_fsp.depth] = sr.current.dungeon;
-          const _saved = sr.current.floors[_f];
-          let _d;
-          if (_saved) { _d = _saved; delete sr.current.floors[_f]; }
-          else { _d = genDungeon(_f - 1, sr.current.dungeonType || "beginner"); }
-          _fsp.depth = _f;
-          const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
-          _fsp.x = rng(_rm.x, _rm.x + _rm.w - 1);
-          _fsp.y = rng(_rm.y, _rm.y + _rm.h - 1);
-          refreshFOV(_d, _fsp);
-          _d.nextSpawnTurn = _fsp.turns + rng(10, 50);
-          sr.current.dungeon = _d;
-          _ml.push(`${_f}階へテレポートした！【呪】`);
-          endTurn(sr.current, _fsp, _ml);
-          setFloorSelectMode(null);
-          setMsgs((prev) => [...prev.slice(-80), ..._ml]);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-        }
-        if (k === "x" || k === "escape") { setFloorSelectMode(null); return; }
-        return;
-      }
-      if (tpSelectMode) {
-        e.preventDefault();
-        const { player: p, dungeon: dg } = sr.current || {};
-        if (!p || !dg) return;
-        const { cx, cy } = tpSelectMode;
-        const isUp    = k === "arrowup"    || e.code === "Numpad8";
-        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
-        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
-        const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
-        const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
-        let ncx = cx, ncy = cy;
-        if (isUp)    ncy = Math.max(0, cy - 1);
-        else if (isDown)  ncy = Math.min(MH - 1, cy + 1);
-        else if (isLeft)  ncx = Math.max(0, cx - 1);
-        else if (isRight) ncx = Math.min(MW - 1, cx + 1);
-        else if (isUL) { ncx = Math.max(0, cx - 1); ncy = Math.max(0, cy - 1); }
-        else if (isUR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.max(0, cy - 1); }
-        else if (isDL) { ncx = Math.max(0, cx - 1); ncy = Math.min(MH - 1, cy + 1); }
-        else if (isDR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.min(MH - 1, cy + 1); }
-        if (ncx !== cx || ncy !== cy) { setTpSelectMode({ cx: ncx, cy: ncy }); return; }
-        const doTpConfirm = (tx, ty) => {
-          const ml = [];
-          const isWalkable = dg.map[ty]?.[tx] !== T.WALL && dg.map[ty]?.[tx] !== T.BWALL && dg.map[ty]?.[tx] !== undefined;
-          if (isWalkable) {
-            p.x = tx; p.y = ty;
-            ml.push("テレポートした！（目的地指定）【祝】");
-          } else {
-            const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-            p.x = rng(rm.x, rm.x + rm.w - 1);
-            p.y = rng(rm.y, rm.y + rm.h - 1);
-            ml.push("壁の中！ランダムにテレポートした。");
-          }
-          endTurn(sr.current, p, ml);
-          refreshFOV(dg, p);
-          setTpSelectMode(null);
-          setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-        };
-        if (k === "z" || k === "enter") { doTpConfirm(cx, cy); return; }
-        if (k === "x" || k === "escape") {
-          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-          doTpConfirm(rng(rm.x, rm.x + rm.w - 1), rng(rm.y, rm.y + rm.h - 1));
-          return;
-        }
-        return;
-      }
-      if (lookMode) {
-        e.preventDefault();
-        const { player: p2, dungeon: dg2 } = sr.current || {};
-        if (!p2 || !dg2) return;
-        const { cx, cy } = lookMode;
-        const isUp    = k === "arrowup"    || e.code === "Numpad8";
-        const isDown  = k === "arrowdown"  || e.code === "Numpad2";
-        const isLeft  = k === "arrowleft"  || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
-        const isUL = e.code === "Numpad7", isUR = e.code === "Numpad9";
-        const isDL = e.code === "Numpad1", isDR = e.code === "Numpad3";
-        let ncx = cx, ncy = cy;
-        if (isUp)         ncy = Math.max(0, cy - 1);
-        else if (isDown)  ncy = Math.min(MH - 1, cy + 1);
-        else if (isLeft)  ncx = Math.max(0, cx - 1);
-        else if (isRight) ncx = Math.min(MW - 1, cx + 1);
-        else if (isUL) { ncx = Math.max(0, cx - 1); ncy = Math.max(0, cy - 1); }
-        else if (isUR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.max(0, cy - 1); }
-        else if (isDL) { ncx = Math.max(0, cx - 1); ncy = Math.min(MH - 1, cy + 1); }
-        else if (isDR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.min(MH - 1, cy + 1); }
-        if (ncx !== cx || ncy !== cy) {
-          setLookMode({ cx: ncx, cy: ncy });
-          const _lookDesc = getLookDesc(ncx, ncy, dg2);
-          if (_lookDesc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_lookDesc}`]);
-          return;
-        }
-        if (k === "x" || k === "escape") {
-          setLookMode(null);
-          setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
-          return;
-        }
-        return;
-      }
-      if (showInv) {
-        const inv = sr.current?.player?.inventory || [];
-        const totalPages = Math.ceil(inv.length / 10) || 1;
-        const pageItems = inv.slice(invPage * 10, (invPage + 1) * 10);
-        const len = pageItems.length;
-        const absIdx = selIdx !== null ? invPage * 10 + selIdx : null;
-        const getActs = (it, ai) => {
-          const a = [];
-          if (canUse(it))
-            a.push({
-              label: useLabel(it),
-              fn: () => invActRef.current?.use?.(ai),
-            });
-          if (it.type === "spellbook")
-            a.push({ label: "読む", fn: () => invActRef.current?.readSpellbook?.(ai) });
-          if (it.type === "arrow")
-            a.push({ label: "射る", fn: () => invActRef.current?.shoot?.(ai) });
-          if (it.type === "wand")
-            a.push({ label: "振る", fn: () => invActRef.current?.wave?.(ai) });
-          if (it.type === "wand")
-            a.push({
-              label: "壊す",
-              fn: () => invActRef.current?.breakWand?.(ai),
-            });
-          if (it.type === "marker")
-            a.push({ label: "書く", fn: () => invActRef.current?.useMarker?.(ai) });
-          if (it.type === "pot")
-            a.push({
-              label: "割る",
-              fn: () => invActRef.current?.breakPot?.(ai),
-            });
-          a.push({ label: "置く", fn: () => invActRef.current?.drop?.(ai) });
-          a.push({
-            label: it.type === "arrow" ? "投げる(束)" : "投げる",
-            fn: () => invActRef.current?.throw?.(ai),
-          });
-          a.push({
-            label: "説明",
-            fn: () => setShowDesc((p) => (p === ai ? null : ai)),
-          });
-          const _nik = getIdentKey(it);
-          if (_nik && gs?.ident && !gs.ident.has(_nik)) {
-            a.push({
-              label: "名付ける",
-              fn: () => {
-                setNicknameMode({ identKey: _nik });
-                setNicknameInput(gs?.nicknames?.[_nik] || '');
-                setShowInv(false); setSelIdx(null); setShowDesc(null);
-              },
-            });
-          }
-          return a;
-        };
-        if (invMenuSel !== null) {
-          if (k === "escape" || k === "x") {
-            e.preventDefault();
-            setInvMenuSel(null);
-            return;
-          }
-          const isLeft = k === "arrowleft" || e.code === "Numpad4";
-          const isRight = k === "arrowright" || e.code === "Numpad6";
-          if ((isLeft || isRight) && selIdx !== null && pageItems[selIdx]) {
-            e.preventDefault();
-            const acts = getActs(pageItems[selIdx], absIdx);
-            setInvMenuSel(
-              (p) => (p + (isRight ? 1 : -1) + acts.length) % acts.length,
-            );
-            return;
-          }
-          if (
-            (k === "enter" || k === "z") &&
-            selIdx !== null &&
-            pageItems[selIdx]
-          ) {
-            e.preventDefault();
-            const acts = getActs(pageItems[selIdx], absIdx);
-            if (invMenuSel >= 0 && invMenuSel < acts.length) {
-              acts[invMenuSel].fn();
-              setInvMenuSel(null);
-            }
-            return;
-          }
-          return;
-        }
-        const isUp = k === "arrowup" || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || e.code === "Numpad2";
-        const isLeft = k === "arrowleft" || e.code === "Numpad4";
-        const isRight = k === "arrowright" || e.code === "Numpad6";
-        if (k === "escape" || k === "x" || k === "i") {
-          e.preventDefault();
-          if (selIdx !== null) {
-            setSelIdx(null);
-            setShowDesc(null);
-          } else {
-            setShowInv(false);
-            dropModeRef.current = false;
-            setDropMode(false);
-            setInvPage(0);
-          }
-          return;
-        }
-        if ((isUp || isDown) && len > 0) {
-          e.preventDefault();
-          setSelIdx((prev) => {
-            if (prev === null) return isDown ? 0 : len - 1;
-            return (prev + (isDown ? 1 : -1) + len) % len;
-          });
-          setShowDesc(null);
-          return;
-        }
-        if (isLeft || isRight) {
-          e.preventDefault();
-          const newPage =
-            (invPage + (isRight ? 1 : -1) + totalPages) % totalPages;
-          setInvPage(newPage);
-          setSelIdx(null);
-          setInvMenuSel(null);
-          setShowDesc(null);
-          return;
-        }
-        if (
-          (k === "enter" || k === "z") &&
-          selIdx !== null &&
-          pageItems[selIdx]
-        ) {
-          e.preventDefault();
-          if (dropModeRef.current) {
-            doDropItem(invPage * 10 + selIdx);
-          } else {
-            setInvMenuSel(0);
-          }
-          return;
-        }
-        if (k === "s") {
-          e.preventDefault();
-          sortInventory();
-          return;
-        }
-        if (k === "d") {
-          e.preventDefault();
-          const newMode = !dropModeRef.current;
-          dropModeRef.current = newMode;
-          setDropMode(newMode);
-          return;
-        }
-        return;
-      }
-      if (facingMode) {
-        const npm2 = {
-          Numpad8: [0, -1],
-          Numpad2: [0, 1],
-          Numpad4: [-1, 0],
-          Numpad6: [1, 0],
-          Numpad7: [-1, -1],
-          Numpad9: [1, -1],
-          Numpad1: [-1, 1],
-          Numpad3: [1, 1],
-        };
-        const fdir =
-          npm2[e.code] ||
-          (k === "arrowup"
-            ? [0, -1]
-            : k === "arrowdown"
-              ? [0, 1]
-              : k === "arrowleft"
-                ? [-1, 0]
-                : k === "arrowright"
-                  ? [1, 0]
-                  : null);
-        if (fdir) {
-          e.preventDefault();
-          if (sr.current) {
-            sr.current.player.facing = { dx: fdir[0], dy: fdir[1] };
-            setGs({ ...sr.current });
-          }
-          setFacingMode(false);
-          return;
-        }
-        if (k === "t" || k === "escape") {
-          e.preventDefault();
-          setFacingMode(false);
-          return;
-        }
-        return;
-      }
-      if (e.code && e.code.startsWith("Numpad")) {
-        const npm = {
-          Numpad1: [-1, 1],
-          Numpad2: [0, 1],
-          Numpad3: [1, 1],
-          Numpad4: [-1, 0],
-          Numpad5: [0, 0],
-          Numpad6: [1, 0],
-          Numpad7: [-1, -1],
-          Numpad8: [0, -1],
-          Numpad9: [1, -1],
-        };
-        if (
-          npm[e.code] !== undefined &&
-          !putMode &&
-          !springMode &&
-          !bigboxMode &&
-          !markerMode
-        ) {
-          e.preventDefault();
-          const [dx, dy] = npm[e.code];
-          if (throwMode !== null) {
-            execRef.current?.(dx, dy);
-          } else if (!showInv) {
-            if (dx === 0 && dy === 0) act("wait");
-            else if (e.shiftKey || shiftRef.current) doDash(dx, dy);
-            else act("move", dx, dy);
-          }
-          return;
-        }
-      }
-      if (revealMode) {
-        // 何かキーで続きのメッセージを表示
-        if (revealMode.pendingMsgs.length) setMsgs(prev => [...prev.slice(-80), ...revealMode.pendingMsgs]);
-        setRevealMode(null);
-        e.preventDefault();
-        return;
-      }
-      if (nicknameMode) {
-        // input要素がフォーカスを持つのでキー入力はinputが処理する。ESCのみ対応
-        if (k === "escape") { e.preventDefault(); setNicknameMode(null); }
-        return;
-      }
-      if (identifyMode) {
-        e.preventDefault();
-        if (!sr.current) return;
-        const _p_id = sr.current.player;
-        const _isBCMode = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
-        const _isDupMode = identifyMode.mode === 'duplicate';
-        const _filt_id = _p_id.inventory
-          .map((_it, _i) => ({ it: _it, i: _i }))
-          .filter(({ it, i }) => {
-            if (_isBCMode || _isDupMode) return it.type !== "gold";
-            if (identifyMode.scrollIdx === i) return false;
-            if (it.type === 'weapon' || it.type === 'armor') {
-              return identifyMode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
-            }
-            const _k = getIdentKey(it);
-            if (!_k) return false;
-            if (identifyMode.mode === 'identify') return !sr.current.ident.has(_k) || (!it.fullIdent && !it.bcKnown);
-            return sr.current.ident.has(_k);
-          });
-        const _len_id = _filt_id.length;
-        const _idPage    = identifyMode.page || 0;
-        const _idTotalPg = Math.max(1, Math.ceil(_len_id / 10));
-        const _idPageItems = _filt_id.slice(_idPage * 10, (_idPage + 1) * 10);
-        const _idPageLen   = _idPageItems.length;
-        const _isUp_id    = k === "arrowup"    || e.code === "Numpad8";
-        const _isDown_id  = k === "arrowdown"  || e.code === "Numpad2";
-        const _isLeft_id  = k === "arrowleft"  || e.code === "Numpad4";
-        const _isRight_id = k === "arrowright" || e.code === "Numpad6";
-        if (_isUp_id || _isDown_id) {
-          if (_idPageLen > 0) setIdentifyMode({ ...identifyMode, sel: ((identifyMode.sel || 0) + (_isDown_id ? 1 : -1) + _idPageLen) % _idPageLen });
-          return;
-        }
-        if (_isLeft_id || _isRight_id) {
-          if (_idTotalPg > 1) setIdentifyMode({ ...identifyMode, page: ((_idPage + (_isRight_id ? 1 : -1)) + _idTotalPg) % _idTotalPg, sel: 0 });
-          return;
-        }
-        if (k === "escape" || k === "x") {
-          setIdentifyMode(null);
-          setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-          return;
-        }
-        if ((k === "enter" || k === "z") && _idPageLen > 0) {
-          const _curSel_id = Math.min(identifyMode.sel || 0, _idPageLen - 1);
-          const { it: _selIt } = _idPageItems[_curSel_id];
-          let _msgResult;
-          if (identifyMode.mode === 'bless') {
-            if (_selIt.type === 'pot') {
-              _selIt.capacity = (_selIt.capacity || 1) + 1;
-              _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
-            } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を祝福した！【祝】`; }
-          } else if (identifyMode.mode === 'curse') {
-            if (_selIt.type === 'pot') {
-              const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
-              if ((_selIt.contents?.length || 0) > _nc) {
-                const _rmIdx = _p_id.inventory.indexOf(_selIt);
-                if (_rmIdx !== -1) { const _fts2 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_id.x, _p_id.y, _ci, [], _fts2); _p_id.inventory.splice(_rmIdx, 1); }
-                _msgResult = `${_selIt.name}が呪いで割れた！中身が足元に落ちた！【呪】`;
-              } else { _selIt.capacity = _nc; _msgResult = `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
-            } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を呪った！【呪】`; }
-          } else if (identifyMode.mode === 'duplicate') {
-            const _dupCount = identifyMode.blessed ? 2 : identifyMode.cursed ? 0 : 1;
-            if (_dupCount === 0) {
-              const _rmIdx = _p_id.inventory.indexOf(_selIt);
-              if (_rmIdx !== -1) _p_id.inventory.splice(_rmIdx, 1);
-              _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
-            } else {
-              /* 同種の新品アイテムを生成（チャージ・中身・強化値は複製元と無関係） */
-              const _makeFresh = () => {
-                if (_selIt.type === "wand") {
-                  const _tpl = WANDS.find(w => w.effect === _selIt.effect) || _selIt;
-                  return { ..._tpl, id: uid() };
-                }
-                if (_selIt.type === "pot") {
-                  const _tpl = POTS.find(pp => pp.potEffect === _selIt.potEffect) || _selIt;
-                  return { ..._tpl, id: uid(), contents: [], capacity: randPotCapacity(_tpl.potEffect) };
-                }
-                if (_selIt.type === "weapon" || _selIt.type === "armor") {
-                  const _tpl = ITEMS.find(i => i.name === _selIt.name) || _selIt;
-                  return { ..._tpl, id: uid() };
-                }
-                /* その他（薬・巻物・食料・矢など）は名前と種別を保ち新品として生成 */
-                const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, ...rest } = _selIt;
-                return { ...rest, id: uid() };
-              };
-              for (let _di = 0; _di < _dupCount; _di++) _p_id.inventory.push(_makeFresh());
-              _msgResult = identifyMode.blessed ? `${_selIt.name}が2つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
-            }
-          } else {
-            const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';
-            const _selKey = _isWA ? null : getIdentKey(_selIt);
-            if (identifyMode.mode === 'identify') {
-              const _wasAlreadyNamed = !_isWA && _selKey && sr.current.ident.has(_selKey);
-              if (_selKey) sr.current.ident.add(_selKey);
-              _selIt.fullIdent = true; _selIt.bcKnown = true;
-              _msgResult = (_isWA || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
-            } else {
-              if (_selKey) sr.current.ident.delete(_selKey);
-              _selIt.fullIdent = false; _selIt.bcKnown = false;
-              _msgResult = `${_selIt.name}の識別が失われた...`;
-            }
-          }
-          if (identifyMode.mode !== 'duplicate' && identifyMode.scrollIdx != null) {
-            sr.current.player.inventory.splice(identifyMode.scrollIdx, 1);
-          }
-          if (identifyMode.spellCost != null) {
-            sr.current.player.mp -= identifyMode.spellCost;
-          }
-          endTurn(sr.current, sr.current.player, []);
-          const _ml_id = identifyMode.spellMsg ? [identifyMode.spellMsg, _msgResult] : [_msgResult];
-          setIdentifyMode(null);
-          setMsgs((prev) => [...prev.slice(-80), ..._ml_id]);
-          sr.current = { ...sr.current }; setGs({ ...sr.current });
-          return;
-        }
-        return;
-      }
-      if (putMode) {
-        e.preventDefault();
-        if (k === "escape" || k === "x") {
-          setPutMode(null);
-          setPutPage(0);
-          setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-          return;
-        }
-        if (!sr.current) return;
-        const inv4 = sr.current.player.inventory;
-        const pItems4 = inv4
-          .map((it, i) => ({ it, i }))
-          .filter(({ i }) => i !== putMode.potIdx);
-        const _ps4 = 10;
-        const _tp4 = Math.max(1, Math.ceil(pItems4.length / _ps4));
-        const _pg4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4);
-        const _plen4 = _pg4.length;
-        const isUp4 = k === "arrowup" || e.code === "Numpad8";
-        const isDown4 = k === "arrowdown" || e.code === "Numpad2";
-        const isLeft4 = k === "arrowleft" || e.code === "Numpad4";
-        const isRight4 = k === "arrowright" || e.code === "Numpad6";
-        if ((isUp4 || isDown4) && _plen4 > 0) {
-          setPutMenuSel((s) => (s + (isDown4 ? 1 : -1) + _plen4) % _plen4);
-          return;
-        }
-        if ((isLeft4 || isRight4) && _tp4 > 1) {
-          setPutPage((p) => (p + (isRight4 ? 1 : -1) + _tp4) % _tp4);
-          setPutMenuSel(0);
-          return;
-        }
-        if ((k === "enter" || k === "z") && _plen4 > 0) {
-          const sel4 = _pg4[Math.min(putMenuSel, _plen4 - 1)];
-          if (sel4.it.type === "pot")
-            setMsgs((prev) => [
-              ...prev.slice(-80),
-              "壺の中に壺は入れられない。",
-            ]);
-          else invActRef.current?.put?.(sel4.i);
-        }
-        return;
-      }
-      if (markerMode) {
-        e.preventDefault();
-        if (k === "escape" || k === "x") {
-          setMarkerMode(null);
-          setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-          return;
-        }
-        if (!sr.current) return;
-        const inv5 = sr.current.player.inventory;
-        const isUp5   = k === "arrowup"   || e.code === "Numpad8";
-        const isDown5 = k === "arrowdown"  || e.code === "Numpad2";
-        if (markerMode.step === "select_blank") {
-          const blanks5 = inv5
-            .map((it, i) => ({ it, i }))
-            .filter(({ it }) => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell));
-          const _blen5 = blanks5.length;
-          if ((isUp5 || isDown5) && _blen5 > 0) {
-            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _blen5) % _blen5);
-            return;
-          }
-          if ((k === "enter" || k === "z") && _blen5 > 0) {
-            const sel5 = blanks5[Math.min(markerMenuSel, _blen5 - 1)];
-            const kind5 = sel5.it.type === "spellbook" ? "spellbook" : "scroll";
-            const nextStep5 = kind5 === "spellbook" ? "select_spellbook_type" : "select_type";
-            setMarkerMode((prev) => ({ ...prev, step: nextStep5, blankIdx: sel5.i, blankKind: kind5 }));
-            setMarkerMenuSel(0);
-            const msg5 = kind5 === "spellbook" ? "どの魔法書に変えますか...(インク5回消費)" : "どの魔法を書き込みますか...";
-            setMsgs((prev) => [...prev.slice(-80), msg5]);
-          }
-        } else if (markerMode.step === "select_type") {
-          const types5 = ITEMS.filter((it) => it.type === "scroll");
-          const _tlen5 = types5.length;
-          if ((isUp5 || isDown5) && _tlen5 > 0) {
-            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _tlen5) % _tlen5);
-            return;
-          }
-          if ((k === "enter" || k === "z") && _tlen5 > 0) {
-            const tmpl5 = types5[Math.min(markerMenuSel, _tlen5 - 1)];
-            doMarkerWriteRef.current?.(markerMode.blankIdx, tmpl5);
-          }
-        } else if (markerMode.step === "select_spellbook_type") {
-          const sbTypes5 = SPELLBOOKS.filter((it) => it.spell);
-          const _sbLen5 = sbTypes5.length;
-          if ((isUp5 || isDown5) && _sbLen5 > 0) {
-            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _sbLen5) % _sbLen5);
-            return;
-          }
-          if ((k === "enter" || k === "z") && _sbLen5 > 0) {
-            const tmpl5 = sbTypes5[Math.min(markerMenuSel, _sbLen5 - 1)];
-            doMarkerWriteRef.current?.(markerMode.blankIdx, tmpl5);
-          }
-        }
-        return;
-      }
-      if (spellListMode) {
-        e.preventDefault();
-        if (k === "escape" || k === "x") { setSpellListMode(false); return; }
-        const knownSpells = (sr.current?.player?.spells || []).map((id) => {
-          const s = SPELLS.find((sp) => sp.id === id);
-          if (!s) return null;
-          const _lv = (sr.current?.player?.spellLevels?.[id] || 1);
-          return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
-        }).filter(Boolean);
-        const slen = knownSpells.length;
-        const isUpS = k === "arrowup" || e.code === "Numpad8";
-        const isDownS = k === "arrowdown" || e.code === "Numpad2";
-        if ((isUpS || isDownS) && slen > 0) { setSpellMenuSel((s) => (s + (isDownS ? 1 : -1) + slen) % slen); return; }
-        if ((k === "enter" || k === "z") && slen > 0) {
-          const spell = knownSpells[Math.min(spellMenuSel, slen - 1)];
-          if (!spell) return;
-          if ((sr.current?.player?.mp || 0) < spell.mpCost) {
-            setMsgs((prev) => [...prev.slice(-80), `MPが足りない！(必要:${spell.mpCost} 現在:${sr.current?.player?.mp || 0})`]);
-            setSpellListMode(false); return;
-          }
-          setSpellListMode(false);
-          if (!spell.needsDir) {
-            // 非指向魔法：即時発動
-            if (!sr.current) return;
-            const { player: p2, dungeon: dg2 } = sr.current;
-            const ml2 = [];
-            if (inMagicSealRoom(p2.x, p2.y, dg2) || (p2.sealedTurns || 0) > 0) {
-              ml2.push(`魔法が封印されている！MPは消費しない。`);
-              endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
-            } else if (spell.effect === "identify_magic") {
-              const _idt = p2.inventory.filter(_ii => {
-                if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
-                const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
-              });
-              if (_idt.length === 0) {
-                p2.mp -= spell.mpCost;
-                ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
-                ml2.push("未識別のアイテムがない。");
-                endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
-              } else {
-                setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
-                setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
-                setShowInv(false); setSelIdx(null); setShowDesc(null);
-                sr.current = { ...sr.current }; setGs({ ...sr.current });
-              }
-            } else if (spell.effect === "bless_magic" || spell.effect === "curse_magic") {
-              const _bcMode = spell.effect === "bless_magic" ? 'bless' : 'curse';
-              const _bcPrompt = _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。";
-              setMsgs((prev) => [...prev.slice(-80), _bcPrompt]);
-              setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
-              setShowInv(false); setSelIdx(null); setShowDesc(null);
-              sr.current = { ...sr.current }; setGs({ ...sr.current });
-            } else {
-            p2.mp -= spell.mpCost;
-            ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
-            applySpellEffect(spell.effect, "self", null, 0, 0, dg2, p2, ml2, lu);
-            endTurn(sr.current, p2, ml2);
-            setMsgs((prev) => [...prev.slice(-80), ...ml2]);
-            sr.current = { ...sr.current }; setGs({ ...sr.current });
-            }
-          } else {
-            setThrowMode({ idx: spell.id, mode: "cast_spell" });
-            setMsgs((prev) => [...prev.slice(-80), `${spell.name}：方向を選んでください (矢印キー)`]);
-          }
-        }
-        return;
-      }
-      if (shopMode) {
-        e.preventDefault();
-        if (k === "escape" || k === "x") {
-          setShopMode(null);
-          return;
-        }
-        const isUp3 = k === "arrowup" || e.code === "Numpad8";
-        const isDown3 = k === "arrowdown" || e.code === "Numpad2";
-        if (shopMode === "pay") {
-          if (isUp3 || isDown3) {
-            setShopMenuSel((p2) => (p2 + (isDown3 ? 1 : -1) + 2) % 2);
-            return;
-          }
-          if (k === "enter" || k === "z" || k === "1") {
-            if (shopMenuSel === 0) {
-              if (sr.current) {
-                const { player: p2, dungeon: dg2 } = sr.current;
-                const _allShopsPay = getShops(dg2);
-                const _totalUnpaid = _allShopsPay.reduce((s, sh) => s + (sh.unpaidTotal || 0), 0);
-                if (p2.gold >= _totalUnpaid) {
-                  p2.gold -= _totalUnpaid;
-                  _allShopsPay.forEach(sh => { sh.unpaidTotal = 0; });
-                  dg2.shopTheft = false;
-                  p2.inventory.forEach((it2) => {
-                    if (it2.shopPrice) delete it2.shopPrice;
-                  });
-                  const sk5 = dg2.monsters.find((m) => m.type === "shopkeeper");
-                  if (sk5) {
-                    sk5.state = "friendly";
-                    /* homePos から近い順に空きタイルを探してテレポート */
-                    const _skCandidates = [];
-                    for (let _r = 0; _r <= 4; _r++) {
-                      for (let _dy = -_r; _dy <= _r; _dy++) {
-                        for (let _dx = -_r; _dx <= _r; _dx++) {
-                          if (Math.abs(_dx) !== _r && Math.abs(_dy) !== _r) continue;
-                          const _cx = sk5.homePos.x + _dx, _cy = sk5.homePos.y + _dy;
-                          const _ct = dg2.map[_cy]?.[_cx];
-                          if (_ct !== T.FLOOR && _ct !== T.SD && _ct !== T.SU) continue;
-                          if (_cx === p2.x && _cy === p2.y) continue;
-                          if (dg2.monsters.some(o => o !== sk5 && o.x === _cx && o.y === _cy)) continue;
-                          _skCandidates.push({ x: _cx, y: _cy, d: Math.abs(_dx) + Math.abs(_dy) });
-                        }
-                      }
-                      if (_skCandidates.length > 0) break;
-                    }
-                    if (_skCandidates.length > 0) {
-                      _skCandidates.sort((a, b) => a.d - b.d);
-                      sk5.x = _skCandidates[0].x;
-                      sk5.y = _skCandidates[0].y;
-                    }
-                  }
-                  setMsgs((prev) => [
-                    ...prev.slice(-80),
-                    "代金を支払った。ありがとうございます！",
-                  ]);
-                  setShopMode(null);
-                  sr.current = { ...sr.current };
-                  setGs({ ...sr.current });
-                } else
-                  setMsgs((prev) => [...prev.slice(-80), "お金が足りない！"]);
-              }
-            } else setShopMode(null);
-            return;
-          }
-          if (k === "2") {
-            setShopMode(null);
-            return;
-          }
-          return;
-        }
-        if (shopMode === "sell") {
-          if (!sr.current) {
-            setShopMode(null);
-            return;
-          }
-          const { player: p2, dungeon: dg2 } = sr.current;
-          const fis3 = dg2.items.filter(
-            (i) =>
-              !i.shopPrice &&
-              dg2.shop &&
-              i.x >= dg2.shop.room.x &&
-              i.x < dg2.shop.room.x + dg2.shop.room.w &&
-              i.y >= dg2.shop.room.y &&
-              i.y < dg2.shop.room.y + dg2.shop.room.h,
-          );
-          const mlen3 = fis3.length + 1;
-          if (isUp3 || isDown3) {
-            setShopMenuSel((p2) => (p2 + (isDown3 ? 1 : -1) + mlen3) % mlen3);
-            return;
-          }
-          if (k === "enter" || k === "z") {
-            if (shopMenuSel < fis3.length) {
-              const it2 = fis3[shopMenuSel];
-              const bp = Math.ceil(itemPrice(it2) * 0.5);
-              p2.gold += bp;
-              it2.shopPrice = itemPrice(it2);
-              setMsgs((prev) => [
-                ...prev.slice(-80),
-                `${it2.name}を${bp}Gで買い取った。`,
-              ]);
-              setShopMenuSel(
-                Math.min(shopMenuSel, Math.max(0, fis3.length - 2)),
-              );
-              sr.current = { ...sr.current };
-              setGs({ ...sr.current });
-              if (fis3.length <= 1) {
-                const dt = dg2.shop.unpaidTotal;
-                if (dt > 0) {
-                  setShopMode("pay");
-                  setShopMenuSel(0);
-                  setMsgs((prev) => [
-                    ...prev.slice(-80),
-                    `店主：「お代は${dt}Gです。」`,
-                  ]);
-                } else setShopMode(null);
-              }
-            } else {
-              const dt = dg2.shop.unpaidTotal;
-              if (dt > 0) {
-                setShopMode("pay");
-                setShopMenuSel(0);
-                setMsgs((prev) => [
-                  ...prev.slice(-80),
-                  `店主：「お代は${dt}Gです。」`,
-                ]);
-              } else setShopMode(null);
-            }
-            return;
-          }
-          return;
-        }
-        return;
-      }
-      if (bigboxMode) {
-        e.preventDefault();
-        const isUpBB = k === "arrowup" || e.code === "Numpad8";
-        const isDownBB = k === "arrowdown" || e.code === "Numpad2";
-        if (bigboxMode === "menu") {
-          const mlen2 = 2;
-          if (isUpBB || isDownBB) {
-            setBigboxMenuSel((p) => (p + (isDownBB ? 1 : -1) + mlen2) % mlen2);
-            return;
-          }
-          if (k === "enter" || k === "z" || k === "x" || k === "escape") {
-            if ((k === "enter" || k === "z") && bigboxMenuSel === 0) {
-              setBigboxMode("put");
-              setBigboxMenuSel(0);
-              setBigboxPage(0);
-            } else {
-              setBigboxMode(null);
-              bigboxRef.current = null;
-              setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-            }
-            return;
-          }
-          if (k === "1") {
-            setBigboxMode("put");
-            setBigboxMenuSel(0);
-            setBigboxPage(0);
-          } else if (k === "2") {
-            setBigboxMode(null);
-            bigboxRef.current = null;
-            setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-          }
-          return;
-        }
-        if (bigboxMode === "put") {
-          const inv2 = sr.current?.player?.inventory || [];
-          const il2 = inv2.length;
-          const _ps = 10;
-          const _tp = Math.max(1, Math.ceil(il2 / _ps));
-          const _pi = inv2.slice(bigboxPage * _ps, (bigboxPage + 1) * _ps);
-          const _pil = _pi.length;
-          const isLeftBB = k === "arrowleft" || e.code === "Numpad4";
-          const isRightBB = k === "arrowright" || e.code === "Numpad6";
-          if ((isUpBB || isDownBB) && _pil > 0) {
-            setBigboxMenuSel((p) => (p + (isDownBB ? 1 : -1) + _pil) % _pil);
-            return;
-          }
-          if ((isLeftBB || isRightBB) && _tp > 1) {
-            setBigboxPage((p) => (p + (isRightBB ? 1 : -1) + _tp) % _tp);
-            setBigboxMenuSel(0);
-            return;
-          }
-          if (k === "enter" || k === "z") {
-            if (_pil > 0) bigboxPutItem(bigboxPage * _ps + bigboxMenuSel);
-            return;
-          }
-          if (k === "x" || k === "escape") {
-            setBigboxMode("menu");
-            setBigboxMenuSel(0);
-            setBigboxPage(0);
-            return;
-          }
-          return;
-        }
-        return;
-      }
-      if (springMode) {
-        e.preventDefault();
-        const isUp = k === "arrowup" || e.code === "Numpad8";
-        const isDown = k === "arrowdown" || e.code === "Numpad2";
-        if (k === "escape" || k === "x") {
-          if (springMode === "soak") {
-            setSpringMode("menu");
-            setSpringMenuSel(0);
-          } else {
-            setSpringMode(null);
-            setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-          }
-          return;
-        }
-        if (springMode === "menu") {
-          const mlen = 3;
-          if (isUp || isDown) {
-            setSpringMenuSel((p) => (p + (isDown ? 1 : -1) + mlen) % mlen);
-            return;
-          }
-          if (k === "enter" || k === "z") {
-            if (springMenuSel === 0) springDrink();
-            else if (springMenuSel === 1) {
-              setSpringMode("soak");
-              setSpringMenuSel(0);
-            } else {
-              setSpringMode(null);
-              setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-            }
-            return;
-          }
-          if (k === "1") springDrink();
-          else if (k === "2") {
-            setSpringMode("soak");
-            setSpringMenuSel(0);
-          } else if (k === "3") {
-            setSpringMode(null);
-            setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-          }
-          return;
-        }
-        if (springMode === "soak") {
-          const inv = sr.current?.player?.inventory || [];
-          const ilen = inv.length;
-          const _spTotalPg = Math.max(1, Math.ceil(ilen / 10));
-          const isLeft = k === "arrowleft" || e.code === "Numpad4";
-          const isRight = k === "arrowright" || e.code === "Numpad6";
-          if ((isUp || isDown) && ilen > 0) {
-            setSpringMenuSel((s) => (s + (isDown ? 1 : -1) + 10) % 10);
-            return;
-          }
-          if (isLeft) { setSpringPage((pg) => (pg - 1 + _spTotalPg) % _spTotalPg); setSpringMenuSel(0); return; }
-          if (isRight) { setSpringPage((pg) => (pg + 1) % _spTotalPg); setSpringMenuSel(0); return; }
-          if ((k === "enter" || k === "z") && ilen > 0) {
-            const _spAbsIdx = springPage * 10 + springMenuSel;
-            if (inv[_spAbsIdx]) { springDoSoak(_spAbsIdx); setSpringPage(0); setSpringMenuSel(0); }
-            return;
-          }
-          return;
-        }
-        return;
-      }
-      if (throwMode !== null) {
-        if (k === "escape" || k === "x") {
-          e.preventDefault();
-          setThrowMode(null);
-          setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-          return;
-        }
-        const numpadThrow = {
-          Numpad1: [-1, 1],
-          Numpad2: [0, 1],
-          Numpad3: [1, 1],
-          Numpad4: [-1, 0],
-          Numpad6: [1, 0],
-          Numpad7: [-1, -1],
-          Numpad8: [0, -1],
-          Numpad9: [1, -1],
-        };
-        if (e.code in numpadThrow) {
-          e.preventDefault();
-          execRef.current?.(numpadThrow[e.code][0], numpadThrow[e.code][1]);
-          return;
-        }
-        const km = {
-          arrowup: [0, -1],
-          arrowdown: [0, 1],
-          arrowleft: [-1, 0],
-          arrowright: [1, 0],
-        };
-        if (km[k]) {
-          e.preventDefault();
-          if (bigboxMode || springMode || putMode || markerMode || spellListMode) {
-            return;
-          }
-          execRef.current?.(km[k][0], km[k][1]);
-        }
-        return;
-      }
-      if (k === "i" || k === "x" || k === "escape") {
-        e.preventDefault();
-        act("inventory");
-        return;
-      }
-      if (showInv) return;
-      const numpadGame = {
-        Numpad1: [-1, 1],
-        Numpad2: [0, 1],
-        Numpad3: [1, 1],
-        Numpad4: [-1, 0],
-        Numpad5: null,
-        Numpad6: [1, 0],
-        Numpad7: [-1, -1],
-        Numpad8: [0, -1],
-        Numpad9: [1, -1],
-      };
-      if (e.code in numpadGame && !bigboxMode && !springMode && !putMode && !markerMode && !spellListMode) {
-        e.preventDefault();
-        const nd = numpadGame[e.code];
-        if (nd === null) {
-          act("wait");
-        } else if (e.shiftKey || shiftRef.current) {
-          doDash(nd[0], nd[1]);
-        } else {
-          act("move", nd[0], nd[1]);
-        }
-        return;
-      }
-      const km = {
-        arrowup: [0, -1],
-        arrowdown: [0, 1],
-        arrowleft: [-1, 0],
-        arrowright: [1, 0],
-      };
-      if (km[k]) {
-        e.preventDefault();
-        if (bigboxMode || springMode || putMode || markerMode || spellListMode) {
-          return;
-        }
-        if (e.shiftKey || shiftRef.current) {
-          doDash(km[k][0], km[k][1]);
-        } else {
-          act("move", km[k][0], km[k][1]);
-        }
-        return;
-      }
-      if (k === "w" && !showInv && !bigboxMode && !springMode && !throwMode && !putMode) {
-        e.preventDefault();
-        const { player: _lp, dungeon: _ld } = sr.current || {};
-        if (_lp && _ld) {
-          setLookMode({ cx: _lp.x, cy: _lp.y });
-          const _initDesc = getLookDesc(_lp.x, _lp.y, _ld);
-          setMsgs(prev => [...prev.slice(-80), `[見渡す] 矢印キーで移動、xでキャンセル / ${_initDesc}`]);
-        }
-        return;
-      }
-      if (k === "." || k === " ") {
-        e.preventDefault();
-        act("wait");
-      } else if (k === "s") {
-        e.preventDefault();
-        act("search_traps");
-      } else if (k === "q") act("shoot_arrow");
-      else if (k === ">") act("stairs_down");
-      else if (k === "<") act("stairs_up");
-      else if (k === "f") act("interact");
-      else if (
-        k === "z" &&
-        !showInv &&
-        !bigboxMode &&
-        !springMode &&
-        !throwMode &&
-        !putMode
-      ) {
-        e.preventDefault();
-        doExamineFront();
-      } else if (
-        k === "c" &&
-        !showInv &&
-        !springMode &&
-        !throwMode &&
-        !putMode &&
-        !markerMode
-      ) {
-        e.preventDefault();
-        setSpellListMode((f) => !f);
-        setSpellMenuSel(0);
-      } else if (
-        k === "t" &&
-        !showInv &&
-        !springMode &&
-        !throwMode &&
-        !putMode
-      ) {
-        e.preventDefault();
-        setFacingMode((f) => !f);
-      }
-    },
-    [
-      act,
-      doDash,
-      showInv,
-      selIdx,
-      invPage,
-      invMenuSel,
-      throwMode,
-      springMode,
-      springMenuSel,
-      springPage,
-      springDrink,
-      springDoSoak,
-      putMode,
-      putMenuSel,
-      facingMode,
-      setFacingMode,
-      shopMode,
-      shopMenuSel,
-      bigboxMode,
-      bigboxMenuSel,
-      bigboxPutItem,
-      bigboxPage,
-      sortInventory,
-      putPage,
-      markerMode,
-      markerMenuSel,
-      spellListMode,
-      spellMenuSel,
-      dead,
-      gameOverSel,
-      showScores,
-      nicknameMode,
-      identifyMode,
-      revealMode,
-      tpSelectMode,
-      floorSelectMode,
-      lookMode,
-      getLookDesc,
-    ],
-  );
-  useEffect(() => {
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [handleKey]);
+  useKeyHandler({
+    // refs
+    sr, shiftRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef,
+    // state values
+    gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
+    facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
+    markerMode, markerMenuSel, spellListMode, spellMenuSel, shopMode, shopMenuSel,
+    bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
+    tpSelectMode, floorSelectMode, lookMode,
+    // state setters
+    setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
+    setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
+    setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
+    setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
+    setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setShopMode,
+    setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
+    setRevealMode,
+    // callbacks
+    init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
+    bigboxPutItem, sortInventory, getLookDesc, lu,
+  });
   const useLabel = (it) => {
     const _p = gs?.player;
     if (it.type === "weapon") return _p?.weapon === it ? "外す" : "装備";
@@ -3471,1966 +2226,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     ["potion", "food", "scroll", "weapon", "armor", "arrow", "pot", "pen"].includes(
       it.type,
     );
-  const doUseItem = useCallback((idx) => {
-    if (!sr.current) return;
-    const { player: p, dungeon: dg } = sr.current;
-    const it = p.inventory[idx];
-    if (!it) return;
-    if (p.sleepTurns > 0 || p.paralyzeTurns > 0) return;
-
-    const ml = [];
-    // 未識別消耗品の判定（使用前に取得）
-    const _ik_reveal = (it.type === 'potion' || it.type === 'scroll') ? getIdentKey(it) : null;
-    const _wasUnknown = !!(_ik_reveal && !sr.current.ident.has(_ik_reveal));
-    const _revFake = _wasUnknown ? itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames) : null;
-    const _revReal = _wasUnknown ? it.name : null;
-    if (it.type === "potion") {
-      const _potBm = getBlessMultiplier(it);
-      p.inventory.splice(idx, 1);
-      { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
-      // 毒回復ヘルパー
-      const _curePoison = () => {
-        if (p.poisoned) {
-          p.poisoned = false;
-          if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
-          return true;
-        }
-        return false;
-      };
-      if (it.effect === "heal") {
-        if (it.cursed) {
-          // 呪い：反転→ダメージ
-          const d = Math.max(1, Math.round(it.value * 0.7));
-          p.deathCause = "呪われた回復薬を飲んで";
-          p.hp -= d;
-          ml.push(`${it.name}を飲んだ。まずい！${d}ダメージ！【呪】`);
-        } else {
-          // 通常/祝福：HP回復（祝福=1.5x + 全状態異常回復）
-          const h = Math.min(Math.round(it.value * _potBm), p.maxHp - p.hp);
-          let _hMsg;
-          if (h <= 0) {
-            // HPが最大：最大HP上昇（回復薬+1/+2、大回復薬+2/+4）
-            const _maxHpGain = (it.value >= 30 ? 2 : 1) * (it.blessed ? 2 : 1);
-            p.maxHp += _maxHpGain;
-            p.hp += _maxHpGain;
-            _hMsg = `${it.name}を飲んだ。HPが最大なので最大HP+${_maxHpGain}！${it.blessed ? "（祝福）" : ""}`;
-          } else {
-            p.hp += h;
-            _hMsg = `${it.name}を飲んだ。HP+${h}${it.blessed ? "（祝福）" : ""}`;
-          }
-          if (it.blessed) {
-            const _cured = [];
-            if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _cured.push("睡眠"); }
-            if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _cured.push("混乱"); }
-            if ((p.slowTurns || 0) > 0) { p.slowTurns = 0; _cured.push("鈍足"); }
-            if (_curePoison()) _cured.push("毒");
-            if (!p.poisoned && (p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; _cured.push("毒による攻撃力低下"); }
-            if (_cured.length > 0) _hMsg += ` ${_cured.join("・")}も解消！`;
-          }
-          ml.push(_hMsg);
-        }
-      } else if (it.effect === "poison") {
-        if (it.cursed) {
-          // 呪い：反転→解毒薬
-          const _wasPoison = _curePoison();
-          const _hadAtkLoss = !p.poisoned && (p.poisonAtkLoss || 0) > 0;
-          if (_hadAtkLoss) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
-          if (_wasPoison || _hadAtkLoss) {
-            ml.push(`${it.name}を飲んだ。毒が体から消えた！攻撃力も回復！【呪→解毒】`);
-          } else {
-            ml.push(`${it.name}を飲んだ。変な味がするが…毒はかかっていなかった。【呪→解毒】`);
-          }
-        } else {
-          // 通常：毒状態を付与。祝福=即時ATK-3の追加ペナルティ
-          p.poisoned = true;
-          if (it.blessed) {
-            const _extraLoss = Math.min(3, p.atk - 1);
-            p.atk -= _extraLoss;
-            p.poisonAtkLoss = (p.poisonAtkLoss || 0) + _extraLoss;
-            ml.push(`${it.name}を飲んだ。強烈な毒を浴びた！毒状態になり攻撃力が${_extraLoss}下がった！【祝=強毒】`);
-          } else {
-            ml.push(`${it.name}を飲んだ。毒状態になった！攻撃力が徐々に下がっていく…`);
-          }
-        }
-      } else if (it.effect === "fire") {
-        if (!it.cursed && dg.pentacles?.some(pc => pc.kind === "explosion" && pc.cursed)) {
-          ml.push(`${it.name}を飲んだが、呪われた爆発の魔方陣が炎を打ち消した！`);
-        } else if (it.cursed) {
-          // 呪い：反転→HP回復
-          const h = Math.min(it.value, p.maxHp - p.hp);
-          p.hp += h;
-          ml.push(`${it.name}を飲んだ。体が温まりHP+${h}回復した！【呪→回復】`);
-        } else {
-          // 通常/祝福：炎ダメージ（祝福=1.5x）
-          const rd = Math.max(1, Math.round((it.value + rng(-5, 5)) * _potBm));
-          const d =
-            hasAbility(p.armor, "fire_resist")
-              ? Math.floor(rd / 2)
-              : rd;
-          p.deathCause = "炎の薬を飲んで";
-          p.hp -= d;
-          ml.push(
-            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${hasAbility(p.armor, "fire_resist") ? "(耘火)" : ""}${it.blessed ? "【祝=強炎】" : ""}`,
-          );
-        }
-      } else if (it.effect === "sleep") {
-        if (it.cursed) {
-          // 呪い：反転→フロア中全ての敵の位置が常に見通せる
-          dg.monsterSenseActive = true;
-          ml.push(`${it.name}を飲んだ。幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】`);
-        } else {
-          // 通常/祝福：プレイヤーを眠らせる（祝福=2倍ターン）
-          const t = Math.max(1, Math.round((it.value + rng(-1, 1)) * (it.blessed ? 2 : 1)));
-          if (
-            hasAbility(p.armor, "sleep_proof")
-          ) {
-            ml.push(`${it.name}を飲んだ。なんとも無い。(耔眠)`);
-          } else if ((p.statusImmune || 0) > 0) {
-            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
-          } else {
-            p.sleepTurns = (p.sleepTurns || 0) + t;
-            ml.push(
-              `${it.name}を飲んだ。眠くなってきた...(${t}ターン)${it.blessed ? "【祝=強眠】" : ""}`,
-            );
-          }
-        }
-      } else if (it.effect === "power") {
-        if (it.cursed) {
-          // 呪い：反転→攻撃力減少
-          const _pv = Math.max(1, Math.round(it.value * 0.5));
-          p.atk = Math.max(1, p.atk - _pv);
-          ml.push(`${it.name}を飲んだ。力が抜けた...攻撃力-${_pv}【呪】`);
-        } else {
-          // 通常/祝福：攻撃力増加（祝福=1.5x）
-          const _pv = Math.max(1, Math.round(it.value * _potBm));
-          p.atk += _pv;
-          ml.push(`${it.name}を飲んだ。力が湧いてきた！攻撃力+${_pv}${it.blessed ? "（祝福）" : ""}`);
-        }
-      } else if (it.effect === "slow") {
-        if (it.cursed) {
-          // 呪い：反転→2倍速
-          p.hasteTurns = (p.hasteTurns || 0) + 10;
-          ml.push(`${it.name}を飲んだ。体が軽くなった！(2倍速10ターン)【呪→加速】`);
-        } else {
-          // 通常/祝福：鈍足（祝福=2倍ターン）
-          const _st = it.blessed ? 20 : 10;
-          if ((p.statusImmune || 0) > 0) {
-            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
-          } else {
-            p.slowTurns = (p.slowTurns || 0) + _st;
-            ml.push(`${it.name}を飲んだ。体が重くなった...(鈍足${_st}ターン)${it.blessed ? "【祝=強鈍】" : ""}`);
-          }
-        }
-      } else if (it.effect === "confuse") {
-        if (it.cursed) {
-          // 呪い：混乱解消 + 必中100ターン
-          p.confusedTurns = 0;
-          p.sureHitTurns = (p.sureHitTurns || 0) + 100;
-          ml.push(`${it.name}を飲んだ。頭が冴えた！混乱が消え、必中状態になった！(100ターン)【呪→必中】`);
-        } else if ((p.statusImmune || 0) > 0) {
-          ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
-        } else {
-          // 通常/祝福：混乱（祝福=2倍ターン）
-          const _cturns = it.blessed ? 10 : 5;
-          p.confusedTurns = (p.confusedTurns || 0) + _cturns;
-          ml.push(`${it.name}を飲んだ。頭がくらくらする！(混乱${p.confusedTurns}ターン)${it.blessed ? "【祝=強混乱】" : ""}`);
-        }
-      } else if (it.effect === "paralyze") {
-        if (it.cursed) {
-          // 呪い→状態異常防止200ターン
-          p.statusImmune = (p.statusImmune || 0) + 200;
-          ml.push(`${it.name}を飲んだ。状態異常を防ぐ力が宿った！(200ターン)【呪→状態防止】`);
-        } else {
-          // 通常/祝福：金縛り（祝福=2倍ターン）
-          if ((p.statusImmune || 0) > 0) {
-            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
-          } else {
-            const _pt = it.blessed ? 20 : 10;
-            p.paralyzeTurns = _pt;
-            ml.push(`${it.name}を飲んだ。体が動かない！(${_pt}ターン金縛り)${it.blessed ? "【祝=強金縛り】" : ""}`);
-          }
-        }
-      } else if (it.effect === "mana") {
-        if (it.cursed) {
-          // 呪い：反転→MP封印50ターン
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
-          ml.push(`${it.name}を飲んだ。魔力が封じられた！(MP封印50ターン)【呪】`);
-        } else if ((p.mpCooldownTurns || 0) > 0) {
-          ml.push(`${it.name}を飲んだ。MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
-        } else {
-          // 通常/祝福：MP回復（祝福=1.5x）。MP最大時は最大MP増加
-          const _madd = Math.min(Math.round(it.value * _potBm), (p.maxMp || 20) - (p.mp || 0));
-          if (_madd <= 0) {
-            const _maxMpGain = it.blessed ? 2 : 1;
-            p.maxMp = (p.maxMp || 20) + _maxMpGain;
-            p.mp = (p.mp || 0) + _maxMpGain;
-            ml.push(`${it.name}を飲んだ。MPが最大なので最大MP+${_maxMpGain}！${it.blessed ? "（祝福）" : ""}`);
-          } else {
-            p.mp = (p.mp || 0) + _madd;
-            ml.push(`${it.name}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
-          }
-        }
-      } else if (it.effect === "seal") {
-        if (it.cursed) {
-          // 呪い：MP封印解除
-          p.mpCooldownTurns = 0;
-          ml.push(`${it.name}を飲んだ。MP封印が解けた！【呪→解封】`);
-        } else {
-          // 通常/祝福：MP封印50ターン（祝福：さらに鈍足10ターン）
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
-          let _seMsg = `${it.name}を飲んだ。魔力が封じられた！(MP封印50ターン)${it.blessed ? "（祝福）" : ""}`;
-          if (it.blessed) {
-            p.slowTurns = (p.slowTurns || 0) + 10;
-            _seMsg += " さらに鈍足10ターン！";
-          }
-          ml.push(_seMsg);
-        }
-      } else if (it.effect === "levelup") {
-        if (it.cursed) {
-          // 呪い：1階上へワープ（1階なら効果なし）
-          if (p.depth <= 1) {
-            if (onReturnToHub) {
-              ml.push(`${it.name}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
-              setMsgs((prev) => [...prev.slice(-80), ...ml]);
-              sr.current = { ...sr.current };
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
-              return;
-            } else {
-              ml.push(`${it.name}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
-            }
-          } else {
-            ml.push(`${it.name}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
-            const _luNd = chgFloor(p, -1, true);
-            if (_luNd) sr.current.dungeon = _luNd;
-          }
-        } else {
-          const _luTimes = it.blessed ? 2 : 1;
-          for (let _lui = 0; _lui < _luTimes; _lui++) {
-            p.exp = p.nextExp;
-            lu(p, ml);
-          }
-          ml.push(`${it.name}を飲んだ。${it.blessed ? "【祝=2レベルアップ】" : ""}`);
-        }
-      }
-      if (p.inventory.length < (p.maxInventory || 30)) {
-        const bottle = { ...EMPTY_BOTTLE, id: uid() };
-        p.inventory.push(bottle);
-        ml.push("空き瓶が残った。");
-      }
-    } else if (it.type === "food") {
-      const _foodBm = getBlessMultiplier(it);
-      const _foodVal = Math.max(1, Math.round(it.value * _foodBm));
-      p.inventory.splice(idx, 1);
-      const _foodAdded = Math.min(_foodVal, p.maxHunger - p.hunger);
-      p.hunger = Math.min(p.maxHunger, p.hunger + _foodVal);
-      ml.push(
-        `${it.name}を食べた。(満腹度+${_foodAdded})${it.blessed ? "（祝福：よく味わえた）" : it.cursed ? "（呪い：まずかった）" : ""}`,
-      );
-      const fe = it.effect;
-      if (fe === "heal_food") {
-        const h = rng(10, 20);
-        const ah = Math.min(h, p.maxHp - p.hp);
-        p.hp += ah;
-        if (ah > 0) ml.push(`体が温まりHPが${ah}回復した。`);
-      } else if (fe === "power_food") {
-        p.atk += 1;
-        ml.push("力が湧いてきた！攻撃力+1");
-      } else if (fe === "speed_food") {
-        if (p.sleepTurns > 0) {
-          p.sleepTurns = 0;
-          ml.push("目が覚めた！");
-        } else ml.push("体が軽くなった！");
-      } else if (fe === "def_food") {
-        p.def += 1;
-        ml.push("体が頑丈になった！防御力+1");
-      } else if (fe === "vitality_food") {
-        p.maxHp += 2;
-        p.hp += 2;
-        ml.push("生命力が増した！最大HP+2");
-      } else if (fe === "exp_food") {
-        const ex = rng(5, 10 + p.level * 3);
-        p.exp += ex;
-        ml.push(`知恵が付いた。経験値+${ex}`);
-        lu(p, ml);
-      } else if (fe === "luck_food") {
-        const g = rng(10, 30);
-        p.gold += g;
-        ml.push(`幸運だ！${g}ゴールドを見つけた。`);
-      } else if (fe === "reveal_food") {
-        for (let y2 = 0; y2 < MH; y2++)
-          for (let x2 = 0; x2 < MW; x2++) dg.explored[y2][x2] = true;
-        dg.traps.forEach((t2) => (t2.revealed = true));
-        ml.push("目が冴えてフロア全体が見えた！");
-      } else if (fe === "antidote_food") {
-        const _acured = [];
-        if (p.sleepTurns > 0) { p.sleepTurns = 0; _acured.push("睡眠"); }
-        if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; _acured.push("金縛り"); }
-        if (p.poisoned) {
-          p.poisoned = false;
-          if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
-          _acured.push("毒");
-        } else if ((p.poisonAtkLoss || 0) > 0) {
-          p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0;
-          _acured.push("毒による攻撃力低下");
-        }
-        if (_acured.length > 0) ml.push(`状態異常が消えた！(${_acured.join("・")})`);
-        const h2 = rng(3, 8);
-        p.hp = Math.min(p.maxHp, p.hp + h2);
-        ml.push(`体の調子が良くなった。HP+${h2}`);
-      } else if (fe === "satiate_food") {
-        ml.push("とても腹持ちが良い！");
-      }
-      if (it.potionEffects && it.potionEffects.length > 0) {
-        for (const pe of it.potionEffects) {
-          if (pe === "heal") {
-            const ph = rng(10, 25);
-            const pah = Math.min(ph, p.maxHp - p.hp);
-            p.hp += pah;
-            if (pah > 0) ml.push(`回復効果でHP+${pah}`);
-          } else if (pe === "poison") {
-            p.poisoned = true;
-            ml.push("毒が混じっていた！毒状態になった！攻撃力が徐々に下がっていく…");
-          } else if (pe === "sleep") {
-            const st = rng(3, 6);
-            if ((p.statusImmune || 0) > 0) ml.push("睡眠効果！状態防止中のため効かなかった！");
-            else { p.sleepTurns = (p.sleepTurns || 0) + st; ml.push(`睡眠効果で${st}ターン眠ってしまった...`); }
-          } else if (pe === "power") {
-            p.atk += 2;
-            ml.push("強化効果で攻撃力+2！");
-          } else if (pe === "mana") {
-            if ((p.mpCooldownTurns || 0) > 0) {
-              ml.push(`MP封印中のため魔力効果は発揮されなかった！(残り${p.mpCooldownTurns}ターン)`);
-            } else {
-              const _mpRec = Math.min(10, (p.maxMp || 0) - (p.mp || 0));
-              p.mp = (p.mp || 0) + _mpRec;
-              if (_mpRec > 0) ml.push(`魔力効果でMP+${_mpRec}`);
-            }
-          } else if (pe === "confuse") {
-            if ((p.statusImmune || 0) > 0) { ml.push("混乱成分！状態防止中のため効かなかった！"); }
-            else { const _ct = rng(3, 8); p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`); }
-          } else if (pe === "slow") {
-            if ((p.statusImmune || 0) > 0) ml.push("鈍足成分！状態防止中のため効かなかった！");
-            else { p.slowTurns = (p.slowTurns || 0) + 10; ml.push("鈍足成分が！体が重くなった...(鈍足10ターン)"); }
-          } else if (pe === "darkness") {
-            p.darknessTurns = (p.darknessTurns || 0) + 20;
-            ml.push("暗闇成分が！視界が1マスになった...(20ターン)");
-          } else if (pe === "bewitch") {
-            p.bewitchedTurns = (p.bewitchedTurns || 0) + 50;
-            ml.push("幻惑成分が！周囲の見た目がおかしくなった！(50ターン)");
-          } else if (pe === "paralyze") {
-            if ((p.statusImmune || 0) > 0) ml.push("金縛り成分！状態防止中のため効かなかった！");
-            else { p.paralyzeTurns = (p.paralyzeTurns || 0) + 10; ml.push("金縛り成分が！体が動かない！(10ターン)"); }
-          // 呪い系効果
-          } else if (pe === "c_heal") {
-            p.poisoned = true;
-            ml.push("呪いの回復成分が！毒状態になった！攻撃力が徐々に下がっていく…");
-          } else if (pe === "c_poison") {
-            if (p.poisoned) {
-              p.poisoned = false;
-              if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
-              ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
-            } else ml.push("解毒成分が入っていたが毒ではなかった。");
-          } else if (pe === "c_sleep") {
-            p.hasteTurns = (p.hasteTurns || 0) + 5;
-            ml.push("覚醒成分が！体が覚醒した！(2倍速5ターン)");
-          } else if (pe === "c_power") {
-            p.atk = Math.max(1, p.atk - 2);
-            ml.push("弱化成分が！攻撃力-2...");
-          } else if (pe === "c_mana") {
-            p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
-            ml.push("封印成分が！MP封印50ターン！");
-          } else if (pe === "c_confuse") {
-            p.sureHitTurns = (p.sureHitTurns || 0) + 100;
-            ml.push("必中成分が！必中状態になった！(100ターン)");
-          } else if (pe === "c_slow") {
-            p.hasteTurns = (p.hasteTurns || 0) + 10;
-            ml.push("加速成分が！体が軽くなった！(2倍速10ターン)");
-          } else if (pe === "c_darkness") {
-            p.monsterSenseTurns = (p.monsterSenseTurns || 0) + 100;
-            ml.push("感知成分が！フロアのモンスターが見えるようになった！(100ターン)");
-          } else if (pe === "c_bewitch") {
-            dg.traps.forEach(t => t.revealed = true);
-            ml.push("看破成分が！フロアの罠が全て見えた！");
-          } else if (pe === "c_paralyze") {
-            p.statusImmune = (p.statusImmune || 0) + 100;
-            ml.push("予防成分が！状態異常防止100ターン！");
-          } else if (pe === "levelup") {
-            const _luEx = rng(5, 10 + p.level * 3);
-            p.exp += _luEx;
-            ml.push(`知恵が付いた。経験値+${_luEx}`);
-            lu(p, ml);
-          } else if (pe === "c_levelup") {
-            p.atk = Math.max(1, p.atk - 2);
-            ml.push("退化成分が！攻撃力-2...");
-          } else if (pe === "seal") {
-            p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
-            ml.push("封魔成分が！MP封印50ターン！");
-          } else if (pe === "c_seal") {
-            p.mpCooldownTurns = 0;
-            ml.push("解封成分が！MP封印が解けた！");
-          }
-        }
-      }
-    } else if (it.type === "scroll") {
-      if (it.effect === "blank") {
-        ml.push("白紙の巻物だ。魔法のマーカーで書き込めるかもしれない。");
-        endTurn(sr.current, p, ml);
-        setMsgs((prev) => [...prev.slice(-80), ...ml]);
-        setSelIdx(null);
-        setShowDesc(null);
-        setShowInv(false);
-        sr.current = { ...sr.current };
-        setGs({ ...sr.current });
-        return;
-      }
-      // 識別の巻物でダイアログが必要な場合は消費せず early-return（魔封じの魔方陣内は除く）
-      if (it.effect === "identify" && !it.blessed && !inMagicSealRoom(p.x, p.y, dg)) {
-        const _ik_scr = getIdentKey(it); // "s:identify"
-        if (it.cursed) {
-          const _tgts = p.inventory.filter((_ii, _i) => {
-            if (_i === idx) return false;
-            if (_ii.type === 'weapon' || _ii.type === 'armor') return _ii.fullIdent || _ii.bcKnown;
-            const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
-          });
-          if (_tgts.length > 0) {
-            if (_ik_scr) sr.current.ident.add(_ik_scr);
-            const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-            setMsgs((prev) => [...prev.slice(-80), ..._rp, "どのアイテムの識別を解除する？【呪】"]);
-            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx });
-            setShowInv(false); setSelIdx(null); setShowDesc(null);
-            sr.current = { ...sr.current }; setGs({ ...sr.current });
-            return;
-          }
-        } else {
-          const _tgts = p.inventory.filter((_ii, _i) => {
-            if (_i === idx) return false;
-            if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
-            const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
-          });
-          if (_tgts.length > 0) {
-            if (_ik_scr) sr.current.ident.add(_ik_scr);
-            const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-            setMsgs((prev) => [...prev.slice(-80), ..._rp, "識別するアイテムを選んでください。"]);
-            setIdentifyMode({ mode: 'identify', sel: 0, scrollIdx: idx });
-            setShowInv(false); setSelIdx(null); setShowDesc(null);
-            sr.current = { ...sr.current }; setGs({ ...sr.current });
-            return;
-          }
-        }
-      }
-      /* 複製の巻物：アイテム選択ダイアログが必要な場合はsplice前にreturn（identify同様） */
-      if (it.effect === "duplicate" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
-        if (_dupTargets.length > 0) {
-          const _ik_dup = getIdentKey(it);
-          if (_ik_dup) sr.current.ident.add(_ik_dup);
-          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
-          setIdentifyMode({ mode: 'duplicate', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx });
-          setShowInv(false); setSelIdx(null); setShowDesc(null);
-          sr.current = { ...sr.current }; setGs({ ...sr.current });
-          return;
-        }
-      }
-      const _scrBm = getBlessMultiplier(it);
-      p.inventory.splice(idx, 1);
-      { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
-      if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-        ml.push(`${it.name}を読んだが、魔法が封印されている！`);
-      } else if (it.effect === "teleport") {
-        if (it.cursed) {
-          setFloorSelectMode({ sel: p.depth });
-          { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-            setMsgs((prev) => [...prev.slice(-80), ..._rp, "飛びたい階層を選んでください... (↑↓:選択 Z/Enter:決定)"]); }
-          setSelIdx(null); setShowDesc(null); setShowInv(false);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-        } else if (it.blessed) {
-          setTpSelectMode({ cx: p.x, cy: p.y });
-          { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-            setMsgs((prev) => [...prev.slice(-80), ..._rp, "テレポート先を選んでください... (Z/Enter:決定 X:キャンセル→ランダム)"]); }
-          setSelIdx(null); setShowDesc(null); setShowInv(false);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-        } else {
-          const _tpBlocked = dg.pentacles?.some(pc => pc.kind === "teleport_trap" && pc.cursed);
-          if (_tpBlocked) {
-            ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
-          } else {
-            const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-            p.x = rng(rm.x, rm.x + rm.w - 1);
-            p.y = rng(rm.y, rm.y + rm.h - 1);
-            ml.push("テレポートした！");
-          }
-        }
-      } else if (it.effect === "reveal") {
-        if (it.cursed) {
-          // 呪い：マップも罠の位置も全て忘れる
-          for (let y = 0; y < MH; y++)
-            for (let x = 0; x < MW; x++) dg.explored[y][x] = false;
-          dg.traps.forEach((t) => (t.revealed = false));
-          ml.push("記憶が消えた…マップと罠の位置を全て忘れてしまった！【呪】");
-        } else {
-          for (let y = 0; y < MH; y++)
-            for (let x = 0; x < MW; x++) dg.explored[y][x] = true;
-          dg.traps.forEach((t) => (t.revealed = true));
-          if (it.blessed) {
-            // 祝福：全開示＋アイテム・敵の位置も地図に常時表示
-            dg.itemsRevealed = true;
-            dg.monsterSenseActive = true;
-            ml.push("フロア全体・罠・アイテム・敵の位置が明らかになった！【祝】");
-          } else {
-            ml.push("フロア全体と罠が明らかになった！");
-          }
-        }
-      } else if (it.effect === "weapon_up") {
-        if (p.weapon) {
-          const _bef = p.weapon.plus || 0;
-          const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
-          p.weapon.plus = _bef + _gain;
-          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-          let _wMsg = `${p.weapon.name}が${_gain > 0 ? "輝いた" : "くすんだ"}！(${_fp(_bef)}→${_fp(p.weapon.plus)})${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`;
-          if (p.weapon.cursed) { p.weapon.cursed = false; _wMsg += " 呪いが解けた！"; }
-          ml.push(_wMsg);
-        } else {
-          ml.push("武器を装備していないので効果がなかった。");
-        }
-      } else if (it.effect === "armor_up") {
-        if (p.armor) {
-          const _bef = p.armor.plus || 0;
-          const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
-          p.armor.plus = _bef + _gain;
-          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-          let _aMsg = `${p.armor.name}が${_gain > 0 ? "輝いた" : "くすんだ"}！(${_fp(_bef)}→${_fp(p.armor.plus)})${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`;
-          if (p.armor.cursed) { p.armor.cursed = false; _aMsg += " 呪いが解けた！"; }
-          ml.push(_aMsg);
-        } else {
-          ml.push("防具を装備していないので効果がなかった。");
-        }
-      } else if (it.effect === "thunder") {
-        if (hasCursedExplosionPentacle(dg)) {
-          ml.push("呪われた爆発の魔方陣が雷を打ち消した！");
-        } else {
-        // 祝福：フロア全モンスターに雷、通常：視界内のみ、呪い：視界内＋自分にも雷
-        const _tTargets = it.blessed
-          ? dg.monsters
-          : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-        if (_tTargets.length === 0 && !it.cursed) {
-          ml.push("雷が走るが、視界に敵はいない。");
-        } else {
-          if (it.blessed && _tTargets.length === 0) {
-            ml.push("雷が走るが、フロアに敵はいない。【祝】");
-          }
-          for (const _m of _tTargets) {
-            let _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
-            if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
-            _m.hp -= _dmg;
-            ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
-            if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
-          }
-          // 呪い：自分にも雷が落ちる
-          if (it.cursed) {
-            const _selfDmg = Math.max(1, rng(10, 20));
-            p.hp -= _selfDmg;
-            p.deathCause = "呪われた雷の巻物で";
-            ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！【呪】`);
-          }
-        }
-        } // end hasCursedExplosionPentacle else
-      } else if (it.effect === "recovery") {
-        if (it.cursed) {
-          // 呪い：自分がダメージ、視界内モンスターが回復
-          const _rdmg = Math.max(1, rng(10, 20));
-          p.hp -= _rdmg;
-          p.deathCause = "呪われた回復の巻物で";
-          ml.push(`体が焼けるような痛みが走った！${_rdmg}ダメージ！【呪】`);
-          const _rvisC = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-          for (const _m of _rvisC) {
-            const _ma = Math.min(rng(10, 20), _m.maxHp - _m.hp);
-            if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); }
-          }
-        } else {
-          const _rh = Math.max(1, Math.round(rng(15, 25) * _scrBm));
-          const _ra = Math.min(_rh, p.maxHp - p.hp);
-          p.hp += _ra;
-          if (it.blessed) {
-            // 祝福：自分だけ回復（敵は回復しない）
-            ml.push(`体が癒された！HP+${_ra}（祝福：自分だけ回復！）`);
-          } else {
-            // 通常：自分と視界内モンスターも回復
-            ml.push(`体が回復した！HP+${_ra}`);
-            const _rvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-            for (const _m of _rvis) {
-              const _mh = Math.max(1, Math.round(rng(10, 20)));
-              const _ma = Math.min(_mh, _m.maxHp - _m.hp);
-              if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); }
-            }
-          }
-        }
-      } else if (it.effect === "item_gather") {
-        const _toG = dg.items.filter((gi) => !gi.shopPrice);
-        const _cnt = _toG.length;
-        if (_cnt === 0) {
-          ml.push("引き寄せるアイテムがなかった。");
-        } else if (it.cursed) {
-          // 呪い：フロアのアイテムをランダムな場所に飛ばす
-          dg.items = dg.items.filter((gi) => gi.shopPrice);
-          const _floorCands = [];
-          for (let _fy = 0; _fy < MH; _fy++)
-            for (let _fx = 0; _fx < MW; _fx++)
-              if (dg.map[_fy][_fx] !== T.WALL && dg.map[_fy][_fx] !== T.BWALL &&
-                  dg.map[_fy][_fx] !== T.SD && dg.map[_fy][_fx] !== T.SU)
-                _floorCands.push([_fx, _fy]);
-          for (const gi of _toG) {
-            const [_rx, _ry] = pick(_floorCands);
-            gi.x = _rx; gi.y = _ry;
-            delete gi.wallEmbedded;
-            dg.items.push(gi);
-          }
-          ml.push(`${_cnt}個のアイテムがフロアに散らばった！【呪】`);
-        } else if (it.blessed) {
-          // 祝福：フロアのアイテムを直接インベントリに吸収（満杯分は通常の落下ルールで配置）
-          dg.items = dg.items.filter((gi) => gi.shopPrice);
-          let _picked = 0, _dropped = 0;
-          const _blessFt = new Set();
-          for (const gi of _toG) {
-            delete gi.wallEmbedded;
-            if (p.inventory.length < (p.maxInventory || 30)) {
-              p.inventory.push(gi);
-              _picked++;
-            } else {
-              placeItemAt(dg, p.x, p.y, gi, ml, _blessFt, 0, p);
-              _dropped++;
-            }
-          }
-          ml.push(`${_picked}個のアイテムを拾った！【祝】${_dropped > 0 ? `（${_dropped}個は満杯で周囲に配置）` : ""}`);
-        } else {
-          // 通常：隣接マスに引き寄せる
-          dg.items = dg.items.filter((gi) => gi.shopPrice);
-          const _gft = new Set();
-          withPitfallBag(() => {
-            for (const gi of _toG) {
-              let _placed = false;
-              for (const [_dx, _dy] of DRO) {
-                const _cx = p.x + _dx, _cy = p.y + _dy;
-                if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
-                if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL || dg.map[_cy][_cx] === T.SD || dg.map[_cy][_cx] === T.SU) continue;
-                const _gb = dg.bigboxes?.find((b) => b.x === _cx && b.y === _cy);
-                if (_gb) { bigboxAddItem(_gb, gi, dg, ml); _placed = true; break; }
-                const _gs = dg.springs?.find((s) => s.x === _cx && s.y === _cy);
-                if (_gs) { soakItemIntoSpring(_gs, gi, ml, dg, dnameRef); _placed = true; break; }
-                const _gt = dg.traps.find((t) => t.x === _cx && t.y === _cy && !_gft.has(t.id));
-                if (_gt) {
-                  _gft.add(_gt.id);
-                  _gt.revealed = true;
-                  const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
-                  if (Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
-                  if (_gr === "destroyed") { _placed = true; break; }
-                  if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
-                  continue;
-                }
-                if (dg.items.some((i) => i.x === _cx && i.y === _cy)) continue;
-                gi.x = _cx; gi.y = _cy;
-                delete gi.wallEmbedded;
-                dg.items.push(gi);
-                _placed = true;
-                break;
-              }
-              if (!_placed) ml.push(`${gi.name}は引き寄せられなかった！`);
-            }
-          });
-          ml.push(`${_cnt}個のアイテムを引き寄せた！`);
-        }
-      } else if (it.effect === "sleep_scroll") {
-        if (it.cursed) {
-          // 呪い：プレイヤーが眠る
-          const _pst = Math.max(2, rng(3, 5));
-          if ((p.statusImmune || 0) > 0) ml.push("眠気が自分を襲った！状態防止中のため効かなかった！【呪】");
-          else { p.sleepTurns = (p.sleepTurns || 0) + _pst; ml.push(`眠気が自分を襲った！${_pst}ターン眠ってしまう…【呪】`); }
-        } else {
-          // 通常：視界内、祝福：フロア全モンスター
-          const _sSleep = it.blessed ? dg.monsters : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-          if (_sSleep.length === 0) {
-            ml.push(it.blessed ? "眠気が漂うが、フロアに敵はいない。【祝】" : "眠気が漂うが、視界に敵はいない。");
-          } else {
-            for (const _m of _sSleep) {
-              const _st = Math.max(1, Math.round(rng(3, 6) * _scrBm));
-              if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
-              _m.sleepTurns = (_m.sleepTurns || 0) + _st;
-              ml.push(`${_m.name}が眠りに落ちた！(${_st}ターン)${it.blessed ? "【祝】" : ""}`);
-            }
-          }
-        }
-      } else if (it.effect === "identify") {
-        if (it.blessed) {
-          // 全アイテム完全識別（武器・防具も含む）
-          for (const _ii of p.inventory) {
-            const _k = getIdentKey(_ii);
-            if (_k) { sr.current.ident.add(_k); _ii.fullIdent = true; }
-            else if (_ii.type === 'weapon' || _ii.type === 'armor') { _ii.fullIdent = true; }
-          }
-          ml.push("全てのアイテムが識別された！");
-        } else if (it.cursed) {
-          // 識別済みアイテムを1つ選んで未識別に戻す（武器・防具も含む）
-          const _targets = p.inventory.filter(_ii => {
-            if (_ii.type === 'weapon' || _ii.type === 'armor') return _ii.fullIdent || _ii.bcKnown;
-            const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
-          });
-          if (_targets.length === 0) {
-            ml.push("未識別に戻せるアイテムがない。");
-          } else {
-            { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-              setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, "どのアイテムの識別を解除する？【呪】"]); }
-            setIdentifyMode({ mode: 'unidentify' });
-            setShowInv(false); setSelIdx(null); setShowDesc(null);
-            sr.current = { ...sr.current }; setGs({ ...sr.current });
-            return;
-          }
-        } else {
-          // 通常: 1つ選んで識別（武器・防具も含む）
-          const _targets = p.inventory.filter(_ii => {
-            if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
-            const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
-          });
-          if (_targets.length === 0) {
-            ml.push("未識別のアイテムがない。");
-          } else {
-            { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-              setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, "識別するアイテムを選んでください。"]); }
-            setIdentifyMode({ mode: 'identify' });
-            setShowInv(false); setSelIdx(null); setShowDesc(null);
-            sr.current = { ...sr.current }; setGs({ ...sr.current });
-            return;
-          }
-        }
-      } else if (it.effect === "duplicate") {
-        // ここに到達するのは「アイテムなし」または「魔封じ」の場合のみ
-        const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
-        if (_dupTargets.length === 0) {
-          ml.push("複製できるアイテムがない。");
-        }
-        /* 魔封じ時は魔法封印メッセージが ml に入っているので何もしない */
-      } else if (it.effect === "summon") {
-        // 召喚の巻物
-        if (it.cursed) {
-          // 呪い：同じ部屋の敵を別の部屋に飛ばす
-          const _sumRoom = findRoom(dg.rooms, p.x, p.y);
-          const _inRoom = _sumRoom
-            ? dg.monsters.filter((m) => findRoom(dg.rooms, m.x, m.y) === _sumRoom)
-            : [];
-          if (_inRoom.length === 0) {
-            ml.push("部屋に敵がいないのに呪いが発動した…【呪】");
-          } else {
-            const _otherRooms = dg.rooms.filter((r) => r !== _sumRoom);
-            for (const _sm of _inRoom) {
-              const _tr = pick(_otherRooms);
-              if (!_tr) continue;
-              for (let _att = 0; _att < 20; _att++) {
-                const _tx = rng(_tr.x + 1, _tr.x + _tr.w - 2);
-                const _ty = rng(_tr.y + 1, _tr.y + _tr.h - 2);
-                if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.monsters.some((m) => m.x === _tx && m.y === _ty) && (_tx !== p.x || _ty !== p.y)) {
-                  _sm.x = _tx; _sm.y = _ty; _sm.aware = false; break;
-                }
-              }
-            }
-            ml.push(`${_inRoom.length}体の敵が別の部屋へ飛んだ！【呪】`);
-          }
-        } else {
-          // 通常4体、祝福8体召喚
-          const _sumCount = it.blessed ? 8 : 4;
-          let _spawned = 0;
-          _spawned = spawnMonsters(dg, _sumCount, p.depth + 1, p.x, p.y, p, { aware: !!it.blessed });
-          ml.push(it.blessed ? `${_spawned}体の敵に囲まれた！【祝】` : `${_spawned}体の敵が召喚された！`);
-        }
-      } else if (it.effect === "trap_scatter") {
-        // 罠の巻物
-        if (it.cursed) {
-          dg.traps = [];
-          ml.push("罠の巻物を読んだ！フロア内の全ての罠が消えた！【呪】");
-        } else {
-          const _tCount = it.blessed ? rng(15, 25) : rng(8, 15);
-          let _placed = 0;
-          for (let _ti = 0; _ti < _tCount * 3 && _placed < _tCount; _ti++) {
-            const _tr = dg.rooms[rng(0, dg.rooms.length - 1)];
-            const _tx = rng(_tr.x, _tr.x + _tr.w - 1);
-            const _ty = rng(_tr.y, _tr.y + _tr.h - 1);
-            if (_tx === p.x && _ty === p.y) continue;
-            if (dg.map[_ty][_tx] !== T.FLOOR) continue;
-            if (dg.traps.some(t => t.x === _tx && t.y === _ty)) continue;
-            if (dg.items.some(i => i.x === _tx && i.y === _ty)) continue;
-            const _td = pick(TRAPS);
-            dg.traps.push({ ..._td, id: uid(), x: _tx, y: _ty, revealed: false });
-            _placed++;
-          }
-          ml.push(it.blessed
-            ? `罠の巻物を読んだ！大量の罠がフロアに出現した！(${_placed}個)【祝】`
-            : `罠の巻物を読んだ！罠がフロアに出現した！(${_placed}個)`);
-        }
-      } else if (it.effect === "expand_inv") {
-        // 収納上手の巻物
-        const _curMax = p.maxInventory || 30;
-        if (it.cursed) {
-          const _loss = rng(1, 3);
-          const _newMax = Math.max(10, _curMax - _loss);
-          const _actual = _curMax - _newMax;
-          p.maxInventory = _newMax;
-          // 超過分のアイテムを足元に落とす
-          if (p.inventory.length > _newMax) {
-            const _excess = p.inventory.splice(_newMax);
-            const _fts = new Set();
-            for (const _ei of _excess) placeItemAt(dg, p.x, p.y, _ei, ml, _fts, 0, p);
-            ml.push(`最大所持数が${_actual}減った…(${_curMax}→${_newMax}) 超過分が落ちた！【呪】`);
-          } else {
-            ml.push(`最大所持数が${_actual}減った…(${_curMax}→${_newMax})【呪】`);
-          }
-        } else {
-          const _gain = it.blessed ? rng(2, 6) : rng(1, 3);
-          p.maxInventory = _curMax + _gain;
-          ml.push(it.blessed
-            ? `収納が上手くなった！最大所持数が${_gain}増えた！(${_curMax}→${p.maxInventory})【祝】`
-            : `収納が上手くなった！最大所持数が${_gain}増えた！(${_curMax}→${p.maxInventory})`);
-        }
-      }
-    } else if (it.type === "pen") {
-      if ((it.charges || 0) <= 0) {
-        ml.push(`${it.name}のインクが尽きている。充填の大箱で補充できる。`);
-        endTurn(sr.current, p, ml);
-        setMsgs((prev) => [...prev.slice(-80), ...ml]);
-        setSelIdx(null); setShowDesc(null); setShowInv(false);
-        sr.current = { ...sr.current }; setGs({ ...sr.current });
-        return;
-      }
-      const _exPen = dg.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
-      const _penBlocked =
-        dg.items.some((gi) => gi.x === p.x && gi.y === p.y) ||
-        dg.traps.some((tr) => tr.x === p.x && tr.y === p.y) ||
-        dg.springs?.some((s) => s.x === p.x && s.y === p.y) ||
-        dg.bigboxes?.some((b) => b.x === p.x && b.y === p.y) ||
-        dg.map[p.y][p.x] === T.SD ||
-        dg.map[p.y][p.x] === T.SU;
-      if (_exPen) {
-        ml.push(`すでに${_exPen.name}がある。`);
-      } else if (_penBlocked) {
-        ml.push("足元に別のものがあって魔方陣を描けない。");
-      } else {
-        dg.pentacles = dg.pentacles || [];
-        const _isBlessed = it.blessed || false;
-        const _isCursed = it.cursed || false;
-        const _penIK = getIdentKey(it); // "n:sanctuary" etc
-        const _penIsIdent = !_penIK || sr.current.ident.has(_penIK);
-        const _bcPrefix = _isBlessed ? "祝福された" : _isCursed ? "呪われた" : "";
-        let _pName;
-        if (_penIsIdent) {
-          const _baseName =
-            it.effect === "sanctuary"      ? "聖域の魔方陣" :
-            it.effect === "vulnerability"  ? "脆弱の魔方陣" :
-            it.effect === "magic_seal"     ? "魔封じの魔方陣" :
-            it.effect === "thunder_trap"   ? "雷の魔方陣" :
-            it.effect === "farcast"        ? "遠投の魔方陣" :
-            it.effect === "light"          ? "明かりの魔方陣" :
-            it.effect === "teleport_trap"  ? "テレポートの魔方陣" :
-            it.effect === "trap_gen"       ? "罠の魔方陣" :
-            it.effect === "stone_throw"    ? "石飛ばしの魔方陣" :
-            it.effect === "knockback_aura" ? "吹き飛ばしの魔方陣" :
-            it.effect === "explosion"      ? "爆発の魔方陣" :
-            it.effect === "plain"          ? "無の魔方陣" : "魔方陣";
-          _pName = _bcPrefix + _baseName;
-        } else {
-          const _nick = sr.current.nicknames?.[_penIK];
-          let _circleBase;
-          if (_nick) {
-            _circleBase = `${_nick}の魔方陣`;
-          } else {
-            const _fake = sr.current.fakeNames?.[_penIK] ?? it.name;
-            _circleBase = _fake.replace(/ペン$/, '魔方陣'); // "朱色のペン"→"朱色の魔方陣"
-          }
-          _pName = _bcPrefix ? `${_bcPrefix}${_circleBase}` : _circleBase;
-        }
-        dg.pentacles.push({ x: p.x, y: p.y, kind: it.effect, name: _pName, blessed: _isBlessed, cursed: _isCursed });
-        it.charges = (it.charges || 1) - 1;
-        if (it.charges <= 0) {
-          ml.push(`足元に${_pName}を描いた！ペンのインクが尽きた。(充填の大箱で補充できる)`);
-        } else {
-          ml.push(`足元に${_pName}を描いた！(残り${it.charges}回)`);
-        }
-        /* 呪われた聖域の魔方陣：描いた直後に隣のマスに弾き出される */
-        if (it.effect === "sanctuary" && _isCursed) {
-          const _dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
-          let _pushed = false;
-          for (const [_pdx, _pdy] of _dirs) {
-            const _px = p.x + _pdx, _py = p.y + _pdy;
-            if (_px >= 0 && _px < MW && _py >= 0 && _py < MH && dg.map[_py][_px] !== T.WALL && dg.map[_py][_px] !== T.BWALL &&
-                !dg.monsters.some(m => m.x === _px && m.y === _py) &&
-                !dg.pentacles.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === _px && pc.y === _py)) {
-              p.x = _px; p.y = _py;
-              ml.push("呪われた魔方陣に弾き出された！");
-              _pushed = true;
-              break;
-            }
-          }
-          if (!_pushed) ml.push("逃げ場がない！");
-        }
-        /* テレポートの魔方陣：描いた瞬間に即テレポート（呪い以外） */
-        if (it.effect === "teleport_trap" && !_isCursed) {
-          const _tpRm = dg.rooms[rng(0, dg.rooms.length - 1)];
-          p.x = rng(_tpRm.x, _tpRm.x + _tpRm.w - 1);
-          p.y = rng(_tpRm.y, _tpRm.y + _tpRm.h - 1);
-          ml.push("魔方陣を描いた瞬間、テレポートした！");
-        }
-        /* 雷の魔方陣：描いたそのターンにも即座に発動 */
-        if (it.effect === "thunder_trap") {
-          if (_isCursed) {
-            const _drawHeal = Math.min(25, p.maxHp - p.hp);
-            if (_drawHeal > 0) { p.hp += _drawHeal; ml.push(`描いた瞬間、癒しの力が湧き上がった！HPが${_drawHeal}回復！`); }
-          } else if (hasCursedExplosionPentacle(dg)) {
-            ml.push("呪われた爆発の魔方陣が雷を打ち消した！");
-          } else {
-            const _tdrawDmg = _isBlessed ? 50 : 25;
-            if (p.hp > 0) {
-              p.deathCause = `${_pName}の雷撃により`;
-              p.hp -= _tdrawDmg;
-              ml.push(`描いた瞬間、雷が落ちた！${_tdrawDmg}ダメージ！`);
-              applyLightningToInventory(p, dg, ml, lu,
-                (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames));
-            }
-            for (const _tm of [...dg.monsters]) {
-              if (_tm.x === p.x && _tm.y === p.y) {
-                _tm.hp -= _tdrawDmg;
-                ml.push(`${_pName}が${_tm.name}を打った！${_tdrawDmg}ダメージ！`);
-                if (_tm.hp <= 0) { trackMonster(_tm); killMonster(_tm, dg, p, ml, lu); }
-              }
-            }
-          }
-        }
-      }
-    } else if (it.type === "weapon") {
-      if (p.weapon === it) {
-        if (it.cursed) { ml.push(`${it.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`); }
-        else { p.weapon = null; ml.push(`${it.name}を外した。`); }
-      } else {
-        p.weapon = it;
-        it.bcKnown = true;
-        ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
-      }
-    } else if (it.type === "armor") {
-      if (p.armor === it) {
-        if (it.cursed) { ml.push(`${it.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`); }
-        else { p.armor = null; ml.push(`${it.name}を外した。`); }
-      } else {
-        p.armor = it;
-        it.bcKnown = true;
-        ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
-      }
-    } else if (it.type === "arrow") {
-      if (p.arrow === it) { p.arrow = null; ml.push(`${it.name}を外した。`); }
-      else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone) ? "個" : "本"})を装備した。`); }
-    } else if (it.type === "pot") {
-      if (it.contents.length >= it.capacity) {
-        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`);
-      } else {
-        setPutMode({ potIdx: idx });
-        setPutMenuSel(0);
-        setPutPage(0);
-        setShowInv(false);
-        setSelIdx(null);
-        setShowDesc(null);
-        setMsgs((prev) => [
-          ...prev.slice(-80),
-          `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に入れるアイテムを選んでください...(${it.contents.length}/${it.capacity})`,
-        ]);
-        sr.current = { ...sr.current };
-        setGs({ ...sr.current });
-        return;
-      }
-    }
-    if (_wasUnknown && _revFake && _revFake !== _revReal) {
-      setMsgs(prev => [...prev.slice(-80), `${_revFake}は${_revReal}だった！`]);
-      if (ml.length) setRevealMode({ pendingMsgs: [...ml] });
-    } else {
-      if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-    }
-    endTurn(sr.current, p, ml);
-    refreshFOV(dg, p);
-    setSelIdx(null);
-    setShowDesc(null);
-    setShowInv(false);
-    sr.current = { ...sr.current };
-    setGs({ ...sr.current });
-  }, [lu, endTurn, chgFloor]);
-  const doDropItem = useCallback((idx) => {
-    if (!sr.current) return;
-    const { player: p, dungeon: dg } = sr.current;
-    const it = p.inventory[idx];
-    if (!it) return;
-    if (p.weapon === it) p.weapon = null;
-    if (p.armor  === it) p.armor  = null;
-    if (p.arrow  === it) p.arrow  = null;
-    p.inventory.splice(idx, 1);
-    const ml = [],
-      ft = new Set();
-    const _allShopsDrop = getShops(dg);
-    const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
-    const prevDebt = _itemShopDrop?.unpaidTotal ?? 0;
-    /* 足元に泉があればアイテムを泉に落とす */
-    const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
-    if (_dropSpr) {
-      soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef);
-    } else {
-      let _dr;
-      withPitfallBag(() => { _dr = placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p); });
-      if (_dr === "pitfall_player") {
-        const _nd = chgFloor(p, 1, true);
-        if (_nd) {
-          sr.current.dungeon = _nd;
-          ml.push(`地下${p.depth}階に落ちた！`);
-        }
-      }
-    }
-    if (
-      it.shopPrice &&
-      _itemShopDrop &&
-      _itemShopDrop.unpaidTotal < prevDebt &&
-      _itemShopDrop.unpaidTotal > 0
-    )
-      ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を戻した。（残り${_itemShopDrop.unpaidTotal}G）`);
-    if (ml.length === 0) ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}を置いた。`);
-    endTurn(sr.current, p, ml);
-    setMsgs((prev) => [...prev.slice(-80), ...ml]);
-    setSelIdx(null);
-    setShowDesc(null);
-    if (!dropModeRef.current) {
-      setShowInv(false);
-    }
-    sr.current = { ...sr.current };
-    setGs({ ...sr.current });
-  }, [endTurn]);
-  const doThrow = useCallback((idx) => {
-    setShowInv(false);
-    setSelIdx(null);
-    setShowDesc(null);
-    setThrowMode({ idx, mode: "throw" });
-    const _it = sr.current?.player?.inventory[idx];
-    const _nm = _it ? itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames) : "アイテム";
-    setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
-  }, []);
-  const doShoot = useCallback((idx) => {
-    setShowInv(false);
-    setSelIdx(null);
-    setShowDesc(null);
-    const _it = sr.current?.player?.inventory[idx];
-    /* 石・魔法の石・爆弾矢は投げるモードで処理（装備時と同じ挙動） */
-    if (_it?.stone || _it?.magicStone || _it?.bombArrow) {
-      setThrowMode({ idx, mode: "throw" });
-      const _nm = itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-      setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
-      return;
-    }
-    setThrowMode({ idx, mode: "shoot" });
-    setMsgs((prev) => [...prev.slice(-80), "矢を射る方向を選んでください..."]);
-  }, []);
-  const doWaveWand = useCallback((idx) => {
-    if (!sr.current) return;
-    const it = sr.current.player.inventory[idx];
-    if (!it || it.type !== "wand") return;
-    if (it.charges <= 0) {
-      setMsgs((prev) => [...prev.slice(-80), "杖の力が残っていない..."]);
-      return;
-    }
-    setShowInv(false);
-    setSelIdx(null);
-    setShowDesc(null);
-    setThrowMode({ idx, mode: "wand_wave" });
-    setMsgs((prev) => [
-      ...prev.slice(-80),
-      `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を振る方向を選んでください...`,
-    ]);
-  }, []);
-  const doBreakWand = useCallback(
-    (idx) => {
-      if (!sr.current) return;
-      const { player: p, dungeon: dg } = sr.current;
-      const it = p.inventory[idx];
-      if (!it || it.type !== "wand") return;
-      p.inventory.splice(idx, 1);
-      const ml = [];
-      ml.push(`${dnameRef(it)}を壊した！`);
-      try {
-        if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-          ml.push("魔法が封印されている！効果は発動しなかった。");
-        } else {
-          const times = Math.max(1, Math.ceil((it.charges ?? 0) / 2));
-          const _bwBlMult = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
-          for (let t = 0; t < times; t++) breakWandAoE(p, dg, it.effect, ml, lu, _bwBlMult);
-          /* 呪われたレベルアップの杖の壊し：上の階へワープ */
-          if (p._pendingWarpUp) {
-            delete p._pendingWarpUp;
-            if (p.depth > 1) {
-              const _bwNd = chgFloor(p, -1);
-              if (_bwNd) sr.current.dungeon = _bwNd;
-            } else {
-              ml.push("ここは1階だ。何も起こらなかった。");
-            }
-          }
-        }
-      } catch (e) {
-        console.error("doBreakWand error:", e);
-        ml.push("杖の破砕中にエラーが発生した。");
-      }
-      try { endTurn(sr.current, p, ml); } catch (e2) { console.error("doBreakWand endTurn error:", e2); }
-      if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      setSelIdx(null);
-      setShowDesc(null);
-      setShowInv(false);
-      sr.current = { ...sr.current };
-      setGs({ ...sr.current });
-    },
-    [lu, endTurn, chgFloor],
-  );
-  const doUseMarker = useCallback((idx) => {
-    if (!sr.current) return;
-    const { player: p } = sr.current;
-    const it = p.inventory[idx];
-    if (!it || it.type !== "marker") return;
-    if (it.charges <= 0) {
-      setMsgs((prev) => [...prev.slice(-80), "マーカーのインクが切れている..."]);
-      return;
-    }
-    const blanks = p.inventory.filter((b) =>
-      (b.type === "scroll" && b.effect === "blank") ||
-      (b.type === "spellbook" && !b.spell)
-    );
-    if (blanks.length === 0) {
-      setMsgs((prev) => [...prev.slice(-80), "白紙の巻物も白紙の魔法書もない。"]);
-      return;
-    }
-    setShowInv(false);
-    setSelIdx(null);
-    setShowDesc(null);
-    setMarkerMode({ markerIdx: idx, step: "select_blank", blankIdx: null, blankKind: null });
-    setMarkerMenuSel(0);
-    setMsgs((prev) => [...prev.slice(-80), "書き込む白紙アイテムを選んでください..."]);
-    sr.current = { ...sr.current };
-    setGs({ ...sr.current });
-  }, []);
-  const doReadSpellbook = useCallback((idx) => {
-    if (!sr.current) return;
-    const { player: p, dungeon: dg } = sr.current;
-    const it = p.inventory[idx];
-    if (!it || it.type !== "spellbook") return;
-    const ml = [];
-    if (!p.spells) p.spells = [];
-    /* 未識別チェック（dnameRef は render後に定義されているが closure で参照可能） */
-    const _sbIK = getIdentKey(it); // "b:fire_bolt" etc
-    const _wasUnknown = !!(_sbIK && !sr.current.ident.has(_sbIK));
-    const _revFake = _wasUnknown ? itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames) : null;
-    const _revReal = _wasUnknown ? it.name : null;
-    /* 識別 */
-    if (_sbIK && _wasUnknown) sr.current.ident.add(_sbIK);
-    if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-      p.inventory.splice(idx, 1);
-      ml.push(`${it.name}を読んだが、魔法が封印されている！魔法書は消えた。`);
-    } else if (it.cursed) {
-      // 呪い：この魔法以外のランダムな魔法を1つ選んで習得 or レベルアップ
-      if (!p.spellLevels) p.spellLevels = {};
-      const _otherSpells = SPELLS.filter((s) => s.id !== it.spell);
-      const _candidates = _otherSpells.filter((s) => {
-        if (!p.spells.includes(s.id)) return true;          // 未習得 → 習得できる
-        return (p.spellLevels[s.id] || 1) < 6;              // 習得済みでも最大未満ならLvUP
-      });
-      p.inventory.splice(idx, 1);
-      if (_candidates.length === 0) {
-        ml.push(`${it.name}を読んだが、呪いで魔力が乱れ何も起きなかった。【呪】`);
-      } else {
-        const _tgt = pick(_candidates);
-        if (p.spells.includes(_tgt.id)) {
-          const _curLv = p.spellLevels[_tgt.id] || 1;
-          const _newLv = _curLv + 1;
-          p.spellLevels[_tgt.id] = _newLv;
-          ml.push(`${it.name}を読んだ。呪いで魔力が乱れ「${_tgt.name}」がレベルアップした！(Lv.${_newLv})【呪】`);
-        } else {
-          p.spells = [...p.spells, _tgt.id];
-          p.spellLevels[_tgt.id] = 1;
-          ml.push(`${it.name}を読んだ。呪いで魔力が乱れ「${_tgt.name}」を習得した！(Lv.1)【呪】`);
-        }
-      }
-    } else if (p.spells.includes(it.spell)) {
-      // 既習得 → レベルアップ（祝福なら+2）
-      if (!p.spellLevels) p.spellLevels = {};
-      const _curLv = p.spellLevels[it.spell] || 1;
-      const spellDef = SPELLS.find((s) => s.id === it.spell);
-      const _spName = spellDef ? spellDef.name : it.spell;
-      if (_curLv >= 6) {
-        ml.push(`「${_spName}」はすでに最大レベルだ。(Lv.${_curLv} MP:${Math.max(1, 20 - (_curLv - 1) * 3)})`);
-        // 最大レベルの場合は魔法書を消費しない
-      } else {
-        const _gain = it.blessed ? 2 : 1;
-        const _newLv = Math.min(6, _curLv + _gain);
-        p.spellLevels[it.spell] = _newLv;
-        p.inventory.splice(idx, 1);
-        const _newCost = Math.max(1, 20 - (_newLv - 1) * 3);
-        ml.push(`${it.name}を読んだ。「${_spName}」がレベルアップ！(Lv.${_newLv} 消費MP:${_newCost})${it.blessed ? "【祝】" : ""}`);
-      }
-    } else {
-      // 未習得 → 習得（祝福ならLv.2から）
-      if (!p.spellLevels) p.spellLevels = {};
-      const _startLv = it.blessed ? 2 : 1;
-      p.spellLevels[it.spell] = _startLv;
-      p.spells = [...p.spells, it.spell];
-      p.inventory.splice(idx, 1);
-      const spellDef = SPELLS.find((s) => s.id === it.spell);
-      const _initCost = Math.max(1, 20 - (_startLv - 1) * 3);
-      ml.push(`${it.name}を読んだ。「${spellDef ? spellDef.name : it.spell}」を習得した！(Lv.${_startLv} 消費MP:${_initCost})${it.blessed ? "【祝】" : ""}`);
-    }
-    setShowInv(false); setSelIdx(null); setShowDesc(null);
-    endTurn(sr.current, p, ml);
-    /* リビールメッセージ */
-    if (_wasUnknown && _revFake && _revFake !== _revReal) {
-      setMsgs(prev => [...prev.slice(-80), `${_revFake}は${_revReal}だった！`]);
-      if (ml.length) setRevealMode({ pendingMsgs: [...ml] });
-    } else {
-      setMsgs((prev) => [...prev.slice(-80), ...ml]);
-    }
-    sr.current = { ...sr.current }; setGs({ ...sr.current });
-  }, [endTurn]);
-  const doMarkerWrite = useCallback(
-    (blankIdx, template) => {
-      if (!sr.current || !markerMode) return;
-      const { player: p } = sr.current;
-      const marker = p.inventory[markerMode.markerIdx];
-      const blank = p.inventory[blankIdx];
-      if (!marker || marker.type !== "marker") { setMarkerMode(null); return; }
-      const ml = [];
-      if (markerMode.blankKind === "spellbook") {
-        if (!blank || blank.type !== "spellbook" || blank.spell) { setMarkerMode(null); return; }
-        if (marker.charges < 5) {
-          ml.push(`インクが足りない！(必要:5回 現在:${marker.charges}回)`);
-          setMarkerMode(null);
-          setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          return;
-        }
-        blank.name = template.name;
-        blank.spell = template.spell;
-        blank.desc = template.desc;
-        marker.charges -= 5;
-        ml.push(`${template.name}に変化した！[${marker.name} 残り${marker.charges}回]`);
-      } else {
-        if (!blank || blank.effect !== "blank") { setMarkerMode(null); return; }
-        blank.name = template.name;
-        blank.effect = template.effect;
-        blank.desc = template.desc;
-        if (marker.blessed) { blank.blessed = true; blank.cursed = false; }
-        else if (marker.cursed) { blank.cursed = true; blank.blessed = false; }
-        marker.charges--;
-        const _mBcLabel = marker.blessed ? "【祝】" : marker.cursed ? "【呪】" : "";
-        ml.push(`${template.name}${_mBcLabel}に変化した！[${marker.name} 残り${marker.charges}回]`);
-      }
-      if (marker.charges <= 0) {
-        p.inventory.splice(markerMode.markerIdx, 1);
-        ml.push(`${marker.name}のインクが切れた。`);
-      }
-      setMarkerMode(null);
-      endTurn(sr.current, p, ml);
-      setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      sr.current = { ...sr.current };
-      setGs({ ...sr.current });
-    },
-    [markerMode, endTurn],
-  );
+  /* callbacks内で sr.current を参照するバージョン */
+  const dnameRef = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+  const {
+    doUseItem, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
+    doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
+    execDirection,
+  } = useItemActions({
+    sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
+    setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
+    setPutMode, putMode, setPutMenuSel, setPutPage,
+    setIdentifyMode, setRevealMode,
+    lu, endTurn, chgFloor, withPitfallBag,
+    dnameRef, bigboxAddItem,
+    onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
+  });
   doMarkerWriteRef.current = doMarkerWrite;
-  const doPutItem = useCallback(
-    (itemIdx) => {
-      if (!sr.current || !putMode) return;
-      const { player: p, dungeon: dg } = sr.current;
-      const pot = p.inventory[putMode.potIdx];
-      if (!pot || pot.type !== "pot") {
-        setPutMode(null);
-        return;
-      }
-      const it = p.inventory[itemIdx];
-      if (!it) return;
-      if (it.type === "pot") {
-        setMsgs((prev) => [...prev.slice(-80), "壺の中に壺は入れられない。"]);
-        return;
-      }
-      if (pot.contents.length >= pot.capacity) {
-        setMsgs((prev) => [...prev.slice(-80), `${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`]);
-        setPutMode(null);
-        return;
-      }
-      if (p.weapon === it) p.weapon = null;
-      if (p.armor  === it) p.armor  = null;
-      if (p.arrow  === it) p.arrow  = null;
-      p.inventory.splice(itemIdx, 1);
-      if (itemIdx < putMode.potIdx) putMode.potIdx--;
-      const ml = [];
-      if (pot.potEffect === "boil") {
-        if (it.type === "potion") {
-          ml.push(`${dnameRef(it)}を加熱の壺に投じた！薬効が部屋中に広がった！`);
-          const _boilRoom = findRoom(dg.rooms, p.x, p.y);
-          if (_boilRoom) {
-            applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
-            const _boilMons = dg.monsters.filter(
-              (m) => m.x >= _boilRoom.x && m.x < _boilRoom.x + _boilRoom.w &&
-                     m.y >= _boilRoom.y && m.y < _boilRoom.y + _boilRoom.h,
-            );
-            for (const _bm of _boilMons) {
-              applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
-            }
-            const _boilBurnSet = [];
-            for (const _bi of dg.items.filter(
-              (fi) => fi.x >= _boilRoom.x && fi.x < _boilRoom.x + _boilRoom.w &&
-                      fi.y >= _boilRoom.y && fi.y < _boilRoom.y + _boilRoom.h,
-            )) {
-              const _br = applyPotionToItem(it.effect, it.value || 0, _bi, dg, ml, it.cursed || false, dnameRef);
-              if (_br === "burn") _boilBurnSet.push(_bi);
-            }
-            if (_boilBurnSet.length > 0) dg.items = dg.items.filter((fi) => !_boilBurnSet.includes(fi));
-          } else {
-            ml.push("（回廊では薬効が拡散しにくい…自分にだけ効いた）");
-            applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
-          }
-          pot.capacity = Math.max(0, pot.capacity - 1);
-          // 呪われたレベルアップの薬でワープフラグが立った場合
-          if (p._pendingWarpUp) {
-            delete p._pendingWarpUp;
-            if (p.depth > 1) {
-              const _boilWarpNd = chgFloor(p, -1, true);
-              if (_boilWarpNd) sr.current.dungeon = _boilWarpNd;
-            }
-          }
-        } else if (it.type === "scroll" || it.type === "spellbook") {
-          ml.push(`${dnameRef(it)}は加熱の壺の熱で燃えてなくなった！`);
-          pot.capacity = Math.max(0, pot.capacity - 1);
-          /* 壺には残さない */
-        } else if (it.type === "food" && !it.cooked) {
-          it.value = it.value * 2;
-          it.cooked = true;
-          it.name = "焼いた" + it.name;
-          ml.push(`加熱の壺で${it.name}になった！`);
-          pot.contents.push(it);
-        } else if (it.type === "food" && it.cooked) {
-          burnFoodItem(it, ml);
-          pot.contents.push(it);
-        } else {
-          ml.push(`${dnameRef(it)}を加熱の壺に入れた。`);
-          pot.contents.push(it);
-        }
-      } else {
-        applyPotEffect(pot, it, ml, dnameRef);
-        pot.contents.push(it);
-      }
-      if (pot.contents.length >= pot.capacity)
-        ml.push(`${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいになった。`);
-      endTurn(sr.current, p, ml);
-      setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      if (pot.contents.length < pot.capacity) {
-        setPutMode({ potIdx: p.inventory.indexOf(pot) });
-        setPutMenuSel(0);
-        setPutPage(0);
-        sr.current = { ...sr.current };
-        setGs({ ...sr.current });
-      } else {
-        setPutMode(null);
-        sr.current = { ...sr.current };
-        setGs({ ...sr.current });
-      }
-    },
-    [putMode, endTurn],
-  );
-  const doBreakPot = useCallback(
-    (idx) => {
-      if (!sr.current) return;
-      const { player: p, dungeon: dg } = sr.current;
-      const it = p.inventory[idx];
-      if (!it || it.type !== "pot") return;
-      p.inventory.splice(idx, 1);
-      const ml = [];
-      ml.push(`${dnameRef(it)}を割った！`);
-      try {
-        scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
-      } catch (e) {
-        console.error("doBreakPot error:", e);
-        ml.push("壺の処理中にエラーが発生した。");
-      }
-      endTurn(sr.current, p, ml);
-      if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      setSelIdx(null);
-      setShowDesc(null);
-      setShowInv(false);
-      sr.current = { ...sr.current };
-      setGs({ ...sr.current });
-    },
-    [lu, endTurn],
-  );
-  invActRef.current = {
-    use: doUseItem,
-    drop: doDropItem,
-    throw: doThrow,
-    shoot: doShoot,
-    wave: doWaveWand,
-    breakWand: doBreakWand,
-    breakPot: doBreakPot,
-    put: doPutItem,
-    useMarker: doUseMarker,
-    readSpellbook: doReadSpellbook,
-  };
-  const execDirection = useCallback(
-    (dx, dy) => {
-      if (!throwMode || !sr.current) return;
-      const { idx, mode } = throwMode;
-      const { player: p, dungeon: dg } = sr.current;
-      const ml = [];
-      /* 遠投判定（投げ・射撃にのみ影響） */
-      const _fcMode = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode)
-        ? getFarcastMode(p.x, p.y, dg) : false;
-      const _isFarcast = _fcMode === "farcast";
-      const _isCursedFc = _fcMode === "cursed";
-      const _maxRange = _isCursedFc ? 1 : _isFarcast ? 50 : 10;
-      if (mode === "shoot_equipped") {
-        if (!p.arrow || p.arrow.count <= 0) {
-          ml.push("矢がない！");
-          setThrowMode(null);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          return;
-        }
-        const _arItem = p.arrow;
-
-        /* ── 石 / 魔法の石 専用処理 ── */
-        if (_arItem.stone || _arItem.magicStone) {
-          const _stName = _arItem.name;
-          p.arrow.count--;
-          if (_isFarcast) {
-            /* 遠投：消滅 */
-            ml.push(`${_stName}を投げた。${_stName}は消滅した。`);
-          } else if (_arItem.magicStone) {
-            /* 魔法の石：10マス以内の最近敵にホーミング */
-            const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
-            const _msTarget = [...dg.monsters]
-              .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
-              .sort((a, b) => _msDist(a) - _msDist(b))[0];
-            ml.push(`${_stName}を投げた！`);
-            if (!_msTarget) {
-              ml.push(`近くに敵がいない！${_stName}は消えた。`);
-            } else {
-              const _msSureHit = (p.sureHitTurns || 0) > 0;
-              const _msMiss = !_msSureHit && Math.random() >= 0.90;
-              const _msDmg = (_arItem.atk || 5) + rng(0, 3);
-              if (_msMiss) {
-                ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
-                const _msft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft));
-              } else {
-                _msTarget.hp -= _msDmg;
-                ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
-                if (_msTarget.hp <= 0) { trackMonster(_msTarget); killMonster(_msTarget, dg, p, ml, lu); }
-              }
-            }
-          } else {
-            /* 通常の石：必ず3マス先（呪い遠投は1マス先）に着弾 */
-            const _stRange = _isCursedFc ? 1 : 3;
-            let _stLx = p.x, _stLy = p.y;
-            for (let d = 1; d <= _stRange; d++) {
-              const tx = p.x + dx * d, ty = p.y + dy * d;
-              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-              _stLx = tx; _stLy = ty;
-            }
-            const _stM = monsterAt(dg, _stLx, _stLy);
-            const _stSureHit = (p.sureHitTurns || 0) > 0;
-            const _stDmg = (_arItem.atk || 3) + rng(0, 3);
-            ml.push(`${_stName}を投げた！`);
-            if (_stM) {
-              const _stMiss = !_stSureHit && Math.random() >= 0.90;
-              if (_stMiss) {
-                ml.push(`${_stName}は${_stM.name}に外れた！`);
-                const _stft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft));
-              } else {
-                _stM.hp -= _stDmg;
-                ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                if (_stM.hp <= 0) { trackMonster(_stM); killMonster(_stM, dg, p, ml, lu); }
-              }
-            } else {
-              /* 敵なし：着弾点に落ちる（罠も起動） */
-              const _stft = new Set();
-              withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft));
-            }
-          }
-          if (p.arrow.count <= 0) {
-            const _stEx = p.arrow;
-            p.arrow = null;
-            p.inventory = p.inventory.filter(i => i !== _stEx);
-            ml.push(`${_stName}を投げ尽くした。`);
-          }
-          endTurn(sr.current, p, ml);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setThrowMode(null);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-        }
-
-        /* ── 爆弾矢 専用処理 ── */
-        if (_arItem.bombArrow) {
-          const _baName = _arItem.name;
-          const _baNF = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
-          p.arrow.count--;
-          ml.push(`${_baName}を射った！`);
-          if (_isFarcast) {
-            ml.push(`${_baName}は消滅した。`);
-          } else {
-            let _baLx = p.x, _baLy = p.y;
-            const _baMaxR = _isCursedFc ? 1 : 10;
-            for (let d = 1; d <= _baMaxR; d++) {
-              const tx = p.x + dx * d, ty = p.y + dy * d;
-              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-              const _baM = monsterAt(dg, tx, ty);
-              if (_baM) {
-                const _baDmg = (_arItem.atk || 6) + rng(1, 4);
-                _baM.hp -= _baDmg;
-                ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                if (_baM.hp <= 0) { trackMonster(_baM); killMonster(_baM, dg, p, ml, lu); }
-                _baLx = tx; _baLy = ty;
-                break;
-              }
-              _baLx = tx; _baLy = ty;
-            }
-            if (hasCursedExplosionPentacle(dg)) {
-              ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
-            } else {
-              ml.push("爆発！");
-              doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発", null, lu);
-            }
-          }
-          if (p.arrow.count <= 0) {
-            const _baEx = p.arrow;
-            p.arrow = null;
-            p.inventory = p.inventory.filter(i => i !== _baEx);
-            ml.push(`${_baName}を使い切った。`);
-          }
-          endTurn(sr.current, p, ml);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setThrowMode(null);
-          sr.current = { ...sr.current }; setGs({ ...sr.current });
-          return;
-        }
-
-        const _arIsPoison = !!_arItem.poison;
-        const _arIsPierce = !!_arItem.pierce;
-        const _arName = _arItem.name || "矢";
-        const _arPierceMode = _arIsPierce || _isFarcast;
-        const _arMaxRange = _isCursedFc ? 1 : _arPierceMode ? 50 : 10;
-        const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
-        p.arrow.count--;
-        const dmg = (_arItem.atk || 4) + rng(1, 4);
-        let lx = p.x,
-          ly = p.y,
-          hit = false;
-        for (let d = 1; d <= _arMaxRange; d++) {
-          const tx = p.x + dx * d,
-            ty = p.y + dy * d;
-          if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-          if (!_arPierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
-          const m = monsterAt(dg, tx, ty);
-          if (m) {
-            /* 矢の命中率90%（必中状態なら100%） */
-            const _arSureHit = (p.sureHitTurns || 0) > 0;
-            const _arMiss = !_arSureHit && Math.random() >= 0.90;
-            if (_arMiss) {
-              ml.push(`${_arName}は${m.name}に外れた！`);
-              /* 矢はそのまま飛び続ける */
-            } else {
-              m.hp -= dmg;
-              if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-              ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
-              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
-              if (!_arPierceMode) { hit = true; break; }
-              /* 貫通：飛び続ける */
-            }
-          }
-          if (!_arPierceMode) {
-            const bb = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-            if (bb) {
-              ml.push(`${_arName}を射った。`);
-              bigboxAddItem(bb, _arDropItem(), dg, ml);
-              hit = true;
-              break;
-            }
-          }
-          lx = tx;
-          ly = ty;
-        }
-        if (_arPierceMode || _isCursedFc) {
-          ml.push(`${_arName}を射った。矢は消滅した。`);
-          hit = true;
-        }
-        if (!hit) {
-          ml.push(`${_arName}を射った。`);
-          const ft = new Set();
-          withPitfallBag(() => placeItemAt(dg, lx, ly, _arDropItem(), ml, ft));
-        }
-        if (p.arrow.count <= 0) {
-          const _ex = p.arrow;
-          p.arrow = null;
-          p.inventory = p.inventory.filter(i => i !== _ex);
-          ml.push(`${_arName}を撃ち尽くした。`);
-        }
-      } else if (mode === "shoot") {
-        const it = p.inventory[idx];
-        if (!it) {
-          setThrowMode(null);
-          return;
-        }
-        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem);
-        if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
-      } else if (mode === "wand_wave") {
-        const it = p.inventory[idx];
-        if (!it || it.type !== "wand") {
-          setThrowMode(null);
-          return;
-        }
-        const _wandBm = getBlessMultiplier(it);
-        it.charges--;
-        if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-          ml.push(`${dnameRef(it)}を振ったが、魔法が封印されている！[残${it.charges}回]`);
-        } else {
-          ml.push(`${dnameRef(it)}を振った！[残${it.charges}回]${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
-          const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-          fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName);
-          if (p._pendingWarpUp) {
-            delete p._pendingWarpUp;
-            if (p.depth > 1) {
-              const _warpNd = chgFloor(p, -1, true);
-              if (_warpNd) sr.current.dungeon = _warpNd;
-            } else {
-              ml.push("ここは1階だ。何も起こらなかった。");
-            }
-          }
-        }
-        if (it.charges <= 0) {
-          ml.push(`${dnameRef(it)}は力を失った...`);
-          p.inventory.splice(idx, 1);
-        }
-      } else if (mode === "cast_spell") {
-        const spellDef = SPELLS.find((s) => s.id === idx);
-        if (!spellDef) { setThrowMode(null); return; }
-        const _csLv = (p.spellLevels?.[spellDef.id] || 1);
-        const _csCost = Math.max(1, 20 - (_csLv - 1) * 3);
-        if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-          ml.push(`魔法が封印されている！MPは消費しない。`);
-        } else if ((p.mp || 0) < _csCost) {
-          ml.push(`MPが足りない！(必要:${_csCost} 現在:${p.mp || 0})`);
-        } else {
-          p.mp = (p.mp || 0) - _csCost;
-          ml.push(`${spellDef.name}を唱えた！[MP -${_csCost}]`);
-          castSpellBolt(p, dg, spellDef, dx, dy, ml, lu);
-        }
-      } else {
-        const it = p.inventory[idx];
-        if (!it) {
-          setThrowMode(null);
-          return;
-        }
-        if (p.weapon === it) p.weapon = null;
-        if (p.armor  === it) p.armor  = null;
-        if (p.arrow  === it) p.arrow  = null;
-
-        /* ── インベントリから投げる石／魔法の石 専用処理 ── */
-        if (it.type === "arrow" && (it.stone || it.magicStone)) {
-          /* スタックから1個だけ使う */
-          it.count--;
-          if (it.count <= 0) p.inventory.splice(idx, 1);
-          const _invStName = it.name;
-          const _invStAtk = it.atk || (it.magicStone ? 5 : 3);
-          if (_isFarcast) {
-            ml.push(`${_invStName}を投げた。${_invStName}は消滅した。`);
-          } else if (it.magicStone) {
-            const _msDist2 = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
-            const _msTarget2 = [...dg.monsters]
-              .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
-              .sort((a, b) => _msDist2(a) - _msDist2(b))[0];
-            ml.push(`${_invStName}を投げた！`);
-            if (!_msTarget2) {
-              ml.push(`近くに敵がいない！${_invStName}は消えた。`);
-            } else {
-              const _msMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
-              const _msDmg2 = _invStAtk + rng(0, 3);
-              if (_msMiss2) {
-                ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
-                const _msft2 = new Set();
-                withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, makeMagicStone(1), ml, _msft2));
-              } else {
-                _msTarget2.hp -= _msDmg2;
-                ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
-                if (_msTarget2.hp <= 0) { trackMonster(_msTarget2); killMonster(_msTarget2, dg, p, ml, lu); }
-              }
-            }
-          } else {
-            const _stRange2 = _isCursedFc ? 1 : 3;
-            let _stLx2 = p.x, _stLy2 = p.y;
-            for (let d = 1; d <= _stRange2; d++) {
-              const tx = p.x + dx * d, ty = p.y + dy * d;
-              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-              _stLx2 = tx; _stLy2 = ty;
-            }
-            const _stM2 = monsterAt(dg, _stLx2, _stLy2);
-            const _stDmg2 = _invStAtk + rng(0, 3);
-            ml.push(`${_invStName}を投げた！`);
-            if (_stM2) {
-              const _stMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
-              if (_stMiss2) {
-                ml.push(`${_invStName}は${_stM2.name}に外れた！`);
-                const _stft2 = new Set();
-                withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
-              } else {
-                _stM2.hp -= _stDmg2;
-                ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
-                if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
-              }
-            } else {
-              const _stft2 = new Set();
-              withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
-            }
-          }
-          endTurn(sr.current, p, ml);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setThrowMode(null);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
-        }
-
-        /* ── 爆弾矢 (道具欄から) 専用処理 ── */
-        if (it.type === "arrow" && it.bombArrow) {
-          it.count--;
-          if (it.count <= 0) p.inventory.splice(idx, 1);
-          const _baName2 = it.name;
-          const _baNF2 = (gi) => itemDisplayName(gi, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
-          ml.push(`${_baName2}を射った！`);
-          if (_isFarcast) {
-            ml.push(`${_baName2}は消滅した。`);
-          } else {
-            let _baLx2 = p.x, _baLy2 = p.y;
-            const _baMaxR2 = _isCursedFc ? 1 : 10;
-            for (let d = 1; d <= _baMaxR2; d++) {
-              const tx = p.x + dx * d, ty = p.y + dy * d;
-              if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-              if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-              const _baM2 = monsterAt(dg, tx, ty);
-              if (_baM2) {
-                const _baDmg2 = (it.atk || 6) + rng(1, 4);
-                _baM2.hp -= _baDmg2;
-                ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
-                if (_baM2.hp <= 0) { trackMonster(_baM2); killMonster(_baM2, dg, p, ml, lu); }
-                _baLx2 = tx; _baLy2 = ty;
-                break;
-              }
-              _baLx2 = tx; _baLy2 = ty;
-            }
-            if (hasCursedExplosionPentacle(dg)) {
-              ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
-            } else {
-              ml.push("爆発！");
-              doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発", null, lu);
-            }
-          }
-          endTurn(sr.current, p, ml);
-          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          setThrowMode(null);
-          sr.current = { ...sr.current }; setGs({ ...sr.current });
-          return;
-        }
-
-        p.inventory.splice(idx, 1);
-        if (it.type === "potion") {
-          ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null;
-          const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
-          for (let d = 1; d <= _maxRange; d++) {
-            const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
-            const m = monsterAt(dg, tx, ty);
-            if (m) {
-              if (_isFarcast) {
-                /* 遠投：splash せず個別に薬効果を適用、貫通 */
-                _potHits.push(m);
-              } else {
-                lx = tx; ly = ty; break;
-              }
-            }
-            if (!_isFarcast) {
-              const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
-              if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
-              const bb3 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-              if (bb3) { lx = tx; ly = ty; sprHit = bb3; break; }
-            }
-            lx = tx; ly = ty;
-          }
-          if (_isFarcast) {
-            /* 遠投：軌道上の全モンスターに個別に効果 */
-            if (_potHits.length > 0) {
-              for (const _pm of _potHits) {
-                applyPotionEffect(it.effect, it.value || 0, "monster", _pm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
-                if (_pm.hp <= 0) { trackMonster(_pm); killMonster(_pm, dg, p, ml, lu); }
-              }
-            }
-            ml.push(`${dnameRef(it)}は消滅した。`);
-          } else if (_isCursedFc) {
-            /* 呪い遠投：1マスで落ちてsplash */
-            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
-            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
-          } else if (sprHit?.kind) {
-            bigboxAddItem(sprHit, it, dg, ml);
-          } else if (sprHit && !sprHit.kind) {
-            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
-          } else if (!sprHit) {
-            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
-            else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
-          }
-        } else if (it.type === "pot") {
-          ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null;
-          for (let d = 1; d <= _maxRange; d++) {
-            const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
-            const m = monsterAt(dg, tx, ty);
-            if (m) {
-              const _potSureHit = (p.sureHitTurns || 0) > 0;
-              const _potMiss = !_isFarcast && !_potSureHit && Math.random() >= 0.90;
-              if (_potMiss) {
-                /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
-                lx = tx; ly = ty;
-                ml.push(`${dnameRef(it)}は${m.name}に外れ、足元に落ちた！`);
-                const _ptTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_ptTrap) fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
-                break;
-              }
-              const td = 3 + rng(0, 3);
-              m.hp -= td;
-              ml.push(`${dnameRef(it)}が${m.name}に命中！${td}ダメージ！`);
-              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
-              if (!_isFarcast) { lx = tx; ly = ty; break; }
-            }
-            if (!_isFarcast) {
-              const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
-              if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
-              const bb4 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-              if (bb4) { lx = tx; ly = ty; sprHit = bb4; break; }
-            }
-            lx = tx; ly = ty;
-          }
-          if (_isFarcast) {
-            /* 遠投：壺は消滅（中身もろとも） */
-            ml.push(`${dnameRef(it)}は消滅した。`);
-          } else if (sprHit?.kind) {
-            bigboxAddItem(sprHit, it, dg, ml);
-          } else if (sprHit && !sprHit.kind) {
-            soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
-          } else {
-            scatterPotContents(it, dg, lx, ly, p, ml, lu, dnameRef);
-          }
-        } else {
-          const td =
-            (it.type === "weapon"
-              ? it.atk || 3
-              : it.type === "arrow"
-                ? it.atk * Math.min(it.count, 5) + it.count
-                : 3) + rng(0, 3);
-          let lx = p.x, ly = p.y, hit = false, sprHit = null;
-          let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
-          let _throwSwapTarget = null; /* 遠投場所替え：最後に当たった敵を記録 */
-          for (let d = 1; d <= _maxRange; d++) {
-            const tx = p.x + dx * d, ty = p.y + dy * d;
-            if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-            if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
-            const m = monsterAt(dg, tx, ty);
-            if (m) {
-              const _thSureHit = (p.sureHitTurns || 0) > 0;
-              const _thMiss = !_isFarcast && !_thSureHit && Math.random() >= 0.90;
-              const lb = it.type === "arrow" ? ((it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`) : dnameRef(it);
-              if (_thMiss) {
-                /* 外れ：敵の足元に落ちる */
-                lx = tx; ly = ty; hit = true;
-                ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
-                const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
-                break;
-              }
-              if (it.type === "wand") {
-                /* 杖を投げて命中：チャージ不問で効果を1回発動し消滅 */
-                const _throwWandBm = getBlessMultiplier(it);
-                const _throwWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-                ml.push(`${lb}が${m.name}に命中！`);
-                if (_isFarcast && it.effect === "swap") {
-                  /* 遠投場所替え：最後に当たった敵を記録して後でまとめて入れ替え */
-                  _throwSwapTarget = m;
-                } else {
-                  applyWandEffect(it.effect, "monster", m, dx, dy, dg, p, ml, lu, bigboxAddItem, _throwWandBm, _throwWandDName);
-                  _wandFiredEffect = true;
-                }
-                if (p._pendingWarpUp) {
-                  delete p._pendingWarpUp;
-                  if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
-                  else ml.push("ここは1階だ。何も起こらなかった。");
-                }
-              } else {
-                m.hp -= td;
-                ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
-                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
-              }
-              if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; }
-            }
-            if (!_isFarcast) {
-              const spr = dg.springs?.find((s) => s.x === tx && s.y === ty);
-              if (spr) { lx = tx; ly = ty; sprHit = spr; break; }
-              const bb5 = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-              if (bb5) { lx = tx; ly = ty; sprHit = bb5; break; }
-            }
-            lx = tx; ly = ty;
-          }
-          if (_isFarcast) {
-            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
-            /* 遠投場所替え：最後に当たった敵と入れ替え */
-            if (it.type === "wand" && it.effect === "swap" && _throwSwapTarget) {
-              const _throwWandBm = getBlessMultiplier(it);
-              const _throwWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              applyWandEffect("swap", "monster", _throwSwapTarget, dx, dy, dg, p, ml, lu, bigboxAddItem, _throwWandBm, _throwWandDName);
-            }
-            ml.push(`${lb}を投げた。${lb}は消滅した。`);
-          } else if (hit && it.type === "wand" && !_wandFiredEffect) {
-            /* 外れた杖は足元に落ちる */
-            const ft = new Set();
-            withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));
-          } else if (!hit) {
-            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
-            ml.push(`${lb}を投げた。`);
-            if (sprHit?.kind) {
-              bigboxAddItem(sprHit, it, dg, ml);
-            } else if (sprHit && !sprHit.kind) {
-              soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
-            } else if (it.type === "bottle") {
-              ml.push(`${it.name}は割れてしまった！`);
-            } else {
-              const ft = new Set();
-              withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));
-            }
-          }
-        }
-      }
-      endTurn(sr.current, p, ml);
-      if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      setThrowMode(null);
-      sr.current = { ...sr.current };
-      setGs({ ...sr.current });
-    },
-    [throwMode, lu, endTurn, chgFloor],
-  );
+  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook };
   execRef.current = execDirection;
   if (!gs) return null;
   const { player: p } = gs;
@@ -5632,8 +2444,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   };
   /* 表示名ヘルパー (gsを参照) */
   const dname = (it) => itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames);
-  /* callbacks内で sr.current を参照するバージョン */
-  const dnameRef = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
 
   const iLabel = (it) => {
     const _ep = gs?.player;
@@ -5789,7 +2599,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         <span>
           食:
           <span style={{ color: hunP > 40 ? "#0a0" : "#f80" }}>
-            {Math.floor(hunP)}%
+            {p.hunger}/{p.maxHunger}
           </span>
         </span>{" "}
         <span style={{ color: "#ffd700" }}>${p.gold}</span>{" "}

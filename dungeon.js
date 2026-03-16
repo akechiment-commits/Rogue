@@ -485,7 +485,7 @@ function genMiniRoom(depth) {
 }
 
 /* ===== SHOPPING MALL (複数店舗フロア) ===== */
-function genShoppingMall(depth) {
+function genShoppingMall(depth, _retries = 0) {
   /* 3列×2行のグリッドに部屋を配置 */
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
@@ -503,7 +503,10 @@ function genShoppingMall(depth) {
     }
   }
   const validRooms = rooms.filter(Boolean);
-  if (validRooms.length < 2) return genShoppingMall(depth);
+  if (validRooms.length < 2) {
+    if (_retries > 10) return genBigRoom(depth);
+    return genShoppingMall(depth, _retries + 1);
+  }
   /* 水平・垂直廊下で隣接セルを接続 */
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS - 1; col++) {
@@ -558,7 +561,7 @@ function genShoppingMall(depth) {
 }
 
 /* ===== SPIN FLOOR (完全独立部屋＋回転板移動) ===== */
-function genSpinFloor(depth) {
+function genSpinFloor(depth, _retries = 0) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
   const spinTrap = { name: '回転板', effect: 'spin', tile: 29 };
@@ -579,7 +582,10 @@ function genSpinFloor(depth) {
       for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) });
   }
-  if (rooms.length < 2) return genSpinFloor(depth);
+  if (rooms.length < 2) {
+    if (_retries > 10) return genBigRoom(depth);
+    return genSpinFloor(depth, _retries + 1);
+  }
   /* 階段は最初と最後の部屋 */
   const su = { x: rooms[0].cx, y: rooms[0].cy };
   map[su.y][su.x] = T.SU;
@@ -704,7 +710,7 @@ function genGridRoom(depth) {
 }
 
 
-export function genDungeon(depth, dungeonType = "beginner") {
+export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
   /* B1F（depth=0）は店のみ許可・それ以外の特殊フロアは出現しない */
   if (Math.random() < 0.25) {
@@ -768,7 +774,10 @@ export function genDungeon(depth, dungeonType = "beginner") {
         for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
     }
   }
-  if (rooms.length < 2) return genDungeon(depth);
+  if (rooms.length < 2) {
+    if (_retries > 10) return genBigRoom(depth);
+    return genDungeon(depth, dungeonType, _retries + 1);
+  }
   const conn = new Set([0]),
     pairs = [];
   while (conn.size < rooms.length) {
@@ -913,8 +922,9 @@ export function genDungeon(depth, dungeonType = "beginner") {
     }
   }
   const items = [];
+  const traps = [];
   const occ = (x, y) =>
-    inShop(x, y) || items.some((i) => i.x === x && i.y === y);
+    inShop(x, y) || items.some((i) => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y);
   const _itemCount = dungeonType === "advanced" ? rng(1, 3) : dungeonType === "intermediate" ? rng(2, 4) : rng(4, 6);
   for (let i = 0; i < _itemCount; i++) {
     const rm = pick(rooms);
@@ -979,7 +989,6 @@ export function genDungeon(depth, dungeonType = "beginner") {
       }
     }
   }
-  const traps = [];
   const _trapsPerRoom = dungeonType === "advanced" ? 3 : dungeonType === "intermediate" ? 2 : 1;
   const tc = rooms.length * _trapsPerRoom;
   for (let i = 0; i < tc; i++) {
@@ -1191,6 +1200,69 @@ export function genDungeon(depth, dungeonType = "beginner") {
     pentacles: [],
     monsterHouseRoom,
     hiddenRooms,
+  };
+}
+
+/* ===== 最下層変換 ===== */
+export const GOAL_ITEMS = {
+  beginner:     { name:"輝く宝玉",       type:"goal", desc:"地上に持ち帰ればダンジョン踏破の証となる。", tile:22 },
+  intermediate: { name:"深紅の魔石",     type:"goal", desc:"強大な魔力を秘めた石。地上に持ち帰ろう。",   tile:22 },
+  advanced:     { name:"伝説の王冠",     type:"goal", desc:"かつての王が残した冠。地上に持ち帰ろう。",   tile:22 },
+};
+
+export function prepareLastFloor(dg, dungeonType) {
+  /* 下り階段を床に変更 */
+  if (dg.stairDown) {
+    dg.map[dg.stairDown.y][dg.stairDown.x] = T.FLOOR;
+    dg.stairDown = null;
+  }
+  /* 目標アイテムを最後の部屋の中央付近に配置 */
+  const tmpl = GOAL_ITEMS[dungeonType] || GOAL_ITEMS.beginner;
+  const gr = dg.rooms[dg.rooms.length - 1];
+  const gx = gr.cx ?? (gr.x + Math.floor(gr.w / 2));
+  const gy = gr.cy ?? (gr.y + Math.floor(gr.h / 2));
+  dg.items.push({ ...tmpl, id: uid(), x: gx, y: gy });
+  dg.isLastFloor = true;
+}
+
+/* ===== 隠し宝部屋（最下層の落とし穴で到達） ===== */
+export function genTreasureRoom(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rx = Math.floor(MW / 2) - 5, ry = Math.floor(MH / 2) - 3;
+  const rw = 11, rh = 7;
+  const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
+  for (let dy = 0; dy < rh; dy++)
+    for (let dx = 0; dx < rw; dx++)
+      map[ry + dy][rx + dx] = T.FLOOR;
+  /* 上り階段のみ（最下層に戻る） */
+  const su = { x: rx + 1, y: ry + 1 };
+  map[su.y][su.x] = T.SU;
+  /* 宝アイテム配置 */
+  const items = [];
+  const treasures = [
+    { name:"武器強化の巻物", type:"scroll", effect:"weapon_up", desc:"装備中の武器の＋値を1上げる。", tile:18, blessed:true },
+    { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。", tile:18, blessed:true },
+    { name:"武器強化の巻物", type:"scroll", effect:"weapon_up", desc:"装備中の武器の＋値を1上げる。", tile:18, blessed:true },
+    { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。", tile:18, blessed:true },
+    { name:"大回復薬",       type:"potion", effect:"heal", value:35, desc:"HPを大幅に回復する。", tile:17 },
+    { name:"大回復薬",       type:"potion", effect:"heal", value:35, desc:"HPを大幅に回復する。", tile:17 },
+  ];
+  for (let i = 0; i < treasures.length; i++) {
+    const ix = rx + 2 + (i % 5), iy = ry + 2 + Math.floor(i / 5);
+    items.push({ ...treasures[i], id: uid(), x: ix, y: iy });
+  }
+  /* ゴールドを散りばめる */
+  for (let i = 0; i < 8; i++) {
+    const gx = rng(rx + 1, rx + rw - 2), gy = rng(ry + 1, ry + rh - 2);
+    items.push({ name: "ゴールド", type: "gold", value: rng(100, 500 + depth * 50), tile: 22, id: uid(), x: gx, y: gy });
+  }
+  const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
+  const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
+  return {
+    map, rooms: [room], monsters: [], items, traps: [], springs: [], bigboxes: [],
+    stairUp: su, stairDown: null, visible: vis, explored: exp,
+    shop: null, pentacles: [], hiddenRooms: [], monsterHouseRoom: null,
+    floorType: "treasureRoom", isTreasureRoom: true,
   };
 }
 

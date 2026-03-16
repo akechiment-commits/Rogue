@@ -474,11 +474,19 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         if (kind === "player") {
           if (isStatusImmune(p, ml)) break;
-          p.slowTurns = (p.slowTurns || 0) + 10;
-          ml.push("体が重くなった...(鈍足10ターン)");
+          if (hasAbility(p.armor, "slow_proof")) {
+            ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
+          } else {
+            p.slowTurns = (p.slowTurns || 0) + 10;
+            ml.push("体が重くなった...(鈍足10ターン)");
+          }
           if (_sBless) {
-            p.paralyzeTurns = Math.max(p.paralyzeTurns || 0, 10);
-            ml.push("さらに金縛りになった！(10ターン)");
+            if (hasAbility(p.armor, "paralyze_proof")) {
+              ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)");
+            } else {
+              p.paralyzeTurns = Math.max(p.paralyzeTurns || 0, 10);
+              ml.push("さらに金縛りになった！(10ターン)");
+            }
           }
           break;
         }
@@ -504,6 +512,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
+        if (target.type === "goal") { ml.push(`${_dname_item(target)}は変化しなかった！`); break; }
         const nt = ITEMS[rng(0, ITEMS.length - 2)];
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);
@@ -661,8 +670,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！`);
           } else if (kind === "player") {
             p.x = stairsX; p.y = stairsY;
-            p.paralyzeTurns = 10;
-            ml.push("階段の上にテレポートした！しかし金縛りになった！(10ターン)");
+            if (hasAbility(p.armor, "paralyze_proof")) {
+              ml.push("階段の上にテレポートした！金縛り効果を受けたが防具が防いだ！(耐金縛り)");
+            } else {
+              p.paralyzeTurns = 10;
+              ml.push("階段の上にテレポートした！しかし金縛りになった！(10ターン)");
+            }
           } else if (kind === "item" || kind === "trap") {
             // 下り階段の隣の空きマスへ
             const _wbAdj = [];
@@ -731,8 +744,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         if (isStatusImmune(p, ml)) break;
-        p.paralyzeTurns = _pzBlessed ? 20 : 10;
-        ml.push(`金縛りになった！(${p.paralyzeTurns}ターン)${_pzBlessed ? "(強金縛り)" : ""}`);
+        if (hasAbility(p.armor, "paralyze_proof")) {
+          ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)");
+        } else {
+          p.paralyzeTurns = _pzBlessed ? 20 : 10;
+          ml.push(`金縛りになった！(${p.paralyzeTurns}ターン)${_pzBlessed ? "(強金縛り)" : ""}`);
+        }
         break;
       }
       ml.push("魔法弾は効果なく消えた。");
@@ -788,8 +805,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
           ml.push("魔力が封じられた！(MP封印50ターン)");
           if (_seBlessed) {
-            p.slowTurns = (p.slowTurns || 0) + 10;
-            ml.push("さらに鈍足10ターン！(祝福)");
+            if (hasAbility(p.armor, "slow_proof")) {
+              ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
+            } else {
+              p.slowTurns = (p.slowTurns || 0) + 10;
+              ml.push("さらに鈍足10ターン！(祝福)");
+            }
           }
           break;
         }
@@ -937,8 +958,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        p.confusedTurns = (p.confusedTurns || 0) + 5;
-        ml.push(`混乱した！(${p.confusedTurns}ターン)`);
+        if (hasAbility(p.armor, "confuse_proof")) {
+          ml.push("混乱効果を受けたが防具が防いだ！(耐混乱)");
+        } else {
+          p.confusedTurns = (p.confusedTurns || 0) + 5;
+          ml.push(`混乱した！(${p.confusedTurns}ターン)`);
+        }
         break;
       }
       ml.push("魔法弾は効果なく消えた。");
@@ -960,8 +985,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        p.darknessTurns = (p.darknessTurns || 0) + (_dkBlessed ? 50 : 20);
-        ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${_dkBlessed ? "(祝福)" : ""}`);
+        if (hasAbility(p.armor, "darkness_proof")) {
+          ml.push("暗闇効果を受けたが防具が防いだ！(耐暗闇)");
+        } else {
+          p.darknessTurns = (p.darknessTurns || 0) + (_dkBlessed ? 50 : 20);
+          ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${_dkBlessed ? "(祝福)" : ""}`);
+        }
         break;
       }
       ml.push("魔法弾は効果なく消えた。");
@@ -980,8 +1009,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        p.bewitchedTurns = (p.bewitchedTurns || 0) + (_bwBlessed ? 100 : 50);
-        ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${_bwBlessed ? "(祝福)" : ""}`);
+        if (hasAbility(p.armor, "bewitch_proof")) {
+          ml.push("幻惑効果を受けたが防具が防いだ！(耐惑わし)");
+        } else {
+          p.bewitchedTurns = (p.bewitchedTurns || 0) + (_bwBlessed ? 100 : 50);
+          ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${_bwBlessed ? "(祝福)" : ""}`);
+        }
         break;
       }
       ml.push("魔法弾は効果なく消えた。");

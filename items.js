@@ -162,6 +162,9 @@ export function getBlessMultiplier(it) {
   return 1;
 }
 
+export const CAT_CLAW_T     = { name:"猫の爪",       type:"weapon", atk:13, ability:"critical", desc:"短剣3つの合成で生まれる鋭い爪。25%の確率で会心の一撃。", tile:20 };
+export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead", desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ。", tile:20 };
+
 export const ARROW_T        = { name:"矢",       type:"arrow", atk:4,                 desc:"99本まで束にできる矢。",                 count:1, tile:23 };
 export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:4, poison:true,     desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
 export const PIERCING_ARROW_T={ name:"貫きの矢", type:"arrow", atk:4, pierce:true,     desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
@@ -385,6 +388,51 @@ export const COOKED_FOODS_SWEET = [
 /* genFood()後方互換用 — 両カテゴリを結合 */
 export const COOKED_FOODS = [...COOKED_FOODS_SAVORY, ...COOKED_FOODS_SWEET];
 
+/* 料理名→カテゴリ マッピング（味付け壺のボーナス判定用） */
+function _buildFoodCatMap() {
+  const m = new Map();
+  const _catSavory = [
+    { cat: "italian", items: COOKED_FOODS_SAVORY.slice(0, COOKED_FOODS_SAVORY.indexOf("餃子")) },
+    { cat: "chinese", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("餃子"), COOKED_FOODS_SAVORY.indexOf("ビビンバ")) },
+    { cat: "korean", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ビビンバ"), COOKED_FOODS_SAVORY.indexOf("フォー")) },
+    { cat: "southeast_asian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("フォー"), COOKED_FOODS_SAVORY.indexOf("ラタトゥイユ")) },
+    { cat: "french", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ラタトゥイユ"), COOKED_FOODS_SAVORY.indexOf("シュニッツェル")) },
+    { cat: "german", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("シュニッツェル"), COOKED_FOODS_SAVORY.indexOf("寿司")) },
+    { cat: "japanese", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("寿司"), COOKED_FOODS_SAVORY.indexOf("ステーキ")) },
+    { cat: "american", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ステーキ"), COOKED_FOODS_SAVORY.indexOf("パエリア")) },
+    { cat: "spanish", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("パエリア"), COOKED_FOODS_SAVORY.indexOf("ケバブ")) },
+    { cat: "middle_eastern", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ケバブ"), COOKED_FOODS_SAVORY.indexOf("ナン")) },
+    { cat: "indian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ナン"), COOKED_FOODS_SAVORY.indexOf("ピロシキ")) },
+    { cat: "russian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ピロシキ"), COOKED_FOODS_SAVORY.indexOf("フォンデュ")) },
+    { cat: "other", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("フォンデュ")) },
+  ];
+  const _catSweet = [
+    { cat: "western_sweets", items: COOKED_FOODS_SWEET.slice(0, COOKED_FOODS_SWEET.indexOf("たい焼き")) },
+    { cat: "japanese_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("たい焼き"), COOKED_FOODS_SWEET.indexOf("杏仁豆腐")) },
+    { cat: "asian_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("杏仁豆腐"), COOKED_FOODS_SWEET.indexOf("バクラヴァ")) },
+    { cat: "mideast_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("バクラヴァ")) },
+  ];
+  for (const { cat, items } of [..._catSavory, ..._catSweet]) {
+    for (const name of items) m.set(name, cat);
+  }
+  return m;
+}
+const FOOD_CAT_MAP = _buildFoodCatMap();
+
+/* 壺の味付けとカテゴリの相性マッピング */
+const POT_CAT_BONUS = {
+  miso:    ["japanese", "japanese_sweets"],
+  spicy:   ["korean"],
+  curry:   ["indian", "southeast_asian"],
+  choco:   ["western_sweets", "asian_sweets", "mideast_sweets"],
+  honey:   ["western_sweets", "japanese_sweets", "asian_sweets", "mideast_sweets"],
+  olive:   ["italian", "spanish"],
+  sesame:  ["chinese", "korean"],
+  butter:  ["french", "american", "german"],
+  yogurt:  ["middle_eastern", "russian"],
+  coconut: ["southeast_asian", "asian_sweets"],
+};
+
 export const RAW_SIZES = [
   { l:"特大",   v:80, w:1 },
   { l:"大きい", v:55, w:2 },
@@ -466,7 +514,8 @@ export function genFood() {
   const nm = ef.l + sz.l + fn;
   let hv = ef.e === "satiate_food" ? Math.floor(sz.v * 1.5) : sz.v;
   if (!cooked) hv = Math.max(1, Math.floor(hv / 2));
-  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile:19, cooked };
+  const foodCat = FOOD_CAT_MAP.get(fn) || null;
+  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile:19, cooked, foodCat };
 }
 
 /* ===== WANDS ===== */
@@ -501,37 +550,52 @@ export const BB_TYPES = [
 
 /* ===== POTS ===== */
 export const POTS = [
-  { name:"チョコの壺",   type:"pot", potEffect:"choco",   capacity:3, desc:"食料を入れるとチョコがけになる。",     tile:32 },
-  { name:"唐辛子の壺",   type:"pot", potEffect:"spicy",   capacity:3, desc:"食料を入れると激辛になる。",           tile:32 },
+  { name:"チョコの壺",   type:"pot", potEffect:"choco",   capacity:3, desc:"食料を入れるとチョコがけになる。食べるとHP回復。",  tile:32 },
+  { name:"唐辛子の壺",   type:"pot", potEffect:"spicy",   capacity:3, desc:"食料を入れると激辛になる。食べると攻撃力UP。",     tile:32 },
   { name:"蜂蜜の壺",     type:"pot", potEffect:"honey",   capacity:3, desc:"食料を入れるとはちみつ漬けになる。",   tile:32 },
   { name:"保存の壺",     type:"pot", potEffect:"none",    capacity:5, desc:"アイテムを安全に保管できる。",         tile:32 },
   { name:"強化の壺",     type:"pot", potEffect:"enhance", capacity:2, desc:"装備品の性能が上がる。",               tile:32 },
   { name:"弱化の壺",     type:"pot", potEffect:"weaken",  capacity:3, desc:"入れた装備品が劣化する呪いの壺。",     tile:32 },
   { name:"カレーの壺",   type:"pot", potEffect:"curry",   capacity:3, desc:"食料を入れるとカレー味になる。",       tile:32 },
   { name:"味噌の壺",     type:"pot", potEffect:"miso",    capacity:3, desc:"食料を入れると味噌漬けになる。",       tile:32 },
-  { name:"燻製の壺",     type:"pot", potEffect:"smoke",   capacity:3, desc:"未調理の食料を燻製にできる。",         tile:32 },
+  { name:"燻製の壺",     type:"pot", potEffect:"smoke",   capacity:3, desc:"食料を燻製にする。食べると最大満腹度が上がる。", tile:32 },
   { name:"祝福の壺",     type:"pot", potEffect:"bless_pot", capacity:3, desc:"入れたアイテムを祝福する。",           tile:32 },
   { name:"呪いの壺",     type:"pot", potEffect:"curse_pot", capacity:3, desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",     type:"pot", potEffect:"boil",      capacity:3, desc:"薬を入れると部屋中に薬効が広がる。生の食料を入れると焼いた状態になる。その他のものは保管できる。", tile:32 },
   { name:"火薬壺",       type:"pot", potEffect:"gunpowder", capacity:3, desc:"割れると周囲8マスを巻き込む爆発を起こす。炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化する。中身は爆発で消える。", tile:32 },
+  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",   capacity:3, desc:"食料を入れるとオリーブオイル漬けになる。", tile:32 },
+  { name:"ごま油の壺",   type:"pot", potEffect:"sesame",  capacity:3, desc:"食料を入れるとごま油風味になる。",         tile:32 },
+  { name:"バターの壺",   type:"pot", potEffect:"butter",  capacity:3, desc:"食料を入れるとバター風味になる。",         tile:32 },
+  { name:"ヨーグルトの壺", type:"pot", potEffect:"yogurt", capacity:3, desc:"食料を入れるとヨーグルト漬けになる。",   tile:32 },
+  { name:"ココナッツの壺", type:"pot", potEffect:"coconut", capacity:3, desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
-  choco: "チョコがけ",
-  spicy: "激辛",
-  honey: "はちみつ",
-  curry: "カレー味の",
-  miso:  "味噌漬けの",
-  smoke: "燻製",
+  choco:   "チョコがけ",
+  spicy:   "激辛",
+  honey:   "はちみつ",
+  curry:   "カレー味の",
+  miso:    "味噌漬けの",
+  smoke:   "燻製",
+  olive:   "オリーブオイル漬けの",
+  sesame:  "ごま油風味の",
+  butter:  "バター風味の",
+  yogurt:  "ヨーグルト漬けの",
+  coconut: "ココナッツ風味の",
 };
 
 export const POT_FOOD_DESCS = {
-  choco: "甘い香りがする。",
-  spicy: "辛さで活力が戻る。",
-  honey: "甘くて元気が出る。",
-  curry: "スパイスが効いている。",
-  miso:  "深い味わいがある。",
-  smoke: "香ばしい匂いがする。",
+  choco:   "甘い香りがする。",
+  spicy:   "辛さで活力が戻る。",
+  honey:   "甘くて元気が出る。",
+  curry:   "スパイスが効いている。",
+  miso:    "深い味わいがある。",
+  smoke:   "香ばしい匂いがする。",
+  olive:   "オリーブの香りが広がる。",
+  sesame:  "ごまの風味が香ばしい。",
+  butter:  "バターのコクが加わった。",
+  yogurt:  "さわやかな酸味がある。",
+  coconut: "南国の甘い香りがする。",
 };
 
 export function applyPotEffect(pot, item, ml, nameFn = null) {
@@ -577,22 +641,33 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     return;
   }
   if (pe === "smoke") {
-    if (item.type === "food" && !item.cooked) {
-      item.value = item.value * 2;
-      item.cooked = true;
+    if (item.type === "food") {
+      if (item.smoked) { ml.push(`${item.name}は既に燻製だ。`); return; }
+      if (!item.cooked) {
+        item.value = item.value * 2;
+        item.cooked = true;
+      }
+      item.smoked = true;
       item.name = "燻製" + item.name;
       item.desc = POT_FOOD_DESCS.smoke;
-      ml.push(`${item.name}になった！`);
+      ml.push(`${item.name}になった！(食べると最大満腹度UP)`);
       return;
     }
-    if (item.type === "food") { ml.push(`${item.name}は既に調理済みだ。`); return; }
   }
   const pfx = POT_FOOD_PREFIX[pe];
   if (pfx && item.type === "food") {
+    if (!item.potFlavors) item.potFlavors = [];
+    item.potFlavors.push(pe);
     item.name = pfx + item.name;
-    item.value = Math.floor(item.value * 1.3);
+    item.value = Math.max(1, Math.floor(item.value * 0.8));
+    const _catBonus = POT_CAT_BONUS[pe];
+    const _catMatch = _catBonus && item.foodCat && _catBonus.includes(item.foodCat);
+    const _potMul = _catMatch ? 2.0 : 1.3;
+    item.value = Math.floor(item.value * _potMul);
     item.desc = POT_FOOD_DESCS[pe] || item.desc;
-    ml.push(`${item.name}になった！(満腹度UP)`);
+    ml.push(_catMatch
+      ? `${item.name}になった！(相性抜群！満腹度大幅UP)`
+      : `${item.name}になった！(満腹度UP)`);
     return;
   }
   ml.push(`${_in}を${_pn}に入れた。`);
@@ -637,6 +712,13 @@ export const WEAPON_ABILITIES = [
   { id:"critical",      name:"会心",      desc:"25%の確率でダメージ2倍のクリティカルヒット" },
   { id:"no_degrade",    name:"不錆",      desc:"錆の罠や泉に落ちても＋値が下がらない" },
   { id:"pickaxe",       name:"穴掘り",    desc:"装備して壁に体当たりすると壁を掘れる（耐久制）" },
+  { id:"inflict_slow",    name:"鈍足付与",  desc:"攻撃時10%の確率で敵を鈍足にする" },
+  { id:"inflict_paralyze",name:"金縛り付与",desc:"攻撃時10%の確率で敵を金縛りにする" },
+  { id:"inflict_sleep",   name:"睡眠付与",  desc:"攻撃時10%の確率で敵を眠らせる" },
+  { id:"inflict_darkness",name:"暗闇付与",  desc:"攻撃時10%の確率で敵を暗闇にする" },
+  { id:"inflict_confuse", name:"混乱付与",  desc:"攻撃時10%の確率で敵を混乱させる" },
+  { id:"inflict_bewitch", name:"惑わし付与",desc:"攻撃時10%の確率で敵を幻惑にする" },
+  { id:"inflict_seal",    name:"封印付与",  desc:"攻撃時10%の確率で敵を封印する" },
 ];
 
 export const ARMOR_ABILITIES = [
@@ -650,6 +732,12 @@ export const ARMOR_ABILITIES = [
   { id:"wand_reflect",     name:"魔法反射", desc:"モンスターの杖魔法を反射する" },
   { id:"anti_steal",       name:"護盗",     desc:"コソドロに所持品を盗まれなくなる" },
   { id:"no_degrade",       name:"不錆",     desc:"錆の罠や泉に落ちても＋値が下がらない" },
+  { id:"slow_proof",       name:"耐鈍足",   desc:"鈍足効果を無効化する" },
+  { id:"paralyze_proof",   name:"耐金縛り", desc:"金縛り効果を無効化する" },
+  { id:"darkness_proof",   name:"耐暗闇",   desc:"暗闇効果を無効化する" },
+  { id:"confuse_proof",    name:"耐混乱",   desc:"混乱効果を無効化する" },
+  { id:"bewitch_proof",    name:"耐惑わし", desc:"幻惑効果を無効化する" },
+  { id:"seal_proof",       name:"耐封印",   desc:"封印効果を無効化する" },
 ];
 
 /* ===== TRAPS ===== */
@@ -1003,14 +1091,20 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _slwm = monsterAt(dg, tx, ty);
       if (_slwm) { _slwm.speed = Math.max(0.25, _slwm.speed * 0.5); ml.push(`${_slwm.name}が鈍足になった！`); }
-      if (p && p.x === tx && p.y === ty) { p.slowTurns = (p.slowTurns || 0) + 10; ml.push(`体が重くなった...(鈍足10ターン)`); }
+      if (p && p.x === tx && p.y === ty) {
+        if (hasAbility(p.armor, "slow_proof")) { ml.push(`しかし防具が鈍足を防いだ！(耐鈍足)`); }
+        else { p.slowTurns = (p.slowTurns || 0) + 10; ml.push(`体が重くなった...(鈍足10ターン)`); }
+      }
       return "restart";
     }
     case "seal_trap": {
       ml.push(`${trap.name}が発動！`);
       const _seam = monsterAt(dg, tx, ty);
       if (_seam) { _seam.sealed = true; ml.push(`${_seam.name}の特技が封印された！`); }
-      if (p && p.x === tx && p.y === ty) { p.sealedTurns = (p.sealedTurns || 0) + 50; ml.push(`魔法が封印された！(50ターン)`); }
+      if (p && p.x === tx && p.y === ty) {
+        if (hasAbility(p.armor, "seal_proof")) { ml.push(`しかし防具が封印を防いだ！(耐封印)`); }
+        else { p.sealedTurns = (p.sealedTurns || 0) + 50; ml.push(`魔法が封印された！(50ターン)`); }
+      }
       return "restart";
     }
     case "steal_trap": {
@@ -1135,7 +1229,7 @@ export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
 export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false) {
   let r = c;
   for (const i of inv) {
-    if (i.type === "arrow" && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && i.count < 99) {
+    if (i.type === "arrow" && !i.stone && !i.magicStone && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && i.count < 99) {
       const a = Math.min(r, 99 - i.count);
       i.count += a;
       r -= a;
@@ -1272,7 +1366,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") { p.hasteTurns = (p.hasteTurns || 0) + 10; ml.push("体が軽くなった！(2倍速10ターン)【呪→加速】"); }
       } else {
         if (kind === "monster") { target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5)); ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`); }
-        if (kind === "player") { const _st = blessed ? 20 : 10; p.slowTurns = (p.slowTurns || 0) + _st; ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`); }
+        if (kind === "player") {
+          if (hasAbility(p.armor, "slow_proof")) { ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)"); }
+          else { const _st = blessed ? 20 : 10; p.slowTurns = (p.slowTurns || 0) + _st; ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`); }
+        }
       }
       break;
     case "paralyze":
@@ -1289,9 +1386,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
         if (kind === "player") {
           if (isStatusImmune(p, ml)) break;
-          const _pt = blessed ? 20 : 10;
-          p.paralyzeTurns = _pt;
-          ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
+          if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)"); }
+          else {
+            const _pt = blessed ? 20 : 10;
+            p.paralyzeTurns = _pt;
+            ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
+          }
         }
       }
       break;
@@ -1306,7 +1406,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       } else {
         if (kind === "monster") { const _ct = blessed ? 40 : 20; target.confusedTurns = (target.confusedTurns || 0) + _ct; ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
-        if (kind === "player") { const _ct = blessed ? 10 : 5; p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
+        if (kind === "player") {
+          if (hasAbility(p.armor, "confuse_proof")) { ml.push("混乱効果を受けたが防具が防いだ！(耐混乱)"); }
+          else { const _ct = blessed ? 10 : 5; p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
+        }
       }
       break;
     case "mana":
@@ -1349,9 +1452,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.monsterSenseTurns = (p.monsterSenseTurns || 0) + 100;
           ml.push("呪われた薬！フロアのモンスターが感知できる！(100ターン)【呪→感知】");
         } else {
-          const _dt = blessed ? 50 : 20;
-          p.darknessTurns = (p.darknessTurns || 0) + _dt;
-          ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${blessed ? "(祝福)" : ""}`);
+          if (hasAbility(p.armor, "darkness_proof")) {
+            ml.push("暗闇効果を受けたが防具が防いだ！(耐暗闇)");
+          } else {
+            const _dt = blessed ? 50 : 20;
+            p.darknessTurns = (p.darknessTurns || 0) + _dt;
+            ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${blessed ? "(祝福)" : ""}`);
+          }
         }
       }
       if (kind === "monster") {
@@ -1373,9 +1480,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           dg.traps.forEach(t => t.revealed = true);
           ml.push("呪われた薬！フロアの罠が全て見えた！【呪→罠看破】");
         } else {
-          const _bt = blessed ? 100 : 50;
-          p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
-          ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${blessed ? "(祝福)" : ""}`);
+          if (hasAbility(p.armor, "bewitch_proof")) {
+            ml.push("幻惑効果を受けたが防具が防いだ！(耐惑わし)");
+          } else {
+            const _bt = blessed ? 100 : 50;
+            p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
+            ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${blessed ? "(祝福)" : ""}`);
+          }
         }
       }
       if (kind === "monster") {
@@ -1440,8 +1551,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
           ml.push(`魔力が封じられた！(MP封印50ターン)${blessed ? "(祝福)" : ""}`);
           if (blessed) {
-            p.slowTurns = (p.slowTurns || 0) + 10;
-            ml.push("さらに鈍足10ターン！");
+            if (hasAbility(p.armor, "slow_proof")) {
+              ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
+            } else {
+              p.slowTurns = (p.slowTurns || 0) + 10;
+              ml.push("さらに鈍足10ターン！");
+            }
           }
         }
       }
@@ -1552,6 +1667,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
   }
   item.potionEffects.push(key);
   item.name = pf + item.name;
+  item.value = Math.max(1, Math.floor(item.value * 0.8));
   ml.push(`${item.name}になった！`);
 }
 
@@ -1641,7 +1757,20 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   } else if (item.type === "weapon") {
     let _wNote = "";
     if (item.cursed) { item.cursed = false; _wNote += " 呪いが解けた！"; }
-    if (hasAbility(item, "no_degrade")) {
+    /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
+    if (item.name === "ロングソード" && Math.random() < 0.05) {
+      const _oldPlus = item.plus || 0;
+      Object.assign(item, { ...EXCALIBUR_T, id: item.id, plus: _oldPlus });
+      if (item.abilities) { item.abilities = [...new Set([...item.abilities, EXCALIBUR_T.ability])]; item.ability = item.abilities[0]; }
+      ml.push("ロングソードが泉の中で聖なる光を放ち...エクスカリバーに変化した！");
+    } else if ((item.name === "バトルアクス" || item.name === "戦神の斧") && Math.random() < 0.20) {
+      const _oldName = item.name;
+      const _oldPlus = item.plus || 0;
+      const _goldAxe = ITEMS.find(i => i.name === "金の斧");
+      Object.assign(item, { ..._goldAxe, id: item.id, plus: _oldPlus });
+      if (item.abilities) { item.abilities = [...new Set([...item.abilities, _goldAxe.ability])]; item.ability = item.abilities[0]; }
+      ml.push(_oldName + "が泉の中で黄金の輝きを放ち...金の斧に変化した！");
+    } else if (hasAbility(item, "no_degrade")) {
       ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _wNote);
     } else {
       const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
