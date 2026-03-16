@@ -689,12 +689,20 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         continue; /* 壁タイルにキャラ・アイテムはいない */
       }
       /* モンスターダメージ */
+      const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
       for (const m of [...dg.monsters.filter(m => m.x === ax && m.y === ay)]) {
         if (_killed.has(m)) continue;
-        const md = proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15);
-        m.hp -= md;
-        ml.push(`爆風で${m.name}に${md}ダメージ！`);
-        if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn); }
+        if (_hasExPentacle) {
+          /* 爆発の魔方陣の影響下：爆発を浴びた敵は即死して連鎖爆発 */
+          ml.push(`爆風で${m.name}は即死した！`);
+          m.hp = 0;
+          _killed.add(m); killMonster(m, dg, p, ml, luFn);
+        } else {
+          const md = proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15);
+          m.hp -= md;
+          ml.push(`爆風で${m.name}に${md}ダメージ！`);
+          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn); }
+        }
       }
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)) {
