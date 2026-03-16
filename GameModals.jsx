@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ITEMS, POTS, SPELLS, SPELLBOOKS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { T, uid, rng, refreshFOV } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages } from "./render.js";
