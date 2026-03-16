@@ -1056,6 +1056,11 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                 bigboxRef.current?.capacity,
             },
             {
+              label: "説明",
+              desc: "この大箱の効果を確認する",
+              fn: () => { setMode("desc"); setMenuSel(0); },
+            },
+            {
               label: "やめる",
               desc: "",
               fn: () => {
@@ -1108,6 +1113,27 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
           <div style={{ color: "#556", fontSize: 10, marginTop: 2 }}>
             ↑↓:選択 Z:決定 X:閉じる
           </div>
+        </div>
+      )}
+      {mode === "desc" && bigboxRef.current && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ background: "#12100a", border: "1px solid #6a4a2a", borderRadius: 6, padding: "10px 12px" }}>
+            <div style={{ color: "#fca", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>
+              {bigboxRef.current.name}
+            </div>
+            <div style={{ color: "#c9a", fontSize: 12, lineHeight: "1.6em" }}>
+              {bigboxRef.current.desc ?? "説明なし。"}
+            </div>
+          </div>
+          <button
+            onClick={() => { setMode("menu"); setMenuSel(0); }}
+            style={{
+              padding: "6px 16px", background: "#2a1a0a", color: "#ca8",
+              border: "1px solid #5a3a1a", borderRadius: 5, cursor: "pointer", fontSize: 12, alignSelf: "flex-start",
+            }}
+          >
+            戻る [X]
+          </button>
         </div>
       )}
       {mode === "put" &&

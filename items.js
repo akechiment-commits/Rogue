@@ -571,14 +571,14 @@ export const WANDS = [
 
 /* ===== BIG BOX TYPES ===== */
 export const BB_TYPES = [
-  { kind: "synthesis", name: "合成の大笥", cap: () => 2 },
-  { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4) },
-  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2) },
-  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4) },
-  { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3) },
-  { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5) },
-  { kind: "split",     name: "分裂の大箱", cap: () => 1, rare: true },
-  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2), rare: true },
+  { kind: "synthesis", name: "合成の大笥", cap: () => 2,         desc: "2つのアイテムを合成する。武器同士・防具同士なら能力を引き継ぐ。杖同士ならチャージを合算。ペン同士なら合算。食料+壺なら壺で加工。杖+水の瓶なら薬に変化。閉じる時に効果が発動する。" },
+  { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4), desc: "入れたアイテムがランダムな別のアイテムに変化する。何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
+  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2), desc: "武器・防具の＋値を1上げる。他のアイテムには効果がない。" },
+  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4), desc: "食料のサイズを1段階大きくする。すでに最大サイズなら効果がない。食料以外には効果がない。" },
+  { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3), desc: "杖・ペン・魔法のマーカーの使用回数をランダムに回復する。杖は1〜3回、ペンは1回、マーカーは1〜2回増える。" },
+  { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5), desc: "入れたアイテムを識別する。薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
+  { kind: "split",     name: "分裂の大箱", cap: () => 1, rare: true, desc: "【レア】入れたアイテムを複製する。＋値・矢の数は半減する。金貨とキーアイテムは分裂しない。" },
+  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2), rare: true, desc: "【レア】入れたアイテムを祝福する。祝福されたアイテムは効果が強化されたり有利な状態になる。キーアイテムには効果がない。" },
 ];
 
 /* ===== POTS ===== */
