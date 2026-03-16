@@ -2792,7 +2792,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (_rmIdx !== -1) _p_id.inventory.splice(_rmIdx, 1);
               _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
             } else {
-              for (let _di = 0; _di < _dupCount; _di++) _p_id.inventory.push({ ..._selIt, id: uid() });
+              /* 同種の新品アイテムを生成（チャージ・中身・強化値は複製元と無関係） */
+              const _makeFresh = () => {
+                if (_selIt.type === "wand") {
+                  const _tpl = WANDS.find(w => w.effect === _selIt.effect) || _selIt;
+                  return { ..._tpl, id: uid() };
+                }
+                if (_selIt.type === "pot") {
+                  const _tpl = POTS.find(pp => pp.potEffect === _selIt.potEffect) || _selIt;
+                  return { ..._tpl, id: uid(), contents: [] };
+                }
+                if (_selIt.type === "weapon" || _selIt.type === "armor") {
+                  const _tpl = ITEMS.find(i => i.name === _selIt.name) || _selIt;
+                  return { ..._tpl, id: uid() };
+                }
+                /* その他（薬・巻物・食料・矢など）は名前と種別を保ち新品として生成 */
+                const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, ...rest } = _selIt;
+                return { ...rest, id: uid() };
+              };
+              for (let _di = 0; _di < _dupCount; _di++) _p_id.inventory.push(_makeFresh());
               _msgResult = identifyMode.blessed ? `${_selIt.name}が2つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
             }
           } else {
