@@ -1,9 +1,35 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyFireInventoryDamage, hasCursedExplosionPentacle } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
 function inBounds(x, y) { return x >= 0 && x < MW && y >= 0 && y < MH; }
 function isWalkable(map, x, y) { return inBounds(x, y) && map[y][x] !== T.WALL && map[y][x] !== T.BWALL; }
+
+/* ===== ドラゴン炎ブレス ===== */
+function monsterDragonFire(m, dg, pl, ml) {
+  /* 呪われた爆発の魔方陣がある場合は炎を打ち消す */
+  if (hasCursedExplosionPentacle(dg)) {
+    ml.push(`呪われた爆発の魔方陣が${m.name}の炎ブレスを打ち消した！`);
+    return;
+  }
+  const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
+  let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
+  /* 脆弱の魔方陣 */
+  const _plRoom = findRoom(dg.rooms, pl.x, pl.y);
+  const _vulnPc = _plRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" &&
+    pc.x >= _plRoom.x && pc.x < _plRoom.x + _plRoom.w &&
+    pc.y >= _plRoom.y && pc.y < _plRoom.y + _plRoom.h);
+  if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
+  /* 耐火装備 */
+  const _hasFireR = pl.armor?.ability === "fire_resist" || pl.armor?.abilities?.includes("fire_resist");
+  if (_hasFireR) dmg = Math.max(1, Math.floor(dmg / 2));
+  pl.deathCause = `${m.name}の炎ブレスで`;
+  pl.hp -= dmg;
+  ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
+  if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
+  if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
+  if (!_hasFireR) applyFireInventoryDamage(pl, ml);
+}
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false } = {}) {
@@ -753,6 +779,29 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         // 魔封じの部屋にいる場合は杖を使えず通常行動へフォールスルー
+      }
+    }
+
+    /* ── ドラゴン炎ブレス（Lv1:一直線 / Lv2:同部屋 / Lv3:同フロア） ── */
+    if (m.baseKind === "dragon" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      const _dfAdx = pl.x - m.x, _dfAdy = pl.y - m.y;
+      const _dfDist = Math.max(Math.abs(_dfAdx), Math.abs(_dfAdy));
+      const _dfLvl = m.monLevel || 1;
+      let _canFire = false;
+      if (_dfDist >= 2) {
+        if (_dfLvl >= 3) {
+          _canFire = true; // 同フロア内（視界不要）
+        } else if (_dfLvl >= 2) {
+          _canFire = canSee && _sameRoom; // 同部屋内
+        } else {
+          // Lv1：一直線上かつ視界あり
+          _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
+        }
+      }
+      if (_canFire && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m.turnAttacks++;
+        monsterDragonFire(m, dg, pl, ml);
+        return;
       }
     }
 
