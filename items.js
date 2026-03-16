@@ -773,6 +773,28 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         }
       }
     }
+    /* 範囲内の床上アイテムへの爆発ダメージ（火薬壺以外） */
+    const _blasted = new Set();
+    for (const it of dg.items) {
+      if (Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) > 1) continue;
+      if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 火薬壺は後で連鎖処理 */
+      if (it.type === "scroll" || it.type === "spellbook") {
+        _blasted.add(it); ml.push(`巻物「${it.name}」が爆風で燃えてなくなった！`);
+      } else if (it.type === "potion") {
+        _blasted.add(it); ml.push(`薬「${it.name}」が爆風で割れてなくなった！`);
+      } else if (it.type === "food") {
+        if (!it.cooked) { it.value *= 2; it.cooked = true; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+        else { burnFoodItem(it, ml); _blasted.add(it); }
+      } else if (it.type === "pot") {
+        _blasted.add(it);
+        if (it.contents?.length > 0) {
+          const _ft2 = new Set();
+          for (const ci of it.contents) placeItemAt(dg, it.x, it.y, ci, ml, _ft2);
+          ml.push(`壺「${it.name}」が爆発で割れ、中身が飛び出した！`);
+        } else { ml.push(`壺「${it.name}」が爆発で割れた！`); }
+      }
+    }
+    if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
     /* 範囲内の床上 火薬壺 を先に除去してから連鎖爆発 */
     const _chainPots = dg.items.filter(it =>
       it.type === "pot" && it.potEffect === "gunpowder" &&

@@ -4545,7 +4545,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         console.error("doBreakWand error:", e);
         ml.push("杖の破砕中にエラーが発生した。");
       }
-      endTurn(sr.current, p, ml);
+      try { endTurn(sr.current, p, ml); } catch (e2) { console.error("doBreakWand endTurn error:", e2); }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
       setSelIdx(null);
       setShowDesc(null);
@@ -4815,7 +4815,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       p.inventory.splice(idx, 1);
       const ml = [];
       ml.push(`${dnameRef(it)}を割った！`);
-      scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+      try {
+        scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+      } catch (e) {
+        console.error("doBreakPot error:", e);
+        ml.push("壺の処理中にエラーが発生した。");
+      }
       endTurn(sr.current, p, ml);
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
       setSelIdx(null);
