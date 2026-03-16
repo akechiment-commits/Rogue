@@ -848,12 +848,12 @@ export function useKeyHandler({
               setBigboxMenuSel(0);
               setBigboxPage(0);
             } else if (bigboxMenuSel === 1) {
-              setBigboxMode("desc");
-              setBigboxMenuSel(0);
-            } else {
               setBigboxMode(null);
               bigboxRef.current = null;
               setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
+            } else {
+              setBigboxMode("desc");
+              setBigboxMenuSel(0);
             }
             return;
           }
@@ -868,12 +868,12 @@ export function useKeyHandler({
             setBigboxMenuSel(0);
             setBigboxPage(0);
           } else if (k === "2") {
-            setBigboxMode("desc");
-            setBigboxMenuSel(0);
-          } else if (k === "3") {
             setBigboxMode(null);
             bigboxRef.current = null;
             setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
+          } else if (k === "3") {
+            setBigboxMode("desc");
+            setBigboxMenuSel(0);
           }
           return;
         }
