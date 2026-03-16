@@ -1024,7 +1024,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         const _dmg = rng(5, 15);
         _mon.hp -= _dmg;
         ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-        if (_mon.hp <= 0) { luFn(_mon, ml); removeMonster(dg, _mon); }
+        if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
       } else if (dg.map[wy][wx] === T.FLOOR) {
         dg.map[wy][wx] = T.BWALL;
         ml.push("壊せる壁が出現した！");
@@ -1133,7 +1133,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           const _rdmg = rng(15, 25);
           _srcMon.hp -= _rdmg;
           ml.push(`反射した雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
-          if (_srcMon.hp <= 0) luFn(_srcMon, ml);
+          if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
         }
         return;
       }
@@ -1194,7 +1194,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
             const _dmg = rng(5, 15);
             _mon.hp -= _dmg;
             ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-            if (_mon.hp <= 0) { luFn(_mon, ml); removeMonster(dg, _mon); }
+            if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
             walled++;

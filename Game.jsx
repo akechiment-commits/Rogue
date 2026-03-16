@@ -1693,11 +1693,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else {
           if (p.hasteUsed) p.hasteUsed = false;
           endTurn(st, p, ml);
-        }
-        /* 2倍速ターン減少 */
-        if ((p.hasteTurns || 0) > 0) {
-          p.hasteTurns--;
-          if (p.hasteTurns <= 0) { p.hasteUsed = false; ml.push("2倍速が解けた！"); }
+          /* 2倍速ターン減少：endTurnした時（2回目の行動後）のみ消費 */
+          if ((p.hasteTurns || 0) > 0) {
+            p.hasteTurns--;
+            if (p.hasteTurns <= 0) { p.hasteUsed = false; ml.push("2倍速が解けた！"); }
+          }
         }
         /* 鈍足：行動後に次のターンをスキップ予約 */
         if ((p.slowTurns || 0) > 0) {
@@ -3422,6 +3422,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       throwMode,
       springMode,
       springMenuSel,
+      springPage,
       springDrink,
       springDoSoak,
       putMode,
@@ -3629,6 +3630,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           p.confusedTurns = 0;
           p.sureHitTurns = (p.sureHitTurns || 0) + 100;
           ml.push(`${it.name}を飲んだ。頭が冴えた！混乱が消え、必中状態になった！(100ターン)【呪→必中】`);
+        } else if ((p.statusImmune || 0) > 0) {
+          ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
         } else {
           // 通常/祝福：混乱（祝福=2倍ターン）
           const _cturns = it.blessed ? 10 : 5;
@@ -3691,7 +3694,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (p.depth <= 1) {
             if (onReturnToHub) {
               ml.push(`${it.name}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
-              sr.current = { ...st };
+              sr.current = { ...sr.current };
               onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
               return;
             } else {
@@ -3805,9 +3808,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (_mpRec > 0) ml.push(`魔力効果でMP+${_mpRec}`);
             }
           } else if (pe === "confuse") {
-            const _ct = rng(3, 8);
-            p.confusedTurns = (p.confusedTurns || 0) + _ct;
-            ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`);
+            if ((p.statusImmune || 0) > 0) { ml.push("混乱成分！状態防止中のため効かなかった！"); }
+            else { const _ct = rng(3, 8); p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`); }
           } else if (pe === "slow") {
             if ((p.statusImmune || 0) > 0) ml.push("鈍足成分！状態防止中のため効かなかった！");
             else { p.slowTurns = (p.slowTurns || 0) + 10; ml.push("鈍足成分が！体が重くなった...(鈍足10ターン)"); }
@@ -5724,9 +5726,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       s += ` (HP+${it.value})`;
     else if (it.type === "food") {
       s += `(満+${it.value})`;
-      if (!it.cooked) s += " 生";
-      if (it.potionEffects?.length) s += " ★";
-      s += ")";
+      if (!it.cooked || it.potionEffects?.length) {
+        s += "(";
+        if (!it.cooked) s += "生";
+        if (it.potionEffects?.length) s += "★";
+        s += ")";
+      }
     } else if (it.type === "wand")   s += it.fullIdent ? ` [${it.charges}回]` : "";
     else if (it.type === "marker") s += ` [${it.charges}回]`;
     else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
@@ -6096,7 +6101,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                     setSpringMenuSel((p) => (p + dy + 3) % 3);
                   } else if (springMode === "soak") {
                     const inv = sr.current?.player?.inventory || [];
-                    if (inv.length > 0) setSpringMenuSel((s) => (s + dy + 10) % 10);
+                    if (inv.length > 0) { const pgLen = Math.min(10, inv.length); setSpringMenuSel((s) => (s + dy + pgLen) % pgLen); }
                   }
                 }
                 return;
