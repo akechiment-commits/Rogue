@@ -756,20 +756,30 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "sleep": {
-      const st = rng(3, 6);
+      const _slBlessed = blMult > 1, _slCursed = blMult < 1;
+      if (_slCursed) {
+        // 呪い→透視（眠りの薬の呪い効果と同じ）
+        dg.monsterSenseActive = true;
+        if (kind === "monster") ml.push(`${target.name}への眠り効果が反転！フロアの敵が全て見え続ける！【呪→透視】`);
+        else if (kind === "player") ml.push("眠り効果が反転！フロアの敵が全て見え続ける！【呪→透視】");
+        else ml.push("魔法弾は効果なく消えた。");
+        break;
+      }
+      const _slBase = 4; // 眠りの薬のvalue相当
+      const st = Math.max(1, Math.round((_slBase + rng(-1, 1)) * (_slBlessed ? 2 : 1)));
       if (kind === "monster") {
         if (isStatusImmune(target, ml, target.name)) break;
         target.sleepTurns = (target.sleepTurns || 0) + st;
-        ml.push(`${target.name}は眠りに落ちた！(${st}ターン)`);
+        ml.push(`${target.name}は眠りに落ちた！(${st}ターン)${_slBlessed ? "【祝=強眠】" : ""}`);
         break;
       }
       if (kind === "player") {
         if ((p.statusImmune || 0) > 0) { ml.push("状態防止中のため眠れなかった！"); break; }
-        if (p.armor?.ability === "sleep_proof") {
+        if (hasAbility(p.armor, "sleep_proof")) {
           ml.push("しかし眠れなかった！(耐眠)");
         } else {
           p.sleepTurns = (p.sleepTurns || 0) + st;
-          ml.push(`眠りに落ちた...(${st}ターン)`);
+          ml.push(`眠りに落ちた...(${st}ターン)${_slBlessed ? "【祝=強眠】" : ""}`);
         }
         break;
       }
