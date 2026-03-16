@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useReducer } from "react";
 import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility } from "./utils.js";
 import {
   MONS,
@@ -88,6 +88,7 @@ import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { TILE_NAMES, CUSTOM_TILE_PATH, customTileImages, clearCustomTileImages, ST, drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
+import { useGameRenderer } from './useGameRenderer.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
   bigRoom:      "ビッグルームだ！",
@@ -97,6 +98,17 @@ const FLOOR_TITLES = {
   corridorFloor:"廊下フロアだ！",
   gridRoom:     "格子の大部屋だ！",
 };
+
+const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, spellMenuSel: 0, nicknameInput: '', data: null };
+
+function modalReducer(state, action) {
+  switch (action.type) {
+    case 'SET_MODAL': return { ...MODAL_INIT, type: action.modal, data: action.data || null };
+    case 'CLOSE_MODAL': return MODAL_INIT;
+    case 'UPDATE': return { ...state, ...action.payload };
+    default: return state;
+  }
+}
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [gs, setGs] = useState(null);
@@ -109,33 +121,60 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [invMenuSel, setInvMenuSel] = useState(null);
   const [showDesc, setShowDesc] = useState(null);
   const [throwMode, setThrowMode] = useState(null);
-  const [springMode, setSpringMode] = useState(null);
-  const [springMenuSel, setSpringMenuSel] = useState(0);
-  const [springPage, setSpringPage] = useState(0);
-  const [bigboxMode, setBigboxMode] = useState(null);
-  const [bigboxMenuSel, setBigboxMenuSel] = useState(0);
-  const [bigboxPage, setBigboxPage] = useState(0);
+  /* ── modal state (mutually exclusive) via useReducer ── */
+  const [modal, dispatchModal] = useReducer(modalReducer, MODAL_INIT);
+
+  // convenience accessors
+  const springMode    = modal.type === 'spring'      ? modal.data : null;
+  const springMenuSel = modal.springMenuSel;
+  const springPage    = modal.springPage;
+  const bigboxMode    = modal.type === 'bigbox'       ? modal.data : null;
+  const bigboxMenuSel = modal.bigboxMenuSel;
+  const bigboxPage    = modal.bigboxPage;
   const bigboxRef = useRef(null);
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
-  const [shopMode, setShopMode] = useState(null);
-  const [shopMenuSel, setShopMenuSel] = useState(0);
-  const [putMenuSel, setPutMenuSel] = useState(0);
-  const [putPage, setPutPage] = useState(0);
-  /* null | "menu" | "soak" */ const [putMode, setPutMode] = useState(null);
-  /* null | {markerIdx,step:"select_blank"|"select_type",blankIdx:number|null} */
-  const [markerMode, setMarkerMode] = useState(null);
-  const [markerMenuSel, setMarkerMenuSel] = useState(0);
-  const [spellListMode, setSpellListMode] = useState(false);
-  const [spellMenuSel, setSpellMenuSel] = useState(0);
+  const shopMode      = modal.type === 'shop'         ? modal.data : null;
+  const shopMenuSel   = modal.shopMenuSel;
+  const putMode       = modal.type === 'put'          ? modal.data : null;
+  const putMenuSel    = modal.putMenuSel;
+  const putPage       = modal.putPage;
+  const markerMode    = modal.type === 'marker'       ? modal.data : null;
+  const markerMenuSel = modal.markerMenuSel;
+  const spellListMode = modal.type === 'spellList'    ? modal.data : null;
+  const spellMenuSel  = modal.spellMenuSel;
   /* null | {potIdx:number} */ const [dashMode, setDashMode] = useState(false);
-  /* null | {cx:number, cy:number} */ const [tpSelectMode, setTpSelectMode] = useState(null);
-  /* null | {cx:number, cy:number} */ const [lookMode, setLookMode] = useState(null);
-  /* null | {sel:number} */ const [floorSelectMode, setFloorSelectMode] = useState(null);
-  /* null | { mode:'identify'|'unidentify' } */ const [identifyMode, setIdentifyMode] = useState(null);
-  /* null | { identKey:string } */ const [nicknameMode, setNicknameMode] = useState(null);
-  /* null | { pendingMsgs:string[] } */ const [revealMode, setRevealMode] = useState(null);
-  const [nicknameInput, setNicknameInput] = useState('');
+  const tpSelectMode     = modal.type === 'tpSelect'     ? modal.data : null;
+  const lookMode         = modal.type === 'look'         ? modal.data : null;
+  const floorSelectMode  = modal.type === 'floorSelect'  ? modal.data : null;
+  const identifyMode     = modal.type === 'identify'     ? modal.data : null;
+  const nicknameMode     = modal.type === 'nickname'     ? modal.data : null;
+  const revealMode       = modal.type === 'reveal'       ? modal.data : null;
+  const nicknameInput    = modal.nicknameInput;
+
+  // setter functions (support both direct values and updater functions)
+  const setSpringMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spring', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setSpringMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { springMenuSel: typeof v === 'function' ? v(modal.springMenuSel) : v } });
+  const setSpringPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { springPage: typeof v === 'function' ? v(modal.springPage) : v } });
+  const setBigboxMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'bigbox', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setBigboxMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxMenuSel: typeof v === 'function' ? v(modal.bigboxMenuSel) : v } });
+  const setBigboxPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxPage: typeof v === 'function' ? v(modal.bigboxPage) : v } });
+  const setShopMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'shop', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setShopMenuSel   = (v) => dispatchModal({ type: 'UPDATE', payload: { shopMenuSel: typeof v === 'function' ? v(modal.shopMenuSel) : v } });
+  const setPutMode       = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'put', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setPutMenuSel    = (v) => dispatchModal({ type: 'UPDATE', payload: { putMenuSel: typeof v === 'function' ? v(modal.putMenuSel) : v } });
+  const setPutPage       = (v) => dispatchModal({ type: 'UPDATE', payload: { putPage: typeof v === 'function' ? v(modal.putPage) : v } });
+  const setMarkerMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'marker', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setMarkerMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { markerMenuSel: typeof v === 'function' ? v(modal.markerMenuSel) : v } });
+  const setSpellListMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel) : v } });
+  const setTpSelectMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'tpSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setLookMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'look', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setFloorSelectMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'floorSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setIdentifyMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'identify', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setNicknameMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'nickname', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setRevealMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'reveal', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setNicknameInput = (v) => dispatchModal({ type: 'UPDATE', payload: { nicknameInput: typeof v === 'function' ? v(modal.nicknameInput) : v } });
   /* mobile dash toggle */ const [dead, setDead] = useState(false);
   const [gameOverResult, setGameOverResult] = useState(null);
   const [showScores, setShowScores] = useState(false);
