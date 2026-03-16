@@ -5351,9 +5351,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;
               }
-              m.hp -= td;
-              ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
-              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              if (it.type === "wand") {
+                /* 杖を投げて命中：杖の効果を発動 */
+                const _throwWandBm = getBlessMultiplier(it);
+                const _throwWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                ml.push(`${lb}が${m.name}に命中！`);
+                if ((it.charges || 0) > 0) {
+                  it.charges--;
+                  applyWandEffect(it.effect, "monster", m, dx, dy, dg, p, ml, lu, bigboxAddItem, _throwWandBm, _throwWandDName);
+                }
+                if (p._pendingWarpUp) {
+                  delete p._pendingWarpUp;
+                  if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
+                  else ml.push("ここは1階だ。何も起こらなかった。");
+                }
+              } else {
+                m.hp -= td;
+                ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
+                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              }
               if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; }
             }
             if (!_isFarcast) {
@@ -5367,6 +5383,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (_isFarcast) {
             const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
             ml.push(`${lb}を投げた。${lb}は消滅した。`);
+          } else if (hit && it.type === "wand") {
+            /* 杖が命中後、床に落下する */
+            const ft = new Set();
+            const _twPfBag = [];
+            setPitfallBag(_twPfBag);
+            placeItemAt(dg, lx, ly, it, ml, ft);
+            clearPitfallBag();
+            if (!sr.current.floors) sr.current.floors = {};
+            processPitfallBag(_twPfBag, sr.current.floors, p.depth);
           } else if (!hit) {
             const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
             ml.push(`${lb}を投げた。`);

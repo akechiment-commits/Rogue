@@ -340,6 +340,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           splashPotion(dg, res.x, res.y, target.effect, target.value || 0, p, ml, luFn, target.blessed || false, target.cursed || false);
         } else if (target.type === "pot") {
           scatterPotContents(target, dg, res.x, res.y, p, ml, luFn);
+        } else if (target.type === "wand") {
+          /* 吹き飛んだ杖が何かに命中した場合、杖の効果を発動してから床に落とす */
+          if ((res.hitMonster || res.hitPlayer) && (target.charges || 0) > 0) {
+            target.charges--;
+            const _kbWandBm = target.blessed ? 1.5 : target.cursed ? 0.5 : 1;
+            if (res.hitMonster) applyWandEffect(target.effect, "monster", res.hitMonster, dx, dy, dg, p, ml, luFn, bbFn, _kbWandBm, nameFn);
+            else if (res.hitPlayer) applyWandEffect(target.effect, "player", p, dx, dy, dg, p, ml, luFn, bbFn, _kbWandBm, nameFn);
+          }
+          /* 杖は常に床に残る（consumed でも落下位置に戻す） */
+          const ft = new Set();
+          placeItemAt(dg, res.x, res.y, target, ml, ft);
         } else if (!res.consumed) {
           const ft = new Set();
           placeItemAt(dg, res.x, res.y, target, ml, ft);

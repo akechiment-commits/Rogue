@@ -1836,7 +1836,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           p.deathCause = `飛んできた${entity.name}に`;
           p.hp -= dmg;
           ml.push(`飛んできた${entity.name}がプレイヤーに命中！${dmg}ダメージ！`);
-          return { x:nx, y:ny, consumed:true };
+          return { x:nx, y:ny, consumed:true, hitPlayer:true };
         }
         const mon = monsterAt(dg, nx, ny);
         if (mon) {
@@ -1851,7 +1851,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
             removeMonster(dg, mon);
             if (luFn && p) luFn(p, ml);
           }
-          return { x:cx, y:cy, consumed:true };
+          return { x:cx, y:cy, consumed:true, hitMonster:mon };
         }
         const trap = dg.traps.find(t => t.x === nx && t.y === ny);
         if (trap) {
