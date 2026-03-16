@@ -513,6 +513,7 @@ export const POTS = [
   { name:"祝福の壺",     type:"pot", potEffect:"bless_pot", capacity:3, desc:"入れたアイテムを祝福する。",           tile:32 },
   { name:"呪いの壺",     type:"pot", potEffect:"curse_pot", capacity:3, desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",     type:"pot", potEffect:"boil",      capacity:3, desc:"薬を入れると部屋中に薬効が広がる。生の食料を入れると焼いた状態になる。その他のものは保管できる。", tile:32 },
+  { name:"火薬壺",       type:"pot", potEffect:"gunpowder", capacity:3, desc:"割れると周囲8マスを巻き込む爆発を起こす。炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化する。中身は爆発で消える。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -604,6 +605,11 @@ export function makePot() {
 
 export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
   const _pn = nameFn ? nameFn(pot) : pot.name;
+  /* 火薬壺は割れると爆発（中身も消える） */
+  if (pot.potEffect === "gunpowder") {
+    doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn);
+    return;
+  }
   if (!pot.contents || pot.contents.length === 0) {
     ml.push(`${_pn}は割れた！（中は空だった）`);
     return;
@@ -716,7 +722,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
-          if (it.contents?.length > 0) {
+          if (it.potEffect === "gunpowder") {
+            /* 火薬壺：後で連鎖爆発 */
+          } else if (it.contents?.length > 0) {
             const ft2 = new Set();
             for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
             ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
@@ -727,6 +735,56 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
+  /* 破壊された火薬壺の連鎖爆発 */
+  for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
+    doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+  }
+}
+
+/** 火薬壺の爆発処理。中心＋周囲8マスを対象にする。連鎖爆発あり。 */
+let _gunpowderDepth = 0;
+export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺") {
+  if (_gunpowderDepth > 5) return;
+  if (hasCursedExplosionPentacle(dg)) { ml.push(`呪われた爆発の魔方陣が${srcLabel}の爆発を打ち消した！`); return; }
+  _gunpowderDepth++;
+  try {
+    ml.push(`${srcLabel}が爆発した！周囲8マスに爆風！`);
+    for (let ddx = -1; ddx <= 1; ddx++) {
+      for (let ddy = -1; ddy <= 1; ddy++) {
+        const ax = cx + ddx, ay = cy + ddy;
+        if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+        /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
+        if (p && p.x === ax && p.y === ay) {
+          const _hasFireR = p.armor?.ability === "fire_resist" || p.armor?.abilities?.includes("fire_resist");
+          const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
+          const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
+          p.deathCause = `${srcLabel}の爆発により`;
+          p.hp -= dmg;
+          ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
+          if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
+        }
+        /* モンスター：即死 */
+        for (const m of [...dg.monsters]) {
+          if (m.x === ax && m.y === ay) {
+            ml.push(`${srcLabel}の爆発で${m.name}は消し飛んだ！`);
+            m.hp = 0;
+            killMonster(m, dg, p, ml, luFn);
+          }
+        }
+      }
+    }
+    /* 範囲内の床上 火薬壺 を先に除去してから連鎖爆発 */
+    const _chainPots = dg.items.filter(it =>
+      it.type === "pot" && it.potEffect === "gunpowder" &&
+      Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) <= 1
+    );
+    if (_chainPots.length > 0) {
+      dg.items = dg.items.filter(i => !_chainPots.includes(i));
+      for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+    }
+  } finally {
+    _gunpowderDepth--;
+  }
 }
 
 /** 壁破壊時の石ドロップ共通処理。方法を問わず 10%で石、1%で魔法の石 */
@@ -1409,6 +1467,8 @@ export function burnFoodItem(item, ml) {
 
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
   const _dn = dnFn ? dnFn(item) : item.name;
+  /* 火薬壺は炎で誘爆 */
+  if (item.type === "pot" && item.potEffect === "gunpowder" && eff === "fire") return "gunpowder_explode";
   if (item.type === "spellbook") {
     if (eff === "fire") {
       ml.push(`魔法書「${_dn}」が燃えてなくなった！`);
@@ -1500,6 +1560,9 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
       if (br === "burn") {
         removeFloorItem(dg, it);
         chargeShopItem(it, dg, ml);
+      } else if (br === "gunpowder_explode") {
+        removeFloorItem(dg, it);
+        doGunpowderExplosion(x, y, dg, p, ml, luFn, it.name);
       }
     }
   }
@@ -1592,6 +1655,16 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     } else {
       ml.push("白紙の魔法書が泉に落ちた。");
     }
+    spr.contents.push(item);
+  } else if (item.type === "pot" && item.potEffect === "gunpowder") {
+    /* 火薬壺を泉に浸す/投げ入れると保存の壺に変化（中身保持） */
+    const _savedContents = item.contents || [];
+    const _preserveTpl = POTS.find(pp => pp.potEffect === "none");
+    Object.assign(item, { name: _preserveTpl.name, potEffect: _preserveTpl.potEffect,
+      capacity: Math.max(_preserveTpl.capacity, _savedContents.length),
+      desc: _preserveTpl.desc, tile: _preserveTpl.tile });
+    item.contents = _savedContents;
+    ml.push(`火薬壺が泉に浸され、保存の壺に変化した！中身は保たれている。`);
     spr.contents.push(item);
   } else {
     ml.push(_dn(item) + "が泉に落ちた。");
@@ -1759,7 +1832,10 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${it.name}」が燃えてなくなった！`); }
           else if (it.type === "potion") { blasted.add(it); ml.push(`薬「${it.name}」が割れてなくなった！`); }
           else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${it.name}」が燃えてなくなった！`); }
-          else if (it.type === "pot") { blasted.add(it); ml.push(`壺「${it.name}」が爆発で割れた！`); }
+          else if (it.type === "pot") {
+            blasted.add(it);
+            if (it.potEffect !== "gunpowder") ml.push(`壺「${it.name}」が爆発で割れた！`);
+          }
         }
         /* 罠の破壊 */
         const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay);
@@ -1772,6 +1848,10 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
       }
     }
     dg.items = dg.items.filter(i => !blasted.has(i));
+    /* 破壊された火薬壺の連鎖爆発 */
+    for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
+      doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+    }
   } finally {
     _explosionDepth--;
   }
@@ -2078,6 +2158,11 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       if (kind === "monster") {
         target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+      }
+      if (kind === "item" && target.type === "pot" && target.potEffect === "gunpowder") {
+        removeFloorItem(dg, target);
+        ml.push(`炎の魔法が${target.name}に当たり誘爆した！`);
+        doGunpowderExplosion(target.x, target.y, dg, p, ml, luFn, target.name);
       } break;
     }
     case "ice_bolt": {
@@ -2096,7 +2181,11 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item") {
-        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") { removeFloorItem(dg, target); ml.push(`${target.name}は雷の魔法で焼けた！`); }
+        if (target.type === "pot" && target.potEffect === "gunpowder") {
+          removeFloorItem(dg, target);
+          ml.push(`雷の魔法が${target.name}に当たり誘爆した！`);
+          doGunpowderExplosion(target.x, target.y, dg, p, ml, luFn, target.name);
+        } else if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") { removeFloorItem(dg, target); ml.push(`${target.name}は雷の魔法で焼けた！`); }
       } break;
     }
     case "sleep_bolt": {
