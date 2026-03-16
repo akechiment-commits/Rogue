@@ -512,6 +512,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
+        if (target.type === "goal") { ml.push(`${_dname_item(target)}は変化しなかった！`); break; }
         const nt = ITEMS[rng(0, ITEMS.length - 2)];
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);

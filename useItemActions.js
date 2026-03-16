@@ -1339,6 +1339,10 @@ export function useItemActions({
         setMsgs((prev) => [...prev.slice(-80), "壺の中に壺は入れられない。"]);
         return;
       }
+      if (it.type === "goal") {
+        setMsgs((prev) => [...prev.slice(-80), "大事なものは壺に入れられない！"]);
+        return;
+      }
       if (pot.contents.length >= pot.capacity) {
         setMsgs((prev) => [...prev.slice(-80), `${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`]);
         setPutMode(null);
@@ -1705,6 +1709,13 @@ export function useItemActions({
         const it = p.inventory[idx];
         if (!it) {
           setThrowMode(null);
+          return;
+        }
+        if (it.type === "goal") {
+          ml.push("大事なものは投げられない！");
+          setThrowMode(null);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
         }
         if (p.weapon === it) p.weapon = null;

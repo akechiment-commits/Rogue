@@ -472,15 +472,18 @@ export function useKeyHandler({
           } else if (identifyMode.mode === 'duplicate') {
             const _dupCount = identifyMode.cursed ? 0 : 1;
             if (_dupCount === 0) {
-              const _rmIdx = _p_id.inventory.indexOf(_selIt);
-              if (_rmIdx !== -1) {
-                _p_id.inventory.splice(_rmIdx, 1);
-                /* 巻物のインデックスがずれないよう調整 */
-                if (identifyMode.scrollIdx != null && _rmIdx < identifyMode.scrollIdx) {
-                  identifyMode.scrollIdx--;
+              if (_selIt.type === "goal") {
+                _msgResult = `${_selIt.name}は呪いに耐えた！【呪】`;
+              } else {
+                const _rmIdx = _p_id.inventory.indexOf(_selIt);
+                if (_rmIdx !== -1) {
+                  _p_id.inventory.splice(_rmIdx, 1);
+                  if (identifyMode.scrollIdx != null && _rmIdx < identifyMode.scrollIdx) {
+                    identifyMode.scrollIdx--;
+                  }
                 }
+                _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
               }
-              _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
             } else {
               /* 同種の新品アイテムを生成（チャージ・中身・強化値は複製元と無関係） */
               const _makeFresh = () => {

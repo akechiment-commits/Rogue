@@ -18,7 +18,7 @@ import {
   hasCursedExplosionPentacle,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
-import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom } from "./dungeon.js";
+import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { useGameRenderer } from './useGameRenderer.js';
@@ -681,6 +681,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
     }
     pl.depth = nd;
+    /* 最深層に到着時、goalアイテムが所持品にもフロアにもなければ再配置 */
+    if (_maxD !== null && nd >= _maxD && d.isLastFloor) {
+      const _hasGoalInv = pl.inventory?.some(i => i.type === "goal");
+      const _hasGoalFloor = d.items.some(i => i.type === "goal");
+      if (!_hasGoalInv && !_hasGoalFloor) {
+        const _dt = sr.current.dungeonType || "beginner";
+        const _gtmpl = GOAL_ITEMS[_dt] || GOAL_ITEMS.beginner;
+        const _gr = d.rooms[d.rooms.length - 1];
+        const _gx = _gr.cx ?? (_gr.x + Math.floor(_gr.w / 2));
+        const _gy = _gr.cy ?? (_gr.y + Math.floor(_gr.h / 2));
+        d.items.push({ ..._gtmpl, id: uid(), x: _gx, y: _gy });
+      }
+    }
     if (sr.current.allBcKnown) {
       d.items.forEach(it => { it.fullIdent = true; it.bcKnown = true; });
     }
@@ -1900,6 +1913,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       );
       if (bb.kind === "synthesis") {
         trySynthesize(bb, ml);
+      } else if (bb.kind === "change" && item.type === "goal") {
+        ml.push(`${item.name}は変化しなかった！`);
       } else if (bb.kind === "change") {
         const kinds = ["potion", "weapon", "armor", "food", "wand", "arrow", "pot"];
         const rt = pick(kinds);
