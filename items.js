@@ -1226,7 +1226,7 @@ export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
 export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false) {
   let r = c;
   for (const i of inv) {
-    if (i.type === "arrow" && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && i.count < 99) {
+    if (i.type === "arrow" && !i.stone && !i.magicStone && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && i.count < 99) {
       const a = Math.min(r, 99 - i.count);
       i.count += a;
       r -= a;
