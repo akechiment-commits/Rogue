@@ -1571,6 +1571,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
       const ml = [];
       let steps = 0;
+      /* ダッシュ用座標マップ構築 */
+      const _dk = (x, y) => y * MW + x;
       const _dRoomSet = new Set();
       for (const r of (dg.rooms || [])) { for (let ry = r.y; ry < r.y + r.h; ry++) for (let rx = r.x; rx < r.x + r.w; rx++) _dRoomSet.add(_dk(rx, ry)); }
       const startInRoom = _dRoomSet.has(_dk(p.x, p.y));
@@ -1596,8 +1598,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           );
         }).length;
       let prevPerps = getP(p.x, p.y);
-      /* ダッシュ用座標マップ構築 */
-      const _dk = (x, y) => y * MW + x;
       const _dMonMap = new Map(); for (const m of dg.monsters) _dMonMap.set(_dk(m.x, m.y), m);
       const _dItemMap = new Map(); for (const i of dg.items) { if (!_dItemMap.has(_dk(i.x, i.y))) _dItemMap.set(_dk(i.x, i.y), i); }
       const _dTrapMap = new Map(); for (const t of dg.traps) _dTrapMap.set(_dk(t.x, t.y), t);
