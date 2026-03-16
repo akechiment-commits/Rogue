@@ -1906,7 +1906,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       bb.contents = bb.contents.filter((i) => i !== base && i !== mat);
       /* 短剣カウントが3以上なら猫の爪に変化 */
       if (merged.daggerMerge >= 3) {
-        const _catClaw = { ...CAT_CLAW_T, id: uid(), plus: merged.plus };
+        const _catAbilities = [...new Set([...(_mabs || []), CAT_CLAW_T.ability])];
+        const _catClaw = { ...CAT_CLAW_T, id: uid(), plus: merged.plus, ability: _catAbilities[0], abilities: _catAbilities };
         bb.contents.push(_catClaw);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！短剣が融合して猫の爪に変化した！`);
@@ -2073,15 +2074,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
         if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
           const _oldPlus = it.plus || 0;
+          const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
           Object.assign(it, { ...EXCALIBUR_T, id: it.id, plus: _oldPlus });
-          if (it.abilities) { it.abilities = [...new Set([...it.abilities, EXCALIBUR_T.ability])]; it.ability = it.abilities[0]; }
+          const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
+          it.abilities = _newAbs; it.ability = _newAbs[0];
           ml.push(`${it.name}が聖なる光を放ち...エクスカリバーに変化した！`);
         } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧") && Math.random() < 0.20) {
           const _oldPlus = it.plus || 0;
           const _oldName = it.name;
+          const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
           const _goldAxe = ITEMS.find(i => i.name === "金の斧");
           Object.assign(it, { ..._goldAxe, id: it.id, plus: _oldPlus });
-          if (it.abilities) { it.abilities = [...new Set([...it.abilities, _goldAxe.ability])]; it.ability = it.abilities[0]; }
+          const _newAbs = [...new Set([..._oldAbs, _goldAxe.ability])];
+          it.abilities = _newAbs; it.ability = _newAbs[0];
           ml.push(`${_oldName}が黄金の輝きを放ち...金の斧に変化した！`);
         } else if (hasAbility(it, "no_degrade")) {
           ml.push(`${it.name}が水に浸かったが金でできているので錆びなかった！`);
