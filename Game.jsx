@@ -2014,6 +2014,51 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else {
           ml.push(`${_idn}には効果がなかった。`);
         }
+      } else if (bb.kind === "identify") {
+        const _ik = getIdentKey(item);
+        if (_ik && !sr.current.ident.has(_ik)) {
+          sr.current.ident.add(_ik);
+          item.bcKnown = true;
+          item.fullIdent = true;
+          const _realName = itemDisplayName(item, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
+          ml.push(`${_idn}は${_realName}だと判明した！`);
+        } else if (item.type === "weapon" || item.type === "armor") {
+          item.bcKnown = true;
+          item.fullIdent = true;
+          ml.push(`${_idn}の詳細が判明した！`);
+        } else {
+          item.bcKnown = true;
+          ml.push(`${_idn}は既に知っているものだった。`);
+        }
+      } else if (bb.kind === "split") {
+        if (item.type === "gold" || item.type === "goal") {
+          ml.push(`${_idn}は分裂しなかった。`);
+        } else {
+          const _clone = { ...item, id: uid() };
+          if (_clone.abilities) _clone.abilities = [..._clone.abilities];
+          if (_clone.contents) _clone.contents = [..._clone.contents];
+          /* +値は半減 */
+          if ((_clone.plus || 0) !== 0) _clone.plus = Math.floor(_clone.plus / 2);
+          if ((item.plus || 0) !== 0) item.plus = Math.floor(item.plus / 2);
+          /* 矢・石は数量半減 */
+          if (item.count > 1) {
+            const half = Math.floor(item.count / 2);
+            item.count = item.count - half;
+            _clone.count = half;
+          }
+          bb.contents.push(_clone);
+          const _cName = itemDisplayName(_clone, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+          ml.push(`${_idn}が分裂した！${_cName}が現れた！`);
+        }
+      } else if (bb.kind === "bless") {
+        if (item.type === "goal") {
+          ml.push(`${_idn}には効果がなかった。`);
+        } else {
+          item.blessed = true;
+          item.cursed = false;
+          item.bcKnown = true;
+          ml.push(`${_idn}が祝福された！【祝】`);
+        }
       }
       if (wasFull || bb.contents.length > bb.capacity) breakBigbox(bb, dg, ml);
     },
