@@ -1318,6 +1318,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         { player: p, dungeon: dg } = st;
       let acted = false;
       const ml = [];
+      const doStair = (dir) => {
+        const nd = chgFloor(p, dir);
+        if (nd) {
+          st.dungeon = nd;
+          ml.push(`地下${p.depth}階に${dir > 0 ? "降りた" : "昇った"}。`);
+          if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
+          acted = true;
+        }
+      };
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || p.slowSkip) return;
       if (type === "inventory") {
         setSpellListMode(false);
@@ -1556,13 +1565,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               return;
             }
           } else {
-            const nd = chgFloor(p, 1);
-            if (nd) {
-              st.dungeon = nd;
-              ml.push(`地下${p.depth}階に降りた。`);
-              if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
-              acted = true;
-            }
+            doStair(1);
           }
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
@@ -1573,13 +1576,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               return;
             }
           } else {
-            const nd = chgFloor(p, -1);
-            if (nd) {
-              st.dungeon = nd;
-              ml.push(`地下${p.depth}階に昇った。`);
-              if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
-              acted = true;
-            }
+            doStair(-1);
           }
         } else ml.push("ここに上り階段はない。");
       } else if (type === "interact") {
@@ -1594,8 +1591,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               return;
             }
           } else {
-            const nd = chgFloor(p, 1);
-            if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に降りた。`); if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]); acted = true; }
+            doStair(1);
           }
         } else if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
@@ -1604,8 +1600,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               return;
             }
           } else {
-            const nd = chgFloor(p, -1);
-            if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に昇った。`); if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]); acted = true; }
+            doStair(-1);
           }
         } else {
           /* 足元の大箱チェック（前方は除く） */
