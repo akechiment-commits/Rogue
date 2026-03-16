@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { ITEMS, POTS, SPELLS, SPELLBOOKS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { T, uid, rng, refreshFOV } from "./utils.js";
@@ -572,6 +573,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 
 /* ===== Shop Modal ===== */
 export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile }) {
+  const [sellAllConfirm, setSellAllConfirm] = useState(false);
+  useEffect(() => { if (!mode) setSellAllConfirm(false); }, [mode]);
   if (!mode || !gs?.dungeon?.shop) return null;
   return (
     <div
@@ -676,6 +679,67 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           ))}
         </div>
       )}
+      {mode === "browse" && (() => {
+        const _p = gs.player;
+        const _sellItems = _p.inventory.filter(it => it.type !== "gold");
+        const _totalG = _sellItems.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
+        if (sellAllConfirm) {
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
+                店主：「本当によろしいですか？全 {_sellItems.length} 件を{_totalG.toLocaleString()}Gで買い取ります。」
+              </div>
+              {[
+                {
+                  label: `はい、全て売る (${_totalG.toLocaleString()}G)`,
+                  fn: () => {
+                    if (!sr.current) return;
+                    const { player: p2 } = sr.current;
+                    const toSell = p2.inventory.filter(it => it.type !== "gold");
+                    const earned = toSell.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
+                    p2.inventory = p2.inventory.filter(it => it.type === "gold");
+                    p2.gold += earned;
+                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件を${earned.toLocaleString()}Gで売却した。`]);
+                    sr.current = { ...sr.current };
+                    setGs({ ...sr.current });
+                    setSellAllConfirm(false);
+                    setMode(null);
+                  },
+                },
+                { label: "やめる", fn: () => setSellAllConfirm(false) },
+              ].map((item, mi) => (
+                <button key={mi} onClick={item.fn} style={{
+                  padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
+                  border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
+                  color: menuSel === mi ? "#ffa" : "#fa8", fontSize: 12, cursor: "pointer", textAlign: "left",
+                }}>{item.label}</button>
+              ))}
+            </div>
+          );
+        }
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
+              店主：「いらっしゃいませ！」
+            </div>
+            {[
+              {
+                label: `所持品を全て売る (${_totalG.toLocaleString()}G)`,
+                disabled: _sellItems.length === 0,
+                fn: () => { if (_sellItems.length > 0) setSellAllConfirm(true); },
+              },
+              { label: "やめる", fn: () => setMode(null) },
+            ].map((item, mi) => (
+              <button key={mi} onClick={item.fn} disabled={item.disabled} style={{
+                padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
+                border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
+                color: item.disabled ? "#664422" : menuSel === mi ? "#ffa" : "#fa8",
+                fontSize: 12, cursor: item.disabled ? "default" : "pointer", textAlign: "left",
+              }}>{item.label}</button>
+            ))}
+          </div>
+        );
+      })()}
       {mode === "sell" &&
         (() => {
           const dg2 = gs.dungeon;

@@ -1537,6 +1537,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             setShopMode("pay"); setShopMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), `店主：「お代は${dg6.shop.unpaidTotal}Gです。」`]);
           } else {
+            setShopMode("browse"); setShopMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), "店主：「いらっしゃいませ！」"]);
           }
         }
