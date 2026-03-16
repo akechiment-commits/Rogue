@@ -5334,6 +5334,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 ? it.atk * Math.min(it.count, 5) + it.count
                 : 3) + rng(0, 3);
           let lx = p.x, ly = p.y, hit = false, sprHit = null;
+          let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
+          let _throwSwapTarget = null; /* 遠投場所替え：最後に当たった敵を記録 */
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
@@ -5352,13 +5354,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 break;
               }
               if (it.type === "wand") {
-                /* 杖を投げて命中：杖の効果を発動 */
+                /* 杖を投げて命中：チャージ不問で効果を1回発動し消滅 */
                 const _throwWandBm = getBlessMultiplier(it);
                 const _throwWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                 ml.push(`${lb}が${m.name}に命中！`);
-                if ((it.charges || 0) > 0) {
-                  it.charges--;
+                if (_isFarcast && it.effect === "swap") {
+                  /* 遠投場所替え：最後に当たった敵を記録して後でまとめて入れ替え */
+                  _throwSwapTarget = m;
+                } else {
                   applyWandEffect(it.effect, "monster", m, dx, dy, dg, p, ml, lu, bigboxAddItem, _throwWandBm, _throwWandDName);
+                  _wandFiredEffect = true;
                 }
                 if (p._pendingWarpUp) {
                   delete p._pendingWarpUp;
@@ -5382,9 +5387,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
           if (_isFarcast) {
             const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
+            /* 遠投場所替え：最後に当たった敵と入れ替え */
+            if (it.type === "wand" && it.effect === "swap" && _throwSwapTarget) {
+              const _throwWandBm = getBlessMultiplier(it);
+              const _throwWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              applyWandEffect("swap", "monster", _throwSwapTarget, dx, dy, dg, p, ml, lu, bigboxAddItem, _throwWandBm, _throwWandDName);
+            }
             ml.push(`${lb}を投げた。${lb}は消滅した。`);
-          } else if (hit && it.type === "wand") {
-            /* 杖が命中後、床に落下する */
+          } else if (hit && it.type === "wand" && !_wandFiredEffect) {
+            /* 外れた杖は足元に落ちる */
             const ft = new Set();
             const _twPfBag = [];
             setPitfallBag(_twPfBag);

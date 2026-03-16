@@ -341,16 +341,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (target.type === "pot") {
           scatterPotContents(target, dg, res.x, res.y, p, ml, luFn);
         } else if (target.type === "wand") {
-          /* 吹き飛んだ杖が何かに命中した場合、杖の効果を発動してから床に落とす */
-          if ((res.hitMonster || res.hitPlayer) && (target.charges || 0) > 0) {
-            target.charges--;
+          /* 吹き飛んだ杖がキャラクターに命中：チャージ不問で効果1回発動し消滅 */
+          if (res.hitMonster || res.hitPlayer) {
             const _kbWandBm = target.blessed ? 1.5 : target.cursed ? 0.5 : 1;
             if (res.hitMonster) applyWandEffect(target.effect, "monster", res.hitMonster, dx, dy, dg, p, ml, luFn, bbFn, _kbWandBm, nameFn);
             else if (res.hitPlayer) applyWandEffect(target.effect, "player", p, dx, dy, dg, p, ml, luFn, bbFn, _kbWandBm, nameFn);
+            /* 命中した杖は消滅（床に置かない） */
+          } else {
+            /* 何にも当たらなかった場合は床に残る */
+            const ft = new Set();
+            placeItemAt(dg, res.x, res.y, target, ml, ft);
           }
-          /* 杖は常に床に残る（consumed でも落下位置に戻す） */
-          const ft = new Set();
-          placeItemAt(dg, res.x, res.y, target, ml, ft);
         } else if (!res.consumed) {
           const ft = new Set();
           placeItemAt(dg, res.x, res.y, target, ml, ft);
