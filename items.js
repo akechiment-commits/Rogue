@@ -547,15 +547,15 @@ export const BB_TYPES = [
 
 /* ===== POTS ===== */
 export const POTS = [
-  { name:"チョコの壺",   type:"pot", potEffect:"choco",   capacity:3, desc:"食料を入れるとチョコがけになる。",     tile:32 },
-  { name:"唐辛子の壺",   type:"pot", potEffect:"spicy",   capacity:3, desc:"食料を入れると激辛になる。",           tile:32 },
+  { name:"チョコの壺",   type:"pot", potEffect:"choco",   capacity:3, desc:"食料を入れるとチョコがけになる。食べるとHP回復。",  tile:32 },
+  { name:"唐辛子の壺",   type:"pot", potEffect:"spicy",   capacity:3, desc:"食料を入れると激辛になる。食べると攻撃力UP。",     tile:32 },
   { name:"蜂蜜の壺",     type:"pot", potEffect:"honey",   capacity:3, desc:"食料を入れるとはちみつ漬けになる。",   tile:32 },
   { name:"保存の壺",     type:"pot", potEffect:"none",    capacity:5, desc:"アイテムを安全に保管できる。",         tile:32 },
   { name:"強化の壺",     type:"pot", potEffect:"enhance", capacity:2, desc:"装備品の性能が上がる。",               tile:32 },
   { name:"弱化の壺",     type:"pot", potEffect:"weaken",  capacity:3, desc:"入れた装備品が劣化する呪いの壺。",     tile:32 },
   { name:"カレーの壺",   type:"pot", potEffect:"curry",   capacity:3, desc:"食料を入れるとカレー味になる。",       tile:32 },
   { name:"味噌の壺",     type:"pot", potEffect:"miso",    capacity:3, desc:"食料を入れると味噌漬けになる。",       tile:32 },
-  { name:"燻製の壺",     type:"pot", potEffect:"smoke",   capacity:3, desc:"未調理の食料を燻製にできる。",         tile:32 },
+  { name:"燻製の壺",     type:"pot", potEffect:"smoke",   capacity:3, desc:"食料を燻製にする。食べると最大満腹度が上がる。", tile:32 },
   { name:"祝福の壺",     type:"pot", potEffect:"bless_pot", capacity:3, desc:"入れたアイテムを祝福する。",           tile:32 },
   { name:"呪いの壺",     type:"pot", potEffect:"curse_pot", capacity:3, desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",     type:"pot", potEffect:"boil",      capacity:3, desc:"薬を入れると部屋中に薬効が広がる。生の食料を入れると焼いた状態になる。その他のものは保管できる。", tile:32 },
@@ -638,18 +638,23 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     return;
   }
   if (pe === "smoke") {
-    if (item.type === "food" && !item.cooked) {
-      item.value = item.value * 2;
-      item.cooked = true;
+    if (item.type === "food") {
+      if (item.smoked) { ml.push(`${item.name}は既に燻製だ。`); return; }
+      if (!item.cooked) {
+        item.value = item.value * 2;
+        item.cooked = true;
+      }
+      item.smoked = true;
       item.name = "燻製" + item.name;
       item.desc = POT_FOOD_DESCS.smoke;
-      ml.push(`${item.name}になった！`);
+      ml.push(`${item.name}になった！(食べると最大満腹度UP)`);
       return;
     }
-    if (item.type === "food") { ml.push(`${item.name}は既に調理済みだ。`); return; }
   }
   const pfx = POT_FOOD_PREFIX[pe];
   if (pfx && item.type === "food") {
+    if (!item.potFlavors) item.potFlavors = [];
+    item.potFlavors.push(pe);
     item.name = pfx + item.name;
     item.value = Math.max(1, Math.floor(item.value * 0.8));
     const _catBonus = POT_CAT_BONUS[pe];

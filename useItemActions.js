@@ -436,6 +436,25 @@ export function useItemActions({
           }
         }
       }
+      /* 壺の味付け特殊効果 */
+      if (it.smoked) {
+        const _smInc = rng(3, 5);
+        p.maxHunger = (p.maxHunger || 100) + _smInc;
+        ml.push(`燻製の風味で最大満腹度が${_smInc}上がった！(最大${p.maxHunger})`);
+      }
+      if (it.potFlavors) {
+        for (const _pf of it.potFlavors) {
+          if (_pf === "choco") {
+            const _chHeal = rng(10, 20);
+            const _chAh = Math.min(_chHeal, p.maxHp - p.hp);
+            p.hp += _chAh;
+            if (_chAh > 0) ml.push(`チョコの甘さでHP+${_chAh}回復！`);
+          } else if (_pf === "spicy") {
+            p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 30;
+            ml.push("辛さでパワーアップ！攻撃力+3(30ターン)");
+          }
+        }
+      }
     } else if (it.type === "scroll") {
       if (it.effect === "blank") {
         ml.push("白紙の巻物だ。魔法のマーカーで書き込めるかもしれない。");

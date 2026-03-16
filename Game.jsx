@@ -691,7 +691,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         hasAbility(p.armor, "slow_hunger")
           ? 2
           : 1;
-      if (p.turns % (15 * hd) === 0) {
+      if (p.turns % (10 * hd) === 0) {
         p.hunger = Math.max(0, p.hunger - 1);
       }
       if (p.hunger === 0) {
@@ -1129,7 +1129,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 attackMon.paralyzed = false;
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
-              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0);
+              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0);
               const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;
@@ -1466,6 +1466,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if ((p.sureHitTurns || 0) > 0) {
           p.sureHitTurns--;
           if (p.sureHitTurns <= 0) ml.push("必中状態が切れた！");
+        }
+        /* 攻撃力ブースト（唐辛子等） */
+        if ((p.spicyAtkTurns || 0) > 0) {
+          p.spicyAtkTurns--;
+          if (p.spicyAtkTurns <= 0) ml.push("辛さによる攻撃力ブーストが切れた！");
         }
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
