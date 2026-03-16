@@ -405,6 +405,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       sy = clamp(_camCy - hh, 0, Math.max(0, MH - vh));
     ctx.fillStyle = "#080810";
     ctx.fillRect(0, 0, cw, ch);
+    /* 座標インデックス構築: O(n)→O(1)ルックアップ */
+    const _k = (x, y) => y * MW + x;
+    const _monMap = new Map(); for (const m of dg.monsters) _monMap.set(_k(m.x, m.y), m);
+    const _itemMap = new Map(); for (const i of dg.items) { if (!_itemMap.has(_k(i.x, i.y))) _itemMap.set(_k(i.x, i.y), i); }
+    const _trapMap = new Map(); for (const t2 of dg.traps) _trapMap.set(_k(t2.x, t2.y), t2);
+    const _sprMap = new Map(); if (dg.springs) for (const s of dg.springs) _sprMap.set(_k(s.x, s.y), s);
+    const _bbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _bbMap.set(_k(b.x, b.y), b);
+    const _pentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _pentMap.set(_k(pc.x, pc.y), pc);
+    /* 部屋マップ: 全部屋の矩形をタイルレベルでフラグ化 */
+    const _roomSet = new Set();
+    for (const r of [...dg.rooms, ...(dg.hiddenRooms || [])]) {
+      for (let ry = r.y; ry < r.y + r.h; ry++) for (let rx = r.x; rx < r.x + r.w; rx++) _roomSet.add(_k(rx, ry));
+    }
     for (let vy = 0; vy < vh; vy++) {
       for (let vx = 0; vx < vw; vx++) {
         const x = sx + vx,
@@ -426,13 +439,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (t === T.WALL || t === T.BWALL) ti = TI.WALL;
         else if (t === T.SD) ti = TI.SD;
         else if (t === T.SU) ti = TI.SU;
-        /* Check if in corridor (not in any room, including hidden rooms) */ if (
-          t === T.FLOOR &&
-          ![...dg.rooms, ...(dg.hiddenRooms || [])].some(
-            (r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h,
-          )
-        )
-          ti = TI.CORR;
+        /* Check if in corridor (not in any room, including hidden rooms) */
+        if (t === T.FLOOR && !_roomSet.has(_k(x, y))) ti = TI.CORR;
         drawTile(ctx, ts, ti, px2, py2, sz);
         /* 壊せる壁にヒビ表示 */
         if (t === T.BWALL && (vis || exp2)) {
@@ -452,7 +460,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         /* 壁埋めアイテム：祝福マップ使用後に壁タイル上で薄く表示 */
         if ((t === T.WALL || t === T.BWALL) && (vis || exp2) && dg.itemsRevealed) {
-          const _wi = dg.items.find(i => i.x === x && i.y === y && i.wallEmbedded);
+          const _wi = dg.items.find(i => i.x === x && i.y === y && i.wallEmbedded); /* wall-embedded: rare, keep linear */
           if (_wi) {
             ctx.globalAlpha = 0.55;
             ctx.fillStyle = "rgba(255,220,60,0.25)";
@@ -461,22 +469,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             ctx.globalAlpha = 1;
           }
         }
-        /* Spring */ const spr = dg.springs?.find(
-          (s) => s.x === x && s.y === y,
-        );
+        /* Spring */ const spr = _sprMap.get(_k(x, y));
         if (spr && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.4;
           drawTile(ctx, ts, TI.SPRING, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
-        const bba = dg.bigboxes?.find((b) => b.x === x && b.y === y);
+        const bba = _bbMap.get(_k(x, y));
         if (bba && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.4;
           drawTile(ctx, ts, TI.BIGBOX, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
         /* Pentacle (魔方陣) */
-        const _pent = dg.pentacles?.find((pc) => pc.x === x && pc.y === y);
+        const _pent = _pentMap.get(_k(x, y));
         if (_pent && vis) {
           const _pentClr =
             _pent.kind === "sanctuary"    ? (_pent.blessed ? "#c0ffd8" : _pent.cursed ? "#800040" : "#40ff80") :
@@ -522,9 +528,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             );
             continue;
           }
-          /* Monster (壁歩きは別パスで描画) */ const mon = dg.monsters.find(
-            (m) => m.x === x && m.y === y && !m.wallWalker,
-          );
+          /* Monster (壁歩きは別パスで描画) */ const mon = (() => { const _m = _monMap.get(_k(x, y)); return _m && !_m.wallWalker ? _m : undefined; })();
           if (mon) {
             const _monTile = (p.bewitchedTurns || 0) > 0
               ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 7 + y * 13) % 9]
@@ -541,7 +545,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
             continue;
           }
-          /* Item */ const it = dg.items.find((i) => i.x === x && i.y === y && !i.wallEmbedded);
+          /* Item */ const it = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded ? _i : undefined; })();
           if (it) {
             const _itTile = (p.bewitchedTurns || 0) > 0
               ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 11 + y * 19) % 9]
@@ -549,9 +553,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             drawTile(ctx, ts, _itTile, px2, py2, sz);
             continue;
           }
-          /* Trap */ const tr = dg.traps.find(
-            (t2) => t2.x === x && t2.y === y && t2.revealed,
-          );
+          /* Trap */ const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
           if (tr) {
             drawTile(ctx, ts, tr.tile, px2, py2, sz);
           }
@@ -562,10 +564,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           const _inDark = (p.darknessTurns || 0) > 0;
           if (!_inDark) {
             /* 発見済みアイテムを薄く表示（祝福マップ時は未発見も含む） */
-            const ri = dg.items.find((i) => i.x === x && i.y === y && !i.wallEmbedded && (i.discovered || dg.itemsRevealed));
+            const ri = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded && (_i.discovered || dg.itemsRevealed) ? _i : undefined; })();
             if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
             /* 発見済み罠を薄く表示 */
-            const tr = dg.traps.find((t2) => t2.x === x && t2.y === y && t2.revealed);
+            const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
             if (tr) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, tr.tile, px2, py2, sz); ctx.globalAlpha = 1; }
           }
         }
