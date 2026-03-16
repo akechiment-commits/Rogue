@@ -598,9 +598,15 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   ml.push(`${_in}を${_pn}に入れた。`);
 }
 
+export function randPotCapacity(potEffect) {
+  if (potEffect === "none") return rng(4, 6);
+  if (potEffect === "enhance" || potEffect === "bless_pot" || potEffect === "curse_pot") return rng(1, 2);
+  return rng(3, 5);
+}
+
 export function makePot() {
   const t = pick(POTS);
-  return { ...t, id:uid(), contents:[] };
+  return { ...t, id:uid(), contents:[], capacity: randPotCapacity(t.potEffect) };
 }
 
 export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
@@ -1682,8 +1688,9 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     /* 火薬壺を泉に浸す/投げ入れると保存の壺に変化（中身保持） */
     const _savedContents = item.contents || [];
     const _preserveTpl = POTS.find(pp => pp.potEffect === "none");
+    const _origCap = item.capacity;
     Object.assign(item, { name: _preserveTpl.name, potEffect: _preserveTpl.potEffect,
-      capacity: Math.max(_preserveTpl.capacity, _savedContents.length),
+      capacity: Math.max(_origCap, _savedContents.length),
       desc: _preserveTpl.desc, tile: _preserveTpl.tile });
     item.contents = _savedContents;
     ml.push(`火薬壺が泉に浸され、保存の壺に変化した！中身は保たれている。`);

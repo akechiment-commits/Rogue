@@ -82,6 +82,7 @@ import {
   getIdentKey,
   generateFakeNames,
   hasCursedExplosionPentacle,
+  randPotCapacity,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse } from "./dungeon.js";
@@ -2275,8 +2276,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (it.type === "pot" && it.potEffect === "gunpowder") {
         const _savedContents = it.contents || [];
         const _preserveTpl = POTS.find(pp => pp.potEffect === "none");
+        const _origCap = it.capacity;
         Object.assign(it, { name: _preserveTpl.name, potEffect: _preserveTpl.potEffect,
-          capacity: Math.max(_preserveTpl.capacity, _savedContents.length),
+          capacity: Math.max(_origCap, _savedContents.length),
           desc: _preserveTpl.desc, tile: _preserveTpl.tile });
         it.contents = _savedContents;
         ml.push(`火薬壺を泉に浸した...保存の壺に変化した！中身は保たれている。`);
@@ -2800,7 +2802,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 }
                 if (_selIt.type === "pot") {
                   const _tpl = POTS.find(pp => pp.potEffect === _selIt.potEffect) || _selIt;
-                  return { ..._tpl, id: uid(), contents: [] };
+                  return { ..._tpl, id: uid(), contents: [], capacity: randPotCapacity(_tpl.potEffect) };
                 }
                 if (_selIt.type === "weapon" || _selIt.type === "armor") {
                   const _tpl = ITEMS.find(i => i.name === _selIt.name) || _selIt;
