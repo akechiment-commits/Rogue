@@ -1,4 +1,4 @@
-import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster } from "./utils.js";
+import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility } from "./utils.js";
 import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
@@ -77,14 +77,17 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "spin": {
-      const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-      p.x = rng(rm.x, rm.x + rm.w - 1);
-      p.y = rng(rm.y, rm.y + rm.h - 1);
+      for (let _a = 0; _a < 200; _a++) {
+        const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
+        const nx = rng(rm.x, rm.x + rm.w - 1);
+        const ny = rng(rm.y, rm.y + rm.h - 1);
+        if (dg.map[ny]?.[nx] === T.FLOOR) { p.x = nx; p.y = ny; break; }
+      }
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
       break;
     }
     case "sleep":
-      if (p.armor?.ability === "sleep_proof") {
+      if (hasAbility(p.armor, "sleep_proof")) {
         ml.push(`${trap.name}が発動！しかし眠れなかった！(耐眠)`);
       } else {
         p.sleepTurns = (p.sleepTurns || 0) + rng(3, 6);
@@ -153,9 +156,13 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
         const _stIdx = rng(0, p.inventory.length - 1);
         const _stItem = p.inventory.splice(_stIdx, 1)[0];
         const _stFt = new Set([trap.id]);
-        const _stRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
-        const _stX = rng(_stRoom.x, _stRoom.x + _stRoom.w - 1);
-        const _stY = rng(_stRoom.y, _stRoom.y + _stRoom.h - 1);
+        let _stX = p.x, _stY = p.y;
+        for (let _a = 0; _a < 200; _a++) {
+          const _stRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
+          const _tx = rng(_stRoom.x, _stRoom.x + _stRoom.w - 1);
+          const _ty = rng(_stRoom.y, _stRoom.y + _stRoom.h - 1);
+          if (dg.map[_ty]?.[_tx] === T.FLOOR) { _stX = _tx; _stY = _ty; break; }
+        }
         placeItemAt(dg, _stX, _stY, _stItem, ml, _stFt);
         ml.push(`${trap.name}が発動！${nameFn ? nameFn(_stItem) : _stItem.name}がどこかへ飛んでいった！`);
       } else {

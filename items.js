@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
@@ -761,7 +761,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
         if (p && p.x === ax && p.y === ay) {
-          const _hasFireR = p.armor?.ability === "fire_resist" || p.armor?.abilities?.includes("fire_resist");
+          const _hasFireR = hasAbility(p.armor, "fire_resist");
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
           const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
           p.deathCause = `${srcLabel}の爆発により`;
@@ -875,7 +875,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (p && p.x === tx && p.y === ty) {
         const _peq = p.weapon || p.armor;
         if (_peq) {
-          if (_peq.ability === "no_degrade" || _peq.abilities?.includes("no_degrade")) {
+          if (hasAbility(_peq, "no_degrade")) {
             ml.push(`${_peq.name}は金でできているので錆びなかった！`);
           } else {
             const _pop = _peq.plus || 0;
@@ -1157,7 +1157,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
   };
   const _fireResist = (pl) =>
-    pl.armor?.ability === "fire_resist" || !!pl.armor?.abilities?.includes("fire_resist");
+    hasAbility(pl.armor, "fire_resist");
   switch (eff) {
     case "water": // 水は通常のhealと同じ挙動
     case "heal":
@@ -1641,7 +1641,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   } else if (item.type === "weapon") {
     let _wNote = "";
     if (item.cursed) { item.cursed = false; _wNote += " 呪いが解けた！"; }
-    if (item.ability === "no_degrade" || item.abilities?.includes("no_degrade")) {
+    if (hasAbility(item, "no_degrade")) {
       ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _wNote);
     } else {
       const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
@@ -1653,7 +1653,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   } else if (item.type === "armor") {
     let _aNote = "";
     if (item.cursed) { item.cursed = false; _aNote += " 呪いが解けた！"; }
-    if (item.ability === "no_degrade" || item.abilities?.includes("no_degrade")) {
+    if (hasAbility(item, "no_degrade")) {
       ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _aNote);
     } else {
       const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
@@ -1739,7 +1739,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
     item.y = cy;
     dg.items.push(item);
     if (item.shopPrice) {
-      const _allS = dg.shops || (dg.shop ? [dg.shop] : []);
+      const _allS = getShops(dg);
       const _iShop = _allS.find(s => s.id === item._shopId && s.unpaidTotal > 0) ||
                      _allS.find(s => s.unpaidTotal > 0);
       if (_iShop) {
@@ -1848,7 +1848,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         }
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
         if (p && p.x === ax && p.y === ay) {
-          const _hasFireR = p.armor?.ability === "fire_resist" || p.armor?.abilities?.includes("fire_resist");
+          const _hasFireR = hasAbility(p.armor, "fire_resist");
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
           const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
           p.deathCause = `${exPc.name}の爆発により`;
@@ -2025,7 +2025,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
 
 export function chargeShopItem(item, dg, ml) {
   if (!item.shopPrice) return;
-  const _allS = dg.shops || (dg.shop ? [dg.shop] : []);
+  const _allS = getShops(dg);
   const _shop = _allS.find(s => s.id === item._shopId) || _allS[0];
   if (!_shop) return;
   _shop.unpaidTotal += item.shopPrice;
@@ -2120,7 +2120,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
 
 export function checkShopTheft(p, dg, ml) {
   if (!dg || p.isThief) return;
-  const shops = dg.shops || (dg.shop ? [dg.shop] : []);
+  const shops = getShops(dg);
   for (const s of shops) {
     if (s.unpaidTotal <= 0) continue;
     const inShop = p.x >= s.room.x && p.x < s.room.x + s.room.w &&

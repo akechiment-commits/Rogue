@@ -1,7 +1,7 @@
 import { ITEMS, POTS, SPELLS, SPELLBOOKS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { T, uid, rng, refreshFOV } from "./utils.js";
-import { TILE_NAMES, customTileImages } from "./render.js";
+import { TILE_NAMES, TILE_RENDER, customTileImages } from "./render.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
 
 /* ===== Tile Editor Modal ===== */
@@ -84,41 +84,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
         {Object.entries(TILE_NAMES).map(([idx, name]) => {
           const ii = parseInt(idx);
           const hasCust = !!customTileImages[ii];
-          const fb = {
-            0: { bg: "#1a1a22", fg: "#3a3a4a", ch: "#" },
-            1: { bg: "#0c0c14", fg: "#252530", ch: "." },
-            2: { bg: "#0c0c14", fg: "#0ff", ch: ">" },
-            3: { bg: "#0c0c14", fg: "#0f0", ch: "<" },
-            4: { bg: "#080810", fg: "#1a1a22", ch: ":" },
-            5: { bg: null, fg: "#ffe030", ch: "@" },
-            6: { bg: null, fg: "#c08050", ch: "r" },
-            7: { bg: null, fg: "#70a050", ch: "k" },
-            8: { bg: null, fg: "#40a070", ch: "g" },
-            9: { bg: null, fg: "#c0c0b0", ch: "s" },
-            10: { bg: null, fg: "#60a050", ch: "z" },
-            11: { bg: null, fg: "#90a040", ch: "O" },
-            12: { bg: null, fg: "#40b040", ch: "~" },
-            13: { bg: null, fg: "#806030", ch: "T" },
-            14: { bg: null, fg: "#f04020", ch: "D" },
-            15: { bg: null, fg: "#9040d0", ch: "V" },
-            16: { bg: null, fg: "#f050e0", ch: "!" },
-            17: { bg: null, fg: "#f090f0", ch: "!" },
-            18: { bg: null, fg: "#f0f050", ch: "?" },
-            19: { bg: null, fg: "#50c050", ch: "%" },
-            20: { bg: null, fg: "#a0a0a0", ch: "/" },
-            21: { bg: null, fg: "#5090c0", ch: "[" },
-            22: { bg: null, fg: "#f0d000", ch: "$" },
-            23: { bg: null, fg: "#d0a050", ch: "|" },
-            24: { bg: null, fg: "#a050f0", ch: "\\" },
-            25: { bg: null, fg: "#f03030", ch: "^" },
-            26: { bg: null, fg: "#f08030", ch: "^" },
-            27: { bg: null, fg: "#804040", ch: "^" },
-            28: { bg: null, fg: "#909090", ch: "^" },
-            29: { bg: null, fg: "#4080f0", ch: "^" },
-            30: { bg: null, fg: "#80f040", ch: "^" },
-            31: { bg: "#1a3a5a", fg: "#4af", ch: "♨" },
-            32: { bg: "#3a2a1a", fg: "#7a5a2a", ch: "壺" },
-          }[ii];
+          const fb = TILE_RENDER[ii];
           return (
             <div
               key={idx}
@@ -1694,7 +1660,7 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, loadPortrait, cle
 /* ===== Floor Select Modal (cursed teleport) ===== */
 export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, genDungeon, refreshFOV, rng }) {
   if (!mode) return null;
-  const MAX_FLOOR = 30;
+  const MAX_FLOOR = sr.current?.maxDepth || 50;
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#111", border: "1px solid #550", borderRadius: 6, padding: "12px 20px", color: "#ffe", minWidth: 180, maxHeight: "70vh", overflowY: "auto" }}>

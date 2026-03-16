@@ -71,6 +71,31 @@ export function sortWarehouseItems(items) {
   });
 }
 
+/* ショップ配列の正規化: shops || [shop] || [] */
+export const getShops = (dg) => dg.shops || (dg.shop ? [dg.shop] : []);
+
+/* アビリティ判定: ability(単体) or abilities(配列) のどちらかにあるか */
+export const hasAbility = (item, id) => item?.ability === id || !!item?.abilities?.includes(id);
+
+/* 1マス通路判定：上下左右の床隣接数が2以下 */
+export const isNarrowPassage = (map, x, y) => {
+  let n = 0;
+  for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+    const t = map[y+dy]?.[x+dx]; if (t === T.FLOOR || t === T.SU || t === T.SD) n++;
+  }
+  return n <= 2;
+};
+
+/* 脆弱の魔方陣チェック: 指定座標が属する部屋内に vulnerability pentacle があるか */
+export function findVulnPentacle(dg, x, y) {
+  const room = [...(dg.rooms || []), ...(dg.hiddenRooms || [])].find(
+    r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
+  );
+  if (!room) return null;
+  return dg.pentacles?.find(pc => pc.kind === "vulnerability" &&
+    pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h) || null;
+}
+
 export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }

@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
@@ -323,7 +323,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         removeFloorItem(dg, target);
         const res = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "item", target, p, luFn);
         if (target.shopPrice) {
-          const _allShopsW = dg.shops || (dg.shop ? [dg.shop] : []);
+          const _allShopsW = getShops(dg);
           const _iShopW = _allShopsW.find(s => s.id === target._shopId) || _allShopsW.find(s => s.unpaidTotal > 0);
           if (_iShopW) {
             const r = _iShopW.room;
@@ -1024,7 +1024,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         const _dmg = rng(5, 15);
         _mon.hp -= _dmg;
         ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-        if (_mon.hp <= 0) { luFn(_mon, ml); removeMonster(dg, _mon); }
+        if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
       } else if (dg.map[wy][wx] === T.FLOOR) {
         dg.map[wy][wx] = T.BWALL;
         ml.push("壊せる壁が出現した！");
@@ -1125,7 +1125,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       const _lBlessedSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
       if (_lBlessedSanc) { ml.push("祝福された聖域の加護が雷撃を防いだ！"); return; }
       /* 反射の鎧: 雷撃を発射源のモンスターに反射 */
-      const _hasReflect = pl.armor?.ability === "wand_reflect" || pl.armor?.abilities?.includes("wand_reflect");
+      const _hasReflect = hasAbility(pl.armor, "wand_reflect");
       if (_hasReflect) {
         ml.push("反射の鎧が雷撃を反射した！");
         const _srcMon = monsterAt(dg, cx, cy);
@@ -1133,12 +1133,12 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           const _rdmg = rng(15, 25);
           _srcMon.hp -= _rdmg;
           ml.push(`反射した雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
-          if (_srcMon.hp <= 0) luFn(_srcMon, ml);
+          if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
         }
         return;
       }
       /* ゴムゴムの胴: 雷ダメージ半減・所持品破壊を防ぐ */
-      const _hasLightRes = pl.armor?.ability === "lightning_resist" || pl.armor?.abilities?.includes("lightning_resist");
+      const _hasLightRes = hasAbility(pl.armor, "lightning_resist");
       let dmg = rng(15, 25);
       if (_hasLightRes) dmg = Math.max(1, Math.floor(dmg / 2));
       if (inCursedMagicSealRoom(pl.x, pl.y, dg)) dmg *= 2;
@@ -1194,7 +1194,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
             const _dmg = rng(5, 15);
             _mon.hp -= _dmg;
             ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-            if (_mon.hp <= 0) { luFn(_mon, ml); removeMonster(dg, _mon); }
+            if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
             walled++;

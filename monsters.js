@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp, findVulnPentacle, hasAbility } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
@@ -34,13 +34,10 @@ function monsterDragonFire(m, dg, pl, ml) {
   const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
   let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   /* 脆弱の魔方陣 */
-  const _plRoom = findRoom(dg.rooms, pl.x, pl.y);
-  const _vulnPc = _plRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" &&
-    pc.x >= _plRoom.x && pc.x < _plRoom.x + _plRoom.w &&
-    pc.y >= _plRoom.y && pc.y < _plRoom.y + _plRoom.h);
+  const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
   /* 耐火装備 */
-  const _hasFireR = pl.armor?.ability === "fire_resist" || pl.armor?.abilities?.includes("fire_resist");
+  const _hasFireR = hasAbility(pl.armor, "fire_resist");
   if (_hasFireR) dmg = Math.max(1, Math.floor(dmg / 2));
   pl.deathCause = `${m.name}の炎ブレスで`;
   pl.hp -= dmg;
@@ -53,7 +50,7 @@ function monsterDragonFire(m, dg, pl, ml) {
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false } = {}) {
   /* dodge: 25% 完全回避 */
-  if ((pl.armor?.ability === "dodge" || pl.armor?.abilities?.includes("dodge")) && Math.random() < 0.25) {
+  if (hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
     ml.push(`${m.name}の攻撃をひらりとかわした！`);
     return;
   }
@@ -65,10 +62,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
   let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   if (!skipVuln) {
-    const plRoom = findRoom(dg.rooms, pl.x, pl.y);
-    const vulnPc = plRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" &&
-      pc.x >= plRoom.x && pc.x < plRoom.x + plRoom.w &&
-      pc.y >= plRoom.y && pc.y < plRoom.y + plRoom.h);
+    const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
     if (vulnPc) dmg = vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (vulnPc.blessed ? 4 : 2);
   }
   pl.deathCause = `${m.name}の攻撃で`;
@@ -445,8 +439,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         if (!_isFc) return;
       } else {
         let dmg = Math.max(1, m.atk + rng(-2, 2));
-        const _arRoom = findRoom(dg.rooms, pl.x, pl.y);
-        const _arVulnPc = _arRoom && dg.pentacles?.find(pc => pc.kind === "vulnerability" && pc.x >= _arRoom.x && pc.x < _arRoom.x + _arRoom.w && pc.y >= _arRoom.y && pc.y < _arRoom.y + _arRoom.h);
+        const _arVulnPc = findVulnPentacle(dg, pl.x, pl.y);
         if (_arVulnPc) dmg = _arVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_arVulnPc.blessed ? 4 : 2);
         pl.deathCause = `${m.name}の矢の攻撃で`;
         pl.hp -= dmg;
@@ -498,7 +491,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   ml.push(`${m.name}が${stoneName}を投げた！`);
 
   /* みかわし（防具の効果） */
-  const dodged = (pl.armor?.ability === "dodge" || pl.armor?.abilities?.includes("dodge")) && Math.random() < 0.25;
+  const dodged = hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
   if (dodged) {
     ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
     const _sd = safeArrowDrop(pl.x, pl.y, dg);
@@ -519,12 +512,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   }
 
   /* 命中 */
-  const _stRoom = findRoom(dg.rooms, pl.x, pl.y);
-  const _stVulnPc = _stRoom && dg.pentacles?.find(pc =>
-    pc.kind === "vulnerability" &&
-    pc.x >= _stRoom.x && pc.x < _stRoom.x + _stRoom.w &&
-    pc.y >= _stRoom.y && pc.y < _stRoom.y + _stRoom.h
-  );
+  const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
   let dmg = Math.max(1, m.atk + rng(-2, 2));
   if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
   pl.deathCause = `${m.name}の石投げで`;
@@ -855,7 +843,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _tdx = pl.x - m.x, _tdy = pl.y - m.y;
       const _adj = Math.abs(_tdx) <= 1 && Math.abs(_tdy) <= 1;
       if (_adj) {
-        const _hasAntiSteal = pl.armor?.ability === "anti_steal" || pl.armor?.abilities?.includes("anti_steal");
+        const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
         if (_hasAntiSteal) {
           ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
           /* 盗めないので通常攻撃 */
