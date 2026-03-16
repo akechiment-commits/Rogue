@@ -2548,7 +2548,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         <span>
           食:
           <span style={{ color: hunP > 40 ? "#0a0" : "#f80" }}>
-            {Math.floor(hunP)}%
+            {p.hunger}/{p.maxHunger}
           </span>
         </span>{" "}
         <span style={{ color: "#ffd700" }}>${p.gold}</span>{" "}
