@@ -1042,7 +1042,9 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
       )}
       {mode === "menu" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {[
+          {(() => {
+            const _bbDesc = BB_TYPES.find(t => t.kind === bigboxRef.current?.kind)?.desc ?? "";
+            return [
             {
               label: "入れる",
               desc: "手持ちからアイテムを入れる",
@@ -1056,11 +1058,6 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                 bigboxRef.current?.capacity,
             },
             {
-              label: "説明",
-              desc: "この大箱の効果を確認する",
-              fn: () => { setMode("desc"); setMenuSel(0); },
-            },
-            {
               label: "やめる",
               desc: "",
               fn: () => {
@@ -1069,7 +1066,13 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                 setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
               },
             },
-          ].map((item, mi) => (
+            {
+              label: "説明",
+              desc: _bbDesc,
+              fn: () => { setMode("desc"); setMenuSel(0); },
+            },
+            ];
+          })().map((item, mi) => (
             <button
               key={mi}
               onClick={item.dis ? undefined : item.fn}
@@ -1122,7 +1125,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
               {bigboxRef.current.name}
             </div>
             <div style={{ color: "#c9a", fontSize: 12, lineHeight: "1.6em" }}>
-              {bigboxRef.current.desc ?? "説明なし。"}
+              {BB_TYPES.find(t => t.kind === bigboxRef.current?.kind)?.desc ?? "説明なし。"}
             </div>
           </div>
           <button
