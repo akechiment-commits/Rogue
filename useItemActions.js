@@ -168,6 +168,8 @@ export function useItemActions({
           const _st = it.blessed ? 20 : 10;
           if ((p.statusImmune || 0) > 0) {
             ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+          } else if (hasAbility(p.armor, "slow_proof")) {
+            ml.push(`${it.name}を飲んだ。しかし防具が鈍足を防いだ！(耐鈍足)`);
           } else {
             p.slowTurns = (p.slowTurns || 0) + _st;
             ml.push(`${it.name}を飲んだ。体が重くなった...(鈍足${_st}ターン)${it.blessed ? "【祝=強鈍】" : ""}`);
@@ -181,6 +183,8 @@ export function useItemActions({
           ml.push(`${it.name}を飲んだ。頭が冴えた！混乱が消え、必中状態になった！(100ターン)【呪→必中】`);
         } else if ((p.statusImmune || 0) > 0) {
           ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+        } else if (hasAbility(p.armor, "confuse_proof")) {
+          ml.push(`${it.name}を飲んだ。しかし防具が混乱を防いだ！(耐混乱)`);
         } else {
           // 通常/祝福：混乱（祝福=2倍ターン）
           const _cturns = it.blessed ? 10 : 5;
@@ -196,6 +200,8 @@ export function useItemActions({
           // 通常/祝福：金縛り（祝福=2倍ターン）
           if ((p.statusImmune || 0) > 0) {
             ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+          } else if (hasAbility(p.armor, "paralyze_proof")) {
+            ml.push(`${it.name}を飲んだ。しかし防具が金縛りを防いだ！(耐金縛り)`);
           } else {
             const _pt = it.blessed ? 20 : 10;
             p.paralyzeTurns = _pt;
@@ -232,8 +238,12 @@ export function useItemActions({
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
           let _seMsg = `${it.name}を飲んだ。魔力が封じられた！(MP封印50ターン)${it.blessed ? "（祝福）" : ""}`;
           if (it.blessed) {
-            p.slowTurns = (p.slowTurns || 0) + 10;
-            _seMsg += " さらに鈍足10ターン！";
+            if (hasAbility(p.armor, "slow_proof")) {
+              _seMsg += " 鈍足は防具が防いだ！(耐鈍足)";
+            } else {
+              p.slowTurns = (p.slowTurns || 0) + 10;
+              _seMsg += " さらに鈍足10ターン！";
+            }
           }
           ml.push(_seMsg);
         }
@@ -359,18 +369,21 @@ export function useItemActions({
             }
           } else if (pe === "confuse") {
             if ((p.statusImmune || 0) > 0) { ml.push("混乱成分！状態防止中のため効かなかった！"); }
+            else if (hasAbility(p.armor, "confuse_proof")) { ml.push("混乱成分！しかし防具が防いだ！(耐混乱)"); }
             else { const _ct = rng(3, 8); p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱成分が！頭がくらくらする...(${_ct}ターン)`); }
           } else if (pe === "slow") {
             if ((p.statusImmune || 0) > 0) ml.push("鈍足成分！状態防止中のため効かなかった！");
+            else if (hasAbility(p.armor, "slow_proof")) ml.push("鈍足成分！しかし防具が防いだ！(耐鈍足)");
             else { p.slowTurns = (p.slowTurns || 0) + 10; ml.push("鈍足成分が！体が重くなった...(鈍足10ターン)"); }
           } else if (pe === "darkness") {
-            p.darknessTurns = (p.darknessTurns || 0) + 20;
-            ml.push("暗闇成分が！視界が1マスになった...(20ターン)");
+            if (hasAbility(p.armor, "darkness_proof")) { ml.push("暗闇成分！しかし防具が防いだ！(耐暗闇)"); }
+            else { p.darknessTurns = (p.darknessTurns || 0) + 20; ml.push("暗闇成分が！視界が1マスになった...(20ターン)"); }
           } else if (pe === "bewitch") {
-            p.bewitchedTurns = (p.bewitchedTurns || 0) + 50;
-            ml.push("幻惑成分が！周囲の見た目がおかしくなった！(50ターン)");
+            if (hasAbility(p.armor, "bewitch_proof")) { ml.push("幻惑成分！しかし防具が防いだ！(耐惑わし)"); }
+            else { p.bewitchedTurns = (p.bewitchedTurns || 0) + 50; ml.push("幻惑成分が！周囲の見た目がおかしくなった！(50ターン)"); }
           } else if (pe === "paralyze") {
             if ((p.statusImmune || 0) > 0) ml.push("金縛り成分！状態防止中のため効かなかった！");
+            else if (hasAbility(p.armor, "paralyze_proof")) ml.push("金縛り成分！しかし防具が防いだ！(耐金縛り)");
             else { p.paralyzeTurns = (p.paralyzeTurns || 0) + 10; ml.push("金縛り成分が！体が動かない！(10ターン)"); }
           // 呪い系効果
           } else if (pe === "c_heal") {
