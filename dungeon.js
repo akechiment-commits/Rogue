@@ -955,39 +955,30 @@ export function genDungeon(depth, dungeonType = "beginner") {
       items.push(it);
     }
   }
-  /* 難易度別サブアイテム数: 矢・杖・魔法書・食料・壺を難易度に合わせてスケール */
-  /* 隠し部屋・壁内アイテムは別途配置されるため含まない                        */
-  const _arrowCount  = dungeonType === "advanced" ? (Math.random() < 0.3 ? 1 : 0) : dungeonType === "intermediate" ? rng(0, 1) : rng(0, 2);
-  const _wandCount   = dungeonType === "advanced" ? (Math.random() < 0.3 ? 1 : 0) : dungeonType === "intermediate" ? (Math.random() < 0.5 ? 1 : 0) : rng(0, 1);
-  const _markCount   = dungeonType === "beginner"  ? (Math.random() < 0.15 ? 1 : 0) : 0;
-  const _penChance   = dungeonType === "advanced" ? 0.05 : dungeonType === "intermediate" ? 0.10 : 0.15;
-  const _bookCount   = dungeonType === "advanced" ? (Math.random() < 0.2 ? 1 : 0) : dungeonType === "intermediate" ? (Math.random() < 0.4 ? 1 : 0) : (Math.random() < 0.6 ? 1 : 0);
-  const _foodCount   = rng(1, 2); /* 食料は難易度に関わらず1〜2個保証 */
-  const _potCount    = dungeonType === "advanced" ? (Math.random() < 0.3 ? 1 : 0) : dungeonType === "intermediate" ? (Math.random() < 0.4 ? 1 : 0) : (Math.random() < 0.5 ? 1 : 0);
-  for (let i = 0; i < _arrowCount; i++) {
-    const rm = pick(rooms);
-    const ix = rng(rm.x, rm.x + rm.w - 1),
-      iy = rng(rm.y, rm.y + rm.h - 1);
-    if (map[iy][ix] === T.FLOOR && !occ(ix, iy))
-      items.push({ ...ARROW_T, id: uid(), x: ix, y: iy, count: rng(3, 15) });
-  }
-  for (let i = 0; i < _wandCount; i++) {
+  /* サブアイテムをプール方式でランダム生成（系統ごとの上限なし・後で重み調整可） */
+  const _subPoolSize = dungeonType === "advanced" ? rng(2, 5) : dungeonType === "intermediate" ? rng(3, 6) : rng(4, 8);
+  const _subGens = [
+    /* 矢 */       () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
+    /* 杖 */       () => { const t = pick(WANDS); return { ...t, id: uid(), charges: t.charges + rng(-1, 2) }; },
+    /* 魔法書 */   () => { const sb = pick(SPELLBOOKS); return { ...sb, id: uid() }; },
+    /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
+    /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
+    /* 壺 */       () => makePot(),
+    /* 魔法筆 */   () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }),
+  ];
+  for (let i = 0; i < _subPoolSize; i++) {
     const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const t = pick(WANDS);
-      items.push({ ...t, id: uid(), x: ix, y: iy, charges: t.charges + rng(-1, 2) });
+      const it = pick(_subGens)();
+      it.x = ix;
+      it.y = iy;
+      items.push(it);
     }
   }
-  for (let i = 0; i < _markCount; i++) {
-    const rm = pick(rooms);
-    const ix = rng(rm.x, rm.x + rm.w - 1),
-      iy = rng(rm.y, rm.y + rm.h - 1);
-    if (map[iy][ix] === T.FLOOR && !occ(ix, iy))
-      items.push({ ...MAGIC_MARKER, id: uid(), x: ix, y: iy, charges: rng(1, 2) });
-  }
-  /* Pen spawn */
+  /* Pen spawn（特殊低確率、別枠） */
+  const _penChance = dungeonType === "advanced" ? 0.05 : dungeonType === "intermediate" ? 0.10 : 0.15;
   if (Math.random() < _penChance) {
     const _penPool = ITEMS.filter((it) => it.type === "pen");
     if (_penPool.length > 0) {
@@ -998,35 +989,6 @@ export function genDungeon(depth, dungeonType = "beginner") {
         const _pt = pick(_penPool);
         items.push({ ..._pt, id: uid(), x: ix, y: iy, charges: rng(2, 3) });
       }
-    }
-  }
-  for (let i = 0; i < _bookCount; i++) {
-    const rm = pick(rooms);
-    const ix = rng(rm.x, rm.x + rm.w - 1),
-      iy = rng(rm.y, rm.y + rm.h - 1);
-    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const sb = pick(SPELLBOOKS);
-      items.push({ ...sb, id: uid(), x: ix, y: iy });
-    }
-  }
-  for (let i = 0; i < _foodCount; i++) {
-    const rm = pick(rooms);
-    const ix = rng(rm.x, rm.x + rm.w - 1),
-      iy = rng(rm.y, rm.y + rm.h - 1);
-    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const f = genFood();
-      items.push({ ...f, id: uid(), x: ix, y: iy });
-    }
-  }
-  for (let i = 0; i < _potCount; i++) {
-    const rm = pick(rooms);
-    const ix = rng(rm.x, rm.x + rm.w - 1),
-      iy = rng(rm.y, rm.y + rm.h - 1);
-    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const pt = makePot();
-      pt.x = ix;
-      pt.y = iy;
-      items.push(pt);
     }
   }
   const traps = [];
