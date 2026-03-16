@@ -385,6 +385,46 @@ export const COOKED_FOODS_SWEET = [
 /* genFood()後方互換用 — 両カテゴリを結合 */
 export const COOKED_FOODS = [...COOKED_FOODS_SAVORY, ...COOKED_FOODS_SWEET];
 
+/* 料理名→カテゴリ マッピング（味付け壺のボーナス判定用） */
+function _buildFoodCatMap() {
+  const m = new Map();
+  const _catSavory = [
+    { cat: "italian", items: COOKED_FOODS_SAVORY.slice(0, COOKED_FOODS_SAVORY.indexOf("餃子")) },
+    { cat: "chinese", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("餃子"), COOKED_FOODS_SAVORY.indexOf("ビビンバ")) },
+    { cat: "korean", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ビビンバ"), COOKED_FOODS_SAVORY.indexOf("フォー")) },
+    { cat: "southeast_asian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("フォー"), COOKED_FOODS_SAVORY.indexOf("ラタトゥイユ")) },
+    { cat: "french", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ラタトゥイユ"), COOKED_FOODS_SAVORY.indexOf("シュニッツェル")) },
+    { cat: "german", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("シュニッツェル"), COOKED_FOODS_SAVORY.indexOf("寿司")) },
+    { cat: "japanese", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("寿司"), COOKED_FOODS_SAVORY.indexOf("ステーキ")) },
+    { cat: "american", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ステーキ"), COOKED_FOODS_SAVORY.indexOf("パエリア")) },
+    { cat: "spanish", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("パエリア"), COOKED_FOODS_SAVORY.indexOf("ケバブ")) },
+    { cat: "middle_eastern", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ケバブ"), COOKED_FOODS_SAVORY.indexOf("ナン")) },
+    { cat: "indian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ナン"), COOKED_FOODS_SAVORY.indexOf("ピロシキ")) },
+    { cat: "russian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ピロシキ"), COOKED_FOODS_SAVORY.indexOf("フォンデュ")) },
+    { cat: "other", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("フォンデュ")) },
+  ];
+  const _catSweet = [
+    { cat: "western_sweets", items: COOKED_FOODS_SWEET.slice(0, COOKED_FOODS_SWEET.indexOf("たい焼き")) },
+    { cat: "japanese_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("たい焼き"), COOKED_FOODS_SWEET.indexOf("杏仁豆腐")) },
+    { cat: "asian_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("杏仁豆腐"), COOKED_FOODS_SWEET.indexOf("バクラヴァ")) },
+    { cat: "mideast_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("バクラヴァ")) },
+  ];
+  for (const { cat, items } of [..._catSavory, ..._catSweet]) {
+    for (const name of items) m.set(name, cat);
+  }
+  return m;
+}
+const FOOD_CAT_MAP = _buildFoodCatMap();
+
+/* 壺の味付けとカテゴリの相性マッピング */
+const POT_CAT_BONUS = {
+  miso:  ["japanese", "japanese_sweets"],
+  spicy: ["korean"],
+  curry: ["indian", "southeast_asian"],
+  choco: ["western_sweets", "asian_sweets", "mideast_sweets"],
+  honey: ["french"],
+};
+
 export const RAW_SIZES = [
   { l:"特大",   v:80, w:1 },
   { l:"大きい", v:55, w:2 },
@@ -466,7 +506,8 @@ export function genFood() {
   const nm = ef.l + sz.l + fn;
   let hv = ef.e === "satiate_food" ? Math.floor(sz.v * 1.5) : sz.v;
   if (!cooked) hv = Math.max(1, Math.floor(hv / 2));
-  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile:19, cooked };
+  const foodCat = FOOD_CAT_MAP.get(fn) || null;
+  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile:19, cooked, foodCat };
 }
 
 /* ===== WANDS ===== */
@@ -591,9 +632,14 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   if (pfx && item.type === "food") {
     item.name = pfx + item.name;
     item.value = Math.max(1, Math.floor(item.value * 0.8));
-    item.value = Math.floor(item.value * 1.3);
+    const _catBonus = POT_CAT_BONUS[pe];
+    const _catMatch = _catBonus && item.foodCat && _catBonus.includes(item.foodCat);
+    const _potMul = _catMatch ? 2.0 : 1.3;
+    item.value = Math.floor(item.value * _potMul);
     item.desc = POT_FOOD_DESCS[pe] || item.desc;
-    ml.push(`${item.name}になった！(満腹度UP)`);
+    ml.push(_catMatch
+      ? `${item.name}になった！(相性抜群！満腹度大幅UP)`
+      : `${item.name}になった！(満腹度UP)`);
     return;
   }
   ml.push(`${_in}を${_pn}に入れた。`);
