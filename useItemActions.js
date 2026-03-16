@@ -1290,7 +1290,6 @@ export function useItemActions({
     },
     [markerMode, endTurn],
   );
-  doMarkerWriteRef.current = doMarkerWrite;
   const doPutItem = useCallback(
     (itemIdx) => {
       if (!sr.current || !putMode) return;
@@ -1416,18 +1415,6 @@ export function useItemActions({
     },
     [lu, endTurn],
   );
-  invActRef.current = {
-    use: doUseItem,
-    drop: doDropItem,
-    throw: doThrow,
-    shoot: doShoot,
-    wave: doWaveWand,
-    breakWand: doBreakWand,
-    breakPot: doBreakPot,
-    put: doPutItem,
-    useMarker: doUseMarker,
-    readSpellbook: doReadSpellbook,
-  };
   const execDirection = useCallback(
     (dx, dy) => {
       if (!throwMode || !sr.current) return;
