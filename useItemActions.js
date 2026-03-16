@@ -247,6 +247,32 @@ export function useItemActions({
           }
           ml.push(_seMsg);
         }
+      } else if (it.effect === "darkness") {
+        if (it.cursed) {
+          p.monsterSenseTurns = (p.monsterSenseTurns || 0) + 100;
+          ml.push(`${it.name}を飲んだ。フロアのモンスターが感知できる！(100ターン)【呪→感知】`);
+        } else if (hasAbility(p.armor, "darkness_proof")) {
+          ml.push(`${it.name}を飲んだ。しかし防具が暗闇を防いだ！(耐暗闇)`);
+        } else if ((p.statusImmune || 0) > 0) {
+          ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+        } else {
+          const _dt = it.blessed ? 50 : 20;
+          p.darknessTurns = (p.darknessTurns || 0) + _dt;
+          ml.push(`${it.name}を飲んだ。暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${it.blessed ? "【祝=強暗闇】" : ""}`);
+        }
+      } else if (it.effect === "bewitch") {
+        if (it.cursed) {
+          dg.traps.forEach(t => t.revealed = true);
+          ml.push(`${it.name}を飲んだ。フロアの罠が全て見えた！【呪→罠看破】`);
+        } else if (hasAbility(p.armor, "bewitch_proof")) {
+          ml.push(`${it.name}を飲んだ。しかし防具が幻惑を防いだ！(耐惑わし)`);
+        } else if ((p.statusImmune || 0) > 0) {
+          ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+        } else {
+          const _bt = it.blessed ? 100 : 50;
+          p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
+          ml.push(`${it.name}を飲んだ。幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${it.blessed ? "【祝=強幻惑】" : ""}`);
+        }
       } else if (it.effect === "levelup") {
         if (it.cursed) {
           // 呪い：1階上へワープ（1階なら効果なし）
