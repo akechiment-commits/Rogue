@@ -519,12 +519,15 @@ function monsterThrowStone(m, dg, pl, ml) {
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
-  /* 通常仮眠：視界に入ったら個別に覚醒 */
+  /* 通常仮眠：視界に入るか、ダメージ等のアクションを受けたら即覚醒 */
   if (m.dormant) {
-    if (dg.visible?.[m.y]?.[m.x]) {
+    const _wasHit = m.hp < (m._dormantHp ?? m.hp);
+    if (dg.visible?.[m.y]?.[m.x] || _wasHit) {
       m.dormant = false;
+      delete m._dormantHp;
       ml.push(`${m.name}が目を覚ました！`);
     } else {
+      m._dormantHp = m.hp;
       return;
     }
   }
