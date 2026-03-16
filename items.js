@@ -418,11 +418,16 @@ const FOOD_CAT_MAP = _buildFoodCatMap();
 
 /* 壺の味付けとカテゴリの相性マッピング */
 const POT_CAT_BONUS = {
-  miso:  ["japanese", "japanese_sweets"],
-  spicy: ["korean"],
-  curry: ["indian", "southeast_asian"],
-  choco: ["western_sweets", "asian_sweets", "mideast_sweets"],
-  honey: ["french"],
+  miso:    ["japanese", "japanese_sweets"],
+  spicy:   ["korean"],
+  curry:   ["indian", "southeast_asian"],
+  choco:   ["western_sweets", "asian_sweets", "mideast_sweets"],
+  honey:   ["western_sweets", "japanese_sweets", "asian_sweets", "mideast_sweets"],
+  olive:   ["italian", "spanish"],
+  sesame:  ["chinese", "korean"],
+  butter:  ["french", "american", "german"],
+  yogurt:  ["middle_eastern", "russian"],
+  coconut: ["southeast_asian", "asian_sweets"],
 };
 
 export const RAW_SIZES = [
@@ -555,24 +560,39 @@ export const POTS = [
   { name:"呪いの壺",     type:"pot", potEffect:"curse_pot", capacity:3, desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",     type:"pot", potEffect:"boil",      capacity:3, desc:"薬を入れると部屋中に薬効が広がる。生の食料を入れると焼いた状態になる。その他のものは保管できる。", tile:32 },
   { name:"火薬壺",       type:"pot", potEffect:"gunpowder", capacity:3, desc:"割れると周囲8マスを巻き込む爆発を起こす。炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化する。中身は爆発で消える。", tile:32 },
+  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",   capacity:3, desc:"食料を入れるとオリーブオイル漬けになる。", tile:32 },
+  { name:"ごま油の壺",   type:"pot", potEffect:"sesame",  capacity:3, desc:"食料を入れるとごま油風味になる。",         tile:32 },
+  { name:"バターの壺",   type:"pot", potEffect:"butter",  capacity:3, desc:"食料を入れるとバター風味になる。",         tile:32 },
+  { name:"ヨーグルトの壺", type:"pot", potEffect:"yogurt", capacity:3, desc:"食料を入れるとヨーグルト漬けになる。",   tile:32 },
+  { name:"ココナッツの壺", type:"pot", potEffect:"coconut", capacity:3, desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
-  choco: "チョコがけ",
-  spicy: "激辛",
-  honey: "はちみつ",
-  curry: "カレー味の",
-  miso:  "味噌漬けの",
-  smoke: "燻製",
+  choco:   "チョコがけ",
+  spicy:   "激辛",
+  honey:   "はちみつ",
+  curry:   "カレー味の",
+  miso:    "味噌漬けの",
+  smoke:   "燻製",
+  olive:   "オリーブオイル漬けの",
+  sesame:  "ごま油風味の",
+  butter:  "バター風味の",
+  yogurt:  "ヨーグルト漬けの",
+  coconut: "ココナッツ風味の",
 };
 
 export const POT_FOOD_DESCS = {
-  choco: "甘い香りがする。",
-  spicy: "辛さで活力が戻る。",
-  honey: "甘くて元気が出る。",
-  curry: "スパイスが効いている。",
-  miso:  "深い味わいがある。",
-  smoke: "香ばしい匂いがする。",
+  choco:   "甘い香りがする。",
+  spicy:   "辛さで活力が戻る。",
+  honey:   "甘くて元気が出る。",
+  curry:   "スパイスが効いている。",
+  miso:    "深い味わいがある。",
+  smoke:   "香ばしい匂いがする。",
+  olive:   "オリーブの香りが広がる。",
+  sesame:  "ごまの風味が香ばしい。",
+  butter:  "バターのコクが加わった。",
+  yogurt:  "さわやかな酸味がある。",
+  coconut: "南国の甘い香りがする。",
 };
 
 export function applyPotEffect(pot, item, ml, nameFn = null) {
