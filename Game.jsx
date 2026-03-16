@@ -1196,6 +1196,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   if (attackMon.hp <= 0) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
                 }
               }
+              /* 武器の状態異常付与（10%） */
+              if (attackMon.hp > 0 && p.weapon) {
+                const _inflicts = [
+                  ["inflict_slow",     () => { attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); ml.push(`${attackMon.name}は鈍足になった！`); }],
+                  ["inflict_paralyze", () => { attackMon.paralyzed = true; ml.push(`${attackMon.name}は金縛りになった！`); }],
+                  ["inflict_sleep",    () => { attackMon.sleepTurns = (attackMon.sleepTurns || 0) + rng(3, 6); ml.push(`${attackMon.name}は眠りに落ちた！`); }],
+                  ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + 50; ml.push(`${attackMon.name}は暗闇になった！`); }],
+                  ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + 20; ml.push(`${attackMon.name}は混乱した！`); }],
+                  ["inflict_bewitch",  () => { attackMon.bewitched = true; attackMon.bewitchedTurns = (attackMon.bewitchedTurns || 0) + 50; ml.push(`${attackMon.name}は幻惑状態になった！`); }],
+                  ["inflict_seal",     () => { attackMon.sealed = true; attackMon.sealedTurns = (attackMon.sealedTurns || 0) + 50; ml.push(`${attackMon.name}は封印された！`); }],
+                ];
+                for (const [abId, fn] of _inflicts) {
+                  if (wabHas(abId) && Math.random() < 0.1) fn();
+                }
+              }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
               acted = true;
               } /* end else (hit) */
@@ -1796,6 +1811,37 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         bb.contents = bb.contents.filter((i) => i !== wm);
         bb.capacity = bb.contents.length;
+        return;
+      }
+      /* 杖 + 武器/防具 → 状態異常アビリティ付与 */
+      const _WAND_SYNTH = {
+        slow:     { weapon: "inflict_slow",     armor: "slow_proof" },
+        paralyze: { weapon: "inflict_paralyze", armor: "paralyze_proof" },
+        sleep:    { weapon: "inflict_sleep",    armor: "sleep_proof" },
+        darkness: { weapon: "inflict_darkness", armor: "darkness_proof" },
+        confuse:  { weapon: "inflict_confuse",  armor: "confuse_proof" },
+        bewitch:  { weapon: "inflict_bewitch",  armor: "bewitch_proof" },
+        seal:     { weapon: "inflict_seal",     armor: "seal_proof" },
+      };
+      const _swWand = bb.contents.find(i => i.type === "wand" && _WAND_SYNTH[i.effect]);
+      const _swEquip = _swWand && bb.contents.find(i => i !== _swWand && (i.type === "weapon" || i.type === "armor"));
+      if (_swWand && _swEquip) {
+        const _swEntry = _WAND_SYNTH[_swWand.effect];
+        const _swAbId = _swEquip.type === "weapon" ? _swEntry.weapon : _swEntry.armor;
+        const _toAbs = (it) => [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean))];
+        const _curAbs = _toAbs(_swEquip);
+        if (_curAbs.includes(_swAbId)) {
+          ml.push(`${_swEquip.name}には既にその能力がある。合成できなかった。`);
+        } else {
+          const _newAbs = [..._curAbs, _swAbId];
+          const merged = { ..._swEquip, id: uid(), ability: _newAbs[0], abilities: _newAbs };
+          bb.contents = bb.contents.filter(i => i !== _swWand && i !== _swEquip);
+          bb.contents.push(merged);
+          bb.capacity = bb.contents.length;
+          const _AB = _swEquip.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+          const _abName = _AB.find(a => a.id === _swAbId)?.name || _swAbId;
+          ml.push(`合成完了！${_swEquip.name}に${_swWand.name}の力が宿った！[${_abName}]`);
+        }
         return;
       }
       const ws = bb.contents.filter((i) => i.type === "weapon");

@@ -637,6 +637,13 @@ export const WEAPON_ABILITIES = [
   { id:"critical",      name:"会心",      desc:"25%の確率でダメージ2倍のクリティカルヒット" },
   { id:"no_degrade",    name:"不錆",      desc:"錆の罠や泉に落ちても＋値が下がらない" },
   { id:"pickaxe",       name:"穴掘り",    desc:"装備して壁に体当たりすると壁を掘れる（耐久制）" },
+  { id:"inflict_slow",    name:"鈍足付与",  desc:"攻撃時10%の確率で敵を鈍足にする" },
+  { id:"inflict_paralyze",name:"金縛り付与",desc:"攻撃時10%の確率で敵を金縛りにする" },
+  { id:"inflict_sleep",   name:"睡眠付与",  desc:"攻撃時10%の確率で敵を眠らせる" },
+  { id:"inflict_darkness",name:"暗闇付与",  desc:"攻撃時10%の確率で敵を暗闇にする" },
+  { id:"inflict_confuse", name:"混乱付与",  desc:"攻撃時10%の確率で敵を混乱させる" },
+  { id:"inflict_bewitch", name:"惑わし付与",desc:"攻撃時10%の確率で敵を幻惑にする" },
+  { id:"inflict_seal",    name:"封印付与",  desc:"攻撃時10%の確率で敵を封印する" },
 ];
 
 export const ARMOR_ABILITIES = [
@@ -650,6 +657,12 @@ export const ARMOR_ABILITIES = [
   { id:"wand_reflect",     name:"魔法反射", desc:"モンスターの杖魔法を反射する" },
   { id:"anti_steal",       name:"護盗",     desc:"コソドロに所持品を盗まれなくなる" },
   { id:"no_degrade",       name:"不錆",     desc:"錆の罠や泉に落ちても＋値が下がらない" },
+  { id:"slow_proof",       name:"耐鈍足",   desc:"鈍足効果を無効化する" },
+  { id:"paralyze_proof",   name:"耐金縛り", desc:"金縛り効果を無効化する" },
+  { id:"darkness_proof",   name:"耐暗闇",   desc:"暗闇効果を無効化する" },
+  { id:"confuse_proof",    name:"耐混乱",   desc:"混乱効果を無効化する" },
+  { id:"bewitch_proof",    name:"耐惑わし", desc:"幻惑効果を無効化する" },
+  { id:"seal_proof",       name:"耐封印",   desc:"封印効果を無効化する" },
 ];
 
 /* ===== TRAPS ===== */
@@ -1003,14 +1016,20 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _slwm = monsterAt(dg, tx, ty);
       if (_slwm) { _slwm.speed = Math.max(0.25, _slwm.speed * 0.5); ml.push(`${_slwm.name}が鈍足になった！`); }
-      if (p && p.x === tx && p.y === ty) { p.slowTurns = (p.slowTurns || 0) + 10; ml.push(`体が重くなった...(鈍足10ターン)`); }
+      if (p && p.x === tx && p.y === ty) {
+        if (hasAbility(p.armor, "slow_proof")) { ml.push(`しかし防具が鈍足を防いだ！(耐鈍足)`); }
+        else { p.slowTurns = (p.slowTurns || 0) + 10; ml.push(`体が重くなった...(鈍足10ターン)`); }
+      }
       return "restart";
     }
     case "seal_trap": {
       ml.push(`${trap.name}が発動！`);
       const _seam = monsterAt(dg, tx, ty);
       if (_seam) { _seam.sealed = true; ml.push(`${_seam.name}の特技が封印された！`); }
-      if (p && p.x === tx && p.y === ty) { p.sealedTurns = (p.sealedTurns || 0) + 50; ml.push(`魔法が封印された！(50ターン)`); }
+      if (p && p.x === tx && p.y === ty) {
+        if (hasAbility(p.armor, "seal_proof")) { ml.push(`しかし防具が封印を防いだ！(耐封印)`); }
+        else { p.sealedTurns = (p.sealedTurns || 0) + 50; ml.push(`魔法が封印された！(50ターン)`); }
+      }
       return "restart";
     }
     case "steal_trap": {
@@ -1272,7 +1291,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") { p.hasteTurns = (p.hasteTurns || 0) + 10; ml.push("体が軽くなった！(2倍速10ターン)【呪→加速】"); }
       } else {
         if (kind === "monster") { target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5)); ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`); }
-        if (kind === "player") { const _st = blessed ? 20 : 10; p.slowTurns = (p.slowTurns || 0) + _st; ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`); }
+        if (kind === "player") {
+          if (hasAbility(p.armor, "slow_proof")) { ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)"); }
+          else { const _st = blessed ? 20 : 10; p.slowTurns = (p.slowTurns || 0) + _st; ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`); }
+        }
       }
       break;
     case "paralyze":
@@ -1289,9 +1311,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
         if (kind === "player") {
           if (isStatusImmune(p, ml)) break;
-          const _pt = blessed ? 20 : 10;
-          p.paralyzeTurns = _pt;
-          ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
+          if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)"); }
+          else {
+            const _pt = blessed ? 20 : 10;
+            p.paralyzeTurns = _pt;
+            ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
+          }
         }
       }
       break;
@@ -1306,7 +1331,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       } else {
         if (kind === "monster") { const _ct = blessed ? 40 : 20; target.confusedTurns = (target.confusedTurns || 0) + _ct; ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
-        if (kind === "player") { const _ct = blessed ? 10 : 5; p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
+        if (kind === "player") {
+          if (hasAbility(p.armor, "confuse_proof")) { ml.push("混乱効果を受けたが防具が防いだ！(耐混乱)"); }
+          else { const _ct = blessed ? 10 : 5; p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
+        }
       }
       break;
     case "mana":
@@ -1349,9 +1377,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.monsterSenseTurns = (p.monsterSenseTurns || 0) + 100;
           ml.push("呪われた薬！フロアのモンスターが感知できる！(100ターン)【呪→感知】");
         } else {
-          const _dt = blessed ? 50 : 20;
-          p.darknessTurns = (p.darknessTurns || 0) + _dt;
-          ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${blessed ? "(祝福)" : ""}`);
+          if (hasAbility(p.armor, "darkness_proof")) {
+            ml.push("暗闇効果を受けたが防具が防いだ！(耐暗闇)");
+          } else {
+            const _dt = blessed ? 50 : 20;
+            p.darknessTurns = (p.darknessTurns || 0) + _dt;
+            ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${blessed ? "(祝福)" : ""}`);
+          }
         }
       }
       if (kind === "monster") {
@@ -1373,9 +1405,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           dg.traps.forEach(t => t.revealed = true);
           ml.push("呪われた薬！フロアの罠が全て見えた！【呪→罠看破】");
         } else {
-          const _bt = blessed ? 100 : 50;
-          p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
-          ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${blessed ? "(祝福)" : ""}`);
+          if (hasAbility(p.armor, "bewitch_proof")) {
+            ml.push("幻惑効果を受けたが防具が防いだ！(耐惑わし)");
+          } else {
+            const _bt = blessed ? 100 : 50;
+            p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
+            ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${blessed ? "(祝福)" : ""}`);
+          }
         }
       }
       if (kind === "monster") {
@@ -1440,8 +1476,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
           ml.push(`魔力が封じられた！(MP封印50ターン)${blessed ? "(祝福)" : ""}`);
           if (blessed) {
-            p.slowTurns = (p.slowTurns || 0) + 10;
-            ml.push("さらに鈍足10ターン！");
+            if (hasAbility(p.armor, "slow_proof")) {
+              ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
+            } else {
+              p.slowTurns = (p.slowTurns || 0) + 10;
+              ml.push("さらに鈍足10ターン！");
+            }
           }
         }
       }

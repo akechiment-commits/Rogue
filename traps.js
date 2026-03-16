@@ -142,13 +142,21 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "slow_trap": {
-      p.slowTurns = (p.slowTurns || 0) + 10;
-      ml.push(`${trap.name}が発動！体が重くなった...(鈍足10ターン)`);
+      if (hasAbility(p.armor, "slow_proof")) {
+        ml.push(`${trap.name}が発動！しかし防具が鈍足を防いだ！(耐鈍足)`);
+      } else {
+        p.slowTurns = (p.slowTurns || 0) + 10;
+        ml.push(`${trap.name}が発動！体が重くなった...(鈍足10ターン)`);
+      }
       break;
     }
     case "seal_trap": {
-      p.sealedTurns = (p.sealedTurns || 0) + 50;
-      ml.push(`${trap.name}が発動！魔法が封印された！(50ターン)`);
+      if (hasAbility(p.armor, "seal_proof")) {
+        ml.push(`${trap.name}が発動！しかし防具が封印を防いだ！(耐封印)`);
+      } else {
+        p.sealedTurns = (p.sealedTurns || 0) + 50;
+        ml.push(`${trap.name}が発動！魔法が封印された！(50ターン)`);
+      }
       break;
     }
     case "steal_trap": {
