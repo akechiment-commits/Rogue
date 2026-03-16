@@ -546,6 +546,9 @@ export const BB_TYPES = [
   { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2) },
   { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4) },
   { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3) },
+  { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5) },
+  { kind: "split",     name: "分裂の大箱", cap: () => 1, rare: true },
+  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2), rare: true },
 ];
 
 /* ===== POTS ===== */
