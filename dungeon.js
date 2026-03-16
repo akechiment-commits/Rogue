@@ -2,11 +2,17 @@ import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage } from 
 import { MONS, MON_LEVELS } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
-  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice,
+  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted,
 } from './items.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
+}
+
+function pickBB() {
+  /* レア大箱は20%の確率でのみ候補に含まれる */
+  const pool = Math.random() < 0.20 ? BB_TYPES : BB_TYPES.filter(b => !b.rare);
+  return pick(pool);
 }
 
 /* ===== BIG ROOM DUNGEON GENERATOR ===== */
@@ -47,9 +53,9 @@ function genBigRoom(depth) {
     return false;
   };
   for (let i = 0; i < rng(20, 30); i++) {
-    const t = pick(ITEMS);
+    const t = pickWeighted(ITEMS);
     const it = { ...t, id: uid(), x: 0, y: 0 };
-    if (it.type === "gold") it.value = rng(5, 20 + depth * 10);
+if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
     if (it.type !== "gold" && it.type !== "arrow") {
       const _blessRoll = Math.random();
       if (_blessRoll < 0.10) it.blessed = true;
@@ -87,7 +93,7 @@ function genBigRoom(depth) {
       const bx = rng(rx + 1, rx + rw - 2), by = rng(ry + 1, ry + rh - 2);
       if (map[by][bx] !== T.FLOOR) continue;
       if (occ(bx, by) || traps.some(t => t.x === bx && t.y === by) || springs.some(s => s.x === bx && s.y === by) || bigboxes.some(b => b.x === bx && b.y === by)) continue;
-      const bbt = pick(BB_TYPES);
+      const bbt = pickBB();
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -132,9 +138,9 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     const iy = rng(room.y, room.y + room.h - 1);
     if (map[iy][ix] !== T.FLOOR) continue;
     if (allOcc(ix, iy)) continue;
-    const t = pick(ITEMS);
+    const t = pickWeighted(ITEMS);
     const it = { ...t, id: uid(), x: ix, y: iy };
-    if (it.type === "gold") it.value = rng(10, 30 + depth * 15);
+    if (it.type === "gold") it.value = rng(50, 150 + depth * 40);
     if (it.type !== "gold" && it.type !== "arrow") {
       const _br = Math.random();
       if (_br < 0.12) it.blessed = true;
@@ -163,7 +169,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
       const by = rng(room.y + 1, room.y + room.h - 2);
       if (map[by][bx] !== T.FLOOR) continue;
       if (allOcc(bx, by)) continue;
-      const bbt = pick(BB_TYPES);
+      const bbt = pickBB();
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -240,9 +246,9 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
   for (let i = 0; i < itemCount * 30 && placed < itemCount; i++) {
     const [ix, iy] = pick(floorTiles);
     if (allOcc(ix, iy)) continue;
-    const t = pick(ITEMS);
+    const t = pickWeighted(ITEMS);
     const it = { ...t, id: uid(), x: ix, y: iy };
-    if (it.type === 'gold') it.value = rng(40, 120 + depth * 25);
+    if (it.type === 'gold') it.value = rng(100, 300 + depth * 60);
     items.push(it);
     placed++;
   }
@@ -251,7 +257,7 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
     for (let a = 0; a < 40; a++) {
       const [bx, by] = pick(floorTiles);
       if (allOcc(bx, by)) continue;
-      const bbt = pick(BB_TYPES);
+      const bbt = pickBB();
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
       break;
     }
@@ -370,9 +376,9 @@ function genWallItems(map, depth, items, suspicious = new Set()) {
     const key = `${wx},${wy}`;
     if (used.has(key) || items.some(it => it.x === wx && it.y === wy)) continue;
     used.add(key);
-    const t = pick(ITEMS);
+    const t = pickWeighted(ITEMS);
     const it = { ...t, id: uid(), x: wx, y: wy, wallEmbedded: true };
-    if (it.type === 'gold') it.value = rng(20, 80 + depth * 15);
+    if (it.type === 'gold') it.value = rng(50, 200 + depth * 40);
     items.push(it);
     placed++;
   }
@@ -476,10 +482,10 @@ function genMiniRoom(depth) {
   const items = [], traps = [], springs = [], bigboxes = [];
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rndFloor = () => { for (let a = 0; a < 80; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
-  for (let i = 0; i < rng(12, 18); i++) { const p = rndFloor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 20 + depth * 10); items.push(it); } }
+  for (let i = 0; i < rng(12, 18); i++) { const p = rndFloor(); if (p) { const it = { ...pickWeighted(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(20, 80 + depth * 30); items.push(it); } }
   for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
-  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pick(BB_TYPES); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
+  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "miniRoom" };
 }
@@ -616,7 +622,7 @@ function genSpinFloor(depth, _retries = 0) {
     for (let a = 0; a < itemCount * 30 && iPlaced < itemCount; a++) {
       const [ix, iy] = pick(floorTiles);
       if (occ(ix, iy)) continue;
-      const it = { ...pick(ITEMS), id: uid(), x: ix, y: iy };
+      const it = { ...pickWeighted(ITEMS), id: uid(), x: ix, y: iy };
       if (it.type === 'gold') it.value = rng(10, 50 + depth * 20);
       items.push(it); iPlaced++;
     }
@@ -674,7 +680,7 @@ function genCorridorFloor(depth) {
   const rndCor = () => { for (let a = 0; a < 60; a++) { const [x, y] = pick(corTiles); if (!occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
   const rndCorWide = () => { for (let a = 0; a < 120; a++) { const [x, y] = pick(corTiles); if (!occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y) && !isNarrowPassage(map, x, y)) return [x, y]; } return null; };
   for (let i = 0; i < rng(6, 10) + depth; i++) { const p = rndCor(); if (p) mons.push(mkMon(depth, p[0], p[1])); }
-  for (let i = 0; i < rng(8, 14) + depth; i++) { const p = rndCor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 30 + depth * 10); items.push(it); } }
+  for (let i = 0; i < rng(8, 14) + depth; i++) { const p = rndCor(); if (p) { const it = { ...pickWeighted(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(20, 80 + depth * 30); items.push(it); } }
   for (let i = 0; i < rng(5, 9) + depth; i++) { const p = rndCorWide(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(1, 3); i++) { const p = rndCor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   const { visible, explored } = mkVis();
@@ -701,10 +707,10 @@ function genGridRoom(depth) {
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rndFloor = () => { for (let a = 0; a < 100; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
   for (let i = 0; i < rng(8, 13) + depth; i++) { const p = rndFloor(); if (p) mons.push(mkMon(depth, p[0], p[1])); }
-  for (let i = 0; i < rng(15, 22); i++) { const p = rndFloor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 20 + depth * 10); items.push(it); } }
+  for (let i = 0; i < rng(15, 22); i++) { const p = rndFloor(); if (p) { const it = { ...pickWeighted(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(20, 80 + depth * 30); items.push(it); } }
   for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
-  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pick(BB_TYPES); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
+  for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "gridRoom" };
 }
@@ -931,9 +937,9 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const t = pick(ITEMS);
+      const t = pickWeighted(ITEMS);
       const it = { ...t, id: uid(), x: ix, y: iy };
-      if (it.type === "gold") it.value = rng(5, 20 + depth * 10);
+      if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
       if (it.type !== "gold" && it.type !== "arrow") {
         const _blessRoll = Math.random();
         if (_blessRoll < 0.10)      it.blessed = true;
@@ -957,8 +963,8 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const _subPoolSize = dungeonType === "advanced" ? rng(2, 5) : dungeonType === "intermediate" ? rng(3, 6) : rng(4, 8);
   const _subGens = [
     /* 矢 */       () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
-    /* 杖 */       () => { const t = pick(WANDS); return { ...t, id: uid(), charges: t.charges + rng(-1, 2) }; },
-    /* 魔法書 */   () => { const sb = pick(SPELLBOOKS); return { ...sb, id: uid() }; },
+    /* 杖 */       () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: t.charges + rng(-1, 2) }; },
+    /* 魔法書 */   () => { const sb = pickWeighted(SPELLBOOKS); return { ...sb, id: uid() }; },
     /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
     /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
     /* 壺 */       () => makePot(),
@@ -1043,7 +1049,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         if (items.some((i) => i.x === bx && i.y === by)) continue;
         if (bigboxes.some((b) => b.x === bx && b.y === by)) continue;
         if (occ(bx, by)) continue;
-        const bbt = pick(BB_TYPES);
+        const bbt = pickBB();
         bigboxes.push({
           id: uid(),
           x: bx,
