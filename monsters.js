@@ -515,17 +515,24 @@ function monsterThrowStone(m, dg, pl, ml) {
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
 }
 
+/* 仮眠中のモンスターを強制覚醒させる。モンスターへの全アクションから呼ぶ */
+export function wakeIfDormant(m, ml) {
+  if (!m.dormant) return;
+  m.dormant = false;
+  m._dormantTouched = false;
+  delete m._dormantHp;
+  ml.push(`${m.name}が目を覚ました！`);
+}
+
 /* ===== MONSTER AI ===== */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
-  /* 通常仮眠：視界に入るか、ダメージ等のアクションを受けたら即覚醒 */
+  /* 通常仮眠：視界に入るか、何らかのアクションを受けたら即覚醒 */
   if (m.dormant) {
     const _wasHit = m.hp < (m._dormantHp ?? m.hp);
-    if (dg.visible?.[m.y]?.[m.x] || _wasHit) {
-      m.dormant = false;
-      delete m._dormantHp;
-      ml.push(`${m.name}が目を覚ました！`);
+    if (dg.visible?.[m.y]?.[m.x] || _wasHit || m._dormantTouched) {
+      wakeIfDormant(m, ml);
     } else {
       m._dormantHp = m.hp;
       return;

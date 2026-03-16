@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster } from './utils.js';
-import { MONS, spawnMonsters, monLevelUp, monLevelDown } from './monsters.js';
+import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
@@ -692,6 +692,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
       for (const m of [...dg.monsters.filter(m => m.x === ax && m.y === ay)]) {
         if (_killed.has(m)) continue;
+        wakeIfDormant(m, ml);
         if (_hasExPentacle) {
           /* 爆発の魔方陣の影響下：爆発を浴びた敵は即死して連鎖爆発 */
           ml.push(`爆風で${m.name}は即死した！`);
@@ -1065,6 +1066,7 @@ export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30
 }
 
 export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false) {
+  if (kind === "monster") wakeIfDormant(target, ml);
   const _monKill = (mon) => {
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
   };
@@ -2067,6 +2069,7 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null) {
   }
 }
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
+  if (kind === "monster") wakeIfDormant(target, ml);
   const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
   switch (eff) {
     case "fire_bolt": {

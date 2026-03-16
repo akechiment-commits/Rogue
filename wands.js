@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster } from './utils.js';
-import { MONS, monLevelUp, monLevelDown } from './monsters.js';
+import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
@@ -10,6 +10,7 @@ import {
 import { fireTrapPlayer } from './traps.js';
 
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0) {
+  if (kind === "monster") wakeIfDormant(target, ml);
   /* 地面のアイテムは未識別名で表示するため、呼び出し元から nameFn を受け取る */
   const _dname_item = (t) => (nameFn && kind === "item") ? nameFn(t) : t.name;
   /* ── big box pre-handler ── */

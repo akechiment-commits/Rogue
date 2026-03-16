@@ -10,6 +10,7 @@ import {
   makeMonster,
   makeGuard,
   spawnMonsters,
+  wakeIfDormant,
 } from "./monsters.js";
 import {
   ITEM_TILES,
@@ -1407,6 +1408,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               /* 壁の中の壁歩きモンスターへの攻撃：ダメージ半減 */
               const _atkInWall = attackMon.wallWalker && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
+              wakeIfDormant(attackMon, ml);
               attackMon.hp -= d;
               if (attackMon.type === "shopkeeper") { attackMon.state = "hostile"; dg.shopTheft = true; }
               const atkSfx =
