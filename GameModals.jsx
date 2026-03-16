@@ -1537,11 +1537,42 @@ export function InventoryModal({
           <span>({invPage * 10 + 1}〜{Math.min((invPage + 1) * 10, p.inventory.length)}件)</span>
         </div>
       )}
+      {(() => {
+        const _allShops = gs?.dungeon ? [
+          ...(gs.dungeon.shops || []),
+          ...(gs.dungeon.shop ? [gs.dungeon.shop] : []),
+        ] : [];
+        const _inShopRoom = _allShops.some(sh =>
+          sh.room &&
+          p.x >= sh.room.x && p.x < sh.room.x + sh.room.w &&
+          p.y >= sh.room.y && p.y < sh.room.y + sh.room.h
+        );
+        if (_inShopRoom) {
+          const _totalSell = p.inventory
+            .filter(it => it.type !== "gold")
+            .reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
+          return (
+            <div style={{ background: "#1a1400", border: "1px solid #665500", borderRadius: 4, padding: "4px 8px", marginBottom: 6, color: "#ffcc44", fontSize: 11 }}>
+              全売却合計: <span style={{ fontWeight: "bold", color: "#ffee88" }}>{_totalSell.toLocaleString()}G</span>
+            </div>
+          );
+        }
+        return null;
+      })()}
       {p.inventory.length === 0 ? (
         <div style={{ color: "#555", padding: 8 }}>何も持っていない。</div>
       ) : (
         p.inventory.slice(invPage * 10, (invPage + 1) * 10).map((it, j) => {
           const i = invPage * 10 + j;
+          const _allShops2 = gs?.dungeon ? [
+            ...(gs.dungeon.shops || []),
+            ...(gs.dungeon.shop ? [gs.dungeon.shop] : []),
+          ] : [];
+          const _inShopRoom2 = _allShops2.some(sh =>
+            sh.room &&
+            p.x >= sh.room.x && p.x < sh.room.x + sh.room.w &&
+            p.y >= sh.room.y && p.y < sh.room.y + sh.room.h
+          );
           const acts = [];
           if (canUse(it)) acts.push({ label: useLabel(it), fn: () => { doUseItem(i); setInvMenuSel(null); } });
           if (it.type === "spellbook") acts.push({ label: "読む", fn: () => { doReadSpellbook(i); setInvMenuSel(null); } });
@@ -1571,11 +1602,20 @@ export function InventoryModal({
                 setTimeout(() => containerRef.current?.focus(), 0);
               }} style={{
                 padding: "7px 8px", cursor: "pointer", fontSize: mobile ? 13 : 12,
-                background: selIdx === j ? "#252540" : "transparent", borderRadius: 4,
+                background: selIdx === j ? (it.shopPrice ? "#2a1800" : "#252540") : (it.shopPrice ? "#1a0e00" : "transparent"),
+                borderRadius: 4,
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                color: _isUnidentInv ? "#ff8" : _isIdentBCUnknown ? "#6d6" : "#ccc",
+                color: it.shopPrice ? "#ff8844" : _isUnidentInv ? "#ff8" : _isIdentBCUnknown ? "#6d6" : "#ccc",
               }}>
-                <span>{iLabel(it)}</span>
+                <span>
+                  {iLabel(it)}
+                  {it.shopPrice
+                    ? <span style={{ color: "#ff6622", fontSize: 10, marginLeft: 4 }}>〔未払:{it.shopPrice}G〕</span>
+                    : (_inShopRoom2 && it.type !== "gold"
+                        ? <span style={{ color: "#aaa880", fontSize: 10, marginLeft: 4 }}>売:{Math.ceil(itemPrice(it) * 0.5)}G</span>
+                        : null)
+                  }
+                </span>
                 <span style={{ color: "#555", fontSize: 10 }}>{selIdx === j ? (invMenuSel !== null ? "▶" : "▲") : "▼"}</span>
               </div>
               {selIdx === j && (
