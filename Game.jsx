@@ -1603,7 +1603,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           );
         }).length;
       let prevPerps = getP(p.x, p.y);
-      const _dMonMap = new Map(); for (const m of dg.monsters) _dMonMap.set(_dk(m.x, m.y), m);
+
       const _dItemMap = new Map(); for (const i of dg.items) { if (!_dItemMap.has(_dk(i.x, i.y))) _dItemMap.set(_dk(i.x, i.y), i); }
       const _dTrapMap = new Map(); for (const t of dg.traps) _dTrapMap.set(_dk(t.x, t.y), t);
       const _dSprMap = new Map(); if (dg.springs) for (const s of dg.springs) _dSprMap.set(_dk(s.x, s.y), s);
@@ -1620,7 +1620,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL
         )
           break;
-        if (_dMonMap.has(_dk(nx, ny))) break;
+        if (monsterAt(dg, nx, ny)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         const _allShopsD = getShops(dg);
         const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
@@ -1713,10 +1713,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         const _hpBefore = p.hp;
         endTurn(st, p, ml);
         if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
+        /* endTurn後にモンスターが移動している可能性があるため再チェック */
+        const blockedAfter = blocked || !!monsterAt(dg, fnx, fny);
         if (startInRoom) {
-          if (!curInRoom || blocked) break;
+          if (!curInRoom || blockedAfter) break;
         } else {
-          if ((curPerps > prevPerps && curPerps > 0) || blocked) break;
+          if ((curPerps > prevPerps && curPerps > 0) || blockedAfter) break;
         }
         prevPerps = curPerps;
       }
