@@ -1871,23 +1871,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         return;
       }
-      /* 短剣×3 → 猫の爪 */
-      const _daggers = bb.contents.filter((i) => i.type === "weapon" && i.name === "短剣");
-      if (_daggers.length >= 3) {
-        const _catClaw = { ...CAT_CLAW_T, id: uid(), plus: _daggers.reduce((s, d) => s + (d.plus || 0), 0) };
-        bb.contents = bb.contents.filter((i) => !_daggers.includes(i));
-        bb.contents.push(_catClaw);
-        bb.capacity = bb.contents.length;
-        ml.push(`合成完了！短剣3本が融合して猫の爪に変化した！`);
-        return;
-      }
       const ws = bb.contents.filter((i) => i.type === "weapon");
       const as = bb.contents.filter((i) => i.type === "armor");
       const pair = ws.length >= 2 ? ws : as.length >= 2 ? as : null;
       if (!pair) return;
       const [base, mat] = pair;
-      /* 短剣同士は3本揃うまで猫の爪レシピを待つ */
-      if (base.name === "短剣" && mat.name === "短剣") return;
       const _toAA = (it) => [
         ...new Set(
           [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(
@@ -1903,6 +1891,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         ability: _mabs[0] || undefined,
         abilities: _mabs.length ? _mabs : undefined,
       };
+      /* 短剣の合成カウント: 短剣同士なら加算、短剣+他なら消失 */
+      if (base.name === "短剣" && mat.name === "短剣") {
+        merged.daggerMerge = (base.daggerMerge || 1) + (mat.daggerMerge || 1);
+      } else {
+        delete merged.daggerMerge;
+      }
       /* pickaxe能力を持つ場合、耐久値をベース/素材から引き継ぐ */
       if (_mabs.includes("pickaxe")) {
         merged.durability = merged.durability ?? mat.durability ?? 30;
@@ -1910,9 +1904,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         delete merged.durability;
       }
       bb.contents = bb.contents.filter((i) => i !== base && i !== mat);
-      bb.contents.push(merged);
-      bb.capacity = bb.contents.length;
-      ml.push(`合成完了！${base.name}と${mat.name}が融合した！`);
+      /* 短剣カウントが3以上なら猫の爪に変化 */
+      if (merged.daggerMerge >= 3) {
+        const _catClaw = { ...CAT_CLAW_T, id: uid(), plus: merged.plus };
+        bb.contents.push(_catClaw);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！短剣が融合して猫の爪に変化した！`);
+      } else {
+        bb.contents.push(merged);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！${base.name}と${mat.name}が融合した！`);
+      }
     },
     [uid],
   );
