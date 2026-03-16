@@ -473,7 +473,13 @@ export function useKeyHandler({
             const _dupCount = identifyMode.blessed ? 2 : identifyMode.cursed ? 0 : 1;
             if (_dupCount === 0) {
               const _rmIdx = _p_id.inventory.indexOf(_selIt);
-              if (_rmIdx !== -1) _p_id.inventory.splice(_rmIdx, 1);
+              if (_rmIdx !== -1) {
+                _p_id.inventory.splice(_rmIdx, 1);
+                /* 巻物のインデックスがずれないよう調整 */
+                if (identifyMode.scrollIdx != null && _rmIdx < identifyMode.scrollIdx) {
+                  identifyMode.scrollIdx--;
+                }
+              }
               _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
             } else {
               /* 同種の新品アイテムを生成（チャージ・中身・強化値は複製元と無関係） */
@@ -511,7 +517,7 @@ export function useKeyHandler({
               _msgResult = `${_selIt.name}の識別が失われた...`;
             }
           }
-          if (identifyMode.mode !== 'duplicate' && identifyMode.scrollIdx != null) {
+          if (identifyMode.scrollIdx != null) {
             sr.current.player.inventory.splice(identifyMode.scrollIdx, 1);
           }
           if (identifyMode.spellCost != null) {
