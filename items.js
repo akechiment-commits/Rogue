@@ -590,7 +590,8 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   const pfx = POT_FOOD_PREFIX[pe];
   if (pfx && item.type === "food") {
     item.name = pfx + item.name;
-    item.value = Math.max(1, Math.floor(item.value * 1.3 * 0.8));
+    item.value = Math.max(1, Math.floor(item.value * 0.8));
+    item.value = Math.floor(item.value * 1.3);
     item.desc = POT_FOOD_DESCS[pe] || item.desc;
     ml.push(`${item.name}になった！(満腹度UP)`);
     return;
