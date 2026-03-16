@@ -16,7 +16,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames,
-  hasCursedExplosionPentacle,
+  hasCursedExplosionPentacle, hasRingEffect, doExplosion,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
@@ -321,6 +321,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       poisoned: false,
       poisonAtkLoss: 0,
       sealedTurns: 0,
+      rings: [],
       maxInventory: dungeonConfig?.dungeonType === "debug" ? 100 : 30,
       facing: { dx: 0, dy: 1 },
       isThief: false,
@@ -480,6 +481,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
     if (isDash && trap.revealed) return null;
+    if (hasRingEffect(p, "float_ring")) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
@@ -726,23 +728,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const _etPfBag = [];
       setPitfallBag(_etPfBag);
       p.turns++;
+      const _hasRegenRing = hasRingEffect(p, "regen_ring");
       const hd =
         hasAbility(p.armor, "slow_hunger")
           ? 2
+          : _hasRegenRing ? 0.5  /* 回復の指輪：空腹が2倍速 */
           : 1;
-      if (p.turns % (10 * hd) === 0) {
-        p.hunger = Math.max(0, p.hunger - 1);
+      /* hd < 1 の場合は整数 turns でのチェックができないので別処理 */
+      if (_hasRegenRing) {
+        if (p.turns % 5 === 0) p.hunger = Math.max(0, p.hunger - 1);
+      } else {
+        if (p.turns % (10 * hd) === 0) {
+          p.hunger = Math.max(0, p.hunger - 1);
+        }
       }
       if (p.hunger === 0) {
         p.deathCause = "空腹により";
         p.hp--;
         if (p.turns % 10 === 0) ml.push("空腹でHPが減っている...");
       } else if (p.hp > 0 && p.hp < p.maxHp) {
-        const regenAmt =
-          Math.max(1, Math.floor(p.maxHp / 100)) +
-          (hasAbility(p.armor, "regen")
-            ? 1
-            : 0);
+        const _baseRegen = Math.max(1, Math.floor(p.maxHp / 100)) +
+          (hasAbility(p.armor, "regen") ? 1 : 0);
+        const regenAmt = _hasRegenRing ? _baseRegen * 2 : _baseRegen;  /* 回復の指輪：回復量2倍 */
         p.hp = Math.min(p.maxHp, p.hp + regenAmt);
       }
       /* MPクールダウンカウント */
@@ -766,6 +773,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             ml.push("毒の効果が切れた。");
           }
         }
+      }
+      /* 爆発の指輪：5%の確率で爆発 */
+      if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
+        ml.push("指輪が爆発した！");
+        const _erfNFn = (gi) => gi.name;
+        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪");
       }
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
       const _cursedSancOn = st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
@@ -979,7 +992,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               _dg.monsters.push(makeMonster(p.depth, _cx, _cy));
             }
           }
-          _dg.nextSpawnTurn = p.turns + (_dg.shopTheft ? rng(5, 15) : rng(10, 50));
+          _dg.nextSpawnTurn = p.turns + (_dg.shopTheft ? rng(5, 15) : hasRingEffect(p, "spawn_ring") ? rng(3, 10) : rng(10, 50));
         }
       }
       if (p.hp <= 0) {
@@ -1168,7 +1181,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 attackMon.paralyzed = false;
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
-              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0);
+              const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
+              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0);
               const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;
@@ -1326,7 +1340,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else ml.push("矢を装備していない。");
       } else if (type === "stairs_down") {
         if (dg.map[p.y][p.x] === T.SD) {
-          doStair(1);
+          if (hasRingEffect(p, "float_ring")) {
+            ml.push("浮遊の指輪を付けているので階段を降りられない！");
+          } else {
+            doStair(1);
+          }
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
         if (dg.map[p.y][p.x] === T.SU) {
@@ -1395,11 +1413,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 const _allS2 = getShops(dg);
                 const _pickShop = _allS2.find(s => s.id === _grIt._shopId) || _allS2[0];
                 if (_pickShop) {
-                  _pickShop.unpaidTotal += _grIt.shopPrice;
+                  const _bargain = hasRingEffect(p, "bargain_ring");
+                  const _actualPrice = _bargain ? Math.max(1, Math.floor(_grIt.shopPrice * 0.7)) : _grIt.shopPrice;
+                  _pickShop.unpaidTotal += _actualPrice;
                   const _sk2 = dg.monsters.find((m) => m.id === _pickShop.shopkeeperId && m.state === "friendly");
                   if (_sk2) _sk2.state = "blocking";
+                  ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${_bargain ? " 3割引！" : ""}) 店主が入り口をふさいだ。`);
+                } else {
+                  ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
                 }
-                ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
               } else {
                 const _w2 = _grIt.type === "weapon", _a2 = _grIt.type === "armor";
                 let _lbl2 = itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -1792,6 +1814,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, []);
   const trySynthesize = useCallback(
     (bb, ml) => {
+      /* 力の指輪 + 力の指輪 → ＋値合算 */
+      const _pRings = bb.contents.filter(i => i.type === "ring" && i.effect === "power_ring");
+      if (_pRings.length >= 2) {
+        const [ra, rb] = _pRings;
+        ra.plus = (ra.plus || 0) + (rb.plus || 0) + 1;
+        ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
+        bb.contents = bb.contents.filter(i => i !== rb);
+        bb.capacity = bb.contents.length;
+        return;
+      }
       const mks = bb.contents.filter((i) => i.type === "marker");
       if (mks.length >= 2) {
         const [mb, mm] = mks;
@@ -1958,7 +1990,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (idx >= 0) bb.contents[idx] = nit;
         ml.push(`${_idn}が${itemDisplayName(nit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に変化した！`);
       } else if (bb.kind === "enhance") {
-        if (item.type === "weapon" || item.type === "armor") {
+        if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && item.effect === "power_ring")) {
           const before = item.plus || 0;
           item.plus = before + 1;
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
@@ -2498,11 +2530,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
 
   const iLabel = (it) => {
     const _ep = gs?.player;
-    const _eq = _ep?.weapon === it ? "【武器】" : _ep?.armor === it ? "【防具】" : _ep?.arrow === it ? "【矢】" : "";
+    const _eq = _ep?.weapon === it ? "【武器】" : _ep?.armor === it ? "【防具】" : _ep?.arrow === it ? "【矢】" : (_ep?.rings || []).includes(it) ? "【指輪】" : "";
     const _key = getIdentKey(it);
     const _isIdent = !_key || gs?.ident?.has(_key);
     /* 識別対象アイテムはfullIdentまたはbcKnownのみ祝呪表示、それ以外(武器・防具等)は常に表示 */
-    const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor';
+    const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor' || it.type === 'ring';
     const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown) : true;
     const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
     let s = (_eq ? _eq : "") + _bc + dname(it);
@@ -2549,6 +2581,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     else if (it.type === "marker") s += ` [${it.charges}回]`;
     else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
     else if (it.type === "pot")    s += _isIdent ? ` [${it.contents?.length || 0}/${it.capacity}]` : "";
+    else if (it.type === "ring" && it.effect === "power_ring") s += `+${it.plus || 0}`;
     if (it.shopPrice) s += ` 〔未払:${it.shopPrice}G〕`;
     return s;
   };
@@ -2636,11 +2669,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           攻:
           {(p.poisonAtkLoss || 0) > 0 ? (
             <span style={{ color: "#fa0" }}>
-              {p.atk + (p.weapon?.atk || 0)}/
+              {p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)}/
               <span style={{ color: "#aaa", fontSize: "0.9em" }}>{p.atk + (p.poisonAtkLoss || 0) + (p.weapon?.atk || 0)}</span>
             </span>
           ) : (
-            <span style={{ color: "#fa0" }}>{p.atk + (p.weapon?.atk || 0)}</span>
+            <span style={{ color: "#fa0" }}>{p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)}</span>
           )}
         </span>{" "}
         <span>
@@ -2657,6 +2690,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         {p.arrow && (
           <span style={{ color: "#dda050" }}>{p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : "矢"}:{p.arrow.count}</span>
         )}{" "}
+        {(p.rings || []).map((r, i) => (
+          <span key={i} style={{ color: "#c0a0ff", fontSize: "0.85em" }}>
+            💍{r.effect === "power_ring" ? `${r.name}+${r.plus || 0}` : r.name}
+          </span>
+        ))}{" "}
         {p.poisoned && (
           <span style={{ color: "#80ff40" }}>☠毒</span>
         )}{" "}

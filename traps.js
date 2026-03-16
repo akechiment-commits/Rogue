@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
@@ -107,8 +107,12 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
           const d = ARROW_T.atk + rng(1, 4);
           p.deathCause = `${trap.name}により`;
           p.hp -= d;
-          p.poisoned = true;
-          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
+          if (hasRingEffect(p, "antidote_ring")) {
+            ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
+          } else {
+            p.poisoned = true;
+            ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
+          }
           _pahp = true;
           break;
         }
