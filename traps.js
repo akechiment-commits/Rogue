@@ -1,4 +1,4 @@
-import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster } from "./utils.js";
+import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility } from "./utils.js";
 import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
@@ -87,7 +87,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "sleep":
-      if (p.armor?.ability === "sleep_proof") {
+      if (hasAbility(p.armor, "sleep_proof")) {
         ml.push(`${trap.name}が発動！しかし眠れなかった！(耐眠)`);
       } else {
         p.sleepTurns = (p.sleepTurns || 0) + rng(3, 6);

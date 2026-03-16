@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
@@ -1125,7 +1125,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       const _lBlessedSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
       if (_lBlessedSanc) { ml.push("祝福された聖域の加護が雷撃を防いだ！"); return; }
       /* 反射の鎧: 雷撃を発射源のモンスターに反射 */
-      const _hasReflect = pl.armor?.ability === "wand_reflect" || pl.armor?.abilities?.includes("wand_reflect");
+      const _hasReflect = hasAbility(pl.armor, "wand_reflect");
       if (_hasReflect) {
         ml.push("反射の鎧が雷撃を反射した！");
         const _srcMon = monsterAt(dg, cx, cy);
@@ -1138,7 +1138,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         return;
       }
       /* ゴムゴムの胴: 雷ダメージ半減・所持品破壊を防ぐ */
-      const _hasLightRes = pl.armor?.ability === "lightning_resist" || pl.armor?.abilities?.includes("lightning_resist");
+      const _hasLightRes = hasAbility(pl.armor, "lightning_resist");
       let dmg = rng(15, 25);
       if (_hasLightRes) dmg = Math.max(1, Math.floor(dmg / 2));
       if (inCursedMagicSealRoom(pl.x, pl.y, dg)) dmg *= 2;

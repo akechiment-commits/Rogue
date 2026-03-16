@@ -1848,7 +1848,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         }
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
         if (p && p.x === ax && p.y === ay) {
-          const _hasFireR = p.armor?.ability === "fire_resist" || p.armor?.abilities?.includes("fire_resist");
+          const _hasFireR = hasAbility(p.armor, "fire_resist");
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
           const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
           p.deathCause = `${exPc.name}の爆発により`;

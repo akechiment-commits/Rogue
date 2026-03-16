@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp, findVulnPentacle } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp, findVulnPentacle, hasAbility } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
@@ -37,7 +37,7 @@ function monsterDragonFire(m, dg, pl, ml) {
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
   /* 耐火装備 */
-  const _hasFireR = pl.armor?.ability === "fire_resist" || pl.armor?.abilities?.includes("fire_resist");
+  const _hasFireR = hasAbility(pl.armor, "fire_resist");
   if (_hasFireR) dmg = Math.max(1, Math.floor(dmg / 2));
   pl.deathCause = `${m.name}の炎ブレスで`;
   pl.hp -= dmg;
@@ -50,7 +50,7 @@ function monsterDragonFire(m, dg, pl, ml) {
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false } = {}) {
   /* dodge: 25% 完全回避 */
-  if ((pl.armor?.ability === "dodge" || pl.armor?.abilities?.includes("dodge")) && Math.random() < 0.25) {
+  if (hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
     ml.push(`${m.name}の攻撃をひらりとかわした！`);
     return;
   }
@@ -491,7 +491,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   ml.push(`${m.name}が${stoneName}を投げた！`);
 
   /* みかわし（防具の効果） */
-  const dodged = (pl.armor?.ability === "dodge" || pl.armor?.abilities?.includes("dodge")) && Math.random() < 0.25;
+  const dodged = hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
   if (dodged) {
     ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
     const _sd = safeArrowDrop(pl.x, pl.y, dg);
@@ -843,7 +843,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _tdx = pl.x - m.x, _tdy = pl.y - m.y;
       const _adj = Math.abs(_tdx) <= 1 && Math.abs(_tdy) <= 1;
       if (_adj) {
-        const _hasAntiSteal = pl.armor?.ability === "anti_steal" || pl.armor?.abilities?.includes("anti_steal");
+        const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
         if (_hasAntiSteal) {
           ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
           /* 盗めないので通常攻撃 */

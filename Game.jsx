@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility } from "./utils.js";
 import {
   MONS,
   hasLOS,
@@ -773,7 +773,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { ml.push("呪いの魔法弾は壁に消えた。"); _cwHit = true; break; }
             if (_tx === pl.x && _ty === pl.y) {
               /* 反射の鎧チェック */
-              if (pl.armor?.ability === "wand_reflect" || pl.armor?.abilities?.includes("wand_reflect")) {
+              if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧が呪いの魔法弾を反射した！");
                 m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
                 ml.push(`呪いが${m.name}に反射！鈍足になった！`);
@@ -872,7 +872,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
             /* プレイヤーに命中 */
             if (_tx === pl.x && _ty === pl.y) {
-              if (pl.armor?.ability === "wand_reflect" || pl.armor?.abilities?.includes("wand_reflect")) {
+              if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧が吹き飛ばしの魔法弾を反射した！");
                 applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, pl.atk || 3);
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); }
@@ -971,8 +971,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       setPitfallBag(_etPfBag);
       p.turns++;
       const hd =
-        p.armor?.ability === "slow_hunger" ||
-        !!p.armor?.abilities?.includes("slow_hunger")
+        hasAbility(p.armor, "slow_hunger")
           ? 2
           : 1;
       if (p.turns % (15 * hd) === 0) {
@@ -985,8 +984,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (p.hp > 0 && p.hp < p.maxHp) {
         const regenAmt =
           Math.max(1, Math.floor(p.maxHp / 100)) +
-          (p.armor?.ability === "regen" ||
-          !!p.armor?.abilities?.includes("regen")
+          (hasAbility(p.armor, "regen")
             ? 1
             : 0);
         p.hp = Math.min(p.maxHp, p.hp + regenAmt);
@@ -1029,7 +1027,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           const _theal = Math.min(25, p.maxHp - p.hp);
           if (_theal > 0) { p.hp += _theal; ml.push(`${_thunderPent.name}の力でHPが${_theal}回復した！`); }
         } else {
-          const _thasLR = p.armor?.ability === "lightning_resist" || p.armor?.abilities?.includes("lightning_resist");
+          const _thasLR = hasAbility(p.armor, "lightning_resist");
           const _tdmg = Math.max(1, Math.floor((_thunderPent.blessed ? 50 : 25) * (_thasLR ? 0.5 : 1)));
           p.deathCause = `${_thunderPent.name}の雷撃により`;
           p.hp -= _tdmg;
@@ -1800,7 +1798,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         setMsgs((prev) => [...prev.slice(-80), "壁を叩き壊した！"]);
       } else if (ny > 0 && ny < MH - 1 && nx > 0 && nx < MW - 1 && dg.map[ny]?.[nx] === T.WALL) {
         const _pweapon = sr.current.player.weapon;
-        if (_pweapon?.ability === "pickaxe" || _pweapon?.abilities?.includes("pickaxe")) {
+        if (hasAbility(_pweapon, "pickaxe")) {
           /* つるはし：壁を掘る */
           dg.map[ny][nx] = T.FLOOR;
           _pweapon.durability = (_pweapon.durability ?? 1) - 1;
@@ -2268,7 +2266,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.inventory.push(wb);
         ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
-        if (it.ability === "no_degrade" || it.abilities?.includes("no_degrade")) {
+        if (hasAbility(it, "no_degrade")) {
           ml.push(`${it.name}が水に浸かったが金でできているので錆びなかった！`);
         } else {
           const _op = it.plus || 0;
@@ -3571,14 +3569,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           // 通常/祝福：炎ダメージ（祝福=1.5x）
           const rd = Math.max(1, Math.round((it.value + rng(-5, 5)) * _potBm));
           const d =
-            p.armor?.ability === "fire_resist" ||
-            !!p.armor?.abilities?.includes("fire_resist")
+            hasAbility(p.armor, "fire_resist")
               ? Math.floor(rd / 2)
               : rd;
           p.deathCause = "炎の薬を飲んで";
           p.hp -= d;
           ml.push(
-            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${p.armor?.ability === "fire_resist" || !!p.armor?.abilities?.includes("fire_resist") ? "(耘火)" : ""}${it.blessed ? "【祝=強炎】" : ""}`,
+            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${hasAbility(p.armor, "fire_resist") ? "(耘火)" : ""}${it.blessed ? "【祝=強炎】" : ""}`,
           );
         }
       } else if (it.effect === "sleep") {
@@ -3590,8 +3587,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           // 通常/祝福：プレイヤーを眠らせる（祝福=2倍ターン）
           const t = Math.max(1, Math.round((it.value + rng(-1, 1)) * (it.blessed ? 2 : 1)));
           if (
-            p.armor?.ability === "sleep_proof" ||
-            !!p.armor?.abilities?.includes("sleep_proof")
+            hasAbility(p.armor, "sleep_proof")
           ) {
             ml.push(`${it.name}を飲んだ。なんとも無い。(耔眠)`);
           } else if ((p.statusImmune || 0) > 0) {
@@ -4490,12 +4486,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (_dropSpr) {
       soakItemIntoSpring(_dropSpr, it, ml, dg, dnameRef);
     } else {
-      const _dropPfBag = [];
-      setPitfallBag(_dropPfBag);
-      const _dr = placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p);
-      clearPitfallBag();
-      if (!sr.current.floors) sr.current.floors = {};
-      processPitfallBag(_dropPfBag, sr.current.floors, p.depth);
+      let _dr;
+      withPitfallBag(() => { _dr = placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p); });
       if (_dr === "pitfall_player") {
         const _nd = chgFloor(p, 1, true);
         if (_nd) {
@@ -4935,12 +4927,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _msDmg = (_arItem.atk || 5) + rng(0, 3);
               if (_msMiss) {
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
-                const _msft = new Set(); const _msPfBag = [];
-                setPitfallBag(_msPfBag);
-                placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
-                clearPitfallBag();
-                if (!sr.current.floors) sr.current.floors = {};
-                processPitfallBag(_msPfBag, sr.current.floors, p.depth);
+                const _msft = new Set();
+                withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft));
               } else {
                 _msTarget.hp -= _msDmg;
                 ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
@@ -4965,12 +4953,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _stMiss = !_stSureHit && Math.random() >= 0.90;
               if (_stMiss) {
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
-                const _stft = new Set(); const _stPfBag = [];
-                setPitfallBag(_stPfBag);
-                placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft);
-                clearPitfallBag();
-                if (!sr.current.floors) sr.current.floors = {};
-                processPitfallBag(_stPfBag, sr.current.floors, p.depth);
+                const _stft = new Set();
+                withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft));
               } else {
                 _stM.hp -= _stDmg;
                 ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
@@ -4978,12 +4962,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               }
             } else {
               /* 敵なし：着弾点に落ちる（罠も起動） */
-              const _stft = new Set(); const _stPfBag = [];
-              setPitfallBag(_stPfBag);
-              placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft);
-              clearPitfallBag();
-              if (!sr.current.floors) sr.current.floors = {};
-              processPitfallBag(_stPfBag, sr.current.floors, p.depth);
+              const _stft = new Set();
+              withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft));
             }
           }
           if (p.arrow.count <= 0) {
@@ -5098,12 +5078,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (!hit) {
           ml.push(`${_arName}を射った。`);
           const ft = new Set();
-          const _arPfBag = [];
-          setPitfallBag(_arPfBag);
-          placeItemAt(dg, lx, ly, _arDropItem(), ml, ft);
-          clearPitfallBag();
-          if (!sr.current.floors) sr.current.floors = {};
-          processPitfallBag(_arPfBag, sr.current.floors, p.depth);
+          withPitfallBag(() => placeItemAt(dg, lx, ly, _arDropItem(), ml, ft));
         }
         if (p.arrow.count <= 0) {
           const _ex = p.arrow;
@@ -5193,12 +5168,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _msDmg2 = _invStAtk + rng(0, 3);
               if (_msMiss2) {
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
-                const _msft2 = new Set(); const _msPfBag2 = [];
-                setPitfallBag(_msPfBag2);
-                placeItemAt(dg, _msTarget2.x, _msTarget2.y, makeMagicStone(1), ml, _msft2);
-                clearPitfallBag();
-                if (!sr.current.floors) sr.current.floors = {};
-                processPitfallBag(_msPfBag2, sr.current.floors, p.depth);
+                const _msft2 = new Set();
+                withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, makeMagicStone(1), ml, _msft2));
               } else {
                 _msTarget2.hp -= _msDmg2;
                 ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
