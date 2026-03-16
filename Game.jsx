@@ -2272,6 +2272,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else {
           ml.push("白紙の巻物を泉に浸した...何も起こらなかった。");
         }
+      } else if (it.type === "pot" && it.potEffect === "gunpowder") {
+        const _savedContents = it.contents || [];
+        const _preserveTpl = POTS.find(pp => pp.potEffect === "none");
+        Object.assign(it, { name: _preserveTpl.name, potEffect: _preserveTpl.potEffect,
+          capacity: Math.max(_preserveTpl.capacity, _savedContents.length),
+          desc: _preserveTpl.desc, tile: _preserveTpl.tile });
+        it.contents = _savedContents;
+        ml.push(`火薬壺を泉に浸した...保存の壺に変化した！中身は保たれている。`);
       } else {
         ml.push(`${dnameRef(it)}を泉に浸した...何も起こらなかった。`);
       }
