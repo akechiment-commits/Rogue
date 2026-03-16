@@ -4115,40 +4115,37 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           // 通常：隣接マスに引き寄せる
           dg.items = dg.items.filter((gi) => gi.shopPrice);
           const _gft = new Set();
-          const _igPfBag = [];
-          setPitfallBag(_igPfBag);
-          for (const gi of _toG) {
-            let _placed = false;
-            for (const [_dx, _dy] of DRO) {
-              const _cx = p.x + _dx, _cy = p.y + _dy;
-              if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
-              if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL || dg.map[_cy][_cx] === T.SD || dg.map[_cy][_cx] === T.SU) continue;
-              const _gb = dg.bigboxes?.find((b) => b.x === _cx && b.y === _cy);
-              if (_gb) { bigboxAddItem(_gb, gi, dg, ml); _placed = true; break; }
-              const _gs = dg.springs?.find((s) => s.x === _cx && s.y === _cy);
-              if (_gs) { soakItemIntoSpring(_gs, gi, ml, dg, dnameRef); _placed = true; break; }
-              const _gt = dg.traps.find((t) => t.x === _cx && t.y === _cy && !_gft.has(t.id));
-              if (_gt) {
-                _gft.add(_gt.id);
-                _gt.revealed = true;
-                const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
-                if (Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
-                if (_gr === "destroyed") { _placed = true; break; }
-                if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
-                continue;
+          withPitfallBag(() => {
+            for (const gi of _toG) {
+              let _placed = false;
+              for (const [_dx, _dy] of DRO) {
+                const _cx = p.x + _dx, _cy = p.y + _dy;
+                if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
+                if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL || dg.map[_cy][_cx] === T.SD || dg.map[_cy][_cx] === T.SU) continue;
+                const _gb = dg.bigboxes?.find((b) => b.x === _cx && b.y === _cy);
+                if (_gb) { bigboxAddItem(_gb, gi, dg, ml); _placed = true; break; }
+                const _gs = dg.springs?.find((s) => s.x === _cx && s.y === _cy);
+                if (_gs) { soakItemIntoSpring(_gs, gi, ml, dg, dnameRef); _placed = true; break; }
+                const _gt = dg.traps.find((t) => t.x === _cx && t.y === _cy && !_gft.has(t.id));
+                if (_gt) {
+                  _gft.add(_gt.id);
+                  _gt.revealed = true;
+                  const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
+                  if (Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
+                  if (_gr === "destroyed") { _placed = true; break; }
+                  if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
+                  continue;
+                }
+                if (dg.items.some((i) => i.x === _cx && i.y === _cy)) continue;
+                gi.x = _cx; gi.y = _cy;
+                delete gi.wallEmbedded;
+                dg.items.push(gi);
+                _placed = true;
+                break;
               }
-              if (dg.items.some((i) => i.x === _cx && i.y === _cy)) continue;
-              gi.x = _cx; gi.y = _cy;
-              delete gi.wallEmbedded;
-              dg.items.push(gi);
-              _placed = true;
-              break;
+              if (!_placed) ml.push(`${gi.name}は引き寄せられなかった！`);
             }
-            if (!_placed) ml.push(`${gi.name}は引き寄せられなかった！`);
-          }
-          clearPitfallBag();
-          if (!sr.current.floors) sr.current.floors = {};
-          processPitfallBag(_igPfBag, sr.current.floors, p.depth);
+          });
           ml.push(`${_cnt}個のアイテムを引き寄せた！`);
         }
       } else if (it.effect === "sleep_scroll") {
@@ -5192,24 +5189,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _stMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
               if (_stMiss2) {
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
-                const _stft2 = new Set(); const _stPfBag2 = [];
-                setPitfallBag(_stPfBag2);
-                placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2);
-                clearPitfallBag();
-                if (!sr.current.floors) sr.current.floors = {};
-                processPitfallBag(_stPfBag2, sr.current.floors, p.depth);
+                const _stft2 = new Set();
+                withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
               } else {
                 _stM2.hp -= _stDmg2;
                 ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
                 if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
               }
             } else {
-              const _stft2 = new Set(); const _stPfBag2 = [];
-              setPitfallBag(_stPfBag2);
-              placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2);
-              clearPitfallBag();
-              if (!sr.current.floors) sr.current.floors = {};
-              processPitfallBag(_stPfBag2, sr.current.floors, p.depth);
+              const _stft2 = new Set();
+              withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
             }
           }
           endTurn(sr.current, p, ml);
@@ -5422,12 +5411,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           } else if (hit && it.type === "wand" && !_wandFiredEffect) {
             /* 外れた杖は足元に落ちる */
             const ft = new Set();
-            const _twPfBag = [];
-            setPitfallBag(_twPfBag);
-            placeItemAt(dg, lx, ly, it, ml, ft);
-            clearPitfallBag();
-            if (!sr.current.floors) sr.current.floors = {};
-            processPitfallBag(_twPfBag, sr.current.floors, p.depth);
+            withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));
           } else if (!hit) {
             const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
             ml.push(`${lb}を投げた。`);
@@ -5439,12 +5423,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               ml.push(`${it.name}は割れてしまった！`);
             } else {
               const ft = new Set();
-              const _thPfBag = [];
-              setPitfallBag(_thPfBag);
-              placeItemAt(dg, lx, ly, it, ml, ft);
-              clearPitfallBag();
-              if (!sr.current.floors) sr.current.floors = {};
-              processPitfallBag(_thPfBag, sr.current.floors, p.depth);
+              withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));
             }
           }
         }
