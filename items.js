@@ -1760,15 +1760,19 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
     if (item.name === "ロングソード" && Math.random() < 0.05) {
       const _oldPlus = item.plus || 0;
+      const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
       Object.assign(item, { ...EXCALIBUR_T, id: item.id, plus: _oldPlus });
-      if (item.abilities) { item.abilities = [...new Set([...item.abilities, EXCALIBUR_T.ability])]; item.ability = item.abilities[0]; }
+      const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
+      item.abilities = _newAbs; item.ability = _newAbs[0];
       ml.push("ロングソードが泉の中で聖なる光を放ち...エクスカリバーに変化した！");
     } else if ((item.name === "バトルアクス" || item.name === "戦神の斧") && Math.random() < 0.20) {
       const _oldName = item.name;
       const _oldPlus = item.plus || 0;
+      const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
       const _goldAxe = ITEMS.find(i => i.name === "金の斧");
       Object.assign(item, { ..._goldAxe, id: item.id, plus: _oldPlus });
-      if (item.abilities) { item.abilities = [...new Set([...item.abilities, _goldAxe.ability])]; item.ability = item.abilities[0]; }
+      const _newAbs = [...new Set([..._oldAbs, _goldAxe.ability])];
+      item.abilities = _newAbs; item.ability = _newAbs[0];
       ml.push(_oldName + "が泉の中で黄金の輝きを放ち...金の斧に変化した！");
     } else if (hasAbility(item, "no_degrade")) {
       ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _wNote);
