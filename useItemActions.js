@@ -283,6 +283,7 @@ export function useItemActions({
       const _foodBm = getBlessMultiplier(it);
       const _foodVal = Math.max(1, Math.round(it.value * _foodBm));
       p.inventory.splice(idx, 1);
+      if (p.hunger < 0) p.hunger = 0;
       const _foodAdded = Math.min(_foodVal, p.maxHunger - p.hunger);
       p.hunger = Math.min(p.maxHunger, p.hunger + _foodVal);
       ml.push(
