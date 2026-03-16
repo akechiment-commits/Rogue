@@ -1886,6 +1886,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const pair = ws.length >= 2 ? ws : as.length >= 2 ? as : null;
       if (!pair) return;
       const [base, mat] = pair;
+      /* 短剣同士は3本揃うまで猫の爪レシピを待つ */
+      if (base.name === "短剣" && mat.name === "短剣") return;
       const _toAA = (it) => [
         ...new Set(
           [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(
