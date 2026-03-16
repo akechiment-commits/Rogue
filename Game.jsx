@@ -1398,12 +1398,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
               let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0);
-              const _isBane = wab?.startsWith("bane_") && (
-                (wab === "bane_float" ? attackMon.float : attackMon.kind === wab.slice(5)) ||
-                (p.weapon?.abilities?.some(a => a.startsWith("bane_") && (
-                  a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5)
-                )))
-              );
+              const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
+              const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;
               let d = Math.max(1, Math.floor(ap * ap / (ap + attackMon.def)) + rng(-2, 2));
               let crit = false;
@@ -3035,9 +3031,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (shopMenuSel === 0) {
               if (sr.current) {
                 const { player: p2, dungeon: dg2 } = sr.current;
-                if (p2.gold >= dg2.shop.unpaidTotal) {
-                  p2.gold -= dg2.shop.unpaidTotal;
-                  dg2.shop.unpaidTotal = 0;
+                const _allShopsPay = dg2.shops || (dg2.shop ? [dg2.shop] : []);
+                const _totalUnpaid = _allShopsPay.reduce((s, sh) => s + (sh.unpaidTotal || 0), 0);
+                if (p2.gold >= _totalUnpaid) {
+                  p2.gold -= _totalUnpaid;
+                  _allShopsPay.forEach(sh => { sh.unpaidTotal = 0; });
                   dg2.shopTheft = false;
                   p2.inventory.forEach((it2) => {
                     if (it2.shopPrice) delete it2.shopPrice;
@@ -3694,6 +3692,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (p.depth <= 1) {
             if (onReturnToHub) {
               ml.push(`${it.name}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
+              setMsgs((prev) => [...prev.slice(-80), ...ml]);
               sr.current = { ...sr.current };
               onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
               return;
@@ -5285,6 +5284,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
 
         p.inventory.splice(idx, 1);
         if (it.type === "potion") {
+          ml.push(`${dnameRef(it)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null;
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           for (let d = 1; d <= _maxRange; d++) {
@@ -5308,7 +5308,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
             lx = tx; ly = ty;
           }
-          ml.push(`${dnameRef(it)}を投げた！`);
           if (_isFarcast) {
             /* 遠投：軌道上の全モンスターに個別に効果 */
             if (_potHits.length > 0) {
@@ -5331,6 +5330,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           }
         } else if (it.type === "pot") {
+          ml.push(`${dnameRef(it)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
@@ -5362,7 +5362,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
             lx = tx; ly = ty;
           }
-          ml.push(`${dnameRef(it)}を投げた！`);
           if (_isFarcast) {
             /* 遠投：壺は消滅（中身もろとも） */
             ml.push(`${dnameRef(it)}は消滅した。`);

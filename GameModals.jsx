@@ -1694,7 +1694,7 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, loadPortrait, cle
 /* ===== Floor Select Modal (cursed teleport) ===== */
 export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, genDungeon, refreshFOV, rng }) {
   if (!mode) return null;
-  const MAX_FLOOR = 30;
+  const MAX_FLOOR = sr.current?.maxDepth || 50;
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#111", border: "1px solid #550", borderRadius: 6, padding: "12px 20px", color: "#ffe", minWidth: 180, maxHeight: "70vh", overflowY: "auto" }}>
