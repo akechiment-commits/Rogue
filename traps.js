@@ -2,7 +2,7 @@ import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster } from "./utils.js
 import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
-export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
+export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
   trap.revealed = true;
   let r = null;
 
@@ -14,7 +14,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null) {
         break;
       }
       ml.push(`${trap.name}が発動！`);
-      doExplosion(trap.x, trap.y, dg, p, ml, nameFn, trap.name);
+      doExplosion(trap.x, trap.y, dg, p, ml, nameFn, trap.name, null, luFn, true);
       break;
     }
     case "arrow_trap": {

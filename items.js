@@ -662,15 +662,16 @@ export const TRAPS = [
  * cx, cy: 爆発の中心。周囲8マス＋中心の計9マスを処理する。
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
  */
-export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null) {
+export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false) {
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
-    const dmg = rng(10, 20);
+    const dmg = proportional ? Math.max(1, Math.floor(p.hp / 2)) : rng(10, 20);
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
     ml.push(`${srcLabel}！${dmg}ダメージ！`);
   }
   const blasted = new Set();
+  const _killed = new Set();
   for (let ddx = -1; ddx <= 1; ddx++) {
     for (let ddy = -1; ddy <= 1; ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
@@ -688,11 +689,13 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         continue; /* 壁タイルにキャラ・アイテムはいない */
       }
       /* モンスターダメージ */
-      dg.monsters.filter(m => m.x === ax && m.y === ay).forEach(m => {
-        const md = rng(8, 15);
+      for (const m of [...dg.monsters.filter(m => m.x === ax && m.y === ay)]) {
+        if (_killed.has(m)) continue;
+        const md = proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15);
         m.hp -= md;
         ml.push(`爆風で${m.name}に${md}ダメージ！`);
-      });
+        if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn); }
+      }
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)) {
         if (it.type === "scroll") {
@@ -729,14 +732,14 @@ export function wallBreakDrop(dg, x, y) {
 }
 
 let _fireTrapDepth = 0;
-export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null) {
+export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null) {
   if (_fireTrapDepth > 5) return "stop";
   _fireTrapDepth++;
   try {
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は爆発で消し飛んだ！`);
-      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item);
+      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true);
       return "destroyed";
     }
     case "pitfall": {

@@ -741,12 +741,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (isDash && trap.revealed) return null;
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
-    return fireTrapPlayer(trap, p, dg, ml, _nameFn);
+    return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
   }, []);
   const moveMons = useCallback((dg, pl, ml) => {
     const opts = {
       bbFn: bigboxAddItem,
-      fireTrapFn: (trap, p, dg2, ml2) => fireTrapPlayer(trap, p, dg2, ml2),
+      fireTrapFn: (trap, p, dg2, ml2) => fireTrapPlayer(trap, p, dg2, ml2, null, lu),
       monsterWandFn: (m, dx, dy) => {
         const _we = m.wandEffect || "lightning";
         if (_we === "lightning") {
@@ -1658,7 +1658,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             const _trapHere = dg.traps.find((t) => t.x === p.x && t.y === p.y);
             if (_trapHere) {
               const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn);
+              const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu);
               if (_tr2 === "pitfall") {
                 const nd2 = chgFloor(p, 1, true);
                 if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
@@ -4085,7 +4085,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (_gt) {
                 _gft.add(_gt.id);
                 _gt.revealed = true;
-                const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef);
+                const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
                 if (Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
                 if (_gr === "destroyed") { _placed = true; break; }
                 if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
@@ -4975,7 +4975,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
             } else {
               ml.push("爆発！");
-              doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発");
+              doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発", null, lu);
             }
           }
           if (p.arrow.count <= 0) {
@@ -5225,7 +5225,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
             } else {
               ml.push("爆発！");
-              doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発");
+              doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発", null, lu);
             }
           }
           endTurn(sr.current, p, ml);
@@ -5297,7 +5297,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 lx = tx; ly = ty;
                 ml.push(`${dnameRef(it)}は${m.name}に外れ、足元に落ちた！`);
                 const _ptTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_ptTrap) fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef);
+                if (_ptTrap) fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;
               }
               const td = 3 + rng(0, 3);
@@ -5347,7 +5347,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 lx = tx; ly = ty; hit = true;
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
                 const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef);
+                if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;
               }
               m.hp -= td;
