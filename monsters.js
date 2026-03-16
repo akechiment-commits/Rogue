@@ -525,6 +525,12 @@ function monsterThrowStone(m, dg, pl, ml) {
 
 /* 仮眠中のモンスターを強制覚醒させる。モンスターへの全アクションから呼ぶ */
 export function wakeIfDormant(m, ml) {
+  if (m.dormantHouse) {
+    m.dormantHouse = false;
+    m.aware = true;
+    ml.push(`${m.name}が目を覚ました！`);
+    return;
+  }
   if (!m.dormant) return;
   m.dormant = false;
   m._dormantTouched = false;
