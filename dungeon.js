@@ -1204,7 +1204,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
 }
 
 /* ===== 最下層変換 ===== */
-const GOAL_ITEMS = {
+export const GOAL_ITEMS = {
   beginner:     { name:"輝く宝玉",       type:"goal", desc:"地上に持ち帰ればダンジョン踏破の証となる。", tile:22 },
   intermediate: { name:"深紅の魔石",     type:"goal", desc:"強大な魔力を秘めた石。地上に持ち帰ろう。",   tile:22 },
   advanced:     { name:"伝説の王冠",     type:"goal", desc:"かつての王が残した冠。地上に持ち帰ろう。",   tile:22 },

@@ -851,7 +851,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`); }
           return;
         }
-        const _stealable = pl.inventory.filter(i => i.type !== "gold");
+        const _stealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
         if (_stealable.length > 0) {
           const _stolen = pick(_stealable);
           const _sidx = pl.inventory.indexOf(_stolen);

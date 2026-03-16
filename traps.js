@@ -161,8 +161,11 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
     }
     case "steal_trap": {
       if (p.inventory && p.inventory.length > 0) {
-        const _stIdx = rng(0, p.inventory.length - 1);
-        const _stItem = p.inventory.splice(_stIdx, 1)[0];
+        const _stCandidates = p.inventory.filter(i => i.type !== "goal");
+        if (_stCandidates.length === 0) { ml.push(`${trap.name}が発動！しかし大事なものは盗めなかった。`); break; }
+        const _stItem = _stCandidates[rng(0, _stCandidates.length - 1)];
+        const _stIdx = p.inventory.indexOf(_stItem);
+        p.inventory.splice(_stIdx, 1);
         const _stFt = new Set([trap.id]);
         let _stX = p.x, _stY = p.y;
         for (let _a = 0; _a < 200; _a++) {
