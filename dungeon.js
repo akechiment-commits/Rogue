@@ -1,9 +1,13 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage } from './utils.js';
 import { MONS, MON_LEVELS } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice,
 } from './items.js';
+
+function mkOcc(...lists) {
+  return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
+}
 
 /* ===== BIG ROOM DUNGEON GENERATOR ===== */
 function genBigRoom(depth) {
@@ -26,13 +30,10 @@ function genBigRoom(depth) {
     if (mx === su.x && my === su.y) continue;
     if (mx === sd.x && my === sd.y) continue;
     if (mons.some((m) => m.x === mx && m.y === my)) continue;
-    const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
-    mons.push({ ...t, id: uid(), x: mx, y: my, maxHp: t.hp, turnAccum: 0, aware: false,
-      dir: { x: [-1,1][rng(0,1)], y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
-      dormant: Math.random() < 0.15 });
+    mons.push(mkMon(depth, mx, my, 0.15));
   }
   const items = [];
-  const occ = (x, y) => items.some((i) => i.x === x && i.y === y) || mons.some((m) => m.x === x && m.y === y);
+  const occ = mkOcc(items, mons);
   const placeInRoom = (obj) => {
     for (let a = 0; a < 200; a++) {
       const ix = rng(rx + 1, rx + rw - 2), iy = rng(ry + 1, ry + rh - 2);
@@ -384,12 +385,12 @@ function mkVis() {
     explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
   };
 }
-function mkMon(depth, x, y) {
+function mkMon(depth, x, y, dormantRate = 0.12) {
   const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
   return {
     ...t, id: uid(), x, y, maxHp: t.hp, turnAccum: 0, aware: false,
     dir: { x: [-1, 1][rng(0, 1)], y: 0 }, lastPx: 0, lastPy: 0,
-    patrolTarget: null, dormant: Math.random() < 0.12,
+    patrolTarget: null, dormant: Math.random() < dormantRate,
   };
 }
 /* 部屋をショップにセットアップし、shopDataを返す */
@@ -473,7 +474,7 @@ function genMiniRoom(depth) {
     }
   }
   const items = [], traps = [], springs = [], bigboxes = [];
-  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y) || springs.some(s => s.x === x && s.y === y) || bigboxes.some(b => b.x === x && b.y === y);
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rndFloor = () => { for (let a = 0; a < 80; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
   for (let i = 0; i < rng(12, 18); i++) { const p = rndFloor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 20 + depth * 10); items.push(it); } }
   for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
@@ -536,16 +537,8 @@ function genShoppingMall(depth) {
   }
   const shopData = allShops[0] || null;
   /* 廊下にモンスター・罠を少量配置 */
-  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y);
+  const occ = mkOcc(items, mons, traps);
   const inAnyRoom = (x, y) => validRooms.some(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
-  /* 1マス通路判定：上下左右の床隣接数が2以下＝狭い通路 */
-  const isNarrow = (x, y) => {
-    let n = 0;
-    for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
-      const t = map[y+dy]?.[x+dx]; if (t === T.FLOOR || t === T.SU || t === T.SD) n++;
-    }
-    return n <= 2;
-  };
   for (let i = 0; i < rng(2, 4); i++) {
     for (let a = 0; a < 80; a++) {
       const mx = rng(1, MW - 2), my = rng(1, MH - 2);
@@ -556,7 +549,7 @@ function genShoppingMall(depth) {
   for (let i = 0; i < rng(3, 6); i++) {
     for (let a = 0; a < 80; a++) {
       const tx = rng(1, MW - 2), ty = rng(1, MH - 2);
-      if (map[ty][tx] !== T.FLOOR || occ(tx, ty) || inAnyRoom(tx, ty) || isNarrow(tx, ty)) continue;
+      if (map[ty][tx] !== T.FLOOR || occ(tx, ty) || inAnyRoom(tx, ty) || isNarrowPassage(map, tx, ty)) continue;
       traps.push({ ...pick(TRAPS), id: uid(), x: tx, y: ty, revealed: false }); break;
     }
   }
@@ -593,7 +586,7 @@ function genSpinFloor(depth) {
   const sd = { x: rooms[rooms.length - 1].cx, y: rooms[rooms.length - 1].cy };
   map[sd.y][sd.x] = T.SD;
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
-  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y) || springs.some(s => s.x === x && s.y === y) || bigboxes.some(b => b.x === x && b.y === y);
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
   for (const room of rooms) {
     const floorTiles = [];
     for (let dy = 0; dy < room.h; dy++)
@@ -671,11 +664,9 @@ function genCorridorFloor(depth) {
     for (let x = 0; x < MW; x++)
       if (map[y][x] === T.FLOOR) corTiles.push([x, y]);
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
-  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y) || springs.some(s => s.x === x && s.y === y) || bigboxes.some(b => b.x === x && b.y === y);
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rndCor = () => { for (let a = 0; a < 60; a++) { const [x, y] = pick(corTiles); if (!occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
-  /* 1マス通路判定：上下左右の床隣接数が2以下＝狭い通路 */
-  const corIsNarrow = (x, y) => { let n = 0; for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) { const t = map[y+dy]?.[x+dx]; if (t === T.FLOOR || t === T.SU || t === T.SD) n++; } return n <= 2; };
-  const rndCorWide = () => { for (let a = 0; a < 120; a++) { const [x, y] = pick(corTiles); if (!occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y) && !corIsNarrow(x, y)) return [x, y]; } return null; };
+  const rndCorWide = () => { for (let a = 0; a < 120; a++) { const [x, y] = pick(corTiles); if (!occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y) && !isNarrowPassage(map, x, y)) return [x, y]; } return null; };
   for (let i = 0; i < rng(6, 10) + depth; i++) { const p = rndCor(); if (p) mons.push(mkMon(depth, p[0], p[1])); }
   for (let i = 0; i < rng(8, 14) + depth; i++) { const p = rndCor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 30 + depth * 10); items.push(it); } }
   for (let i = 0; i < rng(5, 9) + depth; i++) { const p = rndCorWide(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
@@ -701,7 +692,7 @@ function genGridRoom(depth) {
   const sd = { x: rx + rw - 2, y: ry + rh - 2 };
   map[sd.y][sd.x] = T.SD;
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
-  const occ = (x, y) => items.some(i => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y) || springs.some(s => s.x === x && s.y === y) || bigboxes.some(b => b.x === x && b.y === y);
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rndFloor = () => { for (let a = 0; a < 100; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
   for (let i = 0; i < rng(8, 13) + depth; i++) { const p = rndFloor(); if (p) mons.push(mkMon(depth, p[0], p[1])); }
   for (let i = 0; i < rng(15, 22); i++) { const p = rndFloor(); if (p) { const it = { ...pick(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(5, 20 + depth * 10); items.push(it); } }
@@ -882,21 +873,7 @@ export function genDungeon(depth, dungeonType = "beginner") {
       map[my]?.[mx] === T.FLOOR &&
       !mons.some((m) => m.x === mx && m.y === my)
     ) {
-      const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
-      mons.push({
-        ...t,
-        id: uid(),
-        x: mx,
-        y: my,
-        maxHp: t.hp,
-        turnAccum: 0,
-        aware: false,
-        dir: { x: [-1, 1][rng(0, 1)], y: 0 },
-        lastPx: 0,
-        lastPy: 0,
-        patrolTarget: null,
-        dormant: Math.random() < 0.12,
-      });
+      mons.push(mkMon(depth, mx, my));
     }
   }
   /* 呪術師スポーン (2階以降に1体確定) */

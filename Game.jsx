@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem, monsterAt, itemAt } from "./utils.js";
+import { MW, MH, T, TI, rng, pick, uid, clamp, DRO, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops } from "./utils.js";
 import {
   MONS,
   hasLOS,
@@ -956,6 +956,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     d._firstVisit = !_saved;
     return d;
   }, []);
+  const withPitfallBag = useCallback((fn) => {
+    const _pfBag = [];
+    setPitfallBag(_pfBag);
+    fn();
+    clearPitfallBag();
+    if (!sr.current.floors) sr.current.floors = {};
+    processPitfallBag(_pfBag, sr.current.floors, sr.current.player.depth);
+  }, []);
   const endTurn = useCallback(
     (st, p, ml) => {
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
@@ -1474,7 +1482,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (_cursedSanc) {
               ml.push("呪われた魔方陣が行く手を阻んでいる！");
             } else {
-            const _allShopsM = dg.shops || (dg.shop ? [dg.shop] : []);
+            const _allShopsM = getShops(dg);
             const _wasInShopOf = _allShopsM.filter(s => s.unpaidTotal > 0 && s.room &&
               p.x >= s.room.x && p.x < s.room.x + s.room.w &&
               p.y >= s.room.y && p.y < s.room.y + s.room.h);
@@ -1639,7 +1647,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (sr.current.allBcKnown) { _grIt.fullIdent = true; _grIt.bcKnown = true; }
               p.inventory.push(_grIt);
               if (_grIt.shopPrice) {
-                const _allS2 = dg.shops || (dg.shop ? [dg.shop] : []);
+                const _allS2 = getShops(dg);
                 const _pickShop = _allS2.find(s => s.id === _grIt._shopId) || _allS2[0];
                 if (_pickShop) {
                   _pickShop.unpaidTotal += _grIt.shopPrice;
@@ -1877,7 +1885,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           break;
         if (monsterAt(dg, nx, ny)) break;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny)) break;
-        const _allShopsD = dg.shops || (dg.shop ? [dg.shop] : []);
+        const _allShopsD = getShops(dg);
         const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
           p.x >= s.room.x && p.x < s.room.x + s.room.w &&
           p.y >= s.room.y && p.y < s.room.y + s.room.h);
@@ -3031,7 +3039,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (shopMenuSel === 0) {
               if (sr.current) {
                 const { player: p2, dungeon: dg2 } = sr.current;
-                const _allShopsPay = dg2.shops || (dg2.shop ? [dg2.shop] : []);
+                const _allShopsPay = getShops(dg2);
                 const _totalUnpaid = _allShopsPay.reduce((s, sh) => s + (sh.unpaidTotal || 0), 0);
                 if (p2.gold >= _totalUnpaid) {
                   p2.gold -= _totalUnpaid;
@@ -4474,7 +4482,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     p.inventory.splice(idx, 1);
     const ml = [],
       ft = new Set();
-    const _allShopsDrop = dg.shops || (dg.shop ? [dg.shop] : []);
+    const _allShopsDrop = getShops(dg);
     const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
     const prevDebt = _itemShopDrop?.unpaidTotal ?? 0;
     /* 足元に泉があればアイテムを泉に落とす */

@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
@@ -323,7 +323,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         removeFloorItem(dg, target);
         const res = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "item", target, p, luFn);
         if (target.shopPrice) {
-          const _allShopsW = dg.shops || (dg.shop ? [dg.shop] : []);
+          const _allShopsW = getShops(dg);
           const _iShopW = _allShopsW.find(s => s.id === target._shopId) || _allShopsW.find(s => s.unpaidTotal > 0);
           if (_iShopW) {
             const r = _iShopW.room;
