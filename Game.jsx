@@ -2124,6 +2124,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     ["potion", "food", "scroll", "weapon", "armor", "arrow", "pot", "pen"].includes(
       it.type,
     );
+  /* callbacks内で sr.current を参照するバージョン */
+  const dnameRef = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
   const {
     doUseItem, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
     doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
@@ -2340,8 +2342,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   };
   /* 表示名ヘルパー (gsを参照) */
   const dname = (it) => itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames);
-  /* callbacks内で sr.current を参照するバージョン */
-  const dnameRef = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
 
   const iLabel = (it) => {
     const _ep = gs?.player;
