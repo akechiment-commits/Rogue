@@ -470,7 +470,7 @@ export function useKeyHandler({
               } else { _selIt.capacity = _nc; _msgResult = `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
             } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を呪った！【呪】`; }
           } else if (identifyMode.mode === 'duplicate') {
-            const _dupCount = identifyMode.blessed ? 2 : identifyMode.cursed ? 0 : 1;
+            const _dupCount = identifyMode.cursed ? 0 : 1;
             if (_dupCount === 0) {
               const _rmIdx = _p_id.inventory.indexOf(_selIt);
               if (_rmIdx !== -1) {
@@ -500,8 +500,10 @@ export function useKeyHandler({
                 const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, ...rest } = _selIt;
                 return { ...rest, id: uid() };
               };
-              for (let _di = 0; _di < _dupCount; _di++) _p_id.inventory.push(_makeFresh());
-              _msgResult = identifyMode.blessed ? `${_selIt.name}が2つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
+              const _newIt = _makeFresh();
+              if (identifyMode.blessed) { _newIt.blessed = true; _newIt.cursed = false; _newIt.bcKnown = true; }
+              _p_id.inventory.push(_newIt);
+              _msgResult = identifyMode.blessed ? `祝福された${_selIt.name}が1つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
             }
           } else {
             const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';
