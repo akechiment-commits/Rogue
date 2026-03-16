@@ -1734,13 +1734,12 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           wallBreakDrop(dg, ax, ay);
           continue;
         }
-        /* モンスターへのダメージ（現HP3/4） */
+        /* モンスターへのダメージ（即死→連鎖爆発） */
         for (const m of [...dg.monsters]) {
           if (m.x === ax && m.y === ay) {
-            const dmg = Math.max(1, Math.floor(m.hp * 3 / 4));
-            m.hp -= dmg;
-            ml.push(`爆発で${m.name}に${dmg}ダメージ！`);
-            if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
+            ml.push(`爆発で${m.name}は即死した！`);
+            m.hp = 0;
+            killMonster(m, dg, p, ml, luFn);
           }
         }
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
