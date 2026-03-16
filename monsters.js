@@ -12,13 +12,14 @@ function monsterDragonFire(m, dg, pl, ml) {
     ml.push(`呪われた爆発の魔方陣が${m.name}の炎ブレスを打ち消した！`);
     return;
   }
-  /* 射線上に別のモンスターがいれば、そこで止まって当てる */
+  /* 射線上に別のモンスターがいれば、そこで止まって当てる（Lv3は壁貫通） */
+  const _fLvl = m.monLevel || 1;
   const _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
   for (let _fi = 1; ; _fi++) {
     const _fx = m.x + _fdx * _fi, _fy = m.y + _fdy * _fi;
     if (_fx === pl.x && _fy === pl.y) break; // プレイヤーに到達→通常処理へ
     if (_fx < 0 || _fx >= MW || _fy < 0 || _fy >= MH) return; // 範囲外
-    if (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL) return; // 壁で遮断
+    if (_fLvl < 3 && (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL)) return; // Lv1/2は壁で遮断
     const _fBlock = dg.monsters.find(o => o.x === _fx && o.y === _fy);
     if (_fBlock) {
       wakeIfDormant(_fBlock, ml);
@@ -46,7 +47,7 @@ function monsterDragonFire(m, dg, pl, ml) {
   ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
-  if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null);
+  if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null, null, true);
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */

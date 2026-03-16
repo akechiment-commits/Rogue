@@ -1147,7 +1147,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.deathCause = "炎の薬の飛散により";
           p.hp -= fd;
           ml.push(`炎に包まれた！${fd}ダメージ！${_fireResist(p) ? "(耐火)" : ""}${blessed ? "(強炎)" : ""}`);
-          applyLightningToInventory(p, dg, ml, luFn);
+          applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
       }
       break;
@@ -1752,7 +1752,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           p.deathCause = `${exPc.name}の爆発により`;
           p.hp -= dmg;
           ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
-          if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn);
+          if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
         /* アイテム破壊（巻物・薬・壺） */
         for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
@@ -2051,21 +2051,21 @@ export const SPELLBOOKS=[
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /* 雷・炎ダメージを受けたとき所持品1つにランダムで影響を与える */
-export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null) {
+export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFireContext = false) {
   if (p.inventory.length === 0) return;
   const dn = (it) => nameFn ? nameFn(it) : it.name;
   const idx = Math.floor(Math.random() * p.inventory.length);
   const victim = p.inventory[idx];
   if (victim.type === "pot") {
     p.inventory = p.inventory.filter((_, i) => i !== idx);
-    ml.push(`所持していた「${dn(victim)}」が雷で割れた！`);
+    ml.push(isFireContext ? `所持していた「${dn(victim)}」が熱で割れた！` : `所持していた「${dn(victim)}」が雷で割れた！`);
     scatterPotContents(victim, dg, p.x, p.y, p, ml, luFn);
   } else if (victim.type === "scroll" || victim.type === "potion" || victim.type === "spellbook") {
     p.inventory = p.inventory.filter((_, i) => i !== idx);
     const verb = victim.type === "potion" ? "割れてなくなった" : "燃えてなくなった";
     ml.push(`所持していた「${dn(victim)}」が${verb}！`);
   } else {
-    ml.push(`所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
+    ml.push(isFireContext ? `所持していた「${dn(victim)}」は炎に当たったが無事だった。` : `所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
   }
 }
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
