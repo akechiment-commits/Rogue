@@ -1752,7 +1752,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           p.deathCause = `${exPc.name}の爆発により`;
           p.hp -= dmg;
           ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
-          if (!_hasFireR) applyFireInventoryDamage(p, ml);
+          if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn);
         }
         /* アイテム破壊（巻物・薬・壺） */
         for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {

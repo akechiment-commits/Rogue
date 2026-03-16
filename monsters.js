@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyFireInventoryDamage, hasCursedExplosionPentacle } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster } from "./items.js";
 
 /* ===== 境界・通行判定ヘルパー ===== */
 function inBounds(x, y) { return x >= 0 && x < MW && y >= 0 && y < MH; }
@@ -12,6 +12,24 @@ function monsterDragonFire(m, dg, pl, ml) {
     ml.push(`呪われた爆発の魔方陣が${m.name}の炎ブレスを打ち消した！`);
     return;
   }
+  /* 射線上に別のモンスターがいれば、そこで止まって当てる */
+  const _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
+  for (let _fi = 1; ; _fi++) {
+    const _fx = m.x + _fdx * _fi, _fy = m.y + _fdy * _fi;
+    if (_fx === pl.x && _fy === pl.y) break; // プレイヤーに到達→通常処理へ
+    if (_fx < 0 || _fx >= MW || _fy < 0 || _fy >= MH) return; // 範囲外
+    if (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL) return; // 壁で遮断
+    const _fBlock = dg.monsters.find(o => o.x === _fx && o.y === _fy);
+    if (_fBlock) {
+      wakeIfDormant(_fBlock, ml);
+      const _fDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_fBlock.def || 0))) + rng(-2, 2));
+      _fBlock.hp -= _fDmg;
+      ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！`);
+      if (_fBlock.hp <= 0) killMonster(_fBlock, dg, pl, ml, null);
+      return;
+    }
+  }
+  /* プレイヤーに命中 */
   const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
   let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   /* 脆弱の魔方陣 */
@@ -28,7 +46,7 @@ function monsterDragonFire(m, dg, pl, ml) {
   ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
-  if (!_hasFireR) applyFireInventoryDamage(pl, ml);
+  if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null);
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */

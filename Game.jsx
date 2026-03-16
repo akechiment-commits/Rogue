@@ -82,7 +82,6 @@ import {
   getIdentKey,
   generateFakeNames,
   hasCursedExplosionPentacle,
-  applyFireInventoryDamage,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse } from "./dungeon.js";
