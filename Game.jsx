@@ -1841,10 +1841,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
       const ml = [];
       let steps = 0;
-      const startInRoom =
-        dg.rooms?.some(
-          (r) => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h,
-        ) ?? false;
+      const _dRoomSet = new Set();
+      for (const r of (dg.rooms || [])) { for (let ry = r.y; ry < r.y + r.h; ry++) for (let rx = r.x; rx < r.x + r.w; rx++) _dRoomSet.add(_dk(rx, ry)); }
+      const startInRoom = _dRoomSet.has(_dk(p.x, p.y));
       const getP = (x, y) =>
         (dx !== 0
           ? [
@@ -1867,6 +1866,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           );
         }).length;
       let prevPerps = getP(p.x, p.y);
+      /* ダッシュ用座標マップ構築 */
+      const _dk = (x, y) => y * MW + x;
+      const _dMonMap = new Map(); for (const m of dg.monsters) _dMonMap.set(_dk(m.x, m.y), m);
+      const _dItemMap = new Map(); for (const i of dg.items) { if (!_dItemMap.has(_dk(i.x, i.y))) _dItemMap.set(_dk(i.x, i.y), i); }
+      const _dTrapMap = new Map(); for (const t of dg.traps) _dTrapMap.set(_dk(t.x, t.y), t);
+      const _dSprMap = new Map(); if (dg.springs) for (const s of dg.springs) _dSprMap.set(_dk(s.x, s.y), s);
+      const _dBbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _dBbMap.set(_dk(b.x, b.y), b);
+      const _dPentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _dPentMap.set(_dk(pc.x, pc.y), pc);
       while (steps < 50) {
         const nx = p.x + dx,
           ny = p.y + dy;
@@ -1878,8 +1885,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL
         )
           break;
-        if (monsterAt(dg, nx, ny)) break;
-        if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny)) break;
+        if (_dMonMap.has(_dk(nx, ny))) break;
+        { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         const _allShopsD = getShops(dg);
         const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
           p.x >= s.room.x && p.x < s.room.x + s.room.w &&
@@ -1909,14 +1916,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           endTurn(st, p, ml);
           break;
         }
-        const _dashRevTrap = dg.traps.find((t) => t.x === p.x && t.y === p.y && t.revealed);
+        const _dashRevTrap = (() => { const _t = _dTrapMap.get(_dk(p.x, p.y)); return _t?.revealed ? _t : undefined; })();
         if (_dashRevTrap) {
           ml.push(`${_dashRevTrap.name}がある。`);
           endTurn(st, p, ml);
           break;
         }
         {
-          const _dashIt = st.dungeon.items.find((i) => i.x === p.x && i.y === p.y);
+          const _dashIt = _dItemMap.get(_dk(p.x, p.y));
           if (_dashIt) {
             const _w = _dashIt.type === "weapon", _a = _dashIt.type === "armor";
             let _lbl = itemDisplayName(_dashIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -1945,23 +1952,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           endTurn(st, p, ml);
           break;
         }
-        const _dashSpr = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
+        const _dashSpr = _dSprMap.get(_dk(p.x, p.y));
         if (_dashSpr) {
           ml.push("泉がある。");
           endTurn(st, p, ml);
           break;
         }
-        const _dashBb = st.dungeon.bigboxes?.find((b) => b.x === p.x && b.y === p.y);
+        const _dashBb = _dBbMap.get(_dk(p.x, p.y));
         if (_dashBb) {
           ml.push(`${_dashBb.name}がある。`);
           endTurn(st, p, ml);
           break;
         }
-        const curInRoom =
-          dg.rooms?.some(
-            (r) =>
-              p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h,
-          ) ?? false;
+        const curInRoom = _dRoomSet.has(_dk(p.x, p.y));
         const curPerps = getP(p.x, p.y);
         const fnx = p.x + dx,
           fny = p.y + dy;
