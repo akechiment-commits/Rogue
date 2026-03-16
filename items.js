@@ -519,6 +519,11 @@ export function itemPrice(it) {
   if (it.type === "pot")      return 120;
   if (it.type === "bottle")   return 5;
   if (it.type === "spellbook") return 200;
+  if (it.type === "ring") {
+    const ringBase = it.sellPrice ?? 100;
+    if (it.effect === "power_ring") return ringBase + (it.plus || 0) * 100;
+    return ringBase;
+  }
   return 30;
 }
 
@@ -643,7 +648,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   if (pe === "none") { ml.push(`${_in}を${_pn}に入れた。`); return; }
   if (pe === "boil") { /* 実効果はGame.jsx側で処理 */ return; }
   if (pe === "enhance") {
-    if (item.type === "weapon" || item.type === "armor") {
+    if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && item.effect === "power_ring")) {
       const _g = rng(1, 2);
       item.plus = (item.plus || 0) + _g;
       ml.push(`${item.name}が強化された！(+${item.plus})`);
@@ -1108,8 +1113,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           const d = _par.atk + rng(0, 3);
           p.deathCause = `${trap.name}により`;
           p.hp -= d;
-          p.poisoned = true;
-          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
+          if (hasRingEffect(p, "antidote_ring")) {
+            ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
+          } else {
+            p.poisoned = true;
+            ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
+          }
           _pahit = true; break;
         }
         _paex = fx;
@@ -1327,6 +1336,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           } else {
             ml.push("変な味がするが…毒はかかっていなかった。【呪→解毒】");
           }
+        } else if (hasRingEffect(p, "antidote_ring")) {
+          ml.push("毒を浴びたが指輪が毒を消した！");
         } else {
           p.poisoned = true;
           if (blessed) {
@@ -2420,4 +2431,21 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn) {
     if (it) { applySpellEffect(spell.effect, "item", it, dx, dy, dg, p, ml, luFn); return; }
   }
   ml.push("魔法弾は虚空に消えた。");
+}
+
+/* ===== RINGS ===== */
+export const RINGS = [
+  { name: "力の指輪",       type:"ring", effect:"power_ring",     plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
+  { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"C", weight:2, sellPrice:200, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
+  { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"C", weight:2, sellPrice:180, tile:60, desc:"装備中、罠にかからなくなる。ただし階段を降りられなくなる。" },
+  { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"C", weight:2, sellPrice:160, tile:60, desc:"装備中、毒が無効になる。" },
+  { name: "値切りの指輪",   type:"ring", effect:"bargain_ring",         rarity:"B", weight:1, sellPrice:300, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
+  { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"C", weight:2, sellPrice:20,  tile:60, desc:"装備中、敵が現れやすくなる。" },
+  { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"C", weight:2, sellPrice:10,  tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
+  { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:200, tile:60, desc:"装備中、お腹の減り方と自然回復の量が倍になる。" },
+  { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"C", weight:1, sellPrice:50,  tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
+];
+
+export function hasRingEffect(p, effect) {
+  return p.rings?.some(r => r.effect === effect) ?? false;
 }

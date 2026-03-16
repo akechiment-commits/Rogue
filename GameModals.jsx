@@ -1736,6 +1736,7 @@ export function InventoryModal({
                         {it.type === "scroll" && " — 巻物"}
                         {it.type === "food" && ` — 食料${it.cooked ? "(調理済)" : "(生)"}`}
                         {it.type === "pot" && ` — 壺 [${it.contents?.length || 0}/${it.capacity}]`}
+                        {it.type === "ring" && ` — 指輪${it.effect === "power_ring" ? ` (+${it.plus || 0})` : ""}`}
                       </div>
                       {it.desc || "特に情報はない。"}
                       {it.ability && (() => {
