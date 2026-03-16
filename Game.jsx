@@ -18,7 +18,7 @@ import {
   hasCursedExplosionPentacle,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
-import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse } from "./dungeon.js";
+import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { useGameRenderer } from './useGameRenderer.js';
@@ -32,6 +32,7 @@ const FLOOR_TITLES = {
   spinFloor:    "回転板の間だ！",
   corridorFloor:"廊下フロアだ！",
   gridRoom:     "格子の大部屋だ！",
+  treasureRoom: "隠し宝部屋だ！",
 };
 
 const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, spellMenuSel: 0, nicknameInput: '', data: null };
@@ -242,9 +243,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setDashMode(false);
     resetDiscoveries();
     const startDepth = dungeonConfig?.startDepth || 1;
-    const d = dungeonConfig?.dungeonType === "debug"
+    const _initDt = dungeonConfig?.dungeonType || "beginner";
+    const d = _initDt === "debug"
       ? genDebugDungeon()
-      : genDungeon(startDepth - 1, dungeonConfig?.dungeonType || "beginner");
+      : genDungeon(startDepth - 1, _initDt);
+    /* 最下層の場合は下り階段を消して目標アイテムを配置 */
+    const _initMaxD = dungeonConfig?.maxFloors ?? null;
+    if (_initMaxD !== null && startDepth >= _initMaxD && _initDt !== "debug") {
+      prepareLastFloor(d, _initDt);
+    }
     d.nextSpawnTurn = rng(10, 50);
     const p = {
       x: d.stairUp.x,
@@ -389,6 +396,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           ml.push(`${it.name || "矢"}がある。持ち物がいっぱいだ！`);
           break;
         }
+      } else if (it.type === "goal") {
+        trackItem(it);
+        p.inventory.push(it);
+        ml.push(`★${it.name}を手に入れた！地上に持ち帰ろう！★`);
+        removeFloorItem(dg, it);
+        go = true;
       } else if (it.shopPrice) {
         ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}がある（商品：${it.shopPrice}G）fキーで拾う`);
         break;
@@ -634,6 +647,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const chgFloor = useCallback((pl, dir, pitfall = false) => {
     const nd = pl.depth + dir;
     if (nd < 1) return null;
+    const _maxD = sr.current.maxDepth;
+    /* 最下層から落とし穴 → 隠し宝部屋 */
+    const _isLastFloorPitfall = pitfall && _maxD !== null && pl.depth >= _maxD && dir > 0;
     if (!sr.current.floors) sr.current.floors = {};
     /* 店の部屋内で落とし穴等により階層を離脱した場合は泥棒状態にする */
     const _chgShops = sr.current.dungeon?.shops || (sr.current.dungeon?.shop ? [sr.current.dungeon.shop] : []);
@@ -648,13 +664,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     sr.current.floors[pl.depth] = sr.current.dungeon;
     const _saved = sr.current.floors[nd];
     let d;
-    if (_saved) {
+    if (_isLastFloorPitfall) {
+      /* 隠し宝部屋を生成 */
+      d = _saved || genTreasureRoom(pl.depth);
+      if (_saved) delete sr.current.floors[nd];
+    } else if (_saved) {
       d = _saved;
       delete sr.current.floors[nd];
     } else if (sr.current.isDebugRun && nd >= 2) {
       d = genDebugDungeonFloor2();
     } else {
       d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
+      /* 最下層は下り階段を消して目標アイテムを配置 */
+      if (_maxD !== null && nd >= _maxD) {
+        prepareLastFloor(d, sr.current.dungeonType || "beginner");
+      }
     }
     pl.depth = nd;
     if (sr.current.allBcKnown) {
@@ -665,8 +689,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       pl.x = rng(_pr.x, _pr.x + _pr.w - 1);
       pl.y = rng(_pr.y, _pr.y + _pr.h - 1);
     } else {
-      pl.x = dir > 0 ? d.stairUp.x : d.stairDown.x;
-      pl.y = dir > 0 ? d.stairUp.y : d.stairDown.y;
+      const _stTarget = dir > 0 ? d.stairUp : (d.stairDown || d.stairUp);
+      pl.x = _stTarget.x;
+      pl.y = _stTarget.y;
     }
     refreshFOV(d, pl);
     d.nextSpawnTurn = pl.turns + rng(10, 50);
@@ -1287,24 +1312,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else ml.push("矢を装備していない。");
       } else if (type === "stairs_down") {
         if (dg.map[p.y][p.x] === T.SD) {
-          const _maxD = sr.current.maxDepth;
-          if (_maxD !== null && p.depth >= _maxD) {
-            /* 最下層クリア → 地上帰還 */
-            if (onReturnToHub) {
-              ml.push(`地下${p.depth}階の最深部を踏破した！地上へ帰還する…`);
-              sr.current = { ...st };
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
-              return;
-            }
-          } else {
-            doStair(1);
-          }
+          doStair(1);
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
         if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
+              const _hasGoal = p.inventory.some(it => it.type === "goal");
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal });
               return;
             }
           } else {
@@ -1314,21 +1329,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (type === "interact") {
         /* 足元の階段チェック */
         if (dg.map[p.y][p.x] === T.SD) {
-          const _maxD2 = sr.current.maxDepth;
-          if (_maxD2 !== null && p.depth >= _maxD2) {
-            if (onReturnToHub) {
-              ml.push(`地下${p.depth}階の最深部を踏破した！地上へ帰還する…`);
-              sr.current = { ...st };
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
-              return;
-            }
-          } else {
-            doStair(1);
-          }
+          doStair(1);
         } else if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
+              const _hasGoal2 = p.inventory.some(it => it.type === "goal");
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal2 });
               return;
             }
           } else {

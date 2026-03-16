@@ -48,13 +48,19 @@ export default function App() {
       next.bestGold  = Math.max(prev.bestGold  || 0, result.earnedGold || 0);
       /* Merge encyclopedia discoveries */
       next.discovered = mergeDiscoveries(prev.discovered, result.discoveries || {});
-      /* Voluntary exit: carry items to warehouse */
+      /* Voluntary exit: carry items to warehouse (goal items excluded) */
       if (result.survived && result.returnItems?.length) {
         const merged = [
           ...(prev.warehouse || []),
-          ...result.returnItems.map(it => ({ ...it })),
+          ...result.returnItems.filter(it => it.type !== "goal").map(it => ({ ...it })),
         ].slice(0, prev.warehouseMax || 100);
         next.warehouse = sortWarehouseItems(merged);
+      }
+      /* ダンジョンクリア記録 */
+      if (result.cleared) {
+        const _dt = dungeonConfig?.dungeonType || "beginner";
+        if (!next.clearedDungeons) next.clearedDungeons = {};
+        next.clearedDungeons[_dt] = true;
       }
       return next;
     });

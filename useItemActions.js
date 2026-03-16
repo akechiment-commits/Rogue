@@ -255,7 +255,8 @@ export function useItemActions({
               ml.push(`${it.name}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
               sr.current = { ...sr.current };
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory] });
+              const _hasGoalP = p.inventory.some(i => i.type === "goal");
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalP });
               return;
             } else {
               ml.push(`${it.name}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
