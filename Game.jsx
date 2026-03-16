@@ -89,6 +89,15 @@ import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse
 import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { TILE_NAMES, CUSTOM_TILE_PATH, customTileImages, clearCustomTileImages, ST, drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal } from "./GameModals.jsx";
+const FLOOR_TITLES = {
+  bigRoom:      "ビッグルームだ！",
+  miniRoom:     "ミニルームだ！",
+  shoppingMall: "ショッピングモールだ！",
+  spinFloor:    "回転板の間だ！",
+  corridorFloor:"廊下フロアだ！",
+  gridRoom:     "格子の大部屋だ！",
+};
+
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, setMsgs] = useState(["冒険が始まった！"]);
@@ -944,6 +953,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     refreshFOV(d, pl);
     d.nextSpawnTurn = pl.turns + rng(10, 50);
+    d._firstVisit = !_saved;
     return d;
   }, []);
   const endTurn = useCallback(
@@ -1548,6 +1558,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (nd) {
               st.dungeon = nd;
               ml.push(`地下${p.depth}階に降りた。`);
+              if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
               acted = true;
             }
           }
@@ -1564,6 +1575,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (nd) {
               st.dungeon = nd;
               ml.push(`地下${p.depth}階に昇った。`);
+              if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
               acted = true;
             }
           }
@@ -1581,7 +1593,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
           } else {
             const nd = chgFloor(p, 1);
-            if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に降りた。`); acted = true; }
+            if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に降りた。`); if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]); acted = true; }
           }
         } else if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
@@ -1591,7 +1603,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
           } else {
             const nd = chgFloor(p, -1);
-            if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に昇った。`); acted = true; }
+            if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に昇った。`); if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]); acted = true; }
           }
         } else {
           /* 足元の大箱チェック（前方は除く） */
