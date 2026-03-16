@@ -450,17 +450,17 @@ export const COOKED_SIZES = [
 ];
 
 export const FOOD_EFFECTS = [
-  { l:"癒しの",   e:"heal_food",     w:3 },
-  { l:"力の",     e:"power_food",    w:1 },
-  { l:"速さの",   e:"speed_food",    w:2 },
-  { l:"守りの",   e:"def_food",      w:1 },
-  { l:"活力の",   e:"vitality_food", w:1 },
-  { l:"経験の",   e:"exp_food",      w:2 },
-  { l:"幸運の",   e:"luck_food",     w:2 },
-  { l:"透視の",   e:"reveal_food",   w:1 },
-  { l:"解毒の",   e:"antidote_food", w:2 },
-  { l:"満腹の",   e:"satiate_food",  w:3 },
-  { l:"魔力の",   e:"mp_food",       w:2 },
+  { l:"癒しの",   e:"heal_food",     w:3, rarity:1, bonus: 30  },  // HP回復（一時的）
+  { l:"力の",     e:"power_food",    w:1, rarity:3, bonus: 200 },  // 攻撃力UP（永続）
+  { l:"速さの",   e:"speed_food",    w:2, rarity:2, bonus: 100 },  // 速度UP（一時的）
+  { l:"守りの",   e:"def_food",      w:1, rarity:3, bonus: 200 },  // 防御UP（永続）
+  { l:"活力の",   e:"vitality_food", w:1, rarity:3, bonus: 250 },  // 最大HP UP（永続）
+  { l:"経験の",   e:"exp_food",      w:2, rarity:2, bonus: 80  },  // 経験値UP
+  { l:"幸運の",   e:"luck_food",     w:2, rarity:2, bonus: 80  },  // 運・ゴールドUP
+  { l:"透視の",   e:"reveal_food",   w:1, rarity:3, bonus: 150 },  // マップ全公開
+  { l:"解毒の",   e:"antidote_food", w:2, rarity:2, bonus: 60  },  // 毒解除
+  { l:"満腹の",   e:"satiate_food",  w:3, rarity:1, bonus: 20  },  // 満腹度大回復
+  { l:"魔力の",   e:"mp_food",       w:2, rarity:2, bonus: 60  },  // MP回復
 ];
 
 export const FOOD_DESCS = {
@@ -506,7 +506,12 @@ export function itemPrice(it) {
   if (it.type === "scroll")   return it.effect === "blank" ? 5 : it.effect === "reveal" ? 60 : 80;
   if (it.type === "weapon")   return 50 + (it.atk || 0) * 20 + (it.ability ? 150 : 0);
   if (it.type === "armor")    return 60 + (it.def || 0) * 25 + (it.ability ? 150 : 0);
-  if (it.type === "food")     return Math.max(10, Math.floor((it.value || 20) * 0.6));
+  if (it.type === "food") {
+    const satietyBase = Math.floor((it.value || 20) * 2.5);
+    const effectEntry = it.effect ? FOOD_EFFECTS.find(f => f.e === it.effect) : null;
+    const effectBonus = effectEntry ? effectEntry.bonus : 0;
+    return Math.max(10, satietyBase + effectBonus);
+  }
   if (it.type === "arrow")    return Math.max(10, (it.count || 1) * 5);
   if (it.type === "wand")     return 150 + (it.charges || 0) * 30;
   if (it.type === "marker")   return 100 + (it.charges || 0) * 40;
