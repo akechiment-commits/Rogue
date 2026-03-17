@@ -577,6 +577,8 @@ export const WANDS = [
   { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:5, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。自分なら視界が1マスになる(20ターン)。敵なら50ターンこちらを認識できず壁まで直進し途中の者を攻撃する。祝福：自分50ターン・敵永続。呪い：フロア全体が見えるようになる。水の瓶に当てると暗闇の薬になる。", tile:24 },
   { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象を幻惑状態にする。自分なら50ターン周囲の見た目が狂う。敵なら50ターン逃げ回る。祝福：自分100ターン・敵永続。呪い：フロアの罠が全て見えるようになる。水の瓶に当てると惑わしの薬になる。", tile:24 },
   { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"C", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分に当たるとMP封印50ターン。祝福：敵に鈍足も付与、自分は鈍足10ターンも追加。呪い：敵の特技使用率が100%に、自分はMP封印が治る。水の瓶に当てると封印の薬になる。", tile:24 },
+  { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象には2倍ダメージ、火ダルマは回復。自分に当たると炎でアイテム損傷抽選。床のアイテムに当たると魔法書・巻物・薬は破壊、食料は焼ける。祝福：2倍ダメージ。呪い：対象を回復。", tile:24 },
+  { name:"氷の杖",         type:"wand", effect:"ice_wand",  charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。対象に氷属性ダメージ+5ターン移動封じ。火ダルマには2倍ダメージ。祝福：2倍ダメージ+移動封じ10ターン。呪い：対象を回復し移動封じ状態なら解除。", tile:24 },
 ];
 
 /* ===== BIG BOX TYPES ===== */
@@ -785,6 +787,8 @@ export const WEAPON_ABILITIES = [
   { id:"inflict_confuse", name:"混乱付与",  desc:"攻撃時10%の確率で敵を混乱させる" },
   { id:"inflict_bewitch", name:"惑わし付与",desc:"攻撃時10%の確率で敵を幻惑にする" },
   { id:"inflict_seal",    name:"封印付与",  desc:"攻撃時10%の確率で敵を封印する" },
+  { id:"fire_elem",       name:"炎属性",    desc:"油まみれの敵に2倍ダメージ、火ダルマには0.5倍ダメージ" },
+  { id:"ice_elem",        name:"氷属性",    desc:"炎属性の敵(火ダルマ)に2倍ダメージ" },
 ];
 
 export const ARMOR_ABILITIES = [
@@ -868,7 +872,6 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         /* 火ダルマ：爆発で分裂 */
         if (m.baseKind === "firedemon") {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
-          m.hp = Math.max(1, Math.floor(m.hp / 2));
           const _sd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
           for (const [_sx, _sy] of _sd8) {
             const _nx = ax + _sx, _ny = ay + _sy;
@@ -951,7 +954,6 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           if (m.x === ax && m.y === ay) {
             if (m.baseKind === "firedemon") {
               ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
-              m.hp = Math.max(1, Math.floor(m.hp / 2));
               const _fd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
               for (const [_sx, _sy] of _fd8) {
                 const _nx = m.x + _sx, _ny = m.y + _sy;
