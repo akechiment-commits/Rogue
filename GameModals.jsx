@@ -703,33 +703,14 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     const { player: p2, dungeon: dg2 } = sr.current;
                     const toSell = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
                     if (toSell.length === 0) { setSellAllConfirm(false); return; }
-                    const shop = dg2.shop;
-                    const shopRoom = shop.room;
-                    /* 空きフロアタイルを集める */
-                    const _occ = (x, y) =>
-                      dg2.items.some(i => i.x === x && i.y === y) ||
-                      dg2.traps.some(t => t.x === x && t.y === y) ||
-                      dg2.monsters.some(m => m.x === x && m.y === y);
-                    const _free = [];
-                    for (let fy = shopRoom.y; fy < shopRoom.y + shopRoom.h; fy++)
-                      for (let fx = shopRoom.x; fx < shopRoom.x + shopRoom.w; fx++)
-                        if (dg2.map[fy][fx] === T.FLOOR && !_occ(fx, fy)) _free.push([fx, fy]);
-                    /* アイテムを床に配置してショップ商品にし、売値を支払う */
-                    let earned = 0, ti = 0;
+                    let earned = 0;
                     for (const it of toSell) {
-                      const [px2, py2] = ti < _free.length
-                        ? _free[ti++]
-                        : [shopRoom.x + Math.floor(shopRoom.w / 2), shopRoom.y + Math.floor(shopRoom.h / 2)];
-                      const sell = Math.ceil(itemPrice(it) * 0.5);
-                      earned += sell;
-                      const placed = { ...it, id: uid(), x: px2, y: py2 };
-                      placed.shopPrice = itemPrice(it);
-                      placed._shopId = shop.id;
-                      dg2.items.push(placed);
+                      it.shopPrice = Math.ceil(itemPrice(it) * 0.5);
+                      it._shopId = dg2.shop.id;
+                      earned += it.shopPrice;
                     }
-                    p2.inventory = p2.inventory.filter(it => it.type === "gold" || it.shopPrice);
                     p2.gold += earned;
-                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件を${earned.toLocaleString()}Gで売却した。`]);
+                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。`]);
                     sr.current = { ...sr.current };
                     setGs({ ...sr.current });
                     setSellAllConfirm(false);
