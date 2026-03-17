@@ -1285,10 +1285,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps);
   /* 壁埋めアイテムを生成（突起コーナーは高確率） */
   genWallItems(map, depth, items, suspiciousWalls);
-  /* 水地形を生成（一部部屋に水溜まり） */
-  addWaterPools(map, rooms, su, sd);
-  /* 浮島を生成 */
-  addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd);
+  /* 水地形を生成（一部部屋に水溜まり）— 店の部屋は除外 */
+  const nonShopRooms = shopRoomIdx >= 0 ? rooms.filter((_, i) => i !== shopRoomIdx) : rooms;
+  addWaterPools(map, nonShopRooms, su, sd);
+  /* 浮島を生成 — 店の部屋は除外 */
+  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd);
   /* 水タイルに被った罠・アイテムを後処理 */
   for (let ti = traps.length - 1; ti >= 0; ti--) {
     if (map[traps[ti].y][traps[ti].x] === T.WATER) traps.splice(ti, 1);
