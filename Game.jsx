@@ -2299,6 +2299,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (it.type === "weapon") return _p?.weapon === it ? "外す" : "装備";
     if (it.type === "armor")  return _p?.armor  === it ? "外す" : "装備";
     if (it.type === "arrow")  return _p?.arrow  === it ? "外す" : "装備";
+    if (it.type === "ring")   return (_p?.rings || []).includes(it) ? "外す" : "装備";
     if (it.type === "food") return "食べる";
     if (it.type === "scroll") return "読む";
     if (it.type === "pen") return "描く";
@@ -2306,7 +2307,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     return "使う";
   };
   const canUse = (it) =>
-    ["potion", "food", "scroll", "weapon", "armor", "arrow", "pot", "pen"].includes(
+    ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(
       it.type,
     );
   /* callbacks内で sr.current を参照するバージョン */
