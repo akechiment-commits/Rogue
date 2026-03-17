@@ -1218,6 +1218,10 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   genWallItems(map, depth, items, suspiciousWalls);
   /* 水地形を生成（一部部屋に水溜まり） */
   addWaterPools(map, rooms, su, sd);
+  /* 水タイルに被った罠を除去 */
+  for (let ti = traps.length - 1; ti >= 0; ti--) {
+    if (map[traps[ti].y][traps[ti].x] === T.WATER) traps.splice(ti, 1);
+  }
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
   if (depth === 1) {
