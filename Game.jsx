@@ -774,6 +774,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       }
+      /* 油状態：カウントダウン */
+      if ((p.oilyTurns || 0) > 0) {
+        p.oilyTurns--;
+        if (p.oilyTurns === 0) ml.push("油が落ちた。炎への弱点が消えた。");
+      }
       /* 爆発の指輪：5%の確率で爆発 */
       if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
         ml.push("指輪が爆発した！");
@@ -811,6 +816,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       checkShopTheft(p, st.dungeon, ml);
       moveMons(st.dungeon, p, ml);
+      /* 油状態：モンスターのカウントダウン */
+      for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
       if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap") && !hasCursedExplosionPentacle(st.dungeon)) {
         for (const _m of [...st.dungeon.monsters]) {

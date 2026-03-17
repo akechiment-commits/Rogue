@@ -606,9 +606,9 @@ export const POTS = [
   { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"C", weight:8,  sellPrice:100,  desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"薬を入れると部屋中に薬効が広がる。生の食料を入れると焼いた状態になる。その他のものは保管できる。", tile:32 },
   { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"B", weight:4,  sellPrice:500,  desc:"割れると周囲8マスを巻き込む爆発を起こす。炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化する。中身は爆発で消える。", tile:32 },
-  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとオリーブオイル漬けになる。", tile:32 },
-  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとごま油風味になる。",         tile:32 },
-  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとバター風味になる。",         tile:32 },
+  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとオリーブオイル漬けになる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。", tile:32 },
+  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとごま油風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
+  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとバター風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
   { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとヨーグルト漬けになる。",   tile:32 },
   { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
 ];
@@ -732,6 +732,29 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   /* 火薬壺は割れると爆発（中身も消える） */
   if (pot.potEffect === "gunpowder") {
     doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn);
+    return;
+  }
+  /* 油系壺：満タンでない場合は周囲8マスに油が飛散 */
+  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
+    ml.push(`${_pn}が割れて${_oilEffects[pot.potEffect]}が飛び散った！`);
+    dg.oilyTiles = dg.oilyTiles || [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const tx = px + dx, ty = py + dy;
+        if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
+        if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) continue;
+        if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty))
+          dg.oilyTiles.push({ x: tx, y: ty });
+        const mon = monsterAt(dg, tx, ty);
+        if (mon) { mon.oilyTurns = (mon.oilyTurns || 0) + 100; ml.push(`${mon.name}は油まみれになった！(100ターン)`); }
+        if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
+      }
+    }
+    if (pot.contents?.length > 0) {
+      const ft = new Set();
+      for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
+    }
     return;
   }
   if (!pot.contents || pot.contents.length === 0) {
@@ -1371,18 +1394,21 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") { const h = Math.min(val, p.maxHp - p.hp); p.hp += h; ml.push(`体が温まりHP+${h}回復した！【呪→回復】`); }
       } else {
         const dmg = val + rng(-5, 5);
+        const _oilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
         if (kind === "monster") {
-          const d = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1)));
+          const _oilyMult = _oilyCheck(target) ? 2 : 1;
+          const d = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult));
           target.hp -= d;
-          ml.push(`${target.name}は炎に包まれた！${d}ダメージ！${blessed ? "(強炎)" : ""}`);
+          ml.push(`${target.name}は炎に包まれた！${d}ダメージ！${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
           _monKill(target);
         }
         if (kind === "player") {
-          const rd = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1)));
+          const _oilyMult = _oilyCheck(p) ? 2 : 1;
+          const rd = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult));
           const fd = _fireResist(p) ? Math.floor(rd / 2) : rd;
           p.deathCause = "炎の薬の飛散により";
           p.hp -= fd;
-          ml.push(`炎に包まれた！${fd}ダメージ！${_fireResist(p) ? "(耐火)" : ""}${blessed ? "(強炎)" : ""}`);
+          ml.push(`炎に包まれた！${fd}ダメージ！${_fireResist(p) ? "(耐火)" : ""}${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
           applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
       }
@@ -2376,9 +2402,10 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
   switch (eff) {
     case "fire_bolt": {
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が炎の魔法を打ち消した！"); break; }
-      const dmg = rng(20, 30) * _cmsBoost;
+      const _fbOilyMult = kind === "monster" && ((target.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === target.x && t.y === target.y)) ? 2 : 1;
+      const dmg = rng(20, 30) * _cmsBoost * _fbOilyMult;
       if (kind === "monster") {
-        target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！`);
+        target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item" && target.type === "pot" && target.potEffect === "gunpowder") {
