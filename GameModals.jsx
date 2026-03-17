@@ -681,25 +681,52 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
       )}
       {mode === "browse" && (() => {
         const _p = gs.player;
+        const _shop = gs.dungeon?.shop;
+        const _shopRoom = _shop?.room;
+        /* プレイヤーがショップ室内にいるか */
+        const _inShop = _shopRoom &&
+          _p.x >= _shopRoom.x && _p.x < _shopRoom.x + _shopRoom.w &&
+          _p.y >= _shopRoom.y && _p.y < _shopRoom.y + _shopRoom.h;
         const _sellItems = _p.inventory.filter(it => it.type !== "gold");
         const _totalG = _sellItems.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
         if (sellAllConfirm) {
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
-                店主：「本当によろしいですか？全 {_sellItems.length} 件を{_totalG.toLocaleString()}Gで買い取ります。」
+                店主：「本当によろしいですか？所持品 {_sellItems.length} 件を店の商品にします。」
               </div>
               {[
                 {
-                  label: `はい、全て売る (${_totalG.toLocaleString()}G)`,
+                  label: `はい、全て委託する (査定額 ${_totalG.toLocaleString()}G)`,
                   fn: () => {
                     if (!sr.current) return;
-                    const { player: p2 } = sr.current;
+                    const { player: p2, dungeon: dg2 } = sr.current;
                     const toSell = p2.inventory.filter(it => it.type !== "gold");
-                    const earned = toSell.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
+                    if (toSell.length === 0) { setSellAllConfirm(false); return; }
+                    const shop = dg2.shop;
+                    const shopRoom = shop.room;
+                    /* ショップ内の空きフロアタイルを収集 */
+                    const _occ = (x, y) =>
+                      dg2.items.some(i => i.x === x && i.y === y) ||
+                      dg2.traps.some(t => t.x === x && t.y === y) ||
+                      dg2.monsters.some(m => m.x === x && m.y === y);
+                    const _freeTiles = [];
+                    for (let fy = shopRoom.y; fy < shopRoom.y + shopRoom.h; fy++)
+                      for (let fx = shopRoom.x; fx < shopRoom.x + shopRoom.w; fx++)
+                        if (dg2.map[fy][fx] === T.FLOOR && !_occ(fx, fy)) _freeTiles.push([fx, fy]);
+                    /* 各アイテムを店の商品として床に置く */
+                    let tileIdx = 0;
+                    for (const it of toSell) {
+                      const [px2, py2] = tileIdx < _freeTiles.length
+                        ? _freeTiles[tileIdx++]
+                        : [shopRoom.x + Math.floor(shopRoom.w / 2), shopRoom.y + Math.floor(shopRoom.h / 2)];
+                      const placed = { ...it, id: uid(), x: px2, y: py2 };
+                      placed.shopPrice = Math.ceil(itemPrice(it) * 0.5);
+                      placed._shopId = shop.id;
+                      dg2.items.push(placed);
+                    }
                     p2.inventory = p2.inventory.filter(it => it.type === "gold");
-                    p2.gold += earned;
-                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件を${earned.toLocaleString()}Gで売却した。`]);
+                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件を店の商品として陳列した。`]);
                     sr.current = { ...sr.current };
                     setGs({ ...sr.current });
                     setSellAllConfirm(false);
@@ -724,9 +751,11 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             </div>
             {[
               {
-                label: `所持品を全て売る (${_totalG.toLocaleString()}G)`,
-                disabled: _sellItems.length === 0,
-                fn: () => { if (_sellItems.length > 0) setSellAllConfirm(true); },
+                label: _inShop
+                  ? `所持品を全て委託する (査定額 ${_totalG.toLocaleString()}G)`
+                  : "所持品を全て委託する (店内限定)",
+                disabled: _sellItems.length === 0 || !_inShop,
+                fn: () => { if (_sellItems.length > 0 && _inShop) setSellAllConfirm(true); },
               },
               { label: "やめる", fn: () => setMode(null) },
             ].map((item, mi) => (
