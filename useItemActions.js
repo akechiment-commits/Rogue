@@ -1070,7 +1070,28 @@ export function useItemActions({
         }
       } else {
         if ((p.rings || []).length >= 2) {
-          ml.push("指輪は2つまでしか装備できない。外してから付け直そう。");
+          /* 最後に装備した指輪を外して新しいものを装備する */
+          const _removed = p.rings[p.rings.length - 1];
+          if (_removed.cursed) {
+            ml.push(`${_removed.name}は呪われていて外せない！指輪を装備できなかった。`);
+          } else {
+            p.rings = p.rings.slice(0, p.rings.length - 1);
+            ml.push(`${_removed.name}を外した。`);
+            if (!p.rings) p.rings = [];
+            p.rings.push(it);
+            it.bcKnown = true;
+            ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+            if (it.effect === "explode_ring") {
+              ml.push("指輪が爆発した！");
+              const _rnFn2 = (gi) => gi.name;
+              doExplosion(p.x, p.y, dg, p, ml, _rnFn2, "爆発の指輪", null, null, false, true);
+            }
+            if (it.effect === "antidote_ring" && p.poisoned) {
+              p.poisoned = false;
+              if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+              ml.push("指輪の力で毒が消えた！攻撃力も回復！");
+            }
+          }
         } else {
           if (!p.rings) p.rings = [];
           p.rings.push(it);

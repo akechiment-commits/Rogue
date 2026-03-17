@@ -1361,7 +1361,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (type === "interact") {
         /* 足元の階段チェック */
         if (dg.map[p.y][p.x] === T.SD) {
-          doStair(1);
+          if (hasRingEffect(p, "float_ring")) {
+            ml.push("浮遊の指輪を付けているので階段を降りられない！");
+          } else {
+            doStair(1);
+          }
         } else if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
@@ -1442,11 +1446,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             /* 足元の罠を起動 */
             const _trapHere = dg.traps.find((t) => t.x === p.x && t.y === p.y);
             if (_trapHere) {
-              const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu);
-              if (_tr2 === "pitfall") {
-                const nd2 = chgFloor(p, 1, true);
-                if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
+              if (hasRingEffect(p, "float_ring")) {
+                ml.push("浮遊の指輪を付けているので罠を作動させられない！");
+              } else {
+                const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu);
+                if (_tr2 === "pitfall") {
+                  const nd2 = chgFloor(p, 1, true);
+                  if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
+                }
               }
               acted = true;
             } else ml.push("ここには何もない。");

@@ -839,10 +839,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
         if (_hasExPentacle || ringExplosion) {
-          /* 爆発の魔方陣 or 指輪爆発：即死して連鎖爆発 */
-          ml.push(`爆風で${m.name}は消し飛んだ！`);
+          /* 爆発の魔方陣 or 指輪爆発：即死（ringExplosionは経験値なし） */
           m.hp = 0;
-          _killed.add(m); killMonster(m, dg, p, ml, luFn);
+          _killed.add(m); killMonster(m, dg, p, ml, luFn, ringExplosion);
         } else {
           const md = proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15);
           m.hp -= md;
@@ -2083,10 +2082,14 @@ export function applyFireInventoryDamage(p, ml) {
 }
 
 /** プレイヤーがモンスターを倒した時の共通処理 */
-export function killMonster(mon, dg, p, ml, luFn) {
+export function killMonster(mon, dg, p, ml, luFn, noExp = false) {
   const mx = mon.x, my = mon.y;
-  ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
-  p.exp += mon.exp;
+  if (noExp) {
+    ml.push(`${mon.name}は消し飛んだ！(経験値なし)`);
+  } else {
+    ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
+    p.exp += mon.exp;
+  }
   monsterDrop(mon, dg, ml, p);
   removeMonster(dg, mon);
   if (luFn) luFn(p, ml);
