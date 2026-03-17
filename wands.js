@@ -1054,6 +1054,114 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       ml.push("魔法弾は効果なく消えた。");
       break;
     }
+    case "fire_wand": {
+      const _fwBlessed = blMult > 1, _fwCursed = blMult < 1;
+      const _fwOilyCheck = (char) => (char.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===char.x&&t.y===char.y);
+      if (_fwCursed) {
+        /* 呪い：対象を回復 */
+        if (kind === "monster") {
+          const _fwh = Math.min(20, target.maxHp - target.hp);
+          if (_fwh > 0) { target.hp += _fwh; ml.push(`${target.name}のHPが${_fwh}回復した！【呪】`); }
+          else ml.push(`${target.name}には効果がなかった。`);
+          break;
+        }
+        if (kind === "player") {
+          const _fwh = Math.min(20, p.maxHp - p.hp);
+          if (_fwh > 0) { p.hp += _fwh; ml.push(`癒しの炎に包まれた！HP+${_fwh}【呪】`); }
+          else ml.push("HPは既に満タンだ。");
+          break;
+        }
+        break;
+      }
+      const _fwBlessMult = _fwBlessed ? 2 : 1;
+      if (kind === "monster") {
+        /* 火ダルマ：回復 */
+        if (target.baseKind === "firedemon") {
+          const _fwHeal = Math.min(Math.round(rng(15,25) * _fwBlessMult), target.maxHp - target.hp);
+          if (_fwHeal > 0) { target.hp += _fwHeal; ml.push(`炎が${target.name}を癒した！HP+${_fwHeal}`); }
+          else ml.push(`${target.name}には効果がなかった。`);
+          break;
+        }
+        const _fwOily = _fwOilyCheck(target);
+        let _fwDmg = Math.max(1, Math.round(rng(15,25) * _fwBlessMult * (_fwOily ? 2 : 1)));
+        target.hp -= _fwDmg;
+        ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwOily ? "油まみれ×2！" : ""}`);
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+        break;
+      }
+      if (kind === "player") {
+        const _fwOily = _fwOilyCheck(p);
+        let _fwDmg = Math.max(1, Math.round(rng(15,25) * _fwBlessMult * (_fwOily ? 2 : 1)));
+        const _hasFireR = hasAbility(p.armor, "fire_resist") || (p.rings||[]).some(r=>r.effect==="fire_resist");
+        if (_hasFireR) _fwDmg = Math.max(1, Math.floor(_fwDmg/2));
+        p.deathCause = "炎の杖の魔法により";
+        p.hp -= _fwDmg;
+        ml.push(`炎の弾が自分に命中！${_fwDmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
+        applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
+        break;
+      }
+      if (kind === "item") {
+        if (target.type === "spellbook" || target.type === "scroll" || target.type === "potion") {
+          removeFloorItem(dg, target);
+          chargeShopItem(target, dg, ml);
+          ml.push(`炎で${_dname_item(target)}が燃えた！`);
+        } else if (target.type === "food") {
+          if (!target.cooked) {
+            target.value *= 2;
+            target.cooked = true;
+            target.name = "焼いた" + target.name;
+            ml.push(`${target.name}になった！`);
+          } else {
+            burnFoodItem(target, ml);
+          }
+        } else {
+          ml.push(`炎が${_dname_item(target)}に当たったが何も起こらなかった。`);
+        }
+        break;
+      }
+      break;
+    }
+    case "ice_wand": {
+      const _iwBlessed = blMult > 1, _iwCursed = blMult < 1;
+      if (_iwCursed) {
+        /* 呪い：対象を回復し、移動封じ状態なら解除 */
+        if (kind === "monster") {
+          const _iwh = Math.min(20, target.maxHp - target.hp);
+          if (_iwh > 0) { target.hp += _iwh; ml.push(`${target.name}のHPが${_iwh}回復した！【呪】`); }
+          else ml.push(`${target.name}には効果がなかった。`);
+          if ((target.immobileTurns||0) > 0) { target.immobileTurns = 0; ml.push(`${target.name}の移動封じが解除された！【呪】`); }
+          break;
+        }
+        if (kind === "player") {
+          const _iwh = Math.min(20, p.maxHp - p.hp);
+          if (_iwh > 0) { p.hp += _iwh; ml.push(`癒しの氷に包まれた！HP+${_iwh}【呪】`); }
+          else ml.push("HPは既に満タンだ。");
+          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解除された！【呪】"); }
+          break;
+        }
+        break;
+      }
+      const _iwBlessMult = _iwBlessed ? 2 : 1;
+      const _iwTurns = _iwBlessed ? 10 : 5;
+      if (kind === "monster") {
+        const _iwFireMult = target.baseKind === "firedemon" ? 2 : 1;
+        let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwFireMult));
+        target.hp -= _iwDmg;
+        target.immobileTurns = (target.immobileTurns||0) + _iwTurns;
+        ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwFireMult>1 ? "炎×2！" : ""}`);
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+        break;
+      }
+      if (kind === "player") {
+        let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult));
+        p.deathCause = "氷の杖の魔法により";
+        p.hp -= _iwDmg;
+        p.immobileTurns = (p.immobileTurns||0) + _iwTurns;
+        ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！`);
+        break;
+      }
+      break;
+    }
   }
 }
 

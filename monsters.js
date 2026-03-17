@@ -611,6 +611,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     return;
   }
   if (m.paralyzed) return;
+  /* 移動封じ（氷の杖など） */
+  if ((m.immobileTurns||0) > 0) { m.immobileTurns--; return; }
 
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {

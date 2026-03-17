@@ -2056,8 +2056,8 @@ export function useItemActions({
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thMiss = _forceMiss || (!_isFarcast && !_thSureHit && Math.random() >= 0.90);
               const lb = it.type === "arrow" ? ((it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`) : dnameRef(it);
-              if (!_isFarcast && m.baseKind === "firedemon" && it.type !== "arrow") {
-                /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢は貫通） */
+              if (!_isFarcast && m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
                 ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
                 lx = tx; ly = ty; hit = true; break;
               }

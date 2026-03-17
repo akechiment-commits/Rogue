@@ -779,6 +779,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.oilyTurns--;
         if (p.oilyTurns === 0) ml.push("油が落ちた。炎への弱点が消えた。");
       }
+      /* 移動封じ：カウントダウン */
+      if ((p.immobileTurns || 0) > 0) {
+        p.immobileTurns--;
+      }
       /* 爆発の指輪：5%の確率で爆発 */
       if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
         ml.push("指輪が爆発した！");
@@ -1139,6 +1143,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         return;
       }
       if (type === "move" && (dx || dy)) {
+        /* ===== 移動封じ状態：移動不可（攻撃は可） ===== */
+        if ((p.immobileTurns || 0) > 0) {
+          const nx0 = p.x + dx, ny0 = p.y + dy;
+          const _imMon = monsterAt(dg, nx0, ny0);
+          if (!_imMon) {
+            /* 移動しようとしたが封じられている（endTurnでカウントダウン） */
+            const _imRem = p.immobileTurns - 1;
+            endTurn(st, p, ml);
+            ml.push(_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！");
+            setMsgs((prev) => [...prev.slice(-80), ...ml]);
+            sr.current = { ...st };
+            setGs({ ...st });
+            return;
+          }
+          /* 攻撃はできる：そのまま攻撃処理へ進む */
+        }
         /* ===== 混乱状態：移動方向をランダム化 ===== */
         if ((p.confusedTurns || 0) > 0) {
           const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -1199,6 +1219,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 d *= 2;
                 crit = true;
               }
+              /* 炎属性武器：油まみれ×2、火ダルマ×0.5 */
+              const _hasFireElem = wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
+              if (_hasFireElem) {
+                if (attackMon.baseKind === "firedemon") {
+                  d = Math.max(1, Math.floor(d * 0.5));
+                } else {
+                  const _feOily = (attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y);
+                  if (_feOily) d *= 2;
+                }
+              }
+              /* 氷属性武器：火ダルマ×2 */
+              const _hasIceElem = wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
+              if (_hasIceElem && attackMon.baseKind === "firedemon") {
+                d *= 2;
+              }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
               const _vulnPc = _vulnRoom && dg.pentacles?.find((pc) => pc.kind === "vulnerability" && pc.x >= _vulnRoom.x && pc.x < _vulnRoom.x + _vulnRoom.w && pc.y >= _vulnRoom.y && pc.y < _vulnRoom.y + _vulnRoom.h);
@@ -1212,6 +1247,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const atkSfx =
                 (crit ? "会心！" : "") +
                 (_isBane ? "特効！" : "") +
+                (_hasFireElem && attackMon.baseKind === "firedemon" ? "（炎半減）" : "") +
+                (_hasFireElem && attackMon.baseKind !== "firedemon" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
+                (_hasIceElem && attackMon.baseKind === "firedemon" ? "氷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
               if (wabHas("knockback") && attackMon.hp > 0) {
