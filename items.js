@@ -805,10 +805,12 @@ export const TRAPS = [
  * cx, cy: 爆発の中心。周囲8マス＋中心の計9マスを処理する。
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
  */
-export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false) {
+export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false) {
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
-    const dmg = proportional ? Math.max(1, Math.floor(p.hp / 2)) : rng(10, 20);
+    const dmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
+              : proportional  ? Math.max(1, Math.floor(p.hp / 2))
+              : rng(10, 20);
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
     ml.push(`${srcLabel}！${dmg}ダメージ！`);
@@ -836,9 +838,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       for (const m of [...dg.monsters.filter(m => m.x === ax && m.y === ay)]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
-        if (_hasExPentacle) {
-          /* 爆発の魔方陣の影響下：爆発を浴びた敵は即死して連鎖爆発 */
-          ml.push(`爆風で${m.name}は即死した！`);
+        if (_hasExPentacle || ringExplosion) {
+          /* 爆発の魔方陣 or 指輪爆発：即死して連鎖爆発 */
+          ml.push(`爆風で${m.name}は消し飛んだ！`);
           m.hp = 0;
           _killed.add(m); killMonster(m, dg, p, ml, luFn);
         } else {
@@ -852,6 +854,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       for (const it of dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)) {
         if (it.type === "scroll") {
           blasted.add(it); ml.push(`巻物「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
+        } else if (it.type === "spellbook") {
+          blasted.add(it); ml.push(`魔法書「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
         } else if (it.type === "potion") {
           blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
         } else if (it.type === "food") {
