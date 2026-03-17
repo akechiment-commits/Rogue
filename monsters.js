@@ -1,5 +1,27 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, clamp, findVulnPentacle, hasAbility } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster } from "./items.js";
+
+/* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
+function _fireDemonBurnItems(m, dg, ml) {
+  const _items = dg.items.filter(it => it.x === m.x && it.y === m.y);
+  const _toRemove = new Set();
+  for (const it of _items) {
+    if (it.type === "scroll" || it.type === "spellbook") {
+      _toRemove.add(it);
+      ml.push(`${m.name}が通った！「${it.name}」が燃えてなくなった！`);
+    } else if (it.type === "food") {
+      if (!it.cooked) {
+        it.cooked = true; it.value = Math.floor((it.value || 10) * 2);
+        it.name = "焼いた" + it.name;
+        ml.push(`${m.name}が通った！食料が焼けて「${it.name}」になった！`);
+      } else {
+        _toRemove.add(it);
+        ml.push(`${m.name}が通った！「${it.name}」が燃えてなくなった！`);
+      }
+    }
+  }
+  if (_toRemove.size > 0) dg.items = dg.items.filter(it => !_toRemove.has(it));
+}
 
 /* ===== 境界・通行判定ヘルパー ===== */
 function inBounds(x, y) { return x >= 0 && x < MW && y >= 0 && y < MH; }
@@ -24,6 +46,13 @@ function monsterDragonFire(m, dg, pl, ml) {
     if (_fBlock) {
       wakeIfDormant(_fBlock, ml);
       const _fDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_fBlock.def || 0))) + rng(-2, 2));
+      /* 火ダルマは炎で回復 */
+      if (_fBlock.baseKind === "firedemon") {
+        const _fheal = Math.min(_fDmg, _fBlock.maxHp - _fBlock.hp);
+        if (_fheal > 0) { _fBlock.hp += _fheal; ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
+        else ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！しかし炎を吸収した！`);
+        return;
+      }
       _fBlock.hp -= _fDmg;
       ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！`);
       if (_fBlock.hp <= 0) killMonster(_fBlock, dg, pl, ml, null);
@@ -39,9 +68,12 @@ function monsterDragonFire(m, dg, pl, ml) {
   /* 耐火装備 */
   const _hasFireR = hasAbility(pl.armor, "fire_resist");
   if (_hasFireR) dmg = Math.max(1, Math.floor(dmg / 2));
+  /* 油まみれ */
+  const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
+  if (_oilyMult > 1) dmg *= 2;
   pl.deathCause = `${m.name}の炎ブレスで`;
   pl.hp -= dmg;
-  ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
+  ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
   if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null, null, true);
@@ -75,6 +107,17 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
+  if (m.baseKind === "firedemon" && dmg > 0) {
+    const _hasFireR = hasAbility(pl.armor, "fire_resist");
+    if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null, null, true);
+    const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
+    if (_oilyMult > 1) {
+      const _bonusDmg = Math.max(1, Math.floor(dmg * 0.5));
+      pl.hp -= _bonusDmg;
+      ml.push(`油まみれに炎が燃え移った！${_bonusDmg}ダメージ！`);
+    }
+  }
   /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
   if (dg.pentacles?.length > 0 && dmg > 0) {
     const _plRoom = findRoom(dg.rooms, pl.x, pl.y);
@@ -143,6 +186,8 @@ export const MONS = [
   { name: "シャーマン",   hp: 30,  atk: 9,  def: 3,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",     monLevel: 1, subtype: "supporter" },
   /* 14: 15階〜 吹き飛ばし杖 */
   { name: "ウィンドメイジ", hp: 28, atk: 11, def: 3, exp: 65,  speed: 1,   tile: 54, kind: "humanoid", baseKind: "windmage",   monLevel: 1, subtype: "wanduser", wandEffect: "blowback_wand" },
+  /* 14.5: 15階〜 炎モンスター */
+  { name: "火ダルマ",     hp: 55,  atk: 20, def: 4,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",  monLevel: 1, float: true },
   /* 15: 16階〜 */
   { name: "トロル",       hp: 50,  atk: 16, def: 6,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",      monLevel: 1 },
   /* 16: 17階〜 鈍足・超硬 */
@@ -178,6 +223,7 @@ export const MON_LEVELS = {
   "witchdoc":   [ { name: "強呪術師",         hp: 40,  atk: 13, def: 6,  exp: 88  }, { name: "大呪術師",         hp: 63,  atk: 16, def: 9,  exp: 138 } ],
   "shaman":     [ { name: "強シャーマン",     hp: 48,  atk: 13, def: 6,  exp: 96  }, { name: "大シャーマン",     hp: 75,  atk: 16, def: 9,  exp: 150 } ],
   "windmage":   [ { name: "強ウィンドメイジ", hp: 45,  atk: 15, def: 6,  exp: 104 }, { name: "風の覇者",         hp: 70,  atk: 20, def: 9,  exp: 163 } ],
+  "firedemon":  [ { name: "強火ダルマ",       hp: 88,  atk: 28, def: 7,  exp: 176 }, { name: "炎の悪魔",         hp: 140, atk: 37, def: 10, exp: 275 } ],
   "troll":      [ { name: "強トロル",         hp: 80,  atk: 22, def: 9,  exp: 120 }, { name: "覇トロル",         hp: 125, atk: 29, def: 12, exp: 188 } ],
   "gargoyle":   [ { name: "強ガーゴイル",     hp: 104, atk: 25, def: 15, exp: 144 }, { name: "覇ガーゴイル",     hp: 163, atk: 32, def: 19, exp: 225 } ],
   "vampire":    [ { name: "強ヴァンパイア",   hp: 96,  atk: 25, def: 10, exp: 147 }, { name: "ヴァンパイア卿",   hp: 150, atk: 32, def: 13, exp: 230 } ],
@@ -1003,6 +1049,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.dir = { x: next.x - m.x, y: next.y - m.y };
         m.x = next.x;
         m.y = next.y;
+        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
         if (_forceAlt) m.posHistory = [];
         return;
       }
@@ -1019,6 +1066,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           _blocker.x = m.x; _blocker.y = m.y;
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
+          if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
           return;
         }
       }
@@ -1050,6 +1098,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
         m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
         m.x = _ab.x; m.y = _ab.y;
+        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
         return;
       }
       return; /* 前の敵が動けない場合は自然なキューイングで待機 */
@@ -1065,6 +1114,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
+        if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
         m.posHistory = [];
         return;
       }

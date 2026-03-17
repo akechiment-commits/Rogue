@@ -865,6 +865,22 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       for (const m of [...dg.monsters.filter(m => m.x === ax && m.y === ay)]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
+        /* 火ダルマ：爆発で分裂 */
+        if (m.baseKind === "firedemon") {
+          ml.push(`${m.name}が爆発を受けて分裂した！`);
+          m.hp = Math.max(1, Math.floor(m.hp / 2));
+          const _sd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+          for (const [_sx, _sy] of _sd8) {
+            const _nx = ax + _sx, _ny = ay + _sy;
+            if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
+            if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+            if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+            if (p && _nx === p.x && _ny === p.y) continue;
+            dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+            break;
+          }
+          continue;
+        }
         if (_hasExPentacle || ringExplosion) {
           /* 爆発の魔方陣 or 指輪爆発：即死（ringExplosionは経験値なし） */
           m.hp = 0;
@@ -930,9 +946,24 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
           if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
-        /* モンスター：即死 */
+        /* モンスター：即死（火ダルマは分裂） */
         for (const m of [...dg.monsters]) {
           if (m.x === ax && m.y === ay) {
+            if (m.baseKind === "firedemon") {
+              ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
+              m.hp = Math.max(1, Math.floor(m.hp / 2));
+              const _fd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+              for (const [_sx, _sy] of _fd8) {
+                const _nx = m.x + _sx, _ny = m.y + _sy;
+                if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
+                if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+                if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+                if (p && _nx === p.x && _ny === p.y) continue;
+                dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+                break;
+              }
+              continue;
+            }
             ml.push(`${srcLabel}の爆発で${m.name}は消し飛んだ！`);
             m.hp = 0;
             killMonster(m, dg, p, ml, luFn);
@@ -1396,6 +1427,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         const dmg = val + rng(-5, 5);
         const _oilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
         if (kind === "monster") {
+          /* 火ダルマは炎で回復 */
+          if (target.baseKind === "firedemon") {
+            const _fheal = Math.min(Math.round(dmg * (blessed ? 1.5 : 1)), target.maxHp - target.hp);
+            if (_fheal > 0) { target.hp += _fheal; ml.push(`炎を受けた${target.name}が回復した！(+${_fheal}HP)`); }
+            else ml.push(`${target.name}は炎を吸収した！`);
+            break;
+          }
           const _oilyMult = _oilyCheck(target) ? 2 : 1;
           const d = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult));
           target.hp -= d;
@@ -2405,6 +2443,13 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       const _fbOilyMult = kind === "monster" && ((target.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === target.x && t.y === target.y)) ? 2 : 1;
       const dmg = rng(20, 30) * _cmsBoost * _fbOilyMult;
       if (kind === "monster") {
+        /* 火ダルマは炎の魔法で回復 */
+        if (target.baseKind === "firedemon") {
+          const _fheal = Math.min(dmg, target.maxHp - target.hp);
+          if (_fheal > 0) { target.hp += _fheal; ml.push(`炎の魔法が${target.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
+          else ml.push(`炎の魔法が${target.name}に当たった！しかし炎を吸収した！`);
+          break;
+        }
         target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }

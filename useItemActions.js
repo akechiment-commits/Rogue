@@ -1937,7 +1937,7 @@ export function useItemActions({
         p.inventory.splice(idx, 1);
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null;
+          let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false;
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
@@ -1948,6 +1948,10 @@ export function useItemActions({
               if (_isFarcast) {
                 /* 遠投：splash せず個別に薬効果を適用、貫通 */
                 _potHits.push(m);
+              } else if (m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投の薬を燃やして消滅 */
+                ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！`);
+                lx = tx; ly = ty; _fdBurned = true; break;
               } else {
                 lx = tx; ly = ty; break;
               }
@@ -1960,7 +1964,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_isFarcast) {
+          if (_fdBurned) {
+            /* 火ダルマに燃やされた：何もしない */
+          } else if (_isFarcast) {
             /* 遠投：軌道上の全モンスターに個別に効果 */
             if (_potHits.length > 0) {
               for (const _pm of _potHits) {
@@ -1983,7 +1989,7 @@ export function useItemActions({
           }
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null;
+          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
@@ -1992,6 +1998,11 @@ export function useItemActions({
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
               const _potMiss = _forceMiss || (!_isFarcast && !_potSureHit && Math.random() >= 0.90);
+              if (!_isFarcast && m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投の壺を燃やして消滅 */
+                ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
+                lx = tx; ly = ty; _potFdBurned = true; break;
+              }
               if (_potMiss) {
                 /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
                 lx = tx; ly = ty;
@@ -2014,7 +2025,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_isFarcast) {
+          if (_potFdBurned) {
+            /* 火ダルマに燃やされた：何もしない */
+          } else if (_isFarcast) {
             /* 遠投：壺は消滅（中身もろとも） */
             ml.push(`${dnameRef(it)}は消滅した。`);
           } else if (sprHit?.kind) {
@@ -2043,6 +2056,11 @@ export function useItemActions({
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thMiss = _forceMiss || (!_isFarcast && !_thSureHit && Math.random() >= 0.90);
               const lb = it.type === "arrow" ? ((it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`) : dnameRef(it);
+              if (!_isFarcast && m.baseKind === "firedemon" && it.type !== "arrow") {
+                /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢は貫通） */
+                ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
+                lx = tx; ly = ty; hit = true; break;
+              }
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
                 lx = tx; ly = ty; hit = true;
