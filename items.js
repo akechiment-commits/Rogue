@@ -2433,7 +2433,12 @@ export const SPELLS=[
   {id:"transform_magic",name:"変化の魔法",mpCost:12,effect:"transform_magic",range:8,needsDir:true,desc:"対象を変化させる。MP:12"},
   {id:"identify_magic",name:"識別の魔法",mpCost:1,fixedMpCost:true,effect:"identify_magic",needsDir:false,desc:"持ち物から1つ選んで識別する。MP:1"},
   {id:"bless_magic",name:"祝福の魔法",mpCost:1,fixedMpCost:true,effect:"bless_magic",needsDir:false,desc:"アイテムを1つ選んで祝福する。MP:1"},
-  {id:"curse_magic",name:"呪いの魔法",mpCost:1,fixedMpCost:true,effect:"curse_magic",needsDir:false,desc:"アイテムを1つ選んで呪う。MP:1"},];
+  {id:"curse_magic",name:"呪いの魔法",mpCost:1,fixedMpCost:true,effect:"curse_magic",needsDir:false,desc:"アイテムを1つ選んで呪う。MP:1"},
+  {id:"debug_summon_mon",name:"[debug]敵召喚",mpCost:0,fixedMpCost:true,effect:"debug_summon_mon",needsDir:false,debug:true,desc:"任意の敵を1体選んで呼び出す。MP:0"},
+  {id:"debug_get_item",name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",needsDir:false,debug:true,desc:"任意のアイテムを1個選んで入手する。MP:0"},
+  {id:"debug_create_trap",name:"[debug]罠生成",mpCost:0,fixedMpCost:true,effect:"debug_create_trap",needsDir:false,debug:true,desc:"任意の罠を1つ選んで足元に作る。MP:0"},
+  {id:"debug_summon_bb",name:"[debug]大箱召喚",mpCost:0,fixedMpCost:true,effect:"debug_summon_bb",needsDir:false,debug:true,desc:"任意の大箱を1つ選んで呼び出す。MP:0"},
+];
 export const SPELLBOOKS=[
   {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"B", weight:4,  sellPrice:3000,  desc:"炎の魔法を習得できる。火に弱い。",tile:43},
   {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"B", weight:4,  sellPrice:3000,  desc:"氷の魔法を習得できる。火に弱い。",tile:43},
