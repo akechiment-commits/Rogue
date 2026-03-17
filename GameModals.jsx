@@ -693,7 +693,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
-                店主：「本当によろしいですか？所持品 {_sellItems.length} 件を店の商品にします。」
+                店主：「本当によろしいですか？所持品 {_sellItems.length} 件が未払の商品になります。査定額：{_totalG.toLocaleString()}G」
               </div>
               {[
                 {
@@ -704,29 +704,15 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     const toSell = p2.inventory.filter(it => it.type !== "gold");
                     if (toSell.length === 0) { setSellAllConfirm(false); return; }
                     const shop = dg2.shop;
-                    const shopRoom = shop.room;
-                    /* ショップ内の空きフロアタイルを収集 */
-                    const _occ = (x, y) =>
-                      dg2.items.some(i => i.x === x && i.y === y) ||
-                      dg2.traps.some(t => t.x === x && t.y === y) ||
-                      dg2.monsters.some(m => m.x === x && m.y === y);
-                    const _freeTiles = [];
-                    for (let fy = shopRoom.y; fy < shopRoom.y + shopRoom.h; fy++)
-                      for (let fx = shopRoom.x; fx < shopRoom.x + shopRoom.w; fx++)
-                        if (dg2.map[fy][fx] === T.FLOOR && !_occ(fx, fy)) _freeTiles.push([fx, fy]);
-                    /* 各アイテムを店の商品として床に置く */
-                    let tileIdx = 0;
+                    /* 各アイテムに shopPrice/_shopId を付与し、代金を即払い */
+                    let earned = 0;
                     for (const it of toSell) {
-                      const [px2, py2] = tileIdx < _freeTiles.length
-                        ? _freeTiles[tileIdx++]
-                        : [shopRoom.x + Math.floor(shopRoom.w / 2), shopRoom.y + Math.floor(shopRoom.h / 2)];
-                      const placed = { ...it, id: uid(), x: px2, y: py2 };
-                      placed.shopPrice = Math.ceil(itemPrice(it) * 0.5);
-                      placed._shopId = shop.id;
-                      dg2.items.push(placed);
+                      it.shopPrice = Math.ceil(itemPrice(it) * 0.5);
+                      it._shopId = shop.id;
+                      earned += it.shopPrice;
                     }
-                    p2.inventory = p2.inventory.filter(it => it.type === "gold");
-                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件を店の商品として陳列した。`]);
+                    p2.gold += earned;
+                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。`]);
                     sr.current = { ...sr.current };
                     setGs({ ...sr.current });
                     setSellAllConfirm(false);
