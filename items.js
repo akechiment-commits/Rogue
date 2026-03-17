@@ -808,12 +808,16 @@ export const TRAPS = [
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false) {
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
-    const dmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
-              : proportional  ? Math.max(1, Math.floor(p.hp / 2))
-              : rng(10, 20);
+    const _hasFireR = ringExplosion && hasAbility(p.armor, "fire_resist");
+    const rawDmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
+                 : proportional  ? Math.max(1, Math.floor(p.hp / 2))
+                 : rng(10, 20);
+    const dmg = _hasFireR ? Math.max(1, Math.floor(rawDmg / 2)) : rawDmg;
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
-    ml.push(`${srcLabel}！${dmg}ダメージ！`);
+    ml.push(`${srcLabel}！${dmg}ダメージ！${_hasFireR ? "（耐火半減）" : ""}`);
+    /* 指輪爆発：炎によるアイテム損傷（耐火なし時） */
+    if (ringExplosion && !_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
   }
   const blasted = new Set();
   const _killed = new Set();
