@@ -942,7 +942,8 @@ export function useItemActions({
         dg.springs?.some((s) => s.x === p.x && s.y === p.y) ||
         dg.bigboxes?.some((b) => b.x === p.x && b.y === p.y) ||
         dg.map[p.y][p.x] === T.SD ||
-        dg.map[p.y][p.x] === T.SU;
+        dg.map[p.y][p.x] === T.SU ||
+        dg.map[p.y][p.x] === T.WATER;
       if (_exPen) {
         ml.push(`すでに${_exPen.name}がある。`);
       } else if (_penBlocked) {
@@ -1781,7 +1782,26 @@ export function useItemActions({
         } else {
           ml.push(`${dnameRef(it)}を振った！[残${it.charges}回]${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
           const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+          /* 杖発射前のプレイヤー位置を記録（ワープ系の盗賊判定用） */
+          const _preWandPx = p.x, _preWandPy = p.y;
           fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName);
+          /* プレイヤー位置が変わった場合、ショップ離脱盗賊チェック */
+          if (p.x !== _preWandPx || p.y !== _preWandPy) {
+            const _wAllShops = getShops(dg);
+            for (const _ws of _wAllShops) {
+              if (!_ws.room) continue;
+              const _wWasIn = _preWandPx >= _ws.room.x && _preWandPx < _ws.room.x + _ws.room.w &&
+                              _preWandPy >= _ws.room.y && _preWandPy < _ws.room.y + _ws.room.h;
+              const _wNowIn = p.x >= _ws.room.x && p.x < _ws.room.x + _ws.room.w &&
+                              p.y >= _ws.room.y && p.y < _ws.room.y + _ws.room.h;
+              if (_wWasIn && !_wNowIn && (_ws.unpaidTotal > 0 || p.inventory.some(i => i._shopId === _ws.id && i.shopPrice))) {
+                dg.shopTheft = true;
+                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
+                ml.push("店から盗んで逃げた！");
+                break;
+              }
+            }
+          }
           if (p._pendingWarpUp) {
             delete p._pendingWarpUp;
             if (p.depth > 1) {

@@ -1236,6 +1236,14 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
           ml.push(`凍った水から${wi.item.name}が現れた！`);
         }
       }
+      /* 泉が水タイル上にある場合は干上がらせる */
+      if (dg.springs) {
+        const _frozenSpring = dg.springs.find(s => s.x === tx && s.y === ty);
+        if (_frozenSpring) {
+          dg.springs = dg.springs.filter(s => s !== _frozenSpring);
+          ml.push("泉が凍りついて干上がった！");
+        }
+      }
       lastX = tx; lastY = ty;
       continue;
     }
