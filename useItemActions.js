@@ -942,7 +942,8 @@ export function useItemActions({
         dg.springs?.some((s) => s.x === p.x && s.y === p.y) ||
         dg.bigboxes?.some((b) => b.x === p.x && b.y === p.y) ||
         dg.map[p.y][p.x] === T.SD ||
-        dg.map[p.y][p.x] === T.SU;
+        dg.map[p.y][p.x] === T.SU ||
+        dg.map[p.y][p.x] === T.WATER;
       if (_exPen) {
         ml.push(`すでに${_exPen.name}がある。`);
       } else if (_penBlocked) {
@@ -1781,7 +1782,26 @@ export function useItemActions({
         } else {
           ml.push(`${dnameRef(it)}を振った！[残${it.charges}回]${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
           const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+          /* 杖発射前のプレイヤー位置を記録（ワープ系の盗賊判定用） */
+          const _preWandPx = p.x, _preWandPy = p.y;
           fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName);
+          /* プレイヤー位置が変わった場合、ショップ離脱盗賊チェック */
+          if (p.x !== _preWandPx || p.y !== _preWandPy) {
+            const _wAllShops = getShops(dg);
+            for (const _ws of _wAllShops) {
+              if (!_ws.room) continue;
+              const _wWasIn = _preWandPx >= _ws.room.x && _preWandPx < _ws.room.x + _ws.room.w &&
+                              _preWandPy >= _ws.room.y && _preWandPy < _ws.room.y + _ws.room.h;
+              const _wNowIn = p.x >= _ws.room.x && p.x < _ws.room.x + _ws.room.w &&
+                              p.y >= _ws.room.y && p.y < _ws.room.y + _ws.room.h;
+              if (_wWasIn && !_wNowIn && _ws.unpaidTotal > 0) {
+                dg.shopTheft = true;
+                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
+                ml.push("店から盗んで逃げた！");
+                break;
+              }
+            }
+          }
           if (p._pendingWarpUp) {
             delete p._pendingWarpUp;
             if (p.depth > 1) {
@@ -1937,7 +1957,7 @@ export function useItemActions({
         p.inventory.splice(idx, 1);
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null;
+          let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false;
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
@@ -1948,6 +1968,10 @@ export function useItemActions({
               if (_isFarcast) {
                 /* 遠投：splash せず個別に薬効果を適用、貫通 */
                 _potHits.push(m);
+              } else if (m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投の薬を燃やして消滅 */
+                ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！`);
+                lx = tx; ly = ty; _fdBurned = true; break;
               } else {
                 lx = tx; ly = ty; break;
               }
@@ -1960,7 +1984,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_isFarcast) {
+          if (_fdBurned) {
+            /* 火ダルマに燃やされた：何もしない */
+          } else if (_isFarcast) {
             /* 遠投：軌道上の全モンスターに個別に効果 */
             if (_potHits.length > 0) {
               for (const _pm of _potHits) {
@@ -1983,7 +2009,7 @@ export function useItemActions({
           }
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null;
+          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
@@ -1992,6 +2018,11 @@ export function useItemActions({
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
               const _potMiss = _forceMiss || (!_isFarcast && !_potSureHit && Math.random() >= 0.90);
+              if (!_isFarcast && m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投の壺を燃やして消滅 */
+                ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
+                lx = tx; ly = ty; _potFdBurned = true; break;
+              }
               if (_potMiss) {
                 /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
                 lx = tx; ly = ty;
@@ -2014,7 +2045,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_isFarcast) {
+          if (_potFdBurned) {
+            /* 火ダルマに燃やされた：何もしない */
+          } else if (_isFarcast) {
             /* 遠投：壺は消滅（中身もろとも） */
             ml.push(`${dnameRef(it)}は消滅した。`);
           } else if (sprHit?.kind) {
@@ -2043,10 +2076,17 @@ export function useItemActions({
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thMiss = _forceMiss || (!_isFarcast && !_thSureHit && Math.random() >= 0.90);
               const lb = it.type === "arrow" ? ((it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`) : dnameRef(it);
+              if (!_isFarcast && m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
+                ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
+                lx = tx; ly = ty; hit = true; break;
+              }
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
                 lx = tx; ly = ty; hit = true;
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
+                const _fm_ft = new Set();
+                withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, _fm_ft));
                 const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
                 if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;

@@ -577,6 +577,8 @@ export const WANDS = [
   { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:5, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。自分なら視界が1マスになる(20ターン)。敵なら50ターンこちらを認識できず壁まで直進し途中の者を攻撃する。祝福：自分50ターン・敵永続。呪い：フロア全体が見えるようになる。水の瓶に当てると暗闇の薬になる。", tile:24 },
   { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象を幻惑状態にする。自分なら50ターン周囲の見た目が狂う。敵なら50ターン逃げ回る。祝福：自分100ターン・敵永続。呪い：フロアの罠が全て見えるようになる。水の瓶に当てると惑わしの薬になる。", tile:24 },
   { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"C", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分に当たるとMP封印50ターン。祝福：敵に鈍足も付与、自分は鈍足10ターンも追加。呪い：敵の特技使用率が100%に、自分はMP封印が治る。水の瓶に当てると封印の薬になる。", tile:24 },
+  { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象には2倍ダメージ、火ダルマは回復。自分に当たると炎でアイテム損傷抽選。床のアイテムに当たると魔法書・巻物・薬は破壊、食料は焼ける。祝福：2倍ダメージ。呪い：対象を回復。", tile:24 },
+  { name:"氷の杖",         type:"wand", effect:"ice_wand",  charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。対象に氷属性ダメージ+5ターン移動封じ。火ダルマには2倍ダメージ。祝福：2倍ダメージ+移動封じ10ターン。呪い：対象を回復し移動封じ状態なら解除。", tile:24 },
 ];
 
 /* ===== BIG BOX TYPES ===== */
@@ -606,9 +608,9 @@ export const POTS = [
   { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"C", weight:8,  sellPrice:100,  desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"薬を入れると部屋中に薬効が広がる。生の食料を入れると焼いた状態になる。その他のものは保管できる。", tile:32 },
   { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"B", weight:4,  sellPrice:500,  desc:"割れると周囲8マスを巻き込む爆発を起こす。炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化する。中身は爆発で消える。", tile:32 },
-  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとオリーブオイル漬けになる。", tile:32 },
-  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとごま油風味になる。",         tile:32 },
-  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとバター風味になる。",         tile:32 },
+  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとオリーブオイル漬けになる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。", tile:32 },
+  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとごま油風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
+  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとバター風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
   { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとヨーグルト漬けになる。",   tile:32 },
   { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
 ];
@@ -734,6 +736,29 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn);
     return;
   }
+  /* 油系壺：満タンでない場合は周囲8マスに油が飛散 */
+  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
+    ml.push(`${_pn}が割れて${_oilEffects[pot.potEffect]}が飛び散った！`);
+    dg.oilyTiles = dg.oilyTiles || [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const tx = px + dx, ty = py + dy;
+        if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
+        if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) continue;
+        if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty))
+          dg.oilyTiles.push({ x: tx, y: ty });
+        const mon = monsterAt(dg, tx, ty);
+        if (mon) { mon.oilyTurns = (mon.oilyTurns || 0) + 100; ml.push(`${mon.name}は油まみれになった！(100ターン)`); }
+        if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
+      }
+    }
+    if (pot.contents?.length > 0) {
+      const ft = new Set();
+      for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
+    }
+    return;
+  }
   if (!pot.contents || pot.contents.length === 0) {
     ml.push(`${_pn}は割れた！（中は空だった）`);
     return;
@@ -762,6 +787,8 @@ export const WEAPON_ABILITIES = [
   { id:"inflict_confuse", name:"混乱付与",  desc:"攻撃時10%の確率で敵を混乱させる" },
   { id:"inflict_bewitch", name:"惑わし付与",desc:"攻撃時10%の確率で敵を幻惑にする" },
   { id:"inflict_seal",    name:"封印付与",  desc:"攻撃時10%の確率で敵を封印する" },
+  { id:"fire_elem",       name:"炎属性",    desc:"油まみれの敵に2倍ダメージ、火ダルマには0.5倍ダメージ" },
+  { id:"ice_elem",        name:"氷属性",    desc:"炎属性の敵(火ダルマ)に2倍ダメージ" },
 ];
 
 export const ARMOR_ABILITIES = [
@@ -808,12 +835,16 @@ export const TRAPS = [
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false) {
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
-    const dmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
-              : proportional  ? Math.max(1, Math.floor(p.hp / 2))
-              : rng(10, 20);
+    const _hasFireR = ringExplosion && hasAbility(p.armor, "fire_resist");
+    const rawDmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
+                 : proportional  ? Math.max(1, Math.floor(p.hp / 2))
+                 : rng(10, 20);
+    const dmg = _hasFireR ? Math.max(1, Math.floor(rawDmg / 2)) : rawDmg;
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
-    ml.push(`${srcLabel}！${dmg}ダメージ！`);
+    ml.push(`${srcLabel}！${dmg}ダメージ！${_hasFireR ? "（耐火半減）" : ""}`);
+    /* 指輪爆発：炎によるアイテム損傷（耐火なし時） */
+    if (ringExplosion && !_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
   }
   const blasted = new Set();
   const _killed = new Set();
@@ -838,6 +869,21 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       for (const m of [...dg.monsters.filter(m => m.x === ax && m.y === ay)]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
+        /* 火ダルマ：爆発で分裂 */
+        if (m.baseKind === "firedemon") {
+          ml.push(`${m.name}が爆発を受けて分裂した！`);
+          const _sd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+          for (const [_sx, _sy] of _sd8) {
+            const _nx = ax + _sx, _ny = ay + _sy;
+            if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
+            if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+            if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+            if (p && _nx === p.x && _ny === p.y) continue;
+            dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+            break;
+          }
+          continue;
+        }
         if (_hasExPentacle || ringExplosion) {
           /* 爆発の魔方陣 or 指輪爆発：即死（ringExplosionは経験値なし） */
           m.hp = 0;
@@ -903,9 +949,23 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
           if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
-        /* モンスター：即死 */
+        /* モンスター：即死（火ダルマは分裂） */
         for (const m of [...dg.monsters]) {
           if (m.x === ax && m.y === ay) {
+            if (m.baseKind === "firedemon") {
+              ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
+              const _fd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+              for (const [_sx, _sy] of _fd8) {
+                const _nx = m.x + _sx, _ny = m.y + _sy;
+                if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
+                if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+                if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+                if (p && _nx === p.x && _ny === p.y) continue;
+                dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+                break;
+              }
+              continue;
+            }
             ml.push(`${srcLabel}の爆発で${m.name}は消し飛んだ！`);
             m.hp = 0;
             killMonster(m, dg, p, ml, luFn);
@@ -1367,18 +1427,28 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") { const h = Math.min(val, p.maxHp - p.hp); p.hp += h; ml.push(`体が温まりHP+${h}回復した！【呪→回復】`); }
       } else {
         const dmg = val + rng(-5, 5);
+        const _oilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
         if (kind === "monster") {
-          const d = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1)));
+          /* 火ダルマは炎で回復 */
+          if (target.baseKind === "firedemon") {
+            const _fheal = Math.min(Math.round(dmg * (blessed ? 1.5 : 1)), target.maxHp - target.hp);
+            if (_fheal > 0) { target.hp += _fheal; ml.push(`炎を受けた${target.name}が回復した！(+${_fheal}HP)`); }
+            else ml.push(`${target.name}は炎を吸収した！`);
+            break;
+          }
+          const _oilyMult = _oilyCheck(target) ? 2 : 1;
+          const d = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult));
           target.hp -= d;
-          ml.push(`${target.name}は炎に包まれた！${d}ダメージ！${blessed ? "(強炎)" : ""}`);
+          ml.push(`${target.name}は炎に包まれた！${d}ダメージ！${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
           _monKill(target);
         }
         if (kind === "player") {
-          const rd = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1)));
+          const _oilyMult = _oilyCheck(p) ? 2 : 1;
+          const rd = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult));
           const fd = _fireResist(p) ? Math.floor(rd / 2) : rd;
           p.deathCause = "炎の薬の飛散により";
           p.hp -= fd;
-          ml.push(`炎に包まれた！${fd}ダメージ！${_fireResist(p) ? "(耐火)" : ""}${blessed ? "(強炎)" : ""}`);
+          ml.push(`炎に包まれた！${fd}ダメージ！${_fireResist(p) ? "(耐火)" : ""}${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
           applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
       }
@@ -1741,9 +1811,11 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
     const trap = dg.traps.find(t => t.x === x && t.y === y);
     if (trap) {
-      dg.traps = dg.traps.filter(t => t !== trap);
+      if (!trap.permanent) {
+        dg.traps = dg.traps.filter(t => t !== trap);
+        ml.push(`${trap.name}は薬液で壊れた！`);
+      }
       trap.revealed = true;
-      ml.push(`${trap.name}は薬液で壊れた！`);
     }
     const _splPc = dg.pentacles?.find(pc => pc.x === x && pc.y === y);
     if (_splPc) {
@@ -1895,18 +1967,45 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   }
 }
 
+function soakItem(item) {
+  /* 水没時のアイテム劣化：巻物→白紙の巻物、魔法書→白紙の魔法書 */
+  if (item.type === "scroll") return { ...item, effect: "blank", name: "白紙の巻物" };
+  if (item.type === "spellbook") { const { spell, ...rest } = item; return { ...rest, name: "白紙の魔法書" }; }
+  return item;
+}
+
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
   if (dep > 30) { ml.push(`${item.name}は消えてしまった！`); return false; }
+  /* 着地点が水タイルなら沈没（同マスに既存アイテムがない場合のみ、ある場合はDROで代替地を探す） */
+  if (dg.map[ty]?.[tx] === T.WATER) {
+    dg.waterItems = dg.waterItems || [];
+    if (!dg.waterItems.some(wi => wi.x === tx && wi.y === ty)) {
+      const sunk = soakItem({ ...item, x: tx, y: ty });
+      dg.waterItems.push({ x: tx, y: ty, item: sunk });
+      ml.push(sunk.name !== item.name ? `${item.name}が水に濡れて白紙になった！` : `${item.name}が水に沈んだ！`);
+      return false;
+    }
+    /* 既に埋まっている水タイル→DROで隣接地を探す（後続処理へ） */
+  }
   for (const [dx, dy] of DRO) {
     const cx = tx + dx, cy = ty + dy;
     if (cx < 0 || cx >= MW || cy < 0 || cy >= MH ||
         dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL || dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU) continue;
+    /* 水タイルに落ちる場合：同マスに既に沈没アイテムがなければ沈没 */
+    if (dg.map[cy][cx] === T.WATER) {
+      dg.waterItems = dg.waterItems || [];
+      if (dg.waterItems.some(wi => wi.x === cx && wi.y === cy)) continue;
+      const sunk = soakItem({ ...item, x: cx, y: cy });
+      dg.waterItems.push({ x: cx, y: cy, item: sunk });
+      ml.push(sunk.name !== item.name ? `${item.name}が水に濡れて白紙になった！` : `${item.name}が水に沈んだ！`);
+      return false;
+    }
     const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
     if (trap) {
       ft.add(trap.id);
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
-      if (Math.random() < 0.3) {
+      if (!trap.permanent && Math.random() < 0.3) {
         dg.traps = dg.traps.filter(t => t !== trap);
         ml.push(`${trap.name}は壊れた。`);
       }
@@ -2051,8 +2150,8 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
             if (it.potEffect !== "gunpowder") ml.push(`壺「${it.name}」が爆発で割れた！`);
           }
         }
-        /* 罠の破壊 */
-        const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay);
+        /* 罠の破壊（永続回転板は爆発でも壊れない） */
+        const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay && !t.permanent);
         if (ti >= 0) { ml.push("罠が爆発で壊れた！"); dg.traps.splice(ti, 1); }
         /* 大箱の破壊 */
         if (dg.bigboxes) {
@@ -2157,7 +2256,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           const ft = new Set();
           ft.add(trap.id);
           const r = fireTrapItem(trap, entity, dg, nx, ny, ml, ft, p);
-          if (Math.random() < 0.3) {
+          if (!trap.permanent && Math.random() < 0.3) {
             dg.traps = dg.traps.filter(t => t !== trap);
             ml.push(`${trap.name}は壊れた。`);
           }
@@ -2372,9 +2471,17 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
   switch (eff) {
     case "fire_bolt": {
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が炎の魔法を打ち消した！"); break; }
-      const dmg = rng(20, 30) * _cmsBoost;
+      const _fbOilyMult = kind === "monster" && ((target.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === target.x && t.y === target.y)) ? 2 : 1;
+      const dmg = rng(20, 30) * _cmsBoost * _fbOilyMult;
       if (kind === "monster") {
-        target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！`);
+        /* 火ダルマは炎の魔法で回復 */
+        if (target.baseKind === "firedemon") {
+          const _fheal = Math.min(dmg, target.maxHp - target.hp);
+          if (_fheal > 0) { target.hp += _fheal; ml.push(`炎の魔法が${target.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
+          else ml.push(`炎の魔法が${target.name}に当たった！しかし炎を吸収した！`);
+          break;
+        }
+        target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item" && target.type === "pot" && target.potEffect === "gunpowder") {

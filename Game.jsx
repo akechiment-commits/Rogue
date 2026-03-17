@@ -661,6 +661,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           pl.x >= _cs.room.x && pl.x < _cs.room.x + _cs.room.w &&
           pl.y >= _cs.room.y && pl.y < _cs.room.y + _cs.room.h) {
         sr.current.dungeon.shopTheft = true;
+        for (const _ci of pl.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
         break;
       }
     }
@@ -774,6 +775,30 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       }
+      /* 油状態：カウントダウン */
+      if ((p.oilyTurns || 0) > 0) {
+        p.oilyTurns--;
+        if (p.oilyTurns === 0) ml.push("油が落ちた。炎への弱点が消えた。");
+      }
+      /* 移動封じ：カウントダウン */
+      if ((p.immobileTurns || 0) > 0) {
+        p.immobileTurns--;
+      }
+      /* 水上で浮遊解除：最寄りの陸上に弾き出される */
+      if (st.dungeon.map[p.y][p.x] === T.WATER && !hasRingEffect(p, "float_ring")) {
+        const _wDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        for (const [_wdx, _wdy] of _wDirs) {
+          const _wx = p.x + _wdx, _wy = p.y + _wdy;
+          if (_wx >= 0 && _wx < MW && _wy >= 0 && _wy < MH &&
+              st.dungeon.map[_wy][_wx] !== T.WALL && st.dungeon.map[_wy][_wx] !== T.BWALL &&
+              st.dungeon.map[_wy][_wx] !== T.WATER &&
+              !st.dungeon.monsters.some(m => m.x === _wx && m.y === _wy)) {
+            p.x = _wx; p.y = _wy;
+            ml.push("浮遊が解けて水から弾き出された！");
+            break;
+          }
+        }
+      }
       /* 爆発の指輪：5%の確率で爆発 */
       if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
         ml.push("指輪が爆発した！");
@@ -811,6 +836,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       checkShopTheft(p, st.dungeon, ml);
       moveMons(st.dungeon, p, ml);
+      /* 油状態：モンスターのカウントダウン */
+      for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
       if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap") && !hasCursedExplosionPentacle(st.dungeon)) {
         for (const _m of [...st.dungeon.monsters]) {
@@ -864,10 +891,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           /* --- 罠の魔方陣：毎ターン30%で罠が増える --- */
           if (_pc.kind === "trap_gen" && _inRange && Math.random() < 0.1) {
             if (_pc.cursed) {
-              /* 呪い：フロア内の罠をランダムに1つ消す */
-              if (_dg2.traps.length > 0) {
-                const _ri = rng(0, _dg2.traps.length - 1);
-                _dg2.traps.splice(_ri, 1);
+              /* 呪い：フロア内の罠をランダムに1つ消す（永続回転板は除外） */
+              const _delCands = _dg2.traps.filter(t => !t.permanent);
+              if (_delCands.length > 0) {
+                const _rt = pick(_delCands);
+                _dg2.traps = _dg2.traps.filter(t => t !== _rt);
                 ml.push(`${_pc.name}の呪いで罠が消えた！`);
               }
             } else {
@@ -1132,6 +1160,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         return;
       }
       if (type === "move" && (dx || dy)) {
+        /* ===== 移動封じ状態：移動不可（攻撃は可） ===== */
+        if ((p.immobileTurns || 0) > 0) {
+          const nx0 = p.x + dx, ny0 = p.y + dy;
+          const _imMon = monsterAt(dg, nx0, ny0);
+          if (!_imMon) {
+            /* 移動しようとしたが封じられている（endTurnでカウントダウン） */
+            const _imRem = p.immobileTurns - 1;
+            endTurn(st, p, ml);
+            ml.push(_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！");
+            setMsgs((prev) => [...prev.slice(-80), ...ml]);
+            sr.current = { ...st };
+            setGs({ ...st });
+            return;
+          }
+          /* 攻撃はできる：そのまま攻撃処理へ進む */
+        }
         /* ===== 混乱状態：移動方向をランダム化 ===== */
         if ((p.confusedTurns || 0) > 0) {
           const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -1192,6 +1236,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 d *= 2;
                 crit = true;
               }
+              /* 炎属性武器：油まみれ×2、火ダルマ×0.5 */
+              const _hasFireElem = wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
+              if (_hasFireElem) {
+                if (attackMon.baseKind === "firedemon") {
+                  d = Math.max(1, Math.floor(d * 0.5));
+                } else {
+                  const _feOily = (attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y);
+                  if (_feOily) d *= 2;
+                }
+              }
+              /* 氷属性武器：火ダルマ×2 */
+              const _hasIceElem = wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
+              if (_hasIceElem && attackMon.baseKind === "firedemon") {
+                d *= 2;
+              }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
               const _vulnPc = _vulnRoom && dg.pentacles?.find((pc) => pc.kind === "vulnerability" && pc.x >= _vulnRoom.x && pc.x < _vulnRoom.x + _vulnRoom.w && pc.y >= _vulnRoom.y && pc.y < _vulnRoom.y + _vulnRoom.h);
@@ -1201,10 +1260,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
               wakeIfDormant(attackMon, ml);
               attackMon.hp -= d;
-              if (attackMon.type === "shopkeeper") { attackMon.state = "hostile"; dg.shopTheft = true; }
+              if (attackMon.type === "shopkeeper") {
+                attackMon.state = "hostile"; dg.shopTheft = true;
+                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
+              }
               const atkSfx =
                 (crit ? "会心！" : "") +
                 (_isBane ? "特効！" : "") +
+                (_hasFireElem && attackMon.baseKind === "firedemon" ? "（炎半減）" : "") +
+                (_hasFireElem && attackMon.baseKind !== "firedemon" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
+                (_hasIceElem && attackMon.baseKind === "firedemon" ? "氷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
               if (wabHas("knockback") && attackMon.hp > 0) {
@@ -1268,6 +1333,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               acted = true;
               } /* end else (hit) */
             }
+          } else if (dg.map[ny][nx] === T.WATER && !hasRingEffect(p, "float_ring")) {
+            ml.push("水に阻まれた！浮遊の指輪があれば渡れる。");
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
@@ -1284,6 +1351,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (!(p.x >= _esh.room.x && p.x < _esh.room.x + _esh.room.w &&
                   p.y >= _esh.room.y && p.y < _esh.room.y + _esh.room.h)) {
                 dg.shopTheft = true;
+                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
                 ml.push("店から盗んで逃げた！");
                 break;
               }
@@ -1683,6 +1751,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (!(p.x >= _eshD.room.x && p.x < _eshD.room.x + _eshD.room.w &&
               p.y >= _eshD.room.y && p.y < _eshD.room.y + _eshD.room.h)) {
             dg.shopTheft = true;
+            for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
             ml.push("店から盗んで逃げた！");
             break;
           }

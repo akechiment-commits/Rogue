@@ -681,25 +681,40 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
       )}
       {mode === "browse" && (() => {
         const _p = gs.player;
-        const _sellItems = _p.inventory.filter(it => it.type !== "gold");
+        const _shop = gs.dungeon?.shop;
+        const _shopRoom = _shop?.room;
+        /* プレイヤーがショップ室内にいるか */
+        const _inShop = _shopRoom &&
+          _p.x >= _shopRoom.x && _p.x < _shopRoom.x + _shopRoom.w &&
+          _p.y >= _shopRoom.y && _p.y < _shopRoom.y + _shopRoom.h;
+        const _sellItems = _p.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
         const _totalG = _sellItems.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
         if (sellAllConfirm) {
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
-                店主：「本当によろしいですか？全 {_sellItems.length} 件を{_totalG.toLocaleString()}Gで買い取ります。」
+                店主：「本当によろしいですか？{_sellItems.length} 件を{_totalG.toLocaleString()}Gで買い取ります。」
               </div>
               {[
                 {
                   label: `はい、全て売る (${_totalG.toLocaleString()}G)`,
                   fn: () => {
                     if (!sr.current) return;
-                    const { player: p2 } = sr.current;
-                    const toSell = p2.inventory.filter(it => it.type !== "gold");
-                    const earned = toSell.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
-                    p2.inventory = p2.inventory.filter(it => it.type === "gold");
+                    const { player: p2, dungeon: dg2 } = sr.current;
+                    const toSell = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
+                    if (toSell.length === 0) { setSellAllConfirm(false); return; }
+                    let earned = 0;
+                    for (const it of toSell) {
+                      it.shopPrice = Math.ceil(itemPrice(it) * 0.5);
+                      it._shopId = dg2.shop.id;
+                      earned += it.shopPrice;
+                    }
                     p2.gold += earned;
-                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件を${earned.toLocaleString()}Gで売却した。`]);
+                    /* unpaidTotal に加算 → 盗賊判定・pay モードが自動的に機能する */
+                    dg2.shop.unpaidTotal += earned;
+                    const _sk = dg2.monsters.find(m => m.id === dg2.shop.shopkeeperId && m.state === "friendly");
+                    if (_sk) _sk.state = "blocking";
+                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
                     sr.current = { ...sr.current };
                     setGs({ ...sr.current });
                     setSellAllConfirm(false);
@@ -724,9 +739,11 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             </div>
             {[
               {
-                label: `所持品を全て売る (${_totalG.toLocaleString()}G)`,
-                disabled: _sellItems.length === 0,
-                fn: () => { if (_sellItems.length > 0) setSellAllConfirm(true); },
+                label: _inShop
+                  ? `所持品を全て売る (${_totalG.toLocaleString()}G)`
+                  : "所持品を全て売る (店内限定)",
+                disabled: _sellItems.length === 0 || !_inShop,
+                fn: () => { if (_sellItems.length > 0 && _inShop) setSellAllConfirm(true); },
               },
               { label: "やめる", fn: () => setMode(null) },
             ].map((item, mi) => (
