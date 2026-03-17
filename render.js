@@ -61,6 +61,7 @@ export const TILE_NAMES = {
   57: "golem",
   58: "demon",
   59: "guard",
+  60: "ring",
   43: "spellbook",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
@@ -127,6 +128,7 @@ export const TILE_RENDER = {
   57: { bg: null, fg: "#aaaaaa", ch: "O" },
   58: { bg: null, fg: "#cc2200", ch: "D" },
   59: { bg: null, fg: "#4488ee", ch: "g" },
+  60: { bg: null, fg: "#c0a0ff", ch: "=" },
 };
 
 /* Canvas drawing helper */
