@@ -2079,6 +2079,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           item.plus = before + 1;
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
           ml.push(`${item.name}が強化された！(${fp(before)}→${fp(item.plus)})`);
+        } else if (item.type === "pot") {
+          item.capacity = (item.capacity || 1) + 1;
+          ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
         } else {
           ml.push(`${_idn}には効果がなかった。`);
         }
@@ -2170,6 +2173,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (bb.kind === "bless") {
         if (item.type === "goal") {
           ml.push(`${_idn}には効果がなかった。`);
+        } else if (item.type === "pot") {
+          item.capacity = (item.capacity || 1) + 1;
+          ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
         } else {
           item.blessed = true;
           item.cursed = false;
