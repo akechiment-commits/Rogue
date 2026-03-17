@@ -1811,9 +1811,11 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
     const trap = dg.traps.find(t => t.x === x && t.y === y);
     if (trap) {
-      dg.traps = dg.traps.filter(t => t !== trap);
+      if (!trap.permanent) {
+        dg.traps = dg.traps.filter(t => t !== trap);
+        ml.push(`${trap.name}は薬液で壊れた！`);
+      }
       trap.revealed = true;
-      ml.push(`${trap.name}は薬液で壊れた！`);
     }
     const _splPc = dg.pentacles?.find(pc => pc.x === x && pc.y === y);
     if (_splPc) {
@@ -1965,14 +1967,22 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   }
 }
 
+function soakItem(item) {
+  /* 水没時のアイテム劣化：巻物→白紙の巻物、魔法書→白紙の魔法書 */
+  if (item.type === "scroll") return { ...item, effect: "blank", name: "白紙の巻物" };
+  if (item.type === "spellbook") { const { spell, ...rest } = item; return { ...rest, name: "白紙の魔法書" }; }
+  return item;
+}
+
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
   if (dep > 30) { ml.push(`${item.name}は消えてしまった！`); return false; }
   /* 着地点が水タイルなら沈没（同マスに既存アイテムがない場合のみ、ある場合はDROで代替地を探す） */
   if (dg.map[ty]?.[tx] === T.WATER) {
     dg.waterItems = dg.waterItems || [];
     if (!dg.waterItems.some(wi => wi.x === tx && wi.y === ty)) {
-      dg.waterItems.push({ x: tx, y: ty, item: { ...item, x: tx, y: ty } });
-      ml.push(`${item.name}が水に沈んだ！`);
+      const sunk = soakItem({ ...item, x: tx, y: ty });
+      dg.waterItems.push({ x: tx, y: ty, item: sunk });
+      ml.push(sunk.name !== item.name ? `${item.name}が水に濡れて白紙になった！` : `${item.name}が水に沈んだ！`);
       return false;
     }
     /* 既に埋まっている水タイル→DROで隣接地を探す（後続処理へ） */
@@ -1985,8 +1995,9 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
     if (dg.map[cy][cx] === T.WATER) {
       dg.waterItems = dg.waterItems || [];
       if (dg.waterItems.some(wi => wi.x === cx && wi.y === cy)) continue;
-      dg.waterItems.push({ x: cx, y: cy, item: { ...item, x: cx, y: cy } });
-      ml.push(`${item.name}が水に沈んだ！`);
+      const sunk = soakItem({ ...item, x: cx, y: cy });
+      dg.waterItems.push({ x: cx, y: cy, item: sunk });
+      ml.push(sunk.name !== item.name ? `${item.name}が水に濡れて白紙になった！` : `${item.name}が水に沈んだ！`);
       return false;
     }
     const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
@@ -1994,7 +2005,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
       ft.add(trap.id);
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
-      if (Math.random() < 0.3) {
+      if (!trap.permanent && Math.random() < 0.3) {
         dg.traps = dg.traps.filter(t => t !== trap);
         ml.push(`${trap.name}は壊れた。`);
       }
@@ -2139,8 +2150,8 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
             if (it.potEffect !== "gunpowder") ml.push(`壺「${it.name}」が爆発で割れた！`);
           }
         }
-        /* 罠の破壊 */
-        const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay);
+        /* 罠の破壊（永続回転板は爆発でも壊れない） */
+        const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay && !t.permanent);
         if (ti >= 0) { ml.push("罠が爆発で壊れた！"); dg.traps.splice(ti, 1); }
         /* 大箱の破壊 */
         if (dg.bigboxes) {
@@ -2245,7 +2256,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           const ft = new Set();
           ft.add(trap.id);
           const r = fireTrapItem(trap, entity, dg, nx, ny, ml, ft, p);
-          if (Math.random() < 0.3) {
+          if (!trap.permanent && Math.random() < 0.3) {
             dg.traps = dg.traps.filter(t => t !== trap);
             ml.push(`${trap.name}は壊れた。`);
           }

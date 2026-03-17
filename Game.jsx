@@ -890,10 +890,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           /* --- 罠の魔方陣：毎ターン30%で罠が増える --- */
           if (_pc.kind === "trap_gen" && _inRange && Math.random() < 0.1) {
             if (_pc.cursed) {
-              /* 呪い：フロア内の罠をランダムに1つ消す */
-              if (_dg2.traps.length > 0) {
-                const _ri = rng(0, _dg2.traps.length - 1);
-                _dg2.traps.splice(_ri, 1);
+              /* 呪い：フロア内の罠をランダムに1つ消す（永続回転板は除外） */
+              const _delCands = _dg2.traps.filter(t => !t.permanent);
+              if (_delCands.length > 0) {
+                const _rt = pick(_delCands);
+                _dg2.traps = _dg2.traps.filter(t => t !== _rt);
                 ml.push(`${_pc.name}の呪いで罠が消えた！`);
               }
             } else {
