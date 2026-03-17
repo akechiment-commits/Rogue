@@ -2047,6 +2047,8 @@ export function useItemActions({
                 /* 外れ：敵の足元に落ちる */
                 lx = tx; ly = ty; hit = true;
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
+                const _fm_ft = new Set();
+                withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, _fm_ft));
                 const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
                 if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;
