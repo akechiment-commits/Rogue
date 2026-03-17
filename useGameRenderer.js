@@ -44,6 +44,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const _sprMap = new Map(); if (dg.springs) for (const s of dg.springs) _sprMap.set(_k(s.x, s.y), s);
     const _bbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _bbMap.set(_k(b.x, b.y), b);
     const _pentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _pentMap.set(_k(pc.x, pc.y), pc);
+    const _oilySet = new Set(); if (dg.oilyTiles) for (const ot of dg.oilyTiles) _oilySet.add(_k(ot.x, ot.y));
     /* 部屋マップ: 全部屋の矩形をタイルレベルでフラグ化 */
     const _roomSet = new Set();
     for (const r of [...dg.rooms, ...(dg.hiddenRooms || [])]) {
@@ -99,6 +100,13 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             drawTile(ctx, ts, _wi.tile, px2, py2, sz);
             ctx.globalAlpha = 1;
           }
+        }
+        /* Oily floor */
+        if (_oilySet.has(_k(x, y)) && (vis || exp2)) {
+          ctx.globalAlpha = vis ? 0.38 : 0.15;
+          ctx.fillStyle = "#b08820";
+          ctx.fillRect(px2, py2, sz, sz);
+          ctx.globalAlpha = 1;
         }
         /* Spring */ const spr = _sprMap.get(_k(x, y));
         if (spr && (vis || exp2)) {
