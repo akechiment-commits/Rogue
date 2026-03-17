@@ -1679,6 +1679,12 @@ export function useItemActions({
                 _baLx = tx; _baLy = ty;
                 break;
               }
+              const _baBB = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
+              if (_baBB) {
+                ml.push(`${_baName}が${_baBB.name}に命中！`);
+                _baLx = tx; _baLy = ty;
+                break;
+              }
               _baLx = tx; _baLy = ty;
             }
             if (hasCursedExplosionPentacle(dg)) {
@@ -1935,6 +1941,12 @@ export function useItemActions({
                 _baM2.hp -= _baDmg2;
                 ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
                 if (_baM2.hp <= 0) { trackMonster(_baM2); killMonster(_baM2, dg, p, ml, lu); }
+                _baLx2 = tx; _baLy2 = ty;
+                break;
+              }
+              const _baBB2 = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
+              if (_baBB2) {
+                ml.push(`${_baName2}が${_baBB2.name}に命中！`);
                 _baLx2 = tx; _baLy2 = ty;
                 break;
               }
