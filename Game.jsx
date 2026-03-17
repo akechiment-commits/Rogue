@@ -657,8 +657,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     /* 店の部屋内で落とし穴等により階層を離脱した場合は泥棒状態にする */
     const _chgShops = sr.current.dungeon?.shops || (sr.current.dungeon?.shop ? [sr.current.dungeon.shop] : []);
     for (const _cs of _chgShops) {
-      const _hasUnpaid = _cs.unpaidTotal > 0 || pl.inventory.some(i => i._shopId === _cs.id && i.shopPrice);
-      if (_hasUnpaid && _cs.room &&
+      if (_cs.unpaidTotal > 0 && _cs.room &&
           pl.x >= _cs.room.x && pl.x < _cs.room.x + _cs.room.w &&
           pl.y >= _cs.room.y && pl.y < _cs.room.y + _cs.room.h) {
         sr.current.dungeon.shopTheft = true;
@@ -1343,8 +1342,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               ml.push("呪われた魔方陣が行く手を阻んでいる！");
             } else {
             const _allShopsM = getShops(dg);
-            const _wasInShopOf = _allShopsM.filter(s => s.room &&
-              (s.unpaidTotal > 0 || p.inventory.some(i => i._shopId === s.id && i.shopPrice)) &&
+            const _wasInShopOf = _allShopsM.filter(s => s.unpaidTotal > 0 && s.room &&
               p.x >= s.room.x && p.x < s.room.x + s.room.w &&
               p.y >= s.room.y && p.y < s.room.y + s.room.h);
             p.x = nx;
@@ -1744,8 +1742,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (monsterAt(dg, nx, ny)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         const _allShopsD = getShops(dg);
-        const _wasInShopDOf = _allShopsD.filter(s => s.room &&
-          (s.unpaidTotal > 0 || p.inventory.some(i => i._shopId === s.id && i.shopPrice)) &&
+        const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
           p.x >= s.room.x && p.x < s.room.x + s.room.w &&
           p.y >= s.room.y && p.y < s.room.y + s.room.h);
         p.x = nx;

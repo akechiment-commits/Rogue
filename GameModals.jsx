@@ -687,7 +687,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
         const _inShop = _shopRoom &&
           _p.x >= _shopRoom.x && _p.x < _shopRoom.x + _shopRoom.w &&
           _p.y >= _shopRoom.y && _p.y < _shopRoom.y + _shopRoom.h;
-        const _sellItems = _p.inventory.filter(it => it.type !== "gold");
+        /* shopPrice付き＝未払のショップ商品は除外（browse=unpaidTotal=0時のみ表示だが念のため） */
+        const _sellItems = _p.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
         const _totalG = _sellItems.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
         if (sellAllConfirm) {
           return (
@@ -703,14 +704,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     const { player: p2, dungeon: dg2 } = sr.current;
                     const toSell = p2.inventory.filter(it => it.type !== "gold");
                     if (toSell.length === 0) { setSellAllConfirm(false); return; }
-                    const shop = dg2.shop;
-                    /* 各アイテムに shopPrice/_shopId を付与し、代金を即払い */
-                    let earned = 0;
-                    for (const it of toSell) {
-                      it.shopPrice = Math.ceil(itemPrice(it) * 0.5);
-                      it._shopId = shop.id;
-                      earned += it.shopPrice;
-                    }
+                    /* 代金を即払い（shopPrice は付与しない―付与するとドロップ時に誤ってunpaidTotalが減算されfis2にも除外される） */
+                    const earned = toSell.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
                     p2.gold += earned;
                     setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。`]);
                     sr.current = { ...sr.current };

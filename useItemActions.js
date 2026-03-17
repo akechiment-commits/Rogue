@@ -1794,7 +1794,7 @@ export function useItemActions({
                               _preWandPy >= _ws.room.y && _preWandPy < _ws.room.y + _ws.room.h;
               const _wNowIn = p.x >= _ws.room.x && p.x < _ws.room.x + _ws.room.w &&
                               p.y >= _ws.room.y && p.y < _ws.room.y + _ws.room.h;
-              if (_wWasIn && !_wNowIn && (_ws.unpaidTotal > 0 || p.inventory.some(i => i._shopId === _ws.id && i.shopPrice))) {
+              if (_wWasIn && !_wNowIn && _ws.unpaidTotal > 0) {
                 dg.shopTheft = true;
                 for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
                 ml.push("店から盗んで逃げた！");
