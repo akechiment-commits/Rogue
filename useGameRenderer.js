@@ -44,6 +44,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const _sprMap = new Map(); if (dg.springs) for (const s of dg.springs) _sprMap.set(_k(s.x, s.y), s);
     const _bbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _bbMap.set(_k(b.x, b.y), b);
     const _pentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _pentMap.set(_k(pc.x, pc.y), pc);
+    const _oilySet = new Set(); if (dg.oilyTiles) for (const ot of dg.oilyTiles) _oilySet.add(_k(ot.x, ot.y));
     /* 部屋マップ: 全部屋の矩形をタイルレベルでフラグ化 */
     const _roomSet = new Set();
     for (const r of [...dg.rooms, ...(dg.hiddenRooms || [])]) {
@@ -99,6 +100,38 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             drawTile(ctx, ts, _wi.tile, px2, py2, sz);
             ctx.globalAlpha = 1;
           }
+        }
+        /* Water tile */
+        if (t === T.WATER && (vis || exp2)) {
+          ctx.globalAlpha = vis ? 1 : 0.4;
+          ctx.fillStyle = "#0d2a5c";
+          ctx.fillRect(px2, py2, sz, sz);
+          ctx.globalAlpha = vis ? 0.8 : 0.25;
+          ctx.fillStyle = "#1a5fcc";
+          ctx.fillRect(px2, py2, sz, sz);
+          ctx.globalAlpha = vis ? 0.9 : 0.3;
+          ctx.fillStyle = "#4499ff";
+          ctx.font = `bold ${sz}px monospace`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("~", px2 + sz / 2, py2 + sz / 2);
+          ctx.globalAlpha = 1;
+          /* waterItems as faint dots */
+          if (vis && dg.waterItems?.some(wi => wi.x === x && wi.y === y)) {
+            ctx.globalAlpha = 0.4;
+            ctx.fillStyle = "#ffee88";
+            ctx.beginPath();
+            ctx.arc(px2 + sz * 0.8, py2 + sz * 0.2, sz * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+        }
+        /* Oily floor */
+        if (_oilySet.has(_k(x, y)) && (vis || exp2)) {
+          ctx.globalAlpha = vis ? 0.38 : 0.15;
+          ctx.fillStyle = "#b08820";
+          ctx.fillRect(px2, py2, sz, sz);
+          ctx.globalAlpha = 1;
         }
         /* Spring */ const spr = _sprMap.get(_k(x, y));
         if (spr && (vis || exp2)) {

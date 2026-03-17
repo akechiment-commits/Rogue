@@ -10,6 +10,7 @@ import {
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
+  hasRingEffect,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
@@ -92,6 +93,8 @@ export function useItemActions({
           } else {
             ml.push(`${it.name}を飲んだ。変な味がするが…毒はかかっていなかった。【呪→解毒】`);
           }
+        } else if (hasRingEffect(p, "antidote_ring")) {
+          ml.push(`${it.name}を飲んだ。毒を受けたが指輪が毒を消した！`);
         } else {
           // 通常：毒状態を付与。祝福=即時ATK-3の追加ペナルティ
           p.poisoned = true;
@@ -378,8 +381,12 @@ export function useItemActions({
             p.hp += pah;
             if (pah > 0) ml.push(`回復効果でHP+${pah}`);
           } else if (pe === "poison") {
-            p.poisoned = true;
-            ml.push("毒が混じっていた！毒状態になった！攻撃力が徐々に下がっていく…");
+            if (hasRingEffect(p, "antidote_ring")) {
+              ml.push("毒が混じっていたが指輪が毒を消した！");
+            } else {
+              p.poisoned = true;
+              ml.push("毒が混じっていた！毒状態になった！攻撃力が徐々に下がっていく…");
+            }
           } else if (pe === "sleep") {
             const st = rng(3, 6);
             if ((p.statusImmune || 0) > 0) ml.push("睡眠効果！状態防止中のため効かなかった！");
@@ -415,8 +422,12 @@ export function useItemActions({
             else { p.paralyzeTurns = (p.paralyzeTurns || 0) + 10; ml.push("金縛り成分が！体が動かない！(10ターン)"); }
           // 呪い系効果
           } else if (pe === "c_heal") {
-            p.poisoned = true;
-            ml.push("呪いの回復成分が！毒状態になった！攻撃力が徐々に下がっていく…");
+            if (hasRingEffect(p, "antidote_ring")) {
+              ml.push("呪いの回復成分があったが指輪が毒を消した！");
+            } else {
+              p.poisoned = true;
+              ml.push("呪いの回復成分が！毒状態になった！攻撃力が徐々に下がっていく…");
+            }
           } else if (pe === "c_poison") {
             if (p.poisoned) {
               p.poisoned = false;
@@ -598,7 +609,17 @@ export function useItemActions({
           }
         }
       } else if (it.effect === "weapon_up") {
-        if (p.weapon) {
+        /* 力の指輪装備中ならその＋値を上げる */
+        const _powerRing = (p.rings || []).find(r => r.effect === "power_ring");
+        if (_powerRing) {
+          const _bef = _powerRing.plus || 0;
+          const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
+          _powerRing.plus = _bef + _gain;
+          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
+          let _rMsg = `${_powerRing.name}が${_gain > 0 ? "輝いた" : "くすんだ"}！(${_fp(_bef)}→${_fp(_powerRing.plus)})${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`;
+          if (_powerRing.cursed) { _powerRing.cursed = false; _rMsg += " 呪いが解けた！"; }
+          ml.push(_rMsg);
+        } else if (p.weapon) {
           const _bef = p.weapon.plus || 0;
           const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
           p.weapon.plus = _bef + _gain;
@@ -921,7 +942,8 @@ export function useItemActions({
         dg.springs?.some((s) => s.x === p.x && s.y === p.y) ||
         dg.bigboxes?.some((b) => b.x === p.x && b.y === p.y) ||
         dg.map[p.y][p.x] === T.SD ||
-        dg.map[p.y][p.x] === T.SU;
+        dg.map[p.y][p.x] === T.SU ||
+        dg.map[p.y][p.x] === T.WATER;
       if (_exPen) {
         ml.push(`すでに${_exPen.name}がある。`);
       } else if (_penBlocked) {
@@ -1038,6 +1060,58 @@ export function useItemActions({
     } else if (it.type === "arrow") {
       if (p.arrow === it) { p.arrow = null; ml.push(`${it.name}を外した。`); }
       else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone) ? "個" : "本"})を装備した。`); }
+    } else if (it.type === "ring") {
+      const equipped = (p.rings || []).some(r => r === it);
+      if (equipped) {
+        if (it.cursed) {
+          ml.push(`${it.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`);
+        } else {
+          p.rings = (p.rings || []).filter(r => r !== it);
+          ml.push(`${it.name}を外した。`);
+        }
+      } else {
+        if ((p.rings || []).length >= 2) {
+          /* 最後に装備した指輪を外して新しいものを装備する */
+          const _removed = p.rings[p.rings.length - 1];
+          if (_removed.cursed) {
+            ml.push(`${_removed.name}は呪われていて外せない！指輪を装備できなかった。`);
+          } else {
+            p.rings = p.rings.slice(0, p.rings.length - 1);
+            ml.push(`${_removed.name}を外した。`);
+            if (!p.rings) p.rings = [];
+            p.rings.push(it);
+            it.bcKnown = true;
+            ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+            if (it.effect === "explode_ring") {
+              ml.push("指輪が爆発した！");
+              const _rnFn2 = (gi) => gi.name;
+              doExplosion(p.x, p.y, dg, p, ml, _rnFn2, "爆発の指輪", null, null, false, true);
+            }
+            if (it.effect === "antidote_ring" && p.poisoned) {
+              p.poisoned = false;
+              if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+              ml.push("指輪の力で毒が消えた！攻撃力も回復！");
+            }
+          }
+        } else {
+          if (!p.rings) p.rings = [];
+          p.rings.push(it);
+          it.bcKnown = true;
+          ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+          /* 爆発の指輪：装備時即爆発 */
+          if (it.effect === "explode_ring") {
+            ml.push("指輪が爆発した！");
+            const _rnFn = (gi) => gi.name;
+            doExplosion(p.x, p.y, dg, p, ml, _rnFn, "爆発の指輪", null, null, false, true);
+          }
+          /* 毒消しの指輪：装備時に毒を解除 */
+          if (it.effect === "antidote_ring" && p.poisoned) {
+            p.poisoned = false;
+            if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+            ml.push("指輪の力で毒が消えた！攻撃力も回復！");
+          }
+        }
+      }
     } else if (it.type === "pot") {
       if (it.contents.length >= it.capacity) {
         ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`);
@@ -1079,6 +1153,7 @@ export function useItemActions({
     if (p.weapon === it) p.weapon = null;
     if (p.armor  === it) p.armor  = null;
     if (p.arrow  === it) p.arrow  = null;
+    if (p.rings?.includes(it)) p.rings = p.rings.filter(r => r !== it);
     p.inventory.splice(idx, 1);
     const ml = [],
       ft = new Set();
@@ -1486,11 +1561,16 @@ export function useItemActions({
       const { player: p, dungeon: dg } = sr.current;
       const ml = [];
       /* 遠投判定（投げ・射撃にのみ影響） */
-      const _fcMode = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode)
-        ? getFarcastMode(p.x, p.y, dg) : false;
+      const _throwRelated = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode);
+      const _rawFcMode = _throwRelated ? getFarcastMode(p.x, p.y, dg) : false;
+      /* 遠投の指輪：常に遠投状態 */
+      const _fcMode = (_throwRelated && hasRingEffect(p, "farcast_ring") && _rawFcMode !== "cursed")
+        ? "farcast" : _rawFcMode;
       const _isFarcast = _fcMode === "farcast";
       const _isCursedFc = _fcMode === "cursed";
       const _maxRange = _isCursedFc ? 1 : _isFarcast ? 50 : 10;
+      /* 下手投げの指輪：命中率0%（方向はそのまま、敵に当たっても必ず外れる） */
+      const _forceMiss = _throwRelated && hasRingEffect(p, "miss_throw_ring");
       if (mode === "shoot_equipped") {
         if (!p.arrow || p.arrow.count <= 0) {
           ml.push("矢がない！");
@@ -1518,7 +1598,7 @@ export function useItemActions({
               ml.push(`近くに敵がいない！${_stName}は消えた。`);
             } else {
               const _msSureHit = (p.sureHitTurns || 0) > 0;
-              const _msMiss = !_msSureHit && Math.random() >= 0.90;
+              const _msMiss = _forceMiss || (!_msSureHit && Math.random() >= 0.90);
               const _msDmg = (_arItem.atk || 5) + rng(0, 3);
               if (_msMiss) {
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
@@ -1545,7 +1625,7 @@ export function useItemActions({
             const _stDmg = (_arItem.atk || 3) + rng(0, 3);
             ml.push(`${_stName}を投げた！`);
             if (_stM) {
-              const _stMiss = !_stSureHit && Math.random() >= 0.90;
+              const _stMiss = _forceMiss || (!_stSureHit && Math.random() >= 0.90);
               if (_stMiss) {
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
                 const _stft = new Set();
@@ -1641,7 +1721,7 @@ export function useItemActions({
           if (m) {
             /* 矢の命中率90%（必中状態なら100%） */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
-            const _arMiss = !_arSureHit && Math.random() >= 0.90;
+            const _arMiss = _forceMiss || (!_arSureHit && Math.random() >= 0.90);
             if (_arMiss) {
               ml.push(`${_arName}は${m.name}に外れた！`);
               /* 矢はそのまま飛び続ける */
@@ -1702,7 +1782,26 @@ export function useItemActions({
         } else {
           ml.push(`${dnameRef(it)}を振った！[残${it.charges}回]${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
           const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+          /* 杖発射前のプレイヤー位置を記録（ワープ系の盗賊判定用） */
+          const _preWandPx = p.x, _preWandPy = p.y;
           fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName);
+          /* プレイヤー位置が変わった場合、ショップ離脱盗賊チェック */
+          if (p.x !== _preWandPx || p.y !== _preWandPy) {
+            const _wAllShops = getShops(dg);
+            for (const _ws of _wAllShops) {
+              if (!_ws.room) continue;
+              const _wWasIn = _preWandPx >= _ws.room.x && _preWandPx < _ws.room.x + _ws.room.w &&
+                              _preWandPy >= _ws.room.y && _preWandPy < _ws.room.y + _ws.room.h;
+              const _wNowIn = p.x >= _ws.room.x && p.x < _ws.room.x + _ws.room.w &&
+                              p.y >= _ws.room.y && p.y < _ws.room.y + _ws.room.h;
+              if (_wWasIn && !_wNowIn && _ws.unpaidTotal > 0) {
+                dg.shopTheft = true;
+                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
+                ml.push("店から盗んで逃げた！");
+                break;
+              }
+            }
+          }
           if (p._pendingWarpUp) {
             delete p._pendingWarpUp;
             if (p.depth > 1) {
@@ -1766,7 +1865,7 @@ export function useItemActions({
             if (!_msTarget2) {
               ml.push(`近くに敵がいない！${_invStName}は消えた。`);
             } else {
-              const _msMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
+              const _msMiss2 = _forceMiss || (!((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90);
               const _msDmg2 = _invStAtk + rng(0, 3);
               if (_msMiss2) {
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
@@ -1791,7 +1890,7 @@ export function useItemActions({
             const _stDmg2 = _invStAtk + rng(0, 3);
             ml.push(`${_invStName}を投げた！`);
             if (_stM2) {
-              const _stMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
+              const _stMiss2 = _forceMiss || (!((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90);
               if (_stMiss2) {
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
                 const _stft2 = new Set();
@@ -1858,7 +1957,7 @@ export function useItemActions({
         p.inventory.splice(idx, 1);
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null;
+          let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false;
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
@@ -1869,6 +1968,10 @@ export function useItemActions({
               if (_isFarcast) {
                 /* 遠投：splash せず個別に薬効果を適用、貫通 */
                 _potHits.push(m);
+              } else if (m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投の薬を燃やして消滅 */
+                ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！`);
+                lx = tx; ly = ty; _fdBurned = true; break;
               } else {
                 lx = tx; ly = ty; break;
               }
@@ -1881,7 +1984,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_isFarcast) {
+          if (_fdBurned) {
+            /* 火ダルマに燃やされた：何もしない */
+          } else if (_isFarcast) {
             /* 遠投：軌道上の全モンスターに個別に効果 */
             if (_potHits.length > 0) {
               for (const _pm of _potHits) {
@@ -1904,7 +2009,7 @@ export function useItemActions({
           }
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null;
+          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
@@ -1912,7 +2017,12 @@ export function useItemActions({
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
-              const _potMiss = !_isFarcast && !_potSureHit && Math.random() >= 0.90;
+              const _potMiss = _forceMiss || (!_isFarcast && !_potSureHit && Math.random() >= 0.90);
+              if (!_isFarcast && m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投の壺を燃やして消滅 */
+                ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
+                lx = tx; ly = ty; _potFdBurned = true; break;
+              }
               if (_potMiss) {
                 /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
                 lx = tx; ly = ty;
@@ -1935,7 +2045,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_isFarcast) {
+          if (_potFdBurned) {
+            /* 火ダルマに燃やされた：何もしない */
+          } else if (_isFarcast) {
             /* 遠投：壺は消滅（中身もろとも） */
             ml.push(`${dnameRef(it)}は消滅した。`);
           } else if (sprHit?.kind) {
@@ -1962,12 +2074,19 @@ export function useItemActions({
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
-              const _thMiss = !_isFarcast && !_thSureHit && Math.random() >= 0.90;
+              const _thMiss = _forceMiss || (!_isFarcast && !_thSureHit && Math.random() >= 0.90);
               const lb = it.type === "arrow" ? ((it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`) : dnameRef(it);
+              if (!_isFarcast && m.baseKind === "firedemon") {
+                /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
+                ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
+                lx = tx; ly = ty; hit = true; break;
+              }
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
                 lx = tx; ly = ty; hit = true;
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
+                const _fm_ft = new Set();
+                withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, _fm_ft));
                 const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
                 if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;

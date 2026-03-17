@@ -2,11 +2,20 @@ import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage } from 
 import { MONS, MON_LEVELS } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
-  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted,
+  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
 } from './items.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
+}
+
+function makeRing() {
+  const t = pickWeighted(RINGS);
+  const ring = { ...t, id: uid() };
+  const roll = Math.random();
+  if (roll < 0.10) ring.blessed = true;
+  else if (roll < 0.25) ring.cursed = true;
+  return ring;
 }
 
 function pickBB() {
@@ -63,6 +72,11 @@ if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
     }
     if (placeInRoom(it)) items.push(it);
   }
+  /* 指輪：フロアに0〜1個 (30%の確率) */
+  if (Math.random() < 0.30) {
+    const _ring = { ...makeRing(), x: 0, y: 0 };
+    if (placeInRoom(_ring)) items.push(_ring);
+  }
   const traps = [];
   const trapOcc = (x, y) => traps.some((t) => t.x === x && t.y === y) || occ(x, y);
   for (let i = 0; i < rng(10, 20) + depth * 2; i++) {
@@ -101,7 +115,7 @@ if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd,
-    visible: vis, explored: exp, shop: null, pentacles: [], isBigRoom: true, floorType: "bigRoom" };
+    visible: vis, explored: exp, shop: null, pentacles: [], waterItems: [], isBigRoom: true, floorType: "bigRoom" };
 }
 
 /* ===== MONSTER HOUSE CONTENT GENERATOR ===== */
@@ -272,7 +286,7 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
     }
   }
   /* 回転板を必ず1枚配置 */
-  const spinTrap = { name: "回転板", effect: "spin", tile: 29 };
+  const spinTrap = { name: "回転板", effect: "spin", tile: 29, permanent: true };
   for (let a = 0; a < 60; a++) {
     const [tx, ty] = pick(floorTiles);
     if (allOcc(tx, ty)) continue;
@@ -483,11 +497,12 @@ function genMiniRoom(depth) {
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rndFloor = () => { for (let a = 0; a < 80; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
   for (let i = 0; i < rng(12, 18); i++) { const p = rndFloor(); if (p) { const it = { ...pickWeighted(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(20, 80 + depth * 30); items.push(it); } }
+  if (Math.random() < 0.30) { const _rp = rndFloor(); if (_rp) items.push({ ...makeRing(), x: _rp[0], y: _rp[1] }); }
   for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const { visible, explored } = mkVis();
-  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "miniRoom" };
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "miniRoom" };
 }
 
 /* ===== SHOPPING MALL (複数店舗フロア) ===== */
@@ -563,14 +578,14 @@ function genShoppingMall(depth, _retries = 0) {
     }
   }
   const { visible, explored } = mkVis();
-  return { map, rooms: validRooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: shopData, shops: allShops, hiddenRooms: [], monsterHouseRoom: null, floorType: "shoppingMall" };
+  return { map, rooms: validRooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: shopData, shops: allShops, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "shoppingMall" };
 }
 
 /* ===== SPIN FLOOR (完全独立部屋＋回転板移動) ===== */
 function genSpinFloor(depth, _retries = 0) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
-  const spinTrap = { name: '回転板', effect: 'spin', tile: 29 };
+  const spinTrap = { name: '回転板', effect: 'spin', tile: 29, permanent: true };
   /* 独立した部屋を5〜7個ランダム配置（2タイルバッファ） */
   const roomCount = rng(5, 7);
   for (let attempt = 0; attempt < roomCount * 80 && rooms.length < roomCount; attempt++) {
@@ -634,7 +649,7 @@ function genSpinFloor(depth, _retries = 0) {
     }
   }
   const { visible, explored } = mkVis();
-  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "spinFloor" };
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "spinFloor" };
 }
 
 /* ===== CORRIDOR FLOOR (全部廊下だけ) ===== */
@@ -684,7 +699,7 @@ function genCorridorFloor(depth) {
   for (let i = 0; i < rng(5, 9) + depth; i++) { const p = rndCorWide(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(1, 3); i++) { const p = rndCor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   const { visible, explored } = mkVis();
-  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, floorType: "corridorFloor" };
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "corridorFloor" };
 }
 
 /* ===== GRID ROOM (格子状壁の大部屋) ===== */
@@ -708,13 +723,104 @@ function genGridRoom(depth) {
   const rndFloor = () => { for (let a = 0; a < 100; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
   for (let i = 0; i < rng(8, 13) + depth; i++) { const p = rndFloor(); if (p) mons.push(mkMon(depth, p[0], p[1])); }
   for (let i = 0; i < rng(15, 22); i++) { const p = rndFloor(); if (p) { const it = { ...pickWeighted(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(20, 80 + depth * 30); items.push(it); } }
+  if (Math.random() < 0.40) { const _rp2 = rndFloor(); if (_rp2) items.push({ ...makeRing(), x: _rp2[0], y: _rp2[1] }); }
   for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const { visible, explored } = mkVis();
-  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "gridRoom" };
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "gridRoom" };
 }
 
+
+/* ===== 水地形生成 ===== */
+function addWaterPools(map, rooms, su, sd) {
+  for (const r of rooms) {
+    if (r.w < 5 || r.h < 5) continue; /* 小さい部屋はスキップ */
+    if (Math.random() >= 0.35) continue; /* 35%の確率で水溜まり */
+    const pw = rng(1, Math.min(3, r.w - 4));
+    const ph = rng(1, Math.min(2, r.h - 4));
+    const px = rng(r.x + 2, r.x + r.w - 2 - pw);
+    const py = rng(r.y + 2, r.y + r.h - 2 - ph);
+    for (let wy = py; wy < py + ph; wy++) {
+      for (let wx = px; wx < px + pw; wx++) {
+        if (map[wy][wx] === T.FLOOR &&
+            !(wx === su.x && wy === su.y) &&
+            !(wx === sd.x && wy === sd.y)) {
+          map[wy][wx] = T.WATER;
+        }
+      }
+    }
+  }
+}
+
+/* ===== FLOATING ISLANDS ===== */
+/* 稀に部屋中央に水で囲まれた浮島を生成（浮遊の指輪なしでは到達不可） */
+function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
+  const permSpin = { name: "回転板", effect: "spin", tile: 29, permanent: true };
+  for (const r of rooms) {
+    if (r.w < 7 || r.h < 7) continue;
+    if (Math.random() >= 0.18) continue; /* 18%の確率 */
+    /* 島のサイズ (1×1 or 2×1 or 1×2) */
+    const iw = Math.random() < 0.4 ? 2 : 1;
+    const ih = Math.random() < 0.4 ? 2 : 1;
+    const cx = r.x + Math.floor(r.w / 2) - Math.floor(iw / 2);
+    const cy = r.y + Math.floor(r.h / 2) - Math.floor(ih / 2);
+    /* 水リング + 島が部屋内に収まること（端から2マス以上余裕） */
+    if (cx - 1 <= r.x || cx + iw >= r.x + r.w - 1 ||
+        cy - 1 <= r.y || cy + ih >= r.y + r.h - 1) continue;
+    /* 階段が水リング/島エリアに被らないこと */
+    const inIslandArea = (x, y) =>
+      x >= cx - 1 && x <= cx + iw && y >= cy - 1 && y <= cy + ih;
+    if (inIslandArea(su.x, su.y) || inIslandArea(sd.x, sd.y)) continue;
+    /* 水リングを生成 */
+    for (let wy = cy - 1; wy <= cy + ih; wy++) {
+      for (let wx = cx - 1; wx <= cx + iw; wx++) {
+        if (wx >= cx && wx < cx + iw && wy >= cy && wy < cy + ih) continue; /* 島 */
+        if (map[wy][wx] === T.FLOOR) map[wy][wx] = T.WATER;
+      }
+    }
+    /* 島タイルを確実にフロアに */
+    for (let wy = cy; wy < cy + ih; wy++)
+      for (let wx = cx; wx < cx + iw; wx++)
+        map[wy][wx] = T.FLOOR;
+    /* 島タイル一覧 */
+    const islandTiles = [];
+    for (let wy = cy; wy < cy + ih; wy++)
+      for (let wx = cx; wx < cx + iw; wx++)
+        islandTiles.push([wx, wy]);
+    const isOcc = (x, y) =>
+      items.some(i => i.x === x && i.y === y) ||
+      traps.some(t => t.x === x && t.y === y) ||
+      bigboxes.some(b => b.x === x && b.y === y);
+    /* 永続回転板を1つ配置 */
+    for (let a = 0; a < 30; a++) {
+      const [tx2, ty2] = pick(islandTiles);
+      if (isOcc(tx2, ty2)) continue;
+      traps.push({ ...permSpin, id: uid(), x: tx2, y: ty2, revealed: false });
+      break;
+    }
+    /* アイテムを3〜5個 */
+    const itemCount = rng(3, Math.min(5, islandTiles.length * 3));
+    let iPlaced = 0;
+    for (let a = 0; a < itemCount * 40 && iPlaced < itemCount; a++) {
+      const [ix2, iy2] = pick(islandTiles);
+      if (isOcc(ix2, iy2)) continue;
+      const it = { ...pickWeighted(ITEMS), id: uid(), x: ix2, y: iy2 };
+      if (it.type === "gold") it.value = rng(100, 300 + depth * 60);
+      items.push(it); iPlaced++;
+    }
+    /* 大箱（60%） */
+    if (Math.random() < 0.6) {
+      for (let a = 0; a < 40; a++) {
+        const [bx2, by2] = pick(islandTiles);
+        if (isOcc(bx2, by2)) continue;
+        const bbt = pickBB();
+        bigboxes.push({ id: uid(), x: bx2, y: by2, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+        break;
+      }
+    }
+  }
+}
 
 export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
@@ -1179,6 +1285,26 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps);
   /* 壁埋めアイテムを生成（突起コーナーは高確率） */
   genWallItems(map, depth, items, suspiciousWalls);
+  /* 水地形を生成（一部部屋に水溜まり） */
+  addWaterPools(map, rooms, su, sd);
+  /* 浮島を生成 */
+  addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd);
+  /* 水タイルに被った罠・アイテムを後処理 */
+  for (let ti = traps.length - 1; ti >= 0; ti--) {
+    if (map[traps[ti].y][traps[ti].x] === T.WATER) traps.splice(ti, 1);
+  }
+  const waterItems = [];
+  for (let ii = items.length - 1; ii >= 0; ii--) {
+    const it = items[ii];
+    if (map[it.y]?.[it.x] !== T.WATER) continue;
+    if (!waterItems.some(wi => wi.x === it.x && wi.y === it.y)) {
+      let sunk = it;
+      if (it.type === "scroll")   sunk = { ...it, effect: "blank", name: "白紙の巻物" };
+      else if (it.type === "spellbook") { const { spell, ...rest } = it; sunk = { ...rest, name: "白紙の魔法書" }; }
+      waterItems.push({ x: it.x, y: it.y, item: sunk });
+    }
+    items.splice(ii, 1);
+  }
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
   if (depth === 1) {
@@ -1204,6 +1330,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     explored: exp,
     shop: shopData,
     pentacles: [],
+    waterItems,
     monsterHouseRoom,
     hiddenRooms,
   };
@@ -1267,7 +1394,7 @@ export function genTreasureRoom(depth) {
   return {
     map, rooms: [room], monsters: [], items, traps: [], springs: [], bigboxes: [],
     stairUp: su, stairDown: null, visible: vis, explored: exp,
-    shop: null, pentacles: [], hiddenRooms: [], monsterHouseRoom: null,
+    shop: null, pentacles: [], waterItems: [], hiddenRooms: [], monsterHouseRoom: null,
     floorType: "treasureRoom", isTreasureRoom: true,
   };
 }
@@ -1387,6 +1514,11 @@ export function genDebugDungeon() {
     const p = nextItemPos();
     bigboxes.push({ id: uid(), x: p.x, y: p.y, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
   }
+  /* 指輪：全種類を1つずつ */
+  for (const tmpl of RINGS) {
+    const p = nextItemPos();
+    items.push({ ...tmpl, id: uid(), x: p.x, y: p.y });
+  }
 
   /* モンスター隔離部屋 */
   placeDebugMons(mons, nextMonPos);
@@ -1395,7 +1527,7 @@ export function genDebugDungeon() {
   return {
     map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored,
-    shop: null, hiddenRooms: [], monsterHouseRoom: null,
+    shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [],
     isBigRoom: true, floorType: "debugDungeon",
   };
 }
@@ -1409,6 +1541,7 @@ export function genDebugDungeonFloor2() {
     ...ITEMS.filter(t => t.type !== 'gold'),
     ...WANDS,
     ...SPELLBOOKS,
+    ...RINGS,
   ];
   for (const variant of [{ blessed: true }, { cursed: true }]) {
     for (const tmpl of blessedCursedTargets) {
@@ -1450,7 +1583,7 @@ export function genDebugDungeonFloor2() {
   return {
     map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored,
-    shop: null, hiddenRooms: [], monsterHouseRoom: null,
+    shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [],
     isBigRoom: true, floorType: "debugDungeon",
   };
 }

@@ -16,7 +16,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames,
-  hasCursedExplosionPentacle,
+  hasCursedExplosionPentacle, hasRingEffect, doExplosion,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
@@ -321,6 +321,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       poisoned: false,
       poisonAtkLoss: 0,
       sealedTurns: 0,
+      rings: [],
       maxInventory: dungeonConfig?.dungeonType === "debug" ? 100 : 30,
       facing: { dx: 0, dy: 1 },
       isThief: false,
@@ -480,6 +481,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
     if (isDash && trap.revealed) return null;
+    if (hasRingEffect(p, "float_ring")) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
@@ -659,6 +661,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           pl.x >= _cs.room.x && pl.x < _cs.room.x + _cs.room.w &&
           pl.y >= _cs.room.y && pl.y < _cs.room.y + _cs.room.h) {
         sr.current.dungeon.shopTheft = true;
+        for (const _ci of pl.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
         break;
       }
     }
@@ -726,23 +729,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const _etPfBag = [];
       setPitfallBag(_etPfBag);
       p.turns++;
+      const _hasRegenRing = hasRingEffect(p, "regen_ring");
       const hd =
         hasAbility(p.armor, "slow_hunger")
           ? 2
+          : _hasRegenRing ? 0.5  /* 回復の指輪：空腹が2倍速 */
           : 1;
-      if (p.turns % (10 * hd) === 0) {
-        p.hunger = Math.max(0, p.hunger - 1);
+      /* hd < 1 の場合は整数 turns でのチェックができないので別処理 */
+      if (_hasRegenRing) {
+        if (p.turns % 5 === 0) p.hunger = Math.max(0, p.hunger - 1);
+      } else {
+        if (p.turns % (10 * hd) === 0) {
+          p.hunger = Math.max(0, p.hunger - 1);
+        }
       }
       if (p.hunger === 0) {
         p.deathCause = "空腹により";
         p.hp--;
         if (p.turns % 10 === 0) ml.push("空腹でHPが減っている...");
       } else if (p.hp > 0 && p.hp < p.maxHp) {
-        const regenAmt =
-          Math.max(1, Math.floor(p.maxHp / 100)) +
-          (hasAbility(p.armor, "regen")
-            ? 1
-            : 0);
+        const _baseRegen = Math.max(1, Math.floor(p.maxHp / 100)) +
+          (hasAbility(p.armor, "regen") ? 1 : 0);
+        const regenAmt = _hasRegenRing ? _baseRegen * 2 : _baseRegen;  /* 回復の指輪：回復量2倍 */
         p.hp = Math.min(p.maxHp, p.hp + regenAmt);
       }
       /* MPクールダウンカウント */
@@ -766,6 +774,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             ml.push("毒の効果が切れた。");
           }
         }
+      }
+      /* 油状態：カウントダウン */
+      if ((p.oilyTurns || 0) > 0) {
+        p.oilyTurns--;
+        if (p.oilyTurns === 0) ml.push("油が落ちた。炎への弱点が消えた。");
+      }
+      /* 移動封じ：カウントダウン */
+      if ((p.immobileTurns || 0) > 0) {
+        p.immobileTurns--;
+      }
+      /* 水上で浮遊解除：最寄りの陸上に弾き出される */
+      if (st.dungeon.map[p.y][p.x] === T.WATER && !hasRingEffect(p, "float_ring")) {
+        const _wDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        for (const [_wdx, _wdy] of _wDirs) {
+          const _wx = p.x + _wdx, _wy = p.y + _wdy;
+          if (_wx >= 0 && _wx < MW && _wy >= 0 && _wy < MH &&
+              st.dungeon.map[_wy][_wx] !== T.WALL && st.dungeon.map[_wy][_wx] !== T.BWALL &&
+              st.dungeon.map[_wy][_wx] !== T.WATER &&
+              !st.dungeon.monsters.some(m => m.x === _wx && m.y === _wy)) {
+            p.x = _wx; p.y = _wy;
+            ml.push("浮遊が解けて水から弾き出された！");
+            break;
+          }
+        }
+      }
+      /* 爆発の指輪：5%の確率で爆発 */
+      if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
+        ml.push("指輪が爆発した！");
+        const _erfNFn = (gi) => gi.name;
+        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
       }
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
       const _cursedSancOn = st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
@@ -798,6 +836,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       checkShopTheft(p, st.dungeon, ml);
       moveMons(st.dungeon, p, ml);
+      /* 油状態：モンスターのカウントダウン */
+      for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
       if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap") && !hasCursedExplosionPentacle(st.dungeon)) {
         for (const _m of [...st.dungeon.monsters]) {
@@ -851,10 +891,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           /* --- 罠の魔方陣：毎ターン30%で罠が増える --- */
           if (_pc.kind === "trap_gen" && _inRange && Math.random() < 0.1) {
             if (_pc.cursed) {
-              /* 呪い：フロア内の罠をランダムに1つ消す */
-              if (_dg2.traps.length > 0) {
-                const _ri = rng(0, _dg2.traps.length - 1);
-                _dg2.traps.splice(_ri, 1);
+              /* 呪い：フロア内の罠をランダムに1つ消す（永続回転板は除外） */
+              const _delCands = _dg2.traps.filter(t => !t.permanent);
+              if (_delCands.length > 0) {
+                const _rt = pick(_delCands);
+                _dg2.traps = _dg2.traps.filter(t => t !== _rt);
                 ml.push(`${_pc.name}の呪いで罠が消えた！`);
               }
             } else {
@@ -979,7 +1020,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               _dg.monsters.push(makeMonster(p.depth, _cx, _cy));
             }
           }
-          _dg.nextSpawnTurn = p.turns + (_dg.shopTheft ? rng(5, 15) : rng(10, 50));
+          _dg.nextSpawnTurn = p.turns + (_dg.shopTheft ? rng(5, 15) : hasRingEffect(p, "spawn_ring") ? rng(3, 10) : rng(10, 50));
         }
       }
       if (p.hp <= 0) {
@@ -1119,6 +1160,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         return;
       }
       if (type === "move" && (dx || dy)) {
+        /* ===== 移動封じ状態：移動不可（攻撃は可） ===== */
+        if ((p.immobileTurns || 0) > 0) {
+          const nx0 = p.x + dx, ny0 = p.y + dy;
+          const _imMon = monsterAt(dg, nx0, ny0);
+          if (!_imMon) {
+            /* 移動しようとしたが封じられている（endTurnでカウントダウン） */
+            const _imRem = p.immobileTurns - 1;
+            endTurn(st, p, ml);
+            ml.push(_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！");
+            setMsgs((prev) => [...prev.slice(-80), ...ml]);
+            sr.current = { ...st };
+            setGs({ ...st });
+            return;
+          }
+          /* 攻撃はできる：そのまま攻撃処理へ進む */
+        }
         /* ===== 混乱状態：移動方向をランダム化 ===== */
         if ((p.confusedTurns || 0) > 0) {
           const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -1168,7 +1225,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 attackMon.paralyzed = false;
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
-              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0);
+              const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
+              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0);
               const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;
@@ -1177,6 +1235,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (wabHas("critical") && Math.random() < 0.25) {
                 d *= 2;
                 crit = true;
+              }
+              /* 炎属性武器：油まみれ×2、火ダルマ×0.5 */
+              const _hasFireElem = wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
+              if (_hasFireElem) {
+                if (attackMon.baseKind === "firedemon") {
+                  d = Math.max(1, Math.floor(d * 0.5));
+                } else {
+                  const _feOily = (attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y);
+                  if (_feOily) d *= 2;
+                }
+              }
+              /* 氷属性武器：火ダルマ×2 */
+              const _hasIceElem = wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
+              if (_hasIceElem && attackMon.baseKind === "firedemon") {
+                d *= 2;
               }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
@@ -1187,10 +1260,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
               wakeIfDormant(attackMon, ml);
               attackMon.hp -= d;
-              if (attackMon.type === "shopkeeper") { attackMon.state = "hostile"; dg.shopTheft = true; }
+              if (attackMon.type === "shopkeeper") {
+                attackMon.state = "hostile"; dg.shopTheft = true;
+                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
+              }
               const atkSfx =
                 (crit ? "会心！" : "") +
                 (_isBane ? "特効！" : "") +
+                (_hasFireElem && attackMon.baseKind === "firedemon" ? "（炎半減）" : "") +
+                (_hasFireElem && attackMon.baseKind !== "firedemon" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
+                (_hasIceElem && attackMon.baseKind === "firedemon" ? "氷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
               if (wabHas("knockback") && attackMon.hp > 0) {
@@ -1254,6 +1333,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               acted = true;
               } /* end else (hit) */
             }
+          } else if (dg.map[ny][nx] === T.WATER && !hasRingEffect(p, "float_ring")) {
+            ml.push("水に阻まれた！浮遊の指輪があれば渡れる。");
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
@@ -1270,6 +1351,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (!(p.x >= _esh.room.x && p.x < _esh.room.x + _esh.room.w &&
                   p.y >= _esh.room.y && p.y < _esh.room.y + _esh.room.h)) {
                 dg.shopTheft = true;
+                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
                 ml.push("店から盗んで逃げた！");
                 break;
               }
@@ -1326,7 +1408,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else ml.push("矢を装備していない。");
       } else if (type === "stairs_down") {
         if (dg.map[p.y][p.x] === T.SD) {
-          doStair(1);
+          if (hasRingEffect(p, "float_ring")) {
+            ml.push("浮遊の指輪を付けているので階段を降りられない！");
+          } else {
+            doStair(1);
+          }
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
         if (dg.map[p.y][p.x] === T.SU) {
@@ -1343,7 +1429,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (type === "interact") {
         /* 足元の階段チェック */
         if (dg.map[p.y][p.x] === T.SD) {
-          doStair(1);
+          if (hasRingEffect(p, "float_ring")) {
+            ml.push("浮遊の指輪を付けているので階段を降りられない！");
+          } else {
+            doStair(1);
+          }
         } else if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
@@ -1395,11 +1485,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 const _allS2 = getShops(dg);
                 const _pickShop = _allS2.find(s => s.id === _grIt._shopId) || _allS2[0];
                 if (_pickShop) {
-                  _pickShop.unpaidTotal += _grIt.shopPrice;
+                  const _bargain = hasRingEffect(p, "bargain_ring");
+                  const _actualPrice = _bargain ? Math.max(1, Math.floor(_grIt.shopPrice * 0.7)) : _grIt.shopPrice;
+                  _pickShop.unpaidTotal += _actualPrice;
                   const _sk2 = dg.monsters.find((m) => m.id === _pickShop.shopkeeperId && m.state === "friendly");
                   if (_sk2) _sk2.state = "blocking";
+                  ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${_bargain ? " 3割引！" : ""}) 店主が入り口をふさいだ。`);
+                } else {
+                  ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
                 }
-                ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
               } else {
                 const _w2 = _grIt.type === "weapon", _a2 = _grIt.type === "armor";
                 let _lbl2 = itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -1420,11 +1514,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             /* 足元の罠を起動 */
             const _trapHere = dg.traps.find((t) => t.x === p.x && t.y === p.y);
             if (_trapHere) {
-              const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu);
-              if (_tr2 === "pitfall") {
-                const nd2 = chgFloor(p, 1, true);
-                if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
+              if (hasRingEffect(p, "float_ring")) {
+                ml.push("浮遊の指輪を付けているので罠を作動させられない！");
+              } else {
+                const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu);
+                if (_tr2 === "pitfall") {
+                  const nd2 = chgFloor(p, 1, true);
+                  if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
+                }
               }
               acted = true;
             } else ml.push("ここには何もない。");
@@ -1537,6 +1635,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             setShopMode("pay"); setShopMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), `店主：「お代は${dg6.shop.unpaidTotal}Gです。」`]);
           } else {
+            setShopMode("browse"); setShopMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), "店主：「いらっしゃいませ！」"]);
           }
         }
@@ -1652,6 +1751,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (!(p.x >= _eshD.room.x && p.x < _eshD.room.x + _eshD.room.w &&
               p.y >= _eshD.room.y && p.y < _eshD.room.y + _eshD.room.h)) {
             dg.shopTheft = true;
+            for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
             ml.push("店から盗んで逃げた！");
             break;
           }
@@ -1791,6 +1891,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, []);
   const trySynthesize = useCallback(
     (bb, ml) => {
+      /* 力の指輪 + 力の指輪 → ＋値合算 */
+      const _pRings = bb.contents.filter(i => i.type === "ring" && i.effect === "power_ring");
+      if (_pRings.length >= 2) {
+        const [ra, rb] = _pRings;
+        ra.plus = (ra.plus || 0) + (rb.plus || 0) + 1;
+        ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
+        bb.contents = bb.contents.filter(i => i !== rb);
+        bb.capacity = bb.contents.length;
+        return;
+      }
       const mks = bb.contents.filter((i) => i.type === "marker");
       if (mks.length >= 2) {
         const [mb, mm] = mks;
@@ -1957,7 +2067,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (idx >= 0) bb.contents[idx] = nit;
         ml.push(`${_idn}が${itemDisplayName(nit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に変化した！`);
       } else if (bb.kind === "enhance") {
-        if (item.type === "weapon" || item.type === "armor") {
+        if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && item.effect === "power_ring")) {
           const before = item.plus || 0;
           item.plus = before + 1;
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
@@ -2266,6 +2376,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (it.type === "weapon") return _p?.weapon === it ? "外す" : "装備";
     if (it.type === "armor")  return _p?.armor  === it ? "外す" : "装備";
     if (it.type === "arrow")  return _p?.arrow  === it ? "外す" : "装備";
+    if (it.type === "ring")   return (_p?.rings || []).includes(it) ? "外す" : "装備";
     if (it.type === "food") return "食べる";
     if (it.type === "scroll") return "読む";
     if (it.type === "pen") return "描く";
@@ -2273,7 +2384,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     return "使う";
   };
   const canUse = (it) =>
-    ["potion", "food", "scroll", "weapon", "armor", "arrow", "pot", "pen"].includes(
+    ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(
       it.type,
     );
   /* callbacks内で sr.current を参照するバージョン */
@@ -2497,11 +2608,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
 
   const iLabel = (it) => {
     const _ep = gs?.player;
-    const _eq = _ep?.weapon === it ? "【武器】" : _ep?.armor === it ? "【防具】" : _ep?.arrow === it ? "【矢】" : "";
+    const _eq = _ep?.weapon === it ? "【武器】" : _ep?.armor === it ? "【防具】" : _ep?.arrow === it ? "【矢】" : (_ep?.rings || []).includes(it) ? "【指輪】" : "";
     const _key = getIdentKey(it);
     const _isIdent = !_key || gs?.ident?.has(_key);
     /* 識別対象アイテムはfullIdentまたはbcKnownのみ祝呪表示、それ以外(武器・防具等)は常に表示 */
-    const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor';
+    const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor' || it.type === 'ring';
     const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown) : true;
     const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
     let s = (_eq ? _eq : "") + _bc + dname(it);
@@ -2548,6 +2659,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     else if (it.type === "marker") s += ` [${it.charges}回]`;
     else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
     else if (it.type === "pot")    s += _isIdent ? ` [${it.contents?.length || 0}/${it.capacity}]` : "";
+    else if (it.type === "ring" && it.effect === "power_ring") s += `+${it.plus || 0}`;
     if (it.shopPrice) s += ` 〔未払:${it.shopPrice}G〕`;
     return s;
   };
@@ -2635,11 +2747,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           攻:
           {(p.poisonAtkLoss || 0) > 0 ? (
             <span style={{ color: "#fa0" }}>
-              {p.atk + (p.weapon?.atk || 0)}/
+              {p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)}/
               <span style={{ color: "#aaa", fontSize: "0.9em" }}>{p.atk + (p.poisonAtkLoss || 0) + (p.weapon?.atk || 0)}</span>
             </span>
           ) : (
-            <span style={{ color: "#fa0" }}>{p.atk + (p.weapon?.atk || 0)}</span>
+            <span style={{ color: "#fa0" }}>{p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)}</span>
           )}
         </span>{" "}
         <span>
@@ -2656,6 +2768,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         {p.arrow && (
           <span style={{ color: "#dda050" }}>{p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : "矢"}:{p.arrow.count}</span>
         )}{" "}
+        {(p.rings || []).map((r, i) => (
+          <span key={i} style={{ color: "#c0a0ff", fontSize: "0.85em" }}>
+            💍{r.effect === "power_ring" ? `${r.name}+${r.plus || 0}` : r.name}
+          </span>
+        ))}{" "}
         {p.poisoned && (
           <span style={{ color: "#80ff40" }}>☠毒</span>
         )}{" "}

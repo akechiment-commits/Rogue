@@ -29,12 +29,13 @@ export function useKeyHandler({
   bigboxPutItem, sortInventory, getLookDesc, lu,
 }) {
   const canUse = (it) =>
-    ["potion", "food", "scroll", "weapon", "armor", "arrow", "pot", "pen"].includes(it.type);
+    ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(it.type);
   const useLabel = (it) => {
     const _p = gs?.player;
     if (it.type === "weapon") return _p?.weapon === it ? "外す" : "装備";
     if (it.type === "armor")  return _p?.armor  === it ? "外す" : "装備";
     if (it.type === "arrow")  return _p?.arrow  === it ? "外す" : "装備";
+    if (it.type === "ring")   return (_p?.rings || []).includes(it) ? "外す" : "装備";
     if (it.type === "food") return "食べる";
     if (it.type === "scroll") return "読む";
     if (it.type === "pen") return "描く";
@@ -837,21 +838,30 @@ export function useKeyHandler({
         const isUpBB = k === "arrowup" || e.code === "Numpad8";
         const isDownBB = k === "arrowdown" || e.code === "Numpad2";
         if (bigboxMode === "menu") {
-          const mlen2 = 2;
+          const mlen2 = 3;
           if (isUpBB || isDownBB) {
             setBigboxMenuSel((p) => (p + (isDownBB ? 1 : -1) + mlen2) % mlen2);
             return;
           }
-          if (k === "enter" || k === "z" || k === "x" || k === "escape") {
-            if ((k === "enter" || k === "z") && bigboxMenuSel === 0) {
+          if (k === "enter" || k === "z") {
+            if (bigboxMenuSel === 0) {
               setBigboxMode("put");
               setBigboxMenuSel(0);
               setBigboxPage(0);
-            } else {
+            } else if (bigboxMenuSel === 1) {
               setBigboxMode(null);
               bigboxRef.current = null;
               setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
+            } else {
+              setBigboxMode("desc");
+              setBigboxMenuSel(0);
             }
+            return;
+          }
+          if (k === "x" || k === "escape") {
+            setBigboxMode(null);
+            bigboxRef.current = null;
+            setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
             return;
           }
           if (k === "1") {
@@ -862,6 +872,16 @@ export function useKeyHandler({
             setBigboxMode(null);
             bigboxRef.current = null;
             setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
+          } else if (k === "3") {
+            setBigboxMode("desc");
+            setBigboxMenuSel(0);
+          }
+          return;
+        }
+        if (bigboxMode === "desc") {
+          if (k === "x" || k === "escape" || k === "enter" || k === "z") {
+            setBigboxMode("menu");
+            setBigboxMenuSel(0);
           }
           return;
         }
