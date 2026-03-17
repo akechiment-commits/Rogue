@@ -45,16 +45,19 @@ function monsterDragonFire(m, dg, pl, ml) {
     const _fBlock = dg.monsters.find(o => o.x === _fx && o.y === _fy);
     if (_fBlock) {
       wakeIfDormant(_fBlock, ml);
-      const _fDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_fBlock.def || 0))) + rng(-2, 2));
+      const _fDmgBase = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_fBlock.def || 0))) + rng(-2, 2));
       /* 火ダルマは炎で回復 */
       if (_fBlock.baseKind === "firedemon") {
-        const _fheal = Math.min(_fDmg, _fBlock.maxHp - _fBlock.hp);
+        const _fheal = Math.min(_fDmgBase, _fBlock.maxHp - _fBlock.hp);
         if (_fheal > 0) { _fBlock.hp += _fheal; ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
         else ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！しかし炎を吸収した！`);
         return;
       }
+      /* 油まみれ */
+      const _fOilyMult = (_fBlock.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === _fBlock.x && t.y === _fBlock.y) ? 2 : 1;
+      const _fDmg = _fDmgBase * _fOilyMult;
       _fBlock.hp -= _fDmg;
-      ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！`);
+      ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}`);
       if (_fBlock.hp <= 0) killMonster(_fBlock, dg, pl, ml, null);
       return;
     }
