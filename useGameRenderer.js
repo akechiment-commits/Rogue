@@ -101,6 +101,31 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             ctx.globalAlpha = 1;
           }
         }
+        /* Water tile */
+        if (t === T.WATER && (vis || exp2)) {
+          ctx.globalAlpha = vis ? 1 : 0.4;
+          ctx.fillStyle = "#0d2a5c";
+          ctx.fillRect(px2, py2, sz, sz);
+          ctx.globalAlpha = vis ? 0.8 : 0.25;
+          ctx.fillStyle = "#1a5fcc";
+          ctx.fillRect(px2, py2, sz, sz);
+          ctx.globalAlpha = vis ? 0.9 : 0.3;
+          ctx.fillStyle = "#4499ff";
+          ctx.font = `bold ${sz}px monospace`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("~", px2 + sz / 2, py2 + sz / 2);
+          ctx.globalAlpha = 1;
+          /* waterItems as faint dots */
+          if (vis && dg.waterItems?.some(wi => wi.x === x && wi.y === y)) {
+            ctx.globalAlpha = 0.4;
+            ctx.fillStyle = "#ffee88";
+            ctx.beginPath();
+            ctx.arc(px2 + sz * 0.8, py2 + sz * 0.2, sz * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+        }
         /* Oily floor */
         if (_oilySet.has(_k(x, y)) && (vis || exp2)) {
           ctx.globalAlpha = vis ? 0.38 : 0.15;

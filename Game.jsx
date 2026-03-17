@@ -783,6 +783,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if ((p.immobileTurns || 0) > 0) {
         p.immobileTurns--;
       }
+      /* 水上で浮遊解除：最寄りの陸上に弾き出される */
+      if (st.dungeon.map[p.y][p.x] === T.WATER && !hasRingEffect(p, "float_ring")) {
+        const _wDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        for (const [_wdx, _wdy] of _wDirs) {
+          const _wx = p.x + _wdx, _wy = p.y + _wdy;
+          if (_wx >= 0 && _wx < MW && _wy >= 0 && _wy < MH &&
+              st.dungeon.map[_wy][_wx] !== T.WALL && st.dungeon.map[_wy][_wx] !== T.BWALL &&
+              st.dungeon.map[_wy][_wx] !== T.WATER &&
+              !st.dungeon.monsters.some(m => m.x === _wx && m.y === _wy)) {
+            p.x = _wx; p.y = _wy;
+            ml.push("浮遊が解けて水から弾き出された！");
+            break;
+          }
+        }
+      }
       /* 爆発の指輪：5%の確率で爆発 */
       if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
         ml.push("指輪が爆発した！");
@@ -1313,6 +1328,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               acted = true;
               } /* end else (hit) */
             }
+          } else if (dg.map[ny][nx] === T.WATER && !hasRingEffect(p, "float_ring")) {
+            ml.push("水に阻まれた！浮遊の指輪があれば渡れる。");
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);

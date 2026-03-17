@@ -1,7 +1,7 @@
 export const MW = 60,
   MH = 30;
 
-export const T = { WALL: "#", FLOOR: ".", DOOR: "+", SD: ">", SU: "<", BWALL: "B" };
+export const T = { WALL: "#", FLOOR: ".", DOOR: "+", SD: ">", SU: "<", BWALL: "B", WATER: "~" };
 
 /* Tile indices in spritesheet (8 cols x 4 rows, 16x16 each) */
 export const TI = {

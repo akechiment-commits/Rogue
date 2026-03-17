@@ -1967,10 +1967,18 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
   if (dep > 30) { ml.push(`${item.name}は消えてしまった！`); return false; }
+  /* 着地点が水タイルなら沈没 */
+  if (dg.map[ty]?.[tx] === T.WATER) {
+    dg.waterItems = dg.waterItems || [];
+    dg.waterItems.push({ x: tx, y: ty, item: { ...item, x: tx, y: ty } });
+    ml.push(`${item.name}が水に沈んだ！`);
+    return false;
+  }
   for (const [dx, dy] of DRO) {
     const cx = tx + dx, cy = ty + dy;
     if (cx < 0 || cx >= MW || cy < 0 || cy >= MH ||
-        dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL || dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU) continue;
+        dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL || dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU ||
+        dg.map[cy][cx] === T.WATER) continue;
     const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
     if (trap) {
       ft.add(trap.id);

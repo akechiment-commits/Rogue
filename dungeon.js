@@ -115,7 +115,7 @@ if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd,
-    visible: vis, explored: exp, shop: null, pentacles: [], isBigRoom: true, floorType: "bigRoom" };
+    visible: vis, explored: exp, shop: null, pentacles: [], waterItems: [], isBigRoom: true, floorType: "bigRoom" };
 }
 
 /* ===== MONSTER HOUSE CONTENT GENERATOR ===== */
@@ -502,7 +502,7 @@ function genMiniRoom(depth) {
   for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const { visible, explored } = mkVis();
-  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "miniRoom" };
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "miniRoom" };
 }
 
 /* ===== SHOPPING MALL (複数店舗フロア) ===== */
@@ -578,7 +578,7 @@ function genShoppingMall(depth, _retries = 0) {
     }
   }
   const { visible, explored } = mkVis();
-  return { map, rooms: validRooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: shopData, shops: allShops, hiddenRooms: [], monsterHouseRoom: null, floorType: "shoppingMall" };
+  return { map, rooms: validRooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: shopData, shops: allShops, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "shoppingMall" };
 }
 
 /* ===== SPIN FLOOR (完全独立部屋＋回転板移動) ===== */
@@ -649,7 +649,7 @@ function genSpinFloor(depth, _retries = 0) {
     }
   }
   const { visible, explored } = mkVis();
-  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "spinFloor" };
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "spinFloor" };
 }
 
 /* ===== CORRIDOR FLOOR (全部廊下だけ) ===== */
@@ -699,7 +699,7 @@ function genCorridorFloor(depth) {
   for (let i = 0; i < rng(5, 9) + depth; i++) { const p = rndCorWide(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(1, 3); i++) { const p = rndCor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   const { visible, explored } = mkVis();
-  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, floorType: "corridorFloor" };
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "corridorFloor" };
 }
 
 /* ===== GRID ROOM (格子状壁の大部屋) ===== */
@@ -728,9 +728,30 @@ function genGridRoom(depth) {
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const { visible, explored } = mkVis();
-  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, isBigRoom: true, floorType: "gridRoom" };
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "gridRoom" };
 }
 
+
+/* ===== 水地形生成 ===== */
+function addWaterPools(map, rooms, su, sd) {
+  for (const r of rooms) {
+    if (r.w < 5 || r.h < 5) continue; /* 小さい部屋はスキップ */
+    if (Math.random() >= 0.35) continue; /* 35%の確率で水溜まり */
+    const pw = rng(1, Math.min(3, r.w - 4));
+    const ph = rng(1, Math.min(2, r.h - 4));
+    const px = rng(r.x + 2, r.x + r.w - 2 - pw);
+    const py = rng(r.y + 2, r.y + r.h - 2 - ph);
+    for (let wy = py; wy < py + ph; wy++) {
+      for (let wx = px; wx < px + pw; wx++) {
+        if (map[wy][wx] === T.FLOOR &&
+            !(wx === su.x && wy === su.y) &&
+            !(wx === sd.x && wy === sd.y)) {
+          map[wy][wx] = T.WATER;
+        }
+      }
+    }
+  }
+}
 
 export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
@@ -1195,6 +1216,8 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps);
   /* 壁埋めアイテムを生成（突起コーナーは高確率） */
   genWallItems(map, depth, items, suspiciousWalls);
+  /* 水地形を生成（一部部屋に水溜まり） */
+  addWaterPools(map, rooms, su, sd);
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
   if (depth === 1) {
@@ -1220,6 +1243,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     explored: exp,
     shop: shopData,
     pentacles: [],
+    waterItems: [],
     monsterHouseRoom,
     hiddenRooms,
   };
@@ -1283,7 +1307,7 @@ export function genTreasureRoom(depth) {
   return {
     map, rooms: [room], monsters: [], items, traps: [], springs: [], bigboxes: [],
     stairUp: su, stairDown: null, visible: vis, explored: exp,
-    shop: null, pentacles: [], hiddenRooms: [], monsterHouseRoom: null,
+    shop: null, pentacles: [], waterItems: [], hiddenRooms: [], monsterHouseRoom: null,
     floorType: "treasureRoom", isTreasureRoom: true,
   };
 }
@@ -1416,7 +1440,7 @@ export function genDebugDungeon() {
   return {
     map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored,
-    shop: null, hiddenRooms: [], monsterHouseRoom: null,
+    shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [],
     isBigRoom: true, floorType: "debugDungeon",
   };
 }
@@ -1472,7 +1496,7 @@ export function genDebugDungeonFloor2() {
   return {
     map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored,
-    shop: null, hiddenRooms: [], monsterHouseRoom: null,
+    shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [],
     isBigRoom: true, floorType: "debugDungeon",
   };
 }
