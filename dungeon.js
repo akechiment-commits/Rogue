@@ -1403,6 +1403,11 @@ export function genDebugDungeon() {
     const p = nextItemPos();
     bigboxes.push({ id: uid(), x: p.x, y: p.y, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
   }
+  /* 指輪：全種類を1つずつ */
+  for (const tmpl of RINGS) {
+    const p = nextItemPos();
+    items.push({ ...tmpl, id: uid(), x: p.x, y: p.y });
+  }
 
   /* モンスター隔離部屋 */
   placeDebugMons(mons, nextMonPos);
@@ -1425,6 +1430,7 @@ export function genDebugDungeonFloor2() {
     ...ITEMS.filter(t => t.type !== 'gold'),
     ...WANDS,
     ...SPELLBOOKS,
+    ...RINGS,
   ];
   for (const variant of [{ blessed: true }, { cursed: true }]) {
     for (const tmpl of blessedCursedTargets) {
