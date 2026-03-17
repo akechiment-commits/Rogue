@@ -710,7 +710,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       earned += it.shopPrice;
                     }
                     p2.gold += earned;
-                    /* 未払商品を持っているので店主が即入口を塞ぐ */
+                    /* unpaidTotal に加算 → 盗賊判定・pay モードが自動的に機能する */
+                    dg2.shop.unpaidTotal += earned;
                     const _sk = dg2.monsters.find(m => m.id === dg2.shop.shopkeeperId && m.state === "friendly");
                     if (_sk) _sk.state = "blocking";
                     setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
