@@ -778,7 +778,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
         ml.push("指輪が爆発した！");
         const _erfNFn = (gi) => gi.name;
-        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪");
+        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
       }
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
       const _cursedSancOn = st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);

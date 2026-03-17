@@ -1080,7 +1080,7 @@ export function useItemActions({
           if (it.effect === "explode_ring") {
             ml.push("指輪が爆発した！");
             const _rnFn = (gi) => gi.name;
-            doExplosion(p.x, p.y, dg, p, ml, _rnFn, "爆発の指輪");
+            doExplosion(p.x, p.y, dg, p, ml, _rnFn, "爆発の指輪", null, null, false, true);
           }
           /* 毒消しの指輪：装備時に毒を解除 */
           if (it.effect === "antidote_ring" && p.poisoned) {
@@ -1547,15 +1547,8 @@ export function useItemActions({
       const _isFarcast = _fcMode === "farcast";
       const _isCursedFc = _fcMode === "cursed";
       const _maxRange = _isCursedFc ? 1 : _isFarcast ? 50 : 10;
-      /* 下手投げの指輪：強制外れ（射撃・投げ系のみ）— 投げ方向をランダムに変える */
+      /* 下手投げの指輪：命中率0%（方向はそのまま、敵に当たっても必ず外れる） */
       const _forceMiss = _throwRelated && hasRingEffect(p, "miss_throw_ring");
-      if (_forceMiss) {
-        const _dirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-        const _notSame = _dirs.filter(d => d[0] !== dx || d[1] !== dy);
-        const _rd = _notSame[Math.floor(Math.random() * _notSame.length)];
-        dx = _rd[0]; dy = _rd[1];
-        ml.push("指輪のせいで狙いが外れた！");
-      }
       if (mode === "shoot_equipped") {
         if (!p.arrow || p.arrow.count <= 0) {
           ml.push("矢がない！");
@@ -1583,7 +1576,7 @@ export function useItemActions({
               ml.push(`近くに敵がいない！${_stName}は消えた。`);
             } else {
               const _msSureHit = (p.sureHitTurns || 0) > 0;
-              const _msMiss = !_msSureHit && Math.random() >= 0.90;
+              const _msMiss = _forceMiss || (!_msSureHit && Math.random() >= 0.90);
               const _msDmg = (_arItem.atk || 5) + rng(0, 3);
               if (_msMiss) {
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
@@ -1610,7 +1603,7 @@ export function useItemActions({
             const _stDmg = (_arItem.atk || 3) + rng(0, 3);
             ml.push(`${_stName}を投げた！`);
             if (_stM) {
-              const _stMiss = !_stSureHit && Math.random() >= 0.90;
+              const _stMiss = _forceMiss || (!_stSureHit && Math.random() >= 0.90);
               if (_stMiss) {
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
                 const _stft = new Set();
@@ -1706,7 +1699,7 @@ export function useItemActions({
           if (m) {
             /* 矢の命中率90%（必中状態なら100%） */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
-            const _arMiss = !_arSureHit && Math.random() >= 0.90;
+            const _arMiss = _forceMiss || (!_arSureHit && Math.random() >= 0.90);
             if (_arMiss) {
               ml.push(`${_arName}は${m.name}に外れた！`);
               /* 矢はそのまま飛び続ける */
@@ -1831,7 +1824,7 @@ export function useItemActions({
             if (!_msTarget2) {
               ml.push(`近くに敵がいない！${_invStName}は消えた。`);
             } else {
-              const _msMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
+              const _msMiss2 = _forceMiss || (!((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90);
               const _msDmg2 = _invStAtk + rng(0, 3);
               if (_msMiss2) {
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
@@ -1856,7 +1849,7 @@ export function useItemActions({
             const _stDmg2 = _invStAtk + rng(0, 3);
             ml.push(`${_invStName}を投げた！`);
             if (_stM2) {
-              const _stMiss2 = !((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90;
+              const _stMiss2 = _forceMiss || (!((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90);
               if (_stMiss2) {
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
                 const _stft2 = new Set();
@@ -1977,7 +1970,7 @@ export function useItemActions({
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
-              const _potMiss = !_isFarcast && !_potSureHit && Math.random() >= 0.90;
+              const _potMiss = _forceMiss || (!_isFarcast && !_potSureHit && Math.random() >= 0.90);
               if (_potMiss) {
                 /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
                 lx = tx; ly = ty;
@@ -2027,7 +2020,7 @@ export function useItemActions({
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
-              const _thMiss = !_isFarcast && !_thSureHit && Math.random() >= 0.90;
+              const _thMiss = _forceMiss || (!_isFarcast && !_thSureHit && Math.random() >= 0.90);
               const lb = it.type === "arrow" ? ((it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`) : dnameRef(it);
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
