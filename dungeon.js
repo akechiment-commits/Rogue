@@ -286,7 +286,7 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
     }
   }
   /* 回転板を必ず1枚配置 */
-  const spinTrap = { name: "回転板", effect: "spin", tile: 29 };
+  const spinTrap = { name: "回転板", effect: "spin", tile: 29, permanent: true };
   for (let a = 0; a < 60; a++) {
     const [tx, ty] = pick(floorTiles);
     if (allOcc(tx, ty)) continue;
@@ -585,7 +585,7 @@ function genShoppingMall(depth, _retries = 0) {
 function genSpinFloor(depth, _retries = 0) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
-  const spinTrap = { name: '回転板', effect: 'spin', tile: 29 };
+  const spinTrap = { name: '回転板', effect: 'spin', tile: 29, permanent: true };
   /* 独立した部屋を5〜7個ランダム配置（2タイルバッファ） */
   const roomCount = rng(5, 7);
   for (let attempt = 0; attempt < roomCount * 80 && rooms.length < roomCount; attempt++) {
@@ -748,6 +748,75 @@ function addWaterPools(map, rooms, su, sd) {
             !(wx === sd.x && wy === sd.y)) {
           map[wy][wx] = T.WATER;
         }
+      }
+    }
+  }
+}
+
+/* ===== FLOATING ISLANDS ===== */
+/* 稀に部屋中央に水で囲まれた浮島を生成（浮遊の指輪なしでは到達不可） */
+function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
+  const permSpin = { name: "回転板", effect: "spin", tile: 29, permanent: true };
+  for (const r of rooms) {
+    if (r.w < 7 || r.h < 7) continue;
+    if (Math.random() >= 0.18) continue; /* 18%の確率 */
+    /* 島のサイズ (1×1 or 2×1 or 1×2) */
+    const iw = Math.random() < 0.4 ? 2 : 1;
+    const ih = Math.random() < 0.4 ? 2 : 1;
+    const cx = r.x + Math.floor(r.w / 2) - Math.floor(iw / 2);
+    const cy = r.y + Math.floor(r.h / 2) - Math.floor(ih / 2);
+    /* 水リング + 島が部屋内に収まること（端から2マス以上余裕） */
+    if (cx - 1 <= r.x || cx + iw >= r.x + r.w - 1 ||
+        cy - 1 <= r.y || cy + ih >= r.y + r.h - 1) continue;
+    /* 階段が水リング/島エリアに被らないこと */
+    const inIslandArea = (x, y) =>
+      x >= cx - 1 && x <= cx + iw && y >= cy - 1 && y <= cy + ih;
+    if (inIslandArea(su.x, su.y) || inIslandArea(sd.x, sd.y)) continue;
+    /* 水リングを生成 */
+    for (let wy = cy - 1; wy <= cy + ih; wy++) {
+      for (let wx = cx - 1; wx <= cx + iw; wx++) {
+        if (wx >= cx && wx < cx + iw && wy >= cy && wy < cy + ih) continue; /* 島 */
+        if (map[wy][wx] === T.FLOOR) map[wy][wx] = T.WATER;
+      }
+    }
+    /* 島タイルを確実にフロアに */
+    for (let wy = cy; wy < cy + ih; wy++)
+      for (let wx = cx; wx < cx + iw; wx++)
+        map[wy][wx] = T.FLOOR;
+    /* 島タイル一覧 */
+    const islandTiles = [];
+    for (let wy = cy; wy < cy + ih; wy++)
+      for (let wx = cx; wx < cx + iw; wx++)
+        islandTiles.push([wx, wy]);
+    const isOcc = (x, y) =>
+      items.some(i => i.x === x && i.y === y) ||
+      traps.some(t => t.x === x && t.y === y) ||
+      bigboxes.some(b => b.x === x && b.y === y);
+    /* 永続回転板を1つ配置 */
+    for (let a = 0; a < 30; a++) {
+      const [tx2, ty2] = pick(islandTiles);
+      if (isOcc(tx2, ty2)) continue;
+      traps.push({ ...permSpin, id: uid(), x: tx2, y: ty2, revealed: false });
+      break;
+    }
+    /* アイテムを3〜5個 */
+    const itemCount = rng(3, Math.min(5, islandTiles.length * 3));
+    let iPlaced = 0;
+    for (let a = 0; a < itemCount * 40 && iPlaced < itemCount; a++) {
+      const [ix2, iy2] = pick(islandTiles);
+      if (isOcc(ix2, iy2)) continue;
+      const it = { ...pickWeighted(ITEMS), id: uid(), x: ix2, y: iy2 };
+      if (it.type === "gold") it.value = rng(100, 300 + depth * 60);
+      items.push(it); iPlaced++;
+    }
+    /* 大箱（60%） */
+    if (Math.random() < 0.6) {
+      for (let a = 0; a < 40; a++) {
+        const [bx2, by2] = pick(islandTiles);
+        if (isOcc(bx2, by2)) continue;
+        const bbt = pickBB();
+        bigboxes.push({ id: uid(), x: bx2, y: by2, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+        break;
       }
     }
   }
@@ -1218,9 +1287,23 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   genWallItems(map, depth, items, suspiciousWalls);
   /* 水地形を生成（一部部屋に水溜まり） */
   addWaterPools(map, rooms, su, sd);
-  /* 水タイルに被った罠を除去 */
+  /* 浮島を生成 */
+  addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd);
+  /* 水タイルに被った罠・アイテムを後処理 */
   for (let ti = traps.length - 1; ti >= 0; ti--) {
     if (map[traps[ti].y][traps[ti].x] === T.WATER) traps.splice(ti, 1);
+  }
+  const waterItems = [];
+  for (let ii = items.length - 1; ii >= 0; ii--) {
+    const it = items[ii];
+    if (map[it.y]?.[it.x] !== T.WATER) continue;
+    if (!waterItems.some(wi => wi.x === it.x && wi.y === it.y)) {
+      let sunk = it;
+      if (it.type === "scroll")   sunk = { ...it, effect: "blank", name: "白紙の巻物" };
+      else if (it.type === "spellbook") { const { spell, ...rest } = it; sunk = { ...rest, name: "白紙の魔法書" }; }
+      waterItems.push({ x: it.x, y: it.y, item: sunk });
+    }
+    items.splice(ii, 1);
   }
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
@@ -1247,7 +1330,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     explored: exp,
     shop: shopData,
     pentacles: [],
-    waterItems: [],
+    waterItems,
     monsterHouseRoom,
     hiddenRooms,
   };
