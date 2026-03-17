@@ -1,10 +1,11 @@
 import { useCallback, useEffect } from "react";
 import { MW, MH, T, rng, uid, refreshFOV, getShops } from "./utils.js";
 import {
-  ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS,
+  ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, TRAPS, BB_TYPES, RINGS,
   itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, randPotCapacity,
 } from "./items.js";
+import { MONS, MON_LEVELS } from "./monsters.js";
 import { genDungeon } from "./dungeon.js";
 
 export function useKeyHandler({
@@ -15,7 +16,7 @@ export function useKeyHandler({
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
   markerMode, markerMenuSel, spellListMode, spellMenuSel, shopMode, shopMenuSel,
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
-  tpSelectMode, floorSelectMode, lookMode,
+  tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
   // state setters
   setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -23,7 +24,7 @@ export function useKeyHandler({
   setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
   setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setShopMode,
   setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
-  setRevealMode,
+  setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
   // callbacks
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
   bigboxPutItem, sortInventory, getLookDesc, lu,
@@ -685,6 +686,9 @@ export function useKeyHandler({
               setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
               setShowInv(false); setSelIdx(null); setShowDesc(null);
               sr.current = { ...sr.current }; setGs({ ...sr.current });
+            } else if (spell.effect.startsWith("debug_")) {
+              setDebugSpellMode({ effect: spell.effect });
+              setDebugSpellMenuSel(0);
             } else {
             p2.mp -= spell.mpCost;
             ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
@@ -697,6 +701,39 @@ export function useKeyHandler({
             setThrowMode({ idx: spell.id, mode: "cast_spell" });
             setMsgs((prev) => [...prev.slice(-80), `${spell.name}：方向を選んでください (矢印キー)`]);
           }
+        }
+        return;
+      }
+      if (debugSpellMode) {
+        e.preventDefault();
+        if (k === "escape" || k === "x") { setDebugSpellMode(null); return; }
+        /* compute entry count */
+        let _dsLen = 0;
+        if (debugSpellMode.effect === "debug_summon_mon") {
+          for (const m of MONS) { _dsLen++; const lvs = MON_LEVELS[m.baseKind]; if (lvs) { if (lvs[0]) _dsLen++; if (lvs[1]) _dsLen++; } }
+        } else if (debugSpellMode.effect === "debug_get_item") {
+          _dsLen = ITEMS.length + WANDS.length + SPELLBOOKS.length + RINGS.length + POTS.length;
+        } else if (debugSpellMode.effect === "debug_create_trap") {
+          _dsLen = TRAPS.length;
+        } else if (debugSpellMode.effect === "debug_summon_bb") {
+          _dsLen = BB_TYPES.length;
+        }
+        const _dsUp = k === "arrowup" || e.code === "Numpad8";
+        const _dsDown = k === "arrowdown" || e.code === "Numpad2";
+        if ((_dsUp || _dsDown) && _dsLen > 0) {
+          setDebugSpellMenuSel((s) => ((s ?? 0) + (_dsDown ? 1 : -1) + _dsLen) % _dsLen);
+          return;
+        }
+        /* Z/Enter: confirm selection - handled by modal click */
+        if ((k === "enter" || k === "z") && _dsLen > 0) {
+          /* Trigger the click on the selected entry via DOM */
+          const modal = document.querySelector('[data-debug-spell-modal]');
+          if (modal) {
+            const items = modal.querySelectorAll('[data-debug-entry]');
+            const sel = Math.min(debugSpellMenuSel ?? 0, items.length - 1);
+            if (items[sel]) items[sel].click();
+          }
+          return;
         }
         return;
       }
@@ -1009,7 +1046,7 @@ export function useKeyHandler({
         };
         if (km[k]) {
           e.preventDefault();
-          if (bigboxMode || springMode || putMode || markerMode || spellListMode) {
+          if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode) {
             return;
           }
           execRef.current?.(km[k][0], km[k][1]);
@@ -1033,7 +1070,7 @@ export function useKeyHandler({
         Numpad8: [0, -1],
         Numpad9: [1, -1],
       };
-      if (e.code in numpadGame && !bigboxMode && !springMode && !putMode && !markerMode && !spellListMode) {
+      if (e.code in numpadGame && !bigboxMode && !springMode && !putMode && !markerMode && !spellListMode && !debugSpellMode) {
         e.preventDefault();
         const nd = numpadGame[e.code];
         if (nd === null) {
@@ -1053,7 +1090,7 @@ export function useKeyHandler({
       };
       if (km[k]) {
         e.preventDefault();
-        if (bigboxMode || springMode || putMode || markerMode || spellListMode) {
+        if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode) {
           return;
         }
         if (e.shiftKey || shiftRef.current) {
@@ -1144,6 +1181,8 @@ export function useKeyHandler({
       markerMenuSel,
       spellListMode,
       spellMenuSel,
+      debugSpellMode,
+      debugSpellMenuSel,
       dead,
       gameOverSel,
       showScores,

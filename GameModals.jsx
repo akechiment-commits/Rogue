@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
+import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages } from "./render.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
@@ -1496,7 +1497,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
 }
 
 /* ===== Spell List Modal ===== */
-export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, setIdentifyMode, setShowInv, setSelIdx, setShowDesc, setThrowMode, endTurn, lu, mobile }) {
+export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, setIdentifyMode, setShowInv, setSelIdx, setShowDesc, setThrowMode, setDebugSpellMode, endTurn, lu, mobile }) {
   if (!mode) return null;
   const knownSpells = (gs?.player?.spells || []).map((id) => {
     const s = SPELLS.find((sp) => sp.id === id);
@@ -1555,6 +1556,8 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
                     setMsgs((prev) => [...prev.slice(-80), _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。"]);
                     setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
                     setShowInv(false); setSelIdx(null); setShowDesc(null); sr.current = { ...sr.current }; setGs({ ...sr.current });
+                  } else if (spell.effect.startsWith("debug_")) {
+                    setDebugSpellMode({ effect: spell.effect });
                   } else {
                     p2.mp -= spell.mpCost; ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
                     applySpellEffect(spell.effect, "self", null, 0, 0, dg2, p2, ml2, lu);
@@ -1862,6 +1865,150 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ===== Debug Spell Modal ===== */
+export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, endTurn, mobile }) {
+  if (!mode || !gs) return null;
+  const { effect } = mode;
+
+  /* Build the list of choices based on spell type */
+  let entries = [];
+  if (effect === "debug_summon_mon") {
+    for (const m of MONS) {
+      entries.push({ label: `${m.name} (Lv1)`, value: { base: m, lv: 1 } });
+      const lvs = MON_LEVELS[m.baseKind];
+      if (lvs) {
+        if (lvs[0]) entries.push({ label: `${lvs[0].name} (Lv2)`, value: { base: m, lv: 2 } });
+        if (lvs[1]) entries.push({ label: `${lvs[1].name} (Lv3)`, value: { base: m, lv: 3 } });
+      }
+    }
+  } else if (effect === "debug_get_item") {
+    for (const it of ITEMS) entries.push({ label: it.name, value: { ...it } });
+    for (const w of WANDS) entries.push({ label: w.name, value: { ...w } });
+    for (const sb of SPELLBOOKS) entries.push({ label: sb.name, value: { ...sb } });
+    for (const r of RINGS) entries.push({ label: r.name, value: { ...r } });
+    for (const p of POTS) entries.push({ label: p.name, value: { ...p, contents: [] } });
+  } else if (effect === "debug_create_trap") {
+    for (const t of TRAPS) entries.push({ label: t.name, value: { ...t } });
+  } else if (effect === "debug_summon_bb") {
+    for (const bb of BB_TYPES) entries.push({ label: bb.name, value: { ...bb } });
+  }
+
+  const safeSel = Math.min(menuSel, Math.max(0, entries.length - 1));
+  const title = effect === "debug_summon_mon" ? "敵を選択"
+    : effect === "debug_get_item" ? "アイテムを選択"
+    : effect === "debug_create_trap" ? "罠を選択"
+    : "大箱を選択";
+
+  const doSelect = (entry) => {
+    if (!sr.current) return;
+    const { player: p, dungeon: dg } = sr.current;
+    const ml = [];
+    if (effect === "debug_summon_mon") {
+      const { base, lv } = entry.value;
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+      let placed = false;
+      for (const [ddx, ddy] of dirs) {
+        const nx = p.x + ddx, ny = p.y + ddy;
+        if (nx < 0 || ny < 0 || nx >= dg.map[0].length || ny >= dg.map.length) continue;
+        if (dg.map[ny][nx] !== "." && dg.map[ny][nx] !== "+" && dg.map[ny][nx] !== "<" && dg.map[ny][nx] !== ">") continue;
+        if (dg.monsters.some(m => m.x === nx && m.y === ny)) continue;
+        if (nx === p.x && ny === p.y) continue;
+        const lvData = lv >= 2 ? (MON_LEVELS[base.baseKind]?.[lv - 2] || {}) : {};
+        const mon = {
+          ...base, ...lvData, id: uid(), x: nx, y: ny,
+          maxHp: (lvData.hp || base.hp), hp: (lvData.hp || base.hp),
+          turnAccum: 0, aware: false, monLevel: lv,
+          dir: { x: 0, y: 1 }, lastPx: 0, lastPy: 0, patrolTarget: null,
+          ...(base.subtype ? { subtype: base.subtype } : {}),
+          ...(base.wandEffect ? { wandEffect: base.wandEffect } : {}),
+          ...(base.wallWalker ? { wallWalker: base.wallWalker } : {}),
+          ...(base.float ? { float: base.float } : {}),
+          ...(base.maxAttacks ? { maxAttacks: base.maxAttacks } : {}),
+        };
+        dg.monsters.push(mon);
+        ml.push(`${mon.name}を召喚した！`);
+        placed = true;
+        break;
+      }
+      if (!placed) ml.push("召喚する場所がない！");
+    } else if (effect === "debug_get_item") {
+      if (p.inventory.length >= (p.maxInventory || 30)) {
+        ml.push("持ち物がいっぱいだ！");
+      } else {
+        const it = { ...entry.value, id: uid() };
+        if (it.type === "wand") it.charges = it.maxCharges ?? it.charges ?? 5;
+        if (it.type === "pot") it.contents = [];
+        it.fullIdent = true;
+        it.bcKnown = true;
+        p.inventory.push(it);
+        ml.push(`${it.name}を手に入れた！`);
+      }
+    } else if (effect === "debug_create_trap") {
+      const existing = dg.traps?.find(t => t.x === p.x && t.y === p.y);
+      if (existing) {
+        ml.push("足元にはすでに罠がある！");
+      } else {
+        const trap = { ...entry.value, id: uid(), x: p.x, y: p.y, revealed: true };
+        (dg.traps || (dg.traps = [])).push(trap);
+        ml.push(`${trap.name}を作った！`);
+      }
+    } else if (effect === "debug_summon_bb") {
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],[0,0]];
+      let placed = false;
+      for (const [ddx, ddy] of dirs) {
+        const nx = p.x + ddx, ny = p.y + ddy;
+        if (nx < 0 || ny < 0 || nx >= dg.map[0].length || ny >= dg.map.length) continue;
+        if (dg.map[ny][nx] !== "." && dg.map[ny][nx] !== "+" && dg.map[ny][nx] !== "<" && dg.map[ny][nx] !== ">") continue;
+        if (dg.bigboxes?.some(b => b.x === nx && b.y === ny)) continue;
+        const bb = { id: uid(), x: nx, y: ny, tile: 41, kind: entry.value.kind, name: entry.value.name, capacity: entry.value.cap(), contents: [] };
+        (dg.bigboxes || (dg.bigboxes = [])).push(bb);
+        ml.push(`${bb.name}を設置した！`);
+        placed = true;
+        break;
+      }
+      if (!placed) ml.push("設置する場所がない！");
+    }
+    setMode(null);
+    endTurn(sr.current, p, ml);
+    setMsgs(prev => [...prev.slice(-80), ...ml]);
+    sr.current = { ...sr.current };
+    setGs({ ...sr.current });
+  };
+
+  return (
+    <div data-debug-spell-modal style={{
+      position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
+      background: "#080d18", border: "1px solid #2050a0", padding: mobile ? 10 : 14, zIndex: 12,
+      borderRadius: 8, boxShadow: "0 4px 20px rgba(0,40,120,0.7)",
+      maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ color: "#80c0ff", fontSize: 13, fontWeight: "bold" }}>{title}</span>
+        <button onClick={() => setMode(null)}
+          style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+      </div>
+      <div>
+        {entries.map((entry, vi) => {
+          const isSel = vi === safeSel;
+          return (
+            <div key={vi} data-debug-entry onClick={() => doSelect(entry)} style={{
+              padding: "4px 8px", margin: "1px 0",
+              background: isSel ? "#0a1a30" : "#060e1a",
+              border: "1px solid " + (isSel ? "#2060c0" : "#152040"),
+              borderRadius: 4, cursor: "pointer", fontSize: 11,
+              color: isSel ? "#a0d0ff" : "#7090c0",
+              fontWeight: isSel ? "bold" : "normal",
+            }}>
+              {isSel ? "▶ " : "  "}{entry.label}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ color: "#304060", fontSize: 10, marginTop: 6 }}>↑↓:選択  Z:決定  X:閉じる</div>
     </div>
   );
 }
