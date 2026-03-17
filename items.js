@@ -1967,18 +1967,28 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
   if (dep > 30) { ml.push(`${item.name}は消えてしまった！`); return false; }
-  /* 着地点が水タイルなら沈没 */
+  /* 着地点が水タイルなら沈没（同マスに既存アイテムがない場合のみ、ある場合はDROで代替地を探す） */
   if (dg.map[ty]?.[tx] === T.WATER) {
     dg.waterItems = dg.waterItems || [];
-    dg.waterItems.push({ x: tx, y: ty, item: { ...item, x: tx, y: ty } });
-    ml.push(`${item.name}が水に沈んだ！`);
-    return false;
+    if (!dg.waterItems.some(wi => wi.x === tx && wi.y === ty)) {
+      dg.waterItems.push({ x: tx, y: ty, item: { ...item, x: tx, y: ty } });
+      ml.push(`${item.name}が水に沈んだ！`);
+      return false;
+    }
+    /* 既に埋まっている水タイル→DROで隣接地を探す（後続処理へ） */
   }
   for (const [dx, dy] of DRO) {
     const cx = tx + dx, cy = ty + dy;
     if (cx < 0 || cx >= MW || cy < 0 || cy >= MH ||
-        dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL || dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU ||
-        dg.map[cy][cx] === T.WATER) continue;
+        dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL || dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU) continue;
+    /* 水タイルに落ちる場合：同マスに既に沈没アイテムがなければ沈没 */
+    if (dg.map[cy][cx] === T.WATER) {
+      dg.waterItems = dg.waterItems || [];
+      if (dg.waterItems.some(wi => wi.x === cx && wi.y === cy)) continue;
+      dg.waterItems.push({ x: cx, y: cy, item: { ...item, x: cx, y: cy } });
+      ml.push(`${item.name}が水に沈んだ！`);
+      return false;
+    }
     const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
     if (trap) {
       ft.add(trap.id);
