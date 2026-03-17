@@ -1398,6 +1398,29 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
     }
     return;
   }
+  if (eff === "ice_wand") {
+    const iceDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+    let frozenCount = 0;
+    for (const [adx, ady] of iceDirs) {
+      const wx = p.x + adx, wy = p.y + ady;
+      if (wx < 0 || wx >= MW || wy < 0 || wy >= MH) continue;
+      if (dg.map[wy][wx] !== T.WATER) continue;
+      dg.map[wy][wx] = T.FLOOR;
+      frozenCount++;
+      if (dg.waterItems) {
+        const frozen = dg.waterItems.filter(wi => wi.x === wx && wi.y === wy);
+        dg.waterItems = dg.waterItems.filter(wi => !(wi.x === wx && wi.y === wy));
+        for (const wi of frozen) {
+          wi.item.x = wx; wi.item.y = wy;
+          dg.items.push(wi.item);
+          ml.push(`凍った水から${wi.item.name}が現れた！`);
+        }
+      }
+    }
+    if (frozenCount > 0) ml.push(`周囲${frozenCount}マスの水が凍りついた！`);
+    else ml.push("杖が壊れたが周囲に水はなかった。");
+    return;
+  }
   if (eff === "warp") {
     const wDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
     const ox = p.x, oy = p.y;
