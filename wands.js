@@ -1223,6 +1223,22 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
+    /* 氷の杖：水タイルを凍結して普通の床にする */
+    if (eff === "ice_wand" && dg.map[ty][tx] === T.WATER) {
+      dg.map[ty][tx] = T.FLOOR;
+      ml.push("氷の魔法が水を凍らせた！");
+      if (dg.waterItems) {
+        const _frozen = dg.waterItems.filter(wi => wi.x === tx && wi.y === ty);
+        dg.waterItems = dg.waterItems.filter(wi => !(wi.x === tx && wi.y === ty));
+        for (const wi of _frozen) {
+          wi.item.x = tx; wi.item.y = ty;
+          dg.items.push(wi.item);
+          ml.push(`凍った水から${wi.item.name}が現れた！`);
+        }
+      }
+      lastX = tx; lastY = ty;
+      continue;
+    }
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${mon.name}の前に飛びついた！`); return; }
