@@ -105,11 +105,12 @@ const ENTITIES = {
  * ユーティリティ
  * ================================================================ */
 
-/** タイルセット画像からアノテーション済みの解析用画像を生成
+/** タイルセット画像からアノテーション済みの解析用画像を生成（行範囲指定可）
  *  各タイルに「r,c」ラベルを重ねて Claude が位置を識別しやすくする */
-function buildAnnotatedImage(srcCanvas, cols, rows, tileW, tileH) {
-  // 小さすぎるタイルは 3× まで拡大
-  const scale = Math.max(1, Math.ceil(48 / Math.max(tileW, tileH)));
+function buildAnnotatedImage(srcCanvas, cols, tileW, tileH, rowStart, rowEnd) {
+  const rows = rowEnd - rowStart;
+  // 大きいタイルセット向けにスケールを抑える（最大2×）
+  const scale = Math.min(2, Math.max(1, Math.floor(32 / Math.max(tileW, tileH))));
   const dw = tileW * scale;
   const dh = tileH * scale;
 
@@ -118,51 +119,46 @@ function buildAnnotatedImage(srcCanvas, cols, rows, tileW, tileH) {
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, out.width, out.height);
 
-  for (let r = 0; r < rows; r++) {
+  for (let ri = 0; ri < rows; ri++) {
+    const r = rowStart + ri;
     for (let c = 0; c < cols; c++) {
-      // タイルを拡大してコピー
       ctx.drawImage(srcCanvas,
         c * tileW, r * tileH, tileW, tileH,
-        c * dw,    r * dh,    dw,    dh);
+        c * dw,    ri * dh,   dw,    dh);
 
-      // 薄いグリッド線
       ctx.strokeStyle = 'rgba(255,255,255,0.25)';
       ctx.lineWidth   = 1;
-      ctx.strokeRect(c * dw + 0.5, r * dh + 0.5, dw - 1, dh - 1);
+      ctx.strokeRect(c * dw + 0.5, ri * dh + 0.5, dw - 1, dh - 1);
 
-      // 座標ラベル（左上に小さく）
-      const fontSize = Math.max(7, Math.floor(dh * 0.22));
+      const fontSize = Math.max(6, Math.floor(dh * 0.22));
       ctx.font      = `${fontSize}px monospace`;
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
-      ctx.fillRect(c * dw, r * dh, dw * 0.55, fontSize + 3);
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(c * dw, ri * dh, dw * 0.6, fontSize + 2);
       ctx.fillStyle = '#fff';
-      ctx.fillText(`${r},${c}`, c * dw + 2, r * dh + fontSize);
+      ctx.fillText(`${r},${c}`, c * dw + 1, ri * dh + fontSize);
     }
   }
   return out;
 }
 
-/** Claude API にタイルセット画像を送って JSON マッピングを受け取る */
-async function identifyTilesWithClaude(client, annotatedCanvas, cols, rows, tileW, tileH) {
+/** Claude API に1チャンク分のタイル画像を送って JSON マッピングを受け取る */
+async function identifyChunkWithClaude(client, annotatedCanvas, cols, tileW, tileH, rowStart, rowEnd, entityList, chunkLabel) {
   const base64 = annotatedCanvas.toBuffer('image/png').toString('base64');
-
-  const entityList = Object.entries(ENTITIES)
-    .map(([k, desc]) => `  "${k}": ${desc}`)
-    .join('\n');
+  const rows   = rowEnd - rowStart;
 
   const prompt = `\
-これはローグライクゲームのタイルセットです。
-グリッド: ${cols}列 × ${rows}行（各タイル ${tileW}×${tileH}px を ${Math.ceil(48/Math.max(tileW,tileH))}×拡大して表示）
-各タイルの左上に "行,列"（row,col）のラベルが付いています（0始まり）。
+これはローグライクゲームのタイルセットの一部です。
+チャンク: 行${rowStart}〜${rowEnd - 1}（${rows}行 × ${cols}列、各タイル ${tileW}×${tileH}px）
+各タイルの左上に "行,列"（row,col）のラベルが付いています（0始まり、行番号はタイルセット全体での絶対値）。
 
 以下のゲームエンティティそれぞれに最もふさわしいタイルを選んでください:
 ${entityList}
 
 ルール:
-- タイルセットに存在しないエンティティはスキップ（そのキーを省略）
-- 1つのタイルを複数エンティティに割り当ててよい（例: 同じポーション瓶を potion と potion2 に）
-- 方向違いのプレイヤー（player_down 等）が見当たらない場合は player のみ含める
-- 罠・トラップ類が区別できない場合は最も近いものを使い回してよい
+- このチャンクに存在しないエンティティはスキップ（省略）
+- 1つのタイルを複数エンティティに割り当ててよい
+- 方向違いのプレイヤーが見当たらない場合は player のみ含める
+- 見つからなければ空の {} を返す
 
 以下の JSON のみで回答してください（他の説明は不要）:
 {
@@ -170,10 +166,10 @@ ${entityList}
   ...
 }`;
 
-  console.log('  Claude API にリクエスト中...');
+  console.log(`  ${chunkLabel} Claude API にリクエスト中...`);
   const stream = client.messages.stream({
     model:      'claude-opus-4-6',
-    max_tokens: 4096,
+    max_tokens: 2048,
     thinking:   { type: 'adaptive' },
     messages: [{
       role:    'user',
@@ -184,27 +180,24 @@ ${entityList}
     }],
   });
 
-  // 進捗を dots で表示
   let dots = 0;
   const ticker = setInterval(() => { process.stdout.write('.'); dots++; }, 1000);
   const msg = await stream.finalMessage();
   clearInterval(ticker);
   if (dots > 0) process.stdout.write('\n');
 
-  // テキストブロックを結合して JSON を抽出
-  const rawText = msg.content
-    .filter(b => b.type === 'text')
-    .map(b => b.text)
-    .join('');
-
+  const rawText = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
   const jsonMatch = rawText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    console.error('\nClaude の応答から JSON が見つかりませんでした:');
-    console.error(rawText.slice(0, 500));
-    process.exit(1);
+    console.warn(`  ⚠ ${chunkLabel} JSON が取得できませんでした（スキップ）`);
+    return {};
   }
-
-  return JSON.parse(jsonMatch[0]);
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    console.warn(`  ⚠ ${chunkLabel} JSON のパースに失敗しました（スキップ）`);
+    return {};
+  }
 }
 
 /* ================================================================
@@ -259,20 +252,57 @@ async function main() {
   const srcCanvas = createCanvas(img.width, img.height);
   srcCanvas.getContext('2d').drawImage(img, 0, 0);
 
-  // ── アノテーション付き解析用画像を生成 ──
-  console.log('\n解析用のラベル付き画像を生成中...');
-  const annotated = buildAnnotatedImage(srcCanvas, cols, rows, tileW, tileH);
+  // ── 行範囲を決定（--rows START-END オプション対応）──
+  const rowsArg = process.argv.find(a => a.startsWith('--rows='))?.slice(7)
+               ?? process.argv[process.argv.indexOf('--rows') + 1];
+  let rowStart = 0, rowEnd = rows;
+  if (rowsArg) {
+    const m = rowsArg.match(/^(\d+)-(\d+)$/);
+    if (!m) { console.error('--rows の形式は START-END です（例: --rows=0-100）'); process.exit(1); }
+    rowStart = Math.max(0, parseInt(m[1], 10));
+    rowEnd   = Math.min(rows, parseInt(m[2], 10) + 1);
+    console.log(`  行範囲指定: ${rowStart}〜${rowEnd - 1} 行目のみ解析`);
+  }
+  const totalRows = rowEnd - rowStart;
 
-  // デバッグ用に保存（任意）
-  const debugPath = path.join(ROOT, 'tiles', '_debug_annotated.png');
+  // 1チャンクあたりの最大行数（大きいと画像が重くなるため制限）
+  const CHUNK_ROWS = 40;
+  const chunks = [];
+  for (let s = rowStart; s < rowEnd; s += CHUNK_ROWS) {
+    chunks.push({ start: s, end: Math.min(s + CHUNK_ROWS, rowEnd) });
+  }
+  console.log(`  チャンク分割: ${chunks.length}チャンク（各最大${CHUNK_ROWS}行）`);
+
+  // ── デバッグ用にアノテーション画像を保存（最初のチャンクのみ）──
   fs.mkdirSync(path.join(ROOT, 'tiles'), { recursive: true });
-  fs.writeFileSync(debugPath, annotated.toBuffer('image/png'));
-  console.log(`  デバッグ画像: ${debugPath}`);
+  const debugAnnotated = buildAnnotatedImage(srcCanvas, cols, tileW, tileH, chunks[0].start, chunks[0].end);
+  const debugPath = path.join(ROOT, 'tiles', '_debug_annotated.png');
+  fs.writeFileSync(debugPath, debugAnnotated.toBuffer('image/png'));
+  console.log(`  デバッグ画像（先頭チャンク）: ${debugPath}`);
 
-  // ── Claude API でタイルを識別 ──
+  // ── Claude API でチャンクごとにタイルを識別 ──
   console.log('\nClaude Vision API でタイルを識別中...');
-  const client  = new Anthropic({ apiKey });
-  const mapping = await identifyTilesWithClaude(client, annotated, cols, rows, tileW, tileH);
+  const client = new Anthropic({ apiKey });
+  const entityList = Object.entries(ENTITIES).map(([k, desc]) => `  "${k}": ${desc}`).join('\n');
+
+  const mapping = {};
+  for (let i = 0; i < chunks.length; i++) {
+    const { start, end } = chunks[i];
+    const label = `[チャンク ${i + 1}/${chunks.length} 行${start}〜${end - 1}]`;
+    const annotated = buildAnnotatedImage(srcCanvas, cols, tileW, tileH, start, end);
+    const result = await identifyChunkWithClaude(client, annotated, cols, tileW, tileH, start, end, entityList, label);
+    // 後のチャンクで見つかったものは上書きしない（先に見つかった方を優先）
+    for (const [k, v] of Object.entries(result)) {
+      if (!(k in mapping)) mapping[k] = v;
+    }
+    const found = Object.keys(result).length;
+    console.log(`  → ${found}エンティティ発見 / 累計: ${Object.keys(mapping).length}種`);
+    // 全エンティティ発見済みなら早期終了
+    if (Object.keys(mapping).length >= Object.keys(ENTITIES).length) {
+      console.log('  全エンティティ発見！残りのチャンクをスキップします。');
+      break;
+    }
+  }
 
   // ── タイルを切り出して保存 ──
   console.log('\nタイルを切り出して ./tiles/ に保存中...');
