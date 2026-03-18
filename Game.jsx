@@ -22,10 +22,12 @@ import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
+import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal } from "./GameModals.jsx";
+import { drainAnims, pushMonsterBoltAnim } from './animEvents.js';
+import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
   bigRoom:      "ビッグルームだ！",
   miniRoom:     "ミニルームだ！",
@@ -110,6 +112,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const setFloorSelectMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'floorSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setIdentifyMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'identify', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setNicknameMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'nickname', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const debugSpellMode   = modal.type === 'debugSpell'   ? modal.data : null;
+  const setDebugSpellMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'debugSpell', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const debugSpellMenuSel = modal.debugSpellMenuSel ?? 0;
+  const setDebugSpellMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { debugSpellMenuSel: typeof v === 'function' ? v(modal.debugSpellMenuSel ?? 0) : v } });
   const setRevealMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'reveal', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setNicknameInput = (v) => dispatchModal({ type: 'UPDATE', payload: { nicknameInput: typeof v === 'function' ? v(modal.nicknameInput) : v } });
   /* mobile dash toggle */ const [dead, setDead] = useState(false);
@@ -199,8 +205,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     window.addEventListener("resize", c);
     return () => window.removeEventListener("resize", c);
   }, []);
-  /* Load custom tile images (silently fail if not found — spritesheet fallback) */ useEffect(() => {
+  /* Generate procedural pixel art as default tiles, then override with custom PNGs */
+  useEffect(() => {
     clearCustomTileImages();
+    /* Phase 1: Fill with generated pixel art */
+    const generated = generateTileImages();
+    for (const [idx, canvas] of Object.entries(generated)) {
+      customTileImages[idx] = canvas;
+    }
+    setCtLoaded((c) => c + 1);
+    /* Phase 2: Try loading custom PNGs (overrides generated art) */
     Object.entries(TILE_NAMES).forEach(([idx, name]) => {
       const iidx = parseInt(idx);
       const img = new Image();
@@ -308,7 +322,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       ] : [
         { name:"満腹の特盛りおにぎり", type:"food", effect:"satiate_food", value:120, desc:"とても腹持ちが良さそうだ。", tile:19, cooked:true, id: uid() },
       ],
-      spells: [],
+      spells: dungeonConfig?.dungeonType === "debug"
+        ? ["debug_summon_mon","debug_get_item","debug_create_trap","debug_summon_bb"]
+        : [],
       spellLevels: {},
       turns: 0,
       sleepTurns: 0,
@@ -356,7 +372,119 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, [msgs]);
 
   /* Canvas render */
-  useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
+  const { renderFrame, overlaysRef, moveOffsetsRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
+  const animBusyRef = useRef(false);
+  const monMovesRef = useRef([]); /* populated by endTurn for monster move animations */
+
+  const playAnim = useCallback(async (data) => {
+    if (!data || !canvasRef.current) return;
+    animBusyRef.current = true;
+    try {
+    const _easeOut = (t) => t * (2 - t);
+    const _phase = (dur, fn) => new Promise(res => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; res(); } };
+      /* Safety: if rAF stalls (mobile throttle, tab switch), resolve via setTimeout */
+      const safety = setTimeout(() => { try { fn(1, 1); } catch(_) {} finish(); }, dur + 100);
+      const s = performance.now();
+      const tick = (now) => {
+        if (done) return;
+        try {
+          const raw = Math.max(0, Math.min(1, (now - s) / dur));
+          fn(_easeOut(raw), raw);
+          if (raw < 1) requestAnimationFrame(tick);
+          else { clearTimeout(safety); finish(); }
+        } catch (e) {
+          console.error("Animation phase error:", e);
+          clearTimeout(safety); finish();
+        }
+      };
+      requestAnimationFrame(tick);
+    });
+    /* Phase 1: Player move slide (100ms) */
+    if (data.playerMove) {
+      await _phase(100, (t) => {
+        moveOffsetsRef.current.set("player", { ...data.playerMove, progress: t });
+        renderFrame();
+      });
+      moveOffsetsRef.current.delete("player");
+    }
+    /* Phase 2: Attack slash + damage popup */
+    if (data.attacks?.length || data.damages?.length) {
+      const dur = data.damages?.length ? 400 : 120;
+      await _phase(dur, (t, raw) => {
+        const ovs = [];
+        if (data.attacks) for (const a of data.attacks) ovs.push({ ...a, progress: Math.min(1, raw * (dur / 120)), t: Math.min(1, t * (dur / 120)) });
+        if (data.damages) for (const d of data.damages) ovs.push({ ...d, progress: raw, t });
+        overlaysRef.current = ovs;
+        renderFrame();
+      });
+    }
+    /* Phase 2b: Projectile flight (200ms) */
+    if (data.projectiles?.length) {
+      await _phase(200, (t, raw) => {
+        overlaysRef.current = data.projectiles.map(p => ({ ...p, progress: raw, t }));
+        renderFrame();
+      });
+      overlaysRef.current = [];
+    }
+    /* Phase 2c: Explosions (350ms) */
+    if (data.explosions?.length) {
+      await _phase(350, (t, raw) => {
+        overlaysRef.current = data.explosions.map(e => ({ ...e, progress: raw, t }));
+        renderFrame();
+      });
+      overlaysRef.current = [];
+    }
+    /* Phase 3: Monster moves (80ms) */
+    if (data.monMoves?.length) {
+      await _phase(80, (t) => {
+        for (const mm of data.monMoves) moveOffsetsRef.current.set("mon_" + mm.id, { ...mm, progress: t });
+        renderFrame();
+      });
+      for (const mm of data.monMoves) moveOffsetsRef.current.delete("mon_" + mm.id);
+    }
+    /* Phase 4: Monster attack effects */
+    if (data.monAttacks?.length || data.monDamages?.length) {
+      const dur = data.monDamages?.length ? 400 : 100;
+      await _phase(dur, (t, raw) => {
+        const ovs = [];
+        if (data.monAttacks) for (const a of data.monAttacks) ovs.push({ ...a, progress: Math.min(1, raw * (dur / 100)), t: Math.min(1, t * (dur / 100)) });
+        if (data.monDamages) for (const d of data.monDamages) ovs.push({ ...d, progress: raw, t });
+        overlaysRef.current = ovs;
+        renderFrame();
+      });
+    }
+    /* Phase 4b: Monster projectiles (arrows, bolts, stones) */
+    if (data.monProjectiles?.length) {
+      await _phase(200, (t, raw) => {
+        overlaysRef.current = data.monProjectiles.map(p => ({ ...p, type: "projectile", progress: raw, t }));
+        renderFrame();
+      });
+      overlaysRef.current = [];
+    }
+    moveOffsetsRef.current.clear();
+    overlaysRef.current = [];
+    renderFrame();
+    } finally {
+      animBusyRef.current = false;
+    }
+  }, [renderFrame]);
+  /* Drain animation events produced by useItemActions (outside of act()) */
+  useEffect(() => {
+    if (!gs || animBusyRef.current) return;
+    const evts = drainAnims();
+    if (evts.length === 0) return;
+    const d = { attacks: [], damages: [], projectiles: [], explosions: [] };
+    for (const e of evts) {
+      if (e.type === "projectile") d.projectiles.push(e);
+      else if (e.type === "monProjectile") (d.monProjectiles = d.monProjectiles || []).push(e);
+      else if (e.type === "explosion") d.explosions.push(e);
+      else if (e.type === "damage") d.damages.push(e);
+      else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
+    }
+    if (d.projectiles.length || d.explosions.length || d.damages.length || d.monProjectiles?.length) playAnim(d);
+  }, [gs, playAnim]);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
       p.level++;
@@ -486,7 +614,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     trackTrap(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
   }, []);
-  const moveMons = useCallback((dg, pl, ml) => {
+  const moveMons = useCallback((dg, pl, ml, phaseMode) => {
     const opts = {
       bbFn: bigboxAddItem,
       fireTrapFn: (trap, p, dg2, ml2) => fireTrapPlayer(trap, p, dg2, ml2, null, lu),
@@ -498,6 +626,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames));
         } else if (_we === "curse_wand") {
           ml.push(`${m.name}が呪いの杖を振った！`);
+          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "curse_wand");
           /* 呪いボルトを発射（魔封じチェック・障害物チェックあり） */
           let _cwHit = false;
           for (let _d = 1; _d < 20; _d++) {
@@ -584,6 +713,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (!_cwHit) ml.push("呪いの魔法弾は虚空に消えた。");
         } else if (_we === "blowback_wand") {
           ml.push(`${m.name}が吹き飛ばしの杖を振った！`);
+          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "blowback_wand");
           const _nameFn = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
           let _bwHit = false;
           for (let _d = 1; _d < 20; _d++) {
@@ -636,14 +766,38 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       (Math.abs(a.x - pl.x) + Math.abs(a.y - pl.y)) -
       (Math.abs(b.x - pl.x) + Math.abs(b.y - pl.y))
     );
+    const _phase = phaseMode || "both"; // "moveOnly" | "attackOnly" | "both"
     dg.monsters.forEach((m) => {
       if (m.hp <= 0) return;
+      if (_phase === "attackOnly") {
+        /* 移動した敵は攻撃フェーズをスキップ */
+        if (m._movedThisTurn) { delete m._movedThisTurn; return; }
+        /* 攻撃フェーズ：移動フェーズで保存したアクション回数分だけ攻撃を試みる */
+        const _atkCount = m._phaseActionCount || 1;
+        delete m._phaseActionCount;
+        m.turnAttacks = 0;
+        for (let _ai = 0; _ai < _atkCount; _ai++) {
+          if (m.hp <= 0) break;
+          monsterAI(m, dg, pl, ml, { ...opts, attackOnly: true });
+        }
+        return;
+      }
+      /* moveOnly / both: ターン蓄積・turnAttacksリセットは移動フェーズで */
       m.turnAccum += m.speed;
       m.turnAttacks = 0;
+      let _actionCount = 0;
       while (m.turnAccum >= 1) {
         m.turnAccum -= 1;
+        _actionCount++;
         if (m.hp <= 0) break;
-        monsterAI(m, dg, pl, ml, opts);
+        if (_phase === "moveOnly") {
+          monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
+        } else {
+          monsterAI(m, dg, pl, ml, opts);
+        }
+      }
+      if (_phase === "moveOnly") {
+        m._phaseActionCount = _actionCount;
       }
     });
   }, []);
@@ -676,7 +830,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       d = _saved;
       delete sr.current.floors[nd];
     } else if (sr.current.isDebugRun && nd >= 2) {
-      d = genDebugDungeonFloor2();
+      d = genDungeon(nd - 1, "beginner");
     } else {
       d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
       /* 最下層は下り階段を消して目標アイテムを配置 */
@@ -799,12 +953,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       }
-      /* 爆発の指輪：5%の確率で爆発 */
-      if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
-        ml.push("指輪が爆発した！");
-        const _erfNFn = (gi) => gi.name;
-        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
-      }
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
       const _cursedSancOn = st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
       if (_cursedSancOn && p.hp > 0) {
@@ -835,7 +983,48 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       checkShopTheft(p, st.dungeon, ml);
-      moveMons(st.dungeon, p, ml);
+      /* ===== 4フェーズターン制 ===== */
+      /* Phase 2: モンスター移動フェーズ（攻撃なし） */
+      const _monSnap = new Map();
+      for (const _ms of st.dungeon.monsters) _monSnap.set(_ms.id, { x: _ms.x, y: _ms.y });
+      moveMons(st.dungeon, p, ml, "moveOnly");
+      /* Capture monster position changes for animation + mark movers */
+      const _mmoves = [], _mattacks = [], _mdamages = [];
+      for (const _ms2 of st.dungeon.monsters) {
+        const _snap = _monSnap.get(_ms2.id);
+        if (_snap && (_ms2.x !== _snap.x || _ms2.y !== _snap.y)) {
+          _mmoves.push({ id: _ms2.id, fromX: _snap.x, fromY: _snap.y, toX: _ms2.x, toY: _ms2.y, tile: _ms2.tile, hp: _ms2.hp, maxHp: _ms2.maxHp });
+          _ms2._movedThisTurn = true; /* 移動した敵は攻撃フェーズで攻撃不可 */
+        }
+      }
+      /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
+      /* 爆発の指輪：5%の確率で爆発 */
+      if (p.hp > 0 && hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
+        ml.push("指輪が爆発した！");
+        const _erfNFn = (gi) => gi.name;
+        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
+      }
+      /* 遅延地雷爆発（act()から受け渡し） */
+      if (st._pendingMineExplosion && p.hp > 0) {
+        const _pme = st._pendingMineExplosion;
+        delete st._pendingMineExplosion;
+        ml.push(`${_pme.name}が発動！`);
+        if (hasCursedExplosionPentacle(st.dungeon)) {
+          ml.push(`呪われた爆発の魔方陣が爆発を打ち消した！`);
+        } else {
+          doExplosion(_pme.x, _pme.y, st.dungeon, p, ml, _pme.nameFn, _pme.name, null, lu, true);
+        }
+      }
+      /* Phase 4: モンスター攻撃フェーズ（移動なし） */
+      const _plHpBefore = p.hp;
+      moveMons(st.dungeon, p, ml, "attackOnly");
+      /* Detect if player was attacked (HP decreased during attack phase) */
+      if (p.hp < _plHpBefore && p.hp > 0) {
+        const _dmgTaken = _plHpBefore - p.hp;
+        _mdamages.push({ type: "damage", x: p.x, y: p.y, value: _dmgTaken, color: "#ff6644" });
+        _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
+      }
+      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages };
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
@@ -1065,10 +1254,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (sleepTurns <= 0 && paralyzeTurns <= 0 && !slowSkip) return;
     setShowInv(false);
     setThrowMode(null);
-    const timer = setTimeout(() => {
+    /* Wait for any running animation to finish before advancing */
+    const tryAdvance = () => {
       if (!sr.current) return;
+      if (animBusyRef.current) {
+        /* Animation still running — poll until it finishes */
+        setTimeout(tryAdvance, 50);
+        return;
+      }
       const st = sr.current;
-      const { player: p } = st;
+      const { player: p, dungeon: dg } = st;
       if (p.sleepTurns <= 0 && p.paralyzeTurns <= 0 && !p.slowSkip) return;
       const ml = [];
       if (p.sleepTurns > 0) {
@@ -1082,7 +1277,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           ? `金縛りにあっている...あと${p.paralyzeTurns}ターン`
           : "金縛りが解けた！");
       } else if (p.slowSkip) {
-        /* 鈍足スキップターン：モンスターだけ行動してプレイヤーはスキップ */
         p.slowSkip = false;
         p.slowTurns = Math.max(0, (p.slowTurns || 0) - 1);
         if (p.slowTurns <= 0) {
@@ -1092,16 +1286,35 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       endTurn(st, p, ml);
+      /* Collect monster move animations from endTurn */
+      const _ad = { monMoves: [], monAttacks: [], monDamages: [] };
+      const _monAnimData = monMovesRef.current;
+      if (_monAnimData) {
+        _ad.monMoves = _monAnimData.moves || [];
+        _ad.monAttacks = _monAnimData.attacks || [];
+        _ad.monDamages = _monAnimData.damages || [];
+        monMovesRef.current = null;
+      }
+      const _drainedEvts = drainAnims();
+      for (const _de of _drainedEvts) {
+        if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
+        else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
+        else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);
+      }
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
       setGs({ ...st });
-    }, 400);
+      const _hasAnim = _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.monProjectiles?.length;
+      if (_hasAnim) playAnim(_ad);
+    };
+    const timer = setTimeout(tryAdvance, 400);
     return () => clearTimeout(timer);
-  }, [gs, endTurn]);
+  }, [gs, endTurn, playAnim]);
 
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
       if (dead || !sr.current) return;
+      if (animBusyRef.current) return;
       if (revealMode) return;
       if (bigboxMode) return;
       if (lookMode) return;
@@ -1109,12 +1322,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (putMode) return;
       if (markerMode) return;
       if (spellListMode) return;
+      if (debugSpellMode) return;
       if (throwMode !== null && type !== "inventory") return;
       if (showInv && type !== "inventory") return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       let acted = false;
       const ml = [];
+      /* Animation data collected during this turn */
+      const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [] };
+      const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
         const nd = chgFloor(p, dir);
         if (nd) {
@@ -1219,6 +1436,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
               if (!_meleeSureHit && Math.random() >= 0.95) {
                 ml.push(`${attackMon.name}への攻撃は外れた！`);
+                _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
+                _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
                 acted = true;
               } else {
               if (attackMon.paralyzed) {
@@ -1272,6 +1491,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 (_hasIceElem && attackMon.baseKind === "firedemon" ? "氷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
+              _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
+              _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: d, color: crit ? "#ffff00" : "#ff4444" });
+              if (attackMon.hp <= 0) _ad.damages.push({ type: "flash", x: attackMon.x, y: attackMon.y, color: "#ff2200", duration: 150 });
               if (wabHas("knockback") && attackMon.hp > 0) {
                 const kx = attackMon.x + dx,
                   ky = attackMon.y + dy;
@@ -1347,6 +1569,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               p.y >= s.room.y && p.y < s.room.y + s.room.h);
             p.x = nx;
             p.y = ny;
+            _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
             for (const _esh of _wasInShopOf) {
               if (!(p.x >= _esh.room.x && p.x < _esh.room.x + _esh.room.w &&
                   p.y >= _esh.room.y && p.y < _esh.room.y + _esh.room.h)) {
@@ -1364,6 +1587,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 st.dungeon = nd;
                 ml.push(`地下${p.depth}階に落ちた！`);
               }
+            } else if (tr === "deferred_explosion") {
+              /* 地雷：モンスター移動後に爆発させる（endTurnで処理） */
+              const _mineTrap = dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "explode");
+              st._pendingMineExplosion = {
+                x: p.x, y: p.y,
+                name: _mineTrap?.name || "地雷",
+                nameFn: (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+              };
             }
             autoPickup(p, st.dungeon, ml);
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
@@ -1592,8 +1823,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      /* Collect monster animation data from endTurn */
+      const _monAnimData = monMovesRef.current;
+      if (_monAnimData) {
+        _ad.monMoves = _monAnimData.moves || [];
+        _ad.monAttacks = _monAnimData.attacks || [];
+        _ad.monDamages = _monAnimData.damages || [];
+        monMovesRef.current = null;
+      }
+      /* Drain global animation events (projectiles, explosions from deeply nested logic) */
+      const _drainedEvts = drainAnims();
+      for (const _de of _drainedEvts) {
+        if (_de.type === "projectile") (_ad.projectiles = _ad.projectiles || []).push(_de);
+        else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
+        else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
+        else if (_de.type === "damage") _ad.damages.push(_de);
+        else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
+      }
       sr.current = { ...st };
       setGs({ ...st });
+      /* Play animations if any were queued */
+      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.explosions && _ad.explosions.length) || (_ad.monProjectiles && _ad.monProjectiles.length);
+      if (_hasAnim) playAnim(_ad);
     },
     [
       dead,
@@ -1610,6 +1861,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       endTurn,
       revealMode,
       lookMode,
+      playAnim,
     ],
   );
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
@@ -1689,7 +1941,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const doDash = useCallback(
     (dx, dy) => {
       if (dead || !sr.current) return;
-      if (springMode || putMode || markerMode || spellListMode || throwMode || showInv || lookMode) return;
+      if (animBusyRef.current) return;
+      if (springMode || putMode || markerMode || spellListMode || debugSpellMode || throwMode || showInv || lookMode) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
@@ -1764,6 +2017,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             st.dungeon = nd;
             ml.push(`地下${p.depth}階に落ちた！`);
           }
+          endTurn(st, p, ml);
+          break;
+        }
+        if (tr === "deferred_explosion") {
+          const _mineTrapD = dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "explode");
+          st._pendingMineExplosion = {
+            x: p.x, y: p.y,
+            name: _mineTrapD?.name || "地雷",
+            nameFn: (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+          };
           endTurn(st, p, ml);
           break;
         }
@@ -2072,6 +2335,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           item.plus = before + 1;
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
           ml.push(`${item.name}が強化された！(${fp(before)}→${fp(item.plus)})`);
+        } else if (item.type === "pot") {
+          item.capacity = (item.capacity || 1) + 1;
+          ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
         } else {
           ml.push(`${_idn}には効果がなかった。`);
         }
@@ -2163,6 +2429,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (bb.kind === "bless") {
         if (item.type === "goal") {
           ml.push(`${_idn}には効果がなかった。`);
+        } else if (item.type === "pot") {
+          item.capacity = (item.capacity || 1) + 1;
+          ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
         } else {
           item.blessed = true;
           item.cursed = false;
@@ -2358,7 +2627,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
     markerMode, markerMenuSel, spellListMode, spellMenuSel, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
-    tpSelectMode, floorSelectMode, lookMode,
+    tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
     // state setters
     setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -2366,7 +2635,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
     setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setShopMode,
     setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
-    setRevealMode,
+    setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
     // callbacks
     init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
     bigboxPutItem, sortInventory, getLookDesc, lu,
@@ -3240,7 +3509,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       <FloorSelectModal mode={floorSelectMode} setMode={setFloorSelectMode} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} genDungeon={genDungeon} refreshFOV={refreshFOV} rng={rng} />{" "}
       <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} />{" "}
-      <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
+      <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
+      <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} />
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} />

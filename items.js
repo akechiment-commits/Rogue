@@ -1,5 +1,6 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
+import { pushExplosionAnim } from './animEvents.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
@@ -85,6 +86,25 @@ export function generateFakeNames(items, pots, spellbooks = []) {
 }
 
 /* ===== ITEMS ===== */
+/*
+ * ────────────────────────────────────────────────────────────────
+ * 新しいアイテムを追加する手順:
+ *   【薬・巻物】
+ *     1. ITEMS配列に { name, type, effect, value?, rarity, weight, sellPrice, desc, tile } を追加
+ *     2. applyPotionEffect() の switch(eff) に case "effect名": { ... } を追加
+ *        ※ 追加し忘れると console.warn が出て効果が発動しない
+ *   【ペン】
+ *     1. ITEMS配列に { name:"...のペン", type:"pen", effect, charges:2, ... } を追加
+ *     2. Game.jsx のペン効果処理ブロックに effect 名を追加
+ *   【杖】
+ *     1. WANDS配列に { name, type:"wand", effect, charges, ... } を追加
+ *     2. wands.js の applyWandEffect() の switch(eff) に case "effect名": { ... } を追加
+ *        ※ 追加し忘れると console.warn が出て効果が発動しない
+ *   【壺】
+ *     1. POTS配列に { name, type:"pot", potEffect, capacity, ... } を追加
+ *     2. applyPotEffect() に potEffect の処理を追加（if チェーン）
+ * ────────────────────────────────────────────────────────────────
+ */
 export const ITEMS = [
   { name:"回復薬",           type:"potion", effect:"heal",     value:15, rarity:"D", weight:12, sellPrice:50,   desc:"HPを少し回復する。",               tile:16 },
   { name:"大回復薬",         type:"potion", effect:"heal",     value:35, rarity:"B", weight:4,  sellPrice:300,  desc:"HPを大幅に回復する。",             tile:17 },
@@ -585,12 +605,12 @@ export const WANDS = [
 export const BB_TYPES = [
   { kind: "synthesis", name: "合成の大笥", cap: () => 2,         desc: "2つのアイテムを合成する。武器同士・防具同士なら能力を引き継ぐ。杖同士ならチャージを合算。ペン同士なら合算。食料+壺なら壺で加工。杖+水の瓶なら薬に変化。閉じる時に効果が発動する。" },
   { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4), desc: "入れたアイテムがランダムな別のアイテムに変化する。何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
-  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2), desc: "武器・防具の＋値を1上げる。他のアイテムには効果がない。" },
+  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2), desc: "武器・防具の＋値を1上げる。壺の容量を1増やす。他のアイテムには効果がない。" },
   { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4), desc: "食料のサイズを1段階大きくする。すでに最大サイズなら効果がない。食料以外には効果がない。" },
   { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3), desc: "杖・ペン・魔法のマーカーの使用回数をランダムに回復する。" },
   { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5), desc: "入れたアイテムを識別する。薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
   { kind: "split",     name: "分裂の大箱", cap: () => 1, rare: true, desc: "【レア】入れたアイテムを複製する。＋値・矢の数は半減する。金貨とキーアイテムは分裂しない。" },
-  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2), rare: true, desc: "【レア】入れたアイテムを祝福する。祝福されたアイテムは効果が強化されたり有利な状態になる。キーアイテムには効果がない。" },
+  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2), rare: true, desc: "【レア】入れたアイテムを祝福する。壺は祝福ではなく容量が1増える。キーアイテムには効果がない。" },
 ];
 
 /* ===== POTS ===== */
@@ -833,6 +853,7 @@ export const TRAPS = [
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
  */
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false) {
+  pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
     const _hasFireR = ringExplosion && hasAbility(p.armor, "fire_resist");
@@ -919,6 +940,23 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
     }
   }
+  /* 爆発範囲内の大箱を破壊 */
+  const _blastedBB = [];
+  for (let ddx = -1; ddx <= 1; ddx++) {
+    for (let ddy = -1; ddy <= 1; ddy++) {
+      const ax = cx + ddx, ay = cy + ddy;
+      if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+      const _hitBBs = (dg.bigboxes || []).filter(b => b.x === ax && b.y === ay);
+      for (const _hbb of _hitBBs) {
+        if (_blastedBB.includes(_hbb)) continue;
+        _blastedBB.push(_hbb);
+        ml.push(`${_hbb.name}が爆発で壊れた！`);
+        const ft = new Set();
+        for (const ci of (_hbb.contents || [])) placeItemAt(dg, _hbb.x, _hbb.y, ci, ml, ft);
+      }
+    }
+  }
+  if (_blastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b));
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 破壊された火薬壺の連鎖爆発 */
@@ -934,11 +972,24 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
   if (hasCursedExplosionPentacle(dg)) { ml.push(`呪われた爆発の魔方陣が${srcLabel}の爆発を打ち消した！`); return; }
   _gunpowderDepth++;
   try {
+    pushExplosionAnim(cx, cy);
     ml.push(`${srcLabel}が爆発した！周囲8マスに爆風！`);
     for (let ddx = -1; ddx <= 1; ddx++) {
       for (let ddy = -1; ddy <= 1; ddy++) {
         const ax = cx + ddx, ay = cy + ddy;
         if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+        /* 壁の破壊 */
+        if ((dg.map[ay][ax] === T.BWALL || dg.map[ay][ax] === T.WALL) &&
+            ax > 0 && ax < MW - 1 && ay > 0 && ay < MH - 1) {
+          const _wi = dg.items.find(i => i.x === ax && i.y === ay && i.wallEmbedded);
+          if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
+          dg.map[ay][ax] = T.FLOOR;
+          if (dg.explored?.[ay]?.[ax] !== undefined) dg.explored[ay][ax] = true;
+          if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
+          ml.push("爆風で壁が崩れた！");
+          wallBreakDrop(dg, ax, ay);
+          continue;
+        }
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
         if (p && p.x === ax && p.y === ay) {
           const _hasFireR = hasAbility(p.armor, "fire_resist");
@@ -1118,22 +1169,24 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "spin": {
       ml.push(`${trap.name}が発動！${item.name}はどこかへ吹き飛んだ！`);
-      const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-      const nx = rng(rm.x, rm.x + rm.w - 1);
-      const ny = rng(rm.y, rm.y + rm.h - 1);
-      placeItemAt(dg, nx, ny, item, ml, ft);
-      const _spm = monsterAt(dg, tx, ty);
-      if (_spm) {
-        const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
-        _spm.x = rng(_spr.x, _spr.x + _spr.w - 1);
-        _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
-        ml.push(`${_spm.name}も吹き飛ばされた！`);
-      }
-      if (p && p.x === tx && p.y === ty) {
-        const _psr = dg.rooms[rng(0, dg.rooms.length - 1)];
-        p.x = rng(_psr.x, _psr.x + _psr.w - 1);
-        p.y = rng(_psr.y, _psr.y + _psr.h - 1);
-        ml.push(`吹き飛ばされた！`);
+      if (dg.rooms?.length) {
+        const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
+        const nx = rng(rm.x, rm.x + rm.w - 1);
+        const ny = rng(rm.y, rm.y + rm.h - 1);
+        placeItemAt(dg, nx, ny, item, ml, ft);
+        const _spm = monsterAt(dg, tx, ty);
+        if (_spm) {
+          const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
+          _spm.x = rng(_spr.x, _spr.x + _spr.w - 1);
+          _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
+          ml.push(`${_spm.name}も吹き飛ばされた！`);
+        }
+        if (p && p.x === tx && p.y === ty) {
+          const _psr = dg.rooms[rng(0, dg.rooms.length - 1)];
+          p.x = rng(_psr.x, _psr.x + _psr.w - 1);
+          p.y = rng(_psr.y, _psr.y + _psr.h - 1);
+          ml.push(`吹き飛ばされた！`);
+        }
       }
       return "destroyed";
     }
@@ -1683,6 +1736,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       }
       break;
+    default:
+      /* 未登録の effect が渡された場合は警告 (items.js ITEMS への追加を忘れずに) */
+      console.warn(`[applyPotionEffect] 未登録の effect: "${eff}" — applyPotionEffect の switch に case を追加してください`);
   }
 }
 
@@ -2433,7 +2489,12 @@ export const SPELLS=[
   {id:"transform_magic",name:"変化の魔法",mpCost:12,effect:"transform_magic",range:8,needsDir:true,desc:"対象を変化させる。MP:12"},
   {id:"identify_magic",name:"識別の魔法",mpCost:1,fixedMpCost:true,effect:"identify_magic",needsDir:false,desc:"持ち物から1つ選んで識別する。MP:1"},
   {id:"bless_magic",name:"祝福の魔法",mpCost:1,fixedMpCost:true,effect:"bless_magic",needsDir:false,desc:"アイテムを1つ選んで祝福する。MP:1"},
-  {id:"curse_magic",name:"呪いの魔法",mpCost:1,fixedMpCost:true,effect:"curse_magic",needsDir:false,desc:"アイテムを1つ選んで呪う。MP:1"},];
+  {id:"curse_magic",name:"呪いの魔法",mpCost:1,fixedMpCost:true,effect:"curse_magic",needsDir:false,desc:"アイテムを1つ選んで呪う。MP:1"},
+  {id:"debug_summon_mon",name:"[debug]敵召喚",mpCost:0,fixedMpCost:true,effect:"debug_summon_mon",needsDir:false,debug:true,desc:"任意の敵を1体選んで呼び出す。MP:0"},
+  {id:"debug_get_item",name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",needsDir:false,debug:true,desc:"任意のアイテムを1個選んで入手する。MP:0"},
+  {id:"debug_create_trap",name:"[debug]罠生成",mpCost:0,fixedMpCost:true,effect:"debug_create_trap",needsDir:false,debug:true,desc:"任意の罠を1つ選んで足元に作る。MP:0"},
+  {id:"debug_summon_bb",name:"[debug]大箱召喚",mpCost:0,fixedMpCost:true,effect:"debug_summon_bb",needsDir:false,debug:true,desc:"任意の大箱を1つ選んで呼び出す。MP:0"},
+];
 export const SPELLBOOKS=[
   {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"B", weight:4,  sellPrice:3000,  desc:"炎の魔法を習得できる。火に弱い。",tile:43},
   {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"B", weight:4,  sellPrice:3000,  desc:"氷の魔法を習得できる。火に弱い。",tile:43},

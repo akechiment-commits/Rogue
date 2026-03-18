@@ -8,7 +8,14 @@ import {
   hasCursedExplosionPentacle,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
+import { pushAnim, pushMonsterBoltAnim } from './animEvents.js';
 
+/*
+ * 新しい杖エフェクトを追加する手順:
+ *   1. items.js の WANDS配列に新しい杖を追加
+ *   2. この関数の switch(eff) に case "effect名": { ... } を追加
+ *      ※ 追加し忘れると console.warn が出て効果が発動しない
+ */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0) {
   if (kind === "monster") wakeIfDormant(target, ml);
   /* 地面のアイテムは未識別名で表示するため、呼び出し元から nameFn を受け取る */
@@ -1162,6 +1169,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       break;
     }
+    default:
+      /* 未登録の effect が渡された場合は警告 (items.js WANDS への追加を忘れずに) */
+      console.warn(`[applyWandEffect] 未登録の effect: "${eff}" — applyWandEffect の switch に case を追加してください`);
   }
 }
 
@@ -1193,6 +1203,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     applyWandEffect("knockback", "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, 1);
     return;
   }
+  const _wandColors = {
+    lightning:"#88ccff", slow:"#20d0d0", paralyze:"#ffcc00", sleep:"#80ff40",
+    confuse:"#ff40ff", darkness:"#606080", bewitch:"#ff80c0", levelup:"#ffff60",
+    seal:"#8040e0", knockback:"#20e0c0", swap:"#ff8800", dig:"#aa8844",
+    leap:"#40ff80", ice_wand:"#80ddff", curse_wand:"#9020b0", blowback_wand:"#20e0c0",
+  };
+  const _boltClr = _wandColors[eff] || "#a050f0";
   let lastX = p.x, lastY = p.y;
   for (let d = 1; d < MW + MH; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
@@ -1288,6 +1305,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
 export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null) {
+  pushMonsterBoltAnim(cx, cy, dx, dy, dg, pl, "lightning");
   for (let d = 1; d < MW + MH; d++) {
     const tx = cx + dx * d, ty = cy + dy * d;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }

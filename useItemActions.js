@@ -14,6 +14,7 @@ import {
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim } from "./animEvents.js";
 
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
@@ -648,7 +649,7 @@ export function useItemActions({
         } else {
         // 祝福：フロア全モンスターに雷、通常：視界内のみ、呪い：視界内＋自分にも雷
         const _tTargets = it.blessed
-          ? dg.monsters
+          ? [...dg.monsters]
           : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
         if (_tTargets.length === 0 && !it.cursed) {
           ml.push("雷が走るが、視界に敵はいない。");
@@ -657,6 +658,7 @@ export function useItemActions({
             ml.push("雷が走るが、フロアに敵はいない。【祝】");
           }
           for (const _m of _tTargets) {
+            if (_m.hp <= 0) continue;
             let _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
@@ -1593,6 +1595,7 @@ export function useItemActions({
             const _msTarget = [...dg.monsters]
               .filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
               .sort((a, b) => _msDist(a) - _msDist(b))[0];
+            if (_msTarget) pushProjectileAnim(p.x, p.y, _msTarget.x, _msTarget.y, "#cc88ff");
             ml.push(`${_stName}を投げた！`);
             if (!_msTarget) {
               ml.push(`近くに敵がいない！${_stName}は消えた。`);
@@ -1612,6 +1615,7 @@ export function useItemActions({
             }
           } else {
             /* 通常の石：必ず3マス先（呪い遠投は1マス先）に着弾 */
+            pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa");
             const _stRange = _isCursedFc ? 1 : 3;
             let _stLx = p.x, _stLy = p.y;
             for (let d = 1; d <= _stRange; d++) {
@@ -1659,6 +1663,7 @@ export function useItemActions({
         if (_arItem.bombArrow) {
           const _baName = _arItem.name;
           const _baNF = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
+          pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622");
           p.arrow.count--;
           ml.push(`${_baName}を射った！`);
           if (_isFarcast) {
@@ -1676,6 +1681,12 @@ export function useItemActions({
                 _baM.hp -= _baDmg;
                 ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
                 if (_baM.hp <= 0) { trackMonster(_baM); killMonster(_baM, dg, p, ml, lu); }
+                _baLx = tx; _baLy = ty;
+                break;
+              }
+              const _baBB = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
+              if (_baBB) {
+                ml.push(`${_baName}が${_baBB.name}に命中！`);
                 _baLx = tx; _baLy = ty;
                 break;
               }
@@ -1707,6 +1718,7 @@ export function useItemActions({
         const _arPierceMode = _arIsPierce || _isFarcast;
         const _arMaxRange = _isCursedFc ? 1 : _arPierceMode ? 50 : 10;
         const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
+        pushBoltAnim(p.x, p.y, dx, dy, dg, _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050");
         p.arrow.count--;
         const dmg = (_arItem.atk || 4) + rng(1, 4);
         let lx = p.x,
@@ -1767,6 +1779,7 @@ export function useItemActions({
           setThrowMode(null);
           return;
         }
+        pushBoltAnim(p.x, p.y, dx, dy, dg, "#d0a050");
         shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem);
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
       } else if (mode === "wand_wave") {
@@ -1784,6 +1797,7 @@ export function useItemActions({
           const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
           /* 杖発射前のプレイヤー位置を記録（ワープ系の盗賊判定用） */
           const _preWandPx = p.x, _preWandPy = p.y;
+          pushBoltAnim(p.x, p.y, dx, dy, dg, it.effect);
           fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName);
           /* プレイヤー位置が変わった場合、ショップ離脱盗賊チェック */
           if (p.x !== _preWandPx || p.y !== _preWandPy) {
@@ -1828,6 +1842,7 @@ export function useItemActions({
         } else {
           p.mp = (p.mp || 0) - _csCost;
           ml.push(`${spellDef.name}を唱えた！[MP -${_csCost}]`);
+          pushBoltAnim(p.x, p.y, dx, dy, dg, "#60a0ff");
           castSpellBolt(p, dg, spellDef, dx, dy, ml, lu);
         }
       } else {
@@ -1938,6 +1953,12 @@ export function useItemActions({
                 _baLx2 = tx; _baLy2 = ty;
                 break;
               }
+              const _baBB2 = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
+              if (_baBB2) {
+                ml.push(`${_baName2}が${_baBB2.name}に命中！`);
+                _baLx2 = tx; _baLy2 = ty;
+                break;
+              }
               _baLx2 = tx; _baLy2 = ty;
             }
             if (hasCursedExplosionPentacle(dg)) {
@@ -1955,6 +1976,8 @@ export function useItemActions({
         }
 
         p.inventory.splice(idx, 1);
+        /* 投擲アニメーション */
+        pushBoltAnim(p.x, p.y, dx, dy, dg, it.type === "potion" ? "#f050e0" : it.type === "pot" ? "#7a5a2a" : it.type === "wand" ? "#a050f0" : "#aaaaaa");
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false;

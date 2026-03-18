@@ -1,5 +1,6 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster } from "./items.js";
+import { pushMonsterBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -153,89 +154,204 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
 }
 
 /* ===== MONSTER DEFINITIONS ===== */
+/*
+ * ────────────────────────────────────────────────────────────────
+ * 新しい敵を追加する手順:
+ *   1. MONS配列に新しいエントリを追加（出現階層順で挿入）
+ *      必須: name, hp, atk, def, exp, speed, tile, kind, baseKind, monLevel:1
+ *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect
+ *        subtype の選択肢: "archer" | "stonethrow" | "wanduser" | "supporter"
+ *                         | "thief" | "runner" (特殊AIが必要なら monsterAI に追記)
+ *        wandEffect: subtype:"wanduser" のとき使う杖エフェクト名
+ *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
+ *      (省略するとレベルアップ不可)
+ *   3. 特殊AIが必要なら monsterAI() の subtype 判定ブロックに追加
+ * ────────────────────────────────────────────────────────────────
+ */
 /* ── MONS配列の順番 = 出現階層（index N → N+1階から出現可能）── */
 export const MONS = [
   /* 0: 1階〜 */
-  { name: "ネズミ",       hp: 5,   atk: 3,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",        monLevel: 1 },
+  { name: "ネズミ",       hp: 5,   atk: 3,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",        monLevel: 1,
+    levels: [
+      { name: "強ネズミ",         hp: 8,   atk: 4,  def: 2,  exp: 5   },
+      { name: "覇ネズミ",         hp: 13,  atk: 5,  def: 4,  exp: 8   },
+    ],
+  },
   /* 1: 2階〜 */
-  { name: "コボルド",     hp: 10,  atk: 5,  def: 1,  exp: 8,   speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",     monLevel: 1 },
+  { name: "コボルド",     hp: 10,  atk: 5,  def: 1,  exp: 8,   speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",     monLevel: 1,
+    levels: [
+      { name: "コボルド戦士",     hp: 16,  atk: 7,  def: 3,  exp: 13  },
+      { name: "コボルド族長",     hp: 25,  atk: 9,  def: 6,  exp: 20  },
+    ],
+  },
   /* 2: 3階〜 */
-  { name: "ゴブリン",     hp: 12,  atk: 6,  def: 1,  exp: 12,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",     monLevel: 1 },
+  { name: "ゴブリン",     hp: 12,  atk: 6,  def: 1,  exp: 12,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",     monLevel: 1,
+    levels: [
+      { name: "ゴブリン頭",       hp: 19,  atk: 8,  def: 4,  exp: 19  },
+      { name: "ゴブリン王",       hp: 30,  atk: 11, def: 7,  exp: 30  },
+    ],
+  },
   /* 3: 4階〜 速攻型 */
-  { name: "インプ",       hp: 14,  atk: 7,  def: 1,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",        monLevel: 1, float: true },
+  { name: "インプ",       hp: 14,  atk: 7,  def: 1,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",        monLevel: 1, float: true,
+    levels: [
+      { name: "強インプ",         hp: 22,  atk: 10, def: 3,  exp: 32  },
+      { name: "覇インプ",         hp: 35,  atk: 13, def: 6,  exp: 50  },
+    ],
+  },
   /* 4: 5階〜 */
-  { name: "スケルトン",   hp: 18,  atk: 8,  def: 3,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",   monLevel: 1 },
+  { name: "スケルトン",   hp: 18,  atk: 8,  def: 3,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",   monLevel: 1,
+    levels: [
+      { name: "強スケルトン",     hp: 29,  atk: 11, def: 6,  exp: 35  },
+      { name: "アンデッドナイト", hp: 45,  atk: 14, def: 9,  exp: 55  },
+    ],
+  },
   /* 5: 6階〜 鈍足・硬め */
-  { name: "ゾンビ",       hp: 25,  atk: 9,  def: 2,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",     monLevel: 1 },
+  { name: "ゾンビ",       hp: 25,  atk: 9,  def: 2,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",     monLevel: 1,
+    levels: [
+      { name: "強ゾンビ",         hp: 40,  atk: 13, def: 5,  exp: 45  },
+      { name: "屍鬼",             hp: 63,  atk: 16, def: 8,  exp: 70  },
+    ],
+  },
   /* 5.5: 6階〜 石投げ */
-  { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 8,  kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow" },
+  { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 8,  kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow",
+    levels: [
+      { name: "強ワッカ",         hp: 28,  atk: 13, def: 3,  exp: 45  },
+      { name: "覇ワッカ",         hp: 45,  atk: 18, def: 5,  exp: 72  },
+    ],
+  },
   /* 6: 7階〜 遠距離 */
-  { name: "アーチャー",   hp: 22,  atk: 10, def: 2,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",     monLevel: 1, subtype: "archer" },
+  { name: "アーチャー",   hp: 22,  atk: 10, def: 2,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",     monLevel: 1, subtype: "archer",
+    levels: [
+      { name: "古参アーチャー",   hp: 35,  atk: 14, def: 5,  exp: 54  },
+      { name: "弓の達人",         hp: 55,  atk: 18, def: 8,  exp: 85  },
+    ],
+  },
   /* 7: 8階〜 速攻獣 */
-  { name: "ウルフ",       hp: 20,  atk: 11, def: 1,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",       monLevel: 1 },
+  { name: "ウルフ",       hp: 20,  atk: 11, def: 1,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",       monLevel: 1,
+    levels: [
+      { name: "強ウルフ",         hp: 32,  atk: 15, def: 4,  exp: 64  },
+      { name: "フェンリル",       hp: 50,  atk: 20, def: 7,  exp: 100 },
+    ],
+  },
   /* 7.5: 8階〜 盗みモンスター */
-  { name: "コソドロ",       hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief" },
+  { name: "コソドロ",     hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief",
+    levels: [
+      { name: "大盗賊",           hp: 20,  atk: 6,  def: 1,  exp: 56  },
+      { name: "怪盗",             hp: 32,  atk: 8,  def: 2,  exp: 88  },
+    ],
+  },
   /* 7.6: 5階〜 逃げるボーナスモンスター */
-  { name: "コロポックル",   hp: 8,   atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 53, kind: "beast",    baseKind: "runner",     monLevel: 1, subtype: "runner" },
+  { name: "コロポックル", hp: 8,   atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 53, kind: "beast",    baseKind: "runner",     monLevel: 1, subtype: "runner",
+    levels: [
+      { name: "大コロポックル",   hp: 12,  atk: 0,  def: 0,  exp: 80  },
+      { name: "精霊コロポックル", hp: 18,  atk: 0,  def: 0,  exp: 120 },
+    ],
+  },
   /* 8: 9階〜 杖使い */
-  { name: "ウィザード",   hp: 18,  atk: 9,  def: 2,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",     monLevel: 1, subtype: "wanduser", wandEffect: "lightning" },
+  { name: "ウィザード",   hp: 18,  atk: 9,  def: 2,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",     monLevel: 1, subtype: "wanduser", wandEffect: "lightning",
+    levels: [
+      { name: "強ウィザード",     hp: 29,  atk: 13, def: 5,  exp: 67  },
+      { name: "大魔導士",         hp: 45,  atk: 16, def: 8,  exp: 105 },
+    ],
+  },
   /* 9: 10階〜 壁歩き (固定スポーンは3階〜) */
-  { name: "岩霊",         hp: 28,  atk: 10, def: 3,  exp: 45,  speed: 1,   tile: 43, kind: "undead",   baseKind: "rockspirit", monLevel: 1, wallWalker: true },
+  { name: "岩霊",         hp: 28,  atk: 10, def: 3,  exp: 45,  speed: 1,   tile: 43, kind: "undead",   baseKind: "rockspirit", monLevel: 1, wallWalker: true,
+    levels: [
+      { name: "強岩霊",           hp: 45,  atk: 14, def: 6,  exp: 72  },
+      { name: "岩の王",           hp: 70,  atk: 18, def: 9,  exp: 113 },
+    ],
+  },
   /* 10: 11階〜 */
-  { name: "オーク",       hp: 30,  atk: 12, def: 5,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",        monLevel: 1 },
+  { name: "オーク",       hp: 30,  atk: 12, def: 5,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",        monLevel: 1,
+    levels: [
+      { name: "オーク将",         hp: 48,  atk: 17, def: 8,  exp: 77  },
+      { name: "オーク王",         hp: 75,  atk: 22, def: 11, exp: 120 },
+    ],
+  },
   /* 11: 12階〜 */
-  { name: "大蛇",         hp: 35,  atk: 13, def: 3,  exp: 52,  speed: 1,   tile: 12, kind: "beast",    baseKind: "serpent",    monLevel: 1, maxAttacks: 2 },
+  { name: "大蛇",         hp: 35,  atk: 13, def: 3,  exp: 52,  speed: 1,   tile: 12, kind: "beast",    baseKind: "serpent",    monLevel: 1, maxAttacks: 2,
+    levels: [
+      { name: "強大蛇",           hp: 56,  atk: 18, def: 6,  exp: 83  },
+      { name: "覇大蛇",           hp: 88,  atk: 23, def: 9,  exp: 130 },
+    ],
+  },
   /* 12: 13階〜 呪い杖 (固定スポーンは2階〜) */
-  { name: "呪術師",       hp: 25,  atk: 9,  def: 3,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",   monLevel: 1, subtype: "wanduser", wandEffect: "curse_wand" },
+  { name: "呪術師",       hp: 25,  atk: 9,  def: 3,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",   monLevel: 1, subtype: "wanduser", wandEffect: "curse_wand",
+    levels: [
+      { name: "強呪術師",         hp: 40,  atk: 13, def: 6,  exp: 88  },
+      { name: "大呪術師",         hp: 63,  atk: 16, def: 9,  exp: 138 },
+    ],
+  },
   /* 13: 14階〜 サポーター */
-  { name: "シャーマン",   hp: 30,  atk: 9,  def: 3,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",     monLevel: 1, subtype: "supporter" },
+  { name: "シャーマン",   hp: 30,  atk: 9,  def: 3,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",     monLevel: 1, subtype: "supporter",
+    levels: [
+      { name: "強シャーマン",     hp: 48,  atk: 13, def: 6,  exp: 96  },
+      { name: "大シャーマン",     hp: 75,  atk: 16, def: 9,  exp: 150 },
+    ],
+  },
   /* 14: 15階〜 吹き飛ばし杖 */
-  { name: "ウィンドメイジ", hp: 28, atk: 11, def: 3, exp: 65,  speed: 1,   tile: 54, kind: "humanoid", baseKind: "windmage",   monLevel: 1, subtype: "wanduser", wandEffect: "blowback_wand" },
+  { name: "ウィンドメイジ", hp: 28, atk: 11, def: 3, exp: 65,  speed: 1,   tile: 54, kind: "humanoid", baseKind: "windmage",   monLevel: 1, subtype: "wanduser", wandEffect: "blowback_wand",
+    levels: [
+      { name: "強ウィンドメイジ", hp: 45,  atk: 15, def: 6,  exp: 104 },
+      { name: "風の覇者",         hp: 70,  atk: 20, def: 9,  exp: 163 },
+    ],
+  },
   /* 14.5: 15階〜 炎モンスター */
-  { name: "火ダルマ",     hp: 55,  atk: 20, def: 4,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",  monLevel: 1, float: true },
+  { name: "火ダルマ",     hp: 55,  atk: 20, def: 4,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",  monLevel: 1, float: true,
+    levels: [
+      { name: "強火ダルマ",       hp: 88,  atk: 28, def: 7,  exp: 176 },
+      { name: "炎の悪魔",         hp: 140, atk: 37, def: 10, exp: 275 },
+    ],
+  },
   /* 15: 16階〜 */
-  { name: "トロル",       hp: 50,  atk: 16, def: 6,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",      monLevel: 1 },
+  { name: "トロル",       hp: 50,  atk: 16, def: 6,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",      monLevel: 1,
+    levels: [
+      { name: "強トロル",         hp: 80,  atk: 22, def: 9,  exp: 120 },
+      { name: "覇トロル",         hp: 125, atk: 29, def: 12, exp: 188 },
+    ],
+  },
   /* 16: 17階〜 鈍足・超硬 */
-  { name: "ガーゴイル",   hp: 65,  atk: 18, def: 11, exp: 90,  speed: 0.5, tile: 52, kind: "beast",    baseKind: "gargoyle",   monLevel: 1, float: true },
+  { name: "ガーゴイル",   hp: 65,  atk: 18, def: 11, exp: 90,  speed: 0.5, tile: 52, kind: "beast",    baseKind: "gargoyle",   monLevel: 1, float: true,
+    levels: [
+      { name: "強ガーゴイル",     hp: 104, atk: 25, def: 15, exp: 144 },
+      { name: "覇ガーゴイル",     hp: 163, atk: 32, def: 19, exp: 225 },
+    ],
+  },
   /* 17: 18階〜 速攻不死 */
-  { name: "ヴァンパイア", hp: 60,  atk: 18, def: 7,  exp: 92,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",    monLevel: 1, maxAttacks: 2, float: true },
+  { name: "ヴァンパイア", hp: 60,  atk: 18, def: 7,  exp: 92,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",    monLevel: 1, maxAttacks: 2, float: true,
+    levels: [
+      { name: "強ヴァンパイア",   hp: 96,  atk: 25, def: 10, exp: 147 },
+      { name: "ヴァンパイア卿",   hp: 150, atk: 32, def: 13, exp: 230 },
+    ],
+  },
   /* 18: 19階〜 */
-  { name: "ドラゴン",     hp: 90,  atk: 24, def: 10, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",     monLevel: 1 },
+  { name: "ドラゴン",     hp: 90,  atk: 24, def: 10, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",     monLevel: 1,
+    levels: [
+      { name: "強ドラゴン",       hp: 144, atk: 34, def: 13, exp: 224 },
+      { name: "古龍",             hp: 225, atk: 43, def: 16, exp: 350 },
+    ],
+  },
   /* 19: 20階〜 鈍足・超DEF */
-  { name: "ゴーレム",     hp: 100, atk: 20, def: 16, exp: 115, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",      monLevel: 1 },
+  { name: "ゴーレム",     hp: 100, atk: 20, def: 16, exp: 115, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",      monLevel: 1,
+    levels: [
+      { name: "強ゴーレム",       hp: 160, atk: 28, def: 20, exp: 184 },
+      { name: "覇ゴーレム",       hp: 250, atk: 36, def: 24, exp: 288 },
+    ],
+  },
   /* 20: 21階〜 高ATK速攻 */
-  { name: "デーモン",     hp: 80,  atk: 28, def: 9,  exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",     monLevel: 1, maxAttacks: 3, float: true },
+  { name: "デーモン",     hp: 80,  atk: 28, def: 9,  exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",     monLevel: 1, maxAttacks: 3, float: true,
+    levels: [
+      { name: "強デーモン",       hp: 128, atk: 39, def: 13, exp: 256 },
+      { name: "魔王",             hp: 200, atk: 50, def: 17, exp: 400 },
+    ],
+  },
 ];
 
-/* ===== モンスターレベルアップテーブル ===== */
+/* ===== モンスターレベルアップテーブル (MONS の levels から自動生成) ===== */
 /* MON_LEVELS[baseKind][0] = Lv2テンプレ, [1] = Lv3テンプレ (名前・HP・ATK・DEF・EXPのみ変更) */
-export const MON_LEVELS = {
-  "rat":        [ { name: "強ネズミ",         hp: 8,   atk: 4,  def: 2,  exp: 5   }, { name: "覇ネズミ",         hp: 13,  atk: 5,  def: 4,  exp: 8   } ],
-  "kobold":     [ { name: "コボルド戦士",     hp: 16,  atk: 7,  def: 3,  exp: 13  }, { name: "コボルド族長",     hp: 25,  atk: 9,  def: 6,  exp: 20  } ],
-  "goblin":     [ { name: "ゴブリン頭",       hp: 19,  atk: 8,  def: 4,  exp: 19  }, { name: "ゴブリン王",       hp: 30,  atk: 11, def: 7,  exp: 30  } ],
-  "imp":        [ { name: "強インプ",         hp: 22,  atk: 10, def: 3,  exp: 32  }, { name: "覇インプ",         hp: 35,  atk: 13, def: 6,  exp: 50  } ],
-  "skeleton":   [ { name: "強スケルトン",     hp: 29,  atk: 11, def: 6,  exp: 35  }, { name: "アンデッドナイト", hp: 45,  atk: 14, def: 9,  exp: 55  } ],
-  "zombie":     [ { name: "強ゾンビ",         hp: 40,  atk: 13, def: 5,  exp: 45  }, { name: "屍鬼",             hp: 63,  atk: 16, def: 8,  exp: 70  } ],
-  "wokka":      [ { name: "強ワッカ",         hp: 28,  atk: 13, def: 3,  exp: 45  }, { name: "覇ワッカ",         hp: 45,  atk: 18, def: 5,  exp: 72  } ],
-  "archer":     [ { name: "古参アーチャー",   hp: 35,  atk: 14, def: 5,  exp: 54  }, { name: "弓の達人",         hp: 55,  atk: 18, def: 8,  exp: 85  } ],
-  "wolf":       [ { name: "強ウルフ",         hp: 32,  atk: 15, def: 4,  exp: 64  }, { name: "フェンリル",       hp: 50,  atk: 20, def: 7,  exp: 100 } ],
-  "thief":      [ { name: "大盗賊",           hp: 20,  atk: 6,  def: 1,  exp: 56  }, { name: "怪盗",             hp: 32,  atk: 8,  def: 2,  exp: 88  } ],
-  "runner":     [ { name: "大コロポックル",   hp: 12,  atk: 0,  def: 0,  exp: 80  }, { name: "精霊コロポックル", hp: 18,  atk: 0,  def: 0,  exp: 120 } ],
-  "wizard":     [ { name: "強ウィザード",     hp: 29,  atk: 13, def: 5,  exp: 67  }, { name: "大魔導士",         hp: 45,  atk: 16, def: 8,  exp: 105 } ],
-  "rockspirit": [ { name: "強岩霊",           hp: 45,  atk: 14, def: 6,  exp: 72  }, { name: "岩の王",           hp: 70,  atk: 18, def: 9,  exp: 113 } ],
-  "orc":        [ { name: "オーク将",         hp: 48,  atk: 17, def: 8,  exp: 77  }, { name: "オーク王",         hp: 75,  atk: 22, def: 11, exp: 120 } ],
-  "serpent":    [ { name: "強大蛇",           hp: 56,  atk: 18, def: 6,  exp: 83  }, { name: "覇大蛇",           hp: 88,  atk: 23, def: 9,  exp: 130 } ],
-  "witchdoc":   [ { name: "強呪術師",         hp: 40,  atk: 13, def: 6,  exp: 88  }, { name: "大呪術師",         hp: 63,  atk: 16, def: 9,  exp: 138 } ],
-  "shaman":     [ { name: "強シャーマン",     hp: 48,  atk: 13, def: 6,  exp: 96  }, { name: "大シャーマン",     hp: 75,  atk: 16, def: 9,  exp: 150 } ],
-  "windmage":   [ { name: "強ウィンドメイジ", hp: 45,  atk: 15, def: 6,  exp: 104 }, { name: "風の覇者",         hp: 70,  atk: 20, def: 9,  exp: 163 } ],
-  "firedemon":  [ { name: "強火ダルマ",       hp: 88,  atk: 28, def: 7,  exp: 176 }, { name: "炎の悪魔",         hp: 140, atk: 37, def: 10, exp: 275 } ],
-  "troll":      [ { name: "強トロル",         hp: 80,  atk: 22, def: 9,  exp: 120 }, { name: "覇トロル",         hp: 125, atk: 29, def: 12, exp: 188 } ],
-  "gargoyle":   [ { name: "強ガーゴイル",     hp: 104, atk: 25, def: 15, exp: 144 }, { name: "覇ガーゴイル",     hp: 163, atk: 32, def: 19, exp: 225 } ],
-  "vampire":    [ { name: "強ヴァンパイア",   hp: 96,  atk: 25, def: 10, exp: 147 }, { name: "ヴァンパイア卿",   hp: 150, atk: 32, def: 13, exp: 230 } ],
-  "dragon":     [ { name: "強ドラゴン",       hp: 144, atk: 34, def: 13, exp: 224 }, { name: "古龍",             hp: 225, atk: 43, def: 16, exp: 350 } ],
-  "golem":      [ { name: "強ゴーレム",       hp: 160, atk: 28, def: 20, exp: 184 }, { name: "覇ゴーレム",       hp: 250, atk: 36, def: 24, exp: 288 } ],
-  "daemon":     [ { name: "強デーモン",       hp: 128, atk: 39, def: 13, exp: 256 }, { name: "魔王",             hp: 200, atk: 50, def: 17, exp: 400 } ],
-};
+/* ※ 直接編集せず、MONS 側の levels を修正すること */
+export const MON_LEVELS = Object.fromEntries(
+  MONS.filter(m => m.levels?.length).map(m => [m.baseKind, m.levels]));
 
 /** モンスターのレベルを1上げ、次形態に変化させる。変化した場合 true を返す */
 export function monLevelUp(mon, dg, ml) {
@@ -299,7 +415,7 @@ export function makeGuard(x, y, plx, ply) {
 /* ===== モンスター生成ヘルパー ===== */
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
 export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false } = {}) {
-  const mt = MONS[clamp(rng(0, depth), 0, MONS.length - 1)];
+  const { levels: _lvls, ...mt } = MONS[clamp(rng(0, depth), 0, MONS.length - 1)];
   return { ...mt, id: uid(), x, y, maxHp: mt.hp, turnAccum: immediateAct ? -(mt.speed || 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
 }
 
@@ -318,6 +434,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
   }
   /* 残りはランダム部屋に配置 */
   for (let i = spawned; i < count; i++) {
+    if (!dg.rooms?.length) break;
     for (let att = 0; att < 30; att++) {
       const room = dg.rooms[rng(0, dg.rooms.length - 1)];
       const sx = rng(room.x + 1, room.x + room.w - 2);
@@ -468,6 +585,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   const _isFc = _fcMode === "farcast";
   const _travelMax = _isFc ? 50 : maxDist;
   ml.push(`${m.name}が矢を放った！`);
+  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#d0a050");
   let lx = m.x, ly = m.y;
   let _plHit = false;
   for (let d = 1; d <= _travelMax; d++) {
@@ -486,7 +604,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_ad.x, y:_ad.y });
         if (_arSanc) ml.push(`${m.name}の矢は祝福された聖域の加護に阻まれた！矢が落ちた。`);
         else ml.push(`${m.name}の矢は外れた！矢が落ちた。`);
-        const trap = dg.traps.find(t => t.x === pl.x && t.y === pl.y);
+        const trap = dg.traps?.find(t => t.x === pl.x && t.y === pl.y);
         if (trap && opts.fireTrapFn) opts.fireTrapFn(trap, pl, dg, ml);
         if (!_isFc) return;
       } else {
@@ -541,6 +659,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   const hitChance = lvl >= 3 ? 0.99 : lvl >= 2 ? 0.90 : 0.75;
   const stoneName = isMagic ? "魔法の石" : "石";
   ml.push(`${m.name}が${stoneName}を投げた！`);
+  pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, isMagic ? "#cc88ff" : "#aaaaaa");
 
   /* みかわし（防具の効果） */
   const dodged = hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
@@ -591,6 +710,8 @@ export function wakeIfDormant(m, ml) {
 
 /* ===== MONSTER AI ===== */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
+  const _moveOnly = opts.moveOnly || false;
+  const _attackOnly = opts.attackOnly || false;
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
   /* 通常仮眠：視界に入るか、何らかのアクションを受けたら即覚醒 */
@@ -609,35 +730,36 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }
   if (m.sleepTurns > 0) {
-    m.sleepTurns--;
+    if (!_attackOnly) m.sleepTurns--;
     return;
   }
   if (m.paralyzed) return;
   /* 移動封じ（氷の杖など） */
-  if ((m.immobileTurns||0) > 0) { m.immobileTurns--; return; }
+  if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns--; return; }
 
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
-    m.confusedTurns--;
+    if (!_attackOnly) m.confusedTurns--;
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
       if (_cnx === pl.x && _cny === pl.y) {
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`); }
+        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`); }
       } else {
         const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
         if (_other) {
-          /* 他のモンスターを攻撃 */
-          const _odmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_other.def || 0))) + rng(-1, 1));
-          _other.hp -= _odmg;
-          ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
-          if (_other.hp <= 0) {
-            ml.push(`${_other.name}は倒れた！`);
-            removeMonster(dg, _other);
-            monLevelUp(m, dg, ml);
+          if (!_moveOnly) {
+            const _odmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_other.def || 0))) + rng(-1, 1));
+            _other.hp -= _odmg;
+            ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
+            if (_other.hp <= 0) {
+              ml.push(`${_other.name}は倒れた！`);
+              removeMonster(dg, _other);
+              monLevelUp(m, dg, ml);
+            }
           }
-        } else if (isWalkable(dg.map, _cnx, _cny)) {
+        } else if (!_attackOnly && isWalkable(dg.map, _cnx, _cny)) {
           m.x = _cnx; m.y = _cny;
         }
       }
@@ -649,7 +771,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== 暗闇状態：まっすぐ進み途中の者を攻撃 ===== */
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
-    if (!_isPerm) m.darknessTurns--;
+    if (!_isPerm && !_attackOnly) m.darknessTurns--;
     if (!m.darkDir) {
       const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
       m.darkDir = pick(_ddirs);
@@ -657,19 +779,21 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
     if (canEnter(dg.map, _dnx, _dny, m.float)) {
       if (_dnx === pl.x && _dny === pl.y) {
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true }); }
+        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true }); }
       } else {
         const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
         if (_dother) {
-          const _dodmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_dother.def || 0))) + rng(-1, 1));
-          _dother.hp -= _dodmg;
-          ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
-          if (_dother.hp <= 0) {
-            ml.push(`${_dother.name}は倒れた！`);
-            removeMonster(dg, _dother);
-            monLevelUp(m, dg, ml);
+          if (!_moveOnly) {
+            const _dodmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_dother.def || 0))) + rng(-1, 1));
+            _dother.hp -= _dodmg;
+            ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
+            if (_dother.hp <= 0) {
+              ml.push(`${_dother.name}は倒れた！`);
+              removeMonster(dg, _dother);
+              monLevelUp(m, dg, ml);
+            }
           }
-        } else {
+        } else if (!_attackOnly) {
           m.x = _dnx; m.y = _dny;
         }
       }
@@ -683,7 +807,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== 幻惑状態：プレイヤーから逃げ回る ===== */
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
-    if (!_isPerm) m.fleeingTurns--;
+    if (!_isPerm && !_attackOnly) m.fleeingTurns--;
     const _fcands = [];
     for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
       const _fnx = m.x + _fmx, _fny = m.y + _fmy;
@@ -694,15 +818,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       _fcands.push({ x: _fnx, y: _fny, score: _score });
     }
     _fcands.sort((a, b) => b.score - a.score);
-    if (_fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
+    if (!_attackOnly && _fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
     if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`);
     return;
   }
 
   /* ===== 詰まり検出（位置履歴で停滞・往復を判定） ===== */
-  m.posHistory = m.posHistory || [];
-  m.posHistory.push({ x: m.x, y: m.y });
-  if (m.posHistory.length > 6) m.posHistory.shift();
+  if (!_attackOnly) {
+    m.posHistory = m.posHistory || [];
+    m.posHistory.push({ x: m.x, y: m.y });
+    if (m.posHistory.length > 6) m.posHistory.shift();
+  }
   let _forceAlt = false;
   if (m.posHistory.length >= 6) {
     const _ph = m.posHistory;
@@ -794,7 +920,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* 隣接していれば攻撃 */
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
-      if (m.turnAttacks < (m.maxAttacks ?? 1)) {
+      if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
         m.turnAttacks++;
         const _wwInWall = dg.map[m.y]?.[m.x] === T.WALL;
         monsterAttackPlayer(m, dg, pl, ml, d => _wwInWall
@@ -802,17 +928,20 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           : `${m.name}の攻撃！${d}ダメージ！`);
         return;
       }
+      if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 2回目以降は移動のみ → 直進コードへフォールスルー */
     }
-    /* 壁を無視してプレイヤーへ1歩直進 */
-    const _wdx = Math.sign(pl.x - m.x), _wdy = Math.sign(pl.y - m.y);
-    if (_wdx !== 0 || _wdy !== 0) {
-      const _wnx = m.x + _wdx, _wny = m.y + _wdy;
-      if (_wnx > 0 && _wnx < MW - 1 && _wny > 0 && _wny < MH - 1 &&
-          !(_wnx === pl.x && _wny === pl.y) &&
-          !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
-          !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny)) {
-        m.x = _wnx; m.y = _wny;
+    if (!_attackOnly) {
+      /* 壁を無視してプレイヤーへ1歩直進 */
+      const _wdx = Math.sign(pl.x - m.x), _wdy = Math.sign(pl.y - m.y);
+      if (_wdx !== 0 || _wdy !== 0) {
+        const _wnx = m.x + _wdx, _wny = m.y + _wdy;
+        if (_wnx > 0 && _wnx < MW - 1 && _wny > 0 && _wny < MH - 1 &&
+            !(_wnx === pl.x && _wny === pl.y) &&
+            !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
+            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny)) {
+          m.x = _wnx; m.y = _wny;
+        }
       }
     }
     return;
@@ -820,12 +949,31 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
   if (m.aware) {
     /* ── ranged special attacks (only when player is visible) ── */
-    if (canSee) {
+    /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
+    if (_moveOnly && canSee) {
+      const _radx = pl.x - m.x, _rady = pl.y - m.y;
+      const _rLen = Math.max(Math.abs(_radx), Math.abs(_rady));
+      const _rLine = _radx === 0 || _rady === 0 || Math.abs(_radx) === Math.abs(_rady);
+      const _rAtks = m.turnAttacks < (m.maxAttacks ?? 1);
+      const _archerRdy = m.subtype === "archer" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
+      const _stLvlR = m.monLevel || 1;
+      const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
+      const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
+      const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
+      if ((_archerRdy || _stoneRdy || _wandRdy) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m._rangedAttackThisTurn = true;
+        return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
+      }
+    }
+
+    if (!_moveOnly && canSee) {
       const adx = pl.x - m.x, ady = pl.y - m.y;
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
+      const _rdy = m._rangedAttackThisTurn;
+      if (_rdy) delete m._rangedAttackThisTurn;
 
-      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
@@ -835,14 +983,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-        if (_stDist <= _stRange && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (_stDist <= _stRange && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
           monsterThrowStone(m, dg, pl, ml);
           return;
         }
       }
 
-      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>
@@ -860,7 +1008,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── ドラゴン炎ブレス（Lv1:一直線 / Lv2:同部屋 / Lv3:同フロア） ── */
-    if (m.baseKind === "dragon" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
+    if (!_moveOnly && m.baseKind === "dragon" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
       const _dfAdx = pl.x - m.x, _dfAdy = pl.y - m.y;
       const _dfDist = Math.max(Math.abs(_dfAdx), Math.abs(_dfAdy));
       const _dfLvl = m.monLevel || 1;
@@ -884,17 +1032,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
     /* ── runner（コロポックル等）：常にプレイヤーから逃げる。攻撃しない ── */
     if (m.subtype === "runner") {
-      const _rcands = [];
-      for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-        const _rnx = m.x + _rmx, _rny = m.y + _rmy;
-        if (!isWalkable(dg.map, _rnx, _rny)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
-        if (_rnx === pl.x && _rny === pl.y) continue;
-        const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
-        _rcands.push({ x: _rnx, y: _rny, score: _score });
+      if (!_attackOnly) {
+        const _rcands = [];
+        for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+          const _rnx = m.x + _rmx, _rny = m.y + _rmy;
+          if (!isWalkable(dg.map, _rnx, _rny)) continue;
+          if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
+          if (_rnx === pl.x && _rny === pl.y) continue;
+          const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
+          _rcands.push({ x: _rnx, y: _rny, score: _score });
+        }
+        _rcands.sort((a, b) => b.score - a.score);
+        if (_rcands.length > 0) { m.x = _rcands[0].x; m.y = _rcands[0].y; }
       }
-      _rcands.sort((a, b) => b.score - a.score);
-      if (_rcands.length > 0) { m.x = _rcands[0].x; m.y = _rcands[0].y; }
       return;
     }
 
@@ -902,6 +1052,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.subtype === "thief" && !m.sealed) {
       const _tdx = pl.x - m.x, _tdy = pl.y - m.y;
       const _adj = Math.abs(_tdx) <= 1 && Math.abs(_tdy) <= 1;
+      if (_adj && _moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       if (_adj) {
         const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
         if (_hasAntiSteal) {
@@ -949,7 +1100,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── supporter（シャーマン等）：近くの味方を回復・強化 ── */
-    if (m.subtype === "supporter" && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+    if (!_moveOnly && m.subtype === "supporter" && (m.alwaysUseSpecial || Math.random() < 0.5)) {
       /* 傷ついた味方を探す（範囲8マス） */
       const _injured = dg.monsters.filter(o =>
         o !== m && (o.maxHp != null ? o.hp < o.maxHp : false) &&
@@ -997,7 +1148,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const ty = canSee ? pl.y : m.lastPy;
 
     /* ── 遠距離タイプが部屋内で射線が合っていない場合：軸合わせ優先 ── */
-    if (canSee && _sameRoom &&
+    if (!_attackOnly && canSee && _sameRoom &&
         (m.subtype === "archer" || m.subtype === "wanduser") && !m.sealed) {
       const _ralDx = pl.x - m.x, _ralDy = pl.y - m.y;
       const _inLineNow = _ralDx === 0 || _ralDy === 0 || Math.abs(_ralDx) === Math.abs(_ralDy);
@@ -1027,6 +1178,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
     /* adjacent attack */
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+      if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
       if (m.turnAttacks < (m.maxAttacks ?? 1)) {
@@ -1037,6 +1189,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* 2回目以降：攻撃せずBFSで移動を試みる */
     }
 
+    if (_attackOnly) return; /* attackOnlyフェーズ：移動しない */
+
     /* move toward target */
     /* BFSで最短経路を求める。部屋内での壁ぶつかりを防ぎ、通路への最適経路を辿る。 */
     const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles, m.float);
@@ -1046,7 +1200,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
         m.dir = { x: next.x - m.x, y: next.y - m.y };
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) {
+        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
           m.turnAttacks++;
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
         }
@@ -1096,7 +1250,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         _altMoves.sort((a, b) => a.dist - b.dist);
         const _ab = _altMoves[0];
         if (_ab.x === pl.x && _ab.y === pl.y) {
-          if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
+          if (!_moveOnly && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
               m.turnAttacks < (m.maxAttacks ?? 1)) {
             m.turnAttacks++; m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
             monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
@@ -1127,7 +1281,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
       m.posHistory = [];
     }
-  } else {
+  } else if (!_attackOnly) {
     /* ===== 未覚醒：パトロール ===== */
     const room = findRoom(rooms, m.x, m.y);
     const _arrived = m.patrolTarget &&
