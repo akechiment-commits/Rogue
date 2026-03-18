@@ -362,7 +362,66 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, [msgs]);
 
   /* Canvas render */
-  useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
+  const { renderFrame, overlaysRef, moveOffsetsRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
+  const animBusyRef = useRef(false);
+  const monMovesRef = useRef([]); /* populated by endTurn for monster move animations */
+
+  const playAnim = useCallback(async (data) => {
+    if (!data || !canvasRef.current) return;
+    animBusyRef.current = true;
+    const _easeOut = (t) => t * (2 - t);
+    const _phase = (dur, fn) => new Promise(res => {
+      const s = performance.now();
+      const tick = (now) => {
+        const raw = Math.min(1, (now - s) / dur);
+        fn(_easeOut(raw), raw);
+        if (raw < 1) requestAnimationFrame(tick); else res();
+      };
+      requestAnimationFrame(tick);
+    });
+    /* Phase 1: Player move slide (100ms) */
+    if (data.playerMove) {
+      await _phase(100, (t) => {
+        moveOffsetsRef.current.set("player", { ...data.playerMove, progress: t });
+        renderFrame();
+      });
+      moveOffsetsRef.current.delete("player");
+    }
+    /* Phase 2: Attack slash + damage popup */
+    if (data.attacks?.length || data.damages?.length) {
+      const dur = data.damages?.length ? 400 : 120;
+      await _phase(dur, (t, raw) => {
+        const ovs = [];
+        if (data.attacks) for (const a of data.attacks) ovs.push({ ...a, progress: Math.min(1, raw * (dur / 120)), t: Math.min(1, t * (dur / 120)) });
+        if (data.damages) for (const d of data.damages) ovs.push({ ...d, progress: raw, t });
+        overlaysRef.current = ovs;
+        renderFrame();
+      });
+    }
+    /* Phase 3: Monster moves (80ms) */
+    if (data.monMoves?.length) {
+      await _phase(80, (t) => {
+        for (const mm of data.monMoves) moveOffsetsRef.current.set("mon_" + mm.id, { ...mm, progress: t });
+        renderFrame();
+      });
+      for (const mm of data.monMoves) moveOffsetsRef.current.delete("mon_" + mm.id);
+    }
+    /* Phase 4: Monster attack effects */
+    if (data.monAttacks?.length || data.monDamages?.length) {
+      const dur = data.monDamages?.length ? 400 : 100;
+      await _phase(dur, (t, raw) => {
+        const ovs = [];
+        if (data.monAttacks) for (const a of data.monAttacks) ovs.push({ ...a, progress: Math.min(1, raw * (dur / 100)), t: Math.min(1, t * (dur / 100)) });
+        if (data.monDamages) for (const d of data.monDamages) ovs.push({ ...d, progress: raw, t });
+        overlaysRef.current = ovs;
+        renderFrame();
+      });
+    }
+    moveOffsetsRef.current.clear();
+    overlaysRef.current = [];
+    renderFrame();
+    animBusyRef.current = false;
+  }, [renderFrame]);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
       p.level++;
@@ -841,7 +900,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       checkShopTheft(p, st.dungeon, ml);
+      /* Snapshot monster positions before movement for animation */
+      const _monSnap = new Map();
+      for (const _ms of st.dungeon.monsters) _monSnap.set(_ms.id, { x: _ms.x, y: _ms.y });
+      const _plHpBefore = p.hp;
       moveMons(st.dungeon, p, ml);
+      /* Capture monster position changes for animation */
+      const _mmoves = [], _mattacks = [], _mdamages = [];
+      for (const _ms2 of st.dungeon.monsters) {
+        const _snap = _monSnap.get(_ms2.id);
+        if (_snap && (_ms2.x !== _snap.x || _ms2.y !== _snap.y)) {
+          _mmoves.push({ id: _ms2.id, fromX: _snap.x, fromY: _snap.y, toX: _ms2.x, toY: _ms2.y, tile: _ms2.tile, hp: _ms2.hp, maxHp: _ms2.maxHp });
+        }
+      }
+      /* Detect if player was attacked (HP decreased during moveMons) */
+      if (p.hp < _plHpBefore && p.hp > 0) {
+        const _dmgTaken = _plHpBefore - p.hp;
+        _mdamages.push({ type: "damage", x: p.x, y: p.y, value: _dmgTaken, color: "#ff6644" });
+        _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
+      }
+      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages };
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
@@ -1069,10 +1147,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (!gs?.player) return;
     const { sleepTurns = 0, paralyzeTurns = 0, slowSkip = false } = gs.player;
     if (sleepTurns <= 0 && paralyzeTurns <= 0 && !slowSkip) return;
+    if (animBusyRef.current) return;
     setShowInv(false);
     setThrowMode(null);
     const timer = setTimeout(() => {
-      if (!sr.current) return;
+      if (!sr.current || animBusyRef.current) return;
       const st = sr.current;
       const { player: p } = st;
       if (p.sleepTurns <= 0 && p.paralyzeTurns <= 0 && !p.slowSkip) return;
@@ -1108,6 +1187,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
       if (dead || !sr.current) return;
+      if (animBusyRef.current) return;
       if (revealMode) return;
       if (bigboxMode) return;
       if (lookMode) return;
@@ -1122,6 +1202,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         { player: p, dungeon: dg } = st;
       let acted = false;
       const ml = [];
+      /* Animation data collected during this turn */
+      const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [] };
+      const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
         const nd = chgFloor(p, dir);
         if (nd) {
@@ -1226,6 +1309,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
               if (!_meleeSureHit && Math.random() >= 0.95) {
                 ml.push(`${attackMon.name}への攻撃は外れた！`);
+                _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
+                _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
                 acted = true;
               } else {
               if (attackMon.paralyzed) {
@@ -1279,6 +1364,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 (_hasIceElem && attackMon.baseKind === "firedemon" ? "氷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
+              _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
+              _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: d, color: crit ? "#ffff00" : "#ff4444" });
+              if (attackMon.hp <= 0) _ad.damages.push({ type: "flash", x: attackMon.x, y: attackMon.y, color: "#ff2200", duration: 150 });
               if (wabHas("knockback") && attackMon.hp > 0) {
                 const kx = attackMon.x + dx,
                   ky = attackMon.y + dy;
@@ -1354,6 +1442,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               p.y >= s.room.y && p.y < s.room.y + s.room.h);
             p.x = nx;
             p.y = ny;
+            _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
             for (const _esh of _wasInShopOf) {
               if (!(p.x >= _esh.room.x && p.x < _esh.room.x + _esh.room.w &&
                   p.y >= _esh.room.y && p.y < _esh.room.y + _esh.room.h)) {
@@ -1599,8 +1688,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      /* Collect monster animation data from endTurn */
+      const _monAnimData = monMovesRef.current;
+      if (_monAnimData) {
+        _ad.monMoves = _monAnimData.moves || [];
+        _ad.monAttacks = _monAnimData.attacks || [];
+        _ad.monDamages = _monAnimData.damages || [];
+        monMovesRef.current = null;
+      }
       sr.current = { ...st };
       setGs({ ...st });
+      /* Play animations if any were queued */
+      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length;
+      if (_hasAnim) playAnim(_ad);
     },
     [
       dead,
@@ -1617,6 +1717,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       endTurn,
       revealMode,
       lookMode,
+      playAnim,
     ],
   );
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
@@ -1696,6 +1797,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const doDash = useCallback(
     (dx, dy) => {
       if (dead || !sr.current) return;
+      if (animBusyRef.current) return;
       if (springMode || putMode || markerMode || spellListMode || debugSpellMode || throwMode || showInv || lookMode) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;

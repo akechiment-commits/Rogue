@@ -1,9 +1,187 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { T, TI, MW, MH, clamp } from './utils.js';
 import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from './render.js';
 
+/* Easing */
+function easeOutQuad(t) { return t * (2 - t); }
+
+/*
+ * Draw animation overlays (slash effects, damage popups, flashes, projectiles)
+ * on top of the base scene.
+ */
+function drawOverlays(ctx, overlays, sx, sy, sz) {
+  if (!overlays || overlays.length === 0) return;
+  for (const o of overlays) {
+    const t = o.t ?? easeOutQuad(o.progress ?? 0);  // eased progress 0-1
+    const p = o.progress ?? 0;                       // raw progress 0-1
+    if (o.type === "attack") {
+      drawSlashEffect(ctx, o, sx, sy, sz, t);
+    } else if (o.type === "damage") {
+      drawDamagePopup(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "flash") {
+      drawFlash(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "miss") {
+      drawMissPopup(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "projectile") {
+      drawProjectile(ctx, o, sx, sy, sz, t);
+    } else if (o.type === "explosion") {
+      drawExplosionEffect(ctx, o, sx, sy, sz, p);
+    }
+  }
+}
+
+/* ===== Slash Effect ===== */
+function drawSlashEffect(ctx, o, sx, sy, sz, t) {
+  const px = (o.x - sx) * sz;
+  const py = (o.y - sy) * sz;
+  const cx = px + sz / 2;
+  const cy = py + sz / 2;
+  const alpha = t < 0.5 ? 1 : 1 - (t - 0.5) * 2; // fade out in second half
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.9;
+  ctx.translate(cx, cy);
+  /* Rotate based on attack direction */
+  const angle = Math.atan2(o.dy || 0, o.dx || 1);
+  ctx.rotate(angle);
+  /* Draw slash arc */
+  const r = sz * 0.55;
+  const sweep = t * Math.PI * 0.8;
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = Math.max(2, sz * 0.12);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(0, 0, r, -sweep / 2, sweep / 2);
+  ctx.stroke();
+  /* Inner bright line */
+  ctx.strokeStyle = "#ffe860";
+  ctx.lineWidth = Math.max(1, sz * 0.06);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.85, -sweep / 2, sweep / 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* ===== Damage Number Popup ===== */
+function drawDamagePopup(ctx, o, sx, sy, sz, p) {
+  const px = (o.x - sx) * sz + sz / 2;
+  const baseY = (o.y - sy) * sz;
+  /* Float upward */
+  const floatY = baseY - p * sz * 0.8;
+  /* Fade out in last 40% */
+  const alpha = p > 0.6 ? 1 - (p - 0.6) / 0.4 : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const fontSize = Math.max(10, Math.floor(sz * 0.55));
+  /* Scale up slightly at start */
+  const scale = p < 0.15 ? 1 + (1 - p / 0.15) * 0.4 : 1;
+  ctx.font = `bold ${Math.floor(fontSize * scale)}px monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  /* Shadow */
+  ctx.fillStyle = "#000";
+  ctx.fillText(String(o.value), px + 1, floatY + 1);
+  /* Number */
+  ctx.fillStyle = o.color || "#ff4444";
+  ctx.fillText(String(o.value), px, floatY);
+  ctx.restore();
+}
+
+/* ===== Miss Popup ===== */
+function drawMissPopup(ctx, o, sx, sy, sz, p) {
+  const px = (o.x - sx) * sz + sz / 2;
+  const baseY = (o.y - sy) * sz;
+  const floatY = baseY - p * sz * 0.6;
+  const alpha = p > 0.5 ? 1 - (p - 0.5) / 0.5 : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.8;
+  ctx.font = `bold ${Math.max(9, Math.floor(sz * 0.45))}px monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#000";
+  ctx.fillText("MISS", px + 1, floatY + 1);
+  ctx.fillStyle = "#aaaaaa";
+  ctx.fillText("MISS", px, floatY);
+  ctx.restore();
+}
+
+/* ===== Flash Effect ===== */
+function drawFlash(ctx, o, sx, sy, sz, p) {
+  const px = (o.x - sx) * sz;
+  const py = (o.y - sy) * sz;
+  const alpha = (1 - p) * 0.6;
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = o.color || "#ffffff";
+  ctx.fillRect(px, py, sz, sz);
+  ctx.restore();
+}
+
+/* ===== Projectile ===== */
+function drawProjectile(ctx, o, sx, sy, sz, t) {
+  const fx = (o.fromX - sx) * sz + sz / 2;
+  const fy = (o.fromY - sy) * sz + sz / 2;
+  const tx = (o.toX - sx) * sz + sz / 2;
+  const ty = (o.toY - sy) * sz + sz / 2;
+  const cx = fx + (tx - fx) * t;
+  const cy = fy + (ty - fy) * t;
+  const alpha = t > 0.9 ? (1 - t) * 10 : 1;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  /* Draw projectile dot/trail */
+  ctx.fillStyle = o.color || "#ffcc44";
+  ctx.beginPath();
+  ctx.arc(cx, cy, sz * 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  /* Trail */
+  ctx.globalAlpha = alpha * 0.4;
+  const bx = fx + (tx - fx) * Math.max(0, t - 0.15);
+  const by = fy + (ty - fy) * Math.max(0, t - 0.15);
+  ctx.strokeStyle = o.color || "#ffcc44";
+  ctx.lineWidth = Math.max(1, sz * 0.06);
+  ctx.beginPath();
+  ctx.moveTo(bx, by);
+  ctx.lineTo(cx, cy);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* ===== Explosion Effect ===== */
+function drawExplosionEffect(ctx, o, sx, sy, sz, p) {
+  const cx = (o.x - sx) * sz + sz / 2;
+  const cy = (o.y - sy) * sz + sz / 2;
+  const maxR = sz * (o.radius || 1.5);
+  const r = maxR * easeOutQuad(Math.min(1, p * 2));
+  const alpha = p > 0.4 ? Math.max(0, 1 - (p - 0.4) / 0.6) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.7;
+  /* Outer glow */
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(0.3, "#ffaa22");
+  grad.addColorStop(0.6, "#ff4400");
+  grad.addColorStop(1, "rgba(255,0,0,0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/*
+ * Core renderer hook.
+ * Returns { renderFrame, overlaysRef } so animation loop can trigger redraws.
+ */
 export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode) {
-  useEffect(() => {
+  const overlaysRef = useRef([]);
+  /* moveOffsets: Map<entityKey, {fromX, fromY, toX, toY, progress}> for smooth movement */
+  const moveOffsetsRef = useRef(new Map());
+
+  const renderFrame = useCallback(() => {
     if (!gs || !canvasRef.current) return;
     const cvs = canvasRef.current,
       ctx = cvs.getContext("2d");
@@ -12,10 +190,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const vw = mobile ? (landscape ? VW_L : VW_M) : VW_D;
     const contW = cvs.parentElement?.clientWidth || 600;
     const sz = Math.max(12, Math.floor(contW / vw));
-    /* モバイル縦：画面高さからUI要素分を引いてマップ表示行数を動的計算 */
     let vh;
     if (mobile && !landscape) {
-      const uiH = 224; /* ステータスバー+HPバー+メッセージログ(4行)+操作ボタン+余白 */
+      const uiH = 224;
       const availH = window.innerHeight - uiH;
       vh = Math.max(VH_M, Math.min(Math.floor(availH / sz), MH));
     } else {
@@ -36,7 +213,11 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       sy = clamp(_camCy - hh, 0, Math.max(0, MH - vh));
     ctx.fillStyle = "#080810";
     ctx.fillRect(0, 0, cw, ch);
-    /* 座標インデックス構築: O(n)→O(1)ルックアップ */
+
+    /* Build move offset lookup */
+    const moveOffsets = moveOffsetsRef.current;
+
+    /* 座標インデックス構築 */
     const _k = (x, y) => y * MW + x;
     const _monMap = new Map(); for (const m of dg.monsters) _monMap.set(_k(m.x, m.y), m);
     const _itemMap = new Map(); for (const i of dg.items) { if (!_itemMap.has(_k(i.x, i.y))) _itemMap.set(_k(i.x, i.y), i); }
@@ -45,11 +226,15 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const _bbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _bbMap.set(_k(b.x, b.y), b);
     const _pentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _pentMap.set(_k(pc.x, pc.y), pc);
     const _oilySet = new Set(); if (dg.oilyTiles) for (const ot of dg.oilyTiles) _oilySet.add(_k(ot.x, ot.y));
-    /* 部屋マップ: 全部屋の矩形をタイルレベルでフラグ化 */
     const _roomSet = new Set();
     for (const r of [...dg.rooms, ...(dg.hiddenRooms || [])]) {
       for (let ry = r.y; ry < r.y + r.h; ry++) for (let rx = r.x; rx < r.x + r.w; rx++) _roomSet.add(_k(rx, ry));
     }
+
+    /* Set of entities currently animating movement (skip normal draw at destination) */
+    const _movingEntities = new Set();
+    for (const [key] of moveOffsets) _movingEntities.add(key);
+
     for (let vy = 0; vy < vh; vy++) {
       for (let vx = 0; vx < vw; vx++) {
         const x = sx + vx,
@@ -66,12 +251,11 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           }
           continue;
         }
-        /* Draw base tile */ const t = dg.map[y][x];
+        const t = dg.map[y][x];
         let ti = TI.FLOOR;
         if (t === T.WALL || t === T.BWALL) ti = TI.WALL;
         else if (t === T.SD) ti = TI.SD;
         else if (t === T.SU) ti = TI.SU;
-        /* Check if in corridor (not in any room, including hidden rooms) */
         if (t === T.FLOOR && !_roomSet.has(_k(x, y))) ti = TI.CORR;
         drawTile(ctx, ts, ti, px2, py2, sz);
         /* 壊せる壁にヒビ表示 */
@@ -90,9 +274,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.stroke();
           if (!vis) ctx.globalAlpha = 1;
         }
-        /* 壁埋めアイテム：祝福マップ使用後に壁タイル上で薄く表示 */
+        /* 壁埋めアイテム */
         if ((t === T.WALL || t === T.BWALL) && (vis || exp2) && dg.itemsRevealed) {
-          const _wi = dg.items.find(i => i.x === x && i.y === y && i.wallEmbedded); /* wall-embedded: rare, keep linear */
+          const _wi = dg.items.find(i => i.x === x && i.y === y && i.wallEmbedded);
           if (_wi) {
             ctx.globalAlpha = 0.55;
             ctx.fillStyle = "rgba(255,220,60,0.25)";
@@ -116,7 +300,6 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.textBaseline = "middle";
           ctx.fillText("~", px2 + sz / 2, py2 + sz / 2);
           ctx.globalAlpha = 1;
-          /* waterItems as faint dots */
           if (vis && dg.waterItems?.some(wi => wi.x === x && wi.y === y)) {
             ctx.globalAlpha = 0.4;
             ctx.fillStyle = "#ffee88";
@@ -133,7 +316,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.fillRect(px2, py2, sz, sz);
           ctx.globalAlpha = 1;
         }
-        /* Spring */ const spr = _sprMap.get(_k(x, y));
+        /* Spring */
+        const spr = _sprMap.get(_k(x, y));
         if (spr && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.4;
           drawTile(ctx, ts, TI.SPRING, px2, py2, sz);
@@ -145,7 +329,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           drawTile(ctx, ts, TI.BIGBOX, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
-        /* Pentacle (魔方陣) */
+        /* Pentacle */
         const _pent = _pentMap.get(_k(x, y));
         if (_pent && vis) {
           const _pentClr =
@@ -172,36 +356,26 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.fillText("✦", px2 + sz / 2, py2 + sz / 2);
         }
         if (vis) {
-          /* Player */ if (x === p.x && y === p.y) {
+          /* Player — skip if currently animating (will be drawn separately) */
+          if (x === p.x && y === p.y && !_movingEntities.has("player")) {
             const pf = p.facing || { dx: 0, dy: 1 };
             const pti =
-              pf.dy > 0
-                ? TI.PLAYER_DOWN
-                : pf.dy < 0
-                  ? TI.PLAYER_UP
-                  : pf.dx < 0
-                    ? TI.PLAYER_LEFT
+              pf.dy > 0 ? TI.PLAYER_DOWN
+                : pf.dy < 0 ? TI.PLAYER_UP
+                  : pf.dx < 0 ? TI.PLAYER_LEFT
                     : TI.PLAYER_RIGHT;
-            drawTile(
-              ctx,
-              ts,
-              customTileImages[pti] ? pti : TI.PLAYER,
-              px2,
-              py2,
-              sz,
-            );
+            drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, px2, py2, sz);
             continue;
           }
-          /* Monster (壁歩きは別パスで描画) */ const mon = (() => { const _m = _monMap.get(_k(x, y)); return _m && !_m.wallWalker ? _m : undefined; })();
-          if (mon) {
+          /* Monster — skip if animating */
+          const mon = (() => { const _m = _monMap.get(_k(x, y)); return _m && !_m.wallWalker ? _m : undefined; })();
+          if (mon && !_movingEntities.has("mon_" + mon.id)) {
             const _monTile = (p.bewitchedTurns || 0) > 0
               ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 7 + y * 13) % 9]
               : mon.tile;
             drawTile(ctx, ts, _monTile, px2, py2, sz);
-            /* HP bar */ if (mon.hp < mon.maxHp) {
-              const bw = sz - 2,
-                bh = 2,
-                hpR = mon.hp / mon.maxHp;
+            if (mon.hp < mon.maxHp) {
+              const bw = sz - 2, bh = 2, hpR = mon.hp / mon.maxHp;
               ctx.fillStyle = "#300";
               ctx.fillRect(px2 + 1, py2, bw, bh);
               ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
@@ -209,7 +383,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             }
             continue;
           }
-          /* Item */ const it = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded ? _i : undefined; })();
+          /* Item */
+          const it = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded ? _i : undefined; })();
           if (it) {
             const _itTile = (p.bewitchedTurns || 0) > 0
               ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 11 + y * 19) % 9]
@@ -217,48 +392,80 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             drawTile(ctx, ts, _itTile, px2, py2, sz);
             continue;
           }
-          /* Trap */ const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
+          /* Trap */
+          const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
           if (tr) {
             drawTile(ctx, ts, tr.tile, px2, py2, sz);
           }
         } else if (exp2) {
-          /* Dim explored tiles */ ctx.fillStyle = "rgba(0,0,8,0.6)";
+          ctx.fillStyle = "rgba(0,0,8,0.6)";
           ctx.fillRect(px2, py2, sz, sz);
-          /* 暗闇中は発見済みオブジェクトを非表示 */
           const _inDark = (p.darknessTurns || 0) > 0;
           if (!_inDark) {
-            /* 発見済みアイテムを薄く表示（祝福マップ時は未発見も含む） */
             const ri = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded && (_i.discovered || dg.itemsRevealed) ? _i : undefined; })();
             if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
-            /* 発見済み罠を薄く表示 */
             const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
             if (tr) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, tr.tile, px2, py2, sz); ctx.globalAlpha = 1; }
           }
         }
       }
     }
-    /* ===== モンスター感知：視界外モンスターを薄く表示 ===== */
+
+    /* ===== Draw moving entities at interpolated positions ===== */
+    for (const [key, mo] of moveOffsets) {
+      const t2 = easeOutQuad(mo.progress);
+      const drawX = mo.fromX + (mo.toX - mo.fromX) * t2;
+      const drawY = mo.fromY + (mo.toY - mo.fromY) * t2;
+      const dpx = (drawX - sx) * sz;
+      const dpy = (drawY - sy) * sz;
+      if (dpx < -sz || dpx > cw + sz || dpy < -sz || dpy > ch + sz) continue;
+      if (key === "player") {
+        const pf = p.facing || { dx: 0, dy: 1 };
+        const pti =
+          pf.dy > 0 ? TI.PLAYER_DOWN
+            : pf.dy < 0 ? TI.PLAYER_UP
+              : pf.dx < 0 ? TI.PLAYER_LEFT
+                : TI.PLAYER_RIGHT;
+        drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
+      } else if (key.startsWith("mon_") && mo.tile != null) {
+        const _monTile2 = (p.bewitchedTurns || 0) > 0
+          ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(Math.floor(drawX) * 7 + Math.floor(drawY) * 13) % 9]
+          : mo.tile;
+        drawTile(ctx, ts, _monTile2, dpx, dpy, sz);
+        /* HP bar for moving monster */
+        if (mo.hp != null && mo.maxHp != null && mo.hp < mo.maxHp) {
+          const bw = sz - 2, bh = 2, hpR = mo.hp / mo.maxHp;
+          ctx.fillStyle = "#300";
+          ctx.fillRect(dpx + 1, dpy, bw, bh);
+          ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
+          ctx.fillRect(dpx + 1, dpy, Math.max(1, bw * hpR), bh);
+        }
+      }
+    }
+
+    /* ===== モンスター感知 ===== */
     if ((p.monsterSenseTurns || 0) > 0 || dg.monsterSenseActive) {
       for (const _sm of dg.monsters) {
-        if (_sm.wallWalker) continue; /* 壁歩きは別パスで描画 */
-        if (dg.visible[_sm.y]?.[_sm.x]) continue; /* 視界内は通常描画済み */
+        if (_sm.wallWalker) continue;
+        if (dg.visible[_sm.y]?.[_sm.x]) continue;
         if (_sm.x < sx || _sm.x >= sx + vw || _sm.y < sy || _sm.y >= sy + vh) continue;
+        if (_movingEntities.has("mon_" + _sm.id)) continue;
         const _spx = (_sm.x - sx) * sz, _spy = (_sm.y - sy) * sz;
         ctx.globalAlpha = 0.45;
-        /* 感知は赤みがかった色調でオーバーレイ */
         ctx.fillStyle = "rgba(200,30,30,0.25)";
         ctx.fillRect(_spx, _spy, sz, sz);
         drawTile(ctx, ts, _sm.tile, _spx, _spy, sz);
         ctx.globalAlpha = 1;
       }
     }
-    /* ===== 壁歩きモンスターを最前面に描画（視界内か隣接マスのみ） ===== */
+    /* ===== 壁歩きモンスター ===== */
     for (const _wm of dg.monsters) {
       if (!_wm.wallWalker) continue;
       if (_wm.x < sx || _wm.x >= sx + vw || _wm.y < sy || _wm.y >= sy + vh) continue;
       const _wVisible = dg.visible?.[_wm.y]?.[_wm.x];
       const _wAdj = Math.abs(_wm.x - p.x) <= 1 && Math.abs(_wm.y - p.y) <= 1;
       if (!_wVisible && !_wAdj) continue;
+      if (_movingEntities.has("mon_" + _wm.id)) continue;
       const _wpx = (_wm.x - sx) * sz, _wpy = (_wm.y - sy) * sz;
       const _onWall = dg.map[_wm.y]?.[_wm.x] === T.WALL;
       if (_onWall) ctx.globalAlpha = 0.75;
@@ -271,7 +478,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         ctx.fillRect(_wpx + 1, _wpy, Math.max(1, bw * hpR), bh);
       }
     }
-    /* lookMode cursor overlay */
+
+    /* ===== lookMode cursor ===== */
     if (lookMode) {
       const { cx: _lcx, cy: _lcy } = lookMode;
       if (_lcx >= sx && _lcx < sx + vw && _lcy >= sy && _lcy < sy + vh) {
@@ -283,7 +491,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         ctx.strokeRect(_cpx + 1, _cpy + 1, sz - 2, sz - 2);
       }
     }
-    /* tpSelectMode cursor overlay */
+    /* ===== tpSelectMode cursor ===== */
     if (tpSelectMode) {
       const { cx: _tcx, cy: _tcy } = tpSelectMode;
       if (_tcx >= sx && _tcx < sx + vw && _tcy >= sy && _tcy < sy + vh) {
@@ -296,5 +504,16 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         ctx.strokeRect(_cpx + 1, _cpy + 1, sz - 2, sz - 2);
       }
     }
+
+    /* ===== Animation overlays (effects drawn on top) ===== */
+    drawOverlays(ctx, overlaysRef.current, sx, sy, sz);
+
   }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode]);
+
+  /* Auto-render on state change */
+  useEffect(() => {
+    renderFrame();
+  }, [renderFrame]);
+
+  return { renderFrame, overlaysRef, moveOffsetsRef };
 }
