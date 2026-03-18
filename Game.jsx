@@ -384,12 +384,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const _phase = (dur, fn) => new Promise(res => {
       let done = false;
       const finish = () => { if (!done) { done = true; res(); } };
-      const safety = setTimeout(finish, dur + 500); /* safety timeout */
+      /* Safety: if rAF stalls (mobile throttle, tab switch), resolve via setTimeout */
+      const safety = setTimeout(() => { try { fn(1, 1); } catch(_) {} finish(); }, dur + 100);
       const s = performance.now();
       const tick = (now) => {
         if (done) return;
         try {
-          const raw = Math.min(1, (now - s) / dur);
+          const raw = Math.max(0, Math.min(1, (now - s) / dur));
           fn(_easeOut(raw), raw);
           if (raw < 1) requestAnimationFrame(tick);
           else { clearTimeout(safety); finish(); }

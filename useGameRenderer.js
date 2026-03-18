@@ -168,7 +168,7 @@ function drawExplosionEffect(ctx, o, sx, sy, sz, p) {
   const cx = (o.x - sx) * sz + sz / 2;
   const cy = (o.y - sy) * sz + sz / 2;
   const maxR = sz * (o.radius || 1.5);
-  const r = maxR * easeOutQuad(Math.min(1, p * 2));
+  const r = Math.max(0, maxR * easeOutQuad(Math.min(1, p * 2)));
   const alpha = p > 0.4 ? Math.max(0, 1 - (p - 0.4) / 0.6) : 1;
   if (alpha <= 0) return;
   ctx.save();
