@@ -709,6 +709,8 @@ export function wakeIfDormant(m, ml) {
 
 /* ===== MONSTER AI ===== */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
+  const _moveOnly = opts.moveOnly || false;
+  const _attackOnly = opts.attackOnly || false;
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
   /* 通常仮眠：視界に入るか、何らかのアクションを受けたら即覚醒 */
@@ -727,35 +729,36 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }
   if (m.sleepTurns > 0) {
-    m.sleepTurns--;
+    if (!_attackOnly) m.sleepTurns--;
     return;
   }
   if (m.paralyzed) return;
   /* 移動封じ（氷の杖など） */
-  if ((m.immobileTurns||0) > 0) { m.immobileTurns--; return; }
+  if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns--; return; }
 
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
-    m.confusedTurns--;
+    if (!_attackOnly) m.confusedTurns--;
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
       if (_cnx === pl.x && _cny === pl.y) {
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`); }
+        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`); }
       } else {
         const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
         if (_other) {
-          /* 他のモンスターを攻撃 */
-          const _odmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_other.def || 0))) + rng(-1, 1));
-          _other.hp -= _odmg;
-          ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
-          if (_other.hp <= 0) {
-            ml.push(`${_other.name}は倒れた！`);
-            removeMonster(dg, _other);
-            monLevelUp(m, dg, ml);
+          if (!_moveOnly) {
+            const _odmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_other.def || 0))) + rng(-1, 1));
+            _other.hp -= _odmg;
+            ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
+            if (_other.hp <= 0) {
+              ml.push(`${_other.name}は倒れた！`);
+              removeMonster(dg, _other);
+              monLevelUp(m, dg, ml);
+            }
           }
-        } else if (isWalkable(dg.map, _cnx, _cny)) {
+        } else if (!_attackOnly && isWalkable(dg.map, _cnx, _cny)) {
           m.x = _cnx; m.y = _cny;
         }
       }
@@ -767,7 +770,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== 暗闇状態：まっすぐ進み途中の者を攻撃 ===== */
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
-    if (!_isPerm) m.darknessTurns--;
+    if (!_isPerm && !_attackOnly) m.darknessTurns--;
     if (!m.darkDir) {
       const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
       m.darkDir = pick(_ddirs);
@@ -775,19 +778,21 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
     if (canEnter(dg.map, _dnx, _dny, m.float)) {
       if (_dnx === pl.x && _dny === pl.y) {
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true }); }
+        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true }); }
       } else {
         const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
         if (_dother) {
-          const _dodmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_dother.def || 0))) + rng(-1, 1));
-          _dother.hp -= _dodmg;
-          ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
-          if (_dother.hp <= 0) {
-            ml.push(`${_dother.name}は倒れた！`);
-            removeMonster(dg, _dother);
-            monLevelUp(m, dg, ml);
+          if (!_moveOnly) {
+            const _dodmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_dother.def || 0))) + rng(-1, 1));
+            _dother.hp -= _dodmg;
+            ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
+            if (_dother.hp <= 0) {
+              ml.push(`${_dother.name}は倒れた！`);
+              removeMonster(dg, _dother);
+              monLevelUp(m, dg, ml);
+            }
           }
-        } else {
+        } else if (!_attackOnly) {
           m.x = _dnx; m.y = _dny;
         }
       }
@@ -801,7 +806,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== 幻惑状態：プレイヤーから逃げ回る ===== */
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
-    if (!_isPerm) m.fleeingTurns--;
+    if (!_isPerm && !_attackOnly) m.fleeingTurns--;
     const _fcands = [];
     for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
       const _fnx = m.x + _fmx, _fny = m.y + _fmy;
@@ -812,15 +817,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       _fcands.push({ x: _fnx, y: _fny, score: _score });
     }
     _fcands.sort((a, b) => b.score - a.score);
-    if (_fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
+    if (!_attackOnly && _fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
     if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`);
     return;
   }
 
   /* ===== 詰まり検出（位置履歴で停滞・往復を判定） ===== */
-  m.posHistory = m.posHistory || [];
-  m.posHistory.push({ x: m.x, y: m.y });
-  if (m.posHistory.length > 6) m.posHistory.shift();
+  if (!_attackOnly) {
+    m.posHistory = m.posHistory || [];
+    m.posHistory.push({ x: m.x, y: m.y });
+    if (m.posHistory.length > 6) m.posHistory.shift();
+  }
   let _forceAlt = false;
   if (m.posHistory.length >= 6) {
     const _ph = m.posHistory;
@@ -912,7 +919,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* 隣接していれば攻撃 */
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
-      if (m.turnAttacks < (m.maxAttacks ?? 1)) {
+      if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
         m.turnAttacks++;
         const _wwInWall = dg.map[m.y]?.[m.x] === T.WALL;
         monsterAttackPlayer(m, dg, pl, ml, d => _wwInWall
@@ -920,17 +927,20 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           : `${m.name}の攻撃！${d}ダメージ！`);
         return;
       }
+      if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 2回目以降は移動のみ → 直進コードへフォールスルー */
     }
-    /* 壁を無視してプレイヤーへ1歩直進 */
-    const _wdx = Math.sign(pl.x - m.x), _wdy = Math.sign(pl.y - m.y);
-    if (_wdx !== 0 || _wdy !== 0) {
-      const _wnx = m.x + _wdx, _wny = m.y + _wdy;
-      if (_wnx > 0 && _wnx < MW - 1 && _wny > 0 && _wny < MH - 1 &&
-          !(_wnx === pl.x && _wny === pl.y) &&
-          !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
-          !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny)) {
-        m.x = _wnx; m.y = _wny;
+    if (!_attackOnly) {
+      /* 壁を無視してプレイヤーへ1歩直進 */
+      const _wdx = Math.sign(pl.x - m.x), _wdy = Math.sign(pl.y - m.y);
+      if (_wdx !== 0 || _wdy !== 0) {
+        const _wnx = m.x + _wdx, _wny = m.y + _wdy;
+        if (_wnx > 0 && _wnx < MW - 1 && _wny > 0 && _wny < MH - 1 &&
+            !(_wnx === pl.x && _wny === pl.y) &&
+            !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
+            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny)) {
+          m.x = _wnx; m.y = _wny;
+        }
       }
     }
     return;
@@ -938,7 +948,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
   if (m.aware) {
     /* ── ranged special attacks (only when player is visible) ── */
-    if (canSee) {
+    if (!_moveOnly && canSee) {
       const adx = pl.x - m.x, ady = pl.y - m.y;
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
@@ -978,7 +988,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── ドラゴン炎ブレス（Lv1:一直線 / Lv2:同部屋 / Lv3:同フロア） ── */
-    if (m.baseKind === "dragon" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
+    if (!_moveOnly && m.baseKind === "dragon" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
       const _dfAdx = pl.x - m.x, _dfAdy = pl.y - m.y;
       const _dfDist = Math.max(Math.abs(_dfAdx), Math.abs(_dfAdy));
       const _dfLvl = m.monLevel || 1;
@@ -1002,17 +1012,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
     /* ── runner（コロポックル等）：常にプレイヤーから逃げる。攻撃しない ── */
     if (m.subtype === "runner") {
-      const _rcands = [];
-      for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-        const _rnx = m.x + _rmx, _rny = m.y + _rmy;
-        if (!isWalkable(dg.map, _rnx, _rny)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
-        if (_rnx === pl.x && _rny === pl.y) continue;
-        const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
-        _rcands.push({ x: _rnx, y: _rny, score: _score });
+      if (!_attackOnly) {
+        const _rcands = [];
+        for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+          const _rnx = m.x + _rmx, _rny = m.y + _rmy;
+          if (!isWalkable(dg.map, _rnx, _rny)) continue;
+          if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
+          if (_rnx === pl.x && _rny === pl.y) continue;
+          const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
+          _rcands.push({ x: _rnx, y: _rny, score: _score });
+        }
+        _rcands.sort((a, b) => b.score - a.score);
+        if (_rcands.length > 0) { m.x = _rcands[0].x; m.y = _rcands[0].y; }
       }
-      _rcands.sort((a, b) => b.score - a.score);
-      if (_rcands.length > 0) { m.x = _rcands[0].x; m.y = _rcands[0].y; }
       return;
     }
 
@@ -1020,6 +1032,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.subtype === "thief" && !m.sealed) {
       const _tdx = pl.x - m.x, _tdy = pl.y - m.y;
       const _adj = Math.abs(_tdx) <= 1 && Math.abs(_tdy) <= 1;
+      if (_adj && _moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       if (_adj) {
         const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
         if (_hasAntiSteal) {
@@ -1067,7 +1080,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── supporter（シャーマン等）：近くの味方を回復・強化 ── */
-    if (m.subtype === "supporter" && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+    if (!_moveOnly && m.subtype === "supporter" && (m.alwaysUseSpecial || Math.random() < 0.5)) {
       /* 傷ついた味方を探す（範囲8マス） */
       const _injured = dg.monsters.filter(o =>
         o !== m && (o.maxHp != null ? o.hp < o.maxHp : false) &&
@@ -1115,7 +1128,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const ty = canSee ? pl.y : m.lastPy;
 
     /* ── 遠距離タイプが部屋内で射線が合っていない場合：軸合わせ優先 ── */
-    if (canSee && _sameRoom &&
+    if (!_attackOnly && canSee && _sameRoom &&
         (m.subtype === "archer" || m.subtype === "wanduser") && !m.sealed) {
       const _ralDx = pl.x - m.x, _ralDy = pl.y - m.y;
       const _inLineNow = _ralDx === 0 || _ralDy === 0 || Math.abs(_ralDx) === Math.abs(_ralDy);
@@ -1145,6 +1158,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
     /* adjacent attack */
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+      if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
       if (m.turnAttacks < (m.maxAttacks ?? 1)) {
@@ -1155,6 +1169,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* 2回目以降：攻撃せずBFSで移動を試みる */
     }
 
+    if (_attackOnly) return; /* attackOnlyフェーズ：移動しない */
+
     /* move toward target */
     /* BFSで最短経路を求める。部屋内での壁ぶつかりを防ぎ、通路への最適経路を辿る。 */
     const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles, m.float);
@@ -1164,7 +1180,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
         m.dir = { x: next.x - m.x, y: next.y - m.y };
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) {
+        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
           m.turnAttacks++;
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
         }
@@ -1214,7 +1230,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         _altMoves.sort((a, b) => a.dist - b.dist);
         const _ab = _altMoves[0];
         if (_ab.x === pl.x && _ab.y === pl.y) {
-          if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
+          if (!_moveOnly && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
               m.turnAttacks < (m.maxAttacks ?? 1)) {
             m.turnAttacks++; m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
             monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
@@ -1245,7 +1261,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
       m.posHistory = [];
     }
-  } else {
+  } else if (!_attackOnly) {
     /* ===== 未覚醒：パトロール ===== */
     const room = findRoom(rooms, m.x, m.y);
     const _arrived = m.patrolTarget &&
