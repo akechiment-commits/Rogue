@@ -22,6 +22,7 @@ import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
+import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
@@ -204,8 +205,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     window.addEventListener("resize", c);
     return () => window.removeEventListener("resize", c);
   }, []);
-  /* Load custom tile images (silently fail if not found — spritesheet fallback) */ useEffect(() => {
+  /* Generate procedural pixel art as default tiles, then override with custom PNGs */
+  useEffect(() => {
     clearCustomTileImages();
+    /* Phase 1: Fill with generated pixel art */
+    const generated = generateTileImages();
+    for (const [idx, canvas] of Object.entries(generated)) {
+      customTileImages[idx] = canvas;
+    }
+    setCtLoaded((c) => c + 1);
+    /* Phase 2: Try loading custom PNGs (overrides generated art) */
     Object.entries(TILE_NAMES).forEach(([idx, name]) => {
       const iidx = parseInt(idx);
       const img = new Image();
