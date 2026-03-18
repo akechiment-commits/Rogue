@@ -253,8 +253,9 @@ async function main() {
   srcCanvas.getContext('2d').drawImage(img, 0, 0);
 
   // ── 行範囲を決定（--rows START-END オプション対応）──
+  const rowsFlagIdx = process.argv.indexOf('--rows');
   const rowsArg = process.argv.find(a => a.startsWith('--rows='))?.slice(7)
-               ?? process.argv[process.argv.indexOf('--rows') + 1];
+               ?? (rowsFlagIdx >= 0 ? process.argv[rowsFlagIdx + 1] : undefined);
   let rowStart = 0, rowEnd = rows;
   if (rowsArg) {
     const m = rowsArg.match(/^(\d+)-(\d+)$/);
