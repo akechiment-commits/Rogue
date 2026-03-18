@@ -382,11 +382,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     try {
     const _easeOut = (t) => t * (2 - t);
     const _phase = (dur, fn) => new Promise(res => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; res(); } };
+      const safety = setTimeout(finish, dur + 500); /* safety timeout */
       const s = performance.now();
       const tick = (now) => {
-        const raw = Math.min(1, (now - s) / dur);
-        fn(_easeOut(raw), raw);
-        if (raw < 1) requestAnimationFrame(tick); else res();
+        if (done) return;
+        try {
+          const raw = Math.min(1, (now - s) / dur);
+          fn(_easeOut(raw), raw);
+          if (raw < 1) requestAnimationFrame(tick);
+          else { clearTimeout(safety); finish(); }
+        } catch (e) {
+          console.error("Animation phase error:", e);
+          clearTimeout(safety); finish();
+        }
       };
       requestAnimationFrame(tick);
     });
