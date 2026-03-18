@@ -1212,13 +1212,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (!gs?.player) return;
     const { sleepTurns = 0, paralyzeTurns = 0, slowSkip = false } = gs.player;
     if (sleepTurns <= 0 && paralyzeTurns <= 0 && !slowSkip) return;
-    if (animBusyRef.current) return;
     setShowInv(false);
     setThrowMode(null);
-    const timer = setTimeout(() => {
-      if (!sr.current || animBusyRef.current) return;
+    /* Wait for any running animation to finish before advancing */
+    const tryAdvance = () => {
+      if (!sr.current) return;
+      if (animBusyRef.current) {
+        /* Animation still running — poll until it finishes */
+        setTimeout(tryAdvance, 50);
+        return;
+      }
       const st = sr.current;
-      const { player: p } = st;
+      const { player: p, dungeon: dg } = st;
       if (p.sleepTurns <= 0 && p.paralyzeTurns <= 0 && !p.slowSkip) return;
       const ml = [];
       if (p.sleepTurns > 0) {
@@ -1232,7 +1237,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           ? `金縛りにあっている...あと${p.paralyzeTurns}ターン`
           : "金縛りが解けた！");
       } else if (p.slowSkip) {
-        /* 鈍足スキップターン：モンスターだけ行動してプレイヤーはスキップ */
         p.slowSkip = false;
         p.slowTurns = Math.max(0, (p.slowTurns || 0) - 1);
         if (p.slowTurns <= 0) {
@@ -1242,12 +1246,30 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       endTurn(st, p, ml);
+      /* Collect monster move animations from endTurn */
+      const _ad = { monMoves: [], monAttacks: [], monDamages: [] };
+      const _monAnimData = monMovesRef.current;
+      if (_monAnimData) {
+        _ad.monMoves = _monAnimData.moves || [];
+        _ad.monAttacks = _monAnimData.attacks || [];
+        _ad.monDamages = _monAnimData.damages || [];
+        monMovesRef.current = null;
+      }
+      const _drainedEvts = drainAnims();
+      for (const _de of _drainedEvts) {
+        if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
+        else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
+        else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);
+      }
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
       setGs({ ...st });
-    }, 400);
+      const _hasAnim = _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.monProjectiles?.length;
+      if (_hasAnim) playAnim(_ad);
+    };
+    const timer = setTimeout(tryAdvance, 400);
     return () => clearTimeout(timer);
-  }, [gs, endTurn]);
+  }, [gs, endTurn, playAnim]);
 
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
