@@ -19,6 +19,10 @@ export const TI = {
   PLAYER_RIGHT: 36,
   SHOPKEEPER: 37,
   BIGBOX: 38,
+  PLAYER_DOWN_LEFT: 62,
+  PLAYER_DOWN_RIGHT: 63,
+  PLAYER_UP_LEFT: 64,
+  PLAYER_UP_RIGHT: 65,
 };
 
 export const rng = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;

@@ -5,6 +5,20 @@ import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from '
 /* Easing */
 function easeOutQuad(t) { return t * (2 - t); }
 
+/* 8-direction player tile selection */
+function playerTileForFacing(pf) {
+  const { dx, dy } = pf;
+  if (dx === 0 && dy > 0) return TI.PLAYER_DOWN;
+  if (dx === 0 && dy < 0) return TI.PLAYER_UP;
+  if (dx < 0 && dy === 0) return TI.PLAYER_LEFT;
+  if (dx > 0 && dy === 0) return TI.PLAYER_RIGHT;
+  if (dx < 0 && dy > 0) return TI.PLAYER_DOWN_LEFT;
+  if (dx > 0 && dy > 0) return TI.PLAYER_DOWN_RIGHT;
+  if (dx < 0 && dy < 0) return TI.PLAYER_UP_LEFT;
+  if (dx > 0 && dy < 0) return TI.PLAYER_UP_RIGHT;
+  return TI.PLAYER_DOWN;
+}
+
 /*
  * Draw animation overlays (slash effects, damage popups, flashes, projectiles)
  * on top of the base scene.
@@ -359,11 +373,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           /* Player — skip if currently animating (will be drawn separately) */
           if (x === p.x && y === p.y && !_movingEntities.has("player")) {
             const pf = p.facing || { dx: 0, dy: 1 };
-            const pti =
-              pf.dy > 0 ? TI.PLAYER_DOWN
-                : pf.dy < 0 ? TI.PLAYER_UP
-                  : pf.dx < 0 ? TI.PLAYER_LEFT
-                    : TI.PLAYER_RIGHT;
+            const pti = playerTileForFacing(pf);
             drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, px2, py2, sz);
             continue;
           }
@@ -421,11 +431,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       if (dpx < -sz || dpx > cw + sz || dpy < -sz || dpy > ch + sz) continue;
       if (key === "player") {
         const pf = p.facing || { dx: 0, dy: 1 };
-        const pti =
-          pf.dy > 0 ? TI.PLAYER_DOWN
-            : pf.dy < 0 ? TI.PLAYER_UP
-              : pf.dx < 0 ? TI.PLAYER_LEFT
-                : TI.PLAYER_RIGHT;
+        const pti = playerTileForFacing(pf);
         drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
       } else if (key.startsWith("mon_") && mo.tile != null) {
         const _monTile2 = (p.bewitchedTurns || 0) > 0
