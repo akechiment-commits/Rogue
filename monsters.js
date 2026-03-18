@@ -949,12 +949,31 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
   if (m.aware) {
     /* ── ranged special attacks (only when player is visible) ── */
+    /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
+    if (_moveOnly && canSee) {
+      const _radx = pl.x - m.x, _rady = pl.y - m.y;
+      const _rLen = Math.max(Math.abs(_radx), Math.abs(_rady));
+      const _rLine = _radx === 0 || _rady === 0 || Math.abs(_radx) === Math.abs(_rady);
+      const _rAtks = m.turnAttacks < (m.maxAttacks ?? 1);
+      const _archerRdy = m.subtype === "archer" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
+      const _stLvlR = m.monLevel || 1;
+      const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
+      const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
+      const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
+      if ((_archerRdy || _stoneRdy || _wandRdy) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m._rangedAttackThisTurn = true;
+        return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
+      }
+    }
+
     if (!_moveOnly && canSee) {
       const adx = pl.x - m.x, ady = pl.y - m.y;
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
+      const _rdy = m._rangedAttackThisTurn;
+      if (_rdy) delete m._rangedAttackThisTurn;
 
-      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
@@ -964,14 +983,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-        if (_stDist <= _stRange) {
+        if (_stDist <= _stRange && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
           monsterThrowStone(m, dg, pl, ml);
           return;
         }
       }
 
-      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>
