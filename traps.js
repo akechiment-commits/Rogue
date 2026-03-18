@@ -8,13 +8,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
 
   switch (trap.effect) {
     case "explode": {
-      if (hasCursedExplosionPentacle(dg)) {
-        trap.revealed = true;
-        ml.push(`${trap.name}が発動したが、呪われた爆発の魔方陣が爆発を打ち消した！`);
-        break;
-      }
-      ml.push(`${trap.name}が発動！`);
-      doExplosion(trap.x, trap.y, dg, p, ml, nameFn, trap.name, null, luFn, true);
+      /* 地雷は敵の移動後に爆発させるため、遅延情報を返す */
+      r = "deferred_explosion";
       break;
     }
     case "arrow_trap": {
