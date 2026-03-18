@@ -8,7 +8,7 @@ import {
   hasCursedExplosionPentacle,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
-import { pushAnim } from './animEvents.js';
+import { pushAnim, pushMonsterBoltAnim } from './animEvents.js';
 
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0) {
   if (kind === "monster") wakeIfDormant(target, ml);
@@ -1296,6 +1296,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
 export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null) {
+  pushMonsterBoltAnim(cx, cy, dx, dy, dg, pl, "lightning");
   for (let d = 1; d < MW + MH; d++) {
     const tx = cx + dx * d, ty = cy + dy * d;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }

@@ -1,5 +1,6 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster } from "./items.js";
+import { pushMonsterBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -468,6 +469,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   const _isFc = _fcMode === "farcast";
   const _travelMax = _isFc ? 50 : maxDist;
   ml.push(`${m.name}が矢を放った！`);
+  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#d0a050");
   let lx = m.x, ly = m.y;
   let _plHit = false;
   for (let d = 1; d <= _travelMax; d++) {
@@ -541,6 +543,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   const hitChance = lvl >= 3 ? 0.99 : lvl >= 2 ? 0.90 : 0.75;
   const stoneName = isMagic ? "魔法の石" : "石";
   ml.push(`${m.name}が${stoneName}を投げた！`);
+  pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, isMagic ? "#cc88ff" : "#aaaaaa");
 
   /* みかわし（防具の効果） */
   const dodged = hasAbility(pl.armor, "dodge") && Math.random() < 0.25;

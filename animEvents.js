@@ -66,6 +66,29 @@ export function pushProjectileAnim(fromX, fromY, toX, toY, color = "#d0a050") {
 }
 
 /*
+ * Trace a bolt fired BY a monster. Same as pushBoltAnim but also stops at player position.
+ * Emits "monProjectile" so it plays in the monster-animation phase.
+ */
+export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a050f0") {
+  const color = WAND_COLORS[effectOrColor] || effectOrColor;
+  let lx = sx, ly = sy;
+  for (let d = 1; d < MW + MH; d++) {
+    const tx = sx + dx * d, ty = sy + dy * d;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+    if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+    if (tx === pl.x && ty === pl.y) { lx = tx; ly = ty; break; }
+    if (monsterAt(dg, tx, ty)) { lx = tx; ly = ty; break; }
+    if (itemAt(dg, tx, ty)) { lx = tx; ly = ty; break; }
+    if (dg.traps?.find(t => t.x === tx && t.y === ty)) { lx = tx; ly = ty; break; }
+    if (dg.bigboxes?.find(b => b.x === tx && b.y === ty)) { lx = tx; ly = ty; break; }
+    lx = tx; ly = ty;
+  }
+  if (lx !== sx || ly !== sy) {
+    pushAnim({ type: "monProjectile", fromX: sx, fromY: sy, toX: lx, toY: ly, color });
+  }
+}
+
+/*
  * Push an explosion animation.
  */
 export function pushExplosionAnim(cx, cy) {

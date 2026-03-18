@@ -25,7 +25,7 @@ import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix,
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { drainAnims } from './animEvents.js';
+import { drainAnims, pushMonsterBoltAnim } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
   bigRoom:      "ビッグルームだ！",
@@ -434,6 +434,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         renderFrame();
       });
     }
+    /* Phase 4b: Monster projectiles (arrows, bolts, stones) */
+    if (data.monProjectiles?.length) {
+      await _phase(200, (t, raw) => {
+        overlaysRef.current = data.monProjectiles.map(p => ({ ...p, type: "projectile", progress: raw, t }));
+        renderFrame();
+      });
+      overlaysRef.current = [];
+    }
     moveOffsetsRef.current.clear();
     overlaysRef.current = [];
     renderFrame();
@@ -447,11 +455,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const d = { attacks: [], damages: [], projectiles: [], explosions: [] };
     for (const e of evts) {
       if (e.type === "projectile") d.projectiles.push(e);
+      else if (e.type === "monProjectile") (d.monProjectiles = d.monProjectiles || []).push(e);
       else if (e.type === "explosion") d.explosions.push(e);
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
     }
-    if (d.projectiles.length || d.explosions.length || d.damages.length) playAnim(d);
+    if (d.projectiles.length || d.explosions.length || d.damages.length || d.monProjectiles?.length) playAnim(d);
   }, [gs, playAnim]);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
@@ -594,6 +603,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames));
         } else if (_we === "curse_wand") {
           ml.push(`${m.name}が呪いの杖を振った！`);
+          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "curse_wand");
           /* 呪いボルトを発射（魔封じチェック・障害物チェックあり） */
           let _cwHit = false;
           for (let _d = 1; _d < 20; _d++) {
@@ -680,6 +690,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (!_cwHit) ml.push("呪いの魔法弾は虚空に消えた。");
         } else if (_we === "blowback_wand") {
           ml.push(`${m.name}が吹き飛ばしの杖を振った！`);
+          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "blowback_wand");
           const _nameFn = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
           let _bwHit = false;
           for (let _d = 1; _d < 20; _d++) {
@@ -1731,6 +1742,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const _drainedEvts = drainAnims();
       for (const _de of _drainedEvts) {
         if (_de.type === "projectile") (_ad.projectiles = _ad.projectiles || []).push(_de);
+        else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "damage") _ad.damages.push(_de);
         else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
@@ -1738,7 +1750,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       sr.current = { ...st };
       setGs({ ...st });
       /* Play animations if any were queued */
-      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.explosions && _ad.explosions.length);
+      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.explosions && _ad.explosions.length) || (_ad.monProjectiles && _ad.monProjectiles.length);
       if (_hasAnim) playAnim(_ad);
     },
     [
