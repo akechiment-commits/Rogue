@@ -1,5 +1,6 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
+import { pushExplosionAnim } from './animEvents.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
@@ -833,6 +834,7 @@ export const TRAPS = [
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
  */
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false) {
+  pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
     const _hasFireR = ringExplosion && hasAbility(p.armor, "fire_resist");

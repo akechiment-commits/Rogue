@@ -8,6 +8,7 @@ import {
   hasCursedExplosionPentacle,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
+import { pushAnim } from './animEvents.js';
 
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0) {
   if (kind === "monster") wakeIfDormant(target, ml);
@@ -1193,6 +1194,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     applyWandEffect("knockback", "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, 1);
     return;
   }
+  const _wandColors = {
+    lightning:"#88ccff", slow:"#20d0d0", paralyze:"#ffcc00", sleep:"#80ff40",
+    confuse:"#ff40ff", darkness:"#606080", bewitch:"#ff80c0", levelup:"#ffff60",
+    seal:"#8040e0", knockback:"#20e0c0", swap:"#ff8800", dig:"#aa8844",
+    leap:"#40ff80", ice_wand:"#80ddff", curse_wand:"#9020b0", blowback_wand:"#20e0c0",
+  };
+  const _boltClr = _wandColors[eff] || "#a050f0";
   let lastX = p.x, lastY = p.y;
   for (let d = 1; d < MW + MH; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
