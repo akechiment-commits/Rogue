@@ -25,6 +25,7 @@ import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix,
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
+import { drainAnims } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
   bigRoom:      "ビッグルームだ！",
@@ -398,6 +399,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         renderFrame();
       });
     }
+    /* Phase 2b: Projectile flight (200ms) */
+    if (data.projectiles?.length) {
+      await _phase(200, (t, raw) => {
+        overlaysRef.current = data.projectiles.map(p => ({ ...p, progress: raw, t }));
+        renderFrame();
+      });
+      overlaysRef.current = [];
+    }
+    /* Phase 2c: Explosions (350ms) */
+    if (data.explosions?.length) {
+      await _phase(350, (t, raw) => {
+        overlaysRef.current = data.explosions.map(e => ({ ...e, progress: raw, t }));
+        renderFrame();
+      });
+      overlaysRef.current = [];
+    }
     /* Phase 3: Monster moves (80ms) */
     if (data.monMoves?.length) {
       await _phase(80, (t) => {
@@ -422,6 +439,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     renderFrame();
     animBusyRef.current = false;
   }, [renderFrame]);
+  /* Drain animation events produced by useItemActions (outside of act()) */
+  useEffect(() => {
+    if (!gs || animBusyRef.current) return;
+    const evts = drainAnims();
+    if (evts.length === 0) return;
+    const d = { attacks: [], damages: [], projectiles: [], explosions: [] };
+    for (const e of evts) {
+      if (e.type === "projectile") d.projectiles.push(e);
+      else if (e.type === "explosion") d.explosions.push(e);
+      else if (e.type === "damage") d.damages.push(e);
+      else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
+    }
+    if (d.projectiles.length || d.explosions.length || d.damages.length) playAnim(d);
+  }, [gs, playAnim]);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
       p.level++;
@@ -1696,10 +1727,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         _ad.monDamages = _monAnimData.damages || [];
         monMovesRef.current = null;
       }
+      /* Drain global animation events (projectiles, explosions from deeply nested logic) */
+      const _drainedEvts = drainAnims();
+      for (const _de of _drainedEvts) {
+        if (_de.type === "projectile") (_ad.projectiles = _ad.projectiles || []).push(_de);
+        else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
+        else if (_de.type === "damage") _ad.damages.push(_de);
+        else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
+      }
       sr.current = { ...st };
       setGs({ ...st });
       /* Play animations if any were queued */
-      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length;
+      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.explosions && _ad.explosions.length);
       if (_hasAnim) playAnim(_ad);
     },
     [
