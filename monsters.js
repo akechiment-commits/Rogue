@@ -434,6 +434,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
   }
   /* 残りはランダム部屋に配置 */
   for (let i = spawned; i < count; i++) {
+    if (!dg.rooms?.length) break;
     for (let att = 0; att < 30; att++) {
       const room = dg.rooms[rng(0, dg.rooms.length - 1)];
       const sx = rng(room.x + 1, room.x + room.w - 2);
@@ -603,7 +604,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_ad.x, y:_ad.y });
         if (_arSanc) ml.push(`${m.name}の矢は祝福された聖域の加護に阻まれた！矢が落ちた。`);
         else ml.push(`${m.name}の矢は外れた！矢が落ちた。`);
-        const trap = dg.traps.find(t => t.x === pl.x && t.y === pl.y);
+        const trap = dg.traps?.find(t => t.x === pl.x && t.y === pl.y);
         if (trap && opts.fireTrapFn) opts.fireTrapFn(trap, pl, dg, ml);
         if (!_isFc) return;
       } else {
@@ -953,7 +954,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
 
-      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
@@ -963,14 +964,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-        if (_stDist <= _stRange && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (_stDist <= _stRange) {
           m.turnAttacks++;
           monsterThrowStone(m, dg, pl, ml);
           return;
         }
       }
 
-      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1)) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>

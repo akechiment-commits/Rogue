@@ -72,11 +72,13 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "spin": {
-      for (let _a = 0; _a < 200; _a++) {
-        const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-        const nx = rng(rm.x, rm.x + rm.w - 1);
-        const ny = rng(rm.y, rm.y + rm.h - 1);
-        if (dg.map[ny]?.[nx] === T.FLOOR) { p.x = nx; p.y = ny; break; }
+      if (dg.rooms?.length) {
+        for (let _a = 0; _a < 200; _a++) {
+          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
+          const nx = rng(rm.x, rm.x + rm.w - 1);
+          const ny = rng(rm.y, rm.y + rm.h - 1);
+          if (dg.map[ny]?.[nx] === T.FLOOR) { p.x = nx; p.y = ny; break; }
+        }
       }
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
       break;

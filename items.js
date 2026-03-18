@@ -1169,22 +1169,24 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "spin": {
       ml.push(`${trap.name}が発動！${item.name}はどこかへ吹き飛んだ！`);
-      const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-      const nx = rng(rm.x, rm.x + rm.w - 1);
-      const ny = rng(rm.y, rm.y + rm.h - 1);
-      placeItemAt(dg, nx, ny, item, ml, ft);
-      const _spm = monsterAt(dg, tx, ty);
-      if (_spm) {
-        const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
-        _spm.x = rng(_spr.x, _spr.x + _spr.w - 1);
-        _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
-        ml.push(`${_spm.name}も吹き飛ばされた！`);
-      }
-      if (p && p.x === tx && p.y === ty) {
-        const _psr = dg.rooms[rng(0, dg.rooms.length - 1)];
-        p.x = rng(_psr.x, _psr.x + _psr.w - 1);
-        p.y = rng(_psr.y, _psr.y + _psr.h - 1);
-        ml.push(`吹き飛ばされた！`);
+      if (dg.rooms?.length) {
+        const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
+        const nx = rng(rm.x, rm.x + rm.w - 1);
+        const ny = rng(rm.y, rm.y + rm.h - 1);
+        placeItemAt(dg, nx, ny, item, ml, ft);
+        const _spm = monsterAt(dg, tx, ty);
+        if (_spm) {
+          const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
+          _spm.x = rng(_spr.x, _spr.x + _spr.w - 1);
+          _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
+          ml.push(`${_spm.name}も吹き飛ばされた！`);
+        }
+        if (p && p.x === tx && p.y === ty) {
+          const _psr = dg.rooms[rng(0, dg.rooms.length - 1)];
+          p.x = rng(_psr.x, _psr.x + _psr.w - 1);
+          p.y = rng(_psr.y, _psr.y + _psr.h - 1);
+          ml.push(`吹き飛ばされた！`);
+        }
       }
       return "destroyed";
     }

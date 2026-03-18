@@ -649,7 +649,7 @@ export function useItemActions({
         } else {
         // 祝福：フロア全モンスターに雷、通常：視界内のみ、呪い：視界内＋自分にも雷
         const _tTargets = it.blessed
-          ? dg.monsters
+          ? [...dg.monsters]
           : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
         if (_tTargets.length === 0 && !it.cursed) {
           ml.push("雷が走るが、視界に敵はいない。");
@@ -658,6 +658,7 @@ export function useItemActions({
             ml.push("雷が走るが、フロアに敵はいない。【祝】");
           }
           for (const _m of _tTargets) {
+            if (_m.hp <= 0) continue;
             let _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
