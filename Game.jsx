@@ -614,7 +614,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     trackTrap(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
   }, []);
-  const moveMons = useCallback((dg, pl, ml) => {
+  const moveMons = useCallback((dg, pl, ml, phaseMode) => {
     const opts = {
       bbFn: bigboxAddItem,
       fireTrapFn: (trap, p, dg2, ml2) => fireTrapPlayer(trap, p, dg2, ml2, null, lu),
@@ -766,14 +766,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       (Math.abs(a.x - pl.x) + Math.abs(a.y - pl.y)) -
       (Math.abs(b.x - pl.x) + Math.abs(b.y - pl.y))
     );
+    const _phase = phaseMode || "both"; // "moveOnly" | "attackOnly" | "both"
     dg.monsters.forEach((m) => {
       if (m.hp <= 0) return;
+      if (_phase === "attackOnly") {
+        /* 攻撃フェーズ：移動フェーズで保存したアクション回数分だけ攻撃を試みる */
+        const _atkCount = m._phaseActionCount || 1;
+        delete m._phaseActionCount;
+        m.turnAttacks = 0;
+        for (let _ai = 0; _ai < _atkCount; _ai++) {
+          if (m.hp <= 0) break;
+          monsterAI(m, dg, pl, ml, { ...opts, attackOnly: true });
+        }
+        return;
+      }
+      /* moveOnly / both: ターン蓄積・turnAttacksリセットは移動フェーズで */
       m.turnAccum += m.speed;
       m.turnAttacks = 0;
+      let _actionCount = 0;
       while (m.turnAccum >= 1) {
         m.turnAccum -= 1;
+        _actionCount++;
         if (m.hp <= 0) break;
-        monsterAI(m, dg, pl, ml, opts);
+        if (_phase === "moveOnly") {
+          monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
+        } else {
+          monsterAI(m, dg, pl, ml, opts);
+        }
+      }
+      if (_phase === "moveOnly") {
+        m._phaseActionCount = _actionCount;
       }
     });
   }, []);
@@ -959,11 +981,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       checkShopTheft(p, st.dungeon, ml);
-      /* Snapshot monster positions before movement for animation */
+      /* ===== 4フェーズターン制 ===== */
+      /* Phase 2: モンスター移動フェーズ（攻撃なし） */
       const _monSnap = new Map();
       for (const _ms of st.dungeon.monsters) _monSnap.set(_ms.id, { x: _ms.x, y: _ms.y });
-      const _plHpBefore = p.hp;
-      moveMons(st.dungeon, p, ml);
+      moveMons(st.dungeon, p, ml, "moveOnly");
       /* Capture monster position changes for animation */
       const _mmoves = [], _mattacks = [], _mdamages = [];
       for (const _ms2 of st.dungeon.monsters) {
@@ -972,14 +994,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           _mmoves.push({ id: _ms2.id, fromX: _snap.x, fromY: _snap.y, toX: _ms2.x, toY: _ms2.y, tile: _ms2.tile, hp: _ms2.hp, maxHp: _ms2.maxHp });
         }
       }
-      /* Detect if player was attacked (HP decreased during moveMons) */
-      if (p.hp < _plHpBefore && p.hp > 0) {
-        const _dmgTaken = _plHpBefore - p.hp;
-        _mdamages.push({ type: "damage", x: p.x, y: p.y, value: _dmgTaken, color: "#ff6644" });
-        _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
-      }
-      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages };
-      /* ===== moveMons後の爆発処理（敵を巻き込めるよう移動後に発動） ===== */
+      /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
       /* 爆発の指輪：5%の確率で爆発 */
       if (p.hp > 0 && hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
         ml.push("指輪が爆発した！");
@@ -997,6 +1012,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           doExplosion(_pme.x, _pme.y, st.dungeon, p, ml, _pme.nameFn, _pme.name, null, lu, true);
         }
       }
+      /* Phase 4: モンスター攻撃フェーズ（移動なし） */
+      const _plHpBefore = p.hp;
+      moveMons(st.dungeon, p, ml, "attackOnly");
+      /* Detect if player was attacked (HP decreased during attack phase) */
+      if (p.hp < _plHpBefore && p.hp > 0) {
+        const _dmgTaken = _plHpBefore - p.hp;
+        _mdamages.push({ type: "damage", x: p.x, y: p.y, value: _dmgTaken, color: "#ff6644" });
+        _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
+      }
+      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages };
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
