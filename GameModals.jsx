@@ -1889,7 +1889,11 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     for (const it of ITEMS) entries.push({ label: it.name, value: { ...it } });
     for (const w of WANDS) entries.push({ label: w.name, value: { ...w } });
     for (const sb of SPELLBOOKS) entries.push({ label: sb.name, value: { ...sb } });
-    for (const r of RINGS) entries.push({ label: r.name, value: { ...r } });
+    for (const r of RINGS) {
+      const rv = { ...r };
+      if (rv.effect === "power_ring") rv.plus = rng(1, 3);
+      entries.push({ label: r.name, value: rv });
+    }
     for (const p of POTS) entries.push({ label: p.name, value: { ...p, contents: [] } });
   } else if (effect === "debug_create_trap") {
     for (const t of TRAPS) entries.push({ label: t.name, value: { ...t } });
