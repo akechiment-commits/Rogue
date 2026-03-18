@@ -182,7 +182,19 @@ ${entityList}
 
   let dots = 0;
   const ticker = setInterval(() => { process.stdout.write('.'); dots++; }, 1000);
-  const msg = await stream.finalMessage();
+  let msg;
+  try {
+    msg = await stream.finalMessage();
+  } catch (err) {
+    clearInterval(ticker);
+    if (dots > 0) process.stdout.write('\n');
+    const status = err?.status ?? err?.error?.status;
+    if (status === 401) {
+      console.error('\nエラー: APIキーが無効です。ANTHROPIC_API_KEY を確認してください。');
+      process.exit(1);
+    }
+    throw err;
+  }
   clearInterval(ticker);
   if (dots > 0) process.stdout.write('\n');
 
