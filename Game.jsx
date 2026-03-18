@@ -929,12 +929,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       }
-      /* 爆発の指輪：5%の確率で爆発 */
-      if (hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
-        ml.push("指輪が爆発した！");
-        const _erfNFn = (gi) => gi.name;
-        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
-      }
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
       const _cursedSancOn = st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
       if (_cursedSancOn && p.hp > 0) {
@@ -985,6 +979,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
       }
       monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages };
+      /* ===== moveMons後の爆発処理（敵を巻き込めるよう移動後に発動） ===== */
+      /* 爆発の指輪：5%の確率で爆発 */
+      if (p.hp > 0 && hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
+        ml.push("指輪が爆発した！");
+        const _erfNFn = (gi) => gi.name;
+        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
+      }
+      /* 遅延地雷爆発（act()から受け渡し） */
+      if (st._pendingMineExplosion && p.hp > 0) {
+        const _pme = st._pendingMineExplosion;
+        delete st._pendingMineExplosion;
+        ml.push(`${_pme.name}が発動！`);
+        if (hasCursedExplosionPentacle(st.dungeon)) {
+          ml.push(`呪われた爆発の魔方陣が爆発を打ち消した！`);
+        } else {
+          doExplosion(_pme.x, _pme.y, st.dungeon, p, ml, _pme.nameFn, _pme.name, null, lu, true);
+        }
+      }
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
@@ -1547,6 +1559,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 st.dungeon = nd;
                 ml.push(`地下${p.depth}階に落ちた！`);
               }
+            } else if (tr === "deferred_explosion") {
+              /* 地雷：モンスター移動後に爆発させる（endTurnで処理） */
+              const _mineTrap = dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "explode");
+              st._pendingMineExplosion = {
+                x: p.x, y: p.y,
+                name: _mineTrap?.name || "地雷",
+                nameFn: (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+              };
             }
             autoPickup(p, st.dungeon, ml);
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
@@ -1969,6 +1989,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             st.dungeon = nd;
             ml.push(`地下${p.depth}階に落ちた！`);
           }
+          endTurn(st, p, ml);
+          break;
+        }
+        if (tr === "deferred_explosion") {
+          const _mineTrapD = dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "explode");
+          st._pendingMineExplosion = {
+            x: p.x, y: p.y,
+            name: _mineTrapD?.name || "地雷",
+            nameFn: (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+          };
           endTurn(st, p, ml);
           break;
         }
