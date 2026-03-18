@@ -770,6 +770,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     dg.monsters.forEach((m) => {
       if (m.hp <= 0) return;
       if (_phase === "attackOnly") {
+        /* 移動した敵は攻撃フェーズをスキップ */
+        if (m._movedThisTurn) { delete m._movedThisTurn; return; }
         /* 攻撃フェーズ：移動フェーズで保存したアクション回数分だけ攻撃を試みる */
         const _atkCount = m._phaseActionCount || 1;
         delete m._phaseActionCount;
@@ -986,12 +988,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const _monSnap = new Map();
       for (const _ms of st.dungeon.monsters) _monSnap.set(_ms.id, { x: _ms.x, y: _ms.y });
       moveMons(st.dungeon, p, ml, "moveOnly");
-      /* Capture monster position changes for animation */
+      /* Capture monster position changes for animation + mark movers */
       const _mmoves = [], _mattacks = [], _mdamages = [];
       for (const _ms2 of st.dungeon.monsters) {
         const _snap = _monSnap.get(_ms2.id);
         if (_snap && (_ms2.x !== _snap.x || _ms2.y !== _snap.y)) {
           _mmoves.push({ id: _ms2.id, fromX: _snap.x, fromY: _snap.y, toX: _ms2.x, toY: _ms2.y, tile: _ms2.tile, hp: _ms2.hp, maxHp: _ms2.maxHp });
+          _ms2._movedThisTurn = true; /* 移動した敵は攻撃フェーズで攻撃不可 */
         }
       }
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
