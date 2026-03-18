@@ -214,10 +214,13 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     }
     const cw = vw * sz,
       ch = vh * sz;
-    cvs.width = cw;
-    cvs.height = ch;
-    cvs.style.width = cw + "px";
-    cvs.style.height = ch + "px";
+    /* Only resize canvas when dimensions actually change (avoids full context reset) */
+    if (cvs.width !== cw || cvs.height !== ch) {
+      cvs.width = cw;
+      cvs.height = ch;
+      cvs.style.width = cw + "px";
+      cvs.style.height = ch + "px";
+    }
     ctx.imageSmoothingEnabled = false;
     const hw = Math.floor(vw / 2),
       hh = Math.floor(vh / 2);
@@ -434,6 +437,10 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const pti = playerTileForFacing(pf);
         drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
       } else if (key.startsWith("mon_") && mo.tile != null) {
+        /* Skip if neither start nor end position is visible to the player */
+        const _fromVis = dg.visible[mo.fromY]?.[mo.fromX];
+        const _toVis = dg.visible[mo.toY]?.[mo.toX];
+        if (!_fromVis && !_toVis) continue;
         const _monTile2 = (p.bewitchedTurns || 0) > 0
           ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(Math.floor(drawX) * 7 + Math.floor(drawY) * 13) % 9]
           : mo.tile;
