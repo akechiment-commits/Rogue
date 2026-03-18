@@ -379,6 +379,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const playAnim = useCallback(async (data) => {
     if (!data || !canvasRef.current) return;
     animBusyRef.current = true;
+    try {
     const _easeOut = (t) => t * (2 - t);
     const _phase = (dur, fn) => new Promise(res => {
       const s = performance.now();
@@ -454,7 +455,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     moveOffsetsRef.current.clear();
     overlaysRef.current = [];
     renderFrame();
-    animBusyRef.current = false;
+    } finally {
+      animBusyRef.current = false;
+    }
   }, [renderFrame]);
   /* Drain animation events produced by useItemActions (outside of act()) */
   useEffect(() => {

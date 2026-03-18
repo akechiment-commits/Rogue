@@ -953,11 +953,24 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
   if (hasCursedExplosionPentacle(dg)) { ml.push(`呪われた爆発の魔方陣が${srcLabel}の爆発を打ち消した！`); return; }
   _gunpowderDepth++;
   try {
+    pushExplosionAnim(cx, cy);
     ml.push(`${srcLabel}が爆発した！周囲8マスに爆風！`);
     for (let ddx = -1; ddx <= 1; ddx++) {
       for (let ddy = -1; ddy <= 1; ddy++) {
         const ax = cx + ddx, ay = cy + ddy;
         if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+        /* 壁の破壊 */
+        if ((dg.map[ay][ax] === T.BWALL || dg.map[ay][ax] === T.WALL) &&
+            ax > 0 && ax < MW - 1 && ay > 0 && ay < MH - 1) {
+          const _wi = dg.items.find(i => i.x === ax && i.y === ay && i.wallEmbedded);
+          if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
+          dg.map[ay][ax] = T.FLOOR;
+          if (dg.explored?.[ay]?.[ax] !== undefined) dg.explored[ay][ax] = true;
+          if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
+          ml.push("爆風で壁が崩れた！");
+          wallBreakDrop(dg, ax, ay);
+          continue;
+        }
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
         if (p && p.x === ax && p.y === ay) {
           const _hasFireR = hasAbility(p.armor, "fire_resist");
