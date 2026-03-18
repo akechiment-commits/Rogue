@@ -86,6 +86,25 @@ export function generateFakeNames(items, pots, spellbooks = []) {
 }
 
 /* ===== ITEMS ===== */
+/*
+ * ────────────────────────────────────────────────────────────────
+ * 新しいアイテムを追加する手順:
+ *   【薬・巻物】
+ *     1. ITEMS配列に { name, type, effect, value?, rarity, weight, sellPrice, desc, tile } を追加
+ *     2. applyPotionEffect() の switch(eff) に case "effect名": { ... } を追加
+ *        ※ 追加し忘れると console.warn が出て効果が発動しない
+ *   【ペン】
+ *     1. ITEMS配列に { name:"...のペン", type:"pen", effect, charges:2, ... } を追加
+ *     2. Game.jsx のペン効果処理ブロックに effect 名を追加
+ *   【杖】
+ *     1. WANDS配列に { name, type:"wand", effect, charges, ... } を追加
+ *     2. wands.js の applyWandEffect() の switch(eff) に case "effect名": { ... } を追加
+ *        ※ 追加し忘れると console.warn が出て効果が発動しない
+ *   【壺】
+ *     1. POTS配列に { name, type:"pot", potEffect, capacity, ... } を追加
+ *     2. applyPotEffect() に potEffect の処理を追加（if チェーン）
+ * ────────────────────────────────────────────────────────────────
+ */
 export const ITEMS = [
   { name:"回復薬",           type:"potion", effect:"heal",     value:15, rarity:"D", weight:12, sellPrice:50,   desc:"HPを少し回復する。",               tile:16 },
   { name:"大回復薬",         type:"potion", effect:"heal",     value:35, rarity:"B", weight:4,  sellPrice:300,  desc:"HPを大幅に回復する。",             tile:17 },
@@ -1715,6 +1734,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       }
       break;
+    default:
+      /* 未登録の effect が渡された場合は警告 (items.js ITEMS への追加を忘れずに) */
+      console.warn(`[applyPotionEffect] 未登録の effect: "${eff}" — applyPotionEffect の switch に case を追加してください`);
   }
 }
 

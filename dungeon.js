@@ -140,7 +140,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     if (map[my]?.[mx] !== T.FLOOR) continue;
     if ((mx === su.x && my === su.y) || (mx === sd.x && my === sd.y)) continue;
     if (mons.some(m => m.x === mx && m.y === my)) continue;
-    const t = MONS[clamp(rng(0, depth + 2), 0, MONS.length - 1)];
+    const { levels: _tlvls, ...t } = MONS[clamp(rng(0, depth + 2), 0, MONS.length - 1)];
     mons.push({ ...t, id: uid(), x: mx, y: my, maxHp: t.hp, turnAccum: 0, aware: false,
       dir: { x: [-1,1][rng(0,1)], y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
       dormantHouse: true });
@@ -407,7 +407,7 @@ function mkVis() {
   };
 }
 function mkMon(depth, x, y, dormantRate = 0.12) {
-  const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
+  const { levels: _lvls, ...t } = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
   return {
     ...t, id: uid(), x, y, maxHp: t.hp, turnAccum: 0, aware: false,
     dir: { x: [-1, 1][rng(0, 1)], y: 0 }, lastPx: 0, lastPy: 0,

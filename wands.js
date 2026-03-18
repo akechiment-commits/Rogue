@@ -10,6 +10,12 @@ import {
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim } from './animEvents.js';
 
+/*
+ * 新しい杖エフェクトを追加する手順:
+ *   1. items.js の WANDS配列に新しい杖を追加
+ *   2. この関数の switch(eff) に case "effect名": { ... } を追加
+ *      ※ 追加し忘れると console.warn が出て効果が発動しない
+ */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0) {
   if (kind === "monster") wakeIfDormant(target, ml);
   /* 地面のアイテムは未識別名で表示するため、呼び出し元から nameFn を受け取る */
@@ -1163,6 +1169,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       break;
     }
+    default:
+      /* 未登録の effect が渡された場合は警告 (items.js WANDS への追加を忘れずに) */
+      console.warn(`[applyWandEffect] 未登録の effect: "${eff}" — applyWandEffect の switch に case を追加してください`);
   }
 }
 
