@@ -2625,6 +2625,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const ORDER = [
       "weapon",
       "armor",
+      "ring",
       "arrow",
       "potion",
       "scroll",

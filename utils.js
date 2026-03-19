@@ -66,7 +66,7 @@ export const DRO = [
   [2, 2],
 ];
 
-const _WH_ORDER = ["weapon","armor","arrow","potion","scroll","food","wand","marker","pen","pot","bottle","gold"];
+const _WH_ORDER = ["weapon","armor","ring","arrow","potion","scroll","food","wand","marker","pen","pot","bottle","gold"];
 export function sortWarehouseItems(items) {
   return [...items].sort((a, b) => {
     const oa = _WH_ORDER.indexOf(a.type), ob = _WH_ORDER.indexOf(b.type);
