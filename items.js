@@ -1467,7 +1467,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "shadow_stitch": {
       ml.push(`${trap.name}が発動！`);
       const _ssm = monsterAt(dg, tx, ty);
-      if (_ssm) { _ssm.paralyzed = true; _ssm.paralyzeHits = 2; ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！`); }
+      if (_ssm) { _ssm.immobileTurns = (_ssm.immobileTurns || 0) + 5; ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(5ターン移動封じ)`); }
       if (p && p.x === tx && p.y === ty) {
         p.immobileTurns = (p.immobileTurns || 0) + 5;
         ml.push(`影に縫い付けられた！(5ターン移動不能)`);
@@ -2796,8 +2796,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
     case "ice_bolt": {
       const dmg = rng(15, 22) * _cmsBoost;
       if (kind === "monster") {
-        target.hp -= dmg; target.speed = Math.max(0.25, target.speed * 0.5);
-        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！動きが鈍くなった！`);
+        target.hp -= dmg;
+        target.immobileTurns = (target.immobileTurns || 0) + 3;
+        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！3ターン移動封じ！`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
     }

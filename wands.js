@@ -30,6 +30,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             dg.map[_lpy][_lpx] !== T.WALL && dg.map[_lpy][_lpx] !== T.BWALL &&
             !dg.monsters.some(m => m.x === _lpx && m.y === _lpy)) {
           p.x = _lpx; p.y = _lpy;
+          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
           ml.push(`${target.name}に引き寄せられた！`);
         } else {
           ml.push("引き寄せられなかった。");
@@ -39,6 +40,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const [ox, oy] = [p.x, p.y];
       p.x = target.x; p.y = target.y;
       target.x = ox;  target.y = oy;
+      if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
       ml.push(`${target.name}と位置が入れ替わった！`);
       return;
     }
@@ -559,6 +561,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               !dg.monsters.some(m2 => m2 !== target && m2.x === _leapX && m2.y === _leapY) &&
               !(_leapX === p.x && _leapY === p.y)) {
             p.x = _leapX; p.y = _leapY;
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
             ml.push(`${target.name}の前に飛びついた！`);
           } else {
             ml.push("飛びつけなかった。");
@@ -567,6 +570,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _leapX = target.x - dx, _leapY = target.y - dy;
           if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH && dg.map[_leapY][_leapX] !== T.WALL && dg.map[_leapY][_leapX] !== T.BWALL) {
             p.x = _leapX; p.y = _leapY;
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
             ml.push(`${target.name}の前に飛びついた！`);
           }
         }
@@ -576,6 +580,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const [ox, oy] = [p.x, p.y];
         p.x = target.x; p.y = target.y;
         target.x = ox;  target.y = oy;
+        if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${target.name}と位置が入れ替わった！`);
         /* 聖域の上に強制移動した敵は即死 */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
@@ -597,6 +602,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${target.name}と位置が入れ替わった！`);
         p.x = target.x; p.y = target.y;
         target.x = ox;  target.y = oy;
+        if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         break;
       }
       break;
@@ -1239,7 +1245,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         return;
       }
       if (eff === "leap") {
-        if (blMult >= 1) { p.x = lastX; p.y = lastY; ml.push("壁の前に飛びついた！"); return; }
+        if (blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push("壁の前に飛びついた！"); return; }
         // 呪い：跳ね返って自分に当たる → プレイヤーがランダムテレポート
         ml.push("魔法弾が跳ね返って自分に当たった！【呪】");
         if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
@@ -1277,13 +1283,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     }
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${mon.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "monster", mon, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const it = itemAt(dg, tx, ty);
     if (it) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${it.name}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
       const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬", seal:"封印の薬" };
       if (it.effect === "water" && BOTTLE_XFORM[eff]) {
@@ -1298,19 +1304,19 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${trap.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${trap.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "trap", trap, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
     if (bb) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${bb.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${bb.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "bigbox", bb, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     lastX = tx; lastY = ty;
   }
-  if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push("虚空の先に飛びついた！"); return; }
+  if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push("虚空の先に飛びついた！"); return; }
   ml.push("魔法弾は虚空に消えた。");
 }
 

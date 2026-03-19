@@ -586,6 +586,7 @@ export function useItemActions({
             const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
             p.x = rng(rm.x, rm.x + rm.w - 1);
             p.y = rng(rm.y, rm.y + rm.h - 1);
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
             ml.push("テレポートした！");
           }
         }
@@ -1006,6 +1007,7 @@ export function useItemActions({
           const _tpRm = dg.rooms[rng(0, dg.rooms.length - 1)];
           p.x = rng(_tpRm.x, _tpRm.x + _tpRm.w - 1);
           p.y = rng(_tpRm.y, _tpRm.y + _tpRm.h - 1);
+          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
           ml.push("魔方陣を描いた瞬間、テレポートした！");
         }
         /* 雷の魔方陣：描いたそのターンにも即座に発動 */
