@@ -960,9 +960,20 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
       const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
-      if ((_archerRdy || _stoneRdy || _wandRdy) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _dfLvl0 = m.monLevel || 1;
+      const _dragonRdy0 = m.baseKind === "dragon" && !m.sealed && _rAtks && _rLen >= 2 &&
+        (_dfLvl0 >= 2 ? _sameRoom : _rLine);
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
+      }
+    }
+    /* ドラゴンLv3：canSee不要なので別途判定 */
+    if (_moveOnly && m.aware && m.baseKind === "dragon" && !m.sealed && (m.monLevel || 1) >= 3) {
+      const _dfDist3 = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+      if (_dfDist3 >= 2 && m.turnAttacks < (m.maxAttacks ?? 1) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m._rangedAttackThisTurn = true;
+        return;
       }
     }
 
@@ -1023,7 +1034,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
         }
       }
-      if (_canFire && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _dragonRdy = m._rangedAttackThisTurn;
+      if (_dragonRdy) delete m._rangedAttackThisTurn;
+      if (_canFire && (_dragonRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterDragonFire(m, dg, pl, ml);
         return;
