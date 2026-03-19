@@ -68,6 +68,7 @@ export const TILE_NAMES = {
   63: "player_down_right",
   64: "player_up_left",
   65: "player_up_right",
+  66: "food_cooked",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
