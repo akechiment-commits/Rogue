@@ -16,7 +16,7 @@ import { pushAnim, pushMonsterBoltAnim } from './animEvents.js';
  *   2. この関数の switch(eff) に case "effect名": { ... } を追加
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
-export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0) {
+export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null) {
   if (kind === "monster") wakeIfDormant(target, ml);
   /* 地面のアイテムは未識別名で表示するため、呼び出し元から nameFn を受け取る */
   const _dname_item = (t) => (nameFn && kind === "item") ? nameFn(t) : t.name;
@@ -309,13 +309,20 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 聖域の上に強制移動した敵は即死（壁激突によるHP0チェックより先に判定） */
         if (dg.monsters.includes(target) &&
             dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
-          ml.push(`${target.name}は聖域に吹き飛ばされ消滅した！(+${target.exp}exp)`);
-          p.exp += target.exp;
-          monsterDrop(target, dg, ml, p);
-          removeMonster(dg, target);
-          luFn(p, ml);
+          if (killerMon) {
+            ml.push(`${target.name}は聖域に吹き飛ばされ消滅した！`);
+            monsterDrop(target, dg, ml, p);
+            removeMonster(dg, target);
+            monLevelUp(killerMon, dg, ml);
+          } else {
+            ml.push(`${target.name}は聖域に吹き飛ばされ消滅した！(+${target.exp}exp)`);
+            p.exp += target.exp;
+            monsterDrop(target, dg, ml, p);
+            removeMonster(dg, target);
+            luFn(p, ml);
+          }
         } else if (target.hp <= 0) {
-          killMonster(target, dg, p, ml, luFn);
+          killMonster(target, dg, p, ml, luFn, false, killerMon);
         }
         break;
       }
@@ -407,7 +414,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         target.hp -= dmg;
         ml.push(`雷撃が${target.name}に命中！${dmg}ダメージ！`);
-        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
         break;
       }
       if (kind === "player") {
@@ -1304,7 +1311,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 }
 
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
-export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null) {
+export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null) {
   pushMonsterBoltAnim(cx, cy, dx, dy, dg, pl, "lightning");
   for (let d = 1; d < MW + MH; d++) {
     const tx = cx + dx * d, ty = cy + dy * d;
@@ -1349,7 +1356,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     }
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
-      applyWandEffect("lightning", "monster", mon, dx, dy, dg, pl, ml, luFn, bbFn);
+      applyWandEffect("lightning", "monster", mon, dx, dy, dg, pl, ml, luFn, bbFn, 1, null, 0, killerMon);
       return;
     }
     const it = itemAt(dg, tx, ty);

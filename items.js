@@ -2238,10 +2238,13 @@ export function applyFireInventoryDamage(p, ml) {
   ml.push(`爆発の熱で所持していた「${victim.name}」が${verb}！`);
 }
 
-/** プレイヤーがモンスターを倒した時の共通処理 */
-export function killMonster(mon, dg, p, ml, luFn, noExp = false) {
+/** プレイヤーがモンスターを倒した時の共通処理。
+ *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
+export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null) {
   const mx = mon.x, my = mon.y;
-  if (noExp) {
+  if (killerMon) {
+    ml.push(`${mon.name}は${killerMon.name}に倒された！`);
+  } else if (noExp) {
     ml.push(`${mon.name}は消し飛んだ！(経験値なし)`);
   } else {
     ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
@@ -2249,7 +2252,11 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false) {
   }
   monsterDrop(mon, dg, ml, p);
   removeMonster(dg, mon);
-  if (luFn) luFn(p, ml);
+  if (killerMon) {
+    monLevelUp(killerMon, dg, ml);
+  } else if (luFn) {
+    luFn(p, ml);
+  }
   _triggerExplosionPentacle(mx, my, dg, p, ml, luFn);
 }
 

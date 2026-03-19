@@ -624,7 +624,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (_we === "lightning") {
           ml.push(`${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
-            (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames));
+            (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames), m);
         } else if (_we === "curse_wand") {
           ml.push(`${m.name}が呪いの杖を振った！`);
           pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "curse_wand");
@@ -752,8 +752,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             /* 途中のモンスターに命中 */
             const _bwMon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty);
             if (_bwMon) {
-              applyWandEffect("knockback", "monster", _bwMon, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
-              if (_bwMon.hp <= 0) { trackMonster(_bwMon); killMonster(_bwMon, dg, pl, ml, lu); }
+              applyWandEffect("knockback", "monster", _bwMon, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk, m);
+              if (_bwMon.hp <= 0) { trackMonster(_bwMon); killMonster(_bwMon, dg, pl, ml, lu, false, m); }
               _bwHit = true; break;
             }
           }
