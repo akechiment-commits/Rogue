@@ -234,14 +234,14 @@ export const MONS = [
     ],
   },
   /* 7.5: 8階〜 盗みモンスター */
-  { name: "コソドロ",     hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief",
+  { name: "コソドロ",     hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 69, kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief",
     levels: [
       { name: "大盗賊",           hp: 20,  atk: 6,  def: 1,  exp: 56  },
       { name: "怪盗",             hp: 32,  atk: 8,  def: 2,  exp: 88  },
     ],
   },
   /* 7.6: 5階〜 逃げるボーナスモンスター */
-  { name: "コロポックル", hp: 8,   atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 53, kind: "beast",    baseKind: "runner",     monLevel: 1, subtype: "runner",
+  { name: "コロポックル", hp: 8,   atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 70, kind: "beast",    baseKind: "runner",     monLevel: 1, subtype: "runner",
     levels: [
       { name: "大コロポックル",   hp: 12,  atk: 0,  def: 0,  exp: 80  },
       { name: "精霊コロポックル", hp: 18,  atk: 0,  def: 0,  exp: 120 },
