@@ -627,7 +627,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const checkTrap = useCallback((p, dg, ml, isDash = false) => {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
-    if (isDash && trap.revealed && !hasGravityPentacle(dg, p.x, p.y)) return null;
+    if (isDash && trap.revealed) return null;
     if (isPlayerFloating(p, dg)) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
@@ -2084,7 +2084,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         const _dashRevTrap = (() => { const _t = _dTrapMap.get(_dk(p.x, p.y)); return _t?.revealed ? _t : undefined; })();
         if (_dashRevTrap) {
-          ml.push(`${_dashRevTrap.name}がある。`);
+          if (hasGravityPentacle(dg, p.x, p.y)) {
+            /* 重力の魔方陣の影響下：既知の罠も作動させる */
+            const _nameFn2 = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+            const _gtr = fireTrapPlayer(_dashRevTrap, p, dg, ml, _nameFn2, lu);
+            const _gravTrBreakChance = (_dashRevTrap.effect === "steal_trap" || _dashRevTrap.effect === "summon_trap") ? 0.5 : 0.25;
+            if (!_dashRevTrap.permanent && Math.random() < _gravTrBreakChance) {
+              dg.traps = dg.traps.filter(t => t !== _dashRevTrap);
+              ml.push(`${_dashRevTrap.name}は壊れた。`);
+            }
+            if (_gtr === "pitfall") {
+              const nd = chgFloor(p, 1, true);
+              if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に落ちた！`); }
+            } else if (_gtr === "deferred_explosion") {
+              st._pendingMineExplosion = { x: p.x, y: p.y, name: _dashRevTrap.name, nameFn: _nameFn2 };
+            }
+          } else {
+            ml.push(`${_dashRevTrap.name}がある。`);
+          }
           endTurn(st, p, ml);
           break;
         }
