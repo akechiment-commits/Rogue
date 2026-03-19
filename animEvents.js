@@ -94,3 +94,11 @@ export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a0
 export function pushExplosionAnim(cx, cy) {
   pushAnim({ type: "explosion", x: cx, y: cy, radius: 1.5 });
 }
+
+/*
+ * Push a splash animation (potion/oil scatter effect).
+ * cx, cy: center tile. color: droplet color.
+ */
+export function pushSplashAnim(cx, cy, color = "#88ccff") {
+  pushAnim({ type: "splash", x: cx, y: cy, color });
+}

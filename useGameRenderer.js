@@ -40,6 +40,8 @@ function drawOverlays(ctx, overlays, sx, sy, sz) {
       drawProjectile(ctx, o, sx, sy, sz, t);
     } else if (o.type === "explosion") {
       drawExplosionEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "splash") {
+      drawSplashEffect(ctx, o, sx, sy, sz, p);
     }
   }
 }
@@ -183,6 +185,47 @@ function drawExplosionEffect(ctx, o, sx, sy, sz, p) {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+/* ===== Splash Effect (potion/oil scatter) ===== */
+function drawSplashEffect(ctx, o, sx, sy, sz, p) {
+  const cx = (o.x - sx) * sz + sz / 2;
+  const cy = (o.y - sy) * sz + sz / 2;
+  const color = o.color || "#88ccff";
+  const alpha = p > 0.55 ? Math.max(0, 1 - (p - 0.55) / 0.45) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* 8方向 + 中央のしぶき粒子 */
+  const dirs = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  const travel = easeOutQuad(Math.min(1, p * 1.6)) * sz * 0.82;
+  for (const [dx, dy] of dirs) {
+    const isCenter = dx === 0 && dy === 0;
+    const px = cx + dx * travel;
+    const py = cy + dy * travel;
+    const r = Math.max(1, sz * (isCenter ? 0.16 : 0.11) * (1 - p * 0.55));
+    ctx.globalAlpha = alpha * (isCenter ? 0.95 : 0.78);
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    /* 各粒子に小さい光沢ハイライト */
+    if (!isCenter && r > 2) {
+      ctx.globalAlpha = alpha * 0.4;
+      ctx.beginPath();
+      ctx.arc(px - r * 0.25, py - r * 0.25, r * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+    }
+  }
+  /* 中央の広がる波紋 */
+  const rippleR = easeOutQuad(p) * sz * 0.72;
+  ctx.globalAlpha = alpha * 0.35 * (1 - p);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1, sz * 0.06);
+  ctx.beginPath();
+  ctx.arc(cx, cy, rippleR, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.restore();
 }
 

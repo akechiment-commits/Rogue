@@ -1,6 +1,6 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
-import { pushExplosionAnim } from './animEvents.js';
+import { pushExplosionAnim, pushSplashAnim } from './animEvents.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
@@ -761,6 +761,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
   if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
     ml.push(`${_pn}が割れて${_oilEffects[pot.potEffect]}が飛び散った！`);
+    pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
@@ -1853,6 +1854,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
 
 export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false, cursed = false, dnFn = null) {
   ml.push("瓶が割れて中身が飛び散った！");
+  pushSplashAnim(cx, cy, "#88ccff");
   const tiles = [];
   for (let dy2 = -1; dy2 <= 1; dy2++)
     for (let dx2 = -1; dx2 <= 1; dx2++) {
@@ -1897,6 +1899,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
 /* 祝福・呪いの水を投擲：着弾点のアイテム1つのみに祝呪効果（周囲8マス無効） */
 export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml) {
   ml.push("瓶が割れた！");
+  pushSplashAnim(cx, cy, blessed ? "#aaddff" : cursed ? "#aa88ff" : "#88ccff");
   const it = itemAt(dg, cx, cy);
   if (!it) { if (blessed || cursed) ml.push("着弾点にアイテムがなかった…"); return; }
   if (it.type === "pot") {

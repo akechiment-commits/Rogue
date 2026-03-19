@@ -498,7 +498,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       else if (e.type === "projectileReturn") (d.projectileReturns = d.projectileReturns || []).push(e);
       else if (e.type === "monProjectile") (d.monProjectiles = d.monProjectiles || []).push(e);
       else if (e.type === "monProjectileReturn") (d.monProjectileReturns = d.monProjectileReturns || []).push(e);
-      else if (e.type === "explosion") d.explosions.push(e);
+      else if (e.type === "explosion" || e.type === "splash") d.explosions.push(e);
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
     }
@@ -1318,7 +1318,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       const _drainedEvts = drainAnims();
       for (const _de of _drainedEvts) {
-        if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
+        if (_de.type === "explosion" || _de.type === "splash") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
         else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);
@@ -1860,7 +1860,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         else if (_de.type === "projectileReturn") (_ad.projectileReturns = _ad.projectileReturns || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
-        else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
+        else if (_de.type === "explosion" || _de.type === "splash") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "damage") _ad.damages.push(_de);
         else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
       }
