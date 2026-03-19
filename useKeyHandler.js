@@ -726,12 +726,14 @@ export function useKeyHandler({
         if (_dsEff === "debug_summon_mon") {
           for (const m of MONS) { _dsTotalEntries++; const lvs = MON_LEVELS[m.baseKind]; if (lvs) { if (lvs[0]) _dsTotalEntries++; if (lvs[1]) _dsTotalEntries++; } }
         } else if (_dsEff === "debug_get_item") {
-          if (!_dsCat) { _dsTotalEntries = 5; } // カテゴリ数
-          else if (_dsCat === "items")      _dsTotalEntries = ITEMS.length;
-          else if (_dsCat === "wands")      _dsTotalEntries = WANDS.length;
-          else if (_dsCat === "spellbooks") _dsTotalEntries = SPELLBOOKS.length;
-          else if (_dsCat === "rings")      _dsTotalEntries = RINGS.length;
-          else if (_dsCat === "pots")       _dsTotalEntries = POTS.length;
+          if (!_dsCat) { _dsTotalEntries = 7; } // カテゴリ数
+          else if (_dsCat === "potions")  _dsTotalEntries = ITEMS.filter(x=>x.type==="potion").length + 1; // +WATER_BOTTLE
+          else if (_dsCat === "scrolls")  _dsTotalEntries = ITEMS.filter(x=>x.type==="scroll").length + 1; // +BLANK_SCROLL
+          else if (_dsCat === "weapons")  _dsTotalEntries = ITEMS.filter(x=>x.type==="weapon").length + 2; // +CAT_CLAW_T +EXCALIBUR_T
+          else if (_dsCat === "armors")   _dsTotalEntries = ITEMS.filter(x=>x.type==="armor").length;
+          else if (_dsCat === "pens")     _dsTotalEntries = ITEMS.filter(x=>x.type==="pen").length + 1;   // +MAGIC_MARKER
+          else if (_dsCat === "arrows")   _dsTotalEntries = ITEMS.filter(x=>x.type==="arrow").length + 3; // +矢+石+魔法の石
+          else if (_dsCat === "others")   _dsTotalEntries = WANDS.length + SPELLBOOKS.length + RINGS.length + POTS.length + 2; // +空き瓶+食べ物
         } else if (_dsEff === "debug_create_trap") {
           _dsTotalEntries = TRAPS.length;
         } else if (_dsEff === "debug_summon_bb") {

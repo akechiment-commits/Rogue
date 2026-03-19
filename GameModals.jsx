@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, genFood } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV } from "./utils.js";
@@ -1872,11 +1872,40 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
 /* ===== Debug Spell Modal ===== */
 /* アイテム取得のカテゴリ定義 */
 const _DBG_ITEM_CATS = [
-  { key: "items",      label: "アイテム全般", build: () => ITEMS.map(it => ({ label: it.name, value: { ...it } })) },
-  { key: "wands",      label: "杖",           build: () => WANDS.map(w => ({ label: w.name, value: { ...w } })) },
-  { key: "spellbooks", label: "魔法書",       build: () => SPELLBOOKS.map(sb => ({ label: sb.name, value: { ...sb } })) },
-  { key: "rings",      label: "指輪",         build: () => RINGS.map(r => { const rv = { ...r }; if (rv.effect === "power_ring") rv.plus = rng(1,3); return { label: r.name, value: rv }; }) },
-  { key: "pots",       label: "壺",           build: () => POTS.map(p => ({ label: p.name, value: { ...p, contents: [] } })) },
+  { key: "potions",  label: "薬",       build: () => [
+    ...ITEMS.filter(x => x.type === "potion").map(it => ({ label: it.name, value: { ...it } })),
+    { label: WATER_BOTTLE.name, value: { ...WATER_BOTTLE } },
+  ]},
+  { key: "scrolls",  label: "巻物",     build: () => [
+    ...ITEMS.filter(x => x.type === "scroll").map(it => ({ label: it.name, value: { ...it } })),
+    { label: BLANK_SCROLL.name, value: { ...BLANK_SCROLL } },
+  ]},
+  { key: "weapons",  label: "武器",     build: () => [
+    ...ITEMS.filter(x => x.type === "weapon").map(it => ({ label: it.name, value: { ...it } })),
+    { label: CAT_CLAW_T.name,   value: { ...CAT_CLAW_T } },
+    { label: EXCALIBUR_T.name,  value: { ...EXCALIBUR_T } },
+  ]},
+  { key: "armors",   label: "防具",     build: () => [
+    ...ITEMS.filter(x => x.type === "armor").map(it => ({ label: it.name, value: { ...it } })),
+  ]},
+  { key: "pens",     label: "ペン",     build: () => [
+    ...ITEMS.filter(x => x.type === "pen").map(it => ({ label: it.name, value: { ...it } })),
+    { label: MAGIC_MARKER.name, value: { ...MAGIC_MARKER } },
+  ]},
+  { key: "arrows",   label: "飛び道具", build: () => [
+    ...ITEMS.filter(x => x.type === "arrow").map(it => ({ label: it.name, value: { ...it } })),
+    { label: ARROW_T.name,       value: { ...ARROW_T } },
+    { label: STONE_T.name,       value: { ...STONE_T } },
+    { label: MAGIC_STONE_T.name, value: { ...MAGIC_STONE_T } },
+  ]},
+  { key: "others",   label: "その他",   build: () => [
+    ...WANDS.map(w => ({ label: w.name, value: { ...w } })),
+    ...SPELLBOOKS.map(sb => ({ label: sb.name, value: { ...sb } })),
+    ...RINGS.map(r => { const rv = { ...r }; if (rv.effect === "power_ring") rv.plus = rng(1,3); return { label: r.name, value: rv }; }),
+    ...POTS.map(p => ({ label: p.name, value: { ...p, contents: [] } })),
+    { label: EMPTY_BOTTLE.name, value: { ...EMPTY_BOTTLE } },
+    { label: "食べ物(ランダム)", value: null, isFood: true },
+  ]},
 ];
 
 const PAGE_SIZE = 10;
@@ -1968,11 +1997,10 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       if (p.inventory.length >= (p.maxInventory || 30)) {
         ml.push("持ち物がいっぱいだ！");
       } else {
-        const it = { ...entry.value, id: uid() };
+        const _base = entry.isFood ? genFood() : { ...entry.value };
+        const it = { ..._base, id: uid(), fullIdent: true, bcKnown: true };
         if (it.type === "wand") it.charges = it.maxCharges ?? it.charges ?? 5;
         if (it.type === "pot") it.contents = [];
-        it.fullIdent = true;
-        it.bcKnown = true;
         p.inventory.push(it);
         ml.push(`${it.name}を手に入れた！`);
       }
