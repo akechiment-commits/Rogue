@@ -711,7 +711,7 @@ export function wakeIfDormant(m, ml) {
 /* ===== MONSTER AI ===== */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
-  const _attackOnly = opts.attackOnly || false;
+  let _attackOnly = opts.attackOnly || false;
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
   /* 通常仮眠：視界に入るか、何らかのアクションを受けたら即覚醒 */
@@ -734,8 +734,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     return;
   }
   if (m.paralyzed) return;
-  /* 移動封じ（氷の杖など） */
-  if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns--; return; }
+  /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
+  if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns--; _attackOnly = true; }
 
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
