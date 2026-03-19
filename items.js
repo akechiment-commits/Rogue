@@ -2297,7 +2297,8 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
       ft.add(trap.id);
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
-      if (!trap.permanent && Math.random() < 0.3) {
+      const _itBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
+      if (!trap.permanent && Math.random() < _itBreakChance) {
         dg.traps = dg.traps.filter(t => t !== trap);
         ml.push(`${trap.name}は壊れた。`);
       }
@@ -2555,7 +2556,8 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           const ft = new Set();
           ft.add(trap.id);
           const r = fireTrapItem(trap, entity, dg, nx, ny, ml, ft, p);
-          if (!trap.permanent && Math.random() < 0.3) {
+          const _entBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
+          if (!trap.permanent && Math.random() < _entBreakChance) {
             dg.traps = dg.traps.filter(t => t !== trap);
             ml.push(`${trap.name}は壊れた。`);
           }

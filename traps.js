@@ -249,7 +249,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
     }
   }
 
-  if (!noBreak && Math.random() < 0.3) {
+  const _breakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
+  if (!noBreak && !trap.permanent && Math.random() < _breakChance) {
     dg.traps = dg.traps.filter((t) => t !== trap);
     ml.push(`${trap.name}は壊れた。`);
   }

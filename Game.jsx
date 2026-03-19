@@ -627,7 +627,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const checkTrap = useCallback((p, dg, ml, isDash = false) => {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
-    if (isDash && trap.revealed) return null;
+    if (isDash && trap.revealed && !hasGravityPentacle(dg, p.x, p.y)) return null;
     if (isPlayerFloating(p, dg)) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
