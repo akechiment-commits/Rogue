@@ -213,7 +213,7 @@ export const MONS = [
     ],
   },
   /* 5.5: 6階〜 石投げ */
-  { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 8,  kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow",
+  { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow",
     levels: [
       { name: "強ワッカ",         hp: 28,  atk: 13, def: 3,  exp: 45  },
       { name: "覇ワッカ",         hp: 45,  atk: 18, def: 5,  exp: 72  },
@@ -255,7 +255,7 @@ export const MONS = [
     ],
   },
   /* 9: 10階〜 壁歩き (固定スポーンは3階〜) */
-  { name: "岩霊",         hp: 28,  atk: 10, def: 3,  exp: 45,  speed: 1,   tile: 43, kind: "undead",   baseKind: "rockspirit", monLevel: 1, wallWalker: true,
+  { name: "岩霊",         hp: 28,  atk: 10, def: 3,  exp: 45,  speed: 1,   tile: 68, kind: "undead",   baseKind: "rockspirit", monLevel: 1, wallWalker: true,
     levels: [
       { name: "強岩霊",           hp: 45,  atk: 14, def: 6,  exp: 72  },
       { name: "岩の王",           hp: 70,  atk: 18, def: 9,  exp: 113 },
