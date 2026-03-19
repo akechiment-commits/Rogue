@@ -1242,7 +1242,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は爆発で消し飛んだ！`);
-      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true);
+      dg.traps = dg.traps.filter(t => t !== trap);
+      doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true);
       return "destroyed";
     }
     case "pitfall": {
@@ -2298,7 +2299,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
       const _itBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
-      if (!trap.permanent && Math.random() < _itBreakChance) {
+      if (trap.effect !== "explode" && !trap.permanent && Math.random() < _itBreakChance) {
         dg.traps = dg.traps.filter(t => t !== trap);
         ml.push(`${trap.name}は壊れた。`);
       }
@@ -2557,7 +2558,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           ft.add(trap.id);
           const r = fireTrapItem(trap, entity, dg, nx, ny, ml, ft, p);
           const _entBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
-          if (!trap.permanent && Math.random() < _entBreakChance) {
+          if (trap.effect !== "explode" && !trap.permanent && Math.random() < _entBreakChance) {
             dg.traps = dg.traps.filter(t => t !== trap);
             ml.push(`${trap.name}は壊れた。`);
           }

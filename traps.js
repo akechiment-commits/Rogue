@@ -9,7 +9,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
 
   switch (trap.effect) {
     case "explode": {
-      /* 地雷は敵の移動後に爆発させるため、遅延情報を返す */
+      /* 地雷は敵の移動後に爆発させるため、遅延情報を返す。地雷自身を即除去して二重爆発を防ぐ */
+      dg.traps = dg.traps.filter(t => t !== trap);
+      noBreak = true;
       r = "deferred_explosion";
       break;
     }
