@@ -12,6 +12,7 @@ function mkOcc(...lists) {
 function makeRing() {
   const t = pickWeighted(RINGS);
   const ring = { ...t, id: uid() };
+  if (ring.effect === "power_ring") ring.plus = rng(1, 3);
   const roll = Math.random();
   if (roll < 0.10) ring.blessed = true;
   else if (roll < 0.25) ring.cursed = true;
@@ -139,7 +140,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     if (map[my]?.[mx] !== T.FLOOR) continue;
     if ((mx === su.x && my === su.y) || (mx === sd.x && my === sd.y)) continue;
     if (mons.some(m => m.x === mx && m.y === my)) continue;
-    const t = MONS[clamp(rng(0, depth + 2), 0, MONS.length - 1)];
+    const { levels: _tlvls, ...t } = MONS[clamp(rng(0, depth + 2), 0, MONS.length - 1)];
     mons.push({ ...t, id: uid(), x: mx, y: my, maxHp: t.hp, turnAccum: 0, aware: false,
       dir: { x: [-1,1][rng(0,1)], y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
       dormantHouse: true });
@@ -406,7 +407,7 @@ function mkVis() {
   };
 }
 function mkMon(depth, x, y, dormantRate = 0.12) {
-  const t = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
+  const { levels: _lvls, ...t } = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
   return {
     ...t, id: uid(), x, y, maxHp: t.hp, turnAccum: 0, aware: false,
     dir: { x: [-1, 1][rng(0, 1)], y: 0 }, lastPx: 0, lastPy: 0,
@@ -1285,10 +1286,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps);
   /* 壁埋めアイテムを生成（突起コーナーは高確率） */
   genWallItems(map, depth, items, suspiciousWalls);
-  /* 水地形を生成（一部部屋に水溜まり） */
-  addWaterPools(map, rooms, su, sd);
-  /* 浮島を生成 */
-  addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd);
+  /* 水地形を生成（一部部屋に水溜まり）— 店の部屋は除外 */
+  const nonShopRooms = shopRoomIdx >= 0 ? rooms.filter((_, i) => i !== shopRoomIdx) : rooms;
+  addWaterPools(map, nonShopRooms, su, sd);
+  /* 浮島を生成 — 店の部屋は除外 */
+  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd);
   /* 水タイルに被った罠・アイテムを後処理 */
   for (let ti = traps.length - 1; ti >= 0; ti--) {
     if (map[traps[ti].y][traps[ti].x] === T.WATER) traps.splice(ti, 1);

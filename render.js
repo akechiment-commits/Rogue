@@ -64,6 +64,10 @@ export const TILE_NAMES = {
   60: "ring",
   61: "firedemon",
   43: "spellbook",
+  62: "player_down_left",
+  63: "player_down_right",
+  64: "player_up_left",
+  65: "player_up_right",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -131,6 +135,10 @@ export const TILE_RENDER = {
   59: { bg: null, fg: "#4488ee", ch: "g" },
   60: { bg: null, fg: "#c0a0ff", ch: "=" },
   61: { bg: null, fg: "#ff7722", ch: "F" },
+  62: { bg: null, fg: "#ffe030", ch: "@" },
+  63: { bg: null, fg: "#ffe030", ch: "@" },
+  64: { bg: null, fg: "#ffe030", ch: "@" },
+  65: { bg: null, fg: "#ffe030", ch: "@" },
 };
 
 /* Canvas drawing helper */
@@ -176,12 +184,12 @@ export function drawTile(ctx, ts, idx, dx, dy, sz) {
   }
 }
 
-export const VW_M = 21,
-  VH_M = 15,
-  VW_D = 60,
-  VH_D = 28,
-  VW_L = 36,
-  VH_L = 18;
+export const VW_M = 17,
+  VH_M = 13,
+  VW_D = 33,
+  VH_D = 19,
+  VW_L = 27,
+  VH_L = 15;
 
 /* 拾い/置き/商品メッセージ用：杖・ペン・マーカーは残り回数、対象アイテムは祝呪を付加 */
 export function _itemPickupSuffix(it, ident) {
