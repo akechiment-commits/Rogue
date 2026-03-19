@@ -106,8 +106,9 @@ export function generateFakeNames(items, pots, spellbooks = []) {
  * ────────────────────────────────────────────────────────────────
  */
 export const ITEMS = [
-  { name:"回復薬",           type:"potion", effect:"heal",     value:15, rarity:"D", weight:12, sellPrice:50,   desc:"HPを少し回復する。",               tile:16 },
-  { name:"大回復薬",         type:"potion", effect:"heal",     value:35, rarity:"B", weight:4,  sellPrice:300,  desc:"HPを大幅に回復する。",             tile:17 },
+  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"D", weight:12, sellPrice:100,  desc:"HPを30回復する。",                                               tile:16 },
+  { name:"大回復薬",         type:"potion", effect:"heal",      value:60,  rarity:"B", weight:4,  sellPrice:400,  desc:"HPを60回復する。",                                               tile:17 },
+  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"A", weight:2,  sellPrice:800,  desc:"HPを100回復する。満タンならHP最大値が3上昇。祝福で効果2倍。", tile:17 },
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"C", weight:8,  sellPrice:80,   desc:"毒の薬。投げると毒液が飛散する。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"C", weight:8,  sellPrice:100,  desc:"揮発性の液体。投げると炎上する。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"C", weight:8,  sellPrice:100,  desc:"眠りのガスが入った瓶。",           tile:16 },
@@ -519,7 +520,8 @@ export function itemPrice(it) {
   }
   // sellPrice未設定のアイテム用フォールバック
   if (it.type === "potion") {
-    if (it.effect === "heal") return it.value >= 30 ? 80 : 30;
+    if (it.effect === "superheal") return 400;
+    if (it.effect === "heal") return it.value >= 60 ? 200 : 100;
     if (it.effect === "power") return 120;
     return 40;
   }
@@ -1431,6 +1433,26 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") { const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp); if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); } }
       }
       break;
+    case "superheal": {
+      const _shMult = blessed ? 2 : 1;
+      if (cursed) {
+        // 呪い：回復するはずだった量の半分のダメージ
+        const _shd = Math.max(1, Math.round(val * 0.5));
+        if (kind === "monster") { target.hp -= _shd; ml.push(`${target.name}は変な薬を浴びた！${_shd}ダメージ！`); _monKill(target); }
+        if (kind === "player") { p.deathCause = "呪われた超回復薬の飛散により"; p.hp -= _shd; ml.push(`変な薬を浴びた！${_shd}ダメージ！【呪】`); }
+      } else if (kind === "monster") {
+        const _shHeal = Math.round(val * _shMult);
+        const _shh = Math.min(_shHeal, target.maxHp - target.hp);
+        if (_shh > 0) { target.hp += _shh; ml.push(`${target.name}のHPが${_shh}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(target.x, target.y); }
+        else { const _shUp = blessed ? 6 : 3; target.maxHp += _shUp; target.hp += _shUp; ml.push(`${target.name}のHP最大値が${_shUp}上昇した！`); pushHealAnim(target.x, target.y); }
+      } else if (kind === "player") {
+        const _shHeal = Math.round(val * _shMult);
+        const _shh = Math.min(_shHeal, p.maxHp - p.hp);
+        if (_shh > 0) { p.hp += _shh; ml.push(`HPが${_shh}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
+        else { const _shUp = blessed ? 6 : 3; p.maxHp += _shUp; p.hp += _shUp; ml.push(`HPが満タンだったのでHP最大値が${_shUp}上昇した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
+      }
+      break;
+    }
     case "poison": {
       if (kind === "monster") {
         if (cursed) {
@@ -1746,7 +1768,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
 
 export const POTION_FOOD_PREFIX = {
   // 通常/祝福
-  heal:     "回復の",
+  heal:      "回復の",
+  superheal: "回復の",
   poison:   "猛毒の",
   fire:     "焼いた",  // special-cased
   sleep:    "睡眠の",
@@ -1760,7 +1783,8 @@ export const POTION_FOOD_PREFIX = {
   levelup:  "経験の",
   seal:     "封魔の",
   // 呪い（食べた時の効果が反転）
-  c_heal:     "猛毒の",
+  c_heal:      "猛毒の",
+  c_superheal: "猛毒の",
   c_poison:   "解毒の",
   // c_fire = 通常と同じ（焼いた、special-cased）
   c_sleep:    "覚醒の",
@@ -1826,6 +1850,9 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
   }
   if (item.type !== "food") return;
   if (!item.potionEffects) item.potionEffects = [];
+  // 超回復薬は食べ物への効果が回復薬と同じ
+  const _foodEff = eff === "superheal" ? "heal" : eff;
+  if (_foodEff !== eff) eff = _foodEff;
   if (eff === "fire") {
     // 呪いでも通常でも同じ（焼き調理）
     if (!item.cooked) {
