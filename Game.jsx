@@ -16,7 +16,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames,
-  hasCursedExplosionPentacle, hasRingEffect, doExplosion,
+  hasCursedExplosionPentacle, hasRingEffect, doExplosion, doTimeBombExplosion,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
@@ -1033,8 +1033,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (hasCursedExplosionPentacle(st.dungeon)) {
           ml.push(`呪われた爆発の魔方陣が爆発を打ち消した！`);
         } else {
-          doExplosion(_pme.x, _pme.y, st.dungeon, p, ml, _pme.nameFn, _pme.name, null, lu, true);
+          doExplosion(_pme.x, _pme.y, st.dungeon, p, ml, _pme.nameFn, _pme.name, null, lu, true, false, true);
         }
+      }
+      /* 時限爆弾カウントダウン */
+      if (st.dungeon.pendingBombs?.length > 0 && p.hp > 0) {
+        const _nameFnBomb = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+        const _remaining = [];
+        for (const _pb of st.dungeon.pendingBombs) {
+          _pb.turnsLeft--;
+          if (_pb.turnsLeft <= 0) {
+            ml.push(`時限爆弾の罠が大爆発した！`);
+            doTimeBombExplosion(_pb.x, _pb.y, st.dungeon, p, ml, lu, _nameFnBomb);
+          } else {
+            ml.push(`時限爆弾の罠：あと${_pb.turnsLeft}ターンで爆発！`);
+            _remaining.push(_pb);
+          }
+        }
+        st.dungeon.pendingBombs = _remaining;
       }
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
       const _plHpBefore = p.hp;

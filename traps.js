@@ -1,10 +1,11 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
   trap.revealed = true;
   let r = null;
+  let noBreak = false; /* trueのとき作動後の30%破壊チェックをスキップ */
 
   switch (trap.effect) {
     case "explode": {
@@ -188,6 +189,27 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       ml.push(`${trap.name}が発動！急に空腹を感じた！満腹度が10%下がった。`);
       break;
     }
+    case "shadow_stitch": {
+      p.paralyzeTurns = (p.paralyzeTurns || 0) + 5;
+      ml.push(`${trap.name}が作動！影に縫い付けられた！(5ターン移動不能)`);
+      break;
+    }
+    case "rockfall": {
+      const _rfd = rng(15, 25);
+      p.deathCause = `${trap.name}により`;
+      p.hp -= _rfd;
+      ml.push(`${trap.name}が作動！岩が降ってきた！${_rfd}ダメージ！`);
+      break;
+    }
+    case "time_bomb": {
+      /* 作動した罠をトラップリストから除去し、pendingBombs に登録 */
+      dg.traps = dg.traps.filter(t => t !== trap);
+      dg.pendingBombs = dg.pendingBombs || [];
+      dg.pendingBombs.push({ x: trap.x, y: trap.y, turnsLeft: 4, nameFn });
+      ml.push(`${trap.name}が作動！4ターン後に大爆発が起きる！`);
+      noBreak = true; /* 既に除去済み。重複メッセージを避ける */
+      break;
+    }
     case "blowback_trap": {
       const _pfd = p.facing || { dx: 0, dy: 1 };
       const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
@@ -222,7 +244,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
     }
   }
 
-  if (Math.random() < 0.3) {
+  if (!noBreak && Math.random() < 0.3) {
     dg.traps = dg.traps.filter((t) => t !== trap);
     ml.push(`${trap.name}は壊れた。`);
   }

@@ -836,27 +836,36 @@ export const ARMOR_ABILITIES = [
 
 /* ===== TRAPS ===== */
 export const TRAPS = [
-  { name:"地雷",           effect:"explode",      tile:25 },
-  { name:"矢の罠",         effect:"arrow_trap",   tile:26 },
-  { name:"落とし穴",       effect:"pitfall",      tile:27 },
-  { name:"錆の罠",         effect:"rust",         tile:28 },
-  { name:"回転板",         effect:"spin",         tile:29 },
-  { name:"睡眠ガスの罠",   effect:"sleep",        tile:30 },
-  { name:"毒矢の罠",       effect:"poison_arrow", tile:45 },
-  { name:"召喚の罠",       effect:"summon_trap",  tile:46 },
-  { name:"鈍足の罠",       effect:"slow_trap",    tile:47 },
-  { name:"封印の罠",       effect:"seal_trap",    tile:48 },
-  { name:"盗みの罠",       effect:"steal_trap",   tile:49 },
-  { name:"空腹の罠",       effect:"hunger_trap",  tile:50 },
-  { name:"吹き飛ばしの罠", effect:"blowback_trap",tile:51 },
+  { name:"地雷",           effect:"explode",       tile:25 },
+  { name:"矢の罠",         effect:"arrow_trap",    tile:26 },
+  { name:"落とし穴",       effect:"pitfall",       tile:27 },
+  { name:"錆の罠",         effect:"rust",          tile:28 },
+  { name:"回転板",         effect:"spin",          tile:29 },
+  { name:"睡眠ガスの罠",   effect:"sleep",         tile:30 },
+  { name:"毒矢の罠",       effect:"poison_arrow",  tile:45 },
+  { name:"召喚の罠",       effect:"summon_trap",   tile:46 },
+  { name:"鈍足の罠",       effect:"slow_trap",     tile:47 },
+  { name:"封印の罠",       effect:"seal_trap",     tile:48 },
+  { name:"盗みの罠",       effect:"steal_trap",    tile:49 },
+  { name:"空腹の罠",       effect:"hunger_trap",   tile:50 },
+  { name:"吹き飛ばしの罠", effect:"blowback_trap", tile:51 },
+  { name:"影ぬいの罠",     effect:"shadow_stitch", tile:52 },
+  { name:"落石の罠",       effect:"rockfall",      tile:53 },
+  { name:"時限爆弾の罠",   effect:"time_bomb",     tile:54 },
 ];
 
 /**
  * 爆発共通処理 (地雷・爆弾矢などから呼ぶ)
  * cx, cy: 爆発の中心。周囲8マス＋中心の計9マスを処理する。
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
+ * mineExplosion: true のとき地雷モード（炎無効でない敵は消滅＋範囲内地雷を連鎖爆発）
  */
-export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false) {
+let _mineExplosionDepth = 0;
+export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false) {
+  if (mineExplosion) {
+    if (_mineExplosionDepth > 4) return;
+    _mineExplosionDepth++;
+  }
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
@@ -909,8 +918,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           }
           continue;
         }
-        if (_hasExPentacle || ringExplosion) {
-          /* 爆発の魔方陣 or 指輪爆発：即死（ringExplosionは経験値なし） */
+        if (_hasExPentacle || ringExplosion || mineExplosion) {
+          /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅 */
           m.hp = 0;
           _killed.add(m); killMonster(m, dg, p, ml, luFn, ringExplosion);
         } else {
@@ -966,6 +975,20 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   /* 破壊された火薬壺の連鎖爆発 */
   for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
     doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+  }
+  /* 地雷モード：範囲内の他の地雷を連鎖爆発 */
+  if (mineExplosion) {
+    const _chainMines = (dg.traps || []).filter(t =>
+      t.effect === "explode" &&
+      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= 1
+    );
+    if (_chainMines.length > 0) {
+      dg.traps = dg.traps.filter(t => !_chainMines.includes(t));
+      for (const _cm of _chainMines) {
+        doExplosion(_cm.x, _cm.y, dg, p, ml, nameFn, _cm.name, null, luFn, true, false, true);
+      }
+    }
+    _mineExplosionDepth--;
   }
 }
 
@@ -1061,6 +1084,116 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     }
   } finally {
     _gunpowderDepth--;
+  }
+}
+
+/**
+ * 時限爆弾の罠の大爆発処理。
+ * 中心から半径2マス（5×5=25マス）を対象にする。
+ * 炎無効(火ダルマ)以外の敵は消滅。プレイヤーはHPが1になり炎アイテム損傷。
+ * 地雷・火薬壺を連鎖爆発させる。
+ */
+export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
+  const R = 2;
+  pushExplosionAnim(cx, cy);
+  ml.push(`時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！`);
+  const blasted = new Set();
+  const _killed = new Set();
+  for (let ddx = -R; ddx <= R; ddx++) {
+    for (let ddy = -R; ddy <= R; ddy++) {
+      const ax = cx + ddx, ay = cy + ddy;
+      if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+      /* 壁の破壊 */
+      if ((dg.map[ay][ax] === T.BWALL || dg.map[ay][ax] === T.WALL) &&
+          ax > 0 && ax < MW - 1 && ay > 0 && ay < MH - 1) {
+        const _wi = dg.items.find(i => i.x === ax && i.y === ay && i.wallEmbedded);
+        if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
+        dg.map[ay][ax] = T.FLOOR;
+        if (dg.explored?.[ay]?.[ax] !== undefined) dg.explored[ay][ax] = true;
+        if (dg.visible?.[ay]?.[ax] !== undefined) dg.visible[ay][ax] = true;
+        ml.push("爆風で壁が崩れた！");
+        wallBreakDrop(dg, ax, ay);
+        continue;
+      }
+      /* プレイヤー：HPが1になる＋炎アイテム損傷（耐火時は半減ダメージのみ） */
+      if (p && p.x === ax && p.y === ay) {
+        const _hasFireR = hasAbility(p.armor, "fire_resist");
+        p.deathCause = "時限爆弾の罠の大爆発により";
+        if (_hasFireR) {
+          const dmg = Math.max(1, Math.floor(p.hp / 2));
+          p.hp -= dmg;
+          ml.push(`大爆発！${dmg}ダメージ！(耐火半減)`);
+        } else {
+          p.hp = 1;
+          ml.push(`大爆発！HPが1になった！`);
+          applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
+        }
+      }
+      /* モンスター：炎無効(火ダルマ)以外は消滅 */
+      for (const m of [...dg.monsters.filter(mm => mm.x === ax && mm.y === ay)]) {
+        if (_killed.has(m)) continue;
+        wakeIfDormant(m, ml);
+        if (m.baseKind === "firedemon") {
+          ml.push(`${m.name}が爆発を受けて分裂した！`);
+          const _sd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+          for (const [_sx, _sy] of _sd8) {
+            const _nx = ax + _sx, _ny = ay + _sy;
+            if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
+            if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+            if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+            if (p && _nx === p.x && _ny === p.y) continue;
+            dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+            break;
+          }
+          continue;
+        }
+        m.hp = 0;
+        _killed.add(m);
+        killMonster(m, dg, p, ml, luFn);
+      }
+      /* アイテム破壊 */
+      for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
+        if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 後で連鎖 */
+        if (it.type === "scroll") {
+          blasted.add(it); ml.push(`巻物「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
+        } else if (it.type === "spellbook") {
+          blasted.add(it); ml.push(`魔法書「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
+        } else if (it.type === "potion") {
+          blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
+        } else if (it.type === "food") {
+          if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          else { burnFoodItem(it, ml); blasted.add(it); }
+        } else if (it.type === "pot") {
+          blasted.add(it);
+          if (it.contents?.length > 0) {
+            const ft2 = new Set();
+            for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
+            ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
+          } else { ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`); }
+        }
+      }
+    }
+  }
+  if (blasted.size > 0) dg.items = dg.items.filter(i => !blasted.has(i));
+  dg.monsters = dg.monsters.filter(m => m.hp > 0);
+  /* 範囲内の地雷を連鎖爆発 */
+  const _chainMines = (dg.traps || []).filter(t =>
+    t.effect === "explode" && Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= R
+  );
+  if (_chainMines.length > 0) {
+    dg.traps = dg.traps.filter(t => !_chainMines.includes(t));
+    for (const _cm of _chainMines) {
+      doExplosion(_cm.x, _cm.y, dg, p, ml, nameFn, _cm.name, null, luFn, true, false, true);
+    }
+  }
+  /* 範囲内の火薬壺を連鎖爆発 */
+  const _chainPots = dg.items.filter(it =>
+    it.type === "pot" && it.potEffect === "gunpowder" &&
+    Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) <= R
+  );
+  if (_chainPots.length > 0) {
+    dg.items = dg.items.filter(i => !_chainPots.includes(i));
+    for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
   }
 }
 
