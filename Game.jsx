@@ -372,7 +372,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, [msgs]);
 
   /* Canvas render */
-  const { renderFrame, overlaysRef, moveOffsetsRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
+  const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
   const animBusyRef = useRef(false);
   const monMovesRef = useRef([]); /* populated by endTurn for monster move animations */
 
@@ -465,11 +465,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     moveOffsetsRef.current.clear();
     overlaysRef.current = [];
-    renderFrame();
+    /* Use renderFrameRef to always draw the latest game state after async animation */
+    renderFrameRef.current();
     } finally {
       animBusyRef.current = false;
     }
-  }, [renderFrame]);
+  }, [renderFrame, renderFrameRef]);
   /* Drain animation events produced by useItemActions (outside of act()) */
   useEffect(() => {
     if (!gs || animBusyRef.current) return;
