@@ -575,7 +575,7 @@ export function genFood() {
   let hv = ef.e === "satiate_food" ? Math.floor(sz.v * 1.5) : sz.v;
   if (!cooked) hv = Math.max(1, Math.floor(hv / 2));
   const foodCat = FOOD_CAT_MAP.get(fn) || null;
-  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile:19, cooked, foodCat };
+  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile: cooked ? 66 : 19, cooked, foodCat };
 }
 
 /* ===== WANDS ===== */
@@ -711,6 +711,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
       if (!item.cooked) {
         item.value = item.value * 2;
         item.cooked = true;
+        item.tile = 66;
       }
       item.smoked = true;
       item.name = "燻製" + item.name;
@@ -925,7 +926,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         } else if (it.type === "potion") {
           blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
         } else if (it.type === "food") {
-          if (!it.cooked) { it.value *= 2; it.cooked = true; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
@@ -1034,7 +1035,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       } else if (it.type === "potion") {
         _blasted.add(it); ml.push(`薬「${it.name}」が爆風で割れてなくなった！`);
       } else if (it.type === "food") {
-        if (!it.cooked) { it.value *= 2; it.cooked = true; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+        if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); _blasted.add(it); }
       } else if (it.type === "pot") {
         _blasted.add(it);
@@ -1829,6 +1830,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
     if (!item.cooked) {
       item.value = item.value * 2;
       item.cooked = true;
+      item.tile = 66;
       item.name = "焼いた" + item.name;
       ml.push(`${item.name}になった！`);
     } else {
