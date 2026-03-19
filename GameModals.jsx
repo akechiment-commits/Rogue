@@ -1870,12 +1870,27 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
 }
 
 /* ===== Debug Spell Modal ===== */
+/* アイテム取得のカテゴリ定義 */
+const _DBG_ITEM_CATS = [
+  { key: "items",      label: "アイテム全般", build: () => ITEMS.map(it => ({ label: it.name, value: { ...it } })) },
+  { key: "wands",      label: "杖",           build: () => WANDS.map(w => ({ label: w.name, value: { ...w } })) },
+  { key: "spellbooks", label: "魔法書",       build: () => SPELLBOOKS.map(sb => ({ label: sb.name, value: { ...sb } })) },
+  { key: "rings",      label: "指輪",         build: () => RINGS.map(r => { const rv = { ...r }; if (rv.effect === "power_ring") rv.plus = rng(1,3); return { label: r.name, value: rv }; }) },
+  { key: "pots",       label: "壺",           build: () => POTS.map(p => ({ label: p.name, value: { ...p, contents: [] } })) },
+];
+
+const PAGE_SIZE = 10;
+
 export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, endTurn, mobile }) {
   if (!mode || !gs) return null;
   const { effect } = mode;
+  const page = mode.page ?? 0;
+  const category = mode.category ?? null; // null = カテゴリ選択中 (debug_get_item のみ)
 
-  /* Build the list of choices based on spell type */
+  /* --- エントリ構築 --- */
   let entries = [];
+  let isPickingCategory = false;
+
   if (effect === "debug_summon_mon") {
     for (const m of MONS) {
       entries.push({ label: `${m.name} (Lv1)`, value: { base: m, lv: 1 } });
@@ -1886,28 +1901,38 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       }
     }
   } else if (effect === "debug_get_item") {
-    for (const it of ITEMS) entries.push({ label: it.name, value: { ...it } });
-    for (const w of WANDS) entries.push({ label: w.name, value: { ...w } });
-    for (const sb of SPELLBOOKS) entries.push({ label: sb.name, value: { ...sb } });
-    for (const r of RINGS) {
-      const rv = { ...r };
-      if (rv.effect === "power_ring") rv.plus = rng(1, 3);
-      entries.push({ label: r.name, value: rv });
+    if (!category) {
+      isPickingCategory = true;
+      entries = _DBG_ITEM_CATS.map(c => ({ label: c.label, value: c.key, isCategory: true }));
+    } else {
+      const cat = _DBG_ITEM_CATS.find(c => c.key === category);
+      if (cat) entries = cat.build();
     }
-    for (const p of POTS) entries.push({ label: p.name, value: { ...p, contents: [] } });
   } else if (effect === "debug_create_trap") {
     for (const t of TRAPS) entries.push({ label: t.name, value: { ...t } });
   } else if (effect === "debug_summon_bb") {
     for (const bb of BB_TYPES) entries.push({ label: bb.name, value: { ...bb } });
   }
 
-  const safeSel = Math.min(menuSel, Math.max(0, entries.length - 1));
+  /* --- ページネーション --- */
+  const totalPages = isPickingCategory ? 1 : Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageEntries = isPickingCategory ? entries : entries.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  const safeSel = Math.min(menuSel, Math.max(0, pageEntries.length - 1));
+
   const title = effect === "debug_summon_mon" ? "敵を選択"
-    : effect === "debug_get_item" ? "アイテムを選択"
+    : effect === "debug_get_item" ? (category ? `アイテムを選択（${_DBG_ITEM_CATS.find(c=>c.key===category)?.label}）` : "カテゴリを選択")
     : effect === "debug_create_trap" ? "罠を選択"
     : "大箱を選択";
 
   const doSelect = (entry) => {
+    /* カテゴリ選択 */
+    if (entry.isCategory) {
+      setMode({ ...mode, category: entry.value, page: 0 });
+      setMenuSel(0);
+      return;
+    }
+
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
     const ml = [];
@@ -1983,6 +2008,12 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     setGs({ ...sr.current });
   };
 
+  const goPage = (delta) => {
+    const np = ((safePage + delta) + totalPages) % totalPages;
+    setMode({ ...mode, page: np });
+    setMenuSel(0);
+  };
+
   return (
     <div data-debug-spell-modal style={{
       position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
@@ -1996,7 +2027,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div>
-        {entries.map((entry, vi) => {
+        {pageEntries.map((entry, vi) => {
           const isSel = vi === safeSel;
           return (
             <div key={vi} data-debug-entry onClick={() => doSelect(entry)} style={{
@@ -2012,7 +2043,19 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
           );
         })}
       </div>
-      <div style={{ color: "#304060", fontSize: 10, marginTop: 6 }}>↑↓:選択  Z:決定  X:閉じる</div>
+      {/* ページネーションUI */}
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+          <button onClick={() => goPage(-1)}
+            style={{ background: "#162030", color: "#80c0ff", border: "1px solid #2050a0", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 12 }}>◀</button>
+          <span style={{ color: "#5080a0", fontSize: 11 }}>{safePage + 1} / {totalPages}</span>
+          <button onClick={() => goPage(1)}
+            style={{ background: "#162030", color: "#80c0ff", border: "1px solid #2050a0", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 12 }}>▶</button>
+        </div>
+      )}
+      <div style={{ color: "#304060", fontSize: 10, marginTop: 6 }}>
+        ↑↓:選択  Z:決定  {totalPages > 1 ? "←→:ページ  " : ""}{effect === "debug_get_item" && category ? "X:カテゴリに戻る" : "X:閉じる"}
+      </div>
     </div>
   );
 }

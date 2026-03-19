@@ -323,7 +323,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         { name:"満腹の特盛りおにぎり", type:"food", effect:"satiate_food", value:120, desc:"とても腹持ちが良さそうだ。", tile:19, cooked:true, id: uid() },
       ],
       spells: dungeonConfig?.dungeonType === "debug"
-        ? ["debug_summon_mon","debug_get_item","debug_create_trap","debug_summon_bb"]
+        ? ["debug_summon_mon","debug_get_item","debug_create_trap","debug_summon_bb","bless_magic","curse_magic"]
         : [],
       spellLevels: {},
       turns: 0,
