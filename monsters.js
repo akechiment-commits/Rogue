@@ -830,7 +830,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.posHistory.length > 6) m.posHistory.shift();
   }
   let _forceAlt = false;
-  if (m.posHistory.length >= 6) {
+  if ((m.posHistory?.length ?? 0) >= 6) {
     const _ph = m.posHistory;
     /* パターン1: 6ターン全く同じ位置（完全停止） */
     const _allSame = _ph.every(p => p.x === _ph[0].x && p.y === _ph[0].y);
