@@ -14,7 +14,7 @@ import {
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
-import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim } from "./animEvents.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim } from "./animEvents.js";
 
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
@@ -1464,14 +1464,17 @@ export function useItemActions({
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を加熱の壺に投じた！薬効が部屋中に広がった！`);
           const _boilRoom = findRoom(dg.rooms, p.x, p.y);
+          const _potClr = { heal:"#88ffaa", fire:"#ff8844", poison:"#88ff88", sleep:"#ddffaa", paralyze:"#ffffaa", water:"#88ccff", levelup:"#ffff88" }[it.effect] || "#cc88ff";
           if (_boilRoom) {
             applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+            pushSplashAnim(p.x, p.y, _potClr);
             const _boilMons = dg.monsters.filter(
               (m) => m.x >= _boilRoom.x && m.x < _boilRoom.x + _boilRoom.w &&
                      m.y >= _boilRoom.y && m.y < _boilRoom.y + _boilRoom.h,
             );
             for (const _bm of _boilMons) {
               applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+              pushSplashAnim(_bm.x, _bm.y, _potClr);
             }
             const _boilBurnSet = [];
             for (const _bi of dg.items.filter(
@@ -1485,6 +1488,7 @@ export function useItemActions({
           } else {
             ml.push("（回廊では薬効が拡散しにくい…自分にだけ効いた）");
             applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+            pushSplashAnim(p.x, p.y, _potClr);
           }
           pot.capacity = Math.max(0, pot.capacity - 1);
           // 呪われたレベルアップの薬でワープフラグが立った場合
@@ -1495,6 +1499,17 @@ export function useItemActions({
               if (_boilWarpNd) sr.current.dungeon = _boilWarpNd;
             }
           }
+          // 薬効発動後はアイテム欄を閉じる
+          if (pot.contents.length >= pot.capacity) ml.push(`${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいになった。`);
+          endTurn(sr.current, p, ml);
+          setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setPutMode(null);
+          setShowInv(false);
+          setSelIdx(null);
+          setShowDesc(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
         } else if (it.type === "scroll" || it.type === "spellbook") {
           ml.push(`${dnameRef(it)}は加熱の壺の熱で燃えてなくなった！`);
           pot.capacity = Math.max(0, pot.capacity - 1);
