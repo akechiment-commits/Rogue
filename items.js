@@ -976,7 +976,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
     doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
   }
-  /* 地雷モード：範囲内の他の地雷を連鎖爆発 */
+  /* 地雷モード：範囲内の他の地雷・時限爆弾を連鎖爆発 */
   if (mineExplosion) {
     const _chainMines = (dg.traps || []).filter(t =>
       t.effect === "explode" &&
@@ -986,6 +986,31 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       dg.traps = dg.traps.filter(t => !_chainMines.includes(t));
       for (const _cm of _chainMines) {
         doExplosion(_cm.x, _cm.y, dg, p, ml, nameFn, _cm.name, null, luFn, true, false, true);
+      }
+    }
+    /* 範囲内の時限爆弾トラップを即爆発 */
+    const _chainTimeBombs = (dg.traps || []).filter(t =>
+      t.effect === "time_bomb" &&
+      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= 1
+    );
+    if (_chainTimeBombs.length > 0) {
+      dg.traps = dg.traps.filter(t => !_chainTimeBombs.includes(t));
+      for (const _ctb of _chainTimeBombs) {
+        ml.push(`${_ctb.name}が誘爆した！`);
+        doTimeBombExplosion(_ctb.x, _ctb.y, dg, p, ml, luFn, nameFn);
+      }
+    }
+    /* 範囲内のpendingBombs（作動済み時限爆弾）も即爆発 */
+    if (dg.pendingBombs?.length > 0) {
+      const _chainPending = dg.pendingBombs.filter(pb =>
+        Math.max(Math.abs(pb.x - cx), Math.abs(pb.y - cy)) <= 1
+      );
+      if (_chainPending.length > 0) {
+        dg.pendingBombs = dg.pendingBombs.filter(pb => !_chainPending.includes(pb));
+        for (const _cpb of _chainPending) {
+          ml.push(`時限爆弾の罠が誘爆した！`);
+          doTimeBombExplosion(_cpb.x, _cpb.y, dg, p, ml, luFn, nameFn);
+        }
       }
     }
     _mineExplosionDepth--;
@@ -1323,6 +1348,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           p.x = rng(_psr.x, _psr.x + _psr.w - 1);
           p.y = rng(_psr.y, _psr.y + _psr.h - 1);
           ml.push(`吹き飛ばされた！`);
+          if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
         }
       }
       return "destroyed";
@@ -1438,6 +1464,41 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (p && p.x === tx && p.y === ty) { p.hunger = Math.max(0, p.hunger - Math.floor((p.maxHunger || 100) * 0.1)); ml.push(`急に空腹を感じた！満腹度が10%下がった。`); }
       return "restart";
     }
+    case "shadow_stitch": {
+      ml.push(`${trap.name}が発動！`);
+      const _ssm = monsterAt(dg, tx, ty);
+      if (_ssm) { _ssm.paralyzed = true; _ssm.paralyzeHits = 2; ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！`); }
+      if (p && p.x === tx && p.y === ty) {
+        p.immobileTurns = (p.immobileTurns || 0) + 5;
+        ml.push(`影に縫い付けられた！(5ターン移動不能)`);
+      }
+      return "restart";
+    }
+    case "rockfall": {
+      ml.push(`${trap.name}が発動！岩が降ってきた！`);
+      const _rfm = monsterAt(dg, tx, ty);
+      if (_rfm) {
+        const _rfd2 = rng(15, 25);
+        _rfm.hp -= _rfd2;
+        ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
+        if (_rfm.hp <= 0) { monsterDrop(_rfm, dg, ml, p); removeMonster(dg, _rfm); }
+      }
+      if (p && p.x === tx && p.y === ty) {
+        const _rfd3 = rng(15, 25);
+        p.deathCause = `${trap.name}により`;
+        p.hp -= _rfd3;
+        ml.push(`${_rfd3}ダメージ！`);
+      }
+      return "restart";
+    }
+    case "time_bomb": {
+      /* アイテムが時限爆弾を作動させる：トラップ除去してpendingBombsへ */
+      dg.traps = dg.traps.filter(t => t !== trap);
+      dg.pendingBombs = dg.pendingBombs || [];
+      dg.pendingBombs.push({ x: trap.x, y: trap.y, turnsLeft: 4, nameFn });
+      ml.push(`${trap.name}が発動！4ターン後に大爆発が起きる！`);
+      return "restart";
+    }
     case "blowback_trap": {
       ml.push(`${trap.name}が発動！`);
       const _bbm = monsterAt(dg, tx, ty);
@@ -1472,7 +1533,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         }
         ml.push(`向いていた方向と逆に吹き飛ばされた！`);
         if (_pHitWall) { p.deathCause = `${trap.name}による壁への衝突により`; p.hp -= 10; ml.push("壁に激突！10ダメージ！"); }
-        if (_pHitMon) { p.hp -= 10; _pHitMon.hp -= 10; ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`); dg.monsters = dg.monsters.filter(m => m.hp > 0); }
+        else if (_pHitMon) { p.hp -= 10; _pHitMon.hp -= 10; ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`); dg.monsters = dg.monsters.filter(m => m.hp > 0); }
+        else if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
       }
       return "restart";
     }

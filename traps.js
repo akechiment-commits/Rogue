@@ -82,6 +82,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
         }
       }
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
+      if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
       break;
     }
     case "sleep":
@@ -190,7 +191,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "shadow_stitch": {
-      p.paralyzeTurns = (p.paralyzeTurns || 0) + 5;
+      p.immobileTurns = (p.immobileTurns || 0) + 5;
       ml.push(`${trap.name}が作動！影に縫い付けられた！(5ターン移動不能)`);
       break;
     }
@@ -238,6 +239,10 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
             ml.push(`${_bbHitMon.name}は倒れた！`);
             removeMonster(dg, _bbHitMon);
           }
+        } else if ((p.immobileTurns || 0) > 0) {
+          /* 実際に移動できた場合、移動封じを解除 */
+          p.immobileTurns = 0;
+          ml.push("吹き飛ばされて移動封じが解けた！");
         }
       }
       break;
