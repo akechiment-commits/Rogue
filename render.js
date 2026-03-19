@@ -69,6 +69,11 @@ export const TILE_NAMES = {
   64: "player_up_left",
   65: "player_up_right",
   66: "food_cooked",
+  44: "witchdoctor",
+  67: "wokka",
+  68: "rockspirit",
+  69: "thief",
+  70: "runner",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -140,6 +145,8 @@ export const TILE_RENDER = {
   63: { bg: null, fg: "#ffe030", ch: "@" },
   64: { bg: null, fg: "#ffe030", ch: "@" },
   65: { bg: null, fg: "#ffe030", ch: "@" },
+  69: { bg: null, fg: "#a06020", ch: "t" },
+  70: { bg: null, fg: "#ff88cc", ch: "p" },
 };
 
 /* Canvas drawing helper */

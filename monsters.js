@@ -213,7 +213,7 @@ export const MONS = [
     ],
   },
   /* 5.5: 6階〜 石投げ */
-  { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 8,  kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow",
+  { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow",
     levels: [
       { name: "強ワッカ",         hp: 28,  atk: 13, def: 3,  exp: 45  },
       { name: "覇ワッカ",         hp: 45,  atk: 18, def: 5,  exp: 72  },
@@ -234,14 +234,14 @@ export const MONS = [
     ],
   },
   /* 7.5: 8階〜 盗みモンスター */
-  { name: "コソドロ",     hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief",
+  { name: "コソドロ",     hp: 12,  atk: 4,  def: 0,  exp: 35,  speed: 2,   tile: 69, kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief",
     levels: [
       { name: "大盗賊",           hp: 20,  atk: 6,  def: 1,  exp: 56  },
       { name: "怪盗",             hp: 32,  atk: 8,  def: 2,  exp: 88  },
     ],
   },
   /* 7.6: 5階〜 逃げるボーナスモンスター */
-  { name: "コロポックル", hp: 8,   atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 53, kind: "beast",    baseKind: "runner",     monLevel: 1, subtype: "runner",
+  { name: "コロポックル", hp: 8,   atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 70, kind: "beast",    baseKind: "runner",     monLevel: 1, subtype: "runner",
     levels: [
       { name: "大コロポックル",   hp: 12,  atk: 0,  def: 0,  exp: 80  },
       { name: "精霊コロポックル", hp: 18,  atk: 0,  def: 0,  exp: 120 },
@@ -255,7 +255,7 @@ export const MONS = [
     ],
   },
   /* 9: 10階〜 壁歩き (固定スポーンは3階〜) */
-  { name: "岩霊",         hp: 28,  atk: 10, def: 3,  exp: 45,  speed: 1,   tile: 43, kind: "undead",   baseKind: "rockspirit", monLevel: 1, wallWalker: true,
+  { name: "岩霊",         hp: 28,  atk: 10, def: 3,  exp: 45,  speed: 1,   tile: 68, kind: "undead",   baseKind: "rockspirit", monLevel: 1, wallWalker: true,
     levels: [
       { name: "強岩霊",           hp: 45,  atk: 14, def: 6,  exp: 72  },
       { name: "岩の王",           hp: 70,  atk: 18, def: 9,  exp: 113 },
@@ -830,7 +830,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.posHistory.length > 6) m.posHistory.shift();
   }
   let _forceAlt = false;
-  if (m.posHistory.length >= 6) {
+  if ((m.posHistory?.length ?? 0) >= 6) {
     const _ph = m.posHistory;
     /* パターン1: 6ターン全く同じ位置（完全停止） */
     const _allSame = _ph.every(p => p.x === _ph[0].x && p.y === _ph[0].y);
@@ -960,9 +960,20 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
       const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
-      if ((_archerRdy || _stoneRdy || _wandRdy) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _dfLvl0 = m.monLevel || 1;
+      const _dragonRdy0 = m.baseKind === "dragon" && !m.sealed && _rAtks && _rLen >= 2 &&
+        (_dfLvl0 >= 2 ? _sameRoom : _rLine);
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
+      }
+    }
+    /* ドラゴンLv3：canSee不要なので別途判定 */
+    if (_moveOnly && m.aware && m.baseKind === "dragon" && !m.sealed && (m.monLevel || 1) >= 3) {
+      const _dfDist3 = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+      if (_dfDist3 >= 2 && m.turnAttacks < (m.maxAttacks ?? 1) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m._rangedAttackThisTurn = true;
+        return;
       }
     }
 
@@ -1023,7 +1034,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
         }
       }
-      if (_canFire && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _dragonRdy = m._rangedAttackThisTurn;
+      if (_dragonRdy) delete m._rangedAttackThisTurn;
+      if (_canFire && (_dragonRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterDragonFire(m, dg, pl, ml);
         return;
