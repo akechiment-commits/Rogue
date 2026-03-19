@@ -1,31 +1,12 @@
 import { useState, useMemo } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
-import { itemPrice } from "./items.js";
+import { itemPrice, ITEMS, WANDS } from "./items.js";
 
-/* ===== 拠点ショップの商品ラインナップ ===== */
-const HUB_SHOP_ITEMS = [
-  /* 薬 */
-  { name:"回復薬",           type:"potion", effect:"heal",        tile:16, desc:"HPを少し回復する。",         price: 30  },
-  { name:"大回復薬",         type:"potion", effect:"heal",        tile:17, desc:"HPを大幅に回復する。",       price: 80, blessed:true  },
-  { name:"力の薬",           type:"potion", effect:"power",       tile:17, desc:"飲むと力が湧いてくる。",     price: 120 },
-  { name:"マナ回復薬",       type:"potion", effect:"mana",        tile:16, desc:"MPを20回復する。",           price: 60  },
-  { name:"視力の薬",         type:"potion", effect:"sight",       tile:16, desc:"全フロアが見えるようになる。",price: 150 },
-  /* 巻物 */
-  { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",   tile:18, desc:"装備中の武器の＋値を1上げる。",price:100 },
-  { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",    tile:18, desc:"装備中の防具の＋値を1上げる。",price:100 },
-  { name:"マップの巻物",     type:"scroll", effect:"reveal",      tile:18, desc:"フロア全体と罠が明らかになる。",price: 80 },
-  { name:"祝福の巻物",       type:"scroll", effect:"bless",       tile:18, desc:"アイテムを祝福する。",        price:200 },
-  /* 武器 */
-  { name:"短剣",             type:"weapon", atk:3,   tile:20, desc:"軽いダガー。",           price: 50  },
-  { name:"ロングソード",     type:"weapon", atk:6,   tile:20, desc:"冒険者の定番武器。",     price:150  },
-  { name:"バトルアクス",     type:"weapon", atk:10,  tile:20, desc:"重厚な戦斧。",           price:300  },
-  /* 防具 */
-  { name:"革の鎧",           type:"armor",  def:2,   tile:21, desc:"軽い鎧。",               price: 80  },
-  { name:"鎖帷子",           type:"armor",  def:5,   tile:21, desc:"斬撃に強い鎧。",         price:200  },
-  { name:"プレートメイル",   type:"armor",  def:8,   tile:21, desc:"最強の重装鎧。",         price:400  },
-  /* 食料 */
-  { name:"パン",             type:"food",   effect:"satiate_food", value:35, cooked:true, tile:19, desc:"空腹を満たす。とても腹持ちが良い。", price: 20  },
+/* ===== 拠点ショップのアイテムプール ===== */
+const SHOP_POOL = [
+  ...ITEMS.filter(it => it.type !== "gold"),
+  ...WANDS,
 ];
 
 /* ===== 共通スタイル ===== */
@@ -236,14 +217,30 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
   const [selected, setSelected] = useState(null);
   const gold = saveData.hubGold || 0;
 
+  const shopItems = useMemo(() => {
+    const pool = [...SHOP_POOL];
+    const result = [];
+    while (result.length < 8 && pool.length > 0) {
+      const total = pool.reduce((s, x) => s + (x.weight ?? 1), 0);
+      let r = Math.random() * total;
+      let idx = pool.length - 1;
+      for (let i = 0; i < pool.length; i++) {
+        r -= (pool[i].weight ?? 1);
+        if (r <= 0) { idx = i; break; }
+      }
+      result.push(pool[idx]);
+      pool.splice(idx, 1);
+    }
+    return result;
+  }, []);
+
   const buy = (item) => {
-    if (gold < item.price) return;
-    const newItem = { ...item, id: uid(), price: undefined };
-    delete newItem.price;
+    const price = itemPrice(item);
+    if (gold < price) return;
     updateSave(prev => ({
       ...prev,
-      hubGold: prev.hubGold - item.price,
-      warehouse: sortWarehouseItems([...(prev.warehouse || []), newItem].slice(0, prev.warehouseMax || 100)),
+      hubGold: prev.hubGold - price,
+      warehouse: sortWarehouseItems([...(prev.warehouse || []), { ...item, id: uid() }].slice(0, prev.warehouseMax || 100)),
     }));
   };
 
@@ -254,8 +251,9 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
         <span style={{ color:"#555", fontSize:11, marginLeft:10 }}>購入品は倉庫に追加されます</span>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-        {HUB_SHOP_ITEMS.map((item, i) => {
-          const canBuy = gold >= item.price;
+        {shopItems.map((item, i) => {
+          const price = itemPrice(item);
+          const canBuy = gold >= price;
           const isSel = selected === i;
           return (
             <div key={i} onClick={() => setSelected(i === selected ? null : i)}
@@ -268,11 +266,10 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
             >
               <span style={{ color: canBuy ? TXT : "#444", flex:1 }}>
                 {item.name}
-                {item.blessed && <span style={{ color:"#4af", fontSize:11 }}> 【祝】</span>}
                 <span style={{ color:"#555", fontSize:11, marginLeft:6 }}>{item.desc}</span>
               </span>
               <span style={{ color: canBuy ? GOLD : "#444", minWidth:50, textAlign:"right" }}>
-                {item.price}G
+                {price}G
               </span>
               {isSel && (
                 <button
