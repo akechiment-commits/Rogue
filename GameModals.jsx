@@ -2007,6 +2007,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         const it = { ...entry.value, id: uid(), fullIdent: true, bcKnown: true };
         if (it.type === "wand") it.charges = it.maxCharges ?? it.charges ?? 5;
         if (it.type === "pot") it.contents = [];
+        if (it.type === "arrow") it.count = 20;
         p.inventory.push(it);
         ml.push(`${it.name}を手に入れた！`);
       }
