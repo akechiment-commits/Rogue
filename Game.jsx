@@ -26,7 +26,7 @@ import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { drainAnims, pushMonsterBoltAnim } from './animEvents.js';
+import { drainAnims, pushMonsterBoltAnim, pushAnim } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
   bigRoom:      "ビッグルームだ！",
@@ -428,6 +428,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       });
       overlaysRef.current = [];
     }
+    /* Phase 2b.5: Projectile bounce return (200ms) */
+    if (data.projectileReturns?.length) {
+      await _phase(200, (t, raw) => {
+        overlaysRef.current = data.projectileReturns.map(p => ({ ...p, type: "projectile", progress: raw, t }));
+        renderFrame();
+      });
+      overlaysRef.current = [];
+    }
     /* Phase 2c: Explosions (350ms) */
     if (data.explosions?.length) {
       await _phase(350, (t, raw) => {
@@ -463,6 +471,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       });
       overlaysRef.current = [];
     }
+    /* Phase 4b.5: Monster projectile bounce return (反射鎧等) (200ms) */
+    if (data.monProjectileReturns?.length) {
+      await _phase(200, (t, raw) => {
+        overlaysRef.current = data.monProjectileReturns.map(p => ({ ...p, type: "projectile", progress: raw, t }));
+        renderFrame();
+      });
+      overlaysRef.current = [];
+    }
     moveOffsetsRef.current.clear();
     overlaysRef.current = [];
     /* Use renderFrameRef to always draw the latest game state after async animation */
@@ -479,12 +495,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const d = { attacks: [], damages: [], projectiles: [], explosions: [] };
     for (const e of evts) {
       if (e.type === "projectile") d.projectiles.push(e);
+      else if (e.type === "projectileReturn") (d.projectileReturns = d.projectileReturns || []).push(e);
       else if (e.type === "monProjectile") (d.monProjectiles = d.monProjectiles || []).push(e);
+      else if (e.type === "monProjectileReturn") (d.monProjectileReturns = d.monProjectileReturns || []).push(e);
       else if (e.type === "explosion") d.explosions.push(e);
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
     }
-    if (d.projectiles.length || d.explosions.length || d.damages.length || d.monProjectiles?.length) playAnim(d);
+    if (d.projectiles.length || d.projectileReturns?.length || d.explosions.length || d.damages.length || d.monProjectiles?.length || d.monProjectileReturns?.length) playAnim(d);
   }, [gs, playAnim]);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
@@ -638,6 +656,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               /* 反射の鎧チェック */
               if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧が呪いの魔法弾を反射した！");
+                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#9020b0" });
                 m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
                 ml.push(`呪いが${m.name}に反射！鈍足になった！`);
                 _cwHit = true; break;
@@ -738,6 +757,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (_tx === pl.x && _ty === pl.y) {
               if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧が吹き飛ばしの魔法弾を反射した！");
+                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#20e0c0" });
                 applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, pl.atk || 3);
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); }
               } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
@@ -1300,12 +1320,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       for (const _de of _drainedEvts) {
         if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
+        else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
         else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);
       }
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
       setGs({ ...st });
-      const _hasAnim = _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.monProjectiles?.length;
+      const _hasAnim = _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.monProjectiles?.length || _ad.monProjectileReturns?.length;
       if (_hasAnim) playAnim(_ad);
     };
     const timer = setTimeout(tryAdvance, 400);
@@ -1836,7 +1857,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const _drainedEvts = drainAnims();
       for (const _de of _drainedEvts) {
         if (_de.type === "projectile") (_ad.projectiles = _ad.projectiles || []).push(_de);
+        else if (_de.type === "projectileReturn") (_ad.projectileReturns = _ad.projectileReturns || []).push(_de);
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
+        else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
         else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "damage") _ad.damages.push(_de);
         else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
@@ -1844,7 +1867,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       sr.current = { ...st };
       setGs({ ...st });
       /* Play animations if any were queued */
-      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.explosions && _ad.explosions.length) || (_ad.monProjectiles && _ad.monProjectiles.length);
+      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length);
       if (_hasAnim) playAnim(_ad);
     },
     [

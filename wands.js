@@ -1240,10 +1240,12 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         if (blMult >= 1) { p.x = lastX; p.y = lastY; ml.push("壁の前に飛びついた！"); return; }
         // 呪い：跳ね返って自分に当たる → プレイヤーがランダムテレポート
         ml.push("魔法弾が跳ね返って自分に当たった！【呪】");
+        if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
         applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
         return;
       }
       ml.push("魔法弾は壁に跳ね返った！");
+      if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
       applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
