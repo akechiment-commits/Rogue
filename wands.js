@@ -8,7 +8,7 @@ import {
   hasCursedExplosionPentacle,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
-import { pushAnim, pushMonsterBoltAnim } from './animEvents.js';
+import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 
 /*
  * 新しい杖エフェクトを追加する手順:
@@ -396,13 +396,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 呪い：25回復 */
         if (kind === "monster") {
           const _lheal = Math.min(25, target.maxHp - target.hp);
-          if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); }
+          if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); }
           else ml.push(`${target.name}には効果がなかった。`);
           break;
         }
         if (kind === "player") {
           const _lheal = Math.min(25, p.maxHp - p.hp);
-          if (_lheal > 0) { p.hp += _lheal; ml.push(`癒しの光に包まれた！HP+${_lheal}`); }
+          if (_lheal > 0) { p.hp += _lheal; ml.push(`癒しの光に包まれた！HP+${_lheal}`); pushHealAnim(p.x, p.y); }
           else ml.push("HPは既に満タンだ。");
           break;
         }
@@ -414,6 +414,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         target.hp -= dmg;
         ml.push(`雷撃が${target.name}に命中！${dmg}ダメージ！`);
+        pushLightningAnim(target.x, target.y);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
         break;
       }
@@ -422,6 +423,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.deathCause = "雷の杖の魔法により";
         p.hp -= dmg;
         ml.push(`雷撃が自分に命中！${dmg}ダメージ！`);
+        pushLightningAnim(p.x, p.y);
         applyLightningToInventory(p, dg, ml, luFn, nameFn);
         break;
       }
@@ -1335,6 +1337,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           const _rdmg = rng(15, 25);
           _srcMon.hp -= _rdmg;
           ml.push(`反射した雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
+          pushLightningAnim(_srcMon.x, _srcMon.y);
           if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
         }
         return;
@@ -1347,6 +1350,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       pl.deathCause = `${monName}の雷撃により`;
       pl.hp -= dmg;
       ml.push(`雷撃が命中！${dmg}ダメージ！${_hasLightRes ? "（雷耐性）" : ""}`);
+      pushLightningAnim(pl.x, pl.y);
       if (!_hasLightRes) {
         applyLightningToInventory(pl, dg, ml, luFn, nameFn);
       } else {

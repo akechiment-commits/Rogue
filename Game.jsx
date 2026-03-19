@@ -498,7 +498,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       else if (e.type === "projectileReturn") (d.projectileReturns = d.projectileReturns || []).push(e);
       else if (e.type === "monProjectile") (d.monProjectiles = d.monProjectiles || []).push(e);
       else if (e.type === "monProjectileReturn") (d.monProjectileReturns = d.monProjectileReturns || []).push(e);
-      else if (e.type === "explosion" || e.type === "splash") d.explosions.push(e);
+      else if (e.type === "explosion" || e.type === "splash" || e.type === "lightning" || e.type === "heal") d.explosions.push(e);
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
     }

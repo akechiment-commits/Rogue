@@ -102,3 +102,17 @@ export function pushExplosionAnim(cx, cy) {
 export function pushSplashAnim(cx, cy, color = "#88ccff") {
   pushAnim({ type: "splash", x: cx, y: cy, color });
 }
+
+/*
+ * Push a lightning hit animation on a tile.
+ */
+export function pushLightningAnim(x, y) {
+  pushAnim({ type: "lightning", x, y });
+}
+
+/*
+ * Push a heal animation on a tile.
+ */
+export function pushHealAnim(x, y) {
+  pushAnim({ type: "heal", x, y });
+}

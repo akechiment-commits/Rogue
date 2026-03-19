@@ -14,7 +14,7 @@ import {
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
-import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim } from "./animEvents.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim } from "./animEvents.js";
 
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
@@ -663,6 +663,7 @@ export function useItemActions({
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
+            pushLightningAnim(_m.x, _m.y);
             if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }
           // 呪い：自分にも雷が落ちる
@@ -671,6 +672,7 @@ export function useItemActions({
             p.hp -= _selfDmg;
             p.deathCause = "呪われた雷の巻物で";
             ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！【呪】`);
+            pushLightningAnim(p.x, p.y);
           }
         }
         } // end hasCursedExplosionPentacle else
@@ -684,12 +686,13 @@ export function useItemActions({
           const _rvisC = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
           for (const _m of _rvisC) {
             const _ma = Math.min(rng(10, 20), _m.maxHp - _m.hp);
-            if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); }
+            if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
           }
         } else {
           const _rh = Math.max(1, Math.round(rng(15, 25) * _scrBm));
           const _ra = Math.min(_rh, p.maxHp - p.hp);
           p.hp += _ra;
+          pushHealAnim(p.x, p.y);
           if (it.blessed) {
             // 祝福：自分だけ回復（敵は回復しない）
             ml.push(`体が癒された！HP+${_ra}（祝福：自分だけ回復！）`);
@@ -700,7 +703,7 @@ export function useItemActions({
             for (const _m of _rvis) {
               const _mh = Math.max(1, Math.round(rng(10, 20)));
               const _ma = Math.min(_mh, _m.maxHp - _m.hp);
-              if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); }
+              if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
             }
           }
         }

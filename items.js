@@ -1,6 +1,6 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
-import { pushExplosionAnim, pushSplashAnim } from './animEvents.js';
+import { pushExplosionAnim, pushSplashAnim, pushHealAnim } from './animEvents.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
@@ -1427,8 +1427,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") { p.deathCause = "呪われた回復薬の飛散により"; p.hp -= d; ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`); }
       } else {
         const _mult = blessed ? 1.5 : 1;
-        if (kind === "monster") { const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp); if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); } }
-        if (kind === "player") { const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp); if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); } }
+        if (kind === "monster") { const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp); if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); pushHealAnim(target.x, target.y); } }
+        if (kind === "player") { const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp); if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); } }
       }
       break;
     case "poison": {
