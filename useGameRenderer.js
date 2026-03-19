@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { T, TI, MW, MH, clamp } from './utils.js';
 import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from './render.js';
 
@@ -206,7 +206,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const sz = Math.max(12, Math.floor(contW / vw));
     let vh;
     if (mobile && !landscape) {
-      const uiH = 224;
+      const uiH = 270;
       const availH = window.innerHeight - uiH;
       vh = Math.max(VH_M, Math.min(Math.floor(availH / sz), MH));
     } else {
@@ -528,5 +528,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     renderFrame();
   }, [renderFrame]);
 
-  return { renderFrame, overlaysRef, moveOffsetsRef };
+  /* Always-current ref so playAnim can call the latest renderFrame after async phases */
+  const renderFrameRef = useRef(renderFrame);
+  useEffect(() => { renderFrameRef.current = renderFrame; }, [renderFrame]);
+
+  return { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef };
 }
