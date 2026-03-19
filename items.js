@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim } from './animEvents.js';
 
@@ -133,6 +133,7 @@ export const ITEMS = [
   { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, rarity:"C", weight:8,  sellPrice:400,  desc:"足元に吹き飛ばしの魔方陣を描く。同じ部屋での近接攻撃を受けた者が5マス吹き飛ぶ。祝福で何かに当たるまで飛ぶ。呪いで1マスだけ。チャージ制。", tile:42 },
   { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"A", weight:2,  sellPrice:1800, desc:"足元に爆発の魔方陣を描く。部屋内で倒された敵が爆発し周囲8マスに現HPの3/4ダメージ。壁・罠・大箱も破壊。祝福でフロア全体。呪いでフロアの炎・雷を不発にする。チャージ制。", tile:42 },
   { name:"ただのペン",       type:"pen",    effect:"plain",         charges:2, rarity:"D", weight:12, sellPrice:50,   desc:"何も起こらない魔方陣を描く。他のペンに合成してインクを補充することができる。チャージ制。", tile:42 },
+  { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"B", weight:4,  sellPrice:700,  desc:"足元に重力の魔方陣を描く。部屋内では浮遊不可・敵が罠にかかる・吹き飛ばし/飛びつき無効。水上の浮遊系敵は弾き出される（逃げ場なし即死）。祝福でフロア全体。呪いで部屋内全員が浮遊状態になる。チャージ制。", tile:42 },
   { name:"短剣",             type:"weapon", atk:3,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"C", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"B", weight:4,  sellPrice:1000, desc:"重厚な戦斧。",                     tile:20 },
@@ -2866,4 +2867,13 @@ export const RINGS = [
 
 export function hasRingEffect(p, effect) {
   return p.rings?.some(r => r.effect === effect) ?? false;
+}
+
+/* プレイヤーが浮遊状態か判定（呪い重力は強制浮遊、通常重力は浮遊抑制） */
+export function isPlayerFloating(p, dg) {
+  if (dg && hasCursedGravityPentacle(dg, p.x, p.y)) return true;
+  const _hasFloat = hasRingEffect(p, "float_ring") || (p.floatTurns || 0) > 0;
+  if (!_hasFloat) return false;
+  if (dg && hasGravityPentacle(dg, p.x, p.y)) return false;
+  return true;
 }

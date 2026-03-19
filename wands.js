@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
@@ -304,6 +304,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const d = _blessed ? 50 : 5; /* 祝福：壁まで飛ばす */
       const _kbDmgBase = _blessed ? 10 : 5; /* 祝福：ダメ2倍 */
       if (kind === "monster") {
+        if (hasGravityPentacle(dg, target.x, target.y)) { ml.push(`重力の魔方陣の力で${target.name}への吹き飛ばしが無効になった！`); break; }
         const _kbDmg = _kbDmgBase;
         ml.push(`${target.name}は吹き飛ばされた！`);
         target.hp -= _kbDmg;
@@ -329,6 +330,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
+        if (hasGravityPentacle(dg, p.x, p.y)) { ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); break; }
         ml.push("自分が吹き飛ばされた！");
         p.hp -= _kbDmgBase;
         pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn, collisionAtk);
@@ -1224,6 +1226,11 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     seal:"#8040e0", knockback:"#20e0c0", swap:"#ff8800", dig:"#aa8844",
     leap:"#40ff80", ice_wand:"#80ddff", curse_wand:"#9020b0", blowback_wand:"#20e0c0",
   };
+  /* 重力の魔方陣：飛びつきを無効化（プレイヤーが重力ゾーンにいる場合） */
+  if (eff === "leap" && blMult >= 1 && hasGravityPentacle(dg, p.x, p.y)) {
+    ml.push("重力の魔方陣の力で飛びつきが無効になった！");
+    return;
+  }
   const _boltClr = _wandColors[eff] || "#a050f0";
   let lastX = p.x, lastY = p.y;
   for (let d = 1; d < MW + MH; d++) {

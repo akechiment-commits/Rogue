@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle } from "./utils.js";
 import { findRoom, spawnMonsters } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -965,7 +965,8 @@ export function useItemActions({
             it.effect === "stone_throw"    ? "石飛ばしの魔方陣" :
             it.effect === "knockback_aura" ? "吹き飛ばしの魔方陣" :
             it.effect === "explosion"      ? "爆発の魔方陣" :
-            it.effect === "plain"          ? "無の魔方陣" : "魔方陣";
+            it.effect === "plain"          ? "無の魔方陣" :
+            it.effect === "gravity"        ? "重力の魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
@@ -1032,6 +1033,43 @@ export function useItemActions({
                 ml.push(`${_pName}が${_tm.name}を打った！${_tdrawDmg}ダメージ！`);
                 if (_tm.hp <= 0) { trackMonster(_tm); killMonster(_tm, dg, p, ml, lu); }
               }
+            }
+          }
+        }
+      }
+      /* 重力の魔方陣：描いた瞬間の即時効果 */
+      if (it.effect === "gravity") {
+        if (_isCursed) {
+          /* 呪い：部屋内の者全員が浮遊状態になる（魔方陣が存在する間は常時適用） */
+          ml.push(`${_pName}の呪いが炸裂！部屋内の者が浮遊状態になった！【呪】`);
+        } else {
+          /* 通常/祝福：水上にいる浮遊系の敵を弾き出す or 即死 */
+          const _gravRoom = !_isBlessed ? dg.rooms?.find(r => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) : null;
+          const _gravMons = dg.monsters.filter(m => {
+            if (!m.float) return false;
+            if (dg.map[m.y]?.[m.x] !== T.WATER) return false;
+            if (_isBlessed) return true;
+            return _gravRoom && m.x >= _gravRoom.x && m.x < _gravRoom.x + _gravRoom.w && m.y >= _gravRoom.y && m.y < _gravRoom.y + _gravRoom.h;
+          });
+          for (const _gm of [..._gravMons]) {
+            const _gdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+            let _gpushed = false;
+            for (const [_gdx, _gdy] of _gdirs) {
+              const _gx = _gm.x + _gdx, _gy = _gm.y + _gdy;
+              if (_gx >= 0 && _gx < MW && _gy >= 0 && _gy < MH &&
+                  dg.map[_gy][_gx] !== T.WALL && dg.map[_gy][_gx] !== T.BWALL &&
+                  dg.map[_gy][_gx] !== T.WATER &&
+                  !dg.monsters.some(o => o !== _gm && o.x === _gx && o.y === _gy) &&
+                  !(_gx === p.x && _gy === p.y)) {
+                _gm.x = _gx; _gm.y = _gy;
+                ml.push(`重力の力で${_gm.name}が水上から弾き出された！`);
+                _gpushed = true;
+                break;
+              }
+            }
+            if (!_gpushed) {
+              ml.push(`重力の力で${_gm.name}は逃げ場がなく即死した！`);
+              killMonster(_gm, dg, p, ml, lu);
             }
           }
         }

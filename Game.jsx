@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -16,7 +16,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames,
-  hasCursedExplosionPentacle, hasRingEffect, doExplosion, doTimeBombExplosion,
+  hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
@@ -628,7 +628,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
     if (isDash && trap.revealed) return null;
-    if (hasRingEffect(p, "float_ring")) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
+    if (isPlayerFloating(p, dg)) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
@@ -636,6 +636,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const moveMons = useCallback((dg, pl, ml, phaseMode) => {
     const opts = {
       bbFn: bigboxAddItem,
+      luFn: lu,
       fireTrapFn: (trap, p, dg2, ml2) => fireTrapPlayer(trap, p, dg2, ml2, null, lu),
       monsterWandFn: (m, dx, dy) => {
         const _we = m.wandEffect || "lightning";
@@ -762,6 +763,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); }
               } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
                 ml.push("祝福された聖域の加護が魔法弾を防いだ！");
+              } else if (hasGravityPentacle(dg, pl.x, pl.y)) {
+                ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！");
               } else {
                 applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
                 if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
@@ -959,8 +962,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if ((p.immobileTurns || 0) > 0) {
         p.immobileTurns--;
       }
+      /* 浮遊状態：カウントダウン（呪われた重力の魔方陣による浮遊は魔方陣依存なのでここはスキップ） */
+      if ((p.floatTurns || 0) > 0) {
+        p.floatTurns--;
+        if (p.floatTurns === 0) ml.push("浮遊が解けた！");
+      }
       /* 水上で浮遊解除：最寄りの陸上に弾き出される */
-      if (st.dungeon.map[p.y][p.x] === T.WATER && !hasRingEffect(p, "float_ring")) {
+      if (st.dungeon.map[p.y][p.x] === T.WATER && !isPlayerFloating(p, st.dungeon)) {
         const _wDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
         for (const [_wdx, _wdy] of _wDirs) {
           const _wx = p.x + _wdx, _wy = p.y + _wdy;
@@ -1555,7 +1563,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 const _kbRoom = findRoom(dg.rooms, p.x, p.y);
                 const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
                   pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
-                if (_kbPcP) {
+                if (_kbPcP && !hasGravityPentacle(dg, attackMon.x, attackMon.y)) {
                   const _kbDist = _kbPcP.cursed ? 1 : _kbPcP.blessed ? 99 : 5;
                   let _kbCx = attackMon.x, _kbCy = attackMon.y, _kbMoved = 0;
                   for (let _kbi = 0; _kbi < _kbDist; _kbi++) {
@@ -1593,7 +1601,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               acted = true;
               } /* end else (hit) */
             }
-          } else if (dg.map[ny][nx] === T.WATER && !hasRingEffect(p, "float_ring")) {
+          } else if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) {
             ml.push("水に阻まれた！浮遊の指輪があれば渡れる。");
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
@@ -1677,8 +1685,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else ml.push("矢を装備していない。");
       } else if (type === "stairs_down") {
         if (dg.map[p.y][p.x] === T.SD) {
-          if (hasRingEffect(p, "float_ring")) {
-            ml.push("浮遊の指輪を付けているので階段を降りられない！");
+          if (isPlayerFloating(p, dg)) {
+            ml.push("浮遊しているので階段を降りられない！");
           } else {
             doStair(1);
           }
@@ -1698,8 +1706,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (type === "interact") {
         /* 足元の階段チェック */
         if (dg.map[p.y][p.x] === T.SD) {
-          if (hasRingEffect(p, "float_ring")) {
-            ml.push("浮遊の指輪を付けているので階段を降りられない！");
+          if (isPlayerFloating(p, dg)) {
+            ml.push("浮遊しているので階段を降りられない！");
           } else {
             doStair(1);
           }
