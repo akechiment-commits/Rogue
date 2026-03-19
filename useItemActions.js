@@ -610,17 +610,7 @@ export function useItemActions({
           }
         }
       } else if (it.effect === "weapon_up") {
-        /* 力の指輪装備中ならその＋値を上げる */
-        const _powerRing = (p.rings || []).find(r => r.effect === "power_ring");
-        if (_powerRing) {
-          const _bef = _powerRing.plus || 0;
-          const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
-          _powerRing.plus = _bef + _gain;
-          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-          let _rMsg = `${_powerRing.name}が${_gain > 0 ? "輝いた" : "くすんだ"}！(${_fp(_bef)}→${_fp(_powerRing.plus)})${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`;
-          if (_powerRing.cursed) { _powerRing.cursed = false; _rMsg += " 呪いが解けた！"; }
-          ml.push(_rMsg);
-        } else if (p.weapon) {
+        if (p.weapon) {
           const _bef = p.weapon.plus || 0;
           const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
           p.weapon.plus = _bef + _gain;
