@@ -542,22 +542,6 @@ export function useItemActions({
           }
         }
       }
-      /* 祝福の巻物：祝福でない場合はアイテム選択ダイアログが必要（魔封じの魔方陣内は除く） */
-      if (it.effect === "bless" && !it.blessed && !inMagicSealRoom(p.x, p.y, dg)) {
-        const _blessMode = it.cursed ? 'curse' : 'bless';
-        const _blessTargets = p.inventory.filter((_ii, _i) => _i !== idx && _ii.type !== "gold");
-        if (_blessTargets.length > 0) {
-          const _ik_bls = getIdentKey(it);
-          if (_ik_bls) sr.current.ident.add(_ik_bls);
-          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-          setMsgs((prev) => [...prev.slice(-80), ..._rp,
-            _blessMode === 'curse' ? "呪うアイテムを選んでください。【呪】" : "祝福するアイテムを選んでください。"]);
-          setIdentifyMode({ mode: _blessMode, sel: 0, scrollIdx: idx });
-          setShowInv(false); setSelIdx(null); setShowDesc(null);
-          sr.current = { ...sr.current }; setGs({ ...sr.current });
-          return;
-        }
-      }
       /* 複製の巻物：アイテム選択ダイアログが必要な場合はsplice前にreturn（identify同様） */
       if (it.effect === "duplicate" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
         const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
@@ -918,24 +902,6 @@ export function useItemActions({
           ml.push(it.blessed
             ? `罠の巻物を読んだ！大量の罠がフロアに出現した！(${_placed}個)【祝】`
             : `罠の巻物を読んだ！罠がフロアに出現した！(${_placed}個)`);
-        }
-      } else if (it.effect === "bless") {
-        // 祝福の巻物
-        if (it.blessed) {
-          // 全アイテムを祝福
-          let _blessedCount = 0;
-          for (const _bi of p.inventory) {
-            if (_bi.type === "gold") continue;
-            _bi.blessed = true; _bi.cursed = false; _bi.bcKnown = true;
-            _blessedCount++;
-          }
-          ml.push(_blessedCount > 0
-            ? `全てのアイテムが祝福された！(${_blessedCount}個)【祝】`
-            : "持ち物がない。");
-        } else if (it.cursed) {
-          ml.push("呪うアイテムがない。");
-        } else {
-          ml.push("祝福するアイテムがない。");
         }
       } else if (it.effect === "expand_inv") {
         // 収納上手の巻物

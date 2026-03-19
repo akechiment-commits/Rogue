@@ -161,8 +161,6 @@ export const ITEMS = [
   { name:"金貨",             type:"gold",   value:0,                     desc:"金貨。",                           tile:22 },
   { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"C", weight:8,  sellPrice:200,
     desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
-  { name:"祝福の巻物", type:"scroll", effect:"bless",             rarity:"B", weight:4,  sellPrice:400,
-    desc:"持ち物から1つ選んで祝福する。祝福：全アイテムを祝福。呪い：1つ選んで呪う。", tile:18 },
   { name:"複製の巻物", type:"scroll", effect:"duplicate",         rarity:"S", weight:1,  sellPrice:6000,
     desc:"持ち物から1つ選んで複製する。祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
   { name:"召喚の巻物", type:"scroll", effect:"summon",            rarity:"C", weight:8,  sellPrice:80,
