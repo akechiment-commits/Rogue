@@ -12,7 +12,7 @@ function mkOcc(...lists) {
 function makeRing() {
   const t = pickWeighted(RINGS);
   const ring = { ...t, id: uid() };
-  if (ring.effect === "power_ring") ring.plus = rng(1, 3);
+  if (ring.effect === "power_ring" || ring.effect === "defense_ring" || ring.effect === "life_ring") ring.plus = rng(1, 3);
   const roll = Math.random();
   if (roll < 0.10) ring.blessed = true;
   else if (roll < 0.25) ring.cursed = true;
