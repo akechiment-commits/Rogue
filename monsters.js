@@ -79,7 +79,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   if (_oilyMult > 1) dmg *= 2;
   pl.deathCause = `${m.name}の炎ブレスで`;
   pl.hp -= dmg;
-  onPlayerHit?.(dmg);
+  onPlayerHit?.(dmg, m);
   ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
@@ -106,7 +106,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
-  onPlayerHit?.(dmg);
+  onPlayerHit?.(dmg, m);
   ml.push(msgFn(dmg));
   if (!skipThorn && pl.armor?.ability === "thorn" && dmg > 0) {
     const td = Math.max(1, Math.floor(dmg / 3));
