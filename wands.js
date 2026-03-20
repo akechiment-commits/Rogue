@@ -198,7 +198,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       return;
     }
-    if (eff === "slow" || eff === "paralyze" || eff === "sleep") {
+    if (eff === "slow" || eff === "paralyze" || eff === "sleep" ||
+        eff === "confuse" || eff === "darkness" || eff === "bewitch" ||
+        eff === "seal" || eff === "levelup") {
       ml.push("効果がなかった。");
       return;
     }
@@ -1489,6 +1491,8 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
       const wb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
       if (wb) wTargets.push({ kind:"bigbox", t:wb });
     }
+    const _wFootBb = dg.bigboxes?.find(b => b.x === ox && b.y === oy);
+    if (_wFootBb) wTargets.push({ kind:"bigbox", t:_wFootBb });
     applyWandEffect(eff, "player", p, 0, 0, dg, p, ml, luFn, null, blMult);
     for (const { kind, t } of wTargets) applyWandEffect(eff, kind, t, 0, 0, dg, p, ml, luFn, null, blMult);
     return;
@@ -1509,5 +1513,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
     const bb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
     if (bb) targets.push({ kind:"bigbox", t:bb, dx:adx, dy:ady });
   }
+  const _footBb = dg.bigboxes?.find(b => b.x === p.x && b.y === p.y);
+  if (_footBb) targets.push({ kind:"bigbox", t:_footBb, dx:rd[0], dy:rd[1] });
   for (const { kind, t, dx, dy } of targets) applyWandEffect(eff, kind, t, dx, dy, dg, p, ml, luFn, null, blMult);
 }
