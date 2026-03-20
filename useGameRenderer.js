@@ -560,8 +560,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
       } else if (key.startsWith("mon_") && mo.tile != null) {
         /* Skip if neither start nor end position is visible to the player */
-        const _fromVis = dg.visible[mo.fromY]?.[mo.fromX];
-        const _toVis = dg.visible[mo.toY]?.[mo.toX];
+        const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];
+        const _toVis = dg.visible[Math.round(mo.toY)]?.[Math.round(mo.toX)];
         if (!_fromVis && !_toVis) continue;
         const _monTile2 = (p.bewitchedTurns || 0) > 0
           ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(Math.floor(drawX) * 7 + Math.floor(drawY) * 13) % 9]
