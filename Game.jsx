@@ -3432,7 +3432,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (revealMode || showInv || lookMode) return; setSpellListMode((f) => !f); setSpellMenuSel(0); }}
+                  onClick={() => { if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB
