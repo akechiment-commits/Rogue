@@ -391,11 +391,14 @@ export function useKeyHandler({
         ) {
           e.preventDefault();
           const [dx, dy] = npm[e.code];
+          /* NumLock OFF + Shift の場合、OSがShiftを消費してe.key="8"等になり
+             e.shiftKeyがfalseになる場合がある。NumLock状態とe.keyで判別する */
+          const _numLockOffShift = e.getModifierState?.("NumLock") === false && /^[1-9]$/.test(e.key);
           if (throwMode !== null) {
             execRef.current?.(dx, dy);
           } else if (!showInv) {
             if (dx === 0 && dy === 0) act("wait");
-            else if (e.shiftKey || shiftRef.current) doDash(dx, dy);
+            else if (e.shiftKey || shiftRef.current || _numLockOffShift) doDash(dx, dy);
             else act("move", dx, dy);
           }
           return;
