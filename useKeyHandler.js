@@ -316,7 +316,7 @@ export function useKeyHandler({
           const newPage =
             (invPage + (isRight ? 1 : -1) + totalPages) % totalPages;
           setInvPage(newPage);
-          setSelIdx(null);
+          setSelIdx(0);
           setInvMenuSel(null);
           setShowDesc(null);
           return;
