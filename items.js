@@ -2419,9 +2419,24 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         /* モンスターへのダメージ（即死→連鎖爆発） */
         for (const m of [...dg.monsters]) {
           if (m.x === ax && m.y === ay) {
-            ml.push(`爆発で${m.name}は即死した！`);
-            m.hp = 0;
-            killMonster(m, dg, p, ml, luFn);
+            wakeIfDormant(m, ml);
+            if (m.baseKind === "firedemon") {
+              ml.push(`${m.name}が爆発を受けて分裂した！`);
+              const _ep8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+              for (const [_sx, _sy] of _ep8) {
+                const _nx = ax + _sx, _ny = ay + _sy;
+                if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
+                if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+                if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+                if (p && _nx === p.x && _ny === p.y) continue;
+                dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+                break;
+              }
+            } else {
+              ml.push(`爆発で${m.name}は即死した！`);
+              m.hp = 0;
+              killMonster(m, dg, p, ml, luFn);
+            }
           }
         }
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
