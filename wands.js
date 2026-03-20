@@ -45,6 +45,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     if (eff === "warp") {
+      if (blMult >= 1 && hasCursedTeleportPentacle(dg)) {
+        ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
+        return;
+      }
       if (blMult < 1) {
         // 呪い：振った方向に1マス移動（障害物があれば失敗）
         const _w1x = target.x + dx, _w1y = target.y + dy;
@@ -166,10 +170,6 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     if (eff === "leap") {
       if (blMult < 1) {
         // 呪い：大箱をランダムワープ
-        if (hasCursedTeleportPentacle(dg)) {
-          ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
-          return;
-        }
         const _lbf = [];
         for (let fy = 0; fy < MH; fy++)
           for (let fx = 0; fx < MW; fx++)
