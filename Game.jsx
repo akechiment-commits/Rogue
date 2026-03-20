@@ -2356,7 +2356,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         const _pRings = bb.contents.filter(i => i.type === "ring" && i.effect === _rEff);
         if (_pRings.length >= 2) {
           const [ra, rb] = _pRings;
-          ra.plus = (ra.plus || 0) + (rb.plus || 0) + 1;
+          ra.plus = (ra.plus || 0) + (rb.plus || 0);
           ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
           bb.contents = bb.contents.filter(i => i !== rb);
           bb.capacity = bb.contents.length;
@@ -2765,6 +2765,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         ml.push(`${bb.name}はもういっぱいだ。`);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         return;
+      }
+      /* 大箱に入れる前に装備スロットを解除（指輪は命の指輪maxHp処理含む） */
+      if (p.weapon === it) p.weapon = null;
+      if (p.armor  === it) p.armor  = null;
+      if (p.arrow  === it) p.arrow  = null;
+      if (p.rings?.includes(it)) {
+        p.rings = p.rings.filter(r => r !== it);
+        if (it.effect === "life_ring") {
+          const _bonus = (it.plus || 0) * 5;
+          p.maxHp = Math.max(1, p.maxHp - _bonus);
+          p.hp = Math.min(p.hp, p.maxHp);
+        }
       }
       p.inventory.splice(itemIdx, 1);
       bigboxAddItem(bb, it, dg, ml);
