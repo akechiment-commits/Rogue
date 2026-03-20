@@ -18,7 +18,7 @@ export function useKeyHandler({
   markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
-  msgLogMode, msgLogScrollTop, msgs,
+  msgLogMode, msgLogScrollTop, msgsRef,
   // state setters
   setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -159,7 +159,7 @@ export function useKeyHandler({
       }
       if (msgLogMode) {
         e.preventDefault();
-        const _mlTotal = msgs.length;
+        const _mlTotal = msgsRef.current.length;
         const _mlMax = Math.max(0, _mlTotal - 20);
         const isUpML = k === "arrowup" || e.code === "Numpad8";
         const isDownML = k === "arrowdown" || e.code === "Numpad2";
@@ -1185,7 +1185,7 @@ export function useKeyHandler({
       }
       if (k === "m" && !showInv && !bigboxMode && !springMode && !throwMode && !putMode && !spellListMode && !debugSpellMode) {
         e.preventDefault();
-        const _mlTotal = msgs.length;
+        const _mlTotal = msgsRef.current.length;
         setMsgLogScrollTop(Math.max(0, _mlTotal - 20));
         setMsgLogMode(true);
         return;
@@ -1266,7 +1266,6 @@ export function useKeyHandler({
       debugSpellMenuSel,
       msgLogMode,
       msgLogScrollTop,
-      msgs,
       dead,
       gameOverSel,
       showScores,
