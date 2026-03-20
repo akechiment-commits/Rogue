@@ -452,16 +452,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       });
       for (const mm of data.monMoves) moveOffsetsRef.current.delete("mon_" + mm.id);
     }
-    /* Phase 4: Monster attack effects */
+    /* Phase 4: Monster attack effects — flash then per-hit damage popups sequentially */
     if (data.monAttacks?.length || data.monDamages?.length) {
-      const dur = data.monDamages?.length ? 400 : 100;
-      await _phase(dur, (t, raw) => {
-        const ovs = [];
-        if (data.monAttacks) for (const a of data.monAttacks) ovs.push({ ...a, progress: Math.min(1, raw * (dur / 100)), t: Math.min(1, t * (dur / 100)) });
-        if (data.monDamages) for (const d of data.monDamages) ovs.push({ ...d, progress: raw, t });
-        overlaysRef.current = ovs;
-        renderFrame();
-      });
+      /* Flash (100ms) */
+      if (data.monAttacks?.length) {
+        await _phase(100, (t, raw) => {
+          overlaysRef.current = data.monAttacks.map(a => ({ ...a, progress: raw, t }));
+          renderFrame();
+        });
+        overlaysRef.current = [];
+      }
+      /* Sequential per-hit damage popups (300ms each) */
+      if (data.monDamages?.length) {
+        for (const _dmgEv of data.monDamages) {
+          await _phase(300, (t, raw) => {
+            overlaysRef.current = [{ ..._dmgEv, progress: raw, t }];
+            renderFrame();
+          });
+        }
+        overlaysRef.current = [];
+      }
     }
     /* Phase 4b: Monster projectiles (arrows, bolts, stones) */
     if (data.monProjectiles?.length) {
@@ -633,10 +643,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     trackTrap(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
   }, []);
-  const moveMons = useCallback((dg, pl, ml, phaseMode) => {
+  const moveMons = useCallback((dg, pl, ml, phaseMode, extraOpts = {}) => {
     const opts = {
       bbFn: bigboxAddItem,
       luFn: lu,
+      ...extraOpts,
       fireTrapFn: (trap, p, dg2, ml2) => fireTrapPlayer(trap, p, dg2, ml2, null, lu),
       monsterWandFn: (m, dx, dy) => {
         const _we = m.wandEffect || "lightning";
@@ -1061,13 +1072,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         st.dungeon.pendingBombs = _remaining;
       }
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
-      const _plHpBefore = p.hp;
-      moveMons(st.dungeon, p, ml, "attackOnly");
-      /* Detect if player was attacked (HP decreased during attack phase) */
-      if (p.hp < _plHpBefore && p.hp > 0) {
-        const _dmgTaken = _plHpBefore - p.hp;
-        _mdamages.push({ type: "damage", x: p.x, y: p.y, value: _dmgTaken, color: "#ff6644" });
+      const _perHitDmgs = [];
+      moveMons(st.dungeon, p, ml, "attackOnly", {
+        onPlayerHit: (dmg) => {
+          _perHitDmgs.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
+        },
+      });
+      if (_perHitDmgs.length > 0 && p.hp > 0) {
         _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
+        _mdamages.push(..._perHitDmgs);
       }
       monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages };
       /* 油状態：モンスターのカウントダウン */
