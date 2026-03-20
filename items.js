@@ -574,11 +574,12 @@ export function genFood() {
   const fn = pick(names);
   const sz = wPick(sizes);
   const ef = wPick(FOOD_EFFECTS);
-  const nm = ef.l + sz.l + fn;
+  /* 「普通の」は名前に表示しない */
+  const nm = sz.l === "普通の" ? ef.l + fn : ef.l + sz.l + fn;
   let hv = ef.e === "satiate_food" ? Math.floor(sz.v * 1.5) : sz.v;
   if (!cooked) hv = Math.max(1, Math.floor(hv / 2));
   const foodCat = FOOD_CAT_MAP.get(fn) || null;
-  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile: cooked ? 66 : 19, cooked, foodCat };
+  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile: cooked ? 66 : 19, cooked, foodCat, sizeLabel: sz.l, _foodBase: fn, _foodEfLabel: ef.l };
 }
 
 /* ===== WANDS ===== */
@@ -609,7 +610,7 @@ export const BB_TYPES = [
   { kind: "synthesis", name: "合成の大笥", cap: () => 2,         desc: "2つのアイテムを合成する。武器同士・防具同士なら能力を引き継ぐ。杖同士ならチャージを合算。ペン同士なら合算。杖と武器・防具の組み合わせでは装備に杖の能力が宿る異種合成もある。組み合わせによっては別のアイテムに変化する特殊合成が発生することもある。" },
   { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4), desc: "入れたアイテムがランダムな別のアイテムに変化する。何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
   { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2), desc: "武器・防具の＋値を1上げる。力・守り・命の指輪の＋値も増やせる。壺の容量を1増やす。他のアイテムには効果がない。" },
-  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4), desc: "食料のサイズを1段階大きくする。すでに最大サイズなら効果がない。食料以外には効果がない。" },
+  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4), desc: "食料のサイズを1段階大きくする。生なら最大で超特大、調理済みなら最大で爆盛りになる。食料以外には効果がない。" },
   { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3), desc: "杖・ペン・魔法のマーカーの使用回数をランダムに回復する。" },
   { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5), desc: "入れたアイテムを識別する。薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
   { kind: "split",     name: "分裂の大箱", cap: () => 1, rare: true, desc: "【レア】入れたアイテムを複製する。＋値・矢の数は半減する。金貨とキーアイテムは分裂しない。" },
