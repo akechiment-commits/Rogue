@@ -3333,7 +3333,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                     setSpringMenuSel((p) => (p + dy + 3) % 3);
                   } else if (springMode === "soak") {
                     const inv = sr.current?.player?.inventory || [];
-                    if (inv.length > 0) { const pgLen = Math.min(10, inv.length); setSpringMenuSel((s) => (s + dy + pgLen) % pgLen); }
+                    if (inv.length > 0) {
+                      const totalPg = Math.max(1, Math.ceil(inv.length / 10));
+                      const curPg = Math.min(springPage, totalPg - 1);
+                      const pgLen = inv.slice(curPg * 10, (curPg + 1) * 10).length;
+                      setSpringMenuSel((s) => (s + dy + pgLen) % pgLen);
+                    }
                   }
                 }
                 return;
