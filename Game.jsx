@@ -1580,7 +1580,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (v) { dropModeRef.current = false; setDropMode(false); }
           return !v;
         });
-        setSelIdx(null);
+        setSelIdx(0);
         setShowDesc(null);
         setThrowMode(null);
         setTimeout(() => ref.current?.focus(), 0);
@@ -3327,7 +3327,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   setShowDesc(null);
                 } else if (dx !== 0 && dy === 0 && totalPages > 1) {
                   setInvPage((p) => (p + dx + totalPages) % totalPages);
-                  setSelIdx(null); setInvMenuSel(null); setShowDesc(null);
+                  setSelIdx(0); setInvMenuSel(null); setShowDesc(null);
                 }
                 return;
               }
