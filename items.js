@@ -2768,6 +2768,9 @@ export const SPELLS=[
   {id:"invisible_magic",name:"透明の魔法",mpCost:10,effect:"invisible_magic",needsDir:false,desc:"しばらく透明になり敵に見えなくなる。(10ターン) MP:10"},
   {id:"wallwalk_magic",name:"壁抜けの魔法",mpCost:12,effect:"wallwalk_magic",needsDir:false,desc:"しばらく壁を通り抜けられる。(10ターン) 効果切れ時に壁の中にいると押し出される。MP:12"},
   {id:"heal_magic",name:"回復の魔法",mpCost:15,effect:"heal_magic",needsDir:false,desc:"HPを25〜35回復する。MP:15"},
+  {id:"drain_hp",name:"HP吸収の魔法",mpCost:10,effect:"drain_hp",range:10,needsDir:true,desc:"方向を選び敵のHPを吸い取って自分が回復する。MP:10"},
+  {id:"paralyze_magic",name:"金縛りの魔法",mpCost:8,effect:"paralyze_magic",range:10,needsDir:true,desc:"方向を選び敵を金縛りにする。MP:8"},
+  {id:"food_create",name:"食料生成の魔法",mpCost:6,effect:"food_create",needsDir:false,desc:"ランダムな食料をひとつ生成する。MP:6"},
   {id:"transform_magic",name:"変化の魔法",mpCost:12,effect:"transform_magic",range:10,needsDir:true,desc:"対象を変化させる。MP:12"},
   {id:"identify_magic",name:"識別の魔法",mpCost:1,fixedMpCost:true,effect:"identify_magic",needsDir:false,desc:"持ち物から1つ選んで識別する。MP:1"},
   {id:"bless_magic",name:"祝福の魔法",mpCost:1,fixedMpCost:true,effect:"bless_magic",needsDir:false,desc:"アイテムを1つ選んで祝福する。MP:1"},
@@ -2787,8 +2790,11 @@ export const SPELLBOOKS=[
   {name:"毒の魔法書",            type:"spellbook",spell:"poison_bolt",   rarity:"B", weight:4,  sellPrice:3000,  desc:"毒の魔法を習得できる。火に弱い。",tile:43},
   {name:"透明の魔法書",          type:"spellbook",spell:"invisible_magic",rarity:"A", weight:2,  sellPrice:5000,  desc:"透明の魔法を習得できる。火に弱い。",tile:43},
   {name:"壁抜けの魔法書",        type:"spellbook",spell:"wallwalk_magic", rarity:"A", weight:2,  sellPrice:6000,  desc:"壁抜けの魔法を習得できる。火に弱い。",tile:43},
-  {name:"回復の魔法書",     type:"spellbook",spell:"heal_magic",      rarity:"A", weight:2,  sellPrice:5000,  desc:"回復の魔法を習得できる。火に弱い。",tile:43},
-  {name:"変化の魔法書",     type:"spellbook",spell:"transform_magic", rarity:"B", weight:4,  sellPrice:3000,  desc:"変化の魔法を習得できる。火に弱い。",tile:43},
+  {name:"回復の魔法書",       type:"spellbook",spell:"heal_magic",       rarity:"A", weight:2,  sellPrice:5000,  desc:"回復の魔法を習得できる。火に弱い。",tile:43},
+  {name:"HP吸収の魔法書",    type:"spellbook",spell:"drain_hp",         rarity:"B", weight:4,  sellPrice:3500,  desc:"HP吸収の魔法を習得できる。火に弱い。",tile:43},
+  {name:"金縛りの魔法書",    type:"spellbook",spell:"paralyze_magic",   rarity:"B", weight:4,  sellPrice:3000,  desc:"金縛りの魔法を習得できる。火に弱い。",tile:43},
+  {name:"食料生成の魔法書",  type:"spellbook",spell:"food_create",       rarity:"B", weight:4,  sellPrice:2500,  desc:"食料生成の魔法を習得できる。火に弱い。",tile:43},
+  {name:"変化の魔法書",      type:"spellbook",spell:"transform_magic",  rarity:"B", weight:4,  sellPrice:3000,  desc:"変化の魔法を習得できる。火に弱い。",tile:43},
   {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"A", weight:2,  sellPrice:4000,  desc:"識別の魔法を習得できる。火に弱い。",tile:43},
   {name:"祝福の魔法書",     type:"spellbook",spell:"bless_magic",     rarity:"S", weight:1,  sellPrice:10000, desc:"祝福の魔法を習得できる。火に弱い。",tile:43},
   {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"B", weight:4,  sellPrice:2500,  desc:"呪いの魔法を習得できる。火に弱い。",tile:43},];
@@ -2923,6 +2929,37 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
         const _hamt = rng(25, 35);
         p.hp = Math.min(p.maxHp, p.hp + _hamt);
         ml.push(`回復の魔法を唱えた！HPが${_hamt}回復した！`);
+      } break;
+    }
+    case "drain_hp": {
+      if (kind === "monster") {
+        const _drainAmt = Math.min(target.hp, rng(15, 25) * _cmsBoost);
+        target.hp -= _drainAmt;
+        const _healAmt = Math.min(_drainAmt, p.maxHp - p.hp);
+        p.hp += _healAmt;
+        ml.push(`HP吸収の魔法が${target.name}に命中！${_drainAmt}ダメージ吸収、${_healAmt}HP回復！`);
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+      } break;
+    }
+    case "paralyze_magic": {
+      if (kind === "monster") {
+        if (!isStatusImmune(target, ml, target.name)) {
+          target.paralyzed = true;
+          ml.push(`金縛りの魔法が${target.name}に命中！金縛りになった！`);
+        }
+      } break;
+    }
+    case "food_create": {
+      if (kind === "self") {
+        if (p.inventory.length >= (p.maxInventory || 30)) {
+          ml.push("食料生成の魔法を唱えた！しかし荷物がいっぱいで持てない！足元に落とした。");
+          const _food = { ...genFood(), id: uid() };
+          dg.items.push({ ..._food, x: p.x, y: p.y });
+        } else {
+          const _food = { ...genFood(), id: uid() };
+          p.inventory.push(_food);
+          ml.push(`食料生成の魔法を唱えた！「${_food.name}」が現れた！`);
+        }
       } break;
     }
     default: ml.push("魔法弾は効果なく消えた。");
