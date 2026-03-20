@@ -1086,17 +1086,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         st.dungeon.pendingBombs = _remaining;
       }
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
-      const _perHitDmgs = [];
+      const _perHitEvents = [];
       const _perHitLunges = [];
+      let _hadActualHit = false;
       moveMons(st.dungeon, p, ml, "attackOnly", {
         onPlayerHit: (dmg, mon) => {
-          _perHitDmgs.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
+          _perHitEvents.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
+          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
+          _hadActualHit = true;
+        },
+        onPlayerMiss: (mon) => {
+          _perHitEvents.push({ type: "miss", x: p.x, y: p.y });
           if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
         },
       });
-      if (_perHitDmgs.length > 0 && p.hp > 0) {
-        _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
-        _mdamages.push(..._perHitDmgs);
+      if (_perHitEvents.length > 0) {
+        if (_hadActualHit && p.hp > 0) _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
+        _mdamages.push(..._perHitEvents);
       }
       monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
       /* 油状態：モンスターのカウントダウン */
