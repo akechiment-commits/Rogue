@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster, fireTrapItem, cookFoodMeta } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster, fireTrapItem, cookFoodMeta, soakItemIntoSpring } from "./items.js";
 import { pushMonsterBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -579,6 +579,13 @@ function safeArrowDrop(x, y, dg) {
   return { x, y }; /* 見つからなければ元の位置 */
 }
 
+/* 落下位置が泉なら泉に落とし、そうでなければ床に置く */
+function _monDropWithSpring(pos, item, dg, ml) {
+  const spr = dg.springs?.find(s => s.x === pos.x && s.y === pos.y);
+  if (spr) { soakItemIntoSpring(spr, { ...item, x: pos.x, y: pos.y }, ml, dg, it => it.name); }
+  else { dg.items.push({ ...item, x: pos.x, y: pos.y }); }
+}
+
 /* ===== MONSTER ARROW SHOT ===== */
 function monsterShootArrow(m, dg, pl, ml, opts) {
   const adx = pl.x - m.x, ady = pl.y - m.y;
@@ -597,7 +604,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     if (!isWalkable(dg.map, tx, ty)) {
       /* arrow hits wall — drop at last valid position (avoid pentacle) */
       const _wd = safeArrowDrop(lx, ly, dg);
-      dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_wd.x, y:_wd.y });
+      _monDropWithSpring(_wd, { name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid() }, dg, ml);
       return;
     }
     if (tx === pl.x && ty === pl.y && !_plHit) {
@@ -605,7 +612,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
       const _arSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
       if (miss || _arSanc) {
         const _ad = safeArrowDrop(_arSanc ? lx : pl.x, _arSanc ? ly : pl.y, dg);
-        dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_ad.x, y:_ad.y });
+        _monDropWithSpring(_ad, { name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid() }, dg, ml);
         if (_arSanc) ml.push(`${m.name}の矢は祝福された聖域の加護に阻まれた！矢が落ちた。`);
         else ml.push(`${m.name}の矢は外れた！矢が落ちた。`);
         const trap = dg.traps?.find(t => t.x === pl.x && t.y === pl.y);
@@ -653,7 +660,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   }
   /* fell through — drop at last position */
   const _fd = safeArrowDrop(lx, ly, dg);
-  dg.items.push({ name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid(), x:_fd.x, y:_fd.y });
+  _monDropWithSpring(_fd, { name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid() }, dg, ml);
 }
 
 /* ===== MONSTER STONE THROW (ワッカ) ===== */
@@ -670,9 +677,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   if (dodged) {
     ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
     const _sd = safeArrowDrop(pl.x, pl.y, dg);
-    const newSt = isMagic ? makeMagicStone(1) : makeStone(1);
-    newSt.x = _sd.x; newSt.y = _sd.y;
-    dg.items.push(newSt);
+    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
     return;
   }
 
@@ -680,9 +685,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   if (miss) {
     ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
     const _sd = safeArrowDrop(pl.x, pl.y, dg);
-    const newSt = isMagic ? makeMagicStone(1) : makeStone(1);
-    newSt.x = _sd.x; newSt.y = _sd.y;
-    dg.items.push(newSt);
+    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
     return;
   }
 

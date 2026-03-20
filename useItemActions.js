@@ -1827,8 +1827,14 @@ export function useItemActions({
             const _arSureHit = (p.sureHitTurns || 0) > 0;
             const _arMiss = _forceMiss || (!_arSureHit && Math.random() >= 0.90);
             if (_arMiss) {
-              ml.push(`${_arName}は${m.name}に外れた！`);
-              /* 矢はそのまま飛び続ける */
+              ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
+              lx = tx; ly = ty; hit = true;
+              const _arMissItem = _arDropItem();
+              const _arft = new Set();
+              withPitfallBag(() => placeItemAt(dg, lx, ly, _arMissItem, ml, _arft));
+              const _arTrap = dg.traps.find(t => t.x === tx && t.y === ty);
+              if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
+              break;
             } else {
               m.hp -= dmg;
               if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));

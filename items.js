@@ -2322,7 +2322,14 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
       continue;
     }
     if (dg.traps.some(t => t.x === cx && t.y === cy)) continue;
-    if (dg.springs?.some(s => s.x === cx && s.y === cy)) continue;
+    if (dg.springs?.some(s => s.x === cx && s.y === cy)) {
+      if (dx === 0 && dy === 0) {
+        const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
+        soakItemIntoSpring(_spr, item, ml, dg, it => it.name);
+        return true;
+      }
+      continue;
+    }
     if (dg.bigboxes?.some(b => b.x === cx && b.y === cy)) continue;
     if (dg.pentacles?.some(pc => pc.x === cx && pc.y === cy)) continue;
     if (dg.items.some(i => i.x === cx && i.y === cy)) continue;
