@@ -27,7 +27,7 @@ import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim } from './animEvents.js';
-import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
   bigRoom:      "ビッグルームだ！",
   miniRoom:     "ミニルームだ！",
@@ -215,6 +215,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const setRevealMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'reveal', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setNicknameInput = (v) => dispatchModal({ type: 'UPDATE', payload: { nicknameInput: typeof v === 'function' ? v(modal.nicknameInput) : v } });
   /* mobile dash toggle */ const [dead, setDead] = useState(false);
+  const [msgLogMode, setMsgLogMode] = useState(false);
+  const [msgLogScrollTop, setMsgLogScrollTop] = useState(0);
   const [gameOverResult, setGameOverResult] = useState(null);
   const [showScores, setShowScores] = useState(false);
   const [gameOverSel, setGameOverSel] = useState(0);
@@ -2917,6 +2919,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
+    msgLogMode, msgLogScrollTop, msgs,
     // state setters
     setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -2925,6 +2928,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
     setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
     setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
+    setMsgLogMode, setMsgLogScrollTop,
     // callbacks
     init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
     bigboxPutItem, sortInventory, getLookDesc, lu,
@@ -3633,6 +3637,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} />{" "}
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
+      <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} />
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} />

@@ -18,6 +18,7 @@ export function useKeyHandler({
   markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
+  msgLogMode, msgLogScrollTop, msgs,
   // state setters
   setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -26,6 +27,7 @@ export function useKeyHandler({
   setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
   setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
   setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
+  setMsgLogMode, setMsgLogScrollTop,
   // callbacks
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
   bigboxPutItem, sortInventory, getLookDesc, lu,
@@ -153,6 +155,17 @@ export function useKeyHandler({
           doTpConfirm(rng(rm.x, rm.x + rm.w - 1), rng(rm.y, rm.y + rm.h - 1));
           return;
         }
+        return;
+      }
+      if (msgLogMode) {
+        e.preventDefault();
+        const _mlTotal = msgs.length;
+        const _mlMax = Math.max(0, _mlTotal - 20);
+        const isUpML = k === "arrowup" || e.code === "Numpad8";
+        const isDownML = k === "arrowdown" || e.code === "Numpad2";
+        if (isUpML) { setMsgLogScrollTop((s) => Math.max(0, s - 1)); return; }
+        if (isDownML) { setMsgLogScrollTop((s) => Math.min(_mlMax, s + 1)); return; }
+        if (k === "m" || k === "x" || k === "escape") { setMsgLogMode(false); return; }
         return;
       }
       if (lookMode) {
@@ -1106,7 +1119,7 @@ export function useKeyHandler({
         };
         if (km[k]) {
           e.preventDefault();
-          if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode) {
+          if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode) {
             return;
           }
           execRef.current?.(km[k][0], km[k][1]);
@@ -1130,7 +1143,7 @@ export function useKeyHandler({
         Numpad8: [0, -1],
         Numpad9: [1, -1],
       };
-      if (e.code in numpadGame && !bigboxMode && !springMode && !putMode && !markerMode && !spellListMode && !debugSpellMode) {
+      if (e.code in numpadGame && !bigboxMode && !springMode && !putMode && !markerMode && !spellListMode && !debugSpellMode && !msgLogMode) {
         e.preventDefault();
         const nd = numpadGame[e.code];
         if (nd === null) {
@@ -1150,7 +1163,7 @@ export function useKeyHandler({
       };
       if (km[k]) {
         e.preventDefault();
-        if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode) {
+        if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode) {
           return;
         }
         if (aRef.current) {
@@ -1168,6 +1181,13 @@ export function useKeyHandler({
           const _initDesc = getLookDesc(_lp.x, _lp.y, _ld);
           setMsgs(prev => [...prev.slice(-80), `[見渡す] 矢印キーで移動、xでキャンセル / ${_initDesc}`]);
         }
+        return;
+      }
+      if (k === "m" && !showInv && !bigboxMode && !springMode && !throwMode && !putMode && !spellListMode && !debugSpellMode) {
+        e.preventDefault();
+        const _mlTotal = msgs.length;
+        setMsgLogScrollTop(Math.max(0, _mlTotal - 20));
+        setMsgLogMode(true);
         return;
       }
       if (k === "." || k === " ") {
@@ -1244,6 +1264,9 @@ export function useKeyHandler({
       spellPage,
       debugSpellMode,
       debugSpellMenuSel,
+      msgLogMode,
+      msgLogScrollTop,
+      msgs,
       dead,
       gameOverSel,
       showScores,
