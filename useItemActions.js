@@ -6,7 +6,7 @@ import {
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem,
   applyWandEffect, applyWaterSplash, breakWandAoE, burnFoodItem,
   castSpellBolt, doExplosion, fireTrapItem, fireWandBolt,
-  getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, hasCursedTeleportPentacle,
+  getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
@@ -1018,15 +1018,11 @@ export function useItemActions({
         }
         /* テレポートの魔方陣：描いた瞬間に即テレポート（呪い以外） */
         if (it.effect === "teleport_trap" && !_isCursed) {
-          if (hasCursedTeleportPentacle(dg)) {
-            ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
-          } else {
-            const _tpRm = dg.rooms[rng(0, dg.rooms.length - 1)];
-            p.x = rng(_tpRm.x, _tpRm.x + _tpRm.w - 1);
-            p.y = rng(_tpRm.y, _tpRm.y + _tpRm.h - 1);
-            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
-            ml.push("魔方陣を描いた瞬間、テレポートした！");
-          }
+          const _tpRm = dg.rooms[rng(0, dg.rooms.length - 1)];
+          p.x = rng(_tpRm.x, _tpRm.x + _tpRm.w - 1);
+          p.y = rng(_tpRm.y, _tpRm.y + _tpRm.h - 1);
+          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+          ml.push("魔方陣を描いた瞬間、テレポートした！");
         }
         /* 雷の魔方陣：描いたそのターンにも即座に発動 */
         if (it.effect === "thunder_trap") {
