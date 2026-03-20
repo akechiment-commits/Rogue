@@ -2765,11 +2765,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       bigboxAddItem(bb, it, dg, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      setBigboxMode("menu");
-      setBigboxMenuSel(0);
-      setBigboxPage(0);
+      setBigboxMode(null);
+      bigboxRef.current = null;
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
+      setTimeout(() => ref.current?.focus(), 0);
     },
     [bigboxAddItem, endTurn],
   );
