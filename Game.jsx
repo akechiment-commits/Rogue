@@ -638,7 +638,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       p.maxHp += 5;
       p.hp = Math.min(p.hp + 10, p.maxHp);
       p.atk++;
-      if (p.level % 2 === 0) p.def++;
+      if (p.level % 2 === 0) { p.def++; p.maxMp++; }
       ml.push(`レベルアップ！Lv.${p.level}！`);
     }
   }, []);
@@ -1068,6 +1068,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       /* MPクールダウンカウント */
       if ((p.mpCooldownTurns || 0) > 0) p.mpCooldownTurns--;
+      /* MP自然回復：100ターンにつき1（封印中は回復しない） */
+      if (p.turns % 100 === 0 && (p.mpCooldownTurns || 0) === 0 && (p.mp || 0) < (p.maxMp || 0)) {
+        p.mp = Math.min(p.mp + 1, p.maxMp);
+      }
       /* 封印カウントダウン */
       if ((p.sealedTurns || 0) > 0) {
         p.sealedTurns--;
