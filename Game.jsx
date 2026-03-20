@@ -2560,6 +2560,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 { l: "普通の", v: 35 },
                 { l: "大盛り", v: 55 },
                 { l: "特盛り", v: 80 },
+                { l: "爆盛り", v: 120 },
               ]
             : [
                 { l: "極小の", v: 10 },
@@ -2567,14 +2568,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 { l: "普通の", v: 35 },
                 { l: "大きい", v: 55 },
                 { l: "特大", v: 80 },
+                { l: "超特大", v: 120 },
               ];
           let upgraded = false;
+          const _hasSzLabel = item.sizeLabel !== undefined;
           for (let si = 0; si < szLevels.length - 1; si++) {
-            if (item.name.includes(szLevels[si].l)) {
+            const curL = szLevels[si].l;
+            const matches = _hasSzLabel ? item.sizeLabel === curL : item.name.includes(curL);
+            if (matches) {
               const oldName = item.name;
               const cur = szLevels[si];
               const next = szLevels[si + 1];
-              item.name = item.name.replace(cur.l, next.l);
+              if (_hasSzLabel && item._foodBase && item._foodEfLabel) {
+                /* 新形式：effectLabel + (sizeLabel ≠ 普通の ? sizeLabel : "") + baseName で再構築 */
+                const efStart = item.name.indexOf(item._foodEfLabel);
+                const cookPfx = efStart > 0 ? item.name.slice(0, efStart) : "";
+                item.name = cookPfx + item._foodEfLabel + (next.l === "普通の" ? "" : next.l) + item._foodBase;
+              } else {
+                /* 旧形式または_foodBase未保持：名前の文字列置換 */
+                item.name = item.name.replace(cur.l, next.l === "普通の" ? "" : next.l);
+              }
+              item.sizeLabel = next.l;
               item.value = Math.round((item.value * next.v) / cur.v);
               ml.push(`${oldName}が大きくなった！→${item.name}`);
               upgraded = true;
