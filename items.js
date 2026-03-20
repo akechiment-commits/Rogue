@@ -2759,12 +2759,13 @@ export function checkShopTheft(p, dg, ml) {
 
 export const SPELLS=[
   {id:"fire_bolt",name:"炎の魔法",mpCost:8,effect:"fire_bolt",damage:25,range:10,needsDir:true,desc:"炎の弾を撃つ。MP:8"},
-  {id:"ice_bolt",name:"氷の魔法",mpCost:10,effect:"ice_bolt",damage:18,range:8,needsDir:true,desc:"氷の弾で敵を凍らせスロー。MP:10"},
+  {id:"ice_bolt",name:"氷の魔法",mpCost:10,effect:"ice_bolt",damage:18,range:10,needsDir:true,desc:"氷の弾で敵を凍らせスロー。MP:10"},
   {id:"lightning_magic",name:"雷の魔法",mpCost:12,effect:"lightning_magic",damage:28,range:10,needsDir:true,desc:"強力な雷撃を放つ。MP:12"},
-  {id:"sleep_bolt",name:"眠りの魔法",mpCost:6,effect:"sleep_bolt",range:8,needsDir:true,desc:"眠りの霧を飛ばす。MP:6"},
+  {id:"sleep_bolt",name:"眠りの魔法",mpCost:6,effect:"sleep_bolt",range:10,needsDir:true,desc:"眠りの霧を飛ばす。MP:6"},
   {id:"teleport_magic",name:"テレポート",mpCost:5,effect:"teleport_magic",needsDir:false,desc:"ランダムな場所に飛ぶ。MP:5"},
+  {id:"teleport_other",name:"テレポートアザー",mpCost:8,effect:"teleport_other",range:10,needsDir:true,desc:"方向を選び、その先の敵をランダムにテレポートさせる。MP:8"},
   {id:"heal_magic",name:"回復の魔法",mpCost:15,effect:"heal_magic",needsDir:false,desc:"HPを25〜35回復する。MP:15"},
-  {id:"transform_magic",name:"変化の魔法",mpCost:12,effect:"transform_magic",range:8,needsDir:true,desc:"対象を変化させる。MP:12"},
+  {id:"transform_magic",name:"変化の魔法",mpCost:12,effect:"transform_magic",range:10,needsDir:true,desc:"対象を変化させる。MP:12"},
   {id:"identify_magic",name:"識別の魔法",mpCost:1,fixedMpCost:true,effect:"identify_magic",needsDir:false,desc:"持ち物から1つ選んで識別する。MP:1"},
   {id:"bless_magic",name:"祝福の魔法",mpCost:1,fixedMpCost:true,effect:"bless_magic",needsDir:false,desc:"アイテムを1つ選んで祝福する。MP:1"},
   {id:"curse_magic",name:"呪いの魔法",mpCost:1,fixedMpCost:true,effect:"curse_magic",needsDir:false,desc:"アイテムを1つ選んで呪う。MP:1"},
@@ -2779,6 +2780,7 @@ export const SPELLBOOKS=[
   {name:"雷の魔法書",       type:"spellbook",spell:"lightning_magic", rarity:"B", weight:4,  sellPrice:3500,  desc:"雷の魔法を習得できる。火に弱い。",tile:43},
   {name:"眠りの魔法書",     type:"spellbook",spell:"sleep_bolt",      rarity:"B", weight:4,  sellPrice:3000,  desc:"眠りの魔法を習得できる。火に弱い。",tile:43},
   {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic", rarity:"A", weight:2,  sellPrice:5000,  desc:"テレポートの魔法を習得できる。火に弱い。",tile:43},
+  {name:"テレポートアザーの魔法書",type:"spellbook",spell:"teleport_other",rarity:"A", weight:2,  sellPrice:5000,  desc:"テレポートアザーの魔法を習得できる。火に弱い。",tile:43},
   {name:"回復の魔法書",     type:"spellbook",spell:"heal_magic",      rarity:"A", weight:2,  sellPrice:5000,  desc:"回復の魔法を習得できる。火に弱い。",tile:43},
   {name:"変化の魔法書",     type:"spellbook",spell:"transform_magic", rarity:"B", weight:4,  sellPrice:3000,  desc:"変化の魔法を習得できる。火に弱い。",tile:43},
   {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"A", weight:2,  sellPrice:4000,  desc:"識別の魔法を習得できる。火に弱い。",tile:43},
@@ -2862,6 +2864,19 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
         const nt = pick(MONS); const prevName = target.name; const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, wallWalker: nt.wallWalker });
         ml.push(`${prevName}は${target.name}に変化した！`);
+      } break;
+    }
+    case "teleport_other": {
+      if (kind === "monster") {
+        const _tof = [];
+        for (let _ty = 0; _ty < MH; _ty++)
+          for (let _tx = 0; _tx < MW; _tx++)
+            if (dg.map[_ty][_tx] === T.FLOOR && !dg.monsters.some(m => m.x === _tx && m.y === _ty) && !(p.x === _tx && p.y === _ty))
+              _tof.push({ x: _tx, y: _ty });
+        if (_tof.length === 0) { ml.push("テレポートに失敗した。"); break; }
+        const _tod = pick(_tof);
+        target.x = _tod.x; target.y = _tod.y;
+        ml.push(`テレポートアザーの魔法が${target.name}に命中！どこかへ吹き飛んだ！`);
       } break;
     }
     default: ml.push("魔法弾は効果なく消えた。");
