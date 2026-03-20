@@ -2904,6 +2904,27 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
         ml.push("体が半透明になった！壁を通り抜けられる。(10ターン)");
       } break;
     }
+    case "teleport_magic": {
+      if (kind === "self") {
+        const _tmf = [];
+        for (let _ty = 0; _ty < MH; _ty++)
+          for (let _tx = 0; _tx < MW; _tx++)
+            if (dg.map[_ty][_tx] === T.FLOOR && !(p.x === _tx && p.y === _ty) &&
+                !dg.monsters.some(m => m.x === _tx && m.y === _ty))
+              _tmf.push({ x: _tx, y: _ty });
+        if (_tmf.length === 0) { ml.push("テレポートに失敗した。"); break; }
+        const _tmd = pick(_tmf);
+        p.x = _tmd.x; p.y = _tmd.y;
+        ml.push("ランダムな場所にテレポートした！");
+      } break;
+    }
+    case "heal_magic": {
+      if (kind === "self") {
+        const _hamt = rng(25, 35);
+        p.hp = Math.min(p.maxHp, p.hp + _hamt);
+        ml.push(`回復の魔法を唱えた！HPが${_hamt}回復した！`);
+      } break;
+    }
     default: ml.push("魔法弾は効果なく消えた。");
   }
 }

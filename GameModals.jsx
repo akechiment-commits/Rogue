@@ -1497,7 +1497,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
 }
 
 /* ===== Spell List Modal ===== */
-export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, setIdentifyMode, setShowInv, setSelIdx, setShowDesc, setThrowMode, setDebugSpellMode, endTurn, lu, mobile }) {
+export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, page, setPage, setIdentifyMode, setShowInv, setSelIdx, setShowDesc, setThrowMode, setDebugSpellMode, endTurn, lu, mobile }) {
   if (!mode) return null;
   const knownSpells = (gs?.player?.spells || []).map((id) => {
     const s = SPELLS.find((sp) => sp.id === id);
@@ -1505,26 +1505,40 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
     const _lv = (gs?.player?.spellLevels?.[id] || 1);
     return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
   }).filter(Boolean);
-  const safeSel = Math.min(menuSel, Math.max(0, knownSpells.length - 1));
+  const _sps = 10;
+  const totalPages = Math.max(1, Math.ceil(knownSpells.length / _sps));
+  const curPage = Math.min(page ?? 0, totalPages - 1);
+  const pageSpells = knownSpells.slice(curPage * _sps, (curPage + 1) * _sps);
+  const safeSel = Math.min(menuSel, Math.max(0, pageSpells.length - 1));
   return (
     <div style={{
       position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
       background: "#080d18", border: "1px solid #2050a0", padding: mobile ? 10 : 14, zIndex: 12,
       borderRadius: 8, boxShadow: "0 4px 20px rgba(0,40,120,0.7)",
-      maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto",
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={{ color: "#80c0ff", fontSize: 13, fontWeight: "bold" }}>
           ✨ 魔法リスト [MP: {gs?.player?.mp ?? 0}/{gs?.player?.maxMp ?? 0}]
         </span>
-        <button onClick={() => setMode(false)}
-          style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {totalPages > 1 && (
+            <span style={{ color: "#4080c0", fontSize: 11 }}>
+              <button onClick={() => { setPage((p) => (p - 1 + totalPages) % totalPages); setMenuSel(0); }}
+                style={{ background: "#0a1a30", color: "#80b0ff", border: "1px solid #2050a0", borderRadius: 3, padding: "1px 6px", cursor: "pointer", fontSize: 12 }}>◀</button>
+              {" "}{curPage + 1}/{totalPages}{" "}
+              <button onClick={() => { setPage((p) => (p + 1) % totalPages); setMenuSel(0); }}
+                style={{ background: "#0a1a30", color: "#80b0ff", border: "1px solid #2050a0", borderRadius: 3, padding: "1px 6px", cursor: "pointer", fontSize: 12 }}>▶</button>
+            </span>
+          )}
+          <button onClick={() => setMode(false)}
+            style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+        </div>
       </div>
       {knownSpells.length === 0 ? (
         <div style={{ color: "#666", fontSize: 11 }}>習得した魔法がない。魔法書を読んで覚えよう。</div>
       ) : (
         <div>
-          {knownSpells.map((spell, vi) => {
+          {pageSpells.map((spell, vi) => {
             const isSel = vi === safeSel;
             const canCast = (gs?.player?.mp ?? 0) >= spell.mpCost;
             return (
@@ -1586,7 +1600,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
           })}
         </div>
       )}
-      <div style={{ color: "#304060", fontSize: 10, marginTop: 6 }}>↑↓:選択  Z:決定  X:閉じる  🎯=方向指定</div>
+      <div style={{ color: "#304060", fontSize: 10, marginTop: 6 }}>↑↓:選択  ←→:ページ切替  Z:決定  X:閉じる  🎯=方向指定</div>
     </div>
   );
 }
