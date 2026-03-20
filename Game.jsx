@@ -1781,7 +1781,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
           } else if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) {
             ml.push("水に阻まれた！浮遊の指輪があれば渡れる。");
-          } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL || (p.wallWalkTurns || 0) > 0) {
+          } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL || ((p.wallWalkTurns || 0) > 0 && nx > 0 && nx < MW - 1 && ny > 0 && ny < MH - 1)) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
             if (_cursedSanc) {
