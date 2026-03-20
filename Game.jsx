@@ -651,7 +651,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           removeFloorItem(dg, it);
           go = true;
         } else {
-          ml.push(`${it.name}がある。持ち物がいっぱいだ！`);
+          ml.push(`${it.name}(${it.count}個)がある。持ち物がいっぱいだ！`);
           break;
         }
       } else if (it.type === "arrow" && !it.shopPrice) {
@@ -660,7 +660,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           removeFloorItem(dg, it);
           go = true;
         } else {
-          ml.push(`${it.name || "矢"}がある。持ち物がいっぱいだ！`);
+          ml.push(`${it.name || "矢"}(${it.count}本)がある。持ち物がいっぱいだ！`);
           break;
         }
       } else if (it.type === "goal") {
@@ -702,7 +702,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         removeFloorItem(dg, it);
         go = true;
       } else {
-        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}がある。持ち物がいっぱいだ！`);
+        {
+          const _w = it.type === "weapon", _a = it.type === "armor";
+          let _fl = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+          if (_w || _a) {
+            if (it.plus) _fl += (it.plus > 0 ? "+" : "") + it.plus;
+            _fl += _w ? ` (攻+${it.atk + (it.plus || 0)})` : ` (防+${it.def + (it.plus || 0)})`;
+          }
+          ml.push(`${_fl}${_itemPickupSuffix(it, sr.current?.ident)}がある。持ち物がいっぱいだ！`);
+        }
         break;
       }
     }
@@ -1776,7 +1784,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
             if (dg.map[p.y][p.x] === T.SU) ml.push("上り階段がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
-            if (_bbStep) ml.push(`${_bbStep.name}がある。`);
+            if (_bbStep) ml.push(`${_bbStep.name}(${_bbStep.contents?.length || 0}/${_bbStep.capacity})がある。`);
             const _sprStep = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
@@ -1857,7 +1865,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (bb2) {
             bigboxRef.current = bb2;
             setBigboxMode("menu"); setBigboxMenuSel(0);
-            setMsgs((prev) => [...prev.slice(-80), `${bb2.name}がある。どうする？`]);
+            setMsgs((prev) => [...prev.slice(-80), `${bb2.name}(${bb2.contents?.length || 0}/${bb2.capacity})がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
           }
           const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
@@ -2111,7 +2119,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else if (bb6) {
           bigboxRef.current = bb6;
           setBigboxMode("menu"); setBigboxMenuSel(0);
-          setMsgs((prev) => [...prev.slice(-80), `${bb6.name}がある。どうする？`]);
+          setMsgs((prev) => [...prev.slice(-80), `${bb6.name}(${bb6.contents?.length || 0}/${bb6.capacity})がある。どうする？`]);
         } else {
           setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
         }
@@ -2251,6 +2259,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _ids2 = [...new Set([...(_dashIt.abilities || []), ...(_dashIt.ability ? [_dashIt.ability] : [])])];
               const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
               if (_ns2.length) _lbl += " [" + _ns2.join("・") + "]";
+            } else if (_dashIt.type === "arrow") {
+              _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone ? "個" : "本"})`;
+            } else if (_dashIt.type === "gold") {
+              _lbl += `(${_dashIt.count}枚)`;
             }
             ml.push(_lbl + _itemPickupSuffix(_dashIt, sr.current?.ident) + "がある。");
             endTurn(st, p, ml);
@@ -2275,7 +2287,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         const _dashBb = _dBbMap.get(_dk(p.x, p.y));
         if (_dashBb) {
-          ml.push(`${_dashBb.name}がある。`);
+          ml.push(`${_dashBb.name}(${_dashBb.contents?.length || 0}/${_dashBb.capacity})がある。`);
           endTurn(st, p, ml);
           break;
         }
