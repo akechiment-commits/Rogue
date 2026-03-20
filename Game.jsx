@@ -217,6 +217,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   /* mobile dash toggle */ const [dead, setDead] = useState(false);
   const [msgLogMode, setMsgLogMode] = useState(false);
   const [msgLogScrollTop, setMsgLogScrollTop] = useState(0);
+  const msgsRef = useRef(msgs);
+  msgsRef.current = msgs;
   const [gameOverResult, setGameOverResult] = useState(null);
   const [showScores, setShowScores] = useState(false);
   const [gameOverSel, setGameOverSel] = useState(0);
@@ -2919,7 +2921,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
-    msgLogMode, msgLogScrollTop, msgs,
+    msgLogMode, msgLogScrollTop, msgsRef,
     // state setters
     setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
