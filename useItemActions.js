@@ -10,11 +10,26 @@ import {
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
-  hasRingEffect,
+  hasRingEffect, cookFoodMeta,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim } from "./animEvents.js";
+
+/* インベントリから消える際に装備スロットを強制解除するヘルパー */
+function _forceUnequip(p, it) {
+  if (p.weapon === it) p.weapon = null;
+  if (p.armor  === it) p.armor  = null;
+  if (p.arrow  === it) p.arrow  = null;
+  if (p.rings?.includes(it)) {
+    p.rings = p.rings.filter(r => r !== it);
+    if (it.effect === "life_ring") {
+      const _bonus = (it.plus || 0) * 5;
+      p.maxHp = Math.max(1, p.maxHp - _bonus);
+      p.hp = Math.min(p.hp, p.maxHp);
+    }
+  }
+}
 
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
@@ -1102,6 +1117,11 @@ export function useItemActions({
           ml.push(`${it.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`);
         } else {
           p.rings = (p.rings || []).filter(r => r !== it);
+          if (it.effect === "life_ring") {
+            const _lifeBonus = (it.plus || 0) * 5;
+            p.maxHp = Math.max(1, p.maxHp - _lifeBonus);
+            p.hp = Math.min(p.hp, p.maxHp);
+          }
           ml.push(`${it.name}を外した。`);
         }
       } else {
@@ -1112,10 +1132,20 @@ export function useItemActions({
             ml.push(`${_removed.name}は呪われていて外せない！指輪を装備できなかった。`);
           } else {
             p.rings = p.rings.slice(0, p.rings.length - 1);
+            if (_removed.effect === "life_ring") {
+              const _lifeBonus = (_removed.plus || 0) * 5;
+              p.maxHp = Math.max(1, p.maxHp - _lifeBonus);
+              p.hp = Math.min(p.hp, p.maxHp);
+            }
             ml.push(`${_removed.name}を外した。`);
             if (!p.rings) p.rings = [];
             p.rings.push(it);
             it.bcKnown = true;
+            if (it.effect === "life_ring") {
+              const _lifeBonus2 = (it.plus || 0) * 5;
+              p.maxHp += _lifeBonus2;
+              p.hp += _lifeBonus2;
+            }
             ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
             if (it.effect === "explode_ring") {
               ml.push("指輪が爆発した！");
@@ -1132,6 +1162,11 @@ export function useItemActions({
           if (!p.rings) p.rings = [];
           p.rings.push(it);
           it.bcKnown = true;
+          if (it.effect === "life_ring") {
+            const _lifeBonus3 = (it.plus || 0) * 5;
+            p.maxHp += _lifeBonus3;
+            p.hp += _lifeBonus3;
+          }
           ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
           /* 爆発の指輪：装備時即爆発 */
           if (it.effect === "explode_ring") {
@@ -1185,10 +1220,7 @@ export function useItemActions({
     const { player: p, dungeon: dg } = sr.current;
     const it = p.inventory[idx];
     if (!it) return;
-    if (p.weapon === it) p.weapon = null;
-    if (p.armor  === it) p.armor  = null;
-    if (p.arrow  === it) p.arrow  = null;
-    if (p.rings?.includes(it)) p.rings = p.rings.filter(r => r !== it);
+    _forceUnequip(p, it);
     p.inventory.splice(idx, 1);
     const ml = [],
       ft = new Set();
@@ -1217,7 +1249,21 @@ export function useItemActions({
       _itemShopDrop.unpaidTotal > 0
     )
       ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を戻した。（残り${_itemShopDrop.unpaidTotal}G）`);
-    if (ml.length === 0) ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}${_itemPickupSuffix(it, sr.current?.ident)}を置いた。`);
+    if (ml.length === 0) {
+      let _dropLbl = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+      if (it.type === "weapon") {
+        if (it.plus) _dropLbl += (it.plus > 0 ? "+" : "") + it.plus;
+        _dropLbl += ` (攻+${it.atk + (it.plus || 0)})`;
+      } else if (it.type === "armor") {
+        if (it.plus) _dropLbl += (it.plus > 0 ? "+" : "") + it.plus;
+        _dropLbl += ` (防+${it.def + (it.plus || 0)})`;
+      } else if (it.type === "arrow") {
+        _dropLbl += `(${it.count}${it.stone || it.magicStone ? "個" : "本"})`;
+      } else if (it.type === "gold") {
+        _dropLbl += `(${it.count}枚)`;
+      }
+      ml.push(`${_dropLbl}${_itemPickupSuffix(it, sr.current?.ident)}を置いた。`);
+    }
     endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
     setSelIdx(null);
@@ -1484,9 +1530,7 @@ export function useItemActions({
         setPutMode(null);
         return;
       }
-      if (p.weapon === it) p.weapon = null;
-      if (p.armor  === it) p.armor  = null;
-      if (p.arrow  === it) p.arrow  = null;
+      _forceUnequip(p, it);
       p.inventory.splice(itemIdx, 1);
       if (itemIdx < putMode.potIdx) putMode.potIdx--;
       const ml = [];
@@ -1546,7 +1590,7 @@ export function useItemActions({
           /* 壺には残さない */
         } else if (it.type === "food" && !it.cooked) {
           it.value = it.value * 2;
-          it.cooked = true;
+          cookFoodMeta(it);
           it.name = "焼いた" + it.name;
           ml.push(`加熱の壺で${it.name}になった！`);
           pot.contents.push(it);
@@ -1783,8 +1827,14 @@ export function useItemActions({
             const _arSureHit = (p.sureHitTurns || 0) > 0;
             const _arMiss = _forceMiss || (!_arSureHit && Math.random() >= 0.90);
             if (_arMiss) {
-              ml.push(`${_arName}は${m.name}に外れた！`);
-              /* 矢はそのまま飛び続ける */
+              ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
+              lx = tx; ly = ty; hit = true;
+              const _arMissItem = _arDropItem();
+              const _arft = new Set();
+              withPitfallBag(() => placeItemAt(dg, lx, ly, _arMissItem, ml, _arft));
+              const _arTrap = dg.traps.find(t => t.x === tx && t.y === ty);
+              if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
+              break;
             } else {
               m.hp -= dmg;
               if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
@@ -1906,9 +1956,7 @@ export function useItemActions({
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
         }
-        if (p.weapon === it) p.weapon = null;
-        if (p.armor  === it) p.armor  = null;
-        if (p.arrow  === it) p.arrow  = null;
+        _forceUnequip(p, it);
 
         /* ── インベントリから投げる石／魔法の石 専用処理 ── */
         if (it.type === "arrow" && (it.stone || it.magicStone)) {
@@ -2079,7 +2127,7 @@ export function useItemActions({
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           }
         } else if (it.type === "pot") {
-          ml.push(`${dnameRef(it)}を投げた！`);
+          ml.push(`${dnameRef(it)}${_itemPickupSuffix(it, sr.current?.ident)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
@@ -2135,6 +2183,20 @@ export function useItemActions({
               : it.type === "arrow"
                 ? it.atk * Math.min(it.count, 5) + it.count
                 : 3) + rng(0, 3);
+          /* 投げメッセージ用ラベル生成：武器/防具は+値付き、杖/ペンはチャージ付き、矢は本数付き */
+          const _mkThrowLb = () => {
+            if (it.type === "arrow") return (it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`;
+            const _tnm = dnameRef(it);
+            if (it.type === "weapon") {
+              const _tp = it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";
+              return `${_tnm}${_tp} (攻+${it.atk + (it.plus || 0)})`;
+            }
+            if (it.type === "armor") {
+              const _tp = it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";
+              return `${_tnm}${_tp} (防+${it.def + (it.plus || 0)})`;
+            }
+            return `${_tnm}${_itemPickupSuffix(it, sr.current?.ident)}`;
+          };
           let lx = p.x, ly = p.y, hit = false, sprHit = null;
           let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
           let _throwSwapTarget = null; /* 遠投場所替え：最後に当たった敵を記録 */
@@ -2146,7 +2208,7 @@ export function useItemActions({
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thMiss = _forceMiss || (!_isFarcast && !_thSureHit && Math.random() >= 0.90);
-              const lb = it.type === "arrow" ? ((it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`) : dnameRef(it);
+              const lb = _mkThrowLb();
               if (!_isFarcast && m.baseKind === "firedemon") {
                 /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
                 ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
@@ -2195,7 +2257,7 @@ export function useItemActions({
             lx = tx; ly = ty;
           }
           if (_isFarcast) {
-            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
+            const lb = _mkThrowLb();
             /* 遠投場所替え：最後に当たった敵と入れ替え */
             if (it.type === "wand" && it.effect === "swap" && _throwSwapTarget) {
               const _throwWandBm = getBlessMultiplier(it);
@@ -2208,7 +2270,7 @@ export function useItemActions({
             const ft = new Set();
             withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));
           } else if (!hit) {
-            const lb = it.type === "arrow" ? `矢の束(${it.count}本)` : dnameRef(it);
+            const lb = _mkThrowLb();
             ml.push(`${lb}を投げた。`);
             if (sprHit?.kind) {
               bigboxAddItem(sprHit, it, dg, ml);
@@ -2218,7 +2280,7 @@ export function useItemActions({
               ml.push(`${it.name}は割れてしまった！`);
             } else {
               const ft = new Set();
-              withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));
+              withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft, 0, p));
             }
           }
         }

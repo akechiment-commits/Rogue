@@ -11,7 +11,7 @@ import { genDungeon } from "./dungeon.js";
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef,
+  sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef,
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
@@ -49,6 +49,9 @@ export function useKeyHandler({
       const k = e.key.toLowerCase();
       if (k === "shift") {
         shiftRef.current = true;
+      }
+      if (k === "a") {
+        aRef.current = true;
       }
       if (dead) {
         if (!showScores) {
@@ -395,7 +398,7 @@ export function useKeyHandler({
             execRef.current?.(dx, dy);
           } else if (!showInv) {
             if (dx === 0 && dy === 0) act("wait");
-            else if (e.shiftKey || shiftRef.current) doDash(dx, dy);
+            else if (aRef.current) doDash(dx, dy);
             else act("move", dx, dy);
           }
           return;
@@ -637,7 +640,7 @@ export function useKeyHandler({
       }
       if (spellListMode) {
         e.preventDefault();
-        if (k === "escape" || k === "x") { setSpellListMode(false); return; }
+        if (k === "escape" || k === "x" || k === "c") { setSpellListMode(false); return; }
         const knownSpells = (sr.current?.player?.spells || []).map((id) => {
           const s = SPELLS.find((sp) => sp.id === id);
           if (!s) return null;
@@ -990,9 +993,9 @@ export function useKeyHandler({
             return;
           }
           if (k === "x" || k === "escape") {
-            setBigboxMode("menu");
-            setBigboxMenuSel(0);
-            setBigboxPage(0);
+            setBigboxMode(null);
+            bigboxRef.current = null;
+            setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
             return;
           }
           return;
@@ -1120,7 +1123,7 @@ export function useKeyHandler({
         const nd = numpadGame[e.code];
         if (nd === null) {
           act("wait");
-        } else if (e.shiftKey || shiftRef.current) {
+        } else if (aRef.current) {
           doDash(nd[0], nd[1]);
         } else {
           act("move", nd[0], nd[1]);
@@ -1138,7 +1141,7 @@ export function useKeyHandler({
         if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode) {
           return;
         }
-        if (e.shiftKey || shiftRef.current) {
+        if (aRef.current) {
           doDash(km[k][0], km[k][1]);
         } else {
           act("move", km[k][0], km[k][1]);

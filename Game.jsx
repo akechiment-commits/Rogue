@@ -49,6 +49,98 @@ function modalReducer(state, action) {
   }
 }
 
+/* 長押しリピート対応モバイルボタン
+ * 初回押下即時発火 → REPEAT_DELAY ms 後からリピート開始 → REPEAT_INTERVAL ms 間隔で連続発火
+ * ※コンポーネント外で定義することで、ゲーム状態更新時のアンマウントを防ぎタイマーを維持する */
+const REPEAT_DELAY = 350;
+const REPEAT_INTERVAL = 110;
+function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} }) {
+  const timers = useRef({ delay: null, interval: null });
+  const cbRef  = useRef(onClick);
+  cbRef.current = onClick;
+  const stop = () => {
+    clearTimeout(timers.current.delay);
+    clearInterval(timers.current.interval);
+    timers.current.delay = timers.current.interval = null;
+  };
+  const start = (e) => {
+    e.preventDefault();
+    cbRef.current();
+    timers.current.delay = setTimeout(() => {
+      timers.current.interval = setInterval(() => cbRef.current(), REPEAT_INTERVAL);
+    }, REPEAT_DELAY);
+  };
+  return (
+    <button
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+      style={{
+        width: w, height: h,
+        background: "#181828", color: color ?? "#8f8",
+        border: "1px solid #3a3a4a", borderRadius: 8,
+        fontSize: fs ?? 15, fontWeight: "bold",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        cursor: "pointer", touchAction: "manipulation",
+        userSelect: "none", WebkitTapHighlightColor: "transparent",
+        padding: sub ? "2px 3px" : undefined,
+        ...s,
+      }}
+    >
+      {sub ? <><span style={{ fontSize: 15 }}>{label}</span><span style={{ fontSize: 8, opacity: 0.5 }}>{sub}</span></> : label}
+    </button>
+  );
+}
+function B({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) {
+  return <MobileBtn label={label} onClick={onClick} w={w} h={h} fs={fs} style={s} />;
+}
+function AB({ label, sub, onClick, color = "#8f8" }) {
+  return <MobileBtn label={label} sub={sub} onClick={onClick} color={color}
+    style={{ flex: 1, minWidth: 38, height: 36, fontSize: 12 }} />;
+}
+const TBS = { background: "#2a1a1a", border: "1px solid #5a3a3a", color: "#f88" };
+const DBS = { background: "#1a1a2a", border: "1px solid #4a3a6a", color: "#c8f" };
+function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThrowMode, setDashMode, setMsgs }) {
+  const ds = throwMode ? TBS : dashMode ? DBS : {};
+  const fs = facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+      <div style={{ display: "flex", gap: 2 }}>
+        <B label="↖" onClick={() => onClick(-1, -1)} w={32} h={32} fs={12} style={fs} />
+        <B label="↑"  onClick={() => onClick(0, -1)}                        style={fs} />
+        <B label="↗" onClick={() => onClick(1, -1)}  w={32} h={32} fs={12} style={fs} />
+      </div>
+      <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+        <B label="←" onClick={() => onClick(-1, 0)} style={fs} />
+        <B
+          label={facingMode ? "✕" : throwMode ? "✕" : dashMode ? "⇒" : "向"}
+          fs={facingMode || throwMode || dashMode ? 15 : 11}
+          onClick={() => {
+            if (facingMode) { setFacingMode(false); }
+            else if (throwMode) { setThrowMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
+            else if (dashMode) { setDashMode(false); }
+            else { setFacingMode(f => !f); }
+          }}
+          style={
+            facingMode ? { background: "#2a2a0a", border: "1px solid #aa0", color: "#ff4" }
+            : throwMode ? { background: "#1a1a1a", border: "1px solid #555", color: "#888" }
+            : dashMode  ? { background: "#1a1a2a", border: "1px solid #4a3a6a", color: "#c8f" }
+            : { opacity: 0.7 }
+          }
+        />
+        <B label="→" onClick={() => onClick(1, 0)} style={fs} />
+      </div>
+      <div style={{ display: "flex", gap: 2 }}>
+        <B label="↙" onClick={() => onClick(-1, 1)} w={32} h={32} fs={12} style={fs} />
+        <B label="↓"  onClick={() => onClick(0, 1)}                        style={fs} />
+        <B label="↘" onClick={() => onClick(1, 1)}  w={32} h={32} fs={12} style={fs} />
+      </div>
+    </div>
+  );
+}
+
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, setMsgs] = useState(["冒険が始まった！"]);
@@ -71,6 +163,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const bigboxMenuSel = modal.bigboxMenuSel;
   const bigboxPage    = modal.bigboxPage;
   const bigboxRef = useRef(null);
+  const bigboxModeRef = useRef(null);
+  bigboxModeRef.current = bigboxMode;
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
   const shopMode      = modal.type === 'shop'         ? modal.data : null;
@@ -452,16 +546,40 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       });
       for (const mm of data.monMoves) moveOffsetsRef.current.delete("mon_" + mm.id);
     }
-    /* Phase 4: Monster attack effects */
-    if (data.monAttacks?.length || data.monDamages?.length) {
-      const dur = data.monDamages?.length ? 400 : 100;
-      await _phase(dur, (t, raw) => {
-        const ovs = [];
-        if (data.monAttacks) for (const a of data.monAttacks) ovs.push({ ...a, progress: Math.min(1, raw * (dur / 100)), t: Math.min(1, t * (dur / 100)) });
-        if (data.monDamages) for (const d of data.monDamages) ovs.push({ ...d, progress: raw, t });
-        overlaysRef.current = ovs;
-        renderFrame();
-      });
+    /* Phase 4: Monster attack effects — flash then per-hit lunge+damage sequentially */
+    if (data.monAttacks?.length || data.monDamages?.length || data.monLunges?.length) {
+      /* Flash (100ms) */
+      if (data.monAttacks?.length) {
+        await _phase(100, (t, raw) => {
+          overlaysRef.current = data.monAttacks.map(a => ({ ...a, progress: raw, t }));
+          renderFrame();
+        });
+        overlaysRef.current = [];
+      }
+      /* Sequential per-hit: lunge sprite toward player + damage popup (300ms each) */
+      if (data.monDamages?.length) {
+        const _lunges = data.monLunges || [];
+        for (let _hi = 0; _hi < data.monDamages.length; _hi++) {
+          const _dmgEv = data.monDamages[_hi];
+          const _lg = _lunges[_hi];
+          await _phase(300, (_t, raw) => {
+            if (_lg) {
+              /* sin-curve offset: 0 → 40% toward player → 0 */
+              const _lp = Math.sin(raw * Math.PI) * 0.4;
+              const _lx = _lg.fromX + (_lg.toX - _lg.fromX) * _lp;
+              const _ly = _lg.fromY + (_lg.toY - _lg.fromY) * _lp;
+              moveOffsetsRef.current.set("mon_" + _lg.id, {
+                fromX: _lx, fromY: _ly, toX: _lx, toY: _ly,
+                progress: 1, tile: _lg.tile, hp: _lg.hp, maxHp: _lg.maxHp,
+              });
+            }
+            overlaysRef.current = [{ ..._dmgEv, progress: raw, t: _t }];
+            renderFrame();
+          });
+          if (_lg) moveOffsetsRef.current.delete("mon_" + _lg.id);
+        }
+        overlaysRef.current = [];
+      }
     }
     /* Phase 4b: Monster projectiles (arrows, bolts, stones) */
     if (data.monProjectiles?.length) {
@@ -533,7 +651,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           removeFloorItem(dg, it);
           go = true;
         } else {
-          ml.push(`${it.name}がある。持ち物がいっぱいだ！`);
+          ml.push(`${it.name}(${it.count}個)がある。持ち物がいっぱいだ！`);
           break;
         }
       } else if (it.type === "arrow" && !it.shopPrice) {
@@ -542,7 +660,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           removeFloorItem(dg, it);
           go = true;
         } else {
-          ml.push(`${it.name || "矢"}がある。持ち物がいっぱいだ！`);
+          ml.push(`${it.name || "矢"}(${it.count}本)がある。持ち物がいっぱいだ！`);
           break;
         }
       } else if (it.type === "goal") {
@@ -584,7 +702,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         removeFloorItem(dg, it);
         go = true;
       } else {
-        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}がある。持ち物がいっぱいだ！`);
+        {
+          const _w = it.type === "weapon", _a = it.type === "armor";
+          let _fl = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+          if (_w || _a) {
+            if (it.plus) _fl += (it.plus > 0 ? "+" : "") + it.plus;
+            _fl += _w ? ` (攻+${it.atk + (it.plus || 0)})` : ` (防+${it.def + (it.plus || 0)})`;
+          }
+          ml.push(`${_fl}${_itemPickupSuffix(it, sr.current?.ident)}がある。持ち物がいっぱいだ！`);
+        }
         break;
       }
     }
@@ -633,10 +759,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     trackTrap(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
   }, []);
-  const moveMons = useCallback((dg, pl, ml, phaseMode) => {
+  const moveMons = useCallback((dg, pl, ml, phaseMode, extraOpts = {}) => {
     const opts = {
       bbFn: bigboxAddItem,
       luFn: lu,
+      ...extraOpts,
       fireTrapFn: (trap, p, dg2, ml2) => fireTrapPlayer(trap, p, dg2, ml2, null, lu),
       monsterWandFn: (m, dx, dy) => {
         const _we = m.wandEffect || "lightning";
@@ -1061,15 +1188,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         st.dungeon.pendingBombs = _remaining;
       }
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
-      const _plHpBefore = p.hp;
-      moveMons(st.dungeon, p, ml, "attackOnly");
-      /* Detect if player was attacked (HP decreased during attack phase) */
-      if (p.hp < _plHpBefore && p.hp > 0) {
-        const _dmgTaken = _plHpBefore - p.hp;
-        _mdamages.push({ type: "damage", x: p.x, y: p.y, value: _dmgTaken, color: "#ff6644" });
-        _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
+      const _perHitEvents = [];
+      const _perHitLunges = [];
+      let _hadActualHit = false;
+      moveMons(st.dungeon, p, ml, "attackOnly", {
+        onPlayerHit: (dmg, mon) => {
+          _perHitEvents.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
+          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
+          _hadActualHit = true;
+        },
+        onPlayerMiss: (mon) => {
+          _perHitEvents.push({ type: "miss", x: p.x, y: p.y });
+          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
+        },
+      });
+      if (_perHitEvents.length > 0) {
+        if (_hadActualHit && p.hp > 0) _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
+        _mdamages.push(..._perHitEvents);
       }
-      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages };
+      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
@@ -1332,12 +1469,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       endTurn(st, p, ml);
       /* Collect monster move animations from endTurn */
-      const _ad = { monMoves: [], monAttacks: [], monDamages: [] };
+      const _ad = { monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _monAnimData = monMovesRef.current;
       if (_monAnimData) {
         _ad.monMoves = _monAnimData.moves || [];
         _ad.monAttacks = _monAnimData.attacks || [];
         _ad.monDamages = _monAnimData.damages || [];
+        _ad.monLunges = _monAnimData.lunges || [];
         monMovesRef.current = null;
       }
       const _drainedEvts = drainAnims();
@@ -1362,7 +1500,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
       if (revealMode) return;
-      if (bigboxMode) return;
+      if (bigboxModeRef.current) return;
       if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -1376,7 +1514,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       let acted = false;
       const ml = [];
       /* Animation data collected during this turn */
-      const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [] };
+      const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
         const nd = chgFloor(p, dir);
@@ -1646,7 +1784,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
             if (dg.map[p.y][p.x] === T.SU) ml.push("上り階段がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
-            if (_bbStep) ml.push(`${_bbStep.name}がある。`);
+            if (_bbStep) ml.push(`${_bbStep.name}(${_bbStep.contents?.length || 0}/${_bbStep.capacity})がある。`);
             const _sprStep = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
@@ -1727,7 +1865,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (bb2) {
             bigboxRef.current = bb2;
             setBigboxMode("menu"); setBigboxMenuSel(0);
-            setMsgs((prev) => [...prev.slice(-80), `${bb2.name}がある。どうする？`]);
+            setMsgs((prev) => [...prev.slice(-80), `${bb2.name}(${bb2.contents?.length || 0}/${bb2.capacity})がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
           }
           const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
@@ -1875,6 +2013,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         _ad.monMoves = _monAnimData.moves || [];
         _ad.monAttacks = _monAnimData.attacks || [];
         _ad.monDamages = _monAnimData.damages || [];
+        _ad.monLunges = _monAnimData.lunges || [];
         monMovesRef.current = null;
       }
       /* Drain global animation events (projectiles, explosions from deeply nested logic) */
@@ -1916,6 +2055,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const doExamineFront = useCallback(() => {
     if (!sr.current) return;
     if (lookMode) return;
+    if (bigboxModeRef.current) return;
     const { player: p, dungeon: dg } = sr.current;
     const fd = p.facing || { dx: 0, dy: 1 };
     const nx = p.x + fd.dx, ny = p.y + fd.dy;
@@ -1979,7 +2119,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else if (bb6) {
           bigboxRef.current = bb6;
           setBigboxMode("menu"); setBigboxMenuSel(0);
-          setMsgs((prev) => [...prev.slice(-80), `${bb6.name}がある。どうする？`]);
+          setMsgs((prev) => [...prev.slice(-80), `${bb6.name}(${bb6.contents?.length || 0}/${bb6.capacity})がある。どうする？`]);
         } else {
           setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
         }
@@ -2119,6 +2259,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _ids2 = [...new Set([...(_dashIt.abilities || []), ...(_dashIt.ability ? [_dashIt.ability] : [])])];
               const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
               if (_ns2.length) _lbl += " [" + _ns2.join("・") + "]";
+            } else if (_dashIt.type === "arrow") {
+              _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone ? "個" : "本"})`;
+            } else if (_dashIt.type === "gold") {
+              _lbl += `(${_dashIt.count}枚)`;
             }
             ml.push(_lbl + _itemPickupSuffix(_dashIt, sr.current?.ident) + "がある。");
             endTurn(st, p, ml);
@@ -2143,7 +2287,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         const _dashBb = _dBbMap.get(_dk(p.x, p.y));
         if (_dashBb) {
-          ml.push(`${_dashBb.name}がある。`);
+          ml.push(`${_dashBb.name}(${_dashBb.contents?.length || 0}/${_dashBb.capacity})がある。`);
           endTurn(st, p, ml);
           break;
         }
@@ -2219,11 +2363,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, []);
   const trySynthesize = useCallback(
     (bb, ml) => {
-      /* 力の指輪 + 力の指輪 → ＋値合算 */
-      const _pRings = bb.contents.filter(i => i.type === "ring" && i.effect === "power_ring");
-      if (_pRings.length >= 2) {
-        const [ra, rb] = _pRings;
-        ra.plus = (ra.plus || 0) + (rb.plus || 0) + 1;
+      /* 力・守り・命の指輪（異種混合OK） → 先に入れた指輪に後の+値を加算して後を消す */
+      const _PLUS_RING_EFFECTS = ["power_ring", "defense_ring", "life_ring"];
+      const _plusRings = bb.contents.filter(i => i.type === "ring" && _PLUS_RING_EFFECTS.includes(i.effect));
+      if (_plusRings.length >= 2) {
+        const [ra, rb] = _plusRings;
+        ra.plus = (ra.plus || 0) + (rb.plus || 0);
         ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
         bb.contents = bb.contents.filter(i => i !== rb);
         bb.capacity = bb.contents.length;
@@ -2395,7 +2540,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (idx >= 0) bb.contents[idx] = nit;
         ml.push(`${_idn}が${itemDisplayName(nit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に変化した！`);
       } else if (bb.kind === "enhance") {
-        if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && item.effect === "power_ring")) {
+        if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
           const before = item.plus || 0;
           item.plus = before + 1;
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
@@ -2415,6 +2560,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 { l: "普通の", v: 35 },
                 { l: "大盛り", v: 55 },
                 { l: "特盛り", v: 80 },
+                { l: "爆盛り", v: 120 },
               ]
             : [
                 { l: "極小の", v: 10 },
@@ -2422,14 +2568,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 { l: "普通の", v: 35 },
                 { l: "大きい", v: 55 },
                 { l: "特大", v: 80 },
+                { l: "超特大", v: 120 },
               ];
           let upgraded = false;
+          const _hasSzLabel = item.sizeLabel !== undefined;
           for (let si = 0; si < szLevels.length - 1; si++) {
-            if (item.name.includes(szLevels[si].l)) {
+            const curL = szLevels[si].l;
+            const matches = _hasSzLabel ? item.sizeLabel === curL : item.name.includes(curL);
+            if (matches) {
               const oldName = item.name;
               const cur = szLevels[si];
               const next = szLevels[si + 1];
-              item.name = item.name.replace(cur.l, next.l);
+              if (_hasSzLabel && item._foodBase && item._foodEfLabel) {
+                /* 新形式：effectLabel + (sizeLabel ≠ 普通の ? sizeLabel : "") + baseName で再構築 */
+                const efStart = item.name.indexOf(item._foodEfLabel);
+                const cookPfx = efStart > 0 ? item.name.slice(0, efStart) : "";
+                item.name = cookPfx + item._foodEfLabel + (next.l === "普通の" ? "" : next.l) + item._foodBase;
+              } else {
+                /* 旧形式または_foodBase未保持：名前の文字列置換 */
+                item.name = item.name.replace(cur.l, next.l === "普通の" ? "" : next.l);
+              }
+              item.sizeLabel = next.l;
               item.value = Math.round((item.value * next.v) / cur.v);
               ml.push(`${oldName}が大きくなった！→${item.name}`);
               upgraded = true;
@@ -2598,6 +2757,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else {
           ml.push("白紙の巻物を泉に浸した...何も起こらなかった。");
         }
+      } else if (it.type === "spellbook") {
+        if (it.spell) {
+          const _sbDN = dnameRef(it);
+          it.name = "白紙の魔法書";
+          it.spell = null;
+          it.desc = "魔法が消えてしまった。魔法のマーカー(5回分)で好きな魔法書に変えられる。";
+          ml.push(`魔法書「${_sbDN}」を泉に浸した...文字が消えた！`);
+        } else {
+          ml.push("白紙の魔法書を泉に浸した...何も起こらなかった。");
+        }
       } else if (it.type === "pot" && it.potEffect === "gunpowder") {
         const _savedContents = it.contents || [];
         const _preserveTpl = POTS.find(pp => pp.potEffect === "none");
@@ -2632,15 +2801,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         return;
       }
+      /* 大箱に入れる前に装備スロットを解除（指輪は命の指輪maxHp処理含む） */
+      if (p.weapon === it) p.weapon = null;
+      if (p.armor  === it) p.armor  = null;
+      if (p.arrow  === it) p.arrow  = null;
+      if (p.rings?.includes(it)) {
+        p.rings = p.rings.filter(r => r !== it);
+        if (it.effect === "life_ring") {
+          const _bonus = (it.plus || 0) * 5;
+          p.maxHp = Math.max(1, p.maxHp - _bonus);
+          p.hp = Math.min(p.hp, p.maxHp);
+        }
+      }
       p.inventory.splice(itemIdx, 1);
       bigboxAddItem(bb, it, dg, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      setBigboxMode("menu");
-      setBigboxMenuSel(0);
-      setBigboxPage(0);
+      setBigboxMode(null);
+      bigboxRef.current = null;
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
+      setTimeout(() => ref.current?.focus(), 0);
     },
     [bigboxAddItem, endTurn],
   );
@@ -2678,16 +2859,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setGs({ ...sr.current });
   }, []);
   const shiftRef = useRef(false);
+  const aRef = useRef(false);
   useEffect(() => {
     const onUp = (e) => {
       if (e.key === "Shift") shiftRef.current = false;
+      if (e.key === "a" || e.key === "A") aRef.current = false;
     };
     window.addEventListener("keyup", onUp);
     return () => window.removeEventListener("keyup", onUp);
   }, []);
   useKeyHandler({
     // refs
-    sr, shiftRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef,
+    sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef,
     // state values
     gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
@@ -2759,185 +2942,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         throw: "投げる方向",
       }[throwMode.mode] || "方向選択"
     : "";
-  const B = ({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) => (
-    <button
-      onPointerDown={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
-      style={{
-        width: w,
-        height: h,
-        background: "#181828",
-        color: "#8f8",
-        border: "1px solid #3a3a4a",
-        borderRadius: 8,
-        fontSize: fs,
-        fontWeight: "bold",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        touchAction: "manipulation",
-        userSelect: "none",
-        WebkitTapHighlightColor: "transparent",
-        ...s,
-      }}
-    >
-      {label}
-    </button>
-  );
-  const AB = ({ label, sub, onClick, color = "#8f8" }) => (
-    <button
-      onPointerDown={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
-      style={{
-        flex: 1,
-        minWidth: 38,
-        height: 36,
-        background: "#181828",
-        color,
-        border: "1px solid #3a3a4a",
-        borderRadius: 8,
-        fontSize: 12,
-        fontWeight: "bold",
-        cursor: "pointer",
-        touchAction: "manipulation",
-        userSelect: "none",
-        WebkitTapHighlightColor: "transparent",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2px 3px",
-      }}
-    >
-      <span style={{ fontSize: 15 }}>{label}</span>
-      {sub && <span style={{ fontSize: 8, opacity: 0.5 }}>{sub}</span>}
-    </button>
-  );
-  const tbs = {
-    background: "#2a1a1a",
-    border: "1px solid #5a3a3a",
-    color: "#f88",
-  };
-  const dbs = {
-    background: "#1a1a2a",
-    border: "1px solid #4a3a6a",
-    color: "#c8f",
-  };
-  const DPad = ({ onClick }) => {
-    const ds = throwMode ? tbs : dashMode ? dbs : {};
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 2,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: "flex", gap: 2 }}>
-          <B
-            label="↖"
-            onClick={() => onClick(-1, -1)}
-            w={32}
-            h={32}
-            fs={12}
-            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
-          />
-          <B label="↑" onClick={() => onClick(0, -1)} style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds} />
-          <B
-            label="↗"
-            onClick={() => onClick(1, -1)}
-            w={32}
-            h={32}
-            fs={12}
-            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
-          />
-        </div>
-        <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <B
-            label="←"
-            onClick={() => onClick(-1, 0)}
-            style={
-              facingMode
-                ? { background: "#2a2a0a", border: "1px solid #aa0" }
-                : ds
-            }
-          />
-          <B
-            label={facingMode ? "✕" : throwMode ? "✕" : dashMode ? "⇒" : "向"}
-            fs={facingMode || throwMode || dashMode ? 15 : 11}
-            onClick={() => {
-              if (facingMode) {
-                setFacingMode(false);
-              } else if (throwMode) {
-                setThrowMode(null);
-                setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-              } else if (dashMode) {
-                setDashMode(false);
-              } else {
-                setFacingMode((f) => !f);
-              }
-            }}
-            style={
-              facingMode
-                ? {
-                    background: "#2a2a0a",
-                    border: "1px solid #aa0",
-                    color: "#ff4",
-                  }
-                : throwMode
-                  ? {
-                      background: "#1a1a1a",
-                      border: "1px solid #555",
-                      color: "#888",
-                    }
-                  : dashMode
-                    ? {
-                        background: "#1a1a2a",
-                        border: "1px solid #4a3a6a",
-                        color: "#c8f",
-                      }
-                    : { opacity: 0.7 }
-            }
-          />
-          <B
-            label="→"
-            onClick={() => onClick(1, 0)}
-            style={
-              facingMode
-                ? { background: "#2a2a0a", border: "1px solid #aa0" }
-                : ds
-            }
-          />
-        </div>
-        <div style={{ display: "flex", gap: 2 }}>
-          <B
-            label="↙"
-            onClick={() => onClick(-1, 1)}
-            w={32}
-            h={32}
-            fs={12}
-            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
-          />
-          <B label="↓" onClick={() => onClick(0, 1)} style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds} />
-          <B
-            label="↘"
-            onClick={() => onClick(1, 1)}
-            w={32}
-            h={32}
-            fs={12}
-            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
-          />
-        </div>
-      </div>
-    );
-  };
   /* 表示名ヘルパー (gsを参照) */
   const dname = (it) => itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames);
 
@@ -2994,7 +2998,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     else if (it.type === "marker") s += ` [${it.charges}回]`;
     else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
     else if (it.type === "pot")    s += _isIdent ? ` [${it.contents?.length || 0}/${it.capacity}]` : "";
-    else if (it.type === "ring" && it.effect === "power_ring") s += `+${it.plus || 0}`;
+    else if (it.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(it.effect)) s += `+${it.plus || 0}`;
     if (it.shopPrice) s += ` 〔未払:${it.shopPrice}G〕`;
     return s;
   };
@@ -3091,7 +3095,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         </span>{" "}
         <span>
           防:
-          <span style={{ color: "#08f" }}>{p.def + (p.armor?.def || 0)}</span>
+          <span style={{ color: "#08f" }}>{p.def + (p.armor?.def || 0) + (p.armor?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="defense_ring"?s+(r.plus||0):s,0)}</span>
         </span>{" "}
         <span>
           食:
@@ -3105,7 +3109,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         )}{" "}
         {(p.rings || []).map((r, i) => (
           <span key={i} style={{ color: "#c0a0ff", fontSize: "0.85em" }}>
-            💍{r.effect === "power_ring" ? `${r.name}+${r.plus || 0}` : r.name}
+            💍{["power_ring","defense_ring","life_ring"].includes(r.effect) ? `${r.name}+${r.plus || 0}` : r.name}
           </span>
         ))}{" "}
         {p.poisoned && (
@@ -3343,7 +3347,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               /* === 大箱モード：上下で選択、左右でページ送り === */
               if (bigboxMode) {
                 if (bigboxMode === "menu") {
-                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 2) % 2);
+                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 3) % 3);
                 } else if (bigboxMode === "put") {
                   const inv2 = sr.current?.player?.inventory || [];
                   const _ps = 10;
@@ -3365,7 +3369,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                     setSpringMenuSel((p) => (p + dy + 3) % 3);
                   } else if (springMode === "soak") {
                     const inv = sr.current?.player?.inventory || [];
-                    if (inv.length > 0) { const pgLen = Math.min(10, inv.length); setSpringMenuSel((s) => (s + dy + pgLen) % pgLen); }
+                    if (inv.length > 0) {
+                      const totalPg = Math.max(1, Math.ceil(inv.length / 10));
+                      const curPg = Math.min(springPage, totalPg - 1);
+                      const pgLen = inv.slice(curPg * 10, (curPg + 1) * 10).length;
+                      setSpringMenuSel((s) => (s + dy + pgLen) % pgLen);
+                    }
                   }
                 }
                 return;
@@ -3392,6 +3401,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 doDash(dx, dy);
               } else act("move", dx, dy);
             }}
+            throwMode={throwMode}
+            dashMode={dashMode}
+            facingMode={facingMode}
+            setFacingMode={setFacingMode}
+            setThrowMode={setThrowMode}
+            setDashMode={setDashMode}
+            setMsgs={setMsgs}
           />{" "}
           {!throwMode ? (
             <div
@@ -3473,7 +3489,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (revealMode || showInv || lookMode) return; setSpellListMode((f) => !f); setSpellMenuSel(0); }}
+                  onClick={() => { if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB

@@ -544,7 +544,7 @@ export function itemPrice(it) {
   if (it.type === "spellbook") return 200;
   if (it.type === "ring") {
     const ringBase = it.sellPrice ?? 100;
-    if (it.effect === "power_ring") return ringBase + (it.plus || 0) * 100;
+    if (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring") return ringBase + (it.plus || 0) * 100;
     return ringBase;
   }
   return 30;
@@ -574,11 +574,12 @@ export function genFood() {
   const fn = pick(names);
   const sz = wPick(sizes);
   const ef = wPick(FOOD_EFFECTS);
-  const nm = ef.l + sz.l + fn;
+  /* 「普通の」は名前に表示しない */
+  const nm = sz.l === "普通の" ? ef.l + fn : ef.l + sz.l + fn;
   let hv = ef.e === "satiate_food" ? Math.floor(sz.v * 1.5) : sz.v;
   if (!cooked) hv = Math.max(1, Math.floor(hv / 2));
   const foodCat = FOOD_CAT_MAP.get(fn) || null;
-  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile: cooked ? 66 : 19, cooked, foodCat };
+  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile: cooked ? 66 : 19, cooked, foodCat, sizeLabel: sz.l, _foodBase: fn, _foodEfLabel: ef.l };
 }
 
 /* ===== WANDS ===== */
@@ -606,10 +607,10 @@ export const WANDS = [
 
 /* ===== BIG BOX TYPES ===== */
 export const BB_TYPES = [
-  { kind: "synthesis", name: "合成の大笥", cap: () => 2,         desc: "2つのアイテムを合成する。武器同士・防具同士なら能力を引き継ぐ。杖同士ならチャージを合算。ペン同士なら合算。食料+壺なら壺で加工。杖+水の瓶なら薬に変化。閉じる時に効果が発動する。" },
+  { kind: "synthesis", name: "合成の大笥", cap: () => 2,         desc: "2つのアイテムを合成する。武器同士・防具同士なら能力を引き継ぐ。杖同士ならチャージを合算。ペン同士なら合算。杖と武器・防具の組み合わせでは装備に杖の能力が宿る異種合成もある。組み合わせによっては別のアイテムに変化する特殊合成が発生することもある。" },
   { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4), desc: "入れたアイテムがランダムな別のアイテムに変化する。何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
-  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2), desc: "武器・防具の＋値を1上げる。壺の容量を1増やす。他のアイテムには効果がない。" },
-  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4), desc: "食料のサイズを1段階大きくする。すでに最大サイズなら効果がない。食料以外には効果がない。" },
+  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2), desc: "武器・防具の＋値を1上げる。力・守り・命の指輪の＋値も増やせる。壺の容量を1増やす。他のアイテムには効果がない。" },
+  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4), desc: "食料のサイズを1段階大きくする。生なら最大で超特大、調理済みなら最大で爆盛りになる。食料以外には効果がない。" },
   { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3), desc: "杖・ペン・魔法のマーカーの使用回数をランダムに回復する。" },
   { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5), desc: "入れたアイテムを識別する。薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
   { kind: "split",     name: "分裂の大箱", cap: () => 1, rare: true, desc: "【レア】入れたアイテムを複製する。＋値・矢の数は半減する。金貨とキーアイテムは分裂しない。" },
@@ -673,7 +674,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   if (pe === "none") { ml.push(`${_in}を${_pn}に入れた。`); return; }
   if (pe === "boil") { /* 実効果はGame.jsx側で処理 */ return; }
   if (pe === "enhance") {
-    if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && item.effect === "power_ring")) {
+    if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
       const _g = rng(1, 2);
       item.plus = (item.plus || 0) + _g;
       ml.push(`${item.name}が強化された！(+${item.plus})`);
@@ -713,8 +714,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
       if (item.smoked) { ml.push(`${item.name}は既に燻製だ。`); return; }
       if (!item.cooked) {
         item.value = item.value * 2;
-        item.cooked = true;
-        item.tile = 66;
+        cookFoodMeta(item);
       }
       item.smoked = true;
       item.name = "燻製" + item.name;
@@ -939,7 +939,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         } else if (it.type === "potion") {
           blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
         } else if (it.type === "food") {
-          if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
@@ -1087,7 +1087,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       } else if (it.type === "potion") {
         _blasted.add(it); ml.push(`薬「${it.name}」が爆風で割れてなくなった！`);
       } else if (it.type === "food") {
-        if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+        if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); _blasted.add(it); }
       } else if (it.type === "pot") {
         _blasted.add(it);
@@ -1187,7 +1187,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
         } else if (it.type === "potion") {
           blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
         } else if (it.type === "food") {
-          if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); blasted.add(it); }
         } else if (it.type === "pot") {
           blasted.add(it);
@@ -2004,6 +2004,20 @@ export const POTION_FOOD_PREFIX = {
   c_seal:      "解封の",
 };
 
+/** 生の食料を調理済みにする共通ヘルパー（cooked/tile/sizeLabel を更新） */
+const _RAW_TO_COOK_SZ = new Map([
+  ["極小の","一口"],["小さい","小盛り"],["普通の","普通の"],
+  ["大きい","大盛り"],["特大","特盛り"],["超特大","爆盛り"],
+]);
+export function cookFoodMeta(item) {
+  item.cooked = true;
+  item.tile = 66;
+  if (item.sizeLabel !== undefined) {
+    const cl = _RAW_TO_COOK_SZ.get(item.sizeLabel);
+    if (cl !== undefined) item.sizeLabel = cl;
+  }
+}
+
 /** 調理済み食糧をさらに加熱して「焦げた」状態にする共通ヘルパー */
 export function burnFoodItem(item, ml) {
   if (item.burnt) { ml.push(`${item.name}はこれ以上焦げられない。`); return; }
@@ -2062,8 +2076,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
     // 呪いでも通常でも同じ（焼き調理）
     if (!item.cooked) {
       item.value = item.value * 2;
-      item.cooked = true;
-      item.tile = 66;
+      cookFoodMeta(item);
       item.name = "焼いた" + item.name;
       ml.push(`${item.name}になった！`);
     } else {
@@ -2253,10 +2266,10 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   if (dg && spr.contents.length >= 5) {
     ml.push("泉が干上がった！中のアイテムが飛び出した！");
     const _ft = new Set();
+    dg.springs = dg.springs.filter(s => s !== spr);
     for (const _ci of spr.contents) {
       placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
     }
-    dg.springs = dg.springs.filter(s => s !== spr);
   }
 }
 
@@ -2309,7 +2322,11 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
       continue;
     }
     if (dg.traps.some(t => t.x === cx && t.y === cy)) continue;
-    if (dg.springs?.some(s => s.x === cx && s.y === cy)) continue;
+    if (dg.springs?.some(s => s.x === cx && s.y === cy)) {
+      const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
+      soakItemIntoSpring(_spr, item, ml, dg, it => it.name);
+      return true;
+    }
     if (dg.bigboxes?.some(b => b.x === cx && b.y === cy)) continue;
     if (dg.pentacles?.some(pc => pc.x === cx && pc.y === cy)) continue;
     if (dg.items.some(i => i.x === cx && i.y === cy)) continue;
@@ -2419,9 +2436,24 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         /* モンスターへのダメージ（即死→連鎖爆発） */
         for (const m of [...dg.monsters]) {
           if (m.x === ax && m.y === ay) {
-            ml.push(`爆発で${m.name}は即死した！`);
-            m.hp = 0;
-            killMonster(m, dg, p, ml, luFn);
+            wakeIfDormant(m, ml);
+            if (m.baseKind === "firedemon") {
+              ml.push(`${m.name}が爆発を受けて分裂した！`);
+              const _ep8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+              for (const [_sx, _sy] of _ep8) {
+                const _nx = ax + _sx, _ny = ay + _sy;
+                if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) continue;
+                if (dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) continue;
+                if (dg.monsters.some(o => o.x === _nx && o.y === _ny)) continue;
+                if (p && _nx === p.x && _ny === p.y) continue;
+                dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
+                break;
+              }
+            } else {
+              ml.push(`爆発で${m.name}は即死した！`);
+              m.hp = 0;
+              killMonster(m, dg, p, ml, luFn);
+            }
           }
         }
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
@@ -2480,7 +2512,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   const mx = mon.x, my = mon.y;
   if (killerMon) {
     ml.push(`${mon.name}は${killerMon.name}に倒された！`);
-  } else if (noExp) {
+  } else if (noExp || !p) {
     ml.push(`${mon.name}は消し飛んだ！(経験値なし)`);
   } else {
     ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
@@ -2490,7 +2522,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   removeMonster(dg, mon);
   if (killerMon) {
     monLevelUp(killerMon, dg, ml);
-  } else if (luFn) {
+  } else if (luFn && p) {
     luFn(p, ml);
   }
   _triggerExplosionPentacle(mx, my, dg, p, ml, luFn);
@@ -2857,7 +2889,9 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn) {
 
 /* ===== RINGS ===== */
 export const RINGS = [
-  { name: "力の指輪",       type:"ring", effect:"power_ring",     plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
+  { name: "力の指輪",       type:"ring", effect:"power_ring",   plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
+  { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
+  { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。合成や強化で＋値を上げられる。" },
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"C", weight:2, sellPrice:200, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"C", weight:2, sellPrice:180, tile:60, desc:"装備中、罠にかからなくなる。ただし階段を降りられなくなる。" },
   { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"C", weight:2, sellPrice:160, tile:60, desc:"装備中、毒が無効になる。" },
