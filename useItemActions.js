@@ -2218,7 +2218,7 @@ export function useItemActions({
               ml.push(`${it.name}は割れてしまった！`);
             } else {
               const ft = new Set();
-              withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));
+              withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft, 0, p));
             }
           }
         }
