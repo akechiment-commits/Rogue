@@ -163,6 +163,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const bigboxMenuSel = modal.bigboxMenuSel;
   const bigboxPage    = modal.bigboxPage;
   const bigboxRef = useRef(null);
+  const bigboxModeRef = useRef(null);
+  bigboxModeRef.current = bigboxMode;
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
   const shopMode      = modal.type === 'shop'         ? modal.data : null;
@@ -1490,7 +1492,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
       if (revealMode) return;
-      if (bigboxMode) return;
+      if (bigboxModeRef.current) return;
       if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -2045,6 +2047,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const doExamineFront = useCallback(() => {
     if (!sr.current) return;
     if (lookMode) return;
+    if (bigboxModeRef.current) return;
     const { player: p, dungeon: dg } = sr.current;
     const fd = p.facing || { dx: 0, dy: 1 };
     const nx = p.x + fd.dx, ny = p.y + fd.dy;
@@ -3295,7 +3298,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               /* === 大箱モード：上下で選択、左右でページ送り === */
               if (bigboxMode) {
                 if (bigboxMode === "menu") {
-                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 2) % 2);
+                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 3) % 3);
                 } else if (bigboxMode === "put") {
                   const inv2 = sr.current?.player?.inventory || [];
                   const _ps = 10;
