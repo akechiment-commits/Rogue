@@ -714,8 +714,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
       if (item.smoked) { ml.push(`${item.name}は既に燻製だ。`); return; }
       if (!item.cooked) {
         item.value = item.value * 2;
-        item.cooked = true;
-        item.tile = 66;
+        cookFoodMeta(item);
       }
       item.smoked = true;
       item.name = "燻製" + item.name;
@@ -940,7 +939,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         } else if (it.type === "potion") {
           blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
         } else if (it.type === "food") {
-          if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
@@ -1088,7 +1087,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       } else if (it.type === "potion") {
         _blasted.add(it); ml.push(`薬「${it.name}」が爆風で割れてなくなった！`);
       } else if (it.type === "food") {
-        if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+        if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); _blasted.add(it); }
       } else if (it.type === "pot") {
         _blasted.add(it);
@@ -1188,7 +1187,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
         } else if (it.type === "potion") {
           blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
         } else if (it.type === "food") {
-          if (!it.cooked) { it.value *= 2; it.cooked = true; it.tile = 66; it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); blasted.add(it); }
         } else if (it.type === "pot") {
           blasted.add(it);
@@ -2005,6 +2004,20 @@ export const POTION_FOOD_PREFIX = {
   c_seal:      "解封の",
 };
 
+/** 生の食料を調理済みにする共通ヘルパー（cooked/tile/sizeLabel を更新） */
+const _RAW_TO_COOK_SZ = new Map([
+  ["極小の","一口"],["小さい","小盛り"],["普通の","普通の"],
+  ["大きい","大盛り"],["特大","特盛り"],["超特大","爆盛り"],
+]);
+export function cookFoodMeta(item) {
+  item.cooked = true;
+  item.tile = 66;
+  if (item.sizeLabel !== undefined) {
+    const cl = _RAW_TO_COOK_SZ.get(item.sizeLabel);
+    if (cl !== undefined) item.sizeLabel = cl;
+  }
+}
+
 /** 調理済み食糧をさらに加熱して「焦げた」状態にする共通ヘルパー */
 export function burnFoodItem(item, ml) {
   if (item.burnt) { ml.push(`${item.name}はこれ以上焦げられない。`); return; }
@@ -2063,8 +2076,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
     // 呪いでも通常でも同じ（焼き調理）
     if (!item.cooked) {
       item.value = item.value * 2;
-      item.cooked = true;
-      item.tile = 66;
+      cookFoodMeta(item);
       item.name = "焼いた" + item.name;
       ml.push(`${item.name}になった！`);
     } else {

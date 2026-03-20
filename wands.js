@@ -5,7 +5,7 @@ import {
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
-  hasCursedExplosionPentacle,
+  hasCursedExplosionPentacle, cookFoodMeta,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -450,7 +450,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (target.type === "food") {
           if (!target.cooked) {
             target.value *= 2;
-            target.cooked = true;
+            cookFoodMeta(target);
             target.name = "焼いた" + target.name;
             ml.push(`${target.name}になった！`);
           } else {
@@ -1134,7 +1134,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (target.type === "food") {
           if (!target.cooked) {
             target.value *= 2;
-            target.cooked = true;
+            cookFoodMeta(target);
             target.name = "焼いた" + target.name;
             ml.push(`${target.name}になった！`);
           } else {

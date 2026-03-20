@@ -10,7 +10,7 @@ import {
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
-  hasRingEffect,
+  hasRingEffect, cookFoodMeta,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
@@ -1590,7 +1590,7 @@ export function useItemActions({
           /* 壺には残さない */
         } else if (it.type === "food" && !it.cooked) {
           it.value = it.value * 2;
-          it.cooked = true;
+          cookFoodMeta(it);
           it.name = "焼いた" + it.name;
           ml.push(`加熱の壺で${it.name}になった！`);
           pot.contents.push(it);
