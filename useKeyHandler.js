@@ -640,7 +640,7 @@ export function useKeyHandler({
       }
       if (spellListMode) {
         e.preventDefault();
-        if (k === "escape" || k === "x") { setSpellListMode(false); return; }
+        if (k === "escape" || k === "x" || k === "c") { setSpellListMode(false); return; }
         const knownSpells = (sr.current?.player?.spells || []).map((id) => {
           const s = SPELLS.find((sp) => sp.id === id);
           if (!s) return null;
