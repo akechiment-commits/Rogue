@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
@@ -8,7 +8,7 @@ import {
   hasCursedExplosionPentacle,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
-import { pushAnim, pushMonsterBoltAnim } from './animEvents.js';
+import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 
 /*
  * 新しい杖エフェクトを追加する手順:
@@ -30,6 +30,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             dg.map[_lpy][_lpx] !== T.WALL && dg.map[_lpy][_lpx] !== T.BWALL &&
             !dg.monsters.some(m => m.x === _lpx && m.y === _lpy)) {
           p.x = _lpx; p.y = _lpy;
+          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
           ml.push(`${target.name}に引き寄せられた！`);
         } else {
           ml.push("引き寄せられなかった。");
@@ -39,6 +40,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const [ox, oy] = [p.x, p.y];
       p.x = target.x; p.y = target.y;
       target.x = ox;  target.y = oy;
+      if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
       ml.push(`${target.name}と位置が入れ替わった！`);
       return;
     }
@@ -302,6 +304,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const d = _blessed ? 50 : 5; /* 祝福：壁まで飛ばす */
       const _kbDmgBase = _blessed ? 10 : 5; /* 祝福：ダメ2倍 */
       if (kind === "monster") {
+        if (hasGravityPentacle(dg, target.x, target.y)) { ml.push(`重力の魔方陣の力で${target.name}への吹き飛ばしが無効になった！`); break; }
         const _kbDmg = _kbDmgBase;
         ml.push(`${target.name}は吹き飛ばされた！`);
         target.hp -= _kbDmg;
@@ -327,6 +330,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
+        if (hasGravityPentacle(dg, p.x, p.y)) { ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); break; }
         ml.push("自分が吹き飛ばされた！");
         p.hp -= _kbDmgBase;
         pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn, collisionAtk);
@@ -396,13 +400,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 呪い：25回復 */
         if (kind === "monster") {
           const _lheal = Math.min(25, target.maxHp - target.hp);
-          if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); }
+          if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); }
           else ml.push(`${target.name}には効果がなかった。`);
           break;
         }
         if (kind === "player") {
           const _lheal = Math.min(25, p.maxHp - p.hp);
-          if (_lheal > 0) { p.hp += _lheal; ml.push(`癒しの光に包まれた！HP+${_lheal}`); }
+          if (_lheal > 0) { p.hp += _lheal; ml.push(`癒しの光に包まれた！HP+${_lheal}`); pushHealAnim(p.x, p.y); }
           else ml.push("HPは既に満タンだ。");
           break;
         }
@@ -414,6 +418,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         target.hp -= dmg;
         ml.push(`雷撃が${target.name}に命中！${dmg}ダメージ！`);
+        pushLightningAnim(target.x, target.y);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
         break;
       }
@@ -422,6 +427,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.deathCause = "雷の杖の魔法により";
         p.hp -= dmg;
         ml.push(`雷撃が自分に命中！${dmg}ダメージ！`);
+        pushLightningAnim(p.x, p.y);
         applyLightningToInventory(p, dg, ml, luFn, nameFn);
         break;
       }
@@ -557,6 +563,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               !dg.monsters.some(m2 => m2 !== target && m2.x === _leapX && m2.y === _leapY) &&
               !(_leapX === p.x && _leapY === p.y)) {
             p.x = _leapX; p.y = _leapY;
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
             ml.push(`${target.name}の前に飛びついた！`);
           } else {
             ml.push("飛びつけなかった。");
@@ -565,6 +572,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _leapX = target.x - dx, _leapY = target.y - dy;
           if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH && dg.map[_leapY][_leapX] !== T.WALL && dg.map[_leapY][_leapX] !== T.BWALL) {
             p.x = _leapX; p.y = _leapY;
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
             ml.push(`${target.name}の前に飛びついた！`);
           }
         }
@@ -574,6 +582,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const [ox, oy] = [p.x, p.y];
         p.x = target.x; p.y = target.y;
         target.x = ox;  target.y = oy;
+        if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${target.name}と位置が入れ替わった！`);
         /* 聖域の上に強制移動した敵は即死 */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
@@ -595,6 +604,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${target.name}と位置が入れ替わった！`);
         p.x = target.x; p.y = target.y;
         target.x = ox;  target.y = oy;
+        if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         break;
       }
       break;
@@ -1216,6 +1226,11 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     seal:"#8040e0", knockback:"#20e0c0", swap:"#ff8800", dig:"#aa8844",
     leap:"#40ff80", ice_wand:"#80ddff", curse_wand:"#9020b0", blowback_wand:"#20e0c0",
   };
+  /* 重力の魔方陣：飛びつきを無効化（プレイヤーが重力ゾーンにいる場合） */
+  if (eff === "leap" && blMult >= 1 && hasGravityPentacle(dg, p.x, p.y)) {
+    ml.push("重力の魔方陣の力で飛びつきが無効になった！");
+    return;
+  }
   const _boltClr = _wandColors[eff] || "#a050f0";
   let lastX = p.x, lastY = p.y;
   for (let d = 1; d < MW + MH; d++) {
@@ -1237,13 +1252,15 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         return;
       }
       if (eff === "leap") {
-        if (blMult >= 1) { p.x = lastX; p.y = lastY; ml.push("壁の前に飛びついた！"); return; }
+        if (blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push("壁の前に飛びついた！"); return; }
         // 呪い：跳ね返って自分に当たる → プレイヤーがランダムテレポート
         ml.push("魔法弾が跳ね返って自分に当たった！【呪】");
+        if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
         applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
         return;
       }
       ml.push("魔法弾は壁に跳ね返った！");
+      if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
       applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
@@ -1273,13 +1290,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     }
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${mon.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "monster", mon, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const it = itemAt(dg, tx, ty);
     if (it) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${it.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${it.name}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
       const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬", seal:"封印の薬" };
       if (it.effect === "water" && BOTTLE_XFORM[eff]) {
@@ -1294,19 +1311,19 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${trap.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${trap.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "trap", trap, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
     if (bb) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push(`${bb.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${bb.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "bigbox", bb, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     lastX = tx; lastY = ty;
   }
-  if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; ml.push("虚空の先に飛びついた！"); return; }
+  if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push("虚空の先に飛びついた！"); return; }
   ml.push("魔法弾は虚空に消えた。");
 }
 
@@ -1333,6 +1350,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           const _rdmg = rng(15, 25);
           _srcMon.hp -= _rdmg;
           ml.push(`反射した雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
+          pushLightningAnim(_srcMon.x, _srcMon.y);
           if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
         }
         return;
@@ -1345,6 +1363,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       pl.deathCause = `${monName}の雷撃により`;
       pl.hp -= dmg;
       ml.push(`雷撃が命中！${dmg}ダメージ！${_hasLightRes ? "（雷耐性）" : ""}`);
+      pushLightningAnim(pl.x, pl.y);
       if (!_hasLightRes) {
         applyLightningToInventory(pl, dg, ml, luFn, nameFn);
       } else {

@@ -40,6 +40,12 @@ function drawOverlays(ctx, overlays, sx, sy, sz) {
       drawProjectile(ctx, o, sx, sy, sz, t);
     } else if (o.type === "explosion") {
       drawExplosionEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "splash") {
+      drawSplashEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "lightning") {
+      drawLightningEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "heal") {
+      drawHealEffect(ctx, o, sx, sy, sz, p);
     }
   }
 }
@@ -183,6 +189,122 @@ function drawExplosionEffect(ctx, o, sx, sy, sz, p) {
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+/* ===== Lightning Hit Effect ===== */
+function drawLightningEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  /* Fast flash then fade */
+  const alpha = p < 0.25 ? 1 : Math.max(0, 1 - (p - 0.25) / 0.75);
+  if (alpha <= 0) return;
+  ctx.save();
+  /* Blue-white background flash */
+  ctx.globalAlpha = alpha * 0.45;
+  ctx.fillStyle = "#aabbff";
+  ctx.fillRect(bx, by, sz, sz);
+  /* Zigzag lightning bolt */
+  const jx = sz * 0.22;
+  const drawBolt = (lw, color, blur) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1, lw);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.shadowBlur = blur;
+    ctx.shadowColor = "#88aaff";
+    ctx.beginPath();
+    ctx.moveTo(cx, by + sz * 0.04);
+    ctx.lineTo(cx - jx, by + sz * 0.30);
+    ctx.lineTo(cx + jx * 0.55, by + sz * 0.50);
+    ctx.lineTo(cx - jx * 0.45, by + sz * 0.72);
+    ctx.lineTo(cx, by + sz * 0.96);
+    ctx.stroke();
+  };
+  ctx.globalAlpha = alpha * 0.88;
+  drawBolt(sz * 0.1, "#ffffff", sz * 0.5);
+  ctx.globalAlpha = alpha * 0.75;
+  ctx.shadowBlur = 0;
+  drawBolt(sz * 0.04, "#cce4ff", 0);
+  ctx.restore();
+}
+
+/* ===== Heal Effect ===== */
+function drawHealEffect(ctx, o, sx, sy, sz, p) {
+  const bx = (o.x - sx) * sz;
+  const by = (o.y - sy) * sz;
+  const cx = bx + sz / 2;
+  const cy = by + sz / 2;
+  const alpha = p > 0.65 ? Math.max(0, 1 - (p - 0.65) / 0.35) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* Green radial glow */
+  const r = Math.max(1, easeOutQuad(p) * sz * 0.72);
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  grad.addColorStop(0, "rgba(120,255,160,0.75)");
+  grad.addColorStop(0.5, "rgba(60,200,100,0.4)");
+  grad.addColorStop(1, "rgba(0,180,80,0)");
+  ctx.globalAlpha = alpha * 0.7;
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  /* Rising sparkle particles */
+  const sparkCount = 5;
+  for (let i = 0; i < sparkCount; i++) {
+    const angle = (i / sparkCount) * Math.PI * 2;
+    const dist = sz * 0.3 * (0.55 + p * 0.65);
+    const spx = cx + Math.cos(angle) * dist;
+    const spy = cy + Math.sin(angle) * dist - p * sz * 0.45;
+    const spr = Math.max(1, sz * 0.07 * (1 - p * 0.65));
+    ctx.globalAlpha = alpha * 0.88;
+    ctx.fillStyle = "#66ffaa";
+    ctx.beginPath();
+    ctx.arc(spx, spy, spr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ===== Splash Effect (potion/oil scatter) ===== */
+function drawSplashEffect(ctx, o, sx, sy, sz, p) {
+  const cx = (o.x - sx) * sz + sz / 2;
+  const cy = (o.y - sy) * sz + sz / 2;
+  const color = o.color || "#88ccff";
+  const alpha = p > 0.55 ? Math.max(0, 1 - (p - 0.55) / 0.45) : 1;
+  if (alpha <= 0) return;
+  ctx.save();
+  /* 8方向 + 中央のしぶき粒子 */
+  const dirs = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  const travel = easeOutQuad(Math.min(1, p * 1.6)) * sz * 0.82;
+  for (const [dx, dy] of dirs) {
+    const isCenter = dx === 0 && dy === 0;
+    const px = cx + dx * travel;
+    const py = cy + dy * travel;
+    const r = Math.max(1, sz * (isCenter ? 0.16 : 0.11) * (1 - p * 0.55));
+    ctx.globalAlpha = alpha * (isCenter ? 0.95 : 0.78);
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    /* 各粒子に小さい光沢ハイライト */
+    if (!isCenter && r > 2) {
+      ctx.globalAlpha = alpha * 0.4;
+      ctx.beginPath();
+      ctx.arc(px - r * 0.25, py - r * 0.25, r * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+    }
+  }
+  /* 中央の広がる波紋 */
+  const rippleR = easeOutQuad(p) * sz * 0.72;
+  ctx.globalAlpha = alpha * 0.35 * (1 - p);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1, sz * 0.06);
+  ctx.beginPath();
+  ctx.arc(cx, cy, rippleR, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.restore();
 }
 

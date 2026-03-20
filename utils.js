@@ -66,7 +66,7 @@ export const DRO = [
   [2, 2],
 ];
 
-const _WH_ORDER = ["weapon","armor","arrow","potion","scroll","food","wand","marker","pen","pot","bottle","gold"];
+const _WH_ORDER = ["weapon","armor","ring","arrow","potion","scroll","food","wand","marker","pen","pot","bottle","gold"];
 export function sortWarehouseItems(items) {
   return [...items].sort((a, b) => {
     const oa = _WH_ORDER.indexOf(a.type), ob = _WH_ORDER.indexOf(b.type);
@@ -99,6 +99,31 @@ export function findVulnPentacle(dg, x, y) {
   if (!room) return null;
   return dg.pentacles?.find(pc => pc.kind === "vulnerability" &&
     pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h) || null;
+}
+
+/* 重力の魔方陣チェック（通常/祝福）: 座標が非呪い重力ペンタクルの影響下か */
+export function hasGravityPentacle(dg, x, y) {
+  if (!dg.pentacles) return false;
+  const allRooms = [...(dg.rooms || []), ...(dg.hiddenRooms || [])];
+  return dg.pentacles.some(pc => {
+    if (pc.kind !== "gravity" || pc.cursed) return false;
+    if (pc.blessed) return true;
+    const pcRoom = allRooms.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h);
+    const posRoom = allRooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    return !!(pcRoom && posRoom && pcRoom === posRoom);
+  });
+}
+
+/* 呪われた重力の魔方陣チェック: 座標が呪い重力ペンタクルの影響下か */
+export function hasCursedGravityPentacle(dg, x, y) {
+  if (!dg.pentacles) return false;
+  const allRooms = [...(dg.rooms || []), ...(dg.hiddenRooms || [])];
+  return dg.pentacles.some(pc => {
+    if (pc.kind !== "gravity" || !pc.cursed) return false;
+    const pcRoom = allRooms.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h);
+    const posRoom = allRooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    return !!(pcRoom && posRoom && pcRoom === posRoom);
+  });
 }
 
 export function corridorRange(depth) {

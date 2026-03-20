@@ -1,14 +1,17 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
   trap.revealed = true;
   let r = null;
+  let noBreak = false; /* trueのとき作動後の30%破壊チェックをスキップ */
 
   switch (trap.effect) {
     case "explode": {
-      /* 地雷は敵の移動後に爆発させるため、遅延情報を返す */
+      /* 地雷は敵の移動後に爆発させるため、遅延情報を返す。地雷自身を即除去して二重爆発を防ぐ */
+      dg.traps = dg.traps.filter(t => t !== trap);
+      noBreak = true;
       r = "deferred_explosion";
       break;
     }
@@ -81,6 +84,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
         }
       }
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
+      if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
       break;
     }
     case "sleep":
@@ -188,6 +192,27 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       ml.push(`${trap.name}が発動！急に空腹を感じた！満腹度が10%下がった。`);
       break;
     }
+    case "shadow_stitch": {
+      p.immobileTurns = (p.immobileTurns || 0) + 5;
+      ml.push(`${trap.name}が作動！影に縫い付けられた！(5ターン移動不能)`);
+      break;
+    }
+    case "rockfall": {
+      const _rfd = rng(15, 25);
+      p.deathCause = `${trap.name}により`;
+      p.hp -= _rfd;
+      ml.push(`${trap.name}が作動！岩が降ってきた！${_rfd}ダメージ！`);
+      break;
+    }
+    case "time_bomb": {
+      /* 作動した罠をトラップリストから除去し、pendingBombs に登録 */
+      dg.traps = dg.traps.filter(t => t !== trap);
+      dg.pendingBombs = dg.pendingBombs || [];
+      dg.pendingBombs.push({ x: trap.x, y: trap.y, turnsLeft: 4, nameFn });
+      ml.push(`${trap.name}が作動！4ターン後に大爆発が起きる！`);
+      noBreak = true; /* 既に除去済み。重複メッセージを避ける */
+      break;
+    }
     case "blowback_trap": {
       const _pfd = p.facing || { dx: 0, dy: 1 };
       const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
@@ -216,13 +241,18 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
             ml.push(`${_bbHitMon.name}は倒れた！`);
             removeMonster(dg, _bbHitMon);
           }
+        } else if ((p.immobileTurns || 0) > 0) {
+          /* 実際に移動できた場合、移動封じを解除 */
+          p.immobileTurns = 0;
+          ml.push("吹き飛ばされて移動封じが解けた！");
         }
       }
       break;
     }
   }
 
-  if (Math.random() < 0.3) {
+  const _breakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
+  if (!noBreak && !trap.permanent && Math.random() < _breakChance) {
     dg.traps = dg.traps.filter((t) => t !== trap);
     ml.push(`${trap.name}は壊れた。`);
   }

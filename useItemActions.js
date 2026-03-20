@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle } from "./utils.js";
 import { findRoom, spawnMonsters } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -14,7 +14,7 @@ import {
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
-import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim } from "./animEvents.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim } from "./animEvents.js";
 
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
@@ -586,6 +586,7 @@ export function useItemActions({
             const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
             p.x = rng(rm.x, rm.x + rm.w - 1);
             p.y = rng(rm.y, rm.y + rm.h - 1);
+            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
             ml.push("テレポートした！");
           }
         }
@@ -610,17 +611,7 @@ export function useItemActions({
           }
         }
       } else if (it.effect === "weapon_up") {
-        /* 力の指輪装備中ならその＋値を上げる */
-        const _powerRing = (p.rings || []).find(r => r.effect === "power_ring");
-        if (_powerRing) {
-          const _bef = _powerRing.plus || 0;
-          const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
-          _powerRing.plus = _bef + _gain;
-          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-          let _rMsg = `${_powerRing.name}が${_gain > 0 ? "輝いた" : "くすんだ"}！(${_fp(_bef)}→${_fp(_powerRing.plus)})${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`;
-          if (_powerRing.cursed) { _powerRing.cursed = false; _rMsg += " 呪いが解けた！"; }
-          ml.push(_rMsg);
-        } else if (p.weapon) {
+        if (p.weapon) {
           const _bef = p.weapon.plus || 0;
           const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
           p.weapon.plus = _bef + _gain;
@@ -663,6 +654,7 @@ export function useItemActions({
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
+            pushLightningAnim(_m.x, _m.y);
             if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }
           // 呪い：自分にも雷が落ちる
@@ -671,6 +663,7 @@ export function useItemActions({
             p.hp -= _selfDmg;
             p.deathCause = "呪われた雷の巻物で";
             ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！【呪】`);
+            pushLightningAnim(p.x, p.y);
           }
         }
         } // end hasCursedExplosionPentacle else
@@ -684,12 +677,13 @@ export function useItemActions({
           const _rvisC = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
           for (const _m of _rvisC) {
             const _ma = Math.min(rng(10, 20), _m.maxHp - _m.hp);
-            if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); }
+            if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
           }
         } else {
           const _rh = Math.max(1, Math.round(rng(15, 25) * _scrBm));
           const _ra = Math.min(_rh, p.maxHp - p.hp);
           p.hp += _ra;
+          pushHealAnim(p.x, p.y);
           if (it.blessed) {
             // 祝福：自分だけ回復（敵は回復しない）
             ml.push(`体が癒された！HP+${_ra}（祝福：自分だけ回復！）`);
@@ -700,7 +694,7 @@ export function useItemActions({
             for (const _m of _rvis) {
               const _mh = Math.max(1, Math.round(rng(10, 20)));
               const _ma = Math.min(_mh, _m.maxHp - _m.hp);
-              if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); }
+              if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
             }
           }
         }
@@ -971,7 +965,8 @@ export function useItemActions({
             it.effect === "stone_throw"    ? "石飛ばしの魔方陣" :
             it.effect === "knockback_aura" ? "吹き飛ばしの魔方陣" :
             it.effect === "explosion"      ? "爆発の魔方陣" :
-            it.effect === "plain"          ? "無の魔方陣" : "魔方陣";
+            it.effect === "plain"          ? "無の魔方陣" :
+            it.effect === "gravity"        ? "重力の魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
@@ -1013,6 +1008,7 @@ export function useItemActions({
           const _tpRm = dg.rooms[rng(0, dg.rooms.length - 1)];
           p.x = rng(_tpRm.x, _tpRm.x + _tpRm.w - 1);
           p.y = rng(_tpRm.y, _tpRm.y + _tpRm.h - 1);
+          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
           ml.push("魔方陣を描いた瞬間、テレポートした！");
         }
         /* 雷の魔方陣：描いたそのターンにも即座に発動 */
@@ -1036,6 +1032,43 @@ export function useItemActions({
                 _tm.hp -= _tdrawDmg;
                 ml.push(`${_pName}が${_tm.name}を打った！${_tdrawDmg}ダメージ！`);
                 if (_tm.hp <= 0) { trackMonster(_tm); killMonster(_tm, dg, p, ml, lu); }
+              }
+            }
+          }
+        }
+        /* 重力の魔方陣：描いた瞬間の即時効果 */
+        if (it.effect === "gravity") {
+          if (_isCursed) {
+            /* 呪い：部屋内の者全員が浮遊状態になる（魔方陣が存在する間は常時適用） */
+            ml.push(`${_pName}の呪いが炸裂！部屋内の者が浮遊状態になった！【呪】`);
+          } else {
+            /* 通常/祝福：水上にいる浮遊系の敵を弾き出す or 即死 */
+            const _gravRoom = !_isBlessed ? dg.rooms?.find(r => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) : null;
+            const _gravMons = dg.monsters.filter(m => {
+              if (!m.float) return false;
+              if (dg.map[m.y]?.[m.x] !== T.WATER) return false;
+              if (_isBlessed) return true;
+              return _gravRoom && m.x >= _gravRoom.x && m.x < _gravRoom.x + _gravRoom.w && m.y >= _gravRoom.y && m.y < _gravRoom.y + _gravRoom.h;
+            });
+            for (const _gm of [..._gravMons]) {
+              const _gdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+              let _gpushed = false;
+              for (const [_gdx, _gdy] of _gdirs) {
+                const _gx = _gm.x + _gdx, _gy = _gm.y + _gdy;
+                if (_gx >= 0 && _gx < MW && _gy >= 0 && _gy < MH &&
+                    dg.map[_gy][_gx] !== T.WALL && dg.map[_gy][_gx] !== T.BWALL &&
+                    dg.map[_gy][_gx] !== T.WATER &&
+                    !dg.monsters.some(o => o !== _gm && o.x === _gx && o.y === _gy) &&
+                    !(_gx === p.x && _gy === p.y)) {
+                  _gm.x = _gx; _gm.y = _gy;
+                  ml.push(`重力の力で${_gm.name}が水上から弾き出された！`);
+                  _gpushed = true;
+                  break;
+                }
+              }
+              if (!_gpushed) {
+                ml.push(`重力の力で${_gm.name}は逃げ場がなく即死した！`);
+                killMonster(_gm, dg, p, ml, lu);
               }
             }
           }
@@ -1461,14 +1494,17 @@ export function useItemActions({
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を加熱の壺に投じた！薬効が部屋中に広がった！`);
           const _boilRoom = findRoom(dg.rooms, p.x, p.y);
+          const _potClr = { heal:"#88ffaa", fire:"#ff8844", poison:"#88ff88", sleep:"#ddffaa", paralyze:"#ffffaa", water:"#88ccff", levelup:"#ffff88" }[it.effect] || "#cc88ff";
           if (_boilRoom) {
             applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+            pushSplashAnim(p.x, p.y, _potClr);
             const _boilMons = dg.monsters.filter(
               (m) => m.x >= _boilRoom.x && m.x < _boilRoom.x + _boilRoom.w &&
                      m.y >= _boilRoom.y && m.y < _boilRoom.y + _boilRoom.h,
             );
             for (const _bm of _boilMons) {
               applyPotionEffect(it.effect, it.value || 0, "monster", _bm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+              pushSplashAnim(_bm.x, _bm.y, _potClr);
             }
             const _boilBurnSet = [];
             for (const _bi of dg.items.filter(
@@ -1482,6 +1518,7 @@ export function useItemActions({
           } else {
             ml.push("（回廊では薬効が拡散しにくい…自分にだけ効いた）");
             applyPotionEffect(it.effect, it.value || 0, "player", p, dg, p, ml, lu, it.blessed || false, it.cursed || false);
+            pushSplashAnim(p.x, p.y, _potClr);
           }
           pot.capacity = Math.max(0, pot.capacity - 1);
           // 呪われたレベルアップの薬でワープフラグが立った場合
@@ -1492,6 +1529,17 @@ export function useItemActions({
               if (_boilWarpNd) sr.current.dungeon = _boilWarpNd;
             }
           }
+          // 薬効発動後はアイテム欄を閉じる
+          if (pot.contents.length >= pot.capacity) ml.push(`${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいになった。`);
+          endTurn(sr.current, p, ml);
+          setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setPutMode(null);
+          setShowInv(false);
+          setSelIdx(null);
+          setShowDesc(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
         } else if (it.type === "scroll" || it.type === "spellbook") {
           ml.push(`${dnameRef(it)}は加熱の壺の熱で燃えてなくなった！`);
           pot.capacity = Math.max(0, pot.capacity - 1);

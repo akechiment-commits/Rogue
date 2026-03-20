@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import { MW, MH, T, rng, uid, refreshFOV, getShops } from "./utils.js";
 import {
   ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, TRAPS, BB_TYPES, RINGS,
+  RAW_FOODS, COOKED_FOODS,
   itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, randPotCapacity,
 } from "./items.js";
@@ -706,27 +707,71 @@ export function useKeyHandler({
       }
       if (debugSpellMode) {
         e.preventDefault();
-        if (k === "escape" || k === "x") { setDebugSpellMode(null); return; }
-        /* compute entry count */
-        let _dsLen = 0;
-        if (debugSpellMode.effect === "debug_summon_mon") {
-          for (const m of MONS) { _dsLen++; const lvs = MON_LEVELS[m.baseKind]; if (lvs) { if (lvs[0]) _dsLen++; if (lvs[1]) _dsLen++; } }
-        } else if (debugSpellMode.effect === "debug_get_item") {
-          _dsLen = ITEMS.length + WANDS.length + SPELLBOOKS.length + RINGS.length + POTS.length;
-        } else if (debugSpellMode.effect === "debug_create_trap") {
-          _dsLen = TRAPS.length;
-        } else if (debugSpellMode.effect === "debug_summon_bb") {
-          _dsLen = BB_TYPES.length;
+        const _dsEff = debugSpellMode.effect;
+        const _dsPage = debugSpellMode.page ?? 0;
+        const _dsCat = debugSpellMode.category ?? null;
+
+        /* X/Escape: カテゴリ選択中なら戻る、そうでなければ閉じる */
+        if (k === "escape" || k === "x") {
+          if (_dsEff === "debug_get_item" && _dsCat) {
+            setDebugSpellMode({ ...debugSpellMode, category: null, page: 0 });
+            setDebugSpellMenuSel(0);
+          } else {
+            setDebugSpellMode(null);
+          }
+          return;
         }
+
+        /* 全エントリ数を計算 */
+        let _dsTotalEntries = 0;
+        if (_dsEff === "debug_summon_mon") {
+          for (const m of MONS) { _dsTotalEntries++; const lvs = MON_LEVELS[m.baseKind]; if (lvs) { if (lvs[0]) _dsTotalEntries++; if (lvs[1]) _dsTotalEntries++; } }
+        } else if (_dsEff === "debug_get_item") {
+          if (!_dsCat) { _dsTotalEntries = 13; } // カテゴリ数
+          else if (_dsCat === "potions")     _dsTotalEntries = ITEMS.filter(x=>x.type==="potion").length + 1;
+          else if (_dsCat === "scrolls")     _dsTotalEntries = ITEMS.filter(x=>x.type==="scroll").length + 1;
+          else if (_dsCat === "weapons")     _dsTotalEntries = ITEMS.filter(x=>x.type==="weapon").length + 2;
+          else if (_dsCat === "armors")      _dsTotalEntries = ITEMS.filter(x=>x.type==="armor").length;
+          else if (_dsCat === "pens")        _dsTotalEntries = ITEMS.filter(x=>x.type==="pen").length + 1;
+          else if (_dsCat === "arrows")      _dsTotalEntries = ITEMS.filter(x=>x.type==="arrow").length + 3;
+          else if (_dsCat === "wands")       _dsTotalEntries = WANDS.length;
+          else if (_dsCat === "spellbooks")  _dsTotalEntries = SPELLBOOKS.length;
+          else if (_dsCat === "rings")       _dsTotalEntries = RINGS.length;
+          else if (_dsCat === "pots")        _dsTotalEntries = POTS.length;
+          else if (_dsCat === "raw_food")    _dsTotalEntries = RAW_FOODS.length;
+          else if (_dsCat === "cooked_food") _dsTotalEntries = COOKED_FOODS.length;
+          else if (_dsCat === "others")      _dsTotalEntries = 1; // 空き瓶のみ
+        } else if (_dsEff === "debug_create_trap") {
+          _dsTotalEntries = TRAPS.length;
+        } else if (_dsEff === "debug_summon_bb") {
+          _dsTotalEntries = BB_TYPES.length;
+        }
+        const _dsIsCategory = _dsEff === "debug_get_item" && !_dsCat;
+        const _dsPageSize = _dsIsCategory ? _dsTotalEntries : 10;
+        const _dsTotalPages = _dsIsCategory ? 1 : Math.max(1, Math.ceil(_dsTotalEntries / _dsPageSize));
+        const _dsSafePage = Math.min(_dsPage, _dsTotalPages - 1);
+        const _dsLen = Math.min(_dsPageSize, Math.max(0, _dsTotalEntries - _dsSafePage * _dsPageSize));
+
+        /* 上下: カーソル移動 */
         const _dsUp = k === "arrowup" || e.code === "Numpad8";
         const _dsDown = k === "arrowdown" || e.code === "Numpad2";
         if ((_dsUp || _dsDown) && _dsLen > 0) {
           setDebugSpellMenuSel((s) => ((s ?? 0) + (_dsDown ? 1 : -1) + _dsLen) % _dsLen);
           return;
         }
-        /* Z/Enter: confirm selection - handled by modal click */
+
+        /* 左右: ページ切り替え */
+        const _dsLeft = k === "arrowleft" || e.code === "Numpad4";
+        const _dsRight = k === "arrowright" || e.code === "Numpad6";
+        if ((_dsLeft || _dsRight) && _dsTotalPages > 1) {
+          const _np = ((_dsSafePage + (_dsRight ? 1 : -1)) + _dsTotalPages) % _dsTotalPages;
+          setDebugSpellMode({ ...debugSpellMode, page: _np });
+          setDebugSpellMenuSel(0);
+          return;
+        }
+
+        /* Z/Enter: 選択確定 */
         if ((k === "enter" || k === "z") && _dsLen > 0) {
-          /* Trigger the click on the selected entry via DOM */
           const modal = document.querySelector('[data-debug-spell-modal]');
           if (modal) {
             const items = modal.querySelectorAll('[data-debug-entry]');
