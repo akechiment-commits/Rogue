@@ -2266,10 +2266,10 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   if (dg && spr.contents.length >= 5) {
     ml.push("泉が干上がった！中のアイテムが飛び出した！");
     const _ft = new Set();
+    dg.springs = dg.springs.filter(s => s !== spr);
     for (const _ci of spr.contents) {
       placeItemAt(dg, spr.x, spr.y, _ci, ml, _ft);
     }
-    dg.springs = dg.springs.filter(s => s !== spr);
   }
 }
 
@@ -2323,12 +2323,9 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
     }
     if (dg.traps.some(t => t.x === cx && t.y === cy)) continue;
     if (dg.springs?.some(s => s.x === cx && s.y === cy)) {
-      if (dx === 0 && dy === 0) {
-        const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
-        soakItemIntoSpring(_spr, item, ml, dg, it => it.name);
-        return true;
-      }
-      continue;
+      const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
+      soakItemIntoSpring(_spr, item, ml, dg, it => it.name);
+      return true;
     }
     if (dg.bigboxes?.some(b => b.x === cx && b.y === cy)) continue;
     if (dg.pentacles?.some(pc => pc.x === cx && pc.y === cy)) continue;
