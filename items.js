@@ -2480,7 +2480,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   const mx = mon.x, my = mon.y;
   if (killerMon) {
     ml.push(`${mon.name}は${killerMon.name}に倒された！`);
-  } else if (noExp) {
+  } else if (noExp || !p) {
     ml.push(`${mon.name}は消し飛んだ！(経験値なし)`);
   } else {
     ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
@@ -2490,7 +2490,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   removeMonster(dg, mon);
   if (killerMon) {
     monLevelUp(killerMon, dg, ml);
-  } else if (luFn) {
+  } else if (luFn && p) {
     luFn(p, ml);
   }
   _triggerExplosionPentacle(mx, my, dg, p, ml, luFn);
