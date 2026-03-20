@@ -291,15 +291,12 @@ export function useKeyHandler({
         const isRight = k === "arrowright" || e.code === "Numpad6";
         if (k === "escape" || k === "x" || k === "i") {
           e.preventDefault();
-          if (selIdx !== null) {
-            setSelIdx(null);
-            setShowDesc(null);
-          } else {
-            setShowInv(false);
-            dropModeRef.current = false;
-            setDropMode(false);
-            setInvPage(0);
-          }
+          setShowInv(false);
+          dropModeRef.current = false;
+          setDropMode(false);
+          setInvPage(0);
+          setSelIdx(null);
+          setShowDesc(null);
           return;
         }
         if ((isUp || isDown) && len > 0) {
