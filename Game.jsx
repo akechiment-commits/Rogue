@@ -50,10 +50,11 @@ function modalReducer(state, action) {
 }
 
 /* 長押しリピート対応モバイルボタン
- * 初回押下即時発火 → REPEAT_DELAY ms 後からリピート開始 → REPEAT_INTERVAL ms 間隔で連続発火 */
+ * 初回押下即時発火 → REPEAT_DELAY ms 後からリピート開始 → REPEAT_INTERVAL ms 間隔で連続発火
+ * ※コンポーネント外で定義することで、ゲーム状態更新時のアンマウントを防ぎタイマーを維持する */
 const REPEAT_DELAY = 350;
 const REPEAT_INTERVAL = 110;
-function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {}, btnStyle }) {
+function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} }) {
   const timers = useRef({ delay: null, interval: null });
   const cbRef  = useRef(onClick);
   cbRef.current = onClick;
@@ -90,6 +91,53 @@ function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {}, btnSty
     >
       {sub ? <><span style={{ fontSize: 15 }}>{label}</span><span style={{ fontSize: 8, opacity: 0.5 }}>{sub}</span></> : label}
     </button>
+  );
+}
+function B({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) {
+  return <MobileBtn label={label} onClick={onClick} w={w} h={h} fs={fs} style={s} />;
+}
+function AB({ label, sub, onClick, color = "#8f8" }) {
+  return <MobileBtn label={label} sub={sub} onClick={onClick} color={color}
+    style={{ flex: 1, minWidth: 38, height: 36, fontSize: 12 }} />;
+}
+const TBS = { background: "#2a1a1a", border: "1px solid #5a3a3a", color: "#f88" };
+const DBS = { background: "#1a1a2a", border: "1px solid #4a3a6a", color: "#c8f" };
+function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThrowMode, setDashMode, setMsgs }) {
+  const ds = throwMode ? TBS : dashMode ? DBS : {};
+  const fs = facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+      <div style={{ display: "flex", gap: 2 }}>
+        <B label="↖" onClick={() => onClick(-1, -1)} w={32} h={32} fs={12} style={fs} />
+        <B label="↑"  onClick={() => onClick(0, -1)}                        style={fs} />
+        <B label="↗" onClick={() => onClick(1, -1)}  w={32} h={32} fs={12} style={fs} />
+      </div>
+      <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+        <B label="←" onClick={() => onClick(-1, 0)} style={fs} />
+        <B
+          label={facingMode ? "✕" : throwMode ? "✕" : dashMode ? "⇒" : "向"}
+          fs={facingMode || throwMode || dashMode ? 15 : 11}
+          onClick={() => {
+            if (facingMode) { setFacingMode(false); }
+            else if (throwMode) { setThrowMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
+            else if (dashMode) { setDashMode(false); }
+            else { setFacingMode(f => !f); }
+          }}
+          style={
+            facingMode ? { background: "#2a2a0a", border: "1px solid #aa0", color: "#ff4" }
+            : throwMode ? { background: "#1a1a1a", border: "1px solid #555", color: "#888" }
+            : dashMode  ? { background: "#1a1a2a", border: "1px solid #4a3a6a", color: "#c8f" }
+            : { opacity: 0.7 }
+          }
+        />
+        <B label="→" onClick={() => onClick(1, 0)} style={fs} />
+      </div>
+      <div style={{ display: "flex", gap: 2 }}>
+        <B label="↙" onClick={() => onClick(-1, 1)} w={32} h={32} fs={12} style={fs} />
+        <B label="↓"  onClick={() => onClick(0, 1)}                        style={fs} />
+        <B label="↘" onClick={() => onClick(1, 1)}  w={32} h={32} fs={12} style={fs} />
+      </div>
+    </div>
   );
 }
 
@@ -2842,131 +2890,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         throw: "投げる方向",
       }[throwMode.mode] || "方向選択"
     : "";
-  const B  = ({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) =>
-    <MobileBtn label={label} onClick={onClick} w={w} h={h} fs={fs} style={s} />;
-  const AB = ({ label, sub, onClick, color = "#8f8" }) =>
-    <MobileBtn label={label} sub={sub} onClick={onClick} color={color}
-      style={{ flex: 1, minWidth: 38, height: 36, fontSize: 12 }} />;
-  const tbs = {
-    background: "#2a1a1a",
-    border: "1px solid #5a3a3a",
-    color: "#f88",
-  };
-  const dbs = {
-    background: "#1a1a2a",
-    border: "1px solid #4a3a6a",
-    color: "#c8f",
-  };
-  const DPad = ({ onClick }) => {
-    const ds = throwMode ? tbs : dashMode ? dbs : {};
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 2,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: "flex", gap: 2 }}>
-          <B
-            label="↖"
-            onClick={() => onClick(-1, -1)}
-            w={32}
-            h={32}
-            fs={12}
-            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
-          />
-          <B label="↑" onClick={() => onClick(0, -1)} style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds} />
-          <B
-            label="↗"
-            onClick={() => onClick(1, -1)}
-            w={32}
-            h={32}
-            fs={12}
-            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
-          />
-        </div>
-        <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <B
-            label="←"
-            onClick={() => onClick(-1, 0)}
-            style={
-              facingMode
-                ? { background: "#2a2a0a", border: "1px solid #aa0" }
-                : ds
-            }
-          />
-          <B
-            label={facingMode ? "✕" : throwMode ? "✕" : dashMode ? "⇒" : "向"}
-            fs={facingMode || throwMode || dashMode ? 15 : 11}
-            onClick={() => {
-              if (facingMode) {
-                setFacingMode(false);
-              } else if (throwMode) {
-                setThrowMode(null);
-                setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-              } else if (dashMode) {
-                setDashMode(false);
-              } else {
-                setFacingMode((f) => !f);
-              }
-            }}
-            style={
-              facingMode
-                ? {
-                    background: "#2a2a0a",
-                    border: "1px solid #aa0",
-                    color: "#ff4",
-                  }
-                : throwMode
-                  ? {
-                      background: "#1a1a1a",
-                      border: "1px solid #555",
-                      color: "#888",
-                    }
-                  : dashMode
-                    ? {
-                        background: "#1a1a2a",
-                        border: "1px solid #4a3a6a",
-                        color: "#c8f",
-                      }
-                    : { opacity: 0.7 }
-            }
-          />
-          <B
-            label="→"
-            onClick={() => onClick(1, 0)}
-            style={
-              facingMode
-                ? { background: "#2a2a0a", border: "1px solid #aa0" }
-                : ds
-            }
-          />
-        </div>
-        <div style={{ display: "flex", gap: 2 }}>
-          <B
-            label="↙"
-            onClick={() => onClick(-1, 1)}
-            w={32}
-            h={32}
-            fs={12}
-            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
-          />
-          <B label="↓" onClick={() => onClick(0, 1)} style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds} />
-          <B
-            label="↘"
-            onClick={() => onClick(1, 1)}
-            w={32}
-            h={32}
-            fs={12}
-            style={facingMode ? { background: "#2a2a0a", border: "1px solid #aa0" } : ds}
-          />
-        </div>
-      </div>
-    );
-  };
   /* 表示名ヘルパー (gsを参照) */
   const dname = (it) => itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames);
 
@@ -3421,6 +3344,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 doDash(dx, dy);
               } else act("move", dx, dy);
             }}
+            throwMode={throwMode}
+            dashMode={dashMode}
+            facingMode={facingMode}
+            setFacingMode={setFacingMode}
+            setThrowMode={setThrowMode}
+            setDashMode={setDashMode}
+            setMsgs={setMsgs}
           />{" "}
           {!throwMode ? (
             <div
