@@ -544,7 +544,7 @@ export function itemPrice(it) {
   if (it.type === "spellbook") return 200;
   if (it.type === "ring") {
     const ringBase = it.sellPrice ?? 100;
-    if (it.effect === "power_ring") return ringBase + (it.plus || 0) * 100;
+    if (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring") return ringBase + (it.plus || 0) * 100;
     return ringBase;
   }
   return 30;
@@ -608,7 +608,7 @@ export const WANDS = [
 export const BB_TYPES = [
   { kind: "synthesis", name: "合成の大笥", cap: () => 2,         desc: "2つのアイテムを合成する。武器同士・防具同士なら能力を引き継ぐ。杖同士ならチャージを合算。ペン同士なら合算。杖と武器・防具の組み合わせでは装備に杖の能力が宿る異種合成もある。組み合わせによっては別のアイテムに変化する特殊合成が発生することもある。" },
   { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4), desc: "入れたアイテムがランダムな別のアイテムに変化する。何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
-  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2), desc: "武器・防具の＋値を1上げる。力の指輪の＋値も増やせる。壺の容量を1増やす。他のアイテムには効果がない。" },
+  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2), desc: "武器・防具の＋値を1上げる。力・守り・命の指輪の＋値も増やせる。壺の容量を1増やす。他のアイテムには効果がない。" },
   { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4), desc: "食料のサイズを1段階大きくする。すでに最大サイズなら効果がない。食料以外には効果がない。" },
   { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3), desc: "杖・ペン・魔法のマーカーの使用回数をランダムに回復する。" },
   { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5), desc: "入れたアイテムを識別する。薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
@@ -673,7 +673,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   if (pe === "none") { ml.push(`${_in}を${_pn}に入れた。`); return; }
   if (pe === "boil") { /* 実効果はGame.jsx側で処理 */ return; }
   if (pe === "enhance") {
-    if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && item.effect === "power_ring")) {
+    if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
       const _g = rng(1, 2);
       item.plus = (item.plus || 0) + _g;
       ml.push(`${item.name}が強化された！(+${item.plus})`);
@@ -2872,7 +2872,9 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn) {
 
 /* ===== RINGS ===== */
 export const RINGS = [
-  { name: "力の指輪",       type:"ring", effect:"power_ring",     plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
+  { name: "力の指輪",       type:"ring", effect:"power_ring",   plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
+  { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
+  { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:3, sellPrice:150, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。合成や強化で＋値を上げられる。" },
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"C", weight:2, sellPrice:200, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"C", weight:2, sellPrice:180, tile:60, desc:"装備中、罠にかからなくなる。ただし階段を降りられなくなる。" },
   { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"C", weight:2, sellPrice:160, tile:60, desc:"装備中、毒が無効になる。" },

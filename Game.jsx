@@ -2351,15 +2351,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, []);
   const trySynthesize = useCallback(
     (bb, ml) => {
-      /* 力の指輪 + 力の指輪 → ＋値合算 */
-      const _pRings = bb.contents.filter(i => i.type === "ring" && i.effect === "power_ring");
-      if (_pRings.length >= 2) {
-        const [ra, rb] = _pRings;
-        ra.plus = (ra.plus || 0) + (rb.plus || 0) + 1;
-        ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
-        bb.contents = bb.contents.filter(i => i !== rb);
-        bb.capacity = bb.contents.length;
-        return;
+      /* 力・守り・命の指輪 同士 → ＋値合算 */
+      for (const _rEff of ["power_ring", "defense_ring", "life_ring"]) {
+        const _pRings = bb.contents.filter(i => i.type === "ring" && i.effect === _rEff);
+        if (_pRings.length >= 2) {
+          const [ra, rb] = _pRings;
+          ra.plus = (ra.plus || 0) + (rb.plus || 0) + 1;
+          ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
+          bb.contents = bb.contents.filter(i => i !== rb);
+          bb.capacity = bb.contents.length;
+          return;
+        }
       }
       const mks = bb.contents.filter((i) => i.type === "marker");
       if (mks.length >= 2) {
@@ -2527,7 +2529,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (idx >= 0) bb.contents[idx] = nit;
         ml.push(`${_idn}が${itemDisplayName(nit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に変化した！`);
       } else if (bb.kind === "enhance") {
-        if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && item.effect === "power_ring")) {
+        if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
           const before = item.plus || 0;
           item.plus = before + 1;
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
@@ -2949,7 +2951,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     else if (it.type === "marker") s += ` [${it.charges}回]`;
     else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
     else if (it.type === "pot")    s += _isIdent ? ` [${it.contents?.length || 0}/${it.capacity}]` : "";
-    else if (it.type === "ring" && it.effect === "power_ring") s += `+${it.plus || 0}`;
+    else if (it.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(it.effect)) s += `+${it.plus || 0}`;
     if (it.shopPrice) s += ` 〔未払:${it.shopPrice}G〕`;
     return s;
   };
@@ -3046,7 +3048,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         </span>{" "}
         <span>
           防:
-          <span style={{ color: "#08f" }}>{p.def + (p.armor?.def || 0)}</span>
+          <span style={{ color: "#08f" }}>{p.def + (p.armor?.def || 0) + (p.armor?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="defense_ring"?s+(r.plus||0):s,0)}</span>
         </span>{" "}
         <span>
           食:
@@ -3060,7 +3062,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         )}{" "}
         {(p.rings || []).map((r, i) => (
           <span key={i} style={{ color: "#c0a0ff", fontSize: "0.85em" }}>
-            💍{r.effect === "power_ring" ? `${r.name}+${r.plus || 0}` : r.name}
+            💍{["power_ring","defense_ring","life_ring"].includes(r.effect) ? `${r.name}+${r.plus || 0}` : r.name}
           </span>
         ))}{" "}
         {p.poisoned && (

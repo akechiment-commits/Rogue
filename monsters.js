@@ -66,7 +66,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     }
   }
   /* プレイヤーに命中 */
-  const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
+  const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0);
   let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   /* 脆弱の魔方陣 */
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -100,7 +100,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     onPlayerMiss?.(m);
     return;
   }
-  const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0);
+  const pdef = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0);
   let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   if (!skipVuln) {
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
