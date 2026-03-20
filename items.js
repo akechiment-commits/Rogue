@@ -1338,19 +1338,26 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const nx = rng(rm.x, rm.x + rm.w - 1);
         const ny = rng(rm.y, rm.y + rm.h - 1);
         placeItemAt(dg, nx, ny, item, ml, ft);
+        const _spinTpBlock = hasCursedTeleportPentacle(dg);
         const _spm = monsterAt(dg, tx, ty);
         if (_spm) {
-          const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
-          _spm.x = rng(_spr.x, _spr.x + _spr.w - 1);
-          _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
-          ml.push(`${_spm.name}も吹き飛ばされた！`);
+          if (_spinTpBlock) { ml.push(`呪われたテレポートの魔方陣に阻まれて${_spm.name}は吹き飛ばなかった！`); }
+          else {
+            const _spr = dg.rooms[rng(0, dg.rooms.length - 1)];
+            _spm.x = rng(_spr.x, _spr.x + _spr.w - 1);
+            _spm.y = rng(_spr.y, _spr.y + _spr.h - 1);
+            ml.push(`${_spm.name}も吹き飛ばされた！`);
+          }
         }
         if (p && p.x === tx && p.y === ty) {
-          const _psr = dg.rooms[rng(0, dg.rooms.length - 1)];
-          p.x = rng(_psr.x, _psr.x + _psr.w - 1);
-          p.y = rng(_psr.y, _psr.y + _psr.h - 1);
-          ml.push(`吹き飛ばされた！`);
-          if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
+          if (_spinTpBlock) { ml.push("呪われたテレポートの魔方陣に阻まれて吹き飛ばなかった！"); }
+          else {
+            const _psr = dg.rooms[rng(0, dg.rooms.length - 1)];
+            p.x = rng(_psr.x, _psr.x + _psr.w - 1);
+            p.y = rng(_psr.y, _psr.y + _psr.h - 1);
+            ml.push(`吹き飛ばされた！`);
+            if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
+          }
         }
       }
       return "destroyed";
@@ -2404,6 +2411,10 @@ export function hasCursedExplosionPentacle(dg) {
   return dg.pentacles?.some(pc => pc.kind === "explosion" && pc.cursed) ?? false;
 }
 
+export function hasCursedTeleportPentacle(dg) {
+  return dg.pentacles?.some(pc => pc.kind === "teleport_trap" && pc.cursed) ?? false;
+}
+
 /* 爆発の魔方陣：死亡したモンスターの位置で爆発を起こす */
 let _explosionDepth = 0;
 function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
@@ -2880,6 +2891,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
     }
     case "teleport_other": {
       if (kind === "monster") {
+        if (hasCursedTeleportPentacle(dg)) { ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！"); break; }
         const _tof = [];
         for (let _ty = 0; _ty < MH; _ty++)
           for (let _tx = 0; _tx < MW; _tx++)
@@ -2912,6 +2924,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
     }
     case "teleport_magic": {
       if (kind === "self") {
+        if (hasCursedTeleportPentacle(dg)) { ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！"); break; }
         const _tmf = [];
         for (let _ty = 0; _ty < MH; _ty++)
           for (let _tx = 0; _tx < MW; _tx++)

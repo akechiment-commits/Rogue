@@ -5,7 +5,7 @@ import {
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
-  hasCursedExplosionPentacle, cookFoodMeta,
+  hasCursedExplosionPentacle, hasCursedTeleportPentacle, cookFoodMeta,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -666,6 +666,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     case "warp": {
       const _wCursed = blMult < 1, _wBlessed = blMult > 1;
+      if (!_wCursed && hasCursedTeleportPentacle(dg)) {
+        ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
+        break;
+      }
       if (_wCursed) {
         /* 呪い：1マスだけテレポート（振った方向に1歩移動） */
         const _w1x = (kind === "monster" ? target.x : p.x) + dx;

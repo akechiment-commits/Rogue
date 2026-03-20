@@ -577,7 +577,10 @@ export function useItemActions({
       if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
         ml.push(`${it.name}を読んだが、魔法が封印されている！`);
       } else if (it.effect === "teleport") {
-        if (it.cursed) {
+        const _tpBlocked = dg.pentacles?.some(pc => pc.kind === "teleport_trap" && pc.cursed);
+        if (_tpBlocked) {
+          ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
+        } else if (it.cursed) {
           setFloorSelectMode({ sel: p.depth });
           { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
             setMsgs((prev) => [...prev.slice(-80), ..._rp, "飛びたい階層を選んでください... (↑↓:選択 Z/Enter:決定)"]); }
@@ -594,16 +597,11 @@ export function useItemActions({
           setGs({ ...sr.current });
           return;
         } else {
-          const _tpBlocked = dg.pentacles?.some(pc => pc.kind === "teleport_trap" && pc.cursed);
-          if (_tpBlocked) {
-            ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
-          } else {
-            const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-            p.x = rng(rm.x, rm.x + rm.w - 1);
-            p.y = rng(rm.y, rm.y + rm.h - 1);
-            if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
-            ml.push("テレポートした！");
-          }
+          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
+          p.x = rng(rm.x, rm.x + rm.w - 1);
+          p.y = rng(rm.y, rm.y + rm.h - 1);
+          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+          ml.push("テレポートした！");
         }
       } else if (it.effect === "reveal") {
         if (it.cursed) {
