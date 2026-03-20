@@ -1605,6 +1605,63 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
   );
 }
 
+/* ===== Message Log Modal ===== */
+const MSG_LOG_PAGE = 20;
+export function MsgLogModal({ show, msgs, scrollTop, setScrollTop, onClose, mobile }) {
+  if (!show) return null;
+  const total = msgs.length;
+  const start = Math.max(0, Math.min(scrollTop, total - MSG_LOG_PAGE));
+  const visible = msgs.slice(start, start + MSG_LOG_PAGE);
+  return (
+    <div style={{
+      position: "absolute", top: mobile ? 4 : 16, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
+      bottom: mobile ? 4 : 16,
+      background: "#0a0e18", border: "1px solid #304060", padding: mobile ? 10 : 14, zIndex: 20,
+      borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.85)",
+      display: "flex", flexDirection: "column",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ color: "#80c0ff", fontSize: 13, fontWeight: "bold" }}>
+          📜 メッセージログ ({total}件)
+        </span>
+        <button onClick={onClose}
+          style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+      </div>
+      <div style={{ flex: 1, overflowY: "hidden", display: "flex", flexDirection: "column", gap: 2 }}>
+        {visible.map((m, i) => {
+          const absIdx = start + i;
+          const isNewest = absIdx === total - 1;
+          return (
+            <div key={absIdx} style={{
+              fontSize: mobile ? 10 : 11, lineHeight: "1.4em",
+              color: isNewest ? "#ccffcc" : "#8fa8a0",
+              opacity: isNewest ? 1 : 0.75,
+              padding: "1px 0",
+              borderBottom: "1px solid #1a2030",
+            }}>
+              <span style={{ color: "#304060", marginRight: 6, fontSize: 10 }}>{absIdx + 1}</span>
+              {m}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: "#304060", fontSize: 10 }}>
+          {start + 1}〜{Math.min(start + MSG_LOG_PAGE, total)} / {total}　↑↓:スクロール　m/x/Esc:閉じる
+        </span>
+        {mobile && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => setScrollTop((s) => Math.max(0, s - 1))}
+              style={{ background: "#1a2030", color: "#80b0ff", border: "1px solid #304060", borderRadius: 3, padding: "3px 10px", cursor: "pointer" }}>▲</button>
+            <button onClick={() => setScrollTop((s) => Math.min(Math.max(0, total - MSG_LOG_PAGE), s + 1))}
+              style={{ background: "#1a2030", color: "#80b0ff", border: "1px solid #304060", borderRadius: 3, padding: "3px 10px", cursor: "pointer" }}>▼</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ===== Inventory Modal ===== */
 export function InventoryModal({
   show, p, gs, mobile, dropMode, dropModeRef, invPage, selIdx, showDesc, invMenuSel,
