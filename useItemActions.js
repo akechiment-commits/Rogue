@@ -16,6 +16,21 @@ import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim } from "./animEvents.js";
 
+/* インベントリから消える際に装備スロットを強制解除するヘルパー */
+function _forceUnequip(p, it) {
+  if (p.weapon === it) p.weapon = null;
+  if (p.armor  === it) p.armor  = null;
+  if (p.arrow  === it) p.arrow  = null;
+  if (p.rings?.includes(it)) {
+    p.rings = p.rings.filter(r => r !== it);
+    if (it.effect === "life_ring") {
+      const _bonus = (it.plus || 0) * 5;
+      p.maxHp = Math.max(1, p.maxHp - _bonus);
+      p.hp = Math.min(p.hp, p.maxHp);
+    }
+  }
+}
+
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
   setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
@@ -1205,10 +1220,7 @@ export function useItemActions({
     const { player: p, dungeon: dg } = sr.current;
     const it = p.inventory[idx];
     if (!it) return;
-    if (p.weapon === it) p.weapon = null;
-    if (p.armor  === it) p.armor  = null;
-    if (p.arrow  === it) p.arrow  = null;
-    if (p.rings?.includes(it)) p.rings = p.rings.filter(r => r !== it);
+    _forceUnequip(p, it);
     p.inventory.splice(idx, 1);
     const ml = [],
       ft = new Set();
@@ -1504,9 +1516,7 @@ export function useItemActions({
         setPutMode(null);
         return;
       }
-      if (p.weapon === it) p.weapon = null;
-      if (p.armor  === it) p.armor  = null;
-      if (p.arrow  === it) p.arrow  = null;
+      _forceUnequip(p, it);
       p.inventory.splice(itemIdx, 1);
       if (itemIdx < putMode.potIdx) putMode.potIdx--;
       const ml = [];
@@ -1926,9 +1936,7 @@ export function useItemActions({
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
         }
-        if (p.weapon === it) p.weapon = null;
-        if (p.armor  === it) p.armor  = null;
-        if (p.arrow  === it) p.arrow  = null;
+        _forceUnequip(p, it);
 
         /* ── インベントリから投げる石／魔法の石 専用処理 ── */
         if (it.type === "arrow" && (it.stone || it.magicStone)) {
