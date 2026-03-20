@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster, fireTrapItem } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster, fireTrapItem, cookFoodMeta } from "./items.js";
 import { pushMonsterBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -12,7 +12,7 @@ function _fireDemonBurnItems(m, dg, ml) {
       ml.push(`${m.name}が通った！「${it.name}」が燃えてなくなった！`);
     } else if (it.type === "food") {
       if (!it.cooked) {
-        it.cooked = true; it.value = Math.floor((it.value || 10) * 2);
+        it.value = Math.floor((it.value || 10) * 2); cookFoodMeta(it);
         it.name = "焼いた" + it.name;
         ml.push(`${m.name}が通った！食料が焼けて「${it.name}」になった！`);
       } else {
