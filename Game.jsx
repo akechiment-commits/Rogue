@@ -431,6 +431,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       poisoned: false,
       poisonAtkLoss: 0,
       sealedTurns: 0,
+      invisibleTurns: 0,
+      wallWalkTurns: 0,
       rings: [],
       maxInventory: dungeonConfig?.dungeonType === "debug" ? 100 : 30,
       facing: { dx: 0, dy: 1 },
@@ -1094,6 +1096,31 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.floatTurns--;
         if (p.floatTurns === 0) ml.push("浮遊が解けた！");
       }
+      /* 透明状態：カウントダウン */
+      if ((p.invisibleTurns || 0) > 0) {
+        p.invisibleTurns--;
+        if (p.invisibleTurns === 0) ml.push("透明が解けた！敵に見えるようになった。");
+      }
+      /* 壁抜け状態：カウントダウン。解除時に壁の中にいたら押し出す */
+      if ((p.wallWalkTurns || 0) > 0) {
+        p.wallWalkTurns--;
+        if (p.wallWalkTurns === 0) {
+          ml.push("壁抜けが解けた！");
+          if (st.dungeon.map[p.y]?.[p.x] === T.WALL || st.dungeon.map[p.y]?.[p.x] === T.BWALL) {
+            const _wwDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+            for (const [_wdx, _wdy] of _wwDirs) {
+              const _wx = p.x + _wdx, _wy = p.y + _wdy;
+              if (_wx >= 0 && _wx < MW && _wy >= 0 && _wy < MH &&
+                  st.dungeon.map[_wy][_wx] !== T.WALL && st.dungeon.map[_wy][_wx] !== T.BWALL &&
+                  !st.dungeon.monsters.some(m => m.x === _wx && m.y === _wy)) {
+                p.x = _wx; p.y = _wy;
+                ml.push("壁の外に押し出された！");
+                break;
+              }
+            }
+          }
+        }
+      }
       /* 水上で浮遊解除：最寄りの陸上に弾き出される */
       if (st.dungeon.map[p.y][p.x] === T.WATER && !isPlayerFloating(p, st.dungeon)) {
         const _wDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -1741,7 +1768,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
           } else if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) {
             ml.push("水に阻まれた！浮遊の指輪があれば渡れる。");
-          } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL) {
+          } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL || (p.wallWalkTurns || 0) > 0) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
             if (_cursedSanc) {

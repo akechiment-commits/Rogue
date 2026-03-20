@@ -758,6 +758,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m.statusImmune--;
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }
+  /* 毒状態：毎ターンHP減少 */
+  if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
+    m.poisonedTurns--;
+    const _pdmg = m.poisonDmg || 3;
+    m.hp -= _pdmg;
+    ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
+    if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
+    if (m.poisonedTurns <= 0) ml.push(`${m.name}の毒が切れた。`);
+  }
   if (m.sleepTurns > 0) {
     if (!_attackOnly) m.sleepTurns--;
     return;
@@ -934,7 +943,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _plRoom  = findRoom(rooms, pl.x, pl.y);
   const _sameRoom = _monRoom !== null && _plRoom !== null &&
     _monRoom.x === _plRoom.x && _monRoom.y === _plRoom.y;
-  const canSee = _sameRoom || ((dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y));
+  const _plInvis = (pl.invisibleTurns || 0) > 0;
+  const canSee = !_plInvis && (_sameRoom || ((dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y)));
 
   if (canSee) {
     m.aware = true;
