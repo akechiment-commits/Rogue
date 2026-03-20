@@ -31,7 +31,7 @@ function isWalkable(map, x, y) { return inBounds(x, y) && map[y][x] !== T.WALL &
 function canEnter(map, x, y, float = false) { return isWalkable(map, x, y) && (float || map[y]?.[x] !== T.WATER); }
 
 /* ===== ドラゴン炎ブレス ===== */
-function monsterDragonFire(m, dg, pl, ml) {
+function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 呪われた爆発の魔方陣がある場合は炎を打ち消す */
   if (hasCursedExplosionPentacle(dg)) {
     ml.push(`呪われた爆発の魔方陣が${m.name}の炎ブレスを打ち消した！`);
@@ -79,6 +79,7 @@ function monsterDragonFire(m, dg, pl, ml) {
   if (_oilyMult > 1) dmg *= 2;
   pl.deathCause = `${m.name}の炎ブレスで`;
   pl.hp -= dmg;
+  onPlayerHit?.(dmg);
   ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
@@ -86,7 +87,7 @@ function monsterDragonFire(m, dg, pl, ml) {
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
-function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false } = {}) {
+function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, onPlayerHit } = {}) {
   /* dodge: 25% 完全回避 */
   if (hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
     ml.push(`${m.name}の攻撃をひらりとかわした！`);
@@ -105,6 +106,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
+  onPlayerHit?.(dmg);
   ml.push(msgFn(dmg));
   if (!skipThorn && pl.armor?.ability === "thorn" && dmg > 0) {
     const td = Math.max(1, Math.floor(dmg / 3));
@@ -728,6 +730,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
   const _luFn = opts.luFn || (() => {});
+  const _onHit = opts.onPlayerHit;
   /* 重力の魔方陣：浮遊系モンスターの実効float（重力ゾーン内では浮遊不可） */
   const _effFloat = m.float && !hasGravityPentacle(dg, m.x, m.y);
   /* 呪い重力の魔方陣：ゾーン内モンスターは浮遊状態扱い */
@@ -765,7 +768,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
       if (_cnx === pl.x && _cny === pl.y) {
-        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`); }
+        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit }); }
       } else {
         const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
         if (_other) {
@@ -799,7 +802,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
     if (canEnter(dg.map, _dnx, _dny, _effFloat)) {
       if (_dnx === pl.x && _dny === pl.y) {
-        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true }); }
+        if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit }); }
       } else {
         const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
         if (_dother) {
@@ -945,7 +948,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _wwInWall = dg.map[m.y]?.[m.x] === T.WALL;
         monsterAttackPlayer(m, dg, pl, ml, d => _wwInWall
           ? `${m.name}が壁を突き抜けて攻撃！${d}ダメージ！`
-          : `${m.name}の攻撃！${d}ダメージ！`);
+          : `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit });
         return;
       }
       if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
@@ -1058,7 +1061,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (_dragonRdy) delete m._rangedAttackThisTurn;
       if (_canFire && (_dragonRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
-        monsterDragonFire(m, dg, pl, ml);
+        monsterDragonFire(m, dg, pl, ml, _onHit);
         return;
       }
     }
@@ -1091,7 +1094,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_hasAntiSteal) {
           ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
           /* 盗めないので通常攻撃 */
-          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`); }
+          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit }); }
           return;
         }
         const _stealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
@@ -1127,7 +1130,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         /* 盗めるものがなければ通常攻撃 */
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`); }
+        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit }); }
         return;
       }
     }
@@ -1216,7 +1219,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
       if (m.turnAttacks < (m.maxAttacks ?? 1)) {
         m.turnAttacks++;
-        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit });
         return;
       }
       /* 2回目以降：攻撃せずBFSで移動を試みる */
@@ -1235,7 +1238,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.dir = { x: next.x - m.x, y: next.y - m.y };
         if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
           m.turnAttacks++;
-          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit });
         }
         return;
       }
@@ -1288,7 +1291,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           if (!_moveOnly && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
               m.turnAttacks < (m.maxAttacks ?? 1)) {
             m.turnAttacks++; m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
-            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`);
+            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit });
           }
           return;
         }
