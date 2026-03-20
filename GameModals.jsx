@@ -1258,9 +1258,8 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
               </div>
               <button
                 onClick={() => {
-                  setMode("menu");
-                  setMenuSel(0);
-                  setPage(0);
+                  setMode(null);
+                  bigboxRef.current = null;
                 }}
                 style={{
                   marginTop: 4,

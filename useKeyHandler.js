@@ -993,9 +993,9 @@ export function useKeyHandler({
             return;
           }
           if (k === "x" || k === "escape") {
-            setBigboxMode("menu");
-            setBigboxMenuSel(0);
-            setBigboxPage(0);
+            setBigboxMode(null);
+            bigboxRef.current = null;
+            setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
             return;
           }
           return;
