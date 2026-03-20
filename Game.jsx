@@ -2351,17 +2351,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, []);
   const trySynthesize = useCallback(
     (bb, ml) => {
-      /* 力・守り・命の指輪 同士 → ＋値合算 */
-      for (const _rEff of ["power_ring", "defense_ring", "life_ring"]) {
-        const _pRings = bb.contents.filter(i => i.type === "ring" && i.effect === _rEff);
-        if (_pRings.length >= 2) {
-          const [ra, rb] = _pRings;
-          ra.plus = (ra.plus || 0) + (rb.plus || 0);
-          ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
-          bb.contents = bb.contents.filter(i => i !== rb);
-          bb.capacity = bb.contents.length;
-          return;
-        }
+      /* 力・守り・命の指輪（異種混合OK） → 先に入れた指輪に後の+値を加算して後を消す */
+      const _PLUS_RING_EFFECTS = ["power_ring", "defense_ring", "life_ring"];
+      const _plusRings = bb.contents.filter(i => i.type === "ring" && _PLUS_RING_EFFECTS.includes(i.effect));
+      if (_plusRings.length >= 2) {
+        const [ra, rb] = _plusRings;
+        ra.plus = (ra.plus || 0) + (rb.plus || 0);
+        ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
+        bb.contents = bb.contents.filter(i => i !== rb);
+        bb.capacity = bb.contents.length;
+        return;
       }
       const mks = bb.contents.filter((i) => i.type === "marker");
       if (mks.length >= 2) {
