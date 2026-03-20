@@ -1756,7 +1756,7 @@ export function InventoryModal({
                         {it.type === "scroll" && " — 巻物"}
                         {it.type === "food" && ` — 食料${it.cooked ? "(調理済)" : "(生)"}`}
                         {it.type === "pot" && ` — 壺 [${it.contents?.length || 0}/${it.capacity}]`}
-                        {it.type === "ring" && ` — 指輪${it.effect === "power_ring" ? ` (+${it.plus || 0})` : ""}`}
+                        {it.type === "ring" && ` — 指輪${["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
                       {it.desc || "特に情報はない。"}
                       {it.ability && (() => {
@@ -1906,7 +1906,7 @@ const _DBG_ITEM_CATS = [
   ]},
   { key: "wands",      label: "杖",           build: () => WANDS.map(w => ({ label: w.name, value: { ...w } })) },
   { key: "spellbooks", label: "魔法書",       build: () => SPELLBOOKS.map(sb => ({ label: sb.name, value: { ...sb } })) },
-  { key: "rings",      label: "指輪",         build: () => RINGS.map(r => { const rv = { ...r }; if (rv.effect === "power_ring") rv.plus = rng(1,3); return { label: r.name, value: rv }; }) },
+  { key: "rings",      label: "指輪",         build: () => RINGS.map(r => { const rv = { ...r }; if (["power_ring","defense_ring","life_ring"].includes(rv.effect)) rv.plus = rng(1,3); return { label: r.name, value: rv }; }) },
   { key: "pots",       label: "壺",           build: () => POTS.map(p => ({ label: p.name, value: { ...p, contents: [] } })) },
   { key: "raw_food",   label: "生の食べ物",   build: () => RAW_FOODS.map(n => _mkFoodEntry(n, false)) },
   { key: "cooked_food",label: "調理済み食べ物",build: () => COOKED_FOODS.map(n => _mkFoodEntry(n, true)) },
