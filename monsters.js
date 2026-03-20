@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, killMonster, fireTrapItem, cookFoodMeta, soakItemIntoSpring } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, fireTrapItem, cookFoodMeta, soakItemIntoSpring } from "./items.js";
 import { pushMonsterBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -1118,31 +1118,39 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _stolen = pick(_stealable);
           const _sidx = pl.inventory.indexOf(_stolen);
           pl.inventory.splice(_sidx, 1);
-          /* ワープ先：罠の隣を優先 */
+          /* テレポートブロック確認 */
+          const _thieveTpBlock = hasCursedTeleportPentacle(dg);
+          /* ワープ先：罠の隣を優先（テレポートブロック時はその場） */
           let _wx = m.x, _wy = m.y;
-          const _trapList = dg.traps || [];
-          let _placed = false;
-          if (_trapList.length > 0) {
-            const _tgt = pick(_trapList);
-            const _tdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
-            for (const [_ddx, _ddy] of _tdirs) {
-              const _cx = _tgt.x + _ddx, _cy = _tgt.y + _ddy;
-              if (isWalkable(dg.map, _cx, _cy) &&
-                  !dg.monsters.some(o => o.x === _cx && o.y === _cy) &&
-                  !(_cx === pl.x && _cy === pl.y)) {
-                _wx = _cx; _wy = _cy; _placed = true; break;
+          if (!_thieveTpBlock) {
+            const _trapList = dg.traps || [];
+            let _placed = false;
+            if (_trapList.length > 0) {
+              const _tgt = pick(_trapList);
+              const _tdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+              for (const [_ddx, _ddy] of _tdirs) {
+                const _cx = _tgt.x + _ddx, _cy = _tgt.y + _ddy;
+                if (isWalkable(dg.map, _cx, _cy) &&
+                    !dg.monsters.some(o => o.x === _cx && o.y === _cy) &&
+                    !(_cx === pl.x && _cy === pl.y)) {
+                  _wx = _cx; _wy = _cy; _placed = true; break;
+                }
               }
+              if (!_placed) { _wx = _tgt.x; _wy = _tgt.y; }
+            } else {
+              const _room = dg.rooms[rng(0, dg.rooms.length - 1)];
+              _wx = rng(_room.x, _room.x + _room.w - 1);
+              _wy = rng(_room.y, _room.y + _room.h - 1);
             }
-            if (!_placed) { _wx = _tgt.x; _wy = _tgt.y; }
-          } else {
-            const _room = dg.rooms[rng(0, dg.rooms.length - 1)];
-            _wx = rng(_room.x, _room.x + _room.w - 1);
-            _wy = rng(_room.y, _room.y + _room.h - 1);
+            m.x = _wx; m.y = _wy;
           }
-          m.x = _wx; m.y = _wy;
           const _ft = new Set();
           placeItemAt(dg, _wx, _wy, _stolen, ml, _ft);
-          ml.push(`${m.name}が${_stolen.name}を盗んで煙の中に消えた！`);
+          if (_thieveTpBlock) {
+            ml.push(`${m.name}が${_stolen.name}を盗んだ！呪われたテレポートの魔方陣に阻まれて逃げられない！`);
+          } else {
+            ml.push(`${m.name}が${_stolen.name}を盗んで煙の中に消えた！`);
+          }
           return;
         }
         /* 盗めるものがなければ通常攻撃 */
