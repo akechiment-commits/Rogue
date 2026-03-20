@@ -38,7 +38,7 @@ const FLOOR_TITLES = {
   treasureRoom: "隠し宝部屋だ！",
 };
 
-const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, spellMenuSel: 0, nicknameInput: '', data: null };
+const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, spellMenuSel: 0, spellPage: 0, nicknameInput: '', data: null };
 
 function modalReducer(state, action) {
   switch (action.type) {
@@ -176,6 +176,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const markerMenuSel = modal.markerMenuSel;
   const spellListMode = modal.type === 'spellList'    ? modal.data : null;
   const spellMenuSel  = modal.spellMenuSel;
+  const spellPage     = modal.spellPage;
   /* null | {potIdx:number} */ const [dashMode, setDashMode] = useState(false);
   const tpSelectMode     = modal.type === 'tpSelect'     ? modal.data : null;
   const lookMode         = modal.type === 'look'         ? modal.data : null;
@@ -201,6 +202,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const setMarkerMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { markerMenuSel: typeof v === 'function' ? v(modal.markerMenuSel) : v } });
   const setSpellListMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel) : v } });
+  const setSpellPage     = (v) => dispatchModal({ type: 'UPDATE', payload: { spellPage: typeof v === 'function' ? v(modal.spellPage) : v } });
   const setTpSelectMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'tpSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setLookMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'look', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setFloorSelectMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'floorSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
@@ -1108,6 +1110,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           ml.push("壁抜けが解けた！");
           if (st.dungeon.map[p.y]?.[p.x] === T.WALL || st.dungeon.map[p.y]?.[p.x] === T.BWALL) {
             const _wwDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+            let _pushed = false;
             for (const [_wdx, _wdy] of _wwDirs) {
               const _wx = p.x + _wdx, _wy = p.y + _wdy;
               if (_wx >= 0 && _wx < MW && _wy >= 0 && _wy < MH &&
@@ -1115,11 +1118,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   !st.dungeon.monsters.some(m => m.x === _wx && m.y === _wy)) {
                 p.x = _wx; p.y = _wy;
                 ml.push("壁の外に押し出された！");
+                _pushed = true;
                 break;
               }
             }
+            if (!_pushed) ml.push("壁に埋まったまま抜け出せない！毎ターンダメージを受ける！");
           }
         }
+      }
+      /* 壁に埋まっている：毎ターン大ダメージ */
+      if ((p.wallWalkTurns || 0) === 0 &&
+          (st.dungeon.map[p.y]?.[p.x] === T.WALL || st.dungeon.map[p.y]?.[p.x] === T.BWALL)) {
+        const _wdmg = 15;
+        p.hp -= _wdmg;
+        ml.push(`壁に挟まれて苦しい！${_wdmg}ダメージ！`);
+        if (p.hp <= 0) { p.deathCause = "壁に埋まり"; }
       }
       /* 水上で浮遊解除：最寄りの陸上に弾き出される */
       if (st.dungeon.map[p.y][p.x] === T.WATER && !isPlayerFloating(p, st.dungeon)) {
@@ -2901,7 +2914,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     // state values
     gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
-    markerMode, markerMenuSel, spellListMode, spellMenuSel, shopMode, shopMenuSel,
+    markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
     // state setters
@@ -2909,7 +2922,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
     setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
     setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
-    setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setShopMode,
+    setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
     setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
     setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
     // callbacks
@@ -3618,7 +3631,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       <FloorSelectModal mode={floorSelectMode} setMode={setFloorSelectMode} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} genDungeon={genDungeon} refreshFOV={refreshFOV} rng={rng} />{" "}
       <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} />{" "}
-      <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
+      <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} />

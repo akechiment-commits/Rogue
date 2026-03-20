@@ -15,7 +15,7 @@ export function useKeyHandler({
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
-  markerMode, markerMenuSel, spellListMode, spellMenuSel, shopMode, shopMenuSel,
+  markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
   // state setters
@@ -23,7 +23,7 @@ export function useKeyHandler({
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
   setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
   setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
-  setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setShopMode,
+  setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
   setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
   setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
   // callbacks
@@ -648,11 +648,23 @@ export function useKeyHandler({
           return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
         }).filter(Boolean);
         const slen = knownSpells.length;
+        const _sps = 10;
+        const _totalPages = Math.max(1, Math.ceil(slen / _sps));
+        const _curPage = Math.min(spellPage, _totalPages - 1);
+        const _pageSpells = knownSpells.slice(_curPage * _sps, (_curPage + 1) * _sps);
+        const _plen = _pageSpells.length;
         const isUpS = k === "arrowup" || e.code === "Numpad8";
         const isDownS = k === "arrowdown" || e.code === "Numpad2";
-        if ((isUpS || isDownS) && slen > 0) { setSpellMenuSel((s) => (s + (isDownS ? 1 : -1) + slen) % slen); return; }
-        if ((k === "enter" || k === "z") && slen > 0) {
-          const spell = knownSpells[Math.min(spellMenuSel, slen - 1)];
+        const isLeftS = k === "arrowleft" || e.code === "Numpad4";
+        const isRightS = k === "arrowright" || e.code === "Numpad6";
+        if ((isUpS || isDownS) && _plen > 0) { setSpellMenuSel((s) => (s + (isDownS ? 1 : -1) + _plen) % _plen); return; }
+        if ((isLeftS || isRightS) && _totalPages > 1) {
+          setSpellPage((p) => (p + (isRightS ? 1 : -1) + _totalPages) % _totalPages);
+          setSpellMenuSel(0);
+          return;
+        }
+        if ((k === "enter" || k === "z") && _plen > 0) {
+          const spell = _pageSpells[Math.min(spellMenuSel, _plen - 1)];
           if (!spell) return;
           if ((sr.current?.player?.mp || 0) < spell.mpCost) {
             setMsgs((prev) => [...prev.slice(-80), `MPが足りない！(必要:${spell.mpCost} 現在:${sr.current?.player?.mp || 0})`]);
@@ -1229,6 +1241,7 @@ export function useKeyHandler({
       markerMenuSel,
       spellListMode,
       spellMenuSel,
+      spellPage,
       debugSpellMode,
       debugSpellMenuSel,
       dead,
