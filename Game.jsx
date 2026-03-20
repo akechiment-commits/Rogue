@@ -2757,6 +2757,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else {
           ml.push("白紙の巻物を泉に浸した...何も起こらなかった。");
         }
+      } else if (it.type === "spellbook") {
+        if (it.spell) {
+          const _sbDN = dnameRef(it);
+          it.name = "白紙の魔法書";
+          it.spell = null;
+          it.desc = "魔法が消えてしまった。魔法のマーカー(5回分)で好きな魔法書に変えられる。";
+          ml.push(`魔法書「${_sbDN}」を泉に浸した...文字が消えた！`);
+        } else {
+          ml.push("白紙の魔法書を泉に浸した...何も起こらなかった。");
+        }
       } else if (it.type === "pot" && it.potEffect === "gunpowder") {
         const _savedContents = it.contents || [];
         const _preserveTpl = POTS.find(pp => pp.potEffect === "none");
