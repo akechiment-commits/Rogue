@@ -49,6 +49,50 @@ function modalReducer(state, action) {
   }
 }
 
+/* 長押しリピート対応モバイルボタン
+ * 初回押下即時発火 → REPEAT_DELAY ms 後からリピート開始 → REPEAT_INTERVAL ms 間隔で連続発火 */
+const REPEAT_DELAY = 350;
+const REPEAT_INTERVAL = 110;
+function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {}, btnStyle }) {
+  const timers = useRef({ delay: null, interval: null });
+  const cbRef  = useRef(onClick);
+  cbRef.current = onClick;
+  const stop = () => {
+    clearTimeout(timers.current.delay);
+    clearInterval(timers.current.interval);
+    timers.current.delay = timers.current.interval = null;
+  };
+  const start = (e) => {
+    e.preventDefault();
+    cbRef.current();
+    timers.current.delay = setTimeout(() => {
+      timers.current.interval = setInterval(() => cbRef.current(), REPEAT_INTERVAL);
+    }, REPEAT_DELAY);
+  };
+  return (
+    <button
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+      style={{
+        width: w, height: h,
+        background: "#181828", color: color ?? "#8f8",
+        border: "1px solid #3a3a4a", borderRadius: 8,
+        fontSize: fs ?? 15, fontWeight: "bold",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        cursor: "pointer", touchAction: "manipulation",
+        userSelect: "none", WebkitTapHighlightColor: "transparent",
+        padding: sub ? "2px 3px" : undefined,
+        ...s,
+      }}
+    >
+      {sub ? <><span style={{ fontSize: 15 }}>{label}</span><span style={{ fontSize: 8, opacity: 0.5 }}>{sub}</span></> : label}
+    </button>
+  );
+}
+
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, setMsgs] = useState(["冒険が始まった！"]);
@@ -2798,65 +2842,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         throw: "投げる方向",
       }[throwMode.mode] || "方向選択"
     : "";
-  const B = ({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) => (
-    <button
-      onPointerDown={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
-      style={{
-        width: w,
-        height: h,
-        background: "#181828",
-        color: "#8f8",
-        border: "1px solid #3a3a4a",
-        borderRadius: 8,
-        fontSize: fs,
-        fontWeight: "bold",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        touchAction: "manipulation",
-        userSelect: "none",
-        WebkitTapHighlightColor: "transparent",
-        ...s,
-      }}
-    >
-      {label}
-    </button>
-  );
-  const AB = ({ label, sub, onClick, color = "#8f8" }) => (
-    <button
-      onPointerDown={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
-      style={{
-        flex: 1,
-        minWidth: 38,
-        height: 36,
-        background: "#181828",
-        color,
-        border: "1px solid #3a3a4a",
-        borderRadius: 8,
-        fontSize: 12,
-        fontWeight: "bold",
-        cursor: "pointer",
-        touchAction: "manipulation",
-        userSelect: "none",
-        WebkitTapHighlightColor: "transparent",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2px 3px",
-      }}
-    >
-      <span style={{ fontSize: 15 }}>{label}</span>
-      {sub && <span style={{ fontSize: 8, opacity: 0.5 }}>{sub}</span>}
-    </button>
-  );
+  const B  = ({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) =>
+    <MobileBtn label={label} onClick={onClick} w={w} h={h} fs={fs} style={s} />;
+  const AB = ({ label, sub, onClick, color = "#8f8" }) =>
+    <MobileBtn label={label} sub={sub} onClick={onClick} color={color}
+      style={{ flex: 1, minWidth: 38, height: 36, fontSize: 12 }} />;
   const tbs = {
     background: "#2a1a1a",
     border: "1px solid #5a3a3a",
