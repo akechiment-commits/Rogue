@@ -1674,7 +1674,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           const dmg = Math.max(1, Math.round((val + rng(-3, 3)) * (blessed ? 1.5 : 1)));
           target.hp -= dmg;
-          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！${blessed ? "(強毒)" : ""}`);
+          const _poisonTurns = blessed ? 8 : 5;
+          const _poisonDmg = blessed ? 4 : 3;
+          target.poisonedTurns = Math.max(target.poisonedTurns || 0, _poisonTurns);
+          target.poisonDmg = Math.max(target.poisonDmg || 0, _poisonDmg);
+          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態になった！${blessed ? "(強毒)" : ""}`);
           _monKill(target);
         }
       }
