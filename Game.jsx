@@ -452,8 +452,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       });
       for (const mm of data.monMoves) moveOffsetsRef.current.delete("mon_" + mm.id);
     }
-    /* Phase 4: Monster attack effects — flash then per-hit damage popups sequentially */
-    if (data.monAttacks?.length || data.monDamages?.length) {
+    /* Phase 4: Monster attack effects — flash then per-hit lunge+damage sequentially */
+    if (data.monAttacks?.length || data.monDamages?.length || data.monLunges?.length) {
       /* Flash (100ms) */
       if (data.monAttacks?.length) {
         await _phase(100, (t, raw) => {
@@ -462,13 +462,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         });
         overlaysRef.current = [];
       }
-      /* Sequential per-hit damage popups (300ms each) */
+      /* Sequential per-hit: lunge sprite toward player + damage popup (300ms each) */
       if (data.monDamages?.length) {
-        for (const _dmgEv of data.monDamages) {
-          await _phase(300, (t, raw) => {
-            overlaysRef.current = [{ ..._dmgEv, progress: raw, t }];
+        const _lunges = data.monLunges || [];
+        for (let _hi = 0; _hi < data.monDamages.length; _hi++) {
+          const _dmgEv = data.monDamages[_hi];
+          const _lg = _lunges[_hi];
+          await _phase(300, (_t, raw) => {
+            if (_lg) {
+              /* sin-curve offset: 0 → 40% toward player → 0 */
+              const _lp = Math.sin(raw * Math.PI) * 0.4;
+              const _lx = _lg.fromX + (_lg.toX - _lg.fromX) * _lp;
+              const _ly = _lg.fromY + (_lg.toY - _lg.fromY) * _lp;
+              moveOffsetsRef.current.set("mon_" + _lg.id, {
+                fromX: _lx, fromY: _ly, toX: _lx, toY: _ly,
+                progress: 1, tile: _lg.tile, hp: _lg.hp, maxHp: _lg.maxHp,
+              });
+            }
+            overlaysRef.current = [{ ..._dmgEv, progress: raw, t: _t }];
             renderFrame();
           });
+          if (_lg) moveOffsetsRef.current.delete("mon_" + _lg.id);
         }
         overlaysRef.current = [];
       }
@@ -1073,16 +1087,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
       const _perHitDmgs = [];
+      const _perHitLunges = [];
       moveMons(st.dungeon, p, ml, "attackOnly", {
-        onPlayerHit: (dmg) => {
+        onPlayerHit: (dmg, mon) => {
           _perHitDmgs.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
+          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
         },
       });
       if (_perHitDmgs.length > 0 && p.hp > 0) {
         _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
         _mdamages.push(..._perHitDmgs);
       }
-      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages };
+      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
@@ -1345,12 +1361,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       endTurn(st, p, ml);
       /* Collect monster move animations from endTurn */
-      const _ad = { monMoves: [], monAttacks: [], monDamages: [] };
+      const _ad = { monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _monAnimData = monMovesRef.current;
       if (_monAnimData) {
         _ad.monMoves = _monAnimData.moves || [];
         _ad.monAttacks = _monAnimData.attacks || [];
         _ad.monDamages = _monAnimData.damages || [];
+        _ad.monLunges = _monAnimData.lunges || [];
         monMovesRef.current = null;
       }
       const _drainedEvts = drainAnims();
@@ -1389,7 +1406,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       let acted = false;
       const ml = [];
       /* Animation data collected during this turn */
-      const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [] };
+      const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
         const nd = chgFloor(p, dir);
@@ -1888,6 +1905,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         _ad.monMoves = _monAnimData.moves || [];
         _ad.monAttacks = _monAnimData.attacks || [];
         _ad.monDamages = _monAnimData.damages || [];
+        _ad.monLunges = _monAnimData.lunges || [];
         monMovesRef.current = null;
       }
       /* Drain global animation events (projectiles, explosions from deeply nested logic) */
