@@ -63,6 +63,7 @@ export const TILE_NAMES = {
   59: "guard",
   60: "ring",
   61: "firedemon",
+  42: "pen",
   43: "spellbook",
   62: "player_down_left",
   63: "player_down_right",
@@ -74,6 +75,10 @@ export const TILE_NAMES = {
   68: "rockspirit",
   69: "thief",
   70: "runner",
+  71: "trap_shadow",
+  72: "trap_rockfall",
+  73: "trap_timebomb",
+  74: "pentacle",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -147,6 +152,9 @@ export const TILE_RENDER = {
   65: { bg: null, fg: "#ffe030", ch: "@" },
   69: { bg: null, fg: "#a06020", ch: "t" },
   70: { bg: null, fg: "#ff88cc", ch: "p" },
+  71: { bg: null, fg: "#8040a0", ch: "^" },
+  72: { bg: null, fg: "#a08040", ch: "^" },
+  73: { bg: null, fg: "#f04040", ch: "^" },
 };
 
 /* Canvas drawing helper */

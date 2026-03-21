@@ -850,9 +850,9 @@ export const TRAPS = [
   { name:"盗みの罠",       effect:"steal_trap",    tile:49 },
   { name:"空腹の罠",       effect:"hunger_trap",   tile:50 },
   { name:"吹き飛ばしの罠", effect:"blowback_trap", tile:51 },
-  { name:"影ぬいの罠",     effect:"shadow_stitch", tile:52 },
-  { name:"落石の罠",       effect:"rockfall",      tile:53 },
-  { name:"時限爆弾の罠",   effect:"time_bomb",     tile:54 },
+  { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71 },
+  { name:"落石の罠",       effect:"rockfall",      tile:72 },
+  { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73 },
 ];
 
 /**

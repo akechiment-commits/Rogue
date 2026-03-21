@@ -484,15 +484,21 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             _pent.kind === "knockback_aura" ? (_pent.blessed ? "#ffcc80" : _pent.cursed ? "#402010" : "#ff8040") :
             _pent.kind === "explosion"      ? (_pent.blessed ? "#ff8844" : _pent.cursed ? "#301008" : "#ff5500") :
             _pent.kind === "plain"          ? (_pent.blessed ? "#dddddd" : _pent.cursed ? "#555555" : "#999999") : "#ff6020";
-          ctx.globalAlpha = 0.28;
+          ctx.globalAlpha = 0.35;
           ctx.fillStyle = _pentClr;
           ctx.fillRect(px2, py2, sz, sz);
+          ctx.globalAlpha = 0.85;
+          const _pentImg = customTileImages[74];
+          if (_pentImg) {
+            ctx.drawImage(_pentImg, px2, py2, sz, sz);
+          } else {
+            ctx.fillStyle = _pentClr;
+            ctx.font = `bold ${Math.floor(sz * 0.78)}px monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("✦", px2 + sz / 2, py2 + sz / 2);
+          }
           ctx.globalAlpha = 1;
-          ctx.fillStyle = _pentClr;
-          ctx.font = `bold ${Math.floor(sz * 0.78)}px monospace`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("✦", px2 + sz / 2, py2 + sz / 2);
         }
         if (vis) {
           /* Player — skip if currently animating (will be drawn separately) */

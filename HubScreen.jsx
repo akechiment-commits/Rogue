@@ -524,6 +524,9 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onClea
       <div style={{ color:"#333", fontSize:11, textAlign:"center" }}>
         ダンジョンで獲得した金貨の50%が地上に持ち帰られます
       </div>
+      <div style={{ color:"#2a2a2a", fontSize:9, textAlign:"center", marginTop:8 }}>
+        Tiles: <a href="https://opengameart.org/content/dawnlike-16x16-universal-rogue-like-tileset-v181" target="_blank" rel="noopener" style={{color:"#3a3a3a"}}>DawnLike</a> by DragonDePlatino / Palette by DawnBringer (CC-BY-SA 3.0)
+      </div>
 
       {/* パネル */}
       {panel === "dungeon" && (
