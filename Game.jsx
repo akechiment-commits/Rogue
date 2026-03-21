@@ -931,11 +931,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (_phase === "attackOnly") {
         /* 移動した敵は攻撃フェーズをスキップ（speed<=1のみ。倍速敵は移動後も攻撃できる） */
         if (m._movedThisTurn) { delete m._movedThisTurn; return; }
-        /* 攻撃フェーズ：移動フェーズで保存したアクション回数分だけ攻撃を試みる */
-        const _atkCount = m._phaseActionCount ?? 1;
+        /* 攻撃フェーズ：「総アクション数 - 移動に使ったアクション数」分だけ攻撃できる
+           例：speed=2で1歩移動した場合 → 残り1アクション分だけ攻撃可能 */
+        const _totalActions = m._phaseActionCount ?? 1;
+        const _movesMade = m._movesMadeThisPhase ?? 0;
+        const _atkBudget = Math.max(0, _totalActions - _movesMade);
         delete m._phaseActionCount;
+        delete m._movesMadeThisPhase;
         m.turnAttacks = 0;
-        for (let _ai = 0; _ai < _atkCount; _ai++) {
+        for (let _ai = 0; _ai < _atkBudget; _ai++) {
           if (m.hp <= 0) break;
           monsterAI(m, dg, pl, ml, { ...opts, attackOnly: true });
         }
@@ -945,18 +949,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       m.turnAccum += m.speed;
       m.turnAttacks = 0;
       let _actionCount = 0;
+      let _moveCount = 0; /* 実際に位置が変わったアクション数 */
       while (m.turnAccum >= 1) {
         m.turnAccum -= 1;
         _actionCount++;
         if (m.hp <= 0) break;
         if (_phase === "moveOnly") {
+          const _bx = m.x, _by = m.y;
           monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
+          if (m.x !== _bx || m.y !== _by) _moveCount++;
         } else {
           monsterAI(m, dg, pl, ml, opts);
         }
       }
       if (_phase === "moveOnly") {
         m._phaseActionCount = _actionCount;
+        m._movesMadeThisPhase = _moveCount;
       }
     });
   }, []);
