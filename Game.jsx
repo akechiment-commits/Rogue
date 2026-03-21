@@ -932,7 +932,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         /* 移動した敵は攻撃フェーズをスキップ */
         if (m._movedThisTurn) { delete m._movedThisTurn; return; }
         /* 攻撃フェーズ：移動フェーズで保存したアクション回数分だけ攻撃を試みる */
-        const _atkCount = m._phaseActionCount || 1;
+        const _atkCount = m._phaseActionCount ?? 1;
         delete m._phaseActionCount;
         m.turnAttacks = 0;
         for (let _ai = 0; _ai < _atkCount; _ai++) {
