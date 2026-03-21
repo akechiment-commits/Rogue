@@ -974,7 +974,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.deathBombExploded = true;
       const _dbX = m.x, _dbY = m.y, _dbName = m.name;
       killMonster(m, dg, pl, ml, _luFn, true); // 自爆→経験値なし
-      doExplosion(_dbX, _dbY, dg, pl, ml, null, `${_dbName}の爆発`, null, _luFn, false, false, true, true);
+      doExplosion(_dbX, _dbY, dg, pl, ml, null, `${_dbName}の爆発`, null, _luFn, false, true, true, true);
       return;
     } else {
       m.deathBombReady = true;
@@ -989,7 +989,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _kzX = m.x, _kzY = m.y, _kzName = m.name;
       m.hp = 0; // speed:2による2回目の呼び出しを防ぐ
       killMonster(m, dg, pl, ml, _luFn, true); // 自爆→経験値なし
-      doExplosion(_kzX, _kzY, dg, pl, ml, null, `${_kzName}の自爆`, null, _luFn, false, false, true, true);
+      doExplosion(_kzX, _kzY, dg, pl, ml, null, `${_kzName}の自爆`, null, _luFn, false, true, true, true);
       return;
     }
   }
