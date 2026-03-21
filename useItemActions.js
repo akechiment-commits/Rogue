@@ -35,6 +35,8 @@ function _forceUnequip(p, it) {
 function _synthMonsterSpeedup(m, ml) {
   const prev = m.speed || 0.5;
   m.speed = Math.min(3, prev + 0.5);
+  /* maxAttacks を速度に合わせて更新：倍速・三倍速の際に複数回攻撃できるように */
+  m.maxAttacks = Math.ceil(m.speed);
   if (m.speed !== prev) ml.push(`${m.name}の動きが速くなった！(速度${m.speed})`);
 }
 
