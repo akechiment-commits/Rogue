@@ -934,20 +934,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         /* 攻撃フェーズ：移動フェーズで保存したアクション回数分だけ攻撃を試みる */
         const _atkCount = m._phaseActionCount ?? 1;
         delete m._phaseActionCount;
-        m.turnAttacks = 0;
         for (let _ai = 0; _ai < _atkCount; _ai++) {
           if (m.hp <= 0) break;
+          m.turnAttacks = 0; /* 各アクションごとにリセット（速度>1で複数攻撃を可能に） */
           monsterAI(m, dg, pl, ml, { ...opts, attackOnly: true });
         }
         return;
       }
       /* moveOnly / both: ターン蓄積・turnAttacksリセットは移動フェーズで */
       m.turnAccum += m.speed;
-      m.turnAttacks = 0;
       let _actionCount = 0;
       while (m.turnAccum >= 1) {
         m.turnAccum -= 1;
         _actionCount++;
+        m.turnAttacks = 0; /* 各アクションごとにリセット（速度>1で複数攻撃を可能に） */
         if (m.hp <= 0) break;
         if (_phase === "moveOnly") {
           monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
