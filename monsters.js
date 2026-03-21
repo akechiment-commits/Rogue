@@ -236,7 +236,7 @@ export const MONS = [
     ],
   },
   /* 6.5: 7階〜 HPが一桁になると次ターンに爆発 */
-  { name: "ボムスライム", hp: 28,  atk: 8,  def: 1,  exp: 55,  speed: 1,   tile: 84, kind: "beast",    baseKind: "bombslime",  monLevel: 1, subtype: "deathbomb",
+  { name: "ボムスライム", hp: 28,  atk: 8,  def: 1,  exp: 55,  speed: 1,   tile: 77, kind: "beast",    baseKind: "bombslime",  monLevel: 1, subtype: "deathbomb",
     levels: [
       { name: "強ボムスライム",   hp: 45,  atk: 12, def: 2,  exp: 88  },
       { name: "覇ボムスライム",   hp: 70,  atk: 16, def: 3,  exp: 138 },
@@ -264,7 +264,7 @@ export const MONS = [
     ],
   },
   /* 8.5: 10階〜 隣接すると自爆 */
-  { name: "爆弾ゴブリン", hp: 18,  atk: 8,  def: 0,  exp: 60,  speed: 2,   tile: 85, kind: "humanoid", baseKind: "bombgoblin", monLevel: 1, subtype: "kamikaze",
+  { name: "爆弾ゴブリン", hp: 18,  atk: 8,  def: 0,  exp: 60,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "bombgoblin", monLevel: 1, subtype: "kamikaze",
     levels: [
       { name: "強爆弾ゴブリン",   hp: 29,  atk: 12, def: 0,  exp: 96  },
       { name: "自爆狂",           hp: 45,  atk: 16, def: 0,  exp: 150 },
@@ -987,6 +987,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   if (m.subtype === "kamikaze" && !m.sealed && !_moveOnly) {
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
       const _kzX = m.x, _kzY = m.y, _kzName = m.name;
+      m.hp = 0; // speed:2による2回目の呼び出しを防ぐ
       killMonster(m, dg, pl, ml, _luFn);
       doExplosion(_kzX, _kzY, dg, pl, ml, null, `${_kzName}の自爆`, null, _luFn);
       return;
