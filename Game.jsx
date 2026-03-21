@@ -1187,19 +1187,33 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       checkShopTheft(p, st.dungeon, ml);
-      /* ===== 4フェーズターン制 ===== */
-      /* Phase 2: モンスター移動フェーズ（攻撃なし） */
+      /* ===== モンスターターン ===== */
+      /* 各モンスターが速度分のアクションを順番に実行（隣接なら攻撃、そうでなければ移動） */
       const _monSnap = new Map();
       for (const _ms of st.dungeon.monsters) _monSnap.set(_ms.id, { x: _ms.x, y: _ms.y });
-      moveMons(st.dungeon, p, ml, "moveOnly");
-      /* Capture monster position changes for animation + mark movers */
       const _mmoves = [], _mattacks = [], _mdamages = [];
+      const _perHitEvents = [], _perHitLunges = [];
+      let _hadActualHit = false;
+      moveMons(st.dungeon, p, ml, "both", {
+        onPlayerHit: (dmg, mon) => {
+          _perHitEvents.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
+          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
+          _hadActualHit = true;
+        },
+        onPlayerMiss: (mon) => {
+          _perHitEvents.push({ type: "miss", x: p.x, y: p.y });
+          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
+        },
+      });
       for (const _ms2 of st.dungeon.monsters) {
         const _snap = _monSnap.get(_ms2.id);
         if (_snap && (_ms2.x !== _snap.x || _ms2.y !== _snap.y)) {
           _mmoves.push({ id: _ms2.id, fromX: _snap.x, fromY: _snap.y, toX: _ms2.x, toY: _ms2.y, tile: _ms2.tile, hp: _ms2.hp, maxHp: _ms2.maxHp });
-          if ((_ms2.speed || 1) <= 1) _ms2._movedThisTurn = true; /* 速度>1なら移動+攻撃を同ターンに許可 */
         }
+      }
+      if (_perHitEvents.length > 0) {
+        if (_hadActualHit && p.hp > 0) _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
+        _mdamages.push(..._perHitEvents);
       }
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
       /* 爆発の指輪：5%の確率で爆発 */
@@ -1234,25 +1248,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
         st.dungeon.pendingBombs = _remaining;
-      }
-      /* Phase 4: モンスター攻撃フェーズ（移動なし） */
-      const _perHitEvents = [];
-      const _perHitLunges = [];
-      let _hadActualHit = false;
-      moveMons(st.dungeon, p, ml, "attackOnly", {
-        onPlayerHit: (dmg, mon) => {
-          _perHitEvents.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
-          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
-          _hadActualHit = true;
-        },
-        onPlayerMiss: (mon) => {
-          _perHitEvents.push({ type: "miss", x: p.x, y: p.y });
-          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
-        },
-      });
-      if (_perHitEvents.length > 0) {
-        if (_hadActualHit && p.hp > 0) _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
-        _mdamages.push(..._perHitEvents);
       }
       monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
       /* 油状態：モンスターのカウントダウン */
