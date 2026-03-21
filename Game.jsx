@@ -1198,7 +1198,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         const _snap = _monSnap.get(_ms2.id);
         if (_snap && (_ms2.x !== _snap.x || _ms2.y !== _snap.y)) {
           _mmoves.push({ id: _ms2.id, fromX: _snap.x, fromY: _snap.y, toX: _ms2.x, toY: _ms2.y, tile: _ms2.tile, hp: _ms2.hp, maxHp: _ms2.maxHp });
-          _ms2._movedThisTurn = true; /* 移動した敵は攻撃フェーズで攻撃不可 */
+          if ((_ms2.speed ?? 1) <= 1) _ms2._movedThisTurn = true; /* 速度1以下の敵は移動後に攻撃不可。倍速敵はそのまま攻撃できる */
         }
       }
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
