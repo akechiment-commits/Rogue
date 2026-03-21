@@ -216,6 +216,13 @@ export const MONS = [
       { name: "屍鬼",             hp: 63,  atk: 16, def: 8,  exp: 70  },
     ],
   },
+  /* 5.6: 7階〜 分裂スライム */
+  { name: "分裂スライム", hp: 22,  atk: 8,  def: 1,  exp: 32,  speed: 1,   tile: 77, kind: "beast",    baseKind: "slime",      monLevel: 1, subtype: "splitter",
+    levels: [
+      { name: "強スライム",       hp: 35,  atk: 12, def: 3,  exp: 51  },
+      { name: "覇スライム",       hp: 55,  atk: 16, def: 5,  exp: 80  },
+    ],
+  },
   /* 5.5: 6階〜 石投げ */
   { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow",
     levels: [
@@ -251,6 +258,13 @@ export const MONS = [
       { name: "精霊コロポックル", hp: 18,  atk: 0,  def: 0,  exp: 120 },
     ],
   },
+  /* 7.7: 9階〜 錆び虫 */
+  { name: "錆虫",         hp: 18,  atk: 7,  def: 1,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",    monLevel: 1, subtype: "ruster",
+    levels: [
+      { name: "強錆虫",           hp: 29,  atk: 10, def: 3,  exp: 64  },
+      { name: "覇錆虫",           hp: 45,  atk: 14, def: 5,  exp: 100 },
+    ],
+  },
   /* 8: 9階〜 杖使い */
   { name: "ウィザード",   hp: 18,  atk: 9,  def: 2,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",     monLevel: 1, subtype: "wanduser", wandEffect: "lightning",
     levels: [
@@ -263,6 +277,13 @@ export const MONS = [
     levels: [
       { name: "強岩霊",           hp: 45,  atk: 14, def: 6,  exp: 72  },
       { name: "岩の王",           hp: 70,  atk: 18, def: 9,  exp: 113 },
+    ],
+  },
+  /* 9.5: 11階〜 壁掘り */
+  { name: "岩砕き",       hp: 50,  atk: 15, def: 5,  exp: 65,  speed: 0.5, tile: 76, kind: "beast",    baseKind: "walldigger", monLevel: 1, wallDigger: true,
+    levels: [
+      { name: "強岩砕き",         hp: 80,  atk: 21, def: 8,  exp: 104 },
+      { name: "覇岩砕き",         hp: 125, atk: 28, def: 11, exp: 163 },
     ],
   },
   /* 10: 11階〜 */
@@ -291,6 +312,13 @@ export const MONS = [
     levels: [
       { name: "強シャーマン",     hp: 48,  atk: 13, def: 6,  exp: 96  },
       { name: "大シャーマン",     hp: 75,  atk: 16, def: 9,  exp: 150 },
+    ],
+  },
+  /* 13.5: 15階〜 引き寄せ */
+  { name: "引きダコ",     hp: 45,  atk: 13, def: 4,  exp: 75,  speed: 1,   tile: 78, kind: "beast",    baseKind: "puller",     monLevel: 1, subtype: "puller",
+    levels: [
+      { name: "強引きダコ",       hp: 72,  atk: 18, def: 7,  exp: 120 },
+      { name: "覇引きダコ",       hp: 113, atk: 24, def: 10, exp: 188 },
     ],
   },
   /* 14: 15階〜 吹き飛ばし杖 */
@@ -861,6 +889,24 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     return;
   }
 
+  /* ===== 分裂スライム：HP半減で一度だけ分裂体を生成 ===== */
+  if (m.subtype === "splitter" && !m.hasSplit && m.hp > 0 && m.hp < m.maxHp / 2) {
+    m.hasSplit = true;
+    const _splitDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+    for (const [_sdx, _sdy] of _splitDirs) {
+      const _snx = m.x + _sdx, _sny = m.y + _sdy;
+      if (!canEnter(dg.map, _snx, _sny)) continue;
+      if (_snx === pl.x && _sny === pl.y) continue;
+      if (dg.monsters.some(o => o.x === _snx && o.y === _sny)) continue;
+      const _child = { ...m, id: uid(), x: _snx, y: _sny,
+        hp: Math.max(1, Math.floor(m.maxHp * 0.35)), maxHp: m.maxHp,
+        hasSplit: true, posHistory: [], turnAccum: 0, patrolTarget: null };
+      dg.monsters.push(_child);
+      ml.push(`${m.name}が分裂した！`);
+      break;
+    }
+  }
+
   /* ===== 詰まり検出（位置履歴で停滞・往復を判定） ===== */
   if (!_attackOnly) {
     m.posHistory = m.posHistory || [];
@@ -980,6 +1026,38 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny)) {
           m.x = _wnx; m.y = _wny;
+        }
+      }
+    }
+    return;
+  }
+
+  /* ===== 壁掘り（岩砕き等）：壁を掘り進んでプレイヤーへ直進 ===== */
+  if (m.wallDigger) {
+    if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
+      if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
+      if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+        return;
+      }
+      if (_moveOnly) return;
+    }
+    if (!_attackOnly) {
+      const _wddx = Math.sign(pl.x - m.x), _wddy = Math.sign(pl.y - m.y);
+      if (_wddx !== 0 || _wddy !== 0) {
+        const _wdnx = m.x + _wddx, _wdny = m.y + _wddy;
+        if (_wdnx > 0 && _wdnx < MW - 1 && _wdny > 0 && _wdny < MH - 1 &&
+            !(_wdnx === pl.x && _wdny === pl.y) &&
+            !dg.monsters.some(o => o !== m && o.x === _wdnx && o.y === _wdny) &&
+            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wdnx && pc.y === _wdny)) {
+          if (dg.map[_wdny][_wdnx] === T.WALL) {
+            dg.map[_wdny][_wdnx] = T.FLOOR;
+            ml.push(`${m.name}が壁を掘り進んだ！`);
+          }
+          if (dg.map[_wdny][_wdnx] !== T.BWALL) {
+            m.x = _wdnx; m.y = _wdny;
+          }
         }
       }
     }
@@ -1202,6 +1280,46 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         return;
       }
       /* 強化・回復対象なし → 通常行動（プレイヤーへ接近）にフォールスルー */
+    }
+
+    /* ── ruster（錆虫等）：攻撃時に武器か防具を錆びさせる ── */
+    if (m.subtype === "ruster" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+      if (_moveOnly) return;
+      if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
+      if (m.turnAttacks < (m.maxAttacks ?? 1)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+        /* 錆び効果：武器→防具の順で50%確率 */
+        const _rstCands = [];
+        if (pl.weapon && !hasAbility(pl.weapon, "no_degrade")) _rstCands.push(pl.weapon);
+        if (pl.armor  && !hasAbility(pl.armor,  "no_degrade")) _rstCands.push(pl.armor);
+        if (_rstCands.length > 0 && Math.random() < 0.5) {
+          const _rt = pick(_rstCands);
+          const _op = _rt.plus || 0;
+          _rt.plus = _op - 1;
+          const _fpp = v => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
+          ml.push(`${m.name}の体液で${_rt.name}が錆びた！(${_fpp(_op)}→${_fpp(_rt.plus)})`);
+        }
+      }
+      return;
+    }
+
+    /* ── puller（引きダコ等）：範囲内プレイヤーを1マス引き寄せる ── */
+    if (!_moveOnly && m.subtype === "puller" && canSee) {
+      const _pullLvl = m.monLevel || 1;
+      const _pullRange = _pullLvl >= 3 ? 8 : _pullLvl >= 2 ? 6 : 4;
+      const _pulDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+      if (_pulDist >= 2 && _pulDist <= _pullRange) {
+        const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
+        const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
+        if (isWalkable(dg.map, _pnx, _pny) && !dg.monsters.some(o => o.x === _pnx && o.y === _pny)) {
+          pl.x = _pnx; pl.y = _pny;
+          ml.push(`${m.name}に引き寄せられた！`);
+          if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("引っ張られて目が覚めた！"); }
+          if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("引っ張られて金縛りが解けた！"); }
+        }
+      }
+      /* 引き寄せ後も通常攻撃・移動にフォールスルー */
     }
 
     const tx = canSee ? pl.x : m.lastPx;

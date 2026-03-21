@@ -79,6 +79,10 @@ export const TILE_NAMES = {
   72: "trap_rockfall",
   73: "trap_timebomb",
   74: "pentacle",
+  75: "rustbug",
+  76: "walldigger",
+  77: "slime",
+  78: "puller",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -155,6 +159,10 @@ export const TILE_RENDER = {
   71: { bg: null, fg: "#8040a0", ch: "^" },
   72: { bg: null, fg: "#a08040", ch: "^" },
   73: { bg: null, fg: "#f04040", ch: "^" },
+  75: { bg: null, fg: "#c06010", ch: "R" },
+  76: { bg: null, fg: "#888866", ch: "X" },
+  77: { bg: null, fg: "#44cc44", ch: "s" },
+  78: { bg: null, fg: "#aa44dd", ch: "P" },
 };
 
 /* Canvas drawing helper */
