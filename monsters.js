@@ -354,6 +354,27 @@ export const MONS = [
       { name: "風の覇者",         hp: 70,  atk: 20, def: 9,  exp: 163 },
     ],
   },
+  /* 14.2: 混乱の杖を振る術師 */
+  { name: "混乱術師",   hp: 30,  atk: 11, def: 3,  exp: 72,  speed: 1,   tile: 81, kind: "humanoid", baseKind: "confusemage", monLevel: 1, subtype: "wanduser", wandEffect: "confuse_wand",
+    levels: [
+      { name: "強混乱術師",       hp: 48,  atk: 15, def: 6,  exp: 115 },
+      { name: "大混乱術師",       hp: 75,  atk: 19, def: 9,  exp: 180 },
+    ],
+  },
+  /* 14.3: 眠りの杖を振る術師 */
+  { name: "眠り術師",   hp: 32,  atk: 12, def: 4,  exp: 80,  speed: 1,   tile: 82, kind: "humanoid", baseKind: "sleepmage",  monLevel: 1, subtype: "wanduser", wandEffect: "sleep_wand",
+    levels: [
+      { name: "強眠り術師",       hp: 51,  atk: 16, def: 7,  exp: 128 },
+      { name: "大眠り術師",       hp: 80,  atk: 20, def: 11, exp: 200 },
+    ],
+  },
+  /* 14.4: テレポートの杖を振る術師 */
+  { name: "転移術師",   hp: 35,  atk: 13, def: 4,  exp: 90,  speed: 1,   tile: 83, kind: "humanoid", baseKind: "warpmage",   monLevel: 1, subtype: "wanduser", wandEffect: "teleport_wand",
+    levels: [
+      { name: "強転移術師",       hp: 56,  atk: 17, def: 7,  exp: 144 },
+      { name: "大転移術師",       hp: 87,  atk: 21, def: 11, exp: 225 },
+    ],
+  },
   /* 14.5: 15階〜 炎モンスター */
   { name: "火ダルマ",     hp: 55,  atk: 20, def: 4,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",  monLevel: 1, float: true,
     levels: [

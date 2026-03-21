@@ -85,6 +85,9 @@ export const TILE_NAMES = {
   78: "puller",
   79: "gelcube",
   80: "synthmonster",
+  81: "confusemage",
+  82: "sleepmage",
+  83: "warpmage",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -167,6 +170,9 @@ export const TILE_RENDER = {
   78: { bg: null, fg: "#aa44dd", ch: "P" },
   79: { bg: null, fg: "#88ddaa", ch: "G" },
   80: { bg: null, fg: "#ddcc44", ch: "Q" },
+  81: { bg: null, fg: "#dd44ff", ch: "c" },
+  82: { bg: null, fg: "#44ff88", ch: "z" },
+  83: { bg: null, fg: "#ff9900", ch: "w" },
 };
 
 /* Canvas drawing helper */

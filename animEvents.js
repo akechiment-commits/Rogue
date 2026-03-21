@@ -31,6 +31,7 @@ const WAND_COLORS = {
   confuse: "#ff40ff", darkness: "#606080", bewitch: "#ff80c0", levelup: "#ffff60",
   seal: "#8040e0", knockback: "#20e0c0", swap: "#ff8800", dig: "#aa8844",
   leap: "#40ff80", ice_wand: "#80ddff", curse_wand: "#9020b0", blowback_wand: "#20e0c0",
+  confuse_wand: "#dd44ff", sleep_wand: "#44ff88", teleport_wand: "#ff9900",
 };
 
 /*

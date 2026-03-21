@@ -916,6 +916,118 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
           }
           if (!_bwHit) ml.push("吹き飛ばしの魔法弾は虚空に消えた。");
+        } else if (_we === "confuse_wand") {
+          ml.push(`${m.name}が混乱の杖を振った！`);
+          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "confuse_wand");
+          let _cfHit = false;
+          for (let _d = 1; _d < 20; _d++) {
+            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
+            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _cfHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _cfHit = true; break; }
+            if (_tx === pl.x && _ty === pl.y) {
+              if (hasAbility(pl.armor, "wand_reflect")) {
+                ml.push("反射の鎧が混乱の魔法弾を反射した！");
+                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#dd44ff" });
+                m.confusedTurns = (m.confusedTurns || 0) + 10;
+                ml.push(`混乱が${m.name}に反射した！(混乱10ターン)`);
+              } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+                ml.push("祝福された聖域の加護が混乱の魔法を防いだ！");
+              } else if ((pl.statusImmune || 0) > 0) {
+                ml.push("混乱の魔法弾を受けた！しかし状態防止中のため効かなかった！");
+              } else if (hasAbility(pl.armor, "confuse_proof")) {
+                ml.push("混乱の魔法弾を受けた！しかし防具が防いだ！(耐混乱)");
+              } else {
+                pl.confusedTurns = (pl.confusedTurns || 0) + rng(5, 10);
+                ml.push(`混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
+              }
+              _cfHit = true; break;
+            }
+            const _cfm = monsterAt(dg, _tx, _ty);
+            if (_cfm) {
+              _cfm.confusedTurns = (_cfm.confusedTurns || 0) + 20;
+              ml.push(`混乱の魔法弾が${_cfm.name}に命中！混乱した！`);
+              _cfHit = true; break;
+            }
+          }
+          if (!_cfHit) ml.push("混乱の魔法弾は虚空に消えた。");
+        } else if (_we === "sleep_wand") {
+          ml.push(`${m.name}が眠りの杖を振った！`);
+          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "sleep_wand");
+          let _slHit = false;
+          for (let _d = 1; _d < 20; _d++) {
+            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
+            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _slHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _slHit = true; break; }
+            if (_tx === pl.x && _ty === pl.y) {
+              if (hasAbility(pl.armor, "wand_reflect")) {
+                ml.push("反射の鎧が眠りの魔法弾を反射した！");
+                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#44ff88" });
+                m.sleepTurns = (m.sleepTurns || 0) + 10;
+                ml.push(`眠りが${m.name}に反射した！(眠り10ターン)`);
+              } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+                ml.push("祝福された聖域の加護が眠りの魔法を防いだ！");
+              } else if ((pl.statusImmune || 0) > 0) {
+                ml.push("眠りの魔法弾を受けた！しかし状態防止中のため効かなかった！");
+              } else if (hasAbility(pl.armor, "sleep_proof")) {
+                ml.push("眠りの魔法弾を受けた！しかし防具が防いだ！(耐眠)");
+              } else {
+                pl.sleepTurns = (pl.sleepTurns || 0) + rng(5, 10);
+                ml.push(`眠りの魔法弾を受けた！眠ってしまった！(${pl.sleepTurns}ターン)`);
+              }
+              _slHit = true; break;
+            }
+            const _slm = monsterAt(dg, _tx, _ty);
+            if (_slm) {
+              _slm.sleepTurns = (_slm.sleepTurns || 0) + 20;
+              ml.push(`眠りの魔法弾が${_slm.name}に命中！眠ってしまった！`);
+              _slHit = true; break;
+            }
+          }
+          if (!_slHit) ml.push("眠りの魔法弾は虚空に消えた。");
+        } else if (_we === "teleport_wand") {
+          ml.push(`${m.name}がテレポートの杖を振った！`);
+          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "teleport_wand");
+          const _tpRand = (exX, exY) => {
+            const _pts = [];
+            for (let _fy = 1; _fy < MH - 1; _fy++) for (let _fx = 1; _fx < MW - 1; _fx++) {
+              if (dg.map[_fy][_fx] === T.FLOOR &&
+                  !dg.monsters.some(o => o.x === _fx && o.y === _fy) &&
+                  !(_fx === pl.x && _fy === pl.y) &&
+                  !(_fx === exX && _fy === exY))
+                _pts.push({ x: _fx, y: _fy });
+            }
+            return _pts.length > 0 ? pick(_pts) : null;
+          };
+          let _tpHit = false;
+          for (let _d = 1; _d < 20; _d++) {
+            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
+            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _tpHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _tpHit = true; break; }
+            if (_tx === pl.x && _ty === pl.y) {
+              if (hasAbility(pl.armor, "wand_reflect")) {
+                ml.push("反射の鎧がテレポートの魔法弾を反射した！");
+                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#ff9900" });
+                const _rp = _tpRand(m.x, m.y);
+                if (_rp) { m.x = _rp.x; m.y = _rp.y; ml.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
+              } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+                ml.push("祝福された聖域の加護がテレポートの魔法を防いだ！");
+              } else if (dg.pentacles?.some(pc => pc.kind === "teleport" && pc.cursed)) {
+                ml.push("呪われたテレポートの魔方陣がテレポートを阻んだ！");
+              } else {
+                const _rp2 = _tpRand(pl.x, pl.y);
+                if (_rp2) { pl.x = _rp2.x; pl.y = _rp2.y; ml.push("テレポートの魔法弾を受けた！どこかへテレポートした！"); }
+                else ml.push("テレポートに失敗した。");
+              }
+              _tpHit = true; break;
+            }
+            const _tpm = monsterAt(dg, _tx, _ty);
+            if (_tpm) {
+              const _rp3 = _tpRand(_tpm.x, _tpm.y);
+              if (_rp3) { _tpm.x = _rp3.x; _tpm.y = _rp3.y; ml.push(`テレポートの魔法弾が${_tpm.name}に命中！どこかへテレポートした！`); }
+              _tpHit = true; break;
+            }
+          }
+          if (!_tpHit) ml.push("テレポートの魔法弾は虚空に消えた。");
         }
       },
       monsterDropFn: (m, dg2, ml2) => monsterDrop(m, dg2, ml2, pl),
