@@ -929,16 +929,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     dg.monsters.forEach((m) => {
       if (m.hp <= 0) return;
       if (_phase === "attackOnly") {
-        /* 移動した敵は攻撃フェーズをスキップ */
+        /* 移動した敵は攻撃フェーズをスキップ（speed<=1のみ。倍速敵は移動後も攻撃できる） */
         if (m._movedThisTurn) { delete m._movedThisTurn; return; }
-        /* 攻撃フェーズ：移動フェーズで保存したアクション回数分だけ攻撃を試みる */
-        const _atkCount = m._phaseActionCount ?? 1;
-        delete m._phaseActionCount;
+        delete m._phaseActionCount; /* 攻撃フェーズは速度に関わらず常に1回のみ */
         m.turnAttacks = 0;
-        for (let _ai = 0; _ai < _atkCount; _ai++) {
-          if (m.hp <= 0) break;
-          monsterAI(m, dg, pl, ml, { ...opts, attackOnly: true });
-        }
+        if (m.hp > 0) monsterAI(m, dg, pl, ml, { ...opts, attackOnly: true });
         return;
       }
       /* moveOnly / both: ターン蓄積・turnAttacksリセットは移動フェーズで */
