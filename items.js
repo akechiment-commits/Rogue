@@ -862,7 +862,7 @@ export const TRAPS = [
  * mineExplosion: true のとき地雷モード（炎無効でない敵は消滅＋範囲内地雷を連鎖爆発）
  */
 let _mineExplosionDepth = 0;
-export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false) {
+export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false) {
   if (mineExplosion) {
     if (_mineExplosionDepth > 4) return;
     _mineExplosionDepth++;
@@ -922,12 +922,12 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (_hasExPentacle || ringExplosion || mineExplosion) {
           /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅 */
           m.hp = 0;
-          _killed.add(m); killMonster(m, dg, p, ml, luFn, ringExplosion);
+          _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion);
         } else {
           const md = proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15);
           m.hp -= md;
           ml.push(`爆風で${m.name}に${md}ダメージ！`);
-          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn); }
+          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
         }
       }
       /* アイテム破壊 */
