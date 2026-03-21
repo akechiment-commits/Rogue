@@ -948,6 +948,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               ml.push(`混乱の魔法弾が${_cfm.name}に命中！混乱した！`);
               _cfHit = true; break;
             }
+            const _cfbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
+            if (_cfbb) { ml.push(`混乱の魔法弾が${_cfbb.name}に命中したが効果がなかった。`); _cfHit = true; break; }
+            const _cfit = itemAt(dg, _tx, _ty);
+            if (_cfit) {
+              ml.push(`混乱の魔法弾が${itemDisplayName(_cfit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に命中したが効果がなかった。`);
+              _cfHit = true; break;
+            }
+            const _cftr = dg.traps.find(t => t.x === _tx && t.y === _ty);
+            if (_cftr) { ml.push(`混乱の魔法弾が${_cftr.name}に命中したが効果がなかった。`); _cfHit = true; break; }
           }
           if (!_cfHit) ml.push("混乱の魔法弾は虚空に消えた。");
         } else if (_we === "sleep_wand") {
@@ -982,6 +991,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               ml.push(`眠りの魔法弾が${_slm.name}に命中！眠ってしまった！`);
               _slHit = true; break;
             }
+            const _slbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
+            if (_slbb) { ml.push(`眠りの魔法弾が${_slbb.name}に命中したが効果がなかった。`); _slHit = true; break; }
+            const _slit = itemAt(dg, _tx, _ty);
+            if (_slit) {
+              ml.push(`眠りの魔法弾が${itemDisplayName(_slit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に命中したが効果がなかった。`);
+              _slHit = true; break;
+            }
+            const _sltr = dg.traps.find(t => t.x === _tx && t.y === _ty);
+            if (_sltr) { ml.push(`眠りの魔法弾が${_sltr.name}に命中したが効果がなかった。`); _slHit = true; break; }
           }
           if (!_slHit) ml.push("眠りの魔法弾は虚空に消えた。");
         } else if (_we === "teleport_wand") {
@@ -1024,6 +1042,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (_tpm) {
               const _rp3 = _tpRand(_tpm.x, _tpm.y);
               if (_rp3) { _tpm.x = _rp3.x; _tpm.y = _rp3.y; ml.push(`テレポートの魔法弾が${_tpm.name}に命中！どこかへテレポートした！`); }
+              _tpHit = true; break;
+            }
+            const _tpbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
+            if (_tpbb) {
+              const _tpbbPts = [];
+              for (let _fy = 1; _fy < MH - 1; _fy++) for (let _fx = 1; _fx < MW - 1; _fx++) {
+                if (dg.map[_fy][_fx] === T.FLOOR &&
+                    !dg.monsters.some(o => o.x === _fx && o.y === _fy) &&
+                    !dg.bigboxes.some(b => b !== _tpbb && b.x === _fx && b.y === _fy) &&
+                    !(_fx === pl.x && _fy === pl.y) && !(_fx === _tpbb.x && _fy === _tpbb.y))
+                  _tpbbPts.push({ x: _fx, y: _fy });
+              }
+              const _rp4 = _tpbbPts.length > 0 ? pick(_tpbbPts) : null;
+              if (_rp4) { _tpbb.x = _rp4.x; _tpbb.y = _rp4.y; ml.push(`テレポートの魔法弾が${_tpbb.name}に命中！どこかへテレポートした！`); }
+              else ml.push("テレポートに失敗した。");
+              _tpHit = true; break;
+            }
+            const _tpit = itemAt(dg, _tx, _ty);
+            if (_tpit) {
+              const _tpitDN = itemDisplayName(_tpit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              const _rp5 = _tpRand(_tpit.x, _tpit.y);
+              if (_rp5) { _tpit.x = _rp5.x; _tpit.y = _rp5.y; ml.push(`テレポートの魔法弾が${_tpitDN}に命中！どこかへテレポートした！`); }
+              else ml.push("テレポートに失敗した。");
+              _tpHit = true; break;
+            }
+            const _tptr = dg.traps.find(t => t.x === _tx && t.y === _ty);
+            if (_tptr) {
+              const _rp6 = _tpRand(_tptr.x, _tptr.y);
+              if (_rp6) { _tptr.x = _rp6.x; _tptr.y = _rp6.y; _tptr.revealed = false; ml.push(`テレポートの魔法弾が${_tptr.name}に命中！罠がどこかへテレポートした！`); }
+              else ml.push("テレポートに失敗した。");
               _tpHit = true; break;
             }
           }
