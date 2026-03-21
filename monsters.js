@@ -1032,8 +1032,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     return;
   }
 
-  /* ===== 壁掘り（岩砕き等）：壁を掘り進んでプレイヤーへ直進 ===== */
-  if (m.wallDigger) {
+  /* ===== 壁掘り（岩砕き等）：覚醒時は壁を掘り進んでプレイヤーへ直進 ===== */
+  if (m.wallDigger && m.aware) {
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) return;
       if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
@@ -1304,8 +1304,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    /* ── puller（引きダコ等）：範囲内プレイヤーを1マス引き寄せる ── */
-    if (!_moveOnly && m.subtype === "puller" && canSee) {
+    /* ── puller（引きダコ等）：範囲内プレイヤーを1マス引き寄せる（視線不要） ── */
+    if (!_attackOnly && m.subtype === "puller") {
       const _pullLvl = m.monLevel || 1;
       const _pullRange = _pullLvl >= 3 ? 8 : _pullLvl >= 2 ? 6 : 4;
       const _pulDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
@@ -1553,6 +1553,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
       m.posHistory = [];
       m.patrolTarget = null;
+    }
+    /* ── 壁掘り：未覚醒時に低確率でランダムな隣接壁を掘る ── */
+    if (m.wallDigger && Math.random() < 0.12) {
+      const _rdDirs = [[0,-1],[0,1],[-1,0],[1,0]].sort(() => Math.random() - 0.5);
+      for (const [_rddx, _rddy] of _rdDirs) {
+        const _rdnx = m.x + _rddx, _rdny = m.y + _rddy;
+        if (_rdnx <= 0 || _rdnx >= MW - 1 || _rdny <= 0 || _rdny >= MH - 1) continue;
+        if (dg.map[_rdny][_rdnx] === T.WALL) {
+          dg.map[_rdny][_rdnx] = T.FLOOR;
+          ml.push(`${m.name}が壁を掘った。`);
+          break;
+        }
+      }
     }
   }
 }
