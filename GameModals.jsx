@@ -7,11 +7,16 @@ import { TILE_NAMES, TILE_RENDER, customTileImages } from "./render.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
 
 /* ===== Tile Icon (inventory) ===== */
-function TileIcon({ tileIdx, size = 16 }) {
+const TYPE_TILE_FALLBACK = {
+  potion: 16, scroll: 18, food: 19, weapon: 20, armor: 21,
+  gold: 22, arrow: 23, wand: 24, pen: 42, spellbook: 43, ring: 60,
+};
+function TileIcon({ item, size = 16 }) {
+  const tileIdx = item.tile ?? TYPE_TILE_FALLBACK[item.type];
   const ref = useRef(null);
   useEffect(() => {
     const canvas = ref.current;
-    if (!canvas) return;
+    if (!canvas || tileIdx == null) return;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, size, size);
     const ci = customTileImages[tileIdx];
@@ -29,6 +34,7 @@ function TileIcon({ tileIdx, size = 16 }) {
       }
     }
   });
+  if (tileIdx == null) return null;
   return (
     <canvas
       ref={ref}
@@ -1825,7 +1831,7 @@ export function InventoryModal({
                 color: it.shopPrice ? "#ff8844" : _isUnidentInv ? "#ff8" : _isIdentBCUnknown ? "#6d6" : "#ccc",
               }}>
                 <span style={{ display: "flex", alignItems: "center" }}>
-                  {it.tile != null && <TileIcon tileIdx={it.tile} size={16} />}
+                  <TileIcon item={it} size={16} />
                   {iLabel(it)}
                   {it.shopPrice
                     ? <span style={{ color: "#ff6622", fontSize: 10, marginLeft: 4 }}>〔未払:{it.shopPrice}G〕</span>
