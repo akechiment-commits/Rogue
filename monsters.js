@@ -264,10 +264,10 @@ export const MONS = [
     ],
   },
   /* 8.5: 10階〜 隣接すると自爆 */
-  { name: "爆弾ゴブリン", hp: 18,  atk: 8,  def: 0,  exp: 60,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "bombgoblin", monLevel: 1, subtype: "kamikaze",
+  { name: "爆弾ゴブリン", hp: 1,   atk: 8,  def: 0,  exp: 60,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "bombgoblin", monLevel: 1, subtype: "kamikaze",
     levels: [
-      { name: "強爆弾ゴブリン",   hp: 29,  atk: 12, def: 0,  exp: 96  },
-      { name: "自爆狂",           hp: 45,  atk: 16, def: 0,  exp: 150 },
+      { name: "強爆弾ゴブリン",   hp: 1,   atk: 12, def: 0,  exp: 96  },
+      { name: "自爆狂",           hp: 1,   atk: 16, def: 0,  exp: 150 },
     ],
   },
   /* 7.5: 8階〜 盗みモンスター */
