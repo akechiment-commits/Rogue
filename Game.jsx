@@ -928,8 +928,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧が混乱の魔法弾を反射した！");
                 pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#dd44ff" });
-                m.confusedTurns = (m.confusedTurns || 0) + 10;
-                ml.push(`混乱が${m.name}に反射した！(混乱10ターン)`);
+                const _cfRefPrev = m.confusedTurns || 0;
+                m.confusedTurns = _cfRefPrev + 10;
+                ml.push(_cfRefPrev > 0
+                  ? `混乱が${m.name}に反射した！混乱が延長された！(混乱${m.confusedTurns}ターン)`
+                  : `混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
               } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
                 ml.push("祝福された聖域の加護が混乱の魔法を防いだ！");
               } else if ((pl.statusImmune || 0) > 0) {
@@ -937,15 +940,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               } else if (hasAbility(pl.armor, "confuse_proof")) {
                 ml.push("混乱の魔法弾を受けた！しかし防具が防いだ！(耐混乱)");
               } else {
-                pl.confusedTurns = (pl.confusedTurns || 0) + rng(5, 10);
-                ml.push(`混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
+                const _cfPlPrev = pl.confusedTurns || 0;
+                pl.confusedTurns = _cfPlPrev + rng(5, 10);
+                ml.push(_cfPlPrev > 0
+                  ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)`
+                  : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
               }
               _cfHit = true; break;
             }
             const _cfm = monsterAt(dg, _tx, _ty);
             if (_cfm) {
-              _cfm.confusedTurns = (_cfm.confusedTurns || 0) + 20;
-              ml.push(`混乱の魔法弾が${_cfm.name}に命中！混乱した！`);
+              const _cfmPrev = _cfm.confusedTurns || 0;
+              _cfm.confusedTurns = _cfmPrev + 20;
+              ml.push(_cfmPrev > 0
+                ? `混乱の魔法弾が${_cfm.name}に命中！混乱が延長された！(混乱${_cfm.confusedTurns}ターン)`
+                : `混乱の魔法弾が${_cfm.name}に命中！混乱した！(混乱${_cfm.confusedTurns}ターン)`);
               _cfHit = true; break;
             }
             const _cfbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
@@ -971,8 +980,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧が眠りの魔法弾を反射した！");
                 pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#44ff88" });
-                m.sleepTurns = (m.sleepTurns || 0) + 10;
-                ml.push(`眠りが${m.name}に反射した！(眠り10ターン)`);
+                const _slRefPrev = m.sleepTurns || 0;
+                m.sleepTurns = _slRefPrev + 10;
+                ml.push(_slRefPrev > 0
+                  ? `眠りが${m.name}に反射した！眠りが延長された！(眠り${m.sleepTurns}ターン)`
+                  : `眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
               } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
                 ml.push("祝福された聖域の加護が眠りの魔法を防いだ！");
               } else if ((pl.statusImmune || 0) > 0) {
@@ -980,15 +992,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               } else if (hasAbility(pl.armor, "sleep_proof")) {
                 ml.push("眠りの魔法弾を受けた！しかし防具が防いだ！(耐眠)");
               } else {
-                pl.sleepTurns = (pl.sleepTurns || 0) + rng(5, 10);
-                ml.push(`眠りの魔法弾を受けた！眠ってしまった！(${pl.sleepTurns}ターン)`);
+                const _slPlPrev = pl.sleepTurns || 0;
+                pl.sleepTurns = _slPlPrev + rng(5, 10);
+                ml.push(_slPlPrev > 0
+                  ? `眠りの魔法弾を受けた！眠りが延長された！(眠り${pl.sleepTurns}ターン)`
+                  : `眠りの魔法弾を受けた！眠ってしまった！(眠り${pl.sleepTurns}ターン)`);
               }
               _slHit = true; break;
             }
             const _slm = monsterAt(dg, _tx, _ty);
             if (_slm) {
-              _slm.sleepTurns = (_slm.sleepTurns || 0) + 20;
-              ml.push(`眠りの魔法弾が${_slm.name}に命中！眠ってしまった！`);
+              const _slmPrev = _slm.sleepTurns || 0;
+              _slm.sleepTurns = _slmPrev + 20;
+              ml.push(_slmPrev > 0
+                ? `眠りの魔法弾が${_slm.name}に命中！眠りが延長された！(眠り${_slm.sleepTurns}ターン)`
+                : `眠りの魔法弾が${_slm.name}に命中！眠ってしまった！(眠り${_slm.sleepTurns}ターン)`);
               _slHit = true; break;
             }
             const _slbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
