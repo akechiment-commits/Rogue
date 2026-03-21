@@ -2378,6 +2378,16 @@ export function monsterDrop(m, dg, ml, p = null) {
     }
     m.heldItems = [];
   }
+  /* 合成獣：synthBoxの中身を全てその場にばらまく */
+  if (m.baseKind === "synthmonster" && m.synthBox?.contents?.length > 0) {
+    const _ft = new Set();
+    for (const it of m.synthBox.contents) {
+      const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
+      if (_spr) { soakItemIntoSpring(_spr, it, ml, dg); }
+      else { placeItemAt(dg, m.x, m.y, it, ml, _ft, 0, p); }
+    }
+    m.synthBox.contents = [];
+  }
   /* Fixed drops for item-using enemy subtypes */
   if (m.subtype === "archer") {
     drops.push(makeArrow(rng(3, 8)));

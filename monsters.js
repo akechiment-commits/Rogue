@@ -334,10 +334,17 @@ export const MONS = [
     ],
   },
   /* 13.5: 15階〜 引き寄せ */
-  { name: "引きダコ",     hp: 45,  atk: 13, def: 4,  exp: 75,  speed: 1,   tile: 78, kind: "beast",    baseKind: "puller",     monLevel: 1, subtype: "puller",
+  { name: "引きダコ",     hp: 45,  atk: 13, def: 4,  exp: 75,  speed: 1,   tile: 78, kind: "beast",    baseKind: "puller",       monLevel: 1, subtype: "puller",
     levels: [
       { name: "強引きダコ",       hp: 72,  atk: 18, def: 7,  exp: 120 },
       { name: "覇引きダコ",       hp: 113, atk: 24, def: 10, exp: 188 },
+    ],
+  },
+  /* 13.6: 15階〜 合成モンスター（投げたアイテムを飲み込んで合成、飲むたびに加速） */
+  { name: "合成獣",       hp: 40,  atk: 11, def: 3,  exp: 80,  speed: 0.5, tile: 80, kind: "beast",    baseKind: "synthmonster", monLevel: 1,
+    levels: [
+      { name: "強合成獣",         hp: 64,  atk: 16, def: 6,  exp: 128 },
+      { name: "覇合成獣",         hp: 100, atk: 21, def: 9,  exp: 200 },
     ],
   },
   /* 14: 15階〜 吹き飛ばし杖 */

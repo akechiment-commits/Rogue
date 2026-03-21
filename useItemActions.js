@@ -31,6 +31,13 @@ function _forceUnequip(p, it) {
   }
 }
 
+/* 合成獣：アイテムを飲み込むたびに速度を上げる */
+function _synthMonsterSpeedup(m, ml) {
+  const prev = m.speed || 0.5;
+  m.speed = Math.min(3, prev + 0.5);
+  if (m.speed !== prev) ml.push(`${m.name}の動きが速くなった！(速度${m.speed})`);
+}
+
 export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
   setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
@@ -2089,6 +2096,12 @@ export function useItemActions({
                 /* 火ダルマ：非遠投の薬を燃やして消滅 */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！`);
                 lx = tx; ly = ty; _fdBurned = true; break;
+              } else if (m.baseKind === "synthmonster") {
+                /* 合成獣：薬を飲み込んで合成 */
+                m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
+                bigboxAddItem(m.synthBox, it, dg, ml);
+                _synthMonsterSpeedup(m, ml);
+                lx = tx; ly = ty; _fdBurned = true; break;
               } else {
                 lx = tx; ly = ty; break;
               }
@@ -2239,6 +2252,11 @@ export function useItemActions({
                   if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
                   else ml.push("ここは1階だ。何も起こらなかった。");
                 }
+              } else if (!_isFarcast && m.baseKind === "synthmonster") {
+                /* 合成獣：アイテムを飲み込んで合成 */
+                m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
+                bigboxAddItem(m.synthBox, it, dg, ml);
+                _synthMonsterSpeedup(m, ml);
               } else {
                 m.hp -= td;
                 ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
