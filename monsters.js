@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, fireTrapItem, cookFoodMeta, soakItemIntoSpring } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring } from "./items.js";
 import { pushMonsterBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -235,6 +235,13 @@ export const MONS = [
       { name: "覇スライム",       hp: 55,  atk: 16, def: 5,  exp: 80  },
     ],
   },
+  /* 6.5: 7階〜 HPが一桁になると次ターンに爆発 */
+  { name: "ボムスライム", hp: 28,  atk: 8,  def: 1,  exp: 55,  speed: 1,   tile: 84, kind: "beast",    baseKind: "bombslime",  monLevel: 1, subtype: "deathbomb",
+    levels: [
+      { name: "強ボムスライム",   hp: 45,  atk: 12, def: 2,  exp: 88  },
+      { name: "覇ボムスライム",   hp: 70,  atk: 16, def: 3,  exp: 138 },
+    ],
+  },
   /* 5.5: 6階〜 石投げ */
   { name: "ワッカ",       hp: 18,  atk: 9,  def: 1,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow",
     levels: [
@@ -254,6 +261,13 @@ export const MONS = [
     levels: [
       { name: "強ウルフ",         hp: 32,  atk: 15, def: 4,  exp: 64  },
       { name: "フェンリル",       hp: 50,  atk: 20, def: 7,  exp: 100 },
+    ],
+  },
+  /* 8.5: 10階〜 隣接すると自爆 */
+  { name: "爆弾ゴブリン", hp: 18,  atk: 8,  def: 0,  exp: 60,  speed: 2,   tile: 85, kind: "humanoid", baseKind: "bombgoblin", monLevel: 1, subtype: "kamikaze",
+    levels: [
+      { name: "強爆弾ゴブリン",   hp: 29,  atk: 12, def: 0,  exp: 96  },
+      { name: "自爆狂",           hp: 45,  atk: 16, def: 0,  exp: 150 },
     ],
   },
   /* 7.5: 8階〜 盗みモンスター */
@@ -951,6 +965,31 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       dg.monsters.push(_child);
       ml.push(`${m.name}が分裂した！`);
       break;
+    }
+  }
+
+  /* ===== ボムスライム：HPが一桁になると警告→次ターンに爆発 ===== */
+  if (m.subtype === "deathbomb" && m.hp > 0 && m.hp <= 9 && !m.deathBombExploded) {
+    if (m.deathBombReady) {
+      m.deathBombExploded = true;
+      const _dbX = m.x, _dbY = m.y, _dbName = m.name;
+      killMonster(m, dg, pl, ml, _luFn);
+      doExplosion(_dbX, _dbY, dg, pl, ml, null, `${_dbName}の爆発`, null, _luFn);
+      return;
+    } else {
+      m.deathBombReady = true;
+      ml.push(`${m.name}が点滅し始めた！爆発寸前だ！`);
+      return;
+    }
+  }
+
+  /* ===== 爆弾ゴブリン：プレイヤーに隣接すると自爆 ===== */
+  if (m.subtype === "kamikaze" && !m.sealed && !_moveOnly) {
+    if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
+      const _kzX = m.x, _kzY = m.y, _kzName = m.name;
+      killMonster(m, dg, pl, ml, _luFn);
+      doExplosion(_kzX, _kzY, dg, pl, ml, null, `${_kzName}の自爆`, null, _luFn);
+      return;
     }
   }
 
