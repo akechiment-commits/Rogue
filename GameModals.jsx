@@ -1,10 +1,43 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages } from "./render.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
+
+/* ===== Tile Icon (inventory) ===== */
+function TileIcon({ tileIdx, size = 16 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, size, size);
+    const ci = customTileImages[tileIdx];
+    if (ci) {
+      ctx.drawImage(ci, 0, 0, size, size);
+    } else {
+      const tr = TILE_RENDER[tileIdx];
+      if (tr) {
+        if (tr.bg) { ctx.fillStyle = tr.bg; ctx.fillRect(0, 0, size, size); }
+        ctx.fillStyle = tr.fg || "#aaa";
+        ctx.font = `bold ${Math.floor(size * 0.75)}px monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(tr.ch, size / 2, size / 2 + 1);
+      }
+    }
+  });
+  return (
+    <canvas
+      ref={ref}
+      width={size}
+      height={size}
+      style={{ imageRendering: "pixelated", marginRight: 5, verticalAlign: "middle", flexShrink: 0 }}
+    />
+  );
+}
 
 /* ===== Tile Editor Modal ===== */
 export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile, setCtLoaded }) {
@@ -1791,7 +1824,8 @@ export function InventoryModal({
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 color: it.shopPrice ? "#ff8844" : _isUnidentInv ? "#ff8" : _isIdentBCUnknown ? "#6d6" : "#ccc",
               }}>
-                <span>
+                <span style={{ display: "flex", alignItems: "center" }}>
+                  {it.tile != null && <TileIcon tileIdx={it.tile} size={16} />}
                   {iLabel(it)}
                   {it.shopPrice
                     ? <span style={{ color: "#ff6622", fontSize: 10, marginLeft: 4 }}>〔未払:{it.shopPrice}G〕</span>
