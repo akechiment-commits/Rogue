@@ -941,7 +941,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 ml.push("混乱の魔法弾を受けた！しかし防具が防いだ！(耐混乱)");
               } else {
                 const _cfPlPrev = pl.confusedTurns || 0;
-                pl.confusedTurns = _cfPlPrev + rng(5, 10);
+                pl.confusedTurns = _cfPlPrev + 5;
                 ml.push(_cfPlPrev > 0
                   ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)`
                   : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
