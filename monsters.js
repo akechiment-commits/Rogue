@@ -24,6 +24,18 @@ function _fireDemonBurnItems(m, dg, ml) {
   if (_toRemove.size > 0) dg.items = dg.items.filter(it => !_toRemove.has(it));
 }
 
+/* ===== ゼラチンキューブ：移動後に床のアイテムを全て取り込む ===== */
+function _gelCubeAbsorbItems(m, dg, ml) {
+  const _onTile = dg.items.filter(it => it.x === m.x && it.y === m.y);
+  if (_onTile.length === 0) return;
+  m.heldItems = m.heldItems || [];
+  for (const it of _onTile) {
+    m.heldItems.push(it);
+    ml.push(`${m.name}が「${it.name}」を取り込んだ！`);
+  }
+  dg.items = dg.items.filter(it => !(it.x === m.x && it.y === m.y));
+}
+
 /* ===== 境界・通行判定ヘルパー ===== */
 function inBounds(x, y) { return x >= 0 && x < MW && y >= 0 && y < MH; }
 function isWalkable(map, x, y) { return inBounds(x, y) && map[y][x] !== T.WALL && map[y][x] !== T.BWALL; }
@@ -284,6 +296,13 @@ export const MONS = [
     levels: [
       { name: "強岩砕き",         hp: 80,  atk: 21, def: 8,  exp: 104 },
       { name: "覇岩砕き",         hp: 125, atk: 28, def: 11, exp: 163 },
+    ],
+  },
+  /* 9.8: 11階〜 ゼラチンキューブ */
+  { name: "ゼラチンキューブ", hp: 60, atk: 12, def: 3,  exp: 70,  speed: 0.5, tile: 79, kind: "beast", baseKind: "gelcube", monLevel: 1,
+    levels: [
+      { name: "強ゼラチンキューブ", hp: 96,  atk: 17, def: 6,  exp: 112 },
+      { name: "覇ゼラチンキューブ", hp: 150, atk: 22, def: 9,  exp: 175 },
     ],
   },
   /* 10: 11階〜 */
@@ -1389,6 +1408,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.x = next.x;
         m.y = next.y;
         if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         if (_forceAlt) m.posHistory = [];
         _checkGravityTrap(m, dg, pl, ml, _luFn);
         return;
@@ -1407,6 +1427,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
           if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+          if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
           _checkGravityTrap(m, dg, pl, ml, _luFn);
           return;
         }
@@ -1440,6 +1461,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
         m.x = _ab.x; m.y = _ab.y;
         if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         _checkGravityTrap(m, dg, pl, ml, _luFn);
         return;
       }
@@ -1457,6 +1479,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.dir = { x: _fdx, y: _fdy };
         m.x = _fnx; m.y = _fny;
         if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
+        if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         m.posHistory = [];
         return;
       }

@@ -2368,6 +2368,16 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
 
 export function monsterDrop(m, dg, ml, p = null) {
   const drops = [];
+  /* ゼラチンキューブ：取り込んでいたアイテムを全てその場にばらまく */
+  if (m.baseKind === "gelcube" && m.heldItems?.length > 0) {
+    const _ft = new Set();
+    for (const it of m.heldItems) {
+      const _spr = dg.springs?.find(s => s.x === m.x && s.y === m.y);
+      if (_spr) { soakItemIntoSpring(_spr, it, ml, dg); }
+      else { placeItemAt(dg, m.x, m.y, it, ml, _ft, 0, p); }
+    }
+    m.heldItems = [];
+  }
   /* Fixed drops for item-using enemy subtypes */
   if (m.subtype === "archer") {
     drops.push(makeArrow(rng(3, 8)));

@@ -83,6 +83,7 @@ export const TILE_NAMES = {
   76: "walldigger",
   77: "slime",
   78: "puller",
+  79: "gelcube",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -163,6 +164,7 @@ export const TILE_RENDER = {
   76: { bg: null, fg: "#888866", ch: "X" },
   77: { bg: null, fg: "#44cc44", ch: "s" },
   78: { bg: null, fg: "#aa44dd", ch: "P" },
+  79: { bg: null, fg: "#88ddaa", ch: "G" },
 };
 
 /* Canvas drawing helper */
