@@ -2099,6 +2099,7 @@ export function useItemActions({
               } else if (m.baseKind === "synthmonster") {
                 /* 合成獣：薬を飲み込んで合成 */
                 m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
+                m.synthBox.capacity = 99; /* trySynthesizeがcapacityを縮小→breakBigbox防止 */
                 bigboxAddItem(m.synthBox, it, dg, ml);
                 _synthMonsterSpeedup(m, ml);
                 lx = tx; ly = ty; _fdBurned = true; break;
@@ -2228,9 +2229,12 @@ export function useItemActions({
               if (!_isFarcast && m.baseKind === "synthmonster") {
                 /* 合成獣：種別を問わずアイテムを飲み込んで合成 */
                 m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
+                m.synthBox.capacity = 99; /* trySynthesizeがcapacityを縮小→breakBigbox防止 */
                 bigboxAddItem(m.synthBox, it, dg, ml);
                 _synthMonsterSpeedup(m, ml);
-                lx = tx; ly = ty; hit = true; break;
+                lx = tx; ly = ty; hit = true;
+                if (it.type === "wand") _wandFiredEffect = true; /* 杖の二重配置を防止 */
+                break;
               }
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
