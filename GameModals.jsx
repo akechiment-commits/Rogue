@@ -1828,7 +1828,7 @@ export function InventoryModal({
                 background: selIdx === j ? (it.shopPrice ? "#2a1800" : "#252540") : (it.shopPrice ? "#1a0e00" : "transparent"),
                 borderRadius: 4,
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                color: it.shopPrice ? "#ff8844" : _isUnidentInv ? "#ff8" : _isIdentBCUnknown ? "#6d6" : "#ccc",
+                color: it.shopPrice ? "#ff8844" : _isUnidentInv ? "#ff8" : _isIdentBCUnknown ? "#6d6" : (it.blessed && it.bcKnown) ? "#ffd060" : (it.cursed && it.bcKnown) ? "#cc88ff" : "#ccc",
               }}>
                 <span style={{ display: "flex", alignItems: "center" }}>
                   <TileIcon item={it} size={16} />
