@@ -2225,6 +2225,13 @@ export function useItemActions({
                 ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
                 lx = tx; ly = ty; hit = true; break;
               }
+              if (!_isFarcast && m.baseKind === "synthmonster") {
+                /* 合成獣：種別を問わずアイテムを飲み込んで合成 */
+                m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
+                bigboxAddItem(m.synthBox, it, dg, ml);
+                _synthMonsterSpeedup(m, ml);
+                lx = tx; ly = ty; hit = true; break;
+              }
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
                 lx = tx; ly = ty; hit = true;
@@ -2252,11 +2259,6 @@ export function useItemActions({
                   if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
                   else ml.push("ここは1階だ。何も起こらなかった。");
                 }
-              } else if (!_isFarcast && m.baseKind === "synthmonster") {
-                /* 合成獣：アイテムを飲み込んで合成 */
-                m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
-                bigboxAddItem(m.synthBox, it, dg, ml);
-                _synthMonsterSpeedup(m, ml);
               } else {
                 m.hp -= td;
                 ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
