@@ -433,8 +433,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const t = dg.map[y][x];
         let ti = TI.FLOOR;
         if (t === T.WALL || t === T.BWALL) ti = TI.WALL;
-        else if (t === T.SD) ti = TI.SD;
-        else if (t === T.SU) ti = TI.SU;
+        else if (t === T.SD) ti = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 3 + y * 17) % 9] : TI.SD;
+        else if (t === T.SU) ti = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 5 + y * 11) % 9] : TI.SU;
         if (t === T.FLOOR && !_roomSet.has(_k(x, y))) ti = TI.CORR;
         drawTile(ctx, ts, ti, px2, py2, sz);
         /* 壊せる壁にヒビ表示 */
@@ -577,7 +577,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           /* Trap */
           const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
           if (tr) {
-            drawTile(ctx, ts, tr.tile, px2, py2, sz);
+            const _trTile = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 13 + y * 7) % 9] : tr.tile;
+            drawTile(ctx, ts, _trTile, px2, py2, sz);
           }
         } else if (exp2) {
           ctx.fillStyle = "rgba(0,0,8,0.6)";
@@ -587,7 +588,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             const ri = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded && (_i.discovered || dg.itemsRevealed) ? _i : undefined; })();
             if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
             const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
-            if (tr) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, tr.tile, px2, py2, sz); ctx.globalAlpha = 1; }
+            if (tr) { ctx.globalAlpha = 0.4; const _trTile2 = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 13 + y * 7) % 9] : tr.tile; drawTile(ctx, ts, _trTile2, px2, py2, sz); ctx.globalAlpha = 1; }
           }
         }
       }
