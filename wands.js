@@ -1272,12 +1272,21 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         // 呪い：跳ね返って自分に当たる → プレイヤーがランダムテレポート
         ml.push("魔法弾が跳ね返って自分に当たった！【呪】");
         if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
+        const _lpPreX = p.x, _lpPreY = p.y;
         applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
+        if (p.x !== _lpPreX || p.y !== _lpPreY) {
+          pushAnim({ type: "playerKnockback", fromX: _lpPreX, fromY: _lpPreY, toX: p.x, toY: p.y });
+        }
         return;
       }
       ml.push("魔法弾は壁に跳ね返った！");
       if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
+      /* 吹き飛び前のプレイヤー位置を記録 → projectileReturn の後に slide アニメ */
+      const _kbPreX = p.x, _kbPreY = p.y;
       applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
+      if (p.x !== _kbPreX || p.y !== _kbPreY) {
+        pushAnim({ type: "playerKnockback", fromX: _kbPreX, fromY: _kbPreY, toX: p.x, toY: p.y });
+      }
       return;
     }
     /* 氷の杖：水タイルを凍結して普通の床にする */

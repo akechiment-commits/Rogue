@@ -524,6 +524,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     /* Phase 2b: Projectile flight (200ms) */
     if (data.projectiles?.length) {
+      /* 跳ね返り自分当たり：プレイヤーを旧位置に固定してから発射 */
+      if (data.playerKnockback) moveOffsetsRef.current.set("player", { ...data.playerKnockback, progress: 0 });
       await _phase(200, (t, raw) => {
         overlaysRef.current = data.projectiles.map(p => ({ ...p, progress: raw, t }));
         renderFrame();
@@ -532,11 +534,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     /* Phase 2b.5: Projectile bounce return (200ms) */
     if (data.projectileReturns?.length) {
+      /* 跳ね返り：プレイヤーをまだ旧位置に固定（発射がなかった場合の補填もここで） */
+      if (data.playerKnockback) moveOffsetsRef.current.set("player", { ...data.playerKnockback, progress: 0 });
       await _phase(200, (t, raw) => {
         overlaysRef.current = data.projectileReturns.map(p => ({ ...p, type: "projectile", progress: raw, t }));
         renderFrame();
       });
       overlaysRef.current = [];
+    }
+    /* Phase 2b.6: Player knockback slide — プレイヤーが吹き飛ぶ (180ms) */
+    if (data.playerKnockback) {
+      await _phase(180, (t) => {
+        moveOffsetsRef.current.set("player", { ...data.playerKnockback, progress: t });
+        renderFrame();
+      });
+      moveOffsetsRef.current.delete("player");
     }
     /* Phase 2c: Explosions (350ms) */
     if (data.explosions?.length) {
@@ -649,6 +661,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       else if (e.type === "explosion" || e.type === "splash" || e.type === "lightning" || e.type === "heal") d.explosions.push(e);
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
+      else if (e.type === "playerKnockback") d.playerKnockback = e;
     }
     if (_arcs.length) {
       d.itemArcs = _arcs;
