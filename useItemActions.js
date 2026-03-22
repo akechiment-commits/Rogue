@@ -672,6 +672,7 @@ export function useItemActions({
           }
           for (const _m of _tTargets) {
             if (_m.hp <= 0) continue;
+            if (consumeBarrier(_m, ml)) continue;
             let _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
@@ -808,6 +809,7 @@ export function useItemActions({
           } else {
             for (const _m of _sSleep) {
               const _st = Math.max(1, Math.round(rng(3, 6) * _scrBm));
+              if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
               _m.sleepTurns = (_m.sleepTurns || 0) + _st;
               ml.push(`${_m.name}が眠りに落ちた！(${_st}ターン)${it.blessed ? "【祝】" : ""}`);

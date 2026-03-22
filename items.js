@@ -2858,7 +2858,10 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
   }
 }
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
-  if (kind === "monster") wakeIfDormant(target, ml);
+  if (kind === "monster") {
+    wakeIfDormant(target, ml);
+    if (consumeBarrier(target, ml)) return;
+  }
   const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
   switch (eff) {
     case "fire_bolt": {
