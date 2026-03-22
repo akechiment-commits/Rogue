@@ -2097,6 +2097,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         const mon = {
           ...base, ...lvData, id: uid(), x: nx, y: ny,
           maxHp: (lvData.hp || base.hp), hp: (lvData.hp || base.hp),
+          baseSpeed: lvData.speed || base.speed || 1,
           turnAccum: 0, aware: false, monLevel: lv,
           dir: { x: 0, y: 1 }, lastPx: 0, lastPy: 0, patrolTarget: null,
           ...(base.subtype ? { subtype: base.subtype } : {}),

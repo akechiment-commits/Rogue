@@ -45,9 +45,8 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.poisonedTurns || 0) > 0)                              _sts.push("#b040d0"); // 毒：紫
   if (mon.sealed || (mon.sealedTurns || 0) > 0)                  _sts.push("#909090"); // 封印：灰
   if ((mon.darknessTurns || 0) > 0 && mon.darknessTurns < 9999)  _sts.push("#604878"); // 暗闇：暗紫
-  const _bs = mon.baseSpeed ?? mon.speed ?? 1;
-  if ((mon.speed ?? 1) > _bs)                                    _sts.push("#ff4040"); // 倍速：赤
-  if ((mon.speed ?? 1) < _bs)                                    _sts.push("#20b8a0"); // 鈍足：青緑
+  if (mon.baseSpeed != null && (mon.speed ?? 1) > mon.baseSpeed)  _sts.push("#ff4040"); // 倍速：赤
+  if (mon.baseSpeed != null && (mon.speed ?? 1) < mon.baseSpeed)  _sts.push("#20b8a0"); // 鈍足：青緑
   if (_sts.length === 0) return;
   const _ic = Math.max(4, Math.round(sz * 0.22)); // ドットサイズ（タイルの約22%）
   const _ox = px + sz - _ic - 1;
