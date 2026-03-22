@@ -291,6 +291,13 @@ export const MONS = [
       { name: "覇錆虫",           hp: 45,  atk: 14, def: 5,  exp: 100 },
     ],
   },
+  /* 7.8: 10階〜 固定ダメージ以外1ダメ */
+  { name: "水晶スライム", hp: 15,  atk: 10, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime", monLevel: 1, fixedDamageOnly: true,
+    levels: [
+      { name: "強水晶スライム",   hp: 22,  atk: 14, def: 0,  exp: 80  },
+      { name: "覇水晶スライム",   hp: 34,  atk: 18, def: 0,  exp: 125 },
+    ],
+  },
   /* 8: 9階〜 杖使い */
   { name: "ウィザード",   hp: 18,  atk: 9,  def: 2,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",     monLevel: 1, subtype: "wanduser", wandEffect: "lightning",
     levels: [
@@ -347,7 +354,14 @@ export const MONS = [
       { name: "大シャーマン",     hp: 75,  atk: 16, def: 9,  exp: 150 },
     ],
   },
-  /* 13.5: 15階〜 引き寄せ */
+  /* 13.5: 15階〜 バリア（近接以外を一回無効） */
+  { name: "バリア術師",   hp: 32,  atk: 11, def: 2,  exp: 68,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "barriermage",  monLevel: 1, barrier: true,
+    levels: [
+      { name: "強バリア術師",     hp: 51,  atk: 15, def: 4,  exp: 109 },
+      { name: "結界師",           hp: 80,  atk: 20, def: 6,  exp: 170 },
+    ],
+  },
+  /* 13.6: 16階〜 引き寄せ */
   { name: "引きダコ",     hp: 45,  atk: 13, def: 4,  exp: 75,  speed: 1,   tile: 78, kind: "beast",    baseKind: "puller",       monLevel: 1, subtype: "puller",
     levels: [
       { name: "強引きダコ",       hp: 72,  atk: 18, def: 7,  exp: 120 },

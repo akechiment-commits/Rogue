@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim } from './animEvents.js';
 
@@ -921,10 +921,13 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         }
         if (_hasExPentacle || ringExplosion || mineExplosion) {
           /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅 */
+          if (consumeBarrier(m, ml)) continue;
           m.hp = 0;
           _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion);
         } else {
-          const md = proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15);
+          if (consumeBarrier(m, ml)) continue;
+          let md = proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15);
+          md = clampDmgFixed(m, md); // 水晶スライム系：非固定は1ダメ（爆発は非固定）
           m.hp -= md;
           ml.push(`爆風で${m.name}に${md}ダメージ！`);
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
@@ -1629,7 +1632,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (cursed) {
         // 反転→ダメージ
         const d = Math.max(1, Math.round(val * 0.7));
-        if (kind === "monster") { target.hp -= d; ml.push(`${target.name}は変な薬を浴びた！${d}ダメージ！`); _monKill(target); }
+        if (kind === "monster") { if (!consumeBarrier(target, ml)) { const _hd = clampDmgFixed(target, d); target.hp -= _hd; ml.push(`${target.name}は変な薬を浴びた！${_hd}ダメージ！`); _monKill(target); } }
         if (kind === "player") { p.deathCause = "呪われた回復薬の飛散により"; p.hp -= d; ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`); }
       } else {
         const _mult = blessed ? 1.5 : 1;
@@ -2748,9 +2751,11 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
     if (!_pierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
     const m = monsterAt(dg, tx, ty);
     if (m) {
-      m.hp -= dmg;
+      if (consumeBarrier(m, ml)) { hit = true; break; }
+      const _arDmg = clampDmgFixed(m, dmg);
+      m.hp -= _arDmg;
       if (_isPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-      ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
+      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
       if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }
     }

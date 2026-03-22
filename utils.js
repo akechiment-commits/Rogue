@@ -174,3 +174,21 @@ export function refreshFOV(dg, p) {
   computeFOV(dg.map, p.x, p.y, rad, dg.visible, dg.explored, dg.rooms);
   for (const it of dg.items) { if (dg.visible[it.y]?.[it.x]) it.discovered = true; }
 }
+
+/* ===== バリア判定：特殊攻撃を一回無効化する ===== */
+/* 近接以外の攻撃（爆発・杖・矢など）が命中した時に呼ぶ。
+   バリアがあれば吸収してtrueを返す（呼び出し側はダメージをスキップ）。 */
+export function consumeBarrier(m, ml) {
+  if (!m.barrier) return false;
+  m.barrier = false;
+  ml.push(`${m.name}のバリアが攻撃を弾いた！バリアが砕けた！`);
+  return true;
+}
+
+/* ===== 固定ダメージ限定判定：非固定ダメージを1に丸める ===== */
+/* fixedDamageOnlyを持つモンスターへのダメージに適用する。
+   罠・毒など"固定"扱いの攻撃にはisFixed=trueを渡してスキップする。 */
+export function clampDmgFixed(m, damage, isFixed = false) {
+  if (m.fixedDamageOnly && !isFixed) return Math.min(damage, 1);
+  return damage;
+}

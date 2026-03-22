@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
@@ -422,8 +422,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       let dmg = Math.max(1, Math.round(rng(15, 25) * _lBlessMult));
       if (kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
       if (kind === "monster") {
-        target.hp -= dmg;
-        ml.push(`雷撃が${target.name}に命中！${dmg}ダメージ！`);
+        if (consumeBarrier(target, ml)) break;
+        const _ldmg = clampDmgFixed(target, dmg);
+        target.hp -= _ldmg;
+        ml.push(`雷撃が${target.name}に命中！${_ldmg}ダメージ！`);
         pushLightningAnim(target.x, target.y);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
         break;
@@ -619,9 +621,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _digBlessMult = blMult > 1 ? 2 : 1; /* 祝福：ダメージ2倍 */
       let dmg = Math.max(1, Math.round(rng(10, 18) * _digBlessMult));
       if (kind === "monster") {
+        if (consumeBarrier(target, ml)) break;
         if (inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
-        target.hp -= dmg;
-        ml.push(`穴掘りの魔法弾が${target.name}に命中！${dmg}ダメージ！`);
+        const _digdmg = clampDmgFixed(target, dmg);
+        target.hp -= _digdmg;
+        ml.push(`穴掘りの魔法弾が${target.name}に命中！${_digdmg}ダメージ！`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "player") {
@@ -1116,8 +1120,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           else ml.push(`${target.name}には効果がなかった。`);
           break;
         }
+        if (consumeBarrier(target, ml)) break;
         const _fwOily = _fwOilyCheck(target);
         let _fwDmg = Math.max(1, Math.round(rng(15,25) * _fwBlessMult * (_fwOily ? 2 : 1)));
+        _fwDmg = clampDmgFixed(target, _fwDmg);
         target.hp -= _fwDmg;
         ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwOily ? "油まみれ×2！" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
@@ -1178,8 +1184,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _iwBlessMult = _iwBlessed ? 2 : 1;
       const _iwTurns = _iwBlessed ? 10 : 5;
       if (kind === "monster") {
+        if (consumeBarrier(target, ml)) break;
         const _iwFireMult = target.baseKind === "firedemon" ? 2 : 1;
         let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwFireMult));
+        _iwDmg = clampDmgFixed(target, _iwDmg);
         target.hp -= _iwDmg;
         target.immobileTurns = (target.immobileTurns||0) + _iwTurns;
         ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwFireMult>1 ? "炎×2！" : ""}`);
@@ -1209,10 +1217,12 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && !(p.x === wx && p.y === wy)) {
       const _mon = monsterAt(dg, wx, wy);
       if (_mon) {
-        const _dmg = rng(5, 15);
-        _mon.hp -= _dmg;
-        ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-        if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+        if (!consumeBarrier(_mon, ml)) {
+          const _dmg = clampDmgFixed(_mon, rng(5, 15));
+          _mon.hp -= _dmg;
+          ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
+          if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+        }
       } else if (dg.map[wy][wx] === T.FLOOR) {
         dg.map[wy][wx] = T.BWALL;
         ml.push("壊せる壁が出現した！");
@@ -1357,11 +1367,13 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         ml.push("反射の鎧が雷撃を反射した！");
         const _srcMon = monsterAt(dg, cx, cy);
         if (_srcMon) {
-          const _rdmg = rng(15, 25);
-          _srcMon.hp -= _rdmg;
-          ml.push(`反射した雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
-          pushLightningAnim(_srcMon.x, _srcMon.y);
-          if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
+          if (!consumeBarrier(_srcMon, ml)) {
+            const _rdmg = clampDmgFixed(_srcMon, rng(15, 25));
+            _srcMon.hp -= _rdmg;
+            ml.push(`反射した雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
+            pushLightningAnim(_srcMon.x, _srcMon.y);
+            if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
+          }
         }
         return;
       }
@@ -1420,10 +1432,12 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
         if (wx >= 0 && wx < MW && wy >= 0 && wy < MH) {
           const _mon = monsterAt(dg, wx, wy);
           if (_mon) {
-            const _dmg = rng(5, 15);
-            _mon.hp -= _dmg;
-            ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
-            if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+            if (!consumeBarrier(_mon, ml)) {
+              const _dmg = clampDmgFixed(_mon, rng(5, 15));
+              _mon.hp -= _dmg;
+              ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
+              if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+            }
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
             walled++;

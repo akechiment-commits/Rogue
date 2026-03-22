@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -1895,6 +1895,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               /* 壁の中の壁歩きモンスターへの攻撃：ダメージ半減 */
               const _atkInWall = attackMon.wallWalker && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
+              /* 水晶スライム系：固定ダメージ以外は1ダメージ（近接は非固定扱い） */
+              d = clampDmgFixed(attackMon, d);
               wakeIfDormant(attackMon, ml);
               attackMon.hp -= d;
               if (attackMon.type === "shopkeeper") {
