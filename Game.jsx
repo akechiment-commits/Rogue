@@ -474,7 +474,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, [msgs]);
 
   /* Canvas render */
-  const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
+  const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
   const animBusyRef = useRef(false);
   const monMovesRef = useRef([]); /* populated by endTurn for monster move animations */
 
@@ -548,13 +548,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     /* Phase 2d: Item arc flights — scatter / trap bounce (sequential by seq group, parallel within group) */
     if (data.itemArcs?.length) {
+      /* Collect ALL arc destinations upfront so they stay hidden throughout all seq phases */
+      const _allArcDests = new Set(data.itemArcs.flat().map(a => `${a.toX},${a.toY}`));
+      flyingItemsRef.current = _allArcDests;
       for (const arcBatch of data.itemArcs) {
+        /* Reveal destinations of completed batches so items "land" visually as seq progresses */
         await _phase(260, (t, raw) => {
           overlaysRef.current = arcBatch.map(a => ({ ...a, progress: raw, t }));
           renderFrame();
         });
+        /* After this batch lands, remove its destinations from flying set so items appear */
+        for (const a of arcBatch) flyingItemsRef.current.delete(`${a.toX},${a.toY}`);
         overlaysRef.current = [];
       }
+      flyingItemsRef.current = new Set();
     }
     /* Phase 3: Monster moves (80ms) */
     if (data.monMoves?.length) {

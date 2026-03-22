@@ -396,6 +396,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
   const overlaysRef = useRef([]);
   /* moveOffsets: Map<entityKey, {fromX, fromY, toX, toY, progress}> for smooth movement */
   const moveOffsetsRef = useRef(new Map());
+  /* flyingItems: Set of "x,y" keys — items currently in-flight arc animation (hide at destination) */
+  const flyingItemsRef = useRef(new Set());
 
   const renderFrame = useCallback(() => {
     if (!gs || !canvasRef.current) return;
@@ -439,7 +441,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     /* 座標インデックス構築 */
     const _k = (x, y) => y * MW + x;
     const _monMap = new Map(); for (const m of dg.monsters) _monMap.set(_k(m.x, m.y), m);
-    const _itemMap = new Map(); for (const i of dg.items) { if (!_itemMap.has(_k(i.x, i.y))) _itemMap.set(_k(i.x, i.y), i); }
+    const _flying = flyingItemsRef.current;
+    const _itemMap = new Map(); for (const i of dg.items) { if (!_itemMap.has(_k(i.x, i.y)) && !_flying.has(`${i.x},${i.y}`)) _itemMap.set(_k(i.x, i.y), i); }
     const _trapMap = new Map(); for (const t2 of dg.traps) _trapMap.set(_k(t2.x, t2.y), t2);
     const _sprMap = new Map(); if (dg.springs) for (const s of dg.springs) _sprMap.set(_k(s.x, s.y), s);
     const _bbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _bbMap.set(_k(b.x, b.y), b);
@@ -746,5 +749,5 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
   const renderFrameRef = useRef(renderFrame);
   useEffect(() => { renderFrameRef.current = renderFrame; }, [renderFrame]);
 
-  return { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef };
+  return { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef };
 }
