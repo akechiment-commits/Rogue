@@ -292,10 +292,10 @@ export const MONS = [
     ],
   },
   /* 7.8: 10階〜 固定ダメージ以外1ダメ */
-  { name: "水晶スライム", hp: 15,  atk: 10, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime", monLevel: 1, fixedDamageOnly: true,
+  { name: "水晶スライム", hp: 4,   atk: 10, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime", monLevel: 1, fixedDamageOnly: true,
     levels: [
-      { name: "強水晶スライム",   hp: 22,  atk: 14, def: 0,  exp: 80  },
-      { name: "覇水晶スライム",   hp: 34,  atk: 18, def: 0,  exp: 125 },
+      { name: "強水晶スライム",   hp: 6,   atk: 14, def: 0,  exp: 80  },
+      { name: "覇水晶スライム",   hp: 8,   atk: 18, def: 0,  exp: 125 },
     ],
   },
   /* 8: 9階〜 杖使い */
@@ -355,10 +355,10 @@ export const MONS = [
     ],
   },
   /* 13.5: 15階〜 バリア（近接以外を一回無効） */
-  { name: "バリア術師",   hp: 32,  atk: 11, def: 2,  exp: 68,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "barriermage",  monLevel: 1, barrier: true,
+  { name: "バリア術師",   hp: 32,  atk: 11, def: 2,  exp: 68,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "barriermage",  monLevel: 1, barrier: 1,
     levels: [
-      { name: "強バリア術師",     hp: 51,  atk: 15, def: 4,  exp: 109 },
-      { name: "結界師",           hp: 80,  atk: 20, def: 6,  exp: 170 },
+      { name: "強バリア術師",     hp: 51,  atk: 15, def: 4,  exp: 109, barrier: 2 },
+      { name: "結界師",           hp: 80,  atk: 20, def: 6,  exp: 170, barrier: 3 },
     ],
   },
   /* 13.6: 16階〜 引き寄せ */
@@ -480,6 +480,7 @@ export function monLevelUp(mon, dg, ml) {
   mon.maxHp  = template.hp;
   mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
   mon.monLevel = nextLevel;
+  if (template.barrier !== undefined) mon.barrier = template.barrier;
   ml.push(`${oldName}がレベルアップして${mon.name}になった！`);
   return true;
 }
@@ -1004,6 +1005,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.hp = 0; // speed:2による2回目の呼び出しを防ぐ
       killMonster(m, dg, pl, ml, _luFn, true); // 自爆→経験値なし
       doExplosion(_kzX, _kzY, dg, pl, ml, null, `${_kzName}の自爆`, null, _luFn, false, true, true, true);
+      return;
+    }
+  }
+
+  /* ===== バリア術師：非隣接かつバリアなし時に50%でバリアを張り直す ===== */
+  if (m.baseKind === "barriermage" && !m.barrier && !m.sealed) {
+    const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+    if (!_adjPl && rng(0, 1) === 0) {
+      m.barrier = 1;
+      ml.push(`${m.name}がバリアを張り直した！（残り1回）`);
       return;
     }
   }

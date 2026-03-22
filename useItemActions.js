@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed } from "./utils.js";
 import { findRoom, spawnMonsters } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -2164,10 +2164,13 @@ export function useItemActions({
                 if (_ptTrap) fireTrapItem(_ptTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;
               }
-              const td = 3 + rng(0, 3);
-              m.hp -= td;
-              ml.push(`${dnameRef(it)}が${m.name}に命中！${td}ダメージ！`);
-              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              if (consumeBarrier(m, ml)) { if (!_isFarcast) { lx = tx; ly = ty; break; } }
+              else {
+                const _ptd = clampDmgFixed(m, 3 + rng(0, 3), true);
+                m.hp -= _ptd;
+                ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
+                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              }
               if (!_isFarcast) { lx = tx; ly = ty; break; }
             }
             if (!_isFarcast) {
@@ -2266,9 +2269,13 @@ export function useItemActions({
                   else ml.push("ここは1階だ。何も起こらなかった。");
                 }
               } else {
-                m.hp -= td;
-                ml.push(`${lb}が${m.name}に命中！${td}ダメージ！`);
-                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+                if (consumeBarrier(m, ml)) { if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; } }
+                else {
+                  const _itd = clampDmgFixed(m, td, true);
+                  m.hp -= _itd;
+                  ml.push(`${lb}が${m.name}に命中！${_itd}ダメージ！`);
+                  if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+                }
               }
               if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; }
             }

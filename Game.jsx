@@ -1896,7 +1896,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _atkInWall = attackMon.wallWalker && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
               /* 水晶スライム系：固定ダメージ以外は1ダメージ（近接は非固定扱い） */
-              d = clampDmgFixed(attackMon, d);
+              d = clampDmgFixed(attackMon, d, true);
               wakeIfDormant(attackMon, ml);
               attackMon.hp -= d;
               if (attackMon.type === "shopkeeper") {

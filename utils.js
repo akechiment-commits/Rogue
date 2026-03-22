@@ -175,20 +175,26 @@ export function refreshFOV(dg, p) {
   for (const it of dg.items) { if (dg.visible[it.y]?.[it.x]) it.discovered = true; }
 }
 
-/* ===== バリア判定：特殊攻撃を一回無効化する ===== */
-/* 近接以外の攻撃（爆発・杖・矢など）が命中した時に呼ぶ。
-   バリアがあれば吸収してtrueを返す（呼び出し側はダメージをスキップ）。 */
+/* ===== バリア判定：非近接攻撃を一定回数無効化する ===== */
+/* 近接以外の攻撃（杖・矢・爆発・状態異常など）が命中した時に呼ぶ。
+   バリアがあれば1回分消費してtrueを返す（呼び出し側はダメージをスキップ）。
+   barrier は数値（残り回数）。0 またはfalsy なら無効。 */
 export function consumeBarrier(m, ml) {
   if (!m.barrier) return false;
-  m.barrier = false;
-  ml.push(`${m.name}のバリアが攻撃を弾いた！バリアが砕けた！`);
+  m.barrier -= 1;
+  if (m.barrier > 0) {
+    ml.push(`${m.name}のバリアが攻撃を弾いた！残り${m.barrier}回！`);
+  } else {
+    ml.push(`${m.name}のバリアが攻撃を弾いた！バリアが砕けた！`);
+  }
   return true;
 }
 
-/* ===== 固定ダメージ限定判定：非固定ダメージを1に丸める ===== */
-/* fixedDamageOnlyを持つモンスターへのダメージに適用する。
-   罠・毒など"固定"扱いの攻撃にはisFixed=trueを渡してスキップする。 */
-export function clampDmgFixed(m, damage, isFixed = false) {
-  if (m.fixedDamageOnly && !isFixed) return Math.min(damage, 1);
+/* ===== 水晶スライム：物理攻撃ダメージを1に丸める ===== */
+/* fixedDamageOnlyを持つモンスターへの物理攻撃に適用する。
+   近接・矢・投擲など物理扱いにはisPhysical=trueを渡す。
+   杖・魔法・爆発はisPhysical=false（デフォルト）でスキップ。 */
+export function clampDmgFixed(m, damage, isPhysical = false) {
+  if (m.fixedDamageOnly && isPhysical) return Math.min(damage, 1);
   return damage;
 }
