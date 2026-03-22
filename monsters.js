@@ -524,7 +524,7 @@ export function makeGuard(x, y, plx, ply) {
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
 export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false } = {}) {
   const { levels: _lvls, ...mt } = MONS[clamp(rng(0, depth), 0, MONS.length - 1)];
-  return { ...mt, id: uid(), x, y, maxHp: mt.hp, turnAccum: immediateAct ? -(mt.speed || 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
+  return { ...mt, id: uid(), x, y, maxHp: mt.hp, baseSpeed: mt.speed || 1, turnAccum: immediateAct ? -(mt.speed || 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
 }
 
 /** count 体のモンスターを centerX,centerY 周辺 → ランダム部屋にスポーンさせる */

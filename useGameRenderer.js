@@ -40,10 +40,14 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.sleepTurns    || 0) > 0)                              _sts.push("#3870e8"); // 眠り：青
   if (mon.paralyzed || (mon.paralyzeTurns || 0) > 0)             _sts.push("#d0d8ff"); // 麻痺：白青
   if ((mon.confusedTurns || 0) > 0)                              _sts.push("#f09020"); // 混乱：橙
+  if (mon.bewitched || (mon.bewitchedTurns || 0) > 0)            _sts.push("#e0c020"); // 幻惑：黄金
   if ((mon.immobileTurns || 0) > 0)                              _sts.push("#50c8e8"); // 移動封じ：氷青
   if ((mon.poisonedTurns || 0) > 0)                              _sts.push("#b040d0"); // 毒：紫
   if (mon.sealed || (mon.sealedTurns || 0) > 0)                  _sts.push("#909090"); // 封印：灰
   if ((mon.darknessTurns || 0) > 0 && mon.darknessTurns < 9999)  _sts.push("#604878"); // 暗闇：暗紫
+  const _bs = mon.baseSpeed ?? mon.speed ?? 1;
+  if ((mon.speed ?? 1) > _bs)                                    _sts.push("#ff4040"); // 倍速：赤
+  if ((mon.speed ?? 1) < _bs)                                    _sts.push("#20b8a0"); // 鈍足：青緑
   if (_sts.length === 0) return;
   const _ic = Math.max(4, Math.round(sz * 0.22)); // ドットサイズ（タイルの約22%）
   const _ox = px + sz - _ic - 1;
