@@ -2158,6 +2158,14 @@ export function useItemActions({
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
                 lx = tx; ly = ty; _potFdBurned = true; break;
               }
+              if (!_isFarcast && m.baseKind === "synthmonster") {
+                /* 合成獣：壺を飲み込んで合成（ミス判定なし） */
+                m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };
+                m.synthBox.capacity = 99;
+                bigboxAddItem(m.synthBox, it, dg, ml);
+                _synthMonsterSpeedup(m, ml);
+                lx = tx; ly = ty; _potFdBurned = true; break;
+              }
               if (_potMiss) {
                 /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
                 lx = tx; ly = ty;

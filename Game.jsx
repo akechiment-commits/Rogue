@@ -2690,6 +2690,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         return;
       }
+      /* 壺同士の合成 */
+      const pts = bb.contents.filter((i) => i.type === "pot");
+      if (pts.length >= 2) {
+        const [pa, pb] = pts;
+        if (pa.potEffect === pb.potEffect) {
+          /* 同種の壺：容量を加算 */
+          const add = pb.capacity || 0;
+          pa.capacity = (pa.capacity || 0) + add;
+          ml.push(`合成完了！${pa.name}の容量が${add}増えた！(容量${pa.capacity})`);
+        } else {
+          /* 別種の壺：容量を1増加 */
+          pa.capacity = (pa.capacity || 0) + 1;
+          ml.push(`合成完了！${pa.name}の容量が1増えた！(容量${pa.capacity})`);
+        }
+        bb.contents = bb.contents.filter((i) => i !== pb);
+        bb.capacity = bb.contents.length;
+        return;
+      }
       const ws = bb.contents.filter((i) => i.type === "weapon");
       const as = bb.contents.filter((i) => i.type === "armor");
       const pair = ws.length >= 2 ? ws : as.length >= 2 ? as : null;
