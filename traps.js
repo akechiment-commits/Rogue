@@ -155,6 +155,20 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       }
       break;
     }
+    case "bewitch_trap": {
+      if (hasAbility(p.armor, "bewitch_proof")) {
+        ml.push(`${trap.name}が発動！しかし防具が幻惑を防いだ！(耐惑わし)`);
+      } else {
+        p.bewitchedTurns = (p.bewitchedTurns || 0) + 50;
+        ml.push(`${trap.name}が発動！幻惑された！周囲の見た目がおかしくなった！(50ターン)`);
+      }
+      break;
+    }
+    case "darkness_trap": {
+      p.darknessTurns = (p.darknessTurns || 0) + 30;
+      ml.push(`${trap.name}が発動！暗闇に包まれた！視界が1マスになる！(30ターン)`);
+      break;
+    }
     case "seal_trap": {
       if (hasAbility(p.armor, "seal_proof")) {
         ml.push(`${trap.name}が発動！しかし防具が封印を防いだ！(耐封印)`);
