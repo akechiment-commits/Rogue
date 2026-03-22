@@ -548,9 +548,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     /* Phase 2d: Item fly — throw (seq=0 straight) then scatter/bounce (seq=1+ parabolic) */
     if (data.itemArcs?.length) {
-      /* flyingItemsRef は act()/useEffect で既に設定済み。全着地先を上書き確認 */
-      const _allDests = new Set(data.itemArcs.flat().map(a => `${a.toX},${a.toY}`));
-      if (flyingItemsRef.current.size === 0) flyingItemsRef.current = _allDests;
+      /* flyingItemsRef は act()/useEffect で既に設定済み（アイテム参照ベース）。未設定なら補填 */
+      if (flyingItemsRef.current.size === 0) {
+        const _refs = data.itemArcs.flat().filter(a => a.itemRef).map(a => a.itemRef);
+        flyingItemsRef.current = new Set(_refs);
+      }
       for (const arcBatch of data.itemArcs) {
         /* straight(投擲)は220ms、parabolic(散乱)は320msで少しゆっくり */
         const _batchDur = arcBatch.some(a => a.straight) ? 220 : 320;
@@ -558,8 +560,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           overlaysRef.current = arcBatch.map(a => ({ ...a, progress: raw, t }));
           renderFrame();
         });
-        /* バッチ完了 → 着地先のアイテムを表示（落下した演出） */
-        for (const a of arcBatch) flyingItemsRef.current.delete(`${a.toX},${a.toY}`);
+        /* バッチ完了 → 着地アイテム参照を解放して表示 */
+        for (const a of arcBatch) if (a.itemRef) flyingItemsRef.current.delete(a.itemRef);
         overlaysRef.current = [];
         renderFrame();
       }
@@ -650,8 +652,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     if (_arcs.length) {
       d.itemArcs = _arcs;
-      /* flyingItemsRef を設定してすぐ再描画 → 着地済みアイテムを隠す */
-      flyingItemsRef.current = new Set(_arcs.flat().map(a => `${a.toX},${a.toY}`));
+      /* アイテム参照ベースで設定 → 同座標の既存アイテムは隠さない */
+      flyingItemsRef.current = new Set(_arcs.flat().filter(a => a.itemRef).map(a => a.itemRef));
       renderFrame();
     }
     if (d.projectiles.length || d.projectileReturns?.length || d.explosions.length || d.damages.length || d.monProjectiles?.length || d.monProjectileReturns?.length || _arcs.length) playAnim(d);
@@ -1748,7 +1750,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const _itemArcBatches2 = drainItemArcs();
       if (_itemArcBatches2.length) {
         _ad.itemArcs = _itemArcBatches2;
-        flyingItemsRef.current = new Set(_itemArcBatches2.flat().map(a => `${a.toX},${a.toY}`));
+        flyingItemsRef.current = new Set(_itemArcBatches2.flat().filter(a => a.itemRef).map(a => a.itemRef));
       }
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
@@ -2297,8 +2299,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const _itemArcBatches = drainItemArcs();
       if (_itemArcBatches.length) {
         _ad.itemArcs = _itemArcBatches;
-        /* setGs の前に flyingItemsRef を設定 → React 再描画時すでに非表示になる */
-        flyingItemsRef.current = new Set(_itemArcBatches.flat().map(a => `${a.toX},${a.toY}`));
+        /* setGs前にアイテム参照ベースで設定 → 同座標の既存アイテムは隠さない */
+        flyingItemsRef.current = new Set(_itemArcBatches.flat().filter(a => a.itemRef).map(a => a.itemRef));
       }
       sr.current = { ...st };
       setGs({ ...st });

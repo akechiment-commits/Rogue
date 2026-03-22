@@ -2356,7 +2356,8 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     item.x = cx;
     item.y = cy;
     dg.items.push(item);
-    pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
+    /* itemRef を渡すことで flyingItemsRef はこのアイテム固有オブジェクトのみ隠す */
+    pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1, item);
     if (item.shopPrice) {
       const _allS = getShops(dg);
       const _iShop = _allS.find(s => s.id === item._shopId && s.unpaidTotal > 0) ||

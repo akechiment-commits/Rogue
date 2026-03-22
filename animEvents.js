@@ -47,10 +47,11 @@ export function pushItemFlyAnim(fromX, fromY, toX, toY, tile) {
 /*
  * Item scattered/displaced (placeItemAt, explosion, pot break, trap bounce).
  * Parabolic arc. seq=dep+1 so trap-bounced items play after initial scatter.
+ * itemRef: 着地してdg.itemsに追加されたオブジェクト参照（flyingItemsRef用）
  */
-export function pushItemArcAnim(fromX, fromY, toX, toY, tile, seq = 1) {
+export function pushItemArcAnim(fromX, fromY, toX, toY, tile, seq = 1, itemRef = null) {
   if (fromX === toX && fromY === toY) return;
-  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq, straight: false });
+  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq, straight: false, itemRef });
 }
 
 /* Returns array of arc batches sorted by seq: [[seq0 throws], [seq1 arcs], [seq2 bounces], ...] */
