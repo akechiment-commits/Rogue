@@ -26,25 +26,41 @@ export function drainAnims() {
 }
 
 /*
- * Item arc animation queue.
- * seq: 1 = first flight (scatter or direct throw), 2+ = after trap bounce, etc.
- * Groups with the same seq play in parallel; higher seq plays after lower seq.
+ * Item fly animation queue.
+ *
+ * straight: true  → 投擲（緩い弧、直線的）seq=0 で最初に再生
+ * straight: false → 散乱・罠バウンス（高い放物線）seq=1+ で順次再生
+ *
+ * Groups with the same seq play in parallel; lower seq plays first.
  */
 const _itemArcQueue = [];
 
-export function pushItemArcAnim(fromX, fromY, toX, toY, tile, seq = 1) {
+/*
+ * Player throws an item — straight-line flight with slight arc.
+ * seq=0 ensures it plays before any scatter arcs.
+ */
+export function pushItemFlyAnim(fromX, fromY, toX, toY, tile) {
   if (fromX === toX && fromY === toY) return;
-  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq });
+  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq: 0, straight: true });
 }
 
-/* Returns array of arc batches sorted by seq: [[seq1 arcs], [seq2 arcs], ...] */
+/*
+ * Item scattered/displaced (placeItemAt, explosion, pot break, trap bounce).
+ * Parabolic arc. seq=dep+1 so trap-bounced items play after initial scatter.
+ */
+export function pushItemArcAnim(fromX, fromY, toX, toY, tile, seq = 1) {
+  if (fromX === toX && fromY === toY) return;
+  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq, straight: false });
+}
+
+/* Returns array of arc batches sorted by seq: [[seq0 throws], [seq1 arcs], [seq2 bounces], ...] */
 export function drainItemArcs() {
   if (_itemArcQueue.length === 0) return [];
   const arcs = [..._itemArcQueue];
   _itemArcQueue.length = 0;
   const groups = {};
   for (const a of arcs) {
-    const s = a.seq || 1;
+    const s = a.seq ?? 1;
     (groups[s] = groups[s] || []).push(a);
   }
   return Object.keys(groups).map(Number).sort((a, b) => a - b).map(k => groups[k]);

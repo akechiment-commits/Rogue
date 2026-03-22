@@ -350,16 +350,19 @@ function drawSplashEffect(ctx, o, sx, sy, sz, p) {
   ctx.restore();
 }
 
-/* ===== Item Arc Effect (item flying along parabolic path) ===== */
+/* ===== Item Fly Effect (straight throw or parabolic scatter) ===== */
 function drawItemArc(ctx, o, sx, sy, sz, t) {
   const fx = (o.fromX - sx) * sz + sz / 2;
   const fy = (o.fromY - sy) * sz + sz / 2;
   const tx2 = (o.toX - sx) * sz + sz / 2;
   const ty2 = (o.toY - sy) * sz + sz / 2;
-
-  /* 放物線の制御点：中点から「距離に応じた高さ」分だけ上に引く */
   const dist = Math.hypot(tx2 - fx, ty2 - fy);
-  const arcH = Math.max(sz * 0.8, dist * 0.5);
+
+  /* 弧の高さ：投擲(straight)は浅め、散乱は高め */
+  const arcH = o.straight
+    ? Math.max(sz * 0.25, dist * 0.12)   // 投擲：緩い弧
+    : Math.max(sz * 0.9, dist * 0.55);   // 散乱：高い放物線
+
   const midX = (fx + tx2) / 2;
   const midY = (fy + ty2) / 2 - arcH;
 
@@ -367,24 +370,36 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
   const curX = (1 - t) * (1 - t) * fx + 2 * (1 - t) * t * midX + t * t * tx2;
   const curY = (1 - t) * (1 - t) * fy + 2 * (1 - t) * t * midY + t * t * ty2;
 
-  /* 地面の影（着地点に近いほど大きく・濃く） */
+  /* 地面の影（投擲は小さめ） */
   const shadowX = fx + (tx2 - fx) * t;
   const shadowY = fy + (ty2 - fy) * t + sz * 0.45;
-  const heightFrac = Math.max(0, 1 - Math.abs(curY - shadowY) / arcH);
-  const shadowRx = sz * 0.22 * (0.4 + heightFrac * 0.6);
-  const shadowRy = sz * 0.06 * (0.4 + heightFrac * 0.6);
+  const heightFrac = Math.max(0, 1 - Math.abs(curY - shadowY) / (arcH + 1));
+  const shadowScale = o.straight ? 0.6 : 1.0;
+  const shadowRx = sz * 0.22 * shadowScale * (0.4 + heightFrac * 0.6);
+  const shadowRy = sz * 0.06 * shadowScale * (0.4 + heightFrac * 0.6);
   ctx.save();
-  ctx.globalAlpha = 0.28 * heightFrac;
+  ctx.globalAlpha = 0.25 * heightFrac * shadowScale;
   ctx.fillStyle = "#000";
   ctx.beginPath();
   ctx.ellipse(shadowX, shadowY, shadowRx, shadowRy, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  /* アイテムスプライトを放物線上に描画（頂点付近でわずかに拡大） */
-  const scale = 1 + 0.15 * Math.sin(t * Math.PI);
-  const drawSz = sz * scale;
+  /* アイテムスプライト：投擲は回転あり、散乱は拡縮のみ */
   ctx.globalAlpha = 1;
-  drawTile(ctx, null, o.tile, curX - drawSz / 2, curY - drawSz / 2, drawSz);
+  if (o.straight) {
+    /* 投擲：飛行方向に軽く回転（スピン感） */
+    const angle = Math.atan2(ty2 - fy, tx2 - fx);
+    const spinAngle = angle + t * Math.PI * 1.5; // 1.5周回転
+    const drawSz = sz * 0.9;
+    ctx.translate(curX, curY);
+    ctx.rotate(spinAngle);
+    drawTile(ctx, null, o.tile, -drawSz / 2, -drawSz / 2, drawSz);
+  } else {
+    /* 散乱：頂点で少し大きくなる */
+    const scale = 1 + 0.12 * Math.sin(t * Math.PI);
+    const drawSz = sz * scale;
+    drawTile(ctx, null, o.tile, curX - drawSz / 2, curY - drawSz / 2, drawSz);
+  }
   ctx.restore();
 }
 

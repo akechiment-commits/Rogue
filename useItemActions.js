@@ -14,7 +14,20 @@ import {
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
-import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim } from "./animEvents.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim } from "./animEvents.js";
+
+/* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限） */
+function _traceThrowEnd(px, py, dx, dy, dg, maxRange) {
+  let lx = px, ly = py;
+  for (let d = 1; d <= maxRange; d++) {
+    const tx = px + dx * d, ty = py + dy * d;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+    if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+    lx = tx; ly = ty;
+    if (monsterAt(dg, tx, ty)) break;
+  }
+  return [lx, ly];
+}
 
 /* インベントリから消える際に装備スロットを強制解除するヘルパー */
 function _forceUnequip(p, it) {
@@ -2082,8 +2095,11 @@ export function useItemActions({
         }
 
         p.inventory.splice(idx, 1);
-        /* 投擲アニメーション */
-        pushBoltAnim(p.x, p.y, dx, dy, dg, it.type === "potion" ? "#f050e0" : it.type === "pot" ? "#7a5a2a" : it.type === "wand" ? "#a050f0" : "#aaaaaa");
+        /* 投擲アニメーション：アイテムスプライトを着弾点まで飛ばす */
+        {
+          const [_teX, _teY] = _traceThrowEnd(p.x, p.y, dx, dy, dg, _maxRange);
+          pushItemFlyAnim(p.x, p.y, _teX, _teY, it.tile);
+        }
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false;

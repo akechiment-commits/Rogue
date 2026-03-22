@@ -546,20 +546,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       });
       overlaysRef.current = [];
     }
-    /* Phase 2d: Item arc flights — scatter / trap bounce (sequential by seq group, parallel within group) */
+    /* Phase 2d: Item fly — throw (seq=0 straight) then scatter/bounce (seq=1+ parabolic) */
     if (data.itemArcs?.length) {
-      /* Collect ALL arc destinations upfront so they stay hidden throughout all seq phases */
-      const _allArcDests = new Set(data.itemArcs.flat().map(a => `${a.toX},${a.toY}`));
-      flyingItemsRef.current = _allArcDests;
+      /* flyingItemsRef は act()/useEffect で既に設定済み。全着地先を上書き確認 */
+      const _allDests = new Set(data.itemArcs.flat().map(a => `${a.toX},${a.toY}`));
+      if (flyingItemsRef.current.size === 0) flyingItemsRef.current = _allDests;
       for (const arcBatch of data.itemArcs) {
-        /* Reveal destinations of completed batches so items "land" visually as seq progresses */
-        await _phase(260, (t, raw) => {
+        /* straight(投擲)は220ms、parabolic(散乱)は320msで少しゆっくり */
+        const _batchDur = arcBatch.some(a => a.straight) ? 220 : 320;
+        await _phase(_batchDur, (t, raw) => {
           overlaysRef.current = arcBatch.map(a => ({ ...a, progress: raw, t }));
           renderFrame();
         });
-        /* After this batch lands, remove its destinations from flying set so items appear */
+        /* バッチ完了 → 着地先のアイテムを表示（落下した演出） */
         for (const a of arcBatch) flyingItemsRef.current.delete(`${a.toX},${a.toY}`);
         overlaysRef.current = [];
+        renderFrame();
       }
       flyingItemsRef.current = new Set();
     }
@@ -634,7 +636,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   useEffect(() => {
     if (!gs || animBusyRef.current) return;
     const evts = drainAnims();
-    if (evts.length === 0) return;
+    const _arcs = drainItemArcs();
+    if (evts.length === 0 && _arcs.length === 0) return;
     const d = { attacks: [], damages: [], projectiles: [], explosions: [] };
     for (const e of evts) {
       if (e.type === "projectile") d.projectiles.push(e);
@@ -645,8 +648,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
     }
-    if (d.projectiles.length || d.projectileReturns?.length || d.explosions.length || d.damages.length || d.monProjectiles?.length || d.monProjectileReturns?.length) playAnim(d);
-  }, [gs, playAnim]);
+    if (_arcs.length) {
+      d.itemArcs = _arcs;
+      /* flyingItemsRef を設定してすぐ再描画 → 着地済みアイテムを隠す */
+      flyingItemsRef.current = new Set(_arcs.flat().map(a => `${a.toX},${a.toY}`));
+      renderFrame();
+    }
+    if (d.projectiles.length || d.projectileReturns?.length || d.explosions.length || d.damages.length || d.monProjectiles?.length || d.monProjectileReturns?.length || _arcs.length) playAnim(d);
+  }, [gs, playAnim, renderFrame]);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
       p.level++;
@@ -1737,7 +1746,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);
       }
       const _itemArcBatches2 = drainItemArcs();
-      if (_itemArcBatches2.length) _ad.itemArcs = _itemArcBatches2;
+      if (_itemArcBatches2.length) {
+        _ad.itemArcs = _itemArcBatches2;
+        flyingItemsRef.current = new Set(_itemArcBatches2.flat().map(a => `${a.toX},${a.toY}`));
+      }
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
       setGs({ ...st });
@@ -2283,7 +2295,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
       }
       const _itemArcBatches = drainItemArcs();
-      if (_itemArcBatches.length) _ad.itemArcs = _itemArcBatches;
+      if (_itemArcBatches.length) {
+        _ad.itemArcs = _itemArcBatches;
+        /* setGs の前に flyingItemsRef を設定 → React 再描画時すでに非表示になる */
+        flyingItemsRef.current = new Set(_itemArcBatches.flat().map(a => `${a.toX},${a.toY}`));
+      }
       sr.current = { ...st };
       setGs({ ...st });
       /* Play animations if any were queued */
