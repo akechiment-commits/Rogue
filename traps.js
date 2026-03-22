@@ -165,8 +165,12 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "darkness_trap": {
-      p.darknessTurns = (p.darknessTurns || 0) + 30;
-      ml.push(`${trap.name}が発動！暗闇に包まれた！視界が1マスになる！(30ターン)`);
+      if (hasAbility(p.armor, "darkness_proof")) {
+        ml.push(`${trap.name}が発動！しかし防具が暗闇を防いだ！(耐暗闇)`);
+      } else {
+        p.darknessTurns = (p.darknessTurns || 0) + 30;
+        ml.push(`${trap.name}が発動！暗闇に包まれた！視界が1マスになる！(30ターン)`);
+      }
       break;
     }
     case "seal_trap": {
