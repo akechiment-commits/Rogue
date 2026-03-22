@@ -1334,7 +1334,8 @@ export function useItemActions({
       const ml = [];
       ml.push(`${dnameRef(it)}を壊した！`);
       try {
-        if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+        if (inMagicSealRoom(p.x, p.y, dg)) {
+          /* 封印状態でも杖を壊した場合は効果が発動する。魔封じの部屋のみ無効 */
           ml.push("魔法が封印されている！効果は発動しなかった。");
         } else {
           const times = Math.max(1, Math.ceil((it.charges ?? 0) / 2));
