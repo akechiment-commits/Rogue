@@ -40,7 +40,7 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.sleepTurns    || 0) > 0)                              _sts.push("#3870e8"); // 眠り：青
   if (mon.paralyzed || (mon.paralyzeTurns || 0) > 0)             _sts.push("#d0d8ff"); // 麻痺：白青
   if ((mon.confusedTurns || 0) > 0)                              _sts.push("#f09020"); // 混乱：橙
-  if (mon.bewitched || (mon.bewitchedTurns || 0) > 0)            _sts.push("#e0c020"); // 幻惑：黄金
+  if (mon.bewitched || (mon.bewitchedTurns || 0) > 0 || (mon.fleeingTurns || 0) > 0) _sts.push("#e0c020"); // 幻惑：黄金
   if ((mon.immobileTurns || 0) > 0)                              _sts.push("#50c8e8"); // 移動封じ：氷青
   if ((mon.poisonedTurns || 0) > 0)                              _sts.push("#b040d0"); // 毒：紫
   if (mon.sealed || (mon.sealedTurns || 0) > 0)                  _sts.push("#909090"); // 封印：灰
