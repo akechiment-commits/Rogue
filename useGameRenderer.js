@@ -19,6 +19,43 @@ function playerTileForFacing(pf) {
   return TI.PLAYER_DOWN;
 }
 
+/* ===== モンスターのバリア・状態異常ビジュアルオーバーレイ =====
+ * バリア：タイル全体にシアンのパルス輝光（うっすら光る枠）
+ * 状態異常：右上隅に小さなカラードット（下向きに積み重ね）
+ * ─ 色凡例 ─  眠り=青  麻痺=白青  混乱=橙  移動封じ=氷青  毒=紫  封印=灰  暗闇=暗紫 */
+function drawMonsterOverlays(ctx, mon, px, py, sz) {
+  /* ── バリア輝光 ── */
+  if (mon.barrier) {
+    const _p = Math.sin(performance.now() / 400) * 0.5 + 0.5;
+    ctx.fillStyle = `rgba(30,190,255,${(0.06 + 0.05 * _p).toFixed(2)})`;
+    ctx.fillRect(px, py, sz, sz);
+    ctx.save();
+    ctx.strokeStyle = `rgba(60,215,255,${(0.5 + 0.35 * _p).toFixed(2)})`;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(px + 0.75, py + 0.75, sz - 1.5, sz - 1.5);
+    ctx.restore();
+  }
+  /* ── 状態異常アイコン ── */
+  const _sts = [];
+  if ((mon.sleepTurns    || 0) > 0)                              _sts.push("#3870e8"); // 眠り：青
+  if (mon.paralyzed || (mon.paralyzeTurns || 0) > 0)             _sts.push("#d0d8ff"); // 麻痺：白青
+  if ((mon.confusedTurns || 0) > 0)                              _sts.push("#f09020"); // 混乱：橙
+  if ((mon.immobileTurns || 0) > 0)                              _sts.push("#50c8e8"); // 移動封じ：氷青
+  if ((mon.poisonedTurns || 0) > 0)                              _sts.push("#b040d0"); // 毒：紫
+  if (mon.sealed || (mon.sealedTurns || 0) > 0)                  _sts.push("#909090"); // 封印：灰
+  if ((mon.darknessTurns || 0) > 0 && mon.darknessTurns < 9999)  _sts.push("#604878"); // 暗闇：暗紫
+  if (_sts.length === 0) return;
+  const _ic = Math.max(4, Math.round(sz * 0.22)); // ドットサイズ（タイルの約22%）
+  const _ox = px + sz - _ic - 1;
+  for (let i = 0; i < _sts.length; i++) {
+    const _iy = py + 2 + i * (_ic + 1);
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(_ox - 1, _iy - 1, _ic + 2, _ic + 2);
+    ctx.fillStyle = _sts[i];
+    ctx.fillRect(_ox, _iy, _ic, _ic);
+  }
+}
+
 /*
  * Draw animation overlays (slash effects, damage popups, flashes, projectiles)
  * on top of the base scene.
@@ -522,6 +559,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
               ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
               ctx.fillRect(px2 + 1, py2, Math.max(1, bw * hpR), bh);
             }
+            drawMonsterOverlays(ctx, mon, px2, py2, sz);
             continue;
           }
           /* Item */
@@ -581,6 +619,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
           ctx.fillRect(dpx + 1, dpy, Math.max(1, bw * hpR), bh);
         }
+        /* status overlays: look up live monster object by id */
+        const _movMonRef = dg.monsters.find(m => m.id === key.slice(4));
+        if (_movMonRef) drawMonsterOverlays(ctx, _movMonRef, dpx, dpy, sz);
       }
     }
 
@@ -618,6 +659,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         ctx.fillStyle = hpR > 0.5 ? "#0c0" : hpR > 0.25 ? "#cc0" : "#f22";
         ctx.fillRect(_wpx + 1, _wpy, Math.max(1, bw * hpR), bh);
       }
+      drawMonsterOverlays(ctx, _wm, _wpx, _wpy, sz);
     }
 
     /* ===== lookMode cursor ===== */
