@@ -26,7 +26,7 @@ import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { drainAnims, pushMonsterBoltAnim, pushAnim } from './animEvents.js';
+import { drainAnims, pushMonsterBoltAnim, pushAnim, drainItemArcs } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
   bigRoom:      "ビッグルームだ！",
@@ -545,6 +545,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         renderFrame();
       });
       overlaysRef.current = [];
+    }
+    /* Phase 2d: Item arc flights — scatter / trap bounce (sequential by seq group, parallel within group) */
+    if (data.itemArcs?.length) {
+      for (const arcBatch of data.itemArcs) {
+        await _phase(260, (t, raw) => {
+          overlaysRef.current = arcBatch.map(a => ({ ...a, progress: raw, t }));
+          renderFrame();
+        });
+        overlaysRef.current = [];
+      }
     }
     /* Phase 3: Monster moves (80ms) */
     if (data.monMoves?.length) {
@@ -1719,10 +1729,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
         else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);
       }
+      const _itemArcBatches2 = drainItemArcs();
+      if (_itemArcBatches2.length) _ad.itemArcs = _itemArcBatches2;
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
       setGs({ ...st });
-      const _hasAnim = _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.monProjectiles?.length || _ad.monProjectileReturns?.length;
+      const _hasAnim = _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.monProjectiles?.length || _ad.monProjectileReturns?.length || _ad.itemArcs?.length;
       if (_hasAnim) playAnim(_ad);
     };
     const timer = setTimeout(tryAdvance, 400);
@@ -2263,10 +2275,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         else if (_de.type === "damage") _ad.damages.push(_de);
         else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
       }
+      const _itemArcBatches = drainItemArcs();
+      if (_itemArcBatches.length) _ad.itemArcs = _itemArcBatches;
       sr.current = { ...st };
       setGs({ ...st });
       /* Play animations if any were queued */
-      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length);
+      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
       if (_hasAnim) playAnim(_ad);
     },
     [

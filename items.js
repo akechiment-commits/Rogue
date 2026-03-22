@@ -1,6 +1,6 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
-import { pushExplosionAnim, pushSplashAnim, pushHealAnim } from './animEvents.js';
+import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
@@ -2295,8 +2295,10 @@ function soakItem(item) {
   return item;
 }
 
-export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
+export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null) {
   if (dep > 30) { ml.push(`${item.name}は消えてしまった！`); return false; }
+  /* アニメーション用の出発地点（null の場合は tx,ty を使う） */
+  const _animOx = _ox ?? tx, _animOy = _oy ?? ty;
   /* 着地点が水タイルなら沈没（同マスに既存アイテムがない場合のみ、ある場合はDROで代替地を探す） */
   if (dg.map[ty]?.[tx] === T.WATER) {
     dg.waterItems = dg.waterItems || [];
@@ -2304,6 +2306,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
       const sunk = soakItem({ ...item, x: tx, y: ty });
       dg.waterItems.push({ x: tx, y: ty, item: sunk });
       ml.push(sunk.name !== item.name ? `${item.name}が水に濡れて白紙になった！` : `${item.name}が水に沈んだ！`);
+      pushItemArcAnim(_animOx, _animOy, tx, ty, item.tile, dep + 1);
       return false;
     }
     /* 既に埋まっている水タイル→DROで隣接地を探す（後続処理へ） */
@@ -2319,10 +2322,13 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
       const sunk = soakItem({ ...item, x: cx, y: cy });
       dg.waterItems.push({ x: cx, y: cy, item: sunk });
       ml.push(sunk.name !== item.name ? `${item.name}が水に濡れて白紙になった！` : `${item.name}が水に沈んだ！`);
+      pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       return false;
     }
     const trap = dg.traps.find(t => t.x === cx && t.y === cy && !ft.has(t.id));
     if (trap) {
+      /* 罠座標まで飛んでくるアーク（seq = dep+1）を先に登録 */
+      pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       ft.add(trap.id);
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
@@ -2333,13 +2339,15 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
       }
       if (r === "destroyed") return false;
       if (r === "pitfall_player") return "pitfall_player";
-      if (r === "restart") return placeItemAt(dg, cx, cy, item, ml, ft, dep + 1, p);
+      /* restart: 罠座標を新しい出発地点として再帰（seq が一段上がる） */
+      if (r === "restart") return placeItemAt(dg, cx, cy, item, ml, ft, dep + 1, p, cx, cy);
       continue;
     }
     if (dg.traps.some(t => t.x === cx && t.y === cy)) continue;
     if (dg.springs?.some(s => s.x === cx && s.y === cy)) {
       const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
       soakItemIntoSpring(_spr, item, ml, dg, it => it.name);
+      pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       return true;
     }
     if (dg.bigboxes?.some(b => b.x === cx && b.y === cy)) continue;
@@ -2348,6 +2356,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null) {
     item.x = cx;
     item.y = cy;
     dg.items.push(item);
+    pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
     if (item.shopPrice) {
       const _allS = getShops(dg);
       const _iShop = _allS.find(s => s.id === item._shopId && s.unpaidTotal > 0) ||

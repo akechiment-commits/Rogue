@@ -86,6 +86,8 @@ function drawOverlays(ctx, overlays, sx, sy, sz) {
       drawLightningEffect(ctx, o, sx, sy, sz, p);
     } else if (o.type === "heal") {
       drawHealEffect(ctx, o, sx, sy, sz, p);
+    } else if (o.type === "itemArc") {
+      drawItemArc(ctx, o, sx, sy, sz, t);
     }
   }
 }
@@ -345,6 +347,44 @@ function drawSplashEffect(ctx, o, sx, sy, sz, p) {
   ctx.beginPath();
   ctx.arc(cx, cy, rippleR, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
+}
+
+/* ===== Item Arc Effect (item flying along parabolic path) ===== */
+function drawItemArc(ctx, o, sx, sy, sz, t) {
+  const fx = (o.fromX - sx) * sz + sz / 2;
+  const fy = (o.fromY - sy) * sz + sz / 2;
+  const tx2 = (o.toX - sx) * sz + sz / 2;
+  const ty2 = (o.toY - sy) * sz + sz / 2;
+
+  /* 放物線の制御点：中点から「距離に応じた高さ」分だけ上に引く */
+  const dist = Math.hypot(tx2 - fx, ty2 - fy);
+  const arcH = Math.max(sz * 0.8, dist * 0.5);
+  const midX = (fx + tx2) / 2;
+  const midY = (fy + ty2) / 2 - arcH;
+
+  /* 2次ベジェ曲線上の現在地 */
+  const curX = (1 - t) * (1 - t) * fx + 2 * (1 - t) * t * midX + t * t * tx2;
+  const curY = (1 - t) * (1 - t) * fy + 2 * (1 - t) * t * midY + t * t * ty2;
+
+  /* 地面の影（着地点に近いほど大きく・濃く） */
+  const shadowX = fx + (tx2 - fx) * t;
+  const shadowY = fy + (ty2 - fy) * t + sz * 0.45;
+  const heightFrac = Math.max(0, 1 - Math.abs(curY - shadowY) / arcH);
+  const shadowRx = sz * 0.22 * (0.4 + heightFrac * 0.6);
+  const shadowRy = sz * 0.06 * (0.4 + heightFrac * 0.6);
+  ctx.save();
+  ctx.globalAlpha = 0.28 * heightFrac;
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.ellipse(shadowX, shadowY, shadowRx, shadowRy, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* アイテムスプライトを放物線上に描画（頂点付近でわずかに拡大） */
+  const scale = 1 + 0.15 * Math.sin(t * Math.PI);
+  const drawSz = sz * scale;
+  ctx.globalAlpha = 1;
+  drawTile(ctx, null, o.tile, curX - drawSz / 2, curY - drawSz / 2, drawSz);
   ctx.restore();
 }
 

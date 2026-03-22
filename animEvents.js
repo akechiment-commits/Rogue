@@ -25,6 +25,31 @@ export function drainAnims() {
   return evts;
 }
 
+/*
+ * Item arc animation queue.
+ * seq: 1 = first flight (scatter or direct throw), 2+ = after trap bounce, etc.
+ * Groups with the same seq play in parallel; higher seq plays after lower seq.
+ */
+const _itemArcQueue = [];
+
+export function pushItemArcAnim(fromX, fromY, toX, toY, tile, seq = 1) {
+  if (fromX === toX && fromY === toY) return;
+  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq });
+}
+
+/* Returns array of arc batches sorted by seq: [[seq1 arcs], [seq2 arcs], ...] */
+export function drainItemArcs() {
+  if (_itemArcQueue.length === 0) return [];
+  const arcs = [..._itemArcQueue];
+  _itemArcQueue.length = 0;
+  const groups = {};
+  for (const a of arcs) {
+    const s = a.seq || 1;
+    (groups[s] = groups[s] || []).push(a);
+  }
+  return Object.keys(groups).map(Number).sort((a, b) => a - b).map(k => groups[k]);
+}
+
 /* Wand effect → bolt color */
 const WAND_COLORS = {
   lightning: "#88ccff", slow: "#20d0d0", paralyze: "#ffcc00", sleep: "#80ff40",
