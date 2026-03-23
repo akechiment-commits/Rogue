@@ -889,15 +889,17 @@ export function useKeyHandler({
             return;
           }
           const { player: p2, dungeon: dg2 } = sr.current;
-          const fis3 = dg2.items.filter(
+          const _curSellShop = getShops(dg2).find(s => s.room &&
+            p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
+            p2.y >= s.room.y && p2.y < s.room.y + s.room.h);
+          const fis3 = _curSellShop ? dg2.items.filter(
             (i) =>
               !i.shopPrice &&
-              dg2.shop &&
-              i.x >= dg2.shop.room.x &&
-              i.x < dg2.shop.room.x + dg2.shop.room.w &&
-              i.y >= dg2.shop.room.y &&
-              i.y < dg2.shop.room.y + dg2.shop.room.h,
-          );
+              i.x >= _curSellShop.room.x &&
+              i.x < _curSellShop.room.x + _curSellShop.room.w &&
+              i.y >= _curSellShop.room.y &&
+              i.y < _curSellShop.room.y + _curSellShop.room.h,
+          ) : [];
           const mlen3 = fis3.length + 1;
           if (isUp3 || isDown3) {
             setShopMenuSel((p2) => (p2 + (isDown3 ? 1 : -1) + mlen3) % mlen3);
@@ -909,6 +911,7 @@ export function useKeyHandler({
               const bp = Math.ceil(itemPrice(it2) * 0.5);
               p2.gold += bp;
               it2.shopPrice = itemPrice(it2);
+              if (_curSellShop) it2._shopId = _curSellShop.id;
               setMsgs((prev) => [
                 ...prev.slice(-80),
                 `${it2.name}を${bp}Gで買い取った。`,
@@ -919,7 +922,7 @@ export function useKeyHandler({
               sr.current = { ...sr.current };
               setGs({ ...sr.current });
               if (fis3.length <= 1) {
-                const dt = dg2.shop.unpaidTotal;
+                const dt = _curSellShop?.unpaidTotal ?? 0;
                 if (dt > 0) {
                   setShopMode("pay");
                   setShopMenuSel(0);
@@ -930,7 +933,7 @@ export function useKeyHandler({
                 } else setShopMode(null);
               }
             } else {
-              const dt = dg2.shop.unpaidTotal;
+              const dt = _curSellShop?.unpaidTotal ?? 0;
               if (dt > 0) {
                 setShopMode("pay");
                 setShopMenuSel(0);

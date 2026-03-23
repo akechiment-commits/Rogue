@@ -807,37 +807,42 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
       {mode === "sell" &&
         (() => {
           const dg2 = gs.dungeon;
-          const fis = dg2.items.filter(
+          const _sellModalShop = getShops(dg2).find(s => s.room &&
+            gs.player.x >= s.room.x && gs.player.x < s.room.x + s.room.w &&
+            gs.player.y >= s.room.y && gs.player.y < s.room.y + s.room.h);
+          const fis = _sellModalShop ? dg2.items.filter(
             (i) =>
               !i.shopPrice &&
-              dg2.shop &&
-              i.x >= dg2.shop.room.x &&
-              i.x < dg2.shop.room.x + dg2.shop.room.w &&
-              i.y >= dg2.shop.room.y &&
-              i.y < dg2.shop.room.y + dg2.shop.room.h,
-          );
+              i.x >= _sellModalShop.room.x &&
+              i.x < _sellModalShop.room.x + _sellModalShop.room.w &&
+              i.y >= _sellModalShop.room.y &&
+              i.y < _sellModalShop.room.y + _sellModalShop.room.h,
+          ) : [];
           const allOpts = [
             ...fis.map((it) => ({
               label: `${it.name}  →  ${Math.ceil(itemPrice(it) * 0.5)}G`,
               fn: () => {
                 if (sr.current) {
                   const { player: p2, dungeon: dg3 } = sr.current;
+                  const _curSellSh = getShops(dg3).find(s => s.room &&
+                    p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
+                    p2.y >= s.room.y && p2.y < s.room.y + s.room.h);
                   const bp = Math.ceil(itemPrice(it) * 0.5);
                   p2.gold += bp;
                   it.shopPrice = itemPrice(it);
+                  if (_curSellSh) it._shopId = _curSellSh.id;
                   setMsgs((prev) => [
                     ...prev.slice(-80),
                     `${it.name}を${bp}Gで買い取った。`,
                   ]);
-                  const rem = dg3.items.filter(
+                  const rem = _curSellSh ? dg3.items.filter(
                     (i2) =>
                       !i2.shopPrice &&
-                      dg3.shop &&
-                      i2.x >= dg3.shop.room.x &&
-                      i2.x < dg3.shop.room.x + dg3.shop.room.w &&
-                      i2.y >= dg3.shop.room.y &&
-                      i2.y < dg3.shop.room.y + dg3.shop.room.h,
-                  );
+                      i2.x >= _curSellSh.room.x &&
+                      i2.x < _curSellSh.room.x + _curSellSh.room.w &&
+                      i2.y >= _curSellSh.room.y &&
+                      i2.y < _curSellSh.room.y + _curSellSh.room.h,
+                  ) : [];
                   sr.current = { ...sr.current };
                   setGs({ ...sr.current });
                   if (rem.length <= 1) setMode(null);

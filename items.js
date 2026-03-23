@@ -518,6 +518,11 @@ export function itemPrice(it) {
     if (it.type === "arrow") {
       return Math.max(base, Math.floor(base * (it.count || 1) / 3));
     }
+    // 壺は中身の合計価格を加算
+    if (it.type === "pot") {
+      const contentsValue = (it.contents || []).reduce((s, c) => s + itemPrice(c), 0);
+      return base + contentsValue;
+    }
     return base;
   }
   // sellPrice未設定のアイテム用フォールバック
