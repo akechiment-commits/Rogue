@@ -3074,6 +3074,7 @@ export const RINGS = [
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"C", weight:2, sellPrice:10,  tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
   { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:200, tile:60, desc:"装備中、お腹の減り方と自然回復の量が倍になる。" },
   { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"C", weight:1, sellPrice:50,  tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
+  { name: "松明の指輪",     type:"ring", effect:"torch_ring",           rarity:"B", weight:2, sellPrice:200, tile:60, desc:"装備中、視界範囲が1マス広がる。2つ装備すれば2マス広がる。" },
 ];
 
 export function hasRingEffect(p, effect) {
