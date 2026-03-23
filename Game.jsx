@@ -29,13 +29,15 @@ import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, drainItemArcs } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 const FLOOR_TITLES = {
-  bigRoom:      "ビッグルームだ！",
-  miniRoom:     "ミニルームだ！",
-  shoppingMall: "ショッピングモールだ！",
-  spinFloor:    "回転板の間だ！",
-  corridorFloor:"廊下フロアだ！",
-  gridRoom:     "格子の大部屋だ！",
-  treasureRoom: "隠し宝部屋だ！",
+  bigRoom:           "ビッグルームだ！",
+  miniRoom:          "ミニルームだ！",
+  shoppingMall:      "ショッピングモールだ！",
+  spinFloor:         "回転板の間だ！",
+  corridorFloor:     "迷路の廊下だ！",
+  gridRoom:          "格子の大部屋だ！",
+  treasureRoom:      "隠し宝部屋だ！",
+  ringCorridorFloor: "環状回廊の間だ！",
+  caveFloor:         "洞窟の間だ！",
 };
 
 const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, spellMenuSel: 0, spellPage: 0, nicknameInput: '', data: null };

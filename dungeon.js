@@ -34,9 +34,13 @@ function genBigRoom(depth) {
     for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
   const room = { x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw / 2), cy: Math.floor(ry + rh / 2) };
   const rooms = [room];
-  const su = { x: rx + 1, y: ry + 1 };
+  /* 階段：左半分にSU、右半分にSD（ランダム位置） */
+  let su = null, sd = null;
+  for (let a = 0; a < 200 && !su; a++) { const x = rng(rx+1, rx+Math.floor(rw/2)-1), y = rng(ry+1, ry+rh-2); if (map[y][x]===T.FLOOR) su={x,y}; }
+  if (!su) su = { x: rx + 1, y: ry + 1 };
   map[su.y][su.x] = T.SU;
-  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  for (let a = 0; a < 200 && !sd; a++) { const x = rng(rx+Math.floor(rw/2), rx+rw-2), y = rng(ry+1, ry+rh-2); if (map[y][x]===T.FLOOR && !(x===su.x&&y===su.y)) sd={x,y}; }
+  if (!sd) sd = { x: rx + rw - 2, y: ry + rh - 2 };
   map[sd.y][sd.x] = T.SD;
   const mons = [];
   const monCount = rng(8, 14) + depth;
@@ -481,9 +485,13 @@ function genMiniRoom(depth) {
     for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
   const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
   const rooms = [room];
-  const su = { x: rx + 1, y: ry + 1 };
+  /* 階段：左半分にSU、右半分にSD（ランダム位置） */
+  let su = null, sd = null;
+  for (let a = 0; a < 200 && !su; a++) { const x = rng(rx+1, rx+Math.floor(rw/2)-1), y = rng(ry+1, ry+rh-2); if (map[y][x]===T.FLOOR) su={x,y}; }
+  if (!su) su = { x: rx + 1, y: ry + 1 };
   map[su.y][su.x] = T.SU;
-  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  for (let a = 0; a < 200 && !sd; a++) { const x = rng(rx+Math.floor(rw/2), rx+rw-2), y = rng(ry+1, ry+rh-2); if (map[y][x]===T.FLOOR && !(x===su.x&&y===su.y)) sd={x,y}; }
+  if (!sd) sd = { x: rx + rw - 2, y: ry + rh - 2 };
   map[sd.y][sd.x] = T.SD;
   const mons = [];
   for (let i = 0; i < rng(5, 9) + depth; i++) {
@@ -653,52 +661,87 @@ function genSpinFloor(depth, _retries = 0) {
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "spinFloor" };
 }
 
-/* ===== CORRIDOR FLOOR (全部廊下だけ) ===== */
+/* ===== CORRIDOR FLOOR (迷路状廊下フロア) ===== */
 function genCorridorFloor(depth) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
-  /* 水平メイン通路を中央に1本 */
-  const mainY = Math.floor(MH / 2);
-  for (let x = 1; x < MW - 1; x++) map[mainY][x] = T.FLOOR;
-  /* 垂直支線を4〜6本 */
-  const branchXs = [];
-  const branchCount = rng(4, 6);
-  for (let i = 0; i < branchCount; i++) branchXs.push(rng(3, MW - 4));
-  for (const bx of branchXs) {
-    const yTop = rng(2, mainY - 1), yBot = rng(mainY + 1, MH - 3);
-    for (let y = yTop; y <= yBot; y++) map[y][bx] = T.FLOOR;
-    /* 支線先端から水平に短い通路 */
-    const hLen = rng(2, 5);
-    const dir2 = Math.random() < 0.5 ? 1 : -1;
-    for (let dx = 1; dx <= hLen; dx++) {
-      const nx = clamp(bx + dir2 * dx, 1, MW - 2);
-      map[yTop][nx] = T.FLOOR;
-      map[yBot][nx] = T.FLOOR;
+
+  /* ===== DFS迷路生成 ===== */
+  const S = 4; // ノード間隔（ノード間に3タイルの廊下）
+  const COLS = Math.floor((MW - 3) / S); // MW=60 → 14列
+  const ROWS = Math.floor((MH - 3) / S); // MH=30 → 6行
+  const nodeX = c => 2 + c * S;
+  const nodeY = r => 2 + r * S;
+
+  /* 全ノード位置をフロアに */
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      map[nodeY(r)][nodeX(c)] = T.FLOOR;
+
+  /* 再帰的バックトラッキングで迷路生成 */
+  const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const sc = rng(0, COLS - 1), sr = rng(0, ROWS - 1);
+  visited[sr][sc] = true;
+  const stack = [[sc, sr]];
+  const DIRS4 = [[1,0],[-1,0],[0,1],[0,-1]];
+  while (stack.length) {
+    const [c, r] = stack[stack.length - 1];
+    const unv = DIRS4.map(([dc, dr]) => [c+dc, r+dr])
+      .filter(([nc, nr]) => nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS && !visited[nr][nc]);
+    if (unv.length) {
+      const [nc, nr] = pick(unv);
+      const x1=nodeX(c), y1=nodeY(r), x2=nodeX(nc), y2=nodeY(nr);
+      if (y1===y2) { const a=Math.min(x1,x2), b=Math.max(x1,x2); for(let x=a;x<=b;x++) map[y1][x]=T.FLOOR; }
+      else         { const a=Math.min(y1,y2), b=Math.max(y1,y2); for(let y=a;y<=b;y++) map[y][x1]=T.FLOOR; }
+      visited[nr][nc] = true;
+      stack.push([nc, nr]);
+    } else {
+      stack.pop();
     }
   }
-  /* 階段を廊下上に設置 */
-  const suX = 2, suY = mainY;
+
+  /* ループ追加：袋小路を減らして迷路らしさを強化 */
+  for (let i = 0; i < rng(8, 14); i++) {
+    const c = rng(0, COLS - 2), r = rng(0, ROWS - 2);
+    if (Math.random() < 0.5) {
+      const y = nodeY(r); for (let x = nodeX(c); x <= nodeX(c+1); x++) map[y][x] = T.FLOOR;
+    } else {
+      const x = nodeX(c); for (let y = nodeY(r); y <= nodeY(r+1); y++) map[y][x] = T.FLOOR;
+    }
+  }
+
+  /* ===== 階段をランダム配置（左1/3にSU、右1/3にSD） ===== */
+  const leftNodes = [], rightNodes = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = nodeX(c), y = nodeY(r);
+      if (x < MW / 3) leftNodes.push([x, y]);
+      else if (x > MW * 2 / 3) rightNodes.push([x, y]);
+    }
+  }
+  const [suX, suY] = pick(leftNodes.length ? leftNodes : [[nodeX(0), nodeY(0)]]);
+  const [sdX, sdY] = pick(rightNodes.length ? rightNodes : [[nodeX(COLS-1), nodeY(ROWS-1)]]);
   map[suY][suX] = T.SU;
-  const sdX = MW - 3, sdY = mainY;
   map[sdY][sdX] = T.SD;
   const su = { x: suX, y: suY }, sd = { x: sdX, y: sdY };
-  /* "仮想部屋"（階段周辺の1マス）をroomsに登録（spin罠用・モンスタースポーン用） */
+
   const rooms = [
-    { x: suX - 1, y: suY - 1, w: 3, h: 3, cx: suX, cy: suY },
-    { x: sdX - 1, y: sdY - 1, w: 3, h: 3, cx: sdX, cy: sdY },
+    { x: suX-1, y: suY-1, w: 3, h: 3, cx: suX, cy: suY },
+    { x: sdX-1, y: sdY-1, w: 3, h: 3, cx: sdX, cy: sdY },
   ];
-  /* 廊下のフロアタイルリスト */
+
+  /* ===== スポーン ===== */
   const corTiles = [];
   for (let y = 0; y < MH; y++)
     for (let x = 0; x < MW; x++)
       if (map[y][x] === T.FLOOR) corTiles.push([x, y]);
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
-  const rndCor = () => { for (let a = 0; a < 60; a++) { const [x, y] = pick(corTiles); if (!occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
-  const rndCorWide = () => { for (let a = 0; a < 120; a++) { const [x, y] = pick(corTiles); if (!occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y) && !isNarrowPassage(map, x, y)) return [x, y]; } return null; };
-  for (let i = 0; i < rng(6, 10) + depth; i++) { const p = rndCor(); if (p) mons.push(mkMon(depth, p[0], p[1])); }
-  for (let i = 0; i < rng(8, 14) + depth; i++) { const p = rndCor(); if (p) { const it = { ...pickWeighted(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(20, 80 + depth * 30); items.push(it); } }
-  for (let i = 0; i < rng(5, 9) + depth; i++) { const p = rndCorWide(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
-  for (let i = 0; i < rng(1, 3); i++) { const p = rndCor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
+  const rndCor = () => { for(let a=0;a<60;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y))return[x,y];}return null; };
+  const rndCorWide = () => { for(let a=0;a<120;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y)&&!isNarrowPassage(map,x,y))return[x,y];}return null; };
+  for(let i=0;i<rng(6,10)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1]));}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it={...pickWeighted(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(5,9)+depth;i++){const p=rndCorWide();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
+  for(let i=0;i<rng(1,3);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "corridorFloor" };
 }
@@ -715,9 +758,13 @@ function genGridRoom(depth) {
       map[gy][gx] = T.WALL;
   const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
   const rooms = [room];
-  const su = { x: rx + 1, y: ry + 1 };
+  /* 階段：左半分にSU、右半分にSD（ランダム位置、格子の柱を避ける） */
+  let su = null, sd = null;
+  for (let a = 0; a < 200 && !su; a++) { const x = rng(rx+1, rx+Math.floor(rw/2)-1), y = rng(ry+1, ry+rh-2); if (map[y][x]===T.FLOOR) su={x,y}; }
+  if (!su) su = { x: rx + 1, y: ry + 1 };
   map[su.y][su.x] = T.SU;
-  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  for (let a = 0; a < 200 && !sd; a++) { const x = rng(rx+Math.floor(rw/2), rx+rw-2), y = rng(ry+1, ry+rh-2); if (map[y][x]===T.FLOOR && !(x===su.x&&y===su.y)) sd={x,y}; }
+  if (!sd) sd = { x: rx + rw - 2, y: ry + rh - 2 };
   map[sd.y][sd.x] = T.SD;
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
@@ -732,6 +779,167 @@ function genGridRoom(depth) {
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "gridRoom" };
 }
 
+
+/* ===== RING CORRIDOR FLOOR (環状回廊の間) ===== */
+function genRingCorridorFloor(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+
+  /* 3つの同心矩形廊下 */
+  const RINGS = [
+    { x1: 2,  y1: 2,  x2: MW-3,  y2: MH-3  },  // 外周
+    { x1: 9,  y1: 6,  x2: MW-10, y2: MH-7  },  // 中周
+    { x1: 18, y1: 11, x2: MW-19, y2: MH-12 },  // 内周
+  ];
+
+  for (const { x1, y1, x2, y2 } of RINGS) {
+    if (x2 <= x1 || y2 <= y1) continue;
+    for (let x = x1; x <= x2; x++) { map[y1][x] = T.FLOOR; map[y2][x] = T.FLOOR; }
+    for (let y = y1+1; y < y2; y++) { map[y][x1] = T.FLOOR; map[y][x2] = T.FLOOR; }
+  }
+
+  /* リング間の接続通路 */
+  const carveV = (x, ya, yb) => { const a=Math.min(ya,yb), b=Math.max(ya,yb); for(let y=a;y<=b;y++) map[y][x]=T.FLOOR; };
+  const carveH = (y, xa, xb) => { const a=Math.min(xa,xb), b=Math.max(xa,xb); for(let x=a;x<=b;x++) map[y][x]=T.FLOOR; };
+
+  /* 外周⟺中周：上下各2本・左右各1本 */
+  for (let i = 0; i < 2; i++) carveV(rng(RINGS[1].x1+1, RINGS[1].x2-1), RINGS[0].y1, RINGS[1].y1);
+  for (let i = 0; i < 2; i++) carveV(rng(RINGS[1].x1+1, RINGS[1].x2-1), RINGS[1].y2, RINGS[0].y2);
+  carveH(rng(RINGS[1].y1+1, RINGS[1].y2-1), RINGS[0].x1, RINGS[1].x1);
+  carveH(rng(RINGS[1].y1+1, RINGS[1].y2-1), RINGS[1].x2, RINGS[0].x2);
+
+  /* 中周⟺内周：上下各2本・左右各1本 */
+  for (let i = 0; i < 2; i++) carveV(rng(RINGS[2].x1+1, RINGS[2].x2-1), RINGS[1].y1, RINGS[2].y1);
+  for (let i = 0; i < 2; i++) carveV(rng(RINGS[2].x1+1, RINGS[2].x2-1), RINGS[2].y2, RINGS[1].y2);
+  carveH(rng(RINGS[2].y1+1, RINGS[2].y2-1), RINGS[1].x1, RINGS[2].x1);
+  carveH(rng(RINGS[2].y1+1, RINGS[2].y2-1), RINGS[2].x2, RINGS[1].x2);
+
+  /* 階段：SU=外周ランダム位置, SD=内周ランダム位置 */
+  const collectRingTiles = ({ x1, y1, x2, y2 }) => {
+    const t = [];
+    for (let x = x1; x <= x2; x++) {
+      if (map[y1][x] === T.FLOOR) t.push([x, y1]);
+      if (y2 !== y1 && map[y2][x] === T.FLOOR) t.push([x, y2]);
+    }
+    for (let y = y1+1; y < y2; y++) {
+      if (map[y][x1] === T.FLOOR) t.push([x1, y]);
+      if (x2 !== x1 && map[y][x2] === T.FLOOR) t.push([x2, y]);
+    }
+    return t;
+  };
+  const outerTiles = collectRingTiles(RINGS[0]);
+  const innerTiles = collectRingTiles(RINGS[2]);
+  const [suX, suY] = pick(outerTiles.length ? outerTiles : [[RINGS[0].x1, RINGS[0].y1]]);
+  const [sdX, sdY] = pick(innerTiles.length ? innerTiles : [[RINGS[2].x1, RINGS[2].y1]]);
+  map[suY][suX] = T.SU; map[sdY][sdX] = T.SD;
+  const su = { x: suX, y: suY }, sd = { x: sdX, y: sdY };
+
+  const rooms = [
+    { x: suX-1, y: suY-1, w: 3, h: 3, cx: suX, cy: suY },
+    { x: sdX-1, y: sdY-1, w: 3, h: 3, cx: sdX, cy: sdY },
+  ];
+
+  const corTiles = [];
+  for (let y = 0; y < MH; y++)
+    for (let x = 0; x < MW; x++)
+      if (map[y][x] === T.FLOOR) corTiles.push([x, y]);
+  const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
+  const rndCor = () => { for(let a=0;a<60;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y))return[x,y];}return null; };
+  const rndCorWide = () => { for(let a=0;a<120;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y)&&!isNarrowPassage(map,x,y))return[x,y];}return null; };
+  for(let i=0;i<rng(5,9)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1]));}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it={...pickWeighted(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(4,8)+depth;i++){const p=rndCorWide();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
+  for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
+  const { visible, explored } = mkVis();
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "ringCorridorFloor" };
+}
+
+/* ===== CAVE FLOOR (洞窟の間) ===== */
+function genCaveFloor(depth) {
+  let map, mainTiles;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+
+    /* 初期配置（内側のみ、境界はWALL固定） */
+    for (let y = 1; y < MH-1; y++)
+      for (let x = 1; x < MW-1; x++)
+        if (Math.random() < 0.44) map[y][x] = T.FLOOR;
+
+    /* セルオートマトン4回：5個以上の隣接フロアがあればフロア */
+    for (let iter = 0; iter < 4; iter++) {
+      const tmp = map.map(r => [...r]);
+      for (let y = 1; y < MH-1; y++) {
+        for (let x = 1; x < MW-1; x++) {
+          let f = 0;
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dx = -1; dx <= 1; dx++)
+              if ((dx||dy) && map[y+dy]?.[x+dx] === T.FLOOR) f++;
+          tmp[y][x] = f >= 5 ? T.FLOOR : T.WALL;
+        }
+      }
+      for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) map[y][x] = tmp[y][x];
+    }
+
+    /* 最大連結成分を抽出 */
+    const seen = new Uint8Array(MW * MH);
+    let best = [];
+    for (let y = 0; y < MH; y++) {
+      for (let x = 0; x < MW; x++) {
+        const idx = y*MW+x;
+        if (map[y][x] !== T.FLOOR || seen[idx]) continue;
+        const comp = [], stk = [[x, y]];
+        while (stk.length) {
+          const [cx, cy] = stk.pop();
+          const ci = cy*MW+cx;
+          if (cx<0||cx>=MW||cy<0||cy>=MH||seen[ci]||map[cy][cx]!==T.FLOOR) continue;
+          seen[ci] = 1; comp.push([cx, cy]);
+          stk.push([cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]);
+        }
+        if (comp.length > best.length) best = comp;
+      }
+    }
+
+    /* 連結成分外をWALLに */
+    const flSet = new Set(best.map(([x,y]) => y*MW+x));
+    for (let y = 0; y < MH; y++)
+      for (let x = 0; x < MW; x++)
+        if (map[y][x] === T.FLOOR && !flSet.has(y*MW+x)) map[y][x] = T.WALL;
+
+    mainTiles = best;
+    if (mainTiles.length >= 280) break;
+  }
+
+  if (!mainTiles || mainTiles.length < 50) return genBigRoom(depth); // フォールバック
+
+  /* 階段配置：左40%にSU、右40%にSD */
+  const lt = mainTiles.filter(([x]) => x < MW * 0.4);
+  const rt = mainTiles.filter(([x]) => x > MW * 0.6);
+  const [suX, suY] = pick(lt.length ? lt : mainTiles);
+  let sdCandidate = null;
+  if (rt.length) { for(let a=0;a<100;a++){const[x,y]=pick(rt);if(x!==suX||y!==suY){sdCandidate=[x,y];break;}} }
+  if (!sdCandidate) { const f=mainTiles.filter(([x,y])=>!(x===suX&&y===suY)); sdCandidate=pick(f.length?f:mainTiles); }
+  const [sdX, sdY] = sdCandidate;
+  map[suY][suX] = T.SU; map[sdY][sdX] = T.SD;
+  const su = { x: suX, y: suY }, sd = { x: sdX, y: sdY };
+
+  const corTiles = mainTiles.filter(([x,y]) => !(x===su.x&&y===su.y) && !(x===sd.x&&y===sd.y));
+  const rooms = [
+    { x: suX-1, y: suY-1, w: 3, h: 3, cx: suX, cy: suY },
+    { x: sdX-1, y: sdY-1, w: 3, h: 3, cx: sdX, cy: sdY },
+  ];
+
+  const mons = [], items = [], traps = [], springs = [], bigboxes = [];
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
+  const rndCor = () => { for(let a=0;a<80;a++){const[x,y]=pick(corTiles);if(!occ(x,y))return[x,y];}return null; };
+  const rndCorWide = () => { for(let a=0;a<160;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!isNarrowPassage(map,x,y))return[x,y];}return null; };
+  for(let i=0;i<rng(6,11)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1]));}
+  for(let i=0;i<rng(10,16)+depth;i++){const p=rndCor();if(p){const it={...pickWeighted(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(5,10)+depth;i++){const p=rndCorWide();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
+  for(let i=0;i<rng(1,3);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
+  const { visible, explored } = mkVis();
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "caveFloor" };
+}
 
 /* ===== 水地形生成 ===== */
 function addWaterPools(map, rooms, su, sd) {
@@ -829,7 +1037,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   if (Math.random() < 0.25) {
     const specials = depth === 0
       ? [genShoppingMall]
-      : [genBigRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom];
+      : [genBigRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
     return pick(specials)(depth, dungeonType);
   }
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
