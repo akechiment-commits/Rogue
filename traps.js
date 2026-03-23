@@ -1,4 +1,4 @@
-import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest } from "./utils.js";
+import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
 import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
@@ -24,6 +24,13 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       for (let fx = wx + 1; fx < MW; fx++) {
         if (dg.map[trap.y][fx] === T.WALL) break;
         if (fx === p.x && trap.y === p.y) {
+          const _atDodgePc = getDodgePentacleMode(dg, p.x, p.y);
+          if (_atDodgePc === "dodge") {
+            ml.push("みかわしの魔方陣の加護で矢をかわした！矢が落ちた。");
+            hp = true;
+            placeItemAt(dg, fx, trap.y, makeArrow(1), ml, new Set([trap.id]));
+            break;
+          }
           const d = ARROW_T.atk + rng(1, 4);
           p.deathCause = `${trap.name}により`;
           p.hp -= d;
