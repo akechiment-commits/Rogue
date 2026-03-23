@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, makeMonster } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, makeMonster, pickMonsterDef } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
@@ -411,9 +411,13 @@ function mkVis() {
   };
 }
 function mkMon(depth, x, y, dormantRate = 0.12) {
-  const { levels: _lvls, ...t } = MONS[clamp(rng(0, depth + 1), 0, MONS.length - 1)];
+  const { base, spawnLevel } = pickMonsterDef(depth);
+  const { levels: _lvls, ...mt } = base;
+  const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
+    ? { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel }
+    : mt;
   return {
-    ...t, id: uid(), x, y, maxHp: t.hp, turnAccum: 0, aware: false,
+    ...st, id: uid(), x, y, maxHp: st.hp, turnAccum: 0, aware: false,
     dir: { x: [-1, 1][rng(0, 1)], y: 0 }, lastPx: 0, lastPy: 0,
     patrolTarget: null, dormant: Math.random() < dormantRate,
   };
