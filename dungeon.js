@@ -1411,7 +1411,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
         else if (pr < 0.2 + depth * 0.02) it.plus = 1;
         if (it.ability === "pickaxe") it.durability = rng(15, 45);
-        if (Math.random() < 0.25) {
+        if (!it.ability && Math.random() < 0.25) {
           const abls =
             it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
           it.ability = pick(abls).id;
