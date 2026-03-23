@@ -509,19 +509,21 @@ export function itemPrice(it) {
       const plus = it.plus || 0;
       return base + plus * 100;
     }
-    // 杖・ペン・マーカーはチャージ数に応じて加算
+    // 杖・ペン・マーカーはチャージ数に応じて加算（1チャージあたりbase×10%、最低100G）
     if (it.type === "wand" || it.type === "pen" || it.type === "marker") {
       const charges = it.charges || 0;
-      return base + charges * 30;
+      const perCharge = Math.max(100, Math.floor(base * 0.1));
+      return base + charges * perCharge;
     }
     // 矢は個数に応じて加算（sellPriceは1個あたりの価値）
     if (it.type === "arrow") {
       return Math.max(base, Math.floor(base * (it.count || 1) / 3));
     }
-    // 壺は中身の合計価格を加算
+    // 壺は容量・中身の合計価格を加算（1容量あたり200G）
     if (it.type === "pot") {
       const contentsValue = (it.contents || []).reduce((s, c) => s + itemPrice(c), 0);
-      return base + contentsValue;
+      const capBonus = (it.capacity || 0) * 200;
+      return base + contentsValue + capBonus;
     }
     return base;
   }
@@ -604,7 +606,7 @@ export const WANDS = [
   { name:"金縛りの杖",     type:"wand", effect:"paralyze",  charges:5, rarity:"A", weight:2,  sellPrice:4000, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。祝福：2回アクションが必要な強金縛り。呪い：対象が200ターン状態異常（金縛り・眠り・鈍足）を防ぐ力を得る。",               tile:24 },
   { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"C", weight:8,  sellPrice:400,  desc:"振ると対象を眠りに落とす。眠りの罠と同様の効果。",                                   tile:24 },
   { name:"祝福の杖",       type:"wand", effect:"bless_wand",charges:3, rarity:"S", weight:1,  sellPrice:8000, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
-  { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:3, rarity:"B", weight:4,  sellPrice:400,  desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
+  { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:3, rarity:"B", weight:4,  sellPrice:1500, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
   { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"A", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。自分に使えば1レベル上がる。敵に当てると次の形態に変化する。呪い：自分なら1階上へ飛ばされ、敵ならレベルダウンする。水の瓶に当てるとレベルアップの薬になる。", tile:24 },
   { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"C", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。自分なら5ターン、敵なら20ターン混乱する。水の瓶に当てると混乱の薬になる。", tile:24 },
   { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:5, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。自分なら視界が1マスになる(20ターン)。敵なら50ターンこちらを認識できず壁まで直進し途中の者を攻撃する。祝福：自分50ターン・敵永続。呪い：フロア全体が見えるようになる。水の瓶に当てると暗闇の薬になる。", tile:24 },
@@ -629,24 +631,24 @@ export const BB_TYPES = [
 
 /* ===== POTS ===== */
 export const POTS = [
-  { name:"チョコの壺",         type:"pot", potEffect:"choco",     capacity:3, rarity:"C", weight:8,  sellPrice:400,  desc:"食料を入れるとチョコがけになる。食べるとHP回復。",  tile:32 },
-  { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"B", weight:4,  sellPrice:700,  desc:"食料を入れると激辛になる。食べると攻撃力UP。",     tile:32 },
-  { name:"蜂蜜の壺",           type:"pot", potEffect:"honey",     capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとはちみつ漬けになる。",   tile:32 },
+  { name:"チョコの壺",         type:"pot", potEffect:"choco",     capacity:3, rarity:"C", weight:8,  sellPrice:600,  desc:"食料を入れるとチョコがけになる。食べるとHP回復。",  tile:32 },
+  { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"B", weight:4,  sellPrice:900,  desc:"食料を入れると激辛になる。食べると攻撃力UP。",     tile:32 },
+  { name:"蜂蜜の壺",           type:"pot", potEffect:"honey",     capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとはちみつ漬けになる。",   tile:32 },
   { name:"保存の壺",           type:"pot", potEffect:"none",      capacity:5, rarity:"C", weight:8,  sellPrice:1500, desc:"アイテムを安全に保管できる。",         tile:32 },
   { name:"強化の壺",           type:"pot", potEffect:"enhance",   capacity:2, rarity:"S", weight:1,  sellPrice:9000, desc:"装備品の性能が上がる。",               tile:32 },
-  { name:"弱化の壺",           type:"pot", potEffect:"weaken",    capacity:3, rarity:"C", weight:8,  sellPrice:100,  desc:"入れた装備品が劣化する呪いの壺。",     tile:32 },
-  { name:"カレーの壺",         type:"pot", potEffect:"curry",     capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとカレー味になる。",       tile:32 },
-  { name:"味噌の壺",           type:"pot", potEffect:"miso",      capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れると味噌漬けになる。",       tile:32 },
-  { name:"燻製の壺",           type:"pot", potEffect:"smoke",     capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を燻製にする。食べると最大満腹度が上がる。", tile:32 },
+  { name:"弱化の壺",           type:"pot", potEffect:"weaken",    capacity:3, rarity:"C", weight:8,  sellPrice:150,  desc:"入れた装備品が劣化する呪いの壺。",     tile:32 },
+  { name:"カレーの壺",         type:"pot", potEffect:"curry",     capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとカレー味になる。",       tile:32 },
+  { name:"味噌の壺",           type:"pot", potEffect:"miso",      capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れると味噌漬けになる。",       tile:32 },
+  { name:"燻製の壺",           type:"pot", potEffect:"smoke",     capacity:3, rarity:"B", weight:4,  sellPrice:1000, desc:"食料を燻製にする。食べると最大満腹度が上がる。", tile:32 },
   { name:"祝福の壺",           type:"pot", potEffect:"bless_pot", capacity:3, rarity:"S", weight:1,  sellPrice:9000, desc:"入れたアイテムを祝福する。",           tile:32 },
-  { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"C", weight:8,  sellPrice:100,  desc:"入れたアイテムを呪う。",               tile:32 },
-  { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"B", weight:4,  sellPrice:700,  desc:"薬を入れると部屋中に薬効が広がる。生の食料を入れると焼いた状態になる。その他のものは保管できる。", tile:32 },
-  { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"B", weight:4,  sellPrice:600,  desc:"割れると周囲8マスを巻き込む爆発を起こす。炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化する。中身は爆発で消える。", tile:32 },
-  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとオリーブオイル漬けになる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。", tile:32 },
-  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとごま油風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
-  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとバター風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
-  { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとヨーグルト漬けになる。",   tile:32 },
-  { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"C", weight:8,  sellPrice:350,  desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
+  { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"C", weight:8,  sellPrice:800,  desc:"入れたアイテムを呪う。",               tile:32 },
+  { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"薬を入れると部屋中に薬効が広がる。生の食料を入れると焼いた状態になる。その他のものは保管できる。", tile:32 },
+  { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"B", weight:4,  sellPrice:700,  desc:"割れると周囲8マスを巻き込む爆発を起こす。炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化する。中身は爆発で消える。", tile:32 },
+  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。", tile:32 },
+  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
+  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
+  { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとヨーグルト漬けになる。",   tile:32 },
+  { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
