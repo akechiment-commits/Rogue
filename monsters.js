@@ -1032,7 +1032,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         dg.bigboxes?.some(b => b.x === m.x && b.y === m.y) ||
         dg.pentacles?.some(pc => pc.x === m.x && pc.y === m.y) ||
         dg.map[m.y]?.[m.x] === T.SD || dg.map[m.y]?.[m.x] === T.SU;
-      if (!_tmBlocked && Math.random() < _tmChance) {
+      if (Math.random() < _tmChance) {
+        if (_tmBlocked) {
+          ml.push(`${m.name}が罠を仕掛けようとしたが失敗した！`);
+          return;
+        }
         /* 足元にすでに罠があれば別の種類を選ぶ */
         const _existTrap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
         let _candidates = TRAPS;
