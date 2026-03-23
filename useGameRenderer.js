@@ -413,13 +413,16 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
   const moveOffsetsRef = useRef(new Map());
   /* flyingItems: Set of "x,y" keys — items currently in-flight arc animation (hide at destination) */
   const flyingItemsRef = useRef(new Set());
+  /* ダッシュ中の中間フレーム描画用：setGs を使わずに直接キャンバス更新するためのオーバーライド */
+  const gsOverrideRef = useRef(null);
 
   const renderFrame = useCallback(() => {
-    if (!gs || !canvasRef.current) return;
+    const _gs = gsOverrideRef.current || gs;
+    if (!_gs || !canvasRef.current) return;
     const cvs = canvasRef.current,
       ctx = cvs.getContext("2d");
     const ts = null;
-    const { player: p, dungeon: dg } = gs;
+    const { player: p, dungeon: dg } = _gs;
     const vw = mobile ? (landscape ? VW_L : VW_M) : VW_D;
     const contW = cvs.parentElement?.clientWidth || 600;
     const sz = Math.max(12, Math.floor(contW / vw));
@@ -765,5 +768,5 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
   const renderFrameRef = useRef(renderFrame);
   useEffect(() => { renderFrameRef.current = renderFrame; }, [renderFrame]);
 
-  return { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef };
+  return { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef, gsOverrideRef };
 }

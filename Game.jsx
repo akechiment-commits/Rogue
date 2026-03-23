@@ -474,7 +474,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   }, [msgs]);
 
   /* Canvas render */
-  const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
+  const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef, gsOverrideRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
   const animBusyRef = useRef(false);
   const monMovesRef = useRef([]); /* populated by endTurn for monster move animations */
 
@@ -2404,7 +2404,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
   }, [act, lookMode]);
   const doDash = useCallback(
-    (dx, dy) => {
+    async (dx, dy) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
       if (springMode || putMode || markerMode || spellListMode || debugSpellMode || throwMode || showInv || lookMode) return;
@@ -2581,6 +2581,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           !!monsterAt(dg, fnx, fny);
         const _hpBefore = p.hp;
         endTurn(st, p, ml);
+        /* 各ステップの状態をキャンバスに一瞬描画（ダッシュ高速移動演出） */
+        gsOverrideRef.current = { ...st };
+        animBusyRef.current = true;
+        renderFrameRef.current();
+        await new Promise(r => setTimeout(r, 45));
+        gsOverrideRef.current = null;
+        animBusyRef.current = false;
         if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
         /* endTurn後にモンスターが移動している可能性があるため再チェック */
         const blockedAfter = blocked || !!monsterAt(dg, fnx, fny);
