@@ -2996,6 +2996,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
     }
     case "transform_magic": {
       if (kind === "monster") {
+        if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
         const nt = pick(MONS); const prevName = target.name; const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, wallWalker: nt.wallWalker });
         ml.push(`${prevName}は${target.name}に変化した！`);

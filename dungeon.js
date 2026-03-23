@@ -1099,17 +1099,76 @@ function genBossFloor(depth) {
   }
 
   const rooms = [{ x: arX, y: arY, w: arW, h: arH, cx: bossX, cy: bossY }];
+
+  /* ── フロアポピュレーション ── */
+  const allMons = [boss, ...minionMonsters];
+  const isOccMon = (x, y) => allMons.some(mn => mn.x === x && mn.y === y);
+  const isStair = (x, y) => (x === suX && y === suY) || (x === sdX && y === sdY);
+
+  /* アイテム */
+  const items = [];
+  const itemOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || items.some(i => i.x === x && i.y === y);
+  for (let _ii = 0; _ii < rng(8, 14); _ii++) {
+    for (let _a = 0; _a < 100; _a++) {
+      const ix = rng(arX + 1, arX + arW - 2), iy = rng(arY + 1, arY + arH - 2);
+      if (map[iy][ix] !== T.FLOOR || itemOcc(ix, iy)) continue;
+      const _it = { ...pickWeighted(ITEMS), id: uid(), x: ix, y: iy };
+      if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
+      else { const _br = Math.random(); if (_br < 0.10) _it.blessed = true; else if (_br < 0.25) _it.cursed = true; }
+      items.push(_it); break;
+    }
+  }
+
+  /* 罠 */
+  const traps = [];
+  const trapOcc = (x, y) => isOccMon(x, y) || isStair(x, y) || itemOcc(x, y) || traps.some(t => t.x === x && t.y === y);
+  for (let _ti = 0; _ti < rng(4, 8) + depth; _ti++) {
+    for (let _a = 0; _a < 100; _a++) {
+      const tx = rng(arX + 1, arX + arW - 2), ty = rng(arY + 1, arY + arH - 2);
+      if (map[ty][tx] !== T.FLOOR || trapOcc(tx, ty)) continue;
+      traps.push({ ...pick(TRAPS), id: uid(), x: tx, y: ty, revealed: false }); break;
+    }
+  }
+
+  /* 泉 */
+  const springs = [];
+  const springOcc = (x, y) => trapOcc(x, y) || springs.some(s => s.x === x && s.y === y);
+  for (let _si = 0; _si < rng(1, 3); _si++) {
+    for (let _a = 0; _a < 100; _a++) {
+      const sx = rng(arX + 1, arX + arW - 2), sy = rng(arY + 1, arY + arH - 2);
+      if (map[sy][sx] !== T.FLOOR || springOcc(sx, sy)) continue;
+      springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] }); break;
+    }
+  }
+
+  /* 大箱 */
+  const bigboxes = [];
+  const bbOcc = (x, y) => springOcc(x, y) || bigboxes.some(b => b.x === x && b.y === y);
+  for (let _bi = 0; _bi < rng(2, 4); _bi++) {
+    for (let _a = 0; _a < 100; _a++) {
+      const bx = rng(arX + 1, arX + arW - 2), by = rng(arY + 1, arY + arH - 2);
+      if (map[by][bx] !== T.FLOOR || bbOcc(bx, by)) continue;
+      const bbt = pickBB();
+      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); break;
+    }
+  }
+
+  /* 隠し部屋（50%の確率で1部屋） */
+  const hiddenRooms = Math.random() < 0.5 ? genHiddenRooms(map, depth) : [];
+  for (const hr of hiddenRooms) populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps);
+
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
 
   return {
     map, rooms,
     monsters: [boss, ...minionMonsters],
-    items: [], traps: [], springs: [], bigboxes: [],
+    items, traps, springs, bigboxes,
     stairUp:   { x: suX, y: suY },
     stairDown: { x: sdX, y: sdY },
     visible: vis, explored: exp,
     shop: null, pentacles: [], waterItems: [],
+    hiddenRooms, monsterHouseRoom: null,
     floorType: "bossFloor",
     isBossFloor: true,
   };

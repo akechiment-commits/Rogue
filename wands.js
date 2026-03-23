@@ -530,6 +530,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     case "transform": {
       if (kind === "monster") {
+        if (target.isBoss) { ml.push(`${target.name}には変化の杖が効かなかった！`); break; }
         const nt = pick(MONS);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         const ox = target.x, oy = target.y;

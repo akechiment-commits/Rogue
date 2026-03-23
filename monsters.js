@@ -143,14 +143,13 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* ボス固有攻撃エフェクト */
   if (dmg > 0) {
     if (m.baseKind === "boss_blaze" && Math.random() < 0.35) {
-      const _ct = rng(3, 5);
-      pl.confusedTurns = (pl.confusedTurns || 0) + _ct;
-      ml.push(`灼熱の炎が頭を焼いた！混乱した！(${_ct}ターン)`);
+      pl.confusedTurns = (pl.confusedTurns || 0) + 3;
+      ml.push(`灼熱の炎が頭を焼いた！混乱した！(3ターン)`);
     }
     if (m.baseKind === "boss_sage" && Math.random() < 0.30) {
       const _st = rng(5, 8);
       pl.sealedTurns = (pl.sealedTurns || 0) + _st;
-      ml.push(`呪縛の賢者の呪いがかかった！アイテムが使えない！(${_st}ターン)`);
+      ml.push(`呪縛の賢者の呪文が炸裂した！魔法が封印された！(${_st}ターン)`);
     }
     if (m.baseKind === "boss_demonking" && Math.random() < 0.25) {
       const _pt = rng(2, 4);
