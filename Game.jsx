@@ -38,6 +38,7 @@ const FLOOR_TITLES = {
   treasureRoom:      "隠し宝部屋だ！",
   ringCorridorFloor: "環状回廊の間だ！",
   caveFloor:         "洞窟の間だ！",
+  bossFloor:         "ボスフロアだ！強大な敵が待ち受けている！",
 };
 
 const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, spellMenuSel: 0, spellPage: 0, nicknameInput: '', data: null };

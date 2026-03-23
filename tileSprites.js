@@ -1307,6 +1307,18 @@ D[88] = [["#d07020","#904010","#111118","#ffe080"],
   "0000110110000000"
 ];
 
+// 89: ボス tier 1 — 灼熱の覇者 (fire orange-red)
+D[89] = largeMon("#cc4400", "#882200");
+
+// 90: ボス tier 2 — 呪縛の賢者 (magic purple)
+D[90] = largeMon("#7722cc", "#441188");
+
+// 91: ボス tier 3 — 深淵の番人 (abyss blue)
+D[91] = largeMon("#1166bb", "#0a3388");
+
+// 92: ボス tier 4 — 魔神王 (demon crimson)
+D[92] = largeMon("#cc1144", "#880033");
+
 /* ===== EXPORT ===== */
 
 export function generateTileImages() {

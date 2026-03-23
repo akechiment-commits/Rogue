@@ -2401,6 +2401,49 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
 }
 
 export function monsterDrop(m, dg, ml, p = null) {
+  /* ===== ボスドロップ（通常ドロップをスキップして専用報酬を散布） ===== */
+  if (m.isBoss) {
+    const _tier = m.bossTier || 1;
+    const _ft = new Set();
+    /* 金 */
+    const _gv = [600, 1500, 3000, 6000][_tier - 1] + rng(0, 100 * _tier);
+    placeItemAt(dg, m.x, m.y, { name: "ボスの財宝", type: "gold", value: _gv, tile: 1, id: uid() }, ml, _ft, 0, p);
+    /* 祝福された武器 */
+    const _wpPool = ITEMS.filter(i => i.type === "weapon" && ["C","B","A"].includes(i.rarity));
+    placeItemAt(dg, m.x, m.y,
+      { ...pick(_wpPool.length ? _wpPool : ITEMS.filter(i => i.type === "weapon")), blessed: true, id: uid() },
+      ml, _ft, 0, p);
+    /* 祝福された防具 (tier2+) */
+    if (_tier >= 2) {
+      const _arPool = ITEMS.filter(i => i.type === "armor" && ["C","B","A"].includes(i.rarity));
+      placeItemAt(dg, m.x, m.y,
+        { ...pick(_arPool.length ? _arPool : ITEMS.filter(i => i.type === "armor")), blessed: true, id: uid() },
+        ml, _ft, 0, p);
+    }
+    /* 祝福された巻物 (tier数分) */
+    const _scPool = ITEMS.filter(i => i.type === "scroll" && i.rarity !== "D");
+    for (let _si = 0; _si < _tier; _si++) {
+      placeItemAt(dg, m.x, m.y,
+        { ...pick(_scPool.length ? _scPool : ITEMS.filter(i => i.type === "scroll")), blessed: true, id: uid() },
+        ml, _ft, 0, p);
+    }
+    /* 杖 (tier3+) */
+    if (_tier >= 3) {
+      placeItemAt(dg, m.x, m.y,
+        { ...pick(WANDS), id: uid(), charges: rng(3, 5) },
+        ml, _ft, 0, p);
+    }
+    /* 祝福されたリング (tier4) */
+    if (_tier >= 4) {
+      const _rPool = RINGS.filter(r => ["A","B"].includes(r.rarity));
+      placeItemAt(dg, m.x, m.y,
+        { ...pick(_rPool.length ? _rPool : RINGS), blessed: true, id: uid() },
+        ml, _ft, 0, p);
+    }
+    ml.push(`★ ${m.name}を倒した！豪華な戦利品が現れた！`);
+    return;
+  }
+
   const drops = [];
   /* ゼラチンキューブ：取り込んでいたアイテムを全てその場にばらまく */
   if (m.baseKind === "gelcube" && m.heldItems?.length > 0) {

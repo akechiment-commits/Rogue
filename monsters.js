@@ -534,6 +534,26 @@ export function monLevelDown(mon, dg, ml) {
   return true;
 }
 
+/* ===== ボステンプレート（5階ごとに1体登場） ===== */
+export const BOSSES = [
+  /* 第1ボス B5F (depth=4) */
+  { name: "灼熱の覇者", hp: 180, atk: 25, def: 12, exp: 500,
+    speed: 1,   tile: 89, kind: "beast",    baseKind: "boss_blaze",
+    isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 2 },
+  /* 第2ボス B10F (depth=9) */
+  { name: "呪縛の賢者", hp: 300, atk: 35, def: 18, exp: 1200,
+    speed: 1.5, tile: 90, kind: "humanoid", baseKind: "boss_sage",
+    isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 2 },
+  /* 第3ボス B15F (depth=14) */
+  { name: "深淵の番人", hp: 500, atk: 45, def: 25, exp: 2500,
+    speed: 1,   tile: 91, kind: "beast",    baseKind: "boss_guardian",
+    isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 3 },
+  /* 第4ボス B20F (depth=19) */
+  { name: "魔神王", hp: 750, atk: 58, def: 32, exp: 5000,
+    speed: 2,   tile: 92, kind: "beast",    baseKind: "boss_demonking",
+    isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 3, float: true },
+];
+
 /* ===== 警備員テンプレート ===== */
 export const GUARD_TEMPLATE = { name: "警備員", hp: 35, atk: 14, def: 5, exp: 25, speed: 1, tile: 59, kind: "humanoid" };
 export function makeGuard(x, y, plx, ply) {

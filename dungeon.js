@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage } from './utils.js';
-import { MONS, MON_LEVELS } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
@@ -1031,7 +1031,79 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
   }
 }
 
+/* ===== ボスフロア生成 ===== */
+function genBossFloor(depth) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+
+  /* 中央アリーナ (40×14) */
+  const arX = 10, arY = 8, arW = 40, arH = 14;
+  for (let y = arY; y < arY + arH; y++)
+    for (let x = arX; x < arX + arW; x++)
+      map[y][x] = T.FLOOR;
+
+  /* 北/南コリドー (6マス幅) */
+  for (let y = 1; y < arY; y++)
+    for (let x = 27; x <= 32; x++) map[y][x] = T.FLOOR;
+  for (let y = arY + arH; y < MH - 1; y++)
+    for (let x = 27; x <= 32; x++) map[y][x] = T.FLOOR;
+
+  /* 装飾柱 BWALL 2×2 × 四隅 ＋ 中央左右 */
+  for (const [px, py] of [
+    [13,10],[14,10],[13,11],[14,11],   // NW
+    [45,10],[46,10],[45,11],[46,11],   // NE
+    [13,18],[14,18],[13,19],[14,19],   // SW
+    [45,18],[46,18],[45,19],[46,19],   // SE
+    [22,13],[22,14],[22,15],           // 中央左柱
+    [37,13],[37,14],[37,15],           // 中央右柱
+  ]) { if (map[py]?.[px] === T.FLOOR) map[py][px] = T.BWALL; }
+
+  /* 階段：北端(入口) / 南端(出口) */
+  const suX = 29, suY = 1;
+  const sdX = 29, sdY = MH - 2;
+  map[suY][suX] = T.SU;
+  map[sdY][sdX] = T.SD;
+
+  /* ボス配置 */
+  const bossIdx = Math.min(Math.floor(depth / 5), BOSSES.length - 1);
+  const bt = BOSSES[bossIdx];
+  const bossX = arX + (arW >> 1);
+  const bossY = arY + (arH >> 1);
+  const boss = {
+    ...bt,
+    id: uid(),
+    maxHp: bt.hp,
+    x: bossX,
+    y: bossY,
+    baseSpeed: bt.speed || 1,
+    turnAccum: 0,
+    aware: false,
+    dir: { x: 0, y: 0 },
+    lastPx: bossX,
+    lastPy: bossY,
+    patrolTarget: null,
+  };
+
+  const rooms = [{ x: arX, y: arY, w: arW, h: arH, cx: bossX, cy: bossY }];
+  const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
+  const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
+
+  return {
+    map, rooms,
+    monsters: [boss],
+    items: [], traps: [], springs: [], bigboxes: [],
+    stairUp:   { x: suX, y: suY },
+    stairDown: { x: sdX, y: sdY },
+    visible: vis, explored: exp,
+    shop: null, pentacles: [], waterItems: [],
+    floorType: "bossFloor",
+    isBossFloor: true,
+  };
+}
+
 export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
+  /* ボスフロア：5の倍数階 (B5F=depth4, B10F=depth9, ...) */
+  if (depth % 5 === 4) return genBossFloor(depth);
+
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
   /* B1F（depth=0）は店のみ許可・それ以外の特殊フロアは出現しない */
   if (Math.random() < 0.25) {
