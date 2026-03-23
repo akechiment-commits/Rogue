@@ -1448,6 +1448,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.bewitchedTurns--;
         if (p.bewitchedTurns <= 0) ml.push("幻惑が解けた！周囲の見た目が正常に戻った！");
       }
+      if ((p.defSoftenedTurns || 0) > 0) {
+        p.defSoftenedTurns--;
+        if (p.defSoftenedTurns <= 0) ml.push("軟化が解けた！防御力が戻った！");
+      }
       if ((p.monsterSenseTurns || 0) > 0) {
         p.monsterSenseTurns--;
         if (p.monsterSenseTurns <= 0) ml.push("モンスター感知が切れた！");
@@ -3478,6 +3482,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         )}{" "}
         {(p.sealedTurns || 0) > 0 && (
           <span style={{ color: "#8040e0" }}>🔒{p.sealedTurns}</span>
+        )}{" "}
+        {(p.defSoftenedTurns || 0) > 0 && (
+          <span style={{ color: "#c8a060" }}>🛡↓{p.defSoftenedTurns}</span>
         )}{" "}
       </div>{" "}
       <div

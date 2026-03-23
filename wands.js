@@ -587,12 +587,23 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "item") {
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
-        ml.push(`軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！`);
+        if (target.type === "pot" && target.contents && target.contents.length > 0) {
+          const _sfFts = new Set();
+          for (const _ci of target.contents) placeItemAt(dg, target.x, target.y, _ci, ml, _sfFts);
+          ml.push(`軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！中身が飛び出した！`);
+        } else {
+          ml.push(`軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！`);
+        }
         break;
       }
       if (kind === "trap") {
         dg.traps = dg.traps.filter(t => t !== target);
         ml.push(`軟化の魔法弾で${target.name}が崩れ落ちた！`);
+        break;
+      }
+      if (kind === "player") {
+        p.defSoftenedTurns = (p.defSoftenedTurns || 0) + 50;
+        ml.push(`軟化の魔法弾が自分に命中！防御力が半減した！(50ターン)`);
         break;
       }
       break;
@@ -1344,9 +1355,15 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) {
       if (eff === "soften") {
-        /* 壁1マスをランダムな食料に変化 */
-        if (tx >= 0 && tx < MW && ty >= 0 && ty < MH &&
-            (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) {
+        /* 最外周の壁：跳ね返って自分に当たる */
+        if (tx <= 0 || tx >= MW - 1 || ty <= 0 || ty >= MH - 1) {
+          ml.push("魔法弾が外周の壁に跳ね返った！");
+          if (lastX !== p.x || lastY !== p.y) pushAnim({ type:"projectileReturn", fromX:lastX, fromY:lastY, toX:p.x, toY:p.y, color:"#c8a060" });
+          applyWandEffect("soften", "player", p, -dx, -dy, dg, p, ml, luFn, null, blMult);
+          return;
+        }
+        /* 内部の壁：1マスをランダムな食料に変化 */
+        if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
           const _sfFood = { ...genFood(), id: uid(), x: tx, y: ty };
           dg.map[ty][tx] = T.FLOOR;
           dg.items.push(_sfFood);
@@ -1579,6 +1596,69 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
     if (!_pfBlocked) {
       dg.traps.push({ name:"落とし穴", effect:"pitfall", tile:27, id:uid(), x:p.x, y:p.y, revealed:true });
       ml.push("足元に落とし穴ができた！");
+    }
+    return;
+  }
+  if (eff === "soften") {
+    if (blMult < 1) {
+      /* 呪われた軟化の杖を壊した：周囲8方向を壊せる壁で囲む（呪われた穴掘りと同一挙動） */
+      const _sfcDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+      let _sfcWalled = 0;
+      for (const [adx, ady] of _sfcDirs) {
+        const wx = p.x + adx, wy = p.y + ady;
+        if (wx >= 0 && wx < MW && wy >= 0 && wy < MH) {
+          const _mon = monsterAt(dg, wx, wy);
+          if (_mon) {
+            if (!consumeBarrier(_mon, ml)) {
+              const _dmg = rng(5, 15);
+              _mon.hp -= _dmg;
+              ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
+              if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+            }
+          } else if (dg.map[wy][wx] === T.FLOOR) {
+            dg.map[wy][wx] = T.BWALL;
+            _sfcWalled++;
+          }
+        }
+      }
+      ml.push(_sfcWalled > 0 ? "壊せる壁に囲まれた！" : "杖が壊れたが何も起こらなかった。");
+      return;
+    }
+    /* 通常/祝福：防御半減50ターン＋足元に落とし穴＋周囲に軟化効果（壁は食料に変化） */
+    p.defSoftenedTurns = (p.defSoftenedTurns || 0) + 50;
+    ml.push("軟化の杖が壊れた！防御力が半減した！(50ターン)");
+    const _sfpBlocked =
+      dg.traps.find(t => t.x === p.x && t.y === p.y) ||
+      dg.items.some(i => i.x === p.x && i.y === p.y) ||
+      dg.springs?.some(s => s.x === p.x && s.y === p.y) ||
+      dg.bigboxes?.some(b => b.x === p.x && b.y === p.y) ||
+      dg.pentacles?.some(pc => pc.x === p.x && pc.y === p.y) ||
+      dg.map[p.y][p.x] === T.SD || dg.map[p.y][p.x] === T.SU;
+    if (!_sfpBlocked) {
+      dg.traps.push({ name:"落とし穴", effect:"pitfall", tile:27, id:uid(), x:p.x, y:p.y, revealed:true });
+      ml.push("足元に落とし穴ができた！");
+    }
+    const _sfbDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+    for (const [adx, ady] of _sfbDirs) {
+      const ax = p.x + adx, ay = p.y + ady;
+      if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+      /* 壁（最外周を除く）→ 食料に変化 */
+      if ((dg.map[ay][ax] === T.WALL || dg.map[ay][ax] === T.BWALL) &&
+          ax > 0 && ax < MW - 1 && ay > 0 && ay < MH - 1) {
+        const _sfbFood = { ...genFood(), id: uid(), x: ax, y: ay };
+        dg.map[ay][ax] = T.FLOOR;
+        dg.items.push(_sfbFood);
+        ml.push(`壁が溶けて${_sfbFood.name}が現れた！`);
+        continue;
+      }
+      const _sfbMon = monsterAt(dg, ax, ay);
+      if (_sfbMon) { applyWandEffect("soften", "monster", _sfbMon, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      const _sfbIt = itemAt(dg, ax, ay);
+      if (_sfbIt) { applyWandEffect("soften", "item", _sfbIt, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      const _sfbTrap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
+      if (_sfbTrap) { _sfbTrap.revealed = true; applyWandEffect("soften", "trap", _sfbTrap, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      const _sfbBb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
+      if (_sfbBb) applyWandEffect("soften", "bigbox", _sfbBb, adx, ady, dg, p, ml, luFn, null, blMult);
     }
     return;
   }
