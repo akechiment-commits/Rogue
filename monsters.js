@@ -340,6 +340,13 @@ export const MONS = [
       { name: "罠の覇者",         hp: 63,  atk: 18, def: 8,  exp: 120 },
     ],
   },
+  /* 10.6: 12階〜 発見済み罠に放り投げる */
+  { name: "罠猟師",       hp: 28,  atk: 11, def: 3,  exp: 55,  speed: 1,   tile: 87, kind: "humanoid", baseKind: "trapthrower", monLevel: 1, subtype: "trapthrower",
+    levels: [
+      { name: "罠猟師長",         hp: 45,  atk: 15, def: 6,  exp: 88  },
+      { name: "罠猟師頭",         hp: 70,  atk: 20, def: 9,  exp: 138 },
+    ],
+  },
   /* 11: 12階〜 */
   { name: "大蛇",         hp: 35,  atk: 13, def: 3,  exp: 52,  speed: 1,   tile: 12, kind: "beast",    baseKind: "serpent",    monLevel: 1, maxAttacks: 2,
     levels: [
@@ -1239,7 +1246,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = m.baseKind === "dragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         (_dfLvl0 >= 2 ? _sameRoom : _rLine);
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _ttLvl0 = m.monLevel || 1;
+      const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
+      const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
+        dg.traps?.some(t => t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange0);
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -1273,6 +1284,28 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_stDist <= _stRange && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
           monsterThrowStone(m, dg, pl, ml);
+          return;
+        }
+      }
+
+      if (m.subtype === "trapthrower" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1) && opts.fireTrapFn) {
+        const _ttLvl = m.monLevel || 1;
+        const _ttRange = _ttLvl >= 3 ? 10 : _ttLvl >= 2 ? 5 : 3;
+        /* 範囲内の発見済み罠を収集し、プレイヤーから近い順に並べる */
+        const _ttCands = (dg.traps || []).filter(t =>
+          t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange &&
+          !(t.x === pl.x && t.y === pl.y)
+        ).sort((a, b) =>
+          Math.max(Math.abs(a.x - pl.x), Math.abs(a.y - pl.y)) -
+          Math.max(Math.abs(b.x - pl.x), Math.abs(b.y - pl.y))
+        );
+        if (_ttCands.length > 0 && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+          const _ttTrap = _ttCands[0];
+          m.turnAttacks++;
+          pl.x = _ttTrap.x; pl.y = _ttTrap.y;
+          ml.push(`${m.name}がプレイヤーを${_ttTrap.name}に向かって放り投げた！`);
+          if ((pl.immobileTurns || 0) > 0) { pl.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
+          opts.fireTrapFn(_ttTrap, pl, dg, ml);
           return;
         }
       }
