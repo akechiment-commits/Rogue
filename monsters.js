@@ -201,300 +201,303 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *   3. 特殊AIが必要なら monsterAI() の subtype 判定ブロックに追加
  * ────────────────────────────────────────────────────────────────
  */
-/* ── MONS配列の順番 = 出現階層（index N → N+1階から出現可能）── */
+/* ── MONS配列の順番 = 出現難度。makeMonsterがdepthに応じてスケールして選択。
+ *    全42体が30階にわたって均等に分散する（1〜2体/階ペースで新種が登場）。
+ *    index i が初出現するフロア ≒ ceil(i * 29 / 41) + 1
+ * ── */
 export const MONS = [
-  /* 0: 1階〜 */
-  { name: "ネズミ",       hp: 7,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",        monLevel: 1,
+  /*  0: 1階〜 */
+  { name: "ネズミ",       hp: 7,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1,
     levels: [
-      { name: "強ネズミ",         hp: 11,  atk: 6,  def: 3,  exp: 5   },
-      { name: "覇ネズミ",         hp: 18,  atk: 8,  def: 6,  exp: 8   },
+      { name: "強ネズミ",           hp: 11,  atk: 6,  def: 3,  exp: 5   },
+      { name: "覇ネズミ",           hp: 18,  atk: 8,  def: 6,  exp: 8   },
     ],
   },
-  /* 1: 2階〜 */
-  { name: "コボルド",     hp: 11,  atk: 6,  def: 1,  exp: 8,   speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",     monLevel: 1,
+  /*  1: 2階〜 */
+  { name: "コボルド",     hp: 11,  atk: 6,  def: 1,  exp: 8,   speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1,
     levels: [
-      { name: "コボルド戦士",     hp: 22,  atk: 11, def: 6,  exp: 13  },
-      { name: "コボルド族長",     hp: 34,  atk: 14, def: 10, exp: 20  },
+      { name: "コボルド戦士",       hp: 22,  atk: 11, def: 6,  exp: 13  },
+      { name: "コボルド族長",       hp: 34,  atk: 14, def: 10, exp: 20  },
     ],
   },
-  /* 2: 3階〜 */
-  { name: "ゴブリン",     hp: 14,  atk: 7,  def: 1,  exp: 12,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",     monLevel: 1,
+  /*  2: 3階〜 */
+  { name: "ゴブリン",     hp: 14,  atk: 7,  def: 1,  exp: 12,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1,
     levels: [
-      { name: "ゴブリン頭",       hp: 26,  atk: 12, def: 6,  exp: 19  },
-      { name: "ゴブリン王",       hp: 41,  atk: 17, def: 12, exp: 30  },
+      { name: "ゴブリン頭",         hp: 26,  atk: 12, def: 6,  exp: 19  },
+      { name: "ゴブリン王",         hp: 41,  atk: 17, def: 12, exp: 30  },
     ],
   },
-  /* 3: 4階〜 速攻型 */
-  { name: "インプ",       hp: 19,  atk: 11, def: 2,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",        monLevel: 1, float: true,
+  /*  3: 4階〜 速攻型 */
+  { name: "インプ",       hp: 19,  atk: 11, def: 2,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",           monLevel: 1, float: true,
     levels: [
-      { name: "強インプ",         hp: 30,  atk: 15, def: 5,  exp: 32  },
-      { name: "覇インプ",         hp: 47,  atk: 20, def: 9,  exp: 50  },
+      { name: "強インプ",           hp: 30,  atk: 15, def: 5,  exp: 32  },
+      { name: "覇インプ",           hp: 47,  atk: 20, def: 9,  exp: 50  },
     ],
   },
-  /* 4: 5階〜 */
-  { name: "スケルトン",   hp: 24,  atk: 12, def: 5,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",   monLevel: 1,
+  /*  4: 4階〜 */
+  { name: "スケルトン",   hp: 24,  atk: 12, def: 5,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1,
     levels: [
-      { name: "強スケルトン",     hp: 39,  atk: 17, def: 9,  exp: 35  },
-      { name: "アンデッドナイト", hp: 61,  atk: 21, def: 13, exp: 55  },
+      { name: "強スケルトン",       hp: 39,  atk: 17, def: 9,  exp: 35  },
+      { name: "アンデッドナイト",   hp: 61,  atk: 21, def: 13, exp: 55  },
     ],
   },
-  /* 5: 6階〜 鈍足・硬め */
-  { name: "ゾンビ",       hp: 34,  atk: 14, def: 3,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",     monLevel: 1,
+  /*  5: 5階〜 逃げるボーナスモンスター */
+  { name: "コロポックル", hp: 11,  atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 70, kind: "beast",    baseKind: "runner",        monLevel: 1, subtype: "runner",
     levels: [
-      { name: "強ゾンビ",         hp: 54,  atk: 20, def: 7,  exp: 45  },
-      { name: "屍鬼",             hp: 85,  atk: 24, def: 12, exp: 70  },
+      { name: "大コロポックル",     hp: 16,  atk: 0,  def: 0,  exp: 80  },
+      { name: "精霊コロポックル",   hp: 24,  atk: 0,  def: 0,  exp: 120 },
     ],
   },
-  /* 5.6: 7階〜 分裂スライム */
-  { name: "分裂スライム", hp: 30,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 77, kind: "beast",    baseKind: "slime",      monLevel: 1, subtype: "splitter",
+  /*  6: 6階〜 鈍足・硬め */
+  { name: "ゾンビ",       hp: 34,  atk: 14, def: 3,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1,
     levels: [
-      { name: "強スライム",       hp: 47,  atk: 18, def: 5,  exp: 51  },
-      { name: "覇スライム",       hp: 74,  atk: 24, def: 7,  exp: 80  },
+      { name: "強ゾンビ",           hp: 54,  atk: 20, def: 7,  exp: 45  },
+      { name: "屍鬼",               hp: 85,  atk: 24, def: 12, exp: 70  },
     ],
   },
-  /* 6.5: 7階〜 HPが一桁になると次ターンに爆発 */
-  { name: "ボムスライム", hp: 38,  atk: 12, def: 2,  exp: 55,  speed: 1,   tile: 77, kind: "beast",    baseKind: "bombslime",  monLevel: 1, subtype: "deathbomb",
+  /*  7: 6階〜 石投げ */
+  { name: "ワッカ",       hp: 24,  atk: 14, def: 2,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",         monLevel: 1, subtype: "stonethrow",
     levels: [
-      { name: "強ボムスライム",   hp: 61,  atk: 18, def: 3,  exp: 88  },
-      { name: "覇ボムスライム",   hp: 95,  atk: 24, def: 5,  exp: 138 },
+      { name: "強ワッカ",           hp: 38,  atk: 20, def: 5,  exp: 45  },
+      { name: "覇ワッカ",           hp: 61,  atk: 27, def: 7,  exp: 72  },
     ],
   },
-  /* 5.5: 6階〜 石投げ */
-  { name: "ワッカ",       hp: 24,  atk: 14, def: 2,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",      monLevel: 1, subtype: "stonethrow",
+  /*  8: 7階〜 分裂スライム */
+  { name: "分裂スライム", hp: 30,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 77, kind: "beast",    baseKind: "slime",         monLevel: 1, subtype: "splitter",
     levels: [
-      { name: "強ワッカ",         hp: 38,  atk: 20, def: 5,  exp: 45  },
-      { name: "覇ワッカ",         hp: 61,  atk: 27, def: 7,  exp: 72  },
+      { name: "強スライム",         hp: 47,  atk: 18, def: 5,  exp: 51  },
+      { name: "覇スライム",         hp: 74,  atk: 24, def: 7,  exp: 80  },
     ],
   },
-  /* 6: 7階〜 遠距離 */
-  { name: "アーチャー",   hp: 30,  atk: 15, def: 3,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",     monLevel: 1, subtype: "archer",
+  /*  9: 8階〜 遠距離 */
+  { name: "アーチャー",   hp: 30,  atk: 15, def: 3,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",        monLevel: 1, subtype: "archer",
     levels: [
-      { name: "古参アーチャー",   hp: 47,  atk: 21, def: 7,  exp: 54  },
-      { name: "弓の達人",         hp: 74,  atk: 27, def: 12, exp: 85  },
+      { name: "古参アーチャー",     hp: 47,  atk: 21, def: 7,  exp: 54  },
+      { name: "弓の達人",           hp: 74,  atk: 27, def: 12, exp: 85  },
     ],
   },
-  /* 7: 8階〜 速攻獣 */
-  { name: "ウルフ",       hp: 27,  atk: 17, def: 2,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",       monLevel: 1,
+  /* 10: 9階〜 速攻獣 */
+  { name: "ウルフ",       hp: 27,  atk: 17, def: 2,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1,
     levels: [
-      { name: "強ウルフ",         hp: 43,  atk: 23, def: 6,  exp: 64  },
-      { name: "フェンリル",       hp: 68,  atk: 30, def: 10, exp: 100 },
+      { name: "強ウルフ",           hp: 43,  atk: 23, def: 6,  exp: 64  },
+      { name: "フェンリル",         hp: 68,  atk: 30, def: 10, exp: 100 },
     ],
   },
-  /* 8.5: 10階〜 隣接すると自爆 */
-  { name: "爆弾ゴブリン", hp: 1,   atk: 12, def: 0,  exp: 60,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "bombgoblin", monLevel: 1, subtype: "kamikaze",
+  /* 11: 9階〜 盗みモンスター */
+  { name: "コソドロ",     hp: 16,  atk: 6,  def: 0,  exp: 35,  speed: 2,   tile: 69, kind: "humanoid", baseKind: "thief",         monLevel: 1, subtype: "thief",
     levels: [
-      { name: "強爆弾ゴブリン",   hp: 1,   atk: 18, def: 0,  exp: 96  },
-      { name: "自爆狂",           hp: 1,   atk: 24, def: 0,  exp: 150 },
+      { name: "大盗賊",             hp: 27,  atk: 9,  def: 2,  exp: 56  },
+      { name: "怪盗",               hp: 43,  atk: 12, def: 3,  exp: 88  },
     ],
   },
-  /* 7.5: 8階〜 盗みモンスター */
-  { name: "コソドロ",     hp: 16,  atk: 6,  def: 0,  exp: 35,  speed: 2,   tile: 69, kind: "humanoid", baseKind: "thief",      monLevel: 1, subtype: "thief",
+  /* 12: 10階〜 錆び虫 */
+  { name: "錆虫",         hp: 24,  atk: 11, def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, subtype: "ruster",
     levels: [
-      { name: "大盗賊",           hp: 27,  atk: 9,  def: 2,  exp: 56  },
-      { name: "怪盗",             hp: 43,  atk: 12, def: 3,  exp: 88  },
+      { name: "強錆虫",             hp: 39,  atk: 15, def: 5,  exp: 64  },
+      { name: "覇錆虫",             hp: 61,  atk: 21, def: 7,  exp: 100 },
     ],
   },
-  /* 7.6: 5階〜 逃げるボーナスモンスター */
-  { name: "コロポックル", hp: 11,  atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 70, kind: "beast",    baseKind: "runner",     monLevel: 1, subtype: "runner",
+  /* 13: 11階〜 杖使い */
+  { name: "ウィザード",   hp: 24,  atk: 14, def: 3,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",        monLevel: 1, subtype: "wanduser", wandEffect: "lightning",
     levels: [
-      { name: "大コロポックル",   hp: 16,  atk: 0,  def: 0,  exp: 80  },
-      { name: "精霊コロポックル", hp: 24,  atk: 0,  def: 0,  exp: 120 },
+      { name: "強ウィザード",       hp: 39,  atk: 20, def: 7,  exp: 67  },
+      { name: "大魔導士",           hp: 61,  atk: 24, def: 12, exp: 105 },
     ],
   },
-  /* 7.7: 9階〜 錆び虫 */
-  { name: "錆虫",         hp: 24,  atk: 11, def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",    monLevel: 1, subtype: "ruster",
+  /* 14: 11階〜 HPが一桁になると次ターンに爆発 */
+  { name: "ボムスライム", hp: 38,  atk: 12, def: 2,  exp: 55,  speed: 1,   tile: 77, kind: "beast",    baseKind: "bombslime",     monLevel: 1, subtype: "deathbomb",
     levels: [
-      { name: "強錆虫",           hp: 39,  atk: 15, def: 5,  exp: 64  },
-      { name: "覇錆虫",           hp: 61,  atk: 21, def: 7,  exp: 100 },
+      { name: "強ボムスライム",     hp: 61,  atk: 18, def: 3,  exp: 88  },
+      { name: "覇ボムスライム",     hp: 95,  atk: 24, def: 5,  exp: 138 },
     ],
   },
-  /* 7.8: 10階〜 固定ダメージ以外1ダメ */
-  { name: "水晶スライム", hp: 5,   atk: 15, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime", monLevel: 1, fixedDamageOnly: true,
+  /* 15: 12階〜 隣接すると自爆 */
+  { name: "爆弾ゴブリン", hp: 1,   atk: 12, def: 0,  exp: 60,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "bombgoblin",    monLevel: 1, subtype: "kamikaze",
     levels: [
-      { name: "強水晶スライム",   hp: 8,   atk: 21, def: 0,  exp: 80  },
-      { name: "覇水晶スライム",   hp: 11,  atk: 27, def: 0,  exp: 125 },
+      { name: "強爆弾ゴブリン",     hp: 1,   atk: 18, def: 0,  exp: 96  },
+      { name: "自爆狂",             hp: 1,   atk: 24, def: 0,  exp: 150 },
     ],
   },
-  /* 8: 9階〜 杖使い */
-  { name: "ウィザード",   hp: 24,  atk: 14, def: 3,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",     monLevel: 1, subtype: "wanduser", wandEffect: "lightning",
+  /* 16: 13階〜 固定ダメージ以外1ダメ */
+  { name: "水晶スライム", hp: 5,   atk: 15, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, fixedDamageOnly: true,
     levels: [
-      { name: "強ウィザード",     hp: 39,  atk: 20, def: 7,  exp: 67  },
-      { name: "大魔導士",         hp: 61,  atk: 24, def: 12, exp: 105 },
+      { name: "強水晶スライム",     hp: 8,   atk: 21, def: 0,  exp: 80  },
+      { name: "覇水晶スライム",     hp: 11,  atk: 27, def: 0,  exp: 125 },
     ],
   },
-  /* 9: 10階〜 壁歩き (固定スポーンは3階〜) */
-  { name: "岩霊",         hp: 38,  atk: 15, def: 5,  exp: 45,  speed: 1,   tile: 68, kind: "undead",   baseKind: "rockspirit", monLevel: 1, wallWalker: true,
+  /* 17: 14階〜 壁歩き (固定スポーンは3階〜) */
+  { name: "岩霊",         hp: 38,  atk: 15, def: 5,  exp: 45,  speed: 1,   tile: 68, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, wallWalker: true,
     levels: [
-      { name: "強岩霊",           hp: 61,  atk: 21, def: 9,  exp: 72  },
-      { name: "岩の王",           hp: 95,  atk: 27, def: 13, exp: 113 },
+      { name: "強岩霊",             hp: 61,  atk: 21, def: 9,  exp: 72  },
+      { name: "岩の王",             hp: 95,  atk: 27, def: 13, exp: 113 },
     ],
   },
-  /* 9.5: 11階〜 壁掘り */
-  { name: "岩砕き",       hp: 68,  atk: 23, def: 7,  exp: 65,  speed: 0.5, tile: 76, kind: "beast",    baseKind: "walldigger", monLevel: 1, wallDigger: true,
+  /* 18: 14階〜 */
+  { name: "オーク",       hp: 41,  atk: 18, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1,
     levels: [
-      { name: "強岩砕き",         hp: 108, atk: 32, def: 12, exp: 104 },
-      { name: "覇岩砕き",         hp: 169, atk: 42, def: 16, exp: 163 },
+      { name: "オーク将",           hp: 65,  atk: 26, def: 12, exp: 77  },
+      { name: "オーク王",           hp: 101, atk: 33, def: 16, exp: 120 },
     ],
   },
-  /* 9.8: 11階〜 ゼラチンキューブ */
-  { name: "ゼラチンキューブ", hp: 81, atk: 18, def: 5,  exp: 70,  speed: 0.5, tile: 79, kind: "beast", baseKind: "gelcube", monLevel: 1,
+  /* 19: 15階〜 鈍足・大型 */
+  { name: "ゼラチンキューブ", hp: 81, atk: 18, def: 5, exp: 70,  speed: 0.5, tile: 79, kind: "beast", baseKind: "gelcube",       monLevel: 1,
     levels: [
       { name: "強ゼラチンキューブ", hp: 130, atk: 26, def: 9,  exp: 112 },
       { name: "覇ゼラチンキューブ", hp: 203, atk: 33, def: 13, exp: 175 },
     ],
   },
-  /* 10: 11階〜 */
-  { name: "オーク",       hp: 41,  atk: 18, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",        monLevel: 1,
+  /* 20: 16階〜 壁掘り */
+  { name: "岩砕き",       hp: 68,  atk: 23, def: 7,  exp: 65,  speed: 0.5, tile: 76, kind: "beast",    baseKind: "walldigger",    monLevel: 1, wallDigger: true,
     levels: [
-      { name: "オーク将",         hp: 65,  atk: 26, def: 12, exp: 77  },
-      { name: "オーク王",         hp: 101, atk: 33, def: 16, exp: 120 },
+      { name: "強岩砕き",           hp: 108, atk: 32, def: 12, exp: 104 },
+      { name: "覇岩砕き",           hp: 169, atk: 42, def: 16, exp: 163 },
     ],
   },
-  /* 10.5: 11階〜 罠師 */
-  { name: "罠師",         hp: 34,  atk: 15, def: 3,  exp: 48,  speed: 1,   tile: 86, kind: "humanoid", baseKind: "trapmaster", monLevel: 1, subtype: "trapmaster",
+  /* 21: 16階〜 罠師 */
+  { name: "罠師",         hp: 34,  atk: 15, def: 3,  exp: 48,  speed: 1,   tile: 86, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, subtype: "trapmaster",
     levels: [
-      { name: "罠の達人",         hp: 54,  atk: 21, def: 7,  exp: 77  },
-      { name: "罠の覇者",         hp: 85,  atk: 27, def: 12, exp: 120 },
+      { name: "罠の達人",           hp: 54,  atk: 21, def: 7,  exp: 77  },
+      { name: "罠の覇者",           hp: 85,  atk: 27, def: 12, exp: 120 },
     ],
   },
-  /* 10.6: 12階〜 発見済み罠に放り投げる */
-  { name: "罠猟師",       hp: 38,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 87, kind: "humanoid", baseKind: "trapthrower", monLevel: 1, subtype: "trapthrower",
+  /* 22: 17階〜 2回攻撃 */
+  { name: "大蛇",         hp: 47,  atk: 20, def: 5,  exp: 52,  speed: 1,   tile: 12, kind: "beast",    baseKind: "serpent",       monLevel: 1, maxAttacks: 2,
     levels: [
-      { name: "罠猟師長",         hp: 61,  atk: 23, def: 9,  exp: 88  },
-      { name: "罠猟師頭",         hp: 95,  atk: 30, def: 13, exp: 138 },
+      { name: "強大蛇",             hp: 76,  atk: 27, def: 9,  exp: 83  },
+      { name: "覇大蛇",             hp: 119, atk: 35, def: 13, exp: 130 },
     ],
   },
-  /* 10.65: 13階〜 隣接時に装備品を強制解除 */
-  { name: "解装士",       hp: 38,  atk: 17, def: 5,  exp: 58,  speed: 1,   tile: 84, kind: "humanoid", baseKind: "disarmer",     monLevel: 1, subtype: "disarmer",
+  /* 23: 18階〜 発見済み罠に放り投げる */
+  { name: "罠猟師",       hp: 38,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 87, kind: "humanoid", baseKind: "trapthrower",   monLevel: 1, subtype: "trapthrower",
     levels: [
-      { name: "強解装士",         hp: 61,  atk: 23, def: 9,  exp: 93  },
-      { name: "覇解装士",         hp: 95,  atk: 30, def: 13, exp: 145 },
+      { name: "罠猟師長",           hp: 61,  atk: 23, def: 9,  exp: 88  },
+      { name: "罠猟師頭",           hp: 95,  atk: 30, def: 13, exp: 138 },
     ],
   },
-  /* 10.7: 13階〜 隣接する敵をプレイヤーの隣に投げる */
-  { name: "投擲士",       hp: 43,  atk: 18, def: 6,  exp: 62,  speed: 1,   tile: 88, kind: "humanoid", baseKind: "monsterthrow", monLevel: 1, subtype: "monsterthrow",
+  /* 24: 18階〜 呪い杖 (固定スポーンは2階〜) */
+  { name: "呪術師",       hp: 34,  atk: 14, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, subtype: "wanduser", wandEffect: "curse_wand",
     levels: [
-      { name: "強投擲士",         hp: 69,  atk: 26, def: 10, exp: 99  },
-      { name: "覇投擲士",         hp: 108, atk: 33, def: 14, exp: 155 },
+      { name: "強呪術師",           hp: 54,  atk: 20, def: 9,  exp: 88  },
+      { name: "大呪術師",           hp: 85,  atk: 24, def: 13, exp: 138 },
     ],
   },
-  /* 11: 12階〜 */
-  { name: "大蛇",         hp: 47,  atk: 20, def: 5,  exp: 52,  speed: 1,   tile: 12, kind: "beast",    baseKind: "serpent",    monLevel: 1, maxAttacks: 2,
+  /* 25: 19階〜 隣接時に装備品を強制解除 */
+  { name: "解装士",       hp: 38,  atk: 17, def: 5,  exp: 58,  speed: 1,   tile: 84, kind: "humanoid", baseKind: "disarmer",      monLevel: 1, subtype: "disarmer",
     levels: [
-      { name: "強大蛇",           hp: 76,  atk: 27, def: 9,  exp: 83  },
-      { name: "覇大蛇",           hp: 119, atk: 35, def: 13, exp: 130 },
+      { name: "強解装士",           hp: 61,  atk: 23, def: 9,  exp: 93  },
+      { name: "覇解装士",           hp: 95,  atk: 30, def: 13, exp: 145 },
     ],
   },
-  /* 12: 13階〜 呪い杖 (固定スポーンは2階〜) */
-  { name: "呪術師",       hp: 34,  atk: 14, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",   monLevel: 1, subtype: "wanduser", wandEffect: "curse_wand",
+  /* 26: 20階〜 隣接する敵をプレイヤーの隣に投げる */
+  { name: "投擲士",       hp: 43,  atk: 18, def: 6,  exp: 62,  speed: 1,   tile: 88, kind: "humanoid", baseKind: "monsterthrow",  monLevel: 1, subtype: "monsterthrow",
     levels: [
-      { name: "強呪術師",         hp: 54,  atk: 20, def: 9,  exp: 88  },
-      { name: "大呪術師",         hp: 85,  atk: 24, def: 13, exp: 138 },
+      { name: "強投擲士",           hp: 69,  atk: 26, def: 10, exp: 99  },
+      { name: "覇投擲士",           hp: 108, atk: 33, def: 14, exp: 155 },
     ],
   },
-  /* 13: 14階〜 サポーター */
-  { name: "シャーマン",   hp: 41,  atk: 14, def: 5,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",     monLevel: 1, subtype: "supporter",
+  /* 27: 21階〜 サポーター */
+  { name: "シャーマン",   hp: 41,  atk: 14, def: 5,  exp: 60,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "shaman",        monLevel: 1, subtype: "supporter",
     levels: [
-      { name: "強シャーマン",     hp: 65,  atk: 20, def: 9,  exp: 96  },
-      { name: "大シャーマン",     hp: 101, atk: 24, def: 13, exp: 150 },
+      { name: "強シャーマン",       hp: 65,  atk: 20, def: 9,  exp: 96  },
+      { name: "大シャーマン",       hp: 101, atk: 24, def: 13, exp: 150 },
     ],
   },
-  /* 13.5: 15階〜 バリア（近接以外を一回無効） */
-  { name: "バリア術師",   hp: 43,  atk: 17, def: 3,  exp: 68,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "barriermage",  monLevel: 1, barrier: 1,
+  /* 28: 21階〜 合成モンスター（投げたアイテムを飲み込んで合成、飲むたびに加速） */
+  { name: "合成獣",       hp: 54,  atk: 17, def: 5,  exp: 80,  speed: 0.5, tile: 80, kind: "beast",    baseKind: "synthmonster",  monLevel: 1,
     levels: [
-      { name: "強バリア術師",     hp: 69,  atk: 23, def: 6,  exp: 109, barrier: 2 },
-      { name: "結界師",           hp: 108, atk: 30, def: 9,  exp: 170, barrier: 3 },
+      { name: "強合成獣",           hp: 86,  atk: 24, def: 9,  exp: 128 },
+      { name: "覇合成獣",           hp: 135, atk: 32, def: 13, exp: 200 },
     ],
   },
-  /* 13.6: 16階〜 引き寄せ */
-  { name: "引きダコ",     hp: 61,  atk: 20, def: 6,  exp: 75,  speed: 1,   tile: 78, kind: "beast",    baseKind: "puller",       monLevel: 1, subtype: "puller",
+  /* 29: 22階〜 バリア（近接以外を一回無効） */
+  { name: "バリア術師",   hp: 43,  atk: 17, def: 3,  exp: 68,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "barriermage",   monLevel: 1, barrier: 1,
     levels: [
-      { name: "強引きダコ",       hp: 97,  atk: 27, def: 10, exp: 120 },
-      { name: "覇引きダコ",       hp: 153, atk: 36, def: 14, exp: 188 },
+      { name: "強バリア術師",       hp: 69,  atk: 23, def: 6,  exp: 109, barrier: 2 },
+      { name: "結界師",             hp: 108, atk: 30, def: 9,  exp: 170, barrier: 3 },
     ],
   },
-  /* 13.6: 15階〜 合成モンスター（投げたアイテムを飲み込んで合成、飲むたびに加速） */
-  { name: "合成獣",       hp: 54,  atk: 17, def: 5,  exp: 80,  speed: 0.5, tile: 80, kind: "beast",    baseKind: "synthmonster", monLevel: 1,
+  /* 30: 23階〜 吹き飛ばし杖 */
+  { name: "ウィンドメイジ", hp: 38, atk: 17, def: 5, exp: 65,  speed: 1,   tile: 54, kind: "humanoid", baseKind: "windmage",     monLevel: 1, subtype: "wanduser", wandEffect: "blowback_wand",
     levels: [
-      { name: "強合成獣",         hp: 86,  atk: 24, def: 9,  exp: 128 },
-      { name: "覇合成獣",         hp: 135, atk: 32, def: 13, exp: 200 },
+      { name: "強ウィンドメイジ",   hp: 61,  atk: 23, def: 9,  exp: 104 },
+      { name: "風の覇者",           hp: 95,  atk: 30, def: 13, exp: 163 },
     ],
   },
-  /* 14: 15階〜 吹き飛ばし杖 */
-  { name: "ウィンドメイジ", hp: 38, atk: 17, def: 5, exp: 65,  speed: 1,   tile: 54, kind: "humanoid", baseKind: "windmage",   monLevel: 1, subtype: "wanduser", wandEffect: "blowback_wand",
+  /* 31: 23階〜 混乱の杖を振る術師 */
+  { name: "混乱術師",     hp: 41,  atk: 17, def: 5,  exp: 72,  speed: 1,   tile: 81, kind: "humanoid", baseKind: "confusemage",   monLevel: 1, subtype: "wanduser", wandEffect: "confuse_wand",
     levels: [
-      { name: "強ウィンドメイジ", hp: 61,  atk: 23, def: 9,  exp: 104 },
-      { name: "風の覇者",         hp: 95,  atk: 30, def: 13, exp: 163 },
+      { name: "強混乱術師",         hp: 65,  atk: 23, def: 9,  exp: 115 },
+      { name: "大混乱術師",         hp: 101, atk: 29, def: 13, exp: 180 },
     ],
   },
-  /* 14.2: 混乱の杖を振る術師 */
-  { name: "混乱術師",   hp: 41,  atk: 17, def: 5,  exp: 72,  speed: 1,   tile: 81, kind: "humanoid", baseKind: "confusemage", monLevel: 1, subtype: "wanduser", wandEffect: "confuse_wand",
+  /* 32: 24階〜 引き寄せ */
+  { name: "引きダコ",     hp: 61,  atk: 20, def: 6,  exp: 75,  speed: 1,   tile: 78, kind: "beast",    baseKind: "puller",        monLevel: 1, subtype: "puller",
     levels: [
-      { name: "強混乱術師",       hp: 65,  atk: 23, def: 9,  exp: 115 },
-      { name: "大混乱術師",       hp: 101, atk: 29, def: 13, exp: 180 },
+      { name: "強引きダコ",         hp: 97,  atk: 27, def: 10, exp: 120 },
+      { name: "覇引きダコ",         hp: 153, atk: 36, def: 14, exp: 188 },
     ],
   },
-  /* 14.3: 眠りの杖を振る術師 */
-  { name: "眠り術師",   hp: 43,  atk: 18, def: 6,  exp: 80,  speed: 1,   tile: 82, kind: "humanoid", baseKind: "sleepmage",  monLevel: 1, subtype: "wanduser", wandEffect: "sleep_wand",
+  /* 33: 25階〜 眠りの杖を振る術師 */
+  { name: "眠り術師",     hp: 43,  atk: 18, def: 6,  exp: 80,  speed: 1,   tile: 82, kind: "humanoid", baseKind: "sleepmage",     monLevel: 1, subtype: "wanduser", wandEffect: "sleep_wand",
     levels: [
-      { name: "強眠り術師",       hp: 69,  atk: 24, def: 10, exp: 128 },
-      { name: "大眠り術師",       hp: 108, atk: 30, def: 16, exp: 200 },
+      { name: "強眠り術師",         hp: 69,  atk: 24, def: 10, exp: 128 },
+      { name: "大眠り術師",         hp: 108, atk: 30, def: 16, exp: 200 },
     ],
   },
-  /* 14.4: テレポートの杖を振る術師 */
-  { name: "転移術師",   hp: 47,  atk: 20, def: 6,  exp: 90,  speed: 1,   tile: 83, kind: "humanoid", baseKind: "warpmage",   monLevel: 1, subtype: "wanduser", wandEffect: "teleport_wand",
+  /* 34: 26階〜 炎モンスター */
+  { name: "火ダルマ",     hp: 74,  atk: 30, def: 6,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",     monLevel: 1, float: true,
     levels: [
-      { name: "強転移術師",       hp: 76,  atk: 26, def: 10, exp: 144 },
-      { name: "大転移術師",       hp: 117, atk: 32, def: 16, exp: 225 },
+      { name: "強火ダルマ",         hp: 119, atk: 42, def: 10, exp: 176 },
+      { name: "炎の悪魔",           hp: 189, atk: 56, def: 14, exp: 275 },
     ],
   },
-  /* 14.5: 15階〜 炎モンスター */
-  { name: "火ダルマ",     hp: 74,  atk: 30, def: 6,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",  monLevel: 1, float: true,
+  /* 35: 26階〜 テレポートの杖を振る術師 */
+  { name: "転移術師",     hp: 47,  atk: 20, def: 6,  exp: 90,  speed: 1,   tile: 83, kind: "humanoid", baseKind: "warpmage",      monLevel: 1, subtype: "wanduser", wandEffect: "teleport_wand",
     levels: [
-      { name: "強火ダルマ",       hp: 119, atk: 42, def: 10, exp: 176 },
-      { name: "炎の悪魔",         hp: 189, atk: 56, def: 14, exp: 275 },
+      { name: "強転移術師",         hp: 76,  atk: 26, def: 10, exp: 144 },
+      { name: "大転移術師",         hp: 117, atk: 32, def: 16, exp: 225 },
     ],
   },
-  /* 15: 16階〜 */
-  { name: "トロル",       hp: 68,  atk: 24, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",      monLevel: 1,
+  /* 36: 27階〜 */
+  { name: "トロル",       hp: 68,  atk: 24, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",         monLevel: 1,
     levels: [
-      { name: "強トロル",         hp: 108, atk: 33, def: 13, exp: 120 },
-      { name: "覇トロル",         hp: 169, atk: 44, def: 17, exp: 188 },
+      { name: "強トロル",           hp: 108, atk: 33, def: 13, exp: 120 },
+      { name: "覇トロル",           hp: 169, atk: 44, def: 17, exp: 188 },
     ],
   },
-  /* 16: 17階〜 鈍足・超硬 */
-  { name: "ガーゴイル",   hp: 88,  atk: 27, def: 16, exp: 90,  speed: 0.5, tile: 52, kind: "beast",    baseKind: "gargoyle",   monLevel: 1, float: true,
+  /* 37: 28階〜 鈍足・超硬 */
+  { name: "ガーゴイル",   hp: 88,  atk: 27, def: 16, exp: 90,  speed: 0.5, tile: 52, kind: "beast",    baseKind: "gargoyle",      monLevel: 1, float: true,
     levels: [
-      { name: "強ガーゴイル",     hp: 140, atk: 38, def: 21, exp: 144 },
-      { name: "覇ガーゴイル",     hp: 220, atk: 48, def: 27, exp: 225 },
+      { name: "強ガーゴイル",       hp: 140, atk: 38, def: 21, exp: 144 },
+      { name: "覇ガーゴイル",       hp: 220, atk: 48, def: 27, exp: 225 },
     ],
   },
-  /* 17: 18階〜 速攻不死 */
-  { name: "ヴァンパイア", hp: 81,  atk: 27, def: 10, exp: 92,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",    monLevel: 1, maxAttacks: 2, float: true,
+  /* 38: 28階〜 速攻不死・2回攻撃 */
+  { name: "ヴァンパイア", hp: 81,  atk: 27, def: 10, exp: 92,  speed: 2,   tile: 15, kind: "undead",   baseKind: "vampire",       monLevel: 1, maxAttacks: 2, float: true,
     levels: [
-      { name: "強ヴァンパイア",   hp: 130, atk: 38, def: 14, exp: 147 },
-      { name: "ヴァンパイア卿",   hp: 203, atk: 48, def: 19, exp: 230 },
+      { name: "強ヴァンパイア",     hp: 130, atk: 38, def: 14, exp: 147 },
+      { name: "ヴァンパイア卿",     hp: 203, atk: 48, def: 19, exp: 230 },
     ],
   },
-  /* 18: 19階〜 */
-  { name: "ドラゴン",     hp: 122, atk: 36, def: 14, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",     monLevel: 1,
+  /* 39: 29階〜 */
+  { name: "ドラゴン",     hp: 122, atk: 36, def: 14, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",        monLevel: 1,
     levels: [
-      { name: "強ドラゴン",       hp: 194, atk: 51, def: 19, exp: 224 },
-      { name: "古龍",             hp: 304, atk: 65, def: 23, exp: 350 },
+      { name: "強ドラゴン",         hp: 194, atk: 51, def: 19, exp: 224 },
+      { name: "古龍",               hp: 304, atk: 65, def: 23, exp: 350 },
     ],
   },
-  /* 19: 20階〜 鈍足・超DEF */
-  { name: "ゴーレム",     hp: 135, atk: 30, def: 23, exp: 115, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",      monLevel: 1,
+  /* 40: 30階〜 鈍足・超DEF */
+  { name: "ゴーレム",     hp: 135, atk: 30, def: 23, exp: 115, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",         monLevel: 1,
     levels: [
-      { name: "強ゴーレム",       hp: 216, atk: 42, def: 28, exp: 184 },
-      { name: "覇ゴーレム",       hp: 338, atk: 54, def: 34, exp: 288 },
+      { name: "強ゴーレム",         hp: 216, atk: 42, def: 28, exp: 184 },
+      { name: "覇ゴーレム",         hp: 338, atk: 54, def: 34, exp: 288 },
     ],
   },
-  /* 20: 21階〜 高ATK速攻 */
-  { name: "デーモン",     hp: 108, atk: 42, def: 13, exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",     monLevel: 1, maxAttacks: 3, float: true,
+  /* 41: 30階〜 高ATK速攻・3回攻撃 */
+  { name: "デーモン",     hp: 108, atk: 42, def: 13, exp: 160, speed: 2,   tile: 58, kind: "beast",    baseKind: "daemon",        monLevel: 1, maxAttacks: 3, float: true,
     levels: [
-      { name: "強デーモン",       hp: 173, atk: 59, def: 19, exp: 256 },
-      { name: "魔王",             hp: 270, atk: 75, def: 24, exp: 400 },
+      { name: "強デーモン",         hp: 173, atk: 59, def: 19, exp: 256 },
+      { name: "魔王",               hp: 270, atk: 75, def: 24, exp: 400 },
     ],
   },
 ];
@@ -588,7 +591,9 @@ export function makeGuard(x, y, plx, ply) {
 /* ===== モンスター生成ヘルパー ===== */
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
 export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false } = {}) {
-  const { levels: _lvls, ...mt } = MONS[clamp(rng(0, depth), 0, MONS.length - 1)];
+  /* 全42体が30階（depth 0〜29）に均等分散するようスケール */
+  const scaledMax = Math.min(Math.floor(depth * (MONS.length - 1) / 29), MONS.length - 1);
+  const { levels: _lvls, ...mt } = MONS[rng(0, scaledMax)];
   return { ...mt, id: uid(), x, y, maxHp: mt.hp, baseSpeed: mt.speed || 1, turnAccum: immediateAct ? -(mt.speed || 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
 }
 
