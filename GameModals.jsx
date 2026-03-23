@@ -1809,7 +1809,8 @@ export function InventoryModal({
           if (it.type === "marker") acts.push({ label: "書く", fn: () => { doUseMarker(i); setInvMenuSel(null); } });
           if (it.type === "pot") acts.push({ label: "割る", fn: () => { doBreakPot(i); setInvMenuSel(null); } });
           acts.push({ label: "置く", fn: () => { doDropItem(i); setInvMenuSel(null); } });
-          acts.push({ label: it.type === "arrow" ? "投げる(束)" : "投げる", fn: () => { doThrow(i); setInvMenuSel(null); } });
+          { const _isCursedEquipped = it.cursed && (p.weapon === it || p.armor === it || (p.rings || []).includes(it));
+            if (!_isCursedEquipped) acts.push({ label: it.type === "arrow" ? "投げる(束)" : "投げる", fn: () => { doThrow(i); setInvMenuSel(null); } }); }
           acts.push({ label: "説明", fn: () => { setShowDesc((prev) => (prev === i ? null : i)); setInvMenuSel(null); } });
           { const _nik = getIdentKey(it);
             if (_nik && gs?.ident && !gs.ident.has(_nik)) {

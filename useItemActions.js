@@ -1312,11 +1312,20 @@ export function useItemActions({
     setGs({ ...sr.current });
   }, [endTurn]);
   const doThrow = useCallback((idx) => {
+    const _it = sr.current?.player?.inventory[idx];
+    if (_it?.cursed) {
+      const p = sr.current.player;
+      const _isEquipped = p.weapon === _it || p.armor === _it || (p.rings || []).includes(_it);
+      if (_isEquipped) {
+        const _nm = _it ? itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames) : "アイテム";
+        setMsgs((prev) => [...prev.slice(-80), `${_nm}は呪われていて外せない！`]);
+        return;
+      }
+    }
     setShowInv(false);
     setSelIdx(null);
     setShowDesc(null);
     setThrowMode({ idx, mode: "throw" });
-    const _it = sr.current?.player?.inventory[idx];
     const _nm = _it ? itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames) : "アイテム";
     setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
   }, []);
