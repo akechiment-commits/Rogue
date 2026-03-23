@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -1075,17 +1075,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else if (_we === "teleport_wand") {
           ml.push(`${m.name}がテレポートの杖を振った！`);
           pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "teleport_wand");
-          const _tpRand = (exX, exY) => {
-            const _pts = [];
-            for (let _fy = 1; _fy < MH - 1; _fy++) for (let _fx = 1; _fx < MW - 1; _fx++) {
-              if (dg.map[_fy][_fx] === T.FLOOR &&
-                  !dg.monsters.some(o => o.x === _fx && o.y === _fy) &&
-                  !(_fx === pl.x && _fy === pl.y) &&
-                  !(_fx === exX && _fy === exY))
-                _pts.push({ x: _fx, y: _fy });
-            }
-            return _pts.length > 0 ? pick(_pts) : null;
-          };
+          const _tpRand = (exX, exY) =>
+            randomTeleportDest(dg, exX, exY, (x, y) =>
+              !dg.monsters.some(o => o.x === x && o.y === y) &&
+              !(x === pl.x && y === pl.y));
           let _tpHit = false;
           for (let _d = 1; _d < 20; _d++) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
@@ -1564,20 +1557,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (_pc.kind === "teleport_trap" && !_pc.cursed) {
             const _tpFloorBlocked = _dg2.pentacles.some(pc2 => pc2 !== _pc && pc2.kind === "teleport_trap" && pc2.cursed);
             if (!_tpFloorBlocked) {
-              const _doTp = () => {
-                const _r = _dg2.rooms[rng(0, _dg2.rooms.length - 1)];
-                return { x: rng(_r.x, _r.x + _r.w - 1), y: rng(_r.y, _r.y + _r.h - 1) };
-              };
-              /* プレイヤーが対象範囲内なら個別抽選 */
+                /* プレイヤーが対象範囲内なら個別抽選 */
               if (_inRange && Math.random() < 0.1) {
-                const _tp = _doTp(); p.x = _tp.x; p.y = _tp.y;
+                const _tp = randomTeleportDest(_dg2, p.x, p.y);
+                if (_tp) { p.x = _tp.x; p.y = _tp.y; }
                 ml.push(`${_pc.name}の力でテレポートした！`);
               }
               /* 魔方陣と同じ部屋にいるモンスターを個別抽選（祝福ならフロア全体） */
               for (const _tpM of _dg2.monsters) {
                 const _tpMRoom = findRoom(_dg2.rooms, _tpM.x, _tpM.y);
                 if ((_pc.blessed ? true : _tpMRoom === _pcRoom) && Math.random() < 0.1) {
-                  const _tp = _doTp(); _tpM.x = _tp.x; _tpM.y = _tp.y;
+                  const _tp = randomTeleportDest(_dg2, _tpM.x, _tpM.y);
+                  if (_tp) { _tpM.x = _tp.x; _tpM.y = _tp.y; }
                   ml.push(`${_pc.name}の力で${_tpM.name}がテレポートした！`);
                 }
               }

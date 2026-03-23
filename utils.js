@@ -34,6 +34,46 @@ export const monsterAt = (dg, x, y) => dg.monsters.find(m => m.x === x && m.y ==
 export const itemAt = (dg, x, y) => dg.items.find(i => i.x === x && i.y === y);
 export const removeMonster = (dg, mon) => { dg.monsters = dg.monsters.filter(m => m !== mon); };
 
+/**
+ * ランダムテレポート先を返す。
+ * 現在いる部屋以外のフロアタイルを優先する。
+ * 部屋が1つしかない（または廊下にいる）場合はチェビシェフ距離8以上を優先。
+ * @param {object} dg - ダンジョン (dg.map, dg.rooms)
+ * @param {number} cx - 現在x
+ * @param {number} cy - 現在y
+ * @param {function} [filter] - 追加フィルタ (x, y) => bool
+ * @returns {{x, y}|null}
+ */
+export function randomTeleportDest(dg, cx, cy, filter = null) {
+  const rooms = dg.rooms || [];
+  const curRoom = rooms.find(r => cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h);
+  const inCur = (x, y) => curRoom
+    ? (x >= curRoom.x && x < curRoom.x + curRoom.w && y >= curRoom.y && y < curRoom.y + curRoom.h)
+    : false;
+  const ok = (x, y) => dg.map[y]?.[x] === T.FLOOR && (!filter || filter(x, y));
+
+  // 別の部屋・廊下へ優先テレポート
+  const others = [];
+  for (let fy = 0; fy < MH; fy++)
+    for (let fx = 0; fx < MW; fx++)
+      if (ok(fx, fy) && !inCur(fx, fy)) others.push({ x: fx, y: fy });
+  if (others.length > 0) return pick(others);
+
+  // 部屋が1つ → チェビシェフ距離8以上を優先
+  const far = [];
+  for (let fy = 0; fy < MH; fy++)
+    for (let fx = 0; fx < MW; fx++)
+      if (ok(fx, fy) && Math.max(Math.abs(fx - cx), Math.abs(fy - cy)) >= 8) far.push({ x: fx, y: fy });
+  if (far.length > 0) return pick(far);
+
+  // 最終フォールバック
+  const any = [];
+  for (let fy = 0; fy < MH; fy++)
+    for (let fx = 0; fx < MW; fx++)
+      if (ok(fx, fy)) any.push({ x: fx, y: fy });
+  return any.length > 0 ? pick(any) : null;
+}
+
 let _u = 0;
 export const uid = () => `u${++_u}_${Date.now()}`;
 

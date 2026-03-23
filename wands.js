@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
@@ -660,13 +660,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "leap": {
       if (blMult < 1) {
         // 呪い：対象をランダムワープ
-        const _lpf = [];
-        for (let ly = 0; ly < MH; ly++)
-          for (let lx = 0; lx < MW; lx++)
-            if (dg.map[ly][lx] === T.FLOOR && !dg.monsters.some(m => m.x === lx && m.y === ly))
-              _lpf.push({ x:lx, y:ly });
-        if (_lpf.length === 0) { ml.push("テレポートに失敗した。"); break; }
-        const _lpd = pick(_lpf);
+        const _lpOx = kind === "player" ? p.x : target.x;
+        const _lpOy = kind === "player" ? p.y : target.y;
+        const _lpd = randomTeleportDest(dg, _lpOx, _lpOy, (x, y) => !dg.monsters.some(m => m.x === x && m.y === y));
+        if (!_lpd) { ml.push("テレポートに失敗した。"); break; }
         if (kind === "monster") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${target.name}はどこかへテレポートした！【呪】`); }
         else if (kind === "item") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${_dname_item(target)}はどこかへ飛んだ！【呪】`); }
         else if (kind === "trap") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${target.name}はどこかへ飛んだ！【呪】`); }
@@ -787,13 +784,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       /* 通常テレポート */
-      const floors = [];
-      for (let fy = 0; fy < MH; fy++)
-        for (let fx = 0; fx < MW; fx++)
-          if (dg.map[fy][fx] === T.FLOOR && !monsterAt(dg, fx, fy))
-            floors.push({ x:fx, y:fy });
-      if (floors.length === 0) { ml.push("テレポートに失敗した。"); break; }
-      const dest = pick(floors);
+      const _warpOx = kind === "player" ? p.x : target.x;
+      const _warpOy = kind === "player" ? p.y : target.y;
+      const dest = randomTeleportDest(dg, _warpOx, _warpOy, (x, y) => !monsterAt(dg, x, y));
+      if (!dest) { ml.push("テレポートに失敗した。"); break; }
       if (kind === "monster") { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへテレポートした！`); }
       if (kind === "player")  { p.x = dest.x; p.y = dest.y; ml.push("テレポートした！"); }
       if (kind === "item")    { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへ飛んだ！`); }

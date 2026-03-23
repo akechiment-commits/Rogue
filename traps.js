@@ -1,4 +1,4 @@
-import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility } from "./utils.js";
+import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest } from "./utils.js";
 import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
@@ -76,14 +76,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "spin": {
-      if (dg.rooms?.length) {
-        for (let _a = 0; _a < 200; _a++) {
-          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-          const nx = rng(rm.x, rm.x + rm.w - 1);
-          const ny = rng(rm.y, rm.y + rm.h - 1);
-          if (dg.map[ny]?.[nx] === T.FLOOR) { p.x = nx; p.y = ny; break; }
-        }
-      }
+      const _spinDst = randomTeleportDest(dg, p.x, p.y);
+      if (_spinDst) { p.x = _spinDst.x; p.y = _spinDst.y; }
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
       const _spinLandTrap = dg.traps.find(t => t !== trap && t.x === p.x && t.y === p.y);

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest } from "./utils.js";
 import { findRoom, spawnMonsters } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -620,9 +620,8 @@ export function useItemActions({
           setGs({ ...sr.current });
           return;
         } else {
-          const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
-          p.x = rng(rm.x, rm.x + rm.w - 1);
-          p.y = rng(rm.y, rm.y + rm.h - 1);
+          const _tpDst = randomTeleportDest(dg, p.x, p.y);
+          if (_tpDst) { p.x = _tpDst.x; p.y = _tpDst.y; }
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
           ml.push("テレポートした！");
         }
@@ -1050,9 +1049,8 @@ export function useItemActions({
         }
         /* テレポートの魔方陣：描いた瞬間に即テレポート（呪い以外） */
         if (it.effect === "teleport_trap" && !_isCursed) {
-          const _tpRm = dg.rooms[rng(0, dg.rooms.length - 1)];
-          p.x = rng(_tpRm.x, _tpRm.x + _tpRm.w - 1);
-          p.y = rng(_tpRm.y, _tpRm.y + _tpRm.h - 1);
+          const _ptpDst = randomTeleportDest(dg, p.x, p.y);
+          if (_ptpDst) { p.x = _ptpDst.x; p.y = _ptpDst.y; }
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
           ml.push("魔方陣を描いた瞬間、テレポートした！");
         }
