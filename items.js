@@ -519,10 +519,10 @@ export function itemPrice(it) {
     if (it.type === "arrow") {
       return Math.max(base, Math.floor(base * (it.count || 1) / 3));
     }
-    // 壺は容量・中身の合計価格を加算（1容量あたり200G）
+    // 壺は容量・中身の合計価格を加算（1容量あたりbase×10%）
     if (it.type === "pot") {
       const contentsValue = (it.contents || []).reduce((s, c) => s + itemPrice(c), 0);
-      const capBonus = (it.capacity || 0) * 200;
+      const capBonus = (it.capacity || 0) * Math.floor(base * 0.1);
       return base + contentsValue + capBonus;
     }
     return base;
