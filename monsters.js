@@ -1025,7 +1025,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (_tmCanPlace) {
       /* Lv2以上は発動確率50%、Lv1は25% */
       const _tmChance = _tmLvl >= 2 ? 0.25 : 0.125;
-      if (Math.random() < _tmChance) {
+      /* 足元に罠以外のものがあれば設置不可 */
+      const _tmBlocked =
+        dg.items?.some(it => it.x === m.x && it.y === m.y) ||
+        dg.springs?.some(s => s.x === m.x && s.y === m.y) ||
+        dg.bigboxes?.some(b => b.x === m.x && b.y === m.y) ||
+        dg.pentacles?.some(pc => pc.x === m.x && pc.y === m.y) ||
+        dg.map[m.y]?.[m.x] === T.SD || dg.map[m.y]?.[m.x] === T.SU;
+      if (!_tmBlocked && Math.random() < _tmChance) {
         /* 足元にすでに罠があれば別の種類を選ぶ */
         const _existTrap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
         let _candidates = TRAPS;
