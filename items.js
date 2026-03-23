@@ -1551,6 +1551,26 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       }
       return "restart";
     }
+    case "bewitch_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _bwtm = monsterAt(dg, tx, ty);
+      if (_bwtm) { _bwtm.fleeingTurns = (_bwtm.fleeingTurns || 0) + 50; ml.push(`${_bwtm.name}が幻惑された！(50ターン)`); }
+      if (p && p.x === tx && p.y === ty) {
+        if (hasAbility(p.armor, "bewitch_proof")) { ml.push("しかし防具が幻惑を防いだ！(耐惑わし)"); }
+        else { p.bewitchedTurns = (p.bewitchedTurns || 0) + 50; ml.push("幻惑された！周囲の見た目がおかしくなった！(50ターン)"); }
+      }
+      return "restart";
+    }
+    case "darkness_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _dktm = monsterAt(dg, tx, ty);
+      if (_dktm) { _dktm.darknessTurns = (_dktm.darknessTurns || 0) + 20; _dktm.darkDir = null; _dktm.aware = false; ml.push(`${_dktm.name}が暗闇に包まれた！(20ターン)`); }
+      if (p && p.x === tx && p.y === ty) {
+        if (hasAbility(p.armor, "darkness_proof")) { ml.push("しかし防具が暗闇を防いだ！(耐暗闇)"); }
+        else { p.darknessTurns = (p.darknessTurns || 0) + 20; ml.push("暗闇に包まれた！視界が1マスになる！(20ターン)"); }
+      }
+      return "restart";
+    }
     default:
       ml.push(`${trap.name}が発動！`);
       return "restart";
