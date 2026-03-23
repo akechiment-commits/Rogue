@@ -1730,8 +1730,8 @@ export function InventoryModal({
   return (
     <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
       background: "#12121c", border: "1px solid #4a4a5a", zIndex: 10,
-      maxHeight: mobile ? "65dvh" : "80%", borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.7)" }}>
-    <div style={{ padding: mobile ? 10 : 14, overflowY: "auto", maxHeight: "inherit" }}>
+      borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.7)" }}>
+    <div style={{ padding: mobile ? 10 : 14, overflowY: "auto", maxHeight: mobile ? "65dvh" : "80dvh" }}>
       {penMergeMode && (
         <div style={{ color: "#ffcc44", fontSize: 12, fontWeight: "bold", marginBottom: 8, padding: "4px 8px", background: "#2a1a00", borderRadius: 4, border: "1px solid #886600" }}>
           ✦ 合成先のペンを選んでください（ただのペンを選ぶとキャンセル）
