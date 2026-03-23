@@ -1017,7 +1017,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== 罠師：部屋内（Lv3は廊下も可）で足元にランダムな罠を仕掛ける ===== */
-  if (m.subtype === "trapmaster" && !m.sealed && !_moveOnly && !_attackOnly) {
+  if (m.subtype === "trapmaster" && !m.sealed && !_attackOnly) {
     const _tmLvl = m.monLevel || 1;
     /* Lv3は廊下も可、Lv1/2は部屋内のみ */
     const _tmRoom = findRoom(dg.rooms, m.x, m.y);
@@ -1036,7 +1036,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           /* 既存の罠を除去して新しい罠に置き換える */
           dg.traps = dg.traps.filter(t => t !== _existTrap);
         }
-        const _newTrap = { ...pick(_candidates), id: uid(), x: m.x, y: m.y, revealed: false };
+        const _newTrap = { ...pick(_candidates), id: uid(), x: m.x, y: m.y, revealed: true };
         dg.traps = dg.traps || [];
         dg.traps.push(_newTrap);
         ml.push(`${m.name}が罠を仕掛けた！`);
