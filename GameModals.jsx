@@ -1728,10 +1728,10 @@ export function InventoryModal({
   const _previewItem = _previewIdx !== null ? p.inventory[invPage * 10 + _previewIdx] : null;
   const _previewPot = _previewItem?.type === "pot" ? _previewItem : null;
   return (
-    <>
     <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
-      background: "#12121c", border: "1px solid #4a4a5a", padding: mobile ? 10 : 14, zIndex: 10,
-      maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto", borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.7)" }}>
+      background: "#12121c", border: "1px solid #4a4a5a", zIndex: 10,
+      maxHeight: mobile ? "65dvh" : "80%", borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.7)" }}>
+    <div style={{ padding: mobile ? 10 : 14, overflowY: "auto", maxHeight: "inherit" }}>
       {penMergeMode && (
         <div style={{ color: "#ffcc44", fontSize: 12, fontWeight: "bold", marginBottom: 8, padding: "4px 8px", background: "#2a1a00", borderRadius: 4, border: "1px solid #886600" }}>
           ✦ 合成先のペンを選んでください（ただのペンを選ぶとキャンセル）
@@ -1910,9 +1910,9 @@ export function InventoryModal({
     </div>
     {_previewPot && (
       <div style={{
-        position: "fixed", right: 8, top: "50%", transform: "translateY(-50%)",
+        position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
         background: "#0e0e1a", border: "1px solid #8a6a20", borderRadius: 6,
-        padding: "8px 12px", zIndex: 20, minWidth: 140, maxWidth: 200,
+        padding: "8px 12px", zIndex: 5, minWidth: 130, maxWidth: 180,
         boxShadow: "0 4px 20px rgba(0,0,0,0.85)", pointerEvents: "none",
       }}>
         <div style={{ color: "#ffcc66", fontSize: 11, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
@@ -1929,7 +1929,7 @@ export function InventoryModal({
         )}
       </div>
     )}
-    </>
+    </div>
   );
 }
 
