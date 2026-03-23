@@ -40,12 +40,18 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
         }
         const m = monsterAt(dg, fx, trap.y);
         if (m) {
-          const d = ARROW_T.atk + rng(0, 3);
-          m.hp -= d;
-          ml.push(`矢が${m.name}に命中！${d}ダメージ！`);
-          if (m.hp <= 0) {
-            ml.push(`${m.name}は倒れた！`);
-            dg.monsters = dg.monsters.filter((m2) => m2 !== m);
+          const _atMonDodgePc = getDodgePentacleMode(dg, m.x, m.y);
+          if (_atMonDodgePc === "dodge") {
+            ml.push(`みかわしの魔方陣の加護で矢が${m.name}に当たらなかった！矢が落ちた。`);
+            placeItemAt(dg, fx, trap.y, makeArrow(1), ml, new Set([trap.id]));
+          } else {
+            const d = ARROW_T.atk + rng(0, 3);
+            m.hp -= d;
+            ml.push(`矢が${m.name}に命中！${d}ダメージ！`);
+            if (m.hp <= 0) {
+              ml.push(`${m.name}は倒れた！`);
+              dg.monsters = dg.monsters.filter((m2) => m2 !== m);
+            }
           }
           hp = true;
           break;
