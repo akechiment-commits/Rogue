@@ -7,7 +7,7 @@ import {
   getIdentKey, randPotCapacity,
 } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
-import { genDungeon } from "./dungeon.js";
+import { genDungeon, prepareLastFloor } from "./dungeon.js";
 
 export function useKeyHandler({
   // refs
@@ -91,6 +91,10 @@ export function useKeyHandler({
           let _d;
           if (_saved) { _d = _saved; delete sr.current.floors[_f]; }
           else { _d = genDungeon(_f - 1, sr.current.dungeonType || "beginner"); }
+          const _maxDTp = sr.current.maxDepth;
+          if (_maxDTp !== null && _f >= _maxDTp && !_d.isLastFloor) {
+            prepareLastFloor(_d, sr.current.dungeonType || "beginner");
+          }
           _fsp.depth = _f;
           const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
           _fsp.x = rng(_rm.x, _rm.x + _rm.w - 1);

@@ -4,6 +4,7 @@ import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages } from "./render.js";
+import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
 
 /* ===== Tile Icon (inventory) ===== */
@@ -1964,6 +1965,10 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
               let _d;
               if (_saved) { _d = _saved; delete sr.current.floors[f]; }
               else { _d = genDungeon(f - 1); }
+              const _maxDFs = sr.current.maxDepth;
+              if (_maxDFs !== null && f >= _maxDFs && !_d.isLastFloor) {
+                prepareLastFloor(_d, sr.current.dungeonType || "beginner");
+              }
               _p.depth = f;
               const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
               _p.x = rng(_rm.x, _rm.x + _rm.w - 1);

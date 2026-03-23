@@ -1224,10 +1224,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       d = genDungeon(nd - 1, "beginner");
     } else {
       d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
-      /* 最下層は下り階段を消して目標アイテムを配置 */
-      if (_maxD !== null && nd >= _maxD) {
-        prepareLastFloor(d, sr.current.dungeonType || "beginner");
-      }
+    }
+    /* 最下層：isLastFloor 未設定なら必ずキーアイテムを配置
+       （落とし穴プリキャッシュや呪いテレポで _saved が先行生成された場合も救済） */
+    if (!_isLastFloorPitfall && _maxD !== null && nd >= _maxD && !d.isLastFloor) {
+      prepareLastFloor(d, sr.current.dungeonType || "beginner");
     }
     pl.depth = nd;
     /* 最深層に到着時、goalアイテムが所持品にもフロアにもなければ再配置 */
