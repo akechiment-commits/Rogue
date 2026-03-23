@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
-import { T, uid, rng, refreshFOV } from "./utils.js";
+import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages } from "./render.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
 
@@ -721,12 +721,11 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
       )}
       {mode === "browse" && (() => {
         const _p = gs.player;
-        const _shop = gs.dungeon?.shop;
-        const _shopRoom = _shop?.room;
-        /* プレイヤーがショップ室内にいるか */
-        const _inShop = _shopRoom &&
-          _p.x >= _shopRoom.x && _p.x < _shopRoom.x + _shopRoom.w &&
-          _p.y >= _shopRoom.y && _p.y < _shopRoom.y + _shopRoom.h;
+        /* 複数店舗対応：プレイヤーが今いる店を探す */
+        const _curShop = getShops(gs.dungeon).find(s => s.room &&
+          _p.x >= s.room.x && _p.x < s.room.x + s.room.w &&
+          _p.y >= s.room.y && _p.y < s.room.y + s.room.h);
+        const _inShop = !!_curShop;
         const _sellItems = _p.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
         const _totalG = _sellItems.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
         if (sellAllConfirm) {
@@ -743,16 +742,21 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     const { player: p2, dungeon: dg2 } = sr.current;
                     const toSell = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
                     if (toSell.length === 0) { setSellAllConfirm(false); return; }
+                    /* 複数店舗対応：プレイヤーが今いる店を使う */
+                    const _sellShop = getShops(dg2).find(s => s.room &&
+                      p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
+                      p2.y >= s.room.y && p2.y < s.room.y + s.room.h) || getShops(dg2)[0];
+                    if (!_sellShop) { setSellAllConfirm(false); return; }
                     let earned = 0;
                     for (const it of toSell) {
                       it.shopPrice = Math.ceil(itemPrice(it) * 0.5);
-                      it._shopId = dg2.shop.id;
+                      it._shopId = _sellShop.id;
                       earned += it.shopPrice;
                     }
                     p2.gold += earned;
                     /* unpaidTotal に加算 → 盗賊判定・pay モードが自動的に機能する */
-                    dg2.shop.unpaidTotal += earned;
-                    const _sk = dg2.monsters.find(m => m.id === dg2.shop.shopkeeperId && m.state === "friendly");
+                    _sellShop.unpaidTotal += earned;
+                    const _sk = dg2.monsters.find(m => m.id === _sellShop.shopkeeperId && m.state === "friendly");
                     if (_sk) _sk.state = "blocking";
                     setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
                     sr.current = { ...sr.current };
