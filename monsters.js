@@ -1751,6 +1751,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* BFSで1歩進む（壁のみ障害物、モンスターは無視して経路探索） */
+    /* ── 壁掘り：未覚醒時に30%でランダムな隣接壁を掘る（掘ったターンは移動しない） ── */
+    if (m.wallDigger && Math.random() < 0.3) {
+      const _rdDirs = [[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]].sort(() => Math.random() - 0.5);
+      for (const [_rddx, _rddy] of _rdDirs) {
+        const _rdnx = m.x + _rddx, _rdny = m.y + _rddy;
+        if (_rdnx <= 0 || _rdnx >= MW - 1 || _rdny <= 0 || _rdny >= MH - 1) continue;
+        if (dg.map[_rdny][_rdnx] === T.WALL) {
+          dg.map[_rdny][_rdnx] = T.FLOOR;
+          ml.push(`${m.name}が壁を掘った。`);
+          return;
+        }
+      }
+    }
     if (m.patrolTarget) {
       const next = bfsNext(map, [], m.x, m.y,
         m.patrolTarget.x, m.patrolTarget.y, m, 20, dg.pentacles, _effFloat);
@@ -1788,19 +1801,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
       m.posHistory = [];
       m.patrolTarget = null;
-    }
-    /* ── 壁掘り：未覚醒時に低確率でランダムな隣接壁を掘る ── */
-    if (m.wallDigger && Math.random() < 0.12) {
-      const _rdDirs = [[0,-1],[0,1],[-1,0],[1,0]].sort(() => Math.random() - 0.5);
-      for (const [_rddx, _rddy] of _rdDirs) {
-        const _rdnx = m.x + _rddx, _rdny = m.y + _rddy;
-        if (_rdnx <= 0 || _rdnx >= MW - 1 || _rdny <= 0 || _rdny >= MH - 1) continue;
-        if (dg.map[_rdny][_rdnx] === T.WALL) {
-          dg.map[_rdny][_rdnx] = T.FLOOR;
-          ml.push(`${m.name}が壁を掘った。`);
-          break;
-        }
-      }
     }
   }
 }
