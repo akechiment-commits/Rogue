@@ -813,7 +813,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       bbFn: bigboxAddItem,
       luFn: lu,
       ...extraOpts,
-      fireTrapFn: (trap, p, dg2, ml2) => fireTrapPlayer(trap, p, dg2, ml2, null, lu),
+      fireTrapFn: (trap, p, dg2, ml2) => {
+        const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu);
+        if (_tr === "pitfall") {
+          const nd = chgFloor(p, 1, true);
+          if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); }
+        } else if (_tr === "deferred_explosion") {
+          sr.current._pendingMineExplosion = { x: p.x, y: p.y, name: trap.name, nameFn: null };
+        }
+        return _tr;
+      },
       monsterWandFn: (m, dx, dy) => {
         const _we = m.wandEffect || "lightning";
         if (_we === "lightning") {
