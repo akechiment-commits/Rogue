@@ -709,7 +709,27 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             target.paralyzed = true;
             ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！`);
           } else if (kind === "player") {
-            p.x = stairsX; p.y = stairsY;
+            const _stOccupied = dg.monsters.some(m => m.x === stairsX && m.y === stairsY);
+            if (_stOccupied) {
+              // 階段が塞がっている場合は隣の空きマスへ
+              const _stAdj = [];
+              for (const [_ax, _ay] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+                const _nx = stairsX + _ax, _ny = stairsY + _ay;
+                if (_nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH &&
+                    dg.map[_ny][_nx] !== T.WALL && dg.map[_ny][_nx] !== T.BWALL &&
+                    !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
+                    !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny))
+                  _stAdj.push({ x: _nx, y: _ny });
+              }
+              if (_stAdj.length > 0) {
+                const _sd = pick(_stAdj);
+                p.x = _sd.x; p.y = _sd.y;
+              } else {
+                p.x = stairsX; p.y = stairsY;
+              }
+            } else {
+              p.x = stairsX; p.y = stairsY;
+            }
             if (hasAbility(p.armor, "paralyze_proof")) {
               ml.push("階段の上にテレポートした！金縛り効果を受けたが防具が防いだ！(耐金縛り)");
             } else {
