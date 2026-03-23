@@ -2062,7 +2062,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               /* 武器の状態異常付与（10%） */
               if (attackMon.hp > 0 && p.weapon) {
                 const _inflicts = [
-                  ["inflict_slow",     () => { attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); ml.push(`${attackMon.name}は鈍足になった！`); }],
+                  ["inflict_slow",     () => { if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); if (attackMon.isBoss) attackMon.bossSlowTurns = (attackMon.bossSlowTurns || 0) + 10; ml.push(`${attackMon.name}は鈍足になった！`); }],
                   ["inflict_paralyze", () => { attackMon.paralyzed = true; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns||0, 10); ml.push(`${attackMon.name}は金縛りになった！`); }],
                   ["inflict_sleep",    () => { const _bSt = attackMon.isBoss ? Math.ceil(rng(3,6)/2) : rng(3,6); attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _bSt; ml.push(`${attackMon.name}は眠りに落ちた！`); }],
                   ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は暗闇になった！`); }],

@@ -1805,7 +1805,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") { target.speed = Math.min(2, (target.speed || 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
         if (kind === "player") { p.hasteTurns = (p.hasteTurns || 0) + 10; ml.push("体が軽くなった！(2倍速10ターン)【呪→加速】"); }
       } else {
-        if (kind === "monster") { target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5)); ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`); }
+        if (kind === "monster") { if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed; target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5)); if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10; ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`); }
         if (kind === "player") {
           if (hasAbility(p.armor, "slow_proof")) { ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)"); }
           else { const _st = blessed ? 20 : 10; p.slowTurns = (p.slowTurns || 0) + _st; ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`); }
@@ -1979,7 +1979,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           target.sealedTurns = Math.max(target.sealedTurns||0, target.isBoss ? 20 : 9999);
           ml.push(`${target.name}は封印された！`);
           if (blessed) {
+            if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
             ml.push(`さらに${target.name}は鈍足になった！(祝福)`);
           }
         }

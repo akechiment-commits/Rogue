@@ -505,7 +505,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       } else {
         if (kind === "monster") {
           if (isStatusImmune(target, ml, target.name)) break;
+          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, target.speed * 0.5);
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
           ml.push(`${target.name}は鈍足になった！`);
           if (_sBless) {
             /* 祝福：金縛りも追加 */
@@ -919,9 +921,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (kind === "monster") {
           if (isStatusImmune(target, ml, target.name)) break;
           target.sealed = true;
+          target.sealedTurns = Math.max(target.sealedTurns || 0, target.isBoss ? 20 : 9999);
           ml.push(`${target.name}は封印された！`);
           if (_seBlessed) {
+            if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
             ml.push(`さらに${target.name}は鈍足になった！(祝福)`);
           }
           break;
@@ -979,7 +984,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         if (_bwCursed) {
           // 呪われた祝福の杖→敵を鈍足にする
+          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
           ml.push(`${target.name}が呪いで鈍足になった！【呪】`);
         } else {
           const _bh = Math.round(rng(10, 20) * blMult);
@@ -1050,7 +1057,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           target.hp = Math.min(target.maxHp, target.hp + _ch);
           ml.push(`${target.name}は呪いの魔法で回復した！${_ch}HP【呪→回復】`);
         } else {
+          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
           ml.push(`${target.name}が呪いで鈍足になった！`);
         }
         break;
@@ -1103,10 +1112,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
-        target.darknessTurns = _dkBlessed ? 9999 : 50;
+        const _dkBaseTurns = _dkBlessed ? 9999 : (target.isBoss ? 25 : 50);
+        target.darknessTurns = _dkBaseTurns;
         target.darkDir = null;
         target.aware = false;
-        ml.push(`${target.name}は暗闇に包まれた！${_dkBlessed ? "(永続)" : "(50ターン)"}`);
+        ml.push(`${target.name}は暗闇に包まれた！${_dkBlessed ? "(永続)" : `(${_dkBaseTurns}ターン)`}`);
         break;
       }
       if (kind === "player") {
@@ -1129,8 +1139,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
-        target.fleeingTurns = _bwBlessed ? 9999 : 50;
-        ml.push(`${target.name}は幻惑状態になり逃げ出した！${_bwBlessed ? "(永続)" : "(50ターン)"}`);
+        const _bwBaseTurns = _bwBlessed ? 9999 : (target.isBoss ? 25 : 50);
+        target.fleeingTurns = _bwBaseTurns;
+        ml.push(`${target.name}は幻惑状態になり逃げ出した！${_bwBlessed ? "(永続)" : `(${_bwBaseTurns}ターン)`}`);
         break;
       }
       if (kind === "player") {

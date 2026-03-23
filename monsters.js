@@ -988,6 +988,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
+  /* 鈍足（ボスのみターン経過で元の速度に戻る） */
+  if (m.isBoss && (m.bossSlowTurns || 0) > 0 && !_attackOnly) {
+    m.bossSlowTurns = Math.max(0, m.bossSlowTurns - 2);
+    if (m.bossSlowTurns <= 0 && m._preSlowSpeed !== undefined) {
+      m.speed = m._preSlowSpeed;
+      delete m._preSlowSpeed;
+      ml.push(`${m.name}の鈍足が解けた！`);
+    }
+  }
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
   if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - (m.isBoss ? 2 : 1)); _attackOnly = true; }
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
@@ -1024,7 +1033,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== 暗闇状態：まっすぐ進み途中の者を攻撃 ===== */
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
-    if (!_isPerm && !_attackOnly) m.darknessTurns--;
+    if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - (m.isBoss ? 2 : 1));
     if (!m.darkDir) {
       const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
       m.darkDir = pick(_ddirs);
@@ -1060,7 +1069,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== 幻惑状態：プレイヤーから逃げ回る ===== */
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
-    if (!_isPerm && !_attackOnly) m.fleeingTurns--;
+    if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - (m.isBoss ? 2 : 1));
     const _fcands = [];
     for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
       const _fnx = m.x + _fmx, _fny = m.y + _fmy;
