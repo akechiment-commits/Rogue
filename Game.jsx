@@ -3130,6 +3130,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         return;
       }
+      const _bbIsEquipped = p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
+      if (_bbIsEquipped && it.cursed) {
+        ml.push("呪われているので外せない！");
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        return;
+      }
       /* 大箱に入れる前に装備スロットを解除（指輪は命の指輪maxHp処理含む） */
       if (p.weapon === it) p.weapon = null;
       if (p.armor  === it) p.armor  = null;

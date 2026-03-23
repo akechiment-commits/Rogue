@@ -1563,6 +1563,11 @@ export function useItemActions({
         setMsgs((prev) => [...prev.slice(-80), "大事なものは壺に入れられない！"]);
         return;
       }
+      const _isEquipped = p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
+      if (_isEquipped && it.cursed) {
+        setMsgs((prev) => [...prev.slice(-80), "呪われているので外せない！"]);
+        return;
+      }
       if (pot.contents.length >= pot.capacity) {
         setMsgs((prev) => [...prev.slice(-80), `${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`]);
         setPutMode(null);
