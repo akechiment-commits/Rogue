@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, makeMonster } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
@@ -1083,13 +1083,28 @@ function genBossFloor(depth) {
     patrolTarget: null,
   };
 
+  /* 取り巻き：ボスの周囲にtier×1+1体を配置 */
+  const minionCount = (bt.bossTier || 1) + 1;
+  const minionDepth = Math.max(0, depth - 2);
+  const minionMonsters = [];
+  const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const _occ = (x, y) => (x === bossX && y === bossY) || minionMonsters.some(mn => mn.x === x && mn.y === y);
+  for (let _mi = 0; _mi < minionCount * 20 && minionMonsters.length < minionCount; _mi++) {
+    const [_ddx, _ddy] = DIRS8[Math.floor(Math.random() * DIRS8.length)];
+    const _mx = bossX + _ddx * (1 + Math.floor(_mi / 8));
+    const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
+    if (map[_my]?.[_mx] !== T.FLOOR) continue;
+    if (_occ(_mx, _my)) continue;
+    minionMonsters.push(makeMonster(minionDepth, _mx, _my, { aware: true, lastPx: bossX, lastPy: bossY }));
+  }
+
   const rooms = [{ x: arX, y: arY, w: arW, h: arH, cx: bossX, cy: bossY }];
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
 
   return {
     map, rooms,
-    monsters: [boss],
+    monsters: [boss, ...minionMonsters],
     items: [], traps: [], springs: [], bigboxes: [],
     stairUp:   { x: suX, y: suY },
     stairDown: { x: sdX, y: sdY },

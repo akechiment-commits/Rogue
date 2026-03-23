@@ -140,6 +140,24 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       ml.push(`油まみれに炎が燃え移った！${_bonusDmg}ダメージ！`);
     }
   }
+  /* ボス固有攻撃エフェクト */
+  if (dmg > 0) {
+    if (m.baseKind === "boss_blaze" && Math.random() < 0.35) {
+      const _ct = rng(3, 5);
+      pl.confusedTurns = (pl.confusedTurns || 0) + _ct;
+      ml.push(`灼熱の炎が頭を焼いた！混乱した！(${_ct}ターン)`);
+    }
+    if (m.baseKind === "boss_sage" && Math.random() < 0.30) {
+      const _st = rng(5, 8);
+      pl.sealedTurns = (pl.sealedTurns || 0) + _st;
+      ml.push(`呪縛の賢者の呪いがかかった！アイテムが使えない！(${_st}ターン)`);
+    }
+    if (m.baseKind === "boss_demonking" && Math.random() < 0.25) {
+      const _pt = rng(2, 4);
+      pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
+      ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
+    }
+  }
   /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
   if (dg.pentacles?.length > 0 && dmg > 0) {
     const _plRoom = findRoom(dg.rooms, pl.x, pl.y);
@@ -919,6 +937,35 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   if (m.paralyzed) return;
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
   if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns--; _attackOnly = true; }
+
+  /* ===== ボス固有AI ===== */
+  /* 深淵の番人：毎ターン8HP回復（最大HPを超えない） */
+  if (m.baseKind === "boss_guardian" && !_moveOnly) {
+    const _heal = Math.min(8, m.maxHp - m.hp);
+    if (_heal > 0) { m.hp += _heal; ml.push(`${m.name}は傷を再生した！(+${_heal}HP)`); }
+  }
+  /* 魔神王：5ターンごとに周囲に取り巻きを1体召喚 */
+  if (m.baseKind === "boss_demonking" && !_moveOnly) {
+    m._summonCooldown = (m._summonCooldown || 0) - 1;
+    if (m._summonCooldown <= 0) {
+      m._summonCooldown = 5;
+      const _bDirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+      const _shuffled = _bDirs.sort(() => Math.random() - 0.5);
+      let _summoned = false;
+      for (const [_sdx, _sdy] of _shuffled) {
+        const _sx = m.x + _sdx, _sy = m.y + _sdy;
+        if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
+        if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+        if (pl.x === _sx && pl.y === _sy) continue;
+        const _depth = Math.max(0, (m.bossTier || 4) * 4);
+        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y }));
+        ml.push(`${m.name}が魔力で手下を召喚した！`);
+        _summoned = true;
+        break;
+      }
+      if (!_summoned) m._summonCooldown = 1; /* すぐ再試行 */
+    }
+  }
 
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
