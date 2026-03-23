@@ -2301,7 +2301,9 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     ml.push(`火薬壺が泉に浸され、保存の壺に変化した！中身は保たれている。`);
     spr.contents.push(item);
   } else {
-    ml.push(_dn(item) + "が泉に落ちた。");
+    let _elseNote = "";
+    if (item.cursed) { item.cursed = false; _elseNote = " 呪いが解けた！"; }
+    ml.push(_dn(item) + "が泉に落ちた。" + _elseNote);
     spr.contents.push(item);
   }
   /* 5個目が入ったら泉が干上がる（容量4） */

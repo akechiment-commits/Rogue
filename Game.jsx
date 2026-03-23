@@ -3060,14 +3060,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           it.abilities = _newAbs; it.ability = _newAbs[0];
           ml.push(`${_oldName}が黄金の輝きを放ち...金の斧に変化した！`);
         } else if (hasAbility(it, "no_degrade")) {
-          ml.push(`${it.name}が水に浸かったが金でできているので錆びなかった！`);
+          let _ndNote = "";
+          if (it.cursed) { it.cursed = false; _ndNote = " 呪いが解けた！"; }
+          ml.push(`${it.name}が水に浸かったが金でできているので錆びなかった！${_ndNote}`);
         } else {
+          let _rustNote = "";
+          if (it.cursed) { it.cursed = false; _rustNote = " 呪いが解けた！"; }
           const _op = it.plus || 0;
           it.plus = _op - 1;
           const _fp = (v) =>
             v > 0 ? `+${v}` : v === 0 ? `\u7121\u5370` : `${v}`;
           ml.push(
-            `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})`,
+            `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_rustNote}`,
           );
         }
       } else if (it.type === "scroll") {
@@ -3100,7 +3104,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         it.contents = _savedContents;
         ml.push(`火薬壺を泉に浸した...保存の壺に変化した！中身は保たれている。`);
       } else {
-        ml.push(`${dnameRef(it)}を泉に浸した...何も起こらなかった。`);
+        let _soakNote = "";
+        if (it.cursed) { it.cursed = false; _soakNote = " 呪いが解けた！"; }
+        ml.push(`${dnameRef(it)}を泉に浸した。${_soakNote || "何も起こらなかった。"}`);
       }
       const _dried = springTryDry(dg, p, ml);
       endTurn(sr.current, p, ml);
