@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS } from "./items.js";
 import { pushMonsterBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -331,6 +331,13 @@ export const MONS = [
     levels: [
       { name: "オーク将",         hp: 48,  atk: 17, def: 8,  exp: 77  },
       { name: "オーク王",         hp: 75,  atk: 22, def: 11, exp: 120 },
+    ],
+  },
+  /* 10.5: 11階〜 罠師 */
+  { name: "罠師",         hp: 25,  atk: 10, def: 2,  exp: 48,  speed: 1,   tile: 86, kind: "humanoid", baseKind: "trapmaster", monLevel: 1, subtype: "trapmaster",
+    levels: [
+      { name: "罠の達人",         hp: 40,  atk: 14, def: 5,  exp: 77  },
+      { name: "罠の覇者",         hp: 63,  atk: 18, def: 8,  exp: 120 },
     ],
   },
   /* 11: 12階〜 */
@@ -1006,6 +1013,35 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       killMonster(m, dg, pl, ml, _luFn, true); // 自爆→経験値なし
       doExplosion(_kzX, _kzY, dg, pl, ml, null, `${_kzName}の自爆`, null, _luFn, false, true, true, true);
       return;
+    }
+  }
+
+  /* ===== 罠師：部屋内（Lv3は廊下も可）で足元にランダムな罠を仕掛ける ===== */
+  if (m.subtype === "trapmaster" && !m.sealed && !_moveOnly && !_attackOnly) {
+    const _tmLvl = m.monLevel || 1;
+    /* Lv3は廊下も可、Lv1/2は部屋内のみ */
+    const _tmRoom = findRoom(dg.rooms, m.x, m.y);
+    const _tmCanPlace = _tmLvl >= 3 ? isWalkable(dg.map, m.x, m.y) : _tmRoom !== null;
+    if (_tmCanPlace) {
+      /* Lv2以上は発動確率50%、Lv1は25% */
+      const _tmChance = _tmLvl >= 2 ? 0.5 : 0.25;
+      if (Math.random() < _tmChance) {
+        /* 足元にすでに罠があれば別の種類を選ぶ */
+        const _existTrap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
+        let _candidates = TRAPS;
+        if (_existTrap) {
+          _candidates = TRAPS.filter(t => t.effect !== _existTrap.effect);
+          /* 全部同じ種類（理論上ありえないが安全策）なら先頭を除く */
+          if (_candidates.length === 0) _candidates = TRAPS.slice(1);
+          /* 既存の罠を除去して新しい罠に置き換える */
+          dg.traps = dg.traps.filter(t => t !== _existTrap);
+        }
+        const _newTrap = { ...pick(_candidates), id: uid(), x: m.x, y: m.y, revealed: false };
+        dg.traps = dg.traps || [];
+        dg.traps.push(_newTrap);
+        ml.push(`${m.name}が罠を仕掛けた！`);
+        return;
+      }
     }
   }
 
