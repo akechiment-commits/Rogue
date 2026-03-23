@@ -364,6 +364,13 @@ export const MONS = [
       { name: "罠猟師頭",         hp: 70,  atk: 20, def: 9,  exp: 138 },
     ],
   },
+  /* 10.65: 13階〜 隣接時に装備品を強制解除 */
+  { name: "解装士",       hp: 28,  atk: 11, def: 3,  exp: 58,  speed: 1,   tile: 84, kind: "humanoid", baseKind: "disarmer",     monLevel: 1, subtype: "disarmer",
+    levels: [
+      { name: "強解装士",         hp: 45,  atk: 15, def: 6,  exp: 93  },
+      { name: "覇解装士",         hp: 70,  atk: 20, def: 9,  exp: 145 },
+    ],
+  },
   /* 10.7: 13階〜 隣接する敵をプレイヤーの隣に投げる */
   { name: "投擲士",       hp: 32,  atk: 12, def: 4,  exp: 62,  speed: 1,   tile: 88, kind: "humanoid", baseKind: "monsterthrow", monLevel: 1, subtype: "monsterthrow",
     levels: [
@@ -1576,6 +1583,44 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         /* 盗めるものがなければ通常攻撃 */
+        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
+        return;
+      }
+    }
+
+    /* ── disarmer（解装士等）：隣接時に装備品を強制解除 ── */
+    if (m.subtype === "disarmer" && !m.sealed) {
+      const _ueAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      if (_ueAdj && _moveOnly) return;
+      if (_ueAdj) {
+        /* 解除できる装備スロットを収集（呪いは除外） */
+        const _ueSlots = [];
+        if (pl.weapon && !pl.weapon.cursed) _ueSlots.push({ slot: "weapon", it: pl.weapon });
+        if (pl.armor  && !pl.armor.cursed)  _ueSlots.push({ slot: "armor",  it: pl.armor  });
+        for (const ring of (pl.rings || [])) {
+          if (!ring.cursed) _ueSlots.push({ slot: "ring", it: ring });
+        }
+        if (_ueSlots.length > 0) {
+          const _ueCount = m.monLevel || 1; /* Lv1:1個, Lv2:2個, Lv3:3個 */
+          const _pool = [..._ueSlots];
+          for (let i = 0; i < _ueCount && _pool.length > 0; i++) {
+            const _pick = _pool.splice(Math.floor(Math.random() * _pool.length), 1)[0];
+            if (_pick.slot === "weapon") pl.weapon = null;
+            else if (_pick.slot === "armor") pl.armor = null;
+            else if (_pick.slot === "ring") {
+              pl.rings = (pl.rings || []).filter(r => r !== _pick.it);
+              if (_pick.it.effect === "life_ring") {
+                const _bonus = (_pick.it.plus || 0) * 5;
+                pl.maxHp = Math.max(1, pl.maxHp - _bonus);
+                pl.hp = Math.min(pl.hp, pl.maxHp);
+              }
+              if (_pick.it.effect === "torch_ring") pl.visionBonus = Math.max(0, (pl.visionBonus || 0) - 1);
+            }
+            ml.push(`${m.name}に${_pick.it.name}を外された！`);
+          }
+          return;
+        }
+        /* 外せる装備がなければ通常攻撃 */
         if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
         return;
       }
