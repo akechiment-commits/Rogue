@@ -929,20 +929,20 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
     if (m.poisonedTurns <= 0) ml.push(`${m.name}の毒が切れた。`);
   }
-  /* 盲目状態（ターン経過で解除） */
-  if (m.blind && !_attackOnly) {
-    m.blindTurns = Math.max(0, ((m.blindTurns || 0) - (m.isBoss ? 2 : 1)));
+  /* 盲目状態（ボスのみターン経過で解除） */
+  if (m.blind && m.isBoss && !_attackOnly) {
+    m.blindTurns = Math.max(0, ((m.blindTurns || 0) - 2));
     if (m.blindTurns <= 0) { m.blind = false; }
   }
-  /* 幻惑状態（ターン経過で解除） */
-  if (m.bewitched && !_attackOnly) {
-    m.bewitchedTurns = Math.max(0, ((m.bewitchedTurns || 0) - (m.isBoss ? 2 : 1)));
+  /* 幻惑状態（ボスのみターン経過で解除） */
+  if (m.bewitched && m.isBoss && !_attackOnly) {
+    m.bewitchedTurns = Math.max(0, ((m.bewitchedTurns || 0) - 2));
     if (m.bewitchedTurns <= 0) { m.bewitched = false; ml.push(`${m.name}の幻惑が解けた！`); }
   }
-  /* 封印状態（ターン経過で解除） */
-  if (m.sealed && !_attackOnly) {
+  /* 封印状態（ボスのみターン経過で解除） */
+  if (m.sealed && m.isBoss && !_attackOnly) {
     if ((m.sealedTurns || 0) > 0) {
-      m.sealedTurns = Math.max(0, m.sealedTurns - (m.isBoss ? 2 : 1));
+      m.sealedTurns = Math.max(0, m.sealedTurns - 2);
       if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); }
     }
   }
@@ -950,10 +950,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - (m.isBoss ? 2 : 1));
     return;
   }
-  /* 金縛り（paralyzeTurns があればターン経過で解除） */
+  /* 金縛り（paralyzeTurns があればボスのみターン経過で解除） */
   if (m.paralyzed) {
-    if ((m.paralyzeTurns || 0) > 0 && !_attackOnly) {
-      m.paralyzeTurns = Math.max(0, m.paralyzeTurns - (m.isBoss ? 2 : 1));
+    if (m.isBoss && (m.paralyzeTurns || 0) > 0 && !_attackOnly) {
+      m.paralyzeTurns = Math.max(0, m.paralyzeTurns - 2);
       if (m.paralyzeTurns <= 0) { m.paralyzed = false; ml.push(`${m.name}の金縛りが解けた！`); }
     }
     if (m.paralyzed) return;
