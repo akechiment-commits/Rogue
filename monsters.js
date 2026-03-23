@@ -1257,7 +1257,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
         Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) === 1 &&
-        dg.traps?.some(t => t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange0);
+        dg.traps?.some(t => t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange0 &&
+          Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) >= 2);
       const _mtLvl0 = m.monLevel || 1;
       const _mtRange0 = _mtLvl0 >= 3 ? 10 : _mtLvl0 >= 2 ? 5 : 3;
       const _mtRdy0 = m.subtype === "monsterthrow" && !m.sealed && _rAtks &&
@@ -1305,13 +1306,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) === 1) {
         const _ttLvl = m.monLevel || 1;
         const _ttRange = _ttLvl >= 3 ? 10 : _ttLvl >= 2 ? 5 : 3;
-        /* 範囲内の発見済み罠を収集し、プレイヤーから近い順に並べる */
+        /* 範囲内の発見済み罠を収集し、プレイヤーから遠い順に並べる（近すぎる罠は除外） */
         const _ttCands = (dg.traps || []).filter(t =>
           t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange &&
-          !(t.x === pl.x && t.y === pl.y)
+          Math.max(Math.abs(t.x - pl.x), Math.abs(t.y - pl.y)) >= 2
         ).sort((a, b) =>
-          Math.max(Math.abs(a.x - pl.x), Math.abs(a.y - pl.y)) -
-          Math.max(Math.abs(b.x - pl.x), Math.abs(b.y - pl.y))
+          Math.max(Math.abs(b.x - pl.x), Math.abs(b.y - pl.y)) -
+          Math.max(Math.abs(a.x - pl.x), Math.abs(a.y - pl.y))
         );
         if (_ttCands.length > 0 && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           const _ttTrap = _ttCands[0];
