@@ -3131,6 +3131,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           p.maxHp = Math.max(1, p.maxHp - _bonus);
           p.hp = Math.min(p.hp, p.maxHp);
         }
+        if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
       }
       p.inventory.splice(itemIdx, 1);
       bigboxAddItem(bb, it, dg, ml);
