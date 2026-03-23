@@ -3084,7 +3084,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       springTryDry(dg, p, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      setSpringMode(null);
+      const _sprStillExists = dg.springs?.some((s) => s.x === p.x && s.y === p.y);
+      if (_sprStillExists) {
+        setSpringMode("soak");
+        setSpringMenuSel(0);
+        setSpringPage(0);
+      } else {
+        setSpringMode(null);
+      }
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
     },
@@ -3119,8 +3126,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       bigboxAddItem(bb, it, dg, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      setBigboxMode(null);
-      bigboxRef.current = null;
+      if (bb.contents.length < bb.capacity) {
+        setBigboxMode("put");
+        setBigboxMenuSel(0);
+        setBigboxPage(0);
+      } else {
+        setBigboxMode(null);
+        bigboxRef.current = null;
+      }
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
       setTimeout(() => ref.current?.focus(), 0);
