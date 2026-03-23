@@ -166,6 +166,23 @@ export function hasCursedGravityPentacle(dg, x, y) {
   });
 }
 
+/* みかわしの魔方陣チェック: ターゲット座標(x,y)に対するdodgeペンタクル効果。
+ * 祝福: フロア全体でdodge、呪い: フロア全体でsure-hit、通常: 同部屋でdodge
+ * 戻り値: "dodge" | "sure" | null */
+export function getDodgePentacleMode(dg, x, y) {
+  if (!dg.pentacles?.length) return null;
+  const allRooms = [...(dg.rooms || []), ...(dg.hiddenRooms || [])];
+  for (const pc of dg.pentacles) {
+    if (pc.kind !== "dodge") continue;
+    if (pc.blessed) return "dodge";
+    if (pc.cursed) return "sure";
+    const pcRoom = allRooms.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h);
+    const posRoom = allRooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    if (pcRoom && posRoom && pcRoom === posRoom) return "dodge";
+  }
+  return null;
+}
+
 export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
 import { findRoom, spawnMonsters } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -1014,7 +1014,8 @@ export function useItemActions({
             it.effect === "knockback_aura" ? "吹き飛ばしの魔方陣" :
             it.effect === "explosion"      ? "爆発の魔方陣" :
             it.effect === "plain"          ? "無の魔方陣" :
-            it.effect === "gravity"        ? "重力の魔方陣" : "魔方陣";
+            it.effect === "gravity"        ? "重力の魔方陣" :
+            it.effect === "dodge"          ? "みかわしの魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
@@ -1730,9 +1731,11 @@ export function useItemActions({
               ml.push(`近くに敵がいない！${_stName}は消えた。`);
             } else {
               const _msSureHit = (p.sureHitTurns || 0) > 0;
-              const _msMiss = _forceMiss || (!_msSureHit && Math.random() >= 0.90);
+              const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
+              const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (!_msSureHit && !(_msDodgePcMode === "sure") && Math.random() >= 0.90));
               const _msDmg = (_arItem.atk || 5) + rng(0, 3);
               if (_msMiss) {
+                if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
                 const _msft = new Set();
                 withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft));
@@ -1758,8 +1761,10 @@ export function useItemActions({
             const _stDmg = (_arItem.atk || 3) + rng(0, 3);
             ml.push(`${_stName}を投げた！`);
             if (_stM) {
-              const _stMiss = _forceMiss || (!_stSureHit && Math.random() >= 0.90);
+              const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
+              const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (!_stSureHit && !(_stDodgePcMode === "sure") && Math.random() >= 0.90));
               if (_stMiss) {
+                if (_stDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
                 const _stft = new Set();
                 withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft));
@@ -1862,8 +1867,10 @@ export function useItemActions({
           if (m) {
             /* 矢の命中率90%（必中状態なら100%） */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
-            const _arMiss = _forceMiss || (!_arSureHit && Math.random() >= 0.90);
+            const _arDodgePcMode = getDodgePentacleMode(dg, m.x, m.y);
+            const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (!_arSureHit && !(_arDodgePcMode === "sure") && Math.random() >= 0.90));
             if (_arMiss) {
+              if (_arDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${m.name}に矢が当たらなかった！`);
               ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
               lx = tx; ly = ty; hit = true;
               const _arMissItem = _arDropItem();
@@ -2013,9 +2020,11 @@ export function useItemActions({
             if (!_msTarget2) {
               ml.push(`近くに敵がいない！${_invStName}は消えた。`);
             } else {
-              const _msMiss2 = _forceMiss || (!((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90);
+              const _msDodgePcMode2 = getDodgePentacleMode(dg, _msTarget2.x, _msTarget2.y);
+              const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));
               const _msDmg2 = _invStAtk + rng(0, 3);
               if (_msMiss2) {
+                if (_msDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
                 const _msft2 = new Set();
                 withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, makeMagicStone(1), ml, _msft2));
@@ -2038,8 +2047,10 @@ export function useItemActions({
             const _stDmg2 = _invStAtk + rng(0, 3);
             ml.push(`${_invStName}を投げた！`);
             if (_stM2) {
-              const _stMiss2 = _forceMiss || (!((p.sureHitTurns || 0) > 0) && Math.random() >= 0.90);
+              const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
+              const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
               if (_stMiss2) {
+                if (_stDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
                 const _stft2 = new Set();
                 withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
@@ -2183,7 +2194,8 @@ export function useItemActions({
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
-              const _potMiss = _forceMiss || (!_isFarcast && !_potSureHit && Math.random() >= 0.90);
+              const _potDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
+              const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_potSureHit && !(_potDodgePcMode === "sure") && Math.random() >= 0.90));
               if (!_isFarcast && m.baseKind === "firedemon") {
                 /* 火ダルマ：非遠投の壺を燃やして消滅 */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
@@ -2199,6 +2211,7 @@ export function useItemActions({
               }
               if (_potMiss) {
                 /* 外れ：敵の足元に落ちて壺の内容物が散らばる */
+                if (_potDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${m.name}に${dnameRef(it)}が当たらなかった！`);
                 lx = tx; ly = ty;
                 ml.push(`${dnameRef(it)}は${m.name}に外れ、足元に落ちた！`);
                 const _ptTrap = dg.traps.find(t => t.x === tx && t.y === ty);
@@ -2265,7 +2278,8 @@ export function useItemActions({
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
-              const _thMiss = _forceMiss || (!_isFarcast && !_thSureHit && Math.random() >= 0.90);
+              const _thDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
+              const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));
               const lb = _mkThrowLb();
               if (!_isFarcast && m.baseKind === "firedemon") {
                 /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
@@ -2284,6 +2298,7 @@ export function useItemActions({
               }
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
+                if (_thDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${m.name}に${lb}が当たらなかった！`);
                 lx = tx; ly = ty; hit = true;
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
                 const _fm_ft = new Set();

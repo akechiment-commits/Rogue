@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS } from "./items.js";
 import { pushMonsterBoltAnim } from "./animEvents.js";
 
@@ -772,10 +772,15 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     if (tx === pl.x && ty === pl.y && !_plHit) {
       /* 祝福された聖域の魔方陣のみ矢を防ぐ（通常聖域は近接のみ） */
       const _arSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
-      if (miss || _arSanc) {
+      const _arDodgePc = getDodgePentacleMode(dg, pl.x, pl.y);
+      const _arForceMiss = _arDodgePc === "dodge";
+      const _arForceSure = _arDodgePc === "sure";
+      const _arMissAll = _arForceMiss || (!_arForceSure && (miss || _arSanc));
+      if (_arMissAll) {
         const _ad = safeArrowDrop(_arSanc ? lx : pl.x, _arSanc ? ly : pl.y, dg);
         _monDropWithSpring(_ad, { name:"矢", type:"arrow", atk:4, desc:"99本まで束にできる矢。", count:1, tile:23, id:uid() }, dg, ml);
         if (_arSanc) ml.push(`${m.name}の矢は祝福された聖域の加護に阻まれた！矢が落ちた。`);
+        else if (_arForceMiss) ml.push(`みかわしの魔方陣の加護で${m.name}の矢をかわした！矢が落ちた。`);
         else ml.push(`${m.name}の矢は外れた！矢が落ちた。`);
         const trap = dg.traps?.find(t => t.x === pl.x && t.y === pl.y);
         if (trap && opts.fireTrapFn) opts.fireTrapFn(trap, pl, dg, ml);
@@ -834,8 +839,17 @@ function monsterThrowStone(m, dg, pl, ml) {
   ml.push(`${m.name}が${stoneName}を投げた！`);
   pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, isMagic ? "#cc88ff" : "#aaaaaa");
 
+  /* みかわしの魔方陣 */
+  const _stDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+  if (_stDodgePcMode === "dodge") {
+    ml.push(`みかわしの魔方陣の加護で${m.name}の${stoneName}をかわした！${stoneName}が落ちた。`);
+    const _sd = safeArrowDrop(pl.x, pl.y, dg);
+    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
+    return;
+  }
+
   /* みかわし（防具の効果） */
-  const dodged = hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+  const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
   if (dodged) {
     ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
     const _sd = safeArrowDrop(pl.x, pl.y, dg);
@@ -843,7 +857,7 @@ function monsterThrowStone(m, dg, pl, ml) {
     return;
   }
 
-  const miss = Math.random() >= hitChance;
+  const miss = _stDodgePcMode !== "sure" && Math.random() >= hitChance;
   if (miss) {
     ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
     const _sd = safeArrowDrop(pl.x, pl.y, dg);
