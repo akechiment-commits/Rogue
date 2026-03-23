@@ -1910,7 +1910,7 @@ export function InventoryModal({
     </div>
     {_previewPot && (
       <div style={{
-        position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+        position: "absolute", right: mobile ? 8 : 212, top: "50%", transform: "translateY(-50%)",
         background: "#0e0e1a", border: "1px solid #8a6a20", borderRadius: 6,
         padding: "8px 12px", zIndex: 5, minWidth: 130, maxWidth: 180,
         boxShadow: "0 4px 20px rgba(0,0,0,0.85)", pointerEvents: "none",
