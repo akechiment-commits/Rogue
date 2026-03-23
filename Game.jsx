@@ -2585,7 +2585,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         gsOverrideRef.current = { ...st };
         animBusyRef.current = true;
         renderFrameRef.current();
-        await new Promise(r => setTimeout(r, 45));
+        await new Promise(r => setTimeout(r, 25));
         gsOverrideRef.current = null;
         animBusyRef.current = false;
         if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
