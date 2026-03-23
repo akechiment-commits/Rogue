@@ -1542,7 +1542,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
       /* 油状態：モンスターのカウントダウン */
-      for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns--; }
+      for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns = Math.max(0, _om.oilyTurns - (_om.isBoss ? 2 : 1)); }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
       if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap") && !hasCursedExplosionPentacle(st.dungeon)) {
         for (const _m of [...st.dungeon.monsters]) {

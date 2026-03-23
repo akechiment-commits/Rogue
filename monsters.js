@@ -917,7 +917,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
   /* 状態異常防止：毎ターンカウントダウン */
   if ((m.statusImmune || 0) > 0) {
-    m.statusImmune--;
+    m.statusImmune = Math.max(0, m.statusImmune - (m.isBoss ? 2 : 1));
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }
   /* 毒状態：毎ターンHP減少 */
