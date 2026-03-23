@@ -830,9 +830,11 @@ export function useKeyHandler({
                   p2.gold -= _totalUnpaid;
                   _allShopsPay.forEach(sh => { sh.unpaidTotal = 0; });
                   dg2.shopTheft = false;
-                  p2.inventory.forEach((it2) => {
+                  const _clearShopPrice2 = (it2) => {
                     if (it2.shopPrice) delete it2.shopPrice;
-                  });
+                    if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice2);
+                  };
+                  p2.inventory.forEach(_clearShopPrice2);
                   const sk5 = dg2.monsters.find((m) => m.type === "shopkeeper");
                   if (sk5) {
                     sk5.state = "friendly";

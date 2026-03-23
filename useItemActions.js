@@ -1568,6 +1568,14 @@ export function useItemActions({
         setMsgs((prev) => [...prev.slice(-80), "壺の中に壺は入れられない。"]);
         return;
       }
+      if (pot.shopPrice) {
+        setMsgs((prev) => [...prev.slice(-80), "店の壺には入れられない！先に代金を払ってください。"]);
+        return;
+      }
+      if (it.shopPrice) {
+        setMsgs((prev) => [...prev.slice(-80), "未払いの商品は壺に入れられない！先に代金を払ってください。"]);
+        return;
+      }
       if (it.type === "goal") {
         setMsgs((prev) => [...prev.slice(-80), "大事なものは壺に入れられない！"]);
         return;

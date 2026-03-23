@@ -672,9 +672,11 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     p2.gold -= dg2.shop.unpaidTotal;
                     dg2.shop.unpaidTotal = 0;
                     dg2.shopTheft = false;
-                    p2.inventory.forEach((it2) => {
+                    const _clearShopPrice = (it2) => {
                       if (it2.shopPrice) delete it2.shopPrice;
-                    });
+                      if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice);
+                    };
+                    p2.inventory.forEach(_clearShopPrice);
                     const sk5 = dg2.monsters.find(
                       (m) => m.type === "shopkeeper",
                     );

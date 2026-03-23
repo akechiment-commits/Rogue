@@ -540,7 +540,10 @@ export function itemPrice(it) {
   if (it.type === "wand")     return 150 + (it.charges || 0) * 30;
   if (it.type === "marker")   return 100 + (it.charges || 0) * 40;
   if (it.type === "pen")      return 150 + (it.charges || 0) * 50;
-  if (it.type === "pot")      return 120;
+  if (it.type === "pot") {
+    const contentsValue = (it.contents || []).reduce((s, c) => s + itemPrice(c), 0);
+    return 120 + contentsValue;
+  }
   if (it.type === "bottle")   return 5;
   if (it.type === "spellbook") return 200;
   if (it.type === "ring") {
