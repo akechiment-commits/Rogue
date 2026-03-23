@@ -115,6 +115,13 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       for (let fx = _pawx + 1; fx < MW; fx++) {
         if (dg.map[trap.y][fx] === T.WALL) break;
         if (fx === p.x && trap.y === p.y) {
+          const _paDodgePc = getDodgePentacleMode(dg, p.x, p.y);
+          if (_paDodgePc === "dodge") {
+            ml.push("みかわしの魔方陣の加護で毒矢をかわした！矢が落ちた。");
+            placeItemAt(dg, fx, trap.y, makePoisonArrow(1), ml, new Set([trap.id]));
+            _pahp = true;
+            break;
+          }
           const d = ARROW_T.atk + rng(1, 4);
           p.deathCause = `${trap.name}により`;
           p.hp -= d;
@@ -129,13 +136,19 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
         }
         const m = monsterAt(dg, fx, trap.y);
         if (m) {
-          const d = ARROW_T.atk + rng(0, 3);
-          m.hp -= d;
-          m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-          ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
-          if (m.hp <= 0) {
-            ml.push(`${m.name}は倒れた！`);
-            dg.monsters = dg.monsters.filter((m2) => m2 !== m);
+          const _paMonDodgePc = getDodgePentacleMode(dg, m.x, m.y);
+          if (_paMonDodgePc === "dodge") {
+            ml.push(`みかわしの魔方陣の加護で毒矢が${m.name}に当たらなかった！矢が落ちた。`);
+            placeItemAt(dg, fx, trap.y, makePoisonArrow(1), ml, new Set([trap.id]));
+          } else {
+            const d = ARROW_T.atk + rng(0, 3);
+            m.hp -= d;
+            m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+            ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
+            if (m.hp <= 0) {
+              ml.push(`${m.name}は倒れた！`);
+              dg.monsters = dg.monsters.filter((m2) => m2 !== m);
+            }
           }
           _pahp = true;
           break;
