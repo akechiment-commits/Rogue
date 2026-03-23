@@ -47,6 +47,20 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.darknessTurns || 0) > 0 && mon.darknessTurns < 9999)  _sts.push("#604878"); // 暗闇：暗紫
   if (mon.baseSpeed != null && (mon.speed ?? 1) > mon.baseSpeed)  _sts.push("#ff4040"); // 倍速：赤
   if (mon.baseSpeed != null && (mon.speed ?? 1) < mon.baseSpeed)  _sts.push("#20b8a0"); // 鈍足：青緑
+  /* ── モンスターレベルバッジ（左上） ── */
+  const _ml = mon.monLevel ?? 1;
+  if (_ml >= 2) {
+    const _fs = Math.max(7, Math.round(sz * 0.30));
+    ctx.save();
+    ctx.font = `bold ${_fs}px monospace`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillText(String(_ml), px + 2 + 1, py + 2 + 1);
+    ctx.fillStyle = _ml >= 3 ? "#ff9900" : "#ffffaa";
+    ctx.fillText(String(_ml), px + 2, py + 2);
+    ctx.restore();
+  }
   if (_sts.length === 0) return;
   const _ic = Math.max(4, Math.round(sz * 0.22)); // ドットサイズ（タイルの約22%）
   const _ox = px + sz - _ic - 1;
