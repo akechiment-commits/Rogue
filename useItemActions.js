@@ -758,11 +758,14 @@ export function useItemActions({
         } else if (it.blessed) {
           // 祝福：フロアのアイテムを直接インベントリに吸収（満杯分は通常の落下ルールで配置）
           dg.items = dg.items.filter((gi) => gi.shopPrice);
-          let _picked = 0, _dropped = 0;
+          let _picked = 0, _dropped = 0, _goldTotal = 0;
           const _blessFt = new Set();
           for (const gi of _toG) {
             delete gi.wallEmbedded;
-            if (p.inventory.length < (p.maxInventory || 30)) {
+            if (gi.type === "gold") {
+              p.gold += gi.value;
+              _goldTotal += gi.value;
+            } else if (p.inventory.length < (p.maxInventory || 30)) {
               p.inventory.push(gi);
               _picked++;
             } else {
@@ -770,7 +773,11 @@ export function useItemActions({
               _dropped++;
             }
           }
-          ml.push(`${_picked}個のアイテムを拾った！【祝】${_dropped > 0 ? `（${_dropped}個は満杯で周囲に配置）` : ""}`);
+          const _blessMsg = [];
+          if (_picked > 0) _blessMsg.push(`${_picked}個のアイテムを拾った！`);
+          if (_goldTotal > 0) _blessMsg.push(`${_goldTotal}枚の金貨を拾った！`);
+          if (_blessMsg.length === 0) _blessMsg.push("引き寄せるアイテムがなかった。");
+          ml.push(_blessMsg.join("") + "【祝】" + (_dropped > 0 ? `（${_dropped}個は満杯で周囲に配置）` : ""));
         } else {
           // 通常：隣接マスに引き寄せる
           dg.items = dg.items.filter((gi) => gi.shopPrice);

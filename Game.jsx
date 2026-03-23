@@ -2539,7 +2539,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             } else if (_dashIt.type === "arrow") {
               _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone ? "個" : "本"})`;
             } else if (_dashIt.type === "gold") {
-              _lbl += `(${_dashIt.count}枚)`;
+              _lbl += `(${_dashIt.value}枚)`;
             }
             ml.push(_lbl + _itemPickupSuffix(_dashIt, sr.current?.ident) + "がある。");
             endTurn(st, p, ml);
