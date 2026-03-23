@@ -1414,6 +1414,44 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       }
       checkShopTheft(p, st.dungeon, ml);
+      /* ===== 状態異常カウントダウン（ダッシュ含む全ターン進行で共通） ===== */
+      if ((p.slowTurns || 0) > 0) {
+        p.slowTurns--;
+        if (p.slowTurns > 0) { p.slowSkip = true; } else { ml.push("鈍足が解けた！"); }
+      }
+      if ((p.confusedTurns || 0) > 0) {
+        p.confusedTurns--;
+        if (p.confusedTurns <= 0) ml.push("混乱が解けた！");
+      }
+      if ((p.darknessTurns || 0) > 0) {
+        p.darknessTurns--;
+        if (p.darknessTurns <= 0) ml.push("暗闇が晴れた！視界が戻った！");
+      }
+      if ((p.bewitchedTurns || 0) > 0) {
+        p.bewitchedTurns--;
+        if (p.bewitchedTurns <= 0) ml.push("幻惑が解けた！周囲の見た目が正常に戻った！");
+      }
+      if ((p.monsterSenseTurns || 0) > 0) {
+        p.monsterSenseTurns--;
+        if (p.monsterSenseTurns <= 0) ml.push("モンスター感知が切れた！");
+      }
+      if ((p.statusImmune || 0) > 0) {
+        p.statusImmune--;
+        if (p.statusImmune <= 0) ml.push("状態防止が切れた！");
+      }
+      if ((p.sureHitTurns || 0) > 0) {
+        p.sureHitTurns--;
+        if (p.sureHitTurns <= 0) ml.push("必中状態が切れた！");
+      }
+      if ((p.spicyAtkTurns || 0) > 0) {
+        p.spicyAtkTurns--;
+        if (p.spicyAtkTurns <= 0) ml.push("辛さによる攻撃力ブーストが切れた！");
+      }
+      /* 2倍速：endTurnが呼ばれた時（2回目の行動後）のみ消費 */
+      if ((p.hasteTurns || 0) > 0) {
+        p.hasteTurns--;
+        if (p.hasteTurns <= 0) { p.hasteUsed = false; ml.push("2倍速が解けた！"); }
+      }
       /* ===== 4フェーズターン制 ===== */
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
       const _monSnap = new Map();
@@ -2237,55 +2275,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else {
           if (p.hasteUsed) p.hasteUsed = false;
           endTurn(st, p, ml);
-          /* 2倍速ターン減少：endTurnした時（2回目の行動後）のみ消費 */
-          if ((p.hasteTurns || 0) > 0) {
-            p.hasteTurns--;
-            if (p.hasteTurns <= 0) { p.hasteUsed = false; ml.push("2倍速が解けた！"); }
-          }
-        }
-        /* 鈍足：行動後に次のターンをスキップ予約 */
-        if ((p.slowTurns || 0) > 0) {
-          p.slowTurns--;
-          if (p.slowTurns > 0) {
-            p.slowSkip = true;
-          } else {
-            ml.push("鈍足が解けた！");
-          }
-        }
-        /* 混乱：行動後にターン数を減らす */
-        if ((p.confusedTurns || 0) > 0) {
-          p.confusedTurns--;
-          if (p.confusedTurns <= 0) ml.push("混乱が解けた！");
-        }
-        /* 暗闇：視界が1マスになる */
-        if ((p.darknessTurns || 0) > 0) {
-          p.darknessTurns--;
-          if (p.darknessTurns <= 0) ml.push("暗闇が晴れた！視界が戻った！");
-        }
-        /* 幻惑：周囲の見た目が狂う */
-        if ((p.bewitchedTurns || 0) > 0) {
-          p.bewitchedTurns--;
-          if (p.bewitchedTurns <= 0) ml.push("幻惑が解けた！周囲の見た目が正常に戻った！");
-        }
-        /* モンスター感知 */
-        if ((p.monsterSenseTurns || 0) > 0) {
-          p.monsterSenseTurns--;
-          if (p.monsterSenseTurns <= 0) ml.push("モンスター感知が切れた！");
-        }
-        /* 状態異常防止 */
-        if ((p.statusImmune || 0) > 0) {
-          p.statusImmune--;
-          if (p.statusImmune <= 0) ml.push("状態防止が切れた！");
-        }
-        /* 必中 */
-        if ((p.sureHitTurns || 0) > 0) {
-          p.sureHitTurns--;
-          if (p.sureHitTurns <= 0) ml.push("必中状態が切れた！");
-        }
-        /* 攻撃力ブースト（唐辛子等） */
-        if ((p.spicyAtkTurns || 0) > 0) {
-          p.spicyAtkTurns--;
-          if (p.spicyAtkTurns <= 0) ml.push("辛さによる攻撃力ブーストが切れた！");
         }
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
