@@ -389,6 +389,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
+        if (target.permanent) { ml.push(`${target.name}は吹き飛ばせない！`); break; }
         ml.push(`${target.name}が吹き飛んだ！`);
         const _trapRes = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "trap", target, p, luFn);
         if (_trapRes.hitPlayer) {
@@ -472,6 +473,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
+        if (target.permanent) { ml.push(`${target.name}は破壊できない！`); break; }
         dg.traps = dg.traps.filter(t => t !== target);
         ml.push(`雷撃で${target.name}が破壊された！`);
         break;
