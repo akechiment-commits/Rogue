@@ -1332,10 +1332,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_mtDist <= _mtRange) {
           const _adjMons = dg.monsters.filter(o => o !== m &&
             Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
-          const _adjPl = DRO.map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
+          const _adjPl = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]
+            .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
             .filter(({ x, y }) => isWalkable(dg.map, x, y) &&
-              !dg.monsters.some(o => o.x === x && o.y === y) &&
-              !(x === pl.x && y === pl.y));
+              !dg.monsters.some(o => o.x === x && o.y === y));
           if (_adjMons.length > 0 && _adjPl.length > 0 && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
             const _thrown = pick(_adjMons);
             const _dest = pick(_adjPl);
