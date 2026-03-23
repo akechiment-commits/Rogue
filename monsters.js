@@ -347,6 +347,13 @@ export const MONS = [
       { name: "罠猟師頭",         hp: 70,  atk: 20, def: 9,  exp: 138 },
     ],
   },
+  /* 10.7: 13階〜 隣接する敵をプレイヤーの隣に投げる */
+  { name: "投擲士",       hp: 32,  atk: 12, def: 4,  exp: 62,  speed: 1,   tile: 88, kind: "humanoid", baseKind: "monsterthrow", monLevel: 1, subtype: "monsterthrow",
+    levels: [
+      { name: "強投擲士",         hp: 51,  atk: 17, def: 7,  exp: 99  },
+      { name: "覇投擲士",         hp: 80,  atk: 22, def: 10, exp: 155 },
+    ],
+  },
   /* 11: 12階〜 */
   { name: "大蛇",         hp: 35,  atk: 13, def: 3,  exp: 52,  speed: 1,   tile: 12, kind: "beast",    baseKind: "serpent",    monLevel: 1, maxAttacks: 2,
     levels: [
@@ -1250,7 +1257,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
         dg.traps?.some(t => t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange0);
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _mtLvl0 = m.monLevel || 1;
+      const _mtRange0 = _mtLvl0 >= 3 ? 10 : _mtLvl0 >= 2 ? 5 : 3;
+      const _mtRdy0 = m.subtype === "monsterthrow" && !m.sealed && _rAtks &&
+        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _mtRange0 &&
+        dg.monsters.some(o => o !== m && Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -1307,6 +1319,30 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           if ((pl.immobileTurns || 0) > 0) { pl.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
           opts.fireTrapFn(_ttTrap, pl, dg, ml);
           return;
+        }
+      }
+
+      if (m.subtype === "monsterthrow" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        const _mtLvl = m.monLevel || 1;
+        const _mtRange = _mtLvl >= 3 ? 10 : _mtLvl >= 2 ? 5 : 3;
+        const _mtDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+        if (_mtDist <= _mtRange) {
+          const _adjMons = dg.monsters.filter(o => o !== m &&
+            Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
+          const _adjPl = DRO.map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
+            .filter(({ x, y }) => isWalkable(dg.map, x, y) &&
+              !dg.monsters.some(o => o.x === x && o.y === y) &&
+              !(x === pl.x && y === pl.y));
+          if (_adjMons.length > 0 && _adjPl.length > 0 && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+            const _thrown = pick(_adjMons);
+            const _dest = pick(_adjPl);
+            m.turnAttacks++;
+            wakeIfDormant(_thrown, ml);
+            _thrown.x = _dest.x; _thrown.y = _dest.y;
+            _thrown.aware = true;
+            ml.push(`${m.name}が${_thrown.name}をプレイヤーの隣に投げた！`);
+            return;
+          }
         }
       }
 
