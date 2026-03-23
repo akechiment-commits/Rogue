@@ -725,7 +725,20 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 const _sd = pick(_stAdj);
                 p.x = _sd.x; p.y = _sd.y;
               } else {
-                p.x = stairsX; p.y = stairsY;
+                // 隣も全部塞がっていればマップ全体から空きフロアを探す
+                const _stAll = [];
+                for (let fy = 0; fy < MH; fy++)
+                  for (let fx = 0; fx < MW; fx++)
+                    if (dg.map[fy][fx] === T.FLOOR &&
+                        !dg.monsters.some(m => m.x === fx && m.y === fy) &&
+                        !dg.bigboxes?.some(b => b.x === fx && b.y === fy))
+                      _stAll.push({ x: fx, y: fy });
+                if (_stAll.length > 0) {
+                  const _sd2 = pick(_stAll);
+                  p.x = _sd2.x; p.y = _sd2.y;
+                } else {
+                  p.x = stairsX; p.y = stairsY;
+                }
               }
             } else {
               p.x = stairsX; p.y = stairsY;
