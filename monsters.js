@@ -224,18 +224,18 @@ export const MONS = [
       { name: "ゴブリン王",       hp: 41,  atk: 17, def: 12, exp: 30  },
     ],
   },
-  /* 3: 4階〜 */
-  { name: "スケルトン",   hp: 24,  atk: 12, def: 5,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",   monLevel: 1,
-    levels: [
-      { name: "強スケルトン",     hp: 39,  atk: 17, def: 9,  exp: 35  },
-      { name: "アンデッドナイト", hp: 61,  atk: 21, def: 13, exp: 55  },
-    ],
-  },
-  /* 4: 5階〜 速攻型 */
+  /* 3: 4階〜 速攻型 */
   { name: "インプ",       hp: 19,  atk: 11, def: 2,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",        monLevel: 1, float: true,
     levels: [
       { name: "強インプ",         hp: 30,  atk: 15, def: 5,  exp: 32  },
       { name: "覇インプ",         hp: 47,  atk: 20, def: 9,  exp: 50  },
+    ],
+  },
+  /* 4: 5階〜 */
+  { name: "スケルトン",   hp: 24,  atk: 12, def: 5,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",   monLevel: 1,
+    levels: [
+      { name: "強スケルトン",     hp: 39,  atk: 17, def: 9,  exp: 35  },
+      { name: "アンデッドナイト", hp: 61,  atk: 21, def: 13, exp: 55  },
     ],
   },
   /* 5: 6階〜 鈍足・硬め */
