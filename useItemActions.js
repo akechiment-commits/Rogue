@@ -17,7 +17,7 @@ import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim } from "./animEvents.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限） */
-function _traceThrowEnd(px, py, dx, dy, dg, maxRange) {
+function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
   let lx = px, ly = py;
   for (let d = 1; d <= maxRange; d++) {
     const tx = px + dx * d, ty = py + dy * d;
@@ -25,6 +25,10 @@ function _traceThrowEnd(px, py, dx, dy, dg, maxRange) {
     if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
     lx = tx; ly = ty;
     if (monsterAt(dg, tx, ty)) break;
+    if (stopAtContainers) {
+      if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
+      if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
+    }
   }
   return [lx, ly];
 }
@@ -2107,7 +2111,7 @@ export function useItemActions({
         p.inventory.splice(idx, 1);
         /* 投擲アニメーション：アイテムスプライトを着弾点まで飛ばす */
         {
-          const [_teX, _teY] = _traceThrowEnd(p.x, p.y, dx, dy, dg, _maxRange);
+          const [_teX, _teY] = _traceThrowEnd(p.x, p.y, dx, dy, dg, _maxRange, !_isFarcast);
           pushItemFlyAnim(p.x, p.y, _teX, _teY, it.tile);
         }
         if (it.type === "potion") {
