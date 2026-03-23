@@ -1024,7 +1024,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _tmCanPlace = _tmLvl >= 3 ? isWalkable(dg.map, m.x, m.y) : _tmRoom !== null;
     if (_tmCanPlace) {
       /* Lv2以上は発動確率50%、Lv1は25% */
-      const _tmChance = _tmLvl >= 2 ? 0.5 : 0.25;
+      const _tmChance = _tmLvl >= 2 ? 0.25 : 0.125;
       if (Math.random() < _tmChance) {
         /* 足元にすでに罠があれば別の種類を選ぶ */
         const _existTrap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
