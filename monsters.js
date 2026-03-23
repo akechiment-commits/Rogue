@@ -1256,6 +1256,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _ttLvl0 = m.monLevel || 1;
       const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
+        Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) > 1 &&
         dg.traps?.some(t => t.revealed && Math.max(Math.abs(t.x - m.x), Math.abs(t.y - m.y)) <= _ttRange0);
       const _mtLvl0 = m.monLevel || 1;
       const _mtRange0 = _mtLvl0 >= 3 ? 10 : _mtLvl0 >= 2 ? 5 : 3;
@@ -1300,7 +1301,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
 
-      if (m.subtype === "trapthrower" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1) && opts.fireTrapFn) {
+      if (m.subtype === "trapthrower" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1) && opts.fireTrapFn &&
+          Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) > 1) {
         const _ttLvl = m.monLevel || 1;
         const _ttRange = _ttLvl >= 3 ? 10 : _ttLvl >= 2 ? 5 : 3;
         /* 範囲内の発見済み罠を収集し、プレイヤーから近い順に並べる */
