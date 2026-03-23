@@ -1418,6 +1418,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       }
+      /* ===== 魔方陣の消耗：自分が上に乗っているターンを累積し30ターンで消滅 ===== */
+      if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
+        const _toRemove = [];
+        for (const _pc of st.dungeon.pentacles) {
+          if (_pc.x === p.x && _pc.y === p.y) {
+            _pc.standTurns = (_pc.standTurns || 0) + 1;
+            if (_pc.standTurns === 25) ml.push(`${_pc.name}がかすれてきた…(残り${30 - _pc.standTurns}ターン)`);
+            if (_pc.standTurns >= 30) { _toRemove.push(_pc); ml.push(`${_pc.name}が消えた！`); }
+          }
+        }
+        if (_toRemove.length > 0) st.dungeon.pentacles = st.dungeon.pentacles.filter(pc => !_toRemove.includes(pc));
+      }
       checkShopTheft(p, st.dungeon, ml);
       /* ===== 状態異常カウントダウン（ダッシュ含む全ターン進行で共通） ===== */
       if ((p.slowTurns || 0) > 0) {
@@ -2047,12 +2059,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (attackMon.hp > 0 && p.weapon) {
                 const _inflicts = [
                   ["inflict_slow",     () => { attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); ml.push(`${attackMon.name}は鈍足になった！`); }],
-                  ["inflict_paralyze", () => { attackMon.paralyzed = true; ml.push(`${attackMon.name}は金縛りになった！`); }],
-                  ["inflict_sleep",    () => { attackMon.sleepTurns = (attackMon.sleepTurns || 0) + rng(3, 6); ml.push(`${attackMon.name}は眠りに落ちた！`); }],
-                  ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + 50; ml.push(`${attackMon.name}は暗闇になった！`); }],
-                  ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + 20; ml.push(`${attackMon.name}は混乱した！`); }],
-                  ["inflict_bewitch",  () => { attackMon.bewitched = true; attackMon.bewitchedTurns = (attackMon.bewitchedTurns || 0) + 50; ml.push(`${attackMon.name}は幻惑状態になった！`); }],
-                  ["inflict_seal",     () => { attackMon.sealed = true; attackMon.sealedTurns = (attackMon.sealedTurns || 0) + 50; ml.push(`${attackMon.name}は封印された！`); }],
+                  ["inflict_paralyze", () => { attackMon.paralyzed = true; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns||0, 10); ml.push(`${attackMon.name}は金縛りになった！`); }],
+                  ["inflict_sleep",    () => { const _bSt = attackMon.isBoss ? Math.ceil(rng(3,6)/2) : rng(3,6); attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _bSt; ml.push(`${attackMon.name}は眠りに落ちた！`); }],
+                  ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は暗闇になった！`); }],
+                  ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + (attackMon.isBoss ? 10 : 20); ml.push(`${attackMon.name}は混乱した！`); }],
+                  ["inflict_bewitch",  () => { attackMon.bewitched = true; attackMon.bewitchedTurns = (attackMon.bewitchedTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は幻惑状態になった！`); }],
+                  ["inflict_seal",     () => { attackMon.sealed = true; attackMon.sealedTurns = (attackMon.sealedTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は封印された！`); }],
                 ];
                 for (const [abId, fn] of _inflicts) {
                   if (wabHas(abId) && Math.random() < 0.1) fn();

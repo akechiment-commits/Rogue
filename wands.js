@@ -502,6 +502,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (_sBless) {
             /* 祝福：金縛りも追加 */
             target.paralyzed = true;
+            if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, 10);
             ml.push(`さらに${target.name}は金縛りになった！`);
           }
           break;
@@ -609,6 +610,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (_swBless) {
           /* 祝福：入れ替わった先で金縛り */
           target.paralyzed = true;
+          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, 10);
           ml.push(`${target.name}は金縛りになった！`);
         }
         break;
@@ -707,6 +709,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (kind === "monster") {
             target.x = stairsX; target.y = stairsY;
             target.paralyzed = true;
+            if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, 10);
             ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！`);
           } else if (kind === "player") {
             const _stOccupied = dg.monsters.some(m => m.x === stairsX && m.y === stairsY);
@@ -808,6 +811,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         if (isStatusImmune(target, ml, target.name)) break;
         target.paralyzed = true;
+        if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, _pzBlessed ? 20 : 10);
         if (_pzBlessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
         else ml.push(`${target.name}は金縛りになった！動けない！`);
         break;

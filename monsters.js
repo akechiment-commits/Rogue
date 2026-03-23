@@ -922,21 +922,42 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
   /* 毒状態：毎ターンHP減少 */
   if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
-    m.poisonedTurns--;
+    m.poisonedTurns = Math.max(0, m.poisonedTurns - (m.isBoss ? 2 : 1));
     const _pdmg = m.poisonDmg || 3;
     m.hp -= _pdmg;
     ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
     if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
     if (m.poisonedTurns <= 0) ml.push(`${m.name}の毒が切れた。`);
   }
+  /* 盲目状態（ターン経過で解除） */
+  if (m.blind && !_attackOnly) {
+    m.blindTurns = Math.max(0, ((m.blindTurns || 0) - (m.isBoss ? 2 : 1)));
+    if (m.blindTurns <= 0) { m.blind = false; }
+  }
+  /* 幻惑状態（ターン経過で解除） */
+  if (m.bewitched && !_attackOnly) {
+    m.bewitchedTurns = Math.max(0, ((m.bewitchedTurns || 0) - (m.isBoss ? 2 : 1)));
+    if (m.bewitchedTurns <= 0) { m.bewitched = false; ml.push(`${m.name}の幻惑が解けた！`); }
+  }
+  /* 封印状態（ターン経過で解除） */
+  if (m.sealed && !_attackOnly) {
+    if ((m.sealedTurns || 0) > 0) {
+      m.sealedTurns = Math.max(0, m.sealedTurns - (m.isBoss ? 2 : 1));
+      if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); }
+    }
+  }
   if (m.sleepTurns > 0) {
-    if (!_attackOnly) m.sleepTurns--;
+    if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - (m.isBoss ? 2 : 1));
     return;
   }
-  if (m.paralyzed) return;
-  /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
-  if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns--; _attackOnly = true; }
-
+  /* 金縛り（paralyzeTurns があればターン経過で解除） */
+  if (m.paralyzed) {
+    if ((m.paralyzeTurns || 0) > 0 && !_attackOnly) {
+      m.paralyzeTurns = Math.max(0, m.paralyzeTurns - (m.isBoss ? 2 : 1));
+      if (m.paralyzeTurns <= 0) { m.paralyzed = false; ml.push(`${m.name}の金縛りが解けた！`); }
+    }
+    if (m.paralyzed) return;
+  }
   /* ===== ボス固有AI ===== */
   /* 深淵の番人：毎ターン8HP回復（最大HPを超えない） */
   if (m.baseKind === "boss_guardian" && !_moveOnly) {
@@ -967,8 +988,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
+  /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
+  if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - (m.isBoss ? 2 : 1)); _attackOnly = true; }
+  /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
-    if (!_attackOnly) m.confusedTurns--;
+    if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - (m.isBoss ? 2 : 1));
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];

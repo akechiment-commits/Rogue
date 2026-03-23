@@ -1820,6 +1820,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") {
           if (isStatusImmune(target, ml, target.name)) break;
           target.paralyzed = true;
+          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, blessed ? 20 : 10);
           if (blessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
           else ml.push(`${target.name}は金縛りになった！`);
         }
@@ -1874,10 +1875,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       if (kind === "monster") {
         if (cursed) {
-          // 呪い：永続封印
+          // 呪い：封印（ボスは有限ターン）
           target.sealed = true;
-          target.mpCooldownTurns = 9999;
-          ml.push(`${target.name}は永続的に封印された！【呪→永続封印】`);
+          target.sealedTurns = Math.max(target.sealedTurns||0, target.isBoss ? 20 : 9999);
+          target.mpCooldownTurns = target.isBoss ? 20 : 9999;
+          ml.push(target.isBoss ? `${target.name}は封印された！` : `${target.name}は永続的に封印された！【呪→永続封印】`);
         } else {
           // 通常/祝福：特技使用率100%
           target.alwaysUseSpecial = true;
@@ -1973,6 +1975,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           // 通常/祝福：封印状態（祝福：さらに鈍足）
           target.sealed = true;
+          target.sealedTurns = Math.max(target.sealedTurns||0, target.isBoss ? 20 : 9999);
           ml.push(`${target.name}は封印された！`);
           if (blessed) {
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
@@ -3071,6 +3074,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       if (kind === "monster") {
         if (!isStatusImmune(target, ml, target.name)) {
           target.paralyzed = true;
+          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, 10);
           ml.push(`金縛りの魔法が${target.name}に命中！金縛りになった！`);
         }
       } break;
