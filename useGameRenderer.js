@@ -50,20 +50,20 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   /* ── モンスターレベルバッジ（左上） ── */
   const _ml = mon.monLevel ?? 1;
   if (_ml >= 2) {
-    const _fs = Math.max(10, Math.round(sz * 0.45));
+    const _fs = Math.max(7, Math.round(sz * 0.30));
     const _lbl = String(_ml);
     ctx.save();
     ctx.font = `bold ${_fs}px sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    /* 縁取り（黒・太め） */
+    /* 縁取り（黒） */
     ctx.strokeStyle = "rgba(0,0,0,0.9)";
-    ctx.lineWidth = Math.max(3, Math.round(_fs * 0.45));
+    ctx.lineWidth = Math.max(2, Math.round(_fs * 0.35));
     ctx.lineJoin = "round";
-    ctx.strokeText(_lbl, px + 2, py + 1);
+    ctx.strokeText(_lbl, px + 2, py + 2);
     /* 本文字 */
     ctx.fillStyle = _ml >= 3 ? "#ff6600" : "#ffffff";
-    ctx.fillText(_lbl, px + 2, py + 1);
+    ctx.fillText(_lbl, px + 2, py + 2);
     ctx.restore();
   }
   if (_sts.length === 0) return;
