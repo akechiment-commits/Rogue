@@ -2636,8 +2636,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             placeItemAt(dg, spr.x, spr.y, item, ml, ft);
         }
         ml.push("泉は干上がってしまった...");
+        return true;
       }
     }
+    return false;
   }, []);
   const breakBigbox = useCallback((bb, dg, ml) => {
     ml.push(`${bb.name}が壊れた！中身がばらまかれた！`);
@@ -3081,16 +3083,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else {
         ml.push(`${dnameRef(it)}を泉に浸した...何も起こらなかった。`);
       }
-      springTryDry(dg, p, ml);
+      const _dried = springTryDry(dg, p, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      const _sprStillExists = dg.springs?.some((s) => s.x === p.x && s.y === p.y);
-      if (_sprStillExists) {
+      if (_dried) {
+        setSpringMode(null);
+      } else {
         setSpringMode("soak");
         setSpringMenuSel(0);
         setSpringPage(0);
-      } else {
-        setSpringMode(null);
       }
       sr.current = { ...sr.current };
       setGs({ ...sr.current });
