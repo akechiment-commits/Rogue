@@ -40,6 +40,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
             ml.push(`${m.name}は倒れた！`);
             dg.monsters = dg.monsters.filter((m2) => m2 !== m);
           }
+          hp = true;
           break;
         }
       }
@@ -127,6 +128,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
             ml.push(`${m.name}は倒れた！`);
             dg.monsters = dg.monsters.filter((m2) => m2 !== m);
           }
+          _pahp = true;
           break;
         }
         _paex = fx;
