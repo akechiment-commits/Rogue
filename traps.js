@@ -86,6 +86,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       }
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
+      const _spinLandTrap = dg.traps.find(t => t !== trap && t.x === p.x && t.y === p.y);
+      if (_spinLandTrap) fireTrapPlayer(_spinLandTrap, p, dg, ml, nameFn, luFn);
       break;
     }
     case "sleep":
@@ -266,6 +268,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
           p.immobileTurns = 0;
           ml.push("吹き飛ばされて移動封じが解けた！");
         }
+        const _btLandTrap = dg.traps.find(t => t !== trap && t.x === p.x && t.y === p.y);
+        if (_btLandTrap) fireTrapPlayer(_btLandTrap, p, dg, ml, nameFn, luFn);
       }
       break;
     }

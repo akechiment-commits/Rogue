@@ -344,6 +344,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push("自分が吹き飛ばされた！");
         p.hp -= _kbDmgBase;
         pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn, collisionAtk);
+        const _kbLandTrap = dg.traps.find(t => t.x === p.x && t.y === p.y);
+        if (_kbLandTrap) fireTrapPlayer(_kbLandTrap, p, dg, ml, nameFn, luFn);
         break;
       }
       if (kind === "item") {
