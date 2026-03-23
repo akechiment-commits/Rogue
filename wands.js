@@ -5,7 +5,7 @@ import {
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
-  hasCursedExplosionPentacle, hasCursedTeleportPentacle, cookFoodMeta,
+  hasCursedExplosionPentacle, hasCursedTeleportPentacle, cookFoodMeta, genFood,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -204,6 +204,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push("飛びつけなかった。");
         }
       }
+      return;
+    }
+    if (eff === "soften") {
+      /* 大箱を破壊して中身を散乱 */
+      const _sfts = new Set();
+      for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _sfts);
+      dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
+      ml.push(`軟化の魔法弾で${target.name}が崩れ落ちた！${(target.contents?.length||0) > 0 ? "中身が飛び出した！" : ""}`);
       return;
     }
     if (eff === "slow" || eff === "paralyze" || eff === "sleep" ||
@@ -563,6 +571,28 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const nt = pick(TRAPS);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         Object.assign(target, { ...nt, id:target.id, x:target.x, y:target.y, revealed:true });
+        break;
+      }
+      break;
+    }
+    case "soften": {
+      const _sfBlessed = blMult > 1;
+      if (kind === "monster") {
+        const _prevDef = target.def || 0;
+        target.def = _sfBlessed ? Math.floor(_prevDef / 4) : Math.floor(_prevDef / 2);
+        const _ratio = _sfBlessed ? "4分の1" : "半分";
+        ml.push(`軟化の魔法弾が${target.name}に命中！防御力が${_ratio}になった！(${_prevDef}→${target.def})`);
+        break;
+      }
+      if (kind === "item") {
+        removeFloorItem(dg, target);
+        chargeShopItem(target, dg, ml);
+        ml.push(`軟化の魔法弾で${_dname_item(target)}が崩れ落ちた！`);
+        break;
+      }
+      if (kind === "trap") {
+        dg.traps = dg.traps.filter(t => t !== target);
+        ml.push(`軟化の魔法弾で${target.name}が崩れ落ちた！`);
         break;
       }
       break;
@@ -1243,6 +1273,29 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
 }
 
 export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null) {
+  /* 呪われた軟化：1マス先に壊せる壁を生成（穴掘り呪いと同一挙動） */
+  if (eff === "soften" && blMult < 1) {
+    const wx = p.x + dx, wy = p.y + dy;
+    if (wx >= 0 && wx < MW && wy >= 0 && wy < MH && !(p.x === wx && p.y === wy)) {
+      const _mon = monsterAt(dg, wx, wy);
+      if (_mon) {
+        if (!consumeBarrier(_mon, ml)) {
+          const _dmg = rng(5, 15);
+          _mon.hp -= _dmg;
+          ml.push(`壁の魔法が${_mon.name}に${_dmg}ダメージ！`);
+          if (_mon.hp <= 0) killMonster(_mon, dg, p, ml, luFn);
+        }
+      } else if (dg.map[wy][wx] === T.FLOOR) {
+        dg.map[wy][wx] = T.BWALL;
+        ml.push("壊せる壁が出現した！");
+      } else {
+        ml.push("魔法弾は消えた。");
+      }
+    } else {
+      ml.push("魔法弾は消えた。");
+    }
+    return;
+  }
   /* 呪われた穴掘り：1マス先に壊せる壁を生成（敵がいたらダメージのみ） */
   if (eff === "dig" && blMult < 1) {
     const wx = p.x + dx, wy = p.y + dy;
@@ -1277,6 +1330,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     confuse:"#ff40ff", darkness:"#606080", bewitch:"#ff80c0", levelup:"#ffff60",
     seal:"#8040e0", knockback:"#20e0c0", swap:"#ff8800", dig:"#aa8844",
     leap:"#40ff80", ice_wand:"#80ddff", curse_wand:"#9020b0", blowback_wand:"#20e0c0",
+    soften:"#c8a060",
   };
   /* 重力の魔方陣：飛びつきを無効化（プレイヤーが重力ゾーンにいる場合） */
   if (eff === "leap" && blMult >= 1 && hasGravityPentacle(dg, p.x, p.y)) {
@@ -1289,6 +1343,19 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const tx = p.x + dx * d, ty = p.y + dy * d;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) {
+      if (eff === "soften") {
+        /* 壁1マスをランダムな食料に変化 */
+        if (tx >= 0 && tx < MW && ty >= 0 && ty < MH &&
+            (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) {
+          const _sfFood = { ...genFood(), id: uid(), x: tx, y: ty };
+          dg.map[ty][tx] = T.FLOOR;
+          dg.items.push(_sfFood);
+          ml.push(`軟化の魔法弾が壁を溶かした！${_sfFood.name}が現れた！`);
+        } else {
+          ml.push("魔法弾は壁に消えた。");
+        }
+        return;
+      }
       if (eff === "dig") {
         const _digMax = blMult > 1 ? 20 : 10; /* 祝福：2倍距離 */
         let dug = 0, cx = tx, cy = ty;
