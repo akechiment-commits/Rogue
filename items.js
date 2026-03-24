@@ -2897,9 +2897,9 @@ export function checkShopTheft(p, dg, ml) {
 }
 
 export const SPELLS=[
-  {id:"fire_bolt",name:"炎の魔法",mpCost:8,effect:"fire_bolt",damage:25,range:10,needsDir:true,desc:"炎の弾を撃つ。MP:8"},
+  {id:"fire_bolt",name:"炎の魔法",mpCost:8,effect:"fire_bolt",damage:25,range:10,needsDir:true,desc:"炎の弾を撃ち、着弾点で爆発。周囲8マスにも爆風ダメージ。MP:8"},
   {id:"ice_bolt",name:"氷の魔法",mpCost:10,effect:"ice_bolt",damage:18,range:10,needsDir:true,desc:"氷の弾で敵を凍らせスロー。MP:10"},
-  {id:"lightning_magic",name:"雷の魔法",mpCost:12,effect:"lightning_magic",damage:28,range:10,needsDir:true,desc:"強力な雷撃を放つ。MP:12"},
+  {id:"lightning_magic",name:"雷の魔法",mpCost:12,effect:"lightning_magic",damage:28,needsDir:false,desc:"視界内の全ての敵に雷ダメージを与える。MP:12"},
   {id:"sleep_bolt",name:"眠りの魔法",mpCost:6,effect:"sleep_bolt",range:10,needsDir:true,desc:"眠りの霧を飛ばす。MP:6"},
   {id:"teleport_magic",name:"テレポート",mpCost:5,effect:"teleport_magic",needsDir:false,desc:"ランダムな場所に飛ぶ。MP:5"},
   {id:"teleport_other",name:"テレポートアザー",mpCost:8,effect:"teleport_other",range:10,needsDir:true,desc:"方向を選び、その先の敵をランダムにテレポートさせる。MP:8"},
@@ -2998,8 +2998,23 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "lightning_magic": {
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が雷の魔法を打ち消した！"); break; }
-      const dmg = Math.round(rng(22, 32) * _lvF) * _cmsBoost;
+      if (kind === "self") {
+        /* 視界内の全ての敵に雷ダメージ */
+        const _ltTargets = dg.monsters.filter(m => dg.visible?.[m.y]?.[m.x]);
+        if (_ltTargets.length === 0) { ml.push("雷が走るが、視界に敵はいない。"); break; }
+        for (const _lm of _ltTargets) {
+          if (_lm.hp <= 0) continue;
+          if (consumeBarrier(_lm, ml)) continue;
+          const _lcmsB = inCursedMagicSealRoom(_lm.x, _lm.y, dg) ? 2 : 1;
+          const _ld = Math.round(rng(22, 32) * _lvF) * _lcmsB;
+          _lm.hp -= _ld;
+          ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！`);
+          if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
+        }
+      }
       if (kind === "monster") {
+        /* 後方互換（他から直接呼ばれた場合） */
+        const dmg = Math.round(rng(22, 32) * _lvF) * _cmsBoost;
         target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
@@ -3116,23 +3131,27 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
   }
 }
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
+  let _lx = p.x, _ly = p.y;
   for (let d = 1; d <= spell.range; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+    if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       ml.push("魔法弾は壁に消えた。");
-      return;
+      return { x: _lx, y: _ly, hitType: "wall" };
     }
     if (inMagicSealRoom(tx, ty, dg)) {
       ml.push("魔法弾が魔封じの魔方陣で消えた！");
-      return;
+      return { x: tx, y: ty, hitType: "sealed" };
     }
     const mon = monsterAt(dg, tx, ty);
-    if (mon) { applySpellEffect(spell.effect, "monster", mon, dx, dy, dg, p, ml, luFn, lv); return; }
+    if (mon) { applySpellEffect(spell.effect, "monster", mon, dx, dy, dg, p, ml, luFn, lv); return { x: tx, y: ty, hitType: "monster" }; }
     if (tx === p.x && ty === p.y) continue;
     const it = itemAt(dg, tx, ty);
-    if (it) { applySpellEffect(spell.effect, "item", it, dx, dy, dg, p, ml, luFn, lv); return; }
+    if (it) { applySpellEffect(spell.effect, "item", it, dx, dy, dg, p, ml, luFn, lv); return { x: tx, y: ty, hitType: "item" }; }
+    _lx = tx; _ly = ty;
   }
   ml.push("魔法弾は虚空に消えた。");
+  return { x: _lx, y: _ly, hitType: "void" };
 }
 
 /* ===== RINGS ===== */

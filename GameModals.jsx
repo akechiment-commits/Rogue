@@ -1554,7 +1554,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
     const s = SPELLS.find((sp) => sp.id === id);
     if (!s) return null;
     const _lv = (gs?.player?.spellLevels?.[id] || 1);
-    return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
+    return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, Math.round(s.mpCost * (1 - (_lv - 1) * 0.15))), spellLevel: _lv };
   }).filter(Boolean);
   const _sps = 10;
   const totalPages = Math.max(1, Math.ceil(knownSpells.length / _sps));
@@ -1625,7 +1625,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
                     setDebugSpellMode({ effect: spell.effect });
                   } else {
                     p2.mp -= spell.mpCost; ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
-                    applySpellEffect(spell.effect, "self", null, 0, 0, dg2, p2, ml2, lu);
+                    applySpellEffect(spell.effect, "self", null, 0, 0, dg2, p2, ml2, lu, spell.spellLevel || 1);
                     endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
                   }
                 } else {

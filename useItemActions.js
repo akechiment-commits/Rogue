@@ -5,7 +5,7 @@ import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem,
   applyWandEffect, applyWaterSplash, breakWandAoE, burnFoodItem,
-  castSpellBolt, doExplosion, fireTrapItem, fireWandBolt,
+  castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, fireWandBolt,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
@@ -2014,8 +2014,38 @@ export function useItemActions({
         } else {
           p.mp = (p.mp || 0) - _csCost;
           ml.push(`${spellDef.name}を唱えた！[MP -${_csCost}]`);
-          pushBoltAnim(p.x, p.y, dx, dy, dg, "#60a0ff");
-          castSpellBolt(p, dg, spellDef, dx, dy, ml, lu, _csLv);
+          if (spellDef.id === "fire_bolt") {
+            /* 炎の魔法：着弾点で爆発（周囲8マスにも爆風） */
+            pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff4400");
+            const _fbLvF = 1 + (_csLv - 1) * 0.2;
+            const _fbLand = castSpellBolt(p, dg, spellDef, dx, dy, ml, lu, _csLv);
+            if (_fbLand.hitType !== "sealed" && !hasCursedExplosionPentacle(dg)) {
+              pushExplosionAnim(_fbLand.x, _fbLand.y);
+              if (_fbLand.hitType !== "void") ml.push("爆発！");
+              /* プレイヤー爆風 */
+              if (Math.max(Math.abs(p.x - _fbLand.x), Math.abs(p.y - _fbLand.y)) <= 1) {
+                const _fpd = Math.round(rng(10, 15) * _fbLvF);
+                p.deathCause = "炎の魔法の爆風で";
+                p.hp -= _fpd;
+                ml.push(`爆風を受けた！${_fpd}ダメージ！`);
+              }
+              /* 周囲モンスター爆風（直撃対象は既にapplySpellEffectで処理済みなので除外） */
+              const _fbHitPos = _fbLand.hitType === "monster" || _fbLand.hitType === "item";
+              for (const _fem of [...dg.monsters]) {
+                if (_fem.hp <= 0) continue;
+                if (Math.max(Math.abs(_fem.x - _fbLand.x), Math.abs(_fem.y - _fbLand.y)) > 1) continue;
+                /* 直撃タイルのモンスターは直撃ダメージ済み（爆弾矢と同様に爆風も当てる） */
+                if (consumeBarrier(_fem, ml)) continue;
+                const _fmd = Math.round(rng(8, 14) * _fbLvF);
+                _fem.hp -= _fmd;
+                ml.push(`爆風で${_fem.name}に${_fmd}ダメージ！`);
+                if (_fem.hp <= 0) killMonster(_fem, dg, p, ml, lu);
+              }
+            }
+          } else {
+            pushBoltAnim(p.x, p.y, dx, dy, dg, "#60a0ff");
+            castSpellBolt(p, dg, spellDef, dx, dy, ml, lu, _csLv);
+          }
         }
       } else {
         const it = p.inventory[idx];
