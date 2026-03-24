@@ -40,6 +40,25 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
         }
         const m = monsterAt(dg, fx, trap.y);
         if (m) {
+          /* reflector：矢をプレイヤー方向（左）へ跳ね返す */
+          if (m.subtype === "reflector") {
+            ml.push(`矢が${m.name}に弾き返された！`);
+            let _atRx = fx, _atRHit = false;
+            for (let _atRi = fx - 1; _atRi >= 0; _atRi--) {
+              if (dg.map[trap.y][_atRi] === T.WALL || dg.map[trap.y][_atRi] === T.BWALL) break;
+              if (_atRi === p.x && trap.y === p.y) { _atRHit = true; break; }
+              _atRx = _atRi;
+            }
+            if (_atRHit) {
+              const d = ARROW_T.atk + rng(1, 4);
+              p.deathCause = `${trap.name}により`;
+              p.hp -= d;
+              ml.push(`跳ね返された矢がプレイヤーに命中！${d}ダメージ！`);
+            } else {
+              placeItemAt(dg, _atRx, trap.y, makeArrow(1), ml, new Set([trap.id]));
+            }
+            hp = true; break;
+          }
           const _atMonDodgePc = getDodgePentacleMode(dg, m.x, m.y);
           if (_atMonDodgePc === "dodge") {
             ml.push(`みかわしの魔方陣の加護で矢が${m.name}に当たらなかった！矢が落ちた。`);
@@ -136,6 +155,30 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
         }
         const m = monsterAt(dg, fx, trap.y);
         if (m) {
+          /* reflector：毒矢をプレイヤー方向（左）へ跳ね返す */
+          if (m.subtype === "reflector") {
+            ml.push(`毒矢が${m.name}に弾き返された！`);
+            let _paRx = fx, _paRHit = false;
+            for (let _paRi = fx - 1; _paRi >= 0; _paRi--) {
+              if (dg.map[trap.y][_paRi] === T.WALL || dg.map[trap.y][_paRi] === T.BWALL) break;
+              if (_paRi === p.x && trap.y === p.y) { _paRHit = true; break; }
+              _paRx = _paRi;
+            }
+            if (_paRHit) {
+              const d = ARROW_T.atk + rng(1, 4);
+              p.deathCause = `${trap.name}により`;
+              p.hp -= d;
+              if (hasRingEffect(p, "antidote_ring")) {
+                ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！しかし指輪が毒を消した！`);
+              } else {
+                p.poisoned = true;
+                ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！毒を受けた！`);
+              }
+            } else {
+              placeItemAt(dg, _paRx, trap.y, makePoisonArrow(1), ml, new Set([trap.id]));
+            }
+            _pahp = true; break;
+          }
           const _paMonDodgePc = getDodgePentacleMode(dg, m.x, m.y);
           if (_paMonDodgePc === "dodge") {
             ml.push(`みかわしの魔方陣の加護で毒矢が${m.name}に当たらなかった！矢が落ちた。`);

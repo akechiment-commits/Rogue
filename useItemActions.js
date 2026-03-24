@@ -1866,6 +1866,22 @@ export function useItemActions({
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               const _baM = monsterAt(dg, tx, ty);
               if (_baM) {
+                /* reflector：爆弾矢を跳ね返す（爆発はそのまま発生） */
+                if (_baM.subtype === "reflector") {
+                  ml.push(`${_baName}が${_baM.name}に弾き返された！`);
+                  const _baRdx = Math.sign(p.x - tx), _baRdy = Math.sign(p.y - ty);
+                  let _baRx = tx, _baRy = ty;
+                  for (let _bari = 1; _bari <= 20; _bari++) {
+                    const _barnx = _baRx + _baRdx, _barny = _baRy + _baRdy;
+                    if (_barnx < 0 || _barnx >= MW || _barny < 0 || _barny >= MH) break;
+                    if (dg.map[_barny][_barnx] === T.WALL || dg.map[_barny][_barnx] === T.BWALL) break;
+                    _baRx = _barnx; _baRy = _barny;
+                    if (_barnx === p.x && _barny === p.y) break;
+                  }
+                  pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _baRx, toY: _baRy, color: "#ff6622" });
+                  _baLx = _baRx; _baLy = _baRy;
+                  break;
+                }
                 const _baDmg = (_arItem.atk || 6) + rng(1, 4);
                 _baM.hp -= _baDmg;
                 ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
@@ -1940,7 +1956,14 @@ export function useItemActions({
               }
               if (_arRHit) {
                 p.hp -= dmg;
-                ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！消滅した。`);
+                if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
+                  p.poisoned = true;
+                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！毒を受けた！`);
+                } else if (_arIsPoison) {
+                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！しかし指輪が毒を消した！`);
+                } else {
+                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！消滅した。`);
+                }
               } else if (_arRx !== tx || _arRy !== ty) {
                 const _arRft = new Set();
                 withPitfallBag(() => placeItemAt(dg, _arRx, _arRy, _arDropItem(), ml, _arRft));
@@ -2004,7 +2027,7 @@ export function useItemActions({
           return;
         }
         pushBoltAnim(p.x, p.y, dx, dy, dg, "#d0a050");
-        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem);
+        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim);
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
       } else if (mode === "wand_wave") {
         const it = p.inventory[idx];

@@ -2834,7 +2834,7 @@ export function getFarcastMode(x, y, dg) {
   return fcPent.cursed ? "cursed" : "farcast";
 }
 
-export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
+export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null) {
   const st = p.inventory[idx];
   if (!st || st.type !== "arrow") return;
   st.count--;
@@ -2855,6 +2855,38 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn) {
     if (!_pierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
     const m = monsterAt(dg, tx, ty);
     if (m) {
+      /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す ── */
+      if (!_pierceMode && m.subtype === "reflector") {
+        ml.push(`${_arName}が${m.name}に弾き返された！`);
+        const _rdx = Math.sign(p.x - tx), _rdy = Math.sign(p.y - ty);
+        let _rx = tx, _ry = ty, _rHit = false;
+        for (let _ri = 1; _ri <= 20; _ri++) {
+          const _rnx = _rx + _rdx, _rny = _ry + _rdy;
+          if (_rnx < 0 || _rnx >= MW || _rny < 0 || _rny >= MH) break;
+          if (dg.map[_rny][_rnx] === T.WALL || dg.map[_rny][_rnx] === T.BWALL) break;
+          if (_rnx === p.x && _rny === p.y) { _rHit = true; break; }
+          _rx = _rnx; _ry = _rny;
+        }
+        const _rToX = _rHit ? p.x : _rx, _rToY = _rHit ? p.y : _ry;
+        if (animFn && (_rToX !== tx || _rToY !== ty)) {
+          animFn({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _rToX, toY: _rToY, color: "#d0a050" });
+        }
+        if (_rHit) {
+          p.hp -= dmg;
+          if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
+            p.poisoned = true;
+            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！毒を受けた！`);
+          } else if (_isPoison) {
+            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！しかし指輪が毒を消した！`);
+          } else {
+            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！消滅した。`);
+          }
+        } else if (_rx !== tx || _ry !== ty) {
+          const _rft = new Set();
+          placeItemAt(dg, _rx, _ry, _dropItem(), ml, _rft);
+        }
+        hit = true; break;
+      }
       if (consumeBarrier(m, ml)) { hit = true; break; }
       const _arDmg = clampDmgFixed(m, dmg, true);
       m.hp -= _arDmg;
