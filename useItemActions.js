@@ -2446,6 +2446,12 @@ export function useItemActions({
                   p.deathCause = `跳ね返された${it.name}に`;
                   p.hp -= td;
                   ml.push(`跳ね返された${lb}がプレイヤーに命中！${td}ダメージ！消滅した。`);
+                  /* 杖の場合はプレイヤーへの効果も発動（投げた杖が当たった相手に効果が出る仕様） */
+                  if (it.type === "wand") {
+                    const _rfWandBm = getBlessMultiplier(it);
+                    const _rfWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                    applyWandEffect(it.effect, "player", p, _rfdx, _rfdy, dg, p, ml, lu, bigboxAddItem, _rfWandBm, _rfWandDName);
+                  }
                   /* プレイヤーに当たったアイテムは消滅（床には残らない） */
                 } else if (_rfx !== tx || _rfy !== ty) {
                   /* 壁で止まった場合のみ最終地点に落とす */
