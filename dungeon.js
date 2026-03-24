@@ -451,6 +451,8 @@ function setupShopRoom(room, map, depth, items, mons) {
   const cands = [
     ...ITEMS.filter(i => i.type !== 'gold'),
     ...WANDS.map(w => ({ ...w, charges: Math.max(1, w.charges + rng(-1, 1)) })),
+    ...POTS,
+    ...RINGS,
     ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
   ];
   const cols = clamp(Math.floor(room.w / 2), 2, 5);

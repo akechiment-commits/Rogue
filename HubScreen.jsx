@@ -1,12 +1,14 @@
 import { useState, useMemo } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
-import { itemPrice, ITEMS, WANDS } from "./items.js";
+import { itemPrice, ITEMS, WANDS, POTS, RINGS } from "./items.js";
 
 /* ===== 拠点ショップのアイテムプール ===== */
 const SHOP_POOL = [
   ...ITEMS.filter(it => it.type !== "gold"),
   ...WANDS,
+  ...POTS,
+  ...RINGS,
 ];
 
 /* ===== 共通スタイル ===== */
