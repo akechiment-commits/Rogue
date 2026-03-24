@@ -2657,6 +2657,11 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   monsterDrop(mon, dg, ml, p);
   removeMonster(dg, mon);
+  /* からめ鬼が死んだ場合：捕獲状態を解除 */
+  if (mon.subtype === "grabber" && p && p.capturedBy === mon.id) {
+    p.capturedBy = null;
+    ml.push("捕獲から解放された！");
+  }
   if (killerMon) {
     monLevelUp(killerMon, dg, ml);
   } else if (luFn && p) {

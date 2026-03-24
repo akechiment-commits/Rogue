@@ -1915,6 +1915,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
           /* 攻撃はできる：そのまま攻撃処理へ進む */
         }
+        /* ===== 捕獲状態：からめ鬼を倒すまで移動不可（攻撃は可） ===== */
+        if (p.capturedBy) {
+          const _capMon = dg.monsters.find((m) => m.id === p.capturedBy);
+          if (!_capMon) {
+            p.capturedBy = null; /* 既に倒されていたらクリア */
+          } else {
+            const _capNx = p.x + dx, _capNy = p.y + dy;
+            const _capTarget = monsterAt(dg, _capNx, _capNy);
+            if (!_capTarget || _capTarget.id !== p.capturedBy) {
+              /* 捕まえた敵以外への方向は移動不可 */
+              ml.push(`${_capMon.name}に捕まっている！倒さなければ逃げられない！`);
+              endTurn(st, p, ml);
+              setMsgs((prev) => [...prev.slice(-80), ...ml]);
+              sr.current = { ...st };
+              setGs({ ...st });
+              return;
+            }
+            /* 捕まえた敵の方向なら攻撃処理へ進む */
+          }
+        }
         /* ===== 混乱状態：移動方向をランダム化 ===== */
         if ((p.confusedTurns || 0) > 0) {
           const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];

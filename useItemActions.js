@@ -2356,6 +2356,32 @@ export function useItemActions({
                 if (it.type === "wand") _wandFiredEffect = true; /* 杖の二重配置を防止 */
                 break;
               }
+              /* ── reflector（ミラーゴーレム等）：投げたアイテムをプレイヤーに向かって跳ね返す ── */
+              if (!_isFarcast && m.subtype === "reflector") {
+                const lb = _mkThrowLb();
+                ml.push(`${lb}が${m.name}に弾き返された！`);
+                const _rfdx = Math.sign(p.x - tx), _rfdy = Math.sign(p.y - ty);
+                let _rfx = tx, _rfy = ty;
+                let _rfHitPlayer = false;
+                for (let _rfi = 1; _rfi <= 20; _rfi++) {
+                  const _rnx = _rfx + _rfdx, _rny = _rfy + _rfdy;
+                  if (_rnx < 0 || _rnx >= MW || _rny < 0 || _rny >= MH) break;
+                  if (dg.map[_rny][_rnx] === T.WALL || dg.map[_rny][_rnx] === T.BWALL) break;
+                  if (_rnx === p.x && _rny === p.y) { _rfHitPlayer = true; break; }
+                  _rfx = _rnx; _rfy = _rny;
+                }
+                if (_rfHitPlayer) {
+                  p.deathCause = `跳ね返された${it.name}に`;
+                  p.hp -= td;
+                  ml.push(`跳ね返された${lb}がプレイヤーに命中！${td}ダメージ！`);
+                  const _rffP = new Set();
+                  withPitfallBag(() => placeItemAt(dg, p.x, p.y, it, ml, _rffP, 0, p));
+                } else {
+                  const _rffG = new Set();
+                  withPitfallBag(() => placeItemAt(dg, _rfx, _rfy, it, ml, _rffG));
+                }
+                lx = tx; ly = ty; hit = true; break;
+              }
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
                 if (_thDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${m.name}に${lb}が当たらなかった！`);

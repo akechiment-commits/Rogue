@@ -140,6 +140,36 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       ml.push(`油まみれに炎が燃え移った！${_bonusDmg}ダメージ！`);
     }
   }
+  /* ノッカー：攻撃後にプレイヤーを2〜4マス吹き飛ばす */
+  if (m.subtype === "knocker" && dmg > 0) {
+    const _knLvl = m.monLevel || 1;
+    const _knDist = _knLvl >= 3 ? 4 : _knLvl >= 2 ? 3 : 2;
+    const _kndx = Math.sign(pl.x - m.x), _kndy = Math.sign(pl.y - m.y);
+    if (_kndx !== 0 || _kndy !== 0) {
+      let _knx = pl.x, _kny = pl.y, _knMoved = 0;
+      for (let _ki = 0; _ki < _knDist; _ki++) {
+        const _nx = _knx + _kndx, _ny = _kny + _kndy;
+        if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH ||
+            dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
+          pl.deathCause = "吹き飛ばされての壁への激突により";
+          pl.hp -= 5;
+          ml.push("壁に叩きつけられた！5ダメージ！");
+          break;
+        }
+        if (dg.monsters.some(mn => mn !== m && mn.x === _nx && mn.y === _ny)) {
+          pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
+          pl.hp -= 5;
+          ml.push("モンスターに激突した！5ダメージ！");
+          break;
+        }
+        _knx = _nx; _kny = _ny; _knMoved++;
+      }
+      if (_knMoved > 0) {
+        pl.x = _knx; pl.y = _kny;
+        ml.push(`${m.name}の一撃で${_knMoved}マス吹き飛ばされた！`);
+      }
+    }
+  }
   /* ボス固有攻撃エフェクト */
   if (dmg > 0) {
     if (m.baseKind === "boss_blaze" && Math.random() < 0.35) {
@@ -456,6 +486,31 @@ export const MONS = [
     levels: [
       { name: "強デーモン",         hp: 173, atk: 59, def: 19, exp: 256 },
       { name: "魔王",               hp: 270, atk: 75, def: 24, exp: 400 },
+    ],
+  },
+  /* ===== 新型モンスター4種 ===== */
+  { name: "からめ鬼",    hp: 55,  atk: 18, def: 10, exp: 55,  speed: 1,   tile: 16, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber",
+    levels: [
+      { name: "強からめ鬼",         hp: 88,  atk: 27, def: 14, exp: 88  },
+      { name: "覇からめ鬼",         hp: 138, atk: 36, def: 19, exp: 138 },
+    ],
+  },
+  { name: "突進角獣",    hp: 62,  atk: 22, def: 8,  exp: 62,  speed: 1,   tile: 19, kind: "beast",    baseKind: "charger",       monLevel: 1, minFloor: 10, maxFloor: 20, subtype: "charger",
+    levels: [
+      { name: "強突進角獣",         hp: 99,  atk: 32, def: 12, exp: 99  },
+      { name: "覇突進角獣",         hp: 155, atk: 44, def: 16, exp: 155 },
+    ],
+  },
+  { name: "ミラーゴーレム", hp: 68, atk: 20, def: 18, exp: 70, speed: 0.5, tile: 59, kind: "beast",   baseKind: "reflector",     monLevel: 1, minFloor: 12, maxFloor: 22, subtype: "reflector",
+    levels: [
+      { name: "強ミラーゴーレム",   hp: 109, atk: 29, def: 24, exp: 112 },
+      { name: "覇ミラーゴーレム",   hp: 170, atk: 38, def: 31, exp: 175 },
+    ],
+  },
+  { name: "ハンマーオーガ", hp: 75, atk: 30, def: 9,  exp: 80,  speed: 1,   tile: 89, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 25, subtype: "knocker",
+    levels: [
+      { name: "強ハンマーオーガ",   hp: 120, atk: 43, def: 13, exp: 128 },
+      { name: "覇ハンマーオーガ",   hp: 188, atk: 56, def: 17, exp: 200 },
     ],
   },
 ];
@@ -1458,6 +1513,33 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
 
+      /* ── charger（突進角獣等）：一直線上で突進攻撃 ── */
+      if (m.subtype === "charger" && !m.sealed) {
+        const _chAdx = pl.x - m.x, _chAdy = pl.y - m.y;
+        const _chDist = Math.max(Math.abs(_chAdx), Math.abs(_chAdy));
+        const _chLine = _chAdx === 0 || _chAdy === 0 || Math.abs(_chAdx) === Math.abs(_chAdy);
+        const _chLvl = m.monLevel || 1;
+        const _chRange = _chLvl >= 3 ? 8 : _chLvl >= 2 ? 5 : 3;
+        if (_chLine && _chDist >= 2 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+          const _chdx = Math.sign(_chAdx), _chdy = Math.sign(_chAdy);
+          let _chMoved = 0;
+          for (let _ci = 0; _ci < _chRange; _ci++) {
+            const _cnx = m.x + _chdx, _cny = m.y + _chdy;
+            if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
+            if (dg.map[_cny][_cnx] === T.WALL || dg.map[_cny][_cnx] === T.BWALL) break;
+            if (_cnx === pl.x && _cny === pl.y) {
+              m.turnAttacks++;
+              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+              break;
+            }
+            if (dg.monsters.some(o => o !== m && o.x === _cnx && o.y === _cny)) break;
+            m.x = _cnx; m.y = _cny; _chMoved++;
+          }
+          if (_chMoved > 0) ml.push(`${m.name}が突進した！`);
+          return;
+        }
+      }
+
       if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
@@ -1698,6 +1780,25 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
       /* 引き寄せ後も通常攻撃・移動にフォールスルー */
+    }
+
+    /* ── grabber（からめ鬼等）：静止型、隣接でプレイヤーを捕獲 ── */
+    if (m.subtype === "grabber") {
+      if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+        if (!pl.capturedBy) {
+          pl.capturedBy = m.id;
+          ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
+          if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+          if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+        }
+        if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) {
+          if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
+            m.turnAttacks++;
+            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+          }
+        }
+      }
+      return; /* からめ鬼は絶対に移動しない */
     }
 
     const tx = canSee ? pl.x : m.lastPx;
