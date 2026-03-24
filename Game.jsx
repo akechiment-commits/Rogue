@@ -1923,7 +1923,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           } else {
             /* 距離が離れた or 捕獲者が状態異常なら即解放 */
             const _capDist = Math.max(Math.abs(p.x - _capMon.x), Math.abs(p.y - _capMon.y));
-            const _capBadStatus = (_capMon.sleepTurns || 0) > 0 || _capMon.paralyzed || (_capMon.confusedTurns || 0) > 0;
+            const _capBadStatus = (_capMon.sleepTurns || 0) > 0 || _capMon.paralyzed || (_capMon.confusedTurns || 0) > 0 ||
+              (_capMon.darknessTurns || 0) > 0 || (_capMon.fleeingTurns || 0) > 0 || _capMon.sealed || _capMon.bewitched ||
+              (_capMon.poisonedTurns || 0) > 0 || (_capMon.immobileTurns || 0) > 0 || _capMon.blind;
             if (_capDist > 1 || _capBadStatus) {
               p.capturedBy = null;
               ml.push("捕獲から解放された！");

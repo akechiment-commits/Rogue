@@ -1014,7 +1014,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ── grabber捕獲解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
   if (m.subtype === "grabber" && pl.capturedBy === m.id) {
     const _gRelDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-    const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0;
+    const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0 ||
+      (m.darknessTurns || 0) > 0 || (m.fleeingTurns || 0) > 0 || m.sealed || m.bewitched ||
+      (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || m.blind;
     if (_gRelDist > 1 || _gBadStatus) {
       pl.capturedBy = null;
       ml.push(`${m.name}の捕獲が解けた！`);
