@@ -1921,18 +1921,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (!_capMon) {
             p.capturedBy = null; /* 既に倒されていたらクリア */
           } else {
-            const _capNx = p.x + dx, _capNy = p.y + dy;
-            const _capTarget = monsterAt(dg, _capNx, _capNy);
-            if (!_capTarget || _capTarget.id !== p.capturedBy) {
-              /* 捕まえた敵以外への方向は移動不可 */
-              ml.push(`${_capMon.name}に捕まっている！倒さなければ逃げられない！`);
-              endTurn(st, p, ml);
-              setMsgs((prev) => [...prev.slice(-80), ...ml]);
-              sr.current = { ...st };
-              setGs({ ...st });
-              return;
+            /* 距離が離れた or 捕獲者が状態異常なら即解放 */
+            const _capDist = Math.max(Math.abs(p.x - _capMon.x), Math.abs(p.y - _capMon.y));
+            const _capBadStatus = (_capMon.sleepTurns || 0) > 0 || _capMon.paralyzed || (_capMon.confusedTurns || 0) > 0;
+            if (_capDist > 1 || _capBadStatus) {
+              p.capturedBy = null;
+              ml.push("捕獲から解放された！");
+              /* そのまま移動処理へ進む */
+            } else {
+              const _capNx = p.x + dx, _capNy = p.y + dy;
+              const _capTarget = monsterAt(dg, _capNx, _capNy);
+              if (!_capTarget || _capTarget.id !== p.capturedBy) {
+                /* 捕まえた敵以外への方向は移動不可 */
+                ml.push(`${_capMon.name}に捕まっている！倒さなければ逃げられない！`);
+                endTurn(st, p, ml);
+                setMsgs((prev) => [...prev.slice(-80), ...ml]);
+                sr.current = { ...st };
+                setGs({ ...st });
+                return;
+              }
+              /* 捕まえた敵の方向なら攻撃処理へ進む */
             }
-            /* 捕まえた敵の方向なら攻撃処理へ進む */
           }
         }
         /* ===== 混乱状態：移動方向をランダム化 ===== */

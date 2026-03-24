@@ -1011,6 +1011,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); }
     }
   }
+  /* ── grabber捕獲解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
+  if (m.subtype === "grabber" && pl.capturedBy === m.id) {
+    const _gRelDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+    const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0;
+    if (_gRelDist > 1 || _gBadStatus) {
+      pl.capturedBy = null;
+      ml.push(`${m.name}の捕獲が解けた！`);
+    }
+  }
   if (m.sleepTurns > 0) {
     if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - (m.isBoss ? 2 : 1));
     return;
