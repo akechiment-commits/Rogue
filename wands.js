@@ -1447,28 +1447,6 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
-      /* ── reflector（ミラーゴーレム等）：杖の魔法弾をプレイヤーへ跳ね返す ── */
-      if (mon.subtype === "reflector") {
-        ml.push(`魔法弾が${mon.name}に弾き返された！`);
-        const _wRdx = -dx, _wRdy = -dy;
-        let _wREndX = tx, _wREndY = ty;
-        for (let _wRi = 1; _wRi < MW + MH; _wRi++) {
-          const _wRNx = tx + _wRdx * _wRi, _wRNy = ty + _wRdy * _wRi;
-          if (_wRNx < 0 || _wRNx >= MW || _wRNy < 0 || _wRNy >= MH) break;
-          if (dg.map[_wRNy][_wRNx] === T.WALL || dg.map[_wRNy][_wRNx] === T.BWALL) break;
-          _wREndX = _wRNx; _wREndY = _wRNy;
-          if (_wRNx === p.x && _wRNy === p.y) break;
-        }
-        if (_wREndX !== tx || _wREndY !== ty) {
-          pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _wREndX, toY: _wREndY, color: _boltClr });
-        }
-        const _wRPreX = p.x, _wRPreY = p.y;
-        applyWandEffect(eff, "player", p, _wRdx, _wRdy, dg, p, ml, luFn, bbFn, blMult);
-        if (p.x !== _wRPreX || p.y !== _wRPreY) {
-          pushAnim({ type: "playerKnockback", fromX: _wRPreX, fromY: _wRPreY, toX: p.x, toY: p.y });
-        }
-        return;
-      }
       applyWandEffect(eff, "monster", mon, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
