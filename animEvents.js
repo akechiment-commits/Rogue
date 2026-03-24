@@ -95,8 +95,11 @@ export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0") {
     lx = tx; ly = ty;
   }
   if (lx !== sx || ly !== sy) {
-    pushAnim({ type: "projectile", fromX: sx, fromY: sy, toX: lx, toY: ly, color });
+    const evt = { type: "projectile", fromX: sx, fromY: sy, toX: lx, toY: ly, color };
+    pushAnim(evt);
+    return evt;
   }
+  return null;
 }
 
 /*

@@ -1852,7 +1852,7 @@ export function useItemActions({
         if (_arItem.bombArrow) {
           const _baName = _arItem.name;
           const _baNF = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
-          pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622");
+          const _baOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622");
           p.arrow.count--;
           ml.push(`${_baName}を射った！`);
           if (_isFarcast) {
@@ -1878,7 +1878,9 @@ export function useItemActions({
                     _baRx = _barnx; _baRy = _barny;
                     if (_barnx === p.x && _barny === p.y) break;
                   }
-                  pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _baRx, toY: _baRy, color: "#ff6622" });
+                  const _baRetFrom = _baOutBolt ? { x: _baOutBolt.toX, y: _baOutBolt.toY } : { x: tx, y: ty };
+                  const _baRetTo   = _baOutBolt ? { x: _baOutBolt.fromX, y: _baOutBolt.fromY } : { x: _baRx, y: _baRy };
+                  pushAnim({ type: "projectileReturn", fromX: _baRetFrom.x, fromY: _baRetFrom.y, toX: _baRetTo.x, toY: _baRetTo.y, color: _baOutBolt?.color ?? "#ff6622" });
                   _baLx = _baRx; _baLy = _baRy;
                   break;
                 }
@@ -1923,7 +1925,7 @@ export function useItemActions({
         const _arPierceMode = _arIsPierce || _isFarcast;
         const _arMaxRange = _isCursedFc ? 1 : _arPierceMode ? 50 : 10;
         const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
-        pushBoltAnim(p.x, p.y, dx, dy, dg, _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050");
+        const _arOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050");
         p.arrow.count--;
         const dmg = (_arItem.atk || 4) + rng(1, 4);
         let lx = p.x,
@@ -1952,7 +1954,11 @@ export function useItemActions({
               const _arRToX = _arRHit ? p.x : _arRx;
               const _arRToY = _arRHit ? p.y : _arRy;
               if (_arRToX !== tx || _arRToY !== ty) {
-                pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _arRToX, toY: _arRToY, color: "#d0a050" });
+                /* 往路アニメの逆再生：同じ色・同じ距離で返す */
+                const _arRetColor = _arOutBolt?.color ?? (_arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050");
+                const _arRetFrom = _arOutBolt ? { x: _arOutBolt.toX, y: _arOutBolt.toY } : { x: tx, y: ty };
+                const _arRetTo   = _arOutBolt ? { x: _arOutBolt.fromX, y: _arOutBolt.fromY } : { x: _arRToX, y: _arRToY };
+                pushAnim({ type: "projectileReturn", fromX: _arRetFrom.x, fromY: _arRetFrom.y, toX: _arRetTo.x, toY: _arRetTo.y, color: _arRetColor });
               }
               if (_arRHit) {
                 p.hp -= dmg;
@@ -2026,8 +2032,9 @@ export function useItemActions({
           setThrowMode(null);
           return;
         }
-        pushBoltAnim(p.x, p.y, dx, dy, dg, "#d0a050");
-        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim);
+        const _shColor = it.poison ? "#60d060" : it.pierce ? "#ff8844" : "#d0a050";
+        const _shOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor);
+        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt);
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
       } else if (mode === "wand_wave") {
         const it = p.inventory[idx];

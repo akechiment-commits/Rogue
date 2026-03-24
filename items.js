@@ -2834,7 +2834,7 @@ export function getFarcastMode(x, y, dg) {
   return fcPent.cursed ? "cursed" : "farcast";
 }
 
-export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null) {
+export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null) {
   const st = p.inventory[idx];
   if (!st || st.type !== "arrow") return;
   st.count--;
@@ -2869,7 +2869,11 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null) {
         }
         const _rToX = _rHit ? p.x : _rx, _rToY = _rHit ? p.y : _ry;
         if (animFn && (_rToX !== tx || _rToY !== ty)) {
-          animFn({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _rToX, toY: _rToY, color: "#d0a050" });
+          /* 往路アニメの逆再生：同じ色・同じ距離 */
+          const _retColor = outgoingBolt?.color ?? (_isPierce ? "#ff8844" : _isPoison ? "#60d060" : "#d0a050");
+          const _retFromX = outgoingBolt?.toX ?? tx, _retFromY = outgoingBolt?.toY ?? ty;
+          const _retToX   = outgoingBolt?.fromX ?? _rToX, _retToY = outgoingBolt?.fromY ?? _rToY;
+          animFn({ type: "projectileReturn", fromX: _retFromX, fromY: _retFromY, toX: _retToX, toY: _retToY, color: _retColor });
         }
         if (_rHit) {
           p.hp -= dmg;
