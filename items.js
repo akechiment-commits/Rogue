@@ -2957,17 +2957,18 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
     ml.push(isFireContext ? `所持していた「${dn(victim)}」は炎に当たったが無事だった。` : `所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
   }
 }
-export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
+export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv = 1) {
   if (kind === "monster") {
     wakeIfDormant(target, ml);
     if (consumeBarrier(target, ml)) return;
   }
   const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
+  const _lvF = 1 + (lv - 1) * 0.2;
   switch (eff) {
     case "fire_bolt": {
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が炎の魔法を打ち消した！"); break; }
       const _fbOilyMult = kind === "monster" && ((target.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === target.x && t.y === target.y)) ? 2 : 1;
-      const dmg = rng(20, 30) * _cmsBoost * _fbOilyMult;
+      const dmg = Math.round(rng(20, 30) * _lvF) * _cmsBoost * _fbOilyMult;
       if (kind === "monster") {
         /* 火ダルマは炎の魔法で回復 */
         if (target.baseKind === "firedemon") {
@@ -2986,17 +2987,18 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       } break;
     }
     case "ice_bolt": {
-      const dmg = rng(15, 22) * _cmsBoost;
+      const dmg = Math.round(rng(15, 22) * _lvF) * _cmsBoost;
+      const _iceFreeze = Math.round(3 * _lvF);
       if (kind === "monster") {
         target.hp -= dmg;
-        target.immobileTurns = (target.immobileTurns || 0) + 3;
-        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！3ターン移動封じ！`);
+        target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
+        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
     }
     case "lightning_magic": {
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が雷の魔法を打ち消した！"); break; }
-      const dmg = rng(22, 32) * _cmsBoost;
+      const dmg = Math.round(rng(22, 32) * _lvF) * _cmsBoost;
       if (kind === "monster") {
         target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
@@ -3010,7 +3012,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       } break;
     }
     case "sleep_bolt": {
-      if (kind === "monster") { const t = rng(3, 6); target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`); }
+      if (kind === "monster") { const t = Math.round(rng(3, 6) * _lvF); target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`); }
       break;
     }
     case "transform_magic": {
@@ -3037,21 +3039,23 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
     }
     case "poison_bolt": {
       if (kind === "monster") {
-        target.poisonedTurns = (target.poisonedTurns || 0) + 10;
-        target.poisonDmg = 3;
+        target.poisonedTurns = (target.poisonedTurns || 0) + Math.round(10 * _lvF);
+        target.poisonDmg = Math.round(3 * _lvF);
         ml.push(`毒の魔法が${target.name}に命中！毒に侵された！`);
       } break;
     }
     case "invisible_magic": {
       if (kind === "self") {
-        p.invisibleTurns = (p.invisibleTurns || 0) + 10;
-        ml.push("体が透明になった！しばらく敵に見えなくなる。(10ターン)");
+        const _invT = 10 + (lv - 1) * 5;
+        p.invisibleTurns = (p.invisibleTurns || 0) + _invT;
+        ml.push(`体が透明になった！しばらく敵に見えなくなる。(${_invT}ターン)`);
       } break;
     }
     case "wallwalk_magic": {
       if (kind === "self") {
-        p.wallWalkTurns = (p.wallWalkTurns || 0) + 10;
-        ml.push("体が半透明になった！壁を通り抜けられる。(10ターン)");
+        const _wwT = 10 + (lv - 1) * 5;
+        p.wallWalkTurns = (p.wallWalkTurns || 0) + _wwT;
+        ml.push(`体が半透明になった！壁を通り抜けられる。(${_wwT}ターン)`);
       } break;
     }
     case "teleport_magic": {
@@ -3071,14 +3075,14 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
     }
     case "heal_magic": {
       if (kind === "self") {
-        const _hamt = rng(25, 35);
+        const _hamt = Math.round(rng(25, 35) * _lvF);
         p.hp = Math.min(p.maxHp, p.hp + _hamt);
         ml.push(`回復の魔法を唱えた！HPが${_hamt}回復した！`);
       } break;
     }
     case "drain_hp": {
       if (kind === "monster") {
-        const _drainAmt = Math.min(target.hp, rng(15, 25) * _cmsBoost);
+        const _drainAmt = Math.min(target.hp, Math.round(rng(15, 25) * _lvF) * _cmsBoost);
         target.hp -= _drainAmt;
         const _healAmt = Math.min(_drainAmt, p.maxHp - p.hp);
         p.hp += _healAmt;
@@ -3090,7 +3094,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
       if (kind === "monster") {
         if (!isStatusImmune(target, ml, target.name)) {
           target.paralyzed = true;
-          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, 10);
+          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, Math.round(10 * _lvF));
           ml.push(`金縛りの魔法が${target.name}に命中！金縛りになった！`);
         }
       } break;
@@ -3111,7 +3115,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn) {
     default: ml.push("魔法弾は効果なく消えた。");
   }
 }
-export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn) {
+export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
   for (let d = 1; d <= spell.range; d++) {
     const tx = p.x + dx * d, ty = p.y + dy * d;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
@@ -3123,10 +3127,10 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn) {
       return;
     }
     const mon = monsterAt(dg, tx, ty);
-    if (mon) { applySpellEffect(spell.effect, "monster", mon, dx, dy, dg, p, ml, luFn); return; }
+    if (mon) { applySpellEffect(spell.effect, "monster", mon, dx, dy, dg, p, ml, luFn, lv); return; }
     if (tx === p.x && ty === p.y) continue;
     const it = itemAt(dg, tx, ty);
-    if (it) { applySpellEffect(spell.effect, "item", it, dx, dy, dg, p, ml, luFn); return; }
+    if (it) { applySpellEffect(spell.effect, "item", it, dx, dy, dg, p, ml, luFn, lv); return; }
   }
   ml.push("魔法弾は虚空に消えた。");
 }

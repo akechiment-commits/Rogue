@@ -1449,7 +1449,7 @@ export function useItemActions({
     } else if (it.cursed) {
       // 呪い：この魔法以外のランダムな魔法を1つ選んで習得 or レベルアップ
       if (!p.spellLevels) p.spellLevels = {};
-      const _otherSpells = SPELLS.filter((s) => s.id !== it.spell);
+      const _otherSpells = SPELLS.filter((s) => s.id !== it.spell && !s.debug);
       const _candidates = _otherSpells.filter((s) => {
         if (!p.spells.includes(s.id)) return true;          // 未習得 → 習得できる
         return (p.spellLevels[s.id] || 1) < 6;              // 習得済みでも最大未満ならLvUP
@@ -1476,15 +1476,18 @@ export function useItemActions({
       const _curLv = p.spellLevels[it.spell] || 1;
       const spellDef = SPELLS.find((s) => s.id === it.spell);
       const _spName = spellDef ? spellDef.name : it.spell;
+      const _spellCost = (sd, lv) => sd && !sd.fixedMpCost
+        ? Math.max(1, Math.round(sd.mpCost * (1 - (lv - 1) * 0.15)))
+        : (sd?.mpCost ?? 1);
       if (_curLv >= 6) {
-        ml.push(`「${_spName}」はすでに最大レベルだ。(Lv.${_curLv} MP:${Math.max(1, 20 - (_curLv - 1) * 3)})`);
+        ml.push(`「${_spName}」はすでに最大レベルだ。(Lv.${_curLv} MP:${_spellCost(spellDef, _curLv)})`);
         // 最大レベルの場合は魔法書を消費しない
       } else {
         const _gain = it.blessed ? 2 : 1;
         const _newLv = Math.min(6, _curLv + _gain);
         p.spellLevels[it.spell] = _newLv;
         p.inventory.splice(idx, 1);
-        const _newCost = Math.max(1, 20 - (_newLv - 1) * 3);
+        const _newCost = _spellCost(spellDef, _newLv);
         ml.push(`${it.name}を読んだ。「${_spName}」がレベルアップ！(Lv.${_newLv} 消費MP:${_newCost})${it.blessed ? "【祝】" : ""}`);
       }
     } else {
@@ -1495,7 +1498,10 @@ export function useItemActions({
       p.spells = [...p.spells, it.spell];
       p.inventory.splice(idx, 1);
       const spellDef = SPELLS.find((s) => s.id === it.spell);
-      const _initCost = Math.max(1, 20 - (_startLv - 1) * 3);
+      const _spellCostInit = (sd, lv) => sd && !sd.fixedMpCost
+        ? Math.max(1, Math.round(sd.mpCost * (1 - (lv - 1) * 0.15)))
+        : (sd?.mpCost ?? 1);
+      const _initCost = _spellCostInit(spellDef, _startLv);
       ml.push(`${it.name}を読んだ。「${spellDef ? spellDef.name : it.spell}」を習得した！(Lv.${_startLv} 消費MP:${_initCost})${it.blessed ? "【祝】" : ""}`);
     }
     setShowInv(false); setSelIdx(null); setShowDesc(null);
@@ -1998,7 +2004,9 @@ export function useItemActions({
         const spellDef = SPELLS.find((s) => s.id === idx);
         if (!spellDef) { setThrowMode(null); return; }
         const _csLv = (p.spellLevels?.[spellDef.id] || 1);
-        const _csCost = Math.max(1, 20 - (_csLv - 1) * 3);
+        const _csCost = spellDef.fixedMpCost
+          ? spellDef.mpCost
+          : Math.max(1, Math.round(spellDef.mpCost * (1 - (_csLv - 1) * 0.15)));
         if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
           ml.push(`魔法が封印されている！MPは消費しない。`);
         } else if ((p.mp || 0) < _csCost) {
@@ -2007,7 +2015,7 @@ export function useItemActions({
           p.mp = (p.mp || 0) - _csCost;
           ml.push(`${spellDef.name}を唱えた！[MP -${_csCost}]`);
           pushBoltAnim(p.x, p.y, dx, dy, dg, "#60a0ff");
-          castSpellBolt(p, dg, spellDef, dx, dy, ml, lu);
+          castSpellBolt(p, dg, spellDef, dx, dy, ml, lu, _csLv);
         }
       } else {
         const it = p.inventory[idx];
