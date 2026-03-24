@@ -501,7 +501,7 @@ export const MONS = [
       { name: "覇突進角獣",         hp: 155, atk: 44, def: 16, exp: 155 },
     ],
   },
-  { name: "ミラーゴーレム", hp: 68, atk: 20, def: 18, exp: 70, speed: 0.5, tile: 59, kind: "beast",   baseKind: "reflector",     monLevel: 1, minFloor: 12, maxFloor: 22, subtype: "reflector",
+  { name: "ミラーゴーレム", hp: 68, atk: 20, def: 18, exp: 70, speed: 1,   tile: 59, kind: "beast",   baseKind: "reflector",     monLevel: 1, minFloor: 12, maxFloor: 22, subtype: "reflector",
     levels: [
       { name: "強ミラーゴーレム",   hp: 109, atk: 29, def: 24, exp: 112 },
       { name: "覇ミラーゴーレム",   hp: 170, atk: 38, def: 31, exp: 175 },

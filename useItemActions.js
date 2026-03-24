@@ -1789,6 +1789,32 @@ export function useItemActions({
             const _stDmg = (_arItem.atk || 3) + rng(0, 3);
             ml.push(`${_stName}を投げた！`);
             if (_stM) {
+              /* ── reflector：石をプレイヤーへ跳ね返す ── */
+              if (_stM.subtype === "reflector") {
+                ml.push(`${_stName}が${_stM.name}に弾き返された！`);
+                const _stRdx = Math.sign(p.x - _stLx), _stRdy = Math.sign(p.y - _stLy);
+                let _stRx = _stLx, _stRy = _stLy;
+                let _stRHit = false;
+                for (let _stri = 1; _stri <= 20; _stri++) {
+                  const _stNx = _stRx + _stRdx, _stNy = _stRy + _stRdy;
+                  if (_stNx < 0 || _stNx >= MW || _stNy < 0 || _stNy >= MH) break;
+                  if (dg.map[_stNy][_stNx] === T.WALL || dg.map[_stNy][_stNx] === T.BWALL) break;
+                  if (_stNx === p.x && _stNy === p.y) { _stRHit = true; break; }
+                  _stRx = _stNx; _stRy = _stNy;
+                }
+                const _stRToX = _stRHit ? p.x : _stRx;
+                const _stRToY = _stRHit ? p.y : _stRy;
+                if (_stRToX !== _stLx || _stRToY !== _stLy) {
+                  pushAnim({ type: "projectileReturn", fromX: _stLx, fromY: _stLy, toX: _stRToX, toY: _stRToY, color: "#aaaaaa" });
+                }
+                if (_stRHit) {
+                  p.hp -= _stDmg;
+                  ml.push(`跳ね返された${_stName}がプレイヤーに命中！${_stDmg}ダメージ！消滅した。`);
+                } else if (_stRx !== _stLx || _stRy !== _stLy) {
+                  const _stRft = new Set();
+                  withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft));
+                }
+              } else {
               const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
               const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (!_stSureHit && !(_stDodgePcMode === "sure") && Math.random() >= 0.90));
               if (_stMiss) {
@@ -1800,6 +1826,7 @@ export function useItemActions({
                 _stM.hp -= _stDmg;
                 ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                 if (_stM.hp <= 0) { trackMonster(_stM); killMonster(_stM, dg, p, ml, lu); }
+              }
               }
             } else {
               /* 敵なし：着弾点に落ちる（罠も起動） */
@@ -1893,6 +1920,33 @@ export function useItemActions({
           if (!_arPierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
           const m = monsterAt(dg, tx, ty);
           if (m) {
+            /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す ── */
+            if (!_arPierceMode && m.subtype === "reflector") {
+              ml.push(`${_arName}が${m.name}に弾き返された！`);
+              const _arRdx = Math.sign(p.x - tx), _arRdy = Math.sign(p.y - ty);
+              let _arRx = tx, _arRy = ty;
+              let _arRHit = false;
+              for (let _ari = 1; _ari <= 20; _ari++) {
+                const _arNx = _arRx + _arRdx, _arNy = _arRy + _arRdy;
+                if (_arNx < 0 || _arNx >= MW || _arNy < 0 || _arNy >= MH) break;
+                if (dg.map[_arNy][_arNx] === T.WALL || dg.map[_arNy][_arNx] === T.BWALL) break;
+                if (_arNx === p.x && _arNy === p.y) { _arRHit = true; break; }
+                _arRx = _arNx; _arRy = _arNy;
+              }
+              const _arRToX = _arRHit ? p.x : _arRx;
+              const _arRToY = _arRHit ? p.y : _arRy;
+              if (_arRToX !== tx || _arRToY !== ty) {
+                pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _arRToX, toY: _arRToY, color: "#d0a050" });
+              }
+              if (_arRHit) {
+                p.hp -= dmg;
+                ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！消滅した。`);
+              } else if (_arRx !== tx || _arRy !== ty) {
+                const _arRft = new Set();
+                withPitfallBag(() => placeItemAt(dg, _arRx, _arRy, _arDropItem(), ml, _arRft));
+              }
+              lx = tx; ly = ty; hit = true; break;
+            }
             /* 矢の命中率90%（必中状態なら100%） */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
             const _arDodgePcMode = getDodgePentacleMode(dg, m.x, m.y);
@@ -2382,16 +2436,29 @@ export function useItemActions({
                   if (_rnx === p.x && _rny === p.y) { _rfHitPlayer = true; break; }
                   _rfx = _rnx; _rfy = _rny;
                 }
+                /* 跳ね返りアニメーション */
+                const _rfToX = _rfHitPlayer ? p.x : _rfx;
+                const _rfToY = _rfHitPlayer ? p.y : _rfy;
+                if (_rfToX !== tx || _rfToY !== ty) {
+                  pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _rfToX, toY: _rfToY, color: "#aaddff" });
+                }
                 if (_rfHitPlayer) {
                   p.deathCause = `跳ね返された${it.name}に`;
                   p.hp -= td;
-                  ml.push(`跳ね返された${lb}がプレイヤーに命中！${td}ダメージ！`);
-                  const _rffP = new Set();
-                  withPitfallBag(() => placeItemAt(dg, p.x, p.y, it, ml, _rffP, 0, p));
-                } else {
+                  ml.push(`跳ね返された${lb}がプレイヤーに命中！${td}ダメージ！消滅した。`);
+                  /* 杖の場合はプレイヤーへの効果も発動 */
+                  if (it.type === "wand") {
+                    const _rfWandBm = getBlessMultiplier(it);
+                    const _rfWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                    applyWandEffect(it.effect, "player", p, _rfdx, _rfdy, dg, p, ml, lu, bigboxAddItem, _rfWandBm, _rfWandDName);
+                  }
+                  /* プレイヤーに当たったアイテムは消滅（床には残らない） */
+                } else if (_rfx !== tx || _rfy !== ty) {
+                  /* 壁で止まった場合のみ最終地点に落とす */
                   const _rffG = new Set();
                   withPitfallBag(() => placeItemAt(dg, _rfx, _rfy, it, ml, _rffG));
                 }
+                /* 経路が即座に塞がれている場合はアイテム消滅 */
                 lx = tx; ly = ty; hit = true; break;
               }
               if (_thMiss) {
