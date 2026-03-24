@@ -1453,6 +1453,33 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
     }
 
+    /* ── charger（突進角獣等）：移動フェーズで突進攻撃 ── */
+    if (_moveOnly && canSee && m.subtype === "charger" && !m.sealed) {
+      const _chAdx = pl.x - m.x, _chAdy = pl.y - m.y;
+      const _chDist = Math.max(Math.abs(_chAdx), Math.abs(_chAdy));
+      const _chLine = _chAdx === 0 || _chAdy === 0 || Math.abs(_chAdx) === Math.abs(_chAdy);
+      const _chLvl = m.monLevel || 1;
+      const _chRange = _chLvl >= 3 ? 8 : _chLvl >= 2 ? 5 : 3;
+      if (_chLine && _chDist >= 2 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        const _chdx = Math.sign(_chAdx), _chdy = Math.sign(_chAdy);
+        let _chMoved = 0;
+        for (let _ci = 0; _ci < _chRange; _ci++) {
+          const _cnx = m.x + _chdx, _cny = m.y + _chdy;
+          if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
+          if (dg.map[_cny][_cnx] === T.WALL || dg.map[_cny][_cnx] === T.BWALL) break;
+          if (_cnx === pl.x && _cny === pl.y) {
+            m.turnAttacks++;
+            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+            break;
+          }
+          if (dg.monsters.some(o => o !== m && o.x === _cnx && o.y === _cny)) break;
+          m.x = _cnx; m.y = _cny; _chMoved++;
+        }
+        if (_chMoved > 0) ml.push(`${m.name}が突進した！`);
+        return;
+      }
+    }
+
     if (!_moveOnly && canSee) {
       const adx = pl.x - m.x, ady = pl.y - m.y;
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
@@ -1524,32 +1551,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
 
-      /* ── charger（突進角獣等）：一直線上で突進攻撃 ── */
-      if (m.subtype === "charger" && !m.sealed) {
-        const _chAdx = pl.x - m.x, _chAdy = pl.y - m.y;
-        const _chDist = Math.max(Math.abs(_chAdx), Math.abs(_chAdy));
-        const _chLine = _chAdx === 0 || _chAdy === 0 || Math.abs(_chAdx) === Math.abs(_chAdy);
-        const _chLvl = m.monLevel || 1;
-        const _chRange = _chLvl >= 3 ? 8 : _chLvl >= 2 ? 5 : 3;
-        if (_chLine && _chDist >= 2 && m.turnAttacks < (m.maxAttacks ?? 1)) {
-          const _chdx = Math.sign(_chAdx), _chdy = Math.sign(_chAdy);
-          let _chMoved = 0;
-          for (let _ci = 0; _ci < _chRange; _ci++) {
-            const _cnx = m.x + _chdx, _cny = m.y + _chdy;
-            if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
-            if (dg.map[_cny][_cnx] === T.WALL || dg.map[_cny][_cnx] === T.BWALL) break;
-            if (_cnx === pl.x && _cny === pl.y) {
-              m.turnAttacks++;
-              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
-              break;
-            }
-            if (dg.monsters.some(o => o !== m && o.x === _cnx && o.y === _cny)) break;
-            m.x = _cnx; m.y = _cny; _chMoved++;
-          }
-          if (_chMoved > 0) ml.push(`${m.name}が突進した！`);
-          return;
-        }
-      }
 
       if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         const _wRoom = findRoom(rooms, m.x, m.y);
