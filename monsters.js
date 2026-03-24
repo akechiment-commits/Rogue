@@ -1480,7 +1480,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
               break;
             }
-            if (dg.monsters.some(o => o !== m && o.x === _cnx && o.y === _cny)) break;
+            const _chOther = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
+            if (_chOther) {
+              m.turnAttacks++;
+              const _chDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_chOther.def || 0))) + rng(-1, 1));
+              _chOther.hp -= _chDmg;
+              ml.push(`${m.name}が突進して${_chOther.name}に当たった！${_chDmg}ダメージ！`);
+              if (_chOther.hp <= 0) {
+                ml.push(`${_chOther.name}は倒れた！`);
+                removeMonster(dg, _chOther);
+                monLevelUp(m, dg, ml);
+              }
+              break;
+            }
             m.x = _cnx; m.y = _cny; _chMoved++;
           }
           if (_chMoved > 0) ml.push(`${m.name}が突進した！`);
