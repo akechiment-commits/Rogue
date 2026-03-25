@@ -2296,6 +2296,7 @@ export function useItemActions({
               } else if (m.subtype === "reflector") {
                 /* ミラーゴーレム：薬をプレイヤーに向かって跳ね返す */
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
+                pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
                 if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml);
                 else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
                 lx = tx; ly = ty; _fdBurned = true; break;
@@ -2362,6 +2363,7 @@ export function useItemActions({
               if (!_isFarcast && m.subtype === "reflector") {
                 /* ミラーゴーレム：壺をプレイヤーの足元に跳ね返して中身散乱 */
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
+                pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
                 scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
                 lx = tx; ly = ty; _potFdBurned = true; break;
               }
