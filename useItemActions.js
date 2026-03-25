@@ -14,7 +14,7 @@ import {
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
-import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim } from "./animEvents.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim } from "./animEvents.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限） */
 function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
@@ -2466,12 +2466,10 @@ export function useItemActions({
                   if (_rnx === p.x && _rny === p.y) { _rfHitPlayer = true; break; }
                   _rfx = _rnx; _rfy = _rny;
                 }
-                /* 跳ね返りアニメーション：投擲アイテムは実グラフィックで */
+                /* 跳ね返りアニメーション：itemArcキューにseq=1で追加し往路の直後に再生 */
                 const _rfToX = _rfHitPlayer ? p.x : _rfx;
                 const _rfToY = _rfHitPlayer ? p.y : _rfy;
-                if (_rfToX !== tx || _rfToY !== ty) {
-                  pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _rfToX, toY: _rfToY, tile: it.tile, straight: true });
-                }
+                pushItemReturnAnim(tx, ty, _rfToX, _rfToY, it.tile);
                 if (_rfHitPlayer) {
                   p.deathCause = `跳ね返された${it.name}に`;
                   p.hp -= td;

@@ -54,7 +54,16 @@ export function pushItemArcAnim(fromX, fromY, toX, toY, tile, seq = 1, itemRef =
   _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq, straight: false, itemRef });
 }
 
-/* Returns array of arc batches sorted by seq: [[seq0 throws], [seq1 arcs], [seq2 bounces], ...] */
+/*
+ * Push a return arc for a reflected thrown item.
+ * seq=1 ensures it plays after the outgoing throw (seq=0) in Phase 2d.
+ */
+export function pushItemReturnAnim(fromX, fromY, toX, toY, tile) {
+  if (fromX === toX && fromY === toY) return;
+  _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq: 1, straight: true });
+}
+
+
 export function drainItemArcs() {
   if (_itemArcQueue.length === 0) return [];
   const arcs = [..._itemArcQueue];
