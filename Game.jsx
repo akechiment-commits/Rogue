@@ -540,7 +540,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       /* 跳ね返り：プレイヤーをまだ旧位置に固定（発射がなかった場合の補填もここで） */
       if (data.playerKnockback) moveOffsetsRef.current.set("player", { ...data.playerKnockback, progress: 0 });
       await _phase(200, (t, raw) => {
-        overlaysRef.current = data.projectileReturns.map(p => ({ ...p, type: "projectile", progress: raw, t }));
+        overlaysRef.current = data.projectileReturns.map(p => ({
+          ...p,
+          type: p.tile ? "itemArc" : "projectile",
+          progress: raw, t
+        }));
         renderFrame();
       });
       overlaysRef.current = [];

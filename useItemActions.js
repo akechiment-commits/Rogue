@@ -2466,11 +2466,11 @@ export function useItemActions({
                   if (_rnx === p.x && _rny === p.y) { _rfHitPlayer = true; break; }
                   _rfx = _rnx; _rfy = _rny;
                 }
-                /* 跳ね返りアニメーション */
+                /* 跳ね返りアニメーション：投擲アイテムは実グラフィックで */
                 const _rfToX = _rfHitPlayer ? p.x : _rfx;
                 const _rfToY = _rfHitPlayer ? p.y : _rfy;
                 if (_rfToX !== tx || _rfToY !== ty) {
-                  pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _rfToX, toY: _rfToY, color: "#aaddff" });
+                  pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _rfToX, toY: _rfToY, tile: it.tile, straight: true });
                 }
                 if (_rfHitPlayer) {
                   p.deathCause = `跳ね返された${it.name}に`;
