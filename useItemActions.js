@@ -709,6 +709,15 @@ export function useItemActions({
           }
           for (const _m of _tTargets) {
             if (_m.hp <= 0) continue;
+            if (_m.subtype === "magicreflect") {
+              let _rdmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
+              if (inCursedMagicSealRoom(p.x, p.y, dg)) _rdmg *= 2;
+              p.hp -= _rdmg;
+              p.deathCause = `${_m.name}に雷を跳ね返されて`;
+              ml.push(`${_m.name}が雷を跳ね返した！${_rdmg}ダメージ！`);
+              pushLightningAnim(p.x, p.y);
+              continue;
+            }
             if (consumeBarrier(_m, ml)) continue;
             let _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
@@ -867,6 +876,12 @@ export function useItemActions({
           } else {
             for (const _m of _sSleep) {
               const _st = Math.max(1, Math.round(rng(3, 6) * _scrBm));
+              if (_m.subtype === "magicreflect") {
+                if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
+                p.sleepTurns = (p.sleepTurns || 0) + _st;
+                ml.push(`${_m.name}が眠りを跳ね返した！${_st}ターン眠ってしまう…`);
+                continue;
+              }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
               _m.sleepTurns = (_m.sleepTurns || 0) + _st;
