@@ -659,7 +659,7 @@ export function useKeyHandler({
           const s = SPELLS.find((sp) => sp.id === id);
           if (!s) return null;
           const _lv = (sr.current?.player?.spellLevels?.[id] || 1);
-          return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, 20 - (_lv - 1) * 3), spellLevel: _lv };
+          return { ...s, mpCost: s.fixedMpCost ? s.mpCost : Math.max(1, Math.round(s.mpCost * (1 - (_lv - 1) * 0.15))), spellLevel: _lv };
         }).filter(Boolean);
         const slen = knownSpells.length;
         const _sps = 10;
