@@ -3055,6 +3055,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         /* アイテムをbox内から即削除（消滅） */
         const _scIdx = bb.contents.indexOf(item);
         if (_scIdx >= 0) bb.contents.splice(_scIdx, 1);
+        let _bbExploded = false;
         const p = sr.current.player;
         const _scRoom = findRoom(dg.rooms, bb.x, bb.y);
         const _scMons = _scRoom
@@ -3087,12 +3088,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             /* 壺：種類に応じた破壊効果（中身は散乱しない） */
             const _oilMap = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
             if (item.potEffect === "gunpowder") {
-              ml.push(`${_idn}が飛び散って爆発した！`);
+              ml.push(`${_idn}が飛び散って各生き物のもとで爆発した！`);
               if (hasCursedExplosionPentacle(dg)) {
                 ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
               } else {
-                doGunpowderExplosion(bb.x, bb.y, dg, p, ml, lu);
+                for (const _gnMon of [..._scMons]) {
+                  doGunpowderExplosion(_gnMon.x, _gnMon.y, dg, p, ml, lu);
+                }
+                if (_scPInRoom) doGunpowderExplosion(p.x, p.y, dg, p, ml, lu);
               }
+              _bbExploded = true;
             } else if (_oilMap[item.potEffect] && (item.contents?.length || 0) < (item.capacity || 3)) {
               ml.push(`${_idn}が割れて${_oilMap[item.potEffect]}が飛び散った！`);
               dg.oilyTiles = dg.oilyTiles || [];
@@ -3123,7 +3128,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             const _scBase = item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : (item.type === "arrow" ? (item.atk || 4) : 3);
             const _scDmg = _scBase + rng(0, 3);
             if (item.type === "arrow" && item.bombArrow) {
-              /* 爆弾矢（インベントリから入れた）：各生き物の場所でそれぞれ爆発 */
+              /* 爆弾矢（インベントリから入れた）：各生き物の場所でそれぞれ爆発＋箱も破壊 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               if (!hasCursedExplosionPentacle(dg)) {
                 const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -3136,6 +3141,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               } else {
                 ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
               }
+              _bbExploded = true;
             } else {
               for (const m of [..._scMons]) {
                 const _itd = clampDmgFixed(m, _scDmg, true);
@@ -3155,8 +3161,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
           }
         }
-        /* 使用のたびに容量を1減らす */
-        bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
+        /* 爆発系は箱ごと破壊、それ以外は容量を1減らす */
+        if (_bbExploded) {
+          dg.bigboxes = dg.bigboxes.filter(b => b !== bb);
+          const _bbFt = new Set();
+          for (const ci of (bb.contents || [])) placeItemAt(dg, bb.x, bb.y, ci, ml, _bbFt);
+          if (bb.contents?.length > 0) ml.push(`${bb.name}が壊れ中身が飛び出した！`);
+          else ml.push(`${bb.name}が爆発で壊れた！`);
+        } else {
+          bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
+        }
       } else if (bb.kind === "trash") {
         /* 入れたアイテムを即削除（消滅）し容量を1減らす */
         const _trIdx = bb.contents.indexOf(item);
@@ -3337,7 +3351,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       bigboxAddItem(bb, it, dg, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      if (bb.contents.length < bb.capacity) {
+      if (dg.bigboxes?.includes(bb) && bb.contents.length < bb.capacity) {
         setBigboxMode("put");
         setBigboxMenuSel(0);
         setBigboxPage(0);
