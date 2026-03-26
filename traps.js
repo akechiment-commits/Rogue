@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
@@ -296,6 +296,17 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       dg.pendingBombs.push({ x: trap.x, y: trap.y, turnsLeft: 4, nameFn });
       ml.push(`${trap.name}が作動！4ターン後に大爆発が起きる！`);
       noBreak = true; /* 既に除去済み。重複メッセージを避ける */
+      break;
+    }
+    case "rot_trap": {
+      const _rFoods = (p.inventory || []).filter(i => i.type === "food" && !i.rotten);
+      if (_rFoods.length > 0) {
+        const _rTarget = _rFoods[rng(0, _rFoods.length - 1)];
+        rotFood(_rTarget);
+        ml.push(`${trap.name}が発動！${_rTarget.name}が腐ってしまった！`);
+      } else {
+        ml.push(`${trap.name}が発動！腐らせるものがなかった。`);
+      }
       break;
     }
     case "blowback_trap": {
