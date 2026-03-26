@@ -9,7 +9,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, TRAPS,
-  CAT_CLAW_T, EXCALIBUR_T,
+  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T,
   genFood, makeArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
@@ -2963,6 +2963,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         bb.contents.push(_catClaw);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！短剣が融合して猫の爪に変化した！`);
+      /* 三元素武器：炎・氷・雷属性をすべて持つなら三元の刃に変化 */
+      } else if (merged.type === "weapon" && _mabs.includes("fire_elem") && _mabs.includes("ice_elem") && _mabs.includes("thunder_elem")) {
+        const _tsAbs = [...new Set([..._mabs, ...TRIELEM_SWORD_T.abilities])];
+        const _triSword = { ...TRIELEM_SWORD_T, id: uid(), plus: merged.plus, ability: _tsAbs[0], abilities: _tsAbs };
+        bb.contents.push(_triSword);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！三元素の力が融合して三元の刃に変化した！`);
+      /* 三耐性防具：炎・氷・雷耐性をすべて持つなら元素王の鎧に変化 */
+      } else if (merged.type === "armor" && _mabs.includes("fire_resist") && _mabs.includes("ice_resist") && _mabs.includes("lightning_resist")) {
+        const _taAbs = [...new Set([..._mabs, ...TRIELEM_ARMOR_T.abilities])];
+        const _triArmor = { ...TRIELEM_ARMOR_T, id: uid(), plus: merged.plus, ability: _taAbs[0], abilities: _taAbs };
+        bb.contents.push(_triArmor);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！三属性の耐性が融合して元素王の鎧に変化した！`);
       } else {
         bb.contents.push(merged);
         bb.capacity = bb.contents.length;
