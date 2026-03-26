@@ -614,7 +614,8 @@ export const WANDS = [
   { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"C", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分に当たるとMP封印50ターン。祝福：敵に鈍足も付与、自分は鈍足10ターンも追加。呪い：敵の特技使用率が100%に、自分はMP封印が治る。水の瓶に当てると封印の薬になる。", tile:24 },
   { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"B", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する（祝福：4分の1）。アイテム・罠・大箱に当てると破壊。壁に当てると1マスがランダムな食料に変化。呪い：1マス先に壊せる壁を生成する。", tile:24 },
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象には2倍ダメージ、火ダルマは回復。自分に当たると炎でアイテム損傷抽選。床のアイテムに当たると魔法書・巻物・薬は破壊、食料は焼ける。祝福：2倍ダメージ。呪い：対象を回復。", tile:24 },
-  { name:"氷の杖",         type:"wand", effect:"ice_wand",  charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。対象に氷属性ダメージ+5ターン移動封じ。火ダルマには2倍ダメージ。祝福：2倍ダメージ+移動封じ10ターン。呪い：対象を回復し移動封じ状態なら解除。", tile:24 },
+  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。対象に氷属性ダメージ+5ターン移動封じ。火ダルマには2倍ダメージ。祝福：2倍ダメージ+移動封じ10ターン。呪い：対象を回復し移動封じ状態なら解除。", tile:24 },
+  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"B", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。祝福：交換後に相手のHPを1に。呪い：交換後に自分のHPを1に。自分に振っても交換は起きないが祝福・呪いの効果は出る。壊すと隣接する最大HPのモンスターとHP交換。", tile:24 },
 ];
 
 /* ===== BIG BOX TYPES ===== */

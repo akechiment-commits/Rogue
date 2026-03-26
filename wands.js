@@ -1288,6 +1288,42 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       break;
     }
+    case "vitality_swap": {
+      const _vsBless = blMult > 1, _vsCurse = blMult < 1;
+      if (kind === "player") {
+        /* 自分に振っても交換は起きないが、祝福・呪いの効果は出る */
+        if (_vsBless) {
+          /* 祝福：「相手のHPを1にする」効果が自分に返ってくる */
+          p.hp = 1;
+          ml.push("祝力が逆流して自分に！HPが1になった！");
+        } else if (_vsCurse) {
+          /* 呪い：通常通り自分のHPが1に */
+          p.hp = 1;
+          ml.push("呪いが自分に返ってきた！HPが1になった！");
+        } else {
+          ml.push("何も起こらなかった。");
+        }
+        break;
+      }
+      if (kind === "monster") {
+        const _pOldHp = p.hp;
+        const _mOldHp = target.hp;
+        p.hp      = Math.min(p.maxHp,      Math.max(1, _mOldHp));
+        target.hp = Math.min(target.maxHp, Math.max(1, _pOldHp));
+        ml.push(`${target.name}と体力を入れ替えた！(自分 ${_pOldHp}→${p.hp}HP)`);
+        if (_vsBless) {
+          target.hp = 1;
+          ml.push(`${target.name}のHPが1になった！`);
+        }
+        if (_vsCurse) {
+          p.hp = 1;
+          ml.push("呪いの代償で自分のHPが1になった！");
+        }
+        break;
+      }
+      ml.push("何も起こらなかった。");
+      break;
+    }
     default:
       /* 未登録の effect が渡された場合は警告 (items.js WANDS への追加を忘れずに) */
       console.warn(`[applyWandEffect] 未登録の effect: "${eff}" — applyWandEffect の switch に case を追加してください`);
@@ -1352,7 +1388,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     confuse:"#ff40ff", darkness:"#606080", bewitch:"#ff80c0", levelup:"#ffff60",
     seal:"#8040e0", knockback:"#20e0c0", swap:"#ff8800", dig:"#aa8844",
     leap:"#40ff80", ice_wand:"#80ddff", curse_wand:"#9020b0", blowback_wand:"#20e0c0",
-    soften:"#c8a060",
+    soften:"#c8a060", vitality_swap:"#ff2255",
   };
   /* 重力の魔方陣：飛びつきを無効化（プレイヤーが重力ゾーンにいる場合） */
   if (eff === "leap" && blMult >= 1 && hasGravityPentacle(dg, p.x, p.y)) {
@@ -1716,6 +1752,25 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
     if (_wFootBb) wTargets.push({ kind:"bigbox", t:_wFootBb });
     applyWandEffect(eff, "player", p, 0, 0, dg, p, ml, luFn, null, blMult);
     for (const { kind, t } of wTargets) applyWandEffect(eff, kind, t, 0, 0, dg, p, ml, luFn, null, blMult);
+    return;
+  }
+  /* 体力交換の杖：壊すと隣接する中で最もHPが高いモンスターとHP交換 */
+  if (eff === "vitality_swap") {
+    const _vsbDirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+    let _vsbMax = null;
+    for (const [adx, ady] of _vsbDirs) {
+      const ax = p.x + adx, ay = p.y + ady;
+      if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+      const _bm = monsterAt(dg, ax, ay);
+      if (_bm && (!_vsbMax || _bm.hp > _vsbMax.hp)) _vsbMax = _bm;
+    }
+    if (_vsbMax) {
+      if (!consumeBarrier(_vsbMax, ml)) {
+        applyWandEffect(eff, "monster", _vsbMax, 0, 0, dg, p, ml, luFn, null, blMult);
+      }
+    } else {
+      ml.push("杖が壊れたが周囲にモンスターがいなかった。");
+    }
     return;
   }
   const dirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
