@@ -183,6 +183,13 @@ export const TILE_RENDER = {
   86: { bg: null, fg: "#c0a030", ch: "T" },
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
+  /* ===== ボス tier 5〜10 ===== */
+  95:  { bg: null, fg: "#aa8833", ch: "B" }, /* 魔将軍  */
+  96:  { bg: null, fg: "#ccccaa", ch: "B" }, /* 骸骨王  */
+  97:  { bg: null, fg: "#ffaa00", ch: "B" }, /* 炎帝竜  */
+  98:  { bg: null, fg: "#6600cc", ch: "B" }, /* 虚無の僧侶 */
+  99:  { bg: null, fg: "#cc0022", ch: "B" }, /* 煉獄公  */
+  100: { bg: null, fg: "#880088", ch: "B" }, /* 深淵神  */
 };
 
 /* Canvas drawing helper */

@@ -1319,6 +1319,24 @@ D[91] = largeMon("#1166bb", "#0a3388");
 // 92: ボス tier 4 — 魔神王 (demon crimson)
 D[92] = largeMon("#cc1144", "#880033");
 
+// 95: ボス tier 5 — 魔将軍 (dark iron-gold)
+D[95] = largeMon("#886622", "#553300");
+
+// 96: ボス tier 6 — 骸骨王 (bone white)
+D[96] = largeMon("#ccccaa", "#888866");
+
+// 97: ボス tier 7 — 炎帝竜 (blazing gold)
+D[97] = largeMon("#dd8800", "#994400");
+
+// 98: ボス tier 8 — 虚無の僧侶 (void indigo)
+D[98] = largeMon("#220066", "#110044");
+
+// 99: ボス tier 9 — 煉獄公 (purgatory deep red)
+D[99] = largeMon("#990011", "#440008");
+
+// 100: ボス tier 10 — 深淵神 (abyss black-violet)
+D[100] = largeMon("#330033", "#110011");
+
 /* ===== EXPORT ===== */
 
 export function generateTileImages() {

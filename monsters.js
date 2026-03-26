@@ -583,21 +583,45 @@ export function monLevelDown(mon, dg, ml) {
 /* ===== ボステンプレート（5階ごとに1体登場） ===== */
 export const BOSSES = [
   /* 第1ボス B5F (depth=4) */
-  { name: "灼熱の覇者", hp: 216, atk: 31, def: 16, exp: 500,
+  { name: "灼熱の覇者", hp: 216,   atk: 31,  def: 16,  exp: 500,
     speed: 1,   tile: 89, kind: "beast",    baseKind: "boss_blaze",
-    isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 2 },
+    isBoss: true, bossTier: 1,  monLevel: 1, maxAttacks: 2 },
   /* 第2ボス B10F (depth=9) */
-  { name: "呪縛の賢者", hp: 360, atk: 44, def: 23, exp: 1200,
+  { name: "呪縛の賢者", hp: 360,   atk: 44,  def: 23,  exp: 1200,
     speed: 1.5, tile: 90, kind: "humanoid", baseKind: "boss_sage",
-    isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 2 },
+    isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 2 },
   /* 第3ボス B15F (depth=14) */
-  { name: "深淵の番人", hp: 600, atk: 56, def: 32, exp: 2500,
+  { name: "深淵の番人", hp: 600,   atk: 56,  def: 32,  exp: 2500,
     speed: 1,   tile: 91, kind: "beast",    baseKind: "boss_guardian",
-    isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 3 },
+    isBoss: true, bossTier: 3,  monLevel: 1, maxAttacks: 3 },
   /* 第4ボス B20F (depth=19) */
-  { name: "魔神王", hp: 900, atk: 73, def: 41, exp: 5000,
+  { name: "魔神王",     hp: 900,   atk: 73,  def: 41,  exp: 5000,
     speed: 2,   tile: 92, kind: "beast",    baseKind: "boss_demonking",
-    isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 3, float: true },
+    isBoss: true, bossTier: 4,  monLevel: 1, maxAttacks: 3, float: true },
+  /* 第5ボス B25F (depth=24) */
+  { name: "魔将軍",     hp: 1400,  atk: 95,  def: 52,  exp: 9000,
+    speed: 2,   tile: 95, kind: "humanoid", baseKind: "boss_warlord",
+    isBoss: true, bossTier: 5,  monLevel: 1, maxAttacks: 3 },
+  /* 第6ボス B30F (depth=29) */
+  { name: "骸骨王",     hp: 2200,  atk: 120, def: 65,  exp: 15000,
+    speed: 2,   tile: 96, kind: "undead",   baseKind: "boss_skullking",
+    isBoss: true, bossTier: 6,  monLevel: 1, maxAttacks: 3, float: true },
+  /* 第7ボス B35F (depth=34) */
+  { name: "炎帝竜",     hp: 3400,  atk: 150, def: 80,  exp: 25000,
+    speed: 2,   tile: 97, kind: "dragon",   baseKind: "boss_flamedragon",
+    isBoss: true, bossTier: 7,  monLevel: 1, maxAttacks: 3 },
+  /* 第8ボス B40F (depth=39) */
+  { name: "虚無の僧侶", hp: 5200,  atk: 185, def: 98,  exp: 40000,
+    speed: 2,   tile: 98, kind: "humanoid", baseKind: "boss_voidmonk",
+    isBoss: true, bossTier: 8,  monLevel: 1, maxAttacks: 3, float: true },
+  /* 第9ボス B45F (depth=44) */
+  { name: "煉獄公",     hp: 8000,  atk: 225, def: 118, exp: 65000,
+    speed: 2,   tile: 99, kind: "beast",    baseKind: "boss_infernoking",
+    isBoss: true, bossTier: 9,  monLevel: 1, maxAttacks: 3, float: true },
+  /* 第10ボス B50F (depth=49) ― 最終ボス */
+  { name: "深淵神",     hp: 12000, atk: 270, def: 140, exp: 100000,
+    speed: 2,   tile: 100, kind: "beast",   baseKind: "boss_abyssgod",
+    isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 3, float: true },
 ];
 
 /* ===== 警備員テンプレート ===== */
