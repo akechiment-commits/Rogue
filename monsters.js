@@ -634,27 +634,39 @@ export const BOSSES = [
   { name: "魔神王",     hp: 900,   atk: 73,  def: 41,  exp: 5000,
     speed: 2,   tile: 92, kind: "beast",    baseKind: "boss_demonking",
     isBoss: true, bossTier: 4,  monLevel: 1, maxAttacks: 3, float: true },
-  /* 第5ボス B25F (depth=24) */
-  { name: "魔将軍",     hp: 1200,  atk: 88,  def: 52,  exp: 9000,
-    speed: 2,   tile: 95, kind: "humanoid", baseKind: "boss_warlord",
-    isBoss: true, bossTier: 5,  monLevel: 1, maxAttacks: 3 },
-  /* 第6ボス B30F (depth=29) */
-  { name: "骸骨王",     hp: 1600,  atk: 105, def: 60,  exp: 15000,
-    speed: 2,   tile: 96, kind: "undead",   baseKind: "boss_skullking",
-    isBoss: true, bossTier: 6,  monLevel: 1, maxAttacks: 3, float: true },
-  /* 第7ボス B35F (depth=34) */
+  /* 第5ボス B25F (depth=24)
+   * 【鎧砕き蓄積型】遅いが攻撃を受けるたびに防御が半減し続ける。後半は1発が致命的になる。
+   * 攻略：なるべく攻撃を受けず、防御アイテムを使いながら早期撃破 */
+  { name: "魔将軍",     hp: 1200,  atk: 96,  def: 55,  exp: 9000,
+    speed: 1,   tile: 95, kind: "humanoid", baseKind: "boss_warlord",
+    isBoss: true, bossTier: 5,  monLevel: 1, maxAttacks: 2 },
+  /* 第6ボス B30F (depth=29)
+   * 【物量召喚型】3ターンに2体召喚し続けて数で圧倒。HP吸収で長期戦も不利。
+   * 攻略：通路など狭い場所で召喚を制限し本体に集中攻撃 */
+  { name: "骸骨王",     hp: 1600,  atk: 108, def: 60,  exp: 15000,
+    speed: 1.5, tile: 96, kind: "undead",   baseKind: "boss_skullking",
+    isBoss: true, bossTier: 6,  monLevel: 1, maxAttacks: 2, float: true },
+  /* 第7ボス B35F (depth=34)
+   * 【油炎コンボ型】倍速で動きながら油まみれブレスを吐く。油状態で攻撃を受けると炎ダメージ2倍。
+   * 攻略：油を素早く解消するか炎耐性で対抗。ブレスターンか攻撃ターンかを読む */
   { name: "炎帝竜",     hp: 2000,  atk: 122, def: 68,  exp: 25000,
     speed: 2,   tile: 97, kind: "dragon",   baseKind: "boss_flamedragon",
     isBoss: true, bossTier: 7,  monLevel: 1, maxAttacks: 3 },
-  /* 第8ボス B40F (depth=39) */
-  { name: "虚無の僧侶", hp: 2500,  atk: 142, def: 77,  exp: 40000,
-    speed: 2,   tile: 98, kind: "humanoid", baseKind: "boss_voidmonk",
-    isBoss: true, bossTier: 8,  monLevel: 1, maxAttacks: 3, float: true },
-  /* 第9ボス B45F (depth=44) */
+  /* 第8ボス B40F (depth=39)
+   * 【消耗戦型】速度は遅いが毎ターン回復し、5ターンに1度ランダム状態異常を付与し続ける。
+   * 攻略：封印されてもごり押せる火力を確保。回復量を超える火力を出し切る */
+  { name: "虚無の僧侶", hp: 2500,  atk: 138, def: 82,  exp: 40000,
+    speed: 1,   tile: 98, kind: "humanoid", baseKind: "boss_voidmonk",
+    isBoss: true, bossTier: 8,  monLevel: 1, maxAttacks: 2, float: true },
+  /* 第9ボス B45F (depth=44)
+   * 【激昂型】最初は中速だがHP50%以下で激昂してspeed3になり手がつけられない。
+   * 攻略：激昂前に一気に仕留める。激昂後は即死火力か即逃げしか選択肢がない */
   { name: "煉獄公",     hp: 3000,  atk: 163, def: 87,  exp: 65000,
-    speed: 2,   tile: 99, kind: "beast",    baseKind: "boss_infernoking",
+    speed: 1.5, tile: 99, kind: "beast",    baseKind: "boss_infernoking",
     isBoss: true, bossTier: 9,  monLevel: 1, maxAttacks: 3, float: true },
-  /* 第10ボス B50F (depth=49) ― 最終ボス */
+  /* 第10ボス B50F (depth=49) ― 最終ボス
+   * 【全部乗せ型】倍速+毎ターン回復+4T召喚+金縛り+防御半減が全部来る。全ての脅威の集大成。
+   * 攻略：ダンジョン全体で収集したリソースを惜しまず使い切る */
   { name: "深淵神",     hp: 3800,  atk: 183, def: 97,  exp: 100000,
     speed: 2,   tile: 100, kind: "beast",   baseKind: "boss_abyssgod",
     isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 3, float: true },
