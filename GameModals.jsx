@@ -1645,7 +1645,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
                     {spell.spellLevel >= 6 && <span style={{ color: "#ffd700", marginLeft: 3 }}>MAX</span>}
                   </span>
                 </div>
-                <div style={{ color: "#4060a0", fontSize: 10, marginTop: 2 }}>{spell.desc}</div>
+                <div style={{ color: "#4060a0", fontSize: 10, marginTop: 2 }}>{spell.desc.replace(/。?MP:\d+$/, "")}</div>
               </div>
             );
           })}
