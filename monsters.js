@@ -139,6 +139,8 @@ const _POTION_THROW_POOL = [
   { effect: "seal",     value: 0  },
   { effect: "darkness", value: 0  },
   { effect: "bewitch",  value: 0  },
+  { effect: "heal",     value: 30 },
+  { effect: "heal",     value: 60 },
 ];
 function monsterThrowPotion(m, dg, pl, ml) {
   const _pot = pick(_POTION_THROW_POOL);
