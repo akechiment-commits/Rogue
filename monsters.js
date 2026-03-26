@@ -519,6 +519,55 @@ export const MONS = [
       { name: "覇わてり",           hp: 100, atk: 32, def: 14, exp: 120 },
     ],
   },
+  /* ===== 超上級ダンジョン専用モンスター（31〜50F） ===== */
+  { name: "鉄壁将",       hp: 130, atk: 35, def: 30, exp: 150, speed: 1,   tile: 95, kind: "humanoid", baseKind: "ironguard",      monLevel: 1, minFloor: 31, maxFloor: 40, subtype: "knocker",
+    levels: [
+      { name: "強鉄壁将",   hp: 208, atk: 50, def: 42, exp: 240 },
+      { name: "覇鉄壁将",   hp: 325, atk: 65, def: 55, exp: 375 },
+    ],
+  },
+  { name: "蟲召喚師",     hp: 90,  atk: 28, def: 8,  exp: 130, speed: 1,   tile: 96, kind: "humanoid", baseKind: "bugsummoner",    monLevel: 1, minFloor: 32, maxFloor: 41, subtype: "supporter",
+    levels: [
+      { name: "強蟲召喚師", hp: 144, atk: 42, def: 12, exp: 208 },
+      { name: "覇蟲召喚師", hp: 225, atk: 56, def: 16, exp: 325 },
+    ],
+  },
+  { name: "魔剣士",       hp: 115, atk: 48, def: 12, exp: 165, speed: 1.5, tile: 97, kind: "humanoid", baseKind: "mageblade",      monLevel: 1, minFloor: 34, maxFloor: 43, maxAttacks: 2, subtype: "disarmer",
+    levels: [
+      { name: "強魔剣士",   hp: 184, atk: 67, def: 17, exp: 264 },
+      { name: "覇魔剣士",   hp: 288, atk: 88, def: 22, exp: 413 },
+    ],
+  },
+  { name: "古代ゴーレム", hp: 220, atk: 45, def: 35, exp: 220, speed: 0.5, tile: 57, kind: "beast",    baseKind: "ancientgolem",   monLevel: 1, minFloor: 36, maxFloor: 46,
+    levels: [
+      { name: "強古代ゴーレム", hp: 352, atk: 63, def: 49, exp: 352 },
+      { name: "覇古代ゴーレム", hp: 550, atk: 82, def: 64, exp: 550 },
+    ],
+  },
+  { name: "デスナイト",   hp: 150, atk: 55, def: 18, exp: 200, speed: 2,   tile: 98, kind: "undead",   baseKind: "deathknight",    monLevel: 1, minFloor: 37, maxFloor: 46, maxAttacks: 2,
+    levels: [
+      { name: "強デスナイト", hp: 240, atk: 77, def: 25, exp: 320 },
+      { name: "覇デスナイト", hp: 375, atk: 100, def: 33, exp: 500 },
+    ],
+  },
+  { name: "冥土術師",     hp: 120, atk: 42, def: 10, exp: 250, speed: 1,   tile: 99, kind: "humanoid", baseKind: "nethermage",     monLevel: 1, minFloor: 40, maxFloor: 50, subtype: "wanduser", wandEffect: "darkness_wand",
+    levels: [
+      { name: "強冥土術師", hp: 192, atk: 59, def: 14, exp: 400 },
+      { name: "覇冥土術師", hp: 300, atk: 77, def: 18, exp: 625 },
+    ],
+  },
+  { name: "魔王デーモン", hp: 190, atk: 70, def: 20, exp: 320, speed: 2,   tile: 58, kind: "beast",    baseKind: "demonlord",      monLevel: 1, minFloor: 43, maxFloor: 50, maxAttacks: 3, float: true,
+    levels: [
+      { name: "強魔王デーモン", hp: 304, atk: 98, def: 28, exp: 512 },
+      { name: "覇魔王デーモン", hp: 475, atk: 128, def: 37, exp: 800 },
+    ],
+  },
+  { name: "深淵王",       hp: 280, atk: 90, def: 28, exp: 450, speed: 2,   tile: 100, kind: "beast",   baseKind: "abyssking",      monLevel: 1, minFloor: 46, maxFloor: 50, maxAttacks: 3, float: true,
+    levels: [
+      { name: "強深淵王",   hp: 448, atk: 126, def: 39, exp: 720 },
+      { name: "覇深淵王",   hp: 700, atk: 165, def: 51, exp: 1125 },
+    ],
+  },
 ];
 
 /* ===== モンスターレベルアップテーブル (MONS の levels から自動生成) ===== */

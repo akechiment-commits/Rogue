@@ -299,9 +299,10 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const bestDepth = saveData.bestDepth || 0;
 
   const DUNGEON_TYPES = [
-    { id:"beginner",     label:"初心者ダンジョン", desc:"全10階",                                    color:"#8cf", maxFloors:10  },
-    { id:"intermediate", label:"中級者ダンジョン", desc:"全20階",                                    color:"#fc8", maxFloors:20  },
-    { id:"advanced",     label:"上級者ダンジョン", desc:"全30階",                                    color:"#f88", maxFloors:30  },
+    { id:"beginner",     label:"初心者ダンジョン",   desc:"全10階",                                    color:"#8cf", maxFloors:10  },
+    { id:"intermediate", label:"中級者ダンジョン",   desc:"全20階",                                    color:"#fc8", maxFloors:20  },
+    { id:"advanced",     label:"上級者ダンジョン",   desc:"全30階",                                    color:"#f88", maxFloors:30  },
+    { id:"legend",       label:"超上級者ダンジョン", desc:"全50階・超難度。深淵の禁書を持ち帰れ",      color:"#c84fff", maxFloors:50 },
     { id:"debug",        label:"デバッグダンジョン", desc:"全アイテム・全モンスター配置（テスト用）", color:"#fa0", maxFloors:null },
   ];
   const [dtype, setDtype] = useState("beginner");

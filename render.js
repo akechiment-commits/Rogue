@@ -183,6 +183,13 @@ export const TILE_RENDER = {
   86: { bg: null, fg: "#c0a030", ch: "T" },
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
+  /* ===== 超上級モンスター ===== */
+  95: { bg: null, fg: "#ccccdd", ch: "H" },  /* 鉄壁将  */
+  96: { bg: null, fg: "#226644", ch: "N" },  /* 蟲召喚師 */
+  97: { bg: null, fg: "#dd2244", ch: "K" },  /* 魔剣士  */
+  98: { bg: null, fg: "#334466", ch: "N" },  /* デスナイト */
+  99: { bg: null, fg: "#8822aa", ch: "L" },  /* 冥土術師 */
+  100: { bg: null, fg: "#cc0022", ch: "X" }, /* 深淵王  */
 };
 
 /* Canvas drawing helper */

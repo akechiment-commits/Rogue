@@ -1405,7 +1405,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const traps = [];
   const occ = (x, y) =>
     inShop(x, y) || items.some((i) => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y);
-  const _itemCount = dungeonType === "advanced" ? rng(1, 3) : dungeonType === "intermediate" ? rng(2, 4) : rng(4, 6);
+  const _itemCount = dungeonType === "legend" ? rng(1, 2) : dungeonType === "advanced" ? rng(1, 3) : dungeonType === "intermediate" ? rng(2, 4) : rng(4, 6);
   for (let i = 0; i < _itemCount; i++) {
     const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
@@ -1434,7 +1434,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
   }
   /* サブアイテムをプール方式でランダム生成（系統ごとの上限なし・後で重み調整可） */
-  const _subPoolSize = dungeonType === "advanced" ? rng(2, 5) : dungeonType === "intermediate" ? rng(3, 6) : rng(4, 8);
+  const _subPoolSize = dungeonType === "legend" ? rng(1, 3) : dungeonType === "advanced" ? rng(2, 5) : dungeonType === "intermediate" ? rng(3, 6) : rng(4, 8);
   const _subGens = [
     /* 矢 */       () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
     /* 杖 */       () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: t.charges + rng(-1, 2) }; },
@@ -1456,7 +1456,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
   }
   /* Pen spawn（特殊低確率、別枠） */
-  const _penChance = dungeonType === "advanced" ? 0.05 : dungeonType === "intermediate" ? 0.10 : 0.15;
+  const _penChance = dungeonType === "legend" ? 0.03 : dungeonType === "advanced" ? 0.05 : dungeonType === "intermediate" ? 0.10 : 0.15;
   if (Math.random() < _penChance) {
     const _penPool = ITEMS.filter((it) => it.type === "pen");
     if (_penPool.length > 0) {
@@ -1469,7 +1469,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       }
     }
   }
-  const _trapsPerRoom = dungeonType === "advanced" ? 3 : dungeonType === "intermediate" ? 2 : 1;
+  const _trapsPerRoom = dungeonType === "legend" ? 4 : dungeonType === "advanced" ? 3 : dungeonType === "intermediate" ? 2 : 1;
   const tc = rooms.length * _trapsPerRoom;
   for (let i = 0; i < tc; i++) {
     const rm = pick(rooms);
@@ -1733,6 +1733,7 @@ export const GOAL_ITEMS = {
   beginner:     { name:"輝く宝玉",       type:"goal", desc:"地上に持ち帰ればダンジョン踏破の証となる。", tile:22 },
   intermediate: { name:"深紅の魔石",     type:"goal", desc:"強大な魔力を秘めた石。地上に持ち帰ろう。",   tile:22 },
   advanced:     { name:"伝説の王冠",     type:"goal", desc:"かつての王が残した冠。地上に持ち帰ろう。",   tile:22 },
+  legend:       { name:"深淵の禁書",     type:"goal", desc:"深淵の底に封じられた禁断の書。地上に持ち帰れば真の伝説の冒険者だ。", tile:22 },
 };
 
 export function prepareLastFloor(dg, dungeonType) {
