@@ -737,7 +737,11 @@ export function useItemActions({
           const _rvisC = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
           for (const _m of _rvisC) {
             const _ma = Math.min(rng(10, 20), _m.maxHp - _m.hp);
-            if (_m.kind === "undead") {
+            if (_m.subtype === "magicreflect") {
+              const _refC = Math.min(rng(10, 20), p.maxHp - p.hp);
+              if (_refC > 0) { p.hp += _refC; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refC}！`); pushHealAnim(p.x, p.y); }
+              else ml.push(`${_m.name}が回復魔法を跳ね返したが効果がなかった。`);
+            } else if (_m.kind === "undead") {
               _m.hp -= _ma; ml.push(`${_m.name}はアンデッドのため${_ma}ダメージを受けた！`);
               if (_m.hp <= 0) killMonster(_m, dg, p, ml, lu);
             } else if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
@@ -757,7 +761,11 @@ export function useItemActions({
             for (const _m of _rvis) {
               const _mh = Math.max(1, Math.round(rng(10, 20)));
               const _ma = Math.min(_mh, _m.maxHp - _m.hp);
-              if (_m.kind === "undead") {
+              if (_m.subtype === "magicreflect") {
+                const _refN = Math.min(_mh, p.maxHp - p.hp);
+                if (_refN > 0) { p.hp += _refN; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refN}！`); pushHealAnim(p.x, p.y); }
+                else ml.push(`${_m.name}が回復魔法を跳ね返したが効果がなかった。`);
+              } else if (_m.kind === "undead") {
                 _m.hp -= _mh; ml.push(`${_m.name}はアンデッドのため${_mh}ダメージを受けた！`);
                 if (_m.hp <= 0) killMonster(_m, dg, p, ml, lu);
               } else if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }

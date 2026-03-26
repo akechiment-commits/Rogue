@@ -1516,6 +1516,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
+      /* 魔法反射：魔法ボルトをプレイヤーに跳ね返す */
+      if (mon.subtype === "magicreflect") {
+        ml.push(`${mon.name}が魔法を跳ね返した！`);
+        pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: p.x, toY: p.y, color: _boltClr });
+        applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
+        return;
+      }
       applyWandEffect(eff, "monster", mon, dx, dy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }

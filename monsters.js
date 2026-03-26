@@ -549,6 +549,12 @@ export const MONS = [
       { name: "覇ハンマーオーガ",   hp: 188, atk: 56, def: 17, exp: 200 },
     ],
   },
+  { name: "魔法反射師",   hp: 38,  atk: 16, def: 8,  exp: 75,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "magicreflector", monLevel: 1, minFloor: 13, maxFloor: 50, subtype: "magicreflect",
+    levels: [
+      { name: "強魔法反射師",       hp: 61,  atk: 22, def: 13, exp: 120 },
+      { name: "覇魔法反射師",       hp: 95,  atk: 29, def: 18, exp: 188 },
+    ],
+  },
   { name: "わてり",       hp: 40,  atk: 16, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, waterOnly: true, subtype: "watergunner",
     levels: [
       { name: "強わてり",           hp: 64,  atk: 24, def: 10, exp: 77  },
