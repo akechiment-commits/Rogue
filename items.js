@@ -867,6 +867,7 @@ export const TRAPS = [
   { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73 },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84 },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85 },
+  { name:"腐敗の罠",       effect:"rot_trap",      tile:94 },
 ];
 
 /**
@@ -1580,6 +1581,29 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "darkness_proof")) { ml.push("しかし防具が暗闇を防いだ！(耐暗闇)"); }
         else { p.darknessTurns = (p.darknessTurns || 0) + 20; ml.push("暗闇に包まれた！視界が1マスになる！(20ターン)"); }
+      }
+      return "restart";
+    }
+    case "rot_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _rtm = monsterAt(dg, tx, ty);
+      if (_rtm) {
+        dg.monsters = dg.monsters.filter(m => m !== _rtm);
+        const _rotFoodItem = { ...genFood(), id: uid() };
+        rotFood(_rotFoodItem);
+        _rotFoodItem.x = tx; _rotFoodItem.y = ty;
+        dg.items.push(_rotFoodItem);
+        ml.push(`${_rtm.name}が腐敗に飲み込まれ${_rotFoodItem.name}に変わった！`);
+      }
+      if (p && p.x === tx && p.y === ty && p.inventory) {
+        const _rFoods = p.inventory.filter(i => i.type === "food" && !i.rotten);
+        if (_rFoods.length > 0) {
+          const _rTarget = _rFoods[rng(0, _rFoods.length - 1)];
+          rotFood(_rTarget);
+          ml.push(`${_rTarget.name}が腐ってしまった！`);
+        } else {
+          ml.push("腐らせるものがなかった。");
+        }
       }
       return "restart";
     }

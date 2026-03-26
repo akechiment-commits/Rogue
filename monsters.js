@@ -2010,7 +2010,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           (_blocker.aware ? (_blocker.lastPx ?? pl.x) : (m.x)),
           (_blocker.aware ? (_blocker.lastPy ?? pl.y) : (m.y)),
           _blocker, 4, dg.pentacles, _blocker.float);
-        if (_bNext && _bNext.x === m.x && _bNext.y === m.y && _blocker.type !== "shopkeeper") {
+        if (_bNext && _bNext.x === m.x && _bNext.y === m.y && _blocker.type !== "shopkeeper" &&
+            /* waterOnly：スワップ先が水/泉でない場合はスワップ不可 */
+            (!m.waterOnly || map[next.y]?.[next.x] === T.WATER || dg.springs?.some(s => s.x === next.x && s.y === next.y))) {
           /* 正面衝突：スワップ（店主はスワップ不可） */
           _blocker.x = m.x; _blocker.y = m.y;
           m.dir = { x: next.x - m.x, y: next.y - m.y };
@@ -2027,7 +2029,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       for (const [_adx, _ady] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
         const _anx = m.x + _adx, _any = m.y + _ady;
         if (_anx === next.x && _any === next.y) continue;
-        if (!canEnter(map, _anx, _any, _effFloat)) continue;
+        if (m.waterOnly) {
+          if (!inBounds(_anx, _any)) continue;
+          if (map[_any][_anx] !== T.WATER && !dg.springs?.some(s => s.x === _anx && s.y === _any)) continue;
+        } else {
+          if (!canEnter(map, _anx, _any, _effFloat)) continue;
+        }
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
         if (_adx !== 0 && _ady !== 0) {
@@ -2061,7 +2068,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _fd4 = [[0,-1],[0,1],[-1,0],[1,0]].sort(() => Math.random() - 0.5);
       for (const [_fdx, _fdy] of _fd4) {
         const _fnx = m.x + _fdx, _fny = m.y + _fdy;
-        if (!canEnter(map, _fnx, _fny, _effFloat)) continue;
+        if (m.waterOnly) {
+          if (!inBounds(_fnx, _fny)) continue;
+          if (map[_fny][_fnx] !== T.WATER && !dg.springs?.some(s => s.x === _fnx && s.y === _fny)) continue;
+        } else if (!canEnter(map, _fnx, _fny, _effFloat)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
@@ -2076,6 +2086,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   } else if (!_attackOnly) {
     /* ===== 未覚醒：パトロール ===== */
+    /* waterOnlyモンスターは水上のみ移動可能なため、未覚醒時はその場で待機 */
+    if (m.waterOnly) return;
     const room = findRoom(rooms, m.x, m.y);
     const _arrived = m.patrolTarget &&
       m.x === m.patrolTarget.x && m.y === m.patrolTarget.y;

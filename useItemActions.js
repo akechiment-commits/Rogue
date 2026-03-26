@@ -372,8 +372,7 @@ export function useItemActions({
           p.poisoned = true;
           ml.push("食中毒になった！毒状態になった！攻撃力が徐々に下がっていく…");
         }
-        return ml;
-      }
+      } else {
       const _foodVal = Math.max(1, Math.round(it.value * _foodBm));
       p.inventory.splice(idx, 1);
       if (p.hunger < 0) p.hunger = 0;
@@ -557,6 +556,7 @@ export function useItemActions({
           }
         }
       }
+      } // end else (non-rotten food)
     } else if (it.type === "scroll") {
       if (it.effect === "blank") {
         ml.push("白紙の巻物だ。魔法のマーカーで書き込めるかもしれない。");
