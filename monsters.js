@@ -494,7 +494,7 @@ export const MONS = [
       { name: "大転移術師",         hp: 117, atk: 32, def: 16, exp: 225 },
     ],
   },
-  { name: "ガーゴイル",   hp: 88,  atk: 27, def: 16, exp: 90,  speed: 0.5, tile: 52, kind: "beast",    baseKind: "gargoyle",      monLevel: 1, minFloor: 26, maxFloor: 50, float: true,
+  { name: "ガーゴイル",   hp: 88,  atk: 27, def: 16, exp: 90,  speed: 0.5, tile: 52, kind: "undead",   baseKind: "gargoyle",      monLevel: 1, minFloor: 26, maxFloor: 50, float: true,
     levels: [
       { name: "強ガーゴイル",       hp: 140, atk: 38, def: 21, exp: 144 },
       { name: "覇ガーゴイル",       hp: 220, atk: 48, def: 27, exp: 225 },
@@ -656,7 +656,7 @@ export const BOSSES = [
    * 【消耗戦型】速度は遅いが毎ターン回復し、5ターンに1度ランダム状態異常を付与し続ける。
    * 攻略：封印されてもごり押せる火力を確保。回復量を超える火力を出し切る */
   { name: "虚無の僧侶", hp: 1500,  atk: 138, def: 82,  exp: 40000,
-    speed: 1,   tile: 98, kind: "humanoid", baseKind: "boss_voidmonk",
+    speed: 1,   tile: 98, kind: "undead",   baseKind: "boss_voidmonk",
     isBoss: true, bossTier: 8,  monLevel: 1, maxAttacks: 2, float: true },
   /* 第9ボス B45F (depth=44)
    * 【激昂型】通常は倍速・攻撃2回だがHP50%以下で激昂してspeed3になり手がつけられない。
