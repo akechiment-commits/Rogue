@@ -17,7 +17,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames,
   hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
-  applyPotionEffect, getBlessMultiplier,
+  applyPotionEffect, getBlessMultiplier, doGunpowderExplosion,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
@@ -3083,25 +3083,80 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               const _sdx = Math.sign(p.x - bb.x), _sdy = Math.sign(p.y - bb.y);
               applyWandEffect(item.effect, "player", p, _sdx || 1, _sdy, dg, p, ml, lu, bigboxAddItem, _scBm, _scDnFn);
             }
-          } else {
-            const _scDmg = (item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : 3) + rng(0, 3);
-            for (const m of [..._scMons]) {
-              const _itd = clampDmgFixed(m, _scDmg, true);
-              m.hp -= _itd;
-              ml.push(`${_idn}が${m.name}に命中！${_itd}ダメージ！`);
-              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+          } else if (item.type === "pot") {
+            /* 壺：種類に応じた破壊効果（中身は散乱しない） */
+            const _oilMap = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+            if (item.potEffect === "gunpowder") {
+              ml.push(`${_idn}が飛び散って爆発した！`);
+              if (hasCursedExplosionPentacle(dg)) {
+                ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
+              } else {
+                doGunpowderExplosion(bb.x, bb.y, dg, p, ml, lu);
+              }
+            } else if (_oilMap[item.potEffect] && (item.contents?.length || 0) < (item.capacity || 3)) {
+              ml.push(`${_idn}が割れて${_oilMap[item.potEffect]}が飛び散った！`);
+              dg.oilyTiles = dg.oilyTiles || [];
+              for (const m of [..._scMons]) {
+                m.oilyTurns = (m.oilyTurns || 0) + 100;
+                ml.push(`${m.name}は油まみれになった！(100ターン)`);
+              }
+              if (_scPInRoom) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
+              /* 油をbox周囲に飛散 */
+              for (let _oy = -1; _oy <= 1; _oy++) for (let _ox = -1; _ox <= 1; _ox++) {
+                const _otx = bb.x + _ox, _oty = bb.y + _oy;
+                if (_otx >= 0 && _otx < MW && _oty >= 0 && _oty < MH && dg.map[_oty][_otx] !== T.WALL && dg.map[_oty][_otx] !== T.BWALL)
+                  if (!dg.oilyTiles.some(t => t.x === _otx && t.y === _oty)) dg.oilyTiles.push({ x: _otx, y: _oty });
+              }
+            } else {
+              const _potDmg = 3 + rng(0, 3);
+              for (const m of [..._scMons]) {
+                const _itd = clampDmgFixed(m, _potDmg, true);
+                m.hp -= _itd;
+                ml.push(`${_idn}が${m.name}に命中！${_itd}ダメージ！`);
+                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              }
+              if (_scPInRoom) { p.deathCause = `${item.name}が当たって`; p.hp -= _potDmg; ml.push(`${_idn}がプレイヤーに命中！${_potDmg}ダメージ！`); }
+              ml.push(`${_idn}は割れた！`);
             }
-            if (_scPInRoom) {
-              p.deathCause = `${item.name}が当たって`;
-              p.hp -= _scDmg;
-              ml.push(`${_idn}がプレイヤーに命中！${_scDmg}ダメージ！`);
+          } else {
+            /* 武器・防具・矢・その他：物理ダメージ＋矢の特殊効果 */
+            const _scBase = item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : (item.type === "arrow" ? (item.atk || 4) : 3);
+            const _scDmg = _scBase + rng(0, 3);
+            if (item.type === "arrow" && item.bombArrow) {
+              /* 爆弾矢：爆発 */
+              ml.push(`${_idn}が爆発した！`);
+              if (!hasCursedExplosionPentacle(dg)) {
+                const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                doExplosion(bb.x, bb.y, dg, p, ml, _baNF, `${item.name}の爆発`, null, lu);
+              } else {
+                ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
+              }
+            } else {
+              for (const m of [..._scMons]) {
+                const _itd = clampDmgFixed(m, _scDmg, true);
+                m.hp -= _itd;
+                let _msg = `${_idn}が${m.name}に命中！${_itd}ダメージ！`;
+                if (item.type === "arrow" && item.poison) { m.atk = Math.max(1, Math.floor((m.atk || 1) / 2)); _msg += "攻撃力が半減した！"; }
+                ml.push(_msg);
+                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              }
+              if (_scPInRoom) {
+                p.deathCause = `${item.name}が当たって`;
+                p.hp -= _scDmg;
+                let _pmsg = `${_idn}がプレイヤーに命中！${_scDmg}ダメージ！`;
+                if (item.type === "arrow" && item.poison && !hasRingEffect(p, "antidote_ring")) { p.poisoned = true; _pmsg += "毒を受けた！"; }
+                ml.push(_pmsg);
+              }
             }
           }
         }
+        /* 使用のたびに容量を1減らす */
+        bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
       } else if (bb.kind === "trash") {
-        /* 入れたアイテムを即削除（消滅） */
+        /* 入れたアイテムを即削除（消滅）し容量を1減らす */
         const _trIdx = bb.contents.indexOf(item);
         if (_trIdx >= 0) bb.contents.splice(_trIdx, 1);
+        bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
         ml.push(`${_idn}は消えてしまった。`);
       }
       if (wasFull || bb.contents.length > bb.capacity) breakBigbox(bb, dg, ml);
