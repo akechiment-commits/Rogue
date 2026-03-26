@@ -127,9 +127,13 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   pl.deathCause = `${m.name}の氷ブレスで`;
   pl.hp -= _iDmg;
   onPlayerHit?.(_iDmg, m);
-  const _iSlow = rng(3, 6);
-  pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
-  ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！${_hasIceR ? "（耐氷半減）" : ""}`);
+  if (_hasIceR) {
+    ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！（耐氷：ダメージ半減・鈍足無効）`);
+  } else {
+    const _iSlow = rng(3, 6);
+    pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
+    ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
+  }
 }
 
 /* ===== 薬投げ ===== */
@@ -361,7 +365,7 @@ export const MONS = [
       { name: "精霊コロポックル",   hp: 24,  atk: 0,  def: 0,  exp: 120 },
     ],
   },
-  { name: "ゾンビ",       hp: 34,  atk: 14, def: 3,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19,
+  { name: "ゾンビ",       hp: 34,  atk: 14, def: 3,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire",
     levels: [
       { name: "強ゾンビ",           hp: 54,  atk: 20, def: 7,  exp: 45  },
       { name: "屍鬼",               hp: 85,  atk: 24, def: 12, exp: 70  },
@@ -373,7 +377,7 @@ export const MONS = [
       { name: "覇ワッカ",           hp: 61,  atk: 27, def: 7,  exp: 72  },
     ],
   },
-  { name: "分裂スライム", hp: 30,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 77, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, subtype: "splitter",
+  { name: "分裂スライム", hp: 30,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 77, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter",
     levels: [
       { name: "強スライム",         hp: 47,  atk: 18, def: 5,  exp: 51  },
       { name: "覇スライム",         hp: 74,  atk: 24, def: 7,  exp: 80  },
@@ -397,7 +401,7 @@ export const MONS = [
       { name: "怪盗",               hp: 43,  atk: 12, def: 3,  exp: 88  },
     ],
   },
-  { name: "錆虫",         hp: 24,  atk: 11, def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, subtype: "ruster",
+  { name: "錆虫",         hp: 24,  atk: 11, def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster",
     levels: [
       { name: "強錆虫",             hp: 39,  atk: 15, def: 5,  exp: 64  },
       { name: "覇錆虫",             hp: 61,  atk: 21, def: 7,  exp: 100 },
@@ -409,7 +413,7 @@ export const MONS = [
       { name: "大魔導士",           hp: 61,  atk: 24, def: 12, exp: 105 },
     ],
   },
-  { name: "ボムスライム", hp: 38,  atk: 12, def: 2,  exp: 55,  speed: 1,   tile: 77, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "deathbomb",
+  { name: "ボムスライム", hp: 38,  atk: 12, def: 2,  exp: 55,  speed: 1,   tile: 77, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb",
     levels: [
       { name: "強ボムスライム",     hp: 61,  atk: 18, def: 3,  exp: 88  },
       { name: "覇ボムスライム",     hp: 95,  atk: 24, def: 5,  exp: 138 },
@@ -421,7 +425,7 @@ export const MONS = [
       { name: "自爆狂",             hp: 1,   atk: 24, def: 0,  exp: 150 },
     ],
   },
-  { name: "水晶スライム", hp: 5,   atk: 15, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, fixedDamageOnly: true,
+  { name: "水晶スライム", hp: 5,   atk: 15, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, elemWeak: "fire", fixedDamageOnly: true,
     levels: [
       { name: "強水晶スライム",     hp: 8,   atk: 21, def: 0,  exp: 80  },
       { name: "覇水晶スライム",     hp: 11,  atk: 27, def: 0,  exp: 125 },
@@ -439,7 +443,7 @@ export const MONS = [
       { name: "オーク王",           hp: 101, atk: 33, def: 16, exp: 120 },
     ],
   },
-  { name: "ゼラチンキューブ", hp: 81, atk: 18, def: 5, exp: 70,  speed: 0.5, tile: 79, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50,
+  { name: "ゼラチンキューブ", hp: 81, atk: 18, def: 5, exp: 70,  speed: 0.5, tile: 79, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "fire",
     levels: [
       { name: "強ゼラチンキューブ", hp: 130, atk: 26, def: 9,  exp: 112 },
       { name: "覇ゼラチンキューブ", hp: 203, atk: 33, def: 13, exp: 175 },
@@ -559,13 +563,13 @@ export const MONS = [
       { name: "ヴァンパイア卿",     hp: 203, atk: 48, def: 19, exp: 230 },
     ],
   },
-  { name: "ドラゴン",     hp: 122, atk: 36, def: 14, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",        monLevel: 1, minFloor: 27, maxFloor: 50,
+  { name: "ドラゴン",     hp: 122, atk: 36, def: 14, exp: 140, speed: 1,   tile: 14, kind: "dragon",   baseKind: "dragon",        monLevel: 1, minFloor: 27, maxFloor: 50, elemWeak: "ice",
     levels: [
       { name: "強ドラゴン",         hp: 194, atk: 51, def: 19, exp: 224 },
       { name: "古龍",               hp: 304, atk: 65, def: 23, exp: 350 },
     ],
   },
-  { name: "ゴーレム",     hp: 135, atk: 30, def: 23, exp: 115, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",         monLevel: 1, minFloor: 27, maxFloor: 50,
+  { name: "ゴーレム",     hp: 135, atk: 30, def: 23, exp: 115, speed: 0.5, tile: 57, kind: "beast",    baseKind: "golem",         monLevel: 1, minFloor: 27, maxFloor: 50, elemWeak: "thunder",
     levels: [
       { name: "強ゴーレム",         hp: 216, atk: 42, def: 28, exp: 184 },
       { name: "覇ゴーレム",         hp: 338, atk: 54, def: 34, exp: 288 },
@@ -614,13 +618,13 @@ export const MONS = [
       { name: "覇薬投げ師",         hp: 75,  atk: 24, def: 10, exp: 120 },
     ],
   },
-  { name: "氷竜",         hp: 65,  atk: 27, def: 10, exp: 125, speed: 1,   tile: 39, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50,
+  { name: "氷竜",         hp: 65,  atk: 27, def: 10, exp: 125, speed: 1,   tile: 39, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder",
     levels: [
       { name: "大氷竜",             hp: 105, atk: 37, def: 16, exp: 200 },
       { name: "覇氷竜",             hp: 168, atk: 48, def: 22, exp: 320 },
     ],
   },
-  { name: "わてり",       hp: 40,  atk: 16, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, waterOnly: true, subtype: "watergunner",
+  { name: "わてり",       hp: 40,  atk: 16, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner",
     levels: [
       { name: "強わてり",           hp: 64,  atk: 24, def: 10, exp: 77  },
       { name: "覇わてり",           hp: 100, atk: 32, def: 14, exp: 120 },

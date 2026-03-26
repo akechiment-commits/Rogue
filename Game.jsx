@@ -2103,25 +2103,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 d *= 2;
                 crit = true;
               }
-              /* 炎属性武器：油まみれ×2、火ダルマ×0.5 */
+              /* 炎属性武器：fire弱点×2、油まみれ×2、火ダルマ×0.5 */
               const _hasFireElem = wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
               if (_hasFireElem) {
                 if (attackMon.baseKind === "firedemon") {
                   d = Math.max(1, Math.floor(d * 0.5));
+                } else if (attackMon.elemWeak === "fire") {
+                  d *= 2;
                 } else {
                   const _feOily = (attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y);
                   if (_feOily) d *= 2;
                 }
               }
-              /* 氷属性武器：火ダルマ×2 */
+              /* 氷属性武器：ice弱点×2、火ダルマ×2 */
               const _hasIceElem = wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
-              if (_hasIceElem && attackMon.baseKind === "firedemon") {
+              if (_hasIceElem && (attackMon.baseKind === "firedemon" || attackMon.elemWeak === "ice")) {
                 d *= 2;
               }
-              /* 雷属性武器：氷竜・わてり×2 */
+              /* 雷属性武器：thunder弱点×2 */
               const _hasThunderElem = wab === "thunder_elem" || p.weapon?.abilities?.some(a => a === "thunder_elem");
-              const _isIceOrWater = attackMon.baseKind === "icedragon" || attackMon.baseKind === "wateri";
-              if (_hasThunderElem && _isIceOrWater) {
+              if (_hasThunderElem && attackMon.elemWeak === "thunder") {
                 d *= 2;
               }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
@@ -2143,9 +2144,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 (crit ? "会心！" : "") +
                 (_isBane ? "特効！" : "") +
                 (_hasFireElem && attackMon.baseKind === "firedemon" ? "（炎半減）" : "") +
-                (_hasFireElem && attackMon.baseKind !== "firedemon" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
-                (_hasIceElem && attackMon.baseKind === "firedemon" ? "氷×2！" : "") +
-                (_hasThunderElem && _isIceOrWater ? "雷×2！" : "") +
+                (_hasFireElem && attackMon.elemWeak === "fire" ? "炎×2！" : "") +
+                (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
+                (_hasIceElem && (attackMon.baseKind === "firedemon" || attackMon.elemWeak === "ice") ? "氷×2！" : "") +
+                (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
               _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });

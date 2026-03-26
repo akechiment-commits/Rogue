@@ -1307,8 +1307,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult));
         p.deathCause = "氷の杖の魔法により";
         p.hp -= _iwDmg;
-        p.immobileTurns = (p.immobileTurns||0) + _iwTurns;
-        ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！`);
+        if (hasAbility(p.armor, "ice_resist")) {
+          ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！（耐氷：移動封じ無効）`);
+        } else {
+          p.immobileTurns = (p.immobileTurns||0) + _iwTurns;
+          ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！`);
+        }
         break;
       }
       break;
