@@ -889,6 +889,146 @@ export function useItemActions({
             }
           }
         }
+      } else if (it.effect === "confusion") {
+        if (it.cursed) {
+          // 呪い：自分が混乱
+          if ((p.statusImmune || 0) > 0) ml.push("混乱ガスが自分を襲った！状態防止中のため効かなかった！【呪】");
+          else { const _ct = rng(4, 7); p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱ガスが自分を襲った！${_ct}ターン混乱する…【呪】`); }
+        } else {
+          const _cfTgts = it.blessed ? dg.monsters : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+          if (_cfTgts.length === 0) { ml.push(it.blessed ? "混乱ガスが漂うが、フロアに敵はいない。【祝】" : "混乱ガスが漂うが、視界に敵はいない。"); }
+          else {
+            for (const _m of _cfTgts) {
+              const _ct = Math.max(1, Math.round(rng(4, 8) * _scrBm));
+              if (_m.subtype === "magicreflect") {
+                if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
+                p.confusedTurns = (p.confusedTurns || 0) + _ct;
+                ml.push(`${_m.name}が混乱を跳ね返した！${_ct}ターン混乱する…`); continue;
+              }
+              if (consumeBarrier(_m, ml)) continue;
+              if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+              _m.confusedTurns = (_m.confusedTurns || 0) + _ct;
+              ml.push(`${_m.name}が混乱した！(${_ct}ターン)${it.blessed ? "【祝】" : ""}`);
+            }
+          }
+        }
+      } else if (it.effect === "flame") {
+        const _flOilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
+        const _flTgts = it.blessed ? [...dg.monsters] : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+        if (_flTgts.length === 0 && !it.cursed) { ml.push(it.blessed ? "炎が走るが、フロアに敵はいない。【祝】" : "炎が走るが、視界に敵はいない。"); }
+        else {
+          for (const _m of _flTgts) {
+            if (_m.hp <= 0) continue;
+            if (_m.subtype === "magicreflect") {
+              const _refFlDmg = Math.max(1, Math.round(rng(15, 25) * _scrBm));
+              p.hp -= _refFlDmg; p.deathCause = `${_m.name}に炎を跳ね返されて`;
+              ml.push(`${_m.name}が炎を跳ね返した！${_refFlDmg}ダメージ！`); pushExplosionAnim(p.x, p.y); continue;
+            }
+            if (consumeBarrier(_m, ml)) continue;
+            if (_m.baseKind === "firedemon") {
+              const _flHeal = Math.min(Math.round(rng(10, 20) * _scrBm), _m.maxHp - _m.hp);
+              if (_flHeal > 0) { _m.hp += _flHeal; ml.push(`炎が${_m.name}を癒した！HP+${_flHeal}`); } else ml.push(`${_m.name}には効果がなかった。`);
+              continue;
+            }
+            let _flDmg = Math.max(1, Math.round(rng(15, 25) * _scrBm));
+            const _flOily = _flOilyCheck(_m);
+            if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
+            _m.hp -= _flDmg;
+            ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_flOily ? "油まみれ×2！" : ""}${it.blessed ? "（祝福）" : ""}`);
+            pushExplosionAnim(_m.x, _m.y);
+            if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
+          }
+        }
+        if (it.cursed) {
+          const _flSelfDmg = Math.max(1, rng(15, 25));
+          p.hp -= _flSelfDmg; p.deathCause = "呪われた炎の巻物で";
+          ml.push(`呪われた炎が爆発した！${_flSelfDmg}ダメージ！【呪】`); pushExplosionAnim(p.x, p.y);
+        }
+      } else if (it.effect === "debuff") {
+        if (it.cursed) {
+          // 呪い：自分の装備の強化値を下げる
+          let _dbMsg = [];
+          if (p.weapon) { p.weapon.plus = (p.weapon.plus || 0) - 1; _dbMsg.push(`${p.weapon.name}が${p.weapon.plus < 0 ? p.weapon.plus : "+" + p.weapon.plus}になった`); }
+          if (p.armor)  { p.armor.plus  = (p.armor.plus  || 0) - 1; _dbMsg.push(`${p.armor.name}が${p.armor.plus < 0 ? p.armor.plus : "+" + p.armor.plus}になった`); }
+          ml.push(_dbMsg.length > 0 ? `装備が弱化した！【呪】${_dbMsg.join("、")}` : "装備していないので何も起きなかった。【呪】");
+        } else {
+          const _dbTgts = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
+          if (_dbTgts.length === 0) { ml.push("視界に敵はいない。"); }
+          else {
+            for (const _m of _dbTgts) {
+              if (_m.subtype === "magicreflect") {
+                // 反射：自分の装備の強化値が下がる
+                let _refDbMsg = [];
+                if (p.weapon) { p.weapon.plus = (p.weapon.plus || 0) - 1; _refDbMsg.push(`${p.weapon.name}が${p.weapon.plus < 0 ? p.weapon.plus : "+" + p.weapon.plus}に`); }
+                if (p.armor)  { p.armor.plus  = (p.armor.plus  || 0) - 1; _refDbMsg.push(`${p.armor.name}が${p.armor.plus < 0 ? p.armor.plus : "+" + p.armor.plus}に`); }
+                ml.push(`${_m.name}が解除魔法を跳ね返した！` + (_refDbMsg.length > 0 ? _refDbMsg.join("、") + "なった！" : "しかし装備していないため効果なし。"));
+                continue;
+              }
+              let _removed = [];
+              if (_m.atkBuffed) { _m.atk = Math.max(1, _m.atk - 3); _m.atkBuffed = false; _removed.push("攻撃バフ"); }
+              if (_m._enraged) { _m._enraged = false; _removed.push("激昂"); }
+              if ((_m.hasteTurns || 0) > 0) { _m.hasteTurns = 0; _removed.push("加速"); }
+              if (it.blessed) {
+                // 祝福：ステータスも永続低下
+                const _atkDrop = rng(2, 4), _defDrop = rng(1, 3);
+                _m.atk = Math.max(1, _m.atk - _atkDrop); _m.def = Math.max(0, _m.def - _defDrop);
+                _removed.push(`攻-${_atkDrop}/防-${_defDrop}`);
+              }
+              if (_removed.length > 0) ml.push(`${_m.name}のバフが解除された！(${_removed.join("、")})${it.blessed ? "【祝】" : ""}`);
+              else ml.push(`${_m.name}に解除するバフはなかった。${it.blessed ? "【祝】" : ""}`);
+            }
+          }
+        }
+      } else if (it.effect === "break_wall") {
+        if (it.cursed) {
+          // 呪い：周囲8マスを壁に（端は変更しない）
+          let _bwCount = 0;
+          for (const [_dx, _dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
+            const _wx = p.x + _dx, _wy = p.y + _dy;
+            if (_wx <= 0 || _wx >= MW - 1 || _wy <= 0 || _wy >= MH - 1) continue;
+            if (dg.map[_wy][_wx] === T.FLOOR) { dg.map[_wy][_wx] = T.WALL; _bwCount++; }
+          }
+          ml.push(_bwCount > 0 ? `周囲が壁に変わった！(${_bwCount}マス)【呪】` : "周囲に床がなかった。【呪】");
+        } else {
+          const _bwRadius = it.blessed ? 3 : 1;
+          let _bwCount = 0;
+          for (let _by2 = p.y - _bwRadius; _by2 <= p.y + _bwRadius; _by2++) {
+            for (let _bx2 = p.x - _bwRadius; _bx2 <= p.x + _bwRadius; _bx2++) {
+              if (_bx2 <= 0 || _bx2 >= MW - 1 || _by2 <= 0 || _by2 >= MH - 1) continue;
+              if (_bx2 === p.x && _by2 === p.y) continue;
+              if (dg.map[_by2][_bx2] === T.WALL || dg.map[_by2][_bx2] === T.BWALL) {
+                dg.map[_by2][_bx2] = T.FLOOR; _bwCount++;
+              }
+            }
+          }
+          ml.push(_bwCount > 0 ? `壁が崩れた！(${_bwCount}マス)${it.blessed ? "【祝】" : ""}` : "周囲に壊せる壁はなかった。");
+        }
+      } else if (it.effect === "bind") {
+        if (it.cursed) {
+          // 呪い：自分が金縛り
+          if ((p.statusImmune || 0) > 0) ml.push("金縛りの呪いが自分を襲った！状態防止中のため効かなかった！【呪】");
+          else if (hasAbility(p.armor, "paralyze_proof")) ml.push("金縛りの呪いが自分を襲った！しかし防具が防いだ！(耐金縛り)【呪】");
+          else { const _bt = rng(4, 7); p.paralyzeTurns = (p.paralyzeTurns || 0) + _bt; ml.push(`金縛りの呪いが自分を襲った！${_bt}ターン体が動かない！【呪】`); }
+        } else {
+          const _btTgts = it.blessed
+            ? dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])
+            : dg.monsters.filter((m) => Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1);
+          if (_btTgts.length === 0) { ml.push(it.blessed ? "視界に敵はいない。" : "周囲に敵はいない。"); }
+          else {
+            for (const _m of _btTgts) {
+              if (_m.subtype === "magicreflect") {
+                if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が金縛りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
+                if (hasAbility(p.armor, "paralyze_proof")) { ml.push(`${_m.name}が金縛りを跳ね返したが、防具が防いだ！`); continue; }
+                const _rt = rng(4, 7); p.paralyzeTurns = (p.paralyzeTurns || 0) + _rt;
+                ml.push(`${_m.name}が金縛りを跳ね返した！${_rt}ターン体が動かない！`); continue;
+              }
+              if (consumeBarrier(_m, ml)) continue;
+              if (_m.isBoss) { _m.paralyzed = true; _m.paralyzeTurns = rng(3, 5); }
+              else _m.paralyzed = true;
+              ml.push(`${_m.name}が金縛りになった！${it.blessed ? "【祝】" : ""}`);
+            }
+          }
+        }
       } else if (it.effect === "identify") {
         if (it.blessed) {
           // 全アイテム完全識別（武器・防具も含む）
