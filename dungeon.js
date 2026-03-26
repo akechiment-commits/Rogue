@@ -410,8 +410,15 @@ function mkVis() {
     explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
   };
 }
-function mkMon(depth, x, y, dormantRate = 0.12) {
-  const { base, spawnLevel } = pickMonsterDef(depth);
+function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null) {
+  /* waterOnlyモンスターは水タイル・泉以外には出現しない。非水タイルの場合は通常モンスターを選び直す */
+  let base, spawnLevel;
+  for (let _mi = 0; _mi < 8; _mi++) {
+    ({ base, spawnLevel } = pickMonsterDef(depth));
+    if (!base.waterOnly) break;
+    const _isWater = map ? (map[y]?.[x] === T.WATER || springs?.some(s => s.x === x && s.y === y)) : false;
+    if (_isWater) break;
+  }
   const { levels: _lvls, ...mt } = base;
   const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
     ? { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel }
@@ -1651,6 +1658,29 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   addWaterPools(map, nonShopRooms, su, sd);
   /* 浮島を生成 — 店の部屋は除外 */
   addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd);
+  /* waterOnlyモンスター（わてり等）を水タイルに配置 */
+  {
+    const _waterTiles = [];
+    for (let _wy = 0; _wy < MH; _wy++)
+      for (let _wx = 0; _wx < MW; _wx++)
+        if (map[_wy][_wx] === T.WATER && !mons.some(mn => mn.x === _wx && mn.y === _wy))
+          _waterTiles.push([_wx, _wy]);
+    const _wCount = Math.min(Math.floor(_waterTiles.length / 4), rng(0, 2) + (depth >= 5 ? 1 : 0));
+    for (let _wi = 0; _wi < _wCount; _wi++) {
+      if (_waterTiles.length === 0) break;
+      const _idx = rng(0, _waterTiles.length - 1);
+      const [_wx, _wy] = _waterTiles.splice(_idx, 1)[0];
+      if (mons.some(mn => mn.x === _wx && mn.y === _wy)) continue;
+      const { base: _wb, spawnLevel: _wsl } = pickMonsterDef(depth);
+      /* waterOnlyモンスターが取れなかった場合は専用にわてりを選ぶ */
+      const _wBase = _wb.waterOnly ? _wb : (MONS.find(m => m.waterOnly && m.minFloor <= depth + 1 && depth + 1 <= m.maxFloor) ?? null);
+      if (!_wBase.waterOnly) continue;
+      const { levels: _wl, ...wmt } = _wBase;
+      const _wst = _wsl >= 2 && _wBase.levels?.[_wsl - 2] ? { ...wmt, ..._wBase.levels[_wsl - 2], monLevel: _wsl } : wmt;
+      mons.push({ ..._wst, id: uid(), x: _wx, y: _wy, maxHp: _wst.hp, turnAccum: 0, aware: false,
+        dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null, dormant: false });
+    }
+  }
   /* 水タイルに被った罠・アイテムを後処理 */
   for (let ti = traps.length - 1; ti >= 0; ti--) {
     if (map[traps[ti].y][traps[ti].x] === T.WATER) traps.splice(ti, 1);

@@ -513,6 +513,12 @@ export const MONS = [
       { name: "覇ハンマーオーガ",   hp: 188, atk: 56, def: 17, exp: 200 },
     ],
   },
+  { name: "わてり",       hp: 40,  atk: 16, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, waterOnly: true, subtype: "watergunner",
+    levels: [
+      { name: "強わてり",           hp: 64,  atk: 24, def: 10, exp: 77  },
+      { name: "覇わてり",           hp: 100, atk: 32, def: 14, exp: 120 },
+    ],
+  },
 ];
 
 /* ===== モンスターレベルアップテーブル (MONS の levels から自動生成) ===== */
@@ -692,7 +698,7 @@ export function hasLOS(map, x0, y0, x1, y1) {
 }
 
 /* ===== BFS PATHFINDING ===== */
-export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false) {
+export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false, tileFilter = null) {
   if (sx === tx && sy === ty) return null;
   /* モンスター位置と聖域位置をSetに変換 (O(1)ルックアップ) */
   const monSet = new Set();
@@ -712,16 +718,19 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
   dirs.sort((a, b) =>
     ((a[0]-_sdx)**2 + (a[1]-_sdy)**2) - ((b[0]-_sdx)**2 + (b[1]-_sdy)**2)
   );
+  const _canEnterFn = tileFilter
+    ? (x, y) => tileFilter(x, y)
+    : (x, y) => canEnter(map, x, y, float);
   let steps = 0;
   while (qHead < queue.length && steps < maxDist * 50) {
     const cur = queue[qHead++];
     steps++;
     for (const [dx, dy] of dirs) {
       const nx = cur.x + dx, ny = cur.y + dy;
-      if (!canEnter(map, nx, ny, float)) continue;
+      if (!_canEnterFn(nx, ny)) continue;
       /* 対角移動：両隣の直交タイルが両方とも壁ならコーナーすり抜けを禁止 */
       if (dx !== 0 && dy !== 0) {
-        if (!canEnter(map, cur.x + dx, cur.y, float) && !canEnter(map, cur.x, cur.y + dy, float)) continue;
+        if (!_canEnterFn(cur.x + dx, cur.y) && !_canEnterFn(cur.x, cur.y + dy)) continue;
       }
       const nk = nx + ny * MW;
       if (sanctSet.has(nk) && !(nx === tx && ny === ty)) continue;
@@ -925,6 +934,56 @@ function monsterThrowStone(m, dg, pl, ml) {
   ml.push(`${m.name}の${stoneName}が命中！${dmg}ダメージ！`);
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+}
+
+/* ===== わてり：水鉄砲攻撃 ===== */
+function monsterShootWaterGun(m, dg, pl, ml) {
+  const adx = pl.x - m.x, ady = pl.y - m.y;
+  const dx = Math.sign(adx), dy = Math.sign(ady);
+  const maxDist = Math.max(Math.abs(adx), Math.abs(ady));
+  ml.push(`${m.name}が水鉄砲を撃った！`);
+  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#20c0ff");
+  const miss = Math.random() < 0.20;
+  /* みかわしの魔方陣 */
+  const _wDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+  if (_wDodgePcMode === "dodge") {
+    ml.push(`みかわしの魔方陣の加護で${m.name}の水鉄砲をかわした！`);
+    return;
+  }
+  for (let d = 1; d <= maxDist; d++) {
+    const tx = m.x + dx * d, ty = m.y + dy * d;
+    if (!isWalkable(dg.map, tx, ty)) return;
+    /* 途中のモンスターに当たった場合 */
+    const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
+    if (hitMon) {
+      const dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
+      hitMon.hp -= dmg;
+      ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
+      if (hitMon.hp <= 0) { ml.push(`${hitMon.name}は倒れた！`); removeMonster(dg, hitMon); }
+      return;
+    }
+    if (tx === pl.x && ty === pl.y) {
+      if (_wDodgePcMode !== "sure" && miss) {
+        ml.push(`${m.name}の水鉄砲は外れた！`);
+        return;
+      }
+      const _wVulnPc = findVulnPentacle(dg, pl.x, pl.y);
+      let dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
+      if (_wVulnPc) dmg = _wVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_wVulnPc.blessed ? 4 : 2);
+      pl.deathCause = `${m.name}の水鉄砲で`;
+      pl.hp -= dmg;
+      ml.push(`${m.name}の水鉄砲が命中！${dmg}ダメージ！`);
+      if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+      if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+      /* Lv2以上：命中時に一定確率で足止め（水浸し） */
+      const _wLvl = m.monLevel || 1;
+      if (_wLvl >= 2 && Math.random() < 0.4) {
+        pl.slowTurns = (pl.slowTurns || 0) + 3;
+        ml.push("水浸しになって動きが鈍くなった！(3ターン)");
+      }
+      return;
+    }
+  }
 }
 
 /* 仮眠中のモンスターを強制覚醒させる。モンスターへの全アクションから呼ぶ */
@@ -1412,6 +1471,20 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     return;
   }
 
+  /* ── わてり：水上以外では動けない（干上がり状態） ── */
+  if (m.waterOnly) {
+    const _wtOnWater = dg.map[m.y]?.[m.x] === T.WATER || dg.springs?.some(s => s.x === m.x && s.y === m.y);
+    if (!_wtOnWater) {
+      /* 水の外に出た：完全に無力化（攻撃・移動不可） */
+      if (!m._waterlessWarned) {
+        m._waterlessWarned = true;
+        ml.push(`${m.name}は水の外では動けない！`);
+      }
+      return;
+    }
+    m._waterlessWarned = false;
+  }
+
   if (m.aware) {
     /* ── ranged special attacks (only when player is visible) ── */
     /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
@@ -1440,7 +1513,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _mtRange0 &&
         dg.monsters.some(o => o !== m && Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
       const _chargerRdy = m.subtype === "charger" && !m.sealed && _rAtks && _rLine && _rLen >= 2;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      /* わてり：水鉄砲 */
+      const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -1503,6 +1578,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
+        return;
+      }
+
+      /* ── watergunner（わてり等）：一直線上で水鉄砲攻撃 ── */
+      if (m.subtype === "watergunner" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 8 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m.turnAttacks++;
+        monsterShootWaterGun(m, dg, pl, ml);
         return;
       }
 
@@ -1831,14 +1913,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
     /* ── 遠距離タイプが部屋内で射線が合っていない場合：軸合わせ優先 ── */
     if (!_attackOnly && canSee && _sameRoom &&
-        (m.subtype === "archer" || m.subtype === "wanduser") && !m.sealed) {
+        (m.subtype === "archer" || m.subtype === "wanduser" || m.subtype === "watergunner") && !m.sealed) {
       const _ralDx = pl.x - m.x, _ralDy = pl.y - m.y;
       const _inLineNow = _ralDx === 0 || _ralDy === 0 || Math.abs(_ralDx) === Math.abs(_ralDy);
       if (!_inLineNow) {
         const _alignCands = [];
         for (const [_amx, _amy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
           const _anx = m.x + _amx, _any = m.y + _amy;
-          if (!isWalkable(map, _anx, _any)) continue;
+          if (m.waterOnly) {
+            if (!inBounds(_anx, _any)) continue;
+            if (map[_any][_anx] !== T.WATER && !dg.springs?.some(s => s.x === _anx && s.y === _any)) continue;
+          } else {
+            if (!isWalkable(map, _anx, _any)) continue;
+          }
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
           if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
           if (_anx === pl.x && _any === pl.y) continue;
@@ -1875,7 +1962,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
     /* move toward target */
     /* BFSで最短経路を求める。部屋内での壁ぶつかりを防ぎ、通路への最適経路を辿る。 */
-    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles, _effFloat);
+    /* わてり：水タイル・泉のみ移動可能 */
+    const _wateriFilter = m.waterOnly ? (nx, ny) => {
+      if (!inBounds(nx, ny)) return false;
+      return map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false);
+    } : null;
+    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles, _effFloat, _wateriFilter);
     if (next && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) return;
     if (next) {
       if (next.x === pl.x && next.y === pl.y) {

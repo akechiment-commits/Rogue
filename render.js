@@ -91,6 +91,7 @@ export const TILE_NAMES = {
   84: "trap_bewitch",
   85: "trap_darkness",
   86: "trapmaster",
+  93: "wateri",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -179,6 +180,7 @@ export const TILE_RENDER = {
   84: { bg: null, fg: "#c040c0", ch: "^" },
   85: { bg: null, fg: "#2060a0", ch: "^" },
   86: { bg: null, fg: "#c0a030", ch: "T" },
+  93: { bg: null, fg: "#20c0ff", ch: "W" },
 };
 
 /* Canvas drawing helper */
