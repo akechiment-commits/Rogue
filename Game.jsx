@@ -3051,7 +3051,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           item.bcKnown = true;
           ml.push(`${_idn}が呪われた！【呪】`);
         }
-      }
       } else if (bb.kind === "scatter") {
         /* アイテムをbox内から即削除（消滅） */
         const _scIdx = bb.contents.indexOf(item);
