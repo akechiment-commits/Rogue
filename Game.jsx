@@ -17,6 +17,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames,
   hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
+  applyPotionEffect, getBlessMultiplier,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
@@ -3050,6 +3051,59 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           item.bcKnown = true;
           ml.push(`${_idn}が呪われた！【呪】`);
         }
+      }
+      } else if (bb.kind === "scatter") {
+        /* アイテムをbox内から即削除（消滅） */
+        const _scIdx = bb.contents.indexOf(item);
+        if (_scIdx >= 0) bb.contents.splice(_scIdx, 1);
+        const p = sr.current.player;
+        const _scRoom = findRoom(dg.rooms, bb.x, bb.y);
+        const _scMons = _scRoom
+          ? dg.monsters.filter(m => m.x >= _scRoom.x && m.x < _scRoom.x + _scRoom.w && m.y >= _scRoom.y && m.y < _scRoom.y + _scRoom.h)
+          : [];
+        const _scPInRoom = _scRoom && p.x >= _scRoom.x && p.x < _scRoom.x + _scRoom.w && p.y >= _scRoom.y && p.y < _scRoom.y + _scRoom.h;
+        if (_scMons.length === 0 && !_scPInRoom) {
+          ml.push("しかし部屋には誰もいなかった。");
+        } else {
+          ml.push(`${_idn}が部屋中に拡散した！`);
+          if (item.type === "potion") {
+            for (const m of [..._scMons]) {
+              applyPotionEffect(item.effect, item.value || 0, "monster", m, dg, p, ml, lu, item.blessed || false, item.cursed || false);
+              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+            }
+            if (_scPInRoom) applyPotionEffect(item.effect, item.value || 0, "player", p, dg, p, ml, lu, item.blessed || false, item.cursed || false);
+          } else if (item.type === "wand") {
+            const _scBm = getBlessMultiplier(item);
+            const _scDnFn = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+            for (const m of [..._scMons]) {
+              const _sdx = Math.sign(m.x - bb.x), _sdy = Math.sign(m.y - bb.y);
+              applyWandEffect(item.effect, "monster", m, _sdx || 1, _sdy, dg, p, ml, lu, bigboxAddItem, _scBm, _scDnFn);
+              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+            }
+            if (_scPInRoom) {
+              const _sdx = Math.sign(p.x - bb.x), _sdy = Math.sign(p.y - bb.y);
+              applyWandEffect(item.effect, "player", p, _sdx || 1, _sdy, dg, p, ml, lu, bigboxAddItem, _scBm, _scDnFn);
+            }
+          } else {
+            const _scDmg = (item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : 3) + rng(0, 3);
+            for (const m of [..._scMons]) {
+              const _itd = clampDmgFixed(m, _scDmg, true);
+              m.hp -= _itd;
+              ml.push(`${_idn}が${m.name}に命中！${_itd}ダメージ！`);
+              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+            }
+            if (_scPInRoom) {
+              p.deathCause = `${item.name}が当たって`;
+              p.hp -= _scDmg;
+              ml.push(`${_idn}がプレイヤーに命中！${_scDmg}ダメージ！`);
+            }
+          }
+        }
+      } else if (bb.kind === "trash") {
+        /* 入れたアイテムを即削除（消滅） */
+        const _trIdx = bb.contents.indexOf(item);
+        if (_trIdx >= 0) bb.contents.splice(_trIdx, 1);
+        ml.push(`${_idn}は消えてしまった。`);
       }
       if (wasFull || bb.contents.length > bb.capacity) breakBigbox(bb, dg, ml);
     },
