@@ -1439,11 +1439,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           }
         }
       }
-      /* ===== 魔方陣の消耗：自分が上に乗っているターンを累積し30ターンで消滅 ===== */
+      /* ===== 魔方陣の消耗：自分または敵が上に乗っているターンを累積し30ターンで消滅 ===== */
       if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
         const _toRemove = [];
         for (const _pc of st.dungeon.pentacles) {
-          if (_pc.x === p.x && _pc.y === p.y) {
+          /* プレイヤーが上に乗っている */
+          const _playerOn = _pc.x === p.x && _pc.y === p.y;
+          /* モンスターが上に乗っている */
+          const _monOn = !_playerOn && st.dungeon.monsters.some(m => m.hp > 0 && m.x === _pc.x && m.y === _pc.y);
+          if (_playerOn || _monOn) {
             _pc.standTurns = (_pc.standTurns || 0) + 1;
             if (_pc.standTurns === 25) ml.push(`${_pc.name}がかすれてきた…(残り${30 - _pc.standTurns}ターン)`);
             if (_pc.standTurns >= 30) { _toRemove.push(_pc); ml.push(`${_pc.name}が消えた！`); }
