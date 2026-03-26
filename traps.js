@@ -302,8 +302,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       const _rFoods = (p.inventory || []).filter(i => i.type === "food" && !i.rotten);
       if (_rFoods.length > 0) {
         const _rTarget = _rFoods[rng(0, _rFoods.length - 1)];
+        const _rOrigName = _rTarget.name;
         rotFood(_rTarget);
-        ml.push(`${trap.name}が発動！${_rTarget.name}が腐ってしまった！`);
+        ml.push(`${trap.name}が発動！${_rOrigName}が腐ってしまった！`);
       } else {
         ml.push(`${trap.name}が発動！腐らせるものがなかった。`);
       }

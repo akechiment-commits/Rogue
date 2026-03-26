@@ -1586,6 +1586,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "rot_trap": {
       ml.push(`${trap.name}が発動！`);
+      /* 踏んだアイテム自体が食料なら腐らせる */
+      if (item && item.type === "food" && !item.rotten) {
+        const _itOrigName = item.name;
+        rotFood(item);
+        ml.push(`${_itOrigName}が腐ってしまった！`);
+      }
       const _rtm = monsterAt(dg, tx, ty);
       if (_rtm) {
         dg.monsters = dg.monsters.filter(m => m !== _rtm);
@@ -1599,8 +1605,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _rFoods = p.inventory.filter(i => i.type === "food" && !i.rotten);
         if (_rFoods.length > 0) {
           const _rTarget = _rFoods[rng(0, _rFoods.length - 1)];
+          const _rOrigName = _rTarget.name;
           rotFood(_rTarget);
-          ml.push(`${_rTarget.name}が腐ってしまった！`);
+          ml.push(`${_rOrigName}が腐ってしまった！`);
         } else {
           ml.push("腐らせるものがなかった。");
         }
