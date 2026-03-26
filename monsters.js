@@ -1171,7 +1171,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _heal = Math.min(8, m.maxHp - m.hp);
     if (_heal > 0) { m.hp += _heal; ml.push(`${m.name}は傷を再生した！(+${_heal}HP)`); }
   }
-  /* 魔神王：5ターンごとに周囲に取り巻きを1体召喚 */
+  /* 魔神王：5ターンごとに周囲に取り巻きを1体召喚（召喚したターンは攻撃しない） */
   if (m.baseKind === "boss_demonking" && !_moveOnly) {
     m._summonCooldown = (m._summonCooldown || 0) - 1;
     if (m._summonCooldown <= 0) {
@@ -1190,11 +1190,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         _summoned = true;
         break;
       }
-      if (!_summoned) m._summonCooldown = 1; /* すぐ再試行 */
+      if (_summoned) return; /* 召喚したターンは行動消費 */
+      m._summonCooldown = 1; /* 召喚できなければすぐ再試行 */
     }
   }
 
-  /* 骸骨王：3ターンごとに周囲に手下を2体召喚（最大8体） */
+  /* 骸骨王：3ターンごとに周囲に手下を2体召喚（最大8体）（召喚したターンは攻撃しない） */
   if (m.baseKind === "boss_skullking" && !_moveOnly) {
     m._summonCooldown = (m._summonCooldown || 0) - 1;
     if (m._summonCooldown <= 0) {
@@ -1213,20 +1214,21 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y }));
           _summoned++;
         }
-        if (_summoned > 0) ml.push(`${m.name}が骨の手下を呼び寄せた！`);
+        if (_summoned > 0) { ml.push(`${m.name}が骨の手下を呼び寄せた！`); return; } /* 召喚行動消費 */
         else m._summonCooldown = 1;
       }
     }
   }
-  /* 炎帝竜：毎ターン40%でプレイヤーに油まみれ付与（視界内時） */
+  /* 炎帝竜：毎ターン40%でプレイヤーに油まみれ付与（視界内時）（付与したターンは攻撃しない） */
   if (m.baseKind === "boss_flamedragon" && !_moveOnly) {
     const _fdVisible = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_fdVisible && Math.random() < 0.40) {
       pl.oilyTurns = (pl.oilyTurns || 0) + 8;
       ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(8ターン)`);
+      return; /* ブレス行動消費 */
     }
   }
-  /* 虚無の僧侶：毎ターン12HP回復 + 5ターンごとにランダム状態異常付与 */
+  /* 虚無の僧侶：毎ターン12HP回復（行動消費なし）+ 5ターンごとにランダム状態異常付与（付与したターンは攻撃しない） */
   if (m.baseKind === "boss_voidmonk" && !_moveOnly) {
     const _vh = Math.min(12, m.maxHp - m.hp);
     if (_vh > 0) { m.hp += _vh; ml.push(`${m.name}は虚無の力で回復した！(+${_vh}HP)`); }
@@ -1237,9 +1239,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (_r < 0.33) { pl.slowTurns = (pl.slowTurns || 0) + 6; ml.push(`${m.name}の呪いで足が重くなった！(6ターン)`); }
       else if (_r < 0.66) { pl.confusedTurns = (pl.confusedTurns || 0) + 4; ml.push(`${m.name}の幻術で混乱した！(4ターン)`); }
       else { pl.sealedTurns = (pl.sealedTurns || 0) + 6; ml.push(`${m.name}の空間歪曲で魔法が封印された！(6ターン)`); }
+      return; /* 状態異常付与行動消費 */
     }
   }
-  /* 煉獄公：周囲4マスを油まみれタイルに + HP50%以下で激昂（speed+1） */
+  /* 煉獄公：周囲4マスを油まみれタイルに（行動消費なし） + HP50%以下で激昂（speed+1、行動消費なし） */
   if (m.baseKind === "boss_infernoking" && !_moveOnly) {
     dg.oilyTiles = dg.oilyTiles || [];
     for (const [_dx, _dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
@@ -1253,7 +1256,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       ml.push(`${m.name}が激昂した！速度が跳ね上がった！`);
     }
   }
-  /* 深淵神：毎ターン20HP回復 + 4ターンごとに周囲に2体召喚 */
+  /* 深淵神：毎ターン20HP回復（行動消費なし）+ 4ターンごとに周囲に2体召喚（召喚したターンは攻撃しない） */
   if (m.baseKind === "boss_abyssgod" && !_moveOnly) {
     const _ah = Math.min(20, m.maxHp - m.hp);
     if (_ah > 0) { m.hp += _ah; ml.push(`${m.name}は深淵の力で回復した！(+${_ah}HP)`); }
@@ -1272,7 +1275,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y }));
         _summoned++;
       }
-      if (_summoned > 0) ml.push(`${m.name}が深淵から手下を招いた！`);
+      if (_summoned > 0) { ml.push(`${m.name}が深淵から手下を招いた！`); return; } /* 召喚行動消費 */
       else m._summonCooldown = 1;
     }
   }
