@@ -2575,7 +2575,16 @@ export function useItemActions({
           } else if (!hit) {
             const lb = _mkThrowLb();
             ml.push(`${lb}を投げた。`);
-            if (sprHit?.kind) {
+            if (sprHit?.kind === "scatter" && it.type === "arrow" && it.bombArrow) {
+              /* 爆弾矢を拡散の大箱に投げた：箱の場所で爆発 */
+              ml.push(`${_mkThrowLb()}が${sprHit.name}に命中して爆発した！`);
+              if (!hasCursedExplosionPentacle(dg)) {
+                doExplosion(sprHit.x, sprHit.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu);
+              } else {
+                ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
+              }
+              p.inventory.splice(p.inventory.indexOf(it), 1);
+            } else if (sprHit?.kind) {
               bigboxAddItem(sprHit, it, dg, ml);
             } else if (sprHit && !sprHit.kind) {
               soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);

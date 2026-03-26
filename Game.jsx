@@ -3123,11 +3123,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             const _scBase = item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : (item.type === "arrow" ? (item.atk || 4) : 3);
             const _scDmg = _scBase + rng(0, 3);
             if (item.type === "arrow" && item.bombArrow) {
-              /* 爆弾矢：爆発 */
-              ml.push(`${_idn}が爆発した！`);
+              /* 爆弾矢（インベントリから入れた）：各生き物の場所でそれぞれ爆発 */
+              ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               if (!hasCursedExplosionPentacle(dg)) {
                 const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-                doExplosion(bb.x, bb.y, dg, p, ml, _baNF, `${item.name}の爆発`, null, lu);
+                for (const _baMon of [..._scMons]) {
+                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${item.name}の爆発`, null, lu);
+                }
+                if (_scPInRoom) {
+                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${item.name}の爆発`, null, lu);
+                }
               } else {
                 ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
               }
