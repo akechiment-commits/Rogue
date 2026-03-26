@@ -1674,7 +1674,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       const { base: _wb, spawnLevel: _wsl } = pickMonsterDef(depth);
       /* waterOnlyモンスターが取れなかった場合は専用にわてりを選ぶ */
       const _wBase = _wb.waterOnly ? _wb : (MONS.find(m => m.waterOnly && m.minFloor <= depth + 1 && depth + 1 <= m.maxFloor) ?? null);
-      if (!_wBase.waterOnly) continue;
+      if (!_wBase || !_wBase.waterOnly) continue;
       const { levels: _wl, ...wmt } = _wBase;
       const _wst = _wsl >= 2 && _wBase.levels?.[_wsl - 2] ? { ...wmt, ..._wBase.levels[_wsl - 2], monLevel: _wsl } : wmt;
       mons.push({ ..._wst, id: uid(), x: _wx, y: _wy, maxHp: _wst.hp, turnAccum: 0, aware: false,
