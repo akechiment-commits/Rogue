@@ -1180,7 +1180,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         return;
       }
       /* moveOnly / both: ターン蓄積・turnAttacksリセットは移動フェーズで */
-      m.turnAccum += m.speed;
+      /* 等速の魔方陣：部屋内では速度を固定する（通常=1回, 祝福=2回, 呪い=0.5回） */
+      const _eqPcM = dg.pentacles?.find(pc => {
+        if (pc.kind !== "equal_speed") return false;
+        const _pcRoom = findRoom(dg.rooms, pc.x, pc.y);
+        return _pcRoom && findRoom(dg.rooms, m.x, m.y) === _pcRoom;
+      });
+      if (_eqPcM) {
+        m.turnAccum += _eqPcM.cursed ? 0.5 : (_eqPcM.blessed ? 2 : 1);
+      } else {
+        m.turnAccum += m.speed;
+      }
       m.turnAttacks = 0;
       let _actionCount = 0;
       let _moveCount = 0; /* 実際に位置が変わったアクション数 */
@@ -1442,6 +1452,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (_toRemove.length > 0) st.dungeon.pentacles = st.dungeon.pentacles.filter(pc => !_toRemove.includes(pc));
       }
       checkShopTheft(p, st.dungeon, ml);
+      /* ===== 等速の魔方陣：プレイヤー速度制御（カウントダウン前に判定） ===== */
+      const _isEqAutoAdv = p._eqSpeedAutoAdv || false;
+      delete p._eqSpeedAutoAdv;
+      const _eqPcP = st.dungeon.pentacles?.find(pc => {
+        if (pc.kind !== "equal_speed") return false;
+        const _pRm = findRoom(st.dungeon.rooms, pc.x, pc.y);
+        return _pRm && findRoom(st.dungeon.rooms, p.x, p.y) === _pRm;
+      });
+      /* 祝福：hasteTurnsを2以上に維持して毎ターン2回行動を保証 */
+      if (_eqPcP?.blessed) {
+        p.hasteTurns = Math.max(p.hasteTurns || 0, 2);
+      }
       /* ===== 状態異常カウントダウン（ダッシュ含む全ターン進行で共通） ===== */
       if ((p.slowTurns || 0) > 0) {
         p.slowTurns--;
@@ -1482,7 +1504,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       /* 2倍速：endTurnが呼ばれた時（2回目の行動後）のみ消費 */
       if ((p.hasteTurns || 0) > 0) {
         p.hasteTurns--;
-        if (p.hasteTurns <= 0) { p.hasteUsed = false; ml.push("2倍速が解けた！"); }
+        if (p.hasteTurns <= 0) {
+          p.hasteUsed = false;
+          if (!_eqPcP?.blessed) ml.push("2倍速が解けた！"); /* 等速祝福中はメッセージ抑制 */
+        }
+      }
+      /* 呪い：自動ターンスキップ（等速スキップ中のendTurnでは再適用しない） */
+      if (_eqPcP?.cursed && !_isEqAutoAdv) {
+        p.slowSkip = true;
+        p._eqSpeedSlowPending = true;
       }
       /* ===== 4フェーズターン制 ===== */
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
@@ -1803,11 +1833,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           : "金縛りが解けた！");
       } else if (p.slowSkip) {
         p.slowSkip = false;
-        p.slowTurns = Math.max(0, (p.slowTurns || 0) - 1);
-        if (p.slowTurns <= 0) {
-          ml.push("鈍足が解けた！");
+        const _isEqSlow = p._eqSpeedSlowPending || false;
+        delete p._eqSpeedSlowPending;
+        if (_isEqSlow) {
+          ml.push("等速の魔方陣によりターンがスキップされた...");
+          p._eqSpeedAutoAdv = true; /* endTurnに等速スキップターンであることを伝える */
         } else {
-          ml.push("鈍足でターンがスキップされた...");
+          p.slowTurns = Math.max(0, (p.slowTurns || 0) - 1);
+          if (p.slowTurns <= 0) {
+            ml.push("鈍足が解けた！");
+          } else {
+            ml.push("鈍足でターンがスキップされた...");
+          }
         }
       }
       endTurn(st, p, ml);
