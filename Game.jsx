@@ -3031,6 +3031,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       } else if (bb.kind === "curse") {
         if (item.type === "goal" || item.type === "gold") {
           ml.push(`${_idn}には効果がなかった。`);
+        } else if (item.type === "pot") {
+          const _newCap = Math.max(0, (item.capacity || 1) - 1);
+          item.capacity = _newCap;
+          ml.push(`${_idn}の容量が1減った！(${_newCap})`);
         } else if (item.type === "food") {
           if (item.rotten) {
             ml.push(`${_idn}はすでに腐っている。`);
