@@ -1594,8 +1594,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           const _tp = st.dungeon.pentacles.find((pc) => pc.kind === "thunder_trap" && pc.x === _m.x && pc.y === _m.y);
           if (_tp) {
             if (_tp.cursed) {
-              const _mheal = Math.min(25, _m.maxHp - _m.hp);
-              if (_mheal > 0) { _m.hp += _mheal; ml.push(`${_tp.name}の力で${_m.name}のHPが${_mheal}回復した！`); }
+              if (_m.kind === "undead") {
+                _m.hp -= 25; ml.push(`${_tp.name}の力が${_m.name}を傷つけた！25ダメージ！(アンデッド)`);
+                if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, st.dungeon, p, ml, lu); }
+              } else {
+                const _mheal = Math.min(25, _m.maxHp - _m.hp);
+                if (_mheal > 0) { _m.hp += _mheal; ml.push(`${_tp.name}の力で${_m.name}のHPが${_mheal}回復した！`); }
+              }
             } else {
               const _tmdmg = _tp.blessed ? 50 : 25;
               _m.hp -= _tmdmg;
@@ -1689,8 +1694,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   const _heal = Math.min(_baseDmg, p.maxHp - p.hp);
                   if (_heal > 0) { p.hp += _heal; ml.push(`${_pc.name}の魔法の石がプレイヤーに当たった！${_heal}回復！`); }
                 } else {
-                  const _heal = Math.min(_baseDmg, _stTgt.m.maxHp - _stTgt.m.hp);
-                  if (_heal > 0) { _stTgt.m.hp += _heal; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_heal}回復！`); }
+                  if (_stTgt.m.kind === "undead") {
+                    _stTgt.m.hp -= _baseDmg; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_baseDmg}ダメージ！(アンデッド)`);
+                    if (_stTgt.m.hp <= 0) { trackMonster(_stTgt.m); killMonster(_stTgt.m, st.dungeon, p, ml, lu); }
+                  } else {
+                    const _heal = Math.min(_baseDmg, _stTgt.m.maxHp - _stTgt.m.hp);
+                    if (_heal > 0) { _stTgt.m.hp += _heal; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_heal}回復！`); }
+                  }
                 }
               } else {
                 const _dmg = _pc.blessed ? _baseDmg * 2 : _baseDmg;
@@ -1703,6 +1713,39 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_dmg}ダメージ！`);
                   if (_stTgt.m.hp <= 0) { trackMonster(_stTgt.m); killMonster(_stTgt.m, _dg2, p, ml, lu); }
                 }
+              }
+            }
+          }
+          /* --- 回復の魔方陣：毎ターン部屋内全員に5(祝10)回復 / 呪いは逆に5ダメージ --- */
+          if (_pc.kind === "heal_aura" && _pcRoom) {
+            const _hBase = _pc.blessed ? 10 : 5;
+            /* プレイヤーへの効果 */
+            if (_inRange) {
+              if (_pc.cursed) {
+                p.deathCause = `${_pc.name}の呪いにより`;
+                p.hp -= _hBase;
+                ml.push(`${_pc.name}の呪いで${_hBase}ダメージを受けた！`);
+              } else {
+                const _ph = Math.min(_hBase, p.maxHp - p.hp);
+                if (_ph > 0) { p.hp += _ph; }
+              }
+            }
+            /* モンスターへの効果 */
+            for (const _hm of _dg2.monsters) {
+              if (_hm.hp <= 0) continue;
+              const _hmRoom = findRoom(_dg2.rooms, _hm.x, _hm.y);
+              if (_hmRoom !== _pcRoom) continue;
+              if (_pc.cursed) {
+                _hm.hp -= _hBase;
+                ml.push(`${_pc.name}の呪いで${_hm.name}が${_hBase}ダメージを受けた！`);
+                if (_hm.hp <= 0) { trackMonster(_hm); killMonster(_hm, _dg2, p, ml, lu); }
+              } else if (_hm.kind === "undead") {
+                _hm.hp -= _hBase;
+                ml.push(`${_pc.name}の回復力が${_hm.name}を傷つけた！${_hBase}ダメージ！(アンデッド)`);
+                if (_hm.hp <= 0) { trackMonster(_hm); killMonster(_hm, _dg2, p, ml, lu); }
+              } else {
+                const _mh = Math.min(_hBase, _hm.maxHp - _hm.hp);
+                if (_mh > 0) _hm.hp += _mh;
               }
             }
           }

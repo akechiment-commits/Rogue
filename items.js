@@ -136,6 +136,7 @@ export const ITEMS = [
   { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"B", weight:4,  sellPrice:800,  desc:"足元に重力の魔方陣を描く。部屋内では浮遊不可・敵が罠にかかる・吹き飛ばし/飛びつき無効。水上の浮遊系敵は弾き出される（逃げ場なし即死）。祝福でフロア全体。呪いで部屋内全員が浮遊状態になる。チャージ制。", tile:42 },
   { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"A", weight:2,  sellPrice:2000, desc:"足元にみかわしの魔方陣を描く。魔方陣のある部屋では投げたもの・矢・石が必ず外れる（魔法・炎は除く）。祝福でフロア全体。呪いで逆に投げたもの・矢・石が必ず命中するようになる。チャージ制。", tile:42 },
   { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"B", weight:4,  sellPrice:1000, desc:"足元に等速の魔方陣を描く。同じ部屋の全員が速度に関わらず1回しか行動できなくなる。祝福なら全員2回行動。呪いなら全員鈍足（2ターンに1回行動）。チャージ制。", tile:42 },
+  { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"B", weight:4,  sellPrice:800,  desc:"足元に回復の魔方陣を描く。同じ部屋にいる者全員が毎ターン5HP回復する。祝福なら10HP回復。呪いなら逆に5ダメージ。アンデッドには回復と効果が逆になる。チャージ制。", tile:42 },
   { name:"短剣",             type:"weapon", atk:3,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"C", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"B", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },
@@ -1763,9 +1764,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       } else {
         const _mult = blessed ? 1.5 : 1;
         if (kind === "monster") {
-          const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp);
-          if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); pushHealAnim(target.x, target.y); }
-          else if (eff === "heal") { const _up = Math.round(val / 30) * (blessed ? 2 : 1); target.maxHp += _up; target.hp += _up; ml.push(`${target.name}のHP最大値が${_up}上昇した！`); pushHealAnim(target.x, target.y); }
+          if (target.kind === "undead") {
+            const _ud = Math.max(1, Math.round(val * _mult));
+            target.hp -= _ud; ml.push(`${target.name}はアンデッドのため${_ud}ダメージを受けた！`); _monKill(target);
+          } else {
+            const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp);
+            if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); pushHealAnim(target.x, target.y); }
+            else if (eff === "heal") { const _up = Math.round(val / 30) * (blessed ? 2 : 1); target.maxHp += _up; target.hp += _up; ml.push(`${target.name}のHP最大値が${_up}上昇した！`); pushHealAnim(target.x, target.y); }
+          }
         }
         if (kind === "player") {
           const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp);
@@ -1782,10 +1788,15 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") { target.hp -= _shd; ml.push(`${target.name}は変な薬を浴びた！${_shd}ダメージ！`); _monKill(target); }
         if (kind === "player") { p.deathCause = "呪われた超回復薬の飛散により"; p.hp -= _shd; ml.push(`変な薬を浴びた！${_shd}ダメージ！【呪】`); }
       } else if (kind === "monster") {
-        const _shHeal = Math.round(val * _shMult);
-        const _shh = Math.min(_shHeal, target.maxHp - target.hp);
-        if (_shh > 0) { target.hp += _shh; ml.push(`${target.name}のHPが${_shh}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(target.x, target.y); }
-        else { const _shUp = blessed ? 6 : 3; target.maxHp += _shUp; target.hp += _shUp; ml.push(`${target.name}のHP最大値が${_shUp}上昇した！`); pushHealAnim(target.x, target.y); }
+        if (target.kind === "undead") {
+          const _shUd = Math.max(1, Math.round(val * _shMult));
+          target.hp -= _shUd; ml.push(`${target.name}はアンデッドのため${_shUd}ダメージを受けた！`); _monKill(target);
+        } else {
+          const _shHeal = Math.round(val * _shMult);
+          const _shh = Math.min(_shHeal, target.maxHp - target.hp);
+          if (_shh > 0) { target.hp += _shh; ml.push(`${target.name}のHPが${_shh}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(target.x, target.y); }
+          else { const _shUp = blessed ? 6 : 3; target.maxHp += _shUp; target.hp += _shUp; ml.push(`${target.name}のHP最大値が${_shUp}上昇した！`); pushHealAnim(target.x, target.y); }
+        }
       } else if (kind === "player") {
         const _shHeal = Math.round(val * _shMult);
         const _shh = Math.min(_shHeal, p.maxHp - p.hp);
@@ -1797,9 +1808,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "poison": {
       if (kind === "monster") {
         if (cursed) {
-          // 反転→モンスター回復
-          const h = Math.min(Math.round(val * 0.5), target.maxHp - target.hp);
-          if (h > 0) { target.hp += h; ml.push(`${target.name}は変な薬で回復した！${h}HP`); }
+          // 反転→モンスター回復（アンデッドはさらに反転してダメージ）
+          const _ph = Math.max(1, Math.round(val * 0.5));
+          if (target.kind === "undead") {
+            target.hp -= _ph; ml.push(`${target.name}はアンデッドのため${_ph}ダメージを受けた！`); _monKill(target);
+          } else {
+            const h = Math.min(_ph, target.maxHp - target.hp);
+            if (h > 0) { target.hp += h; ml.push(`${target.name}は変な薬で回復した！${h}HP`); }
+          }
         } else {
           const dmg = Math.max(1, Math.round((val + rng(-3, 3)) * (blessed ? 1.5 : 1)));
           target.hp -= dmg;

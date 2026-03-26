@@ -418,11 +418,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が雷を打ち消した！"); break; }
       const _lCursed = blMult < 1;
       if (_lCursed) {
-        /* 呪い：25回復 */
+        /* 呪い：25回復（アンデッドは逆にダメージ） */
         if (kind === "monster") {
-          const _lheal = Math.min(25, target.maxHp - target.hp);
-          if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); }
-          else ml.push(`${target.name}には効果がなかった。`);
+          if (target.kind === "undead") {
+            target.hp -= 25; ml.push(`${target.name}はアンデッドのため25ダメージを受けた！`);
+            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+          } else {
+            const _lheal = Math.min(25, target.maxHp - target.hp);
+            if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); }
+            else ml.push(`${target.name}には効果がなかった。`);
+          }
           break;
         }
         if (kind === "player") {
@@ -990,8 +995,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push(`${target.name}が呪いで鈍足になった！【呪】`);
         } else {
           const _bh = Math.round(rng(10, 20) * blMult);
-          target.hp = Math.min(target.maxHp, target.hp + _bh);
-          ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！${_bwBlessed ? "（祝福）" : ""}`);
+          if (target.kind === "undead") {
+            target.hp -= _bh; ml.push(`${target.name}はアンデッドのため${_bh}ダメージを受けた！`);
+            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+          } else {
+            target.hp = Math.min(target.maxHp, target.hp + _bh);
+            ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！${_bwBlessed ? "（祝福）" : ""}`);
+          }
         }
         break;
       }
@@ -1052,10 +1062,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "monster") {
         if (_cwCursed) {
-          // 呪われた呪いの杖→敵を回復する（反転）
+          // 呪われた呪いの杖→敵を回復する（反転）（アンデッドはさらに反転してダメージ）
           const _ch = rng(10, 20);
-          target.hp = Math.min(target.maxHp, target.hp + _ch);
-          ml.push(`${target.name}は呪いの魔法で回復した！${_ch}HP【呪→回復】`);
+          if (target.kind === "undead") {
+            target.hp -= _ch; ml.push(`${target.name}はアンデッドのため${_ch}ダメージを受けた！`);
+            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+          } else {
+            target.hp = Math.min(target.maxHp, target.hp + _ch);
+            ml.push(`${target.name}は呪いの魔法で回復した！${_ch}HP【呪→回復】`);
+          }
         } else {
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
@@ -1184,11 +1199,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _fwBlessed = blMult > 1, _fwCursed = blMult < 1;
       const _fwOilyCheck = (char) => (char.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===char.x&&t.y===char.y);
       if (_fwCursed) {
-        /* 呪い：対象を回復 */
+        /* 呪い：対象を回復（アンデッドは逆にダメージ） */
         if (kind === "monster") {
-          const _fwh = Math.min(20, target.maxHp - target.hp);
-          if (_fwh > 0) { target.hp += _fwh; ml.push(`${target.name}のHPが${_fwh}回復した！【呪】`); }
-          else ml.push(`${target.name}には効果がなかった。`);
+          if (target.kind === "undead") {
+            target.hp -= 20; ml.push(`${target.name}はアンデッドのため20ダメージを受けた！`);
+            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+          } else {
+            const _fwh = Math.min(20, target.maxHp - target.hp);
+            if (_fwh > 0) { target.hp += _fwh; ml.push(`${target.name}のHPが${_fwh}回復した！【呪】`); }
+            else ml.push(`${target.name}には効果がなかった。`);
+          }
           break;
         }
         if (kind === "player") {
@@ -1250,11 +1270,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "ice_wand": {
       const _iwBlessed = blMult > 1, _iwCursed = blMult < 1;
       if (_iwCursed) {
-        /* 呪い：対象を回復し、移動封じ状態なら解除 */
+        /* 呪い：対象を回復し、移動封じ状態なら解除（アンデッドは回復が逆にダメージ） */
         if (kind === "monster") {
-          const _iwh = Math.min(20, target.maxHp - target.hp);
-          if (_iwh > 0) { target.hp += _iwh; ml.push(`${target.name}のHPが${_iwh}回復した！【呪】`); }
-          else ml.push(`${target.name}には効果がなかった。`);
+          if (target.kind === "undead") {
+            target.hp -= 20; ml.push(`${target.name}はアンデッドのため20ダメージを受けた！`);
+            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+          } else {
+            const _iwh = Math.min(20, target.maxHp - target.hp);
+            if (_iwh > 0) { target.hp += _iwh; ml.push(`${target.name}のHPが${_iwh}回復した！【呪】`); }
+            else ml.push(`${target.name}には効果がなかった。`);
+          }
           if ((target.immobileTurns||0) > 0) { target.immobileTurns = 0; ml.push(`${target.name}の移動封じが解除された！【呪】`); }
           break;
         }

@@ -1036,7 +1036,8 @@ export function useItemActions({
             it.effect === "plain"          ? "無の魔方陣" :
             it.effect === "gravity"        ? "重力の魔方陣" :
             it.effect === "dodge"          ? "みかわしの魔方陣" :
-            it.effect === "equal_speed"    ? "等速の魔方陣" : "魔方陣";
+            it.effect === "equal_speed"    ? "等速の魔方陣" :
+            it.effect === "heal_aura"      ? "回復の魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];

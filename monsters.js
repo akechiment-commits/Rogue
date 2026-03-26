@@ -1989,10 +1989,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         );
         const _hdist = Math.abs(_healTarget.x - m.x) + Math.abs(_healTarget.y - m.y);
         if (_hdist <= 1) {
-          /* 隣接：回復 */
+          /* 隣接：回復（アンデッドには逆にダメージ） */
           const _heal = rng(5, 12);
-          _healTarget.hp = Math.min(_healTarget.maxHp, _healTarget.hp + _heal);
-          ml.push(`${m.name}が${_healTarget.name}を回復した！(+${_heal}HP)`);
+          if (_healTarget.kind === "undead") {
+            _healTarget.hp -= _heal;
+            ml.push(`${m.name}が${_healTarget.name}に回復魔法をかけたが逆効果だ！${_heal}ダメージ！`);
+            if (_healTarget.hp <= 0) killMonster(_healTarget, dg, pl, ml, _luFn);
+          } else {
+            _healTarget.hp = Math.min(_healTarget.maxHp, _healTarget.hp + _heal);
+            ml.push(`${m.name}が${_healTarget.name}を回復した！(+${_heal}HP)`);
+          }
           return;
         } else {
           /* 傷ついた味方へ接近 */
