@@ -737,7 +737,10 @@ export function useItemActions({
           const _rvisC = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
           for (const _m of _rvisC) {
             const _ma = Math.min(rng(10, 20), _m.maxHp - _m.hp);
-            if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
+            if (_m.kind === "undead") {
+              _m.hp -= _ma; ml.push(`${_m.name}はアンデッドのため${_ma}ダメージを受けた！`);
+              if (_m.hp <= 0) killMonster(_m, dg, p, ml, lu);
+            } else if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
           }
         } else {
           const _rh = Math.max(1, Math.round(rng(15, 25) * _scrBm));
@@ -754,7 +757,10 @@ export function useItemActions({
             for (const _m of _rvis) {
               const _mh = Math.max(1, Math.round(rng(10, 20)));
               const _ma = Math.min(_mh, _m.maxHp - _m.hp);
-              if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
+              if (_m.kind === "undead") {
+                _m.hp -= _mh; ml.push(`${_m.name}はアンデッドのため${_mh}ダメージを受けた！`);
+                if (_m.hp <= 0) killMonster(_m, dg, p, ml, lu);
+              } else if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
             }
           }
         }
