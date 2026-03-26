@@ -1936,7 +1936,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             const _capDist = Math.max(Math.abs(p.x - _capMon.x), Math.abs(p.y - _capMon.y));
             const _capBadStatus = (_capMon.sleepTurns || 0) > 0 || _capMon.paralyzed || (_capMon.confusedTurns || 0) > 0 ||
               (_capMon.darknessTurns || 0) > 0 || (_capMon.fleeingTurns || 0) > 0 || _capMon.sealed || _capMon.bewitched ||
-              (_capMon.poisonedTurns || 0) > 0 || (_capMon.immobileTurns || 0) > 0 || _capMon.blind;
+              (_capMon.poisonedTurns || 0) > 0 || (_capMon.immobileTurns || 0) > 0 || _capMon.blind || (_capMon.oilyTurns || 0) > 0;
             if (_capDist > 1 || _capBadStatus) {
               p.capturedBy = null;
               ml.push("捕獲から解放された！");

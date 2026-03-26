@@ -1087,7 +1087,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _gRelDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
     const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0 ||
       (m.darknessTurns || 0) > 0 || (m.fleeingTurns || 0) > 0 || m.sealed || m.bewitched ||
-      (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || m.blind;
+      (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || m.blind || (m.oilyTurns || 0) > 0;
     if (_gRelDist > 1 || _gBadStatus) {
       pl.capturedBy = null;
       ml.push(`${m.name}の捕獲が解けた！`);
@@ -1904,13 +1904,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* ── grabber（からめ鬼等）：静止型、隣接でプレイヤーを捕獲 ── */
     if (m.subtype === "grabber") {
       if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+        let _justCaptured = false;
         if (!pl.capturedBy) {
           pl.capturedBy = m.id;
+          _justCaptured = true; /* 拘束したターンは攻撃しない */
           ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
           if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
           if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
         }
-        if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) {
+        if (!_justCaptured && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) {
           if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
             m.turnAttacks++;
             monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
