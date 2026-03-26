@@ -1597,7 +1597,18 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         dg.monsters = dg.monsters.filter(m => m !== _rtm);
         const _rotFoodItem = { ...genFood(), id: uid() };
         rotFood(_rotFoodItem);
-        _rotFoodItem.x = tx; _rotFoodItem.y = ty;
+        /* 罠と重ならないよう隣接の空きマスに配置 */
+        const _rtDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        let _rfx = tx, _rfy = ty, _rfPlaced = false;
+        for (const [_rdx, _rdy] of _rtDirs) {
+          const _cx = tx + _rdx, _cy = ty + _rdy;
+          if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
+          if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL) continue;
+          if (dg.items.some(i => i.x === _cx && i.y === _cy)) continue;
+          if (dg.traps.some(t => t.x === _cx && t.y === _cy)) continue;
+          _rfx = _cx; _rfy = _cy; _rfPlaced = true; break;
+        }
+        _rotFoodItem.x = _rfx; _rotFoodItem.y = _rfy;
         dg.items.push(_rotFoodItem);
         ml.push(`${_rtm.name}が腐敗に飲み込まれ${_rotFoodItem.name}に変わった！`);
       }
