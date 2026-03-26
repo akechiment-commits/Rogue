@@ -990,7 +990,7 @@ export function useItemActions({
           }
           ml.push(_bwCount > 0 ? `周囲が壁に変わった！(${_bwCount}マス)【呪】` : "周囲に床がなかった。【呪】");
         } else {
-          const _bwRadius = it.blessed ? 3 : 1;
+          const _bwRadius = it.blessed ? 10 : 5;
           let _bwCount = 0;
           for (let _by2 = p.y - _bwRadius; _by2 <= p.y + _bwRadius; _by2++) {
             for (let _bx2 = p.x - _bwRadius; _bx2 <= p.x + _bwRadius; _bx2++) {

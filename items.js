@@ -124,7 +124,7 @@ export const ITEMS = [
   { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"B", weight:4,  sellPrice:500,  desc:"視界内の敵全てを混乱させる。祝福でフロア全体。呪いで自分が混乱。",      tile:18 },
   { name:"炎の巻物",         type:"scroll", effect:"flame",               rarity:"B", weight:4,  sellPrice:550,  desc:"視界内の敵に炎ダメージ。油まみれの対象は2倍。祝福でフロア全体。呪いで自分も爆発ダメージ。", tile:18 },
   { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"B", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。祝福でステータスも永続低下。呪いで自分の装備の強化値が下がる。", tile:18 },
-  { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:6,  sellPrice:300,  desc:"周囲8マスの壁を壊す。祝福で広範囲。呪いで周囲を壁に変える。",           tile:18 },
+  { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:6,  sellPrice:300,  desc:"半径5の壁を全て壊す。祝福で半径10。呪いで周囲を壁に変える。",             tile:18 },
   { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"B", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。祝福で視界内全体。呪いで自分が金縛り。",   tile:18 },
   { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:2,  sellPrice:3000, desc:"足元に聖域の魔方陣を描く。モンスターは通過・攻撃できなくなる。チャージ制。", tile:42 },
   { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"B", weight:4,  sellPrice:500,  desc:"足元に脆弱の魔方陣を描く。同じ部屋にいる者全員の受けるダメージが2倍になる。チャージ制。", tile:42 },
