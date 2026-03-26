@@ -2118,6 +2118,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               if (_hasIceElem && attackMon.baseKind === "firedemon") {
                 d *= 2;
               }
+              /* 雷属性武器：氷竜・わてり×2 */
+              const _hasThunderElem = wab === "thunder_elem" || p.weapon?.abilities?.some(a => a === "thunder_elem");
+              const _isIceOrWater = attackMon.baseKind === "icedragon" || attackMon.baseKind === "wateri";
+              if (_hasThunderElem && _isIceOrWater) {
+                d *= 2;
+              }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
               const _vulnPc = _vulnRoom && dg.pentacles?.find((pc) => pc.kind === "vulnerability" && pc.x >= _vulnRoom.x && pc.x < _vulnRoom.x + _vulnRoom.w && pc.y >= _vulnRoom.y && pc.y < _vulnRoom.y + _vulnRoom.h);
@@ -2139,6 +2145,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 (_hasFireElem && attackMon.baseKind === "firedemon" ? "（炎半減）" : "") +
                 (_hasFireElem && attackMon.baseKind !== "firedemon" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
                 (_hasIceElem && attackMon.baseKind === "firedemon" ? "氷×2！" : "") +
+                (_hasThunderElem && _isIceOrWater ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
               _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
@@ -2858,13 +2865,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       /* 杖 + 武器/防具 → 状態異常アビリティ付与 */
       const _WAND_SYNTH = {
-        slow:     { weapon: "inflict_slow",     armor: "slow_proof" },
-        paralyze: { weapon: "inflict_paralyze", armor: "paralyze_proof" },
-        sleep:    { weapon: "inflict_sleep",    armor: "sleep_proof" },
-        darkness: { weapon: "inflict_darkness", armor: "darkness_proof" },
-        confuse:  { weapon: "inflict_confuse",  armor: "confuse_proof" },
-        bewitch:  { weapon: "inflict_bewitch",  armor: "bewitch_proof" },
-        seal:     { weapon: "inflict_seal",     armor: "seal_proof" },
+        slow:      { weapon: "inflict_slow",     armor: "slow_proof" },
+        paralyze:  { weapon: "inflict_paralyze", armor: "paralyze_proof" },
+        sleep:     { weapon: "inflict_sleep",    armor: "sleep_proof" },
+        darkness:  { weapon: "inflict_darkness", armor: "darkness_proof" },
+        confuse:   { weapon: "inflict_confuse",  armor: "confuse_proof" },
+        bewitch:   { weapon: "inflict_bewitch",  armor: "bewitch_proof" },
+        seal:      { weapon: "inflict_seal",     armor: "seal_proof" },
+        fire_wand: { weapon: "fire_elem",        armor: "fire_resist" },
+        ice_wand:  { weapon: "ice_elem",         armor: "ice_resist" },
+        lightning: { weapon: "thunder_elem",     armor: "lightning_resist" },
       };
       const _swWand = bb.contents.find(i => i.type === "wand" && _WAND_SYNTH[i.effect]);
       const _swEquip = _swWand && bb.contents.find(i => i !== _swWand && (i.type === "weapon" || i.type === "armor"));

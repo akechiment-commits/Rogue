@@ -122,12 +122,14 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   let _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
+  const _hasIceR = hasAbility(pl.armor, "ice_resist");
+  if (_hasIceR) _iDmg = Math.max(1, Math.floor(_iDmg / 2));
   pl.deathCause = `${m.name}の氷ブレスで`;
   pl.hp -= _iDmg;
   onPlayerHit?.(_iDmg, m);
   const _iSlow = rng(3, 6);
   pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
-  ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
+  ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！${_hasIceR ? "（耐氷半減）" : ""}`);
 }
 
 /* ===== 薬投げ ===== */

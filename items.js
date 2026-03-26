@@ -836,7 +836,8 @@ export const WEAPON_ABILITIES = [
   { id:"inflict_bewitch", name:"惑わし付与",desc:"攻撃時10%の確率で敵を幻惑にする" },
   { id:"inflict_seal",    name:"封印付与",  desc:"攻撃時10%の確率で敵を封印する" },
   { id:"fire_elem",       name:"炎属性",    desc:"油まみれの敵に2倍ダメージ、火ダルマには0.5倍ダメージ" },
-  { id:"ice_elem",        name:"氷属性",    desc:"炎属性の敵(火ダルマ)に2倍ダメージ" },
+  { id:"ice_elem",        name:"氷属性",    desc:"炎属性の敵(火ダルマ・氷竜以外の炎系)に2倍ダメージ" },
+  { id:"thunder_elem",    name:"雷属性",    desc:"氷・水系の敵(氷竜・わてり)に2倍ダメージ" },
 ];
 
 export const ARMOR_ABILITIES = [
@@ -856,6 +857,7 @@ export const ARMOR_ABILITIES = [
   { id:"confuse_proof",    name:"耐混乱",   desc:"混乱効果を無効化する" },
   { id:"bewitch_proof",    name:"耐惑わし", desc:"幻惑効果を無効化する" },
   { id:"seal_proof",       name:"耐封印",   desc:"封印効果を無効化する" },
+  { id:"ice_resist",       name:"耐氷",     desc:"氷のダメージを半減する" },
 ];
 
 /* ===== TRAPS ===== */
