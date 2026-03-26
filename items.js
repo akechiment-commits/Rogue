@@ -939,8 +939,15 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           continue;
         }
         if (_hasExPentacle || ringExplosion || mineExplosion) {
-          /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅 */
+          /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (consumeBarrier(m, ml)) continue;
+          if (m.isBoss) {
+            const _bd = Math.max(1, Math.floor(m.hp / 4));
+            m.hp -= _bd;
+            ml.push(`爆発で${m.name}は${_bd}ダメージ！`);
+            if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion); }
+            continue;
+          }
           m.hp = 0;
           _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion);
         } else {
@@ -1074,7 +1081,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
           if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
-        /* モンスター：即死（火ダルマは分裂） */
+        /* モンスター：即死（火ダルマは分裂、ボスは現在HPの4分の1ダメージ） */
         for (const m of [...dg.monsters]) {
           if (m.x === ax && m.y === ay) {
             if (m.baseKind === "firedemon") {
@@ -1089,6 +1096,13 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
                 dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
                 break;
               }
+              continue;
+            }
+            if (m.isBoss) {
+              const _bd = Math.max(1, Math.floor(m.hp / 4));
+              m.hp -= _bd;
+              ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！`);
+              if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
               continue;
             }
             ml.push(`${srcLabel}の爆発で${m.name}は消し飛んだ！`);
@@ -1193,7 +1207,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
           applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         }
       }
-      /* モンスター：炎無効(火ダルマ)以外は消滅 */
+      /* モンスター：炎無効(火ダルマ)以外は消滅（ボスは現在HPの4分の1ダメージ） */
       for (const m of [...dg.monsters.filter(mm => mm.x === ax && mm.y === ay)]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
@@ -1209,6 +1223,13 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
             dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
             break;
           }
+          continue;
+        }
+        if (m.isBoss) {
+          const _bd = Math.max(1, Math.floor(m.hp / 4));
+          m.hp -= _bd;
+          ml.push(`爆発で${m.name}は${_bd}ダメージ！`);
+          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn); }
           continue;
         }
         m.hp = 0;
@@ -1287,12 +1308,20 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "pitfall": {
       const _pfm = monsterAt(dg, tx, ty);
       if (_pfm) {
-        removeMonster(dg, _pfm);
-        if (_pitfallBag) {
-          _pitfallBag.push({ kind: 'monster', entity: _pfm });
-          ml.push(`${_pfm.name}も穴に落ちて次の階へ落下した！`);
+        if (_pfm.isBoss) {
+          /* ボス：落とし穴は無効、現在HPの4分の1ダメージ */
+          const _bd = Math.max(1, Math.floor(_pfm.hp / 4));
+          _pfm.hp -= _bd;
+          ml.push(`${_pfm.name}は落とし穴をものともしなかった！${_bd}ダメージ！`);
+          if (_pfm.hp <= 0) killMonster(_pfm, dg, p, ml, luFn);
         } else {
-          ml.push(`${_pfm.name}も穴に落ちて消えた！`);
+          removeMonster(dg, _pfm);
+          if (_pitfallBag) {
+            _pitfallBag.push({ kind: 'monster', entity: _pfm });
+            ml.push(`${_pfm.name}も穴に落ちて次の階へ落下した！`);
+          } else {
+            ml.push(`${_pfm.name}も穴に落ちて消えた！`);
+          }
         }
       }
       if (_pitfallBag) {
@@ -2649,6 +2678,11 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 dg.monsters.push({ ...m, id: uid(), x: _nx, y: _ny, hp: m.hp, turnAccum: 0, aware: true });
                 break;
               }
+            } else if (m.isBoss) {
+              const _bd = Math.max(1, Math.floor(m.hp / 4));
+              m.hp -= _bd;
+              ml.push(`爆発で${m.name}は${_bd}ダメージ！`);
+              if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
             } else {
               ml.push(`爆発で${m.name}は即死した！`);
               m.hp = 0;
