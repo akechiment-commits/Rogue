@@ -3215,6 +3215,16 @@ export function hasRingEffect(p, effect) {
   return p.rings?.some(r => r.effect === effect) ?? false;
 }
 
+/* ===== 食料の腐敗 ===== */
+/* food アイテムに「腐った」接頭語を付け、rotten:true フラグを立てる */
+/* 既に腐っている場合は何もしない。食料以外には適用しない。 */
+export function rotFood(item) {
+  if (item.type !== "food" || item.rotten) return false;
+  item.rotten = true;
+  if (!item.name.startsWith("腐った")) item.name = "腐った" + item.name;
+  return true;
+}
+
 /* プレイヤーが浮遊状態か判定（呪い重力は強制浮遊、通常重力は浮遊抑制） */
 export function isPlayerFloating(p, dg) {
   if (dg && hasCursedGravityPentacle(dg, p.x, p.y)) return true;

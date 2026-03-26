@@ -3380,10 +3380,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     } else if (it.type === "potion" && it.effect === "heal" && _isIdent)
       s += ` (HP+${it.value})`;
     else if (it.type === "food") {
-      s += `(満+${it.value})`;
-      if (!it.cooked || it.potionEffects?.length) {
+      const _rotMult = it.rotten ? 0.3 : 1;
+      s += `(満+${Math.max(1, Math.round(it.value * _rotMult))})`;
+      if (it.rotten || !it.cooked || it.potionEffects?.length) {
         s += "(";
-        if (!it.cooked) s += "生";
+        if (it.rotten) s += "腐";
+        else if (!it.cooked) s += "生";
         if (it.potionEffects?.length) s += "★";
         s += ")";
       }

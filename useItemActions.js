@@ -10,7 +10,7 @@ import {
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
-  hasRingEffect, cookFoodMeta,
+  hasRingEffect, cookFoodMeta, rotFood,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
@@ -354,6 +354,26 @@ export function useItemActions({
       }
     } else if (it.type === "food") {
       const _foodBm = getBlessMultiplier(it);
+      /* 腐った食料：満腹度0.3倍、毒＋ダメージ、効果なし */
+      if (it.rotten) {
+        const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.3));
+        p.inventory.splice(idx, 1);
+        if (p.hunger < 0) p.hunger = 0;
+        const _rotAdded = Math.min(_rotVal, p.maxHunger - p.hunger);
+        p.hunger = Math.min(p.maxHunger, p.hunger + _rotVal);
+        const _rotDmg = rng(5, 10);
+        p.deathCause = "腐った食料を食べて";
+        p.hp -= _rotDmg;
+        ml.push(`${it.name}を食べた。(満腹度+${_rotAdded})`);
+        ml.push(`腐っていた！${_rotDmg}ダメージを受けた！`);
+        if (hasRingEffect(p, "antidote_ring")) {
+          ml.push("毒消しの指輪が毒を防いだ！");
+        } else {
+          p.poisoned = true;
+          ml.push("食中毒になった！毒状態になった！攻撃力が徐々に下がっていく…");
+        }
+        return ml;
+      }
       const _foodVal = Math.max(1, Math.round(it.value * _foodBm));
       p.inventory.splice(idx, 1);
       if (p.hunger < 0) p.hunger = 0;

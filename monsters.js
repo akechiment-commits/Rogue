@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood } from "./items.js";
 import { pushMonsterBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -975,11 +975,23 @@ function monsterShootWaterGun(m, dg, pl, ml) {
       ml.push(`${m.name}の水鉄砲が命中！${dmg}ダメージ！`);
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
       if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
-      /* Lv2以上：命中時に一定確率で足止め（水浸し） */
+      /* Lv2以上：命中時に食料を腐らせるか武器を劣化させる */
       const _wLvl = m.monLevel || 1;
-      if (_wLvl >= 2 && Math.random() < 0.4) {
-        pl.slowTurns = (pl.slowTurns || 0) + 3;
-        ml.push("水浸しになって動きが鈍くなった！(3ターン)");
+      if (_wLvl >= 2 && Math.random() < 0.5) {
+        const _foods = pl.inventory.filter(i => i.type === "food" && !i.rotten);
+        const _canDegrade = pl.weapon && !hasAbility(pl.weapon, "no_degrade");
+        if (_foods.length > 0 && (_canDegrade ? Math.random() < 0.6 : true)) {
+          /* 食料をランダムに1つ腐らせる */
+          const _tf = pick(_foods);
+          rotFood(_tf);
+          ml.push(`水びたしになって${_tf.name}が腐ってしまった！`);
+        } else if (_canDegrade) {
+          /* 装備中の武器を劣化させる */
+          const _op = pl.weapon.plus || 0;
+          pl.weapon.plus = _op - 1;
+          const _fpp = v => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
+          ml.push(`水びたしになって${pl.weapon.name}が錆びた！(${_fpp(_op)}→${_fpp(_op - 1)})`);
+        }
       }
       return;
     }
