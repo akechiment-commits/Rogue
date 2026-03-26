@@ -16,7 +16,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames,
-  hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion,
+  hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
@@ -3027,6 +3027,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           item.cursed = false;
           item.bcKnown = true;
           ml.push(`${_idn}が祝福された！【祝】`);
+        }
+      } else if (bb.kind === "curse") {
+        if (item.type === "goal" || item.type === "gold") {
+          ml.push(`${_idn}には効果がなかった。`);
+        } else if (item.type === "food") {
+          if (item.rotten) {
+            ml.push(`${_idn}はすでに腐っている。`);
+          } else {
+            const _cOrigName = item.name;
+            rotFood(item);
+            item.bcKnown = true;
+            ml.push(`${_cOrigName}が腐ってしまった！`);
+          }
+        } else {
+          item.cursed = true;
+          item.blessed = false;
+          item.bcKnown = true;
+          ml.push(`${_idn}が呪われた！【呪】`);
         }
       }
       if (wasFull || bb.contents.length > bb.capacity) breakBigbox(bb, dg, ml);
