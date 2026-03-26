@@ -186,6 +186,42 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
       ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
     }
+    if (m.baseKind === "boss_warlord" && Math.random() < 0.30) {
+      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + 8;
+      ml.push(`魔将軍の刃が鎧を砕いた！防御力が半減した！(8ターン)`);
+    }
+    if (m.baseKind === "boss_skullking" && Math.random() < 0.35) {
+      const _drain = Math.min(20, pl.hp - 1);
+      if (_drain > 0) { pl.hp -= _drain; m.hp = Math.min(m.maxHp, m.hp + _drain); ml.push(`骸骨王が命を吸い取った！${_drain}HP吸収！`); }
+    }
+    if (m.baseKind === "boss_flamedragon") {
+      const _oily = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y);
+      if (_oily) {
+        const _xdmg = Math.max(1, Math.floor(dmg * 0.5));
+        pl.deathCause = `${m.name}の炎攻撃により`;
+        pl.hp -= _xdmg;
+        ml.push(`油が引火して追加炎ダメージ！${_xdmg}ダメージ！`);
+      }
+    }
+    if (m.baseKind === "boss_voidmonk" && Math.random() < 0.25) {
+      pl.sealedTurns = (pl.sealedTurns || 0) + 12;
+      ml.push(`虚無の僧侶の呪いが魔力を封じた！魔法が封印された！(12ターン)`);
+    }
+    if (m.baseKind === "boss_infernoking" && Math.random() < 0.40) {
+      pl.poisonedTurns = (pl.poisonedTurns || 0) + 5;
+      ml.push(`煉獄公の爪に毒が！毒を受けた！(5ターン)`);
+    }
+    if (m.baseKind === "boss_abyssgod") {
+      if (Math.random() < 0.35) {
+        const _pt = rng(2, 3);
+        pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
+        ml.push(`深淵神の一撃が意識を蝕んだ！金縛りになった！(${_pt}ターン)`);
+      }
+      if (Math.random() < 0.25) {
+        pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + 10;
+        ml.push(`深淵神の呪いで防御が崩れた！防御力が半減した！(10ターン)`);
+      }
+    }
   }
   /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
   if (dg.pentacles?.length > 0 && dmg > 0) {
@@ -599,27 +635,27 @@ export const BOSSES = [
     speed: 2,   tile: 92, kind: "beast",    baseKind: "boss_demonking",
     isBoss: true, bossTier: 4,  monLevel: 1, maxAttacks: 3, float: true },
   /* 第5ボス B25F (depth=24) */
-  { name: "魔将軍",     hp: 1400,  atk: 95,  def: 52,  exp: 9000,
+  { name: "魔将軍",     hp: 1200,  atk: 88,  def: 52,  exp: 9000,
     speed: 2,   tile: 95, kind: "humanoid", baseKind: "boss_warlord",
     isBoss: true, bossTier: 5,  monLevel: 1, maxAttacks: 3 },
   /* 第6ボス B30F (depth=29) */
-  { name: "骸骨王",     hp: 2200,  atk: 120, def: 65,  exp: 15000,
+  { name: "骸骨王",     hp: 1600,  atk: 105, def: 60,  exp: 15000,
     speed: 2,   tile: 96, kind: "undead",   baseKind: "boss_skullking",
     isBoss: true, bossTier: 6,  monLevel: 1, maxAttacks: 3, float: true },
   /* 第7ボス B35F (depth=34) */
-  { name: "炎帝竜",     hp: 3400,  atk: 150, def: 80,  exp: 25000,
+  { name: "炎帝竜",     hp: 2000,  atk: 122, def: 68,  exp: 25000,
     speed: 2,   tile: 97, kind: "dragon",   baseKind: "boss_flamedragon",
     isBoss: true, bossTier: 7,  monLevel: 1, maxAttacks: 3 },
   /* 第8ボス B40F (depth=39) */
-  { name: "虚無の僧侶", hp: 5200,  atk: 185, def: 98,  exp: 40000,
+  { name: "虚無の僧侶", hp: 2500,  atk: 142, def: 77,  exp: 40000,
     speed: 2,   tile: 98, kind: "humanoid", baseKind: "boss_voidmonk",
     isBoss: true, bossTier: 8,  monLevel: 1, maxAttacks: 3, float: true },
   /* 第9ボス B45F (depth=44) */
-  { name: "煉獄公",     hp: 8000,  atk: 225, def: 118, exp: 65000,
+  { name: "煉獄公",     hp: 3000,  atk: 163, def: 87,  exp: 65000,
     speed: 2,   tile: 99, kind: "beast",    baseKind: "boss_infernoking",
     isBoss: true, bossTier: 9,  monLevel: 1, maxAttacks: 3, float: true },
   /* 第10ボス B50F (depth=49) ― 最終ボス */
-  { name: "深淵神",     hp: 12000, atk: 270, def: 140, exp: 100000,
+  { name: "深淵神",     hp: 3800,  atk: 183, def: 97,  exp: 100000,
     speed: 2,   tile: 100, kind: "beast",   baseKind: "boss_abyssgod",
     isBoss: true, bossTier: 10, monLevel: 1, maxAttacks: 3, float: true },
 ];
@@ -1155,6 +1191,89 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         break;
       }
       if (!_summoned) m._summonCooldown = 1; /* すぐ再試行 */
+    }
+  }
+
+  /* 骸骨王：3ターンごとに周囲に手下を2体召喚（最大8体） */
+  if (m.baseKind === "boss_skullking" && !_moveOnly) {
+    m._summonCooldown = (m._summonCooldown || 0) - 1;
+    if (m._summonCooldown <= 0) {
+      m._summonCooldown = 3;
+      const _bDirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].sort(() => Math.random() - 0.5);
+      const _nearMons = dg.monsters.filter(mn => Math.abs(mn.x - m.x) <= 3 && Math.abs(mn.y - m.y) <= 3 && mn !== m);
+      if (_nearMons.length < 8) {
+        let _summoned = 0;
+        for (const [_sdx, _sdy] of _bDirs) {
+          if (_summoned >= 2) break;
+          const _sx = m.x + _sdx, _sy = m.y + _sdy;
+          if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
+          if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+          if (pl.x === _sx && pl.y === _sy) continue;
+          const _depth = Math.max(0, (m.bossTier || 6) * 4);
+          dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y }));
+          _summoned++;
+        }
+        if (_summoned > 0) ml.push(`${m.name}が骨の手下を呼び寄せた！`);
+        else m._summonCooldown = 1;
+      }
+    }
+  }
+  /* 炎帝竜：毎ターン40%でプレイヤーに油まみれ付与（視界内時） */
+  if (m.baseKind === "boss_flamedragon" && !_moveOnly) {
+    const _fdVisible = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+    if (_fdVisible && Math.random() < 0.40) {
+      pl.oilyTurns = (pl.oilyTurns || 0) + 8;
+      ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(8ターン)`);
+    }
+  }
+  /* 虚無の僧侶：毎ターン12HP回復 + 5ターンごとにランダム状態異常付与 */
+  if (m.baseKind === "boss_voidmonk" && !_moveOnly) {
+    const _vh = Math.min(12, m.maxHp - m.hp);
+    if (_vh > 0) { m.hp += _vh; ml.push(`${m.name}は虚無の力で回復した！(+${_vh}HP)`); }
+    m._statusCooldown = (m._statusCooldown || 0) - 1;
+    if (m._statusCooldown <= 0) {
+      m._statusCooldown = 5;
+      const _r = Math.random();
+      if (_r < 0.33) { pl.slowTurns = (pl.slowTurns || 0) + 6; ml.push(`${m.name}の呪いで足が重くなった！(6ターン)`); }
+      else if (_r < 0.66) { pl.confusedTurns = (pl.confusedTurns || 0) + 4; ml.push(`${m.name}の幻術で混乱した！(4ターン)`); }
+      else { pl.sealedTurns = (pl.sealedTurns || 0) + 6; ml.push(`${m.name}の空間歪曲で魔法が封印された！(6ターン)`); }
+    }
+  }
+  /* 煉獄公：周囲4マスを油まみれタイルに + HP50%以下で激昂（speed+1） */
+  if (m.baseKind === "boss_infernoking" && !_moveOnly) {
+    dg.oilyTiles = dg.oilyTiles || [];
+    for (const [_dx, _dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+      const _tx = m.x + _dx, _ty = m.y + _dy;
+      if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.oilyTiles.some(t => t.x === _tx && t.y === _ty))
+        dg.oilyTiles.push({ x: _tx, y: _ty });
+    }
+    if (!m._enraged && m.hp <= m.maxHp * 0.5) {
+      m._enraged = true;
+      m.speed = (m.speed || 2) + 1;
+      ml.push(`${m.name}が激昂した！速度が跳ね上がった！`);
+    }
+  }
+  /* 深淵神：毎ターン20HP回復 + 4ターンごとに周囲に2体召喚 */
+  if (m.baseKind === "boss_abyssgod" && !_moveOnly) {
+    const _ah = Math.min(20, m.maxHp - m.hp);
+    if (_ah > 0) { m.hp += _ah; ml.push(`${m.name}は深淵の力で回復した！(+${_ah}HP)`); }
+    m._summonCooldown = (m._summonCooldown || 0) - 1;
+    if (m._summonCooldown <= 0) {
+      m._summonCooldown = 4;
+      const _agDirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].sort(() => Math.random() - 0.5);
+      let _summoned = 0;
+      for (const [_sdx, _sdy] of _agDirs) {
+        if (_summoned >= 2) break;
+        const _sx = m.x + _sdx, _sy = m.y + _sdy;
+        if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
+        if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
+        if (pl.x === _sx && pl.y === _sy) continue;
+        const _depth = Math.max(0, (m.bossTier || 10) * 5);
+        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y }));
+        _summoned++;
+      }
+      if (_summoned > 0) ml.push(`${m.name}が深淵から手下を招いた！`);
+      else m._summonCooldown = 1;
     }
   }
 
