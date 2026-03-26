@@ -748,7 +748,7 @@ export const BOSSES = [
 ];
 
 /* ===== 警備員テンプレート ===== */
-export const GUARD_TEMPLATE = { name: "警備員", hp: 35, atk: 14, def: 5, exp: 25, speed: 1, tile: 59, kind: "humanoid" };
+export const GUARD_TEMPLATE = { name: "警備員", hp: 200, atk: 100, def: 100, exp: 25, speed: 1, tile: 59, kind: "humanoid" };
 export function makeGuard(x, y, plx, ply) {
   return { ...GUARD_TEMPLATE, id: uid(), x, y, maxHp: GUARD_TEMPLATE.hp, baseSpeed: GUARD_TEMPLATE.speed || 1, type: "guard",
     turnAccum: 0, aware: true, dir: { x: 0, y: 0 }, lastPx: plx, lastPy: ply, patrolTarget: null };
@@ -1770,7 +1770,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _guardDarkRdy0 = m.type === "guard" && !m.sealed && _rAtks && (_radx === 0 || _rady === 0) && _rLen >= 2 && _rLen <= 8;
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _guardDarkRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -1886,6 +1887,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           monsterThrowPotion(m, dg, pl, ml);
           return;
         }
+      }
+
+      /* ── 警備員：縦・横の直線上で暗闇の薬投げ ── */
+      if (m.type === "guard" && !m.sealed && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.4)) {
+        m.turnAttacks++;
+        ml.push(`${m.name}が暗闇の薬を投げた！`);
+        pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#334466");
+        splashPotion(dg, pl.x, pl.y, "darkness", 20, pl, ml, null, false, false);
+        return;
       }
 
       if (m.subtype === "monsterthrow" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {

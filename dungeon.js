@@ -479,7 +479,7 @@ function setupShopRoom(room, map, depth, items, mons) {
       }
     }
   const sk = {
-    id: uid(), name: '店主', hp: 100, maxHp: 100, atk: 12, def: 6, exp: 0,
+    id: uid(), name: '店主', hp: 200, maxHp: 200, atk: 100, def: 100, exp: 0,
     speed: 1, tile: TI.SHOPKEEPER, type: 'shopkeeper', state: 'friendly',
     blockPos: { ...entrance }, homePos: { ...insidePos },
     x: insidePos.x, y: insidePos.y, turnAccum: 0, aware: false,
@@ -1618,10 +1618,10 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     const sk = {
       id: uid(),
       name: "店主",
-      hp: 100,
-      maxHp: 100,
-      atk: 12,
-      def: 6,
+      hp: 200,
+      maxHp: 200,
+      atk: 100,
+      def: 100,
       exp: 0,
       speed: 1,
       tile: TI.SHOPKEEPER,

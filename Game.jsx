@@ -1219,15 +1219,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     /* 最下層から落とし穴 → 隠し宝部屋 */
     const _isLastFloorPitfall = pitfall && _maxD !== null && pl.depth >= _maxD && dir > 0;
     if (!sr.current.floors) sr.current.floors = {};
-    /* 店の部屋内で落とし穴等により階層を離脱した場合は泥棒状態にする */
-    const _chgShops = sr.current.dungeon?.shops || (sr.current.dungeon?.shop ? [sr.current.dungeon.shop] : []);
-    for (const _cs of _chgShops) {
-      if (_cs.unpaidTotal > 0 && _cs.room &&
-          pl.x >= _cs.room.x && pl.x < _cs.room.x + _cs.room.w &&
-          pl.y >= _cs.room.y && pl.y < _cs.room.y + _cs.room.h) {
-        sr.current.dungeon.shopTheft = true;
-        for (const _ci of pl.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
-        break;
+    /* 店の商品を持ったまま階層を離脱した場合は即座に泥棒状態にする */
+    const _hasUnpaidItems = pl.inventory.some(ci => ci.shopPrice);
+    if (_hasUnpaidItems) {
+      sr.current.dungeon.shopTheft = true;
+      for (const _ci of pl.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
+    } else {
+      const _chgShops = sr.current.dungeon?.shops || (sr.current.dungeon?.shop ? [sr.current.dungeon.shop] : []);
+      for (const _cs of _chgShops) {
+        if (_cs.unpaidTotal > 0 && _cs.room &&
+            pl.x >= _cs.room.x && pl.x < _cs.room.x + _cs.room.w &&
+            pl.y >= _cs.room.y && pl.y < _cs.room.y + _cs.room.h) {
+          sr.current.dungeon.shopTheft = true;
+          for (const _ci of pl.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
+          break;
+        }
       }
     }
     sr.current.floors[pl.depth] = sr.current.dungeon;
