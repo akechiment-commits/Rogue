@@ -1119,6 +1119,23 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       }
     }
     if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
+    /* 範囲内の大箱を破壊 */
+    const _gpBlastedBB = [];
+    for (let _gbbdx = -1; _gbbdx <= 1; _gbbdx++) {
+      for (let _gbbdy = -1; _gbbdy <= 1; _gbbdy++) {
+        const _gbax = cx + _gbbdx, _gbay = cy + _gbbdy;
+        if (_gbax < 0 || _gbax >= MW || _gbay < 0 || _gbay >= MH) continue;
+        const _hitBBs = (dg.bigboxes || []).filter(b => b.x === _gbax && b.y === _gbay);
+        for (const _hbb of _hitBBs) {
+          if (_gpBlastedBB.includes(_hbb)) continue;
+          _gpBlastedBB.push(_hbb);
+          ml.push(`${_hbb.name}が爆発で壊れた！`);
+          const _gpft = new Set();
+          for (const ci of (_hbb.contents || [])) placeItemAt(dg, _hbb.x, _hbb.y, ci, ml, _gpft);
+        }
+      }
+    }
+    if (_gpBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_gpBlastedBB.includes(b));
     /* 範囲内の床上 火薬壺 を先に除去してから連鎖爆発 */
     const _chainPots = dg.items.filter(it =>
       it.type === "pot" && it.potEffect === "gunpowder" &&

@@ -2206,8 +2206,10 @@ export function useItemActions({
               if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               _stLx2 = tx; _stLy2 = ty;
+              if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
             }
             const _stM2 = monsterAt(dg, _stLx2, _stLy2);
+            const _stBB2 = dg.bigboxes?.find(b => b.x === _stLx2 && b.y === _stLy2);
             const _stDmg2 = _invStAtk + rng(0, 3);
             ml.push(`${_invStName}を投げた！`);
             if (_stM2) {
@@ -2223,6 +2225,8 @@ export function useItemActions({
                 ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
                 if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
               }
+            } else if (_stBB2) {
+              bigboxAddItem(_stBB2, makeStone(1), dg, ml);
             } else {
               const _stft2 = new Set();
               withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
