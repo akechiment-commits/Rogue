@@ -9,7 +9,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, TRAPS,
-  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T,
+  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T,
   genFood, makeArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
@@ -2215,6 +2215,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 for (const [abId, fn] of _inflicts) {
                   if (wabHas(abId) && Math.random() < 0.1) fn();
                 }
+                /* 影縫い：25%の確率で移動封じ2〜3ターン */
+                if (attackMon.hp > 0 && wabHas("inflict_immobile") && Math.random() < 0.25) {
+                  const _imT = attackMon.isBoss ? 1 : rng(2, 3);
+                  attackMon.immobileTurns = (attackMon.immobileTurns || 0) + _imT;
+                  ml.push(`${attackMon.name}は影に縫い止められた！(${_imT}ターン)`);
+                }
               }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
               acted = true;
@@ -2977,6 +2983,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         bb.contents.push(_triArmor);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！三属性の耐性が融合して元素王の鎧に変化した！`);
+      /* 三種キラー：竜・不死・浮遊特効をすべて持つなら全能キラーに変化 */
+      } else if (merged.type === "weapon" && _mabs.includes("bane_dragon") && _mabs.includes("bane_undead") && _mabs.includes("bane_float")) {
+        const _abAbs = [...new Set([..._mabs, ...ALLBANE_SWORD_T.abilities])];
+        const _allBane = { ...ALLBANE_SWORD_T, id: uid(), plus: merged.plus, ability: _abAbs[0], abilities: _abAbs };
+        bb.contents.push(_allBane);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！三種の特効剣が融合して全能キラーに変化した！`);
+      /* 三守護：刃反射・みかわし・杖反射をすべて持つなら神盾の鎧に変化 */
+      } else if (merged.type === "armor" && _mabs.includes("thorn") && _mabs.includes("dodge") && _mabs.includes("wand_reflect")) {
+        const _dsAbs = [...new Set([..._mabs, ...DIVINE_SHIELD_T.abilities])];
+        const _divShield = { ...DIVINE_SHIELD_T, id: uid(), plus: merged.plus, ability: _dsAbs[0], abilities: _dsAbs };
+        bb.contents.push(_divShield);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！三守護の力が融合して神盾の鎧に変化した！`);
       } else {
         bb.contents.push(merged);
         bb.capacity = bb.contents.length;
