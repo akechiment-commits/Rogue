@@ -1391,21 +1391,25 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     return;
   }
 
-  /* ===== 分裂スライム：HP半減で一度だけ分裂体を生成 ===== */
-  if (m.subtype === "splitter" && !m.hasSplit && m.hp > 0 && m.hp < m.maxHp / 2) {
-    m.hasSplit = true;
-    const _splitDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
-    for (const [_sdx, _sdy] of _splitDirs) {
-      const _snx = m.x + _sdx, _sny = m.y + _sdy;
-      if (!canEnter(dg.map, _snx, _sny)) continue;
-      if (_snx === pl.x && _sny === pl.y) continue;
-      if (dg.monsters.some(o => o.x === _snx && o.y === _sny)) continue;
-      const _child = { ...m, id: uid(), x: _snx, y: _sny,
-        hp: Math.max(1, Math.floor(m.maxHp * 0.35)), maxHp: m.maxHp,
-        hasSplit: true, posHistory: [], turnAccum: 0, patrolTarget: null };
-      dg.monsters.push(_child);
-      ml.push(`${m.name}が分裂した！`);
-      break;
+  /* ===== 分裂スライム：ダメージを受けたターンに25%で分裂（体力全快の個体を生成） ===== */
+  if (m.subtype === "splitter" && m.hp > 0) {
+    const _prevHp = m._lastHp;
+    m._lastHp = m.hp;
+    if (_prevHp !== undefined && m.hp < _prevHp && Math.random() < 0.25) {
+      const _splitDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+      for (const [_sdx, _sdy] of _splitDirs) {
+        const _snx = m.x + _sdx, _sny = m.y + _sdy;
+        if (!canEnter(dg.map, _snx, _sny)) continue;
+        if (_snx === pl.x && _sny === pl.y) continue;
+        if (dg.monsters.some(o => o.x === _snx && o.y === _sny)) continue;
+        const _child = { ...m, id: uid(), x: _snx, y: _sny,
+          hp: m.maxHp, maxHp: m.maxHp,
+          posHistory: [], turnAccum: 0, patrolTarget: null, _lastHp: m.maxHp };
+        delete _child.hasSplit;
+        dg.monsters.push(_child);
+        ml.push(`${m.name}が分裂した！`);
+        break;
+      }
     }
   }
 
