@@ -1,6 +1,6 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood } from "./items.js";
-import { pushMonsterBoltAnim } from "./animEvents.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, splashPotion } from "./items.js";
+import { pushMonsterBoltAnim, pushSplashAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -96,6 +96,55 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
   if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null, null, true);
+}
+
+/* ===== 氷竜ブレス ===== */
+function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
+  const _iLvl = m.monLevel || 1;
+  const _idx = Math.sign(pl.x - m.x), _idy = Math.sign(pl.y - m.y);
+  for (let _ii = 1; ; _ii++) {
+    const _ix = m.x + _idx * _ii, _iy = m.y + _idy * _ii;
+    if (_ix === pl.x && _iy === pl.y) break;
+    if (_ix < 0 || _ix >= MW || _iy < 0 || _iy >= MH) return;
+    if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) return;
+    const _iBlock = dg.monsters.find(o => o.x === _ix && o.y === _iy);
+    if (_iBlock) {
+      const _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_iBlock.def || 0))) + rng(-2, 2));
+      _iBlock.hp -= _iDmg;
+      const _iSlow = rng(3, 5);
+      _iBlock.slowTurns = (_iBlock.slowTurns || 0) + _iSlow;
+      ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
+      if (_iBlock.hp <= 0) killMonster(_iBlock, dg, pl, ml, null);
+      return;
+    }
+  }
+  const pdef = Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1));
+  let _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
+  const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
+  if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
+  pl.deathCause = `${m.name}の氷ブレスで`;
+  pl.hp -= _iDmg;
+  onPlayerHit?.(_iDmg, m);
+  const _iSlow = rng(3, 6);
+  pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
+  ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
+}
+
+/* ===== 薬投げ ===== */
+const _POTION_THROW_POOL = [
+  { effect: "poison",   value: 15 },
+  { effect: "fire",     value: 20 },
+  { effect: "sleep",    value: 4  },
+  { effect: "confuse",  value: 5  },
+  { effect: "seal",     value: 0  },
+  { effect: "darkness", value: 0  },
+  { effect: "bewitch",  value: 0  },
+];
+function monsterThrowPotion(m, dg, pl, ml) {
+  const _pot = pick(_POTION_THROW_POOL);
+  ml.push(`${m.name}が謎の薬を投げた！`);
+  pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#ff88ff");
+  splashPotion(dg, pl.x, pl.y, _pot.effect, _pot.value, pl, ml, null, false, false);
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
@@ -553,6 +602,18 @@ export const MONS = [
     levels: [
       { name: "強魔法反射師",       hp: 61,  atk: 22, def: 13, exp: 120 },
       { name: "覇魔法反射師",       hp: 95,  atk: 29, def: 18, exp: 188 },
+    ],
+  },
+  { name: "薬投げ師",     hp: 30,  atk: 13, def: 3,  exp: 48,  speed: 1,   tile: 88, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 10, maxFloor: 50, subtype: "potionthrow",
+    levels: [
+      { name: "強薬投げ師",         hp: 48,  atk: 18, def: 6,  exp: 76  },
+      { name: "覇薬投げ師",         hp: 75,  atk: 24, def: 10, exp: 120 },
+    ],
+  },
+  { name: "氷竜",         hp: 65,  atk: 27, def: 10, exp: 125, speed: 1,   tile: 39, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50,
+    levels: [
+      { name: "大氷竜",             hp: 105, atk: 37, def: 16, exp: 200 },
+      { name: "覇氷竜",             hp: 168, atk: 48, def: 22, exp: 320 },
     ],
   },
   { name: "わてり",       hp: 40,  atk: 16, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, waterOnly: true, subtype: "watergunner",
@@ -1696,7 +1757,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _chargerRdy = m.subtype === "charger" && !m.sealed && _rAtks && _rLine && _rLen >= 2;
       /* わてり：水鉄砲 */
       const _wgRdy = m.subtype === "watergunner" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 8 && _rAtks;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _ptLvl0 = m.monLevel || 1;
+      const _ptRange0 = _ptLvl0 >= 3 ? 10 : _ptLvl0 >= 2 ? 7 : 5;
+      const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
+      const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
+        ((m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -1803,6 +1869,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
 
+      if (m.subtype === "potionthrow" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        const _ptLvl = m.monLevel || 1;
+        const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
+        const _ptDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+        if (_ptDist <= _ptRange && canSee && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+          m.turnAttacks++;
+          monsterThrowPotion(m, dg, pl, ml);
+          return;
+        }
+      }
+
       if (m.subtype === "monsterthrow" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
         const _mtLvl = m.monLevel || 1;
         const _mtRange = _mtLvl >= 3 ? 10 : _mtLvl >= 2 ? 5 : 3;
@@ -1866,6 +1943,26 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (_canFire && (_dragonRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterDragonFire(m, dg, pl, ml, _onHit);
+        return;
+      }
+    }
+
+    /* ── 氷竜ブレス（Lv1:一直線 / Lv2:同部屋 / Lv3:同フロア） ── */
+    if (!_moveOnly && m.baseKind === "icedragon" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      const _ibAdx = pl.x - m.x, _ibAdy = pl.y - m.y;
+      const _ibDist = Math.max(Math.abs(_ibAdx), Math.abs(_ibAdy));
+      const _ibLvl = m.monLevel || 1;
+      let _ibCanFire = false;
+      if (_ibDist >= 2) {
+        if (_ibLvl >= 3) { _ibCanFire = true; }
+        else if (_ibLvl >= 2) { _ibCanFire = canSee && _sameRoom; }
+        else { _ibCanFire = canSee && (_ibAdx === 0 || _ibAdy === 0 || Math.abs(_ibAdx) === Math.abs(_ibAdy)); }
+      }
+      const _ibRdy = m._rangedAttackThisTurn;
+      if (_ibRdy) delete m._rangedAttackThisTurn;
+      if (_ibCanFire && (_ibRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m.turnAttacks++;
+        monsterIceBreath(m, dg, pl, ml, _onHit);
         return;
       }
     }
