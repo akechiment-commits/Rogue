@@ -3496,12 +3496,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
       }
       p.inventory.splice(itemIdx, 1);
-      const _wasUnrev = bb.revealed !== true && !sr.current?.allBcKnown;
       bigboxAddItem(bb, it, dg, ml);
-      if (_wasUnrev) {
-        bb.revealed = true;
-        ml.push(`謎の大箱の正体は${bb.name}だった！`);
-      }
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (dg.bigboxes?.includes(bb) && bb.contents.length < bb.capacity) {
