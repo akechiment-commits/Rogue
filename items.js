@@ -1889,10 +1889,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           const dmg = Math.max(1, Math.round((val + rng(-3, 3)) * (blessed ? 1.5 : 1)));
           target.hp -= dmg;
           const _poisonTurns = blessed ? 8 : 5;
-          const _poisonDmg = blessed ? 4 : 3;
           target.poisonedTurns = Math.max(target.poisonedTurns || 0, _poisonTurns);
-          target.poisonDmg = Math.max(target.poisonDmg || 0, _poisonDmg);
-          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態になった！${blessed ? "(強毒)" : ""}`);
+          if (!target.poisonHalfAtk) {
+            target.poisonOrigAtk = target.atk;
+            target.atk = Math.max(1, Math.floor(target.atk / 2));
+            target.poisonHalfAtk = true;
+          }
+          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態になり攻撃力が半減した！${blessed ? "(強毒)" : ""}`);
           _monKill(target);
         }
       }
@@ -3297,7 +3300,6 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     case "poison_bolt": {
       if (kind === "monster") {
         target.poisonedTurns = (target.poisonedTurns || 0) + Math.round(10 * _lvF);
-        target.poisonDmg = Math.round(3 * _lvF);
         ml.push(`毒の魔法が${target.name}に命中！毒に侵された！`);
       } break;
     }

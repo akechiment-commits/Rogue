@@ -1230,14 +1230,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m.statusImmune = Math.max(0, m.statusImmune - (m.isBoss ? 2 : 1));
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }
-  /* 毒状態：毎ターンHP減少 */
+  /* 毒状態：毎ターン現HP×10%+5ダメージ */
   if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
     m.poisonedTurns = Math.max(0, m.poisonedTurns - (m.isBoss ? 2 : 1));
-    const _pdmg = m.poisonDmg || 3;
+    const _pdmg = Math.floor(m.hp * 0.1) + 5;
     m.hp -= _pdmg;
     ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
     if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
-    if (m.poisonedTurns <= 0) ml.push(`${m.name}の毒が切れた。`);
+    if (m.poisonedTurns <= 0) {
+      ml.push(`${m.name}の毒が切れた。`);
+      if (m.poisonHalfAtk) { m.atk = m.poisonOrigAtk ?? m.atk; delete m.poisonHalfAtk; delete m.poisonOrigAtk; }
+    }
   }
   /* 盲目状態（ボスのみターン経過で解除） */
   if (m.blind && m.isBoss && !_attackOnly) {
