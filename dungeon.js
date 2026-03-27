@@ -473,10 +473,6 @@ function setupShopRoom(room, map, depth, items, mons) {
     ...RINGS.filter(r => r.rarity === 'A' || r.rarity === 'S'),
     ...SPELLBOOKS.filter(sb => sb.rarity === 'A' || sb.rarity === 'S'),
   ];
-  const cols = clamp(Math.floor(room.w / 2), 2, 5);
-  const rows2 = clamp(Math.floor(room.h / 2), 2, 5);
-  const sx0 = room.x + Math.floor((room.w - cols) / 2);
-  const sy0 = room.y + Math.floor((room.h - rows2) / 2);
   const makeShopItem = (base, x, y) => {
     const sit = { ...base, id: uid(), x, y };
     if (sit.type === 'arrow') sit.count = rng(5, 20);
@@ -484,7 +480,20 @@ function setupShopRoom(room, map, depth, items, mons) {
     sit._shopId = shopId;
     return sit;
   };
-  /* グリッド内の空きスロットを収集 */
+  /* グリッドを部屋内に収めて最低6スロット確保できるサイズを計算 */
+  const maxCols = Math.max(2, Math.min(room.w - 1, 6));
+  const maxRows = Math.max(2, Math.min(room.h - 1, 6));
+  let cols = clamp(Math.floor(room.w / 2), 2, maxCols);
+  let rows2 = clamp(Math.floor(room.h / 2), 2, maxRows);
+  /* スロット数が6未満なら行・列を拡張 */
+  while (cols * rows2 < 6 && (cols < maxCols || rows2 < maxRows)) {
+    if (cols <= rows2 && cols < maxCols) cols++;
+    else if (rows2 < maxRows) rows2++;
+    else cols++;
+  }
+  const sx0 = room.x + Math.floor((room.w - cols) / 2);
+  const sy0 = room.y + Math.floor((room.h - rows2) / 2);
+  /* グリッド内の空きスロットを収集（グリッド形状を維持） */
   const gridSlots = [];
   for (let r = 0; r < rows2; r++)
     for (let c = 0; c < cols; c++) {
@@ -499,21 +508,9 @@ function setupShopRoom(room, map, depth, items, mons) {
     luxItem.shopPrice = Math.ceil(luxItem.shopPrice * 1.2);
     items.push(luxItem);
   }
-  /* 残りスロットに通常商品を配置 */
+  /* 残りスロットに通常商品を配置（グリッド内のみ） */
   for (const slot of gridSlots) {
     items.push(makeShopItem(pick(cands), slot.x, slot.y));
-  }
-  /* 最低6商品を保証 — 不足分を空きフロアタイルに補充 */
-  const shopItemCount = () => items.filter(i => i._shopId === shopId).length;
-  if (shopItemCount() < 6) {
-    outer_fill: for (let fy = room.y; fy < room.y + room.h; fy++) {
-      for (let fx = room.x; fx < room.x + room.w; fx++) {
-        if (shopItemCount() >= 6) break outer_fill;
-        if (map[fy]?.[fx] === T.FLOOR && !socc(fx, fy) && !(fx === insidePos.x && fy === insidePos.y)) {
-          items.push(makeShopItem(pick(cands), fx, fy));
-        }
-      }
-    }
   }
   const sk = {
     id: uid(), name: '店主', hp: 200, maxHp: 200, atk: 100, def: 100, exp: 0,
