@@ -810,7 +810,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (spring) parts.push(spring.name || "泉");
     const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
     const _bbDN = (b) => b.revealed === false ? (sr.current?.nicknames?.["bb:" + b.id] || "謎の大箱") : b.name;
-    if (bb) parts.push(`${_bbDN(bb)}(${bb.contents?.length || 0}/${bb.capacity ?? "∞"})`);
+    if (bb) parts.push(bb.revealed === false ? _bbDN(bb) : `${_bbDN(bb)}(${bb.contents?.length || 0}/${bb.capacity ?? "∞"})`);
     const pent = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
     if (pent) parts.push(pent.name);
     return parts.length > 0 ? parts.join(" / ") : "何もない";
@@ -1470,6 +1470,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       /* ===== 等速の魔方陣：プレイヤー速度制御（カウントダウン前に判定） ===== */
       const _isEqAutoAdv = p._eqSpeedAutoAdv || false;
       delete p._eqSpeedAutoAdv;
+      const _isSlowAutoAdv = p._slowAutoAdv || false;
+      delete p._slowAutoAdv;
       const _eqPcP = st.dungeon.pentacles?.find(pc => {
         if (pc.kind !== "equal_speed") return false;
         const _pRm = findRoom(st.dungeon.rooms, pc.x, pc.y);
@@ -1480,7 +1482,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.hasteTurns = Math.max(p.hasteTurns || 0, 2);
       }
       /* ===== 状態異常カウントダウン（ダッシュ含む全ターン進行で共通） ===== */
-      if ((p.slowTurns || 0) > 0) {
+      if ((p.slowTurns || 0) > 0 && !_isSlowAutoAdv) {
         p.slowTurns--;
         if (p.slowTurns > 0) { p.slowSkip = true; } else { ml.push("鈍足が解けた！"); }
       }
@@ -1897,12 +1899,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           ml.push("等速の魔方陣によりターンがスキップされた...");
           p._eqSpeedAutoAdv = true; /* endTurnに等速スキップターンであることを伝える */
         } else {
-          p.slowTurns = Math.max(0, (p.slowTurns || 0) - 1);
-          if (p.slowTurns <= 0) {
-            ml.push("鈍足が解けた！");
-          } else {
-            ml.push("鈍足でターンがスキップされた...");
-          }
+          ml.push("鈍足でターンがスキップされた...");
+          p._slowAutoAdv = true; /* endTurnに鈍足スキップターンであることを伝える */
         }
       }
       endTurn(st, p, ml);
@@ -2358,7 +2356,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             bigboxRef.current = bb2;
             setBigboxMode("menu"); setBigboxMenuSel(0);
             const _bb2DN = bb2.revealed === false ? (sr.current?.nicknames?.["bb:" + bb2.id] || "謎の大箱") : bb2.name;
-            setMsgs((prev) => [...prev.slice(-80), `${_bb2DN}(${bb2.contents?.length || 0}/${bb2.capacity})がある。どうする？`]);
+            const _bb2Info = bb2.revealed === false ? "" : `(${bb2.contents?.length || 0}/${bb2.capacity})`;
+            setMsgs((prev) => [...prev.slice(-80), `${_bb2DN}${_bb2Info}がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
           }
           const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);

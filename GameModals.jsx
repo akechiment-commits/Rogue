@@ -1110,10 +1110,9 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
       </div>
       {bigboxRef.current && (
         <div style={{ color: "#a86", fontSize: 11, marginBottom: 6 }}>
-          内容: {bigboxRef.current.contents.length}/
-          {bigboxRef.current.capacity}
-          {bigboxRef.current.contents.length > 0 &&
-            ": " + bigboxRef.current.contents.map((i) => i.name).join(", ")}
+          {_bbIsRevealed
+            ? <>内容: {bigboxRef.current.contents.length}/{bigboxRef.current.capacity}{bigboxRef.current.contents.length > 0 && ": " + bigboxRef.current.contents.map((i) => i.name).join(", ")}</>
+            : "内容: 不明"}
         </div>
       )}
       {mode === "menu" && (
