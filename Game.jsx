@@ -896,15 +896,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
             const _hbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
             if (_hbb) {
+              const _hbbUnrev = _hbb.revealed !== true && !sr.current?.allBcKnown;
+              const _hbbDN = _hbbUnrev ? (sr.current?.nicknames?.["bb:" + _hbb.id] || "謎の大箱") : _hbb.name;
               const _newCap = Math.max(0, (_hbb.capacity || 1) - 1);
               if ((_hbb.contents?.length || 0) > _newCap) {
                 const _fts2 = new Set();
                 for (const _ci of (_hbb.contents || [])) placeItemAt(dg, _hbb.x, _hbb.y, _ci, ml, _fts2);
                 dg.bigboxes = dg.bigboxes.filter(b => b !== _hbb);
-                ml.push(`呪いの魔法弾が${_hbb.name}に命中！容量オーバーで壊れた！中身が飛び出した！`);
+                ml.push(`呪いの魔法弾が${_hbbDN}に命中！容量オーバーで壊れた！中身が飛び出した！`);
               } else {
                 _hbb.capacity = _newCap;
-                ml.push(`呪いの魔法弾が${_hbb.name}に命中！(容量-1 → ${_hbb.capacity})`);
+                ml.push(`呪いの魔法弾が${_hbbDN}に命中！(容量-1 → ${_hbb.capacity})`);
               }
               _cwHit = true; break;
             }
@@ -2819,7 +2821,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     return false;
   }, []);
   const breakBigbox = useCallback((bb, dg, ml) => {
-    ml.push(`${bb.name}が壊れた！中身がばらまかれた！`);
+    const _bbUnrev = bb.revealed !== true && !sr.current?.allBcKnown;
+    const _bbDN = _bbUnrev ? (sr.current?.nicknames?.["bb:" + bb.id] || "謎の大箱") : bb.name;
+    ml.push(`${_bbDN}が壊れた！中身がばらまかれた！`);
     const ft = new Set();
     for (const item of bb.contents) placeItemAt(dg, bb.x, bb.y, item, ml, ft);
     dg.bigboxes = dg.bigboxes.filter((b) => b !== bb);
@@ -3315,8 +3319,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           dg.bigboxes = dg.bigboxes.filter(b => b !== bb);
           const _bbFt = new Set();
           for (const ci of (bb.contents || [])) placeItemAt(dg, bb.x, bb.y, ci, ml, _bbFt);
-          if (bb.contents?.length > 0) ml.push(`${bb.name}が壊れ中身が飛び出した！`);
-          else ml.push(`${bb.name}が爆発で壊れた！`);
+          if (bb.contents?.length > 0) ml.push(`${_bbDN}が壊れ中身が飛び出した！`);
+          else ml.push(`${_bbDN}が爆発で壊れた！`);
         } else {
           bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
         }
