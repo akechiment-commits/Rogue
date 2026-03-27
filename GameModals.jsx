@@ -488,11 +488,11 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
         _setMenuSel(s => (s + 1) % _menuItems.length);
-      } else if (e.key === "Enter") {
+      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
         e.preventDefault();
         const item = _menuItems[_menuSel];
         if (item?.enabled) item.action();
-      } else if (e.key === "Escape") {
+      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
         setMode(null);
       }
     };
@@ -511,10 +511,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         e.preventDefault();
         if (_listSel < _pageNames.length - 1) _setListSel(s => s + 1);
         else if (_listPage < _totalPages - 1) { _setListPage(p => p + 1); _setListSel(0); }
-      } else if (e.key === "Enter") {
+      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
         const _n = _pageNames[_listSel];
         if (_n) _applyNick(_n);
-      } else if (e.key === "Escape") {
+      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
         _setSubMode(null);
       }
     };
