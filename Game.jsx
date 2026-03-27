@@ -182,7 +182,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const bigboxModeRef = useRef(null);
   bigboxModeRef.current = bigboxMode;
   const nicknameModeRef = useRef(null);
-  nicknameModeRef.current = nicknameMode;
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
   const shopMode      = modal.type === 'shop'         ? modal.data : null;
@@ -201,6 +200,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const floorSelectMode  = modal.type === 'floorSelect'  ? modal.data : null;
   const identifyMode     = modal.type === 'identify'     ? modal.data : null;
   const nicknameMode     = modal.type === 'nickname'     ? modal.data : null;
+  nicknameModeRef.current = nicknameMode;
   const revealMode       = modal.type === 'reveal'       ? modal.data : null;
   const nicknameInput    = modal.nicknameInput;
 
