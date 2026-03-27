@@ -1107,7 +1107,7 @@ export function useItemActions({
           // 通常4体、祝福8体召喚
           const _sumCount = it.blessed ? 8 : 4;
           let _spawned = 0;
-          _spawned = spawnMonsters(dg, _sumCount, p.depth + 1, p.x, p.y, p, { aware: !!it.blessed });
+          _spawned = spawnMonsters(dg, _sumCount, p.depth - 1, p.x, p.y, p, { aware: !!it.blessed });
           ml.push(it.blessed ? `${_spawned}体の敵に囲まれた！【祝】` : `${_spawned}体の敵が召喚された！`);
         }
       } else if (it.effect === "trap_scatter") {

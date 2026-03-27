@@ -1520,7 +1520,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _sumDepth = (p ? p.depth : 1) || 1;
       const _sumCount = rng(2, 4);
-      const _sumSpawned = spawnMonsters(dg, _sumCount, _sumDepth + 1, tx, ty, p, { aware: true, immediateAct: true });
+      const _sumSpawned = spawnMonsters(dg, _sumCount, _sumDepth - 1, tx, ty, p, { aware: true, immediateAct: true });
       ml.push(`${_sumSpawned}体の敵が現れた！`);
       return "restart";
     }
