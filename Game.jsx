@@ -1872,25 +1872,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           setGameOverResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: false });
         }
       }
-      /* 骨のカウントダウン：0になったらスケルトン復活 */
+      /* 骨のカウントダウン：0になったらスケルトン復活（真上に誰かいたら先延ばし） */
       if (st.dungeon.traps && p.hp > 0) {
         const _reviveBones = st.dungeon.traps.filter(t => t.effect === "bone" && t.reviveIn !== undefined);
         for (const _bone of _reviveBones) {
-          _bone.reviveIn--;
-          if (_bone.reviveIn <= 0) {
-            st.dungeon.traps = st.dungeon.traps.filter(t => t !== _bone);
-            /* 骨の位置にモンスターがいなければスケルトン復活 */
-            if (!monsterAt(st.dungeon, _bone.x, _bone.y) && !(p.x === _bone.x && p.y === _bone.y)) {
-              const _md = _bone.monData;
-              const _revived = {
-                ..._md, id: uid(), x: _bone.x, y: _bone.y, maxHp: _md.maxHp,
-                baseSpeed: _md.speed ?? 1, turnAccum: 0, aware: true,
-                dir: { x: 0, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null,
-              };
-              st.dungeon.monsters.push(_revived);
-              ml.push(`骨からスケルトンが復活した！`);
-            }
-          }
+          if (_bone.reviveIn > 0) { _bone.reviveIn--; continue; }
+          /* reviveIn === 0：タイルが空くまで待機して復活 */
+          const _occupied = monsterAt(st.dungeon, _bone.x, _bone.y) || (p.x === _bone.x && p.y === _bone.y);
+          if (_occupied) continue; /* どかれるまで毎ターン再試行 */
+          st.dungeon.traps = st.dungeon.traps.filter(t => t !== _bone);
+          const _md = _bone.monData;
+          const _revived = {
+            ..._md, id: uid(), x: _bone.x, y: _bone.y, maxHp: _md.maxHp,
+            baseSpeed: _md.speed ?? 1, turnAccum: 0, aware: true,
+            dir: { x: 0, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null,
+          };
+          st.dungeon.monsters.push(_revived);
+          ml.push(`骨からスケルトンが復活した！`);
         }
       }
       /* 落下エンティティを次の階に配置 */
