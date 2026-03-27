@@ -423,6 +423,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   const [_subMode, _setSubMode] = useState(null); /* null=選択中 / "type" / "list" */
   const [_listPage, _setListPage] = useState(0);
   const [_listSel, _setListSel] = useState(0);
+  const [_menuSel, _setMenuSel] = useState(0); /* 第1画面のカーソル位置 */
   const _isBigbox = mode?.identKey?.startsWith("bk:");
   const _typePrefix = _isBigbox ? null : mode?.identKey?.[0];
   const _typeMap = { p: 'potion', s: 'scroll', w: 'wand', n: 'pen', o: 'pot' };
@@ -471,7 +472,33 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   };
   /* サブモードリセット（モードが変わったとき） */
-  useEffect(() => { _setSubMode(null); _setListPage(0); _setListSel(0); }, [mode?.identKey]);
+  useEffect(() => { _setSubMode(null); _setListPage(0); _setListSel(0); _setMenuSel(0); }, [mode?.identKey]);
+  /* 第1画面のキーボード操作 */
+  useEffect(() => {
+    if (_subMode !== null || !mode) return;
+    const _menuItems = [
+      { enabled: true,                      action: () => _setSubMode("type") },
+      { enabled: _knownNames.length > 0,    action: () => { _setSubMode("list"); _setListPage(0); _setListSel(0); } },
+      { enabled: true,                      action: () => setMode(null) },
+    ];
+    const _onKey = (e) => {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        _setMenuSel(s => (s - 1 + _menuItems.length) % _menuItems.length);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        _setMenuSel(s => (s + 1) % _menuItems.length);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const item = _menuItems[_menuSel];
+        if (item?.enabled) item.action();
+      } else if (e.key === "Escape") {
+        setMode(null);
+      }
+    };
+    window.addEventListener("keydown", _onKey);
+    return () => window.removeEventListener("keydown", _onKey);
+  });
   /* リストモードのキーボード操作 */
   useEffect(() => {
     if (_subMode !== "list" || !mode) return;
@@ -512,12 +539,22 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         {/* ── 第1画面：方法選択 ── */}
         {_subMode === null && (
           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-            <button style={_btnStyle("#2a5a2a")} onClick={() => _setSubMode("type")}>自分でつける</button>
-            <button style={_knownNames.length > 0 ? _btnStyle("#2a3a6a") : { ..._btnStyle("#222"), opacity:0.4, cursor:"default" }}
+            <button
+              style={{ ..._btnStyle("#2a5a2a"), outline: _menuSel === 0 ? "2px solid #8f8" : "none" }}
+              onMouseEnter={() => _setMenuSel(0)}
+              onClick={() => _setSubMode("type")}>自分でつける</button>
+            <button
+              style={_knownNames.length > 0
+                ? { ..._btnStyle("#2a3a6a"), outline: _menuSel === 1 ? "2px solid #88f" : "none" }
+                : { ..._btnStyle("#222"), opacity:0.4, cursor:"default", outline: _menuSel === 1 ? "2px solid #66a" : "none" }}
+              onMouseEnter={() => _setMenuSel(1)}
               onClick={() => { if (_knownNames.length > 0) { _setSubMode("list"); _setListPage(0); _setListSel(0); } }}>
               図鑑から選ぶ{_knownNames.length === 0 ? "（未発見）" : `（${_knownNames.length}件）`}
             </button>
-            <button style={_btnStyle("#3a1a1a")} onClick={() => setMode(null)}>キャンセル</button>
+            <button
+              style={{ ..._btnStyle("#3a1a1a"), outline: _menuSel === 2 ? "2px solid #f88" : "none" }}
+              onMouseEnter={() => _setMenuSel(2)}
+              onClick={() => setMode(null)}>キャンセル</button>
           </div>
         )}
 
