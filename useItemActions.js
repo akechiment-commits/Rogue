@@ -1219,7 +1219,7 @@ export function useItemActions({
           }
           _pName = _bcPrefix ? `${_bcPrefix}${_circleBase}` : _circleBase;
         }
-        dg.pentacles.push({ x: p.x, y: p.y, kind: it.effect, name: _pName, blessed: _isBlessed, cursed: _isCursed });
+        dg.pentacles.push({ x: p.x, y: p.y, kind: it.effect, name: _pName, blessed: _isBlessed, cursed: _isCursed, ...(!_penIsIdent && _penIK ? { penIK: _penIK } : {}) });
         it.charges = (it.charges || 1) - 1;
         if (it.charges <= 0) {
           ml.push(`足元に${_pName}を描いた！ペンのインクが尽きた。(充填の大箱で補充できる)`);

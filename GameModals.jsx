@@ -431,8 +431,24 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   const confirm = () => {
     const _k = mode.identKey;
     if (!sr.current.nicknames) sr.current.nicknames = {};
-    if (input.trim()) sr.current.nicknames[_k] = input.trim();
+    const _newNick = input.trim() || null;
+    if (_newNick) sr.current.nicknames[_k] = _newNick;
     else delete sr.current.nicknames[_k];
+    /* ペンのニックネーム変更時：同じpenIKで描いた全フロアの魔法陣名を更新 */
+    if (_k.startsWith('n:')) {
+      const _updatePentacles = (dg) => {
+        if (!dg?.pentacles) return;
+        for (const pc of dg.pentacles) {
+          if (pc.penIK !== _k) continue;
+          const _pfx = pc.blessed ? "祝福された" : pc.cursed ? "呪われた" : "";
+          const _fake = sr.current.fakeNames?.[_k];
+          const _base = _newNick ? `${_newNick}の魔方陣` : (_fake ? _fake.replace(/ペン$/, '魔方陣') : '魔方陣');
+          pc.name = _pfx ? `${_pfx}${_base}` : _base;
+        }
+      };
+      _updatePentacles(sr.current.dungeon);
+      for (const _fd of Object.values(sr.current.floors || {})) _updatePentacles(_fd);
+    }
     setMode(null);
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   };
