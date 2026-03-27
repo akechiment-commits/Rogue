@@ -126,25 +126,27 @@ if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
 
 /* ===== MONSTER HOUSE CONTENT GENERATOR ===== */
 function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, bigboxes, su, sd) {
-  const allOcc = (x, y) =>
-    mons.some(m => m.x === x && m.y === y) ||
-    items.some(i => i.x === x && i.y === y) ||
-    traps.some(t => t.x === x && t.y === y) ||
-    springs.some(s => s.x === x && s.y === y) ||
-    bigboxes.some(b => b.x === x && b.y === y);
-  /* 部屋の床タイル数の約40%を敵で埋める（みっちり） */
+  /* 通常配置でハウス部屋に入り込んだモンスターを除去（配置スペースを確保） */
+  for (let i = mons.length - 1; i >= 0; i--) {
+    const m = mons[i];
+    if (m.x >= room.x && m.x < room.x + room.w && m.y >= room.y && m.y < room.y + room.h)
+      mons.splice(i, 1);
+  }
+  /* 部屋内の全フロアタイルをシャッフルして確実に埋める */
   const roomFloorTiles = [];
-  for (let fy = room.y + 1; fy < room.y + room.h - 1; fy++)
-    for (let fx = room.x + 1; fx < room.x + room.w - 1; fx++)
-      if (map[fy][fx] === T.FLOOR && !(fx === su.x && fy === su.y) && !(fx === sd.x && fy === sd.y))
+  for (let fy = room.y; fy < room.y + room.h; fy++)
+    for (let fx = room.x; fx < room.x + room.w; fx++)
+      if (map[fy]?.[fx] === T.FLOOR && !(fx === su.x && fy === su.y) && !(fx === sd.x && fy === sd.y))
         roomFloorTiles.push([fx, fy]);
-  const monCount = Math.max(10, Math.floor(roomFloorTiles.length * 0.4) + depth * 2);
-  for (let i = 0; i < monCount * 40 && mons.filter(m => m.dormantHouse).length < monCount; i++) {
-    const mx = rng(room.x + 1, room.x + room.w - 2);
-    const my = rng(room.y + 1, room.y + room.h - 2);
-    if (map[my]?.[mx] !== T.FLOOR) continue;
-    if ((mx === su.x && my === su.y) || (mx === sd.x && my === sd.y)) continue;
-    if (mons.some(m => m.x === mx && m.y === my)) continue;
+  /* Fisher-Yatesシャッフル */
+  for (let i = roomFloorTiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [roomFloorTiles[i], roomFloorTiles[j]] = [roomFloorTiles[j], roomFloorTiles[i]];
+  }
+  /* フロアの約65%をモンスターで埋める（最低8体） */
+  const monCount = Math.max(8, Math.floor(roomFloorTiles.length * 0.65));
+  for (let i = 0; i < Math.min(monCount, roomFloorTiles.length); i++) {
+    const [mx, my] = roomFloorTiles[i];
     const _mh = mkMon(depth, mx, my, 0, map, null);
     _mh.dormantHouse = true;
     mons.push(_mh);
