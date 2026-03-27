@@ -2391,23 +2391,38 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.patrolTarget = null;
 
       if (room) {
-        /* 部屋の4辺外側にある通行可能タイル（出口）を収集 */
-        const exits = [];
-        for (let ex = room.x; ex < room.x + room.w; ex++) {
-          if (isWalkable(map, ex, room.y - 1))     exits.push({ x: ex, y: room.y - 1 });
-          if (isWalkable(map, ex, room.y + room.h)) exits.push({ x: ex, y: room.y + room.h });
-        }
-        for (let ey = room.y; ey < room.y + room.h; ey++) {
-          if (isWalkable(map, room.x - 1, ey))     exits.push({ x: room.x - 1, y: ey });
-          if (isWalkable(map, room.x + room.w, ey)) exits.push({ x: room.x + room.w, y: ey });
-        }
-        if (exits.length > 0) {
-          /* 直前に訪れた出口を除外して往復を防止 */
+        /* ── 別の部屋をランダムに目標にする（フロア全体を徘徊） ── */
+        const otherRooms = rooms.filter(r => r !== room);
+        if (otherRooms.length > 0) {
+          /* 直前に訪れた部屋を優先除外（往復防止） */
           const _prev = m.lastPatrolTarget;
-          const cands = _prev
-            ? exits.filter(e => e.x !== _prev.x || e.y !== _prev.y)
-            : exits;
-          m.patrolTarget = pick(cands.length > 0 ? cands : exits);
+          const destCands = _prev
+            ? otherRooms.filter(r => !(r.x <= _prev.x && _prev.x < r.x + r.w && r.y <= _prev.y && _prev.y < r.y + r.h))
+            : otherRooms;
+          const destRoom = pick(destCands.length > 0 ? destCands : otherRooms);
+          /* 目標部屋内のランダムなフロアタイルを選ぶ */
+          for (let _a = 0; _a < 30; _a++) {
+            const _tx = rng(destRoom.x, destRoom.x + destRoom.w - 1);
+            const _ty = rng(destRoom.y, destRoom.y + destRoom.h - 1);
+            if (isWalkable(map, _tx, _ty)) { m.patrolTarget = { x: _tx, y: _ty }; break; }
+          }
+        }
+        if (!m.patrolTarget) {
+          /* フォールバック：部屋の出口タイルを目標に */
+          const exits = [];
+          for (let ex = room.x; ex < room.x + room.w; ex++) {
+            if (isWalkable(map, ex, room.y - 1))     exits.push({ x: ex, y: room.y - 1 });
+            if (isWalkable(map, ex, room.y + room.h)) exits.push({ x: ex, y: room.y + room.h });
+          }
+          for (let ey = room.y; ey < room.y + room.h; ey++) {
+            if (isWalkable(map, room.x - 1, ey))     exits.push({ x: room.x - 1, y: ey });
+            if (isWalkable(map, room.x + room.w, ey)) exits.push({ x: room.x + room.w, y: ey });
+          }
+          if (exits.length > 0) {
+            const _prev = m.lastPatrolTarget;
+            const cands = _prev ? exits.filter(e => e.x !== _prev.x || e.y !== _prev.y) : exits;
+            m.patrolTarget = pick(cands.length > 0 ? cands : exits);
+          }
         }
       } else {
         /* 廊下・壁破壊後エリア：来た方向の逆を避けて進行方向を決定 */
@@ -2447,7 +2462,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     if (m.patrolTarget) {
       const next = bfsNext(map, [], m.x, m.y,
-        m.patrolTarget.x, m.patrolTarget.y, m, 20, dg.pentacles, _effFloat);
+        m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, _effFloat);
       if (next && !(next.x === pl.x && next.y === pl.y) &&
           !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) {
         if (!dg.monsters.some(o => o !== m && o.x === next.x && o.y === next.y)) {
@@ -2455,10 +2470,22 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           m.x = next.x; m.y = next.y;
           return;
         }
-        /* 次マスが別モンスターに占有 → ターゲットリセット＋向き反転で方向転換
-           （_forceAlt 時はこのまま後続の脱出処理にフォールスルーする） */
+        /* 次マスが別モンスターに占有 → ランダムな隣接空きタイルへ横ずれ */
         m.patrolTarget = null;
-        if (m.dir) m.dir = { x: -m.dir.x, y: -m.dir.y };
+        const _tryDirs4 = [[0,1],[0,-1],[1,0],[-1,0]].sort(() => Math.random() - 0.5);
+        let _sidestepped = false;
+        for (const [_adx, _ady] of _tryDirs4) {
+          const _anx = m.x + _adx, _any = m.y + _ady;
+          if (!isWalkable(map, _anx, _any)) continue;
+          if (_anx === pl.x && _any === pl.y) continue;
+          if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
+          if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+          m.dir = { x: _adx, y: _ady };
+          m.x = _anx; m.y = _any;
+          _sidestepped = true;
+          break;
+        }
+        if (!_sidestepped && m.dir) m.dir = { x: -m.dir.x, y: -m.dir.y };
         if (!_forceAlt) return;
       }
       /* BFS経路なし（壁で遮断）→ 次ターンで目標を再選択 */
