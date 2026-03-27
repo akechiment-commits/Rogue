@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, splashPotion, scatterPotContents } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -2172,21 +2172,32 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               ml.push(`${m.name}に${_ibItem.name}を弾かれた！壺が割れた！`);
             }
             scatterPotContents(_ibItem, dg, _lx, _ly, pl, ml, _luFn);
+          } else if (_ibItem.type === "wand") {
+            /* 杖：命中した敵に杖効果発動、消滅 */
+            if (_ibHitMon) {
+              const _ibWdx = Math.sign(_lx - pl.x), _ibWdy = Math.sign(_ly - pl.y);
+              ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！`);
+              applyWandEffect(_ibItem.effect, "monster", _ibHitMon, _ibWdx, _ibWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null);
+            } else {
+              ml.push(`${m.name}に${_ibItem.name}を弾かれた！`);
+              const _ibft = new Set();
+              placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
+            }
           } else {
-            /* それ以外：投擲命中ダメージ（武器は攻撃力、その他は3）＋着地 */
+            /* それ以外：敵に命中→投擲ダメージで消滅、外れ→着地 */
             if (_ibHitMon) {
               const _ibDmg = Math.max(1,
                 (_ibItem.type === "weapon"
                   ? (_ibItem.atk || 3) + (_ibItem.plus || 0)
                   : 3) + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
-              ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！`);
+              ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！消滅した。`);
               if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn);
             } else {
               ml.push(`${m.name}に${_ibItem.name}を弾かれた！`);
+              const _ibft = new Set();
+              placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
             }
-            const _ibft = new Set();
-            placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
           }
           return;
         }
@@ -2219,17 +2230,21 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           /* 壺：プレイヤー位置で中身散乱 */
           ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
           scatterPotContents(_throwItem, dg, pl.x, pl.y, pl, ml, _luFn);
+        } else if (_throwItem.type === "wand") {
+          /* 杖：プレイヤーに杖効果発動、消滅 */
+          const _srWdx = Math.sign(pl.x - m.x), _srWdy = Math.sign(pl.y - m.y);
+          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+          applyWandEffect(_throwItem.effect, "player", pl, _srWdx, _srWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_throwItem), null);
+          if (_onHit) _onHit(m);
         } else {
-          /* それ以外：投擲命中ダメージ（武器は攻撃力、その他は3）、アイテムは足元に落ちる */
+          /* それ以外：命中→投擲ダメージで消滅（命中時は床に残らない） */
           const _srDmg = Math.max(1,
             (_throwItem.type === "weapon"
               ? (_throwItem.atk || 3) + (_throwItem.plus || 0)
               : 3) + rng(0, 3));
-          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！`);
+          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！消滅した。`);
           pl.hp -= _srDmg;
           if (_onHit) _onHit(m);
-          const _srft = new Set();
-          placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
         }
         return;
       }
