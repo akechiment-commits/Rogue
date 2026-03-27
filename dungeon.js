@@ -3,7 +3,7 @@ import { MONS, MON_LEVELS, BOSSES, makeMonster, pickMonsterDef } from './monster
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
-  GEM_TYPES,
+  GEM_TYPES, RAW_FOODS, COOKED_FOODS,
 } from './items.js';
 
 function mkOcc(...lists) {
@@ -459,12 +459,15 @@ function setupShopRoom(room, map, depth, items, mons) {
   const socc = (x, y) => items.some(i => i.x === x && i.y === y);
   /* 宝石を候補に追加（originDepth を p.depth と合わせた 1-indexed で設定） */
   const gemCands = GEM_TYPES.map(g => ({ ...g, originDepth: depth + 1 }));
+  /* 食料候補：ランダムに5〜8種生成して候補に加える */
+  const _foodCands = Array.from({ length: rng(5, 8) }, () => genFood());
   const cands = [
     ...ITEMS.filter(i => i.type !== 'gold'),
     ...WANDS.map(w => ({ ...w, charges: Math.max(1, w.charges + rng(-1, 1)) })),
     ...POTS,
     ...RINGS,
     ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
+    ..._foodCands,
     ...gemCands, ...gemCands, /* 宝石を2倍の重みで追加 */
   ];
   /* 目玉商品プール（A/S レアリティ、宝石除く） */

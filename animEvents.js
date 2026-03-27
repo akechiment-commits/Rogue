@@ -25,6 +25,11 @@ export function drainAnims() {
   return evts;
 }
 
+/* 空腹ダメージ開始シグナル */
+let _hungerWarnPending = false;
+export function signalHungerWarn() { _hungerWarnPending = true; }
+export function drainHungerWarn() { const v = _hungerWarnPending; _hungerWarnPending = false; return v; }
+
 /*
  * Item fly animation queue.
  *

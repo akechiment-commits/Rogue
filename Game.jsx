@@ -27,7 +27,7 @@ import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { drainAnims, pushMonsterBoltAnim, pushAnim, drainItemArcs } from './animEvents.js';
+import { drainAnims, pushMonsterBoltAnim, pushAnim, drainItemArcs, signalHungerWarn, drainHungerWarn } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 /* 大箱の表示名を返す共通ヘルパー。未識別時は偽名+ニックネーム、識別済みは実名 */
 function bbDisplayName(bb, st, withCapacity = false) {
@@ -1337,8 +1337,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       if (p.hunger === 0) {
         p.deathCause = "空腹により";
+        if (!p._hungerDmgStarted) {
+          p._hungerDmgStarted = true;
+          ml.push("【警告】極限の空腹でHPが減り始めた！何か食べないと死ぬ！");
+          signalHungerWarn();
+        } else if (p.turns % 10 === 0) {
+          ml.push("空腹でHPが減っている...");
+        }
         p.hp--;
-        if (p.turns % 10 === 0) ml.push("空腹でHPが減っている...");
       } else if (p.hp > 0 && p.hp < p.maxHp) {
         const _baseRegen = Math.max(1, Math.floor(p.maxHp / 100)) +
           (hasAbility(p.armor, "regen") ? 1 : 0);
@@ -2515,6 +2521,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       sr.current = { ...st };
       setGs({ ...st });
+      if (drainHungerWarn()) setRevealMode({ pendingMsgs: [] });
       /* Play animations if any were queued */
       const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
       if (_hasAnim) playAnim(_ad);

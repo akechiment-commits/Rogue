@@ -397,6 +397,7 @@ export function useItemActions({
       if (p.hunger < 0) p.hunger = 0;
       const _foodAdded = Math.min(_foodVal, p.maxHunger - p.hunger);
       p.hunger = Math.min(p.maxHunger, p.hunger + _foodVal);
+      if (p.hunger > 0) delete p._hungerDmgStarted;
       ml.push(
         `${it.name}を食べた。(満腹度+${_foodAdded})${it.blessed ? "（祝福：よく味わえた）" : it.cursed ? "（呪い：まずかった）" : ""}`,
       );
