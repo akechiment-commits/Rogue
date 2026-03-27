@@ -756,6 +756,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile }) {
   const [sellAllConfirm, setSellAllConfirm] = useState(false);
   useEffect(() => { if (!mode) setSellAllConfirm(false); }, [mode]);
+  const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
   return (
     <div
@@ -870,7 +871,6 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           _p.y >= s.room.y && _p.y < s.room.y + s.room.h);
         const _inShop = !!_curShop;
         const _sellItems = _p.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-        const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
         const _totalG = _sellItems.reduce((s, it) => s + _calcSellPrice(it, _p.depth), 0);
         if (sellAllConfirm) {
           return (
