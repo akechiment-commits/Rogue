@@ -3017,8 +3017,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const wasFull = bb.contents.length >= bb.capacity;
       bb.contents.push(item);
       const _idn = itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+      const _bbUnrev = bb.revealed !== true && !sr.current?.allBcKnown;
+      const _bbDN = _bbUnrev ? (sr.current?.nicknames?.["bb:" + bb.id] || "謎の大箱") : bb.name;
       ml.push(
-        `${_idn}を${bb.name}に入れた。(${bb.contents.length}/${bb.capacity})`,
+        _bbUnrev
+          ? `${_idn}を${_bbDN}に入れた。`
+          : `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`,
       );
       if (bb.kind === "synthesis") {
         trySynthesize(bb, ml);
@@ -3467,7 +3471,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const bb = bigboxRef.current;
       const ml = [];
       if (bb.contents.length >= bb.capacity) {
-        ml.push(`${bb.name}はもういっぱいだ。`);
+        const _bFullDN = bb.revealed !== true && !sr.current?.allBcKnown ? (sr.current?.nicknames?.["bb:" + bb.id] || "謎の大箱") : bb.name;
+        ml.push(`${_bFullDN}はもういっぱいだ。`);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         return;
       }
@@ -3491,8 +3496,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
       }
       p.inventory.splice(itemIdx, 1);
+      const _wasUnrev = bb.revealed !== true && !sr.current?.allBcKnown;
       bigboxAddItem(bb, it, dg, ml);
-      bb.revealed = true; /* アイテム投入時に大箱の正体が明らかになる */
+      if (_wasUnrev) {
+        bb.revealed = true;
+        ml.push(`謎の大箱の正体は${bb.name}だった！`);
+      }
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (dg.bigboxes?.includes(bb) && bb.contents.length < bb.capacity) {
