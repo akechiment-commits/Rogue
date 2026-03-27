@@ -199,8 +199,10 @@ export const TILE_RENDER = {
   98:  { bg: null, fg: "#6600cc", ch: "B" }, /* 虚無の僧侶 */
   99:  { bg: null, fg: "#cc0022", ch: "B" }, /* 煉獄公  */
   100: { bg: null, fg: "#880088", ch: "B" }, /* 深淵神  */
-  103: { bg: null, fg: "#aa77cc", ch: "b" }, /* コウモリ */
-  104: { bg: null, fg: "#bb8833", ch: "c" }, /* ムカデ   */
+  103: { bg: null, fg: "#aa77cc", ch: "b" }, /* コウモリ   */
+  104: { bg: null, fg: "#bb8833", ch: "c" }, /* ムカデ     */
+  105: { bg: null, fg: "#dd6633", ch: "B" }, /* 弾き師     */
+  106: { bg: null, fg: "#cc44aa", ch: "S" }, /* 盗投士     */
 };
 
 /* Canvas drawing helper */

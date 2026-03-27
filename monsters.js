@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, splashPotion } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, splashPotion, scatterPotContents } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -317,7 +317,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *      必須: name, hp, atk, def, exp, speed, tile, kind, baseKind, monLevel:1
  *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect
  *        subtype の選択肢: "archer" | "stonethrow" | "wanduser" | "supporter"
- *                         | "thief" | "runner" (特殊AIが必要なら monsterAI に追記)
+ *                         | "thief" | "runner" | "itemblast" | "stealthrower"
+ *                         (特殊AIが必要なら monsterAI に追記)
  *        wandEffect: subtype:"wanduser" のとき使う杖エフェクト名
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
  *      (省略するとレベルアップ不可)
@@ -345,6 +346,18 @@ export const MONS = [
     levels: [
       { name: "大ムカデ",               hp: 17,  atk: 7,  def: 4,  exp: 9   },
       { name: "覇ムカデ",               hp: 27,  atk: 10, def: 6,  exp: 14  },
+    ],
+  },
+  { name: "弾き師",       hp: 30,  atk: 14, def: 3,  exp: 42,  speed: 1,   tile: 105, kind: "humanoid", baseKind: "itemblaster",  monLevel: 1, minFloor: 6,  maxFloor: 22, subtype: "itemblast",
+    levels: [
+      { name: "大弾き師",               hp: 48,  atk: 19, def: 5,  exp: 68  },
+      { name: "覇弾き師",               hp: 70,  atk: 24, def: 8,  exp: 98  },
+    ],
+  },
+  { name: "盗投士",       hp: 28,  atk: 13, def: 3,  exp: 45,  speed: 1,   tile: 106, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower",
+    levels: [
+      { name: "大盗投士",               hp: 46,  atk: 18, def: 5,  exp: 72  },
+      { name: "覇盗投士",               hp: 67,  atk: 24, def: 8,  exp: 108 },
     ],
   },
   { name: "コボルド",     hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13,
@@ -2109,6 +2122,118 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         /* 外せる装備がなければ通常攻撃 */
+        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
+        return;
+      }
+    }
+
+    /* ── itemblast（弾き師等）：隣接時に所持品を後方に弾き飛ばす ── */
+    if (m.subtype === "itemblast" && !m.sealed) {
+      const _ibAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      if (_ibAdj && _moveOnly) return;
+      if (_ibAdj) {
+        const _ibAntiSteal = hasAbility(pl.armor, "anti_steal");
+        if (_ibAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の弾き飛ばしを防いだ！`);
+          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
+          return;
+        }
+        const _ibCands = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
+        if (_ibCands.length > 0) {
+          const _ibItem = pick(_ibCands);
+          pl.inventory.splice(pl.inventory.indexOf(_ibItem), 1);
+          /* 弾く方向：プレイヤーからモンスターの反対方向（プレイヤーの後ろ） */
+          const _ibdx = Math.sign(pl.x - m.x), _ibdy = Math.sign(pl.y - m.y);
+          /* 射線をトレースして着地点を決定 */
+          let _lx = pl.x, _ly = pl.y;
+          let _ibHitMon = null;
+          for (let _si = 1; _si <= 10; _si++) {
+            const _nx = pl.x + _ibdx * _si, _ny = pl.y + _ibdy * _si;
+            if (!isWalkable(dg.map, _nx, _ny)) break;
+            _lx = _nx; _ly = _ny;
+            _ibHitMon = dg.monsters.find(o => o.x === _nx && o.y === _ny);
+            if (_ibHitMon) break;
+          }
+          pushMonsterBoltAnim(pl.x, pl.y, _ibdx, _ibdy, dg, pl, "#ffdd44");
+          if (_ibItem.type === "pot") {
+            if (_ibHitMon) {
+              const _ibDmg = Math.max(1, 10 - (_ibHitMon.def || 0));
+              _ibHitMon.hp -= _ibDmg;
+              ml.push(`${m.name}に${_ibItem.name}を弾かれ${_ibHitMon.name}に当たって割れた！${_ibDmg}ダメージ！`);
+              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn);
+            } else {
+              ml.push(`${m.name}に${_ibItem.name}を弾かれた！壺が割れた！`);
+            }
+            scatterPotContents(_ibItem, dg, _lx, _ly, pl, ml, _luFn);
+          } else {
+            if (_ibHitMon) {
+              const _ibDmg = Math.max(1, 10 - (_ibHitMon.def || 0));
+              _ibHitMon.hp -= _ibDmg;
+              ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！`);
+              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn);
+            } else {
+              ml.push(`${m.name}に${_ibItem.name}を弾かれた！`);
+            }
+            const _ibft = new Set();
+            placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
+          }
+          return;
+        }
+        /* 弾くものがなければ通常攻撃 */
+        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
+        return;
+      }
+    }
+
+    /* ── stealthrower（盗投士等）：盗む→次ターンに投げる ── */
+    if (m.subtype === "stealthrower" && !m.sealed) {
+      m.heldItems = m.heldItems || [];
+      const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      const _srDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+      /* 投擲フェーズ：アイテムを持っていて視界内 */
+      if (m.heldItems.length > 0 && canSee && _srDist <= 8) {
+        if (_moveOnly) return;
+        const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
+        const _throwItem = m.heldItems.splice(0, 1)[0];
+        pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#ff8800");
+        if (_srAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の投擲を防いだ！${_throwItem.name}は地面に落ちた！`);
+          const _srft = new Set();
+          placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
+        } else if (_throwItem.type === "potion") {
+          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+          splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, null, false, false);
+        } else if (_throwItem.type === "pot") {
+          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+          scatterPotContents(_throwItem, dg, pl.x, pl.y, pl, ml, _luFn);
+        } else {
+          const _srDmg = Math.max(1, 8 - (pl.def || 0));
+          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！`);
+          pl.hp -= _srDmg;
+          if (_onHit) _onHit(m);
+          const _srft = new Set();
+          placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
+        }
+        return;
+      }
+      /* 盗みフェーズ：隣接かつ手ぶら */
+      if (_srAdj && m.heldItems.length === 0) {
+        if (_moveOnly) return;
+        const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
+        if (_srAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
+          return;
+        }
+        const _srStealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
+        if (_srStealable.length > 0) {
+          const _stolen = pick(_srStealable);
+          pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
+          m.heldItems.push(_stolen);
+          ml.push(`${m.name}が${_stolen.name}を盗んだ！次のターンに投げてくるぞ！`);
+          return;
+        }
+        /* 盗むものがなければ通常攻撃 */
         if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
         return;
       }
