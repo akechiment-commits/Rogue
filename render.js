@@ -184,14 +184,14 @@ export const TILE_RENDER = {
   86: { bg: null, fg: "#c0a030", ch: "T" },
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
-  87:  { bg: null, fg: "#00ccee", ch: "♦" }, /* アクアマリン */
-  88:  { bg: null, fg: "#ee2244", ch: "♦" }, /* ルビー       */
-  89:  { bg: null, fg: "#2255ff", ch: "♦" }, /* サファイア   */
-  90:  { bg: null, fg: "#22bb44", ch: "♦" }, /* エメラルド   */
-  91:  { bg: null, fg: "#ffcc00", ch: "♦" }, /* トパーズ     */
-  92:  { bg: null, fg: "#aa33cc", ch: "♦" }, /* アメジスト   */
-  101: { bg: "#1a1a2a", fg: "#ddeeff", ch: "✦" }, /* ダイヤモンド */
-  102: { bg: "#1a0a1a", fg: "#ffaadd", ch: "✦" }, /* オパール     */
+  87:  { bg: null, fg: "#00ccee", ch: "*" }, /* アクアマリン (C) */
+  88:  { bg: null, fg: "#ee2244", ch: "*" }, /* ルビー       (B) */
+  89:  { bg: null, fg: "#4488ff", ch: "*" }, /* サファイア   (B) */
+  90:  { bg: null, fg: "#22cc44", ch: "*" }, /* エメラルド   (B) */
+  91:  { bg: null, fg: "#ffcc00", ch: "*" }, /* トパーズ     (C) */
+  92:  { bg: null, fg: "#cc44ff", ch: "*" }, /* アメジスト   (C) */
+  101: { bg: null, fg: "#e8f4ff", ch: "*" }, /* ダイヤモンド (A) */
+  102: { bg: null, fg: "#ffaadd", ch: "*" }, /* オパール     (A) */
   /* ===== ボス tier 5〜10 ===== */
   95:  { bg: null, fg: "#aa8833", ch: "B" }, /* 魔将軍  */
   96:  { bg: null, fg: "#ccccaa", ch: "B" }, /* 骸骨王  */
