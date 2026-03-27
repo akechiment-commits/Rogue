@@ -1022,9 +1022,9 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
   for (const r of rooms) {
     if (r.w < 7 || r.h < 7) continue;
     if (Math.random() >= 0.18) continue; /* 18%の確率 */
-    /* 島のサイズ (1×1 or 2×1 or 1×2) */
-    const iw = Math.random() < 0.4 ? 2 : 1;
-    const ih = Math.random() < 0.4 ? 2 : 1;
+    /* 島のサイズ：最小2×2、部屋が大きければ3×3まで */
+    const iw = rng(2, Math.min(3, r.w - 4));
+    const ih = rng(2, Math.min(3, r.h - 4));
     const cx = r.x + Math.floor(r.w / 2) - Math.floor(iw / 2);
     const cy = r.y + Math.floor(r.h / 2) - Math.floor(ih / 2);
     /* 水リング + 島が部屋内に収まること（端から2マス以上余裕） */
@@ -1061,15 +1061,12 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
       traps.push({ ...permSpin, id: uid(), x: tx2, y: ty2, revealed: false });
       break;
     }
-    /* アイテムを最低3個（罠・大箱と重複しなければ積み重ね可） */
-    const isOccForItem = (x, y) =>
-      traps.some(t => t.x === x && t.y === y) ||
-      bigboxes.some(b => b.x === x && b.y === y);
-    const itemCount = Math.max(3, rng(3, Math.min(5, islandTiles.length * 3)));
+    /* アイテムを3〜5個（島タイル数-1を上限に） */
+    const itemCount = rng(3, Math.max(3, Math.min(5, islandTiles.length - 1)));
     let iPlaced = 0;
     for (let a = 0; a < itemCount * 40 && iPlaced < itemCount; a++) {
       const [ix2, iy2] = pick(islandTiles);
-      if (isOccForItem(ix2, iy2)) continue;
+      if (isOcc(ix2, iy2)) continue;
       const it = { ...pickWeighted(ITEMS), id: uid(), x: ix2, y: iy2 };
       if (it.type === "gold") it.value = rng(100, 300 + depth * 60);
       items.push(it); iPlaced++;
