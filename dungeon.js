@@ -216,7 +216,7 @@ export function triggerMonsterHouse(dg, p, ml) {
     dg.monsterHouseRoom = null;
     return;
   }
-  sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; });
+  sleeping.forEach(m => { m.dormantHouse = false; m.aware = true; m._justWoke = true; });
   ml.push(`モンスターハウスだ！敵が一斉に目覚めた！(${sleeping.length}体)`);
   dg.monsterSenseActive = true; /* このフロアの全モンスター位置が見えるようになる */
   dg.monsterHouseRoom = null;

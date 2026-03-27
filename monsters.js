@@ -335,6 +335,18 @@ export const MONS = [
       { name: "覇ネズミ",           hp: 18,  atk: 8,  def: 6,  exp: 8   },
     ],
   },
+  { name: "コウモリ",     hp: 8,   atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true,
+    levels: [
+      { name: "大コウモリ",             hp: 14,  atk: 8,  def: 2,  exp: 7   },
+      { name: "覇コウモリ",             hp: 22,  atk: 11, def: 4,  exp: 11  },
+    ],
+  },
+  { name: "ムカデ",       hp: 10,  atk: 4,  def: 2,  exp: 5,   speed: 1,   tile: 104, kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,
+    levels: [
+      { name: "大ムカデ",               hp: 17,  atk: 7,  def: 4,  exp: 9   },
+      { name: "覇ムカデ",               hp: 27,  atk: 10, def: 6,  exp: 14  },
+    ],
+  },
   { name: "コボルド",     hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13,
     levels: [
       { name: "コボルド戦士",       hp: 26,  atk: 13, def: 7,  exp: 16  },
@@ -1188,6 +1200,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _isCursedGravFloat = !m.float && hasCursedGravityPentacle(dg, m.x, m.y);
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
+  /* 目覚めたターンは行動しない（袋叩き防止） */
+  if (m._justWoke) { m._justWoke = false; return; }
   /* 通常仮眠：視界に入るか、何らかのアクションを受けたら即覚醒 */
   if (m.dormant) {
     const _wasHit = m.hp < (m._dormantHp ?? m.hp);
