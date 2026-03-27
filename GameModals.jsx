@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
@@ -6,6 +6,7 @@ import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
+import { loadSave } from "./SaveData.js";
 
 /* ===== Tile Icon (inventory) ===== */
 const TYPE_TILE_FALLBACK = {
@@ -424,10 +425,25 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   const _typePrefix = _isBigbox ? null : mode.identKey[0];
   const _typeMap = { p: 'potion', s: 'scroll', w: 'wand', n: 'pen', o: 'pot' };
   const _targetType = _isBigbox ? null : _typeMap[_typePrefix];
-  const _knownNames = _isBigbox ? [] : Object.values(getDiscoveries().items)
-    .filter(entry => entry.type === _targetType)
-    .map(entry => entry.name)
-    .filter(Boolean);
+  /* グローバルセーブ＋今回のプレイ分を合算して既発見名リストを作成 */
+  const _knownNames = useMemo(() => {
+    const _globalDisc = loadSave().discovered;
+    const _runDisc = getDiscoveries();
+    if (_isBigbox) {
+      /* 大箱：識別済み大箱の実名一覧 */
+      const _names = new Set([
+        ...Object.values(_globalDisc.bigboxes || {}).map(e => e.name),
+        ...Object.values(_runDisc.bigboxes || {}).map(e => e.name),
+      ]);
+      return [..._names].filter(Boolean).sort((a, b) => a.localeCompare(b, "ja"));
+    }
+    /* 通常アイテム：グローバル＋今回でフィルタ */
+    const _names = new Set([
+      ...Object.values(_globalDisc.items || {}).filter(e => e.type === _targetType).map(e => e.name),
+      ...Object.values(_runDisc.items || {}).filter(e => e.type === _targetType).map(e => e.name),
+    ]);
+    return [..._names].filter(Boolean).sort((a, b) => a.localeCompare(b, "ja"));
+  }, [_isBigbox, _targetType]);
   const confirm = () => {
     const _k = mode.identKey;
     if (!sr.current.nicknames) sr.current.nicknames = {};

@@ -10,6 +10,7 @@ export const DEFAULT_SAVE = {
     items:    {},         /* { effectKey: { name, tile, type, count } } */
     monsters: {},         /* { name: { name, tile, count } } */
     traps:    {},         /* { effectKey: { name, tile, count } } */
+    bigboxes: {},         /* { kind: { name, kind, tile, count } } */
   },
   totalRuns: 0,
   bestDepth: 0,
@@ -29,6 +30,7 @@ export function loadSave() {
         items:    { ...(data.discovered?.items    || {}) },
         monsters: { ...(data.discovered?.monsters || {}) },
         traps:    { ...(data.discovered?.traps    || {}) },
+        bigboxes: { ...(data.discovered?.bigboxes || {}) },
       },
     };
   } catch {
@@ -50,6 +52,7 @@ export function mergeDiscoveries(saveDiscovered, runDiscovered) {
     items:    { ...saveDiscovered.items },
     monsters: { ...saveDiscovered.monsters },
     traps:    { ...saveDiscovered.traps },
+    bigboxes: { ...saveDiscovered.bigboxes },
   };
   for (const [k, v] of Object.entries(runDiscovered.items || {}))
     result.items[k] = { ...v, count: ((result.items[k]?.count) || 0) + (v.count || 1) };
@@ -57,5 +60,7 @@ export function mergeDiscoveries(saveDiscovered, runDiscovered) {
     result.monsters[k] = { ...v, count: ((result.monsters[k]?.count) || 0) + (v.count || 1) };
   for (const [k, v] of Object.entries(runDiscovered.traps || {}))
     result.traps[k] = { ...v, count: ((result.traps[k]?.count) || 0) + (v.count || 1) };
+  for (const [k, v] of Object.entries(runDiscovered.bigboxes || {}))
+    result.bigboxes[k] = { ...v, count: ((result.bigboxes[k]?.count) || 0) + (v.count || 1) };
   return result;
 }

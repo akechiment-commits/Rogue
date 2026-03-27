@@ -197,19 +197,22 @@ function EncyclopediaPanel({ saveData, onClose }) {
 
   return (
     <Panel title="図鑑" onClose={onClose} wide>
-      <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+      <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
         <button onClick={() => setTab("items")}    style={tabStyle("items")}>アイテム</button>
         <button onClick={() => setTab("monsters")} style={tabStyle("monsters")}>モンスター</button>
         <button onClick={() => setTab("traps")}    style={tabStyle("traps")}>罠</button>
+        <button onClick={() => setTab("bigboxes")} style={tabStyle("bigboxes")}>大箱</button>
       </div>
       <div style={{ color:"#555", fontSize:11, marginBottom:8 }}>
         {tab === "items"    && `発見アイテム: ${Object.keys(disc.items    || {}).length}種`}
         {tab === "monsters" && `遭遇モンスター: ${Object.keys(disc.monsters || {}).length}種`}
         {tab === "traps"    && `踏んだ罠: ${Object.keys(disc.traps    || {}).length}種`}
+        {tab === "bigboxes" && `識別済み大箱: ${Object.keys(disc.bigboxes || {}).length}種`}
       </div>
       {tab === "items"    && renderList(disc.items    || {})}
       {tab === "monsters" && renderList(disc.monsters || {})}
       {tab === "traps"    && renderList(disc.traps    || {})}
+      {tab === "bigboxes" && renderList(disc.bigboxes || {})}
     </Panel>
   );
 }
@@ -407,6 +410,10 @@ function SaveDataPanel({ saveData, onClearSave, onClose }) {
         <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${BDR}` }}>
           <span style={{ color:"#888" }}>図鑑 (アイテム)</span>
           <span>{Object.keys(saveData.discovered?.items || {}).length} 種</span>
+        </div>
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${BDR}` }}>
+          <span style={{ color:"#888" }}>図鑑 (大箱)</span>
+          <span>{Object.keys(saveData.discovered?.bigboxes || {}).length} 種</span>
         </div>
         <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${BDR}` }}>
           <span style={{ color:"#888" }}>図鑑 (モンスター)</span>

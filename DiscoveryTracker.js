@@ -2,10 +2,10 @@
    Module-level singleton so any game code can track discoveries
    without threading refs through deeply nested callbacks.         */
 
-let _disc = { items: {}, monsters: {}, traps: {} };
+let _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {} };
 
 export function resetDiscoveries() {
-  _disc = { items: {}, monsters: {}, traps: {} };
+  _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {} };
 }
 
 export function trackItem(item) {
@@ -39,10 +39,22 @@ export function trackTrap(trap) {
   };
 }
 
+export function trackBigbox(bb) {
+  if (!bb?.kind || !bb?.name) return;
+  const key = bb.kind;
+  _disc.bigboxes[key] = {
+    name:  bb.name,
+    tile:  38, /* TI.BIGBOX */
+    kind:  bb.kind,
+    count: (_disc.bigboxes[key]?.count || 0) + 1,
+  };
+}
+
 export function getDiscoveries() {
   return {
     items:    { ..._disc.items },
     monsters: { ..._disc.monsters },
     traps:    { ..._disc.traps },
+    bigboxes: { ..._disc.bigboxes },
   };
 }

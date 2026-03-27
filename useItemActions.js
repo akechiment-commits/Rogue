@@ -13,7 +13,7 @@ import {
   hasRingEffect, cookFoodMeta, rotFood,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
-import { trackMonster, getDiscoveries } from "./DiscoveryTracker.js";
+import { trackMonster, trackBigbox, getDiscoveries } from "./DiscoveryTracker.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim } from "./animEvents.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限） */
@@ -2280,7 +2280,7 @@ export function useItemActions({
               const _sbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
               if (_sbb) {
                 if (_isCursed) { _sbb.revealed = false; ml.push(`大箱が謎の存在に戻った！【呪】`); }
-                else { _sbb.revealed = true; ml.push(`大箱「${_sbb.name}」の正体が明らかになった！`); }
+                else { _sbb.revealed = true; trackBigbox(_sbb); ml.push(`大箱「${_sbb.name}」の正体が明らかになった！`); }
                 break;
               }
               // 地面のアイテム

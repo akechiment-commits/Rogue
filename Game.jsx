@@ -21,7 +21,7 @@ import {
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
-import { trackItem, trackMonster, trackTrap, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
+import { trackItem, trackMonster, trackTrap, trackBigbox, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
@@ -478,6 +478,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const _allBcKnown = _dt === "debug" || _dt === "beginner";
     if (_allBcKnown) {
       [...p.inventory, ...d.items].forEach(it => { it.fullIdent = true; it.bcKnown = true; });
+      d.bigboxes?.forEach(bb => trackBigbox(bb));
     } else {
       d.bigboxes?.forEach(bb => { bb.revealed = false; });
     }
