@@ -513,24 +513,40 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         }
         const t = dg.map[y][x];
         let ti = TI.FLOOR;
-        if (t === T.WALL || t === T.BWALL) ti = TI.WALL;
+        if (t === T.WALL) ti = TI.WALL;
+        else if (t === T.BWALL) ti = TI.WALL; /* base tile overridden below */
         else if (t === T.SD) ti = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 3 + y * 17) % 9] : TI.SD;
         else if (t === T.SU) ti = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 5 + y * 11) % 9] : TI.SU;
         if (t === T.FLOOR && !_roomSet.has(_k(x, y))) ti = TI.CORR;
         drawTile(ctx, ts, ti, px2, py2, sz);
-        /* 壊せる壁にヒビ表示 */
+        /* 壊せる壁：特有の背景色＋目立つヒビ表示 */
         if (t === T.BWALL && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.4;
-          ctx.strokeStyle = "#aa8844";
-          ctx.lineWidth = 1;
+          /* 通常壁より明るい褐色の背景 */
+          ctx.fillStyle = "#3a2a14";
+          ctx.fillRect(px2, py2, sz, sz);
+          /* 砂岩っぽい文字色で # */
+          ctx.fillStyle = "#7a5a30";
+          ctx.font = "bold " + Math.floor(sz * 0.75) + "px monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("#", px2 + sz / 2, py2 + sz / 2);
+          ctx.textAlign = "start";
+          /* 明るいヒビ（複数本、太め） */
+          ctx.strokeStyle = "#ffcc66";
+          ctx.lineWidth = Math.max(1.5, sz * 0.1);
           ctx.beginPath();
-          ctx.moveTo(px2 + sz * 0.3, py2 + sz * 0.15);
-          ctx.lineTo(px2 + sz * 0.5, py2 + sz * 0.5);
-          ctx.lineTo(px2 + sz * 0.7, py2 + sz * 0.85);
+          ctx.moveTo(px2 + sz * 0.30, py2 + sz * 0.10);
+          ctx.lineTo(px2 + sz * 0.48, py2 + sz * 0.45);
+          ctx.lineTo(px2 + sz * 0.65, py2 + sz * 0.80);
           ctx.stroke();
           ctx.beginPath();
-          ctx.moveTo(px2 + sz * 0.5, py2 + sz * 0.5);
-          ctx.lineTo(px2 + sz * 0.7, py2 + sz * 0.35);
+          ctx.moveTo(px2 + sz * 0.48, py2 + sz * 0.45);
+          ctx.lineTo(px2 + sz * 0.72, py2 + sz * 0.30);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(px2 + sz * 0.20, py2 + sz * 0.60);
+          ctx.lineTo(px2 + sz * 0.42, py2 + sz * 0.75);
           ctx.stroke();
           if (!vis) ctx.globalAlpha = 1;
         }
