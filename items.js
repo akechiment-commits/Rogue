@@ -2851,9 +2851,10 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   removeMonster(dg, mon);
   /* スケルトン：50%で骨を残し5ターン後に復活 */
   if (mon.baseKind === "skeleton" && Math.random() < 0.5) {
-    /* 骨の配置先：アイテム・罠・階段・大箱・泉と重ならないマスを探す */
+    /* 骨の配置先：アイテム・罠・階段・大箱・泉と重ならないマスをDRO(24マス)で探す */
     const _boneBlocked = (bx, by) => {
       const _tile = dg.map[by]?.[bx];
+      if (!_tile || _tile === T.WALL || _tile === T.BWALL) return true;
       if (_tile === T.SD || _tile === T.SU) return true;
       if (dg.items.some(i => i.x === bx && i.y === by)) return true;
       if (dg.traps.some(t => t.x === bx && t.y === by)) return true;
@@ -2861,13 +2862,13 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       if (dg.springs?.some(s => s.x === bx && s.y === by)) return true;
       return false;
     };
-    let _bx = mx, _by = my;
-    if (_boneBlocked(_bx, _by)) {
-      const _dirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-      const _alt = _dirs.map(([dx,dy]) => [mx+dx, my+dy])
-        .filter(([nx,ny]) => dg.map[ny]?.[nx] === T.FLOOR && !_boneBlocked(nx, ny) && !monsterAt(dg, nx, ny));
-      if (_alt.length > 0) { [_bx, _by] = _alt[Math.floor(Math.random() * _alt.length)]; }
+    const _boneCands = DRO.filter(([dx, dy]) => !_boneBlocked(mx + dx, my + dy));
+    if (_boneCands.length === 0) {
+      ml.push(`${mon.name}の骨は行き場がなく消えた。`);
+      return;
     }
+    const [_bdx, _bdy] = _boneCands[Math.floor(Math.random() * _boneCands.length)];
+    const [_bx, _by] = [mx + _bdx, my + _bdy];
     dg.traps.push({
       id: uid(), name: "骨", effect: "bone", tile: 107,
       x: _bx, y: _by, revealed: true, permanent: false,
