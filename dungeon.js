@@ -145,10 +145,9 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     if (map[my]?.[mx] !== T.FLOOR) continue;
     if ((mx === su.x && my === su.y) || (mx === sd.x && my === sd.y)) continue;
     if (mons.some(m => m.x === mx && m.y === my)) continue;
-    const { levels: _tlvls, ...t } = MONS[clamp(rng(0, depth + 2), 0, MONS.length - 1)];
-    mons.push({ ...t, id: uid(), x: mx, y: my, maxHp: t.hp, turnAccum: 0, aware: false,
-      dir: { x: [-1,1][rng(0,1)], y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
-      dormantHouse: true });
+    const _mh = mkMon(depth, mx, my, 0, map, null);
+    _mh.dormantHouse = true;
+    mons.push(_mh);
   }
   /* 多めのアイテム */
   const itemCount = rng(8, 14);

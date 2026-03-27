@@ -420,6 +420,9 @@ export function ScoresModal({ show, setShow, mobile }) {
 
 /* ===== Nickname Modal ===== */
 export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs }) {
+  const [_subMode, _setSubMode] = useState(null); /* null=選択中 / "type" / "list" */
+  const [_listPage, _setListPage] = useState(0);
+  const [_listSel, _setListSel] = useState(0);
   if (!mode) return null;
   const _isBigbox = mode.identKey?.startsWith("bk:");
   const _typePrefix = _isBigbox ? null : mode.identKey[0];
@@ -430,27 +433,26 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     const _globalDisc = loadSave().discovered;
     const _runDisc = getDiscoveries();
     if (_isBigbox) {
-      /* 大箱：識別済み大箱の実名一覧 */
       const _names = new Set([
         ...Object.values(_globalDisc.bigboxes || {}).map(e => e.name),
         ...Object.values(_runDisc.bigboxes || {}).map(e => e.name),
       ]);
       return [..._names].filter(Boolean).sort((a, b) => a.localeCompare(b, "ja"));
     }
-    /* 通常アイテム：グローバル＋今回でフィルタ */
     const _names = new Set([
       ...Object.values(_globalDisc.items || {}).filter(e => e.type === _targetType).map(e => e.name),
       ...Object.values(_runDisc.items || {}).filter(e => e.type === _targetType).map(e => e.name),
     ]);
     return [..._names].filter(Boolean).sort((a, b) => a.localeCompare(b, "ja"));
   }, [_isBigbox, _targetType]);
-  const confirm = () => {
+  const _totalPages = Math.max(1, Math.ceil(_knownNames.length / 10));
+  const _pageNames = _knownNames.slice(_listPage * 10, (_listPage + 1) * 10);
+  const _applyNick = (nick) => {
     const _k = mode.identKey;
     if (!sr.current.nicknames) sr.current.nicknames = {};
-    const _newNick = input.trim() || null;
+    const _newNick = (nick ?? '').trim() || null;
     if (_newNick) sr.current.nicknames[_k] = _newNick;
     else delete sr.current.nicknames[_k];
-    /* ペンのニックネーム変更時：同じpenIKで描いた全フロアの魔法陣名を更新 */
     if (_k.startsWith('n:')) {
       const _updatePentacles = (dg) => {
         if (!dg?.pentacles) return;
@@ -468,43 +470,106 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     setMode(null);
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   };
+  /* サブモードリセット（モードが変わったとき） */
+  useEffect(() => { _setSubMode(null); _setListPage(0); _setListSel(0); }, [mode?.identKey]);
+  /* リストモードのキーボード操作 */
+  useEffect(() => {
+    if (_subMode !== "list") return;
+    const _onKey = (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (_listSel > 0) _setListSel(s => s - 1);
+        else if (_listPage > 0) { _setListPage(p => p - 1); _setListSel(9); }
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        if (_listSel < _pageNames.length - 1) _setListSel(s => s + 1);
+        else if (_listPage < _totalPages - 1) { _setListPage(p => p + 1); _setListSel(0); }
+      } else if (e.key === "Enter") {
+        const _n = _pageNames[_listSel];
+        if (_n) _applyNick(_n);
+      } else if (e.key === "Escape") {
+        _setSubMode(null);
+      }
+    };
+    window.addEventListener("keydown", _onKey);
+    return () => window.removeEventListener("keydown", _onKey);
+  });
+  const _btnStyle = (col = "#4a6a9a") => ({
+    background: col, border: "1px solid #556", color: "#fff", borderRadius: 4,
+    padding: "6px 16px", cursor: "pointer", fontSize: 13,
+  });
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)",
                   display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:300 }}>
       <div style={{ background:"#1a2a3a", padding:16, borderRadius:8, maxWidth:400, width:"90%" }}>
         <div style={{ color:"#ff0", marginBottom:8, fontWeight:"bold" }}>{_isBigbox ? "大箱に名前をつける" : "アイテムに名前をつける"}</div>
         {_isBigbox
-          ? <div style={{ color:"#888", fontSize:11, marginBottom:4 }}>見た目: {gs?.bbFakeNames?.[mode.identKey.slice(3)] ?? "謎の大箱"}</div>
-          : <div style={{ color:"#888", fontSize:11, marginBottom:4 }}>偽名: {gs?.fakeNames?.[mode.identKey] ?? "?"}</div>
+          ? <div style={{ color:"#888", fontSize:11, marginBottom:8 }}>見た目: {gs?.bbFakeNames?.[mode.identKey.slice(3)] ?? "謎の大箱"}</div>
+          : <div style={{ color:"#888", fontSize:11, marginBottom:8 }}>偽名: {gs?.fakeNames?.[mode.identKey] ?? "?"}</div>
         }
-        <input
-          value={input}
-          onChange={e2 => setInput(e2.target.value)}
-          onKeyDown={e2 => {
-            if (e2.key === 'Enter') confirm();
-            if (e2.key === 'Escape') setMode(null);
-          }}
-          placeholder="名前を入力（空欄でリセット）"
-          autoFocus
-          style={{ width:"100%", background:"#0a1a2a", color:"#fff", border:"1px solid #446", padding:4, borderRadius:4, boxSizing:"border-box" }}
-        />
-        {_knownNames.length > 0 && (
-          <div style={{ marginTop:8 }}>
-            <div style={{ color:"#888", fontSize:11 }}>図鑑に載ってる名前から選ぶ：</div>
-            {_knownNames.map((n, ni) => (
-              <div key={ni} onClick={() => setInput(n)}
-                style={{ padding:"2px 6px", cursor:"pointer", color:"#8cf", background:"#1a3a5a", margin:"1px 0", borderRadius:3 }}>
+
+        {/* ── 第1画面：方法選択 ── */}
+        {_subMode === null && (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            <button style={_btnStyle("#2a5a2a")} onClick={() => _setSubMode("type")}>自分でつける</button>
+            <button style={_knownNames.length > 0 ? _btnStyle("#2a3a6a") : { ..._btnStyle("#222"), opacity:0.4, cursor:"default" }}
+              onClick={() => { if (_knownNames.length > 0) { _setSubMode("list"); _setListPage(0); _setListSel(0); } }}>
+              図鑑から選ぶ{_knownNames.length === 0 ? "（未発見）" : `（${_knownNames.length}件）`}
+            </button>
+            <button style={_btnStyle("#3a1a1a")} onClick={() => setMode(null)}>キャンセル</button>
+          </div>
+        )}
+
+        {/* ── 第2画面A：キーボード入力 ── */}
+        {_subMode === "type" && (
+          <div>
+            <input
+              value={input}
+              onChange={e2 => setInput(e2.target.value)}
+              onKeyDown={e2 => {
+                if (e2.key === 'Enter') _applyNick(input);
+                if (e2.key === 'Escape') _setSubMode(null);
+              }}
+              placeholder="名前を入力（空欄でリセット）"
+              autoFocus
+              style={{ width:"100%", background:"#0a1a2a", color:"#fff", border:"1px solid #446", padding:4, borderRadius:4, boxSizing:"border-box" }}
+            />
+            <div style={{ display:"flex", gap:8, marginTop:10 }}>
+              <button onClick={() => _applyNick(input)} style={_btnStyle("#0a4a2a")}>決定</button>
+              <button onClick={() => _setSubMode(null)} style={_btnStyle("#3a3a3a")}>戻る</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── 第2画面B：図鑑リスト選択 ── */}
+        {_subMode === "list" && (
+          <div>
+            {_pageNames.map((n, vi) => (
+              <div key={vi} onClick={() => _applyNick(n)}
+                style={{ padding:"4px 8px", cursor:"pointer", borderRadius:3, margin:"2px 0",
+                         background: _listSel === vi ? "#2a4a8a" : "#1a2a4a",
+                         border: `1px solid ${_listSel === vi ? "#6af" : "#334"}`,
+                         color: _listSel === vi ? "#fff" : "#8cf" }}
+                onMouseEnter={() => _setListSel(vi)}>
                 {n}
               </div>
             ))}
+            {_totalPages > 1 && (
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8 }}>
+                <button onClick={() => { _setListPage(p => Math.max(0, p - 1)); _setListSel(0); }}
+                  disabled={_listPage === 0}
+                  style={{ ..._btnStyle("#2a3a5a"), opacity: _listPage === 0 ? 0.4 : 1 }}>◀</button>
+                <span style={{ color:"#8af", fontSize:12 }}>{_listPage + 1} / {_totalPages}</span>
+                <button onClick={() => { _setListPage(p => Math.min(_totalPages - 1, p + 1)); _setListSel(0); }}
+                  disabled={_listPage >= _totalPages - 1}
+                  style={{ ..._btnStyle("#2a3a5a"), opacity: _listPage >= _totalPages - 1 ? 0.4 : 1 }}>▶</button>
+              </div>
+            )}
+            <div style={{ marginTop:8 }}>
+              <button onClick={() => _setSubMode(null)} style={_btnStyle("#3a3a3a")}>戻る</button>
+            </div>
           </div>
         )}
-        <div style={{ display:"flex", gap:8, marginTop:12 }}>
-          <button onClick={confirm}
-            style={{ background:"#0a2a4a", border:"1px solid #446", color:"#cfc", borderRadius:4, padding:"4px 12px", cursor:"pointer" }}>決定</button>
-          <button onClick={() => setMode(null)}
-            style={{ background:"#0a1a2a", border:"1px solid #446", color:"#888", borderRadius:4, padding:"4px 12px", cursor:"pointer" }}>キャンセル</button>
-        </div>
       </div>
     </div>
   );
