@@ -3,6 +3,7 @@ import { MONS, MON_LEVELS, BOSSES, makeMonster, pickMonsterDef } from './monster
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
+  GEM_TYPES,
 } from './items.js';
 
 function mkOcc(...lists) {
@@ -455,29 +456,68 @@ function setupShopRoom(room, map, depth, items, mons) {
         if (map[iy][ix] === T.FLOOR) { insidePos = { x: ix, y: iy }; break outer_s; }
   }
   const socc = (x, y) => items.some(i => i.x === x && i.y === y);
+  /* 宝石を候補に追加（originDepth を p.depth と合わせた 1-indexed で設定） */
+  const gemCands = GEM_TYPES.map(g => ({ ...g, originDepth: depth + 1 }));
   const cands = [
     ...ITEMS.filter(i => i.type !== 'gold'),
     ...WANDS.map(w => ({ ...w, charges: Math.max(1, w.charges + rng(-1, 1)) })),
     ...POTS,
     ...RINGS,
     ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
+    ...gemCands, ...gemCands, /* 宝石を2倍の重みで追加 */
+  ];
+  /* 目玉商品プール（A/S レアリティ、宝石除く） */
+  const luxuryPool = [
+    ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'A' || i.rarity === 'S')),
+    ...WANDS.filter(w => w.rarity === 'A' || w.rarity === 'S').map(w => ({ ...w, charges: Math.max(1, w.charges + rng(-1, 1)) })),
+    ...POTS.filter(p => p.rarity === 'A' || p.rarity === 'S'),
+    ...RINGS.filter(r => r.rarity === 'A' || r.rarity === 'S'),
+    ...SPELLBOOKS.filter(sb => sb.rarity === 'A' || sb.rarity === 'S'),
   ];
   const cols = clamp(Math.floor(room.w / 2), 2, 5);
   const rows2 = clamp(Math.floor(room.h / 2), 2, 5);
   const sx0 = room.x + Math.floor((room.w - cols) / 2);
   const sy0 = room.y + Math.floor((room.h - rows2) / 2);
+  const makeShopItem = (base, x, y) => {
+    const sit = { ...base, id: uid(), x, y };
+    if (sit.type === 'arrow') sit.count = rng(5, 20);
+    sit.shopPrice = Math.ceil(itemPrice(sit) * (1 + depth * 0.1));
+    sit._shopId = shopId;
+    return sit;
+  };
   for (let r = 0; r < rows2; r++)
     for (let c = 0; c < cols; c++) {
       const six = sx0 + c, siy = sy0 + r;
       if (map[siy]?.[six] === T.FLOOR && !socc(six, siy) && !(six === insidePos.x && siy === insidePos.y)) {
-        const base = pick(cands);
-        const sit = { ...base, id: uid(), x: six, y: siy };
-        if (sit.type === 'arrow') sit.count = rng(5, 20);
-        sit.shopPrice = Math.ceil(itemPrice(sit) * (1 + depth * 0.1));
-        sit._shopId = shopId;
-        items.push(sit);
+        items.push(makeShopItem(pick(cands), six, siy));
       }
     }
+  /* 最低6商品を保証 — 不足分を空きフロアタイルに補充 */
+  const shopItemCount = () => items.filter(i => i._shopId === shopId).length;
+  if (shopItemCount() < 6) {
+    outer_fill: for (let fy = room.y; fy < room.y + room.h; fy++) {
+      for (let fx = room.x; fx < room.x + room.w; fx++) {
+        if (shopItemCount() >= 6) break outer_fill;
+        if (map[fy]?.[fx] === T.FLOOR && !socc(fx, fy) && !(fx === insidePos.x && fy === insidePos.y)) {
+          items.push(makeShopItem(pick(cands), fx, fy));
+        }
+      }
+    }
+  }
+  /* 目玉商品（A/S レア）を1つ追加 */
+  if (luxuryPool.length > 0) {
+    outer_lux: for (let fy = room.y; fy < room.y + room.h; fy++) {
+      for (let fx = room.x; fx < room.x + room.w; fx++) {
+        if (map[fy]?.[fx] === T.FLOOR && !socc(fx, fy) && !(fx === insidePos.x && fy === insidePos.y)) {
+          const luxItem = makeShopItem(pick(luxuryPool), fx, fy);
+          /* 目玉商品は少し割高 */
+          luxItem.shopPrice = Math.ceil(luxItem.shopPrice * 1.2);
+          items.push(luxItem);
+          break outer_lux;
+        }
+      }
+    }
+  }
   const sk = {
     id: uid(), name: '店主', hp: 200, maxHp: 200, atk: 100, def: 100, exp: 0,
     speed: 1, tile: TI.SHOPKEEPER, type: 'shopkeeper', state: 'friendly',
@@ -1021,12 +1061,15 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
       traps.push({ ...permSpin, id: uid(), x: tx2, y: ty2, revealed: false });
       break;
     }
-    /* アイテムを3〜5個 */
-    const itemCount = rng(3, Math.min(5, islandTiles.length * 3));
+    /* アイテムを最低3個（罠・大箱と重複しなければ積み重ね可） */
+    const isOccForItem = (x, y) =>
+      traps.some(t => t.x === x && t.y === y) ||
+      bigboxes.some(b => b.x === x && b.y === y);
+    const itemCount = Math.max(3, rng(3, Math.min(5, islandTiles.length * 3)));
     let iPlaced = 0;
     for (let a = 0; a < itemCount * 40 && iPlaced < itemCount; a++) {
       const [ix2, iy2] = pick(islandTiles);
-      if (isOcc(ix2, iy2)) continue;
+      if (isOccForItem(ix2, iy2)) continue;
       const it = { ...pickWeighted(ITEMS), id: uid(), x: ix2, y: iy2 };
       if (it.type === "gold") it.value = rng(100, 300 + depth * 60);
       items.push(it); iPlaced++;

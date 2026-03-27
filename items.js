@@ -523,6 +523,24 @@ export const FOOD_DESCS = {
   mp_food:       "魔力が湧いてくる感じがする。",
 };
 
+/* ===== 宝石 ===== */
+export const GEM_TYPES = [
+  { name: "ルビー",       type: "gem", rarity: "B", weight: 8,  basePrice: 200, tile: 87, desc: "深紅の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "サファイア",   type: "gem", rarity: "B", weight: 8,  basePrice: 250, tile: 87, desc: "深青の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "エメラルド",   type: "gem", rarity: "B", weight: 8,  basePrice: 230, tile: 87, desc: "緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "トパーズ",     type: "gem", rarity: "C", weight: 12, basePrice: 150, tile: 87, desc: "黄色の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "アメジスト",   type: "gem", rarity: "C", weight: 12, basePrice: 140, tile: 87, desc: "紫の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "アクアマリン", type: "gem", rarity: "C", weight: 10, basePrice: 160, tile: 87, desc: "青緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "ダイヤモンド", type: "gem", rarity: "A", weight: 3,  basePrice: 500, tile: 87, desc: "無色透明の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "オパール",     type: "gem", rarity: "A", weight: 3,  basePrice: 450, tile: 87, desc: "虹色の宝石。買った店から遠い階の店で売ると高値がつく。" },
+];
+
+/* 宝石の売値を計算する（originDepth から currentDepth の距離に応じて上昇） */
+export function gemSellPrice(gem, currentDepth) {
+  const dist = Math.abs(currentDepth - (gem.originDepth ?? currentDepth));
+  return Math.round((gem.basePrice || 100) * (1 + dist * 0.2));
+}
+
 export function itemPrice(it) {
   // sellPrice が設定されている場合はそれを基準にする
   if (it.sellPrice != null) {
@@ -574,6 +592,7 @@ export function itemPrice(it) {
     const contentsValue = (it.contents || []).reduce((s, c) => s + itemPrice(c), 0);
     return 120 + contentsValue;
   }
+  if (it.type === "gem")      return it.basePrice || 100;
   if (it.type === "bottle")   return 5;
   if (it.type === "spellbook") return 200;
   if (it.type === "ring") {

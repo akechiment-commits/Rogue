@@ -93,6 +93,7 @@ export const TILE_NAMES = {
   86: "trapmaster",
   93: "wateri",
   94: "trap_rot",
+  87: "gem",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -183,6 +184,7 @@ export const TILE_RENDER = {
   86: { bg: null, fg: "#c0a030", ch: "T" },
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
+  87: { bg: null, fg: "#00eeff", ch: "◆" },
   /* ===== ボス tier 5〜10 ===== */
   95:  { bg: null, fg: "#aa8833", ch: "B" }, /* 魔将軍  */
   96:  { bg: null, fg: "#ccccaa", ch: "B" }, /* 骸骨王  */

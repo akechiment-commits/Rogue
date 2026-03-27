@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
@@ -10,7 +10,7 @@ import { getDiscoveries } from "./DiscoveryTracker.js";
 /* ===== Tile Icon (inventory) ===== */
 const TYPE_TILE_FALLBACK = {
   potion: 16, scroll: 18, food: 19, weapon: 20, armor: 21,
-  gold: 22, arrow: 23, wand: 24, pen: 42, spellbook: 43, ring: 60,
+  gold: 22, arrow: 23, wand: 24, pen: 42, spellbook: 43, ring: 60, gem: 87,
 };
 function TileIcon({ item, size = 16 }) {
   const tileIdx = item.tile ?? TYPE_TILE_FALLBACK[item.type];
@@ -751,7 +751,8 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           _p.y >= s.room.y && _p.y < s.room.y + s.room.h);
         const _inShop = !!_curShop;
         const _sellItems = _p.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-        const _totalG = _sellItems.reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
+        const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
+        const _totalG = _sellItems.reduce((s, it) => s + _calcSellPrice(it, _p.depth), 0);
         if (sellAllConfirm) {
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -771,9 +772,10 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
                       p2.y >= s.room.y && p2.y < s.room.y + s.room.h) || getShops(dg2)[0];
                     if (!_sellShop) { setSellAllConfirm(false); return; }
+                    const _calcSell2 = (it) => it.type === "gem" ? gemSellPrice(it, p2.depth) : Math.ceil(itemPrice(it) * 0.5);
                     let earned = 0;
                     for (const it of toSell) {
-                      it.shopPrice = Math.ceil(itemPrice(it) * 0.5);
+                      it.shopPrice = _calcSell2(it);
                       it._shopId = _sellShop.id;
                       earned += it.shopPrice;
                     }
