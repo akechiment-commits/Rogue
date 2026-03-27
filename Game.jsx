@@ -181,6 +181,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   const bigboxRef = useRef(null);
   const bigboxModeRef = useRef(null);
   bigboxModeRef.current = bigboxMode;
+  const nicknameModeRef = useRef(null);
+  nicknameModeRef.current = nicknameMode;
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
   const shopMode      = modal.type === 'shop'         ? modal.data : null;
@@ -1957,6 +1959,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (animBusyRef.current) return;
       if (revealMode) return;
       if (bigboxModeRef.current) return;
+      if (nicknameModeRef.current) return;
       if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -2518,6 +2521,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (!sr.current) return;
     if (lookMode) return;
     if (bigboxModeRef.current) return;
+    if (nicknameModeRef.current) return;
     const { player: p, dungeon: dg } = sr.current;
     const fd = p.facing || { dx: 0, dy: 1 };
     const nx = p.x + fd.dx, ny = p.y + fd.dy;

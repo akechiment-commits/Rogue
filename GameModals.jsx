@@ -482,10 +482,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       { enabled: true,                      action: () => setMode(null) },
     ];
     const _onKey = (e) => {
-      if (e.key === "ArrowUp") {
+      if (e.key === "ArrowUp" || e.code === "Numpad8") {
         e.preventDefault();
         _setMenuSel(s => (s - 1 + _menuItems.length) % _menuItems.length);
-      } else if (e.key === "ArrowDown") {
+      } else if (e.key === "ArrowDown" || e.code === "Numpad2") {
         e.preventDefault();
         _setMenuSel(s => (s + 1) % _menuItems.length);
       } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
@@ -493,6 +493,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
         const item = _menuItems[_menuSel];
         if (item?.enabled) item.action();
       } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+        e.preventDefault();
         setMode(null);
       }
     };
@@ -502,19 +503,31 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   /* リストモードのキーボード操作 */
   useEffect(() => {
     if (_subMode !== "list" || !mode) return;
+    const _isUp   = (e) => e.key === "ArrowUp"    || e.code === "Numpad8";
+    const _isDown = (e) => e.key === "ArrowDown"  || e.code === "Numpad2";
+    const _isPrev = (e) => e.key === "ArrowLeft"  || e.code === "Numpad4";
+    const _isNext = (e) => e.key === "ArrowRight" || e.code === "Numpad6";
     const _onKey = (e) => {
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      if (_isUp(e)) {
         e.preventDefault();
         if (_listSel > 0) _setListSel(s => s - 1);
         else if (_listPage > 0) { _setListPage(p => p - 1); _setListSel(9); }
-      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      } else if (_isDown(e)) {
         e.preventDefault();
         if (_listSel < _pageNames.length - 1) _setListSel(s => s + 1);
         else if (_listPage < _totalPages - 1) { _setListPage(p => p + 1); _setListSel(0); }
+      } else if (_isPrev(e)) {
+        e.preventDefault();
+        if (_listPage > 0) { _setListPage(p => p - 1); _setListSel(0); }
+      } else if (_isNext(e)) {
+        e.preventDefault();
+        if (_listPage < _totalPages - 1) { _setListPage(p => p + 1); _setListSel(0); }
       } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
+        e.preventDefault();
         const _n = _pageNames[_listSel];
         if (_n) _applyNick(_n);
       } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+        e.preventDefault();
         _setSubMode(null);
       }
     };
