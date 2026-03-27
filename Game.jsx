@@ -503,7 +503,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     if (!data || !canvasRef.current) return;
     animBusyRef.current = true;
     try {
-    const _easeOut = (t) => t * (2 - t);
+    const _easeOut = (t) => t * t * (3 - 2 * t); /* smoothstep */
     const _phase = (dur, fn) => new Promise(res => {
       let done = false;
       const finish = () => { if (!done) { done = true; res(); } };
@@ -524,9 +524,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       };
       requestAnimationFrame(tick);
     });
-    /* Phase 1: Player move slide (100ms) */
+    /* Phase 1: Player move slide (60ms) */
     if (data.playerMove) {
-      await _phase(100, (t) => {
+      await _phase(60, (t) => {
         moveOffsetsRef.current.set("player", { ...data.playerMove, progress: t });
         renderFrame();
       });
@@ -608,9 +608,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       });
       overlaysRef.current = [];
     }
-    /* Phase 3: Monster moves (80ms) */
+    /* Phase 3: Monster moves (50ms) */
     if (data.monMoves?.length) {
-      await _phase(80, (t) => {
+      await _phase(50, (t) => {
         for (const mm of data.monMoves) moveOffsetsRef.current.set("mon_" + mm.id, { ...mm, progress: t });
         renderFrame();
       });
@@ -618,9 +618,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     /* Phase 4: Monster attack effects — flash then per-hit lunge+damage sequentially */
     if (data.monAttacks?.length || data.monDamages?.length || data.monLunges?.length) {
-      /* Flash (100ms) */
+      /* Flash (70ms) */
       if (data.monAttacks?.length) {
-        await _phase(100, (t, raw) => {
+        await _phase(70, (t, raw) => {
           overlaysRef.current = data.monAttacks.map(a => ({ ...a, progress: raw, t }));
           renderFrame();
         });
@@ -632,7 +632,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         for (let _hi = 0; _hi < data.monDamages.length; _hi++) {
           const _dmgEv = data.monDamages[_hi];
           const _lg = _lunges[_hi];
-          await _phase(300, (_t, raw) => {
+          await _phase(160, (_t, raw) => {
             if (_lg) {
               /* sin-curve offset: 0 → 40% toward player → 0 */
               const _lp = Math.sin(raw * Math.PI) * 0.4;
