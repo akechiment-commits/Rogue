@@ -386,15 +386,15 @@ export function useItemActions({
         const h = rng(10, 20);
         const ah = Math.min(h, p.maxHp - p.hp);
         p.hp += ah;
-        if (ah > 0) ml.push(`体が温まりHPが${ah}回復した。`);
+        ml.push(ah > 0 ? `体が温まりHPが${ah}回復した。` : "体が温まったが、HPは既に満タンだ。");
       } else if (fe === "power_food") {
         p.atk += 1;
         ml.push("力が湧いてきた！攻撃力+1");
       } else if (fe === "speed_food") {
-        if (p.sleepTurns > 0) {
-          p.sleepTurns = 0;
-          ml.push("目が覚めた！");
-        } else ml.push("体が軽くなった！");
+        if (p.sleepTurns > 0) { p.sleepTurns = 0; ml.push("目が覚めた！"); }
+        const _spTurns = rng(15, 25);
+        p.hasteTurns = (p.hasteTurns || 0) + _spTurns;
+        ml.push(`体が軽くなった！${_spTurns}ターン間、倍速で行動できる！`);
       } else if (fe === "def_food") {
         p.def += 1;
         ml.push("体が頑丈になった！防御力+1");
@@ -434,6 +434,15 @@ export function useItemActions({
         ml.push(`体の調子が良くなった。HP+${h2}`);
       } else if (fe === "satiate_food") {
         ml.push("とても腹持ちが良い！");
+      } else if (fe === "mp_food") {
+        if ((p.mpCooldownTurns || 0) > 0) {
+          ml.push(`魔力が湧いてきたが、MP封印中のため効果がない！(残り${p.mpCooldownTurns}ターン)`);
+        } else {
+          const _mpGain = rng(20, 40);
+          const _mpAdded = Math.min(_mpGain, (p.maxMp || 0) - (p.mp || 0));
+          p.mp = Math.min(p.maxMp || 0, (p.mp || 0) + _mpGain);
+          ml.push(_mpAdded > 0 ? `魔力が湧いてきた！MP+${_mpAdded}` : "魔力が湧いてきたが、MPは既に満タンだ。");
+        }
       }
       if (it.potionEffects && it.potionEffects.length > 0) {
         for (const pe of it.potionEffects) {
@@ -845,7 +854,7 @@ export function useItemActions({
                   _gft.add(_gt.id);
                   _gt.revealed = true;
                   const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
-                  if (Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
+                  if (!_gt.permanent && Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
                   if (_gr === "destroyed") { _placed = true; break; }
                   if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
                   continue;
@@ -1113,7 +1122,7 @@ export function useItemActions({
       } else if (it.effect === "trap_scatter") {
         // 罠の巻物
         if (it.cursed) {
-          dg.traps = [];
+          dg.traps = dg.traps.filter(t => t.permanent);
           ml.push("罠の巻物を読んだ！フロア内の全ての罠が消えた！【呪】");
         } else {
           const _tCount = it.blessed ? rng(15, 25) : rng(8, 15);
