@@ -1547,6 +1547,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.slowSkip = true;
         p._eqSpeedSlowPending = true;
       }
+      /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
+      triggerMonsterHouse(st.dungeon, p, ml);
       /* ===== 4フェーズターン制 ===== */
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
       const _monSnap = new Map();
@@ -2646,16 +2648,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL
         )
           break;
-        const _dashBlockMon = monsterAt(dg, nx, ny);
-        if (_dashBlockMon?.dormantHouse) {
-          /* 入口タイルが仮眠モンスターでも部屋に踏み込んでハウス起動 */
-          p.x = nx; p.y = ny;
-          steps++;
-          triggerMonsterHouse(st.dungeon, p, ml);
-          endTurn(st, p, ml);
-          break;
-        }
-        if (_dashBlockMon) break;
+        if (monsterAt(dg, nx, ny)) break;
         if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         const _allShopsD = getShops(dg);
