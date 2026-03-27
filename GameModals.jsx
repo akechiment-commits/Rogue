@@ -3,7 +3,7 @@ import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
-import { TILE_NAMES, TILE_RENDER, customTileImages } from "./render.js";
+import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
 
@@ -1933,7 +1933,7 @@ export function InventoryModal({
         boxShadow: "0 4px 20px rgba(0,0,0,0.85)", pointerEvents: "none",
       }}>
         <div style={{ color: "#ffcc66", fontSize: 11, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
-          {_previewPot.name}　[{_previewPot.contents.length}/{_previewPot.capacity}]
+          {itemDisplayName(_previewPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{_previewPot.contents.length}/{_previewPot.capacity}]
         </div>
         {_previewPot.contents.length === 0 ? (
           <div style={{ color: "#666", fontSize: 11 }}>（空）</div>
