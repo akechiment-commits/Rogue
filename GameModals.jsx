@@ -1143,7 +1143,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
             },
             {
               label: "説明",
-              desc: _bbDesc,
+              desc: _bbIsRevealed ? _bbDesc : "？？？",
               fn: () => { setMode("desc"); setMenuSel(0); },
             },
             {
