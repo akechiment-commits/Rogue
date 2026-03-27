@@ -809,8 +809,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const spring = dg.springs?.find(s => s.x === cx && s.y === cy);
     if (spring) parts.push(spring.name || "泉");
     const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
-    const _bbDN = (b) => b.revealed === false ? (sr.current?.nicknames?.["bb:" + b.id] || "謎の大箱") : b.name;
-    if (bb) parts.push(bb.revealed === false ? _bbDN(bb) : `${_bbDN(bb)}(${bb.contents?.length || 0}/${bb.capacity ?? "∞"})`);
+    const _bbIsUnrev = (b) => b.revealed !== true && !sr.current?.allBcKnown;
+    const _bbDN = (b) => _bbIsUnrev(b) ? (sr.current?.nicknames?.["bb:" + b.id] || "謎の大箱") : b.name;
+    if (bb) parts.push(_bbIsUnrev(bb) ? _bbDN(bb) : `${_bbDN(bb)}(${bb.contents?.length || 0}/${bb.capacity ?? "∞"})`);
     const pent = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
     if (pent) parts.push(pent.name);
     return parts.length > 0 ? parts.join(" / ") : "何もない";
@@ -2355,8 +2356,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (bb2) {
             bigboxRef.current = bb2;
             setBigboxMode("menu"); setBigboxMenuSel(0);
-            const _bb2DN = bb2.revealed === false ? (sr.current?.nicknames?.["bb:" + bb2.id] || "謎の大箱") : bb2.name;
-            const _bb2Info = bb2.revealed === false ? "" : `(${bb2.contents?.length || 0}/${bb2.capacity})`;
+            const _bb2Unrev = bb2.revealed !== true && !sr.current?.allBcKnown;
+            const _bb2DN = _bb2Unrev ? (sr.current?.nicknames?.["bb:" + bb2.id] || "謎の大箱") : bb2.name;
+            const _bb2Info = _bb2Unrev ? "" : `(${bb2.contents?.length || 0}/${bb2.capacity})`;
             setMsgs((prev) => [...prev.slice(-80), `${_bb2DN}${_bb2Info}がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
           }

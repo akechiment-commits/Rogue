@@ -1061,7 +1061,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
   if (!mode) return null;
   const _bb = bigboxRef.current;
   const _bbNickKey = _bb ? "bb:" + _bb.id : null;
-  const _bbIsRevealed = !_bb || _bb.revealed !== false;
+  const _bbIsRevealed = !_bb || _bb.revealed === true || !!gs?.allBcKnown;
   const _bbNick = gs?.nicknames?.[_bbNickKey];
   const _bbDisplayName = _bbIsRevealed ? (_bb?.name ?? "大箱") : (_bbNick ? `謎の大箱 (${_bbNick})` : "謎の大箱");
   return (
@@ -1208,10 +1208,10 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ background: "#12100a", border: "1px solid #6a4a2a", borderRadius: 6, padding: "10px 12px" }}>
             <div style={{ color: "#fca", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>
-              {bigboxRef.current.name}
+              {_bbIsRevealed ? bigboxRef.current.name : (_bbNick ? `謎の大箱 (${_bbNick})` : "謎の大箱")}
             </div>
             <div style={{ color: "#c9a", fontSize: 12, lineHeight: "1.6em" }}>
-              {BB_TYPES.find(t => t.kind === bigboxRef.current?.kind)?.desc ?? "説明なし。"}
+              {_bbIsRevealed ? (BB_TYPES.find(t => t.kind === bigboxRef.current?.kind)?.desc ?? "説明なし。") : "詳細は不明。アイテムを入れると正体が分かるかもしれない。"}
             </div>
           </div>
           <button
