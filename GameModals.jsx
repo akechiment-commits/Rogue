@@ -1264,7 +1264,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
         </button>
       </div>
       {bigboxRef.current && (
-        <div style={{ color: "#a86", fontSize: 13, marginBottom: 6 }}>
+        <div style={{ color: "#d4a870", fontSize: 13, marginBottom: 6 }}>
           {_bbIsRevealed
             ? <>内容: {bigboxRef.current.contents.length}/{bigboxRef.current.capacity}{bigboxRef.current.contents.length > 0 && ": " + bigboxRef.current.contents.map((i) => i.name).join(", ")}</>
             : "内容: 不明"}
@@ -1345,7 +1345,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
               {item.desc && (
                 <span
                   style={{
-                    color: menuSel === mi ? "#a88" : "#664",
+                    color: menuSel === mi ? "#ffd090" : "#b89860",
                     marginLeft: 8,
                   }}
                 >
@@ -1354,7 +1354,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
               )}
             </button>
           ))}
-          <div style={{ color: "#556", fontSize: 12, marginTop: 2 }}>
+          <div style={{ color: "#8899aa", fontSize: 12, marginTop: 2 }}>
             ↑↓:選択 Z:決定 X:閉じる
           </div>
         </div>

@@ -3933,7 +3933,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       <div
         ref={msgRef}
         style={{
-          height: mobile ? 52 : 52,
+          height: mobile ? 70 : 70,
           overflowY: "auto",
           borderTop: "1px solid #252530",
           padding: "2px",
