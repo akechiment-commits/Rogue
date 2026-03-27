@@ -180,7 +180,7 @@ export const ITEMS = [
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"B", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。投げると命中した敵を50ターン暗闇状態にする。", tile:16 },
   { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"B", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。投げると命中した敵を50ターン逃走させる。", tile:16 },
   { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"S", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。祝福：2レベル上がる。投げると命中した敵が次の形態に変化する。", tile:17 },
-  { name:"金貨",             type:"gold",   value:0,                     desc:"金貨。",                           tile:22 },
+  { name:"金貨",             type:"gold",   value:1,                     desc:"金貨。",                           tile:22 },
   { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"C", weight:8,  sellPrice:250,
     desc:"持ち物から1つ選んで識別する。祝福：全識別。呪い：識別を解除。", tile:18 },
   { name:"複製の巻物", type:"scroll", effect:"duplicate",         rarity:"S", weight:1,  sellPrice:6000,
@@ -1567,7 +1567,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _stm = monsterAt(dg, tx, ty);
       if (_stm) {
-        const _stNewItem = { ...pick(ITEMS), id: uid() };
+        const _stNewItem = { ...pick(ITEMS.filter(i => i.type !== 'gold')), id: uid() };
         const _stFtm = new Set();
         const _stRoomm = dg.rooms[rng(0, dg.rooms.length - 1)];
         const _stXm = rng(_stRoomm.x, _stRoomm.x + _stRoomm.w - 1);

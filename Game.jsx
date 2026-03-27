@@ -2646,7 +2646,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL
         )
           break;
-        if (monsterAt(dg, nx, ny)) break;
+        const _dashBlockMon = monsterAt(dg, nx, ny);
+        if (_dashBlockMon?.dormantHouse) {
+          /* 入口タイルが仮眠モンスターでも部屋に踏み込んでハウス起動 */
+          p.x = nx; p.y = ny;
+          steps++;
+          triggerMonsterHouse(st.dungeon, p, ml);
+          endTurn(st, p, ml);
+          break;
+        }
+        if (_dashBlockMon) break;
         if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         const _allShopsD = getShops(dg);
@@ -3061,7 +3070,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           nit = {
             ...(pool.length
               ? pick(pool)
-              : pick(ITEMS)),
+              : pick(ITEMS.filter(i => i.type !== 'gold'))),
             id: uid(),
           };
         }
