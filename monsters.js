@@ -2155,9 +2155,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             if (_ibHitMon) break;
           }
           pushMonsterBoltAnim(pl.x, pl.y, _ibdx, _ibdy, dg, pl, "#ffdd44");
-          if (_ibItem.type === "pot") {
+          /* アイテム種別ごとに既存の投擲命中ルールを適用 */
+          if (_ibItem.type === "potion") {
+            /* 薬：着地点でsplash（敵に当たっても同じ位置でsplash） */
+            if (_ibHitMon) ml.push(`${m.name}に${_ibItem.name}を弾かれ${_ibHitMon.name}に当たって割れた！`);
+            else ml.push(`${m.name}に${_ibItem.name}を弾かれた！薬が割れた！`);
+            splashPotion(dg, _lx, _ly, _ibItem.effect, _ibItem.value || 0, pl, ml, _luFn, false, false);
+          } else if (_ibItem.type === "pot") {
+            /* 壺：衝撃ダメージ（敵命中時）＋中身散乱 */
             if (_ibHitMon) {
-              const _ibDmg = Math.max(1, 10 - (_ibHitMon.def || 0));
+              const _ibDmg = Math.max(1, 3 + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
               ml.push(`${m.name}に${_ibItem.name}を弾かれ${_ibHitMon.name}に当たって割れた！${_ibDmg}ダメージ！`);
               if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn);
@@ -2166,8 +2173,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             }
             scatterPotContents(_ibItem, dg, _lx, _ly, pl, ml, _luFn);
           } else {
+            /* それ以外：投擲命中ダメージ（武器は攻撃力、その他は3）＋着地 */
             if (_ibHitMon) {
-              const _ibDmg = Math.max(1, 10 - (_ibHitMon.def || 0));
+              const _ibDmg = Math.max(1,
+                (_ibItem.type === "weapon"
+                  ? (_ibItem.atk || 3) + (_ibItem.plus || 0)
+                  : 3) + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
               ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！`);
               if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn);
@@ -2201,13 +2212,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _srft = new Set();
           placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
         } else if (_throwItem.type === "potion") {
+          /* 薬：プレイヤー位置でsplash */
           ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-          splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, null, false, false);
+          splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, _luFn, false, false);
         } else if (_throwItem.type === "pot") {
+          /* 壺：プレイヤー位置で中身散乱 */
           ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
           scatterPotContents(_throwItem, dg, pl.x, pl.y, pl, ml, _luFn);
         } else {
-          const _srDmg = Math.max(1, 8 - (pl.def || 0));
+          /* それ以外：投擲命中ダメージ（武器は攻撃力、その他は3）、アイテムは足元に落ちる */
+          const _srDmg = Math.max(1,
+            (_throwItem.type === "weapon"
+              ? (_throwItem.atk || 3) + (_throwItem.plus || 0)
+              : 3) + rng(0, 3));
           ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！`);
           pl.hp -= _srDmg;
           if (_onHit) _onHit(m);
