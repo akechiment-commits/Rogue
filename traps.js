@@ -348,6 +348,11 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       }
       break;
     }
+    case "bone": {
+      /* 骨の上を歩いても罠としては発動しない（拾えないアイテム扱い） */
+      noBreak = true;
+      break;
+    }
   }
 
   const _breakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;

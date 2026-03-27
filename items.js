@@ -1729,6 +1729,23 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       }
       return "restart";
     }
+    case "bone": {
+      /* 吹き飛ばした骨が何かにぶつかった時のダメージ */
+      const _boneM = monsterAt(dg, tx, ty);
+      if (_boneM) {
+        const _boneDmg = rng(5, 12);
+        _boneM.hp -= _boneDmg;
+        ml.push(`骨が${_boneM.name}に激突！${_boneDmg}ダメージ！`);
+        if (_boneM.hp <= 0) killMonster(_boneM, dg, p, ml, luFn);
+      } else if (p && p.x === tx && p.y === ty) {
+        const _boneDmg = rng(5, 12);
+        p.deathCause = "飛んできた骨に激突して";
+        p.hp -= _boneDmg;
+        ml.push(`骨が自分に激突！${_boneDmg}ダメージ！`);
+      }
+      dg.traps = dg.traps.filter(t => t !== trap);
+      return "destroyed";
+    }
     default:
       ml.push(`${trap.name}が発動！`);
       return "restart";
@@ -2829,6 +2846,18 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   monsterDrop(mon, dg, ml, p);
   removeMonster(dg, mon);
+  /* スケルトン：50%で骨を残し5ターン後に復活 */
+  if (mon.baseKind === "skeleton" && Math.random() < 0.5) {
+    dg.traps.push({
+      id: uid(), name: "骨", effect: "bone", tile: 107,
+      x: mx, y: my, revealed: true, permanent: false,
+      reviveIn: 5,
+      monData: { baseKind: mon.baseKind, name: mon.name, hp: mon.maxHp, maxHp: mon.maxHp,
+        atk: mon.atk, def: mon.def, exp: mon.exp, speed: mon.speed ?? 1, tile: mon.tile,
+        kind: mon.kind, monLevel: mon.monLevel || 1, levels: mon.levels }
+    });
+    ml.push(`${mon.name}の骨が残った...5ターン後に復活するかもしれない。`);
+  }
   /* からめ鬼が死んだ場合：捕獲状態を解除 */
   if (mon.subtype === "grabber" && p && p.capturedBy === mon.id) {
     p.capturedBy = null;

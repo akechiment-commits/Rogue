@@ -1265,6 +1265,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         break;
       }
+      if (kind === "trap") {
+        if (target.effect === "bone") {
+          dg.traps = dg.traps.filter(t => t !== target);
+          ml.push(`炎で骨が燃え尽きた！復活は阻まれた！`);
+        } else {
+          ml.push(`炎が${target.name}に当たったが何も起こらなかった。`);
+        }
+        break;
+      }
       break;
     }
     case "ice_wand": {

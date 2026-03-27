@@ -203,6 +203,7 @@ export const TILE_RENDER = {
   104: { bg: null, fg: "#bb8833", ch: "c" }, /* ムカデ     */
   105: { bg: null, fg: "#dd6633", ch: "B" }, /* 弾き師     */
   106: { bg: null, fg: "#cc44aa", ch: "S" }, /* 盗投士     */
+  107: { bg: null, fg: "#888877", ch: "%" }, /* 骨         */
 };
 
 /* Canvas drawing helper */
