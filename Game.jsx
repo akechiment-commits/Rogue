@@ -15,7 +15,7 @@ import {
   setPitfallBag, clearPitfallBag, applyWandEffect,
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
-  monsterDrop, killMonster, getIdentKey, generateFakeNames,
+  monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion,
 } from "./items.js";
@@ -29,6 +29,18 @@ import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, drainItemArcs } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
+/* 大箱の表示名を返す共通ヘルパー。未識別時は偽名+ニックネーム、識別済みは実名 */
+function bbDisplayName(bb, st, withCapacity = false) {
+  if (!bb) return "大箱";
+  const isRevealed = bb.revealed === true || !!st?.allBcKnown;
+  if (isRevealed) {
+    return withCapacity ? `${bb.name}(${bb.contents?.length || 0}/${bb.capacity})` : bb.name;
+  }
+  const fake = st?.bbFakeNames?.[bb.kind] || "謎の大箱";
+  const nick = st?.nicknames?.["bk:" + bb.kind];
+  const base = nick ? `${fake} (${nick})` : fake;
+  return base;
+}
 const FLOOR_TITLES = {
   bigRoom:           "ビッグルームだ！",
   miniRoom:          "ミニルームだ！",
@@ -469,7 +481,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     } else {
       d.bigboxes?.forEach(bb => { bb.revealed = false; });
     }
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown };
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown };
     sr.current = s;
     setGs(s);
     ref.current?.focus();
@@ -809,9 +821,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const spring = dg.springs?.find(s => s.x === cx && s.y === cy);
     if (spring) parts.push(spring.name || "泉");
     const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
-    const _bbIsUnrev = (b) => b.revealed !== true && !sr.current?.allBcKnown;
-    const _bbDN = (b) => _bbIsUnrev(b) ? (sr.current?.nicknames?.["bb:" + b.id] || "謎の大箱") : b.name;
-    if (bb) parts.push(_bbIsUnrev(bb) ? _bbDN(bb) : `${_bbDN(bb)}(${bb.contents?.length || 0}/${bb.capacity ?? "∞"})`);
+    if (bb) parts.push(bbDisplayName(bb, sr.current, bb.revealed === true || !!sr.current?.allBcKnown));
     const pent = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
     if (pent) parts.push(pent.name);
     return parts.length > 0 ? parts.join(" / ") : "何もない";
@@ -896,8 +906,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             }
             const _hbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
             if (_hbb) {
-              const _hbbUnrev = _hbb.revealed !== true && !sr.current?.allBcKnown;
-              const _hbbDN = _hbbUnrev ? (sr.current?.nicknames?.["bb:" + _hbb.id] || "謎の大箱") : _hbb.name;
+              const _hbbDN = bbDisplayName(_hbb, sr.current);
               const _newCap = Math.max(0, (_hbb.capacity || 1) - 1);
               if ((_hbb.contents?.length || 0) > _newCap) {
                 const _fts2 = new Set();
@@ -2278,7 +2287,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
             if (dg.map[p.y][p.x] === T.SU) ml.push("上り階段がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
-            if (_bbStep) { const _bsU = _bbStep.revealed !== true && !sr.current?.allBcKnown; ml.push(_bsU ? `${sr.current?.nicknames?.["bb:"+_bbStep.id] || "謎の大箱"}がある。` : `${_bbStep.name}(${_bbStep.contents?.length || 0}/${_bbStep.capacity})がある。`); }
+            if (_bbStep) { ml.push(`${bbDisplayName(_bbStep, sr.current, _bbStep.revealed === true || !!sr.current?.allBcKnown)}がある。`); }
             const _sprStep = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
@@ -2359,10 +2368,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (bb2) {
             bigboxRef.current = bb2;
             setBigboxMode("menu"); setBigboxMenuSel(0);
-            const _bb2Unrev = bb2.revealed !== true && !sr.current?.allBcKnown;
-            const _bb2DN = _bb2Unrev ? (sr.current?.nicknames?.["bb:" + bb2.id] || "謎の大箱") : bb2.name;
-            const _bb2Info = _bb2Unrev ? "" : `(${bb2.contents?.length || 0}/${bb2.capacity})`;
-            setMsgs((prev) => [...prev.slice(-80), `${_bb2DN}${_bb2Info}がある。どうする？`]);
+            setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb2, sr.current, bb2.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
           }
           const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
@@ -2574,7 +2580,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else if (bb6) {
           bigboxRef.current = bb6;
           setBigboxMode("menu"); setBigboxMenuSel(0);
-          { const _b6U = bb6.revealed !== true && !sr.current?.allBcKnown; const _b6DN = _b6U ? (sr.current?.nicknames?.["bb:"+bb6.id] || "謎の大箱") : bb6.name; const _b6Info = _b6U ? "" : `(${bb6.contents?.length || 0}/${bb6.capacity})`; setMsgs((prev) => [...prev.slice(-80), `${_b6DN}${_b6Info}がある。どうする？`]); }
+          setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb6, sr.current, bb6.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
         } else {
           setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
         }
@@ -2742,7 +2748,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         const _dashBb = _dBbMap.get(_dk(p.x, p.y));
         if (_dashBb) {
-          { const _dbU = _dashBb.revealed !== true && !sr.current?.allBcKnown; ml.push(_dbU ? `${sr.current?.nicknames?.["bb:"+_dashBb.id] || "謎の大箱"}がある。` : `${_dashBb.name}(${_dashBb.contents?.length || 0}/${_dashBb.capacity})がある。`); }
+          ml.push(`${bbDisplayName(_dashBb, sr.current, _dashBb.revealed === true || !!sr.current?.allBcKnown)}がある。`);
           endTurn(st, p, ml);
           break;
         }
@@ -2821,9 +2827,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     return false;
   }, []);
   const breakBigbox = useCallback((bb, dg, ml) => {
-    const _bbUnrev = bb.revealed !== true && !sr.current?.allBcKnown;
-    const _bbDN = _bbUnrev ? (sr.current?.nicknames?.["bb:" + bb.id] || "謎の大箱") : bb.name;
-    ml.push(`${_bbDN}が壊れた！中身がばらまかれた！`);
+    ml.push(`${bbDisplayName(bb, sr.current)}が壊れた！中身がばらまかれた！`);
     const ft = new Set();
     for (const item of bb.contents) placeItemAt(dg, bb.x, bb.y, item, ml, ft);
     dg.bigboxes = dg.bigboxes.filter((b) => b !== bb);
@@ -3023,12 +3027,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const wasFull = bb.contents.length >= bb.capacity;
       bb.contents.push(item);
       const _idn = itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-      const _bbUnrev = bb.revealed !== true && !sr.current?.allBcKnown;
-      const _bbDN = _bbUnrev ? (sr.current?.nicknames?.["bb:" + bb.id] || "謎の大箱") : bb.name;
-      ml.push(
-        _bbUnrev
-          ? `${_idn}を${_bbDN}に入れた。`
-          : `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`,
+      const _bbIsRev = bb.revealed === true || !!sr.current?.allBcKnown;
+      const _bbDN = bbDisplayName(bb, sr.current);
+      ml.push(_bbIsRev
+        ? `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`
+        : `${_idn}を${_bbDN}に入れた。`,
       );
       if (bb.kind === "synthesis") {
         trySynthesize(bb, ml);
@@ -3319,8 +3322,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           dg.bigboxes = dg.bigboxes.filter(b => b !== bb);
           const _bbFt = new Set();
           for (const ci of (bb.contents || [])) placeItemAt(dg, bb.x, bb.y, ci, ml, _bbFt);
-          if (bb.contents?.length > 0) ml.push(`${_bbDN}が壊れ中身が飛び出した！`);
-          else ml.push(`${_bbDN}が爆発で壊れた！`);
+          if (bb.contents?.length > 0) ml.push(`${bbDisplayName(bb, sr.current)}が壊れ中身が飛び出した！`);
+          else ml.push(`${bbDisplayName(bb, sr.current)}が爆発で壊れた！`);
         } else {
           bb.capacity = Math.max(0, (bb.capacity || 1) - 1);
         }
@@ -3477,8 +3480,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       const bb = bigboxRef.current;
       const ml = [];
       if (bb.contents.length >= bb.capacity) {
-        const _bFullDN = bb.revealed !== true && !sr.current?.allBcKnown ? (sr.current?.nicknames?.["bb:" + bb.id] || "謎の大箱") : bb.name;
-        ml.push(`${_bFullDN}はもういっぱいだ。`);
+        ml.push(`${bbDisplayName(bb, sr.current)}はもういっぱいだ。`);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         return;
       }

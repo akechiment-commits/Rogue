@@ -959,7 +959,7 @@ export function useKeyHandler({
             setBigboxMenuSel((p) => (p + (isDownBB ? 1 : -1) + mlen2) % mlen2);
             return;
           }
-          const _bbNickKey2 = bigboxRef.current ? "bb:" + bigboxRef.current.id : null;
+          const _bbNickKey2 = bigboxRef.current ? "bk:" + bigboxRef.current.kind : null;
           if (k === "enter" || k === "z") {
             if (bigboxMenuSel === 0) {
               setBigboxMode("put");

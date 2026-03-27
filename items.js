@@ -68,6 +68,13 @@ export function getIdentKey(it) {
   return null;
 }
 
+export function generateBbFakeNames() {
+  const shuffled = [...BB_FAKE_NAMES].sort(() => Math.random() - 0.5);
+  const bbFakeNames = {};
+  BB_TYPES.forEach((bt, i) => { bbFakeNames[bt.kind] = shuffled[i % shuffled.length]; });
+  return bbFakeNames;
+}
+
 export function generateFakeNames(items, pots, spellbooks = []) {
   const fakeNames = {};
   const assign = (keys, pool) => {
@@ -648,6 +655,14 @@ export const BB_TYPES = [
   { kind: "curse",     name: "呪いの大箱", cap: () => rng(1, 2), desc: "入れたアイテムを呪う。壺は容量が1減る。食料は腐る。金貨・キーアイテムには効果がない。" },
   { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6), desc: "入れたアイテムを同じ部屋にいる全員に投げつけ消滅させる。薬・杖・壺・矢は各種効果発動。使うたびに容量が減り壊れる。" },
   { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
+];
+
+export const BB_FAKE_NAMES = [
+  "古びた大箱", "黒い大箱", "赤茶けた大箱", "青い大箱", "緑の大箱",
+  "金色の大箱", "銀色の大箱", "木製の大箱", "鉄製の大箱", "石造りの大箱",
+  "重そうな大箱", "軽そうな大箱", "模様入りの大箱", "紋章付きの大箱", "彫刻入りの大箱",
+  "光る大箱", "くすんだ大箱", "冷たい大箱", "温かい大箱", "ざらざらした大箱",
+  "滑らかな大箱", "丸みのある大箱", "角ばった大箱", "蔦の絡まった大箱", "焦げた大箱",
 ];
 
 /* ===== POTS ===== */

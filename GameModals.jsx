@@ -420,7 +420,7 @@ export function ScoresModal({ show, setShow, mobile }) {
 /* ===== Nickname Modal ===== */
 export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs }) {
   if (!mode) return null;
-  const _isBigbox = mode.identKey?.startsWith("bb:");
+  const _isBigbox = mode.identKey?.startsWith("bk:");
   const _typePrefix = _isBigbox ? null : mode.identKey[0];
   const _typeMap = { p: 'potion', s: 'scroll', w: 'wand', n: 'pen', o: 'pot' };
   const _targetType = _isBigbox ? null : _typeMap[_typePrefix];
@@ -441,7 +441,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
                   display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:300 }}>
       <div style={{ background:"#1a2a3a", padding:16, borderRadius:8, maxWidth:400, width:"90%" }}>
         <div style={{ color:"#ff0", marginBottom:8, fontWeight:"bold" }}>{_isBigbox ? "大箱に名前をつける" : "アイテムに名前をつける"}</div>
-        {!_isBigbox && <div style={{ color:"#888", fontSize:11, marginBottom:4 }}>偽名: {gs?.fakeNames?.[mode.identKey] ?? "?"}</div>}
+        {_isBigbox
+          ? <div style={{ color:"#888", fontSize:11, marginBottom:4 }}>見た目: {gs?.bbFakeNames?.[mode.identKey.slice(3)] ?? "謎の大箱"}</div>
+          : <div style={{ color:"#888", fontSize:11, marginBottom:4 }}>偽名: {gs?.fakeNames?.[mode.identKey] ?? "?"}</div>
+        }
         <input
           value={input}
           onChange={e2 => setInput(e2.target.value)}
@@ -1060,10 +1063,11 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
 export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPage, menuSel, setMenuSel, bigboxPutItem, iLabel, mobile, setNicknameMode, setNicknameInput }) {
   if (!mode) return null;
   const _bb = bigboxRef.current;
-  const _bbNickKey = _bb ? "bb:" + _bb.id : null;
+  const _bbNickKey = _bb ? "bk:" + _bb.kind : null;
   const _bbIsRevealed = !_bb || _bb.revealed === true || !!gs?.allBcKnown;
   const _bbNick = gs?.nicknames?.[_bbNickKey];
-  const _bbDisplayName = _bbIsRevealed ? (_bb?.name ?? "大箱") : (_bbNick ? `謎の大箱 (${_bbNick})` : "謎の大箱");
+  const _bbFake = _bb ? (gs?.bbFakeNames?.[_bb.kind] || "謎の大箱") : "謎の大箱";
+  const _bbDisplayName = _bbIsRevealed ? (_bb?.name ?? "大箱") : (_bbNick ? `${_bbFake} (${_bbNick})` : _bbFake);
   return (
     <div
       style={{
@@ -1208,7 +1212,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ background: "#12100a", border: "1px solid #6a4a2a", borderRadius: 6, padding: "10px 12px" }}>
             <div style={{ color: "#fca", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>
-              {_bbIsRevealed ? bigboxRef.current.name : (_bbNick ? `謎の大箱 (${_bbNick})` : "謎の大箱")}
+              {_bbIsRevealed ? bigboxRef.current.name : _bbDisplayName}
             </div>
             <div style={{ color: "#c9a", fontSize: 12, lineHeight: "1.6em" }}>
               {_bbIsRevealed ? (BB_TYPES.find(t => t.kind === bigboxRef.current?.kind)?.desc ?? "説明なし。") : "詳細は不明。アイテムを入れると正体が分かるかもしれない。"}
