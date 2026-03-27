@@ -125,6 +125,25 @@ export function useItemActions({
           }
           ml.push(_hMsg);
         }
+      } else if (it.effect === "superheal") {
+        if (it.cursed) {
+          const _shd = Math.max(1, Math.round(it.value * 0.5));
+          p.deathCause = "呪われた超回復薬を飲んで";
+          p.hp -= _shd;
+          ml.push(`${it.name}を飲んだ。まずい！${_shd}ダメージ！【呪】`);
+        } else {
+          const _shMult = it.blessed ? 2 : 1;
+          const _shHeal = Math.round(it.value * _shMult);
+          const _shh = Math.min(_shHeal, p.maxHp - p.hp);
+          if (_shh > 0) {
+            p.hp += _shh;
+            ml.push(`${it.name}を飲んだ。HP+${_shh}！${it.blessed ? "（祝福）" : ""}`);
+          } else {
+            const _shUp = it.blessed ? 6 : 3;
+            p.maxHp += _shUp; p.hp += _shUp;
+            ml.push(`${it.name}を飲んだ。HPが最大なのでHP最大値+${_shUp}！${it.blessed ? "（祝福）" : ""}`);
+          }
+        }
       } else if (it.effect === "poison") {
         if (it.cursed) {
           // 呪い：反転→解毒薬
