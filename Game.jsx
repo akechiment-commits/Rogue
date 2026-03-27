@@ -114,7 +114,7 @@ function B({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) {
 }
 function AB({ label, sub, onClick, color = "#8f8" }) {
   return <MobileBtn label={label} sub={sub} onClick={onClick} color={color}
-    style={{ flex: 1, minWidth: 38, height: 36, fontSize: 12 }} />;
+    style={{ flex: 1, minWidth: 38, height: 36, fontSize: 14 }} />;
 }
 const TBS = { background: "#2a1a1a", border: "1px solid #5a3a3a", color: "#f88" };
 const DBS = { background: "#1a1a2a", border: "1px solid #4a3a6a", color: "#c8f" };
@@ -3742,7 +3742,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         color: c[1],
         border: `1px solid ${c[2]}`,
         borderRadius: 5,
-        fontSize: 12,
+        fontSize: 14,
         cursor: "pointer",
         fontWeight: "bold",
         touchAction: "manipulation",
@@ -3763,7 +3763,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         background: "#0c0c14",
         color: "#ccc",
         fontFamily: "'Courier New','MS Gothic',monospace",
-        fontSize: mobile ? "11px" : "12px",
+        fontSize: mobile ? "13px" : "14px",
         padding: mobile ? "4px" : "8px",
         paddingRight: mobile ? (landscape ? 148 : 4) : 228,
         outline: "none",
@@ -3787,7 +3787,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           gap: "1px 8px",
           padding: "3px 2px 4px",
           borderBottom: "1px solid #252530",
-          fontSize: mobile ? "10px" : "12px",
+          fontSize: mobile ? "12px" : "14px",
           marginBottom: 2,
         }}
       >
@@ -3937,7 +3937,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           overflowY: "auto",
           borderTop: "1px solid #252530",
           padding: "2px",
-          fontSize: mobile ? "9.5px" : "11px",
+          fontSize: mobile ? "11px" : "13px",
           color: "#8f8",
           lineHeight: "1.3em",
           cursor: revealMode ? "pointer" : "default",
@@ -4246,7 +4246,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                 flex: 1,
                 textAlign: "center",
                 color: "#f88",
-                fontSize: 12,
+                fontSize: 14,
                 lineHeight: "1.5em",
               }}
             >
@@ -4254,7 +4254,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               <div style={{ fontWeight: "bold", marginBottom: 2 }}>
                 {tmL}
               </div>{" "}
-              <div style={{ color: "#a66", fontSize: 10 }}>
+              <div style={{ color: "#a66", fontSize: 14 }}>
                 {tmI ? dname(tmI) : "?"}
                 {tmI?.type === "arrow"
                   ? ` (${tmI.count}本)`
@@ -4274,7 +4274,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   color: "#888",
                   border: "1px solid #444",
                   borderRadius: 5,
-                  fontSize: 11,
+                  fontSize: 13,
                   cursor: "pointer",
                   touchAction: "manipulation",
                 }}
@@ -4288,8 +4288,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       {!mobile && !throwMode && !springMode && !putMode && !markerMode && !spellListMode && (
         <div
           style={{
-            fontSize: 10,
-            color: "#444",
+            fontSize: 13,
+            color: "#7a9acc",
             textAlign: "center",
             marginTop: 2,
           }}
@@ -4301,7 +4301,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       {!mobile && throwMode && (
         <div
           style={{
-            fontSize: 12,
+            fontSize: 14,
             color: "#f88",
             textAlign: "center",
             marginTop: 2,

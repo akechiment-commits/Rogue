@@ -100,7 +100,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
                 color: "#f44",
                 border: "1px solid #4a2020",
                 borderRadius: 3,
-                fontSize: 11,
+                fontSize: 13,
                 cursor: "pointer",
               }}
             >
@@ -121,7 +121,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
             </button>
           </div>
         </div>
-        <div style={{ color: "#666", fontSize: 11, marginBottom: 10 }}>
+        <div style={{ color: "#666", fontSize: 13, marginBottom: 10 }}>
           各タイルに好きな画像（PNG/JPG/GIF等）を設定できます。設定はブラウザに保存されます。
         </div>
         {Object.entries(TILE_NAMES).map(([idx, name]) => {
@@ -173,7 +173,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
               <span
                 style={{
                   color: "#aaa",
-                  fontSize: 11,
+                  fontSize: 13,
                   flex: 1,
                   lineHeight: 1.4,
                 }}
@@ -199,7 +199,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
                     color: hasCust ? "#4af" : "#0c0",
                     border: `1px solid ${hasCust ? "#2a4a6a" : "#2a4a2a"}`,
                     borderRadius: 3,
-                    fontSize: 11,
+                    fontSize: 13,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -215,7 +215,7 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
                     color: "#f44",
                     border: "1px solid #4a2020",
                     borderRadius: 3,
-                    fontSize: 11,
+                    fontSize: 13,
                     cursor: "pointer",
                     flexShrink: 0,
                   }}
@@ -278,7 +278,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
       >
         Lv.{p.level} | B{p.depth}F | T:{p.turns} | G:{p.gold}
       </div>
-      <div style={{ color: "#555", fontSize: 11, marginBottom: 10 }}>
+      <div style={{ color: "#555", fontSize: 13, marginBottom: 10 }}>
         ← → で選択 / Enter で決定
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap", justifyContent: "center" }}>
@@ -805,7 +805,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             border: "1px solid #555",
             borderRadius: 4,
             padding: "2px 8px",
-            fontSize: 11,
+            fontSize: 13,
             cursor: "pointer",
           }}
         >
@@ -814,7 +814,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
       </div>
       {mode === "pay" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
+          <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
             店主：「お代は{gs.dungeon.shop.unpaidTotal}Gです。」
           </div>
           {[
@@ -866,7 +866,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`,
                 borderRadius: 4,
                 color: menuSel === mi ? "#ffa" : "#fa8",
-                fontSize: 12,
+                fontSize: 14,
                 cursor: "pointer",
                 textAlign: "left",
               }}
@@ -888,7 +888,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
         if (sellAllConfirm) {
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
+              <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
                 店主：「本当によろしいですか？{_sellItems.length} 件を{_totalG.toLocaleString()}Gで買い取ります。」
               </div>
               {[
@@ -928,7 +928,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 <button key={mi} onClick={item.fn} style={{
                   padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
                   border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
-                  color: menuSel === mi ? "#ffa" : "#fa8", fontSize: 12, cursor: "pointer", textAlign: "left",
+                  color: menuSel === mi ? "#ffa" : "#fa8", fontSize: 14, cursor: "pointer", textAlign: "left",
                 }}>{item.label}</button>
               ))}
             </div>
@@ -936,7 +936,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
         }
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
+            <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
               店主：「いらっしゃいませ！」
             </div>
             {[
@@ -953,7 +953,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
                 border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`, borderRadius: 4,
                 color: item.disabled ? "#664422" : menuSel === mi ? "#ffa" : "#fa8",
-                fontSize: 12, cursor: item.disabled ? "default" : "pointer", textAlign: "left",
+                fontSize: 14, cursor: item.disabled ? "default" : "pointer", textAlign: "left",
               }}>{item.label}</button>
             ))}
           </div>
@@ -1012,7 +1012,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             <div
               style={{ display: "flex", flexDirection: "column", gap: 6 }}
             >
-              <div style={{ color: "#fa8", fontSize: 12, marginBottom: 4 }}>
+              <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
                 店主：「買い取りましょうか？」
               </div>
               <div style={{ maxHeight: "50dvh", overflowY: "auto" }}>
@@ -1030,7 +1030,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`,
                       borderRadius: 4,
                       color: menuSel === mi ? "#ffa" : "#fa8",
-                      fontSize: 12,
+                      fontSize: 14,
                       cursor: "pointer",
                       textAlign: "left",
                     }}
@@ -1128,7 +1128,7 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
                     : "1px solid #3a5a7a",
                 borderRadius: 5,
                 cursor: "pointer",
-                fontSize: 12,
+                fontSize: 14,
                 textAlign: "left",
                 fontWeight: menuSel === mi ? "bold" : "normal",
               }}
@@ -1146,7 +1146,7 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
               )}
             </button>
           ))}
-          <div style={{ color: "#556", fontSize: 10, marginTop: 2 }}>
+          <div style={{ color: "#556", fontSize: 12, marginTop: 2 }}>
             ↑↓:選択 Z:決定 X:閉じる
           </div>
         </div>
@@ -1159,20 +1159,20 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
         const _spPageItems = _spInv.slice(_spCurPg * 10, (_spCurPg + 1) * 10);
         return (
           <div style={{ maxHeight: mobile ? "50dvh" : "60%", overflowY: "auto" }}>
-            <div style={{ color: "#8ac", fontSize: 11, marginBottom: 4 }}>
+            <div style={{ color: "#8ac", fontSize: 13, marginBottom: 4 }}>
               泉に浸すアイテムを選んでください
             </div>
             {_spLen > 10 && (
               <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4 }}>
                 <button onClick={() => { setPage(pg => (pg - 1 + _spTotalPg) % _spTotalPg); setMenuSel(0); }}
-                  style={{ padding: "2px 8px", background: "#223", color: "#8ac", border: "1px solid #446", borderRadius: 3, fontSize: 11, cursor: "pointer" }}>◀</button>
-                <span style={{ color: "#8ac", fontSize: 11 }}>{_spCurPg + 1}/{_spTotalPg}</span>
+                  style={{ padding: "2px 8px", background: "#223", color: "#8ac", border: "1px solid #446", borderRadius: 3, fontSize: 13, cursor: "pointer" }}>◀</button>
+                <span style={{ color: "#8ac", fontSize: 13 }}>{_spCurPg + 1}/{_spTotalPg}</span>
                 <button onClick={() => { setPage(pg => (pg + 1) % _spTotalPg); setMenuSel(0); }}
-                  style={{ padding: "2px 8px", background: "#223", color: "#8ac", border: "1px solid #446", borderRadius: 3, fontSize: 11, cursor: "pointer" }}>▶</button>
+                  style={{ padding: "2px 8px", background: "#223", color: "#8ac", border: "1px solid #446", borderRadius: 3, fontSize: 13, cursor: "pointer" }}>▶</button>
               </div>
             )}
             {_spLen === 0 ? (
-              <div style={{ color: "#666", fontSize: 11 }}>持ち物がない。</div>
+              <div style={{ color: "#666", fontSize: 13 }}>持ち物がない。</div>
             ) : (
               _spPageItems.map((it, pi) => {
                 const absI = _spCurPg * 10 + pi;
@@ -1180,7 +1180,7 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
                 return (
                   <div key={absI} onClick={() => { springDoSoak(absI); setPage(0); setMenuSel(0); }}
                     style={{
-                      padding: "5px 8px", margin: "2px 0", borderRadius: 4, cursor: "pointer", fontSize: 11,
+                      padding: "5px 8px", margin: "2px 0", borderRadius: 4, cursor: "pointer", fontSize: 13,
                       background: isSel ? (it.type === "bottle" ? "#2a4a2a" : it.type === "weapon" || it.type === "armor" ? "#4a2a2a" : "#2a2a4a")
                                          : (it.type === "bottle" ? "#1a2a1a" : it.type === "weapon" || it.type === "armor" ? "#2a1a1a" : "#18182a"),
                       border: "1px solid " + (isSel ? (it.type === "bottle" ? "#6afa6a" : it.type === "weapon" || it.type === "armor" ? "#fa6a6a" : "#6a6afa")
@@ -1196,11 +1196,11 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
                 );
               })
             )}
-            <div style={{ color: "#556", fontSize: 10, marginTop: 4 }}>
+            <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
               ↑↓:選択　←→:ページ　Z:決定　X:戻る
             </div>
             <button onClick={() => { setMode("menu"); setMenuSel(0); setPage(0); }}
-              style={{ marginTop: 4, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 11, cursor: "pointer" }}>
+              style={{ marginTop: 4, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>
               戻る
             </button>
           </div>
@@ -1264,7 +1264,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
         </button>
       </div>
       {bigboxRef.current && (
-        <div style={{ color: "#a86", fontSize: 11, marginBottom: 6 }}>
+        <div style={{ color: "#a86", fontSize: 13, marginBottom: 6 }}>
           {_bbIsRevealed
             ? <>内容: {bigboxRef.current.contents.length}/{bigboxRef.current.capacity}{bigboxRef.current.contents.length > 0 && ": " + bigboxRef.current.contents.map((i) => i.name).join(", ")}</>
             : "内容: 不明"}
@@ -1335,7 +1335,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                     : "1px solid #5a3a1a",
                 borderRadius: 5,
                 cursor: item.dis ? "not-allowed" : "pointer",
-                fontSize: 12,
+                fontSize: 14,
                 textAlign: "left",
                 fontWeight: menuSel === mi ? "bold" : "normal",
                 opacity: item.dis ? 0.5 : 1,
@@ -1354,7 +1354,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
               )}
             </button>
           ))}
-          <div style={{ color: "#556", fontSize: 10, marginTop: 2 }}>
+          <div style={{ color: "#556", fontSize: 12, marginTop: 2 }}>
             ↑↓:選択 Z:決定 X:閉じる
           </div>
         </div>
@@ -1365,7 +1365,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
             <div style={{ color: "#fca", fontSize: 13, fontWeight: "bold", marginBottom: 6 }}>
               {_bbIsRevealed ? bigboxRef.current.name : _bbDisplayName}
             </div>
-            <div style={{ color: "#c9a", fontSize: 12, lineHeight: "1.6em" }}>
+            <div style={{ color: "#c9a", fontSize: 14, lineHeight: "1.6em" }}>
               {_bbIsRevealed ? (BB_TYPES.find(t => t.kind === bigboxRef.current?.kind)?.desc ?? "説明なし。") : "詳細は不明。アイテムを入れると正体が分かるかもしれない。"}
             </div>
           </div>
@@ -1373,7 +1373,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
             onClick={() => { setMode("menu"); setMenuSel(0); }}
             style={{
               padding: "6px 16px", background: "#2a1a0a", color: "#ca8",
-              border: "1px solid #5a3a1a", borderRadius: 5, cursor: "pointer", fontSize: 12, alignSelf: "flex-start",
+              border: "1px solid #5a3a1a", borderRadius: 5, cursor: "pointer", fontSize: 14, alignSelf: "flex-start",
             }}
           >
             戻る [X]
@@ -1393,7 +1393,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                 overflowY: "auto",
               }}
             >
-              <div style={{ color: "#a86", fontSize: 11, marginBottom: 6 }}>
+              <div style={{ color: "#a86", fontSize: 13, marginBottom: 6 }}>
                 入れるアイテムを選んでください
               </div>
               {_tp > 1 && (
@@ -1416,13 +1416,13 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                       border: "1px solid #555",
                       borderRadius: 3,
                       padding: "2px 8px",
-                      fontSize: 11,
+                      fontSize: 13,
                       cursor: "pointer",
                     }}
                   >
                     ◀
                   </button>
-                  <span style={{ color: "#888", fontSize: 10 }}>
+                  <span style={{ color: "#888", fontSize: 12 }}>
                     {page + 1}/{_tp}ページ
                   </span>
                   <button
@@ -1436,7 +1436,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                       border: "1px solid #555",
                       borderRadius: 3,
                       padding: "2px 8px",
-                      fontSize: 11,
+                      fontSize: 13,
                       cursor: "pointer",
                     }}
                   >
@@ -1445,7 +1445,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                 </div>
               )}
               {_inv.length === 0 ? (
-                <div style={{ color: "#666", fontSize: 11 }}>
+                <div style={{ color: "#666", fontSize: 13 }}>
                   持ち物がない。
                 </div>
               ) : (
@@ -1463,7 +1463,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                         (menuSel === i ? "#ca6" : "#4a3a1a"),
                       borderRadius: 4,
                       cursor: "pointer",
-                      fontSize: 11,
+                      fontSize: 13,
                       color:
                         it.type === "weapon" || it.type === "armor"
                           ? "#fa8"
@@ -1476,7 +1476,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                   </div>
                 ))
               )}
-              <div style={{ color: "#556", fontSize: 10, marginTop: 4 }}>
+              <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
                 ↑↓:選択 ←→:ページ Z:決定 X:戻る
               </div>
               <button
@@ -1491,7 +1491,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                   color: "#888",
                   border: "1px solid #444",
                   borderRadius: 5,
-                  fontSize: 11,
+                  fontSize: 13,
                   cursor: "pointer",
                 }}
               >
@@ -1510,7 +1510,7 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   return (
     <div
       style={{
-        fontSize: 12,
+        fontSize: 14,
         color: "#ffe040",
         textAlign: "center",
         marginTop: 2,
@@ -1590,22 +1590,22 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>{" "}
       {pot.contents?.length > 0 && (
-        <div style={{ color: "#a86", fontSize: 10, marginBottom: 6, padding: "4px 6px", background: "#1a1a08", borderRadius: 3, border: "1px solid #3a3a1a" }}>
+        <div style={{ color: "#a86", fontSize: 12, marginBottom: 6, padding: "4px 6px", background: "#1a1a08", borderRadius: 3, border: "1px solid #3a3a1a" }}>
           中身: {pot.contents.map((c) => dname(c)).join(", ")}
         </div>
       )}{" "}
-      <div style={{ color: "#ca8", fontSize: 11, marginBottom: 6 }}>入れるアイテムを選んでください</div>{" "}
+      <div style={{ color: "#ca8", fontSize: 13, marginBottom: 6 }}>入れるアイテムを選んでください</div>{" "}
       {(() => {
         const pItems = p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => i !== mode.potIdx);
         const _psp = 10;
         const _tpp = Math.max(1, Math.ceil(pItems.length / _psp));
         const _pgp = pItems.slice(putPage * _psp, (putPage + 1) * _psp);
         return pItems.length === 0 ? (
-          <div style={{ color: "#666", fontSize: 11 }}>入れるアイテムがない。</div>
+          <div style={{ color: "#666", fontSize: 13 }}>入れるアイテムがない。</div>
         ) : (
           <div>
             {_tpp > 1 && (
-              <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 11 }}>
+              <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 13 }}>
                 <span>←→でページ切替</span>
                 <span style={{ color: "#ccc" }}>{putPage + 1}/{_tpp}ページ</span>
                 <span>({putPage * _psp + 1}〜{Math.min((putPage + 1) * _psp, pItems.length)}件)</span>
@@ -1625,7 +1625,7 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
                     background: isSel ? (isDisabled ? "#3a1a1a" : isFood ? "#3a3a08" : isEquip ? "#3a2008" : "#28285a")
                       : (isDisabled ? "#1a1a1a" : isFood ? "#1a1a08" : isEquip ? "#1a1008" : "#18182a"),
                     border: "1px solid " + (isSel ? "#88c" : isDisabled ? "#333" : isFood ? "#5a5a2a" : isEquip ? "#5a3a2a" : "#3a3a5a"),
-                    borderRadius: 4, cursor: isDisabled ? "not-allowed" : "pointer", fontSize: 11,
+                    borderRadius: 4, cursor: isDisabled ? "not-allowed" : "pointer", fontSize: 13,
                     color: isDisabled ? "#555" : isFood ? "#fc6" : isEquip ? "#fa8" : _isUnidentPut ? "#ff8" : "#aab",
                     opacity: isDisabled ? 0.5 : 1,
                   }}
@@ -1638,11 +1638,11 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
           </div>
         );
       })()}{" "}
-      <div style={{ color: "#556", fontSize: 10, marginTop: 4 }}>
+      <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
         {p.inventory.length > 11 ? "↑↓:選択 ←→:ページ Z:決定 X:閉じる" : "↑↓:選択 Z:決定 X:閉じる"}
       </div>{" "}
       <button onClick={() => setMode(null)}
-        style={{ marginTop: 8, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 11, cursor: "pointer" }}>
+        style={{ marginTop: 8, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>
         やめる
       </button>{" "}
     </div>
@@ -1677,11 +1677,11 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
         <button onClick={() => setMode(null)}
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
-      <div style={{ color: "#c090ee", fontSize: 11, marginBottom: 6 }}>
+      <div style={{ color: "#c090ee", fontSize: 13, marginBottom: 6 }}>
         {isBlankStep ? "書き込む白紙アイテムを選んでください" : isSpellbookTypeStep ? "変える魔法書の種類を選んでください (インク5回消費)" : "書き込む魔法を選んでください（図鑑に載っているもののみ）"}
       </div>
       {_mlen === 0 ? (
-        <div style={{ color: "#666", fontSize: 11 }}>{isBlankStep ? "白紙の巻物も白紙の魔法書もない。" : !isSpellbookTypeStep && !isBlankStep ? "図鑑に巻物がまだ載っていない。巻物を使って先に図鑑に登録しよう。" : "選択肢がない。"}</div>
+        <div style={{ color: "#666", fontSize: 13 }}>{isBlankStep ? "白紙の巻物も白紙の魔法書もない。" : !isSpellbookTypeStep && !isBlankStep ? "図鑑に巻物がまだ載っていない。巻物を使って先に図鑑に登録しよう。" : "選択肢がない。"}</div>
       ) : (
         <div>
           {listItems.map(({ it, i }, vi) => {
@@ -1701,21 +1701,21 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
                   padding: "5px 8px", margin: "2px 0",
                   background: isSel ? "#2a1040" : "#14101e",
                   border: "1px solid " + (isSel ? "#a040c0" : "#3a2050"),
-                  borderRadius: 4, cursor: "pointer", fontSize: 11,
+                  borderRadius: 4, cursor: "pointer", fontSize: 13,
                   color: isSel ? "#e080ff" : "#aa88cc",
                 }}>
                 {it.name}
-                {isBlankStep && it.type === "spellbook" ? <span style={{ color: "#5090cc", marginLeft: 6, fontSize: 10 }}>[魔法書]</span> : null}
-                {isBlankStep && it.type === "scroll" ? <span style={{ color: "#888855", marginLeft: 6, fontSize: 10 }}>[巻物]</span> : null}
-                {!isBlankStep && it.desc ? <span style={{ color: "#776688", marginLeft: 6, fontSize: 10 }}>{it.desc}</span> : null}
+                {isBlankStep && it.type === "spellbook" ? <span style={{ color: "#5090cc", marginLeft: 6, fontSize: 12 }}>[魔法書]</span> : null}
+                {isBlankStep && it.type === "scroll" ? <span style={{ color: "#888855", marginLeft: 6, fontSize: 12 }}>[巻物]</span> : null}
+                {!isBlankStep && it.desc ? <span style={{ color: "#776688", marginLeft: 6, fontSize: 12 }}>{it.desc}</span> : null}
               </div>
             );
           })}
         </div>
       )}
-      <div style={{ color: "#556", fontSize: 10, marginTop: 4 }}>↑↓:選択 Z:決定 X:閉じる</div>
+      <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>↑↓:選択 Z:決定 X:閉じる</div>
       <button onClick={() => setMode(null)}
-        style={{ marginTop: 8, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 11, cursor: "pointer" }}>やめる</button>
+        style={{ marginTop: 8, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>やめる</button>
     </div>
   );
 }
@@ -1746,12 +1746,12 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {totalPages > 1 && (
-            <span style={{ color: "#4080c0", fontSize: 11 }}>
+            <span style={{ color: "#4080c0", fontSize: 13 }}>
               <button onClick={() => { setPage((p) => (p - 1 + totalPages) % totalPages); setMenuSel(0); }}
-                style={{ background: "#0a1a30", color: "#80b0ff", border: "1px solid #2050a0", borderRadius: 3, padding: "1px 6px", cursor: "pointer", fontSize: 12 }}>◀</button>
+                style={{ background: "#0a1a30", color: "#80b0ff", border: "1px solid #2050a0", borderRadius: 3, padding: "1px 6px", cursor: "pointer", fontSize: 14 }}>◀</button>
               {" "}{curPage + 1}/{totalPages}{" "}
               <button onClick={() => { setPage((p) => (p + 1) % totalPages); setMenuSel(0); }}
-                style={{ background: "#0a1a30", color: "#80b0ff", border: "1px solid #2050a0", borderRadius: 3, padding: "1px 6px", cursor: "pointer", fontSize: 12 }}>▶</button>
+                style={{ background: "#0a1a30", color: "#80b0ff", border: "1px solid #2050a0", borderRadius: 3, padding: "1px 6px", cursor: "pointer", fontSize: 14 }}>▶</button>
             </span>
           )}
           <button onClick={() => setMode(false)}
@@ -1759,7 +1759,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
         </div>
       </div>
       {knownSpells.length === 0 ? (
-        <div style={{ color: "#666", fontSize: 11 }}>習得した魔法がない。魔法書を読んで覚えよう。</div>
+        <div style={{ color: "#666", fontSize: 13 }}>習得した魔法がない。魔法書を読んで覚えよう。</div>
       ) : (
         <div>
           {pageSpells.map((spell, vi) => {
@@ -1809,22 +1809,22 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
                 padding: "6px 8px", margin: "2px 0",
                 background: isSel ? "#0a1a30" : "#060e1a",
                 border: "1px solid " + (isSel ? "#2060c0" : "#152040"),
-                borderRadius: 4, cursor: canCast ? "pointer" : "not-allowed", fontSize: 11, opacity: canCast ? 1 : 0.5,
+                borderRadius: 4, cursor: canCast ? "pointer" : "not-allowed", fontSize: 13, opacity: canCast ? 1 : 0.5,
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ color: isSel ? "#a0d0ff" : "#7090c0", fontWeight: isSel ? "bold" : "normal" }}>{spell.name}</span>
-                  <span style={{ color: canCast ? "#40a0ff" : "#555", fontSize: 10 }}>
+                  <span style={{ color: canCast ? "#40a0ff" : "#555", fontSize: 12 }}>
                     Lv.{spell.spellLevel ?? 1} MP:{spell.mpCost}{spell.needsDir ? " 🎯" : " ✨"}
                     {spell.spellLevel >= 6 && <span style={{ color: "#ffd700", marginLeft: 3 }}>MAX</span>}
                   </span>
                 </div>
-                <div style={{ color: "#4060a0", fontSize: 10, marginTop: 2 }}>{spell.desc.replace(/。?MP:\d+$/, "")}</div>
+                <div style={{ color: "#4060a0", fontSize: 12, marginTop: 2 }}>{spell.desc.replace(/。?MP:\d+$/, "")}</div>
               </div>
             );
           })}
         </div>
       )}
-      <div style={{ color: "#304060", fontSize: 10, marginTop: 6 }}>↑↓:選択  ←→:ページ切替  Z:決定  X:閉じる  🎯=方向指定</div>
+      <div style={{ color: "#304060", fontSize: 12, marginTop: 6 }}>↑↓:選択  ←→:ページ切替  Z:決定  X:閉じる  🎯=方向指定</div>
     </div>
   );
 }
@@ -1863,14 +1863,14 @@ export function MsgLogModal({ show, msgs, scrollTop, setScrollTop, onClose, mobi
               padding: "1px 0",
               borderBottom: "1px solid #1a2030",
             }}>
-              <span style={{ color: "#304060", marginRight: 6, fontSize: 10 }}>{absIdx + 1}</span>
+              <span style={{ color: "#304060", marginRight: 6, fontSize: 12 }}>{absIdx + 1}</span>
               {m}
             </div>
           );
         })}
       </div>
       <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "#304060", fontSize: 10 }}>
+        <span style={{ color: "#304060", fontSize: 12 }}>
           {start + 1}〜{Math.min(start + MSG_LOG_PAGE, total)} / {total}　↑↓:スクロール　m/x/Esc:閉じる
         </span>
         {mobile && (
@@ -1906,7 +1906,7 @@ export function InventoryModal({
       borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.7)" }}>
     <div style={{ padding: mobile ? 10 : 14, overflowY: "auto", maxHeight: mobile ? "65dvh" : "80dvh" }}>
       {penMergeMode && (
-        <div style={{ color: "#ffcc44", fontSize: 12, fontWeight: "bold", marginBottom: 8, padding: "4px 8px", background: "#2a1a00", borderRadius: 4, border: "1px solid #886600" }}>
+        <div style={{ color: "#ffcc44", fontSize: 14, fontWeight: "bold", marginBottom: 8, padding: "4px 8px", background: "#2a1a00", borderRadius: 4, border: "1px solid #886600" }}>
           ✦ 合成先のペンを選んでください（ただのペンを選ぶとキャンセル）
         </div>
       )}
@@ -1914,16 +1914,16 @@ export function InventoryModal({
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>所持品 ({p.inventory.length}/{p.maxInventory || 30})</span>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={sortInventory}
-            style={{ background: "#1a2a1a", color: "#6c6", border: "1px solid #3a5a3a", borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 11, touchAction: "manipulation" }}>整頓[S]</button>
+            style={{ background: "#1a2a1a", color: "#6c6", border: "1px solid #3a5a3a", borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation" }}>整頓[S]</button>
           <button onClick={() => { const newMode = !dropModeRef.current; dropModeRef.current = newMode; setDropMode(newMode); }}
             style={{ background: dropMode ? "#2a1a1a" : "#1a1a2a", color: dropMode ? "#f88" : "#aaa",
-              border: `1px solid ${dropMode ? "#8a3030" : "#3a3a5a"}`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 11, touchAction: "manipulation", fontWeight: dropMode ? "bold" : "normal" }}>置く[D]</button>
+              border: `1px solid ${dropMode ? "#8a3030" : "#3a3a5a"}`, borderRadius: 4, padding: "3px 8px", cursor: "pointer", fontSize: 13, touchAction: "manipulation", fontWeight: dropMode ? "bold" : "normal" }}>置く[D]</button>
           <button onClick={() => { setShowInv(false); dropModeRef.current = false; setDropMode(false); setSelIdx(null); setShowDesc(null); setInvPage(0); setInvMenuSel(null); }}
             style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
         </div>
       </div>
       {p.weapon && (
-        <div style={{ color: "#aaa", fontSize: 11, marginBottom: 2 }}>
+        <div style={{ color: "#aaa", fontSize: 13, marginBottom: 2 }}>
           武器: <span style={{ color: "#fa0" }}>{p.weapon.name}{p.weapon.plus ? "+" + p.weapon.plus : ""}</span> (攻+{p.weapon.atk + (p.weapon.plus || 0)})
           {(p.weapon.ability || p.weapon.abilities?.length > 0) && (
             <span style={{ color: "#fc6", fontSize: 9 }}> [{[...new Set([...(p.weapon.abilities || []), ...(p.weapon.ability ? [p.weapon.ability] : [])])].map((id) => WEAPON_ABILITIES.find((a) => a.id === id)?.name).filter(Boolean).join("・")}]</span>
@@ -1931,7 +1931,7 @@ export function InventoryModal({
         </div>
       )}
       {p.armor && (
-        <div style={{ color: "#aaa", fontSize: 11, marginBottom: 2 }}>
+        <div style={{ color: "#aaa", fontSize: 13, marginBottom: 2 }}>
           防具: <span style={{ color: "#08f" }}>{p.armor.name}{p.armor.plus ? "+" + p.armor.plus : ""}</span> (防+{p.armor.def + (p.armor.plus || 0)})
           {(p.armor.ability || p.armor.abilities?.length > 0) && (
             <span style={{ color: "#6cf", fontSize: 9 }}> [{[...new Set([...(p.armor.abilities || []), ...(p.armor.ability ? [p.armor.ability] : [])])].map((id) => ARMOR_ABILITIES.find((a) => a.id === id)?.name).filter(Boolean).join("・")}]</span>
@@ -1939,12 +1939,12 @@ export function InventoryModal({
         </div>
       )}
       {p.arrow ? (
-        <div style={{ color: "#aaa", fontSize: 11, marginBottom: 6 }}>矢: <span style={{ color: "#dda050" }}>{p.arrow.name}</span> ({p.arrow.count}本)</div>
+        <div style={{ color: "#aaa", fontSize: 13, marginBottom: 6 }}>矢: <span style={{ color: "#dda050" }}>{p.arrow.name}</span> ({p.arrow.count}本)</div>
       ) : (
-        <div style={{ color: "#555", fontSize: 11, marginBottom: 6 }}>矢: なし</div>
+        <div style={{ color: "#555", fontSize: 13, marginBottom: 6 }}>矢: なし</div>
       )}
       {p.inventory.length > 10 && (
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 13 }}>
           <span>←→でページ移動</span>
           <span style={{ color: "#ccc" }}>{invPage + 1}/{Math.ceil(p.inventory.length / 10)}ページ</span>
           <span>({invPage * 10 + 1}〜{Math.min((invPage + 1) * 10, p.inventory.length)}件)</span>
@@ -1965,7 +1965,7 @@ export function InventoryModal({
             .filter(it => it.type !== "gold")
             .reduce((s, it) => s + Math.ceil(itemPrice(it) * 0.5), 0);
           return (
-            <div style={{ background: "#1a1400", border: "1px solid #665500", borderRadius: 4, padding: "4px 8px", marginBottom: 6, color: "#ffcc44", fontSize: 11 }}>
+            <div style={{ background: "#1a1400", border: "1px solid #665500", borderRadius: 4, padding: "4px 8px", marginBottom: 6, color: "#ffcc44", fontSize: 13 }}>
               全売却合計: <span style={{ fontWeight: "bold", color: "#ffee88" }}>{_totalSell.toLocaleString()}G</span>
             </div>
           );
@@ -2026,13 +2026,13 @@ export function InventoryModal({
                   <TileIcon item={it} size={16} />
                   {iLabel(it)}
                   {it.shopPrice
-                    ? <span style={{ color: "#ff6622", fontSize: 10, marginLeft: 4 }}>〔未払:{it.shopPrice}G〕</span>
+                    ? <span style={{ color: "#ff6622", fontSize: 12, marginLeft: 4 }}>〔未払:{it.shopPrice}G〕</span>
                     : (_inShopRoom2 && it.type !== "gold"
-                        ? <span style={{ color: "#aaa880", fontSize: 10, marginLeft: 4 }}>売:{Math.ceil(itemPrice(it) * 0.5)}G</span>
+                        ? <span style={{ color: "#aaa880", fontSize: 12, marginLeft: 4 }}>売:{Math.ceil(itemPrice(it) * 0.5)}G</span>
                         : null)
                   }
                 </span>
-                <span style={{ color: "#555", fontSize: 10 }}>{selIdx === j ? (invMenuSel !== null ? "▶" : "▲") : "▼"}</span>
+                <span style={{ color: "#555", fontSize: 12 }}>{selIdx === j ? (invMenuSel !== null ? "▶" : "▲") : "▼"}</span>
               </div>
               {selIdx === j && (
                 <div style={{ padding: "4px 8px 8px" }}>
@@ -2044,10 +2044,10 @@ export function InventoryModal({
                           cursor: "pointer", fontSize: mobile ? 13 : 12, fontWeight: invMenuSel === ai ? "bold" : "normal" }}>{a.label}</button>
                     ))}
                   </div>
-                  {invMenuSel !== null && <div style={{ color: "#888", fontSize: 10, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
+                  {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
                   {showDesc === i && (
-                    <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 11, lineHeight: "1.5em", marginTop: 4 }}>
-                      <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 12 }}>
+                    <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4 }}>
+                      <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>
                         {it.name}
                         {it.type === "weapon" && ` — 武器 (攻+${it.atk})`}
                         {it.type === "armor" && ` — 防具 (防+${it.def})`}
@@ -2088,14 +2088,14 @@ export function InventoryModal({
         padding: "8px 12px", zIndex: 5, minWidth: 130, maxWidth: 180,
         boxShadow: "0 4px 20px rgba(0,0,0,0.85)", pointerEvents: "none",
       }}>
-        <div style={{ color: "#ffcc66", fontSize: 11, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
+        <div style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
           {itemDisplayName(_previewPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{_previewPot.contents.length}/{_previewPot.capacity}]
         </div>
         {_previewPot.contents.length === 0 ? (
-          <div style={{ color: "#666", fontSize: 11 }}>（空）</div>
+          <div style={{ color: "#666", fontSize: 13 }}>（空）</div>
         ) : (
           _previewPot.contents.map((c, ci) => (
-            <div key={ci} style={{ color: "#ccaa88", fontSize: 11, lineHeight: "1.6em" }}>
+            <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
               · {c.name}
             </div>
           ))
@@ -2130,18 +2130,18 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, loadPortrait, cle
         <label style={{ display: "block", textAlign: "center", cursor: "pointer" }}>
           <input type="file" accept="image/*" style={{ display: "none" }}
             onChange={(e) => { if (e.target.files[0]) loadPortrait(e.target.files[0]); e.target.value = ""; }} />
-          <span style={{ background: "#1a1a2a", border: "1px solid #333", borderRadius: 3, padding: "2px 6px", fontSize: 10, color: "#888", display: "block", textAlign: "center" }}>
+          <span style={{ background: "#1a1a2a", border: "1px solid #333", borderRadius: 3, padding: "2px 6px", fontSize: 12, color: "#888", display: "block", textAlign: "center" }}>
             🖼 変更
           </span>
         </label>
         {portraitSrc && (
           <button onClick={clearPortrait}
-            style={{ background: "none", border: "1px solid #333", color: "#555", fontSize: 10, borderRadius: 3, cursor: "pointer", padding: "2px 0", width: "100%" }}>
+            style={{ background: "none", border: "1px solid #333", color: "#555", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "2px 0", width: "100%" }}>
             ✕ 消去
           </button>
         )}
         <button onClick={() => setShowScores(true)}
-          style={{ background: "#0d0d1a", border: "1px solid #336", color: "#8cf", fontSize: 10, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%", marginTop: 2 }}>
+          style={{ background: "#0d0d1a", border: "1px solid #336", color: "#8cf", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%", marginTop: 2 }}>
           📜 冒険記録
         </button>
       </div>
@@ -2157,7 +2157,7 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#111", border: "1px solid #550", borderRadius: 6, padding: "12px 20px", color: "#ffe", minWidth: 180, maxHeight: "70vh", overflowY: "auto" }}>
         <div style={{ color: "#fa0", fontWeight: "bold", marginBottom: 8, textAlign: "center" }}>階層テレポート【呪】</div>
-        <div style={{ color: "#888", fontSize: 11, marginBottom: 8, textAlign: "center" }}>↑↓:選択　Z/Enter:決定</div>
+        <div style={{ color: "#888", fontSize: 13, marginBottom: 8, textAlign: "center" }}>↑↓:選択　Z/Enter:決定</div>
         {Array.from({ length: MAX_FLOOR }, (_, i) => i + 1).map(f => (
           <div key={f}
             style={{ padding: "2px 8px", background: f === mode.sel ? "#443300" : "transparent", color: f === mode.sel ? "#ffcc00" : "#aaa", cursor: "pointer" }}
@@ -2399,7 +2399,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
               padding: "4px 8px", margin: "1px 0",
               background: isSel ? "#0a1a30" : "#060e1a",
               border: "1px solid " + (isSel ? "#2060c0" : "#152040"),
-              borderRadius: 4, cursor: "pointer", fontSize: 11,
+              borderRadius: 4, cursor: "pointer", fontSize: 13,
               color: isSel ? "#a0d0ff" : "#7090c0",
               fontWeight: isSel ? "bold" : "normal",
             }}>
@@ -2412,13 +2412,13 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       {totalPages > 1 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
           <button onClick={() => goPage(-1)}
-            style={{ background: "#162030", color: "#80c0ff", border: "1px solid #2050a0", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 12 }}>◀</button>
-          <span style={{ color: "#5080a0", fontSize: 11 }}>{safePage + 1} / {totalPages}</span>
+            style={{ background: "#162030", color: "#80c0ff", border: "1px solid #2050a0", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 14 }}>◀</button>
+          <span style={{ color: "#5080a0", fontSize: 13 }}>{safePage + 1} / {totalPages}</span>
           <button onClick={() => goPage(1)}
-            style={{ background: "#162030", color: "#80c0ff", border: "1px solid #2050a0", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 12 }}>▶</button>
+            style={{ background: "#162030", color: "#80c0ff", border: "1px solid #2050a0", borderRadius: 4, padding: "2px 10px", cursor: "pointer", fontSize: 14 }}>▶</button>
         </div>
       )}
-      <div style={{ color: "#304060", fontSize: 10, marginTop: 6 }}>
+      <div style={{ color: "#304060", fontSize: 12, marginTop: 6 }}>
         ↑↓:選択  Z:決定  {totalPages > 1 ? "←→:ページ  " : ""}{effect === "debug_get_item" && category ? "X:カテゴリに戻る" : "X:閉じる"}
       </div>
     </div>
