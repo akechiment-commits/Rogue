@@ -1834,7 +1834,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               _dg.monsters.push(makeGuard(_cx, _cy, p.x, p.y));
               ml.push("手配犯として警備員が現れた！");
             } else {
-              _dg.monsters.push(makeMonster(p.depth, _cx, _cy));
+              _dg.monsters.push(makeMonster(p.depth - 1, _cx, _cy));
             }
           }
           _dg.nextSpawnTurn = p.turns + (_dg.shopTheft ? rng(5, 15) : hasRingEffect(p, "spawn_ring") ? rng(3, 10) : rng(10, 50));
