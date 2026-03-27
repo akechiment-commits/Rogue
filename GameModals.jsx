@@ -962,20 +962,21 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           ) : [];
           const allOpts = [
             ...fis.map((it) => ({
-              label: `${it.name}  →  ${Math.ceil(itemPrice(it) * 0.5)}G`,
+              label: `${itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}  →  ${_calcSellPrice(it, gs?.player?.depth)}G`,
               fn: () => {
                 if (sr.current) {
                   const { player: p2, dungeon: dg3 } = sr.current;
                   const _curSellSh = getShops(dg3).find(s => s.room &&
                     p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
                     p2.y >= s.room.y && p2.y < s.room.y + s.room.h);
-                  const bp = Math.ceil(itemPrice(it) * 0.5);
+                  const bp = _calcSellPrice(it, p2.depth);
                   p2.gold += bp;
                   it.shopPrice = itemPrice(it);
                   if (_curSellSh) it._shopId = _curSellSh.id;
+                  const _dispName = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                   setMsgs((prev) => [
                     ...prev.slice(-80),
-                    `${it.name}を${bp}Gで買い取った。`,
+                    `${_dispName}を${bp}Gで買い取った。`,
                   ]);
                   const rem = _curSellSh ? dg3.items.filter(
                     (i2) =>
