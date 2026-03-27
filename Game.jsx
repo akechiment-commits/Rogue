@@ -466,6 +466,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const _allBcKnown = _dt === "debug" || _dt === "beginner";
     if (_allBcKnown) {
       [...p.inventory, ...d.items].forEach(it => { it.fullIdent = true; it.bcKnown = true; });
+    } else {
+      d.bigboxes?.forEach(bb => { bb.revealed = false; });
     }
     const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown };
     sr.current = s;
@@ -807,7 +809,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     const spring = dg.springs?.find(s => s.x === cx && s.y === cy);
     if (spring) parts.push(spring.name || "泉");
     const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
-    if (bb) parts.push(`${bb.name}(${bb.contents?.length || 0}/${bb.capacity ?? "∞"})`);
+    const _bbDN = (b) => b.revealed === false ? (sr.current?.nicknames?.["bb:" + b.id] || "謎の大箱") : b.name;
+    if (bb) parts.push(`${_bbDN(bb)}(${bb.contents?.length || 0}/${bb.capacity ?? "∞"})`);
     const pent = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
     if (pent) parts.push(pent.name);
     return parts.length > 0 ? parts.join(" / ") : "何もない";
@@ -1272,6 +1275,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     }
     if (sr.current.allBcKnown) {
       d.items.forEach(it => { it.fullIdent = true; it.bcKnown = true; });
+    } else {
+      d.bigboxes?.forEach(bb => { if (bb.revealed === undefined) bb.revealed = false; });
     }
     if (pitfall) {
       const _pr = d.rooms[rng(0, d.rooms.length - 1)];
@@ -2352,7 +2357,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (bb2) {
             bigboxRef.current = bb2;
             setBigboxMode("menu"); setBigboxMenuSel(0);
-            setMsgs((prev) => [...prev.slice(-80), `${bb2.name}(${bb2.contents?.length || 0}/${bb2.capacity})がある。どうする？`]);
+            const _bb2DN = bb2.revealed === false ? (sr.current?.nicknames?.["bb:" + bb2.id] || "謎の大箱") : bb2.name;
+            setMsgs((prev) => [...prev.slice(-80), `${_bb2DN}(${bb2.contents?.length || 0}/${bb2.capacity})がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
           }
           const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
@@ -3485,6 +3491,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       p.inventory.splice(itemIdx, 1);
       bigboxAddItem(bb, it, dg, ml);
+      bb.revealed = true; /* アイテム投入時に大箱の正体が明らかになる */
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (dg.bigboxes?.includes(bb) && bb.contents.length < bb.capacity) {
@@ -4278,7 +4285,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
-      <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} />
+      <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}

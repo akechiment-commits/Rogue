@@ -2243,7 +2243,85 @@ export function useItemActions({
           /* 杖発射前のプレイヤー位置を記録（ワープ系の盗賊判定用） */
           const _preWandPx = p.x, _preWandPy = p.y;
           pushBoltAnim(p.x, p.y, dx, dy, dg, it.effect);
+          /* ===== 物知りの杖 特別処理 ===== */
+          if (it.effect === "sage") {
+            const _identSet = sr.current.ident;
+            const _isCursed = !!it.cursed;
+            // 識別処理ヘルパー
+            const _sageIdentItem = (gi) => {
+              if (_isCursed) {
+                const _k2 = getIdentKey(gi);
+                if (_k2) _identSet.delete(_k2);
+                if (gi.type === 'weapon' || gi.type === 'armor') { gi.fullIdent = false; gi.bcKnown = false; }
+                ml.push(`${_wandItemDName(gi)}が未識別に戻った！【呪】`);
+              } else {
+                const _k2 = getIdentKey(gi);
+                if (_k2) _identSet.add(_k2);
+                if (gi.type === 'weapon' || gi.type === 'armor') { gi.fullIdent = true; gi.bcKnown = true; }
+                ml.push(`${gi.name}が識別された！`);
+              }
+            };
+            // レイ走査
+            let _hitWall = false;
+            let _wallX = 0, _wallY = 0;
+            for (let _step = 1; _step <= 20; _step++) {
+              const _tx = p.x + dx * _step, _ty = p.y + dy * _step;
+              if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) {
+                _hitWall = true; _wallX = _tx; _wallY = _ty; break;
+              }
+              // 敵・罠 → 効果なし、停止
+              if (dg.monsters.some(m => m.x === _tx && m.y === _ty)) {
+                ml.push("杖の光が何かに当たったが何も起きなかった。"); break;
+              }
+              if (dg.traps?.some(tr => tr.x === _tx && tr.y === _ty)) {
+                ml.push("杖の光が罠を通り過ぎた。"); break;
+              }
+              // 大箱
+              const _sbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
+              if (_sbb) {
+                if (_isCursed) { _sbb.revealed = false; ml.push(`大箱が謎の存在に戻った！【呪】`); }
+                else { _sbb.revealed = true; ml.push(`大箱「${_sbb.name}」の正体が明らかになった！`); }
+                break;
+              }
+              // 地面のアイテム
+              const _sgi = dg.items?.find(gi => gi.x === _tx && gi.y === _ty);
+              if (_sgi) {
+                _sageIdentItem(_sgi); break;
+              }
+            }
+            // 壁に当たってはね返り → プレイヤーに直線で届くか確認
+            if (_hitWall) {
+              // 壁の手前マスから逆方向に走査
+              let _hitsPlayer = true;
+              for (let _bs = 1; ; _bs++) {
+                const _bx = (_wallX - dx * _bs), _by = (_wallY - dy * _bs);
+                if (_bx === p.x && _by === p.y) break; // プレイヤーに到達
+                if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH || dg.map[_by][_bx] === T.WALL || dg.map[_by][_bx] === T.BWALL) { _hitsPlayer = false; break; }
+              }
+              if (_hitsPlayer) {
+                // 手持ちからランダム1個識別
+                const _candInv = p.inventory.filter(ii => {
+                  if (_isCursed) {
+                    const _k2 = getIdentKey(ii);
+                    return (_k2 && _identSet.has(_k2)) || ii.fullIdent || ii.bcKnown;
+                  } else {
+                    if (ii.type === 'weapon' || ii.type === 'armor') return !ii.fullIdent || !ii.bcKnown;
+                    const _k2 = getIdentKey(ii);
+                    return _k2 && !_identSet.has(_k2);
+                  }
+                });
+                if (_candInv.length > 0) {
+                  const _ri = _candInv[Math.floor(Math.random() * _candInv.length)];
+                  ml.push("杖の光が壁で跳ね返り自分に当たった！");
+                  _sageIdentItem(_ri);
+                } else {
+                  ml.push("杖の光が壁で跳ね返ったが、識別できるものがなかった。");
+                }
+              }
+            }
+          } else {
           fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName);
+          }
           /* プレイヤー位置が変わった場合、ショップ離脱盗賊チェック */
           if (p.x !== _preWandPx || p.y !== _preWandPy) {
             const _wAllShops = getShops(dg);

@@ -632,6 +632,7 @@ export const WANDS = [
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象には2倍ダメージ、火ダルマは回復。自分に当たると炎でアイテム損傷抽選。床のアイテムに当たると魔法書・巻物・薬は破壊、食料は焼ける。祝福：2倍ダメージ。呪い：対象を回復。", tile:24 },
   { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。対象に氷属性ダメージ+5ターン移動封じ。火ダルマには2倍ダメージ。祝福：2倍ダメージ+移動封じ10ターン。呪い：対象を回復し移動封じ状態なら解除。", tile:24 },
   { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"B", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。祝福：交換後に相手のHPを1に。呪い：交換後に自分のHPを1に。自分に振っても交換は起きないが祝福・呪いの効果は出る。壊すと隣接する最大HPのモンスターとHP交換。", tile:24 },
+  { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"B", weight:4,  sellPrice:700,  desc:"アイテム・大箱に当てると識別する。壁に跳ね返って自分に当たると手持ちから1個ランダム識別。呪い：対象が未識別に戻る。敵や罠には効果なし。", tile:24 },
 ];
 
 /* ===== BIG BOX TYPES ===== */
