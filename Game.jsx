@@ -2243,7 +2243,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
               } /* end else (hit) */
             }
           } else if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) {
-            ml.push("水に阻まれた！浮遊の指輪があれば渡れる。");
+            ml.push("水に阻まれた。");
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL || ((p.wallWalkTurns || 0) > 0 && nx > 0 && nx < MW - 1 && ny > 0 && ny < MH - 1)) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
@@ -2642,6 +2642,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         )
           break;
         if (monsterAt(dg, nx, ny)) break;
+        if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         const _allShopsD = getShops(dg);
         const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
