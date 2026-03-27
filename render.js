@@ -93,7 +93,7 @@ export const TILE_NAMES = {
   86: "trapmaster",
   93: "wateri",
   94: "trap_rot",
-  87: "gem", 88: "gem", 89: "gem", 90: "gem", 91: "gem", 92: "gem", 101: "gem", 102: "gem",
+  87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
