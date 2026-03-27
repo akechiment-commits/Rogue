@@ -1483,9 +1483,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.hasteTurns = Math.max(p.hasteTurns || 0, 2);
       }
       /* ===== 状態異常カウントダウン（ダッシュ含む全ターン進行で共通） ===== */
-      if ((p.slowTurns || 0) > 0 && !_isSlowAutoAdv) {
+      if ((p.slowTurns || 0) > 0) {
         p.slowTurns--;
-        if (p.slowTurns > 0) { p.slowSkip = true; } else { ml.push("鈍足が解けた！"); }
+        if (p.slowTurns <= 0) { ml.push("鈍足が解けた！"); }
+        else if (!_isSlowAutoAdv) { p.slowSkip = true; }
       }
       if ((p.confusedTurns || 0) > 0) {
         p.confusedTurns--;
@@ -2755,6 +2756,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           dg.map[fny][fnx] === T.WALL || dg.map[fny][fnx] === T.BWALL ||
           !!monsterAt(dg, fnx, fny);
         const _hpBefore = p.hp;
+        triggerMonsterHouse(st.dungeon, p, ml);
         endTurn(st, p, ml);
         /* 各ステップの状態をキャンバスに一瞬描画（ダッシュ高速移動演出） */
         gsOverrideRef.current = { ...st };
