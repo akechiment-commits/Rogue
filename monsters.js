@@ -341,7 +341,7 @@ export const MONS = [
       { name: "コボルド族長",       hp: 40,  atk: 17, def: 11, exp: 25  },
     ],
   },
-  { name: "ゴブリン",     hp: 18,  atk: 10, def: 3,  exp: 15,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 2,  maxFloor: 16,
+  { name: "ゴブリン",     hp: 18,  atk: 10, def: 3,  exp: 15,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16,
     levels: [
       { name: "ゴブリン頭",         hp: 32,  atk: 15, def: 7,  exp: 24  },
       { name: "ゴブリン王",         hp: 50,  atk: 20, def: 13, exp: 38  },

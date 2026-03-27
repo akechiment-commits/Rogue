@@ -2275,7 +2275,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
             if (dg.map[p.y][p.x] === T.SU) ml.push("上り階段がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
-            if (_bbStep) ml.push(`${_bbStep.name}(${_bbStep.contents?.length || 0}/${_bbStep.capacity})がある。`);
+            if (_bbStep) { const _bsU = _bbStep.revealed !== true && !sr.current?.allBcKnown; ml.push(_bsU ? `${sr.current?.nicknames?.["bb:"+_bbStep.id] || "謎の大箱"}がある。` : `${_bbStep.name}(${_bbStep.contents?.length || 0}/${_bbStep.capacity})がある。`); }
             const _sprStep = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
@@ -2571,7 +2571,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         } else if (bb6) {
           bigboxRef.current = bb6;
           setBigboxMode("menu"); setBigboxMenuSel(0);
-          setMsgs((prev) => [...prev.slice(-80), `${bb6.name}(${bb6.contents?.length || 0}/${bb6.capacity})がある。どうする？`]);
+          { const _b6U = bb6.revealed !== true && !sr.current?.allBcKnown; const _b6DN = _b6U ? (sr.current?.nicknames?.["bb:"+bb6.id] || "謎の大箱") : bb6.name; const _b6Info = _b6U ? "" : `(${bb6.contents?.length || 0}/${bb6.capacity})`; setMsgs((prev) => [...prev.slice(-80), `${_b6DN}${_b6Info}がある。どうする？`]); }
         } else {
           setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
         }
@@ -2739,7 +2739,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
         const _dashBb = _dBbMap.get(_dk(p.x, p.y));
         if (_dashBb) {
-          ml.push(`${_dashBb.name}(${_dashBb.contents?.length || 0}/${_dashBb.capacity})がある。`);
+          { const _dbU = _dashBb.revealed !== true && !sr.current?.allBcKnown; ml.push(_dbU ? `${sr.current?.nicknames?.["bb:"+_dashBb.id] || "謎の大箱"}がある。` : `${_dashBb.name}(${_dashBb.contents?.length || 0}/${_dashBb.capacity})がある。`); }
           endTurn(st, p, ml);
           break;
         }

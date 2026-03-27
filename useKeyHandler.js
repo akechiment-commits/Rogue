@@ -954,11 +954,12 @@ export function useKeyHandler({
         const isUpBB = k === "arrowup" || e.code === "Numpad8";
         const isDownBB = k === "arrowdown" || e.code === "Numpad2";
         if (bigboxMode === "menu") {
-          const mlen2 = 3;
+          const mlen2 = 4;
           if (isUpBB || isDownBB) {
             setBigboxMenuSel((p) => (p + (isDownBB ? 1 : -1) + mlen2) % mlen2);
             return;
           }
+          const _bbNickKey2 = bigboxRef.current ? "bb:" + bigboxRef.current.id : null;
           if (k === "enter" || k === "z") {
             if (bigboxMenuSel === 0) {
               setBigboxMode("put");
@@ -968,9 +969,13 @@ export function useKeyHandler({
               setBigboxMode(null);
               bigboxRef.current = null;
               setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
-            } else {
+            } else if (bigboxMenuSel === 2) {
               setBigboxMode("desc");
               setBigboxMenuSel(0);
+            } else if (bigboxMenuSel === 3 && _bbNickKey2) {
+              setBigboxMode(null);
+              setNicknameMode({ identKey: _bbNickKey2 });
+              setNicknameInput(gs?.nicknames?.[_bbNickKey2] || "");
             }
             return;
           }
@@ -991,6 +996,10 @@ export function useKeyHandler({
           } else if (k === "3") {
             setBigboxMode("desc");
             setBigboxMenuSel(0);
+          } else if (k === "4" && _bbNickKey2) {
+            setBigboxMode(null);
+            setNicknameMode({ identKey: _bbNickKey2 });
+            setNicknameInput(gs?.nicknames?.[_bbNickKey2] || "");
           }
           return;
         }
