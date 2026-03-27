@@ -423,13 +423,13 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   const [_subMode, _setSubMode] = useState(null); /* null=選択中 / "type" / "list" */
   const [_listPage, _setListPage] = useState(0);
   const [_listSel, _setListSel] = useState(0);
-  if (!mode) return null;
-  const _isBigbox = mode.identKey?.startsWith("bk:");
-  const _typePrefix = _isBigbox ? null : mode.identKey[0];
+  const _isBigbox = mode?.identKey?.startsWith("bk:");
+  const _typePrefix = _isBigbox ? null : mode?.identKey?.[0];
   const _typeMap = { p: 'potion', s: 'scroll', w: 'wand', n: 'pen', o: 'pot' };
   const _targetType = _isBigbox ? null : _typeMap[_typePrefix];
   /* グローバルセーブ＋今回のプレイ分を合算して既発見名リストを作成 */
   const _knownNames = useMemo(() => {
+    if (!mode) return [];
     const _globalDisc = loadSave().discovered;
     const _runDisc = getDiscoveries();
     if (_isBigbox) {
@@ -444,7 +444,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       ...Object.values(_runDisc.items || {}).filter(e => e.type === _targetType).map(e => e.name),
     ]);
     return [..._names].filter(Boolean).sort((a, b) => a.localeCompare(b, "ja"));
-  }, [_isBigbox, _targetType]);
+  }, [mode, _isBigbox, _targetType]);
   const _totalPages = Math.max(1, Math.ceil(_knownNames.length / 10));
   const _pageNames = _knownNames.slice(_listPage * 10, (_listPage + 1) * 10);
   const _applyNick = (nick) => {
@@ -474,7 +474,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   useEffect(() => { _setSubMode(null); _setListPage(0); _setListSel(0); }, [mode?.identKey]);
   /* リストモードのキーボード操作 */
   useEffect(() => {
-    if (_subMode !== "list") return;
+    if (_subMode !== "list" || !mode) return;
     const _onKey = (e) => {
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
         e.preventDefault();
@@ -498,6 +498,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     background: col, border: "1px solid #556", color: "#fff", borderRadius: 4,
     padding: "6px 16px", cursor: "pointer", fontSize: 13,
   });
+  if (!mode) return null;
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)",
                   display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:300 }}>
