@@ -93,7 +93,7 @@ export const TILE_NAMES = {
   86: "trapmaster",
   93: "wateri",
   94: "trap_rot",
-  87: "gem",
+  87: "gem", 88: "gem", 89: "gem", 90: "gem", 91: "gem", 92: "gem", 101: "gem", 102: "gem",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -184,7 +184,14 @@ export const TILE_RENDER = {
   86: { bg: null, fg: "#c0a030", ch: "T" },
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
-  87: { bg: null, fg: "#00eeff", ch: "◆" },
+  87:  { bg: null, fg: "#00ccee", ch: "♦" }, /* アクアマリン */
+  88:  { bg: null, fg: "#ee2244", ch: "♦" }, /* ルビー       */
+  89:  { bg: null, fg: "#2255ff", ch: "♦" }, /* サファイア   */
+  90:  { bg: null, fg: "#22bb44", ch: "♦" }, /* エメラルド   */
+  91:  { bg: null, fg: "#ffcc00", ch: "♦" }, /* トパーズ     */
+  92:  { bg: null, fg: "#aa33cc", ch: "♦" }, /* アメジスト   */
+  101: { bg: "#1a1a2a", fg: "#ddeeff", ch: "✦" }, /* ダイヤモンド */
+  102: { bg: "#1a0a1a", fg: "#ffaadd", ch: "✦" }, /* オパール     */
   /* ===== ボス tier 5〜10 ===== */
   95:  { bg: null, fg: "#aa8833", ch: "B" }, /* 魔将軍  */
   96:  { bg: null, fg: "#ccccaa", ch: "B" }, /* 骸骨王  */

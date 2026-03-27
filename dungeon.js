@@ -484,13 +484,25 @@ function setupShopRoom(room, map, depth, items, mons) {
     sit._shopId = shopId;
     return sit;
   };
+  /* グリッド内の空きスロットを収集 */
+  const gridSlots = [];
   for (let r = 0; r < rows2; r++)
     for (let c = 0; c < cols; c++) {
       const six = sx0 + c, siy = sy0 + r;
-      if (map[siy]?.[six] === T.FLOOR && !socc(six, siy) && !(six === insidePos.x && siy === insidePos.y)) {
-        items.push(makeShopItem(pick(cands), six, siy));
-      }
+      if (map[siy]?.[six] === T.FLOOR && !socc(six, siy) && !(six === insidePos.x && siy === insidePos.y))
+        gridSlots.push({ x: six, y: siy });
     }
+  /* 目玉商品をグリッド先頭スロットに配置 */
+  if (luxuryPool.length > 0 && gridSlots.length > 0) {
+    const slot = gridSlots.shift();
+    const luxItem = makeShopItem(pick(luxuryPool), slot.x, slot.y);
+    luxItem.shopPrice = Math.ceil(luxItem.shopPrice * 1.2);
+    items.push(luxItem);
+  }
+  /* 残りスロットに通常商品を配置 */
+  for (const slot of gridSlots) {
+    items.push(makeShopItem(pick(cands), slot.x, slot.y));
+  }
   /* 最低6商品を保証 — 不足分を空きフロアタイルに補充 */
   const shopItemCount = () => items.filter(i => i._shopId === shopId).length;
   if (shopItemCount() < 6) {
@@ -499,20 +511,6 @@ function setupShopRoom(room, map, depth, items, mons) {
         if (shopItemCount() >= 6) break outer_fill;
         if (map[fy]?.[fx] === T.FLOOR && !socc(fx, fy) && !(fx === insidePos.x && fy === insidePos.y)) {
           items.push(makeShopItem(pick(cands), fx, fy));
-        }
-      }
-    }
-  }
-  /* 目玉商品（A/S レア）を1つ追加 */
-  if (luxuryPool.length > 0) {
-    outer_lux: for (let fy = room.y; fy < room.y + room.h; fy++) {
-      for (let fx = room.x; fx < room.x + room.w; fx++) {
-        if (map[fy]?.[fx] === T.FLOOR && !socc(fx, fy) && !(fx === insidePos.x && fy === insidePos.y)) {
-          const luxItem = makeShopItem(pick(luxuryPool), fx, fy);
-          /* 目玉商品は少し割高 */
-          luxItem.shopPrice = Math.ceil(luxItem.shopPrice * 1.2);
-          items.push(luxItem);
-          break outer_lux;
         }
       }
     }
