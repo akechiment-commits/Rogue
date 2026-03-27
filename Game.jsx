@@ -4068,9 +4068,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   if (markerMode.step === "select_blank") {
                     listLen = inv5.filter(it => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell)).length;
                   } else if (markerMode.step === "select_type") {
-                    listLen = ITEMS.filter(it => it.type === "scroll").length;
+                    const _mIdent5 = sr.current.ident ?? new Set();
+                    listLen = ITEMS.filter(it => it.type === "scroll" && it.effect !== "blank" && _mIdent5.has(`s:${it.effect}`)).length;
                   } else if (markerMode.step === "select_spellbook_type") {
-                    listLen = SPELLBOOKS.filter(it => it.spell).length;
+                    const _mIdent5 = sr.current.ident ?? new Set();
+                    listLen = SPELLBOOKS.filter(it => it.spell && _mIdent5.has(`b:${it.spell}`)).length;
                   }
                   if (listLen > 0) setMarkerMenuSel((s) => (s + dy + listLen) % listLen);
                 }
