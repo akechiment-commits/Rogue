@@ -27,7 +27,7 @@ import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { drainAnims, pushMonsterBoltAnim, pushAnim, drainItemArcs, signalHungerWarn, drainHungerWarn } from './animEvents.js';
+import { drainAnims, pushMonsterBoltAnim, pushAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 /* 大箱の表示名を返す共通ヘルパー。未識別時は偽名+ニックネーム、識別済みは実名 */
 function bbDisplayName(bb, st, withCapacity = false) {
@@ -1320,6 +1320,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
       setPitfallBag(_etPfBag);
+      const _etStartHp = p.hp;
       p.turns++;
       const _hasRegenRing = hasRingEffect(p, "regen_ring");
       const hd =
@@ -1569,8 +1570,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if ((_ms2.speed ?? 1) <= 1) _ms2._movedThisTurn = true; /* 速度1以下の敵は移動後に攻撃不可。倍速敵はそのまま攻撃できる */
         }
       }
-      /* ピンチアラート用：ダメージフェーズ開始前のHPを記録 */
-      const _hpBeforeDmgPhase = p.hp;
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
       /* 爆発の指輪：5%の確率で爆発 */
       if (p.hp > 0 && hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
@@ -1625,13 +1624,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         _mdamages.push(..._perHitEvents);
       }
       monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
-      /* ピンチアラート：今ターン受けたダメージで次ターンも同じ攻撃を受けたら死ぬ場合に警告 */
-      if (p.hp > 0) {
-        const _thisTurnDmg = Math.max(0, _hpBeforeDmgPhase - p.hp);
-        if (_thisTurnDmg > 0 && p.hp <= _thisTurnDmg) {
-          ml.push({ text: "【ピンチ】このまま攻撃を受け続けるとHPが0になる！", color: "#ff3333" });
-        }
-      }
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns = Math.max(0, _om.oilyTurns - (_om.isBoss ? 2 : 1)); }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
@@ -1910,6 +1902,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       clearPitfallBag();
       if (!st.floors) st.floors = {};
       processPitfallBag(_etPfBag, st.floors, p.depth);
+      /* ピンチアラート：このターンの全ダメージ（薬・罠・敵含む）で再度受けたら死ぬ場合に警告 */
+      if (p.hp > 0) {
+        const _etDmg = Math.max(0, _etStartHp - p.hp);
+        if (_etDmg > 0 && p.hp <= _etDmg) {
+          ml.push({ text: "【ピンチ】このまま同じダメージを受けるとHPが0になる！", color: "#ff3333" });
+          signalPinchAlert();
+        }
+      }
     },
     [moveMons, lu],
   );
@@ -2532,7 +2532,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       }
       sr.current = { ...st };
       setGs({ ...st });
-      if (drainHungerWarn()) setRevealMode({ pendingMsgs: [] });
+      if (drainHungerWarn() || drainPinchAlert()) setRevealMode({ pendingMsgs: [] });
       /* Play animations if any were queued */
       const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
       if (_hasAnim) playAnim(_ad);

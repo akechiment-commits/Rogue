@@ -30,6 +30,11 @@ let _hungerWarnPending = false;
 export function signalHungerWarn() { _hungerWarnPending = true; }
 export function drainHungerWarn() { const v = _hungerWarnPending; _hungerWarnPending = false; return v; }
 
+/* ピンチアラートシグナル */
+let _pinchAlertPending = false;
+export function signalPinchAlert() { _pinchAlertPending = true; }
+export function drainPinchAlert() { const v = _pinchAlertPending; _pinchAlertPending = false; return v; }
+
 /*
  * Item fly animation queue.
  *
