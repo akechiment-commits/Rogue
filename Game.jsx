@@ -4197,8 +4197,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
                   color="#0ff"
                 />
                 <AB
-                  label="調"
-                  sub="前"
+                  label="前"
+                  sub="調べる"
                   onClick={() => doExamineFront()}
                   color="#4af"
                 />
