@@ -1339,7 +1339,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         p.deathCause = "空腹により";
         if (!p._hungerDmgStarted) {
           p._hungerDmgStarted = true;
-          ml.push("【警告】極限の空腹でHPが減り始めた！何か食べないと死ぬ！");
+          ml.push("空腹でHPが減り始めた！");
           signalHungerWarn();
         } else if (p.turns % 10 === 0) {
           ml.push("空腹でHPが減っている...");
