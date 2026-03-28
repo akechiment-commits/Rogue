@@ -157,7 +157,7 @@ function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThro
   );
 }
 
-export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
+export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [] } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, setMsgs] = useState(["冒険が始まった！"]);
   const [showInv, setShowInv] = useState(false);
@@ -1876,7 +1876,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           } catch (_e) {}
           setGameOverSel(0);
           setDead(true);
-          setGameOverResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: false });
+          setGameOverResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: false, identifiedEffects: [...(sr.current?.ident || [])] });
         }
       }
       /* 骨のカウントダウン：0になったらスケルトン復活（真上に誰かいたら先延ばし） */
@@ -2379,7 +2379,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if (p.depth === 1) {
             if (onReturnToHub) {
               const _hasGoal = p.inventory.some(it => it.type === "goal");
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal });
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal, identifiedEffects: [...(sr.current?.ident || [])] });
               return;
             }
           } else {
@@ -3631,6 +3631,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     // callbacks
     init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
     bigboxPutItem, sortInventory, getLookDesc, lu,
+    pastIdent,
   });
   const useLabel = (it) => {
     const _p = gs?.player;
@@ -4345,7 +4346,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       <TpSelectModal mode={tpSelectMode} setMode={setTpSelectMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} mobile={mobile} />{" "}
       <FloorSelectModal mode={floorSelectMode} setMode={setFloorSelectMode} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} genDungeon={genDungeon} refreshFOV={refreshFOV} rng={rng} />{" "}
       <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
-      <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} />{" "}
+      <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} pastIdent={pastIdent} />{" "}
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />

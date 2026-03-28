@@ -48,6 +48,12 @@ export default function App() {
       next.bestGold  = Math.max(prev.bestGold  || 0, result.earnedGold || 0);
       /* Merge encyclopedia discoveries */
       next.discovered = mergeDiscoveries(prev.discovered, result.discoveries || {});
+      /* 識別済み巻物・魔法書エフェクトを永続保存（魔法のマーカー用） */
+      if (result.identifiedEffects?.length) {
+        const _prev = new Set(prev.identifiedEffects || []);
+        for (const e of result.identifiedEffects) _prev.add(e);
+        next.identifiedEffects = [..._prev];
+      }
       /* Voluntary exit: carry items to warehouse (goal items excluded) */
       if (result.survived && result.returnItems?.length) {
         const merged = [
@@ -78,6 +84,7 @@ export default function App() {
         key={dungeonConfig?._key}
         dungeonConfig={dungeonConfig}
         onReturnToHub={returnToHub}
+        pastIdent={saveData?.identifiedEffects || []}
       />
     );
   }

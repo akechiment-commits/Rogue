@@ -15,7 +15,7 @@ export function useKeyHandler({
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
-  markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
+  markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [],
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
@@ -683,7 +683,8 @@ export function useKeyHandler({
             setMsgs((prev) => [...prev.slice(-80), msg5]);
           }
         } else if (markerMode.step === "select_type") {
-          const types5 = ITEMS.filter((it) => it.type === "scroll");
+          const _kIdent5 = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
+          const types5 = ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && _kIdent5.has(`s:${it.effect}`));
           const _tlen5 = types5.length;
           if ((isUp5 || isDown5) && _tlen5 > 0) {
             setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _tlen5) % _tlen5);
@@ -694,7 +695,8 @@ export function useKeyHandler({
             doMarkerWriteRef.current?.(markerMode.blankIdx, tmpl5);
           }
         } else if (markerMode.step === "select_spellbook_type") {
-          const sbTypes5 = SPELLBOOKS.filter((it) => it.spell);
+          const _kIdent5sb = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
+          const sbTypes5 = SPELLBOOKS.filter((it) => it.spell && _kIdent5sb.has(`b:${it.spell}`));
           const _sbLen5 = sbTypes5.length;
           if ((isUp5 || isDown5) && _sbLen5 > 0) {
             setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _sbLen5) % _sbLen5);

@@ -1650,19 +1650,20 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
 }
 
 /* ===== Marker Modal ===== */
-export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWrite, setMsgs, mobile }) {
+export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWrite, setMsgs, mobile, pastIdent = [] }) {
   if (!mode || !sr.current) return null;
   const inv = sr.current.player.inventory;
   const marker = inv[mode.markerIdx];
   if (!marker) return null;
   const isBlankStep = mode.step === "select_blank";
   const isSpellbookTypeStep = mode.step === "select_spellbook_type";
-  const _knownIdent = sr.current?.ident ?? new Set();
+  /* 識別済みエフェクトセット：現在のランのident ∪ 過去ランの保存済みident */
+  const _knownIdent = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
   const listItems = isBlankStep
     ? inv.map((it, i) => ({ it, i })).filter(({ it }) => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell))
     : isSpellbookTypeStep
-      ? SPELLBOOKS.filter((it) => it.spell).map((it, i) => ({ it, i }))
-      : ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank").map((it, i) => ({ it, i }));
+      ? SPELLBOOKS.filter((it) => it.spell && _knownIdent.has(`b:${it.spell}`)).map((it, i) => ({ it, i }))
+      : ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && _knownIdent.has(`s:${it.effect}`)).map((it, i) => ({ it, i }));
   const _mlen = listItems.length;
   const safeSel = Math.min(menuSel, Math.max(0, _mlen - 1));
   return (
@@ -1678,7 +1679,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div style={{ color: "#c090ee", fontSize: 13, marginBottom: 6 }}>
-        {isBlankStep ? "書き込む白紙アイテムを選んでください" : isSpellbookTypeStep ? "変える魔法書の種類を選んでください (インク5回消費)" : "書き込む巻物の種類を選んでください"}
+        {isBlankStep ? "書き込む白紙アイテムを選んでください" : isSpellbookTypeStep ? "変える魔法書の種類を選んでください (インク5回消費)" : "書き込む魔法を選んでください（識別済みのもののみ）"}
       </div>
       {_mlen === 0 ? (
         <div style={{ color: "#666", fontSize: 13 }}>{isBlankStep ? "白紙の巻物も白紙の魔法書もない。" : !isSpellbookTypeStep && !isBlankStep ? "図鑑に巻物がまだ載っていない。巻物を使って先に図鑑に登録しよう。" : "選択肢がない。"}</div>
