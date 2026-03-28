@@ -1404,42 +1404,6 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       mons.push(mkMon(depth, mx, my));
     }
   }
-  /* 呪術師スポーン (2階以降に1体確定) */
-  if (depth >= 1) {
-    const _cwDef = MONS.find((m) => m.wandEffect === "curse_wand");
-    if (_cwDef) {
-      const _cwRm = rooms[rng(1, rooms.length - 1)];
-      if (_cwRm) {
-        const _cwx = rng(_cwRm.x + 1, _cwRm.x + _cwRm.w - 2);
-        const _cwy = rng(_cwRm.y + 1, _cwRm.y + _cwRm.h - 2);
-        if (map[_cwy]?.[_cwx] === T.FLOOR && !mons.some((m) => m.x === _cwx && m.y === _cwy)) {
-          mons.push({
-            ..._cwDef, id: uid(), x: _cwx, y: _cwy, maxHp: _cwDef.hp,
-            turnAccum: 0, aware: false, dir: { x: 1, y: 0 },
-            lastPx: 0, lastPy: 0, patrolTarget: null,
-          });
-        }
-      }
-    }
-  }
-  /* 岩霊スポーン (2階以降に1体確定) */
-  if (depth >= 2) {
-    const _wwDef = MONS.find((m) => m.wallWalker);
-    if (_wwDef) {
-      const _wwRm = rooms[rng(1, rooms.length - 1)];
-      if (_wwRm) {
-        const _wwx = rng(_wwRm.x + 1, _wwRm.x + _wwRm.w - 2);
-        const _wwy = rng(_wwRm.y + 1, _wwRm.y + _wwRm.h - 2);
-        if (map[_wwy]?.[_wwx] === T.FLOOR && !mons.some((m) => m.x === _wwx && m.y === _wwy)) {
-          mons.push({
-            ..._wwDef, id: uid(), x: _wwx, y: _wwy, maxHp: _wwDef.hp,
-            turnAccum: 0, aware: false, dir: { x: 1, y: 0 },
-            lastPx: 0, lastPy: 0, patrolTarget: null,
-          });
-        }
-      }
-    }
-  }
   const items = [];
   const traps = [];
   const occ = (x, y) =>
