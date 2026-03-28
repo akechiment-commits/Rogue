@@ -1590,6 +1590,17 @@ export function useItemActions({
       p.inventory.splice(idx, 1);
       const ml = [];
       ml.push(`${dnameRef(it)}を壊した！`);
+      if ((it.charges ?? 0) <= 0) {
+        ml.push("しかし力が残っていないので何も起きなかった。");
+        try { endTurn(sr.current, p, ml); } catch (e) { console.error("doBreakWand endTurn error:", e); }
+        if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        setSelIdx(null);
+        setShowDesc(null);
+        setShowInv(false);
+        sr.current = { ...sr.current };
+        setGs({ ...sr.current });
+        return;
+      }
       try {
         if (inMagicSealRoom(p.x, p.y, dg)) {
           /* 封印状態でも杖を壊した場合は効果が発動する。魔封じの部屋のみ無効 */
@@ -2262,6 +2273,12 @@ export function useItemActions({
           setThrowMode(null);
           return;
         }
+        if ((it.charges ?? 0) <= 0) {
+          ml.push(`${dnameRef(it)}には力が残っていない...`);
+          setThrowMode(null);
+          setGs({ ...sr.current });
+          return;
+        }
         const _wandBm = getBlessMultiplier(it);
         it.charges--;
         if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
@@ -2380,7 +2397,7 @@ export function useItemActions({
         }
         if (it.charges <= 0) {
           ml.push(`${dnameRef(it)}は力を失った...`);
-          p.inventory.splice(idx, 1);
+          /* 回数0の杖はインベントリに残す（投げ当ては引き続き有効） */
         }
       } else if (mode === "cast_spell") {
         const spellDef = SPELLS.find((s) => s.id === idx);

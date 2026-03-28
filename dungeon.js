@@ -463,7 +463,7 @@ function setupShopRoom(room, map, depth, items, mons) {
   const _foodCands = Array.from({ length: rng(5, 8) }, () => genFood());
   const cands = [
     ...ITEMS.filter(i => i.type !== 'gold'),
-    ...WANDS.map(w => ({ ...w, charges: Math.max(1, w.charges + rng(-1, 1)) })),
+    ...WANDS.map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand") ? 1 : Math.max(1, w.charges + rng(-1, 1)) })),
     ...POTS,
     ...RINGS,
     ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
@@ -473,7 +473,7 @@ function setupShopRoom(room, map, depth, items, mons) {
   /* 目玉商品プール（A/S レアリティ、宝石除く） */
   const luxuryPool = [
     ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'A' || i.rarity === 'S')),
-    ...WANDS.filter(w => w.rarity === 'A' || w.rarity === 'S').map(w => ({ ...w, charges: Math.max(1, w.charges + rng(-1, 1)) })),
+    ...WANDS.filter(w => w.rarity === 'A' || w.rarity === 'S').map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand") ? 1 : Math.max(1, w.charges + rng(-1, 1)) })),
     ...POTS.filter(p => p.rarity === 'A' || p.rarity === 'S'),
     ...RINGS.filter(r => r.rarity === 'A' || r.rarity === 'S'),
     ...SPELLBOOKS.filter(sb => sb.rarity === 'A' || sb.rarity === 'S'),
@@ -1440,7 +1440,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const _subPoolSize = dungeonType === "advanced" || dungeonType === "legend" ? rng(2, 5) : dungeonType === "intermediate" ? rng(3, 6) : rng(4, 8);
   const _subGens = [
     /* 矢 */       () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
-    /* 杖 */       () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: t.charges + rng(-1, 2) }; },
+    /* 杖 */       () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
     /* 魔法書 */   () => { const sb = pickWeighted(SPELLBOOKS); return { ...sb, id: uid() }; },
     /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
     /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },

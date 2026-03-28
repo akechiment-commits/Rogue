@@ -3167,7 +3167,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         }
       } else if (bb.kind === "refill") {
         if (item.type === "wand") {
-          const add = rng(1, 3);
+          const add = (item.effect === "curse_wand" || item.effect === "bless_wand") ? 1 : rng(1, 3);
           item.charges = (item.charges || 0) + add;
           ml.push(`${_idn}の回数が${add}増えた！(${item.charges}回)`);
         } else if (item.type === "marker") {
