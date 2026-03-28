@@ -193,6 +193,61 @@ export function useKeyHandler({
         else if (isDL) { ncx = Math.max(0, cx - 1); ncy = Math.min(MH - 1, cy + 1); }
         else if (isDR) { ncx = Math.min(MW - 1, cx + 1); ncy = Math.min(MH - 1, cy + 1); }
         if (ncx !== cx || ncy !== cy) {
+          const _ldx = ncx - cx, _ldy = ncy - cy;
+          if (aRef.current) {
+            /* ルック・ダッシュ：通常ダッシュと同じ停止条件でカーソルを移動 */
+            const _ldk = (x, y) => y * MW + x;
+            const _lRoomSet = new Set();
+            for (const r of (dg2.rooms || []))
+              for (let ry = r.y; ry < r.y + r.h; ry++)
+                for (let rx = r.x; rx < r.x + r.w; rx++)
+                  _lRoomSet.add(_ldk(rx, ry));
+            const _lItemMap = new Map();
+            for (const i of (dg2.items || []))
+              if (!_lItemMap.has(_ldk(i.x, i.y))) _lItemMap.set(_ldk(i.x, i.y), i);
+            const _lGetPerps = (x, y) =>
+              (_ldx !== 0 ? [[0,-1],[0,1]] : [[-1,0],[1,0]])
+                .filter(([sdx, sdy]) => {
+                  const sx = x + sdx, sy = y + sdy;
+                  return sx >= 0 && sx < MW && sy >= 0 && sy < MH &&
+                    dg2.map[sy][sx] !== T.WALL && dg2.map[sy][sx] !== T.BWALL;
+                }).length;
+            const _lStartInWall = dg2.map[cy]?.[cx] === T.WALL || dg2.map[cy]?.[cx] === T.BWALL;
+            const _lStartInRoom = _lRoomSet.has(_ldk(cx, cy));
+            let _lcx = cx, _lcy = cy, _lPrevPerps = _lGetPerps(cx, cy);
+            for (let _ls = 0; _ls < 50; _ls++) {
+              const nx = _lcx + _ldx, ny = _lcy + _ldy;
+              if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
+              const _nTile = dg2.map[ny]?.[nx];
+              if (_nTile === T.WALL || _nTile === T.BWALL) break;
+              _lcx = nx; _lcy = ny;
+              /* 壁内スタート：最初の床タイルで停止 */
+              if (_lStartInWall) break;
+              /* 通常停止条件 */
+              if (_lItemMap.has(_ldk(_lcx, _lcy))) break;
+              if (dg2.traps?.find(t => t.x === _lcx && t.y === _lcy)) break;
+              if (dg2.map[_lcy][_lcx] === T.SD || dg2.map[_lcy][_lcx] === T.SU) break;
+              if (dg2.springs?.find(s => s.x === _lcx && s.y === _lcy)) break;
+              if (dg2.bigboxes?.find(b => b.x === _lcx && b.y === _lcy)) break;
+              const _lCurInRoom = _lRoomSet.has(_ldk(_lcx, _lcy));
+              const _lCurPerps = _lGetPerps(_lcx, _lcy);
+              const _lfnx = _lcx + _ldx, _lfny = _lcy + _ldy;
+              const _lNextBlocked = _lfnx < 0 || _lfnx >= MW || _lfny < 0 || _lfny >= MH ||
+                dg2.map[_lfny]?.[_lfnx] === T.WALL || dg2.map[_lfny]?.[_lfnx] === T.BWALL;
+              if (_lStartInRoom) {
+                if (!_lCurInRoom || _lNextBlocked) break;
+              } else {
+                if ((_lCurPerps > _lPrevPerps && _lCurPerps > 0) || _lNextBlocked) break;
+              }
+              _lPrevPerps = _lCurPerps;
+            }
+            if (_lcx !== cx || _lcy !== cy) {
+              setLookMode({ cx: _lcx, cy: _lcy });
+              const _ldesc = getLookDesc(_lcx, _lcy, dg2);
+              if (_ldesc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_ldesc}`]);
+            }
+            return;
+          }
           setLookMode({ cx: ncx, cy: ncy });
           const _lookDesc = getLookDesc(ncx, ncy, dg2);
           if (_lookDesc) setMsgs(prev => [...prev.slice(-80), `[見渡す] ${_lookDesc}`]);
