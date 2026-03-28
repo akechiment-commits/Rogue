@@ -2274,11 +2274,8 @@ export function useItemActions({
           return;
         }
         if ((it.charges ?? 0) <= 0) {
-          ml.push(`${dnameRef(it)}には力が残っていない...`);
-          setThrowMode(null);
-          setGs({ ...sr.current });
-          return;
-        }
+          ml.push(`${dnameRef(it)}を振ったが、力が残っていない...`);
+        } else {
         const _wandBm = getBlessMultiplier(it);
         it.charges--;
         if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
@@ -2399,6 +2396,7 @@ export function useItemActions({
           ml.push(`${dnameRef(it)}は力を失った...`);
           /* 回数0の杖はインベントリに残す（投げ当ては引き続き有効） */
         }
+        } /* end else (charges > 0) */
       } else if (mode === "cast_spell") {
         const spellDef = SPELLS.find((s) => s.id === idx);
         if (!spellDef) { setThrowMode(null); return; }
