@@ -152,6 +152,12 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     mons.push(_mh);
   }
   /* 多めのアイテム */
+  const allOcc = (x, y) =>
+    mons.some(m => m.x === x && m.y === y) ||
+    items.some(i => i.x === x && i.y === y) ||
+    bigboxes.some(b => b.x === x && b.y === y) ||
+    springs.some(s => s.x === x && s.y === y) ||
+    traps.some(t => t.x === x && t.y === y);
   const itemCount = rng(8, 14);
   let itemsPlaced = 0;
   for (let i = 0; i < itemCount * 20 && itemsPlaced < itemCount; i++) {
