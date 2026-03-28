@@ -143,8 +143,8 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     const j = Math.floor(Math.random() * (i + 1));
     [roomFloorTiles[i], roomFloorTiles[j]] = [roomFloorTiles[j], roomFloorTiles[i]];
   }
-  /* フロアの約65%をモンスターで埋める（最低8体） */
-  const monCount = Math.max(8, Math.floor(roomFloorTiles.length * 0.65));
+  /* モンスターハウス：最低8体、最大25体 */
+  const monCount = Math.min(25, Math.max(8, Math.floor(roomFloorTiles.length * 0.65)));
   for (let i = 0; i < Math.min(monCount, roomFloorTiles.length); i++) {
     const [mx, my] = roomFloorTiles[i];
     const _mh = mkMon(depth, mx, my, 0, map, null);
