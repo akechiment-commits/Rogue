@@ -1569,6 +1569,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           if ((_ms2.speed ?? 1) <= 1) _ms2._movedThisTurn = true; /* 速度1以下の敵は移動後に攻撃不可。倍速敵はそのまま攻撃できる */
         }
       }
+      /* ピンチアラート用：ダメージフェーズ開始前のHPを記録 */
+      const _hpBeforeDmgPhase = p.hp;
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
       /* 爆発の指輪：5%の確率で爆発 */
       if (p.hp > 0 && hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
@@ -1623,6 +1625,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
         _mdamages.push(..._perHitEvents);
       }
       monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
+      /* ピンチアラート：今ターン受けたダメージで次ターンも同じ攻撃を受けたら死ぬ場合に警告 */
+      if (p.hp > 0) {
+        const _thisTurnDmg = Math.max(0, _hpBeforeDmgPhase - p.hp);
+        if (_thisTurnDmg > 0 && p.hp <= _thisTurnDmg) {
+          ml.push({ text: "【ピンチ】このまま攻撃を受け続けるとHPが0になる！", color: "#ff3333" });
+        }
+      }
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) { if ((_om.oilyTurns || 0) > 0) _om.oilyTurns = Math.max(0, _om.oilyTurns - (_om.isBoss ? 2 : 1)); }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
@@ -3953,11 +3962,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
           setRevealMode(null);
         } : undefined}
       >
-        {msgs.slice(-50).map((m, i, a) => (
-          <div key={i} style={{ opacity: i === a.length - 1 ? 1 : 0.5 }}>
-            {m}
-          </div>
-        ))}
+        {msgs.slice(-50).map((m, i, a) => {
+          const _isLatest = i === a.length - 1;
+          const _text = typeof m === "object" ? m.text : m;
+          const _color = typeof m === "object" ? m.color : undefined;
+          return (
+            <div key={i} style={{ opacity: _isLatest ? 1 : 0.5, color: _color, fontWeight: _color ? "bold" : undefined }}>
+              {_text}
+            </div>
+          );
+        })}
         {revealMode && (
           <div style={{ color: "#fa8", animation: "blink 1s step-end infinite" }}>
             ▼ {mobile ? "タップで続ける" : "何かキーを押す..."}

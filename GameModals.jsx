@@ -1855,16 +1855,19 @@ export function MsgLogModal({ show, msgs, scrollTop, setScrollTop, onClose, mobi
         {visible.map((m, i) => {
           const absIdx = start + i;
           const isNewest = absIdx === total - 1;
+          const _text = typeof m === "object" ? m.text : m;
+          const _msgColor = typeof m === "object" ? m.color : undefined;
           return (
             <div key={absIdx} style={{
               fontSize: mobile ? 10 : 11, lineHeight: "1.4em",
-              color: isNewest ? "#ccffcc" : "#8fa8a0",
+              color: _msgColor ?? (isNewest ? "#ccffcc" : "#8fa8a0"),
+              fontWeight: _msgColor ? "bold" : undefined,
               opacity: isNewest ? 1 : 0.75,
               padding: "1px 0",
               borderBottom: "1px solid #1a2030",
             }}>
               <span style={{ color: "#304060", marginRight: 6, fontSize: 12 }}>{absIdx + 1}</span>
-              {m}
+              {_text}
             </div>
           );
         })}
