@@ -1917,6 +1917,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
   /* auto-advance turns while player is sleeping, paralyzed, or slow-skipping */
   useEffect(() => {
     if (!gs?.player) return;
+    if (shopMode) return;
     const { sleepTurns = 0, paralyzeTurns = 0, slowSkip = false } = gs.player;
     if (sleepTurns <= 0 && paralyzeTurns <= 0 && !slowSkip) return;
     setShowInv(false);
@@ -1987,7 +1988,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
     };
     const timer = setTimeout(tryAdvance, 400);
     return () => clearTimeout(timer);
-  }, [gs, endTurn, playAnim]);
+  }, [gs, shopMode, endTurn, playAnim]);
 
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
@@ -2002,6 +2003,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub } = {}) {
       if (markerMode) return;
       if (spellListMode) return;
       if (debugSpellMode) return;
+      if (shopMode) return;
       if (throwMode !== null && type !== "inventory") return;
       if (showInv && type !== "inventory") return;
       const st = sr.current,
