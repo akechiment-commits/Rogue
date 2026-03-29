@@ -1351,6 +1351,7 @@ export function useKeyHandler({
       putPage,
       markerMode,
       markerMenuSel,
+      markerPage,
       spellListMode,
       spellMenuSel,
       spellPage,
