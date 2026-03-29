@@ -1490,7 +1490,8 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 罠数：深さに比例して増加。浅い階は少なめ */
   const _trapBase = dungeonType === "advanced" || dungeonType === "legend" ? 0.5 : dungeonType === "intermediate" ? 0.3 : 0.2;
   const _trapGrowth = dungeonType === "advanced" || dungeonType === "legend" ? 1.0 : dungeonType === "intermediate" ? 0.7 : 0.4;
-  const tc = Math.max(0, Math.round(rooms.length * _trapBase + depth * _trapGrowth));
+  const _trapMax = dungeonType === "advanced" || dungeonType === "legend" ? 20 : dungeonType === "intermediate" ? 14 : 8;
+  const tc = Math.min(_trapMax, Math.max(0, Math.round(rooms.length * _trapBase + depth * _trapGrowth)));
   for (let i = 0; i < tc; i++) {
     const rm = pick(rooms);
     const tx = rng(rm.x + 1, rm.x + rm.w - 2),
