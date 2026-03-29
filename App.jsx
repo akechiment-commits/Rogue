@@ -85,6 +85,7 @@ export default function App() {
         dungeonConfig={dungeonConfig}
         onReturnToHub={returnToHub}
         pastIdent={saveData?.identifiedEffects || []}
+        discoveredItems={saveData?.discovered?.items || {}}
       />
     );
   }

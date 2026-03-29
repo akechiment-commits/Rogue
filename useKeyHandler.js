@@ -15,7 +15,7 @@ export function useKeyHandler({
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
-  markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [],
+  markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
@@ -684,7 +684,7 @@ export function useKeyHandler({
           }
         } else if (markerMode.step === "select_type") {
           const _kIdent5 = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
-          const types5 = ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && _kIdent5.has(`s:${it.effect}`));
+          const types5 = ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_kIdent5.has(`s:${it.effect}`) || discoveredItems[it.effect]));
           const _tlen5 = types5.length;
           if ((isUp5 || isDown5) && _tlen5 > 0) {
             setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _tlen5) % _tlen5);

@@ -1650,20 +1650,20 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
 }
 
 /* ===== Marker Modal ===== */
-export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWrite, setMsgs, mobile, pastIdent = [] }) {
+export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWrite, setMsgs, mobile, pastIdent = [], discoveredItems = {} }) {
   if (!mode || !sr.current) return null;
   const inv = sr.current.player.inventory;
   const marker = inv[mode.markerIdx];
   if (!marker) return null;
   const isBlankStep = mode.step === "select_blank";
   const isSpellbookTypeStep = mode.step === "select_spellbook_type";
-  /* 識別済みエフェクトセット：現在のランのident ∪ 過去ランの保存済みident */
+  /* 識別済みエフェクトセット：現在のランのident ∪ 過去ランの保存済みident ∪ 図鑑に載ってる巻物 */
   const _knownIdent = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
   const listItems = isBlankStep
     ? inv.map((it, i) => ({ it, i })).filter(({ it }) => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell))
     : isSpellbookTypeStep
       ? SPELLBOOKS.filter((it) => it.spell && _knownIdent.has(`b:${it.spell}`)).map((it, i) => ({ it, i }))
-      : ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && _knownIdent.has(`s:${it.effect}`)).map((it, i) => ({ it, i }));
+      : ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_knownIdent.has(`s:${it.effect}`) || discoveredItems[it.effect])).map((it, i) => ({ it, i }));
   const _mlen = listItems.length;
   const safeSel = Math.min(menuSel, Math.max(0, _mlen - 1));
   return (
