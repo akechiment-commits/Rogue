@@ -1477,6 +1477,11 @@ export function useItemActions({
     const { player: p, dungeon: dg } = sr.current;
     const it = p.inventory[idx];
     if (!it) return;
+    const _isEquipped = p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
+    if (_isEquipped && it.cursed) {
+      setMsgs((prev) => [...prev.slice(-80), "呪われているので外せない！"]);
+      return;
+    }
     _forceUnequip(p, it);
     p.inventory.splice(idx, 1);
     const ml = [],
