@@ -1650,7 +1650,7 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
 }
 
 /* ===== Marker Modal ===== */
-export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWrite, setMsgs, mobile, pastIdent = [], discoveredItems = {} }) {
+export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, page = 0, setPage, doMarkerWrite, setMsgs, mobile, pastIdent = [], discoveredItems = {} }) {
   if (!mode || !sr.current) return null;
   const inv = sr.current.player.inventory;
   const marker = inv[mode.markerIdx];
@@ -1669,7 +1669,12 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
       ? SPELLBOOKS.filter((it) => it.spell && _knownIdent.has(`b:${it.spell}`)).map((it, i) => ({ it, i }))
       : ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_knownIdent.has(`s:${it.effect}`) || discoveredItems[it.effect] || _curDisc[it.effect] || _invScrollEffects.has(it.effect))).map((it, i) => ({ it, i }));
   const _mlen = listItems.length;
-  const safeSel = Math.min(menuSel, Math.max(0, _mlen - 1));
+  const _ps = 10;
+  const _totalPages = Math.max(1, Math.ceil(_mlen / _ps));
+  const _safePage = Math.min(page, _totalPages - 1);
+  const _pageItems = listItems.slice(_safePage * _ps, (_safePage + 1) * _ps);
+  const _pageLen = _pageItems.length;
+  const safeSel = Math.min(menuSel, Math.max(0, _pageLen - 1));
   return (
     <div style={{
       position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
@@ -1686,10 +1691,17 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
         {isBlankStep ? "書き込む白紙アイテムを選んでください" : isSpellbookTypeStep ? "変える魔法書の種類を選んでください (インク5回消費)" : "書き込む魔法を選んでください（識別済みのもののみ）"}
       </div>
       {_mlen === 0 ? (
-        <div style={{ color: "#666", fontSize: 13 }}>{isBlankStep ? "白紙の巻物も白紙の魔法書もない。" : !isSpellbookTypeStep && !isBlankStep ? "図鑑に巻物がまだ載っていない。巻物を使って先に図鑑に登録しよう。" : "選択肢がない。"}</div>
+        <div style={{ color: "#aaa", fontSize: 13 }}>{isBlankStep ? "白紙の巻物も白紙の魔法書もない。" : !isSpellbookTypeStep && !isBlankStep ? "書き込める巻物がまだない。" : "選択肢がない。"}</div>
       ) : (
         <div>
-          {listItems.map(({ it, i }, vi) => {
+          {_totalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 12 }}>
+              <span>←→でページ切替</span>
+              <span style={{ color: "#ccc" }}>{_safePage + 1}/{_totalPages}ページ</span>
+              <span>({_safePage * _ps + 1}〜{Math.min((_safePage + 1) * _ps, _mlen)}件)</span>
+            </div>
+          )}
+          {_pageItems.map(({ it, i }, vi) => {
             const isSel = vi === safeSel;
             return (
               <div key={isBlankStep ? i : (it.spell || it.effect || i)}
@@ -1699,6 +1711,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
                     const nextStep = kind === "spellbook" ? "select_spellbook_type" : "select_type";
                     setMode({ ...mode, step: nextStep, blankIdx: i, blankKind: kind });
                     setMenuSel(0);
+                    if (setPage) setPage(0);
                     setMsgs((prev) => [...prev.slice(-80), kind === "spellbook" ? "どの魔法書に変えますか...(インク5回消費)" : "どの魔法を書き込みますか..."]);
                   } else { doMarkerWrite(mode.blankIdx, it); }
                 }}
@@ -1718,7 +1731,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
           })}
         </div>
       )}
-      <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>↑↓:選択 Z:決定 X:閉じる</div>
+      <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>{_totalPages > 1 ? "↑↓:選択 ←→:ページ Z:決定 X:閉じる" : "↑↓:選択 Z:決定 X:閉じる"}</div>
       <button onClick={() => setMode(null)}
         style={{ marginTop: 8, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>やめる</button>
     </div>

@@ -54,7 +54,7 @@ const FLOOR_TITLES = {
   bossFloor:         "ボスフロアだ！強大な敵が待ち受けている！",
 };
 
-const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, spellMenuSel: 0, spellPage: 0, nicknameInput: '', data: null };
+const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, markerPage: 0, spellMenuSel: 0, spellPage: 0, nicknameInput: '', data: null };
 
 function modalReducer(state, action) {
   switch (action.type) {
@@ -191,6 +191,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const putPage       = modal.putPage;
   const markerMode    = modal.type === 'marker'       ? modal.data : null;
   const markerMenuSel = modal.markerMenuSel;
+  const markerPage    = modal.markerPage ?? 0;
   const spellListMode = modal.type === 'spellList'    ? modal.data : null;
   const spellMenuSel  = modal.spellMenuSel;
   const spellPage     = modal.spellPage;
@@ -218,6 +219,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const setPutPage       = (v) => dispatchModal({ type: 'UPDATE', payload: { putPage: typeof v === 'function' ? v(modal.putPage) : v } });
   const setMarkerMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'marker', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setMarkerMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { markerMenuSel: typeof v === 'function' ? v(modal.markerMenuSel) : v } });
+  const setMarkerPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { markerPage: typeof v === 'function' ? v(modal.markerPage ?? 0) : v } });
   const setSpellListMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spellList', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setSpellMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { spellMenuSel: typeof v === 'function' ? v(modal.spellMenuSel) : v } });
   const setSpellPage     = (v) => dispatchModal({ type: 'UPDATE', payload: { spellPage: typeof v === 'function' ? v(modal.spellPage) : v } });
@@ -3615,7 +3617,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     // state values
     gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
-    markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
+    markerMode, markerMenuSel, markerPage, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
     msgLogMode, msgLogScrollTop, msgsRef,
@@ -3624,7 +3626,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
     setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
     setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
-    setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
+    setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
     setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
     setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
     setMsgLogMode, setMsgLogScrollTop,
@@ -4084,19 +4086,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               /* === マーカーモード：上下で選択 === */
               if (markerMode) {
                 if (!sr.current) return;
+                const _mps = 10;
+                const inv5 = sr.current.player.inventory;
+                const _mIdent5 = sr.current.ident ?? new Set();
+                const _mCurDisc5 = getDiscoveries().items;
+                const _mInvEff5 = new Set(inv5.filter(it => it.type === "scroll" && it.effect !== "blank").map(it => it.effect));
+                let fullList = [];
+                if (markerMode.step === "select_blank") {
+                  fullList = inv5.filter(it => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell));
+                } else if (markerMode.step === "select_type") {
+                  fullList = ITEMS.filter(it => it.type === "scroll" && it.effect !== "blank" && (_mIdent5.has(`s:${it.effect}`) || _mCurDisc5[it.effect] || _mInvEff5.has(it.effect)));
+                } else if (markerMode.step === "select_spellbook_type") {
+                  fullList = SPELLBOOKS.filter(it => it.spell && _mIdent5.has(`b:${it.spell}`));
+                }
+                const _mTotalPages = Math.max(1, Math.ceil(fullList.length / _mps));
                 if (dy !== 0 && dx === 0) {
-                  const inv5 = sr.current.player.inventory;
-                  let listLen = 0;
-                  if (markerMode.step === "select_blank") {
-                    listLen = inv5.filter(it => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell)).length;
-                  } else if (markerMode.step === "select_type") {
-                    const _mIdent5 = sr.current.ident ?? new Set();
-                    listLen = ITEMS.filter(it => it.type === "scroll" && it.effect !== "blank" && _mIdent5.has(`s:${it.effect}`)).length;
-                  } else if (markerMode.step === "select_spellbook_type") {
-                    const _mIdent5 = sr.current.ident ?? new Set();
-                    listLen = SPELLBOOKS.filter(it => it.spell && _mIdent5.has(`b:${it.spell}`)).length;
-                  }
-                  if (listLen > 0) setMarkerMenuSel((s) => (s + dy + listLen) % listLen);
+                  const _pageLen = Math.min(_mps, fullList.length - markerPage * _mps);
+                  if (_pageLen > 0) setMarkerMenuSel((s) => (s + dy + _pageLen) % _pageLen);
+                } else if (dx !== 0 && dy === 0 && _mTotalPages > 1) {
+                  setMarkerPage((p) => (p + dx + _mTotalPages) % _mTotalPages);
+                  setMarkerMenuSel(0);
                 }
                 return;
               }
@@ -4346,7 +4355,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <TpSelectModal mode={tpSelectMode} setMode={setTpSelectMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} mobile={mobile} />{" "}
       <FloorSelectModal mode={floorSelectMode} setMode={setFloorSelectMode} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} genDungeon={genDungeon} refreshFOV={refreshFOV} rng={rng} />{" "}
       <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
-      <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} pastIdent={pastIdent} discoveredItems={discoveredItems} />{" "}
+      <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} page={markerPage} setPage={setMarkerPage} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} pastIdent={pastIdent} discoveredItems={discoveredItems} />{" "}
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />

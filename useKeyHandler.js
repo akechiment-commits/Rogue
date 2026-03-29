@@ -16,7 +16,7 @@ export function useKeyHandler({
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
-  markerMode, markerMenuSel, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
+  markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
@@ -25,7 +25,7 @@ export function useKeyHandler({
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
   setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
   setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
-  setMarkerMode, setMarkerMenuSel, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
+  setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
   setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
   setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
   setMsgLogMode, setMsgLogScrollTop,
@@ -663,52 +663,68 @@ export function useKeyHandler({
         }
         if (!sr.current) return;
         const inv5 = sr.current.player.inventory;
-        const isUp5   = k === "arrowup"   || e.code === "Numpad8";
-        const isDown5 = k === "arrowdown"  || e.code === "Numpad2";
+        const isUp5    = k === "arrowup"    || e.code === "Numpad8";
+        const isDown5  = k === "arrowdown"  || e.code === "Numpad2";
+        const isLeft5  = k === "arrowleft"  || e.code === "Numpad4";
+        const isRight5 = k === "arrowright" || e.code === "Numpad6";
+        const _mps = 10;
         if (markerMode.step === "select_blank") {
           const blanks5 = inv5
             .map((it, i) => ({ it, i }))
             .filter(({ it }) => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell));
           const _blen5 = blanks5.length;
+          const _bPages = Math.max(1, Math.ceil(_blen5 / _mps));
+          if ((isLeft5 || isRight5) && _bPages > 1) { setMarkerPage((p) => (p + (isRight5 ? 1 : -1) + _bPages) % _bPages); setMarkerMenuSel(0); return; }
           if ((isUp5 || isDown5) && _blen5 > 0) {
-            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _blen5) % _blen5);
+            const _bPageLen = Math.min(_mps, _blen5 - markerPage * _mps);
+            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _bPageLen) % _bPageLen);
             return;
           }
           if ((k === "enter" || k === "z") && _blen5 > 0) {
-            const sel5 = blanks5[Math.min(markerMenuSel, _blen5 - 1)];
+            const _bActualIdx = markerPage * _mps + Math.min(markerMenuSel, Math.min(_mps, _blen5 - markerPage * _mps) - 1);
+            const sel5 = blanks5[_bActualIdx];
+            if (!sel5) return;
             const kind5 = sel5.it.type === "spellbook" ? "spellbook" : "scroll";
             const nextStep5 = kind5 === "spellbook" ? "select_spellbook_type" : "select_type";
             setMarkerMode({ ...markerMode, step: nextStep5, blankIdx: sel5.i, blankKind: kind5 });
             setMarkerMenuSel(0);
+            setMarkerPage(0);
             const msg5 = kind5 === "spellbook" ? "どの魔法書に変えますか...(インク5回消費)" : "どの魔法を書き込みますか...";
             setMsgs((prev) => [...prev.slice(-80), msg5]);
           }
         } else if (markerMode.step === "select_type") {
           const _kIdent5 = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
           const _curDisc5 = getDiscoveries().items;
-          const _inv5 = sr.current?.player?.inventory || [];
-          const _invEff5 = new Set(_inv5.filter(it => it.type === "scroll" && it.effect !== "blank").map(it => it.effect));
+          const _invEff5 = new Set(inv5.filter(it => it.type === "scroll" && it.effect !== "blank").map(it => it.effect));
           const types5 = ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_kIdent5.has(`s:${it.effect}`) || discoveredItems[it.effect] || _curDisc5[it.effect] || _invEff5.has(it.effect)));
           const _tlen5 = types5.length;
+          const _tPages = Math.max(1, Math.ceil(_tlen5 / _mps));
+          if ((isLeft5 || isRight5) && _tPages > 1) { setMarkerPage((p) => (p + (isRight5 ? 1 : -1) + _tPages) % _tPages); setMarkerMenuSel(0); return; }
           if ((isUp5 || isDown5) && _tlen5 > 0) {
-            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _tlen5) % _tlen5);
+            const _tPageLen = Math.min(_mps, _tlen5 - markerPage * _mps);
+            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _tPageLen) % _tPageLen);
             return;
           }
           if ((k === "enter" || k === "z") && _tlen5 > 0) {
-            const tmpl5 = types5[Math.min(markerMenuSel, _tlen5 - 1)];
-            doMarkerWriteRef.current?.(markerMode.blankIdx, tmpl5);
+            const _tActualIdx = markerPage * _mps + Math.min(markerMenuSel, Math.min(_mps, _tlen5 - markerPage * _mps) - 1);
+            const tmpl5 = types5[_tActualIdx];
+            if (tmpl5) doMarkerWriteRef.current?.(markerMode.blankIdx, tmpl5);
           }
         } else if (markerMode.step === "select_spellbook_type") {
           const _kIdent5sb = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
           const sbTypes5 = SPELLBOOKS.filter((it) => it.spell && _kIdent5sb.has(`b:${it.spell}`));
           const _sbLen5 = sbTypes5.length;
+          const _sbPages = Math.max(1, Math.ceil(_sbLen5 / _mps));
+          if ((isLeft5 || isRight5) && _sbPages > 1) { setMarkerPage((p) => (p + (isRight5 ? 1 : -1) + _sbPages) % _sbPages); setMarkerMenuSel(0); return; }
           if ((isUp5 || isDown5) && _sbLen5 > 0) {
-            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _sbLen5) % _sbLen5);
+            const _sbPageLen = Math.min(_mps, _sbLen5 - markerPage * _mps);
+            setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _sbPageLen) % _sbPageLen);
             return;
           }
           if ((k === "enter" || k === "z") && _sbLen5 > 0) {
-            const tmpl5 = sbTypes5[Math.min(markerMenuSel, _sbLen5 - 1)];
-            doMarkerWriteRef.current?.(markerMode.blankIdx, tmpl5);
+            const _sbActualIdx = markerPage * _mps + Math.min(markerMenuSel, Math.min(_mps, _sbLen5 - markerPage * _mps) - 1);
+            const tmpl5 = sbTypes5[_sbActualIdx];
+            if (tmpl5) doMarkerWriteRef.current?.(markerMode.blankIdx, tmpl5);
           }
         }
         return;
