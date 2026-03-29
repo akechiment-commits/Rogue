@@ -20,10 +20,11 @@ function makeRing() {
   return ring;
 }
 
-function pickBB() {
+function pickBB(exclude = []) {
   /* レア大箱は20%の確率でのみ候補に含まれる */
-  const pool = Math.random() < 0.20 ? BB_TYPES : BB_TYPES.filter(b => !b.rare);
-  return pick(pool);
+  const base = Math.random() < 0.20 ? BB_TYPES : BB_TYPES.filter(b => !b.rare);
+  const pool = exclude.length ? base.filter(b => !exclude.includes(b.kind)) : base;
+  return pick(pool.length > 0 ? pool : base);
 }
 
 /* ===== BIG ROOM DUNGEON GENERATOR ===== */
@@ -1414,13 +1415,21 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const traps = [];
   const occ = (x, y) =>
     inShop(x, y) || items.some((i) => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y);
+  /* 初心者ダンジョンでは識別系アイテムを除外 */
+  const _ITEMS_POOL = dungeonType === "beginner"
+    ? ITEMS.filter(it => !(it.type === "scroll" && it.effect === "identify"))
+    : ITEMS;
+  const _SB_POOL = dungeonType === "beginner"
+    ? SPELLBOOKS.filter(sb => sb.spell !== "identify_magic")
+    : SPELLBOOKS;
+  const _BB_EXCLUDE = dungeonType === "beginner" ? ["identify"] : [];
   const _itemCount = dungeonType === "advanced" || dungeonType === "legend" ? rng(1, 3) : dungeonType === "intermediate" ? rng(2, 4) : rng(4, 6);
   for (let i = 0; i < _itemCount; i++) {
     const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
       iy = rng(rm.y, rm.y + rm.h - 1);
     if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const t = pickWeighted(ITEMS);
+      const t = pickWeighted(_ITEMS_POOL);
       const it = { ...t, id: uid(), x: ix, y: iy };
       if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
       if (it.type !== "gold" && it.type !== "arrow") {
@@ -1447,7 +1456,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const _subGens = [
     /* 矢 */       () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
     /* 杖 */       () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
-    /* 魔法書 */   () => { const sb = pickWeighted(SPELLBOOKS); return { ...sb, id: uid() }; },
+    /* 魔法書 */   () => { const sb = pickWeighted(_SB_POOL); return { ...sb, id: uid() }; },
     /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
     /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
     /* 壺 */       () => makePot(),
@@ -1478,8 +1487,10 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       }
     }
   }
-  const _trapsPerRoom = dungeonType === "advanced" || dungeonType === "legend" ? 3 : dungeonType === "intermediate" ? 2 : 1;
-  const tc = rooms.length * _trapsPerRoom;
+  /* 罠数：深さに比例して増加。浅い階は少なめ */
+  const _trapBase = dungeonType === "advanced" || dungeonType === "legend" ? 0.5 : dungeonType === "intermediate" ? 0.3 : 0.2;
+  const _trapGrowth = dungeonType === "advanced" || dungeonType === "legend" ? 1.0 : dungeonType === "intermediate" ? 0.7 : 0.4;
+  const tc = Math.max(0, Math.round(rooms.length * _trapBase + depth * _trapGrowth));
   for (let i = 0; i < tc; i++) {
     const rm = pick(rooms);
     const tx = rng(rm.x + 1, rm.x + rm.w - 2),
@@ -1532,7 +1543,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         if (items.some((i) => i.x === bx && i.y === by)) continue;
         if (bigboxes.some((b) => b.x === bx && b.y === by)) continue;
         if (occ(bx, by)) continue;
-        const bbt = pickBB();
+        const bbt = pickBB(_BB_EXCLUDE);
         bigboxes.push({
           id: uid(),
           x: bx,
