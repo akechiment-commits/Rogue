@@ -8,6 +8,7 @@ import {
 } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { genDungeon, prepareLastFloor } from "./dungeon.js";
+import { getDiscoveries } from "./DiscoveryTracker.js";
 
 export function useKeyHandler({
   // refs
@@ -684,7 +685,8 @@ export function useKeyHandler({
           }
         } else if (markerMode.step === "select_type") {
           const _kIdent5 = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
-          const types5 = ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_kIdent5.has(`s:${it.effect}`) || discoveredItems[it.effect]));
+          const _curDisc5 = getDiscoveries().items;
+          const types5 = ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_kIdent5.has(`s:${it.effect}`) || discoveredItems[it.effect] || _curDisc5[it.effect]));
           const _tlen5 = types5.length;
           if ((isUp5 || isDown5) && _tlen5 > 0) {
             setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _tlen5) % _tlen5);
