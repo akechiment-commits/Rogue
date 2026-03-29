@@ -686,7 +686,9 @@ export function useKeyHandler({
         } else if (markerMode.step === "select_type") {
           const _kIdent5 = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
           const _curDisc5 = getDiscoveries().items;
-          const types5 = ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_kIdent5.has(`s:${it.effect}`) || discoveredItems[it.effect] || _curDisc5[it.effect]));
+          const _inv5 = sr.current?.player?.inventory || [];
+          const _invEff5 = new Set(_inv5.filter(it => it.type === "scroll" && it.effect !== "blank").map(it => it.effect));
+          const types5 = ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_kIdent5.has(`s:${it.effect}`) || discoveredItems[it.effect] || _curDisc5[it.effect] || _invEff5.has(it.effect)));
           const _tlen5 = types5.length;
           if ((isUp5 || isDown5) && _tlen5 > 0) {
             setMarkerMenuSel((s) => (s + (isDown5 ? 1 : -1) + _tlen5) % _tlen5);

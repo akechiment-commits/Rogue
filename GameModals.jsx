@@ -1661,11 +1661,13 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
   const _knownIdent = new Set([...(sr.current?.ident ?? []), ...pastIdent]);
   /* 今のランで拾ったアイテム（DiscoveryTracker） */
   const _curDisc = getDiscoveries().items;
+  /* 今持ってる巻物のeffectセット（初期装備・デバッグアイテム等も含む） */
+  const _invScrollEffects = new Set(inv.filter(it => it.type === "scroll" && it.effect !== "blank").map(it => it.effect));
   const listItems = isBlankStep
     ? inv.map((it, i) => ({ it, i })).filter(({ it }) => (it.type === "scroll" && it.effect === "blank") || (it.type === "spellbook" && !it.spell))
     : isSpellbookTypeStep
       ? SPELLBOOKS.filter((it) => it.spell && _knownIdent.has(`b:${it.spell}`)).map((it, i) => ({ it, i }))
-      : ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_knownIdent.has(`s:${it.effect}`) || discoveredItems[it.effect] || _curDisc[it.effect])).map((it, i) => ({ it, i }));
+      : ITEMS.filter((it) => it.type === "scroll" && it.effect !== "blank" && (_knownIdent.has(`s:${it.effect}`) || discoveredItems[it.effect] || _curDisc[it.effect] || _invScrollEffects.has(it.effect))).map((it, i) => ({ it, i }));
   const _mlen = listItems.length;
   const safeSel = Math.min(menuSel, Math.max(0, _mlen - 1));
   return (
