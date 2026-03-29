@@ -678,7 +678,7 @@ export function useKeyHandler({
             const sel5 = blanks5[Math.min(markerMenuSel, _blen5 - 1)];
             const kind5 = sel5.it.type === "spellbook" ? "spellbook" : "scroll";
             const nextStep5 = kind5 === "spellbook" ? "select_spellbook_type" : "select_type";
-            setMarkerMode((prev) => ({ ...prev, step: nextStep5, blankIdx: sel5.i, blankKind: kind5 }));
+            setMarkerMode({ ...markerMode, step: nextStep5, blankIdx: sel5.i, blankKind: kind5 });
             setMarkerMenuSel(0);
             const msg5 = kind5 === "spellbook" ? "どの魔法書に変えますか...(インク5回消費)" : "どの魔法を書き込みますか...";
             setMsgs((prev) => [...prev.slice(-80), msg5]);

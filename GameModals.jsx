@@ -1697,7 +1697,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, doMarkerWr
                   if (isBlankStep) {
                     const kind = it.type === "spellbook" ? "spellbook" : "scroll";
                     const nextStep = kind === "spellbook" ? "select_spellbook_type" : "select_type";
-                    setMode((prev) => ({ ...prev, step: nextStep, blankIdx: i, blankKind: kind }));
+                    setMode({ ...mode, step: nextStep, blankIdx: i, blankKind: kind });
                     setMenuSel(0);
                     setMsgs((prev) => [...prev.slice(-80), kind === "spellbook" ? "どの魔法書に変えますか...(インク5回消費)" : "どの魔法を書き込みますか..."]);
                   } else { doMarkerWrite(mode.blankIdx, it); }
