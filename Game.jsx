@@ -3437,14 +3437,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       placeItemAt(dg, p.x, p.y, _gc, ml, _ft2);
       ml.push(`泉の底から金貨が${_gv}枚流れ出てきた！`);
     } else if (r < 0.63) {
-      // 所持品がランダムで祝福される
-      const _blessable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && !i.blessed);
+      // 所持品がランダムで祝福される（壺は容量+1）
+      const _blessable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && (i.type === "pot" || !i.blessed));
       if (_blessable.length > 0) {
         const _bi = _blessable[Math.floor(Math.random() * _blessable.length)];
-        _bi.blessed = true;
-        _bi.cursed = false;
-        _bi.bcKnown = true;
-        ml.push(`${dnameRef(_bi)}が光り輝いた！祝福された！`);
+        if (_bi.type === "pot") {
+          _bi.capacity += 1;
+          ml.push(`${dnameRef(_bi)}が光り輝いた！容量が1増えた！(${_bi.capacity})`);
+        } else {
+          _bi.blessed = true;
+          _bi.cursed = false;
+          _bi.bcKnown = true;
+          ml.push(`${dnameRef(_bi)}が光り輝いた！祝福された！`);
+        }
       } else {
         ml.push("清らかな水だった。");
       }
@@ -3479,14 +3484,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       p.poisoned = true;
       ml.push("なんか変な味がした...毒だ！");
     } else if (r < 0.95) {
-      // 所持品がランダムで呪われる
-      const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && !i.cursed);
+      // 所持品がランダムで呪われる（壺は容量-1）
+      const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && (i.type === "pot" || !i.cursed));
       if (_cursable.length > 0) {
         const _ci = _cursable[Math.floor(Math.random() * _cursable.length)];
-        _ci.cursed = true;
-        _ci.blessed = false;
-        _ci.bcKnown = true;
-        ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
+        if (_ci.type === "pot") {
+          _ci.capacity = Math.max(0, _ci.capacity - 1);
+          ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})`);
+        } else {
+          _ci.cursed = true;
+          _ci.blessed = false;
+          _ci.bcKnown = true;
+          ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
+        }
       } else {
         ml.push("ひどい味だった。");
       }
