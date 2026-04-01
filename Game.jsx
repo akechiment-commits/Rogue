@@ -3390,29 +3390,92 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const { player: p, dungeon: dg } = sr.current;
     const ml = ["泉の水を飲んだ。"];
     const r = Math.random();
-    if (r < 0.3) {
+    if (r < 0.18) {
+      // HP回復
       const h = rng(5, 15);
       const ah = Math.min(h, p.maxHp - p.hp);
       p.hp += ah;
       ml.push(`体に活力が戻った。HP+${ah}`);
-    } else if (r < 0.5) {
+    } else if (r < 0.26) {
+      // 攻撃力+1
       p.atk += 1;
       ml.push("力が湧いてきた！攻撃力+1");
-    } else if (r < 0.65) {
+    } else if (r < 0.33) {
+      // 防御力+1
       p.def += 1;
       ml.push("体が強くなった気がする。防御力+1");
-    } else if (r < 0.8) {
+    } else if (r < 0.40) {
+      // 最大HP+3
       p.maxHp += 3;
       p.hp += 3;
       ml.push("生命力が満ちてきた。最大HP+3");
-    } else if (r < 0.9) {
+    } else if (r < 0.45) {
+      // 満腹度回復
       p.hunger = Math.min(p.maxHunger, p.hunger + 20);
       ml.push("喉が潤った。");
-    } else {
+    } else if (r < 0.51) {
+      // 状態異常が全て治る
+      p.poisoned = false;
+      p.slowTurns = 0;
+      p.confusedTurns = 0;
+      p.sleepTurns = 0;
+      p.darknessTurns = 0;
+      p.bewitchedTurns = 0;
+      p.paralyzed = false;
+      p.mpCooldownTurns = 0;
+      ml.push("体の中が浄化された！状態異常が全て治った！");
+    } else if (r < 0.59) {
+      // 水が隣のマスに飛び出す
+      const _wb = { ...WATER_BOTTLE, id: uid() };
+      const _ft = new Set();
+      placeItemAt(dg, p.x, p.y, _wb, ml, _ft);
+      ml.push("泉の水が勢いよく飛び出した！水の瓶が転がっている。");
+    } else if (r < 0.66) {
+      // 金貨が飛び出す
+      const _gv = rng(15, 60);
+      const _gc = { name: `${_gv}枚の金貨`, type: "gold", value: _gv, tile: 22, id: uid() };
+      const _ft2 = new Set();
+      placeItemAt(dg, p.x, p.y, _gc, ml, _ft2);
+      ml.push(`泉の底から金貨が${_gv}枚流れ出てきた！`);
+    } else if (r < 0.72) {
+      // 所持品がランダムで祝福される
+      const _blessable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && !i.blessed);
+      if (_blessable.length > 0) {
+        const _bi = _blessable[Math.floor(Math.random() * _blessable.length)];
+        _bi.blessed = true;
+        _bi.cursed = false;
+        _bi.bcKnown = true;
+        ml.push(`${dnameRef(_bi)}が光り輝いた！祝福された！`);
+      } else {
+        ml.push("清らかな水だった。（何も起こらなかった）");
+      }
+    } else if (r < 0.80) {
+      // ダメージ
       const d = rng(3, 8);
       p.deathCause = "苦い泉水により";
       p.hp -= d;
       ml.push(`苦い...！${d}ダメージ！`);
+    } else if (r < 0.86) {
+      // 毒状態になる
+      p.poisoned = true;
+      ml.push("なんか変な味がした...毒だ！");
+    } else if (r < 0.91) {
+      // 所持品がランダムで呪われる
+      const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && !i.cursed);
+      if (_cursable.length > 0) {
+        const _ci = _cursable[Math.floor(Math.random() * _cursable.length)];
+        _ci.cursed = true;
+        _ci.blessed = false;
+        _ci.bcKnown = true;
+        ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
+      } else {
+        ml.push("ひどい味だった。（何も起こらなかった）");
+      }
+    } else {
+      // 空腹になる
+      const _loss = rng(20, 40);
+      p.hunger = Math.max(0, p.hunger - _loss);
+      ml.push("腹の中が空っぽになった気がする...お腹が空いてきた！");
     }
     springTryDry(dg, p, ml);
     endTurn(sr.current, p, ml);
