@@ -544,19 +544,22 @@ export function gemSellPrice(gem, currentDepth) {
 }
 
 export function itemPrice(it) {
+  const _bcMult = it.type === "gem"
+    ? (it.blessed ? 1.5 : it.cursed ? 0.5 : 1)
+    : (it.blessed ? 1.1 : it.cursed ? 0.9 : 1);
   // sellPrice が設定されている場合はそれを基準にする
   if (it.sellPrice != null) {
     const base = it.sellPrice;
     // 武器・防具は強化値に応じて加算
     if (it.type === "weapon" || it.type === "armor") {
       const plus = it.plus || 0;
-      return base + plus * 100;
+      return Math.round((base + plus * 100) * _bcMult);
     }
     // 杖・ペン・マーカーはチャージ数に応じて加算（1チャージあたりbase×10%、最低100G）
     if (it.type === "wand" || it.type === "pen" || it.type === "marker") {
       const charges = it.charges || 0;
       const perCharge = Math.max(100, Math.floor(base * 0.1));
-      return base + charges * perCharge;
+      return Math.round((base + charges * perCharge) * _bcMult);
     }
     // 矢は個数に応じて加算（sellPriceは1個あたりの価値）
     if (it.type === "arrow") {
@@ -566,43 +569,43 @@ export function itemPrice(it) {
     if (it.type === "pot") {
       const contentsValue = (it.contents || []).reduce((s, c) => s + itemPrice(c), 0);
       const capBonus = (it.capacity || 0) * Math.floor(base * 0.1);
-      return base + contentsValue + capBonus;
+      return Math.round((base + contentsValue + capBonus) * _bcMult);
     }
-    return base;
+    return Math.round(base * _bcMult);
   }
   // sellPrice未設定のアイテム用フォールバック
   if (it.type === "potion") {
-    if (it.effect === "superheal") return 400;
-    if (it.effect === "heal") return it.value >= 60 ? 200 : 100;
-    if (it.effect === "power") return 120;
-    return 40;
+    if (it.effect === "superheal") return Math.round(400 * _bcMult);
+    if (it.effect === "heal") return Math.round((it.value >= 60 ? 200 : 100) * _bcMult);
+    if (it.effect === "power") return Math.round(120 * _bcMult);
+    return Math.round(40 * _bcMult);
   }
-  if (it.type === "scroll")   return it.effect === "blank" ? 5 : it.effect === "reveal" ? 60 : 80;
-  if (it.type === "weapon")   return 50 + (it.atk || 0) * 20 + (it.ability ? 150 : 0);
-  if (it.type === "armor")    return 60 + (it.def || 0) * 25 + (it.ability ? 150 : 0);
+  if (it.type === "scroll")   return Math.round((it.effect === "blank" ? 5 : it.effect === "reveal" ? 60 : 80) * _bcMult);
+  if (it.type === "weapon")   return Math.round((50 + (it.atk || 0) * 20 + (it.ability ? 150 : 0)) * _bcMult);
+  if (it.type === "armor")    return Math.round((60 + (it.def || 0) * 25 + (it.ability ? 150 : 0)) * _bcMult);
   if (it.type === "food") {
     const satietyBase = Math.floor((it.value || 20) * 2.5);
     const effectEntry = it.effect ? FOOD_EFFECTS.find(f => f.e === it.effect) : null;
     const effectBonus = effectEntry ? effectEntry.bonus : 0;
-    return Math.max(10, satietyBase + effectBonus);
+    return Math.round(Math.max(10, satietyBase + effectBonus) * _bcMult);
   }
   if (it.type === "arrow")    return Math.max(10, (it.count || 1) * 5);
-  if (it.type === "wand")     return 150 + (it.charges || 0) * 30;
-  if (it.type === "marker")   return 100 + (it.charges || 0) * 40;
-  if (it.type === "pen")      return 150 + (it.charges || 0) * 50;
+  if (it.type === "wand")     return Math.round((150 + (it.charges || 0) * 30) * _bcMult);
+  if (it.type === "marker")   return Math.round((100 + (it.charges || 0) * 40) * _bcMult);
+  if (it.type === "pen")      return Math.round((150 + (it.charges || 0) * 50) * _bcMult);
   if (it.type === "pot") {
     const contentsValue = (it.contents || []).reduce((s, c) => s + itemPrice(c), 0);
-    return 120 + contentsValue;
+    return Math.round((120 + contentsValue) * _bcMult);
   }
-  if (it.type === "gem")      return it.basePrice || 100;
+  if (it.type === "gem")      return Math.round((it.basePrice || 100) * _bcMult);
   if (it.type === "bottle")   return 5;
-  if (it.type === "spellbook") return 200;
+  if (it.type === "spellbook") return Math.round(200 * _bcMult);
   if (it.type === "ring") {
     const ringBase = it.sellPrice ?? 100;
-    if (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring") return ringBase + (it.plus || 0) * 100;
-    return ringBase;
+    if (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring") return Math.round((ringBase + (it.plus || 0) * 100) * _bcMult);
+    return Math.round(ringBase * _bcMult);
   }
-  return 30;
+  return Math.round(30 * _bcMult);
 }
 
 /* weight フィールドを使った重み付き抽選 */
