@@ -187,46 +187,28 @@ const scrollData = [
 addSheet('03_巻物', scrollData);
 
 // ===== 武器・防具 =====
-const weaponArmorData = [
-  ['種類', 'ATK/DEF', 'ability', '説明・効果', 'items.js行'],
+const _weapons = ITEMS.filter(i => i.type === 'weapon');
+const _armors  = ITEMS.filter(i => i.type === 'armor');
+const _specialWeapons = [CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, ALLBANE_SWORD_T];
+const _specialArmors  = [TRIELEM_ARMOR_T, DIVINE_SHIELD_T];
 
-  // ── 武器一覧 ──
-  ['【武器】', '', '', '装備時に呪いあり→外せない。+値で攻撃力上昇', ''],
-  ['短剣', '3', '-', '通常武器', '152'],
-  ['ロングソード', '6', '-', '通常武器', '153'],
-  ['バトルアクス', '10', '-', '通常武器', '154'],
-  ['ドラゴンキラー', '8', 'bane_dragon', 'ドラゴン系に2倍ダメージ', '155'],
-  ['ゾンビキラー', '6', 'bane_undead', 'アンデッド系に2倍ダメージ（聖剣）', '156'],
-  ['バードキラー', '5', 'bane_float', '浮遊敵に2倍ダメージ', '157'],
-  ['金の斧', '9', 'no_degrade', '錆びず+値が下がらない', '158'],
-  ['戦神の斧', '8', 'critical', '25%の確率で会心の一撃（2倍ダメージ）', '159'],
-  ['つるはし', '4', 'pickaxe', '壁を掘れる（耐久度あり）', '160'],
-  ['影縫いの刃', '6', 'inflict_immobile', '攻撃時25%で敵の移動を2〜3ターン封じる', '161'],
-  ['炎の剣', '7', 'fire_elem', '油まみれ・炎弱点の敵に2倍。火ダルマに0.5倍', '162'],
-  ['氷の剣', '7', 'ice_elem', '炎系の敵（火ダルマ・炎弱点）に2倍', '163'],
-  ['雷の剣', '7', 'thunder_elem', '氷・水系の敵（氷竜・わてり等）に2倍', '164'],
-  ['猫の爪', '13', 'critical', '短剣3合成で生成。25%会心', '特殊'],
-  ['エクスカリバー', '15', 'bane_undead', 'アンデッド2倍。合成で生成', '特殊'],
-  ['三元の刃', '12', 'fire/ice/thunder_elem', '全属性弱点に2倍。火ダルマに0.5倍', '特殊'],
-  ['全能キラー', '11', 'bane_dragon/undead/float', '竜・不死・浮遊の全種族に2倍', '特殊'],
-
-  // ── 防具一覧 ──
-  ['【防具】', '', '', '装備時に呪いあり→外せない。+値で防御力上昇', ''],
-  ['革の鎧', 'DEF:2', '-', '通常防具', '165'],
-  ['鎖帷子', 'DEF:5', '-', '通常防具', '166'],
-  ['プレートメイル', 'DEF:8', '-', '通常防具', '167'],
-  ['腹持ちの胴', 'DEF:3', 'slow_hunger', '空腹の進行が半分になる', '168'],
-  ['ゴムゴムの胴', 'DEF:4', 'lightning_resist', '雷ダメージ半減・アイテム破壊防止', '169'],
-  ['ドラゴンメイル', 'DEF:8', 'fire_resist', '炎ダメージ半減・アイテムを炎から守る', '170'],
-  ['刃の鎧', 'DEF:4', 'thorn', '被近接ダメージの1/3を反射', '171'],
-  ['みかわしの服', 'DEF:2', 'dodge', '25%の確率で攻撃を回避', '172'],
-  ['反射の鎧', 'DEF:5', 'wand_reflect', 'モンスターの杖魔法を反射', '173'],
-  ['護盗の鎧', 'DEF:3', 'anti_steal', 'コソドロに盗まれなくなる', '174'],
-  ['ゴールドメイル', 'DEF:6', 'no_degrade', '錆びず+値が下がらない', '175'],
-  ['氷竜のウロコ', 'DEF:5', 'ice_resist', '氷ダメージ半減・移動封じ/鈍足を防ぐ', '176'],
-  ['元素王の鎧', 'DEF:10', 'fire/ice/lightning_resist', '全属性ダメージ半減。合成で生成', '特殊'],
-  ['神盾の鎧', 'DEF:8', 'thorn/dodge/wand_reflect', '刃反射・みかわし・杖反射の三重防御。合成で生成', '特殊'],
-];
+const weaponArmorData = [['種類', 'ATK/DEF', 'ability', 'rarity', 'sellPrice', '説明']];
+weaponArmorData.push(['【武器】装備時に呪いあり→外せない。+値で攻撃力上昇', '', '', '', '', '']);
+for (const w of _weapons) {
+  weaponArmorData.push([w.name, w.atk, w.ability ?? '-', w.rarity, w.sellPrice, w.desc]);
+}
+weaponArmorData.push(['【武器・合成限定】', '', '', '', '', '']);
+for (const w of _specialWeapons) {
+  weaponArmorData.push([w.name, w.atk, (w.abilities ?? [w.ability]).join('/'), '合成', '-', w.desc]);
+}
+weaponArmorData.push(['【防具】装備時に呪いあり→外せない。+値で防御力上昇', '', '', '', '', '']);
+for (const a of _armors) {
+  weaponArmorData.push([a.name, a.def, a.ability ?? '-', a.rarity, a.sellPrice, a.desc]);
+}
+weaponArmorData.push(['【防具・合成限定】', '', '', '', '', '']);
+for (const a of _specialArmors) {
+  weaponArmorData.push([a.name, a.def, (a.abilities ?? [a.ability]).join('/'), '合成', '-', a.desc]);
+}
 
 addSheet('04_武器防具', weaponArmorData);
 
