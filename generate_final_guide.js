@@ -231,22 +231,10 @@ const weaponArmorData = [
 addSheet('04_武器防具', weaponArmorData);
 
 // ===== 指輪（Ring）=====
-const ringData = [
-  ['指輪名', 'effect', '効果', 'items.js行'],
-
-  ['力の指輪', 'power_ring', '+値の分だけ攻撃力が増える', '3421'],
-  ['守りの指輪', 'defense_ring', '+値の分だけ防御力が増える', '3422'],
-  ['命の指輪', 'life_ring', '+値×5だけ最大HPが増える（装備時+、解除時-）', '3423'],
-  ['遠投の指輪', 'farcast_ring', '常に遠投状態で物を投げられる', '3424'],
-  ['浮遊の指輪', 'float_ring', '罠にかからない（階段が降りられない）', '3425'],
-  ['毒消しの指輪', 'antidote_ring', '毒が無効。装備時に毒解除+攻撃力回復', '3426'],
-  ['値切りの指輪', 'bargain_ring', '店のアイテムが3割引で買える', '3427'],
-  ['魔物呼びの指輪', 'spawn_ring', '敵が現れやすくなる', '3428'],
-  ['下手投げの指輪', 'miss_throw_ring', '投げたものが必ず外れる', '3429'],
-  ['回復の指輪', 'regen_ring', 'お腹の減り方と自然回復の量が倍になる', '3430'],
-  ['爆発の指輪', 'explode_ring', '装備時に自分が爆発。装備中もたまに爆発', '3431'],
-  ['松明の指輪', 'torch_ring', '視界範囲が1マス広がる（2つで2マス）', '3432'],
-];
+const ringData = [['指輪名', 'effect', 'rarity', 'sellPrice', '説明']];
+for (const r of RINGS) {
+  ringData.push([r.name, r.effect, r.rarity, r.sellPrice, r.desc]);
+}
 
 addSheet('05_指輪', ringData);
 
