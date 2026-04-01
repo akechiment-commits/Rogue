@@ -140,22 +140,17 @@ const potionData = [
 addSheet('01_薬', potionData);
 
 // ===== 食べ物への薬効果 =====
-const foodData = [
-  ['薬の種類', '通常・祝福', '呪い', '備考'],
-  ['回復薬/超回復薬', '回復の', '猛毒の', 'value × 0.8に減少'],
-  ['毒薬', '猛毒の', '解毒の', 'value × 0.8に減少'],
-  ['炎の薬', '焼いた（調理）', '焼いた（調理）', 'value × 2倍。既に調理済みは焦げた状態'],
-  ['睡眠薬', '睡眠の', '覚醒の', 'value × 0.8に減少'],
-  ['鈍足の薬', '鈍足の', '加速の', 'value × 0.8に減少'],
-  ['金縛りの薬', '金縛りの', '予防の', 'value × 0.8に減少'],
-  ['力の薬', '強化の', '弱化の', 'value × 0.8に減少'],
-  ['混乱の薬', '混乱の', '必中の', 'value × 0.8に減少'],
-  ['マナ回復薬', '魔力の', '封印の', 'value × 0.8に減少'],
-  ['暗闇の薬', '暗闇の', '感知の', 'value × 0.8に減少'],
-  ['惑わしの薬', '幻惑の', '看破の', 'value × 0.8に減少'],
-  ['レベルアップの薬', '経験の', '退化の', 'value × 0.8に減少'],
-  ['封印の薬', '封魔の', '解封の', 'value × 0.8に減少'],
-];
+const foodData = [['薬の種類', '通常・祝福', '呪い', '備考']];
+const _seen = new Set();
+for (const it of ITEMS.filter(i => i.type === 'potion')) {
+  const eff = it.effect;
+  if (_seen.has(eff)) continue;
+  _seen.add(eff);
+  const normal = POTION_FOOD_PREFIX[eff] ?? '-';
+  const curse  = POTION_FOOD_PREFIX['c_' + eff] ?? normal;
+  const note   = eff === 'fire' ? 'value × 2倍。既に調理済みは焦げた状態' : 'value × 0.8に減少';
+  foodData.push([it.name, normal, curse, note]);
+}
 
 addSheet('02_食べ物への薬', foodData);
 
