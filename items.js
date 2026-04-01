@@ -119,6 +119,8 @@ export const ITEMS = [
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"C", weight:8,  sellPrice:150,  desc:"毒の薬。投げると毒液が飛散する。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"C", weight:8,  sellPrice:180,  desc:"揮発性の液体。投げると炎上する。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"C", weight:8,  sellPrice:150,  desc:"眠りのガスが入った瓶。",           tile:16 },
+  { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。祝福：20ターン鈍足（速度×0.25）。呪い：反転して10ターン加速（2倍速）。投げると命中した敵を鈍足にする。", tile:16 },
+  { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。祝福：20ターン金縛り＋2回アクション必要。呪い：反転して200ターン状態異常防止。投げると命中した敵を金縛りにする。", tile:16 },
   { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"A", weight:2,  sellPrice:1500, desc:"飲むと力が湧いてくる。",           tile:17 },
   { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"C", weight:8,  sellPrice:150,  desc:"ランダムな場所に飛ぶ。",                         tile:18 },
   { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"B", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。",                 tile:18 },
