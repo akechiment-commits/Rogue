@@ -6,6 +6,7 @@ import {
   makeMonster,
   makeGuard,
   wakeIfDormant,
+  MONS,
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, TRAPS,
@@ -3390,54 +3391,52 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const { player: p, dungeon: dg } = sr.current;
     const ml = ["泉の水を飲んだ。"];
     const r = Math.random();
-    if (r < 0.18) {
+    if (r < 0.15) {
       // HP回復
       const h = rng(5, 15);
       const ah = Math.min(h, p.maxHp - p.hp);
       p.hp += ah;
       ml.push(`体に活力が戻った。HP+${ah}`);
-    } else if (r < 0.26) {
+    } else if (r < 0.22) {
       // 攻撃力+1
       p.atk += 1;
       ml.push("力が湧いてきた！攻撃力+1");
-    } else if (r < 0.33) {
+    } else if (r < 0.28) {
       // 防御力+1
       p.def += 1;
       ml.push("体が強くなった気がする。防御力+1");
-    } else if (r < 0.40) {
+    } else if (r < 0.34) {
       // 最大HP+3
       p.maxHp += 3;
       p.hp += 3;
       ml.push("生命力が満ちてきた。最大HP+3");
-    } else if (r < 0.45) {
+    } else if (r < 0.39) {
       // 満腹度回復
       p.hunger = Math.min(p.maxHunger, p.hunger + 20);
       ml.push("喉が潤った。");
-    } else if (r < 0.51) {
-      // 状態異常が全て治る
-      p.poisoned = false;
-      p.slowTurns = 0;
-      p.confusedTurns = 0;
-      p.sleepTurns = 0;
-      p.darknessTurns = 0;
-      p.bewitchedTurns = 0;
-      p.paralyzed = false;
-      p.mpCooldownTurns = 0;
-      ml.push("体の中が浄化された！状態異常が全て治った！");
-    } else if (r < 0.59) {
-      // 水が隣のマスに飛び出す
+    } else if (r < 0.45) {
+      // MP回復
+      if ((p.maxMp || 0) > 0) {
+        const _mr = Math.min(10, (p.maxMp || 0) - (p.mp || 0));
+        p.mp = (p.mp || 0) + _mr;
+        ml.push(`魔力が戻ってきた！MP+${_mr}`);
+      } else {
+        ml.push("清らかな水を飲んだ。");
+      }
+    } else if (r < 0.52) {
+      // 水の瓶が飛び出す
       const _wb = { ...WATER_BOTTLE, id: uid() };
       const _ft = new Set();
       placeItemAt(dg, p.x, p.y, _wb, ml, _ft);
       ml.push("泉の水が勢いよく飛び出した！水の瓶が転がっている。");
-    } else if (r < 0.66) {
+    } else if (r < 0.58) {
       // 金貨が飛び出す
       const _gv = rng(15, 60);
       const _gc = { name: `${_gv}枚の金貨`, type: "gold", value: _gv, tile: 22, id: uid() };
       const _ft2 = new Set();
       placeItemAt(dg, p.x, p.y, _gc, ml, _ft2);
       ml.push(`泉の底から金貨が${_gv}枚流れ出てきた！`);
-    } else if (r < 0.72) {
+    } else if (r < 0.63) {
       // 所持品がランダムで祝福される
       const _blessable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && !i.blessed);
       if (_blessable.length > 0) {
@@ -3447,19 +3446,39 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         _bi.bcKnown = true;
         ml.push(`${dnameRef(_bi)}が光り輝いた！祝福された！`);
       } else {
-        ml.push("清らかな水だった。（何も起こらなかった）");
+        ml.push("清らかな水だった。");
       }
-    } else if (r < 0.80) {
+    } else if (r < 0.68) {
+      // ランダムな未識別アイテムが識別される
+      const _unident = p.inventory.filter(i => {
+        const _k = getIdentKey(i);
+        return _k && !sr.current.ident.has(_k);
+      });
+      if (_unident.length > 0) {
+        const _ui = _unident[Math.floor(Math.random() * _unident.length)];
+        const _k = getIdentKey(_ui);
+        if (_k) sr.current.ident.add(_k);
+        _ui.fullIdent = true;
+        _ui.bcKnown = true;
+        ml.push(`水に映った${dnameRef(_ui)}の正体が分かった！`);
+      } else {
+        ml.push("澄んだ水に自分の姿が映った。");
+      }
+    } else if (r < 0.76) {
+      // 混乱になる
+      p.confusedTurns = (p.confusedTurns || 0) + 10;
+      ml.push("頭がくらくらする...混乱した！(10ターン)");
+    } else if (r < 0.84) {
       // ダメージ
       const d = rng(3, 8);
       p.deathCause = "苦い泉水により";
       p.hp -= d;
       ml.push(`苦い...！${d}ダメージ！`);
-    } else if (r < 0.86) {
+    } else if (r < 0.90) {
       // 毒状態になる
       p.poisoned = true;
       ml.push("なんか変な味がした...毒だ！");
-    } else if (r < 0.91) {
+    } else if (r < 0.95) {
       // 所持品がランダムで呪われる
       const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && !i.cursed);
       if (_cursable.length > 0) {
@@ -3469,13 +3488,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         _ci.bcKnown = true;
         ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
       } else {
-        ml.push("ひどい味だった。（何も起こらなかった）");
+        ml.push("ひどい味だった。");
       }
     } else {
-      // 空腹になる
-      const _loss = rng(20, 40);
-      p.hunger = Math.max(0, p.hunger - _loss);
-      ml.push("腹の中が空っぽになった気がする...お腹が空いてきた！");
+      // わてりが出現（水のない場所で干上がり状態）
+      const _wDef = MONS.find(m => m.baseKind === "wateri");
+      if (_wDef) {
+        const { levels: _wLvs, ..._wBase } = _wDef;
+        const _wm = { ..._wBase, id: uid(), x: p.x, y: p.y, maxHp: _wBase.hp, baseSpeed: _wBase.speed ?? 1, turnAccum: 0, aware: true, dir: { x: 0, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null };
+        const _ft3 = new Set();
+        const DIRS8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+        let _placed = false;
+        for (const [dy, dx] of DIRS8) {
+          const nx = p.x + dx, ny = p.y + dy;
+          if ((dg.map[ny]?.[nx] === T.FLOOR) && !dg.monsters.some(m => m.x === nx && m.y === ny)) {
+            _wm.x = nx; _wm.y = ny;
+            dg.monsters.push(_wm);
+            _placed = true;
+            break;
+          }
+        }
+        if (_placed) ml.push("泉からわてりが飛び出してきた！水がないので動けないようだ...");
+        else ml.push("何かが泉の中でうごめいた。");
+      }
     }
     springTryDry(dg, p, ml);
     endTurn(sr.current, p, ml);
