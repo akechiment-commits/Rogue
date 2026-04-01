@@ -313,29 +313,10 @@ const statusData = [
 addSheet('09_状態異常', statusData);
 
 // ===== 罠（Trap）=====
-const trapData = [
-  ['罠名', 'effect', 'タイル', 'items.js行'],
-
-  ['地雷', 'explode', '25', '910'],
-  ['矢の罠', 'arrow_trap', '26', '911'],
-  ['落とし穴', 'pitfall', '27', '912'],
-  ['錆の罠', 'rust', '28', '913'],
-  ['回転板', 'spin', '29', '914'],
-  ['睡眠ガスの罠', 'sleep', '30', '915'],
-  ['毒矢の罠', 'poison_arrow', '45', '916'],
-  ['召喚の罠', 'summon_trap', '46', '917'],
-  ['鈍足の罠', 'slow_trap', '47', '918'],
-  ['封印の罠', 'seal_trap', '48', '919'],
-  ['盗みの罠', 'steal_trap', '49', '920'],
-  ['空腹の罠', 'hunger_trap', '50', '921'],
-  ['吹き飛ばしの罠', 'blowback_trap', '51', '922'],
-  ['影ぬいの罠', 'shadow_stitch', '71', '923'],
-  ['落石の罠', 'rockfall', '72', '924'],
-  ['時限爆弾の罠', 'time_bomb', '73', '925'],
-  ['惑わしの罠', 'bewitch_trap', '84', '926'],
-  ['暗闇の罠', 'darkness_trap', '85', '927'],
-  ['腐敗の罠', 'rot_trap', '94', '928'],
-];
+const trapData = [['罠名', 'effect', 'タイル']];
+for (const t of TRAPS) {
+  trapData.push([t.name, t.effect, t.tile]);
+}
 
 addSheet('10_罠', trapData);
 
