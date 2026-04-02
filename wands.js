@@ -1391,6 +1391,8 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         }
       } else if (dg.map[wy][wx] === T.FLOOR) {
         dg.map[wy][wx] = T.BWALL;
+        const _sfPc = dg.pentacles?.find(pc => pc.x === wx && pc.y === wy);
+        if (_sfPc) { dg.pentacles = dg.pentacles.filter(pc => pc !== _sfPc); ml.push(`壁が${_sfPc.name}を押し潰した！`); }
         ml.push("壊せる壁が出現した！");
       } else {
         ml.push("魔法弾は消えた。");
@@ -1414,6 +1416,8 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         }
       } else if (dg.map[wy][wx] === T.FLOOR) {
         dg.map[wy][wx] = T.BWALL;
+        const _digPc = dg.pentacles?.find(pc => pc.x === wx && pc.y === wy);
+        if (_digPc) { dg.pentacles = dg.pentacles.filter(pc => pc !== _digPc); ml.push(`壁が${_digPc.name}を押し潰した！`); }
         ml.push("壊せる壁が出現した！");
       } else {
         ml.push("魔法弾は消えた。");
@@ -1665,6 +1669,8 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
             }
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
+            const _digBPc = dg.pentacles?.find(pc => pc.x === wx && pc.y === wy);
+            if (_digBPc) { dg.pentacles = dg.pentacles.filter(pc => pc !== _digBPc); ml.push(`壁が${_digBPc.name}を押し潰した！`); }
             walled++;
           }
         }
@@ -1717,6 +1723,8 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
             }
           } else if (dg.map[wy][wx] === T.FLOOR) {
             dg.map[wy][wx] = T.BWALL;
+            const _sfcPc = dg.pentacles?.find(pc => pc.x === wx && pc.y === wy);
+            if (_sfcPc) { dg.pentacles = dg.pentacles.filter(pc => pc !== _sfcPc); ml.push(`壁が${_sfcPc.name}を押し潰した！`); }
             _sfcWalled++;
           }
         }
