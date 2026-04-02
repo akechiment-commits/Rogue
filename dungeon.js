@@ -24,7 +24,7 @@ function pickBB(exclude = []) {
   /* レア大箱は20%の確率でのみ候補に含まれる */
   const base = Math.random() < 0.20 ? BB_TYPES : BB_TYPES.filter(b => !b.rare);
   const pool = exclude.length ? base.filter(b => !exclude.includes(b.kind)) : base;
-  return pick(pool.length > 0 ? pool : base);
+  return pickWeighted(pool.length > 0 ? pool : base);
 }
 
 /* ===== BIG ROOM DUNGEON GENERATOR ===== */
