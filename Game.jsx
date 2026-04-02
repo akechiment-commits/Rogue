@@ -2174,10 +2174,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 d *= 2;
                 crit = true;
               }
-              /* 背水の指輪：HP低下で会心率上昇（HP20%以下で必ず会心） */
+              /* 背水の指輪：HP低下で会心率上昇（HP20%以下で必ず会心、75%以下から発動） */
               if (!crit && hasRingEffect(p, "desperation_ring")) {
                 const _despRatio = p.hp / p.maxHp;
-                const _despChance = _despRatio <= 0.2 ? 1.0 : Math.max(0, (0.5 - _despRatio) / 0.3);
+                const _despChance = _despRatio <= 0.2 ? 1.0 : Math.max(0, (0.75 - _despRatio) / 0.55);
                 if (Math.random() < _despChance) { d *= 2; crit = true; }
               }
               /* 炎属性武器：fire弱点×2、油まみれ×2、火ダルマ×0.5 */
