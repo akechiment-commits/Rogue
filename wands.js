@@ -418,20 +418,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が雷を打ち消した！"); break; }
       const _lCursed = blMult < 1;
       if (_lCursed) {
-        /* 呪い：25回復（アンデッドは逆にダメージ） */
+        /* 呪い：rng(20,30)回復（アンデッドは逆にダメージ） */
         if (kind === "monster") {
           if (target.kind === "undead") {
-            target.hp -= 25; ml.push(`${target.name}はアンデッドのため25ダメージを受けた！`);
+            const _lcdmg = rng(20, 30);
+            target.hp -= _lcdmg; ml.push(`${target.name}はアンデッドのため${_lcdmg}ダメージを受けた！`);
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
-            const _lheal = Math.min(25, target.maxHp - target.hp);
+            const _lheal = Math.min(rng(20, 30), target.maxHp - target.hp);
             if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); }
             else ml.push(`${target.name}には効果がなかった。`);
           }
           break;
         }
         if (kind === "player") {
-          const _lheal = Math.min(25, p.maxHp - p.hp);
+          const _lheal = Math.min(rng(20, 30), p.maxHp - p.hp);
           if (_lheal > 0) { p.hp += _lheal; ml.push(`癒しの光に包まれた！HP+${_lheal}`); pushHealAnim(p.x, p.y); }
           else ml.push("HPは既に満タンだ。");
           break;
@@ -439,7 +440,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       /* 祝福：ダメ2倍 (blMult=1.5→×2にオーバーライド) */
       const _lBlessMult = blMult > 1 ? 2 : 1;
-      let dmg = Math.max(1, Math.round(rng(15, 25) * _lBlessMult));
+      let dmg = Math.max(1, Math.round(rng(20, 30) * _lBlessMult));
       if (kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
       if (kind === "monster") {
         target.hp -= dmg;
@@ -887,8 +888,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         else ml.push("魔法弾は効果なく消えた。");
         break;
       }
-      const _slBase = 4; // 眠りの薬のvalue相当
-      const st = Math.max(1, Math.round((_slBase + rng(-1, 1)) * (_slBlessed ? 2 : 1)));
+      const st = _slBlessed ? 12 : 6;
       if (kind === "monster") {
         if (isStatusImmune(target, ml, target.name)) break;
         target.sleepTurns = (target.sleepTurns || 0) + st;
@@ -1101,17 +1101,32 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "confuse": {
+      const _cfBlessed = blMult > 1, _cfCursed = blMult < 1;
+      if (_cfCursed) {
+        /* 呪い：必中状態付与（混乱の薬の呪い効果と同じ） */
+        if (kind === "monster") { target.confusedTurns = 0; ml.push(`${target.name}の混乱が解けた！`); break; }
+        if (kind === "player") {
+          p.confusedTurns = 0;
+          p.sureHitTurns = (p.sureHitTurns || 0) + 100;
+          ml.push("頭が冴えた！混乱が消え、必中状態になった！(100ターン)【呪→必中】");
+          break;
+        }
+        ml.push("魔法弾は効果なく消えた。"); break;
+      }
       if (kind === "monster") {
-        target.confusedTurns = (target.confusedTurns || 0) + 20;
-        ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)`);
+        if (isStatusImmune(target, ml, target.name)) break;
+        const _cfTurns = _cfBlessed ? 40 : 20;
+        target.confusedTurns = (target.confusedTurns || 0) + _cfTurns;
+        ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${_cfBlessed ? "【祝=強混乱】" : ""}`);
         break;
       }
       if (kind === "player") {
         if (hasAbility(p.armor, "confuse_proof")) {
           ml.push("混乱効果を受けたが防具が防いだ！(耐混乱)");
         } else {
-          p.confusedTurns = (p.confusedTurns || 0) + 5;
-          ml.push(`混乱した！(${p.confusedTurns}ターン)`);
+          const _cfTurns = _cfBlessed ? 10 : 5;
+          p.confusedTurns = (p.confusedTurns || 0) + _cfTurns;
+          ml.push(`混乱した！(${p.confusedTurns}ターン)${_cfBlessed ? "【祝=強混乱】" : ""}`);
         }
         break;
       }
@@ -1199,20 +1214,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _fwBlessed = blMult > 1, _fwCursed = blMult < 1;
       const _fwOilyCheck = (char) => (char.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===char.x&&t.y===char.y);
       if (_fwCursed) {
-        /* 呪い：対象を回復（アンデッドは逆にダメージ） */
+        /* 呪い：rng(20,30)回復（アンデッドは逆にダメージ） */
         if (kind === "monster") {
           if (target.kind === "undead") {
-            target.hp -= 20; ml.push(`${target.name}はアンデッドのため20ダメージを受けた！`);
+            const _fwcd = rng(20, 30);
+            target.hp -= _fwcd; ml.push(`${target.name}はアンデッドのため${_fwcd}ダメージを受けた！`);
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
-            const _fwh = Math.min(20, target.maxHp - target.hp);
+            const _fwh = Math.min(rng(20, 30), target.maxHp - target.hp);
             if (_fwh > 0) { target.hp += _fwh; ml.push(`${target.name}のHPが${_fwh}回復した！【呪】`); }
             else ml.push(`${target.name}には効果がなかった。`);
           }
           break;
         }
         if (kind === "player") {
-          const _fwh = Math.min(20, p.maxHp - p.hp);
+          const _fwh = Math.min(rng(20, 30), p.maxHp - p.hp);
           if (_fwh > 0) { p.hp += _fwh; ml.push(`癒しの炎に包まれた！HP+${_fwh}【呪】`); }
           else ml.push("HPは既に満タンだ。");
           break;
@@ -1223,13 +1239,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         /* 火ダルマ：回復 */
         if (target.baseKind === "firedemon") {
-          const _fwHeal = Math.min(Math.round(rng(15,25) * _fwBlessMult), target.maxHp - target.hp);
+          const _fwHeal = Math.min(Math.round(rng(20,30) * _fwBlessMult), target.maxHp - target.hp);
           if (_fwHeal > 0) { target.hp += _fwHeal; ml.push(`炎が${target.name}を癒した！HP+${_fwHeal}`); }
           else ml.push(`${target.name}には効果がなかった。`);
           break;
         }
         const _fwOily = _fwOilyCheck(target);
-        let _fwDmg = Math.max(1, Math.round(rng(15,25) * _fwBlessMult * (_fwOily ? 2 : 1)));
+        let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1)));
         target.hp -= _fwDmg;
         ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwOily ? "油まみれ×2！" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
@@ -1237,7 +1253,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         const _fwOily = _fwOilyCheck(p);
-        let _fwDmg = Math.max(1, Math.round(rng(15,25) * _fwBlessMult * (_fwOily ? 2 : 1)));
+        let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1)));
         const _hasFireR = hasAbility(p.armor, "fire_resist") || (p.rings||[]).some(r=>r.effect==="fire_resist");
         if (_hasFireR) _fwDmg = Math.max(1, Math.floor(_fwDmg/2));
         p.deathCause = "炎の杖の魔法により";
