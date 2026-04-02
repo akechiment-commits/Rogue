@@ -3157,8 +3157,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       m.hp -= _arDmg;
       if (_isPoison) {
         if (m.isBoss) {
-          if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.atk = Math.max(1, Math.floor(m.atk / 2)); }
-          m.bossPoisonHalfAtkTurns = (m.bossPoisonHalfAtkTurns || 0) + 10;
+          if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = 10; }
+          m.atk = Math.max(1, Math.floor(m.atk / 2));
         } else {
           m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
         }

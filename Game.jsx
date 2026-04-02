@@ -2405,8 +2405,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                           _srm.hp -= _srDmg;
                           if (_isPoison) {
                             if (_srm.isBoss) {
-                              if (!_srm.bossPoisonHalfAtk) { _srm.bossPoisonOrigAtk = _srm.atk; _srm.bossPoisonHalfAtk = true; _srm.atk = Math.max(1, Math.floor(_srm.atk / 2)); }
-                              _srm.bossPoisonHalfAtkTurns = (_srm.bossPoisonHalfAtkTurns || 0) + 10;
+                              if (!_srm.bossPoisonHalfAtk) { _srm.bossPoisonOrigAtk = _srm.atk; _srm.bossPoisonHalfAtk = true; _srm.bossPoisonHalfAtkTurns = 10; }
+                              _srm.atk = Math.max(1, Math.floor(_srm.atk / 2));
                             } else {
                               _srm.atk = Math.max(1, Math.floor((_srm.atk || 1) / 2));
                             }
@@ -3510,8 +3510,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 let _msg = `${_idn}が${m.name}に命中！${_itd}ダメージ！`;
                 if (item.type === "arrow" && item.poison) {
                   if (m.isBoss) {
-                    if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.atk = Math.max(1, Math.floor(m.atk / 2)); }
-                    m.bossPoisonHalfAtkTurns = (m.bossPoisonHalfAtkTurns || 0) + 10;
+                    if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = 10; }
+                    m.atk = Math.max(1, Math.floor(m.atk / 2));
                   } else {
                     m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
                   }
