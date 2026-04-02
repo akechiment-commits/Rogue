@@ -739,7 +739,7 @@ export function useItemActions({
           for (const _m of _tTargets) {
             if (_m.hp <= 0) continue;
             if (_m.subtype === "magicreflect") {
-              let _rdmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
+              let _rdmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
               if (inCursedMagicSealRoom(p.x, p.y, dg)) _rdmg *= 2;
               p.hp -= _rdmg;
               p.deathCause = `${_m.name}に雷を跳ね返されて`;
@@ -748,16 +748,16 @@ export function useItemActions({
               continue;
             }
             if (consumeBarrier(_m, ml)) continue;
-            let _dmg = Math.max(1, Math.round(rng(20, 30) * _scrBm));
+            let _dmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             _m.hp -= _dmg;
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
             if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }
-          // 呪い：自分にも雷が落ちる
+          // 呪い：自分にも同ダメージの雷が落ちる
           if (it.cursed) {
-            const _selfDmg = Math.max(1, rng(10, 20));
+            const _selfDmg = Math.max(1, rng(30, 40));
             p.hp -= _selfDmg;
             p.deathCause = "呪われた雷の巻物で";
             ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！【呪】`);
@@ -767,48 +767,36 @@ export function useItemActions({
         } // end hasCursedExplosionPentacle else
       } else if (it.effect === "recovery") {
         if (it.cursed) {
-          // 呪い：自分がダメージ、視界内モンスターが回復
-          const _rdmg = Math.max(1, rng(10, 20));
+          // 呪い：自分含め視界内全員に35ダメージ
+          const _rdmg = 35;
           p.hp -= _rdmg;
           p.deathCause = "呪われた回復の巻物で";
-          ml.push(`体が焼けるような痛みが走った！${_rdmg}ダメージ！【呪】`);
-          const _rvisC = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-          for (const _m of _rvisC) {
-            const _ma = Math.min(rng(10, 20), _m.maxHp - _m.hp);
+          ml.push(`呪いのエネルギーが爆発した！${_rdmg}ダメージ！【呪】`);
+          pushExplosionAnim(p.x, p.y);
+          for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (_m.subtype === "magicreflect") {
-              const _refC = Math.min(rng(10, 20), p.maxHp - p.hp);
-              if (_refC > 0) { p.hp += _refC; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refC}！`); pushHealAnim(p.x, p.y); }
-              else ml.push(`${_m.name}が回復魔法を跳ね返したが効果がなかった。`);
-            } else if (_m.kind === "undead") {
-              _m.hp -= _ma; ml.push(`${_m.name}はアンデッドのため${_ma}ダメージを受けた！`);
-              if (_m.hp <= 0) killMonster(_m, dg, p, ml, lu);
-            } else if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}が回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
+              const _refC = Math.min(_rdmg, p.maxHp - p.hp);
+              if (_refC > 0) { p.hp += _refC; ml.push(`${_m.name}がエネルギーを跳ね返した！HP+${_refC}！`); pushHealAnim(p.x, p.y); }
+              else ml.push(`${_m.name}がエネルギーを跳ね返したが効果がなかった。`);
+              continue;
+            }
+            if (_m.kind === "undead") {
+              const _uheal = Math.min(_rdmg, _m.maxHp - _m.hp);
+              if (_uheal > 0) { _m.hp += _uheal; ml.push(`${_m.name}はアンデッドのため${_uheal}HP回復した！`); pushHealAnim(_m.x, _m.y); }
+              continue;
+            }
+            if (consumeBarrier(_m, ml)) continue;
+            _m.hp -= _rdmg;
+            ml.push(`呪いのエネルギーが${_m.name}を直撃！${_rdmg}ダメージ！`);
+            pushExplosionAnim(_m.x, _m.y);
+            if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }
         } else {
-          const _rh = Math.max(1, Math.round(rng(15, 25) * _scrBm));
+          const _rh = it.blessed ? 100 : 50;
           const _ra = Math.min(_rh, p.maxHp - p.hp);
           p.hp += _ra;
           pushHealAnim(p.x, p.y);
-          if (it.blessed) {
-            // 祝福：自分だけ回復（敵は回復しない）
-            ml.push(`体が癒された！HP+${_ra}（祝福：自分だけ回復！）`);
-          } else {
-            // 通常：自分と視界内モンスターも回復
-            ml.push(`体が回復した！HP+${_ra}`);
-            const _rvis = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
-            for (const _m of _rvis) {
-              const _mh = Math.max(1, Math.round(rng(10, 20)));
-              const _ma = Math.min(_mh, _m.maxHp - _m.hp);
-              if (_m.subtype === "magicreflect") {
-                const _refN = Math.min(_mh, p.maxHp - p.hp);
-                if (_refN > 0) { p.hp += _refN; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refN}！`); pushHealAnim(p.x, p.y); }
-                else ml.push(`${_m.name}が回復魔法を跳ね返したが効果がなかった。`);
-              } else if (_m.kind === "undead") {
-                _m.hp -= _mh; ml.push(`${_m.name}はアンデッドのため${_mh}ダメージを受けた！`);
-                if (_m.hp <= 0) killMonster(_m, dg, p, ml, lu);
-              } else if (_ma > 0) { _m.hp += _ma; ml.push(`${_m.name}も回復した！HP+${_ma}`); pushHealAnim(_m.x, _m.y); }
-            }
-          }
+          ml.push(`体が癒された！HP+${_ra}${it.blessed ? "【祝】" : ""}`);
         }
       } else if (it.effect === "item_gather") {
         const _toG = dg.items.filter((gi) => !gi.shopPrice);
@@ -893,23 +881,33 @@ export function useItemActions({
         }
       } else if (it.effect === "sleep_scroll") {
         if (it.cursed) {
-          // 呪い：プレイヤーが眠る
-          const _pst = Math.max(2, rng(3, 5));
-          if ((p.statusImmune || 0) > 0) ml.push("眠気が自分を襲った！状態防止中のため効かなかった！【呪】");
-          else { p.sleepTurns = (p.sleepTurns || 0) + _pst; ml.push(`眠気が自分を襲った！${_pst}ターン眠ってしまう…【呪】`); }
+          // 呪い：自分含め視界内全員が6ターン眠る
+          const _pst = 6;
+          if ((p.statusImmune || 0) > 0) ml.push("眠気が辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
+          else { p.sleepTurns = (p.sleepTurns || 0) + _pst; ml.push(`眠気が辺りを包んだ！${_pst}ターン眠ってしまう…【呪】`); }
+          for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (_m.subtype === "magicreflect") {
+              if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
+              p.sleepTurns = (p.sleepTurns || 0) + _pst;
+              ml.push(`${_m.name}が眠りを跳ね返した！さらに${_pst}ターン眠ってしまう…`); continue;
+            }
+            if (consumeBarrier(_m, ml)) continue;
+            if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+            _m.sleepTurns = (_m.sleepTurns || 0) + _pst;
+            ml.push(`${_m.name}も眠りに落ちた！(${_pst}ターン)【呪】`);
+          }
         } else {
-          // 通常：視界内、祝福：フロア全モンスター
+          // 通常：視界内6T、祝福：フロア全体12T
+          const _st = it.blessed ? 12 : 6;
           const _sSleep = it.blessed ? dg.monsters : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
           if (_sSleep.length === 0) {
             ml.push(it.blessed ? "眠気が漂うが、フロアに敵はいない。【祝】" : "眠気が漂うが、視界に敵はいない。");
           } else {
             for (const _m of _sSleep) {
-              const _st = Math.max(1, Math.round(rng(3, 6) * _scrBm));
               if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.sleepTurns = (p.sleepTurns || 0) + _st;
-                ml.push(`${_m.name}が眠りを跳ね返した！${_st}ターン眠ってしまう…`);
-                continue;
+                ml.push(`${_m.name}が眠りを跳ね返した！${_st}ターン眠ってしまう…`); continue;
               }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
@@ -920,15 +918,26 @@ export function useItemActions({
         }
       } else if (it.effect === "confusion") {
         if (it.cursed) {
-          // 呪い：自分が混乱
-          if ((p.statusImmune || 0) > 0) ml.push("混乱ガスが自分を襲った！状態防止中のため効かなかった！【呪】");
-          else { const _ct = rng(4, 7); p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱ガスが自分を襲った！${_ct}ターン混乱する…【呪】`); }
+          // 呪い：自分5T混乱 + 視界内敵10T混乱
+          if ((p.statusImmune || 0) > 0) ml.push("混乱ガスが辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
+          else { p.confusedTurns = (p.confusedTurns || 0) + 5; ml.push("混乱ガスが辺りを包んだ！5ターン混乱する…【呪】"); }
+          for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (_m.subtype === "magicreflect") {
+              if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
+              p.confusedTurns = (p.confusedTurns || 0) + 10;
+              ml.push(`${_m.name}が混乱を跳ね返した！さらに10ターン混乱する…`); continue;
+            }
+            if (consumeBarrier(_m, ml)) continue;
+            if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+            _m.confusedTurns = (_m.confusedTurns || 0) + 10;
+            ml.push(`${_m.name}も混乱した！(10ターン)【呪】`);
+          }
         } else {
+          const _ct = it.blessed ? 40 : 20;
           const _cfTgts = it.blessed ? dg.monsters : dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
           if (_cfTgts.length === 0) { ml.push(it.blessed ? "混乱ガスが漂うが、フロアに敵はいない。【祝】" : "混乱ガスが漂うが、視界に敵はいない。"); }
           else {
             for (const _m of _cfTgts) {
-              const _ct = Math.max(1, Math.round(rng(4, 8) * _scrBm));
               if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.confusedTurns = (p.confusedTurns || 0) + _ct;
@@ -959,7 +968,7 @@ export function useItemActions({
               if (_flHeal > 0) { _m.hp += _flHeal; ml.push(`炎が${_m.name}を癒した！HP+${_flHeal}`); } else ml.push(`${_m.name}には効果がなかった。`);
               continue;
             }
-            let _flDmg = Math.max(1, Math.round(rng(15, 25) * _scrBm));
+            let _flDmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
             const _flOily = _flOilyCheck(_m);
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
             _m.hp -= _flDmg;
@@ -969,7 +978,7 @@ export function useItemActions({
           }
         }
         if (it.cursed) {
-          const _flSelfDmg = Math.max(1, rng(15, 25));
+          const _flSelfDmg = Math.max(1, rng(30, 40));
           p.hp -= _flSelfDmg; p.deathCause = "呪われた炎の巻物で";
           ml.push(`呪われた炎が爆発した！${_flSelfDmg}ダメージ！【呪】`); pushExplosionAnim(p.x, p.y);
         }
@@ -1034,10 +1043,10 @@ export function useItemActions({
         }
       } else if (it.effect === "bind") {
         if (it.cursed) {
-          // 呪い：自分が金縛り
+          // 呪い：自分が20ターン金縛り
           if ((p.statusImmune || 0) > 0) ml.push("金縛りの呪いが自分を襲った！状態防止中のため効かなかった！【呪】");
           else if (hasAbility(p.armor, "paralyze_proof")) ml.push("金縛りの呪いが自分を襲った！しかし防具が防いだ！(耐金縛り)【呪】");
-          else { const _bt = rng(4, 7); p.paralyzeTurns = (p.paralyzeTurns || 0) + _bt; ml.push(`金縛りの呪いが自分を襲った！${_bt}ターン体が動かない！【呪】`); }
+          else { p.paralyzeTurns = (p.paralyzeTurns || 0) + 20; ml.push("金縛りの呪いが自分を襲った！20ターン体が動かない！【呪】"); }
         } else {
           const _btTgts = it.blessed
             ? dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])
