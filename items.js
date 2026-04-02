@@ -1060,6 +1060,16 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   if (_blastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b));
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
+  /* 爆発範囲内の魔方陣を消滅 */
+  if (dg.pentacles?.length > 0) {
+    const _blastPcs = dg.pentacles.filter(pc =>
+      Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= 1
+    );
+    if (_blastPcs.length > 0) {
+      dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
+      for (const _bpc of _blastPcs) ml.push(`爆発で${_bpc.name}が消えた！`);
+    }
+  }
   /* 破壊された火薬壺の連鎖爆発 */
   for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
     doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);

@@ -3316,6 +3316,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (_otx >= 0 && _otx < MW && _oty >= 0 && _oty < MH && dg.map[_oty][_otx] !== T.WALL && dg.map[_oty][_otx] !== T.BWALL)
                   if (!dg.oilyTiles.some(t => t.x === _otx && t.y === _oty)) dg.oilyTiles.push({ x: _otx, y: _oty });
               }
+              /* 油がかかったマスの魔方陣を消滅 */
+              if (dg.pentacles?.length > 0) {
+                const _oiledPcs = dg.pentacles.filter(pc => dg.oilyTiles.some(t => t.x === pc.x && t.y === pc.y));
+                if (_oiledPcs.length > 0) {
+                  dg.pentacles = dg.pentacles.filter(pc => !_oiledPcs.includes(pc));
+                  for (const _opc of _oiledPcs) ml.push(`油が${_opc.name}を消した！`);
+                }
+              }
             } else {
               const _potDmg = 3 + rng(0, 3);
               for (const m of [..._scMons]) {
