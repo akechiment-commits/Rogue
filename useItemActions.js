@@ -797,23 +797,21 @@ export function useItemActions({
           p.hp += _ra;
           pushHealAnim(p.x, p.y);
           ml.push(`体が癒された！HP+${_ra}${it.blessed ? "【祝】" : ""}`);
-          if (!it.blessed) {
-            for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
-              if (_m.subtype === "magicreflect") {
-                const _refN = Math.min(50, p.maxHp - p.hp);
-                if (_refN > 0) { p.hp += _refN; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refN}！`); pushHealAnim(p.x, p.y); }
-                else ml.push(`${_m.name}が回復魔法を跳ね返したが効果がなかった。`);
-                continue;
-              }
-              if (_m.kind === "undead") {
-                const _ud = Math.min(50, _m.hp);
-                _m.hp -= _ud; ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
-                if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
-                continue;
-              }
-              const _mra = Math.min(50, _m.maxHp - _m.hp);
-              if (_mra > 0) { _m.hp += _mra; ml.push(`${_m.name}も回復した！HP+${_mra}`); pushHealAnim(_m.x, _m.y); }
+          for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (_m.subtype === "magicreflect") {
+              const _refN = Math.min(_rh, p.maxHp - p.hp);
+              if (_refN > 0) { p.hp += _refN; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refN}！`); pushHealAnim(p.x, p.y); }
+              else ml.push(`${_m.name}が回復魔法を跳ね返したが効果がなかった。`);
+              continue;
             }
+            if (_m.kind === "undead") {
+              const _ud = Math.min(_rh, _m.hp);
+              _m.hp -= _ud; ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
+              if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
+              continue;
+            }
+            const _mra = Math.min(_rh, _m.maxHp - _m.hp);
+            if (_mra > 0) { _m.hp += _mra; ml.push(`${_m.name}も回復した！HP+${_mra}${it.blessed ? "【祝】" : ""}`); pushHealAnim(_m.x, _m.y); }
           }
         }
       } else if (it.effect === "item_gather") {

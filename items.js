@@ -127,7 +127,7 @@ export const ITEMS = [
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:4,  sellPrice:800,  desc:"装備中の武器の＋値を1上げる。",                  tile:18 },
   { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"B", weight:4,  sellPrice:800,  desc:"装備中の防具の＋値を1上げる。",                  tile:18 },
   { name:"雷の巻物",         type:"scroll", effect:"thunder",            rarity:"B", weight:4,  sellPrice:500,  desc:"視界内の敵全てに雷ダメージ(30-40)。祝福でフロア全体。呪いで自分にも同ダメージ。", tile:18 },
-  { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"C", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。祝福で自分だけHP+100。呪いで自分含め視界内全員に35ダメージ。", tile:18 },
+  { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"C", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。祝福で全員HP+100回復。呪いで自分含め視界内全員に35ダメージ。", tile:18 },
   { name:"道具寄せの巻物",   type:"scroll", effect:"item_gather",        rarity:"B", weight:4,  sellPrice:400,  desc:"フロアのアイテムを自分の周りに引き寄せる。",     tile:18 },
   { name:"眠りの巻物",       type:"scroll", effect:"sleep_scroll",       rarity:"B", weight:4,  sellPrice:600,  desc:"視界内の敵を6ターン眠らせる。祝福でフロア全体12ターン。呪いで自分含め視界内全員6ターン眠り。", tile:18 },
   { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"B", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。祝福でフロア全体40ターン。呪いで自分5T＋視界内敵10T混乱。", tile:18 },
