@@ -1040,7 +1040,12 @@ export function useItemActions({
           for (const [_dx, _dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]) {
             const _wx = p.x + _dx, _wy = p.y + _dy;
             if (_wx <= 0 || _wx >= MW - 1 || _wy <= 0 || _wy >= MH - 1) continue;
-            if (dg.map[_wy][_wx] === T.FLOOR) { dg.map[_wy][_wx] = T.WALL; _bwCount++; }
+            if (dg.map[_wy][_wx] === T.FLOOR) {
+              dg.map[_wy][_wx] = T.WALL;
+              const _bwPc = dg.pentacles?.find(pc => pc.x === _wx && pc.y === _wy);
+              if (_bwPc) { dg.pentacles = dg.pentacles.filter(pc => pc !== _bwPc); ml.push(`壁が${_bwPc.name}を押し潰した！`); }
+              _bwCount++;
+            }
           }
           ml.push(_bwCount > 0 ? `周囲が壁に変わった！(${_bwCount}マス)【呪】` : "周囲に床がなかった。【呪】");
         } else {
