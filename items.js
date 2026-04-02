@@ -850,6 +850,14 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
       }
     }
+    /* 油がかかったマスの魔方陣を消滅 */
+    if (dg.pentacles?.length > 0) {
+      const _oiledPcs = dg.pentacles.filter(pc => dg.oilyTiles.some(t => t.x === pc.x && t.y === pc.y));
+      if (_oiledPcs.length > 0) {
+        dg.pentacles = dg.pentacles.filter(pc => !_oiledPcs.includes(pc));
+        for (const _opc of _oiledPcs) ml.push(`油が${_opc.name}を消した！`);
+      }
+    }
     if (pot.contents?.length > 0) {
       const ft = new Set();
       for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
@@ -1229,6 +1237,14 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       dg.items = dg.items.filter(i => !_chainPots.includes(i));
       for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
     }
+    /* 爆発範囲内の魔方陣を消滅 */
+    if (dg.pentacles?.length > 0) {
+      const _blastPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= 1);
+      if (_blastPcs.length > 0) {
+        dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
+        for (const _bpc of _blastPcs) ml.push(`爆発で${_bpc.name}が消えた！`);
+      }
+    }
   } finally {
     _gunpowderDepth--;
   }
@@ -1348,6 +1364,14 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
   if (_chainPots.length > 0) {
     dg.items = dg.items.filter(i => !_chainPots.includes(i));
     for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+  }
+  /* 爆発範囲内の魔方陣を消滅 */
+  if (dg.pentacles?.length > 0) {
+    const _blastPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= R);
+    if (_blastPcs.length > 0) {
+      dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
+      for (const _bpc of _blastPcs) ml.push(`爆発で${_bpc.name}が消えた！`);
+    }
   }
 }
 
