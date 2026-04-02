@@ -3473,7 +3473,8 @@ export const RINGS = [
   { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"B", weight:2, sellPrice:2000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
   { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"B", weight:2, sellPrice:1800, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
   { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"A", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
-  { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"A", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。HP20%以下で必ず会心になる。" },
+  { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"A", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。HP75%以下から発動し、HP20%以下で必ず会心になる。" },
+  { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",              rarity:"A", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。2個装備で2本発射。" },
 ];
 
 export function hasRingEffect(p, effect) {

@@ -28,7 +28,7 @@ import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { drainAnims, pushMonsterBoltAnim, pushAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
+import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
 /* 大箱の表示名を返す共通ヘルパー。未識別時は偽名+ニックネーム、識別済みは実名 */
 function bbDisplayName(bb, st, withCapacity = false) {
@@ -2232,6 +2232,37 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _vamp = Math.max(1, Math.floor(d / 8));
                 p.hp = Math.min(p.maxHp, p.hp + _vamp);
                 ml.push(`吸血でHP+${_vamp}！`);
+              }
+              /* 射撃の指輪：近接攻撃時に矢を追加発射（装備枚数分） */
+              {
+                const _shootCount = (p.rings || []).filter(r => r.effect === "shoot_ring").length;
+                for (let _si = 0; _si < _shootCount; _si++) {
+                  if (!p.arrow || p.arrow.count <= 0) break;
+                  const _srAr = p.arrow;
+                  pushBoltAnim(p.x, p.y, dx, dy, dg, _srAr.poison ? "#60d060" : _srAr.pierce ? "#ff8844" : "#d0a050");
+                  p.arrow.count--;
+                  const _srDmg = (_srAr.atk || 4) + rng(1, 4);
+                  let _srHit = false;
+                  for (let _srd = 1; _srd <= 10; _srd++) {
+                    const _srtx = p.x + dx * _srd, _srty = p.y + dy * _srd;
+                    if (_srtx < 0 || _srtx >= MW || _srty < 0 || _srty >= MH) break;
+                    if (dg.map[_srty][_srtx] === T.WALL || dg.map[_srty][_srtx] === T.BWALL) break;
+                    const _srm = monsterAt(dg, _srtx, _srty);
+                    if (_srm) {
+                      _srm.hp -= _srDmg;
+                      ml.push(`【射撃の指輪】${_srAr.name || "矢"}が${_srm.name}に命中！${_srDmg}ダメージ！`);
+                      _ad.damages.push({ type: "damage", x: _srm.x, y: _srm.y, value: _srDmg, color: "#d0a050" });
+                      if (_srm.hp <= 0) { _ad.damages.push({ type: "flash", x: _srm.x, y: _srm.y, color: "#ff2200", duration: 150 }); killMonster(_srm, dg, p, ml, lu, false); }
+                      _srHit = true; break;
+                    }
+                  }
+                  if (!_srHit) ml.push(`【射撃の指輪】${_srAr.name || "矢"}を発射したが外れた。`);
+                  if (p.arrow.count <= 0) {
+                    p.inventory = p.inventory.filter(i => i !== _srAr);
+                    p.arrow = null;
+                    ml.push(`${_srAr.name || "矢"}を使い切った。`);
+                  }
+                }
               }
               _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
               _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: d, color: crit ? "#ffff00" : "#ff4444" });
