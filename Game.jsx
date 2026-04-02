@@ -11,7 +11,7 @@ import {
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, TRAPS,
   CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T,
-  genFood, makeArrow, makePoisonArrow, makePiercingArrow, addArrowsInv, addStonesInv,
+  genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
@@ -2302,7 +2302,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
               acted = true;
               } /* end else (hit) */
-            /* 射撃の指輪：命中/外れに関わらず発動（遠投対応） */
+            /* 射撃の指輪：命中/外れに関わらず発動（矢種別の本来の効果を再現） */
             {
               const _srCount = (p.rings || []).filter(r => r.effect === "shoot_ring").length;
               if (_srCount > 0) {
@@ -2310,44 +2310,115 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _fcMode = (hasRingEffect(p, "farcast_ring") && _rawFc !== "cursed") ? "farcast" : _rawFc;
                 const _srFarcast = _fcMode === "farcast";
                 const _srCursedFc = _fcMode === "cursed";
-                const _srMaxR = _srCursedFc ? 1 : _srFarcast ? 50 : 10;
+                const _srNF = (it) => it.name || "?";
                 for (let _si = 0; _si < _srCount; _si++) {
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
                   const _arName = _srAr.name || "矢";
-                  const _arColor = _srAr.poison ? "#60d060" : _srAr.pierce ? "#ff8844" : "#d0a050";
-                  const _dropFn = () => _srAr.pierce ? makePiercingArrow(1) : _srAr.poison ? makePoisonArrow(1) : makeArrow(1);
-                  pushBoltAnim(p.x, p.y, dx, dy, dg, _arColor);
                   p.arrow.count--;
-                  const _srDmg = (_srAr.atk || 4) + rng(1, 4);
-                  let _srLx = p.x, _srLy = p.y, _srHit = false;
-                  for (let _srd = 1; _srd <= _srMaxR; _srd++) {
-                    const _srtx = p.x + dx * _srd, _srty = p.y + dy * _srd;
-                    if (_srtx < 0 || _srtx >= MW || _srty < 0 || _srty >= MH) break;
-                    if (!_srFarcast && (dg.map[_srty][_srtx] === T.WALL || dg.map[_srty][_srtx] === T.BWALL)) break;
-                    const _srm = monsterAt(dg, _srtx, _srty);
-                    if (_srm) {
-                      if (!_srFarcast && Math.random() >= 0.75) {
-                        /* 外れ：モンスターの足元に落ちる */
-                        ml.push(`【射撃の指輪】${_arName}は${_srm.name}に外れた！`);
-                        const _mft = new Set(); placeItemAt(dg, _srtx, _srty, _dropFn(), ml, _mft);
-                      } else {
-                        _srm.hp -= _srDmg;
-                        ml.push(`【射撃の指輪】${_arName}が${_srm.name}に命中！${_srDmg}ダメージ！`);
-                        _ad.damages.push({ type: "damage", x: _srm.x, y: _srm.y, value: _srDmg, color: "#d0a050" });
-                        if (_srm.hp <= 0) { _ad.damages.push({ type: "flash", x: _srm.x, y: _srm.y, color: "#ff2200", duration: 150 }); killMonster(_srm, dg, p, ml, lu, false); }
-                      }
-                      _srHit = true;
-                      if (!_srFarcast) break;
+                  /* ── 石 ── */
+                  if (_srAr.stone) {
+                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa");
+                    const _stRange = _srCursedFc ? 1 : 3;
+                    let _stLx = p.x, _stLy = p.y;
+                    for (let _d = 1; _d <= _stRange; _d++) {
+                      const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
+                      if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
+                      if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
+                      _stLx = _tx; _stLy = _ty;
                     }
-                    _srLx = _srtx; _srLy = _srty;
-                  }
-                  if (_srFarcast || _srCursedFc) {
-                    ml.push(`【射撃の指輪】${_arName}は消滅した。`);
-                  } else if (!_srHit) {
-                    /* 誰にも当たらず：射程の終端に落ちる */
-                    ml.push(`【射撃の指輪】${_arName}を発射した。`);
-                    const _srft = new Set(); placeItemAt(dg, _srLx, _srLy, _dropFn(), ml, _srft);
+                    ml.push(`【射撃の指輪】${_arName}を投げた！`);
+                    const _stM = monsterAt(dg, _stLx, _stLy);
+                    if (_stM && Math.random() < 0.90) {
+                      const _stDmg = (_srAr.atk || 3) + rng(0, 3);
+                      _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
+                      _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
+                      if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
+                    } else {
+                      if (_stM) ml.push(`${_arName}は${_stM.name}に外れた！`);
+                      const _stft = new Set(); placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft);
+                    }
+                  /* ── 魔法の石 ── */
+                  } else if (_srAr.magicStone) {
+                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#cc88ff");
+                    const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
+                    const _msTarget = [...dg.monsters].filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10).sort((a, b) => _msDist(a) - _msDist(b))[0];
+                    ml.push(`【射撃の指輪】${_arName}を投げた！`);
+                    if (!_msTarget) {
+                      ml.push(`近くに敵がいない！${_arName}は消えた。`);
+                    } else if (Math.random() >= 0.90) {
+                      ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
+                      const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
+                    } else {
+                      const _msDmg = (_srAr.atk || 5) + rng(0, 3);
+                      _msTarget.hp -= _msDmg; ml.push(`${_arName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
+                      _ad.damages.push({ type: "damage", x: _msTarget.x, y: _msTarget.y, value: _msDmg, color: "#cc88ff" });
+                      if (_msTarget.hp <= 0) { _ad.damages.push({ type: "flash", x: _msTarget.x, y: _msTarget.y, color: "#ff2200", duration: 150 }); killMonster(_msTarget, dg, p, ml, lu, false); }
+                    }
+                  /* ── 爆弾矢 ── */
+                  } else if (_srAr.bombArrow) {
+                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622");
+                    ml.push(`【射撃の指輪】${_arName}を射った！`);
+                    if (_srFarcast) {
+                      ml.push(`${_arName}は消滅した。`);
+                    } else {
+                      const _baMaxR = _srCursedFc ? 1 : 10;
+                      let _baLx = p.x, _baLy = p.y;
+                      for (let _d = 1; _d <= _baMaxR; _d++) {
+                        const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
+                        if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
+                        if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
+                        const _baM = monsterAt(dg, _tx, _ty);
+                        if (_baM) {
+                          const _baDmg = (_srAr.atk || 6) + rng(1, 4);
+                          _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
+                          _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
+                          if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
+                          _baLx = _tx; _baLy = _ty; break;
+                        }
+                        _baLx = _tx; _baLy = _ty;
+                      }
+                      if (!hasCursedExplosionPentacle(dg)) { ml.push("爆発！"); doExplosion(_baLx, _baLy, dg, p, ml, _srNF, "爆弾矢の爆発", null, lu); }
+                      else ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
+                    }
+                  /* ── 通常矢 / 毒矢 / 貫きの矢 ── */
+                  } else {
+                    const _isPierce = !!_srAr.pierce;
+                    const _isPoison = !!_srAr.poison;
+                    const _pierceMode = _isPierce || _srFarcast;
+                    const _arColor = _isPoison ? "#60d060" : _isPierce ? "#ff8844" : "#d0a050";
+                    const _dropFn = () => _isPierce ? makePiercingArrow(1) : _isPoison ? makePoisonArrow(1) : makeArrow(1);
+                    pushBoltAnim(p.x, p.y, dx, dy, dg, _arColor);
+                    const _arMaxR = _srCursedFc ? 1 : _pierceMode ? 50 : 10;
+                    const _srDmg = (_srAr.atk || 4) + rng(1, 4);
+                    let _srLx = p.x, _srLy = p.y, _srHit = false;
+                    for (let _srd = 1; _srd <= _arMaxR; _srd++) {
+                      const _srtx = p.x + dx * _srd, _srty = p.y + dy * _srd;
+                      if (_srtx < 0 || _srtx >= MW || _srty < 0 || _srty >= MH) break;
+                      if (!_pierceMode && (dg.map[_srty][_srtx] === T.WALL || dg.map[_srty][_srtx] === T.BWALL)) break;
+                      const _srm = monsterAt(dg, _srtx, _srty);
+                      if (_srm) {
+                        if (!_pierceMode && Math.random() >= 0.75) {
+                          ml.push(`【射撃の指輪】${_arName}は${_srm.name}に外れた！`);
+                          const _mft = new Set(); placeItemAt(dg, _srtx, _srty, _dropFn(), ml, _mft);
+                        } else {
+                          _srm.hp -= _srDmg;
+                          if (_isPoison) _srm.atk = Math.max(1, Math.floor((_srm.atk || 1) / 2));
+                          ml.push(`【射撃の指輪】${_arName}が${_srm.name}に命中！${_srDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
+                          _ad.damages.push({ type: "damage", x: _srm.x, y: _srm.y, value: _srDmg, color: _arColor });
+                          if (_srm.hp <= 0) { _ad.damages.push({ type: "flash", x: _srm.x, y: _srm.y, color: "#ff2200", duration: 150 }); killMonster(_srm, dg, p, ml, lu, false); }
+                        }
+                        _srHit = true;
+                        if (!_pierceMode) break;
+                      }
+                      _srLx = _srtx; _srLy = _srty;
+                    }
+                    if (_srFarcast || _srCursedFc) {
+                      ml.push(`【射撃の指輪】${_arName}は消滅した。`);
+                    } else if (!_srHit) {
+                      ml.push(`【射撃の指輪】${_arName}を発射した。`);
+                      const _srft = new Set(); placeItemAt(dg, _srLx, _srLy, _dropFn(), ml, _srft);
+                    }
                   }
                   if (p.arrow && p.arrow.count <= 0) {
                     p.inventory = p.inventory.filter(i => i !== _srAr);
