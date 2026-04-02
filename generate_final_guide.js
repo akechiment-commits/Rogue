@@ -18,6 +18,21 @@ function addSheet(name, data) {
   XLSX.utils.book_append_sheet(wb, ws, name);
 }
 
+// アイテム名 → rarity のマップを生成
+const _rarityMap = new Map();
+for (const it of ITEMS) _rarityMap.set(it.name, it.rarity);
+
+// data配列の先頭行(ヘッダー)の末尾に 'rarity' を追加し、
+// 各行でcol[0]が空でない場合にrarity値を末尾に追加する
+function injectRarity(data) {
+  data[0].push('rarity');
+  for (let i = 1; i < data.length; i++) {
+    const name = data[i][0];
+    data[i].push(name ? (_rarityMap.get(name) ?? '') : '');
+  }
+  return data;
+}
+
 // ===== 目次 =====
 const indexData = [
   ['ローグ - ゲーム完全実装ガイド'],
@@ -137,7 +152,7 @@ const potionData = [
   ['', '耐鈍足防具', '鈍足無効化（MP封印有効）', '-', ''],
 ];
 
-addSheet('01_薬', potionData);
+addSheet('01_薬', injectRarity(potionData));
 
 // ===== 食べ物への薬効果 =====
 const foodData = [['薬の種類', '通常・祝福', '呪い', '備考']];
@@ -179,7 +194,7 @@ const scrollData = [
   ['白紙', 'マーカーペンで書き込み対象', 'マーカーペンで書き込み対象', 'マーカーペンで書き込み対象', '1651-1656'],
 ];
 
-addSheet('03_巻物', scrollData);
+addSheet('03_巻物', injectRarity(scrollData));
 
 // ===== 武器・防具 =====
 const _weapons = ITEMS.filter(i => i.type === 'weapon');
@@ -245,7 +260,7 @@ const penData = [
   ['回復のペン', 'heal_aura', '毎ターン部屋内全員が5HP回復。アンデッドには5ダメージ', '毎ターン部屋内全員が10HP回復。アンデッドには10ダメージ', '毎ターン部屋内全員が5ダメージ。アンデッドには逆効果'],
 ];
 
-addSheet('07_ペン', penData);
+addSheet('07_ペン', injectRarity(penData));
 
 // ===== マーカーペン・魔法書 =====
 const otherData = [
