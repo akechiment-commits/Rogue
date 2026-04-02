@@ -2403,7 +2403,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                           const _mft = new Set(); placeItemAt(dg, _srtx, _srty, _dropFn(), ml, _mft);
                         } else {
                           _srm.hp -= _srDmg;
-                          if (_isPoison) _srm.atk = Math.max(1, Math.floor((_srm.atk || 1) / 2));
+                          if (_isPoison) {
+                            if (_srm.isBoss) {
+                              if (!_srm.bossPoisonHalfAtk) { _srm.bossPoisonOrigAtk = _srm.atk; _srm.bossPoisonHalfAtk = true; _srm.atk = Math.max(1, Math.floor(_srm.atk / 2)); }
+                              _srm.bossPoisonHalfAtkTurns = (_srm.bossPoisonHalfAtkTurns || 0) + 10;
+                            } else {
+                              _srm.atk = Math.max(1, Math.floor((_srm.atk || 1) / 2));
+                            }
+                          }
                           ml.push(`【射撃の指輪】${_arName}が${_srm.name}に命中！${_srDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
                           _ad.damages.push({ type: "damage", x: _srm.x, y: _srm.y, value: _srDmg, color: _arColor });
                           if (_srm.hp <= 0) { _ad.damages.push({ type: "flash", x: _srm.x, y: _srm.y, color: "#ff2200", duration: 150 }); killMonster(_srm, dg, p, ml, lu, false); }
@@ -3501,7 +3508,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _itd = clampDmgFixed(m, _scDmg, true);
                 m.hp -= _itd;
                 let _msg = `${_idn}が${m.name}に命中！${_itd}ダメージ！`;
-                if (item.type === "arrow" && item.poison) { m.atk = Math.max(1, Math.floor((m.atk || 1) / 2)); _msg += "攻撃力が半減した！"; }
+                if (item.type === "arrow" && item.poison) {
+                  if (m.isBoss) {
+                    if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.atk = Math.max(1, Math.floor(m.atk / 2)); }
+                    m.bossPoisonHalfAtkTurns = (m.bossPoisonHalfAtkTurns || 0) + 10;
+                  } else {
+                    m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+                  }
+                  _msg += "攻撃力が半減した！";
+                }
                 ml.push(_msg);
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
               }

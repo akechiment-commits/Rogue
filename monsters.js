@@ -1408,6 +1408,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       ml.push(`${m.name}の鈍足が解けた！`);
     }
   }
+  /* 毒矢攻撃力半減（ボス：10ターンで回復） */
+  if (m.isBoss && m.bossPoisonHalfAtk && !_attackOnly) {
+    m.bossPoisonHalfAtkTurns = Math.max(0, (m.bossPoisonHalfAtkTurns || 0) - 2);
+    if (m.bossPoisonHalfAtkTurns <= 0) {
+      m.atk = m.bossPoisonOrigAtk ?? m.atk;
+      m.bossPoisonHalfAtk = false;
+      delete m.bossPoisonOrigAtk;
+      ml.push(`${m.name}の攻撃力が戻った！`);
+    }
+  }
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
   if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - (m.isBoss ? 2 : 1)); _attackOnly = true; }
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */

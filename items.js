@@ -3155,7 +3155,14 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       if (consumeBarrier(m, ml)) { hit = true; break; }
       const _arDmg = clampDmgFixed(m, dmg, true);
       m.hp -= _arDmg;
-      if (_isPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+      if (_isPoison) {
+        if (m.isBoss) {
+          if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.atk = Math.max(1, Math.floor(m.atk / 2)); }
+          m.bossPoisonHalfAtkTurns = (m.bossPoisonHalfAtkTurns || 0) + 10;
+        } else {
+          m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+        }
+      }
       ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
       if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }
