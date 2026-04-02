@@ -726,8 +726,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       }
     }
 
-    /* ===== モンスター感知 ===== */
-    if ((p.monsterSenseTurns || 0) > 0 || dg.monsterSenseActive) {
+    /* ===== モンスター感知（monsterSenseTurns / monsterSenseActive / 透視の指輪） ===== */
+    const _hasClairvoyanceRing = p.rings?.some(r => r.effect === "clairvoyance_ring");
+    if ((p.monsterSenseTurns || 0) > 0 || dg.monsterSenseActive || _hasClairvoyanceRing) {
       for (const _sm of dg.monsters) {
         if (_sm.wallWalker) continue;
         if (dg.visible[_sm.y]?.[_sm.x]) continue;
@@ -738,6 +739,20 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         ctx.fillStyle = "rgba(200,30,30,0.25)";
         ctx.fillRect(_spx, _spy, sz, sz);
         drawTile(ctx, ts, _sm.tile, _spx, _spy, sz);
+        ctx.globalAlpha = 1;
+      }
+    }
+    /* ===== アイテム感知（感知の指輪） ===== */
+    if (p.rings?.some(r => r.effect === "detect_ring")) {
+      for (const _si of dg.items) {
+        if (_si.wallEmbedded) continue;
+        if (dg.visible[_si.y]?.[_si.x]) continue;
+        if (_si.x < sx || _si.x >= sx + vw || _si.y < sy || _si.y >= sy + vh) continue;
+        const _ipx = (_si.x - sx) * sz, _ipy = (_si.y - sy) * sz;
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = "rgba(30,120,200,0.25)";
+        ctx.fillRect(_ipx, _ipy, sz, sz);
+        drawTile(ctx, ts, _si.tile, _ipx, _ipy, sz);
         ctx.globalAlpha = 1;
       }
     }

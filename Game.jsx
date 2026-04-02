@@ -1326,6 +1326,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _etStartHp = p.hp;
       p.turns++;
       const _hasRegenRing = hasRingEffect(p, "regen_ring");
+      const _hasStomachRing = hasRingEffect(p, "stomach_ring");
       const hd =
         hasAbility(p.armor, "slow_hunger")
           ? 2
@@ -1334,6 +1335,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* hd < 1 の場合は整数 turns でのチェックができないので別処理 */
       if (_hasRegenRing) {
         if (p.turns % 5 === 0) p.hunger = Math.max(0, p.hunger - 1);
+      } else if (_hasStomachRing) {
+        /* 腹持ちの指輪：空腹が半分速（20ターンに1減少） */
+        if (p.turns % 20 === 0) p.hunger = Math.max(0, p.hunger - 1);
       } else {
         if (p.turns % (10 * hd) === 0) {
           p.hunger = Math.max(0, p.hunger - 1);
@@ -2170,6 +2174,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 d *= 2;
                 crit = true;
               }
+              /* 背水の指輪：HP低下で会心率上昇（HP20%以下で必ず会心） */
+              if (!crit && hasRingEffect(p, "desperation_ring")) {
+                const _despRatio = p.hp / p.maxHp;
+                const _despChance = _despRatio <= 0.2 ? 1.0 : Math.max(0, (0.5 - _despRatio) / 0.3);
+                if (Math.random() < _despChance) { d *= 2; crit = true; }
+              }
               /* 炎属性武器：fire弱点×2、油まみれ×2、火ダルマ×0.5 */
               const _hasFireElem = wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
               if (_hasFireElem) {
@@ -2217,6 +2227,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
+              /* 吸血の指輪：与ダメの1/8をHP吸収 */
+              if (hasRingEffect(p, "vampire_ring")) {
+                const _vamp = Math.max(1, Math.floor(d / 8));
+                p.hp = Math.min(p.maxHp, p.hp + _vamp);
+                ml.push(`吸血でHP+${_vamp}！`);
+              }
               _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
               _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: d, color: crit ? "#ffff00" : "#ff4444" });
               if (attackMon.hp <= 0) _ad.damages.push({ type: "flash", x: attackMon.x, y: attackMon.y, color: "#ff2200", duration: 150 });

@@ -3469,6 +3469,11 @@ export const RINGS = [
   { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、お腹の減り方と自然回復の量が倍になる。" },
   { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"C", weight:1, sellPrice:80,   tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
   { name: "松明の指輪",     type:"ring", effect:"torch_ring",           rarity:"B", weight:2, sellPrice:700,  tile:60, desc:"装備中、視界範囲が1マス広がる。2つ装備すれば2マス広がる。" },
+  { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、満腹度の減りが半分になる。" },
+  { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"B", weight:2, sellPrice:2000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
+  { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"B", weight:2, sellPrice:1800, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
+  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"A", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
+  { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"A", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。HP20%以下で必ず会心になる。" },
 ];
 
 export function hasRingEffect(p, effect) {
