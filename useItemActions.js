@@ -1612,6 +1612,8 @@ export function useItemActions({
       setShowDesc(null);
       endTurn(sr.current, sr.current.player, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
       return;
     }
     setShowInv(false);
@@ -1622,7 +1624,7 @@ export function useItemActions({
       ...prev.slice(-80),
       `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を振る方向を選んでください...`,
     ]);
-  }, [endTurn]);
+  }, [endTurn, setGs]);
   const doBreakWand = useCallback(
     (idx) => {
       if (!sr.current) return;
@@ -2434,10 +2436,7 @@ export function useItemActions({
             }
           }
         }
-        if (it.charges <= 0) {
-          ml.push(`${dnameRef(it)}は力を失った...`);
-          /* 回数0の杖はインベントリに残す（投げ当ては引き続き有効） */
-        }
+        /* 回数0の杖はインベントリに残す（投げ当ては引き続き有効） */
         } /* end else (charges > 0) */
       } else if (mode === "cast_spell") {
         const spellDef = SPELLS.find((s) => s.id === idx);
