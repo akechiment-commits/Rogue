@@ -4150,8 +4150,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           </span>
         </span>{" "}
         <span style={{ color: "#ffd700" }}>${p.gold}</span>{" "}
+        {p.weapon && (
+          <span style={{ color: "#ff9966", fontSize: "0.85em" }}>
+            ⚔{p.weapon.name}{(p.weapon.plus || 0) !== 0 ? `${p.weapon.plus > 0 ? "+" : ""}${p.weapon.plus}` : ""}
+          </span>
+        )}{" "}
+        {p.armor && (
+          <span style={{ color: "#66ccff", fontSize: "0.85em" }}>
+            🛡{p.armor.name}{(p.armor.plus || 0) !== 0 ? `${p.armor.plus > 0 ? "+" : ""}${p.armor.plus}` : ""}
+          </span>
+        )}{" "}
         {p.arrow && (
-          <span style={{ color: "#dda050" }}>{p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : "矢"}:{p.arrow.count}</span>
+          <span style={{ color: "#dda050" }}>
+            {p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
+          </span>
         )}{" "}
         {(p.rings || []).map((r, i) => (
           <span key={i} style={{ color: "#c0a0ff", fontSize: "0.85em" }}>
