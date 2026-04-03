@@ -1343,6 +1343,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       break;
     }
     case "godsparkwand": {
+      /* 呪われた爆発の魔方陣：雷を不発にする */
+      if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣がゴッドスパークを打ち消した！"); break; }
       const _gsBlessed = blMult > 1, _gsCursed = blMult < 1;
       if (_gsCursed) {
         /* 呪い：対象を100回復 */
@@ -1371,6 +1373,41 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.deathCause = "ゴッドスパークの杖により";
         p.hp -= _gsDmg;
         ml.push(`ゴッドスパーク炸裂！自分に${_gsDmg}ダメージ！${_gsBlessed ? "【祝】" : ""}`);
+        applyLightningToInventory(p, dg, ml, luFn, nameFn);
+        break;
+      }
+      if (kind === "item") {
+        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") {
+          removeFloorItem(dg, target);
+          chargeShopItem(target, dg, ml);
+          ml.push(`${target.name}は雷で焼けた！`);
+        } else if (target.type === "pot") {
+          removeFloorItem(dg, target);
+          chargeShopItem(target, dg, ml);
+          ml.push(`雷撃で${target.name}が割れた！`);
+          scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn);
+        } else if (target.type === "bottle") {
+          removeFloorItem(dg, target);
+          chargeShopItem(target, dg, ml);
+          ml.push(`${target.name}が雷撃で砕けた！`);
+        } else if (target.type === "food") {
+          if (!target.cooked) {
+            target.value *= 2;
+            cookFoodMeta(target);
+            target.name = "焼いた" + target.name;
+            ml.push(`${target.name}になった！`);
+          } else {
+            burnFoodItem(target, ml);
+          }
+        } else {
+          ml.push(`雷撃が${target.name}に落ちた！`);
+        }
+        break;
+      }
+      if (kind === "trap") {
+        if (target.permanent) { ml.push(`${target.name}は破壊できない！`); break; }
+        dg.traps = dg.traps.filter(t => t !== target);
+        ml.push(`雷撃で${target.name}が破壊された！`);
         break;
       }
       break;
