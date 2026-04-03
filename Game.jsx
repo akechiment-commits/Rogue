@@ -1548,6 +1548,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         p.spicyAtkTurns--;
         if (p.spicyAtkTurns <= 0) ml.push("辛さによる攻撃力ブーストが切れた！");
       }
+      if ((p.atkDebuffTurns || 0) > 0) {
+        p.atkDebuffTurns--;
+        if (p.atkDebuffTurns <= 0) ml.push("攻撃力の半減デバフが解けた！");
+      }
+      if ((p.defDebuffTurns || 0) > 0) {
+        p.defDebuffTurns--;
+        if (p.defDebuffTurns <= 0) ml.push("防御力の半減デバフが解けた！");
+      }
       /* 2倍速：endTurnが呼ばれた時（2回目の行動後）のみ消費 */
       if ((p.hasteTurns || 0) > 0) {
         p.hasteTurns--;
@@ -2164,7 +2172,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
-              let ap = p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0);
+              let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0)) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)));
               const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;

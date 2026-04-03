@@ -78,7 +78,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     }
   }
   /* プレイヤーに命中 */
-  const pdef = Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1));
+  const pdef = Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1) * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
   let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   /* 脆弱の魔方陣 */
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -118,7 +118,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
       return;
     }
   }
-  const pdef = Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1));
+  const pdef = Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1) * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
   let _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
@@ -169,7 +169,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     onPlayerMiss?.(m);
     return;
   }
-  const pdef = Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1));
+  const pdef = Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1) * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
   let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   if (!skipVuln) {
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -1428,6 +1428,21 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.bossPoisonHalfAtk = false;
       delete m.bossPoisonOrigAtk;
       ml.push(`${m.name}の攻撃力が戻った！`);
+    }
+  }
+  /* 強化解除巻物デバフ：ATK/DEF半減（50ターン） */
+  if ((m.debuffAtkHalfTurns || 0) > 0 && !_attackOnly) {
+    m.debuffAtkHalfTurns = Math.max(0, m.debuffAtkHalfTurns - (m.isBoss ? 2 : 1));
+    if (m.debuffAtkHalfTurns <= 0) {
+      if (m._debuffOrigAtk !== undefined) { m.atk = m._debuffOrigAtk; delete m._debuffOrigAtk; }
+      ml.push(`${m.name}の攻撃力デバフが解けた！`);
+    }
+  }
+  if ((m.debuffDefHalfTurns || 0) > 0 && !_attackOnly) {
+    m.debuffDefHalfTurns = Math.max(0, m.debuffDefHalfTurns - (m.isBoss ? 2 : 1));
+    if (m.debuffDefHalfTurns <= 0) {
+      if (m._debuffOrigDef !== undefined) { m.def = m._debuffOrigDef; delete m._debuffOrigDef; }
+      ml.push(`${m.name}の防御力デバフが解けた！`);
     }
   }
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */

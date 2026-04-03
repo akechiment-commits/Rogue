@@ -1000,33 +1000,42 @@ export function useItemActions({
         }
       } else if (it.effect === "debuff") {
         if (it.cursed) {
-          // 呪い：自分の装備の強化値を下げる
-          let _dbMsg = [];
-          if (p.weapon) { p.weapon.plus = (p.weapon.plus || 0) - 1; _dbMsg.push(`${p.weapon.name}が${p.weapon.plus < 0 ? p.weapon.plus : "+" + p.weapon.plus}になった`); }
-          if (p.armor)  { p.armor.plus  = (p.armor.plus  || 0) - 1; _dbMsg.push(`${p.armor.name}が${p.armor.plus < 0 ? p.armor.plus : "+" + p.armor.plus}になった`); }
-          ml.push(_dbMsg.length > 0 ? `装備が弱化した！【呪】${_dbMsg.join("、")}` : "装備していないので何も起きなかった。【呪】");
+          // 呪い：自分に攻撃力半減・防御力半減デバフ50ターン
+          p.atkDebuffTurns = Math.max(p.atkDebuffTurns || 0, 50);
+          p.defDebuffTurns = Math.max(p.defDebuffTurns || 0, 50);
+          ml.push("呪いの力が自分に降り注いだ！50ターン攻撃力・防御力が半減する！【呪】");
         } else {
           const _dbTgts = dg.monsters.filter((m) => dg.visible[m.y]?.[m.x]);
           if (_dbTgts.length === 0) { ml.push("視界に敵はいない。"); }
           else {
             for (const _m of _dbTgts) {
               if (_m.subtype === "magicreflect") {
-                // 反射：自分の装備の強化値が下がる
-                let _refDbMsg = [];
-                if (p.weapon) { p.weapon.plus = (p.weapon.plus || 0) - 1; _refDbMsg.push(`${p.weapon.name}が${p.weapon.plus < 0 ? p.weapon.plus : "+" + p.weapon.plus}に`); }
-                if (p.armor)  { p.armor.plus  = (p.armor.plus  || 0) - 1; _refDbMsg.push(`${p.armor.name}が${p.armor.plus < 0 ? p.armor.plus : "+" + p.armor.plus}に`); }
-                ml.push(`${_m.name}が解除魔法を跳ね返した！` + (_refDbMsg.length > 0 ? _refDbMsg.join("、") + "なった！" : "しかし装備していないため効果なし。"));
+                // 反射：自分に攻撃力半減・防御力半減デバフ
+                p.atkDebuffTurns = Math.max(p.atkDebuffTurns || 0, 50);
+                p.defDebuffTurns = Math.max(p.defDebuffTurns || 0, 50);
+                ml.push(`${_m.name}が解除魔法を跳ね返した！自分に攻撃力・防御力半減デバフ！`);
                 continue;
               }
               let _removed = [];
               if (_m.atkBuffed) { _m.atk = Math.max(1, _m.atk - 3); _m.atkBuffed = false; _removed.push("攻撃バフ"); }
               if (_m._enraged) { _m._enraged = false; _removed.push("激昂"); }
               if ((_m.hasteTurns || 0) > 0) { _m.hasteTurns = 0; _removed.push("加速"); }
+              // overBoost強化を解除
+              if (_m.overBoost) {
+                _m.atk = _m._baseAtk ?? _m.atk;
+                _m.exp = _m._baseExp ?? _m.exp;
+                delete _m.overBoost; delete _m._baseAtk; delete _m._baseExp;
+                _removed.push("強化");
+              }
+              // 元から倍速なら等速に戻す
+              if ((_m.speed || 1) > 1) { _m.speed = 1; _removed.push("倍速→等速"); }
               if (it.blessed) {
-                // 祝福：ステータスも永続低下
-                const _atkDrop = rng(2, 4), _defDrop = rng(1, 3);
-                _m.atk = Math.max(1, _m.atk - _atkDrop); _m.def = Math.max(0, _m.def - _defDrop);
-                _removed.push(`攻-${_atkDrop}/防-${_defDrop}`);
+                // 祝福：攻撃力・防御力を50ターン半減
+                if (_m._debuffOrigAtk === undefined) { _m._debuffOrigAtk = _m.atk; _m.atk = Math.max(1, Math.floor(_m.atk / 2)); }
+                if (_m._debuffOrigDef === undefined) { _m._debuffOrigDef = _m.def; _m.def = Math.max(0, Math.floor(_m.def / 2)); }
+                _m.debuffAtkHalfTurns = Math.max(_m.debuffAtkHalfTurns || 0, 50);
+                _m.debuffDefHalfTurns = Math.max(_m.debuffDefHalfTurns || 0, 50);
+                _removed.push("攻撃力・防御力半減50T");
               }
               if (_removed.length > 0) ml.push(`${_m.name}のバフが解除された！(${_removed.join("、")})${it.blessed ? "【祝】" : ""}`);
               else ml.push(`${_m.name}に解除するバフはなかった。${it.blessed ? "【祝】" : ""}`);
