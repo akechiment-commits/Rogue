@@ -667,12 +667,24 @@ export const MON_LEVELS = Object.fromEntries(
 export function monLevelUp(mon, dg, ml) {
   if (!mon.baseKind) return false;
   const levels = MON_LEVELS[mon.baseKind];
-  if (!levels) return false;
   const nextLevel = (mon.monLevel || 1) + 1;
-  const template = levels[nextLevel - 2]; // Lv2→index0, Lv3→index1
+  const template = levels ? levels[nextLevel - 2] : null; // Lv2→index0, Lv3→index1
   if (!template) {
-    ml.push(`${mon.name}はすでに最強形態だ！`);
-    return false;
+    /* 最強形態（ボス or Lv3）: 攻撃力・経験値を1.2倍ずつ強化（上限10倍） */
+    const _curBoost = mon.overBoost || 1;
+    const _newBoost = Math.min(10, _curBoost * 1.2);
+    if (_curBoost >= 10) {
+      ml.push(`${mon.name}はもう限界まで強化されている！`);
+      return false;
+    }
+    const _baseAtk = mon._baseAtk ?? mon.atk;
+    const _baseExp = mon._baseExp ?? mon.exp;
+    if (!mon._baseAtk) { mon._baseAtk = mon.atk; mon._baseExp = mon.exp; }
+    mon.atk = Math.round(_baseAtk * _newBoost);
+    mon.exp = Math.round(_baseExp * _newBoost);
+    mon.overBoost = _newBoost;
+    ml.push(`${mon.name}がさらに強化された！（強化×${_newBoost.toFixed(2)}）`);
+    return true;
   }
   const hpRatio = mon.maxHp > 0 ? mon.hp / mon.maxHp : 1;
   const oldName = mon.name;
