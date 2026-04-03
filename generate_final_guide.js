@@ -6,7 +6,7 @@ import {
   RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS,
   POTION_FOOD_PREFIX,
   WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER,
-  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T,
+  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STONE_T, MAGIC_STONE_T, BOMB_ARROW_T,
 } from './items.js';
 
@@ -383,12 +383,13 @@ const WAND_DETAILS = {
   soften:       { normal:'敵の防御を半減 / アイテム・罠・大箱を破壊 / 壁→ランダム食料', blessed:'防御を1/4に', cursed:'1マス先に壊せる壁(BWALL)を生成' },
   fire_wand:    { normal:'rng(20,30)炎ダメ（油まみれ×2）', blessed:'rng(40,60)ダメ（×2）', cursed:'対象HP+rng(20,30)回復（アンデッドには20-30ダメ）' },
   ice_wand:     { normal:'rng(15,25)氷ダメ+5T移動封じ', blessed:'rng(30,50)ダメ+10T移動封じ（×2）', cursed:'対象HP最大20回復+移動封じ解除' },
-  vitality_swap:{ normal:'対象と現在HPを入れ替える', blessed:'交換後に相手HP→1', cursed:'交換後に自分HP→1' },
-  sage:         { normal:'アイテム・大箱を識別 / 壁に跳ね返ると手持ち1個ランダム識別', blessed:'同上', cursed:'対象が未識別に戻る' },
+  vitality_swap:  { normal:'対象と現在HPを入れ替える', blessed:'交換後に相手HP→1', cursed:'交換後に自分HP→1' },
+  sage:           { normal:'アイテム・大箱を識別 / 壁に跳ね返ると手持ち1個ランダム識別', blessed:'同上', cursed:'対象が未識別に戻る' },
+  godsparkwand:   { normal:'対象に100ダメージ', blessed:'対象に200ダメージ（×2）', cursed:'対象HP+100回復' },
 };
 
 const wandData = [['杖名', 'チャージ', 'レア度', '売値', '通常効果', '祝福効果', '呪い効果', '説明']];
-for (const w of WANDS) {
+for (const w of [...WANDS, GODSPARKWAND_T]) {
   const d = WAND_DETAILS[w.effect] || {};
   wandData.push([w.name, w.charges, w.rarity, w.sellPrice, d.normal||'', d.blessed||'', d.cursed||'', w.desc]);
 }

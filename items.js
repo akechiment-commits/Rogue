@@ -212,6 +212,7 @@ export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, abi
 export const TRIELEM_ARMOR_T = { name:"元素王の鎧", type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した究極の剣。竜・不死・浮遊の全種族に2倍ダメージ。", tile:20 };
 export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:8,  ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           desc:"三種の守護防具が融合した究極の鎧。刃反射・みかわし・杖反射の三重防御。",       tile:21 };
+export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"炎・雷・氷の三杖を合成して生まれた究極の杖。振ると100ダメージ。祝福で200ダメージ。呪いなら100回復。", tile:24 };
 
 export const ARROW_T        = { name:"矢",       type:"arrow", atk:4,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
 export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:4, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };

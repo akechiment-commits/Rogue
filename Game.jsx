@@ -10,7 +10,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, TRAPS,
-  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T,
+  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
@@ -3075,6 +3075,31 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const wds = bb.contents.filter((i) => i.type === "wand");
       if (wds.length >= 2) {
         const [wb, wm] = wds;
+        /* ゴッドスパーク合成トラッキング: 炎・雷・氷の3属性を蓄積 */
+        const _gsEffects = new Set(["fire_wand", "lightning", "ice_wand"]);
+        if (_gsEffects.has(wb.effect) || _gsEffects.has(wm.effect)) {
+          /* どちらかが三属性杖の場合、mergedWandEffectsを引き継いで追記 */
+          const _merged = new Set(wb.mergedWandEffects || [wb.effect]);
+          if (_gsEffects.has(wm.effect)) _merged.add(wm.effect);
+          if (_gsEffects.has(wb.effect)) _merged.add(wb.effect);
+          const _combinedCharges = (wb.charges || 0) + Math.max(1, Math.floor((wm.charges || 0) / 2));
+          /* 三属性全部揃ったらゴッドスパークの杖に変化 */
+          if (_merged.has("fire_wand") && _merged.has("lightning") && _merged.has("ice_wand")) {
+            const _gsWand = { ...GODSPARKWAND_T, id: uid(), charges: _combinedCharges };
+            bb.contents = bb.contents.filter(i => i !== wb && i !== wm);
+            bb.contents.push(_gsWand);
+            bb.capacity = bb.contents.length;
+            ml.push(`合成完了！炎・雷・氷の三属性が融合してゴッドスパークの杖に変化した！`);
+            return;
+          }
+          /* まだ揃っていない：チャージを合算してmergedWandEffectsを更新 */
+          wb.charges = _combinedCharges;
+          wb.mergedWandEffects = [..._merged];
+          bb.contents = bb.contents.filter(i => i !== wm);
+          bb.capacity = bb.contents.length;
+          ml.push(`合成完了！${wb.name}の回数が増えた！(${wb.charges}回) [三属性杖: ${wb.mergedWandEffects.join("/")}]`);
+          return;
+        }
         if (wb.name === wm.name) {
           wb.charges = (wb.charges || 0) + (wm.charges || 0);
           ml.push(

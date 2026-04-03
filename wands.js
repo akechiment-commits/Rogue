@@ -1342,6 +1342,39 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       break;
     }
+    case "godsparkwand": {
+      const _gsBlessed = blMult > 1, _gsCursed = blMult < 1;
+      if (_gsCursed) {
+        /* 呪い：対象を100回復 */
+        if (kind === "monster") {
+          const _gsh = Math.min(100, target.maxHp - target.hp);
+          if (_gsh > 0) { target.hp += _gsh; ml.push(`${target.name}のHPが${_gsh}回復した！【呪】`); }
+          else ml.push(`${target.name}には効果がなかった。`);
+          break;
+        }
+        if (kind === "player") {
+          const _gsh = Math.min(100, p.maxHp - p.hp);
+          if (_gsh > 0) { p.hp += _gsh; ml.push(`神の奇跡！HP+${_gsh}【呪】`); }
+          else ml.push("HPは既に満タンだ。");
+          break;
+        }
+        break;
+      }
+      const _gsDmg = _gsBlessed ? 200 : 100;
+      if (kind === "monster") {
+        target.hp -= _gsDmg;
+        ml.push(`ゴッドスパーク炸裂！${target.name}に${_gsDmg}ダメージ！${_gsBlessed ? "【祝】" : ""}`);
+        if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+        break;
+      }
+      if (kind === "player") {
+        p.deathCause = "ゴッドスパークの杖により";
+        p.hp -= _gsDmg;
+        ml.push(`ゴッドスパーク炸裂！自分に${_gsDmg}ダメージ！${_gsBlessed ? "【祝】" : ""}`);
+        break;
+      }
+      break;
+    }
     case "vitality_swap": {
       const _vsBless = blMult > 1, _vsCurse = blMult < 1;
       if (kind === "player") {
