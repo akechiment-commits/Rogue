@@ -1605,7 +1605,13 @@ export function useItemActions({
     const it = sr.current.player.inventory[idx];
     if (!it || it.type !== "wand") return;
     if (it.charges <= 0) {
-      setMsgs((prev) => [...prev.slice(-80), "杖の力が残っていない..."]);
+      const ml = [];
+      ml.push("杖の力が残っていない...");
+      setShowInv(false);
+      setSelIdx(null);
+      setShowDesc(null);
+      endTurn(sr.current, sr.current.player, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
       return;
     }
     setShowInv(false);
@@ -1616,7 +1622,7 @@ export function useItemActions({
       ...prev.slice(-80),
       `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を振る方向を選んでください...`,
     ]);
-  }, []);
+  }, [endTurn]);
   const doBreakWand = useCallback(
     (idx) => {
       if (!sr.current) return;
