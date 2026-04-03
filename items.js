@@ -164,6 +164,7 @@ export const ITEMS = [
   { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"B", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれの敵や炎弱点の敵に2倍ダメージ。火ダルマには0.5倍。", tile:20 },
   { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"B", weight:4,  sellPrice:1500, desc:"氷属性の剣。炎系の敵（火ダルマ・炎弱点の敵）に2倍ダメージ。",         tile:20 },
   { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"B", weight:4,  sellPrice:1500, desc:"雷属性の剣。氷・水系の敵（氷竜・わてり等）に2倍ダメージ。",           tile:20 },
+  { name:"グラットンソード", type:"weapon", atk:7,  ability:"def_bonus",     rarity:"B", weight:4,  sellPrice:1800, desc:"装備中は防御力が5上がる重厚な剣。",                                   tile:20 },
   { name:"革の鎧",           type:"armor",  def:2,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
   { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"C", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。",                   tile:21 },
   { name:"プレートメイル",   type:"armor",  def:8,                       rarity:"B", weight:4,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
@@ -897,6 +898,7 @@ export const WEAPON_ABILITIES = [
   { id:"fire_elem",       name:"炎属性",    desc:"油まみれの敵に2倍ダメージ、火ダルマには0.5倍ダメージ" },
   { id:"ice_elem",        name:"氷属性",    desc:"炎属性の敵(火ダルマ・氷竜以外の炎系)に2倍ダメージ" },
   { id:"thunder_elem",    name:"雷属性",    desc:"氷・水系の敵(氷竜・わてり)に2倍ダメージ" },
+  { id:"def_bonus",       name:"防御強化",  desc:"装備中、防御力が5上がる" },
 ];
 
 export const ARMOR_ABILITIES = [

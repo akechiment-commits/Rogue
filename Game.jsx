@@ -4149,7 +4149,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         </span>{" "}
         <span>
           防:
-          <span style={{ color: "#08f" }}>{p.def + (p.armor?.def || 0) + (p.armor?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="defense_ring"?s+(r.plus||0):s,0)}</span>
+          <span style={{ color: "#08f" }}>{p.def + (p.armor?.def || 0) + (p.armor?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="defense_ring"?s+(r.plus||0):s,0) + (p.weapon?.ability==="def_bonus"||p.weapon?.abilities?.includes("def_bonus") ? 5 : 0)}</span>
         </span>{" "}
         <span>
           食:
