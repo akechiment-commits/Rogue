@@ -1616,6 +1616,20 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
     items.splice(ii, 1);
   }
+  /* 水タイルになった大箱を削除 */
+  for (let bi = bigboxes.length - 1; bi >= 0; bi--) {
+    if (map[bigboxes[bi].y]?.[bigboxes[bi].x] === T.WATER) bigboxes.splice(bi, 1);
+  }
+  /* 部屋センター周辺の水タイルを床に戻す（通路の連結を保証） */
+  /* 通路は各部屋の中心(cx, cy)に繋がるため、その±1マスを水にしない */
+  for (const r of nonShopRooms) {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = r.cx + dx, ny = r.cy + dy;
+        if (map[ny]?.[nx] === T.WATER) map[ny][nx] = T.FLOOR;
+      }
+    }
+  }
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
   if (depth === 1) {
