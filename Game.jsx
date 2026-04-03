@@ -388,7 +388,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (_initMaxD !== null && startDepth >= _initMaxD && _initDt !== "debug") {
       prepareLastFloor(d, _initDt);
     }
-    d.nextSpawnTurn = rng(10, 50);
+    d.nextSpawnTurn = 30;
     const p = {
       x: d.stairUp.x,
       y: d.stairUp.y,
@@ -1306,7 +1306,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       pl.y = _stTarget.y;
     }
     refreshFOV(d, pl);
-    d.nextSpawnTurn = pl.turns + rng(10, 50);
+    d.nextSpawnTurn = pl.turns + 30;
     d._firstVisit = !_saved;
     return d;
   }, []);
@@ -1835,6 +1835,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       {
         const _dg = st.dungeon;
+        /* 通常モンスター発生: 30T固定、魔物呼び1個→15T、2個→5T */
         if (
           _dg.nextSpawnTurn !== undefined &&
           p.turns >= _dg.nextSpawnTurn &&
@@ -1857,14 +1858,38 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           }
           if (_cands.length > 0) {
             const [_cx, _cy] = pick(_cands);
-            if (_dg.shopTheft) {
-              _dg.monsters.push(makeGuard(_cx, _cy, p.x, p.y));
-              ml.push("手配犯として警備員が現れた！");
-            } else {
-              _dg.monsters.push(makeMonster(p.depth - 1, _cx, _cy));
+            _dg.monsters.push(makeMonster(p.depth - 1, _cx, _cy));
+          }
+          const _spawnRingCount = (p.rings || []).filter(r => r && r.effect === "spawn_ring").length;
+          const _spawnInterval = _spawnRingCount >= 2 ? 5 : _spawnRingCount === 1 ? 15 : 30;
+          _dg.nextSpawnTurn = p.turns + _spawnInterval;
+        }
+        /* 警備員発生: shopTheft時、10Tごとに別途発生 */
+        if (
+          _dg.shopTheft &&
+          p.hp > 0 &&
+          p.turns >= (_dg.nextGuardSpawnTurn ?? p.turns)
+        ) {
+          const _gcands = [];
+          for (let _sy = 0; _sy < MH; _sy++) {
+            for (let _sx = 0; _sx < MW; _sx++) {
+              if (_dg.map[_sy][_sx] !== T.FLOOR) continue;
+              if (_sx === p.x && _sy === p.y) continue;
+              if (monsterAt(_dg, _sx, _sy)) continue;
+              if (_dg.isBigRoom) {
+                if (Math.abs(_sx - p.x) + Math.abs(_sy - p.y) < 8) continue;
+              } else {
+                if (_dg.visible[_sy][_sx]) continue;
+              }
+              _gcands.push([_sx, _sy]);
             }
           }
-          _dg.nextSpawnTurn = p.turns + (_dg.shopTheft ? rng(5, 15) : hasRingEffect(p, "spawn_ring") ? rng(3, 10) : rng(10, 50));
+          if (_gcands.length > 0) {
+            const [_cx, _cy] = pick(_gcands);
+            _dg.monsters.push(makeGuard(_cx, _cy, p.x, p.y));
+            ml.push("手配犯として警備員が現れた！");
+          }
+          _dg.nextGuardSpawnTurn = p.turns + 10;
         }
       }
       if (p.hp <= 0) {
