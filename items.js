@@ -146,6 +146,7 @@ export const ITEMS = [
   { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, rarity:"C", weight:8,  sellPrice:350,  desc:"足元に石飛ばしの魔方陣を描く。部屋内のキャラに毎ターン確率で魔法の石が飛ぶ。祝福で2倍ダメージ。呪いで回復効果。チャージ制。", tile:42 },
   { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, rarity:"C", weight:8,  sellPrice:350,  desc:"足元に吹き飛ばしの魔方陣を描く。同じ部屋での近接攻撃を受けた者が5マス吹き飛ぶ。祝福で何かに当たるまで飛ぶ。呪いで1マスだけ。チャージ制。", tile:42 },
   { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"A", weight:2,  sellPrice:2000, desc:"足元に爆発の魔方陣を描く。部屋内で倒された敵が爆発し周囲8マスに現HPの3/4ダメージ。壁・罠・大箱も破壊。祝福でフロア全体。呪いでフロアの炎・雷を不発にする。チャージ制。", tile:42 },
+  { name:"囮のペン",         type:"pen",    effect:"decoy",         charges:2, rarity:"B", weight:4,  sellPrice:800,  desc:"足元に囮の魔方陣を描く。同じ部屋の敵はプレイヤーを無視して魔方陣に集まり、陣取った敵は動かなくなる。陣取り中に別の敵が近づくと互いに攻撃し合う。祝福でフロア全体の敵が対象に。呪いでフロア全敵が常にプレイヤーを認識して近づいてくる。チャージ制。", tile:42 },
   { name:"ただのペン",       type:"pen",    effect:"plain",         charges:2, rarity:"D", weight:12, sellPrice:50,   desc:"何も起こらない魔方陣を描く。他のペンに合成してインクを補充することができる。チャージ制。", tile:42 },
   { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"B", weight:4,  sellPrice:800,  desc:"足元に重力の魔方陣を描く。部屋内では浮遊不可・敵が罠にかかる・吹き飛ばし/飛びつき無効。水上の浮遊系敵は弾き出される（逃げ場なし即死）。祝福でフロア全体。呪いで部屋内全員が浮遊状態になる。チャージ制。", tile:42 },
   { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"A", weight:2,  sellPrice:2000, desc:"足元にみかわしの魔方陣を描く。魔方陣のある部屋では投げたもの・矢・石が必ず外れる（魔法・炎は除く）。祝福でフロア全体。呪いで逆に投げたもの・矢・石が必ず命中するようになる。チャージ制。", tile:42 },
