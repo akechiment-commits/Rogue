@@ -47,6 +47,8 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.darknessTurns || 0) > 0 && mon.darknessTurns < 9999)  _sts.push("#604878"); // 暗闇：暗紫
   if (mon.baseSpeed != null && (mon.speed ?? 1) > mon.baseSpeed)  _sts.push("#ff4040"); // 倍速：赤
   if (mon.baseSpeed != null && (mon.speed ?? 1) < mon.baseSpeed)  _sts.push("#20b8a0"); // 鈍足：青緑
+  if ((mon.debuffAtkHalfTurns || 0) > 0)                           _sts.push("#ff6060"); // 攻撃力半減：赤橙
+  if ((mon.debuffDefHalfTurns || 0) > 0)                           _sts.push("#6080ff"); // 防御力半減：青紫
   /* ── モンスターレベルバッジ（左上） ── */
   const _ml = mon.monLevel ?? 1;
   if (_ml >= 2) {

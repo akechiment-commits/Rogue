@@ -4214,6 +4214,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         {(p.defSoftenedTurns || 0) > 0 && (
           <span style={{ color: "#c8a060" }}>🛡↓{p.defSoftenedTurns}</span>
         )}{" "}
+        {(p.atkDebuffTurns || 0) > 0 && (
+          <span style={{ color: "#ff6060" }}>⚔↓{p.atkDebuffTurns}</span>
+        )}{" "}
+        {(p.defDebuffTurns || 0) > 0 && (
+          <span style={{ color: "#6080ff" }}>🛡↓↓{p.defDebuffTurns}</span>
+        )}{" "}
       </div>{" "}
       <div
         style={{ display: "flex", gap: 4, padding: "0 2px", marginBottom: 2 }}
