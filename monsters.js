@@ -912,10 +912,8 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
     for (const [dx, dy] of dirs) {
       const nx = cur.x + dx, ny = cur.y + dy;
       if (!_canEnterFn(nx, ny)) continue;
-      /* 対角移動：両隣の直交タイルが両方とも壁ならコーナーすり抜けを禁止 */
-      if (dx !== 0 && dy !== 0) {
-        if (!_canEnterFn(cur.x + dx, cur.y) && !_canEnterFn(cur.x, cur.y + dy)) continue;
-      }
+      /* 対角移動コーナー制限を撤廃：プレイヤー移動と同じルールにする
+         （斜め掘り通路など両隣が壁でも通れる） */
       const nk = nx + ny * MW;
       if (sanctSet.has(nk) && !(nx === tx && ny === ty)) continue;
       if (visited.has(nk)) continue;
