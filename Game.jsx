@@ -1837,11 +1837,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (p.hp > 0) {
         const _dg3b = st.dungeon;
         const _pRoom3b = findRoom(_dg3b.rooms, p.x, p.y);
-        /* スターライト：同じ部屋にいると部屋全体を照らす（明かりの魔方陣・通常と同じ） */
+        /* スターライト：いる部屋を常時照らす（明かりの魔方陣・通常版と同じ挙動） */
         for (const _sm of _dg3b.monsters) {
           if (_sm.baseKind !== "starlight" || _sm.hp <= 0) continue;
           const _smRoom = findRoom(_dg3b.rooms, _sm.x, _sm.y);
-          if (!_smRoom || !_pRoom3b || _smRoom !== _pRoom3b) continue;
+          if (!_smRoom) continue;
           for (let _ly = _smRoom.y; _ly < _smRoom.y + _smRoom.h; _ly++)
             for (let _lx = _smRoom.x; _lx < _smRoom.x + _smRoom.w; _lx++) { _dg3b.visible[_ly][_lx] = true; _dg3b.explored[_ly][_lx] = true; }
         }
