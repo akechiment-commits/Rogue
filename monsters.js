@@ -1809,6 +1809,65 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
 
   if (m.aware) {
+    /* ===== 囮のペン（通常・祝福）: 特技含む全行動を囮に誘導 ===== */
+    /* プレイヤーが魔方陣の上にいる場合は通常行動（下の special handlers に委ねる） */
+    {
+      const _decoyPc = dg.pentacles?.find(pc => pc.kind === "decoy" && !pc.cursed);
+      if (_decoyPc && !(pl.x === _decoyPc.x && pl.y === _decoyPc.y)) {
+        const _decoyRoom = findRoom(rooms, _decoyPc.x, _decoyPc.y);
+        const _affByDecoy = _decoyPc.blessed
+          ? true /* 祝福: フロア全体 */
+          : (_decoyRoom !== null && _monRoom !== null &&
+             _decoyRoom.x === _monRoom.x && _decoyRoom.y === _monRoom.y);
+        if (_affByDecoy) {
+          /* 既に囮の上に陣取り中 */
+          if (m.x === _decoyPc.x && m.y === _decoyPc.y) {
+            if (!_moveOnly) {
+              const _nearMon = dg.monsters.find(o =>
+                o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1
+              );
+              if (_nearMon) {
+                const _ddmg = Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2));
+                _nearMon.hp -= _ddmg;
+                ml.push(`${m.name}が${_nearMon.name}を攻撃！${_ddmg}ダメージ！`);
+                if (_nearMon.hp <= 0) killMonster(_nearMon, dg, pl, ml, _luFn);
+              }
+            }
+            return; /* 陣取り中は動かない */
+          }
+          /* 囮に向かって移動（特技ハンドラをスキップ） */
+          if (!_attackOnly) {
+            const _dn = bfsNext(map, [], m.x, m.y, _decoyPc.x, _decoyPc.y, m, 40, dg.pentacles, _effFloat);
+            if (_dn) {
+              /* BFS次ステップがプレイヤー位置: 通常攻撃して重なりを防ぐ */
+              if (_dn.x === pl.x && _dn.y === pl.y) {
+                if (!_moveOnly && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
+                    m.turnAttacks < (m.maxAttacks ?? 1)) {
+                  m.turnAttacks++;
+                  m.dir = { x: _dn.x - m.x, y: _dn.y - m.y };
+                  monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+                }
+                return;
+              }
+              const _occup = dg.monsters.find(o => o !== m && o.x === _dn.x && o.y === _dn.y);
+              if (_occup && !_moveOnly) {
+                /* 次マスに別の敵: 囮の争奪戦 */
+                const _ddmg = Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2));
+                _occup.hp -= _ddmg;
+                ml.push(`${m.name}が${_occup.name}を攻撃！${_ddmg}ダメージ！`);
+                if (_occup.hp <= 0) killMonster(_occup, dg, pl, ml, _luFn);
+              } else if (!_occup) {
+                m.dir = { x: _dn.x - m.x, y: _dn.y - m.y };
+                m.x = _dn.x; m.y = _dn.y;
+                m.aware = true;
+              }
+              return;
+            }
+            /* BFS経路なし → 通常行動にフォールスルー */
+          }
+        }
+      }
+    }
     /* ── ranged special attacks (only when player is visible) ── */
     /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
     if (_moveOnly && canSee) {
@@ -2427,55 +2486,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
       return; /* からめ鬼は絶対に移動しない */
-    }
-
-    /* ===== 囮のペン（通常・祝福）: 囮の魔方陣に誘導 ===== */
-    {
-      const _decoyPc = dg.pentacles?.find(pc => pc.kind === "decoy" && !pc.cursed);
-      if (_decoyPc) {
-        const _decoyRoom = findRoom(rooms, _decoyPc.x, _decoyPc.y);
-        const _affByDecoy = _decoyPc.blessed
-          ? true /* 祝福: フロア全体 */
-          : (_decoyRoom !== null && _monRoom !== null &&
-             _decoyRoom.x === _monRoom.x && _decoyRoom.y === _monRoom.y);
-        if (_affByDecoy) {
-          /* 既に囮の上に陣取り中 */
-          if (m.x === _decoyPc.x && m.y === _decoyPc.y) {
-            if (!_moveOnly) {
-              const _nearMon = dg.monsters.find(o =>
-                o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1
-              );
-              if (_nearMon) {
-                const _ddmg = Math.max(1, m.atk - Math.floor((_nearMon.def || 0) / 2));
-                _nearMon.hp -= _ddmg;
-                ml.push(`${m.name}が${_nearMon.name}を攻撃！${_ddmg}ダメージ！`);
-                if (_nearMon.hp <= 0) killMonster(_nearMon, dg, pl, ml, _luFn);
-              }
-            }
-            return; /* 陣取り中は動かない */
-          }
-          /* 囮に向かって移動 */
-          if (!_attackOnly) {
-            const _dn = bfsNext(map, [], m.x, m.y, _decoyPc.x, _decoyPc.y, m, 40, dg.pentacles, _effFloat);
-            if (_dn) {
-              const _occup = dg.monsters.find(o => o !== m && o.x === _dn.x && o.y === _dn.y);
-              if (_occup && !_moveOnly) {
-                /* 次マスに別の敵: 囮の争奪戦 */
-                const _ddmg = Math.max(1, m.atk - Math.floor((_occup.def || 0) / 2));
-                _occup.hp -= _ddmg;
-                ml.push(`${m.name}が${_occup.name}を攻撃！${_ddmg}ダメージ！`);
-                if (_occup.hp <= 0) killMonster(_occup, dg, pl, ml, _luFn);
-              } else if (!_occup) {
-                m.dir = { x: _dn.x - m.x, y: _dn.y - m.y };
-                m.x = _dn.x; m.y = _dn.y;
-                m.aware = true;
-              }
-              return;
-            }
-            /* BFS経路なし → 通常行動にフォールスルー */
-          }
-        }
-      }
     }
 
     const tx = canSee ? pl.x : m.lastPx;
