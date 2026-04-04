@@ -1870,7 +1870,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               }
               return; /* 囮に誘導中: 特技ハンドラに落ちないよう return */
             }
-            /* BFS失敗 → 通常AIにフォールスルー（プレイヤーへの攻撃を許可） */
+            return; /* BFS失敗でも attackOnly ではプレイヤーを攻撃しない（彷徨い中） */
           }
           /* moveOnly/通常フェーズ: BFSで囮に向かって移動（特技ハンドラをスキップ） */
           /* 祝福版はフロア全体が対象なので maxDist を大きくする */
@@ -1905,7 +1905,22 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             }
             return;
           }
-          /* BFS経路なし → 通常行動にフォールスルー */
+          /* BFS経路なし（到達不可）: プレイヤーを無視してランダムに彷徨う */
+          {
+            const _wCands = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].filter(([_wdx, _wdy]) => {
+              const _wnx = m.x + _wdx, _wny = m.y + _wdy;
+              return canEnter(map, _wnx, _wny, _effFloat) &&
+                !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
+                !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny) &&
+                !(_wnx === pl.x && _wny === pl.y); /* プレイヤーのマスには入らない */
+            });
+            if (_wCands.length > 0 && !_moveOnly) {
+              const [_wdx, _wdy] = _wCands[Math.floor(Math.random() * _wCands.length)];
+              m.dir = { x: _wdx, y: _wdy };
+              m.x += _wdx; m.y += _wdy;
+            }
+          }
+          return; /* プレイヤーへの移動・攻撃なし */
         }
       }
     }
