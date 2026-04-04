@@ -638,14 +638,18 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   const _filtered = _p.inventory
     .map((it, i) => ({ it, i }))
     .filter(({ it, i }) => {
-      if (_isBCMode_ui || _isDupMode_ui || _isSellMode_ui || _isTsfMode_ui) return it.type !== "gold";
-      if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor";
+      if (_isBCMode_ui) return it.type !== "gold"; /* bless/curse: scrollIdxなし */
+      if (_isDupMode_ui || _isSellMode_ui || _isTsfMode_ui) return it.type !== "gold" && i !== mode.scrollIdx;
+      if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor"; /* scrollは weapon/armorでないので自動除外 */
       if (mode.scrollIdx === i) return false;
       if (it.type === 'weapon' || it.type === 'armor') {
+        /* 未識別の識別の巻物なら全アイテム表示 */
+        if (mode.mode === 'identify' && mode.showAll) return true;
         return mode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
       }
       const k = getIdentKey(it);
-      if (!k) return false;
+      if (!k) return mode.mode === 'identify' && mode.showAll; /* showAllなら識別キーなしも表示 */
+      if (mode.mode === 'identify' && mode.showAll) return true; /* 未識別巻物: 全アイテム */
       if (mode.mode === 'identify') return !gs.ident?.has(k) || (!it.fullIdent && !it.bcKnown);
       return gs.ident?.has(k);
     });
@@ -681,15 +685,18 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _p_tsf = sr.current.player;
       const _RARITY_UP   = { D:"C", C:"B", B:"A", A:"S", S:"S" };
       const _RARITY_DOWN = { D:"D", C:"D", B:"C", A:"B", S:"A" };
-      const _targetRarity = mode.blessed ? _RARITY_UP[_selIt.rarity || "C"]
-                          : mode.cursed  ? _RARITY_DOWN[_selIt.rarity || "C"]
-                          : _selIt.rarity || "C";
-      const _pool = ITEMS.filter(tmpl =>
-        tmpl.rarity === _targetRarity &&
-        tmpl.type !== "gold" &&
-        !(tmpl.effect === _selIt.effect && tmpl.type === _selIt.type)
-      );
-      const _fallback = ITEMS.filter(tmpl => tmpl.type !== "gold" && !(tmpl.effect === _selIt.effect && tmpl.type === _selIt.type));
+      const _excludeKey = (t) => t.type === "gold" || (t.effect === _selIt.effect && t.type === _selIt.type);
+      let _pool;
+      if (mode.blessed) {
+        const _r = _RARITY_UP[_selIt.rarity || "C"];
+        _pool = ITEMS.filter(t => t.rarity === _r && !_excludeKey(t));
+      } else if (mode.cursed) {
+        const _r = _RARITY_DOWN[_selIt.rarity || "C"];
+        _pool = ITEMS.filter(t => t.rarity === _r && !_excludeKey(t));
+      } else {
+        _pool = ITEMS.filter(t => !_excludeKey(t)); /* 通常: 完全ランダム */
+      }
+      const _fallback = ITEMS.filter(t => !_excludeKey(t));
       const _tmpl = _pool.length > 0 ? _pool[Math.floor(Math.random() * _pool.length)]
                                      : _fallback[Math.floor(Math.random() * _fallback.length)];
       if (_tmpl) {
@@ -812,11 +819,11 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         <div style={{ color:"#ff0", marginBottom:4, fontWeight:"bold" }}>
           {mode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
             : mode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
-            : mode.mode === 'duplicate' ? (mode.blessed ? "複製するアイテムを選んでください（2つ増える）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
-            : mode.mode === 'identify' ? "識別するアイテムを選んでください"
-            : mode.mode === 'sell_item' ? (mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
-            : mode.mode === 'transform_item' ? (mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
-            : mode.mode === 'forge_item' ? (mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
+            : mode.mode === 'duplicate' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "複製するアイテムを選んでください（2つ増える）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
+            : mode.mode === 'identify' ? (mode.showAll ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください")
+            : mode.mode === 'sell_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
+            : mode.mode === 'transform_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
+            : mode.mode === 'forge_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
             : "識別を解除するアイテムを選んでください【呪】"}
         </div>
         <div style={{ color:"#556", fontSize:10, marginBottom:4 }}>↑↓/8,2:選択　←→/4,6:ページ　Ｚ/Enter:決定　ESC:キャンセル</div>
