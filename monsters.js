@@ -655,6 +655,21 @@ export const MONS = [
       { name: "覇わてり",           hp: 100, atk: 32, def: 14, exp: 120 },
     ],
   },
+  /* ===== 視界操作モンスター ===== */
+  { name: "スターライト", hp: 55,  atk: 22, def: 8,  exp: 80,  speed: 1,   tile: 107, kind: "beast",   baseKind: "starlight",     monLevel: 1, minFloor: 15, maxFloor: 50, float: true,
+    desc: "同じ部屋にいるだけで周囲を明るく照らし続ける光の精霊。",
+    levels: [
+      { name: "強スターライト",     hp: 88,  atk: 32, def: 12, exp: 128 },
+      { name: "覇スターライト",     hp: 138, atk: 42, def: 17, exp: 200 },
+    ],
+  },
+  { name: "ダークネス",   hp: 65,  atk: 25, def: 10, exp: 95,  speed: 1,   tile: 108, kind: "beast",   baseKind: "darkness",      monLevel: 1, minFloor: 20, maxFloor: 50, float: true,
+    desc: "同じ部屋にいると周囲の光を喰らい、プレイヤーの視界を1マスに狭める闇の精霊。",
+    levels: [
+      { name: "強ダークネス",       hp: 104, atk: 36, def: 15, exp: 152 },
+      { name: "覇ダークネス",       hp: 163, atk: 47, def: 21, exp: 238 },
+    ],
+  },
 ];
 
 /* ===== モンスターレベルアップテーブル (MONS の levels から自動生成) ===== */

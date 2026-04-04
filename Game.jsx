@@ -1833,6 +1833,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           }
         }
       }
+      /* ===== 視界操作モンスター：FOVオーバーライド ===== */
+      if (p.hp > 0) {
+        const _dg3b = st.dungeon;
+        const _pRoom3b = findRoom(_dg3b.rooms, p.x, p.y);
+        /* スターライト：同じ部屋にいると部屋全体を照らす（明かりの魔方陣・通常と同じ） */
+        for (const _sm of _dg3b.monsters) {
+          if (_sm.baseKind !== "starlight" || _sm.hp <= 0) continue;
+          const _smRoom = findRoom(_dg3b.rooms, _sm.x, _sm.y);
+          if (!_smRoom || !_pRoom3b || _smRoom !== _pRoom3b) continue;
+          for (let _ly = _smRoom.y; _ly < _smRoom.y + _smRoom.h; _ly++)
+            for (let _lx = _smRoom.x; _lx < _smRoom.x + _smRoom.w; _lx++) { _dg3b.visible[_ly][_lx] = true; _dg3b.explored[_ly][_lx] = true; }
+        }
+        /* ダークネス：同じ部屋にいると視界を1マスに制限（スターライトより後に適用し上書き） */
+        for (const _dm of _dg3b.monsters) {
+          if (_dm.baseKind !== "darkness" || _dm.hp <= 0) continue;
+          const _dmRoom = findRoom(_dg3b.rooms, _dm.x, _dm.y);
+          if (!_dmRoom || !_pRoom3b || _dmRoom !== _pRoom3b) continue;
+          for (let _ly = 0; _ly < MH; _ly++)
+            for (let _lx = 0; _lx < MW; _lx++)
+              if (Math.abs(_lx - p.x) > 1 || Math.abs(_ly - p.y) > 1) _dg3b.visible[_ly][_lx] = false;
+          break; /* 1体いれば十分 */
+        }
+      }
       {
         const _dg = st.dungeon;
         /* 通常モンスター発生: 30T固定、魔物呼び1個→15T、2個→5T */
