@@ -3,6 +3,7 @@ import { MW, MH, T, rng, uid, refreshFOV, getShops } from "./utils.js";
 import {
   ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, TRAPS, BB_TYPES, RINGS,
   RAW_FOODS, COOKED_FOODS,
+  WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, randPotCapacity,
 } from "./items.js";
@@ -492,16 +493,23 @@ export function useKeyHandler({
         const _p_id = sr.current.player;
         const _isBCMode = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
         const _isDupMode = identifyMode.mode === 'duplicate';
+        const _isSellMode = identifyMode.mode === 'sell_item';
+        const _isTsfMode  = identifyMode.mode === 'transform_item';
+        const _isForgeMode = identifyMode.mode === 'forge_item';
         const _filt_id = _p_id.inventory
           .map((_it, _i) => ({ it: _it, i: _i }))
           .filter(({ it, i }) => {
-            if (_isBCMode || _isDupMode) return it.type !== "gold";
+            if (_isBCMode) return it.type !== "gold";
+            if (_isDupMode || _isSellMode || _isTsfMode) return it.type !== "gold" && i !== identifyMode.scrollIdx;
+            if (_isForgeMode) return it.type === "weapon" || it.type === "armor";
             if (identifyMode.scrollIdx === i) return false;
             if (it.type === 'weapon' || it.type === 'armor') {
+              if (identifyMode.mode === 'identify' && identifyMode.showAll) return true;
               return identifyMode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
             }
             const _k = getIdentKey(it);
-            if (!_k) return false;
+            if (!_k) return identifyMode.mode === 'identify' && identifyMode.showAll;
+            if (identifyMode.mode === 'identify' && identifyMode.showAll) return true;
             if (identifyMode.mode === 'identify') return !sr.current.ident.has(_k) || (!it.fullIdent && !it.bcKnown);
             return sr.current.ident.has(_k);
           });
@@ -531,7 +539,76 @@ export function useKeyHandler({
           const _curSel_id = Math.min(identifyMode.sel || 0, _idPageLen - 1);
           const { it: _selIt } = _idPageItems[_curSel_id];
           let _msgResult;
-          if (identifyMode.mode === 'bless') {
+          if (identifyMode.mode === 'sell_item') {
+            /* ===== 売却の巻物 ===== */
+            const _baseGold = itemPrice(_selIt);
+            const _earned = identifyMode.blessed ? _baseGold * 2 : identifyMode.cursed ? Math.floor(_baseGold / 2) : _baseGold;
+            if (_p_id.weapon === _selIt) _p_id.weapon = null;
+            if (_p_id.armor === _selIt) _p_id.armor = null;
+            const _rmIdx_sell = _p_id.inventory.indexOf(_selIt);
+            if (_rmIdx_sell !== -1) {
+              _p_id.inventory.splice(_rmIdx_sell, 1);
+              if (identifyMode.scrollIdx != null && _rmIdx_sell < identifyMode.scrollIdx) identifyMode.scrollIdx--;
+            }
+            _p_id.gold = (_p_id.gold || 0) + _earned;
+            _msgResult = identifyMode.blessed ? `${_selIt.name}を${_earned}Gで換金した！（2倍）【祝】`
+                       : identifyMode.cursed  ? `${_selIt.name}を${_earned}Gで換金した…（半額）【呪】`
+                                              : `${_selIt.name}を${_earned}Gで換金した！`;
+          } else if (identifyMode.mode === 'transform_item') {
+            /* ===== 変換の巻物 ===== */
+            const _RARITY_UP   = { D:"C", C:"B", B:"A", A:"S", S:"S" };
+            const _RARITY_DOWN = { D:"D", C:"D", B:"C", A:"B", S:"A" };
+            const _excl = (t) => t.type === "gold" || (t.effect === _selIt.effect && t.type === _selIt.type);
+            let _tsfPool;
+            if (identifyMode.blessed) {
+              _tsfPool = ITEMS.filter(t => t.rarity === _RARITY_UP[_selIt.rarity || "C"] && !_excl(t));
+            } else if (identifyMode.cursed) {
+              _tsfPool = ITEMS.filter(t => t.rarity === _RARITY_DOWN[_selIt.rarity || "C"] && !_excl(t));
+            } else {
+              _tsfPool = ITEMS.filter(t => !_excl(t));
+            }
+            const _tsfFb = ITEMS.filter(t => !_excl(t));
+            const _tsfTmpl = _tsfPool.length > 0 ? _tsfPool[Math.floor(Math.random() * _tsfPool.length)]
+                                                  : _tsfFb[Math.floor(Math.random() * _tsfFb.length)];
+            if (_tsfTmpl) {
+              const _newIt = { ..._tsfTmpl, id: uid() };
+              if (_tsfTmpl.type === "wand") _newIt.charges = _tsfTmpl.maxCharges ?? _tsfTmpl.charges ?? 5;
+              if (_tsfTmpl.type === "arrow") _newIt.count = _tsfTmpl.count ?? 1;
+              if (_p_id.weapon === _selIt) _p_id.weapon = null;
+              if (_p_id.armor === _selIt) _p_id.armor = null;
+              const _rmIdx_tsf = _p_id.inventory.indexOf(_selIt);
+              if (_rmIdx_tsf !== -1) {
+                _p_id.inventory.splice(_rmIdx_tsf, 1, _newIt);
+                if (identifyMode.scrollIdx != null && _rmIdx_tsf < identifyMode.scrollIdx) identifyMode.scrollIdx--;
+              }
+              _msgResult = identifyMode.blessed ? `${_selIt.name}が${_newIt.name}に変わった！【祝】`
+                         : identifyMode.cursed  ? `${_selIt.name}が${_newIt.name}に変わってしまった…【呪】`
+                                                : `${_selIt.name}が${_newIt.name}に変わった！`;
+            } else { _msgResult = "変換できるアイテムがなかった。"; }
+          } else if (identifyMode.mode === 'forge_item') {
+            /* ===== 錬成の巻物 ===== */
+            const _isWeapon = _selIt.type === "weapon";
+            const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+            const _owned = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
+            const _WS = new Set(["reach","critical","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid"]);
+            const _WW = new Set(["no_degrade","def_bonus","inflict_slow","knockback"]);
+            const _AS = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist"]);
+            const _AW = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof"]);
+            const _str = _isWeapon ? _WS : _AS;
+            const _wk  = _isWeapon ? _WW : _AW;
+            const _cands = _allAbils.filter(ab => !_owned.has(ab.id) && (
+              identifyMode.blessed ? _str.has(ab.id) : identifyMode.cursed ? _wk.has(ab.id) : true));
+            const _pool = _cands.length > 0 ? _cands : _allAbils.filter(ab => !_owned.has(ab.id));
+            if (_pool.length > 0) {
+              const _ab = _pool[Math.floor(Math.random() * _pool.length)];
+              _selIt.abilities = [...(_selIt.abilities || []), _ab.id].filter(Boolean);
+              if (!_selIt.ability) _selIt.ability = _ab.id;
+              _selIt.fullIdent = true;
+              _msgResult = identifyMode.blessed ? `${_selIt.name}に「${_ab.name}」が宿った！【祝】`
+                         : identifyMode.cursed  ? `${_selIt.name}に「${_ab.name}」が刻まれてしまった…【呪】`
+                                                : `${_selIt.name}に「${_ab.name}」が宿った！`;
+            } else { _msgResult = `${_selIt.name}はもうこれ以上能力を宿せない。`; }
+          } else if (identifyMode.mode === 'bless') {
             if (_selIt.type === 'pot') {
               _selIt.capacity = (_selIt.capacity || 1) + 1;
               _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
