@@ -1227,6 +1227,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   if (m.dormantHouse) return;
   /* 目覚めたターンは行動しない（袋叩き防止） */
   if (m._justWoke) { m._justWoke = false; return; }
+  /* 囮のペン（祝福）: 仮眠中でも起こして誘導（dormant チェックより先に処理） */
+  if (m.dormant && !m.dormantHouse &&
+      dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
+    m.dormant = false;
+    m.aware = true;
+    delete m._dormantHp;
+    m._dormantTouched = false;
+  }
   /* 通常仮眠：視界に入るか、何らかのアクションを受けたら即覚醒 */
   if (m.dormant) {
     const _wasHit = m.hp < (m._dormantHp ?? m.hp);
@@ -1842,31 +1850,37 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             }
             return; /* 陣取り中は動かない */
           }
-          /* attackOnlyフェーズ: 囮タイルに隣接していれば占拠敵を攻撃 */
-          /* （moveOnlyフェーズで移動済み → attackOnlyで攻撃 の2フェーズに対応） */
+          /* attackOnlyフェーズ: moveOnlyでBFS成功済みの場合のみ囮へのロジックを維持 */
+          /* BFS失敗（_decoyLuredOkなし）なら通常AIにフォールスルーしてプレイヤーを攻撃 */
           if (_attackOnly) {
-            const _adjDist = Math.max(Math.abs(m.x - _decoyPc.x), Math.abs(m.y - _decoyPc.y));
-            if (_adjDist <= 1 && m.turnAttacks < (m.maxAttacks ?? 1)) {
-              const _adjOccup = dg.monsters.find(o =>
-                o !== m && o.x === _decoyPc.x && o.y === _decoyPc.y
-              );
-              if (_adjOccup) {
-                m.turnAttacks++;
-                const _ddmg = Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2));
-                _adjOccup.hp -= _ddmg;
-                ml.push(`${m.name}が${_adjOccup.name}を攻撃！${_ddmg}ダメージ！`);
-                if (_adjOccup.hp <= 0) {
-                  killMonster(_adjOccup, dg, pl, ml, null, true, m);
+            if (m._decoyLuredOk) {
+              delete m._decoyLuredOk;
+              const _adjDist = Math.max(Math.abs(m.x - _decoyPc.x), Math.abs(m.y - _decoyPc.y));
+              if (_adjDist <= 1 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+                const _adjOccup = dg.monsters.find(o =>
+                  o !== m && o.x === _decoyPc.x && o.y === _decoyPc.y
+                );
+                if (_adjOccup) {
+                  m.turnAttacks++;
+                  const _ddmg = Math.max(1, m.atk - Math.floor((_adjOccup.def || 0) / 2));
+                  _adjOccup.hp -= _ddmg;
+                  ml.push(`${m.name}が${_adjOccup.name}を攻撃！${_ddmg}ダメージ！`);
+                  if (_adjOccup.hp <= 0) {
+                    killMonster(_adjOccup, dg, pl, ml, null, true, m);
+                  }
                 }
               }
+              return; /* 囮に誘導中: 特技ハンドラに落ちないよう return */
             }
-            return; /* attackOnly: 特技ハンドラに落ちないよう必ずreturn */
+            /* BFS失敗 → 通常AIにフォールスルー（プレイヤーへの攻撃を許可） */
           }
           /* moveOnly/通常フェーズ: BFSで囮に向かって移動（特技ハンドラをスキップ） */
           /* 祝福版はフロア全体が対象なので maxDist を大きくする */
           const _decoyMaxDist = _decoyPc.blessed ? 120 : 40;
+          m._decoyLuredOk = false; /* BFS前にリセット */
           const _dn = bfsNext(map, [], m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat);
           if (_dn) {
+            m._decoyLuredOk = true; /* BFS成功: 次のattackOnlyフェーズでも囮ロジック維持 */
             /* BFS次ステップがプレイヤー位置: 通常攻撃して重なりを防ぐ */
             if (_dn.x === pl.x && _dn.y === pl.y) {
               if (!_moveOnly && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
