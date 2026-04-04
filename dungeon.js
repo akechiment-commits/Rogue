@@ -1793,7 +1793,7 @@ function placeDebugMons(mons, nextMonPos) {
       ...tmpl, id: uid(), x: p.x, y: p.y, maxHp: tmpl.hp,
       hp: tmpl.hp, turnAccum: 0, aware: false,
       dir: { x: 1, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
-      dormant: true,
+      dormant: true, dormantHouse: true,
     });
   }
 }
@@ -1898,7 +1898,7 @@ export function genDebugDungeonFloor2() {
         ..._base, id: uid(), x: _mp.x, y: _mp.y, maxHp: _base.hp,
         hp: _base.hp, turnAccum: 0, aware: false, monLevel: lv,
         dir: { x: 1, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null,
-        dormant: true,
+        dormant: true, dormantHouse: true,
         ...(tmpl.subtype ? { subtype: tmpl.subtype } : {}),
         ...(tmpl.wandEffect ? { wandEffect: tmpl.wandEffect } : {}),
       });
