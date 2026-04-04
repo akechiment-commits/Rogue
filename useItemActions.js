@@ -647,6 +647,48 @@ export function useItemActions({
           return;
         }
       }
+      /* 売却の巻物 */
+      if (it.effect === "sell_item" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
+        const _sellTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
+        if (_sellTargets.length > 0) {
+          const _ik_sell = getIdentKey(it);
+          if (_ik_sell) sr.current.ident.add(_ik_sell);
+          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
+          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
+          setIdentifyMode({ mode: 'sell_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx });
+          setShowInv(false); setSelIdx(null); setShowDesc(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        }
+      }
+      /* 変換の巻物 */
+      if (it.effect === "transform_item" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
+        const _tsfTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
+        if (_tsfTargets.length > 0) {
+          const _ik_tsf = getIdentKey(it);
+          if (_ik_tsf) sr.current.ident.add(_ik_tsf);
+          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
+          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
+          setIdentifyMode({ mode: 'transform_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx });
+          setShowInv(false); setSelIdx(null); setShowDesc(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        }
+      }
+      /* 錬成の巻物 */
+      if (it.effect === "forge_item" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
+        const _forgeTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || _ii.type === "armor");
+        if (_forgeTargets.length > 0) {
+          const _ik_fg = getIdentKey(it);
+          if (_ik_fg) sr.current.ident.add(_ik_fg);
+          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
+          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
+          setIdentifyMode({ mode: 'forge_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx });
+          setShowInv(false); setSelIdx(null); setShowDesc(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        }
+      }
       const _scrBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }

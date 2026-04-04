@@ -632,10 +632,14 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   const _p = gs.player;
   const _isBCMode_ui = mode.mode === 'bless' || mode.mode === 'curse';
   const _isDupMode_ui = mode.mode === 'duplicate';
+  const _isSellMode_ui = mode.mode === 'sell_item';
+  const _isTsfMode_ui = mode.mode === 'transform_item';
+  const _isForgeMode_ui = mode.mode === 'forge_item';
   const _filtered = _p.inventory
     .map((it, i) => ({ it, i }))
     .filter(({ it, i }) => {
-      if (_isBCMode_ui || _isDupMode_ui) return it.type !== "gold";
+      if (_isBCMode_ui || _isDupMode_ui || _isSellMode_ui || _isTsfMode_ui) return it.type !== "gold";
+      if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor";
       if (mode.scrollIdx === i) return false;
       if (it.type === 'weapon' || it.type === 'armor') {
         return mode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
@@ -655,7 +659,88 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     const { it: _selIt } = _filtered[_absIdx] ?? _filtered[_idPage_ui * 10 + _curSel_ui] ?? {};
     if (!_selIt) return;
     let _msgResult;
-    if (mode.mode === 'bless') {
+    if (mode.mode === 'sell_item') {
+      /* ===== 売却の巻物 ===== */
+      const _p_sell = sr.current.player;
+      const _baseGold = itemPrice(_selIt);
+      const _earned = mode.blessed ? _baseGold * 2 : mode.cursed ? Math.floor(_baseGold / 2) : _baseGold;
+      /* 装備中なら外す */
+      if (_p_sell.weapon === _selIt) _p_sell.weapon = null;
+      if (_p_sell.armor === _selIt) _p_sell.armor = null;
+      const _rmIdx_sell = _p_sell.inventory.indexOf(_selIt);
+      if (_rmIdx_sell !== -1) {
+        _p_sell.inventory.splice(_rmIdx_sell, 1);
+        if (mode.scrollIdx != null && _rmIdx_sell < mode.scrollIdx) mode.scrollIdx--;
+      }
+      _p_sell.gold = (_p_sell.gold || 0) + _earned;
+      _msgResult = mode.blessed ? `${_selIt.name}を${_earned}Gで換金した！（2倍）【祝】`
+                : mode.cursed  ? `${_selIt.name}を${_earned}Gで換金した…（半額）【呪】`
+                                : `${_selIt.name}を${_earned}Gで換金した！`;
+    } else if (mode.mode === 'transform_item') {
+      /* ===== 変換の巻物 ===== */
+      const _p_tsf = sr.current.player;
+      const _RARITY_UP   = { D:"C", C:"B", B:"A", A:"S", S:"S" };
+      const _RARITY_DOWN = { D:"D", C:"D", B:"C", A:"B", S:"A" };
+      const _targetRarity = mode.blessed ? _RARITY_UP[_selIt.rarity || "C"]
+                          : mode.cursed  ? _RARITY_DOWN[_selIt.rarity || "C"]
+                          : _selIt.rarity || "C";
+      const _pool = ITEMS.filter(tmpl =>
+        tmpl.rarity === _targetRarity &&
+        tmpl.type !== "gold" &&
+        !(tmpl.effect === _selIt.effect && tmpl.type === _selIt.type)
+      );
+      const _fallback = ITEMS.filter(tmpl => tmpl.type !== "gold" && !(tmpl.effect === _selIt.effect && tmpl.type === _selIt.type));
+      const _tmpl = _pool.length > 0 ? _pool[Math.floor(Math.random() * _pool.length)]
+                                     : _fallback[Math.floor(Math.random() * _fallback.length)];
+      if (_tmpl) {
+        const _newIt = { ..._tmpl, id: uid() };
+        if (_tmpl.type === "wand") _newIt.charges = _tmpl.maxCharges ?? _tmpl.charges ?? 5;
+        if (_tmpl.type === "arrow") _newIt.count = _tmpl.count ?? 1;
+        const _rmIdx_tsf = _p_tsf.inventory.indexOf(_selIt);
+        if (_rmIdx_tsf !== -1) {
+          /* 装備中なら外す */
+          if (_p_tsf.weapon === _selIt) _p_tsf.weapon = null;
+          if (_p_tsf.armor === _selIt) _p_tsf.armor = null;
+          _p_tsf.inventory.splice(_rmIdx_tsf, 1, _newIt);
+          if (mode.scrollIdx != null && _rmIdx_tsf < mode.scrollIdx) mode.scrollIdx--;
+        }
+        _msgResult = mode.blessed ? `${_selIt.name}が${_newIt.name}に変わった！【祝】`
+                   : mode.cursed  ? `${_selIt.name}が${_newIt.name}に変わってしまった…【呪】`
+                                  : `${_selIt.name}が${_newIt.name}に変わった！`;
+      } else {
+        _msgResult = "変換できるアイテムがなかった。";
+      }
+    } else if (mode.mode === 'forge_item') {
+      /* ===== 錬成の巻物 ===== */
+      const _isWeapon = _selIt.type === "weapon";
+      const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
+      const _ownedIds = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
+      /* 祝福・呪いで選出プールを絞る */
+      const _WEAPON_STRONG = new Set(["reach","critical","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid"]);
+      const _WEAPON_WEAK   = new Set(["no_degrade","def_bonus","inflict_slow","knockback"]);
+      const _ARMOR_STRONG  = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist"]);
+      const _ARMOR_WEAK    = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof"]);
+      const _strongSet = _isWeapon ? _WEAPON_STRONG : _ARMOR_STRONG;
+      const _weakSet   = _isWeapon ? _WEAPON_WEAK   : _ARMOR_WEAK;
+      const _candidateAbils = _allAbils.filter(ab => !_ownedIds.has(ab.id) && (
+        mode.blessed ? _strongSet.has(ab.id)
+      : mode.cursed  ? _weakSet.has(ab.id)
+      : true
+      ));
+      /* プールが空なら全体から（既所持除く） */
+      const _finalPool = _candidateAbils.length > 0 ? _candidateAbils : _allAbils.filter(ab => !_ownedIds.has(ab.id));
+      if (_finalPool.length > 0) {
+        const _newAb = _finalPool[Math.floor(Math.random() * _finalPool.length)];
+        _selIt.abilities = [...(_selIt.abilities || []), _newAb.id].filter(Boolean);
+        if (!_selIt.ability) _selIt.ability = _newAb.id;
+        _selIt.fullIdent = true;
+        _msgResult = mode.blessed ? `${_selIt.name}に「${_newAb.name}」が宿った！【祝】`
+                   : mode.cursed  ? `${_selIt.name}に「${_newAb.name}」が刻まれてしまった…【呪】`
+                                  : `${_selIt.name}に「${_newAb.name}」が宿った！`;
+      } else {
+        _msgResult = `${_selIt.name}はもうこれ以上能力を宿せない。`;
+      }
+    } else if (mode.mode === 'bless') {
       if (_selIt.type === 'pot') {
         _selIt.capacity = (_selIt.capacity || 1) + 1;
         _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
@@ -729,6 +814,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             : mode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
             : mode.mode === 'duplicate' ? (mode.blessed ? "複製するアイテムを選んでください（2つ増える）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
             : mode.mode === 'identify' ? "識別するアイテムを選んでください"
+            : mode.mode === 'sell_item' ? (mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
+            : mode.mode === 'transform_item' ? (mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
+            : mode.mode === 'forge_item' ? (mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
             : "識別を解除するアイテムを選んでください【呪】"}
         </div>
         <div style={{ color:"#556", fontSize:10, marginBottom:4 }}>↑↓/8,2:選択　←→/4,6:ページ　Ｚ/Enter:決定　ESC:キャンセル</div>
