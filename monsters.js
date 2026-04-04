@@ -1833,7 +1833,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
                 ml.push(`${m.name}が${_nearMon.name}を攻撃！${_ddmg}ダメージ！`);
                 if (_nearMon.hp <= 0) {
                   killMonster(_nearMon, dg, pl, ml, null, true, m);
-                  monLevelUp(m, dg, ml);
                 }
               }
             }
@@ -1854,7 +1853,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
                 ml.push(`${m.name}が${_adjOccup.name}を攻撃！${_ddmg}ダメージ！`);
                 if (_adjOccup.hp <= 0) {
                   killMonster(_adjOccup, dg, pl, ml, null, true, m);
-                  monLevelUp(m, dg, ml);
                 }
               }
             }
@@ -1881,7 +1879,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               ml.push(`${m.name}が${_occup.name}を攻撃！${_ddmg}ダメージ！`);
               if (_occup.hp <= 0) {
                 killMonster(_occup, dg, pl, ml, null, true, m);
-                monLevelUp(m, dg, ml);
               }
             } else if (!_occup) {
               m.dir = { x: _dn.x - m.x, y: _dn.y - m.y };
