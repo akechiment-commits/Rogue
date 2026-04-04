@@ -4415,17 +4415,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _p = sr.current.player;
                 const _isBCMode_t = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
                 const _isDupMode_t = identifyMode.mode === 'duplicate';
+                const _isSellMode_t = identifyMode.mode === 'sell_item';
+                const _isTsfMode_t = identifyMode.mode === 'transform_item';
+                const _isForgeMode_t = identifyMode.mode === 'forge_item';
                 const _filt = _p.inventory
                   .map((_it, _i) => ({ it: _it, i: _i }))
                   .filter(({ it, i }) => {
                     if (_isBCMode_t || _isDupMode_t) return it.type !== "gold";
+                    if (_isSellMode_t || _isTsfMode_t) return it.type !== "gold" && i !== identifyMode.scrollIdx;
+                    if (_isForgeMode_t) return it.type === "weapon" || it.type === "armor";
                     if (identifyMode.scrollIdx === i) return false;
+                    const _showAll_t = identifyMode.showAll;
                     if (it.type === 'weapon' || it.type === 'armor') {
-                      return identifyMode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
+                      if (identifyMode.mode === 'identify') return _showAll_t || (!it.fullIdent && !it.bcKnown);
+                      return it.fullIdent || it.bcKnown;
                     }
                     const _k = getIdentKey(it);
                     if (!_k) return false;
-                    if (identifyMode.mode === 'identify') return !sr.current.ident.has(_k) || (!it.fullIdent && !it.bcKnown);
+                    if (identifyMode.mode === 'identify') return _showAll_t || !sr.current.ident.has(_k) || (!it.fullIdent && !it.bcKnown);
                     return sr.current.ident.has(_k);
                   });
                 const _len = _filt.length;

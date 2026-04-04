@@ -662,6 +662,11 @@ export function useItemActions({
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
+        } else {
+          p.inventory.splice(idx, 1);
+          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          ml.push("換金できるアイテムがない。巻物は消えた。");
+          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 変換の巻物 */
@@ -676,6 +681,11 @@ export function useItemActions({
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
+        } else {
+          p.inventory.splice(idx, 1);
+          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          ml.push("変換できるアイテムがない。巻物は消えた。");
+          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 錬成の巻物 */
@@ -690,6 +700,11 @@ export function useItemActions({
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
+        } else {
+          p.inventory.splice(idx, 1);
+          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          ml.push("錬成できる武器・防具がない。巻物は消えた。");
+          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       const _scrBm = getBlessMultiplier(it);
