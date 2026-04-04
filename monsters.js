@@ -1729,6 +1729,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m.lastPx = pl.x;
     m.lastPy = pl.y;
   }
+  /* 囮のペン（祝福）: フロア全敵に囮への認識を付与（未覚醒モンスターも対象にするため if(m.aware) の外で処理） */
+  if (!m.aware && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
+    m.aware = true;
+  }
 
   /* ===== 壁歩き（岩霊等）：壁を無視してプレイヤーに直進 ===== */
   if (m.wallWalker) {
@@ -1859,7 +1863,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             return; /* attackOnly: 特技ハンドラに落ちないよう必ずreturn */
           }
           /* moveOnly/通常フェーズ: BFSで囮に向かって移動（特技ハンドラをスキップ） */
-          const _dn = bfsNext(map, [], m.x, m.y, _decoyPc.x, _decoyPc.y, m, 40, dg.pentacles, _effFloat);
+          /* 祝福版はフロア全体が対象なので maxDist を大きくする */
+          const _decoyMaxDist = _decoyPc.blessed ? 120 : 40;
+          const _dn = bfsNext(map, [], m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat);
           if (_dn) {
             /* BFS次ステップがプレイヤー位置: 通常攻撃して重なりを防ぐ */
             if (_dn.x === pl.x && _dn.y === pl.y) {
