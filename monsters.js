@@ -882,7 +882,7 @@ export function hasLOS(map, x0, y0, x1, y1) {
 }
 
 /* ===== BFS PATHFINDING ===== */
-export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false, tileFilter = null) {
+export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false, tileFilter = null, fallbackNearest = false) {
   if (sx === tx && sy === ty) return null;
   /* モンスター位置と聖域位置をSetに変換 (O(1)ルックアップ) */
   const monSet = new Set();
@@ -905,15 +905,20 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
   const _canEnterFn = tileFilter
     ? (x, y) => tileFilter(x, y)
     : (x, y) => canEnter(map, x, y, float);
+  /* fallbackNearest: 目標未到達時に最も目標に近いタイルへの第一歩を記録 */
+  let _nearFx = null, _nearFy = null, _nearDist = Infinity;
   let steps = 0;
   while (qHead < queue.length && steps < maxDist * 50) {
     const cur = queue[qHead++];
     steps++;
+    /* 到達不可能時フォールバック用: 目標に最も近いタイルを追跡 */
+    if (fallbackNearest && cur.firstX !== null) {
+      const _d = Math.max(Math.abs(cur.x - tx), Math.abs(cur.y - ty));
+      if (_d < _nearDist) { _nearDist = _d; _nearFx = cur.firstX; _nearFy = cur.firstY; }
+    }
     for (const [dx, dy] of dirs) {
       const nx = cur.x + dx, ny = cur.y + dy;
       if (!_canEnterFn(nx, ny)) continue;
-      /* 対角移動コーナー制限を撤廃：プレイヤー移動と同じルールにする
-         （斜め掘り通路など両隣が壁でも通れる） */
       const nk = nx + ny * MW;
       if (sanctSet.has(nk) && !(nx === tx && ny === ty)) continue;
       if (visited.has(nk)) continue;
@@ -926,6 +931,8 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
       }
     }
   }
+  /* 目標未到達: fallbackNearest が有効なら最近傍タイルへの第一歩を返す */
+  if (fallbackNearest && _nearFx !== null) return { x: _nearFx, y: _nearFy };
   return null;
 }
 
@@ -1876,9 +1883,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           /* 祝福版はフロア全体が対象なので maxDist を大きくする */
           const _decoyMaxDist = _decoyPc.blessed ? 120 : 40;
           m._decoyLuredOk = false; /* BFS前にリセット */
-          const _dn = bfsNext(map, [], m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat);
+          const _dn = bfsNext(map, [], m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat, null, true);
           if (_dn) {
-            m._decoyLuredOk = true; /* BFS成功: 次のattackOnlyフェーズでも囮ロジック維持 */
+            /* BFS到達成功か最近傍タイルへの第一歩（到達不可の場合）を取得 */
+            m._decoyLuredOk = true; /* 次のattackOnlyフェーズでも囮ロジック維持 */
             /* BFS次ステップがプレイヤー位置: 通常攻撃して重なりを防ぐ */
             if (_dn.x === pl.x && _dn.y === pl.y) {
               if (!_moveOnly && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
@@ -1905,22 +1913,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             }
             return;
           }
-          /* BFS経路なし（到達不可）: プレイヤーを無視してランダムに彷徨う */
-          {
-            const _wCands = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].filter(([_wdx, _wdy]) => {
-              const _wnx = m.x + _wdx, _wny = m.y + _wdy;
-              return canEnter(map, _wnx, _wny, _effFloat) &&
-                !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
-                !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny) &&
-                !(_wnx === pl.x && _wny === pl.y); /* プレイヤーのマスには入らない */
-            });
-            if (_wCands.length > 0 && !_moveOnly) {
-              const [_wdx, _wdy] = _wCands[Math.floor(Math.random() * _wCands.length)];
-              m.dir = { x: _wdx, y: _wdy };
-              m.x += _wdx; m.y += _wdy;
-            }
-          }
-          return; /* プレイヤーへの移動・攻撃なし */
+          return; /* BFS経路なし: プレイヤーへの移動・攻撃なし（その場に留まる） */
         }
       }
     }
