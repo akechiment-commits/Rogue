@@ -809,7 +809,14 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     }
     endTurn(sr.current, sr.current.player, []);
     const _ml_id = mode.spellMsg ? [mode.spellMsg, _msgResult] : [_msgResult];
-    setMode(null);
+    /* bless/curseの魔法：MPが続く限りモーダルを開き続ける */
+    const _isBCSpell_c = (mode.mode === 'bless' || mode.mode === 'curse') && mode.spellCost != null && mode.scrollIdx == null;
+    if (_isBCSpell_c && sr.current.player.mp >= mode.spellCost) {
+      setMode({ mode: mode.mode, sel: 0, spellCost: mode.spellCost, spellMsg: mode.spellMsg });
+    } else {
+      setMode(null);
+      if (_isBCSpell_c) _ml_id.push("MPが足りない。");
+    }
     setMsgs((prev) => [...prev.slice(-80), ..._ml_id]);
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   };
@@ -2483,7 +2490,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       }
       if (!placed) ml.push("設置する場所がない！");
     }
-    setMode(null);
+    /* デバッグ魔法：実行後もモーダルを閉じず連続使用可能（Xキーで手動終了） */
     endTurn(sr.current, p, ml);
     setMsgs(prev => [...prev.slice(-80), ...ml]);
     sr.current = { ...sr.current };

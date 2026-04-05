@@ -684,7 +684,14 @@ export function useKeyHandler({
           }
           endTurn(sr.current, sr.current.player, []);
           const _ml_id = identifyMode.spellMsg ? [identifyMode.spellMsg, _msgResult] : [_msgResult];
-          setIdentifyMode(null);
+          /* bless/curseの魔法：MPが続く限りモーダルを開き続ける */
+          const _isBCSpell_k = (identifyMode.mode === 'bless' || identifyMode.mode === 'curse') && identifyMode.spellCost != null && identifyMode.scrollIdx == null;
+          if (_isBCSpell_k && sr.current.player.mp >= identifyMode.spellCost) {
+            setIdentifyMode({ mode: identifyMode.mode, sel: 0, spellCost: identifyMode.spellCost, spellMsg: identifyMode.spellMsg });
+          } else {
+            setIdentifyMode(null);
+            if (_isBCSpell_k) _ml_id.push("MPが足りない。");
+          }
           setMsgs((prev) => [...prev.slice(-80), ..._ml_id]);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
