@@ -2896,6 +2896,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (monsterAt(dg, nx, ny)) break;
         if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
+        /* 廊下ダッシュ中に部屋の入口手前で停止 */
+        if (!startInRoom && !_dRoomSet.has(_dk(p.x, p.y)) && _dRoomSet.has(_dk(nx, ny))) break;
         const _allShopsD = getShops(dg);
         const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
           p.x >= s.room.x && p.x < s.room.x + s.room.w &&
