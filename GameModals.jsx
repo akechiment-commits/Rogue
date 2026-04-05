@@ -740,6 +740,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         const _newAb = _finalPool[Math.floor(Math.random() * _finalPool.length)];
         _selIt.abilities = [...(_selIt.abilities || []), _newAb.id].filter(Boolean);
         if (!_selIt.ability) _selIt.ability = _newAb.id;
+        if (_newAb.id === "pickaxe" && _selIt.durability == null) _selIt.durability = 30;
         _selIt.fullIdent = true;
         _msgResult = mode.blessed ? `${_selIt.name}に「${_newAb.name}」が宿った！【祝】`
                    : mode.cursed  ? `${_selIt.name}に「${_newAb.name}」が刻まれてしまった…【呪】`

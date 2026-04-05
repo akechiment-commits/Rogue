@@ -603,6 +603,7 @@ export function useKeyHandler({
               const _ab = _pool[Math.floor(Math.random() * _pool.length)];
               _selIt.abilities = [...(_selIt.abilities || []), _ab.id].filter(Boolean);
               if (!_selIt.ability) _selIt.ability = _ab.id;
+              if (_ab.id === "pickaxe" && _selIt.durability == null) _selIt.durability = 30;
               _selIt.fullIdent = true;
               _msgResult = identifyMode.blessed ? `${_selIt.name}に「${_ab.name}」が宿った！【祝】`
                          : identifyMode.cursed  ? `${_selIt.name}に「${_ab.name}」が刻まれてしまった…【呪】`
