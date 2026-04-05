@@ -579,7 +579,7 @@ export function useKeyHandler({
               const _rmIdx_tsf = _p_id.inventory.indexOf(_selIt);
               if (_rmIdx_tsf !== -1) {
                 _p_id.inventory.splice(_rmIdx_tsf, 1, _newIt);
-                if (identifyMode.scrollIdx != null && _rmIdx_tsf < identifyMode.scrollIdx) identifyMode.scrollIdx--;
+                // splice(idx, 1, newItem) は置換なので配列長は変わらず scrollIdx の調整不要
               }
               _msgResult = identifyMode.blessed ? `${_selIt.name}が${_newIt.name}に変わった！【祝】`
                          : identifyMode.cursed  ? `${_selIt.name}が${_newIt.name}に変わってしまった…【呪】`

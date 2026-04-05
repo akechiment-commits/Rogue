@@ -709,7 +709,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           if (_p_tsf.weapon === _selIt) _p_tsf.weapon = null;
           if (_p_tsf.armor === _selIt) _p_tsf.armor = null;
           _p_tsf.inventory.splice(_rmIdx_tsf, 1, _newIt);
-          if (mode.scrollIdx != null && _rmIdx_tsf < mode.scrollIdx) mode.scrollIdx--;
+          // splice(idx, 1, newItem) は置換なので配列長は変わらず scrollIdx の調整不要
         }
         _msgResult = mode.blessed ? `${_selIt.name}が${_newIt.name}に変わった！【祝】`
                    : mode.cursed  ? `${_selIt.name}が${_newIt.name}に変わってしまった…【呪】`
