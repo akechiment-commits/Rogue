@@ -807,8 +807,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     if (mode.spellCost != null) {
       sr.current.player.mp -= mode.spellCost;
     }
-    endTurn(sr.current, sr.current.player, []);
-    const _ml_id = mode.spellMsg ? [mode.spellMsg, _msgResult] : [_msgResult];
+    const _etMl_c = [];
+    endTurn(sr.current, sr.current.player, _etMl_c);
+    const _ml_id = [...(mode.spellMsg ? [mode.spellMsg] : []), _msgResult, ..._etMl_c];
     /* bless/curseの魔法：MPが続く限りモーダルを開き続ける */
     const _isBCSpell_c = (mode.mode === 'bless' || mode.mode === 'curse') && mode.spellCost != null && mode.scrollIdx == null;
     if (_isBCSpell_c && sr.current.player.mp >= mode.spellCost) {
