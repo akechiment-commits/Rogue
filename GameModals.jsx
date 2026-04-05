@@ -2490,8 +2490,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       }
       if (!placed) ml.push("設置する場所がない！");
     }
-    /* デバッグ魔法：実行後もモーダルを閉じず連続使用可能（Xキーで手動終了） */
-    endTurn(sr.current, p, ml);
+    /* デバッグ魔法：ターンを進めず直接ステート更新（endTurnはモーダルを上書き閉鎖する可能性がある） */
     setMsgs(prev => [...prev.slice(-80), ...ml]);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
