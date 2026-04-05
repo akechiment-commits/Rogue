@@ -4270,6 +4270,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         {(p.defDebuffTurns || 0) > 0 && (
           <span style={{ color: "#6080ff" }}>🛡↓↓{p.defDebuffTurns}</span>
         )}{" "}
+        {(p.paralyzeTurns || 0) > 0 && (
+          <span style={{ color: "#c0c0ff" }}>🔗{p.paralyzeTurns}</span>
+        )}{" "}
+        {(p.immobileTurns || 0) > 0 && (
+          <span style={{ color: "#a08060" }}>🦶{p.immobileTurns}</span>
+        )}{" "}
+        {(p.oilyTurns || 0) > 0 && (
+          <span style={{ color: "#e0a020" }}>🛢{p.oilyTurns}</span>
+        )}{" "}
+        {(p.invisibleTurns || 0) > 0 && (
+          <span style={{ color: "#80e0ff" }}>👻{p.invisibleTurns}</span>
+        )}{" "}
+        {(p.wallWalkTurns || 0) > 0 && (
+          <span style={{ color: "#a0ffa0" }}>🧱{p.wallWalkTurns}</span>
+        )}{" "}
       </div>{" "}
       <div
         style={{ display: "flex", gap: 4, padding: "0 2px", marginBottom: 2 }}
