@@ -3250,9 +3250,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else {
         delete merged.daggerMerge;
       }
-      /* pickaxe能力を持つ場合、耐久値をベース/素材から引き継ぐ */
+      /* pickaxe能力を持つ場合、耐久値を加算（両方穴掘りなら合計、片方のみなら引き継ぎ） */
       if (_mabs.includes("pickaxe")) {
-        merged.durability = merged.durability ?? mat.durability ?? 30;
+        const _baseDura = base.durability ?? (hasAbility(base, "pickaxe") ? 30 : 0);
+        const _matDura  = mat.durability  ?? (hasAbility(mat,  "pickaxe") ? 30 : 0);
+        merged.durability = (_baseDura + _matDura) || (merged.durability ?? 30);
       } else {
         delete merged.durability;
       }
