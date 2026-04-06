@@ -1546,7 +1546,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       if ((p.spicyAtkTurns || 0) > 0) {
         p.spicyAtkTurns--;
-        if (p.spicyAtkTurns <= 0) ml.push("辛さによる攻撃力ブーストが切れた！");
+        if (p.spicyAtkTurns <= 0) ml.push("辛さによるダメージブーストが切れた！");
       }
       if ((p.atkDebuffTurns || 0) > 0) {
         p.atkDebuffTurns--;
@@ -2220,7 +2220,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
-              let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus + ((p.spicyAtkTurns || 0) > 0 ? 3 : 0)) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)));
+              let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)));
               const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;

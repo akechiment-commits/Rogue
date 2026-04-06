@@ -575,13 +575,27 @@ export function useItemActions({
       if (it.potFlavors) {
         for (const _pf of it.potFlavors) {
           if (_pf === "choco") {
-            const _chHeal = rng(10, 20);
-            const _chAh = Math.min(_chHeal, p.maxHp - p.hp);
+            const _chAh = Math.min(35, p.maxHp - p.hp);
             p.hp += _chAh;
-            if (_chAh > 0) ml.push(`チョコの甘さでHP+${_chAh}回復！`);
+            const _chCured = [];
+            if (p.poisoned) { p.poisoned = false; _chCured.push("毒"); }
+            if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _chCured.push("眠り"); }
+            if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; _chCured.push("金縛り"); }
+            if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _chCured.push("混乱"); }
+            if ((p.slowTurns || 0) > 0) { p.slowTurns = 0; _chCured.push("鈍足"); }
+            if ((p.oilyTurns || 0) > 0) { p.oilyTurns = 0; _chCured.push("油まみれ"); }
+            if ((p.bewitchedTurns || 0) > 0) { p.bewitchedTurns = 0; _chCured.push("魅了"); }
+            if ((p.darknessTurns || 0) > 0) { p.darknessTurns = 0; _chCured.push("暗闇"); }
+            if ((p.atkDebuffTurns || 0) > 0) { p.atkDebuffTurns = 0; _chCured.push("攻撃力低下"); }
+            if ((p.defDebuffTurns || 0) > 0) { p.defDebuffTurns = 0; _chCured.push("防御力低下"); }
+            if ((p.defSoftenedTurns || 0) > 0) { p.defSoftenedTurns = 0; _chCured.push("防御軟化"); }
+            if ((p.sealedTurns || 0) > 0) { p.sealedTurns = 0; _chCured.push("封印"); }
+            let _chMsg = _chAh > 0 ? `チョコの甘さでHP+${_chAh}回復！` : "チョコの甘さ…HPは満タンだ。";
+            if (_chCured.length > 0) _chMsg += `${_chCured.join("・")}が回復した！`;
+            ml.push(_chMsg);
           } else if (_pf === "spicy") {
-            p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 30;
-            ml.push("辛さでパワーアップ！攻撃力+3(30ターン)");
+            p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 50;
+            ml.push("辛さでパワーアップ！直接攻撃・矢ダメージ1.5倍(50ターン)");
           }
         }
       }
@@ -2272,7 +2286,7 @@ export function useItemActions({
         const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
         const _arOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050");
         p.arrow.count--;
-        const dmg = (_arItem.atk || 4) + rng(1, 4);
+        const dmg = Math.floor(((_arItem.atk || 4) + rng(1, 4)) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1));
         let lx = p.x,
           ly = p.y,
           hit = false;

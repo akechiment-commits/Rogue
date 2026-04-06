@@ -700,8 +700,8 @@ export const BB_FAKE_NAMES = [
 
 /* ===== POTS ===== */
 export const POTS = [
-  { name:"チョコの壺",         type:"pot", potEffect:"choco",     capacity:3, rarity:"C", weight:8,  sellPrice:600,  desc:"食料を入れるとチョコがけになる。食べるとHP回復。",  tile:32 },
-  { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"B", weight:4,  sellPrice:900,  desc:"食料を入れると激辛になる。食べると攻撃力UP。",     tile:32 },
+  { name:"チョコの壺",         type:"pot", potEffect:"choco",     capacity:3, rarity:"C", weight:8,  sellPrice:600,  desc:"食料を入れるとチョコがけになる。食べるとHP35回復＋状態異常回復。",  tile:32 },
+  { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"B", weight:4,  sellPrice:900,  desc:"食料を入れると激辛になる。食べると直接攻撃・矢ダメージ1.5倍(50ターン)。",     tile:32 },
   { name:"蜂蜜の壺",           type:"pot", potEffect:"honey",     capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとはちみつ漬けになる。",   tile:32 },
   { name:"保存の壺",           type:"pot", potEffect:"none",      capacity:5, rarity:"C", weight:8,  sellPrice:1500, desc:"アイテムを安全に保管できる。",         tile:32 },
   { name:"強化の壺",           type:"pot", potEffect:"enhance",   capacity:2, rarity:"A", weight:2,  sellPrice:4000, desc:"装備品の性能が上がる。",               tile:32 },
