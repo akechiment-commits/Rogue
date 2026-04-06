@@ -721,6 +721,44 @@ export function useItemActions({
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
+      /* 武器強化の巻物 */
+      if (it.effect === "weapon_up" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
+        const _wupTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || _ii.type === "armor" || _ii.type === "ring");
+        if (_wupTargets.length > 0 || _wasUnknown) {
+          const _ik_wu = getIdentKey(it);
+          if (_ik_wu) sr.current.ident.add(_ik_wu);
+          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
+          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
+          setIdentifyMode({ mode: 'weapon_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown });
+          setShowInv(false); setSelIdx(null); setShowDesc(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        } else {
+          p.inventory.splice(idx, 1);
+          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          ml.push("強化できる武器・防具・指輪がない。巻物は消えた。");
+          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+        }
+      }
+      /* 防具強化の巻物 */
+      if (it.effect === "armor_up" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
+        const _aupTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || _ii.type === "armor" || _ii.type === "ring");
+        if (_aupTargets.length > 0 || _wasUnknown) {
+          const _ik_au = getIdentKey(it);
+          if (_ik_au) sr.current.ident.add(_ik_au);
+          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
+          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
+          setIdentifyMode({ mode: 'armor_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown });
+          setShowInv(false); setSelIdx(null); setShowDesc(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        } else {
+          p.inventory.splice(idx, 1);
+          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          ml.push("強化できる武器・防具・指輪がない。巻物は消えた。");
+          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+        }
+      }
       const _scrBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
@@ -771,30 +809,6 @@ export function useItemActions({
           } else {
             ml.push("フロア全体と罠が明らかになった！");
           }
-        }
-      } else if (it.effect === "weapon_up") {
-        if (p.weapon) {
-          const _bef = p.weapon.plus || 0;
-          const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
-          p.weapon.plus = _bef + _gain;
-          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-          let _wMsg = `${p.weapon.name}が${_gain > 0 ? "輝いた" : "くすんだ"}！(${_fp(_bef)}→${_fp(p.weapon.plus)})${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`;
-          if (p.weapon.cursed) { p.weapon.cursed = false; _wMsg += " 呪いが解けた！"; }
-          ml.push(_wMsg);
-        } else {
-          ml.push("武器を装備していないので効果がなかった。");
-        }
-      } else if (it.effect === "armor_up") {
-        if (p.armor) {
-          const _bef = p.armor.plus || 0;
-          const _gain = it.blessed ? 2 : it.cursed ? -1 : 1;
-          p.armor.plus = _bef + _gain;
-          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-          let _aMsg = `${p.armor.name}が${_gain > 0 ? "輝いた" : "くすんだ"}！(${_fp(_bef)}→${_fp(p.armor.plus)})${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`;
-          if (p.armor.cursed) { p.armor.cursed = false; _aMsg += " 呪いが解けた！"; }
-          ml.push(_aMsg);
-        } else {
-          ml.push("防具を装備していないので効果がなかった。");
         }
       } else if (it.effect === "thunder") {
         if (hasCursedExplosionPentacle(dg)) {

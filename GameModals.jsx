@@ -635,12 +635,18 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   const _isSellMode_ui = mode.mode === 'sell_item';
   const _isTsfMode_ui = mode.mode === 'transform_item';
   const _isForgeMode_ui = mode.mode === 'forge_item';
+  const _isWeaponUpMode_ui = mode.mode === 'weapon_up';
+  const _isArmorUpMode_ui  = mode.mode === 'armor_up';
   const _filtered = _p.inventory
     .map((it, i) => ({ it, i }))
     .filter(({ it, i }) => {
       if (_isBCMode_ui) return it.type !== "gold"; /* bless/curse: scrollIdxなし */
       if (_isDupMode_ui || _isSellMode_ui || _isTsfMode_ui) return it.type !== "gold" && i !== mode.scrollIdx;
       if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor"; /* scrollは weapon/armorでないので自動除外 */
+      if (_isWeaponUpMode_ui || _isArmorUpMode_ui) {
+        if (mode.wasUnknown) return it.type !== "gold" && i !== mode.scrollIdx;
+        return it.type === "weapon" || it.type === "armor" || it.type === "ring";
+      }
       if (mode.scrollIdx === i) return false;
       if (it.type === 'weapon' || it.type === 'armor') {
         /* 未識別の識別の巻物なら全アイテム表示 */
@@ -717,6 +723,23 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       } else {
         _msgResult = "変換できるアイテムがなかった。";
       }
+    } else if (mode.mode === 'weapon_up' || mode.mode === 'armor_up') {
+      /* ===== 武器強化・防具強化の巻物 ===== */
+      const _p_up = sr.current.player;
+      const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
+      const _gain = mode.blessed ? 2 : mode.cursed ? -1 : 1;
+      const _sfx = mode.blessed ? "【祝】" : mode.cursed ? "【呪】" : "";
+      if (_selIt.type === "weapon" || _selIt.type === "armor" || _selIt.type === "ring") {
+        const _bef = _selIt.plus || 0;
+        _selIt.plus = _bef + _gain;
+        const _glow = _gain > 0 ? "輝いた" : "くすんだ";
+        _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
+        if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
+      } else {
+        _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
+      }
+      const _rmIdx_up = _p_up.inventory.findIndex((_, _ri) => _ri === mode.scrollIdx);
+      if (_rmIdx_up !== -1) _p_up.inventory.splice(_rmIdx_up, 1);
     } else if (mode.mode === 'forge_item') {
       /* ===== 錬成の巻物 ===== */
       const _isWeapon = _selIt.type === "weapon";
@@ -833,6 +856,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             : mode.mode === 'sell_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
             : mode.mode === 'transform_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
             : mode.mode === 'forge_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
+            : mode.mode === 'weapon_up' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する武器/防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/防具/指輪を選んでください（－1）【呪】" : "強化する武器/防具/指輪を選んでください（＋1）")
+            : mode.mode === 'armor_up'  ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する武器/防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/防具/指輪を選んでください（－1）【呪】" : "強化する武器/防具/指輪を選んでください（＋1）")
             : "識別を解除するアイテムを選んでください【呪】"}
         </div>
         <div style={{ color:"#556", fontSize:10, marginBottom:4 }}>↑↓/8,2:選択　←→/4,6:ページ　Ｚ/Enter:決定　ESC:キャンセル</div>

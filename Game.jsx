@@ -4440,12 +4440,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _isSellMode_t = identifyMode.mode === 'sell_item';
                 const _isTsfMode_t = identifyMode.mode === 'transform_item';
                 const _isForgeMode_t = identifyMode.mode === 'forge_item';
+                const _isWeaponUpMode_t = identifyMode.mode === 'weapon_up';
+                const _isArmorUpMode_t  = identifyMode.mode === 'armor_up';
                 const _filt = _p.inventory
                   .map((_it, _i) => ({ it: _it, i: _i }))
                   .filter(({ it, i }) => {
                     if (_isBCMode_t || _isDupMode_t) return it.type !== "gold";
                     if (_isSellMode_t || _isTsfMode_t) return it.type !== "gold" && i !== identifyMode.scrollIdx;
                     if (_isForgeMode_t) return it.type === "weapon" || it.type === "armor";
+                    if (_isWeaponUpMode_t || _isArmorUpMode_t) {
+                      if (identifyMode.wasUnknown) return it.type !== "gold" && i !== identifyMode.scrollIdx;
+                      return it.type === "weapon" || it.type === "armor" || it.type === "ring";
+                    }
                     if (identifyMode.scrollIdx === i) return false;
                     const _showAll_t = identifyMode.showAll;
                     if (it.type === 'weapon' || it.type === 'armor') {

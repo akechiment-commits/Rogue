@@ -496,12 +496,18 @@ export function useKeyHandler({
         const _isSellMode = identifyMode.mode === 'sell_item';
         const _isTsfMode  = identifyMode.mode === 'transform_item';
         const _isForgeMode = identifyMode.mode === 'forge_item';
+        const _isWeaponUpMode = identifyMode.mode === 'weapon_up';
+        const _isArmorUpMode  = identifyMode.mode === 'armor_up';
         const _filt_id = _p_id.inventory
           .map((_it, _i) => ({ it: _it, i: _i }))
           .filter(({ it, i }) => {
             if (_isBCMode) return it.type !== "gold";
             if (_isDupMode || _isSellMode || _isTsfMode) return it.type !== "gold" && i !== identifyMode.scrollIdx;
             if (_isForgeMode) return it.type === "weapon" || it.type === "armor";
+            if (_isWeaponUpMode || _isArmorUpMode) {
+              if (identifyMode.wasUnknown) return it.type !== "gold" && i !== identifyMode.scrollIdx;
+              return it.type === "weapon" || it.type === "armor" || it.type === "ring";
+            }
             if (identifyMode.scrollIdx === i) return false;
             if (it.type === 'weapon' || it.type === 'armor') {
               if (identifyMode.mode === 'identify' && identifyMode.showAll) return true;
@@ -609,6 +615,28 @@ export function useKeyHandler({
                          : identifyMode.cursed  ? `${_selIt.name}に「${_ab.name}」が刻まれてしまった…【呪】`
                                                 : `${_selIt.name}に「${_ab.name}」が宿った！`;
             } else { _msgResult = `${_selIt.name}はもうこれ以上能力を宿せない。`; }
+          } else if (identifyMode.mode === 'weapon_up' || identifyMode.mode === 'armor_up') {
+            /* ===== 武器強化・防具強化の巻物 ===== */
+            const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
+            const _gain = identifyMode.blessed ? 2 : identifyMode.cursed ? -1 : 1;
+            const _sfx = identifyMode.blessed ? "【祝】" : identifyMode.cursed ? "【呪】" : "";
+            if (_selIt.type === "weapon" || _selIt.type === "armor") {
+              const _bef = _selIt.plus || 0;
+              _selIt.plus = _bef + _gain;
+              const _glow = _gain > 0 ? "輝いた" : "くすんだ";
+              _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
+              if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
+            } else if (_selIt.type === "ring") {
+              const _bef = _selIt.plus || 0;
+              _selIt.plus = _bef + _gain;
+              const _glow = _gain > 0 ? "輝いた" : "くすんだ";
+              _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
+              if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
+            } else {
+              _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
+            }
+            const _rmIdx_up = _p_id.inventory.findIndex((_ii, _ri) => _ri === identifyMode.scrollIdx);
+            if (_rmIdx_up !== -1) _p_id.inventory.splice(_rmIdx_up, 1);
           } else if (identifyMode.mode === 'bless') {
             if (_selIt.type === 'pot') {
               _selIt.capacity = (_selIt.capacity || 1) + 1;
