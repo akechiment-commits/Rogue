@@ -546,6 +546,9 @@ export function useKeyHandler({
         if ((k === "enter" || k === "z") && _idPageLen > 0) {
           const _curSel_id = Math.min(identifyMode.sel || 0, _idPageLen - 1);
           const { it: _selIt } = _idPageItems[_curSel_id];
+          /* 確定時に巻物を識別 & reveal メッセージ表示 */
+          if (identifyMode.identKey && sr.current) sr.current.ident.add(identifyMode.identKey);
+          if (identifyMode.revMsg) setMsgs((prev) => [...prev.slice(-80), identifyMode.revMsg]);
           let _msgResult;
           if (identifyMode.mode === 'sell_item') {
             /* ===== 売却の巻物 ===== */

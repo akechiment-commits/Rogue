@@ -622,10 +622,9 @@ export function useItemActions({
             const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
           });
           if (_tgts.length > 0) {
-            if (_ik_scr) sr.current.ident.add(_ik_scr);
-            const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-            setMsgs((prev) => [...prev.slice(-80), ..._rp, "どのアイテムの識別を解除する？【呪】"]);
-            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _wasUnknown });
+            const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+            setMsgs((prev) => [...prev.slice(-80), "どのアイテムの識別を解除する？【呪】"]);
+            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_scr || null, revMsg: _revMsg });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -640,10 +639,9 @@ export function useItemActions({
             const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
           });
           if (_tgts.length > 0) {
-            if (_ik_scr) sr.current.ident.add(_ik_scr);
-            const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-            setMsgs((prev) => [...prev.slice(-80), ..._rp, "識別するアイテムを選んでください。"]);
-            setIdentifyMode({ mode: 'identify', sel: 0, scrollIdx: idx, wasUnknown: _wasUnknown, showAll: _showAll });
+            const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+            setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
+            setIdentifyMode({ mode: 'identify', sel: 0, scrollIdx: idx, wasUnknown: _wasUnknown, showAll: _showAll, identKey: _ik_scr || null, revMsg: _revMsg });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -655,10 +653,8 @@ export function useItemActions({
         const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
         if (_dupTargets.length > 0) {
           const _ik_dup = getIdentKey(it);
-          if (_ik_dup) sr.current.ident.add(_ik_dup);
-          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
-          setIdentifyMode({ mode: 'duplicate', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown });
+          const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+          setIdentifyMode({ mode: 'duplicate', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_dup || null, revMsg: _revMsg });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -669,10 +665,8 @@ export function useItemActions({
         const _sellTargets = p.inventory.filter((_ii, _i) => _ii.type !== "gold" && _i !== idx);
         if (_sellTargets.length > 0) {
           const _ik_sell = getIdentKey(it);
-          if (_ik_sell) sr.current.ident.add(_ik_sell);
-          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
-          setIdentifyMode({ mode: 'sell_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown });
+          const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+          setIdentifyMode({ mode: 'sell_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_sell || null, revMsg: _revMsg });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -688,10 +682,8 @@ export function useItemActions({
         const _tsfTargets = p.inventory.filter((_ii, _i) => _ii.type !== "gold" && _i !== idx);
         if (_tsfTargets.length > 0) {
           const _ik_tsf = getIdentKey(it);
-          if (_ik_tsf) sr.current.ident.add(_ik_tsf);
-          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
-          setIdentifyMode({ mode: 'transform_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown });
+          const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+          setIdentifyMode({ mode: 'transform_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_tsf || null, revMsg: _revMsg });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -707,10 +699,8 @@ export function useItemActions({
         const _forgeTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || _ii.type === "armor");
         if (_forgeTargets.length > 0) {
           const _ik_fg = getIdentKey(it);
-          if (_ik_fg) sr.current.ident.add(_ik_fg);
-          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
-          setIdentifyMode({ mode: 'forge_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown });
+          const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+          setIdentifyMode({ mode: 'forge_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_fg || null, revMsg: _revMsg });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -727,10 +717,8 @@ export function useItemActions({
         const _wupTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || (_ii.type === "ring" && _PLUS_RINGS.includes(_ii.effect)));
         if (_wupTargets.length > 0 || _wasUnknown) {
           const _ik_wu = getIdentKey(it);
-          if (_ik_wu) sr.current.ident.add(_ik_wu);
-          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
-          setIdentifyMode({ mode: 'weapon_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown });
+          const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+          setIdentifyMode({ mode: 'weapon_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_wu || null, revMsg: _revMsg });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -747,10 +735,8 @@ export function useItemActions({
         const _aupTargets = p.inventory.filter((_ii) => _ii.type === "armor" || (_ii.type === "ring" && _PLUS_RINGS.includes(_ii.effect)));
         if (_aupTargets.length > 0 || _wasUnknown) {
           const _ik_au = getIdentKey(it);
-          if (_ik_au) sr.current.ident.add(_ik_au);
-          const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-          setMsgs((prev) => [...prev.slice(-80), ..._rp]);
-          setIdentifyMode({ mode: 'armor_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown });
+          const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+          setIdentifyMode({ mode: 'armor_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_au || null, revMsg: _revMsg });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;

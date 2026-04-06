@@ -670,6 +670,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     const _absIdx = _idPage_ui * 10 + vi;
     const { it: _selIt } = _filtered[_absIdx] ?? _filtered[_idPage_ui * 10 + _curSel_ui] ?? {};
     if (!_selIt) return;
+    /* 確定時に巻物を識別 & reveal メッセージ表示 */
+    if (mode.identKey) sr.current.ident.add(mode.identKey);
+    if (mode.revMsg) setMsgs((prev) => [...prev.slice(-80), mode.revMsg]);
     let _msgResult;
     if (mode.mode === 'sell_item') {
       /* ===== 売却の巻物 ===== */
