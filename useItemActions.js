@@ -723,7 +723,8 @@ export function useItemActions({
       }
       /* 武器強化の巻物 */
       if (it.effect === "weapon_up" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _wupTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || _ii.type === "armor" || _ii.type === "ring");
+        const _PLUS_RINGS = ["power_ring","defense_ring","life_ring"];
+        const _wupTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || (_ii.type === "ring" && _PLUS_RINGS.includes(_ii.effect)));
         if (_wupTargets.length > 0 || _wasUnknown) {
           const _ik_wu = getIdentKey(it);
           if (_ik_wu) sr.current.ident.add(_ik_wu);
@@ -736,13 +737,14 @@ export function useItemActions({
         } else {
           p.inventory.splice(idx, 1);
           { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
-          ml.push("強化できる武器・防具・指輪がない。巻物は消えた。");
+          ml.push("強化できる武器・指輪がない。巻物は消えた。");
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 防具強化の巻物 */
       if (it.effect === "armor_up" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _aupTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || _ii.type === "armor" || _ii.type === "ring");
+        const _PLUS_RINGS = ["power_ring","defense_ring","life_ring"];
+        const _aupTargets = p.inventory.filter((_ii) => _ii.type === "armor" || (_ii.type === "ring" && _PLUS_RINGS.includes(_ii.effect)));
         if (_aupTargets.length > 0 || _wasUnknown) {
           const _ik_au = getIdentKey(it);
           if (_ik_au) sr.current.ident.add(_ik_au);
@@ -755,7 +757,7 @@ export function useItemActions({
         } else {
           p.inventory.splice(idx, 1);
           { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
-          ml.push("強化できる武器・防具・指輪がない。巻物は消えた。");
+          ml.push("強化できる防具・指輪がない。巻物は消えた。");
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }

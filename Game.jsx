@@ -4450,7 +4450,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     if (_isForgeMode_t) return it.type === "weapon" || it.type === "armor";
                     if (_isWeaponUpMode_t || _isArmorUpMode_t) {
                       if (identifyMode.wasUnknown) return it.type !== "gold" && i !== identifyMode.scrollIdx;
-                      return it.type === "weapon" || it.type === "armor" || it.type === "ring";
+                      const _PR = ["power_ring","defense_ring","life_ring"];
+                      if (_isWeaponUpMode_t) return it.type === "weapon" || (it.type === "ring" && _PR.includes(it.effect));
+                      if (_isArmorUpMode_t)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
                     }
                     if (identifyMode.scrollIdx === i) return false;
                     const _showAll_t = identifyMode.showAll;

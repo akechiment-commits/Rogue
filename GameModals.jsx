@@ -645,7 +645,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor"; /* scrollは weapon/armorでないので自動除外 */
       if (_isWeaponUpMode_ui || _isArmorUpMode_ui) {
         if (mode.wasUnknown) return it.type !== "gold" && i !== mode.scrollIdx;
-        return it.type === "weapon" || it.type === "armor" || it.type === "ring";
+        const _PR = ["power_ring","defense_ring","life_ring"];
+        if (_isWeaponUpMode_ui) return it.type === "weapon" || (it.type === "ring" && _PR.includes(it.effect));
+        if (_isArmorUpMode_ui)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
       }
       if (mode.scrollIdx === i) return false;
       if (it.type === 'weapon' || it.type === 'armor') {
@@ -856,8 +858,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             : mode.mode === 'sell_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
             : mode.mode === 'transform_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
             : mode.mode === 'forge_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
-            : mode.mode === 'weapon_up' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する武器/防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/防具/指輪を選んでください（－1）【呪】" : "強化する武器/防具/指輪を選んでください（＋1）")
-            : mode.mode === 'armor_up'  ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する武器/防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/防具/指輪を選んでください（－1）【呪】" : "強化する武器/防具/指輪を選んでください（＋1）")
+            : mode.mode === 'weapon_up' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する武器/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/指輪を選んでください（－1）【呪】" : "強化する武器/指輪を選んでください（＋1）")
+            : mode.mode === 'armor_up'  ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する防具/指輪を選んでください（－1）【呪】" : "強化する防具/指輪を選んでください（＋1）")
             : "識別を解除するアイテムを選んでください【呪】"}
         </div>
         <div style={{ color:"#556", fontSize:10, marginBottom:4 }}>↑↓/8,2:選択　←→/4,6:ページ　Ｚ/Enter:決定　ESC:キャンセル</div>

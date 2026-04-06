@@ -506,7 +506,9 @@ export function useKeyHandler({
             if (_isForgeMode) return it.type === "weapon" || it.type === "armor";
             if (_isWeaponUpMode || _isArmorUpMode) {
               if (identifyMode.wasUnknown) return it.type !== "gold" && i !== identifyMode.scrollIdx;
-              return it.type === "weapon" || it.type === "armor" || it.type === "ring";
+              const _PR = ["power_ring","defense_ring","life_ring"];
+              if (_isWeaponUpMode) return it.type === "weapon" || (it.type === "ring" && _PR.includes(it.effect));
+              if (_isArmorUpMode)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
             }
             if (identifyMode.scrollIdx === i) return false;
             if (it.type === 'weapon' || it.type === 'armor') {
