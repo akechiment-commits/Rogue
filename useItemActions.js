@@ -623,7 +623,7 @@ export function useItemActions({
           });
           if (_tgts.length > 0) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-            setMsgs((prev) => [...prev.slice(-80), "どのアイテムの識別を解除する？【呪】"]);
+            setMsgs((prev) => [...prev.slice(-80), _wasUnknown ? "どのアイテムを選びますか？" : "どのアイテムの識別を解除する？【呪】"]);
             setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_scr || null, revMsg: _revMsg });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });

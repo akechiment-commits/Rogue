@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { MW, MH, T, rng, uid, refreshFOV, getShops } from "./utils.js";
+import { itemDisplayName } from "./render.js";
 import {
   ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, TRAPS, BB_TYPES, RINGS,
   RAW_FOODS, COOKED_FOODS,
@@ -693,7 +694,8 @@ export function useKeyHandler({
               const _newIt = _makeFresh();
               if (identifyMode.blessed) { _newIt.blessed = true; _newIt.cursed = false; _newIt.bcKnown = true; }
               _p_id.inventory.push(_newIt);
-              _msgResult = identifyMode.blessed ? `祝福された${_selIt.name}が1つ増えた！【祝】` : `${_selIt.name}が1つ増えた！`;
+              const _dupDispName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              _msgResult = identifyMode.blessed ? `祝福された${_dupDispName}が1つ増えた！【祝】` : `${_dupDispName}が1つ増えた！`;
             }
           } else {
             const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';
