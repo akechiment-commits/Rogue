@@ -8,6 +8,33 @@ import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 
+/* 壺・大箱に入れたとき効果があるアイテムか判定 */
+const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
+const _FOOD_POT_EFFECTS = new Set(["choco","spicy","honey","curry","miso","smoke","olive","sesame","butter","yogurt","coconut"]);
+function isPotEffective(potEffect, item) {
+  if (potEffect === "none") return true;
+  if (potEffect === "enhance") return item.type === "weapon" || item.type === "armor" || (item.type === "ring" && _PLUS_RING_EFFECTS.includes(item.effect));
+  if (potEffect === "weaken") return item.type === "weapon" || item.type === "armor";
+  if (potEffect === "bless_pot") return item.type !== "gold";
+  if (potEffect === "curse_pot") return item.type !== "gold" && item.type !== "arrow";
+  if (potEffect === "boil") return item.type === "potion" || item.type === "food";
+  if (potEffect === "gunpowder") return false;
+  if (_FOOD_POT_EFFECTS.has(potEffect)) return item.type === "food";
+  return false;
+}
+function isBbEffective(kind, item) {
+  if (kind === "change") return item.type !== "gold" && item.type !== "goal";
+  if (kind === "enhance") return item.type === "weapon" || item.type === "armor" || item.type === "pot" || (item.type === "ring" && _PLUS_RING_EFFECTS.includes(item.effect));
+  if (kind === "satiety") return item.type === "food";
+  if (kind === "refill") return item.type === "wand" || item.type === "pen" || item.type === "marker";
+  if (kind === "identify") return true;
+  if (kind === "split") return item.type !== "gold" && item.type !== "goal";
+  if (kind === "bless") return item.type !== "goal";
+  if (kind === "curse") return item.type !== "gold" && item.type !== "goal";
+  if (kind === "scatter") return true;
+  return false;
+}
+
 /* ===== Tile Icon (inventory) ===== */
 const TYPE_TILE_FALLBACK = {
   potion: 16, scroll: 18, food: 19, weapon: 20, armor: 21,
@@ -1584,32 +1611,27 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                   持ち物がない。
                 </div>
               ) : (
-                _pi.map((it, i) => (
-                  <div
-                    key={page * _ps + i}
-                    onClick={() => bigboxPutItem(page * _ps + i)}
-                    style={{
-                      padding: "5px 8px",
-                      margin: "2px 0",
-                      background:
-                        menuSel === i ? "#3a2a0a" : "#1a1a08",
-                      border:
-                        "1px solid " +
-                        (menuSel === i ? "#ca6" : "#4a3a1a"),
-                      borderRadius: 4,
-                      cursor: "pointer",
-                      fontSize: 13,
-                      color:
-                        it.type === "weapon" || it.type === "armor"
-                          ? "#fa8"
-                          : "#ca8",
-                      fontWeight: menuSel === i ? "bold" : "normal",
-                    }}
-                  >
-                    {iLabel(it)}
-                    {(it.type === "weapon" || it.type === "armor") && " ✓"}
-                  </div>
-                ))
+                _pi.map((it, i) => {
+                    const isEff = _bbIsRevealed && _bb && isBbEffective(_bb.kind, it);
+                    return (
+                    <div
+                      key={page * _ps + i}
+                      onClick={() => bigboxPutItem(page * _ps + i)}
+                      style={{
+                        padding: "5px 8px",
+                        margin: "2px 0",
+                        background: menuSel === i ? (isEff ? "#1a3a1a" : "#2a2a0a") : (isEff ? "#0e200e" : "#1a1a08"),
+                        border: "1px solid " + (menuSel === i ? (isEff ? "#6fa" : "#ca6") : (isEff ? "#3a6a3a" : "#4a3a1a")),
+                        borderRadius: 4,
+                        cursor: "pointer",
+                        fontSize: 13,
+                        color: isEff ? "#8fe870" : "#ca8",
+                        fontWeight: menuSel === i ? "bold" : "normal",
+                      }}
+                    >
+                      {iLabel(it)}
+                    </div>
+                  );}))
               )}
               <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
                 ↑↓:選択 ←→:ページ Z:決定 X:戻る
@@ -1735,6 +1757,8 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
         const _psp = 10;
         const _tpp = Math.max(1, Math.ceil(pItems.length / _psp));
         const _pgp = pItems.slice(putPage * _psp, (putPage + 1) * _psp);
+        const _potKey = getIdentKey(pot);
+        const _potKnown = !!(gs?.allBcKnown || pot.fullIdent || (_potKey && gs?.ident?.has(_potKey)));
         return pItems.length === 0 ? (
           <div style={{ color: "#666", fontSize: 13 }}>入れるアイテムがない。</div>
         ) : (
@@ -1748,20 +1772,18 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
             )}
             {_pgp.map(({ it: it2, i: i2 }, vi) => {
               const isPot = it2.type === "pot";
-              const isFood = it2.type === "food";
-              const isEquip = it2.type === "weapon" || it2.type === "armor";
               const isSel = vi === putMenuSel;
               const isDisabled = isPot;
-              const _isUnidentPut = (() => { const _k2 = getIdentKey(it2); return _k2 && !gs?.ident?.has(_k2); })();
+              const isEff = _potKnown && isPotEffective(pot.potEffect, it2);
               return (
                 <div key={i2} onClick={() => { if (!isDisabled) doPutItem(i2); }}
                   style={{
                     padding: "5px 8px", margin: "2px 0",
-                    background: isSel ? (isDisabled ? "#3a1a1a" : isFood ? "#3a3a08" : isEquip ? "#3a2008" : "#28285a")
-                      : (isDisabled ? "#1a1a1a" : isFood ? "#1a1a08" : isEquip ? "#1a1008" : "#18182a"),
-                    border: "1px solid " + (isSel ? "#88c" : isDisabled ? "#333" : isFood ? "#5a5a2a" : isEquip ? "#5a3a2a" : "#3a3a5a"),
+                    background: isSel ? (isDisabled ? "#3a1a1a" : isEff ? "#1a3a1a" : "#28285a")
+                      : (isDisabled ? "#1a1a1a" : isEff ? "#0e2010" : "#18182a"),
+                    border: "1px solid " + (isDisabled ? "#333" : isSel ? (isEff ? "#6fa" : "#88c") : (isEff ? "#3a6a3a" : "#3a3a5a")),
                     borderRadius: 4, cursor: isDisabled ? "not-allowed" : "pointer", fontSize: 13,
-                    color: isDisabled ? "#555" : isFood ? "#fc6" : isEquip ? "#fa8" : _isUnidentPut ? "#ff8" : "#aab",
+                    color: isDisabled ? "#555" : isEff ? "#8fe870" : "#aab",
                     opacity: isDisabled ? 0.5 : 1,
                   }}
                 >
