@@ -1631,7 +1631,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
                     >
                       {iLabel(it)}
                     </div>
-                  );}))
+                  );})
               )}
               <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
                 ↑↓:選択 ←→:ページ Z:決定 X:戻る
