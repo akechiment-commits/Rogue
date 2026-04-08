@@ -22,7 +22,8 @@ function isPotEffective(potEffect, item) {
   if (_FOOD_POT_EFFECTS.has(potEffect)) return item.type === "food";
   return false;
 }
-function isBbEffective(kind, item) {
+const _WAND_SYNTH_EFFECTS = new Set(["slow","paralyze","sleep","darkness","confuse","bewitch","seal","fire_wand","ice_wand","lightning"]);
+function isBbEffective(kind, item, bb) {
   if (kind === "change") return item.type !== "gold" && item.type !== "goal";
   if (kind === "enhance") return item.type === "weapon" || item.type === "armor" || item.type === "pot" || (item.type === "ring" && _PLUS_RING_EFFECTS.includes(item.effect));
   if (kind === "satiety") return item.type === "food";
@@ -32,6 +33,31 @@ function isBbEffective(kind, item) {
   if (kind === "bless") return item.type !== "goal";
   if (kind === "curse") return item.type !== "gold" && item.type !== "goal";
   if (kind === "scatter") return true;
+  if (kind === "synthesis") {
+    const existing = bb?.contents || [];
+    const isPlusRing = (it) => it.type === "ring" && _PLUS_RING_EFFECTS.includes(it.effect);
+    if (existing.length === 0) {
+      /* 空：合成に参加できる種別を強調 */
+      return item.type === "weapon" || item.type === "armor" || item.type === "wand" ||
+             item.type === "pen" || item.type === "marker" || item.type === "pot" || isPlusRing(item);
+    }
+    const e = existing[0];
+    if (e.type === "weapon") return item.type === "weapon";
+    if (e.type === "armor")  return item.type === "armor";
+    if (e.type === "wand")   return item.type === "wand" || (_WAND_SYNTH_EFFECTS.has(e.effect) && (item.type === "weapon" || item.type === "armor"));
+    if (e.type === "pen")    return item.type === "pen";
+    if (e.type === "marker") return item.type === "marker";
+    if (e.type === "pot")    return item.type === "pot";
+    if (isPlusRing(e))       return isPlusRing(item);
+    return false;
+  }
+  return false;
+}
+/* 泉に浸すと有益な変化があるアイテムか判定 */
+function isSpringEffective(item) {
+  if (item.type === "scroll" && item.effect !== "blank") return true;
+  if (item.type === "spellbook" && item.spell) return true;
+  if (item.type === "pot" && item.potEffect === "gunpowder") return true;
   return false;
 }
 
@@ -1339,21 +1365,22 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
               _spPageItems.map((it, pi) => {
                 const absI = _spCurPg * 10 + pi;
                 const isSel = menuSel === pi;
+                const isEff = isSpringEffective(it);
+                const isRust = it.type === "weapon" || it.type === "armor";
                 return (
                   <div key={absI} onClick={() => { springDoSoak(absI); setPage(0); setMenuSel(0); }}
                     style={{
                       padding: "5px 8px", margin: "2px 0", borderRadius: 4, cursor: "pointer", fontSize: 13,
-                      background: isSel ? (it.type === "bottle" ? "#2a4a2a" : it.type === "weapon" || it.type === "armor" ? "#4a2a2a" : "#2a2a4a")
-                                         : (it.type === "bottle" ? "#1a2a1a" : it.type === "weapon" || it.type === "armor" ? "#2a1a1a" : "#18182a"),
-                      border: "1px solid " + (isSel ? (it.type === "bottle" ? "#6afa6a" : it.type === "weapon" || it.type === "armor" ? "#fa6a6a" : "#6a6afa")
-                                                     : (it.type === "bottle" ? "#3a6a3a" : it.type === "weapon" || it.type === "armor" ? "#6a3a3a" : "#3a3a5a")),
-                      color: it.type === "bottle" ? "#6f6" : it.type === "weapon" || it.type === "armor" ? "#f88" : "#aab",
+                      background: isSel ? (isEff ? "#1a3a1a" : isRust ? "#4a2a2a" : "#2a2a4a")
+                                         : (isEff ? "#111f11" : isRust ? "#2a1a1a" : "#18182a"),
+                      border: "1px solid " + (isSel ? (isEff ? "#4aaa4a" : isRust ? "#fa6a6a" : "#6a6afa")
+                                                     : (isEff ? "#2a5a2a" : isRust ? "#6a3a3a" : "#3a3a5a")),
+                      color: isEff ? "#6f6" : isRust ? "#f88" : "#aab",
                       fontWeight: isSel ? "bold" : "normal",
                     }}
                   >
                     {iLabel(it)}
-                    {it.type === "bottle" && " → 水を汲める"}
-                    {(it.type === "weapon" || it.type === "armor") && " ⚠ 錆びる"}
+                    {isRust && " ⚠ 錆びる"}
                   </div>
                 );
               })
