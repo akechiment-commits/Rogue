@@ -2061,21 +2061,20 @@ export function MsgLogModal({ show, msgs, scrollTop, setScrollTop, onClose, mobi
           const _msgColor = typeof m === "object" ? m.color : undefined;
           return (
             <div key={absIdx} style={{
-              fontSize: mobile ? 10 : 11, lineHeight: "1.4em",
-              color: _msgColor ?? (isNewest ? "#ccffcc" : "#8fa8a0"),
+              fontSize: mobile ? 12 : 13, lineHeight: "1.5em",
+              color: _msgColor ?? (isNewest ? "#e8ffe8" : "#b8cfc8"),
               fontWeight: _msgColor ? "bold" : undefined,
-              opacity: isNewest ? 1 : 0.75,
-              padding: "1px 0",
+              padding: "2px 0",
               borderBottom: "1px solid #1a2030",
             }}>
-              <span style={{ color: "#304060", marginRight: 6, fontSize: 12 }}>{absIdx + 1}</span>
+              <span style={{ color: "#506880", marginRight: 6, fontSize: 11 }}>{absIdx + 1}</span>
               {_text}
             </div>
           );
         })}
       </div>
       <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "#304060", fontSize: 12 }}>
+        <span style={{ color: "#5a7898", fontSize: 12 }}>
           {start + 1}〜{Math.min(start + MSG_LOG_PAGE, total)} / {total}　↑↓:スクロール　m/x/Esc:閉じる
         </span>
         {mobile && (
