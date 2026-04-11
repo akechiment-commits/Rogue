@@ -1867,10 +1867,10 @@ export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30
   return true;
 }
 
-export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false) {
+export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null) {
   if (kind === "monster") wakeIfDormant(target, ml);
   const _monKill = (mon) => {
-    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
+    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
   };
   const _fireResist = (pl) =>
     hasAbility(pl.armor, "fire_resist");
@@ -2382,7 +2382,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
   ml.push(`${item.name}になった！`);
 }
 
-export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false, cursed = false, dnFn = null) {
+export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false, cursed = false, dnFn = null, killerMon = null) {
   ml.push("瓶が割れて中身が飛び散った！");
   pushSplashAnim(cx, cy, "#88ccff");
   const tiles = [];
@@ -2396,7 +2396,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     const mon = monsterAt(dg, x, y);
     if (mon) {
       weakenOrClearParalysis(mon, ml);
-      applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed);
+      applyPotionEffect(eff, val, "monster", mon, dg, p, ml, luFn, blessed, cursed, killerMon);
     }
     if (x === p.x && y === p.y) applyPotionEffect(eff, val, "player", p, dg, p, ml, luFn, blessed, cursed);
     const trap = dg.traps.find(t => t.x === x && t.y === y);

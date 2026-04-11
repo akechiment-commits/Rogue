@@ -152,7 +152,7 @@ function monsterThrowPotion(m, dg, pl, ml) {
   const _pot = pick(_POTION_THROW_POOL);
   ml.push(`${m.name}が謎の薬を投げた！`);
   pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#ff88ff");
-  splashPotion(dg, pl.x, pl.y, _pot.effect, _pot.value, pl, ml, null, false, false);
+  splashPotion(dg, pl.x, pl.y, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
@@ -2361,7 +2361,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               const _ibDmg = Math.max(1, 3 + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
               ml.push(`${m.name}に${_ibItem.name}を弾かれ${_ibHitMon.name}に当たって割れた！${_ibDmg}ダメージ！`);
-              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn);
+              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, m);
             } else {
               ml.push(`${m.name}に${_ibItem.name}を弾かれた！壺が割れた！`);
             }
@@ -2371,7 +2371,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             if (_ibHitMon) {
               const _ibWdx = Math.sign(_lx - pl.x), _ibWdy = Math.sign(_ly - pl.y);
               ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！`);
-              applyWandEffect(_ibItem.effect, "monster", _ibHitMon, _ibWdx, _ibWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null);
+              applyWandEffect(_ibItem.effect, "monster", _ibHitMon, _ibWdx, _ibWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null, 0, m);
             } else {
               ml.push(`${m.name}に${_ibItem.name}を弾かれた！`);
               const _ibft = new Set();
@@ -2386,7 +2386,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
                   : 3) + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
               ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！消滅した。`);
-              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn);
+              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, m);
             } else {
               ml.push(`${m.name}に${_ibItem.name}を弾かれた！`);
               const _ibft = new Set();
@@ -2451,7 +2451,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               const _srDmg = Math.max(1, ((_throwItem.type === "weapon" ? (_throwItem.atk || 3) + (_throwItem.plus || 0) : 3) + rng(0, 3)));
               ml.push(`${m.name}が投げた${_throwItem.name}が${_srHitMon.name}に命中！${_srDmg}ダメージ！消滅した。`);
               _srHitMon.hp -= _srDmg;
-              if (_srHitMon.hp <= 0) { killMonster(_srHitMon, dg, pl, ml, _luFn); }
+              if (_srHitMon.hp <= 0) { killMonster(_srHitMon, dg, pl, ml, _luFn, false, m); }
             } else {
               const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
               const _srMiss = !_srAntiSteal && Math.random() < 0.25;
