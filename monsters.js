@@ -664,6 +664,12 @@ export const MONS = [
       { name: "覇薬投げ師",         hp: 75,  atk: 24, def: 10, exp: 120 },
     ],
   },
+  { name: "バーサーカー", hp: 55,  atk: 22, def: 8,  exp: 65,  speed: 1,   tile: 109, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker",
+    levels: [
+      { name: "大バーサーカー",     hp: 90,  atk: 33, def: 13, exp: 104 },
+      { name: "覇バーサーカー",     hp: 145, atk: 48, def: 20, exp: 166 },
+    ],
+  },
   { name: "氷竜",         hp: 65,  atk: 27, def: 10, exp: 125, speed: 1,   tile: 39, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder",
     levels: [
       { name: "大氷竜",             hp: 105, atk: 37, def: 16, exp: 200 },
@@ -2645,6 +2651,51 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
       return; /* からめ鬼は絶対に移動しない */
+    }
+
+    /* ── berserker（バーサーカー等）：敵味方区別なく攻撃、店主除く ── */
+    if (m.subtype === "berserker" && !m.sealed) {
+      m.aware = true;
+      /* 隣接ターゲット（店主除く）を探す */
+      const _bcAdj = dg.monsters.filter(o =>
+        o !== m && o.type !== "shopkeeper" &&
+        Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1
+      );
+      const _bcAdjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      /* 攻撃フェーズ：隣接ターゲットを攻撃 */
+      if (!_moveOnly && (_bcAdj.length > 0 || _bcAdjPl) && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        m.turnAttacks++;
+        if (_bcAdjPl && (_bcAdj.length === 0 || Math.random() < 0.5)) {
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+        } else {
+          const _bTarget = pick(_bcAdj);
+          const _bDmg = Math.max(1, m.atk - (_bTarget.def || 0) + rng(-2, 2));
+          ml.push(`${m.name}が${_bTarget.name}に攻撃！${_bDmg}ダメージ！`);
+          _bTarget.hp -= _bDmg;
+          if (_bTarget.hp <= 0) killMonster(_bTarget, dg, pl, ml, _luFn, false, m);
+        }
+        return;
+      }
+      /* 移動フェーズ：最も近いターゲット（店主除く）に向かう */
+      if (!_attackOnly) {
+        let _bTx = pl.x, _bTy = pl.y;
+        let _bNearDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+        for (const _bm of dg.monsters) {
+          if (_bm === m || _bm.type === "shopkeeper") continue;
+          const _bd = Math.max(Math.abs(_bm.x - m.x), Math.abs(_bm.y - m.y));
+          if (_bd < _bNearDist) { _bNearDist = _bd; _bTx = _bm.x; _bTy = _bm.y; }
+        }
+        const _bNext = bfsNext(map, [], m.x, m.y, _bTx, _bTy, m, 40, dg.pentacles, _effFloat);
+        if (_bNext &&
+            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bNext.x && pc.y === _bNext.y) &&
+            !dg.monsters.some(o => o !== m && o.x === _bNext.x && o.y === _bNext.y) &&
+            !(_bNext.x === pl.x && _bNext.y === pl.y)) {
+          m.dir = { x: _bNext.x - m.x, y: _bNext.y - m.y };
+          m.x = _bNext.x; m.y = _bNext.y;
+          m._movedThisTurn = true;
+        }
+      }
+      return;
     }
 
     const tx = canSee ? pl.x : m.lastPx;
