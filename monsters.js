@@ -670,6 +670,12 @@ export const MONS = [
       { name: "覇バーサーカー",     hp: 145, atk: 48, def: 20, exp: 166 },
     ],
   },
+  { name: "キラープラスター", hp: 35, atk: 15, def: 4,  exp: 58,  speed: 1,   tile: 110, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf",
+    levels: [
+      { name: "キラープラスターII", hp: 56,  atk: 21, def: 7,  exp: 92  },
+      { name: "キラープラスターΩ",  hp: 88,  atk: 30, def: 11, exp: 148 },
+    ],
+  },
   { name: "氷竜",         hp: 65,  atk: 27, def: 10, exp: 125, speed: 1,   tile: 39, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder",
     levels: [
       { name: "大氷竜",             hp: 105, atk: 37, def: 16, exp: 200 },
@@ -2693,6 +2699,61 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           m.dir = { x: _bNext.x - m.x, y: _bNext.y - m.y };
           m.x = _bNext.x; m.y = _bNext.y;
           m._movedThisTurn = true;
+        }
+      }
+      return;
+    }
+
+    /* ── defhalf（キラープラスター等）：同部屋で20%防御半減魔法 ── */
+    if (m.subtype === "defhalf" && !m.sealed) {
+      /* 攻撃フェーズ */
+      if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        if (canSee && _sameRoom && Math.random() < 0.20) {
+          /* 魔封じチェック */
+          const _kpRoom = findRoom(rooms, m.x, m.y);
+          const _kpSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
+            (_kpRoom && dg.pentacles?.some(pc =>
+              pc.kind === "magic_seal" &&
+              pc.x >= _kpRoom.x && pc.x < _kpRoom.x + _kpRoom.w &&
+              pc.y >= _kpRoom.y && pc.y < _kpRoom.y + _kpRoom.h
+            ));
+          if (!_kpSeal) {
+            m.turnAttacks++;
+            if (hasAbility(pl.armor, "wand_reflect")) {
+              /* 反射の鎧：魔法を跳ね返す */
+              ml.push(`${m.name}の防御半減魔法！反射の鎧が弾き返した！`);
+              m.hp = Math.ceil(m.hp / 2);
+              ml.push(`跳ね返った魔法が${m.name}に命中！HPが半減した！`);
+              if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
+            } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+              ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
+            } else {
+              pl.defDebuffTurns = (pl.defDebuffTurns || 0) + 50;
+              ml.push(`${m.name}の魔法！防御力が50ターン半減した！`);
+            }
+            return;
+          }
+          /* 魔封じで無効 → 隣接なら通常攻撃へフォールスルー */
+          ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
+        }
+        /* 魔法不発 or 魔封じ → 隣接なら通常攻撃 */
+        if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
+          m.turnAttacks++;
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+          return;
+        }
+      }
+      /* 移動フェーズ */
+      if (!_attackOnly) {
+        const _kpTx = canSee ? pl.x : m.lastPx;
+        const _kpTy = canSee ? pl.y : m.lastPy;
+        const _kpNext = bfsNext(map, [], m.x, m.y, _kpTx, _kpTy, m, 40, dg.pentacles, _effFloat);
+        if (_kpNext &&
+            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _kpNext.x && pc.y === _kpNext.y) &&
+            !dg.monsters.some(o => o !== m && o.x === _kpNext.x && o.y === _kpNext.y) &&
+            !(_kpNext.x === pl.x && _kpNext.y === pl.y)) {
+          m.dir = { x: _kpNext.x - m.x, y: _kpNext.y - m.y };
+          m.x = _kpNext.x; m.y = _kpNext.y;
         }
       }
       return;
