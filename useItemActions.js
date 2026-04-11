@@ -1270,6 +1270,7 @@ export function useItemActions({
             if (dg.map[_ty][_tx] !== T.FLOOR) continue;
             if (dg.traps.some(t => t.x === _tx && t.y === _ty)) continue;
             if (dg.items.some(i => i.x === _tx && i.y === _ty)) continue;
+            if (dg.oilyTiles?.some(t => t.x === _tx && t.y === _ty)) continue;
             const _td = pick(TRAPS);
             dg.traps.push({ ..._td, id: uid(), x: _tx, y: _ty, revealed: false });
             _placed++;

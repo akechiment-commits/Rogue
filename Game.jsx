@@ -1740,6 +1740,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   if (_dg2.springs?.some(s => s.x === _tx2 && s.y === _ty2)) continue;
                   if (_dg2.bigboxes?.some(b => b.x === _tx2 && b.y === _ty2)) continue;
                   if (_dg2.pentacles?.some(pc3 => pc3.x === _tx2 && pc3.y === _ty2)) continue;
+                  if (_dg2.oilyTiles?.some(t => t.x === _tx2 && t.y === _ty2)) continue;
                   const _td2 = pick(TRAPS);
                   _dg2.traps.push({ ..._td2, id: uid(), x: _tx2, y: _ty2, revealed: false });
                   _placed = true;
@@ -3569,8 +3570,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _addOilArea = (cx, cy) => {
                 for (let _oy = -1; _oy <= 1; _oy++) for (let _ox = -1; _ox <= 1; _ox++) {
                   const _otx = cx + _ox, _oty = cy + _oy;
-                  if (_otx >= 0 && _otx < MW && _oty >= 0 && _oty < MH && dg.map[_oty][_otx] !== T.WALL && dg.map[_oty][_otx] !== T.BWALL)
+                  if (_otx >= 0 && _otx < MW && _oty >= 0 && _oty < MH && dg.map[_oty][_otx] !== T.WALL && dg.map[_oty][_otx] !== T.BWALL) {
                     if (!dg.oilyTiles.some(t => t.x === _otx && t.y === _oty)) dg.oilyTiles.push({ x: _otx, y: _oty });
+                    const _aoTrap = dg.traps?.find(t => t.x === _otx && t.y === _oty && !t.permanent);
+                    if (_aoTrap) { dg.traps = dg.traps.filter(t => t !== _aoTrap); ml.push(`油で${_aoTrap.name}が消えた！`); }
+                  }
                 }
               };
               for (const m of [..._scMons]) {

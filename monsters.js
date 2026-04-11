@@ -1406,6 +1406,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _tx = m.x + _dx, _ty = m.y + _dy;
       if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.oilyTiles.some(t => t.x === _tx && t.y === _ty))
         dg.oilyTiles.push({ x: _tx, y: _ty });
+      const _ikTrap = dg.traps?.find(t => t.x === _tx && t.y === _ty && !t.permanent);
+      if (_ikTrap) { dg.traps = dg.traps.filter(t => t !== _ikTrap); ml.push(`油で${_ikTrap.name}が消えた！`); }
     }
     if (!m._enraged && m.hp <= m.maxHp * 0.5) {
       m._enraged = true;
@@ -1624,6 +1626,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         dg.springs?.some(s => s.x === m.x && s.y === m.y) ||
         dg.bigboxes?.some(b => b.x === m.x && b.y === m.y) ||
         dg.pentacles?.some(pc => pc.x === m.x && pc.y === m.y) ||
+        dg.oilyTiles?.some(t => t.x === m.x && t.y === m.y) ||
         dg.map[m.y]?.[m.x] === T.SD || dg.map[m.y]?.[m.x] === T.SU;
       if (Math.random() < _tmChance) {
         if (_tmBlocked) {

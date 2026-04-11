@@ -1784,6 +1784,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
       dg.springs?.some(s => s.x === p.x && s.y === p.y) ||
       dg.bigboxes?.some(b => b.x === p.x && b.y === p.y) ||
       dg.pentacles?.some(pc => pc.x === p.x && pc.y === p.y) ||
+      dg.oilyTiles?.some(t => t.x === p.x && t.y === p.y) ||
       dg.map[p.y][p.x] === T.SD || dg.map[p.y][p.x] === T.SU;
     if (!_pfBlocked) {
       dg.traps.push({ name:"落とし穴", effect:"pitfall", tile:27, id:uid(), x:p.x, y:p.y, revealed:true });
@@ -1827,6 +1828,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
       dg.springs?.some(s => s.x === p.x && s.y === p.y) ||
       dg.bigboxes?.some(b => b.x === p.x && b.y === p.y) ||
       dg.pentacles?.some(pc => pc.x === p.x && pc.y === p.y) ||
+      dg.oilyTiles?.some(t => t.x === p.x && t.y === p.y) ||
       dg.map[p.y][p.x] === T.SD || dg.map[p.y][p.x] === T.SU;
     if (!_sfpBlocked) {
       dg.traps.push({ name:"落とし穴", effect:"pitfall", tile:27, id:uid(), x:p.x, y:p.y, revealed:true });

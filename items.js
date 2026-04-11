@@ -857,6 +857,9 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         const mon = monsterAt(dg, tx, ty);
         if (mon) { mon.oilyTurns = (mon.oilyTurns || 0) + 100; ml.push(`${mon.name}は油まみれになった！(100ターン)`); }
         if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
+        /* 油がかかったマスの非永続罠を消滅 */
+        const _oilTrap = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
+        if (_oilTrap) { dg.traps = dg.traps.filter(t => t !== _oilTrap); ml.push(`油で${_oilTrap.name}が消えた！`); }
       }
     }
     /* 油がかかったマスの魔方陣を消滅 */
@@ -2909,6 +2912,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       if (dg.traps.some(t => t.x === bx && t.y === by)) return true;
       if (dg.bigboxes?.some(b => b.x === bx && b.y === by)) return true;
       if (dg.springs?.some(s => s.x === bx && s.y === by)) return true;
+      if (dg.oilyTiles?.some(t => t.x === bx && t.y === by)) return true;
       return false;
     };
     const _boneCands = DRO.filter(([dx, dy]) => !_boneBlocked(mx + dx, my + dy));
