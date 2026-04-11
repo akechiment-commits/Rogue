@@ -1901,7 +1901,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           }
           if (_cands.length > 0) {
             const [_cx, _cy] = pick(_cands);
-            _dg.monsters.push(makeMonster(p.depth - 1, _cx, _cy));
+            _dg.monsters.push(makeMonster(p.depth - 1, _cx, _cy, { dungeonType: _dg.dungeonType ?? null }));
           }
           const _spawnRingCount = (p.rings || []).filter(r => r && r.effect === "spawn_ring").length;
           const _spawnInterval = _spawnRingCount >= 2 ? 5 : _spawnRingCount === 1 ? 15 : 30;

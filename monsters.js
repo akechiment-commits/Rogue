@@ -676,7 +676,7 @@ export const MONS = [
       { name: "キラープラスターΩ",  hp: 88,  atk: 30, def: 11, exp: 148 },
     ],
   },
-  { name: "ガーディアン",  hp: 48,  atk: 13, def: 14, exp: 70,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian" },
+  { name: "ガーディアン",  hp: 48,  atk: 13, def: 14, exp: 70,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian", dungeons: ["beginner"] },
   { name: "氷竜",         hp: 65,  atk: 27, def: 10, exp: 125, speed: 1,   tile: 39, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder",
     levels: [
       { name: "大氷竜",             hp: 105, atk: 37, def: 16, exp: 200 },
@@ -847,9 +847,12 @@ export function makeGuard(x, y, plx, ply) {
  * スポーンレベル (1〜3) を返す共通ロジック。
  * progress = (floor - minFloor) / range で lv2/lv3 の確率が上がる。
  */
-export function pickMonsterDef(depth) {
+export function pickMonsterDef(depth, dungeonType = null) {
   const floor = depth + 1;
-  const eligible = MONS.filter(m => m.minFloor <= floor && floor <= m.maxFloor);
+  const eligible = MONS.filter(m =>
+    m.minFloor <= floor && floor <= m.maxFloor &&
+    (!m.dungeons || !dungeonType || m.dungeons.includes(dungeonType))
+  );
   const base = eligible.length > 0 ? pick(eligible) : MONS[0];
   const range = Math.max(base.maxFloor - base.minFloor, 1);
   const progress = Math.max(0, (floor - base.minFloor) / range);
@@ -869,8 +872,8 @@ function buildMonStats(base, spawnLevel) {
 }
 
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
-export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false } = {}) {
-  const { base, spawnLevel } = pickMonsterDef(depth);
+export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null } = {}) {
+  const { base, spawnLevel } = pickMonsterDef(depth, dungeonType);
   const st = buildMonStats(base, spawnLevel);
   return { ...st, id: uid(), x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
 }
@@ -884,7 +887,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
     if (spawned >= count) break;
     const nx = centerX + dx, ny = centerY + dy;
     if (dg.map[ny]?.[nx] === T.FLOOR && !dg.monsters.some(m => m.x === nx && m.y === ny) && (!p || nx !== p.x || ny !== p.y)) {
-      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct }));
+      dg.monsters.push(makeMonster(depth, nx, ny, { aware, lastPx: centerX, lastPy: centerY, immediateAct, dungeonType: dg.dungeonType ?? null }));
       spawned++;
     }
   }
@@ -896,7 +899,7 @@ export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = f
       const sx = rng(room.x + 1, room.x + room.w - 2);
       const sy = rng(room.y + 1, room.y + room.h - 2);
       if (dg.map[sy]?.[sx] === T.FLOOR && !dg.monsters.some(m => m.x === sx && m.y === sy) && (!p || sx !== p.x || sy !== p.y)) {
-        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct }));
+        dg.monsters.push(makeMonster(depth, sx, sy, { aware: false, immediateAct, dungeonType: dg.dungeonType ?? null }));
         spawned++;
         break;
       }
@@ -1376,7 +1379,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
         const _depth = Math.max(0, (m.bossTier || 4) * 4);
-        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y }));
+        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
         ml.push(`${m.name}が魔力で手下を召喚した！`);
         _summoned = true;
         break;
@@ -1402,7 +1405,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
           if (pl.x === _sx && pl.y === _sy) continue;
           const _depth = Math.max(0, (m.bossTier || 6) * 4);
-          dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y }));
+          dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
           _summoned++;
         }
         if (_summoned > 0) { ml.push(`${m.name}が骨の手下を呼び寄せた！`); return; } /* 召喚行動消費 */
@@ -1466,7 +1469,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (dg.monsters.some(mn => mn.x === _sx && mn.y === _sy)) continue;
         if (pl.x === _sx && pl.y === _sy) continue;
         const _depth = Math.max(0, (m.bossTier || 10) * 5);
-        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y }));
+        dg.monsters.push(makeMonster(_depth, _sx, _sy, { aware: true, lastPx: m.x, lastPy: m.y, dungeonType: dg.dungeonType ?? null }));
         _summoned++;
       }
       if (_summoned > 0) { ml.push(`${m.name}が深淵から手下を招いた！`); return; } /* 召喚行動消費 */
