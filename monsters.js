@@ -2388,7 +2388,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (m.heldItems.length > 0 && canSee && _srDist <= 8) {
         if (_moveOnly) return;
         const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
-        if (_srStraight && Math.random() < 0.25) {
+        if (_srStraight) {
           const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
           const _throwItem = m.heldItems.splice(0, 1)[0];
           pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#ff8800");
