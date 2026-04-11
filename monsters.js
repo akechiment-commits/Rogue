@@ -2393,8 +2393,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           let _srHitMon = null, _srPathOk = true;
           let _cx = m.x + _srDx, _cy = m.y + _srDy;
           while (_cx !== pl.x || _cy !== pl.y) {
-            const _ct = dg.map[_cy]?.[_cx];
-            if (!_ct || _ct === T.WALL || _ct === T.BWALL ||
+            if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
+                dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL ||
                 dg.bigboxes?.some(b => b.x === _cx && b.y === _cy) ||
                 dg.springs?.some(s => s.x === _cx && s.y === _cy)) {
               _srPathOk = false; break;
