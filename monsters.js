@@ -2418,9 +2418,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           }
           return;
         }
-        /* 一直線上にいないか確率外れ：隣接なら通常攻撃 */
-        if (_srAdj && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
-        return;
+        /* 一直線上にいない：隣接なら通常攻撃して終了、非隣接なら接近移動にフォールスルー */
+        if (_srAdj) {
+          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
+          return;
+        }
+        /* 非隣接かつ非直線 → フォールスルーして通常移動 */
       }
       /* 盗みフェーズ：隣接かつ手ぶら */
       if (_srAdj && m.heldItems.length === 0) {
