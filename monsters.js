@@ -138,15 +138,15 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
 
 /* ===== 薬投げ ===== */
 const _POTION_THROW_POOL = [
-  { effect: "poison",   value: 15 },
-  { effect: "fire",     value: 20 },
-  { effect: "sleep",    value: 4  },
-  { effect: "confuse",  value: 5  },
-  { effect: "seal",     value: 0  },
-  { effect: "darkness", value: 0  },
-  { effect: "bewitch",  value: 0  },
-  { effect: "heal",     value: 30 },
-  { effect: "heal",     value: 60 },
+  { name: "毒薬",       effect: "poison",   value: 15, tile: 16 },
+  { name: "炎の薬",     effect: "fire",     value: 20, tile: 17 },
+  { name: "睡眠薬",     effect: "sleep",    value: 4,  tile: 16 },
+  { name: "混乱の薬",   effect: "confuse",  value: 5,  tile: 16 },
+  { name: "封印の薬",   effect: "seal",     value: 0,  tile: 16 },
+  { name: "暗闇の薬",   effect: "darkness", value: 0,  tile: 16 },
+  { name: "惑わしの薬", effect: "bewitch",  value: 0,  tile: 16 },
+  { name: "回復薬",     effect: "heal",     value: 30, tile: 16 },
+  { name: "大回復薬",   effect: "heal",     value: 60, tile: 17 },
 ];
 function monsterThrowPotion(m, dg, pl, ml, bbFn) {
   const _pot = pick(_POTION_THROW_POOL);
@@ -158,15 +158,13 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
   while (_cx !== pl.x || _cy !== pl.y) {
     const _spr = dg.springs?.find(s => s.x === _cx && s.y === _cy);
     if (_spr) {
-      ml.push(`薬が泉に落ちた！`);
-      const _potItem = { name: "謎の薬", type: "potion", effect: _pot.effect, value: _pot.value || 0, id: uid() };
+      const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
       soakItemIntoSpring(_spr, { ..._potItem, x: _cx, y: _cy }, ml, dg, it => it.name);
       return;
     }
     const _bb = dg.bigboxes?.find(b => b.x === _cx && b.y === _cy);
     if (_bb) {
-      ml.push(`薬が${_bb.name}に入った！`);
-      const _potItem = { name: "謎の薬", type: "potion", effect: _pot.effect, value: _pot.value || 0, id: uid() };
+      const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
       if (bbFn) bbFn(_bb, _potItem, dg, ml);
       else dg.items.push({ ..._potItem, x: _cx, y: _cy });
       return;
