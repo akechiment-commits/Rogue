@@ -2384,50 +2384,70 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.heldItems = m.heldItems || [];
       const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       const _srDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-      /* 投擲フェーズ：アイテムを持っていて視界内 */
-      if (m.heldItems.length > 0 && canSee && _srDist <= 8) {
-        if (_moveOnly) return;
+      /* 投擲フェーズ：アイテムを持っていて視界内（moveOnlyは移動コードへフォールスルー） */
+      if (!_moveOnly && m.heldItems.length > 0 && canSee && _srDist <= 8) {
+        const _srDx = Math.sign(pl.x - m.x), _srDy = Math.sign(pl.y - m.y);
         const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
         if (_srStraight) {
-          const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
-          const _throwItem = m.heldItems.splice(0, 1)[0];
-          pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#ff8800");
-          if (_srAntiSteal) {
-            ml.push(`護盗の鎧が${m.name}の投擲を防いだ！${_throwItem.name}は地面に落ちた！`);
-            const _srft = new Set();
-            placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
-          } else if (_throwItem.type === "potion") {
-            ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-            splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, _luFn, false, false);
-          } else if (_throwItem.type === "pot") {
-            ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-            scatterPotContents(_throwItem, dg, pl.x, pl.y, pl, ml, _luFn);
-          } else if (_throwItem.type === "wand") {
-            const _srWdx = Math.sign(pl.x - m.x), _srWdy = Math.sign(pl.y - m.y);
-            ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-            applyWandEffect(_throwItem.effect, "player", pl, _srWdx, _srWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_throwItem), null);
-            if (_onHit) _onHit(m);
-          } else {
-            const _srDmg = Math.max(1,
-              (_throwItem.type === "weapon"
-                ? (_throwItem.atk || 3) + (_throwItem.plus || 0)
-                : 3) + rng(0, 3));
-            ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！消滅した。`);
-            pl.hp -= _srDmg;
-            if (_onHit) _onHit(m);
+          /* 経路チェック：障害物があれば投げない、途中に敵がいればそちらに命中 */
+          let _srHitMon = null, _srPathOk = true;
+          let _cx = m.x + _srDx, _cy = m.y + _srDy;
+          while (_cx !== pl.x || _cy !== pl.y) {
+            const _ct = dg.map[_cy]?.[_cx];
+            if (!_ct || _ct === T.WALL || _ct === T.BWALL ||
+                dg.bigboxes?.some(b => b.x === _cx && b.y === _cy) ||
+                dg.springs?.some(s => s.x === _cx && s.y === _cy)) {
+              _srPathOk = false; break;
+            }
+            const _midMon = dg.monsters.find(mo => mo.x === _cx && mo.y === _cy);
+            if (_midMon) { _srHitMon = _midMon; break; }
+            _cx += _srDx; _cy += _srDy;
           }
-          return;
+          if (_srPathOk) {
+            const _throwItem = m.heldItems.splice(0, 1)[0];
+            pushMonsterBoltAnim(m.x, m.y, _srDx, _srDy, dg, pl, "#ff8800");
+            if (_srHitMon) {
+              /* 途中の敵に命中 */
+              const _srDmg = Math.max(1, ((_throwItem.type === "weapon" ? (_throwItem.atk || 3) + (_throwItem.plus || 0) : 3) + rng(0, 3)));
+              ml.push(`${m.name}が投げた${_throwItem.name}が${_srHitMon.name}に命中！${_srDmg}ダメージ！消滅した。`);
+              _srHitMon.hp -= _srDmg;
+              if (_srHitMon.hp <= 0) { killMonster(_srHitMon, dg, pl, ml, _luFn); }
+            } else {
+              const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
+              if (_srAntiSteal) {
+                ml.push(`護盗の鎧が${m.name}の投擲を防いだ！${_throwItem.name}は地面に落ちた！`);
+                const _srft = new Set();
+                placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
+              } else if (_throwItem.type === "potion") {
+                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+                splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, _luFn, false, false);
+              } else if (_throwItem.type === "pot") {
+                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+                scatterPotContents(_throwItem, dg, pl.x, pl.y, pl, ml, _luFn);
+              } else if (_throwItem.type === "wand") {
+                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+                applyWandEffect(_throwItem.effect, "player", pl, _srDx, _srDy, dg, pl, ml, _luFn, null, getBlessMultiplier(_throwItem), null);
+                if (_onHit) _onHit(m);
+              } else {
+                const _srDmg = Math.max(1, ((_throwItem.type === "weapon" ? (_throwItem.atk || 3) + (_throwItem.plus || 0) : 3) + rng(0, 3)));
+                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！消滅した。`);
+                pl.hp -= _srDmg;
+                if (_onHit) _onHit(m);
+              }
+            }
+            return;
+          }
+          /* 経路に障害物：隣接なら通常攻撃、非隣接なら接近 */
         }
-        /* 一直線上にいない：隣接なら通常攻撃して終了、非隣接なら接近移動にフォールスルー */
+        /* 非直線または障害物：隣接なら通常攻撃して終了、非隣接は移動コードへ */
         if (_srAdj) {
           if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
           return;
         }
-        /* 非隣接かつ非直線 → フォールスルーして通常移動 */
+        /* 非隣接 → フォールスルーして移動 */
       }
-      /* 盗みフェーズ：隣接かつ手ぶら */
-      if (_srAdj && m.heldItems.length === 0) {
-        if (_moveOnly) return;
+      /* 盗みフェーズ：隣接かつ手ぶら（moveOnlyはフォールスルー） */
+      if (!_moveOnly && _srAdj && m.heldItems.length === 0) {
         const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
         if (_srAntiSteal) {
           ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
