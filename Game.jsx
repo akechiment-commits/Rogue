@@ -3467,6 +3467,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _clone = { ...item, id: uid() };
           if (_clone.abilities) _clone.abilities = [..._clone.abilities];
           if (_clone.contents) _clone.contents = [..._clone.contents];
+          /* 中身入り壺：クローンは空にする */
+          if (item.type === "pot" && item.contents?.length > 0) _clone.contents = [];
           /* +値は半減 */
           if ((_clone.plus || 0) !== 0) _clone.plus = Math.floor(_clone.plus / 2);
           if ((item.plus || 0) !== 0) item.plus = Math.floor(item.plus / 2);
