@@ -2418,10 +2418,15 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               if (_srHitMon.hp <= 0) { killMonster(_srHitMon, dg, pl, ml, _luFn); }
             } else {
               const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
+              const _srMiss = !_srAntiSteal && Math.random() < 0.25;
               if (_srAntiSteal) {
                 ml.push(`護盗の鎧が${m.name}の投擲を防いだ！${_throwItem.name}は地面に落ちた！`);
                 const _srft = new Set();
                 placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
+              } else if (_srMiss) {
+                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきたが外れた！足元に落ちた。`);
+                const _srDrop = safeArrowDrop(pl.x, pl.y, dg);
+                _monDropWithSpring(_srDrop, _throwItem, dg, ml);
               } else if (_throwItem.type === "potion") {
                 ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
                 splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, _luFn, false, false);
