@@ -2692,6 +2692,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (_tr2 === "pitfall") {
                   const nd2 = chgFloor(p, 1, true);
                   if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
+                } else if (_tr2 === "deferred_explosion") {
+                  st._pendingMineExplosion = {
+                    x: p.x, y: p.y,
+                    name: _trapHere.name || "地雷",
+                    nameFn: _tnFn,
+                  };
                 }
               }
               acted = true;
