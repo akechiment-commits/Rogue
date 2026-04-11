@@ -2727,7 +2727,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
               ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
             } else {
-              pl.defDebuffTurns = (pl.defDebuffTurns || 0) + 50;
+              pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + 50;
               ml.push(`${m.name}の魔法！防御力が50ターン半減した！`);
             }
             return;
