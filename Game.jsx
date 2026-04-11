@@ -4387,13 +4387,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } : undefined}
       >
         {msgs.slice(-50).map((m, i, a) => {
-          const _isLatest = i === a.length - 1;
+          const _latestTurn = typeof a[a.length - 1] === "object" ? a[a.length - 1].turn : undefined;
           const _text = typeof m === "object" ? m.text : m;
           const _color = typeof m === "object" ? m.color : undefined;
           const _turn = typeof m === "object" ? m.turn : undefined;
+          const _isCurTurn = _turn !== undefined && _turn === _latestTurn;
           return (
-            <div key={i} style={{ opacity: _isLatest ? 1 : 0.5, color: _color, fontWeight: _color ? "bold" : undefined }}>
-              {_turn > 0 && <span style={{ color: _isLatest ? "#7a9ab8" : "#4a6a88", marginRight: 3, fontSize: "0.85em" }}>[{_turn}]</span>}
+            <div key={i} style={{ opacity: _isCurTurn ? 1 : 0.45, color: _color, fontWeight: _color ? "bold" : undefined }}>
+              {_turn > 0 && <span style={{ color: _isCurTurn ? "#6a9fc0" : "#3a5f78", marginRight: 3, fontSize: "0.85em" }}>[{_turn}]</span>}
               {_text}
             </div>
           );

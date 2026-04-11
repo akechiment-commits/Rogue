@@ -2054,26 +2054,30 @@ export function MsgLogModal({ show, msgs, scrollTop, setScrollTop, onClose, mobi
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div style={{ flex: 1, overflowY: "hidden", display: "flex", flexDirection: "column", gap: 2 }}>
-        {visible.map((m, i) => {
-          const absIdx = start + i;
-          const isNewest = absIdx === total - 1;
-          const _text = typeof m === "object" ? m.text : m;
-          const _msgColor = typeof m === "object" ? m.color : undefined;
-          const _turn = typeof m === "object" ? m.turn : undefined;
-          return (
-            <div key={absIdx} style={{
-              fontSize: mobile ? 12 : 13, lineHeight: "1.5em",
-              color: _msgColor ?? (isNewest ? "#e8ffe8" : "#b8cfc8"),
-              fontWeight: _msgColor ? "bold" : undefined,
-              padding: "2px 0",
-              borderBottom: "1px solid #1a2030",
-            }}>
-              <span style={{ color: "#506880", marginRight: 6, fontSize: 11 }}>{absIdx + 1}</span>
-              {_turn > 0 && <span style={{ color: "#4a7a9a", marginRight: 3, fontSize: 11 }}>[{_turn}]</span>}
-              {_text}
-            </div>
-          );
-        })}
+        {(() => {
+          const _latestTurn = typeof msgs[total - 1] === "object" ? msgs[total - 1].turn : undefined;
+          return visible.map((m, i) => {
+            const absIdx = start + i;
+            const _text = typeof m === "object" ? m.text : m;
+            const _msgColor = typeof m === "object" ? m.color : undefined;
+            const _turn = typeof m === "object" ? m.turn : undefined;
+            const _isCurTurn = _turn !== undefined && _turn === _latestTurn;
+            return (
+              <div key={absIdx} style={{
+                fontSize: mobile ? 12 : 13, lineHeight: "1.5em",
+                color: _msgColor ?? (_isCurTurn ? "#dff0df" : "#8aaa98"),
+                fontWeight: _msgColor ? "bold" : undefined,
+                opacity: _isCurTurn ? 1 : 0.7,
+                padding: "2px 0",
+                borderBottom: "1px solid #1a2030",
+              }}>
+                <span style={{ color: "#506880", marginRight: 6, fontSize: 11 }}>{absIdx + 1}</span>
+                {_turn > 0 && <span style={{ color: _isCurTurn ? "#5a9aba" : "#355060", marginRight: 3, fontSize: 11 }}>[{_turn}]</span>}
+                {_text}
+              </div>
+            );
+          });
+        })()}
       </div>
       <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ color: "#5a7898", fontSize: 12 }}>
