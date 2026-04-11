@@ -2387,37 +2387,39 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       /* 投擲フェーズ：アイテムを持っていて視界内 */
       if (m.heldItems.length > 0 && canSee && _srDist <= 8) {
         if (_moveOnly) return;
-        const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
-        const _throwItem = m.heldItems.splice(0, 1)[0];
-        pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#ff8800");
-        if (_srAntiSteal) {
-          ml.push(`護盗の鎧が${m.name}の投擲を防いだ！${_throwItem.name}は地面に落ちた！`);
-          const _srft = new Set();
-          placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
-        } else if (_throwItem.type === "potion") {
-          /* 薬：プレイヤー位置でsplash */
-          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-          splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, _luFn, false, false);
-        } else if (_throwItem.type === "pot") {
-          /* 壺：プレイヤー位置で中身散乱 */
-          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-          scatterPotContents(_throwItem, dg, pl.x, pl.y, pl, ml, _luFn);
-        } else if (_throwItem.type === "wand") {
-          /* 杖：プレイヤーに杖効果発動、消滅 */
-          const _srWdx = Math.sign(pl.x - m.x), _srWdy = Math.sign(pl.y - m.y);
-          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-          applyWandEffect(_throwItem.effect, "player", pl, _srWdx, _srWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_throwItem), null);
-          if (_onHit) _onHit(m);
-        } else {
-          /* それ以外：命中→投擲ダメージで消滅（命中時は床に残らない） */
-          const _srDmg = Math.max(1,
-            (_throwItem.type === "weapon"
-              ? (_throwItem.atk || 3) + (_throwItem.plus || 0)
-              : 3) + rng(0, 3));
-          ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！消滅した。`);
-          pl.hp -= _srDmg;
-          if (_onHit) _onHit(m);
+        const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
+        if (_srStraight && Math.random() < 0.25) {
+          const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
+          const _throwItem = m.heldItems.splice(0, 1)[0];
+          pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#ff8800");
+          if (_srAntiSteal) {
+            ml.push(`護盗の鎧が${m.name}の投擲を防いだ！${_throwItem.name}は地面に落ちた！`);
+            const _srft = new Set();
+            placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
+          } else if (_throwItem.type === "potion") {
+            ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+            splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, _luFn, false, false);
+          } else if (_throwItem.type === "pot") {
+            ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+            scatterPotContents(_throwItem, dg, pl.x, pl.y, pl, ml, _luFn);
+          } else if (_throwItem.type === "wand") {
+            const _srWdx = Math.sign(pl.x - m.x), _srWdy = Math.sign(pl.y - m.y);
+            ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
+            applyWandEffect(_throwItem.effect, "player", pl, _srWdx, _srWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_throwItem), null);
+            if (_onHit) _onHit(m);
+          } else {
+            const _srDmg = Math.max(1,
+              (_throwItem.type === "weapon"
+                ? (_throwItem.atk || 3) + (_throwItem.plus || 0)
+                : 3) + rng(0, 3));
+            ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！消滅した。`);
+            pl.hp -= _srDmg;
+            if (_onHit) _onHit(m);
+          }
+          return;
         }
+        /* 一直線上にいないか確率外れ：隣接なら通常攻撃 */
+        if (_srAdj && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
         return;
       }
       /* 盗みフェーズ：隣接かつ手ぶら */
@@ -2430,14 +2432,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         const _srStealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
-        if (_srStealable.length > 0) {
+        if (_srStealable.length > 0 && Math.random() < 0.25) {
           const _stolen = pick(_srStealable);
           pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
           m.heldItems.push(_stolen);
           ml.push(`${m.name}が${_stolen.name}を盗んだ！次のターンに投げてくるぞ！`);
           return;
         }
-        /* 盗むものがなければ通常攻撃 */
+        /* 25%外れまたは盗むものなし：通常攻撃 */
         if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
         return;
       }
