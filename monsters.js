@@ -2384,10 +2384,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.heldItems = m.heldItems || [];
       const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       const _srDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-      /* 投擲フェーズ：アイテムを持っていて視界内（moveOnlyは移動コードへフォールスルー） */
+      const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
+      /* moveOnlyフェーズ：アイテム持ちで直線上なら移動せず（攻撃フェーズで投げる） */
+      if (_moveOnly && m.heldItems.length > 0 && canSee && _srDist > 1 && _srDist <= 8 && _srStraight) {
+        return;
+      }
+      /* 投擲フェーズ：アイテムを持っていて視界内（moveOnlyは上でreturn済 or フォールスルー） */
       if (!_moveOnly && m.heldItems.length > 0 && canSee && _srDist <= 8) {
         const _srDx = Math.sign(pl.x - m.x), _srDy = Math.sign(pl.y - m.y);
-        const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
         if (_srStraight) {
           /* 経路チェック：障害物があれば投げない、途中に敵がいればそちらに命中 */
           let _srHitMon = null, _srPathOk = true;
