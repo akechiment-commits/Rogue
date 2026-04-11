@@ -148,10 +148,33 @@ const _POTION_THROW_POOL = [
   { effect: "heal",     value: 30 },
   { effect: "heal",     value: 60 },
 ];
-function monsterThrowPotion(m, dg, pl, ml) {
+function monsterThrowPotion(m, dg, pl, ml, bbFn) {
   const _pot = pick(_POTION_THROW_POOL);
+  const _ptdx = Math.sign(pl.x - m.x), _ptdy = Math.sign(pl.y - m.y);
   ml.push(`${m.name}が謎の薬を投げた！`);
-  pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#ff88ff");
+  pushMonsterBoltAnim(m.x, m.y, _ptdx, _ptdy, dg, pl, "#ff88ff");
+  /* 経路上の泉・大箱チェック */
+  let _cx = m.x + _ptdx, _cy = m.y + _ptdy;
+  while (_cx !== pl.x || _cy !== pl.y) {
+    const _spr = dg.springs?.find(s => s.x === _cx && s.y === _cy);
+    if (_spr) {
+      ml.push(`薬が泉に落ちた！`);
+      const _potItem = { name: "謎の薬", type: "potion", effect: _pot.effect, value: _pot.value || 0, id: uid() };
+      soakItemIntoSpring(_spr, { ..._potItem, x: _cx, y: _cy }, ml, dg, it => it.name);
+      return;
+    }
+    const _bb = dg.bigboxes?.find(b => b.x === _cx && b.y === _cy);
+    if (_bb) {
+      ml.push(`薬が${_bb.name}に入った！`);
+      const _potItem = { name: "謎の薬", type: "potion", effect: _pot.effect, value: _pot.value || 0, id: uid() };
+      if (bbFn) bbFn(_bb, _potItem, dg, ml);
+      else dg.items.push({ ..._potItem, x: _cx, y: _cy });
+      return;
+    }
+    if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
+        dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL) break;
+    _cx += _ptdx; _cy += _ptdy;
+  }
   splashPotion(dg, pl.x, pl.y, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
 }
 
@@ -2084,7 +2107,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
         if (_ptStraight && _ptDist <= _ptRange && canSee && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
-          monsterThrowPotion(m, dg, pl, ml);
+          monsterThrowPotion(m, dg, pl, ml, opts.bbFn);
           return;
         }
       }
