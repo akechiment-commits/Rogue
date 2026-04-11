@@ -2081,7 +2081,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _ptLvl = m.monLevel || 1;
         const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
         const _ptDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-        if (_ptDist <= _ptRange && canSee && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
+        if (_ptStraight && _ptDist <= _ptRange && canSee && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
           monsterThrowPotion(m, dg, pl, ml);
           return;
