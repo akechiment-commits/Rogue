@@ -108,7 +108,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "spin": {
-      const _spinDst = randomTeleportDest(dg, p.x, p.y);
+      const _spinDst = randomTeleportDest(dg, p.x, p.y, (x, y) => !dg.monsters.some(m => m.x === x && m.y === y));
       if (_spinDst) { p.x = _spinDst.x; p.y = _spinDst.y; }
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
