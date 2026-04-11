@@ -2310,23 +2310,45 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
           return;
         }
+        /* 25%で特技発動、75%は通常攻撃 */
+        if (Math.random() >= 0.25) {
+          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss }); }
+          return;
+        }
         const _ibCands = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
         if (_ibCands.length > 0) {
           const _ibItem = pick(_ibCands);
           pl.inventory.splice(pl.inventory.indexOf(_ibItem), 1);
           /* 弾く方向：プレイヤーからモンスターの反対方向（プレイヤーの後ろ） */
           const _ibdx = Math.sign(pl.x - m.x), _ibdy = Math.sign(pl.y - m.y);
-          /* 射線をトレースして着地点を決定 */
+          /* 射線をトレースして着地点を決定（泉・大箱があれば入る） */
           let _lx = pl.x, _ly = pl.y;
-          let _ibHitMon = null;
+          let _ibHitMon = null, _ibHitSpring = null, _ibHitBB = null;
           for (let _si = 1; _si <= 10; _si++) {
             const _nx = pl.x + _ibdx * _si, _ny = pl.y + _ibdy * _si;
+            const _ibSpr = dg.springs?.find(s => s.x === _nx && s.y === _ny);
+            if (_ibSpr) { _ibHitSpring = _ibSpr; _lx = _nx; _ly = _ny; break; }
+            const _ibBB = dg.bigboxes?.find(b => b.x === _nx && b.y === _ny);
+            if (_ibBB) { _ibHitBB = _ibBB; _lx = _nx; _ly = _ny; break; }
             if (!isWalkable(dg.map, _nx, _ny)) break;
             _lx = _nx; _ly = _ny;
             _ibHitMon = dg.monsters.find(o => o.x === _nx && o.y === _ny);
             if (_ibHitMon) break;
           }
           pushMonsterBoltAnim(pl.x, pl.y, _ibdx, _ibdy, dg, pl, "#ffdd44");
+          /* 泉に入った */
+          if (_ibHitSpring) {
+            ml.push(`${m.name}に${_ibItem.name}を弾かれ泉に落ちた！`);
+            soakItemIntoSpring(_ibHitSpring, { ..._ibItem, x: _lx, y: _ly }, ml, dg, it => it.name);
+            return;
+          }
+          /* 大箱に入った */
+          if (_ibHitBB) {
+            ml.push(`${m.name}に${_ibItem.name}を弾かれ${_ibHitBB.name}に入った！`);
+            if (opts.bbFn) opts.bbFn(_ibHitBB, _ibItem, dg, ml);
+            else dg.items.push({ ..._ibItem, x: _lx, y: _ly });
+            return;
+          }
           /* アイテム種別ごとに既存の投擲命中ルールを適用 */
           if (_ibItem.type === "potion") {
             /* 薬：着地点でsplash（敵に当たっても同じ位置でsplash） */
