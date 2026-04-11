@@ -160,7 +160,22 @@ function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThro
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {} } = {}) {
   const [gs, setGs] = useState(null);
-  const [msgs, setMsgs] = useState(["冒険が始まった！"]);
+  const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
+  /* フロアターン付きメッセージ追加ラッパー */
+  const setMsgs = useCallback((updater) => {
+    const t = sr.current?.floorTurns ?? 0;
+    const _tag = (m) => typeof m === "string" ? { text: m, turn: t } : (m?.turn !== undefined ? m : { ...m, turn: t });
+    if (typeof updater === "function") {
+      _setMsgs(prev => {
+        const result = updater(prev);
+        const oldLen = Math.min(prev.length, 80);
+        return result.map((m, i) => i < oldLen ? m : _tag(m));
+      });
+    } else {
+      const arr = Array.isArray(updater) ? updater : [updater];
+      _setMsgs(arr.map(_tag));
+    }
+  }, []);
   const [showInv, setShowInv] = useState(false);
   const [dropMode, setDropMode] = useState(false);
   const dropModeRef = useRef(false);
@@ -489,7 +504,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     } else {
       d.bigboxes?.forEach(bb => { bb.revealed = false; });
     }
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown };
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0 };
     sr.current = s;
     setGs(s);
     ref.current?.focus();
@@ -1310,6 +1325,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     refreshFOV(d, pl);
     d.nextSpawnTurn = pl.turns + 30;
     d._firstVisit = !_saved;
+    sr.current.floorTurns = 0; /* 階層移動でフロアターンをリセット */
     return d;
   }, []);
   const withPitfallBag = useCallback((fn) => {
@@ -1322,6 +1338,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   }, []);
   const endTurn = useCallback(
     (st, p, ml) => {
+      st.floorTurns = (st.floorTurns || 0) + 1;
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
       setPitfallBag(_etPfBag);
@@ -4373,8 +4390,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _isLatest = i === a.length - 1;
           const _text = typeof m === "object" ? m.text : m;
           const _color = typeof m === "object" ? m.color : undefined;
+          const _turn = typeof m === "object" ? m.turn : undefined;
           return (
             <div key={i} style={{ opacity: _isLatest ? 1 : 0.5, color: _color, fontWeight: _color ? "bold" : undefined }}>
+              {_turn > 0 && <span style={{ color: _isLatest ? "#7a9ab8" : "#4a6a88", marginRight: 3, fontSize: "0.85em" }}>[{_turn}]</span>}
               {_text}
             </div>
           );

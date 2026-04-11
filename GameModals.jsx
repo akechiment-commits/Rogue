@@ -2059,6 +2059,7 @@ export function MsgLogModal({ show, msgs, scrollTop, setScrollTop, onClose, mobi
           const isNewest = absIdx === total - 1;
           const _text = typeof m === "object" ? m.text : m;
           const _msgColor = typeof m === "object" ? m.color : undefined;
+          const _turn = typeof m === "object" ? m.turn : undefined;
           return (
             <div key={absIdx} style={{
               fontSize: mobile ? 12 : 13, lineHeight: "1.5em",
@@ -2068,6 +2069,7 @@ export function MsgLogModal({ show, msgs, scrollTop, setScrollTop, onClose, mobi
               borderBottom: "1px solid #1a2030",
             }}>
               <span style={{ color: "#506880", marginRight: 6, fontSize: 11 }}>{absIdx + 1}</span>
+              {_turn > 0 && <span style={{ color: "#4a7a9a", marginRight: 3, fontSize: 11 }}>[{_turn}]</span>}
               {_text}
             </div>
           );
