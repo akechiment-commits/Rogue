@@ -4393,8 +4393,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _turn = typeof m === "object" ? m.turn : undefined;
           const _isCurTurn = _turn !== undefined && _turn === _latestTurn;
           return (
-            <div key={i} style={{ opacity: _isCurTurn ? 1 : 0.45, color: _color, fontWeight: _color ? "bold" : undefined }}>
-              {_turn > 0 && <span style={{ color: _isCurTurn ? "#6a9fc0" : "#3a5f78", marginRight: 3, fontSize: "0.85em" }}>[{_turn}]</span>}
+            <div key={i} style={{ opacity: _isCurTurn ? 1 : 0.6, color: _color ?? (_isCurTurn ? "#ffffff" : "#c0c0c0"), fontWeight: _color ? "bold" : undefined }}>
+              {_turn > 0 && <span style={{ color: _isCurTurn ? "#80c0e8" : "#5a7a90", marginRight: 3, fontSize: "0.85em" }}>[{_turn}]</span>}
               {_text}
             </div>
           );

@@ -2065,14 +2065,14 @@ export function MsgLogModal({ show, msgs, scrollTop, setScrollTop, onClose, mobi
             return (
               <div key={absIdx} style={{
                 fontSize: mobile ? 12 : 13, lineHeight: "1.5em",
-                color: _msgColor ?? (_isCurTurn ? "#dff0df" : "#8aaa98"),
+                color: _msgColor ?? (_isCurTurn ? "#ffffff" : "#aaaaaa"),
                 fontWeight: _msgColor ? "bold" : undefined,
-                opacity: _isCurTurn ? 1 : 0.7,
+                opacity: _isCurTurn ? 1 : 0.75,
                 padding: "2px 0",
                 borderBottom: "1px solid #1a2030",
               }}>
-                <span style={{ color: "#506880", marginRight: 6, fontSize: 11 }}>{absIdx + 1}</span>
-                {_turn > 0 && <span style={{ color: _isCurTurn ? "#5a9aba" : "#355060", marginRight: 3, fontSize: 11 }}>[{_turn}]</span>}
+                <span style={{ color: "#6080a0", marginRight: 6, fontSize: 11 }}>{absIdx + 1}</span>
+                {_turn > 0 && <span style={{ color: _isCurTurn ? "#80c0e8" : "#507090", marginRight: 3, fontSize: 11 }}>[{_turn}]</span>}
                 {_text}
               </div>
             );
