@@ -2722,9 +2722,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             if (hasAbility(pl.armor, "wand_reflect")) {
               /* 反射の鎧：魔法を跳ね返す */
               ml.push(`${m.name}の防御半減魔法！反射の鎧が弾き返した！`);
-              m.hp = Math.ceil(m.hp / 2);
-              ml.push(`跳ね返った魔法が${m.name}に命中！HPが半減した！`);
-              if (m.hp <= 0) { killMonster(m, dg, pl, ml, _luFn); return; }
+              m.def = Math.floor((m.def || 0) / 2);
+              ml.push(`跳ね返った魔法が${m.name}に命中！${m.name}の防御力が半減した！`);
             } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
               ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
             } else {
