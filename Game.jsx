@@ -3566,17 +3566,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             } else if (_oilMap[item.potEffect] && (item.contents?.length || 0) < (item.capacity || 3)) {
               ml.push(`${_idn}が割れて${_oilMap[item.potEffect]}が飛び散った！`);
               dg.oilyTiles = dg.oilyTiles || [];
+              const _addOilArea = (cx, cy) => {
+                for (let _oy = -1; _oy <= 1; _oy++) for (let _ox = -1; _ox <= 1; _ox++) {
+                  const _otx = cx + _ox, _oty = cy + _oy;
+                  if (_otx >= 0 && _otx < MW && _oty >= 0 && _oty < MH && dg.map[_oty][_otx] !== T.WALL && dg.map[_oty][_otx] !== T.BWALL)
+                    if (!dg.oilyTiles.some(t => t.x === _otx && t.y === _oty)) dg.oilyTiles.push({ x: _otx, y: _oty });
+                }
+              };
               for (const m of [..._scMons]) {
                 m.oilyTurns = (m.oilyTurns || 0) + 100;
                 ml.push(`${m.name}は油まみれになった！(100ターン)`);
+                _addOilArea(m.x, m.y);
               }
-              if (_scPInRoom) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
-              /* 油をbox周囲に飛散 */
-              for (let _oy = -1; _oy <= 1; _oy++) for (let _ox = -1; _ox <= 1; _ox++) {
-                const _otx = bb.x + _ox, _oty = bb.y + _oy;
-                if (_otx >= 0 && _otx < MW && _oty >= 0 && _oty < MH && dg.map[_oty][_otx] !== T.WALL && dg.map[_oty][_otx] !== T.BWALL)
-                  if (!dg.oilyTiles.some(t => t.x === _otx && t.y === _oty)) dg.oilyTiles.push({ x: _otx, y: _oty });
+              if (_scPInRoom) {
+                p.oilyTurns = (p.oilyTurns || 0) + 100;
+                ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)");
+                _addOilArea(p.x, p.y);
               }
+              /* 油をbox周囲にも飛散 */
+              _addOilArea(bb.x, bb.y);
               /* 油がかかったマスの魔方陣を消滅 */
               if (dg.pentacles?.length > 0) {
                 const _oiledPcs = dg.pentacles.filter(pc => dg.oilyTiles.some(t => t.x === pc.x && t.y === pc.y));
