@@ -2385,9 +2385,23 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       const _srDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
       const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
-      /* moveOnlyフェーズ：アイテム持ちで直線上なら移動せず（攻撃フェーズで投げる） */
+      /* moveOnlyフェーズ：アイテム持ちで直線上かつ経路クリアなら移動せず（攻撃フェーズで投げる） */
       if (_moveOnly && m.heldItems.length > 0 && canSee && _srDist > 1 && _srDist <= 8 && _srStraight) {
-        return;
+        const _srDxM = Math.sign(pl.x - m.x), _srDyM = Math.sign(pl.y - m.y);
+        let _srPathOkM = true;
+        let _cxM = m.x + _srDxM, _cyM = m.y + _srDyM;
+        while (_cxM !== pl.x || _cyM !== pl.y) {
+          if (_cxM < 0 || _cxM >= MW || _cyM < 0 || _cyM >= MH ||
+              dg.map[_cyM][_cxM] === T.WALL || dg.map[_cyM][_cxM] === T.BWALL ||
+              dg.bigboxes?.some(b => b.x === _cxM && b.y === _cyM) ||
+              dg.springs?.some(s => s.x === _cxM && s.y === _cyM)) {
+            _srPathOkM = false; break;
+          }
+          if (dg.monsters.find(mo => mo.x === _cxM && mo.y === _cyM)) break; /* 途中の敵：攻撃フェーズに委ねる */
+          _cxM += _srDxM; _cyM += _srDyM;
+        }
+        if (_srPathOkM) return; /* 経路クリア：移動せず攻撃フェーズに委ねる */
+        /* 経路に障害物：移動コードへフォールスルーして接近 */
       }
       /* 投擲フェーズ：アイテムを持っていて視界内（moveOnlyは上でreturn済 or フォールスルー） */
       if (!_moveOnly && m.heldItems.length > 0 && canSee && _srDist <= 8) {
