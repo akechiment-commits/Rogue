@@ -233,6 +233,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const setDebugSpellMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'debugSpell', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const debugSpellMenuSel = modal.debugSpellMenuSel ?? 0;
   const setDebugSpellMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { debugSpellMenuSel: typeof v === 'function' ? v(modal.debugSpellMenuSel ?? 0) : v } });
+  const debugSpellModeRef = useRef(null);
+  debugSpellModeRef.current = debugSpellMode;
   const setRevealMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'reveal', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setNicknameInput = (v) => dispatchModal({ type: 'UPDATE', payload: { nicknameInput: typeof v === 'function' ? v(modal.nicknameInput) : v } });
   /* mobile dash toggle */ const [dead, setDead] = useState(false);
@@ -2065,7 +2067,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (putMode) return;
       if (markerMode) return;
       if (spellListMode) return;
-      if (debugSpellMode) return;
+      if (debugSpellModeRef.current) return;
       if (shopMode) return;
       if (throwMode !== null && type !== "inventory") return;
       if (showInv && type !== "inventory") return;
@@ -2843,7 +2845,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     async (dx, dy) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
-      if (springMode || putMode || markerMode || spellListMode || debugSpellMode || throwMode || showInv || lookMode) return;
+      if (springMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
