@@ -676,6 +676,7 @@ export const MONS = [
       { name: "キラープラスターΩ",  hp: 88,  atk: 30, def: 11, exp: 148 },
     ],
   },
+  { name: "ガーディアン",  hp: 48,  atk: 13, def: 14, exp: 70,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian" },
   { name: "氷竜",         hp: 65,  atk: 27, def: 10, exp: 125, speed: 1,   tile: 39, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder",
     levels: [
       { name: "大氷竜",             hp: 105, atk: 37, def: 16, exp: 200 },
@@ -2753,6 +2754,37 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             !(_kpNext.x === pl.x && _kpNext.y === pl.y)) {
           m.dir = { x: _kpNext.x - m.x, y: _kpNext.y - m.y };
           m.x = _kpNext.x; m.y = _kpNext.y;
+        }
+      }
+      return;
+    }
+
+    /* ── guardian（ガーディアン等）：仲間の隣に留まりかばう ── */
+    if (m.subtype === "guardian") {
+      /* 攻撃フェーズ：プレイヤーが隣接なら攻撃 */
+      if (!_moveOnly && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+        return;
+      }
+      /* 移動フェーズ：仲間が隣接していれば動かない。いなければ最寄り仲間へ向かう */
+      if (!_attackOnly) {
+        const _gaAdjAlly = dg.monsters.some(o => o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1);
+        if (!_gaAdjAlly) {
+          let _gaTx = pl.x, _gaTy = pl.y, _gaNear = Infinity;
+          for (const _gm of dg.monsters) {
+            if (_gm === m) continue;
+            const _gd = Math.max(Math.abs(_gm.x - m.x), Math.abs(_gm.y - m.y));
+            if (_gd < _gaNear) { _gaNear = _gd; _gaTx = _gm.x; _gaTy = _gm.y; }
+          }
+          const _gaNext = bfsNext(map, [], m.x, m.y, _gaTx, _gaTy, m, 40, dg.pentacles, _effFloat);
+          if (_gaNext &&
+              !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _gaNext.x && pc.y === _gaNext.y) &&
+              !dg.monsters.some(o => o !== m && o.x === _gaNext.x && o.y === _gaNext.y) &&
+              !(_gaNext.x === pl.x && _gaNext.y === pl.y)) {
+            m.dir = { x: _gaNext.x - m.x, y: _gaNext.y - m.y };
+            m.x = _gaNext.x; m.y = _gaNext.y;
+          }
         }
       }
       return;

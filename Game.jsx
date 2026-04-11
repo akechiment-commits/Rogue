@@ -2288,6 +2288,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               /* 水晶スライム系：固定ダメージ以外は1ダメージ（近接は非固定扱い） */
               d = clampDmgFixed(attackMon, d, true);
               wakeIfDormant(attackMon, ml);
+              /* ── ガーディアンチェック：隣接する guardian が肩代わり ── */
+              const _guardMon = dg.monsters.find(gm =>
+                gm !== attackMon && gm.subtype === "guardian" &&
+                Math.abs(gm.x - attackMon.x) <= 1 && Math.abs(gm.y - attackMon.y) <= 1
+              );
+              if (_guardMon) {
+                ml.push(`ガーディアンが${attackMon.name}をかばった！`);
+                if (!consumeBarrier(_guardMon, ml)) {
+                  _guardMon.hp -= d;
+                  ml.push(`ガーディアンに${d}ダメージ！`);
+                }
+                _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
+                _ad.damages.push({ type: "damage", x: _guardMon.x, y: _guardMon.y, value: d, color: "#ff4444" });
+                if (_guardMon.hp <= 0) {
+                  _ad.damages.push({ type: "flash", x: _guardMon.x, y: _guardMon.y, color: "#ff2200", duration: 150 });
+                  killMonster(_guardMon, dg, p, ml, lu);
+                }
+                acted = true;
+              } else {
               attackMon.hp -= d;
               if (attackMon.type === "shopkeeper") {
                 attackMon.state = "hostile"; dg.shopTheft = true;
@@ -2377,6 +2396,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
               acted = true;
+              } /* end guardian else */
               } /* end else (hit) */
             /* 射撃の指輪：命中/外れに関わらず発動（矢種別の本来の効果を再現） */
             {
