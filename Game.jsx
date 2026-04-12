@@ -2188,8 +2188,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             } else {
               const _capNx = p.x + dx, _capNy = p.y + dy;
               const _capTarget = monsterAt(dg, _capNx, _capNy);
-              if (!_capTarget || _capTarget.id !== p.capturedBy) {
-                /* 捕まえた敵以外への方向は移動不可 */
+              if (!_capTarget) {
+                /* 敵がいない方向への移動は不可（隣接する敵への攻撃は可） */
                 ml.push(`${_capMon.name}に捕まっている！倒さなければ逃げられない！`);
                 endTurn(st, p, ml);
                 setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -2197,7 +2197,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 setGs({ ...st });
                 return;
               }
-              /* 捕まえた敵の方向なら攻撃処理へ進む */
+              /* 隣接している敵（からめ鬼でなくても）への攻撃は可 */
             }
           }
         }

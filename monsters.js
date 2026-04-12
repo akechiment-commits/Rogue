@@ -1521,6 +1521,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
     if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - (m.isBoss ? 2 : 1));
+    if (m.subtype === "grabber") { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; } /* grabberは混乱中も絶対移動しない */
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
@@ -1553,6 +1554,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - (m.isBoss ? 2 : 1));
+    if (m.subtype === "grabber") { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; } /* grabberは暗闇中も絶対移動しない */
     if (!m.darkDir) {
       const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
       m.darkDir = pick(_ddirs);
@@ -1589,6 +1591,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - (m.isBoss ? 2 : 1));
+    if (m.subtype === "grabber") { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; } /* grabberは幻惑中も絶対移動しない */
     const _fcands = [];
     for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
       const _fnx = m.x + _fmx, _fny = m.y + _fmy;
