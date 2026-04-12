@@ -351,103 +351,103 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *    コメントの「N〜M階」は minFloor〜maxFloor に対応。
  * ── */
 export const MONS = [
-  { name: "ネズミ",       hp: 7,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10,
+  { name: "ネズミ",       hp: 7,   atk: 5,  def: 0,  exp: 3,   speed: 1,   tile: 6,  kind: "beast",    baseKind: "rat",          monLevel: 1, minFloor: 1,  maxFloor: 10, dungeonFloors: { beginner: { min: 1, max: 3 } },
     levels: [
       { name: "強ネズミ",           hp: 11,  atk: 6,  def: 3,  exp: 5   },
       { name: "覇ネズミ",           hp: 18,  atk: 8,  def: 6,  exp: 8   },
     ],
   },
-  { name: "コウモリ",     hp: 8,   atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true,
+  { name: "コウモリ",     hp: 8,   atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true, dungeonFloors: { beginner: { min: 1, max: 4 } },
     levels: [
       { name: "大コウモリ",             hp: 14,  atk: 8,  def: 2,  exp: 7   },
       { name: "覇コウモリ",             hp: 22,  atk: 11, def: 4,  exp: 11  },
     ],
   },
-  { name: "ムカデ",       hp: 10,  atk: 4,  def: 2,  exp: 5,   speed: 1,   tile: 104, kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,
+  { name: "ムカデ",       hp: 10,  atk: 4,  def: 2,  exp: 5,   speed: 1,   tile: 104, kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,  dungeonFloors: { beginner: { min: 2, max: 5 } },
     levels: [
       { name: "大ムカデ",               hp: 17,  atk: 7,  def: 4,  exp: 9   },
       { name: "覇ムカデ",               hp: 27,  atk: 10, def: 6,  exp: 14  },
     ],
   },
-  { name: "弾き師",       hp: 30,  atk: 14, def: 3,  exp: 42,  speed: 1,   tile: 105, kind: "humanoid", baseKind: "itemblaster",  monLevel: 1, minFloor: 6,  maxFloor: 22, subtype: "itemblast",
+  { name: "弾き師",       hp: 30,  atk: 14, def: 3,  exp: 42,  speed: 1,   tile: 105, kind: "humanoid", baseKind: "itemblaster",  monLevel: 1, minFloor: 6,  maxFloor: 22, subtype: "itemblast", dungeonFloors: { beginner: null },
     levels: [
       { name: "大弾き師",               hp: 48,  atk: 19, def: 5,  exp: 68  },
       { name: "覇弾き師",               hp: 70,  atk: 24, def: 8,  exp: 98  },
     ],
   },
-  { name: "盗投士",       hp: 28,  atk: 13, def: 3,  exp: 45,  speed: 1,   tile: 106, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower",
+  { name: "盗投士",       hp: 28,  atk: 13, def: 3,  exp: 45,  speed: 1,   tile: 106, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower", dungeonFloors: { beginner: null },
     levels: [
       { name: "大盗投士",               hp: 46,  atk: 18, def: 5,  exp: 72  },
       { name: "覇盗投士",               hp: 67,  atk: 24, def: 8,  exp: 108 },
     ],
   },
-  { name: "コボルド",     hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13,
+  { name: "コボルド",     hp: 15,  atk: 8,  def: 2,  exp: 10,  speed: 1,   tile: 7,  kind: "humanoid", baseKind: "kobold",        monLevel: 1, minFloor: 2,  maxFloor: 13, dungeonFloors: { beginner: { min: 3, max: 6 } },
     levels: [
       { name: "コボルド戦士",       hp: 26,  atk: 13, def: 7,  exp: 16  },
       { name: "コボルド族長",       hp: 40,  atk: 17, def: 11, exp: 25  },
     ],
   },
-  { name: "ゴブリン",     hp: 18,  atk: 10, def: 3,  exp: 15,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16,
+  { name: "ゴブリン",     hp: 18,  atk: 10, def: 3,  exp: 15,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "goblin",        monLevel: 1, minFloor: 3,  maxFloor: 16, dungeonFloors: { beginner: { min: 4, max: 7 } },
     levels: [
       { name: "ゴブリン頭",         hp: 32,  atk: 15, def: 7,  exp: 24  },
       { name: "ゴブリン王",         hp: 50,  atk: 20, def: 13, exp: 38  },
     ],
   },
-  { name: "インプ",       hp: 19,  atk: 11, def: 2,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true,
+  { name: "インプ",       hp: 19,  atk: 11, def: 2,  exp: 20,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 6, max: 9 } },
     levels: [
       { name: "強インプ",           hp: 30,  atk: 15, def: 5,  exp: 32  },
       { name: "覇インプ",           hp: 47,  atk: 20, def: 9,  exp: 50  },
     ],
   },
-  { name: "スケルトン",   hp: 24,  atk: 12, def: 5,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18,
+  { name: "スケルトン",   hp: 24,  atk: 12, def: 5,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 5, max: 8 } },
     levels: [
       { name: "強スケルトン",       hp: 39,  atk: 17, def: 9,  exp: 35  },
       { name: "アンデッドナイト",   hp: 61,  atk: 21, def: 13, exp: 55  },
     ],
   },
-  { name: "コロポックル", hp: 11,  atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 70, kind: "beast",    baseKind: "runner",        monLevel: 1, minFloor: 5,  maxFloor: 30, subtype: "runner",
+  { name: "コロポックル", hp: 11,  atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 70, kind: "beast",    baseKind: "runner",        monLevel: 1, minFloor: 5,  maxFloor: 30, subtype: "runner", dungeonFloors: { beginner: { min: 5, max: 8 } },
     levels: [
       { name: "大コロポックル",     hp: 16,  atk: 0,  def: 0,  exp: 80  },
       { name: "精霊コロポックル",   hp: 24,  atk: 0,  def: 0,  exp: 120 },
     ],
   },
-  { name: "ゾンビ",       hp: 34,  atk: 14, def: 3,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire",
+  { name: "ゾンビ",       hp: 34,  atk: 14, def: 3,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", dungeonFloors: { beginner: { min: 8, max: 10 } },
     levels: [
       { name: "強ゾンビ",           hp: 54,  atk: 20, def: 7,  exp: 45  },
       { name: "屍鬼",               hp: 85,  atk: 24, def: 12, exp: 70  },
     ],
   },
-  { name: "ワッカ",       hp: 24,  atk: 14, def: 2,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, subtype: "stonethrow",
+  { name: "ワッカ",       hp: 24,  atk: 14, def: 2,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 } },
     levels: [
       { name: "強ワッカ",           hp: 38,  atk: 20, def: 5,  exp: 45  },
       { name: "覇ワッカ",           hp: 61,  atk: 27, def: 7,  exp: 72  },
     ],
   },
-  { name: "分裂スライム", hp: 30,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 77, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter",
+  { name: "分裂スライム", hp: 30,  atk: 12, def: 2,  exp: 32,  speed: 1,   tile: 77, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter", dungeonFloors: { beginner: { min: 7, max: 10 } },
     levels: [
       { name: "強スライム",         hp: 47,  atk: 18, def: 5,  exp: 51  },
       { name: "覇スライム",         hp: 74,  atk: 24, def: 7,  exp: 80  },
     ],
   },
-  { name: "アーチャー",   hp: 30,  atk: 15, def: 3,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",        monLevel: 1, minFloor: 8,  maxFloor: 21, subtype: "archer",
+  { name: "アーチャー",   hp: 30,  atk: 15, def: 3,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",        monLevel: 1, minFloor: 8,  maxFloor: 21, subtype: "archer", dungeonFloors: { beginner: { min: 5, max: 8 } },
     levels: [
       { name: "古参アーチャー",     hp: 47,  atk: 21, def: 7,  exp: 54  },
       { name: "弓の達人",           hp: 74,  atk: 27, def: 12, exp: 85  },
     ],
   },
-  { name: "ウルフ",       hp: 27,  atk: 17, def: 2,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22,
+  { name: "ウルフ",       hp: 27,  atk: 17, def: 2,  exp: 40,  speed: 2,   tile: 56, kind: "beast",    baseKind: "wolf",          monLevel: 1, minFloor: 9,  maxFloor: 22, dungeonFloors: { beginner: null },
     levels: [
       { name: "強ウルフ",           hp: 43,  atk: 23, def: 6,  exp: 64  },
       { name: "フェンリル",         hp: 68,  atk: 30, def: 10, exp: 100 },
     ],
   },
-  { name: "コソドロ",     hp: 16,  atk: 6,  def: 0,  exp: 35,  speed: 2,   tile: 69, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief",
+  { name: "コソドロ",     hp: 16,  atk: 6,  def: 0,  exp: 35,  speed: 2,   tile: 69, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null },
     levels: [
       { name: "大盗賊",             hp: 27,  atk: 9,  def: 2,  exp: 56  },
       { name: "怪盗",               hp: 43,  atk: 12, def: 3,  exp: 88  },
     ],
   },
-  { name: "錆虫",         hp: 24,  atk: 11, def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster",
+  { name: "錆虫",         hp: 24,  atk: 11, def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster", dungeonFloors: { beginner: null },
     levels: [
       { name: "強錆虫",             hp: 39,  atk: 15, def: 5,  exp: 64  },
       { name: "覇錆虫",             hp: 61,  atk: 21, def: 7,  exp: 100 },
@@ -628,13 +628,13 @@ export const MONS = [
     ],
   },
   /* ===== 新型モンスター4種 ===== */
-  { name: "からめ鬼",    hp: 55,  atk: 18, def: 10, exp: 55,  speed: 1,   tile: 16, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber",
+  { name: "からめ鬼",    hp: 55,  atk: 18, def: 10, exp: 55,  speed: 1,   tile: 16, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 6, max: 9 } },
     levels: [
       { name: "強からめ鬼",         hp: 88,  atk: 27, def: 14, exp: 88  },
       { name: "覇からめ鬼",         hp: 138, atk: 36, def: 19, exp: 138 },
     ],
   },
-  { name: "突進角獣",    hp: 62,  atk: 22, def: 8,  exp: 62,  speed: 1,   tile: 19, kind: "beast",    baseKind: "charger",       monLevel: 1, minFloor: 10, maxFloor: 35, subtype: "charger",
+  { name: "突進角獣",    hp: 62,  atk: 22, def: 8,  exp: 62,  speed: 1,   tile: 19, kind: "beast",    baseKind: "charger",       monLevel: 1, minFloor: 10, maxFloor: 35, subtype: "charger", dungeonFloors: { beginner: null },
     levels: [
       { name: "強突進角獣",         hp: 99,  atk: 32, def: 12, exp: 99  },
       { name: "覇突進角獣",         hp: 155, atk: 44, def: 16, exp: 155 },
@@ -658,7 +658,7 @@ export const MONS = [
       { name: "覇魔法反射師",       hp: 95,  atk: 29, def: 18, exp: 188 },
     ],
   },
-  { name: "薬投げ師",     hp: 30,  atk: 13, def: 3,  exp: 48,  speed: 1,   tile: 88, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 10, maxFloor: 50, subtype: "potionthrow",
+  { name: "薬投げ師",     hp: 30,  atk: 13, def: 3,  exp: 48,  speed: 1,   tile: 88, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 10, maxFloor: 50, subtype: "potionthrow", dungeonFloors: { beginner: null },
     levels: [
       { name: "強薬投げ師",         hp: 48,  atk: 18, def: 6,  exp: 76  },
       { name: "覇薬投げ師",         hp: 75,  atk: 24, def: 10, exp: 120 },
@@ -683,7 +683,7 @@ export const MONS = [
       { name: "覇氷竜",             hp: 168, atk: 48, def: 22, exp: 320 },
     ],
   },
-  { name: "わてり",       hp: 40,  atk: 16, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner",
+  { name: "わてり",       hp: 40,  atk: 16, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner", dungeonFloors: { beginner: null },
     levels: [
       { name: "強わてり",           hp: 64,  atk: 24, def: 10, exp: 77  },
       { name: "覇わてり",           hp: 100, atk: 32, def: 14, exp: 120 },
@@ -849,10 +849,14 @@ export function makeGuard(x, y, plx, ply) {
  */
 export function pickMonsterDef(depth, dungeonType = null) {
   const floor = depth + 1;
-  const eligible = MONS.filter(m =>
-    m.minFloor <= floor && floor <= m.maxFloor &&
-    (!m.dungeons || !dungeonType || m.dungeons.includes(dungeonType))
-  );
+  const eligible = MONS.filter(m => {
+    if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
+    const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
+    if (df === null) return false; // このダンジョンには出現しない
+    const minF = df?.min !== undefined ? df.min : m.minFloor;
+    const maxF = df?.max !== undefined ? df.max : m.maxFloor;
+    return minF <= floor && floor <= maxF;
+  });
   const base = eligible.length > 0 ? pick(eligible) : MONS[0];
   const range = Math.max(base.maxFloor - base.minFloor, 1);
   const progress = Math.max(0, (floor - base.minFloor) / range);
