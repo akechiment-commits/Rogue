@@ -14,7 +14,7 @@ import { getDiscoveries } from "./DiscoveryTracker.js";
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef,
+  sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef,
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
@@ -480,8 +480,9 @@ export function useKeyHandler({
         // 何かキーで続きのメッセージを表示
         if (revealMode.pendingMsgs.length) setMsgs(prev => [...prev.slice(-80), ...revealMode.pendingMsgs]);
         setRevealMode(null);
+        if (revealModeRef) revealModeRef.current = null; /* act() が同キーでそのまま動けるよう同期クリア */
         e.preventDefault();
-        return;
+        /* return しない → キー入力をそのままゲームアクションへ fall-through */
       }
       if (nicknameMode) {
         // input要素がフォーカスを持つのでキー入力はinputが処理する。ESCのみ対応

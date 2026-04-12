@@ -520,6 +520,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const monMovesRef = useRef([]); /* populated by endTurn for monster move animations */
   const pendingActRef = useRef(null); /* アニメーション中に入力されたアクションをバッファ */
   const actRef = useRef(null);       /* 最新の act 関数への参照（playAnim内から呼ぶため） */
+  const revealModeRef = useRef(null); /* revealMode の ref（キーハンドラ内で同期クリアするため） */
 
   const playAnim = useCallback(async (data) => {
     if (!data || !canvasRef.current) return;
@@ -2089,7 +2090,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (type !== "move") pendingActRef.current = { type, dx, dy };
         return;
       }
-      if (revealMode) return;
+      if (revealModeRef.current) return;
       if (bigboxModeRef.current) return;
       if (nicknameModeRef.current) return;
       if (lookMode) return;
@@ -2816,12 +2817,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       checkTrap,
       lu,
       endTurn,
-      revealMode,
       lookMode,
       playAnim,
     ],
   );
   actRef.current = act; /* 常に最新の act を参照（playAnim のバッファ実行用） */
+  revealModeRef.current = revealMode; /* 常に最新の revealMode を同期（キーハンドラで同期クリアするため） */
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
   const doExamineFront = useCallback(() => {
     if (!sr.current) return;
@@ -4043,7 +4044,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   }, []);
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef,
+    sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef,
     // state values
     gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
