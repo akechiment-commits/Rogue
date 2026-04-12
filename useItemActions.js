@@ -2444,8 +2444,10 @@ export function useItemActions({
                 _hitWall = true; _wallX = _tx; _wallY = _ty; break;
               }
               // 敵・罠 → 効果なし、停止
-              if (dg.monsters.some(m => m.x === _tx && m.y === _ty)) {
-                ml.push("杖の光が何かに当たったが何も起きなかった。"); break;
+              const _sageMon = dg.monsters.find(m => m.x === _tx && m.y === _ty);
+              if (_sageMon) {
+                ml.push(`${_sageMon.name}　HP:${_sageMon.hp}/${_sageMon.maxHp}　攻撃:${_sageMon.atk}　防御:${_sageMon.def}`);
+                break;
               }
               if (dg.traps?.some(tr => tr.x === _tx && tr.y === _ty)) {
                 ml.push("杖の光が罠を通り過ぎた。"); break;
