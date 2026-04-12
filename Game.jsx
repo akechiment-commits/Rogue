@@ -417,7 +417,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       def: 2,
       level: 1,
       exp: 0,
-      nextExp: 20,
+      nextExp: 10,
       hunger: 100,
       maxHunger: 100,
       gold: 0,
