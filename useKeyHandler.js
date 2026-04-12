@@ -14,7 +14,7 @@ import { getDiscoveries } from "./DiscoveryTracker.js";
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef,
+  sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef,
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
@@ -1357,7 +1357,7 @@ export function useKeyHandler({
         Numpad8: [0, -1],
         Numpad9: [1, -1],
       };
-      if (e.code in numpadGame && !bigboxMode && !springMode && !putMode && !markerMode && !spellListMode && !debugSpellMode && !msgLogMode) {
+      if (e.code in numpadGame && !bigboxMode && !springMode && !putMode && !markerMode && !spellListMode && !debugSpellMode && !msgLogMode && !(shopModeRef?.current ?? shopMode)) {
         e.preventDefault();
         const nd = numpadGame[e.code];
         if (nd === null) {
@@ -1377,7 +1377,7 @@ export function useKeyHandler({
       };
       if (km[k]) {
         e.preventDefault();
-        if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode) {
+        if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode || (shopModeRef?.current ?? shopMode)) {
           return;
         }
         if (aRef.current) {
