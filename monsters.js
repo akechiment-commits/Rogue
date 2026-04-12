@@ -628,7 +628,7 @@ export const MONS = [
     ],
   },
   /* ===== 新型モンスター4種 ===== */
-  { name: "からめ鬼",    hp: 55,  atk: 18, def: 10, exp: 55,  speed: 1,   tile: 16, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 6, max: 9 } },
+  { name: "からめ鬼",    hp: 55,  atk: 18, def: 10, exp: 55,  speed: 1,   tile: 108, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 6, max: 9 } },
     levels: [
       { name: "強からめ鬼",         hp: 88,  atk: 27, def: 14, exp: 88  },
       { name: "覇からめ鬼",         hp: 138, atk: 36, def: 19, exp: 138 },
