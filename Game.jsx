@@ -518,6 +518,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef, gsOverrideRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode);
   const animBusyRef = useRef(false);
   const monMovesRef = useRef([]); /* populated by endTurn for monster move animations */
+  const pendingActRef = useRef(null); /* アニメーション中に入力されたアクションをバッファ */
+  const actRef = useRef(null);       /* 最新の act 関数への参照（playAnim内から呼ぶため） */
 
   const playAnim = useCallback(async (data) => {
     if (!data || !canvasRef.current) return;
@@ -693,6 +695,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     renderFrameRef.current();
     } finally {
       animBusyRef.current = false;
+      /* アニメーション中にバッファされたアクションがあれば実行 */
+      if (pendingActRef.current) {
+        const _pa = pendingActRef.current;
+        pendingActRef.current = null;
+        actRef.current?.(_pa.type, _pa.dx, _pa.dy);
+      }
     }
   }, [renderFrame, renderFrameRef]);
   /* Drain animation events produced by useItemActions (outside of act()) */
@@ -2076,7 +2084,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
       if (dead || !sr.current) return;
-      if (animBusyRef.current) return;
+      if (animBusyRef.current) {
+        /* 移動以外のアクション（階段・拾い等）はアニメーション終了後に実行するためバッファ */
+        if (type !== "move") pendingActRef.current = { type, dx, dy };
+        return;
+      }
       if (revealMode) return;
       if (bigboxModeRef.current) return;
       if (nicknameModeRef.current) return;
@@ -2809,6 +2821,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       playAnim,
     ],
   );
+  actRef.current = act; /* 常に最新の act を参照（playAnim のバッファ実行用） */
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
   const doExamineFront = useCallback(() => {
     if (!sr.current) return;
