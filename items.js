@@ -203,8 +203,8 @@ export const ITEMS = [
     desc:"読むと同じフロアの部屋内に大量の罠が出現する。祝福：さらに多く出現。呪い：フロア内の全ての罠が消える。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"A", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。", tile:23 },
-  { name:"毒矢",     type:"arrow", atk:4, poison:true, count:3,   rarity:"C", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
-  { name:"貫きの矢", type:"arrow", atk:4, pierce:true, count:3,   rarity:"B", weight:4,  sellPrice:60,   desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
+  { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"C", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
+  { name:"貫きの矢", type:"arrow", atk:5, pierce:true, count:3,   rarity:"B", weight:4,  sellPrice:60,   desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
 ];
 
 export function getBlessMultiplier(it) {
@@ -222,9 +222,9 @@ export const ALLBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:11,
 export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:8,  ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           desc:"三種の守護防具が融合した究極の鎧。刃反射・みかわし・杖反射の三重防御。",       tile:21 };
 export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"炎・雷・氷の三杖を合成して生まれた究極の杖。振ると100ダメージ。祝福で200ダメージ。呪いなら100回復。", tile:24 };
 
-export const ARROW_T        = { name:"矢",       type:"arrow", atk:4,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
-export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:4, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
-export const PIERCING_ARROW_T={ name:"貫きの矢", type:"arrow", atk:4, pierce:true,     rarity:"B", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
+export const ARROW_T        = { name:"矢",       type:"arrow", atk:3,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
+export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
+export const PIERCING_ARROW_T={ name:"貫きの矢", type:"arrow", atk:5, pierce:true,     rarity:"B", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"D", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"C", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"A", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。",                            count:1, tile:23 };
@@ -3109,6 +3109,17 @@ export function getFarcastMode(x, y, dg) {
   return fcPent.cursed ? "cursed" : "farcast";
 }
 
+/* 飛び道具ダメージ計算（近接と同じ式、武器ATKの代わりに矢/石ATKを参照） */
+export function calcProjectileDmg(p, arAtk, def = 0) {
+  const _ringBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
+  const ap = Math.max(1, Math.floor(
+    (p.atk + arAtk + _ringBonus)
+    * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1)
+    * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)
+  ));
+  return Math.max(1, Math.floor(ap * ap / (ap + def)) + rng(-2, 2));
+}
+
 export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null) {
   const st = p.inventory[idx];
   if (!st || st.type !== "arrow") return;
@@ -3116,7 +3127,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   if (st.count <= 0) p.inventory.splice(idx, 1);
   const _isPoison = !!st.poison;
   const _isPierce = !!st.pierce;
-  const dmg = (st.atk || 4) + rng(1, 4);
+  const _arAtk = st.atk || 3;
   const _fc = getFarcastMode(p.x, p.y, dg);
   const _isFc = _fc === "farcast";
   const _pierceMode = _isPierce || _isFc;
@@ -3151,14 +3162,15 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           animFn({ type: "projectileReturn", fromX: _retFromX, fromY: _retFromY, toX: _retToX, toY: _retToY, color: _retColor });
         }
         if (_rHit) {
-          p.hp -= dmg;
+          const _refDmg = calcProjectileDmg(p, _arAtk, 0);
+          p.hp -= _refDmg;
           if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
             p.poisoned = true;
-            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！毒を受けた！`);
+            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_refDmg}ダメージ！毒を受けた！`);
           } else if (_isPoison) {
-            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！しかし指輪が毒を消した！`);
+            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_refDmg}ダメージ！しかし指輪が毒を消した！`);
           } else {
-            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！消滅した。`);
+            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_refDmg}ダメージ！消滅した。`);
           }
         } else if (_rx !== tx || _ry !== ty) {
           const _rft = new Set();
@@ -3167,7 +3179,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         hit = true; break;
       }
       if (consumeBarrier(m, ml)) { hit = true; break; }
-      const _arDmg = clampDmgFixed(m, dmg, true);
+      const _arDmg = clampDmgFixed(m, calcProjectileDmg(p, _arAtk, m.def), true);
       m.hp -= _arDmg;
       if (_isPoison) {
         if (m.isBoss) {
