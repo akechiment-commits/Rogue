@@ -405,40 +405,39 @@ export function useItemActions({
         `${it.name}を食べた。(満腹度+${_foodAdded})${it.blessed ? "（祝福：よく味わえた）" : it.cursed ? "（呪い：まずかった）" : ""}`,
       );
       const fe = it.effect;
-      /* 大きさに応じた効果スケール（普通の=35を基準に1.0） */
+      /* 大きさによる効果 tier: 極小/一口=0, 小/小盛=1, 普通=2, 大/大盛=3, 特大/特盛=4, 超特大/爆盛=5 */
       const _fSz = it.value || 35;
-      const _fScale = _fSz / 35;
-      /* 永続ステータス用 tier: 極小/一口=0, 小盛り/小=1, 普通=2, 大盛り/大=3, 特盛り/特大=4 */
-      const _fTier = _fSz <= 10 ? 0 : _fSz <= 20 ? 1 : _fSz <= 35 ? 2 : _fSz <= 55 ? 3 : 4;
+      const _fTier = _fSz <= 10 ? 0 : _fSz <= 20 ? 1 : _fSz <= 35 ? 2 : _fSz <= 55 ? 3 : _fSz <= 80 ? 4 : 5;
+      /* heal_food: 極小≈15, 爆盛≈80 */
+      const _healRange = [[12,18],[24,32],[37,45],[50,60],[63,73],[76,86]][_fTier];
       if (fe === "heal_food") {
-        const h = rng(Math.max(1, Math.round(10 * _fScale)), Math.max(2, Math.round(20 * _fScale)));
+        const h = rng(_healRange[0], _healRange[1]);
         const ah = Math.min(h, p.maxHp - p.hp);
         p.hp += ah;
         ml.push(ah > 0 ? `体が温まりHPが${ah}回復した。` : "体が温まったが、HPは既に満タンだ。");
       } else if (fe === "power_food") {
-        const _atkUp = [0, 1, 1, 2, 3][_fTier];
-        if (_atkUp > 0) { p.atk += _atkUp; ml.push(`力が湧いてきた！攻撃力+${_atkUp}`); }
-        else ml.push("量が少なすぎて力の効果がなかった…");
+        const _atkUp = _fTier >= 5 ? 2 : 1;
+        p.atk += _atkUp; ml.push(`力が湧いてきた！攻撃力+${_atkUp}`);
       } else if (fe === "speed_food") {
         if (p.sleepTurns > 0) { p.sleepTurns = 0; ml.push("目が覚めた！"); }
-        const _spTurns = rng(Math.max(3, Math.round(15 * _fScale)), Math.max(5, Math.round(25 * _fScale)));
+        const _spTurns = 5 + _fTier * 4;
         p.hasteTurns = (p.hasteTurns || 0) + _spTurns;
         ml.push(`体が軽くなった！${_spTurns}ターン間、倍速で行動できる！`);
       } else if (fe === "def_food") {
-        const _defUp = [0, 1, 1, 2, 3][_fTier];
-        if (_defUp > 0) { p.def += _defUp; ml.push(`体が頑丈になった！防御力+${_defUp}`); }
-        else ml.push("量が少なすぎて守りの効果がなかった…");
+        const _defUp = _fTier >= 5 ? 2 : 1;
+        p.def += _defUp; ml.push(`体が頑丈になった！防御力+${_defUp}`);
       } else if (fe === "vitality_food") {
-        const _hpUp = [0, 1, 2, 3, 5][_fTier];
-        if (_hpUp > 0) { p.maxHp += _hpUp; p.hp += _hpUp; ml.push(`生命力が増した！最大HP+${_hpUp}`); }
-        else ml.push("量が少なすぎて活力の効果がなかった…");
+        const _hpUp = _fTier + 1;
+        p.maxHp += _hpUp; p.hp += _hpUp; ml.push(`生命力が増した！最大HP+${_hpUp}`);
       } else if (fe === "exp_food") {
-        const ex = rng(Math.max(1, Math.round(5 * _fScale)), Math.max(2, Math.round((10 + p.level * 3) * _fScale)));
+        const _expRange = [[3,7],[8,14],[15,24],[25,39],[40,59],[60,90]][_fTier];
+        const ex = rng(_expRange[0], _expRange[1]);
         p.exp += ex;
         ml.push(`知恵が付いた。経験値+${ex}`);
         lu(p, ml);
       } else if (fe === "luck_food") {
-        const g = rng(Math.max(1, Math.round(10 * _fScale)), Math.max(2, Math.round(30 * _fScale)));
+        const _goldRange = [[5,12],[13,24],[25,44],[45,74],[75,120],[121,200]][_fTier];
+        const g = rng(_goldRange[0], _goldRange[1]);
         p.gold += g;
         ml.push(`幸運だ！${g}ゴールドを見つけた。`);
       } else if (fe === "reveal_food") {
@@ -459,7 +458,8 @@ export function useItemActions({
           _acured.push("毒による攻撃力低下");
         }
         if (_acured.length > 0) ml.push(`状態異常が消えた！(${_acured.join("・")})`);
-        const h2 = rng(Math.max(1, Math.round(3 * _fScale)), Math.max(2, Math.round(8 * _fScale)));
+        const _antRange = [[3,6],[5,9],[7,12],[10,16],[13,20],[16,25]][_fTier];
+        const h2 = rng(_antRange[0], _antRange[1]);
         p.hp = Math.min(p.maxHp, p.hp + h2);
         ml.push(`体の調子が良くなった。HP+${h2}`);
       } else if (fe === "satiate_food") {
@@ -468,7 +468,8 @@ export function useItemActions({
         if ((p.mpCooldownTurns || 0) > 0) {
           ml.push(`魔力が湧いてきたが、MP封印中のため効果がない！(残り${p.mpCooldownTurns}ターン)`);
         } else {
-          const _mpGain = rng(Math.max(5, Math.round(20 * _fScale)), Math.max(10, Math.round(40 * _fScale)));
+          const _mpRange = [[8,14],[15,24],[25,39],[40,59],[60,84],[85,120]][_fTier];
+          const _mpGain = rng(_mpRange[0], _mpRange[1]);
           const _mpAdded = Math.min(_mpGain, (p.maxMp || 0) - (p.mp || 0));
           p.mp = Math.min(p.maxMp || 0, (p.mp || 0) + _mpGain);
           ml.push(_mpAdded > 0 ? `魔力が湧いてきた！MP+${_mpAdded}` : "魔力が湧いてきたが、MPは既に満タンだ。");
