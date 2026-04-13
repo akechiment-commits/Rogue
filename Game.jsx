@@ -769,7 +769,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           break;
         }
       } else if (it.type === "arrow" && !it.shopPrice) {
-        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30, !!it.bombArrow)) {
+        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30, !!it.bombArrow, !!it.strong)) {
           ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
           removeFloorItem(dg, it);
           go = true;
@@ -2714,7 +2714,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");
             } else if (_grIt.type === "arrow" && !_grIt.shopPrice) {
-              if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30, !!_grIt.bombArrow)) {
+              if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30, !!_grIt.bombArrow, !!_grIt.strong)) {
                 ml.push(`${_grIt.name || "矢"}(${_grIt.count}本)を拾った。`);
                 removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");

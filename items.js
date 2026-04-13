@@ -205,7 +205,7 @@ export const ITEMS = [
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"C", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
   { name:"貫きの矢", type:"arrow", atk:5, pierce:true, count:3,   rarity:"B", weight:4,  sellPrice:60,   desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
-  { name:"強矢",     type:"arrow", atk:8,              count:3,   rarity:"B", weight:4,  sellPrice:80,   desc:"攻撃力の高い強力な矢。99本まで束にできる。",                   tile:23 },
+  { name:"強矢",     type:"arrow", atk:8, strong:true,   count:3,   rarity:"B", weight:4,  sellPrice:80,   desc:"攻撃力の高い強力な矢。99本まで束にできる。",                   tile:23 },
 ];
 
 export function getBlessMultiplier(it) {
@@ -226,7 +226,7 @@ export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand
 export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
 export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
 export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierce:true,     rarity:"B", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
-export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8,                 rarity:"B", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
+export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:true,       rarity:"B", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"D", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"C", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"A", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。",                            count:1, tile:23 };
@@ -1854,10 +1854,10 @@ export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
   return true;
 }
 
-export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false) {
+export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false, strong = false) {
   let r = c;
   for (const i of inv) {
-    if (i.type === "arrow" && !i.stone && !i.magicStone && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && i.count < 99) {
+    if (i.type === "arrow" && !i.stone && !i.magicStone && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && !!i.strong === strong && i.count < 99) {
       const a = Math.min(r, 99 - i.count);
       i.count += a;
       r -= a;
@@ -1867,7 +1867,7 @@ export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30
   while (r > 0) {
     if (inv.length >= maxInv) return false;
     const n = Math.min(r, 99);
-    inv.push(bomb ? makeBombArrow(n) : pierce ? makePiercingArrow(n) : poison ? makePoisonArrow(n) : makeArrow(n));
+    inv.push(bomb ? makeBombArrow(n) : pierce ? makePiercingArrow(n) : poison ? makePoisonArrow(n) : strong ? makeStrongArrow(n) : makeArrow(n));
     r -= n;
   }
   return true;
