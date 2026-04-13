@@ -1911,12 +1911,21 @@ export function useItemActions({
         ml.push(`${template.name}に変化した！[${marker.name} 残り${marker.charges}回]`);
       } else {
         if (!blank || blank.effect !== "blank") { setMarkerMode(null); return; }
+        /* 巻物の種類ごとの消費チャージ数 */
+        const _markerCost = { duplicate: 3, expand_inv: 2 };
+        const _cost = _markerCost[template.effect] ?? 1;
+        if (marker.charges < _cost) {
+          ml.push(`インクが足りない！(必要:${_cost}回 現在:${marker.charges}回)`);
+          setMarkerMode(null);
+          setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          return;
+        }
         blank.name = template.name;
         blank.effect = template.effect;
         blank.desc = template.desc;
         if (marker.blessed) { blank.blessed = true; blank.cursed = false; }
         else if (marker.cursed) { blank.cursed = true; blank.blessed = false; }
-        marker.charges--;
+        marker.charges -= _cost;
         const _mBcLabel = marker.blessed ? "【祝】" : marker.cursed ? "【呪】" : "";
         ml.push(`${template.name}${_mBcLabel}に変化した！[${marker.name} 残り${marker.charges}回]`);
       }
