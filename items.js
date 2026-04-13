@@ -205,6 +205,7 @@ export const ITEMS = [
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"C", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
   { name:"貫きの矢", type:"arrow", atk:5, pierce:true, count:3,   rarity:"B", weight:4,  sellPrice:60,   desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
+  { name:"強矢",     type:"arrow", atk:8,              count:3,   rarity:"B", weight:4,  sellPrice:80,   desc:"攻撃力の高い強力な矢。99本まで束にできる。",                   tile:23 },
 ];
 
 export function getBlessMultiplier(it) {
@@ -222,9 +223,10 @@ export const ALLBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:11,
 export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:8,  ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           desc:"三種の守護防具が融合した究極の鎧。刃反射・みかわし・杖反射の三重防御。",       tile:21 };
 export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"炎・雷・氷の三杖を合成して生まれた究極の杖。振ると100ダメージ。祝福で200ダメージ。呪いなら100回復。", tile:24 };
 
-export const ARROW_T        = { name:"矢",       type:"arrow", atk:3,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
-export const POISON_ARROW_T = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
-export const PIERCING_ARROW_T={ name:"貫きの矢", type:"arrow", atk:5, pierce:true,     rarity:"B", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
+export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
+export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
+export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierce:true,     rarity:"B", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
+export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8,                 rarity:"B", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"D", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"C", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"A", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。",                            count:1, tile:23 };
@@ -1817,6 +1819,10 @@ export function makePiercingArrow(c = 1) {
   return { ...PIERCING_ARROW_T, id:uid(), count:Math.min(99, c) };
 }
 
+export function makeStrongArrow(c = 1) {
+  return { ...STRONG_ARROW_T, id:uid(), count:Math.min(99, c) };
+}
+
 export function makeStone(c = 1) {
   return { ...STONE_T, id:uid(), count:Math.min(99, c) };
 }
@@ -2731,7 +2737,8 @@ export function monsterDrop(m, dg, ml, p = null) {
   }
   /* Fixed drops for item-using enemy subtypes */
   if (m.subtype === "archer") {
-    drops.push(makeArrow(rng(3, 8)));
+    const _aLv = m.monLevel || 1;
+    drops.push(_aLv >= 3 ? makePiercingArrow(rng(2, 5)) : _aLv >= 2 ? makeStrongArrow(rng(3, 6)) : makeArrow(rng(3, 8)));
   }
   if (m.subtype === "stonethrow") {
     const lvl = m.monLevel || 1;
