@@ -1000,70 +1000,87 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           ✕
         </button>
       </div>
-      {mode === "pay" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
-            店主：「お代は{gs.dungeon.shop.unpaidTotal}Gです。」
-          </div>
-          {[
-            {
-              label: `支払う (${gs.dungeon.shop.unpaidTotal}G)`,
-              fn: () => {
-                if (sr.current) {
-                  const { player: p2, dungeon: dg2 } = sr.current;
-                  if (p2.gold >= dg2.shop.unpaidTotal) {
-                    p2.gold -= dg2.shop.unpaidTotal;
-                    dg2.shop.unpaidTotal = 0;
-                    dg2.shopTheft = false;
-                    const _clearShopPrice = (it2) => {
-                      if (it2.shopPrice) delete it2.shopPrice;
-                      if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice);
-                    };
-                    p2.inventory.forEach(_clearShopPrice);
-                    const sk5 = dg2.monsters.find(
-                      (m) => m.type === "shopkeeper",
+      {mode === "pay" && (() => {
+        const _pp = gs.player;
+        /* 隣接している店主からどの店か特定する（ショッピングモール対応） */
+        const _adjSk = gs.dungeon?.monsters?.find(m =>
+          m.type === "shopkeeper" && m.state !== "hostile" &&
+          Math.abs(m.x - _pp.x) <= 1 && Math.abs(m.y - _pp.y) <= 1
+        );
+        const _payShop = (_adjSk && getShops(gs.dungeon).find(s => s.shopkeeperId === _adjSk.id))
+          || getShops(gs.dungeon).find(s => s.unpaidTotal > 0)
+          || gs.dungeon.shop;
+        if (!_payShop) return null;
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
+              店主：「お代は{_payShop.unpaidTotal}Gです。」
+            </div>
+            {[
+              {
+                label: `支払う (${_payShop.unpaidTotal}G)`,
+                fn: () => {
+                  if (sr.current) {
+                    const { player: p2, dungeon: dg2 } = sr.current;
+                    const _adjSk2 = dg2.monsters?.find(m =>
+                      m.type === "shopkeeper" && m.state !== "hostile" &&
+                      Math.abs(m.x - p2.x) <= 1 && Math.abs(m.y - p2.y) <= 1
                     );
-                    if (sk5) {
-                      sk5.state = "friendly";
-                      sk5.x = sk5.homePos.x;
-                      sk5.y = sk5.homePos.y;
+                    const _curShop2 = (_adjSk2 && getShops(dg2).find(s => s.shopkeeperId === _adjSk2.id))
+                      || getShops(dg2).find(s => s.unpaidTotal > 0)
+                      || dg2.shop;
+                    if (_curShop2 && p2.gold >= _curShop2.unpaidTotal) {
+                      p2.gold -= _curShop2.unpaidTotal;
+                      _curShop2.unpaidTotal = 0;
+                      /* この店のアイテムのみ shopPrice を解除 */
+                      const _clearShopPrice = (it2) => {
+                        if (it2.shopPrice && (!it2._shopId || it2._shopId === _curShop2.id)) {
+                          delete it2.shopPrice; delete it2._shopId;
+                        }
+                        if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice);
+                      };
+                      p2.inventory.forEach(_clearShopPrice);
+                      /* 全店舗が清算済みなら盗難フラグを解除 */
+                      if (getShops(dg2).every(s => s.unpaidTotal === 0)) dg2.shopTheft = false;
+                      /* この店の店主を元の位置に戻す */
+                      const _sk5 = (_adjSk2) || dg2.monsters.find(m => m.id === _curShop2.shopkeeperId);
+                      if (_sk5) {
+                        _sk5.state = "friendly";
+                        _sk5.x = _sk5.homePos.x;
+                        _sk5.y = _sk5.homePos.y;
+                      }
+                      setMsgs((prev) => [...prev.slice(-80), "代金を支払った。ありがとうございます！"]);
+                      sr.current = { ...sr.current };
+                      setGs({ ...sr.current });
+                    } else if (_curShop2) {
+                      setMsgs((prev) => [...prev.slice(-80), "お金が足りない！"]);
                     }
-                    setMsgs((prev) => [
-                      ...prev.slice(-80),
-                      "代金を支払った。ありがとうございます！",
-                    ]);
-                    sr.current = { ...sr.current };
-                    setGs({ ...sr.current });
-                  } else
-                    setMsgs((prev) => [
-                      ...prev.slice(-80),
-                      "お金が足りない！",
-                    ]);
-                }
-                setMode(null);
+                  }
+                  setMode(null);
+                },
               },
-            },
-            { label: "やめる", fn: () => setMode(null) },
-          ].map((item, mi) => (
-            <button
-              key={mi}
-              onClick={item.fn}
-              style={{
-                padding: "6px 10px",
-                background: menuSel === mi ? "#4a2a00" : "#2a1a00",
-                border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`,
-                borderRadius: 4,
-                color: menuSel === mi ? "#ffa" : "#fa8",
-                fontSize: 14,
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
+              { label: "やめる", fn: () => setMode(null) },
+            ].map((item, mi) => (
+              <button
+                key={mi}
+                onClick={item.fn}
+                style={{
+                  padding: "6px 10px",
+                  background: menuSel === mi ? "#4a2a00" : "#2a1a00",
+                  border: `1px solid ${menuSel === mi ? "#fa8" : "#6a4a20"}`,
+                  borderRadius: 4,
+                  color: menuSel === mi ? "#ffa" : "#fa8",
+                  fontSize: 14,
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
       {mode === "browse" && (() => {
         const _p = gs.player;
         /* 複数店舗対応：プレイヤーが今いる店を探す */

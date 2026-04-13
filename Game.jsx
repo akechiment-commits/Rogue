@@ -2854,18 +2854,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const mon = monsterAt(dg, nx, ny);
     if (mon) {
       if (mon.type === "shopkeeper" && mon.state !== "hostile") {
-        if (sr.current?.dungeon?.shop) {
-          const dg6 = sr.current.dungeon;
+        const dg6 = sr.current.dungeon;
+        const _talkShop = getShops(dg6).find(s => s.shopkeeperId === mon.id);
+        if (_talkShop) {
           const fis2 = dg6.items.filter(
-            (i) => !i.shopPrice && i.x >= dg6.shop.room.x && i.x < dg6.shop.room.x + dg6.shop.room.w &&
-              i.y >= dg6.shop.room.y && i.y < dg6.shop.room.y + dg6.shop.room.h,
+            (i) => !i.shopPrice && i.x >= _talkShop.room.x && i.x < _talkShop.room.x + _talkShop.room.w &&
+              i.y >= _talkShop.room.y && i.y < _talkShop.room.y + _talkShop.room.h,
           );
           if (fis2.length > 0) {
             setShopMode("sell"); setShopMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), "店主：「買い取りましょうか？」"]);
-          } else if (dg6.shop.unpaidTotal > 0) {
+          } else if (_talkShop.unpaidTotal > 0) {
             setShopMode("pay"); setShopMenuSel(0);
-            setMsgs((prev) => [...prev.slice(-80), `店主：「お代は${dg6.shop.unpaidTotal}Gです。」`]);
+            setMsgs((prev) => [...prev.slice(-80), `店主：「お代は${_talkShop.unpaidTotal}Gです。」`]);
           } else {
             setShopMode("browse"); setShopMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), "店主：「いらっしゃいませ！」"]);
