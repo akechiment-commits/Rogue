@@ -1069,6 +1069,28 @@ function addFloatingIslands(map, rooms, depth, items, bigboxes, traps, su, sd) {
     const inIslandArea = (x, y) =>
       x >= cx - 1 && x <= cx + iw && y >= cy - 1 && y <= cy + ih;
     if (inIslandArea(su.x, su.y) || inIslandArea(sd.x, sd.y)) continue;
+    /* 通路チェック：リング範囲の壁外に通路床タイルがあればキャンセル */
+    let _corridorHit = false;
+    for (let _ry = cy - 1; _ry <= cy + ih && !_corridorHit; _ry++) {
+      if (map[_ry]?.[r.x - 1] === T.FLOOR) _corridorHit = true;
+      if (map[_ry]?.[r.x + r.w] === T.FLOOR) _corridorHit = true;
+    }
+    for (let _rx = cx - 1; _rx <= cx + iw && !_corridorHit; _rx++) {
+      if (map[r.y - 1]?.[_rx] === T.FLOOR) _corridorHit = true;
+      if (map[r.y + r.h]?.[_rx] === T.FLOOR) _corridorHit = true;
+    }
+    if (_corridorHit) continue;
+    /* リングエリアに既存アイテム/罠/大箱があればキャンセル */
+    let _ringOcc = false;
+    outer: for (let _wy = cy - 1; _wy <= cy + ih; _wy++) {
+      for (let _wx = cx - 1; _wx <= cx + iw; _wx++) {
+        if (_wx >= cx && _wx < cx + iw && _wy >= cy && _wy < cy + ih) continue;
+        if (items.some(i => i.x === _wx && i.y === _wy) ||
+            traps.some(t => t.x === _wx && t.y === _wy) ||
+            bigboxes.some(b => b.x === _wx && b.y === _wy)) { _ringOcc = true; break outer; }
+      }
+    }
+    if (_ringOcc) continue;
     /* 水リングを生成 */
     for (let wy = cy - 1; wy <= cy + ih; wy++) {
       for (let wx = cx - 1; wx <= cx + iw; wx++) {
@@ -1615,8 +1637,6 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 水地形を生成（一部部屋に水溜まり）— 店の部屋は除外 */
   const nonShopRooms = shopRoomIdx >= 0 ? rooms.filter((_, i) => i !== shopRoomIdx) : rooms;
   addWaterPools(map, nonShopRooms, su, sd);
-  /* 浮島を生成 — 店の部屋は除外 */
-  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd);
   /* waterOnlyモンスター（わてり等）を水タイルに配置 */
   {
     const _waterTiles = [];
@@ -1670,6 +1690,8 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       }
     }
   }
+  /* 浮島を生成 — 後処理の後に配置することで水リングのギャップを防ぐ */
+  addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd);
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
   if (depth === 1) {
