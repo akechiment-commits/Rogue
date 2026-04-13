@@ -200,7 +200,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
   ml.push(msgFn(dmg));
-  if (!skipThorn && pl.armor?.ability === "thorn" && dmg > 0) {
+  if (!skipThorn && hasAbility(pl.armor, "thorn") && dmg > 0) {
     const td = Math.max(1, Math.floor(dmg / 3));
     m.hp -= td;
     ml.push(`反射で${m.name}に${td}ダメージ！`);
