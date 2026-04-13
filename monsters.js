@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim } from "./animEvents.js";
 
@@ -1391,8 +1391,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m._summonCooldown = (m._summonCooldown || 0) - 1;
     if (m._summonCooldown <= 0) {
       m._summonCooldown = 5;
-      const _bDirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-      const _shuffled = _bDirs.sort(() => Math.random() - 0.5);
+      const _bDirs = shuffle([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
+      const _shuffled = _bDirs;
       let _summoned = false;
       for (const [_sdx, _sdy] of _shuffled) {
         const _sx = m.x + _sdx, _sy = m.y + _sdy;
@@ -1415,7 +1415,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m._summonCooldown = (m._summonCooldown || 0) - 1;
     if (m._summonCooldown <= 0) {
       m._summonCooldown = 3;
-      const _bDirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].sort(() => Math.random() - 0.5);
+      const _bDirs = shuffle([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
       const _nearMons = dg.monsters.filter(mn => Math.abs(mn.x - m.x) <= 3 && Math.abs(mn.y - m.y) <= 3 && mn !== m);
       if (_nearMons.length < 8) {
         let _summoned = 0;
@@ -1481,7 +1481,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m._summonCooldown = (m._summonCooldown || 0) - 1;
     if (m._summonCooldown <= 0) {
       m._summonCooldown = 4;
-      const _agDirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].sort(() => Math.random() - 0.5);
+      const _agDirs = shuffle([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
       let _summoned = 0;
       for (const [_sdx, _sdy] of _agDirs) {
         if (_summoned >= 2) break;
@@ -2963,7 +2963,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     /* BFS 経路なし（壁で完全遮断）：_forceAlt 時のみランダム脱出を試みる */
     if (_forceAlt) {
-      const _fd4 = [[0,-1],[0,1],[-1,0],[1,0]].sort(() => Math.random() - 0.5);
+      const _fd4 = shuffle([[0,-1],[0,1],[-1,0],[1,0]]);
       for (const [_fdx, _fdy] of _fd4) {
         const _fnx = m.x + _fdx, _fny = m.y + _fdy;
         if (m.waterOnly) {
@@ -3055,7 +3055,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* BFSで1歩進む（壁のみ障害物、モンスターは無視して経路探索） */
     /* ── 壁掘り：未覚醒時に30%でランダムな隣接壁を掘る（掘ったターンは移動しない） ── */
     if (m.wallDigger && Math.random() < 0.3) {
-      const _rdDirs = [[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]].sort(() => Math.random() - 0.5);
+      const _rdDirs = shuffle([[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]]);
       for (const [_rddx, _rddy] of _rdDirs) {
         const _rdnx = m.x + _rddx, _rdny = m.y + _rddy;
         if (_rdnx <= 0 || _rdnx >= MW - 1 || _rdny <= 0 || _rdny >= MH - 1) continue;
@@ -3078,7 +3078,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
         /* 次マスが別モンスターに占有 → ランダムな隣接空きタイルへ横ずれ */
         m.patrolTarget = null;
-        const _tryDirs4 = [[0,1],[0,-1],[1,0],[-1,0]].sort(() => Math.random() - 0.5);
+        const _tryDirs4 = shuffle([[0,1],[0,-1],[1,0],[-1,0]]);
         let _sidestepped = false;
         for (const [_adx, _ady] of _tryDirs4) {
           const _anx = m.x + _adx, _any = m.y + _ady;
@@ -3100,7 +3100,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     /* ===== パトロール詰まり脱出（_forceAlt 時のみ）===== */
     if (_forceAlt) {
-      const _fd4 = [[0,-1],[0,1],[-1,0],[1,0]].sort(() => Math.random() - 0.5);
+      const _fd4 = shuffle([[0,-1],[0,1],[-1,0],[1,0]]);
       for (const [_fdx, _fdy] of _fd4) {
         const _fnx = m.x + _fdx, _fny = m.y + _fdy;
         if (!isWalkable(map, _fnx, _fny)) continue;

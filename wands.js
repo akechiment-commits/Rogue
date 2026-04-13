@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
@@ -1017,7 +1017,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 通常→1つ祝福、祝福→2つ祝福
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _count = _bwBlessed ? 2 : 1;
-          const _pool = [..._inv].sort(() => Math.random() - 0.5).slice(0, _count);
+          const _pool = shuffle([..._inv]).slice(0, _count);
           for (const _t of _pool) { _t.blessed = true; _t.cursed = false; _t.bcKnown = true; ml.push(`${_t.name}が祝福された！【祝】`); }
           if (_bwBlessed) ml.push("（祝福の杖の力で2つ祝福された！）");
         }
@@ -1091,7 +1091,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 通常→1つ呪う、祝福→2つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _count = _cwBlessed ? 2 : 1;
-          const _pool = [..._inv].sort(() => Math.random() - 0.5).slice(0, _count);
+          const _pool = shuffle([..._inv]).slice(0, _count);
           for (const _t of _pool) { _t.cursed = true; _t.blessed = false; _t.bcKnown = true; ml.push(`${_t.name}が呪われた！【呪】`); }
           if (_cwBlessed) ml.push("（祝福された呪いの杖の力で2つ呪われた！）");
         }

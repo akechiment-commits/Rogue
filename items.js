@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle } from './utils.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 
@@ -69,7 +69,7 @@ export function getIdentKey(it) {
 }
 
 export function generateBbFakeNames() {
-  const shuffled = [...BB_FAKE_NAMES].sort(() => Math.random() - 0.5);
+  const shuffled = shuffle([...BB_FAKE_NAMES]);
   const bbFakeNames = {};
   BB_TYPES.forEach((bt, i) => { bbFakeNames[bt.kind] = shuffled[i % shuffled.length]; });
   return bbFakeNames;
@@ -78,7 +78,7 @@ export function generateBbFakeNames() {
 export function generateFakeNames(items, pots, spellbooks = []) {
   const fakeNames = {};
   const assign = (keys, pool) => {
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    const shuffled = shuffle([...pool]);
     keys.forEach((k, i) => { fakeNames[k] = shuffled[i % shuffled.length]; });
   };
   const uniq = (arr) => [...new Set(arr)];

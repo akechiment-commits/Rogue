@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
 import { MONS, MON_LEVELS, BOSSES, makeMonster, pickMonsterDef } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
@@ -271,7 +271,7 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
   /* 20% の確率で宝物庫（金貨びっしり）になる */
   if (Math.random() < 0.20) {
     hr.isTreasureVault = true;
-    const shuffled = [...floorTiles].sort(() => Math.random() - 0.5);
+    const shuffled = shuffle([...floorTiles]);
     const goldCount = Math.min(shuffled.length, rng(5, 10));
     let gPlaced = 0;
     for (const [ix, iy] of shuffled) {

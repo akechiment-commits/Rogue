@@ -29,6 +29,14 @@ export const TI = {
 export const rng = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
 export const pick = (arr) => arr[rng(0, arr.length - 1)];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+/** Fisher-Yates シャッフル（in-place）。配列自体を返す */
+export function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 export const removeFloorItem = (dg, item) => { dg.items = dg.items.filter(i => i !== item); };
 export const monsterAt = (dg, x, y) => dg.monsters.find(m => m.x === x && m.y === y);
 export const itemAt = (dg, x, y) => dg.items.find(i => i.x === x && i.y === y);
