@@ -428,6 +428,9 @@ export const POTS = [
   { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
   { name:"強欲な壺",           type:"pot", potEffect:"greed",    capacity:4, rarity:"B", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
   { name:"回復の壺",           type:"pot", potEffect:"heal_pot", capacity:3, rarity:"B", weight:4,  sellPrice:2000, desc:"アイテムを入れると消滅するが、プレイヤーのHPが100回復する。容量分だけ使える。", tile:32 },
+  { name:"醤油の壺",           type:"pot", potEffect:"soy",      capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れると醤油味になる。食べると経験値1.3倍(100ターン)。", tile:32 },
+  { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
+  { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -442,6 +445,9 @@ export const POT_FOOD_PREFIX = {
   butter:  "バター風味の",
   yogurt:  "ヨーグルト漬けの",
   coconut: "ココナッツ風味の",
+  soy:     "醤油味の",
+  garlic:  "にんにく風味の",
+  lemon:   "レモン風味の",
 };
 
 export const POT_FOOD_DESCS = {
@@ -456,6 +462,9 @@ export const POT_FOOD_DESCS = {
   butter:  "バターのコクが加わった。",
   yogurt:  "さわやかな酸味がある。",
   coconut: "南国の甘い香りがする。",
+  soy:     "醤油の深い風味がする。",
+  garlic:  "にんにくの香りが漂う。",
+  lemon:   "爽やかなレモンの香り。",
 };
 
 export function applyPotEffect(pot, item, ml, nameFn = null) {
