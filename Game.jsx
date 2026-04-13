@@ -705,6 +705,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (pendingActRef.current) {
         const _pa = pendingActRef.current;
         pendingActRef.current = null;
+        /* バッファ済みアクション実行前にrevealModeを強制クリア（ビッグルーム初回訪問時などで
+           endTurn→setRevealModeが先に呼ばれ、revealModeRefがactをブロックするのを防ぐ） */
+        if (revealModeRef.current) {
+          revealModeRef.current = null;
+          setRevealMode(null);
+        }
         actRef.current?.(_pa.type, _pa.dx, _pa.dy);
       }
     }
