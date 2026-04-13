@@ -430,13 +430,14 @@ export function useItemActions({
         const _hpUp = _fTier + 1;
         p.maxHp += _hpUp; p.hp += _hpUp; ml.push(`生命力が増した！最大HP+${_hpUp}`);
       } else if (fe === "exp_food") {
-        const _expRange = [[3,7],[8,14],[15,24],[25,39],[40,59],[60,90]][_fTier];
-        const ex = rng(_expRange[0], _expRange[1]);
+        /* 次のレベルまでに必要な経験値の何割か: 極小10%〜爆盛60% */
+        const _expPct = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6][_fTier];
+        const ex = Math.max(1, Math.floor(p.nextExp * _expPct));
         p.exp += ex;
         ml.push(`知恵が付いた。経験値+${ex}`);
         lu(p, ml);
       } else if (fe === "luck_food") {
-        const _goldRange = [[5,12],[13,24],[25,44],[45,74],[75,120],[121,200]][_fTier];
+        const _goldRange = [[30,70],[80,150],[180,320],[350,550],[600,900],[850,1200]][_fTier];
         const g = rng(_goldRange[0], _goldRange[1]);
         p.gold += g;
         ml.push(`幸運だ！${g}ゴールドを見つけた。`);
@@ -468,7 +469,7 @@ export function useItemActions({
         if ((p.mpCooldownTurns || 0) > 0) {
           ml.push(`魔力が湧いてきたが、MP封印中のため効果がない！(残り${p.mpCooldownTurns}ターン)`);
         } else {
-          const _mpRange = [[8,14],[15,24],[25,39],[40,59],[60,84],[85,120]][_fTier];
+          const _mpRange = [[2,6],[5,9],[8,13],[11,16],[15,20],[21,28]][_fTier];
           const _mpGain = rng(_mpRange[0], _mpRange[1]);
           const _mpAdded = Math.min(_mpGain, (p.maxMp || 0) - (p.mp || 0));
           p.mp = Math.min(p.maxMp || 0, (p.mp || 0) + _mpGain);
