@@ -705,12 +705,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (pendingActRef.current) {
         const _pa = pendingActRef.current;
         pendingActRef.current = null;
-        /* バッファ済みアクション実行前にrevealModeを強制クリア（ビッグルーム初回訪問時などで
-           endTurn→setRevealModeが先に呼ばれ、revealModeRefがactをブロックするのを防ぐ） */
-        if (revealModeRef.current) {
-          revealModeRef.current = null;
-          setRevealMode(null);
-        }
         actRef.current?.(_pa.type, _pa.dx, _pa.dy);
       }
     }
@@ -2097,8 +2091,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     (type, dx = 0, dy = 0) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) {
-        /* 移動以外のアクション（階段・拾い等）はアニメーション終了後に実行するためバッファ */
-        if (type !== "move") pendingActRef.current = { type, dx, dy };
+        /* 移動以外・interact以外のアクション（wait・罠探し等）はアニメ終了後に実行するためバッファ。
+           interactは階段降下後のアニメ中にバッファすると昇り階段を踏んで逆行する問題があるため除外。 */
+        if (type !== "move" && type !== "interact") pendingActRef.current = { type, dx, dy };
         return;
       }
       if (revealModeRef.current) return;
