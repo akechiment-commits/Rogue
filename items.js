@@ -82,7 +82,7 @@ export function generateFakeNames(items, pots, spellbooks = []) {
     keys.forEach((k, i) => { fakeNames[k] = shuffled[i % shuffled.length]; });
   };
   const uniq = (arr) => [...new Set(arr)];
-  assign(uniq(items.filter(i => i.type === 'potion' && i.effect !== 'water').map(i => `p:${i.effect}`)), _FAKE.potion);
+  assign(uniq(items.filter(i => i.type === 'potion' && i.effect !== 'water').map(i => `p:${i.effect}`)), _FAKE.potion.filter(n => n !== "透明な薬"));
   fakeNames['p:water'] = "透明な薬"; // 水は常に透明な薬
   assign(uniq(items.filter(i => i.type === 'scroll' && i.effect !== 'blank').map(i => `s:${i.effect}`)), _FAKE.scroll);
   assign(uniq(items.filter(i => i.type === 'wand').map(i => `w:${i.effect}`)), _FAKE.wand);
