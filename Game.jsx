@@ -2560,9 +2560,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               ml.push("呪われた魔方陣が行く手を阻んでいる！");
             } else {
             const _allShopsM = getShops(dg);
+            const _inShopRoomM = (x, y) => _allShopsM.some(s => s.room && x >= s.room.x && x < s.room.x + s.room.w && y >= s.room.y && y < s.room.y + s.room.h);
             const _wasInShopOf = _allShopsM.filter(s => s.unpaidTotal > 0 && s.room &&
               p.x >= s.room.x && p.x < s.room.x + s.room.w &&
               p.y >= s.room.y && p.y < s.room.y + s.room.h);
+            const _wasInAnyShop = _inShopRoomM(p.x, p.y);
             p.x = nx;
             p.y = ny;
             _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
@@ -2575,6 +2577,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 break;
               }
             }
+            const _isNowInShop = _inShopRoomM(p.x, p.y);
+            if (!_wasInAnyShop && _isNowInShop) ml.push("お店に入った。");
+            else if (_wasInAnyShop && !_isNowInShop) ml.push("お店をあとにした。");
             acted = true;
             const tr = checkTrap(p, dg, ml);
             if (tr === "pitfall") {
@@ -2972,9 +2977,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         /* 廊下ダッシュ中に部屋の入口手前で停止（ただし最初の1歩は入れる） */
         if (steps > 0 && !startInRoom && !_dRoomSet.has(_dk(p.x, p.y)) && _dRoomSet.has(_dk(nx, ny))) break;
         const _allShopsD = getShops(dg);
+        const _inShopRoomD = (x, y) => _allShopsD.some(s => s.room && x >= s.room.x && x < s.room.x + s.room.w && y >= s.room.y && y < s.room.y + s.room.h);
         const _wasInShopDOf = _allShopsD.filter(s => s.unpaidTotal > 0 && s.room &&
           p.x >= s.room.x && p.x < s.room.x + s.room.w &&
           p.y >= s.room.y && p.y < s.room.y + s.room.h);
+        const _wasInAnyShopD = _inShopRoomD(p.x, p.y);
         p.x = nx;
         p.y = ny;
         for (const _eshD of _wasInShopDOf) {
@@ -2986,6 +2993,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             break;
           }
         }
+        const _isNowInShopD = _inShopRoomD(p.x, p.y);
+        if (!_wasInAnyShopD && _isNowInShopD) ml.push("お店に入った。");
+        else if (_wasInAnyShopD && !_isNowInShopD) ml.push("お店をあとにした。");
         steps++;
         const tr = checkTrap(p, dg, ml, true);
         if (tr === "pitfall") {
