@@ -18,7 +18,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
-  applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode,
+  applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
@@ -3670,8 +3670,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
           } else {
             /* 武器・防具・矢・その他：物理ダメージ＋矢の特殊効果 */
-            const _scBase = item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : (item.type === "arrow" ? (item.atk || 4) : 3);
-            const _scDmg = _scBase + rng(0, 3);
+            const _scBaseAtk = item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : (item.type === "arrow" ? (item.atk || 3) : 3);
+            const _scUseCalc = item.type === "arrow" || item.type === "weapon";
             if (item.type === "arrow" && item.bombArrow) {
               /* 爆弾矢（インベントリから入れた）：各生き物の場所でそれぞれ爆発＋箱も破壊 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
@@ -3689,7 +3689,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               _bbExploded = true;
             } else {
               for (const m of [..._scMons]) {
-                const _itd = clampDmgFixed(m, _scDmg, true);
+                const _scRawDmg = _scUseCalc ? calcProjectileDmg(p, _scBaseAtk, m.def) : _scBaseAtk + rng(0, 3);
+                const _itd = clampDmgFixed(m, _scRawDmg, true);
                 m.hp -= _itd;
                 let _msg = `${_idn}が${m.name}に命中！${_itd}ダメージ！`;
                 if (item.type === "arrow" && item.poison) {
@@ -3706,8 +3707,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
               if (_scPInRoom) {
                 p.deathCause = `${item.name}が当たって`;
-                p.hp -= _scDmg;
-                let _pmsg = `${_idn}がプレイヤーに命中！${_scDmg}ダメージ！`;
+                const _scPDmg = _scUseCalc ? calcProjectileDmg(p, _scBaseAtk, 0) : _scBaseAtk + rng(0, 3);
+                p.hp -= _scPDmg;
+                let _pmsg = `${_idn}がプレイヤーに命中！${_scPDmg}ダメージ！`;
                 if (item.type === "arrow" && item.poison && !hasRingEffect(p, "antidote_ring")) { p.poisoned = true; _pmsg += "毒を受けた！"; }
                 ml.push(_pmsg);
               }
