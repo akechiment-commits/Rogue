@@ -1241,7 +1241,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (_eqPcM) {
         m.turnAccum += _eqPcM.cursed ? 0.5 : (_eqPcM.blessed ? 2 : 1);
       } else {
-        m.turnAccum += m.speed;
+        /* 封印中は倍速・鈍足を無視して等速(1)で行動する */
+        m.turnAccum += m.sealed ? 1 : m.speed;
       }
       m.turnAttacks = 0;
       let _actionCount = 0;

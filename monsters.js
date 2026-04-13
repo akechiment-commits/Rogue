@@ -2238,7 +2238,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── runner（コロポックル等）：常にプレイヤーから逃げる。攻撃しない ── */
-    if (m.subtype === "runner") {
+    /* 封印中は逃げずに通常AI（接近・攻撃）で動く */
+    if (m.subtype === "runner" && !m.sealed) {
       if (!_attackOnly) {
         const _rcands = [];
         for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
