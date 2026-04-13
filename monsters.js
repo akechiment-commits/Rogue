@@ -399,10 +399,10 @@ export const MONS = [
       { name: "覇インプ",           hp: 65,  atk: 25, def: 11, exp: 70  },
     ],
   },
-  { name: "スケルトン",   hp: 24,  atk: 12, def: 5,  exp: 22,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 5, max: 8 } },
+  { name: "スケルトン",   hp: 24,  atk: 16, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 5, max: 8 } },
     levels: [
-      { name: "強スケルトン",       hp: 39,  atk: 17, def: 9,  exp: 35  },
-      { name: "アンデッドナイト",   hp: 61,  atk: 21, def: 13, exp: 55  },
+      { name: "強スケルトン",       hp: 39,  atk: 22, def: 9,  exp: 40  },
+      { name: "アンデッドナイト",   hp: 61,  atk: 27, def: 13, exp: 62  },
     ],
   },
   { name: "コロポックル", hp: 11,  atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 70, kind: "beast",    baseKind: "runner",        monLevel: 1, minFloor: 5,  maxFloor: 30, subtype: "runner", dungeonFloors: { beginner: { min: 5, max: 8 } },
