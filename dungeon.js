@@ -849,6 +849,46 @@ function genCorridorFloor(depth, dungeonType = null) {
   map[sdY][sdX] = T.SD;
   const su = { x: suX, y: suY }, sd = { x: sdX, y: sdY };
 
+  /* ===== 9x9スペースを階段周辺＋行き止まりに配置 ===== */
+  /* 行き止まりノード検出: 隣接ノードへの通路が1方向のみ */
+  const deadEnds = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = nodeX(c), y = nodeY(r);
+      let exits = 0;
+      for (const [dc, dr] of DIRS4) {
+        const nc = c + dc, nr = r + dr;
+        if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS) {
+          const nx = nodeX(nc), ny = nodeY(nr);
+          /* 2ノード間に廊下が通っているかチェック */
+          const mx = (x + nx) >> 1, my = (y + ny) >> 1;
+          if (map[my][mx] === T.FLOOR || map[my][mx] === T.SU || map[my][mx] === T.SD) exits++;
+        }
+      }
+      if (exits === 1 && !(x === suX && y === suY) && !(x === sdX && y === sdY)) {
+        deadEnds.push([x, y]);
+      }
+    }
+  }
+  /* スペース候補: 階段2箇所 + 行き止まりから最大4箇所 */
+  const spaceCenters = [[suX, suY], [sdX, sdY]];
+  shuffle(deadEnds);
+  for (let i = 0; i < Math.min(4, deadEnds.length); i++) spaceCenters.push(deadEnds[i]);
+
+  /* 各中心に4x4(半径4)のスペースを掘る（壁の範囲内） */
+  const spaceTiles = new Set();
+  for (const [cx, cy] of spaceCenters) {
+    for (let dy = -4; dy <= 4; dy++) {
+      for (let dx = -4; dx <= 4; dx++) {
+        const sx = cx + dx, sy = cy + dy;
+        if (sx >= 1 && sx < MW - 1 && sy >= 1 && sy < MH - 1) {
+          if (map[sy][sx] === T.WALL) map[sy][sx] = T.FLOOR;
+          spaceTiles.add(`${sx},${sy}`);
+        }
+      }
+    }
+  }
+
   const rooms = [
     { x: suX-1, y: suY-1, w: 3, h: 3, cx: suX, cy: suY },
     { x: sdX-1, y: sdY-1, w: 3, h: 3, cx: sdX, cy: sdY },
@@ -863,9 +903,12 @@ function genCorridorFloor(depth, dungeonType = null) {
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
   const rndCor = () => { for(let a=0;a<60;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y))return[x,y];}return null; };
   const rndCorWide = () => { for(let a=0;a<120;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y)&&!isNarrowPassage(map,x,y))return[x,y];}return null; };
+  /* 罠はスペース内にのみ配置 */
+  const spaceTileList = corTiles.filter(([x, y]) => spaceTiles.has(`${x},${y}`));
+  const rndSpace = () => { for(let a=0;a<120;a++){const[x,y]=pick(spaceTileList);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y))return[x,y];}return null; };
   for(let i=0;i<rng(6,10)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
   for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it={...pickWeighted(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
-  for(let i=0;i<rng(5,9)+depth;i++){const p=rndCorWide();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
+  for(let i=0;i<rng(5,9)+depth;i++){const p=rndSpace();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,3);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "corridorFloor" };
