@@ -10,7 +10,7 @@ import {
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
-  hasRingEffect, cookFoodMeta, rotFood,
+  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, getDiscoveries } from "./DiscoveryTracker.js";
@@ -2131,7 +2131,7 @@ export function useItemActions({
               const _msSureHit = (p.sureHitTurns || 0) > 0;
               const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
               const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (!_msSureHit && !(_msDodgePcMode === "sure") && Math.random() >= 0.90));
-              const _msDmg = (_arItem.atk || 5) + rng(0, 3);
+              const _msDmg = _msMiss ? 0 : calcProjectileDmg(p, _arItem.atk || 5, _msTarget.def);
               if (_msMiss) {
                 if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
@@ -2156,7 +2156,7 @@ export function useItemActions({
             }
             const _stM = monsterAt(dg, _stLx, _stLy);
             const _stSureHit = (p.sureHitTurns || 0) > 0;
-            const _stDmg = (_arItem.atk || 3) + rng(0, 3);
+            const _stAtk = _arItem.atk || 3;
             ml.push(`${_stName}を投げた！`);
             if (_stM) {
               /* ── reflector：石をプレイヤーへ跳ね返す ── */
@@ -2178,8 +2178,9 @@ export function useItemActions({
                   pushAnim({ type: "projectileReturn", fromX: _stLx, fromY: _stLy, toX: _stRToX, toY: _stRToY, color: "#aaaaaa" });
                 }
                 if (_stRHit) {
-                  p.hp -= _stDmg;
-                  ml.push(`跳ね返された${_stName}がプレイヤーに命中！${_stDmg}ダメージ！消滅した。`);
+                  const _stRefDmg = calcProjectileDmg(p, _stAtk, 0);
+                  p.hp -= _stRefDmg;
+                  ml.push(`跳ね返された${_stName}がプレイヤーに命中！${_stRefDmg}ダメージ！消滅した。`);
                 } else if (_stRx !== _stLx || _stRy !== _stLy) {
                   const _stRft = new Set();
                   withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft));
@@ -2193,6 +2194,7 @@ export function useItemActions({
                 const _stft = new Set();
                 withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft));
               } else {
+                const _stDmg = calcProjectileDmg(p, _stAtk, _stM.def);
                 _stM.hp -= _stDmg;
                 ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                 if (_stM.hp <= 0) { trackMonster(_stM); killMonster(_stM, dg, p, ml, lu); }
@@ -2254,7 +2256,7 @@ export function useItemActions({
                   _baLx = _baRx; _baLy = _baRy;
                   break;
                 }
-                const _baDmg = (_arItem.atk || 6) + rng(1, 4);
+                const _baDmg = calcProjectileDmg(p, _arItem.atk || 6, _baM.def);
                 _baM.hp -= _baDmg;
                 ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
                 if (_baM.hp <= 0) { trackMonster(_baM); killMonster(_baM, dg, p, ml, lu); }
@@ -2297,7 +2299,7 @@ export function useItemActions({
         const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
         const _arOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050");
         p.arrow.count--;
-        const dmg = Math.floor(((_arItem.atk || 4) + rng(1, 4)) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1));
+        const _arBaseAtk = _arItem.atk || 3;
         let lx = p.x,
           ly = p.y,
           hit = false;
@@ -2331,14 +2333,15 @@ export function useItemActions({
                 pushAnim({ type: "projectileReturn", fromX: _arRetFrom.x, fromY: _arRetFrom.y, toX: _arRetTo.x, toY: _arRetTo.y, color: _arRetColor });
               }
               if (_arRHit) {
-                p.hp -= dmg;
+                const _arRefDmg = calcProjectileDmg(p, _arBaseAtk, 0);
+                p.hp -= _arRefDmg;
                 if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
                   p.poisoned = true;
-                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！毒を受けた！`);
+                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_arRefDmg}ダメージ！毒を受けた！`);
                 } else if (_arIsPoison) {
-                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！しかし指輪が毒を消した！`);
+                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_arRefDmg}ダメージ！しかし指輪が毒を消した！`);
                 } else {
-                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${dmg}ダメージ！消滅した。`);
+                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_arRefDmg}ダメージ！消滅した。`);
                 }
               } else if (_arRx !== tx || _arRy !== ty) {
                 const _arRft = new Set();
@@ -2361,6 +2364,7 @@ export function useItemActions({
               if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
               break;
             } else {
+              const dmg = calcProjectileDmg(p, _arBaseAtk, m.def);
               m.hp -= dmg;
               if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
               ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
@@ -2617,13 +2621,13 @@ export function useItemActions({
             } else {
               const _msDodgePcMode2 = getDodgePentacleMode(dg, _msTarget2.x, _msTarget2.y);
               const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));
-              const _msDmg2 = _invStAtk + rng(0, 3);
               if (_msMiss2) {
                 if (_msDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
                 const _msft2 = new Set();
                 withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, makeMagicStone(1), ml, _msft2));
               } else {
+                const _msDmg2 = calcProjectileDmg(p, _invStAtk, _msTarget2.def);
                 _msTarget2.hp -= _msDmg2;
                 ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
                 if (_msTarget2.hp <= 0) { trackMonster(_msTarget2); killMonster(_msTarget2, dg, p, ml, lu); }
@@ -2641,7 +2645,6 @@ export function useItemActions({
             }
             const _stM2 = monsterAt(dg, _stLx2, _stLy2);
             const _stBB2 = dg.bigboxes?.find(b => b.x === _stLx2 && b.y === _stLy2);
-            const _stDmg2 = _invStAtk + rng(0, 3);
             ml.push(`${_invStName}を投げた！`);
             if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
@@ -2652,6 +2655,7 @@ export function useItemActions({
                 const _stft2 = new Set();
                 withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
               } else {
+                const _stDmg2 = calcProjectileDmg(p, _invStAtk, _stM2.def);
                 _stM2.hp -= _stDmg2;
                 ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
                 if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
@@ -2689,7 +2693,7 @@ export function useItemActions({
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               const _baM2 = monsterAt(dg, tx, ty);
               if (_baM2) {
-                const _baDmg2 = (it.atk || 6) + rng(1, 4);
+                const _baDmg2 = calcProjectileDmg(p, it.atk || 6, _baM2.def);
                 _baM2.hp -= _baDmg2;
                 ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
                 if (_baM2.hp <= 0) { trackMonster(_baM2); killMonster(_baM2, dg, p, ml, lu); }
@@ -2861,12 +2865,11 @@ export function useItemActions({
             scatterPotContents(it, dg, lx, ly, p, ml, lu, dnameRef);
           }
         } else {
-          const td =
-            (it.type === "weapon"
-              ? it.atk || 3
-              : it.type === "arrow"
-                ? it.atk * Math.min(it.count, 5) + it.count
-                : 3) + rng(0, 3);
+          const _tdBaseAtk = it.type === "weapon"
+            ? (it.atk || 3)
+            : it.type === "arrow"
+              ? (it.atk || 3) + (it.count || 1)
+              : 3;
           /* 投げメッセージ用ラベル生成：武器/防具は+値付き、杖/ペンはチャージ付き、矢は本数付き */
           const _mkThrowLb = () => {
             if (it.type === "arrow") return (it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`;
@@ -2929,8 +2932,9 @@ export function useItemActions({
                 pushItemReturnAnim(tx, ty, _rfToX, _rfToY, it.tile);
                 if (_rfHitPlayer) {
                   p.deathCause = `跳ね返された${it.name}に`;
-                  p.hp -= td;
-                  ml.push(`跳ね返された${lb}がプレイヤーに命中！${td}ダメージ！消滅した。`);
+                  const _rfTdDmg = calcProjectileDmg(p, _tdBaseAtk, 0);
+                  p.hp -= _rfTdDmg;
+                  ml.push(`跳ね返された${lb}がプレイヤーに命中！${_rfTdDmg}ダメージ！消滅した。`);
                   /* 杖の場合はプレイヤーへの効果も発動（投げた杖が当たった相手に効果が出る仕様） */
                   if (it.type === "wand") {
                     const _rfWandBm = getBlessMultiplier(it);
@@ -2978,7 +2982,7 @@ export function useItemActions({
               } else {
                 if (consumeBarrier(m, ml)) { if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; } }
                 else {
-                  const _itd = clampDmgFixed(m, td, true);
+                  const _itd = clampDmgFixed(m, calcProjectileDmg(p, _tdBaseAtk, m.def), true);
                   m.hp -= _itd;
                   ml.push(`${lb}が${m.name}に命中！${_itd}ダメージ！`);
                   if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
