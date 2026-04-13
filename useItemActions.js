@@ -608,6 +608,42 @@ export function useItemActions({
           } else if (_pf === "spicy") {
             p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 50;
             ml.push("辛さでパワーアップ！直接攻撃・矢ダメージ1.5倍(50ターン)");
+          } else if (_pf === "honey") {
+            p.honeyRegenTurns = (p.honeyRegenTurns || 0) + 80;
+            ml.push("蜂蜜パワーでHPが自然回復する！(80ターン)");
+          } else if (_pf === "curry") {
+            p.curryFireResTurns = (p.curryFireResTurns || 0) + 100;
+            ml.push("カレーの熱で炎耐性がついた！(100ターン)");
+          } else if (_pf === "miso") {
+            p.misoDefTurns = (p.misoDefTurns || 0) + 100;
+            ml.push("味噌の滋養で守りが固くなった！防御+8(100ターン)");
+          } else if (_pf === "olive") {
+            p.oliveEvasionTurns = (p.oliveEvasionTurns || 0) + 80;
+            ml.push("オリーブオイルで身のこなしが滑らかに！回避率UP(80ターン)");
+          } else if (_pf === "sesame") {
+            p.sesameCritTurns = (p.sesameCritTurns || 0) + 80;
+            ml.push("ごまパワーで会心が出やすい！(80ターン)");
+          } else if (_pf === "butter") {
+            p.butterHungerTurns = (p.butterHungerTurns || 0) + 100;
+            ml.push("バターのカロリーで腹持ち抜群！満腹度減少半減(100ターン)");
+          } else if (_pf === "yogurt") {
+            p.yogurtImmuneTurns = (p.yogurtImmuneTurns || 0) + 100;
+            if (p.poisoned) { p.poisoned = false; ml.push("乳酸菌が毒を中和した！"); }
+            if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; ml.push("乳酸菌が混乱を鎮めた！"); }
+            ml.push("乳酸菌パワーで毒・混乱を寄せ付けない！(100ターン)");
+          } else if (_pf === "coconut") {
+            const _ccMp = Math.min(30, (p.maxMp || 50) - (p.mp || 0));
+            p.mp = (p.mp || 0) + _ccMp;
+            ml.push(_ccMp > 0 ? `ココナッツの力でMP+${_ccMp}回復！` : "ココナッツの力…MPは満タンだ。");
+          } else if (_pf === "soy") {
+            p.soyExpTurns = (p.soyExpTurns || 0) + 100;
+            ml.push("醤油の旨味で集中力UP！経験値1.3倍(100ターン)");
+          } else if (_pf === "garlic") {
+            p.garlicDmgTurns = (p.garlicDmgTurns || 0) + 80;
+            ml.push("にんにくパワーで攻撃に+5追加ダメージ！(80ターン)");
+          } else if (_pf === "lemon") {
+            p.lemonThrowTurns = (p.lemonThrowTurns || 0) + 80;
+            ml.push("レモンの爽快感で投擲が冴える！投擲ダメ1.5倍(80ターン)");
           }
         }
       }
