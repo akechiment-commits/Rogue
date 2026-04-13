@@ -44,7 +44,8 @@ function bbDisplayName(bb, st, withCapacity = false) {
 }
 const FLOOR_TITLES = {
   bigRoom:           "ビッグルームだ！",
-  miniRoom:          "ミニルームだ！",
+  middleRoom:        "ミドルルームだ！",
+  miniRoom:          "ミニルームだ！とても狭い！",
   shoppingMall:      "ショッピングモールだ！",
   spinFloor:         "回転板の間だ！",
   corridorFloor:     "迷路の廊下だ！",

@@ -565,7 +565,7 @@ function setupShopRoom(room, map, depth, items, mons) {
 }
 
 /* ===== MINI BIG ROOM (ビッグルーム小型版) ===== */
-function genMiniRoom(depth, dungeonType = null) {
+function genMiddleRoom(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rw = Math.floor(MW * 0.55), rh = Math.floor(MH * 0.60);
   const rx = Math.floor((MW - rw) / 2), ry = Math.floor((MH - rh) / 2);
@@ -598,6 +598,43 @@ function genMiniRoom(depth, dungeonType = null) {
   for (let i = 0; i < rng(6, 12) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(1, 3); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
+  const { visible, explored } = mkVis();
+  return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "middleRoom" };
+}
+
+/* ===== MINI ROOM (超小型1部屋フロア) ===== */
+function genMiniRoom(depth, dungeonType = null) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  const rw = Math.floor(MW * 0.25), rh = Math.floor(MH * 0.33);
+  const rx = Math.floor((MW - rw) / 2), ry = Math.floor((MH - rh) / 2);
+  for (let dy = 0; dy < rh; dy++)
+    for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+  const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
+  const rooms = [room];
+  let su = null, sd = null;
+  for (let a = 0; a < 200 && !su; a++) { const x = rng(rx+1, rx+Math.floor(rw/2)-1), y = rng(ry+1, ry+rh-2); if (map[y][x]===T.FLOOR) su={x,y}; }
+  if (!su) su = { x: rx + 1, y: ry + 1 };
+  map[su.y][su.x] = T.SU;
+  for (let a = 0; a < 200 && !sd; a++) { const x = rng(rx+Math.floor(rw/2), rx+rw-2), y = rng(ry+1, ry+rh-2); if (map[y][x]===T.FLOOR && !(x===su.x&&y===su.y)) sd={x,y}; }
+  if (!sd) sd = { x: rx + rw - 2, y: ry + rh - 2 };
+  map[sd.y][sd.x] = T.SD;
+  const mons = [];
+  for (let i = 0; i < rng(3, 5) + Math.floor(depth / 2); i++) {
+    for (let a = 0; a < 40; a++) {
+      const mx = rng(rx, rx + rw - 1), my = rng(ry, ry + rh - 1);
+      if (map[my][mx] !== T.FLOOR || (mx === su.x && my === su.y) || (mx === sd.x && my === sd.y)) continue;
+      if (mons.some(m => m.x === mx && m.y === my)) continue;
+      mons.push(mkMon(depth, mx, my, 0.12, null, null, dungeonType)); break;
+    }
+  }
+  const items = [], traps = [], springs = [], bigboxes = [];
+  const occ = mkOcc(items, mons, traps, springs, bigboxes);
+  const rndFloor = () => { for (let a = 0; a < 80; a++) { const x = rng(rx, rx + rw - 1), y = rng(ry, ry + rh - 1); if (map[y][x] === T.FLOOR && !occ(x, y) && !(x === su.x && y === su.y) && !(x === sd.x && y === sd.y)) return [x, y]; } return null; };
+  for (let i = 0; i < rng(6, 10); i++) { const p = rndFloor(); if (p) { const it = { ...pickWeighted(ITEMS), id: uid(), x: p[0], y: p[1] }; if (it.type === 'gold') it.value = rng(20, 60 + depth * 20); items.push(it); } }
+  if (Math.random() < 0.25) { const _rp = rndFloor(); if (_rp) items.push({ ...makeRing(), x: _rp[0], y: _rp[1] }); }
+  for (let i = 0; i < rng(3, 6) + Math.floor(depth / 2); i++) { const p = rndFloor(); if (p) traps.push({ ...pick(TRAPS), id: uid(), x: p[0], y: p[1], revealed: false }); }
+  if (Math.random() < 0.5) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
+  for (let i = 0; i < rng(1, 2); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], isBigRoom: true, floorType: "miniRoom" };
 }
@@ -1293,7 +1330,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   if (Math.random() < 0.25) {
     const specials = depth === 0
       ? [genShoppingMall]
-      : [genBigRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
+      : [genBigRoom, genMiddleRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
     const _sf = pick(specials)(depth, dungeonType); _sf.dungeonType = dungeonType; return _sf;
   }
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
