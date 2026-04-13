@@ -268,6 +268,29 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
       if (map[fy][fx] === T.FLOOR) floorTiles.push([fx, fy]);
     }
   if (floorTiles.length === 0) return;
+  /* 20% の確率で宝物庫（金貨びっしり）になる */
+  if (Math.random() < 0.20) {
+    hr.isTreasureVault = true;
+    const shuffled = [...floorTiles].sort(() => Math.random() - 0.5);
+    const goldCount = Math.min(shuffled.length, rng(5, 10));
+    let gPlaced = 0;
+    for (const [ix, iy] of shuffled) {
+      if (gPlaced >= goldCount) break;
+      if (allOcc(ix, iy)) continue;
+      items.push({ name:"金貨", type:"gold", value: rng(150, 500 + depth * 80), tile:22, id: uid(), x: ix, y: iy });
+      gPlaced++;
+    }
+    if (Math.random() < 0.70) {
+      for (let a = 0; a < 40; a++) {
+        const [bx, by] = pick(floorTiles);
+        if (allOcc(bx, by)) continue;
+        const bbt = pickBB();
+        bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+        break;
+      }
+    }
+    return;
+  }
   /* アイテム 2〜4個（床タイル数を超えない） */
   const itemCount = rng(2, Math.min(4, floorTiles.length));
   let placed = 0;
@@ -404,9 +427,15 @@ function genWallItems(map, depth, items, suspicious = new Set()) {
     const key = `${wx},${wy}`;
     if (used.has(key) || items.some(it => it.x === wx && it.y === wy)) continue;
     used.add(key);
-    const t = pickWeighted(ITEMS);
-    const it = { ...t, id: uid(), x: wx, y: wy, wallEmbedded: true };
-    if (it.type === 'gold') it.value = rng(50, 200 + depth * 40);
+    /* 壁埋めアイテムは60%の確率で埋蔵金（金貨） */
+    let it;
+    if (Math.random() < 0.60) {
+      it = { name:"金貨", type:"gold", value: rng(80, 300 + depth * 50), tile:22, id: uid(), x: wx, y: wy, wallEmbedded: true };
+    } else {
+      const t = pickWeighted(ITEMS);
+      it = { ...t, id: uid(), x: wx, y: wy, wallEmbedded: true };
+      if (it.type === 'gold') it.value = rng(80, 300 + depth * 50);
+    }
     items.push(it);
     placed++;
   }
@@ -1485,6 +1514,17 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         const _pt = pick(_penPool);
         items.push({ ..._pt, id: uid(), x: ix, y: iy, charges: rng(2, 3) });
       }
+    }
+  }
+  /* 金貨（フロアに1〜2個保証配置） */
+  for (let _gi = 0; _gi < rng(1, 2); _gi++) {
+    const rm = pick(rooms);
+    for (let _ga = 0; _ga < 60; _ga++) {
+      const gx = rng(rm.x + 1, rm.x + rm.w - 2);
+      const gy = rng(rm.y + 1, rm.y + rm.h - 2);
+      if (map[gy][gx] !== T.FLOOR || occ(gx, gy)) continue;
+      items.push({ name:"金貨", type:"gold", value: rng(30, 100 + depth * 30), tile:22, id: uid(), x: gx, y: gy });
+      break;
     }
   }
   /* 罠数：深さに比例して増加。浅い階は少なめ */

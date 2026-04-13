@@ -229,7 +229,7 @@ export function computeFOV(map, px, py, rad, vis, exp, rooms = []) {
 export function refreshFOV(dg, p) {
   const torchBonus = (p.visionBonus || 0);
   const rad = ((p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth)) + torchBonus;
-  computeFOV(dg.map, p.x, p.y, rad, dg.visible, dg.explored, dg.rooms);
+  computeFOV(dg.map, p.x, p.y, rad, dg.visible, dg.explored, [...(dg.rooms || []), ...(dg.hiddenRooms || [])]);
   for (const it of dg.items) { if (dg.visible[it.y]?.[it.x]) it.discovered = true; }
 }
 

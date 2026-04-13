@@ -2601,6 +2601,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
             if (_pentStep) ml.push(`${_pentStep.name}の上にいる。`);
+            /* 宝物庫発見チェック */
+            const _hrFound = st.dungeon.hiddenRooms?.find(hr =>
+              hr.isTreasureVault && !hr.discovered &&
+              p.x >= hr.x && p.x < hr.x + hr.w &&
+              p.y >= hr.y && p.y < hr.y + hr.h
+            );
+            if (_hrFound) { _hrFound.discovered = true; ml.push("★ 宝物庫を発見した！"); }
             }
           }
         }
