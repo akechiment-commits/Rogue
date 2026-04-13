@@ -6,7 +6,7 @@ import {
   RAW_FOODS, COOKED_FOODS,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
-  getIdentKey, randPotCapacity,
+  getIdentKey, randPotCapacity, gemSellPrice,
 } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { genDungeon, prepareLastFloor } from "./dungeon.js";
@@ -1107,7 +1107,7 @@ export function useKeyHandler({
           if (k === "enter" || k === "z") {
             if (shopMenuSel < fis3.length) {
               const it2 = fis3[shopMenuSel];
-              const bp = Math.ceil(itemPrice(it2) * 0.5);
+              const bp = it2.type === "gem" ? gemSellPrice(it2, p2.depth) : Math.ceil(itemPrice(it2) * 0.5);
               p2.gold += bp;
               it2.shopPrice = itemPrice(it2);
               if (_curSellShop) it2._shopId = _curSellShop.id;
