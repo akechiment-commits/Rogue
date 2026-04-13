@@ -190,7 +190,7 @@ export function useItemActions({
           p.deathCause = "炎の薬を飲んで";
           p.hp -= d;
           ml.push(
-            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${hasAbility(p.armor, "fire_resist") ? "(耘火)" : ""}${it.blessed ? "【祝=強炎】" : ""}`,
+            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${hasAbility(p.armor, "fire_resist") ? "(耐火半減)" : ""}${it.blessed ? "【祝=強炎】" : ""}`,
           );
         }
       } else if (it.effect === "sleep") {
