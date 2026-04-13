@@ -52,6 +52,9 @@ export const RAW_FOODS = [
   "甘エビ","ボタンエビ","車エビ","シャコ","毛ガニ","ズワイガニ","タラバガニ","渡りガニ",
   "牡蠣","ホタテ","ハマグリ","アサリ","シジミ","アワビ","サザエ","トコブシ",
   "ウニ","ナマコ","ホヤ","シラウオ","ワカサギ","アユ",
+  /* ── 肉類・卵 ── */
+  "鶏肉","豚肉","牛肉","羊肉","鹿肉","猪肉","馬肉","カモ肉","ウサギ肉","ターキー",
+  "鶏卵","うずら卵",
 ];
 
 /* ── 料理（惣菜・ごはん系） ── */
@@ -67,6 +70,10 @@ export const COOKED_FOODS_SAVORY = [
   "ストロッツァプレーティ","リガトーニ","ペンネアラビアータ","オレキエッテ",
   "ヴィテッロトンナート","サルティンボッカ","ポルペッテ","カポナータ","トリッパ",
   "フォカッチャディレッコ","ピンサロマーナ","スキャッチャータ","ツィポッラタ",
+  /* ギリシャ */
+  "ギロス","スブラキ","パスティチオ","スパナコピタ","ティロピタ","ホリアティキサラダ",
+  "ファソラダ","スティファド","クレフティコ","サガナキ","ドルマダキア","ファバ",
+  "レヴィシア","アヴゴレモノスープ","ブガツァ",
   /* 中華 */
   "餃子","春巻き","小籠包","チャーハン","麻婆豆腐","酢豚","青椒肉絲","エビチリ","回鍋肉",
   "担々麺","油淋鶏","北京ダック","焼売","肉まん","ワンタン","棒棒鶏",
@@ -87,6 +94,9 @@ export const COOKED_FOODS_SAVORY = [
   "ガイヤーン","カオニャオ","バクテー","ナシルマ","アヤムゴレン","ミーアヤム","チャーゾー",
   "ロティ","クロックマライ","ラープ","ゲーンマッサマン","パッキーマオ","ヤムウンセン",
   "トムカーガイ","カオムーデーン","センレック","エーンヌーア","カオラームサラット",
+  /* フィリピン */
+  "アドボ","シニガン","カレカレ","レチョン","パンシット","ルンピア",
+  "シシグ","ビコールエクスプレス","クワレス","ティノーラ","アロスカルド","トシログ",
   /* フランス */
   "ラタトゥイユ","ブイヤベース","ポトフ","ガレット","キッシュ",
   "エスカルゴ","フォアグラ","コンフィ","ムニエル","コックオーヴァン","ビーフブルギニョン",
@@ -124,17 +134,30 @@ export const COOKED_FOODS_SAVORY = [
   "ミートローフ","ポットロースト","ボストンベイクドビーンズ","コブサラダ","シーザーラップ",
   "フィラデルフィアチーズステーキ","シカゴピザ","ニューヨークスライス","カリフォルニアロール",
   "エッグベネディクト","コーンドビーフハッシュ","タタキ風ツナサラダ","マカダミアホワイトフィッシュ",
+  /* ハワイ・太平洋 */
+  "ポキ丼","ロコモコ","カルアピッグ","ラウラウ","スパムむすび","ガーリックシュリンプ","マラサダ","ハウピア",
+  /* カリブ */
+  "ジャークチキン","アキーアンドソルトフィッシュ","カラルー","ライスアンドピーズ",
+  "ロティカリブ","パステル","アロスコンポーヨ","モフォンゴ","ドゥブルス","ペラウ","カウフット","ソウス",
   /* スペイン・中南米 */
   "パエリア","タコス","ブリトー","ナチョス","ケサディーヤ","エンチラーダ","ファヒータ","チリコンカン",
   "ガスパチョ","ソパデアホ","コシードマドリレーニョ","トルティーリャエスパニョーラ",
   "ガンバスアルアヒーリョ","チョリソー炒め","パンコントマテ","ピンチョス","タパス盛り",
   "セビーチェ","ロモサルタード","アレパ","ガジョピント","バンデハパイサ","モーレポブラーノ",
   "ポソレ","チレスレジェノス","タマレス","トスタダス","ソパスデリマ",
+  /* ポルトガル・ブラジル */
+  "バカリャウ","カタプラーナ","フランセジーニャ","カルドヴェルデ","パステウデナタ",
+  "シュラスコ","フェジョアーダ","ムケッカ","パステウ","コシーニャ",
+  "アカラジェ","ポンデケージョ","ピカーニャ","ファロファ","ヴィナグレッチ",
   /* 中東・アフリカ */
   "ケバブ","フムス","ファラフェル","シャクシュカ","タジン","クスクス","ムサカ","ドルマ",
   "ババガヌーシュ","タブーレ","キッベ","シャワルマ","コフタ","マンサフ","マクルーバ",
   "フール","ムジャッダラ","バルバリパン","ジョロフライス","エグシスープ","フフ","エグシ",
   "スクマウィキ","ウジ","ンゴジョ","ボフロット","ケジェヌ","チャクチュカ","ブリック",
+  /* トルコ */
+  "イスケンデルケバブ","アダナケバブ","ピデ","ラフマジュン","マントゥ","チョプシシ",
+  "イマームバユルドゥ","メネメン","チーキョフテ","クンピル","スジュク",
+  "ドネルケバブ","ハムシソーセージ","パスタルマ","メルジメックスープ",
   /* インド・南アジア */
   "ナン","チャパティ","サモサ","タンドリーチキン","バターチキンカレー","パラクパニール","ビリヤニ",
   "ダルカレー","アルゴビ","チキンティッカ","キーマカレー","フィッシュカレー","コルマ","ヴィンダルー",
@@ -147,10 +170,20 @@ export const COOKED_FOODS_SAVORY = [
   "セロジョドポドシュボイ","カシャ","ゴルブツィ","スチ","ハラーショ","グルジア風肉饅頭","ビーフストロガノフ",
   /* ジョージア */
   "ミサール","アジャプサンダリ","チャフカパリ","ロビアニ","ハシ","ムツヴァディ",
+  /* 中央アジア */
+  "プロフ","マンティ","ラグマン","サムサ","ベシュバルマク","クルダック","シュルパ","ブズ",
   /* その他（スイス・北欧ほか） */
   "フォンデュ","ラクレット","スモークサーモン","グラブラックス","ニシンのマリネ","スウェーデン風ミートボール",
   "アイリッシュシチュー","スコッチエッグ","サンデーロースト","プラウマン","ウェルシュラビット",
   "フィッシュパイ","コテージパイ","フィッシュアンドチップス","シェパーズパイ","ミートパイ","ローストチキン","カレーソーセージ","シュトルーデル（惣菜）","レクソー",
+  /* スカンジナビア */
+  "スモーブロー","ヤンソンの誘惑","コットブッラル","グラブラックスタルタル",
+  "ピッティパンナ","ルーテフィスク","カレリアパイ","マッティヘリング",
+  /* ブランド商品（惣菜系） */
+  "カップヌードル","チキンラーメン","ペヤング","赤いきつね","緑のたぬき","どん兵衛",
+  "じゃがりこ","プリングルズ","ドリトス","かっぱえびせん","ベビースターラーメン",
+  "ハッピーターン","柿の種","サッポロポテト","カール","ピザポテト","チップスター",
+  "ビッグマック","チキンマックナゲット","ケンタッキーフライドチキン",
 ];
 
 /* ── スイーツ ── */
@@ -181,6 +214,9 @@ export const COOKED_FOODS_SWEET = [
   "ニューヨークチーズケーキ","ピーカンパイ","キーライムパイ","レモンメレンゲパイ",
   "ブルーベリーパイ","さくらんぼパイ","ピーチコブラー","バナナプディング","ルートビアフロート",
   "チョコレートフォンデュ","スモア","ライスクリスピートリート","フロスティングカップケーキ",
+  /* 中南米スイーツ */
+  "トレスレチェス","アルファホーレス","ドゥルセデレチェ","ブリガデイロ",
+  "ベイヒーニョ","アロスコンレチェ","チョコレートアビスパ","フラン",
   /* 和菓子 */
   "たい焼き","どら焼き","大福","羊羹","みたらし団子","わらび餅","カステラ","あんみつ","今川焼き",
   "桜餅","柏餅","水まんじゅう","葛切り","ぜんざい","お汁粉","栗きんとん","練り切り","落雁",
@@ -205,6 +241,15 @@ export const COOKED_FOODS_SWEET = [
   "バクラヴァ","カダイフ","ハルヴァ","ラハットロクム","ムハラビア",
   "カタイフ","バスブーサ","クナーフェ","マアムール","シュアービエット","ウンムアリ",
   "モロッコ風アーモンドパスティリャ（甘）","チュニジア風デーツ菓子","エジプト風アシュラ",
+  /* インド系スイーツ */
+  "グラブジャムン","ラドゥー","ジャレビ","バルフィ","ラスマライ",
+  "ガジャルハルワ","シュリカンド","ペダ","サンデシュ","チャムチャム",
+  /* ブランド商品（スイーツ系） */
+  "ポッキー","ブラックサンダー","キットカット","チョコパイ","コアラのマーチ",
+  "きのこの山","たけのこの里","カントリーマアム","アルフォート","パイの実",
+  "トッポ","ルマンド","ハーゲンダッツ","ガリガリ君","あずきバー","パピコ",
+  "チロルチョコ","ハイチュウ","ぷっちょ","ミルキー","ブルボンプチ",
+  "ビスコ","たべっ子どうぶつ","プリッツ","エッセルスーパーカップ",
 ];
 
 /* genFood()後方互換用 — 両カテゴリを結合 */
@@ -213,26 +258,34 @@ export const COOKED_FOODS = [...COOKED_FOODS_SAVORY, ...COOKED_FOODS_SWEET];
 /* 料理名→カテゴリ マッピング（味付け壺のボーナス判定用） */
 function _buildFoodCatMap() {
   const m = new Map();
+  const S = COOKED_FOODS_SAVORY;
   const _catSavory = [
-    { cat: "italian", items: COOKED_FOODS_SAVORY.slice(0, COOKED_FOODS_SAVORY.indexOf("餃子")) },
-    { cat: "chinese", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("餃子"), COOKED_FOODS_SAVORY.indexOf("ビビンバ")) },
-    { cat: "korean", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ビビンバ"), COOKED_FOODS_SAVORY.indexOf("フォー")) },
-    { cat: "southeast_asian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("フォー"), COOKED_FOODS_SAVORY.indexOf("ラタトゥイユ")) },
-    { cat: "french", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ラタトゥイユ"), COOKED_FOODS_SAVORY.indexOf("シュニッツェル")) },
-    { cat: "german", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("シュニッツェル"), COOKED_FOODS_SAVORY.indexOf("寿司")) },
-    { cat: "japanese", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("寿司"), COOKED_FOODS_SAVORY.indexOf("ステーキ")) },
-    { cat: "american", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ステーキ"), COOKED_FOODS_SAVORY.indexOf("パエリア")) },
-    { cat: "spanish", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("パエリア"), COOKED_FOODS_SAVORY.indexOf("ケバブ")) },
-    { cat: "middle_eastern", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ケバブ"), COOKED_FOODS_SAVORY.indexOf("ナン")) },
-    { cat: "indian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ナン"), COOKED_FOODS_SAVORY.indexOf("ピロシキ")) },
-    { cat: "russian", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("ピロシキ"), COOKED_FOODS_SAVORY.indexOf("フォンデュ")) },
-    { cat: "other", items: COOKED_FOODS_SAVORY.slice(COOKED_FOODS_SAVORY.indexOf("フォンデュ")) },
+    { cat: "italian",         items: S.slice(0, S.indexOf("ギロス")) },
+    { cat: "greek",           items: S.slice(S.indexOf("ギロス"), S.indexOf("餃子")) },
+    { cat: "chinese",         items: S.slice(S.indexOf("餃子"), S.indexOf("ビビンバ")) },
+    { cat: "korean",          items: S.slice(S.indexOf("ビビンバ"), S.indexOf("フォー")) },
+    { cat: "southeast_asian", items: S.slice(S.indexOf("フォー"), S.indexOf("ラタトゥイユ")) },
+    { cat: "french",          items: S.slice(S.indexOf("ラタトゥイユ"), S.indexOf("シュニッツェル")) },
+    { cat: "german",          items: S.slice(S.indexOf("シュニッツェル"), S.indexOf("寿司")) },
+    { cat: "japanese",        items: S.slice(S.indexOf("寿司"), S.indexOf("ステーキ")) },
+    { cat: "american",        items: S.slice(S.indexOf("ステーキ"), S.indexOf("ジャークチキン")) },
+    { cat: "caribbean",       items: S.slice(S.indexOf("ジャークチキン"), S.indexOf("パエリア")) },
+    { cat: "spanish",         items: S.slice(S.indexOf("パエリア"), S.indexOf("バカリャウ")) },
+    { cat: "portuguese",      items: S.slice(S.indexOf("バカリャウ"), S.indexOf("ケバブ")) },
+    { cat: "middle_eastern",  items: S.slice(S.indexOf("ケバブ"), S.indexOf("イスケンデルケバブ")) },
+    { cat: "turkish",         items: S.slice(S.indexOf("イスケンデルケバブ"), S.indexOf("ナン")) },
+    { cat: "indian",          items: S.slice(S.indexOf("ナン"), S.indexOf("ピロシキ")) },
+    { cat: "russian",         items: S.slice(S.indexOf("ピロシキ"), S.indexOf("フォンデュ")) },
+    { cat: "other",           items: S.slice(S.indexOf("フォンデュ"), S.indexOf("カップヌードル")) },
+    { cat: "brand_savory",    items: S.slice(S.indexOf("カップヌードル")) },
   ];
+  const W = COOKED_FOODS_SWEET;
   const _catSweet = [
-    { cat: "western_sweets", items: COOKED_FOODS_SWEET.slice(0, COOKED_FOODS_SWEET.indexOf("たい焼き")) },
-    { cat: "japanese_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("たい焼き"), COOKED_FOODS_SWEET.indexOf("杏仁豆腐")) },
-    { cat: "asian_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("杏仁豆腐"), COOKED_FOODS_SWEET.indexOf("バクラヴァ")) },
-    { cat: "mideast_sweets", items: COOKED_FOODS_SWEET.slice(COOKED_FOODS_SWEET.indexOf("バクラヴァ")) },
+    { cat: "western_sweets",  items: W.slice(0, W.indexOf("たい焼き")) },
+    { cat: "japanese_sweets", items: W.slice(W.indexOf("たい焼き"), W.indexOf("杏仁豆腐")) },
+    { cat: "asian_sweets",    items: W.slice(W.indexOf("杏仁豆腐"), W.indexOf("バクラヴァ")) },
+    { cat: "mideast_sweets",  items: W.slice(W.indexOf("バクラヴァ"), W.indexOf("ポッキー")) },
+    { cat: "brand_sweet",     items: W.slice(W.indexOf("ポッキー")) },
   ];
   for (const { cat, items } of [..._catSavory, ..._catSweet]) {
     for (const name of items) m.set(name, cat);
@@ -244,15 +297,18 @@ export const FOOD_CAT_MAP = _buildFoodCatMap();
 /* 壺の味付けとカテゴリの相性マッピング */
 export const POT_CAT_BONUS = {
   miso:    ["japanese", "japanese_sweets"],
-  spicy:   ["korean"],
+  spicy:   ["korean", "caribbean"],
   curry:   ["indian", "southeast_asian"],
-  choco:   ["western_sweets", "asian_sweets", "mideast_sweets"],
+  choco:   ["western_sweets", "asian_sweets", "mideast_sweets", "brand_sweet"],
   honey:   ["western_sweets", "japanese_sweets", "asian_sweets", "mideast_sweets"],
-  olive:   ["italian", "spanish"],
+  olive:   ["italian", "spanish", "greek", "portuguese"],
   sesame:  ["chinese", "korean"],
-  butter:  ["french", "american", "german"],
-  yogurt:  ["middle_eastern", "russian"],
-  coconut: ["southeast_asian", "asian_sweets"],
+  butter:  ["french", "american", "german", "brand_savory"],
+  yogurt:  ["middle_eastern", "russian", "turkish", "greek"],
+  coconut: ["southeast_asian", "asian_sweets", "caribbean"],
+  soy:     ["japanese", "chinese", "korean"],
+  garlic:  ["italian", "spanish", "portuguese", "turkish"],
+  lemon:   ["french", "greek", "other"],
 };
 export const RAW_SIZES = [
   { l:"特大",   v:80, w:1 },
