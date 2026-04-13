@@ -2482,7 +2482,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
     if (item.name === "ロングソード" && Math.random() < 0.05) {
       const _oldPlus = item.plus || 0;
       const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
-      Object.assign(item, { ...EXCALIBUR_T, id: item.id, plus: _oldPlus });
+      Object.assign(item, { ...EXCALIBUR_T, id: item.id, plus: Math.max(0, _oldPlus) });
       const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
       ml.push("ロングソードが泉の中で聖なる光を放ち...エクスカリバーに変化した！");
