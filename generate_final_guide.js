@@ -20,7 +20,8 @@ function addSheet(name, data) {
 
 // アイテム名 → rarity のマップを生成
 const _rarityMap = new Map();
-for (const it of ITEMS) _rarityMap.set(it.name, it.rarity);
+const _priceMap = new Map();
+for (const it of ITEMS) { _rarityMap.set(it.name, it.rarity); _priceMap.set(it.name, it.sellPrice); }
 
 // data配列の先頭行(ヘッダー)の末尾に 'rarity' を追加し、
 // 各行でcol[0]が空でない場合にrarity値を末尾に追加する
@@ -29,6 +30,17 @@ function injectRarity(data) {
   for (let i = 1; i < data.length; i++) {
     const name = data[i][0];
     data[i].push(name ? (_rarityMap.get(name) ?? '') : '');
+  }
+  return data;
+}
+
+// rarity と sellPrice の両方を末尾に追加する
+function injectRarityAndPrice(data) {
+  data[0].push('rarity', 'sellPrice');
+  for (let i = 1; i < data.length; i++) {
+    const name = data[i][0];
+    data[i].push(name ? (_rarityMap.get(name) ?? '') : '');
+    data[i].push(name ? (_priceMap.get(name) ?? '') : '');
   }
   return data;
 }
@@ -261,7 +273,7 @@ const penData = [
   ['回復のペン', 'heal_aura', '毎ターン部屋内全員が5HP回復。アンデッドには5ダメージ', '毎ターン部屋内全員が10HP回復。アンデッドには10ダメージ', '毎ターン部屋内全員が5ダメージ。アンデッドには逆効果'],
 ];
 
-addSheet('07_ペン', injectRarity(penData));
+addSheet('07_ペン', injectRarityAndPrice(penData));
 
 // ===== マーカーペン・魔法書 =====
 const otherData = [
