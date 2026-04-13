@@ -2058,15 +2058,24 @@ export function useItemActions({
           ml.push(`${dnameRef(it)}を加熱の壺に入れた。`);
           pot.contents.push(it);
         }
+      } else if (pot.potEffect === "heal_pot") {
+        /* 回復の壺：アイテムは消滅、プレイヤーHP+100 */
+        const _healAmt = Math.min(100, p.maxHp - p.hp);
+        p.hp += _healAmt;
+        pot.capacity = Math.max(0, pot.capacity - 1);
+        if (p.hunger > 0) delete p._hungerDmgStarted;
+        ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた。HPが${_healAmt > 0 ? `${_healAmt}回復した！` : "既に満タンだ。"}`);
+        /* 壺には入れない（消滅） */
       } else {
         applyPotEffect(pot, it, ml, dnameRef);
         pot.contents.push(it);
       }
-      if (pot.contents.length >= pot.capacity)
+      const _potFull = pot.potEffect === "heal_pot" ? pot.capacity <= 0 : pot.contents.length >= pot.capacity;
+      if (_potFull)
         ml.push(`${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいになった。`);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
-      if (pot.contents.length < pot.capacity) {
+      if (!_potFull) {
         setPutMode({ potIdx: p.inventory.indexOf(pot) });
         setPutMenuSel(0);
         setPutPage(0);

@@ -720,7 +720,8 @@ export const POTS = [
   { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
   { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとヨーグルト漬けになる。",   tile:32 },
   { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
-  { name:"強欲な壺",           type:"pot", potEffect:"greed",     capacity:4, rarity:"B", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
+  { name:"強欲な壺",           type:"pot", potEffect:"greed",    capacity:4, rarity:"B", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
+  { name:"回復の壺",           type:"pot", potEffect:"heal_pot", capacity:3, rarity:"B", weight:4,  sellPrice:2000, desc:"アイテムを入れると消滅するが、プレイヤーのHPが100回復する。容量分だけ使える。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
