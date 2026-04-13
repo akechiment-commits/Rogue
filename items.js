@@ -2922,13 +2922,15 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       if (dg.oilyTiles?.some(t => t.x === bx && t.y === by)) return true;
       return false;
     };
-    const _boneCands = DRO.filter(([dx, dy]) => !_boneBlocked(mx + dx, my + dy));
-    if (_boneCands.length === 0) {
+    /* 足元が空いていればその場、塞がっていれば DRO 順で最初の空きマス */
+    let _bx = null, _by = null;
+    for (const [dx, dy] of DRO) {
+      if (!_boneBlocked(mx + dx, my + dy)) { _bx = mx + dx; _by = my + dy; break; }
+    }
+    if (_bx === null) {
       ml.push(`${mon.name}の骨は行き場がなく消えた。`);
       return;
     }
-    const [_bdx, _bdy] = _boneCands[Math.floor(Math.random() * _boneCands.length)];
-    const [_bx, _by] = [mx + _bdx, my + _bdy];
     dg.traps.push({
       id: uid(), name: "骨", effect: "bone", tile: 107,
       x: _bx, y: _by, revealed: true, permanent: false,
