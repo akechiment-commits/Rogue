@@ -1465,18 +1465,26 @@ export function useItemActions({
         if (it.cursed) { ml.push(`${it.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`); }
         else { p.weapon = null; ml.push(`${it.name}を外した。`); }
       } else {
-        p.weapon = it;
-        it.bcKnown = true;
-        ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+        if (p.weapon && p.weapon.cursed) {
+          ml.push(`${p.weapon.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`);
+        } else {
+          p.weapon = it;
+          it.bcKnown = true;
+          ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+        }
       }
     } else if (it.type === "armor") {
       if (p.armor === it) {
         if (it.cursed) { ml.push(`${it.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`); }
         else { p.armor = null; ml.push(`${it.name}を外した。`); }
       } else {
-        p.armor = it;
-        it.bcKnown = true;
-        ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+        if (p.armor && p.armor.cursed) {
+          ml.push(`${p.armor.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`);
+        } else {
+          p.armor = it;
+          it.bcKnown = true;
+          ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+        }
       }
     } else if (it.type === "arrow") {
       if (p.arrow === it) { p.arrow = null; ml.push(`${it.name}を外した。`); }
