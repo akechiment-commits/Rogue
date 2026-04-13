@@ -442,6 +442,41 @@ foodItemData.push(['', '焦げた食料', '満腹度÷2。調理済みに再度�
 foodItemData.push(['', '祝福食料', '満腹度通常（効果は変わらない）', '']);
 foodItemData.push(['', '呪い食料', '満腹度通常（効果は変わらない）', '']);
 
+// 調味料の壺 固有効果
+foodItemData.push(['', '', '', '']);
+foodItemData.push(['調味料の壺', '調味料', '固有効果', '持続']);
+foodItemData.push(['', 'チョコ', 'HP35回復+全状態異常治癒', '即時']);
+foodItemData.push(['', '唐辛子（激辛）', '直接攻撃・矢ダメ1.5倍', '50T']);
+foodItemData.push(['', '燻製', '最大満腹度+3~5', '永続']);
+foodItemData.push(['', '蜂蜜', '毎ターンHP+2自然回復', '80T']);
+foodItemData.push(['', 'カレー', '炎ダメージ半減', '100T']);
+foodItemData.push(['', '味噌', '防御力+8', '100T']);
+foodItemData.push(['', 'オリーブオイル', '被攻撃15%回避', '80T']);
+foodItemData.push(['', 'ごま油', '会心率UP(+20%)', '80T']);
+foodItemData.push(['', 'バター', '満腹度減少速度半減', '100T']);
+foodItemData.push(['', 'ヨーグルト', '毒+混乱免疫（既存毒・混乱も治癒）', '100T']);
+foodItemData.push(['', 'ココナッツ', 'MP+30回復', '即時']);
+foodItemData.push(['', '醤油', '経験値獲得1.3倍', '100T']);
+foodItemData.push(['', 'にんにく', '攻撃時+5固定追加ダメージ', '80T']);
+foodItemData.push(['', 'レモン', '投擲ダメージ1.5倍', '80T']);
+
+// 調味料の相性ボーナス
+foodItemData.push(['', '', '', '']);
+foodItemData.push(['相性ボーナス', '調味料', '相性◎カテゴリ（満腹度2.0倍）', '不一致時1.3倍']);
+foodItemData.push(['', '味噌', '和食・和菓子', '']);
+foodItemData.push(['', '唐辛子', '韓国・カリブ', '']);
+foodItemData.push(['', 'カレー', 'インド・東南アジア', '']);
+foodItemData.push(['', 'チョコ', '洋菓子・アジア菓子・中東菓子・ブランド菓子', '']);
+foodItemData.push(['', '蜂蜜', '洋菓子・和菓子・アジア菓子・中東菓子', '']);
+foodItemData.push(['', 'オリーブ', 'イタリア・スペイン・ギリシャ・ポルトガル', '']);
+foodItemData.push(['', 'ごま油', '中華・韓国', '']);
+foodItemData.push(['', 'バター', 'フランス・アメリカ・ドイツ・ブランド惣菜', '']);
+foodItemData.push(['', 'ヨーグルト', '中東・ロシア・トルコ・ギリシャ', '']);
+foodItemData.push(['', 'ココナッツ', '東南アジア・アジア菓子・カリブ', '']);
+foodItemData.push(['', '醤油', '和食・中華・韓国', '']);
+foodItemData.push(['', 'にんにく', 'イタリア・スペイン・ポルトガル・トルコ', '']);
+foodItemData.push(['', 'レモン', 'フランス・ギリシャ・その他（北欧等）', '']);
+
 addSheet('13_食べ物', foodItemData);
 
 // ===== 大箱（BigBox）=====
