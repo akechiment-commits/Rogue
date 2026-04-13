@@ -632,7 +632,7 @@ export function useItemActions({
             if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; ml.push("乳酸菌が混乱を鎮めた！"); }
             ml.push("乳酸菌パワーで毒・混乱を寄せ付けない！(100ターン)");
           } else if (_pf === "coconut") {
-            const _ccMp = Math.min(30, (p.maxMp || 50) - (p.mp || 0));
+            const _ccMp = Math.min(10, (p.maxMp || 50) - (p.mp || 0));
             p.mp = (p.mp || 0) + _ccMp;
             ml.push(_ccMp > 0 ? `ココナッツの力でMP+${_ccMp}回復！` : "ココナッツの力…MPは満タンだ。");
           } else if (_pf === "soy") {
