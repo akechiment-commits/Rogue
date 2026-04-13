@@ -84,6 +84,9 @@ export function useItemActions({
       const _potBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+      /* 飲むと種類にかかわらず満腹度+3 */
+      p.hunger = Math.min(p.maxHunger || 100, (p.hunger || 0) + 3);
+      if (p.hunger > 0) delete p._hungerDmgStarted;
       // 毒回復ヘルパー
       const _curePoison = () => {
         if (p.poisoned) {
