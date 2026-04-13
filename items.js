@@ -857,6 +857,31 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     }
     return;
   }
+  /* 回復の壺：命中した対象を回復（アンデッドはダメージ） */
+  if (pot.potEffect === "heal_pot") {
+    const _hpAmt = Math.max(0, (pot.capacity || 3) - (pot.contents?.length || 0)) * 100;
+    ml.push(`${_pn}が割れた！`);
+    if (_hpAmt > 0) {
+      const _hm = monsterAt(dg, px, py);
+      if (_hm) {
+        if (_hm.kind === "undead") {
+          _hm.hp -= _hpAmt;
+          ml.push(`回復の光が${_hm.name}に${_hpAmt}ダメージを与えた！`);
+          if (_hm.hp <= 0) killMonster(_hm, dg, p, ml, luFn);
+        } else {
+          const _prev = _hm.hp;
+          _hm.hp = Math.min(_hm.maxHp, _hm.hp + _hpAmt);
+          ml.push(`${_hm.name}のHPが${_hm.hp - _prev}回復した！`);
+        }
+      }
+      if (p && p.x === px && p.y === py) {
+        const _prevHp = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + _hpAmt);
+        if (p.hp > _prevHp) ml.push(`HPが${p.hp - _prevHp}回復した！`);
+      }
+    }
+    return;
+  }
   /* 火薬壺は割れると爆発（中身も消える） */
   if (pot.potEffect === "gunpowder") {
     doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn);

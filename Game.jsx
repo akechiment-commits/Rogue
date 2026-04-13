@@ -3659,13 +3659,33 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
             } else {
               const _potDmg = 3 + rng(0, 3);
+              const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity || 3) - (item.contents?.length || 0)) * 100 : 0;
               for (const m of [..._scMons]) {
                 const _itd = clampDmgFixed(m, _potDmg, true);
                 m.hp -= _itd;
                 ml.push(`${_idn}が${m.name}に命中！${_itd}ダメージ！`);
+                if (_healPotAmt > 0) {
+                  if (m.kind === "undead") {
+                    m.hp -= _healPotAmt;
+                    ml.push(`回復の光が${m.name}に${_healPotAmt}ダメージを与えた！`);
+                  } else {
+                    const _hpPrev = m.hp;
+                    m.hp = Math.min(m.maxHp, m.hp + _healPotAmt);
+                    ml.push(`${m.name}のHPが${m.hp - _hpPrev}回復した！`);
+                  }
+                }
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
               }
-              if (_scPInRoom) { p.deathCause = `${item.name}が当たって`; p.hp -= _potDmg; ml.push(`${_idn}がプレイヤーに命中！${_potDmg}ダメージ！`); }
+              if (_scPInRoom) {
+                p.deathCause = `${item.name}が当たって`;
+                p.hp -= _potDmg;
+                ml.push(`${_idn}がプレイヤーに命中！${_potDmg}ダメージ！`);
+                if (_healPotAmt > 0) {
+                  const _prevHp = p.hp;
+                  p.hp = Math.min(p.maxHp, p.hp + _healPotAmt);
+                  if (p.hp > _prevHp) ml.push(`プレイヤーのHPが${p.hp - _prevHp}回復した！`);
+                }
+              }
               ml.push(`${_idn}は割れた！`);
             }
           } else {
