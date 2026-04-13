@@ -216,7 +216,7 @@ export function getBlessMultiplier(it) {
 }
 
 export const CAT_CLAW_T     = { name:"猫の爪",       type:"weapon", atk:13, ability:"critical", desc:"短剣3つの合成で生まれる鋭い爪。25%の確率で会心の一撃。", tile:20 };
-export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead", desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ。", tile:20 };
+export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead", sellPrice:5000, desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ。", tile:20 };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], desc:"炎・氷・雷の三元素を宿した至高の剣。全属性弱点の敵に2倍ダメージ。火ダルマには0.5倍。", tile:20 };
 export const TRIELEM_ARMOR_T = { name:"元素王の鎧", type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した究極の剣。竜・不死・浮遊の全種族に2倍ダメージ。", tile:20 };
@@ -564,7 +564,7 @@ export function itemPrice(it) {
     // 武器・防具は強化値に応じて加算
     if (it.type === "weapon" || it.type === "armor") {
       const plus = it.plus || 0;
-      return Math.round((base + plus * 100) * _bcMult);
+      return Math.max(1, Math.round((base + plus * 100) * _bcMult));
     }
     // 杖・ペン・マーカーはチャージ数に応じて加算（1チャージあたりbase×10%、最低100G）
     if (it.type === "wand" || it.type === "pen" || it.type === "marker") {
@@ -613,7 +613,7 @@ export function itemPrice(it) {
   if (it.type === "spellbook") return Math.round(200 * _bcMult);
   if (it.type === "ring") {
     const ringBase = it.sellPrice ?? 100;
-    if (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring") return Math.round((ringBase + (it.plus || 0) * 100) * _bcMult);
+    if (it.effect === "power_ring" || it.effect === "defense_ring" || it.effect === "life_ring") return Math.max(1, Math.round((ringBase + (it.plus || 0) * 100) * _bcMult));
     return Math.round(ringBase * _bcMult);
   }
   return Math.round(30 * _bcMult);
