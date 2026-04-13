@@ -1431,8 +1431,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "monster") {
         if (target.isBoss) {
-          /* ボス：HP交換は無効、最大HPの4分の1ダメージだけ与える */
-          const _bossDmg = Math.max(1, Math.floor(target.maxHp / 4));
+          /* ボス：HP交換は無効、現在HPの4分の1ダメージだけ与える */
+          const _bossDmg = Math.max(1, Math.floor(target.hp / 4));
           target.hp -= _bossDmg;
           ml.push(`${target.name}は体力交換を跳ね返した！${_bossDmg}ダメージ！`);
           if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
