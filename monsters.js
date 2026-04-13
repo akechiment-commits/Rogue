@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -286,8 +286,12 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       ml.push(`虚無の僧侶の呪いが魔力を封じた！魔法が封印された！(12ターン)`);
     }
     if (m.baseKind === "boss_infernoking" && Math.random() < 0.40) {
-      pl.poisonedTurns = (pl.poisonedTurns || 0) + 5;
-      ml.push(`煉獄公の爪に毒が！毒を受けた！(5ターン)`);
+      if (hasRingEffect(pl, "antidote_ring")) {
+        ml.push(`煉獄公の爪に毒が！しかし指輪が毒を消した！`);
+      } else {
+        pl.poisoned = true;
+        ml.push(`煉獄公の爪に毒が！毒を受けた！攻撃力が徐々に下がっていく…`);
+      }
     }
     if (m.baseKind === "boss_abyssgod") {
       if (Math.random() < 0.35) {
