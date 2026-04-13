@@ -44,7 +44,8 @@ function canEnter(map, x, y, float = false) { return isWalkable(map, x, y) && (f
 
 /* ===== プレイヤー防御力計算ヘルパー ===== */
 function calcPlayerDef(pl) {
-  return Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0) + (hasAbility(pl.weapon, "def_bonus") ? 5 : 0)) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1) * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
+  const _misoDef = (pl.misoDefTurns || 0) > 0 ? 8 : 0;
+  return Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0) + (hasAbility(pl.weapon, "def_bonus") ? 5 : 0) + _misoDef) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1) * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
 }
 
 /* ===== ドラゴン炎ブレス ===== */
@@ -88,9 +89,10 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 脆弱の魔方陣 */
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
-  /* 耐火装備 */
+  /* 耐火装備 / カレー炎耐性 */
   const _hasFireR = hasAbility(pl.armor, "fire_resist");
   if (_hasFireR) dmg = Math.max(1, Math.floor(dmg / 2));
+  if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
   /* 油まみれ */
   const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
   if (_oilyMult > 1) dmg *= 2;
@@ -189,6 +191,12 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     onPlayerMiss?.(m);
     return;
   }
+  /* オリーブオイル回避: 15% */
+  if ((pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+    ml.push(`オリーブオイルの力で${m.name}の攻撃をするりとかわした！`);
+    onPlayerMiss?.(m);
+    return;
+  }
   /* 12% ミス */
   if (Math.random() >= 0.88) {
     ml.push(`${m.name}の攻撃は外れた！`);
@@ -215,6 +223,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
   if (m.baseKind === "firedemon" && dmg > 0) {
     const _hasFireR = hasAbility(pl.armor, "fire_resist");
+    if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
     if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null, null, true);
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) {
@@ -256,8 +265,12 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* ボス固有攻撃エフェクト */
   if (dmg > 0) {
     if (m.baseKind === "boss_blaze" && Math.random() < 0.35) {
-      pl.confusedTurns = (pl.confusedTurns || 0) + 3;
-      ml.push(`灼熱の炎が頭を焼いた！混乱した！(3ターン)`);
+      if ((pl.yogurtImmuneTurns || 0) > 0) {
+        ml.push(`灼熱の炎が頭を焼いた！しかし乳酸菌が混乱を防いだ！`);
+      } else {
+        pl.confusedTurns = (pl.confusedTurns || 0) + 3;
+        ml.push(`灼熱の炎が頭を焼いた！混乱した！(3ターン)`);
+      }
     }
     if (m.baseKind === "boss_sage" && Math.random() < 0.30) {
       const _st = rng(5, 8);
@@ -293,6 +306,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     if (m.baseKind === "boss_infernoking" && Math.random() < 0.40) {
       if (hasRingEffect(pl, "antidote_ring")) {
         ml.push(`煉獄公の爪に毒が！しかし指輪が毒を消した！`);
+      } else if ((pl.yogurtImmuneTurns || 0) > 0) {
+        ml.push(`煉獄公の爪に毒が！しかし乳酸菌が毒を防いだ！`);
       } else {
         pl.poisoned = true;
         ml.push(`煉獄公の爪に毒が！毒を受けた！攻撃力が徐々に下がっていく…`);
@@ -1452,7 +1467,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m._statusCooldown = 5;
       const _r = Math.random();
       if (_r < 0.33) { pl.slowTurns = (pl.slowTurns || 0) + 6; ml.push(`${m.name}の呪いで足が重くなった！(6ターン)`); }
-      else if (_r < 0.66) { pl.confusedTurns = (pl.confusedTurns || 0) + 4; ml.push(`${m.name}の幻術で混乱した！(4ターン)`); }
+      else if (_r < 0.66) {
+        if ((pl.yogurtImmuneTurns || 0) > 0) { ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`); }
+        else { pl.confusedTurns = (pl.confusedTurns || 0) + 4; ml.push(`${m.name}の幻術で混乱した！(4ターン)`); }
+      }
       else { pl.sealedTurns = (pl.sealedTurns || 0) + 6; ml.push(`${m.name}の空間歪曲で魔法が封印された！(6ターン)`); }
       return; /* 状態異常付与行動消費 */
     }

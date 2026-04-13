@@ -1362,11 +1362,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       p.turns++;
       const _hasRegenRing = hasRingEffect(p, "regen_ring");
       const _hasStomachRing = hasRingEffect(p, "stomach_ring");
+      const _butterMul = (p.butterHungerTurns || 0) > 0 ? 2 : 1;
       const hd =
         hasAbility(p.armor, "slow_hunger")
-          ? 2
+          ? 2 * _butterMul
           : _hasRegenRing ? 0.5  /* 回復の指輪：空腹が2倍速 */
-          : 1;
+          : 1 * _butterMul;
       /* hd < 1 の場合は整数 turns でのチェックができないので別処理 */
       if (_hasRegenRing) {
         if (p.turns % 5 === 0) p.hunger = Math.max(0, p.hunger - 1);
@@ -1582,6 +1583,48 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if ((p.spicyAtkTurns || 0) > 0) {
         p.spicyAtkTurns--;
         if (p.spicyAtkTurns <= 0) ml.push("辛さによるダメージブーストが切れた！");
+      }
+      if ((p.honeyRegenTurns || 0) > 0) {
+        const _hReg = Math.min(2, p.maxHp - p.hp);
+        if (_hReg > 0) p.hp += _hReg;
+        p.honeyRegenTurns--;
+        if (p.honeyRegenTurns <= 0) ml.push("蜂蜜の自然回復が切れた！");
+      }
+      if ((p.curryFireResTurns || 0) > 0) {
+        p.curryFireResTurns--;
+        if (p.curryFireResTurns <= 0) ml.push("カレーの炎耐性が切れた！");
+      }
+      if ((p.misoDefTurns || 0) > 0) {
+        p.misoDefTurns--;
+        if (p.misoDefTurns <= 0) ml.push("味噌の防御ブーストが切れた！");
+      }
+      if ((p.oliveEvasionTurns || 0) > 0) {
+        p.oliveEvasionTurns--;
+        if (p.oliveEvasionTurns <= 0) ml.push("オリーブオイルの回避効果が切れた！");
+      }
+      if ((p.sesameCritTurns || 0) > 0) {
+        p.sesameCritTurns--;
+        if (p.sesameCritTurns <= 0) ml.push("ごまの会心ブーストが切れた！");
+      }
+      if ((p.butterHungerTurns || 0) > 0) {
+        p.butterHungerTurns--;
+        if (p.butterHungerTurns <= 0) ml.push("バターの腹持ち効果が切れた！");
+      }
+      if ((p.yogurtImmuneTurns || 0) > 0) {
+        p.yogurtImmuneTurns--;
+        if (p.yogurtImmuneTurns <= 0) ml.push("ヨーグルトの免疫効果が切れた！");
+      }
+      if ((p.soyExpTurns || 0) > 0) {
+        p.soyExpTurns--;
+        if (p.soyExpTurns <= 0) ml.push("醤油の経験値ブーストが切れた！");
+      }
+      if ((p.garlicDmgTurns || 0) > 0) {
+        p.garlicDmgTurns--;
+        if (p.garlicDmgTurns <= 0) ml.push("にんにくの追加ダメージが切れた！");
+      }
+      if ((p.lemonThrowTurns || 0) > 0) {
+        p.lemonThrowTurns--;
+        if (p.lemonThrowTurns <= 0) ml.push("レモンの投擲ブーストが切れた！");
       }
       if ((p.atkDebuffTurns || 0) > 0) {
         p.atkDebuffTurns--;
@@ -2262,12 +2305,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
               let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)));
+              if ((p.garlicDmgTurns || 0) > 0) ap += 5;
               const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;
               let d = Math.max(1, Math.floor(ap * ap / (ap + attackMon.def)) + rng(-2, 2));
               let crit = false;
-              if (wabHas("critical") && Math.random() < 0.25) {
+              const _sesameCritRate = (p.sesameCritTurns || 0) > 0 ? 0.45 : 0.25;
+              if (wabHas("critical") && Math.random() < _sesameCritRate) {
                 d *= 2;
                 crit = true;
               }
@@ -4389,6 +4434,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {(p.spicyAtkTurns || 0) > 0 && (
           <span style={{ color: "#ff6010" }}>🌶{p.spicyAtkTurns}</span>
+        )}{" "}
+        {(p.honeyRegenTurns || 0) > 0 && (
+          <span style={{ color: "#f0c040" }}>🍯{p.honeyRegenTurns}</span>
+        )}{" "}
+        {(p.curryFireResTurns || 0) > 0 && (
+          <span style={{ color: "#e07020" }}>🍛{p.curryFireResTurns}</span>
+        )}{" "}
+        {(p.misoDefTurns || 0) > 0 && (
+          <span style={{ color: "#a06030" }}>🫘{p.misoDefTurns}</span>
+        )}{" "}
+        {(p.oliveEvasionTurns || 0) > 0 && (
+          <span style={{ color: "#80b040" }}>🫒{p.oliveEvasionTurns}</span>
+        )}{" "}
+        {(p.sesameCritTurns || 0) > 0 && (
+          <span style={{ color: "#c0a060" }}>⚡{p.sesameCritTurns}</span>
+        )}{" "}
+        {(p.butterHungerTurns || 0) > 0 && (
+          <span style={{ color: "#f0d060" }}>🧈{p.butterHungerTurns}</span>
+        )}{" "}
+        {(p.yogurtImmuneTurns || 0) > 0 && (
+          <span style={{ color: "#e0e0ff" }}>🥛{p.yogurtImmuneTurns}</span>
+        )}{" "}
+        {(p.soyExpTurns || 0) > 0 && (
+          <span style={{ color: "#604020" }}>📖{p.soyExpTurns}</span>
+        )}{" "}
+        {(p.garlicDmgTurns || 0) > 0 && (
+          <span style={{ color: "#d0c080" }}>🧄{p.garlicDmgTurns}</span>
+        )}{" "}
+        {(p.lemonThrowTurns || 0) > 0 && (
+          <span style={{ color: "#e0e020" }}>🍋{p.lemonThrowTurns}</span>
         )}{" "}
         {(p.atkDebuffTurns || 0) > 0 && (
           <span style={{ color: "#ff6060" }}>⚔↓{p.atkDebuffTurns}</span>

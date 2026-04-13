@@ -336,8 +336,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             removeMonster(dg, target);
             monLevelUp(killerMon, dg, ml);
           } else {
-            ml.push(`${target.name}は聖域に吹き飛ばされ消滅した！(+${target.exp}exp)`);
-            p.exp += target.exp;
+            { const _se = Math.floor(target.exp * ((p.soyExpTurns||0)>0?1.3:1));
+            ml.push(`${target.name}は聖域に吹き飛ばされ消滅した！(+${_se}exp${(p.soyExpTurns||0)>0?" 醤油効果!":""})`);
+            p.exp += _se; }
             monsterDrop(target, dg, ml, p);
             removeMonster(dg, target);
             luFn(p, ml);
@@ -651,8 +652,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${target.name}と位置が入れ替わった！`);
         /* 聖域の上に強制移動した敵は即死 */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
-          ml.push(`${target.name}は聖域に踏み込み消滅した！(+${target.exp}exp)`);
-          p.exp += target.exp;
+          { const _se2 = Math.floor(target.exp * ((p.soyExpTurns||0)>0?1.3:1));
+          ml.push(`${target.name}は聖域に踏み込み消滅した！(+${_se2}exp${(p.soyExpTurns||0)>0?" 醤油効果!":""})`);
+          p.exp += _se2; }
           monsterDrop(target, dg, ml, p);
           removeMonster(dg, target);
           luFn(p, ml);

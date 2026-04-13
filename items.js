@@ -2662,8 +2662,10 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   } else if (noExp || !p) {
     ml.push(`${mon.name}は消し飛んだ！(経験値なし)`);
   } else {
-    ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
-    p.exp += mon.exp;
+    const _soyMul = (p.soyExpTurns || 0) > 0 ? 1.3 : 1;
+    const _expGain = Math.floor(mon.exp * _soyMul);
+    ml.push(`${mon.name}を倒した！(+${_expGain}exp${_soyMul > 1 ? " 醤油効果!" : ""})`);
+    p.exp += _expGain;
   }
   monsterDrop(mon, dg, ml, p);
   removeMonster(dg, mon);
@@ -2760,8 +2762,10 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           mon.hp -= dmg;
           ml.push(`飛んできた${entity.name}が${mon.name}に命中！${dmg}ダメージ！`);
           if (mon.hp <= 0) {
-            ml.push(`${mon.name}を倒した！(+${mon.exp}exp)`);
-            if (p) p.exp += mon.exp;
+            const _soyMul2 = p && (p.soyExpTurns || 0) > 0 ? 1.3 : 1;
+            const _expGain2 = Math.floor(mon.exp * _soyMul2);
+            ml.push(`${mon.name}を倒した！(+${_expGain2}exp${_soyMul2 > 1 ? " 醤油効果!" : ""})`);
+            if (p) p.exp += _expGain2;
             monsterDrop(mon, dg, ml, p);
             removeMonster(dg, mon);
             if (luFn && p) luFn(p, ml);
@@ -2884,6 +2888,7 @@ export function calcProjectileDmg(p, arAtk, def = 0) {
     (p.atk + arAtk + _ringBonus)
     * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1)
     * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)
+    * ((p.lemonThrowTurns || 0) > 0 ? 1.5 : 1)
   ));
   return Math.max(1, Math.floor(ap * ap / (ap + def)) + rng(-2, 2));
 }
