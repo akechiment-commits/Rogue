@@ -720,6 +720,7 @@ export const POTS = [
   { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。満タンでない状態で割れると周囲8マスに油が飛散し、油まみれの床と油状態(100T)を付与。油まみれなら炎ダメージ2倍。",         tile:32 },
   { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとヨーグルト漬けになる。",   tile:32 },
   { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。",   tile:32 },
+  { name:"強欲な壺",           type:"pot", potEffect:"greed",     capacity:4, rarity:"B", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -754,7 +755,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   const _in = nameFn ? nameFn(item) : item.name;
   const _pn = nameFn ? nameFn(pot) : pot.name;
   const pe = pot.potEffect;
-  if (pe === "none") { ml.push(`${_in}を${_pn}に入れた。`); return; }
+  if (pe === "none" || pe === "greed") { ml.push(`${_in}を${_pn}に入れた。`); return; }
   if (pe === "boil") { /* 実効果はGame.jsx側で処理 */ return; }
   if (pe === "enhance") {
     if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
@@ -827,6 +828,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
 
 export function randPotCapacity(potEffect) {
   if (potEffect === "none") return rng(4, 6);
+  if (potEffect === "greed") return rng(3, 5);
   if (potEffect === "enhance" || potEffect === "bless_pot" || potEffect === "curse_pot") return rng(1, 2);
   return rng(3, 5);
 }
@@ -838,6 +840,22 @@ export function makePot() {
 
 export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
   const _pn = nameFn ? nameFn(pot) : pot.name;
+  /* 強欲な壺：中身＋残り容量分のランダムアイテムを出す */
+  if (pot.potEffect === "greed") {
+    const _remaining = Math.max(0, (pot.capacity || 4) - (pot.contents?.length || 0));
+    ml.push(`${_pn}が割れた！`);
+    const ft = new Set();
+    for (const item of (pot.contents || [])) { placeItemAt(dg, px, py, item, ml, ft); }
+    if (_remaining > 0) {
+      ml.push(`${_remaining}個のランダムなアイテムが飛び出した！`);
+      for (let i = 0; i < _remaining; i++) {
+        const _ri = { ...pickWeighted(ITEMS), id: uid() };
+        if (_ri.type === 'gold') _ri.value = rng(20, 80);
+        placeItemAt(dg, px, py, _ri, ml, ft);
+      }
+    }
+    return;
+  }
   /* 火薬壺は割れると爆発（中身も消える） */
   if (pot.potEffect === "gunpowder") {
     doGunpowderExplosion(px, py, dg, p, ml, luFn, _pn);
