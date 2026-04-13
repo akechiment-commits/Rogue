@@ -642,8 +642,8 @@ export function useKeyHandler({
             } else {
               _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
             }
-            const _rmIdx_up = _p_id.inventory.findIndex((_ii, _ri) => _ri === identifyMode.scrollIdx);
-            if (_rmIdx_up !== -1) _p_id.inventory.splice(_rmIdx_up, 1);
+            /* 巻物の削除は下の共通処理（identifyMode.scrollIdx）に任せる。
+               ここで先に削除すると scrollIdx がずれて別アイテムまで消える二重削除バグが起きる。 */
           } else if (identifyMode.mode === 'bless') {
             if (_selIt.type === 'pot') {
               _selIt.capacity = (_selIt.capacity || 1) + 1;
