@@ -488,7 +488,7 @@ function setupShopRoom(room, map, depth, items, mons) {
   const makeShopItem = (base, x, y) => {
     const sit = { ...base, id: uid(), x, y };
     if (sit.type === 'arrow') sit.count = rng(5, 20);
-    sit.shopPrice = Math.ceil(itemPrice(sit) * (1 + depth * 0.1));
+    sit.shopPrice = itemPrice(sit);
     sit._shopId = shopId;
     return sit;
   };
