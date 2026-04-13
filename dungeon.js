@@ -126,7 +126,7 @@ if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
 }
 
 /* ===== MONSTER HOUSE CONTENT GENERATOR ===== */
-function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, bigboxes, su, sd) {
+function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType = null) {
   /* 通常配置でハウス部屋に入り込んだモンスターを除去（配置スペースを確保） */
   for (let i = mons.length - 1; i >= 0; i--) {
     const m = mons[i];
@@ -148,7 +148,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   const monCount = Math.min(25, Math.max(8, Math.floor(roomFloorTiles.length * 0.65)));
   for (let i = 0; i < Math.min(monCount, roomFloorTiles.length); i++) {
     const [mx, my] = roomFloorTiles[i];
-    const _mh = mkMon(depth, mx, my, 0, map, null, dg.dungeonType ?? null);
+    const _mh = mkMon(depth, mx, my, 0, map, null, dungeonType);
     _mh.dormantHouse = true;
     mons.push(_mh);
   }
@@ -1736,7 +1736,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     const mhCands = rooms.filter((r, i) => i !== 0 && i !== rooms.length - 1 && i !== shopRoomIdx);
     if (mhCands.length > 0) {
       const mhRoom = mhCands.reduce((best, r) => (r.w * r.h > best.w * best.h ? r : best), mhCands[0]);
-      genMonsterHouseContent(mhRoom, depth, map, mons, items, traps, springs, bigboxes, su, sd);
+      genMonsterHouseContent(mhRoom, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType);
       monsterHouseRoom = mhRoom;
     }
   }
