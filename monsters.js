@@ -1928,6 +1928,27 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
 
   if (m.aware) {
+    /* ── grabber（からめ鬼等）：静止型 ─ 移動コードより先に処理して即return ── */
+    if (m.subtype === "grabber") {
+      if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+        let _justCaptured = false;
+        if (!pl.capturedBy) {
+          pl.capturedBy = m.id;
+          _justCaptured = true;
+          ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
+          if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+          if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+        }
+        if (!_justCaptured && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) {
+          if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
+            m.turnAttacks++;
+            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
+          }
+        }
+      }
+      return; /* からめ鬼は絶対に移動しない */
+    }
+
     /* ===== 囮のペン（通常・祝福）: 特技含む全行動を囮に誘導 ===== */
     /* プレイヤーが魔方陣の上にいる場合は通常行動（下の special handlers に委ねる） */
     {
@@ -2688,27 +2709,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
       /* 引き寄せ後も通常攻撃・移動にフォールスルー */
-    }
-
-    /* ── grabber（からめ鬼等）：静止型、隣接でプレイヤーを捕獲 ── */
-    if (m.subtype === "grabber") {
-      if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
-        let _justCaptured = false;
-        if (!pl.capturedBy) {
-          pl.capturedBy = m.id;
-          _justCaptured = true; /* 拘束したターンは攻撃しない */
-          ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
-          if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-          if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
-        }
-        if (!_justCaptured && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y)) {
-          if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
-            m.turnAttacks++;
-            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss });
-          }
-        }
-      }
-      return; /* からめ鬼は絶対に移動しない */
     }
 
     /* ── berserker（バーサーカー等）：敵味方区別なく攻撃、店主除く ── */
