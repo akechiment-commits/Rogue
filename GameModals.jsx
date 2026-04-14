@@ -2288,7 +2288,7 @@ export function InventoryModal({
                         {it.type === "pot" && ` — 壺 [${it.contents?.length || 0}/${it.capacity}]`}
                         {it.type === "ring" && ` — 指輪${["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
-                      {it.desc || "特に情報はない。"}
+                      <div style={{ whiteSpace: "pre-wrap" }}>{it.desc || "特に情報はない。"}</div>
                       {it.ability && (() => {
                         const _ab = [...WEAPON_ABILITIES, ...ARMOR_ABILITIES].find((a) => a.id === it.ability);
                         return _ab ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_ab.name}：{_ab.desc}</div> : null;
