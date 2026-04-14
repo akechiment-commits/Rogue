@@ -168,7 +168,7 @@ export const ITEMS = [
   { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical",      rarity:"A", weight:2,  sellPrice:2500, desc:"25%の確率で会心の一撃（2倍ダメージ）が出る斧。",  tile:20 },
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
   { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"B", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
-  { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"B", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれの敵や炎弱点の敵に2倍ダメージ。火ダルマには0.5倍。", tile:20 },
+  { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"B", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれ・炎弱点の敵に2倍ダメージ。\n火ダルマには0.5倍。", tile:20 },
   { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"B", weight:4,  sellPrice:1500, desc:"氷属性の剣。炎系の敵（火ダルマ・炎弱点の敵）に2倍ダメージ。",         tile:20 },
   { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"B", weight:4,  sellPrice:1500, desc:"雷属性の剣。氷・水系の敵（氷竜・わてり等）に2倍ダメージ。",           tile:20 },
   { name:"グラットンソード", type:"weapon", atk:7,  ability:"def_bonus",     rarity:"B", weight:4,  sellPrice:1800, desc:"装備中は防御力が5上がる重厚な剣。",                                   tile:20 },
@@ -183,7 +183,7 @@ export const ITEMS = [
   { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  rarity:"A", weight:2,  sellPrice:3000, desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
   { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:8,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。",    tile:21 },
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"A", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
-  { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"B", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを半減し、氷による移動封じ・鈍足を防ぐ。",  tile:21 },
+  { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"B", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを半減。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"C", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n祝福：回復量1.5倍、最大MP+2。\n呪い：反転してMP封印50ターン。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
   { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"C", weight:8,  sellPrice:200,  desc:"飲むとMP封印50ターン。\n祝福：さらに鈍足10ターン。呪い：MP封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n祝福：10ターン混乱。呪い：反転して混乱解消+必中100ターン。\n投げると敵を20ターン混乱(祝：40T、呪：混乱解除)。", tile:16 },
@@ -223,10 +223,10 @@ export function getBlessMultiplier(it) {
 
 export const CAT_CLAW_T     = { name:"猫の爪",       type:"weapon", atk:13, ability:"critical", desc:"短剣3つの合成で生まれる鋭い爪。25%の確率で会心の一撃。", tile:20 };
 export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead", sellPrice:5000, desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ。", tile:20 };
-export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], desc:"炎・氷・雷の三元素を宿した至高の剣。全属性弱点の敵に2倍ダメージ。火ダルマには0.5倍。", tile:20 };
-export const TRIELEM_ARMOR_T = { name:"元素王の鎧", type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
+export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], desc:"炎・氷・雷の三元素を宿した至高の剣。\n全属性弱点の敵に2倍ダメージ。火ダルマには0.5倍。", tile:20 };
+export const TRIELEM_ARMOR_T = { name:"元素王の鎧", type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した究極の剣。竜・不死・浮遊の全種族に2倍ダメージ。", tile:20 };
-export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:8,  ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           desc:"三種の守護防具が融合した究極の鎧。刃反射・みかわし・杖反射の三重防御。",       tile:21 };
+export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:8,  ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           desc:"三種の守護防具が融合した究極の鎧。\n刃反射・みかわし・杖反射の三重防御。",       tile:21 };
 export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"炎・雷・氷の三杖を合成して生まれた究極の杖。\n振ると100ダメージ。祝福：200ダメージ。呪い：100回復。", tile:24 };
 
 export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
@@ -239,7 +239,7 @@ export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArr
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"D", weight:12, sellPrice:5,    desc:"空の瓶。今のところ使い道はない。",         tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"D", weight:12, sellPrice:5,    desc:"泉の水。飲むと満腹度+3。投げると着弾点のアイテムに祝福(祝)/呪い(呪)を付与。壺に当たると容量変化。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"B", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法のマーカーで書き込める。", tile:18 };
-export const MAGIC_MARKER  = { name:"魔法のマーカー", type:"marker", charges:1,          rarity:"A", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。充填の大箱で回数を増やせる。合成の大箱でマーカー同士を合成すると容量を合算できる。", tile:41 };
+export const MAGIC_MARKER  = { name:"魔法のマーカー", type:"marker", charges:1,          rarity:"A", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。マーカー同士の合成で容量合算。", tile:41 };
 
 
 /* ===== 宝石 ===== */
@@ -385,16 +385,16 @@ export const WANDS = [
 
 /* ===== BIG BOX TYPES ===== */
 export const BB_TYPES = [
-  { kind: "synthesis", name: "合成の大笥", cap: () => 2,          weight: 2, desc: "2つのアイテムを合成する。武器同士・防具同士なら能力を引き継ぐ。杖同士ならチャージを合算。ペン同士なら合算。杖と武器・防具の組み合わせでは装備に杖の能力が宿る異種合成もある。組み合わせによっては別のアイテムに変化する特殊合成が発生することもある。" },
-  { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れたアイテムがランダムな別のアイテムに変化する。何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
-  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2),  weight: 1, desc: "武器・防具の＋値を1上げる。力・守り・命の指輪の＋値も増やせる。壺の容量を1増やす。他のアイテムには効果がない。" },
-  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4),  weight: 1, desc: "食料のサイズを1段階大きくする。生なら最大で超特大、調理済みなら最大で爆盛りになる。食料以外には効果がない。" },
+  { kind: "synthesis", name: "合成の大笥", cap: () => 2,          weight: 2, desc: "2つのアイテムを合成する。\n武器/防具同士→能力引継ぎ。杖/ペン同士→チャージ合算。\n杖+装備→異種合成で杖の能力が宿る。\n特定の組み合わせで特殊合成が発生することもある。" },
+  { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れたアイテムがランダムな別のアイテムに変化する。\n何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
+  { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2),  weight: 1, desc: "武器・防具の＋値を1上げる。\n力・守り・命の指輪の＋値も増やせる。壺の容量+1。\n他のアイテムには効果がない。" },
+  { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4),  weight: 1, desc: "食料のサイズを1段階大きくする。\n生→最大で超特大、調理済み→最大で爆盛り。\n食料以外には効果がない。" },
   { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3),  weight: 1, desc: "杖・ペン・魔法のマーカーの使用回数をランダムに回復する。" },
-  { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5),  weight: 1, desc: "入れたアイテムを識別する。薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
-  { kind: "split",     name: "分裂の大箱", cap: () => 1,          weight: 1, rare: true, desc: "【レア】入れたアイテムを複製する。＋値・矢の数は半減する。金貨とキーアイテムは分裂しない。" },
-  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを祝福する。壺は祝福ではなく容量が1増える。キーアイテムには効果がない。" },
-  { kind: "curse",     name: "呪いの大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを呪う。壺は容量が1減る。食料は腐る。金貨・キーアイテムには効果がない。" },
-  { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  weight: 1, desc: "入れたアイテムを同じ部屋にいる全員に投げつけ消滅させる。薬・杖・壺・矢は各種効果発動。使うたびに容量が減り壊れる。" },
+  { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5),  weight: 1, desc: "入れたアイテムを識別する。\n薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
+  { kind: "split",     name: "分裂の大箱", cap: () => 1,          weight: 1, rare: true, desc: "【レア】入れたアイテムを複製する。\n＋値・矢の数は半減する。金貨・キーアイテムは分裂しない。" },
+  { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを祝福する。\n壺は祝福ではなく容量+1。キーアイテムには効果がない。" },
+  { kind: "curse",     name: "呪いの大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを呪う。\n壺は容量-1。食料は腐る。金貨・キーアイテムには効果がない。" },
+  { kind: "scatter",   name: "拡散の大箱", cap: () => rng(3, 6),  weight: 1, desc: "入れたアイテムを部屋内の全員に投げつけ消滅させる。\n薬・杖・壺・矢は各種効果発動。使うたびに容量が減る。" },
   { kind: "trash",     name: "ゴミ箱",     cap: () => rng(5, 10), weight: 1, desc: "入れたアイテムが消滅する。使うたびに容量が減り壊れる。" },
 ];
 
