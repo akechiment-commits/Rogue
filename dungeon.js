@@ -965,21 +965,22 @@ function genRingCorridorFloor(depth, dungeonType = null) {
     for (let y = y1+1; y < y2; y++) { map[y][x1] = T.FLOOR; map[y][x2] = T.FLOOR; }
   }
 
-  /* リング間の接続通路 */
+  /* リング間の接続通路 ＋ 内側端点（ポケット生成用）を収集 */
   const carveV = (x, ya, yb) => { const a=Math.min(ya,yb), b=Math.max(ya,yb); for(let y=a;y<=b;y++) map[y][x]=T.FLOOR; };
   const carveH = (y, xa, xb) => { const a=Math.min(xa,xb), b=Math.max(xa,xb); for(let x=a;x<=b;x++) map[y][x]=T.FLOOR; };
+  const pocketCenters = []; // 9×9ポケットの中心座標一覧
 
-  /* 外周⟺中周：上下各2本・左右各1本 */
-  for (let i = 0; i < 2; i++) carveV(rng(RINGS[1].x1+1, RINGS[1].x2-1), RINGS[0].y1, RINGS[1].y1);
-  for (let i = 0; i < 2; i++) carveV(rng(RINGS[1].x1+1, RINGS[1].x2-1), RINGS[1].y2, RINGS[0].y2);
-  carveH(rng(RINGS[1].y1+1, RINGS[1].y2-1), RINGS[0].x1, RINGS[1].x1);
-  carveH(rng(RINGS[1].y1+1, RINGS[1].y2-1), RINGS[1].x2, RINGS[0].x2);
+  /* 外周⟺中周：上下各2本・左右各1本。内側端点=中周との合流点 */
+  for (let i = 0; i < 2; i++) { const cx=rng(RINGS[1].x1+1, RINGS[1].x2-1); carveV(cx, RINGS[0].y1, RINGS[1].y1); pocketCenters.push([cx, RINGS[1].y1]); }
+  for (let i = 0; i < 2; i++) { const cx=rng(RINGS[1].x1+1, RINGS[1].x2-1); carveV(cx, RINGS[1].y2, RINGS[0].y2); pocketCenters.push([cx, RINGS[1].y2]); }
+  { const cy=rng(RINGS[1].y1+1, RINGS[1].y2-1); carveH(cy, RINGS[0].x1, RINGS[1].x1); pocketCenters.push([RINGS[1].x1, cy]); }
+  { const cy=rng(RINGS[1].y1+1, RINGS[1].y2-1); carveH(cy, RINGS[1].x2, RINGS[0].x2); pocketCenters.push([RINGS[1].x2, cy]); }
 
-  /* 中周⟺内周：上下各2本・左右各1本 */
-  for (let i = 0; i < 2; i++) carveV(rng(RINGS[2].x1+1, RINGS[2].x2-1), RINGS[1].y1, RINGS[2].y1);
-  for (let i = 0; i < 2; i++) carveV(rng(RINGS[2].x1+1, RINGS[2].x2-1), RINGS[2].y2, RINGS[1].y2);
-  carveH(rng(RINGS[2].y1+1, RINGS[2].y2-1), RINGS[1].x1, RINGS[2].x1);
-  carveH(rng(RINGS[2].y1+1, RINGS[2].y2-1), RINGS[2].x2, RINGS[1].x2);
+  /* 中周⟺内周：上下各2本・左右各1本。内側端点=内周との合流点 */
+  for (let i = 0; i < 2; i++) { const cx=rng(RINGS[2].x1+1, RINGS[2].x2-1); carveV(cx, RINGS[1].y1, RINGS[2].y1); pocketCenters.push([cx, RINGS[2].y1]); }
+  for (let i = 0; i < 2; i++) { const cx=rng(RINGS[2].x1+1, RINGS[2].x2-1); carveV(cx, RINGS[2].y2, RINGS[1].y2); pocketCenters.push([cx, RINGS[2].y2]); }
+  { const cy=rng(RINGS[2].y1+1, RINGS[2].y2-1); carveH(cy, RINGS[1].x1, RINGS[2].x1); pocketCenters.push([RINGS[2].x1, cy]); }
+  { const cy=rng(RINGS[2].y1+1, RINGS[2].y2-1); carveH(cy, RINGS[2].x2, RINGS[1].x2); pocketCenters.push([RINGS[2].x2, cy]); }
 
   /* 階段：SU=外周ランダム位置, SD=内周ランダム位置 */
   const collectRingTiles = ({ x1, y1, x2, y2 }) => {
@@ -998,6 +999,25 @@ function genRingCorridorFloor(depth, dungeonType = null) {
   const innerTiles = collectRingTiles(RINGS[2]);
   const [suX, suY] = pick(outerTiles.length ? outerTiles : [[RINGS[0].x1, RINGS[0].y1]]);
   const [sdX, sdY] = pick(innerTiles.length ? innerTiles : [[RINGS[2].x1, RINGS[2].y1]]);
+
+  /* 階段周辺もポケットリストに追加 */
+  pocketCenters.push([suX, suY], [sdX, sdY]);
+
+  /* ── 9×9のポケット空間を生成（部屋扱いなし、罠専用配置ゾーン） ── */
+  const pocketTileSet = new Set();
+  for (const [cx, cy] of pocketCenters) {
+    for (let dy = -4; dy <= 4; dy++) {
+      for (let dx = -4; dx <= 4; dx++) {
+        const px = cx + dx, py = cy + dy;
+        if (px >= 1 && px < MW-1 && py >= 1 && py < MH-1) {
+          map[py][px] = T.FLOOR;
+          pocketTileSet.add(`${px},${py}`);
+        }
+      }
+    }
+  }
+
+  /* 階段をポケット生成後に配置（T.FLOORを上書き） */
   map[suY][suX] = T.SU; map[sdY][sdX] = T.SD;
   const su = { x: suX, y: suY }, sd = { x: sdX, y: sdY };
 
@@ -1006,17 +1026,30 @@ function genRingCorridorFloor(depth, dungeonType = null) {
     { x: sdX-1, y: sdY-1, w: 3, h: 3, cx: sdX, cy: sdY },
   ];
 
+  /* 全床タイル（モンスター・アイテム配置用） */
   const corTiles = [];
   for (let y = 0; y < MH; y++)
     for (let x = 0; x < MW; x++)
       if (map[y][x] === T.FLOOR) corTiles.push([x, y]);
+
+  /* ポケット内タイル（罠配置専用） */
+  const pocketTilesArr = [...pocketTileSet]
+    .map(k => k.split(',').map(Number))
+    .filter(([x,y]) => map[y][x] === T.FLOOR);
+
   const mons = [], items = [], traps = [], springs = [], bigboxes = [];
   const occ = mkOcc(items, mons, traps, springs, bigboxes);
-  const rndCor = () => { for(let a=0;a<60;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y))return[x,y];}return null; };
-  const rndCorWide = () => { for(let a=0;a<120;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y)&&!isNarrowPassage(map,x,y))return[x,y];}return null; };
+  const rndCor   = () => { for(let a=0;a<60;a++){const[x,y]=pick(corTiles);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y))return[x,y];}return null; };
+  /* 罠はポケット空間にのみ配置 */
+  const rndPocket = () => {
+    if (!pocketTilesArr.length) return null;
+    for(let a=0;a<120;a++){const[x,y]=pick(pocketTilesArr);if(!occ(x,y)&&!(x===su.x&&y===su.y)&&!(x===sd.x&&y===sd.y))return[x,y];}
+    return null;
+  };
+
   for(let i=0;i<rng(5,9)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
   for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it={...pickWeighted(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
-  for(let i=0;i<rng(4,8)+depth;i++){const p=rndCorWide();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
+  for(let i=0;i<rng(4,8)+depth;i++){const p=rndPocket();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
   return { map, rooms, monsters: mons, items, traps, springs, bigboxes, stairUp: su, stairDown: sd, visible, explored, shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], floorType: "ringCorridorFloor" };
