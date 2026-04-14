@@ -2247,14 +2247,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             const _pool = _far.length ? _far : _mid.length ? _mid : _cands;
             if (_pool.length > 0) {
               const [_px, _py] = pick(_pool);
-              const _phMax = 60 + _prevDepth * 10;
+              const _baseD = sr.current.maxDepth ?? _prevDepth; /* 最深深度基準 */
+              const _phMax = 60 + _baseD * 10;
               nd.monsters.push({
                 id: uid(), name: "遺物の番人",
                 hp: _phMax, maxHp: _phMax,
-                atk: 18 + _prevDepth * 2,
-                def: 8  + _prevDepth,
-                exp: 150 + _prevDepth * 20,
-                speed: _prevDepth >= 20 ? 2 : 1,
+                atk: 18 + _baseD * 2,
+                def: 8  + _baseD,
+                exp: 150 + _baseD * 20,
+                speed: _baseD >= 20 ? 2 : 1,
                 tile: 91, kind: "beast", baseKind: "pursuer",
                 aware: true, x: _px, y: _py,
               });
