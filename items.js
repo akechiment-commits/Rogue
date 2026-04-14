@@ -227,7 +227,7 @@ export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, abi
 export const TRIELEM_ARMOR_T = { name:"元素王の鎧", type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した究極の剣。竜・不死・浮遊の全種族に2倍ダメージ。", tile:20 };
 export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:8,  ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           desc:"三種の守護防具が融合した究極の鎧。刃反射・みかわし・杖反射の三重防御。",       tile:21 };
-export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"炎・雷・氷の三杖を合成して生まれた究極の杖。振ると100ダメージ。祝福で200ダメージ。呪いなら100回復。", tile:24 };
+export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"炎・雷・氷の三杖を合成して生まれた究極の杖。\n振ると100ダメージ。祝福：200ダメージ。呪い：100回復。", tile:24 };
 
 export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
 export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
@@ -361,26 +361,26 @@ export function genFood() {
 export const WANDS = [
   { name:"ふきとばしの杖", type:"wand", effect:"knockback", charges:5, rarity:"C", weight:8,  sellPrice:300,  desc:"振ると対象を吹き飛ばす。壊すと周囲全てを吹き飛ばす。",                           tile:24 },
   { name:"雷の杖",         type:"wand", effect:"lightning", charges:4, rarity:"B", weight:4,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
-  { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:6, rarity:"C", weight:8,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。水の瓶に当てると鈍足の薬になる。",  tile:24 },
+  { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:6, rarity:"C", weight:8,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。\n水の瓶→鈍足の薬。",  tile:24 },
   { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると対象を別の何かに変える。壊すと周囲全てを変化。",                           tile:24 },
   { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:5, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
-  { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
+  { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。\n壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
   { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"C", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。壊しても何も起こらない。",                     tile:24 },
   { name:"テレポートの杖", type:"wand", effect:"warp",      charges:4, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
-  { name:"金縛りの杖",     type:"wand", effect:"paralyze",  charges:5, rarity:"A", weight:2,  sellPrice:500, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。祝福：2回アクションが必要な強金縛り。呪い：対象が200ターン状態異常（金縛り・眠り・鈍足）を防ぐ力を得る。水の瓶に当てると金縛りの薬になる。", tile:24 },
+  { name:"金縛りの杖",     type:"wand", effect:"paralyze",  charges:5, rarity:"A", weight:2,  sellPrice:500, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。\n祝福：2回アクション必要な強金縛り。\n呪い：対象が200T状態異常防止を得る。\n水の瓶に当てると金縛りの薬になる。", tile:24 },
   { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"C", weight:8,  sellPrice:400,  desc:"振ると対象を眠りに落とす。眠りの罠と同様の効果。",                                   tile:24 },
   { name:"祝福の杖",       type:"wand", effect:"bless_wand",charges:1, rarity:"S", weight:1,  sellPrice:8000, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
   { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:1, rarity:"B", weight:4,  sellPrice:1500, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
-  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"A", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。自分に使えば1レベル上がる。敵に当てると次の形態に変化する。呪い：自分なら1階上へ飛ばされ、敵ならレベルダウンする。水の瓶に当てるとレベルアップの薬になる。", tile:24 },
-  { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"C", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。自分なら5ターン、敵なら20ターン混乱する。水の瓶に当てると混乱の薬になる。", tile:24 },
-  { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:5, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。自分なら視界が1マスになる(20ターン)。敵なら50ターンこちらを認識できず壁まで直進し途中の者を攻撃する。祝福：自分50ターン・敵永続。呪い：フロア全体が見えるようになる。水の瓶に当てると暗闇の薬になる。", tile:24 },
-  { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。自分なら50ターン周囲の見た目が狂う。敵なら50ターン逃げ回る。祝福：自分100ターン・敵永続。呪い：フロアの罠が全て見えるようになる。水の瓶に当てると惑わしの薬になる。", tile:24 },
-  { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"C", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分に当たるとMP封印50ターン。祝福：敵に鈍足も付与、自分は鈍足10ターンも追加。呪い：敵の特技使用率が100%に、自分はMP封印が治る。水の瓶に当てると封印の薬になる。", tile:24 },
-  { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"B", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する（祝福：4分の1）。アイテム・罠・大箱に当てると破壊。壁に当てると1マスがランダムな食料に変化。呪い：1マス先に壊せる壁を生成する。", tile:24 },
-  { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象には2倍ダメージ、火ダルマは回復。自分に当たると炎でアイテム損傷抽選。床のアイテムに当たると魔法書・巻物・薬は破壊、食料は焼ける。祝福：2倍ダメージ。呪い：対象を回復。", tile:24 },
-  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。対象に氷属性ダメージ+5ターン移動封じ。火ダルマには2倍ダメージ。祝福：2倍ダメージ+移動封じ10ターン。呪い：対象を回復し移動封じ状態なら解除。", tile:24 },
-  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"B", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。祝福：交換後に相手のHPを1に。呪い：交換後に自分のHPを1に。自分に振っても交換は起きないが祝福・呪いの効果は出る。壊すと隣接する最大HPのモンスターとHP交換。", tile:24 },
-  { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"B", weight:4,  sellPrice:700,  desc:"アイテム・大箱に当てると識別する。敵に当てるとHP・攻撃力・防御力を表示する。壁に跳ね返って自分に当たると手持ちから1個ランダム識別。呪い：対象が未識別に戻る。", tile:24 },
+  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"A", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：自分は1階上へワープ、敵はレベルダウン。\n水の瓶→レベルアップの薬。", tile:24 },
+  { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"C", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。\n自分：5ターン、敵：20ターン混乱。\n水の瓶→混乱の薬。", tile:24 },
+  { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:5, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n祝福：自分50T・敵永続。呪い：フロア全体が見える。\n水の瓶→暗闇の薬。", tile:24 },
+  { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n祝福：自分100T・敵永続。呪い：罠が全て見える。\n水の瓶→惑わしの薬。", tile:24 },
+  { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"C", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：MP封印50T。\n祝福：敵に鈍足も付与、自分は鈍足10Tも追加。\n呪い：敵の特技100%化、自分はMP封印解除。\n水の瓶→封印の薬。", tile:24 },
+  { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"B", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する(祝福：1/4)。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
+  { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれは2倍、火ダルマは回復。\n自分：炎でアイテム損傷抽選。床：魔法書等は破壊、食料は焼ける。\n祝福：2倍ダメージ。呪い：対象を回復。", tile:24 },
+  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージ+5T移動封じ。\n火ダルマには2倍ダメージ。\n祝福：2倍ダメージ+移動封じ10T。呪い：対象を回復。", tile:24 },
+  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"B", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。\n祝福：交換後に相手のHPを1に。呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
+  { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"B", weight:4,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n呪い：対象が未識別に戻る。", tile:24 },
 ];
 
 /* ===== BIG BOX TYPES ===== */
