@@ -14,6 +14,7 @@ import {
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, getDiscoveries } from "./DiscoveryTracker.js";
+import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim } from "./animEvents.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限） */
@@ -349,6 +350,7 @@ export function useItemActions({
               ml.push(`${it.name}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
               sr.current = { ...sr.current };
+              clearGameSave();
               const _hasGoalP = p.inventory.some(i => i.type === "goal");
               onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalP });
               return;

@@ -22,7 +22,8 @@ import {
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
-import { trackItem, trackMonster, trackTrap, trackBigbox, resetDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
+import { trackItem, trackMonster, trackTrap, trackBigbox, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
+import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
 import { useGameRenderer } from './useGameRenderer.js';
@@ -161,7 +162,7 @@ function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThro
   );
 }
 
-export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {} } = {}) {
+export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   /* フロアターン付きメッセージ追加ラッパー */
@@ -517,7 +518,49 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     setGs(s);
     ref.current?.focus();
   }, []);
-  useEffect(init, [init]);
+  /* 再開データがある場合はinitの代わりにresumeStateを復元 */
+  const initOrResume = useCallback(() => {
+    if (resumeState) {
+      setDead(false);
+      setGameOverResult(null);
+      setShowInv(false);
+      setSelIdx(null);
+      setShowDesc(null);
+      setThrowMode(null);
+      setSpringMode(null);
+      setPutMode(null);
+      setDashMode(false);
+      /* DiscoveryTracker に前回の発見データを復元 */
+      restoreDiscoveries(resumeState.discoveries);
+      const rs = {
+        player: resumeState.player,
+        dungeon: resumeState.dungeon,
+        floors: resumeState.floors || {},
+        ident: resumeState.ident,
+        fakeNames: resumeState.fakeNames,
+        bbFakeNames: resumeState.bbFakeNames,
+        nicknames: resumeState.nicknames || {},
+        isDebugRun: resumeState.isDebugRun,
+        dungeonType: resumeState.dungeonType,
+        maxDepth: resumeState.maxDepth,
+        allBcKnown: resumeState.allBcKnown,
+        floorTurns: resumeState.floorTurns || 0,
+      };
+      refreshFOV(rs.dungeon, rs.player);
+      sr.current = rs;
+      setGs(rs);
+      setMsgs(resumeState.msgs || [{ text: "冒険を再開した。", turn: 0 }]);
+      ref.current?.focus();
+    } else {
+      init();
+    }
+  }, []);
+  useEffect(initOrResume, [initOrResume]);
+  /* ── 自動セーブ: ゲーム状態が変わるたびにlocalStorageに保存 ── */
+  useEffect(() => {
+    if (!gs || dead) return;
+    saveGameState(sr.current, msgsRef.current, dungeonConfig, getDiscoveries());
+  }, [gs, dead]);
   useEffect(() => {
     if (msgRef.current) msgRef.current.scrollTop = msgRef.current.scrollHeight;
   }, [msgs]);
@@ -2006,6 +2049,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ml.push(`HPがゼロになった！残りMP${revHp}でHP${revHp}として復活！MPは1000ターン回復しない。`);
         } else {
           ml.push("あなたは死んだ...ゲームオーバー。");
+          clearGameSave();
           try {
             const _scores = JSON.parse(localStorage.getItem("roguelike_scores") || "[]");
             _scores.unshift({
@@ -2706,6 +2750,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
+              clearGameSave();
               const _hasGoal = p.inventory.some(it => it.type === "goal");
               onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal, identifiedEffects: [...(sr.current?.ident || [])] });
               return;
@@ -2725,6 +2770,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } else if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
+              clearGameSave();
               const _hasGoal2 = p.inventory.some(it => it.type === "goal");
               onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal2 });
               return;

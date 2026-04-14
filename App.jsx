@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { loadSave, writeSave, clearSave, mergeDiscoveries } from "./SaveData.js";
 import { resetDiscoveries } from "./DiscoveryTracker.js";
+import { loadGameState, clearGameSave } from "./GameSave.js";
 import { sortWarehouseItems } from "./utils.js";
 import RoguelikeGame from "./Game.jsx";
 import HubScreen from "./HubScreen.jsx";
@@ -10,6 +11,7 @@ export default function App() {
   const [screen, setScreen] = useState("hub"); /* "hub" | "dungeon" */
   const [saveData, setSaveData] = useState(() => loadSave());
   const [dungeonConfig, setDungeonConfig] = useState(null);
+  const [resumeState, setResumeState] = useState(null);
   const returnedRef = useRef(false); /* guard: prevent double returnToHub */
 
   /* Persist and update saveData */
@@ -24,8 +26,20 @@ export default function App() {
   /* Hub → Dungeon */
   const startDungeon = useCallback((config) => {
     resetDiscoveries();
+    clearGameSave();
     returnedRef.current = false;
+    setResumeState(null);
     setDungeonConfig({ ...config, _key: Date.now() });
+    setScreen("dungeon");
+  }, []);
+
+  /* Hub → Dungeon (resume from save) */
+  const resumeDungeon = useCallback(() => {
+    const saved = loadGameState();
+    if (!saved) return;
+    returnedRef.current = false;
+    setResumeState(saved);
+    setDungeonConfig({ ...(saved.dungeonConfig || {}), _key: Date.now() });
     setScreen("dungeon");
   }, []);
 
@@ -71,6 +85,7 @@ export default function App() {
 
   const handleClearSave = useCallback(() => {
     clearSave();
+    clearGameSave();
     setSaveData(loadSave());
   }, []);
 
@@ -82,6 +97,7 @@ export default function App() {
         onReturnToHub={returnToHub}
         pastIdent={saveData?.identifiedEffects || []}
         discoveredItems={saveData?.discovered?.items || {}}
+        resumeState={resumeState}
       />
     );
   }
@@ -91,6 +107,7 @@ export default function App() {
       saveData={saveData}
       updateSave={updateSave}
       onStartDungeon={startDungeon}
+      onResumeDungeon={resumeDungeon}
       onClearSave={handleClearSave}
     />
   );

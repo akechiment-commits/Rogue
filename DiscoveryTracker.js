@@ -40,6 +40,16 @@ export function trackBigbox(bb) {
   }
 }
 
+export function restoreDiscoveries(data) {
+  if (!data) return;
+  _disc = {
+    items:    { ...(data.items || {}) },
+    monsters: { ...(data.monsters || {}) },
+    traps:    { ...(data.traps || {}) },
+    bigboxes: { ...(data.bigboxes || {}) },
+  };
+}
+
 export function getDiscoveries() {
   return {
     items:    { ..._disc.items },

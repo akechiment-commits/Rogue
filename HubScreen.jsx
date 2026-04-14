@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
+import { hasGameSave } from "./GameSave.js";
 import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES } from "./items.js";
 
 /* ===== 拠点ショップのアイテムプール ===== */
@@ -473,7 +474,7 @@ function SaveDataPanel({ saveData, onClearSave, onClose }) {
 }
 
 /* ===== メインHUBスクリーン ===== */
-export default function HubScreen({ saveData, updateSave, onStartDungeon, onClearSave }) {
+export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave }) {
   const [panel, setPanel] = useState(null); /* "dungeon" | "warehouse" | "shop" | "encyclopedia" | "savedata" */
 
   const hubGold = saveData.hubGold || 0;
@@ -541,6 +542,21 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onClea
           <div style={{ color:"#555", fontSize:10 }}>探索回数</div>
         </div>
       </div>
+
+      {/* 中断データがある場合：再開ボタン */}
+      {hasGameSave() && onResumeDungeon && (
+        <button
+          onClick={onResumeDungeon}
+          style={{
+            ...BTN, width:"min(360px,90vw)", padding:"18px 0", marginBottom:8,
+            background:"#1a2808", color:"#8f4",
+            borderColor:"#3a5a1a", fontSize:17, fontWeight:"bold",
+            boxShadow:"0 0 16px #283808",
+          }}
+        >
+          ▶ 冒険を再開する
+        </button>
+      )}
 
       {/* メインボタン：ダンジョンへ */}
       <button
