@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { loadSave, writeSave, clearSave, mergeDiscoveries } from "./SaveData.js";
 import { resetDiscoveries } from "./DiscoveryTracker.js";
 import { sortWarehouseItems } from "./utils.js";
@@ -10,6 +10,7 @@ export default function App() {
   const [screen, setScreen] = useState("hub"); /* "hub" | "dungeon" */
   const [saveData, setSaveData] = useState(() => loadSave());
   const [dungeonConfig, setDungeonConfig] = useState(null);
+  const returnedRef = useRef(false); /* guard: prevent double returnToHub */
 
   /* Persist and update saveData */
   const updateSave = useCallback((updater) => {
@@ -23,21 +24,16 @@ export default function App() {
   /* Hub → Dungeon */
   const startDungeon = useCallback((config) => {
     resetDiscoveries();
+    returnedRef.current = false;
     setDungeonConfig({ ...config, _key: Date.now() });
     setScreen("dungeon");
   }, []);
 
   /* Dungeon → Hub (called on death OR voluntary exit) */
   const returnToHub = useCallback((result) => {
-    /*
-      result: {
-        earnedGold: number,       -- dungeon gold earned this run
-        depth: number,            -- deepest floor reached
-        discoveries: object,      -- { items, monsters, traps }
-        survived: boolean,        -- false = death, true = voluntary exit
-        returnItems: array,       -- items to deposit into warehouse (voluntary exit only)
-      }
-    */
+    /* 二重呼び出し防止 */
+    if (returnedRef.current) return;
+    returnedRef.current = true;
     updateSave(prev => {
       const next = { ...prev };
       /* survived=true: 100% gold; death: 50% gold */

@@ -76,11 +76,13 @@ function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} }) {
   const timers = useRef({ delay: null, interval: null });
   const cbRef  = useRef(onClick);
   cbRef.current = onClick;
-  const stop = () => {
+  const stop = useCallback(() => {
     clearTimeout(timers.current.delay);
     clearInterval(timers.current.interval);
     timers.current.delay = timers.current.interval = null;
-  };
+  }, []);
+  /* アンマウント時にタイマーをクリア（画面遷移でリピートが残る問題の防止） */
+  useEffect(() => stop, [stop]);
   const start = (e) => {
     e.preventDefault();
     cbRef.current();
