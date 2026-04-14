@@ -1358,7 +1358,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* 盲目状態（ボスのみターン経過で解除） */
   if (m.blind && m.isBoss && !_attackOnly) {
     m.blindTurns = Math.max(0, ((m.blindTurns || 0) - 2));
-    if (m.blindTurns <= 0) { m.blind = false; }
+    if (m.blindTurns <= 0) { m.blind = false; ml.push(`${m.name}の盲目が解けた！`); }
   }
   /* 幻惑状態（ボスのみターン経過で解除） */
   if (m.bewitched && m.isBoss && !_attackOnly) {
@@ -1385,6 +1385,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
   if (m.sleepTurns > 0) {
     if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - (m.isBoss ? 2 : 1));
+    if (m.sleepTurns <= 0) ml.push(`${m.name}の睡眠が解けた！`);
     return;
   }
   /* 金縛り（paralyzeTurns があればボスのみターン経過で解除） */
@@ -1552,7 +1553,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
-  if ((m.immobileTurns||0) > 0) { if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - (m.isBoss ? 2 : 1)); _attackOnly = true; }
+  if ((m.immobileTurns||0) > 0) {
+    if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - (m.isBoss ? 2 : 1));
+    if (m.immobileTurns <= 0) ml.push(`${m.name}の移動封じが解けた！`);
+    else _attackOnly = true;
+  }
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
     if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - (m.isBoss ? 2 : 1));
