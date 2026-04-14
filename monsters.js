@@ -89,8 +89,8 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 脆弱の魔方陣 */
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
-  /* 耐火装備 / カレー炎耐性 */
-  const _hasFireR = hasAbility(pl.armor, "fire_resist");
+  /* 耐火装備 / 万能耐性 / カレー炎耐性 */
+  const _hasFireR = hasAbility(pl.armor, "fire_resist") || hasAbility(pl.armor, "all_resist");
   if (_hasFireR) dmg = Math.max(1, Math.floor(dmg / 2));
   if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
   /* 油まみれ */
@@ -129,7 +129,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   let _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
   const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
-  const _hasIceR = hasAbility(pl.armor, "ice_resist");
+  const _hasIceR = hasAbility(pl.armor, "ice_resist") || hasAbility(pl.armor, "all_resist");
   if (_hasIceR) _iDmg = Math.max(1, Math.floor(_iDmg / 2));
   pl.deathCause = `${m.name}の氷ブレスで`;
   pl.hp -= _iDmg;
@@ -209,6 +209,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
     if (vulnPc) dmg = vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (vulnPc.blessed ? 4 : 2);
   }
+  /* 脆弱：近接ダメージ+3 */
+  if (hasAbility(pl.armor, "frail")) dmg += 3;
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);

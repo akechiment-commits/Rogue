@@ -1694,8 +1694,8 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         }
         return;
       }
-      /* ゴムゴムの胴: 雷ダメージ半減・所持品破壊を防ぐ */
-      const _hasLightRes = hasAbility(pl.armor, "lightning_resist");
+      /* ゴムゴムの胴 / 万能耐性: 雷ダメージ半減・所持品破壊を防ぐ */
+      const _hasLightRes = hasAbility(pl.armor, "lightning_resist") || hasAbility(pl.armor, "all_resist");
       let dmg = rng(15, 25);
       if (_hasLightRes) dmg = Math.max(1, Math.floor(dmg / 2));
       if (inCursedMagicSealRoom(pl.x, pl.y, dg)) dmg *= 2;

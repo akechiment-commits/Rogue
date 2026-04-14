@@ -670,6 +670,12 @@ export const WEAPON_ABILITIES = [
   { id:"ice_elem",        name:"氷属性",    desc:"炎属性の敵(火ダルマ・氷竜以外の炎系)に2倍ダメージ" },
   { id:"thunder_elem",    name:"雷属性",    desc:"氷・水系の敵(氷竜・わてり)に2倍ダメージ" },
   { id:"def_bonus",       name:"防御強化",  desc:"装備中、防御力が5上がる" },
+  /* 呪い専用デメリット能力 */
+  { id:"recoil",          name:"反動",      desc:"攻撃するたびに自分も2〜4ダメージを受ける",        curseOnly:true },
+  { id:"gluttony",        name:"大食い",    desc:"装備中、空腹の進みが2倍になる",                  curseOnly:true },
+  /* 祝福専用強力能力 */
+  { id:"lifesteal",       name:"吸血",      desc:"攻撃時、与えたダメージの30%をHP回復する",        blessedOnly:true },
+  { id:"double_strike",   name:"連撃",      desc:"通常攻撃が2回になる（2回目は威力60%）",          blessedOnly:true },
 ];
 
 export const ARMOR_ABILITIES = [
@@ -690,6 +696,12 @@ export const ARMOR_ABILITIES = [
   { id:"bewitch_proof",    name:"耐惑わし", desc:"幻惑効果を無効化する" },
   { id:"seal_proof",       name:"耐封印",   desc:"封印効果を無効化する" },
   { id:"ice_resist",       name:"耐氷",     desc:"氷のダメージを半減する" },
+  /* 呪い専用デメリット能力 */
+  { id:"frail",            name:"脆弱",     desc:"近接攻撃を受けた時、ダメージが+3増加する",         curseOnly:true },
+  { id:"noisy",            name:"騒音",     desc:"部屋に入るたびに同部屋の敵が全員目を覚ます",       curseOnly:true },
+  /* 祝福専用強力能力 */
+  { id:"all_resist",       name:"万能耐性", desc:"炎・氷・雷のダメージをすべて半減する",             blessedOnly:true },
+  { id:"aura",             name:"闘気",     desc:"毎ターン、隣接する敵全員に2ダメージを与える",       blessedOnly:true },
 ];
 
 /* ===== TRAPS ===== */

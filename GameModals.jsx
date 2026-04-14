@@ -804,16 +804,16 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
       const _ownedIds = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
       /* 祝福・呪いで選出プールを絞る */
-      const _WEAPON_STRONG = new Set(["reach","critical","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid"]);
-      const _WEAPON_WEAK   = new Set(["no_degrade","def_bonus","inflict_slow","knockback"]);
-      const _ARMOR_STRONG  = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist"]);
-      const _ARMOR_WEAK    = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof"]);
+      const _WEAPON_STRONG = new Set(["reach","critical","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid","lifesteal","double_strike"]);
+      const _WEAPON_WEAK   = new Set(["no_degrade","def_bonus","inflict_slow","knockback","recoil","gluttony"]);
+      const _ARMOR_STRONG  = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist","all_resist","aura"]);
+      const _ARMOR_WEAK    = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof","frail","noisy"]);
       const _strongSet = _isWeapon ? _WEAPON_STRONG : _ARMOR_STRONG;
       const _weakSet   = _isWeapon ? _WEAPON_WEAK   : _ARMOR_WEAK;
       const _candidateAbils = _allAbils.filter(ab => !_ownedIds.has(ab.id) && (
         mode.blessed ? _strongSet.has(ab.id)
       : mode.cursed  ? _weakSet.has(ab.id)
-      : true
+      : !ab.curseOnly && !ab.blessedOnly  /* 通常巻物では専用能力は出ない */
       ));
       /* プールが空なら全体から（既所持除く） */
       const _finalPool = _candidateAbils.length > 0 ? _candidateAbils : _allAbils.filter(ab => !_ownedIds.has(ab.id));

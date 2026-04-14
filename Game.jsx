@@ -1424,6 +1424,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           p.hunger = Math.max(0, p.hunger - 1);
         }
       }
+      /* 大食い武器：5ターンごとに追加で満腹度-1（約2倍速） */
+      if (hasAbility(p.weapon, "gluttony") && p.turns % 5 === 0) {
+        p.hunger = Math.max(0, p.hunger - 1);
+      }
       if (p.hunger === 0) {
         p.deathCause = "空腹により";
         if (!p._hungerDmgStarted) {
@@ -1439,6 +1443,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           (hasAbility(p.armor, "regen") ? 1 : 0);
         const regenAmt = _hasRegenRing ? _baseRegen * 2 : _baseRegen;  /* 回復の指輪：回復量2倍 */
         p.hp = Math.min(p.maxHp, p.hp + regenAmt);
+      }
+      /* 闘気防具：毎ターン隣接する敵全員に2ダメージ */
+      if (hasAbility(p.armor, "aura") && st.dungeon.monsters.length > 0) {
+        const _auraMons = st.dungeon.monsters.filter(m =>
+          Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1
+        );
+        for (const _am of _auraMons) {
+          _am.hp -= 2;
+          ml.push(`闘気が${_am.name}に2ダメージ！`);
+          if (_am.hp <= 0 && st.dungeon.monsters.includes(_am)) {
+            killMonster(_am, st.dungeon, p, ml, lu);
+          }
+        }
       }
       /* MPクールダウンカウント */
       if ((p.mpCooldownTurns || 0) > 0) p.mpCooldownTurns--;
@@ -1547,7 +1564,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _theal = Math.min(25, p.maxHp - p.hp);
           if (_theal > 0) { p.hp += _theal; ml.push(`${_thunderPent.name}の力でHPが${_theal}回復した！`); }
         } else {
-          const _thasLR = hasAbility(p.armor, "lightning_resist");
+          const _thasLR = hasAbility(p.armor, "lightning_resist") || hasAbility(p.armor, "all_resist");
           const _tdmg = Math.max(1, Math.floor((_thunderPent.blessed ? 50 : 25) * (_thasLR ? 0.5 : 1)));
           p.deathCause = `${_thunderPent.name}の雷撃により`;
           p.hp -= _tdmg;
@@ -2445,6 +2462,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 p.hp = Math.min(p.maxHp, p.hp + _vamp);
                 ml.push(`吸血でHP+${_vamp}！`);
               }
+              /* 吸血武器：与ダメの30%をHP回復 */
+              if (wabHas("lifesteal")) {
+                const _ls = Math.max(1, Math.floor(d * 0.3));
+                p.hp = Math.min(p.maxHp, p.hp + _ls);
+                ml.push(`吸血でHP+${_ls}！`);
+              }
               _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
               _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: d, color: crit ? "#ffff00" : "#ff4444" });
               if (attackMon.hp <= 0) _ad.damages.push({ type: "flash", x: attackMon.x, y: attackMon.y, color: "#ff2200", duration: 150 });
@@ -2512,6 +2535,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 }
               }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
+              /* 連撃：2回目の攻撃（威力60%、クリ・状態異常なし） */
+              if (wabHas("double_strike") && attackMon.hp > 0 && dg.monsters.includes(attackMon)) {
+                const _d2 = Math.max(1, Math.floor(d * 0.6));
+                attackMon.hp -= _d2;
+                ml.push(`連撃！${attackMon.name}にさらに${_d2}ダメージ！`);
+                _ad.damages.push({ type: "damage", x: attackMon.x, y: attackMon.y, value: _d2, color: "#ff8800" });
+                if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) {
+                  _ad.damages.push({ type: "flash", x: attackMon.x, y: attackMon.y, color: "#ff2200", duration: 150 });
+                  killMonster(attackMon, dg, p, ml, lu);
+                }
+              }
+              /* 反動：攻撃するたびに自分も2〜4ダメージ */
+              if (wabHas("recoil")) {
+                const _rcd = rng(2, 4);
+                p.deathCause = "武器の反動ダメージにより";
+                p.hp -= _rcd;
+                ml.push(`武器の反動で${_rcd}ダメージを受けた！`);
+              }
               acted = true;
               } /* end guardian else */
               } /* end else (hit) */
@@ -2711,6 +2752,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               p.y >= hr.y && p.y < hr.y + hr.h
             );
             if (_hrFound) { _hrFound.discovered = true; ml.push("★ 宝物庫を発見した！"); }
+            /* 騒音防具：新しい部屋に入った時、同部屋の敵が全員目を覚ます */
+            if (hasAbility(p.armor, "noisy")) {
+              const _noisyOldRoom = findRoom(dg.rooms, _oldPx, _oldPy);
+              const _noisyNewRoom = findRoom(dg.rooms, p.x, p.y);
+              if (_noisyNewRoom && _noisyNewRoom !== _noisyOldRoom) {
+                let _noisyWoke = 0;
+                for (const _nm of dg.monsters) {
+                  const _nmRoom = findRoom(dg.rooms, _nm.x, _nm.y);
+                  if (_nmRoom === _noisyNewRoom && !_nm.aware) {
+                    _nm.aware = true;
+                    _noisyWoke++;
+                  }
+                }
+                if (_noisyWoke > 0) ml.push(`騒がしい音が響いた！（${_noisyWoke}体が目を覚ました）`);
+              }
+            }
             }
           }
         }
