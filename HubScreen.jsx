@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
 import { hasGameSave } from "./GameSave.js";
-import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES } from "./items.js";
+import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES } from "./items.js";
 
 /* ===== 拠点ショップのアイテムプール ===== */
 const SHOP_POOL = [
@@ -23,13 +23,7 @@ const BTN  = { fontFamily:"monospace", cursor:"pointer", borderRadius:5, border:
 const Btn = ({ label, onClick, color="#8cf", style={} }) => (
   <button
     onClick={onClick}
-    style={{
-      ...BTN,
-      padding:"10px 18px",
-      background:CARD,
-      color,
-      ...style,
-    }}
+    style={{ ...BTN, padding:"10px 18px", background:CARD, color, ...style }}
   >
     {label}
   </button>
@@ -48,10 +42,8 @@ function Panel({ title, onClose, children, wide }) {
         background:CARD, border:`1px solid ${BDR}`, borderRadius:8,
         width: wide ? "min(680px,96vw)" : "min(420px,96vw)",
         maxHeight:"calc(100dvh - max(40px, env(safe-area-inset-top, 40px)) - 16px)",
-        overflow:"auto",
-        padding:0, display:"flex", flexDirection:"column",
+        overflow:"auto", padding:0, display:"flex", flexDirection:"column",
       }}>
-        {/* Header */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderBottom:`1px solid ${BDR}` }}>
           <span style={{ color:"#fff", fontWeight:"bold", fontSize:15 }}>{title}</span>
           <button onClick={onClose} style={{ ...BTN, padding:"2px 10px", color:"#888", fontSize:13 }}>✕</button>
@@ -62,105 +54,264 @@ function Panel({ title, onClose, children, wide }) {
   );
 }
 
-/* ===== 倉庫パネル ===== */
-function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, selectionMode }) {
-  const [selected, setSelected] = useState(new Set());
-  const wh  = saveData.warehouse || [];
-  const MAX = saveData.warehouseMax || 100;
+/* ===== 地上アイテムのラベル（地上では常に正体判明） ===== */
+function hubItemLabel(it) {
+  if (!it) return "";
+  const bc = it.blessed ? "【祝】" : it.cursed ? "【呪】" : "";
+  let s = it.name;
+  if (it.type === "arrow") {
+    s += ` (${it.count}${(it.stone || it.magicStone) ? "個" : "本"})`;
+  } else if (it.type === "weapon") {
+    if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
+    s += ` (攻+${it.atk + (it.plus || 0)})`;
+    const ids = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])];
+    const names = ids.map(id => WEAPON_ABILITIES.find(a => a.id === id)?.name).filter(Boolean);
+    if (names.length) s += ` [${names.join("・")}]`;
+  } else if (it.type === "armor") {
+    if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
+    s += ` (防+${it.def + (it.plus || 0)})`;
+    const ids = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])];
+    const names = ids.map(id => ARMOR_ABILITIES.find(a => a.id === id)?.name).filter(Boolean);
+    if (names.length) s += ` [${names.join("・")}]`;
+  } else if ((it.type === "wand" || it.type === "pen" || it.type === "marker") && it.charges != null) {
+    s += ` [${it.charges}回]`;
+  } else if (it.type === "pot") {
+    s += ` [${it.contents?.length || 0}/${it.capacity}]`;
+  } else if (it.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(it.effect)) {
+    s += `+${it.plus || 0}`;
+  } else if (it.type === "potion" && it.effect === "heal") {
+    s += ` (HP+${it.value})`;
+  }
+  return bc + s;
+}
+
+/* ===== 荷物管理パネル（持参インベントリ ＋ 倉庫） ===== */
+function ItemManagementPanel({ saveData, updateSave, onClose }) {
+  const [tab, setTab] = useState("carry"); // "carry" | "warehouse"
+  const [selIdx, setSelIdx] = useState(null);
+  const [showDescIdx, setShowDescIdx] = useState(null);
+
+  const hubInv = saveData.hubInventory || [];
+  const wh     = saveData.warehouse    || [];
+  const MAX    = saveData.warehouseMax || 100;
+  const gold   = saveData.hubGold      || 0;
   const EXPAND_COST = 500;
 
-  const toggle = (idx) => setSelected(prev => {
-    const next = new Set(prev);
-    next.has(idx) ? next.delete(idx) : next.add(idx);
-    return next;
+  const isCarry = tab === "carry";
+  const list    = isCarry ? hubInv : wh;
+
+  const tabStyle = (t) => ({
+    ...BTN, padding:"6px 16px",
+    background: tab === t ? "#1a1a30" : CARD,
+    color:      tab === t ? "#8af"    : "#666",
+    borderColor:tab === t ? "#44f"    : BDR,
+    fontSize: 13,
   });
 
-  const sellItems = () => {
-    if (selected.size === 0) return;
-    const indices = [...selected].sort((a,b) => b-a);
-    const total = [...selected].reduce((sum, i) => sum + Math.max(1, Math.floor(itemPrice(wh[i]) / 2)), 0);
+  const select = (idx) => {
+    setSelIdx(selIdx === idx ? null : idx);
+    setShowDescIdx(null);
+  };
+
+  const moveToWarehouse = (idx) => {
+    if (wh.length >= MAX) return;
     updateSave(prev => {
-      const wh2 = [...prev.warehouse];
-      indices.forEach(i => wh2.splice(i, 1));
-      return { ...prev, warehouse: wh2, hubGold: (prev.hubGold || 0) + total };
+      const inv  = prev.hubInventory || [];
+      const item = inv[idx];
+      if (!item) return prev;
+      return {
+        ...prev,
+        hubInventory: inv.filter((_, i) => i !== idx),
+        warehouse: sortWarehouseItems(
+          [...(prev.warehouse || []), { ...item }].slice(0, prev.warehouseMax || 100)
+        ),
+      };
     });
-    setSelected(new Set());
+    setSelIdx(null); setShowDescIdx(null);
+  };
+
+  const moveToCarry = (idx) => {
+    updateSave(prev => {
+      const warehouse = prev.warehouse || [];
+      const item      = warehouse[idx];
+      if (!item) return prev;
+      return {
+        ...prev,
+        warehouse:    warehouse.filter((_, i) => i !== idx),
+        hubInventory: [...(prev.hubInventory || []), { ...item }],
+      };
+    });
+    setSelIdx(null); setShowDescIdx(null);
+  };
+
+  const sellFromWarehouse = (idx) => {
+    updateSave(prev => {
+      const warehouse = prev.warehouse || [];
+      const item      = warehouse[idx];
+      if (!item) return prev;
+      const price = Math.max(1, Math.floor(itemPrice(item) / 2));
+      return {
+        ...prev,
+        warehouse: warehouse.filter((_, i) => i !== idx),
+        hubGold:   (prev.hubGold || 0) + price,
+      };
+    });
+    setSelIdx(null); setShowDescIdx(null);
   };
 
   const expandWarehouse = () => {
-    if ((saveData.hubGold || 0) < EXPAND_COST) return;
+    if (gold < EXPAND_COST) return;
     updateSave(prev => ({
       ...prev,
-      hubGold: (prev.hubGold || 0) - EXPAND_COST,
+      hubGold:      (prev.hubGold      || 0)   - EXPAND_COST,
       warehouseMax: (prev.warehouseMax || 100) + 50,
     }));
   };
 
-  const takeToAdventure = () => {
-    if (!selectionMode || selected.size === 0) return;
-    const takenItems = [...selected].map(i => wh[i]).filter(Boolean).map(it => ({ ...it, id: uid() }));
-    onItemsSelected && onItemsSelected(takenItems);
-  };
-
-  const sellTotal = [...selected].reduce((sum, i) => sum + Math.max(1, Math.floor(itemPrice(wh[i]) / 2)), 0);
-
   return (
-    <Panel title={`倉庫 (${wh.length}/${MAX})`} onClose={onClose}>
-      {/* 拡張ボタン（通常モードのみ） */}
-      {!selectionMode && (
+    <Panel title="荷物管理" onClose={onClose} wide>
+      {/* 所持金 */}
+      <div style={{ color:GOLD, fontSize:13, marginBottom:10 }}>
+        所持G: <strong>{gold}G</strong>
+      </div>
+
+      {/* タブ */}
+      <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+        <button onClick={() => { setTab("carry"); setSelIdx(null); setShowDescIdx(null); }} style={tabStyle("carry")}>
+          持参アイテム ({hubInv.length})
+        </button>
+        <button onClick={() => { setTab("warehouse"); setSelIdx(null); setShowDescIdx(null); }} style={tabStyle("warehouse")}>
+          倉庫 ({wh.length}/{MAX})
+        </button>
+      </div>
+
+      {/* 倉庫タブのみ：拡張ボタン */}
+      {!isCarry && (
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-          marginBottom:10, padding:"6px 8px", background:"#0d0d18", borderRadius:4,
-          border:`1px solid ${BDR}` }}>
+          marginBottom:10, padding:"6px 8px", background:"#0d0d18", borderRadius:4, border:`1px solid ${BDR}` }}>
           <span style={{ color:"#888", fontSize:12 }}>倉庫を拡張 +50スロット</span>
           <button
             onClick={expandWarehouse}
-            disabled={(saveData.hubGold || 0) < EXPAND_COST}
+            disabled={gold < EXPAND_COST}
             style={{ ...BTN, padding:"4px 12px", fontSize:12,
-              color: (saveData.hubGold || 0) >= EXPAND_COST ? GOLD : "#555",
-              background:"#0a1800", borderColor:(saveData.hubGold || 0) >= EXPAND_COST ? "#3a2a00" : "#222" }}
+              color:       gold >= EXPAND_COST ? GOLD  : "#555",
+              background:  "#0a1800",
+              borderColor: gold >= EXPAND_COST ? "#3a2a00" : "#222" }}
           >
             {EXPAND_COST}G
           </button>
         </div>
       )}
-      {wh.length === 0 ? (
-        <div style={{ color:"#555", textAlign:"center", padding:"24px 0" }}>倉庫は空です。</div>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-          {wh.map((item, i) => (
-            <div
-              key={i}
-              onClick={() => toggle(i)}
-              style={{
-                display:"flex", alignItems:"center", gap:8, padding:"6px 8px",
-                background: selected.has(i) ? "#1a1a30" : "#0d0d18",
-                border: `1px solid ${selected.has(i) ? "#44f" : "#222"}`,
-                borderRadius:4, cursor:"pointer",
-              }}
-            >
-              <span style={{ color: selected.has(i) ? "#8af" : "#777", width:16 }}>
-                {selected.has(i) ? "☑" : "☐"}
-              </span>
-              <span style={{ color:TXT, flex:1 }}>{item.name}</span>
-              {item.blessed && <span style={{ color:"#4af", fontSize:11 }}>【祝】</span>}
-              {item.cursed  && <span style={{ color:"#f44", fontSize:11 }}>【呪】</span>}
-              {!selectionMode && <span style={{ color:"#666", fontSize:11 }}>{Math.max(1, Math.floor(itemPrice(item) / 2))}G</span>}
-            </div>
-          ))}
+
+      {/* ヒント */}
+      <div style={{ color:"#555", fontSize:11, marginBottom:8 }}>
+        {isCarry
+          ? "ダンジョンに持っていくアイテム（インベントリ上限は30枠）"
+          : "倉庫のアイテム。タップして操作できます。"}
+      </div>
+
+      {/* アイテムリスト */}
+      {list.length === 0 ? (
+        <div style={{ color:"#555", textAlign:"center", padding:"24px 0", fontSize:13, whiteSpace:"pre-wrap" }}>
+          {isCarry
+            ? "持参するアイテムがありません。\n「倉庫」タブから「持参する」で追加できます。"
+            : "倉庫は空です。"}
         </div>
-      )}
-      {wh.length > 0 && (
-        <div style={{ display:"flex", gap:8, marginTop:12 }}>
-          {selectionMode ? (
-            <Btn label={`選択アイテムを持っていく (${selected.size})`} onClick={takeToAdventure} color="#0f0" />
-          ) : (
-            <Btn
-              label={`選択アイテムを売る (${selected.size}個 / +${sellTotal}G)`}
-              onClick={sellItems}
-              color={selected.size === 0 ? "#555" : GOLD}
-              style={{ opacity: selected.size === 0 ? 0.4 : 1 }}
-            />
-          )}
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+          {list.map((item, idx) => {
+            const isSel        = selIdx === idx;
+            const isDescShow   = showDescIdx === idx;
+            const sellPrice    = Math.max(1, Math.floor(itemPrice(item) / 2));
+            const label        = hubItemLabel(item);
+            const itemColor    = item.blessed ? "#ffd060" : item.cursed ? "#cc88ff" : TXT;
+
+            return (
+              <div key={idx}>
+                {/* アイテム行 */}
+                <div
+                  onClick={() => select(idx)}
+                  style={{
+                    display:"flex", alignItems:"center", gap:8, padding:"7px 8px",
+                    background:  isSel ? "#1a1a30" : "#0d0d18",
+                    border:      `1px solid ${isSel ? "#44f" : "#222"}`,
+                    borderRadius: isSel ? "4px 4px 0 0" : 4,
+                    cursor:"pointer",
+                  }}
+                >
+                  <span style={{ flex:1, color:itemColor, fontSize:13 }}>{label}</span>
+                  <span style={{ color:"#555", fontSize:11 }}>{isSel ? "▲" : "▼"}</span>
+                </div>
+
+                {/* 選択時：操作エリア */}
+                {isSel && (
+                  <div style={{ padding:"6px 8px 8px", background:"#0d0d18",
+                    border:"1px solid #222", borderTop:"none", borderRadius:"0 0 4px 4px" }}>
+
+                    {/* 壺の中身 */}
+                    {item.type === "pot" && (
+                      <div style={{ color:"#ca8", fontSize:12, marginBottom:6 }}>
+                        {item.contents?.length > 0
+                          ? `中身: ${item.contents.map(c => c.name).join(", ")}`
+                          : "中身: （空）"}
+                      </div>
+                    )}
+
+                    {/* 操作ボタン */}
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:4 }}>
+                      {isCarry ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); moveToWarehouse(idx); }}
+                          disabled={wh.length >= MAX}
+                          style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18",
+                            color: wh.length >= MAX ? "#555" : "#aaa",
+                            opacity: wh.length >= MAX ? 0.4 : 1 }}
+                        >
+                          → 倉庫へ戻す
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); moveToCarry(idx); }}
+                            style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#081828", color:"#8cf" }}
+                          >
+                            ← 持参する
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); sellFromWarehouse(idx); }}
+                            style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0a1800", color:GOLD }}
+                          >
+                            売る ({sellPrice}G)
+                          </button>
+                        </>
+                      )}
+                      {item.desc && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowDescIdx(isDescShow ? null : idx); }}
+                          style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18",
+                            color:       isDescShow ? "#8af" : "#666",
+                            borderColor: isDescShow ? "#44f" : BDR }}
+                        >
+                          説明
+                        </button>
+                      )}
+                    </div>
+
+                    {/* 説明文 */}
+                    {isDescShow && item.desc && (
+                      <div style={{
+                        background:"#18182a", border:"1px solid #3a3a5a", borderRadius:4,
+                        padding:"6px 8px", color:"#aab", fontSize:12, lineHeight:"1.5em",
+                        marginTop:2, whiteSpace:"pre-wrap",
+                      }}>
+                        {item.desc}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </Panel>
@@ -176,11 +327,10 @@ function EncyclopediaPanel({ saveData, onClose }) {
   const tabStyle = (t) => ({
     ...BTN, padding:"6px 16px",
     background: tab === t ? "#1a1a30" : CARD,
-    color: tab === t ? "#8af" : "#666",
-    borderColor: tab === t ? "#44f" : BDR,
+    color:      tab === t ? "#8af"    : "#666",
+    borderColor:tab === t ? "#44f"    : BDR,
   });
 
-  /* マスターデータからdescを引く */
   const _allItems = useMemo(() => [...ITEMS, ...WANDS, ...POTS, ...RINGS], []);
   const lookupDesc = (key, tabName) => {
     if (tabName === "traps") {
@@ -206,9 +356,9 @@ function EncyclopediaPanel({ saveData, onClose }) {
     return (
       <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
         {sorted.map((e, i) => {
-          const key = Object.keys(entries).find(k => entries[k] === e);
+          const key  = Object.keys(entries).find(k => entries[k] === e);
           const isSel = selKey === key;
-          const desc = isSel ? lookupDesc(key, tabName) : null;
+          const desc  = isSel ? lookupDesc(key, tabName) : null;
           return (
             <div key={i} onClick={() => setSelKey(isSel ? null : key)}
               style={{ padding:"5px 8px", background: isSel ? "#141428" : "#0d0d18",
@@ -233,9 +383,9 @@ function EncyclopediaPanel({ saveData, onClose }) {
   return (
     <Panel title="図鑑" onClose={onClose} wide>
       <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
-        <button onClick={() => { setTab("items"); setSelKey(null); }}    style={tabStyle("items")}>アイテム</button>
+        <button onClick={() => { setTab("items");    setSelKey(null); }} style={tabStyle("items")}>アイテム</button>
         <button onClick={() => { setTab("monsters"); setSelKey(null); }} style={tabStyle("monsters")}>モンスター</button>
-        <button onClick={() => { setTab("traps"); setSelKey(null); }}    style={tabStyle("traps")}>罠</button>
+        <button onClick={() => { setTab("traps");    setSelKey(null); }} style={tabStyle("traps")}>罠</button>
         <button onClick={() => { setTab("bigboxes"); setSelKey(null); }} style={tabStyle("bigboxes")}>大箱</button>
       </div>
       <div style={{ color:"#555", fontSize:11, marginBottom:8 }}>
@@ -279,8 +429,10 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
     if (gold < price) return;
     updateSave(prev => ({
       ...prev,
-      hubGold: prev.hubGold - price,
-      warehouse: sortWarehouseItems([...(prev.warehouse || []), { ...item, id: uid() }].slice(0, prev.warehouseMax || 100)),
+      hubGold:   prev.hubGold - price,
+      warehouse: sortWarehouseItems(
+        [...(prev.warehouse || []), { ...item, id: uid() }].slice(0, prev.warehouseMax || 100)
+      ),
     }));
   };
 
@@ -292,9 +444,9 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
         {shopItems.map((item, i) => {
-          const price = itemPrice(item);
+          const price  = itemPrice(item);
           const canBuy = gold >= price;
-          const isSel = selected === i;
+          const isSel  = selected === i;
           return (
             <div key={i} onClick={() => setSelected(i === selected ? null : i)}
               style={{
@@ -332,8 +484,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
 /* ===== ダンジョン入口パネル ===== */
 function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const [startDepth, setStartDepth] = useState(1);
-  const [showWarehouse, setShowWarehouse] = useState(false);
-  const [chosenItems, setChosenItems] = useState([]);
+  const hubInv   = saveData.hubInventory || [];
   const bestDepth = saveData.bestDepth || 0;
 
   const DUNGEON_TYPES = [
@@ -345,29 +496,18 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   ];
   const [dtype, setDtype] = useState("beginner");
   const currentType = DUNGEON_TYPES.find(dt => dt.id === dtype);
-  const isDebug = dtype === "debug";
+  const isDebug  = dtype === "debug";
   const maxStart = isDebug ? 1 : Math.min(Math.max(1, bestDepth), currentType.maxFloors);
 
   const handleStart = () => {
     onStart({
       dungeonType: dtype,
-      startDepth: isDebug ? 1 : startDepth,
-      maxFloors: currentType.maxFloors,
-      startGold: 0,
-      startInventory: chosenItems,
+      startDepth:  isDebug ? 1 : startDepth,
+      maxFloors:   currentType.maxFloors,
+      startGold:   0,
+      startInventory: hubInv,
     });
   };
-
-  if (showWarehouse)
-    return (
-      <WarehousePanel
-        saveData={saveData}
-        updateSave={() => {}}
-        onClose={() => setShowWarehouse(false)}
-        selectionMode
-        onItemsSelected={items => { setChosenItems(items); setShowWarehouse(false); }}
-      />
-    );
 
   return (
     <Panel title="ダンジョン入口" onClose={onClose}>
@@ -387,7 +527,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
         ))}
       </div>
 
-      {/* 開始階選択 (デバッグ以外) */}
+      {/* 開始階選択（デバッグ以外） */}
       {!isDebug && (
         <div style={{ marginBottom:12 }}>
           <div style={{ color:"#888", fontSize:12, marginBottom:6 }}>開始階: B{startDepth}F</div>
@@ -400,21 +540,30 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
         </div>
       )}
 
-      {/* 倉庫から持っていくアイテム */}
-      <div style={{ marginBottom:14 }}>
-        <div style={{ color:"#888", fontSize:12, marginBottom:6 }}>
-          倉庫から持参: {chosenItems.length > 0 ? `${chosenItems.length}個選択` : "なし"}
+      {/* 持参アイテムプレビュー */}
+      <div style={{ marginBottom:14, padding:"8px 10px", background:"#0d0d18",
+        border:"1px solid #222", borderRadius:4 }}>
+        <div style={{ color:"#888", fontSize:12, marginBottom: hubInv.length > 0 ? 6 : 0 }}>
+          持参アイテム: {hubInv.length > 0 ? `${hubInv.length}個` : "なし"}
+          {hubInv.length > 30 && (
+            <span style={{ color:"#f84", marginLeft:6, fontSize:11 }}>※30個を超えた分は持込不可</span>
+          )}
         </div>
-        <Btn label="倉庫からアイテムを選ぶ" onClick={() => setShowWarehouse(true)} color="#aaa"
-          style={{ fontSize:12 }} />
-        {chosenItems.length > 0 && (
-          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-            {chosenItems.map((it, i) => (
-              <span key={i} style={{ background:"#1a1a28", border:"1px solid #333", borderRadius:3,
-                padding:"2px 6px", color:TXT, fontSize:11 }}>{it.name}</span>
+        {hubInv.length > 0 && (
+          <div style={{ display:"flex", flexDirection:"column", gap:1, maxHeight:110, overflowY:"auto" }}>
+            {hubInv.slice(0, 30).map((it, i) => (
+              <div key={i} style={{
+                color: it.blessed ? "#ffd060" : it.cursed ? "#cc88ff" : "#aaa",
+                fontSize:11,
+              }}>
+                · {hubItemLabel(it)}
+              </div>
             ))}
           </div>
         )}
+        <div style={{ color:"#444", fontSize:10, marginTop: hubInv.length > 0 ? 6 : 0 }}>
+          ※荷物管理でアイテムを変更できます
+        </div>
       </div>
 
       <Btn label="▶ 冒険に出発！" onClick={handleStart} color="#0f0"
@@ -475,17 +624,17 @@ function SaveDataPanel({ saveData, onClearSave, onClose }) {
 
 /* ===== メインHUBスクリーン ===== */
 export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave }) {
-  const [panel, setPanel] = useState(null); /* "dungeon" | "warehouse" | "shop" | "encyclopedia" | "savedata" */
+  const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "shop" | "encyclopedia" | "savedata" */
 
-  const hubGold = saveData.hubGold || 0;
-  const warehouseCount = (saveData.warehouse || []).length;
+  const hubGold      = saveData.hubGold      || 0;
+  const hubInvCount  = (saveData.hubInventory || []).length;
+  const warehouseCount = (saveData.warehouse  || []).length;
 
   const handleStartDungeon = (config) => {
     setPanel(null);
     onStartDungeon(config);
   };
 
-  /* ===== HubAction ボタンコンポーネント ===== */
   const HubBtn = ({ icon, label, sub, onClick, color="#8cf" }) => (
     <button onClick={onClick} style={{
       ...BTN, display:"flex", flexDirection:"column", alignItems:"center",
@@ -528,8 +677,10 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
         </div>
         <div style={{ width:1, background:BDR }} />
         <div style={{ textAlign:"center" }}>
-          <div style={{ color:"#8af", fontWeight:"bold", fontSize:18 }}>{warehouseCount}/{saveData.warehouseMax || 100}</div>
-          <div style={{ color:"#555", fontSize:10 }}>倉庫</div>
+          <div style={{ color:"#8af", fontWeight:"bold", fontSize:18 }}>
+            {hubInvCount}/{warehouseCount}
+          </div>
+          <div style={{ color:"#555", fontSize:10 }}>持参/倉庫</div>
         </div>
         <div style={{ width:1, background:BDR }} />
         <div style={{ textAlign:"center" }}>
@@ -574,10 +725,15 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       {/* サブ機能ボタン */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center",
         width:"min(360px,90vw)", marginBottom:20 }}>
-        <HubBtn icon="📦" label="倉庫"     sub={`${warehouseCount}/${saveData.warehouseMax || 100}`} onClick={() => setPanel("warehouse")} color="#8af" />
-        <HubBtn icon="🏪" label="ショップ" sub="装備・道具"             onClick={() => setPanel("shop")}      color={GOLD}  />
-        <HubBtn icon="📖" label="図鑑"     sub="発見記録"               onClick={() => setPanel("encyclopedia")} color="#a8f" />
-        <HubBtn icon="💾" label="データ"   sub="セーブ管理"             onClick={() => setPanel("savedata")}  color="#888"  />
+        <HubBtn icon="🎒" label="荷物管理"
+          sub={`持参${hubInvCount}・倉庫${warehouseCount}`}
+          onClick={() => setPanel("items")} color="#8af" />
+        <HubBtn icon="🏪" label="ショップ" sub="装備・道具"
+          onClick={() => setPanel("shop")} color={GOLD} />
+        <HubBtn icon="📖" label="図鑑"     sub="発見記録"
+          onClick={() => setPanel("encyclopedia")} color="#a8f" />
+        <HubBtn icon="💾" label="データ"   sub="セーブ管理"
+          onClick={() => setPanel("savedata")} color="#888" />
       </div>
 
       {/* ヒント */}
@@ -596,8 +752,8 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
           onStart={handleStartDungeon}
         />
       )}
-      {panel === "warehouse" && (
-        <WarehousePanel
+      {panel === "items" && (
+        <ItemManagementPanel
           saveData={saveData}
           updateSave={updateSave}
           onClose={() => setPanel(null)}

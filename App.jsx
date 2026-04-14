@@ -30,8 +30,10 @@ export default function App() {
     returnedRef.current = false;
     setResumeState(null);
     setDungeonConfig({ ...config, _key: Date.now() });
+    /* 持参アイテムをダンジョンに移したのでhubInventoryをクリア */
+    updateSave(prev => ({ ...prev, hubInventory: [] }));
     setScreen("dungeon");
-  }, []);
+  }, [updateSave]);
 
   /* Hub → Dungeon (resume from save) */
   const resumeDungeon = useCallback(() => {

@@ -5,6 +5,7 @@ export const DEFAULT_SAVE = {
   version: 1,
   hubGold: 0,
   warehouse: [],          /* array of item objects */
+  hubInventory: [],       /* items player will carry into dungeon */
   warehouseMax: 100,      /* current max capacity */
   discovered: {
     items:    {},         /* { effectKey: { name, tile, type, count } } */
@@ -26,6 +27,7 @@ export function loadSave() {
     return {
       ...DEFAULT_SAVE,
       ...data,
+      hubInventory: [...(data.hubInventory || [])],
       discovered: {
         items:    { ...(data.discovered?.items    || {}) },
         monsters: { ...(data.discovered?.monsters || {}) },
