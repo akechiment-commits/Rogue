@@ -2229,11 +2229,38 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
+        const _prevDepth = p.depth; /* chgFloor が p.depth を書き換える前に保存 */
         const nd = chgFloor(p, dir);
         if (nd) {
           st.dungeon = nd;
           ml.push(`地下${p.depth}階に${dir > 0 ? "降りた" : "昇った"}。`);
           if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
+          /* ── キーアイテム所持中に上昇 → 遺物の番人が出現 ── */
+          if (dir === -1 && p.inventory.some(it => it.type === "goal")) {
+            let _cands = [];
+            for (let _gy = 0; _gy < MH; _gy++)
+              for (let _gx = 0; _gx < MW; _gx++)
+                if (nd.map[_gy][_gx] === T.FLOOR && !nd.monsters.some(m => m.x === _gx && m.y === _gy))
+                  _cands.push([_gx, _gy]);
+            const _far = _cands.filter(([x,y]) => Math.max(Math.abs(x-p.x),Math.abs(y-p.y)) >= 8);
+            const _mid = _cands.filter(([x,y]) => Math.max(Math.abs(x-p.x),Math.abs(y-p.y)) >= 5);
+            const _pool = _far.length ? _far : _mid.length ? _mid : _cands;
+            if (_pool.length > 0) {
+              const [_px, _py] = pick(_pool);
+              const _phMax = 60 + _prevDepth * 10;
+              nd.monsters.push({
+                id: uid(), name: "遺物の番人",
+                hp: _phMax, maxHp: _phMax,
+                atk: 18 + _prevDepth * 2,
+                def: 8  + _prevDepth,
+                exp: 150 + _prevDepth * 20,
+                speed: _prevDepth >= 20 ? 2 : 1,
+                tile: 91, kind: "beast", baseKind: "pursuer",
+                aware: true, x: _px, y: _py,
+              });
+              ml.push("キーアイテムを察知した遺物の番人が現れた！");
+            }
+          }
           acted = true;
         }
       };

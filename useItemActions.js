@@ -807,6 +807,10 @@ export function useItemActions({
         if (_tpBlocked) {
           ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
         } else if (it.cursed) {
+          /* キーアイテム所持中は呪いテレポート無効 */
+          if (p.inventory.some(i => i.type === "goal")) {
+            ml.push("キーアイテムの力が呪いのフロア飛びを阻んだ！");
+          } else {
           setFloorSelectMode({ sel: p.depth });
           { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
             setMsgs((prev) => [...prev.slice(-80), ..._rp, "飛びたい階層を選んでください... (↑↓:選択 Z/Enter:決定)"]); }
@@ -814,6 +818,7 @@ export function useItemActions({
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
           return;
+          }
         } else if (it.blessed) {
           setTpSelectMode({ cx: p.x, cy: p.y });
           { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
