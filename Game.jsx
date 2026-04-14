@@ -2544,13 +2544,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               /* 武器の状態異常付与（10%） */
               if (attackMon.hp > 0 && p.weapon) {
                 const _inflicts = [
-                  ["inflict_slow",     () => { if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); if (attackMon.isBoss) attackMon.bossSlowTurns = (attackMon.bossSlowTurns || 0) + 10; ml.push(`${attackMon.name}は鈍足になった！`); }],
-                  ["inflict_paralyze", () => { attackMon.paralyzed = true; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns||0, 10); ml.push(`${attackMon.name}は金縛りになった！`); }],
-                  ["inflict_sleep",    () => { const _bSt = attackMon.isBoss ? Math.ceil(rng(3,6)/2) : rng(3,6); attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _bSt; ml.push(`${attackMon.name}は眠りに落ちた！`); }],
-                  ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は暗闇になった！`); }],
-                  ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + (attackMon.isBoss ? 10 : 20); ml.push(`${attackMon.name}は混乱した！`); }],
-                  ["inflict_bewitch",  () => { attackMon.fleeingTurns = (attackMon.fleeingTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！`); }],
-                  ["inflict_seal",     () => { attackMon.sealed = true; attackMon.sealedTurns = (attackMon.sealedTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は封印された！`); }],
+                  ["inflict_slow",     () => { if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); if (attackMon.isBoss) attackMon.bossSlowTurns = (attackMon.bossSlowTurns || 0) + 10; ml.push(`${attackMon.name}は鈍足になった！${attackMon.isBoss ? "(5ターン)" : "(永続)"}`); }],
+                  ["inflict_paralyze", () => { attackMon.paralyzed = true; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns||0, 10); ml.push(`${attackMon.name}は金縛りになった！${attackMon.isBoss ? "(5ターン)" : "(永続・被弾で解除)"}`); }],
+                  ["inflict_sleep",    () => { const _bSt = rng(3,6); const _bStEff = attackMon.isBoss ? Math.ceil(_bSt/2) : _bSt; attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _bStEff; ml.push(`${attackMon.name}は眠りに落ちた！(${_bStEff}ターン)`); }],
+                  ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は暗闇になった！${attackMon.isBoss ? "(13ターン)" : "(永続)"}`); }],
+                  ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + (attackMon.isBoss ? 10 : 20); ml.push(`${attackMon.name}は混乱した！(${attackMon.isBoss ? 5 : 20}ターン)`); }],
+                  ["inflict_bewitch",  () => { attackMon.fleeingTurns = (attackMon.fleeingTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${attackMon.isBoss ? 13 : 50}ターン)`); }],
+                  ["inflict_seal",     () => { attackMon.sealed = true; attackMon.sealedTurns = (attackMon.sealedTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は封印された！${attackMon.isBoss ? "(13ターン)" : "(永続)"}`); }],
                 ];
                 for (const [abId, fn] of _inflicts) {
                   if (wabHas(abId) && Math.random() < 0.1) fn();
