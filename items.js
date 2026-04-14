@@ -181,7 +181,7 @@ export const ITEMS = [
   { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         rarity:"B", weight:4,  sellPrice:900,  desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
   { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         rarity:"B", weight:4,  sellPrice:1200, desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
   { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  rarity:"A", weight:2,  sellPrice:3000, desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
-  { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:8,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。",    tile:21 },
+  { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:8,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠も無効化する。",    tile:21 },
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"A", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"B", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを半減。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"C", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n祝福：回復量1.5倍、最大MP+2。\n呪い：反転してMP封印50ターン。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },

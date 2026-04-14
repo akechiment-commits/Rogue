@@ -250,7 +250,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "steal_trap": {
-      if (p.inventory && p.inventory.length > 0) {
+      if (hasAbility(p.armor, "anti_steal")) {
+        ml.push(`${trap.name}が発動！しかし護盗の鎧が盗みを防いだ！`);
+      } else if (p.inventory && p.inventory.length > 0) {
         const _stCandidates = p.inventory.filter(i => i.type !== "goal");
         if (_stCandidates.length === 0) { ml.push(`${trap.name}が発動！しかし大事なものは盗めなかった。`); break; }
         const _stItem = _stCandidates[rng(0, _stCandidates.length - 1)];
