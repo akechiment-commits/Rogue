@@ -2545,8 +2545,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if (attackMon.hp > 0 && p.weapon) {
                 const _inflicts = [
                   ["inflict_slow",     () => { if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); if (attackMon.isBoss) attackMon.bossSlowTurns = (attackMon.bossSlowTurns || 0) + 10; ml.push(`${attackMon.name}は鈍足になった！${attackMon.isBoss ? "(5ターン)" : "(永続)"}`); }],
-                  ["inflict_paralyze", () => { attackMon.paralyzed = true; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns||0, 10); ml.push(`${attackMon.name}は金縛りになった！${attackMon.isBoss ? "(5ターン)" : "(永続・被弾で解除)"}`); }],
-                  ["inflict_sleep",    () => { const _bSt = rng(3,6); const _bStEff = attackMon.isBoss ? Math.ceil(_bSt/2) : _bSt; attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _bStEff; ml.push(`${attackMon.name}は眠りに落ちた！(${_bStEff}ターン)`); }],
+                  ["inflict_paralyze", () => { attackMon.paralyzed = true; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns||0, 25); ml.push(`${attackMon.name}は金縛りになった！${attackMon.isBoss ? "(13ターン)" : "(永続・被弾で解除)"}`); }],
+                  ["inflict_sleep",    () => { attackMon.sleepTurns = (attackMon.sleepTurns || 0) + 6; ml.push(`${attackMon.name}は眠りに落ちた！(${attackMon.isBoss ? 3 : 6}ターン)`); }],
                   ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は暗闇になった！${attackMon.isBoss ? "(13ターン)" : "(永続)"}`); }],
                   ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + (attackMon.isBoss ? 10 : 20); ml.push(`${attackMon.name}は混乱した！(${attackMon.isBoss ? 5 : 20}ターン)`); }],
                   ["inflict_bewitch",  () => { attackMon.fleeingTurns = (attackMon.fleeingTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${attackMon.isBoss ? 13 : 50}ターン)`); }],
@@ -2555,11 +2555,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 for (const [abId, fn] of _inflicts) {
                   if (wabHas(abId) && Math.random() < 0.1) fn();
                 }
-                /* 影縫い：25%の確率で移動封じ2〜3ターン */
+                /* 影縫い：25%の確率で移動封じ3ターン */
                 if (attackMon.hp > 0 && wabHas("inflict_immobile") && Math.random() < 0.25) {
-                  const _imT = attackMon.isBoss ? 1 : rng(2, 3);
-                  attackMon.immobileTurns = (attackMon.immobileTurns || 0) + _imT;
-                  ml.push(`${attackMon.name}は影に縫い止められた！(${_imT}ターン)`);
+                  attackMon.immobileTurns = (attackMon.immobileTurns || 0) + (attackMon.isBoss ? 6 : 3);
+                  ml.push(`${attackMon.name}は影に縫い止められた！(3ターン)`);
                 }
               }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
