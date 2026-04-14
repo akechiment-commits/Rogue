@@ -2399,6 +2399,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 attackMon.paralyzed = false;
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
+              if ((attackMon.sleepTurns || 0) > 0) {
+                attackMon.sleepTurns = 0;
+                attackMon._justWoke = true;
+                ml.push(`衝撃で${attackMon.name}は目覚めた！`);
+              }
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
               let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)));
               if ((p.garlicDmgTurns || 0) > 0) ap += 5;
