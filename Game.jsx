@@ -2257,7 +2257,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 exp: 150 + _baseD * 20,
                 speed: _baseD >= 20 ? 2 : 1,
                 tile: 91, kind: "beast", baseKind: "pursuer",
-                aware: true, x: _px, y: _py,
+                aware: true, isBoss: true, x: _px, y: _py,
               });
               ml.push("キーアイテムを察知した遺物の番人が現れた！");
             }
