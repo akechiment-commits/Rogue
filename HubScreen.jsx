@@ -215,7 +215,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
                 border: isSel ? "1px solid #44f" : "1px solid transparent" }}>
               <div style={{ display:"flex", justifyContent:"space-between" }}>
                 <span>{e.name}</span>
-                <span style={{ color:"#555" }}>×{e.count}</span>
+                <span style={{ color:"#555" }}>{e.count}回</span>
               </div>
               {isSel && desc && (
                 <div style={{ color:"#8899aa", fontSize:12, marginTop:4, whiteSpace:"pre-wrap", lineHeight:"1.5em" }}>
