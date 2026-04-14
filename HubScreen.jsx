@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
-import { itemPrice, ITEMS, WANDS, POTS, RINGS } from "./items.js";
+import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES } from "./items.js";
 
 /* ===== 拠点ショップのアイテムプール ===== */
 const SHOP_POOL = [
@@ -169,6 +169,7 @@ function WarehousePanel({ saveData, updateSave, onClose, onItemsSelected, select
 /* ===== 図鑑パネル ===== */
 function EncyclopediaPanel({ saveData, onClose }) {
   const [tab, setTab] = useState("items");
+  const [selKey, setSelKey] = useState(null);
   const disc = saveData.discovered || {};
 
   const tabStyle = (t) => ({
@@ -178,19 +179,52 @@ function EncyclopediaPanel({ saveData, onClose }) {
     borderColor: tab === t ? "#44f" : BDR,
   });
 
-  const renderList = (entries, nameKey="name") => {
+  /* マスターデータからdescを引く */
+  const _allItems = useMemo(() => [...ITEMS, ...WANDS, ...POTS, ...RINGS], []);
+  const lookupDesc = (key, tabName) => {
+    if (tabName === "traps") {
+      const t = TRAPS.find(t => t.effect === key || t.name === key);
+      return t?.desc || null;
+    }
+    if (tabName === "bigboxes") {
+      const b = BB_TYPES.find(b => b.kind === key);
+      return b?.desc || null;
+    }
+    if (tabName === "items") {
+      const it = _allItems.find(it => (it.effect || (it.type + '_' + it.name)) === key);
+      return it?.desc || null;
+    }
+    return null;
+  };
+
+  const renderList = (entries, tabName) => {
     const items = Object.values(entries);
     if (items.length === 0)
       return <div style={{ color:"#555", padding:"20px 0", textAlign:"center" }}>まだ発見がありません。</div>;
+    const sorted = items.sort((a,b) => a.name.localeCompare(b.name, "ja"));
     return (
       <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-        {items.sort((a,b) => a.name.localeCompare(b.name, "ja")).map((e, i) => (
-          <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"5px 8px",
-            background:"#0d0d18", borderRadius:3, color:TXT }}>
-            <span>{e.name}</span>
-            <span style={{ color:"#555" }}>×{e.count}</span>
-          </div>
-        ))}
+        {sorted.map((e, i) => {
+          const key = Object.keys(entries).find(k => entries[k] === e);
+          const isSel = selKey === key;
+          const desc = isSel ? lookupDesc(key, tabName) : null;
+          return (
+            <div key={i} onClick={() => setSelKey(isSel ? null : key)}
+              style={{ padding:"5px 8px", background: isSel ? "#141428" : "#0d0d18",
+                borderRadius:3, color:TXT, cursor:"pointer",
+                border: isSel ? "1px solid #44f" : "1px solid transparent" }}>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span>{e.name}</span>
+                <span style={{ color:"#555" }}>×{e.count}</span>
+              </div>
+              {isSel && desc && (
+                <div style={{ color:"#8899aa", fontSize:12, marginTop:4, whiteSpace:"pre-wrap", lineHeight:"1.5em" }}>
+                  {desc}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -198,10 +232,10 @@ function EncyclopediaPanel({ saveData, onClose }) {
   return (
     <Panel title="図鑑" onClose={onClose} wide>
       <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
-        <button onClick={() => setTab("items")}    style={tabStyle("items")}>アイテム</button>
-        <button onClick={() => setTab("monsters")} style={tabStyle("monsters")}>モンスター</button>
-        <button onClick={() => setTab("traps")}    style={tabStyle("traps")}>罠</button>
-        <button onClick={() => setTab("bigboxes")} style={tabStyle("bigboxes")}>大箱</button>
+        <button onClick={() => { setTab("items"); setSelKey(null); }}    style={tabStyle("items")}>アイテム</button>
+        <button onClick={() => { setTab("monsters"); setSelKey(null); }} style={tabStyle("monsters")}>モンスター</button>
+        <button onClick={() => { setTab("traps"); setSelKey(null); }}    style={tabStyle("traps")}>罠</button>
+        <button onClick={() => { setTab("bigboxes"); setSelKey(null); }} style={tabStyle("bigboxes")}>大箱</button>
       </div>
       <div style={{ color:"#555", fontSize:11, marginBottom:8 }}>
         {tab === "items"    && `発見アイテム: ${Object.keys(disc.items    || {}).length}種`}
@@ -209,10 +243,10 @@ function EncyclopediaPanel({ saveData, onClose }) {
         {tab === "traps"    && `踏んだ罠: ${Object.keys(disc.traps    || {}).length}種`}
         {tab === "bigboxes" && `識別済み大箱: ${Object.keys(disc.bigboxes || {}).length}種`}
       </div>
-      {tab === "items"    && renderList(disc.items    || {})}
-      {tab === "monsters" && renderList(disc.monsters || {})}
-      {tab === "traps"    && renderList(disc.traps    || {})}
-      {tab === "bigboxes" && renderList(disc.bigboxes || {})}
+      {tab === "items"    && renderList(disc.items    || {}, "items")}
+      {tab === "monsters" && renderList(disc.monsters || {}, "monsters")}
+      {tab === "traps"    && renderList(disc.traps    || {}, "traps")}
+      {tab === "bigboxes" && renderList(disc.bigboxes || {}, "bigboxes")}
     </Panel>
   );
 }
