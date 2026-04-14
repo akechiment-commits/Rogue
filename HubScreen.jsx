@@ -418,7 +418,12 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
         r -= (pool[i].weight ?? 1);
         if (r <= 0) { idx = i; break; }
       }
-      result.push(pool[idx]);
+      const picked = pool[idx];
+      const _plusRings = new Set(["power_ring","defense_ring","life_ring"]);
+      const entry = (picked.type === "ring" && _plusRings.has(picked.effect))
+        ? { ...picked, plus: Math.floor(Math.random() * 3) + 1 }
+        : picked;
+      result.push(entry);
       pool.splice(idx, 1);
     }
     return result;
@@ -457,7 +462,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
               }}
             >
               <span style={{ color: canBuy ? TXT : "#444", flex:1 }}>
-                {item.name}
+                {item.name}{item.plus ? `+${item.plus}` : ""}
                 <span style={{ color:"#555", fontSize:11, marginLeft:6 }}>{item.desc}</span>
               </span>
               <span style={{ color: canBuy ? GOLD : "#444", minWidth:50, textAlign:"right" }}>
