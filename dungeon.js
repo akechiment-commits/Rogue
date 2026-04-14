@@ -1006,8 +1006,8 @@ function genRingCorridorFloor(depth, dungeonType = null) {
   /* ── 9×9のポケット空間を生成（部屋扱いなし、罠専用配置ゾーン） ── */
   const pocketTileSet = new Set();
   for (const [cx, cy] of pocketCenters) {
-    for (let dy = -4; dy <= 4; dy++) {
-      for (let dx = -4; dx <= 4; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
         const px = cx + dx, py = cy + dy;
         if (px >= 1 && px < MW-1 && py >= 1 && py < MH-1) {
           map[py][px] = T.FLOOR;
