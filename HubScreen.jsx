@@ -489,6 +489,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
 /* ===== ダンジョン入口パネル ===== */
 function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const [startDepth, setStartDepth] = useState(1);
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const hubInv   = saveData.hubInventory || [];
   const bestDepth = saveData.bestDepth || 0;
 
@@ -504,7 +505,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const isDebug  = dtype === "debug";
   const maxStart = isDebug ? 1 : Math.min(Math.max(1, bestDepth), currentType.maxFloors);
 
-  const handleStart = () => {
+  const doStart = () => {
     onStart({
       dungeonType: dtype,
       startDepth:  isDebug ? 1 : startDepth,
@@ -512,6 +513,14 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
       startGold:   0,
       startInventory: hubInv,
     });
+  };
+
+  const handleStart = () => {
+    if (hasGameSave()) {
+      setConfirmOverwrite(true);
+    } else {
+      doStart();
+    }
   };
 
   return (
@@ -571,9 +580,24 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
         </div>
       </div>
 
-      <Btn label="▶ 冒険に出発！" onClick={handleStart} color="#0f0"
-        style={{ width:"100%", padding:"12px 0", fontSize:15, fontWeight:"bold",
-          background:"#081808", borderColor:"#2a4a2a" }} />
+      {confirmOverwrite ? (
+        <div style={{ background:"#1a0a00", border:"1px solid #884400", borderRadius:6, padding:"12px 14px" }}>
+          <div style={{ color:"#f84", fontSize:13, marginBottom:10 }}>
+            ⚠ 中断セーブデータが存在します。<br />
+            新たに出発すると中断データは消えますがよろしいですか？
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <Btn label="出発する" onClick={doStart} color="#f84"
+              style={{ flex:1, padding:"10px 0", background:"#1a0800", borderColor:"#884400" }} />
+            <Btn label="キャンセル" onClick={() => setConfirmOverwrite(false)} color="#888"
+              style={{ flex:1, padding:"10px 0" }} />
+          </div>
+        </div>
+      ) : (
+        <Btn label="▶ 冒険に出発！" onClick={handleStart} color="#0f0"
+          style={{ width:"100%", padding:"12px 0", fontSize:15, fontWeight:"bold",
+            background:"#081808", borderColor:"#2a4a2a" }} />
+      )}
     </Panel>
   );
 }
