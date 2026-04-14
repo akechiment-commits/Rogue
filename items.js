@@ -141,23 +141,23 @@ export const ITEMS = [
   { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"B", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。\n祝福：ステータスも永続低下。\n呪い：自分の装備の強化値が下がる。", tile:18 },
   { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:6,  sellPrice:300,  desc:"半径5の壁を全て壊す。\n祝福：半径10。呪い：周囲を壁に変える。",             tile:18 },
   { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"B", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。\n祝福：視界内全体。呪い：自分が20ターン金縛り。", tile:18 },
-  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:2,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。モンスターは通過・攻撃できなくなる。チャージ制。", tile:42 },
-  { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"B", weight:4,  sellPrice:1200,  desc:"足元に脆弱の魔方陣を描く。同じ部屋にいる者全員の受けるダメージが2倍になる。チャージ制。", tile:42 },
-  { name:"魔封じのペン",     type:"pen",    effect:"magic_seal",    charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に魔封じの魔方陣を描く。部屋内では一切の魔法が無効になる。外からの魔法弾も消える。チャージ制。", tile:42 },
+  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:2,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。チャージ制。", tile:42 },
+  { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"B", weight:4,  sellPrice:1200,  desc:"足元に脆弱の魔方陣を描く。\n同じ部屋にいる者全員の受けるダメージが2倍になる。チャージ制。", tile:42 },
+  { name:"魔封じのペン",     type:"pen",    effect:"magic_seal",    charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に魔封じの魔方陣を描く。\n部屋内では一切の魔法が無効になる。外からの魔法弾も消える。チャージ制。", tile:42 },
   { name:"雷のペン",         type:"pen",    effect:"thunder_trap",  charges:2, rarity:"C", weight:8,  sellPrice:600,  desc:"足元に雷の魔方陣を描く。真上にいると毎ターン25ダメージを受ける。チャージ制。", tile:42 },
   { name:"遠投のペン",       type:"pen",    effect:"farcast",       charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。チャージ制。", tile:42 },
-  { name:"明かりのペン",     type:"pen",    effect:"light",         charges:2, rarity:"C", weight:8,  sellPrice:700,  desc:"足元に明かりの魔方陣を描く。同じ部屋の地形・敵・アイテムが全て見える。祝福でフロア全体。呪いで視界1マスに。チャージ制。", tile:42 },
-  { name:"テレポートのペン", type:"pen",    effect:"teleport_trap", charges:2, rarity:"B", weight:4,  sellPrice:1200,  desc:"足元にテレポートの魔方陣を描く。描いた瞬間ランダムテレポート。同じ部屋にいると毎ターン確率でテレポート。祝福でフロア全体。呪いでフロアのテレポートを無効化。チャージ制。", tile:42 },
-  { name:"罠のペン",         type:"pen",    effect:"trap_gen",      charges:2, rarity:"D", weight:12, sellPrice:300,  desc:"足元に罠の魔方陣を描く。毎ターン確率で部屋に罠が増える。祝福でフロア全体。呪いで毎ターン確率でフロアの罠が消える。チャージ制。", tile:42 },
-  { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, rarity:"C", weight:8,  sellPrice:800,  desc:"足元に石飛ばしの魔方陣を描く。部屋内のキャラに毎ターン確率で魔法の石が飛ぶ。祝福で2倍ダメージ。呪いで回復効果。チャージ制。", tile:42 },
-  { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, rarity:"A", weight:2,  sellPrice:3500,  desc:"足元に吹き飛ばしの魔方陣を描く。同じ部屋での近接攻撃を受けた者が5マス吹き飛ぶ。祝福で何かに当たるまで飛ぶ。呪いで1マスだけ。チャージ制。", tile:42 },
-  { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"B", weight:4,  sellPrice:1500, desc:"足元に爆発の魔方陣を描く。部屋内で倒された敵が爆発し周囲8マスに現HPの3/4ダメージ。壁・罠・大箱も破壊。祝福でフロア全体。呪いでフロアの炎・雷を不発にする。チャージ制。", tile:42 },
-  { name:"囮のペン",         type:"pen",    effect:"decoy",         charges:2, rarity:"A", weight:2,  sellPrice:4000,  desc:"足元に囮の魔方陣を描く。同じ部屋の敵はプレイヤーを無視して魔方陣に集まり、陣取った敵は動かなくなる。陣取り中に別の敵が近づくと互いに攻撃し合う。祝福でフロア全体の敵が対象に。呪いでフロア全敵が常にプレイヤーを認識して近づいてくる。チャージ制。", tile:42 },
-  { name:"ただのペン",       type:"pen",    effect:"plain",         charges:2, rarity:"D", weight:12, sellPrice:50,   desc:"何も起こらない魔方陣を描く。他のペンに合成してインクを補充することができる。チャージ制。", tile:42 },
-  { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に重力の魔方陣を描く。部屋内では浮遊不可・敵が罠にかかる・吹き飛ばし/飛びつき無効。水上の浮遊系敵は弾き出される（逃げ場なし即死）。祝福でフロア全体。呪いで部屋内全員が浮遊状態になる。チャージ制。", tile:42 },
-  { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"A", weight:2,  sellPrice:3500, desc:"足元にみかわしの魔方陣を描く。魔方陣のある部屋では投げたもの・矢・石が必ず外れる（魔法・炎は除く）。祝福でフロア全体。呪いで逆に投げたもの・矢・石が必ず命中するようになる。チャージ制。", tile:42 },
-  { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"B", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。同じ部屋の全員が速度に関わらず1回しか行動できなくなる。祝福なら全員2回行動。呪いなら全員鈍足（2ターンに1回行動）。チャージ制。", tile:42 },
-  { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。同じ部屋にいる者全員が毎ターン5HP回復する。祝福なら10HP回復。呪いなら逆に5ダメージ。アンデッドには回復と効果が逆になる。チャージ制。", tile:42 },
+  { name:"明かりのペン",     type:"pen",    effect:"light",         charges:2, rarity:"C", weight:8,  sellPrice:700,  desc:"足元に明かりの魔方陣を描く。\n同じ部屋の地形・敵・アイテムが全て見える。\n祝福：フロア全体。呪い：視界1マスに。チャージ制。", tile:42 },
+  { name:"テレポートのペン", type:"pen",    effect:"teleport_trap", charges:2, rarity:"B", weight:4,  sellPrice:1200,  desc:"足元にテレポートの魔方陣を描く。\n描いた瞬間ランダムテレポート。部屋内で毎ターン確率でTP。\n祝福：フロア全体。呪い：テレポート無効化。チャージ制。", tile:42 },
+  { name:"罠のペン",         type:"pen",    effect:"trap_gen",      charges:2, rarity:"D", weight:12, sellPrice:300,  desc:"足元に罠の魔方陣を描く。\n毎ターン確率で部屋に罠が増える。\n祝福：フロア全体。呪い：毎ターン罠が消える。チャージ制。", tile:42 },
+  { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, rarity:"C", weight:8,  sellPrice:800,  desc:"足元に石飛ばしの魔方陣を描く。\n部屋内のキャラに毎ターン確率で魔法の石が飛ぶ。\n祝福：2倍ダメージ。呪い：回復効果。チャージ制。", tile:42 },
+  { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, rarity:"A", weight:2,  sellPrice:3500,  desc:"足元に吹き飛ばしの魔方陣を描く。\n部屋内で近接攻撃を受けた者が5マス吹き飛ぶ。\n祝福：壁まで飛ぶ。呪い：1マスだけ。チャージ制。", tile:42 },
+  { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"B", weight:4,  sellPrice:1500, desc:"足元に爆発の魔方陣を描く。\n部屋内で倒された敵が爆発し周囲8マスにHP3/4ダメージ。壁・罠・大箱も破壊。\n祝福：フロア全体。呪い：炎・雷を不発に。チャージ制。", tile:42 },
+  { name:"囮のペン",         type:"pen",    effect:"decoy",         charges:2, rarity:"A", weight:2,  sellPrice:4000,  desc:"足元に囮の魔方陣を描く。\n部屋内の敵がプレイヤーを無視して魔方陣に集まり、陣取ると動かなくなる。\n近づいた敵同士は互いに攻撃し合う。\n祝福：フロア全体。呪い：全敵がプレイヤーに集中。チャージ制。", tile:42 },
+  { name:"ただのペン",       type:"pen",    effect:"plain",         charges:2, rarity:"D", weight:12, sellPrice:50,   desc:"何も起こらない魔方陣を描く。\n他のペンに合成してインクを補充できる。チャージ制。", tile:42 },
+  { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に重力の魔方陣を描く。\n部屋内：浮遊不可・敵が罠にかかる・吹飛ばし/飛びつき無効。\n水上の浮遊系敵は即死。\n祝福：フロア全体。呪い：全員浮遊状態。チャージ制。", tile:42 },
+  { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"A", weight:2,  sellPrice:3500, desc:"足元にみかわしの魔方陣を描く。\n部屋内で投げ物・矢・石が必ず外れる(魔法・炎は除く)。\n祝福：フロア全体。呪い：逆に必ず命中。チャージ制。", tile:42 },
+  { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"B", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。\n部屋内の全員が速度に関わらず1回行動になる。\n祝福：全員2回行動。呪い：全員鈍足。チャージ制。", tile:42 },
+  { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n祝福：10HP回復。呪い：逆に5ダメージ。チャージ制。", tile:42 },
   { name:"短剣",             type:"weapon", atk:3,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"C", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"B", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },
@@ -208,7 +208,7 @@ export const ITEMS = [
   { name:"罠の巻物", type:"scroll", effect:"trap_scatter",        rarity:"D", weight:12, sellPrice:30,
     desc:"読むと同じフロアの部屋内に大量の罠が出現する。\n祝福：さらに多く出現。呪い：フロア内の全ての罠が消える。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"A", weight:2,  sellPrice:120,
-    desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。", tile:23 },
+    desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"C", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
   { name:"貫きの矢", type:"arrow", atk:5, pierce:true, count:3,   rarity:"B", weight:4,  sellPrice:60,   desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
   { name:"強矢",     type:"arrow", atk:8, strong:true,   count:3,   rarity:"B", weight:4,  sellPrice:80,   desc:"攻撃力の高い強力な矢。99本まで束にできる。",                   tile:23 },
@@ -235,7 +235,7 @@ export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierc
 export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:true,       rarity:"B", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"D", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"C", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
-export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"A", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果を与える。99本まで束にできる。",                            count:1, tile:23 };
+export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"A", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"D", weight:12, sellPrice:5,    desc:"空の瓶。今のところ使い道はない。",         tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"D", weight:12, sellPrice:5,    desc:"泉の水。飲むと満腹度+3。投げると着弾点のアイテムに祝福(祝)/呪い(呪)を付与。壺に当たると容量変化。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"B", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法のマーカーで書き込める。", tile:18 };
@@ -3267,7 +3267,7 @@ export const RINGS = [
   { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"C", weight:3, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
   { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:3, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。合成や強化で＋値を上げられる。" },
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"C", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
-  { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"C", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。ただし階段を降りられなくなる。" },
+  { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"C", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
   { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"C", weight:2, sellPrice:1000, tile:60, desc:"装備中、毒が無効になる。" },
   { name: "値切りの指輪",   type:"ring", effect:"bargain_ring",         rarity:"B", weight:2, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"C", weight:2, sellPrice:500,  tile:60, desc:"装備中、敵が現れやすくなる。" },
@@ -3279,8 +3279,8 @@ export const RINGS = [
   { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"S", weight:2, sellPrice:10000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
   { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"S", weight:2, sellPrice:10000, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
   { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"A", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
-  { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。HP75%以下から発動し、HP20%以下で必ず会心になる。" },
-  { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。2個装備で2本発射。" },
+  { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
+  { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
 ];
 
 export function hasRingEffect(p, effect) {
