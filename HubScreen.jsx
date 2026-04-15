@@ -79,7 +79,7 @@ function hubItemLabel(it) {
     s += ` [${it.contents?.length || 0}/${it.capacity}]`;
   } else if (it.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(it.effect)) {
     s += `+${it.plus || 0}`;
-  } else if (it.type === "potion" && it.effect === "heal") {
+  } else if (it.type === "potion" && (it.effect === "heal" || it.effect === "heal_big")) {
     s += ` (HP+${it.value})`;
   }
   return bc + s;

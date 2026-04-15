@@ -153,7 +153,7 @@ const _POTION_THROW_POOL = [
   { name: "暗闇の薬",   effect: "darkness", value: 0,  tile: 16 },
   { name: "惑わしの薬", effect: "bewitch",  value: 0,  tile: 16 },
   { name: "回復薬",     effect: "heal",     value: 30, tile: 16 },
-  { name: "大回復薬",   effect: "heal",     value: 60, tile: 17 },
+  { name: "大回復薬",   effect: "heal_big", value: 60, tile: 17 },
 ];
 function monsterThrowPotion(m, dg, pl, ml, bbFn) {
   const _pot = pick(_POTION_THROW_POOL);

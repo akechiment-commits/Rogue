@@ -98,7 +98,7 @@ export function useItemActions({
         }
         return false;
       };
-      if (it.effect === "heal") {
+      if (it.effect === "heal" || it.effect === "heal_big") {
         if (it.cursed) {
           // 呪い：反転→ダメージ
           const d = Math.max(1, Math.round(it.value * 0.7));
@@ -111,7 +111,7 @@ export function useItemActions({
           let _hMsg;
           if (h <= 0) {
             // HPが最大：最大HP上昇（回復薬+1/+2、大回復薬+2/+4）
-            const _maxHpGain = (it.value >= 30 ? 2 : 1) * (it.blessed ? 2 : 1);
+            const _maxHpGain = (it.effect === "heal_big" ? 2 : 1) * (it.blessed ? 2 : 1);
             p.maxHp += _maxHpGain;
             p.hp += _maxHpGain;
             _hMsg = `${it.name}を飲んだ。HPが最大なので最大HP+${_maxHpGain}！${it.blessed ? "（祝福）" : ""}`;

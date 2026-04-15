@@ -1902,8 +1902,8 @@ export function genTreasureRoom(depth) {
     { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。", tile:18, blessed:true },
     { name:"武器強化の巻物", type:"scroll", effect:"weapon_up", desc:"装備中の武器の＋値を1上げる。", tile:18, blessed:true },
     { name:"防具強化の巻物", type:"scroll", effect:"armor_up",  desc:"装備中の防具の＋値を1上げる。", tile:18, blessed:true },
-    { name:"大回復薬",       type:"potion", effect:"heal", value:35, desc:"HPを大幅に回復する。", tile:17 },
-    { name:"大回復薬",       type:"potion", effect:"heal", value:35, desc:"HPを大幅に回復する。", tile:17 },
+    { name:"大回復薬",       type:"potion", effect:"heal_big", value:35, desc:"HPを大幅に回復する。", tile:17 },
+    { name:"大回復薬",       type:"potion", effect:"heal_big", value:35, desc:"HPを大幅に回復する。", tile:17 },
   ];
   for (let i = 0; i < treasures.length; i++) {
     const ix = rx + 2 + (i % 5), iy = ry + 2 + Math.floor(i / 5);

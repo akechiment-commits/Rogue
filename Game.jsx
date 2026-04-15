@@ -4410,7 +4410,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         .map((id) => ARMOR_ABILITIES.find((a) => a.id === id)?.name)
         .filter(Boolean);
       if (_aaNames.length) s += ` [${_aaNames.join("・")}]`;
-    } else if (it.type === "potion" && it.effect === "heal" && _isIdent)
+    } else if (it.type === "potion" && (it.effect === "heal" || it.effect === "heal_big") && _isIdent)
       s += ` (HP+${it.value})`;
     else if (it.type === "food") {
       const _rotMult = it.rotten ? 0.3 : 1;

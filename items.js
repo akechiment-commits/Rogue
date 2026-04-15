@@ -131,7 +131,7 @@ export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
  */
 export const ITEMS = [
   { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"D", weight:12, sellPrice:100,  desc:"HPを30回復する。HP最大時は最大HP+1。\n祝福：回復量1.5倍+状態異常も回復。最大HP+2。\n呪い：反転して21ダメージ。",                                               tile:16 },
-  { name:"大回復薬",         type:"potion", effect:"heal",      value:60,  rarity:"B", weight:4,  sellPrice:350,  desc:"HPを60回復する。HP最大時は最大HP+2。\n祝福：回復量1.5倍+状態異常も回復。最大HP+4。\n呪い：反転して42ダメージ。",                                               tile:17 },
+  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"B", weight:4,  sellPrice:350,  desc:"HPを60回復する。HP最大時は最大HP+2。\n祝福：回復量1.5倍+状態異常も回復。最大HP+4。\n呪い：反転して42ダメージ。",                                               tile:17 },
   { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"A", weight:2,  sellPrice:1200, desc:"HPを100回復する。HP最大時は最大HP+3。\n祝福：効果2倍(回復200、最大HP+6)。\n呪い：反転して50ダメージ。", tile:17 },
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと毒状態になり攻撃力が徐々に低下。\n祝福：さらに即座に攻撃力-3。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと炎ダメージを受ける。耐火装備で半減。\n祝福：ダメージ1.5倍。呪い：反転してHP回復。\n投げると炎上し周囲にダメージ。", tile:17 },
@@ -304,7 +304,8 @@ export function itemPrice(it) {
   // sellPrice未設定のアイテム用フォールバック
   if (it.type === "potion") {
     if (it.effect === "superheal") return Math.round(400 * _bcMult);
-    if (it.effect === "heal") return Math.round((it.value >= 60 ? 200 : 100) * _bcMult);
+    if (it.effect === "heal_big") return Math.round(200 * _bcMult);
+    if (it.effect === "heal") return Math.round(100 * _bcMult);
     if (it.effect === "power") return Math.round(120 * _bcMult);
     return Math.round(40 * _bcMult);
   }
@@ -1664,6 +1665,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     hasAbility(pl.armor, "fire_resist");
   switch (eff) {
     case "water": // 水は通常のhealと同じ挙動
+    case "heal_big":
     case "heal":
       if (cursed) {
         // 反転→ダメージ
@@ -1679,13 +1681,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           } else {
             const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp);
             if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); pushHealAnim(target.x, target.y); }
-            else if (eff === "heal") { const _up = Math.round(val / 30) * (blessed ? 2 : 1); target.maxHp += _up; target.hp += _up; ml.push(`${target.name}のHP最大値が${_up}上昇した！`); pushHealAnim(target.x, target.y); }
+            else if (eff === "heal" || eff === "heal_big") { const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1); target.maxHp += _up; target.hp += _up; ml.push(`${target.name}のHP最大値が${_up}上昇した！`); pushHealAnim(target.x, target.y); }
           }
         }
         if (kind === "player") {
           const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp);
           if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
-          else if (eff === "heal") { const _up = Math.round(val / 30) * (blessed ? 2 : 1); p.maxHp += _up; p.hp += _up; ml.push(`HPが満タンだったのでHP最大値が${_up}上昇した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
+          else if (eff === "heal" || eff === "heal_big") { const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1); p.maxHp += _up; p.hp += _up; ml.push(`HPが満タンだったのでHP最大値が${_up}上昇した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
         }
       }
       break;
