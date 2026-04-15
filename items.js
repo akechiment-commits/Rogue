@@ -54,13 +54,22 @@ const _FAKE = {
   wand:   ["カシの杖","バオバブの杖","ヒノキの杖","カエデの杖","マホガニーの杖",
            "ケヤキの杖","ブナの杖","クスノキの杖","ポプラの杖","イチョウの杖",
            "シラカバの杖","クリの杖","ナラの杖","スギの杖","ヤナギの杖"],
-  pen:    ["朱色のペン","群青のペン","黄金のペン","翠色のペン","銀色のペン"],
+  pen:    ["朱色のペン","群青のペン","黄金のペン","翠色のペン","銀色のペン",
+           "深紅のペン","琥珀のペン","碧色のペン","紫紺のペン","白銀のペン",
+           "漆黒のペン","橙色のペン","茶色いペン","空色のペン","紺色のペン",
+           "薔薇色のペン","苔色のペン"],
   pot:    ["丸い壺","四角い壺","細長い壺","平たい壺","瓢箪型の壺","古い壺",
            "新しい壺","大きな壺","小さな壺","模様入りの壺","光沢のある壺",
            "素焼きの壺","裂けた壺"],
   spellbook: ["赤い表紙の魔法書","青い表紙の魔法書","黄色い表紙の魔法書","緑の表紙の魔法書",
               "黒い表紙の魔法書","白い表紙の魔法書","紫の表紙の魔法書","橙色の表紙の魔法書",
-              "金色の表紙の魔法書","銀色の表紙の魔法書"],
+              "金色の表紙の魔法書","銀色の表紙の魔法書","茶色い表紙の魔法書",
+              "灰色の表紙の魔法書","桃色の表紙の魔法書","水色の表紙の魔法書",
+              "深緑の表紙の魔法書","紺色の表紙の魔法書","真紅の表紙の魔法書"],
+  ring:   ["銀色の指輪","金色の指輪","銅の指輪","鉄の指輪","宝石のついた指輪",
+           "古びた指輪","光る指輪","曲がった指輪","彫刻のある指輪","紋章のある指輪",
+           "太い指輪","細い指輪","黒い指輪","白い指輪","緑色の指輪",
+           "赤い指輪","青い指輪","紫の指輪"],
 };
 
 export function getIdentKey(it) {
@@ -71,6 +80,7 @@ export function getIdentKey(it) {
   if (it.type === 'pen') return `n:${it.effect}`;
   if (it.type === 'pot') return `o:${it.potEffect}`;
   if (it.type === 'spellbook' && it.spell) return `b:${it.spell}`;
+  if (it.type === 'ring') return `r:${it.effect}`;
   return null;
 }
 
@@ -81,7 +91,7 @@ export function generateBbFakeNames() {
   return bbFakeNames;
 }
 
-export function generateFakeNames(items, pots, spellbooks = []) {
+export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
   const fakeNames = {};
   const assign = (keys, pool) => {
     const shuffled = shuffle([...pool]);
@@ -95,6 +105,7 @@ export function generateFakeNames(items, pots, spellbooks = []) {
   assign(uniq(items.filter(i => i.type === 'pen').map(i => `n:${i.effect}`)), _FAKE.pen);
   assign(pots.map(p => `o:${p.potEffect}`), _FAKE.pot);
   assign(uniq(spellbooks.filter(sb => sb.spell).map(sb => `b:${sb.spell}`)), _FAKE.spellbook);
+  assign(uniq(rings.filter(r => r.type === 'ring').map(r => `r:${r.effect}`)), _FAKE.ring);
   return fakeNames;
 }
 

@@ -9,7 +9,7 @@ import {
   MONS,
 } from "./monsters.js";
 import {
-  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, TRAPS,
+  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
   CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
@@ -506,6 +506,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ...[...ITEMS, ...WANDS].map(getIdentKey).filter(Boolean),
           ...POTS.map(pot => `o:${pot.potEffect}`),
           ...SPELLBOOKS.filter(sb => sb.spell).map(sb => `b:${sb.spell}`),
+          ...RINGS.map(r => `r:${r.effect}`),
         ])
       : new Set();
     const _allBcKnown = _dt === "debug" || _dt === "beginner";
@@ -515,7 +516,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     } else {
       d.bigboxes?.forEach(bb => { bb.revealed = false; });
     }
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0 };
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0 };
     sr.current = s;
     setGs(s);
     ref.current?.focus();

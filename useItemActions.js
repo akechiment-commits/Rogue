@@ -1582,6 +1582,7 @@ export function useItemActions({
             if (!p.rings) p.rings = [];
             p.rings.push(it);
             it.bcKnown = true;
+            { const _rik = getIdentKey(it); if (_rik && !sr.current.ident.has(_rik)) { sr.current.ident.add(_rik); ml.push(`指輪の正体が判明した！`); } }
             if (it.effect === "life_ring") {
               const _lifeBonus2 = (it.plus || 0) * 5;
               p.maxHp += _lifeBonus2;
@@ -1605,6 +1606,7 @@ export function useItemActions({
           if (!p.rings) p.rings = [];
           p.rings.push(it);
           it.bcKnown = true;
+          { const _rik = getIdentKey(it); if (_rik && !sr.current.ident.has(_rik)) { sr.current.ident.add(_rik); ml.push(`指輪の正体が判明した！`); } }
           if (it.effect === "life_ring") {
             const _lifeBonus3 = (it.plus || 0) * 5;
             p.maxHp += _lifeBonus3;

@@ -295,7 +295,7 @@ export function itemDisplayName(it, fakeNames, ident, nicknames) {
   if (!key) return it.name;
   if (ident?.has(key)) return it.name;
   if (nicknames?.[key]) {
-    const _pfx = key[0]==='p' ? '薬' : key[0]==='s' ? '巻' : key[0]==='w' ? '杖' : key[0]==='n' ? 'ペン' : key[0]==='b' ? '書' : '壺';
+    const _pfx = key[0]==='p' ? '薬' : key[0]==='s' ? '巻' : key[0]==='w' ? '杖' : key[0]==='n' ? 'ペン' : key[0]==='b' ? '書' : key[0]==='r' ? '指輪' : '壺';
     return `${_pfx}:${nicknames[key]}`;
   }
   return fakeNames?.[key] ?? it.name;
