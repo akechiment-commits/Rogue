@@ -2903,6 +2903,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
             else {
               if (sr.current.allBcKnown) { _grIt.fullIdent = true; _grIt.bcKnown = true; }
+              if (_grIt.charges != null) _grIt._origCharges = _grIt._origCharges ?? _grIt.charges;
               p.inventory.push(_grIt);
               if (_grIt.shopPrice) {
                 const _allS2 = getShops(dg);

@@ -2414,7 +2414,13 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       if (_iShop) {
         const r = _iShop.room;
         if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
-          _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - item.shopPrice);
+          /* チャージを消費した分は返金しない */
+          let _refundVal = item.shopPrice;
+          if (item._origCharges != null && item.charges != null && item._origCharges > 0 && item.charges < item._origCharges) {
+            _refundVal = Math.round(item.shopPrice * (item.charges / item._origCharges));
+            item.shopPrice = _refundVal; /* 次に拾われた時の値段を更新 */
+          }
+          _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - _refundVal);
           if (_iShop.unpaidTotal === 0) {
             const sk = dg.monsters.find(m => m.id === _iShop.shopkeeperId && m.state === "blocking");
             if (sk) { sk.state = "friendly"; sk.x = sk.homePos.x; sk.y = sk.homePos.y; }

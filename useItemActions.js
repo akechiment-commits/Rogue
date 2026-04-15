@@ -1670,6 +1670,11 @@ export function useItemActions({
     const _allShopsDrop = getShops(dg);
     const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
     const prevDebt = _itemShopDrop?.unpaidTotal ?? 0;
+    /* 返却前にチャージ使用コストを算出（placeItemAtがshopPriceを書き換える前に計算） */
+    const _preReturnCharges = it.charges;
+    const _chargeCost = (it._origCharges != null && it.charges != null && it._origCharges > 0 && it.charges < it._origCharges)
+      ? Math.round((it.shopPrice || 0) * (1 - it.charges / it._origCharges))
+      : 0;
     /* 足元に泉があればアイテムを泉に落とす */
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (_dropSpr) {
@@ -1685,13 +1690,14 @@ export function useItemActions({
         }
       }
     }
-    if (
-      it.shopPrice &&
-      _itemShopDrop &&
-      _itemShopDrop.unpaidTotal < prevDebt &&
-      _itemShopDrop.unpaidTotal > 0
-    )
-      ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を戻した。（残り${_itemShopDrop.unpaidTotal}G）`);
+    if (it.shopPrice != null && _itemShopDrop && _itemShopDrop.unpaidTotal < prevDebt && _itemShopDrop.unpaidTotal > 0) {
+      const _nm = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+      if (_chargeCost > 0) {
+        ml.push(`${_nm}を戻した。使用分${_chargeCost}Gが請求された！（未払い残高：${_itemShopDrop.unpaidTotal}G）`);
+      } else {
+        ml.push(`${_nm}を戻した。（残り${_itemShopDrop.unpaidTotal}G）`);
+      }
+    }
     if (ml.length === 0) {
       let _dropLbl = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (it.type === "weapon") {
