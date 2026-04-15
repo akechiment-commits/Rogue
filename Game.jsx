@@ -2249,15 +2249,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const [_px, _py] = pick(_pool);
               const _baseD = sr.current.maxDepth ?? _prevDepth; /* 最深深度基準 */
               const _phMax = 60 + _baseD * 10;
+              const _pSpeed = _baseD >= 20 ? 2 : 1;
               nd.monsters.push({
                 id: uid(), name: "遺物の番人",
                 hp: _phMax, maxHp: _phMax,
                 atk: 18 + _baseD * 2,
                 def: 8  + _baseD,
                 exp: 150 + _baseD * 20,
-                speed: _baseD >= 20 ? 2 : 1,
-                tile: 91, kind: "beast", baseKind: "pursuer",
-                aware: true, isBoss: true, x: _px, y: _py,
+                speed: _pSpeed, baseSpeed: _pSpeed, turnAccum: 0,
+                tile: 58, kind: "beast", baseKind: "pursuer",
+                monLevel: 1, isBoss: true, aware: true,
+                x: _px, y: _py,
+                dir: { x: 0, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null,
               });
               ml.push("キーアイテムを察知した遺物の番人が現れた！");
             }
