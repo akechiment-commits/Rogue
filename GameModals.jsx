@@ -2125,7 +2125,8 @@ export function InventoryModal({
   if (!show) return null;
   const _previewIdx = hoveredIdx !== null ? hoveredIdx : selIdx;
   const _previewItem = _previewIdx !== null ? p.inventory[invPage * 10 + _previewIdx] : null;
-  const _previewPot = _previewItem?.type === "pot" ? _previewItem : null;
+  const _selItem = selIdx !== null ? p.inventory[invPage * 10 + selIdx] : null;
+  const _previewPot = _selItem?.type === "pot" ? _selItem : null;
   return (
     <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
       background: "#12121c", border: "1px solid #4a4a5a", zIndex: 10,
