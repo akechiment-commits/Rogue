@@ -10,7 +10,7 @@ import {
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
-  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg,
+  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, getDiscoveries } from "./DiscoveryTracker.js";
@@ -1671,9 +1671,12 @@ export function useItemActions({
     const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
     const prevDebt = _itemShopDrop?.unpaidTotal ?? 0;
     /* 返却前にチャージ使用コストを算出（placeItemAtがshopPriceを書き換える前に計算） */
-    const _preReturnCharges = it.charges;
     const _chargeCost = (it._origCharges != null && it.charges != null && it._origCharges > 0 && it.charges < it._origCharges)
-      ? Math.round((it.shopPrice || 0) * (1 - it.charges / it._origCharges))
+      ? (() => {
+          const _po = itemPrice({ ...it, charges: it._origCharges });
+          const _pc = itemPrice({ ...it, charges: it.charges });
+          return _po > 0 ? Math.max(0, Math.round((it.shopPrice || 0) * (1 - _pc / _po))) : 0;
+        })()
       : 0;
     /* 足元に泉があればアイテムを泉に落とす */
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);

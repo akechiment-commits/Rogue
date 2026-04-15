@@ -2414,10 +2414,12 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       if (_iShop) {
         const r = _iShop.room;
         if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
-          /* チャージを消費した分は返金しない */
+          /* チャージを消費した分は返金しない（0回でも基本価値分は返金） */
           let _refundVal = item.shopPrice;
           if (item._origCharges != null && item.charges != null && item._origCharges > 0 && item.charges < item._origCharges) {
-            _refundVal = Math.round(item.shopPrice * (item.charges / item._origCharges));
+            const _priceOrig = itemPrice({ ...item, charges: item._origCharges });
+            const _priceCur  = itemPrice({ ...item, charges: item.charges });
+            _refundVal = _priceOrig > 0 ? Math.max(0, Math.round(item.shopPrice * (_priceCur / _priceOrig))) : 0;
             item.shopPrice = _refundVal; /* 次に拾われた時の値段を更新 */
           }
           _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - _refundVal);
