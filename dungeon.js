@@ -482,12 +482,32 @@ function setupShopRoom(room, map, depth, items, mons) {
     if (room.x + room.w < MW && map[yi]?.[room.x + room.w] === T.FLOOR) entrance = { x: room.x + room.w, y: yi };
   }
   if (!entrance) entrance = { x: room.cx, y: room.cy };
-  let insidePos;
-  if (entrance.y < room.y) insidePos = { x: clamp(entrance.x, room.x, room.x + room.w - 1), y: room.y };
-  else if (entrance.y >= room.y + room.h) insidePos = { x: clamp(entrance.x, room.x, room.x + room.w - 1), y: room.y + room.h - 1 };
-  else if (entrance.x < room.x) insidePos = { x: room.x, y: clamp(entrance.y, room.y, room.y + room.h - 1) };
-  else insidePos = { x: room.x + room.w - 1, y: clamp(entrance.y, room.y, room.y + room.h - 1) };
-  if (map[insidePos.y]?.[insidePos.x] !== T.FLOOR) {
+  /* 入口の真正面を避けて1マス横にズラした位置を homePos にする */
+  const _isFloor = (x, y) => map[y]?.[x] === T.FLOOR;
+  const _tryInsidePos = (cx, cy) => _isFloor(cx, cy) ? { x: cx, y: cy } : null;
+  let insidePos = null;
+  if (entrance.y < room.y) {
+    const bx = clamp(entrance.x, room.x, room.x + room.w - 1), by = room.y;
+    insidePos = _tryInsidePos(clamp(bx + 1, room.x, room.x + room.w - 1), by)
+             || _tryInsidePos(clamp(bx - 1, room.x, room.x + room.w - 1), by)
+             || _tryInsidePos(bx, by);
+  } else if (entrance.y >= room.y + room.h) {
+    const bx = clamp(entrance.x, room.x, room.x + room.w - 1), by = room.y + room.h - 1;
+    insidePos = _tryInsidePos(clamp(bx + 1, room.x, room.x + room.w - 1), by)
+             || _tryInsidePos(clamp(bx - 1, room.x, room.x + room.w - 1), by)
+             || _tryInsidePos(bx, by);
+  } else if (entrance.x < room.x) {
+    const bx = room.x, by = clamp(entrance.y, room.y, room.y + room.h - 1);
+    insidePos = _tryInsidePos(bx, clamp(by + 1, room.y, room.y + room.h - 1))
+             || _tryInsidePos(bx, clamp(by - 1, room.y, room.y + room.h - 1))
+             || _tryInsidePos(bx, by);
+  } else {
+    const bx = room.x + room.w - 1, by = clamp(entrance.y, room.y, room.y + room.h - 1);
+    insidePos = _tryInsidePos(bx, clamp(by + 1, room.y, room.y + room.h - 1))
+             || _tryInsidePos(bx, clamp(by - 1, room.y, room.y + room.h - 1))
+             || _tryInsidePos(bx, by);
+  }
+  if (!insidePos) {
     outer_s: for (let iy = room.y; iy < room.y + room.h; iy++)
       for (let ix = room.x; ix < room.x + room.w; ix++)
         if (map[iy][ix] === T.FLOOR) { insidePos = { x: ix, y: iy }; break outer_s; }

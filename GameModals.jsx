@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
@@ -1044,11 +1044,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       if (getShops(dg2).every(s => s.unpaidTotal === 0)) dg2.shopTheft = false;
                       /* この店の店主を元の位置に戻す */
                       const _sk5 = (_adjSk2) || dg2.monsters.find(m => m.id === _curShop2.shopkeeperId);
-                      if (_sk5) {
-                        _sk5.state = "friendly";
-                        _sk5.x = _sk5.homePos.x;
-                        _sk5.y = _sk5.homePos.y;
-                      }
+                      if (_sk5) moveShopkeeperHome(_sk5, _curShop2, dg2);
                       setMsgs((prev) => [...prev.slice(-80), "代金を支払った。ありがとうございます！"]);
                       sr.current = { ...sr.current };
                       setGs({ ...sr.current });

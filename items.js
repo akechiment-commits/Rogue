@@ -2425,7 +2425,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
           _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - _refundVal);
           if (_iShop.unpaidTotal === 0) {
             const sk = dg.monsters.find(m => m.id === _iShop.shopkeeperId && m.state === "blocking");
-            if (sk) { sk.state = "friendly"; sk.x = sk.homePos.x; sk.y = sk.homePos.y; }
+            if (sk) moveShopkeeperHome(sk, _iShop, dg);
             if (ml) ml.push("残高がゼロになった。店主が入り口を開けた。");
           }
         }
@@ -3022,6 +3022,19 @@ export function checkShopTheft(p, dg, ml) {
       return;
     }
   }
+}
+
+/* 支払い後に店主を空きマスへ戻す（homePos が塞がっている場合は店内の別フロアタイルへ） */
+export function moveShopkeeperHome(sk, shop, dg) {
+  sk.state = "friendly";
+  const hp = sk.homePos;
+  const occ = (x, y) => dg.monsters.some(m => m !== sk && m.x === x && m.y === y);
+  if (!occ(hp.x, hp.y)) { sk.x = hp.x; sk.y = hp.y; return; }
+  const r = shop.room;
+  for (let ry = r.y; ry < r.y + r.h; ry++)
+    for (let rx = r.x; rx < r.x + r.w; rx++)
+      if (dg.map[ry]?.[rx] === T.FLOOR && !occ(rx, ry)) { sk.x = rx; sk.y = ry; return; }
+  sk.x = hp.x; sk.y = hp.y; /* フォールバック */
 }
 
 export const SPELLS=[
