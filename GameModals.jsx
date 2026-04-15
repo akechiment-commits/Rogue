@@ -2651,3 +2651,93 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     </div>
   );
 }
+
+/* ===== Ending Modal ===== */
+export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
+  if (!show) return null;
+  const gold  = endingResult?.earnedGold ?? p?.gold ?? 0;
+  const depth = endingResult?.depth      ?? p?.depth ?? 1;
+  const turns = p?.turns ?? 0;
+  const lv    = p?.level ?? 1;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        background: "rgba(0,0,0,0.96)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 25,
+        borderRadius: 6,
+      }}
+    >
+      {/* 星のような装飾 */}
+      <div style={{ color: "#ffd700", fontSize: mobile ? 13 : 16, letterSpacing: 6, marginBottom: 8, textShadow: "0 0 16px #ffa000" }}>
+        ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦
+      </div>
+      <div
+        style={{
+          color: "#ffd700",
+          fontSize: mobile ? 22 : 32,
+          fontWeight: "bold",
+          textShadow: "0 0 20px #ffa000, 0 0 40px #ff8000",
+          marginBottom: 10,
+          letterSpacing: 2,
+        }}
+      >
+        *** 冒険クリア ***
+      </div>
+      <div
+        style={{
+          color: "#ffe080",
+          fontSize: mobile ? 14 : 18,
+          marginBottom: 14,
+          textAlign: "center",
+          lineHeight: 1.8,
+          maxWidth: 320,
+        }}
+      >
+        古代の遺物を地上へ持ち帰った！<br />
+        遺物の番人を打ち倒し、<br />
+        深淵のダンジョンを踏破した！
+      </div>
+      <div
+        style={{
+          color: "#c0a060",
+          fontSize: mobile ? 12 : 15,
+          marginBottom: 20,
+          textAlign: "center",
+          lineHeight: 1.9,
+          background: "rgba(80,60,0,0.3)",
+          border: "1px solid #806020",
+          borderRadius: 6,
+          padding: "10px 24px",
+        }}
+      >
+        Lv.{lv} | B{depth}F | {turns}ターン | {gold}G
+      </div>
+      <div style={{ color: "#ffd700", fontSize: mobile ? 13 : 16, letterSpacing: 6, marginBottom: 18, textShadow: "0 0 16px #ffa000" }}>
+        ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦
+      </div>
+      <button
+        onClick={onDismiss}
+        style={{
+          padding: "12px 36px",
+          background: "#1a1000",
+          color: "#ffd700",
+          border: "2px solid #ffd700",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          fontSize: mobile ? 14 : 17,
+          borderRadius: 6,
+          boxShadow: "0 0 14px #c09000",
+          letterSpacing: 1,
+        }}
+      >
+        地上に帰還する
+      </button>
+    </div>
+  );
+}

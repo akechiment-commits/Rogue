@@ -30,7 +30,7 @@ import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
-import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal } from "./GameModals.jsx";
 /* 大箱の表示名を返す共通ヘルパー。未識別時は偽名+ニックネーム、識別済みは実名 */
 function bbDisplayName(bb, st, withCapacity = false) {
   if (!bb) return "大箱";
@@ -269,6 +269,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const [gameOverResult, setGameOverResult] = useState(null);
   const [showScores, setShowScores] = useState(false);
   const [gameOverSel, setGameOverSel] = useState(0);
+  const [showEnding, setShowEnding] = useState(false);
+  const [endingResult, setEndingResult] = useState(null);
   const [mobile, setMobile] = useState(false);
   const [ctLoaded, setCtLoaded] = useState(0);
   const [showTileEditor, setShowTileEditor] = useState(false);
@@ -2841,11 +2843,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
         if (dg.map[p.y][p.x] === T.SU) {
-          if (p.depth === 1) {
+          /* 遺物の番人が同フロアに生きている間は上り階段封鎖 */
+          const _pursuer = dg.monsters.find(m => m.baseKind === "pursuer");
+          if (_pursuer) {
+            ml.push("遺物の番人が立ちはだかっている！倒さなければ上に進めない！");
+          } else if (p.depth === 1) {
             if (onReturnToHub) {
               clearGameSave();
               const _hasGoal = p.inventory.some(it => it.type === "goal");
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal, identifiedEffects: [...(sr.current?.ident || [])] });
+              if (_hasGoal) {
+                setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, identifiedEffects: [...(sr.current?.ident || [])] });
+                setShowEnding(true);
+              } else {
+                onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: false, identifiedEffects: [...(sr.current?.ident || [])] });
+              }
               return;
             }
           } else {
@@ -2861,11 +2872,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             doStair(1);
           }
         } else if (dg.map[p.y][p.x] === T.SU) {
-          if (p.depth === 1) {
+          /* 遺物の番人が同フロアに生きている間は上り階段封鎖 */
+          const _pursuer2 = dg.monsters.find(m => m.baseKind === "pursuer");
+          if (_pursuer2) {
+            ml.push("遺物の番人が立ちはだかっている！倒さなければ上に進めない！");
+          } else if (p.depth === 1) {
             if (onReturnToHub) {
               clearGameSave();
               const _hasGoal2 = p.inventory.some(it => it.type === "goal");
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoal2 });
+              if (_hasGoal2) {
+                setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, identifiedEffects: [...(sr.current?.ident || [])] });
+                setShowEnding(true);
+              } else {
+                onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: false });
+              }
               return;
             }
           } else {
@@ -5118,6 +5138,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} />{" "}
       <GameOverModal dead={dead} p={p} gameOverSel={gameOverSel} setShowScores={setShowScores} init={init} mobile={mobile} onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined} />
+      <EndingModal show={showEnding} p={p} endingResult={endingResult} mobile={mobile} onDismiss={() => { setShowEnding(false); if (onReturnToHub && endingResult) onReturnToHub(endingResult); }} />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} />
       <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} />
