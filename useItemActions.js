@@ -46,6 +46,7 @@ function _forceUnequip(p, it) {
       p.maxHp = Math.max(1, p.maxHp - _bonus);
       p.hp = Math.min(p.hp, p.maxHp);
     }
+    if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
     if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
   }
 }
@@ -1556,6 +1557,7 @@ export function useItemActions({
             p.maxHp = Math.max(1, p.maxHp - _lifeBonus);
             p.hp = Math.min(p.hp, p.maxHp);
           }
+          if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
           if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
           ml.push(`${it.name}を外した。`);
         }
@@ -1572,6 +1574,7 @@ export function useItemActions({
               p.maxHp = Math.max(1, p.maxHp - _lifeBonus);
               p.hp = Math.min(p.hp, p.maxHp);
             }
+            if (_removed.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
             if (_removed.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
             ml.push(`${_removed.name}を外した。`);
             if (!p.rings) p.rings = [];
@@ -1582,6 +1585,7 @@ export function useItemActions({
               p.maxHp += _lifeBonus2;
               p.hp += _lifeBonus2;
             }
+            if (it.blessed) { p.maxHp += 10; p.hp += 10; }
             if (it.effect === "torch_ring") p.visionBonus = (p.visionBonus || 0) + 1;
             ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
             if (it.effect === "explode_ring") {
@@ -1604,6 +1608,7 @@ export function useItemActions({
             p.maxHp += _lifeBonus3;
             p.hp += _lifeBonus3;
           }
+          if (it.blessed) { p.maxHp += 10; p.hp += 10; }
           if (it.effect === "torch_ring") p.visionBonus = (p.visionBonus || 0) + 1;
           ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
           /* 爆発の指輪：装備時即爆発 */
