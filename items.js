@@ -244,20 +244,20 @@ export const MAGIC_MARKER  = { name:"魔法のマーカー", type:"marker", char
 
 /* ===== 宝石 ===== */
 export const GEM_TYPES = [
-  { name: "ルビー",       type: "gem", rarity: "B", weight: 8,  basePrice: 500,  tile: 88,  desc: "深紅の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "サファイア",   type: "gem", rarity: "B", weight: 8,  basePrice: 600,  tile: 89,  desc: "深青の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "エメラルド",   type: "gem", rarity: "B", weight: 8,  basePrice: 550,  tile: 90,  desc: "緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "トパーズ",     type: "gem", rarity: "C", weight: 12, basePrice: 300,  tile: 91,  desc: "黄色の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "アメジスト",   type: "gem", rarity: "C", weight: 12, basePrice: 280,  tile: 92,  desc: "紫の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "アクアマリン", type: "gem", rarity: "C", weight: 10, basePrice: 320,  tile: 87,  desc: "青緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "ダイヤモンド", type: "gem", rarity: "A", weight: 3,  basePrice: 1200, tile: 101, desc: "無色透明の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "オパール",     type: "gem", rarity: "A", weight: 3,  basePrice: 1000, tile: 102, desc: "虹色の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "ルビー",       type: "gem", rarity: "B", weight: 8,  basePrice: 1500, tile: 88,  desc: "深紅の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "サファイア",   type: "gem", rarity: "B", weight: 8,  basePrice: 1800, tile: 89,  desc: "深青の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "エメラルド",   type: "gem", rarity: "B", weight: 8,  basePrice: 1600, tile: 90,  desc: "緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "トパーズ",     type: "gem", rarity: "C", weight: 12, basePrice: 800,  tile: 91,  desc: "黄色の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "アメジスト",   type: "gem", rarity: "C", weight: 12, basePrice: 750,  tile: 92,  desc: "紫の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "アクアマリン", type: "gem", rarity: "C", weight: 10, basePrice: 850,  tile: 87,  desc: "青緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "ダイヤモンド", type: "gem", rarity: "A", weight: 3,  basePrice: 5000, tile: 101, desc: "無色透明の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "オパール",     type: "gem", rarity: "A", weight: 3,  basePrice: 4000, tile: 102, desc: "虹色の宝石。買った店から遠い階の店で売ると高値がつく。" },
 ];
 
 /* 宝石の売値を計算する（originDepth から currentDepth の距離に応じて上昇） */
 export function gemSellPrice(gem, currentDepth) {
   const dist = Math.abs(currentDepth - (gem.originDepth ?? currentDepth));
-  return Math.round((gem.basePrice || 100) * (1 + dist * 0.2));
+  return Math.round((gem.basePrice || 100) * (1 + dist * 0.35));
 }
 
 export function itemPrice(it) {
