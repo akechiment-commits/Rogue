@@ -1362,18 +1362,18 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* 盲目状態（ボスのみターン経過で解除） */
   if (m.blind && m.isBoss && !_attackOnly) {
     m.blindTurns = Math.max(0, ((m.blindTurns || 0) - 2));
-    if (m.blindTurns <= 0) { m.blind = false; ml.push(`${m.name}の盲目が解けた！`); return; }
+    if (m.blindTurns <= 0) { m.blind = false; ml.push(`${m.name}の盲目が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
   }
   /* 幻惑状態（ボスのみターン経過で解除） */
   if (m.bewitched && m.isBoss && !_attackOnly) {
     m.bewitchedTurns = Math.max(0, ((m.bewitchedTurns || 0) - 2));
-    if (m.bewitchedTurns <= 0) { m.bewitched = false; ml.push(`${m.name}の幻惑が解けた！`); return; }
+    if (m.bewitchedTurns <= 0) { m.bewitched = false; ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
   }
   /* 封印状態（ボスのみターン経過で解除） */
   if (m.sealed && m.isBoss && !_attackOnly) {
     if ((m.sealedTurns || 0) > 0) {
       m.sealedTurns = Math.max(0, m.sealedTurns - 2);
-      if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); return; }
+      if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
     }
   }
   /* ── grabber捕獲解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
@@ -1389,14 +1389,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
   if (m.sleepTurns > 0) {
     if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - (m.isBoss ? 2 : 1));
-    if (m.sleepTurns <= 0) ml.push(`${m.name}の睡眠が解けた！`);
+    if (m.sleepTurns <= 0) { ml.push(`${m.name}の睡眠が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
   /* 金縛り（paralyzeTurns があればボスのみターン経過で解除） */
   if (m.paralyzed) {
     if (m.isBoss && (m.paralyzeTurns || 0) > 0 && !_attackOnly) {
       m.paralyzeTurns = Math.max(0, m.paralyzeTurns - 2);
-      if (m.paralyzeTurns <= 0) { m.paralyzed = false; ml.push(`${m.name}の金縛りが解けた！`); return; }
+      if (m.paralyzeTurns <= 0) { m.paralyzed = false; ml.push(`${m.name}の金縛りが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
     }
     if (m.paralyzed) return;
   }
@@ -1529,7 +1529,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.speed = m._preSlowSpeed;
       delete m._preSlowSpeed;
       ml.push(`${m.name}の鈍足が解けた！`);
-      return;
+      m.turnAccum = 0; m._movedThisTurn = true; return;
     }
   }
   /* 毒矢攻撃力半減（ボス：10ターンで回復） */
@@ -1560,7 +1560,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
   if ((m.immobileTurns||0) > 0) {
     if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - (m.isBoss ? 2 : 1));
-    if (m.immobileTurns <= 0) { ml.push(`${m.name}の移動封じが解けた！`); return; }
+    if (m.immobileTurns <= 0) { ml.push(`${m.name}の移動封じが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
     else _attackOnly = true;
   }
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
@@ -1591,7 +1591,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
     }
-    if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`);
+    if (m.confusedTurns <= 0) { ml.push(`${m.name}の混乱が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
 
@@ -1628,7 +1628,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     } else {
       m.darkDir = null; // 壁に当たったら方向リセット
     }
-    if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`);
+    if (!_isPerm && m.darknessTurns <= 0) { ml.push(`${m.name}の暗闇が晴れた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
 
@@ -1648,7 +1648,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     _fcands.sort((a, b) => b.score - a.score);
     if (!_attackOnly && _fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
-    if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`);
+    if (!_isPerm && m.fleeingTurns <= 0) { ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
 
