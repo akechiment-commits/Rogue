@@ -2843,11 +2843,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
         if (dg.map[p.y][p.x] === T.SU) {
-          /* 遺物の番人が同フロアに生きている間は上り階段封鎖 */
-          const _pursuer = dg.monsters.find(m => m.baseKind === "pursuer");
-          if (_pursuer) {
-            ml.push("遺物の番人が立ちはだかっている！倒さなければ上に進めない！");
-          } else if (p.depth === 1) {
+          if (p.depth === 1) {
             if (onReturnToHub) {
               clearGameSave();
               const _hasGoal = p.inventory.some(it => it.type === "goal");
@@ -2872,11 +2868,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             doStair(1);
           }
         } else if (dg.map[p.y][p.x] === T.SU) {
-          /* 遺物の番人が同フロアに生きている間は上り階段封鎖 */
-          const _pursuer2 = dg.monsters.find(m => m.baseKind === "pursuer");
-          if (_pursuer2) {
-            ml.push("遺物の番人が立ちはだかっている！倒さなければ上に進めない！");
-          } else if (p.depth === 1) {
+          if (p.depth === 1) {
             if (onReturnToHub) {
               clearGameSave();
               const _hasGoal2 = p.inventory.some(it => it.type === "goal");
