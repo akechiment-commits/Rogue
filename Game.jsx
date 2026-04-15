@@ -4119,11 +4119,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
         if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
           const _oldPlus = it.plus || 0;
+          const _oldName = it.name;
           const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
-          Object.assign(it, { ...EXCALIBUR_T, id: it.id, plus: _oldPlus });
+          Object.assign(it, { ...EXCALIBUR_T, id: it.id, plus: Math.max(0, _oldPlus) });
           const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${it.name}が聖なる光を放ち...エクスカリバーに変化した！`);
+          ml.push(`${_oldName}が聖なる光を放ち...エクスカリバーに変化した！`);
         } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧") && Math.random() < 0.20) {
           const _oldPlus = it.plus || 0;
           const _oldName = it.name;
