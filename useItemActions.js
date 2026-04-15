@@ -1582,7 +1582,6 @@ export function useItemActions({
             if (!p.rings) p.rings = [];
             p.rings.push(it);
             it.bcKnown = true;
-            { const _rik = getIdentKey(it); if (_rik && !sr.current.ident.has(_rik)) { sr.current.ident.add(_rik); ml.push(`指輪の正体が判明した！`); } }
             if (it.effect === "life_ring") {
               const _lifeBonus2 = (it.plus || 0) * 5;
               p.maxHp += _lifeBonus2;
@@ -1606,7 +1605,6 @@ export function useItemActions({
           if (!p.rings) p.rings = [];
           p.rings.push(it);
           it.bcKnown = true;
-          { const _rik = getIdentKey(it); if (_rik && !sr.current.ident.has(_rik)) { sr.current.ident.add(_rik); ml.push(`指輪の正体が判明した！`); } }
           if (it.effect === "life_ring") {
             const _lifeBonus3 = (it.plus || 0) * 5;
             p.maxHp += _lifeBonus3;
@@ -2519,11 +2517,15 @@ export function useItemActions({
           ml.push(`${dnameRef(it)}を振ったが、力が残っていない...`);
         } else {
         const _wandBm = getBlessMultiplier(it);
+        const _wandIK = getIdentKey(it);
+        const _wandIsIdent = !!(_wandIK && sr.current.ident.has(_wandIK));
         it.charges--;
+        if (!_wandIsIdent) it._usedCount = (it._usedCount || 0) + 1;
+        const _chargesStr = _wandIsIdent ? `[残${it.charges}回]` : "";
         if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-          ml.push(`${dnameRef(it)}を振ったが、魔法が封印されている！[残${it.charges}回]`);
+          ml.push(`${dnameRef(it)}を振ったが、魔法が封印されている！${_chargesStr}`);
         } else {
-          ml.push(`${dnameRef(it)}を振った！[残${it.charges}回]${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
+          ml.push(`${dnameRef(it)}を振った！${_chargesStr}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
           const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
           /* 杖発射前のプレイヤー位置を記録（ワープ系の盗賊判定用） */
           const _preWandPx = p.x, _preWandPy = p.y;

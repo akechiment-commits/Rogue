@@ -4422,7 +4422,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (it.potionEffects?.length) s += "★";
         s += ")";
       }
-    } else if (it.type === "wand")   s += it.fullIdent ? ` [${it.charges}回]` : "";
+    } else if (it.type === "wand")   s += it.fullIdent ? ` [${it.charges}回]` : (!_isIdent && it._usedCount ? ` (-${it._usedCount})` : "");
     else if (it.type === "marker") s += ` [${it.charges}回]`;
     else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
     else if (it.type === "pot")    s += _isIdent ? ` [${it.contents?.length || 0}/${it.capacity}]` : "";
