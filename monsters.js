@@ -2027,7 +2027,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           /* 祝福版はフロア全体が対象なので maxDist を大きくする */
           const _decoyMaxDist = _decoyPc.blessed ? 120 : 40;
           m._decoyLuredOk = false; /* BFS前にリセット */
-          const _dn = bfsNext(map, [], m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat, null, true);
+          /* プレイヤー・他モンスターを障害物扱いにして迂回路を探す */
+          const _decoyTileFilter = (x, y) =>
+            (x === pl.x && y === pl.y) ? false : canEnter(map, x, y, _effFloat);
+          const _dn = bfsNext(map, dg.monsters, m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat, _decoyTileFilter, true);
           if (_dn) {
             /* BFS到達成功か最近傍タイルへの第一歩（到達不可の場合）を取得 */
             m._decoyLuredOk = true; /* 次のattackOnlyフェーズでも囮ロジック維持 */
