@@ -1189,7 +1189,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     p2.y >= s.room.y && p2.y < s.room.y + s.room.h);
                   const bp = _calcSellPrice(it, p2.depth);
                   p2.gold += bp;
-                  it.shopPrice = itemPrice(it);
+                  it.shopPrice = it.type === "gem" ? bp : itemPrice(it);
                   if (_curSellSh) it._shopId = _curSellSh.id;
                   const _dispName = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                   setMsgs((prev) => [
