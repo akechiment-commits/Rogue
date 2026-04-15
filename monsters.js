@@ -1417,6 +1417,38 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.paralyzed) return;
   }
   /* ===== ボス固有AI ===== */
+  /* 遺物の番人：7ターンごとにプレイヤーの隣に瞬間移動（逃げ場なし）
+     HP50%以下で激昂：毎ターン5HP回復 + 次ワープまでの間隔が4ターンに縮む */
+  if (m.baseKind === "pursuer" && !_moveOnly) {
+    const _enraged = m.hp <= m.maxHp * 0.5;
+    if (_enraged && !m._enragedPursuer) {
+      m._enragedPursuer = true;
+      ml.push(`${m.name}が怒りに燃えた！その目が赤く輝く…！`);
+    }
+    /* HP回復（激昂後のみ） */
+    if (_enraged) {
+      const _rh = Math.min(5, m.maxHp - m.hp);
+      if (_rh > 0) { m.hp += _rh; }
+    }
+    /* ワープカウントダウン */
+    const _warpInterval = _enraged ? 4 : 7;
+    m._warpCooldown = (m._warpCooldown === undefined ? _warpInterval : m._warpCooldown) - 1;
+    if (m._warpCooldown <= 0) {
+      m._warpCooldown = _warpInterval;
+      const _warpDirs = shuffle([[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]);
+      let _warped = false;
+      for (const [_wdx, _wdy] of _warpDirs) {
+        const _wx = pl.x + _wdx, _wy = pl.y + _wdy;
+        if (dg.map[_wy]?.[_wx] !== T.FLOOR) continue;
+        if (dg.monsters.some(mn => mn !== m && mn.x === _wx && mn.y === _wy)) continue;
+        m.x = _wx; m.y = _wy;
+        ml.push(`${m.name}が閃光とともにプレイヤーの目前に降り立った！`);
+        _warped = true;
+        break;
+      }
+      if (!_warped) m._warpCooldown = 1; /* 失敗したらすぐ再試行 */
+    }
+  }
   /* 深淵の番人：毎ターン8HP回復（最大HPを超えない） */
   if (m.baseKind === "boss_guardian" && !_moveOnly) {
     const _heal = Math.min(8, m.maxHp - m.hp);
