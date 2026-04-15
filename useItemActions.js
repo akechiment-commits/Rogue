@@ -1371,6 +1371,8 @@ export function useItemActions({
       }
       const _exPen = dg.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
       const _penBlocked =
+        dg.map[p.y][p.x] === T.WALL ||
+        dg.map[p.y][p.x] === T.BWALL ||
         dg.items.some((gi) => gi.x === p.x && gi.y === p.y) ||
         dg.traps.some((tr) => tr.x === p.x && tr.y === p.y) ||
         dg.springs?.some((s) => s.x === p.x && s.y === p.y) ||
