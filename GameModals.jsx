@@ -10,7 +10,7 @@ import { loadSave } from "./SaveData.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
-const _FOOD_POT_EFFECTS = new Set(["choco","spicy","honey","curry","miso","smoke","olive","sesame","butter","yogurt","coconut"]);
+const _FOOD_POT_EFFECTS = new Set(["choco","spicy","honey","curry","miso","smoke","olive","sesame","butter","yogurt","coconut","soy","garlic","lemon"]);
 function isPotEffective(potEffect, item) {
   if (potEffect === "none") return true;
   if (potEffect === "enhance") return item.type === "weapon" || item.type === "armor" || (item.type === "ring" && _PLUS_RING_EFFECTS.includes(item.effect));
@@ -19,6 +19,7 @@ function isPotEffective(potEffect, item) {
   if (potEffect === "curse_pot") return item.type !== "gold" && item.type !== "arrow";
   if (potEffect === "boil") return item.type === "potion" || item.type === "food";
   if (potEffect === "gunpowder") return false;
+  if (potEffect === "greed" || potEffect === "heal_pot") return true;
   if (_FOOD_POT_EFFECTS.has(potEffect)) return item.type === "food";
   return false;
 }
