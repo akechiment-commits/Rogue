@@ -440,10 +440,10 @@ export const MONS = [
       { name: "精霊コロポックル",   hp: 24,  atk: 0,  def: 0,  exp: 120 },
     ],
   },
-  { name: "ゾンビ",       hp: 34,  atk: 14, def: 3,  exp: 28,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", dungeonFloors: { beginner: { min: 8, max: 10 } },
+  { name: "ゾンビ",       hp: 55,  atk: 20, def: 5,  exp: 45,  speed: 0.5, tile: 10, kind: "undead",   baseKind: "zombie",        monLevel: 1, minFloor: 6,  maxFloor: 19, elemWeak: "fire", dungeonFloors: { beginner: { min: 8, max: 10 } },
     levels: [
-      { name: "強ゾンビ",           hp: 54,  atk: 20, def: 7,  exp: 45  },
-      { name: "屍鬼",               hp: 85,  atk: 24, def: 12, exp: 70  },
+      { name: "強ゾンビ",           hp: 85,  atk: 28, def: 12, exp: 72  },
+      { name: "屍鬼",               hp: 130, atk: 35, def: 18, exp: 110 },
     ],
   },
   { name: "ワッカ",       hp: 24,  atk: 14, def: 2,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 } },
