@@ -1610,7 +1610,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     ? SPELLBOOKS.filter(sb => sb.spell !== "identify_magic")
     : SPELLBOOKS;
   const _BB_EXCLUDE = dungeonType === "beginner" ? ["identify"] : [];
-  const _itemCount = dungeonType === "advanced" || dungeonType === "legend" ? rng(1, 3) : dungeonType === "intermediate" ? rng(2, 4) : rng(4, 6);
+  const _itemCount = dungeonType === "advanced" || dungeonType === "legend" ? rng(1, 3) : dungeonType === "intermediate" ? rng(3, 5) : rng(4, 6);
   for (let i = 0; i < _itemCount; i++) {
     const rm = pick(rooms);
     const ix = rng(rm.x, rm.x + rm.w - 1),
@@ -1639,7 +1639,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
   }
   /* サブアイテムをプール方式でランダム生成（系統ごとの上限なし・後で重み調整可） */
-  const _subPoolSize = dungeonType === "advanced" || dungeonType === "legend" ? rng(2, 5) : dungeonType === "intermediate" ? rng(3, 6) : rng(4, 8);
+  const _subPoolSize = dungeonType === "advanced" || dungeonType === "legend" ? rng(2, 5) : dungeonType === "intermediate" ? rng(4, 7) : rng(4, 8);
   const _subGens = [
     /* 矢 */       () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
     /* 杖 */       () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
