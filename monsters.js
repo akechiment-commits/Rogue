@@ -1101,8 +1101,9 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   let _plHit = false;
   for (let d = 1; d <= _travelMax; d++) {
     const tx = m.x + dx * d, ty = m.y + dy * d;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
     if (!isWalkable(dg.map, tx, ty)) {
-      if (_isPierce) break; /* 貫きの矢：壁で止まっても消滅 */
+      if (_isPierce) continue; /* 貫きの矢：壁を貫通して直進 */
       /* arrow hits wall — drop at last valid position (avoid pentacle) */
       const _wd = safeArrowDrop(lx, ly, dg);
       _monDropWithSpring(_wd, _makeAr(), dg, ml);
@@ -1116,11 +1117,20 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
       const _arForceSure = _arDodgePc === "sure";
       const _arMissAll = _arForceMiss || (!_arForceSure && (miss || _arSanc));
       if (_arMissAll) {
-        const _ad = safeArrowDrop(_arSanc ? lx : pl.x, _arSanc ? ly : pl.y, dg);
-        _monDropWithSpring(_ad, _makeAr(), dg, ml);
-        if (_arSanc) ml.push(`${m.name}の${_arName}は祝福された聖域の加護に阻まれた！${_arName}が落ちた。`);
-        else if (_arForceMiss) ml.push(`みかわしの魔方陣の加護で${m.name}の${_arName}をかわした！${_arName}が落ちた。`);
-        else ml.push(`${m.name}の${_arName}は外れた！${_arName}が落ちた。`);
+        if (_arSanc) {
+          /* 祝福された聖域は貫きの矢も阻む */
+          const _ad = safeArrowDrop(lx, ly, dg);
+          _monDropWithSpring(_ad, _makeAr(), dg, ml);
+          ml.push(`${m.name}の${_arName}は祝福された聖域の加護に阻まれた！${_arName}が落ちた。`);
+          return;
+        }
+        /* 聖域なしのミス：貫きの矢は落とさず飛び続ける */
+        if (!_isPierce) {
+          const _ad = safeArrowDrop(pl.x, pl.y, dg);
+          _monDropWithSpring(_ad, _makeAr(), dg, ml);
+        }
+        if (_arForceMiss) ml.push(`みかわしの魔方陣の加護で${m.name}の${_arName}をかわした！${!_isPierce ? `${_arName}が落ちた。` : ""}`);
+        else ml.push(`${m.name}の${_arName}は外れた！${!_isPierce ? `${_arName}が落ちた。` : ""}`);
         const trap = dg.traps?.find(t => t.x === pl.x && t.y === pl.y);
         if (trap && opts.fireTrapFn) opts.fireTrapFn(trap, pl, dg, ml);
         if (!_isFc && !_isPierce) return;
