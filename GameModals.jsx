@@ -790,10 +790,23 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _sfx = mode.blessed ? "【祝】" : mode.cursed ? "【呪】" : "";
       if (_selIt.type === "weapon" || _selIt.type === "armor" || _selIt.type === "ring") {
         const _bef = _selIt.plus || 0;
-        _selIt.plus = _bef + _gain;
-        const _glow = _gain > 0 ? "輝いた" : "くすんだ";
-        _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
-        if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
+        /* ロングソード→エクスカリバー特殊変化（武器強化の巻物：通常5%/祝福10%、呪いは発動しない） */
+        const _excChance = mode.mode === 'weapon_up' && _selIt.name === "ロングソード" && !mode.cursed
+          ? (mode.blessed ? 0.10 : 0.05) : 0;
+        if (_excChance > 0 && Math.random() < _excChance) {
+          const _oldName = _selIt.name;
+          const _oldAbs = [...new Set([...(_selIt.abilities || []), ...(_selIt.ability ? [_selIt.ability] : [])])].filter(Boolean);
+          Object.assign(_selIt, { ...EXCALIBUR_T, id: _selIt.id, plus: Math.max(0, _bef) });
+          const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
+          _selIt.abilities = _newAbs; _selIt.ability = _newAbs[0];
+          _selIt.fullIdent = true; _selIt.bcKnown = true;
+          _msgResult = `${_oldName}が聖なる光を放ち...エクスカリバーに変化した！${_sfx}`;
+        } else {
+          _selIt.plus = _bef + _gain;
+          const _glow = _gain > 0 ? "輝いた" : "くすんだ";
+          _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
+          if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
+        }
       } else {
         _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
       }

@@ -4130,7 +4130,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _oldName = it.name;
           const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
           const _goldAxe = ITEMS.find(i => i.name === "金の斧");
-          Object.assign(it, { ..._goldAxe, id: it.id, plus: _oldPlus });
+          Object.assign(it, { ..._goldAxe, id: it.id, plus: Math.max(0, _oldPlus) });
           const _newAbs = [...new Set([..._oldAbs, _goldAxe.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
           ml.push(`${_oldName}が黄金の輝きを放ち...金の斧に変化した！`);
