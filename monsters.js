@@ -3029,6 +3029,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* ===== 未覚醒：パトロール ===== */
     /* waterOnlyモンスターは水上のみ移動可能なため、未覚醒時はその場で待機 */
     if (m.waterOnly) return;
+    /* grabberは覚醒前も動かない */
+    if (m.subtype === "grabber") return;
     const room = findRoom(rooms, m.x, m.y);
     const _arrived = m.patrolTarget &&
       m.x === m.patrolTarget.x && m.y === m.patrolTarget.y;
