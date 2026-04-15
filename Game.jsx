@@ -10,7 +10,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
-  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
+  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
@@ -4116,7 +4116,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         p.inventory.push(wb);
         ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
-        /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
+        /* 特殊変化：ロングソード→エクスカリバー(5%)、短剣→猫の爪(5%)、バトルアクス/戦神の斧→ゴールデンアクス(20%) */
         if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
           const _oldPlus = it.plus || 0;
           const _oldName = it.name;
@@ -4125,15 +4125,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
           ml.push(`${_oldName}が聖なる光を放ち...エクスカリバーに変化した！`);
+        } else if (it.type === "weapon" && it.name === "短剣" && Math.random() < 0.05) {
+          const _oldPlus = it.plus || 0;
+          const _oldName = it.name;
+          const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
+          Object.assign(it, { ...CAT_CLAW_T, id: it.id, plus: Math.max(0, _oldPlus) });
+          const _newAbs = [...new Set([..._oldAbs, CAT_CLAW_T.ability])];
+          it.abilities = _newAbs; it.ability = _newAbs[0];
+          ml.push(`${_oldName}が鋭い輝きを放ち...猫の爪に変化した！`);
         } else if (it.type === "weapon" && (it.name === "バトルアクス" || it.name === "戦神の斧") && Math.random() < 0.20) {
           const _oldPlus = it.plus || 0;
           const _oldName = it.name;
           const _oldAbs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])])].filter(Boolean);
-          const _goldAxe = ITEMS.find(i => i.name === "金の斧");
-          Object.assign(it, { ..._goldAxe, id: it.id, plus: Math.max(0, _oldPlus) });
-          const _newAbs = [...new Set([..._oldAbs, _goldAxe.ability])];
+          Object.assign(it, { ...GOLDEN_AXE_T, id: it.id, plus: Math.max(0, _oldPlus) });
+          const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
-          ml.push(`${_oldName}が黄金の輝きを放ち...金の斧に変化した！`);
+          ml.push(`${_oldName}が黄金の輝きを放ち...ゴールデンアクスに変化した！`);
         } else if (hasAbility(it, "no_degrade")) {
           let _ndNote = "";
           if (it.cursed) { it.cursed = false; _ndNote = " 呪いが解けた！"; }

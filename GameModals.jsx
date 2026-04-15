@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
@@ -790,22 +790,24 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _sfx = mode.blessed ? "【祝】" : mode.cursed ? "【呪】" : "";
       if (_selIt.type === "weapon" || _selIt.type === "armor" || _selIt.type === "ring") {
         const _bef = _selIt.plus || 0;
-        /* 武器強化の巻物による特殊変化（通常5%/祝福10%、呪いは発動しない） */
-        const _wpUpSpecial = mode.mode === 'weapon_up' && !mode.cursed;
-        const _excChance  = _wpUpSpecial && _selIt.name === "ロングソード" ? (mode.blessed ? 0.10 : 0.05) : 0;
-        const _catChance  = _wpUpSpecial && _selIt.name === "短剣"         ? (mode.blessed ? 0.10 : 0.05) : 0;
-        const _transformT = _excChance > 0 && Math.random() < _excChance ? EXCALIBUR_T
-                          : _catChance > 0 && Math.random() < _catChance  ? CAT_CLAW_T
-                          : null;
-        if (_transformT) {
+        /* 武器強化の巻物による特殊変化（通常5%/祝福10%/呪い20%） */
+        const _tChance = mode.blessed ? 0.10 : mode.cursed ? 0.20 : 0.05;
+        const _transformT = mode.mode === 'weapon_up'
+          ? (_selIt.name === "ロングソード"                                  ? EXCALIBUR_T
+           : _selIt.name === "短剣"                                          ? CAT_CLAW_T
+           : (_selIt.name === "バトルアクス" || _selIt.name === "戦神の斧") ? GOLDEN_AXE_T
+           : null)
+          : null;
+        if (_transformT && Math.random() < _tChance) {
           const _oldName = _selIt.name;
           const _oldAbs = [...new Set([...(_selIt.abilities || []), ...(_selIt.ability ? [_selIt.ability] : [])])].filter(Boolean);
           Object.assign(_selIt, { ..._transformT, id: _selIt.id, plus: Math.max(0, _bef) });
           const _newAbs = [...new Set([..._oldAbs, _transformT.ability])];
           _selIt.abilities = _newAbs; _selIt.ability = _newAbs[0];
           _selIt.fullIdent = true; _selIt.bcKnown = true;
-          const _transformMsg = _transformT === EXCALIBUR_T ? "聖なる光を放ち...エクスカリバーに変化した！"
-                                                            : "鋭い輝きを放ち...猫の爪に変化した！";
+          const _transformMsg = _transformT === EXCALIBUR_T  ? "聖なる光を放ち...エクスカリバーに変化した！"
+                              : _transformT === CAT_CLAW_T   ? "鋭い輝きを放ち...猫の爪に変化した！"
+                                                             : "黄金の輝きを放ち...ゴールデンアクスに変化した！";
           _msgResult = `${_oldName}が${_transformMsg}${_sfx}`;
         } else {
           _selIt.plus = _bef + _gain;

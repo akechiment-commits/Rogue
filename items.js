@@ -175,7 +175,6 @@ export const ITEMS = [
   { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"A", weight:2,  sellPrice:2500, desc:"ドラゴン系に2倍ダメージを与える特効剣。",         tile:20 },
   { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"A", weight:2,  sellPrice:2000, desc:"アンデッド系に2倍ダメージを与える聖剣。",         tile:20 },
   { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"A", weight:2,  sellPrice:1500, desc:"浮遊している敵に2倍ダメージを与える槍。",         tile:20 },
-  { name:"金の斧",           type:"weapon", atk:9,  ability:"no_degrade",    rarity:"A", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。",               tile:20 },
   { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical",      rarity:"A", weight:2,  sellPrice:2500, desc:"25%の確率で会心の一撃（2倍ダメージ）が出る斧。",  tile:20 },
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
   { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"B", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
@@ -232,8 +231,9 @@ export function getBlessMultiplier(it) {
   return 1;
 }
 
-export const CAT_CLAW_T     = { name:"猫の爪",       type:"weapon", atk:13, ability:"critical", desc:"短剣3つの合成で生まれる鋭い爪。25%の確率で会心の一撃。", tile:20 };
+export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical",    sellPrice:3000, desc:"短剣3つの合成で生まれる鋭い爪。25%の確率で会心の一撃。", tile:20 };
 export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead", sellPrice:5000, desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ。", tile:20 };
+export const GOLDEN_AXE_T  = { name:"ゴールデンアクス", type:"weapon", atk:10, ability:"no_degrade", sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。", tile:20 };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], desc:"炎・氷・雷の三元素を宿した至高の剣。\n全属性弱点の敵に2倍ダメージ。火ダルマには0.5倍。", tile:20 };
 export const TRIELEM_ARMOR_T = { name:"元素王の鎧", type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した究極の剣。竜・不死・浮遊の全種族に2倍ダメージ。", tile:20 };
@@ -2262,7 +2262,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   } else if (item.type === "weapon") {
     let _wNote = "";
     if (item.cursed) { item.cursed = false; _wNote += " 呪いが解けた！"; }
-    /* 特殊変化：ロングソード→エクスカリバー(5%)、バトルアクス/戦神の斧→金の斧(20%) */
+    /* 特殊変化：ロングソード→エクスカリバー(5%)、短剣→猫の爪(5%)、バトルアクス/戦神の斧→ゴールデンアクス(20%) */
     if (item.name === "ロングソード" && Math.random() < 0.05) {
       const _oldPlus = item.plus || 0;
       const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
@@ -2270,15 +2270,21 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       const _newAbs = [...new Set([..._oldAbs, EXCALIBUR_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
       ml.push("ロングソードが泉の中で聖なる光を放ち...エクスカリバーに変化した！");
+    } else if (item.name === "短剣" && Math.random() < 0.05) {
+      const _oldPlus = item.plus || 0;
+      const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
+      Object.assign(item, { ...CAT_CLAW_T, id: item.id, plus: Math.max(0, _oldPlus) });
+      const _newAbs = [...new Set([..._oldAbs, CAT_CLAW_T.ability])];
+      item.abilities = _newAbs; item.ability = _newAbs[0];
+      ml.push("短剣が泉の中で鋭い輝きを放ち...猫の爪に変化した！");
     } else if ((item.name === "バトルアクス" || item.name === "戦神の斧") && Math.random() < 0.20) {
       const _oldName = item.name;
       const _oldPlus = item.plus || 0;
       const _oldAbs = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])].filter(Boolean);
-      const _goldAxe = ITEMS.find(i => i.name === "金の斧");
-      Object.assign(item, { ..._goldAxe, id: item.id, plus: _oldPlus });
-      const _newAbs = [...new Set([..._oldAbs, _goldAxe.ability])];
+      Object.assign(item, { ...GOLDEN_AXE_T, id: item.id, plus: Math.max(0, _oldPlus) });
+      const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
-      ml.push(_oldName + "が泉の中で黄金の輝きを放ち...金の斧に変化した！");
+      ml.push(_oldName + "が泉の中で黄金の輝きを放ち...ゴールデンアクスに変化した！");
     } else if (hasAbility(item, "no_degrade")) {
       ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _wNote);
     } else {
