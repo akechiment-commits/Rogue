@@ -2406,6 +2406,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
               if (_isBane) ap *= 2;
               let d = Math.max(1, Math.floor(ap * ap / (ap + attackMon.def)) + rng(-2, 2));
+              if (p.weapon?.blessed) d += 3;
               let crit = false;
               const _sesameCritRate = (p.sesameCritTurns || 0) > 0 ? 0.45 : 0.25;
               if (wabHas("critical") && Math.random() < _sesameCritRate) {

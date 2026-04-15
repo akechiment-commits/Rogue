@@ -211,6 +211,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   /* 脆弱：近接ダメージ+3 */
   if (hasAbility(pl.armor, "frail")) dmg += 3;
+  /* 祝福防具：近接ダメージ-2 */
+  if (pl.armor?.blessed) dmg = Math.max(1, dmg - 2);
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
