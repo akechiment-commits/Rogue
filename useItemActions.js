@@ -2242,8 +2242,12 @@ export function useItemActions({
               if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               _stLx = tx; _stLy = ty;
+              if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
+              if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
             }
             const _stM = monsterAt(dg, _stLx, _stLy);
+            const _stBB = dg.bigboxes?.find(b => b.x === _stLx && b.y === _stLy);
+            const _stSpr = dg.springs?.find(s => s.x === _stLx && s.y === _stLy);
             const _stSureHit = (p.sureHitTurns || 0) > 0;
             const _stAtk = _arItem.atk || 3;
             ml.push(`${_stName}を投げた！`);
@@ -2289,6 +2293,10 @@ export function useItemActions({
                 if (_stM.hp <= 0) { trackMonster(_stM); killMonster(_stM, dg, p, ml, lu); }
               }
               }
+            } else if (_stSpr) {
+              soakItemIntoSpring(_stSpr, makeStone(1), ml, dg, it => it.name);
+            } else if (_stBB) {
+              bigboxAddItem(_stBB, makeStone(1), dg, ml);
             } else {
               /* 敵なし：着弾点に落ちる（罠も起動） */
               const _stft = new Set();
@@ -2731,9 +2739,11 @@ export function useItemActions({
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               _stLx2 = tx; _stLy2 = ty;
               if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
+              if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
             }
             const _stM2 = monsterAt(dg, _stLx2, _stLy2);
             const _stBB2 = dg.bigboxes?.find(b => b.x === _stLx2 && b.y === _stLy2);
+            const _stSpr2 = dg.springs?.find(s => s.x === _stLx2 && s.y === _stLy2);
             ml.push(`${_invStName}を投げた！`);
             if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
@@ -2749,6 +2759,8 @@ export function useItemActions({
                 ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
                 if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
               }
+            } else if (_stSpr2) {
+              soakItemIntoSpring(_stSpr2, makeStone(1), ml, dg, it => it.name);
             } else if (_stBB2) {
               bigboxAddItem(_stBB2, makeStone(1), dg, ml);
             } else {
