@@ -1320,6 +1320,7 @@ function genBossFloor(depth, dungeonType = null) {
     baseSpeed: bt.speed || 1,
     turnAccum: 0,
     aware: false,
+    dormant: true,
     dir: { x: 0, y: 0 },
     lastPx: bossX,
     lastPy: bossY,
@@ -1338,7 +1339,7 @@ function genBossFloor(depth, dungeonType = null) {
     const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
     if (map[_my]?.[_mx] !== T.FLOOR) continue;
     if (_occ(_mx, _my)) continue;
-    minionMonsters.push(makeMonster(minionDepth, _mx, _my, { aware: true, lastPx: bossX, lastPy: bossY, dungeonType }));
+    minionMonsters.push(makeMonster(minionDepth, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY, dungeonType }));
   }
 
   const rooms = [{ x: arX, y: arY, w: arW, h: arH, cx: bossX, cy: bossY }];

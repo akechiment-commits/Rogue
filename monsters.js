@@ -1333,9 +1333,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m._dormantTouched = false;
   }
   /* 通常仮眠：視界に入るか、何らかのアクションを受けたら即覚醒 */
+  /* ボスは同じ部屋にプレイヤーが踏み込んだ瞬間に目覚める */
   if (m.dormant) {
     const _wasHit = m.hp < (m._dormantHp ?? m.hp);
-    if (dg.visible?.[m.y]?.[m.x] || _wasHit || m._dormantTouched) {
+    const _bossRoomEntry = m.isBoss && (() => {
+      const _br = findRoom(dg.rooms, m.x, m.y);
+      return _br !== null && findRoom(dg.rooms, pl.x, pl.y) === _br;
+    })();
+    if (dg.visible?.[m.y]?.[m.x] || _wasHit || m._dormantTouched || _bossRoomEntry) {
       wakeIfDormant(m, ml);
     } else {
       m._dormantHp = m.hp;
