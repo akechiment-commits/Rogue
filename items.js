@@ -2444,7 +2444,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _ft = new Set();
     /* 金 */
     const _gv = [600, 1500, 3000, 6000][_tier - 1] + rng(0, 100 * _tier);
-    placeItemAt(dg, m.x, m.y, { name: "ボスの財宝", type: "gold", value: _gv, tile: 1, id: uid() }, ml, _ft, 0, p);
+    placeItemAt(dg, m.x, m.y, { name: "ボスの財宝", type: "gold", value: _gv, tile: 22, id: uid() }, ml, _ft, 0, p);
     /* 強化武器 (+tier+1) */
     const _wpPool = ITEMS.filter(i => i.type === "weapon" && ["B","A","S"].includes(i.rarity));
     placeItemAt(dg, m.x, m.y,
