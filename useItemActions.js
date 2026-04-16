@@ -1826,8 +1826,14 @@ export function useItemActions({
             if (p.depth > 1) {
               const _bwNd = chgFloor(p, -1);
               if (_bwNd) sr.current.dungeon = _bwNd;
-            } else {
-              ml.push("ここは1階だ。何も起こらなかった。");
+            } else if (onReturnToHub) {
+              clearGameSave();
+              p.inventory.forEach(i => trackItem(i));
+              const _hasGoalBw = p.inventory.some(i => i.type === "goal");
+              setMsgs((prev) => [...prev.slice(-80), ...ml]);
+              sr.current = { ...sr.current };
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalBw });
+              return;
             }
           }
         }
@@ -2088,6 +2094,15 @@ export function useItemActions({
             if (p.depth > 1) {
               const _boilWarpNd = chgFloor(p, -1, true);
               if (_boilWarpNd) sr.current.dungeon = _boilWarpNd;
+            } else if (onReturnToHub) {
+              clearGameSave();
+              p.inventory.forEach(i => trackItem(i));
+              const _hasGoalBoil = p.inventory.some(i => i.type === "goal");
+              endTurn(sr.current, p, ml);
+              setMsgs((prev) => [...prev.slice(-80), ...ml]);
+              sr.current = { ...sr.current };
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalBoil });
+              return;
             }
           }
           // 薬効発動後はアイテム欄を閉じる
@@ -2634,8 +2649,15 @@ export function useItemActions({
             if (p.depth > 1) {
               const _warpNd = chgFloor(p, -1, true);
               if (_warpNd) sr.current.dungeon = _warpNd;
-            } else {
-              ml.push("ここは1階だ。何も起こらなかった。");
+            } else if (onReturnToHub) {
+              clearGameSave();
+              p.inventory.forEach(i => trackItem(i));
+              const _hasGoalWv = p.inventory.some(i => i.type === "goal");
+              endTurn(sr.current, p, ml);
+              setMsgs((prev) => [...prev.slice(-80), ...ml]);
+              sr.current = { ...sr.current };
+              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalWv });
+              return;
             }
           }
         }
@@ -3083,7 +3105,15 @@ export function useItemActions({
                 if (p._pendingWarpUp) {
                   delete p._pendingWarpUp;
                   if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
-                  else ml.push("ここは1階だ。何も起こらなかった。");
+                  else if (onReturnToHub) {
+                    clearGameSave();
+                    p.inventory.forEach(i => trackItem(i));
+                    const _hasGoalTw = p.inventory.some(i => i.type === "goal");
+                    setMsgs((prev) => [...prev.slice(-80), ...ml]);
+                    sr.current = { ...sr.current };
+                    onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalTw });
+                    return;
+                  }
                 }
               } else {
                 if (consumeBarrier(m, ml)) { if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; } }
