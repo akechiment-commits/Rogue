@@ -1425,11 +1425,9 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   if (depth % 5 === 4) { const _bf = genBossFloor(depth, dungeonType); _bf.dungeonType = dungeonType; return _bf; }
 
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
-  /* B1F（depth=0）は店のみ許可・それ以外の特殊フロアは出現しない */
-  if (Math.random() < 0.25) {
-    const specials = depth === 0
-      ? [genShoppingMall]
-      : [genBigRoom, genMiddleRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
+  /* B1F（depth=0）は特殊フロア一切なし（通常フロア確定） */
+  if (depth > 0 && Math.random() < 0.25) {
+    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
     const _sf = pick(specials)(depth, dungeonType); _sf.dungeonType = dungeonType; return _sf;
   }
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
@@ -1572,8 +1570,10 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     .map((_, i) => i)
     .filter((i) => i !== 0 && i !== rooms.length - 1);
   const shopPool = shopLeaves.length > 0 ? shopLeaves : shopFallback;
+  /* 店出現確率40%（B1Fは50%） */
+  const _shopChance = depth === 0 ? 0.50 : 0.40;
   let shopRoomIdx =
-    shopPool.length > 0 ? pick(shopPool) : -1;
+    shopPool.length > 0 && Math.random() < _shopChance ? pick(shopPool) : -1;
   const inShop = (x, y) =>
     shopRoomIdx >= 0 &&
     rooms[shopRoomIdx] &&
