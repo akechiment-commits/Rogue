@@ -4984,8 +4984,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={showInv ? "整" : bigboxMode === "menu" ? "決" : "足"}
-                  sub={showInv ? "整理" : bigboxMode === "menu" ? "決定" : "足元"}
+                  label={showInv ? "決" : bigboxMode === "menu" ? "決" : "足"}
+                  sub={showInv ? "決定" : bigboxMode === "menu" ? "決定" : "足元"}
                   onClick={() => {
                     if (spellListMode) return;
                     if (bigboxMode === "menu") {
@@ -4997,9 +4997,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       else if (bigboxMenuSel === 3 && _bbk) { setBigboxMode(null); setNicknameMode({ identKey: _bbk }); setNicknameInput(gs?.nicknames?.[_bbk] || ""); }
                       return;
                     }
-                    if (showInv) { sortInventory(); } else { act("interact"); }
+                    if (showInv) {
+                      if (selIdx !== null) {
+                        if (dropModeRef.current) { doDropItem(invPage * 10 + selIdx); }
+                        else { setInvMenuSel(0); }
+                      }
+                    } else { act("interact"); }
                   }}
-                  color={bigboxMode === "menu" ? "#fc0" : showInv ? "#8f8" : "#0ff"}
+                  color={bigboxMode === "menu" ? "#fc0" : showInv ? "#fc0" : "#0ff"}
                 />
                 <AB
                   label={bigboxMode === "put" ? "決" : showInv ? "置" : "前"}
@@ -5012,10 +5017,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   color={bigboxMode === "put" ? "#fc0" : showInv ? (dropMode ? "#f88" : "#fa8") : "#4af"}
                 />
                 <AB
-                  label="待"
-                  sub="wait"
-                  onClick={() => { if (spellListMode) return; act("wait"); }}
-                  color="#666"
+                  label={showInv ? "整" : "待"}
+                  sub={showInv ? "整理" : "wait"}
+                  onClick={() => { if (spellListMode) return; if (showInv) { sortInventory(); } else { act("wait"); } }}
+                  color={showInv ? "#8f8" : "#666"}
                 />
                 <AB
                   label="罠"
