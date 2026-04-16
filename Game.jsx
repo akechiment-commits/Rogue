@@ -129,9 +129,9 @@ function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThro
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
       <div style={{ display: "flex", gap: 2 }}>
-        <B label="↖" onClick={() => onClick(-1, -1)} w={32} h={32} fs={12} style={fs} />
-        <B label="↑"  onClick={() => onClick(0, -1)}                        style={fs} />
-        <B label="↗" onClick={() => onClick(1, -1)}  w={32} h={32} fs={12} style={fs} />
+        <B label="↖" onClick={() => onClick(-1, -1)} style={fs} />
+        <B label="↑"  onClick={() => onClick(0, -1)} style={fs} />
+        <B label="↗" onClick={() => onClick(1, -1)}  style={fs} />
       </div>
       <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
         <B label="←" onClick={() => onClick(-1, 0)} style={fs} />
@@ -154,9 +154,9 @@ function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThro
         <B label="→" onClick={() => onClick(1, 0)} style={fs} />
       </div>
       <div style={{ display: "flex", gap: 2 }}>
-        <B label="↙" onClick={() => onClick(-1, 1)} w={32} h={32} fs={12} style={fs} />
-        <B label="↓"  onClick={() => onClick(0, 1)}                        style={fs} />
-        <B label="↘" onClick={() => onClick(1, 1)}  w={32} h={32} fs={12} style={fs} />
+        <B label="↙" onClick={() => onClick(-1, 1)} style={fs} />
+        <B label="↓"  onClick={() => onClick(0, 1)} style={fs} />
+        <B label="↘" onClick={() => onClick(1, 1)}  style={fs} />
       </div>
     </div>
   );
