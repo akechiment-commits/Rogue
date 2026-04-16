@@ -3115,7 +3115,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           setBigboxMode("menu"); setBigboxMenuSel(0);
           setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb6, sr.current, bb6.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
         } else {
-          setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
+          const trap6 = dg.traps?.find((t) => t.x === nx && t.y === ny && t.revealed);
+          if (trap6) {
+            setMsgs((prev) => [...prev.slice(-80), `${trap6.name}がある。`]);
+          } else {
+            setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
+          }
         }
       }
     }
