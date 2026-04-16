@@ -5002,10 +5002,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   color={bigboxMode === "menu" ? "#fc0" : showInv ? "#8f8" : "#0ff"}
                 />
                 <AB
-                  label={showInv ? "置" : "前"}
-                  sub={showInv ? "置く" : "調べる"}
-                  onClick={() => { if (spellListMode) return; if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); } else { doExamineFront(); } }}
-                  color={showInv ? (dropMode ? "#f88" : "#fa8") : "#4af"}
+                  label={bigboxMode === "put" ? "決" : showInv ? "置" : "前"}
+                  sub={bigboxMode === "put" ? "決定" : showInv ? "置く" : "調べる"}
+                  onClick={() => {
+                    if (spellListMode) return;
+                    if (bigboxMode === "put") { bigboxPutItem(bigboxPage * 10 + bigboxMenuSel); return; }
+                    if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); } else { doExamineFront(); }
+                  }}
+                  color={bigboxMode === "put" ? "#fc0" : showInv ? (dropMode ? "#f88" : "#fa8") : "#4af"}
                 />
                 <AB
                   label="待"
