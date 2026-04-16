@@ -4986,8 +4986,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 <AB
                   label={showInv ? "置" : "前"}
                   sub={showInv ? "置く" : "調べる"}
-                  onClick={() => { if (spellListMode) return; if (showInv && selIdx !== null) { doDropItem(invPage * 10 + selIdx); } else if (!showInv) { doExamineFront(); } }}
-                  color={showInv ? "#fa8" : "#4af"}
+                  onClick={() => { if (spellListMode) return; if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); } else { doExamineFront(); } }}
+                  color={showInv ? (dropMode ? "#f88" : "#fa8") : "#4af"}
                 />
                 <AB
                   label="待"
