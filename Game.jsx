@@ -4965,10 +4965,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
-                  label={showInv ? "閉" : "袋"}
-                  sub={showInv ? "閉じる" : "items"}
-                  onClick={() => { if (spellListMode) return; act("inventory"); }}
-                  color={showInv ? "#f88" : "#ff0"}
+                  label={(putMode || bigboxMode === "put") ? "戻" : showInv ? "閉" : "袋"}
+                  sub={(putMode || bigboxMode === "put") ? "キャンセル" : showInv ? "閉じる" : "items"}
+                  onClick={() => {
+                    if (spellListMode) return;
+                    if (putMode) { setPutMode(null); setPutPage(0); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
+                    if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
+                    act("inventory");
+                  }}
+                  color={(putMode || bigboxMode === "put") ? "#f88" : showInv ? "#f88" : "#ff0"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
