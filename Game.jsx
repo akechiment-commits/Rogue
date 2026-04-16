@@ -4965,24 +4965,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
-                  label="袋"
-                  sub="items"
+                  label={showInv ? "閉" : "袋"}
+                  sub={showInv ? "閉じる" : "items"}
                   onClick={() => { if (spellListMode) return; act("inventory"); }}
-                  color="#ff0"
+                  color={showInv ? "#f88" : "#ff0"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label="足"
-                  sub="足元"
-                  onClick={() => { if (spellListMode) return; act("interact"); }}
-                  color="#0ff"
+                  label={showInv ? "整" : "足"}
+                  sub={showInv ? "整理" : "足元"}
+                  onClick={() => { if (spellListMode) return; if (showInv) { sortInventory(); } else { act("interact"); } }}
+                  color={showInv ? "#8f8" : "#0ff"}
                 />
                 <AB
-                  label="前"
-                  sub="調べる"
-                  onClick={() => { if (spellListMode) return; doExamineFront(); }}
-                  color="#4af"
+                  label={showInv ? "置" : "前"}
+                  sub={showInv ? "置く" : "調べる"}
+                  onClick={() => { if (spellListMode) return; if (showInv && selIdx !== null) { doDropItem(invPage * 10 + selIdx); } else if (!showInv) { doExamineFront(); } }}
+                  color={showInv ? "#fa8" : "#4af"}
                 />
                 <AB
                   label="待"
