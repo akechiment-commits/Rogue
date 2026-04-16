@@ -836,7 +836,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         break;
       } else if (p.inventory.length < (p.maxInventory || 30)) {
         if (sr.current.allBcKnown) { it.fullIdent = true; it.bcKnown = true; }
-        trackItem(it);
+        /* 識別が必要なタイプは識別時に登録するため拾い時はスキップ */
+        if (!['potion','scroll','wand','ring','pen','marker','spellbook'].includes(it.type)) trackItem(it);
         p.inventory.push(it);
         {
           const _w = it.type === "weapon",

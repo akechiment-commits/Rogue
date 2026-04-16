@@ -13,7 +13,7 @@ import {
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
-import { trackMonster, trackBigbox, getDiscoveries } from "./DiscoveryTracker.js";
+import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim } from "./animEvents.js";
 
@@ -85,7 +85,7 @@ export function useItemActions({
     if (it.type === "potion") {
       const _potBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
-      { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+      { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
       /* 飲むと種類にかかわらず満腹度+3 */
       p.hunger = Math.min(p.maxHunger || 100, (p.hunger || 0) + 3);
       if (p.hunger > 0) delete p._hungerDmgStarted;
@@ -723,7 +723,7 @@ export function useItemActions({
           return;
         } else {
           p.inventory.splice(idx, 1);
-          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("換金できるアイテムがない。巻物は消えた。");
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
@@ -740,7 +740,7 @@ export function useItemActions({
           return;
         } else {
           p.inventory.splice(idx, 1);
-          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("変換できるアイテムがない。巻物は消えた。");
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
@@ -757,7 +757,7 @@ export function useItemActions({
           return;
         } else {
           p.inventory.splice(idx, 1);
-          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("錬成できる武器・防具がない。巻物は消えた。");
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
@@ -775,7 +775,7 @@ export function useItemActions({
           return;
         } else {
           p.inventory.splice(idx, 1);
-          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("強化できる武器・指輪がない。巻物は消えた。");
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
@@ -793,14 +793,14 @@ export function useItemActions({
           return;
         } else {
           p.inventory.splice(idx, 1);
-          { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+          { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("強化できる防具・指輪がない。巻物は消えた。");
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       const _scrBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
-      { const _ik = getIdentKey(it); if (_ik) sr.current.ident.add(_ik); }
+      { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
       if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
         ml.push(`${it.name}を読んだが、魔法が封印されている！`);
       } else if (it.effect === "teleport") {
@@ -1234,7 +1234,7 @@ export function useItemActions({
           // 全アイテム完全識別（武器・防具も含む）
           for (const _ii of p.inventory) {
             const _k = getIdentKey(_ii);
-            if (_k) { sr.current.ident.add(_k); _ii.fullIdent = true; }
+            if (_k) { const _wasU = !sr.current.ident.has(_k); sr.current.ident.add(_k); _ii.fullIdent = true; if (_wasU) trackItem(_ii); }
             else if (_ii.type === 'weapon' || _ii.type === 'armor') { _ii.fullIdent = true; }
           }
           ml.push("全てのアイテムが識別された！");
@@ -1883,7 +1883,7 @@ export function useItemActions({
     const _revFake = _wasUnknown ? itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames) : null;
     const _revReal = _wasUnknown ? it.name : null;
     /* 識別 */
-    if (_sbIK && _wasUnknown) sr.current.ident.add(_sbIK);
+    if (_sbIK && _wasUnknown) { sr.current.ident.add(_sbIK); trackItem(it); }
     if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
       p.inventory.splice(idx, 1);
       ml.push(`${it.name}を読んだが、魔法が封印されている！魔法書は消えた。`);
@@ -2543,7 +2543,7 @@ export function useItemActions({
                 ml.push(`${_wandItemDName(gi)}が未識別に戻った！【呪】`);
               } else {
                 const _k2 = getIdentKey(gi);
-                if (_k2) _identSet.add(_k2);
+                if (_k2) { const _wasU2 = !_identSet.has(_k2); _identSet.add(_k2); if (_wasU2) trackItem(gi); }
                 if (gi.type === 'weapon' || gi.type === 'armor') { gi.fullIdent = true; gi.bcKnown = true; }
                 ml.push(`${gi.name}が識別された！`);
               }

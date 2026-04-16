@@ -5,7 +5,7 @@ import { MONS, MON_LEVELS } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor } from "./dungeon.js";
-import { getDiscoveries } from "./DiscoveryTracker.js";
+import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
@@ -725,7 +725,15 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     const { it: _selIt } = _filtered[_absIdx] ?? _filtered[_idPage_ui * 10 + _curSel_ui] ?? {};
     if (!_selIt) return;
     /* 確定時に巻物を識別 & reveal メッセージ表示 */
-    if (mode.identKey) sr.current.ident.add(mode.identKey);
+    if (mode.identKey) {
+      const _scrWasUnknown = !sr.current.ident.has(mode.identKey);
+      sr.current.ident.add(mode.identKey);
+      /* 巻物自身を図鑑登録（識別UIを開いた巻物はinventory[scrollIdx]にまだある） */
+      if (_scrWasUnknown && mode.scrollIdx != null) {
+        const _sc = sr.current.player.inventory[mode.scrollIdx];
+        if (_sc) trackItem(_sc);
+      }
+    }
     if (mode.revMsg) setMsgs((prev) => [...prev.slice(-80), mode.revMsg]);
     let _msgResult;
     if (mode.mode === 'sell_item') {
@@ -896,7 +904,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _selKey = _isWA ? null : getIdentKey(_selIt);
       if (mode.mode === 'identify') {
         const _wasAlreadyNamed = !_isWA && _selKey && sr.current.ident.has(_selKey);
-        if (_selKey) sr.current.ident.add(_selKey);
+        if (_selKey) { sr.current.ident.add(_selKey); if (!_wasAlreadyNamed) trackItem(_selIt); }
         _selIt.fullIdent = true; _selIt.bcKnown = true;
         _msgResult = (_isWA || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
       } else {
