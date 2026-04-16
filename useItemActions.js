@@ -1646,13 +1646,13 @@ export function useItemActions({
         return;
       }
     }
+    endTurn(sr.current, p, ml);
     if (_wasUnknown && _revFake && _revFake !== _revReal) {
       setMsgs(prev => [...prev.slice(-80), `${_revFake}は${_revReal}だった！`]);
       if (ml.length) setRevealMode({ pendingMsgs: [...ml] });
     } else {
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
     }
-    endTurn(sr.current, p, ml);
     refreshFOV(dg, p);
     setSelIdx(null);
     setShowDesc(null);
