@@ -837,7 +837,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else if (p.inventory.length < (p.maxInventory || 30)) {
         if (sr.current.allBcKnown) { it.fullIdent = true; it.bcKnown = true; }
         /* 識別が必要なタイプは識別時に登録するため拾い時はスキップ */
-        if (!['potion','scroll','wand','ring','pen','marker','spellbook'].includes(it.type)) trackItem(it);
+        if (!['potion','scroll','wand','ring','pen','marker','spellbook','pot'].includes(it.type)) trackItem(it);
         p.inventory.push(it);
         {
           const _w = it.type === "weapon",
@@ -2088,6 +2088,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             });
             localStorage.setItem("roguelike_scores", JSON.stringify(_scores.slice(0, 20)));
           } catch (_e) {}
+          p.inventory.forEach(i => trackItem(i));
           setGameOverSel(0);
           setDead(true);
           setGameOverResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: false, identifiedEffects: [...(sr.current?.ident || [])] });
@@ -2848,6 +2849,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if (p.depth === 1) {
             if (onReturnToHub) {
               clearGameSave();
+              p.inventory.forEach(i => trackItem(i));
               const _hasGoal = p.inventory.some(it => it.type === "goal");
               if (_hasGoal) {
                 setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, identifiedEffects: [...(sr.current?.ident || [])] });
@@ -2873,6 +2875,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if (p.depth === 1) {
             if (onReturnToHub) {
               clearGameSave();
+              p.inventory.forEach(i => trackItem(i));
               const _hasGoal2 = p.inventory.some(it => it.type === "goal");
               if (_hasGoal2) {
                 setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, identifiedEffects: [...(sr.current?.ident || [])] });
@@ -3719,10 +3722,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           item.fullIdent = true;
           const _realName = itemDisplayName(item, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
           ml.push(`${_idn}は${_realName}だと判明した！`);
+          trackItem(item);
         } else if (item.type === "weapon" || item.type === "armor") {
           item.bcKnown = true;
           item.fullIdent = true;
           ml.push(`${_idn}の詳細が判明した！`);
+          trackItem(item);
         } else {
           item.bcKnown = true;
           ml.push(`${_idn}は既に知っているものだった。`);
