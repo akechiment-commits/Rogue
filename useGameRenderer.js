@@ -19,6 +19,30 @@ function playerTileForFacing(pf) {
   return TI.PLAYER_DOWN;
 }
 
+/* 向きモード中にプレイヤー周囲に向き矢印を描画 */
+function drawFacingArrow(ctx, px, py, sz, dx, dy) {
+  const cx = px + sz / 2, cy = py + sz / 2;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const ndx = dx / len, ndy = dy / len;
+  const pdx = -ndy, pdy = ndx;
+  const offset = sz * 0.58, as = sz * 0.2;
+  const tipX = cx + ndx * (offset + as), tipY = cy + ndy * (offset + as);
+  const b1x = cx + ndx * offset + pdx * as, b1y = cy + ndy * offset + pdy * as;
+  const b2x = cx + ndx * offset - pdx * as, b2y = cy + ndy * offset - pdy * as;
+  ctx.save();
+  ctx.fillStyle = "rgba(255,220,0,0.9)";
+  ctx.strokeStyle = "rgba(100,60,0,0.7)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(b1x, b1y);
+  ctx.lineTo(b2x, b2y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 /* ===== モンスターのバリア・状態異常ビジュアルオーバーレイ =====
  * バリア：タイル全体にシアンのパルス輝光（うっすら光る枠）
  * 状態異常：右上隅に小さなカラードット（下向きに積み重ね）
@@ -428,7 +452,7 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
  * Core renderer hook.
  * Returns { renderFrame, overlaysRef } so animation loop can trigger redraws.
  */
-export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode) {
+export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode) {
   const overlaysRef = useRef([]);
   /* moveOffsets: Map<entityKey, {fromX, fromY, toX, toY, progress}> for smooth movement */
   const moveOffsetsRef = useRef(new Map());
@@ -645,6 +669,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             const pf = p.facing || { dx: 0, dy: 1 };
             const pti = playerTileForFacing(pf);
             drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, px2, py2, sz);
+            if (facingMode) drawFacingArrow(ctx, px2, py2, sz, pf.dx, pf.dy);
             continue;
           }
           /* Monster — skip if animating */
@@ -705,6 +730,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const pf = p.facing || { dx: 0, dy: 1 };
         const pti = playerTileForFacing(pf);
         drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
+        if (facingMode) drawFacingArrow(ctx, dpx, dpy, sz, pf.dx, pf.dy);
       } else if (key.startsWith("mon_") && mo.tile != null) {
         /* Skip if neither start nor end position is visible to the player */
         const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];
