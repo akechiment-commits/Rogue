@@ -352,6 +352,7 @@ export function useItemActions({
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
               sr.current = { ...sr.current };
               clearGameSave();
+              p.inventory.forEach(i => trackItem(i));
               const _hasGoalP = p.inventory.some(i => i.type === "goal");
               onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalP });
               return;
