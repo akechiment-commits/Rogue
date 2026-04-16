@@ -19,27 +19,35 @@ function playerTileForFacing(pf) {
   return TI.PLAYER_DOWN;
 }
 
-/* 向きモード中にプレイヤー周囲に向き矢印を描画 */
-function drawFacingArrow(ctx, px, py, sz, dx, dy) {
-  const cx = px + sz / 2, cy = py + sz / 2;
-  const len = Math.sqrt(dx * dx + dy * dy);
-  const ndx = dx / len, ndy = dy / len;
-  const pdx = -ndy, pdy = ndx;
-  const offset = sz * 0.58, as = sz * 0.2;
-  const tipX = cx + ndx * (offset + as), tipY = cy + ndy * (offset + as);
-  const b1x = cx + ndx * offset + pdx * as, b1y = cy + ndy * offset + pdy * as;
-  const b2x = cx + ndx * offset - pdx * as, b2y = cy + ndy * offset - pdy * as;
+/* 向きモード中にプレイヤー周囲に向き矢印を描画 (post-pass 用) */
+function drawFacingIndicator(ctx, px, py, sz, dx, dy) {
+  const arrowMap = {
+    '0,-1':'↑','1,-1':'↗','1,0':'→','1,1':'↘',
+    '0,1':'↓','-1,1':'↙','-1,0':'←','-1,-1':'↖',
+  };
+  const arrowChar = arrowMap[`${dx},${dy}`] || '↓';
+  const ax = px + dx * sz, ay = py + dy * sz;
   ctx.save();
-  ctx.fillStyle = "rgba(255,220,0,0.9)";
-  ctx.strokeStyle = "rgba(100,60,0,0.7)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(tipX, tipY);
-  ctx.lineTo(b1x, b1y);
-  ctx.lineTo(b2x, b2y);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  /* プレイヤータイルに黄色枠 */
+  ctx.strokeStyle = 'rgba(255,220,0,0.85)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px + 1, py + 1, sz - 2, sz - 2);
+  /* 隣接タイルに薄い黄色ハイライト */
+  ctx.fillStyle = 'rgba(255,200,0,0.22)';
+  ctx.fillRect(ax, ay, sz, sz);
+  /* 隣接タイルに黄色枠 */
+  ctx.strokeStyle = 'rgba(255,220,0,0.9)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ax + 1, ay + 1, sz - 2, sz - 2);
+  /* 大きな矢印文字（影付き） */
+  const fs = Math.max(10, Math.floor(sz * 0.82));
+  ctx.font = `bold ${fs}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0,0,0,0.9)';
+  ctx.fillText(arrowChar, ax + sz / 2 + 1.5, ay + sz / 2 + 1.5);
+  ctx.fillStyle = 'rgba(255,230,0,1.0)';
+  ctx.fillText(arrowChar, ax + sz / 2, ay + sz / 2);
   ctx.restore();
 }
 
@@ -671,7 +679,6 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             const pf = p.facing || { dx: 0, dy: 1 };
             const pti = playerTileForFacing(pf);
             drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, px2, py2, sz);
-            if (facingMode) drawFacingArrow(ctx, px2, py2, sz, pf.dx, pf.dy);
             continue;
           }
           /* Monster — skip if animating */
@@ -732,7 +739,6 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const pf = p.facing || { dx: 0, dy: 1 };
         const pti = playerTileForFacing(pf);
         drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
-        if (facingMode) drawFacingArrow(ctx, dpx, dpy, sz, pf.dx, pf.dy);
       } else if (key.startsWith("mon_") && mo.tile != null) {
         /* Skip if neither start nor end position is visible to the player */
         const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];
@@ -834,10 +840,17 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       }
     }
 
+    /* ===== 向きモード：向き矢印を全タイルの上に描画 ===== */
+    if (facingMode) {
+      const pf = p.facing || { dx: 0, dy: 1 };
+      const _ppx = (p.x - sx) * sz, _ppy = (p.y - sy) * sz;
+      drawFacingIndicator(ctx, _ppx, _ppy, sz, pf.dx, pf.dy);
+    }
+
     /* ===== Animation overlays (effects drawn on top) ===== */
     drawOverlays(ctx, overlaysRef.current, sx, sy, sz);
 
-  }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode]);
+  }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode]);
 
   /* Auto-render on state change */
   useEffect(() => {
