@@ -152,20 +152,21 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     _mh.dormantHouse = true;
     mons.push(_mh);
   }
-  /* アイテムと罠を半々に配置 */
-  const allOcc = (x, y) =>
-    mons.some(m => m.x === x && m.y === y) ||
-    items.some(i => i.x === x && i.y === y) ||
-    bigboxes.some(b => b.x === x && b.y === y) ||
-    springs.some(s => s.x === x && s.y === y) ||
-    traps.some(t => t.x === x && t.y === y);
-  const itemCount = rng(5, 9);
-  let itemsPlaced = 0;
-  for (let i = 0; i < itemCount * 20 && itemsPlaced < itemCount; i++) {
-    const ix = rng(room.x, room.x + room.w - 1);
-    const iy = rng(room.y, room.y + room.h - 1);
-    if (map[iy][ix] !== T.FLOOR) continue;
-    if (allOcc(ix, iy)) continue;
+  /* アイテムと罠を半々に配置（空きタイルを先に収集してシャッフル → 前半アイテム・後半罠） */
+  const monOcc = (x, y) => mons.some(m => m.x === x && m.y === y);
+  const freeTiles = [];
+  for (let fy2 = room.y; fy2 < room.y + room.h; fy2++)
+    for (let fx2 = room.x; fx2 < room.x + room.w; fx2++)
+      if (map[fy2][fx2] === T.FLOOR && !monOcc(fx2, fy2) && !(fx2 === su.x && fy2 === su.y) && !(fx2 === sd.x && fy2 === sd.y))
+        freeTiles.push([fx2, fy2]);
+  for (let i = freeTiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [freeTiles[i], freeTiles[j]] = [freeTiles[j], freeTiles[i]];
+  }
+  const _half = Math.floor(freeTiles.length / 2);
+  const itemSlots = freeTiles.slice(0, Math.min(rng(5, 9), _half));
+  const trapSlots = freeTiles.slice(itemSlots.length, itemSlots.length + Math.min(rng(5, 9), freeTiles.length - itemSlots.length));
+  for (const [ix, iy] of itemSlots) {
     const t = pickWeighted(ITEMS);
     const it = { ...t, id: uid(), x: ix, y: iy };
     if (it.type === "gold") it.value = rng(50, 150 + depth * 40);
@@ -175,21 +176,17 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
       else if (_br < 0.28) it.cursed = true;
     }
     items.push(it);
-    itemsPlaced++;
   }
-  /* 罠（アイテムと同数程度） */
-  const trapCount = rng(5, 9);
-  let trapsPlaced = 0;
-  for (let i = 0; i < trapCount * 20 && trapsPlaced < trapCount; i++) {
-    const tx = rng(room.x + 1, room.x + room.w - 2);
-    const ty = rng(room.y + 1, room.y + room.h - 2);
-    if (map[ty][tx] !== T.FLOOR) continue;
-    if ((tx === su.x && ty === su.y) || (tx === sd.x && ty === sd.y)) continue;
-    if (allOcc(tx, ty)) continue;
+  for (const [tx, ty] of trapSlots) {
     const t = pick(TRAPS);
     traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
-    trapsPlaced++;
   }
+  const allOcc = (x, y) =>
+    mons.some(m => m.x === x && m.y === y) ||
+    items.some(i => i.x === x && i.y === y) ||
+    bigboxes.some(b => b.x === x && b.y === y) ||
+    springs.some(s => s.x === x && s.y === y) ||
+    traps.some(t => t.x === x && t.y === y);
   /* 高確率で大箱・泉を追加 */
   for (let bi = 0; bi < rng(2, 4); bi++) {
     for (let a = 0; a < 80; a++) {
