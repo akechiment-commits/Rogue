@@ -4889,7 +4889,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               /* === 大箱モード：上下で選択、左右でページ送り === */
               if (bigboxMode) {
                 if (bigboxMode === "menu") {
-                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 3) % 3);
+                  if (dy !== 0 && dx === 0) setBigboxMenuSel((p) => (p + dy + 4) % 4);
                 } else if (bigboxMode === "put") {
                   const inv2 = sr.current?.player?.inventory || [];
                   const _ps = 10;
@@ -4970,23 +4970,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
-                  label={(putMode || bigboxMode === "put") ? "戻" : showInv ? "閉" : "袋"}
-                  sub={(putMode || bigboxMode === "put") ? "キャンセル" : showInv ? "閉じる" : "items"}
+                  label={(putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : showInv ? "閉" : "袋"}
+                  sub={(putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : showInv ? "閉じる" : "items"}
                   onClick={() => {
                     if (spellListMode) return;
                     if (putMode) { setPutMode(null); setPutPage(0); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
+                    if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
                     act("inventory");
                   }}
-                  color={(putMode || bigboxMode === "put") ? "#f88" : showInv ? "#f88" : "#ff0"}
+                  color={(putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : "#ff0"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={showInv ? "整" : "足"}
-                  sub={showInv ? "整理" : "足元"}
-                  onClick={() => { if (spellListMode) return; if (showInv) { sortInventory(); } else { act("interact"); } }}
-                  color={showInv ? "#8f8" : "#0ff"}
+                  label={showInv ? "整" : bigboxMode === "menu" ? "決" : "足"}
+                  sub={showInv ? "整理" : bigboxMode === "menu" ? "決定" : "足元"}
+                  onClick={() => {
+                    if (spellListMode) return;
+                    if (bigboxMode === "menu") {
+                      const _bbk = bigboxRef.current ? "bk:" + bigboxRef.current.kind : null;
+                      const _bb = bigboxRef.current;
+                      if (bigboxMenuSel === 0 && !(_bb?.contents?.length >= _bb?.capacity)) { setBigboxMode("put"); setBigboxMenuSel(0); setBigboxPage(0); }
+                      else if (bigboxMenuSel === 1) { setBigboxMode(null); bigboxRef.current = null; setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
+                      else if (bigboxMenuSel === 2) { setBigboxMode("desc"); setBigboxMenuSel(0); }
+                      else if (bigboxMenuSel === 3 && _bbk) { setBigboxMode(null); setNicknameMode({ identKey: _bbk }); setNicknameInput(gs?.nicknames?.[_bbk] || ""); }
+                      return;
+                    }
+                    if (showInv) { sortInventory(); } else { act("interact"); }
+                  }}
+                  color={bigboxMode === "menu" ? "#fc0" : showInv ? "#8f8" : "#0ff"}
                 />
                 <AB
                   label={showInv ? "置" : "前"}
