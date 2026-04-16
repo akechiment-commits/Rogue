@@ -1533,9 +1533,9 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
               desc: "大箱にメモ名をつける",
               fn: () => {
                 if (_bbNickKey) {
+                  setMode(null);
                   setNicknameMode({ identKey: _bbNickKey });
                   setNicknameInput(gs?.nicknames?.[_bbNickKey] || "");
-                  setMode(null);
                 }
               },
             },
