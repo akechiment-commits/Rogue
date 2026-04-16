@@ -152,14 +152,14 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     _mh.dormantHouse = true;
     mons.push(_mh);
   }
-  /* 多めのアイテム */
+  /* アイテムと罠を半々に配置 */
   const allOcc = (x, y) =>
     mons.some(m => m.x === x && m.y === y) ||
     items.some(i => i.x === x && i.y === y) ||
     bigboxes.some(b => b.x === x && b.y === y) ||
     springs.some(s => s.x === x && s.y === y) ||
     traps.some(t => t.x === x && t.y === y);
-  const itemCount = rng(8, 14);
+  const itemCount = rng(5, 9);
   let itemsPlaced = 0;
   for (let i = 0; i < itemCount * 20 && itemsPlaced < itemCount; i++) {
     const ix = rng(room.x, room.x + room.w - 1);
@@ -177,8 +177,8 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     items.push(it);
     itemsPlaced++;
   }
-  /* 多めの罠 */
-  const trapCount = rng(4, 8);
+  /* 罠（アイテムと同数程度） */
+  const trapCount = rng(5, 9);
   let trapsPlaced = 0;
   for (let i = 0; i < trapCount * 20 && trapsPlaced < trapCount; i++) {
     const tx = rng(room.x + 1, room.x + room.w - 2);
