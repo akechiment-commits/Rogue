@@ -622,13 +622,15 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const spr = _sprMap.get(_k(x, y));
         if (spr && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.4;
-          drawTile(ctx, ts, TI.SPRING, px2, py2, sz);
+          const _sprTile = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 5 + y * 17) % 9] : TI.SPRING;
+          drawTile(ctx, ts, _sprTile, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
         const bba = _bbMap.get(_k(x, y));
         if (bba && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.4;
-          drawTile(ctx, ts, TI.BIGBOX, px2, py2, sz);
+          const _bbaTile = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 17 + y * 5) % 9] : TI.BIGBOX;
+          drawTile(ctx, ts, _bbaTile, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
         /* Pentacle */
