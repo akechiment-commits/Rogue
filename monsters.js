@@ -955,7 +955,7 @@ function buildMonStats(base, spawnLevel) {
 }
 
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
-export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = true } = {}) {
+export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false } = {}) {
   const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly);
   const st = buildMonStats(base, spawnLevel);
   return { ...st, id: uid(), x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
