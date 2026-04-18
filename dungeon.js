@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, makeMonster, pickMonsterDef } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, pickMonsterDef } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
@@ -1304,8 +1304,9 @@ function genBossFloor(depth, dungeonType = null) {
   map[sdY][sdX] = T.SD;
 
   /* ボス配置 */
-  const bossIdx = Math.min(Math.floor(depth / 5), BOSSES.length - 1);
-  const bt = BOSSES[bossIdx];
+  const _bossPool = dungeonType === "intermediate" ? INTERMEDIATE_BOSSES : BOSSES;
+  const bossIdx = Math.min(Math.floor(depth / 5), _bossPool.length - 1);
+  const bt = _bossPool[bossIdx];
   const bossX = arX + (arW >> 1);
   const bossY = arY + (arH >> 1);
   const _bossName = (dungeonType && bt.dungeonNames?.[dungeonType]) ? bt.dungeonNames[dungeonType] : bt.name;
