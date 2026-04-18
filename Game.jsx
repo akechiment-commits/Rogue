@@ -1768,11 +1768,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
         st.dungeon.pendingBombs = _remaining;
       }
+      /* 遅延回転板：敵移動後に発動してPhase4攻撃をスキップ */
+      let _spinFired = false;
+      if (st._pendingSpin && p.hp > 0) {
+        const _ps = st._pendingSpin;
+        delete st._pendingSpin;
+        const _spinNFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+        fireTrapPlayer(_ps, p, st.dungeon, ml, _spinNFn, lu);
+        _spinFired = true;
+      }
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
       const _perHitEvents = [];
       const _perHitLunges = [];
       let _hadActualHit = false;
-      if (!_skipMonAct) moveMons(st.dungeon, p, ml, "attackOnly", {
+      if (!_skipMonAct && !_spinFired) moveMons(st.dungeon, p, ml, "attackOnly", {
         onPlayerHit: (dmg, mon) => {
           _perHitEvents.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
           if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
@@ -2762,6 +2771,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             if (!_wasInAnyShop && _isNowInShop) ml.push("お店に入った。");
             else if (_wasInAnyShop && !_isNowInShop) ml.push("お店をあとにした。");
             acted = true;
+            /* 移動で回転板を踏んだ時は敵移動後に発動（理不尽攻撃防止） */
+            const _spinHere = !isPlayerFloating(p, dg) && dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "spin");
+            if (_spinHere) {
+              trackTrap(_spinHere);
+              _spinHere.revealed = true;
+              st._pendingSpin = _spinHere;
+            } else {
             const tr = checkTrap(p, dg, ml);
             if (tr === "pitfall") {
               const nd = chgFloor(p, 1, true);
@@ -2777,6 +2793,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 name: _mineTrap?.name || "地雷",
                 nameFn: (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
               };
+            }
             }
             autoPickup(p, st.dungeon, ml);
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
