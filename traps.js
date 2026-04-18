@@ -94,16 +94,22 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       r = "pitfall";
       break;
     case "rust": {
-      const _eq = p.weapon || p.armor;
+      const _rustCands = [];
+      if (p.weapon && !hasAbility(p.weapon, "no_degrade")) _rustCands.push(p.weapon);
+      if (p.armor  && !hasAbility(p.armor,  "no_degrade")) _rustCands.push(p.armor);
+      const _eq = _rustCands[0];
       if (_eq) {
         const _op = _eq.plus || 0;
         _eq.plus = _op - 1;
         const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? `無印` : `${v}`);
-        ml.push(
-          `${trap.name}が発動！${_eq.name}が錆びた！(${_fp(_op)}→${_fp(_eq.plus)})`,
-        );
+        ml.push(`${trap.name}が発動！${_eq.name}が錆びた！(${_fp(_op)}→${_fp(_eq.plus)})`);
       } else {
-        ml.push(`${trap.name}が発動！何も起こらなかった。`);
+        const _ndName = p.weapon?.name || p.armor?.name;
+        if (_ndName) {
+          ml.push(`${trap.name}が発動！しかし${_ndName}は錆びなかった！`);
+        } else {
+          ml.push(`${trap.name}が発動！何も起こらなかった。`);
+        }
       }
       break;
     }
