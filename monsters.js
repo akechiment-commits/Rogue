@@ -2594,6 +2594,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_ibCands.length > 0) {
           const _ibItem = pick(_ibCands);
           pl.inventory.splice(pl.inventory.indexOf(_ibItem), 1);
+          const _ibN = opts.itemNameFn ? opts.itemNameFn(_ibItem) : _ibItem.name;
           /* 弾く方向：プレイヤーからモンスターの反対方向（プレイヤーの後ろ） */
           const _ibdx = Math.sign(pl.x - m.x), _ibdy = Math.sign(pl.y - m.y);
           /* 射線をトレースして着地点を決定（泉・大箱があれば入る） */
@@ -2613,13 +2614,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           pushMonsterBoltAnim(pl.x, pl.y, _ibdx, _ibdy, dg, pl, "#ffdd44");
           /* 泉に入った */
           if (_ibHitSpring) {
-            ml.push(`${m.name}に${_ibItem.name}を弾かれ泉に落ちた！`);
+            ml.push(`${m.name}に${_ibN}を弾かれ泉に落ちた！`);
             soakItemIntoSpring(_ibHitSpring, { ..._ibItem, x: _lx, y: _ly }, ml, dg, it => it.name);
             return;
           }
           /* 大箱に入った */
           if (_ibHitBB) {
-            ml.push(`${m.name}に${_ibItem.name}を弾かれ${_ibHitBB.name}に入った！`);
+            ml.push(`${m.name}に${_ibN}を弾かれ${_ibHitBB.name}に入った！`);
             if (opts.bbFn) opts.bbFn(_ibHitBB, _ibItem, dg, ml);
             else dg.items.push({ ..._ibItem, x: _lx, y: _ly });
             return;
@@ -2627,28 +2628,28 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           /* アイテム種別ごとに既存の投擲命中ルールを適用 */
           if (_ibItem.type === "potion") {
             /* 薬：着地点でsplash（敵に当たっても同じ位置でsplash） */
-            if (_ibHitMon) ml.push(`${m.name}に${_ibItem.name}を弾かれ${_ibHitMon.name}に当たって割れた！`);
-            else ml.push(`${m.name}に${_ibItem.name}を弾かれた！薬が割れた！`);
+            if (_ibHitMon) ml.push(`${m.name}に${_ibN}を弾かれ${_ibHitMon.name}に当たって割れた！`);
+            else ml.push(`${m.name}に${_ibN}を弾かれた！薬が割れた！`);
             splashPotion(dg, _lx, _ly, _ibItem.effect, _ibItem.value || 0, pl, ml, _luFn, false, false);
           } else if (_ibItem.type === "pot") {
             /* 壺：衝撃ダメージ（敵命中時）＋中身散乱 */
             if (_ibHitMon) {
               const _ibDmg = Math.max(1, 3 + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
-              ml.push(`${m.name}に${_ibItem.name}を弾かれ${_ibHitMon.name}に当たって割れた！${_ibDmg}ダメージ！`);
+              ml.push(`${m.name}に${_ibN}を弾かれ${_ibHitMon.name}に当たって割れた！${_ibDmg}ダメージ！`);
               if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, m);
             } else {
-              ml.push(`${m.name}に${_ibItem.name}を弾かれた！壺が割れた！`);
+              ml.push(`${m.name}に${_ibN}を弾かれた！壺が割れた！`);
             }
             scatterPotContents(_ibItem, dg, _lx, _ly, pl, ml, _luFn);
           } else if (_ibItem.type === "wand") {
             /* 杖：命中した敵に杖効果発動、消滅 */
             if (_ibHitMon) {
               const _ibWdx = Math.sign(_lx - pl.x), _ibWdy = Math.sign(_ly - pl.y);
-              ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！`);
+              ml.push(`${m.name}が${_ibN}を弾いて${_ibHitMon.name}に当てた！`);
               applyWandEffect(_ibItem.effect, "monster", _ibHitMon, _ibWdx, _ibWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null, 0, m);
             } else {
-              ml.push(`${m.name}に${_ibItem.name}を弾かれた！`);
+              ml.push(`${m.name}に${_ibN}を弾かれた！`);
               const _ibft = new Set();
               placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
             }
@@ -2660,10 +2661,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
                   ? (_ibItem.atk || 3) + (_ibItem.plus || 0)
                   : 3) + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
-              ml.push(`${m.name}が${_ibItem.name}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！消滅した。`);
+              ml.push(`${m.name}が${_ibN}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！消滅した。`);
               if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, m);
             } else {
-              ml.push(`${m.name}に${_ibItem.name}を弾かれた！`);
+              ml.push(`${m.name}に${_ibN}を弾かれた！`);
               const _ibft = new Set();
               placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
             }

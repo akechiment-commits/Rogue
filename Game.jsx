@@ -926,6 +926,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const opts = {
       bbFn: bigboxAddItem,
       luFn: lu,
+      itemNameFn: (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames),
       ...extraOpts,
       fireTrapFn: (trap, p, dg2, ml2) => {
         const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu);
