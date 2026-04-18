@@ -307,12 +307,19 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "rot_trap": {
-      const _rFoods = (p.inventory || []).filter(i => i.type === "food" && !i.rotten);
-      if (_rFoods.length > 0) {
-        const _rTarget = _rFoods[rng(0, _rFoods.length - 1)];
+      const _rAllFoods = (p.inventory || []).filter(i => i.type === "food" && !i.yabai);
+      const _rRottenFirst = _rAllFoods.filter(i => i.rotten);
+      const _rTarget = _rRottenFirst.length > 0
+        ? _rRottenFirst[rng(0, _rRottenFirst.length - 1)]
+        : _rAllFoods.length > 0 ? _rAllFoods[rng(0, _rAllFoods.length - 1)] : null;
+      if (_rTarget) {
         const _rOrigName = _rTarget.name;
-        rotFood(_rTarget);
-        ml.push(`${trap.name}が発動！${_rOrigName}が腐ってしまった！`);
+        const _rResult = rotFood(_rTarget);
+        if (_rResult === "yabai") {
+          ml.push(`${trap.name}が発動！${_rOrigName}がヤバイことになった！`);
+        } else {
+          ml.push(`${trap.name}が発動！${_rOrigName}が腐ってしまった！`);
+        }
       } else {
         ml.push(`${trap.name}が発動！腐らせるものがなかった。`);
       }

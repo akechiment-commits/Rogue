@@ -380,8 +380,30 @@ export function useItemActions({
       }
     } else if (it.type === "food") {
       const _foodBm = getBlessMultiplier(it);
+      /* ヤバイ食料：満腹度+1、大ダメージ、毒、混乱 */
+      if (it.yabai) {
+        p.inventory.splice(idx, 1);
+        if (p.hunger < 0) p.hunger = 0;
+        p.hunger = Math.min(p.maxHunger, p.hunger + 1);
+        const _yabaiDmg = rng(15, 25);
+        p.deathCause = "ヤバイ食料を食べて";
+        p.hp -= _yabaiDmg;
+        ml.push(`${it.name}を食べた。(満腹度+1)`);
+        ml.push(`ヤバすぎる！${_yabaiDmg}ダメージ！`);
+        if (hasRingEffect(p, "antidote_ring")) {
+          ml.push("毒消しの指輪が毒を防いだ！");
+        } else {
+          p.poisoned = true;
+          ml.push("食中毒になった！毒状態になった！攻撃力が徐々に下がっていく…");
+        }
+        if ((p.yogurtImmuneTurns || 0) > 0) {
+          ml.push("乳酸菌が混乱を防いだ！");
+        } else {
+          p.confusedTurns = (p.confusedTurns || 0) + 5;
+          ml.push("混乱した！(5ターン)");
+        }
       /* 腐った食料：満腹度0.3倍、毒＋ダメージ、効果なし */
-      if (it.rotten) {
+      } else if (it.rotten) {
         const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.3));
         p.inventory.splice(idx, 1);
         if (p.hunger < 0) p.hunger = 0;

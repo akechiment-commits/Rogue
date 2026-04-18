@@ -1527,11 +1527,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "rot_trap": {
       ml.push(`${trap.name}が発動！`);
-      /* 踏んだアイテム自体が食料なら腐らせる */
-      if (item && item.type === "food" && !item.rotten) {
+      /* 踏んだアイテム自体が食料なら腐らせる（既に腐っていればヤバイに） */
+      if (item && item.type === "food" && !item.yabai) {
         const _itOrigName = item.name;
-        rotFood(item);
-        ml.push(`${_itOrigName}が腐ってしまった！`);
+        const _itResult = rotFood(item);
+        if (_itResult === "yabai") ml.push(`${_itOrigName}がヤバイことになった！`);
+        else ml.push(`${_itOrigName}が腐ってしまった！`);
       }
       const _rtm = monsterAt(dg, tx, ty);
       if (_rtm) {
@@ -1554,12 +1555,15 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         ml.push(`${_rtm.name}が腐敗に飲み込まれ${_rotFoodItem.name}に変わった！`);
       }
       if (p && p.x === tx && p.y === ty && p.inventory) {
-        const _rFoods = p.inventory.filter(i => i.type === "food" && !i.rotten);
-        if (_rFoods.length > 0) {
-          const _rTarget = _rFoods[rng(0, _rFoods.length - 1)];
+        const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai);
+        const _rRottenFirst = _rAllFoods.filter(i => i.rotten);
+        const _rPick = _rRottenFirst.length > 0 ? _rRottenFirst : _rAllFoods.filter(i => !i.rotten);
+        if (_rPick.length > 0) {
+          const _rTarget = _rPick[rng(0, _rPick.length - 1)];
           const _rOrigName = _rTarget.name;
-          rotFood(_rTarget);
-          ml.push(`${_rOrigName}が腐ってしまった！`);
+          const _rRes = rotFood(_rTarget);
+          if (_rRes === "yabai") ml.push(`${_rOrigName}がヤバイことになった！`);
+          else ml.push(`${_rOrigName}が腐ってしまった！`);
         } else {
           ml.push("腐らせるものがなかった。");
         }
@@ -2093,9 +2097,14 @@ export function cookFoodMeta(item) {
   }
 }
 
-/** 調理済み食糧をさらに加熱して「焦げた」状態にする共通ヘルパー */
+/** 調理済み食糧をさらに加熱して「焦げた」またはヤバイ状態にする共通ヘルパー */
 export function burnFoodItem(item, ml) {
-  if (item.burnt) { ml.push(`${item.name}はこれ以上焦げられない。`); return; }
+  if (item.yabai) { return false; }
+  if (item.burnt) {
+    _upgradeToYabai(item);
+    ml.push(`${item.name}になった！`);
+    return "yabai";
+  }
   if (item.name.startsWith("焼いた")) {
     item.name = "焦げた" + item.name.slice("焼いた".length);
   } else {
@@ -2104,6 +2113,7 @@ export function burnFoodItem(item, ml) {
   item.value = Math.max(1, Math.floor(item.value / 2));
   item.burnt = true;
   ml.push(`${item.name}になった！`);
+  return true;
 }
 
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
@@ -3342,9 +3352,26 @@ export function hasRingEffect(p, effect) {
 
 /* ===== 食料の腐敗 ===== */
 /* food アイテムに「腐った」接頭語を付け、rotten:true フラグを立てる */
-/* 既に腐っている場合は何もしない。食料以外には適用しない。 */
+/* 既に腐っている場合はヤバイに昇格する。食料以外には適用しない。 */
+function _upgradeToYabai(item) {
+  let baseName = item.name;
+  for (const pfx of ["腐った", "焦げた", "焼いた"]) {
+    if (baseName.startsWith(pfx)) { baseName = baseName.slice(pfx.length); break; }
+  }
+  item.name = "ヤバイ" + baseName;
+  item.yabai = true;
+  item.rotten = true;
+  item.burnt = true;
+  item.value = 1;
+}
+
 export function rotFood(item) {
-  if (item.type !== "food" || item.rotten) return false;
+  if (item.type !== "food") return false;
+  if (item.yabai) return false;
+  if (item.rotten) {
+    _upgradeToYabai(item);
+    return "yabai";
+  }
   item.rotten = true;
   if (!item.name.startsWith("腐った")) item.name = "腐った" + item.name;
   return true;
