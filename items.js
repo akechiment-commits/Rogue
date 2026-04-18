@@ -2533,16 +2533,16 @@ export function monsterDrop(m, dg, ml, p = null) {
     }
     m.synthBox.contents = [];
   }
-  /* Fixed drops for item-using enemy subtypes */
-  if (m.subtype === "archer") {
+  /* 矢・石・杖は5%でドロップ */
+  if (m.subtype === "archer" && Math.random() < 0.05) {
     const _aLv = m.monLevel || 1;
     drops.push(_aLv >= 3 ? makePiercingArrow(rng(2, 5)) : _aLv >= 2 ? makeStrongArrow(rng(3, 6)) : makeArrow(rng(3, 8)));
   }
-  if (m.subtype === "stonethrow") {
+  if (m.subtype === "stonethrow" && Math.random() < 0.05) {
     const lvl = m.monLevel || 1;
     drops.push(lvl >= 3 ? makeMagicStone(rng(1, 3)) : makeStone(rng(2, 5)));
   }
-  if (m.subtype === "wanduser") {
+  if (m.subtype === "wanduser" && Math.random() < 0.05) {
     const _wt = pick(WANDS);
     drops.push({ ..._wt, id: uid(), charges: Math.max(1, rng(1, _wt.charges)) });
   }
