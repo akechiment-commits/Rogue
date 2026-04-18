@@ -2545,8 +2545,26 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── goldthief（レプラコーン等）：隣接時にゴールドを盗んでワープ逃走 ── */
+    /* ── goldthief（レプラコーン等）：ゴールドを盗んで持ち逃げ、倒すと取り戻せる ── */
     if (m.subtype === "goldthief" && !m.sealed) {
+      /* 金を持っている間は逃げ回る（runnerと同じ逃走ロジック） */
+      if ((m.heldGold || 0) > 0) {
+        if (!_attackOnly) {
+          const _gtRcands = [];
+          for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+            const _rnx = m.x + _rmx, _rny = m.y + _rmy;
+            if (!isWalkable(dg.map, _rnx, _rny)) continue;
+            if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
+            if (_rnx === pl.x && _rny === pl.y) continue;
+            const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
+            _gtRcands.push({ x: _rnx, y: _rny, score: _score });
+          }
+          _gtRcands.sort((a, b) => b.score - a.score);
+          if (_gtRcands.length > 0) { m.x = _gtRcands[0].x; m.y = _gtRcands[0].y; }
+        }
+        return;
+      }
+      /* 未盗み：隣接時に盗む */
       const _gtAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       if (_gtAdj && _moveOnly) return;
       if (_gtAdj) {
@@ -2563,41 +2581,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
         if (pl.gold > 0) {
           const _lvScale = m.monLevel || 1;
-          const _gtAmount = Math.min(pl.gold, rng(30 * _lvScale, 100 * _lvScale));
+          const _gtAmount = Math.min(pl.gold, rng(100 * _lvScale, 300 * _lvScale));
           pl.gold -= _gtAmount;
-          /* テレポートブロック確認 */
-          const _gtTpBlock = hasCursedTeleportPentacle(dg);
-          let _gtWx = m.x, _gtWy = m.y;
-          if (!_gtTpBlock) {
-            const _gtTrapList = dg.traps || [];
-            let _gtPlaced = false;
-            if (_gtTrapList.length > 0) {
-              const _gtTgt = pick(_gtTrapList);
-              for (const [_gddx, _gddy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-                const _gcx = _gtTgt.x + _gddx, _gcy = _gtTgt.y + _gddy;
-                if (isWalkable(dg.map, _gcx, _gcy) &&
-                    !dg.monsters.some(o => o.x === _gcx && o.y === _gcy) &&
-                    !(_gcx === pl.x && _gcy === pl.y)) {
-                  _gtWx = _gcx; _gtWy = _gcy; _gtPlaced = true; break;
-                }
-              }
-              if (!_gtPlaced) { _gtWx = _gtTgt.x; _gtWy = _gtTgt.y; }
-            } else {
-              const _gtRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
-              _gtWx = rng(_gtRoom.x, _gtRoom.x + _gtRoom.w - 1);
-              _gtWy = rng(_gtRoom.y, _gtRoom.y + _gtRoom.h - 1);
-            }
-            m.x = _gtWx; m.y = _gtWy;
-          }
-          /* 盗んだゴールドをワープ先に落とす */
-          const _gtGold = { name: "金貨", type: "gold", value: _gtAmount, tile: 22, id: uid() };
-          const _gtFt = new Set();
-          placeItemAt(dg, _gtWx, _gtWy, _gtGold, ml, _gtFt);
-          if (_gtTpBlock) {
-            ml.push(`${m.name}が金貨${_gtAmount}枚を盗んだ！呪われたテレポートの魔方陣に阻まれて逃げられない！`);
-          } else {
-            ml.push(`${m.name}が金貨${_gtAmount}枚を盗んで消えた！`);
-          }
+          m.heldGold = _gtAmount;
+          ml.push(`${m.name}が金貨${_gtAmount}枚を盗んで逃げ出した！`);
+          /* 盗んだターンはその場にいる（次ターンから逃走） */
           return;
         }
         /* ゴールドがなければ通常攻撃 */

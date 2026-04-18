@@ -2526,6 +2526,13 @@ export function monsterDrop(m, dg, ml, p = null) {
     }
     m.heldItems = [];
   }
+  /* レプラコーン：盗んでいたゴールドをその場に落とす */
+  if (m.baseKind === "leprechaun" && (m.heldGold || 0) > 0) {
+    const _ft = new Set();
+    placeItemAt(dg, m.x, m.y, { name: "金貨", type: "gold", value: m.heldGold, tile: 22, id: uid() }, ml, _ft, 0, p);
+    ml.push(`${m.name}が持っていた金貨${m.heldGold}枚が転がり出た！`);
+    m.heldGold = 0;
+  }
   /* 盗投士：盗んで持っていたアイテムをその場にばらまく */
   if (m.baseKind === "stealthrower" && m.heldItems?.length > 0) {
     const _ft = new Set();
