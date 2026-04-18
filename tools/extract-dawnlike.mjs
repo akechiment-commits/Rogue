@@ -6,8 +6,8 @@ import { createCanvas, loadImage } from "canvas";
 import fs from "fs";
 import path from "path";
 
-const DAWN = "tileset_preview/dawnlike";
-const OUT = "tiles";
+const DAWN = "tileset_preview/DawnLike";
+const OUT = "public/tiles";
 const TS = 16;
 
 // Mapping: tileName -> { file, col, row, flipV? }
@@ -59,6 +59,8 @@ const MAPPING = {
   rockspirit:  { file: "Characters/Elemental0.png", col: 0, row: 3 },
   thief:       { file: "Characters/Humanoid0.png",  col: 0, row: 9 },
   runner:      { file: "Characters/Humanoid0.png",  col: 6, row: 9 },
+  wateri:      { file: "Characters/Aquatic0.png",   col: 0, row: 3 },
+  leprechaun:  { file: "Characters/Humanoid0.png",  col: 0, row: 26 },
 
   // === Items ===
   potion:       { file: "Items/Potion.png",   col: 0, row: 0 },
