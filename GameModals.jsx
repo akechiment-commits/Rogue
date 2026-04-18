@@ -2346,12 +2346,12 @@ export function InventoryModal({
         boxShadow: "0 4px 20px rgba(0,0,0,0.85)", pointerEvents: "none",
       }}>
         <div style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
-          {itemDisplayName(_previewPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{_previewPot.contents.length}/{_previewPot.capacity}]
+          {itemDisplayName(_previewPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{(_previewPot.contents ?? []).length}/{_previewPot.capacity}]
         </div>
-        {_previewPot.contents.length === 0 ? (
+        {(_previewPot.contents ?? []).length === 0 ? (
           <div style={{ color: "#666", fontSize: 13 }}>（空）</div>
         ) : (
-          _previewPot.contents.map((c, ci) => (
+          (_previewPot.contents ?? []).map((c, ci) => (
             <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
               · {c.name}
             </div>
