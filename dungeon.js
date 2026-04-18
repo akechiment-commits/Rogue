@@ -454,6 +454,11 @@ function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dung
     const _isWater = map ? (map[y]?.[x] === T.WATER || springs?.some(s => s.x === x && s.y === y)) : false;
     if (_isWater) break;
   }
+  /* ループ後も waterOnly が残っていた場合（mapなし等）は非waterOnlyに強制変更 */
+  const _finalIsWater = map ? (map[y]?.[x] === T.WATER || springs?.some(s => s.x === x && s.y === y)) : false;
+  if (base.waterOnly && !_finalIsWater) {
+    ({ base, spawnLevel } = pickMonsterDef(depth, dungeonType, true));
+  }
   const { levels: _lvls, ...mt } = base;
   const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
     ? { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel }

@@ -923,9 +923,10 @@ export function makeGuard(x, y, plx, ply) {
  * スポーンレベル (1〜3) を返す共通ロジック。
  * progress = (floor - minFloor) / range で lv2/lv3 の確率が上がる。
  */
-export function pickMonsterDef(depth, dungeonType = null) {
+export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false) {
   const floor = depth + 1;
   const eligible = MONS.filter(m => {
+    if (excludeWaterOnly && m.waterOnly) return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
     const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false; // このダンジョンには出現しない
