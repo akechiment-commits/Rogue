@@ -1776,29 +1776,6 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* 水地形を生成（一部部屋に水溜まり）— 店の部屋は除外 */
   const nonShopRooms = shopRoomIdx >= 0 ? rooms.filter((_, i) => i !== shopRoomIdx) : rooms;
   addWaterPools(map, nonShopRooms, su, sd);
-  /* waterOnlyモンスター（わてり等）を水タイルに配置 */
-  {
-    const _waterTiles = [];
-    for (let _wy = 0; _wy < MH; _wy++)
-      for (let _wx = 0; _wx < MW; _wx++)
-        if (map[_wy][_wx] === T.WATER && !mons.some(mn => mn.x === _wx && mn.y === _wy))
-          _waterTiles.push([_wx, _wy]);
-    const _wCount = Math.min(Math.floor(_waterTiles.length / 4), rng(0, 2) + (depth >= 5 ? 1 : 0));
-    for (let _wi = 0; _wi < _wCount; _wi++) {
-      if (_waterTiles.length === 0) break;
-      const _idx = rng(0, _waterTiles.length - 1);
-      const [_wx, _wy] = _waterTiles.splice(_idx, 1)[0];
-      if (mons.some(mn => mn.x === _wx && mn.y === _wy)) continue;
-      const { base: _wb, spawnLevel: _wsl } = pickMonsterDef(depth, dungeonType);
-      /* waterOnlyモンスターが取れなかった場合は専用にわてりを選ぶ */
-      const _wBase = _wb.waterOnly ? _wb : (MONS.find(m => m.waterOnly && m.minFloor <= depth + 1 && depth + 1 <= m.maxFloor && (!m.dungeons || !dungeonType || m.dungeons.includes(dungeonType))) ?? null);
-      if (!_wBase || !_wBase.waterOnly) continue;
-      const { levels: _wl, ...wmt } = _wBase;
-      const _wst = _wsl >= 2 && _wBase.levels?.[_wsl - 2] ? { ...wmt, ..._wBase.levels[_wsl - 2], monLevel: _wsl } : wmt;
-      mons.push({ ..._wst, id: uid(), x: _wx, y: _wy, maxHp: _wst.hp, turnAccum: 0, aware: false,
-        dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null, dormant: false });
-    }
-  }
   /* 水タイルに被った罠・アイテムを後処理 */
   for (let ti = traps.length - 1; ti >= 0; ti--) {
     if (map[traps[ti].y][traps[ti].x] === T.WATER) traps.splice(ti, 1);
@@ -1831,6 +1808,29 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   }
   /* 浮島を生成 — 後処理の後に配置することで水リングのギャップを防ぐ */
   addFloatingIslands(map, nonShopRooms, depth, items, bigboxes, traps, su, sd);
+  /* waterOnlyモンスター（わてり等）を水タイルに配置 — 全水面操作の後に行う */
+  {
+    const _waterTiles = [];
+    for (let _wy = 0; _wy < MH; _wy++)
+      for (let _wx = 0; _wx < MW; _wx++)
+        if (map[_wy][_wx] === T.WATER && !mons.some(mn => mn.x === _wx && mn.y === _wy))
+          _waterTiles.push([_wx, _wy]);
+    const _wCount = Math.min(Math.floor(_waterTiles.length / 4), rng(0, 2) + (depth >= 5 ? 1 : 0));
+    for (let _wi = 0; _wi < _wCount; _wi++) {
+      if (_waterTiles.length === 0) break;
+      const _idx = rng(0, _waterTiles.length - 1);
+      const [_wx, _wy] = _waterTiles.splice(_idx, 1)[0];
+      if (mons.some(mn => mn.x === _wx && mn.y === _wy)) continue;
+      const { base: _wb, spawnLevel: _wsl } = pickMonsterDef(depth, dungeonType);
+      /* waterOnlyモンスターが取れなかった場合は専用にわてりを選ぶ */
+      const _wBase = _wb.waterOnly ? _wb : (MONS.find(m => m.waterOnly && m.minFloor <= depth + 1 && depth + 1 <= m.maxFloor && (!m.dungeons || !dungeonType || m.dungeons.includes(dungeonType))) ?? null);
+      if (!_wBase || !_wBase.waterOnly) continue;
+      const { levels: _wl, ...wmt } = _wBase;
+      const _wst = _wsl >= 2 && _wBase.levels?.[_wsl - 2] ? { ...wmt, ..._wBase.levels[_wsl - 2], monLevel: _wsl } : wmt;
+      mons.push({ ..._wst, id: uid(), x: _wx, y: _wy, maxHp: _wst.hp, turnAccum: 0, aware: false,
+        dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null, dormant: false });
+    }
+  }
   /* テスト用: 2階(depth=1)は必ずモンスターハウス */
   let monsterHouseRoom = null;
   if (depth === 1) {
