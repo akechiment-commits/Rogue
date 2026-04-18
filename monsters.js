@@ -502,7 +502,7 @@ export const MONS = [
       { name: "怪盗",               hp: 43,  atk: 14, def: 3,  exp: 88  },
     ],
   },
-  { name: "レプラコーン", hp: 20,  atk: 9,  def: 1,  exp: 38,  speed: 2,   tile: 101, kind: "humanoid", baseKind: "leprechaun",    monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "goldthief", dungeonFloors: { beginner: null, intermediate: { min: 7, max: 14 } },
+  { name: "レプラコーン", hp: 20,  atk: 9,  def: 1,  exp: 38,  speed: 2,   tile: 109, kind: "humanoid", baseKind: "leprechaun",    monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "goldthief", dungeonFloors: { beginner: null, intermediate: { min: 7, max: 14 } },
     levels: [
       { name: "強レプラコーン",       hp: 33,  atk: 13, def: 3,  exp: 61  },
       { name: "覇レプラコーン",       hp: 52,  atk: 17, def: 5,  exp: 95  },

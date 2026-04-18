@@ -95,6 +95,7 @@ export const TILE_NAMES = {
   94: "trap_rot",
   87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
   108: "grabber",
+  109: "leprechaun",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -206,6 +207,7 @@ export const TILE_RENDER = {
   106: { bg: null, fg: "#cc44aa", ch: "S" }, /* 盗投士     */
   107: { bg: null, fg: "#888877", ch: "%" }, /* 骨         */
   108: { bg: null, fg: "#cc2255", ch: "G" }, /* からめ鬼   */
+  109: { bg: null, fg: "#22aa44", ch: "L" }, /* レプラコーン */
 };
 
 /* Canvas drawing helper */
