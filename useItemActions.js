@@ -380,15 +380,17 @@ export function useItemActions({
       }
     } else if (it.type === "food") {
       const _foodBm = getBlessMultiplier(it);
-      /* ヤバイ食料：満腹度+1、大ダメージ、毒、混乱 */
+      /* ヤバイ食料：満腹度0.1倍、大ダメージ、毒、混乱 */
       if (it.yabai) {
+        const _yabaiHunger = Math.max(1, Math.round(it.value * _foodBm * 0.1));
         p.inventory.splice(idx, 1);
         if (p.hunger < 0) p.hunger = 0;
-        p.hunger = Math.min(p.maxHunger, p.hunger + 1);
+        const _yabaiAdded = Math.min(_yabaiHunger, p.maxHunger - p.hunger);
+        p.hunger = Math.min(p.maxHunger, p.hunger + _yabaiHunger);
         const _yabaiDmg = rng(15, 25);
         p.deathCause = "ヤバイ食料を食べて";
         p.hp -= _yabaiDmg;
-        ml.push(`${it.name}を食べた。(満腹度+1)`);
+        ml.push(`${it.name}を食べた。(満腹度+${_yabaiAdded})`);
         ml.push(`ヤバすぎる！${_yabaiDmg}ダメージ！`);
         if (hasRingEffect(p, "antidote_ring")) {
           ml.push("毒消しの指輪が毒を防いだ！");

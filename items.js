@@ -1556,10 +1556,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       }
       if (p && p.x === tx && p.y === ty && p.inventory) {
         const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai);
-        const _rRottenFirst = _rAllFoods.filter(i => i.rotten);
-        const _rPick = _rRottenFirst.length > 0 ? _rRottenFirst : _rAllFoods.filter(i => !i.rotten);
-        if (_rPick.length > 0) {
-          const _rTarget = _rPick[rng(0, _rPick.length - 1)];
+        if (_rAllFoods.length > 0) {
+          const _rTarget = _rAllFoods[rng(0, _rAllFoods.length - 1)];
           const _rOrigName = _rTarget.name;
           const _rRes = rotFood(_rTarget);
           if (_rRes === "yabai") ml.push(`${_rOrigName}がヤバイことになった！`);
