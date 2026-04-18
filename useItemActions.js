@@ -1629,6 +1629,7 @@ export function useItemActions({
         }
       }
     } else if (it.type === "pot") {
+      if (!it.contents) it.contents = [];
       if (it.contents.length >= it.capacity) {
         ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`);
       } else {
@@ -2025,6 +2026,7 @@ export function useItemActions({
         setPutMode(null);
         return;
       }
+      if (!pot.contents) pot.contents = [];
       const it = p.inventory[itemIdx];
       if (!it) return;
       if (it.type === "pot") {
