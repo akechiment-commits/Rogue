@@ -2478,6 +2478,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _adj = Math.abs(_tdx) <= 1 && Math.abs(_tdy) <= 1;
       if (_adj && _moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       if (_adj) {
+        /* 50%は様子を見るだけ（無駄行動） */
+        if (Math.random() < 0.50) {
+          ml.push(`${m.name}はこちらの様子を伺っている…`);
+          return;
+        }
         const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
         if (_hasAntiSteal) {
           ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
