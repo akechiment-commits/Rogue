@@ -22,7 +22,7 @@ import {
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
-import { trackItem, trackMonster, trackTrap, trackBigbox, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
+import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
@@ -999,6 +999,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if ((_hbb.contents?.length || 0) > _newCap) {
                 const _fts2 = new Set();
                 for (const _ci of (_hbb.contents || [])) placeItemAt(dg, _hbb.x, _hbb.y, _ci, ml, _fts2);
+                stageBigbox(_hbb);
                 dg.bigboxes = dg.bigboxes.filter(b => b !== _hbb);
                 ml.push(`呪いの魔法弾が${_hbbDN}に命中！容量オーバーで壊れた！中身が飛び出した！`);
               } else {
@@ -2092,6 +2093,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           p.inventory.forEach(i => trackItem(i));
           setGameOverSel(0);
           setDead(true);
+          commitPendingBigboxes();
           setGameOverResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: false, identifiedEffects: [...(sr.current?.ident || [])] });
         }
       }
@@ -2851,6 +2853,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             if (onReturnToHub) {
               clearGameSave();
               p.inventory.forEach(i => trackItem(i));
+              commitPendingBigboxes();
               const _hasGoal = p.inventory.some(it => it.type === "goal");
               if (_hasGoal) {
                 setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, identifiedEffects: [...(sr.current?.ident || [])] });
@@ -2877,6 +2880,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             if (onReturnToHub) {
               clearGameSave();
               p.inventory.forEach(i => trackItem(i));
+              commitPendingBigboxes();
               const _hasGoal2 = p.inventory.some(it => it.type === "goal");
               if (_hasGoal2) {
                 setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, identifiedEffects: [...(sr.current?.ident || [])] });
@@ -3404,6 +3408,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     ml.push(`${bbDisplayName(bb, sr.current)}が壊れた！中身がばらまかれた！`);
     const ft = new Set();
     for (const item of bb.contents) placeItemAt(dg, bb.x, bb.y, item, ml, ft);
+    stageBigbox(bb);
     dg.bigboxes = dg.bigboxes.filter((b) => b !== bb);
   }, []);
   const trySynthesize = useCallback(
@@ -3973,6 +3978,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
         /* 爆発系は箱ごと破壊、それ以外は容量を1減らす */
         if (_bbExploded) {
+          stageBigbox(bb);
           dg.bigboxes = dg.bigboxes.filter(b => b !== bb);
           const _bbFt = new Set();
           for (const ci of (bb.contents || [])) placeItemAt(dg, bb.x, bb.y, ci, ml, _bbFt);

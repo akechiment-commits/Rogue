@@ -3,9 +3,11 @@
    without threading refs through deeply nested callbacks.         */
 
 let _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {} };
+let _pendingBigboxes = {}; /* 今回の冒険で壊した大箱（ゲームオーバー/帰還時に確定） */
 
 export function resetDiscoveries() {
   _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {} };
+  _pendingBigboxes = {};
 }
 
 export function trackItem(item) {
@@ -38,6 +40,23 @@ export function trackBigbox(bb) {
   if (!_disc.bigboxes[key]) {
     _disc.bigboxes[key] = { name: bb.name, tile: 38, kind: bb.kind, count: 1 };
   }
+}
+
+/* 今回の冒険で壊した大箱を一時ステージ（ゲームオーバー/帰還時に確定） */
+export function stageBigbox(bb) {
+  if (!bb?.kind || !bb?.name) return;
+  const key = bb.kind;
+  if (!_pendingBigboxes[key]) {
+    _pendingBigboxes[key] = { name: bb.name, tile: 38, kind: bb.kind, count: 1 };
+  }
+}
+
+/* ステージ中の大箱を図鑑に確定する */
+export function commitPendingBigboxes() {
+  for (const [key, val] of Object.entries(_pendingBigboxes)) {
+    if (!_disc.bigboxes[key]) _disc.bigboxes[key] = val;
+  }
+  _pendingBigboxes = {};
 }
 
 export function restoreDiscoveries(data) {

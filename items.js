@@ -1,4 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle } from './utils.js';
+import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 import {
@@ -863,7 +864,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
     }
   }
-  if (_blastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b));
+  if (_blastedBB.length > 0) { _blastedBB.forEach(stageBigbox); dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b)); }
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 爆発範囲内の魔方陣を消滅 */
