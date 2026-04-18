@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS } from "./monsters.js";
-import { T, uid, rng, refreshFOV, getShops } from "./utils.js";
+import { T, uid, rng, refreshFOV, getShops, randomTeleportDest } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
@@ -2433,9 +2433,9 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
                 prepareLastFloor(_d, sr.current.dungeonType || "beginner");
               }
               _p.depth = f;
-              const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
-              _p.x = rng(_rm.x, _rm.x + _rm.w - 1);
-              _p.y = rng(_rm.y, _rm.y + _rm.h - 1);
+              const _tpDst = randomTeleportDest(_d, -999, -999);
+              if (_tpDst) { _p.x = _tpDst.x; _p.y = _tpDst.y; }
+              else { _p.x = _d.stairUp.x; _p.y = _d.stairUp.y; }
               refreshFOV(_d, _p);
               _d.nextSpawnTurn = _p.turns + rng(10, 50);
               sr.current.dungeon = _d;
