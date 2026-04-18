@@ -3325,6 +3325,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _poisBefore    = !!p.poisoned;
         const _invLenBefore  = p.inventory.length;
         const _goldBefore    = p.gold;
+        p._dashInterrupt = false;
         triggerMonsterHouse(st.dungeon, p, ml);
         endTurn(st, p, ml);
         /* 各ステップの状態をキャンバスに一瞬描画（ダッシュ高速移動演出） */
@@ -3339,7 +3340,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             (p.sealedTurns||0) > _sealBefore   || (p.immobileTurns||0) > _immBefore ||
             (p.darknessTurns||0) > _darkBefore  || (p.oilyTurns||0) > _oilyBefore ||
             (p.bewitchedTurns||0) > _bewBefore  || (!!p.poisoned && !_poisBefore) ||
-            p.inventory.length < _invLenBefore  || p.gold < _goldBefore) break;
+            p.inventory.length < _invLenBefore  || p.gold < _goldBefore ||
+            p._dashInterrupt) break;
         /* endTurn後にモンスターが移動している可能性があるため再チェック */
         const blockedAfter = blocked || !!monsterAt(dg, fnx, fny);
         if (startInRoom) {

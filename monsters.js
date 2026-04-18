@@ -187,6 +187,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
+  pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
   /* dodge: 25% 完全回避 */
   if (hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
     ml.push(`${m.name}の攻撃をひらりとかわした！`);
