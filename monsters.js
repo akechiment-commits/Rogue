@@ -392,7 +392,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *      必須: name, hp, atk, def, exp, speed, tile, kind, baseKind, monLevel:1
  *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect
  *        subtype の選択肢: "archer" | "stonethrow" | "wanduser" | "supporter"
- *                         | "thief" | "runner" | "itemblast" | "stealthrower"
+ *                         | "thief" | "goldthief" | "runner" | "itemblast" | "stealthrower"
  *                         (特殊AIが必要なら monsterAI に追記)
  *        wandEffect: subtype:"wanduser" のとき使う杖エフェクト名
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
@@ -499,6 +499,12 @@ export const MONS = [
     levels: [
       { name: "大盗賊",             hp: 27,  atk: 11, def: 2,  exp: 56  },
       { name: "怪盗",               hp: 43,  atk: 14, def: 3,  exp: 88  },
+    ],
+  },
+  { name: "レプラコーン", hp: 20,  atk: 9,  def: 1,  exp: 38,  speed: 2,   tile: 101, kind: "humanoid", baseKind: "leprechaun",    monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "goldthief", dungeonFloors: { beginner: null, intermediate: { min: 7, max: 14 } },
+    levels: [
+      { name: "強レプラコーン",       hp: 33,  atk: 13, def: 3,  exp: 61  },
+      { name: "覇レプラコーン",       hp: 52,  atk: 17, def: 5,  exp: 95  },
     ],
   },
   { name: "錆虫",         hp: 24,  atk: 13, def: 2,  exp: 40,  speed: 1,   tile: 75, kind: "beast",    baseKind: "rustbug",       monLevel: 1, minFloor: 10, maxFloor: 23, elemWeak: "thunder", subtype: "ruster", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 17 } },
@@ -2534,6 +2540,67 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         /* 盗めるものがなければ通常攻撃 */
+        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        return;
+      }
+    }
+
+    /* ── goldthief（レプラコーン等）：隣接時にゴールドを盗んでワープ逃走 ── */
+    if (m.subtype === "goldthief" && !m.sealed) {
+      const _gtAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      if (_gtAdj && _moveOnly) return;
+      if (_gtAdj) {
+        /* 50%は様子を見るだけ */
+        if (Math.random() < 0.50) {
+          ml.push(`${m.name}はこちらの様子を伺っている…`);
+          return;
+        }
+        const _gtAntiSteal = hasAbility(pl.armor, "anti_steal");
+        if (_gtAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+          return;
+        }
+        if (pl.gold > 0) {
+          const _lvScale = m.monLevel || 1;
+          const _gtAmount = Math.min(pl.gold, rng(30 * _lvScale, 100 * _lvScale));
+          pl.gold -= _gtAmount;
+          /* テレポートブロック確認 */
+          const _gtTpBlock = hasCursedTeleportPentacle(dg);
+          let _gtWx = m.x, _gtWy = m.y;
+          if (!_gtTpBlock) {
+            const _gtTrapList = dg.traps || [];
+            let _gtPlaced = false;
+            if (_gtTrapList.length > 0) {
+              const _gtTgt = pick(_gtTrapList);
+              for (const [_gddx, _gddy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+                const _gcx = _gtTgt.x + _gddx, _gcy = _gtTgt.y + _gddy;
+                if (isWalkable(dg.map, _gcx, _gcy) &&
+                    !dg.monsters.some(o => o.x === _gcx && o.y === _gcy) &&
+                    !(_gcx === pl.x && _gcy === pl.y)) {
+                  _gtWx = _gcx; _gtWy = _gcy; _gtPlaced = true; break;
+                }
+              }
+              if (!_gtPlaced) { _gtWx = _gtTgt.x; _gtWy = _gtTgt.y; }
+            } else {
+              const _gtRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
+              _gtWx = rng(_gtRoom.x, _gtRoom.x + _gtRoom.w - 1);
+              _gtWy = rng(_gtRoom.y, _gtRoom.y + _gtRoom.h - 1);
+            }
+            m.x = _gtWx; m.y = _gtWy;
+          }
+          /* 盗んだゴールドをワープ先に落とす */
+          const _gtGold = { name: "金貨", type: "gold", value: _gtAmount, tile: 22, id: uid() };
+          const _gtFt = new Set();
+          placeItemAt(dg, _gtWx, _gtWy, _gtGold, ml, _gtFt);
+          if (_gtTpBlock) {
+            ml.push(`${m.name}が金貨${_gtAmount}枚を盗んだ！呪われたテレポートの魔方陣に阻まれて逃げられない！`);
+          } else {
+            ml.push(`${m.name}が金貨${_gtAmount}枚を盗んで消えた！`);
+          }
+          return;
+        }
+        /* ゴールドがなければ通常攻撃 */
         if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
         return;
       }
