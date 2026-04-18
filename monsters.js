@@ -2547,6 +2547,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
     /* ── goldthief（レプラコーン等）：ゴールドを盗んで持ち逃げ、倒すと取り戻せる ── */
     if (m.subtype === "goldthief" && !m.sealed) {
+      /* 初回起動時に初期所持金を設定 */
+      if (!m._goldReady) {
+        m._goldReady = true;
+        const _lv = m.monLevel || 1;
+        const _initMin = [50, 150, 300][_lv - 1];
+        const _initMax = [200, 500, 1000][_lv - 1];
+        m.heldGold = rng(_initMin, _initMax);
+      }
       /* 金を持っている間は逃げ回る（runnerと同じ逃走ロジック） */
       if ((m.heldGold || 0) > 0) {
         if (!_attackOnly) {
@@ -2580,10 +2588,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         if (pl.gold > 0) {
-          const _lvScale = m.monLevel || 1;
-          const _gtAmount = Math.min(pl.gold, rng(100 * _lvScale, 300 * _lvScale));
+          const _lv = m.monLevel || 1;
+          const _stealMin = [200, 800, 1500][_lv - 1];
+          const _stealMax = [600, 2000, 3000][_lv - 1];
+          const _gtAmount = Math.min(pl.gold, rng(_stealMin, _stealMax));
           pl.gold -= _gtAmount;
-          m.heldGold = _gtAmount;
+          m.heldGold = (m.heldGold || 0) + _gtAmount;
           ml.push(`${m.name}が金貨${_gtAmount}枚を盗んで逃げ出した！`);
           /* 盗んだターンはその場にいる（次ターンから逃走） */
           return;
