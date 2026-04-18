@@ -404,6 +404,14 @@ export function useItemActions({
           p.confusedTurns = (p.confusedTurns || 0) + 5;
           ml.push("混乱した！(5ターン)");
         }
+        if (hasAbility(p.armor, "bewitch_proof")) {
+          ml.push("防具が幻惑を防いだ！");
+        } else {
+          p.bewitchedTurns = (p.bewitchedTurns || 0) + 10;
+          ml.push("幻惑された！(10ターン)");
+        }
+        p.slowTurns = (p.slowTurns || 0) + 10;
+        ml.push("体が重くなった…(鈍足10ターン)");
       /* 腐った食料：満腹度0.3倍、毒＋ダメージ、効果なし */
       } else if (it.rotten) {
         const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.3));
@@ -3147,6 +3155,18 @@ export function useItemActions({
                   const _itd = clampDmgFixed(m, calcProjectileDmg(p, _tdBaseAtk, m.def), true);
                   m.hp -= _itd;
                   ml.push(`${lb}が${m.name}に命中！${_itd}ダメージ！`);
+                  if (it.type === "food" && it.yabai && m.hp > 0) {
+                    const _yThrowDmg = rng(15, 25);
+                    m.hp -= _yThrowDmg;
+                    ml.push(`ヤバイ食料が${m.name}に食べさせられた！さらに${_yThrowDmg}ダメージ！`);
+                    if (m.hp > 0) {
+                      m.poisoned = true;
+                      m.confusedTurns = (m.confusedTurns || 0) + 5;
+                      m.fleeingTurns = (m.fleeingTurns || 0) + 10;
+                      m.slowTurns = (m.slowTurns || 0) + 10;
+                      ml.push(`${m.name}は毒・混乱・幻惑・鈍足状態になった！`);
+                    }
+                  }
                   if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
                 }
               }
