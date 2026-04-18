@@ -1717,11 +1717,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
       triggerMonsterHouse(st.dungeon, p, ml);
+      /* 初めて踏み入れたフロアは敵が行動しない（階段降り直後の理不尽攻撃を防ぐ） */
+      const _skipMonAct = !!st.dungeon._firstVisit;
+      if (_skipMonAct) st.dungeon._firstVisit = false;
       /* ===== 4フェーズターン制 ===== */
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
       const _monSnap = new Map();
       for (const _ms of st.dungeon.monsters) _monSnap.set(_ms.id, { x: _ms.x, y: _ms.y });
-      moveMons(st.dungeon, p, ml, "moveOnly");
+      if (!_skipMonAct) moveMons(st.dungeon, p, ml, "moveOnly");
       /* Capture monster position changes for animation + mark movers */
       const _mmoves = [], _mattacks = [], _mdamages = [];
       for (const _ms2 of st.dungeon.monsters) {
@@ -1769,7 +1772,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _perHitEvents = [];
       const _perHitLunges = [];
       let _hadActualHit = false;
-      moveMons(st.dungeon, p, ml, "attackOnly", {
+      if (!_skipMonAct) moveMons(st.dungeon, p, ml, "attackOnly", {
         onPlayerHit: (dmg, mon) => {
           _perHitEvents.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
           if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
