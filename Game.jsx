@@ -3303,6 +3303,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           endTurn(st, p, ml);
           break;
         }
+        const _dashPc = _dPentMap.get(_dk(p.x, p.y));
+        if (_dashPc) {
+          ml.push(`${_dashPc.name || "魔法陣"}の上に乗った。`);
+          endTurn(st, p, ml);
+          break;
+        }
         const curInRoom = _dRoomSet.has(_dk(p.x, p.y));
         const curPerps = getP(p.x, p.y);
         const fnx = p.x + dx,
