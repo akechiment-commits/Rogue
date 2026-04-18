@@ -141,15 +141,15 @@ export const ITEMS = [
   { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"A", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。\n祝福：攻撃力+4。呪い：反転して攻撃力-1。",           tile:17 },
   { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"C", weight:8,  sellPrice:150,  desc:"ランダムな場所にテレポートする。\n祝福：テレポート先を選べる。\n呪い：好きな階層を選んで移動できる。",                         tile:18 },
   { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"B", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n祝福：さらにアイテム・敵の位置も常時表示。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
-  { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:4,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。\n祝福：+2上がる。呪い：-1下がる。",  tile:18 },
-  { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"B", weight:4,  sellPrice:800,  desc:"選んだ防具・または＋値のつく指輪の＋値を1上げる。\n祝福：+2上がる。呪い：-1下がる。",  tile:18 },
+  { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"A", weight:4,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。\n祝福：+2上がる。呪い：-1下がる。",  tile:18 },
+  { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"A", weight:4,  sellPrice:800,  desc:"選んだ防具・または＋値のつく指輪の＋値を1上げる。\n祝福：+2上がる。呪い：-1下がる。",  tile:18 },
   { name:"雷の巻物",         type:"scroll", effect:"thunder",            rarity:"B", weight:4,  sellPrice:500,  desc:"視界内の敵全てに雷ダメージ(30-40)。\n祝福：フロア全体。呪い：自分にも同ダメージ。", tile:18 },
   { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"C", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。\n祝福：全員HP+100回復。\n呪い：自分含め視界内全員に35ダメージ。", tile:18 },
-  { name:"道具寄せの巻物",   type:"scroll", effect:"item_gather",        rarity:"B", weight:4,  sellPrice:400,  desc:"フロアのアイテムを自分の周りに引き寄せる。\n祝福：直接インベントリに吸収。\n呪い：アイテムをフロアにランダム散布。",     tile:18 },
+  { name:"道具寄せの巻物",   type:"scroll", effect:"item_gather",        rarity:"A", weight:4,  sellPrice:400,  desc:"フロアのアイテムを自分の周りに引き寄せる。\n祝福：直接インベントリに吸収。\n呪い：アイテムをフロアにランダム散布。",     tile:18 },
   { name:"眠りの巻物",       type:"scroll", effect:"sleep_scroll",       rarity:"B", weight:4,  sellPrice:600,  desc:"視界内の敵を6ターン眠らせる。\n祝福：フロア全体12ターン。\n呪い：自分含め視界内全員6ターン眠り。", tile:18 },
   { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"B", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。\n祝福：フロア全体40ターン。\n呪い：自分5T＋視界内敵10T混乱。", tile:18 },
   { name:"炎の巻物",         type:"scroll", effect:"flame",               rarity:"B", weight:4,  sellPrice:550,  desc:"視界内の敵に炎ダメージ(30-40)。油まみれの対象は2倍。\n祝福：フロア全体。呪い：自分にも同ダメージ。", tile:18 },
-  { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"B", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。\n祝福：ステータスも永続低下。\n呪い：自分の装備の強化値が下がる。", tile:18 },
+  { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。\n祝福：ステータスも永続低下。\n呪い：自分の装備の強化値が下がる。", tile:18 },
   { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:6,  sellPrice:300,  desc:"半径5の壁を全て壊す。\n祝福：半径10。呪い：周囲を壁に変える。",             tile:18 },
   { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"B", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。\n祝福：視界内全体。呪い：自分が20ターン金縛り。", tile:18 },
   { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:2,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。\n祝福：さらに呪い攻撃も防ぐ。呪い：自分が弾き出され踏むと即死。\nチャージ制。", tile:42 },
@@ -205,7 +205,7 @@ export const ITEMS = [
     desc:"持ち物から1つ選んで識別する。\n祝福：全識別。呪い：識別を解除。", tile:18 },
   { name:"複製の巻物", type:"scroll", effect:"duplicate",         rarity:"S", weight:1,  sellPrice:6000,
     desc:"持ち物から1つ選んで複製する。\n祝福：2つ増える。呪い：選んだものが消える。", tile:18 },
-  { name:"売却の巻物", type:"scroll", effect:"sell_item",         rarity:"B", weight:4,  sellPrice:600,
+  { name:"売却の巻物", type:"scroll", effect:"sell_item",         rarity:"C", weight:4,  sellPrice:600,
     desc:"持ち物から1つ選んで換金する。\n祝福：2倍の金額。呪い：半額。", tile:18 },
   { name:"変換の巻物", type:"scroll", effect:"transform_item",    rarity:"B", weight:4,  sellPrice:700,
     desc:"持ち物から1つ選んで別のアイテムに変える。\n祝福：レアリティが高いものに変化。\n呪い：レアリティが低いものに変化。", tile:18 },
@@ -213,7 +213,7 @@ export const ITEMS = [
     desc:"持ち物の武器か防具を1つ選んでランダムな能力を付与する。\n祝福：強力な能力。呪い：役に立たない能力。", tile:18 },
   { name:"召喚の巻物", type:"scroll", effect:"summon",            rarity:"C", weight:8,  sellPrice:50,
     desc:"敵を4体召喚する。\n祝福：8体に囲まれる。\n呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
-  { name:"収納上手の巻物", type:"scroll", effect:"expand_inv",   rarity:"B", weight:4,  sellPrice:800,
+  { name:"収納上手の巻物", type:"scroll", effect:"expand_inv",   rarity:"A", weight:4,  sellPrice:800,
     desc:"最大所持数が1～3増える。\n祝福：2～6増える。呪い：1～3減る。", tile:18 },
   { name:"罠の巻物", type:"scroll", effect:"trap_scatter",        rarity:"D", weight:12, sellPrice:30,
     desc:"読むと同じフロアの部屋内に大量の罠が出現する。\n祝福：さらに多く出現。呪い：フロア内の全ての罠が消える。", tile:18 },
@@ -2476,13 +2476,14 @@ export function monsterDrop(m, dg, ml, p = null) {
         { ...pick(_arPool.length ? _arPool : ITEMS.filter(i => i.type === "armor")), plus: _tier, id: uid() },
         ml, _ft, 0, p);
     }
-    /* 高レア巻物 (A/Sランク、tier数分) */
-    const _scPool = ITEMS.filter(i => i.type === "scroll" && ["A","S"].includes(i.rarity));
+    /* 高レア巻物 (A/Sランク、tier数分) S確率15% */
+    const _scAPool = ITEMS.filter(i => i.type === "scroll" && i.rarity === "A");
+    const _scSPool = ITEMS.filter(i => i.type === "scroll" && i.rarity === "S");
     const _scFallback = ITEMS.filter(i => i.type === "scroll" && i.rarity !== "D");
     for (let _si = 0; _si < _tier; _si++) {
-      placeItemAt(dg, m.x, m.y,
-        { ...pick(_scPool.length ? _scPool : _scFallback), id: uid() },
-        ml, _ft, 0, p);
+      const _useS = _scSPool.length > 0 && _scAPool.length > 0 && Math.random() < 0.15;
+      const _scPick = _useS ? pick(_scSPool) : pick(_scAPool.length ? _scAPool : _scFallback);
+      placeItemAt(dg, m.x, m.y, { ..._scPick, id: uid() }, ml, _ft, 0, p);
     }
     /* 強化の薬 (tier2+) */
     if (_tier >= 2) {
