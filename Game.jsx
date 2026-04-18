@@ -3315,6 +3315,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           dg.map[fny][fnx] === T.WALL || dg.map[fny][fnx] === T.BWALL ||
           !!monsterAt(dg, fnx, fny);
         const _hpBefore = p.hp;
+        const _confBefore    = p.confusedTurns   || 0;
+        const _slowBefore    = p.slowTurns        || 0;
+        const _sealBefore    = p.sealedTurns      || 0;
+        const _immBefore     = p.immobileTurns    || 0;
+        const _darkBefore    = p.darknessTurns    || 0;
+        const _oilyBefore    = p.oilyTurns        || 0;
+        const _bewBefore     = p.bewitchedTurns   || 0;
+        const _poisBefore    = !!p.poisoned;
+        const _invLenBefore  = p.inventory.length;
+        const _goldBefore    = p.gold;
         triggerMonsterHouse(st.dungeon, p, ml);
         endTurn(st, p, ml);
         /* 各ステップの状態をキャンバスに一瞬描画（ダッシュ高速移動演出） */
@@ -3324,7 +3334,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         await new Promise(r => setTimeout(r, 20));
         gsOverrideRef.current = null;
         animBusyRef.current = false;
-        if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0) break;
+        if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0 ||
+            (p.confusedTurns||0) > _confBefore || (p.slowTurns||0) > _slowBefore ||
+            (p.sealedTurns||0) > _sealBefore   || (p.immobileTurns||0) > _immBefore ||
+            (p.darknessTurns||0) > _darkBefore  || (p.oilyTurns||0) > _oilyBefore ||
+            (p.bewitchedTurns||0) > _bewBefore  || (!!p.poisoned && !_poisBefore) ||
+            p.inventory.length < _invLenBefore  || p.gold < _goldBefore) break;
         /* endTurn後にモンスターが移動している可能性があるため再チェック */
         const blockedAfter = blocked || !!monsterAt(dg, fnx, fny);
         if (startInRoom) {
