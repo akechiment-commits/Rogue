@@ -1952,8 +1952,8 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, page = 0, 
                   borderRadius: 4, cursor: "pointer", fontSize: 13,
                   color: isSel ? "#e080ff" : "#aa88cc",
                 }}>
-                {isBlankStep && it.bcKnown && it.blessed ? <span style={{ color: "#ffcc44", marginRight: 4, fontSize: 12 }}>【祝】</span> : null}
-                {isBlankStep && it.bcKnown && it.cursed ? <span style={{ color: "#cc44ff", marginRight: 4, fontSize: 12 }}>【呪】</span> : null}
+                {isBlankStep && it.blessed ? <span style={{ color: "#ffcc44", marginRight: 4, fontSize: 12 }}>【祝】</span> : null}
+                {isBlankStep && it.cursed ? <span style={{ color: "#cc44ff", marginRight: 4, fontSize: 12 }}>【呪】</span> : null}
                 {it.name}
                 {isBlankStep && it.type === "spellbook" ? <span style={{ color: "#5090cc", marginLeft: 6, fontSize: 12 }}>[魔法書]</span> : null}
                 {isBlankStep && it.type === "scroll" ? <span style={{ color: "#888855", marginLeft: 6, fontSize: 12 }}>[巻物]</span> : null}
