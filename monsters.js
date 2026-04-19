@@ -1511,11 +1511,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.sleepTurns <= 0) { ml.push(`${m.name}の睡眠が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
-  /* 金縛り（paralyzeTurns があればボスのみターン経過で解除） */
+  /* 金縛り（ダメージを受けたら即解除、ボスのみターン経過でも解除） */
   if (m.paralyzed) {
+    if (m._paralyzeHp != null && m.hp < m._paralyzeHp) {
+      m.paralyzed = false; m._paralyzeHp = null;
+      ml.push(`${m.name}はダメージで金縛りが解けた！`);
+      m.turnAccum = 0; m._movedThisTurn = true; return;
+    }
     if (m.isBoss && (m.paralyzeTurns || 0) > 0 && !_attackOnly) {
       m.paralyzeTurns = Math.max(0, m.paralyzeTurns - 2);
-      if (m.paralyzeTurns <= 0) { m.paralyzed = false; ml.push(`${m.name}の金縛りが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
+      if (m.paralyzeTurns <= 0) { m.paralyzed = false; m._paralyzeHp = null; ml.push(`${m.name}の金縛りが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
     }
     if (m.paralyzed) return;
   }
