@@ -784,9 +784,10 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           _p_tsf.inventory.splice(_rmIdx_tsf, 1, _newIt);
           // splice(idx, 1, newItem) は置換なので配列長は変わらず scrollIdx の調整不要
         }
-        _msgResult = mode.blessed ? `${_selIt.name}が${_newIt.name}に変わった！【祝】`
-                   : mode.cursed  ? `${_selIt.name}が${_newIt.name}に変わってしまった…【呪】`
-                                  : `${_selIt.name}が${_newIt.name}に変わった！`;
+        const _newItDN = itemDisplayName(_newIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+        _msgResult = mode.blessed ? `${_selIt.name}が${_newItDN}に変わった！【祝】`
+                   : mode.cursed  ? `${_selIt.name}が${_newItDN}に変わってしまった…【呪】`
+                                  : `${_selIt.name}が${_newItDN}に変わった！`;
       } else {
         _msgResult = "変換できるアイテムがなかった。";
       }
