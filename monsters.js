@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim } from "./animEvents.js";
 
@@ -2596,8 +2596,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           pl.gold -= _gtAmount;
           m.heldGold = (m.heldGold || 0) + _gtAmount;
           m._stolenFromPlayer = true;
-          ml.push(`${m.name}が金貨${_gtAmount}枚を盗んで逃げ出した！`);
-          /* 盗んだターンはその場にいる（次ターンから逃走） */
+          const _gtTpDst = randomTeleportDest(dg, m.x, m.y);
+          if (_gtTpDst) { m.x = _gtTpDst.x; m.y = _gtTpDst.y; }
+          ml.push(`${m.name}が金貨${_gtAmount}枚を盗んでテレポートした！`);
           return;
         }
         /* ゴールドがなければ通常攻撃 */
