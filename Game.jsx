@@ -988,8 +988,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
             const _hm = monsterAt(dg, _tx, _ty);
             if (_hm) {
-              _hm.speed = Math.max(0.25, (_hm.speed || 1) * 0.5);
-              ml.push(`呪いの魔法弾が${_hm.name}に命中！鈍足になった！`);
+              if (_hm.subtype === "magicreflect") {
+                ml.push(`${_hm.name}が呪いの魔法弾を反射した！`);
+                m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
+                ml.push(`呪いが${m.name}に反射！鈍足になった！`);
+              } else {
+                _hm.speed = Math.max(0.25, (_hm.speed || 1) * 0.5);
+                ml.push(`呪いの魔法弾が${_hm.name}に命中！鈍足になった！`);
+              }
               _cwHit = true; break;
             }
             const _hbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
@@ -1077,8 +1083,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             /* 途中のモンスターに命中 */
             const _bwMon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty);
             if (_bwMon) {
-              applyWandEffect("knockback", "monster", _bwMon, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk, m);
-              if (_bwMon.hp <= 0) { trackMonster(_bwMon); killMonster(_bwMon, dg, pl, ml, lu, false, m); }
+              if (_bwMon.subtype === "magicreflect") {
+                ml.push(`${_bwMon.name}が吹き飛ばしの魔法弾を反射した！`);
+                applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
+                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); }
+              } else {
+                applyWandEffect("knockback", "monster", _bwMon, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk, m);
+                if (_bwMon.hp <= 0) { trackMonster(_bwMon); killMonster(_bwMon, dg, pl, ml, lu, false, m); }
+              }
               _bwHit = true; break;
             }
           }
@@ -1117,11 +1129,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
             const _cfm = monsterAt(dg, _tx, _ty);
             if (_cfm) {
-              const _cfmPrev = _cfm.confusedTurns || 0;
-              _cfm.confusedTurns = _cfmPrev + 20;
-              ml.push(_cfmPrev > 0
-                ? `混乱の魔法弾が${_cfm.name}に命中！混乱が延長された！(混乱${_cfm.confusedTurns}ターン)`
-                : `混乱の魔法弾が${_cfm.name}に命中！混乱した！(混乱${_cfm.confusedTurns}ターン)`);
+              if (_cfm.subtype === "magicreflect") {
+                ml.push(`${_cfm.name}が混乱の魔法弾を反射した！`);
+                m.confusedTurns = (m.confusedTurns || 0) + 10;
+                ml.push(`混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
+              } else {
+                const _cfmPrev = _cfm.confusedTurns || 0;
+                _cfm.confusedTurns = _cfmPrev + 20;
+                ml.push(_cfmPrev > 0
+                  ? `混乱の魔法弾が${_cfm.name}に命中！混乱が延長された！(混乱${_cfm.confusedTurns}ターン)`
+                  : `混乱の魔法弾が${_cfm.name}に命中！混乱した！(混乱${_cfm.confusedTurns}ターン)`);
+              }
               _cfHit = true; break;
             }
             const _cfbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
@@ -1169,11 +1187,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
             const _slm = monsterAt(dg, _tx, _ty);
             if (_slm) {
-              const _slmPrev = _slm.sleepTurns || 0;
-              _slm.sleepTurns = _slmPrev + 20;
-              ml.push(_slmPrev > 0
-                ? `眠りの魔法弾が${_slm.name}に命中！眠りが延長された！(眠り${_slm.sleepTurns}ターン)`
-                : `眠りの魔法弾が${_slm.name}に命中！眠ってしまった！(眠り${_slm.sleepTurns}ターン)`);
+              if (_slm.subtype === "magicreflect") {
+                ml.push(`${_slm.name}が眠りの魔法弾を反射した！`);
+                m.sleepTurns = (m.sleepTurns || 0) + 10;
+                ml.push(`眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
+              } else {
+                const _slmPrev = _slm.sleepTurns || 0;
+                _slm.sleepTurns = _slmPrev + 20;
+                ml.push(_slmPrev > 0
+                  ? `眠りの魔法弾が${_slm.name}に命中！眠りが延長された！(眠り${_slm.sleepTurns}ターン)`
+                  : `眠りの魔法弾が${_slm.name}に命中！眠ってしまった！(眠り${_slm.sleepTurns}ターン)`);
+              }
               _slHit = true; break;
             }
             const _slbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
@@ -1218,8 +1242,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
             const _tpm = monsterAt(dg, _tx, _ty);
             if (_tpm) {
-              const _rp3 = _tpRand(_tpm.x, _tpm.y);
-              if (_rp3) { _tpm.x = _rp3.x; _tpm.y = _rp3.y; ml.push(`テレポートの魔法弾が${_tpm.name}に命中！どこかへテレポートした！`); }
+              if (_tpm.subtype === "magicreflect") {
+                ml.push(`${_tpm.name}がテレポートの魔法弾を反射した！`);
+                const _tpWr = _tpRand(m.x, m.y);
+                if (_tpWr) { m.x = _tpWr.x; m.y = _tpWr.y; ml.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
+              } else {
+                const _rp3 = _tpRand(_tpm.x, _tpm.y);
+                if (_rp3) { _tpm.x = _rp3.x; _tpm.y = _rp3.y; ml.push(`テレポートの魔法弾が${_tpm.name}に命中！どこかへテレポートした！`); }
+              }
               _tpHit = true; break;
             }
             const _tpbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);

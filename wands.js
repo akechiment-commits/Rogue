@@ -1722,7 +1722,18 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     }
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
-      applyWandEffect("lightning", "monster", mon, dx, dy, dg, pl, ml, luFn, bbFn, 1, null, 0, killerMon);
+      if (mon.subtype === "magicreflect" && killerMon) {
+        ml.push(`${mon.name}が雷撃を反射した！`);
+        if (!consumeBarrier(killerMon, ml)) {
+          const _rdmg = rng(15, 25);
+          killerMon.hp -= _rdmg;
+          ml.push(`反射した雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
+          pushLightningAnim(killerMon.x, killerMon.y);
+          if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
+        }
+      } else {
+        applyWandEffect("lightning", "monster", mon, dx, dy, dg, pl, ml, luFn, bbFn, 1, null, 0, killerMon);
+      }
       return;
     }
     const it = itemAt(dg, tx, ty);
