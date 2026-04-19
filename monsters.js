@@ -1290,6 +1290,15 @@ function monsterThrowStone(m, dg, pl, ml) {
     return;
   }
 
+  /* 祝福された聖域の魔方陣：飛び道具を防ぐ */
+  const _stSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
+  if (_stSanc) {
+    const _sd = safeArrowDrop(pl.x, pl.y, dg);
+    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
+    ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
+    return;
+  }
+
   /* みかわし（防具の効果） */
   const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
   if (dodged) {
