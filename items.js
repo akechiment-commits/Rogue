@@ -539,6 +539,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   const pfx = POT_FOOD_PREFIX[pe];
   if (pfx && item.type === "food") {
     if (!item.potFlavors) item.potFlavors = [];
+    if (item.potFlavors.includes(pe)) { ml.push(`${_in}は既に${pfx.replace(/の$/, "")}味だ。`); return; }
     item.potFlavors.push(pe);
     item.name = pfx + item.name;
     item.value = Math.max(1, Math.floor(item.value * 0.8));
