@@ -2556,8 +2556,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _initMax = [200, 500, 1000][_lv - 1];
         m.heldGold = rng(_initMin, _initMax);
       }
-      /* 金を持っている間は逃げ回る（runnerと同じ逃走ロジック） */
-      if ((m.heldGold || 0) > 0) {
+      /* 盗んだ後は逃げ回る（runnerと同じ逃走ロジック） */
+      if (m._stolenFromPlayer) {
         if (!_attackOnly) {
           const _gtRcands = [];
           for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
@@ -2595,6 +2595,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _gtAmount = Math.min(pl.gold, rng(_stealMin, _stealMax));
           pl.gold -= _gtAmount;
           m.heldGold = (m.heldGold || 0) + _gtAmount;
+          m._stolenFromPlayer = true;
           ml.push(`${m.name}が金貨${_gtAmount}枚を盗んで逃げ出した！`);
           /* 盗んだターンはその場にいる（次ターンから逃走） */
           return;
