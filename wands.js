@@ -1671,7 +1671,15 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     const tx = cx + dx * d, ty = cy + dy * d;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
-      ml.push("魔法弾は壁に消えた。");
+      if (killerMon && !consumeBarrier(killerMon, ml)) {
+        const _wdmg = rng(15, 25);
+        killerMon.hp -= _wdmg;
+        ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
+        pushLightningAnim(killerMon.x, killerMon.y);
+        if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
+      } else if (!killerMon) {
+        ml.push("魔法弾は壁に消えた。");
+      }
       return;
     }
     if (tx === pl.x && ty === pl.y) {

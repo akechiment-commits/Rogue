@@ -952,7 +952,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           for (let _d = 1; _d < 20; _d++) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _cwHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { ml.push("呪いの魔法弾は壁に消えた。"); _cwHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { m.speed = Math.max(0.25, (m.speed || 1) * 0.5); ml.push(`呪いの魔法弾が壁に跳ね返り${m.name}に命中！鈍足になった！`); _cwHit = true; break; }
             if (_tx === pl.x && _ty === pl.y) {
               /* 反射の鎧チェック */
               if (hasAbility(pl.armor, "wand_reflect")) {
@@ -1042,7 +1042,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           for (let _d = 1; _d < 20; _d++) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _bwHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _bwHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { ml.push(`吹き飛ばしの魔法弾が壁に跳ね返り${m.name}に命中！`); applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk); if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); } _bwHit = true; break; }
             /* 罠：吹き飛ばす（プレイヤーの杖と同様） */
             const _bwTrap = dg.traps?.find(t => t.x === _tx && t.y === _ty);
             if (_bwTrap) {
@@ -1090,7 +1090,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           for (let _d = 1; _d < 20; _d++) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _cfHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _cfHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { m.confusedTurns = (m.confusedTurns || 0) + 10; ml.push(`混乱の魔法弾が壁に跳ね返り${m.name}に命中！混乱した！(混乱${m.confusedTurns}ターン)`); _cfHit = true; break; }
             if (_tx === pl.x && _ty === pl.y) {
               if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧が混乱の魔法弾を反射した！");
@@ -1142,7 +1142,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           for (let _d = 1; _d < 20; _d++) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _slHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _slHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { m.sleepTurns = (m.sleepTurns || 0) + 10; ml.push(`眠りの魔法弾が壁に跳ね返り${m.name}に命中！眠ってしまった！(眠り${m.sleepTurns}ターン)`); _slHit = true; break; }
             if (_tx === pl.x && _ty === pl.y) {
               if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧が眠りの魔法弾を反射した！");
@@ -1198,7 +1198,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           for (let _d = 1; _d < 20; _d++) {
             const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
             if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _tpHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { _tpHit = true; break; }
+            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { const _tpW = _tpRand(m.x, m.y); if (_tpW) { m.x = _tpW.x; m.y = _tpW.y; ml.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中！どこかへテレポートした！`); } else ml.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中したが失敗した！`); _tpHit = true; break; }
             if (_tx === pl.x && _ty === pl.y) {
               if (hasAbility(pl.armor, "wand_reflect")) {
                 ml.push("反射の鎧がテレポートの魔法弾を反射した！");
