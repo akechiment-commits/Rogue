@@ -1115,6 +1115,8 @@ function _arrowBlocked(x, y, dg) {
   if (dg.bigboxes?.some(b => b.x === x && b.y === y)) return true;
   if (dg.pentacles?.some(pc => pc.x === x && pc.y === y)) return true;
   if (dg.items?.some(i => i.x === x && i.y === y)) return true;
+  if (dg.traps?.some(t => t.x === x && t.y === y)) return true;
+  if (dg.springs?.some(s => s.x === x && s.y === y)) return true;
   return false;
 }
 function safeArrowDrop(x, y, dg) {
