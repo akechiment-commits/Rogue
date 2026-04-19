@@ -1132,11 +1132,12 @@ function safeArrowDrop(x, y, dg) {
     if (!inBounds(nx, ny)) continue;
     if (!_arrowBlocked(nx, ny, dg)) return { x: nx, y: ny };
   }
-  return { x, y }; /* 見つからなければ元の位置 */
+  return null; /* 見つからなければ消滅 */
 }
 
-/* 落下位置が泉なら泉に落とし、そうでなければ床に置く */
+/* 落下位置が泉なら泉に落とし、そうでなければ床に置く。posがnullなら消滅 */
 function _monDropWithSpring(pos, item, dg, ml) {
+  if (!pos) return;
   const spr = dg.springs?.find(s => s.x === pos.x && s.y === pos.y);
   if (spr) { soakItemIntoSpring(spr, { ...item, x: pos.x, y: pos.y }, ml, dg, it => it.name); }
   else { dg.items.push({ ...item, x: pos.x, y: pos.y }); }
