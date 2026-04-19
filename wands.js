@@ -1665,14 +1665,14 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 }
 
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
-export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null) {
+export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null, blessed = false) {
   pushMonsterBoltAnim(cx, cy, dx, dy, dg, pl, "lightning");
   for (let d = 1; d < MW + MH; d++) {
     const tx = cx + dx * d, ty = cy + dy * d;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       if (killerMon && !consumeBarrier(killerMon, ml)) {
-        const _wdmg = rng(15, 25);
+        const _wdmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
         killerMon.hp -= _wdmg;
         ml.push(`雷撃が壁に跳ね返り${killerMon.name}を直撃！${_wdmg}ダメージ！`);
         pushLightningAnim(killerMon.x, killerMon.y);
@@ -1704,7 +1704,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       }
       /* ゴムゴムの胴 / 万能耐性: 雷ダメージ半減・所持品破壊を防ぐ */
       const _hasLightRes = hasAbility(pl.armor, "lightning_resist") || hasAbility(pl.armor, "all_resist");
-      let dmg = rng(15, 25);
+      let dmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
       if (_hasLightRes) dmg = Math.max(1, Math.floor(dmg / 2));
       if (inCursedMagicSealRoom(pl.x, pl.y, dg)) dmg *= 2;
       pl.deathCause = `${monName}の雷撃により`;

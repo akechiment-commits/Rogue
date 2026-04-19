@@ -941,9 +941,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       monsterWandFn: (m, dx, dy) => {
         const _we = m.wandEffect || "lightning";
         if (_we === "lightning") {
-          ml.push(`${m.name}が雷の杖を振った！`);
+          const _lBlessed = (m.monLevel || 1) >= 3;
+          ml.push(_lBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
-            (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames), m);
+            (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames), m, _lBlessed);
         } else if (_we === "curse_wand") {
           ml.push(`${m.name}が呪いの杖を振った！`);
           pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "curse_wand");
