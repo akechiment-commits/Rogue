@@ -1211,6 +1211,39 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     /* intermediate monster */
     const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
     if (hitMon) {
+      /* reflector（ミラーゴーレム等）：矢を射手方向へ跳ね返す */
+      if (!_isPierce && hitMon.subtype === "reflector") {
+        ml.push(`${_arName}が${hitMon.name}に弾き返された！`);
+        let _rrx = tx, _rry = ty;
+        for (let _ri = 1; _ri <= 20; _ri++) {
+          const _rnx = _rrx - dx, _rny = _rry - dy;
+          if (_rnx < 0 || _rnx >= MW || _rny < 0 || _rny >= MH) break;
+          if (!isWalkable(dg.map, _rnx, _rny)) break;
+          if (_rnx === pl.x && _rny === pl.y) {
+            const _rrdmg = Math.max(1, m.atk + rng(-2, 2));
+            pl.hp -= _rrdmg;
+            pl.deathCause = `${hitMon.name}に跳ね返された${_arName}で`;
+            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_rrdmg}ダメージ！`);
+            return;
+          }
+          const _rrMon = dg.monsters.find(o => o.x === _rnx && o.y === _rny);
+          if (_rrMon) {
+            const _rrdmg = Math.max(1, m.atk + rng(-2, 2));
+            _rrMon.hp -= _rrdmg;
+            ml.push(`跳ね返された${_arName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
+            if (_rrMon.hp <= 0) {
+              ml.push(`${_rrMon.name}は倒れた！`);
+              opts.monsterDropFn?.(_rrMon, dg, ml);
+              removeMonster(dg, _rrMon);
+            }
+            _rrx = _rnx; _rry = _rny; break;
+          }
+          _rrx = _rnx; _rry = _rny;
+        }
+        const _rrd = safeArrowDrop(_rrx, _rry, dg);
+        _monDropWithSpring(_rrd, _makeAr(), dg, ml);
+        return;
+      }
       const dmg = Math.max(1, m.atk + rng(-2, 2));
       hitMon.hp -= dmg;
       ml.push(`${m.name}の${_arName}が${hitMon.name}に命中！${dmg}ダメージ！`);
