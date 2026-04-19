@@ -1488,31 +1488,6 @@ export function useItemActions({
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
           ml.push("魔方陣を描いた瞬間、テレポートした！");
         }
-        /* 雷の魔方陣：描いたそのターンにも即座に発動 */
-        if (it.effect === "thunder_trap") {
-          if (_isCursed) {
-            const _drawHeal = Math.min(25, p.maxHp - p.hp);
-            if (_drawHeal > 0) { p.hp += _drawHeal; ml.push(`描いた瞬間、癒しの力が湧き上がった！HPが${_drawHeal}回復！`); }
-          } else if (hasCursedExplosionPentacle(dg)) {
-            ml.push("呪われた爆発の魔方陣が雷を打ち消した！");
-          } else {
-            const _tdrawDmg = _isBlessed ? 50 : 25;
-            if (p.hp > 0) {
-              p.deathCause = `${_pName}の雷撃により`;
-              p.hp -= _tdrawDmg;
-              ml.push(`描いた瞬間、雷が落ちた！${_tdrawDmg}ダメージ！`);
-              applyLightningToInventory(p, dg, ml, lu,
-                (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames));
-            }
-            for (const _tm of [...dg.monsters]) {
-              if (_tm.x === p.x && _tm.y === p.y) {
-                _tm.hp -= _tdrawDmg;
-                ml.push(`${_pName}が${_tm.name}を打った！${_tdrawDmg}ダメージ！`);
-                if (_tm.hp <= 0) { trackMonster(_tm); killMonster(_tm, dg, p, ml, lu); }
-              }
-            }
-          }
-        }
         /* 重力の魔方陣：描いた瞬間の即時効果 */
         if (it.effect === "gravity") {
           if (_isCursed) {
