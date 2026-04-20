@@ -1219,7 +1219,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   /* it は gs 由来で sr.current と乖離している可能性があるため
                      dg3.items から同一IDのオブジェクトを取得して書き換える */
                   const _srItem = dg3.items.find(i2 => i2.id === it.id) || it;
-                  _srItem.shopPrice = _srItem.type === "gem" ? bp : itemPrice(_srItem);
+                  _srItem.shopPrice = _srItem.type === "gem" ? bp * 2 : itemPrice(_srItem);
                   if (_curSellSh) _srItem._shopId = _curSellSh.id;
                   const _dispName = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                   setMsgs((prev) => [
