@@ -1646,6 +1646,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const _subGens = [
     /* 矢 */         () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
     /* 杖 */         () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
+    /* 杖 x2 */      () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
     /* 魔法書 */     () => { const sb = pickWeighted(_SB_POOL); return { ...sb, id: uid() }; },
     /* 巻物 */       () => { const sc = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...sc, id: uid() }; },
     /* 巻物 x2 */    () => { const sc = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...sc, id: uid() }; },

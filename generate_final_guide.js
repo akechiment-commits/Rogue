@@ -22,6 +22,8 @@ function addSheet(name, data) {
 const _rarityMap = new Map();
 const _priceMap = new Map();
 for (const it of ITEMS) { _rarityMap.set(it.name, it.rarity); _priceMap.set(it.name, it.sellPrice); }
+for (const it of WANDS) { _rarityMap.set(it.name, it.rarity); _priceMap.set(it.name, it.sellPrice); }
+for (const it of RINGS) { _rarityMap.set(it.name, it.rarity); _priceMap.set(it.name, it.sellPrice); }
 
 // data配列の先頭行(ヘッダー)の末尾に 'rarity' を追加し、
 // 各行でcol[0]が空でない場合にrarity値を末尾に追加する
