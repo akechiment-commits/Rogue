@@ -1984,13 +1984,28 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* ===== バリア術師：非隣接かつバリアなし時に50%でバリアを張り直す ===== */
-  if (m.baseKind === "barriermage" && !m.barrier && !m.sealed) {
+  /* ===== バリア術師：非隣接時にバリアを張り直す／レベル2以上は隣接モンスターにも付与 ===== */
+  if (m.baseKind === "barriermage" && !m.sealed) {
     const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
-    if (!_adjPl && rng(0, 1) === 0) {
-      m.barrier = 1;
-      ml.push(`${m.name}がバリアを張り直した！（残り1回）`);
-      return;
+    if (!_adjPl) {
+      /* 自分のバリアが優先：なければ50%で張り直す */
+      if (!m.barrier && rng(0, 1) === 0) {
+        m.barrier = 1;
+        ml.push(`${m.name}がバリアを張り直した！（残り1回）`);
+        return;
+      }
+      /* レベル2以上かつ自分のバリアあり：バリアのない隣接モンスターに付与 */
+      if (m.monLevel >= 2 && m.barrier) {
+        const _adjTargets = dg.monsters.filter(o =>
+          o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1 && !o.barrier && !o.sealed
+        );
+        if (_adjTargets.length > 0) {
+          const _bt = _adjTargets[rng(0, _adjTargets.length - 1)];
+          _bt.barrier = 1;
+          ml.push(`${m.name}が${_bt.name}にバリアを付与した！`);
+          return;
+        }
+      }
     }
   }
 
