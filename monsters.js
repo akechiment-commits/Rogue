@@ -1266,11 +1266,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
             const _rrdmg = Math.max(1, m.atk + rng(-2, 2));
             _rrMon.hp -= _rrdmg;
             ml.push(`跳ね返された${_arName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
-            if (_rrMon.hp <= 0) {
-              ml.push(`${_rrMon.name}は倒れた！`);
-              opts.monsterDropFn?.(_rrMon, dg, ml);
-              removeMonster(dg, _rrMon);
-            }
+            if (_rrMon.hp <= 0) killMonster(_rrMon, dg, pl, ml, null, false, hitMon);
             _rrx = _rnx; _rry = _rny; break;
           }
           _rrx = _rnx; _rry = _rny;
@@ -2778,19 +2774,52 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             else dg.items.push({ ..._ibItem, x: _lx, y: _ly });
             return;
           }
+          /* reflector（ミラーゴーレム等）：弾かれたアイテムを投擲元方向へ跳ね返す */
+          let _ibMirrorMon = null;
+          if (_ibHitMon?.subtype === "reflector") {
+            _ibMirrorMon = _ibHitMon;
+            ml.push(`${_ibN}が${_ibMirrorMon.name}に弾き返された！`);
+            const _rrdx = -_ibdx, _rrdy = -_ibdy;
+            const _mirX = _lx, _mirY = _ly;
+            _ibHitMon = null; _ibHitSpring = null; _ibHitBB = null;
+            _lx = _mirX; _ly = _mirY;
+            for (let _ri = 1; _ri <= 10; _ri++) {
+              const _nx = _mirX + _rrdx * _ri, _ny = _mirY + _rrdy * _ri;
+              const _rrSpr = dg.springs?.find(s => s.x === _nx && s.y === _ny);
+              if (_rrSpr) { _ibHitSpring = _rrSpr; _lx = _nx; _ly = _ny; break; }
+              const _rrBb = dg.bigboxes?.find(b => b.x === _nx && b.y === _ny);
+              if (_rrBb) { _ibHitBB = _rrBb; _lx = _nx; _ly = _ny; break; }
+              if (!isWalkable(dg.map, _nx, _ny)) break;
+              _lx = _nx; _ly = _ny;
+              const _rrMon = dg.monsters.find(o => o !== _ibMirrorMon && o.x === _nx && o.y === _ny);
+              if (_rrMon) { _ibHitMon = _rrMon; break; }
+            }
+            if (_ibHitSpring) {
+              ml.push(`弾き返された${_ibN}が泉に落ちた！`);
+              soakItemIntoSpring(_ibHitSpring, { ..._ibItem, x: _lx, y: _ly }, ml, dg, it => it.name);
+              return;
+            }
+            if (_ibHitBB) {
+              ml.push(`弾き返された${_ibN}が${_ibHitBB.name}に入った！`);
+              if (opts.bbFn) opts.bbFn(_ibHitBB, _ibItem, dg, ml);
+              else dg.items.push({ ..._ibItem, x: _lx, y: _ly });
+              return;
+            }
+          }
+          const _ibKiller = _ibMirrorMon ?? m;
           /* アイテム種別ごとに既存の投擲命中ルールを適用 */
           if (_ibItem.type === "potion") {
             /* 薬：着地点でsplash（敵に当たっても同じ位置でsplash） */
             if (_ibHitMon) ml.push(`${m.name}に${_ibN}を弾かれ${_ibHitMon.name}に当たって割れた！`);
             else ml.push(`${m.name}に${_ibN}を弾かれた！薬が割れた！`);
-            splashPotion(dg, _lx, _ly, _ibItem.effect, _ibItem.value || 0, pl, ml, _luFn, false, false);
+            splashPotion(dg, _lx, _ly, _ibItem.effect, _ibItem.value || 0, pl, ml, _luFn, false, false, null, _ibKiller);
           } else if (_ibItem.type === "pot") {
             /* 壺：衝撃ダメージ（敵命中時）＋中身散乱 */
             if (_ibHitMon) {
               const _ibDmg = Math.max(1, 3 + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
               ml.push(`${m.name}に${_ibN}を弾かれ${_ibHitMon.name}に当たって割れた！${_ibDmg}ダメージ！`);
-              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, m);
+              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, _ibKiller);
             } else {
               ml.push(`${m.name}に${_ibN}を弾かれた！壺が割れた！`);
             }
@@ -2800,7 +2829,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             if (_ibHitMon) {
               const _ibWdx = Math.sign(_lx - pl.x), _ibWdy = Math.sign(_ly - pl.y);
               ml.push(`${m.name}が${_ibN}を弾いて${_ibHitMon.name}に当てた！`);
-              applyWandEffect(_ibItem.effect, "monster", _ibHitMon, _ibWdx, _ibWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null, 0, m);
+              applyWandEffect(_ibItem.effect, "monster", _ibHitMon, _ibWdx, _ibWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null, 0, _ibKiller);
             } else {
               ml.push(`${m.name}に${_ibN}を弾かれた！`);
               const _ibft = new Set();
@@ -2815,7 +2844,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
                   : 3) + rng(0, 3));
               _ibHitMon.hp -= _ibDmg;
               ml.push(`${m.name}が${_ibN}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！消滅した。`);
-              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, m);
+              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, _ibKiller);
             } else {
               ml.push(`${m.name}に${_ibN}を弾かれた！`);
               const _ibft = new Set();
