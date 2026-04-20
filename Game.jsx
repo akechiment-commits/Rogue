@@ -2666,7 +2666,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     const _stM = monsterAt(dg, _stLx, _stLy);
                     if (_stM && Math.random() < 0.90) {
-                      const _stDmg = (_srAr.atk || 3) + rng(0, 3);
+                      const _stDmg = calcProjectileDmg(p, _srAr.atk || 3, _stM.def);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                       _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
                       if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
@@ -2686,7 +2686,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
                       const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
                     } else {
-                      const _msDmg = (_srAr.atk || 5) + rng(0, 3);
+                      const _msDmg = calcProjectileDmg(p, _srAr.atk || 5, _msTarget.def);
                       _msTarget.hp -= _msDmg; ml.push(`${_arName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
                       _ad.damages.push({ type: "damage", x: _msTarget.x, y: _msTarget.y, value: _msDmg, color: "#cc88ff" });
                       if (_msTarget.hp <= 0) { _ad.damages.push({ type: "flash", x: _msTarget.x, y: _msTarget.y, color: "#ff2200", duration: 150 }); killMonster(_msTarget, dg, p, ml, lu, false); }
@@ -2706,7 +2706,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
                         const _baM = monsterAt(dg, _tx, _ty);
                         if (_baM) {
-                          const _baDmg = (_srAr.atk || 6) + rng(1, 4);
+                          const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
                           _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
                           _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
                           if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
@@ -2726,7 +2726,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     const _dropFn = () => _isPierce ? makePiercingArrow(1) : _isPoison ? makePoisonArrow(1) : makeArrow(1);
                     pushBoltAnim(p.x, p.y, dx, dy, dg, _arColor);
                     const _arMaxR = _srCursedFc ? 1 : _pierceMode ? 50 : 10;
-                    const _srDmg = (_srAr.atk || 4) + rng(1, 4);
                     let _srLx = p.x, _srLy = p.y, _srHit = false;
                     for (let _srd = 1; _srd <= _arMaxR; _srd++) {
                       const _srtx = p.x + dx * _srd, _srty = p.y + dy * _srd;
@@ -2738,6 +2737,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                           ml.push(`【射撃の指輪】${_arName}は${_srm.name}に外れた！`);
                           const _mft = new Set(); placeItemAt(dg, _srtx, _srty, _dropFn(), ml, _mft);
                         } else {
+                          const _srDmg = calcProjectileDmg(p, _srAr.atk || 3, _srm.def);
                           _srm.hp -= _srDmg;
                           if (_isPoison) {
                             if (_srm.isBoss) {
