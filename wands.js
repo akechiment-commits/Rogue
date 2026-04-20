@@ -1732,7 +1732,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
           if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
         }
       } else {
-        applyWandEffect("lightning", "monster", mon, dx, dy, dg, pl, ml, luFn, bbFn, 1, null, 0, killerMon);
+        applyWandEffect("lightning", "monster", mon, dx, dy, dg, pl, ml, luFn, bbFn, blessed ? 2 : 1, null, 0, killerMon);
       }
       return;
     }
