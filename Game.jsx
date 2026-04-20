@@ -4691,7 +4691,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {(p.rings || []).map((r, i) => (
           <span key={i} style={{ color: "#c0a0ff", fontSize: "0.85em" }}>
-            💍{["power_ring","defense_ring","life_ring"].includes(r.effect) ? `${r.name}+${r.plus || 0}` : r.name}
+            💍{["power_ring","defense_ring","life_ring"].includes(r.effect) && gs?.ident?.has(`r:${r.effect}`) ? `${r.name}+${r.plus || 0}` : dname(r)}
           </span>
         ))}{" "}
         {p.poisoned && (
