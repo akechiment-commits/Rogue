@@ -1218,7 +1218,6 @@ export function useItemActions({
               _sdBlasted.add(_sdit); ml.push(`薬「${_sdit.name}」が爆風で割れてなくなった！`);
             } else if (_sdit.type === "food") {
               if (!_sdit.cooked) { _sdit.value *= 2; cookFoodMeta(_sdit); _sdit.name = "焼いた" + _sdit.name; ml.push(`${_sdit.name}になった！`); }
-              else { burnFoodItem(_sdit, ml); }
             } else if (_sdit.type === "pot") {
               _sdBlasted.add(_sdit);
               if (_sdit.contents?.length > 0) {
