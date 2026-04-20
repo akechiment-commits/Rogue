@@ -1658,10 +1658,11 @@ export function useItemActions({
       if (p.arrow === it) { p.arrow = null; ml.push(`${it.name}を外した。`); }
       else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone) ? "個" : "本"})を装備した。`); }
     } else if (it.type === "ring") {
+      const _rdn = (r) => itemDisplayName(r, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       const equipped = (p.rings || []).some(r => r === it);
       if (equipped) {
         if (it.cursed) {
-          ml.push(`${it.name}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`);
+          ml.push(`${_rdn(it)}は呪われていて外せない！泉か強化の巻物で呪いを解こう。`);
         } else {
           p.rings = (p.rings || []).filter(r => r !== it);
           if (it.effect === "life_ring") {
@@ -1671,14 +1672,14 @@ export function useItemActions({
           }
           if (it.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
           if (it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
-          ml.push(`${it.name}を外した。`);
+          ml.push(`${_rdn(it)}を外した。`);
         }
       } else {
         if ((p.rings || []).length >= 2) {
           /* 最後に装備した指輪を外して新しいものを装備する */
           const _removed = p.rings[p.rings.length - 1];
           if (_removed.cursed) {
-            ml.push(`${_removed.name}は呪われていて外せない！指輪を装備できなかった。`);
+            ml.push(`${_rdn(_removed)}は呪われていて外せない！指輪を装備できなかった。`);
           } else {
             p.rings = p.rings.slice(0, p.rings.length - 1);
             if (_removed.effect === "life_ring") {
@@ -1688,7 +1689,7 @@ export function useItemActions({
             }
             if (_removed.blessed) { p.maxHp = Math.max(1, p.maxHp - 10); p.hp = Math.min(p.hp, p.maxHp); }
             if (_removed.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
-            ml.push(`${_removed.name}を外した。`);
+            ml.push(`${_rdn(_removed)}を外した。`);
             if (!p.rings) p.rings = [];
             p.rings.push(it);
             it.bcKnown = true;
@@ -1699,7 +1700,7 @@ export function useItemActions({
             }
             if (it.blessed) { p.maxHp += 10; p.hp += 10; }
             if (it.effect === "torch_ring") p.visionBonus = (p.visionBonus || 0) + 1;
-            ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+            ml.push(`${_rdn(it)}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
             if (it.effect === "explode_ring") {
               ml.push("指輪が爆発した！");
               const _rnFn2 = (gi) => gi.name;
@@ -1722,7 +1723,7 @@ export function useItemActions({
           }
           if (it.blessed) { p.maxHp += 10; p.hp += 10; }
           if (it.effect === "torch_ring") p.visionBonus = (p.visionBonus || 0) + 1;
-          ml.push(`${it.name}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
+          ml.push(`${_rdn(it)}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
           /* 爆発の指輪：装備時即爆発 */
           if (it.effect === "explode_ring") {
             ml.push("指輪が爆発した！");

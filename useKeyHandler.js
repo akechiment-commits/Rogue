@@ -592,11 +592,12 @@ export function useKeyHandler({
               const _rmIdx_tsf = _p_id.inventory.indexOf(_selIt);
               if (_rmIdx_tsf !== -1) {
                 _p_id.inventory.splice(_rmIdx_tsf, 1, _newIt);
-                // splice(idx, 1, newItem) は置換なので配列長は変わらず scrollIdx の調整不要
               }
-              _msgResult = identifyMode.blessed ? `${_selIt.name}が${_newIt.name}に変わった！【祝】`
-                         : identifyMode.cursed  ? `${_selIt.name}が${_newIt.name}に変わってしまった…【呪】`
-                                                : `${_selIt.name}が${_newIt.name}に変わった！`;
+              const _selDisp = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              const _newDisp = itemDisplayName(_newIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              _msgResult = identifyMode.blessed ? `${_selDisp}が${_newDisp}に変わった！【祝】`
+                         : identifyMode.cursed  ? `${_selDisp}が${_newDisp}に変わってしまった…【呪】`
+                                                : `${_selDisp}が${_newDisp}に変わった！`;
             } else { _msgResult = "変換できるアイテムがなかった。"; }
           } else if (identifyMode.mode === 'forge_item') {
             /* ===== 錬成の巻物 ===== */
