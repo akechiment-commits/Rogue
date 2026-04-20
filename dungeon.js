@@ -1605,10 +1605,10 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const traps = [];
   const occ = (x, y) =>
     inShop(x, y) || items.some((i) => i.x === x && i.y === y) || mons.some(m => m.x === x && m.y === y) || traps.some(t => t.x === x && t.y === y);
-  /* 初心者ダンジョンでは識別系アイテムを除外 */
+  /* 初心者ダンジョンでは識別系アイテムを除外。ペンは_itemCountループから除外（_penChance枠で管理） */
   const _ITEMS_POOL = dungeonType === "beginner"
-    ? ITEMS.filter(it => !(it.type === "scroll" && it.effect === "identify"))
-    : ITEMS;
+    ? ITEMS.filter(it => it.type !== "pen" && !(it.type === "scroll" && it.effect === "identify"))
+    : ITEMS.filter(it => it.type !== "pen");
   const _SB_POOL = dungeonType === "beginner"
     ? SPELLBOOKS.filter(sb => sb.spell !== "identify_magic")
     : SPELLBOOKS;
@@ -1644,14 +1644,17 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* サブアイテムをプール方式でランダム生成（系統ごとの上限なし・後で重み調整可） */
   const _subPoolSize = dungeonType === "advanced" || dungeonType === "legend" ? rng(2, 5) : dungeonType === "intermediate" ? rng(4, 7) : rng(4, 8);
   const _subGens = [
-    /* 矢 */       () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
-    /* 杖 */       () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
-    /* 杖 x2 */    () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
-    /* 魔法書 */   () => { const sb = pickWeighted(_SB_POOL); return { ...sb, id: uid() }; },
-    /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
-    /* 食料 x2 */  () => { const f = genFood(); return { ...f, id: uid() }; },
-    /* 壺 */       () => makePot(),
-    /* 魔法筆 */   () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }),
+    /* 矢 */         () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
+    /* 杖 */         () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
+    /* 魔法書 */     () => { const sb = pickWeighted(_SB_POOL); return { ...sb, id: uid() }; },
+    /* 巻物 */       () => { const sc = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...sc, id: uid() }; },
+    /* 巻物 x2 */    () => { const sc = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...sc, id: uid() }; },
+    /* 薬 */         () => { const pt = pickWeighted(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...pt, id: uid() }; },
+    /* 薬 x2 */      () => { const pt = pickWeighted(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...pt, id: uid() }; },
+    /* 食料 x2 */    () => { const f = genFood(); return { ...f, id: uid() }; },
+    /* 食料 x2 */    () => { const f = genFood(); return { ...f, id: uid() }; },
+    /* 壺 */         () => makePot(),
+    /* 魔法筆 */     () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }),
   ];
   for (let i = 0; i < _subPoolSize; i++) {
     const rm = pick(rooms);
