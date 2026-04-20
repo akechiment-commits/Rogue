@@ -2665,8 +2665,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     }
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     const _stM = monsterAt(dg, _stLx, _stLy);
-                    if (_stM && Math.random() < 0.90) {
-                      const _stDmg = calcProjectileDmg(p, _srAr.atk || 3, _stM.def);
+                    if (_stM && _stM.subtype === "reflector") {
+                      ml.push(`${_arName}が${_stM.name}に弾き返された！`);
+                      const _stRdx = Math.sign(p.x - _stLx), _stRdy = Math.sign(p.y - _stLy);
+                      let _stRx = _stLx, _stRy = _stLy, _stRHit = false;
+                      for (let _stri = 1; _stri <= 20; _stri++) {
+                        const _stNx = _stRx + _stRdx, _stNy = _stRy + _stRdy;
+                        if (_stNx < 0 || _stNx >= MW || _stNy < 0 || _stNy >= MH) break;
+                        if (dg.map[_stNy][_stNx] === T.WALL || dg.map[_stNy][_stNx] === T.BWALL) break;
+                        if (_stNx === p.x && _stNy === p.y) { _stRHit = true; break; }
+                        _stRx = _stNx; _stRy = _stNy;
+                      }
+                      if (_stRHit) {
+                        const _stRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
+                        p.hp -= _stRefDmg;
+                        ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_stRefDmg}ダメージ！消滅した。`);
+                      } else {
+                        const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft);
+                      }
+                    } else if (_stM && Math.random() < 0.90) {
+                      const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                       _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
                       if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
@@ -2686,7 +2704,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
                       const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
                     } else {
-                      const _msDmg = calcProjectileDmg(p, _srAr.atk || 5, _msTarget.def);
+                      const _msDmg = clampDmgFixed(_msTarget, calcProjectileDmg(p, _srAr.atk || 5, _msTarget.def), true);
                       _msTarget.hp -= _msDmg; ml.push(`${_arName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
                       _ad.damages.push({ type: "damage", x: _msTarget.x, y: _msTarget.y, value: _msDmg, color: "#cc88ff" });
                       if (_msTarget.hp <= 0) { _ad.damages.push({ type: "flash", x: _msTarget.x, y: _msTarget.y, color: "#ff2200", duration: 150 }); killMonster(_msTarget, dg, p, ml, lu, false); }
@@ -2733,11 +2751,35 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       if (!_pierceMode && (dg.map[_srty][_srtx] === T.WALL || dg.map[_srty][_srtx] === T.BWALL)) break;
                       const _srm = monsterAt(dg, _srtx, _srty);
                       if (_srm) {
-                        if (!_pierceMode && Math.random() >= 0.75) {
+                        if (!_pierceMode && _srm.subtype === "reflector") {
+                          ml.push(`${_arName}が${_srm.name}に弾き返された！`);
+                          const _srRdx = Math.sign(p.x - _srtx), _srRdy = Math.sign(p.y - _srty);
+                          let _srRx = _srtx, _srRy = _srty, _srRHit = false;
+                          for (let _srri = 1; _srri <= 20; _srri++) {
+                            const _srNx = _srRx + _srRdx, _srNy = _srRy + _srRdy;
+                            if (_srNx < 0 || _srNx >= MW || _srNy < 0 || _srNy >= MH) break;
+                            if (dg.map[_srNy][_srNx] === T.WALL || dg.map[_srNy][_srNx] === T.BWALL) break;
+                            if (_srNx === p.x && _srNy === p.y) { _srRHit = true; break; }
+                            _srRx = _srNx; _srRy = _srNy;
+                          }
+                          if (_srRHit) {
+                            const _srRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
+                            p.hp -= _srRefDmg;
+                            if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
+                              p.poisoned = true;
+                              ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_srRefDmg}ダメージ！毒を受けた！`);
+                            } else {
+                              ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_srRefDmg}ダメージ！消滅した。`);
+                            }
+                          } else if (_srRx !== _srtx || _srRy !== _srty) {
+                            const _srRft = new Set(); placeItemAt(dg, _srRx, _srRy, _dropFn(), ml, _srRft);
+                          }
+                          _srHit = true; break;
+                        } else if (!_pierceMode && Math.random() >= 0.75) {
                           ml.push(`【射撃の指輪】${_arName}は${_srm.name}に外れた！`);
                           const _mft = new Set(); placeItemAt(dg, _srtx, _srty, _dropFn(), ml, _mft);
                         } else {
-                          const _srDmg = calcProjectileDmg(p, _srAr.atk || 3, _srm.def);
+                          const _srDmg = clampDmgFixed(_srm, calcProjectileDmg(p, _srAr.atk || 3, _srm.def), true);
                           _srm.hp -= _srDmg;
                           if (_isPoison) {
                             if (_srm.isBoss) {
