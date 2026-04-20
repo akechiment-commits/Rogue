@@ -2568,7 +2568,7 @@ export function monsterDrop(m, dg, ml, p = null) {
   }
   /* ランナー（コロポックル等）：必ずアイテムを1つドロップ */
   if (m.subtype === "runner") {
-    const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS];
+    const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
     const _t = pick(_pool);
     const _di = { ..._t, id: uid() };
     if (_di.type === "pen")  _di.charges = rng(2, 3);
@@ -2577,7 +2577,7 @@ export function monsterDrop(m, dg, ml, p = null) {
   }
   /* 5% ランダムドロップ（一般モンスター） */
   if (Math.random() < 0.05) {
-    const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS];
+    const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
     const _t = pick(_pool);
     const _di = { ..._t, id: uid() };
     if (_di.type === "pen")  _di.charges = rng(2, 3);
