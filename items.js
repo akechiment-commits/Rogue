@@ -837,6 +837,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
         } else if (it.type === "food") {
           if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
           if (it.potEffect === "gunpowder") {
@@ -1001,6 +1002,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         _blasted.add(it); ml.push(`薬「${it.name}」が爆風で割れてなくなった！`);
       } else if (it.type === "food") {
         if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+        else { burnFoodItem(it, ml); }
       } else if (it.type === "pot") {
         _blasted.add(it);
         if (it.contents?.length > 0) {
@@ -1132,6 +1134,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
           blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
         } else if (it.type === "food") {
           if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
           if (it.contents?.length > 0) {
