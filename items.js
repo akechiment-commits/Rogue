@@ -435,7 +435,7 @@ export const POTS = [
   { name:"祝福の壺",           type:"pot", potEffect:"bless_pot", capacity:3, rarity:"S", weight:1,  sellPrice:9000, desc:"入れたアイテムを祝福する。",           tile:32 },
   { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"A", weight:8,  sellPrice:2000, desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"薬を入れると部屋中に薬効が広がる。\n生の食料を入れると焼いた状態になる。\nその他のものは保管できる。", tile:32 },
-  { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"B", weight:4,  sellPrice:700,  desc:"割れると周囲8マスを巻き込む爆発を起こす。\n炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化。\n中身は爆発で消える。", tile:32 },
+  { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"B", weight:4,  sellPrice:700,  desc:"割れると5×5マスを巻き込む大爆発を起こす。\n炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化。\n中身は爆発で消える。", tile:32 },
   { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。\n食べると被攻撃15%回避(80ターン)。\n割れると周囲に油飛散→油まみれで炎ダメ2倍。", tile:32 },
   { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。\n食べると会心率UP(80ターン)。\n割れると周囲に油飛散→油まみれで炎ダメ2倍。",         tile:32 },
   { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。\n食べると満腹度減少速度半減(100ターン)。\n割れると周囲に油飛散→油まみれで炎ダメ2倍。",         tile:32 },
@@ -925,7 +925,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
 }
 
-/** 火薬壺の爆発処理。中心＋周囲8マスを対象にする。連鎖爆発あり。 */
+/** 火薬壺の爆発処理。中心から半径2マス（5×5=25マス）を対象にする。連鎖爆発あり。 */
 let _gunpowderDepth = 0;
 export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺") {
   if (_gunpowderDepth > 5) return;
@@ -933,9 +933,9 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
   _gunpowderDepth++;
   try {
     pushExplosionAnim(cx, cy);
-    ml.push(`${srcLabel}が爆発した！周囲8マスに爆風！`);
-    for (let ddx = -1; ddx <= 1; ddx++) {
-      for (let ddy = -1; ddy <= 1; ddy++) {
+    ml.push(`${srcLabel}が爆発した！5×5マスに爆風！`);
+    for (let ddx = -2; ddx <= 2; ddx++) {
+      for (let ddy = -2; ddy <= 2; ddy++) {
         const ax = cx + ddx, ay = cy + ddy;
         if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
         /* 壁の破壊 */
