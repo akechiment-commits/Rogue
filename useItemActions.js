@@ -1207,6 +1207,50 @@ export function useItemActions({
               }
             }
           }
+          // 床アイテム処理（火薬壺は後で連鎖）
+          const _sdBlasted = new Set();
+          for (const _sdit of dg.items) {
+            if (Math.max(Math.abs(_sdit.x - p.x), Math.abs(_sdit.y - p.y)) > _sdR) continue;
+            if (_sdit.type === "pot" && _sdit.potEffect === "gunpowder") continue;
+            if (_sdit.type === "scroll" || _sdit.type === "spellbook") {
+              _sdBlasted.add(_sdit); ml.push(`巻物「${_sdit.name}」が爆風で燃えてなくなった！`);
+            } else if (_sdit.type === "potion") {
+              _sdBlasted.add(_sdit); ml.push(`薬「${_sdit.name}」が爆風で割れてなくなった！`);
+            } else if (_sdit.type === "food") {
+              if (!_sdit.cooked) { _sdit.value *= 2; cookFoodMeta(_sdit); _sdit.name = "焼いた" + _sdit.name; ml.push(`${_sdit.name}になった！`); }
+              else { burnFoodItem(_sdit, ml); _sdBlasted.add(_sdit); }
+            } else if (_sdit.type === "pot") {
+              _sdBlasted.add(_sdit);
+              if (_sdit.contents?.length > 0) {
+                const _sdft = new Set();
+                for (const ci of _sdit.contents) placeItemAt(dg, _sdit.x, _sdit.y, ci, ml, _sdft);
+                ml.push(`壺「${_sdit.name}」が爆発で割れ、中身が飛び出した！`);
+              } else { ml.push(`壺「${_sdit.name}」が爆発で割れた！`); }
+            }
+          }
+          if (_sdBlasted.size > 0) dg.items = dg.items.filter(i => !_sdBlasted.has(i));
+          // 大箱破壊
+          const _sdBlastedBB = (dg.bigboxes || []).filter(b => Math.max(Math.abs(b.x - p.x), Math.abs(b.y - p.y)) <= _sdR);
+          for (const _sbb of _sdBlastedBB) {
+            ml.push(`${_sbb.name}が爆発で壊れた！`);
+            const _sdbbft = new Set();
+            for (const ci of (_sbb.contents || [])) placeItemAt(dg, _sbb.x, _sbb.y, ci, ml, _sdbbft);
+          }
+          if (_sdBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_sdBlastedBB.includes(b));
+          // 連鎖爆発（範囲内の床上火薬壺）
+          const _sdChainPots = dg.items.filter(_ci => _ci.type === "pot" && _ci.potEffect === "gunpowder" && Math.max(Math.abs(_ci.x - p.x), Math.abs(_ci.y - p.y)) <= _sdR);
+          if (_sdChainPots.length > 0) {
+            dg.items = dg.items.filter(i => !_sdChainPots.includes(i));
+            for (const _scp of _sdChainPots) doGunpowderExplosion(_scp.x, _scp.y, dg, p, ml, lu);
+          }
+          // 魔方陣消滅
+          if (dg.pentacles?.length > 0) {
+            const _sdPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - p.x), Math.abs(pc.y - p.y)) <= _sdR);
+            if (_sdPcs.length > 0) {
+              dg.pentacles = dg.pentacles.filter(pc => !_sdPcs.includes(pc));
+              for (const _spc of _sdPcs) ml.push(`爆発で${_spc.name}が消えた！`);
+            }
+          }
           // プレイヤーへのダメージ（爆発範囲は常に自分を含む）
           const _sdFireR = hasAbility(p.armor, "fire_resist") || hasAbility(p.armor, "all_resist");
           p.deathCause = "自爆の巻物により";
