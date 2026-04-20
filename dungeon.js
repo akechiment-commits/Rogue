@@ -300,6 +300,18 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
     items.push(it);
     placed++;
   }
+  /* 収納上手の巻物（30%で追加配置） */
+  if (Math.random() < 0.30) {
+    const _expSc = ITEMS.find(i => i.effect === "expand_inv");
+    if (_expSc) {
+      for (let a = 0; a < 40; a++) {
+        const [ix, iy] = pick(floorTiles);
+        if (allOcc(ix, iy)) continue;
+        items.push({ ..._expSc, id: uid(), x: ix, y: iy });
+        break;
+      }
+    }
+  }
   /* 大箱 (50%) */
   if (Math.random() < 0.5) {
     for (let a = 0; a < 40; a++) {
