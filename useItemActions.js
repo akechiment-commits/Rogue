@@ -1192,8 +1192,16 @@ export function useItemActions({
               for (const _m of dg.monsters.filter(mm => mm.x === _ax && mm.y === _ay)) {
                 if (_sdKilled.has(_m) || _m.hp <= 0) continue;
                 if (_m.baseKind === "firedemon") { ml.push(`${_m.name}には爆発が効かない！（炎無効）`); continue; }
-                _sdKilled.add(_m);
                 pushExplosionAnim(_ax, _ay);
+                if (_m.isBoss) {
+                  const _sdBd = Math.max(1, Math.floor(_m.hp / 4));
+                  _m.hp -= _sdBd;
+                  ml.push(`爆発で${_m.name}は${_sdBd}ダメージ！`);
+                  if (_m.hp <= 0) { _sdKilled.add(_m); trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
+                  continue;
+                }
+                _m.hp = 0;
+                _sdKilled.add(_m);
                 trackMonster(_m);
                 killMonster(_m, dg, p, ml, lu);
               }
