@@ -903,6 +903,7 @@ export function useItemActions({
           }
           for (const _m of _tTargets) {
             if (_m.hp <= 0) continue;
+            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               let _rdmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
               if (inCursedMagicSealRoom(p.x, p.y, dg)) _rdmg *= 2;
@@ -939,6 +940,7 @@ export function useItemActions({
           ml.push(`呪いのエネルギーが爆発した！${_rdmg}ダメージ！【呪】`);
           pushExplosionAnim(p.x, p.y);
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               const _refC = Math.min(_rdmg, p.maxHp - p.hp);
               if (_refC > 0) { p.hp += _refC; ml.push(`${_m.name}がエネルギーを跳ね返した！HP+${_refC}！`); pushHealAnim(p.x, p.y); }
@@ -963,6 +965,7 @@ export function useItemActions({
           pushHealAnim(p.x, p.y);
           ml.push(`体が癒された！HP+${_ra}${it.blessed ? "【祝】" : ""}`);
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               const _refN = Math.min(_rh, p.maxHp - p.hp);
               if (_refN > 0) { p.hp += _refN; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refN}！`); pushHealAnim(p.x, p.y); }
@@ -1067,6 +1070,7 @@ export function useItemActions({
           if ((p.statusImmune || 0) > 0) ml.push("眠気が辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
           else { p.sleepTurns = (p.sleepTurns || 0) + _pst; ml.push(`眠気が辺りを包んだ！${_pst}ターン眠ってしまう…【呪】`); }
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
               p.sleepTurns = (p.sleepTurns || 0) + _pst;
@@ -1085,7 +1089,8 @@ export function useItemActions({
             ml.push(it.blessed ? "眠気が漂うが、フロアに敵はいない。【祝】" : "眠気が漂うが、視界に敵はいない。");
           } else {
             for (const _m of _sSleep) {
-              if (_m.subtype === "magicreflect") {
+              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.sleepTurns = (p.sleepTurns || 0) + _st;
                 ml.push(`${_m.name}が眠りを跳ね返した！${_st}ターン眠ってしまう…`); continue;
@@ -1103,6 +1108,7 @@ export function useItemActions({
           if ((p.statusImmune || 0) > 0) ml.push("混乱ガスが辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
           else { p.confusedTurns = (p.confusedTurns || 0) + 5; ml.push("混乱ガスが辺りを包んだ！5ターン混乱する…【呪】"); }
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
               p.confusedTurns = (p.confusedTurns || 0) + 10;
@@ -1119,7 +1125,8 @@ export function useItemActions({
           if (_cfTgts.length === 0) { ml.push(it.blessed ? "混乱ガスが漂うが、フロアに敵はいない。【祝】" : "混乱ガスが漂うが、視界に敵はいない。"); }
           else {
             for (const _m of _cfTgts) {
-              if (_m.subtype === "magicreflect") {
+              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.confusedTurns = (p.confusedTurns || 0) + _ct;
                 ml.push(`${_m.name}が混乱を跳ね返した！${_ct}ターン混乱する…`); continue;
@@ -1138,6 +1145,7 @@ export function useItemActions({
         else {
           for (const _m of _flTgts) {
             if (_m.hp <= 0) continue;
+            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               const _refFlDmg = Math.max(1, Math.round(rng(15, 25) * _scrBm));
               p.hp -= _refFlDmg; p.deathCause = `${_m.name}に炎を跳ね返されて`;
@@ -1174,7 +1182,8 @@ export function useItemActions({
           if (_dbTgts.length === 0) { ml.push("視界に敵はいない。"); }
           else {
             for (const _m of _dbTgts) {
-              if (_m.subtype === "magicreflect") {
+              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (_m.subtype === "magicreflect") {
                 // 反射：自分に攻撃力半減・防御力半減デバフ
                 p.atkDebuffTurns = Math.max(p.atkDebuffTurns || 0, 50);
                 p.defDebuffTurns = Math.max(p.defDebuffTurns || 0, 50);
@@ -1249,7 +1258,8 @@ export function useItemActions({
           if (_btTgts.length === 0) { ml.push(it.blessed ? "視界に敵はいない。" : "周囲に敵はいない。"); }
           else {
             for (const _m of _btTgts) {
-              if (_m.subtype === "magicreflect") {
+              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+            if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が金縛りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "paralyze_proof")) { ml.push(`${_m.name}が金縛りを跳ね返したが、防具が防いだ！`); continue; }
                 const _rt = rng(4, 7); p.paralyzeTurns = (p.paralyzeTurns || 0) + _rt;

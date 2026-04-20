@@ -19,6 +19,8 @@ import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from '
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null) {
   if (kind === "monster") {
     wakeIfDormant(target, ml);
+    /* 魔法無効（キラープラスター等）：杖の魔法弾を完全無効化 */
+    if (target.magicImmune) { ml.push(`魔法は${target.name}に効かない！`); return; }
     /* バリア術師：近接以外の全効果（杖・状態異常・爆発等）を1回分無効化 */
     if (consumeBarrier(target, ml)) return;
   }
