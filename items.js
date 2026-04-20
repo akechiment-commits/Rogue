@@ -218,6 +218,8 @@ export const ITEMS = [
     desc:"最大所持数が1～3増える。\n祝福：2～6増える。呪い：1～3減る。", tile:18 },
   { name:"罠の巻物", type:"scroll", effect:"trap_scatter",        rarity:"D", weight:12, sellPrice:30,
     desc:"読むと同じフロアの部屋内に大量の罠が出現する。\n祝福：さらに多く出現。呪い：フロア内の全ての罠が消える。", tile:18 },
+  { name:"自爆の巻物", type:"scroll", effect:"self_destruct",      rarity:"B", weight:4,  sellPrice:700,
+    desc:"自分と周囲8マスに爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ半減。\n祝福：爆発範囲が5×5に拡大。\n呪い：爆発は起きず自分のHPが全回復する。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"A", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"C", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },

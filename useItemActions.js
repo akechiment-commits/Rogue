@@ -1171,6 +1171,46 @@ export function useItemActions({
           p.hp -= _flSelfDmg; p.deathCause = "呪われた炎の巻物で";
           ml.push(`呪われた炎が爆発した！${_flSelfDmg}ダメージ！【呪】`); pushExplosionAnim(p.x, p.y);
         }
+      } else if (it.effect === "self_destruct") {
+        if (it.cursed) {
+          // 呪い：爆発なし、自分のHPが全回復
+          const _sdHeal = p.maxHp - p.hp;
+          p.hp = p.maxHp;
+          ml.push(_sdHeal > 0 ? `爆発は起きず、呪いの力が体を癒した！HP+${_sdHeal}！【呪】` : `爆発は起きず、呪いの力が辺りを包んだ…HPは既に満タンだ。【呪】`);
+          pushHealAnim(p.x, p.y);
+        } else {
+          // 通常/祝福：爆発
+          const _sdR = it.blessed ? 2 : 1;
+          ml.push(it.blessed ? `自爆！中心から2マス（5×5）に大爆発！【祝】` : `自爆！周囲8マスに爆発が起きた！`);
+          pushExplosionAnim(p.x, p.y);
+          const _sdKilled = new Set();
+          for (let _ddx = -_sdR; _ddx <= _sdR; _ddx++) {
+            for (let _ddy = -_sdR; _ddy <= _sdR; _ddy++) {
+              const _ax = p.x + _ddx, _ay = p.y + _ddy;
+              if (_ax < 0 || _ax >= MW || _ay < 0 || _ay >= MH) continue;
+              if (dg.map[_ay][_ax] === T.WALL || dg.map[_ay][_ax] === T.BWALL) continue;
+              for (const _m of dg.monsters.filter(mm => mm.x === _ax && mm.y === _ay)) {
+                if (_sdKilled.has(_m) || _m.hp <= 0) continue;
+                if (_m.baseKind === "firedemon") { ml.push(`${_m.name}には爆発が効かない！（炎無効）`); continue; }
+                _sdKilled.add(_m);
+                pushExplosionAnim(_ax, _ay);
+                trackMonster(_m);
+                killMonster(_m, dg, p, ml, lu);
+              }
+            }
+          }
+          // プレイヤーへのダメージ（爆発範囲は常に自分を含む）
+          const _sdFireR = hasAbility(p.armor, "fire_resist") || hasAbility(p.armor, "all_resist");
+          p.deathCause = "自爆の巻物により";
+          if (_sdFireR) {
+            const _sdDmg = Math.max(1, Math.floor(p.hp / 2));
+            p.hp -= _sdDmg;
+            ml.push(`爆発が自分を直撃！${_sdDmg}ダメージ！（炎耐性で半減）`);
+          } else {
+            p.hp = 1;
+            ml.push(`爆発が自分を直撃！HPが1になった！`);
+          }
+        }
       } else if (it.effect === "debuff") {
         if (it.cursed) {
           // 呪い：自分に攻撃力半減・防御力半減デバフ50ターン
