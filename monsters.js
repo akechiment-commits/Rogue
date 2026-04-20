@@ -178,6 +178,37 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
       else dg.items.push({ ..._potItem, x: _cx, y: _cy });
       return;
     }
+    /* reflector（ミラーゴーレム等）：薬瓶を投擲元へ跳ね返す（飛沫は反射しない） */
+    const _mirrorMon = dg.monsters.find(o => o.x === _cx && o.y === _cy && o.subtype === "reflector");
+    if (_mirrorMon) {
+      ml.push(`薬瓶が${_mirrorMon.name}に弾き返された！`);
+      const _rrdx = -_ptdx, _rrdy = -_ptdy;
+      let _rrx = _cx + _rrdx, _rry = _cy + _rrdy;
+      let _splX = _cx, _splY = _cy;
+      for (let _ri = 0; _ri < 20; _ri++) {
+        if (_rrx < 0 || _rrx >= MW || _rry < 0 || _rry >= MH) break;
+        if (dg.map[_rry][_rrx] === T.WALL || dg.map[_rry][_rrx] === T.BWALL) break;
+        const _rrSpr = dg.springs?.find(s => s.x === _rrx && s.y === _rry);
+        if (_rrSpr) {
+          const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
+          soakItemIntoSpring(_rrSpr, { ..._potItem, x: _rrx, y: _rry }, ml, dg, it => it.name);
+          return;
+        }
+        const _rrBb = dg.bigboxes?.find(b => b.x === _rrx && b.y === _rry);
+        if (_rrBb) {
+          const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
+          if (bbFn) bbFn(_rrBb, _potItem, dg, ml);
+          else dg.items.push({ ..._potItem, x: _rrx, y: _rry });
+          return;
+        }
+        _splX = _rrx; _splY = _rry;
+        if (_rrx === m.x && _rry === m.y) break;
+        if (dg.monsters.find(o => o !== _mirrorMon && o.x === _rrx && o.y === _rry)) break;
+        _rrx += _rrdx; _rry += _rrdy;
+      }
+      splashPotion(dg, _splX, _splY, _pot.effect, _pot.value, pl, ml, null, false, false, null, _mirrorMon);
+      return;
+    }
     if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
         dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL) break;
     _cx += _ptdx; _cy += _ptdy;
