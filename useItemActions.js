@@ -2602,7 +2602,7 @@ export function useItemActions({
               const _arTrap = dg.traps.find(t => t.x === tx && t.y === ty);
               if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
               break;
-            } else if (m.baseKind === "gelcube") {
+            } else if (m.baseKind === "gelcube" && !_arPierceMode) {
               m.heldItems = m.heldItems || [];
               m.heldItems.push(_arDropItem());
               if (!m._gelBaseAtk) m._gelBaseAtk = m.atk;

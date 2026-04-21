@@ -1283,7 +1283,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         _monDropWithSpring(_rrd, _makeAr(), dg, ml);
         return;
       }
-      if (hitMon.baseKind === "gelcube") {
+      if (hitMon.baseKind === "gelcube" && !_isPierce && !_isFc) {
         hitMon.heldItems = hitMon.heldItems || [];
         hitMon.heldItems.push(_makeAr());
         if (!hitMon._gelBaseAtk) hitMon._gelBaseAtk = hitMon.atk;
