@@ -1283,6 +1283,15 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
         _monDropWithSpring(_rrd, _makeAr(), dg, ml);
         return;
       }
+      if (hitMon.baseKind === "gelcube") {
+        hitMon.heldItems = hitMon.heldItems || [];
+        hitMon.heldItems.push(_makeAr());
+        if (!hitMon._gelBaseAtk) hitMon._gelBaseAtk = hitMon.atk;
+        hitMon._gelBoost = Math.min(10, (hitMon._gelBoost || 1) * 1.2);
+        hitMon.atk = Math.round(hitMon._gelBaseAtk * hitMon._gelBoost);
+        ml.push(`${m.name}の${_arName}が${hitMon.name}に飲み込まれた！（攻撃力×${hitMon._gelBoost.toFixed(2)}→${hitMon.atk}）`);
+        return;
+      }
       const dmg = Math.max(1, m.atk + rng(-2, 2));
       hitMon.hp -= dmg;
       ml.push(`${m.name}の${_arName}が${hitMon.name}に命中！${dmg}ダメージ！`);

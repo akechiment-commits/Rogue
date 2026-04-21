@@ -2354,6 +2354,13 @@ export function useItemActions({
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
                 const _msft = new Set();
                 withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft));
+              } else if (_msTarget.baseKind === "gelcube") {
+                _msTarget.heldItems = _msTarget.heldItems || [];
+                _msTarget.heldItems.push(makeMagicStone(1));
+                if (!_msTarget._gelBaseAtk) _msTarget._gelBaseAtk = _msTarget.atk;
+                _msTarget._gelBoost = Math.min(10, (_msTarget._gelBoost || 1) * 1.2);
+                _msTarget.atk = Math.round(_msTarget._gelBaseAtk * _msTarget._gelBoost);
+                ml.push(`${_stName}が${_msTarget.name}に飲み込まれた！（攻撃力×${_msTarget._gelBoost.toFixed(2)}→${_msTarget.atk}）`);
               } else {
                 _msTarget.hp -= _msDmg;
                 ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
@@ -2406,6 +2413,13 @@ export function useItemActions({
                   const _stRft = new Set();
                   withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft));
                 }
+              } else if (_stM.baseKind === "gelcube") {
+              _stM.heldItems = _stM.heldItems || [];
+              _stM.heldItems.push(makeStone(1));
+              if (!_stM._gelBaseAtk) _stM._gelBaseAtk = _stM.atk;
+              _stM._gelBoost = Math.min(10, (_stM._gelBoost || 1) * 1.2);
+              _stM.atk = Math.round(_stM._gelBaseAtk * _stM._gelBoost);
+              ml.push(`${_stName}が${_stM.name}に飲み込まれた！（攻撃力×${_stM._gelBoost.toFixed(2)}→${_stM.atk}）`);
               } else {
               const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
               const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (!_stSureHit && !(_stDodgePcMode === "sure") && Math.random() >= 0.90));
@@ -2588,6 +2602,14 @@ export function useItemActions({
               const _arTrap = dg.traps.find(t => t.x === tx && t.y === ty);
               if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
               break;
+            } else if (m.baseKind === "gelcube") {
+              m.heldItems = m.heldItems || [];
+              m.heldItems.push(_arDropItem());
+              if (!m._gelBaseAtk) m._gelBaseAtk = m.atk;
+              m._gelBoost = Math.min(10, (m._gelBoost || 1) * 1.2);
+              m.atk = Math.round(m._gelBaseAtk * m._gelBoost);
+              ml.push(`${_arName}が${m.name}に飲み込まれた！（攻撃力×${m._gelBoost.toFixed(2)}→${m.atk}）`);
+              hit = true; break;
             } else {
               const dmg = calcProjectileDmg(p, _arBaseAtk, m.def);
               m.hp -= dmg;
