@@ -1936,7 +1936,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             if (_stTargets.length > 0) {
               const _stTgt = pick(_stTargets);
               const _baseDmg = rng(5, 10);
-              if (_pc.cursed) {
+              const _stTgtX = _stTgt.kind === "player" ? p.x : _stTgt.m.x;
+              const _stTgtY = _stTgt.kind === "player" ? p.y : _stTgt.m.y;
+              /* みかわしの魔方陣：呪い以外で回避判定 */
+              const _stHasDodge = !_pc.cursed && _dg2.pentacles?.some(pc => {
+                if (pc.kind !== "dodge" || pc.cursed) return false;
+                if (pc.blessed) return true;
+                const _dPcRoom = findRoom(_dg2.rooms, pc.x, pc.y);
+                return _dPcRoom && findRoom(_dg2.rooms, _stTgtX, _stTgtY) === _dPcRoom;
+              });
+              if (_stHasDodge) {
+                const _dodgeName = _stTgt.kind === "player" ? "プレイヤー" : _stTgt.m.name;
+                ml.push(`みかわしの魔方陣の加護で${_dodgeName}が${_pc.name}の魔法の石をかわした！魔法の石が足元に落ちた。`);
+                placeItemAt(_dg2, _stTgtX, _stTgtY, makeMagicStone(1), ml, new Set());
+              } else if (_pc.cursed) {
                 /* 呪い：回復効果 */
                 if (_stTgt.kind === "player") {
                   const _heal = Math.min(_baseDmg, p.maxHp - p.hp);
