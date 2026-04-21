@@ -567,10 +567,10 @@ export const MONS = [
       { name: "覇ボムスライム",     hp: 95,  atk: 29, def: 5,  exp: 138 },
     ],
   },
-  { name: "爆弾ゴブリン", hp: 1,   atk: 14, def: 0,  exp: 60,  speed: 2,   tile: 8,  kind: "humanoid", baseKind: "bombgoblin",    monLevel: 1, minFloor: 12, maxFloor: 26, subtype: "kamikaze", dungeonFloors: { intermediate: { min: 13, max: 18 } },
+  { name: "爆弾ゴブリン", hp: 28,  atk: 12, def: 0,  exp: 60,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "bombgoblin",    monLevel: 1, minFloor: 12, maxFloor: 26, subtype: "kamikaze", dungeonFloors: { intermediate: { min: 13, max: 18 } },
     levels: [
-      { name: "強爆弾ゴブリン",     hp: 1,   atk: 22, def: 0,  exp: 96  },
-      { name: "自爆狂",             hp: 1,   atk: 29, def: 0,  exp: 150 },
+      { name: "強爆弾ゴブリン",     hp: 48,  atk: 18, def: 2,  exp: 96,  speed: 1 },
+      { name: "自爆狂",             hp: 75,  atk: 24, def: 4,  exp: 150 },
     ],
   },
   { name: "水晶スライム", hp: 5,   atk: 18, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, elemWeak: "fire", fixedDamageOnly: true, dungeonFloors: { intermediate: { min: 13, max: 18 } },
@@ -1956,13 +1956,22 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* ===== 爆弾ゴブリン：プレイヤーに隣接すると自爆 ===== */
+  /* ===== 爆弾ゴブリン：プレイヤーに隣接すると確率で自爆、失敗時は通常攻撃 ===== */
   if (m.subtype === "kamikaze" && !m.sealed && !_moveOnly) {
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
-      const _kzX = m.x, _kzY = m.y, _kzName = m.name;
-      m.hp = 0; // speed:2による2回目の呼び出しを防ぐ
-      killMonster(m, dg, pl, ml, _luFn, true); // 自爆→経験値なし
-      doExplosion(_kzX, _kzY, dg, pl, ml, null, `${_kzName}の自爆`, null, _luFn, false, true, true, true);
+      const _kzChance = (m.monLevel || 1) >= 2 ? 0.50 : 0.25;
+      if (m.turnAttacks < (m.maxAttacks ?? 1) && Math.random() < _kzChance) {
+        m.turnAttacks++;
+        const _kzX = m.x, _kzY = m.y, _kzName = m.name;
+        m.hp = 0;
+        killMonster(m, dg, pl, ml, _luFn, true);
+        doExplosion(_kzX, _kzY, dg, pl, ml, null, `${_kzName}の自爆`, null, _luFn, false, true, true, true);
+        return;
+      }
+      if (m.turnAttacks < (m.maxAttacks ?? 1)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      }
       return;
     }
   }
