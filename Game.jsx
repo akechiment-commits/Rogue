@@ -2505,9 +2505,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
               let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)));
               if ((p.garlicDmgTurns || 0) > 0) ap += 5;
-              const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
-              const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
-              if (_isBane) ap = Math.floor(ap * 1.5);
+              const _getBaneMult = (a) => {
+                if (!a?.startsWith("bane_")) return 0;
+                const _isSuper = a.endsWith("_2");
+                const _kind = _isSuper ? a.slice(5, -2) : a.slice(5);
+                const _hit = _kind === "float" ? attackMon.float : attackMon.kind === _kind;
+                return _hit ? (_isSuper ? 2.0 : 1.5) : 0;
+              };
+              const _baneMult = Math.max(_getBaneMult(wab), ...((p.weapon?.abilities || []).map(a => _getBaneMult(a))));
+              const _isBane = _baneMult > 1;
+              if (_isBane) ap = Math.floor(ap * _baneMult);
               let d = Math.max(1, Math.floor(ap * ap / (ap + attackMon.def)) + rng(-2, 2));
               if (p.weapon?.blessed) d += 3;
               let crit = false;
@@ -2580,7 +2587,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
               const atkSfx =
                 (crit ? "会心！" : "") +
-                (_isBane ? "特効！" : "") +
+                (_isBane ? (_baneMult >= 2 ? "上位特効！" : "特効！") : "") +
                 (_hasFireElem && attackMon.baseKind === "firedemon" ? "（炎半減）" : "") +
                 (_hasFireElem && attackMon.elemWeak === "fire" ? "炎×2！" : "") +
                 (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
@@ -3704,7 +3711,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ),
         ),
       ];
-      const _mabs = [...new Set([..._toAA(base), ..._toAA(mat)])];
+      const _mabsRaw = [...new Set([..._toAA(base), ..._toAA(mat)])];
+      /* 上位特効と通常特効が同時にある場合、通常を除去して上位だけ残す */
+      const _superBanePairs = [["bane_undead", "bane_undead_2"]];
+      const _mabs = _mabsRaw.filter(a => !_superBanePairs.some(([n, s]) => a === n && _mabsRaw.includes(s)));
       const merged = {
         ...base,
         id: uid(),
@@ -3749,7 +3759,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！三属性の耐性が融合して元素王の鎧に変化した！`);
       /* 三種キラー：竜・不死・浮遊特効をすべて持つなら全能キラーに変化 */
-      } else if (merged.type === "weapon" && _mabs.includes("bane_dragon") && _mabs.includes("bane_undead") && _mabs.includes("bane_float")) {
+      } else if (merged.type === "weapon" && _mabs.includes("bane_dragon") && (_mabs.includes("bane_undead") || _mabs.includes("bane_undead_2")) && _mabs.includes("bane_float")) {
         const _abAbs = [...new Set([..._mabs, ...ALLBANE_SWORD_T.abilities])];
         const _allBane = { ...ALLBANE_SWORD_T, id: uid(), plus: merged.plus, ability: _abAbs[0], abilities: _abAbs };
         bb.contents.push(_allBane);
