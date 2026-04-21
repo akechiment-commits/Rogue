@@ -126,7 +126,9 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
       if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
       _iBlock.hp -= _iDmg;
       const _iSlow = rng(3, 5);
-      _iBlock.slowTurns = (_iBlock.slowTurns || 0) + _iSlow;
+      if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
+      _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
+      if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow * 2;
       ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}鈍足${_iSlow}ターン！`);
       if (_iBlock.hp <= 0) {
         killMonster(_iBlock, dg, pl, ml, null, false, m);
