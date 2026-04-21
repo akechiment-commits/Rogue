@@ -2515,9 +2515,11 @@ export function monsterDrop(m, dg, ml, p = null) {
         { ...pick(_rPool.length ? _rPool : RINGS), id: uid() },
         ml, _ft, 0, p);
     }
-    /* 収納上手の巻物（全ティア確定） */
-    const _expandScroll = ITEMS.find(i => i.effect === "expand_inv");
-    if (_expandScroll) placeItemAt(dg, m.x, m.y, { ..._expandScroll, id: uid() }, ml, _ft, 0, p);
+    /* 収納上手の巻物（tier1=5階ボスのみ確定） */
+    if (_tier === 1) {
+      const _expandScroll = ITEMS.find(i => i.effect === "expand_inv");
+      if (_expandScroll) placeItemAt(dg, m.x, m.y, { ..._expandScroll, id: uid() }, ml, _ft, 0, p);
+    }
     ml.push(`★ ${m.name}を倒した！豪華な戦利品が現れた！`);
     return;
   }
