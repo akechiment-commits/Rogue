@@ -184,7 +184,7 @@ export const ITEMS = [
   { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"B", weight:4,  sellPrice:1500, desc:"雷属性の剣。氷・水系の敵（氷竜・わてり等）に1.5倍ダメージ。3本合成で千鳥に変化。",             tile:20 },
   { name:"グラットンソード", type:"weapon", atk:7,  ability:"def_bonus",     rarity:"B", weight:4,  sellPrice:1800, desc:"装備中は防御力が5上がる重厚な剣。",                                   tile:20 },
   { name:"革の鎧",           type:"armor",  def:2,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
-  { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"C", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。",                   tile:21 },
+  { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"C", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。3枚合成でミスリルの胴着に変化。", tile:21 },
   { name:"プレートメイル",   type:"armor",  def:8,                       rarity:"B", weight:4,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
   { name:"腹持ちの胴",       type:"armor",  def:3,  ability:"slow_hunger",   rarity:"B", weight:4,  sellPrice:1500, desc:"装備すると空腹の進行が半分になる特製の胴鎧。",    tile:21 },
   { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"B", weight:4, sellPrice:1000, desc:"雷ダメージを半減し、雷によるアイテム破壊を防ぐ。", tile:21 },
@@ -243,7 +243,8 @@ export const FLAMBERGE_T    = { name:"フランベルジュ", type:"weapon", atk
 export const ICESWORD_T     = { name:"アイスソード",   type:"weapon", atk:13, ability:"ice_elem_2",     desc:"氷の剣3本の合成。炎系の敵に2倍ダメージ（上位特効）。", tile:20 };
 export const CHIDORI_T      = { name:"千鳥",           type:"weapon", atk:13, ability:"thunder_elem_2", desc:"雷の剣3本の合成。氷・水系の敵に2倍ダメージ（上位特効）。", tile:20 };
 export const ULTIMA_SWORD_T = { name:"アルテマソード", type:"weapon", atk:20, ability:"fire_elem_2", abilities:["fire_elem_2","ice_elem_2","thunder_elem_2"], desc:"三元の刃3本の合成。全属性弱点の敵に2倍ダメージ（上位特効）。火ダルマには0.5倍。", tile:20 };
-export const TRIELEM_ARMOR_T = { name:"元素王の鎧", type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
+export const TRIELEM_ARMOR_T  = { name:"元素王の鎧",     type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
+export const MITHRIL_ARMOR_T  = { name:"ミスリルの胴着", type:"armor", def:13,                                                                                    desc:"鎖帷子3枚の合成。硬くて軽い幻のミスリル製鎧。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"万能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した剣。竜・不死・浮遊の全種族に1.5倍ダメージ。3本合成で全能キラーに変化。", tile:20 };
 export const IRONMASS_T       = { name:"鉄塊",       type:"weapon", atk:16, ability:"bane_dragon_2",  desc:"ドラゴンキラー3本の合成。ドラゴン系に2倍ダメージ（上位特効）。", tile:20 };
 export const SNIPER_T         = { name:"スナイパー", type:"weapon", atk:12, ability:"bane_float_2",   desc:"バードキラー3本の合成。浮遊している敵に2倍ダメージ（上位特効）。", tile:20 };

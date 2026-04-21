@@ -10,7 +10,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
-  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
+  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
@@ -3737,6 +3737,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else {
         delete merged.daggerMerge;
       }
+      /* 鎖帷子マージカウント */
+      if (base.name === "鎖帷子" && mat.name === "鎖帷子") {
+        merged.chainmailMerge = (base.chainmailMerge || 1) + (mat.chainmailMerge || 1);
+      } else {
+        delete merged.chainmailMerge;
+      }
       /* 同種キラー武器マージカウント（bane_*が唯一の通常特効アビリティの場合のみ加算） */
       const _getSoloBane = (it) => {
         const abs = [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean);
@@ -3795,6 +3801,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         bb.contents.push(_catClaw);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！短剣が融合して猫の爪に変化した！`);
+      /* 鎖帷子3枚→ミスリルの胴着に変化 */
+      } else if (merged.chainmailMerge >= 3) {
+        const _mithril = { ...MITHRIL_ARMOR_T, id: uid(), plus: merged.plus };
+        bb.contents.push(_mithril);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！鎖帷子3枚が融合してミスリルの胴着に変化した！`);
       /* 同種キラー3本合成 */
       } else if (merged.type === "weapon" && (merged.killerMerge_bane_undead >= 3 || merged.killerMerge_bane_dragon >= 3 || merged.killerMerge_bane_float >= 3)) {
         const _killerT = merged.killerMerge_bane_undead >= 3 ? { T: EXCALIBUR_T, msg: "ゾンビキラー3本が融合してエクスカリバーに変化した！", bane: "bane_undead" }
