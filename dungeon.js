@@ -531,23 +531,44 @@ function setupShopRoom(room, map, depth, items, mons) {
   const gemCands = GEM_TYPES.map(g => ({ ...g, originDepth: depth + 1 }));
   /* 食料候補：ランダムに5〜8種生成して候補に加える */
   const _foodCands = Array.from({ length: rng(5, 8) }, () => genFood());
-  const cands = [
-    ...ITEMS.filter(i => i.type !== 'gold'),
-    ...WANDS.map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand") ? 1 : Math.max(1, w.charges + rng(-1, 1)) })),
-    ...POTS,
-    ...RINGS,
-    ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
-    ..._foodCands,
-    ...gemCands, ...gemCands, /* 宝石を2倍の重みで追加 */
+  /* 専門店の抽選（30%） */
+  const _wandsCands = (pool) => pool.map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand") ? 1 : Math.max(1, w.charges + rng(-1, 1)) }));
+  const _specialtyOptions = [
+    { type: "weapon",    name: "武器屋",   cands: () => [...ITEMS.filter(i => i.type === "weapon"), { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) }], luxury: () => ITEMS.filter(i => i.type === "weapon" && (i.rarity === "A" || i.rarity === "S")) },
+    { type: "armor",     name: "防具屋",   cands: () => ITEMS.filter(i => i.type === "armor"),    luxury: () => ITEMS.filter(i => i.type === "armor"    && (i.rarity === "A" || i.rarity === "S")) },
+    { type: "potion",    name: "薬屋",     cands: () => ITEMS.filter(i => i.type === "potion"),   luxury: () => ITEMS.filter(i => i.type === "potion"   && (i.rarity === "A" || i.rarity === "S")) },
+    { type: "scroll",    name: "巻物屋",   cands: () => ITEMS.filter(i => i.type === "scroll"),   luxury: () => ITEMS.filter(i => i.type === "scroll"   && (i.rarity === "A" || i.rarity === "S")) },
+    { type: "wand",      name: "杖屋",     cands: () => _wandsCands(WANDS),                       luxury: () => _wandsCands(WANDS.filter(w => w.rarity === "A" || w.rarity === "S")) },
+    { type: "ring",      name: "指輪屋",   cands: () => [...RINGS],                               luxury: () => RINGS.filter(r => r.rarity === "A" || r.rarity === "S") },
+    { type: "food",      name: "食料屋",   cands: () => Array.from({ length: rng(8, 14) }, () => genFood()), luxury: () => [] },
+    { type: "pot",       name: "壺屋",     cands: () => [...POTS],                                luxury: () => POTS.filter(p => p.rarity === "A" || p.rarity === "S") },
+    { type: "spellbook", name: "魔法書屋", cands: () => [...SPELLBOOKS],                          luxury: () => SPELLBOOKS.filter(sb => sb.rarity === "A" || sb.rarity === "S") },
   ];
-  /* 目玉商品プール（A/S レアリティ、宝石除く） */
-  const luxuryPool = [
-    ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'A' || i.rarity === 'S')),
-    ...WANDS.filter(w => w.rarity === 'A' || w.rarity === 'S').map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand") ? 1 : Math.max(1, w.charges + rng(-1, 1)) })),
-    ...POTS.filter(p => p.rarity === 'A' || p.rarity === 'S'),
-    ...RINGS.filter(r => r.rarity === 'A' || r.rarity === 'S'),
-    ...SPELLBOOKS.filter(sb => sb.rarity === 'A' || sb.rarity === 'S'),
-  ];
+  let specialtyType = null, specialtyName = null, cands, luxuryPool;
+  if (Math.random() < 0.30) {
+    const _sp = pick(_specialtyOptions);
+    specialtyType = _sp.type;
+    specialtyName = _sp.name;
+    cands = _sp.cands();
+    luxuryPool = _sp.luxury();
+  } else {
+    cands = [
+      ...ITEMS.filter(i => i.type !== 'gold'),
+      ..._wandsCands(WANDS),
+      ...POTS,
+      ...RINGS,
+      ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
+      ..._foodCands,
+      ...gemCands, ...gemCands,
+    ];
+    luxuryPool = [
+      ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'A' || i.rarity === 'S')),
+      ..._wandsCands(WANDS.filter(w => w.rarity === 'A' || w.rarity === 'S')),
+      ...POTS.filter(p => p.rarity === 'A' || p.rarity === 'S'),
+      ...RINGS.filter(r => r.rarity === 'A' || r.rarity === 'S'),
+      ...SPELLBOOKS.filter(sb => sb.rarity === 'A' || sb.rarity === 'S'),
+    ];
+  }
   const makeShopItem = (base, x, y) => {
     const sit = { ...base, id: uid(), x, y };
     if (sit.type === 'arrow') sit.count = rng(5, 20);
@@ -595,7 +616,7 @@ function setupShopRoom(room, map, depth, items, mons) {
     dir: { x: 0, y: 1 }, lastPx: 0, lastPy: 0, patrolTarget: null, sleepTurns: 0,
   };
   mons.push(sk);
-  return { id: shopId, room, entrance, shopkeeperId: sk.id, unpaidTotal: 0 };
+  return { id: shopId, room, entrance, shopkeeperId: sk.id, unpaidTotal: 0, specialtyType, specialtyName };
 }
 
 /* ===== MINI BIG ROOM (ビッグルーム小型版) ===== */

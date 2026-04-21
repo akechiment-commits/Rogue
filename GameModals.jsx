@@ -990,6 +990,12 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
   useEffect(() => { if (!mode) setSellAllConfirm(false); }, [mode]);
   const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
+  const _adjSkH = gs.dungeon?.monsters?.find(m =>
+    m.type === "shopkeeper" && m.state !== "hostile" &&
+    Math.abs(m.x - gs.player?.x) <= 1 && Math.abs(m.y - gs.player?.y) <= 1
+  );
+  const _curShopH = (_adjSkH && getShops(gs.dungeon).find(s => s.shopkeeperId === _adjSkH.id)) || gs.dungeon.shop;
+  const _shopLabel = _curShopH?.specialtyName ? `${_curShopH.specialtyName}（専門店）` : "お店";
   return (
     <div
       style={{
@@ -1014,7 +1020,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
         }}
       >
         <span style={{ color: "#fa8", fontSize: 13, fontWeight: "bold" }}>
-          🏪 お店
+          🏪 {_shopLabel}
         </span>
         <button
           onClick={() => setMode(null)}
