@@ -173,9 +173,9 @@ export const ITEMS = [
   { name:"短剣",             type:"weapon", atk:3,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"C", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"B", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },
-  { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"A", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
-  { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"A", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。",         tile:20 },
-  { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"A", weight:2,  sellPrice:1500, desc:"浮遊している敵に1.5倍ダメージを与える槍。",         tile:20 },
+  { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"A", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。3本合成で鉄塊に変化。",         tile:20 },
+  { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"A", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。3本合成でエクスカリバーに変化。", tile:20 },
+  { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"A", weight:2,  sellPrice:1500, desc:"浮遊している敵に1.5倍ダメージを与える槍。3本合成でスナイパーに変化。",   tile:20 },
   { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical",      rarity:"A", weight:2,  sellPrice:2500, desc:"25%の確率で会心の一撃（2倍ダメージ）が出る斧。",  tile:20 },
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
   { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"B", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
@@ -239,7 +239,10 @@ export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:
 export const GOLDEN_AXE_T  = { name:"ゴールデンアクス", type:"weapon", atk:10, ability:"no_degrade", sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。", tile:20 };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], desc:"炎・氷・雷の三元素を宿した至高の剣。\n全属性弱点の敵に1.5倍ダメージ。火ダルマには0.5倍。", tile:20 };
 export const TRIELEM_ARMOR_T = { name:"元素王の鎧", type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
-export const ALLBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した究極の剣。竜・不死・浮遊の全種族に1.5倍ダメージ。", tile:20 };
+export const ALLBANE_SWORD_T  = { name:"万能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した剣。竜・不死・浮遊の全種族に1.5倍ダメージ。3本合成で全能キラーに変化。", tile:20 };
+export const IRONMASS_T       = { name:"鉄塊",       type:"weapon", atk:16, ability:"bane_dragon_2",  desc:"ドラゴンキラー3本の合成。ドラゴン系に2倍ダメージ（上位特効）。", tile:20 };
+export const SNIPER_T         = { name:"スナイパー", type:"weapon", atk:12, ability:"bane_float_2",   desc:"バードキラー3本の合成。浮遊している敵に2倍ダメージ（上位特効）。", tile:20 };
+export const GODBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:18, ability:"bane_dragon_2", abilities:["bane_dragon_2","bane_undead_2","bane_float_2"], desc:"万能キラー3本の合成。竜・不死・浮遊の全種族に2倍ダメージ（上位特効）。", tile:20 };
 export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:8,  ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           desc:"三種の守護防具が融合した究極の鎧。\n刃反射・みかわし・杖反射の三重防御。",       tile:21 };
 export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"炎・雷・氷の三杖を合成して生まれた究極の杖。\n振ると100ダメージ。祝福：200ダメージ。呪い：100回復。", tile:24 };
 
@@ -667,7 +670,9 @@ export const WEAPON_ABILITIES = [
   { id:"reach",         name:"長柄",      desc:"2マス先の敵まで攻撃できる" },
   { id:"bane_beast",    name:"獣特効",    desc:"獣系の敵(ネズミ・大蛇)に1.5倍ダメージ" },
   { id:"bane_undead",   name:"聖属性",    desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に1.5倍ダメージ" },
-  { id:"bane_undead_2", name:"上位聖属性", desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に2倍ダメージ（上位特効）" },
+  { id:"bane_undead_2", name:"上位聖属性",  desc:"不死系の敵(スケルトン・ゾンビ・ヴァンパイア)に2倍ダメージ（上位特効）" },
+  { id:"bane_dragon_2", name:"上位竜特効",  desc:"竜系の敵(ドラゴン)に2倍ダメージ（上位特効）" },
+  { id:"bane_float_2",  name:"上位浮遊特効",desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に2倍ダメージ（上位特効）" },
   { id:"bane_humanoid", name:"人特効",    desc:"人型の敵(コボルド・ゴブリン・オーク・トロル)に1.5倍ダメージ" },
   { id:"bane_dragon",   name:"竜特効",    desc:"竜系の敵(ドラゴン)に1.5倍ダメージ" },
   { id:"bane_float",    name:"浮遊特効",  desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に1.5倍ダメージ" },

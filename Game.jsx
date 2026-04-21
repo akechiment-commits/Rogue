@@ -10,7 +10,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
-  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
+  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
@@ -3713,7 +3713,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       ];
       const _mabsRaw = [...new Set([..._toAA(base), ..._toAA(mat)])];
       /* 上位特効と通常特効が同時にある場合、通常を除去して上位だけ残す */
-      const _superBanePairs = [["bane_undead", "bane_undead_2"]];
+      const _superBanePairs = [["bane_undead", "bane_undead_2"], ["bane_dragon", "bane_dragon_2"], ["bane_float", "bane_float_2"]];
       const _mabs = _mabsRaw.filter(a => !_superBanePairs.some(([n, s]) => a === n && _mabsRaw.includes(s)));
       const merged = {
         ...base,
@@ -3727,6 +3727,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         merged.daggerMerge = (base.daggerMerge || 1) + (mat.daggerMerge || 1);
       } else {
         delete merged.daggerMerge;
+      }
+      /* 同種キラー武器マージカウント（bane_*が唯一の通常特効アビリティの場合のみ加算） */
+      const _getSoloBane = (it) => {
+        const abs = [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean);
+        const banes = abs.filter(a => a.startsWith("bane_") && !a.endsWith("_2"));
+        return banes.length === 1 ? banes[0] : null;
+      };
+      const _soloBaneBase = _getSoloBane(base), _soloBaneMat = _getSoloBane(mat);
+      for (const _bk of ["bane_undead", "bane_dragon", "bane_float"]) {
+        const _kp = `killerMerge_${_bk}`;
+        if (_soloBaneBase === _bk && _soloBaneMat === _bk) {
+          merged[_kp] = (base[_kp] || 1) + (mat[_kp] || 1);
+        } else {
+          delete merged[_kp];
+        }
+      }
+      /* 万能キラーマージカウント */
+      if (base.name === "万能キラー" && mat.name === "万能キラー") {
+        merged.allbaneMerge = (base.allbaneMerge || 1) + (mat.allbaneMerge || 1);
+      } else {
+        delete merged.allbaneMerge;
       }
       /* pickaxe能力を持つ場合、耐久値を加算（両方穴掘りなら合計、片方のみなら引き継ぎ） */
       if (_mabs.includes("pickaxe")) {
@@ -3744,6 +3765,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         bb.contents.push(_catClaw);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！短剣が融合して猫の爪に変化した！`);
+      /* 同種キラー3本合成 */
+      } else if (merged.type === "weapon" && (merged.killerMerge_bane_undead >= 3 || merged.killerMerge_bane_dragon >= 3 || merged.killerMerge_bane_float >= 3)) {
+        const _killerT = merged.killerMerge_bane_undead >= 3 ? { T: EXCALIBUR_T, msg: "ゾンビキラー3本が融合してエクスカリバーに変化した！", bane: "bane_undead" }
+                       : merged.killerMerge_bane_dragon >= 3 ? { T: IRONMASS_T,  msg: "ドラゴンキラー3本が融合して鉄塊に変化した！",         bane: "bane_dragon" }
+                       :                                        { T: SNIPER_T,    msg: "バードキラー3本が融合してスナイパーに変化した！",       bane: "bane_float" };
+        const _kAbs = [...new Set([..._mabs.filter(a => a !== _killerT.bane), _killerT.T.ability])];
+        const _kResult = { ..._killerT.T, id: uid(), plus: merged.plus, ability: _kAbs[0], abilities: _kAbs };
+        bb.contents.push(_kResult);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！${_killerT.msg}`);
+      /* 万能キラー3本→全能キラーに変化 */
+      } else if (merged.allbaneMerge >= 3) {
+        const _gbAbs = [...new Set([..._mabs.filter(a => !a.startsWith("bane_")), ...GODBANE_SWORD_T.abilities])];
+        const _godBane = { ...GODBANE_SWORD_T, id: uid(), plus: merged.plus, ability: _gbAbs[0], abilities: _gbAbs };
+        bb.contents.push(_godBane);
+        bb.capacity = bb.contents.length;
+        ml.push("合成完了！万能キラー3本が融合して全能キラーに変化した！");
       /* 三元素武器：炎・氷・雷属性をすべて持つなら三元の刃に変化 */
       } else if (merged.type === "weapon" && _mabs.includes("fire_elem") && _mabs.includes("ice_elem") && _mabs.includes("thunder_elem")) {
         const _tsAbs = [...new Set([..._mabs, ...TRIELEM_SWORD_T.abilities])];
@@ -3764,7 +3802,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _allBane = { ...ALLBANE_SWORD_T, id: uid(), plus: merged.plus, ability: _abAbs[0], abilities: _abAbs };
         bb.contents.push(_allBane);
         bb.capacity = bb.contents.length;
-        ml.push(`合成完了！三種の特効剣が融合して全能キラーに変化した！`);
+        ml.push(`合成完了！三種の特効剣が融合して万能キラーに変化した！`);
       /* 三守護：刃反射・みかわし・杖反射をすべて持つなら神盾の鎧に変化 */
       } else if (merged.type === "armor" && _mabs.includes("thorn") && _mabs.includes("dodge") && _mabs.includes("wand_reflect")) {
         const _dsAbs = [...new Set([..._mabs, ...DIVINE_SHIELD_T.abilities])];
