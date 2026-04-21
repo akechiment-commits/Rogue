@@ -121,12 +121,17 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) return;
     const _iBlock = dg.monsters.find(o => o.x === _ix && o.y === _iy);
     if (_iBlock) {
-      const _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_iBlock.def || 0))) + rng(-2, 2));
+      let _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_iBlock.def || 0))) + rng(-2, 2));
+      const _iIsWeak = _iBlock.baseKind === "firedemon" || _iBlock.elemWeak === "ice";
+      if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
       _iBlock.hp -= _iDmg;
       const _iSlow = rng(3, 5);
       _iBlock.slowTurns = (_iBlock.slowTurns || 0) + _iSlow;
-      ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
-      if (_iBlock.hp <= 0) killMonster(_iBlock, dg, pl, ml, null);
+      ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}鈍足${_iSlow}ターン！`);
+      if (_iBlock.hp <= 0) {
+        killMonster(_iBlock, dg, pl, ml, null, false, m);
+        monLevelUp(m, dg, ml);
+      }
       return;
     }
   }
