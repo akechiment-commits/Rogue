@@ -235,7 +235,7 @@ export function getBlessMultiplier(it) {
 }
 
 export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical",    sellPrice:3000, desc:"鋭い爪の形をした武器。25%の確率で会心の一撃。", tile:20 };
-export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。ロングソードが盗まれた際に稀に変化する。", tile:20 };
+export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。", tile:20 };
 export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead_2", sellPrice:5000, desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ（上位特効）。", tile:20 };
 export const GOLDEN_AXE_T  = { name:"ゴールデンアクス", type:"weapon", atk:10, ability:"no_degrade", sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。", tile:20 };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], desc:"炎・氷・雷の三元素を宿した至高の剣。\n全属性弱点の敵に1.5倍ダメージ。火ダルマには0.5倍。", tile:20 };
@@ -244,7 +244,7 @@ export const ICESWORD_T     = { name:"アイスソード",   type:"weapon", atk:
 export const CHIDORI_T      = { name:"千鳥",           type:"weapon", atk:13, ability:"thunder_elem_2", desc:"雷の剣3本の合成。氷・水系の敵に2倍ダメージ（上位特効）。", tile:20 };
 export const ULTIMA_SWORD_T = { name:"アルテマソード", type:"weapon", atk:20, ability:"fire_elem_2", abilities:["fire_elem_2","ice_elem_2","thunder_elem_2"], desc:"三元の刃3本の合成。全属性弱点の敵に2倍ダメージ（上位特効）。火ダルマには0.5倍。", tile:20 };
 export const TRIELEM_ARMOR_T  = { name:"元素王の鎧",     type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
-export const MITHRIL_ARMOR_T  = { name:"ミスリルの胴着", type:"armor", def:13,                                                                                    desc:"鎖帷子3枚の合成。硬くて軽い幻のミスリル製鎧。", tile:21 };
+export const MITHRIL_ARMOR_T  = { name:"ミスリルの胴着", type:"armor", def:13,                                                                                    desc:"硬くて軽い幻のミスリル製鎧。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"万能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], desc:"三種の特効剣が融合した剣。竜・不死・浮遊の全種族に1.5倍ダメージ。", tile:20 };
 export const IRONMASS_T       = { name:"鉄塊",       type:"weapon", atk:16, ability:"bane_dragon_2",  desc:"ドラゴンキラー3本の合成。ドラゴン系に2倍ダメージ（上位特効）。", tile:20 };
 export const SNIPER_T         = { name:"スナイパー", type:"weapon", atk:12, ability:"bane_float_2",   desc:"バードキラー3本の合成。浮遊している敵に2倍ダメージ（上位特効）。", tile:20 };
