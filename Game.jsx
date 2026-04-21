@@ -1956,6 +1956,42 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   p.deathCause = `${_pc.name}の魔法の石により`;
                   p.hp -= _dmg;
                   ml.push(`${_pc.name}の魔法の石がプレイヤーに当たった！${_dmg}ダメージ！`);
+                } else if (_stTgt.m.baseKind === "gelcube") {
+                  /* ゼラチンキューブ：魔法の石を飲み込む */
+                  _stTgt.m.heldItems = _stTgt.m.heldItems || [];
+                  _stTgt.m.heldItems.push(makeMagicStone(1));
+                  if (!_stTgt.m._gelBaseAtk) _stTgt.m._gelBaseAtk = _stTgt.m.atk;
+                  _stTgt.m._gelBoost = Math.min(10, (_stTgt.m._gelBoost || 1) * 1.2);
+                  _stTgt.m.atk = Math.round(_stTgt.m._gelBaseAtk * _stTgt.m._gelBoost);
+                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に飲み込まれた！（攻撃力×${_stTgt.m._gelBoost.toFixed(2)}→${_stTgt.m.atk}）`);
+                } else if (_stTgt.m.baseKind === "synthmonster") {
+                  /* 合成獣：魔法の石を飲み込んで速度アップ */
+                  _stTgt.m.heldItems = _stTgt.m.heldItems || [];
+                  _stTgt.m.heldItems.push(makeMagicStone(1));
+                  const _synthPrev = _stTgt.m.speed || 0.5;
+                  _stTgt.m.speed = Math.min(3, _synthPrev + 0.5);
+                  _stTgt.m.maxAttacks = Math.ceil(_stTgt.m.speed);
+                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に飲み込まれた！${_stTgt.m.speed !== _synthPrev ? `(速度${_stTgt.m.speed})` : ""}`);
+                } else if (_stTgt.m.subtype === "reflector") {
+                  /* ミラーゴーレム：跳ね返して魔方陣周辺に落とす */
+                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に弾き返された！`);
+                  const _rfCands = [];
+                  for (let _rdy = -2; _rdy <= 2; _rdy++) {
+                    for (let _rdx = -2; _rdx <= 2; _rdx++) {
+                      const _cx = _pc.x + _rdx, _cy = _pc.y + _rdy;
+                      if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
+                      if (_dg2.map[_cy][_cx] !== T.FLOOR) continue;
+                      if (_cx === p.x && _cy === p.y) continue;
+                      if (_dg2.items.some(i => i.x === _cx && i.y === _cy)) continue;
+                      if (_dg2.monsters.some(mn => mn.x === _cx && mn.y === _cy)) continue;
+                      _rfCands.push([_cx, _cy]);
+                    }
+                  }
+                  if (_rfCands.length > 0) {
+                    const [_dropX, _dropY] = pick(_rfCands);
+                    placeItemAt(_dg2, _dropX, _dropY, makeMagicStone(1), ml, new Set());
+                    ml.push(`魔法の石が魔方陣の周辺に落ちた。`);
+                  }
                 } else {
                   _stTgt.m.hp -= _dmg;
                   ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_dmg}ダメージ！`);
