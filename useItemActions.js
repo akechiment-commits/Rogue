@@ -3142,6 +3142,16 @@ export function useItemActions({
                 ml.push(`${lb}が${m.name}に触れて燃えてなくなった！`);
                 lx = tx; ly = ty; hit = true; break;
               }
+              if (!_isFarcast && m.baseKind === "gelcube") {
+                /* ゼラチンキューブ：飛んできたアイテムを取り込む */
+                m.heldItems = m.heldItems || [];
+                m.heldItems.push(it);
+                m.atk = (m.atk || 0) + 1;
+                ml.push(`${lb}が${m.name}に飲み込まれた！（攻撃力↑${m.atk}）`);
+                lx = tx; ly = ty; hit = true;
+                if (it.type === "wand") _wandFiredEffect = true;
+                break;
+              }
               if (!_isFarcast && m.baseKind === "synthmonster") {
                 /* 合成獣：種別を問わずアイテムを飲み込んで合成 */
                 m.synthBox = m.synthBox || { kind: "synthesis", name: m.name, contents: [], capacity: 99 };

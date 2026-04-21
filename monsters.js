@@ -33,7 +33,8 @@ function _gelCubeAbsorbItems(m, dg, ml) {
   m.heldItems = m.heldItems || [];
   for (const it of _onTile) {
     m.heldItems.push(it);
-    ml.push(`${m.name}が「${it.name}」を取り込んだ！`);
+    m.atk = (m.atk || 0) + 1;
+    ml.push(`${m.name}が「${it.name}」を取り込んだ！（攻撃力↑${m.atk}）`);
   }
   dg.items = dg.items.filter(it => !(it.x === m.x && it.y === m.y));
 }
@@ -837,7 +838,12 @@ export function monLevelUp(mon, dg, ml) {
   mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
   mon.monLevel = nextLevel;
   if (template.barrier !== undefined) mon.barrier = template.barrier;
-  ml.push(`${oldName}がレベルアップして${mon.name}になった！`);
+  if (mon.baseKind === "gelcube" && nextLevel === 3) {
+    mon.speed = 1;
+    ml.push(`${oldName}がレベルアップして${mon.name}になった！動きが等速になった！`);
+  } else {
+    ml.push(`${oldName}がレベルアップして${mon.name}になった！`);
+  }
   return true;
 }
 
@@ -2007,6 +2013,42 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
     }
+  }
+
+  /* ===== ゼラチンキューブ Lv2以上：最近アイテムを積極的に追う ===== */
+  if (m.baseKind === "gelcube" && m.monLevel >= 2 && m.aware && !m.sealed) {
+    const _gcAdjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+    if (_gcAdjPl) {
+      if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      }
+      return;
+    }
+    if (dg.items.length > 0) {
+      const _gcTarget = dg.items.reduce((best, it) =>
+        Math.hypot(it.x - m.x, it.y - m.y) < Math.hypot(best.x - m.x, best.y - m.y) ? it : best
+      );
+      const _gcNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _gcTarget.x, _gcTarget.y, m, 30, dg.pentacles, _effFloat);
+      if (_gcNext && !dg.monsters.some(o => o !== m && o.x === _gcNext.x && o.y === _gcNext.y)) {
+        if (_gcNext.x === pl.x && _gcNext.y === pl.y) {
+          if (!dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
+              !_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
+            m.dir = { x: _gcNext.x - m.x, y: _gcNext.y - m.y };
+            m.turnAttacks++;
+            monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          }
+          return;
+        }
+        m.dir = { x: _gcNext.x - m.x, y: _gcNext.y - m.y };
+        m.x = _gcNext.x;
+        m.y = _gcNext.y;
+        _gelCubeAbsorbItems(m, dg, ml);
+        _checkGravityTrap(m, dg, pl, ml, _luFn);
+        return;
+      }
+    }
+    /* アイテムなし or 経路なし → 通常AIへフォールスルー */
   }
 
   /* ===== 詰まり検出（位置履歴で停滞・往復を判定） ===== */
