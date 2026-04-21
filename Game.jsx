@@ -10,7 +10,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
-  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
+  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
@@ -2529,27 +2529,33 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _despChance = _despRatio <= 0.2 ? 1.0 : Math.max(0, (0.75 - _despRatio) / 0.55);
                 if (Math.random() < _despChance) { d *= 2; crit = true; }
               }
-              /* 炎属性武器：fire弱点×1.5、油まみれ×1.5、火ダルマ×0.5 */
-              const _hasFireElem = wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
+              /* 炎属性武器：fire弱点×(1.5/2)、油まみれ×(1.5/2)、火ダルマ×0.5 */
+              const _hasFireElem2 = wab === "fire_elem_2" || p.weapon?.abilities?.some(a => a === "fire_elem_2");
+              const _hasFireElem  = _hasFireElem2 || wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
+              const _fireElemMult = _hasFireElem2 ? 2.0 : 1.5;
               if (_hasFireElem) {
                 if (attackMon.baseKind === "firedemon") {
                   d = Math.max(1, Math.floor(d * 0.5));
                 } else if (attackMon.elemWeak === "fire") {
-                  d = Math.floor(d * 1.5);
+                  d = Math.floor(d * _fireElemMult);
                 } else {
                   const _feOily = (attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y);
-                  if (_feOily) d = Math.floor(d * 1.5);
+                  if (_feOily) d = Math.floor(d * _fireElemMult);
                 }
               }
-              /* 氷属性武器：ice弱点×1.5、火ダルマ×1.5 */
-              const _hasIceElem = wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
+              /* 氷属性武器：ice弱点×(1.5/2)、火ダルマ×(1.5/2) */
+              const _hasIceElem2 = wab === "ice_elem_2" || p.weapon?.abilities?.some(a => a === "ice_elem_2");
+              const _hasIceElem  = _hasIceElem2 || wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
+              const _iceElemMult = _hasIceElem2 ? 2.0 : 1.5;
               if (_hasIceElem && (attackMon.baseKind === "firedemon" || attackMon.elemWeak === "ice")) {
-                d = Math.floor(d * 1.5);
+                d = Math.floor(d * _iceElemMult);
               }
-              /* 雷属性武器：thunder弱点×1.5 */
-              const _hasThunderElem = wab === "thunder_elem" || p.weapon?.abilities?.some(a => a === "thunder_elem");
+              /* 雷属性武器：thunder弱点×(1.5/2) */
+              const _hasThunderElem2 = wab === "thunder_elem_2" || p.weapon?.abilities?.some(a => a === "thunder_elem_2");
+              const _hasThunderElem  = _hasThunderElem2 || wab === "thunder_elem" || p.weapon?.abilities?.some(a => a === "thunder_elem");
+              const _thunderElemMult = _hasThunderElem2 ? 2.0 : 1.5;
               if (_hasThunderElem && attackMon.elemWeak === "thunder") {
-                d = Math.floor(d * 1.5);
+                d = Math.floor(d * _thunderElemMult);
               }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
@@ -3712,8 +3718,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         ),
       ];
       const _mabsRaw = [...new Set([..._toAA(base), ..._toAA(mat)])];
-      /* 上位特効と通常特効が同時にある場合、通常を除去して上位だけ残す */
-      const _superBanePairs = [["bane_undead", "bane_undead_2"], ["bane_dragon", "bane_dragon_2"], ["bane_float", "bane_float_2"]];
+      /* 上位と通常の同系アビリティが同時にある場合、通常を除去して上位だけ残す */
+      const _superBanePairs = [
+        ["bane_undead", "bane_undead_2"], ["bane_dragon", "bane_dragon_2"], ["bane_float", "bane_float_2"],
+        ["fire_elem", "fire_elem_2"], ["ice_elem", "ice_elem_2"], ["thunder_elem", "thunder_elem_2"],
+      ];
       const _mabs = _mabsRaw.filter(a => !_superBanePairs.some(([n, s]) => a === n && _mabsRaw.includes(s)));
       const merged = {
         ...base,
@@ -3749,6 +3758,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else {
         delete merged.allbaneMerge;
       }
+      /* 同種属性剣マージカウント */
+      const _getSoloElem = (it) => {
+        const abs = [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean);
+        const elems = abs.filter(a => ["fire_elem","ice_elem","thunder_elem"].includes(a));
+        return elems.length === 1 ? elems[0] : null;
+      };
+      const _soloElemBase = _getSoloElem(base), _soloElemMat = _getSoloElem(mat);
+      for (const _ek of ["fire_elem", "ice_elem", "thunder_elem"]) {
+        const _ep = `elemMerge_${_ek}`;
+        if (_soloElemBase === _ek && _soloElemMat === _ek) {
+          merged[_ep] = (base[_ep] || 1) + (mat[_ep] || 1);
+        } else {
+          delete merged[_ep];
+        }
+      }
+      /* 三元の刃マージカウント */
+      if (base.name === "三元の刃" && mat.name === "三元の刃") {
+        merged.trielemMerge = (base.trielemMerge || 1) + (mat.trielemMerge || 1);
+      } else {
+        delete merged.trielemMerge;
+      }
       /* pickaxe能力を持つ場合、耐久値を加算（両方穴掘りなら合計、片方のみなら引き継ぎ） */
       if (_mabs.includes("pickaxe")) {
         const _baseDura = base.durability ?? (hasAbility(base, "pickaxe") ? 30 : 0);
@@ -3782,6 +3812,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         bb.contents.push(_godBane);
         bb.capacity = bb.contents.length;
         ml.push("合成完了！万能キラー3本が融合して全能キラーに変化した！");
+      /* 同種属性剣3本合成 */
+      } else if (merged.type === "weapon" && (merged.elemMerge_fire_elem >= 3 || merged.elemMerge_ice_elem >= 3 || merged.elemMerge_thunder_elem >= 3)) {
+        const _elemT = merged.elemMerge_fire_elem >= 3 ? { T: FLAMBERGE_T, msg: "炎の剣3本が融合してフランベルジュに変化した！",   elem: "fire_elem" }
+                     : merged.elemMerge_ice_elem >= 3   ? { T: ICESWORD_T,  msg: "氷の剣3本が融合してアイスソードに変化した！",     elem: "ice_elem" }
+                     :                                     { T: CHIDORI_T,   msg: "雷の剣3本が融合して千鳥に変化した！",             elem: "thunder_elem" };
+        const _eAbs = [...new Set([..._mabs.filter(a => a !== _elemT.elem), _elemT.T.ability])];
+        const _eResult = { ..._elemT.T, id: uid(), plus: merged.plus, ability: _eAbs[0], abilities: _eAbs };
+        bb.contents.push(_eResult);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！${_elemT.msg}`);
+      /* 三元の刃3本→アルテマソードに変化 */
+      } else if (merged.trielemMerge >= 3) {
+        const _utAbs = [...new Set([..._mabs.filter(a => !["fire_elem","ice_elem","thunder_elem"].includes(a)), ...ULTIMA_SWORD_T.abilities])];
+        const _ultima = { ...ULTIMA_SWORD_T, id: uid(), plus: merged.plus, ability: _utAbs[0], abilities: _utAbs };
+        bb.contents.push(_ultima);
+        bb.capacity = bb.contents.length;
+        ml.push("合成完了！三元の刃3本が融合してアルテマソードに変化した！");
       /* 三元素武器：炎・氷・雷属性をすべて持つなら三元の刃に変化 */
       } else if (merged.type === "weapon" && _mabs.includes("fire_elem") && _mabs.includes("ice_elem") && _mabs.includes("thunder_elem")) {
         const _tsAbs = [...new Set([..._mabs, ...TRIELEM_SWORD_T.abilities])];
