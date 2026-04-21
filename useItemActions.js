@@ -2594,14 +2594,19 @@ export function useItemActions({
             const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (!_arSureHit && !(_arDodgePcMode === "sure") && Math.random() >= 0.90));
             if (_arMiss) {
               if (_arDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${m.name}に矢が当たらなかった！`);
-              ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
-              lx = tx; ly = ty; hit = true;
-              const _arMissItem = _arDropItem();
-              const _arft = new Set();
-              withPitfallBag(() => placeItemAt(dg, lx, ly, _arMissItem, ml, _arft));
-              const _arTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-              if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
-              break;
+              if (_arPierceMode) {
+                ml.push(`${_arName}は${m.name}をすり抜けた！`);
+                /* 貫通/遠投：外れても落ちずに飛び続ける */
+              } else {
+                ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
+                lx = tx; ly = ty; hit = true;
+                const _arMissItem = _arDropItem();
+                const _arft = new Set();
+                withPitfallBag(() => placeItemAt(dg, lx, ly, _arMissItem, ml, _arft));
+                const _arTrap = dg.traps.find(t => t.x === tx && t.y === ty);
+                if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
+                break;
+              }
             } else if (m.baseKind === "gelcube" && !_arPierceMode) {
               m.heldItems = m.heldItems || [];
               m.heldItems.push(_arDropItem());
@@ -3228,6 +3233,10 @@ export function useItemActions({
               if (_thMiss) {
                 /* 外れ：敵の足元に落ちる */
                 if (_thDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${m.name}に${lb}が当たらなかった！`);
+                if (_isFarcast) {
+                  ml.push(`${lb}は${m.name}をすり抜けて消滅した！`);
+                  lx = tx; ly = ty; hit = true; break;
+                }
                 lx = tx; ly = ty; hit = true;
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
                 const _fm_ft = new Set();
