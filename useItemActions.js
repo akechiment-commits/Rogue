@@ -3214,6 +3214,28 @@ export function useItemActions({
                   const _rfTdDmg = calcProjectileDmg(p, _tdBaseAtk, 0);
                   p.hp -= _rfTdDmg;
                   ml.push(`跳ね返された${lb}がプレイヤーに命中！${_rfTdDmg}ダメージ！消滅した。`);
+                  if (it.type === "food" && it.yabai) {
+                    const _rfyDmg = rng(15, 25);
+                    p.hp -= _rfyDmg;
+                    p.deathCause = "跳ね返されたヤバイ食料に当たって";
+                    ml.push(`ヤバイ食料がぶつかって食べさせられた！さらに${_rfyDmg}ダメージ！`);
+                    if (hasRingEffect(p, "antidote_ring")) {
+                      ml.push("毒消しの指輪が毒を防いだ！");
+                    } else {
+                      p.poisoned = true;
+                      ml.push("食中毒になった！毒状態になった！");
+                    }
+                    p.confusedTurns = (p.confusedTurns || 0) + 5;
+                    p.slowTurns = (p.slowTurns || 0) + 10;
+                    ml.push("混乱・鈍足状態になった！");
+                  } else if (it.type === "food" && it.rotten && !it.yabai) {
+                    if (hasRingEffect(p, "antidote_ring")) {
+                      ml.push("毒消しの指輪が毒を防いだ！");
+                    } else {
+                      p.poisoned = true;
+                      ml.push("腐った食料がぶつかった！毒状態になった！");
+                    }
+                  }
                   /* 杖の場合はプレイヤーへの効果も発動（投げた杖が当たった相手に効果が出る仕様） */
                   if (it.type === "wand") {
                     const _rfWandBm = getBlessMultiplier(it);

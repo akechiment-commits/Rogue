@@ -4105,6 +4105,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   _msg += "攻撃力が半減した！";
                 }
                 ml.push(_msg);
+                if (item.type === "food" && item.yabai && m.hp > 0) {
+                  const _yScDmg = rng(15, 25);
+                  m.hp -= _yScDmg;
+                  ml.push(`ヤバイ食料が${m.name}に食べさせられた！さらに${_yScDmg}ダメージ！`);
+                  if (m.hp > 0) {
+                    m.poisoned = true;
+                    m.confusedTurns = (m.confusedTurns || 0) + 5;
+                    m.fleeingTurns = (m.fleeingTurns || 0) + 10;
+                    m.slowTurns = (m.slowTurns || 0) + 10;
+                    ml.push(`${m.name}は毒・混乱・幻惑・鈍足状態になった！`);
+                  }
+                }
+                if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && m.hp > 0) {
+                  m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+                  ml.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
+                }
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
               }
               if (_scPInRoom) {
@@ -4114,6 +4130,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 let _pmsg = `${_idn}がプレイヤーに命中！${_scPDmg}ダメージ！`;
                 if (item.type === "arrow" && item.poison && !hasRingEffect(p, "antidote_ring")) { p.poisoned = true; _pmsg += "毒を受けた！"; }
                 ml.push(_pmsg);
+                if (item.type === "food" && item.yabai) {
+                  const _syScDmg = rng(15, 25);
+                  p.hp -= _syScDmg;
+                  p.deathCause = "ヤバイ食料が当たって";
+                  ml.push(`ヤバイ食料がぶつかって食べさせられた！さらに${_syScDmg}ダメージ！`);
+                  if (hasRingEffect(p, "antidote_ring")) {
+                    ml.push("毒消しの指輪が毒を防いだ！");
+                  } else {
+                    p.poisoned = true;
+                    ml.push("食中毒になった！毒状態になった！");
+                  }
+                  p.confusedTurns = (p.confusedTurns || 0) + 5;
+                  p.slowTurns = (p.slowTurns || 0) + 10;
+                  ml.push("混乱・鈍足状態になった！");
+                } else if (item.type === "food" && item.rotten && !item.yabai) {
+                  if (hasRingEffect(p, "antidote_ring")) {
+                    ml.push("毒消しの指輪が毒を防いだ！");
+                  } else {
+                    p.poisoned = true;
+                    ml.push("腐った食料がぶつかった！毒状態になった！");
+                  }
+                }
               }
             }
           }
