@@ -33,8 +33,10 @@ function _gelCubeAbsorbItems(m, dg, ml) {
   m.heldItems = m.heldItems || [];
   for (const it of _onTile) {
     m.heldItems.push(it);
-    m.atk = (m.atk || 0) + 1;
-    ml.push(`${m.name}が「${it.name}」を取り込んだ！（攻撃力↑${m.atk}）`);
+    if (!m._gelBaseAtk) m._gelBaseAtk = m.atk;
+    m._gelBoost = Math.min(10, (m._gelBoost || 1) * 1.2);
+    m.atk = Math.round(m._gelBaseAtk * m._gelBoost);
+    ml.push(`${m.name}が「${it.name}」を取り込んだ！（攻撃力×${m._gelBoost.toFixed(2)}→${m.atk}）`);
   }
   dg.items = dg.items.filter(it => !(it.x === m.x && it.y === m.y));
 }

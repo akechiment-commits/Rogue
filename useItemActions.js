@@ -3146,8 +3146,10 @@ export function useItemActions({
                 /* ゼラチンキューブ：飛んできたアイテムを取り込む */
                 m.heldItems = m.heldItems || [];
                 m.heldItems.push(it);
-                m.atk = (m.atk || 0) + 1;
-                ml.push(`${lb}が${m.name}に飲み込まれた！（攻撃力↑${m.atk}）`);
+                if (!m._gelBaseAtk) m._gelBaseAtk = m.atk;
+                m._gelBoost = Math.min(10, (m._gelBoost || 1) * 1.2);
+                m.atk = Math.round(m._gelBaseAtk * m._gelBoost);
+                ml.push(`${lb}が${m.name}に飲み込まれた！（攻撃力×${m._gelBoost.toFixed(2)}→${m.atk}）`);
                 lx = tx; ly = ty; hit = true;
                 if (it.type === "wand") _wandFiredEffect = true;
                 break;
