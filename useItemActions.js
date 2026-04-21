@@ -3288,6 +3288,10 @@ export function useItemActions({
                       ml.push(`${m.name}は毒・混乱・幻惑・鈍足状態になった！`);
                     }
                   }
+                  if (it.type === "food" && (it.rotten || it.burnt) && !it.yabai && m.hp > 0) {
+                    m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+                    ml.push(`${it.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
+                  }
                   if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
                 }
               }
