@@ -2162,6 +2162,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     _monRoom.x === _plRoom.x && _monRoom.y === _plRoom.y;
   const _plInvis = (pl.invisibleTurns || 0) > 0;
   const canSee = !_plInvis && (_sameRoom || ((dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y)));
+  /* 聖域チェック */
+  const _plOnSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
+  const _plOnBlessedSanc = _plOnSanc && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
 
   if (canSee) {
     m.aware = true;
@@ -2446,8 +2449,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
             if (dg.map[_cny][_cnx] === T.WALL || dg.map[_cny][_cnx] === T.BWALL) break;
             if (_cnx === pl.x && _cny === pl.y) {
-              m.turnAttacks++;
-              monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+              if (!_plOnSanc) {
+                m.turnAttacks++;
+                monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+              }
               break;
             }
             const _chOther = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
@@ -2470,14 +2475,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
 
-      if (m.subtype === "archer" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "archer" && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
       }
 
       /* ── watergunner（わてり等）：一直線上で水鉄砲攻撃 ── */
-      if (m.subtype === "watergunner" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 8 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "watergunner" && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 8 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterShootWaterGun(m, dg, pl, ml);
         return;
@@ -2487,7 +2492,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-        if (_stDist <= _stRange && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (_stDist <= _stRange && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
           monsterThrowStone(m, dg, pl, ml);
           return;
@@ -2506,7 +2511,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           Math.max(Math.abs(b.x - pl.x), Math.abs(b.y - pl.y)) -
           Math.max(Math.abs(a.x - pl.x), Math.abs(a.y - pl.y))
         );
-        if (_ttCands.length > 0 && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (_ttCands.length > 0 && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           const _ttTrap = _ttCands[0];
           m.turnAttacks++;
           pl.x = _ttTrap.x; pl.y = _ttTrap.y;
@@ -2522,7 +2527,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
         const _ptDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
         const _ptStraight = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
-        if (_ptStraight && _ptDist <= _ptRange && canSee && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (_ptStraight && _ptDist <= _ptRange && canSee && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           m.turnAttacks++;
           monsterThrowPotion(m, dg, pl, ml, opts.bbFn);
           return;
@@ -2530,7 +2535,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
 
       /* ── 警備員：縦・横の直線上で暗闇の薬投げ ── */
-      if (m.type === "guard" && !m.sealed && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.4)) {
+      if (m.type === "guard" && !m.sealed && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8 && m.turnAttacks < (m.maxAttacks ?? 1) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.4)) {
         m.turnAttacks++;
         ml.push(`${m.name}が暗闇の薬を投げた！`);
         pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#334466");
@@ -2549,7 +2554,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
             .filter(({ x, y }) => isWalkable(dg.map, x, y) &&
               !dg.monsters.some(o => o.x === x && o.y === y));
-          if (_adjMons.length > 0 && _adjPl.length > 0 && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+          if (_adjMons.length > 0 && _adjPl.length > 0 && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
             const _thrown = pick(_adjMons);
             const _dest = pick(_adjPl);
             m.turnAttacks++;
@@ -2571,12 +2576,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             pc.x >= _wRoom.x && pc.x < _wRoom.x + _wRoom.w &&
             pc.y >= _wRoom.y && pc.y < _wRoom.y + _wRoom.h
           ));
-        if (!_wSeal) {
+        if (!_wSeal && !_plOnBlessedSanc) {
           m.turnAttacks++;
           opts.monsterWandFn(m, Math.sign(adx), Math.sign(ady));
           return;
         }
-        // 魔封じの部屋にいる場合は杖を使えず通常行動へフォールスルー
+        // 魔封じの部屋・祝福聖域の場合は杖を使えず通常行動へフォールスルー
       }
     }
 
@@ -2598,7 +2603,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
       const _dragonRdy = m._rangedAttackThisTurn;
       if (_dragonRdy) delete m._rangedAttackThisTurn;
-      if (_canFire && (_dragonRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (_canFire && !_plOnBlessedSanc && (_dragonRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterDragonFire(m, dg, pl, ml, _onHit);
         return;
@@ -2618,7 +2623,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
       const _ibRdy = m._rangedAttackThisTurn;
       if (_ibRdy) delete m._rangedAttackThisTurn;
-      if (_ibCanFire && (_ibRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (_ibCanFire && !_plOnBlessedSanc && (_ibRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterIceBreath(m, dg, pl, ml, _onHit);
         return;
@@ -2658,8 +2663,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
         if (_hasAntiSteal) {
           ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
-          /* 盗めないので通常攻撃 */
-          if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+          /* 盗めないので通常攻撃（聖域上なら不可） */
+          if (!_plOnSanc && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
           return;
         }
         const _stealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
@@ -2704,8 +2709,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           }
           return;
         }
-        /* 盗めるものがなければ通常攻撃 */
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        /* 盗めるものがなければ通常攻撃（聖域上なら不可） */
+        if (!_plOnSanc && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
         return;
       }
     }
@@ -2939,8 +2944,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           }
           return;
         }
-        /* 弾くものがなければ通常攻撃 */
-        if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        /* 弾くものがなければ通常攻撃（聖域上なら不可） */
+        if (!_plOnSanc && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
         return;
       }
     }
@@ -3158,7 +3163,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         o !== m && o.type !== "shopkeeper" &&
         Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1
       );
-      const _bcAdjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      const _bcAdjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc;
       /* 攻撃フェーズ：隣接ターゲットを攻撃 */
       if (!_moveOnly && (_bcAdj.length > 0 || _bcAdjPl) && m.turnAttacks < (m.maxAttacks ?? 1)) {
         m.turnAttacks++;
@@ -3230,8 +3235,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           /* 魔封じで無効 → 隣接なら通常攻撃へフォールスルー */
           ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
         }
-        /* 魔法不発 or 魔封じ → 隣接なら通常攻撃 */
-        if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
+        /* 魔法不発 or 魔封じ → 隣接かつ聖域外なら通常攻撃 */
+        if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc) {
           m.turnAttacks++;
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
           return;
@@ -3255,8 +3260,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
     /* ── guardian（ガーディアン等）：仲間の隣に留まりかばう ── */
     if (m.subtype === "guardian") {
-      /* 攻撃フェーズ：プレイヤーが隣接なら攻撃 */
-      if (!_moveOnly && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      /* 攻撃フェーズ：プレイヤーが隣接かつ聖域外なら攻撃 */
+      if (!_moveOnly && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc && m.turnAttacks < (m.maxAttacks ?? 1)) {
         m.turnAttacks++;
         monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         return;
