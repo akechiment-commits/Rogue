@@ -2507,7 +2507,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if ((p.garlicDmgTurns || 0) > 0) ap += 5;
               const _checkBane = (a) => a?.startsWith("bane_") && (a === "bane_float" ? attackMon.float : attackMon.kind === a.slice(5));
               const _isBane = _checkBane(wab) || p.weapon?.abilities?.some(a => _checkBane(a));
-              if (_isBane) ap *= 2;
+              if (_isBane) ap = Math.floor(ap * 1.5);
               let d = Math.max(1, Math.floor(ap * ap / (ap + attackMon.def)) + rng(-2, 2));
               if (p.weapon?.blessed) d += 3;
               let crit = false;
@@ -2522,27 +2522,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _despChance = _despRatio <= 0.2 ? 1.0 : Math.max(0, (0.75 - _despRatio) / 0.55);
                 if (Math.random() < _despChance) { d *= 2; crit = true; }
               }
-              /* 炎属性武器：fire弱点×2、油まみれ×2、火ダルマ×0.5 */
+              /* 炎属性武器：fire弱点×1.5、油まみれ×1.5、火ダルマ×0.5 */
               const _hasFireElem = wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
               if (_hasFireElem) {
                 if (attackMon.baseKind === "firedemon") {
                   d = Math.max(1, Math.floor(d * 0.5));
                 } else if (attackMon.elemWeak === "fire") {
-                  d *= 2;
+                  d = Math.floor(d * 1.5);
                 } else {
                   const _feOily = (attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y);
-                  if (_feOily) d *= 2;
+                  if (_feOily) d = Math.floor(d * 1.5);
                 }
               }
-              /* 氷属性武器：ice弱点×2、火ダルマ×2 */
+              /* 氷属性武器：ice弱点×1.5、火ダルマ×1.5 */
               const _hasIceElem = wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
               if (_hasIceElem && (attackMon.baseKind === "firedemon" || attackMon.elemWeak === "ice")) {
-                d *= 2;
+                d = Math.floor(d * 1.5);
               }
-              /* 雷属性武器：thunder弱点×2 */
+              /* 雷属性武器：thunder弱点×1.5 */
               const _hasThunderElem = wab === "thunder_elem" || p.weapon?.abilities?.some(a => a === "thunder_elem");
               if (_hasThunderElem && attackMon.elemWeak === "thunder") {
-                d *= 2;
+                d = Math.floor(d * 1.5);
               }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
