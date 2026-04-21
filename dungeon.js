@@ -543,6 +543,7 @@ function setupShopRoom(room, map, depth, items, mons) {
     { type: "food",      name: "食料屋",   cands: () => Array.from({ length: rng(8, 14) }, () => genFood()), luxury: () => [] },
     { type: "pot",       name: "壺屋",     cands: () => [...POTS],                                luxury: () => POTS.filter(p => p.rarity === "A" || p.rarity === "S") },
     { type: "spellbook", name: "魔法書屋", cands: () => [...SPELLBOOKS],                          luxury: () => SPELLBOOKS.filter(sb => sb.rarity === "A" || sb.rarity === "S") },
+    { type: "gem",       name: "宝石店",   cands: () => GEM_TYPES.map(g => ({ ...g, originDepth: depth + 1 })), luxury: () => [] },
   ];
   let specialtyType = null, specialtyName = null, cands, luxuryPool;
   if (Math.random() < 0.30) {
