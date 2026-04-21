@@ -235,6 +235,7 @@ export function getBlessMultiplier(it) {
 }
 
 export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical",    sellPrice:3000, desc:"短剣3つの合成で生まれる鋭い爪。25%の確率で会心の一撃。", tile:20 };
+export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。ロングソードが盗まれた際に稀に変化する。", tile:20 };
 export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead_2", sellPrice:5000, desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ（上位特効）。", tile:20 };
 export const GOLDEN_AXE_T  = { name:"ゴールデンアクス", type:"weapon", atk:10, ability:"no_degrade", sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。", tile:20 };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], desc:"炎・氷・雷の三元素を宿した至高の剣。\n全属性弱点の敵に1.5倍ダメージ。火ダルマには0.5倍。3本合成でアルテマソードに変化。", tile:20 };
@@ -1436,8 +1437,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _stRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
         const _stX = rng(_stRoom.x, _stRoom.x + _stRoom.w - 1);
         const _stY = rng(_stRoom.y, _stRoom.y + _stRoom.h - 1);
-        placeItemAt(dg, _stX, _stY, _stItem, ml, _stFt);
-        ml.push(`${nameFn ? nameFn(_stItem) : _stItem.name}がどこかへ飛んでいった！`);
+        const _stFinal = (_stItem.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stItem.plus || 0 } : _stItem;
+        placeItemAt(dg, _stX, _stY, _stFinal, ml, _stFt);
+        ml.push(`${nameFn ? nameFn(_stItem) : _stItem.name}がどこかへ飛んでいった！${_stFinal !== _stItem ? "なぜかソボロ助広に変化した…！" : ""}`);
       }
       return "restart";
     }

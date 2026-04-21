@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -2685,11 +2685,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             m.x = _wx; m.y = _wy;
           }
           const _ft = new Set();
-          placeItemAt(dg, _wx, _wy, _stolen, ml, _ft);
+          const _stolenFinal = (_stolen.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stolen.plus || 0 } : _stolen;
+          placeItemAt(dg, _wx, _wy, _stolenFinal, ml, _ft);
+          const _soboroMsg = _stolenFinal !== _stolen ? "なぜかソボロ助広に変化した…！" : "";
           if (_thieveTpBlock) {
-            ml.push(`${m.name}が${_stolen.name}を盗んだ！呪われたテレポートの魔方陣に阻まれて逃げられない！`);
+            ml.push(`${m.name}が${_stolen.name}を盗んだ！呪われたテレポートの魔方陣に阻まれて逃げられない！${_soboroMsg}`);
           } else {
-            ml.push(`${m.name}が${_stolen.name}を盗んで煙の中に消えた！`);
+            ml.push(`${m.name}が${_stolen.name}を盗んで煙の中に消えた！${_soboroMsg}`);
           }
           return;
         }
@@ -3036,8 +3038,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_srStealable.length > 0 && Math.random() < 0.25) {
           const _stolen = pick(_srStealable);
           pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
-          m.heldItems.push(_stolen);
-          ml.push(`${m.name}が${_stolen.name}を盗んだ！次のターンに投げてくるぞ！`);
+          const _srFinal = (_stolen.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stolen.plus || 0 } : _stolen;
+          m.heldItems.push(_srFinal);
+          const _srSoboroMsg = _srFinal !== _stolen ? "ソボロ助広に変化した！" : "";
+          ml.push(`${m.name}が${_stolen.name}を盗んだ！次のターンに投げてくるぞ！${_srSoboroMsg}`);
           return;
         }
         /* 25%外れまたは盗むものなし：通常攻撃 */
