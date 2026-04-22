@@ -21,7 +21,7 @@ import {
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
-import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, GOAL_ITEMS } from "./dungeon.js";
+import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
@@ -70,6 +70,7 @@ const FLOOR_TITLES = {
   ringCorridorFloor: "環状回廊の間だ！",
   caveFloor:         "洞窟の間だ！",
   bossFloor:         "ボスフロアだ！強大な敵が待ち受けている！",
+  tutorialFloor:     "チュートリアルの間へようこそ！看板を読んで進もう。",
 };
 
 const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, markerPage: 0, spellMenuSel: 0, spellPage: 0, nicknameInput: '', data: null };
@@ -427,6 +428,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const _initDt = dungeonConfig?.dungeonType || "beginner";
     const d = _initDt === "debug"
       ? genDebugDungeon()
+      : _initDt === "tutorial"
+      ? genTutorialFloor(startDepth)
       : genDungeon(startDepth - 1, _initDt);
     /* 最下層の場合は下り階段を消して目標アイテムを配置 */
     const _initMaxD = dungeonConfig?.maxFloors ?? null;
@@ -518,7 +521,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
     refreshFOV(d, p);
     const _dt = dungeonConfig?.dungeonType || "beginner";
-    const _allIdentKeys = (_dt === "debug" || _dt === "beginner")
+    const _allIdentKeys = (_dt === "debug" || _dt === "beginner" || _dt === "tutorial")
       ? new Set([
           ...[...ITEMS, ...WANDS].map(getIdentKey).filter(Boolean),
           ...POTS.map(pot => `o:${pot.potEffect}`),
@@ -526,7 +529,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ...RINGS.map(r => `r:${r.effect}`),
         ])
       : new Set();
-    const _allBcKnown = _dt === "debug" || _dt === "beginner";
+    const _allBcKnown = _dt === "debug" || _dt === "beginner" || _dt === "tutorial";
     if (_allBcKnown) {
       [...p.inventory, ...d.items].forEach(it => { it.fullIdent = true; it.bcKnown = true; });
       d.bigboxes?.forEach(bb => trackBigbox(bb));
@@ -1399,6 +1402,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     } else if (_saved) {
       d = _saved;
       delete sr.current.floors[nd];
+    } else if (sr.current.dungeonType === "tutorial") {
+      d = genTutorialFloor(nd);
     } else if (sr.current.isDebugRun && nd >= 2) {
       d = genDungeon(nd - 1, "beginner");
     } else {
@@ -1406,12 +1411,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
     /* 最下層：isLastFloor 未設定なら必ずキーアイテムを配置
        （落とし穴プリキャッシュや呪いテレポで _saved が先行生成された場合も救済） */
-    if (!_isLastFloorPitfall && _maxD !== null && nd >= _maxD && !d.isLastFloor) {
+    if (!_isLastFloorPitfall && _maxD !== null && nd >= _maxD && !d.isLastFloor && sr.current.dungeonType !== "tutorial") {
       prepareLastFloor(d, sr.current.dungeonType || "beginner");
     }
     pl.depth = nd;
     /* 最深層に到着時、goalアイテムが所持品にもフロアにもなければ再配置 */
-    if (_maxD !== null && nd >= _maxD && d.isLastFloor) {
+    if (_maxD !== null && nd >= _maxD && d.isLastFloor && sr.current.dungeonType !== "tutorial") {
       const _hasGoalInv = pl.inventory?.some(i => i.type === "goal");
       const _hasGoalFloor = d.items.some(i => i.type === "goal");
       if (!_hasGoalInv && !_hasGoalFloor) {
@@ -2359,6 +2364,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
+        /* チュートリアルB5Fからの下り → 完了 */
+        if (sr.current.dungeonType === "tutorial" && p.depth >= 5 && dir > 0) {
+          clearGameSave();
+          setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, isTutorial: true, identifiedEffects: [...(sr.current?.ident || [])] });
+          setShowEnding(true);
+          return;
+        }
         const _prevDepth = p.depth; /* chgFloor が p.depth を書き換える前に保存 */
         const nd = chgFloor(p, dir);
         if (nd) {
@@ -2961,6 +2973,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
             }
             autoPickup(p, st.dungeon, ml);
+            /* 看板：踏んだらテキストを表示 */
+            const _signStep = st.dungeon.items.find(it => it.type === "sign" && it.x === p.x && it.y === p.y);
+            if (_signStep) { for (const line of _signStep.text) ml.push(line); }
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
             if (dg.map[p.y][p.x] === T.SU) ml.push("上り階段がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
