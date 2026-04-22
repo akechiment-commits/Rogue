@@ -217,6 +217,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const bigboxModeRef = useRef(null);
   bigboxModeRef.current = bigboxMode;
   const identifyConfirmRef = useRef(null);
+  const spellConfirmRef = useRef(null);
   const nicknameModeRef = useRef(null);
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
@@ -5324,10 +5325,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
-                  label={(putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={(putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
+                  label={spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
                   onClick={() => {
-                    if (spellListMode) return;
+                    if (spellListMode) { setSpellListMode(false); return; }
                     if (putMode) { setPutMode(null); setPutPage(0); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
@@ -5337,15 +5338,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     if (identifyMode) { setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     act("inventory");
                   }}
-                  color={(putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
+                  color={spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={showInv ? "決" : bigboxMode === "menu" ? "決" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
-                  sub={showInv ? "決定" : bigboxMode === "menu" ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
+                  label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
+                  sub={spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
                   onClick={() => {
-                    if (spellListMode) return;
+                    if (spellListMode) { if (spellConfirmRef.current) spellConfirmRef.current(spellMenuSel); return; }
                     if (bigboxMode === "menu") {
                       const _bbk = bigboxRef.current ? "bk:" + bigboxRef.current.kind : null;
                       const _bb = bigboxRef.current;
@@ -5407,7 +5408,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       }
                     } else { act("interact"); }
                   }}
-                  color={bigboxMode === "menu" ? "#fc0" : showInv ? "#fc0" : (springMode || identifyMode) ? "#fc0" : "#0ff"}
+                  color={spellListMode ? "#fc0" : bigboxMode === "menu" ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : "#0ff"}
                 />
                 <AB
                   label={bigboxMode === "put" ? "決" : showInv ? "置" : "前"}
@@ -5566,7 +5567,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <FloorSelectModal mode={floorSelectMode} setMode={setFloorSelectMode} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} genDungeon={genDungeon} refreshFOV={refreshFOV} rng={rng} />{" "}
       <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} page={markerPage} setPage={setMarkerPage} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} pastIdent={pastIdent} discoveredItems={discoveredItems} />{" "}
-      <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} />{" "}
+      <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} spellConfirmRef={spellConfirmRef} />{" "}
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />

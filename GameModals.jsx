@@ -2021,7 +2021,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, page = 0, 
 }
 
 /* ===== Spell List Modal ===== */
-export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, page, setPage, setIdentifyMode, setShowInv, setSelIdx, setShowDesc, setThrowMode, setDebugSpellMode, endTurn, lu, mobile }) {
+export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, page, setPage, setIdentifyMode, setShowInv, setSelIdx, setShowDesc, setThrowMode, setDebugSpellMode, endTurn, lu, mobile, spellConfirmRef }) {
   if (!mode) return null;
   const knownSpells = (gs?.player?.spells || []).map((id) => {
     const s = SPELLS.find((sp) => sp.id === id);
@@ -2034,6 +2034,49 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
   const curPage = Math.min(page ?? 0, totalPages - 1);
   const pageSpells = knownSpells.slice(curPage * _sps, (curPage + 1) * _sps);
   const safeSel = Math.min(menuSel, Math.max(0, pageSpells.length - 1));
+  const castSpell = (vi) => {
+    const spell = pageSpells[vi];
+    if (!spell) return;
+    if ((gs?.player?.mp ?? 0) < spell.mpCost) { setMsgs((prev) => [...prev.slice(-80), `MPが足りない！(必要:${spell.mpCost} 現在:${gs?.player?.mp ?? 0})`]); return; }
+    setMode(false);
+    if (!spell.needsDir) {
+      if (!sr.current) return;
+      const { player: p2, dungeon: dg2 } = sr.current;
+      const ml2 = [];
+      if (inMagicSealRoom(p2.x, p2.y, dg2) || (p2.sealedTurns || 0) > 0) {
+        ml2.push("魔法が封印されている！MPは消費しない。");
+        endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
+      } else if (spell.effect === "identify_magic") {
+        const _idt = p2.inventory.filter(_ii => {
+          if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
+          const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
+        });
+        if (_idt.length === 0) {
+          p2.mp -= spell.mpCost; ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`); ml2.push("未識別のアイテムがない。");
+          endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
+        } else {
+          setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
+          setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
+          setShowInv(false); setSelIdx(null); setShowDesc(null); sr.current = { ...sr.current }; setGs({ ...sr.current });
+        }
+      } else if (spell.effect === "bless_magic" || spell.effect === "curse_magic") {
+        const _bcMode = spell.effect === "bless_magic" ? 'bless' : 'curse';
+        setMsgs((prev) => [...prev.slice(-80), _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。"]);
+        setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
+        setShowInv(false); setSelIdx(null); setShowDesc(null); sr.current = { ...sr.current }; setGs({ ...sr.current });
+      } else if (spell.effect.startsWith("debug_")) {
+        setDebugSpellMode({ effect: spell.effect });
+      } else {
+        p2.mp -= spell.mpCost; ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
+        applySpellEffect(spell.effect, "self", null, 0, 0, dg2, p2, ml2, lu, spell.spellLevel || 1);
+        endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
+      }
+    } else {
+      setThrowMode({ idx: spell.id, mode: "cast_spell" });
+      setMsgs((prev) => [...prev.slice(-80), `${spell.name}：方向を選んでください`]);
+    }
+  };
+  if (spellConfirmRef) spellConfirmRef.current = castSpell;
   return (
     <div style={{
       position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
@@ -2066,46 +2109,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
             const isSel = vi === safeSel;
             const canCast = (gs?.player?.mp ?? 0) >= spell.mpCost;
             return (
-              <div key={spell.id} onClick={() => {
-                if (!canCast) { setMsgs((prev) => [...prev.slice(-80), `MPが足りない！(必要:${spell.mpCost} 現在:${gs?.player?.mp ?? 0})`]); return; }
-                setMode(false);
-                if (!spell.needsDir) {
-                  if (!sr.current) return;
-                  const { player: p2, dungeon: dg2 } = sr.current;
-                  const ml2 = [];
-                  if (inMagicSealRoom(p2.x, p2.y, dg2) || (p2.sealedTurns || 0) > 0) {
-                    ml2.push("魔法が封印されている！MPは消費しない。");
-                    endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
-                  } else if (spell.effect === "identify_magic") {
-                    const _idt = p2.inventory.filter(_ii => {
-                      if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
-                      const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
-                    });
-                    if (_idt.length === 0) {
-                      p2.mp -= spell.mpCost; ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`); ml2.push("未識別のアイテムがない。");
-                      endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
-                    } else {
-                      setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
-                      setIdentifyMode({ mode: 'identify', sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
-                      setShowInv(false); setSelIdx(null); setShowDesc(null); sr.current = { ...sr.current }; setGs({ ...sr.current });
-                    }
-                  } else if (spell.effect === "bless_magic" || spell.effect === "curse_magic") {
-                    const _bcMode = spell.effect === "bless_magic" ? 'bless' : 'curse';
-                    setMsgs((prev) => [...prev.slice(-80), _bcMode === 'bless' ? "祝福するアイテムを選んでください。" : "呪うアイテムを選んでください。"]);
-                    setIdentifyMode({ mode: _bcMode, sel: 0, spellCost: spell.mpCost, spellMsg: `${spell.name}を唱えた！[MP -${spell.mpCost}]` });
-                    setShowInv(false); setSelIdx(null); setShowDesc(null); sr.current = { ...sr.current }; setGs({ ...sr.current });
-                  } else if (spell.effect.startsWith("debug_")) {
-                    setDebugSpellMode({ effect: spell.effect });
-                  } else {
-                    p2.mp -= spell.mpCost; ml2.push(`${spell.name}を唱えた！[MP -${spell.mpCost}]`);
-                    applySpellEffect(spell.effect, "self", null, 0, 0, dg2, p2, ml2, lu, spell.spellLevel || 1);
-                    endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
-                  }
-                } else {
-                  setThrowMode({ idx: spell.id, mode: "cast_spell" });
-                  setMsgs((prev) => [...prev.slice(-80), `${spell.name}：方向を選んでください`]);
-                }
-              }} style={{
+              <div key={spell.id} onClick={() => castSpell(vi)} style={{
                 padding: "6px 8px", margin: "2px 0",
                 background: isSel ? "#0a1a30" : "#060e1a",
                 border: "1px solid " + (isSel ? "#2060c0" : "#152040"),
