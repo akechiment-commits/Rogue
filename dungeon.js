@@ -2167,18 +2167,39 @@ export function genDebugDungeonFloor2() {
 }
 
 /* ===== TUTORIAL DUNGEON (全5階固定コンテンツ) ===== */
-export function genTutorialFloor(floorNum) {
+
+/* 3部屋＋L字通路でチュートリアルマップを組み立てるヘルパー */
+function buildTutorialMap(rs, corrs) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
-  const rx = 2, ry = 2, rw = MW - 4, rh = MH - 4;
-  for (let dy = 0; dy < rh; dy++)
-    for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
+  const rooms = rs.map(r => {
+    for (let ry = r.y; ry < r.y + r.h; ry++)
+      for (let rx = r.x; rx < r.x + r.w; rx++)
+        map[ry][rx] = T.FLOOR;
+    return { x: r.x, y: r.y, w: r.w, h: r.h, cx: r.x + Math.floor(r.w / 2), cy: r.y + Math.floor(r.h / 2) };
+  });
+  for (const [i, j] of corrs) {
+    const a = rooms[i], b = rooms[j];
+    const xMin = Math.min(a.cx, b.cx), xMax = Math.max(a.cx, b.cx);
+    for (let x = xMin; x <= xMax; x++) if (map[a.cy]?.[x] !== undefined) map[a.cy][x] = T.FLOOR;
+    const yMin = Math.min(a.cy, b.cy), yMax = Math.max(a.cy, b.cy);
+    for (let y = yMin; y <= yMax; y++) if (map[y]?.[b.cx] !== undefined) map[y][b.cx] = T.FLOOR;
+  }
+  return { map, rooms };
+}
 
-  const room = { x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw / 2), cy: Math.floor(ry + rh / 2) };
-  const rooms = [room];
+export function genTutorialFloor(floorNum) {
+  // Room A (左上): SU + 看板A + 関連アイテム   floor x∈[3,15], y∈[3,10]
+  // Room B (右上): 看板B + 関連アイテム         floor x∈[26,38], y∈[3,10]
+  // Room C (右下): 看板C + 関連アイテム + SD    floor x∈[26,38], y∈[18,25]
+  // 通路: A-B 横 (y=7), B-C 縦 (x=32)
+  const RA = { x: 3, y: 3, w: 13, h: 8 };
+  const RB = { x: 26, y: 3, w: 13, h: 8 };
+  const RC = { x: 26, y: 18, w: 13, h: 8 };
+  const { map, rooms } = buildTutorialMap([RA, RB, RC], [[0, 1], [1, 2]]);
 
-  const su = { x: rx + 1, y: ry + 1 };
+  const su = { x: 4, y: 4 };
+  const sd = { x: 37, y: 24 };
   map[su.y][su.x] = T.SU;
-  const sd = { x: rx + rw - 2, y: ry + rh - 2 };
   map[sd.y][sd.x] = T.SD;
 
   const items = [];
@@ -2190,181 +2211,192 @@ export function genTutorialFloor(floorNum) {
   const mkSign = (x, y, text) => {
     items.push({ id: uid(), type: "sign", name: "看板", x, y, tile: TI.SIGN, text, noPickup: true, discovered: true });
   };
+  const mkMon = (kind, x, y) => {
+    const tmpl = MONS.find(m => m.baseKind === kind);
+    if (!tmpl) return;
+    monsters.push({ ...tmpl, id: uid(), x, y, maxHp: tmpl.hp, baseSpeed: tmpl.speed, turnAccum: 0, aware: false, dir: { x: 0, y: 0 }, lastPx: x, lastPy: y, dormant: true, monLevel: 1, spawnLevel: 1, patrolTarget: null });
+  };
 
   if (floorNum === 1) {
-    mkSign(7, 5, [
+    // Room A: 移動と攻撃
+    mkSign(9, 4, [
       "【移動と攻撃】矢印キー(またはWSAD)で移動できる。スマホはDパッドを使おう。",
       "敵に隣接すると自動で攻撃！斜め移動も可能。ターンは移動・攻撃・アイテム使用ごとに進む。",
     ]);
-    mkSign(7, 10, [
+    const sword = ITEMS.find(i => i.name === "短剣");
+    const armor = ITEMS.find(i => i.name === "革の鎧");
+    items.push({ ...sword, id: uid(), x: 5, y: 8, plus: 0 });
+    items.push({ ...armor, id: uid(), x: 8, y: 8, plus: 0 });
+
+    // Room B: アイテムと持ち物
+    mkSign(32, 4, [
       "【アイテムと持ち物】床のアイテムは踏むと自動で拾える（上限30個）。",
       "バッグアイコンで持ち物を開いてアイテムを使ったり捨てたりできる。",
       "右下の武器・防具スロットに装備するとステータスが上がる。",
     ]);
-    mkSign(7, 17, [
+    const f1 = genFood(); items.push({ ...f1, id: uid(), x: 28, y: 7 });
+    const f2 = genFood(); items.push({ ...f2, id: uid(), x: 31, y: 7 });
+
+    // Room C: 空腹と階段
+    mkSign(32, 19, [
       "【空腹・HP・階段】ターンを使うたびに空腹になる。食料を食べて満腹を維持しよう！",
       "空腹が続くと最大HPが削れていく。HPが0になるとゲームオーバー。",
       "「>」の下り階段を踏んで「降りる」(Zキー)を押すと次の階へ進める。",
     ]);
-
-    const sword = ITEMS.find(i => i.name === "短剣");
-    const armor = ITEMS.find(i => i.name === "革の鎧");
-    const healPot = ITEMS.find(i => i.effect === "heal");
-    items.push({ ...sword, id: uid(), x: 14, y: 5, plus: 0 });
-    items.push({ ...armor, id: uid(), x: 16, y: 5, plus: 0 });
-    items.push({ ...healPot, id: uid(), x: 14, y: 8 });
-    items.push({ ...healPot, id: uid(), x: 16, y: 8 });
-    const f1 = genFood(); items.push({ ...f1, id: uid(), x: 14, y: 11 });
-    const f2 = genFood(); items.push({ ...f2, id: uid(), x: 16, y: 11 });
-
-    const rat = MONS.find(m => m.baseKind === "rat");
-    monsters.push({ ...rat, id: uid(), x: 48, y: 22, maxHp: rat.hp, baseSpeed: rat.speed, turnAccum: 0, aware: false, dir: { x: 0, y: 0 }, lastPx: 48, lastPy: 22, dormant: true, monLevel: 1, spawnLevel: 1, patrolTarget: null });
+    const f3 = genFood(); items.push({ ...f3, id: uid(), x: 28, y: 22 });
+    const f4 = genFood(); items.push({ ...f4, id: uid(), x: 31, y: 22 });
+    mkMon("rat", 35, 23);
 
   } else if (floorNum === 2) {
-    mkSign(7, 5, [
+    // Room A: 識別①
+    mkSign(9, 4, [
       "【識別①：謎のアイテム】薬・巻物・杖・ペン・魔法書・指輪は正体不明の名前で落ちている。",
       "使ってみると正体が判明するよ。良い効果も悪い効果もある。",
       "このダンジョンは識別済みスタートなので全て見えているが、他のダンジョンでは未識別。",
     ]);
-    mkSign(7, 15, [
+    const healPot = ITEMS.find(i => i.effect === "heal");
+    const sleepPot = ITEMS.find(i => i.effect === "sleep");
+    items.push({ ...healPot,  id: uid(), x: 6, y: 8 });
+    items.push({ ...sleepPot, id: uid(), x: 9, y: 8 });
+
+    // Room B: 識別②安全な識別方法
+    mkSign(32, 4, [
       "【識別②：安全な識別方法】鑑定の大箱にアイテムを入れると安全に識別できる。",
       "識別の巻物を読んでもOK。鑑定の巻物は重要アイテム！大切に使おう。",
     ]);
-    mkSign(7, 25, [
+    const identBB = BB_TYPES.find(b => b.kind === "identify");
+    bigboxes.push({ id: uid(), x: 32, y: 7, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: identBB.cap(), contents: [], revealed: true });
+    const powerPot = ITEMS.find(i => i.effect === "power");
+    const identScroll = ITEMS.find(i => i.effect === "identify");
+    if (powerPot)    items.push({ ...powerPot,    id: uid(), x: 28, y: 7 });
+    if (identScroll) items.push({ ...identScroll, id: uid(), x: 35, y: 7 });
+
+    // Room C: 祝福と呪い
+    mkSign(32, 19, [
       "【識別③：祝福と呪い】アイテムには「祝福【祝】」「通常」「呪い【呪】」の3状態がある。",
       "祝福アイテムは効果が強化。呪いアイテムは装備を外せなくなったり逆効果になったりする。",
       "鑑定の大箱で祝福・呪いの状態も分かる。泉に浸すと状態が変わることも！",
     ]);
-
-    const healPot = ITEMS.find(i => i.effect === "heal");
-    const sleepPot = ITEMS.find(i => i.effect === "sleep");
-    const powerPot = ITEMS.find(i => i.effect === "power");
+    springs.push({ id: uid(), x: 32, y: 23, tile: TI.SPRING, contents: [] });
     const tpScroll = ITEMS.find(i => i.effect === "teleport");
-    const identScroll = ITEMS.find(i => i.effect === "identify");
-    items.push({ ...healPot,  id: uid(), x: 22, y: 8 });
-    items.push({ ...sleepPot, id: uid(), x: 24, y: 8 });
-    items.push({ ...powerPot, id: uid(), x: 26, y: 8 });
-    if (tpScroll)    items.push({ ...tpScroll,    id: uid(), x: 22, y: 11 });
-    if (identScroll) items.push({ ...identScroll, id: uid(), x: 24, y: 11 });
-
-    const identBB = BB_TYPES.find(b => b.kind === "identify");
-    bigboxes.push({ id: uid(), x: 35, y: 22, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: 5, contents: [], revealed: true });
-    springs.push({ id: uid(), x: 50, y: 14, tile: TI.SPRING, contents: [] });
+    if (tpScroll) items.push({ ...tpScroll, id: uid(), x: 28, y: 21 });
 
   } else if (floorNum === 3) {
-    mkSign(7, 5, [
+    // Room A: 壺の基本
+    mkSign(9, 4, [
       "【壺①：壺の基本】壺にはアイテムを入れられる。持ち物でアイテムを選んで「入れる」を選択。",
       "壺も正体不明のものがある。使ってみるか識別して正体を確かめよう。",
     ]);
-    mkSign(7, 15, [
+    const nonePot = POTS.find(p => p.potEffect === "none");
+    const gunPot  = POTS.find(p => p.potEffect === "gunpowder");
+    if (nonePot) items.push({ ...nonePot, id: uid(), x: 6, y: 8, contents: [] });
+    if (gunPot)  items.push({ ...gunPot,  id: uid(), x: 9, y: 8, contents: [] });
+
+    // Room B: 保存・加熱の壺
+    mkSign(32, 4, [
       "【壺②：保存・加熱の壺】保存の壺：アイテムを安全保管。壺ごと持ち運べる便利な壺。",
       "加熱の壺：薬を入れると部屋中に薬効が広がる（自分にも効く）。使い方次第で強力！",
     ]);
-    mkSign(7, 25, [
+    const boilPot = POTS.find(p => p.potEffect === "boil");
+    const healPot2 = ITEMS.find(i => i.effect === "heal");
+    if (boilPot) items.push({ ...boilPot, id: uid(), x: 32, y: 7, contents: [] });
+    items.push({ ...healPot2, id: uid(), x: 28, y: 7 });
+    items.push({ ...healPot2, id: uid(), x: 35, y: 7 });
+
+    // Room C: 食料壺
+    mkSign(32, 19, [
       "【壺③：食料壺】チョコ・蜂蜜・カレー・味噌など食料壺に食料を入れると強化食料に変化！",
       "食べるとHP回復や戦闘強化効果が得られる。火薬壺は要注意！割れると大爆発を起こす。",
     ]);
-
-    const nonePot  = POTS.find(p => p.potEffect === "none");
-    const boilPot  = POTS.find(p => p.potEffect === "boil");
     const chocoPot = POTS.find(p => p.potEffect === "choco");
     const honeyPot = POTS.find(p => p.potEffect === "honey");
-    const gunPot   = POTS.find(p => p.potEffect === "gunpowder");
-    if (nonePot)  items.push({ ...nonePot,  id: uid(), x: 20, y: 10, contents: [] });
-    if (boilPot)  items.push({ ...boilPot,  id: uid(), x: 23, y: 10, contents: [] });
-    if (chocoPot) items.push({ ...chocoPot, id: uid(), x: 26, y: 10, contents: [] });
-    if (honeyPot) items.push({ ...honeyPot, id: uid(), x: 29, y: 10, contents: [] });
-    if (gunPot)   items.push({ ...gunPot,   id: uid(), x: 32, y: 10, contents: [] });
-
-    for (let i = 0; i < 4; i++) {
-      const f = genFood(); items.push({ ...f, id: uid(), x: 20 + i * 3, y: 14 });
-    }
-    const healPot = ITEMS.find(i => i.effect === "heal");
-    items.push({ ...healPot, id: uid(), x: 45, y: 8 });
-    items.push({ ...healPot, id: uid(), x: 47, y: 8 });
-
-    const goblin = MONS.find(m => m.baseKind === "goblin");
-    for (let i = 0; i < 2; i++) {
-      monsters.push({ ...goblin, id: uid(), x: 44 + i * 5, y: 25, maxHp: goblin.hp, baseSpeed: goblin.speed, turnAccum: 0, aware: false, dir: { x: 0, y: 0 }, lastPx: 44 + i * 5, lastPy: 25, dormant: true, monLevel: 1, spawnLevel: 1, patrolTarget: null });
-    }
+    if (chocoPot) items.push({ ...chocoPot, id: uid(), x: 28, y: 22, contents: [] });
+    if (honeyPot) items.push({ ...honeyPot, id: uid(), x: 31, y: 22, contents: [] });
+    const f1 = genFood(); items.push({ ...f1, id: uid(), x: 27, y: 24 });
+    const f2 = genFood(); items.push({ ...f2, id: uid(), x: 30, y: 24 });
+    const f3 = genFood(); items.push({ ...f3, id: uid(), x: 33, y: 24 });
+    mkMon("goblin", 35, 23);
 
   } else if (floorNum === 4) {
-    mkSign(7, 5, [
+    // Room A: 大箱の基本
+    mkSign(9, 4, [
       "【大箱①：大箱の基本】大箱は合成・強化・識別などの特殊効果を持つ容器。",
       "大箱にも正体不明のものがある（外見名で種類が分からない）。",
       "このフロアは識別済みなので全種類見えているよ。",
     ]);
-    mkSign(7, 15, [
-      "【大箱②：主な種類】合成の大箱：武器/防具の能力引継ぎ合成や異種合成。",
-      "強化の大箱：装備品・指輪の＋値UP。充填の大箱：杖・ペンのチャージ回復。",
-      "識別の大箱：アイテムを識別+祝福・呪い判明。変化の大箱：別アイテムに変化。",
+    const synthBB = BB_TYPES.find(b => b.kind === "synthesis");
+    const enhBB   = BB_TYPES.find(b => b.kind === "enhance");
+    if (synthBB) bigboxes.push({ id: uid(), x: 6, y: 8, tile: TI.BIGBOX, kind: synthBB.kind, name: synthBB.name, capacity: synthBB.cap(), contents: [], revealed: true });
+    if (enhBB)   bigboxes.push({ id: uid(), x: 9, y: 8, tile: TI.BIGBOX, kind: enhBB.kind,   name: enhBB.name,   capacity: enhBB.cap(),   contents: [], revealed: true });
+    const sword = ITEMS.find(i => i.name === "短剣");
+    items.push({ ...sword, id: uid(), x: 5, y: 6, plus: 0 });
+    items.push({ ...sword, id: uid(), x: 8, y: 6, plus: 0 });
+
+    // Room B: 主な大箱
+    mkSign(32, 4, [
+      "【大箱②：主な種類】識別の大箱：アイテムを識別+祝福・呪い判明。",
+      "充填の大箱：杖・ペンのチャージ回復。変化の大箱：別アイテムに変化。",
     ]);
-    mkSign(7, 25, [
+    const identBB  = BB_TYPES.find(b => b.kind === "identify");
+    const refillBB = BB_TYPES.find(b => b.kind === "refill");
+    const changeBB = BB_TYPES.find(b => b.kind === "change");
+    if (identBB)  bigboxes.push({ id: uid(), x: 27, y: 7, tile: TI.BIGBOX, kind: identBB.kind,  name: identBB.name,  capacity: identBB.cap(),  contents: [], revealed: true });
+    if (refillBB) bigboxes.push({ id: uid(), x: 31, y: 7, tile: TI.BIGBOX, kind: refillBB.kind, name: refillBB.name, capacity: refillBB.cap(), contents: [], revealed: true });
+    if (changeBB) bigboxes.push({ id: uid(), x: 35, y: 7, tile: TI.BIGBOX, kind: changeBB.kind, name: changeBB.name, capacity: changeBB.cap(), contents: [], revealed: true });
+    const wand = WANDS[0];
+    if (wand) items.push({ ...wand, id: uid(), x: 32, y: 9, charges: 3 });
+
+    // Room C: 特殊な大箱
+    mkSign(32, 19, [
       "【大箱③：特殊な大箱】拡散の大箱：アイテムを部屋中に投げつけて全員に効果発動！",
       "薬を入れると部屋全体に効果が広がる使い方が強力。",
       "分裂・祝福・呪いの大箱はレア！大切に使おう。",
     ]);
-
-    const bbDefs = [
-      BB_TYPES.find(b => b.kind === "synthesis"),
-      BB_TYPES.find(b => b.kind === "enhance"),
-      BB_TYPES.find(b => b.kind === "identify"),
-      BB_TYPES.find(b => b.kind === "refill"),
-      BB_TYPES.find(b => b.kind === "change"),
-      BB_TYPES.find(b => b.kind === "scatter"),
-    ].filter(Boolean);
-    bbDefs.forEach((bbt, i) => {
-      bigboxes.push({ id: uid(), x: 15 + i * 7, y: 22, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [], revealed: true });
-    });
-
-    const sword = ITEMS.find(i => i.name === "短剣");
-    const armor = ITEMS.find(i => i.name === "革の鎧");
-    const wand = WANDS[0];
-    items.push({ ...sword, id: uid(), x: 22, y: 8, plus: 0 });
-    items.push({ ...sword, id: uid(), x: 24, y: 8, plus: 0 });
-    items.push({ ...armor, id: uid(), x: 26, y: 8, plus: 0 });
-    items.push({ ...armor, id: uid(), x: 28, y: 8, plus: 0 });
-    if (wand) items.push({ ...wand, id: uid(), x: 30, y: 8, charges: 3 });
-
-    const kobold = MONS.find(m => m.baseKind === "kobold");
-    for (let i = 0; i < 3; i++) {
-      monsters.push({ ...kobold, id: uid(), x: 42 + i * 5, y: 28, maxHp: kobold.hp, baseSpeed: kobold.speed, turnAccum: 0, aware: false, dir: { x: 0, y: 0 }, lastPx: 42 + i * 5, lastPy: 28, dormant: true, monLevel: 1, spawnLevel: 1, patrolTarget: null });
-    }
+    const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
+    if (scatterBB) bigboxes.push({ id: uid(), x: 32, y: 23, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
+    const healPot = ITEMS.find(i => i.effect === "heal");
+    items.push({ ...healPot, id: uid(), x: 28, y: 21 });
+    items.push({ ...healPot, id: uid(), x: 35, y: 21 });
+    mkMon("kobold", 27, 23);
+    mkMon("kobold", 36, 24);
 
   } else {
-    mkSign(7, 5, [
+    // B5F
+    // Room A: 罠
+    mkSign(9, 4, [
       "【罠】ダンジョンには様々な罠が隠れている！踏むと発動する。",
       "罠看破の巻物を読むとフロア全体の罠が見える。このフロアの罠は最初から見えているよ。",
       "矢の罠・鈍足の罠・空腹の罠・召喚の罠など種類は様々。",
     ]);
-    mkSign(7, 16, [
-      "【泉】泉に近づいて「浸す」を選ぶとアイテムに変化が起きる。",
-      "薬を浸すと別の薬に変化。食料を浸すと特殊食料に。祝福状態の泉は良い効果が多い！",
-      "泉で薬を浸して識別することもできる。ただし呪われた泉は注意！",
-    ]);
-    mkSign(7, 28, [
-      "★ チュートリアル完了！基本をマスターした！",
-      "「初心者ダンジョン」で全10階の本格的なダンジョン攻略に挑戦しよう！",
-      "下り階段（>）を踏んでHubに戻ろう。次の冒険へ出発だ！",
-    ]);
-
-    springs.push({ id: uid(), x: 30, y: 12, tile: TI.SPRING, contents: [] });
-    springs.push({ id: uid(), x: 47, y: 27, tile: TI.SPRING, contents: [] });
-
     const trapDefs = [
       TRAPS.find(t => t.effect === "arrow_trap"),
       TRAPS.find(t => t.effect === "slow_trap"),
       TRAPS.find(t => t.effect === "hunger_trap"),
       TRAPS.find(t => t.effect === "summon_trap"),
     ].filter(Boolean);
-    const trapPos = [[25, 20], [32, 26], [38, 18], [44, 23]];
+    const trapPos = [[5, 6], [9, 6], [5, 9], [9, 9]];
     trapDefs.forEach((trap, i) => {
       traps.push({ ...trap, id: uid(), x: trapPos[i][0], y: trapPos[i][1], revealed: true });
     });
 
+    // Room B: 泉
+    mkSign(32, 4, [
+      "【泉】泉に近づいて「浸す」を選ぶとアイテムに変化が起きる。",
+      "薬を浸すと別の薬に変化。食料を浸すと特殊食料に。祝福状態の泉は良い効果が多い！",
+      "泉で薬を浸して識別することもできる。ただし呪われた泉は注意！",
+    ]);
+    springs.push({ id: uid(), x: 29, y: 7, tile: TI.SPRING, contents: [] });
+    springs.push({ id: uid(), x: 34, y: 7, tile: TI.SPRING, contents: [] });
     const healPot = ITEMS.find(i => i.effect === "heal");
-    items.push({ ...healPot, id: uid(), x: 50, y: 8 });
-    items.push({ ...healPot, id: uid(), x: 52, y: 8 });
+    items.push({ ...healPot, id: uid(), x: 27, y: 9 });
+    items.push({ ...healPot, id: uid(), x: 37, y: 9 });
+
+    // Room C: チュートリアル完了
+    mkSign(32, 19, [
+      "★ チュートリアル完了！基本をマスターした！",
+      "「初心者ダンジョン」で全10階の本格的なダンジョン攻略に挑戦しよう！",
+      "下り階段（>）を踏んでHubに戻ろう。次の冒険へ出発だ！",
+    ]);
   }
 
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
@@ -2373,6 +2405,6 @@ export function genTutorialFloor(floorNum) {
     map, rooms, monsters, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible: vis, explored: exp,
     shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], pentacles: [],
-    isBigRoom: true, floorType: "tutorialFloor", tutorialFloor: floorNum,
+    floorType: "tutorialFloor", tutorialFloor: floorNum,
   };
 }
