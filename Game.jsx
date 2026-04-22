@@ -201,6 +201,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const bigboxRef = useRef(null);
   const bigboxModeRef = useRef(null);
   bigboxModeRef.current = bigboxMode;
+  const identifyConfirmRef = useRef(null);
   const nicknameModeRef = useRef(null);
   const [facingMode, setFacingMode] = useState(false);
   const springTargetRef = useRef(null);
@@ -5227,19 +5228,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 }
                 return;
               }
-              /* === 泉モード：上下で選択 === */
+              /* === 泉モード：上下で選択、左右でページ送り(soak) === */
               if (springMode) {
-                if (dy !== 0 && dx === 0) {
-                  if (springMode === "menu") {
-                    setSpringMenuSel((p) => (p + dy + 3) % 3);
-                  } else if (springMode === "soak") {
-                    const inv = sr.current?.player?.inventory || [];
-                    if (inv.length > 0) {
-                      const totalPg = Math.max(1, Math.ceil(inv.length / 10));
-                      const curPg = Math.min(springPage, totalPg - 1);
-                      const pgLen = inv.slice(curPg * 10, (curPg + 1) * 10).length;
-                      setSpringMenuSel((s) => (s + dy + pgLen) % pgLen);
-                    }
+                if (springMode === "menu") {
+                  if (dy !== 0 && dx === 0) setSpringMenuSel((p) => (p + dy + 3) % 3);
+                } else if (springMode === "soak") {
+                  const inv = sr.current?.player?.inventory || [];
+                  if (dy !== 0 && dx === 0 && inv.length > 0) {
+                    const totalPg = Math.max(1, Math.ceil(inv.length / 10));
+                    const curPg = Math.min(springPage, totalPg - 1);
+                    const pgLen = inv.slice(curPg * 10, (curPg + 1) * 10).length;
+                    setSpringMenuSel((s) => (s + dy + pgLen) % pgLen);
+                  } else if (dx !== 0 && dy === 0 && inv.length > 10) {
+                    const totalPg = Math.max(1, Math.ceil(inv.length / 10));
+                    setSpringPage((p) => (p + dx + totalPg) % totalPg);
+                    setSpringMenuSel(0);
                   }
                 }
                 return;
@@ -5289,26 +5292,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 <AB
                   label="矢"
                   sub="shoot"
-                  onClick={() => { if (spellListMode) return; act("shoot_arrow"); }}
+                  onClick={() => { if (spellListMode) return; if (springMode || identifyMode) return; act("shoot_arrow"); }}
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
-                  label={(putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : showInv ? "閉" : "袋"}
-                  sub={(putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : showInv ? "閉じる" : "items"}
+                  label={(putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={(putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
                   onClick={() => {
                     if (spellListMode) return;
                     if (putMode) { setPutMode(null); setPutPage(0); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
+                    if (springMode === "soak") { setSpringMode("menu"); setSpringMenuSel(0); setSpringPage(0); return; }
+                    if (springMode) { setSpringMode(null); setSpringMenuSel(0); return; }
+                    if (identifyMode) { setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     act("inventory");
                   }}
-                  color={(putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : "#ff0"}
+                  color={(putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={showInv ? "決" : bigboxMode === "menu" ? "決" : "足"}
-                  sub={showInv ? "決定" : bigboxMode === "menu" ? "決定" : "足元"}
+                  label={showInv ? "決" : bigboxMode === "menu" ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
+                  sub={showInv ? "決定" : bigboxMode === "menu" ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
                   onClick={() => {
                     if (spellListMode) return;
                     if (bigboxMode === "menu") {
@@ -5320,6 +5326,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       else if (bigboxMenuSel === 3 && _bbk) { setBigboxMode(null); setNicknameMode({ identKey: _bbk }); setNicknameInput(gs?.nicknames?.[_bbk] || ""); }
                       return;
                     }
+                    if (springMode === "menu") {
+                      if (springMenuSel === 0) { springDrink(); }
+                      else if (springMenuSel === 1) { setSpringMode("soak"); setSpringMenuSel(0); }
+                      else { setSpringMode(null); setSpringMenuSel(0); }
+                      return;
+                    }
+                    if (springMode === "soak") {
+                      const _spInv2 = sr.current?.player?.inventory || [];
+                      const _spAbsIdx = springPage * 10 + springMenuSel;
+                      if (_spInv2[_spAbsIdx]) { springDoSoak(_spAbsIdx); setSpringPage(0); setSpringMenuSel(0); }
+                      return;
+                    }
+                    if (identifyMode) {
+                      if (identifyConfirmRef.current) identifyConfirmRef.current(identifyMode.sel || 0);
+                      return;
+                    }
                     if (showInv) {
                       if (selIdx !== null) {
                         if (dropModeRef.current) { doDropItem(invPage * 10 + selIdx); }
@@ -5327,7 +5349,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       }
                     } else { act("interact"); }
                   }}
-                  color={bigboxMode === "menu" ? "#fc0" : showInv ? "#fc0" : "#0ff"}
+                  color={bigboxMode === "menu" ? "#fc0" : showInv ? "#fc0" : (springMode || identifyMode) ? "#fc0" : "#0ff"}
                 />
                 <AB
                   label={bigboxMode === "put" ? "決" : showInv ? "置" : "前"}
@@ -5335,6 +5357,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   onClick={() => {
                     if (spellListMode) return;
                     if (bigboxMode === "put") { bigboxPutItem(bigboxPage * 10 + bigboxMenuSel); return; }
+                    if (springMode || identifyMode) return;
                     if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); } else { doExamineFront(); }
                   }}
                   color={bigboxMode === "put" ? "#fc0" : showInv ? (dropMode ? "#f88" : "#fa8") : "#4af"}
@@ -5342,13 +5365,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 <AB
                   label={showInv ? "整" : "待"}
                   sub={showInv ? "整理" : "wait"}
-                  onClick={() => { if (spellListMode) return; if (showInv) { sortInventory(); } else { act("wait"); } }}
+                  onClick={() => { if (spellListMode) return; if (springMode || identifyMode) return; if (showInv) { sortInventory(); } else { act("wait"); } }}
                   color={showInv ? "#8f8" : "#666"}
                 />
                 <AB
                   label="罠"
                   sub="探る"
-                  onClick={() => { if (spellListMode) return; act("search_traps"); }}
+                  onClick={() => { if (spellListMode) return; if (springMode || identifyMode) return; act("search_traps"); }}
                   color="#fa0"
                 />
               </div>{" "}
@@ -5359,6 +5382,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   onClick={() => {
                     if (spellListMode) return;
                     if (revealMode) return;
+                    if (springMode || identifyMode) return;
                     if (lookMode) {
                       setLookMode(null);
                       setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
@@ -5376,13 +5400,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 <AB
                   label="走"
                   sub={dashMode ? "ON" : "dash"}
-                  onClick={() => { if (spellListMode) return; if (revealMode) return; setDashMode((v) => !v); }}
+                  onClick={() => { if (spellListMode) return; if (revealMode) return; if (springMode || identifyMode) return; setDashMode((v) => !v); }}
                   color={dashMode ? "#f44" : "#a8f"}
                 />
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
+                  onClick={() => { if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode || springMode || identifyMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB
@@ -5489,7 +5513,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
-      <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} />
+      <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} identifyConfirmRef={identifyConfirmRef} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} />{" "}
