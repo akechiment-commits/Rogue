@@ -822,6 +822,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       go = false;
       const it = dg.items.find((i) => i.x === p.x && i.y === p.y);
       if (!it) break;
+      if (it.type === "sign") { break; }
       if (it.type === "gold") {
         p.gold += it.value;
         ml.push(`${it.value}枚の金貨を拾った！`);
@@ -3112,7 +3113,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           /* 足元のアイテムを拾う */
           const _grIt = dg.items.find((i) => i.x === p.x && i.y === p.y);
           if (_grIt) {
-            if (_grIt.type === "gold") {
+            if (_grIt.type === "sign") {
+              for (const line of _grIt.text) ml.push(line);
+            } else if (_grIt.type === "gold") {
               p.gold += _grIt.value;
               ml.push(`${_grIt.value}枚の金貨を拾った！`);
               removeFloorItem(dg, _grIt);
