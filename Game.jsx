@@ -2189,7 +2189,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         });
         if (_revPcP) {
           p.hp = p.maxHp;
-          st.dungeon.pentacles = st.dungeon.pentacles.filter(pc => pc !== _revPcP);
           ml.push("復活の魔方陣の力でHP全回復！");
         } else if ((p.mp || 0) > 0) {
           /* MPが残っていれば残MP分のHPで復活 */

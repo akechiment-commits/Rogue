@@ -2751,7 +2751,6 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     });
     if (_revPc) {
       mon.hp = mon.maxHp;
-      dg.pentacles = dg.pentacles.filter(pc => pc !== _revPc);
       ml.push(`${mon.name}は復活の魔方陣の力でHP全回復！`);
       return;
     }
