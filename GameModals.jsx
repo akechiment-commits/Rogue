@@ -936,10 +936,18 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   };
   if (identifyConfirmRef) identifyConfirmRef.current = doConfirmUI;
   return (
-    <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.85)",
-                  display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:300 }}>
-      <div style={{ background:"#1a2a3a", padding:16, borderRadius:8, maxWidth:400, width:"90%", maxHeight:"80dvh", overflowY:"auto" }}>
-        <div style={{ color:"#ff0", marginBottom:4, fontWeight:"bold" }}>
+    <div
+      style={{
+        position: "absolute",
+        top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
+        background: "#0e1a2a", border: "1px solid #2a4a7a",
+        padding: mobile ? 10 : 14, zIndex: 12, borderRadius: 8,
+        boxShadow: "0 4px 20px rgba(0,20,60,0.7)",
+        maxHeight: mobile ? "65dvh" : "80%", overflowY: "auto",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>
           {mode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
             : mode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
             : mode.mode === 'duplicate' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "複製するアイテムを選んでください（2つ増える）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
@@ -950,53 +958,39 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             : mode.mode === 'weapon_up' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する武器/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/指輪を選んでください（－1）【呪】" : "強化する武器/指輪を選んでください（＋1）")
             : mode.mode === 'armor_up'  ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する防具/指輪を選んでください（－1）【呪】" : "強化する防具/指輪を選んでください（＋1）")
             : (mode.wasUnknown ? "どのアイテムを選びますか？" : "識別を解除するアイテムを選んでください【呪】")}
-        </div>
-        <div style={{ color:"#556", fontSize:10, marginBottom:4 }}>↑↓/8,2:選択　←→/4,6:ページ　Ｚ/Enter:決定　ESC:キャンセル</div>
-        {_idTotalPg_ui > 1 && (
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
-            <button onClick={() => setMode({ ...mode, page: ((_idPage_ui - 1 + _idTotalPg_ui) % _idTotalPg_ui), sel: 0 })}
-              style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"2px 8px", cursor:"pointer", touchAction:"manipulation" }}>◀</button>
-            <span style={{ color:"#8af", fontSize:11 }}>{_idPage_ui + 1} / {_idTotalPg_ui}</span>
-            <button onClick={() => setMode({ ...mode, page: ((_idPage_ui + 1) % _idTotalPg_ui), sel: 0 })}
-              style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"2px 8px", cursor:"pointer", touchAction:"manipulation" }}>▶</button>
-          </div>
-        )}
-        {_idPageItems_ui.length === 0 && <div style={{ color:"#888" }}>該当するアイテムがない。</div>}
-        {_idPageItems_ui.map(({ it, i }, vi) => {
-          const _isSel = vi === _curSel_ui;
-          return (
-            <div key={i} onClick={() => doConfirmUI(vi)}
-              style={{ padding:"4px 8px", cursor:"pointer",
-                       background: _isSel ? "#2a4a6a" : "#1a3a5a",
-                       border: `1px solid ${_isSel ? "#4080c0" : "transparent"}`,
-                       margin:"2px 0", borderRadius:4,
-                       color: _isSel ? "#fff" : "#ccc",
-                       fontWeight: _isSel ? "bold" : "normal" }}>
-              {_isSel ? "▶ " : "\u3000"}{iLabel(it)}
-            </div>
-          );
-        })}
-        {mobile && _idPageItems_ui.length > 0 && (
-          <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginTop:8 }}>
-            <button onClick={() => setMode({ ...mode, sel: Math.max(0, _curSel_ui - 1) })}
-              style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▲</button>
-            <button onClick={() => setMode({ ...mode, sel: Math.min(_idPageItems_ui.length - 1, _curSel_ui + 1) })}
-              style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▼</button>
-            {_idTotalPg_ui > 1 && <>
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {_idTotalPg_ui > 1 && (
+            <>
               <button onClick={() => setMode({ ...mode, page: ((_idPage_ui - 1 + _idTotalPg_ui) % _idTotalPg_ui), sel: 0 })}
-                style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>◀</button>
+                style={{ background: "#1a3a5a", color: "#8af", border: "1px solid #4060a0", borderRadius: 4, padding: "2px 6px", cursor: "pointer", touchAction: "manipulation" }}>◀</button>
+              <span style={{ color: "#8af", fontSize: 11 }}>{_idPage_ui + 1}/{_idTotalPg_ui}</span>
               <button onClick={() => setMode({ ...mode, page: ((_idPage_ui + 1) % _idTotalPg_ui), sel: 0 })}
-                style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▶</button>
-            </>}
-            <button onClick={() => doConfirmUI(_curSel_ui)}
-              style={{ background:"#1a4a2a", color:"#6f6", border:"1px solid #4a8a4a", borderRadius:4, padding:"5px 14px", cursor:"pointer", touchAction:"manipulation", fontWeight:"bold" }}>決定</button>
-          </div>
-        )}
-        <button onClick={() => { setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
-          style={{ marginTop:8, color:"#888", background:"#0a1a2a", border:"1px solid #446", borderRadius:4, padding:"4px 12px", cursor:"pointer" }}>
-          やめる (ESC)
-        </button>
+                style={{ background: "#1a3a5a", color: "#8af", border: "1px solid #4060a0", borderRadius: 4, padding: "2px 6px", cursor: "pointer", touchAction: "manipulation" }}>▶</button>
+            </>
+          )}
+          <button onClick={() => { setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
+            style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 10px", cursor: "pointer", fontSize: 13 }}>✕</button>
+        </div>
       </div>
+      <div style={{ color: "#556", fontSize: 10, marginBottom: 4 }}>↑↓:選択　←→:ページ　Z:決定　ESC:キャンセル</div>
+      {_idPageItems_ui.length === 0 && <div style={{ color: "#888" }}>該当するアイテムがない。</div>}
+      {_idPageItems_ui.map(({ it, i }, vi) => {
+        const _isSel = vi === _curSel_ui;
+        return (
+          <div key={i} onClick={() => doConfirmUI(vi)}
+            style={{
+              padding: "4px 8px", cursor: "pointer",
+              background: _isSel ? "#2a4a6a" : "#1a3a5a",
+              border: `1px solid ${_isSel ? "#4080c0" : "transparent"}`,
+              margin: "2px 0", borderRadius: 4,
+              color: _isSel ? "#fff" : "#ccc",
+              fontWeight: _isSel ? "bold" : "normal",
+            }}>
+            {_isSel ? "▶ " : "　"}{iLabel(it)}
+          </div>
+        );
+      })}
     </div>
   );
 }
