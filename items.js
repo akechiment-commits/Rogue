@@ -1010,7 +1010,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     /* 範囲内の床上アイテムへの爆発ダメージ（火薬壺以外） */
     const _blasted = new Set();
     for (const it of dg.items) {
-      if (Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) > 1) continue;
+      if (Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) > 2) continue;
       if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 火薬壺は後で連鎖処理 */
       if (it.type === "scroll" || it.type === "spellbook") {
         _blasted.add(it); ml.push(`巻物「${it.name}」が爆風で燃えてなくなった！`);
@@ -1031,8 +1031,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
     /* 範囲内の大箱を破壊 */
     const _gpBlastedBB = [];
-    for (let _gbbdx = -1; _gbbdx <= 1; _gbbdx++) {
-      for (let _gbbdy = -1; _gbbdy <= 1; _gbbdy++) {
+    for (let _gbbdx = -2; _gbbdx <= 2; _gbbdx++) {
+      for (let _gbbdy = -2; _gbbdy <= 2; _gbbdy++) {
         const _gbax = cx + _gbbdx, _gbay = cy + _gbbdy;
         if (_gbax < 0 || _gbax >= MW || _gbay < 0 || _gbay >= MH) continue;
         const _hitBBs = (dg.bigboxes || []).filter(b => b.x === _gbax && b.y === _gbay);
@@ -1049,7 +1049,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     /* 範囲内の床上 火薬壺 を先に除去してから連鎖爆発 */
     const _chainPots = dg.items.filter(it =>
       it.type === "pot" && it.potEffect === "gunpowder" &&
-      Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) <= 1
+      Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) <= 2
     );
     if (_chainPots.length > 0) {
       dg.items = dg.items.filter(i => !_chainPots.includes(i));
@@ -1057,7 +1057,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     }
     /* 爆発範囲内の魔方陣を消滅 */
     if (dg.pentacles?.length > 0) {
-      const _blastPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= 1);
+      const _blastPcs = dg.pentacles.filter(pc => Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= 2);
       if (_blastPcs.length > 0) {
         dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
         for (const _bpc of _blastPcs) ml.push(`爆発で${_bpc.name}が消えた！`);
