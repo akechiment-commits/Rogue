@@ -975,6 +975,22 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             </div>
           );
         })}
+        {mobile && _idPageItems_ui.length > 0 && (
+          <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginTop:8 }}>
+            <button onClick={() => setMode({ ...mode, sel: Math.max(0, _curSel_ui - 1) })}
+              style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▲</button>
+            <button onClick={() => setMode({ ...mode, sel: Math.min(_idPageItems_ui.length - 1, _curSel_ui + 1) })}
+              style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▼</button>
+            {_idTotalPg_ui > 1 && <>
+              <button onClick={() => setMode({ ...mode, page: ((_idPage_ui - 1 + _idTotalPg_ui) % _idTotalPg_ui), sel: 0 })}
+                style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>◀</button>
+              <button onClick={() => setMode({ ...mode, page: ((_idPage_ui + 1) % _idTotalPg_ui), sel: 0 })}
+                style={{ background:"#1a3a5a", color:"#8af", border:"1px solid #4060a0", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▶</button>
+            </>}
+            <button onClick={() => doConfirmUI(_curSel_ui)}
+              style={{ background:"#1a4a2a", color:"#6f6", border:"1px solid #4a8a4a", borderRadius:4, padding:"5px 14px", cursor:"pointer", touchAction:"manipulation", fontWeight:"bold" }}>決定</button>
+          </div>
+        )}
         <button onClick={() => { setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
           style={{ marginTop:8, color:"#888", background:"#0a1a2a", border:"1px solid #446", borderRadius:4, padding:"4px 12px", cursor:"pointer" }}>
           やめる (ESC)
@@ -1441,10 +1457,30 @@ export function SpringModal({ mode, setMode, gs, menuSel, setMenuSel, page, setP
             <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
               ↑↓:選択　←→:ページ　Z:決定　X:戻る
             </div>
-            <button onClick={() => { setMode("menu"); setMenuSel(0); setPage(0); }}
-              style={{ marginTop: 4, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>
-              戻る
-            </button>
+            {mobile && _spPageItems.length > 0 && (
+              <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginTop:6 }}>
+                <button onClick={() => setMenuSel(s => Math.max(0, s - 1))}
+                  style={{ background:"#0a1a2a", color:"#4af", border:"1px solid #2a5a7a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▲</button>
+                <button onClick={() => setMenuSel(s => Math.min(_spPageItems.length - 1, s + 1))}
+                  style={{ background:"#0a1a2a", color:"#4af", border:"1px solid #2a5a7a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▼</button>
+                {_spTotalPg > 1 && <>
+                  <button onClick={() => { setPage(pg => (pg - 1 + _spTotalPg) % _spTotalPg); setMenuSel(0); }}
+                    style={{ background:"#0a1a2a", color:"#4af", border:"1px solid #2a5a7a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>◀</button>
+                  <button onClick={() => { setPage(pg => (pg + 1) % _spTotalPg); setMenuSel(0); }}
+                    style={{ background:"#0a1a2a", color:"#4af", border:"1px solid #2a5a7a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▶</button>
+                </>}
+                <button onClick={() => { const _ai = _spCurPg * 10 + menuSel; if (_spInv[_ai]) { springDoSoak(_ai); setPage(0); setMenuSel(0); } }}
+                  style={{ background:"#1a4a2a", color:"#6f6", border:"1px solid #4a8a4a", borderRadius:4, padding:"5px 14px", cursor:"pointer", touchAction:"manipulation", fontWeight:"bold" }}>決定</button>
+                <button onClick={() => { setMode("menu"); setMenuSel(0); setPage(0); }}
+                  style={{ background:"#222", color:"#888", border:"1px solid #444", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>戻る</button>
+              </div>
+            )}
+            {!mobile && (
+              <button onClick={() => { setMode("menu"); setMenuSel(0); setPage(0); }}
+                style={{ marginTop: 4, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>
+                戻る
+              </button>
+            )}
           </div>
         );
       })()}
@@ -1716,24 +1752,30 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
               <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
                 ↑↓:選択 ←→:ページ Z:決定 X:戻る
               </div>
-              <button
-                onClick={() => {
-                  setMode(null);
-                  bigboxRef.current = null;
-                }}
-                style={{
-                  marginTop: 4,
-                  padding: "5px 16px",
-                  background: "#222",
-                  color: "#888",
-                  border: "1px solid #444",
-                  borderRadius: 5,
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
-              >
-                戻る
-              </button>
+              {mobile && _pi.length > 0 && (
+                <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginTop:6 }}>
+                  <button onClick={() => setMenuSel(s => Math.max(0, s - 1))}
+                    style={{ background:"#1a1a0a", color:"#ca8", border:"1px solid #5a3a1a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▲</button>
+                  <button onClick={() => setMenuSel(s => Math.min(_pi.length - 1, s + 1))}
+                    style={{ background:"#1a1a0a", color:"#ca8", border:"1px solid #5a3a1a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▼</button>
+                  {_tp > 1 && <>
+                    <button onClick={() => { setPage(p => (p - 1 + _tp) % _tp); setMenuSel(0); }}
+                      style={{ background:"#1a1a0a", color:"#ca8", border:"1px solid #5a3a1a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>◀</button>
+                    <button onClick={() => { setPage(p => (p + 1) % _tp); setMenuSel(0); }}
+                      style={{ background:"#1a1a0a", color:"#ca8", border:"1px solid #5a3a1a", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>▶</button>
+                  </>}
+                  <button onClick={() => bigboxPutItem(page * _ps + menuSel)}
+                    style={{ background:"#1a4a2a", color:"#6f6", border:"1px solid #4a8a4a", borderRadius:4, padding:"5px 14px", cursor:"pointer", touchAction:"manipulation", fontWeight:"bold" }}>決定</button>
+                  <button onClick={() => { setMode(null); bigboxRef.current = null; }}
+                    style={{ background:"#222", color:"#888", border:"1px solid #444", borderRadius:4, padding:"5px 12px", cursor:"pointer", touchAction:"manipulation" }}>閉じる</button>
+                </div>
+              )}
+              {!mobile && (
+                <button onClick={() => { setMode(null); bigboxRef.current = null; }}
+                  style={{ marginTop: 4, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>
+                  戻る
+                </button>
+              )}
             </div>
           );
         })()}
