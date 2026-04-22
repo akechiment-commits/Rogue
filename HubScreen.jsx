@@ -494,6 +494,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const bestDepth = saveData.bestDepth || 0;
 
   const DUNGEON_TYPES = [
+    { id:"tutorial",     label:"チュートリアル",     desc:"全5階。ローグライクの基本から独自システムまで学べる入門ダンジョン", color:"#8f8", maxFloors:5   },
     { id:"beginner",     label:"初心者ダンジョン",   desc:"全10階",                                    color:"#8cf", maxFloors:10  },
     { id:"intermediate", label:"中級者ダンジョン",   desc:"全20階",                                    color:"#fc8", maxFloors:20  },
     { id:"advanced",     label:"上級者ダンジョン",   desc:"全30階",                                    color:"#f88", maxFloors:30  },
@@ -502,13 +503,14 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   ];
   const [dtype, setDtype] = useState("beginner");
   const currentType = DUNGEON_TYPES.find(dt => dt.id === dtype);
-  const isDebug  = dtype === "debug";
-  const maxStart = isDebug ? 1 : Math.min(Math.max(1, bestDepth), currentType.maxFloors);
+  const isDebug    = dtype === "debug";
+  const isTutorial = dtype === "tutorial";
+  const maxStart = (isDebug || isTutorial) ? 1 : Math.min(Math.max(1, bestDepth), currentType.maxFloors);
 
   const doStart = () => {
     onStart({
       dungeonType: dtype,
-      startDepth:  isDebug ? 1 : startDepth,
+      startDepth:  (isDebug || isTutorial) ? 1 : startDepth,
       maxFloors:   currentType.maxFloors,
       startGold:   0,
       startInventory: hubInv,
@@ -542,7 +544,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
       </div>
 
       {/* 開始階選択（デバッグ以外） */}
-      {!isDebug && (
+      {!isDebug && !isTutorial && (
         <div style={{ marginBottom:12 }}>
           <div style={{ color:"#888", fontSize:12, marginBottom:6 }}>開始階: B{startDepth}F</div>
           <input type="range" min={1} max={maxStart} value={Math.min(startDepth, maxStart)}
