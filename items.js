@@ -170,6 +170,7 @@ export const ITEMS = [
   { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"A", weight:2,  sellPrice:3500, desc:"足元にみかわしの魔方陣を描く。\n部屋内で投げ物・矢・石が必ず外れる(魔法・炎は除く)。\n祝福：フロア全体。呪い：逆に必ず命中。チャージ制。", tile:42 },
   { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"B", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。\n部屋内の全員が速度に関わらず1回行動になる。\n祝福：全員2回行動。呪い：全員鈍足。チャージ制。", tile:42 },
   { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n祝福：10HP回復。呪い：逆に5ダメージ。チャージ制。", tile:42 },
+  { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"S", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・使い捨て）。\n祝福：同じ部屋全域に効果。呪い：何も起きない。チャージ制。", tile:42 },
   { name:"短剣",             type:"weapon", atk:3,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"C", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"B", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },
@@ -2737,6 +2738,24 @@ export function applyFireInventoryDamage(p, ml) {
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
 export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null) {
   const mx = mon.x, my = mon.y;
+  /* 復活の魔方陣チェック：魔方陣上/同部屋内でHPゼロになったら全回復で復活（使い捨て） */
+  if (dg.pentacles?.length > 0) {
+    const _revPc = dg.pentacles.find(pc => {
+      if (pc.kind !== "revival" || pc.cursed) return false;
+      if (pc.x === mx && pc.y === my) return true;
+      if (pc.blessed) {
+        const _pr = dg.rooms?.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h);
+        return _pr && mx >= _pr.x && mx < _pr.x + _pr.w && my >= _pr.y && my < _pr.y + _pr.h;
+      }
+      return false;
+    });
+    if (_revPc) {
+      mon.hp = mon.maxHp;
+      dg.pentacles = dg.pentacles.filter(pc => pc !== _revPc);
+      ml.push(`${mon.name}は復活の魔方陣の力でHP全回復！`);
+      return;
+    }
+  }
   if (killerMon) {
     ml.push(`${mon.name}は${killerMon.name}に倒された！`);
   } else if (noExp || !p) {

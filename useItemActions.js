@@ -1546,6 +1546,7 @@ export function useItemActions({
             it.effect === "dodge"          ? "みかわしの魔方陣" :
             it.effect === "equal_speed"    ? "等速の魔方陣" :
             it.effect === "heal_aura"      ? "回復の魔方陣" :
+            it.effect === "revival"        ? "復活の魔方陣" :
             it.effect === "decoy"          ? "囮の魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {

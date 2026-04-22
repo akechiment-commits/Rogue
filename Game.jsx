@@ -2177,7 +2177,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
       }
       if (p.hp <= 0) {
-        if ((p.mp || 0) > 0) {
+        /* 復活の魔方陣チェック：魔方陣上/同部屋（祝福）にいればHP全回復で復活（使い捨て） */
+        const _revPcP = st.dungeon.pentacles?.find(pc => {
+          if (pc.kind !== "revival" || pc.cursed) return false;
+          if (pc.x === p.x && pc.y === p.y) return true;
+          if (pc.blessed) {
+            const _pr = findRoom(st.dungeon.rooms, pc.x, pc.y);
+            return _pr && findRoom(st.dungeon.rooms, p.x, p.y) === _pr;
+          }
+          return false;
+        });
+        if (_revPcP) {
+          p.hp = p.maxHp;
+          st.dungeon.pentacles = st.dungeon.pentacles.filter(pc => pc !== _revPcP);
+          ml.push("復活の魔方陣の力でHP全回復！");
+        } else if ((p.mp || 0) > 0) {
           /* MPが残っていれば残MP分のHPで復活 */
           const revHp = p.mp;
           p.hp = revHp;
