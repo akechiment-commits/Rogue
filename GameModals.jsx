@@ -2738,6 +2738,7 @@ export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
   const depth = endingResult?.depth      ?? p?.depth ?? 1;
   const turns = p?.turns ?? 0;
   const lv    = p?.level ?? 1;
+  const isTutorial = endingResult?.isTutorial ?? false;
   return (
     <div
       style={{
@@ -2753,24 +2754,24 @@ export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
       }}
     >
       {/* 星のような装飾 */}
-      <div style={{ color: "#ffd700", fontSize: mobile ? 13 : 16, letterSpacing: 6, marginBottom: 8, textShadow: "0 0 16px #ffa000" }}>
+      <div style={{ color: isTutorial ? "#88ff88" : "#ffd700", fontSize: mobile ? 13 : 16, letterSpacing: 6, marginBottom: 8, textShadow: isTutorial ? "0 0 16px #00cc00" : "0 0 16px #ffa000" }}>
         ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦
       </div>
       <div
         style={{
-          color: "#ffd700",
+          color: isTutorial ? "#88ff88" : "#ffd700",
           fontSize: mobile ? 22 : 32,
           fontWeight: "bold",
-          textShadow: "0 0 20px #ffa000, 0 0 40px #ff8000",
+          textShadow: isTutorial ? "0 0 20px #00cc00, 0 0 40px #008800" : "0 0 20px #ffa000, 0 0 40px #ff8000",
           marginBottom: 10,
           letterSpacing: 2,
         }}
       >
-        *** 冒険クリア ***
+        {isTutorial ? "★ チュートリアル完了！★" : "*** 冒険クリア ***"}
       </div>
       <div
         style={{
-          color: "#ffe080",
+          color: isTutorial ? "#ccffcc" : "#ffe080",
           fontSize: mobile ? 14 : 18,
           marginBottom: 14,
           textAlign: "center",
@@ -2778,9 +2779,19 @@ export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
           maxWidth: 320,
         }}
       >
-        古代の遺物を地上へ持ち帰った！<br />
-        遺物の番人を打ち倒し、<br />
-        深淵のダンジョンを踏破した！
+        {isTutorial ? (
+          <>
+            ローグライクの基本をマスターした！<br />
+            次は「初心者ダンジョン」に挑戦しよう。<br />
+            本格的な冒険が君を待っている！
+          </>
+        ) : (
+          <>
+            古代の遺物を地上へ持ち帰った！<br />
+            遺物の番人を打ち倒し、<br />
+            深淵のダンジョンを踏破した！
+          </>
+        )}
       </div>
       <div
         style={{
@@ -2797,25 +2808,25 @@ export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
       >
         Lv.{lv} | B{depth}F | {turns}ターン | {gold}G
       </div>
-      <div style={{ color: "#ffd700", fontSize: mobile ? 13 : 16, letterSpacing: 6, marginBottom: 18, textShadow: "0 0 16px #ffa000" }}>
+      <div style={{ color: isTutorial ? "#88ff88" : "#ffd700", fontSize: mobile ? 13 : 16, letterSpacing: 6, marginBottom: 18, textShadow: isTutorial ? "0 0 16px #00cc00" : "0 0 16px #ffa000" }}>
         ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦
       </div>
       <button
         onClick={onDismiss}
         style={{
           padding: "12px 36px",
-          background: "#1a1000",
-          color: "#ffd700",
-          border: "2px solid #ffd700",
+          background: isTutorial ? "#001a00" : "#1a1000",
+          color: isTutorial ? "#88ff88" : "#ffd700",
+          border: isTutorial ? "2px solid #88ff88" : "2px solid #ffd700",
           cursor: "pointer",
           fontFamily: "inherit",
           fontSize: mobile ? 14 : 17,
           borderRadius: 6,
-          boxShadow: "0 0 14px #c09000",
+          boxShadow: isTutorial ? "0 0 14px #008800" : "0 0 14px #c09000",
           letterSpacing: 1,
         }}
       >
-        地上に帰還する
+        {isTutorial ? "Hubに戻る" : "地上に帰還する"}
       </button>
     </div>
   );
