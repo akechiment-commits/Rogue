@@ -31,6 +31,21 @@ import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal } from "./GameModals.jsx";
+/* インベントリサブメニューのアクション数を返す（DPad左右カーソル用） */
+function _invActCount(it, absIdx, canUseFn, gs) {
+  const _CAN_USE_TYPES = ["potion","food","scroll","weapon","armor","arrow","ring","pot","pen"];
+  let n = 0;
+  if (_CAN_USE_TYPES.includes(it.type)) n++;
+  if (it.type === "spellbook") n++;
+  if (it.type === "arrow") n++;
+  if (it.type === "wand") n += 2;
+  if (it.type === "marker") n++;
+  if (it.type === "pot") n++;
+  n += 3; // 置く + 投げる + 説明
+  const _nik = getIdentKey(it);
+  if (_nik && gs?.ident && !gs.ident.has(_nik)) n++;
+  return Math.max(1, n);
+}
 /* 大箱の表示名を返す共通ヘルパー。未識別時は偽名+ニックネーム、識別済みは実名 */
 function bbDisplayName(bb, st, withCapacity = false) {
   if (!bb) return "大箱";
@@ -5105,18 +5120,31 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 setTpSelectMode({ cx: Math.max(0, Math.min(MW - 1, tpSelectMode.cx + dx)), cy: Math.max(0, Math.min(MH - 1, tpSelectMode.cy + dy)) });
                 return;
               }
-              /* === インベントリ表示中：上下で選択、左右でページ送り === */
+              /* === インベントリ表示中 === */
               if (showInv) {
                 const inv = sr.current?.player?.inventory || [];
                 const totalPages = Math.ceil(inv.length / 10) || 1;
                 const pageItems = inv.slice(invPage * 10, (invPage + 1) * 10);
                 const len = pageItems.length;
+                /* サブメニュー表示中: 左右でメニュー選択、上下でアイテム選択に戻す */
+                if (invMenuSel !== null && selIdx !== null && pageItems[selIdx]) {
+                  const _it = pageItems[selIdx];
+                  const _n = _invActCount(_it, invPage * 10 + selIdx, canUse, gs);
+                  if (dx !== 0 && dy === 0) {
+                    setInvMenuSel((s) => (s + dx + _n) % _n);
+                  } else if (dy !== 0 && dx === 0) {
+                    setInvMenuSel(null);
+                    setSelIdx((prev) => prev === null ? (dy > 0 ? 0 : len - 1) : (prev + dy + len) % len);
+                    setShowDesc(null);
+                  }
+                  return;
+                }
                 if (dy !== 0 && dx === 0 && len > 0) {
                   setSelIdx((prev) => {
                     if (prev === null) return dy > 0 ? 0 : len - 1;
                     return (prev + dy + len) % len;
                   });
-                  setShowDesc(null);
+                  setShowDesc(null); setInvMenuSel(null);
                 } else if (dx !== 0 && dy === 0 && totalPages > 1) {
                   setInvPage((p) => (p + dx + totalPages) % totalPages);
                   setSelIdx(0); setInvMenuSel(null); setShowDesc(null);
@@ -5296,13 +5324,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
-                  label={(putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={(putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
+                  label={(putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={(putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
                   onClick={() => {
                     if (spellListMode) return;
                     if (putMode) { setPutMode(null); setPutPage(0); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
+                    if (showInv && invMenuSel !== null) { setInvMenuSel(null); return; }
                     if (springMode === "soak") { setSpringMode("menu"); setSpringMenuSel(0); setSpringPage(0); return; }
                     if (springMode) { setSpringMode(null); setSpringMenuSel(0); return; }
                     if (identifyMode) { setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
@@ -5344,8 +5373,30 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     }
                     if (showInv) {
                       if (selIdx !== null) {
-                        if (dropModeRef.current) { doDropItem(invPage * 10 + selIdx); }
-                        else { setInvMenuSel(0); }
+                        const _absIdx = invPage * 10 + selIdx;
+                        const _invList = sr.current?.player?.inventory || [];
+                        const _it = _invList[_absIdx];
+                        if (invMenuSel !== null && _it) {
+                          /* サブメニュー選択中: 選択中のアクションを実行 */
+                          const _CUT = ["potion","food","scroll","weapon","armor","arrow","ring","pot","pen"];
+                          const _fns = [];
+                          if (_CUT.includes(_it.type)) _fns.push(() => invActRef.current?.use?.(_absIdx));
+                          if (_it.type === "spellbook") _fns.push(() => invActRef.current?.readSpellbook?.(_absIdx));
+                          if (_it.type === "arrow") _fns.push(() => invActRef.current?.shoot?.(_absIdx));
+                          if (_it.type === "wand") { _fns.push(() => invActRef.current?.wave?.(_absIdx)); _fns.push(() => invActRef.current?.breakWand?.(_absIdx)); }
+                          if (_it.type === "marker") _fns.push(() => invActRef.current?.useMarker?.(_absIdx));
+                          if (_it.type === "pot") _fns.push(() => invActRef.current?.breakPot?.(_absIdx));
+                          _fns.push(() => invActRef.current?.drop?.(_absIdx));
+                          _fns.push(() => invActRef.current?.throw?.(_absIdx));
+                          _fns.push(() => setShowDesc((p) => (p === _absIdx ? null : _absIdx)));
+                          const _nik = getIdentKey(_it);
+                          if (_nik && gs?.ident && !gs.ident.has(_nik)) _fns.push(() => { setNicknameMode({ identKey: _nik }); setNicknameInput(gs?.nicknames?.[_nik] || ''); setShowInv(false); setSelIdx(null); setShowDesc(null); setInvMenuSel(null); });
+                          if (invMenuSel >= 0 && invMenuSel < _fns.length) { _fns[invMenuSel](); setInvMenuSel(null); }
+                        } else if (dropModeRef.current) {
+                          doDropItem(_absIdx);
+                        } else {
+                          setInvMenuSel(0);
+                        }
                       }
                     } else { act("interact"); }
                   }}
