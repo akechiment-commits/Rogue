@@ -582,9 +582,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   useEffect(initOrResume, [initOrResume]);
   /* ── 自動セーブ: ゲーム状態が変わるたびにlocalStorageに保存 ── */
   useEffect(() => {
-    if (!gs || dead) return;
+    if (!gs || dead || showEnding) return;
     saveGameState(sr.current, msgsRef.current, dungeonConfig, getDiscoveries());
-  }, [gs, dead]);
+  }, [gs, dead, showEnding]);
   useEffect(() => {
     if (msgRef.current) msgRef.current.scrollTop = msgRef.current.scrollHeight;
   }, [msgs]);
