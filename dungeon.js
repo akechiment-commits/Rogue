@@ -2352,18 +2352,19 @@ export function genTutorialFloor(floorNum) {
     const wand = WANDS[0];
     if (wand) items.push({ ...wand, id: uid(), x: 32, y: 9, charges: 3 });
 
-    // Room C: 特殊な大箱（入口近くに拡散の大箱＋睡眠薬、奥にコボルド）
-    mkSign(32, 19, [
-      "【大箱③：特殊な大箱】拡散の大箱：アイテムを部屋中に投げつけて全員に効果発動！",
-      "薬を入れると部屋全体に効果が広がる使い方が強力。",
+    // Room C: 特殊な大箱（入口に看板・惑わし薬・拡散BB、奥の隅にコボルド×3）
+    mkSign(32, 18, [
+      "【大箱③：拡散の大箱】アイテムを入れると部屋中の全員に効果を当てる！",
+      "惑わしの薬を入れると敵が全員逃げ回る。コボルドが3体いるが切り抜けられるか？",
       "分裂・祝福・呪いの大箱はレア！大切に使おう。",
     ]);
     const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
-    if (scatterBB) bigboxes.push({ id: uid(), x: 29, y: 21, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
-    const sleepPot4 = ITEMS.find(i => i.effect === "sleep");
-    if (sleepPot4) items.push({ ...sleepPot4, id: uid(), x: 31, y: 21 });
-    mkMon("kobold", 27, 24);
-    mkMon("kobold", 36, 24);
+    if (scatterBB) bigboxes.push({ id: uid(), x: 34, y: 18, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
+    const bewitchPot = ITEMS.find(i => i.effect === "bewitch");
+    if (bewitchPot) items.push({ ...bewitchPot, id: uid(), x: 33, y: 18 });
+    mkMon("kobold", 36, 23);
+    mkMon("kobold", 37, 24);
+    mkMon("kobold", 38, 24);
 
   } else {
     // B5F
