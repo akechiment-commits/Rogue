@@ -2308,8 +2308,8 @@ export function genTutorialFloor(floorNum) {
     // Room C: 状態異常で敵対処
     mkSign(32, 19, [
       "【敵への対処】強敵も状態異常にすれば簡単に倒せる！",
-      "眠りの杖で眠らせると敵は動けなくなり、隣接攻撃で大ダメージ（会心）が出る。",
-      "鈍足の杖で速度を半減させると、2回行動できて一方的に攻撃できる！",
+      "眠りの杖で眠らせると敵は完全に行動できなくなる。その間に一方的に攻撃しよう！",
+      "鈍足の杖で速度を半減させると、こちらが2回行動できて有利に戦える。",
     ]);
     const sleepWand = WANDS.find(w => w.effect === "sleep");
     const slowWand  = WANDS.find(w => w.effect === "slow");
