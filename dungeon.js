@@ -2260,23 +2260,24 @@ export function genTutorialFloor(floorNum) {
     items.push({ ...healPot,  id: uid(), x: 6, y: 8 });
     items.push({ ...sleepPot, id: uid(), x: 9, y: 8 });
 
-    // Room B: 識別②安全な識別方法
+    // Room B: 大箱の使い方
     mkSign(32, 4, [
-      "【識別②：安全な識別方法】鑑定の大箱にアイテムを入れると安全に識別できる。",
-      "識別の巻物を読んでもOK。鑑定の巻物は重要アイテム！大切に使おう。",
+      "【識別②：大箱の使い方】大箱の前でZキー、または大箱の上でFキーを押すと調べられる。",
+      "アイテムを選んで「入れる」を押すと大箱に入れられる。鑑定の大箱で安全に識別！",
+      "識別の巻物でもOK。満タンの大箱にさらにアイテムを投げつけると大箱を壊せる！",
     ]);
     const identBB = BB_TYPES.find(b => b.kind === "identify");
-    bigboxes.push({ id: uid(), x: 32, y: 7, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: identBB.cap(), contents: [], revealed: true });
+    bigboxes.push({ id: uid(), x: 32, y: 7, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: 1, contents: [], revealed: true });
     const powerPot = ITEMS.find(i => i.effect === "power");
     const identScroll = ITEMS.find(i => i.effect === "identify");
     if (powerPot)    items.push({ ...powerPot,    id: uid(), x: 28, y: 7 });
     if (identScroll) items.push({ ...identScroll, id: uid(), x: 35, y: 7 });
 
-    // Room C: 祝福と呪い
+    // Room C: 祝福と呪い・泉の使い方
     mkSign(32, 19, [
       "【識別③：祝福と呪い】アイテムには「祝福【祝】」「通常」「呪い【呪】」の3状態がある。",
       "祝福アイテムは効果が強化。呪いアイテムは装備を外せなくなったり逆効果になったりする。",
-      "鑑定の大箱で祝福・呪いの状態も分かる。泉に浸すと状態が変わることも！",
+      "泉の前でZキー、または泉の上でFキーを押すとアイテムを浸せる。状態が変わることも！",
     ]);
     springs.push({ id: uid(), x: 32, y: 23, tile: TI.SPRING, contents: [] });
     const tpScroll = ITEMS.find(i => i.effect === "teleport");
@@ -2351,11 +2352,10 @@ export function genTutorialFloor(floorNum) {
     mkSign(32, 19, [
       "【大箱③：特殊な大箱】拡散の大箱：アイテムを部屋中に投げつけて全員に効果発動！",
       "薬を入れると部屋全体に効果が広がる使い方が強力。",
-      "満タンの大箱にさらにアイテムを投げると大箱を壊せる！試してみよう。",
       "分裂・祝福・呪いの大箱はレア！大切に使おう。",
     ]);
     const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
-    if (scatterBB) bigboxes.push({ id: uid(), x: 32, y: 23, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: 1, contents: [], revealed: true });
+    if (scatterBB) bigboxes.push({ id: uid(), x: 32, y: 23, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
     const healPot = ITEMS.find(i => i.effect === "heal");
     items.push({ ...healPot, id: uid(), x: 28, y: 21 });
     items.push({ ...healPot, id: uid(), x: 35, y: 21 });
