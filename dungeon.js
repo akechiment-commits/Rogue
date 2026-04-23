@@ -2348,18 +2348,17 @@ export function genTutorialFloor(floorNum) {
     const wand = WANDS[0];
     if (wand) items.push({ ...wand, id: uid(), x: 32, y: 9, charges: 3 });
 
-    // Room C: 特殊な大箱
+    // Room C: 特殊な大箱（入口近くに拡散の大箱＋睡眠薬、奥にコボルド）
     mkSign(32, 19, [
       "【大箱③：特殊な大箱】拡散の大箱：アイテムを部屋中に投げつけて全員に効果発動！",
       "薬を入れると部屋全体に効果が広がる使い方が強力。",
       "分裂・祝福・呪いの大箱はレア！大切に使おう。",
     ]);
     const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
-    if (scatterBB) bigboxes.push({ id: uid(), x: 32, y: 23, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
-    const healPot = ITEMS.find(i => i.effect === "heal");
-    items.push({ ...healPot, id: uid(), x: 28, y: 21 });
-    items.push({ ...healPot, id: uid(), x: 35, y: 21 });
-    mkMon("kobold", 27, 23);
+    if (scatterBB) bigboxes.push({ id: uid(), x: 29, y: 21, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
+    const sleepPot4 = ITEMS.find(i => i.effect === "sleep");
+    if (sleepPot4) items.push({ ...sleepPot4, id: uid(), x: 31, y: 21 });
+    mkMon("kobold", 27, 24);
     mkMon("kobold", 36, 24);
 
   } else {
@@ -2381,17 +2380,20 @@ export function genTutorialFloor(floorNum) {
       traps.push({ ...trap, id: uid(), x: trapPos[i][0], y: trapPos[i][1], revealed: true });
     });
 
-    // Room B: 泉
+    // Room B: 合成チュートリアル
     mkSign(32, 4, [
-      "【泉】泉に近づいて「浸す」を選ぶとアイテムに変化が起きる。",
-      "薬を浸すと別の薬に変化。食料を浸すと特殊食料に。祝福状態の泉は良い効果が多い！",
-      "泉で薬を浸して識別することもできる。ただし呪われた泉は注意！",
+      "【合成：合成の大箱の使い方】武器同士・防具同士を入れると片方の能力をもう片方に引き継いで合成する。",
+      "ペン同士・杖同士はチャージ数が合算。武器や防具に杖を入れると杖の能力が宿る（異種合成）！",
+      "特定の組み合わせで特殊な武器が生まれることがある。雷の剣を合成してみよう！",
     ]);
-    springs.push({ id: uid(), x: 29, y: 7, tile: TI.SPRING, contents: [] });
-    springs.push({ id: uid(), x: 34, y: 7, tile: TI.SPRING, contents: [] });
-    const healPot = ITEMS.find(i => i.effect === "heal");
-    items.push({ ...healPot, id: uid(), x: 27, y: 9 });
-    items.push({ ...healPot, id: uid(), x: 37, y: 9 });
+    const synthBB5 = BB_TYPES.find(b => b.kind === "synthesis");
+    if (synthBB5) bigboxes.push({ id: uid(), x: 32, y: 7, tile: TI.BIGBOX, kind: synthBB5.kind, name: synthBB5.name, capacity: synthBB5.cap(), contents: [], revealed: true });
+    const thunderSword = ITEMS.find(i => i.name === "雷の剣");
+    if (thunderSword) {
+      items.push({ ...thunderSword, id: uid(), x: 28, y: 7, plus: 0 });
+      items.push({ ...thunderSword, id: uid(), x: 30, y: 7, plus: 0 });
+      items.push({ ...thunderSword, id: uid(), x: 34, y: 7, plus: 0 });
+    }
 
     // Room C: チュートリアル完了
     mkSign(32, 19, [
