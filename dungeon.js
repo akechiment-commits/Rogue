@@ -1647,94 +1647,54 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     ? SPELLBOOKS.filter(sb => sb.spell !== "identify_magic")
     : SPELLBOOKS;
   const _BB_EXCLUDE = dungeonType === "beginner" ? ["identify"] : [];
-  const _itemCount = dungeonType === "advanced" || dungeonType === "legend" ? rng(1, 3) : dungeonType === "intermediate" ? rng(3, 5) : rng(4, 6);
-  for (let i = 0; i < _itemCount; i++) {
+  /* ── アイテム生成（統合重みプール・完全ランダム個数） ── */
+  const _penPool = ITEMS.filter(i => i.type === "pen");
+  const _ugGens = [
+    { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
+    { w: 10, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
+    { w:  8, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
+    { w:  8, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand") ? 1 : t.charges+rng(-1,2) }; } },
+    { w:  6, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
+    { w:  5, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "armor"));  return { ...t, id: uid() }; } },
+    { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
+    { w:  6, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
+    { w:  4, fn: () => { const t = pickWeighted(_SB_POOL); return { ...t, id: uid() }; } },
+    { w:  4, fn: () => makePot() },
+    { w:  2, fn: () => makeRing() },
+    { w:  2, fn: () => _penPool.length ? { ...pick(_penPool), id: uid(), charges: rng(2,3) } : ({ ...genFood(), id: uid() }) },
+    { w:  1, fn: () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }) },
+  ];
+  const _ugTotal = _ugGens.reduce((s, g) => s + g.w, 0);
+  const _pickUG = () => {
+    let r = Math.random() * _ugTotal;
+    for (const g of _ugGens) { r -= g.w; if (r <= 0) return g.fn(); }
+    return _ugGens[_ugGens.length - 1].fn();
+  };
+  const _totalItems = dungeonType === "advanced" || dungeonType === "legend"
+    ? rng(1, 9) : dungeonType === "intermediate" ? rng(3, 18) : rng(2, 16);
+  for (let i = 0; i < _totalItems; i++) {
     const rm = pick(rooms);
-    const ix = rng(rm.x, rm.x + rm.w - 1),
-      iy = rng(rm.y, rm.y + rm.h - 1);
-    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const t = pickWeighted(_ITEMS_POOL);
-      const it = { ...t, id: uid(), x: ix, y: iy };
-      if (it.type === "gold") it.value = rng(20, 80 + depth * 30);
+    for (let _a = 0; _a < 30; _a++) {
+      const ix = rng(rm.x, rm.x + rm.w - 1);
+      const iy = rng(rm.y, rm.y + rm.h - 1);
+      if (map[iy][ix] !== T.FLOOR || occ(ix, iy)) continue;
+      const it = _pickUG();
+      it.x = ix; it.y = iy;
       if (it.type !== "gold" && it.type !== "arrow") {
-        const _blessRoll = Math.random();
-        if (_blessRoll < 0.10)      it.blessed = true;
-        else if (_blessRoll < 0.25) it.cursed  = true;
+        const _br = Math.random();
+        if (_br < 0.10) it.blessed = true;
+        else if (_br < 0.25) it.cursed = true;
       }
       if (it.type === "weapon" || it.type === "armor") {
         const pr = Math.random();
         if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
         else if (pr < 0.2 + depth * 0.02) it.plus = 1;
-        if (!it.ability && Math.random() < 0.25) {
-          const abls =
-            it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
-          it.ability = pick(abls).id;
-        }
+        else it.plus = 0;
+        if (!it.ability && Math.random() < 0.25)
+          it.ability = pick(it.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES).id;
         if (it.ability === "pickaxe" && it.durability == null) it.durability = rng(15, 45);
       }
       items.push(it);
-    }
-  }
-  /* サブアイテムをプール方式でランダム生成（系統ごとの上限なし・後で重み調整可） */
-  const _subPoolSize = dungeonType === "advanced" || dungeonType === "legend" ? rng(2, 5) : dungeonType === "intermediate" ? rng(4, 7) : rng(4, 8);
-  const _subGens = [
-    /* 矢 */         () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }),
-    /* 杖 */         () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
-    /* 杖 x2 */      () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(-1, 2) }; },
-    /* 魔法書 */     () => { const sb = pickWeighted(_SB_POOL); return { ...sb, id: uid() }; },
-    /* 巻物 */       () => { const sc = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...sc, id: uid() }; },
-    /* 巻物 x2 */    () => { const sc = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...sc, id: uid() }; },
-    /* 薬 */         () => { const pt = pickWeighted(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...pt, id: uid() }; },
-    /* 薬 x2 */      () => { const pt = pickWeighted(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...pt, id: uid() }; },
-    /* 食料 x2 */    () => { const f = genFood(); return { ...f, id: uid() }; },
-    /* 食料 x2 */    () => { const f = genFood(); return { ...f, id: uid() }; },
-    /* 壺 */         () => makePot(),
-    /* 魔法筆 */     () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }),
-  ];
-  for (let i = 0; i < _subPoolSize; i++) {
-    const rm = pick(rooms);
-    const ix = rng(rm.x, rm.x + rm.w - 1),
-      iy = rng(rm.y, rm.y + rm.h - 1);
-    if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-      const it = pick(_subGens)();
-      it.x = ix;
-      it.y = iy;
-      items.push(it);
-    }
-  }
-  /* Pen spawn（特殊低確率、別枠） */
-  const _penChance = dungeonType === "advanced" || dungeonType === "legend" ? 0.05 : dungeonType === "intermediate" ? 0.10 : 0.15;
-  if (Math.random() < _penChance) {
-    const _penPool = ITEMS.filter((it) => it.type === "pen");
-    if (_penPool.length > 0) {
-      const rm = pick(rooms);
-      const ix = rng(rm.x, rm.x + rm.w - 1),
-        iy = rng(rm.y, rm.y + rm.h - 1);
-      if (map[iy][ix] === T.FLOOR && !occ(ix, iy)) {
-        const _pt = pick(_penPool);
-        items.push({ ..._pt, id: uid(), x: ix, y: iy, charges: rng(2, 3) });
-      }
-    }
-  }
-  /* 金貨（フロアに1〜2個保証配置） */
-  for (let _gi = 0; _gi < rng(1, 2); _gi++) {
-    const rm = pick(rooms);
-    for (let _ga = 0; _ga < 60; _ga++) {
-      const gx = rng(rm.x + 1, rm.x + rm.w - 2);
-      const gy = rng(rm.y + 1, rm.y + rm.h - 2);
-      if (map[gy][gx] !== T.FLOOR || occ(gx, gy)) continue;
-      items.push({ name:"金貨", type:"gold", value: rng(30, 100 + depth * 30), tile:22, id: uid(), x: gx, y: gy });
-      break;
-    }
-  }
-  /* 指輪：低確率で通常フロアにも1個配置 */
-  const _ringFloorChance = dungeonType === "advanced" || dungeonType === "legend" ? 0.10 : dungeonType === "intermediate" ? 0.12 : 0.15;
-  if (Math.random() < _ringFloorChance) {
-    const rm = pick(rooms);
-    for (let _ra = 0; _ra < 60; _ra++) {
-      const rx = rng(rm.x, rm.x + rm.w - 1), ry = rng(rm.y, rm.y + rm.h - 1);
-      if (map[ry][rx] !== T.FLOOR || occ(rx, ry)) continue;
-      items.push({ ...makeRing(), x: rx, y: ry });
       break;
     }
   }
