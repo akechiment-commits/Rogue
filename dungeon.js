@@ -2282,6 +2282,12 @@ export function genTutorialFloor(floorNum) {
     springs.push({ id: uid(), x: 32, y: 23, tile: TI.SPRING, contents: [] });
     const tpScroll = ITEMS.find(i => i.effect === "teleport");
     if (tpScroll) items.push({ ...tpScroll, id: uid(), x: 28, y: 21 });
+    const powerPot2 = ITEMS.find(i => i.effect === "power");
+    if (powerPot2) {
+      items.push({ ...powerPot2, id: uid(), x: 28, y: 23, blessed: true });
+      items.push({ ...powerPot2, id: uid(), x: 30, y: 23 });
+      items.push({ ...powerPot2, id: uid(), x: 34, y: 23, cursed: true });
+    }
 
   } else if (floorNum === 3) {
     // Room A: 壺の基本
