@@ -437,7 +437,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (_initMaxD !== null && startDepth >= _initMaxD && _initDt !== "debug") {
       prepareLastFloor(d, _initDt);
     }
-    d.nextSpawnTurn = 30;
+    if (_initDt !== "tutorial") d.nextSpawnTurn = 30;
     const p = {
       x: d.stairUp.x,
       y: d.stairUp.y,
@@ -1446,7 +1446,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       pl.y = _stTarget.y;
     }
     refreshFOV(d, pl);
-    d.nextSpawnTurn = pl.turns + 30;
+    if (sr.current.dungeonType !== "tutorial") d.nextSpawnTurn = pl.turns + 30;
     d._firstVisit = !_saved;
     sr.current.floorTurns = 0; /* 階層移動でフロアターンをリセット */
     return d;

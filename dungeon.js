@@ -2305,18 +2305,16 @@ export function genTutorialFloor(floorNum) {
     items.push({ ...healPot2, id: uid(), x: 28, y: 7 });
     items.push({ ...healPot2, id: uid(), x: 35, y: 7 });
 
-    // Room C: 食料壺
+    // Room C: 状態異常で敵対処
     mkSign(32, 19, [
-      "【壺③：食料壺】チョコ・蜂蜜・カレー・味噌など食料壺に食料を入れると強化食料に変化！",
-      "食べるとHP回復や戦闘強化効果が得られる。火薬壺は要注意！割れると大爆発を起こす。",
+      "【敵への対処】強敵も状態異常にすれば簡単に倒せる！",
+      "眠りの杖で眠らせると敵は動けなくなり、隣接攻撃で大ダメージ（会心）が出る。",
+      "鈍足の杖で速度を半減させると、2回行動できて一方的に攻撃できる！",
     ]);
-    const chocoPot = POTS.find(p => p.potEffect === "choco");
-    const honeyPot = POTS.find(p => p.potEffect === "honey");
-    if (chocoPot) items.push({ ...chocoPot, id: uid(), x: 28, y: 22, contents: [] });
-    if (honeyPot) items.push({ ...honeyPot, id: uid(), x: 31, y: 22, contents: [] });
-    const f1 = genFood(); items.push({ ...f1, id: uid(), x: 27, y: 24 });
-    const f2 = genFood(); items.push({ ...f2, id: uid(), x: 30, y: 24 });
-    const f3 = genFood(); items.push({ ...f3, id: uid(), x: 33, y: 24 });
+    const sleepWand = WANDS.find(w => w.effect === "sleep");
+    const slowWand  = WANDS.find(w => w.effect === "slow");
+    if (sleepWand) items.push({ ...sleepWand, id: uid(), x: 28, y: 22, charges: sleepWand.charges });
+    if (slowWand)  items.push({ ...slowWand,  id: uid(), x: 31, y: 22, charges: slowWand.charges });
     mkMon("goblin", 35, 23);
 
   } else if (floorNum === 4) {
