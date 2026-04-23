@@ -2336,28 +2336,35 @@ export function genTutorialFloor(floorNum) {
     }
 
   } else if (floorNum === 3) {
-    // Room A: 壺の基本
+    // Room A: 壺の基本＋加熱の壺（合体）
     mkSign(9, 4, [
-      "【壺①：壺の基本】壺にはアイテムを入れられる。持ち物でアイテムを選んで「入れる」を選択。",
+      "【壺の使い方】壺にはアイテムを入れられる。持ち物でアイテムを選んで「入れる」を選択。",
       "壺も正体不明のものがある。使ってみるか識別して正体を確かめよう。",
+      "加熱の壺：薬を入れると部屋中に薬効が広がる（自分にも効く）。生の食料を焼くこともできる！",
     ]);
     const nonePot = POTS.find(p => p.potEffect === "none");
     const gunPot  = POTS.find(p => p.potEffect === "gunpowder");
-    if (nonePot) items.push({ ...nonePot, id: uid(), x: 6, y: 8, contents: [] });
-    if (gunPot)  items.push({ ...gunPot,  id: uid(), x: 9, y: 8, contents: [] });
-
-    // Room B: 保存・加熱の壺
-    mkSign(32, 4, [
-      "【壺②：保存・加熱の壺】保存の壺：アイテムを安全保管。壺ごと持ち運べる便利な壺。",
-      "加熱の壺：薬を入れると部屋中に薬効が広がる（自分にも効く）。使い方次第で強力！",
-    ]);
     const boilPot = POTS.find(p => p.potEffect === "boil");
     const healPot2 = ITEMS.find(i => i.effect === "heal");
-    if (boilPot) items.push({ ...boilPot, id: uid(), x: 32, y: 7, contents: [] });
-    items.push({ ...healPot2, id: uid(), x: 28, y: 7 });
-    items.push({ ...healPot2, id: uid(), x: 35, y: 7 });
+    if (nonePot)  items.push({ ...nonePot,  id: uid(), x: 5, y: 8, contents: [] });
+    if (gunPot)   items.push({ ...gunPot,   id: uid(), x: 8, y: 8, contents: [] });
+    if (boilPot)  items.push({ ...boilPot,  id: uid(), x: 11, y: 8, contents: [] });
+    items.push({ ...healPot2, id: uid(), x: 6, y: 6 });
+    items.push({ ...healPot2, id: uid(), x: 9, y: 6 });
 
-    // Room C: 状態異常で敵対処
+    // Room B: 食料への投薬チュートリアル
+    mkSign(32, 4, [
+      "【食料への投薬】食料に薬を投げつけると料理に追加効果が付く！",
+      "例：回復薬→HP回復強化、力の薬→攻撃力アップ効果など。",
+      "右側に食料が6つある。回復薬を投げて追加効果を試してみよう！",
+    ]);
+    const healPot3 = ITEMS.find(i => i.effect === "heal");
+    items.push({ ...healPot3, id: uid(), x: 28, y: 6 });
+    for (const [fx, fy] of [[35,6],[36,6],[37,6],[35,7],[36,7],[37,7]]) {
+      items.push({ ...genFood(), id: uid(), x: fx, y: fy });
+    }
+
+    // Room C: 状態異常で敵対処（杖を入口近くに、ゴブリンは奥の隅に）
     mkSign(32, 19, [
       "【敵への対処】強敵も状態異常にすれば簡単に倒せる！",
       "眠りの杖で眠らせると敵は完全に行動できなくなる。その間に一方的に攻撃しよう！",
@@ -2365,38 +2372,42 @@ export function genTutorialFloor(floorNum) {
     ]);
     const sleepWand = WANDS.find(w => w.effect === "sleep");
     const slowWand  = WANDS.find(w => w.effect === "slow");
-    if (sleepWand) items.push({ ...sleepWand, id: uid(), x: 28, y: 22, charges: sleepWand.charges });
-    if (slowWand)  items.push({ ...slowWand,  id: uid(), x: 31, y: 22, charges: slowWand.charges });
-    mkMon("goblin", 35, 23);
+    if (sleepWand) items.push({ ...sleepWand, id: uid(), x: 29, y: 19, charges: sleepWand.charges });
+    if (slowWand)  items.push({ ...slowWand,  id: uid(), x: 31, y: 19, charges: slowWand.charges });
+    mkMon("goblin", 37, 24);
 
   } else if (floorNum === 4) {
-    // Room A: 大箱の基本
+    // Room A: ペンのチュートリアル
     mkSign(9, 4, [
-      "【大箱①：大箱の基本】大箱は合成・強化・識別などの特殊効果を持つ容器。",
-      "大箱にも正体不明のものがある（外見名で種類が分からない）。",
-      "このフロアは識別済みなので全種類見えているよ。",
+      "【ペン】ペンで描いた魔法陣は強力な効果を持つ。足元ボタン(F)かZキーで使う。",
+      "ただし呪われたペンは有害な罠の魔方陣を描く！装備前に識別しよう。",
+      "魔法陣はアイテムを投げつけると消せる。回復薬を投げて試してみよう！",
+    ]);
+    const thunderPen = ITEMS.find(i => i.effect === "thunder_trap");
+    const healPot4   = ITEMS.find(i => i.effect === "heal");
+    if (thunderPen) items.push({ ...thunderPen, id: uid(), x: 6, y: 7, cursed: true });
+    if (healPot4)   items.push({ ...healPot4,   id: uid(), x: 9, y: 7 });
+
+    // Room B: 大箱まとめ（①②圧縮）
+    mkSign(32, 4, [
+      "【大箱まとめ】大箱の前でZ・上でFで調べられる。合成・強化・識別・充填・変化など様々。",
+      "識別の大箱は祝呪も判明する。満タンにさらに投げると壊せる。容量は大箱ごとに異なる。",
     ]);
     const synthBB = BB_TYPES.find(b => b.kind === "synthesis");
     const enhBB   = BB_TYPES.find(b => b.kind === "enhance");
-    if (synthBB) bigboxes.push({ id: uid(), x: 6, y: 8, tile: TI.BIGBOX, kind: synthBB.kind, name: synthBB.name, capacity: synthBB.cap(), contents: [], revealed: true });
-    if (enhBB)   bigboxes.push({ id: uid(), x: 9, y: 8, tile: TI.BIGBOX, kind: enhBB.kind,   name: enhBB.name,   capacity: enhBB.cap(),   contents: [], revealed: true });
-    const sword = ITEMS.find(i => i.name === "短剣");
-    items.push({ ...sword, id: uid(), x: 5, y: 6, plus: 0 });
-    items.push({ ...sword, id: uid(), x: 8, y: 6, plus: 0 });
-
-    // Room B: 主な大箱
-    mkSign(32, 4, [
-      "【大箱②：主な種類】識別の大箱：アイテムを識別+祝福・呪い判明。",
-      "充填の大箱：杖・ペンのチャージ回復。変化の大箱：別アイテムに変化。",
-    ]);
     const identBB  = BB_TYPES.find(b => b.kind === "identify");
     const refillBB = BB_TYPES.find(b => b.kind === "refill");
     const changeBB = BB_TYPES.find(b => b.kind === "change");
-    if (identBB)  bigboxes.push({ id: uid(), x: 27, y: 7, tile: TI.BIGBOX, kind: identBB.kind,  name: identBB.name,  capacity: identBB.cap(),  contents: [], revealed: true });
-    if (refillBB) bigboxes.push({ id: uid(), x: 31, y: 7, tile: TI.BIGBOX, kind: refillBB.kind, name: refillBB.name, capacity: refillBB.cap(), contents: [], revealed: true });
-    if (changeBB) bigboxes.push({ id: uid(), x: 35, y: 7, tile: TI.BIGBOX, kind: changeBB.kind, name: changeBB.name, capacity: changeBB.cap(), contents: [], revealed: true });
-    const wand = WANDS[0];
-    if (wand) items.push({ ...wand, id: uid(), x: 32, y: 9, charges: 3 });
+    if (synthBB)  bigboxes.push({ id: uid(), x: 27, y: 6, tile: TI.BIGBOX, kind: synthBB.kind,  name: synthBB.name,  capacity: synthBB.cap(),  contents: [], revealed: true });
+    if (enhBB)    bigboxes.push({ id: uid(), x: 29, y: 6, tile: TI.BIGBOX, kind: enhBB.kind,    name: enhBB.name,    capacity: enhBB.cap(),    contents: [], revealed: true });
+    if (identBB)  bigboxes.push({ id: uid(), x: 31, y: 6, tile: TI.BIGBOX, kind: identBB.kind,  name: identBB.name,  capacity: identBB.cap(),  contents: [], revealed: true });
+    if (refillBB) bigboxes.push({ id: uid(), x: 33, y: 6, tile: TI.BIGBOX, kind: refillBB.kind, name: refillBB.name, capacity: refillBB.cap(), contents: [], revealed: true });
+    if (changeBB) bigboxes.push({ id: uid(), x: 35, y: 6, tile: TI.BIGBOX, kind: changeBB.kind, name: changeBB.name, capacity: changeBB.cap(), contents: [], revealed: true });
+    const sword = ITEMS.find(i => i.name === "短剣");
+    const wand   = WANDS[0];
+    items.push({ ...sword, id: uid(), x: 28, y: 9, plus: 0 });
+    items.push({ ...sword, id: uid(), x: 31, y: 9, plus: 0 });
+    if (wand) items.push({ ...wand, id: uid(), x: 34, y: 9, charges: 3 });
 
     // Room C: 特殊な大箱（入口に看板・惑わし薬・拡散BB、奥の隅にコボルド×3）
     mkSign(32, 18, [
