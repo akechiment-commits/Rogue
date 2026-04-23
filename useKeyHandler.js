@@ -1500,6 +1500,7 @@ export function useKeyHandler({
       floorSelectMode,
       lookMode,
       getLookDesc,
+      showSign,
     ],
   );
   useEffect(() => {
