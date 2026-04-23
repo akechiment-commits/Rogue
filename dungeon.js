@@ -2240,8 +2240,9 @@ export function genTutorialFloor(floorNum) {
     // Room C: 空腹と階段
     mkSign(32, 19, [
       "【空腹・HP・階段】ターンを使うたびに空腹になる。食料を食べて満腹を維持しよう！",
-      "空腹が続くと最大HPが削れていく。HPが0になるとゲームオーバー。",
-      "「>」の下り階段を踏んで「降りる」(Zキー)を押すと次の階へ進める。",
+      "空腹が続くとHPが削れていく。HPが0になるとゲームオーバー。",
+      "「>」の下り階段を踏んで足元ボタン(F)を押すと次の階へ進める。",
+      "Aキーを押しながら移動するとダッシュ！ダッシュ中はアイテムを自動で拾わない。",
     ]);
     const f3 = genFood(); items.push({ ...f3, id: uid(), x: 28, y: 22 });
     const f4 = genFood(); items.push({ ...f4, id: uid(), x: 31, y: 22 });
@@ -2350,10 +2351,11 @@ export function genTutorialFloor(floorNum) {
     mkSign(32, 19, [
       "【大箱③：特殊な大箱】拡散の大箱：アイテムを部屋中に投げつけて全員に効果発動！",
       "薬を入れると部屋全体に効果が広がる使い方が強力。",
+      "満タンの大箱にさらにアイテムを投げると大箱を壊せる！試してみよう。",
       "分裂・祝福・呪いの大箱はレア！大切に使おう。",
     ]);
     const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
-    if (scatterBB) bigboxes.push({ id: uid(), x: 32, y: 23, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
+    if (scatterBB) bigboxes.push({ id: uid(), x: 32, y: 23, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: 1, contents: [], revealed: true });
     const healPot = ITEMS.find(i => i.effect === "heal");
     items.push({ ...healPot, id: uid(), x: 28, y: 21 });
     items.push({ ...healPot, id: uid(), x: 35, y: 21 });
