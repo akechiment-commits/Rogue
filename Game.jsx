@@ -4055,8 +4055,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ml.push(`${_idn}の詳細が判明した！`);
           trackItem(item);
         } else {
+          const _wasFullIdent = !!item.fullIdent;
+          const _wasBcKnown = !!item.bcKnown;
           item.bcKnown = true;
-          ml.push(`${_idn}は既に知っているものだった。`);
+          item.fullIdent = true;
+          if (!_wasFullIdent || !_wasBcKnown) {
+            ml.push(`${_idn}の詳細が判明した！`);
+            trackItem(item);
+          } else {
+            ml.push(`${_idn}は既に完全に識別済みだった。`);
+          }
         }
       } else if (bb.kind === "split") {
         if (item.type === "gold" || item.type === "goal") {
