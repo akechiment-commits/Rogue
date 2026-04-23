@@ -30,7 +30,7 @@ import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
-import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal } from "./GameModals.jsx";
 /* インベントリサブメニューのアクション数を返す（DPad左右カーソル用） */
 function _invActCount(it, absIdx, canUseFn, gs) {
   const _CAN_USE_TYPES = ["potion","food","scroll","weapon","armor","arrow","ring","pot","pen"];
@@ -289,6 +289,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const [gameOverSel, setGameOverSel] = useState(0);
   const [showEnding, setShowEnding] = useState(false);
   const [endingResult, setEndingResult] = useState(null);
+  const [showSign, setShowSign] = useState(null);
   const [mobile, setMobile] = useState(false);
   const [ctLoaded, setCtLoaded] = useState(0);
   const [showTileEditor, setShowTileEditor] = useState(false);
@@ -595,6 +596,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const pendingActRef = useRef(null); /* アニメーション中に入力されたアクションをバッファ */
   const actRef = useRef(null);       /* 最新の act 関数への参照（playAnim内から呼ぶため） */
   const revealModeRef = useRef(null); /* revealMode の ref（キーハンドラ内で同期クリアするため） */
+  const showSignRef = useRef(null);   /* showSign の ref（act ブロック用） */
 
   const playAnim = useCallback(async (data) => {
     if (!data || !canvasRef.current) return;
@@ -2348,6 +2350,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (revealModeRef.current) return;
       if (bigboxModeRef.current) return;
       if (nicknameModeRef.current) return;
+      if (showSignRef.current) return;
       if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -2974,9 +2977,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
             }
             autoPickup(p, st.dungeon, ml);
-            /* 看板：踏んだらテキストを表示 */
+            /* 看板：踏んだらポップアップ表示（ダッシュ中断・メッセージログには出さない） */
             const _signStep = st.dungeon.items.find(it => it.type === "sign" && it.x === p.x && it.y === p.y);
-            if (_signStep) { for (const line of _signStep.text) ml.push(line); }
+            if (_signStep) { setShowSign(_signStep); }
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
             if (dg.map[p.y][p.x] === T.SU) ml.push("上り階段がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
@@ -3114,7 +3117,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _grIt = dg.items.find((i) => i.x === p.x && i.y === p.y);
           if (_grIt) {
             if (_grIt.type === "sign") {
-              for (const line of _grIt.text) ml.push(line);
+              setShowSign(_grIt);
             } else if (_grIt.type === "gold") {
               p.gold += _grIt.value;
               ml.push(`${_grIt.value}枚の金貨を拾った！`);
@@ -3255,6 +3258,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   );
   actRef.current = act; /* 常に最新の act を参照（playAnim のバッファ実行用） */
   revealModeRef.current = revealMode; /* 常に最新の revealMode を同期（キーハンドラで同期クリアするため） */
+  showSignRef.current = showSign;
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
   const doExamineFront = useCallback(() => {
     if (!sr.current) return;
@@ -3463,6 +3467,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           }
           endTurn(st, p, ml);
           break;
+        }
+        {
+          const _dashSign = _dItemMap.get(_dk(p.x, p.y));
+          if (_dashSign?.type === "sign") {
+            endTurn(st, p, ml);
+            setShowSign(_dashSign);
+            break;
+          }
         }
         {
           const _dashIt = _dItemMap.get(_dk(p.x, p.y));
@@ -4693,6 +4705,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
     msgLogMode, msgLogScrollTop, msgsRef,
+    showSign,
     // state setters
     setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -4702,6 +4715,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
     setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
     setMsgLogMode, setMsgLogScrollTop,
+    setShowSign,
     // callbacks
     init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
     bigboxPutItem, sortInventory, getLookDesc, lu,
@@ -5364,9 +5378,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
-                  label={spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
+                  label={showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
                   onClick={() => {
+                    if (showSign) { setShowSign(null); return; }
                     if (spellListMode) { setSpellListMode(false); return; }
                     if (putMode) { setPutMode(null); setPutPage(0); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
@@ -5377,7 +5392,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     if (identifyMode) { setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     act("inventory");
                   }}
-                  color={spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
+                  color={showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
@@ -5608,6 +5623,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} page={markerPage} setPage={setMarkerPage} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} pastIdent={pastIdent} discoveredItems={discoveredItems} />{" "}
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} spellConfirmRef={spellConfirmRef} />{" "}
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
+      <SignModal sign={showSign} onClose={() => setShowSign(null)} mobile={mobile} />
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />

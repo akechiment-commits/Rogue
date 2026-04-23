@@ -22,6 +22,7 @@ export function useKeyHandler({
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
+  showSign,
   // state setters
   setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -31,6 +32,7 @@ export function useKeyHandler({
   setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
   setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
   setMsgLogMode, setMsgLogScrollTop,
+  setShowSign,
   // callbacks
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
   bigboxPutItem, sortInventory, getLookDesc, lu,
@@ -57,6 +59,12 @@ export function useKeyHandler({
       }
       if (k === "a") {
         aRef.current = true;
+      }
+      if (showSign) {
+        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
+          e.preventDefault(); setShowSign(null);
+        }
+        return;
       }
       if (dead) {
         if (!showScores) {

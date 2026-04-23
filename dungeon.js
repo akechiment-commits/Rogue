@@ -2220,7 +2220,7 @@ export function genTutorialFloor(floorNum) {
   if (floorNum === 1) {
     // Room A: 移動と攻撃
     mkSign(9, 4, [
-      "【移動と攻撃】矢印キー(またはWSAD)で移動できる。スマホはDパッドを使おう。",
+      "【移動と攻撃】矢印キー・テンキーで移動できる。スマホはDパッドを使おう。",
       "敵に隣接すると自動で攻撃！斜め移動も可能。ターンは移動・攻撃・アイテム使用ごとに進む。",
     ]);
     const sword = ITEMS.find(i => i.name === "短剣");
@@ -2232,7 +2232,7 @@ export function genTutorialFloor(floorNum) {
     mkSign(32, 4, [
       "【アイテムと持ち物】床のアイテムは踏むと自動で拾える（上限30個）。",
       "バッグアイコンで持ち物を開いてアイテムを使ったり捨てたりできる。",
-      "右下の武器・防具スロットに装備するとステータスが上がる。",
+      "武器・防具スロットに装備するとステータスが上がる。",
     ]);
     const f1 = genFood(); items.push({ ...f1, id: uid(), x: 28, y: 7 });
     const f2 = genFood(); items.push({ ...f2, id: uid(), x: 31, y: 7 });

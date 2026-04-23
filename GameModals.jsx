@@ -2831,3 +2831,58 @@ export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
     </div>
   );
 }
+
+export function SignModal({ sign, onClose, mobile }) {
+  if (!sign) return null;
+  return (
+    <div style={{
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      background: "rgba(0,0,0,0.72)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 50,
+    }}>
+      <div style={{
+        background: "#1e1006",
+        border: "3px solid #8B5A2B",
+        borderRadius: 8,
+        padding: mobile ? 16 : 22,
+        maxWidth: mobile ? 320 : 440,
+        width: "90%",
+        boxShadow: "0 6px 36px rgba(0,0,0,0.92)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <span style={{ color: "#F5D878", fontSize: mobile ? 13 : 15, fontWeight: "bold", letterSpacing: 1 }}>
+            看板
+          </span>
+          <button onClick={onClose}
+            style={{ background: "#3a1a08", color: "#ccc", border: "1px solid #8B5A2B", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>
+            ✕
+          </button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {sign.text.map((line, i) => (
+            <div key={i} style={{ color: "#f0e0c0", fontSize: mobile ? 12 : 13, lineHeight: "1.65em" }}>
+              {line}
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 18, textAlign: "center" }}>
+          <button onClick={onClose}
+            style={{
+              background: "#4a2a0a",
+              color: "#F5D878",
+              border: "2px solid #8B5A2B",
+              borderRadius: 6,
+              padding: "8px 36px",
+              cursor: "pointer",
+              fontSize: mobile ? 13 : 14,
+              fontWeight: "bold",
+              letterSpacing: 1,
+            }}>
+            閉じる
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
