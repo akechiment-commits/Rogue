@@ -2241,7 +2241,11 @@ export function genTutorialFloor(floorNum) {
   const RA = { x: 3, y: 3, w: 13, h: 8 };
   const RB = { x: 26, y: 3, w: 13, h: 8 };
   const RC = { x: 26, y: 18, w: 13, h: 8 };
-  const { map, rooms } = buildTutorialMap([RA, RB, RC], [[0, 1], [1, 2]]);
+  const RD = { x: 3, y: 18, w: 13, h: 8 };
+  const _has4Rooms = floorNum >= 5;
+  const { map, rooms } = _has4Rooms
+    ? buildTutorialMap([RA, RB, RC, RD], [[0, 1], [1, 2], [0, 3]])
+    : buildTutorialMap([RA, RB, RC], [[0, 1], [1, 2]]);
 
   const su = { x: 4, y: 4 };
   const sd = { x: 37, y: 24 };
@@ -2431,7 +2435,7 @@ export function genTutorialFloor(floorNum) {
     mkSign(9, 4, [
       "【罠】ダンジョンには様々な罠が隠れている！踏むと発動する。",
       "Sキー（または探るボタン）で周囲1マスの隠れた罠を見つけられる。怪しい場所は先に調べよう。",
-      "矢の罠・鈍足の罠・空腹の罠・召喚の罠など種類は様々。このフロアは最初から見えているよ。",
+      "発見済みの罠はダッシュ中なら発動させずに乗り越えられる。矢・鈍足・空腹・召喚など種類は様々。",
     ]);
     const trapDefs = [
       TRAPS.find(t => t.effect === "arrow_trap"),
@@ -2465,6 +2469,17 @@ export function genTutorialFloor(floorNum) {
       "「初心者ダンジョン」で全10階の本格的なダンジョン攻略に挑戦しよう！",
       "下り階段（>）を踏んでHubに戻ろう。次の冒険へ出発だ！",
     ]);
+
+    // Room D: 魔法チュートリアル
+    mkSign(9, 19, [
+      "【魔法】MPを消費して強力な魔法を使える。持ち物でCキーを押すと魔法リストが開く。",
+      "魔法書を読むと魔法を習得できる。習得後は魔法書がなくても使い続けられる。",
+      "MPはマナ回復薬やレベルアップで回復する。MP切れに備えて節約しよう！",
+    ]);
+    const fireSpellbook = SPELLBOOKS.find(sb => sb.spell === "fire_bolt");
+    const manaPot = ITEMS.find(i => i.effect === "mana");
+    if (fireSpellbook) items.push({ ...fireSpellbook, id: uid(), x: 6, y: 22 });
+    if (manaPot)       items.push({ ...manaPot,       id: uid(), x: 9, y: 22 });
   }
 
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
