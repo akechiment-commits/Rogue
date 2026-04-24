@@ -3636,6 +3636,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         ra.plus = (ra.plus || 0) + (rb.plus || 0);
         ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
         bb.contents = bb.contents.filter(i => i !== rb);
+        bb.capacity = bb.contents.length;
         return;
       }
       const mks = bb.contents.filter((i) => i.type === "marker");
@@ -3647,6 +3648,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           `合成完了！${mb.name}の容量が${add}増えた！(${mb.charges}回)`,
         );
         bb.contents = bb.contents.filter((i) => i !== mm);
+        bb.capacity = bb.contents.length;
         return;
       }
       const pns = bb.contents.filter((i) => i.type === "pen");
@@ -3657,11 +3659,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           pb.charges = (pb.charges || 0) + add;
           ml.push(`合成完了！${pb.name}の回数が${add}増えた！(${pb.charges}回)`);
           bb.contents = bb.contents.filter((i) => i !== pm);
+          bb.capacity = bb.contents.length;
         } else {
           const add = Math.max(1, Math.floor((pm.charges || 0) / 2));
           pb.charges = (pb.charges || 0) + add;
           ml.push(`${pm.name}の回数の半分が${pb.name}に加算された！(+${add}回 → ${pb.charges}回)`);
           bb.contents = bb.contents.filter((i) => i !== pm);
+          bb.capacity = bb.contents.length;
         }
         return;
       }
@@ -3681,6 +3685,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             const _gsWand = { ...GODSPARKWAND_T, id: uid(), charges: _combinedCharges };
             bb.contents = bb.contents.filter(i => i !== wb && i !== wm);
             bb.contents.push(_gsWand);
+            bb.capacity = bb.contents.length;
             ml.push(`合成完了！炎・雷・氷の三属性が融合してゴッドスパークの杖に変化した！`);
             return;
           }
@@ -3688,6 +3693,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           wb.charges = _combinedCharges;
           wb.mergedWandEffects = [..._merged];
           bb.contents = bb.contents.filter(i => i !== wm);
+          bb.capacity = bb.contents.length;
           ml.push(`合成完了！${wb.name}の回数が増えた！(${wb.charges}回) [三属性杖: ${wb.mergedWandEffects.join("/")}]`);
           return;
         }
@@ -3704,6 +3710,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           );
         }
         bb.contents = bb.contents.filter((i) => i !== wm);
+        bb.capacity = bb.contents.length;
         return;
       }
       /* 杖 + 武器/防具 → 状態異常アビリティ付与 */
@@ -3733,6 +3740,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const merged = { ..._swEquip, id: uid(), ability: _newAbs[0], abilities: _newAbs };
           bb.contents = bb.contents.filter(i => i !== _swWand && i !== _swEquip);
           bb.contents.push(merged);
+          bb.capacity = bb.contents.length;
           const _AB = _swEquip.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
           const _abName = _AB.find(a => a.id === _swAbId)?.name || _swAbId;
           ml.push(`合成完了！${_swEquip.name}に${_swWand.name}の力が宿った！[${_abName}]`);
@@ -3754,6 +3762,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ml.push(`合成完了！${pa.name}の容量が1増えた！(容量${pa.capacity})`);
         }
         bb.contents = bb.contents.filter((i) => i !== pb);
+        bb.capacity = bb.contents.length;
         return;
       }
       const ws = bb.contents.filter((i) => i.type === "weapon");
@@ -3850,11 +3859,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _catAbilities = [...new Set([...(_mabs || []), CAT_CLAW_T.ability])];
         const _catClaw = { ...CAT_CLAW_T, id: uid(), plus: merged.plus, ability: _catAbilities[0], abilities: _catAbilities };
         bb.contents.push(_catClaw);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！短剣が融合して猫の爪に変化した！`);
       /* 鎖帷子3枚→ミスリルの胴着に変化 */
       } else if (merged.chainmailMerge >= 3) {
         const _mithril = { ...MITHRIL_ARMOR_T, id: uid(), plus: merged.plus };
         bb.contents.push(_mithril);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！鎖帷子3枚が融合してミスリルの胴着に変化した！`);
       /* 同種キラー3本合成 */
       } else if (merged.type === "weapon" && (merged.killerMerge_bane_undead >= 3 || merged.killerMerge_bane_dragon >= 3 || merged.killerMerge_bane_float >= 3)) {
@@ -3864,12 +3875,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _kAbs = [...new Set([..._mabs.filter(a => a !== _killerT.bane), _killerT.T.ability])];
         const _kResult = { ..._killerT.T, id: uid(), plus: merged.plus, ability: _kAbs[0], abilities: _kAbs };
         bb.contents.push(_kResult);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！${_killerT.msg}`);
       /* 万能キラー3本→全能キラーに変化 */
       } else if (merged.allbaneMerge >= 3) {
         const _gbAbs = [...new Set([..._mabs.filter(a => !a.startsWith("bane_")), ...GODBANE_SWORD_T.abilities])];
         const _godBane = { ...GODBANE_SWORD_T, id: uid(), plus: merged.plus, ability: _gbAbs[0], abilities: _gbAbs };
         bb.contents.push(_godBane);
+        bb.capacity = bb.contents.length;
         ml.push("合成完了！万能キラー3本が融合して全能キラーに変化した！");
       /* 同種属性剣3本合成 */
       } else if (merged.type === "weapon" && (merged.elemMerge_fire_elem >= 3 || merged.elemMerge_ice_elem >= 3 || merged.elemMerge_thunder_elem >= 3)) {
@@ -3879,39 +3892,46 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _eAbs = [...new Set([..._mabs.filter(a => a !== _elemT.elem), _elemT.T.ability])];
         const _eResult = { ..._elemT.T, id: uid(), plus: merged.plus, ability: _eAbs[0], abilities: _eAbs };
         bb.contents.push(_eResult);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！${_elemT.msg}`);
       /* 三元の刃3本→アルテマソードに変化 */
       } else if (merged.trielemMerge >= 3) {
         const _utAbs = [...new Set([..._mabs.filter(a => !["fire_elem","ice_elem","thunder_elem"].includes(a)), ...ULTIMA_SWORD_T.abilities])];
         const _ultima = { ...ULTIMA_SWORD_T, id: uid(), plus: merged.plus, ability: _utAbs[0], abilities: _utAbs };
         bb.contents.push(_ultima);
+        bb.capacity = bb.contents.length;
         ml.push("合成完了！三元の刃3本が融合してアルテマソードに変化した！");
       /* 三元素武器：炎・氷・雷属性をすべて持つなら三元の刃に変化 */
       } else if (merged.type === "weapon" && _mabs.includes("fire_elem") && _mabs.includes("ice_elem") && _mabs.includes("thunder_elem")) {
         const _tsAbs = [...new Set([..._mabs, ...TRIELEM_SWORD_T.abilities])];
         const _triSword = { ...TRIELEM_SWORD_T, id: uid(), plus: merged.plus, ability: _tsAbs[0], abilities: _tsAbs };
         bb.contents.push(_triSword);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！三元素の力が融合して三元の刃に変化した！`);
       /* 三耐性防具：炎・氷・雷耐性をすべて持つなら元素王の鎧に変化 */
       } else if (merged.type === "armor" && _mabs.includes("fire_resist") && _mabs.includes("ice_resist") && _mabs.includes("lightning_resist")) {
         const _taAbs = [...new Set([..._mabs, ...TRIELEM_ARMOR_T.abilities])];
         const _triArmor = { ...TRIELEM_ARMOR_T, id: uid(), plus: merged.plus, ability: _taAbs[0], abilities: _taAbs };
         bb.contents.push(_triArmor);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！三属性の耐性が融合して元素王の鎧に変化した！`);
       /* 三種キラー：竜・不死・浮遊特効をすべて持つなら全能キラーに変化 */
       } else if (merged.type === "weapon" && _mabs.includes("bane_dragon") && (_mabs.includes("bane_undead") || _mabs.includes("bane_undead_2")) && _mabs.includes("bane_float")) {
         const _abAbs = [...new Set([..._mabs, ...ALLBANE_SWORD_T.abilities])];
         const _allBane = { ...ALLBANE_SWORD_T, id: uid(), plus: merged.plus, ability: _abAbs[0], abilities: _abAbs };
         bb.contents.push(_allBane);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！三種の特効剣が融合して万能キラーに変化した！`);
       /* 三守護：刃反射・みかわし・杖反射をすべて持つなら神盾の鎧に変化 */
       } else if (merged.type === "armor" && _mabs.includes("thorn") && _mabs.includes("dodge") && _mabs.includes("wand_reflect")) {
         const _dsAbs = [...new Set([..._mabs, ...DIVINE_SHIELD_T.abilities])];
         const _divShield = { ...DIVINE_SHIELD_T, id: uid(), plus: merged.plus, ability: _dsAbs[0], abilities: _dsAbs };
         bb.contents.push(_divShield);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！三守護の力が融合して神盾の鎧に変化した！`);
       } else {
         bb.contents.push(merged);
+        bb.capacity = bb.contents.length;
         ml.push(`合成完了！${base.name}と${mat.name}が融合した！`);
       }
     },
