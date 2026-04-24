@@ -2360,7 +2360,7 @@ export function genTutorialFloor(floorNum) {
     ]);
     const healPot3 = ITEMS.find(i => i.effect === "heal");
     items.push({ ...healPot3, id: uid(), x: 28, y: 6 });
-    for (const [fx, fy] of [[35,6],[36,6],[37,6],[35,7],[36,7],[37,7]]) {
+    for (const [fx, fy] of [[38,5],[38,6],[38,7],[38,8],[38,9],[38,10]]) {
       items.push({ ...genFood(), id: uid(), x: fx, y: fy });
     }
 
