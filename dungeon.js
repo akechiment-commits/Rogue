@@ -2244,7 +2244,7 @@ export function genTutorialFloor(floorNum) {
   const RD = { x: 3, y: 18, w: 13, h: 8 };
   const _has4Rooms = floorNum >= 5;
   const { map, rooms } = _has4Rooms
-    ? buildTutorialMap([RA, RB, RC, RD], [[0, 1], [1, 2], [0, 3]])
+    ? buildTutorialMap([RA, RB, RC, RD], [[0, 1], [1, 2], [2, 3]])
     : buildTutorialMap([RA, RB, RC], [[0, 1], [1, 2]]);
 
   const su = { x: 4, y: 4 };
@@ -2463,23 +2463,26 @@ export function genTutorialFloor(floorNum) {
       items.push({ ...thunderSword, id: uid(), x: 34, y: 7, plus: 0 });
     }
 
-    // Room C: チュートリアル完了
+    // Room C: 魔法チュートリアル
     mkSign(32, 19, [
-      "★ チュートリアル完了！基本をマスターした！",
-      "「初心者ダンジョン」で全10階の本格的なダンジョン攻略に挑戦しよう！",
-      "下り階段（>）を踏んでHubに戻ろう。次の冒険へ出発だ！",
-    ]);
-
-    // Room D: 魔法チュートリアル
-    mkSign(9, 19, [
-      "【魔法】MPを消費して強力な魔法を使える。持ち物でCキーを押すと魔法リストが開く。",
-      "魔法書を読むと魔法を習得できる。習得後は魔法書がなくても使い続けられる。",
+      "【魔法】MPを消費して強力な魔法を使える。Cキーで魔法リストを開いて発動。",
+      "魔法書を読むと魔法を習得。習得後は魔法書がなくても使い続けられる。",
       "MPはマナ回復薬やレベルアップで回復する。MP切れに備えて節約しよう！",
     ]);
     const fireSpellbook = SPELLBOOKS.find(sb => sb.spell === "fire_bolt");
     const manaPot = ITEMS.find(i => i.effect === "mana");
-    if (fireSpellbook) items.push({ ...fireSpellbook, id: uid(), x: 6, y: 22 });
-    if (manaPot)       items.push({ ...manaPot,       id: uid(), x: 9, y: 22 });
+    if (fireSpellbook) items.push({ ...fireSpellbook, id: uid(), x: 29, y: 22 });
+    if (manaPot)       items.push({ ...manaPot,       id: uid(), x: 32, y: 22 });
+
+    // Room D: ゴール・操作まとめ（SDをRDに移動）
+    map[sd.y][sd.x] = T.WALL;
+    sd.x = 4; sd.y = 25;
+    map[sd.y][sd.x] = T.SD;
+    mkSign(9, 19, [
+      "【操作まとめ】X:アイテム欄を開く　Z:目の前を調べる　F:足元を調べる　T:向きを変える",
+      "C:魔法を使う　S:罠を探る　W:見渡す　Q:矢を射る　A:ダッシュ　.:待機",
+      "★ チュートリアル完了！「初心者ダンジョン」で本格攻略に挑戦しよう！",
+    ]);
   }
 
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
