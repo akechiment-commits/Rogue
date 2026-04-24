@@ -2299,7 +2299,7 @@ export function genTutorialFloor(floorNum) {
     mkSign(9, 4, [
       "【識別①：謎のアイテム】薬・巻物・杖・ペン・魔法書・指輪は正体不明の名前で落ちている。",
       "使ってみると正体が判明するよ。良い効果も悪い効果もある。",
-      "このダンジョンは識別済みスタートなので全て見えているが、他のダンジョンでは未識別。",
+      "次の部屋の鑑定の大箱に入れれば安全に識別できる。識別の巻物でも1つ選んで識別できる。",
     ]);
     const healPot = ITEMS.find(i => i.effect === "heal");
     const sleepPot = ITEMS.find(i => i.effect === "sleep");

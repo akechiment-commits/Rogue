@@ -522,7 +522,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
     refreshFOV(d, p);
     const _dt = dungeonConfig?.dungeonType || "beginner";
-    const _allIdentKeys = (_dt === "debug" || _dt === "beginner" || _dt === "tutorial")
+    const _allIdentKeys = (_dt === "debug" || _dt === "beginner")
       ? new Set([
           ...[...ITEMS, ...WANDS].map(getIdentKey).filter(Boolean),
           ...POTS.map(pot => `o:${pot.potEffect}`),
@@ -1435,6 +1435,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       d.items.forEach(it => { it.fullIdent = true; it.bcKnown = true; });
     } else {
       d.bigboxes?.forEach(bb => { if (bb.revealed === undefined) bb.revealed = false; });
+    }
+    /* チュートリアル識別制御: 2階は祝呪アイテムのキーだけ解放、他の階は全アイテム識別 */
+    if (sr.current.dungeonType === "tutorial") {
+      if (nd !== 2) {
+        d.items.forEach(it => { const _k = getIdentKey(it); if (_k) sr.current.ident.add(_k); });
+      } else {
+        d.items.forEach(it => { if (it.blessed || it.cursed) { const _k = getIdentKey(it); if (_k) sr.current.ident.add(_k); } });
+      }
     }
     if (pitfall) {
       const _pr = d.rooms[rng(0, d.rooms.length - 1)];
