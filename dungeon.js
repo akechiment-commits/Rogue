@@ -2379,14 +2379,16 @@ export function genTutorialFloor(floorNum) {
   } else if (floorNum === 4) {
     // Room A: ペンのチュートリアル
     mkSign(9, 4, [
-      "【ペン】ペンで描いた魔法陣は強力な効果を持つ。足元ボタン(F)かZキーで使う。",
-      "ただし呪われたペンは有害な罠の魔方陣を描く！装備前に識別しよう。",
-      "魔法陣はアイテムを投げつけると消せる。回復薬を投げて試してみよう！",
+      "【ペン】ペンを装備して使うと足元に魔法陣を描ける。魔法陣は描いてあるだけで効果を発揮する。",
+      "呪われたペンは効果が反転する！石飛ばしなら回復、雷なら無効化など。装備前に識別しよう。",
+      "魔法陣の上を歩くたびに少しずつ消えていく。薬をかければすぐに消せる。",
     ]);
     const thunderPen = ITEMS.find(i => i.effect === "thunder_trap");
+    const stonePen   = ITEMS.find(i => i.effect === "stone_throw");
     const healPot4   = ITEMS.find(i => i.effect === "heal");
     if (thunderPen) items.push({ ...thunderPen, id: uid(), x: 6, y: 7, cursed: true });
-    if (healPot4)   items.push({ ...healPot4,   id: uid(), x: 9, y: 7 });
+    if (stonePen)   items.push({ ...stonePen,   id: uid(), x: 8, y: 7 });
+    if (healPot4)   items.push({ ...healPot4,   id: uid(), x: 10, y: 7 });
 
     // Room B: 大箱まとめ（①②圧縮）
     mkSign(32, 4, [
