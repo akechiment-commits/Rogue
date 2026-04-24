@@ -3805,7 +3805,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       /* 同種キラー武器マージカウント（bane_*が唯一の通常特効アビリティの場合のみ加算） */
       const _getSoloBane = (it) => {
-        const abs = [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean);
+        const abs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean))];
         const banes = abs.filter(a => a.startsWith("bane_") && !a.endsWith("_2"));
         return banes.length === 1 ? banes[0] : null;
       };
@@ -3826,7 +3826,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       /* 同種属性剣マージカウント */
       const _getSoloElem = (it) => {
-        const abs = [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean);
+        const abs = [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean))];
         const elems = abs.filter(a => ["fire_elem","ice_elem","thunder_elem"].includes(a));
         return elems.length === 1 ? elems[0] : null;
       };
