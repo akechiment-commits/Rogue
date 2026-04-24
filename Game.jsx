@@ -3810,9 +3810,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         return banes.length === 1 ? banes[0] : null;
       };
       const _soloBaneBase = _getSoloBane(base), _soloBaneMat = _getSoloBane(mat);
+      const _KILLER_NAMES = { "bane_undead": "ゾンビキラー", "bane_dragon": "ドラゴンキラー", "bane_float": "バードキラー" };
       for (const _bk of ["bane_undead", "bane_dragon", "bane_float"]) {
         const _kp = `killerMerge_${_bk}`;
-        if (_soloBaneBase === _bk && _soloBaneMat === _bk) {
+        if (_soloBaneBase === _bk && _soloBaneMat === _bk &&
+            base.name === _KILLER_NAMES[_bk] && mat.name === _KILLER_NAMES[_bk]) {
           merged[_kp] = (base[_kp] || 1) + (mat[_kp] || 1);
         } else {
           delete merged[_kp];
@@ -3831,9 +3833,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         return elems.length === 1 ? elems[0] : null;
       };
       const _soloElemBase = _getSoloElem(base), _soloElemMat = _getSoloElem(mat);
+      const _ELEM_SWORD_NAMES = { "fire_elem": "炎の剣", "ice_elem": "氷の剣", "thunder_elem": "雷の剣" };
       for (const _ek of ["fire_elem", "ice_elem", "thunder_elem"]) {
         const _ep = `elemMerge_${_ek}`;
-        if (_soloElemBase === _ek && _soloElemMat === _ek) {
+        if (_soloElemBase === _ek && _soloElemMat === _ek &&
+            base.name === _ELEM_SWORD_NAMES[_ek] && mat.name === _ELEM_SWORD_NAMES[_ek]) {
           merged[_ep] = (base[_ep] || 1) + (mat[_ep] || 1);
         } else {
           delete merged[_ep];
@@ -3901,29 +3905,37 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         bb.contents.push(_ultima);
         bb.capacity = bb.contents.length;
         ml.push("合成完了！三元の刃3本が融合してアルテマソードに変化した！");
-      /* 三元素武器：炎・氷・雷属性をすべて持つなら三元の刃に変化 */
-      } else if (merged.type === "weapon" && _mabs.includes("fire_elem") && _mabs.includes("ice_elem") && _mabs.includes("thunder_elem")) {
+      /* 三元素武器：炎・氷・雷属性をすべて持つなら三元の刃に変化（ベースが属性剣のみ） */
+      } else if (merged.type === "weapon" &&
+                 (base.name === "炎の剣" || base.name === "氷の剣" || base.name === "雷の剣") &&
+                 _mabs.includes("fire_elem") && _mabs.includes("ice_elem") && _mabs.includes("thunder_elem")) {
         const _tsAbs = [...new Set([..._mabs, ...TRIELEM_SWORD_T.abilities])];
         const _triSword = { ...TRIELEM_SWORD_T, id: uid(), plus: merged.plus, ability: _tsAbs[0], abilities: _tsAbs };
         bb.contents.push(_triSword);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！三元素の力が融合して三元の刃に変化した！`);
-      /* 三耐性防具：炎・氷・雷耐性をすべて持つなら元素王の鎧に変化 */
-      } else if (merged.type === "armor" && _mabs.includes("fire_resist") && _mabs.includes("ice_resist") && _mabs.includes("lightning_resist")) {
+      /* 三耐性防具：炎・氷・雷耐性をすべて持つなら元素王の鎧に変化（ベースが耐性鎧のみ） */
+      } else if (merged.type === "armor" &&
+                 (base.name === "ドラゴンメイル" || base.name === "氷竜のウロコ" || base.name === "ゴムゴムの胴") &&
+                 _mabs.includes("fire_resist") && _mabs.includes("ice_resist") && _mabs.includes("lightning_resist")) {
         const _taAbs = [...new Set([..._mabs, ...TRIELEM_ARMOR_T.abilities])];
         const _triArmor = { ...TRIELEM_ARMOR_T, id: uid(), plus: merged.plus, ability: _taAbs[0], abilities: _taAbs };
         bb.contents.push(_triArmor);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！三属性の耐性が融合して元素王の鎧に変化した！`);
-      /* 三種キラー：竜・不死・浮遊特効をすべて持つなら全能キラーに変化 */
-      } else if (merged.type === "weapon" && _mabs.includes("bane_dragon") && (_mabs.includes("bane_undead") || _mabs.includes("bane_undead_2")) && _mabs.includes("bane_float")) {
+      /* 三種キラー：竜・不死・浮遊特効をすべて持つなら万能キラーに変化（ベースがキラー武器のみ） */
+      } else if (merged.type === "weapon" &&
+                 (base.name === "ゾンビキラー" || base.name === "ドラゴンキラー" || base.name === "バードキラー") &&
+                 _mabs.includes("bane_dragon") && (_mabs.includes("bane_undead") || _mabs.includes("bane_undead_2")) && _mabs.includes("bane_float")) {
         const _abAbs = [...new Set([..._mabs, ...ALLBANE_SWORD_T.abilities])];
         const _allBane = { ...ALLBANE_SWORD_T, id: uid(), plus: merged.plus, ability: _abAbs[0], abilities: _abAbs };
         bb.contents.push(_allBane);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！三種の特効剣が融合して万能キラーに変化した！`);
-      /* 三守護：刃反射・みかわし・杖反射をすべて持つなら神盾の鎧に変化 */
-      } else if (merged.type === "armor" && _mabs.includes("thorn") && _mabs.includes("dodge") && _mabs.includes("wand_reflect")) {
+      /* 三守護：刃反射・みかわし・杖反射をすべて持つなら神盾の鎧に変化（ベースが守護鎧のみ） */
+      } else if (merged.type === "armor" &&
+                 (base.name === "刃の鎧" || base.name === "みかわしの服" || base.name === "反射の鎧") &&
+                 _mabs.includes("thorn") && _mabs.includes("dodge") && _mabs.includes("wand_reflect")) {
         const _dsAbs = [...new Set([..._mabs, ...DIVINE_SHIELD_T.abilities])];
         const _divShield = { ...DIVINE_SHIELD_T, id: uid(), plus: merged.plus, ability: _dsAbs[0], abilities: _dsAbs };
         bb.contents.push(_divShield);
