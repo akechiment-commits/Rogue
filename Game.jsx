@@ -126,7 +126,7 @@ function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} }) {
         ...s,
       }}
     >
-      {sub ? <><span style={{ fontSize: 15 }}>{label}</span><span style={{ fontSize: 8, opacity: 0.5 }}>{sub}</span></> : label}
+      {sub ? <><span style={{ fontSize: 17 }}>{label}</span><span style={{ fontSize: 9, opacity: 0.5 }}>{sub}</span></> : label}
     </button>
   );
 }
@@ -135,7 +135,7 @@ function B({ label, onClick, w = 52, h = 52, fs = 18, style: s = {} }) {
 }
 function AB({ label, sub, onClick, color = "#8f8" }) {
   return <MobileBtn label={label} sub={sub} onClick={onClick} color={color}
-    style={{ flex: 1, minWidth: 38, height: 36, fontSize: 14 }} />;
+    style={{ flex: 1, minWidth: 44, height: 48, fontSize: 15 }} />;
 }
 const TBS = { background: "#2a1a1a", border: "1px solid #5a3a3a", color: "#f88" };
 const DBS = { background: "#1a1a2a", border: "1px solid #4a3a6a", color: "#c8f" };
