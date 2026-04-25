@@ -130,7 +130,7 @@ function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} }) {
     </button>
   );
 }
-function B({ label, onClick, w = 40, h = 40, fs = 15, style: s = {} }) {
+function B({ label, onClick, w = 52, h = 52, fs = 18, style: s = {} }) {
   return <MobileBtn label={label} onClick={onClick} w={w} h={h} fs={fs} style={s} />;
 }
 function AB({ label, sub, onClick, color = "#8f8" }) {
@@ -153,7 +153,7 @@ function DPad({ onClick, throwMode, dashMode, facingMode, setFacingMode, setThro
         <B label="←" onClick={() => onClick(-1, 0)} style={fs} />
         <B
           label={facingMode ? "✕" : throwMode ? "✕" : dashMode ? "⇒" : "向"}
-          fs={facingMode || throwMode || dashMode ? 15 : 11}
+          fs={facingMode || throwMode || dashMode ? 18 : 13}
           onClick={() => {
             if (facingMode) { setFacingMode(false); }
             else if (throwMode) { setThrowMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
