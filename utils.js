@@ -24,7 +24,7 @@ export const TI = {
   PLAYER_UP_LEFT: 64,
   PLAYER_UP_RIGHT: 65,
   FOOD_COOKED: 66,
-  SIGN: 101,
+  SIGN: 110,
 };
 
 export const rng = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
