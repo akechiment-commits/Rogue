@@ -2242,7 +2242,7 @@ export function genTutorialFloor(floorNum) {
   const RB = { x: 26, y: 3, w: 13, h: 8 };
   const RC = { x: 26, y: 18, w: 13, h: 8 };
   const RD = { x: 3, y: 18, w: 13, h: 8 };
-  const _has4Rooms = floorNum >= 5;
+  const _has4Rooms = floorNum >= 4;
   const { map, rooms } = _has4Rooms
     ? buildTutorialMap([RA, RB, RC, RD], [[0, 1], [1, 2], [2, 3]])
     : buildTutorialMap([RA, RB, RC], [[0, 1], [1, 2]]);
@@ -2394,8 +2394,17 @@ export function genTutorialFloor(floorNum) {
     if (stonePen)   items.push({ ...stonePen,   id: uid(), x: 8, y: 7 });
     if (healPot4)   items.push({ ...healPot4,   id: uid(), x: 10, y: 7 });
 
-    // Room B: 大箱まとめ（①②圧縮）
+    // Room B: 杖チュートリアル（壁反射）
     mkSign(32, 4, [
+      "【杖】装備して向いた方向に振ると魔法弾が飛ぶ。敵に当てると様々な効果が起きる。",
+      "壁に向かって振ると魔法弾が跳ね返って自分に当たる！呪われた杖は効果が反転するので注意。",
+      "識別前はリスクあり。鑑定の大箱で安全に確かめよう。この呪われた鈍足の杖を壁に振ってみよう！",
+    ]);
+    const slowWand4 = WANDS.find(w => w.effect === "slow");
+    if (slowWand4) items.push({ ...slowWand4, id: uid(), x: 29, y: 7, cursed: true, charges: slowWand4.charges });
+
+    // Room C: 大箱まとめ（旧Room B）
+    mkSign(32, 19, [
       "【大箱まとめ】大箱の前でZ・上でFで調べられる。合成・強化・識別・充填・変化など様々。",
       "識別の大箱は祝呪も判明する。満タンにさらに投げると壊せる。容量は大箱ごとに異なる。",
     ]);
@@ -2404,30 +2413,33 @@ export function genTutorialFloor(floorNum) {
     const identBB  = BB_TYPES.find(b => b.kind === "identify");
     const refillBB = BB_TYPES.find(b => b.kind === "refill");
     const changeBB = BB_TYPES.find(b => b.kind === "change");
-    if (synthBB)  bigboxes.push({ id: uid(), x: 27, y: 6, tile: TI.BIGBOX, kind: synthBB.kind,  name: synthBB.name,  capacity: synthBB.cap(),  contents: [], revealed: true });
-    if (enhBB)    bigboxes.push({ id: uid(), x: 29, y: 6, tile: TI.BIGBOX, kind: enhBB.kind,    name: enhBB.name,    capacity: enhBB.cap(),    contents: [], revealed: true });
-    if (identBB)  bigboxes.push({ id: uid(), x: 31, y: 6, tile: TI.BIGBOX, kind: identBB.kind,  name: identBB.name,  capacity: identBB.cap(),  contents: [], revealed: true });
-    if (refillBB) bigboxes.push({ id: uid(), x: 33, y: 6, tile: TI.BIGBOX, kind: refillBB.kind, name: refillBB.name, capacity: refillBB.cap(), contents: [], revealed: true });
-    if (changeBB) bigboxes.push({ id: uid(), x: 35, y: 6, tile: TI.BIGBOX, kind: changeBB.kind, name: changeBB.name, capacity: changeBB.cap(), contents: [], revealed: true });
+    if (synthBB)  bigboxes.push({ id: uid(), x: 27, y: 21, tile: TI.BIGBOX, kind: synthBB.kind,  name: synthBB.name,  capacity: synthBB.cap(),  contents: [], revealed: true });
+    if (enhBB)    bigboxes.push({ id: uid(), x: 29, y: 21, tile: TI.BIGBOX, kind: enhBB.kind,    name: enhBB.name,    capacity: enhBB.cap(),    contents: [], revealed: true });
+    if (identBB)  bigboxes.push({ id: uid(), x: 31, y: 21, tile: TI.BIGBOX, kind: identBB.kind,  name: identBB.name,  capacity: identBB.cap(),  contents: [], revealed: true });
+    if (refillBB) bigboxes.push({ id: uid(), x: 33, y: 21, tile: TI.BIGBOX, kind: refillBB.kind, name: refillBB.name, capacity: refillBB.cap(), contents: [], revealed: true });
+    if (changeBB) bigboxes.push({ id: uid(), x: 35, y: 21, tile: TI.BIGBOX, kind: changeBB.kind, name: changeBB.name, capacity: changeBB.cap(), contents: [], revealed: true });
     const sword = ITEMS.find(i => i.name === "短剣");
-    const wand   = WANDS[0];
-    items.push({ ...sword, id: uid(), x: 28, y: 9, plus: 0 });
-    items.push({ ...sword, id: uid(), x: 31, y: 9, plus: 0 });
-    if (wand) items.push({ ...wand, id: uid(), x: 34, y: 9, charges: 3 });
+    const wandB  = WANDS[0];
+    items.push({ ...sword, id: uid(), x: 28, y: 24, plus: 0 });
+    items.push({ ...sword, id: uid(), x: 31, y: 24, plus: 0 });
+    if (wandB) items.push({ ...wandB, id: uid(), x: 34, y: 24, charges: 3 });
 
-    // Room C: 特殊な大箱（入口に看板・惑わし薬・拡散BB、奥の隅にコボルド×3）
-    mkSign(32, 18, [
+    // Room D: 特殊な大箱（旧Room C） — SDをRDに移動
+    map[sd.y][sd.x] = T.WALL;
+    sd.x = 4; sd.y = 25;
+    map[sd.y][sd.x] = T.SD;
+    mkSign(13, 19, [
       "【大箱③：拡散の大箱】アイテムを入れると部屋中の全員に効果を当てる！",
       "惑わしの薬を入れると敵が全員逃げ回る。コボルドが3体いるが切り抜けられるか？",
       "分裂・祝福・呪いの大箱はレア！大切に使おう。",
     ]);
     const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
-    if (scatterBB) bigboxes.push({ id: uid(), x: 34, y: 18, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
+    if (scatterBB) bigboxes.push({ id: uid(), x: 12, y: 19, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
     const bewitchPot = ITEMS.find(i => i.effect === "bewitch");
-    if (bewitchPot) items.push({ ...bewitchPot, id: uid(), x: 33, y: 18 });
-    mkMon("kobold", 36, 23);
-    mkMon("kobold", 37, 24);
-    mkMon("kobold", 38, 24);
+    if (bewitchPot) items.push({ ...bewitchPot, id: uid(), x: 11, y: 19 });
+    mkMon("kobold", 4, 23);
+    mkMon("kobold", 4, 24);
+    mkMon("kobold", 5, 24);
 
   } else {
     // B5F
