@@ -2408,9 +2408,9 @@ export function genTutorialFloor(floorNum, opts = {}) {
   } else if (floorNum === 4) {
     // Room A: ペンのチュートリアル
     mkSign(9, 4, [
-      "【ペン】ペンを装備して使うと足元に魔法陣を描ける。魔法陣は描いてあるだけで効果を発揮する。",
-      "呪われたペンは効果が反転する！石飛ばしなら回復、雷なら無効化など。装備前に識別しよう。",
-      "魔法陣の上を歩くたびに少しずつ消えていく。薬をかければすぐに消せる。",
+      "【ペン】ペンを使うと足元に魔法陣を描ける。魔法陣は描いてあるだけで効果を発揮する。",
+      "祝福されたペンは効果が強化され、呪われたペンは効果が反転する。",
+      "魔法陣の上に立っていると少しずつかすれていく。薬をかければすぐに消せる。",
     ]);
     const thunderPen = ITEMS.find(i => i.effect === "thunder_trap");
     const stonePen   = ITEMS.find(i => i.effect === "stone_throw");
