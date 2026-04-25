@@ -2542,7 +2542,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               attackMon.type === "shopkeeper" &&
               attackMon.state !== "hostile"
             ) {
-              ml.push("店主に話しかけるにはキーで。");
+              const _bumpShop = getShops(dg).find(s => s.shopkeeperId === attackMon.id);
+              if (_bumpShop) {
+                const _bumpFis = dg.items.filter(
+                  (i) => !i.shopPrice && i.x >= _bumpShop.room.x && i.x < _bumpShop.room.x + _bumpShop.room.w &&
+                    i.y >= _bumpShop.room.y && i.y < _bumpShop.room.y + _bumpShop.room.h,
+                );
+                if (_bumpFis.length > 0) {
+                  setShopMode("sell"); setShopMenuSel(0);
+                  ml.push("店主：「買い取りましょうか？」");
+                } else if (_bumpShop.unpaidTotal > 0) {
+                  setShopMode("pay"); setShopMenuSel(0);
+                  ml.push(`店主：「お代は${_bumpShop.unpaidTotal}Gです。」`);
+                } else {
+                  setShopMode("browse"); setShopMenuSel(0);
+                  ml.push("店主：「いらっしゃいませ！」");
+                }
+              }
             } else {
               /* 近接命中率95%（必中状態なら100%） */
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
