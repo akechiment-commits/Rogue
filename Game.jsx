@@ -133,9 +133,9 @@ function MobileBtn({ label, sub, onClick, w, h, fs, color, style: s = {} }) {
 function B({ label, onClick, w = 52, h = 52, fs = 18, style: s = {} }) {
   return <MobileBtn label={label} onClick={onClick} w={w} h={h} fs={fs} style={s} />;
 }
-function AB({ label, sub, onClick, color = "#8f8" }) {
+function AB({ label, sub, onClick, color = "#8f8", small }) {
   return <MobileBtn label={label} sub={sub} onClick={onClick} color={color}
-    style={{ flex: 1, minWidth: 44, height: 48, fontSize: 15 }} />;
+    style={{ flex: 1, minWidth: small ? 36 : 44, height: small ? 40 : 48, fontSize: small ? 13 : 15 }} />;
 }
 const TBS = { background: "#2a1a1a", border: "1px solid #5a3a3a", color: "#f88" };
 const DBS = { background: "#1a1a2a", border: "1px solid #4a3a6a", color: "#c8f" };
@@ -5392,12 +5392,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               {" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
+                  small
                   label="矢"
                   sub="shoot"
                   onClick={() => { if (spellListMode) return; if (springMode || identifyMode || putMode) return; act("shoot_arrow"); }}
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
+                  small
                   label={showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
                   sub={showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
                   onClick={() => {
@@ -5413,6 +5415,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     act("inventory");
                   }}
                   color={showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
+                />
+                <AB
+                  small
+                  label="見"
+                  sub="見渡す"
+                  onClick={() => {
+                    if (spellListMode) return;
+                    if (revealMode) return;
+                    if (showInv || springMode || identifyMode || putMode) return;
+                    if (lookMode) {
+                      setLookMode(null);
+                      setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
+                      return;
+                    }
+                    const { player: _lp, dungeon: _ld } = sr.current || {};
+                    if (_lp && _ld) {
+                      setLookMode({ cx: _lp.x, cy: _lp.y });
+                      const _initDesc = getLookDesc(_lp.x, _lp.y, _ld);
+                      setMsgs(prev => [...prev.slice(-80), `[見渡す] Dパッドで移動、もう一度タップでキャンセル / ${_initDesc}`]);
+                    }
+                  }}
+                  color={lookMode ? "#00e5ff" : "#08f"}
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
@@ -5509,27 +5533,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 />
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
-                <AB
-                  label="見"
-                  sub="見渡す"
-                  onClick={() => {
-                    if (spellListMode) return;
-                    if (revealMode) return;
-                    if (showInv || springMode || identifyMode || putMode) return;
-                    if (lookMode) {
-                      setLookMode(null);
-                      setMsgs(prev => [...prev.slice(-80), "見渡しを終了した。"]);
-                      return;
-                    }
-                    const { player: _lp, dungeon: _ld } = sr.current || {};
-                    if (_lp && _ld) {
-                      setLookMode({ cx: _lp.x, cy: _lp.y });
-                      const _initDesc = getLookDesc(_lp.x, _lp.y, _ld);
-                      setMsgs(prev => [...prev.slice(-80), `[見渡す] Dパッドで移動、もう一度タップでキャンセル / ${_initDesc}`]);
-                    }
-                  }}
-                  color={lookMode ? "#00e5ff" : "#08f"}
-                />
                 <AB
                   label="走"
                   sub={dashMode ? "ON" : "dash"}
