@@ -5410,14 +5410,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 <AB
                   small
                   label="矢"
-                  sub="shoot"
+                  sub="射る"
                   onClick={() => { if (spellListMode) return; if (springMode || identifyMode || putMode) return; act("shoot_arrow"); }}
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
                   small
                   label={showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "items"}
+                  sub={showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
                   onClick={() => {
                     if (showSign) { setShowSign(null); return; }
                     if (spellListMode) { setSpellListMode(false); return; }
@@ -5537,7 +5537,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 />
                 <AB
                   label={showInv ? "整" : "待"}
-                  sub={showInv ? "整理" : "wait"}
+                  sub={showInv ? "整理" : "待機"}
                   onClick={() => { if (spellListMode) return; if (springMode || identifyMode || putMode) return; if (showInv) { sortInventory(); } else { act("wait"); } }}
                   color={showInv ? "#8f8" : "#666"}
                 />
@@ -5551,7 +5551,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
                   label="走"
-                  sub={dashMode ? "ON" : "dash"}
+                  sub={dashMode ? "ON" : "ダッシュ"}
                   onClick={() => { if (spellListMode) return; if (revealMode) return; if (springMode || identifyMode || putMode) return; setDashMode((v) => !v); }}
                   color={dashMode ? "#f44" : "#a8f"}
                 />
