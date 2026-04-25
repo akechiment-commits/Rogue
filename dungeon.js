@@ -2428,15 +2428,15 @@ export function genTutorialFloor(floorNum) {
     map[sd.y][sd.x] = T.WALL;
     sd.x = 4; sd.y = 25;
     map[sd.y][sd.x] = T.SD;
-    mkSign(14, 19, [
+    const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
+    if (scatterBB) bigboxes.push({ id: uid(), x: 14, y: 19, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
+    const bewitchPot = ITEMS.find(i => i.effect === "bewitch");
+    if (bewitchPot) items.push({ ...bewitchPot, id: uid(), x: 14, y: 20 });
+    mkSign(14, 21, [
       "【大箱③：拡散の大箱】アイテムを入れると部屋中の全員に効果を当てる！",
       "惑わしの薬を入れると敵が全員逃げ回る。コボルドが3体いるが切り抜けられるか？",
       "分裂・祝福・呪いの大箱はレア！大切に使おう。",
     ]);
-    const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
-    if (scatterBB) bigboxes.push({ id: uid(), x: 14, y: 21, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
-    const bewitchPot = ITEMS.find(i => i.effect === "bewitch");
-    if (bewitchPot) items.push({ ...bewitchPot, id: uid(), x: 14, y: 20 });
     mkMon("kobold", 4, 23);
     mkMon("kobold", 4, 24);
     mkMon("kobold", 5, 24);
