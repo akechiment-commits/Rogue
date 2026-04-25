@@ -427,10 +427,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     resetDiscoveries();
     const startDepth = dungeonConfig?.startDepth || 1;
     const _initDt = dungeonConfig?.dungeonType || "beginner";
+    const _initMobile = Math.min(window.innerWidth, window.innerHeight) < 700;
     const d = _initDt === "debug"
       ? genDebugDungeon()
       : _initDt === "tutorial"
-      ? genTutorialFloor(startDepth)
+      ? genTutorialFloor(startDepth, { mobile: _initMobile })
       : genDungeon(startDepth - 1, _initDt);
     /* 最下層の場合は下り階段を消して目標アイテムを配置 */
     const _initMaxD = dungeonConfig?.maxFloors ?? null;
@@ -540,6 +541,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0 };
     sr.current = s;
     setGs(s);
+    if (_dt === "tutorial" && startDepth === 1) {
+      const _tutSign = d.items.find(it => it.type === "sign");
+      if (_tutSign) setTimeout(() => setShowSign(_tutSign), 50);
+    }
     ref.current?.focus();
   }, []);
   /* 再開データがある場合はinitの代わりにresumeStateを復元 */
@@ -1406,7 +1411,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       d = _saved;
       delete sr.current.floors[nd];
     } else if (sr.current.dungeonType === "tutorial") {
-      d = genTutorialFloor(nd);
+      const _chgMobile = Math.min(window.innerWidth, window.innerHeight) < 700;
+      d = genTutorialFloor(nd, { mobile: _chgMobile });
     } else if (sr.current.isDebugRun && nd >= 2) {
       d = genDungeon(nd - 1, "beginner");
     } else {
