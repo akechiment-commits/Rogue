@@ -1447,7 +1447,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (nd !== 2) {
         d.items.forEach(it => { const _k = getIdentKey(it); if (_k) sr.current.ident.add(_k); });
       } else {
-        d.items.forEach(it => { if (it.blessed || it.cursed) { const _k = getIdentKey(it); if (_k) sr.current.ident.add(_k); } });
+        d.items.forEach(it => { if (it.blessed || it.cursed || it.preIdent) { const _k = getIdentKey(it); if (_k) sr.current.ident.add(_k); } });
       }
     }
     if (pitfall) {

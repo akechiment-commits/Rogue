@@ -2343,7 +2343,7 @@ export function genTutorialFloor(floorNum, opts = {}) {
     const powerPot = ITEMS.find(i => i.effect === "power");
     const identScroll = ITEMS.find(i => i.effect === "identify");
     if (powerPot)    items.push({ ...powerPot,    id: uid(), x: 28, y: 7 });
-    if (identScroll) items.push({ ...identScroll, id: uid(), x: 35, y: 7 });
+    if (identScroll) items.push({ ...identScroll, id: uid(), x: 35, y: 7, preIdent: true });
 
     // Room C: 祝福と呪い・泉の使い方
     mkSign(32, 19, [
@@ -2355,7 +2355,7 @@ export function genTutorialFloor(floorNum, opts = {}) {
     ]);
     springs.push({ id: uid(), x: 32, y: 23, tile: TI.SPRING, contents: [] });
     const tpScroll = ITEMS.find(i => i.effect === "teleport");
-    if (tpScroll) items.push({ ...tpScroll, id: uid(), x: 28, y: 21 });
+    if (tpScroll) items.push({ ...tpScroll, id: uid(), x: 28, y: 21, preIdent: true });
     const powerPot2 = ITEMS.find(i => i.effect === "power");
     if (powerPot2) {
       items.push({ ...powerPot2, id: uid(), x: 28, y: 23, blessed: true });
