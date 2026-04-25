@@ -557,6 +557,20 @@ function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dung
     patrolTarget: null, dormant: Math.random() < dormantRate,
   };
 }
+/* 部屋の外周に接する通路タイル数を数える（=物理的な出入り口の数） */
+function countRoomEntrances(room, map) {
+  let n = 0;
+  for (let xi = room.x - 1; xi <= room.x + room.w; xi++) {
+    if (xi < 0 || xi >= MW) continue;
+    if (room.y - 1 >= 0 && map[room.y - 1]?.[xi] === T.FLOOR) n++;
+    if (room.y + room.h < MH && map[room.y + room.h]?.[xi] === T.FLOOR) n++;
+  }
+  for (let yi = room.y; yi < room.y + room.h; yi++) {
+    if (room.x - 1 >= 0 && map[yi]?.[room.x - 1] === T.FLOOR) n++;
+    if (room.x + room.w < MW && map[yi]?.[room.x + room.w] === T.FLOOR) n++;
+  }
+  return n;
+}
 /* 部屋をショップにセットアップし、shopDataを返す */
 function setupShopRoom(room, map, depth, items, mons) {
   const shopId = uid();
@@ -1686,13 +1700,12 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     roomConn[ai2]++;
     roomConn[bi2]++;
   }
-  const shopLeaves = rooms
+  /* 出入り口が1つだけの部屋のみ店候補にする（店主1人で塞げる条件） */
+  const shopPool = rooms
     .map((_, i) => i)
-    .filter((i) => roomConn[i] === 1 && i !== 0 && i !== rooms.length - 1);
-  const shopFallback = rooms
-    .map((_, i) => i)
-    .filter((i) => i !== 0 && i !== rooms.length - 1);
-  const shopPool = shopLeaves.length > 0 ? shopLeaves : shopFallback;
+    .filter((i) => i !== 0 && i !== rooms.length - 1
+      && roomConn[i] === 1
+      && countRoomEntrances(rooms[i], map) === 1);
   /* 店出現確率40%（B1Fは50%） */
   const _shopChance = depth === 0 ? 0.50 : 0.40;
   let shopRoomIdx =
