@@ -1626,7 +1626,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           break;
         }
         const _dbMon = dg.monsters.find(mn => mn.x === _btx && mn.y === _bty && mn !== m);
-        if (_dbMon) { ml.push(`${m.name}の銃弾が${_dbMon.name}に当たったが効果はなかった。`); break; }
+        if (_dbMon) {
+          wakeIfDormant(_dbMon, ml);
+          const _dbMonDmg = Math.max(1, m.atk - Math.floor((_dbMon.def || 0) / 2) + rng(-2, 2));
+          _dbMon.hp -= _dbMonDmg;
+          ml.push(`${m.name}の銃弾が${_dbMon.name}に命中！${_dbMonDmg}ダメージ！`);
+          if (_dbMon.hp <= 0) killMonster(_dbMon, dg, pl, ml, m);
+          break;
+        }
       }
       m.turnAttacks++;
       return;
