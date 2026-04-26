@@ -2417,6 +2417,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
+      /* defhalf：同部屋で20%防御半減魔法を予約（移動せず攻撃フェーズで発動） */
+      if (m.subtype === "defhalf" && !m.sealed && _sameRoom && _rAtks && Math.random() < 0.20) {
+        m._defHalfMagicReady = true;
+        return;
+      }
     }
     /* ドラゴンLv3：canSee不要なので別途判定 */
     if (_moveOnly && m.aware && m.baseKind === "dragon" && !m.sealed && (m.monLevel || 1) >= 3) {
@@ -3204,7 +3209,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (m.subtype === "defhalf" && !m.sealed) {
       /* 攻撃フェーズ */
       if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
-        if (canSee && _sameRoom && Math.random() < 0.20) {
+        if (canSee && m._defHalfMagicReady) {
+          delete m._defHalfMagicReady;
           /* 魔封じチェック */
           const _kpRoom = findRoom(rooms, m.x, m.y);
           const _kpSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
