@@ -758,7 +758,7 @@ export function useItemActions({
           p.inventory.splice(idx, 1);
           { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("換金できるアイテムがない。巻物は消えた。");
-          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+          endTurn(sr.current, p, ml); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 変換の巻物 */
@@ -775,7 +775,7 @@ export function useItemActions({
           p.inventory.splice(idx, 1);
           { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("変換できるアイテムがない。巻物は消えた。");
-          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+          endTurn(sr.current, p, ml); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 錬成の巻物 */
@@ -792,7 +792,7 @@ export function useItemActions({
           p.inventory.splice(idx, 1);
           { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("錬成できる武器・防具がない。巻物は消えた。");
-          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+          endTurn(sr.current, p, ml); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 吸い出しの巻物 */
@@ -809,7 +809,7 @@ export function useItemActions({
           p.inventory.splice(idx, 1);
           { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("壺を持っていない。巻物は消えた。");
-          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+          endTurn(sr.current, p, ml); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 武器強化の巻物 */
@@ -827,7 +827,7 @@ export function useItemActions({
           p.inventory.splice(idx, 1);
           { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("強化できる武器・指輪がない。巻物は消えた。");
-          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+          endTurn(sr.current, p, ml); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 防具強化の巻物 */
@@ -845,7 +845,7 @@ export function useItemActions({
           p.inventory.splice(idx, 1);
           { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
           ml.push("強化できる防具・指輪がない。巻物は消えた。");
-          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+          endTurn(sr.current, p, ml); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       const _scrBm = getBlessMultiplier(it);
