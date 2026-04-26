@@ -1631,7 +1631,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _dbMonDmg = Math.max(1, m.atk - Math.floor((_dbMon.def || 0) / 2) + rng(-2, 2));
           _dbMon.hp -= _dbMonDmg;
           ml.push(`${m.name}の銃弾が${_dbMon.name}に命中！${_dbMonDmg}ダメージ！`);
-          if (_dbMon.hp <= 0) killMonster(_dbMon, dg, pl, ml, m);
+          if (_dbMon.hp <= 0) killMonster(_dbMon, dg, pl, ml, _luFn, false, m);
           break;
         }
       }
