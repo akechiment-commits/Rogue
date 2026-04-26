@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
-import { MONS, MON_LEVELS } from "./monsters.js";
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops, randomTeleportDest } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor } from "./dungeon.js";
@@ -2530,6 +2530,23 @@ const _DBG_ITEM_CATS = [
   { key: "armors",     label: "防具",         build: () => [
     ...ITEMS.filter(x => x.type === "armor").map(it => ({ label: it.name, value: { ...it } })),
   ]},
+  { key: "special_synth", label: "特殊合成", build: () => [
+    { label: SOBURO_T.name,       value: { ...SOBURO_T } },
+    { label: GOLDEN_AXE_T.name,   value: { ...GOLDEN_AXE_T } },
+    { label: TRIELEM_SWORD_T.name, value: { ...TRIELEM_SWORD_T } },
+    { label: FLAMBERGE_T.name,    value: { ...FLAMBERGE_T } },
+    { label: ICESWORD_T.name,     value: { ...ICESWORD_T } },
+    { label: CHIDORI_T.name,      value: { ...CHIDORI_T } },
+    { label: ULTIMA_SWORD_T.name, value: { ...ULTIMA_SWORD_T } },
+    { label: ALLBANE_SWORD_T.name, value: { ...ALLBANE_SWORD_T } },
+    { label: IRONMASS_T.name,     value: { ...IRONMASS_T } },
+    { label: SNIPER_T.name,       value: { ...SNIPER_T } },
+    { label: GODBANE_SWORD_T.name, value: { ...GODBANE_SWORD_T } },
+    { label: TRIELEM_ARMOR_T.name, value: { ...TRIELEM_ARMOR_T } },
+    { label: MITHRIL_ARMOR_T.name, value: { ...MITHRIL_ARMOR_T } },
+    { label: DIVINE_SHIELD_T.name, value: { ...DIVINE_SHIELD_T } },
+    { label: GODSPARKWAND_T.name,  value: { ...GODSPARKWAND_T } },
+  ]},
   { key: "pens",       label: "ペン",         build: () => [
     ...ITEMS.filter(x => x.type === "pen").map(it => ({ label: it.name, value: { ...it } })),
     { label: MAGIC_MARKER.name, value: { ...MAGIC_MARKER } },
@@ -2571,6 +2588,12 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         if (lvs[0]) entries.push({ label: `${lvs[0].name} (Lv2)`, value: { base: m, lv: 2 } });
         if (lvs[1]) entries.push({ label: `${lvs[1].name} (Lv3)`, value: { base: m, lv: 3 } });
       }
+    }
+    for (const b of BOSSES) {
+      entries.push({ label: `${b.name} (ボス)`, value: { base: b, lv: 1 } });
+    }
+    for (const b of INTERMEDIATE_BOSSES) {
+      entries.push({ label: `${b.name} (中級ボス)`, value: { base: b, lv: 1 } });
     }
   } else if (effect === "debug_get_item") {
     if (!category) {
