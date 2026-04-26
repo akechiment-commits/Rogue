@@ -787,7 +787,7 @@ export const MONS = [
   },
   { name: "わてり",       hp: 40,  atk: 19, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner", dungeonFloors: { beginner: null },
     levels: [
-      { name: "わてにに",           hp: 64,  atk: 29, def: 10, exp: 77  },
+      { name: "わてに",             hp: 64,  atk: 29, def: 10, exp: 77  },
       { name: "わてさん",           hp: 100, atk: 38, def: 14, exp: 120 },
     ],
   },
