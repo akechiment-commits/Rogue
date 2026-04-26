@@ -315,10 +315,10 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   if (dmg > 0) {
     if (m.baseKind === "boss_blaze" && Math.random() < 0.35) {
       if ((pl.yogurtImmuneTurns || 0) > 0) {
-        ml.push(`${m.name}の灼熱の炎が頭を焼いた！しかし乳酸菌が混乱を防いだ！`);
+        ml.push(`${m.name}の鋭い爪が頭を掻いた！しかし乳酸菌が混乱を防いだ！`);
       } else {
         pl.confusedTurns = (pl.confusedTurns || 0) + 3;
-        ml.push(`${m.name}の灼熱の炎が頭を焼いた！混乱した！(3ターン)`);
+        ml.push(`${m.name}の鋭い爪で頭を掻かれた！混乱した！(3ターン)`);
       }
     }
     if (m.baseKind === "boss_sage" && Math.random() < 0.30) {
