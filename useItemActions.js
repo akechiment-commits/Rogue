@@ -798,7 +798,7 @@ export function useItemActions({
       /* 吸い出しの巻物 */
       if (it.effect === "pot_extract" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
         const _potTargets = p.inventory.filter((_ii) => _ii.type === "pot");
-        if (_potTargets.length > 0 || _wasUnknown) {
+        if (_potTargets.length > 0) {
           const _ik_pe = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
           setIdentifyMode({ mode: 'pot_extract', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_pe || null, revMsg: _revMsg });

@@ -7,6 +7,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, randPotCapacity, gemSellPrice,
+  extractPotContents, scatterPotContents,
 } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { genDungeon, prepareLastFloor } from "./dungeon.js";
@@ -508,12 +509,14 @@ export function useKeyHandler({
         const _isForgeMode = identifyMode.mode === 'forge_item';
         const _isWeaponUpMode = identifyMode.mode === 'weapon_up';
         const _isArmorUpMode  = identifyMode.mode === 'armor_up';
+        const _isPotExtractMode = identifyMode.mode === 'pot_extract';
         const _filt_id = _p_id.inventory
           .map((_it, _i) => ({ it: _it, i: _i }))
           .filter(({ it, i }) => {
             if (_isBCMode) return it.type !== "gold";
             if (_isDupMode || _isSellMode || _isTsfMode) return it.type !== "gold" && i !== identifyMode.scrollIdx;
             if (_isForgeMode) return it.type === "weapon" || it.type === "armor";
+            if (_isPotExtractMode) return it.type === "pot" && i !== identifyMode.scrollIdx;
             if (_isWeaponUpMode || _isArmorUpMode) {
               if (identifyMode.wasUnknown) return it.type !== "gold" && i !== identifyMode.scrollIdx;
               const _PR = ["power_ring","defense_ring","life_ring"];
@@ -707,6 +710,23 @@ export function useKeyHandler({
               const _dupDispName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               _msgResult = identifyMode.blessed ? `祝福された${_dupDispName}が1つ増えた！【祝】` : `${_dupDispName}が1つ増えた！`;
             }
+          } else if (identifyMode.mode === 'pot_extract') {
+            /* ===== 吸い出しの巻物 ===== */
+            const _p_pe = sr.current.player;
+            const _dg_pe = sr.current.dungeon;
+            const _ml_pe = [];
+            if (identifyMode.cursed) {
+              scatterPotContents(_selIt, _dg_pe, _p_pe.x, _p_pe.y, _p_pe, _ml_pe, null);
+              const _rmIdx_pot = _p_pe.inventory.indexOf(_selIt);
+              if (_rmIdx_pot !== -1) {
+                _p_pe.inventory.splice(_rmIdx_pot, 1);
+                if (identifyMode.scrollIdx != null && _rmIdx_pot < identifyMode.scrollIdx) identifyMode.scrollIdx--;
+              }
+              _ml_pe.push("【呪】");
+            } else {
+              extractPotContents(_selIt, _dg_pe, _p_pe.x, _p_pe.y, _p_pe, _ml_pe, null, identifyMode.blessed);
+            }
+            _msgResult = _ml_pe;
           } else {
             const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';
             const _selKey = _isWA ? null : getIdentKey(_selIt);
@@ -729,7 +749,7 @@ export function useKeyHandler({
           }
           const _etMl_k = [];
           endTurn(sr.current, sr.current.player, _etMl_k);
-          const _ml_id = [...(identifyMode.spellMsg ? [identifyMode.spellMsg] : []), _msgResult, ..._etMl_k];
+          const _ml_id = [...(identifyMode.spellMsg ? [identifyMode.spellMsg] : []), ...(Array.isArray(_msgResult) ? _msgResult : (_msgResult ? [_msgResult] : [])), ..._etMl_k];
           /* bless/curseの魔法：MPが続く限りモーダルを開き続ける */
           const _isBCSpell_k = (identifyMode.mode === 'bless' || identifyMode.mode === 'curse') && identifyMode.spellCost != null && identifyMode.scrollIdx == null;
           if (_isBCSpell_k && sr.current.player.mp >= identifyMode.spellCost) {

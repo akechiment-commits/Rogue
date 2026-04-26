@@ -879,9 +879,6 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       } else {
         extractPotContents(_selIt, _dg_ext, _p_ext.x, _p_ext.y, _p_ext, _ml_ext, null, mode.blessed);
       }
-      /* スクロールを消費 */
-      const _rmIdx_scr = mode.scrollIdx != null ? _p_ext.inventory.findIndex((_, _ri) => _ri === mode.scrollIdx) : -1;
-      if (_rmIdx_scr !== -1) _p_ext.inventory.splice(_rmIdx_scr, 1);
       _msgResult = _ml_ext;
     } else if (mode.mode === 'bless') {
       if (_selIt.type === 'pot') {
