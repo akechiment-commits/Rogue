@@ -2395,17 +2395,15 @@ export function genTutorialFloor(floorNum, opts = {}) {
       items.push({ ...genFood(), id: uid(), x: fx, y: fy });
     }
 
-    // Room C: 状態異常で敵対処（杖を入口近くに、ゴブリンは奥の隅に）
+    // Room C: 杖チュートリアル（壁反射）
     mkSign(32, 19, [
-      "【敵への対処】強敵も状態異常にすれば簡単に倒せる！",
-      "眠りの杖で眠らせると敵は完全に行動できなくなる。その間に一方的に攻撃しよう！",
-      "鈍足の杖で速度を半減させると、こちらが2回行動できて有利に戦える。",
+      "【杖】杖を振った方向に魔法弾が飛ぶ。敵に当てると様々な効果が起きる。",
+      "壁に向かって振ると魔法弾が跳ね返って自分に当たる！呪われた杖は効果が反転するので注意。",
+      "杖を壊すと自分の周囲の全てのマスに効果が出る！",
+      "識別前はリスクあり。鑑定の大箱で安全に確かめよう。この呪われた鈍足の杖を壁に振ってみよう！",
     ]);
-    const sleepWand = WANDS.find(w => w.effect === "sleep");
-    const slowWand  = WANDS.find(w => w.effect === "slow");
-    if (sleepWand) items.push({ ...sleepWand, id: uid(), x: 29, y: 19, charges: sleepWand.charges });
-    if (slowWand)  items.push({ ...slowWand,  id: uid(), x: 31, y: 19, charges: slowWand.charges });
-    mkMon("goblin", 37, 24);
+    const slowWand = WANDS.find(w => w.effect === "slow");
+    if (slowWand) items.push({ ...slowWand, id: uid(), x: 29, y: 22, cursed: true, charges: slowWand.charges });
 
   } else if (floorNum === 4) {
     // Room A: ペンのチュートリアル
@@ -2423,13 +2421,15 @@ export function genTutorialFloor(floorNum, opts = {}) {
 
     // Room B: 杖チュートリアル（壁反射）
     mkSign(32, 4, [
-      "【杖】杖を振った方向に魔法弾が飛ぶ。敵に当てると様々な効果が起きる。",
-      "壁に向かって振ると魔法弾が跳ね返って自分に当たる！呪われた杖は効果が反転するので注意。",
-      "杖を壊すと自分の周囲の全てのマスに効果が出る！",
-      "識別前はリスクあり。鑑定の大箱で安全に確かめよう。この呪われた鈍足の杖を壁に振ってみよう！",
+      "【敵への対処】強敵も状態異常にすれば簡単に倒せる！",
+      "眠りの杖で眠らせると敵は完全に行動できなくなる。その間に一方的に攻撃しよう！",
+      "鈍足の杖で速度を半減させると、こちらが2回行動できて有利に戦える。",
     ]);
-    const slowWand4 = WANDS.find(w => w.effect === "slow");
-    if (slowWand4) items.push({ ...slowWand4, id: uid(), x: 29, y: 7, cursed: true, charges: slowWand4.charges });
+    const sleepWand4 = WANDS.find(w => w.effect === "sleep");
+    const slowWand4  = WANDS.find(w => w.effect === "slow");
+    if (sleepWand4) items.push({ ...sleepWand4, id: uid(), x: 29, y: 7, charges: sleepWand4.charges });
+    if (slowWand4)  items.push({ ...slowWand4,  id: uid(), x: 31, y: 7, charges: slowWand4.charges });
+    mkMon("goblin", 37, 9);
 
     // Room C: 大箱まとめ（旧Room B）
     mkSign(32, 19, [
