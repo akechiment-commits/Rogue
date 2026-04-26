@@ -887,7 +887,7 @@ export const BOSSES = [
     isBoss: true, bossTier: 1,  monLevel: 1, maxAttacks: 2 },
   /* 第2ボス B10F (depth=9) */
   { name: "シオン・ザ・ダークブレット", hp: 360,   atk: 44,  def: 23,  exp: 1200,
-    speed: 2,   tile: 90, kind: "humanoid", baseKind: "boss_darkbullet",
+    speed: 1,   tile: 90, kind: "humanoid", baseKind: "boss_darkbullet",
     isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1 },
   /* 第3ボス B15F (depth=14) */
   { name: "深淵の番人", hp: 600,   atk: 56,  def: 32,  exp: 2500,
@@ -3356,6 +3356,67 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
       }
+    }
+
+    /* ── シオン・ザ・ダークブレット：プレイヤーから距離2を保つ ── */
+    if (!_attackOnly && canSee && m.baseKind === "boss_darkbullet") {
+      const _dbDx = pl.x - m.x, _dbDy = pl.y - m.y;
+      const _dbDist = Math.max(Math.abs(_dbDx), Math.abs(_dbDy));
+
+      if (_dbDist <= 1) {
+        /* 隣接：最も遠ざかれる隣接マスへ移動 */
+        const _farCands = [];
+        for (const [_fdx, _fdy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
+          const _fnx = m.x + _fdx, _fny = m.y + _fdy;
+          if (!isWalkable(map, _fnx, _fny)) continue;
+          if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+          if (_fnx === pl.x && _fny === pl.y) continue;
+          _farCands.push({ x: _fnx, y: _fny, dist: Math.max(Math.abs(pl.x - _fnx), Math.abs(pl.y - _fny)) });
+        }
+        if (_farCands.length > 0) {
+          _farCands.sort((a, b) => b.dist - a.dist);
+          const _fc = _farCands[0];
+          m.dir = { x: _fc.x - m.x, y: _fc.y - m.y };
+          m.x = _fc.x; m.y = _fc.y;
+        }
+        return;
+      }
+
+      if (_dbDist === 2) {
+        /* 距離2：直線上でなければ直線上かつ距離2になれるマスへ移動 */
+        const _inLineNow = _dbDx === 0 || _dbDy === 0 || Math.abs(_dbDx) === Math.abs(_dbDy);
+        if (!_inLineNow) {
+          const _alignCands = [];
+          for (const [_amx, _amy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
+            const _anx = m.x + _amx, _any = m.y + _amy;
+            if (!isWalkable(map, _anx, _any)) continue;
+            if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+            if (_anx === pl.x && _any === pl.y) continue;
+            const _d2x = pl.x - _anx, _d2y = pl.y - _any;
+            const _newDist = Math.max(Math.abs(_d2x), Math.abs(_d2y));
+            if (_newDist === 2 && (_d2x === 0 || _d2y === 0 || Math.abs(_d2x) === Math.abs(_d2y))) {
+              _alignCands.push({ x: _anx, y: _any });
+            }
+          }
+          if (_alignCands.length > 0) {
+            const _ab = _alignCands[Math.floor(Math.random() * _alignCands.length)];
+            m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
+            m.x = _ab.x; m.y = _ab.y;
+          }
+        }
+        return;
+      }
+
+      /* 距離3以上：プレイヤーに近づくがチェビシェフ距離2未満には踏み込まない */
+      const _dbNext = bfsNext(map, [], m.x, m.y, pl.x, pl.y, m, 40, dg.pentacles, _effFloat);
+      if (_dbNext) {
+        const _newDist = Math.max(Math.abs(pl.x - _dbNext.x), Math.abs(pl.y - _dbNext.y));
+        if (_newDist >= 2 && !dg.monsters.some(o => o !== m && o.x === _dbNext.x && o.y === _dbNext.y)) {
+          m.dir = { x: _dbNext.x - m.x, y: _dbNext.y - m.y };
+          m.x = _dbNext.x; m.y = _dbNext.y;
+        }
+      }
+      return;
     }
 
     /* adjacent attack */
