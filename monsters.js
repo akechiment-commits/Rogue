@@ -1613,12 +1613,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_btx < 0 || _btx >= MW || _bty < 0 || _bty >= MH ||
             dg.map[_bty]?.[_btx] === T.WALL || dg.map[_bty]?.[_btx] === T.BWALL) break;
         if (_btx === pl.x && _bty === pl.y) {
-          if (hasAbility(pl.armor, "wand_reflect")) {
-            ml.push(`反射の鎧が${m.name}の銃弾を跳ね返した！`);
-            const _rfDmg = Math.max(1, Math.floor(m.atk * 0.5));
-            m.hp -= _rfDmg;
-            ml.push(`銃弾が${m.name}に命中！${_rfDmg}ダメージ！`);
-          } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+          if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
             ml.push("祝福された聖域の加護が銃弾を防いだ！");
           } else {
             const _dbDmg = Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3));
