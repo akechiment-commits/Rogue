@@ -8,7 +8,7 @@ import {
   itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
   getIdentKey, randPotCapacity, gemSellPrice,
 } from "./items.js";
-import { MONS, MON_LEVELS } from "./monsters.js";
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { genDungeon, prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries } from "./DiscoveryTracker.js";
 
@@ -963,21 +963,23 @@ export function useKeyHandler({
         let _dsTotalEntries = 0;
         if (_dsEff === "debug_summon_mon") {
           for (const m of MONS) { _dsTotalEntries++; const lvs = MON_LEVELS[m.baseKind]; if (lvs) { if (lvs[0]) _dsTotalEntries++; if (lvs[1]) _dsTotalEntries++; } }
+          _dsTotalEntries += BOSSES.length + INTERMEDIATE_BOSSES.length;
         } else if (_dsEff === "debug_get_item") {
-          if (!_dsCat) { _dsTotalEntries = 13; } // カテゴリ数
-          else if (_dsCat === "potions")     _dsTotalEntries = ITEMS.filter(x=>x.type==="potion").length + 1;
-          else if (_dsCat === "scrolls")     _dsTotalEntries = ITEMS.filter(x=>x.type==="scroll").length + 1;
-          else if (_dsCat === "weapons")     _dsTotalEntries = ITEMS.filter(x=>x.type==="weapon").length + 2;
-          else if (_dsCat === "armors")      _dsTotalEntries = ITEMS.filter(x=>x.type==="armor").length;
-          else if (_dsCat === "pens")        _dsTotalEntries = ITEMS.filter(x=>x.type==="pen").length + 1;
-          else if (_dsCat === "arrows")      _dsTotalEntries = ITEMS.filter(x=>x.type==="arrow").length + 3;
-          else if (_dsCat === "wands")       _dsTotalEntries = WANDS.length;
-          else if (_dsCat === "spellbooks")  _dsTotalEntries = SPELLBOOKS.length;
-          else if (_dsCat === "rings")       _dsTotalEntries = RINGS.length;
-          else if (_dsCat === "pots")        _dsTotalEntries = POTS.length;
-          else if (_dsCat === "raw_food")    _dsTotalEntries = RAW_FOODS.length;
-          else if (_dsCat === "cooked_food") _dsTotalEntries = COOKED_FOODS.length;
-          else if (_dsCat === "others")      _dsTotalEntries = 1; // 空き瓶のみ
+          if (!_dsCat) { _dsTotalEntries = 14; } // カテゴリ数（special_synth追加済み）
+          else if (_dsCat === "potions")      _dsTotalEntries = ITEMS.filter(x=>x.type==="potion").length + 1;
+          else if (_dsCat === "scrolls")      _dsTotalEntries = ITEMS.filter(x=>x.type==="scroll").length + 1;
+          else if (_dsCat === "weapons")      _dsTotalEntries = ITEMS.filter(x=>x.type==="weapon").length + 2;
+          else if (_dsCat === "armors")       _dsTotalEntries = ITEMS.filter(x=>x.type==="armor").length;
+          else if (_dsCat === "special_synth") _dsTotalEntries = 15;
+          else if (_dsCat === "pens")         _dsTotalEntries = ITEMS.filter(x=>x.type==="pen").length + 1;
+          else if (_dsCat === "arrows")       _dsTotalEntries = ITEMS.filter(x=>x.type==="arrow").length + 3;
+          else if (_dsCat === "wands")        _dsTotalEntries = WANDS.length;
+          else if (_dsCat === "spellbooks")   _dsTotalEntries = SPELLBOOKS.length;
+          else if (_dsCat === "rings")        _dsTotalEntries = RINGS.length;
+          else if (_dsCat === "pots")         _dsTotalEntries = POTS.length;
+          else if (_dsCat === "raw_food")     _dsTotalEntries = RAW_FOODS.length;
+          else if (_dsCat === "cooked_food")  _dsTotalEntries = COOKED_FOODS.length;
+          else if (_dsCat === "others")       _dsTotalEntries = 1;
         } else if (_dsEff === "debug_create_trap") {
           _dsTotalEntries = TRAPS.length;
         } else if (_dsEff === "debug_summon_bb") {
