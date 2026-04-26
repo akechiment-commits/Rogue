@@ -772,10 +772,10 @@ export const MONS = [
       { name: "覇バーサーカー",     hp: 145, atk: 58, def: 20, exp: 166 },
     ],
   },
-  { name: "キラープラスター", hp: 35, atk: 18, def: 4,  exp: 58,  speed: 1,   tile: 8, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf", magicImmune: true,
+  { name: "ルカチュウ", hp: 35, atk: 18, def: 4,  exp: 58,  speed: 1,   tile: 8, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf", magicImmune: true,
     levels: [
-      { name: "キラープラスターII", hp: 56,  atk: 25, def: 7,  exp: 92  },
-      { name: "キラープラスターΩ",  hp: 88,  atk: 36, def: 11, exp: 148 },
+      { name: "ラプラス",       hp: 56,  atk: 25, def: 7,  exp: 92  },
+      { name: "キラープラスター", hp: 88,  atk: 36, def: 11, exp: 148 },
     ],
   },
   { name: "ガーディアン",  hp: 48,  atk: 16, def: 14, exp: 70,  speed: 1,   tile: 59, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian", dungeons: ["beginner"] },
