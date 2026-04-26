@@ -1448,10 +1448,8 @@ function genBossFloor(depth, dungeonType = null) {
   const bt = _bossPool[bossIdx];
   const bossX = arX + (arW >> 1);
   const bossY = arY + (arH >> 1);
-  const _bossName = (dungeonType && bt.dungeonNames?.[dungeonType]) ? bt.dungeonNames[dungeonType] : bt.name;
   const boss = {
     ...bt,
-    name: _bossName,
     id: uid(),
     maxHp: bt.hp,
     x: bossX,

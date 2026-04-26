@@ -2583,7 +2583,6 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   let isPickingCategory = false;
 
   if (effect === "debug_summon_mon") {
-    const _dt = sr.current?.dungeonType ?? null;
     for (const m of MONS) {
       entries.push({ label: `${m.name} (Lv1)`, value: { base: m, lv: 1 } });
       const lvs = MON_LEVELS[m.baseKind];
@@ -2593,12 +2592,10 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       }
     }
     for (const b of BOSSES) {
-      const _bName = (_dt && b.dungeonNames?.[_dt]) ? b.dungeonNames[_dt] : b.name;
-      entries.push({ label: `${_bName} (ボス)`, value: { base: b, lv: 1, overrideName: _bName } });
+      entries.push({ label: `${b.name} (ボス)`, value: { base: b, lv: 1 } });
     }
     for (const b of INTERMEDIATE_BOSSES) {
-      const _bName = (_dt && b.dungeonNames?.[_dt]) ? b.dungeonNames[_dt] : b.name;
-      entries.push({ label: `${_bName} (中級ボス)`, value: { base: b, lv: 1, overrideName: _bName } });
+      entries.push({ label: `${b.name} (中級ボス)`, value: { base: b, lv: 1 } });
     }
   } else if (effect === "debug_get_item") {
     if (!category) {
@@ -2637,7 +2634,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     const { player: p, dungeon: dg } = sr.current;
     const ml = [];
     if (effect === "debug_summon_mon") {
-      const { base, lv, overrideName } = entry.value;
+      const { base, lv } = entry.value;
       const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
       let placed = false;
       for (const [ddx, ddy] of dirs) {
@@ -2658,7 +2655,6 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
           ...(base.wallWalker ? { wallWalker: base.wallWalker } : {}),
           ...(base.float ? { float: base.float } : {}),
           ...(base.maxAttacks ? { maxAttacks: base.maxAttacks } : {}),
-          ...(overrideName ? { name: overrideName } : {}),
         };
         dg.monsters.push(mon);
         ml.push(`${mon.name}を召喚した！`);

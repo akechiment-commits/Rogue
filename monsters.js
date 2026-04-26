@@ -887,25 +887,21 @@ export function monLevelDown(mon, dg, ml) {
 /* ===== ボステンプレート（5階ごとに1体登場） ===== */
 export const BOSSES = [
   /* 第1ボス B5F (depth=4) */
-  { name: "灼熱の覇者", hp: 216,   atk: 31,  def: 16,  exp: 500,
+  { name: "好まざる猫「フリージア」", hp: 216,   atk: 31,  def: 16,  exp: 500,
     speed: 1,   tile: 89, kind: "beast",    baseKind: "boss_blaze",
-    isBoss: true, bossTier: 1,  monLevel: 1, maxAttacks: 2,
-    dungeonNames: { beginner: "好まざる猫「フリージア」", intermediate: "炎眼の番兵" } },
+    isBoss: true, bossTier: 1,  monLevel: 1, maxAttacks: 2 },
   /* 第2ボス B10F (depth=9) */
   { name: "呪縛の賢者", hp: 360,   atk: 44,  def: 23,  exp: 1200,
     speed: 2,   tile: 90, kind: "humanoid", baseKind: "boss_sage",
-    isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1,
-    dungeonNames: { intermediate: "封呪の術士" } },
+    isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1 },
   /* 第3ボス B15F (depth=14) */
   { name: "深淵の番人", hp: 600,   atk: 56,  def: 32,  exp: 2500,
     speed: 1,   tile: 91, kind: "beast",    baseKind: "boss_guardian",
-    isBoss: true, bossTier: 3,  monLevel: 1, maxAttacks: 3,
-    dungeonNames: { intermediate: "深紅の守護獣" } },
+    isBoss: true, bossTier: 3,  monLevel: 1, maxAttacks: 3 },
   /* 第4ボス B20F (depth=19) */
   { name: "魔神王",     hp: 900,   atk: 73,  def: 41,  exp: 5000,
     speed: 2,   tile: 92, kind: "beast",    baseKind: "boss_demonking",
-    isBoss: true, bossTier: 4,  monLevel: 1, maxAttacks: 3, float: true,
-    dungeonNames: { intermediate: "深紅の魔王" } },
+    isBoss: true, bossTier: 4,  monLevel: 1, maxAttacks: 3, float: true },
   /* 第5ボス B25F (depth=24)
    * 【鎧砕き蓄積型】遅いが攻撃を受けるたびに防御が半減し続ける。後半は1発が致命的になる。
    * 攻略：なるべく攻撃を受けず、防御アイテムを使いながら早期撃破 */
