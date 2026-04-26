@@ -219,6 +219,8 @@ export const ITEMS = [
     desc:"最大所持数が1～3増える。\n祝福：2～6増える。呪い：1～3減る。", tile:18 },
   { name:"罠の巻物", type:"scroll", effect:"trap_scatter",        rarity:"D", weight:12, sellPrice:30,
     desc:"読むと同じフロアの部屋内に大量の罠が出現する。\n祝福：さらに多く出現。呪い：フロア内の全ての罠が消える。", tile:18 },
+  { name:"吸い出しの巻物", type:"scroll", effect:"pot_extract",   rarity:"B", weight:4,  sellPrice:600,
+    desc:"選んだ壺の中身を割らずに足元にばらまく。油系は周囲8マスに油も飛散。火薬壺は壺無事のまま爆発。\n呪い：選んだ壺を割る。祝福：中身を吸い出したうえで容量+1。", tile:18 },
   { name:"自爆の巻物", type:"scroll", effect:"self_destruct",      rarity:"B", weight:4,  sellPrice:700,
     desc:"自分と周囲8マスに爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ半減。\n祝福：爆発範囲が5×5に拡大。\n呪い：爆発は起きず自分のHPが全回復する。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"A", weight:2,  sellPrice:120,
@@ -571,7 +573,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
 }
 
 export function randPotCapacity(potEffect) {
-  if (potEffect === "none") return rng(4, 6);
+  if (potEffect === "none") return rng(7, 10);
   if (potEffect === "greed") return rng(3, 5);
   if (potEffect === "enhance" || potEffect === "bless_pot" || potEffect === "curse_pot") return rng(1, 2);
   return rng(3, 5);
@@ -672,6 +674,50 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   ml.push(`${_pn}が割れて中身が飛び出した！`);
   const ft = new Set();
   for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
+}
+
+/* 吸い出しの巻物：壺を割らずに中身を吸い出して足元にばらまく */
+export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed) {
+  if (pot.potEffect === "gunpowder") {
+    ml.push(`${pot.name}から火薬が吸い出され爆発した！`);
+    doGunpowderExplosion(px, py, dg, p, ml, luFn, pot.name);
+    return;
+  }
+  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+  if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
+    ml.push(`${pot.name}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
+    pushSplashAnim(px, py, "#ccaa44");
+    dg.oilyTiles = dg.oilyTiles || [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const tx = px + dx, ty = py + dy;
+        if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
+        if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) continue;
+        if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty)) dg.oilyTiles.push({ x: tx, y: ty });
+        const _om = monsterAt(dg, tx, ty);
+        if (_om) { _om.oilyTurns = (_om.oilyTurns || 0) + 100; ml.push(`${_om.name}は油まみれになった！(100ターン)`); }
+        if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
+        const _ot = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
+        if (_ot) { dg.traps = dg.traps.filter(t => t !== _ot); ml.push(`油で${_ot.name}が消えた！`); }
+      }
+    }
+    if (dg.pentacles?.length > 0) {
+      const _opc = dg.pentacles.filter(pc => dg.oilyTiles.some(t => t.x === pc.x && t.y === pc.y));
+      if (_opc.length > 0) { dg.pentacles = dg.pentacles.filter(pc => !_opc.includes(pc)); for (const _op of _opc) ml.push(`油が${_op.name}を消した！`); }
+    }
+  }
+  const ft = new Set();
+  if ((pot.contents?.length || 0) > 0) {
+    ml.push(`${pot.name}から中身が飛び出した！`);
+    for (const item of [...pot.contents]) { placeItemAt(dg, px, py, item, ml, ft); }
+    pot.contents = [];
+  } else {
+    ml.push(`${pot.name}は空だった。`);
+  }
+  if (blessed) {
+    pot.capacity = (pot.capacity || 1) + 1;
+    ml.push(`${pot.name}の容量が1増えた！(${pot.capacity})【祝】`);
+  }
 }
 
 /* ===== WEAPON / ARMOR ABILITIES ===== */

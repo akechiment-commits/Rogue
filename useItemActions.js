@@ -795,6 +795,23 @@ export function useItemActions({
           advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
+      /* 吸い出しの巻物 */
+      if (it.effect === "pot_extract" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
+        const _potTargets = p.inventory.filter((_ii) => _ii.type === "pot");
+        if (_potTargets.length > 0 || _wasUnknown) {
+          const _ik_pe = getIdentKey(it);
+          const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
+          setIdentifyMode({ mode: 'pot_extract', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_pe || null, revMsg: _revMsg });
+          setShowInv(false); setSelIdx(null); setShowDesc(null);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+          return;
+        } else {
+          p.inventory.splice(idx, 1);
+          { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
+          ml.push("壺を持っていない。巻物は消えた。");
+          advanceTurn(); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
+        }
+      }
       /* 武器強化の巻物 */
       if (it.effect === "weapon_up" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
         const _PLUS_RINGS = ["power_ring","defense_ring","life_ring"];

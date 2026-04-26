@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops, randomTeleportDest } from "./utils.js";
@@ -691,12 +691,14 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   const _isForgeMode_ui = mode.mode === 'forge_item';
   const _isWeaponUpMode_ui = mode.mode === 'weapon_up';
   const _isArmorUpMode_ui  = mode.mode === 'armor_up';
+  const _isPotExtractMode_ui = mode.mode === 'pot_extract';
   const _filtered = _p.inventory
     .map((it, i) => ({ it, i }))
     .filter(({ it, i }) => {
       if (_isBCMode_ui) return it.type !== "gold"; /* bless/curse: scrollIdxなし */
       if (_isDupMode_ui || _isSellMode_ui || _isTsfMode_ui) return it.type !== "gold" && i !== mode.scrollIdx;
       if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor"; /* scrollは weapon/armorでないので自動除外 */
+      if (_isPotExtractMode_ui) return it.type === "pot" && i !== mode.scrollIdx;
       if (_isWeaponUpMode_ui || _isArmorUpMode_ui) {
         if (mode.wasUnknown) return it.type !== "gold" && i !== mode.scrollIdx;
         const _PR = ["power_ring","defense_ring","life_ring"];
@@ -860,6 +862,27 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       } else {
         _msgResult = `${_selIt.name}はもうこれ以上能力を宿せない。`;
       }
+    } else if (mode.mode === 'pot_extract') {
+      /* ===== 吸い出しの巻物 ===== */
+      const _p_ext = sr.current.player;
+      const _dg_ext = sr.current.dungeon;
+      const _ml_ext = [];
+      if (mode.cursed) {
+        /* 呪い：壺を割る */
+        scatterPotContents(_selIt, _dg_ext, _p_ext.x, _p_ext.y, _p_ext, _ml_ext, null);
+        const _rmIdx_pot = _p_ext.inventory.indexOf(_selIt);
+        if (_rmIdx_pot !== -1) {
+          _p_ext.inventory.splice(_rmIdx_pot, 1);
+          if (mode.scrollIdx != null && _rmIdx_pot < mode.scrollIdx) mode.scrollIdx--;
+        }
+        _ml_ext.push("【呪】");
+      } else {
+        extractPotContents(_selIt, _dg_ext, _p_ext.x, _p_ext.y, _p_ext, _ml_ext, null, mode.blessed);
+      }
+      /* スクロールを消費 */
+      const _rmIdx_scr = mode.scrollIdx != null ? _p_ext.inventory.findIndex((_, _ri) => _ri === mode.scrollIdx) : -1;
+      if (_rmIdx_scr !== -1) _p_ext.inventory.splice(_rmIdx_scr, 1);
+      _msgResult = _ml_ext;
     } else if (mode.mode === 'bless') {
       if (_selIt.type === 'pot') {
         _selIt.capacity = (_selIt.capacity || 1) + 1;
@@ -922,7 +945,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     }
     const _etMl_c = [];
     endTurn(sr.current, sr.current.player, _etMl_c);
-    const _ml_id = [...(mode.spellMsg ? [mode.spellMsg] : []), _msgResult, ..._etMl_c];
+    const _ml_id = [...(mode.spellMsg ? [mode.spellMsg] : []), ...(Array.isArray(_msgResult) ? _msgResult : (_msgResult ? [_msgResult] : [])), ..._etMl_c];
     /* bless/curseの魔法：MPが続く限りモーダルを開き続ける */
     const _isBCSpell_c = (mode.mode === 'bless' || mode.mode === 'curse') && mode.spellCost != null && mode.scrollIdx == null;
     if (_isBCSpell_c && sr.current.player.mp >= mode.spellCost) {
@@ -957,6 +980,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             : mode.mode === 'forge_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
             : mode.mode === 'weapon_up' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する武器/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/指輪を選んでください（－1）【呪】" : "強化する武器/指輪を選んでください（＋1）")
             : mode.mode === 'armor_up'  ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する防具/指輪を選んでください（－1）【呪】" : "強化する防具/指輪を選んでください（＋1）")
+            : mode.mode === 'pot_extract' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.cursed ? "割る壺を選んでください【呪】" : mode.blessed ? "吸い出す壺を選んでください（容量+1）【祝】" : "吸い出す壺を選んでください")
             : (mode.wasUnknown ? "どのアイテムを選びますか？" : "識別を解除するアイテムを選んでください【呪】")}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
