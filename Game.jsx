@@ -2663,9 +2663,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 acted = true;
               } else {
               attackMon.hp -= d;
-              if (attackMon.type === "shopkeeper") {
-                attackMon.state = "hostile"; dg.shopTheft = true;
-                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
+              if (attackMon.type === "shopkeeper" && attackMon.state !== "hostile") {
+                attackMon.state = "hostile";
+                ml.push("店主が怒った！");
               }
               const atkSfx =
                 (crit ? "会心！" : "") +
@@ -2824,6 +2824,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     } else if (_stM && Math.random() < 0.90) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
+                      if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { _stM.state = "hostile"; ml.push("店主が怒った！"); }
                       _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
                       if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
                     } else {
@@ -2864,6 +2865,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         if (_baM) {
                           const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
                           _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
+                          if (_baM.type === "shopkeeper" && _baM.state !== "hostile") { _baM.state = "hostile"; ml.push("店主が怒った！"); }
                           _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
                           if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
                           _baLx = _tx; _baLy = _ty; break;
@@ -2919,6 +2921,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         } else {
                           const _srDmg = clampDmgFixed(_srm, calcProjectileDmg(p, _srAr.atk || 3, _srm.def), true);
                           _srm.hp -= _srDmg;
+                          if (_srm.type === "shopkeeper" && _srm.state !== "hostile") { _srm.state = "hostile"; ml.push("店主が怒った！"); }
                           if (_isPoison) {
                             if (_srm.isBoss) {
                               if (!_srm.bossPoisonHalfAtk) { _srm.bossPoisonOrigAtk = _srm.atk; _srm.bossPoisonHalfAtk = true; _srm.bossPoisonHalfAtkTurns = 10; }
@@ -4271,6 +4274,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     const _hpPrev = m.hp;
                     m.hp = Math.min(m.maxHp, m.hp + _healPotAmt);
                     ml.push(`${m.name}のHPが${m.hp - _hpPrev}回復した！`);
+                    if (m.type === "shopkeeper" && m.state === "hostile" && m.hp >= m.maxHp && !dg.shopTheft) {
+                      m.state = "friendly";
+                      ml.push("店主のHPが全快した！敵対状態が解除された。");
+                    }
                   }
                 }
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }

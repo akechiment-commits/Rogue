@@ -2308,6 +2308,7 @@ export function useItemActions({
       const { idx, mode } = throwMode;
       const { player: p, dungeon: dg } = sr.current;
       const ml = [];
+      const _skSnap = dg.monsters.filter(m => m.type === "shopkeeper").map(m => ({ m, hp: m.hp }));
       /* 遠投判定（投げ・射撃にのみ影響） */
       const _throwRelated = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode);
       const _rawFcMode = _throwRelated ? getFarcastMode(p.x, p.y, dg) : false;
@@ -3364,6 +3365,15 @@ export function useItemActions({
               withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft, 0, p));
             }
           }
+        }
+      }
+      for (const { m, hp } of _skSnap) {
+        if (m.hp < hp && m.state !== "hostile") {
+          m.state = "hostile";
+          ml.push("店主が怒った！");
+        } else if (m.state === "hostile" && m.hp >= m.maxHp && !dg.shopTheft) {
+          m.state = "friendly";
+          ml.push("店主のHPが全快した！敵対状態が解除された。");
         }
       }
       endTurn(sr.current, p, ml);
