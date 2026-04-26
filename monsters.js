@@ -321,11 +321,6 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`${m.name}の鋭い爪で頭を掻かれた！混乱した！(3ターン)`);
       }
     }
-    if (m.baseKind === "boss_sage" && Math.random() < 0.30) {
-      const _st = rng(5, 8);
-      pl.sealedTurns = (pl.sealedTurns || 0) + _st;
-      ml.push(`呪縛の賢者の呪文が炸裂した！魔法が封印された！(${_st}ターン)`);
-    }
     if (m.baseKind === "boss_demonking" && Math.random() < 0.25) {
       const _pt = rng(2, 4);
       pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
@@ -891,8 +886,8 @@ export const BOSSES = [
     speed: 1,   tile: 89, kind: "beast",    baseKind: "boss_blaze",
     isBoss: true, bossTier: 1,  monLevel: 1, maxAttacks: 2 },
   /* 第2ボス B10F (depth=9) */
-  { name: "呪縛の賢者", hp: 360,   atk: 44,  def: 23,  exp: 1200,
-    speed: 2,   tile: 90, kind: "humanoid", baseKind: "boss_sage",
+  { name: "シオン・ザ・ダークブレット", hp: 360,   atk: 44,  def: 23,  exp: 1200,
+    speed: 2,   tile: 90, kind: "humanoid", baseKind: "boss_darkbullet",
     isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1 },
   /* 第3ボス B15F (depth=14) */
   { name: "深淵の番人", hp: 600,   atk: 56,  def: 32,  exp: 2500,
@@ -1604,6 +1599,44 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (!_warped) m._warpCooldown = 1; /* 失敗したらすぐ再試行 */
     }
   }
+  /* シオン・ザ・ダークブレット：直線上で銃撃 */
+  if (m.baseKind === "boss_darkbullet" && !_moveOnly && canSee) {
+    const _dbAdx = pl.x - m.x, _dbAdy = pl.y - m.y;
+    const _dbLen = Math.max(Math.abs(_dbAdx), Math.abs(_dbAdy));
+    const _dbInLine = _dbAdx === 0 || _dbAdy === 0 || Math.abs(_dbAdx) === Math.abs(_dbAdy);
+    if (_dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      const _dbDdx = Math.sign(pl.x - m.x), _dbDdy = Math.sign(pl.y - m.y);
+      ml.push(`${m.name}が銃撃した！`);
+      pushMonsterBoltAnim(m.x, m.y, _dbDdx, _dbDdy, dg, pl, "#111111");
+      for (let _bd = 1; _bd < 20; _bd++) {
+        const _btx = m.x + _dbDdx * _bd, _bty = m.y + _dbDdy * _bd;
+        if (_btx < 0 || _btx >= MW || _bty < 0 || _bty >= MH ||
+            dg.map[_bty]?.[_btx] === T.WALL || dg.map[_bty]?.[_btx] === T.BWALL) break;
+        if (_btx === pl.x && _bty === pl.y) {
+          if (hasAbility(pl.armor, "wand_reflect")) {
+            ml.push(`反射の鎧が${m.name}の銃弾を跳ね返した！`);
+            const _rfDmg = Math.max(1, Math.floor(m.atk * 0.5));
+            m.hp -= _rfDmg;
+            ml.push(`銃弾が${m.name}に命中！${_rfDmg}ダメージ！`);
+          } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+            ml.push("祝福された聖域の加護が銃弾を防いだ！");
+          } else {
+            const _dbDmg = Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3));
+            pl.hp -= _dbDmg;
+            pl.deathCause = `${m.name}の銃撃で`;
+            ml.push(`${m.name}の銃弾が命中！${_dbDmg}ダメージ！`);
+            if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+          }
+          break;
+        }
+        const _dbMon = dg.monsters.find(mn => mn.x === _btx && mn.y === _bty && mn !== m);
+        if (_dbMon) { ml.push(`${m.name}の銃弾が${_dbMon.name}に当たったが効果はなかった。`); break; }
+      }
+      m.turnAttacks++;
+      return;
+    }
+  }
+
   /* 深淵の番人：毎ターン8HP回復（最大HPを超えない） */
   if (m.baseKind === "boss_guardian" && !_moveOnly) {
     const _heal = Math.min(8, m.maxHp - m.hp);
@@ -2409,7 +2442,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
       const _guardDarkRdy0 = m.type === "guard" && !m.sealed && _rAtks && (_radx === 0 || _rady === 0) && _rLen >= 2 && _rLen <= 8;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _guardDarkRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _darkBulletRdy0 = m.baseKind === "boss_darkbullet" && !m.sealed && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10;
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _guardDarkRdy0 || _darkBulletRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
