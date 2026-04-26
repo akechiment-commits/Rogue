@@ -315,10 +315,10 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   if (dmg > 0) {
     if (m.baseKind === "boss_blaze" && Math.random() < 0.35) {
       if ((pl.yogurtImmuneTurns || 0) > 0) {
-        ml.push(`灼熱の炎が頭を焼いた！しかし乳酸菌が混乱を防いだ！`);
+        ml.push(`${m.name}の灼熱の炎が頭を焼いた！しかし乳酸菌が混乱を防いだ！`);
       } else {
         pl.confusedTurns = (pl.confusedTurns || 0) + 3;
-        ml.push(`灼熱の炎が頭を焼いた！混乱した！(3ターン)`);
+        ml.push(`${m.name}の灼熱の炎が頭を焼いた！混乱した！(3ターン)`);
       }
     }
     if (m.baseKind === "boss_sage" && Math.random() < 0.30) {
@@ -890,7 +890,7 @@ export const BOSSES = [
   { name: "灼熱の覇者", hp: 216,   atk: 31,  def: 16,  exp: 500,
     speed: 1,   tile: 89, kind: "beast",    baseKind: "boss_blaze",
     isBoss: true, bossTier: 1,  monLevel: 1, maxAttacks: 2,
-    dungeonNames: { intermediate: "炎眼の番兵" } },
+    dungeonNames: { beginner: "好まざる猫「フリージア」", intermediate: "炎眼の番兵" } },
   /* 第2ボス B10F (depth=9) */
   { name: "呪縛の賢者", hp: 360,   atk: 44,  def: 23,  exp: 1200,
     speed: 2,   tile: 90, kind: "humanoid", baseKind: "boss_sage",
