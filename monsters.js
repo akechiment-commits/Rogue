@@ -3373,11 +3373,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           if (_fnx === pl.x && _fny === pl.y) continue;
           _farCands.push({ x: _fnx, y: _fny, dist: Math.max(Math.abs(pl.x - _fnx), Math.abs(pl.y - _fny)) });
         }
-        if (_farCands.length > 0) {
-          _farCands.sort((a, b) => b.dist - a.dist);
+        _farCands.sort((a, b) => b.dist - a.dist);
+        const _canEscape = _farCands.length > 0 && _farCands[0].dist > _dbDist;
+        if (_canEscape) {
           const _fc = _farCands[0];
           m.dir = { x: _fc.x - m.x, y: _fc.y - m.y };
           m.x = _fc.x; m.y = _fc.y;
+          return;
+        }
+        /* 逃げ場なし：近接攻撃 */
+        if (!_moveOnly && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y) &&
+            m.turnAttacks < (m.maxAttacks ?? 1)) {
+          m.turnAttacks++;
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
         }
         return;
       }
