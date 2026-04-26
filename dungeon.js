@@ -2419,17 +2419,17 @@ export function genTutorialFloor(floorNum, opts = {}) {
     if (stonePen)   items.push({ ...stonePen,   id: uid(), x: 8, y: 7 });
     if (healPot4)   items.push({ ...healPot4,   id: uid(), x: 10, y: 7 });
 
-    // Room B: 杖チュートリアル（壁反射）
-    mkSign(32, 4, [
+    // Room B: 状態異常で敵対処（看板と杖は入口近く、ゴブリンは奥の隅）
+    mkSign(27, 6, [
       "【敵への対処】強敵も状態異常にすれば簡単に倒せる！",
       "眠りの杖で眠らせると敵は完全に行動できなくなる。その間に一方的に攻撃しよう！",
       "鈍足の杖で速度を半減させると、こちらが2回行動できて有利に戦える。",
     ]);
     const sleepWand4 = WANDS.find(w => w.effect === "sleep");
     const slowWand4  = WANDS.find(w => w.effect === "slow");
-    if (sleepWand4) items.push({ ...sleepWand4, id: uid(), x: 29, y: 7, charges: sleepWand4.charges });
-    if (slowWand4)  items.push({ ...slowWand4,  id: uid(), x: 31, y: 7, charges: slowWand4.charges });
-    mkMon("goblin", 37, 9);
+    if (sleepWand4) items.push({ ...sleepWand4, id: uid(), x: 27, y: 7, charges: sleepWand4.charges });
+    if (slowWand4)  items.push({ ...slowWand4,  id: uid(), x: 29, y: 7, charges: slowWand4.charges });
+    mkMon("goblin", 37, 4);
 
     // Room C: 大箱まとめ（旧Room B）
     mkSign(32, 19, [
