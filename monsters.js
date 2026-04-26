@@ -1600,11 +1600,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
   /* シオン・ザ・ダークブレット：直線上で銃撃 */
-  if (m.baseKind === "boss_darkbullet" && !_moveOnly && canSee) {
+  if (m.baseKind === "boss_darkbullet" && !_moveOnly) {
     const _dbAdx = pl.x - m.x, _dbAdy = pl.y - m.y;
     const _dbLen = Math.max(Math.abs(_dbAdx), Math.abs(_dbAdy));
     const _dbInLine = _dbAdx === 0 || _dbAdy === 0 || Math.abs(_dbAdx) === Math.abs(_dbAdy);
-    if (_dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
+    const _dbLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+    if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
       const _dbDdx = Math.sign(pl.x - m.x), _dbDdy = Math.sign(pl.y - m.y);
       ml.push(`${m.name}が銃撃した！`);
       pushMonsterBoltAnim(m.x, m.y, _dbDdx, _dbDdy, dg, pl, "#111111");
