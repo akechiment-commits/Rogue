@@ -7,6 +7,7 @@ import {
   makeGuard,
   wakeIfDormant,
   MONS,
+  MON_LEVELS,
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
@@ -2137,6 +2138,38 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _spawnRingCount = (p.rings || []).filter(r => r && r.effect === "spawn_ring").length;
           const _spawnInterval = _spawnRingCount >= 2 ? 5 : _spawnRingCount === 1 ? 15 : 30;
           _dg.nextSpawnTurn = p.turns + _spawnInterval;
+        }
+        /* ミラージュ発生: 同フロア1000ターン以上滞在で30Tごとに別枠スポーン */
+        if (st.floorTurns >= 1000 && (st.floorTurns - 1000) % 30 === 0 && p.hp > 0 && _dg.dungeonType !== "tutorial") {
+          const _ghostBase = MONS.find(m => m.baseKind === "rockspirit");
+          if (_ghostBase) {
+            const _ghostLvData = MON_LEVELS["rockspirit"]?.[1] || {};
+            const _ghostCands = [];
+            for (let _gy = 0; _gy < MH; _gy++) {
+              for (let _gx = 0; _gx < MW; _gx++) {
+                if (_dg.map[_gy][_gx] !== T.FLOOR) continue;
+                if (_gx === p.x && _gy === p.y) continue;
+                if (monsterAt(_dg, _gx, _gy)) continue;
+                if (_dg.visible[_gy][_gx]) continue;
+                _ghostCands.push([_gx, _gy]);
+              }
+            }
+            if (_ghostCands.length > 0) {
+              const [_gx, _gy] = pick(_ghostCands);
+              const _ghost = {
+                ..._ghostBase, ..._ghostLvData,
+                id: uid(), x: _gx, y: _gy,
+                maxHp: _ghostLvData.hp ?? _ghostBase.hp,
+                hp: _ghostLvData.hp ?? _ghostBase.hp,
+                baseSpeed: _ghostLvData.speed ?? _ghostBase.speed ?? 1,
+                monLevel: 3,
+                turnAccum: 0, aware: true,
+                dir: { x: 0, y: 1 }, lastPx: p.x, lastPy: p.y, patrolTarget: null,
+              };
+              _dg.monsters.push(_ghost);
+              setMsgs(prev => [...prev, "長居しすぎたせいか、ミラージュが現れた！"]);
+            }
+          }
         }
         /* 警備員発生: shopTheft時、10Tごとに別途発生 */
         if (

@@ -577,7 +577,7 @@ export const MONS = [
   { name: "ゴースト",     hp: 38,  atk: 18, def: 5,  exp: 45,  speed: 1,   tile: 68, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 13, max: 19 } },
     levels: [
       { name: "ファントム",         hp: 61,  atk: 25, def: 9,  exp: 72  },
-      { name: "ミラージュ",         hp: 95,  atk: 32, def: 13, exp: 113 },
+      { name: "ミラージュ",         hp: 95,  atk: 32, def: 13, exp: 113, speed: 2 },
     ],
   },
   { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, dungeonFloors: { intermediate: { min: 13, max: 19 } },
