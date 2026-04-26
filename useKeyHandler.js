@@ -970,7 +970,7 @@ export function useKeyHandler({
           else if (_dsCat === "scrolls")      _dsTotalEntries = ITEMS.filter(x=>x.type==="scroll").length + 1;
           else if (_dsCat === "weapons")      _dsTotalEntries = ITEMS.filter(x=>x.type==="weapon").length + 2;
           else if (_dsCat === "armors")       _dsTotalEntries = ITEMS.filter(x=>x.type==="armor").length;
-          else if (_dsCat === "special_synth") _dsTotalEntries = 15;
+          else if (_dsCat === "special_synth") _dsTotalEntries = 17;
           else if (_dsCat === "pens")         _dsTotalEntries = ITEMS.filter(x=>x.type==="pen").length + 1;
           else if (_dsCat === "arrows")       _dsTotalEntries = ITEMS.filter(x=>x.type==="arrow").length + 3;
           else if (_dsCat === "wands")        _dsTotalEntries = WANDS.length;

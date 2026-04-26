@@ -252,6 +252,8 @@ export const SNIPER_T         = { name:"スナイパー", type:"weapon", atk:12,
 export const GODBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:18, ability:"bane_dragon_2", abilities:["bane_dragon_2","bane_undead_2","bane_float_2"], desc:"万能キラー3本の合成。竜・不死・浮遊の全種族に2倍ダメージ（上位特効）。", tile:20 };
 export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:8,  ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           desc:"三種の守護防具が融合した究極の鎧。\n刃反射・みかわし・杖反射の三重防御。",       tile:21 };
 export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"炎・雷・氷の三杖を合成して生まれた究極の杖。\n振ると100ダメージ。祝福：200ダメージ。呪い：100回復。", tile:24 };
+export const GOBLIN_BAT_T     = { name:"ゴブリンバット", type:"weapon", atk:4, rarity:"D", sellPrice:80, desc:"ゴブリンが持っている粗削りな鈍器。3本合成で鬼棍棒に変化する。", tile:20 };
+export const ONI_CLUB_T       = { name:"鬼棍棒",       type:"weapon", atk:8, ability:"critical", sellPrice:1200, desc:"ゴブリンバット3本の合成。25%の確率で会心の一撃。", tile:20 };
 
 export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
 export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
@@ -2587,6 +2589,10 @@ export function monsterDrop(m, dg, ml, p = null) {
   if (m.subtype === "wanduser" && Math.random() < 0.05) {
     const _wt = pick(WANDS);
     drops.push({ ..._wt, id: uid(), charges: Math.max(1, rng(1, _wt.charges)) });
+  }
+  /* ゴブリン系：15%でゴブリンバットをドロップ */
+  if (m.baseKind === "goblin" && Math.random() < 0.15) {
+    drops.push({ ...GOBLIN_BAT_T, id: uid() });
   }
   /* ランナー（コロポックル等）：必ずアイテムを1つドロップ */
   if (m.subtype === "runner") {
