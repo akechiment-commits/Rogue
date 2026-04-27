@@ -2459,11 +2459,11 @@ export function genTutorialFloor(floorNum, opts = {}) {
     map[sd.y][sd.x] = T.SD;
     const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
     if (scatterBB) bigboxes.push({ id: uid(), x: 14, y: 19, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
-    const bewitchPot = ITEMS.find(i => i.effect === "bewitch");
+    const bewitchPot = ITEMS.find(i => i.effect === "paralyze");
     if (bewitchPot) items.push({ ...bewitchPot, id: uid(), x: 14, y: 20 });
     mkSign(14, 21, [
       "【大箱③：拡散の大箱】アイテムを入れると部屋中の全員に効果を当てる！",
-      "惑わしの薬を入れると敵が全員逃げ回る。コボルドが3体いるが切り抜けられるか？",
+      "金縛りの薬を入れると敵が全員動けなくなる。コボルドが3体いるが切り抜けられるか？",
       "分裂・祝福・呪いの大箱はレア！大切に使おう。",
     ]);
     mkMon("kobold", 4, 23);
@@ -2478,13 +2478,13 @@ export function genTutorialFloor(floorNum, opts = {}) {
       mb
         ? "「罠」ボタンで周囲1マスの隠れた罠を見つけられる。怪しい場所は先に調べよう。"
         : "Sキー（または探るボタン）で周囲1マスの隠れた罠を見つけられる。怪しい場所は先に調べよう。",
-      "発見済みの罠はダッシュ中なら発動させずに乗り越えられる。矢・鈍足・空腹・召喚など種類は様々。",
+      "発見済みの罠はダッシュ中なら発動させずに乗り越えられる。矢・鈍足・空腹・影ぬいなど種類は様々。",
     ]);
     const trapDefs = [
       TRAPS.find(t => t.effect === "arrow_trap"),
       TRAPS.find(t => t.effect === "slow_trap"),
       TRAPS.find(t => t.effect === "hunger_trap"),
-      TRAPS.find(t => t.effect === "summon_trap"),
+      TRAPS.find(t => t.effect === "shadow_stitch"),
     ].filter(Boolean);
     const trapPos = [[5, 6], [9, 6], [5, 9], [9, 9]];
     trapDefs.forEach((trap, i) => {
