@@ -1531,8 +1531,8 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
     }
     const _mon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty && mn !== m);
     if (_mon) {
-      /* reflector（ほっちもぺ等）：弾を射手方向へ跳ね返す */
-      if (_mon.subtype === "reflector") {
+      /* reflector（ほっちもぺ等）：弾を射手方向へ跳ね返す（遠投貫通中は反射しない） */
+      if (_mon.subtype === "reflector" && !_isFc) {
         ml.push(`${boltName}が${_mon.name}に弾き返された！`);
         let _rrx = _tx, _rry = _ty;
         for (let _ri = 1; _ri <= 20; _ri++) {
