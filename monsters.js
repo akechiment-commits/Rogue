@@ -1614,6 +1614,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_btx < 0 || _btx >= MW || _bty < 0 || _bty >= MH ||
             dg.map[_bty]?.[_btx] === T.WALL || dg.map[_bty]?.[_btx] === T.BWALL) break;
         if (_btx === pl.x && _bty === pl.y) {
+          const _dbDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+          if (_dbDodgePcMode === "dodge") {
+            ml.push(`みかわしの魔方陣の加護で${m.name}の銃弾をかわした！`);
+            break;
+          }
+          const _dbArmDodge = _dbDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+          if (_dbArmDodge) {
+            ml.push(`銃弾をひらりとかわした！`);
+            break;
+          }
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
             ml.push("祝福された聖域の加護が銃弾を防いだ！");
           } else {
