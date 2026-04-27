@@ -2967,16 +2967,21 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _ibN = opts.itemNameFn ? opts.itemNameFn(_ibItem) : _ibItem.name;
           /* 弾く方向：プレイヤーからモンスターの反対方向（プレイヤーの後ろ） */
           const _ibdx = Math.sign(pl.x - m.x), _ibdy = Math.sign(pl.y - m.y);
+          /* 遠投の魔方陣判定 */
+          const _ibFcMode = getFarcastMode(pl.x, pl.y, dg);
+          const _ibIsFc = _ibFcMode === "farcast";
+          const _ibMaxRange = _ibFcMode === "cursed" ? 1 : _ibIsFc ? 50 : 10;
           /* 射線をトレースして着地点を決定（泉・大箱があれば入る） */
           let _lx = pl.x, _ly = pl.y;
           let _ibHitMon = null, _ibHitSpring = null, _ibHitBB = null;
-          for (let _si = 1; _si <= 10; _si++) {
+          for (let _si = 1; _si <= _ibMaxRange; _si++) {
             const _nx = pl.x + _ibdx * _si, _ny = pl.y + _ibdy * _si;
+            if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) break;
             const _ibSpr = dg.springs?.find(s => s.x === _nx && s.y === _ny);
             if (_ibSpr) { _ibHitSpring = _ibSpr; _lx = _nx; _ly = _ny; break; }
             const _ibBB = dg.bigboxes?.find(b => b.x === _nx && b.y === _ny);
             if (_ibBB) { _ibHitBB = _ibBB; _lx = _nx; _ly = _ny; break; }
-            if (!isWalkable(dg.map, _nx, _ny)) break;
+            if (!isWalkable(dg.map, _nx, _ny)) { if (_ibIsFc) continue; break; }
             _lx = _nx; _ly = _ny;
             _ibHitMon = dg.monsters.find(o => o.x === _nx && o.y === _ny);
             if (_ibHitMon) break;
@@ -3004,13 +3009,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             const _mirX = _lx, _mirY = _ly;
             _ibHitMon = null; _ibHitSpring = null; _ibHitBB = null;
             _lx = _mirX; _ly = _mirY;
-            for (let _ri = 1; _ri <= 10; _ri++) {
+            for (let _ri = 1; _ri <= _ibMaxRange; _ri++) {
               const _nx = _mirX + _rrdx * _ri, _ny = _mirY + _rrdy * _ri;
+              if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) break;
               const _rrSpr = dg.springs?.find(s => s.x === _nx && s.y === _ny);
               if (_rrSpr) { _ibHitSpring = _rrSpr; _lx = _nx; _ly = _ny; break; }
               const _rrBb = dg.bigboxes?.find(b => b.x === _nx && b.y === _ny);
               if (_rrBb) { _ibHitBB = _rrBb; _lx = _nx; _ly = _ny; break; }
-              if (!isWalkable(dg.map, _nx, _ny)) break;
+              if (!isWalkable(dg.map, _nx, _ny)) { if (_ibIsFc) continue; break; }
               _lx = _nx; _ly = _ny;
               const _rrMon = dg.monsters.find(o => o !== _ibMirrorMon && o.x === _nx && o.y === _ny);
               if (_rrMon) { _ibHitMon = _rrMon; break; }
