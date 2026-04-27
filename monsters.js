@@ -1607,6 +1607,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _dbLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
       const _dbDdx = Math.sign(pl.x - m.x), _dbDdy = Math.sign(pl.y - m.y);
+      /* みかわし判定：発射前に確定→弾丸ごと不発（中間の敵にも当たらない） */
+      const _dbDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+      if (_dbDodgePcMode === "dodge") {
+        ml.push(`${m.name}が銃撃したが、みかわしの魔方陣の加護で銃弾をかわした！`);
+        m.turnAttacks++;
+        return;
+      }
+      const _dbArmDodge = _dbDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+      if (_dbArmDodge) {
+        ml.push(`${m.name}が銃撃したが、銃弾をひらりとかわした！`);
+        m.turnAttacks++;
+        return;
+      }
       ml.push(`${m.name}が銃撃した！`);
       pushMonsterBoltAnim(m.x, m.y, _dbDdx, _dbDdy, dg, pl, "#111111");
       for (let _bd = 1; _bd < 20; _bd++) {
@@ -1614,16 +1627,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (_btx < 0 || _btx >= MW || _bty < 0 || _bty >= MH ||
             dg.map[_bty]?.[_btx] === T.WALL || dg.map[_bty]?.[_btx] === T.BWALL) break;
         if (_btx === pl.x && _bty === pl.y) {
-          const _dbDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-          if (_dbDodgePcMode === "dodge") {
-            ml.push(`みかわしの魔方陣の加護で${m.name}の銃弾をかわした！`);
-            break;
-          }
-          const _dbArmDodge = _dbDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
-          if (_dbArmDodge) {
-            ml.push(`銃弾をひらりとかわした！`);
-            break;
-          }
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
             ml.push("祝福された聖域の加護が銃弾を防いだ！");
           } else {
