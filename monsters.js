@@ -1466,6 +1466,85 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   }
 }
 
+/* ===== 遠距離弾道の共通処理 =====
+ * isMagic=false: みかわし服25%回避・ダメージ計算あり
+ * isMagic=true : 反射の鎧有効・みかわし服は無効
+ * 遠投の魔方陣: farcast→射程∞+壁貫通, cursed→射程1
+ * みかわしの魔方陣: 発射前に不発（中間の敵にも当たらない）
+ */
+function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
+  const {
+    dx, dy,
+    baseRange = 19,
+    isMagic = false,
+    animColor = "#aaaaaa",
+    fireMsg = null,
+    boltName = "弾",
+    deathCause = null,
+    calcPlDmg = () => Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3)),
+    calcMonDmg = (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
+    onPlHit = null,
+    onMonHit = null,
+  } = opts;
+
+  const _fcMode = getFarcastMode(pl.x, pl.y, dg);
+  const _isFc = _fcMode === "farcast";
+  const _isCursedFc = _fcMode === "cursed";
+  const maxRange = _isCursedFc ? 1 : _isFc ? 50 : baseRange;
+
+  const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+  if (_dodgePcMode === "dodge") {
+    ml.push(`${m.name}が発射したが、みかわしの魔方陣の加護で${boltName}をかわした！`);
+    return;
+  }
+
+  if (fireMsg) ml.push(fireMsg);
+  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor);
+
+  let _plHit = false;
+  for (let _d = 1; _d <= maxRange; _d++) {
+    const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
+    if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
+    const _tile = dg.map[_ty]?.[_tx];
+    if (_tile === T.WALL || _tile === T.BWALL) { if (_isFc) continue; break; }
+
+    if (_tx === pl.x && _ty === pl.y && !_plHit) {
+      _plHit = true;
+      if (!isMagic) {
+        const _armDodge = _dodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+        if (_armDodge) { ml.push(`${boltName}をひらりとかわした！`); if (_isFc) continue; break; }
+      }
+      if (isMagic && hasAbility(pl.armor, "wand_reflect")) {
+        ml.push(`反射の鎧が${m.name}の${boltName}を反射した！`);
+        const _rfDmg = Math.max(1, Math.floor(m.atk * 0.5));
+        m.hp -= _rfDmg; ml.push(`${boltName}が${m.name}に命中！${_rfDmg}ダメージ！`);
+        break;
+      }
+      if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+        ml.push(`祝福された聖域の加護が${boltName}を防いだ！`); if (_isFc) continue; break;
+      }
+      const _dmg = calcPlDmg();
+      pl.hp -= _dmg;
+      pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
+      ml.push(`${m.name}の${boltName}が命中！${_dmg}ダメージ！`);
+      if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+      if (onPlHit) onPlHit(ml);
+      if (_isFc) continue; break;
+    }
+    const _mon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty && mn !== m);
+    if (_mon) {
+      if (onMonHit) { onMonHit(_mon, ml); }
+      else {
+        wakeIfDormant(_mon, ml);
+        const _mdmg = calcMonDmg(_mon);
+        _mon.hp -= _mdmg; ml.push(`${m.name}の${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
+        if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, m);
+      }
+      if (_isFc) continue; break;
+    }
+  }
+}
+
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
@@ -1606,48 +1685,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _dbInLine = _dbAdx === 0 || _dbAdy === 0 || Math.abs(_dbAdx) === Math.abs(_dbAdy);
     const _dbLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
-      const _dbDdx = Math.sign(pl.x - m.x), _dbDdy = Math.sign(pl.y - m.y);
-      /* みかわしの魔方陣：発射前に確定→弾丸ごと不発（中間の敵にも当たらない） */
-      const _dbDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-      if (_dbDodgePcMode === "dodge") {
-        ml.push(`${m.name}が銃撃したが、みかわしの魔方陣の加護で銃弾をかわした！`);
-        m.turnAttacks++;
-        return;
-      }
-      ml.push(`${m.name}が銃撃した！`);
-      pushMonsterBoltAnim(m.x, m.y, _dbDdx, _dbDdy, dg, pl, "#111111");
-      for (let _bd = 1; _bd < 20; _bd++) {
-        const _btx = m.x + _dbDdx * _bd, _bty = m.y + _dbDdy * _bd;
-        if (_btx < 0 || _btx >= MW || _bty < 0 || _bty >= MH ||
-            dg.map[_bty]?.[_btx] === T.WALL || dg.map[_bty]?.[_btx] === T.BWALL) break;
-        if (_btx === pl.x && _bty === pl.y) {
-          /* みかわしの服：プレイヤーが銃弾を回避（中間の敵は通常通り被弾） */
-          const _dbArmDodge = _dbDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
-          if (_dbArmDodge) {
-            ml.push(`銃弾をひらりとかわした！`);
-            break;
-          }
-          if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
-            ml.push("祝福された聖域の加護が銃弾を防いだ！");
-          } else {
-            const _dbDmg = Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3));
-            pl.hp -= _dbDmg;
-            pl.deathCause = `${m.name}の銃撃で`;
-            ml.push(`${m.name}の銃弾が命中！${_dbDmg}ダメージ！`);
-            if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-          }
-          break;
-        }
-        const _dbMon = dg.monsters.find(mn => mn.x === _btx && mn.y === _bty && mn !== m);
-        if (_dbMon) {
-          wakeIfDormant(_dbMon, ml);
-          const _dbMonDmg = Math.max(1, m.atk - Math.floor((_dbMon.def || 0) / 2) + rng(-2, 2));
-          _dbMon.hp -= _dbMonDmg;
-          ml.push(`${m.name}の銃弾が${_dbMon.name}に命中！${_dbMonDmg}ダメージ！`);
-          if (_dbMon.hp <= 0) killMonster(_dbMon, dg, pl, ml, _luFn, false, m);
-          break;
-        }
-      }
+      _resolveMonsterBolt(m, dg, pl, ml, _luFn, {
+        dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
+        baseRange: 10, isMagic: false, animColor: "#111111",
+        fireMsg: `${m.name}が銃撃した！`, boltName: "銃弾",
+        deathCause: `${m.name}の銃撃で`,
+        calcPlDmg: () => Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3)),
+        calcMonDmg: (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
+      });
       m.turnAttacks++;
       return;
     }
@@ -1795,29 +1840,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _dfLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
       /* 遠距離（非隣接）& 直線LOS → 魔法弾 */
       if (_dfDist > 1 && _dfInLine && _dfLOS && m.turnAttacks < (m.maxAttacks ?? 1)) {
-        pushMonsterBoltAnim(m.x, m.y, _dfDdx, _dfDdy, dg, pl, "#7020b0");
-        for (let _bd = 1; _bd < 20; _bd++) {
-          const _btx = m.x + _dfDdx * _bd, _bty = m.y + _dfDdy * _bd;
-          if (_btx < 0 || _btx >= MW || _bty < 0 || _bty >= MH ||
-              dg.map[_bty][_btx] === T.WALL || dg.map[_bty][_btx] === T.BWALL) break;
-          if (_btx === pl.x && _bty === pl.y) {
-            if (hasAbility(pl.armor, "wand_reflect")) {
-              ml.push(`反射の鎧が${m.name}の魔法弾を反射した！`);
-              const _rfDmg = Math.max(1, Math.floor(m.atk * 0.5));
-              m.hp -= _rfDmg;
-              ml.push(`魔法弾が${m.name}に命中！${_rfDmg}ダメージ！`);
-            } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
-              ml.push("祝福された聖域の加護が魔法弾を防いだ！");
-            } else {
-              const _dfDmg = Math.max(1, m.atk - Math.floor(pl.def / 2));
-              pl.hp -= _dfDmg;
-              ml.push(`${m.name}の闇の魔法弾が命中！${_dfDmg}ダメージ！`);
-            }
-            break;
-          }
-          const _dfMon = dg.monsters.find(mn => mn.x === _btx && mn.y === _bty && mn !== m);
-          if (_dfMon) { ml.push(`${m.name}の魔法弾が${_dfMon.name}に当たったが効果はなかった。`); break; }
-        }
+        _resolveMonsterBolt(m, dg, pl, ml, _luFn, {
+          dx: _dfDdx, dy: _dfDdy,
+          baseRange: 19, isMagic: true, animColor: "#7020b0",
+          boltName: "闇の魔法弾",
+          calcPlDmg: () => Math.max(1, m.atk - Math.floor(pl.def / 2)),
+          onMonHit: (mon) => { ml.push(`${m.name}の魔法弾が${mon.name}に当たったが効果はなかった。`); },
+        });
         m.turnAttacks++;
         return; /* 射撃行動消費 */
       }
