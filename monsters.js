@@ -3002,6 +3002,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           }
           /* reflector（ミラーゴーレム等）：弾かれたアイテムを投擲元方向へ跳ね返す */
           let _ibMirrorMon = null;
+          let _ibHitPlayer = false;
           if (_ibHitMon?.subtype === "reflector") {
             _ibMirrorMon = _ibHitMon;
             ml.push(`${_ibN}が${_ibMirrorMon.name}に弾き返された！`);
@@ -3018,6 +3019,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               if (_rrBb) { _ibHitBB = _rrBb; _lx = _nx; _ly = _ny; break; }
               if (!isWalkable(dg.map, _nx, _ny)) { if (_ibIsFc) continue; break; }
               _lx = _nx; _ly = _ny;
+              if (_nx === pl.x && _ny === pl.y) { _ibHitPlayer = true; break; }
               const _rrMon = dg.monsters.find(o => o !== _ibMirrorMon && o.x === _nx && o.y === _ny);
               if (_rrMon) { _ibHitMon = _rrMon; break; }
             }
@@ -3032,6 +3034,31 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               else dg.items.push({ ..._ibItem, x: _lx, y: _ly });
               return;
             }
+          }
+          /* 反射後プレイヤー命中 */
+          if (_ibMirrorMon && _ibHitPlayer) {
+            if (_ibItem.type === "potion") {
+              ml.push(`弾き返された${_ibN}がプレイヤーに命中して割れた！`);
+              splashPotion(dg, _lx, _ly, _ibItem.effect, _ibItem.value || 0, pl, ml, _luFn, false, false, null, _ibMirrorMon);
+            } else if (_ibItem.type === "pot") {
+              const _ibPDmg = Math.max(1, 3 + rng(0, 3));
+              pl.hp -= _ibPDmg;
+              pl.deathCause = `${_ibMirrorMon.name}に跳ね返された${_ibN}で`;
+              ml.push(`弾き返された${_ibN}がプレイヤーに命中！${_ibPDmg}ダメージ！壺が割れた！`);
+              if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+              scatterPotContents(_ibItem, dg, _lx, _ly, pl, ml, _luFn);
+            } else if (_ibItem.type === "wand") {
+              ml.push(`弾き返された${_ibN}がプレイヤーに当たった！`);
+              const _ibft = new Set();
+              placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
+            } else {
+              const _ibPDmg = Math.max(1, (_ibItem.type === "weapon" ? (_ibItem.atk || 3) + (_ibItem.plus || 0) : 3) + rng(0, 3));
+              pl.hp -= _ibPDmg;
+              pl.deathCause = `${_ibMirrorMon.name}に跳ね返された${_ibN}で`;
+              ml.push(`弾き返された${_ibN}がプレイヤーに命中！${_ibPDmg}ダメージ！消滅した。`);
+              if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+            }
+            return;
           }
           const _ibKiller = _ibMirrorMon ?? m;
           /* アイテム種別ごとに既存の投擲命中ルールを適用 */
