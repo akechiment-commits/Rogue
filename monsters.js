@@ -1531,6 +1531,43 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
     }
     const _mon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty && mn !== m);
     if (_mon) {
+      /* reflector（ほっちもぺ等）：弾を射手方向へ跳ね返す */
+      if (_mon.subtype === "reflector") {
+        ml.push(`${boltName}が${_mon.name}に弾き返された！`);
+        let _rrx = _tx, _rry = _ty;
+        for (let _ri = 1; _ri <= 20; _ri++) {
+          const _rnx = _rrx - dx, _rny = _rry - dy;
+          if (_rnx < 0 || _rnx >= MW || _rny < 0 || _rny >= MH) break;
+          const _rtile = dg.map[_rny]?.[_rnx];
+          if (_rtile === T.WALL || _rtile === T.BWALL) break;
+          if (_rnx === pl.x && _rny === pl.y) {
+            const _rrdmg = calcPlDmg();
+            pl.hp -= _rrdmg;
+            pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
+            ml.push(`跳ね返された${boltName}がプレイヤーに命中！${_rrdmg}ダメージ！`);
+            if (onPlHit) onPlHit(ml);
+            break;
+          }
+          if (_rnx === m.x && _rny === m.y) {
+            const _rrdmg = Math.max(1, m.atk - Math.floor((m.def || 0) / 2) + rng(-2, 2));
+            m.hp -= _rrdmg;
+            ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
+            if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
+            break;
+          }
+          const _rrMon = dg.monsters.find(o => o.x === _rnx && o.y === _rny && o !== m && o !== _mon);
+          if (_rrMon) {
+            wakeIfDormant(_rrMon, ml);
+            const _rrdmg = calcMonDmg(_rrMon);
+            _rrMon.hp -= _rrdmg;
+            ml.push(`跳ね返された${boltName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
+            if (_rrMon.hp <= 0) killMonster(_rrMon, dg, pl, ml, luFn, false, _mon);
+            break;
+          }
+          _rrx = _rnx; _rry = _rny;
+        }
+        break; /* 反射後は弾軌道終了 */
+      }
       if (onMonHit) { onMonHit(_mon, ml); }
       else {
         wakeIfDormant(_mon, ml);
