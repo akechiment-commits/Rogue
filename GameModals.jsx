@@ -867,17 +867,10 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _p_ext = sr.current.player;
       const _dg_ext = sr.current.dungeon;
       const _ml_ext = [];
-      if (mode.cursed) {
-        /* 呪い：壺を割る */
-        scatterPotContents(_selIt, _dg_ext, _p_ext.x, _p_ext.y, _p_ext, _ml_ext, null);
-        const _rmIdx_pot = _p_ext.inventory.indexOf(_selIt);
-        if (_rmIdx_pot !== -1) {
-          _p_ext.inventory.splice(_rmIdx_pot, 1);
-          if (mode.scrollIdx != null && _rmIdx_pot < mode.scrollIdx) mode.scrollIdx--;
-        }
-        _ml_ext.push("【呪】");
-      } else {
-        extractPotContents(_selIt, _dg_ext, _p_ext.x, _p_ext.y, _p_ext, _ml_ext, null, mode.blessed);
+      const _extRes = extractPotContents(_selIt, _dg_ext, _p_ext.x, _p_ext.y, _p_ext, _ml_ext, null, mode.blessed, mode.cursed);
+      /* 壺がインベントリから削除されていたら scrollIdx を補正 */
+      if (_extRes?.potRemovedAt != null && mode.scrollIdx != null && _extRes.potRemovedAt < mode.scrollIdx) {
+        mode.scrollIdx--;
       }
       _msgResult = _ml_ext;
     } else if (mode.mode === 'bless') {

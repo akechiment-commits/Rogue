@@ -676,12 +676,22 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
   for (const item of pot.contents) { placeItemAt(dg, px, py, item, ml, ft); }
 }
 
-/* 吸い出しの巻物：壺を割らずに中身を吸い出して足元にばらまく */
-export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed) {
+/* 吸い出しの巻物：壺を割らずに中身を吸い出して足元にばらまく
+ * cursed=true の場合は壺を割って中身を散らかし、壺をインベントリから削除する。
+ * 戻り値: { potRemovedAt: number|null }（cursedで壺を削除した場合のインベントリindex、それ以外はnull）。
+ *   呼び出し側は scrollIdx 等の補正に使う。 */
+export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed = false) {
+  if (cursed) {
+    scatterPotContents(pot, dg, px, py, p, ml, luFn);
+    const _idx = p?.inventory ? p.inventory.indexOf(pot) : -1;
+    if (_idx !== -1) p.inventory.splice(_idx, 1);
+    ml.push("【呪】");
+    return { potRemovedAt: _idx !== -1 ? _idx : null };
+  }
   if (pot.potEffect === "gunpowder") {
     ml.push(`${pot.name}から火薬が吸い出され爆発した！`);
     doGunpowderExplosion(px, py, dg, p, ml, luFn, pot.name);
-    return;
+    return { potRemovedAt: null };
   }
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
   if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
@@ -718,6 +728,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed) {
     pot.capacity = (pot.capacity || 1) + 1;
     ml.push(`${pot.name}の容量が1増えた！(${pot.capacity})【祝】`);
   }
+  return { potRemovedAt: null };
 }
 
 /* ===== WEAPON / ARMOR ABILITIES ===== */

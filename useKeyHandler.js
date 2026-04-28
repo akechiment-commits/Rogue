@@ -715,16 +715,10 @@ export function useKeyHandler({
             const _p_pe = sr.current.player;
             const _dg_pe = sr.current.dungeon;
             const _ml_pe = [];
-            if (identifyMode.cursed) {
-              scatterPotContents(_selIt, _dg_pe, _p_pe.x, _p_pe.y, _p_pe, _ml_pe, null);
-              const _rmIdx_pot = _p_pe.inventory.indexOf(_selIt);
-              if (_rmIdx_pot !== -1) {
-                _p_pe.inventory.splice(_rmIdx_pot, 1);
-                if (identifyMode.scrollIdx != null && _rmIdx_pot < identifyMode.scrollIdx) identifyMode.scrollIdx--;
-              }
-              _ml_pe.push("【呪】");
-            } else {
-              extractPotContents(_selIt, _dg_pe, _p_pe.x, _p_pe.y, _p_pe, _ml_pe, null, identifyMode.blessed);
+            const _peRes = extractPotContents(_selIt, _dg_pe, _p_pe.x, _p_pe.y, _p_pe, _ml_pe, null, identifyMode.blessed, identifyMode.cursed);
+            /* 壺がインベントリから削除されていたら scrollIdx を補正 */
+            if (_peRes?.potRemovedAt != null && identifyMode.scrollIdx != null && _peRes.potRemovedAt < identifyMode.scrollIdx) {
+              identifyMode.scrollIdx--;
             }
             _msgResult = _ml_pe;
           } else {
