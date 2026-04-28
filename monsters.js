@@ -3005,141 +3005,35 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _ibdx = Math.sign(pl.x - m.x), _ibdy = Math.sign(pl.y - m.y);
           /* 遠投の魔方陣判定 */
           const _ibFcMode = getFarcastMode(pl.x, pl.y, dg);
-          const _ibIsFc = _ibFcMode === "farcast";
-          const _ibMaxRange = _ibFcMode === "cursed" ? 1 : _ibIsFc ? 50 : 10;
-          /* 射線をトレースして着地点を決定（泉・大箱があれば入る） */
-          let _lx = pl.x, _ly = pl.y;
-          let _ibHitMon = null, _ibHitSpring = null, _ibHitBB = null;
-          for (let _si = 1; _si <= _ibMaxRange; _si++) {
-            const _nx = pl.x + _ibdx * _si, _ny = pl.y + _ibdy * _si;
-            if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) break;
-            const _ibSpr = dg.springs?.find(s => s.x === _nx && s.y === _ny);
-            if (_ibSpr) { _ibHitSpring = _ibSpr; _lx = _nx; _ly = _ny; break; }
-            const _ibBB = dg.bigboxes?.find(b => b.x === _nx && b.y === _ny);
-            if (_ibBB) { _ibHitBB = _ibBB; _lx = _nx; _ly = _ny; break; }
-            if (!isWalkable(dg.map, _nx, _ny)) { if (_ibIsFc) continue; break; }
-            _lx = _nx; _ly = _ny;
-            _ibHitMon = dg.monsters.find(o => o.x === _nx && o.y === _ny);
-            if (_ibHitMon) break;
-          }
-          pushMonsterBoltAnim(pl.x, pl.y, _ibdx, _ibdy, dg, pl, "#ffdd44");
-          /* 泉に入った */
-          if (_ibHitSpring) {
-            ml.push(`${m.name}に${_ibN}を弾かれ泉に落ちた！`);
-            soakItemIntoSpring(_ibHitSpring, { ..._ibItem, x: _lx, y: _ly }, ml, dg, it => it.name);
-            return;
-          }
-          /* 大箱に入った */
-          if (_ibHitBB) {
-            ml.push(`${m.name}に${_ibN}を弾かれ${_ibHitBB.name}に入った！`);
-            if (opts.bbFn) opts.bbFn(_ibHitBB, _ibItem, dg, ml);
-            else dg.items.push({ ..._ibItem, x: _lx, y: _ly });
-            return;
-          }
-          /* reflector（ミラーゴーレム等）：弾かれたアイテムを投擲元方向へ跳ね返す */
-          let _ibMirrorMon = null;
-          let _ibHitPlayer = false;
-          if (_ibHitMon?.subtype === "reflector") {
-            _ibMirrorMon = _ibHitMon;
-            ml.push(`${_ibN}が${_ibMirrorMon.name}に弾き返された！`);
-            const _rrdx = -_ibdx, _rrdy = -_ibdy;
-            const _mirX = _lx, _mirY = _ly;
-            _ibHitMon = null; _ibHitSpring = null; _ibHitBB = null;
-            _lx = _mirX; _ly = _mirY;
-            for (let _ri = 1; _ri <= _ibMaxRange; _ri++) {
-              const _nx = _mirX + _rrdx * _ri, _ny = _mirY + _rrdy * _ri;
-              if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH) break;
-              const _rrSpr = dg.springs?.find(s => s.x === _nx && s.y === _ny);
-              if (_rrSpr) { _ibHitSpring = _rrSpr; _lx = _nx; _ly = _ny; break; }
-              const _rrBb = dg.bigboxes?.find(b => b.x === _nx && b.y === _ny);
-              if (_rrBb) { _ibHitBB = _rrBb; _lx = _nx; _ly = _ny; break; }
-              if (!isWalkable(dg.map, _nx, _ny)) { if (_ibIsFc) continue; break; }
-              _lx = _nx; _ly = _ny;
-              if (_nx === pl.x && _ny === pl.y) { _ibHitPlayer = true; break; }
-              const _rrMon = dg.monsters.find(o => o !== _ibMirrorMon && o.x === _nx && o.y === _ny);
-              if (_rrMon) { _ibHitMon = _rrMon; break; }
-            }
-            if (_ibHitSpring) {
-              ml.push(`弾き返された${_ibN}が泉に落ちた！`);
-              soakItemIntoSpring(_ibHitSpring, { ..._ibItem, x: _lx, y: _ly }, ml, dg, it => it.name);
-              return;
-            }
-            if (_ibHitBB) {
-              ml.push(`弾き返された${_ibN}が${_ibHitBB.name}に入った！`);
-              if (opts.bbFn) opts.bbFn(_ibHitBB, _ibItem, dg, ml);
-              else dg.items.push({ ..._ibItem, x: _lx, y: _ly });
-              return;
-            }
-          }
-          /* 反射後プレイヤー命中 */
-          if (_ibMirrorMon && _ibHitPlayer) {
-            if (_ibItem.type === "potion") {
-              ml.push(`弾き返された${_ibN}がプレイヤーに命中して割れた！`);
-              splashPotion(dg, _lx, _ly, _ibItem.effect, _ibItem.value || 0, pl, ml, _luFn, false, false, null, _ibMirrorMon);
-            } else if (_ibItem.type === "pot") {
-              const _ibPDmg = Math.max(1, 3 + rng(0, 3));
-              pl.hp -= _ibPDmg;
-              pl.deathCause = `${_ibMirrorMon.name}に跳ね返された${_ibN}で`;
-              ml.push(`弾き返された${_ibN}がプレイヤーに命中！${_ibPDmg}ダメージ！壺が割れた！`);
-              if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-              scatterPotContents(_ibItem, dg, _lx, _ly, pl, ml, _luFn);
-            } else if (_ibItem.type === "wand") {
-              ml.push(`弾き返された${_ibN}がプレイヤーに当たった！`);
-              applyWandEffect(_ibItem.effect, "player", pl, -_ibdx, -_ibdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null);
-            } else {
-              const _ibPDmg = Math.max(1, (_ibItem.type === "weapon" ? (_ibItem.atk || 3) + (_ibItem.plus || 0) : 3) + rng(0, 3));
-              pl.hp -= _ibPDmg;
-              pl.deathCause = `${_ibMirrorMon.name}に跳ね返された${_ibN}で`;
-              ml.push(`弾き返された${_ibN}がプレイヤーに命中！${_ibPDmg}ダメージ！消滅した。`);
-              if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-            }
-            return;
-          }
-          const _ibKiller = _ibMirrorMon ?? m;
-          /* アイテム種別ごとに既存の投擲命中ルールを適用 */
-          if (_ibItem.type === "potion") {
-            /* 薬：着地点でsplash（敵に当たっても同じ位置でsplash） */
-            if (_ibHitMon) ml.push(`${m.name}に${_ibN}を弾かれ${_ibHitMon.name}に当たって割れた！`);
-            else ml.push(`${m.name}に${_ibN}を弾かれた！薬が割れた！`);
-            splashPotion(dg, _lx, _ly, _ibItem.effect, _ibItem.value || 0, pl, ml, _luFn, false, false, null, _ibKiller);
-          } else if (_ibItem.type === "pot") {
-            /* 壺：衝撃ダメージ（敵命中時）＋中身散乱 */
-            if (_ibHitMon) {
-              const _ibDmg = Math.max(1, 3 + rng(0, 3));
-              _ibHitMon.hp -= _ibDmg;
-              ml.push(`${m.name}に${_ibN}を弾かれ${_ibHitMon.name}に当たって割れた！${_ibDmg}ダメージ！`);
-              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, _ibKiller);
-            } else {
-              ml.push(`${m.name}に${_ibN}を弾かれた！壺が割れた！`);
-            }
-            scatterPotContents(_ibItem, dg, _lx, _ly, pl, ml, _luFn);
-          } else if (_ibItem.type === "wand") {
-            /* 杖：命中した敵に杖効果発動、消滅 */
-            if (_ibHitMon) {
-              const _ibWdx = Math.sign(_lx - pl.x), _ibWdy = Math.sign(_ly - pl.y);
-              ml.push(`${m.name}が${_ibN}を弾いて${_ibHitMon.name}に当てた！`);
-              applyWandEffect(_ibItem.effect, "monster", _ibHitMon, _ibWdx, _ibWdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null, 0, _ibKiller);
-            } else {
-              ml.push(`${m.name}に${_ibN}を弾かれた！`);
-              const _ibft = new Set();
-              placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
-            }
-          } else {
-            /* それ以外：敵に命中→投擲ダメージで消滅、外れ→着地 */
-            if (_ibHitMon) {
-              const _ibDmg = Math.max(1,
-                (_ibItem.type === "weapon"
-                  ? (_ibItem.atk || 3) + (_ibItem.plus || 0)
-                  : 3) + rng(0, 3));
-              _ibHitMon.hp -= _ibDmg;
-              ml.push(`${m.name}が${_ibN}を弾いて${_ibHitMon.name}に当てた！${_ibDmg}ダメージ！消滅した。`);
-              if (_ibHitMon.hp <= 0) killMonster(_ibHitMon, dg, pl, ml, _luFn, false, _ibKiller);
-            } else {
-              ml.push(`${m.name}に${_ibN}を弾かれた！`);
-              const _ibft = new Set();
-              placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
-            }
-          }
+          const _ibMaxRange = _ibFcMode === "cursed" ? 1 : _ibFcMode === "farcast" ? 50 : 10;
+          /* 仮想射手：プレイヤー位置から弾く（hpなしで反射時の自爆ダメージなし） */
+          const _shooter = { x: pl.x, y: pl.y, name: m.name };
+          throwItemAlongLine(_shooter, dg, _ibItem, _ibdx, _ibdy, _ibMaxRange, ml, pl, _luFn, {
+            animColor: "#ffdd44",
+            killerMon: m,
+            bbFn: opts.bbFn,
+            nameFn: opts.itemNameFn,
+            applyWandFn: applyWandEffect,
+            /* 通常アイテム：「弾いて」「当てた」 */
+            monHitMsg: (target, dmg) => `${m.name}が${_ibN}を弾いて${target.name}に当てた！${dmg}ダメージ！消滅した。`,
+            /* 壺：「弾かれ」「当たって割れた」 */
+            potHitMsg: (target, dmg) => `${m.name}に${_ibN}を弾かれ${target.name}に当たって割れた！${dmg}ダメージ！`,
+            /* 薬瓶：「弾かれ」「当たって割れた」（splash前にpush） */
+            potionHitMsg: (target) => `${m.name}に${_ibN}を弾かれ${target.name}に当たって割れた！`,
+            /* 杖：「弾いて」「当てた」（apply前にpush） */
+            wandHitMsg: (target) => `${m.name}が${_ibN}を弾いて${target.name}に当てた！`,
+            /* 反射→プレイヤー命中時の薬瓶/杖前置き */
+            potionPlHitMsg: () => `弾き返された${_ibN}がプレイヤーに命中して割れた！`,
+            wandPlHitMsg: () => `弾き返された${_ibN}がプレイヤーに当たった！`,
+            /* 泉/大箱着弾 */
+            springLandMsg: () => `${m.name}に${_ibN}を弾かれ泉に落ちた！`,
+            bigboxLandMsg: (bb) => `${m.name}に${_ibN}を弾かれ${bb.name}に入った！`,
+            /* 何にも当たらず着地 */
+            noHitLandMsg: (lx, ly, it) =>
+              it.type === "pot"    ? `${m.name}に${_ibN}を弾かれた！壺が割れた！` :
+              it.type === "potion" ? `${m.name}に${_ibN}を弾かれた！薬が割れた！` :
+                                     `${m.name}に${_ibN}を弾かれた！`,
+          });
           return;
         }
         /* 弾くものがなければ通常攻撃（聖域上なら不可） */
