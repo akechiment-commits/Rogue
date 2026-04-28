@@ -2898,8 +2898,8 @@ function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
         removeMonster(dg, mon);
         if (luFn && p) luFn(p, mlx);
       }
-      /* 非薬瓶（壺・杖・武器等）は命中直前位置に着弾（壺の中身散乱・杖の床配置はその位置） */
-      res.consumed = true; res.hitMonster = mon; res.x = lx; res.y = ly;
+      /* 命中位置（モンスター位置）に着弾 */
+      res.consumed = true; res.hitMonster = mon; res.x = mon.x; res.y = mon.y;
     },
     onPlHit: (mlx) => {
       if (_isPotion) {

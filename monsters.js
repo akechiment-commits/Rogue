@@ -1444,6 +1444,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     pierce = false,
     isPlayerShooter = false,
     reflectorRange = 20,
+    customPlHit = null,
   } = opts;
 
   const _shooterPrefix = isPlayerShooter ? "" : `${m.name}の`;
