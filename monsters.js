@@ -3085,41 +3085,48 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             _cx += _srDx; _cy += _srDy;
           }
           if (_srPathOk) {
-            const _throwItem = m.heldItems.splice(0, 1)[0];
-            pushMonsterBoltAnim(m.x, m.y, _srDx, _srDy, dg, pl, "#ff8800");
-            if (_srHitMon) {
-              /* 途中の敵に命中 */
-              const _srDmg = Math.max(1, ((_throwItem.type === "weapon" ? (_throwItem.atk || 3) + (_throwItem.plus || 0) : 3) + rng(0, 3)));
-              ml.push(`${m.name}が投げた${_throwItem.name}が${_srHitMon.name}に命中！${_srDmg}ダメージ！消滅した。`);
-              _srHitMon.hp -= _srDmg;
-              if (_srHitMon.hp <= 0) { killMonster(_srHitMon, dg, pl, ml, _luFn, false, m); }
-            } else {
+            const _throwItem = m.heldItems[0];
+            /* 中間敵に命中する場合：throwItemAlongLineに任せる */
+            /* 中間敵なし＋プレイヤー到達の場合：anti-steal/25%missを先に判定 */
+            if (!_srHitMon) {
               const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
-              const _srMiss = !_srAntiSteal && Math.random() < 0.25;
               if (_srAntiSteal) {
+                m.heldItems.splice(0, 1);
+                pushMonsterBoltAnim(m.x, m.y, _srDx, _srDy, dg, pl, "#ff8800");
                 ml.push(`護盗の鎧が${m.name}の投擲を防いだ！${_throwItem.name}は地面に落ちた！`);
                 const _srft = new Set();
                 placeItemAt(dg, pl.x, pl.y, _throwItem, ml, _srft);
-              } else if (_srMiss) {
+                return;
+              }
+              if (Math.random() < 0.25) {
+                m.heldItems.splice(0, 1);
+                pushMonsterBoltAnim(m.x, m.y, _srDx, _srDy, dg, pl, "#ff8800");
                 ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきたが外れた！足元に落ちた。`);
                 const _srDrop = safeArrowDrop(pl.x, pl.y, dg);
                 _monDropWithSpring(_srDrop, _throwItem, dg, ml);
-              } else if (_throwItem.type === "potion") {
-                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-                splashPotion(dg, pl.x, pl.y, _throwItem.effect, _throwItem.value || 0, pl, ml, _luFn, false, false);
-              } else if (_throwItem.type === "pot") {
-                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-                scatterPotContents(_throwItem, dg, pl.x, pl.y, pl, ml, _luFn);
-              } else if (_throwItem.type === "wand") {
-                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！`);
-                applyWandEffect(_throwItem.effect, "player", pl, _srDx, _srDy, dg, pl, ml, _luFn, null, getBlessMultiplier(_throwItem), null);
-                if (_onHit) _onHit(m);
-              } else {
-                const _srDmg = Math.max(1, ((_throwItem.type === "weapon" ? (_throwItem.atk || 3) + (_throwItem.plus || 0) : 3) + rng(0, 3)));
-                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきた！${_srDmg}ダメージ！消滅した。`);
-                pl.hp -= _srDmg;
-                if (_onHit) _onHit(m);
+                return;
               }
+            }
+            /* 投擲：throwItemAlongLineで弾道・命中・薬瓶splash・壺scatter・杖発動を統合処理 */
+            m.heldItems.splice(0, 1);
+            const _srRes = throwItemAlongLine(m, dg, _throwItem, _srDx, _srDy, _srDist, ml, pl, _luFn, {
+              animColor: "#ff8800",
+              killerMon: m,
+              applyWandFn: applyWandEffect,
+              /* 中間敵命中：「${m}が投げた${item}が${target}に...」 */
+              monHitMsg: (target, dmg) => `${m.name}が投げた${_throwItem.name}が${target.name}に命中！${dmg}ダメージ！消滅した。`,
+              potHitMsg: (target, dmg) => `${m.name}が投げた${_throwItem.name}が${target.name}に当たって割れた！${dmg}ダメージ！`,
+              potionHitMsg: (target) => `${m.name}が投げた${_throwItem.name}が${target.name}に当たって割れた！`,
+              wandHitMsg: (target) => `${m.name}が投げた${_throwItem.name}が${target.name}に命中！`,
+              /* プレイヤー命中：「${m}が盗んだ${item}を投げてきた！...」 */
+              plHitMsg: (dmg) => `${m.name}が盗んだ${_throwItem.name}を投げてきた！${dmg}ダメージ！消滅した。`,
+              potPlHitMsg: (dmg) => `${m.name}が盗んだ${_throwItem.name}を投げてきた！${dmg}ダメージ！壺が割れた！`,
+              potionPlHitMsg: () => `${m.name}が盗んだ${_throwItem.name}を投げてきた！`,
+              wandPlHitMsg: () => `${m.name}が盗んだ${_throwItem.name}を投げてきた！`,
+            });
+            /* プレイヤー命中時の追加コールバック（既存仕様：potion/pot以外の命中で発動） */
+            if (_srRes.hitPlayer && _throwItem.type !== "potion" && _throwItem.type !== "pot") {
+              if (_onHit) _onHit(m);
             }
             return;
           }
