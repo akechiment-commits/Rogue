@@ -1,6 +1,6 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T } from "./items.js";
-import { pushMonsterBoltAnim, pushSplashAnim } from "./animEvents.js";
+import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -1195,7 +1195,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     const _d = safeArrowDrop(px, py, dg);
     _monDropWithSpring(_d, _makeAr(), dg, mlx);
   };
-  _resolveMonsterBolt(m, dg, pl, ml, null, {
+  _resolveBolt(m, dg, pl, ml, null, {
     dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
     baseRange: _maxDist,
     animColor: _arColor,
@@ -1396,11 +1396,12 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   }
 }
 
-/* ===== 物理飛び道具の共通処理（物理専用・魔法弾には使わない）=====
+/* ===== 直線飛翔の共通処理（物理弾道専用・魔法弾には使わない）=====
+ * 第1引数 m: 射手（モンスターまたはプレイヤー）。プレイヤーの場合は isPlayerShooter:true を指定
  * 遠投の魔方陣: farcast→射程∞+壁貫通+貫通, cursed→射程1
- * みかわしの魔方陣: 発射前に不発（中間の敵にも当たらない）
- * みかわしの服: プレイヤー座標で25%回避
- * hitChance: プレイヤー命中時の命中判定（1.0=必中、0.75=矢、0.80=水鉄砲 など）
+ * みかわしの魔方陣: モンスター射手なら発射前に不発、プレイヤー射手では適用しない
+ * みかわしの服: モンスター射手のみ、プレイヤー座標で25%回避
+ * hitChance: プレイヤー命中時の命中判定（モンスター射手用、1.0=必中、0.75=矢、0.80=水鉄砲 など）
  * onMiss(px, py, ml): 回避/不発/外れ時のコールバック（矢などの弾薬を地面に落とす処理）
  * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
  * wakeParalyze: 命中時に金縛りを解除するか
@@ -1412,8 +1413,11 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  *   未指定なら泉を素通り。pierce/farcastでない場合はspringで弾道終了（onSpring指定時のみ）。
  * onWallStop(lx, ly, ml): pierce/farcast以外で壁にぶつかって止まった時のコールバック
  * onFlyOff(lx, ly, ml): 飛距離を使い切って何にも当たらず終了した時のコールバック
+ * isPlayerShooter: プレイヤーが射手の場合true（mにplを渡す）。dodge魔方陣の早期returnをスキップ、
+ *   プレイヤー軌道アニメを使用、デフォルトメッセージから射手名プレフィクスを除去、
+ *   モンスター撃破時のkillerMonをnullにして経験値加算する。
  */
-function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
+export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   const {
     dx, dy,
     baseRange = 19,
@@ -1434,7 +1438,11 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
     applyVulnPentacle = false,
     wakeParalyze = false,
     pierce = false,
+    isPlayerShooter = false,
   } = opts;
+
+  const _shooterPrefix = isPlayerShooter ? "" : `${m.name}の`;
+  const _killerMon = isPlayerShooter ? null : m;
 
   const _fcMode = getFarcastMode(pl.x, pl.y, dg);
   const _isFc = _fcMode === "farcast";
@@ -1443,14 +1451,16 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
   const maxRange = _isCursedFc ? 1 : _passthrough ? 50 : baseRange;
 
   const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-  if (_dodgePcMode === "dodge") {
+  /* モンスター射手のみ：プレイヤーがdodge魔方陣にいたら発射前に不発 */
+  if (!isPlayerShooter && _dodgePcMode === "dodge") {
     ml.push(`${m.name}が発射したが、みかわしの魔方陣の加護で${boltName}をかわした！`);
     if (onMiss) onMiss(pl.x, pl.y, ml);
     return;
   }
 
   if (fireMsg) ml.push(fireMsg);
-  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor);
+  if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor);
+  else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor);
 
   let _plHit = false;
   let _lx = m.x, _ly = m.y;
@@ -1464,7 +1474,8 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
       return;
     }
 
-    if (_tx === pl.x && _ty === pl.y && !_plHit) {
+    /* プレイヤー射手の場合、プレイヤータイルは射手なのでターゲット判定不要（発射点なので _d>=1 で到達不可） */
+    if (!isPlayerShooter && _tx === pl.x && _ty === pl.y && !_plHit) {
       _plHit = true;
       const _armDodge = _dodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
       if (_armDodge) {
@@ -1478,7 +1489,7 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
         if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
       }
       if (_dodgePcMode !== "sure" && hitChance < 1.0 && Math.random() >= hitChance) {
-        ml.push(`${m.name}の${boltName}は外れた！`);
+        ml.push(`${_shooterPrefix}${boltName}は外れた！`);
         if (onMiss) onMiss(_tx, _ty, ml);
         if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
       }
@@ -1489,7 +1500,7 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
       }
       pl.hp -= _dmg;
       pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
-      ml.push(`${m.name}の${boltName}が命中！${_dmg}ダメージ！`);
+      ml.push(`${_shooterPrefix}${boltName}が命中！${_dmg}ダメージ！`);
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
       if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       if (onPlHit) onPlHit(ml);
@@ -1548,8 +1559,8 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
       else {
         wakeIfDormant(_mon, ml);
         const _mdmg = calcMonDmg(_mon);
-        _mon.hp -= _mdmg; ml.push(`${m.name}の${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
-        if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, m);
+        _mon.hp -= _mdmg; ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
+        if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, _killerMon);
       }
       if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
     }
@@ -1714,7 +1725,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _dbInLine = _dbAdx === 0 || _dbAdy === 0 || Math.abs(_dbAdx) === Math.abs(_dbAdy);
     const _dbLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
-      _resolveMonsterBolt(m, dg, pl, ml, _luFn, {
+      _resolveBolt(m, dg, pl, ml, _luFn, {
         dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
         baseRange: 10, animColor: "#111111",
         fireMsg: `${m.name}が銃撃した！`, boltName: "銃弾",
