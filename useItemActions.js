@@ -2427,6 +2427,7 @@ export function useItemActions({
                 if (_stRHit) {
                   const _stRefDmg = calcProjectileDmg(p, _stAtk, 0);
                   p.hp -= _stRefDmg;
+                  p.deathCause = `${_stM.name}に跳ね返された${_stName}で`;
                   ml.push(`跳ね返された${_stName}がプレイヤーに命中！${_stRefDmg}ダメージ！消滅した。`);
                 } else if (_stRx !== _stLx || _stRy !== _stLy) {
                   const _stRft = new Set();
@@ -2593,6 +2594,7 @@ export function useItemActions({
               if (_arRHit) {
                 const _arRefDmg = calcProjectileDmg(p, _arBaseAtk, 0);
                 p.hp -= _arRefDmg;
+                p.deathCause = `${m.name}に跳ね返された${_arName}で`;
                 if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
                   p.poisoned = true;
                   ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_arRefDmg}ダメージ！毒を受けた！`);

@@ -2818,6 +2818,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       if (_stRHit) {
                         const _stRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
                         p.hp -= _stRefDmg;
+                        p.deathCause = `${_stM.name}に跳ね返された${_arName}で`;
                         ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_stRefDmg}ダメージ！消滅した。`);
                       } else {
                         const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft);
@@ -2906,6 +2907,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                           if (_srRHit) {
                             const _srRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
                             p.hp -= _srRefDmg;
+                            p.deathCause = `${_srm.name}に跳ね返された${_arName}で`;
                             if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
                               p.poisoned = true;
                               ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_srRefDmg}ダメージ！毒を受けた！`);
