@@ -1588,14 +1588,15 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
             if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
             if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             if (onPlHit) onPlHit(ml);
-            return;
+            return; /* プレイヤー命中時は弾消滅（onFlyOff呼ばない） */
           }
           if (_rnx === m.x && _rny === m.y) {
             const _rrdmg = calcMonDmg(m);
             m.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
             if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
-            return;
+            _rrx = _rnx; _rry = _rny;
+            break;
           }
           const _rrMon = dg.monsters.find(o => o.x === _rnx && o.y === _rny && o !== m && o !== _mon);
           if (_rrMon) {
@@ -1604,11 +1605,14 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
             _rrMon.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
             if (_rrMon.hp <= 0) killMonster(_rrMon, dg, pl, ml, luFn, false, _mon);
-            return;
+            _rrx = _rnx; _rry = _rny;
+            break;
           }
           _rrx = _rnx; _rry = _rny;
         }
-        return; /* 反射後は弾軌道終了 */
+        /* 反射後にプレイヤー命中以外で終了：弾着位置でonFlyOffを呼ぶ（矢の地面ドロップ等） */
+        if (onFlyOff) onFlyOff(_rrx, _rry, ml);
+        return;
       }
       if (onMonHit) { onMonHit(_mon, ml); }
       else {
