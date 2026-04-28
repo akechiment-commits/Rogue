@@ -1549,14 +1549,12 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
             if (onPlHit) onPlHit(ml);
             return; /* プレイヤー命中時は弾消滅（onFlyOff呼ばない） */
           }
-          if (_rnx === m.x && _rny === m.y) {
-            /* 仮想射手（押し出されたアイテムの起点など）の場合はダメージ計算をスキップして着地点として扱う */
-            if (m.hp != null) {
-              const _rrdmg = calcMonDmg(m);
-              m.hp -= _rrdmg;
-              ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
-              if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
-            }
+          /* 実体ある射手のみ反射弾の衝突対象。仮想射手（hp未定義）はその位置を素通り */
+          if (m.hp != null && _rnx === m.x && _rny === m.y) {
+            const _rrdmg = calcMonDmg(m);
+            m.hp -= _rrdmg;
+            ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
+            if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
             _rrx = _rnx; _rry = _rny;
             break;
           }
