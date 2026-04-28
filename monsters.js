@@ -1470,7 +1470,11 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * 遠投の魔方陣: farcast→射程∞+壁貫通+貫通, cursed→射程1
  * みかわしの魔方陣: 発射前に不発（中間の敵にも当たらない）
  * みかわしの服: プレイヤー座標で25%回避
- * onDodge(px, py, ml): 回避時に呼ばれるコールバック（矢などを落とす処理を渡す）
+ * hitChance: プレイヤー命中時の命中判定（1.0=必中、0.75=矢、0.80=水鉄砲 など）
+ * onMiss(px, py, ml): 回避/不発/外れ時のコールバック（矢などの弾薬を地面に落とす処理）
+ *   ※ 発射前みかわしの魔方陣（中間敵にも当たらない）の場合は呼ばれない
+ * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
+ * wakeParalyze: 命中時に金縛りを解除するか
  */
 function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
   const {
@@ -1484,7 +1488,10 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
     calcMonDmg = (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
     onPlHit = null,
     onMonHit = null,
-    onDodge = null,
+    onMiss = null,
+    hitChance = 1.0,
+    applyVulnPentacle = false,
+    wakeParalyze = false,
   } = opts;
 
   const _fcMode = getFarcastMode(pl.x, pl.y, dg);
@@ -1513,19 +1520,29 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
       const _armDodge = _dodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
       if (_armDodge) {
         ml.push(`${boltName}をひらりとかわした！`);
-        if (onDodge) onDodge(_tx, _ty, ml);
+        if (onMiss) onMiss(_tx, _ty, ml);
         if (_isFc) continue; break;
       }
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
         ml.push(`祝福された聖域の加護が${boltName}を防いだ！`);
-        if (onDodge) onDodge(_tx, _ty, ml);
+        if (onMiss) onMiss(_tx, _ty, ml);
         if (_isFc) continue; break;
       }
-      const _dmg = calcPlDmg();
+      if (_dodgePcMode !== "sure" && hitChance < 1.0 && Math.random() >= hitChance) {
+        ml.push(`${m.name}の${boltName}は外れた！`);
+        if (onMiss) onMiss(_tx, _ty, ml);
+        if (_isFc) continue; break;
+      }
+      let _dmg = calcPlDmg();
+      if (applyVulnPentacle) {
+        const _vp = findVulnPentacle(dg, pl.x, pl.y);
+        if (_vp) _dmg = _vp.cursed ? Math.max(1, Math.floor(_dmg / 2)) : _dmg * (_vp.blessed ? 4 : 2);
+      }
       pl.hp -= _dmg;
       pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
       ml.push(`${m.name}の${boltName}が命中！${_dmg}ダメージ！`);
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+      if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       if (onPlHit) onPlHit(ml);
       if (_isFc) continue; break;
     }
@@ -1541,15 +1558,21 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
           const _rtile = dg.map[_rny]?.[_rnx];
           if (_rtile === T.WALL || _rtile === T.BWALL) break;
           if (_rnx === pl.x && _rny === pl.y) {
-            const _rrdmg = calcPlDmg();
+            let _rrdmg = calcPlDmg();
+            if (applyVulnPentacle) {
+              const _vp = findVulnPentacle(dg, pl.x, pl.y);
+              if (_vp) _rrdmg = _vp.cursed ? Math.max(1, Math.floor(_rrdmg / 2)) : _rrdmg * (_vp.blessed ? 4 : 2);
+            }
             pl.hp -= _rrdmg;
             pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
             ml.push(`跳ね返された${boltName}がプレイヤーに命中！${_rrdmg}ダメージ！`);
+            if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+            if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             if (onPlHit) onPlHit(ml);
             break;
           }
           if (_rnx === m.x && _rny === m.y) {
-            const _rrdmg = Math.max(1, m.atk - Math.floor((m.def || 0) / 2) + rng(-2, 2));
+            const _rrdmg = calcMonDmg(m);
             m.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
             if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
