@@ -1411,6 +1411,8 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  *   pierce/farcastでない場合はbigboxで弾道終了（onBigbox指定時のみ）。
  * onSpring(spr, lx, ly, ml): 泉命中時のコールバック（矢を泉に沈める等）。
  *   未指定なら泉を素通り。pierce/farcastでない場合はspringで弾道終了（onSpring指定時のみ）。
+ * onTrap(trap, lx, ly, ml) => string|undefined: 罠命中時のコールバック（押し出されアイテムが罠を踏む等）。
+ *   未指定なら罠を素通り。"destroyed"を返すとアイテム消滅、それ以外は弾道はそこで終了。
  * onWallStop(lx, ly, ml): pierce/farcast以外で壁にぶつかって止まった時のコールバック
  * onFlyOff(lx, ly, ml): 飛距離を使い切って何にも当たらず終了した時のコールバック
  * isPlayerShooter: プレイヤーが射手の場合true（mにplを渡す）。dodge魔方陣の早期returnをスキップ、
@@ -1432,6 +1434,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     onMiss = null,
     onBigbox = null,
     onSpring = null,
+    onTrap = null,
     onWallStop = null,
     onFlyOff = null,
     hitChance = 1.0,
@@ -1581,6 +1584,16 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (_spr) {
         onSpring(_spr, _tx, _ty, ml);
         if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+      }
+    }
+    /* 罠命中（onTrap未指定なら素通り）。コールバックは"destroyed"を返すと弾消滅、それ以外は飛翔継続 */
+    if (onTrap) {
+      const _trap = dg.traps?.find(t => t.x === _tx && t.y === _ty);
+      if (_trap) {
+        const _trapResult = onTrap(_trap, _tx, _ty, ml);
+        if (_trapResult === "destroyed") return;
+        /* 罠を踏んでも壊れなければ弾は同位置で停止（壁等と同様） */
+        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } _lx = _tx; _ly = _ty; if (onFlyOff) onFlyOff(_lx, _ly, ml); return;
       }
     }
     _lx = _tx; _ly = _ty;
