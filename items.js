@@ -2878,8 +2878,6 @@ function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
     baseRange: dist,
     reflectorRange: dist,
     boltName: entity.name,
-    calcPlDmg: () => _isPotion ? 0 : rng(3, 8),
-    calcMonDmg: () => _isPotion ? 0 : rng(3, 8),
     onMonHit: (mon, mlx, lx, ly) => {
       if (_isPotion) {
         res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y;
@@ -2901,7 +2899,8 @@ function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
       /* 命中位置（モンスター位置）に着弾 */
       res.consumed = true; res.hitMonster = mon; res.x = mon.x; res.y = mon.y;
     },
-    onPlHit: (mlx) => {
+    customPlHit: (mlx) => {
+      /* 反射等でプレイヤーに当たった場合 */
       if (_isPotion) {
         res.consumed = true; res.splash = true; res.x = p.x; res.y = p.y;
         return;
