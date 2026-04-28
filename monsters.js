@@ -1728,7 +1728,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         calcPlDmg: () => Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3)),
         calcMonDmg: (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
       });
-      m.turnAttacks++;
+      if (m.hp > 0) m.turnAttacks++;
       return;
     }
   }
