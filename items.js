@@ -2889,6 +2889,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     animColor = item.type === "potion" ? "#88ccff" : "#ffdd44",
     monHitMsg = (target, dmg) => `飛んできた${nameFn(item)}が${target.name}に命中！${dmg}ダメージ！`,
     plHitMsg = (dmg) => `飛んできた${nameFn(item)}がプレイヤーに命中！${dmg}ダメージ！`,
+    potHitMsg = (target, dmg) => `飛んできた${nameFn(item)}が${target.name}に当たって割れた！${dmg}ダメージ！`,
+    potPlHitMsg = (dmg) => `飛んできた${nameFn(item)}がプレイヤーに当たって割れた！${dmg}ダメージ！`,
     deathCausePhrase = `飛んできた${item.name}に`,
   } = opts;
 
@@ -2922,7 +2924,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       weakenOrClearParalysis(mon, mlx);
       const dmg = _isPot ? _potDmg() : _projDmg();
       mon.hp -= dmg;
-      mlx.push(_isPot ? `飛んできた${_itemName}が${mon.name}に当たって割れた！${dmg}ダメージ！` : monHitMsg(mon, dmg));
+      mlx.push(_isPot ? potHitMsg(mon, dmg) : monHitMsg(mon, dmg));
       if (mon.hp <= 0) killMonster(mon, dg, p, mlx, luFn, false, killerMon);
       res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
     },
@@ -2938,7 +2940,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       const dmg = _isPot ? _potDmg() : _projDmg();
       p.deathCause = deathCausePhrase;
       p.hp -= dmg;
-      mlx.push(_isPot ? `飛んできた${_itemName}がプレイヤーに当たって割れた！${dmg}ダメージ！` : plHitMsg(dmg));
+      mlx.push(_isPot ? potPlHitMsg(dmg) : plHitMsg(dmg));
       if (p.sleepTurns > 0) { p.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
     },
