@@ -1472,9 +1472,16 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * みかわしの服: プレイヤー座標で25%回避
  * hitChance: プレイヤー命中時の命中判定（1.0=必中、0.75=矢、0.80=水鉄砲 など）
  * onMiss(px, py, ml): 回避/不発/外れ時のコールバック（矢などの弾薬を地面に落とす処理）
- *   ※ 発射前みかわしの魔方陣（中間敵にも当たらない）の場合は呼ばれない
  * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
  * wakeParalyze: 命中時に金縛りを解除するか
+ * pierce: trueなら壁・敵・プレイヤー・大箱・泉を貫通して飛び続ける（farcastと同等の挙動）
+ * onBigbox(bb, lx, ly, ml): 大箱命中時のコールバック（矢を大箱に入れる等）。
+ *   未指定なら大箱を素通り（シオン銃弾など、アイテムでない弾向け）。
+ *   pierce/farcastでない場合はbigboxで弾道終了（onBigbox指定時のみ）。
+ * onSpring(spr, lx, ly, ml): 泉命中時のコールバック（矢を泉に沈める等）。
+ *   未指定なら泉を素通り。pierce/farcastでない場合はspringで弾道終了（onSpring指定時のみ）。
+ * onWallStop(lx, ly, ml): pierce/farcast以外で壁にぶつかって止まった時のコールバック
+ * onFlyOff(lx, ly, ml): 飛距離を使い切って何にも当たらず終了した時のコールバック
  */
 function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
   const {
@@ -1489,15 +1496,21 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
     onPlHit = null,
     onMonHit = null,
     onMiss = null,
+    onBigbox = null,
+    onSpring = null,
+    onWallStop = null,
+    onFlyOff = null,
     hitChance = 1.0,
     applyVulnPentacle = false,
     wakeParalyze = false,
+    pierce = false,
   } = opts;
 
   const _fcMode = getFarcastMode(pl.x, pl.y, dg);
   const _isFc = _fcMode === "farcast";
   const _isCursedFc = _fcMode === "cursed";
-  const maxRange = _isCursedFc ? 1 : _isFc ? 50 : baseRange;
+  const _passthrough = _isFc || pierce;
+  const maxRange = _isCursedFc ? 1 : _passthrough ? 50 : baseRange;
 
   const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
   if (_dodgePcMode === "dodge") {
@@ -1510,11 +1523,16 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
   pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor);
 
   let _plHit = false;
+  let _lx = m.x, _ly = m.y;
   for (let _d = 1; _d <= maxRange; _d++) {
     const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
     if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
     const _tile = dg.map[_ty]?.[_tx];
-    if (_tile === T.WALL || _tile === T.BWALL) { if (_isFc) continue; break; }
+    if (_tile === T.WALL || _tile === T.BWALL) {
+      if (_passthrough) continue;
+      if (onWallStop) onWallStop(_lx, _ly, ml);
+      return;
+    }
 
     if (_tx === pl.x && _ty === pl.y && !_plHit) {
       _plHit = true;
@@ -1522,17 +1540,17 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
       if (_armDodge) {
         ml.push(`${boltName}をひらりとかわした！`);
         if (onMiss) onMiss(_tx, _ty, ml);
-        if (_isFc) continue; break;
+        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
       }
       if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
         ml.push(`祝福された聖域の加護が${boltName}を防いだ！`);
         if (onMiss) onMiss(_tx, _ty, ml);
-        if (_isFc) continue; break;
+        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
       }
       if (_dodgePcMode !== "sure" && hitChance < 1.0 && Math.random() >= hitChance) {
         ml.push(`${m.name}の${boltName}は外れた！`);
         if (onMiss) onMiss(_tx, _ty, ml);
-        if (_isFc) continue; break;
+        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
       }
       let _dmg = calcPlDmg();
       if (applyVulnPentacle) {
@@ -1545,12 +1563,12 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
       if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       if (onPlHit) onPlHit(ml);
-      if (_isFc) continue; break;
+      if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
     }
     const _mon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty && mn !== m);
     if (_mon) {
       /* reflector（ほっちもぺ等）：弾を射手方向へ跳ね返す（遠投貫通中は反射しない） */
-      if (_mon.subtype === "reflector" && !_isFc) {
+      if (_mon.subtype === "reflector" && !_passthrough) {
         ml.push(`${boltName}が${_mon.name}に弾き返された！`);
         let _rrx = _tx, _rry = _ty;
         for (let _ri = 1; _ri <= 20; _ri++) {
@@ -1570,14 +1588,14 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
             if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
             if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             if (onPlHit) onPlHit(ml);
-            break;
+            return;
           }
           if (_rnx === m.x && _rny === m.y) {
             const _rrdmg = calcMonDmg(m);
             m.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${m.name}に命中！${_rrdmg}ダメージ！`);
             if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, _mon);
-            break;
+            return;
           }
           const _rrMon = dg.monsters.find(o => o.x === _rnx && o.y === _rny && o !== m && o !== _mon);
           if (_rrMon) {
@@ -1586,11 +1604,11 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
             _rrMon.hp -= _rrdmg;
             ml.push(`跳ね返された${boltName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
             if (_rrMon.hp <= 0) killMonster(_rrMon, dg, pl, ml, luFn, false, _mon);
-            break;
+            return;
           }
           _rrx = _rnx; _rry = _rny;
         }
-        break; /* 反射後は弾軌道終了 */
+        return; /* 反射後は弾軌道終了 */
       }
       if (onMonHit) { onMonHit(_mon, ml); }
       else {
@@ -1599,9 +1617,27 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
         _mon.hp -= _mdmg; ml.push(`${m.name}の${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
         if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, m);
       }
-      if (_isFc) continue; break;
+      if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
     }
+    /* 大箱命中（onBigbox未指定なら素通り：シオン銃弾などアイテムでない弾向け） */
+    if (onBigbox) {
+      const _bb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
+      if (_bb) {
+        onBigbox(_bb, _tx, _ty, ml);
+        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+      }
+    }
+    /* 泉命中（onSpring未指定なら素通り：シオン銃弾などアイテムでない弾向け） */
+    if (onSpring) {
+      const _spr = dg.springs?.find(s => s.x === _tx && s.y === _ty);
+      if (_spr) {
+        onSpring(_spr, _tx, _ty, ml);
+        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+      }
+    }
+    _lx = _tx; _ly = _ty;
   }
+  if (onFlyOff) onFlyOff(_lx, _ly, ml);
 }
 
 export function monsterAI(m, dg, pl, ml, opts = {}) {
