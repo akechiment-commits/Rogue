@@ -2876,6 +2876,7 @@ function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
   _resolveBolt(_shooter, dg, p, ml, luFn, {
     dx, dy,
     baseRange: dist,
+    reflectorRange: dist,
     boltName: entity.name,
     calcPlDmg: () => _isPotion ? 0 : rng(3, 8),
     calcMonDmg: () => _isPotion ? 0 : rng(3, 8),

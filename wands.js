@@ -321,7 +321,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         break;
       }
-      const d = _blessed ? 50 : 5; /* 祝福：壁まで飛ばす */
+      const d = _blessed ? 100 : 10; /* 通常10マス、祝福は実質無限（壁まで飛ぶ） */
       const _kbDmgBase = _blessed ? 10 : 5; /* 祝福：ダメ2倍 */
       if (kind === "monster") {
         if (hasGravityPentacle(dg, target.x, target.y)) { ml.push(`重力の魔方陣の力で${target.name}への吹き飛ばしが無効になった！`); break; }

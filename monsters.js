@@ -1406,6 +1406,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
  * wakeParalyze: 命中時に金縛りを解除するか
  * pierce: trueなら壁・敵・プレイヤー・大箱・泉を貫通して飛び続ける（farcastと同等の挙動）
+ * reflectorRange: reflector反射時の最大飛距離（デフォルト20）
  * onBigbox(bb, lx, ly, ml): 大箱命中時のコールバック（矢を大箱に入れる等）。
  *   未指定なら大箱を素通り（シオン銃弾など、アイテムでない弾向け）。
  *   pierce/farcastでない場合はbigboxで弾道終了（onBigbox指定時のみ）。
@@ -1442,6 +1443,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     wakeParalyze = false,
     pierce = false,
     isPlayerShooter = false,
+    reflectorRange = 20,
   } = opts;
 
   const _shooterPrefix = isPlayerShooter ? "" : `${m.name}の`;
@@ -1515,7 +1517,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (_mon.subtype === "reflector" && !_passthrough) {
         ml.push(`${boltName}が${_mon.name}に弾き返された！`);
         let _rrx = _tx, _rry = _ty;
-        for (let _ri = 1; _ri <= 20; _ri++) {
+        for (let _ri = 1; _ri <= reflectorRange; _ri++) {
           const _rnx = _rrx - dx, _rny = _rry - dy;
           if (_rnx < 0 || _rnx >= MW || _rny < 0 || _rny >= MH) break;
           const _rtile = dg.map[_rny]?.[_rnx];
