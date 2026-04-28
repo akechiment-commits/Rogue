@@ -2880,7 +2880,7 @@ function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
     boltName: entity.name,
     calcPlDmg: () => _isPotion ? 0 : rng(3, 8),
     calcMonDmg: () => _isPotion ? 0 : rng(3, 8),
-    onMonHit: (mon, mlx) => {
+    onMonHit: (mon, mlx, lx, ly) => {
       if (_isPotion) {
         res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y;
         return;
@@ -2898,7 +2898,8 @@ function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
         removeMonster(dg, mon);
         if (luFn && p) luFn(p, mlx);
       }
-      res.consumed = true; res.hitMonster = mon; res.x = mon.x; res.y = mon.y;
+      /* 非薬瓶（壺・杖・武器等）は命中直前位置に着弾（壺の中身散乱・杖の床配置はその位置） */
+      res.consumed = true; res.hitMonster = mon; res.x = lx; res.y = ly;
     },
     onPlHit: (mlx) => {
       if (_isPotion) {
@@ -2912,11 +2913,11 @@ function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
       res.consumed = true; res.hitPlayer = true; res.x = p.x; res.y = p.y;
     },
     onSpring: (spr, lx, ly) => {
-      if (_isPotion) { res.consumed = true; res.splash = true; res.x = lx; res.y = ly; return; }
+      /* 薬瓶も泉に入る（splashしない、原版pushEntity[item]と同じ挙動） */
       res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;
     },
     onBigbox: (bb, lx, ly) => {
-      if (_isPotion) { res.consumed = true; res.splash = true; res.x = lx; res.y = ly; return; }
+      /* 薬瓶も大箱に入る（splashしない、原版pushEntity[item]と同じ挙動） */
       res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly;
     },
     onTrap: (trap, lx, ly, mlx) => {

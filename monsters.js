@@ -1563,7 +1563,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onFlyOff) onFlyOff(_rrx, _rry, ml);
         return;
       }
-      if (onMonHit) { onMonHit(_mon, ml); }
+      if (onMonHit) { onMonHit(_mon, ml, _lx, _ly); }
       else {
         wakeIfDormant(_mon, ml);
         const _mdmg = calcMonDmg(_mon);
