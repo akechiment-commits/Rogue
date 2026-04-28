@@ -2865,60 +2865,85 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   _triggerExplosionPentacle(mx, my, dg, p, ml, luFn);
 }
 
-/* 押し出されたアイテムの軌道処理：その場所から投げられたアイテムと同等の挙動。
- * _resolveBolt 経由で wall/reflector/spring/bigbox/trap/対象命中を統合的に扱う。
- * 戻り値はpushEntity[item]互換: {x, y, consumed, splash?, spring?, bigbox?, hitMonster?, hitPlayer?} */
-function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
-  const _isPotion = entity.type === "potion";
-  const res = { x, y, consumed: false };
-  /* 仮想射手：押し出し起点。hp未定義なので反射時のダメージ判定はスキップされる */
-  const _shooter = { x, y, name: entity.name };
-  _resolveBolt(_shooter, dg, p, ml, luFn, {
+/* ===== 直線投擲の共通処理（公開API） =====
+ * shooter: 投擲元 ({x, y, name, hp?, atk?})。hp未定義の場合は仮想射手扱いで反射時のダメージを適用しない（押し出し用）
+ * item: 投げられるアイテム（type別に命中時挙動が分岐：potion→splash、pot→中身散乱、wand→効果発動、他→投擲ダメージ）
+ * range: 飛距離（壁・敵・スプリング等で停止）
+ * 戻り値: {x, y, consumed, splash?, spring?, bigbox?, hitMonster?, hitPlayer?}
+ *   shop chargeなどの post-processing は呼び出し側で行う
+ *
+ * 用途例:
+ *   - 吹き飛ばしの杖でアイテム飛翔
+ *   - 弾き師(itemblast)が所持品を弾く
+ *   - 盗投士(stealthrower)が盗んだアイテムを投げる
+ *   - 将来: 落ちているアイテムを投げてくる敵
+ *   - 将来: アイテム飛翔系の新規杖
+ */
+export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts = {}) {
+  const {
+    bbFn = null,
+    nameFn = (it) => it.name,
+    applyWandFn = null,
+    killerMon = null,
+    reflectorRange = range,
+    animColor = item.type === "potion" ? "#88ccff" : "#ffdd44",
+    monHitMsg = (target, dmg) => `飛んできた${nameFn(item)}が${target.name}に命中！${dmg}ダメージ！`,
+    plHitMsg = (dmg) => `飛んできた${nameFn(item)}がプレイヤーに命中！${dmg}ダメージ！`,
+    deathCausePhrase = `飛んできた${item.name}に`,
+  } = opts;
+
+  const _isPotion = item.type === "potion";
+  const _isPot = item.type === "pot";
+  const _isWand = item.type === "wand";
+  const _itemName = nameFn(item);
+  const res = { x: shooter.x, y: shooter.y, consumed: false };
+
+  /* 通常投擲ダメージ計算（武器は+値含む、それ以外は3+rng(0,3)） */
+  const _projDmg = () => Math.max(1, (item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : 3) + rng(0, 3));
+  /* 壺投擲ダメージ（破損衝撃） */
+  const _potDmg = () => Math.max(1, 3 + rng(0, 3));
+
+  _resolveBolt(shooter, dg, p, ml, luFn, {
     dx, dy,
-    baseRange: dist,
-    reflectorRange: dist,
-    boltName: entity.name,
-    onMonHit: (mon, mlx, lx, ly) => {
+    baseRange: range,
+    reflectorRange,
+    boltName: _itemName,
+    animColor,
+    onMonHit: (mon, mlx) => {
       if (_isPotion) {
-        res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y;
+        res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
+        return;
+      }
+      if (_isWand) {
+        /* 杖は命中位置で効果発動（post-processで処理） */
+        res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
         return;
       }
       weakenOrClearParalysis(mon, mlx);
-      const dmg = rng(3, 8);
+      const dmg = _isPot ? _potDmg() : _projDmg();
       mon.hp -= dmg;
-      mlx.push(`飛んできた${entity.name}が${mon.name}に命中！${dmg}ダメージ！`);
-      if (mon.hp <= 0) {
-        const _soyMul2 = p && (p.soyExpTurns || 0) > 0 ? 1.3 : 1;
-        const _expGain2 = Math.floor(mon.exp * _soyMul2);
-        mlx.push(`${mon.name}を倒した！(+${_expGain2}exp${_soyMul2 > 1 ? " 醤油効果!" : ""})`);
-        if (p) p.exp += _expGain2;
-        monsterDrop(mon, dg, mlx, p);
-        removeMonster(dg, mon);
-        if (luFn && p) luFn(p, mlx);
-      }
-      /* 命中位置（モンスター位置）に着弾 */
-      res.consumed = true; res.hitMonster = mon; res.x = mon.x; res.y = mon.y;
+      mlx.push(_isPot ? `飛んできた${_itemName}が${mon.name}に当たって割れた！${dmg}ダメージ！` : monHitMsg(mon, dmg));
+      if (mon.hp <= 0) killMonster(mon, dg, p, mlx, luFn, false, killerMon);
+      res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
     },
     customPlHit: (mlx) => {
-      /* 反射等でプレイヤーに当たった場合 */
       if (_isPotion) {
-        res.consumed = true; res.splash = true; res.x = p.x; res.y = p.y;
+        res.consumed = true; res.splash = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
         return;
       }
-      const dmg = rng(3, 8);
-      p.deathCause = `飛んできた${entity.name}に`;
+      if (_isWand) {
+        res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
+        return;
+      }
+      const dmg = _isPot ? _potDmg() : _projDmg();
+      p.deathCause = deathCausePhrase;
       p.hp -= dmg;
-      mlx.push(`飛んできた${entity.name}がプレイヤーに命中！${dmg}ダメージ！`);
-      res.consumed = true; res.hitPlayer = true; res.x = p.x; res.y = p.y;
+      mlx.push(_isPot ? `飛んできた${_itemName}がプレイヤーに当たって割れた！${dmg}ダメージ！` : plHitMsg(dmg));
+      if (p.sleepTurns > 0) { p.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
+      res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
     },
-    onSpring: (spr, lx, ly) => {
-      /* 薬瓶も泉に入る（splashしない、原版pushEntity[item]と同じ挙動） */
-      res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;
-    },
-    onBigbox: (bb, lx, ly) => {
-      /* 薬瓶も大箱に入る（splashしない、原版pushEntity[item]と同じ挙動） */
-      res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly;
-    },
+    onSpring: (spr, lx, ly) => { res.consumed = true; res.spring = spr; res.x = lx; res.y = ly; },
+    onBigbox: (bb, lx, ly) => { res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly; },
     onTrap: (trap, lx, ly, mlx) => {
       if (_isPotion) {
         res.consumed = true; res.splash = true; res.x = lx; res.y = ly;
@@ -2926,21 +2951,43 @@ function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
       }
       trap.revealed = true;
       const ft = new Set(); ft.add(trap.id);
-      const r = fireTrapItem(trap, entity, dg, lx, ly, mlx, ft, p);
+      const r = fireTrapItem(trap, item, dg, lx, ly, mlx, ft, p);
       const _entBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
       if (trap.effect !== "explode" && !trap.permanent && Math.random() < _entBreakChance) {
         dg.traps = dg.traps.filter(t => t !== trap);
         mlx.push(`${trap.name}は壊れた。`);
       }
-      if (r === "destroyed") {
-        res.consumed = true; /* 着地点は壁停止と同じく直前位置 */
-        return "destroyed";
-      }
+      if (r === "destroyed") { res.consumed = true; return "destroyed"; }
       res.x = lx; res.y = ly; res.consumed = false;
     },
     onWallStop: (lx, ly) => { res.x = lx; res.y = ly; },
     onFlyOff: (lx, ly) => { res.x = lx; res.y = ly; },
   });
+
+  /* 着弾後のアイテム種別ごとの処理 */
+  if (res.spring) {
+    soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
+  } else if (res.bigbox) {
+    if (bbFn) bbFn(res.bigbox, item, dg, ml);
+    else { const ft = new Set(); placeItemAt(dg, res.x, res.y, item, ml, ft); }
+  } else if (_isPotion) {
+    splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);
+  } else if (_isPot) {
+    scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn);
+  } else if (_isWand) {
+    if ((res.hitMonster || res.hitPlayer) && applyWandFn) {
+      const wbm = item.blessed ? 1.5 : item.cursed ? 0.5 : 1;
+      if (res.hitMonster) applyWandFn(item.effect, "monster", res.hitMonster, dx, dy, dg, p, ml, luFn, bbFn, wbm, nameFn);
+      else if (res.hitPlayer) applyWandFn(item.effect, "player", p, dx, dy, dg, p, ml, luFn, bbFn, wbm, nameFn);
+    } else {
+      const ft = new Set();
+      placeItemAt(dg, res.x, res.y, item, ml, ft);
+    }
+  } else if (!res.consumed) {
+    const ft = new Set();
+    placeItemAt(dg, res.x, res.y, item, ml, ft);
+  }
+
   return res;
 }
 
@@ -2965,10 +3012,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
         return { x: nx, y: ny, hitMonster: _trapM };
       }
     }
-    if (kind === "item") {
-      /* item kindは _resolveBolt 経由で処理（reflector・wall stop等を統合） */
-      return _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn);
-    }
+    /* kind === "item" は throwItemAlongLine() に移行済み（呼び出し側で直接呼ぶ） */
     if (kind === "monster") {
       /* プレイヤーとの衝突 */
       if (p && p.x === nx && p.y === ny) {

@@ -1,7 +1,7 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
-  killMonster, pushEntity, placeItemAt, scatterPotContents, monsterDrop,
+  killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
@@ -362,7 +362,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "item") {
         ml.push(`${target.name}が吹き飛んだ！`);
         removeFloorItem(dg, target);
-        const res = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "item", target, p, luFn);
+        /* 仮想射手（押し出し起点：アイテムの元位置） */
+        const _shooter = { x: target.x, y: target.y, name: target.name };
+        const res = throwItemAlongLine(_shooter, dg, target, dx, dy, d, ml, p, luFn, {
+          bbFn, nameFn, applyWandFn: applyWandEffect,
+        });
+        /* shop charge：店外に飛び出したら課金 */
         if (target.shopPrice) {
           const _allShopsW = getShops(dg);
           const _iShopW = _allShopsW.find(s => s.id === target._shopId) || _allShopsW.find(s => s.unpaidTotal > 0);
@@ -371,31 +376,6 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             const inShop = res.x >= r.x && res.x < r.x + r.w && res.y >= r.y && res.y < r.y + r.h;
             if (!inShop) chargeShopItem(target, dg, ml);
           }
-        }
-        if (res.spring) {
-          soakItemIntoSpring(res.spring, target, ml, dg);
-        } else if (res.bigbox) {
-          if (bbFn) bbFn(res.bigbox, target, dg, ml);
-          else { const ft = new Set(); placeItemAt(dg, res.x, res.y, target, ml, ft); }
-        } else if (target.type === "potion") {
-          splashPotion(dg, res.x, res.y, target.effect, target.value || 0, p, ml, luFn, target.blessed || false, target.cursed || false);
-        } else if (target.type === "pot") {
-          scatterPotContents(target, dg, res.x, res.y, p, ml, luFn);
-        } else if (target.type === "wand") {
-          /* 吹き飛んだ杖がキャラクターに命中：チャージ不問で効果1回発動し消滅 */
-          if (res.hitMonster || res.hitPlayer) {
-            const _kbWandBm = target.blessed ? 1.5 : target.cursed ? 0.5 : 1;
-            if (res.hitMonster) applyWandEffect(target.effect, "monster", res.hitMonster, dx, dy, dg, p, ml, luFn, bbFn, _kbWandBm, nameFn);
-            else if (res.hitPlayer) applyWandEffect(target.effect, "player", p, dx, dy, dg, p, ml, luFn, bbFn, _kbWandBm, nameFn);
-            /* 命中した杖は消滅（床に置かない） */
-          } else {
-            /* 何にも当たらなかった場合は床に残る */
-            const ft = new Set();
-            placeItemAt(dg, res.x, res.y, target, ml, ft);
-          }
-        } else if (!res.consumed) {
-          const ft = new Set();
-          placeItemAt(dg, res.x, res.y, target, ml, ft);
         }
         break;
       }
