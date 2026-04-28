@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { findRoom, spawnMonsters } from "./monsters.js";
+import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem,
@@ -2553,120 +2553,84 @@ export function useItemActions({
         const _arIsPoison = !!_arItem.poison;
         const _arIsPierce = !!_arItem.pierce;
         const _arName = _arItem.name || "矢";
-        const _arPierceMode = _arIsPierce || _isFarcast;
-        const _arMaxRange = _isCursedFc ? 1 : _arPierceMode ? 50 : 10;
-        const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
-        const _arOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050");
-        p.arrow.count--;
         const _arBaseAtk = _arItem.atk || 3;
-        let lx = p.x,
-          ly = p.y,
-          hit = false;
-        for (let d = 1; d <= _arMaxRange; d++) {
-          const tx = p.x + dx * d,
-            ty = p.y + dy * d;
-          if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-          if (!_arPierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
-          const m = monsterAt(dg, tx, ty);
-          if (m) {
-            /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す ── */
-            if (!_arPierceMode && m.subtype === "reflector") {
-              ml.push(`${_arName}が${m.name}に弾き返された！`);
-              const _arRdx = Math.sign(p.x - tx), _arRdy = Math.sign(p.y - ty);
-              let _arRx = tx, _arRy = ty;
-              let _arRHit = false;
-              for (let _ari = 1; _ari <= 20; _ari++) {
-                const _arNx = _arRx + _arRdx, _arNy = _arRy + _arRdy;
-                if (_arNx < 0 || _arNx >= MW || _arNy < 0 || _arNy >= MH) break;
-                if (dg.map[_arNy][_arNx] === T.WALL || dg.map[_arNy][_arNx] === T.BWALL) break;
-                if (_arNx === p.x && _arNy === p.y) { _arRHit = true; break; }
-                _arRx = _arNx; _arRy = _arNy;
-              }
-              const _arRToX = _arRHit ? p.x : _arRx;
-              const _arRToY = _arRHit ? p.y : _arRy;
-              if (_arRToX !== tx || _arRToY !== ty) {
-                /* 往路アニメの逆再生：同じ色・同じ距離で返す */
-                const _arRetColor = _arOutBolt?.color ?? (_arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050");
-                const _arRetFrom = _arOutBolt ? { x: _arOutBolt.toX, y: _arOutBolt.toY } : { x: tx, y: ty };
-                const _arRetTo   = _arOutBolt ? { x: _arOutBolt.fromX, y: _arOutBolt.fromY } : { x: _arRToX, y: _arRToY };
-                pushAnim({ type: "projectileReturn", fromX: _arRetFrom.x, fromY: _arRetFrom.y, toX: _arRetTo.x, toY: _arRetTo.y, color: _arRetColor });
-              }
-              if (_arRHit) {
-                const _arRefDmg = calcProjectileDmg(p, _arBaseAtk, 0);
-                p.hp -= _arRefDmg;
-                p.deathCause = `${m.name}に跳ね返された${_arName}で`;
-                if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
-                  p.poisoned = true;
-                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_arRefDmg}ダメージ！毒を受けた！`);
-                } else if (_arIsPoison) {
-                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_arRefDmg}ダメージ！しかし指輪が毒を消した！`);
-                } else {
-                  ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_arRefDmg}ダメージ！消滅した。`);
-                }
-              } else if (_arRx !== tx || _arRy !== ty) {
-                const _arRft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _arRx, _arRy, _arDropItem(), ml, _arRft));
-              }
-              lx = tx; ly = ty; hit = true; break;
+        const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
+        const _arColor = _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050";
+        p.arrow.count--;
+        const _arDropAt = (px, py, mlx) => {
+          const _ft = new Set();
+          withPitfallBag(() => placeItemAt(dg, px, py, _arDropItem(), mlx, _ft));
+        };
+        const _arEndDrop = (px, py, mlx) => {
+          if (_arIsPierce || _isCursedFc) { mlx.push(`${_arName}を射った。${_arName}は消滅した。`); return; }
+          mlx.push(`${_arName}を射った。`);
+          _arDropAt(px, py, mlx);
+        };
+        _resolveBolt(p, dg, p, ml, lu, {
+          isPlayerShooter: true,
+          dx, dy,
+          baseRange: 10,
+          pierce: _arIsPierce,
+          animColor: _arColor,
+          boltName: _arName,
+          calcMonDmg: (mon) => calcProjectileDmg(p, _arBaseAtk, mon.def),
+          calcPlDmg: () => calcProjectileDmg(p, _arBaseAtk, 0),
+          onPlHit: (mlx) => {
+            /* reflector経由でプレイヤー命中時の毒処理 */
+            if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
+              p.poisoned = true; mlx.push("毒を受けた！");
+            } else if (_arIsPoison) {
+              mlx.push("しかし指輪が毒を消した！");
             }
-            /* 矢の命中率90%（必中状態なら100%） */
+          },
+          onMonHit: (mon, mlx) => {
+            const _isFcM = getFarcastMode(p.x, p.y, dg) === "farcast";
+            /* gelcube：非貫通・非遠投なら矢を飲み込んで攻撃力上昇 */
+            if (mon.baseKind === "gelcube" && !_arIsPierce && !_isFcM) {
+              mon.heldItems = mon.heldItems || [];
+              mon.heldItems.push(_arDropItem());
+              if (!mon._gelBaseAtk) mon._gelBaseAtk = mon.atk;
+              mon._gelBoost = Math.min(10, (mon._gelBoost || 1) * 1.2);
+              mon.atk = Math.round(mon._gelBaseAtk * mon._gelBoost);
+              mlx.push(`${_arName}が${mon.name}に飲み込まれた！（攻撃力×${mon._gelBoost.toFixed(2)}→${mon.atk}）`);
+              return;
+            }
+            /* 命中率: dodge魔方陣・必中状態を考慮 */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
-            const _arDodgePcMode = getDodgePentacleMode(dg, m.x, m.y);
+            const _arDodgePcMode = getDodgePentacleMode(dg, mon.x, mon.y);
             const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (!_arSureHit && !(_arDodgePcMode === "sure") && Math.random() >= 0.90));
             if (_arMiss) {
-              if (_arDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${m.name}に矢が当たらなかった！`);
-              if (_arPierceMode) {
-                ml.push(`${_arName}は${m.name}をすり抜けた！`);
-                /* 貫通/遠投：外れても落ちずに飛び続ける */
-              } else {
-                ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
-                lx = tx; ly = ty; hit = true;
-                const _arMissItem = _arDropItem();
-                const _arft = new Set();
-                withPitfallBag(() => placeItemAt(dg, lx, ly, _arMissItem, ml, _arft));
-                const _arTrap = dg.traps.find(t => t.x === tx && t.y === ty);
-                if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
-                break;
+              if (_arDodgePcMode === "dodge") mlx.push(`みかわしの魔方陣の加護で${mon.name}に矢が当たらなかった！`);
+              if (_arIsPierce) {
+                mlx.push(`${_arName}は${mon.name}をすり抜けた！`);
+                return; /* 貫通：外れても落ちずに飛び続ける */
               }
-            } else if (m.baseKind === "gelcube" && !_arPierceMode) {
-              m.heldItems = m.heldItems || [];
-              m.heldItems.push(_arDropItem());
-              if (!m._gelBaseAtk) m._gelBaseAtk = m.atk;
-              m._gelBoost = Math.min(10, (m._gelBoost || 1) * 1.2);
-              m.atk = Math.round(m._gelBaseAtk * m._gelBoost);
-              ml.push(`${_arName}が${m.name}に飲み込まれた！（攻撃力×${m._gelBoost.toFixed(2)}→${m.atk}）`);
-              hit = true; break;
-            } else {
-              const dmg = calcProjectileDmg(p, _arBaseAtk, m.def);
-              m.hp -= dmg;
-              if (_arIsPoison) m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-              ml.push(`${_arName}が${m.name}に命中！${dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
-              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
-              if (!_arPierceMode) { hit = true; break; }
-              /* 貫通：飛び続ける */
+              mlx.push(`${_arName}は${mon.name}に外れ、足元に落ちた！`);
+              const _arMissItem = _arDropItem();
+              const _arft = new Set();
+              withPitfallBag(() => placeItemAt(dg, mon.x, mon.y, _arMissItem, mlx, _arft));
+              const _arTrap = dg.traps.find(t => t.x === mon.x && t.y === mon.y);
+              if (_arTrap) fireTrapItem(_arTrap, _arMissItem, dg, mon.x, mon.y, mlx, new Set(), p, dnameRef, lu);
+              return;
             }
-          }
-          if (!_arPierceMode) {
-            const bb = dg.bigboxes?.find((b) => b.x === tx && b.y === ty);
-            if (bb) {
-              ml.push(`${_arName}を射った。`);
-              bigboxAddItem(bb, _arDropItem(), dg, ml);
-              hit = true;
-              break;
-            }
-          }
-          lx = tx;
-          ly = ty;
-        }
-        if (_arPierceMode || _isCursedFc) {
-          ml.push(`${_arName}を射った。矢は消滅した。`);
-          hit = true;
-        }
-        if (!hit) {
-          ml.push(`${_arName}を射った。`);
-          const ft = new Set();
-          withPitfallBag(() => placeItemAt(dg, lx, ly, _arDropItem(), ml, ft));
-        }
+            /* 命中 */
+            const _dmg = calcProjectileDmg(p, _arBaseAtk, mon.def);
+            mon.hp -= _dmg;
+            if (_arIsPoison) mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+            mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
+            if (mon.hp <= 0) { trackMonster(mon); killMonster(mon, dg, p, mlx, lu); }
+          },
+          onBigbox: _arIsPierce ? null : (bb, lx, ly, mlx) => {
+            mlx.push(`${_arName}を射った。`);
+            bigboxAddItem(bb, _arDropItem(), dg, mlx);
+          },
+          onSpring: _arIsPierce ? null : (spr, lx, ly, mlx) => {
+            mlx.push(`${_arName}を射った。`);
+            soakItemIntoSpring(spr, _arDropItem(), mlx, dg, it => it.name);
+          },
+          onWallStop: _arEndDrop,
+          onFlyOff: _arEndDrop,
+        });
         if (p.arrow.count <= 0) {
           const _ex = p.arrow;
           p.arrow = null;
