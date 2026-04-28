@@ -150,29 +150,48 @@ export function findVulnPentacle(dg, x, y) {
     pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h) || null;
 }
 
+/* 部屋に座標が含まれるか（インライン版）。posRoom 既知の場合にpc座標が同部屋か判定 */
+const _inRoom = (room, x, y) => x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
+
 /* 重力の魔方陣チェック（通常/祝福）: 座標が非呪い重力ペンタクルの影響下か */
 export function hasGravityPentacle(dg, x, y) {
-  if (!dg.pentacles) return false;
-  const allRooms = [...(dg.rooms || []), ...(dg.hiddenRooms || [])];
-  return dg.pentacles.some(pc => {
-    if (pc.kind !== "gravity" || pc.cursed) return false;
+  if (!dg.pentacles?.length) return false;
+  /* 1パス目：フロア全体祝福を早期判定。通常があれば後で部屋判定 */
+  let _hasNormal = false;
+  for (const pc of dg.pentacles) {
+    if (pc.kind !== "gravity" || pc.cursed) continue;
     if (pc.blessed) return true;
-    const pcRoom = allRooms.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h);
-    const posRoom = allRooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
-    return !!(pcRoom && posRoom && pcRoom === posRoom);
-  });
+    _hasNormal = true;
+  }
+  if (!_hasNormal) return false;
+  /* 2パス目：通常ペンタクルの同部屋判定（posRoomを1度だけ計算） */
+  const allRooms = [...(dg.rooms || []), ...(dg.hiddenRooms || [])];
+  const posRoom = allRooms.find(r => _inRoom(r, x, y));
+  if (!posRoom) return false;
+  for (const pc of dg.pentacles) {
+    if (pc.kind !== "gravity" || pc.cursed || pc.blessed) continue;
+    if (_inRoom(posRoom, pc.x, pc.y)) return true;
+  }
+  return false;
 }
 
 /* 呪われた重力の魔方陣チェック: 座標が呪い重力ペンタクルの影響下か */
 export function hasCursedGravityPentacle(dg, x, y) {
-  if (!dg.pentacles) return false;
+  if (!dg.pentacles?.length) return false;
+  /* 呪い重力は同部屋判定のみ。posRoomを1度だけ計算 */
+  let _hasCursed = false;
+  for (const pc of dg.pentacles) {
+    if (pc.kind === "gravity" && pc.cursed) { _hasCursed = true; break; }
+  }
+  if (!_hasCursed) return false;
   const allRooms = [...(dg.rooms || []), ...(dg.hiddenRooms || [])];
-  return dg.pentacles.some(pc => {
-    if (pc.kind !== "gravity" || !pc.cursed) return false;
-    const pcRoom = allRooms.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h);
-    const posRoom = allRooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
-    return !!(pcRoom && posRoom && pcRoom === posRoom);
-  });
+  const posRoom = allRooms.find(r => _inRoom(r, x, y));
+  if (!posRoom) return false;
+  for (const pc of dg.pentacles) {
+    if (pc.kind !== "gravity" || !pc.cursed) continue;
+    if (_inRoom(posRoom, pc.x, pc.y)) return true;
+  }
+  return false;
 }
 
 /* みかわしの魔方陣チェック: ターゲット座標(x,y)に対するdodgeペンタクル効果。
@@ -180,14 +199,21 @@ export function hasCursedGravityPentacle(dg, x, y) {
  * 戻り値: "dodge" | "sure" | null */
 export function getDodgePentacleMode(dg, x, y) {
   if (!dg.pentacles?.length) return null;
-  const allRooms = [...(dg.rooms || []), ...(dg.hiddenRooms || [])];
+  /* 1パス目：フロア全体祝福/呪い早期判定。通常があれば後で部屋判定 */
+  let _hasNormal = false;
   for (const pc of dg.pentacles) {
     if (pc.kind !== "dodge") continue;
     if (pc.blessed) return "dodge";
     if (pc.cursed) return "sure";
-    const pcRoom = allRooms.find(r => pc.x >= r.x && pc.x < r.x + r.w && pc.y >= r.y && pc.y < r.y + r.h);
-    const posRoom = allRooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
-    if (pcRoom && posRoom && pcRoom === posRoom) return "dodge";
+    _hasNormal = true;
+  }
+  if (!_hasNormal) return null;
+  const allRooms = [...(dg.rooms || []), ...(dg.hiddenRooms || [])];
+  const posRoom = allRooms.find(r => _inRoom(r, x, y));
+  if (!posRoom) return null;
+  for (const pc of dg.pentacles) {
+    if (pc.kind !== "dodge" || pc.blessed || pc.cursed) continue;
+    if (_inRoom(posRoom, pc.x, pc.y)) return "dodge";
   }
   return null;
 }
