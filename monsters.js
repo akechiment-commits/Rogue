@@ -3049,8 +3049,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               scatterPotContents(_ibItem, dg, _lx, _ly, pl, ml, _luFn);
             } else if (_ibItem.type === "wand") {
               ml.push(`弾き返された${_ibN}がプレイヤーに当たった！`);
-              const _ibft = new Set();
-              placeItemAt(dg, _lx, _ly, _ibItem, ml, _ibft);
+              applyWandEffect(_ibItem.effect, "player", pl, -_ibdx, -_ibdy, dg, pl, ml, _luFn, null, getBlessMultiplier(_ibItem), null);
             } else {
               const _ibPDmg = Math.max(1, (_ibItem.type === "weapon" ? (_ibItem.atk || 3) + (_ibItem.plus || 0) : 3) + rng(0, 3));
               pl.hp -= _ibPDmg;
