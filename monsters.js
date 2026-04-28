@@ -1347,38 +1347,64 @@ function monsterThrowStone(m, dg, pl, ml) {
 
 /* ===== わてり：水鉄砲攻撃 ===== */
 function monsterShootWaterGun(m, dg, pl, ml) {
-  const _wgDmg = () => Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
-  _resolveMonsterBolt(m, dg, pl, ml, null, {
-    dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
-    baseRange: 8,
-    animColor: "#20c0ff",
-    fireMsg: `${m.name}が水鉄砲を撃った！`,
-    boltName: "水鉄砲",
-    deathCause: `${m.name}の水鉄砲で`,
-    calcPlDmg: _wgDmg,
-    calcMonDmg: () => _wgDmg(),
-    hitChance: 0.80,
-    applyVulnPentacle: true,
-    wakeParalyze: true,
-    onPlHit: (mlx) => {
+  const adx = pl.x - m.x, ady = pl.y - m.y;
+  const dx = Math.sign(adx), dy = Math.sign(ady);
+  const maxDist = Math.max(Math.abs(adx), Math.abs(ady));
+  ml.push(`${m.name}が水鉄砲を撃った！`);
+  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#20c0ff");
+  const miss = Math.random() < 0.20;
+  /* みかわしの魔方陣 */
+  const _wDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+  if (_wDodgePcMode === "dodge") {
+    ml.push(`みかわしの魔方陣の加護で${m.name}の水鉄砲をかわした！`);
+    return;
+  }
+  for (let d = 1; d <= maxDist; d++) {
+    const tx = m.x + dx * d, ty = m.y + dy * d;
+    if (!isWalkable(dg.map, tx, ty)) return;
+    /* 途中のモンスターに当たった場合 */
+    const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
+    if (hitMon) {
+      const dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
+      hitMon.hp -= dmg;
+      ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
+      if (hitMon.hp <= 0) { ml.push(`${hitMon.name}は倒れた！`); removeMonster(dg, hitMon); }
+      return;
+    }
+    if (tx === pl.x && ty === pl.y) {
+      if (_wDodgePcMode !== "sure" && miss) {
+        ml.push(`${m.name}の水鉄砲は外れた！`);
+        return;
+      }
+      const _wVulnPc = findVulnPentacle(dg, pl.x, pl.y);
+      let dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
+      if (_wVulnPc) dmg = _wVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_wVulnPc.blessed ? 4 : 2);
+      pl.deathCause = `${m.name}の水鉄砲で`;
+      pl.hp -= dmg;
+      ml.push(`${m.name}の水鉄砲が命中！${dmg}ダメージ！`);
+      if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+      if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       /* Lv2以上：命中時に食料を腐らせるか武器を劣化させる */
       const _wLvl = m.monLevel || 1;
       if (_wLvl >= 2 && Math.random() < 0.5) {
         const _foods = pl.inventory.filter(i => i.type === "food" && !i.rotten);
         const _canDegrade = pl.weapon && !hasAbility(pl.weapon, "no_degrade");
         if (_foods.length > 0 && (_canDegrade ? Math.random() < 0.6 : true)) {
+          /* 食料をランダムに1つ腐らせる */
           const _tf = pick(_foods);
           rotFood(_tf);
-          mlx.push(`水びたしになって${_tf.name}が腐ってしまった！`);
+          ml.push(`水びたしになって${_tf.name}が腐ってしまった！`);
         } else if (_canDegrade) {
+          /* 装備中の武器を劣化させる */
           const _op = pl.weapon.plus || 0;
           pl.weapon.plus = _op - 1;
           const _fpp = v => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;
-          mlx.push(`水びたしになって${pl.weapon.name}が錆びた！(${_fpp(_op)}→${_fpp(_op - 1)})`);
+          ml.push(`水びたしになって${pl.weapon.name}が錆びた！(${_fpp(_op)}→${_fpp(_op - 1)})`);
         }
       }
-    },
-  });
+      return;
+    }
+  }
 }
 
 /* 仮眠中のモンスターを強制覚醒させる。モンスターへの全アクションから呼ぶ */
