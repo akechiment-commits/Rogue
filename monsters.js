@@ -1454,8 +1454,8 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   const maxRange = _isCursedFc ? 1 : _passthrough ? 50 : baseRange;
 
   const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-  /* モンスター射手のみ：プレイヤーがdodge魔方陣にいたら発射前に不発 */
-  if (!isPlayerShooter && _dodgePcMode === "dodge") {
+  /* モンスター射手のみ：プレイヤーがdodge魔方陣にいたら発射前に不発（仮想射手＝hp未定義は除外） */
+  if (!isPlayerShooter && m.hp != null && _dodgePcMode === "dodge") {
     ml.push(`${m.name}が発射したが、みかわしの魔方陣の加護で${boltName}をかわした！`);
     if (onMiss) onMiss(pl.x, pl.y, ml);
     return;

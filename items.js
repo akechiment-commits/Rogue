@@ -1,6 +1,6 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle } from './utils.js';
 import { stageBigbox } from './DiscoveryTracker.js';
-import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
+import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt } from './monsters.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 import {
   RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS,
@@ -2865,6 +2865,84 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   _triggerExplosionPentacle(mx, my, dg, p, ml, luFn);
 }
 
+/* 押し出されたアイテムの軌道処理：その場所から投げられたアイテムと同等の挙動。
+ * _resolveBolt 経由で wall/reflector/spring/bigbox/trap/対象命中を統合的に扱う。
+ * 戻り値はpushEntity[item]互換: {x, y, consumed, splash?, spring?, bigbox?, hitMonster?, hitPlayer?} */
+function _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn) {
+  const _isPotion = entity.type === "potion";
+  const res = { x, y, consumed: false };
+  /* 仮想射手：押し出し起点。hp未定義なので反射時のダメージ判定はスキップされる */
+  const _shooter = { x, y, name: entity.name };
+  _resolveBolt(_shooter, dg, p, ml, luFn, {
+    dx, dy,
+    baseRange: dist,
+    boltName: entity.name,
+    calcPlDmg: () => _isPotion ? 0 : rng(3, 8),
+    calcMonDmg: () => _isPotion ? 0 : rng(3, 8),
+    onMonHit: (mon, mlx) => {
+      if (_isPotion) {
+        res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y;
+        return;
+      }
+      weakenOrClearParalysis(mon, mlx);
+      const dmg = rng(3, 8);
+      mon.hp -= dmg;
+      mlx.push(`飛んできた${entity.name}が${mon.name}に命中！${dmg}ダメージ！`);
+      if (mon.hp <= 0) {
+        const _soyMul2 = p && (p.soyExpTurns || 0) > 0 ? 1.3 : 1;
+        const _expGain2 = Math.floor(mon.exp * _soyMul2);
+        mlx.push(`${mon.name}を倒した！(+${_expGain2}exp${_soyMul2 > 1 ? " 醤油効果!" : ""})`);
+        if (p) p.exp += _expGain2;
+        monsterDrop(mon, dg, mlx, p);
+        removeMonster(dg, mon);
+        if (luFn && p) luFn(p, mlx);
+      }
+      res.consumed = true; res.hitMonster = mon; res.x = mon.x; res.y = mon.y;
+    },
+    onPlHit: (mlx) => {
+      if (_isPotion) {
+        res.consumed = true; res.splash = true; res.x = p.x; res.y = p.y;
+        return;
+      }
+      const dmg = rng(3, 8);
+      p.deathCause = `飛んできた${entity.name}に`;
+      p.hp -= dmg;
+      mlx.push(`飛んできた${entity.name}がプレイヤーに命中！${dmg}ダメージ！`);
+      res.consumed = true; res.hitPlayer = true; res.x = p.x; res.y = p.y;
+    },
+    onSpring: (spr, lx, ly) => {
+      if (_isPotion) { res.consumed = true; res.splash = true; res.x = lx; res.y = ly; return; }
+      res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;
+    },
+    onBigbox: (bb, lx, ly) => {
+      if (_isPotion) { res.consumed = true; res.splash = true; res.x = lx; res.y = ly; return; }
+      res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly;
+    },
+    onTrap: (trap, lx, ly, mlx) => {
+      if (_isPotion) {
+        res.consumed = true; res.splash = true; res.x = lx; res.y = ly;
+        return "destroyed";
+      }
+      trap.revealed = true;
+      const ft = new Set(); ft.add(trap.id);
+      const r = fireTrapItem(trap, entity, dg, lx, ly, mlx, ft, p);
+      const _entBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
+      if (trap.effect !== "explode" && !trap.permanent && Math.random() < _entBreakChance) {
+        dg.traps = dg.traps.filter(t => t !== trap);
+        mlx.push(`${trap.name}は壊れた。`);
+      }
+      if (r === "destroyed") {
+        res.consumed = true; /* 着地点は壁停止と同じく直前位置 */
+        return "destroyed";
+      }
+      res.x = lx; res.y = ly; res.consumed = false;
+    },
+    onWallStop: (lx, ly) => { res.x = lx; res.y = ly; },
+    onFlyOff: (lx, ly) => { res.x = lx; res.y = ly; },
+  });
+  return res;
+}
+
 export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0) {
   let cx = x, cy = y;
   for (let i = 0; i < dist; i++) {
@@ -2887,60 +2965,8 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
       }
     }
     if (kind === "item") {
-      if (entity.type === "potion") {
-        if (p && p.x === nx && p.y === ny) return { x:nx, y:ny, consumed:true, splash:true };
-        const mon = monsterAt(dg, nx, ny);
-        if (mon) return { x:nx, y:ny, consumed:true, splash:true };
-        const trap = dg.traps.find(t => t.x === nx && t.y === ny);
-        if (trap) return { x:nx, y:ny, consumed:true, splash:true };
-        const spr = dg.springs?.find(s => s.x === nx && s.y === ny);
-        if (spr) return { x:nx, y:ny, consumed:true, spring:spr };
-        const bbP = dg.bigboxes?.find(b => b.x === nx && b.y === ny);
-        if (bbP) return { x:nx, y:ny, consumed:true, bigbox:bbP };
-      } else {
-        if (p && p.x === nx && p.y === ny) {
-          const dmg = rng(3, 8);
-          p.deathCause = `飛んできた${entity.name}に`;
-          p.hp -= dmg;
-          ml.push(`飛んできた${entity.name}がプレイヤーに命中！${dmg}ダメージ！`);
-          return { x:nx, y:ny, consumed:true, hitPlayer:true };
-        }
-        const mon = monsterAt(dg, nx, ny);
-        if (mon) {
-          weakenOrClearParalysis(mon, ml);
-          const dmg = rng(3, 8);
-          mon.hp -= dmg;
-          ml.push(`飛んできた${entity.name}が${mon.name}に命中！${dmg}ダメージ！`);
-          if (mon.hp <= 0) {
-            const _soyMul2 = p && (p.soyExpTurns || 0) > 0 ? 1.3 : 1;
-            const _expGain2 = Math.floor(mon.exp * _soyMul2);
-            ml.push(`${mon.name}を倒した！(+${_expGain2}exp${_soyMul2 > 1 ? " 醤油効果!" : ""})`);
-            if (p) p.exp += _expGain2;
-            monsterDrop(mon, dg, ml, p);
-            removeMonster(dg, mon);
-            if (luFn && p) luFn(p, ml);
-          }
-          return { x:cx, y:cy, consumed:true, hitMonster:mon };
-        }
-        const trap = dg.traps.find(t => t.x === nx && t.y === ny);
-        if (trap) {
-          trap.revealed = true;
-          const ft = new Set();
-          ft.add(trap.id);
-          const r = fireTrapItem(trap, entity, dg, nx, ny, ml, ft, p);
-          const _entBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
-          if (trap.effect !== "explode" && !trap.permanent && Math.random() < _entBreakChance) {
-            dg.traps = dg.traps.filter(t => t !== trap);
-            ml.push(`${trap.name}は壊れた。`);
-          }
-          if (r === "destroyed") return { x:cx, y:cy, consumed:true };
-          return { x:nx, y:ny, consumed:false };
-        }
-        const sprI = dg.springs?.find(s => s.x === nx && s.y === ny);
-        if (sprI) return { x:nx, y:ny, consumed:true, spring:sprI };
-        const bbI = dg.bigboxes?.find(b => b.x === nx && b.y === ny);
-        if (bbI) return { x:nx, y:ny, consumed:true, bigbox:bbI };
-      }
+      /* item kindは _resolveBolt 経由で処理（reflector・wall stop等を統合） */
+      return _pushItemViaBolt(dg, x, y, dx, dy, dist, ml, entity, p, luFn);
     }
     if (kind === "monster") {
       /* プレイヤーとの衝突 */
