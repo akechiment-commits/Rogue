@@ -1,6 +1,6 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine } from "./items.js";
-import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim } from "./animEvents.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier } from "./utils.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom } from "./items.js";
+import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -1612,6 +1612,131 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     _lx = _tx; _ly = _ty;
   }
   if (onFlyOff) onFlyOff(_lx, _ly, ml);
+}
+
+/* ===== モンスター杖振り魔法弾の共通処理 =====
+ * 魔法弾は射程20マス（既定）の直線飛翔。命中時の効果のみが各杖で異なる。
+ * 共通処理:
+ *   - 魔封じの魔方陣で消滅
+ *   - 壁/境界で跳ね返り→射手に効果（onWallReflect）
+ *   - プレイヤー命中：反射の鎧→射手に反射（onPlayerReflect）、祝福聖域→ブロック、
+ *     statusImmune→無効、proofAbility装備→ブロック、それ以外→onPlayerHit
+ *   - モンスター命中：magicImmune→無効、magicreflect→反射（onMagicReflect）、
+ *     barrier→1回分消費、それ以外→onMonsterHit
+ *   - 大箱/アイテム/罠命中：弾道停止＋onBigbox/onItem/onTrap（指定なしなら「効果なし」メッセージ）
+ *   - 何にも当たらず：「虚空に消えた」メッセージ
+ * opts:
+ *   dx, dy: 発射方向
+ *   range: 飛距離（既定20）
+ *   boltColor: pushMonsterBoltAnimのcolor/effectキー
+ *   reflectColor: 反射の鎧アニメ用カラー
+ *   wandLabel: メッセージ用名称（例「眠り」「混乱」）
+ *   fireMsg: 開始メッセージ（例「${m.name}が眠りの杖を振った！」）
+ *   proofAbility: プレイヤー側の耐性能力ID（例 "sleep_proof"）。指定があれば自動チェック。
+ *   onPlayerHit(mlx): プレイヤー命中時の効果適用
+ *   onMonsterHit(mon, mlx): 中間モンスター命中時の効果適用
+ *   onWallReflect(mlx): 壁/境界で跳ね返って射手に効果
+ *   onMagicReflect(reflectorMon, mlx): magicreflectで射手に効果
+ *   onPlayerReflect(mlx): 反射の鎧で射手に効果
+ *   onBigbox(bb, mlx): 大箱命中時（任意）
+ *   onItem(it, mlx): アイテム命中時（任意）
+ *   onTrap(trap, mlx): 罠命中時（任意）
+ *   itemNameFn(it): 表示名関数（任意、未指定なら .name）
+ *   bbNameFn(bb): 大箱表示名関数（任意、未指定なら .name）
+ */
+export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
+  const {
+    dx, dy,
+    range = 20,
+    boltColor,
+    reflectColor,
+    wandLabel = "魔法",
+    fireMsg = null,
+    proofAbility = null,
+    onPlayerHit,
+    onMonsterHit,
+    onWallReflect,
+    onMagicReflect,
+    onPlayerReflect,
+    onBigbox = null,
+    onItem = null,
+    onTrap = null,
+    itemNameFn = (it) => it.name,
+    bbNameFn = (bb) => bb.name,
+  } = opts;
+
+  if (fireMsg) ml.push(fireMsg);
+  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, boltColor);
+
+  let _hit = false;
+  for (let _d = 1; _d < range; _d++) {
+    const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
+    /* 魔封じの魔方陣 */
+    if (inMagicSealRoom(_tx, _ty, dg)) {
+      ml.push("魔法弾が魔封じの魔方陣で消えた！");
+      _hit = true; break;
+    }
+    /* 壁/境界：跳ね返って射手に効果 */
+    if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) {
+      onWallReflect(ml);
+      _hit = true; break;
+    }
+    /* プレイヤー命中 */
+    if (_tx === pl.x && _ty === pl.y) {
+      if (hasAbility(pl.armor, "wand_reflect")) {
+        ml.push(`反射の鎧が${wandLabel}の魔法弾を反射した！`);
+        if (reflectColor) pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: reflectColor });
+        onPlayerReflect(ml);
+      } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
+        ml.push(`祝福された聖域の加護が${wandLabel}の魔法を防いだ！`);
+      } else if ((pl.statusImmune || 0) > 0) {
+        ml.push(`${wandLabel}の魔法弾を受けた！しかし状態防止中のため効かなかった！`);
+      } else if (proofAbility && hasAbility(pl.armor, proofAbility)) {
+        ml.push(`${wandLabel}の魔法弾を受けた！しかし防具が防いだ！`);
+      } else {
+        onPlayerHit(ml);
+      }
+      _hit = true; break;
+    }
+    /* モンスター命中 */
+    const _mon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty && mn !== m);
+    if (_mon) {
+      /* 魔法無効（キラープラスター等）：杖の魔法弾を完全無効化 */
+      if (_mon.magicImmune) {
+        ml.push(`魔法は${_mon.name}に効かない！`);
+      } else if (_mon.subtype === "magicreflect") {
+        ml.push(`${_mon.name}が${wandLabel}の魔法弾を反射した！`);
+        onMagicReflect(_mon, ml);
+      } else if (consumeBarrier(_mon, ml)) {
+        /* バリア術師：1回分のバリアで消滅 */
+      } else {
+        onMonsterHit(_mon, ml);
+      }
+      _hit = true; break;
+    }
+    /* 大箱：弾道停止＋カスタム効果 or「効果なし」 */
+    const _bb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
+    if (_bb) {
+      if (onBigbox) onBigbox(_bb, ml);
+      else ml.push(`${wandLabel}の魔法弾が${bbNameFn(_bb)}に命中したが効果がなかった。`);
+      _hit = true; break;
+    }
+    /* アイテム */
+    const _it = itemAt(dg, _tx, _ty);
+    if (_it) {
+      if (onItem) onItem(_it, ml);
+      else ml.push(`${wandLabel}の魔法弾が${itemNameFn(_it)}に命中したが効果がなかった。`);
+      _hit = true; break;
+    }
+    /* 罠 */
+    const _tr = dg.traps?.find(t => t.x === _tx && t.y === _ty);
+    if (_tr) {
+      if (onTrap) onTrap(_tr, ml);
+      else { _tr.revealed = true; ml.push(`${wandLabel}の魔法弾が${_tr.name}に命中したが効果がなかった。`); }
+      _hit = true; break;
+    }
+  }
+  if (!_hit) ml.push(`${wandLabel}の魔法弾は虚空に消えた。`);
 }
 
 export function monsterAI(m, dg, pl, ml, opts = {}) {
