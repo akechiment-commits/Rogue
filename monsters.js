@@ -1182,140 +1182,70 @@ function _monDropWithSpring(pos, item, dg, ml) {
 
 /* ===== MONSTER ARROW SHOT ===== */
 function monsterShootArrow(m, dg, pl, ml, opts) {
-  const adx = pl.x - m.x, ady = pl.y - m.y;
-  const dx = Math.sign(adx), dy = Math.sign(ady);
-  const maxDist = Math.max(Math.abs(adx), Math.abs(ady));
-  const miss = Math.random() < 0.25;
-  const _fcMode = getFarcastMode(pl.x, pl.y, dg);
-  const _isFc = _fcMode === "farcast";
   /* レベル別矢の種類: lv1=矢, lv2=強矢, lv3=貫きの矢 */
   const _mLv = m.monLevel || 1;
   const _isPierce = _mLv >= 3;
   const _makeAr = () => _mLv >= 3 ? makePiercingArrow(1) : _mLv >= 2 ? makeStrongArrow(1) : makeArrow(1);
   const _arName = _mLv >= 3 ? "貫きの矢" : _mLv >= 2 ? "強矢" : "矢";
-  const _travelMax = _isFc ? 50 : (_isPierce ? maxDist + 50 : maxDist);
-  ml.push(`${m.name}が${_arName}を放った！`);
-  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, _mLv >= 3 ? "#ff8844" : _mLv >= 2 ? "#ffcc44" : "#d0a050");
-  let lx = m.x, ly = m.y;
-  let _plHit = false;
-  for (let d = 1; d <= _travelMax; d++) {
-    const tx = m.x + dx * d, ty = m.y + dy * d;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-    if (!isWalkable(dg.map, tx, ty)) {
-      if (_isPierce) continue; /* 貫きの矢：壁を貫通して直進 */
-      /* arrow hits wall — drop at last valid position (avoid pentacle) */
-      const _wd = safeArrowDrop(lx, ly, dg);
-      _monDropWithSpring(_wd, _makeAr(), dg, ml);
-      return;
-    }
-    if (tx === pl.x && ty === pl.y && !_plHit) {
-      /* 祝福された聖域の魔方陣のみ矢を防ぐ（通常聖域は近接のみ） */
-      const _arSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
-      const _arDodgePc = getDodgePentacleMode(dg, pl.x, pl.y);
-      const _arForceMiss = _arDodgePc === "dodge";
-      const _arForceSure = _arDodgePc === "sure";
-      const _arMissAll = _arForceMiss || (!_arForceSure && (miss || _arSanc));
-      if (_arMissAll) {
-        if (_arSanc) {
-          /* 祝福された聖域は貫きの矢も阻む */
-          const _ad = safeArrowDrop(lx, ly, dg);
-          _monDropWithSpring(_ad, _makeAr(), dg, ml);
-          ml.push(`${m.name}の${_arName}は祝福された聖域の加護に阻まれた！${_arName}が落ちた。`);
-          return;
-        }
-        /* 聖域なしのミス：貫きの矢は落とさず飛び続ける */
-        if (!_isPierce) {
-          const _ad = safeArrowDrop(pl.x, pl.y, dg);
-          _monDropWithSpring(_ad, _makeAr(), dg, ml);
-        }
-        if (_arForceMiss) ml.push(`みかわしの魔方陣の加護で${m.name}の${_arName}をかわした！${!_isPierce ? `${_arName}が落ちた。` : ""}`);
-        else ml.push(`${m.name}の${_arName}は外れた！${!_isPierce ? `${_arName}が落ちた。` : ""}`);
-        const trap = dg.traps?.find(t => t.x === pl.x && t.y === pl.y);
-        if (trap && opts.fireTrapFn) opts.fireTrapFn(trap, pl, dg, ml);
-        if (!_isFc && !_isPierce) return;
-      } else {
-        let dmg = Math.max(1, m.atk + rng(-2, 2));
-        const _arVulnPc = findVulnPentacle(dg, pl.x, pl.y);
-        if (_arVulnPc) dmg = _arVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_arVulnPc.blessed ? 4 : 2);
-        pl.deathCause = `${m.name}の${_arName}の攻撃で`;
-        pl.hp -= dmg;
-        ml.push(`${m.name}の${_arName}が命中！${dmg}ダメージ！`);
-        if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-        if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
-        if (!_isFc && !_isPierce) return;
-        /* farcast / 貫通: arrow continues past player */
-        _plHit = true;
-        if (_isPierce) ml.push(`${_arName}は貫通して飛んでいく！`);
-        else ml.push(`矢は貫通して飛んでいく！`);
+  const _arColor = _mLv >= 3 ? "#ff8844" : _mLv >= 2 ? "#ffcc44" : "#d0a050";
+  const _maxDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+  /* 矢落下：pierceなら消滅、それ以外は地面/泉に落とす */
+  const _dropAr = (px, py, mlx) => {
+    if (_isPierce) return;
+    const _d = safeArrowDrop(px, py, dg);
+    _monDropWithSpring(_d, _makeAr(), dg, mlx);
+  };
+  _resolveMonsterBolt(m, dg, pl, ml, null, {
+    dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
+    baseRange: _maxDist,
+    animColor: _arColor,
+    fireMsg: `${m.name}が${_arName}を放った！`,
+    boltName: _arName,
+    deathCause: `${m.name}の${_arName}の攻撃で`,
+    calcPlDmg: () => Math.max(1, m.atk + rng(-2, 2)),
+    calcMonDmg: () => Math.max(1, m.atk + rng(-2, 2)),
+    hitChance: 0.75,
+    applyVulnPentacle: true,
+    wakeParalyze: true,
+    pierce: _isPierce,
+    onMiss: (px, py, mlx) => {
+      _dropAr(px, py, mlx);
+      /* 落下点が罠の場合はプレイヤーに罠発動 */
+      if (px === pl.x && py === pl.y) {
+        const _trap = dg.traps?.find(t => t.x === px && t.y === py);
+        if (_trap && opts.fireTrapFn) opts.fireTrapFn(_trap, pl, dg, mlx);
       }
-    }
-    /* intermediate monster */
-    const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
-    if (hitMon) {
-      /* reflector（ミラーゴーレム等）：矢を射手方向へ跳ね返す */
-      if (!_isPierce && hitMon.subtype === "reflector") {
-        ml.push(`${_arName}が${hitMon.name}に弾き返された！`);
-        let _rrx = tx, _rry = ty;
-        for (let _ri = 1; _ri <= 20; _ri++) {
-          const _rnx = _rrx - dx, _rny = _rry - dy;
-          if (_rnx < 0 || _rnx >= MW || _rny < 0 || _rny >= MH) break;
-          if (!isWalkable(dg.map, _rnx, _rny)) break;
-          if (_rnx === pl.x && _rny === pl.y) {
-            const _rrdmg = Math.max(1, m.atk + rng(-2, 2));
-            pl.hp -= _rrdmg;
-            pl.deathCause = `${hitMon.name}に跳ね返された${_arName}で`;
-            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_rrdmg}ダメージ！`);
-            return;
-          }
-          const _rrMon = dg.monsters.find(o => o.x === _rnx && o.y === _rny);
-          if (_rrMon) {
-            const _rrdmg = Math.max(1, m.atk + rng(-2, 2));
-            _rrMon.hp -= _rrdmg;
-            ml.push(`跳ね返された${_arName}が${_rrMon.name}に命中！${_rrdmg}ダメージ！`);
-            if (_rrMon.hp <= 0) killMonster(_rrMon, dg, pl, ml, null, false, hitMon);
-            _rrx = _rnx; _rry = _rny; break;
-          }
-          _rrx = _rnx; _rry = _rny;
-        }
-        const _rrd = safeArrowDrop(_rrx, _rry, dg);
-        _monDropWithSpring(_rrd, _makeAr(), dg, ml);
+    },
+    onMonHit: (mon, mlx) => {
+      const _isFc = getFarcastMode(pl.x, pl.y, dg) === "farcast";
+      /* gelcube：貫通/遠投以外なら矢を飲み込んで攻撃力上昇 */
+      if (mon.baseKind === "gelcube" && !_isPierce && !_isFc) {
+        mon.heldItems = mon.heldItems || [];
+        mon.heldItems.push(_makeAr());
+        if (!mon._gelBaseAtk) mon._gelBaseAtk = mon.atk;
+        mon._gelBoost = Math.min(10, (mon._gelBoost || 1) * 1.2);
+        mon.atk = Math.round(mon._gelBaseAtk * mon._gelBoost);
+        mlx.push(`${m.name}の${_arName}が${mon.name}に飲み込まれた！（攻撃力×${mon._gelBoost.toFixed(2)}→${mon.atk}）`);
         return;
       }
-      if (hitMon.baseKind === "gelcube" && !_isPierce && !_isFc) {
-        hitMon.heldItems = hitMon.heldItems || [];
-        hitMon.heldItems.push(_makeAr());
-        if (!hitMon._gelBaseAtk) hitMon._gelBaseAtk = hitMon.atk;
-        hitMon._gelBoost = Math.min(10, (hitMon._gelBoost || 1) * 1.2);
-        hitMon.atk = Math.round(hitMon._gelBaseAtk * hitMon._gelBoost);
-        ml.push(`${m.name}の${_arName}が${hitMon.name}に飲み込まれた！（攻撃力×${hitMon._gelBoost.toFixed(2)}→${hitMon.atk}）`);
-        return;
-      }
-      const dmg = Math.max(1, m.atk + rng(-2, 2));
-      hitMon.hp -= dmg;
-      ml.push(`${m.name}の${_arName}が${hitMon.name}に命中！${dmg}ダメージ！`);
-      if (hitMon.hp <= 0) {
-        ml.push(`${hitMon.name}は倒れた！`);
-        opts.monsterDropFn?.(hitMon, dg, ml);
-        removeMonster(dg, hitMon);
-        monLevelUp(m, dg, ml);
-      }
-      if (!_isFc && !_isPierce) return;
-    }
-    /* bigbox */
-    const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
-    if (bb) {
-      ml.push(`${m.name}の${_arName}が${bb.name}に当たった。`);
-      if (opts.bbFn) opts.bbFn(bb, _makeAr(), dg, ml);
-      else dg.items.push({ ..._makeAr(), x:tx, y:ty });
-      if (!_isFc && !_isPierce) return;
-    }
-    lx = tx; ly = ty;
-  }
-  /* fell through — drop at last position (貫きの矢は消滅) */
-  if (!_isPierce) {
-    const _fd = safeArrowDrop(lx, ly, dg);
-    _monDropWithSpring(_fd, _makeAr(), dg, ml);
-  }
+      wakeIfDormant(mon, mlx);
+      const _dmg = Math.max(1, m.atk + rng(-2, 2));
+      mon.hp -= _dmg;
+      mlx.push(`${m.name}の${_arName}が${mon.name}に命中！${_dmg}ダメージ！`);
+      if (mon.hp <= 0) killMonster(mon, dg, pl, mlx, null, false, m);
+    },
+    onBigbox: (bb, lx, ly, mlx) => {
+      mlx.push(`${m.name}の${_arName}が${bb.name}に当たった。`);
+      if (opts.bbFn) opts.bbFn(bb, _makeAr(), dg, mlx);
+      else dg.items.push({ ..._makeAr(), x: lx, y: ly });
+    },
+    onSpring: (spr, lx, ly, mlx) => {
+      mlx.push(`${m.name}の${_arName}が泉に落ちた！`);
+      soakItemIntoSpring(spr, { ..._makeAr(), x: lx, y: ly }, mlx, dg, it => it.name);
+    },
+    onWallStop: _dropAr,
+    onFlyOff: _dropAr,
+  });
 }
 
 /* ===== MONSTER STONE THROW (ワッカ) ===== */
