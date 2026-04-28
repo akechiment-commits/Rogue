@@ -2956,7 +2956,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         }
         /* 25%で特技発動、75%は通常攻撃 */
-        if (Math.random() >= 0.25) {
+        if (!m.alwaysUseSpecial && Math.random() >= 0.25) {
           if (m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
           return;
         }
