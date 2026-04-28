@@ -1324,25 +1324,53 @@ function monsterThrowStone(m, dg, pl, ml) {
   const isMagic = lvl >= 3;
   const hitChance = lvl >= 3 ? 0.99 : lvl >= 2 ? 0.90 : 0.75;
   const stoneName = isMagic ? "魔法の石" : "石";
-  const _makeSt = () => isMagic ? makeMagicStone(1) : makeStone(1);
-  const _dropSt = (px, py, mlx) => {
-    const _sd = safeArrowDrop(px, py, dg);
-    _monDropWithSpring(_sd, _makeSt(), dg, mlx);
-  };
-  _resolveMonsterBolt(m, dg, pl, ml, null, {
-    dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
-    baseRange: lvl >= 3 ? 10 : lvl >= 2 ? 5 : 3,
-    animColor: isMagic ? "#cc88ff" : "#aaaaaa",
-    fireMsg: `${m.name}が${stoneName}を投げた！`,
-    boltName: stoneName,
-    deathCause: `${m.name}の石投げで`,
-    calcPlDmg: () => Math.max(1, m.atk + rng(-2, 2)),
-    calcMonDmg: (mon) => Math.max(1, m.atk + rng(-2, 2)),
-    onMiss: _dropSt,
-    hitChance,
-    applyVulnPentacle: true,
-    wakeParalyze: true,
-  });
+  ml.push(`${m.name}が${stoneName}を投げた！`);
+  pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, isMagic ? "#cc88ff" : "#aaaaaa");
+
+  /* みかわしの魔方陣 */
+  const _stDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+  if (_stDodgePcMode === "dodge") {
+    ml.push(`みかわしの魔方陣の加護で${m.name}の${stoneName}をかわした！${stoneName}が落ちた。`);
+    const _sd = safeArrowDrop(pl.x, pl.y, dg);
+    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
+    return;
+  }
+
+  /* 祝福された聖域の魔方陣：飛び道具を防ぐ */
+  const _stSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
+  if (_stSanc) {
+    const _sd = safeArrowDrop(pl.x, pl.y, dg);
+    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
+    ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
+    return;
+  }
+
+  /* みかわし（防具の効果） */
+  const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+  if (dodged) {
+    ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
+    const _sd = safeArrowDrop(pl.x, pl.y, dg);
+    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
+    return;
+  }
+
+  const miss = _stDodgePcMode !== "sure" && Math.random() >= hitChance;
+  if (miss) {
+    ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
+    const _sd = safeArrowDrop(pl.x, pl.y, dg);
+    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
+    return;
+  }
+
+  /* 命中 */
+  const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
+  let dmg = Math.max(1, m.atk + rng(-2, 2));
+  if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
+  pl.deathCause = `${m.name}の石投げで`;
+  pl.hp -= dmg;
+  ml.push(`${m.name}の${stoneName}が命中！${dmg}ダメージ！`);
+  if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+  if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
 }
 
 /* ===== わてり：水鉄砲攻撃 ===== */
@@ -2508,7 +2536,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _archerRdy = m.subtype === "archer" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
       const _stLvlR = m.monLevel || 1;
       const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
-      const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
+      const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = m.baseKind === "dragon" && !m.sealed && _rAtks && _rLen >= 2 &&
@@ -2614,7 +2642,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         return;
       }
 
-      if (m.subtype === "stonethrow" && !m.sealed && inLine && m.turnAttacks < (m.maxAttacks ?? 1)) {
+      if (m.subtype === "stonethrow" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
