@@ -74,11 +74,10 @@ export default function App() {
         ].slice(0, prev.warehouseMax || 100);
         next.warehouse = sortWarehouseItems(merged);
       }
-      /* ダンジョンクリア記録 */
+      /* ダンジョンクリア記録（オブジェクトを新規生成して prev の参照を共有しない） */
       if (result.cleared) {
         const _dt = dungeonConfig?.dungeonType || "beginner";
-        if (!next.clearedDungeons) next.clearedDungeons = {};
-        next.clearedDungeons[_dt] = true;
+        next.clearedDungeons = { ...(prev.clearedDungeons || {}), [_dt]: true };
       }
       return next;
     });

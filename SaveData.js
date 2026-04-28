@@ -4,15 +4,17 @@ const SAVE_KEY = 'roguelike_hub_v1';
 export const DEFAULT_SAVE = {
   version: 1,
   hubGold: 0,
-  warehouse: [],          /* array of item objects */
-  hubInventory: [],       /* items player will carry into dungeon */
-  warehouseMax: 100,      /* current max capacity */
+  warehouse: [],            /* array of item objects */
+  hubInventory: [],         /* items player will carry into dungeon */
+  warehouseMax: 100,        /* current max capacity */
   discovered: {
-    items:    {},         /* { effectKey: { name, tile, type, count } } */
-    monsters: {},         /* { name: { name, tile, count } } */
-    traps:    {},         /* { effectKey: { name, tile, count } } */
-    bigboxes: {},         /* { kind: { name, kind, tile, count } } */
+    items:    {},           /* { effectKey: { name, tile, type, count } } */
+    monsters: {},           /* { name: { name, tile, count } } */
+    traps:    {},           /* { effectKey: { name, tile, count } } */
+    bigboxes: {},           /* { kind: { name, kind, tile, count } } */
   },
+  identifiedEffects: [],    /* 永続的に識別済みの巻物・魔法書のeffectキー（魔法のマーカー用） */
+  clearedDungeons: {},      /* { dungeonType: true } クリア済みダンジョン記録 */
   totalRuns: 0,
   bestDepth: 0,
   bestGold:  0,
@@ -34,6 +36,8 @@ export function loadSave() {
         traps:    { ...(data.discovered?.traps    || {}) },
         bigboxes: { ...(data.discovered?.bigboxes || {}) },
       },
+      identifiedEffects: [...(data.identifiedEffects || [])],
+      clearedDungeons:   { ...(data.clearedDungeons   || {}) },
     };
   } catch {
     return structuredClone(DEFAULT_SAVE);
