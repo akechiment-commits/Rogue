@@ -9,6 +9,7 @@ import {
   MONS,
   MON_LEVELS,
   _resolveBolt,
+  _resolveMonsterWandBolt,
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
@@ -794,351 +795,226 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       },
       monsterWandFn: (m, dx, dy) => {
         const _we = m.wandEffect || "lightning";
+        const _wbItemNameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+        const _wbBbNameFn = (bb) => bbDisplayName(bb, sr.current);
         if (_we === "lightning") {
           const _lBlessed = (m.monLevel || 1) >= 3;
           ml.push(_lBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
-            (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames), m, _lBlessed);
+            _wbItemNameFn, m, _lBlessed);
         } else if (_we === "curse_wand") {
-          ml.push(`${m.name}が呪いの杖を振った！`);
-          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "curse_wand");
-          /* 呪いボルトを発射（魔封じチェック・障害物チェックあり） */
-          let _cwHit = false;
-          for (let _d = 1; _d < 20; _d++) {
-            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
-            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _cwHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { m.speed = Math.max(0.25, (m.speed || 1) * 0.5); ml.push(`呪いの魔法弾が壁に跳ね返り${m.name}に命中！鈍足になった！`); _cwHit = true; break; }
-            if (_tx === pl.x && _ty === pl.y) {
-              /* 反射の鎧チェック */
-              if (hasAbility(pl.armor, "wand_reflect")) {
-                ml.push("反射の鎧が呪いの魔法弾を反射した！");
-                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#9020b0" });
-                m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
-                ml.push(`呪いが${m.name}に反射！鈍足になった！`);
-                _cwHit = true; break;
-              }
-              /* 聖域チェック */
-              if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
-                ml.push("祝福された聖域の加護が呪いを防いだ！");
-              } else {
-                /* ランダムな所持品を呪う（金貨・矢を除く） */
-                const _inv = pl.inventory.filter(i => i.type !== "gold" && i.type !== "arrow");
-                if (_inv.length === 0) {
-                  ml.push("所持品がないので呪いは無効だった。");
-                } else {
-                  const _cit = pick(_inv);
-                  const _citDN = itemDisplayName(_cit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-                  if (_cit.cursed) {
-                    ml.push(`${_citDN}は既に呪われていた！（効果なし）`);
-                  } else if (_cit.blessed) {
-                    _cit.blessed = false; _cit.bcKnown = true;
-                    ml.push(`${_citDN}の祝福が解けた！`);
-                  } else {
-                    _cit.cursed = true; _cit.bcKnown = true;
-                    ml.push(`${_citDN}が呪われた！【呪】`);
-                  }
-                }
-              }
-              _cwHit = true; break;
-            }
-            const _hm = monsterAt(dg, _tx, _ty);
-            if (_hm) {
-              if (_hm.subtype === "magicreflect") {
-                ml.push(`${_hm.name}が呪いの魔法弾を反射した！`);
-                m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
-                ml.push(`呪いが${m.name}に反射！鈍足になった！`);
-              } else {
-                _hm.speed = Math.max(0.25, (_hm.speed || 1) * 0.5);
-                ml.push(`呪いの魔法弾が${_hm.name}に命中！鈍足になった！`);
-              }
-              _cwHit = true; break;
-            }
-            const _hbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
-            if (_hbb) {
-              const _hbbDN = bbDisplayName(_hbb, sr.current);
-              const _newCap = Math.max(0, (_hbb.capacity || 1) - 1);
-              if ((_hbb.contents?.length || 0) > _newCap) {
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: "curse_wand", reflectColor: "#9020b0", wandLabel: "呪い",
+            fireMsg: `${m.name}が呪いの杖を振った！`,
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => {
+              /* ランダムな所持品を呪う（金貨・矢を除く） */
+              const _inv = pl.inventory.filter(i => i.type !== "gold" && i.type !== "arrow");
+              if (_inv.length === 0) { mlx.push("所持品がないので呪いは無効だった。"); return; }
+              const _cit = pick(_inv);
+              const _citDN = _wbItemNameFn(_cit);
+              if (_cit.cursed) mlx.push(`${_citDN}は既に呪われていた！（効果なし）`);
+              else if (_cit.blessed) { _cit.blessed = false; _cit.bcKnown = true; mlx.push(`${_citDN}の祝福が解けた！`); }
+              else { _cit.cursed = true; _cit.bcKnown = true; mlx.push(`${_citDN}が呪われた！【呪】`); }
+            },
+            onMonsterHit: (mon, mlx) => {
+              mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
+              mlx.push(`呪いの魔法弾が${mon.name}に命中！鈍足になった！`);
+            },
+            onWallReflect: (mlx) => {
+              m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
+              mlx.push(`呪いの魔法弾が壁に跳ね返り${m.name}に命中！鈍足になった！`);
+            },
+            onMagicReflect: (refl, mlx) => {
+              m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
+              mlx.push(`呪いが${m.name}に反射！鈍足になった！`);
+            },
+            onPlayerReflect: (mlx) => {
+              m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
+              mlx.push(`呪いが${m.name}に反射！鈍足になった！`);
+            },
+            onBigbox: (bb, mlx) => {
+              const _hbbDN = _wbBbNameFn(bb);
+              const _newCap = Math.max(0, (bb.capacity || 1) - 1);
+              if ((bb.contents?.length || 0) > _newCap) {
                 const _fts2 = new Set();
-                for (const _ci of (_hbb.contents || [])) placeItemAt(dg, _hbb.x, _hbb.y, _ci, ml, _fts2);
-                stageBigbox(_hbb);
-                dg.bigboxes = dg.bigboxes.filter(b => b !== _hbb);
-                ml.push(`呪いの魔法弾が${_hbbDN}に命中！容量オーバーで壊れた！中身が飛び出した！`);
+                for (const _ci of (bb.contents || [])) placeItemAt(dg, bb.x, bb.y, _ci, mlx, _fts2);
+                stageBigbox(bb);
+                dg.bigboxes = dg.bigboxes.filter(b => b !== bb);
+                mlx.push(`呪いの魔法弾が${_hbbDN}に命中！容量オーバーで壊れた！中身が飛び出した！`);
               } else {
-                _hbb.capacity = _newCap;
-                ml.push(`呪いの魔法弾が${_hbbDN}に命中！(容量-1 → ${_hbb.capacity})`);
+                bb.capacity = _newCap;
+                mlx.push(`呪いの魔法弾が${_hbbDN}に命中！(容量-1 → ${bb.capacity})`);
               }
-              _cwHit = true; break;
-            }
-            const _hit = itemAt(dg, _tx, _ty);
-            if (_hit) {
-              const _hitDN = itemDisplayName(_hit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              if (_hit.type !== "gold" && _hit.type !== "arrow") {
-                if (_hit.blessed) {
-                  _hit.blessed = false;
-                  ml.push(`呪いの魔法弾が${_hitDN}に命中！祝福が解けた！`);
-                } else if (!_hit.cursed) {
-                  _hit.cursed = true;
-                  ml.push(`呪いの魔法弾が${_hitDN}に命中！呪われた！【呪】`);
-                } else {
-                  ml.push(`呪いの魔法弾が${_hitDN}に命中！（既に呪われている）`);
-                }
-              } else {
-                ml.push(`呪いの魔法弾が${_hitDN}に命中したが効果がなかった。`);
-              }
-              _cwHit = true; break;
-            }
-            const _htr = dg.traps.find(t => t.x === _tx && t.y === _ty);
-            if (_htr) {
-              _htr.revealed = true;
-              ml.push(`呪いの魔法弾が${_htr.name}に命中！罠が露わになった！`);
-              _cwHit = true; break;
-            }
-          }
-          if (!_cwHit) ml.push("呪いの魔法弾は虚空に消えた。");
+            },
+            onItem: (it, mlx) => {
+              const _hitDN = _wbItemNameFn(it);
+              if (it.type === "gold" || it.type === "arrow") { mlx.push(`呪いの魔法弾が${_hitDN}に命中したが効果がなかった。`); return; }
+              if (it.blessed) { it.blessed = false; mlx.push(`呪いの魔法弾が${_hitDN}に命中！祝福が解けた！`); }
+              else if (!it.cursed) { it.cursed = true; mlx.push(`呪いの魔法弾が${_hitDN}に命中！呪われた！【呪】`); }
+              else mlx.push(`呪いの魔法弾が${_hitDN}に命中！（既に呪われている）`);
+            },
+            onTrap: (trap, mlx) => {
+              trap.revealed = true;
+              mlx.push(`呪いの魔法弾が${trap.name}に命中！罠が露わになった！`);
+            },
+          });
         } else if (_we === "blowback_wand") {
-          ml.push(`${m.name}が吹き飛ばしの杖を振った！`);
-          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "blowback_wand");
-          const _nameFn = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
-          let _bwHit = false;
-          for (let _d = 1; _d < 20; _d++) {
-            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
-            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _bwHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { ml.push(`吹き飛ばしの魔法弾が壁に跳ね返り${m.name}に命中！`); applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk); if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); } _bwHit = true; break; }
-            /* 罠：吹き飛ばす（プレイヤーの杖と同様） */
-            const _bwTrap = dg.traps?.find(t => t.x === _tx && t.y === _ty);
-            if (_bwTrap) {
-              _bwTrap.revealed = true;
-              applyWandEffect("knockback", "trap", _bwTrap, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
-              _bwHit = true; break;
-            }
-            /* 床アイテム：吹き飛ばす（プレイヤーの杖と同様） */
-            const _bwIt = itemAt(dg, _tx, _ty);
-            if (_bwIt) {
-              applyWandEffect("knockback", "item", _bwIt, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
-              _bwHit = true; break;
-            }
-            /* プレイヤーに命中 */
-            if (_tx === pl.x && _ty === pl.y) {
-              if (hasAbility(pl.armor, "wand_reflect")) {
-                ml.push("反射の鎧が吹き飛ばしの魔法弾を反射した！");
-                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#20e0c0" });
-                applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, pl.atk || 3);
-                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); }
-              } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
-                ml.push("祝福された聖域の加護が魔法弾を防いだ！");
-              } else if (hasGravityPentacle(dg, pl.x, pl.y)) {
-                ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！");
-              } else {
-                applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
-                if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-                if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
-              }
-              _bwHit = true; break;
-            }
-            /* 途中のモンスターに命中 */
-            const _bwMon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty);
-            if (_bwMon) {
-              if (_bwMon.subtype === "magicreflect") {
-                ml.push(`${_bwMon.name}が吹き飛ばしの魔法弾を反射した！`);
-                applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk);
-                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, ml, lu); }
-              } else {
-                applyWandEffect("knockback", "monster", _bwMon, dx, dy, dg, pl, ml, lu, bigboxAddItem, 1, _nameFn, m.atk, m);
-                if (_bwMon.hp <= 0) { trackMonster(_bwMon); killMonster(_bwMon, dg, pl, ml, lu, false, m); }
-              }
-              _bwHit = true; break;
-            }
-          }
-          if (!_bwHit) ml.push("吹き飛ばしの魔法弾は虚空に消えた。");
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: "blowback_wand", reflectColor: "#20e0c0", wandLabel: "吹き飛ばし",
+            fireMsg: `${m.name}が吹き飛ばしの杖を振った！`,
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => {
+              if (hasGravityPentacle(dg, pl.x, pl.y)) { mlx.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); return; }
+              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              if (pl.sleepTurns > 0) { pl.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
+              if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; mlx.push("衝撃で金縛りが解けた！"); }
+            },
+            onMonsterHit: (mon, mlx) => {
+              applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, m);
+              if (mon.hp <= 0) { trackMonster(mon); killMonster(mon, dg, pl, mlx, lu, false, m); }
+            },
+            onWallReflect: (mlx) => {
+              mlx.push(`吹き飛ばしの魔法弾が壁に跳ね返り${m.name}に命中！`);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, mlx, lu); }
+            },
+            onMagicReflect: (refl, mlx) => {
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, mlx, lu); }
+            },
+            onPlayerReflect: (mlx) => {
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, pl.atk || 3);
+              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, mlx, lu); }
+            },
+            onItem: (it, mlx) => {
+              applyWandEffect("knockback", "item", it, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+            },
+            onTrap: (trap, mlx) => {
+              trap.revealed = true;
+              applyWandEffect("knockback", "trap", trap, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+            },
+          });
         } else if (_we === "confuse_wand") {
-          ml.push(`${m.name}が混乱の杖を振った！`);
-          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "confuse_wand");
-          let _cfHit = false;
-          for (let _d = 1; _d < 20; _d++) {
-            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
-            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _cfHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { m.confusedTurns = (m.confusedTurns || 0) + 10; ml.push(`混乱の魔法弾が壁に跳ね返り${m.name}に命中！混乱した！(混乱${m.confusedTurns}ターン)`); _cfHit = true; break; }
-            if (_tx === pl.x && _ty === pl.y) {
-              if (hasAbility(pl.armor, "wand_reflect")) {
-                ml.push("反射の鎧が混乱の魔法弾を反射した！");
-                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#dd44ff" });
-                const _cfRefPrev = m.confusedTurns || 0;
-                m.confusedTurns = _cfRefPrev + 10;
-                ml.push(_cfRefPrev > 0
-                  ? `混乱が${m.name}に反射した！混乱が延長された！(混乱${m.confusedTurns}ターン)`
-                  : `混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
-              } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
-                ml.push("祝福された聖域の加護が混乱の魔法を防いだ！");
-              } else if ((pl.statusImmune || 0) > 0) {
-                ml.push("混乱の魔法弾を受けた！しかし状態防止中のため効かなかった！");
-              } else if (hasAbility(pl.armor, "confuse_proof")) {
-                ml.push("混乱の魔法弾を受けた！しかし防具が防いだ！(耐混乱)");
-              } else {
-                const _cfPlPrev = pl.confusedTurns || 0;
-                pl.confusedTurns = _cfPlPrev + 5;
-                ml.push(_cfPlPrev > 0
-                  ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)`
-                  : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
-              }
-              _cfHit = true; break;
-            }
-            const _cfm = monsterAt(dg, _tx, _ty);
-            if (_cfm) {
-              if (_cfm.subtype === "magicreflect") {
-                ml.push(`${_cfm.name}が混乱の魔法弾を反射した！`);
-                m.confusedTurns = (m.confusedTurns || 0) + 10;
-                ml.push(`混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
-              } else {
-                const _cfmPrev = _cfm.confusedTurns || 0;
-                _cfm.confusedTurns = _cfmPrev + 20;
-                ml.push(_cfmPrev > 0
-                  ? `混乱の魔法弾が${_cfm.name}に命中！混乱が延長された！(混乱${_cfm.confusedTurns}ターン)`
-                  : `混乱の魔法弾が${_cfm.name}に命中！混乱した！(混乱${_cfm.confusedTurns}ターン)`);
-              }
-              _cfHit = true; break;
-            }
-            const _cfbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
-            if (_cfbb) { ml.push(`混乱の魔法弾が${_cfbb.name}に命中したが効果がなかった。`); _cfHit = true; break; }
-            const _cfit = itemAt(dg, _tx, _ty);
-            if (_cfit) {
-              ml.push(`混乱の魔法弾が${itemDisplayName(_cfit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に命中したが効果がなかった。`);
-              _cfHit = true; break;
-            }
-            const _cftr = dg.traps.find(t => t.x === _tx && t.y === _ty);
-            if (_cftr) { ml.push(`混乱の魔法弾が${_cftr.name}に命中したが効果がなかった。`); _cfHit = true; break; }
-          }
-          if (!_cfHit) ml.push("混乱の魔法弾は虚空に消えた。");
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: "confuse_wand", reflectColor: "#dd44ff", wandLabel: "混乱",
+            fireMsg: `${m.name}が混乱の杖を振った！`,
+            proofAbility: "confuse_proof",
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => {
+              const _prev = pl.confusedTurns || 0;
+              pl.confusedTurns = _prev + 5;
+              mlx.push(_prev > 0 ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)` : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
+            },
+            onMonsterHit: (mon, mlx) => {
+              const _prev = mon.confusedTurns || 0;
+              mon.confusedTurns = _prev + 20;
+              mlx.push(_prev > 0 ? `混乱の魔法弾が${mon.name}に命中！混乱が延長された！(混乱${mon.confusedTurns}ターン)` : `混乱の魔法弾が${mon.name}に命中！混乱した！(混乱${mon.confusedTurns}ターン)`);
+            },
+            onWallReflect: (mlx) => {
+              m.confusedTurns = (m.confusedTurns || 0) + 10;
+              mlx.push(`混乱の魔法弾が壁に跳ね返り${m.name}に命中！混乱した！(混乱${m.confusedTurns}ターン)`);
+            },
+            onMagicReflect: (refl, mlx) => {
+              m.confusedTurns = (m.confusedTurns || 0) + 10;
+              mlx.push(`混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
+            },
+            onPlayerReflect: (mlx) => {
+              const _prev = m.confusedTurns || 0;
+              m.confusedTurns = _prev + 10;
+              mlx.push(_prev > 0 ? `混乱が${m.name}に反射した！混乱が延長された！(混乱${m.confusedTurns}ターン)` : `混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
+            },
+          });
         } else if (_we === "sleep_wand") {
-          ml.push(`${m.name}が眠りの杖を振った！`);
-          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "sleep_wand");
-          let _slHit = false;
-          for (let _d = 1; _d < 20; _d++) {
-            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
-            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _slHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { m.sleepTurns = (m.sleepTurns || 0) + 10; ml.push(`眠りの魔法弾が壁に跳ね返り${m.name}に命中！眠ってしまった！(眠り${m.sleepTurns}ターン)`); _slHit = true; break; }
-            if (_tx === pl.x && _ty === pl.y) {
-              if (hasAbility(pl.armor, "wand_reflect")) {
-                ml.push("反射の鎧が眠りの魔法弾を反射した！");
-                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#44ff88" });
-                const _slRefPrev = m.sleepTurns || 0;
-                m.sleepTurns = _slRefPrev + 10;
-                ml.push(_slRefPrev > 0
-                  ? `眠りが${m.name}に反射した！眠りが延長された！(眠り${m.sleepTurns}ターン)`
-                  : `眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
-              } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
-                ml.push("祝福された聖域の加護が眠りの魔法を防いだ！");
-              } else if ((pl.statusImmune || 0) > 0) {
-                ml.push("眠りの魔法弾を受けた！しかし状態防止中のため効かなかった！");
-              } else if (hasAbility(pl.armor, "sleep_proof")) {
-                ml.push("眠りの魔法弾を受けた！しかし防具が防いだ！(耐眠)");
-              } else {
-                const _slPlPrev = pl.sleepTurns || 0;
-                pl.sleepTurns = _slPlPrev + rng(5, 10);
-                ml.push(_slPlPrev > 0
-                  ? `眠りの魔法弾を受けた！眠りが延長された！(眠り${pl.sleepTurns}ターン)`
-                  : `眠りの魔法弾を受けた！眠ってしまった！(眠り${pl.sleepTurns}ターン)`);
-              }
-              _slHit = true; break;
-            }
-            const _slm = monsterAt(dg, _tx, _ty);
-            if (_slm) {
-              if (_slm.subtype === "magicreflect") {
-                ml.push(`${_slm.name}が眠りの魔法弾を反射した！`);
-                m.sleepTurns = (m.sleepTurns || 0) + 10;
-                ml.push(`眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
-              } else {
-                const _slmPrev = _slm.sleepTurns || 0;
-                _slm.sleepTurns = _slmPrev + 20;
-                ml.push(_slmPrev > 0
-                  ? `眠りの魔法弾が${_slm.name}に命中！眠りが延長された！(眠り${_slm.sleepTurns}ターン)`
-                  : `眠りの魔法弾が${_slm.name}に命中！眠ってしまった！(眠り${_slm.sleepTurns}ターン)`);
-              }
-              _slHit = true; break;
-            }
-            const _slbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
-            if (_slbb) { ml.push(`眠りの魔法弾が${_slbb.name}に命中したが効果がなかった。`); _slHit = true; break; }
-            const _slit = itemAt(dg, _tx, _ty);
-            if (_slit) {
-              ml.push(`眠りの魔法弾が${itemDisplayName(_slit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に命中したが効果がなかった。`);
-              _slHit = true; break;
-            }
-            const _sltr = dg.traps.find(t => t.x === _tx && t.y === _ty);
-            if (_sltr) { ml.push(`眠りの魔法弾が${_sltr.name}に命中したが効果がなかった。`); _slHit = true; break; }
-          }
-          if (!_slHit) ml.push("眠りの魔法弾は虚空に消えた。");
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: "sleep_wand", reflectColor: "#44ff88", wandLabel: "眠り",
+            fireMsg: `${m.name}が眠りの杖を振った！`,
+            proofAbility: "sleep_proof",
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => {
+              const _prev = pl.sleepTurns || 0;
+              pl.sleepTurns = _prev + rng(5, 10);
+              mlx.push(_prev > 0 ? `眠りの魔法弾を受けた！眠りが延長された！(眠り${pl.sleepTurns}ターン)` : `眠りの魔法弾を受けた！眠ってしまった！(眠り${pl.sleepTurns}ターン)`);
+            },
+            onMonsterHit: (mon, mlx) => {
+              const _prev = mon.sleepTurns || 0;
+              mon.sleepTurns = _prev + 20;
+              mlx.push(_prev > 0 ? `眠りの魔法弾が${mon.name}に命中！眠りが延長された！(眠り${mon.sleepTurns}ターン)` : `眠りの魔法弾が${mon.name}に命中！眠ってしまった！(眠り${mon.sleepTurns}ターン)`);
+            },
+            onWallReflect: (mlx) => {
+              m.sleepTurns = (m.sleepTurns || 0) + 10;
+              mlx.push(`眠りの魔法弾が壁に跳ね返り${m.name}に命中！眠ってしまった！(眠り${m.sleepTurns}ターン)`);
+            },
+            onMagicReflect: (refl, mlx) => {
+              m.sleepTurns = (m.sleepTurns || 0) + 10;
+              mlx.push(`眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
+            },
+            onPlayerReflect: (mlx) => {
+              const _prev = m.sleepTurns || 0;
+              m.sleepTurns = _prev + 10;
+              mlx.push(_prev > 0 ? `眠りが${m.name}に反射した！眠りが延長された！(眠り${m.sleepTurns}ターン)` : `眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
+            },
+          });
         } else if (_we === "teleport_wand") {
-          ml.push(`${m.name}がテレポートの杖を振った！`);
-          pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "teleport_wand");
           const _tpRand = (exX, exY) =>
             randomTeleportDest(dg, exX, exY, (x, y) =>
               !dg.monsters.some(o => o.x === x && o.y === y) &&
               !(x === pl.x && y === pl.y));
-          let _tpHit = false;
-          for (let _d = 1; _d < 20; _d++) {
-            const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
-            if (inMagicSealRoom(_tx, _ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); _tpHit = true; break; }
-            if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) { const _tpW = _tpRand(m.x, m.y); if (_tpW) { m.x = _tpW.x; m.y = _tpW.y; ml.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中！どこかへテレポートした！`); } else ml.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中したが失敗した！`); _tpHit = true; break; }
-            if (_tx === pl.x && _ty === pl.y) {
-              if (hasAbility(pl.armor, "wand_reflect")) {
-                ml.push("反射の鎧がテレポートの魔法弾を反射した！");
-                pushAnim({ type: "monProjectileReturn", fromX: pl.x, fromY: pl.y, toX: m.x, toY: m.y, color: "#ff9900" });
-                const _rp = _tpRand(m.x, m.y);
-                if (_rp) { m.x = _rp.x; m.y = _rp.y; ml.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
-              } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
-                ml.push("祝福された聖域の加護がテレポートの魔法を防いだ！");
-              } else if (dg.pentacles?.some(pc => pc.kind === "teleport" && pc.cursed)) {
-                ml.push("呪われたテレポートの魔方陣がテレポートを阻んだ！");
-              } else {
-                const _rp2 = _tpRand(pl.x, pl.y);
-                if (_rp2) { pl.x = _rp2.x; pl.y = _rp2.y; ml.push("テレポートの魔法弾を受けた！どこかへテレポートした！"); }
-                else ml.push("テレポートに失敗した。");
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: "teleport_wand", reflectColor: "#ff9900", wandLabel: "テレポート",
+            fireMsg: `${m.name}がテレポートの杖を振った！`,
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => {
+              if (dg.pentacles?.some(pc => pc.kind === "teleport" && pc.cursed)) {
+                mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
               }
-              _tpHit = true; break;
-            }
-            const _tpm = monsterAt(dg, _tx, _ty);
-            if (_tpm) {
-              if (_tpm.subtype === "magicreflect") {
-                ml.push(`${_tpm.name}がテレポートの魔法弾を反射した！`);
-                const _tpWr = _tpRand(m.x, m.y);
-                if (_tpWr) { m.x = _tpWr.x; m.y = _tpWr.y; ml.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
-              } else {
-                const _rp3 = _tpRand(_tpm.x, _tpm.y);
-                if (_rp3) { _tpm.x = _rp3.x; _tpm.y = _rp3.y; ml.push(`テレポートの魔法弾が${_tpm.name}に命中！どこかへテレポートした！`); }
-              }
-              _tpHit = true; break;
-            }
-            const _tpbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
-            if (_tpbb) {
-              const _tpbbPts = [];
+              const _rp = _tpRand(pl.x, pl.y);
+              if (_rp) { pl.x = _rp.x; pl.y = _rp.y; mlx.push("テレポートの魔法弾を受けた！どこかへテレポートした！"); }
+              else mlx.push("テレポートに失敗した。");
+            },
+            onMonsterHit: (mon, mlx) => {
+              const _rp = _tpRand(mon.x, mon.y);
+              if (_rp) { mon.x = _rp.x; mon.y = _rp.y; mlx.push(`テレポートの魔法弾が${mon.name}に命中！どこかへテレポートした！`); }
+              else mlx.push("テレポートに失敗した。");
+            },
+            onWallReflect: (mlx) => {
+              const _rp = _tpRand(m.x, m.y);
+              if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中！どこかへテレポートした！`); }
+              else mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中したが失敗した！`);
+            },
+            onMagicReflect: (refl, mlx) => {
+              const _rp = _tpRand(m.x, m.y);
+              if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
+            },
+            onPlayerReflect: (mlx) => {
+              const _rp = _tpRand(m.x, m.y);
+              if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
+            },
+            onBigbox: (bb, mlx) => {
+              /* 大箱はランダム空マスへ（プレイヤー隣接除外なし、独自ロジック） */
+              const _bbPts = [];
               for (let _fy = 1; _fy < MH - 1; _fy++) for (let _fx = 1; _fx < MW - 1; _fx++) {
                 if (dg.map[_fy][_fx] === T.FLOOR &&
                     !dg.monsters.some(o => o.x === _fx && o.y === _fy) &&
-                    !dg.bigboxes.some(b => b !== _tpbb && b.x === _fx && b.y === _fy) &&
-                    !(_fx === pl.x && _fy === pl.y) && !(_fx === _tpbb.x && _fy === _tpbb.y))
-                  _tpbbPts.push({ x: _fx, y: _fy });
+                    !dg.bigboxes.some(b => b !== bb && b.x === _fx && b.y === _fy) &&
+                    !(_fx === pl.x && _fy === pl.y) && !(_fx === bb.x && _fy === bb.y))
+                  _bbPts.push({ x: _fx, y: _fy });
               }
-              const _rp4 = _tpbbPts.length > 0 ? pick(_tpbbPts) : null;
-              if (_rp4) { _tpbb.x = _rp4.x; _tpbb.y = _rp4.y; ml.push(`テレポートの魔法弾が${_tpbb.name}に命中！どこかへテレポートした！`); }
-              else ml.push("テレポートに失敗した。");
-              _tpHit = true; break;
-            }
-            const _tpit = itemAt(dg, _tx, _ty);
-            if (_tpit) {
-              const _tpitDN = itemDisplayName(_tpit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              const _rp5 = _tpRand(_tpit.x, _tpit.y);
-              if (_rp5) { _tpit.x = _rp5.x; _tpit.y = _rp5.y; ml.push(`テレポートの魔法弾が${_tpitDN}に命中！どこかへテレポートした！`); }
-              else ml.push("テレポートに失敗した。");
-              _tpHit = true; break;
-            }
-            const _tptr = dg.traps.find(t => t.x === _tx && t.y === _ty);
-            if (_tptr) {
-              const _rp6 = _tpRand(_tptr.x, _tptr.y);
-              if (_rp6) { _tptr.x = _rp6.x; _tptr.y = _rp6.y; _tptr.revealed = false; ml.push(`テレポートの魔法弾が${_tptr.name}に命中！罠がどこかへテレポートした！`); }
-              else ml.push("テレポートに失敗した。");
-              _tpHit = true; break;
-            }
-          }
-          if (!_tpHit) ml.push("テレポートの魔法弾は虚空に消えた。");
+              const _rp = _bbPts.length > 0 ? pick(_bbPts) : null;
+              if (_rp) { bb.x = _rp.x; bb.y = _rp.y; mlx.push(`テレポートの魔法弾が${_wbBbNameFn(bb)}に命中！どこかへテレポートした！`); }
+              else mlx.push("テレポートに失敗した。");
+            },
+            onItem: (it, mlx) => {
+              const _rp = _tpRand(it.x, it.y);
+              if (_rp) { it.x = _rp.x; it.y = _rp.y; mlx.push(`テレポートの魔法弾が${_wbItemNameFn(it)}に命中！どこかへテレポートした！`); }
+              else mlx.push("テレポートに失敗した。");
+            },
+            onTrap: (trap, mlx) => {
+              const _rp = _tpRand(trap.x, trap.y);
+              if (_rp) { trap.x = _rp.x; trap.y = _rp.y; trap.revealed = false; mlx.push(`テレポートの魔法弾が${trap.name}に命中！罠がどこかへテレポートした！`); }
+              else mlx.push("テレポートに失敗した。");
+            },
+          });
         }
       },
       monsterDropFn: (m, dg2, ml2) => monsterDrop(m, dg2, ml2, pl),
