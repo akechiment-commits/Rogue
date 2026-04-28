@@ -2935,6 +2935,24 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       const dmg = _isPot ? _potDmg() : _projDmg();
       mon.hp -= dmg;
       mlx.push(_isPot ? potHitMsg(mon, dmg) : monHitMsg(mon, dmg));
+      /* ヤバイ食料：追加ダメ+状態異常複合 */
+      if (item.type === "food" && item.yabai && mon.hp > 0) {
+        const _yDmg = rng(15, 25);
+        mon.hp -= _yDmg;
+        mlx.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
+        if (mon.hp > 0) {
+          mon.poisoned = true;
+          mon.confusedTurns = (mon.confusedTurns || 0) + 5;
+          mon.fleeingTurns = (mon.fleeingTurns || 0) + 10;
+          mon.slowTurns = (mon.slowTurns || 0) + 10;
+          mlx.push(`${mon.name}は毒・混乱・幻惑・鈍足状態になった！`);
+        }
+      }
+      /* 腐/焦げ食料（非ヤバイ）：攻撃力半減 */
+      if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && mon.hp > 0) {
+        mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+        mlx.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
+      }
       if (mon.hp <= 0) killMonster(mon, dg, p, mlx, luFn, false, killerMon);
       res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
     },
@@ -2954,6 +2972,29 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       p.hp -= dmg;
       mlx.push(_isPot ? potPlHitMsg(dmg) : plHitMsg(dmg));
       if (p.sleepTurns > 0) { p.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
+      /* ヤバイ食料：追加ダメ+状態異常複合 */
+      if (item.type === "food" && item.yabai) {
+        const _yDmg = rng(15, 25);
+        p.hp -= _yDmg;
+        p.deathCause = "跳ね返されたヤバイ食料に当たって";
+        mlx.push(`ヤバイ食料がぶつかって食べさせられた！さらに${_yDmg}ダメージ！`);
+        if (hasRingEffect(p, "antidote_ring")) {
+          mlx.push("毒消しの指輪が毒を防いだ！");
+        } else {
+          p.poisoned = true;
+          mlx.push("食中毒になった！毒状態になった！");
+        }
+        p.confusedTurns = (p.confusedTurns || 0) + 5;
+        p.slowTurns = (p.slowTurns || 0) + 10;
+        mlx.push("混乱・鈍足状態になった！");
+      } else if (item.type === "food" && item.rotten && !item.yabai) {
+        if (hasRingEffect(p, "antidote_ring")) {
+          mlx.push("毒消しの指輪が毒を防いだ！");
+        } else {
+          p.poisoned = true;
+          mlx.push("腐った食料がぶつかった！毒状態になった！");
+        }
+      }
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
     },
     onSpring: (spr, lx, ly, mlx) => {
