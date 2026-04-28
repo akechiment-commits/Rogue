@@ -8,6 +8,7 @@ import {
   wakeIfDormant,
   MONS,
   MON_LEVELS,
+  _resolveBolt,
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
@@ -2881,73 +2882,54 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   } else {
                     const _isPierce = !!_srAr.pierce;
                     const _isPoison = !!_srAr.poison;
-                    const _pierceMode = _isPierce || _srFarcast;
                     const _arColor = _isPoison ? "#60d060" : _isPierce ? "#ff8844" : "#d0a050";
                     const _dropFn = () => _isPierce ? makePiercingArrow(1) : _isPoison ? makePoisonArrow(1) : makeArrow(1);
-                    pushBoltAnim(p.x, p.y, dx, dy, dg, _arColor);
-                    const _arMaxR = _srCursedFc ? 1 : _pierceMode ? 50 : 10;
-                    let _srLx = p.x, _srLy = p.y, _srHit = false;
-                    for (let _srd = 1; _srd <= _arMaxR; _srd++) {
-                      const _srtx = p.x + dx * _srd, _srty = p.y + dy * _srd;
-                      if (_srtx < 0 || _srtx >= MW || _srty < 0 || _srty >= MH) break;
-                      if (!_pierceMode && (dg.map[_srty][_srtx] === T.WALL || dg.map[_srty][_srtx] === T.BWALL)) break;
-                      const _srm = monsterAt(dg, _srtx, _srty);
-                      if (_srm) {
-                        if (!_pierceMode && _srm.subtype === "reflector") {
-                          ml.push(`${_arName}が${_srm.name}に弾き返された！`);
-                          const _srRdx = Math.sign(p.x - _srtx), _srRdy = Math.sign(p.y - _srty);
-                          let _srRx = _srtx, _srRy = _srty, _srRHit = false;
-                          for (let _srri = 1; _srri <= 20; _srri++) {
-                            const _srNx = _srRx + _srRdx, _srNy = _srRy + _srRdy;
-                            if (_srNx < 0 || _srNx >= MW || _srNy < 0 || _srNy >= MH) break;
-                            if (dg.map[_srNy][_srNx] === T.WALL || dg.map[_srNy][_srNx] === T.BWALL) break;
-                            if (_srNx === p.x && _srNy === p.y) { _srRHit = true; break; }
-                            _srRx = _srNx; _srRy = _srNy;
-                          }
-                          if (_srRHit) {
-                            const _srRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
-                            p.hp -= _srRefDmg;
-                            p.deathCause = `${_srm.name}に跳ね返された${_arName}で`;
-                            if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
-                              p.poisoned = true;
-                              ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_srRefDmg}ダメージ！毒を受けた！`);
-                            } else {
-                              ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_srRefDmg}ダメージ！消滅した。`);
-                            }
-                          } else if (_srRx !== _srtx || _srRy !== _srty) {
-                            const _srRft = new Set(); placeItemAt(dg, _srRx, _srRy, _dropFn(), ml, _srRft);
-                          }
-                          _srHit = true; break;
-                        } else if (!_pierceMode && Math.random() >= 0.75) {
-                          ml.push(`【射撃の指輪】${_arName}は${_srm.name}に外れた！`);
-                          const _mft = new Set(); placeItemAt(dg, _srtx, _srty, _dropFn(), ml, _mft);
-                        } else {
-                          const _srDmg = clampDmgFixed(_srm, calcProjectileDmg(p, _srAr.atk || 3, _srm.def), true);
-                          _srm.hp -= _srDmg;
-                          if (_srm.type === "shopkeeper" && _srm.state !== "hostile") { _srm.state = "hostile"; ml.push("店主が怒った！"); }
-                          if (_isPoison) {
-                            if (_srm.isBoss) {
-                              if (!_srm.bossPoisonHalfAtk) { _srm.bossPoisonOrigAtk = _srm.atk; _srm.bossPoisonHalfAtk = true; _srm.bossPoisonHalfAtkTurns = 10; }
-                              _srm.atk = Math.max(1, Math.floor(_srm.atk / 2));
-                            } else {
-                              _srm.atk = Math.max(1, Math.floor((_srm.atk || 1) / 2));
-                            }
-                          }
-                          ml.push(`【射撃の指輪】${_arName}が${_srm.name}に命中！${_srDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
-                          _ad.damages.push({ type: "damage", x: _srm.x, y: _srm.y, value: _srDmg, color: _arColor });
-                          if (_srm.hp <= 0) { _ad.damages.push({ type: "flash", x: _srm.x, y: _srm.y, color: "#ff2200", duration: 150 }); killMonster(_srm, dg, p, ml, lu, false); }
+                    const _srBaseAtk = _srAr.atk || 3;
+                    const _arEndDrop = (lx, ly, mlx) => {
+                      if (_srFarcast || _srCursedFc) { mlx.push(`【射撃の指輪】${_arName}は消滅した。`); return; }
+                      mlx.push(`【射撃の指輪】${_arName}を発射した。`);
+                      const _ft = new Set(); placeItemAt(dg, lx, ly, _dropFn(), mlx, _ft);
+                    };
+                    _resolveBolt(p, dg, p, ml, lu, {
+                      isPlayerShooter: true,
+                      dx, dy,
+                      baseRange: 10,
+                      pierce: _isPierce,
+                      animColor: _arColor,
+                      boltName: _arName,
+                      calcMonDmg: (mon) => clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true),
+                      calcPlDmg: () => calcProjectileDmg(p, _srBaseAtk, 0),
+                      onPlHit: (mlx) => {
+                        if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
+                          p.poisoned = true; mlx.push("毒を受けた！");
                         }
-                        _srHit = true;
-                        if (!_pierceMode) break;
-                      }
-                      _srLx = _srtx; _srLy = _srty;
-                    }
-                    if (_srFarcast || _srCursedFc) {
-                      ml.push(`【射撃の指輪】${_arName}は消滅した。`);
-                    } else if (!_srHit) {
-                      ml.push(`【射撃の指輪】${_arName}を発射した。`);
-                      const _srft = new Set(); placeItemAt(dg, _srLx, _srLy, _dropFn(), ml, _srft);
-                    }
+                      },
+                      onMonHit: (mon, mlx) => {
+                        /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
+                        if (Math.random() >= 0.75) {
+                          if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
+                          mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
+                          const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _dropFn(), mlx, _mft);
+                          return;
+                        }
+                        const _srDmg = clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true);
+                        mon.hp -= _srDmg;
+                        if (mon.type === "shopkeeper" && mon.state !== "hostile") { mon.state = "hostile"; mlx.push("店主が怒った！"); }
+                        if (_isPoison) {
+                          if (mon.isBoss) {
+                            if (!mon.bossPoisonHalfAtk) { mon.bossPoisonOrigAtk = mon.atk; mon.bossPoisonHalfAtk = true; mon.bossPoisonHalfAtkTurns = 10; }
+                            mon.atk = Math.max(1, Math.floor(mon.atk / 2));
+                          } else {
+                            mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+                          }
+                        }
+                        mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
+                        _ad.damages.push({ type: "damage", x: mon.x, y: mon.y, value: _srDmg, color: _arColor });
+                        if (mon.hp <= 0) { _ad.damages.push({ type: "flash", x: mon.x, y: mon.y, color: "#ff2200", duration: 150 }); killMonster(mon, dg, p, mlx, lu, false); }
+                      },
+                      onWallStop: _arEndDrop,
+                      onFlyOff: _arEndDrop,
+                    });
                   }
                   if (p.arrow && p.arrow.count <= 0) {
                     p.inventory = p.inventory.filter(i => i !== _srAr);
