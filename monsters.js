@@ -1407,6 +1407,9 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * wakeParalyze: 命中時に金縛りを解除するか
  * pierce: trueなら壁・敵・プレイヤー・大箱・泉を貫通して飛び続ける（farcastと同等の挙動）
  * reflectorRange: reflector反射時の最大飛距離（デフォルト20）
+ * customPlHit(ml, isReflected, reflectorMon): プレイヤー命中時のカスタム処理。指定するとデフォルトの
+ *   ダメージ計算・deathCause・メッセージ・sleep解除をスキップして全てカスタム実装に委ねる。
+ *   壺投げで割れて中身散乱、杖の効果発動など、ダメージ以外の処理を行いたい場合に使う。
  * onBigbox(bb, lx, ly, ml): 大箱命中時のコールバック（矢を大箱に入れる等）。
  *   未指定なら大箱を素通り（シオン銃弾など、アイテムでない弾向け）。
  *   pierce/farcastでない場合はbigboxで弾道終了（onBigbox指定時のみ）。
@@ -1499,16 +1502,21 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onMiss) onMiss(_tx, _ty, ml);
         if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
       }
-      let _dmg = calcPlDmg();
-      if (applyVulnPentacle) {
-        const _vp = findVulnPentacle(dg, pl.x, pl.y);
-        if (_vp) _dmg = _vp.cursed ? Math.max(1, Math.floor(_dmg / 2)) : _dmg * (_vp.blessed ? 4 : 2);
+      if (customPlHit) {
+        /* customPlHit: ダメージ・メッセージ・deathCauseを完全カスタム（壺投げで割れて中身散乱、杖で効果発動など） */
+        customPlHit(ml, false, null);
+      } else {
+        let _dmg = calcPlDmg();
+        if (applyVulnPentacle) {
+          const _vp = findVulnPentacle(dg, pl.x, pl.y);
+          if (_vp) _dmg = _vp.cursed ? Math.max(1, Math.floor(_dmg / 2)) : _dmg * (_vp.blessed ? 4 : 2);
+        }
+        pl.hp -= _dmg;
+        pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
+        ml.push(`${_shooterPrefix}${boltName}が命中！${_dmg}ダメージ！`);
+        if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+        if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       }
-      pl.hp -= _dmg;
-      pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
-      ml.push(`${_shooterPrefix}${boltName}が命中！${_dmg}ダメージ！`);
-      if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-      if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       if (onPlHit) onPlHit(ml);
       if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
     }
@@ -1524,16 +1532,20 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           const _rtile = dg.map[_rny]?.[_rnx];
           if (_rtile === T.WALL || _rtile === T.BWALL) break;
           if (_rnx === pl.x && _rny === pl.y) {
-            let _rrdmg = calcPlDmg();
-            if (applyVulnPentacle) {
-              const _vp = findVulnPentacle(dg, pl.x, pl.y);
-              if (_vp) _rrdmg = _vp.cursed ? Math.max(1, Math.floor(_rrdmg / 2)) : _rrdmg * (_vp.blessed ? 4 : 2);
+            if (customPlHit) {
+              customPlHit(ml, true, _mon);
+            } else {
+              let _rrdmg = calcPlDmg();
+              if (applyVulnPentacle) {
+                const _vp = findVulnPentacle(dg, pl.x, pl.y);
+                if (_vp) _rrdmg = _vp.cursed ? Math.max(1, Math.floor(_rrdmg / 2)) : _rrdmg * (_vp.blessed ? 4 : 2);
+              }
+              pl.hp -= _rrdmg;
+              pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
+              ml.push(`跳ね返された${boltName}がプレイヤーに命中！${_rrdmg}ダメージ！`);
+              if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+              if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             }
-            pl.hp -= _rrdmg;
-            pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
-            ml.push(`跳ね返された${boltName}がプレイヤーに命中！${_rrdmg}ダメージ！`);
-            if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-            if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             if (onPlHit) onPlHit(ml);
             return; /* プレイヤー命中時は弾消滅（onFlyOff呼ばない） */
           }
