@@ -144,13 +144,19 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     if (eff === "knockback") {
+      const _bbBlessed = blMult > 1;
+      const _bbMaxDist = _bbBlessed ? 100 : 10; /* 通常10マス、祝福は実質無限（壁/敵まで飛ぶ） */
       let bbx = target.x, bby = target.y, bbroke = false;
-      for (let i = 0; i < 5; i++) {
+      let _bbHitMon = null;
+      for (let i = 0; i < _bbMaxDist; i++) {
         const nx = bbx + dx, ny = bby + dy;
         if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
           bbroke = true; break;
         }
-        // アイテム・罠・泉・魔方陣・階段と重ならないよう手前で止まる
+        /* 敵に激突：大ダメージ＋箱破壊 */
+        const _hm = monsterAt(dg, nx, ny);
+        if (_hm) { _bbHitMon = _hm; bbroke = true; break; }
+        /* アイテム・罠・泉・魔方陣・階段と重ならないよう手前で止まる */
         if (dg.map[ny][nx] === T.SD || dg.map[ny][nx] === T.SU ||
             dg.items.some(i => i.x === nx && i.y === ny) ||
             dg.traps.some(t => t.x === nx && t.y === ny) ||
@@ -160,7 +166,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (bbroke) {
         dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
-        if (target.contents?.length > 0) {
+        if (_bbHitMon) {
+          const _bbDmg = rng(20, 40);
+          _bbHitMon.hp -= _bbDmg;
+          ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
+          if (_bbHitMon.hp <= 0) killMonster(_bbHitMon, dg, p, ml, luFn);
+          if (target.contents?.length > 0) {
+            const fts = new Set();
+            for (const ci of target.contents) placeItemAt(dg, bbx, bby, ci, ml, fts);
+            ml.push("中身が飛び出した！");
+          }
+        } else if (target.contents?.length > 0) {
           const fts = new Set();
           for (const ci of target.contents) placeItemAt(dg, bbx, bby, ci, ml, fts);
           ml.push(`${target.name}は壁に叩きつけられて壊れた！中身が飛び出した！`);
