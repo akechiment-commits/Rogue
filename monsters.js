@@ -1502,6 +1502,7 @@ function _resolveMonsterBolt(m, dg, pl, ml, luFn, opts) {
   const _dodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
   if (_dodgePcMode === "dodge") {
     ml.push(`${m.name}が発射したが、みかわしの魔方陣の加護で${boltName}をかわした！`);
+    if (onMiss) onMiss(pl.x, pl.y, ml);
     return;
   }
 
