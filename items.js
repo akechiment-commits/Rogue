@@ -2891,6 +2891,15 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     plHitMsg = (dmg) => `飛んできた${nameFn(item)}がプレイヤーに命中！${dmg}ダメージ！`,
     potHitMsg = (target, dmg) => `飛んできた${nameFn(item)}が${target.name}に当たって割れた！${dmg}ダメージ！`,
     potPlHitMsg = (dmg) => `飛んできた${nameFn(item)}がプレイヤーに当たって割れた！${dmg}ダメージ！`,
+    /* 薬瓶/杖の命中前置きメッセージ（splash/applyWandの前に push される） */
+    potionHitMsg = null,         /* (target) => string|null */
+    potionPlHitMsg = null,       /* () => string|null */
+    wandHitMsg = null,           /* (target) => string|null */
+    wandPlHitMsg = null,         /* () => string|null */
+    /* 着弾位置別メッセージ（指定があれば push） */
+    springLandMsg = null,        /* (spr, lx, ly) => string|null */
+    bigboxLandMsg = null,        /* (bb, lx, ly) => string|null */
+    noHitLandMsg = null,         /* (lx, ly, item) => string|null（壁/末端で何にも当たらず着地時） */
     deathCausePhrase = `飛んできた${item.name}に`,
   } = opts;
 
@@ -2913,11 +2922,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     animColor,
     onMonHit: (mon, mlx) => {
       if (_isPotion) {
+        if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
         res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
         return;
       }
       if (_isWand) {
-        /* 杖は命中位置で効果発動（post-processで処理） */
+        if (wandHitMsg) { const _m = wandHitMsg(mon); if (_m) mlx.push(_m); }
         res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
         return;
       }
@@ -2930,10 +2940,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     },
     customPlHit: (mlx) => {
       if (_isPotion) {
+        if (potionPlHitMsg) { const _m = potionPlHitMsg(); if (_m) mlx.push(_m); }
         res.consumed = true; res.splash = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
         return;
       }
       if (_isWand) {
+        if (wandPlHitMsg) { const _m = wandPlHitMsg(); if (_m) mlx.push(_m); }
         res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
         return;
       }
@@ -2944,8 +2956,14 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       if (p.sleepTurns > 0) { p.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
     },
-    onSpring: (spr, lx, ly) => { res.consumed = true; res.spring = spr; res.x = lx; res.y = ly; },
-    onBigbox: (bb, lx, ly) => { res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly; },
+    onSpring: (spr, lx, ly, mlx) => {
+      if (springLandMsg) { const _m = springLandMsg(spr, lx, ly); if (_m) mlx.push(_m); }
+      res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;
+    },
+    onBigbox: (bb, lx, ly, mlx) => {
+      if (bigboxLandMsg) { const _m = bigboxLandMsg(bb, lx, ly); if (_m) mlx.push(_m); }
+      res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly;
+    },
     onTrap: (trap, lx, ly, mlx) => {
       if (_isPotion) {
         res.consumed = true; res.splash = true; res.x = lx; res.y = ly;
@@ -2967,14 +2985,18 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   });
 
   /* 着弾後のアイテム種別ごとの処理 */
+  /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
+  const _noHit = !res.spring && !res.bigbox && !res.hitMonster && !res.hitPlayer;
   if (res.spring) {
     soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
   } else if (res.bigbox) {
     if (bbFn) bbFn(res.bigbox, item, dg, ml);
     else { const ft = new Set(); placeItemAt(dg, res.x, res.y, item, ml, ft); }
   } else if (_isPotion) {
+    if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
     splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);
   } else if (_isPot) {
+    if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
     scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn);
   } else if (_isWand) {
     if ((res.hitMonster || res.hitPlayer) && applyWandFn) {
@@ -2982,10 +3004,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       if (res.hitMonster) applyWandFn(item.effect, "monster", res.hitMonster, dx, dy, dg, p, ml, luFn, bbFn, wbm, nameFn);
       else if (res.hitPlayer) applyWandFn(item.effect, "player", p, dx, dy, dg, p, ml, luFn, bbFn, wbm, nameFn);
     } else {
+      if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
       const ft = new Set();
       placeItemAt(dg, res.x, res.y, item, ml, ft);
     }
   } else if (!res.consumed) {
+    if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
     const ft = new Set();
     placeItemAt(dg, res.x, res.y, item, ml, ft);
   }
