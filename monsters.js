@@ -1722,7 +1722,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < (m.maxAttacks ?? 1)) {
       _resolveMonsterBolt(m, dg, pl, ml, _luFn, {
         dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
-        baseRange: 10, isMagic: false, animColor: "#111111",
+        baseRange: 10, animColor: "#111111",
         fireMsg: `${m.name}が銃撃した！`, boltName: "銃弾",
         deathCause: `${m.name}の銃撃で`,
         calcPlDmg: () => Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3)),
