@@ -1482,7 +1482,7 @@ function genBossFloor(depth, dungeonType = null) {
       case "im_boss_salamander": return [{ bk: "skeleton", lv: 1 }, { bk: "skeleton", lv: 1 }];
       case "im_boss_titan":      return [{ bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }];
       case "im_boss_kraken":     return [{ bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }];
-      case "im_boss_twohead":    return [{ bk: "monsterthrow", lv: 1 }, { bk: "monsterthrow", lv: 1 }, { bk: "disarmer", lv: 1 }, { bk: "disarmer", lv: 1 }];
+      case "im_boss_twohead":    return [{ bk: "monsterthrow", lv: 1 }, { bk: "monsterthrow", lv: 1 }, { bk: "grabber", lv: 2 }, { bk: "grabber", lv: 2 }, { bk: "grabber", lv: 2 }];
       default: return null;
     }
   })();
