@@ -2213,13 +2213,40 @@ export function InventoryModal({
   setNicknameMode, setNicknameInput,
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
-  containerRef, penMergeMode
+  containerRef, penMergeMode,
+  doFloorPickup, doFloorTrap, doFloorItemAction,
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
+  /* 足元のアイテム・罠 */
+  const _flItems = (gs?.dungeon?.items || []).filter(i => i.x === p.x && i.y === p.y && !i.wallEmbedded && !i.noPickup);
+  const _flTraps = (gs?.dungeon?.traps || []).filter(t => t.x === p.x && t.y === p.y);
+  const _flAll = [..._flItems, ..._flTraps];
+  const _hasFl = _flAll.length > 0;
+  const _invTotalPg = Math.ceil(p.inventory.length / 10) || 1;
+  const _totalPg = _invTotalPg + (_hasFl ? 1 : 0);
+  const _isFloorPg = _hasFl && invPage === _invTotalPg;
+  const _getFloorActs = (entry) => {
+    const _isItem = _flItems.includes(entry);
+    if (!_isItem) return [
+      { label: "踏む", fn: () => doFloorTrap?.(entry) },
+      { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) },
+    ];
+    const a = [{ label: "拾う", fn: () => doFloorPickup?.(entry) }];
+    if (canUse(entry)) a.push({ label: useLabel(entry), fn: () => doFloorItemAction?.(entry, doUseItem) });
+    if (entry.type === "spellbook") a.push({ label: "読む", fn: () => doFloorItemAction?.(entry, doReadSpellbook) });
+    if (entry.type === "arrow") a.push({ label: "射る", fn: () => doFloorItemAction?.(entry, doShoot) });
+    if (entry.type === "wand") { a.push({ label: "振る", fn: () => doFloorItemAction?.(entry, doWaveWand) }); a.push({ label: "壊す", fn: () => doFloorItemAction?.(entry, doBreakWand) }); }
+    if (entry.type === "marker") a.push({ label: "書く", fn: () => doFloorItemAction?.(entry, doUseMarker) });
+    if (entry.type === "pot") a.push({ label: "割る", fn: () => doFloorItemAction?.(entry, doBreakPot) });
+    a.push({ label: "置く", fn: () => doFloorItemAction?.(entry, doDropItem) });
+    a.push({ label: entry.type === "arrow" ? "投げる(束)" : "投げる", fn: () => doFloorItemAction?.(entry, doThrow) });
+    a.push({ label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) });
+    return a;
+  };
   const _previewIdx = hoveredIdx !== null ? hoveredIdx : selIdx;
-  const _previewItem = _previewIdx !== null ? p.inventory[invPage * 10 + _previewIdx] : null;
-  const _selItem = selIdx !== null ? p.inventory[invPage * 10 + selIdx] : null;
+  const _previewItem = _previewIdx !== null ? (_isFloorPg ? null : p.inventory[invPage * 10 + _previewIdx]) : null;
+  const _selItem = selIdx !== null ? (_isFloorPg ? null : p.inventory[invPage * 10 + selIdx]) : null;
   const _previewPot = _selItem?.type === "pot" ? _selItem : null;
   return (
     <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
@@ -2264,11 +2291,14 @@ export function InventoryModal({
       ) : (
         <div style={{ color: "#555", fontSize: 13, marginBottom: 6 }}>矢: なし</div>
       )}
-      {p.inventory.length > 10 && (
+      {_totalPg > 1 && (
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 13 }}>
           <span>←→でページ移動</span>
-          <span style={{ color: "#ccc" }}>{invPage + 1}/{Math.ceil(p.inventory.length / 10)}ページ</span>
-          <span>({invPage * 10 + 1}〜{Math.min((invPage + 1) * 10, p.inventory.length)}件)</span>
+          {_isFloorPg
+            ? <span style={{ color: "#8cf", fontWeight: "bold" }}>★ 足元のアイテム・罠</span>
+            : <><span style={{ color: "#ccc" }}>{invPage + 1}/{_invTotalPg}ページ</span>
+                <span>({invPage * 10 + 1}〜{Math.min((invPage + 1) * 10, p.inventory.length)}件)</span></>
+          }
         </div>
       )}
       {(() => {
@@ -2293,7 +2323,52 @@ export function InventoryModal({
         }
         return null;
       })()}
-      {p.inventory.length === 0 ? (
+      {_isFloorPg ? (
+        _flAll.length === 0 ? (
+          <div style={{ color: "#555", padding: 8 }}>足元には何もない。</div>
+        ) : (
+          _flAll.map((entry, j) => {
+            const _fIsItem = _flItems.includes(entry);
+            const _fActs = _getFloorActs(entry);
+            return (
+              <div key={entry.id || j} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}
+                style={{ borderBottom: "1px solid #222", borderRadius: 4, marginBottom: 1 }}>
+                <div onClick={() => { setSelIdx(selIdx === j ? null : j); setInvMenuSel(null); setShowDesc(null); setTimeout(() => containerRef?.current?.focus(), 0); }}
+                  style={{ padding: "7px 8px", cursor: "pointer", fontSize: mobile ? 13 : 12,
+                    background: selIdx === j ? "#252540" : "transparent", borderRadius: 4,
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    color: _fIsItem ? "#ccc" : "#f86",
+                  }}>
+                  <span style={{ display: "flex", alignItems: "center" }}>
+                    <TileIcon item={entry} size={16} />
+                    {_fIsItem ? iLabel(entry) : `【罠】${entry.name}`}
+                  </span>
+                  <span style={{ color: "#555", fontSize: 12 }}>{selIdx === j ? (invMenuSel !== null ? "▶" : "▲") : "▼"}</span>
+                </div>
+                {selIdx === j && (
+                  <div style={{ padding: "4px 8px 8px" }}>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {_fActs.map((a, ai) => (
+                        <button key={ai} onClick={() => a.fn()}
+                          style={{ background: invMenuSel === ai ? "#3a3a6a" : "#1a1a2a", color: invMenuSel === ai ? "#fff" : "#aaa",
+                            border: invMenuSel === ai ? "1px solid #88f" : "1px solid #333", borderRadius: 4, padding: "4px 10px",
+                            cursor: "pointer", fontSize: mobile ? 13 : 12, fontWeight: invMenuSel === ai ? "bold" : "normal" }}>{a.label}</button>
+                      ))}
+                    </div>
+                    {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
+                    {showDesc === 10000 + j && (
+                      <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4 }}>
+                        <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>{entry.name}</div>
+                        <div style={{ whiteSpace: "pre-wrap" }}>{entry.desc || "特に情報はない。"}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )
+      ) : p.inventory.length === 0 ? (
         <div style={{ color: "#555", padding: 8 }}>何も持っていない。</div>
       ) : (
         p.inventory.slice(invPage * 10, (invPage + 1) * 10).map((it, j) => {

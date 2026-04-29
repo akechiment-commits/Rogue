@@ -4546,7 +4546,42 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
   });
   doMarkerWriteRef.current = doMarkerWrite;
-  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook };
+  /* ===== 足元ページ用コールバック ===== */
+  const _doFloorPickup = (item) => {
+    const s = sr.current; if (!s) return;
+    const _p = s.player, _dg = s.dungeon, ml = [];
+    if (_p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
+    _dg.items = _dg.items.filter(i => i !== item);
+    _p.inventory.push(item);
+    ml.push(`${dnameRef(item)}を拾った！`);
+    endTurn(s, _p, ml);
+    setMsgs(prev => [...prev.slice(-80), ...ml]);
+    sr.current = { ...sr.current }; setGs({ ...sr.current });
+    setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null);
+  };
+  const _doFloorTrap = (trap) => {
+    const s = sr.current; if (!s) return;
+    const _p = s.player, _dg = s.dungeon, ml = [];
+    if (hasRingEffect(_p, "float_ring")) { setMsgs(prev => [...prev.slice(-80), "浮遊の指輪を付けているので罠を作動させられない！"]); return; }
+    const _tnFn = (it) => itemDisplayName(it, s.fakeNames, s.ident, s.nicknames);
+    const _tr2 = fireTrapPlayer(trap, _p, _dg, ml, _tnFn, lu);
+    if (_tr2 === "pitfall") { const nd2 = chgFloor(_p, 1, true); if (nd2) { s.dungeon = nd2; ml.push(`地下${_p.depth}階に落ちた！`); } }
+    else if (_tr2 === "deferred_explosion") { s._pendingMineExplosion = { x: _p.x, y: _p.y, name: trap.name || "地雷", nameFn: _tnFn }; }
+    endTurn(s, _p, ml);
+    setMsgs(prev => [...prev.slice(-80), ...ml]);
+    sr.current = { ...sr.current }; setGs({ ...sr.current });
+    setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null);
+  };
+  const _doFloorItemAction = (item, actionFn) => {
+    const s = sr.current; if (!s) return;
+    const _p = s.player, _dg = s.dungeon;
+    if (_p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
+    _dg.items = _dg.items.filter(i => i !== item);
+    const _idx = _p.inventory.length;
+    _p.inventory.push(item);
+    actionFn(_idx);
+  };
+  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorItemAction: _doFloorItemAction };
   execRef.current = execDirection;
   if (!gs) return null;
   const { player: p } = gs;
@@ -5429,7 +5464,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} identifyConfirmRef={identifyConfirmRef} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
-      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} />{" "}
+      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorItemAction={_doFloorItemAction} />{" "}
       <GameOverModal dead={dead} p={p} gameOverSel={gameOverSel} setShowScores={setShowScores} init={init} mobile={mobile} onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined} />
       <EndingModal show={showEnding} p={p} endingResult={endingResult} mobile={mobile} onDismiss={() => { setShowEnding(false); if (onReturnToHub && endingResult) onReturnToHub(endingResult); }} />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
