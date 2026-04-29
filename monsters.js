@@ -2050,20 +2050,32 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       ml.push(`${m.name}はHPが半分を切り、水の奥へ逃げ出した！`);
     } else if (m._krakFleeing && m.hp >= m.maxHp * 0.8) {
       m._krakFleeing = false;
+      m._krakFleeTarget = null;
       ml.push(`${m.name}は体力を回復し、再び向かってきた！`);
     }
-    /* 逃走中：水タイルの中でプレイヤーから最も遠い地点へ移動して行動終了 */
+    /* 逃走中：水地形の中で最も陸地から遠い地点へ（プレイヤー無視）移動して行動終了 */
     if (m._krakFleeing && !_attackOnly) {
-      let _kFleeTx = m.x, _kFleeTy = m.y, _kFleeMaxDist = -1;
-      for (let _ky = 0; _ky < MH; _ky++) {
-        for (let _kx = 0; _kx < MW; _kx++) {
-          if (dg.map[_ky]?.[_kx] !== T.WATER) continue;
-          const _d = (_kx - pl.x) * (_kx - pl.x) + (_ky - pl.y) * (_ky - pl.y);
-          if (_d > _kFleeMaxDist) { _kFleeMaxDist = _d; _kFleeTx = _kx; _kFleeTy = _ky; }
+      /* 逃走目標を一度だけ計算してキャッシュ */
+      if (!m._krakFleeTarget) {
+        let _bestX = m.x, _bestY = m.y, _bestDepth = -1;
+        for (let _ky = 0; _ky < MH; _ky++) {
+          for (let _kx = 0; _kx < MW; _kx++) {
+            if (dg.map[_ky]?.[_kx] !== T.WATER) continue;
+            let _minD = 999;
+            for (let _sy = 0; _sy < MH && _minD > 1; _sy++)
+              for (let _sx = 0; _sx < MW && _minD > 1; _sx++) {
+                if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
+                const _d = Math.max(Math.abs(_sx - _kx), Math.abs(_sy - _ky));
+                if (_d < _minD) _minD = _d;
+              }
+            if (_minD > _bestDepth) { _bestDepth = _minD; _bestX = _kx; _bestY = _ky; }
+          }
         }
+        m._krakFleeTarget = { x: _bestX, y: _bestY };
       }
-      const _kNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _kFleeTx, _kFleeTy, m, 40, dg.pentacles, true);
-      if (_kNext && !(_kNext.x === pl.x && _kNext.y === pl.y)) { m.x = _kNext.x; m.y = _kNext.y; }
+      const _kft = m._krakFleeTarget;
+      const _kNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _kft.x, _kft.y, m, 40, dg.pentacles, true);
+      if (_kNext) { m.x = _kNext.x; m.y = _kNext.y; }
       return;
     }
     /* 墨吐き：直線LOS、45%で暗闇+ダメージ */
