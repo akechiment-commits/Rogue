@@ -427,6 +427,20 @@ export function useKeyHandler({
           Numpad1: [-1, 1],
           Numpad3: [1, 1],
         };
+        const _isArrowF = k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright";
+        if (shiftRef?.current && _isArrowF) {
+          e.preventDefault();
+          const _dmap = { arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right" };
+          if (arrowHeldRef) arrowHeldRef.current[_dmap[k]] = true;
+          const _h = arrowHeldRef?.current || {};
+          const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
+          const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
+          if (_sdx !== 0 && _sdy !== 0) {
+            if (sr.current) { sr.current.player.facing = { dx: _sdx, dy: _sdy }; setGs({ ...sr.current }); }
+            setFacingMode(false);
+          }
+          return;
+        }
         const fdir =
           npm2[e.code] ||
           (k === "arrowup"
