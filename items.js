@@ -1954,7 +1954,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       break;
     case "confuse":
       if (cursed) {
-        // 呪い→混乱解消 + 必中100ターン（攻撃・投擲が外れなくなる。未実装中は予約のみ）
+        // 呪い→混乱解消 + 必中100ターン（攻撃・投擲が外れなくなる）
         if (kind === "monster") { target.confusedTurns = 0; ml.push(`${target.name}の混乱が解けた！`); }
         if (kind === "player") {
           p.confusedTurns = 0;
