@@ -930,7 +930,7 @@ export const INTERMEDIATE_BOSSES = [
   /* B15F (depth=14) 水中20HP/ターン回復＋HP半減で逃走＋一直線墨（暗闇+ダメージ） */
   { name: "クラーケン", hp: 720, atk: 65, def: 42, exp: 3000,
     speed: 1, tile: 95, kind: "beast",    baseKind: "im_boss_kraken",
-    isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 2, float: true },
+    isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 2, float: true, elemWeak: "thunder" },
   /* B20F (depth=19) 攻撃力999・特技なし */
   { name: "2ヘッドドラゴン", hp: 1080, atk: 999, def: 48, exp: 6000,
     speed: 2, tile: 96, kind: "dragon",   baseKind: "im_boss_twohead",
