@@ -6,7 +6,12 @@ import {
   RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS,
   POTION_FOOD_PREFIX,
   WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER,
-  CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, ALLBANE_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T,
+  CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T,
+  TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
+  ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T,
+  TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T,
+  GOBLIN_BAT_T, ONI_CLUB_T,
+  GODSPARKWAND_T,
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STONE_T, MAGIC_STONE_T, BOMB_ARROW_T,
 } from './items.js';
 
@@ -67,6 +72,7 @@ const indexData = [
   ['13. 食べ物（11効果種）', '食べ物の効果・サイズ・状態一覧'],
   ['14. 大箱 - BigBox（9種）', '全大箱の効果'],
   ['15. 泉 - Spring', '飲む効果・浸す効果'],
+  ['16. 宝石 - Gem（8種）', '基本価格・遠距離ボーナス'],
   [''],
   ['データ来源'],
   ['items.js - applyPotionEffect（1818-2205行）', '薬の完全実装'],
@@ -219,25 +225,29 @@ addSheet('03_巻物', injectRarity(scrollData));
 // ===== 武器・防具 =====
 const _weapons = ITEMS.filter(i => i.type === 'weapon');
 const _armors  = ITEMS.filter(i => i.type === 'armor');
-const _specialWeapons = [CAT_CLAW_T, EXCALIBUR_T, TRIELEM_SWORD_T, ALLBANE_SWORD_T];
-const _specialArmors  = [TRIELEM_ARMOR_T, DIVINE_SHIELD_T];
+const _specialWeapons = [
+  CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
+  ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T,
+];
+const _specialArmors  = [TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T];
 
 const weaponArmorData = [['種類', 'ATK/DEF', 'ability', 'rarity', 'sellPrice', '説明']];
 weaponArmorData.push(['【武器】装備時に呪いあり→外せない。+値で攻撃力上昇', '', '', '', '', '']);
 for (const w of _weapons) {
   weaponArmorData.push([w.name, w.atk, w.ability ?? '-', w.rarity, w.sellPrice, w.desc]);
 }
-weaponArmorData.push(['【武器・合成限定】', '', '', '', '', '']);
+weaponArmorData.push(['【武器・特殊（合成/泉/ドロップ）】', '', '', '', '', '']);
 for (const w of _specialWeapons) {
-  weaponArmorData.push([w.name, w.atk, (w.abilities ?? [w.ability]).join('/'), '合成', '-', w.desc]);
+  weaponArmorData.push([w.name, w.atk, (w.abilities ?? (w.ability ? [w.ability] : [])).join('/') || '-', w.rarity ?? '合成', w.sellPrice ?? '-', w.desc]);
 }
 weaponArmorData.push(['【防具】装備時に呪いあり→外せない。+値で防御力上昇', '', '', '', '', '']);
 for (const a of _armors) {
   weaponArmorData.push([a.name, a.def, a.ability ?? '-', a.rarity, a.sellPrice, a.desc]);
 }
-weaponArmorData.push(['【防具・合成限定】', '', '', '', '', '']);
+weaponArmorData.push(['【防具・特殊（合成/泉）】', '', '', '', '', '']);
 for (const a of _specialArmors) {
-  weaponArmorData.push([a.name, a.def, (a.abilities ?? [a.ability]).join('/'), '合成', '-', a.desc]);
+  weaponArmorData.push([a.name, a.def, (a.abilities ?? (a.ability ? [a.ability] : [])).join('/') || '-', a.rarity ?? '合成', a.sellPrice ?? '-', a.desc]);
 }
 
 addSheet('04_武器防具', weaponArmorData);
@@ -535,6 +545,27 @@ const springData = [
 ];
 
 addSheet('15_泉', springData);
+
+// ===== 宝石（Gem）=====
+const gemData = [
+  ['宝石名', 'rarity', '基本価格', '売値計算', '説明'],
+  ['', '', '', '基本価格 × (1 + 階差 × 0.35)  ※買った階から遠いほど高値', ''],
+];
+for (const g of GEM_TYPES) {
+  const ex1 = Math.round(g.basePrice * (1 + 5 * 0.35));
+  const ex2 = Math.round(g.basePrice * (1 + 10 * 0.35));
+  const ex3 = Math.round(g.basePrice * (1 + 20 * 0.35));
+  gemData.push([
+    g.name, g.rarity, g.basePrice,
+    `5階差:${ex1}G / 10階差:${ex2}G / 20階差:${ex3}G`,
+    g.desc,
+  ]);
+}
+gemData.push(['', '', '', '', '']);
+gemData.push(['【補足】', '宝石は呪い/祝福状態で売値が変動する（通常×1、祝福×1.5、呪い×0.5）', '', '', '']);
+gemData.push(['', '売却の巻物：通常=基本価格の100%、祝福=200%、呪い=50%換金', '', '', '']);
+
+addSheet('16_宝石', gemData);
 
 XLSX.writeFile(wb, '/home/user/Rogue/ローグゲーム完全実装ガイド.xlsx');
 console.log('✅ Complete game guide updated: ローグゲーム完全実装ガイド.xlsx');
