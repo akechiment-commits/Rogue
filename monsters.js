@@ -1308,13 +1308,28 @@ function monsterShootWaterGun(m, dg, pl, ml) {
   for (let d = 1; d <= maxDist; d++) {
     const tx = m.x + dx * d, ty = m.y + dy * d;
     if (!isWalkable(dg.map, tx, ty)) return;
+    /* 射線上の魔方陣を消す */
+    const _wgPcIdx = dg.pentacles ? dg.pentacles.findIndex(pc => pc.x === tx && pc.y === ty) : -1;
+    if (_wgPcIdx >= 0) {
+      const _wgPc = dg.pentacles[_wgPcIdx];
+      dg.pentacles.splice(_wgPcIdx, 1);
+      ml.push(`水鉄砲が${_wgPc.name}を消し去った！`);
+    }
     /* 途中のモンスターに当たった場合 */
     const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
     if (hitMon) {
-      const dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
-      hitMon.hp -= dmg;
-      ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
-      if (hitMon.hp <= 0) { ml.push(`${hitMon.name}は倒れた！`); removeMonster(dg, hitMon); }
+      const _wgWater = hitMon.waterOnly || hitMon.baseKind === "im_boss_kraken";
+      if (_wgWater) {
+        /* 水属性モンスターは回復 */
+        const heal = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
+        hitMon.hp = Math.min(hitMon.maxHp, hitMon.hp + heal);
+        ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${heal}HP回復した！`);
+      } else {
+        const dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
+        hitMon.hp -= dmg;
+        ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
+        if (hitMon.hp <= 0) { ml.push(`${hitMon.name}は倒れた！`); removeMonster(dg, hitMon); }
+      }
       return;
     }
     if (tx === pl.x && ty === pl.y) {
