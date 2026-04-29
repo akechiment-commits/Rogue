@@ -15,7 +15,7 @@ import { getDiscoveries } from "./DiscoveryTracker.js";
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef,
+  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef,
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
@@ -1403,6 +1403,19 @@ export function useKeyHandler({
       if (km[k]) {
         e.preventDefault();
         if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode || (shopModeRef?.current ?? shopMode)) {
+          return;
+        }
+        /* Shift+矢印：2方向同時押しで斜め移動。1方向のみでは動かない */
+        if (shiftRef?.current) {
+          const _dmap = { arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right" };
+          if (arrowHeldRef) arrowHeldRef.current[_dmap[k]] = true;
+          const _h = arrowHeldRef?.current || {};
+          const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
+          const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
+          if (_sdx !== 0 && _sdy !== 0) {
+            if (aRef.current) doDash(_sdx, _sdy);
+            else act("move", _sdx, _sdy);
+          }
           return;
         }
         if (aRef.current) {

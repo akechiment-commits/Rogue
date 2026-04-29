@@ -4475,17 +4475,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   }, []);
   const shiftRef = useRef(false);
   const aRef = useRef(false);
+  const arrowHeldRef = useRef({});
   useEffect(() => {
     const onUp = (e) => {
-      if (e.key === "Shift") shiftRef.current = false;
+      if (e.key === "Shift") { shiftRef.current = false; arrowHeldRef.current = {}; }
       if (e.key === "a" || e.key === "A") aRef.current = false;
+      const _arDir = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
+      if (_arDir[e.key]) arrowHeldRef.current[_arDir[e.key]] = false;
     };
     window.addEventListener("keyup", onUp);
     return () => window.removeEventListener("keyup", onUp);
   }, []);
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef,
+    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef,
     // state values
     gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
