@@ -2690,8 +2690,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
         (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 2 ? _sameRoom : _rLine));
-      /* ドラゴン・サラマンダーは常に攻撃予約（何もしない状態を防ぐ） */
-      if (_dragonRdy0) { m._rangedAttackThisTurn = true; return; }
       const _ttLvl0 = m.monLevel || 1;
       const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
@@ -2910,7 +2908,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
       const _dragonRdy = m._rangedAttackThisTurn;
       if (_dragonRdy) delete m._rangedAttackThisTurn;
-      if (_canFire && !_plOnBlessedSanc && (_dragonRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (_canFire && !_plOnBlessedSanc) {
         m.turnAttacks++;
         monsterDragonFire(m, dg, pl, ml, _onHit);
         return;
@@ -2930,7 +2928,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
       const _ibRdy = m._rangedAttackThisTurn;
       if (_ibRdy) delete m._rangedAttackThisTurn;
-      if (_ibCanFire && !_plOnBlessedSanc && (_ibRdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (_ibCanFire && !_plOnBlessedSanc) {
         m.turnAttacks++;
         monsterIceBreath(m, dg, pl, ml, _onHit);
         return;
