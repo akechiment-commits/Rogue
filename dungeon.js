@@ -2,7 +2,7 @@ import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffl
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, pickMonsterDef } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
-  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
+  SPELLBOOKS, MAGIC_MARKER, BLANK_SCROLL, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS,
 } from './items.js';
 
@@ -2353,9 +2353,16 @@ export function genTutorialFloor(floorNum, opts = {}) {
         ? "泉の前で「前」ボタン、または泉の上で「足」ボタンを押すとアイテムを浸せる。状態が変わることも！"
         : "泉の前でZキー、または泉の上でFキーを押すとアイテムを浸せる。状態が変わることも！",
     ]);
+    mkSign(28, 19, [
+      "【魔法の筆と白紙の巻物】白紙の巻物は何も書かれていない特殊な巻物。",
+      "魔法の筆を使うと、識別済みの巻物・魔法書の魔法を白紙の巻物に書き込める！",
+      "好きな魔法を複製したいときに使おう。魔法の筆は充填の大箱で回数を増やせる。",
+    ]);
     springs.push({ id: uid(), x: 32, y: 23, tile: TI.SPRING, contents: [] });
     const tpScroll = ITEMS.find(i => i.effect === "teleport");
     if (tpScroll) items.push({ ...tpScroll, id: uid(), x: 28, y: 21, preIdent: true });
+    items.push({ ...BLANK_SCROLL, id: uid(), x: 35, y: 21 });
+    items.push({ ...MAGIC_MARKER, id: uid(), x: 36, y: 21, charges: 1 });
     const powerPot2 = ITEMS.find(i => i.effect === "power");
     if (powerPot2) {
       items.push({ ...powerPot2, id: uid(), x: 28, y: 23, blessed: true });
