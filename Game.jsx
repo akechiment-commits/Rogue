@@ -5389,7 +5389,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             marginTop: 2,
           }}
         >
-          矢印/テンキー:移動　A+矢印/テンキー:ダッシュ　.:待機　x:所持品(↑↓で選択/Z:使用/X:閉じる)　w:見渡す　c:魔法
+          矢印/テンキー:移動　A+矢印/テンキー:ダッシュ　Shift+矢印2方向:斜め移動　.:待機　x:所持品(↑↓で選択/Z:使用/X:閉じる)　w:見渡す　c:魔法
           {"<>"}:階段　q:矢を射る　z:アクション　f:足元(拾う/罠/階段/大箱/泉)　t:向き変更
         </div>
       )}{" "}
