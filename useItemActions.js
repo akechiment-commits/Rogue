@@ -68,7 +68,7 @@ export function useItemActions({
   lu, endTurn, chgFloor, withPitfallBag,
   dnameRef, bigboxAddItem,
   onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
-  floorPenDropRef,
+  floorPenDropRef, floorWandRef,
 }) {
   const doUseItem = useCallback((idx) => {
     if (!sr.current) return;
@@ -3426,6 +3426,19 @@ export function useItemActions({
         }
       }
       endTurn(sr.current, p, ml);
+      /* 床から使った杖はフロアに戻す */
+      if (floorWandRef?.current) {
+        const _fw = floorWandRef.current;
+        floorWandRef.current = null;
+        const _fwP = sr.current.player, _fwDg = sr.current.dungeon;
+        const _fwI = _fwP.inventory.indexOf(_fw);
+        if (_fwI !== -1) {
+          _fwP.inventory.splice(_fwI, 1);
+          const _fwMl = [], _fwFt = new Set();
+          placeItemAt(_fwDg, _fwP.x, _fwP.y, _fw, _fwMl, _fwFt, 0, _fwP);
+          if (_fwMl.length) ml.push(..._fwMl);
+        }
+      }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
       setThrowMode(null);
       sr.current = { ...sr.current };

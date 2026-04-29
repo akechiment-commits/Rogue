@@ -357,7 +357,7 @@ export function useKeyHandler({
           }
           if (entry.type === "spellbook") _addFloorAct2("読む", (idx) => invActRef.current?.readSpellbook?.(idx), true, false);
           if (entry.type === "arrow") _addFloorAct2("射る", (idx) => invActRef.current?.shoot?.(idx), true, true);
-          if (entry.type === "wand") _addFloorAct2("振る", (idx) => invActRef.current?.wave?.(idx), true, false);
+          if (entry.type === "wand") acts2.push({ label: "振る", fn: () => invActRef.current?.floorWaveWand?.(entry) });
           if (entry.type === "wand") _addFloorAct2("壊す", (idx) => invActRef.current?.breakWand?.(idx), true, false);
           if (entry.type === "pot") _addFloorAct2("割る", (idx) => invActRef.current?.breakPot?.(idx), true, false);
           _addFloorAct2(entry.type === "arrow" ? "投げる(束)" : "投げる", (idx) => invActRef.current?.throw?.(idx), true, true);

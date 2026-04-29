@@ -2216,7 +2216,7 @@ export function InventoryModal({
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
   containerRef, penMergeMode,
-  doFloorPickup, doFloorTrap, doFloorItemAction, doFloorOpenPutMode, doFloorPen,
+  doFloorPickup, doFloorTrap, doFloorItemAction, doFloorOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
@@ -2246,7 +2246,7 @@ export function InventoryModal({
     }
     if (entry.type === "spellbook") a.push({ label: "読む", fn: () => doFloorItemAction?.(entry, doReadSpellbook, true, false) });
     if (entry.type === "arrow") a.push({ label: "射る", fn: () => doFloorItemAction?.(entry, doShoot, true, true) });
-    if (entry.type === "wand") { a.push({ label: "振る", fn: () => doFloorItemAction?.(entry, doWaveWand, true, false) }); a.push({ label: "壊す", fn: () => doFloorItemAction?.(entry, doBreakWand, true, false) }); }
+    if (entry.type === "wand") { a.push({ label: "振る", fn: () => doFloorWaveWand?.(entry) }); a.push({ label: "壊す", fn: () => doFloorItemAction?.(entry, doBreakWand, true, false) }); }
     if (entry.type === "pot") a.push({ label: "割る", fn: () => doFloorItemAction?.(entry, doBreakPot, true, false) });
     a.push({ label: entry.type === "arrow" ? "投げる(束)" : "投げる", fn: () => doFloorItemAction?.(entry, doThrow, true, true) });
     a.push({ label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) });
