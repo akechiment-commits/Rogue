@@ -442,8 +442,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       let dmg = Math.max(1, Math.round(rng(20, 30) * _lBlessMult));
       if (kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg)) dmg *= 2;
       if (kind === "monster") {
-        target.hp -= dmg;
-        ml.push(`雷撃が${target.name}に命中！${dmg}ダメージ！`);
+        const _lWeakMult = target.elemWeak === "thunder" ? 1.5 : 1;
+        const _lFinalDmg = Math.round(dmg * _lWeakMult);
+        target.hp -= _lFinalDmg;
+        ml.push(`雷撃が${target.name}に命中！${_lFinalDmg}ダメージ！${_lWeakMult > 1 ? "雷弱点！" : ""}`);
         pushLightningAnim(target.x, target.y);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
         break;

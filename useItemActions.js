@@ -934,8 +934,9 @@ export function useItemActions({
             if (consumeBarrier(_m, ml)) continue;
             let _dmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
+            if (_m.elemWeak === "thunder") _dmg = Math.round(_dmg * 1.5);
             _m.hp -= _dmg;
-            ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
+            ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${_m.elemWeak === "thunder" ? "雷弱点！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
             if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }

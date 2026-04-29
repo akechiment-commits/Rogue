@@ -3442,9 +3442,10 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           if (_lm.hp <= 0) continue;
           if (consumeBarrier(_lm, ml)) continue;
           const _lcmsB = inCursedMagicSealRoom(_lm.x, _lm.y, dg) ? 2 : 1;
-          const _ld = Math.round(rng(22, 32) * _lvF) * _lcmsB;
+          const _lweak = _lm.elemWeak === "thunder" ? 1.5 : 1;
+          const _ld = Math.round(rng(22, 32) * _lvF * _lweak) * _lcmsB;
           _lm.hp -= _ld;
-          ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！`);
+          ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}`);
           if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
         }
       }
