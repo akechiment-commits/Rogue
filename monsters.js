@@ -472,7 +472,7 @@ export const MONS = [
       { name: "覇インプ",           hp: 65,  atk: 30, def: 11, exp: 70  },
     ],
   },
-  { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 3, max: 11 } },
+  { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 4, max: 11 } },
     levels: [
       { name: "強スケルトン",       hp: 39,  atk: 26, def: 9,  exp: 40  },
       { name: "アンデッドナイト",   hp: 61,  atk: 32, def: 13, exp: 62  },
@@ -762,7 +762,7 @@ export const MONS = [
       { name: "ブルードラゴン 天界の七竜", hp: 168, atk: 58, def: 22, exp: 320 },
     ],
   },
-  { name: "わてり",       hp: 40,  atk: 19, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner", dungeonFloors: { beginner: null },
+  { name: "わてり",       hp: 40,  atk: 19, def: 6,  exp: 48,  speed: 1,   tile: 93, kind: "beast",    baseKind: "wateri",        monLevel: 1, minFloor: 6,  maxFloor: 20, elemWeak: "thunder", waterOnly: true, subtype: "watergunner", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 19 } },
     levels: [
       { name: "わてに",             hp: 64,  atk: 29, def: 10, exp: 77  },
       { name: "わてさん",           hp: 100, atk: 38, def: 14, exp: 120 },
