@@ -2038,8 +2038,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* ティターン：毎ターン5HP回復（行動消費なし） */
-  if (m.baseKind === "im_boss_titan" && !_moveOnly) {
+  /* ティターン：毎ターン5HP回復（moveOnlyフェーズで処理して確実に実行） */
+  if (m.baseKind === "im_boss_titan" && _moveOnly) {
     const _th = Math.min(5, m.maxHp - m.hp);
     if (_th > 0) { m.hp += _th; ml.push(`${m.name}の肉体が再生した！(+${_th}HP)`); }
   }
