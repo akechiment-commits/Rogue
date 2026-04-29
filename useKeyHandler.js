@@ -348,7 +348,11 @@ export function useKeyHandler({
           const _addFloorAct2 = (label, actionFn, skipCap = false) => {
             acts2.push({ label, fn: () => invActRef.current?.floorItemAction?.(entry, actionFn, skipCap) });
           };
-          if (canUse(entry)) _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx), !_isEquipType2);
+          if (entry.type === "pot") {
+            acts2.push({ label: "入れる", fn: () => invActRef.current?.floorOpenPutMode?.(entry) });
+          } else if (canUse(entry)) {
+            _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx), !_isEquipType2);
+          }
           if (entry.type === "spellbook") _addFloorAct2("読む", (idx) => invActRef.current?.readSpellbook?.(idx), true);
           if (entry.type === "arrow") _addFloorAct2("射る", (idx) => invActRef.current?.shoot?.(idx), true);
           if (entry.type === "wand") _addFloorAct2("振る", (idx) => invActRef.current?.wave?.(idx), true);

@@ -1856,7 +1856,7 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 /* ===== Pot Put Modal ===== */
 export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutItem, iLabel, dname, mobile }) {
   if (!mode) return null;
-  const pot = p.inventory[mode.potIdx];
+  const pot = mode.floorPot || p.inventory[mode.potIdx];
   if (!pot) return null;
   return (
     <div
@@ -1884,7 +1884,7 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
       )}{" "}
       <div style={{ color: "#ca8", fontSize: 13, marginBottom: 6 }}>入れるアイテムを選んでください</div>{" "}
       {(() => {
-        const pItems = p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => i !== mode.potIdx);
+        const pItems = p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx);
         const _psp = 10;
         const _tpp = Math.max(1, Math.ceil(pItems.length / _psp));
         const _pgp = pItems.slice(putPage * _psp, (putPage + 1) * _psp);
@@ -2214,7 +2214,7 @@ export function InventoryModal({
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
   containerRef, penMergeMode,
-  doFloorPickup, doFloorTrap, doFloorItemAction,
+  doFloorPickup, doFloorTrap, doFloorItemAction, doFloorOpenPutMode,
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
@@ -2234,7 +2234,11 @@ export function InventoryModal({
     ];
     const _isEquipType = ["weapon","armor","arrow","ring"].includes(entry.type);
     const a = [{ label: "拾う", fn: () => doFloorPickup?.(entry) }];
-    if (canUse(entry)) a.push({ label: useLabel(entry), fn: () => doFloorItemAction?.(entry, doUseItem, !_isEquipType) });
+    if (entry.type === "pot") {
+      a.push({ label: "入れる", fn: () => doFloorOpenPutMode?.(entry) });
+    } else if (canUse(entry)) {
+      a.push({ label: useLabel(entry), fn: () => doFloorItemAction?.(entry, doUseItem, !_isEquipType) });
+    }
     if (entry.type === "spellbook") a.push({ label: "読む", fn: () => doFloorItemAction?.(entry, doReadSpellbook, true) });
     if (entry.type === "arrow") a.push({ label: "射る", fn: () => doFloorItemAction?.(entry, doShoot, true) });
     if (entry.type === "wand") { a.push({ label: "振る", fn: () => doFloorItemAction?.(entry, doWaveWand, true) }); a.push({ label: "壊す", fn: () => doFloorItemAction?.(entry, doBreakWand, true) }); }

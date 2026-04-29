@@ -2196,7 +2196,7 @@ export function useItemActions({
     (itemIdx) => {
       if (!sr.current || !putMode) return;
       const { player: p, dungeon: dg } = sr.current;
-      const pot = p.inventory[putMode.potIdx];
+      const pot = putMode.floorPot || p.inventory[putMode.potIdx];
       if (!pot || pot.type !== "pot") {
         setPutMode(null);
         return;
@@ -2232,7 +2232,7 @@ export function useItemActions({
       }
       _forceUnequip(p, it);
       p.inventory.splice(itemIdx, 1);
-      if (itemIdx < putMode.potIdx) putMode.potIdx--;
+      if (!putMode.floorPot && itemIdx < putMode.potIdx) putMode.potIdx--;
       const ml = [];
       if (pot.potEffect === "boil") {
         if (it.type === "potion") {
@@ -2328,7 +2328,7 @@ export function useItemActions({
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (!_potFull) {
-        setPutMode({ potIdx: p.inventory.indexOf(pot) });
+        setPutMode(putMode.floorPot ? { floorPot: putMode.floorPot } : { potIdx: p.inventory.indexOf(pot) });
         setPutMenuSel(0);
         setPutPage(0);
         sr.current = { ...sr.current };
