@@ -2239,7 +2239,6 @@ export function InventoryModal({
     if (entry.type === "wand") { a.push({ label: "振る", fn: () => doFloorItemAction?.(entry, doWaveWand) }); a.push({ label: "壊す", fn: () => doFloorItemAction?.(entry, doBreakWand) }); }
     if (entry.type === "marker") a.push({ label: "書く", fn: () => doFloorItemAction?.(entry, doUseMarker) });
     if (entry.type === "pot") a.push({ label: "割る", fn: () => doFloorItemAction?.(entry, doBreakPot) });
-    a.push({ label: "置く", fn: () => doFloorItemAction?.(entry, doDropItem) });
     a.push({ label: entry.type === "arrow" ? "投げる(束)" : "投げる", fn: () => doFloorItemAction?.(entry, doThrow) });
     a.push({ label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) });
     return a;
