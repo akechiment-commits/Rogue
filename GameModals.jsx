@@ -905,7 +905,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       } else {
         const _makeFreshM = () => {
           const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, ...rest } = _selIt;
-          return { ...rest, id: uid() };
+          const _copy = { ...rest, id: uid() };
+          if (_copy.contents) _copy.contents = []; // 壺複製は中身なしの空壺
+          return _copy;
         };
         const _newItM = _makeFreshM();
         if (mode.blessed) { _newItM.blessed = true; _newItM.cursed = false; _newItM.bcKnown = true; }
