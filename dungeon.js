@@ -1475,22 +1475,37 @@ function genBossFloor(depth, dungeonType = null) {
     patrolTarget: null,
   };
 
-  /* 取り巻き：ボスの周囲にtier+1体を配置（ボスごとに固定種） */
-  const minionCount = (bt.bossTier || 1) + 1;
+  /* 取り巻き：ボスごとに固定種を配置 */
+  /* { baseKind, level }[] の配列でボスごとに取り巻き種を定義 */
+  const _minionSpec = (() => {
+    switch (bt.baseKind) {
+      case "im_boss_salamander": return [{ bk: "skeleton", lv: 1 }, { bk: "skeleton", lv: 1 }];
+      case "im_boss_titan":      return [{ bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }, { bk: "crystalslime", lv: 1 }];
+      case "im_boss_kraken":     return [{ bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }, { bk: "wateri", lv: 2 }];
+      case "im_boss_twohead":    return [{ bk: "monsterthrow", lv: 1 }, { bk: "monsterthrow", lv: 1 }, { bk: "disarmer", lv: 1 }, { bk: "disarmer", lv: 1 }];
+      default: return null;
+    }
+  })();
+  const minionCount = _minionSpec ? _minionSpec.length : (bt.bossTier || 1) + 1;
   const minionMonsters = [];
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
   const _occ = (x, y) => (x === bossX && y === bossY) || minionMonsters.some(mn => mn.x === x && mn.y === y);
 
-  if (bt.baseKind === "im_boss_kraken") {
-    /* クラーケン取り巻き：わてに（わてりLv2）を水タイル上に配置 */
-    const _wateriBase = MONS.find(m => m.baseKind === "wateri");
-    for (let _mi = 0; _mi < minionCount * 20 && minionMonsters.length < minionCount; _mi++) {
-      const [_ddx, _ddy] = DIRS8[Math.floor(Math.random() * DIRS8.length)];
-      const _mx = bossX + _ddx * (1 + Math.floor(_mi / 8));
-      const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
-      if (map[_my]?.[_mx] !== T.WATER) continue;
-      if (_occ(_mx, _my)) continue;
-      minionMonsters.push(makeMonsterFromBase(_wateriBase, 2, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY }));
+  if (_minionSpec) {
+    /* 固定種取り巻き：spec1体ずつ配置 */
+    const _baseCache = {};
+    for (const spec of _minionSpec) {
+      const _base = (_baseCache[spec.bk] ??= MONS.find(m => m.baseKind === spec.bk));
+      const _wantTile = _base?.waterOnly ? T.WATER : T.FLOOR;
+      for (let _mi = 0; _mi < 80; _mi++) {
+        const [_ddx, _ddy] = DIRS8[Math.floor(Math.random() * DIRS8.length)];
+        const _mx = bossX + _ddx * (1 + Math.floor(_mi / 8));
+        const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
+        if (map[_my]?.[_mx] !== _wantTile) continue;
+        if (_occ(_mx, _my)) continue;
+        minionMonsters.push(makeMonsterFromBase(_base, spec.lv, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY }));
+        break;
+      }
     }
   } else {
     const minionDepth = Math.max(0, depth - 2);
