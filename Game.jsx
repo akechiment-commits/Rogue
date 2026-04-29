@@ -4482,6 +4482,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (e.key === "a" || e.key === "A") aRef.current = false;
       const _arDir = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
       if (_arDir[e.key]) arrowHeldRef.current[_arDir[e.key]] = false;
+      const _npmDir = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
+      if (_npmDir[e.code]) arrowHeldRef.current[_npmDir[e.code]] = false;
     };
     window.addEventListener("keyup", onUp);
     return () => window.removeEventListener("keyup", onUp);

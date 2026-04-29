@@ -427,11 +427,14 @@ export function useKeyHandler({
           Numpad1: [-1, 1],
           Numpad3: [1, 1],
         };
+        const _npmFaceCard = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
         const _isArrowF = k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright";
-        if (shiftRef?.current && _isArrowF) {
+        const _isNpmCardF = e.code in _npmFaceCard;
+        if (shiftRef?.current && (_isArrowF || _isNpmCardF)) {
           e.preventDefault();
           const _dmap = { arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right" };
-          if (arrowHeldRef) arrowHeldRef.current[_dmap[k]] = true;
+          const _dir = _isArrowF ? _dmap[k] : _npmFaceCard[e.code];
+          if (arrowHeldRef) arrowHeldRef.current[_dir] = true;
           const _h = arrowHeldRef?.current || {};
           const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
           const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
@@ -480,6 +483,7 @@ export function useKeyHandler({
           Numpad8: [0, -1],
           Numpad9: [1, -1],
         };
+        const _npmCardinal = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
         if (
           npm[e.code] !== undefined &&
           !putMode &&
@@ -488,6 +492,21 @@ export function useKeyHandler({
           !markerMode
         ) {
           e.preventDefault();
+          /* Shift+テンキー縦横：2方向同時押しでのみ斜め移動。縦横対角キー(1/3/7/9)はそのまま */
+          if (shiftRef?.current && e.code in _npmCardinal) {
+            if (arrowHeldRef) arrowHeldRef.current[_npmCardinal[e.code]] = true;
+            const _h = arrowHeldRef?.current || {};
+            const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
+            const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
+            if (_sdx !== 0 && _sdy !== 0) {
+              if (throwMode !== null) execRef.current?.(_sdx, _sdy);
+              else if (!showInv) {
+                if (aRef.current) doDash(_sdx, _sdy);
+                else act("move", _sdx, _sdy);
+              }
+            }
+            return;
+          }
           const [dx, dy] = npm[e.code];
           if (throwMode !== null) {
             execRef.current?.(dx, dy);
@@ -1359,8 +1378,17 @@ export function useKeyHandler({
           Numpad8: [0, -1],
           Numpad9: [1, -1],
         };
+        const _npmThrowCard = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
         if (e.code in numpadThrow) {
           e.preventDefault();
+          if (shiftRef?.current && e.code in _npmThrowCard) {
+            if (arrowHeldRef) arrowHeldRef.current[_npmThrowCard[e.code]] = true;
+            const _h = arrowHeldRef?.current || {};
+            const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
+            const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
+            if (_sdx !== 0 && _sdy !== 0) execRef.current?.(_sdx, _sdy);
+            return;
+          }
           execRef.current?.(numpadThrow[e.code][0], numpadThrow[e.code][1]);
           return;
         }
