@@ -29,6 +29,9 @@ const _priceMap = new Map();
 for (const it of ITEMS) { _rarityMap.set(it.name, it.rarity); _priceMap.set(it.name, it.sellPrice); }
 for (const it of WANDS) { _rarityMap.set(it.name, it.rarity); _priceMap.set(it.name, it.sellPrice); }
 for (const it of RINGS) { _rarityMap.set(it.name, it.rarity); _priceMap.set(it.name, it.sellPrice); }
+// ITEMS に含まれない特殊アイテムも追加
+_rarityMap.set(WATER_BOTTLE.name, WATER_BOTTLE.rarity); _priceMap.set(WATER_BOTTLE.name, WATER_BOTTLE.sellPrice);
+_rarityMap.set(BLANK_SCROLL.name, BLANK_SCROLL.rarity);  _priceMap.set(BLANK_SCROLL.name, BLANK_SCROLL.sellPrice);
 
 // data配列の先頭行(ヘッダー)の末尾に 'rarity' を追加し、
 // 各行でcol[0]が空でない場合にrarity値を末尾に追加する
@@ -173,7 +176,7 @@ const potionData = [
   ['', '耐鈍足防具', '鈍足無効化（MP封印有効）', '-', ''],
 ];
 
-addSheet('01_薬', injectRarity(potionData));
+addSheet('01_薬', injectRarityAndPrice(potionData));
 
 // ===== 食べ物への薬効果 =====
 const foodData = [['薬の種類', '通常・祝福', '呪い', '備考']];
@@ -220,7 +223,7 @@ const scrollData = [
   ['白紙の巻物', 'マーカーペンで書き込み対象', 'マーカーペンで書き込み対象', 'マーカーペンで書き込み対象', '1651-1656'],
 ];
 
-addSheet('03_巻物', injectRarity(scrollData));
+addSheet('03_巻物', injectRarityAndPrice(scrollData));
 
 // ===== 武器・防具 =====
 const _weapons = ITEMS.filter(i => i.type === 'weapon');
