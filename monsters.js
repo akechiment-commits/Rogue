@@ -2038,20 +2038,9 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* ティターン：毎ターン5HP回復（moveOnlyフェーズで処理して確実に実行） */
-  if (m.baseKind === "im_boss_titan" && _moveOnly) {
-    const _th = Math.min(5, m.maxHp - m.hp);
-    if (_th > 0) { m.hp += _th; ml.push(`${m.name}の肉体が再生した！(+${_th}HP)`); }
-  }
-
-  /* クラーケン：水中回復＋逃走AI＋墨吐き（二フェーズシステム対応） */
+  /* クラーケン：逃走AI＋墨吐き（二フェーズシステム対応） ※HP回復はGame.jsx側で実施 */
   if (m.baseKind === "im_boss_kraken") {
-    /* 状態更新・HP回復はmoveOnlyフェーズのみ（二重カウント防止） */
     if (_moveOnly) {
-      if (dg.map[m.y]?.[m.x] === T.WATER) {
-        const _kh = Math.min(20, m.maxHp - m.hp);
-        if (_kh > 0) { m.hp += _kh; ml.push(`${m.name}は水中で体力を回復した！(+${_kh}HP)`); }
-      }
       if (!m._krakFleeing && m.hp < m.maxHp * 0.5) {
         m._krakFleeing = true;
         ml.push(`${m.name}はHPが半分を切り、水の奥へ逃げ出した！`);

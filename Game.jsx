@@ -1576,6 +1576,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         _mdamages.push(..._perHitEvents);
       }
       monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
+      /* ターン終了：ボスHP自然回復 */
+      for (const _bm of st.dungeon.monsters) {
+        if (_bm.hp <= 0) continue;
+        if (_bm.baseKind === "im_boss_titan") {
+          const _th = Math.min(5, _bm.maxHp - _bm.hp);
+          if (_th > 0) { _bm.hp += _th; ml.push(`${_bm.name}の肉体が再生した！(+${_th}HP)`); }
+        }
+        if (_bm.baseKind === "im_boss_kraken" && st.dungeon.map[_bm.y]?.[_bm.x] === T.WATER) {
+          const _kh = Math.min(20, _bm.maxHp - _bm.hp);
+          if (_kh > 0) { _bm.hp += _kh; ml.push(`${_bm.name}は水中で体力を回復した！(+${_kh}HP)`); }
+        }
+      }
       /* 油状態：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) {
         if ((_om.oilyTurns || 0) > 0) {
