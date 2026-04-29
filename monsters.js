@@ -2017,20 +2017,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* サラマンダー：直線炎ブレス */
-  if (m.baseKind === "im_boss_salamander" && !_moveOnly && m.turnAttacks < (m.maxAttacks ?? 2)) {
-    const _sfAdx = pl.x - m.x, _sfAdy = pl.y - m.y;
-    const _sfDist = Math.max(Math.abs(_sfAdx), Math.abs(_sfAdy));
-    const _sfInLine = _sfAdx === 0 || _sfAdy === 0 || Math.abs(_sfAdx) === Math.abs(_sfAdy);
-    const _sfLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-    const _sfBlessedSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
-    if (_sfDist >= 2 && _sfInLine && _sfLOS && !_sfBlessedSanc) {
-      m.turnAttacks++;
-      monsterDragonFire(m, dg, pl, ml, _onHit);
-      return;
-    }
-  }
-
   /* ティターン：毎ターン5HP回復（行動消費なし） */
   if (m.baseKind === "im_boss_titan" && !_moveOnly) {
     const _th = Math.min(5, m.maxHp - m.hp);
@@ -2484,6 +2470,18 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
   }
+  /* サラマンダー：直線炎ブレス（canSee後に判定） */
+  if (m.baseKind === "im_boss_salamander" && !_moveOnly && m.turnAttacks < (m.maxAttacks ?? 2)) {
+    const _sfAdx = pl.x - m.x, _sfAdy = pl.y - m.y;
+    const _sfDist = Math.max(Math.abs(_sfAdx), Math.abs(_sfAdy));
+    const _sfInLine = _sfAdx === 0 || _sfAdy === 0 || Math.abs(_sfAdx) === Math.abs(_sfAdy);
+    if (_sfDist >= 2 && _sfInLine && canSee && !_plOnBlessedSanc) {
+      m.turnAttacks++;
+      monsterDragonFire(m, dg, pl, ml, _onHit);
+      return;
+    }
+  }
+
   /* 囮のペン（呪い）: フロア全敵が常にプレイヤーを認識して追跡 */
   if (dg.pentacles?.some(pc => pc.kind === "decoy" && pc.cursed)) {
     m.aware = true;
