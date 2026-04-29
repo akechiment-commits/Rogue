@@ -274,9 +274,18 @@ export function useKeyHandler({
       }
       if (showInv) {
         const inv = sr.current?.player?.inventory || [];
-        const totalPages = Math.ceil(inv.length / 10) || 1;
-        const pageItems = inv.slice(invPage * 10, (invPage + 1) * 10);
-        const len = pageItems.length;
+        const _p2 = sr.current?.player;
+        const _dg2 = sr.current?.dungeon;
+        const _flItems2 = (_dg2?.items || []).filter(i => i.x === _p2?.x && i.y === _p2?.y && !i.wallEmbedded && !i.noPickup);
+        const _flTraps2 = (_dg2?.traps || []).filter(t => t.x === _p2?.x && t.y === _p2?.y);
+        const _flAll2 = [..._flItems2, ..._flTraps2];
+        const _hasFl2 = _flAll2.length > 0;
+        const _invTotalPg2 = Math.ceil(inv.length / 10) || 1;
+        const totalPages = _invTotalPg2 + (_hasFl2 ? 1 : 0);
+        const _isFloorPg2 = _hasFl2 && invPage === _invTotalPg2;
+        const pageItems = _isFloorPg2 ? [] : inv.slice(invPage * 10, (invPage + 1) * 10);
+        const _flPageItems2 = _isFloorPg2 ? _flAll2 : [];
+        const len = _isFloorPg2 ? _flPageItems2.length : pageItems.length;
         const absIdx = selIdx !== null ? invPage * 10 + selIdx : null;
         const getActs = (it, ai) => {
           const a = [];
@@ -325,6 +334,31 @@ export function useKeyHandler({
           }
           return a;
         };
+        const getFloorActs2 = (entry) => {
+          const _fIsItem2 = _flItems2.includes(entry);
+          if (!_fIsItem2) {
+            return [
+              { label: "踏む", fn: () => invActRef.current?.floorTrap?.(entry) },
+              { label: "説明", fn: () => setShowDesc((p) => (p === 10000 + (_flAll2.indexOf(entry)) ? null : 10000 + _flAll2.indexOf(entry))) },
+            ];
+          }
+          const acts2 = [];
+          acts2.push({ label: "拾う", fn: () => invActRef.current?.floorPickup?.(entry) });
+          const _addFloorAct2 = (label, actionFn) => {
+            acts2.push({ label, fn: () => invActRef.current?.floorItemAction?.(entry, actionFn) });
+          };
+          if (canUse(entry)) _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx));
+          if (entry.type === "spellbook") _addFloorAct2("読む", (idx) => invActRef.current?.readSpellbook?.(idx));
+          if (entry.type === "arrow") _addFloorAct2("射る", (idx) => invActRef.current?.shoot?.(idx));
+          if (entry.type === "wand") _addFloorAct2("振る", (idx) => invActRef.current?.wave?.(idx));
+          if (entry.type === "wand") _addFloorAct2("壊す", (idx) => invActRef.current?.breakWand?.(idx));
+          if (entry.type === "marker") _addFloorAct2("書く", (idx) => invActRef.current?.useMarker?.(idx));
+          if (entry.type === "pot") _addFloorAct2("割る", (idx) => invActRef.current?.breakPot?.(idx));
+          _addFloorAct2(entry.type === "arrow" ? "投げる(束)" : "投げる", (idx) => invActRef.current?.throw?.(idx));
+          const _j2 = _flAll2.indexOf(entry);
+          acts2.push({ label: "説明", fn: () => setShowDesc((p) => (p === 10000 + _j2 ? null : 10000 + _j2)) });
+          return acts2;
+        };
         if (invMenuSel !== null) {
           if (k === "escape" || k === "x") {
             e.preventDefault();
@@ -333,24 +367,31 @@ export function useKeyHandler({
           }
           const isLeft = k === "arrowleft" || e.code === "Numpad4";
           const isRight = k === "arrowright" || e.code === "Numpad6";
-          if ((isLeft || isRight) && selIdx !== null && pageItems[selIdx]) {
+          if ((isLeft || isRight) && selIdx !== null) {
             e.preventDefault();
-            const acts = getActs(pageItems[selIdx], absIdx);
-            setInvMenuSel(
-              (p) => (p + (isRight ? 1 : -1) + acts.length) % acts.length,
-            );
+            if (_isFloorPg2 && _flPageItems2[selIdx]) {
+              const acts = getFloorActs2(_flPageItems2[selIdx]);
+              setInvMenuSel((p) => (p + (isRight ? 1 : -1) + acts.length) % acts.length);
+            } else if (!_isFloorPg2 && pageItems[selIdx]) {
+              const acts = getActs(pageItems[selIdx], absIdx);
+              setInvMenuSel((p) => (p + (isRight ? 1 : -1) + acts.length) % acts.length);
+            }
             return;
           }
-          if (
-            (k === "enter" || k === "z") &&
-            selIdx !== null &&
-            pageItems[selIdx]
-          ) {
+          if ((k === "enter" || k === "z") && selIdx !== null) {
             e.preventDefault();
-            const acts = getActs(pageItems[selIdx], absIdx);
-            if (invMenuSel >= 0 && invMenuSel < acts.length) {
-              acts[invMenuSel].fn();
-              setInvMenuSel(null);
+            if (_isFloorPg2 && _flPageItems2[selIdx]) {
+              const acts = getFloorActs2(_flPageItems2[selIdx]);
+              if (invMenuSel >= 0 && invMenuSel < acts.length) {
+                acts[invMenuSel].fn();
+                setInvMenuSel(null);
+              }
+            } else if (!_isFloorPg2 && pageItems[selIdx]) {
+              const acts = getActs(pageItems[selIdx], absIdx);
+              if (invMenuSel >= 0 && invMenuSel < acts.length) {
+                acts[invMenuSel].fn();
+                setInvMenuSel(null);
+              }
             }
             return;
           }
@@ -389,25 +430,25 @@ export function useKeyHandler({
           setShowDesc(null);
           return;
         }
-        if (
-          (k === "enter" || k === "z") &&
-          selIdx !== null &&
-          pageItems[selIdx]
-        ) {
+        if ((k === "enter" || k === "z") && selIdx !== null) {
           e.preventDefault();
-          if (dropModeRef.current) {
-            invActRef.current?.drop?.(invPage * 10 + selIdx);
-          } else {
+          if (_isFloorPg2 && _flPageItems2[selIdx]) {
             setInvMenuSel(0);
+          } else if (!_isFloorPg2 && pageItems[selIdx]) {
+            if (dropModeRef.current) {
+              invActRef.current?.drop?.(invPage * 10 + selIdx);
+            } else {
+              setInvMenuSel(0);
+            }
           }
           return;
         }
-        if (k === "s") {
+        if (k === "s" && !_isFloorPg2) {
           e.preventDefault();
           sortInventory();
           return;
         }
-        if (k === "d") {
+        if (k === "d" && !_isFloorPg2) {
           e.preventDefault();
           const newMode = !dropModeRef.current;
           dropModeRef.current = newMode;
