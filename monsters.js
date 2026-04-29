@@ -84,7 +84,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       const _fDmg = _fDmgBase * _fOilyMult;
       _fBlock.hp -= _fDmg;
       ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}`);
-      if (_fBlock.hp <= 0) killMonster(_fBlock, dg, pl, ml, null);
+      if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); monLevelUp(m, dg, ml); }
       return;
     }
   }
@@ -2690,6 +2690,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
         (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 2 ? _sameRoom : _rLine));
+      /* ドラゴン・サラマンダーは常に攻撃予約（何もしない状態を防ぐ） */
+      if (_dragonRdy0) { m._rangedAttackThisTurn = true; return; }
       const _ttLvl0 = m.monLevel || 1;
       const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
