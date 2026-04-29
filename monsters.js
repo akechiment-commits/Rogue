@@ -933,7 +933,7 @@ export const INTERMEDIATE_BOSSES = [
     isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 2, float: true, elemWeak: "thunder" },
   /* B20F (depth=19) 攻撃力999・特技なし */
   { name: "2ヘッドドラゴン", hp: 1080, atk: 999, def: 48, exp: 6000,
-    speed: 2, tile: 96, kind: "dragon",   baseKind: "im_boss_twohead",
+    speed: 1, tile: 96, kind: "dragon",   baseKind: "im_boss_twohead",
     isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1 },
 ];
 
