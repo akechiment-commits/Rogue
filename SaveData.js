@@ -13,7 +13,7 @@ export const DEFAULT_SAVE = {
     traps:    {},           /* { effectKey: { name, tile, count } } */
     bigboxes: {},           /* { kind: { name, kind, tile, count } } */
   },
-  identifiedEffects: [],    /* 永続的に識別済みの巻物・魔法書のeffectキー（魔法のマーカー用） */
+  identifiedEffects: [],    /* 永続的に識別済みの巻物・魔法書のeffectキー（魔法の筆用） */
   clearedDungeons: {},      /* { dungeonType: true } クリア済みダンジョン記録 */
   totalRuns: 0,
   bestDepth: 0,

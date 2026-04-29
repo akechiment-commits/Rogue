@@ -4345,7 +4345,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _scrDN = dnameRef(it);
           it.name = "白紙の巻物";
           it.effect = "blank";
-          it.desc = "何も書かれていない。魔法のマーカーで書き込める。";
+          it.desc = "何も書かれていない。魔法の筆で書き込める。";
           ml.push(`巻物「${_scrDN}」を泉に浸した...文字が消えた！`);
         } else {
           ml.push("白紙の巻物を泉に浸した...何も起こらなかった。");
@@ -4355,7 +4355,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _sbDN = dnameRef(it);
           it.name = "白紙の魔法書";
           it.spell = null;
-          it.desc = "魔法が消えてしまった。魔法のマーカー(5回分)で好きな魔法書に変えられる。";
+          it.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
           ml.push(`魔法書「${_sbDN}」を泉に浸した...文字が消えた！`);
         } else {
           ml.push("白紙の魔法書を泉に浸した...何も起こらなかった。");

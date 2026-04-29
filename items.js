@@ -268,8 +268,8 @@ export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicS
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"A", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"D", weight:12, sellPrice:5,    desc:"空の瓶。今のところ使い道はない。",         tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"D", weight:12, sellPrice:5,    desc:"泉の水。飲むと満腹度+3。投げると着弾点のアイテムに祝福(祝)/呪い(呪)を付与。壺に当たると容量変化。", tile:16 };
-export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"B", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法のマーカーで書き込める。", tile:18 };
-export const MAGIC_MARKER  = { name:"魔法のマーカー", type:"marker", charges:1,          rarity:"A", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。マーカー同士の合成で容量合算。", tile:41 };
+export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"B", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
+export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"A", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
 
 
 /* ===== 宝石 ===== */
@@ -420,7 +420,7 @@ export const BB_TYPES = [
   { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れたアイテムがランダムな別のアイテムに変化する。\n何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
   { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2),  weight: 1, desc: "武器・防具の＋値を1上げる。\n力・守り・命の指輪の＋値も増やせる。壺の容量+1。\n他のアイテムには効果がない。" },
   { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4),  weight: 1, desc: "食料のサイズを1段階大きくする。\n生→最大で超特大、調理済み→最大で爆盛り。\n食料以外には効果がない。" },
-  { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3),  weight: 1, desc: "杖・ペン・魔法のマーカーの使用回数をランダムに回復する。" },
+  { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3),  weight: 1, desc: "杖・ペン・魔法の筆の使用回数をランダムに回復する。" },
   { kind: "identify",  name: "鑑定の大箱", cap: () => rng(3, 5),  weight: 1, desc: "入れたアイテムを識別する。\n薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。" },
   { kind: "split",     name: "分裂の大箱", cap: () => 1,          weight: 1, rare: true, desc: "【レア】入れたアイテムを複製する。\n＋値・矢の数は半減する。金貨・キーアイテムは分裂しない。" },
   { kind: "bless",     name: "祝福の大箱", cap: () => rng(1, 2),  weight: 1, rare: true, desc: "【レア】入れたアイテムを祝福する。\n壺は祝福ではなく容量+1。キーアイテムには効果がない。" },
@@ -2209,7 +2209,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
       const oldName = _dn; /* 名前変更前に取得 */
       item.name = "白紙の魔法書";
       item.spell = null;
-      item.desc = "魔法が消えてしまった。魔法のマーカー(5回分)で好きな魔法書に変えられる。";
+      item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
       ml.push(`魔法書「${oldName}」の文字が消えた！→白紙の魔法書`);
     } else {
       ml.push("白紙の魔法書だ。これ以上変化しない。");
@@ -2225,7 +2225,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
       const oldName = _dn; /* 名前変更前に取得 */
       item.name = "白紙の巻物";
       item.effect = "blank";
-      item.desc = "何も書かれていない。魔法のマーカーで書き込める。";
+      item.desc = "何も書かれていない。魔法の筆で書き込める。";
       ml.push(`巻物「${oldName}」の文字が消えた！→白紙の巻物`);
     } else {
       ml.push("白紙の巻物だ。これ以上変化しない。");
@@ -2401,7 +2401,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       const oldName = _dn(item); /* 名前変更前に取得 */
       item.name = "白紙の巻物";
       item.effect = "blank";
-      item.desc = "何も書かれていない。魔法のマーカーで書き込める。";
+      item.desc = "何も書かれていない。魔法の筆で書き込める。";
       ml.push(`巻物「${oldName}」が泉に落ちた...文字が消えた！`);
     } else {
       ml.push("白紙の巻物が泉に落ちた。");
@@ -2412,7 +2412,7 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       const oldName = _dn(item); /* 名前変更前に取得 */
       item.name = "白紙の魔法書";
       item.spell = null;
-      item.desc = "魔法が消えてしまった。魔法のマーカー(5回分)で好きな魔法書に変えられる。";
+      item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
       ml.push(`魔法書「${oldName}」が泉に落ちた...文字が消えた！`);
     } else {
       ml.push("白紙の魔法書が泉に落ちた。");

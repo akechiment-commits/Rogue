@@ -686,7 +686,7 @@ export function useItemActions({
       } // end else (non-rotten food)
     } else if (it.type === "scroll") {
       if (it.effect === "blank") {
-        ml.push("白紙の巻物だ。魔法のマーカーで書き込めるかもしれない。");
+        ml.push("白紙の巻物だ。魔法の筆で書き込めるかもしれない。");
         endTurn(sr.current, p, ml);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         setSelIdx(null);

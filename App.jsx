@@ -60,7 +60,7 @@ export default function App() {
       next.bestGold  = Math.max(prev.bestGold  || 0, result.earnedGold || 0);
       /* Merge encyclopedia discoveries */
       next.discovered = mergeDiscoveries(prev.discovered, result.discoveries || {});
-      /* 識別済み巻物・魔法書エフェクトを永続保存（魔法のマーカー用） */
+      /* 識別済み巻物・魔法書エフェクトを永続保存（魔法の筆用） */
       if (result.identifiedEffects?.length) {
         const _prev = new Set(prev.identifiedEffects || []);
         for (const e of result.identifiedEffects) _prev.add(e);
