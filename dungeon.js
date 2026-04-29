@@ -2169,12 +2169,18 @@ export function genDebugDungeon() {
   /* モンスター隔離部屋 */
   placeDebugMons(mons, nextMonPos);
 
+  /* 水地形テスト用：アイテム部屋右下に5×5の水地形を設置 */
+  for (let _wy = 12; _wy <= 16; _wy++)
+    for (let _wx = 51; _wx <= 55; _wx++)
+      if (map[_wy]?.[_wx] === T.FLOOR) map[_wy][_wx] = T.WATER;
+
   const { visible, explored } = mkVis();
   return {
     map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored,
     shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [],
     isBigRoom: true, floorType: "debugDungeon",
+    noNaturalSpawn: true,
   };
 }
 

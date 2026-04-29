@@ -1854,7 +1854,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (
           _dg.nextSpawnTurn !== undefined &&
           p.turns >= _dg.nextSpawnTurn &&
-          p.hp > 0
+          p.hp > 0 &&
+          !_dg.noNaturalSpawn
         ) {
           const _cands = [];
           for (let _sy = 0; _sy < MH; _sy++) {
@@ -1880,7 +1881,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           _dg.nextSpawnTurn = p.turns + _spawnInterval;
         }
         /* ミラージュ発生: 同フロア1000ターン以上滞在で30Tごとに別枠スポーン */
-        if (st.floorTurns >= 1000 && (st.floorTurns - 1000) % 30 === 0 && p.hp > 0 && _dg.dungeonType !== "tutorial") {
+        if (st.floorTurns >= 1000 && (st.floorTurns - 1000) % 30 === 0 && p.hp > 0 && _dg.dungeonType !== "tutorial" && !_dg.noNaturalSpawn) {
           const _ghostBase = MONS.find(m => m.baseKind === "rockspirit");
           if (_ghostBase) {
             const _ghostLvData = MON_LEVELS["rockspirit"]?.[1] || {};
