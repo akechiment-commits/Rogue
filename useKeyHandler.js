@@ -342,19 +342,20 @@ export function useKeyHandler({
               { label: "説明", fn: () => setShowDesc((p) => (p === 10000 + (_flAll2.indexOf(entry)) ? null : 10000 + _flAll2.indexOf(entry))) },
             ];
           }
+          const _isEquipType2 = ["weapon","armor","arrow","ring"].includes(entry.type);
           const acts2 = [];
           acts2.push({ label: "拾う", fn: () => invActRef.current?.floorPickup?.(entry) });
-          const _addFloorAct2 = (label, actionFn) => {
-            acts2.push({ label, fn: () => invActRef.current?.floorItemAction?.(entry, actionFn) });
+          const _addFloorAct2 = (label, actionFn, skipCap = false) => {
+            acts2.push({ label, fn: () => invActRef.current?.floorItemAction?.(entry, actionFn, skipCap) });
           };
-          if (canUse(entry)) _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx));
-          if (entry.type === "spellbook") _addFloorAct2("読む", (idx) => invActRef.current?.readSpellbook?.(idx));
-          if (entry.type === "arrow") _addFloorAct2("射る", (idx) => invActRef.current?.shoot?.(idx));
-          if (entry.type === "wand") _addFloorAct2("振る", (idx) => invActRef.current?.wave?.(idx));
-          if (entry.type === "wand") _addFloorAct2("壊す", (idx) => invActRef.current?.breakWand?.(idx));
-          if (entry.type === "marker") _addFloorAct2("書く", (idx) => invActRef.current?.useMarker?.(idx));
-          if (entry.type === "pot") _addFloorAct2("割る", (idx) => invActRef.current?.breakPot?.(idx));
-          _addFloorAct2(entry.type === "arrow" ? "投げる(束)" : "投げる", (idx) => invActRef.current?.throw?.(idx));
+          if (canUse(entry)) _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx), !_isEquipType2);
+          if (entry.type === "spellbook") _addFloorAct2("読む", (idx) => invActRef.current?.readSpellbook?.(idx), true);
+          if (entry.type === "arrow") _addFloorAct2("射る", (idx) => invActRef.current?.shoot?.(idx), true);
+          if (entry.type === "wand") _addFloorAct2("振る", (idx) => invActRef.current?.wave?.(idx), true);
+          if (entry.type === "wand") _addFloorAct2("壊す", (idx) => invActRef.current?.breakWand?.(idx), true);
+          if (entry.type === "marker") _addFloorAct2("書く", (idx) => invActRef.current?.useMarker?.(idx), true);
+          if (entry.type === "pot") _addFloorAct2("割る", (idx) => invActRef.current?.breakPot?.(idx), true);
+          _addFloorAct2(entry.type === "arrow" ? "投げる(束)" : "投げる", (idx) => invActRef.current?.throw?.(idx), true);
           const _j2 = _flAll2.indexOf(entry);
           acts2.push({ label: "説明", fn: () => setShowDesc((p) => (p === 10000 + _j2 ? null : 10000 + _j2)) });
           return acts2;

@@ -4572,10 +4572,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     sr.current = { ...sr.current }; setGs({ ...sr.current });
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null);
   };
-  const _doFloorItemAction = (item, actionFn) => {
+  const _doFloorItemAction = (item, actionFn, skipCapCheck = false) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
-    if (_p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
+    if (!skipCapCheck && _p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
     _dg.items = _dg.items.filter(i => i !== item);
     const _idx = _p.inventory.length;
     _p.inventory.push(item);
