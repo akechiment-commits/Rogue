@@ -2917,6 +2917,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   const _isPotion = item.type === "potion";
   const _isPot = item.type === "pot";
   const _isWand = item.type === "wand";
+  const _isBombArrow = item.type === "arrow" && item.bombArrow;
+  const _isPierceArrow = item.type === "arrow" && item.pierce;
   const _itemName = nameFn(item);
   const res = { x: shooter.x, y: shooter.y, consumed: false };
 
@@ -2931,6 +2933,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     reflectorRange,
     boltName: _itemName,
     animColor,
+    pierce: _isPierceArrow,
     onMonHit: (mon, mlx) => {
       if (_isPotion) {
         if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
@@ -3060,6 +3063,17 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       const ft = new Set();
       placeItemAt(dg, res.x, res.y, item, ml, ft);
     }
+  } else if (_isBombArrow) {
+    /* 爆弾矢：着弾点で爆発（呪われた爆発の魔方陣でない場合） */
+    if (hasCursedExplosionPentacle(dg)) {
+      ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
+    } else {
+      ml.push("爆発！");
+      doExplosion(res.x, res.y, dg, p, ml, nameFn, "爆弾矢の爆発", null, luFn);
+    }
+  } else if (_isPierceArrow) {
+    /* 貫きの矢：終端で消滅（床に置かない） */
+    if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
   } else if (!res.consumed) {
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
     const ft = new Set();
