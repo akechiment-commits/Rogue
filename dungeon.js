@@ -2,7 +2,7 @@ import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffl
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, pickMonsterDef } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
-  SPELLBOOKS, MAGIC_MARKER, BLANK_SCROLL, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
+  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS,
 } from './items.js';
 
@@ -2361,8 +2361,7 @@ export function genTutorialFloor(floorNum, opts = {}) {
     springs.push({ id: uid(), x: 32, y: 23, tile: TI.SPRING, contents: [] });
     const tpScroll = ITEMS.find(i => i.effect === "teleport");
     if (tpScroll) items.push({ ...tpScroll, id: uid(), x: 28, y: 21, preIdent: true });
-    items.push({ ...BLANK_SCROLL, id: uid(), x: 35, y: 21 });
-    items.push({ ...MAGIC_MARKER, id: uid(), x: 36, y: 21, charges: 1 });
+    items.push({ ...MAGIC_MARKER, id: uid(), x: 29, y: 21, charges: 1 });
     const powerPot2 = ITEMS.find(i => i.effect === "power");
     if (powerPot2) {
       items.push({ ...powerPot2, id: uid(), x: 28, y: 23, blessed: true });
