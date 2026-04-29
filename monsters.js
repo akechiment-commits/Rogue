@@ -2094,7 +2094,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
         if (dg.monsters.find(mn => mn.x === _ktx && mn.y === _kty && mn !== m)) break;
       }
-      if (_kHit) { m.turnAttacks++; return; }
+      m.turnAttacks++;
+      return;
     }
   }
 
