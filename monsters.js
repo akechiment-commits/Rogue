@@ -963,11 +963,24 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
     return minF <= floor && floor <= maxF;
   });
   const base = eligible.length > 0 ? pick(eligible) : MONS[0];
-  const range = Math.max(base.maxFloor - base.minFloor, 1);
-  const progress = Math.max(0, (floor - base.minFloor) / range);
+
+  /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
+     高レベルから順にチェックし、最初に条件を満たしたレベルを採用する */
   let spawnLevel = 1;
-  if (base.levels?.length >= 2 && progress > 0.65 && Math.random() < 0.55) spawnLevel = 3;
-  else if (base.levels?.length >= 1 && progress > 0.30 && Math.random() < 0.50) spawnLevel = 2;
+  if (base.levels?.length > 0) {
+    for (let i = base.levels.length; i >= 1; i--) {
+      const lv = base.levels[i - 1];
+      const lvDf = dungeonType ? lv.dungeonFloors?.[dungeonType] : undefined;
+      if (lvDf === null) continue;
+      const lvMin = lvDf?.min ?? lv.minFloor;
+      const lvMax = lvDf?.max ?? lv.maxFloor;
+      if (lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax)) {
+        spawnLevel = i + 1;
+        break;
+      }
+    }
+  }
+
   return { base, spawnLevel };
 }
 
