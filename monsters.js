@@ -2023,31 +2023,30 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (_th > 0) { m.hp += _th; ml.push(`${m.name}の肉体が再生した！(+${_th}HP)`); }
   }
 
-  /* クラーケン：水中回復＋逃走AI＋墨吐き */
-  if (m.baseKind === "im_boss_kraken" && !_moveOnly) {
-    /* 水中20HP/ターン回復 */
-    if (dg.map[m.y]?.[m.x] === T.WATER) {
-      const _kh = Math.min(20, m.maxHp - m.hp);
-      if (_kh > 0) { m.hp += _kh; ml.push(`${m.name}は水中で体力を回復した！(+${_kh}HP)`); }
+  /* クラーケン：水中回復＋逃走AI＋墨吐き（二フェーズシステム対応） */
+  if (m.baseKind === "im_boss_kraken") {
+    /* 状態更新・HP回復はmoveOnlyフェーズのみ（二重カウント防止） */
+    if (_moveOnly) {
+      if (dg.map[m.y]?.[m.x] === T.WATER) {
+        const _kh = Math.min(20, m.maxHp - m.hp);
+        if (_kh > 0) { m.hp += _kh; ml.push(`${m.name}は水中で体力を回復した！(+${_kh}HP)`); }
+      }
+      if (!m._krakFleeing && m.hp < m.maxHp * 0.5) {
+        m._krakFleeing = true;
+        ml.push(`${m.name}はHPが半分を切り、水の奥へ逃げ出した！`);
+      } else if (m._krakFleeing && m.hp >= m.maxHp * 0.8) {
+        m._krakFleeing = false;
+        ml.push(`${m.name}は体力を回復し、再び向かってきた！`);
+      }
     }
-    /* 逃走状態更新 */
-    if (!m._krakFleeing && m.hp < m.maxHp * 0.5) {
-      m._krakFleeing = true;
-      ml.push(`${m.name}はHPが半分を切り、水の奥へ逃げ出した！`);
-    } else if (m._krakFleeing && m.hp >= m.maxHp * 0.8) {
-      m._krakFleeing = false;
-      m._krakFleeTarget = null;
-      ml.push(`${m.name}は体力を回復し、再び向かってきた！`);
-    }
-    /* 逃走中：隣接タイルの中で最も水に囲まれた場所へ移動（陸地から離れる） */
-    if (m._krakFleeing && !_attackOnly) {
+    /* 逃走移動：moveOnlyフェーズで実行 */
+    if (m._krakFleeing && _moveOnly) {
       let _bestScore = -99, _bestTile = null;
       for (const [_fdx, _fdy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
         const _fnx = m.x + _fdx, _fny = m.y + _fdy;
         if (!canEnter(dg.map, _fnx, _fny, true)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
-        /* 水タイル自体ボーナス+4、周囲8マスの水タイル数をスコアに加算 */
         let _score = dg.map[_fny]?.[_fnx] === T.WATER ? 4 : 0;
         for (const [_nx2, _ny2] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]])
           if (dg.map[_fny + _ny2]?.[_fnx + _nx2] === T.WATER) _score++;
@@ -2056,14 +2055,23 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (_bestTile) { m.x = _bestTile.x; m.y = _bestTile.y; }
       return;
     }
-    /* 墨吐き：直線・hasLOSのみ（水タイルのvisible問題を回避）、45%で暗闇+ダメージ */
-    const _kiAdx = pl.x - m.x, _kiAdy = pl.y - m.y;
-    const _kiDist = Math.max(Math.abs(_kiAdx), Math.abs(_kiAdy));
-    const _kiInLine = _kiAdx === 0 || _kiAdy === 0 || Math.abs(_kiAdx) === Math.abs(_kiAdy);
-    const _kiLOS = hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-    if (_kiDist >= 2 && _kiInLine && _kiLOS && m.turnAttacks < (m.maxAttacks ?? 2) && Math.random() < 0.45) {
+    /* 逃走中はattackOnlyで何もしない */
+    if (m._krakFleeing) return;
+    /* 墨吐き：moveOnlyで45%予約→attackOnlyで実行 */
+    if (_moveOnly) {
+      const _kiAdx = pl.x - m.x, _kiAdy = pl.y - m.y;
+      const _kiDist = Math.max(Math.abs(_kiAdx), Math.abs(_kiAdy));
+      const _kiInLine = _kiAdx === 0 || _kiAdy === 0 || Math.abs(_kiAdx) === Math.abs(_kiAdy);
+      const _kiLOS = hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+      if (_kiDist >= 2 && _kiInLine && _kiLOS && m.turnAttacks < (m.maxAttacks ?? 2) && Math.random() < 0.45) {
+        m._krakInkReady = true;
+        return; /* 移動しない→attackOnlyで墨発動 */
+      }
+      /* 予約なし：通常BFS移動に委ねる */
+    } else if (m._krakInkReady) {
+      /* attackOnlyフェーズ：予約済み墨吐きを実行 */
+      delete m._krakInkReady;
       const _kidx = Math.sign(pl.x - m.x), _kidy = Math.sign(pl.y - m.y);
-      let _kHit = false;
       for (let _ki2 = 1; _ki2 < 20; _ki2++) {
         const _ktx = m.x + _kidx * _ki2, _kty = m.y + _kidy * _ki2;
         if (_ktx < 0 || _ktx >= MW || _kty < 0 || _kty >= MH) break;
@@ -2075,7 +2083,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           pl.darknessTurns = (pl.darknessTurns || 0) + 15;
           ml.push(`${m.name}が墨を吐いた！${_kiDmg}ダメージ！暗闇状態になった！(15ターン)`);
           _onHit?.(_kiDmg, m);
-          _kHit = true;
           break;
         }
         if (dg.monsters.find(mn => mn.x === _ktx && mn.y === _kty && mn !== m)) break;
