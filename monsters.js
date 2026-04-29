@@ -2039,20 +2039,23 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         ml.push(`${m.name}は体力を回復し、再び向かってきた！`);
       }
     }
-    /* 逃走移動：moveOnlyフェーズで実行 */
+    /* 逃走移動：moveOnlyフェーズで最近傍の水タイルにBFS移動 */
     if (m._krakFleeing && _moveOnly) {
-      let _bestScore = -99, _bestTile = null;
-      for (const [_fdx, _fdy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-        const _fnx = m.x + _fdx, _fny = m.y + _fdy;
-        if (!canEnter(dg.map, _fnx, _fny, true)) continue;
-        if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
-        if (_fnx === pl.x && _fny === pl.y) continue;
-        let _score = dg.map[_fny]?.[_fnx] === T.WATER ? 4 : 0;
-        for (const [_nx2, _ny2] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]])
-          if (dg.map[_fny + _ny2]?.[_fnx + _nx2] === T.WATER) _score++;
-        if (_score > _bestScore) { _bestScore = _score; _bestTile = { x: _fnx, y: _fny }; }
+      /* 最もスコアの高い水タイル（最深部）を目標に */
+      let _target = null, _bestWaterScore = -1;
+      for (let _wy = 0; _wy < MH; _wy++) {
+        for (let _wx = 0; _wx < MW; _wx++) {
+          if (dg.map[_wy]?.[_wx] !== T.WATER) continue;
+          let _ws = 0;
+          for (const [_dx2, _dy2] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]])
+            if (dg.map[_wy + _dy2]?.[_wx + _dx2] === T.WATER) _ws++;
+          if (_ws > _bestWaterScore) { _bestWaterScore = _ws; _target = { x: _wx, y: _wy }; }
+        }
       }
-      if (_bestTile) { m.x = _bestTile.x; m.y = _bestTile.y; }
+      if (_target) {
+        const _next = bfsNext(dg.map, dg.monsters, m.x, m.y, _target.x, _target.y, m, 40, dg.pentacles, true);
+        if (_next && !(_next.x === pl.x && _next.y === pl.y)) { m.x = _next.x; m.y = _next.y; }
+      }
       return;
     }
     /* 逃走中はattackOnlyで何もしない */
