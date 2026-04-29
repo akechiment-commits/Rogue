@@ -2470,18 +2470,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
   }
-  /* サラマンダー：直線炎ブレス（canSee後に判定） */
-  if (m.baseKind === "im_boss_salamander" && !_moveOnly && m.turnAttacks < (m.maxAttacks ?? 2)) {
-    const _sfAdx = pl.x - m.x, _sfAdy = pl.y - m.y;
-    const _sfDist = Math.max(Math.abs(_sfAdx), Math.abs(_sfAdy));
-    const _sfInLine = _sfAdx === 0 || _sfAdy === 0 || Math.abs(_sfAdx) === Math.abs(_sfAdy);
-    if (_sfDist >= 2 && _sfInLine && canSee && !_plOnBlessedSanc) {
-      m.turnAttacks++;
-      monsterDragonFire(m, dg, pl, ml, _onHit);
-      return;
-    }
-  }
-
   /* 囮のペン（呪い）: フロア全敵が常にプレイヤーを認識して追跡 */
   if (dg.pentacles?.some(pc => pc.kind === "decoy" && pc.cursed)) {
     m.aware = true;
@@ -2700,8 +2688,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
       const _dfLvl0 = m.monLevel || 1;
-      const _dragonRdy0 = m.baseKind === "dragon" && !m.sealed && _rAtks && _rLen >= 2 &&
-        (_dfLvl0 >= 2 ? _sameRoom : _rLine);
+      const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
+        (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 2 ? _sameRoom : _rLine));
       const _ttLvl0 = m.monLevel || 1;
       const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
@@ -2900,14 +2888,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── ドラゴン炎ブレス（Lv1:一直線 / Lv2:同部屋 / Lv3:同フロア） ── */
-    if (!_moveOnly && m.baseKind === "dragon" && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
+    /* ── ドラゴン炎ブレス（Lv1:一直線 / Lv2:同部屋 / Lv3:同フロア）＋サラマンダー ── */
+    if (!_moveOnly && (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && m.turnAttacks < (m.maxAttacks ?? 1)) {
       const _dfAdx = pl.x - m.x, _dfAdy = pl.y - m.y;
       const _dfDist = Math.max(Math.abs(_dfAdx), Math.abs(_dfAdy));
       const _dfLvl = m.monLevel || 1;
       let _canFire = false;
       if (_dfDist >= 2) {
-        if (_dfLvl >= 3) {
+        if (m.baseKind === "im_boss_salamander") {
+          _canFire = canSee && (_dfAdx === 0 || _dfAdy === 0 || Math.abs(_dfAdx) === Math.abs(_dfAdy));
+        } else if (_dfLvl >= 3) {
           _canFire = true; // 同フロア内（視界不要）
         } else if (_dfLvl >= 2) {
           _canFire = canSee && _sameRoom; // 同部屋内
