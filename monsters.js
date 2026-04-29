@@ -369,27 +369,9 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       }
     }
     /* 中級ボス固有 on-hit */
-    if (m.baseKind === "im_boss_frost" && Math.random() < 0.30) {
+    if (m.baseKind === "im_boss_titan" && Math.random() < 0.35) {
       pl.immobileTurns = (pl.immobileTurns || 0) + 3;
-      ml.push(`${m.name}の一撃が凍てついた！移動封じ！(3ターン)`);
-    }
-    if (m.baseKind === "im_boss_poison" && Math.random() < 0.35) {
-      if (hasRingEffect(pl, "antidote_ring")) {
-        ml.push(`${m.name}の毒刃に！しかし指輪が毒を消した！`);
-      } else if ((pl.yogurtImmuneTurns || 0) > 0) {
-        ml.push(`${m.name}の毒刃に！しかし乳酸菌が毒を防いだ！`);
-      } else {
-        pl.poisoned = true;
-        ml.push(`${m.name}の毒刃に！毒を受けた！`);
-      }
-    }
-    if (m.baseKind === "im_boss_ironwall" && Math.random() < 0.25) {
-      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + 5;
-      ml.push(`${m.name}の豪打が鎧を砕いた！防御が半減した！(5ターン)`);
-    }
-    if (m.baseKind === "im_boss_darkfog" && Math.random() < 0.20) {
-      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + 5;
-      ml.push(`${m.name}の闇の刃が鎧を貫いた！防御が半減した！(5ターン)`);
+      ml.push(`${m.name}の強烈な一撃！移動封じ！(3ターン)`);
     }
   }
   /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
@@ -937,22 +919,22 @@ export const BOSSES = [
 
 /* ===== 中級ダンジョン専用ボス (全4体 B5F〜B20F) ===== */
 export const INTERMEDIATE_BOSSES = [
-  /* B5F (depth=4) 攻撃時30%移動封じ */
-  { name: "氷壁の番兵", hp: 280, atk: 38, def: 20, exp: 700,
-    speed: 1, tile: 93, kind: "beast",    baseKind: "im_boss_frost",
+  /* B5F (depth=4) 直線炎ブレス */
+  { name: "サラマンダー", hp: 280, atk: 38, def: 20, exp: 700,
+    speed: 1, tile: 93, kind: "dragon",   baseKind: "im_boss_salamander",
     isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 2 },
-  /* B10F (depth=9) 攻撃時35%毒付与 */
-  { name: "猛毒の軍師", hp: 460, atk: 52, def: 27, exp: 1500,
-    speed: 1, tile: 94, kind: "humanoid", baseKind: "im_boss_poison",
+  /* B10F (depth=9) 攻撃時35%移動封じ＋毎ターン5HP回復 */
+  { name: "ティターン", hp: 460, atk: 52, def: 27, exp: 1500,
+    speed: 1, tile: 94, kind: "humanoid", baseKind: "im_boss_titan",
     isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1 },
-  /* B15F (depth=14) 毎ターン5HP回復＋攻撃時25%防御半減 */
-  { name: "鉄壁の鬼将", hp: 720, atk: 65, def: 42, exp: 3000,
-    speed: 1, tile: 95, kind: "humanoid", baseKind: "im_boss_ironwall",
-    isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 2 },
-  /* B20F (depth=19) 遠距離魔法弾＋暗闇（ターン消費）＋攻撃時20%防御半減 */
-  { name: "闇霧の覇王", hp: 1080, atk: 82, def: 48, exp: 6000,
-    speed: 2, tile: 96, kind: "beast",    baseKind: "im_boss_darkfog",
-    isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1, float: true },
+  /* B15F (depth=14) 水中20HP/ターン回復＋HP半減で逃走＋一直線墨（暗闇+ダメージ） */
+  { name: "クラーケン", hp: 720, atk: 65, def: 42, exp: 3000,
+    speed: 1, tile: 95, kind: "beast",    baseKind: "im_boss_kraken",
+    isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 2, float: true },
+  /* B20F (depth=19) 攻撃力999・特技なし */
+  { name: "2ヘッドドラゴン", hp: 1080, atk: 999, def: 48, exp: 6000,
+    speed: 2, tile: 96, kind: "dragon",   baseKind: "im_boss_twohead",
+    isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1 },
 ];
 
 /* ===== 警備員テンプレート ===== */
@@ -2035,62 +2017,80 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
 
-  /* 鉄壁の鬼将：毎ターン5HP回復（行動消費なし） */
-  if (m.baseKind === "im_boss_ironwall" && !_moveOnly) {
-    const _ih = Math.min(5, m.maxHp - m.hp);
-    if (_ih > 0) { m.hp += _ih; ml.push(`${m.name}は鋼の意志で傷を癒した！(+${_ih}HP)`); }
+  /* サラマンダー：直線炎ブレス */
+  if (m.baseKind === "im_boss_salamander" && !_moveOnly && m.turnAttacks < (m.maxAttacks ?? 2)) {
+    const _sfAdx = pl.x - m.x, _sfAdy = pl.y - m.y;
+    const _sfDist = Math.max(Math.abs(_sfAdx), Math.abs(_sfAdy));
+    const _sfInLine = _sfAdx === 0 || _sfAdy === 0 || Math.abs(_sfAdx) === Math.abs(_sfAdy);
+    const _sfLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+    const _sfBlessedSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
+    if (_sfDist >= 2 && _sfInLine && _sfLOS && !_sfBlessedSanc) {
+      m.turnAttacks++;
+      monsterDragonFire(m, dg, pl, ml, _onHit);
+      return;
+    }
   }
 
-  /* 闇霧の覇王：遠距離魔法弾（非隣接LOS直線）& 暗闇（同室非隣接） */
-  if (m.baseKind === "im_boss_darkfog" && !_moveOnly) {
-    const _dfRoom = findRoom(dg.rooms, m.x, m.y);
-    const _dfSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
-      (_dfRoom && dg.pentacles?.some(pc =>
-        pc.kind === "magic_seal" &&
-        pc.x >= _dfRoom.x && pc.x < _dfRoom.x + _dfRoom.w &&
-        pc.y >= _dfRoom.y && pc.y < _dfRoom.y + _dfRoom.h));
-    if (!_dfSeal) {
-      const _dfAdx = Math.abs(pl.x - m.x), _dfAdy = Math.abs(pl.y - m.y);
-      const _dfDist = _dfAdx + _dfAdy;
-      const _dfDdx = Math.sign(pl.x - m.x), _dfDdy = Math.sign(pl.y - m.y);
-      const _dfInLine = _dfAdx === 0 || _dfAdy === 0 || _dfAdx === _dfAdy;
-      const _dfLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-      /* 遠距離（非隣接）& 直線LOS → 魔法弾（魔法は遠投・みかわし不適用・反射の鎧有効） */
-      if (_dfDist > 1 && _dfInLine && _dfLOS && m.turnAttacks < (m.maxAttacks ?? 1)) {
-        pushMonsterBoltAnim(m.x, m.y, _dfDdx, _dfDdy, dg, pl, "#7020b0");
-        for (let _bd = 1; _bd < 20; _bd++) {
-          const _btx = m.x + _dfDdx * _bd, _bty = m.y + _dfDdy * _bd;
-          if (_btx < 0 || _btx >= MW || _bty < 0 || _bty >= MH ||
-              dg.map[_bty][_btx] === T.WALL || dg.map[_bty][_btx] === T.BWALL) break;
-          if (_btx === pl.x && _bty === pl.y) {
-            if (hasAbility(pl.armor, "wand_reflect")) {
-              ml.push(`反射の鎧が${m.name}の魔法弾を反射した！`);
-              const _rfDmg = Math.max(1, Math.floor(m.atk * 0.5));
-              m.hp -= _rfDmg; ml.push(`魔法弾が${m.name}に命中！${_rfDmg}ダメージ！`);
-            } else if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
-              ml.push("祝福された聖域の加護が魔法弾を防いだ！");
-            } else {
-              const _dfDmg = Math.max(1, m.atk - Math.floor(pl.def / 2));
-              pl.hp -= _dfDmg; pl.deathCause = `${m.name}の魔法弾で`;
-              ml.push(`${m.name}の闇の魔法弾が命中！${_dfDmg}ダメージ！`);
-            }
-            break;
-          }
-          const _dfMon = dg.monsters.find(mn => mn.x === _btx && mn.y === _bty && mn !== m);
-          if (_dfMon) { ml.push(`${m.name}の魔法弾が${_dfMon.name}に当たったが効果はなかった。`); break; }
+  /* ティターン：毎ターン5HP回復（行動消費なし） */
+  if (m.baseKind === "im_boss_titan" && !_moveOnly) {
+    const _th = Math.min(5, m.maxHp - m.hp);
+    if (_th > 0) { m.hp += _th; ml.push(`${m.name}の肉体が再生した！(+${_th}HP)`); }
+  }
+
+  /* クラーケン：水中回復＋逃走AI＋墨吐き */
+  if (m.baseKind === "im_boss_kraken" && !_moveOnly) {
+    /* 水中20HP/ターン回復 */
+    if (dg.map[m.y]?.[m.x] === T.WATER) {
+      const _kh = Math.min(20, m.maxHp - m.hp);
+      if (_kh > 0) { m.hp += _kh; ml.push(`${m.name}は水中で体力を回復した！(+${_kh}HP)`); }
+    }
+    /* 逃走状態更新 */
+    if (!m._krakFleeing && m.hp < m.maxHp * 0.5) {
+      m._krakFleeing = true;
+      ml.push(`${m.name}はHPが半分を切り、水の奥へ逃げ出した！`);
+    } else if (m._krakFleeing && m.hp >= m.maxHp * 0.8) {
+      m._krakFleeing = false;
+      ml.push(`${m.name}は体力を回復し、再び向かってきた！`);
+    }
+    /* 逃走中：水タイルの中でプレイヤーから最も遠い地点へ移動して行動終了 */
+    if (m._krakFleeing && !_attackOnly) {
+      let _kFleeTx = m.x, _kFleeTy = m.y, _kFleeMaxDist = -1;
+      for (let _ky = 0; _ky < MH; _ky++) {
+        for (let _kx = 0; _kx < MW; _kx++) {
+          if (dg.map[_ky]?.[_kx] !== T.WATER) continue;
+          const _d = (_kx - pl.x) * (_kx - pl.x) + (_ky - pl.y) * (_ky - pl.y);
+          if (_d > _kFleeMaxDist) { _kFleeMaxDist = _d; _kFleeTx = _kx; _kFleeTy = _ky; }
         }
-        m.turnAttacks++;
-        return; /* 射撃行動消費 */
       }
-      /* 同室 & 非隣接 → 50%で暗闇 */
-      const _dfPlRoom = findRoom(dg.rooms, pl.x, pl.y);
-      const _dfSameRoom = _dfRoom && _dfPlRoom &&
-        _dfRoom.x === _dfPlRoom.x && _dfRoom.y === _dfPlRoom.y;
-      if (_dfSameRoom && _dfDist > 1 && Math.random() < 0.50) {
-        pl.darknessTurns = (pl.darknessTurns || 0) + 20;
-        ml.push(`${m.name}が暗黒の霧を解き放った！部屋全体が暗闇に包まれた！(20ターン)`);
-        return; /* 暗闇行動消費 */
+      const _kNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _kFleeTx, _kFleeTy, m, 40, dg.pentacles, true);
+      if (_kNext && !(_kNext.x === pl.x && _kNext.y === pl.y)) { m.x = _kNext.x; m.y = _kNext.y; }
+      return;
+    }
+    /* 墨吐き：直線LOS、45%で暗闇+ダメージ */
+    const _kiAdx = pl.x - m.x, _kiAdy = pl.y - m.y;
+    const _kiDist = Math.max(Math.abs(_kiAdx), Math.abs(_kiAdy));
+    const _kiInLine = _kiAdx === 0 || _kiAdy === 0 || Math.abs(_kiAdx) === Math.abs(_kiAdy);
+    const _kiLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+    if (_kiDist >= 2 && _kiInLine && _kiLOS && m.turnAttacks < (m.maxAttacks ?? 2) && Math.random() < 0.45) {
+      const _kidx = Math.sign(pl.x - m.x), _kidy = Math.sign(pl.y - m.y);
+      let _kHit = false;
+      for (let _ki2 = 1; _ki2 < 20; _ki2++) {
+        const _ktx = m.x + _kidx * _ki2, _kty = m.y + _kidy * _ki2;
+        if (_ktx < 0 || _ktx >= MW || _kty < 0 || _kty >= MH) break;
+        if (dg.map[_kty]?.[_ktx] === T.WALL || dg.map[_kty]?.[_ktx] === T.BWALL) break;
+        if (_ktx === pl.x && _kty === pl.y) {
+          const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
+          pl.hp -= _kiDmg;
+          pl.deathCause = `${m.name}の墨で`;
+          pl.darknessTurns = (pl.darknessTurns || 0) + 15;
+          ml.push(`${m.name}が墨を吐いた！${_kiDmg}ダメージ！暗闇状態になった！(15ターン)`);
+          _onHit?.(_kiDmg, m);
+          _kHit = true;
+          break;
+        }
+        if (dg.monsters.find(mn => mn.x === _ktx && mn.y === _kty && mn !== m)) break;
       }
+      if (_kHit) { m.turnAttacks++; return; }
     }
   }
 
