@@ -1781,6 +1781,29 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m.statusImmune = Math.max(0, m.statusImmune - (m.isBoss ? 2 : 1));
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }
+  /* バーサーク状態：カウントダウン */
+  if ((m.berserkerTurns || 0) > 0) {
+    if (!_attackOnly) m.berserkerTurns = Math.max(0, m.berserkerTurns - (m.isBoss ? 2 : 1));
+    if (m.berserkerTurns <= 0) ml.push(`${m.name}のバーサーク状態が解けた！`);
+  }
+  /* 平和主義状態：攻撃できず、ランダムに1歩移動して終了 */
+  if ((m.pacifistTurns || 0) > 0) {
+    if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - (m.isBoss ? 2 : 1));
+    if (m.pacifistTurns <= 0) { ml.push(`${m.name}の平和主義状態が解けた！`); m.turnAccum = 0; }
+    else if (!_attackOnly) {
+      const _pdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+      const _pshuf = [..._pdirs].sort(() => Math.random() - 0.5);
+      for (const [_pdx, _pdy] of _pshuf) {
+        const _pnx = m.x + _pdx, _pny = m.y + _pdy;
+        if (!canEnter(dg.map, _pnx, _pny, _effFloat)) continue;
+        if (dg.monsters.some(o => o !== m && o.x === _pnx && o.y === _pny)) continue;
+        if (_pnx === pl.x && _pny === pl.y) continue;
+        if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _pnx && pc.y === _pny)) continue;
+        m.dir = { x: _pdx, y: _pdy }; m.x = _pnx; m.y = _pny; m._movedThisTurn = true; break;
+      }
+      return;
+    }
+  }
   /* 毒状態：毎ターン現HP×10%+5ダメージ */
   if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
     m.poisonedTurns = Math.max(0, m.poisonedTurns - (m.isBoss ? 2 : 1));
@@ -3378,7 +3401,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── berserker（バーサーカー等）：敵味方区別なく攻撃、店主除く ── */
-    if (m.subtype === "berserker" && !m.sealed) {
+    if ((m.subtype === "berserker" || (m.berserkerTurns || 0) > 0) && !m.sealed) {
       m.aware = true;
       /* 隣接ターゲット（店主除く）を探す */
       const _bcAdj = dg.monsters.filter(o =>

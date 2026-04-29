@@ -223,6 +223,8 @@ export const ITEMS = [
     desc:"選んだ壺の中身を割らずに足元にばらまく。油系は周囲8マスに油も飛散。火薬壺は壺無事のまま爆発。\n呪い：選んだ壺を割る。祝福：中身を吸い出したうえで容量+1。", tile:18 },
   { name:"自爆の巻物", type:"scroll", effect:"self_destruct",      rarity:"B", weight:4,  sellPrice:700,
     desc:"自分と周囲8マスに爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ半減。\n祝福：爆発範囲が5×5に拡大。\n呪い：爆発は起きず自分のHPが全回復する。", tile:18 },
+  { name:"バーサーカーの巻物", type:"scroll", effect:"berserker_scroll", rarity:"B", weight:4, sellPrice:600,
+    desc:"部屋内の敵全員が50ターンのバーサーク状態になり、敵味方区別なく攻撃する。\n跳ね返った場合：自分が50ターン攻撃力1.5倍になる。\n祝福：効果範囲がフロア全体になる。\n呪い：部屋内の敵が20ターンの平和主義状態になる（攻撃不可）。跳ね返った場合も自分が平和主義状態になる。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"A", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"C", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },

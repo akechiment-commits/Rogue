@@ -1188,6 +1188,53 @@ export function useItemActions({
           p.hp -= _flSelfDmg; p.deathCause = "呪われた炎の巻物で";
           ml.push(`呪われた炎が爆発した！${_flSelfDmg}ダメージ！【呪】`); pushExplosionAnim(p.x, p.y);
         }
+      } else if (it.effect === "berserker_scroll") {
+        if (it.cursed) {
+          // 呪い：部屋内の敵が20ターン平和主義状態（攻撃不可）
+          const _bsCurRoom = findRoom(dg.rooms, p.x, p.y);
+          const _bsCurTgts = _bsCurRoom
+            ? dg.monsters.filter(m => findRoom(dg.rooms, m.x, m.y) === _bsCurRoom)
+            : [];
+          if (_bsCurTgts.length === 0) {
+            ml.push("平和の気が辺りを包んだが、部屋に敵はいない。【呪】");
+          } else {
+            for (const _m of _bsCurTgts) {
+              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (_m.subtype === "magicreflect") {
+                if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が平和を跳ね返したが、状態防止中のため効かなかった！`); continue; }
+                p.pacifistTurns = (p.pacifistTurns || 0) + 20;
+                ml.push(`${_m.name}が跳ね返した！自分も20ターン平和主義状態になった…【呪】`); continue;
+              }
+              if (consumeBarrier(_m, ml)) continue;
+              if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+              _m.pacifistTurns = (_m.pacifistTurns || 0) + 20;
+              ml.push(`${_m.name}が平和主義状態になった！(20ターン)【呪】`);
+            }
+          }
+        } else {
+          // 通常/祝福：部屋内(通常) or フロア全体(祝福) の敵が50ターンバーサーク状態
+          const _bsRoom = findRoom(dg.rooms, p.x, p.y);
+          const _bsTgts = it.blessed
+            ? [...dg.monsters]
+            : (_bsRoom ? dg.monsters.filter(m => findRoom(dg.rooms, m.x, m.y) === _bsRoom) : []);
+          if (_bsTgts.length === 0) {
+            ml.push(it.blessed ? "バーサークの気が漂うが、フロアに敵はいない。【祝】" : "バーサークの気が漂うが、部屋に敵はいない。");
+          } else {
+            for (const _m of _bsTgts) {
+              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (_m.subtype === "magicreflect") {
+                if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}がバーサークを跳ね返したが、状態防止中のため効かなかった！`); continue; }
+                p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 50;
+                ml.push(`${_m.name}が跳ね返した！自分が50ターン攻撃力1.5倍になった！`); continue;
+              }
+              if (consumeBarrier(_m, ml)) continue;
+              if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
+              _m.berserkerTurns = (_m.berserkerTurns || 0) + 50;
+              _m.aware = true;
+              ml.push(`${_m.name}がバーサーク状態になった！(50ターン)${it.blessed ? "【祝】" : ""}`);
+            }
+          }
+        }
       } else if (it.effect === "self_destruct") {
         if (it.cursed) {
           // 呪い：爆発なし、自分のHPが全回復

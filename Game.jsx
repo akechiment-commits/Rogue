@@ -1427,6 +1427,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         p.spicyAtkTurns--;
         if (p.spicyAtkTurns <= 0) ml.push("辛さによるダメージブーストが切れた！");
       }
+      if ((p.pacifistTurns || 0) > 0) {
+        p.pacifistTurns--;
+        if (p.pacifistTurns <= 0) ml.push("平和主義状態が解けた！攻撃できるようになった。");
+      }
       if ((p.honeyRegenTurns || 0) > 0) {
         const _hReg = Math.min(2, p.maxHp - p.hp);
         if (_hReg > 0) p.hp += _hReg;
@@ -2302,6 +2306,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   ml.push("店主：「いらっしゃいませ！」");
                 }
               }
+            } else if ((p.pacifistTurns || 0) > 0) {
+              ml.push(`平和主義状態のため攻撃できない！(残り${p.pacifistTurns}ターン)`);
+              acted = true;
             } else {
               /* 近接命中率95%（必中状態なら100%） */
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
@@ -4777,6 +4784,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {(p.spicyAtkTurns || 0) > 0 && (
           <span style={{ color: "#ff6010" }}>🌶{p.spicyAtkTurns}</span>
+        )}{" "}
+        {(p.pacifistTurns || 0) > 0 && (
+          <span style={{ color: "#40c0a0" }}>☮{p.pacifistTurns}</span>
         )}{" "}
         {(p.honeyRegenTurns || 0) > 0 && (
           <span style={{ color: "#f0c040" }}>🍯{p.honeyRegenTurns}</span>
