@@ -84,7 +84,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       const _fDmg = _fDmgBase * _fOilyMult;
       _fBlock.hp -= _fDmg;
       ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}`);
-      if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); monLevelUp(m, dg, ml); }
+      if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); }
       return;
     }
   }
