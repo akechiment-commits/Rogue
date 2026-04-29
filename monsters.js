@@ -987,6 +987,12 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
   return { ...st, id: uid(), x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
 }
 
+/** 指定のベース定義・レベルでモンスターを生成する（固定取り巻き用） */
+export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false } = {}) {
+  const st = buildMonStats(base, spawnLevel);
+  return { ...st, id: uid(), x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
+}
+
 /** count 体のモンスターを centerX,centerY 周辺 → ランダム部屋にスポーンさせる */
 export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = false, immediateAct = false } = {}) {
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];

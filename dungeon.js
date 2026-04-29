@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, pickMonsterDef } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
@@ -1475,19 +1475,33 @@ function genBossFloor(depth, dungeonType = null) {
     patrolTarget: null,
   };
 
-  /* 取り巻き：ボスの周囲にtier×1+1体を配置 */
+  /* 取り巻き：ボスの周囲にtier+1体を配置（ボスごとに固定種） */
   const minionCount = (bt.bossTier || 1) + 1;
-  const minionDepth = Math.max(0, depth - 2);
   const minionMonsters = [];
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
   const _occ = (x, y) => (x === bossX && y === bossY) || minionMonsters.some(mn => mn.x === x && mn.y === y);
-  for (let _mi = 0; _mi < minionCount * 20 && minionMonsters.length < minionCount; _mi++) {
-    const [_ddx, _ddy] = DIRS8[Math.floor(Math.random() * DIRS8.length)];
-    const _mx = bossX + _ddx * (1 + Math.floor(_mi / 8));
-    const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
-    if (map[_my]?.[_mx] !== T.FLOOR) continue;
-    if (_occ(_mx, _my)) continue;
-    minionMonsters.push(makeMonster(minionDepth, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY, dungeonType }));
+
+  if (bt.baseKind === "im_boss_kraken") {
+    /* クラーケン取り巻き：わてに（わてりLv2）を水タイル上に配置 */
+    const _wateriBase = MONS.find(m => m.baseKind === "wateri");
+    for (let _mi = 0; _mi < minionCount * 20 && minionMonsters.length < minionCount; _mi++) {
+      const [_ddx, _ddy] = DIRS8[Math.floor(Math.random() * DIRS8.length)];
+      const _mx = bossX + _ddx * (1 + Math.floor(_mi / 8));
+      const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
+      if (map[_my]?.[_mx] !== T.WATER) continue;
+      if (_occ(_mx, _my)) continue;
+      minionMonsters.push(makeMonsterFromBase(_wateriBase, 2, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY }));
+    }
+  } else {
+    const minionDepth = Math.max(0, depth - 2);
+    for (let _mi = 0; _mi < minionCount * 20 && minionMonsters.length < minionCount; _mi++) {
+      const [_ddx, _ddy] = DIRS8[Math.floor(Math.random() * DIRS8.length)];
+      const _mx = bossX + _ddx * (1 + Math.floor(_mi / 8));
+      const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
+      if (map[_my]?.[_mx] !== T.FLOOR) continue;
+      if (_occ(_mx, _my)) continue;
+      minionMonsters.push(makeMonster(minionDepth, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY, dungeonType }));
+    }
   }
 
   const rooms = [{ x: arX, y: arY, w: arW, h: arH, cx: bossX, cy: bossY }];
