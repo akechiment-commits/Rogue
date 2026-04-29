@@ -1448,6 +1448,17 @@ function genBossFloor(depth, dungeonType = null) {
   const bt = _bossPool[bossIdx];
   const bossX = arX + (arW >> 1);
   const bossY = arY + (arH >> 1);
+
+  /* クラーケン専用：ボス部屋中央に11×5の水地形を生成 */
+  if (bt.baseKind === "im_boss_kraken") {
+    const _wW = 11, _wH = 5;
+    const _wX = bossX - Math.floor(_wW / 2);
+    const _wY = bossY - Math.floor(_wH / 2);
+    for (let _wy = _wY; _wy < _wY + _wH; _wy++)
+      for (let _wx = _wX; _wx < _wX + _wW; _wx++)
+        if (map[_wy]?.[_wx] === T.FLOOR) map[_wy][_wx] = T.WATER;
+  }
+
   const boss = {
     ...bt,
     id: uid(),
