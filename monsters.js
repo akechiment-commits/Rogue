@@ -1583,16 +1583,16 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       }
       if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
     }
-    /* 大箱命中（onBigbox未指定なら素通り：シオン銃弾などアイテムでない弾向け） */
-    if (onBigbox) {
+    /* 大箱命中（onBigbox未指定なら素通り：シオン銃弾などアイテムでない弾向け）。遠投中は無視して素通り */
+    if (onBigbox && !_isFc) {
       const _bb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
       if (_bb) {
         onBigbox(_bb, _tx, _ty, ml);
         if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
       }
     }
-    /* 泉命中（onSpring未指定なら素通り：シオン銃弾などアイテムでない弾向け） */
-    if (onSpring) {
+    /* 泉命中（onSpring未指定なら素通り：シオン銃弾などアイテムでない弾向け）。遠投中は無視して素通り */
+    if (onSpring && !_isFc) {
       const _spr = dg.springs?.find(s => s.x === _tx && s.y === _ty);
       if (_spr) {
         onSpring(_spr, _tx, _ty, ml);
