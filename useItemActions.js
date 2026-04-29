@@ -68,6 +68,7 @@ export function useItemActions({
   lu, endTurn, chgFloor, withPitfallBag,
   dnameRef, bigboxAddItem,
   onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
+  floorPenDropRef,
 }) {
   const doUseItem = useCallback((idx) => {
     if (!sr.current) return;
@@ -2183,6 +2184,24 @@ export function useItemActions({
       if (marker.charges <= 0) {
         p.inventory.splice(markerMode.markerIdx, 1);
         ml.push(`${marker.name}のインクが切れた。`);
+      }
+      /* 床のペンを使った場合は描いた後に隣のマスに落とす */
+      if (floorPenDropRef?.current === marker) {
+        floorPenDropRef.current = null;
+        const _pi = p.inventory.indexOf(marker);
+        if (_pi !== -1) {
+          const { dungeon: dg } = sr.current;
+          const _adj4 = [[-1,0],[1,0],[0,-1],[0,1]];
+          const _adj = _adj4.find(([dx,dy]) => {
+            const nx = p.x + dx, ny = p.y + dy;
+            return dg.map[ny]?.[nx] === T.FLOOR && !dg.items.find(i => i.x === nx && i.y === ny);
+          });
+          p.inventory.splice(_pi, 1);
+          marker.x = _adj ? p.x + _adj[0] : p.x;
+          marker.y = _adj ? p.y + _adj[1] : p.y;
+          dg.items.push(marker);
+          ml.push(`${marker.name}を${_adj ? "横のマス" : "足元"}に落とした。`);
+        }
       }
       setMarkerMode(null);
       endTurn(sr.current, p, ml);

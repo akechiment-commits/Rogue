@@ -2214,7 +2214,7 @@ export function InventoryModal({
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
   containerRef, penMergeMode,
-  doFloorPickup, doFloorTrap, doFloorItemAction, doFloorOpenPutMode,
+  doFloorPickup, doFloorTrap, doFloorItemAction, doFloorOpenPutMode, doFloorPen,
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
@@ -2236,15 +2236,17 @@ export function InventoryModal({
     const a = [{ label: "拾う", fn: () => doFloorPickup?.(entry) }];
     if (entry.type === "pot") {
       a.push({ label: "入れる", fn: () => doFloorOpenPutMode?.(entry) });
+    } else if (entry.type === "marker") {
+      a.push({ label: "書く", fn: () => doFloorPen?.(entry) });
     } else if (canUse(entry)) {
-      a.push({ label: useLabel(entry), fn: () => doFloorItemAction?.(entry, doUseItem, !_isEquipType) });
+      // 装備系: capチェックあり・インベントリ保持。それ以外: cap不要・使用後床に戻す
+      a.push({ label: useLabel(entry), fn: () => doFloorItemAction?.(entry, doUseItem, !_isEquipType, _isEquipType) });
     }
-    if (entry.type === "spellbook") a.push({ label: "読む", fn: () => doFloorItemAction?.(entry, doReadSpellbook, true) });
-    if (entry.type === "arrow") a.push({ label: "射る", fn: () => doFloorItemAction?.(entry, doShoot, true) });
-    if (entry.type === "wand") { a.push({ label: "振る", fn: () => doFloorItemAction?.(entry, doWaveWand, true) }); a.push({ label: "壊す", fn: () => doFloorItemAction?.(entry, doBreakWand, true) }); }
-    if (entry.type === "marker") a.push({ label: "書く", fn: () => doFloorItemAction?.(entry, doUseMarker, true) });
-    if (entry.type === "pot") a.push({ label: "割る", fn: () => doFloorItemAction?.(entry, doBreakPot, true) });
-    a.push({ label: entry.type === "arrow" ? "投げる(束)" : "投げる", fn: () => doFloorItemAction?.(entry, doThrow, true) });
+    if (entry.type === "spellbook") a.push({ label: "読む", fn: () => doFloorItemAction?.(entry, doReadSpellbook, true, false) });
+    if (entry.type === "arrow") a.push({ label: "射る", fn: () => doFloorItemAction?.(entry, doShoot, true, true) });
+    if (entry.type === "wand") { a.push({ label: "振る", fn: () => doFloorItemAction?.(entry, doWaveWand, true, false) }); a.push({ label: "壊す", fn: () => doFloorItemAction?.(entry, doBreakWand, true, false) }); }
+    if (entry.type === "pot") a.push({ label: "割る", fn: () => doFloorItemAction?.(entry, doBreakPot, true, false) });
+    a.push({ label: entry.type === "arrow" ? "投げる(束)" : "投げる", fn: () => doFloorItemAction?.(entry, doThrow, true, true) });
     a.push({ label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) });
     return a;
   };
