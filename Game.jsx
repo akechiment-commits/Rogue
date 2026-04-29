@@ -1597,9 +1597,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (_mheal > 0) { _m.hp += _mheal; ml.push(`${_tp.name}の力で${_m.name}のHPが${_mheal}回復した！`); }
               }
             } else {
-              const _tmdmg = _tp.blessed ? 50 : 25;
+              const _tpWeakMult = _m.elemWeak === "thunder" ? 1.5 : 1;
+              const _tmdmg = Math.round((_tp.blessed ? 50 : 25) * _tpWeakMult);
               _m.hp -= _tmdmg;
-              ml.push(`${_tp.name}が${_m.name}を打った！${_tmdmg}ダメージ！`);
+              ml.push(`${_tp.name}が${_m.name}を打った！${_tmdmg}ダメージ！${_tpWeakMult > 1 ? "雷弱点！" : ""}`);
               if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, st.dungeon, p, ml, lu); }
             }
           }
