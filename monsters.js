@@ -2053,36 +2053,28 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m._krakFleeTarget = null;
       ml.push(`${m.name}は体力を回復し、再び向かってきた！`);
     }
-    /* 逃走中：水地形の中で最も陸地から遠い地点へ（プレイヤー無視）移動して行動終了 */
+    /* 逃走中：隣接タイルの中で最も水に囲まれた場所へ移動（陸地から離れる） */
     if (m._krakFleeing && !_attackOnly) {
-      /* 逃走目標を一度だけ計算してキャッシュ */
-      if (!m._krakFleeTarget) {
-        let _bestX = m.x, _bestY = m.y, _bestDepth = -1;
-        for (let _ky = 0; _ky < MH; _ky++) {
-          for (let _kx = 0; _kx < MW; _kx++) {
-            if (dg.map[_ky]?.[_kx] !== T.WATER) continue;
-            let _minD = 999;
-            for (let _sy = 0; _sy < MH && _minD > 1; _sy++)
-              for (let _sx = 0; _sx < MW && _minD > 1; _sx++) {
-                if (dg.map[_sy]?.[_sx] !== T.FLOOR) continue;
-                const _d = Math.max(Math.abs(_sx - _kx), Math.abs(_sy - _ky));
-                if (_d < _minD) _minD = _d;
-              }
-            if (_minD > _bestDepth) { _bestDepth = _minD; _bestX = _kx; _bestY = _ky; }
-          }
-        }
-        m._krakFleeTarget = { x: _bestX, y: _bestY };
+      let _bestScore = -99, _bestTile = null;
+      for (const [_fdx, _fdy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+        const _fnx = m.x + _fdx, _fny = m.y + _fdy;
+        if (!canEnter(dg.map, _fnx, _fny, true)) continue;
+        if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
+        if (_fnx === pl.x && _fny === pl.y) continue;
+        /* 水タイル自体ボーナス+4、周囲8マスの水タイル数をスコアに加算 */
+        let _score = dg.map[_fny]?.[_fnx] === T.WATER ? 4 : 0;
+        for (const [_nx2, _ny2] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]])
+          if (dg.map[_fny + _ny2]?.[_fnx + _nx2] === T.WATER) _score++;
+        if (_score > _bestScore) { _bestScore = _score; _bestTile = { x: _fnx, y: _fny }; }
       }
-      const _kft = m._krakFleeTarget;
-      const _kNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _kft.x, _kft.y, m, 40, dg.pentacles, true);
-      if (_kNext) { m.x = _kNext.x; m.y = _kNext.y; }
+      if (_bestTile) { m.x = _bestTile.x; m.y = _bestTile.y; }
       return;
     }
-    /* 墨吐き：直線LOS、45%で暗闇+ダメージ */
+    /* 墨吐き：直線・hasLOSのみ（水タイルのvisible問題を回避）、45%で暗闇+ダメージ */
     const _kiAdx = pl.x - m.x, _kiAdy = pl.y - m.y;
     const _kiDist = Math.max(Math.abs(_kiAdx), Math.abs(_kiAdy));
     const _kiInLine = _kiAdx === 0 || _kiAdy === 0 || Math.abs(_kiAdx) === Math.abs(_kiAdy);
-    const _kiLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
+    const _kiLOS = hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_kiDist >= 2 && _kiInLine && _kiLOS && m.turnAttacks < (m.maxAttacks ?? 2) && Math.random() < 0.45) {
       const _kidx = Math.sign(pl.x - m.x), _kidy = Math.sign(pl.y - m.y);
       let _kHit = false;

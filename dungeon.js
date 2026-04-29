@@ -1449,31 +1449,29 @@ function genBossFloor(depth, dungeonType = null) {
   const bossX = arX + (arW >> 1);
   const bossY = arY + (arH >> 1);
 
-  /* クラーケン専用：アリーナ南端に11×5の水地形を生成、ボスは水の手前（北側）に配置 */
-  let _krakenBossX = bossX, _krakenBossY = bossY;
+  /* クラーケン専用：ボス部屋中央に11×5の水地形を生成 */
   if (bt.baseKind === "im_boss_kraken") {
     const _wW = 11, _wH = 5;
     const _wX = bossX - Math.floor(_wW / 2);
-    const _wY = arY + arH - _wH; /* アリーナ南端 */
+    const _wY = bossY - Math.floor(_wH / 2);
     for (let _wy = _wY; _wy < _wY + _wH; _wy++)
       for (let _wx = _wX; _wx < _wX + _wW; _wx++)
         if (map[_wy]?.[_wx] === T.FLOOR) map[_wy][_wx] = T.WATER;
-    _krakenBossY = _wY - 2; /* 水地形の2マス北（床の上）に配置 */
   }
 
   const boss = {
     ...bt,
     id: uid(),
     maxHp: bt.hp,
-    x: _krakenBossX,
-    y: _krakenBossY,
+    x: bossX,
+    y: bossY,
     baseSpeed: bt.speed || 1,
     turnAccum: 0,
     aware: false,
     dormant: true,
     dir: { x: 0, y: 0 },
-    lastPx: _krakenBossX,
-    lastPy: _krakenBossY,
+    lastPx: bossX,
+    lastPy: bossY,
     patrolTarget: null,
   };
 
@@ -1482,14 +1480,14 @@ function genBossFloor(depth, dungeonType = null) {
   const minionDepth = Math.max(0, depth - 2);
   const minionMonsters = [];
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-  const _occ = (x, y) => (x === _krakenBossX && y === _krakenBossY) || minionMonsters.some(mn => mn.x === x && mn.y === y);
+  const _occ = (x, y) => (x === bossX && y === bossY) || minionMonsters.some(mn => mn.x === x && mn.y === y);
   for (let _mi = 0; _mi < minionCount * 20 && minionMonsters.length < minionCount; _mi++) {
     const [_ddx, _ddy] = DIRS8[Math.floor(Math.random() * DIRS8.length)];
-    const _mx = _krakenBossX + _ddx * (1 + Math.floor(_mi / 8));
-    const _my = _krakenBossY + _ddy * (1 + Math.floor(_mi / 8));
+    const _mx = bossX + _ddx * (1 + Math.floor(_mi / 8));
+    const _my = bossY + _ddy * (1 + Math.floor(_mi / 8));
     if (map[_my]?.[_mx] !== T.FLOOR) continue;
     if (_occ(_mx, _my)) continue;
-    minionMonsters.push(makeMonster(minionDepth, _mx, _my, { dormant: true, aware: true, lastPx: _krakenBossX, lastPy: _krakenBossY, dungeonType }));
+    minionMonsters.push(makeMonster(minionDepth, _mx, _my, { dormant: true, aware: true, lastPx: bossX, lastPy: bossY, dungeonType }));
   }
 
   const rooms = [{ x: arX, y: arY, w: arW, h: arH, cx: bossX, cy: bossY }];
