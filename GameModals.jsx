@@ -2241,8 +2241,9 @@ export function InventoryModal({
     } else if (entry.type === "marker") {
       a.push({ label: "書く", fn: () => doFloorPen?.(entry) });
     } else if (canUse(entry)) {
-      // 装備系: capチェックあり・インベントリ保持。それ以外: cap不要・使用後床に戻す
-      a.push({ label: useLabel(entry), fn: () => doFloorItemAction?.(entry, doUseItem, !_isEquipType, _isEquipType) });
+      // 装備系: capチェックあり・インベントリ保持。巻物: 選択ダイアログでscrollIdxを使うためinv保持。それ以外: cap不要・使用後床に戻す
+      const _keepInv = _isEquipType || entry.type === "scroll";
+      a.push({ label: useLabel(entry), fn: () => doFloorItemAction?.(entry, doUseItem, !_isEquipType, _keepInv) });
     }
     if (entry.type === "spellbook") a.push({ label: "読む", fn: () => doFloorItemAction?.(entry, doReadSpellbook, true, false) });
     if (entry.type === "arrow") a.push({ label: "射る", fn: () => doFloorItemAction?.(entry, doShoot, true, true) });

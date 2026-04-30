@@ -4589,10 +4589,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     sr.current = { ...sr.current }; setGs({ ...sr.current });
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null);
   };
+  const _chargeShopFloorItem = (item, _p, _dg, s) => {
+    if (!item.shopPrice) return;
+    const _allS = getShops(_dg);
+    const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
+    if (_ps) {
+      const _bg = hasRingEffect(_p, "bargain_ring");
+      const _ap = _bg ? Math.max(1, Math.floor(item.shopPrice * 0.7)) : item.shopPrice;
+      _ps.unpaidTotal += _ap;
+      const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
+      if (_sk) _sk.state = "blocking";
+      setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を使用！(${_ap}G${_bg ? " 3割引！" : ""}) 店主が入り口をふさいだ。`]);
+    }
+    delete item.shopPrice; delete item._shopId;
+  };
   const _doFloorItemAction = (item, actionFn, skipCapCheck = false, keepInInventory = false) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
     if (!skipCapCheck && _p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
+    /* 店のアイテムを床から直接使う場合は代金を請求 */
+    _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
     const _idx = _p.inventory.length;
     _p.inventory.push(item);
@@ -4610,6 +4626,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const _doFloorWaveWand = (item) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
+    _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
     const _idx = _p.inventory.length;
     _p.inventory.push(item);
@@ -4622,6 +4639,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (item.charges <= 0) { setMsgs(prev => [...prev.slice(-80), "マーカーのインクが切れている..."]); return; }
     const blanks = _p.inventory.filter(b => (b.type === "scroll" && b.effect === "blank") || (b.type === "spellbook" && !b.spell));
     if (blanks.length === 0) { setMsgs(prev => [...prev.slice(-80), "白紙の巻物も白紙の魔法書もない。"]); return; }
+    _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
     const _idx = _p.inventory.length;
     _p.inventory.push(item);
@@ -5068,7 +5086,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               /* === インベントリ表示中 === */
               if (showInv) {
                 const inv = sr.current?.player?.inventory || [];
-                const totalPages = Math.ceil(inv.length / 10) || 1;
+                const _invOnlyPg = Math.ceil(inv.length / 10) || 1;
+                const _dg2 = sr.current?.dungeon;
+                const _p2 = sr.current?.player;
+                const _hasFl2 = _dg2 && _p2 && _dg2.items.some(i => i.x === _p2.x && i.y === _p2.y && !i.wallEmbedded && !i.noPickup);
+                const totalPages = _invOnlyPg + (_hasFl2 ? 1 : 0);
                 const pageItems = inv.slice(invPage * 10, (invPage + 1) * 10);
                 const len = pageItems.length;
                 /* サブメニュー表示中: 左右でメニュー選択、上下でアイテム選択に戻す */
