@@ -4570,7 +4570,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (_p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
     _dg.items = _dg.items.filter(i => i !== item);
     _p.inventory.push(item);
-    ml.push(`${dnameRef(item)}を拾った！`);
+    if (item.shopPrice) {
+      const _allS = getShops(_dg);
+      const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
+      if (_ps) {
+        const _bg = hasRingEffect(_p, "bargain_ring");
+        const _ap = _bg ? Math.max(1, Math.floor(item.shopPrice * 0.7)) : item.shopPrice;
+        _ps.unpaidTotal += _ap;
+        const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
+        if (_sk) _sk.state = "blocking";
+        ml.push(`${dnameRef(item)}を取った！(${_ap}G${_bg ? " 3割引！" : ""}) 店主が入り口をふさいだ。`);
+      }
+      delete item.shopPrice; delete item._shopId;
+    } else {
+      ml.push(`${dnameRef(item)}を拾った！`);
+    }
     endTurn(s, _p, ml);
     setMsgs(prev => [...prev.slice(-80), ...ml]);
     sr.current = { ...sr.current }; setGs({ ...sr.current });
