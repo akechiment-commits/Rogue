@@ -353,7 +353,7 @@ export function useKeyHandler({
           } else if (entry.type === "marker") {
             acts2.push({ label: "書く", fn: () => invActRef.current?.floorPen?.(entry) });
           } else if (canUse(entry)) {
-            _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx), !_isEquipType2, _isEquipType2);
+            _addFloorAct2(useLabel(entry), (idx) => invActRef.current?.use?.(idx), !_isEquipType2, _isEquipType2 || entry.type === "scroll");
           }
           if (entry.type === "spellbook") _addFloorAct2("読む", (idx) => invActRef.current?.readSpellbook?.(idx), true, false);
           if (entry.type === "arrow") _addFloorAct2("射る", (idx) => invActRef.current?.shoot?.(idx), true, true);
