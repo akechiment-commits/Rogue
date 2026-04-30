@@ -735,7 +735,7 @@ export function useItemActions({
       }
       /* 複製の巻物：アイテム選択ダイアログが必要な場合はsplice前にreturn（identify同様） */
       if (it.effect === "duplicate" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _dupTargets = p.inventory.filter((_ii) => _ii.type !== "gold");
+        const _dupTargets = p.inventory.filter((_ii, _i) => _ii.type !== "gold" && _i !== idx);
         if (_dupTargets.length > 0) {
           const _ik_dup = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
@@ -743,6 +743,11 @@ export function useItemActions({
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
+        } else {
+          p.inventory.splice(idx, 1);
+          { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
+          ml.push("複製できるアイテムがない。巻物は消えた。");
+          endTurn(sr.current, p, ml); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
       /* 売却の巻物 */
