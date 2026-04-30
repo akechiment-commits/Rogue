@@ -77,6 +77,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const bigboxModeRef = useRef(null);
   bigboxModeRef.current = bigboxMode;
   const identifyConfirmRef = useRef(null);
+  const identifyCancelRef = useRef(null);
   const spellConfirmRef = useRef(null);
   const nicknameModeRef = useRef(null);
   const [facingMode, setFacingMode] = useState(false);
@@ -4506,7 +4507,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   }, []);
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef,
+    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
     // state values
     gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
@@ -4626,6 +4627,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     _dg.items = _dg.items.filter(i => i !== item);
     const _idx = _p.inventory.length;
     _p.inventory.push(item);
+    if (keepInInventory) {
+      /* 選択ダイアログがキャンセルされたとき巻物を床に返すクリーンアップ */
+      identifyCancelRef.current = () => {
+        const _si2 = sr.current.player.inventory.indexOf(item);
+        if (_si2 !== -1) {
+          sr.current.player.inventory.splice(_si2, 1);
+          sr.current.dungeon.items.push(item);
+          sr.current = { ...sr.current }; setGs({ ...sr.current });
+        }
+        identifyCancelRef.current = null;
+      };
+    }
     actionFn(_idx);
     if (!keepInInventory) {
       const _si = _p.inventory.indexOf(item);
@@ -4635,6 +4648,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         placeItemAt(_dg, _p.x, _p.y, item, _ml2, _ft2, 0, _p);
         if (_ml2.length) setMsgs(prev => [...prev.slice(-80), ..._ml2]);
       }
+    } else if (_p.inventory.indexOf(item) === -1) {
+      /* actionFnが即時消費した場合（選択ダイアログなし）はキャンセル不要 */
+      identifyCancelRef.current = null;
     }
   };
   const _doFloorWaveWand = (item) => {
@@ -5318,7 +5334,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     if (showInv && invMenuSel !== null) { setInvMenuSel(null); return; }
                     if (springMode === "soak") { setSpringMode("menu"); setSpringMenuSel(0); setSpringPage(0); return; }
                     if (springMode) { setSpringMode(null); setSpringMenuSel(0); return; }
-                    if (identifyMode) { setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
+                    if (identifyMode) { identifyCancelRef.current?.(); setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     act("inventory");
                   }}
                   color={showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
@@ -5557,7 +5573,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
-      <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} identifyConfirmRef={identifyConfirmRef} />
+      <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} identifyConfirmRef={identifyConfirmRef} identifyCancelRef={identifyCancelRef} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}

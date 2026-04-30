@@ -681,7 +681,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
 }
 
 /* ===== Identify/Bless/Curse/Duplicate Modal ===== */
-export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, iLabel, mobile, identifyConfirmRef }) {
+export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, iLabel, mobile, identifyConfirmRef, identifyCancelRef }) {
   if (!mode || !gs) return null;
   const _p = gs.player;
   const _isBCMode_ui = mode.mode === 'bless' || mode.mode === 'curse';
@@ -931,6 +931,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     }
     if (mode.scrollIdx != null) {
       sr.current.player.inventory.splice(mode.scrollIdx, 1);
+      if (identifyCancelRef) identifyCancelRef.current = null;
     }
     if (mode.spellCost != null) {
       sr.current.player.mp -= mode.spellCost;
@@ -985,7 +986,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
                 style={{ background: "#1a3a5a", color: "#8af", border: "1px solid #4060a0", borderRadius: 4, padding: "2px 6px", cursor: "pointer", touchAction: "manipulation" }}>▶</button>
             </>
           )}
-          <button onClick={() => { setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
+          <button onClick={() => { identifyCancelRef?.current?.(); setMode(null); setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }}
             style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 10px", cursor: "pointer", fontSize: 13 }}>✕</button>
         </div>
       </div>

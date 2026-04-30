@@ -15,7 +15,7 @@ import { getDiscoveries } from "./DiscoveryTracker.js";
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef,
+  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
@@ -632,6 +632,7 @@ export function useKeyHandler({
           return;
         }
         if (k === "escape" || k === "x") {
+          identifyCancelRef?.current?.();
           setIdentifyMode(null);
           setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
           return;
