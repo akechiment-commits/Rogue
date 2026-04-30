@@ -5119,8 +5119,41 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _invOnlyPg = Math.ceil(inv.length / 10) || 1;
                 const _dg2 = sr.current?.dungeon;
                 const _p2 = sr.current?.player;
-                const _hasFl2 = _dg2 && _p2 && _dg2.items.some(i => i.x === _p2.x && i.y === _p2.y && !i.wallEmbedded && !i.noPickup);
+                const _flItems2 = _dg2 && _p2 ? (_dg2.items || []).filter(i => i.x === _p2.x && i.y === _p2.y && !i.wallEmbedded && !i.noPickup) : [];
+                const _flTraps2 = _dg2 && _p2 ? (_dg2.traps || []).filter(t => t.x === _p2.x && t.y === _p2.y) : [];
+                const _flAll2 = [..._flItems2, ..._flTraps2];
+                const _hasFl2 = _flAll2.length > 0;
                 const totalPages = _invOnlyPg + (_hasFl2 ? 1 : 0);
+                const _isFloorPg2 = _hasFl2 && invPage === _invOnlyPg;
+                /* 足元ページ */
+                if (_isFloorPg2) {
+                  const _flLen2 = _flAll2.length;
+                  if (invMenuSel !== null && selIdx !== null && selIdx < _flLen2) {
+                    const _fle2 = _flAll2[selIdx];
+                    const _fIsI2 = _flItems2.includes(_fle2);
+                    let _flN2 = 2; // トラップ: 踏む+説明
+                    if (_fIsI2) {
+                      _flN2 = 1;
+                      if (_fle2.type === "pot") _flN2 += 1; else if (_fle2.type === "marker") _flN2 += 1; else if (canUse(_fle2)) _flN2 += 1;
+                      if (_fle2.type === "spellbook") _flN2 += 1;
+                      if (_fle2.type === "arrow") _flN2 += 1;
+                      if (_fle2.type === "wand") _flN2 += 2;
+                      if (_fle2.type === "pot") _flN2 += 1;
+                      _flN2 += 2; // 投げる+説明
+                    }
+                    if (dx !== 0 && dy === 0) { setInvMenuSel((s) => (s + dx + _flN2) % _flN2); }
+                    else if (dy !== 0 && dx === 0) { setInvMenuSel(null); setSelIdx((prev) => prev === null ? (dy > 0 ? 0 : _flLen2 - 1) : (prev + dy + _flLen2) % _flLen2); setShowDesc(null); }
+                    return;
+                  }
+                  if (dy !== 0 && dx === 0 && _flLen2 > 0) {
+                    setSelIdx((prev) => { if (prev === null) return dy > 0 ? 0 : _flLen2 - 1; return (prev + dy + _flLen2) % _flLen2; });
+                    setShowDesc(null); setInvMenuSel(null);
+                  } else if (dx !== 0 && dy === 0 && totalPages > 1) {
+                    setInvPage((p) => (p + dx + totalPages) % totalPages);
+                    setSelIdx(0); setInvMenuSel(null); setShowDesc(null);
+                  }
+                  return;
+                }
                 const pageItems = inv.slice(invPage * 10, (invPage + 1) * 10);
                 const len = pageItems.length;
                 /* サブメニュー表示中: 左右でメニュー選択、上下でアイテム選択に戻す */
@@ -5402,6 +5435,41 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     }
                     if (showInv) {
                       if (selIdx !== null) {
+                        /* 足元ページの場合 */
+                        const _dg3 = sr.current?.dungeon;
+                        const _p3 = sr.current?.player;
+                        const _flItems3 = _dg3 && _p3 ? (_dg3.items || []).filter(i => i.x === _p3.x && i.y === _p3.y && !i.wallEmbedded && !i.noPickup) : [];
+                        const _flTraps3 = _dg3 && _p3 ? (_dg3.traps || []).filter(t => t.x === _p3.x && t.y === _p3.y) : [];
+                        const _flAll3 = [..._flItems3, ..._flTraps3];
+                        const _invOnlyPg3 = Math.ceil((_p3?.inventory?.length || 0) / 10) || 1;
+                        const _isFlPg3 = _flAll3.length > 0 && invPage === _invOnlyPg3;
+                        if (_isFlPg3 && selIdx < _flAll3.length) {
+                          const _fle3 = _flAll3[selIdx];
+                          const _fIsI3 = _flItems3.includes(_fle3);
+                          if (invMenuSel !== null) {
+                            const _fns3 = [];
+                            if (!_fIsI3) {
+                              _fns3.push(() => invActRef.current?.floorTrap?.(_fle3));
+                              _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
+                            } else {
+                              _fns3.push(() => invActRef.current?.floorPickup?.(_fle3));
+                              const _isEq3 = ["weapon","armor","arrow","ring"].includes(_fle3.type);
+                              const _kInv3 = _isEq3 || _fle3.type === "scroll";
+                              if (_fle3.type === "pot") _fns3.push(() => invActRef.current?.floorOpenPutMode?.(_fle3));
+                              else if (_fle3.type === "marker") _fns3.push(() => invActRef.current?.floorPen?.(_fle3));
+                              else if (canUse(_fle3)) _fns3.push(() => invActRef.current?.floorItemAction?.(_fle3, (i3) => invActRef.current?.use?.(i3), !_isEq3, _kInv3));
+                              if (_fle3.type === "spellbook") _fns3.push(() => invActRef.current?.floorItemAction?.(_fle3, (i3) => invActRef.current?.readSpellbook?.(i3), true, false));
+                              if (_fle3.type === "arrow") _fns3.push(() => invActRef.current?.floorItemAction?.(_fle3, (i3) => invActRef.current?.shoot?.(i3), true, true));
+                              if (_fle3.type === "wand") _fns3.push(() => invActRef.current?.floorWaveWand?.(_fle3));
+                              if (_fle3.type === "wand") _fns3.push(() => invActRef.current?.floorItemAction?.(_fle3, (i3) => invActRef.current?.breakWand?.(i3), true, false));
+                              if (_fle3.type === "pot") _fns3.push(() => invActRef.current?.floorItemAction?.(_fle3, (i3) => invActRef.current?.breakPot?.(i3), true, false));
+                              _fns3.push(() => invActRef.current?.floorItemAction?.(_fle3, (i3) => invActRef.current?.throw?.(i3), true, true));
+                              _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
+                            }
+                            if (invMenuSel >= 0 && invMenuSel < _fns3.length) { _fns3[invMenuSel](); setInvMenuSel(null); }
+                          } else { setInvMenuSel(0); }
+                          return;
+                        }
                         const _absIdx = invPage * 10 + selIdx;
                         const _invList = sr.current?.player?.inventory || [];
                         const _it = _invList[_absIdx];
