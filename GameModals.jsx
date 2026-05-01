@@ -767,7 +767,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             if (!_dupPlaced) _bbMsg = "複製する場所がなかった。";
           }
         } else if (mode.mode === 'sell_item') {
-          const _baseG = _bbT?.rare ? 3000 : 500;
+          const _remaining = Math.max(1, (_bb.capacity || 1) - (_bb.contents?.length || 0));
+          const _baseG = (_bbT?.rare ? 3000 : 500) * _remaining;
           const _earnedG = mode.blessed ? _baseG * 2 : mode.cursed ? Math.floor(_baseG / 2) : _baseG;
           sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
           sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);

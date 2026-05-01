@@ -1444,6 +1444,7 @@ export function useItemActions({
             if (_k) { const _wasU = !sr.current.ident.has(_k); sr.current.ident.add(_k); _ii.fullIdent = true; if (_wasU) trackItem(_ii); }
             else if (_ii.type === 'weapon' || _ii.type === 'armor') { _ii.fullIdent = true; }
           }
+          if (_scrollFootBb && !_scrollFootBb.revealed) { _scrollFootBb.revealed = true; trackBigbox(_scrollFootBb); ml.push(`大箱「${_scrollFootBb.name}」の正体が明らかになった！`); }
           ml.push("全てのアイテムが識別された！");
         } else if (it.cursed) {
           // 識別済みアイテムを1つ選んで未識別に戻す（武器・防具も含む）
