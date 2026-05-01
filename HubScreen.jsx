@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
 import { hasGameSave } from "./GameSave.js";
@@ -88,8 +88,11 @@ function hubItemLabel(it) {
 /* ===== 荷物管理パネル（持参インベントリ ＋ 倉庫） ===== */
 function ItemManagementPanel({ saveData, updateSave, onClose }) {
   const [tab, setTab] = useState("carry"); // "carry" | "warehouse"
-  const [selIdx, setSelIdx] = useState(null);
+  const [focusIdx, setFocusIdx] = useState(0);
+  const [actionSel, setActionSel] = useState(0);
   const [showDescIdx, setShowDescIdx] = useState(null);
+  const [checkedIdxs, setCheckedIdxs] = useState(new Set());
+  const kbRef = useRef(null);
 
   const hubInv = saveData.hubInventory || [];
   const wh     = saveData.warehouse    || [];
@@ -99,18 +102,25 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
   const isCarry = tab === "carry";
   const list    = isCarry ? hubInv : wh;
+  const safeFocus = list.length === 0 ? 0 : Math.min(focusIdx, list.length - 1);
 
-  const tabStyle = (t) => ({
-    ...BTN, padding:"6px 16px",
-    background: tab === t ? "#1a1a30" : CARD,
-    color:      tab === t ? "#8af"    : "#666",
-    borderColor:tab === t ? "#44f"    : BDR,
-    fontSize: 13,
-  });
+  const switchTab = (t) => {
+    setTab(t); setFocusIdx(0); setActionSel(0); setShowDescIdx(null); setCheckedIdxs(new Set());
+  };
 
-  const select = (idx) => {
-    setSelIdx(selIdx === idx ? null : idx);
-    setShowDescIdx(null);
+  const getActions = (item) => {
+    if (!item) return [];
+    const acts = isCarry
+      ? [{ label: "→ 倉庫へ戻す", key: "toWarehouse", color: "#aaa",
+           bg: "#0d0d18", bgSel: "#1a1a2a" }]
+      : [
+          { label: "← 持参する", key: "toCarry", color: "#8cf",
+            bg: "#081828", bgSel: "#0a2840" },
+          { label: `売る (${Math.max(1, Math.floor(itemPrice(item) / 2))}G)`, key: "sell", color: GOLD,
+            bg: "#0a1800", bgSel: "#142000" },
+        ];
+    if (item.desc) acts.push({ label: "説明", key: "desc", color: "#888", bg: "#0d0d18", bgSel: "#1a1a30" });
+    return acts;
   };
 
   const moveToWarehouse = (idx) => {
@@ -127,7 +137,8 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
         ),
       };
     });
-    setSelIdx(null); setShowDescIdx(null);
+    setFocusIdx(p => Math.max(0, p - 1)); setActionSel(0); setShowDescIdx(null);
+    setCheckedIdxs(prev => { const n = new Set(prev); n.delete(idx); return n; });
   };
 
   const moveToCarry = (idx) => {
@@ -141,7 +152,9 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
         hubInventory: [...(prev.hubInventory || []), { ...item }],
       };
     });
-    setSelIdx(null); setShowDescIdx(null);
+    setFocusIdx(p => Math.min(p, Math.max(0, wh.length - 2)));
+    setActionSel(0); setShowDescIdx(null);
+    setCheckedIdxs(prev => { const n = new Set(prev); n.delete(idx); return n; });
   };
 
   const sellFromWarehouse = (idx) => {
@@ -156,7 +169,61 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
         hubGold:   (prev.hubGold || 0) + price,
       };
     });
-    setSelIdx(null); setShowDescIdx(null);
+    setFocusIdx(p => Math.min(p, Math.max(0, wh.length - 2)));
+    setActionSel(0); setShowDescIdx(null);
+    setCheckedIdxs(prev => { const n = new Set(prev); n.delete(idx); return n; });
+  };
+
+  const bulkMoveToCarry = () => {
+    if (checkedIdxs.size === 0) return;
+    updateSave(prev => {
+      const warehouse = prev.warehouse || [];
+      const toMove    = warehouse.filter((_, i) => checkedIdxs.has(i));
+      const remaining = warehouse.filter((_, i) => !checkedIdxs.has(i));
+      return { ...prev, warehouse: remaining, hubInventory: [...(prev.hubInventory || []), ...toMove] };
+    });
+    setCheckedIdxs(new Set()); setFocusIdx(0); setActionSel(0);
+  };
+
+  const bulkSell = () => {
+    if (checkedIdxs.size === 0) return;
+    updateSave(prev => {
+      const warehouse = prev.warehouse || [];
+      let earned = 0;
+      const remaining = warehouse.filter((item, i) => {
+        if (checkedIdxs.has(i)) { earned += Math.max(1, Math.floor(itemPrice(item) / 2)); return false; }
+        return true;
+      });
+      return { ...prev, warehouse: remaining, hubGold: (prev.hubGold || 0) + earned };
+    });
+    setCheckedIdxs(new Set()); setFocusIdx(0); setActionSel(0);
+  };
+
+  const bulkToWarehouse = () => {
+    if (checkedIdxs.size === 0) return;
+    updateSave(prev => {
+      const inv    = prev.hubInventory || [];
+      const toMove = inv.filter((_, i) => checkedIdxs.has(i));
+      const remaining = inv.filter((_, i) => !checkedIdxs.has(i));
+      return {
+        ...prev,
+        hubInventory: remaining,
+        warehouse: sortWarehouseItems([...(prev.warehouse || []), ...toMove].slice(0, prev.warehouseMax || 100)),
+      };
+    });
+    setCheckedIdxs(new Set()); setFocusIdx(0); setActionSel(0);
+  };
+
+  const executeAction = (idx, actIdx) => {
+    const item = list[idx];
+    if (!item) return;
+    const acts = getActions(item);
+    const act = acts[actIdx];
+    if (!act) return;
+    if      (act.key === "toWarehouse") moveToWarehouse(idx);
+    else if (act.key === "toCarry")     moveToCarry(idx);
+    else if (act.key === "sell")        sellFromWarehouse(idx);
+    else if (act.key === "desc")        setShowDescIdx(prev => prev === idx ? null : idx);
   };
 
   const expandWarehouse = () => {
@@ -168,6 +235,59 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
     }));
   };
 
+  /* キーボードハンドラを常に最新状態で参照 */
+  kbRef.current = { list, safeFocus, actionSel, getActions, executeAction,
+    setFocusIdx, setActionSel, setShowDescIdx, setCheckedIdxs, onClose };
+
+  useEffect(() => {
+    const fn = (e) => {
+      const r = kbRef.current;
+      const k = e.key.toLowerCase();
+      if (k === "escape") { r.onClose(); return; }
+      if (r.list.length === 0) return;
+      if (k === "arrowup") {
+        e.preventDefault();
+        r.setFocusIdx(p => Math.max(0, p - 1)); r.setActionSel(0); r.setShowDescIdx(null);
+      } else if (k === "arrowdown") {
+        e.preventDefault();
+        r.setFocusIdx(p => Math.min(r.list.length - 1, p + 1)); r.setActionSel(0); r.setShowDescIdx(null);
+      } else if (k === "arrowleft") {
+        e.preventDefault();
+        const acts = r.getActions(r.list[r.safeFocus]);
+        if (acts.length) r.setActionSel(p => (p - 1 + acts.length) % acts.length);
+      } else if (k === "arrowright") {
+        e.preventDefault();
+        const acts = r.getActions(r.list[r.safeFocus]);
+        if (acts.length) r.setActionSel(p => (p + 1) % acts.length);
+      } else if (k === "d") {
+        e.preventDefault();
+        r.setCheckedIdxs(prev => {
+          const n = new Set(prev);
+          if (n.has(r.safeFocus)) n.delete(r.safeFocus); else n.add(r.safeFocus);
+          return n;
+        });
+      } else if (k === "enter" || k === "z") {
+        e.preventDefault(); r.executeAction(r.safeFocus, r.actionSel);
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, []);
+
+  const tabStyle = (t) => ({
+    ...BTN, padding:"6px 16px",
+    background: tab === t ? "#1a1a30" : CARD,
+    color:      tab === t ? "#8af"    : "#666",
+    borderColor:tab === t ? "#44f"    : BDR,
+    fontSize: 13,
+  });
+
+  /* 一括操作用の集計 */
+  const checkedWhItems = !isCarry ? [...checkedIdxs].filter(i => i < wh.length).map(i => wh[i]) : [];
+  const checkedCarryCount = isCarry ? [...checkedIdxs].filter(i => i < hubInv.length).length : 0;
+  const checkedSellTotal  = checkedWhItems.reduce((s, it) => s + Math.max(1, Math.floor(itemPrice(it) / 2)), 0);
+  const anyChecked = isCarry ? checkedCarryCount > 0 : checkedWhItems.length > 0;
+
   return (
     <Panel title="荷物管理" onClose={onClose} wide>
       {/* 所持金 */}
@@ -177,10 +297,10 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
       {/* タブ */}
       <div style={{ display:"flex", gap:6, marginBottom:12 }}>
-        <button onClick={() => { setTab("carry"); setSelIdx(null); setShowDescIdx(null); }} style={tabStyle("carry")}>
+        <button onClick={() => switchTab("carry")} style={tabStyle("carry")}>
           持参アイテム ({hubInv.length})
         </button>
-        <button onClick={() => { setTab("warehouse"); setSelIdx(null); setShowDescIdx(null); }} style={tabStyle("warehouse")}>
+        <button onClick={() => switchTab("warehouse")} style={tabStyle("warehouse")}>
           倉庫 ({wh.length}/{MAX})
         </button>
       </div>
@@ -190,24 +310,49 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
           marginBottom:10, padding:"6px 8px", background:"#0d0d18", borderRadius:4, border:`1px solid ${BDR}` }}>
           <span style={{ color:"#888", fontSize:12 }}>倉庫を拡張 +50スロット</span>
-          <button
-            onClick={expandWarehouse}
-            disabled={gold < EXPAND_COST}
+          <button onClick={expandWarehouse} disabled={gold < EXPAND_COST}
             style={{ ...BTN, padding:"4px 12px", fontSize:12,
-              color:       gold >= EXPAND_COST ? GOLD  : "#555",
-              background:  "#0a1800",
-              borderColor: gold >= EXPAND_COST ? "#3a2a00" : "#222" }}
-          >
+              color: gold >= EXPAND_COST ? GOLD : "#555", background:"#0a1800",
+              borderColor: gold >= EXPAND_COST ? "#3a2a00" : "#222" }}>
             {EXPAND_COST}G
+          </button>
+        </div>
+      )}
+
+      {/* 一括操作バー（チェックあり時） */}
+      {anyChecked && (
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginBottom:10,
+          padding:"6px 8px", background:"#0d1820", border:"1px solid #2a4a6a", borderRadius:4 }}>
+          <span style={{ color:"#8cf", fontSize:12 }}>
+            {isCarry ? checkedCarryCount : checkedWhItems.length}個選択中
+          </span>
+          {isCarry ? (
+            <button onClick={bulkToWarehouse}
+              style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18", color:"#aaa" }}>
+              まとめて倉庫へ
+            </button>
+          ) : (
+            <>
+              <button onClick={bulkMoveToCarry}
+                style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#081828", color:"#8cf" }}>
+                まとめて持参
+              </button>
+              <button onClick={bulkSell}
+                style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0a1800", color:GOLD }}>
+                まとめて売る ({checkedSellTotal}G)
+              </button>
+            </>
+          )}
+          <button onClick={() => setCheckedIdxs(new Set())}
+            style={{ ...BTN, padding:"4px 8px", fontSize:11, color:"#555" }}>
+            解除
           </button>
         </div>
       )}
 
       {/* ヒント */}
       <div style={{ color:"#555", fontSize:11, marginBottom:8 }}>
-        {isCarry
-          ? "ダンジョンに持っていくアイテム（インベントリ上限は30枠）"
-          : "倉庫のアイテム。タップして操作できます。"}
+        ↑↓:選択　←→:操作切替　Enter/Z:実行　D:チェック
       </div>
 
       {/* アイテムリスト */}
@@ -220,31 +365,48 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       ) : (
         <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
           {list.map((item, idx) => {
-            const isSel        = selIdx === idx;
-            const isDescShow   = showDescIdx === idx;
-            const sellPrice    = Math.max(1, Math.floor(itemPrice(item) / 2));
-            const label        = hubItemLabel(item);
-            const itemColor    = item.blessed ? "#ffd060" : item.cursed ? "#cc88ff" : TXT;
+            const isFocus    = safeFocus === idx;
+            const isChecked  = checkedIdxs.has(idx);
+            const isDescShow = showDescIdx === idx;
+            const acts       = getActions(item);
+            const label      = hubItemLabel(item);
+            const itemColor  = item.blessed ? "#ffd060" : item.cursed ? "#cc88ff" : TXT;
 
             return (
               <div key={idx}>
                 {/* アイテム行 */}
                 <div
-                  onClick={() => select(idx)}
+                  onClick={() => { setFocusIdx(idx); setActionSel(0); setShowDescIdx(null); }}
                   style={{
-                    display:"flex", alignItems:"center", gap:8, padding:"7px 8px",
-                    background:  isSel ? "#1a1a30" : "#0d0d18",
-                    border:      `1px solid ${isSel ? "#44f" : "#222"}`,
-                    borderRadius: isSel ? "4px 4px 0 0" : 4,
+                    display:"flex", alignItems:"center", gap:6, padding:"7px 8px",
+                    background:  isFocus ? "#1a1a30" : "#0d0d18",
+                    border:      `1px solid ${isFocus ? "#44f" : "#222"}`,
+                    borderRadius: (isFocus && acts.length > 0) ? "4px 4px 0 0" : 4,
                     cursor:"pointer",
                   }}
                 >
+                  {/* チェックボックス */}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCheckedIdxs(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
+                    }}
+                    style={{
+                      width:16, height:16, flexShrink:0,
+                      border:`1px solid ${isChecked ? "#8cf" : "#444"}`,
+                      borderRadius:2, background: isChecked ? "#1a3a5a" : "transparent",
+                      display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+                    }}
+                  >
+                    {isChecked && <span style={{ color:"#8cf", fontSize:11, lineHeight:1 }}>✓</span>}
+                  </div>
+
                   <span style={{ flex:1, color:itemColor, fontSize:13 }}>{label}</span>
-                  <span style={{ color:"#555", fontSize:11 }}>{isSel ? "▲" : "▼"}</span>
+                  <span style={{ color:"#555", fontSize:11 }}>{isFocus ? "▲" : "▼"}</span>
                 </div>
 
-                {/* 選択時：操作エリア */}
-                {isSel && (
+                {/* フォーカス時：操作エリア */}
+                {isFocus && acts.length > 0 && (
                   <div style={{ padding:"6px 8px 8px", background:"#0d0d18",
                     border:"1px solid #222", borderTop:"none", borderRadius:"0 0 4px 4px" }}>
 
@@ -259,42 +421,22 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
                     {/* 操作ボタン */}
                     <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:4 }}>
-                      {isCarry ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); moveToWarehouse(idx); }}
-                          disabled={wh.length >= MAX}
-                          style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18",
-                            color: wh.length >= MAX ? "#555" : "#aaa",
-                            opacity: wh.length >= MAX ? 0.4 : 1 }}
-                        >
-                          → 倉庫へ戻す
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); moveToCarry(idx); }}
-                            style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#081828", color:"#8cf" }}
+                      {acts.map((act, ai) => {
+                        const isActSel = actionSel === ai;
+                        return (
+                          <button key={ai}
+                            onClick={(e) => { e.stopPropagation(); executeAction(idx, ai); }}
+                            style={{ ...BTN, padding:"4px 10px", fontSize:12,
+                              background: isActSel ? act.bgSel : act.bg,
+                              color: act.color,
+                              border: `1px solid ${isActSel ? "#88f" : BDR}`,
+                              fontWeight: isActSel ? "bold" : "normal",
+                            }}
                           >
-                            ← 持参する
+                            {act.label}
                           </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); sellFromWarehouse(idx); }}
-                            style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0a1800", color:GOLD }}
-                          >
-                            売る ({sellPrice}G)
-                          </button>
-                        </>
-                      )}
-                      {item.desc && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setShowDescIdx(isDescShow ? null : idx); }}
-                          style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18",
-                            color:       isDescShow ? "#8af" : "#666",
-                            borderColor: isDescShow ? "#44f" : BDR }}
-                        >
-                          説明
-                        </button>
-                      )}
+                        );
+                      })}
                     </div>
 
                     {/* 説明文 */}
