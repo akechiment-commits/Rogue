@@ -692,31 +692,37 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   const _isWeaponUpMode_ui = mode.mode === 'weapon_up';
   const _isArmorUpMode_ui  = mode.mode === 'armor_up';
   const _isPotExtractMode_ui = mode.mode === 'pot_extract';
-  const _filtered = _p.inventory
-    .map((it, i) => ({ it, i }))
-    .filter(({ it, i }) => {
-      if (_isBCMode_ui) return it.type !== "gold"; /* bless/curse: scrollIdxなし */
-      if (_isDupMode_ui || _isSellMode_ui || _isTsfMode_ui) return it.type !== "gold" && i !== mode.scrollIdx;
-      if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor"; /* scrollは weapon/armorでないので自動除外 */
-      if (_isPotExtractMode_ui) return it.type === "pot" && i !== mode.scrollIdx;
-      if (_isWeaponUpMode_ui || _isArmorUpMode_ui) {
-        if (mode.wasUnknown) return it.type !== "gold" && i !== mode.scrollIdx;
-        const _PR = ["power_ring","defense_ring","life_ring"];
-        if (_isWeaponUpMode_ui) return it.type === "weapon" || (it.type === "ring" && _PR.includes(it.effect));
-        if (_isArmorUpMode_ui)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
-      }
-      if (mode.scrollIdx === i) return false;
-      if (it.type === 'weapon' || it.type === 'armor') {
-        /* 未識別の識別の巻物なら全アイテム表示 */
-        if (mode.mode === 'identify' && mode.showAll) return true;
-        return mode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
-      }
-      const k = getIdentKey(it);
-      if (!k) return mode.mode === 'identify' && mode.showAll; /* showAllなら識別キーなしも表示 */
-      if (mode.mode === 'identify' && mode.showAll) return true; /* 未識別巻物: 全アイテム */
-      if (mode.mode === 'identify') return !gs.ident?.has(k) || (!it.fullIdent && !it.bcKnown);
-      return gs.ident?.has(k);
-    });
+  const _footBb = mode.bbFootId ? gs?.dungeon?.bigboxes?.find(b => b.id === mode.bbFootId) : null;
+  const _footBbName = _footBb ? ((_footBb.revealed || gs?.allBcKnown) ? _footBb.name : (gs?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
+  const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify';
+  const _filtered = [
+    ...(_bbModeOk ? [{ it: { _isBbTarget: true, _bbId: _footBb.id, name: `${_footBbName}（足元の大箱）` }, i: -1 }] : []),
+    ..._p.inventory
+      .map((it, i) => ({ it, i }))
+      .filter(({ it, i }) => {
+        if (_isBCMode_ui) return it.type !== "gold"; /* bless/curse: scrollIdxなし */
+        if (_isDupMode_ui || _isSellMode_ui || _isTsfMode_ui) return it.type !== "gold" && i !== mode.scrollIdx;
+        if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor"; /* scrollは weapon/armorでないので自動除外 */
+        if (_isPotExtractMode_ui) return it.type === "pot" && i !== mode.scrollIdx;
+        if (_isWeaponUpMode_ui || _isArmorUpMode_ui) {
+          if (mode.wasUnknown) return it.type !== "gold" && i !== mode.scrollIdx;
+          const _PR = ["power_ring","defense_ring","life_ring"];
+          if (_isWeaponUpMode_ui) return it.type === "weapon" || (it.type === "ring" && _PR.includes(it.effect));
+          if (_isArmorUpMode_ui)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
+        }
+        if (mode.scrollIdx === i) return false;
+        if (it.type === 'weapon' || it.type === 'armor') {
+          /* 未識別の識別の巻物なら全アイテム表示 */
+          if (mode.mode === 'identify' && mode.showAll) return true;
+          return mode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
+        }
+        const k = getIdentKey(it);
+        if (!k) return mode.mode === 'identify' && mode.showAll; /* showAllなら識別キーなしも表示 */
+        if (mode.mode === 'identify' && mode.showAll) return true; /* 未識別巻物: 全アイテム */
+        if (mode.mode === 'identify') return !gs.ident?.has(k) || (!it.fullIdent && !it.bcKnown);
+        return gs.ident?.has(k);
+      }),
+  ];
   const _idPage_ui = mode.page || 0;
   const _idTotalPg_ui = Math.max(1, Math.ceil(_filtered.length / 10));
   const _idPageItems_ui = _filtered.slice(_idPage_ui * 10, (_idPage_ui + 1) * 10);
@@ -726,6 +732,80 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     const _absIdx = _idPage_ui * 10 + vi;
     const { it: _selIt } = _filtered[_absIdx] ?? _filtered[_idPage_ui * 10 + _curSel_ui] ?? {};
     if (!_selIt) return;
+    /* ===== 大箱ターゲット処理 ===== */
+    if (_selIt._isBbTarget) {
+      const _bb = sr.current.dungeon?.bigboxes?.find(b => b.id === _selIt._bbId);
+      let _bbMsg = "";
+      if (_bb) {
+        const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
+        if (mode.mode === 'identify') {
+          _bb.revealed = true; trackBigbox(_bb);
+          _bbMsg = `大箱「${_bb.name}」の正体が明らかになった！`;
+        } else if (mode.mode === 'duplicate') {
+          if (mode.cursed) {
+            sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
+            _bbMsg = `${_bb.name}が消えてしまった！【呪】`;
+          } else {
+            const _dg_bb = sr.current.dungeon;
+            let _dupPlaced = false;
+            for (const [_ddx, _ddy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+              const _nx = _bb.x + _ddx, _ny = _bb.y + _ddy;
+              if (_dg_bb.map[_ny]?.[_nx] === T.FLOOR && !_dg_bb.bigboxes?.some(b => b.x === _nx && b.y === _ny)) {
+                const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!mode.blessed };
+                if (mode.blessed) { trackBigbox(_newBb); }
+                _dg_bb.bigboxes.push(_newBb);
+                _dupPlaced = true;
+                _bbMsg = mode.blessed ? `祝福された${_bb.name}が隣に現れた！【祝】` : `${_bb.name}の複製が隣に現れた！`;
+                break;
+              }
+            }
+            if (!_dupPlaced) _bbMsg = "複製する場所がなかった。";
+          }
+        } else if (mode.mode === 'sell_item') {
+          const _baseG = _bbT?.rare ? 3000 : 500;
+          const _earnedG = mode.blessed ? _baseG * 2 : mode.cursed ? Math.floor(_baseG / 2) : _baseG;
+          sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
+          sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
+          _bbMsg = mode.blessed ? `${_bb.name}を${_earnedG}Gで換金した！（2倍）【祝】`
+                 : mode.cursed  ? `${_bb.name}を${_earnedG}Gで換金した…（半額）【呪】`
+                                : `${_bb.name}を${_earnedG}Gで換金した！`;
+        } else if (mode.mode === 'transform_item' || mode.mode === 'forge_item') {
+          const _otherBbs = BB_TYPES.filter(t => t.kind !== _bb.kind);
+          const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
+          if (_newBbT) {
+            const _oldBbName = _bb.name;
+            _bb.kind = _newBbT.kind; _bb.name = _newBbT.name; _bb.capacity = _newBbT.cap(); _bb.contents = []; _bb.revealed = false;
+            _bbMsg = `${_oldBbName}が${_newBbT.name}に変わった！`;
+          } else { _bbMsg = "変化しなかった。"; }
+        } else if (mode.mode === 'pot_extract') {
+          const _extBbItems = [...(_bb.contents || [])];
+          _bb.contents = [];
+          const _extBbFts = new Set();
+          for (const _ci of _extBbItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, [], _extBbFts);
+          if (mode.cursed) {
+            sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
+            _bbMsg = `${_bb.name}の中身を吸い出した！大箱は壊れた！【呪】`;
+          } else {
+            if (mode.blessed) _bb.capacity = (_bb.capacity || 1) + 1;
+            _bbMsg = _extBbItems.length > 0
+              ? `${_bb.name}から${_extBbItems.map(c => c.name).join('、')}が出た！${mode.blessed ? '（容量+1）【祝】' : ''}`
+              : `${_bb.name}は空だった。${mode.blessed ? '（容量+1）【祝】' : ''}`;
+          }
+        } else if (mode.mode === 'weapon_up' || mode.mode === 'armor_up') {
+          _bbMsg = `${_bb.name}には効果がなかった。巻物は消えた。`;
+        }
+      }
+      if (mode.identKey) { const _scrWasUnk = !sr.current.ident.has(mode.identKey); sr.current.ident.add(mode.identKey); if (_scrWasUnk && mode.scrollIdx != null) { const _sc = sr.current.player.inventory[mode.scrollIdx]; if (_sc) trackItem(_sc); } }
+      if (mode.revMsg) setMsgs((prev) => [...prev.slice(-80), mode.revMsg]);
+      if (mode.scrollIdx != null) { sr.current.player.inventory.splice(mode.scrollIdx, 1); if (identifyCancelRef) identifyCancelRef.current = null; }
+      if (mode.spellCost != null) sr.current.player.mp -= mode.spellCost;
+      const _etMl_bb = [];
+      endTurn(sr.current, sr.current.player, _etMl_bb);
+      setMode(null);
+      setMsgs((prev) => [...prev.slice(-80), ...(mode.spellMsg ? [mode.spellMsg] : []), _bbMsg, ..._etMl_bb]);
+      sr.current = { ...sr.current }; setGs({ ...sr.current });
+      return;
+    }
     /* 確定時に巻物を識別 & reveal メッセージ表示 */
     if (mode.identKey) {
       const _scrWasUnknown = !sr.current.ident.has(mode.identKey);
@@ -1004,7 +1084,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
               color: _isSel ? "#fff" : "#ccc",
               fontWeight: _isSel ? "bold" : "normal",
             }}>
-            {_isSel ? "▶ " : "　"}{iLabel(it)}
+            {_isSel ? "▶ " : "　"}{it._isBbTarget ? it.name : iLabel(it)}
           </div>
         );
       })}
