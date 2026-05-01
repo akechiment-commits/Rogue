@@ -682,6 +682,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
 
 /* ===== Identify/Bless/Curse/Duplicate Modal ===== */
 export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, iLabel, mobile, identifyConfirmRef, identifyCancelRef }) {
+  const _confirmBridgeRef = useRef(null);
+  useLayoutEffect(() => {
+    if (identifyConfirmRef) identifyConfirmRef.current = _confirmBridgeRef.current;
+  });
   if (!mode || !gs) return null;
   const _p = gs.player;
   const _isBCMode_ui = mode.mode === 'bless' || mode.mode === 'curse';
@@ -1031,9 +1035,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     setMsgs((prev) => [...prev.slice(-80), ..._ml_id]);
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   };
-  useLayoutEffect(() => {
-    if (identifyConfirmRef) identifyConfirmRef.current = doConfirmUI;
-  });
+  _confirmBridgeRef.current = doConfirmUI;
   return (
     <div
       style={{
