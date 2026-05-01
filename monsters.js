@@ -867,11 +867,11 @@ export function monLevelDown(mon, dg, ml) {
 /* ===== ボステンプレート（5階ごとに1体登場） ===== */
 export const BOSSES = [
   /* 第1ボス B5F (depth=4) */
-  { name: "好まざる猫「フリージア」", hp: 216,   atk: 31,  def: 16,  exp: 500,
+  { name: "好まざる猫「フリージア」", hp: 150,   atk: 24,  def: 16,  exp: 500,
     speed: 1,   tile: 89, kind: "beast",    baseKind: "boss_blaze",
     isBoss: true, bossTier: 1,  monLevel: 1, maxAttacks: 2 },
   /* 第2ボス B10F (depth=9) */
-  { name: "シオン・ザ・ダークブレット", hp: 360,   atk: 44,  def: 23,  exp: 1200,
+  { name: "シオン・ザ・ダークブレット", hp: 300,   atk: 35,  def: 23,  exp: 1200,
     speed: 1,   tile: 90, kind: "humanoid", baseKind: "boss_darkbullet",
     isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1 },
   /* 第3ボス B15F (depth=14) */
