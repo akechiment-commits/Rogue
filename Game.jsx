@@ -5436,7 +5436,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                           if (_toSell.length > 0 && _bsh2) {
                             const _calcB = (it) => it.type === "gem" ? gemSellPrice(it, _bp2.depth) : Math.ceil(itemPrice(it) * 0.5);
                             let _earn = 0;
-                            for (const it of _toSell) { it.shopPrice = _calcB(it); it._shopId = _bsh2.id; _earn += it.shopPrice; }
+                            for (const it of _toSell) { const _bv = _calcB(it); it.shopPrice = it.type === "gem" ? (it._gemBuyPrice || _bv) + _bv : _bv; it._shopId = _bsh2.id; _earn += _bv; }
                             _bp2.gold += _earn; _bsh2.unpaidTotal += _earn;
                             const _sk3 = _bd2.monsters.find(m => m.id === _bsh2.shopkeeperId && m.state === "friendly");
                             if (_sk3) _sk3.state = "blocking";

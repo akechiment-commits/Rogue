@@ -1215,7 +1215,7 @@ export function useKeyHandler({
               const it2 = fis3[shopMenuSel];
               const bp = it2.type === "gem" ? gemSellPrice(it2, p2.depth) : Math.ceil(itemPrice(it2) * 0.5);
               p2.gold += bp;
-              it2.shopPrice = itemPrice(it2);
+              it2.shopPrice = it2.type === "gem" ? (it2._gemBuyPrice || bp) + bp : itemPrice(it2);
               if (_curSellShop) it2._shopId = _curSellShop.id;
               setMsgs((prev) => [
                 ...prev.slice(-80),
@@ -1278,7 +1278,7 @@ export function useKeyHandler({
                   if (toSell.length > 0 && _sellShop) {
                     const _calc = (it) => it.type === "gem" ? gemSellPrice(it, p2.depth) : Math.ceil(itemPrice(it) * 0.5);
                     let _earned = 0;
-                    for (const it of toSell) { it.shopPrice = _calc(it); it._shopId = _sellShop.id; _earned += it.shopPrice; }
+                    for (const it of toSell) { const _sv = _calc(it); it.shopPrice = it.type === "gem" ? (it._gemBuyPrice || _sv) + _sv : _sv; it._shopId = _sellShop.id; _earned += _sv; }
                     p2.gold += _earned;
                     _sellShop.unpaidTotal += _earned;
                     const _sk2 = dg2.monsters.find(m => m.id === _sellShop.shopkeeperId && m.state === "friendly");

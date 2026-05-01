@@ -1098,6 +1098,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       /* この店のアイテムのみ shopPrice を解除 */
                       const _clearShopPrice = (it2) => {
                         if (it2.shopPrice && (!it2._shopId || it2._shopId === _curShop2.id)) {
+                          if (it2.type === "gem") it2._gemBuyPrice = it2.shopPrice;
                           delete it2.shopPrice; delete it2._shopId;
                         }
                         if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice);
@@ -1172,9 +1173,10 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     const _calcSell2 = (it) => it.type === "gem" ? gemSellPrice(it, p2.depth) : Math.ceil(itemPrice(it) * 0.5);
                     let earned = 0;
                     for (const it of toSell) {
-                      it.shopPrice = _calcSell2(it);
+                      const _sp2 = _calcSell2(it);
+                      it.shopPrice = it.type === "gem" ? (it._gemBuyPrice || _sp2) + _sp2 : _sp2;
                       it._shopId = _sellShop.id;
-                      earned += it.shopPrice;
+                      earned += _sp2;
                     }
                     p2.gold += earned;
                     /* unpaidTotal に加算 → 盗賊判定・pay モードが自動的に機能する */
@@ -1250,7 +1252,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   /* it は gs 由来で sr.current と乖離している可能性があるため
                      dg3.items から同一IDのオブジェクトを取得して書き換える */
                   const _srItem = dg3.items.find(i2 => i2.id === it.id) || it;
-                  _srItem.shopPrice = _srItem.type === "gem" ? bp * 2 : itemPrice(_srItem);
+                  _srItem.shopPrice = _srItem.type === "gem" ? (_srItem._gemBuyPrice || bp) + bp : itemPrice(_srItem);
                   if (_curSellSh) _srItem._shopId = _curSellSh.id;
                   const _dispName = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
                   setMsgs((prev) => [
