@@ -3109,10 +3109,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb6, sr.current, bb6.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
         } else {
           const trap6 = dg.traps?.find((t) => t.x === nx && t.y === ny && t.revealed);
+          const items6 = (dg.items || []).filter((i) => i.x === nx && i.y === ny);
+          const tile6 = dg.map[ny]?.[nx];
+          const _nfn6 = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
           if (trap6) {
             setMsgs((prev) => [...prev.slice(-80), `${trap6.name}がある。`]);
+          } else if (tile6 === T.SD) {
+            setMsgs((prev) => [...prev.slice(-80), "下り階段がある。"]);
+          } else if (tile6 === T.SU) {
+            setMsgs((prev) => [...prev.slice(-80), "上り階段がある。"]);
+          } else if (items6.length > 0) {
+            setMsgs((prev) => [...prev.slice(-80), `${items6.map(_nfn6).join("、")}がある。`]);
           } else {
-            setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
+            const _pt6 = dg.map[p.y]?.[p.x];
+            if (_pt6 === T.SD) {
+              setMsgs((prev) => [...prev.slice(-80), "足元に下り階段がある。Fキーで階段を使用。"]);
+            } else if (_pt6 === T.SU) {
+              setMsgs((prev) => [...prev.slice(-80), "足元に上り階段がある。Fキーで階段を使用。"]);
+            } else {
+              setMsgs((prev) => [...prev.slice(-80), "何もない。"]);
+            }
           }
         }
       }
