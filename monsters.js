@@ -1192,6 +1192,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   const _makeAr = () => _mLv >= 3 ? makePiercingArrow(1) : _mLv >= 2 ? makeStrongArrow(1) : makeArrow(1);
   const _arName = _mLv >= 3 ? "貫きの矢" : _mLv >= 2 ? "強矢" : "矢";
   const _arColor = _mLv >= 3 ? "#ff8844" : _mLv >= 2 ? "#ffcc44" : "#d0a050";
+  const _arAtkBonus = _mLv >= 3 ? 5 : _mLv >= 2 ? 8 : 3;
   const _maxDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
   /* 矢落下：pierceなら消滅、それ以外は地面/泉に落とす */
   const _dropAr = (px, py, mlx) => {
@@ -1206,7 +1207,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     fireMsg: `${m.name}が${_arName}を放った！`,
     boltName: _arName,
     deathCause: `${m.name}の${_arName}の攻撃で`,
-    calcPlDmg: () => Math.max(1, m.atk + rng(-2, 2)),
+    calcPlDmg: () => { const _pdef = calcPlayerDef(pl); const _ap = m.atk + _arAtkBonus; const _base = Math.floor(_ap * _ap / (_ap + Math.floor(_pdef * 1.5))); return _base === 0 ? 1 : Math.max(1, _base + rng(-2, 2)); },
     calcMonDmg: () => Math.max(1, m.atk + rng(-2, 2)),
     hitChance: 0.75,
     applyVulnPentacle: true,
@@ -1926,7 +1927,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         baseRange: 10, animColor: "#111111",
         fireMsg: `${m.name}が銃撃した！`, boltName: "銃弾",
         deathCause: `${m.name}の銃撃で`,
-        calcPlDmg: () => Math.max(1, m.atk - Math.floor(calcPlayerDef(pl) / 2) + rng(-3, 3)),
+        calcPlDmg: () => { const _pdef = calcPlayerDef(pl); const _ap = m.atk + 6; const _base = Math.floor(_ap * _ap / (_ap + Math.floor(_pdef * 1.5))); return _base === 0 ? 1 : Math.max(1, _base + rng(-2, 2)); },
         calcMonDmg: (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
       });
       if (m.hp > 0) m.turnAttacks++;
