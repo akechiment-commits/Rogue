@@ -729,8 +729,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   const _curSel_ui = Math.min(mode.sel || 0, Math.max(0, _idPageItems_ui.length - 1));
   const doConfirmUI = (vi) => {
     if (!sr.current) return;
-    const _absIdx = _idPage_ui * 10 + vi;
-    const { it: _selIt } = _filtered[_absIdx] ?? _filtered[_idPage_ui * 10 + _curSel_ui] ?? {};
+    const _vi = (vi !== undefined && vi !== null) ? vi : _curSel_ui;
+    const _absIdx = _idPage_ui * 10 + _vi;
+    const { it: _selIt } = _filtered[_absIdx] ?? {};
     if (!_selIt) return;
     /* ===== 大箱ターゲット処理 ===== */
     if (_selIt._isBbTarget) {

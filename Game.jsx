@@ -5232,7 +5232,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     if (identifyMode.mode === 'identify') return _showAll_t || !sr.current.ident.has(_k) || (!it.fullIdent && !it.bcKnown);
                     return sr.current.ident.has(_k);
                   });
-                const _len = _filt.length;
+                const _hasBbTgt = !!(identifyMode.bbFootId && !_isBCMode_t && identifyMode.mode !== 'unidentify' && sr.current?.dungeon?.bigboxes?.find(b => b.id === identifyMode.bbFootId));
+                const _len = _filt.length + (_hasBbTgt ? 1 : 0);
                 const _idPg_t = identifyMode.page || 0;
                 const _idTotalPg_t = Math.max(1, Math.ceil(_len / 10));
                 const _idPgLen_t = Math.min(10, Math.max(0, _len - _idPg_t * 10));
@@ -5484,7 +5485,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       return;
                     }
                     if (identifyMode) {
-                      if (identifyConfirmRef.current) identifyConfirmRef.current(identifyMode.sel || 0);
+                      if (identifyConfirmRef.current) identifyConfirmRef.current();
                       return;
                     }
                     if (showInv) {
