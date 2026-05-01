@@ -1252,6 +1252,48 @@ export function useKeyHandler({
           }
           return;
         }
+        if (shopMode === "browse" || shopMode === "browseConfirm") {
+          if (isUp3 || isDown3) {
+            setShopMenuSel((p2) => (p2 + (isDown3 ? 1 : -1) + 2) % 2);
+            return;
+          }
+          if (k === "enter" || k === "z") {
+            if (shopMode === "browse") {
+              if (shopMenuSel === 0) { setShopMode(null); } // やめる
+              else { // 所持品を全て売る
+                if (sr.current) {
+                  const { player: p2, dungeon: dg2 } = sr.current;
+                  const _bSellItems = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
+                  const _bInShop = getShops(dg2).find(s => s.room && p2.x >= s.room.x && p2.x < s.room.x + s.room.w && p2.y >= s.room.y && p2.y < s.room.y + s.room.h);
+                  if (_bSellItems.length > 0 && _bInShop) { setShopMode("browseConfirm"); setShopMenuSel(0); }
+                }
+              }
+            } else { // browseConfirm
+              if (shopMenuSel === 0) { setShopMode("browse"); setShopMenuSel(0); } // やめる
+              else { // はい、全て売る
+                if (sr.current) {
+                  const { player: p2, dungeon: dg2 } = sr.current;
+                  const toSell = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
+                  const _sellShop = getShops(dg2).find(s => s.room && p2.x >= s.room.x && p2.x < s.room.x + s.room.w && p2.y >= s.room.y && p2.y < s.room.y + s.room.h) || getShops(dg2)[0];
+                  if (toSell.length > 0 && _sellShop) {
+                    const _calc = (it) => it.type === "gem" ? gemSellPrice(it, p2.depth) : Math.ceil(itemPrice(it) * 0.5);
+                    let _earned = 0;
+                    for (const it of toSell) { it.shopPrice = _calc(it); it._shopId = _sellShop.id; _earned += it.shopPrice; }
+                    p2.gold += _earned;
+                    _sellShop.unpaidTotal += _earned;
+                    const _sk2 = dg2.monsters.find(m => m.id === _sellShop.shopkeeperId && m.state === "friendly");
+                    if (_sk2) _sk2.state = "blocking";
+                    setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${_earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
+                    sr.current = { ...sr.current }; setGs({ ...sr.current });
+                  }
+                  setShopMode(null);
+                }
+              }
+            }
+            return;
+          }
+          return;
+        }
         return;
       }
       if (bigboxMode) {

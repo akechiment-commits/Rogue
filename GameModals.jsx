@@ -1014,8 +1014,6 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 
 /* ===== Shop Modal ===== */
 export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setMenuSel, mobile }) {
-  const [sellAllConfirm, setSellAllConfirm] = useState(false);
-  useEffect(() => { if (!mode) setSellAllConfirm(false); }, [mode]);
   const _calcSellPrice = (it, depth) => it.type === "gem" ? gemSellPrice(it, depth) : Math.ceil(itemPrice(it) * 0.5);
   if (!mode || !gs?.dungeon?.shop) return null;
   const _adjSkH = gs.dungeon?.monsters?.find(m =>
@@ -1151,25 +1149,26 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
         const _inShop = !!_curShop;
         const _sellItems = _p.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
         const _totalG = _sellItems.reduce((s, it) => s + _calcSellPrice(it, _p.depth), 0);
-        if (sellAllConfirm) {
+        if (mode === "browseConfirm") {
           return (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ color: "#fa8", fontSize: 14, marginBottom: 4 }}>
                 店主：「本当によろしいですか？{_sellItems.length} 件を{_totalG.toLocaleString()}Gで買い取ります。」
               </div>
               {[
+                { label: "やめる", fn: () => { setMode("browse"); setMenuSel(0); } },
                 {
                   label: `はい、全て売る (${_totalG.toLocaleString()}G)`,
                   fn: () => {
                     if (!sr.current) return;
                     const { player: p2, dungeon: dg2 } = sr.current;
                     const toSell = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
-                    if (toSell.length === 0) { setSellAllConfirm(false); return; }
+                    if (toSell.length === 0) { setMode("browse"); return; }
                     /* 複数店舗対応：プレイヤーが今いる店を使う */
                     const _sellShop = getShops(dg2).find(s => s.room &&
                       p2.x >= s.room.x && p2.x < s.room.x + s.room.w &&
                       p2.y >= s.room.y && p2.y < s.room.y + s.room.h) || getShops(dg2)[0];
-                    if (!_sellShop) { setSellAllConfirm(false); return; }
+                    if (!_sellShop) { setMode("browse"); return; }
                     const _calcSell2 = (it) => it.type === "gem" ? gemSellPrice(it, p2.depth) : Math.ceil(itemPrice(it) * 0.5);
                     let earned = 0;
                     for (const it of toSell) {
@@ -1185,11 +1184,9 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
                     sr.current = { ...sr.current };
                     setGs({ ...sr.current });
-                    setSellAllConfirm(false);
                     setMode(null);
                   },
                 },
-                { label: "やめる", fn: () => setSellAllConfirm(false) },
               ].map((item, mi) => (
                 <button key={mi} onClick={item.fn} style={{
                   padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",
@@ -1206,14 +1203,14 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
               店主：「いらっしゃいませ！」
             </div>
             {[
+              { label: "やめる", fn: () => setMode(null) },
               {
                 label: _inShop
                   ? `所持品を全て売る (${_totalG.toLocaleString()}G)`
                   : "所持品を全て売る (店内限定)",
                 disabled: _sellItems.length === 0 || !_inShop,
-                fn: () => { if (_sellItems.length > 0 && _inShop) setSellAllConfirm(true); },
+                fn: () => { if (_sellItems.length > 0 && _inShop) { setMode("browseConfirm"); setMenuSel(0); } },
               },
-              { label: "やめる", fn: () => setMode(null) },
             ].map((item, mi) => (
               <button key={mi} onClick={item.fn} disabled={item.disabled} style={{
                 padding: "6px 10px", background: menuSel === mi ? "#4a2a00" : "#2a1a00",

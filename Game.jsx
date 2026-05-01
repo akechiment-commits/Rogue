@@ -22,6 +22,7 @@ import {
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
+  itemPrice, gemSellPrice,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -5268,6 +5269,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 }
                 return;
               }
+              /* === 店broseモード：上下で選択 === */
+              if (shopMode === "browse" || shopMode === "browseConfirm") {
+                if (dy !== 0 && dx === 0) setShopMenuSel((p) => (p + dy + 2) % 2);
+                return;
+              }
               /* === 大箱モード：上下で選択、左右でページ送り === */
               if (bigboxMode) {
                 if (bigboxMode === "menu") {
@@ -5361,6 +5367,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   onClick={() => {
                     if (showSign) { setShowSign(null); return; }
                     if (spellListMode) { setSpellListMode(false); return; }
+                    if (shopMode === "browseConfirm") { setShopMode("browse"); setShopMenuSel(0); return; }
+                    if (shopMode === "browse") { setShopMode(null); return; }
                     if (putMode) { setPutMode(null); setPutPage(0); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
@@ -5408,6 +5416,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       else if (bigboxMenuSel === 1) { setBigboxMode(null); bigboxRef.current = null; setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
                       else if (bigboxMenuSel === 2) { setBigboxMode("desc"); setBigboxMenuSel(0); }
                       else if (bigboxMenuSel === 3 && _bbk) { setBigboxMode(null); setNicknameMode({ identKey: _bbk }); setNicknameInput(gs?.nicknames?.[_bbk] || ""); }
+                      return;
+                    }
+                    if (shopMode === "browse" || shopMode === "browseConfirm") {
+                      if (shopMode === "browse") {
+                        if (shopMenuSel === 0) { setShopMode(null); }
+                        else if (sr.current) {
+                          const { player: _bp, dungeon: _bd } = sr.current;
+                          const _bsi = _bp.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
+                          const _bsh = getShops(_bd).find(s => s.room && _bp.x >= s.room.x && _bp.x < s.room.x + s.room.w && _bp.y >= s.room.y && _bp.y < s.room.y + s.room.h);
+                          if (_bsi.length > 0 && _bsh) { setShopMode("browseConfirm"); setShopMenuSel(0); }
+                        }
+                      } else {
+                        if (shopMenuSel === 0) { setShopMode("browse"); setShopMenuSel(0); }
+                        else if (sr.current) {
+                          const { player: _bp2, dungeon: _bd2 } = sr.current;
+                          const _toSell = _bp2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
+                          const _bsh2 = getShops(_bd2).find(s => s.room && _bp2.x >= s.room.x && _bp2.x < s.room.x + s.room.w && _bp2.y >= s.room.y && _bp2.y < s.room.y + s.room.h) || getShops(_bd2)[0];
+                          if (_toSell.length > 0 && _bsh2) {
+                            const _calcB = (it) => it.type === "gem" ? gemSellPrice(it, _bp2.depth) : Math.ceil(itemPrice(it) * 0.5);
+                            let _earn = 0;
+                            for (const it of _toSell) { it.shopPrice = _calcB(it); it._shopId = _bsh2.id; _earn += it.shopPrice; }
+                            _bp2.gold += _earn; _bsh2.unpaidTotal += _earn;
+                            const _sk3 = _bd2.monsters.find(m => m.id === _bsh2.shopkeeperId && m.state === "friendly");
+                            if (_sk3) _sk3.state = "blocking";
+                            setMsgs(prev => [...prev.slice(-80), `所持品 ${_toSell.length} 件が店の商品になった。${_earn.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);
+                            sr.current = { ...sr.current }; setGs({ ...sr.current });
+                          }
+                          setShopMode(null);
+                        }
+                      }
                       return;
                     }
                     if (putMode) {
