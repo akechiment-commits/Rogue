@@ -514,7 +514,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (isStatusImmune(target, ml, target.name)) break;
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, target.speed * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + (_sBless ? 20 : 10);
           ml.push(`${target.name}は鈍足になった！`);
           if (_sBless) {
             /* 祝福：金縛りも追加 */
@@ -529,8 +529,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (hasAbility(p.armor, "slow_proof")) {
             ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
           } else {
-            p.slowTurns = (p.slowTurns || 0) + 10;
-            ml.push("体が重くなった...(鈍足10ターン)");
+            p.slowTurns = (p.slowTurns || 0) + (_sBless ? 20 : 10);
+            ml.push(`体が重くなった...(鈍足${_sBless ? 20 : 10}ターン)`);
           }
           if (_sBless) {
             if (hasAbility(p.armor, "paralyze_proof")) {
@@ -939,8 +939,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
-          ml.push("魔力が封じられた！(MP封印50ターン)");
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + (_seBlessed ? 100 : 50);
+          ml.push(`魔力が封じられた！(MP封印${_seBlessed ? 100 : 50}ターン)`);
           if (_seBlessed) {
             if (hasAbility(p.armor, "slow_proof")) {
               ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
@@ -1155,8 +1155,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (hasAbility(p.armor, "darkness_proof")) {
           ml.push("暗闇効果を受けたが防具が防いだ！(耐暗闇)");
         } else {
-          p.darknessTurns = (p.darknessTurns || 0) + (_dkBlessed ? 50 : 20);
-          ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${_dkBlessed ? "(祝福)" : ""}`);
+          p.darknessTurns = (p.darknessTurns || 0) + (_dkBlessed ? 40 : 20);
+          ml.push(`暗闇に包まれた！視界が1マスになる！(${_dkBlessed ? 40 : 20}ターン)${_dkBlessed ? "(祝福)" : ""}`);
         }
         break;
       }
