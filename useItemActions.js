@@ -68,7 +68,7 @@ export function useItemActions({
   lu, endTurn, chgFloor, withPitfallBag,
   dnameRef, bigboxAddItem,
   onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
-  floorPenDropRef, floorWandRef,
+  floorPenDropRef, floorWandRef, floorPotRef,
 }) {
   const doUseItem = useCallback((idx) => {
     if (!sr.current) return;
@@ -374,7 +374,12 @@ export function useItemActions({
           ml.push(`${it.name}を飲んだ。${it.blessed ? "【祝=2レベルアップ】" : ""}`);
         }
       }
-      if (p.inventory.length < (p.maxInventory || 30)) {
+      if (floorPotRef?.current === true) {
+        /* 足元の薬を使用：空き瓶はGame.jsx側で床に置く */
+        const bottle = { ...EMPTY_BOTTLE, id: uid() };
+        floorPotRef.current = bottle;
+        ml.push("足元に空き瓶が残った。");
+      } else if (p.inventory.length < (p.maxInventory || 30)) {
         const bottle = { ...EMPTY_BOTTLE, id: uid() };
         p.inventory.push(bottle);
         ml.push("空き瓶が残った。");

@@ -4511,6 +4511,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const arrowHeldRef = useRef({});
   const floorPenDropRef = useRef(null);
   const floorWandRef = useRef(null);
+  const floorPotRef = useRef(null);
   useEffect(() => {
     const onUp = (e) => {
       if (e.key === "Shift") { shiftRef.current = false; arrowHeldRef.current = {}; }
@@ -4579,7 +4580,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     lu, endTurn, chgFloor, withPitfallBag,
     dnameRef, bigboxAddItem,
     onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
-    floorPenDropRef, floorWandRef,
+    floorPenDropRef, floorWandRef, floorPotRef,
   });
   doMarkerWriteRef.current = doMarkerWrite;
   /* ===== 足元ページ用コールバック ===== */
@@ -4638,7 +4639,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const _doFloorItemAction = (item, actionFn, skipCapCheck = false, keepInInventory = false) => {
     const s = sr.current; if (!s) return;
     const _p = s.player, _dg = s.dungeon;
-    if (!skipCapCheck && _p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
+    /* 満杯チェック（action前に記録） */
+    const _wasInvFull = _p.inventory.length >= (_p.maxInventory || 30);
+    if (!skipCapCheck && _wasInvFull) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
     /* 店のアイテムを床から直接使う場合は代金を請求 */
     _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
@@ -4656,8 +4659,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         identifyCancelRef.current = null;
       };
     }
+    /* 足元の薬を使う場合は空き瓶を足元に置くフラグを立てる */
+    if (item.type === 'pot') floorPotRef.current = true;
     actionFn(_idx);
-    if (!keepInInventory) {
+    /* 足元薬の空き瓶を床に配置 */
+    if (item.type === 'pot') {
+      const _bottle = floorPotRef.current;
+      floorPotRef.current = null;
+      if (_bottle && typeof _bottle === 'object') placeItemAt(_dg, _p.x, _p.y, _bottle, [], new Set(), 0, _p);
+    }
+    /* 満杯だった場合またはkeepInInventory=falseの場合、残ったアイテムを床に戻す */
+    if (!keepInInventory || _wasInvFull) {
       const _si = _p.inventory.indexOf(item);
       if (_si !== -1) {
         _p.inventory.splice(_si, 1);
@@ -4665,6 +4677,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         placeItemAt(_dg, _p.x, _p.y, item, _ml2, _ft2, 0, _p);
         if (_ml2.length) setMsgs(prev => [...prev.slice(-80), ..._ml2]);
       }
+      identifyCancelRef.current = null;
     } else if (_p.inventory.indexOf(item) === -1) {
       /* actionFnが即時消費した場合（選択ダイアログなし）はキャンセル不要 */
       identifyCancelRef.current = null;
