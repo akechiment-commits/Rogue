@@ -2269,6 +2269,23 @@ export function genDebugDungeonFloor2() {
   };
 }
 
+/* ===== DEBUG DUNGEON フロア別生成 (2F=店, 3-4F=特殊, 5F=ボス) ===== */
+export function genDebugFloorByDepth(nd, dungeonType = "beginner") {
+  /* nd は実際の階数 (2,3,4,5...) */
+  if (nd === 2) {
+    const d = genShoppingMall(1, dungeonType); d.dungeonType = dungeonType; return d;
+  }
+  if (nd === 3 || nd === 4) {
+    const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
+    const d = pick(specials)(nd - 1, dungeonType); d.dungeonType = dungeonType; return d;
+  }
+  if (nd === 5) {
+    const d = genBossFloor(4, dungeonType); d.dungeonType = dungeonType; return d;
+  }
+  /* 6階以降は通常生成 */
+  return genDungeon(nd - 1, dungeonType);
+}
+
 /* ===== TUTORIAL DUNGEON (全5階固定コンテンツ) ===== */
 
 /* 3部屋＋L字通路でチュートリアルマップを組み立てるヘルパー */

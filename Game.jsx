@@ -24,7 +24,7 @@ import {
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
-import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
+import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
@@ -1120,7 +1120,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _chgMobile = Math.min(window.innerWidth, window.innerHeight) < 700;
       d = genTutorialFloor(nd, { mobile: _chgMobile });
     } else if (sr.current.isDebugRun && nd >= 2) {
-      d = genDungeon(nd - 1, "beginner");
+      d = genDebugFloorByDepth(nd, sr.current.dungeonType || "beginner");
     } else {
       d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
     }
