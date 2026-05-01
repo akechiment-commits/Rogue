@@ -11,7 +11,7 @@ import {
 } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { genDungeon, prepareLastFloor } from "./dungeon.js";
-import { getDiscoveries } from "./DiscoveryTracker.js";
+import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 
 export function useKeyHandler({
   // refs
@@ -614,10 +614,14 @@ export function useKeyHandler({
             if (identifyMode.mode === 'identify') return !sr.current.ident.has(_k) || (!it.fullIdent && !it.bcKnown);
             return sr.current.ident.has(_k);
           });
-        const _len_id = _filt_id.length;
+        const _dg_id = sr.current.dungeon;
+        const _footBb_id = identifyMode.bbFootId ? _dg_id?.bigboxes?.find(b => b.id === identifyMode.bbFootId) : null;
+        const _bbOk_id = !!(_footBb_id && !_isBCMode && identifyMode.mode !== 'unidentify');
+        const _allList_id = [...(_bbOk_id ? [{ it: { _isBbTarget: true, _bbId: _footBb_id.id }, i: -1 }] : []), ..._filt_id];
+        const _len_id = _allList_id.length;
         const _idPage    = identifyMode.page || 0;
         const _idTotalPg = Math.max(1, Math.ceil(_len_id / 10));
-        const _idPageItems = _filt_id.slice(_idPage * 10, (_idPage + 1) * 10);
+        const _idPageItems = _allList_id.slice(_idPage * 10, (_idPage + 1) * 10);
         const _idPageLen   = _idPageItems.length;
         const _isUp_id    = k === "arrowup"    || e.code === "Numpad8";
         const _isDown_id  = k === "arrowdown"  || e.code === "Numpad2";
@@ -640,6 +644,79 @@ export function useKeyHandler({
         if ((k === "enter" || k === "z") && _idPageLen > 0) {
           const _curSel_id = Math.min(identifyMode.sel || 0, _idPageLen - 1);
           const { it: _selIt } = _idPageItems[_curSel_id];
+          /* ===== 大箱ターゲット処理 ===== */
+          if (_selIt._isBbTarget) {
+            const _bb = _dg_id?.bigboxes?.find(b => b.id === _selIt._bbId);
+            let _bbMsg = "";
+            if (_bb) {
+              const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
+              if (identifyMode.mode === 'identify') {
+                _bb.revealed = true; trackBigbox(_bb);
+                _bbMsg = `大箱「${_bb.name}」の正体が明らかになった！`;
+              } else if (identifyMode.mode === 'duplicate') {
+                if (identifyMode.cursed) {
+                  sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
+                  _bbMsg = `${_bb.name}が消えてしまった！【呪】`;
+                } else {
+                  let _dupPlaced = false;
+                  for (const [_ddx, _ddy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+                    const _nx = _bb.x + _ddx, _ny = _bb.y + _ddy;
+                    if (_dg_id.map[_ny]?.[_nx] === T.FLOOR && !_dg_id.bigboxes?.some(b => b.x === _nx && b.y === _ny)) {
+                      const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!identifyMode.blessed };
+                      if (identifyMode.blessed) { trackBigbox(_newBb); }
+                      _dg_id.bigboxes.push(_newBb);
+                      _dupPlaced = true;
+                      _bbMsg = identifyMode.blessed ? `祝福された${_bb.name}が隣に現れた！【祝】` : `${_bb.name}の複製が隣に現れた！`;
+                      break;
+                    }
+                  }
+                  if (!_dupPlaced) _bbMsg = "複製する場所がなかった。";
+                }
+              } else if (identifyMode.mode === 'sell_item') {
+                const _baseG = _bbT?.rare ? 3000 : 500;
+                const _earnedG = identifyMode.blessed ? _baseG * 2 : identifyMode.cursed ? Math.floor(_baseG / 2) : _baseG;
+                sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
+                sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
+                _bbMsg = identifyMode.blessed ? `${_bb.name}を${_earnedG}Gで換金した！（2倍）【祝】`
+                       : identifyMode.cursed  ? `${_bb.name}を${_earnedG}Gで換金した…（半額）【呪】`
+                                              : `${_bb.name}を${_earnedG}Gで換金した！`;
+              } else if (identifyMode.mode === 'transform_item' || identifyMode.mode === 'forge_item') {
+                const _otherBbs = BB_TYPES.filter(t => t.kind !== _bb.kind);
+                const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
+                if (_newBbT) {
+                  const _oldBbName = _bb.name;
+                  _bb.kind = _newBbT.kind; _bb.name = _newBbT.name; _bb.capacity = _newBbT.cap(); _bb.contents = []; _bb.revealed = false;
+                  _bbMsg = `${_oldBbName}が${_newBbT.name}に変わった！`;
+                } else { _bbMsg = "変化しなかった。"; }
+              } else if (identifyMode.mode === 'pot_extract') {
+                const _extItems = [...(_bb.contents || [])];
+                _bb.contents = [];
+                const _extFts = new Set();
+                for (const _ci of _extItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, [], _extFts);
+                if (identifyMode.cursed) {
+                  sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
+                  _bbMsg = `${_bb.name}の中身を吸い出した！大箱は壊れた！【呪】`;
+                } else {
+                  if (identifyMode.blessed) _bb.capacity = (_bb.capacity || 1) + 1;
+                  _bbMsg = _extItems.length > 0
+                    ? `${_bb.name}から${_extItems.map(c => c.name).join('、')}が出た！${identifyMode.blessed ? '（容量+1）【祝】' : ''}`
+                    : `${_bb.name}は空だった。${identifyMode.blessed ? '（容量+1）【祝】' : ''}`;
+                }
+              } else if (identifyMode.mode === 'weapon_up' || identifyMode.mode === 'armor_up') {
+                _bbMsg = `${_bb.name}には効果がなかった。巻物は消えた。`;
+              }
+            }
+            if (identifyMode.identKey && sr.current) { const _scrWasUnk = !sr.current.ident.has(identifyMode.identKey); sr.current.ident.add(identifyMode.identKey); if (_scrWasUnk && identifyMode.scrollIdx != null) { const _sc = sr.current.player.inventory[identifyMode.scrollIdx]; if (_sc) trackItem(_sc); } }
+            if (identifyMode.revMsg) setMsgs((prev) => [...prev.slice(-80), identifyMode.revMsg]);
+            if (identifyMode.scrollIdx != null) { sr.current.player.inventory.splice(identifyMode.scrollIdx, 1); }
+            if (identifyMode.spellCost != null) { sr.current.player.mp -= identifyMode.spellCost; }
+            const _etMl_bb = [];
+            endTurn(sr.current, sr.current.player, _etMl_bb);
+            setIdentifyMode(null);
+            setMsgs((prev) => [...prev.slice(-80), ...(identifyMode.spellMsg ? [identifyMode.spellMsg] : []), _bbMsg, ..._etMl_bb]);
+            sr.current = { ...sr.current }; setGs({ ...sr.current });
+            return;
+          }
           /* 確定時に巻物を識別 & reveal メッセージ表示 */
           if (identifyMode.identKey && sr.current) sr.current.ident.add(identifyMode.identKey);
           if (identifyMode.revMsg) setMsgs((prev) => [...prev.slice(-80), identifyMode.revMsg]);
