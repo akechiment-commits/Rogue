@@ -90,7 +90,8 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   }
   /* プレイヤーに命中 */
   const pdef = calcPlayerDef(pl);
-  let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
+  const _fBase = Math.floor(m.atk * m.atk / (m.atk + Math.floor(pdef * 1.5)));
+  let dmg = _fBase === 0 ? 1 : Math.max(1, _fBase + rng(-2, 2));
   /* 脆弱の魔方陣 */
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
@@ -138,7 +139,8 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     }
   }
   const pdef = calcPlayerDef(pl);
-  let _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
+  const _iBase = Math.floor(m.atk * m.atk / (m.atk + Math.floor(pdef * 1.5)));
+  let _iDmg = _iBase === 0 ? 1 : Math.max(1, _iBase + rng(-2, 2));
   const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
   const _hasIceR = hasAbility(pl.armor, "ice_resist") || hasAbility(pl.armor, "all_resist");
@@ -248,7 +250,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     return;
   }
   const pdef = calcPlayerDef(pl);
-  let dmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + pdef)) + rng(-2, 2));
+  const _mBase = Math.floor(m.atk * m.atk / (m.atk + Math.floor(pdef * 1.5)));
+  let dmg = _mBase === 0 ? 1 : Math.max(1, _mBase + rng(-2, 2));
   if (!skipVuln) {
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
     if (vulnPc) dmg = vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (vulnPc.blessed ? 4 : 2);
