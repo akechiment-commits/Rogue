@@ -2368,7 +2368,7 @@ export function InventoryModal({
                     {showDesc === 10000 + j && (
                       <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4 }}>
                         <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>{entry.name}</div>
-                        <div style={{ whiteSpace: "pre-wrap" }}>{entry.desc || "特に情報はない。"}</div>
+                        <div style={{ whiteSpace: "pre-wrap" }}>{(() => { const _kk = getIdentKey(entry); return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : (entry.desc || "特に情報はない。"); })()}</div>
                       </div>
                     )}
                   </div>
@@ -2466,7 +2466,7 @@ export function InventoryModal({
                         {it.type === "pot" && ` — 壺 [${it.contents?.length || 0}/${it.capacity}]`}
                         {it.type === "ring" && ` — 指輪${["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
-                      <div style={{ whiteSpace: "pre-wrap" }}>{it.desc || "特に情報はない。"}</div>
+                      <div style={{ whiteSpace: "pre-wrap" }}>{_isUnidentInv ? "未識別のためわからない。" : (it.desc || "特に情報はない。")}</div>
                       {it.ability && (() => {
                         const _ab = [...WEAPON_ABILITIES, ...ARMOR_ABILITIES].find((a) => a.id === it.ability);
                         return _ab ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_ab.name}：{_ab.desc}</div> : null;
