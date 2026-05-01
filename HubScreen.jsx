@@ -92,7 +92,10 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   const [actionSel, setActionSel] = useState(0);
   const [showDescIdx, setShowDescIdx] = useState(null);
   const [checkedIdxs, setCheckedIdxs] = useState(new Set());
+  const [sellConfirmOpen, setSellConfirmOpen] = useState(false);
+  const [sellConfirmSel, setSellConfirmSel] = useState(0); // 0=はい 1=いいえ
   const kbRef = useRef(null);
+  const itemRefs = useRef([]);
 
   const hubInv = saveData.hubInventory || [];
   const wh     = saveData.warehouse    || [];
@@ -235,15 +238,62 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
     }));
   };
 
+  /* 一括操作用の集計 */
+  const checkedWhItems = !isCarry ? [...checkedIdxs].filter(i => i < wh.length).map(i => wh[i]) : [];
+  const checkedCarryCount = isCarry ? [...checkedIdxs].filter(i => i < hubInv.length).length : 0;
+  const checkedSellTotal  = checkedWhItems.reduce((s, it) => s + Math.max(1, Math.floor(itemPrice(it) / 2)), 0);
+  const anyChecked = isCarry ? checkedCarryCount > 0 : checkedWhItems.length > 0;
+
+  /* フォーカス追従スクロール */
+  useEffect(() => {
+    itemRefs.current[safeFocus]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [focusIdx, tab]);
+
   /* キーボードハンドラを常に最新状態で参照 */
-  kbRef.current = { list, safeFocus, actionSel, getActions, executeAction,
-    setFocusIdx, setActionSel, setShowDescIdx, setCheckedIdxs, onClose };
+  kbRef.current = {
+    list, safeFocus, actionSel, getActions, executeAction,
+    setFocusIdx, setActionSel, setShowDescIdx, setCheckedIdxs, onClose,
+    isCarry, switchTab, anyChecked, bulkMoveToCarry, bulkSell, bulkToWarehouse,
+    sellConfirmOpen, setSellConfirmOpen, sellConfirmSel, setSellConfirmSel,
+  };
 
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
       const k = e.key.toLowerCase();
-      if (k === "escape") { r.onClose(); return; }
+
+      /* 売却確認ダイアログ中 */
+      if (r.sellConfirmOpen) {
+        if (k === "arrowup" || k === "arrowdown") {
+          e.preventDefault();
+          r.setSellConfirmSel(p => p === 0 ? 1 : 0);
+        } else if (k === "z" || k === "enter") {
+          e.preventDefault();
+          if (r.sellConfirmSel === 0) r.bulkSell();
+          r.setSellConfirmOpen(false); r.setSellConfirmSel(0);
+        } else if (k === "x" || k === "escape") {
+          e.preventDefault();
+          r.setSellConfirmOpen(false); r.setSellConfirmSel(0);
+        }
+        return;
+      }
+
+      if (k === "x" || k === "escape") { r.onClose(); return; }
+      if (k === "shift") {
+        e.preventDefault();
+        r.switchTab(r.isCarry ? "warehouse" : "carry"); return;
+      }
+      if (k === "s") {
+        e.preventDefault();
+        if (!r.isCarry && r.anyChecked) { r.setSellConfirmOpen(true); r.setSellConfirmSel(0); }
+        return;
+      }
+      if (k === "f") {
+        e.preventDefault();
+        if (r.anyChecked) { r.isCarry ? r.bulkToWarehouse() : r.bulkMoveToCarry(); }
+        return;
+      }
+
       if (r.list.length === 0) return;
       if (k === "arrowup") {
         e.preventDefault();
@@ -282,181 +332,219 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
     fontSize: 13,
   });
 
-  /* 一括操作用の集計 */
-  const checkedWhItems = !isCarry ? [...checkedIdxs].filter(i => i < wh.length).map(i => wh[i]) : [];
-  const checkedCarryCount = isCarry ? [...checkedIdxs].filter(i => i < hubInv.length).length : 0;
-  const checkedSellTotal  = checkedWhItems.reduce((s, it) => s + Math.max(1, Math.floor(itemPrice(it) / 2)), 0);
-  const anyChecked = isCarry ? checkedCarryCount > 0 : checkedWhItems.length > 0;
-
   return (
-    <Panel title="荷物管理" onClose={onClose} wide>
-      {/* 所持金 */}
-      <div style={{ color:GOLD, fontSize:13, marginBottom:10 }}>
-        所持G: <strong>{gold}G</strong>
-      </div>
+    <>
+      <Panel title="荷物管理" onClose={onClose} wide>
+        {/* 操作ガイド */}
+        <div style={{ color:"#555", fontSize:11, lineHeight:"1.8em", marginBottom:12,
+          padding:"6px 8px", background:"#0d0d18", border:`1px solid ${BDR}`, borderRadius:4 }}>
+          <div>Shift:タブ切替　↑↓:選択　←→:操作切替　Enter/Z:実行　D:チェック</div>
+          <div>F:まとめて持参/倉庫へ　S:まとめて売る（確認あり）　X:閉じる</div>
+        </div>
 
-      {/* タブ */}
-      <div style={{ display:"flex", gap:6, marginBottom:12 }}>
-        <button onClick={() => switchTab("carry")} style={tabStyle("carry")}>
-          持参アイテム ({hubInv.length})
-        </button>
-        <button onClick={() => switchTab("warehouse")} style={tabStyle("warehouse")}>
-          倉庫 ({wh.length}/{MAX})
-        </button>
-      </div>
+        {/* 所持金 */}
+        <div style={{ color:GOLD, fontSize:13, marginBottom:10 }}>
+          所持G: <strong>{gold}G</strong>
+        </div>
 
-      {/* 倉庫タブのみ：拡張ボタン */}
-      {!isCarry && (
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-          marginBottom:10, padding:"6px 8px", background:"#0d0d18", borderRadius:4, border:`1px solid ${BDR}` }}>
-          <span style={{ color:"#888", fontSize:12 }}>倉庫を拡張 +50スロット</span>
-          <button onClick={expandWarehouse} disabled={gold < EXPAND_COST}
-            style={{ ...BTN, padding:"4px 12px", fontSize:12,
-              color: gold >= EXPAND_COST ? GOLD : "#555", background:"#0a1800",
-              borderColor: gold >= EXPAND_COST ? "#3a2a00" : "#222" }}>
-            {EXPAND_COST}G
+        {/* タブ */}
+        <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+          <button onClick={() => switchTab("carry")} style={tabStyle("carry")}>
+            持参アイテム ({hubInv.length})
+          </button>
+          <button onClick={() => switchTab("warehouse")} style={tabStyle("warehouse")}>
+            倉庫 ({wh.length}/{MAX})
           </button>
         </div>
-      )}
 
-      {/* 一括操作バー（チェックあり時） */}
-      {anyChecked && (
-        <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginBottom:10,
-          padding:"6px 8px", background:"#0d1820", border:"1px solid #2a4a6a", borderRadius:4 }}>
-          <span style={{ color:"#8cf", fontSize:12 }}>
-            {isCarry ? checkedCarryCount : checkedWhItems.length}個選択中
-          </span>
-          {isCarry ? (
-            <button onClick={bulkToWarehouse}
-              style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18", color:"#aaa" }}>
-              まとめて倉庫へ
+        {/* 倉庫タブのみ：拡張ボタン */}
+        {!isCarry && (
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+            marginBottom:10, padding:"6px 8px", background:"#0d0d18", borderRadius:4, border:`1px solid ${BDR}` }}>
+            <span style={{ color:"#888", fontSize:12 }}>倉庫を拡張 +50スロット</span>
+            <button onClick={expandWarehouse} disabled={gold < EXPAND_COST}
+              style={{ ...BTN, padding:"4px 12px", fontSize:12,
+                color: gold >= EXPAND_COST ? GOLD : "#555", background:"#0a1800",
+                borderColor: gold >= EXPAND_COST ? "#3a2a00" : "#222" }}>
+              {EXPAND_COST}G
             </button>
-          ) : (
-            <>
-              <button onClick={bulkMoveToCarry}
-                style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#081828", color:"#8cf" }}>
-                まとめて持参
+          </div>
+        )}
+
+        {/* 一括操作バー（チェックあり時） */}
+        {anyChecked && (
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginBottom:10,
+            padding:"6px 8px", background:"#0d1820", border:"1px solid #2a4a6a", borderRadius:4 }}>
+            <span style={{ color:"#8cf", fontSize:12 }}>
+              {isCarry ? checkedCarryCount : checkedWhItems.length}個選択中
+            </span>
+            {isCarry ? (
+              <button onClick={bulkToWarehouse}
+                style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18", color:"#aaa" }}>
+                まとめて倉庫へ [F]
               </button>
-              <button onClick={bulkSell}
-                style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0a1800", color:GOLD }}>
-                まとめて売る ({checkedSellTotal}G)
-              </button>
-            </>
-          )}
-          <button onClick={() => setCheckedIdxs(new Set())}
-            style={{ ...BTN, padding:"4px 8px", fontSize:11, color:"#555" }}>
-            解除
-          </button>
-        </div>
-      )}
+            ) : (
+              <>
+                <button onClick={bulkMoveToCarry}
+                  style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#081828", color:"#8cf" }}>
+                  まとめて持参 [F]
+                </button>
+                <button onClick={() => { setSellConfirmOpen(true); setSellConfirmSel(0); }}
+                  style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0a1800", color:GOLD }}>
+                  まとめて売る [S] ({checkedSellTotal}G)
+                </button>
+              </>
+            )}
+            <button onClick={() => setCheckedIdxs(new Set())}
+              style={{ ...BTN, padding:"4px 8px", fontSize:11, color:"#555" }}>
+              解除
+            </button>
+          </div>
+        )}
 
-      {/* ヒント */}
-      <div style={{ color:"#555", fontSize:11, marginBottom:8 }}>
-        ↑↓:選択　←→:操作切替　Enter/Z:実行　D:チェック
-      </div>
+        {/* アイテムリスト */}
+        {list.length === 0 ? (
+          <div style={{ color:"#555", textAlign:"center", padding:"24px 0", fontSize:13, whiteSpace:"pre-wrap" }}>
+            {isCarry
+              ? "持参するアイテムがありません。\n「倉庫」タブから「持参する」で追加できます。"
+              : "倉庫は空です。"}
+          </div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+            {list.map((item, idx) => {
+              const isFocus    = safeFocus === idx;
+              const isChecked  = checkedIdxs.has(idx);
+              const isDescShow = showDescIdx === idx;
+              const acts       = getActions(item);
+              const label      = hubItemLabel(item);
+              const itemColor  = item.blessed ? "#ffd060" : item.cursed ? "#cc88ff" : TXT;
 
-      {/* アイテムリスト */}
-      {list.length === 0 ? (
-        <div style={{ color:"#555", textAlign:"center", padding:"24px 0", fontSize:13, whiteSpace:"pre-wrap" }}>
-          {isCarry
-            ? "持参するアイテムがありません。\n「倉庫」タブから「持参する」で追加できます。"
-            : "倉庫は空です。"}
-        </div>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-          {list.map((item, idx) => {
-            const isFocus    = safeFocus === idx;
-            const isChecked  = checkedIdxs.has(idx);
-            const isDescShow = showDescIdx === idx;
-            const acts       = getActions(item);
-            const label      = hubItemLabel(item);
-            const itemColor  = item.blessed ? "#ffd060" : item.cursed ? "#cc88ff" : TXT;
-
-            return (
-              <div key={idx}>
-                {/* アイテム行 */}
-                <div
-                  onClick={() => { setFocusIdx(idx); setActionSel(0); setShowDescIdx(null); }}
-                  style={{
-                    display:"flex", alignItems:"center", gap:6, padding:"7px 8px",
-                    background:  isFocus ? "#1a1a30" : "#0d0d18",
-                    border:      `1px solid ${isFocus ? "#44f" : "#222"}`,
-                    borderRadius: (isFocus && acts.length > 0) ? "4px 4px 0 0" : 4,
-                    cursor:"pointer",
-                  }}
-                >
-                  {/* チェックボックス */}
+              return (
+                <div key={idx} ref={el => itemRefs.current[idx] = el}>
+                  {/* アイテム行 */}
                   <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCheckedIdxs(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
-                    }}
+                    onClick={() => { setFocusIdx(idx); setActionSel(0); setShowDescIdx(null); }}
                     style={{
-                      width:16, height:16, flexShrink:0,
-                      border:`1px solid ${isChecked ? "#8cf" : "#444"}`,
-                      borderRadius:2, background: isChecked ? "#1a3a5a" : "transparent",
-                      display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+                      display:"flex", alignItems:"center", gap:6, padding:"7px 8px",
+                      background:  isFocus ? "#1a1a30" : "#0d0d18",
+                      border:      `1px solid ${isFocus ? "#44f" : "#222"}`,
+                      borderRadius: (isFocus && acts.length > 0) ? "4px 4px 0 0" : 4,
+                      cursor:"pointer",
                     }}
                   >
-                    {isChecked && <span style={{ color:"#8cf", fontSize:11, lineHeight:1 }}>✓</span>}
-                  </div>
-
-                  <span style={{ flex:1, color:itemColor, fontSize:13 }}>{label}</span>
-                  <span style={{ color:"#555", fontSize:11 }}>{isFocus ? "▲" : "▼"}</span>
-                </div>
-
-                {/* フォーカス時：操作エリア */}
-                {isFocus && acts.length > 0 && (
-                  <div style={{ padding:"6px 8px 8px", background:"#0d0d18",
-                    border:"1px solid #222", borderTop:"none", borderRadius:"0 0 4px 4px" }}>
-
-                    {/* 壺の中身 */}
-                    {item.type === "pot" && (
-                      <div style={{ color:"#ca8", fontSize:12, marginBottom:6 }}>
-                        {item.contents?.length > 0
-                          ? `中身: ${item.contents.map(c => c.name).join(", ")}`
-                          : "中身: （空）"}
-                      </div>
-                    )}
-
-                    {/* 操作ボタン */}
-                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:4 }}>
-                      {acts.map((act, ai) => {
-                        const isActSel = actionSel === ai;
-                        return (
-                          <button key={ai}
-                            onClick={(e) => { e.stopPropagation(); executeAction(idx, ai); }}
-                            style={{ ...BTN, padding:"4px 10px", fontSize:12,
-                              background: isActSel ? act.bgSel : act.bg,
-                              color: act.color,
-                              border: `1px solid ${isActSel ? "#88f" : BDR}`,
-                              fontWeight: isActSel ? "bold" : "normal",
-                            }}
-                          >
-                            {act.label}
-                          </button>
-                        );
-                      })}
+                    {/* チェックボックス */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCheckedIdxs(prev => { const n = new Set(prev); if (n.has(idx)) n.delete(idx); else n.add(idx); return n; });
+                      }}
+                      style={{
+                        width:16, height:16, flexShrink:0,
+                        border:`1px solid ${isChecked ? "#8cf" : "#444"}`,
+                        borderRadius:2, background: isChecked ? "#1a3a5a" : "transparent",
+                        display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+                      }}
+                    >
+                      {isChecked && <span style={{ color:"#8cf", fontSize:11, lineHeight:1 }}>✓</span>}
                     </div>
 
-                    {/* 説明文 */}
-                    {isDescShow && item.desc && (
-                      <div style={{
-                        background:"#18182a", border:"1px solid #3a3a5a", borderRadius:4,
-                        padding:"6px 8px", color:"#aab", fontSize:12, lineHeight:"1.5em",
-                        marginTop:2, whiteSpace:"pre-wrap",
-                      }}>
-                        {item.desc}
-                      </div>
-                    )}
+                    <span style={{ flex:1, color:itemColor, fontSize:13 }}>{label}</span>
+                    <span style={{ color:"#555", fontSize:11 }}>{isFocus ? "▲" : "▼"}</span>
                   </div>
-                )}
-              </div>
-            );
-          })}
+
+                  {/* フォーカス時：操作エリア */}
+                  {isFocus && acts.length > 0 && (
+                    <div style={{ padding:"6px 8px 8px", background:"#0d0d18",
+                      border:"1px solid #222", borderTop:"none", borderRadius:"0 0 4px 4px" }}>
+
+                      {/* 壺の中身 */}
+                      {item.type === "pot" && (
+                        <div style={{ color:"#ca8", fontSize:12, marginBottom:6 }}>
+                          {item.contents?.length > 0
+                            ? `中身: ${item.contents.map(c => c.name).join(", ")}`
+                            : "中身: （空）"}
+                        </div>
+                      )}
+
+                      {/* 操作ボタン */}
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:4 }}>
+                        {acts.map((act, ai) => {
+                          const isActSel = actionSel === ai;
+                          return (
+                            <button key={ai}
+                              onClick={(e) => { e.stopPropagation(); executeAction(idx, ai); }}
+                              style={{ ...BTN, padding:"4px 10px", fontSize:12,
+                                background: isActSel ? act.bgSel : act.bg,
+                                color: act.color,
+                                border: `1px solid ${isActSel ? "#88f" : BDR}`,
+                                fontWeight: isActSel ? "bold" : "normal",
+                              }}
+                            >
+                              {act.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* 説明文 */}
+                      {isDescShow && item.desc && (
+                        <div style={{
+                          background:"#18182a", border:"1px solid #3a3a5a", borderRadius:4,
+                          padding:"6px 8px", color:"#aab", fontSize:12, lineHeight:"1.5em",
+                          marginTop:2, whiteSpace:"pre-wrap",
+                        }}>
+                          {item.desc}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+
+      {/* 売却確認ダイアログ */}
+      {sellConfirmOpen && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:100,
+          display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:CARD, border:"1px solid #4a4a6a", borderRadius:8,
+            padding:"20px 24px", minWidth:280, maxWidth:320, fontFamily:"monospace" }}>
+            <div style={{ color:TXT, fontSize:14, marginBottom:6, lineHeight:"1.6em" }}>
+              チェックした{checkedWhItems.length}個のアイテムを売りますか？
+            </div>
+            <div style={{ color:GOLD, fontSize:16, fontWeight:"bold", marginBottom:16 }}>
+              合計: {checkedSellTotal}G
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              {[
+                { label:"はい（売る）", color:GOLD },
+                { label:"いいえ（キャンセル）", color:"#888" },
+              ].map(({ label, color }, i) => (
+                <div key={i}
+                  onClick={() => {
+                    if (i === 0) bulkSell();
+                    setSellConfirmOpen(false); setSellConfirmSel(0);
+                  }}
+                  style={{
+                    padding:"9px 14px", borderRadius:4, cursor:"pointer",
+                    background: sellConfirmSel === i ? "#1a1a30" : "#0d0d18",
+                    border: `1px solid ${sellConfirmSel === i ? "#88f" : "#333"}`,
+                    color, fontWeight: sellConfirmSel === i ? "bold" : "normal",
+                  }}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+            <div style={{ color:"#555", fontSize:11, marginTop:12 }}>
+              ↑↓:選択　Z/Enter:決定　X:キャンセル
+            </div>
+          </div>
         </div>
       )}
-    </Panel>
+    </>
   );
 }
 
