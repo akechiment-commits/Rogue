@@ -1140,7 +1140,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
           </div>
         );
       })()}
-      {mode === "browse" && (() => {
+      {(mode === "browse" || mode === "browseConfirm") && (() => {
         const _p = gs.player;
         /* 複数店舗対応：プレイヤーが今いる店を探す */
         const _curShop = getShops(gs.dungeon).find(s => s.room &&
