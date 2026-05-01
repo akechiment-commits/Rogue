@@ -1299,7 +1299,11 @@ function monsterThrowStone(m, dg, pl, ml) {
 
   /* 命中 */
   const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
-  let dmg = Math.max(1, m.atk + rng(-2, 2));
+  const _stBonus = isMagic ? 5 : 3;
+  const _stAp = m.atk + _stBonus;
+  const _stPdef = calcPlayerDef(pl);
+  const _stBase = Math.floor(_stAp * _stAp / (_stAp + Math.floor(_stPdef * 1.5)));
+  let dmg = _stBase === 0 ? 1 : Math.max(1, _stBase + rng(-2, 2));
   if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
   pl.deathCause = `${m.name}の石投げで`;
   pl.hp -= dmg;
