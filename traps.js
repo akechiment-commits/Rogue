@@ -126,8 +126,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       if (hasAbility(p.armor, "sleep_proof")) {
         ml.push(`${trap.name}が発動！しかし眠れなかった！(耐眠)`);
       } else {
-        p.sleepTurns = (p.sleepTurns || 0) + rng(3, 6);
-        ml.push(`${trap.name}が発動！眠りに落ちた...(${p.sleepTurns}ターン)`);
+        p.sleepTurns = (p.sleepTurns || 0) + 6;
+        ml.push(`${trap.name}が発動！眠りに落ちた...(6ターン)`);
       }
       break;
     case "poison_arrow": {

@@ -136,7 +136,7 @@ export const ITEMS = [
   { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"A", weight:2,  sellPrice:1200, desc:"HPを100回復する。HP最大時は最大HP+3。\n祝福：効果2倍(回復200、最大HP+6)。\n呪い：反転して50ダメージ。", tile:17 },
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと毒状態になり攻撃力が徐々に低下。\n祝福：さらに即座に攻撃力-3。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと炎ダメージを受ける。耐火装備で半減。\n祝福：ダメージ1.5倍。呪い：反転してHP回復。\n投げると炎上し周囲にダメージ。", tile:17 },
-  { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと4ターン眠る。\n祝福：6ターン強眠。呪い：反転して4ターン状態異常防止。\n投げると命中した敵を眠らせる。",           tile:16 },
+  { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n祝福：12ターン強眠。呪い：反転して4ターン状態異常防止。\n投げると命中した敵を眠らせる。",           tile:16 },
   { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n祝福：20ターン鈍足（速度×0.25）。\n呪い：反転して10ターン加速（2倍速）。\n投げると命中した敵を鈍足にする。", tile:16 },
   { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n祝福：20ターン金縛り＋2回アクション必要。\n呪い：反転して200ターン状態異常防止。\n投げると命中した敵を金縛りにする。", tile:16 },
   { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"A", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。\n祝福：攻撃力+4。呪い：反転して攻撃力-1。",           tile:17 },
@@ -804,7 +804,7 @@ export const TRAPS = [
   { name:"落とし穴",       effect:"pitfall",       tile:27, desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
   { name:"錆の罠",         effect:"rust",          tile:28, desc:"踏むと装備中の武器or防具の＋値が-1される。\n金属製装備が対象。" },
   { name:"回転板",         effect:"spin",          tile:29, desc:"踏むとランダムな場所に吹き飛ばされる。\n飛んだ先の罠も発動する。" },
-  { name:"睡眠ガスの罠",   effect:"sleep",         tile:30, desc:"踏むと3～6ターン眠る。\n耐眠の防具で防げる。" },
+  { name:"睡眠ガスの罠",   effect:"sleep",         tile:30, desc:"踏むと6ターン眠る。\n耐眠の防具で防げる。" },
   { name:"毒矢の罠",       effect:"poison_arrow",  tile:45, desc:"踏むと壁から毒矢が飛んでくる。\nダメージ+毒状態。毒消しの指輪で毒は防げる。" },
   { name:"召喚の罠",       effect:"summon_trap",   tile:46, desc:"踏むと周囲に2～4体の敵が出現する。\n出現した敵は即座にこちらを認識している。" },
   { name:"鈍足の罠",       effect:"slow_trap",     tile:47, desc:"踏むと10ターン鈍足になる(速度半減)。\n耐鈍足の防具で防げる。" },
@@ -1405,14 +1405,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _slm = monsterAt(dg, tx, ty);
       if (_slm) {
-        _slm.sleepTurns = (_slm.sleepTurns || 0) + rng(3, 6);
+        _slm.sleepTurns = (_slm.sleepTurns || 0) + 6;
         ml.push(`${_slm.name}が眠りに落ちた！`);
       }
       if (p && p.x === tx && p.y === ty) {
         if (p.armor?.ability === "sleep_proof") {
           ml.push(`しかし眠れなかった！(耐眠)`);
         } else {
-          p.sleepTurns = (p.sleepTurns || 0) + rng(3, 6);
+          p.sleepTurns = (p.sleepTurns || 0) + 6;
           ml.push(`眠りに落ちた...`);
         }
       }
@@ -1896,9 +1896,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") { target.sleepTurns = 0; ml.push(`${target.name}が目を覚ました！(覚醒)`); }
         if (kind === "player") { dg.monsterSenseActive = true; ml.push("幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】"); }
       } else {
-        const t = Math.max(1, Math.round((val + rng(-1, 1)) * (blessed ? 2 : 1)));
+        const t = blessed ? 12 : 6;
         if (kind === "monster") {
-          if (!isStatusImmune(target, ml, target.name)) { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！${blessed ? "(強眠)" : ""}`); }
+          if (!isStatusImmune(target, ml, target.name)) { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！(${t}ターン)${blessed ? "(強眠)" : ""}`); }
         }
         if (kind === "player") {
           if (!isStatusImmune(p, ml)) { p.sleepTurns = (p.sleepTurns || 0) + t; ml.push(`眠りに落ちた...(${t}ターン)${blessed ? "(強眠)" : ""}`); }
@@ -3465,7 +3465,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       } break;
     }
     case "sleep_bolt": {
-      if (kind === "monster") { const t = Math.round(rng(3, 6) * _lvF); target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`); }
+      if (kind === "monster") { const t = 5 + lv; target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`); }
       break;
     }
     case "transform_magic": {
@@ -3592,7 +3592,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           case "fire_bolt": { const _rd = Math.round(rng(20, 30) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された炎の魔法で"; ml.push(`炎の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "ice_bolt": { const _rd = Math.round(rng(15, 22) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された氷の魔法で"; ml.push(`氷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "lightning_magic": { const _rd = Math.round(rng(22, 32) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された雷の魔法で"; ml.push(`雷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
-          case "sleep_bolt": { const _rt = Math.round(rng(3, 6) * _rfLvF); p.sleepTurns = (p.sleepTurns || 0) + _rt; ml.push(`眠りの魔法が跳ね返ってきた！${_rt}ターン眠った！`); break; }
+          case "sleep_bolt": { const _rt = 5 + lv; p.sleepTurns = (p.sleepTurns || 0) + _rt; ml.push(`眠りの魔法が跳ね返ってきた！${_rt}ターン眠った！`); break; }
           case "poison_bolt": { p.poisonedTurns = (p.poisonedTurns || 0) + Math.round(10 * _rfLvF); ml.push("毒の魔法が跳ね返ってきた！毒に侵された！"); break; }
           case "paralyze_magic": { p.paralyzed = true; p.paralyzeTurns = (p.paralyzeTurns || 0) + Math.round(rng(3, 5) * _rfLvF); ml.push("金縛りの魔法が跳ね返ってきた！金縛りになった！"); break; }
           case "teleport_other": { const _rtf = []; for (let _rty = 0; _rty < MH; _rty++) for (let _rtx = 0; _rtx < MW; _rtx++) if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => m.x === _rtx && m.y === _rty)) _rtf.push({ x: _rtx, y: _rty }); if (_rtf.length > 0) { const _rtd = pick(_rtf); p.x = _rtd.x; p.y = _rtd.y; ml.push("テレポートの魔法が跳ね返ってきた！どこかへ飛ばされた！"); } break; }
