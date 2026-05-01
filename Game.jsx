@@ -2192,6 +2192,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           return !v;
         });
         setSelIdx(0);
+        setInvPage(0);
         setShowDesc(null);
         setThrowMode(null);
         setTimeout(() => ref.current?.focus(), 0);
