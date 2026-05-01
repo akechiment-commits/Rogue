@@ -345,6 +345,12 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
         });
       } else if (k === "enter" || k === "z") {
         e.preventDefault(); r.executeAction(r.safeFocus, r.actionSel);
+      } else if (k === "pagedown" || k === " ") {
+        e.preventDefault();
+        r.setFocusIdx(p => Math.min(r.list.length - 1, p + 10)); r.setActionSel(0); r.setShowDescIdx(null);
+      } else if (k === "pageup") {
+        e.preventDefault();
+        r.setFocusIdx(p => Math.max(0, p - 10)); r.setActionSel(0); r.setShowDescIdx(null);
       }
     };
     window.addEventListener("keydown", fn);
@@ -676,7 +682,8 @@ function EncyclopediaPanel({ saveData, onClose }) {
 
 /* ===== 拠点ショップパネル ===== */
 function HubShopPanel({ saveData, updateSave, onClose }) {
-  const [selected, setSelected] = useState(null);
+  const [focusIdx, setFocusIdx] = useState(0);
+  const kbRef = useRef(null);
   const gold = saveData.hubGold || 0;
 
   const shopItems = useMemo(() => {
@@ -713,23 +720,46 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
     }));
   };
 
+  kbRef.current = { shopItems, focusIdx, setFocusIdx, buy, onClose, gold };
+
+  useEffect(() => {
+    const fn = (e) => {
+      const r = kbRef.current;
+      const k = e.key.toLowerCase();
+      if (k === "x" || k === "escape") { r.onClose(); return; }
+      if (k === "arrowup") {
+        e.preventDefault(); r.setFocusIdx(p => Math.max(0, p - 1));
+      } else if (k === "arrowdown") {
+        e.preventDefault(); r.setFocusIdx(p => Math.min(r.shopItems.length - 1, p + 1));
+      } else if (k === "z" || k === "enter") {
+        e.preventDefault();
+        const item = r.shopItems[r.focusIdx];
+        if (item && r.gold >= itemPrice(item)) r.buy(item);
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, []);
+
   return (
     <Panel title="拠点ショップ" onClose={onClose} wide>
-      <div style={{ color:GOLD, marginBottom:10, fontSize:14 }}>
+      <div style={{ color:GOLD, marginBottom:4, fontSize:14 }}>
         所持G: <strong>{gold}G</strong>
-        <span style={{ color:"#555", fontSize:11, marginLeft:10 }}>購入品は倉庫に追加されます</span>
+      </div>
+      <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
+        ↑↓:選択　Z/Enter:購入　X:閉じる　| 購入品は倉庫に追加されます
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
         {shopItems.map((item, i) => {
           const price  = itemPrice(item);
           const canBuy = gold >= price;
-          const isSel  = selected === i;
+          const isFocus = focusIdx === i;
           return (
-            <div key={i} onClick={() => setSelected(i === selected ? null : i)}
+            <div key={i} onClick={() => setFocusIdx(i)}
               style={{
                 display:"flex", alignItems:"center", gap:10, padding:"7px 10px",
-                background: isSel ? "#141428" : "#0d0d18",
-                border: `1px solid ${isSel ? "#44f" : "#222"}`,
+                background: isFocus ? "#141428" : "#0d0d18",
+                border: `1px solid ${isFocus ? "#44f" : "#222"}`,
                 borderRadius:4, cursor:"pointer",
               }}
             >
@@ -740,14 +770,14 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
               <span style={{ color: canBuy ? GOLD : "#444", minWidth:50, textAlign:"right" }}>
                 {price}G
               </span>
-              {isSel && (
+              {isFocus && (
                 <button
                   onClick={e => { e.stopPropagation(); buy(item); }}
                   disabled={!canBuy}
                   style={{ ...BTN, padding:"4px 12px", color: canBuy ? "#0f0" : "#444",
                     background: canBuy ? "#0a1a0a" : "#111", borderColor: canBuy ? "#2a4a2a" : "#222" }}
                 >
-                  購入
+                  購入 [Z]
                 </button>
               )}
             </div>
@@ -762,6 +792,8 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
 function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const [startDepth, setStartDepth] = useState(1);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
+  const [confirmSel, setConfirmSel] = useState(0); // 0=出発する 1=キャンセル
+  const kbRef = useRef(null);
   const hubInv   = saveData.hubInventory || [];
   const bestDepth = saveData.bestDepth || 0;
 
@@ -790,15 +822,54 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   };
 
   const handleStart = () => {
-    if (hasGameSave()) {
-      setConfirmOverwrite(true);
-    } else {
-      doStart();
-    }
+    if (hasGameSave()) { setConfirmOverwrite(true); setConfirmSel(0); }
+    else { doStart(); }
   };
+
+  kbRef.current = {
+    confirmOverwrite, setConfirmOverwrite, confirmSel, setConfirmSel,
+    dtype, setDtype, DUNGEON_TYPES, doStart, handleStart, onClose,
+  };
+
+  useEffect(() => {
+    const fn = (e) => {
+      const r = kbRef.current;
+      const k = e.key.toLowerCase();
+      if (r.confirmOverwrite) {
+        if (k === "arrowup" || k === "arrowdown") {
+          e.preventDefault(); r.setConfirmSel(p => p === 0 ? 1 : 0);
+        } else if (k === "z" || k === "enter") {
+          e.preventDefault();
+          if (r.confirmSel === 0) r.doStart();
+          else { r.setConfirmOverwrite(false); r.setConfirmSel(0); }
+        } else if (k === "x" || k === "escape") {
+          e.preventDefault(); r.setConfirmOverwrite(false); r.setConfirmSel(0);
+        }
+        return;
+      }
+      if (k === "x" || k === "escape") { r.onClose(); return; }
+      const dtIdx = r.DUNGEON_TYPES.findIndex(dt => dt.id === r.dtype);
+      if (k === "arrowup") {
+        e.preventDefault();
+        if (dtIdx > 0) r.setDtype(r.DUNGEON_TYPES[dtIdx - 1].id);
+      } else if (k === "arrowdown") {
+        e.preventDefault();
+        if (dtIdx < r.DUNGEON_TYPES.length - 1) r.setDtype(r.DUNGEON_TYPES[dtIdx + 1].id);
+      } else if (k === "z" || k === "enter") {
+        e.preventDefault(); r.handleStart();
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, []);
 
   return (
     <Panel title="ダンジョン入口" onClose={onClose}>
+      {/* 操作ガイド */}
+      <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
+        ↑↓:ダンジョン選択　Z/Enter:出発　X:閉じる
+      </div>
+
       {/* ダンジョン種別 */}
       <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:14 }}>
         {DUNGEON_TYPES.map(dt => (
@@ -841,8 +912,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
           <div style={{ display:"flex", flexDirection:"column", gap:1, maxHeight:110, overflowY:"auto" }}>
             {hubInv.slice(0, 30).map((it, i) => (
               <div key={i} style={{
-                color: it.blessed ? "#ffd060" : it.cursed ? "#cc88ff" : "#aaa",
-                fontSize:11,
+                color: it.blessed ? "#ffd060" : it.cursed ? "#cc88ff" : "#aaa", fontSize:11,
               }}>
                 · {hubItemLabel(it)}
               </div>
@@ -860,15 +930,24 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
             ⚠ 中断セーブデータが存在します。<br />
             新たに出発すると中断データは消えますがよろしいですか？
           </div>
-          <div style={{ display:"flex", gap:8 }}>
-            <Btn label="出発する" onClick={doStart} color="#f84"
-              style={{ flex:1, padding:"10px 0", background:"#1a0800", borderColor:"#884400" }} />
-            <Btn label="キャンセル" onClick={() => setConfirmOverwrite(false)} color="#888"
-              style={{ flex:1, padding:"10px 0" }} />
+          <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:8 }}>
+            {[
+              { label:"出発する", color:"#f84", bg:"#1a0800", bdr: confirmSel === 0 ? "#f84" : "#884400" },
+              { label:"キャンセル", color:"#888", bg:CARD, bdr: confirmSel === 1 ? "#88f" : BDR },
+            ].map(({ label, color, bg, bdr }, i) => (
+              <button key={i}
+                onClick={() => { if (i === 0) doStart(); else { setConfirmOverwrite(false); setConfirmSel(0); } }}
+                style={{ ...BTN, padding:"10px 0", background:bg, color,
+                  borderColor:bdr, fontWeight: confirmSel === i ? "bold" : "normal",
+                  boxShadow: confirmSel === i ? `0 0 6px ${bdr}` : "none" }}>
+                {label}
+              </button>
+            ))}
           </div>
+          <div style={{ color:"#555", fontSize:11 }}>↑↓:選択　Z/Enter:決定　X:キャンセル</div>
         </div>
       ) : (
-        <Btn label="▶ 冒険に出発！" onClick={handleStart} color="#0f0"
+        <Btn label="▶ 冒険に出発！ [Z]" onClick={handleStart} color="#0f0"
           style={{ width:"100%", padding:"12px 0", fontSize:15, fontWeight:"bold",
             background:"#081808", borderColor:"#2a4a2a" }} />
       )}
@@ -928,6 +1007,8 @@ function SaveDataPanel({ saveData, onClearSave, onClose }) {
 /* ===== メインHUBスクリーン ===== */
 export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave }) {
   const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "shop" | "encyclopedia" | "savedata" */
+  const [mainFocus, setMainFocus] = useState(0);
+  const kbRef = useRef(null);
 
   const hubGold      = saveData.hubGold      || 0;
   const hubInvCount  = (saveData.hubInventory || []).length;
@@ -938,18 +1019,57 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
     onStartDungeon(config);
   };
 
-  const HubBtn = ({ icon, label, sub, onClick, color="#8cf" }) => (
-    <button onClick={onClick} style={{
-      ...BTN, display:"flex", flexDirection:"column", alignItems:"center",
-      justifyContent:"center", gap:4,
-      padding:"16px 0", flex:1, minWidth:100, maxWidth:160,
-      background:CARD, color,
-    }}>
-      <span style={{ fontSize:22 }}>{icon}</span>
-      <span style={{ fontSize:13, fontWeight:"bold" }}>{label}</span>
-      {sub && <span style={{ fontSize:10, color:"#555" }}>{sub}</span>}
-    </button>
-  );
+  const resumeExists = hasGameSave() && !!onResumeDungeon;
+  const mainItems = [
+    ...(resumeExists                  ? [{ id:"resume" }]       : []),
+    { id:"dungeon" }, { id:"items" }, { id:"shop" },
+    { id:"encyclopedia" },            { id:"savedata" },
+  ];
+  const activateMain = (id) => {
+    if (id === "resume") onResumeDungeon?.();
+    else setPanel(id);
+  };
+
+  kbRef.current = { panel, mainFocus, setMainFocus, mainItems, activateMain };
+
+  useEffect(() => {
+    const fn = (e) => {
+      const r = kbRef.current;
+      if (r.panel !== null) return; // 各パネルが自前でハンドリング
+      const k = e.key.toLowerCase();
+      if (k === "arrowup") {
+        e.preventDefault(); r.setMainFocus(p => Math.max(0, p - 1));
+      } else if (k === "arrowdown") {
+        e.preventDefault(); r.setMainFocus(p => Math.min(r.mainItems.length - 1, p + 1));
+      } else if (k === "z" || k === "enter") {
+        e.preventDefault();
+        const item = r.mainItems[r.mainFocus];
+        if (item) r.activateMain(item.id);
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, []);
+
+  const focusedId = mainItems[mainFocus]?.id;
+
+  const HubBtn = ({ icon, label, sub, onClick, color="#8cf", btnId }) => {
+    const isFocus = focusedId === btnId;
+    return (
+      <button onClick={onClick} style={{
+        ...BTN, display:"flex", flexDirection:"column", alignItems:"center",
+        justifyContent:"center", gap:4,
+        padding:"16px 0", flex:1, minWidth:100, maxWidth:160,
+        background: isFocus ? "#1a1a30" : CARD, color,
+        borderColor: isFocus ? "#44f" : BDR,
+        boxShadow: isFocus ? "0 0 8px #224" : "none",
+      }}>
+        <span style={{ fontSize:22 }}>{icon}</span>
+        <span style={{ fontSize:13, fontWeight:"bold" }}>{label}</span>
+        {sub && <span style={{ fontSize:10, color:"#555" }}>{sub}</span>}
+      </button>
+    );
+  };
 
   return (
     <div style={{
@@ -997,15 +1117,21 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
         </div>
       </div>
 
+      {/* キーボードガイド */}
+      <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:12, textAlign:"center" }}>
+        ↑↓:選択　Z/Enter:決定
+      </div>
+
       {/* 中断データがある場合：再開ボタン */}
-      {hasGameSave() && onResumeDungeon && (
+      {resumeExists && (
         <button
           onClick={onResumeDungeon}
           style={{
             ...BTN, width:"min(360px,90vw)", padding:"18px 0", marginBottom:8,
-            background:"#1a2808", color:"#8f4",
-            borderColor:"#3a5a1a", fontSize:17, fontWeight:"bold",
-            boxShadow:"0 0 16px #283808",
+            background: focusedId === "resume" ? "#233a0e" : "#1a2808", color:"#8f4",
+            borderColor: focusedId === "resume" ? "#8f4" : "#3a5a1a",
+            fontSize:17, fontWeight:"bold",
+            boxShadow: focusedId === "resume" ? "0 0 12px #4a8a20" : "0 0 16px #283808",
           }}
         >
           ▶ 冒険を再開する
@@ -1017,9 +1143,10 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
         onClick={() => setPanel("dungeon")}
         style={{
           ...BTN, width:"min(360px,90vw)", padding:"18px 0", marginBottom:16,
-          background:"#081828", color:"#4df",
-          borderColor:"#1a3a5a", fontSize:17, fontWeight:"bold",
-          boxShadow:"0 0 16px #082838",
+          background: focusedId === "dungeon" ? "#0c2240" : "#081828", color:"#4df",
+          borderColor: focusedId === "dungeon" ? "#4df" : "#1a3a5a",
+          fontSize:17, fontWeight:"bold",
+          boxShadow: focusedId === "dungeon" ? "0 0 12px #2060a0" : "0 0 16px #082838",
         }}
       >
         ▶ ダンジョンへ出発
@@ -1028,14 +1155,14 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       {/* サブ機能ボタン */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center",
         width:"min(360px,90vw)", marginBottom:20 }}>
-        <HubBtn icon="🎒" label="荷物管理"
+        <HubBtn icon="🎒" label="荷物管理" btnId="items"
           sub={`持参${hubInvCount}・倉庫${warehouseCount}`}
           onClick={() => setPanel("items")} color="#8af" />
-        <HubBtn icon="🏪" label="ショップ" sub="装備・道具"
+        <HubBtn icon="🏪" label="ショップ" btnId="shop" sub="装備・道具"
           onClick={() => setPanel("shop")} color={GOLD} />
-        <HubBtn icon="📖" label="図鑑"     sub="発見記録"
+        <HubBtn icon="📖" label="図鑑"     btnId="encyclopedia" sub="発見記録"
           onClick={() => setPanel("encyclopedia")} color="#a8f" />
-        <HubBtn icon="💾" label="データ"   sub="セーブ管理"
+        <HubBtn icon="💾" label="データ"   btnId="savedata" sub="セーブ管理"
           onClick={() => setPanel("savedata")} color="#888" />
       </div>
 
