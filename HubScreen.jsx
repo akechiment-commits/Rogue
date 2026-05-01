@@ -30,7 +30,7 @@ const Btn = ({ label, onClick, color="#8cf", style={} }) => (
 );
 
 /* ===== PANEL COMPONENT ===== */
-function Panel({ title, onClose, children, wide }) {
+function Panel({ title, onClose, children, wide, sticky }) {
   return (
     <div style={{
       position:"fixed", inset:0, background:"rgba(0,0,0,0.88)",
@@ -42,13 +42,19 @@ function Panel({ title, onClose, children, wide }) {
         background:CARD, border:`1px solid ${BDR}`, borderRadius:8,
         width: wide ? "min(680px,96vw)" : "min(420px,96vw)",
         maxHeight:"calc(100dvh - max(40px, env(safe-area-inset-top, 40px)) - 16px)",
-        overflow:"auto", padding:0, display:"flex", flexDirection:"column",
+        overflow:"hidden", padding:0, display:"flex", flexDirection:"column",
       }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderBottom:`1px solid ${BDR}` }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"10px 14px", borderBottom:`1px solid ${BDR}`, flexShrink:0 }}>
           <span style={{ color:"#fff", fontWeight:"bold", fontSize:15 }}>{title}</span>
           <button onClick={onClose} style={{ ...BTN, padding:"2px 10px", color:"#888", fontSize:13 }}>✕</button>
         </div>
-        <div style={{ padding:14, flex:1, overflow:"auto" }}>{children}</div>
+        {sticky && (
+          <div style={{ padding:"12px 14px 8px", borderBottom:`1px solid #1a1a28`, flexShrink:0 }}>
+            {sticky}
+          </div>
+        )}
+        <div style={{ padding: sticky ? "8px 14px 14px" : 14, flex:1, overflowY:"auto" }}>{children}</div>
       </div>
     </div>
   );
@@ -94,6 +100,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   const [checkedIdxs, setCheckedIdxs] = useState(new Set());
   const [sellConfirmOpen, setSellConfirmOpen] = useState(false);
   const [sellConfirmSel, setSellConfirmSel] = useState(0); // 0=はい 1=いいえ
+  const [expandFocused, setExpandFocused] = useState(false);
   const kbRef = useRef(null);
   const itemRefs = useRef([]);
 
@@ -108,7 +115,8 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   const safeFocus = list.length === 0 ? 0 : Math.min(focusIdx, list.length - 1);
 
   const switchTab = (t) => {
-    setTab(t); setFocusIdx(0); setActionSel(0); setShowDescIdx(null); setCheckedIdxs(new Set());
+    setTab(t); setFocusIdx(0); setActionSel(0); setShowDescIdx(null);
+    setCheckedIdxs(new Set()); setExpandFocused(false);
   };
 
   const getActions = (item) => {
@@ -255,6 +263,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
     setFocusIdx, setActionSel, setShowDescIdx, setCheckedIdxs, onClose,
     isCarry, switchTab, anyChecked, bulkMoveToCarry, bulkSell, bulkToWarehouse,
     sellConfirmOpen, setSellConfirmOpen, sellConfirmSel, setSellConfirmSel,
+    expandFocused, setExpandFocused, expandWarehouse, gold, EXPAND_COST,
   };
 
   useEffect(() => {
@@ -278,6 +287,20 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
         return;
       }
 
+      /* 倉庫拡張ボタンフォーカス中 */
+      if (r.expandFocused) {
+        if (k === "arrowdown") {
+          e.preventDefault(); r.setExpandFocused(false); r.setFocusIdx(0);
+        } else if (k === "z" || k === "enter") {
+          e.preventDefault();
+          if (r.gold >= r.EXPAND_COST) r.expandWarehouse();
+          r.setExpandFocused(false);
+        } else if (k === "x" || k === "escape") {
+          r.onClose();
+        }
+        return;
+      }
+
       if (k === "x" || k === "escape") { r.onClose(); return; }
       if (k === "shift") {
         e.preventDefault();
@@ -297,7 +320,11 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       if (r.list.length === 0) return;
       if (k === "arrowup") {
         e.preventDefault();
-        r.setFocusIdx(p => Math.max(0, p - 1)); r.setActionSel(0); r.setShowDescIdx(null);
+        if (r.safeFocus === 0 && !r.isCarry) {
+          r.setExpandFocused(true);
+        } else {
+          r.setFocusIdx(p => Math.max(0, p - 1)); r.setActionSel(0); r.setShowDescIdx(null);
+        }
       } else if (k === "arrowdown") {
         e.preventDefault();
         r.setFocusIdx(p => Math.min(r.list.length - 1, p + 1)); r.setActionSel(0); r.setShowDescIdx(null);
@@ -332,75 +359,90 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
     fontSize: 13,
   });
 
+  /* sticky エリア（スクロールしても常に表示） */
+  const stickyArea = (
+    <>
+      {/* 操作ガイド */}
+      <div style={{ color:"#8a9ab0", fontSize:11, lineHeight:"1.8em", marginBottom:10,
+        padding:"5px 8px", background:"#0d0d18", border:`1px solid ${BDR}`, borderRadius:4 }}>
+        <div>Shift:タブ切替　↑↓:選択　←→:操作切替　Enter/Z:実行　D:チェック</div>
+        <div>F:まとめて持参/倉庫へ　S:まとめて売る（確認あり）　X:閉じる</div>
+      </div>
+
+      {/* 所持金 */}
+      <div style={{ color:GOLD, fontSize:13, marginBottom:8 }}>
+        所持G: <strong>{gold}G</strong>
+      </div>
+
+      {/* タブ */}
+      <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+        <button onClick={() => switchTab("carry")} style={tabStyle("carry")}>
+          持参アイテム ({hubInv.length})
+        </button>
+        <button onClick={() => switchTab("warehouse")} style={tabStyle("warehouse")}>
+          倉庫 ({wh.length}/{MAX})
+        </button>
+      </div>
+
+      {/* 倉庫タブのみ：拡張ボタン */}
+      {!isCarry && (
+        <div onClick={() => setExpandFocused(true)}
+          style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+            marginBottom: anyChecked ? 8 : 0, padding:"6px 8px",
+            background: expandFocused ? "#141428" : "#0d0d18",
+            borderRadius:4,
+            border: expandFocused ? "1px solid #88f" : `1px solid ${BDR}`,
+            cursor:"pointer" }}>
+          <span style={{ color: expandFocused ? "#aaf" : "#888", fontSize:12 }}>
+            {expandFocused ? "▶ " : ""}倉庫を拡張 +50スロット
+          </span>
+          <button onClick={(e) => { e.stopPropagation(); expandWarehouse(); setExpandFocused(false); }}
+            disabled={gold < EXPAND_COST}
+            style={{ ...BTN, padding:"4px 12px", fontSize:12,
+              color: gold >= EXPAND_COST ? GOLD : "#555", background:"#0a1800",
+              borderColor: gold >= EXPAND_COST ? "#3a2a00" : "#222" }}>
+            {EXPAND_COST}G
+          </button>
+        </div>
+      )}
+
+      {/* 一括操作バー（チェックあり時） */}
+      {anyChecked && (
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center",
+          marginTop: !isCarry ? 8 : 0,
+          padding:"6px 8px", background:"#0d1820", border:"1px solid #2a4a6a", borderRadius:4 }}>
+          <span style={{ color:"#8cf", fontSize:12 }}>
+            {isCarry ? checkedCarryCount : checkedWhItems.length}個選択中
+          </span>
+          {isCarry ? (
+            <button onClick={bulkToWarehouse}
+              style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18", color:"#aaa" }}>
+              まとめて倉庫へ [F]
+            </button>
+          ) : (
+            <>
+              <button onClick={bulkMoveToCarry}
+                style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#081828", color:"#8cf" }}>
+                まとめて持参 [F]
+              </button>
+              <button onClick={() => { setSellConfirmOpen(true); setSellConfirmSel(0); }}
+                style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0a1800", color:GOLD }}>
+                まとめて売る [S] ({checkedSellTotal}G)
+              </button>
+            </>
+          )}
+          <button onClick={() => setCheckedIdxs(new Set())}
+            style={{ ...BTN, padding:"4px 8px", fontSize:11, color:"#555" }}>
+            解除
+          </button>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <>
-      <Panel title="荷物管理" onClose={onClose} wide>
-        {/* 操作ガイド */}
-        <div style={{ color:"#555", fontSize:11, lineHeight:"1.8em", marginBottom:12,
-          padding:"6px 8px", background:"#0d0d18", border:`1px solid ${BDR}`, borderRadius:4 }}>
-          <div>Shift:タブ切替　↑↓:選択　←→:操作切替　Enter/Z:実行　D:チェック</div>
-          <div>F:まとめて持参/倉庫へ　S:まとめて売る（確認あり）　X:閉じる</div>
-        </div>
-
-        {/* 所持金 */}
-        <div style={{ color:GOLD, fontSize:13, marginBottom:10 }}>
-          所持G: <strong>{gold}G</strong>
-        </div>
-
-        {/* タブ */}
-        <div style={{ display:"flex", gap:6, marginBottom:12 }}>
-          <button onClick={() => switchTab("carry")} style={tabStyle("carry")}>
-            持参アイテム ({hubInv.length})
-          </button>
-          <button onClick={() => switchTab("warehouse")} style={tabStyle("warehouse")}>
-            倉庫 ({wh.length}/{MAX})
-          </button>
-        </div>
-
-        {/* 倉庫タブのみ：拡張ボタン */}
-        {!isCarry && (
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-            marginBottom:10, padding:"6px 8px", background:"#0d0d18", borderRadius:4, border:`1px solid ${BDR}` }}>
-            <span style={{ color:"#888", fontSize:12 }}>倉庫を拡張 +50スロット</span>
-            <button onClick={expandWarehouse} disabled={gold < EXPAND_COST}
-              style={{ ...BTN, padding:"4px 12px", fontSize:12,
-                color: gold >= EXPAND_COST ? GOLD : "#555", background:"#0a1800",
-                borderColor: gold >= EXPAND_COST ? "#3a2a00" : "#222" }}>
-              {EXPAND_COST}G
-            </button>
-          </div>
-        )}
-
-        {/* 一括操作バー（チェックあり時） */}
-        {anyChecked && (
-          <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginBottom:10,
-            padding:"6px 8px", background:"#0d1820", border:"1px solid #2a4a6a", borderRadius:4 }}>
-            <span style={{ color:"#8cf", fontSize:12 }}>
-              {isCarry ? checkedCarryCount : checkedWhItems.length}個選択中
-            </span>
-            {isCarry ? (
-              <button onClick={bulkToWarehouse}
-                style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0d0d18", color:"#aaa" }}>
-                まとめて倉庫へ [F]
-              </button>
-            ) : (
-              <>
-                <button onClick={bulkMoveToCarry}
-                  style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#081828", color:"#8cf" }}>
-                  まとめて持参 [F]
-                </button>
-                <button onClick={() => { setSellConfirmOpen(true); setSellConfirmSel(0); }}
-                  style={{ ...BTN, padding:"4px 10px", fontSize:12, background:"#0a1800", color:GOLD }}>
-                  まとめて売る [S] ({checkedSellTotal}G)
-                </button>
-              </>
-            )}
-            <button onClick={() => setCheckedIdxs(new Set())}
-              style={{ ...BTN, padding:"4px 8px", fontSize:11, color:"#555" }}>
-              解除
-            </button>
-          </div>
-        )}
+      <Panel title="荷物管理" onClose={onClose} wide sticky={stickyArea}>
 
         {/* アイテムリスト */}
         {list.length === 0 ? (
