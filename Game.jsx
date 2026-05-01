@@ -4583,7 +4583,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (_sk) _sk.state = "blocking";
         ml.push(`${dnameRef(item)}を取った！(${_ap}G${_bg ? " 3割引！" : ""}) 店主が入り口をふさいだ。`);
       }
-      delete item.shopPrice; delete item._shopId;
     } else {
       ml.push(`${dnameRef(item)}を拾った！`);
     }
