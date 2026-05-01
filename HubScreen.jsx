@@ -598,9 +598,69 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
 /* ===== 図鑑パネル ===== */
 function EncyclopediaPanel({ saveData, onClose }) {
+  const TABS = ["items", "monsters", "traps", "bigboxes"];
+  const TAB_LABEL = { items:"アイテム", monsters:"モンスター", traps:"罠", bigboxes:"大箱" };
+
   const [tab, setTab] = useState("items");
-  const [selKey, setSelKey] = useState(null);
+  const [focusIdx, setFocusIdx] = useState(0);
+  const [descKey, setDescKey] = useState(null);
+  const kbRef = useRef(null);
+  const itemRefs = useRef([]);
   const disc = saveData.discovered || {};
+
+  const switchTab = (t) => { setTab(t); setFocusIdx(0); setDescKey(null); };
+
+  const _allItems = useMemo(() => [...ITEMS, ...WANDS, ...POTS, ...RINGS], []);
+  const lookupDesc = (key, tabName) => {
+    if (tabName === "traps") { const t = TRAPS.find(t => t.effect === key || t.name === key); return t?.desc || null; }
+    if (tabName === "bigboxes") { const b = BB_TYPES.find(b => b.kind === key); return b?.desc || null; }
+    if (tabName === "items") { const it = _allItems.find(it => (it.effect || (it.type + '_' + it.name)) === key); return it?.desc || null; }
+    return null;
+  };
+
+  const sortedList = useMemo(() => {
+    const entries = disc[tab] || {};
+    return Object.entries(entries)
+      .map(([key, val]) => ({ key, ...val }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  }, [tab, disc]);
+
+  const safeFocus = sortedList.length === 0 ? 0 : Math.min(focusIdx, sortedList.length - 1);
+
+  useEffect(() => {
+    itemRefs.current[safeFocus]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [focusIdx, tab]);
+
+  kbRef.current = { sortedList, safeFocus, setFocusIdx, tab, switchTab, TABS, setDescKey, onClose };
+
+  useEffect(() => {
+    const fn = (e) => {
+      const r = kbRef.current;
+      const k = e.key.toLowerCase();
+      if (k === "x" || k === "escape") { r.onClose(); return; }
+      if (k === "shift") {
+        e.preventDefault();
+        const idx = r.TABS.indexOf(r.tab);
+        r.switchTab(r.TABS[(idx + 1) % r.TABS.length]); return;
+      }
+      if (r.sortedList.length === 0) return;
+      if (k === "arrowup") {
+        e.preventDefault(); r.setFocusIdx(p => Math.max(0, p - 1));
+      } else if (k === "arrowdown") {
+        e.preventDefault(); r.setFocusIdx(p => Math.min(r.sortedList.length - 1, p + 1));
+      } else if (k === "pagedown" || k === " ") {
+        e.preventDefault(); r.setFocusIdx(p => Math.min(r.sortedList.length - 1, p + 10));
+      } else if (k === "pageup") {
+        e.preventDefault(); r.setFocusIdx(p => Math.max(0, p - 10));
+      } else if (k === "z" || k === "enter") {
+        e.preventDefault();
+        const item = r.sortedList[r.safeFocus];
+        if (item) r.setDescKey(prev => prev === item.key ? null : item.key);
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, []);
 
   const tabStyle = (t) => ({
     ...BTN, padding:"6px 16px",
@@ -609,73 +669,58 @@ function EncyclopediaPanel({ saveData, onClose }) {
     borderColor:tab === t ? "#44f"    : BDR,
   });
 
-  const _allItems = useMemo(() => [...ITEMS, ...WANDS, ...POTS, ...RINGS], []);
-  const lookupDesc = (key, tabName) => {
-    if (tabName === "traps") {
-      const t = TRAPS.find(t => t.effect === key || t.name === key);
-      return t?.desc || null;
-    }
-    if (tabName === "bigboxes") {
-      const b = BB_TYPES.find(b => b.kind === key);
-      return b?.desc || null;
-    }
-    if (tabName === "items") {
-      const it = _allItems.find(it => (it.effect || (it.type + '_' + it.name)) === key);
-      return it?.desc || null;
-    }
-    return null;
+  const countLabel = {
+    items:    `発見アイテム: ${Object.keys(disc.items    || {}).length}種`,
+    monsters: `遭遇モンスター: ${Object.keys(disc.monsters || {}).length}種`,
+    traps:    `踏んだ罠: ${Object.keys(disc.traps    || {}).length}種`,
+    bigboxes: `識別済み大箱: ${Object.keys(disc.bigboxes || {}).length}種`,
   };
 
-  const renderList = (entries, tabName) => {
-    const items = Object.values(entries);
-    if (items.length === 0)
-      return <div style={{ color:"#555", padding:"20px 0", textAlign:"center" }}>まだ発見がありません。</div>;
-    const sorted = items.sort((a,b) => a.name.localeCompare(b.name, "ja"));
-    return (
-      <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-        {sorted.map((e, i) => {
-          const key  = Object.keys(entries).find(k => entries[k] === e);
-          const isSel = selKey === key;
-          const desc  = isSel ? lookupDesc(key, tabName) : null;
-          return (
-            <div key={i} onClick={() => setSelKey(isSel ? null : key)}
-              style={{ padding:"5px 8px", background: isSel ? "#141428" : "#0d0d18",
-                borderRadius:3, color:TXT, cursor:"pointer",
-                border: isSel ? "1px solid #44f" : "1px solid transparent" }}>
-              <div style={{ display:"flex", justifyContent:"space-between" }}>
-                <span>{e.name}</span>
-                <span style={{ color:"#555" }}>{e.count}回</span>
-              </div>
-              {isSel && desc && (
-                <div style={{ color:"#8899aa", fontSize:12, marginTop:4, whiteSpace:"pre-wrap", lineHeight:"1.5em" }}>
-                  {desc}
-                </div>
-              )}
-            </div>
-          );
-        })}
+  const stickyArea = (
+    <>
+      <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:8 }}>
+        Shift:タブ切替　↑↓:選択　PageDown/Space:+10　PageUp:-10　Z/Enter:説明　X:閉じる
       </div>
-    );
-  };
+      <div style={{ display:"flex", gap:6, marginBottom:8, flexWrap:"wrap" }}>
+        {TABS.map(t => (
+          <button key={t} onClick={() => switchTab(t)} style={tabStyle(t)}>{TAB_LABEL[t]}</button>
+        ))}
+      </div>
+      <div style={{ color:"#666", fontSize:11 }}>{countLabel[tab]}</div>
+    </>
+  );
 
   return (
-    <Panel title="図鑑" onClose={onClose} wide>
-      <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
-        <button onClick={() => { setTab("items");    setSelKey(null); }} style={tabStyle("items")}>アイテム</button>
-        <button onClick={() => { setTab("monsters"); setSelKey(null); }} style={tabStyle("monsters")}>モンスター</button>
-        <button onClick={() => { setTab("traps");    setSelKey(null); }} style={tabStyle("traps")}>罠</button>
-        <button onClick={() => { setTab("bigboxes"); setSelKey(null); }} style={tabStyle("bigboxes")}>大箱</button>
-      </div>
-      <div style={{ color:"#555", fontSize:11, marginBottom:8 }}>
-        {tab === "items"    && `発見アイテム: ${Object.keys(disc.items    || {}).length}種`}
-        {tab === "monsters" && `遭遇モンスター: ${Object.keys(disc.monsters || {}).length}種`}
-        {tab === "traps"    && `踏んだ罠: ${Object.keys(disc.traps    || {}).length}種`}
-        {tab === "bigboxes" && `識別済み大箱: ${Object.keys(disc.bigboxes || {}).length}種`}
-      </div>
-      {tab === "items"    && renderList(disc.items    || {}, "items")}
-      {tab === "monsters" && renderList(disc.monsters || {}, "monsters")}
-      {tab === "traps"    && renderList(disc.traps    || {}, "traps")}
-      {tab === "bigboxes" && renderList(disc.bigboxes || {}, "bigboxes")}
+    <Panel title="図鑑" onClose={onClose} wide sticky={stickyArea}>
+      {sortedList.length === 0 ? (
+        <div style={{ color:"#555", padding:"20px 0", textAlign:"center" }}>まだ発見がありません。</div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+          {sortedList.map((e, i) => {
+            const isFocus = safeFocus === i;
+            const isDesc  = descKey === e.key;
+            const desc    = isDesc ? lookupDesc(e.key, tab) : null;
+            return (
+              <div key={i} ref={el => itemRefs.current[i] = el}
+                onClick={() => { setFocusIdx(i); setDescKey(prev => prev === e.key ? null : e.key); }}
+                style={{ padding:"5px 8px",
+                  background: isFocus ? "#141428" : "#0d0d18",
+                  borderRadius:3, color:TXT, cursor:"pointer",
+                  border: isFocus ? "1px solid #44f" : "1px solid transparent" }}>
+                <div style={{ display:"flex", justifyContent:"space-between" }}>
+                  <span>{e.name}</span>
+                  <span style={{ color:"#555" }}>{e.count}回</span>
+                </div>
+                {isDesc && desc && (
+                  <div style={{ color:"#8899aa", fontSize:12, marginTop:4, whiteSpace:"pre-wrap", lineHeight:"1.5em" }}>
+                    {desc}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </Panel>
   );
 }
@@ -1037,9 +1082,9 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       const r = kbRef.current;
       if (r.panel !== null) return; // 各パネルが自前でハンドリング
       const k = e.key.toLowerCase();
-      if (k === "arrowup") {
+      if (k === "arrowup" || k === "arrowleft") {
         e.preventDefault(); r.setMainFocus(p => Math.max(0, p - 1));
-      } else if (k === "arrowdown") {
+      } else if (k === "arrowdown" || k === "arrowright") {
         e.preventDefault(); r.setMainFocus(p => Math.min(r.mainItems.length - 1, p + 1));
       } else if (k === "z" || k === "enter") {
         e.preventDefault();
