@@ -68,7 +68,7 @@ export function useItemActions({
   lu, endTurn, chgFloor, withPitfallBag,
   dnameRef, bigboxAddItem,
   onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
-  floorPenDropRef, floorWandRef, floorPotRef,
+  floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
 }) {
   const doUseItem = useCallback((idx) => {
     if (!sr.current) return;
@@ -2726,6 +2726,16 @@ export function useItemActions({
         const _shOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor);
         shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt);
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
+        /* 床から射った矢/石は残量を床に戻す */
+        if (floorArrowRef?.current) {
+          const _fa = floorArrowRef.current;
+          floorArrowRef.current = null;
+          const _faI = p.inventory.indexOf(_fa);
+          if (_faI !== -1) {
+            p.inventory.splice(_faI, 1);
+            placeItemAt(dg, p.x, p.y, _fa, ml, new Set(), 0, p);
+          }
+        }
       } else if (mode === "wand_wave") {
         const it = p.inventory[idx];
         if (!it || it.type !== "wand") {

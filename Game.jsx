@@ -4512,6 +4512,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const floorPenDropRef = useRef(null);
   const floorWandRef = useRef(null);
   const floorPotRef = useRef(null);
+  const floorArrowRef = useRef(null);
   useEffect(() => {
     const onUp = (e) => {
       if (e.key === "Shift") { shiftRef.current = false; arrowHeldRef.current = {}; }
@@ -4580,7 +4581,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     lu, endTurn, chgFloor, withPitfallBag,
     dnameRef, bigboxAddItem,
     onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
-    floorPenDropRef, floorWandRef, floorPotRef,
+    floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
   });
   doMarkerWriteRef.current = doMarkerWrite;
   /* ===== 足元ページ用コールバック ===== */
@@ -4660,16 +4661,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       };
     }
     /* 足元の薬を使う場合は空き瓶を足元に置くフラグを立てる */
-    if (item.type === 'pot') floorPotRef.current = true;
+    if (item.type === 'potion') floorPotRef.current = true;
+    /* 足元の矢/石を射る場合はフロア戻しrefにセット */
+    if (item.type === 'arrow') floorArrowRef.current = item;
     actionFn(_idx);
     /* 足元薬の空き瓶を床に配置 */
-    if (item.type === 'pot') {
+    if (item.type === 'potion') {
       const _bottle = floorPotRef.current;
       floorPotRef.current = null;
       if (_bottle && typeof _bottle === 'object') placeItemAt(_dg, _p.x, _p.y, _bottle, [], new Set(), 0, _p);
     }
-    /* 満杯だった場合またはkeepInInventory=falseの場合、残ったアイテムを床に戻す */
-    if (!keepInInventory || _wasInvFull) {
+    /* keepInInventory=falseの場合、残ったアイテムを床に戻す */
+    if (!keepInInventory) {
       const _si = _p.inventory.indexOf(item);
       if (_si !== -1) {
         _p.inventory.splice(_si, 1);
