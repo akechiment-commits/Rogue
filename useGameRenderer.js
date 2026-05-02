@@ -519,6 +519,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const _sprMap = new Map(); if (dg.springs) for (const s of dg.springs) _sprMap.set(_k(s.x, s.y), s);
     const _bbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _bbMap.set(_k(b.x, b.y), b);
     const _pentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _pentMap.set(_k(pc.x, pc.y), pc);
+    const _pendingBombMap = new Map(); if (dg.pendingBombs) for (const pb of dg.pendingBombs) _pendingBombMap.set(_k(pb.x, pb.y), pb);
     const _oilySet = new Set(); if (dg.oilyTiles) for (const ot of dg.oilyTiles) _oilySet.add(_k(ot.x, ot.y));
     const _roomSet = new Set();
     for (const r of [...dg.rooms, ...(dg.hiddenRooms || [])]) {
@@ -672,6 +673,24 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             ctx.fillText("✦", px2 + sz / 2, py2 + sz / 2);
           }
           ctx.globalAlpha = 1;
+        }
+        /* Pending bomb (作動済み時限爆弾) */
+        const _pbAt = _pendingBombMap.get(_k(x, y));
+        if (_pbAt) {
+          if (vis) {
+            drawTile(ctx, ts, 73, px2, py2, sz);
+            const _pbClr = _pbAt.turnsLeft <= 1 ? "#ff2020" : _pbAt.turnsLeft <= 2 ? "#ff8800" : "#ffff00";
+            ctx.font = `bold ${Math.floor(sz * 0.55)}px monospace`;
+            ctx.fillStyle = _pbClr;
+            ctx.textAlign = "right";
+            ctx.textBaseline = "top";
+            ctx.fillText(_pbAt.turnsLeft, px2 + sz - 1, py2 + 1);
+            ctx.textAlign = "start";
+          } else if (exp2) {
+            ctx.globalAlpha = 0.4;
+            drawTile(ctx, ts, 73, px2, py2, sz);
+            ctx.globalAlpha = 1;
+          }
         }
         if (vis) {
           /* Player — skip if currently animating (will be drawn separately) */
