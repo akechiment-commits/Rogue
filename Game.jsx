@@ -22,7 +22,7 @@ import {
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
-  itemPrice, gemSellPrice,
+  itemPrice, gemSellPrice, setPortalFloorsGetter,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -422,6 +422,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   useEffect(() => {
     if (msgRef.current) msgRef.current.scrollTop = msgRef.current.scrollHeight;
   }, [msgs]);
+  /* ポータルの魔方陣の別フロア参照ゲッターを登録 */
+  useEffect(() => {
+    setPortalFloorsGetter(() => sr.current?.floors);
+    return () => setPortalFloorsGetter(() => null);
+  }, []);
 
   /* Canvas render */
   const { renderFrame, renderFrameRef, overlaysRef, moveOffsetsRef, flyingItemsRef, gsOverrideRef } = useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode);

@@ -2,6 +2,10 @@ import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, 
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt } from './monsters.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
+
+/* ポータルの魔方陣の別フロア参照（Game.jsx から getter を登録） */
+let _portalFloorsGetter = () => null;
+export function setPortalFloorsGetter(fn) { _portalFloorsGetter = fn; }
 import {
   RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS,
   FOOD_CAT_MAP, POT_CAT_BONUS,
@@ -2476,16 +2480,35 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
           return placeItemAt(dg, _rd.x, _rd.y, item, ml, ft, dep + 1, p, _rd.x, _rd.y, true);
         }
       } else {
-        /* 描画順サイクル：A→B→C→A。出口に敵がいたら次の候補へ */
-        const _cycle = dg.pentacles.filter(pc => pc.kind === "portal" && !pc.cursed)
-          .sort((a, b) => (a.drawOrder || 0) - (b.drawOrder || 0));
+        /* 描画順サイクル：同フロア + 別フロア（祝福経由） */
+        const _cycle = [{ portal: _portal, dg, depth: _portal.floor }];
+        for (const _pc of dg.pentacles) {
+          if (_pc !== _portal && _pc.kind === "portal" && !_pc.cursed) {
+            _cycle.push({ portal: _pc, dg, depth: _portal.floor });
+          }
+        }
+        const _allFloors = _portalFloorsGetter();
+        if (_allFloors) {
+          for (const [_dStr, _fdg] of Object.entries(_allFloors)) {
+            if (!_fdg.pentacles) continue;
+            for (const _pc of _fdg.pentacles) {
+              if (_pc.kind !== "portal" || _pc.cursed) continue;
+              if (!(_portal.blessed || _pc.blessed)) continue;
+              _cycle.push({ portal: _pc, dg: _fdg, depth: parseInt(_dStr) });
+            }
+          }
+        }
         if (_cycle.length >= 2) {
-          const _idx = _cycle.indexOf(_portal);
+          _cycle.sort((a, b) => (a.portal.drawOrder || 0) - (b.portal.drawOrder || 0));
+          const _idx = _cycle.findIndex(e => e.portal === _portal);
           for (let _off = 1; _off < _cycle.length; _off++) {
             const _next = _cycle[(_idx + _off) % _cycle.length];
-            if (dg.monsters.some(m => m.x === _next.x && m.y === _next.y)) continue;
-            ml.push(`${item.name}が${_portal.name}に吸い込まれて${_next.name}から出てきた！`);
-            return placeItemAt(dg, _next.x, _next.y, item, ml, ft, dep + 1, p, _next.x, _next.y, true);
+            if (_next.dg.monsters?.some(m => m.x === _next.portal.x && m.y === _next.portal.y)) continue;
+            const _crossFloor = _next.dg !== dg;
+            ml.push(_crossFloor
+              ? `${item.name}が${_portal.name}に吸い込まれて地下${_next.depth}階の${_next.portal.name}から出てきた！`
+              : `${item.name}が${_portal.name}に吸い込まれて${_next.portal.name}から出てきた！`);
+            return placeItemAt(_next.dg, _next.portal.x, _next.portal.y, item, ml, ft, dep + 1, p, _next.portal.x, _next.portal.y, true);
           }
         }
       }
