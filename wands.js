@@ -37,9 +37,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !dg.monsters.some(m => m.x === _lpx && m.y === _lpy)) {
           p.x = _lpx; p.y = _lpy;
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
-          ml.push(`${target.name}に引き寄せられた！`);
+          ml.push(`${target.name}に引き寄せられた！【呪】`);
         } else {
-          ml.push("引き寄せられなかった。");
+          ml.push("引き寄せられなかった。【呪】");
         }
         return;
       }
@@ -68,9 +68,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !dg.springs?.some(s => s.x === _w1x && s.y === _w1y) &&
             !dg.pentacles?.some(pc => pc.x === _w1x && pc.y === _w1y)) {
           target.x = _w1x; target.y = _w1y;
-          ml.push(`${target.name}が少し動いた。`);
+          ml.push(`${target.name}が少し動いた。【呪】`);
         } else {
-          ml.push(`${target.name}は動けなかった。`);
+          ml.push(`${target.name}は動けなかった。【呪】`);
         }
         return;
       }
@@ -314,14 +314,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               dg.map[_pullY][_pullX] !== T.WALL && dg.map[_pullY][_pullX] !== T.BWALL &&
               !dg.monsters.some(m2 => m2 !== target && m2.x === _pullX && m2.y === _pullY)) {
             target.x = _pullX; target.y = _pullY;
-            ml.push(`${target.name}を引き寄せた！`);
+            ml.push(`${target.name}を引き寄せた！【呪】`);
           } else {
-            ml.push(`${target.name}を引き寄せようとしたが失敗した。`);
+            ml.push(`${target.name}を引き寄せようとしたが失敗した。【呪】`);
           }
           break;
         }
         if (kind === "player") {
-          ml.push("引き寄せの力が自分に！");
+          ml.push("引き寄せの力が自分に！【呪】");
           break;
         }
         if (kind === "item") {
@@ -331,7 +331,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             removeFloorItem(dg, target);
             const ft = new Set();
             placeItemAt(dg, _pullIx, _pullIy, target, ml, ft);
-            ml.push(`${target.name}を引き寄せた！`);
+            ml.push(`${target.name}を引き寄せた！【呪】`);
           }
           break;
         }
@@ -421,7 +421,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (kind === "monster") {
           if (target.kind === "undead") {
             const _lcdmg = rng(20, 30);
-            target.hp -= _lcdmg; ml.push(`${target.name}はアンデッドのため${_lcdmg}ダメージを受けた！`);
+            target.hp -= _lcdmg; ml.push(`${target.name}はアンデッドのため${_lcdmg}ダメージを受けた！【呪】`);
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
             const _lheal = Math.min(rng(20, 30), target.maxHp - target.hp);
@@ -501,12 +501,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 呪い：2倍速にする */
         if (kind === "monster") {
           target.speed = Math.min(4, target.speed * 2);
-          ml.push(`${target.name}は2倍速になった！`);
+          ml.push(`${target.name}は2倍速になった！【呪】`);
           break;
         }
         if (kind === "player") {
           p.hasteTurns = (p.hasteTurns || 0) + 10;
-          ml.push("体が軽くなった！(2倍速10ターン)");
+          ml.push("体が軽くなった！(2倍速10ターン)【呪】");
           break;
         }
       } else {
@@ -630,16 +630,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               !(_leapX === p.x && _leapY === p.y)) {
             p.x = _leapX; p.y = _leapY;
             if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
-            ml.push(`${target.name}の前に飛びついた！`);
+            ml.push(`${target.name}の前に飛びついた！【呪】`);
           } else {
-            ml.push("飛びつけなかった。");
+            ml.push("飛びつけなかった。【呪】");
           }
         } else if (kind === "item" || kind === "trap") {
           const _leapX = target.x - dx, _leapY = target.y - dy;
           if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH && dg.map[_leapY][_leapX] !== T.WALL && dg.map[_leapY][_leapX] !== T.BWALL) {
             p.x = _leapX; p.y = _leapY;
             if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
-            ml.push(`${target.name}の前に飛びついた！`);
+            ml.push(`${target.name}の前に飛びついた！【呪】`);
           }
         }
         break;
@@ -967,7 +967,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               removeFloorItem(dg, target);
               const _fts = new Set();
               for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-              ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！`);
+              ml.push(`${_dname_item(target)}が呪いで割れた！中身が飛び出した！【呪】`);
             } else {
               target.capacity = _newCap;
               ml.push(`${_dname_item(target)}が呪いで容量が減った！(容量-1 → ${target.capacity})【呪】`);
@@ -1220,7 +1220,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (kind === "monster") {
           if (target.kind === "undead") {
             const _fwcd = rng(20, 30);
-            target.hp -= _fwcd; ml.push(`${target.name}はアンデッドのため${_fwcd}ダメージを受けた！`);
+            target.hp -= _fwcd; ml.push(`${target.name}はアンデッドのため${_fwcd}ダメージを受けた！【呪】`);
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
             const _fwh = Math.min(rng(20, 30), target.maxHp - target.hp);
@@ -1300,7 +1300,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 呪い：対象を回復し、移動封じ状態なら解除（アンデッドは回復が逆にダメージ） */
         if (kind === "monster") {
           if (target.kind === "undead") {
-            target.hp -= 20; ml.push(`${target.name}はアンデッドのため20ダメージを受けた！`);
+            target.hp -= 20; ml.push(`${target.name}はアンデッドのため20ダメージを受けた！【呪】`);
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
             const _iwh = Math.min(20, target.maxHp - target.hp);
@@ -1425,7 +1425,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (_vsCurse) {
           /* 呪い：通常通り自分のHPが1に */
           p.hp = 1;
-          ml.push("呪いが自分に返ってきた！HPが1になった！");
+          ml.push("呪いが自分に返ってきた！HPが1になった！【呪】");
         } else {
           ml.push("何も起こらなかった。");
         }
@@ -1451,7 +1451,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         if (_vsCurse) {
           p.hp = 1;
-          ml.push("呪いの代償で自分のHPが1になった！");
+          ml.push("呪いの代償で自分のHPが1になった！【呪】");
         }
         break;
       }
@@ -1782,7 +1782,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
           }
         }
       }
-      ml.push(walled > 0 ? "壊せる壁に囲まれた！" : "杖が壊れたが何も起こらなかった。");
+      ml.push(walled > 0 ? "壊せる壁に囲まれた！【呪】" : "杖が壊れたが何も起こらなかった。【呪】");
       return;
     }
     let dmg = rng(8, 15);
@@ -1837,7 +1837,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1) {
           }
         }
       }
-      ml.push(_sfcWalled > 0 ? "壊せる壁に囲まれた！" : "杖が壊れたが何も起こらなかった。");
+      ml.push(_sfcWalled > 0 ? "壊せる壁に囲まれた！【呪】" : "杖が壊れたが何も起こらなかった。【呪】");
       return;
     }
     /* 通常/祝福：防御半減50ターン＋足元に落とし穴＋周囲に軟化効果（壁は食料に変化） */

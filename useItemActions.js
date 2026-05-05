@@ -872,7 +872,7 @@ export function useItemActions({
         } else if (it.cursed) {
           /* キーアイテム所持中は呪いテレポート無効 */
           if (p.inventory.some(i => i.type === "goal")) {
-            ml.push("キーアイテムの力が呪いのフロア飛びを阻んだ！");
+            ml.push("キーアイテムの力が呪いのフロア飛びを阻んだ！【呪】");
           } else {
           setFloorSelectMode({ sel: p.depth });
           { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
@@ -1458,7 +1458,7 @@ export function useItemActions({
             const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
           });
           if (_targets.length === 0) {
-            ml.push("未識別に戻せるアイテムがない。");
+            ml.push("未識別に戻せるアイテムがない。【呪】");
           } else {
             { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
               setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, "どのアイテムの識別を解除する？【呪】"]); }
