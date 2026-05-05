@@ -6,6 +6,49 @@ import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from
 /* ポータルの魔方陣の別フロア参照（Game.jsx から getter を登録） */
 let _portalFloorsGetter = () => null;
 export function setPortalFloorsGetter(fn) { _portalFloorsGetter = fn; }
+
+/* ポータル着地時の転送ヘルパー：成功時は placeItemAt の結果、対象なし/失敗時は null */
+function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
+  if (portal.cursed) {
+    const _rd = randomTeleportDest(dg, portal.x, portal.y);
+    if (_rd) {
+      ml.push(`${item.name}が${portal.name}に飲み込まれて飛んだ！【呪】`);
+      return placeItemAt(dg, _rd.x, _rd.y, item, ml, ft, dep + 1, p, _rd.x, _rd.y, true);
+    }
+    return null;
+  }
+  const _hasGoal = p?.inventory?.some(i => i.type === "goal");
+  const _cycle = [{ portal, dg, depth: portal.floor }];
+  for (const _pc of dg.pentacles) {
+    if (_pc !== portal && _pc.kind === "portal" && !_pc.cursed) {
+      _cycle.push({ portal: _pc, dg, depth: portal.floor });
+    }
+  }
+  const _allFloors = _portalFloorsGetter();
+  if (!_hasGoal && _allFloors) {
+    for (const [_dStr, _fdg] of Object.entries(_allFloors)) {
+      if (!_fdg.pentacles) continue;
+      for (const _pc of _fdg.pentacles) {
+        if (_pc.kind !== "portal" || _pc.cursed) continue;
+        if (!(portal.blessed && _pc.blessed)) continue;
+        _cycle.push({ portal: _pc, dg: _fdg, depth: parseInt(_dStr) });
+      }
+    }
+  }
+  if (_cycle.length < 2) return null;
+  _cycle.sort((a, b) => (a.portal.drawOrder || 0) - (b.portal.drawOrder || 0));
+  const _idx = _cycle.findIndex(e => e.portal === portal);
+  for (let _off = 1; _off < _cycle.length; _off++) {
+    const _next = _cycle[(_idx + _off) % _cycle.length];
+    if (_next.dg.monsters?.some(m => m.x === _next.portal.x && m.y === _next.portal.y)) continue;
+    const _crossFloor = _next.dg !== dg;
+    ml.push(_crossFloor
+      ? `${item.name}が${portal.name}に吸い込まれて地下${_next.depth}階の${_next.portal.name}から出てきた！`
+      : `${item.name}が${portal.name}に吸い込まれて${_next.portal.name}から出てきた！`);
+    return placeItemAt(_next.dg, _next.portal.x, _next.portal.y, item, ml, ft, dep + 1, p, _next.portal.x, _next.portal.y, true);
+  }
+  return null;
+}
 import {
   RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS,
   FOOD_CAT_MAP, POT_CAT_BONUS,
@@ -2473,47 +2516,8 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
   if (!_fromPortal && item.type !== "goal") {
     const _portal = dg.pentacles?.find(pc => pc.kind === "portal" && pc.x === tx && pc.y === ty);
     if (_portal) {
-      if (_portal.cursed) {
-        const _rd = randomTeleportDest(dg, tx, ty);
-        if (_rd) {
-          ml.push(`${item.name}が${_portal.name}に飲み込まれて飛んだ！【呪】`);
-          return placeItemAt(dg, _rd.x, _rd.y, item, ml, ft, dep + 1, p, _rd.x, _rd.y, true);
-        }
-      } else {
-        /* 描画順サイクル：同フロア + 別フロア（祝福経由） */
-        const _cycle = [{ portal: _portal, dg, depth: _portal.floor }];
-        for (const _pc of dg.pentacles) {
-          if (_pc !== _portal && _pc.kind === "portal" && !_pc.cursed) {
-            _cycle.push({ portal: _pc, dg, depth: _portal.floor });
-          }
-        }
-        /* プレイヤーがキーアイテム所持時は別フロア候補を除外 */
-        const _hasGoalPi = p?.inventory?.some(i => i.type === "goal");
-        const _allFloors = _portalFloorsGetter();
-        if (!_hasGoalPi && _allFloors) {
-          for (const [_dStr, _fdg] of Object.entries(_allFloors)) {
-            if (!_fdg.pentacles) continue;
-            for (const _pc of _fdg.pentacles) {
-              if (_pc.kind !== "portal" || _pc.cursed) continue;
-              if (!(_portal.blessed && _pc.blessed)) continue;
-              _cycle.push({ portal: _pc, dg: _fdg, depth: parseInt(_dStr) });
-            }
-          }
-        }
-        if (_cycle.length >= 2) {
-          _cycle.sort((a, b) => (a.portal.drawOrder || 0) - (b.portal.drawOrder || 0));
-          const _idx = _cycle.findIndex(e => e.portal === _portal);
-          for (let _off = 1; _off < _cycle.length; _off++) {
-            const _next = _cycle[(_idx + _off) % _cycle.length];
-            if (_next.dg.monsters?.some(m => m.x === _next.portal.x && m.y === _next.portal.y)) continue;
-            const _crossFloor = _next.dg !== dg;
-            ml.push(_crossFloor
-              ? `${item.name}が${_portal.name}に吸い込まれて地下${_next.depth}階の${_next.portal.name}から出てきた！`
-              : `${item.name}が${_portal.name}に吸い込まれて${_next.portal.name}から出てきた！`);
-            return placeItemAt(_next.dg, _next.portal.x, _next.portal.y, item, ml, ft, dep + 1, p, _next.portal.x, _next.portal.y, true);
-          }
-        }
-      }
+      const _r = _tryItemPortalWarp(dg, _portal, item, ml, ft, dep, p);
+      if (_r !== null) return _r;
     }
   }
   /* アニメーション用の出発地点（null の場合は tx,ty を使う） */
@@ -2570,7 +2574,15 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       return true;
     }
     if (dg.bigboxes?.some(b => b.x === cx && b.y === cy)) continue;
-    if (dg.pentacles?.some(pc => pc.x === cx && pc.y === cy)) continue;
+    /* ペンタクル：ポータルなら warp 起動、それ以外は通常通りスキップ */
+    const _pcAtCxCy = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
+    if (_pcAtCxCy) {
+      if (!_fromPortal && _pcAtCxCy.kind === "portal" && item.type !== "goal") {
+        const _r = _tryItemPortalWarp(dg, _pcAtCxCy, item, ml, ft, dep, p);
+        if (_r !== null) return _r;
+      }
+      continue;
+    }
     if (dg.items.some(i => i.x === cx && i.y === cy)) continue;
     item.x = cx;
     item.y = cy;
