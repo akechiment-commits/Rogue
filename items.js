@@ -3605,6 +3605,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           case "paralyze_magic": { p.paralyzed = true; p.paralyzeTurns = (p.paralyzeTurns || 0) + 10; ml.push("金縛りの魔法が跳ね返ってきた！金縛りになった！(10ターン)"); break; }
           case "teleport_other": { const _rtf = []; for (let _rty = 0; _rty < MH; _rty++) for (let _rtx = 0; _rtx < MW; _rtx++) if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => m.x === _rtx && m.y === _rty)) _rtf.push({ x: _rtx, y: _rty }); if (_rtf.length > 0) { const _rtd = pick(_rtf); p.x = _rtd.x; p.y = _rtd.y; ml.push("テレポートの魔法が跳ね返ってきた！どこかへ飛ばされた！"); } break; }
           case "drain_hp": { const _rd = Math.round(rng(15, 25) * _rfLvF); p.hp -= _rd; p.deathCause = "反射されたHP吸収の魔法で"; ml.push(`HP吸収の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
+          case "transform_magic": { const _th = rng(-10, 10); p.hp += _th; if (_th < 0) p.deathCause = "反射された変化の魔法で"; ml.push(`変化の魔法が跳ね返ってきた！${_th >= 0 ? `体に変化が...HP+${_th}` : `体に異変が...HP${_th}`}`); break; }
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
       } else {
