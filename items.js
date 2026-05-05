@@ -2297,7 +2297,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
       const _pbI = dg.pendingBombs.findIndex(pb => pb.x === x && pb.y === y);
       if (_pbI >= 0) {
         dg.pendingBombs.splice(_pbI, 1);
-        ml.push("時限爆弾が薬液で消火された！爆発が止まった！");
+        ml.push("時限爆弾の罠が薬液で消火された！");
       }
     }
     const it = itemAt(dg, x, y);
