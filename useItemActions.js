@@ -1098,11 +1098,13 @@ export function useItemActions({
           // 呪い：自分含め視界内全員が6ターン眠る
           const _pst = 6;
           if ((p.statusImmune || 0) > 0) ml.push("眠気が辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
+          else if (hasAbility(p.armor, "sleep_proof")) ml.push("眠気が辺りを包んだ！しかし防具が防いだ！(耐眠)【呪】");
           else { p.sleepTurns = (p.sleepTurns || 0) + _pst; ml.push(`眠気が辺りを包んだ！${_pst}ターン眠ってしまう…【呪】`); }
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
+              if (hasAbility(p.armor, "sleep_proof")) { ml.push(`${_m.name}が眠りを跳ね返したが、防具が防いだ！(耐眠)`); continue; }
               p.sleepTurns = (p.sleepTurns || 0) + _pst;
               ml.push(`${_m.name}が眠りを跳ね返した！さらに${_pst}ターン眠ってしまう…`); continue;
             }
@@ -1122,6 +1124,7 @@ export function useItemActions({
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
+                if (hasAbility(p.armor, "sleep_proof")) { ml.push(`${_m.name}が眠りを跳ね返したが、防具が防いだ！(耐眠)`); continue; }
                 p.sleepTurns = (p.sleepTurns || 0) + _st;
                 ml.push(`${_m.name}が眠りを跳ね返した！${_st}ターン眠ってしまう…`); continue;
               }
@@ -1136,11 +1139,13 @@ export function useItemActions({
         if (it.cursed) {
           // 呪い：自分5T混乱 + 視界内敵10T混乱
           if ((p.statusImmune || 0) > 0) ml.push("混乱ガスが辺りを包んだ！状態防止中のため自分には効かなかった！【呪】");
+          else if (hasAbility(p.armor, "confuse_proof")) ml.push("混乱ガスが辺りを包んだ！しかし防具が防いだ！(耐混乱)【呪】");
           else { p.confusedTurns = (p.confusedTurns || 0) + 5; ml.push("混乱ガスが辺りを包んだ！5ターン混乱する…【呪】"); }
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
+              if (hasAbility(p.armor, "confuse_proof")) { ml.push(`${_m.name}が混乱を跳ね返したが、防具が防いだ！(耐混乱)`); continue; }
               p.confusedTurns = (p.confusedTurns || 0) + 10;
               ml.push(`${_m.name}が混乱を跳ね返した！さらに10ターン混乱する…`); continue;
             }
@@ -1158,6 +1163,7 @@ export function useItemActions({
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
+                if (hasAbility(p.armor, "confuse_proof")) { ml.push(`${_m.name}が混乱を跳ね返したが、防具が防いだ！(耐混乱)`); continue; }
                 p.confusedTurns = (p.confusedTurns || 0) + _ct;
                 ml.push(`${_m.name}が混乱を跳ね返した！${_ct}ターン混乱する…`); continue;
               }
