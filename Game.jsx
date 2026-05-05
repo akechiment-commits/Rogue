@@ -2762,23 +2762,59 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 else ml.push(`${_portalHere.name}が反応したがテレポート先がない…【呪】`);
                 if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
               } else {
-                /* 描画順サイクル：A→B→C→A。出口に敵がいたら次の候補へスキップ */
-                const _cycle = dg.pentacles.filter(pc => pc.kind === "portal" && !pc.cursed)
-                  .sort((a, b) => (a.drawOrder || 0) - (b.drawOrder || 0));
+                /* 描画順サイクル：A→B→C→A。出口に敵がいたら次の候補へスキップ
+                   キーアイテム所持時は別フロア候補を除外（同フロア間のみ） */
+                const _hasGoal = p.inventory?.some(i => i.type === "goal");
+                const _cycle = [{ portal: _portalHere, dg, depth: p.depth }];
+                /* 同フロアの全ポータル */
+                for (const _pc of dg.pentacles) {
+                  if (_pc !== _portalHere && _pc.kind === "portal" && !_pc.cursed) {
+                    _cycle.push({ portal: _pc, dg, depth: p.depth });
+                  }
+                }
+                /* 別フロアのポータル：自分か相手のどちらかが祝福、かつキーアイテム未所持時のみ */
+                if (!_hasGoal && sr.current.floors) {
+                  for (const [_dStr, _fdg] of Object.entries(sr.current.floors)) {
+                    if (!_fdg.pentacles) continue;
+                    const _fd = parseInt(_dStr);
+                    for (const _pc of _fdg.pentacles) {
+                      if (_pc.kind !== "portal" || _pc.cursed) continue;
+                      if (!(_portalHere.blessed || _pc.blessed)) continue;
+                      _cycle.push({ portal: _pc, dg: _fdg, depth: _fd });
+                    }
+                  }
+                }
+                _cycle.sort((a, b) => (a.portal.drawOrder || 0) - (b.portal.drawOrder || 0));
                 if (_cycle.length >= 2) {
-                  const _idx = _cycle.indexOf(_portalHere);
+                  const _idx = _cycle.findIndex(e => e.portal === _portalHere);
                   let _dest = null;
                   for (let _off = 1; _off < _cycle.length; _off++) {
                     const _cand = _cycle[(_idx + _off) % _cycle.length];
-                    if (!dg.monsters.some(m => m.x === _cand.x && m.y === _cand.y)) { _dest = _cand; break; }
+                    if (_cand.dg.monsters.some(m => m.x === _cand.portal.x && m.y === _cand.portal.y)) continue;
+                    _dest = _cand; break;
                   }
                   if (_dest) {
-                    p.x = _dest.x; p.y = _dest.y;
-                    ml.push(`ポータルから${_dest.name}へ抜けた！`);
+                    if (_dest.depth === p.depth) {
+                      p.x = _dest.portal.x; p.y = _dest.portal.y;
+                      ml.push(`ポータルから${_dest.portal.name}へ抜けた！`);
+                    } else {
+                      /* 別フロアへ：dungeon を入れ替え、プレイヤーを出口ポータルへ */
+                      sr.current.floors[p.depth] = sr.current.dungeon;
+                      delete sr.current.floors[_dest.depth];
+                      sr.current.dungeon = _dest.dg;
+                      st.dungeon = _dest.dg;
+                      p.depth = _dest.depth;
+                      p.x = _dest.portal.x; p.y = _dest.portal.y;
+                      refreshFOV(_dest.dg, p);
+                      ml.push(`ポータルから地下${_dest.depth}階の${_dest.portal.name}へ抜けた！`);
+                    }
                     if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
                   } else {
                     ml.push("どのポータルも塞がっていて出られなかった！");
                   }
+                } else if (_hasGoal && _portalHere.blessed) {
+                  /* 単独祝福ポータル＋キーアイテム所持：別フロア接続が無効化された結果で何も起きない */
+                  ml.push("キーアイテムの力がポータルの力を打ち消した！");
                 }
               }
             }

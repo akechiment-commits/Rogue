@@ -2464,8 +2464,9 @@ function soakItem(item) {
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false) {
   if (dep > 30) { ml.push(`${item.name}は消えてしまった！`); return false; }
-  /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ） */
-  if (!_fromPortal) {
+  /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ）
+     キーアイテム自体はポータルを通過させない */
+  if (!_fromPortal && item.type !== "goal") {
     const _portal = dg.pentacles?.find(pc => pc.kind === "portal" && pc.x === tx && pc.y === ty);
     if (_portal) {
       if (_portal.cursed) {

@@ -1682,11 +1682,22 @@ export function useItemActions({
           const _newPortal = dg.pentacles[dg.pentacles.length - 1];
           sr.current._portalDrawCount = (sr.current._portalDrawCount || 0) + 1;
           _newPortal.drawOrder = sr.current._portalDrawCount;
-          const _existing = dg.pentacles.filter(pc =>
+          _newPortal.floor = p.depth;
+          /* 同フロア + 別フロアの祝福経由で繋がるポータルを集計 */
+          let _connected = dg.pentacles.filter(pc =>
             pc !== _newPortal && pc.kind === "portal" && !pc.cursed
-          );
-          if (_existing.length > 0) {
-            ml.push(`ポータルのサイクルに繋がった！(同フロア${_existing.length + 1}個目)`);
+          ).length;
+          if (sr.current.floors) {
+            for (const _fdg of Object.values(sr.current.floors)) {
+              if (!_fdg.pentacles) continue;
+              for (const _pc of _fdg.pentacles) {
+                if (_pc.kind !== "portal" || _pc.cursed) continue;
+                if (_isBlessed || _pc.blessed) _connected++;
+              }
+            }
+          }
+          if (_connected > 0) {
+            ml.push(`ポータルのサイクルに繋がった！(${_connected + 1}個目)`);
           }
         }
         /* 呪われた聖域の魔方陣：描いた直後に隣のマスに弾き出される */
