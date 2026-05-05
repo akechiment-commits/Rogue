@@ -1194,10 +1194,11 @@ export function useItemActions({
               continue;
             }
             let _flDmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
+            if (_m.elemWeak === "fire") _flDmg = Math.round(_flDmg * 1.5);
             const _flOily = _flOilyCheck(_m);
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
             _m.hp -= _flDmg;
-            ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_flOily ? "油まみれ×2！" : ""}${it.blessed ? "（祝福）" : ""}`);
+            ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_m.elemWeak === "fire" ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${it.blessed ? "（祝福）" : ""}`);
             pushExplosionAnim(_m.x, _m.y);
             if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }
@@ -1365,6 +1366,7 @@ export function useItemActions({
                 ml.push(`${_m.name}が解除魔法を跳ね返した！自分に攻撃力・防御力半減デバフ！`);
                 continue;
               }
+              if (consumeBarrier(_m, ml)) continue;
               let _removed = [];
               if (_m.atkBuffed) { _m.atk = Math.max(1, _m.atk - 3); _m.atkBuffed = false; _removed.push("攻撃バフ"); }
               if (_m._enraged) { _m._enraged = false; _removed.push("激昂"); }
@@ -1441,6 +1443,7 @@ export function useItemActions({
                 ml.push(`${_m.name}が金縛りを跳ね返した！${_rt}ターン体が動かない！`); continue;
               }
               if (consumeBarrier(_m, ml)) continue;
+              if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
               if (_m.isBoss) { _m.paralyzed = true; _m.paralyzeTurns = rng(3, 5); }
               else _m.paralyzed = true;
               ml.push(`${_m.name}が金縛りになった！${it.blessed ? "【祝】" : ""}`);
