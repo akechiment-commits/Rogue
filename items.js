@@ -3594,7 +3594,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
       if (mon.magicImmune) {
         ml.push(`魔法は${mon.name}に効かない！`);
       } else if (mon.subtype === "magicreflect") {
-        ml.push(`${mon.name}が魔法を反射した！`);
+        ml.push(`${mon.name}が魔法を跳ね返した！`);
         const _rfLvF = 1 + (lv - 1) * 0.2;
         switch (spell.effect) {
           case "fire_bolt": { const _rd = Math.round(rng(20, 30) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された炎の魔法で"; ml.push(`炎の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }

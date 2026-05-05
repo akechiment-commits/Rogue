@@ -1689,13 +1689,13 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       /* 反射の鎧: 雷撃を発射源のモンスターに反射 */
       const _hasReflect = hasAbility(pl.armor, "wand_reflect");
       if (_hasReflect) {
-        ml.push("反射の鎧が雷撃を反射した！");
+        ml.push("反射の鎧が雷撃を跳ね返した！");
         const _srcMon = monsterAt(dg, cx, cy);
         if (_srcMon) {
           if (!consumeBarrier(_srcMon, ml)) {
             const _rdmg = rng(15, 25);
             _srcMon.hp -= _rdmg;
-            ml.push(`反射した雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
+            ml.push(`跳ね返った雷撃が${monName}を直撃！${_rdmg}ダメージ！`);
             pushLightningAnim(_srcMon.x, _srcMon.y);
             if (_srcMon.hp <= 0) killMonster(_srcMon, dg, pl, ml, luFn);
           }
@@ -1723,11 +1723,11 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
       if (mon.subtype === "magicreflect" && killerMon) {
-        ml.push(`${mon.name}が雷撃を反射した！`);
+        ml.push(`${mon.name}が雷撃を跳ね返した！`);
         if (!consumeBarrier(killerMon, ml)) {
           const _rdmg = rng(15, 25);
           killerMon.hp -= _rdmg;
-          ml.push(`反射した雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
+          ml.push(`跳ね返った雷撃が${killerMon.name}を直撃！${_rdmg}ダメージ！`);
           pushLightningAnim(killerMon.x, killerMon.y);
           if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
         }

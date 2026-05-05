@@ -1216,7 +1216,7 @@ export function useItemActions({
               if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が平和を跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.pacifistTurns = (p.pacifistTurns || 0) + 20;
-                ml.push(`${_m.name}が跳ね返した！自分も20ターン平和主義状態になった…【呪】`); continue;
+                ml.push(`${_m.name}が平和を跳ね返した！自分も20ターン平和主義状態になった…【呪】`); continue;
               }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
@@ -1238,7 +1238,7 @@ export function useItemActions({
               if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}がバーサークを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 50;
-                ml.push(`${_m.name}が跳ね返した！自分が50ターン攻撃力1.5倍になった！`); continue;
+                ml.push(`${_m.name}がバーサークを跳ね返した！自分が50ターン攻撃力1.5倍になった！`); continue;
               }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
@@ -2830,10 +2830,10 @@ export function useItemActions({
                 });
                 if (_candInv.length > 0) {
                   const _ri = _candInv[Math.floor(Math.random() * _candInv.length)];
-                  ml.push("杖の光が壁で跳ね返り自分に当たった！");
+                  ml.push("杖の光が壁に跳ね返り自分に当たった！");
                   _sageIdentItem(_ri);
                 } else {
-                  ml.push("杖の光が壁で跳ね返ったが、識別できるものがなかった。");
+                  ml.push("杖の光が壁に跳ね返ったが、識別できるものがなかった。");
                 }
               }
             }
