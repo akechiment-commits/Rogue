@@ -1003,6 +1003,7 @@ export function useItemActions({
               continue;
             }
             if (_m.kind === "undead") {
+              if (consumeBarrier(_m, ml)) continue;
               const _ud = Math.min(_rh, _m.hp);
               _m.hp -= _ud; ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
               if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
@@ -1504,26 +1505,47 @@ export function useItemActions({
         // 召喚の巻物
         if (it.cursed) {
           // 呪い：同じ部屋の敵を別の部屋に飛ばす
+          const _tpBlocked = dg.pentacles?.some(pc => pc.kind === "teleport_trap" && pc.cursed);
           const _sumRoom = findRoom(dg.rooms, p.x, p.y);
           const _inRoom = _sumRoom
             ? dg.monsters.filter((m) => findRoom(dg.rooms, m.x, m.y) === _sumRoom)
             : [];
-          if (_inRoom.length === 0) {
+          if (_tpBlocked) {
+            ml.push("呪われたテレポートの魔方陣に阻まれて呪いの召喚は無効化された！【呪】");
+          } else if (_inRoom.length === 0) {
             ml.push("部屋に敵がいないのに呪いが発動した…【呪】");
           } else {
             const _otherRooms = dg.rooms.filter((r) => r !== _sumRoom);
+            let _teleportedCount = 0;
+            let _reflectedToPlayer = false;
             for (const _sm of _inRoom) {
+              if (_sm.magicImmune) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
+              if (_sm.subtype === "magicreflect") { ml.push(`${_sm.name}が呪いの召喚を跳ね返した！`); _reflectedToPlayer = true; continue; }
+              if (consumeBarrier(_sm, ml)) continue;
               const _tr = pick(_otherRooms);
               if (!_tr) continue;
               for (let _att = 0; _att < 20; _att++) {
                 const _tx = rng(_tr.x + 1, _tr.x + _tr.w - 2);
                 const _ty = rng(_tr.y + 1, _tr.y + _tr.h - 2);
                 if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.monsters.some((m) => m.x === _tx && m.y === _ty) && (_tx !== p.x || _ty !== p.y)) {
-                  _sm.x = _tx; _sm.y = _ty; _sm.aware = false; break;
+                  _sm.x = _tx; _sm.y = _ty; _sm.aware = false; _teleportedCount++; break;
                 }
               }
             }
-            ml.push(`${_inRoom.length}体の敵が別の部屋へ飛んだ！【呪】`);
+            if (_teleportedCount > 0) ml.push(`${_teleportedCount}体の敵が別の部屋へ飛んだ！【呪】`);
+            if (_reflectedToPlayer && _otherRooms.length > 0) {
+              const _ptr = pick(_otherRooms);
+              for (let _att = 0; _att < 20; _att++) {
+                const _ptx = rng(_ptr.x + 1, _ptr.x + _ptr.w - 2);
+                const _pty = rng(_ptr.y + 1, _ptr.y + _ptr.h - 2);
+                if (dg.map[_pty]?.[_ptx] === T.FLOOR && !dg.monsters.some((m) => m.x === _ptx && m.y === _pty)) {
+                  p.x = _ptx; p.y = _pty;
+                  if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+                  ml.push("反射によって自分が別の部屋へ飛ばされた！");
+                  break;
+                }
+              }
+            }
           }
         } else {
           // 通常4体、祝福8体召喚
