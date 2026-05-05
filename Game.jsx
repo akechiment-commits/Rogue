@@ -2760,19 +2760,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _rd = randomTeleportDest(dg, p.x, p.y);
                 if (_rd) { p.x = _rd.x; p.y = _rd.y; ml.push(`${_portalHere.name}に飲まれてランダムにテレポートした！【呪】`); }
                 else ml.push(`${_portalHere.name}が反応したがテレポート先がない…【呪】`);
-              } else if (_portalHere.pairId) {
-                const _pair = dg.pentacles.find(pc => pc !== _portalHere && pc.pairId === _portalHere.pairId);
-                if (_pair) {
-                  /* 行き先にモンスターがいたらワープ失敗 */
-                  if (dg.monsters.some(m => m.x === _pair.x && m.y === _pair.y)) {
-                    ml.push(`${_pair.name}には何かが乗っていて出られなかった！`);
+                if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+              } else {
+                /* 描画順サイクル：A→B→C→A。出口に敵がいたら次の候補へスキップ */
+                const _cycle = dg.pentacles.filter(pc => pc.kind === "portal" && !pc.cursed)
+                  .sort((a, b) => (a.drawOrder || 0) - (b.drawOrder || 0));
+                if (_cycle.length >= 2) {
+                  const _idx = _cycle.indexOf(_portalHere);
+                  let _dest = null;
+                  for (let _off = 1; _off < _cycle.length; _off++) {
+                    const _cand = _cycle[(_idx + _off) % _cycle.length];
+                    if (!dg.monsters.some(m => m.x === _cand.x && m.y === _cand.y)) { _dest = _cand; break; }
+                  }
+                  if (_dest) {
+                    p.x = _dest.x; p.y = _dest.y;
+                    ml.push(`ポータルから${_dest.name}へ抜けた！`);
+                    if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
                   } else {
-                    p.x = _pair.x; p.y = _pair.y;
-                    ml.push(`ポータルから${_pair.name}へ抜けた！`);
+                    ml.push("どのポータルも塞がっていて出られなかった！");
                   }
                 }
               }
-              if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
             }
             autoPickup(p, st.dungeon, ml);
             /* 看板：踏んだらポップアップ表示（ダッシュ中断・メッセージログには出さない） */

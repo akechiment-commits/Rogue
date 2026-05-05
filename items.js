@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest } from './utils.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt } from './monsters.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
@@ -2462,8 +2462,34 @@ function soakItem(item) {
   return item;
 }
 
-export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null) {
+export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false) {
   if (dep > 30) { ml.push(`${item.name}は消えてしまった！`); return false; }
+  /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ） */
+  if (!_fromPortal) {
+    const _portal = dg.pentacles?.find(pc => pc.kind === "portal" && pc.x === tx && pc.y === ty);
+    if (_portal) {
+      if (_portal.cursed) {
+        const _rd = randomTeleportDest(dg, tx, ty);
+        if (_rd) {
+          ml.push(`${item.name}が${_portal.name}に飲み込まれて飛んだ！【呪】`);
+          return placeItemAt(dg, _rd.x, _rd.y, item, ml, ft, dep + 1, p, _rd.x, _rd.y, true);
+        }
+      } else {
+        /* 描画順サイクル：A→B→C→A。出口に敵がいたら次の候補へ */
+        const _cycle = dg.pentacles.filter(pc => pc.kind === "portal" && !pc.cursed)
+          .sort((a, b) => (a.drawOrder || 0) - (b.drawOrder || 0));
+        if (_cycle.length >= 2) {
+          const _idx = _cycle.indexOf(_portal);
+          for (let _off = 1; _off < _cycle.length; _off++) {
+            const _next = _cycle[(_idx + _off) % _cycle.length];
+            if (dg.monsters.some(m => m.x === _next.x && m.y === _next.y)) continue;
+            ml.push(`${item.name}が${_portal.name}に吸い込まれて${_next.name}から出てきた！`);
+            return placeItemAt(dg, _next.x, _next.y, item, ml, ft, dep + 1, p, _next.x, _next.y, true);
+          }
+        }
+      }
+    }
+  }
   /* アニメーション用の出発地点（null の場合は tx,ty を使う） */
   const _animOx = _ox ?? tx, _animOy = _oy ?? ty;
   /* 着地点が水タイルなら沈没（同マスに既存アイテムがない場合のみ、ある場合はDROで代替地を探す） */
