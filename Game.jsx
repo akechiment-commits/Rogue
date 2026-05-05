@@ -1114,7 +1114,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _fd = parseInt(_dStr);
         for (const _pc of _fdg.pentacles) {
           if (_pc.kind !== "portal" || _pc.cursed) continue;
-          if (!(_ph.blessed || _pc.blessed)) continue;
+          if (!(_ph.blessed && _pc.blessed)) continue;
           _cycle.push({ portal: _pc, dg: _fdg, depth: _fd });
         }
       }
@@ -1607,7 +1607,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _fd = parseInt(_dStr);
               for (const _pc of _fdg.pentacles) {
                 if (_pc.kind !== "portal" || _pc.cursed) continue;
-                if (!(_portalMon.blessed || _pc.blessed)) continue;
+                if (!(_portalMon.blessed && _pc.blessed)) continue;
                 _cycleM.push({ portal: _pc, dg: _fdg, depth: _fd });
               }
             }

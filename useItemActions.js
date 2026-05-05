@@ -1692,7 +1692,7 @@ export function useItemActions({
               if (!_fdg.pentacles) continue;
               for (const _pc of _fdg.pentacles) {
                 if (_pc.kind !== "portal" || _pc.cursed) continue;
-                if (_isBlessed || _pc.blessed) _connected++;
+                if (_isBlessed && _pc.blessed) _connected++;
               }
             }
           }

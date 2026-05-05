@@ -2495,7 +2495,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
             if (!_fdg.pentacles) continue;
             for (const _pc of _fdg.pentacles) {
               if (_pc.kind !== "portal" || _pc.cursed) continue;
-              if (!(_portal.blessed || _pc.blessed)) continue;
+              if (!(_portal.blessed && _pc.blessed)) continue;
               _cycle.push({ portal: _pc, dg: _fdg, depth: parseInt(_dStr) });
             }
           }
