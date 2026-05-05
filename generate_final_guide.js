@@ -342,9 +342,9 @@ const statusData = [
 addSheet('09_状態異常', statusData);
 
 // ===== 罠（Trap）=====
-const trapData = [['罠名', 'effect', 'タイル']];
+const trapData = [['罠名', 'effect', 'タイル', '効果']];
 for (const t of TRAPS) {
-  trapData.push([t.name, t.effect, t.tile]);
+  trapData.push([t.name, t.effect, t.tile, t.desc || '']);
 }
 
 addSheet('10_罠', trapData);
