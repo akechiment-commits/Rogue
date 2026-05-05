@@ -4542,6 +4542,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (_ml.length) setMsgs((prev) => [...prev.slice(-80), ..._ml]);
     }
   }, [throwMode]);
+  /* 足元ペンのマーカーモードキャンセル時にペンを足元に戻す
+     成功時は doMarkerWrite 内で既に floorPenDropRef.current = null されているので no-op */
+  useEffect(() => {
+    if (markerMode !== null) return;
+    const it = floorPenDropRef.current;
+    if (!it) return;
+    floorPenDropRef.current = null;
+    const s = sr.current; if (!s) return;
+    const idx = s.player.inventory.indexOf(it);
+    if (idx === -1) return;
+    s.player.inventory.splice(idx, 1);
+    const _ml = []; const _ft = new Set();
+    placeItemAt(s.dungeon, s.player.x, s.player.y, it, _ml, _ft, 0, s.player);
+    if (_ml.length) setMsgs((prev) => [...prev.slice(-80), ..._ml]);
+  }, [markerMode]);
   useKeyHandler({
     // refs
     sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
