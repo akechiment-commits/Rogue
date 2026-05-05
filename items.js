@@ -171,6 +171,7 @@ export const ITEMS = [
   { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"B", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。\n部屋内の全員が速度に関わらず1回行動になる。\n祝福：全員2回行動。呪い：全員鈍足。", tile:42 },
   { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n祝福：10HP回復。呪い：逆に5ダメージ。", tile:42 },
   { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"S", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・使い捨て）。\n祝福：同じ部屋全域に効果。呪い：何も起きない。", tile:42 },
+  { name:"ポータルのペン",   type:"pen",    effect:"portal",        charges:2, rarity:"A", weight:2,  sellPrice:3500,  desc:"足元にポータルの魔方陣を描く。\n同じフロアに2個書くと魔方陣同士が繋がりワープできる。\n上に投げたものも反対側から出てくる。\n祝福：別のフロアに書いてあっても繋がる。\n呪い：ランダムワープになる。", tile:42 },
   { name:"短剣",             type:"weapon", atk:3,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"C", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
   { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"B", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },

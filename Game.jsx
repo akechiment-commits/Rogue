@@ -2753,6 +2753,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               };
             }
             }
+            /* ポータルの魔方陣：移動でその上に乗ると即発動 */
+            const _portalHere = dg.pentacles?.find(pc => pc.kind === "portal" && pc.x === p.x && pc.y === p.y);
+            if (_portalHere) {
+              if (_portalHere.cursed) {
+                const _rd = randomTeleportDest(dg, p.x, p.y);
+                if (_rd) { p.x = _rd.x; p.y = _rd.y; ml.push(`${_portalHere.name}に飲まれてランダムにテレポートした！【呪】`); }
+                else ml.push(`${_portalHere.name}が反応したがテレポート先がない…【呪】`);
+              } else if (_portalHere.pairId) {
+                const _pair = dg.pentacles.find(pc => pc !== _portalHere && pc.pairId === _portalHere.pairId);
+                if (_pair) {
+                  /* 行き先にモンスターがいたらワープ失敗 */
+                  if (dg.monsters.some(m => m.x === _pair.x && m.y === _pair.y)) {
+                    ml.push(`${_pair.name}には何かが乗っていて出られなかった！`);
+                  } else {
+                    p.x = _pair.x; p.y = _pair.y;
+                    ml.push(`ポータルから${_pair.name}へ抜けた！`);
+                  }
+                }
+              }
+              if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+            }
             autoPickup(p, st.dungeon, ml);
             /* 看板：踏んだらポップアップ表示（ダッシュ中断・メッセージログには出さない） */
             const _signStep = st.dungeon.items.find(it => it.type === "sign" && it.x === p.x && it.y === p.y);

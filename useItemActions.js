@@ -1656,7 +1656,8 @@ export function useItemActions({
             it.effect === "equal_speed"    ? "等速の魔方陣" :
             it.effect === "heal_aura"      ? "回復の魔方陣" :
             it.effect === "revival"        ? "復活の魔方陣" :
-            it.effect === "decoy"          ? "囮の魔方陣" : "魔方陣";
+            it.effect === "decoy"          ? "囮の魔方陣" :
+            it.effect === "portal"         ? "ポータルの魔方陣" : "魔方陣";
           _pName = _bcPrefix + _baseName;
         } else {
           const _nick = sr.current.nicknames?.[_penIK];
@@ -1675,6 +1676,20 @@ export function useItemActions({
           ml.push(`足元に${_pName}を描いた！ペンのインクが尽きた。(充填の大箱で補充できる)`);
         } else {
           ml.push(`足元に${_pName}を描いた！(残り${it.charges}回)`);
+        }
+        /* ポータルの魔方陣：同じフロアの未ペアのポータルとペアにする（呪いはペアにしない） */
+        if (it.effect === "portal" && !_isCursed) {
+          const _newPortal = dg.pentacles[dg.pentacles.length - 1];
+          const _candidates = dg.pentacles.filter(pc =>
+            pc !== _newPortal && pc.kind === "portal" && !pc.cursed && !pc.pairId
+          );
+          if (_candidates.length > 0) {
+            const _other = _candidates[_candidates.length - 1];
+            const _pid = uid();
+            _newPortal.pairId = _pid;
+            _other.pairId = _pid;
+            ml.push(`${_other.name}と繋がった！`);
+          }
         }
         /* 呪われた聖域の魔方陣：描いた直後に隣のマスに弾き出される */
         if (it.effect === "sanctuary" && _isCursed) {
