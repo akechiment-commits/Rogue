@@ -1520,6 +1520,64 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if ((_ms2.speed ?? 1) <= 1) _ms2._movedThisTurn = true; /* 速度1以下の敵は移動後に攻撃不可。倍速敵はそのまま攻撃できる */
         }
       }
+      /* Phase 2.5: モンスターがポータルの魔方陣に乗っていたらワープ */
+      if (st.dungeon.pentacles?.some(pc => pc.kind === "portal")) {
+        const _hasGoalP25 = p.inventory?.some(i => i.type === "goal");
+        for (const _mm of [...st.dungeon.monsters]) {
+          const _portalMon = st.dungeon.pentacles.find(pc => pc.kind === "portal" && pc.x === _mm.x && pc.y === _mm.y);
+          if (!_portalMon) continue;
+          if (_portalMon.cursed) {
+            const _rdM = randomTeleportDest(st.dungeon, _mm.x, _mm.y);
+            if (_rdM && !st.dungeon.monsters.some(m => m !== _mm && m.x === _rdM.x && m.y === _rdM.y) && !(p.x === _rdM.x && p.y === _rdM.y)) {
+              _mm.x = _rdM.x; _mm.y = _rdM.y;
+              ml.push(`${_mm.name}が${_portalMon.name}に飲まれてランダムに飛んだ！【呪】`);
+            }
+            continue;
+          }
+          /* 描画順サイクル：同フロア + 別フロア（祝福経由・キーアイテム未所持時のみ） */
+          const _cycleM = [{ portal: _portalMon, dg: st.dungeon, depth: _portalMon.floor }];
+          for (const _pc of st.dungeon.pentacles) {
+            if (_pc !== _portalMon && _pc.kind === "portal" && !_pc.cursed) {
+              _cycleM.push({ portal: _pc, dg: st.dungeon, depth: _portalMon.floor });
+            }
+          }
+          if (!_hasGoalP25 && sr.current.floors) {
+            for (const [_dStr, _fdg] of Object.entries(sr.current.floors)) {
+              if (!_fdg.pentacles) continue;
+              const _fd = parseInt(_dStr);
+              for (const _pc of _fdg.pentacles) {
+                if (_pc.kind !== "portal" || _pc.cursed) continue;
+                if (!(_portalMon.blessed || _pc.blessed)) continue;
+                _cycleM.push({ portal: _pc, dg: _fdg, depth: _fd });
+              }
+            }
+          }
+          if (_cycleM.length < 2) continue;
+          _cycleM.sort((a, b) => (a.portal.drawOrder || 0) - (b.portal.drawOrder || 0));
+          const _idxM = _cycleM.findIndex(e => e.portal === _portalMon);
+          let _destM = null;
+          for (let _offM = 1; _offM < _cycleM.length; _offM++) {
+            const _candM = _cycleM[(_idxM + _offM) % _cycleM.length];
+            /* 出口に他のモンスターがいたら不可 */
+            if (_candM.dg.monsters?.some(m => m !== _mm && m.x === _candM.portal.x && m.y === _candM.portal.y)) continue;
+            /* 同フロア出口にプレイヤーがいたら不可 */
+            if (_candM.dg === st.dungeon && _candM.portal.x === p.x && _candM.portal.y === p.y) continue;
+            _destM = _candM; break;
+          }
+          if (!_destM) continue;
+          if (_destM.dg === st.dungeon) {
+            _mm.x = _destM.portal.x; _mm.y = _destM.portal.y;
+            ml.push(`${_mm.name}がポータルから${_destM.portal.name}へ抜けた！`);
+          } else {
+            /* 別フロアへ：current dungeon から削除し、行き先 dungeon の monsters に追加 */
+            st.dungeon.monsters = st.dungeon.monsters.filter(m => m !== _mm);
+            _mm.x = _destM.portal.x; _mm.y = _destM.portal.y;
+            _destM.dg.monsters = _destM.dg.monsters || [];
+            _destM.dg.monsters.push(_mm);
+            ml.push(`${_mm.name}がポータルに飲み込まれてどこかへ消えた！`);
+          }
+        }
+      }
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
       /* 爆発の指輪：5%の確率で爆発 */
       if (p.hp > 0 && hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {

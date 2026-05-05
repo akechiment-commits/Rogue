@@ -2487,8 +2487,10 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
             _cycle.push({ portal: _pc, dg, depth: _portal.floor });
           }
         }
+        /* プレイヤーがキーアイテム所持時は別フロア候補を除外 */
+        const _hasGoalPi = p?.inventory?.some(i => i.type === "goal");
         const _allFloors = _portalFloorsGetter();
-        if (_allFloors) {
+        if (!_hasGoalPi && _allFloors) {
           for (const [_dStr, _fdg] of Object.entries(_allFloors)) {
             if (!_fdg.pentacles) continue;
             for (const _pc of _fdg.pentacles) {
