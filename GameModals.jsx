@@ -1052,7 +1052,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>
           {mode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
             : mode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
-            : mode.mode === 'duplicate' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "複製するアイテムを選んでください（2つ増える）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
+            : mode.mode === 'duplicate' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "複製するアイテムを選んでください（複製品が祝福される）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
             : mode.mode === 'identify' ? (mode.showAll ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください")
             : mode.mode === 'sell_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
             : mode.mode === 'transform_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
