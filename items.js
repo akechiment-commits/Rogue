@@ -3600,9 +3600,24 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           case "fire_bolt": { const _rd = Math.round(rng(20, 30) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された炎の魔法で"; ml.push(`炎の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "ice_bolt": { const _rd = Math.round(rng(15, 22) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された氷の魔法で"; ml.push(`氷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "lightning_magic": { const _rd = Math.round(rng(22, 32) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された雷の魔法で"; ml.push(`雷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
-          case "sleep_bolt": { const _rt = 5 + lv; p.sleepTurns = (p.sleepTurns || 0) + _rt; ml.push(`眠りの魔法が跳ね返ってきた！${_rt}ターン眠った！`); break; }
-          case "poison_bolt": { p.poisonedTurns = (p.poisonedTurns || 0) + Math.round(10 * _rfLvF); ml.push("毒の魔法が跳ね返ってきた！毒に侵された！"); break; }
-          case "paralyze_magic": { p.paralyzed = true; p.paralyzeTurns = (p.paralyzeTurns || 0) + 10; ml.push("金縛りの魔法が跳ね返ってきた！金縛りになった！(10ターン)"); break; }
+          case "sleep_bolt": {
+            const _rt = 5 + lv;
+            if ((p.statusImmune || 0) > 0) { ml.push("眠りの魔法が跳ね返ってきた！しかし状態防止中のため効かなかった！"); }
+            else if (hasAbility(p.armor, "sleep_proof")) { ml.push("眠りの魔法が跳ね返ってきた！しかし防具が防いだ！(耐眠)"); }
+            else { p.sleepTurns = (p.sleepTurns || 0) + _rt; ml.push(`眠りの魔法が跳ね返ってきた！${_rt}ターン眠った！`); }
+            break;
+          }
+          case "poison_bolt": {
+            if (hasRingEffect(p, "antidote_ring")) { ml.push("毒の魔法が跳ね返ってきたが指輪が毒を消した！"); }
+            else { p.poisonedTurns = (p.poisonedTurns || 0) + Math.round(10 * _rfLvF); p.poisoned = true; ml.push("毒の魔法が跳ね返ってきた！毒に侵された！"); }
+            break;
+          }
+          case "paralyze_magic": {
+            if ((p.statusImmune || 0) > 0) { ml.push("金縛りの魔法が跳ね返ってきた！しかし状態防止中のため効かなかった！"); }
+            else if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛りの魔法が跳ね返ってきた！しかし防具が防いだ！(耐金縛り)"); }
+            else { p.paralyzed = true; p.paralyzeTurns = (p.paralyzeTurns || 0) + 10; ml.push("金縛りの魔法が跳ね返ってきた！金縛りになった！(10ターン)"); }
+            break;
+          }
           case "teleport_other": { const _rtf = []; for (let _rty = 0; _rty < MH; _rty++) for (let _rtx = 0; _rtx < MW; _rtx++) if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => m.x === _rtx && m.y === _rty)) _rtf.push({ x: _rtx, y: _rty }); if (_rtf.length > 0) { const _rtd = pick(_rtf); p.x = _rtd.x; p.y = _rtd.y; ml.push("テレポートの魔法が跳ね返ってきた！どこかへ飛ばされた！"); } break; }
           case "drain_hp": { const _rd = Math.round(rng(15, 25) * _rfLvF); p.hp -= _rd; p.deathCause = "反射されたHP吸収の魔法で"; ml.push(`HP吸収の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "transform_magic": { const _th = rng(-10, 10); p.hp += _th; if (_th < 0) p.deathCause = "反射された変化の魔法で"; ml.push(`変化の魔法が跳ね返ってきた！${_th >= 0 ? `体に変化が...HP+${_th}` : `体に異変が...HP${_th}`}`); break; }
