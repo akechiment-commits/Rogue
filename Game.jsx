@@ -4525,20 +4525,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     window.addEventListener("keyup", onUp);
     return () => window.removeEventListener("keyup", onUp);
   }, []);
-  /* 足元矢の射撃キャンセル時に矢を足元に戻す
-     成功時は execDirection 内で既に floorArrowRef.current = null されているので no-op */
+  /* 足元矢/杖の射撃・振りキャンセル時にアイテムを足元に戻す
+     成功時は execDirection 内で既に ref が null 化されているので no-op */
   useEffect(() => {
     if (throwMode !== null) return;
-    const it = floorArrowRef.current;
-    if (!it) return;
-    floorArrowRef.current = null;
-    const s = sr.current; if (!s) return;
-    const idx = s.player.inventory.indexOf(it);
-    if (idx === -1) return;
-    s.player.inventory.splice(idx, 1);
-    const _ml = []; const _ft = new Set();
-    placeItemAt(s.dungeon, s.player.x, s.player.y, it, _ml, _ft, 0, s.player);
-    if (_ml.length) setMsgs((prev) => [...prev.slice(-80), ..._ml]);
+    for (const ref of [floorArrowRef, floorWandRef]) {
+      const it = ref.current;
+      if (!it) continue;
+      ref.current = null;
+      const s = sr.current; if (!s) continue;
+      const idx = s.player.inventory.indexOf(it);
+      if (idx === -1) continue;
+      s.player.inventory.splice(idx, 1);
+      const _ml = []; const _ft = new Set();
+      placeItemAt(s.dungeon, s.player.x, s.player.y, it, _ml, _ft, 0, s.player);
+      if (_ml.length) setMsgs((prev) => [...prev.slice(-80), ..._ml]);
+    }
   }, [throwMode]);
   useKeyHandler({
     // refs
