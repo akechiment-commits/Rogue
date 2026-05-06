@@ -469,13 +469,13 @@ export const MONS = [
       { name: "ゴブリン王",         hp: 68,  atk: 28, def: 15, exp: 50  },
     ],
   },
-  { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 12 } },
+  { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 6, max: 12 } },
     levels: [
       { name: "強インプ",           hp: 42,  atk: 23, def: 7,  exp: 45  },
       { name: "覇インプ",           hp: 65,  atk: 30, def: 11, exp: 70  },
     ],
   },
-  { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 4, max: 11 } },
+  { name: "スケルトン",   hp: 24,  atk: 19, def: 5,  exp: 25,  speed: 1,   tile: 9,  kind: "undead",   baseKind: "skeleton",      monLevel: 1, minFloor: 4,  maxFloor: 18, dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 4, max: 11 } },
     levels: [
       { name: "強スケルトン",       hp: 39,  atk: 26, def: 9,  exp: 40  },
       { name: "アンデッドナイト",   hp: 61,  atk: 32, def: 13, exp: 62  },
@@ -505,7 +505,7 @@ export const MONS = [
       { name: "赤分裂スライム",     hp: 74,  atk: 29, def: 7,  exp: 80  },
     ],
   },
-  { name: "アーチャー",   hp: 30,  atk: 18, def: 3,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",        monLevel: 1, minFloor: 8,  maxFloor: 21, subtype: "archer", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 6, max: 12 } },
+  { name: "アーチャー",   hp: 30,  atk: 18, def: 3,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",        monLevel: 1, minFloor: 8,  maxFloor: 21, subtype: "archer", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 6, max: 12 } },
     levels: [
       { name: "古参アーチャー",     hp: 47,  atk: 25, def: 7,  exp: 54  },
       { name: "弓の達人",           hp: 74,  atk: 32, def: 12, exp: 85  },
@@ -710,7 +710,7 @@ export const MONS = [
     ],
   },
   /* ===== 新型モンスター4種 ===== */
-  { name: "からめ鬼",    hp: 55,  atk: 22, def: 10, exp: 55,  speed: 1,   tile: 108, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 6, max: 9 }, intermediate: { min: 6, max: 13 } },
+  { name: "からめ鬼",    hp: 55,  atk: 22, def: 10, exp: 55,  speed: 1,   tile: 108, kind: "beast",    baseKind: "grabber",       monLevel: 1, minFloor: 5,  maxFloor: 15, subtype: "grabber", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 6, max: 13 } },
     levels: [
       { name: "強からめ鬼",         hp: 88,  atk: 32, def: 14, exp: 88  },
       { name: "覇からめ鬼",         hp: 138, atk: 43, def: 19, exp: 138 },
