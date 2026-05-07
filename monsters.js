@@ -439,7 +439,7 @@ export const MONS = [
       { name: "ゴルァバット",           hp: 22,  atk: 11, def: 4,  exp: 11, dungeonFloors: { advanced: { min: 13, max: 15 } } },
     ],
   },
-  { name: "ムカデ",       hp: 10,  atk: 4,  def: 2,  exp: 5,   speed: 1,   tile: 12,  kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,  dungeonFloors: { beginner: { min: 2, max: 5 }, intermediate: { min: 1, max: 7 }, advanced: { min: 3, max: 5 } },
+  { name: "ムカデ",       hp: 10,  atk: 4,  def: 2,  exp: 5,   speed: 1,   tile: 12,  kind: "beast",   baseKind: "centipede",     monLevel: 1, minFloor: 1,  maxFloor: 9,  dungeonFloors: { beginner: { min: 2, max: 5 }, intermediate: { min: 1, max: 7 }, advanced: { min: 1, max: 5 } },
     levels: [
       { name: "大ムカデ",               hp: 17,  atk: 7,  def: 4,  exp: 9,  dungeonFloors: { advanced: { min: 9, max: 11 } } },
       { name: "覇ムカデ",               hp: 27,  atk: 10, def: 6,  exp: 14, dungeonFloors: { advanced: { min: 15, max: 17 } } },
