@@ -388,8 +388,8 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
       }
     }
   }
-  /* 大箱 (50%) */
-  if (Math.random() < 0.5) {
+  /* 大箱 (75%) */
+  if (Math.random() < 0.75) {
     for (let a = 0; a < 40; a++) {
       const [bx, by] = pick(floorTiles);
       if (allOcc(bx, by)) continue;
@@ -398,8 +398,8 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
       break;
     }
   }
-  /* 泉 (30%) */
-  if (Math.random() < 0.3) {
+  /* 泉 (55%) */
+  if (Math.random() < 0.55) {
     for (let a = 0; a < 40; a++) {
       const [sx, sy] = pick(floorTiles);
       if (allOcc(sx, sy)) continue;
@@ -1856,55 +1856,40 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     }
   }
   const springs = [];
-  for (let i = 0; i < rng(1, 3); i++) {
-    const rm = pick(rooms);
-    const sx2 = rng(rm.x + 1, rm.x + rm.w - 2),
-      sy2 = rng(rm.y + 1, rm.y + rm.h - 2);
-    if (
-      map[sy2][sx2] === T.FLOOR &&
-      !(sx2 === su.x && sy2 === su.y) &&
-      !(sx2 === sd.x && sy2 === sd.y) &&
-      !traps.some((t) => t.x === sx2 && t.y === sy2) &&
-      !occ(sx2, sy2) &&
-      !springs.some((s) => s.x === sx2 && s.y === sy2)
-    ) {
-      springs.push({
-        id: uid(),
-        x: sx2,
-        y: sy2,
-        tile: TI.SPRING,
-        contents: [],
-      });
+  if (Math.random() < 0.25) {
+    for (let _sa = 0; _sa < 60; _sa++) {
+      const rm = pick(rooms);
+      const sx2 = rng(rm.x + 1, rm.x + rm.w - 2),
+        sy2 = rng(rm.y + 1, rm.y + rm.h - 2);
+      if (
+        map[sy2][sx2] === T.FLOOR &&
+        !(sx2 === su.x && sy2 === su.y) &&
+        !(sx2 === sd.x && sy2 === sd.y) &&
+        !traps.some((t) => t.x === sx2 && t.y === sy2) &&
+        !occ(sx2, sy2) &&
+        !springs.some((s) => s.x === sx2 && s.y === sy2)
+      ) {
+        springs.push({ id: uid(), x: sx2, y: sy2, tile: TI.SPRING, contents: [] });
+        break;
+      }
     }
   }
   const bigboxes = [];
-  for (let bi = 0; bi < 3; bi++) {
-    {
-      const br = pick(rooms);
-      for (let ba = 0; ba < 60; ba++) {
-        const bx = rng(br.x + 1, br.x + br.w - 2),
-          by = rng(br.y + 1, br.y + br.h - 2);
-        if (map[by][bx] !== T.FLOOR) continue;
-        if (bx === su.x && by === su.y) continue;
-        if (bx === sd.x && by === sd.y) continue;
-        if (traps.some((t) => t.x === bx && t.y === by)) continue;
-        if (springs.some((s) => s.x === bx && s.y === by)) continue;
-        if (items.some((i) => i.x === bx && i.y === by)) continue;
-        if (bigboxes.some((b) => b.x === bx && b.y === by)) continue;
-        if (occ(bx, by)) continue;
-        const bbt = pickBB(_BB_EXCLUDE);
-        bigboxes.push({
-          id: uid(),
-          x: bx,
-          y: by,
-          tile: TI.BIGBOX,
-          kind: bbt.kind,
-          name: bbt.name,
-          capacity: bbt.cap(),
-          contents: [],
-        });
-        break;
-      }
+  if (Math.random() < 0.35) {
+    const br = pick(rooms);
+    for (let ba = 0; ba < 60; ba++) {
+      const bx = rng(br.x + 1, br.x + br.w - 2),
+        by = rng(br.y + 1, br.y + br.h - 2);
+      if (map[by][bx] !== T.FLOOR) continue;
+      if (bx === su.x && by === su.y) continue;
+      if (bx === sd.x && by === sd.y) continue;
+      if (traps.some((t) => t.x === bx && t.y === by)) continue;
+      if (springs.some((s) => s.x === bx && s.y === by)) continue;
+      if (items.some((i) => i.x === bx && i.y === by)) continue;
+      if (occ(bx, by)) continue;
+      const bbt = pickBB(_BB_EXCLUDE);
+      bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
+      break;
     }
   }
   const vis = Array.from({ length: MH }, () => Array(MW).fill(false));
