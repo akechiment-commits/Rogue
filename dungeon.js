@@ -1855,8 +1855,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
     }
   }
+  /* 泉: 60%→0個, 28%→1個, 9%→2個, 3%→3-4個 */
+  const _springRoll = Math.random();
+  const _springCount = _springRoll < 0.03 ? rng(3, 4) : _springRoll < 0.12 ? 2 : _springRoll < 0.40 ? 1 : 0;
   const springs = [];
-  if (Math.random() < 0.25) {
+  for (let _si = 0; _si < _springCount; _si++) {
     for (let _sa = 0; _sa < 60; _sa++) {
       const rm = pick(rooms);
       const sx2 = rng(rm.x + 1, rm.x + rm.w - 2),
@@ -1874,8 +1877,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       }
     }
   }
+  /* 大箱: 55%→0個, 30%→1個, 10%→2個, 5%→3-4個 */
+  const _bbRoll = Math.random();
+  const _bbCount = _bbRoll < 0.05 ? rng(3, 4) : _bbRoll < 0.15 ? 2 : _bbRoll < 0.45 ? 1 : 0;
   const bigboxes = [];
-  if (Math.random() < 0.35) {
+  for (let bi = 0; bi < _bbCount; bi++) {
     const br = pick(rooms);
     for (let ba = 0; ba < 60; ba++) {
       const bx = rng(br.x + 1, br.x + br.w - 2),
