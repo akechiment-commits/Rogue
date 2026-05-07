@@ -748,8 +748,8 @@ export const MONS = [
   },
   { name: "バーサーカー", hp: 55,  atk: 26, def: 8,  exp: 65,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { advanced: { min: 11, max: 21 } },
     levels: [
-      { name: "バーサーカー2",      hp: 90,  atk: 40, def: 13, exp: 104, dungeonFloors: { advanced: { min: 25, max: 27 } } },
-      { name: "バーサーカー99",     hp: 145, atk: 58, def: 20, exp: 166, dungeonFloors: { advanced: { min: 28, max: 30 } } },
+      { name: "バーサーカー2",      hp: 90,  atk: 40, def: 13, exp: 104, dungeonFloors: { advanced: { min: 26, max: 27 } } },
+      { name: "バーサーカー99",     hp: 145, atk: 58, def: 20, exp: 166, dungeonFloors: { advanced: { min: 28, max: 29 } } },
     ],
   },
   { name: "ルカチュウ", hp: 35, atk: 18, def: 4,  exp: 58,  speed: 1,   tile: 8, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf", magicImmune: true, dungeonFloors: { advanced: { min: 11, max: 21 } },
