@@ -786,6 +786,14 @@ export const MONS = [
       { name: "ダークネスⅢ",       hp: 163, atk: 56, def: 21, exp: 238 },
     ],
   },
+  /* ===== ラクガキ魔：同部屋でプレイヤー足元に魔方陣を描く ===== */
+  { name: "ラクガキ魔",   hp: 22,  atk: 9,  def: 3,  exp: 36,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "rakugakima",    monLevel: 1, minFloor: 10, maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 17 }, advanced: { min: 8, max: 15 } },
+    desc: "同じ部屋にいると足元に魔方陣を描いてくる。レベルが上がるほど凶悪な魔方陣に。",
+    levels: [
+      { name: "ラクガキ妖精",       hp: 42,  atk: 17, def: 7,  exp: 70,  dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 15, max: 22 } } },
+      { name: "ラクガキバンシー",   hp: 68,  atk: 25, def: 12, exp: 118, dungeonFloors: { advanced: { min: 22, max: 28 } } },
+    ],
+  },
 ];
 
 /* ===== モンスターレベルアップテーブル (MONS の levels から自動生成) ===== */
@@ -2769,6 +2777,11 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m._defHalfMagicReady = true;
         return;
       }
+      /* pentaclePainter：同部屋で25%魔方陣描画を予約（移動せず攻撃フェーズで発動） */
+      if (m.subtype === "pentaclePainter" && !m.sealed && _sameRoom && _rAtks && Math.random() < 0.25) {
+        m._pentacleDrawReady = true;
+        return;
+      }
     }
     /* ドラゴンLv3：canSee不要なので別途判定 */
     if (_moveOnly && m.aware && m.baseKind === "dragon" && !m.sealed && (m.monLevel || 1) >= 3) {
@@ -3541,6 +3554,61 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             !(_kpNext.x === pl.x && _kpNext.y === pl.y)) {
           m.dir = { x: _kpNext.x - m.x, y: _kpNext.y - m.y };
           m.x = _kpNext.x; m.y = _kpNext.y;
+        }
+      }
+      return;
+    }
+
+    /* ── pentaclePainter（ラクガキ魔等）：同部屋でプレイヤー足元に魔方陣を描く ── */
+    if (m.subtype === "pentaclePainter" && !m.sealed) {
+      if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
+        if (canSee && m._pentacleDrawReady) {
+          delete m._pentacleDrawReady;
+          /* 魔封じチェック */
+          const _ppRoom = findRoom(rooms, m.x, m.y);
+          const _ppSeal = dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed) ||
+            (_ppRoom && dg.pentacles?.some(pc =>
+              pc.kind === "magic_seal" &&
+              pc.x >= _ppRoom.x && pc.x < _ppRoom.x + _ppRoom.w &&
+              pc.y >= _ppRoom.y && pc.y < _ppRoom.y + _ppRoom.h
+            ));
+          if (_ppSeal) {
+            ml.push(`${m.name}の魔方陣が魔封じの魔方陣に封じられた！`);
+          } else if (dg.pentacles?.some(pc => pc.x === pl.x && pc.y === pl.y)) {
+            /* 既に魔方陣あり → 描けない */
+          } else {
+            m.turnAttacks++;
+            const _ppLv = m.monLevel || 1;
+            const _ppKinds1 = [["thunder_trap","雷の魔方陣"],["vulnerability","脆弱の魔方陣"],["trap_gen","罠の魔方陣"],["stone_throw","石飛ばしの魔方陣"]];
+            const _ppKinds2 = [["explosion","爆発の魔方陣"],["decoy","囮の魔方陣"],["knockback_aura","吹き飛ばしの魔方陣"],["gravity","重力の魔方陣"],["equal_speed","等速の魔方陣"]];
+            const _ppKinds3 = [["sanctuary","聖域の魔方陣"],["magic_seal","魔封じの魔方陣"],["heal_aura","回復の魔方陣"]];
+            const _ppPool = _ppLv >= 3 ? _ppKinds3 : _ppLv >= 2 ? _ppKinds2 : _ppKinds1;
+            const [_ppKind, _ppName] = pick(_ppPool);
+            const _ppCursed = _ppLv >= 3;
+            dg.pentacles = dg.pentacles || [];
+            dg.pentacles.push({ x: pl.x, y: pl.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed });
+            ml.push(`${m.name}がプレイヤーの足元に${_ppName}を描いた！`);
+            return;
+          }
+        }
+        /* 魔封じ or 既存魔方陣 or 不発 → 隣接なら通常攻撃 */
+        if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc) {
+          m.turnAttacks++;
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          return;
+        }
+      }
+      /* 移動フェーズ */
+      if (!_attackOnly) {
+        const _ppTx = canSee ? pl.x : m.lastPx;
+        const _ppTy = canSee ? pl.y : m.lastPy;
+        const _ppNext = bfsNext(map, [], m.x, m.y, _ppTx, _ppTy, m, 40, dg.pentacles, _effFloat);
+        if (_ppNext &&
+            !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _ppNext.x && pc.y === _ppNext.y) &&
+            !dg.monsters.some(o => o !== m && o.x === _ppNext.x && o.y === _ppNext.y) &&
+            !(_ppNext.x === pl.x && _ppNext.y === pl.y)) {
+          m.dir = { x: _ppNext.x - m.x, y: _ppNext.y - m.y };
+          m.x = _ppNext.x; m.y = _ppNext.y;
         }
       }
       return;
