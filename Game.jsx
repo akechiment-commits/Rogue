@@ -1340,7 +1340,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       /* 雷の魔方陣：真上にいると毎ターンダメージ（呪いは回復） */
       const _thunderPent = st.dungeon.pentacles?.find((pc) => pc.kind === "thunder_trap" && pc.x === p.x && pc.y === p.y);
-      if (_thunderPent && p.hp > 0) {
+      if (_thunderPent && p.hp > 0 && !inMagicSealRoom(p.x, p.y, st.dungeon)) {
         if (!_thunderPent.cursed && hasCursedExplosionPentacle(st.dungeon)) {
           ml.push("呪われた爆発の魔方陣が雷を打ち消した！");
         } else if (_thunderPent.cursed) {
@@ -1601,7 +1601,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap") && !hasCursedExplosionPentacle(st.dungeon)) {
         for (const _m of [...st.dungeon.monsters]) {
           const _tp = st.dungeon.pentacles.find((pc) => pc.kind === "thunder_trap" && pc.x === _m.x && pc.y === _m.y);
-          if (_tp) {
+          if (_tp && !inMagicSealRoom(_tp.x, _tp.y, st.dungeon)) {
             if (_tp.cursed) {
               if (_m.kind === "undead") {
                 _m.hp -= 25; ml.push(`${_tp.name}の力が${_m.name}を傷つけた！25ダメージ！(アンデッド)`);
@@ -1628,10 +1628,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _pcRoom = findRoom(_dg2.rooms, _pc.x, _pc.y);
           const _floorWide = _pc.blessed; // 祝福はフロア全体
           const _inRange = _floorWide || (_pRoom && _pcRoom && _pRoom === _pcRoom);
+          /* 魔封じの魔方陣：自分以外の魔方陣の効果を封じる */
+          const _pcMagicSealed = _pc.kind !== "magic_seal" && inMagicSealRoom(_pc.x, _pc.y, _dg2);
           /* --- 明かりの魔方陣 --- */
           /* (rendering only; handled in refreshFOV override below) */
           /* --- テレポートの魔方陣：各生物が独立して毎ターン10%でテレポート --- */
-          if (_pc.kind === "teleport_trap" && !_pc.cursed) {
+          if (!_pcMagicSealed && _pc.kind === "teleport_trap" && !_pc.cursed) {
             const _tpFloorBlocked = _dg2.pentacles.some(pc2 => pc2 !== _pc && pc2.kind === "teleport_trap" && pc2.cursed);
             if (!_tpFloorBlocked) {
                 /* プレイヤーが対象範囲内なら個別抽選 */
@@ -1652,7 +1654,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
           }
           /* --- 罠の魔方陣：毎ターン30%で罠が増える --- */
-          if (_pc.kind === "trap_gen" && _inRange && Math.random() < 0.1) {
+          if (!_pcMagicSealed && _pc.kind === "trap_gen" && _inRange && Math.random() < 0.1) {
             if (_pc.cursed) {
               /* 呪い：フロア内の罠をランダムに1つ消す（永続回転板は除外） */
               const _delCands = _dg2.traps.filter(t => !t.permanent);
@@ -1687,7 +1689,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
           }
           /* --- 石飛ばしの魔方陣：毎ターン25%で部屋内キャラに魔法の石を飛ばす --- */
-          if (_pc.kind === "stone_throw" && _pcRoom && Math.random() < 0.25) {
+          if (!_pcMagicSealed && _pc.kind === "stone_throw" && _pcRoom && Math.random() < 0.25) {
             /* 部屋内の全キャラ（プレイヤー＋モンスター）をターゲット候補に */
             const _stTargets = [];
             const _plInRoom = _pRoom === _pcRoom;
@@ -1777,7 +1779,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
           }
           /* --- 回復の魔方陣：毎ターン部屋内全員に5(祝10)回復 / 呪いは逆に5ダメージ --- */
-          if (_pc.kind === "heal_aura" && _pcRoom) {
+          if (!_pcMagicSealed && _pc.kind === "heal_aura" && _pcRoom) {
             const _hBase = _pc.blessed ? 10 : 5;
             /* プレイヤーへの効果 */
             if (_inRange) {
@@ -1818,6 +1820,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _pRoom3 = findRoom(_dg3.rooms, p.x, p.y);
         for (const _lpc of _dg3.pentacles) {
           if (_lpc.kind !== "light") continue;
+          if (inMagicSealRoom(_lpc.x, _lpc.y, _dg3)) continue;
           if (_lpc.cursed) {
             /* 呪い：プレイヤーが同じ部屋にいるなら視界を1マスに制限 */
             const _lRoom = findRoom(_dg3.rooms, _lpc.x, _lpc.y);
