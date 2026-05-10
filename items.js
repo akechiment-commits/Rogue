@@ -3257,6 +3257,7 @@ export function inCursedMagicSealRoom(x, y, dg) {
 /* 遠投の魔方陣判定: "farcast"|"cursed"|false */
 export function getFarcastMode(x, y, dg) {
   if (!dg.pentacles?.length || !dg.rooms) return false;
+  if (inMagicSealRoom(x, y, dg)) return false;
   /* 祝福された遠投の魔方陣があればフロア全体 */
   const blessedFc = dg.pentacles.find(pc => pc.kind === "farcast" && pc.blessed);
   if (blessedFc) return "farcast";
