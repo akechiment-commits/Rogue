@@ -1051,7 +1051,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       /* moveOnly / both: ターン蓄積・turnAttacksリセットは移動フェーズで */
       /* 等速の魔方陣：部屋内では速度を固定する（通常=1回, 祝福=2回, 呪い=0.5回） */
-      const _eqPcM = dg.pentacles?.find(pc => {
+      const _eqPcM = !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.find(pc => {
         if (pc.kind !== "equal_speed") return false;
         const _pcRoom = findRoom(dg.rooms, pc.x, pc.y);
         return _pcRoom && findRoom(dg.rooms, m.x, m.y) === _pcRoom;
@@ -1331,8 +1331,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           }
         }
       }
-      /* 呪われた聖域の魔方陣：強制的に上に乗ると即死 */
-      const _cursedSancOn = st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
+      /* 呪われた聖域の魔方陣：強制的に上に乗ると即死（魔封じで無効） */
+      const _cursedSancOn = !inMagicSealRoom(p.x, p.y, st.dungeon) && st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
       if (_cursedSancOn && p.hp > 0) {
         p.deathCause = `${_cursedSancOn.name}により`;
         p.hp = 0;
@@ -1383,7 +1383,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       delete p._eqSpeedAutoAdv;
       const _isSlowAutoAdv = p._slowAutoAdv || false;
       delete p._slowAutoAdv;
-      const _eqPcP = st.dungeon.pentacles?.find(pc => {
+      const _eqPcP = !inMagicSealRoom(p.x, p.y, st.dungeon) && st.dungeon.pentacles?.find(pc => {
         if (pc.kind !== "equal_speed") return false;
         const _pRm = findRoom(st.dungeon.rooms, pc.x, pc.y);
         return _pRm && findRoom(st.dungeon.rooms, p.x, p.y) === _pRm;
@@ -2494,7 +2494,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 }
               }
               /* 吹き飛ばしの魔方陣：プレイヤーが近接攻撃したモンスターを吹き飛ばす */
-              if (attackMon.hp > 0 && dg.pentacles?.length > 0) {
+              if (attackMon.hp > 0 && dg.pentacles?.length > 0 && !inMagicSealRoom(p.x, p.y, dg)) {
                 const _kbRoom = findRoom(dg.rooms, p.x, p.y);
                 const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
                   pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);

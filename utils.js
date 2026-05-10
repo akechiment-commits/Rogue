@@ -140,8 +140,19 @@ export const isNarrowPassage = (map, x, y) => {
   return n <= 2;
 };
 
+/* 魔封じの魔方陣アクティブ判定（循環インポート回避のためutils.js内インライン実装） */
+function _isMagicSealActive(dg, x, y) {
+  if (!dg.pentacles?.length || !dg.rooms) return false;
+  if (dg.pentacles.some(pc => pc.kind === "magic_seal" && pc.blessed && !pc.cursed)) return true;
+  const room = dg.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+  if (!room) return false;
+  return dg.pentacles.some(pc => pc.kind === "magic_seal" && !pc.cursed &&
+    pc.x >= room.x && pc.x < room.x + room.w && pc.y >= room.y && pc.y < room.y + room.h);
+}
+
 /* 脆弱の魔方陣チェック: 指定座標が属する部屋内に vulnerability pentacle があるか */
 export function findVulnPentacle(dg, x, y) {
+  if (_isMagicSealActive(dg, x, y)) return null;
   const room = [...(dg.rooms || []), ...(dg.hiddenRooms || [])].find(
     r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
   );
@@ -156,6 +167,7 @@ const _inRoom = (room, x, y) => x >= room.x && x < room.x + room.w && y >= room.
 /* 重力の魔方陣チェック（通常/祝福）: 座標が非呪い重力ペンタクルの影響下か */
 export function hasGravityPentacle(dg, x, y) {
   if (!dg.pentacles?.length) return false;
+  if (_isMagicSealActive(dg, x, y)) return false;
   /* 1パス目：フロア全体祝福を早期判定。通常があれば後で部屋判定 */
   let _hasNormal = false;
   for (const pc of dg.pentacles) {
@@ -178,6 +190,7 @@ export function hasGravityPentacle(dg, x, y) {
 /* 呪われた重力の魔方陣チェック: 座標が呪い重力ペンタクルの影響下か */
 export function hasCursedGravityPentacle(dg, x, y) {
   if (!dg.pentacles?.length) return false;
+  if (_isMagicSealActive(dg, x, y)) return false;
   /* 呪い重力は同部屋判定のみ。posRoomを1度だけ計算 */
   let _hasCursed = false;
   for (const pc of dg.pentacles) {
@@ -199,6 +212,7 @@ export function hasCursedGravityPentacle(dg, x, y) {
  * 戻り値: "dodge" | "sure" | null */
 export function getDodgePentacleMode(dg, x, y) {
   if (!dg.pentacles?.length) return null;
+  if (_isMagicSealActive(dg, x, y)) return null;
   /* 1パス目：フロア全体祝福/呪い早期判定。通常があれば後で部屋判定 */
   let _hasNormal = false;
   for (const pc of dg.pentacles) {
