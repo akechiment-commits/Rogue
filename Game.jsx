@@ -18,7 +18,7 @@ import {
   wallBreakDrop, makePot, placeItemAt,
   setPitfallBag, clearPitfallBag, applyWandEffect,
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
-  WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom,
+  WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
@@ -1413,7 +1413,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if (_theal > 0) { p.hp += _theal; ml.push(`${_thunderPent.name}の力でHPが${_theal}回復した！`); }
         } else {
           const _thasLR = hasAbility(p.armor, "lightning_resist") || hasAbility(p.armor, "all_resist");
-          const _tdmg = Math.max(1, Math.floor((_thunderPent.blessed ? 50 : 25) * (_thasLR ? 0.5 : 1)));
+          const _tcmsB = inCursedMagicSealRoom(p.x, p.y, st.dungeon) ? 2 : 1;
+          const _tdmg = Math.max(1, Math.floor((_thunderPent.blessed ? 50 : 25) * (_thasLR ? 0.5 : 1) * _tcmsB));
           p.deathCause = `${_thunderPent.name}の雷撃により`;
           p.hp -= _tdmg;
           ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！${_thasLR ? "（雷耐性）" : ""}`);
@@ -1740,7 +1741,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
             } else {
               const _tpWeakMult = _m.elemWeak === "thunder" ? 1.5 : 1;
-              const _tmdmg = Math.round((_tp.blessed ? 50 : 25) * _tpWeakMult);
+              const _tpcmsB = inCursedMagicSealRoom(_tp.x, _tp.y, st.dungeon) ? 2 : 1;
+              const _tmdmg = Math.round((_tp.blessed ? 50 : 25) * _tpWeakMult * _tpcmsB);
               _m.hp -= _tmdmg;
               ml.push(`${_tp.name}が${_m.name}を打った！${_tmdmg}ダメージ！${_tpWeakMult > 1 ? "雷弱点！" : ""}`);
               if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, st.dungeon, p, ml, lu); }
@@ -1857,7 +1859,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   }
                 }
               } else {
-                const _dmg = _pc.blessed ? _baseDmg * 2 : _baseDmg;
+                const _stcmsB = inCursedMagicSealRoom(_stTgtX, _stTgtY, _dg2) ? 2 : 1;
+                const _dmg = (_pc.blessed ? _baseDmg * 2 : _baseDmg) * _stcmsB;
                 if (_stTgt.kind === "player") {
                   p.deathCause = `${_pc.name}の魔法の石により`;
                   p.hp -= _dmg;
@@ -1912,9 +1915,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             /* プレイヤーへの効果 */
             if (_inRange) {
               if (_pc.cursed) {
+                const _hcmsB = inCursedMagicSealRoom(p.x, p.y, _dg2) ? 2 : 1;
+                const _hDmg = _hBase * _hcmsB;
                 p.deathCause = `${_pc.name}の呪いにより`;
-                p.hp -= _hBase;
-                ml.push(`${_pc.name}の呪いで${_hBase}ダメージを受けた！`);
+                p.hp -= _hDmg;
+                ml.push(`${_pc.name}の呪いで${_hDmg}ダメージを受けた！`);
               } else {
                 const _ph = Math.min(_hBase, p.maxHp - p.hp);
                 if (_ph > 0) { p.hp += _ph; }
@@ -1926,8 +1931,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _hmRoom = findRoom(_dg2.rooms, _hm.x, _hm.y);
               if (_hmRoom !== _pcRoom) continue;
               if (_pc.cursed) {
-                _hm.hp -= _hBase;
-                ml.push(`${_pc.name}の呪いで${_hm.name}が${_hBase}ダメージを受けた！`);
+                const _hmcmsB = inCursedMagicSealRoom(_hm.x, _hm.y, _dg2) ? 2 : 1;
+                const _hmDmg = _hBase * _hmcmsB;
+                _hm.hp -= _hmDmg;
+                ml.push(`${_pc.name}の呪いで${_hm.name}が${_hmDmg}ダメージを受けた！`);
                 if (_hm.hp <= 0) { trackMonster(_hm); killMonster(_hm, _dg2, p, ml, lu); }
               } else if (_hm.kind === "undead") {
                 _hm.hp -= _hBase;
