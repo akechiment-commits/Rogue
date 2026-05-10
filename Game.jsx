@@ -2423,6 +2423,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 }
                 acted = true;
               } else {
+              /* タトゥーバード: 50%ひらりと回避 */
+              const _tbDodge = attackMon.subtype === "tattoobird" && Math.random() < 0.50;
+              if (_tbDodge) {
+                ml.push(`${attackMon.name}はひらりとかわした！`);
+                _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
+                acted = true;
+              } else {
+              /* フェザーガード: 50%ダメージ半減 */
+              if (attackMon.subtype === "tattoobird" && Math.random() < 0.50) {
+                d = Math.max(1, Math.floor(d / 2));
+                ml.push(`フェザーガード！${attackMon.name}はダメージを半減した！`);
+              }
               attackMon.hp -= d;
               if (attackMon.type === "shopkeeper" && attackMon.state !== "hostile") {
                 attackMon.state = "hostile";
@@ -2535,6 +2547,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 ml.push(`武器の反動で${_rcd}ダメージを受けた！`);
               }
               acted = true;
+              } /* end !_tbDodge */
               } /* end guardian else */
               } /* end else (hit) */
             /* 射撃の指輪：命中/外れに関わらず発動（矢種別の本来の効果を再現） */
