@@ -260,10 +260,14 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   if (hasAbility(pl.armor, "frail")) dmg += 3;
   /* 祝福防具：近接ダメージ-2 */
   if (pl.armor?.blessed) dmg = Math.max(1, dmg - 2);
+  /* タトゥーバード: 25%で痛恨の一撃（ダメージ2倍） */
+  const _tbCrit = m.subtype === "tattoobird" && Math.random() < 0.25;
+  if (_tbCrit) dmg *= 2;
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
   ml.push(msgFn(dmg));
+  if (_tbCrit) ml.push("痛恨の一撃！");
   if (!skipThorn && hasAbility(pl.armor, "thorn") && dmg > 0) {
     const td = Math.max(1, Math.floor(dmg / 3));
     m.hp -= td;
@@ -786,6 +790,14 @@ export const MONS = [
       { name: "ダークネスⅢ",       hp: 163, atk: 56, def: 21, exp: 238 },
     ],
   },
+  /* ===== タトゥーバード：回避+フェザーガード+痛恨の一撃 ===== */
+  { name: "タトゥーバード", hp: 28,  atk: 12, def: 3,  exp: 42,  speed: 1,   tile: 112, kind: "beast",   baseKind: "tattoobird",    monLevel: 1, minFloor: 10, maxFloor: 30, float: true, subtype: "tattoobird", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 18 }, advanced: { min: 8, max: 16 } },
+    desc: "浮遊する鳥。近接攻撃を50%の確率でひらりとかわし、当たっても50%でフェザーガードが発動しダメージを半減。自身の攻撃は25%で痛恨の一撃。",
+    levels: [
+      { name: "スカーバード",   hp: 52,  atk: 21, def: 7,  exp: 78,  dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 14, max: 22 } } },
+      { name: "クレストバード", hp: 85,  atk: 30, def: 13, exp: 135, speed: 2,  dungeonFloors: { advanced: { min: 22, max: 28 } } },
+    ],
+  },
   /* ===== ラクガキ魔：同部屋でプレイヤー足元に魔方陣を描く ===== */
   { name: "ラクガキ魔",   hp: 22,  atk: 9,  def: 3,  exp: 36,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "rakugakima",    monLevel: 1, minFloor: 10, maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 17 }, advanced: { min: 8, max: 15 } },
     desc: "同じ部屋にいると足元に魔方陣を描いてくる。レベルが上がるほど凶悪な魔方陣に。",
@@ -838,6 +850,10 @@ export function monLevelUp(mon, dg, ml) {
   if (mon.baseKind === "gelcube" && nextLevel === 3) {
     mon.speed = 1;
     ml.push(`${oldName}がレベルアップして${mon.name}になった！動きが等速になった！`);
+  } else if (mon.baseKind === "tattoobird" && nextLevel === 3) {
+    mon.speed = 2;
+    mon.baseSpeed = 2;
+    ml.push(`${oldName}がレベルアップして${mon.name}になった！速度が2倍になった！`);
   } else {
     ml.push(`${oldName}がレベルアップして${mon.name}になった！`);
   }

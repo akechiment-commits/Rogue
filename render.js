@@ -98,6 +98,7 @@ export const TILE_NAMES = {
   109: "leprechaun",
   110: "sign",
   111: "rakugaki",
+  112: "tattoobird",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -212,6 +213,7 @@ export const TILE_RENDER = {
   109: { bg: null, fg: "#22aa44", ch: "L" }, /* レプラコーン */
   110: { bg: null, fg: "#8B4513", ch: "♦" }, /* 看板         */
   111: { bg: null, fg: "#cc44ff", ch: "m" }, /* ラクガキ魔   */
+  112: { bg: null, fg: "#22ccff", ch: "B" }, /* タトゥーバード */
 };
 
 /* Canvas drawing helper */
