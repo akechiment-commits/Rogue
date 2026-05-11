@@ -1802,16 +1802,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _luFn = opts.luFn || (() => {});
   const _onHit = opts.onPlayerHit;
   const _onMiss = opts.onPlayerMiss;
-  /* 重力の魔方陣：浮遊系モンスターの実効float（重力ゾーン内では浮遊不可） */
-  const _effFloat = m.float && !hasGravityPentacle(dg, m.x, m.y);
-  /* 呪い重力の魔方陣：ゾーン内モンスターは浮遊状態扱い */
-  const _isCursedGravFloat = !m.float && hasCursedGravityPentacle(dg, m.x, m.y);
+  /* 重力の魔方陣：浮遊系モンスターの実効float（魔法無効モンスターは重力の影響を受けない） */
+  const _effFloat = m.float && (m.magicImmune || !hasGravityPentacle(dg, m.x, m.y));
+  /* 呪い重力の魔方陣：ゾーン内モンスターは浮遊状態扱い（魔法無効モンスターには無効） */
+  const _isCursedGravFloat = !m.float && !m.magicImmune && hasCursedGravityPentacle(dg, m.x, m.y);
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
   /* 目覚めたターンは行動しない（袋叩き防止） */
   if (m._justWoke) { m._justWoke = false; return; }
-  /* 囮のペン（祝福）: 仮眠中でも起こして誘導（dormant チェックより先に処理）（魔封じで無効） */
-  if (m.dormant && !m.dormantHouse && !inMagicSealRoom(m.x, m.y, dg) &&
+  /* 囮のペン（祝福）: 仮眠中でも起こして誘導（dormant チェックより先に処理）（魔封じ・魔法無効で無効） */
+  if (m.dormant && !m.dormantHouse && !m.magicImmune && !inMagicSealRoom(m.x, m.y, dg) &&
       dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
     m.dormant = false;
     m.aware = true;
@@ -2546,14 +2546,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   } else if (m.aware && m.x === m.lastPx && m.y === m.lastPy) {
     m.aware = false;
   }
-  /* 囮のペン（呪い）: フロア全敵が常にプレイヤーを認識して追跡（魔封じで無効） */
-  if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.cursed)) {
+  /* 囮のペン（呪い）: フロア全敵が常にプレイヤーを認識して追跡（魔封じ・魔法無効で無効） */
+  if (!m.magicImmune && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.cursed)) {
     m.aware = true;
     m.lastPx = pl.x;
     m.lastPy = pl.y;
   }
-  /* 囮のペン（祝福）: フロア全敵に囮への認識を付与（魔封じで無効） */
-  if (!m.aware && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
+  /* 囮のペン（祝福）: フロア全敵に囮への認識を付与（魔封じ・魔法無効で無効） */
+  if (!m.aware && !m.magicImmune && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
     m.aware = true;
   }
 
@@ -2660,7 +2660,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* ===== 囮のペン（通常・祝福）: 特技含む全行動を囮に誘導 ===== */
     /* プレイヤーが魔方陣の上にいる場合は通常行動（下の special handlers に委ねる） */
     {
-      const _decoyPc = dg.pentacles?.find(pc => pc.kind === "decoy" && !pc.cursed);
+      const _decoyPc = !m.magicImmune && dg.pentacles?.find(pc => pc.kind === "decoy" && !pc.cursed);
       if (_decoyPc && !(pl.x === _decoyPc.x && pl.y === _decoyPc.y)) {
         const _decoyRoom = findRoom(rooms, _decoyPc.x, _decoyPc.y);
         const _affByDecoy = _decoyPc.blessed

@@ -1055,8 +1055,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         return;
       }
       /* moveOnly / both: ターン蓄積・turnAttacksリセットは移動フェーズで */
-      /* 等速の魔方陣：部屋内では速度を固定する（通常=1回, 祝福=2回, 呪い=0.5回） */
-      const _eqPcM = !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.find(pc => {
+      /* 等速の魔方陣：部屋内では速度を固定する（通常=1回, 祝福=2回, 呪い=0.5回）（魔法無効モンスターには無効） */
+      const _eqPcM = !m.magicImmune && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.find(pc => {
         if (pc.kind !== "equal_speed") return false;
         const _pcRoom = findRoom(dg.rooms, pc.x, pc.y);
         return _pcRoom && findRoom(dg.rooms, m.x, m.y) === _pcRoom;
@@ -1730,7 +1730,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap") && !hasCursedExplosionPentacle(st.dungeon)) {
         for (const _m of [...st.dungeon.monsters]) {
           const _tp = st.dungeon.pentacles.find((pc) => pc.kind === "thunder_trap" && pc.x === _m.x && pc.y === _m.y);
-          if (_tp && !inMagicSealRoom(_tp.x, _tp.y, st.dungeon)) {
+          if (_tp && !_m.magicImmune && !inMagicSealRoom(_tp.x, _tp.y, st.dungeon)) {
             if (_tp.cursed) {
               if (_m.kind === "undead") {
                 _m.hp -= 25; ml.push(`${_tp.name}の力が${_m.name}を傷つけた！25ダメージ！(アンデッド)`);
@@ -1774,6 +1774,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
               /* 魔方陣と同じ部屋にいるモンスターを個別抽選（祝福ならフロア全体） */
               for (const _tpM of _dg2.monsters) {
+                if (_tpM.magicImmune) continue;
                 const _tpMRoom = findRoom(_dg2.rooms, _tpM.x, _tpM.y);
                 if ((_pc.blessed ? true : _tpMRoom === _pcRoom) && Math.random() < 0.1) {
                   const _tp = randomTeleportDest(_dg2, _tpM.x, _tpM.y);
@@ -1825,6 +1826,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             const _plInRoom = _pRoom === _pcRoom;
             if (_plInRoom) _stTargets.push({ kind: "player" });
             for (const _stM of _dg2.monsters) {
+              if (_stM.magicImmune) continue;
               const _stMRoom = findRoom(_dg2.rooms, _stM.x, _stM.y);
               if (_stMRoom === _pcRoom) _stTargets.push({ kind: "monster", m: _stM });
             }
@@ -1925,9 +1927,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (_ph > 0) { p.hp += _ph; }
               }
             }
-            /* モンスターへの効果 */
+            /* モンスターへの効果（魔法無効モンスターはスキップ） */
             for (const _hm of _dg2.monsters) {
               if (_hm.hp <= 0) continue;
+              if (_hm.magicImmune) continue;
               const _hmRoom = findRoom(_dg2.rooms, _hm.x, _hm.y);
               if (_hmRoom !== _pcRoom) continue;
               if (_pc.cursed) {
@@ -2532,9 +2535,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if (_hasThunderElem && attackMon.elemWeak === "thunder") {
                 d = Math.floor(d * _thunderElemMult);
               }
-              /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減 */
+              /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減（魔法無効モンスターには無効） */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
-              const _vulnPc = _vulnRoom && dg.pentacles?.find((pc) => pc.kind === "vulnerability" && pc.x >= _vulnRoom.x && pc.x < _vulnRoom.x + _vulnRoom.w && pc.y >= _vulnRoom.y && pc.y < _vulnRoom.y + _vulnRoom.h);
+              const _vulnPc = !attackMon.magicImmune && _vulnRoom && dg.pentacles?.find((pc) => pc.kind === "vulnerability" && pc.x >= _vulnRoom.x && pc.x < _vulnRoom.x + _vulnRoom.w && pc.y >= _vulnRoom.y && pc.y < _vulnRoom.y + _vulnRoom.h);
               if (_vulnPc) d = _vulnPc.cursed ? Math.max(1, Math.floor(d / 2)) : d * (_vulnPc.blessed ? 4 : 2);
               /* 壁の中の壁歩きモンスターへの攻撃：ダメージ半減 */
               const _atkInWall = attackMon.wallWalker && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
@@ -2622,7 +2625,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 }
               }
               /* 吹き飛ばしの魔方陣：プレイヤーが近接攻撃したモンスターを吹き飛ばす */
-              if (attackMon.hp > 0 && dg.pentacles?.length > 0 && !inMagicSealRoom(p.x, p.y, dg)) {
+              if (attackMon.hp > 0 && !attackMon.magicImmune && dg.pentacles?.length > 0 && !inMagicSealRoom(p.x, p.y, dg)) {
                 const _kbRoom = findRoom(dg.rooms, p.x, p.y);
                 const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
                   pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
