@@ -102,7 +102,17 @@ function TileIcon({ item, size = 16 }) {
 }
 
 /* ===== Tile Editor Modal ===== */
-export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile, setCtLoaded }) {
+const TILESET_LABELS = {
+  default: 'デフォルト',
+  mon1: 'スタイル1',
+  mon2: 'スタイル2',
+  mon3: 'スタイル3',
+  mon4: 'スタイル4',
+  mon5: 'スタイル5',
+  mon6: 'スタイル6',
+};
+
+export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile, setCtLoaded, loadTileset, currentTileset }) {
   if (!show) return null;
   return (
     <div
@@ -175,6 +185,34 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
             </button>
           </div>
         </div>
+        {loadTileset && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ color: "#aaa", fontSize: 12, marginBottom: 6 }}>グラフィックスタイル</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {Object.entries(TILESET_LABELS).map(([key, label]) => {
+                const active = (currentTileset || 'default') === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => loadTileset(key)}
+                    style={{
+                      padding: "4px 10px",
+                      background: active ? "#1a3a1a" : "#1a1a1a",
+                      color: active ? "#4f4" : "#aaa",
+                      border: `1px solid ${active ? "#4a7a4a" : "#333"}`,
+                      borderRadius: 4,
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontWeight: active ? "bold" : "normal",
+                    }}
+                  >
+                    {active ? `✓ ${label}` : label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div style={{ color: "#666", fontSize: 13, marginBottom: 10 }}>
           各タイルに好きな画像（PNG/JPG/GIF等）を設定できます。設定はブラウザに保存されます。
         </div>

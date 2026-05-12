@@ -30,6 +30,7 @@ import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPen
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
+import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, MON_CELL, CHARA_CELL } from "./tilesetMap.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
@@ -154,6 +155,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const [mobile, setMobile] = useState(false);
   const [ctLoaded, setCtLoaded] = useState(0);
   const [showTileEditor, setShowTileEditor] = useState(false);
+  const [currentTileset, setCurrentTileset] = useState(() => localStorage.getItem('roguelike_tileset') || 'default');
   const [landscape, setLandscape] = useState(false);
   const [portraitSrc, setPortraitSrc] = useState(null);
   const loadCustomTile = (idx, file) => {
@@ -193,6 +195,70 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
     localStorage.removeItem(`roguelike_tile_${idx}`);
   };
+
+  /* ===== タイルセット一括読み込み ===== */
+  const loadTileset = useCallback(async (name) => {
+    /* ベースとして生成タイルをリセット */
+    clearCustomTileImages();
+    const gen = generateTileImages();
+    for (const [idx, canvas] of Object.entries(gen)) {
+      customTileImages[parseInt(idx)] = canvas;
+    }
+
+    if (name === 'default') {
+      setCurrentTileset('default');
+      localStorage.setItem('roguelike_tileset', 'default');
+      setCtLoaded(c => c + 1);
+      return;
+    }
+
+    const _loadImg = src => new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = src;
+    });
+
+    const _cut = (srcCanvas, row, col, cell) => {
+      const out = document.createElement('canvas');
+      out.width = cell; out.height = cell;
+      out.getContext('2d').drawImage(srcCanvas, col * cell, row * cell, cell, cell, 0, 0, cell, cell);
+      return out;
+    };
+
+    try {
+      const [monImg, charaImg] = await Promise.all([
+        _loadImg(`/tiles/${name}.png`),
+        _loadImg('/tiles/chara1.png').catch(() => null),
+      ]);
+
+      /* モンスターシートを切り出し */
+      const monCanvas = document.createElement('canvas');
+      monCanvas.width = monImg.width; monCanvas.height = monImg.height;
+      monCanvas.getContext('2d').drawImage(monImg, 0, 0);
+      for (const [tid, [row, col]] of Object.entries(MONSTER_SHEET_MAP)) {
+        customTileImages[parseInt(tid)] = _cut(monCanvas, row, col, MON_CELL);
+      }
+
+      /* プレイヤーシートを切り出し */
+      if (charaImg) {
+        const charaCanvas = document.createElement('canvas');
+        charaCanvas.width = charaImg.width; charaCanvas.height = charaImg.height;
+        charaCanvas.getContext('2d').drawImage(charaImg, 0, 0);
+        for (const [tid, [row, col]] of Object.entries(PLAYER_SHEET_MAP)) {
+          customTileImages[parseInt(tid)] = _cut(charaCanvas, row, col, CHARA_CELL);
+        }
+      }
+
+      setCurrentTileset(name);
+      localStorage.setItem('roguelike_tileset', name);
+      setCtLoaded(c => c + 1);
+    } catch (e) {
+      console.error('Tileset load failed:', e);
+      setCtLoaded(c => c + 1);
+    }
+  }, []);
+
   const loadPortrait = (file) => {
     const r = new FileReader();
     r.onload = (e) => {
@@ -234,8 +300,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     window.addEventListener("resize", c);
     return () => window.removeEventListener("resize", c);
   }, []);
-  /* Generate procedural pixel art as default tiles, then override with custom PNGs */
+  /* Generate procedural pixel art as default tiles, then override with saved tileset or custom PNGs */
   useEffect(() => {
+    const _savedTileset = localStorage.getItem('roguelike_tileset') || 'default';
+    if (_savedTileset !== 'default') {
+      /* 保存されたプリセットタイルセットを復元 */
+      loadTileset(_savedTileset);
+      return;
+    }
     clearCustomTileImages();
     /* Phase 1: Fill with generated pixel art */
     const generated = generateTileImages();
@@ -5912,7 +5984,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <EndingModal show={showEnding} p={p} endingResult={endingResult} mobile={mobile} onDismiss={() => { setShowEnding(false); if (onReturnToHub && endingResult) onReturnToHub(endingResult); }} />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} />
-      <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} />
+      <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} loadTileset={loadTileset} currentTileset={currentTileset} />
     </div>
   );
 }
