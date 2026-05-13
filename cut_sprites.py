@@ -16,7 +16,7 @@ MONSTER_SHEET_MAP = {
     77:  (0, 0),   # slime
     79:  (0, 1),   # gelcube
     81:  (0, 4),   # confusemage → 紫スライム(混乱=頭が混沌)
-    93:  (0, 5),   # wateri
+    93:  (5, 3),   # wateri      → クラゲ(水棲生物)
     61:  (0, 6),   # firedemon
     # アンデッド/魔法使い
     52:  (6, 1),   # gargoyle → 緑ドラゴン系(石翼の番兵)
@@ -79,20 +79,20 @@ MONSTER_SHEET_MAP = {
     114: (0, 3),   # bombslime    → 黄スライム(爆弾)
     115: (0, 9),   # crystalslime → 闇スライム(水晶/硬質)
     # ヒューマノイド戦士
-    116: (10, 0),  # hammerogre → 人型1(大型戦士)
-    117: (10, 1),  # berserker  → 人型2(狂戦士)
+    116: (6, 7),   # hammerogre → ユニコーン/竜系(row6col7)
+    117: (2, 8),   # berserker  → ヒューマノイド行col8
 }
 
 PLAYER_SHEET_MAP = {
     5:  (1, 1),
     33: (2, 1),
     34: (0, 1),
-    35: (1, 0),
-    36: (1, 2),
-    62: (2, 2),
-    63: (2, 0),
-    64: (0, 2),
-    65: (0, 0),
+    35: (1, 2),   # player_left  → col2が実際の左向き
+    36: (1, 0),   # player_right → col0が実際の右向き
+    62: (2, 0),   # player_down_left
+    63: (2, 2),   # player_down_right
+    64: (0, 0),   # player_up_left
+    65: (0, 2),   # player_up_right
 }
 
 MONSTER_SHEETS = ['mon1', 'mon2', 'mon3', 'mon4', 'mon5', 'mon6']
@@ -183,24 +183,13 @@ def get_col_centers_from_row(content, y0, y1):
 def find_band_for_row(bands, row_idx, ref_centers=MON1_ROW_CENTERS):
     """
     sheet_row インデックスに対応するバンドを返す。
-    バンド数 == 11 なら直接マッピング、それ以外はy中心の近傍マッチング。
+    直接インデックスでマッピング（全シート統一）。
     """
     if len(bands) == 0:
         return None
-    if len(bands) >= 11:
-        if row_idx < len(bands):
-            return bands[row_idx]
-        return None
-
-    # y中心でmon1基準に最も近いバンドを選択
-    if row_idx >= len(ref_centers):
-        return None
-    target_y = ref_centers[row_idx]
-    best = min(bands, key=lambda b: abs(b[2] - target_y))
-    # 許容距離 100px 以内のみ
-    if abs(best[2] - target_y) > 100:
-        return None
-    return best
+    if row_idx < len(bands):
+        return bands[row_idx]
+    return None
 
 
 def find_sprite_bbox(content, y0, y1, target_x, col_centers):
