@@ -20,14 +20,15 @@ PAD = 6
 
 def remove_bg(img, thresh=BG_THRESH):
     """
-    全辺からのBFSで外側白背景を透過化 + 内側に閉じた白領域（指輪の穴など）も透過化。
+    全辺からのBFSで外側白背景のみを透過化。
+    内側の白（アイコンのデザイン要素）は保持する。
     四隅だけでなく全辺ピクセルを起点にするため、角が白くなくても対応可能。
     """
     arr = np.array(img)
     h, w = arr.shape[:2]
     white = (arr[:,:,0] >= thresh) & (arr[:,:,1] >= thresh) & (arr[:,:,2] >= thresh)
 
-    # 全辺から到達できる白領域（外側背景）
+    # 全辺から到達できる白領域（外側背景）のみを透過化
     exterior = np.zeros((h, w), dtype=bool)
     q = deque()
     for x in range(w):
@@ -45,9 +46,8 @@ def remove_bg(img, thresh=BG_THRESH):
             if 0 <= ny < h and 0 <= nx < w and white[ny, nx] and not exterior[ny, nx]:
                 exterior[ny, nx] = True; q.append((ny, nx))
 
-    # 外側 + 内側の閉じた白穴（指輪の内側など）を両方透過化
     result = arr.copy()
-    result[white, 3] = 0  # exterior + interior holes (both are white) → transparent
+    result[exterior, 3] = 0  # 外側白のみ透過化（内側白は保持）
     return Image.fromarray(result)
 
 
