@@ -115,7 +115,7 @@ export const MONSTER_SHEET_MAP = {
   115: [0, 9],   // crystalslime → 闇スライム(水晶/硬質)
 
   /* ヒューマノイド戦士 */
-  116: [6, 7],   // hammerogre → ユニコーン/竜系(row6col7・全シート共通)
+  116: [6, 7],   // hammerogre → グリフィン系(row6col7・全シート共通)
   117: [2, 8],   // berserker  → ヒューマノイド行col8(全シート共通・他と差別化)
 };
 
