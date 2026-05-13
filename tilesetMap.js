@@ -132,8 +132,8 @@ export const PLAYER_SHEET_MAP = {
   34: [0, 1],   // player_up      → 上向き
   35: [1, 2],   // player_left    → 左向き(col2が実際の左向き)
   36: [1, 0],   // player_right   → 右向き(col0が実際の右向き)
-  62: [2, 0],   // player_down_left  → 左下向き
-  63: [2, 2],   // player_down_right → 右下向き
-  64: [0, 0],   // player_up_left    → 左上向き
-  65: [0, 2],   // player_up_right   → 右上向き
+  62: [2, 2],   // player_down_left  → 左下向き(col2=左)
+  63: [2, 0],   // player_down_right → 右下向き(col0=右)
+  64: [0, 2],   // player_up_left    → 左上向き(col2=左)
+  65: [0, 0],   // player_up_right   → 右上向き(col0=右)
 };

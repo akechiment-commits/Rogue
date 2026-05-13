@@ -26,12 +26,14 @@ PAD           = 4
 # ── ユーティリティ ────────────────────────────────────────────────────────────
 
 def _remove_bg(img, thresh=230):
-    """四隅起点フラッドフィルで白背景(thresh以上)をアルファ0に透過化"""
+    """白背景をアルファ0に透過化。四隅フラッドフィル後、指輪穴など内側の
+    閉じた白領域も thresh_inner(=245) で追加除去する。"""
     from collections import deque
     px = img.load()
     w, h = img.size
     visited = set()
     queue = deque()
+    # ── 外側フラッドフィル（四隅起点）──
     for cx, cy in [(0, 0), (w-1, 0), (0, h-1), (w-1, h-1)]:
         r, g, b, a = px[cx, cy]
         if r >= thresh and g >= thresh and b >= thresh and (cx, cy) not in visited:
@@ -47,6 +49,14 @@ def _remove_bg(img, thresh=230):
                 if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
                     visited.add((nx, ny))
                     queue.append((nx, ny))
+    # ── 内側白領域（穴など閉じた白ピクセル）の追加除去 ──
+    # 外側フラッドフィルで届かなかった非常に白いピクセルを残らず透過化
+    thresh_inner = 240
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a > 0 and r >= thresh_inner and g >= thresh_inner and b >= thresh_inner:
+                px[x, y] = (r, g, b, 0)
     return img
 
 

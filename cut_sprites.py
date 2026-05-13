@@ -89,10 +89,10 @@ PLAYER_SHEET_MAP = {
     34: (0, 1),
     35: (1, 2),   # player_left  → col2が実際の左向き
     36: (1, 0),   # player_right → col0が実際の右向き
-    62: (2, 0),   # player_down_left
-    63: (2, 2),   # player_down_right
-    64: (0, 0),   # player_up_left
-    65: (0, 2),   # player_up_right
+    62: (2, 2),   # player_down_left  → col2=左
+    63: (2, 0),   # player_down_right → col0=右
+    64: (0, 2),   # player_up_left    → col2=左
+    65: (0, 0),   # player_up_right   → col0=右
 }
 
 MONSTER_SHEETS = ['mon1', 'mon2', 'mon3', 'mon4', 'mon5', 'mon6']
