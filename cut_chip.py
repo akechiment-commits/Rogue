@@ -83,66 +83,57 @@ def cut_to_canvas(img, x0, y0, x1, y1, out_w=OUT_W, out_h=OUT_H, pad=PAD):
         sw, sh = sprite.size
 
     canvas = Image.new('RGBA', (out_w, out_h), (0, 0, 0, 0))
-    # 下揃えに変更（建物・キャラなど足元基準のものが多いため）
     px = (out_w - sw) // 2
-    py = out_h - sh
+    py = (out_h - sh) // 2
     canvas.paste(sprite.convert('RGBA'), (px, py))
     return canvas
+
+
+def find_bands(density, min_val=3, min_size=8):
+    """密度配列からバンド (start, end) リストを返す"""
+    bands = []
+    in_b = False
+    bs = 0
+    for i, v in enumerate(density):
+        if v > min_val:
+            if not in_b:
+                bs = i
+                in_b = True
+        else:
+            if in_b:
+                if i - bs >= min_size:
+                    bands.append((bs, i))
+                in_b = False
+    if in_b and len(density) - bs >= min_size:
+        bands.append((bs, len(density)))
+    return bands
 
 
 def process_content_sprites(img, arr, white, x_start, x_end, y_start, y_end,
                               label, out_dir, counter, min_w=16, min_h=16):
     """
-    指定領域内でコンテンツ連結成分を検出し個別スプライトとして切り出す。
-    small objects向け: 水平プロジェクションで行バンド、列プロジェクションで個別切り出し。
+    列グループ → 行グループの順で検出。
+    全幅行プロジェクションが異なる高さの列グループに引っ張られる問題を回避。
     """
     region_white = white[y_start:y_end, x_start:x_end]
     content = ~region_white
-    row_d = content.sum(axis=1)
-    col_d = content.sum(axis=0)
 
-    # 行バンド検出
-    row_bands = []
-    in_b = False
-    bs = None
-    for y, v in enumerate(row_d):
-        if v > 5:
-            if not in_b:
-                bs = y
-                in_b = True
-        else:
-            if in_b:
-                if y - bs >= min_h:
-                    row_bands.append((bs, y))
-                in_b = False
-    if in_b and len(row_d) - bs >= min_h:
-        row_bands.append((bs, len(row_d)))
+    # 1. 列グループを全高さのプロジェクションで検出
+    col_d_full = content.sum(axis=0)
+    col_groups = find_bands(col_d_full, min_val=2, min_size=min_w)
 
     saved = []
-    for rb0, rb1 in row_bands:
-        strip = content[rb0:rb1, :]
-        c_d = strip.sum(axis=0)
-        # 列バンド検出
-        col_bands = []
-        in_c = False
-        cs = None
-        for x, v in enumerate(c_d):
-            if v > 2:
-                if not in_c:
-                    cs = x
-                    in_c = True
-            else:
-                if in_c:
-                    if x - cs >= min_w:
-                        col_bands.append((cs, x))
-                    in_c = False
-        if in_c and len(c_d) - cs >= min_w:
-            col_bands.append((cs, len(c_d)))
+    for cg0, cg1 in col_groups:
+        # 2. この列グループ内での行プロジェクションで行バンドを検出
+        col_strip = content[:, cg0:cg1]
+        row_d = col_strip.sum(axis=1)
+        row_bands = find_bands(row_d, min_val=1, min_size=min_h)
 
-        for cb0, cb1 in col_bands:
+        for rb0, rb1 in row_bands:
+            # 3. この行×列セル内でタイトなbboxを取得して保存
             canvas = cut_to_canvas(img,
-                                   x_start + cb0, y_start + rb0,
-                                   x_start + cb1, y_start + rb1)
+                                   x_start + cg0, y_start + rb0,
+                                   x_start + cg1, y_start + rb1)
             if canvas is None:
                 continue
             fname = f"chip_{label}_{counter[0]:03d}.png"

@@ -288,27 +288,91 @@ def process_monster_sheet(sheet_name, out_dir):
     return saved
 
 
+def detect_chara_bbox(cell_arr, dark_thresh=100, min_dark=5):
+    """
+    暗いピクセル（<dark_thresh）のカウントでキャラクターのBBoxを検出する。
+    セル境界の細い区切り線（2px程度）を無視し実際のキャラクター領域を返す。
+    """
+    rgb = cell_arr[:, :, :3] if cell_arr.ndim == 3 and cell_arr.shape[2] >= 3 else cell_arr
+    is_dark = (rgb < dark_thresh).any(axis=2)
+    row_dark = is_dark.sum(axis=1)
+    col_dark = is_dark.sum(axis=0)
+    content_rows = np.where(row_dark > min_dark)[0]
+    content_cols = np.where(col_dark > min_dark)[0]
+    if len(content_rows) == 0 or len(content_cols) == 0:
+        return None
+    return (int(content_cols[0]), int(content_rows[0]),
+            int(content_cols[-1]) + 1, int(content_rows[-1]) + 1)
+
+
+def remove_bg_transparent(crop_img, thresh=225):
+    """
+    切り出したキャラ画像の白系背景（四隅起点フラッドフィル）を透過化する。
+    cut_to_canvas より前に適用することで、canvas corners が透明でも正しく機能する。
+    """
+    from collections import deque
+    img = crop_img.convert('RGBA')
+    px = img.load()
+    w, h = img.size
+    visited = set()
+    queue = deque()
+    for cx, cy in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]:
+        r, g, b, a = px[cx, cy]
+        if r >= thresh and g >= thresh and b >= thresh:
+            queue.append((cx, cy))
+            visited.add((cx, cy))
+    while queue:
+        x, y = queue.popleft()
+        r, g, b, a = px[x, y]
+        if r >= thresh and g >= thresh and b >= thresh:
+            px[x, y] = (r, g, b, 0)
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
+                    visited.add((nx, ny))
+                    queue.append((nx, ny))
+    return img
+
+
+def cut_chara_to_canvas(crop_img, out_w=OUT_W, out_h=OUT_H, pad=PAD):
+    """透過済みキャラ画像をスケール・センタリングしてキャンバスに配置"""
+    sw, sh = crop_img.size
+    if sw > out_w - pad * 2 or sh > out_h - pad * 2:
+        scale = min((out_w - pad * 2) / sw, (out_h - pad * 2) / sh)
+        crop_img = crop_img.resize(
+            (max(1, int(sw * scale)), max(1, int(sh * scale))),
+            Image.LANCZOS
+        )
+        sw, sh = crop_img.size
+    canvas = Image.new('RGBA', (out_w, out_h), (0, 0, 0, 0))
+    px = (out_w - sw) // 2
+    py = (out_h - sh) // 2
+    canvas.paste(crop_img, (px, py), crop_img)
+    return canvas
+
+
 def process_chara_sheet(out_dir, img):
     if img is None:
         return 0
     arr = np.array(img)
-    content = get_content_mask(arr)
     saved = 0
     for tile_id, (row, col) in PLAYER_SHEET_MAP.items():
         x0, y0 = col * CHARA_CELL, row * CHARA_CELL
         x1, y1 = x0 + CHARA_CELL, y0 + CHARA_CELL
-        region = content[y0:y1, x0:x1]
-        rows_any = region.any(axis=1)
-        cols_any = region.any(axis=0)
-        if rows_any.any() and cols_any.any():
-            ry0 = np.where(rows_any)[0][0]
-            ry1 = np.where(rows_any)[0][-1] + 1
-            cx0 = np.where(cols_any)[0][0]
-            cx1 = np.where(cols_any)[0][-1] + 1
-            bbox = (x0 + cx0, y0 + ry0, x0 + cx1, y0 + ry1)
+        cell = arr[y0:y1, x0:x1]
+        bb = detect_chara_bbox(cell)
+        if bb:
+            cx0, cy0, cx1, cy1 = bb
+            # タイトなBBoxをパディング付きで切り出し
+            bx0 = max(0, x0 + cx0 - PAD)
+            by0 = max(0, y0 + cy0 - PAD)
+            bx1 = min(img.width,  x0 + cx1 + PAD)
+            by1 = min(img.height, y0 + cy1 + PAD)
         else:
-            bbox = (x0, y0, x1, y1)
-        canvas = cut_to_canvas(img, bbox)
+            bx0, by0, bx1, by1 = x0, y0, x1, y1
+        crop = img.crop((bx0, by0, bx1, by1))
+        crop = remove_bg_transparent(crop)
+        canvas = cut_chara_to_canvas(crop)
         out_path = os.path.join(out_dir, f"tile_{tile_id}.png")
         canvas.save(out_path, "PNG")
         saved += 1
