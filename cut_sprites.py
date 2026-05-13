@@ -19,7 +19,7 @@ MONSTER_SHEET_MAP = {
     93:  (0, 5),   # wateri
     61:  (0, 6),   # firedemon
     # アンデッド/魔法使い
-    52:  (1, 0),   # gargoyle → コウモリ(翼ある石像)
+    52:  (6, 1),   # gargoyle → 緑ドラゴン系(石翼の番兵)
     103: (1, 0),   # bat → コウモリ
     9:   (1, 1),   # skeleton
     44:  (1, 2),   # witchdoctor → 死神(呪術師)
