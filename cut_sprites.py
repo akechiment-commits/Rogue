@@ -329,6 +329,14 @@ def process():
         print(f"  → {saved} sprites saved")
         total += saved
 
+    # キャラクター専用ディレクトリにも保存
+    chara_dir = os.path.join(OUT_BASE, "chara")
+    os.makedirs(chara_dir, exist_ok=True)
+    print(f"\nProcessing chara (standalone)...")
+    saved = process_chara_sheet(chara_dir, chara_img)
+    print(f"  → {saved} sprites saved")
+    total += saved
+
     print(f"\nDone. {total} files total.")
 
 
