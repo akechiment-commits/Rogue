@@ -219,6 +219,11 @@ export const TILE_RENDER = {
   110: { bg: null, fg: "#8B4513", ch: "♦" }, /* 看板         */
   111: { bg: null, fg: "#cc44ff", ch: "m" }, /* ラクガキ魔   */
   112: { bg: null, fg: "#22ccff", ch: "B" }, /* タトゥーバード */
+  113: { bg: null, fg: "#ff88aa", ch: "s" }, /* 分裂スライム  */
+  114: { bg: null, fg: "#ffcc22", ch: "s" }, /* ボムスライム  */
+  115: { bg: null, fg: "#aa66ff", ch: "s" }, /* 水晶スライム  */
+  116: { bg: null, fg: "#cc8844", ch: "O" }, /* ハンマーオーガ*/
+  117: { bg: null, fg: "#ee6622", ch: "B" }, /* バーサーカー  */
 };
 
 /* Canvas drawing helper */
