@@ -30,7 +30,7 @@ import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPen
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
-import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, MON_CELL, CHARA_CELL } from "./tilesetMap.js";
+import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP } from "./tilesetMap.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
@@ -212,44 +212,29 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       return;
     }
 
-    const _loadImg = src => new Promise((res, rej) => {
+    /* 事前切り出し済みスプライトを個別ファイルとして読み込む */
+    const allTileIds = [
+      ...Object.keys(MONSTER_SHEET_MAP).map(Number),
+      ...Object.keys(PLAYER_SHEET_MAP).map(Number),
+    ];
+    /* 重複を除去 */
+    const uniqueIds = [...new Set(allTileIds)];
+
+    const _loadTile = (id) => new Promise((res) => {
       const img = new Image();
-      img.onload = () => res(img);
-      img.onerror = rej;
-      img.src = src;
+      const canvas = document.createElement('canvas');
+      img.onload = () => {
+        canvas.width = img.width; canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        customTileImages[id] = canvas;
+        res();
+      };
+      img.onerror = () => res(); // 失敗しても続行
+      img.src = `/tiles/sprites/${name}/tile_${id}.png`;
     });
 
-    const _cut = (srcCanvas, row, col, cell) => {
-      const out = document.createElement('canvas');
-      out.width = cell; out.height = cell;
-      out.getContext('2d').drawImage(srcCanvas, col * cell, row * cell, cell, cell, 0, 0, cell, cell);
-      return out;
-    };
-
     try {
-      const [monImg, charaImg] = await Promise.all([
-        _loadImg(`/tiles/${name}.png`),
-        _loadImg('/tiles/chara1.png').catch(() => null),
-      ]);
-
-      /* モンスターシートを切り出し */
-      const monCanvas = document.createElement('canvas');
-      monCanvas.width = monImg.width; monCanvas.height = monImg.height;
-      monCanvas.getContext('2d').drawImage(monImg, 0, 0);
-      for (const [tid, [row, col]] of Object.entries(MONSTER_SHEET_MAP)) {
-        customTileImages[parseInt(tid)] = _cut(monCanvas, row, col, MON_CELL);
-      }
-
-      /* プレイヤーシートを切り出し */
-      if (charaImg) {
-        const charaCanvas = document.createElement('canvas');
-        charaCanvas.width = charaImg.width; charaCanvas.height = charaImg.height;
-        charaCanvas.getContext('2d').drawImage(charaImg, 0, 0);
-        for (const [tid, [row, col]] of Object.entries(PLAYER_SHEET_MAP)) {
-          customTileImages[parseInt(tid)] = _cut(charaCanvas, row, col, CHARA_CELL);
-        }
-      }
-
+      await Promise.all(uniqueIds.map(_loadTile));
       setCurrentTileset(name);
       localStorage.setItem('roguelike_tileset', name);
       setCtLoaded(c => c + 1);
