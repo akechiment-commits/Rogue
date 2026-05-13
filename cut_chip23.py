@@ -9,35 +9,46 @@ import numpy as np
 from PIL import Image
 from collections import deque
 
-TILES_DIR = os.path.join(os.path.dirname(__file__), "tiles")
-SEP_FRAC  = 0.85
+TILES_DIR  = os.path.join(os.path.dirname(__file__), "tiles")
+SEP_FRAC   = 0.85
 SEP_THRESH = 200
+BBOX_THRESH = 245  # tight_bbox用: これ以上を背景と見なす（高いほど内容を多く保持）
+BG_THRESH  = 240   # 透過化用: 外周＋内側の穴も除去
 OUT_W, OUT_H = 80, 80
-PAD = 4
+PAD = 6
 
 
-def remove_bg(img, thresh=230):
-    """四隅起点フラッドフィルで白背景をアルファ0に透過化"""
-    px = img.load()
-    w, h = img.size
-    visited = set()
-    queue = deque()
-    for cx, cy in [(0,0),(w-1,0),(0,h-1),(w-1,h-1)]:
-        r, g, b, a = px[cx, cy]
-        if r >= thresh and g >= thresh and b >= thresh and (cx,cy) not in visited:
-            queue.append((cx, cy))
-            visited.add((cx, cy))
-    while queue:
-        x, y = queue.popleft()
-        r, g, b, a = px[x, y]
-        if r >= thresh and g >= thresh and b >= thresh:
-            px[x, y] = (r, g, b, 0)
-            for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
-                nx, ny = x+dx, y+dy
-                if 0 <= nx < w and 0 <= ny < h and (nx,ny) not in visited:
-                    visited.add((nx, ny))
-                    queue.append((nx, ny))
-    return img
+def remove_bg(img, thresh=BG_THRESH):
+    """
+    全辺からのBFSで外側白背景を透過化 + 内側に閉じた白領域（指輪の穴など）も透過化。
+    四隅だけでなく全辺ピクセルを起点にするため、角が白くなくても対応可能。
+    """
+    arr = np.array(img)
+    h, w = arr.shape[:2]
+    white = (arr[:,:,0] >= thresh) & (arr[:,:,1] >= thresh) & (arr[:,:,2] >= thresh)
+
+    # 全辺から到達できる白領域（外側背景）
+    exterior = np.zeros((h, w), dtype=bool)
+    q = deque()
+    for x in range(w):
+        for y in [0, h-1]:
+            if white[y, x] and not exterior[y, x]:
+                exterior[y, x] = True; q.append((y, x))
+    for y in range(1, h-1):
+        for x in [0, w-1]:
+            if white[y, x] and not exterior[y, x]:
+                exterior[y, x] = True; q.append((y, x))
+    while q:
+        y, x = q.popleft()
+        for dy, dx in [(-1,0),(1,0),(0,-1),(0,1)]:
+            ny, nx = y+dy, x+dx
+            if 0 <= ny < h and 0 <= nx < w and white[ny, nx] and not exterior[ny, nx]:
+                exterior[ny, nx] = True; q.append((ny, nx))
+
+    # 外側 + 内側の閉じた白穴（指輪の内側など）を両方透過化
+    result = arr.copy()
+    result[white, 3] = 0  # exterior + interior holes (both are white) → transparent
+    return Image.fromarray(result)
 
 
 def find_sep_groups(values, thresh=SEP_FRAC, gap=3):
@@ -63,7 +74,7 @@ def get_tile_ranges(groups):
     return ranges
 
 
-def tight_bbox(arr_region, thresh=SEP_THRESH):
+def tight_bbox(arr_region, thresh=BBOX_THRESH):
     white = (arr_region[:,:,0] >= thresh) & \
             (arr_region[:,:,1] >= thresh) & \
             (arr_region[:,:,2] >= thresh)
