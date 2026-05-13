@@ -1,6 +1,6 @@
 """
-chip2.png / chip3.png からタイルを切り出して
-tiles/sprites/chip2/ および tiles/sprites/chip3/ に保存するスクリプト。
+chip2.png / chip3.png / chip4.png からタイルを切り出して
+tiles/sprites/chip2/ chip3/ chip4/ に保存するスクリプト。
 白セパレータ線でグリッドを検出し、白背景を透過化して保存。
 """
 
@@ -150,4 +150,5 @@ def process_chip(chip_name):
 if __name__ == "__main__":
     process_chip("chip2")
     process_chip("chip3")
+    process_chip("chip4")
     print("\nDone.")
