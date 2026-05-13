@@ -69,11 +69,11 @@ MONSTER_SHEET_MAP = {
     111: (9, 6),   # rakugaki → 妖精
     # ゴーレム/機械(追加)
     86:  (7, 4),   # trapmaster → 紫ブロブ(罠仕掛け人)
-    # 人間キャラ
-    59:  (10, 0),  # guard
-    39:  (10, 1),  # archer
-    69:  (10, 2),  # thief
-    70:  (10, 3),  # runner
+    # 人間キャラ → 金髪人形から差し替え
+    59:  (6, 6),   # guard   → ライオン
+    39:  (2, 6),   # archer  → ハリネズミ
+    69:  (5, 5),   # thief   → ペンギン
+    70:  (6, 5),   # runner  → 黒馬
 }
 
 PLAYER_SHEET_MAP = {
