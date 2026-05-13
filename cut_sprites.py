@@ -9,7 +9,10 @@ from PIL import Image
 TILES_DIR = os.path.join(os.path.dirname(__file__), "tiles")
 OUT_BASE   = os.path.join(TILES_DIR, "sprites")
 
-MON_CELL  = 114
+MON_LEFT   = 15   # left margin before first sprite column
+MON_CELL_W = 130  # horizontal pitch between sprite columns
+MON_TOP    = 2    # top margin before first sprite row
+MON_CELL_H = 110  # vertical pitch between sprite rows
 CHARA_CELL = 418
 
 # tilesetMap.js と同じマッピング
@@ -72,10 +75,16 @@ PLAYER_SHEET_MAP = {
 
 MONSTER_SHEETS = ['mon1', 'mon2', 'mon3', 'mon4', 'mon5', 'mon6']
 
-def cut_sprite(sheet_img, row, col, cell):
-    x = col * cell
-    y = row * cell
-    return sheet_img.crop((x, y, x + cell, y + cell))
+def cut_sprite(sheet_img, row, col, cell=None):
+    if cell is not None:
+        # chara sheet uses square uniform cells
+        x = col * cell
+        y = row * cell
+        return sheet_img.crop((x, y, x + cell, y + cell))
+    # monster sheets use offset grid
+    x = MON_LEFT + col * MON_CELL_W
+    y = MON_TOP + row * MON_CELL_H
+    return sheet_img.crop((x, y, x + MON_CELL_W, y + MON_CELL_H))
 
 def process():
     # chara1.png を一度だけ読む
@@ -96,14 +105,14 @@ def process():
 
         # モンスター切り出し
         for tile_id, (row, col) in MONSTER_SHEET_MAP.items():
-            sprite = cut_sprite(mon_img, row, col, MON_CELL)
+            sprite = cut_sprite(mon_img, row, col)
             out_path = os.path.join(out_dir, f"tile_{tile_id}.png")
             sprite.save(out_path, "PNG")
 
         # プレイヤー切り出し (chara1 は共通)
         if chara_img:
             for tile_id, (row, col) in PLAYER_SHEET_MAP.items():
-                sprite = cut_sprite(chara_img, row, col, CHARA_CELL)
+                sprite = cut_sprite(chara_img, row, col, CHARA_CELL)  # uniform square cells
                 out_path = os.path.join(out_dir, f"tile_{tile_id}.png")
                 sprite.save(out_path, "PNG")
 
