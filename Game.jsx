@@ -212,13 +212,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       return;
     }
 
-    /* 事前切り出し済みスプライトを個別ファイルとして読み込む */
-    const allTileIds = [
+    /* 事前切り出し済みスプライトを個別ファイルとして読み込む（全タイルID対応） */
+    const uniqueIds = [...new Set([
+      ...Object.keys(TILE_NAMES).map(Number),
       ...Object.keys(MONSTER_SHEET_MAP).map(Number),
       ...Object.keys(PLAYER_SHEET_MAP).map(Number),
-    ];
-    /* 重複を除去 */
-    const uniqueIds = [...new Set(allTileIds)];
+    ])];
 
     const _loadTile = (id) => new Promise((res) => {
       const img = new Image();
