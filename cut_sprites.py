@@ -232,6 +232,8 @@ def cut_to_canvas(img, bbox, out_w=OUT_W, out_h=OUT_H, pad=PAD):
     ay1 = min(img.height, ay1 + pad)
 
     sprite = img.crop((ax0, ay0, ax1, ay1))
+    # キャンバス貼り付け前に白背景を透過化（canvas角が透明になる前に処理）
+    sprite = remove_bg_transparent(sprite)
     sw, sh = sprite.size
 
     if sw > out_w or sh > out_h:
@@ -243,7 +245,7 @@ def cut_to_canvas(img, bbox, out_w=OUT_W, out_h=OUT_H, pad=PAD):
         sw, sh = sprite.size
 
     canvas = Image.new('RGBA', (out_w, out_h), (0, 0, 0, 0))
-    canvas.paste(sprite, ((out_w - sw) // 2, (out_h - sh) // 2))
+    canvas.paste(sprite, ((out_w - sw) // 2, (out_h - sh) // 2), sprite)
     return canvas
 
 
