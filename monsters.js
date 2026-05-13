@@ -503,7 +503,7 @@ export const MONS = [
       { name: "シン・ワッカ",       hp: 61,  atk: 32, def: 7,  exp: 72 },
     ],
   },
-  { name: "分裂スライム", hp: 30,  atk: 14, def: 2,  exp: 32,  speed: 1,   tile: 77, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 9, max: 15 }, advanced: { min: 6, max: 14 } },
+  { name: "分裂スライム", hp: 30,  atk: 14, def: 2,  exp: 32,  speed: 1,   tile: 113, kind: "beast",    baseKind: "slime",         monLevel: 1, minFloor: 7,  maxFloor: 20, elemWeak: "fire", subtype: "splitter", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 9, max: 15 }, advanced: { min: 6, max: 14 } },
     levels: [
       { name: "緑分裂スライム",     hp: 47,  atk: 22, def: 5,  exp: 51 },
       { name: "赤分裂スライム",     hp: 74,  atk: 29, def: 7,  exp: 80 },
@@ -545,7 +545,7 @@ export const MONS = [
       { name: "大魔導士",           hp: 61,  atk: 29, def: 12, exp: 105 },
     ],
   },
-  { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 77, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
+  { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "強ボムスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
       { name: "覇ボムスライム",     hp: 95,  atk: 29, def: 5,  exp: 138 },
@@ -557,7 +557,7 @@ export const MONS = [
       { name: "頭の中にダイナマイト", hp: 75, atk: 24, def: 4,  exp: 150 },
     ],
   },
-  { name: "水晶スライム", hp: 5,   atk: 18, def: 0,  exp: 50,  speed: 1,   tile: 77, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, elemWeak: "fire", fixedDamageOnly: true, dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
+  { name: "水晶スライム", hp: 5,   atk: 18, def: 0,  exp: 50,  speed: 1,   tile: 115, kind: "beast",    baseKind: "crystalslime",  monLevel: 1, minFloor: 13, maxFloor: 26, elemWeak: "fire", fixedDamageOnly: true, dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "強水晶スライム",     hp: 8,   atk: 25, def: 0,  exp: 80  },
       { name: "覇水晶スライム",     hp: 11,  atk: 32, def: 0,  exp: 125 },
@@ -732,7 +732,7 @@ export const MONS = [
       { name: "むちちむち",         hp: 170, atk: 46, def: 31, exp: 175 },
     ],
   },
-  { name: "ハンマーオーガ", hp: 75, atk: 36, def: 9,  exp: 80,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 50, subtype: "knocker", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 23 } },
+  { name: "ハンマーオーガ", hp: 75, atk: 36, def: 9,  exp: 80,  speed: 1,   tile: 116, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 50, subtype: "knocker", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 23 } },
     levels: [
       { name: "強ハンマーオーガ",   hp: 120, atk: 52, def: 13, exp: 128, dungeonFloors: { advanced: { min: 26, max: 28 } } },
       { name: "覇ハンマーオーガ",   hp: 188, atk: 67, def: 17, exp: 200 },
@@ -750,7 +750,7 @@ export const MONS = [
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
     ],
   },
-  { name: "バーサーカー", hp: 55,  atk: 26, def: 8,  exp: 65,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { advanced: { min: 11, max: 21 } },
+  { name: "バーサーカー", hp: 55,  atk: 26, def: 8,  exp: 65,  speed: 1,   tile: 117, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { advanced: { min: 11, max: 21 } },
     levels: [
       { name: "バーサーカー2",      hp: 90,  atk: 40, def: 13, exp: 104, dungeonFloors: { advanced: { min: 26, max: 27 } } },
       { name: "バーサーカー99",     hp: 145, atk: 58, def: 20, exp: 166, dungeonFloors: { advanced: { min: 28, max: 29 } } },

@@ -99,6 +99,11 @@ export const TILE_NAMES = {
   110: "sign",
   111: "rakugaki",
   112: "tattoobird",
+  113: "splitslime",
+  114: "bombslime",
+  115: "crystalslime",
+  116: "hammerogre",
+  117: "berserker",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
