@@ -25,6 +25,31 @@ PAD           = 4
 
 # ── ユーティリティ ────────────────────────────────────────────────────────────
 
+def _remove_bg(img, thresh=230):
+    """四隅起点フラッドフィルで白背景(thresh以上)をアルファ0に透過化"""
+    from collections import deque
+    px = img.load()
+    w, h = img.size
+    visited = set()
+    queue = deque()
+    for cx, cy in [(0, 0), (w-1, 0), (0, h-1), (w-1, h-1)]:
+        r, g, b, a = px[cx, cy]
+        if r >= thresh and g >= thresh and b >= thresh and (cx, cy) not in visited:
+            queue.append((cx, cy))
+            visited.add((cx, cy))
+    while queue:
+        x, y = queue.popleft()
+        r, g, b, a = px[x, y]
+        if r >= thresh and g >= thresh and b >= thresh:
+            px[x, y] = (r, g, b, 0)
+            for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
+                nx, ny = x+dx, y+dy
+                if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
+                    visited.add((nx, ny))
+                    queue.append((nx, ny))
+    return img
+
+
 def find_sep_groups(values, offset=0, thresh=SEP_FRAC, gap=3):
     """フラクション配列から閾値以上の連続グループを返す（セパレータ検出用）"""
     seps = [i + offset for i, v in enumerate(values) if v > thresh]
@@ -109,7 +134,9 @@ def cut_to_canvas(img, x0, y0, x1, y1, out_w=OUT_W, out_h=OUT_H, pad=PAD):
     ax1 = min(img.width,  x0 + bc1 + pad)
     ay1 = min(img.height, y0 + br1 + pad)
 
-    sprite = img.crop((ax0, ay0, ax1, ay1))
+    sprite = img.crop((ax0, ay0, ax1, ay1)).convert('RGBA')
+    # キャンバス配置前に白背景を透過化（canvas角が透明になる前に処理）
+    sprite = _remove_bg(sprite)
     sw, sh = sprite.size
     if sw > out_w or sh > out_h:
         scale = min(out_w / sw, out_h / sh)
@@ -122,7 +149,7 @@ def cut_to_canvas(img, x0, y0, x1, y1, out_w=OUT_W, out_h=OUT_H, pad=PAD):
     canvas = Image.new('RGBA', (out_w, out_h), (0, 0, 0, 0))
     px = (out_w - sw) // 2
     py = (out_h - sh) // 2
-    canvas.paste(sprite.convert('RGBA'), (px, py))
+    canvas.paste(sprite, (px, py), sprite)
     return canvas
 
 
