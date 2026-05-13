@@ -97,22 +97,22 @@ def cut_to_canvas(img, x0, y0, x1, y1, out_w=OUT_W, out_h=OUT_H, pad=PAD):
     if bb is None:
         return None
     br0, bc0, br1, bc1 = bb
-    ax0 = max(0, x0 + bc0 - pad)
-    ay0 = max(0, y0 + br0 - pad)
-    ax1 = min(img.width,  x0 + bc1 + pad)
-    ay1 = min(img.height, y0 + br1 + pad)
+    # セル境界内でクランプ（隣セルへのはみ出しを防ぐ）
+    ax0 = max(x0, x0 + bc0 - pad)
+    ay0 = max(y0, y0 + br0 - pad)
+    ax1 = min(x1, x0 + bc1 + pad)
+    ay1 = min(y1, y0 + br1 + pad)
 
     sprite = img.crop((ax0, ay0, ax1, ay1)).convert('RGBA')
     sprite = remove_bg(sprite)
     sw, sh = sprite.size
 
-    # 常にキャンバスの90%を埋めるようにスケーリング（小さいアイコンも拡大）
+    # キャンバスの90%を埋めるようにスケーリング（上下どちらも対応）
     scale = min(out_w / sw, out_h / sh) * 0.90
-    scale = min(scale, 4.0)  # 最大4倍まで（ピクセルアート崩れ防止）
+    scale = min(scale, 4.0)  # 最大4倍まで（ドット絵崩れ防止）
     if abs(scale - 1.0) > 0.05:
         new_w = max(1, int(sw * scale))
         new_h = max(1, int(sh * scale))
-        # 拡大時はNEAREST（ドット絵保持）、縮小時はLANCZOS（品質優先）
         resample = Image.NEAREST if scale > 1.0 else Image.LANCZOS
         sprite = sprite.resize((new_w, new_h), resample)
         sw, sh = sprite.size
