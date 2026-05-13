@@ -107,14 +107,22 @@ def cut_to_canvas(img, x0, y0, x1, y1, out_w=OUT_W, out_h=OUT_H, pad=PAD):
     sprite = remove_bg(sprite)
     sw, sh = sprite.size
 
-    # キャンバスの90%を埋めるようにスケーリング（上下どちらも対応）
-    scale = min(out_w / sw, out_h / sh) * 0.90
-    scale = min(scale, 4.0)  # 最大4倍まで（ドット絵崩れ防止）
-    if abs(scale - 1.0) > 0.05:
-        new_w = max(1, int(sw * scale))
-        new_h = max(1, int(sh * scale))
-        resample = Image.NEAREST if scale > 1.0 else Image.LANCZOS
-        sprite = sprite.resize((new_w, new_h), resample)
+    if sw > out_w or sh > out_h:
+        # 大きすぎる場合は縮小
+        scale = min(out_w / sw, out_h / sh)
+        sprite = sprite.resize(
+            (max(1, int(sw * scale)), max(1, int(sh * scale))),
+            Image.LANCZOS
+        )
+        sw, sh = sprite.size
+    elif max(sw, sh) < out_w * 0.5:
+        # 小さすぎる場合（キャンバスの50%未満）のみ拡大
+        scale = min(out_w / sw, out_h / sh) * 0.85
+        scale = min(scale, 3.0)
+        sprite = sprite.resize(
+            (max(1, int(sw * scale)), max(1, int(sh * scale))),
+            Image.NEAREST
+        )
         sw, sh = sprite.size
 
     canvas = Image.new('RGBA', (out_w, out_h), (0,0,0,0))
