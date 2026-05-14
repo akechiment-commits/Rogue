@@ -134,6 +134,12 @@ def cut_to_canvas(img, x0, y0, x1, y1, out_w=OUT_W, out_h=OUT_H, pad=PAD):
     return canvas
 
 
+# chip4 のセパレータは他より白さが高い（tile内に淡色が多い）ため個別に閾値を上げる
+CHIP_SEP_FRAC = {
+    "chip4": 0.75,
+}
+
+
 def process_chip(chip_name):
     chip_path = os.path.join(TILES_DIR, f"{chip_name}.png")
     out_dir   = os.path.join(TILES_DIR, "sprites", chip_name)
@@ -143,6 +149,8 @@ def process_chip(chip_name):
         print(f"SKIP: {chip_path} not found")
         return
 
+    sep_frac = CHIP_SEP_FRAC.get(chip_name, SEP_FRAC)
+
     img = Image.open(chip_path).convert("RGB")
     arr = np.array(img)
 
@@ -150,8 +158,8 @@ def process_chip(chip_name):
             (arr[:,:,1] >= SEP_THRESH) & \
             (arr[:,:,2] >= SEP_THRESH)
 
-    row_groups = find_sep_groups(white.mean(axis=1))
-    col_groups = find_sep_groups(white.mean(axis=0))
+    row_groups = find_sep_groups(white.mean(axis=1), thresh=sep_frac)
+    col_groups = find_sep_groups(white.mean(axis=0), thresh=sep_frac)
     row_ranges = get_tile_ranges(row_groups)
     col_ranges = get_tile_ranges(col_groups)
 
