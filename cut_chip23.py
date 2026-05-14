@@ -10,7 +10,9 @@ from PIL import Image
 from collections import deque
 
 TILES_DIR  = os.path.join(os.path.dirname(__file__), "tiles")
-SEP_FRAC   = 0.85
+SEP_FRAC   = 0.70
+MIN_SEP_WIDTH = 8   # separator group must be at least this wide (pixels)
+MIN_CELL_SIZE = 35  # skip cells narrower/shorter than this (false cells)
 SEP_THRESH = 200
 BBOX_THRESH = 245  # tight_bbox用: これ以上を背景と見なす（高いほど内容を多く保持）
 BG_THRESH  = 240   # 透過化用: 外周＋内側の穴も除去
@@ -61,7 +63,8 @@ def find_sep_groups(values, thresh=SEP_FRAC, gap=3):
             groups[-1].append(x)
         else:
             groups.append([x])
-    return groups
+    # filter out spurious narrow groups (< MIN_SEP_WIDTH pixels wide)
+    return [g for g in groups if len(g) >= MIN_SEP_WIDTH]
 
 
 def get_tile_ranges(groups):
@@ -69,7 +72,7 @@ def get_tile_ranges(groups):
     for i in range(len(groups) - 1):
         x0 = groups[i][-1] + 1
         x1 = groups[i+1][0] - 1
-        if x1 > x0:
+        if x1 - x0 >= MIN_CELL_SIZE:
             ranges.append((x0, x1))
     return ranges
 
@@ -92,16 +95,17 @@ def tight_bbox(arr_region, thresh=BBOX_THRESH):
 
 def cut_to_canvas(img, x0, y0, x1, y1, out_w=OUT_W, out_h=OUT_H, pad=PAD):
     arr = np.array(img)
+    img_h, img_w = arr.shape[:2]
     region = arr[y0:y1, x0:x1]
     bb = tight_bbox(region)
     if bb is None:
         return None
     br0, bc0, br1, bc1 = bb
-    # セル境界内でクランプ（隣セルへのはみ出しを防ぐ）
-    ax0 = max(x0, x0 + bc0 - pad)
-    ay0 = max(y0, y0 + br0 - pad)
-    ax1 = min(x1, x0 + bc1 + pad)
-    ay1 = min(y1, y0 + br1 + pad)
+    # セパレータ（白）まで PAD 分拡張してよい（remove_bg が外周白を除去する）
+    ax0 = max(0, x0 + bc0 - pad)
+    ay0 = max(0, y0 + br0 - pad)
+    ax1 = min(img_w, x0 + bc1 + pad)
+    ay1 = min(img_h, y0 + br1 + pad)
 
     sprite = img.crop((ax0, ay0, ax1, ay1)).convert('RGBA')
     sprite = remove_bg(sprite)
