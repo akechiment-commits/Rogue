@@ -95,7 +95,7 @@ PLAYER_SHEET_MAP = {
     65: (0, 0),   # player_up_right   → col0=右
 }
 
-MONSTER_SHEETS = ['mon1', 'mon2', 'mon3', 'mon4', 'mon5', 'mon6']
+MONSTER_SHEETS = ['mon1', 'mon2', 'mon3', 'mon4', 'mon5', 'mon6', 'mon7']
 
 # mon1基準のシート行中心y座標（行0〜10）
 MON1_ROW_CENTERS = [65, 177, 292, 406, 515, 625, 740, 846, 945, 1042, 1166]

@@ -174,4 +174,7 @@ if __name__ == "__main__":
     process_chip("chip2")
     process_chip("chip3")
     process_chip("chip4")
+    process_chip("chip5")
+    process_chip("chip6")
+    process_chip("chip7")
     print("\nDone.")

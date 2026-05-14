@@ -14,7 +14,7 @@ export const CHARA_COLS = 3;
 export const CHARA_ROWS = 3;
 
 /* 利用可能なモンスターシート名 */
-export const MONSTER_SHEETS = ['mon1', 'mon2', 'mon3', 'mon4', 'mon5', 'mon6'];
+export const MONSTER_SHEETS = ['mon1', 'mon2', 'mon3', 'mon4', 'mon5', 'mon6', 'mon7'];
 
 /* --------------------------------------------------------------------- *
  * モンスターシートのスプライト配置 (mon1.png を基準):

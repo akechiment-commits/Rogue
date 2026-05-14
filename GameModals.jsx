@@ -110,6 +110,7 @@ const TILESET_LABELS = {
   mon4: 'スタイル4',
   mon5: 'スタイル5',
   mon6: 'スタイル6',
+  mon7: 'スタイル7',
 };
 
 export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile, setCtLoaded, loadTileset, currentTileset }) {
