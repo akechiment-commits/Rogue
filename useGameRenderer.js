@@ -697,6 +697,17 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           if (x === p.x && y === p.y && !_movingEntities.has("player")) {
             const pf = p.facing || { dx: 0, dy: 1 };
             const pti = playerTileForFacing(pf);
+            /* アイテム・罠をプレイヤーの下に先描画（階段と同様に隙間から見えるように） */
+            const _pitItem = _itemMap.get(_k(x, y));
+            if (_pitItem && !_pitItem.wallEmbedded) {
+              const _piTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*11+y*19)%9] : _pitItem.tile;
+              drawTile(ctx, ts, _piTile, px2, py2, sz);
+            }
+            const _pitTrap = _trapMap.get(_k(x, y));
+            if (_pitTrap?.revealed) {
+              const _ptTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*13+y*7)%9] : _pitTrap.tile;
+              drawTile(ctx, ts, _ptTile, px2, py2, sz);
+            }
             drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, px2, py2, sz);
             continue;
           }
