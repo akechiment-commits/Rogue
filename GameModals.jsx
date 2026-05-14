@@ -103,14 +103,9 @@ function TileIcon({ item, size = 16 }) {
 
 /* ===== Tile Editor Modal ===== */
 const TILESET_LABELS = {
-  default: 'デフォルト',
-  mon1: 'スタイル1',
-  mon2: 'スタイル2',
-  mon3: 'スタイル3',
-  mon4: 'スタイル4',
-  mon5: 'スタイル5',
-  mon6: 'スタイル6',
-  mon7: 'スタイル7',
+  default:   'スタイル1 (ドット絵)',
+  dawnlike:  'スタイル2 (DawnLike)',
+  mon1:      'スタイル3 (新チップセット)',
 };
 
 export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile, setCtLoaded, loadTileset, currentTileset }) {
