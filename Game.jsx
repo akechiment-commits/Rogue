@@ -255,6 +255,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       img.onload = () => { customTileImages[idx] = img; setCtLoaded(c => c + 1); };
       img.src = `/tiles/items/item_r01_c${col}.png`;
     }
+    /* 薬スプライト25種を customTileImages[3001..3025] にロード */
+    const POTION_POOL = [
+      'item_r04_c07','item_r04_c10','item_r04_c11','item_r04_c14',
+      'item_r05_c01','item_r05_c02','item_r05_c03','item_r05_c04',
+      'item_r05_c05','item_r05_c06','item_r05_c08','item_r05_c12','item_r05_c14',
+      'item_r03_c01','item_r03_c02','item_r03_c03','item_r03_c04',
+      'item_r03_c05','item_r03_c15',
+      'item_r04_c01','item_r04_c02','item_r04_c03','item_r04_c04',
+      'item_r04_c05','item_r04_c06',
+    ];
+    POTION_POOL.forEach((name, i) => {
+      const img = new Image();
+      const idx = 3001 + i;
+      img.onload = () => { customTileImages[idx] = img; setCtLoaded(c => c + 1); };
+      img.src = `/tiles/items/${name}.png`;
+    });
   }, [currentTileset]);
 
   const loadPortrait = (file) => {
@@ -439,7 +455,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
     const _penEffects = [...new Set(ITEMS.filter(i => i.type === 'pen').map(i => i.effect))];
     const _penSpriteMap = Object.fromEntries(_penEffects.map(e => [e, Math.floor(Math.random() * 9) + 1]));
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0, penSpriteMap: _penSpriteMap };
+    const _potEffects = [...new Set(ITEMS.filter(i => i.type === 'potion').map(i => i.effect))];
+    const _potSpriteMap = Object.fromEntries(_potEffects.map(e => [e, Math.floor(Math.random() * 25) + 1]));
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0, penSpriteMap: _penSpriteMap, potionSpriteMap: _potSpriteMap };
     sr.current = s;
     setGs(s);
     if (_dt === "tutorial" && startDepth === 1) {
@@ -476,6 +494,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         allBcKnown: resumeState.allBcKnown,
         floorTurns: resumeState.floorTurns || 0,
         penSpriteMap: resumeState.penSpriteMap || Object.fromEntries([...new Set(ITEMS.filter(i => i.type === 'pen').map(i => i.effect))].map(e => [e, Math.floor(Math.random() * 9) + 1])),
+        potionSpriteMap: resumeState.potionSpriteMap || Object.fromEntries([...new Set(ITEMS.filter(i => i.type === 'potion').map(i => i.effect))].map(e => [e, Math.floor(Math.random() * 25) + 1])),
       };
       refreshFOV(rs.dungeon, rs.player);
       sr.current = rs;
