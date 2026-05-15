@@ -220,6 +220,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     ])];
 
     const _loadTile = (id) => new Promise((res) => {
+      /* mon1のtile 42はpenSpriteIdxで別途上書きするのでスキップ */
+      if (name === 'mon1' && id === 42) { res(); return; }
       const img = new Image();
       const canvas = document.createElement('canvas');
       img.onload = () => {
