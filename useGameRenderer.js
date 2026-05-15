@@ -477,9 +477,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const ts = null;
     const { player: p, dungeon: dg } = _gs;
     const _penMap = _gs.penSpriteMap;
-    const _penTile = (it) => (it.tile === 42 && _penMap?.[it.effect] != null) ? 2000 + _penMap[it.effect] : it.tile;
+    const _penTile = (it) => { const vi = 2000 + _penMap?.[it.effect]; return (it.tile === 42 && _penMap?.[it.effect] != null && customTileImages[vi]) ? vi : it.tile; };
     const _potMap = _gs.potionSpriteMap;
-    const _potTile = (it) => ((it.tile === 16 || it.tile === 17) && it.type === 'potion' && _potMap?.[it.effect] != null) ? 3000 + _potMap[it.effect] : it.tile;
+    const _potTile = (it) => { const vi = 3000 + _potMap?.[it.effect]; return ((it.tile === 16 || it.tile === 17) && it.type === 'potion' && _potMap?.[it.effect] != null && customTileImages[vi]) ? vi : it.tile; };
     const _spriteTile = (it) => { const p2 = _potTile(it); return p2 !== it.tile ? p2 : _penTile(it); };
     const vw = mobile ? (landscape ? VW_L : VW_M) : VW_D;
     const contW = cvs.parentElement?.clientWidth || 600;
