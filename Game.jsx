@@ -243,6 +243,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
   }, []);
 
+  const loadPenSprite = useCallback((idx) => {
+    if (!idx) return;
+    const col = String(idx).padStart(2, '0');
+    const img = new Image();
+    img.onload = () => { customTileImages[42] = img; setCtLoaded(c => c + 1); };
+    img.src = `/tiles/items/item_r01_c${col}.png`;
+  }, []);
+
+  useEffect(() => {
+    if (currentTileset === 'mon1' && gs?.penSpriteIdx) {
+      loadPenSprite(gs.penSpriteIdx);
+    }
+  }, [gs?.penSpriteIdx, currentTileset]);
+
   const loadPortrait = (file) => {
     const r = new FileReader();
     r.onload = (e) => {
@@ -423,7 +437,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     } else {
       d.bigboxes?.forEach(bb => { bb.revealed = false; });
     }
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0 };
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0, penSpriteIdx: Math.floor(Math.random() * 9) + 1 };
     sr.current = s;
     setGs(s);
     if (_dt === "tutorial" && startDepth === 1) {
@@ -459,6 +473,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         maxDepth: resumeState.maxDepth,
         allBcKnown: resumeState.allBcKnown,
         floorTurns: resumeState.floorTurns || 0,
+        penSpriteIdx: resumeState.penSpriteIdx || Math.floor(Math.random() * 9) + 1,
       };
       refreshFOV(rs.dungeon, rs.player);
       sr.current = rs;
