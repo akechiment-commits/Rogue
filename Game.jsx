@@ -220,7 +220,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     ])];
 
     const _loadTile = (id) => new Promise((res) => {
-      /* mon1のtile 42はpenSpriteIdxで別途上書きするのでスキップ */
+      /* mon1のtile 42はpenSpriteMapで別途上書きするのでスキップ */
       if (name === 'mon1' && id === 42) { res(); return; }
       const img = new Image();
       const canvas = document.createElement('canvas');
@@ -245,19 +245,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
   }, []);
 
-  const loadPenSprite = useCallback((idx) => {
-    if (!idx) return;
-    const col = String(idx).padStart(2, '0');
-    const img = new Image();
-    img.onload = () => { customTileImages[42] = img; setCtLoaded(c => c + 1); };
-    img.src = `/tiles/items/item_r01_c${col}.png`;
-  }, []);
-
+  /* mon1タイルセット使用時、全9種のペンスプライトを customTileImages[2001..2009] にロード */
   useEffect(() => {
-    if (currentTileset === 'mon1' && gs?.penSpriteIdx) {
-      loadPenSprite(gs.penSpriteIdx);
+    if (currentTileset !== 'mon1') return;
+    for (let i = 1; i <= 9; i++) {
+      const col = String(i).padStart(2, '0');
+      const img = new Image();
+      const idx = 2000 + i;
+      img.onload = () => { customTileImages[idx] = img; setCtLoaded(c => c + 1); };
+      img.src = `/tiles/items/item_r01_c${col}.png`;
     }
-  }, [gs?.penSpriteIdx, currentTileset]);
+  }, [currentTileset]);
 
   const loadPortrait = (file) => {
     const r = new FileReader();
@@ -439,7 +437,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     } else {
       d.bigboxes?.forEach(bb => { bb.revealed = false; });
     }
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0, penSpriteIdx: Math.floor(Math.random() * 9) + 1 };
+    const _penEffects = [...new Set(ITEMS.filter(i => i.type === 'pen').map(i => i.effect))];
+    const _penSpriteMap = Object.fromEntries(_penEffects.map(e => [e, Math.floor(Math.random() * 9) + 1]));
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0, penSpriteMap: _penSpriteMap };
     sr.current = s;
     setGs(s);
     if (_dt === "tutorial" && startDepth === 1) {
@@ -475,7 +475,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         maxDepth: resumeState.maxDepth,
         allBcKnown: resumeState.allBcKnown,
         floorTurns: resumeState.floorTurns || 0,
-        penSpriteIdx: resumeState.penSpriteIdx || Math.floor(Math.random() * 9) + 1,
+        penSpriteMap: resumeState.penSpriteMap || Object.fromEntries([...new Set(ITEMS.filter(i => i.type === 'pen').map(i => i.effect))].map(e => [e, Math.floor(Math.random() * 9) + 1])),
       };
       refreshFOV(rs.dungeon, rs.player);
       sr.current = rs;

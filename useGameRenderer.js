@@ -476,6 +476,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       ctx = cvs.getContext("2d");
     const ts = null;
     const { player: p, dungeon: dg } = _gs;
+    const _penMap = _gs.penSpriteMap;
+    const _penTile = (it) => (it.tile === 42 && _penMap?.[it.effect] != null) ? 2000 + _penMap[it.effect] : it.tile;
     const vw = mobile ? (landscape ? VW_L : VW_M) : VW_D;
     const contW = cvs.parentElement?.clientWidth || 600;
     const sz = Math.max(12, Math.floor(contW / vw));
@@ -592,7 +594,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             ctx.globalAlpha = 0.55;
             ctx.fillStyle = "rgba(255,220,60,0.25)";
             ctx.fillRect(px2, py2, sz, sz);
-            drawTile(ctx, ts, _wi.tile, px2, py2, sz);
+            drawTile(ctx, ts, _penTile(_wi), px2, py2, sz);
             ctx.globalAlpha = 1;
           }
         }
@@ -733,7 +735,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           if (it) {
             const _itTile = (p.bewitchedTurns || 0) > 0
               ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 11 + y * 19) % 9]
-              : it.tile;
+              : _penTile(it);
             drawTile(ctx, ts, _itTile, px2, py2, sz);
             continue;
           }
@@ -749,7 +751,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           const _inDark = (p.darknessTurns || 0) > 0;
           if (!_inDark) {
             const ri = (() => { const _i = _itemMap.get(_k(x, y)); return _i && !_i.wallEmbedded && (_i.discovered || dg.itemsRevealed) ? _i : undefined; })();
-            if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, ri.tile, px2, py2, sz); ctx.globalAlpha = 1; }
+            if (ri) { ctx.globalAlpha = 0.4; drawTile(ctx, ts, _penTile(ri), px2, py2, sz); ctx.globalAlpha = 1; }
             const tr = (() => { const _t = _trapMap.get(_k(x, y)); return _t?.revealed ? _t : undefined; })();
             if (tr) { ctx.globalAlpha = 0.4; const _trTile2 = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 13 + y * 7) % 9] : tr.tile; drawTile(ctx, ts, _trTile2, px2, py2, sz); ctx.globalAlpha = 1; }
           }
@@ -818,7 +820,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         ctx.globalAlpha = 0.45;
         ctx.fillStyle = "rgba(30,120,200,0.25)";
         ctx.fillRect(_ipx, _ipy, sz, sz);
-        drawTile(ctx, ts, _si.tile, _ipx, _ipy, sz);
+        drawTile(ctx, ts, _penTile(_si), _ipx, _ipy, sz);
         ctx.globalAlpha = 1;
       }
     }
