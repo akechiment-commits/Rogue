@@ -2645,11 +2645,11 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, setShowScores, se
       }}
     >
       <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-        {portraitSrc ? (
-          <img src={portraitSrc} alt="portrait" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", imageRendering: "pixelated" }} />
-        ) : (
-          <div style={{ color: "#333", fontSize: mobile ? 40 : 60, textAlign: "center", lineHeight: "1" }}>🧙</div>
-        )}
+        <img
+          src={portraitSrc || "/tiles/Character/stand_normal.png"}
+          alt="portrait"
+          style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+        />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
         <button onClick={() => setShowSettings(true)}
