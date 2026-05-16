@@ -536,7 +536,8 @@ export function useKeyHandler({
           !putMode &&
           !springMode &&
           !bigboxMode &&
-          !markerMode
+          !markerMode &&
+          !tpSelectMode
         ) {
           e.preventDefault();
           /* Shift+テンキー縦横：2方向同時押しでのみ斜め移動。縦横対角キー(1/3/7/9)はそのまま */
