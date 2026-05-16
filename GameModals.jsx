@@ -2644,11 +2644,11 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, setShowScores, se
         padding: "8px 4px", boxSizing: "border-box", zIndex: 10,
       }}
     >
-      <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "flex-start", justifyContent: "center", overflow: "visible", position: "relative" }}>
+      <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible", position: "relative" }}>
         <img
           src={portraitSrc || "/tiles/Character/stand_normal.png"}
           alt="portrait"
-          style={{ width: "160%", maxHeight: "100%", objectFit: "contain", objectPosition: "top" }}
+          style={{ width: "185%", objectFit: "contain" }}
         />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
