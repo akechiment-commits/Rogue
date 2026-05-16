@@ -97,6 +97,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const spellPage     = modal.spellPage;
   /* null | {potIdx:number} */ const [dashMode, setDashMode] = useState(false);
   const tpSelectMode     = modal.type === 'tpSelect'     ? modal.data : null;
+  const tpSelectModeRef = useRef(null);
+  tpSelectModeRef.current = tpSelectMode;
   const lookMode         = modal.type === 'look'         ? modal.data : null;
   const floorSelectMode  = modal.type === 'floorSelect'  ? modal.data : null;
   const identifyMode     = modal.type === 'identify'     ? modal.data : null;
@@ -2487,6 +2489,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (bigboxModeRef.current) return;
       if (nicknameModeRef.current) return;
       if (showSignRef.current) return;
+      if (tpSelectModeRef.current) return;
       if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -3518,7 +3521,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     async (dx, dy) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
-      if (springMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode) return;
+      if (springMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || tpSelectModeRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
