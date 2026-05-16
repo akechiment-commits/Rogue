@@ -29,13 +29,35 @@ React + Vite 製のローグライク。
 
 ## ビジュアルスタイル
 
-→ 詳細は `CLAUDE.md` の「ビジュアルスタイルの仕組み」を参照。
-
 | スタイル | 名称 | 保存場所 |
 |---|---|---|
 | 1 | ASCII（デフォルト） | `render.js` の `TILE_RENDER` |
 | 2 | DawnLike | `public/tiles/` |
 | 3 | mon1 個別PNG | `tiles/sprites/mon1/tile_${id}.png` |
+
+### スタイル3のファイル配信
+
+`tiles/` はルートにありViteの `public/` 配下ではないため、`vite.config.js` のカスタムプラグインで配信している。  
+`public/tiles/` にファイルがある場合はそちらが優先される（スタイル2と3で同じURLを共有しないよう注意）。
+
+### バーチャルタイルID（スタイル3専用）
+
+アイテムの外見を冒険ごとにランダム化するために使う仮想ID。  
+画像は `Game.jsx` の `useEffect([currentTileset])` ブロックで mon1 選択時のみ `customTileImages[idx]` に読み込まれる。
+
+| 範囲 | 用途 |
+|---|---|
+| 2001〜2009 | ペン（`tiles/items/item_r01_c01〜c09.png`） |
+| 3001〜3025 | 薬（薬スプライトプール参照） |
+
+**スタイル1/2では画像が読み込まれないため、レンダラーで必ず `customTileImages[vi]` の存在チェックをしてフォールバックすること。**
+
+### バーチャルタイルIDを新規追加する手順
+
+1. `Game.jsx` の `useEffect([currentTileset])` に画像読み込みを追加（mon1 専用）
+2. `useGameRenderer.js` の `_spriteTile` 系ヘルパーを更新（`customTileImages[vi]` チェック必須）
+3. `Game.jsx` の `init()` と resume パスにスプライトマップを追加
+4. `GameSave.js` の save/load 両方に追加
 
 スタイル3のみ、ペン・薬のグラフィックが冒険ごとにランダム化される。
 
