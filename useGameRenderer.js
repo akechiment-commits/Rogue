@@ -490,7 +490,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       const availH = window.innerHeight - uiH;
       vh = Math.max(VH_M, Math.min(Math.floor(availH / sz), MH));
     } else {
-      vh = mobile ? VH_L : VH_D;
+      vh = mobile ? VH_L : Math.round((desktopVW || VW_D) * 3 / 4);
     }
     const cw = vw * sz,
       ch = vh * sz;
@@ -885,7 +885,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     /* ===== Animation overlays (effects drawn on top) ===== */
     drawOverlays(ctx, overlaysRef.current, sx, sy, sz);
 
-  }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode]);
+  }, [gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode, desktopVW]);
 
   /* Auto-render on state change */
   useEffect(() => {
