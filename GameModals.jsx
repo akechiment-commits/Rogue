@@ -2632,7 +2632,7 @@ export function InventoryModal({
 }
 
 /* ===== Sidebar Portrait Panel ===== */
-export function SidebarPanel({ mobile, landscape, portraitSrc, loadPortrait, clearPortrait, setShowScores }) {
+export function SidebarPanel({ mobile, landscape, portraitSrc, setShowScores, setShowSettings }) {
   if (!(!mobile || landscape)) return null;
   return (
     <div
@@ -2652,23 +2652,90 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, loadPortrait, cle
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-        <label style={{ display: "block", textAlign: "center", cursor: "pointer" }}>
-          <input type="file" accept="image/*" style={{ display: "none" }}
-            onChange={(e) => { if (e.target.files[0]) loadPortrait(e.target.files[0]); e.target.value = ""; }} />
-          <span style={{ background: "#1a1a2a", border: "1px solid #333", borderRadius: 3, padding: "2px 6px", fontSize: 12, color: "#888", display: "block", textAlign: "center" }}>
-            🖼 変更
-          </span>
-        </label>
-        {portraitSrc && (
-          <button onClick={clearPortrait}
-            style={{ background: "none", border: "1px solid #333", color: "#555", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "2px 0", width: "100%" }}>
-            ✕ 消去
-          </button>
-        )}
+        <button onClick={() => setShowSettings(true)}
+          style={{ background: "#1a1a2a", border: "1px solid #333", color: "#aaa", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%" }}>
+          ⚙ 設定
+        </button>
         <button onClick={() => setShowScores(true)}
-          style={{ background: "#0d0d1a", border: "1px solid #336", color: "#8cf", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%", marginTop: 2 }}>
+          style={{ background: "#0d0d1a", border: "1px solid #336", color: "#8cf", fontSize: 12, borderRadius: 3, cursor: "pointer", padding: "3px 0", width: "100%" }}>
           📜 冒険記録
         </button>
+      </div>
+    </div>
+  );
+}
+
+const DESKTOP_VW_OPTIONS = [
+  { value: 21, label: "特大" },
+  { value: 25, label: "大" },
+  { value: 27, label: "中" },
+  { value: 33, label: "小" },
+];
+
+export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, portraitSrc, loadTileset, currentTileset, desktopVW, setDesktopVW, mobile }) {
+  if (!show) return null;
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "#111", border: "1px solid #333", borderRadius: 8, width: 320, padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "#fff", fontWeight: "bold", fontSize: 15 }}>⚙ 設定</span>
+          <button onClick={() => setShow(false)}
+            style={{ background: "none", border: "1px solid #444", color: "#888", cursor: "pointer", borderRadius: 4, padding: "2px 8px" }}>✕</button>
+        </div>
+
+        {/* グラフィックスタイル */}
+        <div>
+          <div style={{ color: "#aaa", fontSize: 12, marginBottom: 6 }}>グラフィックスタイル</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {Object.entries(TILESET_LABELS).map(([key, label]) => {
+              const active = (currentTileset || 'default') === key;
+              return (
+                <button key={key} onClick={() => loadTileset(key)}
+                  style={{ padding: "4px 10px", background: active ? "#1a3a1a" : "#1a1a1a", color: active ? "#4f4" : "#aaa", border: `1px solid ${active ? "#4a7a4a" : "#333"}`, borderRadius: 4, fontSize: 13, cursor: "pointer", fontWeight: active ? "bold" : "normal" }}>
+                  {active ? `✓ ${label}` : label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* PC版マスサイズ（モバイル以外） */}
+        {!mobile && (
+          <div>
+            <div style={{ color: "#aaa", fontSize: 12, marginBottom: 6 }}>PC版マスサイズ</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {DESKTOP_VW_OPTIONS.map(({ value, label }) => {
+                const active = desktopVW === value;
+                return (
+                  <button key={value} onClick={() => setDesktopVW(value)}
+                    style={{ flex: 1, padding: "4px 0", background: active ? "#1a2a3a" : "#1a1a1a", color: active ? "#4cf" : "#aaa", border: `1px solid ${active ? "#2a5a8a" : "#333"}`, borderRadius: 4, fontSize: 13, cursor: "pointer", fontWeight: active ? "bold" : "normal" }}>
+                    {active ? `✓ ${label}` : label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 立ち絵変更 */}
+        <div>
+          <div style={{ color: "#aaa", fontSize: 12, marginBottom: 6 }}>立ち絵</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <label style={{ flex: 1, cursor: "pointer" }}>
+              <input type="file" accept="image/*" style={{ display: "none" }}
+                onChange={(e) => { if (e.target.files[0]) { loadPortrait(e.target.files[0]); } e.target.value = ""; }} />
+              <span style={{ display: "block", textAlign: "center", padding: "4px 0", background: "#1a1a2a", border: "1px solid #333", borderRadius: 4, fontSize: 13, color: "#aaa" }}>
+                🖼 画像を変更
+              </span>
+            </label>
+            {portraitSrc && (
+              <button onClick={clearPortrait}
+                style={{ padding: "4px 10px", background: "#2a1515", border: "1px solid #4a2020", color: "#f66", borderRadius: 4, fontSize: 13, cursor: "pointer" }}>
+                ✕ 消去
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

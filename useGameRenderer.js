@@ -460,7 +460,7 @@ function drawItemArc(ctx, o, sx, sy, sz, t) {
  * Core renderer hook.
  * Returns { renderFrame, overlaysRef } so animation loop can trigger redraws.
  */
-export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode) {
+export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSelectMode, lookMode, facingMode, desktopVW) {
   const overlaysRef = useRef([]);
   /* moveOffsets: Map<entityKey, {fromX, fromY, toX, toY, progress}> for smooth movement */
   const moveOffsetsRef = useRef(new Map());
@@ -481,7 +481,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const _potMap = _gs.potionSpriteMap;
     const _potTile = (it) => { const vi = 3000 + _potMap?.[it.effect]; return ((it.tile === 16 || it.tile === 17) && it.type === 'potion' && _potMap?.[it.effect] != null && customTileImages[vi]) ? vi : it.tile; };
     const _spriteTile = (it) => { const p2 = _potTile(it); return p2 !== it.tile ? p2 : _penTile(it); };
-    const vw = mobile ? (landscape ? VW_L : VW_M) : VW_D;
+    const vw = mobile ? (landscape ? VW_L : VW_M) : (desktopVW || VW_D);
     const contW = cvs.parentElement?.clientWidth || 600;
     const sz = Math.max(12, Math.floor(contW / vw));
     let vh;
