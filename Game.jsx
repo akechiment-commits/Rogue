@@ -517,41 +517,81 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (msgRef.current) msgRef.current.scrollTop = msgRef.current.scrollHeight;
   }, [msgs]);
 
-  /* ── 立ち絵切り替え: ゲーム状況に応じてキャラポートレートを変える ── */
+  /* ── 立ち絵切り替え ── */
   const prevGsRef = useRef(null);
   const portraitCooldownRef = useRef(0);
+  const walkStepRef = useRef(0);        // 歩数カウンタ（N歩に1回だけ切り替え）
   const CHAR_PATH = (name) => `/tiles/Character/${name}.png`;
   const PORTRAIT_SETS = {
-    damage:  ['damage_arrow','damage_fire','damage_heavy','damage_rock','damage_ice','damage_wet','damage_falling','damage_explosion','damage_trap','hp_hurt'],
-    attack:  ['battle_ready_a','battle_ready_b','battle_ready_c','battle_thrust','battle_thrust_forward','battle_upswing','battle_highspeed','battle_spin_slash','battle_charge','battle_low_stance','battle_dash','battle_dual_wield','battle_jump_slash'],
-    walk:    ['stand_walk','stand_advance'],
-    action:  ['action_drink_potion','action_eat_food','action_read_scroll','action_read_scroll2','action_read_spellbook','action_cast_magic','action_cast_circle','action_shoot_bow','action_aim_bow','action_throw','action_throw_bomb','action_use_wand','action_cast_wand','action_use_pot','action_hold_pot','action_use_pen','action_open_chest'],
-    levelup: ['reaction_levelup','reaction_motivated','reaction_joy'],
-    hp_low:  ['hp_low_stand','hp_low_kneel','hp_hurt'],
-    hp_mid:  ['hp_mid','hp_high'],
-    hp_full: ['hp_full','hp_high','stand_normal','stand_equipped'],
+    damage:         ['damage_arrow','damage_fire','damage_heavy','damage_rock','damage_ice','damage_wet','damage_falling','damage_explosion','damage_trap','hp_hurt'],
+    attack:         ['battle_ready_a','battle_ready_b','battle_ready_c','battle_thrust','battle_thrust_forward','battle_upswing','battle_highspeed','battle_spin_slash','battle_charge','battle_low_stance','battle_dash','battle_dual_wield','battle_jump_slash'],
+    walk:           ['stand_walk','stand_advance'],
+    act_potion:     ['action_drink_potion'],
+    act_food:       ['action_eat_food'],
+    act_scroll:     ['action_read_scroll','action_read_scroll2'],
+    act_spellbook:  ['action_read_spellbook'],
+    act_wand:       ['action_use_wand','action_cast_wand'],
+    act_pen:        ['action_use_pen'],
+    act_magic:      ['action_cast_magic','action_cast_circle'],
+    act_bow:        ['action_shoot_bow','action_aim_bow'],
+    act_throw:      ['action_throw','action_throw_bomb'],
+    act_pot:        ['action_use_pot','action_hold_pot'],
+    act_chest:      ['action_open_chest'],
+    act_point:      ['action_point'],
+    levelup:        ['reaction_levelup','reaction_motivated','reaction_joy'],
+    hp_low:         ['hp_low_stand','hp_low_kneel','hp_hurt'],
+    hp_mid:         ['hp_mid','hp_high'],
+    hp_full:        ['hp_full','hp_high','stand_normal','stand_equipped'],
     status_poison:  ['status_poison'],
     status_sleep:   ['status_sleep'],
     status_cursed:  ['status_cursed'],
-    gameover:       ['gameover_dead'],
   };
   const pickPortrait = (key) => {
     const list = PORTRAIT_SETS[key];
     return CHAR_PATH(list[Math.floor(Math.random() * list.length)]);
   };
-  const setCharPortrait = useCallback((key) => {
-    const now = Date.now();
-    if (now < portraitCooldownRef.current) return;
-    setPortraitSrc(pickPortrait(key));
-    portraitCooldownRef.current = now + 4000;
-  }, []);
-  // HP比率から立ち絵キーを返す
   const hpKey = (p) => {
     const r = p.hp / p.maxHp;
     if (r <= 0.25) return 'hp_low';
     if (r <= 0.6)  return 'hp_mid';
     return 'hp_full';
   };
+  // cooldown無視で強制切り替え（瀕死など）
+  const forcePortrait = useCallback((key) => {
+    setPortraitSrc(pickPortrait(key));
+    portraitCooldownRef.current = Date.now() + 4000;
+  }, []);
+  // cooldown付き切り替え
+  const tryPortrait = useCallback((key) => {
+    const now = Date.now();
+    if (now < portraitCooldownRef.current) return false;
+    setPortraitSrc(pickPortrait(key));
+    portraitCooldownRef.current = now + 4000;
+    return true;
+  }, []);
+  // メッセージからアイテム使用の種別を判定
+  const msgToActionKey = (msg) => {
+    if (/薬を飲|ポーション|飲んだ/.test(msg))        return 'act_potion';
+    if (/食べ|食料|料理/.test(msg))                   return 'act_food';
+    if (/魔法書/.test(msg))                           return 'act_spellbook';
+    if (/巻物|読んだ/.test(msg))                      return 'act_scroll';
+    if (/杖を振|ワンド/.test(msg))                    return 'act_wand';
+    if (/魔方陣|ペンで/.test(msg))                    return 'act_pen';
+    if (/魔法を放|魔法陣/.test(msg))                  return 'act_magic';
+    if (/矢を射|弓/.test(msg))                        return 'act_bow';
+    if (/投げた|投擲/.test(msg))                      return 'act_throw';
+    if (/壺/.test(msg))                               return 'act_pot';
+    if (/宝箱/.test(msg))                             return 'act_chest';
+    return null;
+  };
+  // 大箱/壺メニューが開いたときに切り替え
+  useEffect(() => {
+    if (bigboxMode) tryPortrait('act_chest');
+  }, [bigboxMode]); // eslint-disable-line
+  useEffect(() => {
+    if (putMode) tryPortrait('act_pot');
+  }, [putMode]); // eslint-disable-line
+  // gs変化時のメイン判定
   useEffect(() => {
     if (!gs?.player) return;
     const p = gs.player;
@@ -559,26 +599,53 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     prevGsRef.current = { hp: p.hp, maxHp: p.maxHp, x: p.x, y: p.y, level: p.level, status: p.status };
 
     // 死亡
-    if (p.hp <= 0) { setPortraitSrc(CHAR_PATH('gameover_dead')); portraitCooldownRef.current = Date.now() + 99999; return; }
+    if (p.hp <= 0) {
+      setPortraitSrc(CHAR_PATH('gameover_dead'));
+      portraitCooldownRef.current = Date.now() + 99999;
+      return;
+    }
     if (!prev) { setPortraitSrc(pickPortrait(hpKey(p))); return; }
 
-    // ダメージ
-    if (p.hp < prev.hp) { setCharPortrait('damage'); return; }
+    const isLow = p.hp / p.maxHp <= 0.25;
+
+    // ダメージ → 無条件切り替え（クールタイム無視）
+    if (p.hp < prev.hp) { forcePortrait('damage'); return; }
+
     // レベルアップ
-    if (p.level > prev.level) { setCharPortrait('levelup'); return; }
-    // 状態異常
+    if (p.level > prev.level) { tryPortrait('levelup'); return; }
+
+    // 状態異常付与
     const st = p.status || {};
-    if (st.poison  && !(prev.status?.poison))  { setCharPortrait('status_poison');  return; }
-    if (st.sleep   && !(prev.status?.sleep))   { setCharPortrait('status_sleep');   return; }
-    if (st.cursed  && !(prev.status?.cursed))  { setCharPortrait('status_cursed');  return; }
-    // 移動
-    if (p.x !== prev.x || p.y !== prev.y) { setCharPortrait('walk'); return; }
-    // 行動（その場で何かした → 攻撃かアイテム使用など）
-    // 最新メッセージで判断
+    if (st.poison && !prev.status?.poison)  { tryPortrait('status_poison');  return; }
+    if (st.sleep  && !prev.status?.sleep)   { tryPortrait('status_sleep');   return; }
+    if (st.cursed && !prev.status?.cursed)  { tryPortrait('status_cursed');  return; }
+
+    // アイテム使用（メッセージで種別判定）
     const lastMsg = msgsRef.current[msgsRef.current.length - 1]?.text ?? '';
-    if (/飲|食べ|読|使|投|描|放|射/.test(lastMsg)) { setCharPortrait('action'); return; }
-    setCharPortrait('attack');
-  }, [gs, setCharPortrait]);
+    const actionKey = msgToActionKey(lastMsg);
+    if (actionKey) { tryPortrait(actionKey); return; }
+
+    // 移動: 3〜5歩に1回だけ切り替え（頻度を下げる）
+    if (p.x !== prev.x || p.y !== prev.y) {
+      walkStepRef.current++;
+      const threshold = 3 + Math.floor(Math.random() * 3); // 3〜5
+      if (walkStepRef.current >= threshold) {
+        walkStepRef.current = 0;
+        if (!tryPortrait('walk') && isLow) forcePortrait('hp_low');
+      } else if (isLow) {
+        // 瀕死中は歩いてもHP低立ち絵を優先
+        tryPortrait('hp_low');
+      }
+      return;
+    }
+
+    // その場での行動（攻撃など）
+    tryPortrait('attack');
+
+    // クールタイム終了後、瀕死なら強制的に瀕死立ち絵に戻す
+    // （クールタイム中は tryPortrait が false を返すので isLow を拾う）
+    if (isLow && Date.now() >= portraitCooldownRef.current) forcePortrait('hp_low');
+  }, [gs, forcePortrait, tryPortrait]);
   /* ポータルの魔方陣の別フロア参照ゲッターを登録 */
   useEffect(() => {
     setPortalFloorsGetter(() => sr.current?.floors);

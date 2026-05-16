@@ -336,6 +336,11 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
         borderRadius: 6,
       }}
     >
+      <img
+        src="/tiles/Character/gameover_dead.png"
+        alt="dead"
+        style={{ height: mobile ? 180 : 260, objectFit: "contain", marginBottom: 8, filter: "drop-shadow(0 0 16px #f00a)" }}
+      />
       <div
         style={{
           color: "#f33",
