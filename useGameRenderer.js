@@ -489,8 +489,13 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       const uiH = 270;
       const availH = window.innerHeight - uiH;
       vh = Math.max(VH_M, Math.min(Math.floor(availH / sz), MH));
+    } else if (!mobile) {
+      /* PC: ウィンドウ高さからUI固定要素（statsバー+メッセージ欄+padding+border）を引いて計算 */
+      const uiH = 180; /* stats ~50px, msg 70px, padding/border ~60px */
+      const availH = window.innerHeight - uiH;
+      vh = Math.max(10, Math.floor(availH / sz));
     } else {
-      vh = mobile ? VH_L : Math.round((desktopVW || VW_D) * 3 / 4);
+      vh = VH_L; /* mobile landscape */
     }
     const cw = vw * sz,
       ch = vh * sz;
