@@ -101,8 +101,17 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   const [sellConfirmOpen, setSellConfirmOpen] = useState(false);
   const [sellConfirmSel, setSellConfirmSel] = useState(0); // 0=はい 1=いいえ
   const [expandFocused, setExpandFocused] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const noticeTimerRef = useRef(null);
   const kbRef = useRef(null);
   const itemRefs = useRef([]);
+
+  const showNotice = (text) => {
+    setNotice(text);
+    clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = setTimeout(() => setNotice(null), 2500);
+  };
+  useEffect(() => () => clearTimeout(noticeTimerRef.current), []);
 
   const hubInv = saveData.hubInventory || [];
   const wh     = saveData.warehouse    || [];
@@ -212,6 +221,12 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
   const bulkToWarehouse = () => {
     if (checkedIdxs.size === 0) return;
+    /* 1個でも溢れるなら移動しない（slice切り捨てによるアイテム消失防止） */
+    const moveCount = [...checkedIdxs].filter(i => i < hubInv.length).length;
+    if (wh.length + moveCount > MAX) {
+      showNotice(`倉庫の空きが足りない！（空き${MAX - wh.length}・選択${moveCount}個）`);
+      return;
+    }
     updateSave(prev => {
       const inv    = prev.hubInventory || [];
       const toMove = inv.filter((_, i) => checkedIdxs.has(i));
@@ -219,7 +234,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       return {
         ...prev,
         hubInventory: remaining,
-        warehouse: sortWarehouseItems([...(prev.warehouse || []), ...toMove].slice(0, prev.warehouseMax || 100)),
+        warehouse: sortWarehouseItems([...(prev.warehouse || []), ...toMove]),
       };
     });
     setCheckedIdxs(new Set()); setFocusIdx(0); setActionSel(0);
@@ -441,6 +456,14 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
             style={{ ...BTN, padding:"4px 8px", fontSize:11, color:"#555" }}>
             解除
           </button>
+        </div>
+      )}
+
+      {/* 実行不可メッセージ */}
+      {notice && (
+        <div style={{ marginTop:8, padding:"6px 8px", background:"#2a0d0d",
+          border:"1px solid #6a2a2a", borderRadius:4, color:"#f88", fontSize:12 }}>
+          {notice}
         </div>
       )}
     </>
