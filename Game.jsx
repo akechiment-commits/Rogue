@@ -101,6 +101,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   tpSelectModeRef.current = tpSelectMode;
   const lookMode         = modal.type === 'look'         ? modal.data : null;
   const floorSelectMode  = modal.type === 'floorSelect'  ? modal.data : null;
+  const floorSelectModeRef = useRef(null);
+  floorSelectModeRef.current = floorSelectMode;
   const identifyMode     = modal.type === 'identify'     ? modal.data : null;
   const identifyModeRef = useRef(null);
   identifyModeRef.current = identifyMode;
@@ -147,6 +149,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const setNicknameInput = (v) => dispatchModal({ type: 'UPDATE', payload: { nicknameInput: typeof v === 'function' ? v(modal.nicknameInput) : v } });
   /* mobile dash toggle */ const [dead, setDead] = useState(false);
   const [msgLogMode, setMsgLogMode] = useState(false);
+  const msgLogModeRef = useRef(false);
+  msgLogModeRef.current = msgLogMode;
   const [msgLogScrollTop, setMsgLogScrollTop] = useState(0);
   const msgsRef = useRef(msgs);
   msgsRef.current = msgs;
@@ -2493,6 +2497,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (showSignRef.current) return;
       if (tpSelectModeRef.current) return;
       if (identifyModeRef.current) return;
+      if (floorSelectModeRef.current) return;
+      if (msgLogModeRef.current) return;
       if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -3525,6 +3531,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
       if (springMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || tpSelectModeRef.current || identifyModeRef.current) return;
+      /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
+      if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
