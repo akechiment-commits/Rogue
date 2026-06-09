@@ -751,8 +751,19 @@ function EncyclopediaPanel({ saveData, onClose }) {
 /* ===== 拠点ショップパネル ===== */
 function HubShopPanel({ saveData, updateSave, onClose }) {
   const [focusIdx, setFocusIdx] = useState(0);
+  const [notice, setNotice] = useState(null);
+  const noticeTimerRef = useRef(null);
   const kbRef = useRef(null);
   const gold = saveData.hubGold || 0;
+  const whCount = (saveData.warehouse || []).length;
+  const whMax   = saveData.warehouseMax || 100;
+
+  const showNotice = (text) => {
+    setNotice(text);
+    clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = setTimeout(() => setNotice(null), 2500);
+  };
+  useEffect(() => () => clearTimeout(noticeTimerRef.current), []);
 
   const shopItems = useMemo(() => {
     const pool = [...SHOP_POOL];
@@ -779,12 +790,15 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
   const buy = (item) => {
     const price = itemPrice(item);
     if (gold < price) return;
+    /* 倉庫満杯時は購入不可（slice切り捨てで代金だけ消費される問題の防止） */
+    if (whCount >= whMax) {
+      showNotice(`倉庫が満杯で購入できない！（${whCount}/${whMax}）`);
+      return;
+    }
     updateSave(prev => ({
       ...prev,
       hubGold:   prev.hubGold - price,
-      warehouse: sortWarehouseItems(
-        [...(prev.warehouse || []), { ...item, id: uid() }].slice(0, prev.warehouseMax || 100)
-      ),
+      warehouse: sortWarehouseItems([...(prev.warehouse || []), { ...item, id: uid() }]),
     }));
   };
 
@@ -815,8 +829,15 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
         所持G: <strong>{gold}G</strong>
       </div>
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
-        ↑↓:選択　Z/Enter:購入　X:閉じる　| 購入品は倉庫に追加されます
+        ↑↓:選択　Z/Enter:購入　X:閉じる　| 購入品は倉庫に追加されます（倉庫 {whCount}/{whMax}）
       </div>
+      {/* 実行不可メッセージ */}
+      {notice && (
+        <div style={{ marginBottom:10, padding:"6px 8px", background:"#2a0d0d",
+          border:"1px solid #6a2a2a", borderRadius:4, color:"#f88", fontSize:12 }}>
+          {notice}
+        </div>
+      )}
       <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
         {shopItems.map((item, i) => {
           const price  = itemPrice(item);
