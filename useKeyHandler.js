@@ -518,6 +518,16 @@ export function useKeyHandler({
         }
         return;
       }
+      if (revealMode) {
+        /* 何かキーで続きのメッセージを表示。この入力はメッセージ送り専用（同キーでの移動・行動はしない） */
+        if (revealModeRef?.current) {
+          if (revealMode.pendingMsgs.length) setMsgs(prev => [...prev.slice(-80), ...revealMode.pendingMsgs]);
+          setRevealMode(null);
+          revealModeRef.current = null;
+        }
+        e.preventDefault();
+        return;
+      }
       if (e.code && e.code.startsWith("Numpad")) {
         const npm = {
           Numpad1: [-1, 1],
@@ -565,14 +575,6 @@ export function useKeyHandler({
           }
           return;
         }
-      }
-      if (revealMode) {
-        // 何かキーで続きのメッセージを表示
-        if (revealMode.pendingMsgs.length) setMsgs(prev => [...prev.slice(-80), ...revealMode.pendingMsgs]);
-        setRevealMode(null);
-        if (revealModeRef) revealModeRef.current = null; /* act() が同キーでそのまま動けるよう同期クリア */
-        e.preventDefault();
-        /* return しない → キー入力をそのままゲームアクションへ fall-through */
       }
       if (nicknameMode) {
         // input要素がフォーカスを持つのでキー入力はinputが処理する。ESCのみ対応
