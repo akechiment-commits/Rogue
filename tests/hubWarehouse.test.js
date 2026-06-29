@@ -3,7 +3,32 @@ import {
   validateHubShopPurchase,
   validateBulkToWarehouse,
   mergeReturnItemsToWarehouse,
+  isWarehouseOverCapacity,
+  canStartAdventure,
 } from "../hubWarehouse.js";
+
+describe("isWarehouseOverCapacity", () => {
+  it("上限ちょうどはオーバーではない", () => {
+    expect(isWarehouseOverCapacity(100, 100)).toBe(false);
+  });
+
+  it("上限を1つ超えたらオーバー", () => {
+    expect(isWarehouseOverCapacity(101, 100)).toBe(true);
+  });
+});
+
+describe("canStartAdventure", () => {
+  it("倉庫が上限以内なら出発可能", () => {
+    expect(canStartAdventure(100, 100)).toEqual({ ok: true });
+  });
+
+  it("倉庫オーバー中は出発不可", () => {
+    expect(canStartAdventure(101, 100)).toEqual({
+      ok: false,
+      reason: "warehouse_over_capacity",
+    });
+  });
+});
 
 describe("validateHubShopPurchase", () => {
   it("条件を満たせば購入可能", () => {
@@ -48,13 +73,17 @@ describe("validateBulkToWarehouse", () => {
 });
 
 describe("mergeReturnItemsToWarehouse", () => {
-  it("空き分だけ持ち帰り品を追加する", () => {
+  it("帰還時は容量を超えてもすべて追加する", () => {
     const wh = Array.from({ length: 98 }, (_, i) => ({ name: `item${i}`, type: "potion" }));
-    const returns = [{ name: "薬A", type: "potion" }, { name: "薬B", type: "potion" }, { name: "薬C", type: "potion" }];
+    const returns = [
+      { name: "薬A", type: "potion" },
+      { name: "薬B", type: "potion" },
+      { name: "薬C", type: "potion" },
+    ];
     const result = mergeReturnItemsToWarehouse(wh, 100, returns);
-    expect(result.warehouse).toHaveLength(100);
-    expect(result.added).toBe(2);
-    expect(result.overflow).toBe(1);
+    expect(result.warehouse).toHaveLength(101);
+    expect(result.added).toBe(3);
+    expect(result.overCapacity).toBe(true);
   });
 
   it("ゴールアイテムは倉庫に入れない", () => {
@@ -64,14 +93,14 @@ describe("mergeReturnItemsToWarehouse", () => {
     ]);
     expect(result.warehouse).toHaveLength(1);
     expect(result.warehouse[0].name).toBe("回復薬");
-    expect(result.overflow).toBe(0);
+    expect(result.overCapacity).toBe(false);
   });
 
-  it("倉庫満杯なら何も追加しない", () => {
+  it("倉庫満杯でも帰還品はすべて追加する", () => {
     const wh = Array.from({ length: 100 }, (_, i) => ({ name: `item${i}`, type: "food" }));
     const result = mergeReturnItemsToWarehouse(wh, 100, [{ name: "パン", type: "food" }]);
-    expect(result.warehouse).toHaveLength(100);
-    expect(result.added).toBe(0);
-    expect(result.overflow).toBe(1);
+    expect(result.warehouse).toHaveLength(101);
+    expect(result.added).toBe(1);
+    expect(result.overCapacity).toBe(true);
   });
 });

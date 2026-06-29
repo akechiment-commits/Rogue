@@ -3,6 +3,19 @@ import { sortWarehouseItems } from "./utils.js";
 /* ===== HUB WAREHOUSE PURE LOGIC =====
    拠点の倉庫・ショップまわりの判定（テスト可能な純関数） */
 
+/** 倉庫が容量オーバー状態か（帰還時はオーバー可、通常操作・出発は不可） */
+export function isWarehouseOverCapacity(warehouseCount, maxCapacity) {
+  return warehouseCount > (maxCapacity || 100);
+}
+
+/** 新規冒険の出発可否 */
+export function canStartAdventure(warehouseCount, maxCapacity) {
+  if (isWarehouseOverCapacity(warehouseCount, maxCapacity)) {
+    return { ok: false, reason: "warehouse_over_capacity" };
+  }
+  return { ok: true };
+}
+
 /** 拠点ショップでの購入可否 */
 export function validateHubShopPurchase(whCount, whMax, gold, price) {
   if (gold < price) return { ok: false, reason: "insufficient_gold" };
@@ -24,19 +37,17 @@ export function validateBulkToWarehouse(warehouseLen, maxCapacity, moveCount) {
   return { ok: true };
 }
 
-/** ダンジョン帰還時：倉庫に収まる分だけ持ち帰り品をマージする（超過分は追加しない） */
+/** ダンジョン帰還時：持ち帰り品をすべて倉庫へ追加（容量オーバー可） */
 export function mergeReturnItemsToWarehouse(warehouse, maxCapacity, returnItems) {
   const existing = warehouse || [];
   const max = maxCapacity || 100;
-  const candidates = (returnItems || [])
+  const toAdd = (returnItems || [])
     .filter((it) => it && it.type !== "goal")
     .map((it) => ({ ...it }));
-  const freeSlots = Math.max(0, max - existing.length);
-  const toAdd = candidates.slice(0, freeSlots);
-  const overflow = candidates.length - toAdd.length;
+  const merged = sortWarehouseItems([...existing, ...toAdd]);
   return {
-    warehouse: sortWarehouseItems([...existing, ...toAdd]),
+    warehouse: merged,
     added: toAdd.length,
-    overflow,
+    overCapacity: merged.length > max,
   };
 }

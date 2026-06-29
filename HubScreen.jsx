@@ -3,7 +3,7 @@ import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
 import { hasGameSave } from "./GameSave.js";
 import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES } from "./items.js";
-import { validateHubShopPurchase, validateBulkToWarehouse } from "./hubWarehouse.js";
+import { validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 
 /* ===== 拠点ショップのアイテムプール ===== */
 const SHOP_POOL = [
@@ -405,7 +405,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
           持参アイテム ({hubInv.length})
         </button>
         <button onClick={() => switchTab("warehouse")} style={tabStyle("warehouse")}>
-          倉庫 ({wh.length}/{MAX})
+          倉庫 ({wh.length}/{MAX}{wh.length > MAX ? " 超過!" : ""})
         </button>
       </div>
 
@@ -887,9 +887,21 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const [startDepth, setStartDepth] = useState(1);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [confirmSel, setConfirmSel] = useState(0); // 0=出発する 1=キャンセル
+  const [notice, setNotice] = useState(null);
+  const noticeTimerRef = useRef(null);
   const kbRef = useRef(null);
   const hubInv   = saveData.hubInventory || [];
+  const whCount  = (saveData.warehouse || []).length;
+  const whMax    = saveData.warehouseMax || 100;
+  const warehouseOver = isWarehouseOverCapacity(whCount, whMax);
   const bestDepth = saveData.bestDepth || 0;
+
+  const showNotice = (text) => {
+    setNotice(text);
+    clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = setTimeout(() => setNotice(null), 3500);
+  };
+  useEffect(() => () => clearTimeout(noticeTimerRef.current), []);
 
   const DUNGEON_TYPES = [
     { id:"tutorial",     label:"チュートリアル",     desc:"全5階。ローグライクの基本から独自システムまで学べる入門ダンジョン", color:"#8f8", maxFloors:5   },
@@ -906,6 +918,11 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const maxStart = (isDebug || isTutorial) ? 1 : Math.min(Math.max(1, bestDepth), currentType.maxFloors);
 
   const doStart = () => {
+    const startCheck = canStartAdventure(whCount, whMax);
+    if (!startCheck.ok) {
+      showNotice("倉庫が容量オーバーです。荷物管理で売却するか、倉庫を拡張してから出発してください。");
+      return;
+    }
     onStart({
       dungeonType: dtype,
       startDepth:  (isDebug || isTutorial) ? 1 : startDepth,
@@ -963,6 +980,18 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
         ↑↓:ダンジョン選択　Z/Enter:出発　X:閉じる
       </div>
+      {warehouseOver && (
+        <div style={{ marginBottom:10, padding:"8px 10px", background:"#2a1a0d",
+          border:"1px solid #6a4a2a", borderRadius:4, color:"#fc8", fontSize:12 }}>
+          倉庫が容量オーバー中（{whCount}/{whMax}）。売却または拡張してから出発できます。
+        </div>
+      )}
+      {notice && (
+        <div style={{ marginBottom:10, padding:"6px 8px", background:"#2a0d0d",
+          border:"1px solid #6a2a2a", borderRadius:4, color:"#f88", fontSize:12 }}>
+          {notice}
+        </div>
+      )}
 
       {/* ダンジョン種別 */}
       <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:14 }}>
@@ -1099,7 +1128,7 @@ function SaveDataPanel({ saveData, onClearSave, onClose }) {
 }
 
 /* ===== メインHUBスクリーン ===== */
-export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave, hubNotice, onDismissHubNotice }) {
+export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave }) {
   const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "shop" | "encyclopedia" | "savedata" */
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
@@ -1107,6 +1136,8 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const hubGold      = saveData.hubGold      || 0;
   const hubInvCount  = (saveData.hubInventory || []).length;
   const warehouseCount = (saveData.warehouse  || []).length;
+  const warehouseMax     = saveData.warehouseMax || 100;
+  const warehouseOver    = isWarehouseOverCapacity(warehouseCount, warehouseMax);
 
   const handleStartDungeon = (config) => {
     setPanel(null);
@@ -1172,17 +1203,14 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       fontFamily:"monospace", color:TXT, padding:16,
     }}>
 
-      {hubNotice && (
+      {warehouseOver && (
         <div style={{
           width:"min(680px,96vw)", marginBottom:16, padding:"10px 14px",
-          background:"#2a0d0d", border:"1px solid #6a2a2a", borderRadius:6,
-          color:"#f88", fontSize:13, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12,
+          background:"#2a1a0d", border:"1px solid #6a4a2a", borderRadius:6,
+          color:"#fc8", fontSize:13,
         }}>
-          <span>{hubNotice}</span>
-          <button onClick={onDismissHubNotice}
-            style={{ ...BTN, padding:"4px 10px", fontSize:11, background:"#1a1010", color:"#faa" }}>
-            閉じる
-          </button>
+          倉庫が容量オーバーです（{warehouseCount}/{warehouseMax}）。
+          荷物管理で売却するか、倉庫を拡張するまで新しい冒険に出発できません。
         </div>
       )}
 
@@ -1208,8 +1236,9 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
         </div>
         <div style={{ width:1, background:BDR }} />
         <div style={{ textAlign:"center" }}>
-          <div style={{ color:"#8af", fontWeight:"bold", fontSize:18 }}>
+          <div style={{ color: warehouseOver ? "#f84" : "#8af", fontWeight:"bold", fontSize:18 }}>
             {hubInvCount}/{warehouseCount}
+            {warehouseOver && <span style={{ fontSize:12 }}> (上限{warehouseMax})</span>}
           </div>
           <div style={{ color:"#555", fontSize:10 }}>持参/倉庫</div>
         </div>

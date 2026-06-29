@@ -12,7 +12,6 @@ export default function App() {
   const [saveData, setSaveData] = useState(() => loadSave());
   const [dungeonConfig, setDungeonConfig] = useState(null);
   const [resumeState, setResumeState] = useState(null);
-  const [hubNotice, setHubNotice] = useState(null);
   const returnedRef = useRef(false); /* guard: prevent double returnToHub */
 
   /* Persist and update saveData */
@@ -29,7 +28,6 @@ export default function App() {
     resetDiscoveries();
     clearGameSave();
     returnedRef.current = false;
-    setHubNotice(null);
     setResumeState(null);
     setDungeonConfig({ ...config, _key: Date.now() });
     /* 持参アイテムをダンジョンに移したのでhubInventoryをクリア */
@@ -52,7 +50,6 @@ export default function App() {
     /* 二重呼び出し防止 */
     if (returnedRef.current) return;
     returnedRef.current = true;
-    let warehouseOverflow = 0;
     updateSave(prev => {
       const next = { ...prev };
       /* survived=true: 100% gold; death: 50% gold */
@@ -77,7 +74,6 @@ export default function App() {
           result.returnItems,
         );
         next.warehouse = merged.warehouse;
-        warehouseOverflow = merged.overflow;
       }
       /* ダンジョンクリア記録（オブジェクトを新規生成して prev の参照を共有しない） */
       if (result.cleared) {
@@ -86,11 +82,6 @@ export default function App() {
       }
       return next;
     });
-    if (warehouseOverflow > 0) {
-      setHubNotice(
-        `倉庫の空きが足りず、${warehouseOverflow}個のアイテムを持ち帰れませんでした！`,
-      );
-    }
     setScreen("hub");
   }, [updateSave, dungeonConfig]);
 
@@ -120,8 +111,6 @@ export default function App() {
       onStartDungeon={startDungeon}
       onResumeDungeon={resumeDungeon}
       onClearSave={handleClearSave}
-      hubNotice={hubNotice}
-      onDismissHubNotice={() => setHubNotice(null)}
     />
   );
 }
