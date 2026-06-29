@@ -24,6 +24,7 @@ export function useKeyHandler({
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
   showSign,
+  exitHubConfirm, exitHubSel,
   // state setters
   setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -34,6 +35,7 @@ export function useKeyHandler({
   setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
   setMsgLogMode, setMsgLogScrollTop,
   setShowSign,
+  setExitHubConfirm, setExitHubSel, performExitToHub,
   // callbacks
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
   bigboxPutItem, sortInventory, getLookDesc, lu,
@@ -64,6 +66,20 @@ export function useKeyHandler({
       if (showSign) {
         if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
           e.preventDefault(); setShowSign(null);
+        }
+        return;
+      }
+      if (exitHubConfirm) {
+        if (k === "arrowup" || k === "arrowleft" || k === "h") {
+          e.preventDefault(); setExitHubSel(0);
+        } else if (k === "arrowdown" || k === "arrowright" || k === "l") {
+          e.preventDefault(); setExitHubSel(1);
+        } else if (k === "enter" || k === " " || k === "z") {
+          e.preventDefault();
+          if (exitHubSel === 0) performExitToHub();
+          else setExitHubConfirm(false);
+        } else if (k === "escape" || k === "x") {
+          e.preventDefault(); setExitHubConfirm(false);
         }
         return;
       }
@@ -1753,6 +1769,11 @@ export function useKeyHandler({
       lookMode,
       getLookDesc,
       showSign,
+      exitHubConfirm,
+      exitHubSel,
+      setExitHubConfirm,
+      setExitHubSel,
+      performExitToHub,
     ],
   );
   useEffect(() => {

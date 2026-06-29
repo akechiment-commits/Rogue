@@ -18,6 +18,7 @@ export const DEFAULT_SAVE = {
   totalRuns: 0,
   bestDepth: 0,
   bestGold:  0,
+  hubShopStock: [],       /* 拠点ショップの在庫（帰還ごとに更新・最大1点） */
 };
 
 export function loadSave() {
@@ -38,6 +39,7 @@ export function loadSave() {
       },
       identifiedEffects: [...(data.identifiedEffects || [])],
       clearedDungeons:   { ...(data.clearedDungeons   || {}) },
+      hubShopStock:      [...(data.hubShopStock      || [])],
     };
   } catch {
     return structuredClone(DEFAULT_SAVE);

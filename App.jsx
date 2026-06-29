@@ -3,6 +3,7 @@ import { loadSave, writeSave, clearSave, mergeDiscoveries } from "./SaveData.js"
 import { resetDiscoveries } from "./DiscoveryTracker.js";
 import { loadGameState, clearGameSave } from "./GameSave.js";
 import { mergeReturnItemsToWarehouse } from "./hubWarehouse.js";
+import { rollHubShopStock } from "./hubShop.js";
 import RoguelikeGame from "./Game.jsx";
 import HubScreen from "./HubScreen.jsx";
 
@@ -75,6 +76,8 @@ export default function App() {
         );
         next.warehouse = merged.warehouse;
       }
+      /* 拠点ショップを入荷（帰還のたびに1点） */
+      next.hubShopStock = rollHubShopStock();
       /* ダンジョンクリア記録（オブジェクトを新規生成して prev の参照を共有しない） */
       if (result.cleared) {
         const _dt = dungeonConfig?.dungeonType || "beginner";

@@ -5,14 +5,6 @@ import { hasGameSave } from "./GameSave.js";
 import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES } from "./items.js";
 import { validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 
-/* ===== 拠点ショップのアイテムプール ===== */
-const SHOP_POOL = [
-  ...ITEMS.filter(it => it.type !== "gold"),
-  ...WANDS,
-  ...POTS,
-  ...RINGS,
-];
-
 /* ===== 共通スタイル ===== */
 const BG   = "#09090f";
 const CARD = "#111118";
@@ -769,27 +761,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
   };
   useEffect(() => () => clearTimeout(noticeTimerRef.current), []);
 
-  const shopItems = useMemo(() => {
-    const pool = [...SHOP_POOL];
-    const result = [];
-    while (result.length < 8 && pool.length > 0) {
-      const total = pool.reduce((s, x) => s + (x.weight ?? 1), 0);
-      let r = Math.random() * total;
-      let idx = pool.length - 1;
-      for (let i = 0; i < pool.length; i++) {
-        r -= (pool[i].weight ?? 1);
-        if (r <= 0) { idx = i; break; }
-      }
-      const picked = pool[idx];
-      const _plusRings = new Set(["power_ring","defense_ring","life_ring"]);
-      const entry = (picked.type === "ring" && _plusRings.has(picked.effect))
-        ? { ...picked, plus: Math.floor(Math.random() * 3) + 1 }
-        : picked;
-      result.push(entry);
-      pool.splice(idx, 1);
-    }
-    return result;
-  }, []);
+  const shopItems = saveData.hubShopStock || [];
 
   const buy = (item) => {
     const price = itemPrice(item);
@@ -804,6 +776,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
       ...prev,
       hubGold:   prev.hubGold - price,
       warehouse: sortWarehouseItems([...(prev.warehouse || []), { ...item, id: uid() }]),
+      hubShopStock: [],
     }));
   };
 
@@ -834,7 +807,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
         所持G: <strong>{gold}G</strong>
       </div>
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
-        ↑↓:選択　Z/Enter:購入　X:閉じる　| 購入品は倉庫に追加されます（倉庫 {whCount}/{whMax}）
+        ↑↓:選択　Z/Enter:購入　X:閉じる　| 在庫1点・帰還ごとに入荷　購入品は倉庫へ（{whCount}/{whMax}）
       </div>
       {/* 実行不可メッセージ */}
       {notice && (
@@ -844,6 +817,11 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
         </div>
       )}
       <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+        {shopItems.length === 0 && (
+          <div style={{ color:"#666", fontSize:13, padding:"16px 8px", textAlign:"center" }}>
+            売り切れです。次の冒険から帰還すると新しい商品が入ります。
+          </div>
+        )}
         {shopItems.map((item, i) => {
           const price  = itemPrice(item);
           const canBuy = gold >= price;

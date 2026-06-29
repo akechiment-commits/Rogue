@@ -3201,3 +3201,49 @@ export function SignModal({ sign, onClose, mobile }) {
     </div>
   );
 }
+
+/* ===== 地上帰還確認 ===== */
+export function ExitHubConfirmModal({ show, sel, setSel, onConfirm, onCancel, mobile }) {
+  if (!show) return null;
+  const opts = [
+    { label: "脱出する", sub: "地上に戻る（持ち物は倉庫へ）" },
+    { label: "やめる", sub: "ダンジョンに留まる" },
+  ];
+  return (
+    <div style={{
+      position: "absolute", inset: 0, background: "rgba(0,0,0,0.82)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 55,
+    }}>
+      <div style={{
+        background: "#12121e", border: "2px solid #446", borderRadius: 8,
+        padding: mobile ? 16 : 22, maxWidth: mobile ? 320 : 400, width: "90%",
+        boxShadow: "0 6px 36px rgba(0,0,0,0.92)",
+      }}>
+        <div style={{ color: "#f88", fontSize: mobile ? 15 : 17, fontWeight: "bold", marginBottom: 8, textAlign: "center" }}>
+          ダンジョンから脱出しますか？
+        </div>
+        <div style={{ color: "#8a9ab0", fontSize: 12, marginBottom: 16, textAlign: "center", lineHeight: 1.5 }}>
+          B1Fの上り階段から地上に戻ります。所持品は倉庫に移されます。
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {opts.map((o, i) => (
+            <button key={i}
+              onClick={() => (i === 0 ? onConfirm() : onCancel())}
+              style={{
+                padding: "10px 14px", textAlign: "left", cursor: "pointer",
+                background: sel === i ? "#1a1a30" : "#0d0d18",
+                border: `1px solid ${sel === i ? "#66f" : "#333"}`,
+                borderRadius: 6, color: i === 0 ? "#8f8" : "#aaa",
+              }}>
+              <div style={{ fontWeight: "bold", fontSize: 14 }}>{o.label}</div>
+              <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{o.sub}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ color: "#555", fontSize: 11, marginTop: 14, textAlign: "center" }}>
+          ↑↓:選択　Z/Enter:決定　X:やめる
+        </div>
+      </div>
+    </div>
+  );
+}

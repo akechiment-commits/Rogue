@@ -35,7 +35,7 @@ import { useGameRenderer } from './useGameRenderer.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
-import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, SettingsModal } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 
@@ -168,6 +168,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const [showSettings, setShowSettings] = useState(false);
   const showSettingsRef = useRef(false);
   showSettingsRef.current = showSettings;
+  const [exitHubConfirm, setExitHubConfirm] = useState(false);
+  const [exitHubSel, setExitHubSel] = useState(0);
+  const exitHubConfirmRef = useRef(false);
+  exitHubConfirmRef.current = exitHubConfirm;
   const [currentTileset, setCurrentTileset] = useState(() => localStorage.getItem('roguelike_tileset') || 'default');
   const [desktopVW, setDesktopVW] = useState(() => parseInt(localStorage.getItem('roguelike_desktop_vw') || '25'));
   const [landscape, setLandscape] = useState(false);
@@ -2486,6 +2490,37 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     return () => clearTimeout(timer);
   }, [gs, shopMode, endTurn, playAnim]);
 
+  const performExitToHub = useCallback(() => {
+    if (!onReturnToHub || !sr.current) return;
+    const p = sr.current.player;
+    clearGameSave();
+    p.inventory.forEach((i) => trackItem(i));
+    commitPendingBigboxes();
+    const _hasGoal = p.inventory.some((it) => it.type === "goal");
+    const payload = {
+      earnedGold: p.gold,
+      depth: p.depth,
+      discoveries: getDiscoveries(),
+      survived: true,
+      returnItems: [...p.inventory],
+      cleared: _hasGoal,
+      identifiedEffects: [...(sr.current?.ident || [])],
+    };
+    setExitHubConfirm(false);
+    if (_hasGoal) {
+      setEndingResult(payload);
+      setShowEnding(true);
+    } else {
+      onReturnToHub(payload);
+    }
+  }, [onReturnToHub]);
+
+  const requestExitToHub = useCallback((ml) => {
+    setExitHubSel(0);
+    setExitHubConfirm(true);
+    ml.push("ダンジョンから脱出しますか？");
+  }, []);
+
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
       if (dead || !sr.current) return;
@@ -2504,6 +2539,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (floorSelectModeRef.current) return;
       if (msgLogModeRef.current) return;
       if (showSettingsRef.current || showTileEditorRef.current) return;
+      if (exitHubConfirmRef.current) return;
       if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -3229,16 +3265,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
-              clearGameSave();
-              p.inventory.forEach(i => trackItem(i));
-              commitPendingBigboxes();
-              const _hasGoal = p.inventory.some(it => it.type === "goal");
-              if (_hasGoal) {
-                setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, identifiedEffects: [...(sr.current?.ident || [])] });
-                setShowEnding(true);
-              } else {
-                onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: false, identifiedEffects: [...(sr.current?.ident || [])] });
-              }
+              requestExitToHub(ml);
+              sr.current = { ...st }; setGs({ ...st });
               return;
             }
           } else {
@@ -3256,16 +3284,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } else if (dg.map[p.y][p.x] === T.SU) {
           if (p.depth === 1) {
             if (onReturnToHub) {
-              clearGameSave();
-              p.inventory.forEach(i => trackItem(i));
-              commitPendingBigboxes();
-              const _hasGoal2 = p.inventory.some(it => it.type === "goal");
-              if (_hasGoal2) {
-                setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, identifiedEffects: [...(sr.current?.ident || [])] });
-                setShowEnding(true);
-              } else {
-                onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: false });
-              }
+              requestExitToHub(ml);
+              sr.current = { ...st }; setGs({ ...st });
               return;
             }
           } else {
@@ -3537,7 +3557,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (animBusyRef.current) return;
       if (springMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
-      if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current) return;
+      if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
@@ -4971,6 +4991,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
     msgLogMode, msgLogScrollTop, msgsRef,
     showSign,
+    exitHubConfirm, exitHubSel,
     // state setters
     setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -4981,6 +5002,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
     setMsgLogMode, setMsgLogScrollTop,
     setShowSign,
+    setExitHubConfirm, setExitHubSel, performExitToHub,
     // callbacks
     init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
     bigboxPutItem, sortInventory, getLookDesc, lu,
@@ -6157,6 +6179,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} />
       <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} loadTileset={loadTileset} currentTileset={currentTileset} />
       <SettingsModal show={showSettings} setShow={setShowSettings} loadPortrait={loadPortrait} clearPortrait={clearPortrait} portraitSrc={portraitSrc} loadTileset={loadTileset} currentTileset={currentTileset} desktopVW={desktopVW} setDesktopVW={(v) => { setDesktopVW(v); localStorage.setItem('roguelike_desktop_vw', String(v)); }} mobile={mobile} />
+      <ExitHubConfirmModal show={exitHubConfirm} sel={exitHubSel} setSel={setExitHubSel}
+        onConfirm={performExitToHub}
+        onCancel={() => setExitHubConfirm(false)}
+        mobile={mobile} />
     </div>
   );
 }
