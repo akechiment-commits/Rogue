@@ -4,6 +4,7 @@ import { clearSave } from "./SaveData.js";
 import { hasGameSave } from "./GameSave.js";
 import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES } from "./items.js";
 import { validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
+import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 
 /* ===== 共通スタイル ===== */
 const BG   = "#09090f";
@@ -284,7 +285,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
       /* 売却確認ダイアログ中 */
       if (r.sellConfirmOpen) {
-        if (k === "arrowup" || k === "arrowdown") {
+        if (isKeyUp(e) || isKeyDown(e)) {
           e.preventDefault();
           r.setSellConfirmSel(p => p === 0 ? 1 : 0);
         } else if (k === "z" || k === "enter") {
@@ -300,7 +301,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
       /* 倉庫拡張ボタンフォーカス中 */
       if (r.expandFocused) {
-        if (k === "arrowdown") {
+        if (isKeyDown(e)) {
           e.preventDefault(); r.setExpandFocused(false); r.setFocusIdx(0);
         } else if (k === "z" || k === "enter") {
           e.preventDefault();
@@ -329,21 +330,21 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       }
 
       if (r.list.length === 0) return;
-      if (k === "arrowup") {
+      if (isKeyUp(e)) {
         e.preventDefault();
         if (r.safeFocus === 0 && !r.isCarry) {
           r.setExpandFocused(true);
         } else {
           r.setFocusIdx(p => Math.max(0, p - 1)); r.setActionSel(0); r.setShowDescIdx(null);
         }
-      } else if (k === "arrowdown") {
+      } else if (isKeyDown(e)) {
         e.preventDefault();
         r.setFocusIdx(p => Math.min(r.list.length - 1, p + 1)); r.setActionSel(0); r.setShowDescIdx(null);
-      } else if (k === "arrowleft") {
+      } else if (isKeyLeft(e)) {
         e.preventDefault();
         const acts = r.getActions(r.list[r.safeFocus]);
         if (acts.length) r.setActionSel(p => (p - 1 + acts.length) % acts.length);
-      } else if (k === "arrowright") {
+      } else if (isKeyRight(e)) {
         e.preventDefault();
         const acts = r.getActions(r.list[r.safeFocus]);
         if (acts.length) r.setActionSel(p => (p + 1) % acts.length);
@@ -382,7 +383,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
       {/* 操作ガイド */}
       <div style={{ color:"#8a9ab0", fontSize:11, lineHeight:"1.8em", marginBottom:10,
         padding:"5px 8px", background:"#0d0d18", border:`1px solid ${BDR}`, borderRadius:4 }}>
-        <div>Shift:タブ切替　↑↓:選択　←→:操作切替　Enter/Z:実行　D:チェック</div>
+        <div>Shift:タブ切替　↑↓/テンキー8・2:選択　←→/テンキー4・6:操作切替　Enter/Z:実行　D:チェック</div>
         <div>F:まとめて持参/倉庫へ　S:まとめて売る（確認あり）　X:閉じる</div>
       </div>
 
@@ -606,7 +607,7 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
               ))}
             </div>
             <div style={{ color:"#555", fontSize:11, marginTop:12 }}>
-              ↑↓:選択　Z/Enter:決定　X:キャンセル
+              ↑↓/テンキー8・2:選択　Z/Enter:決定　X:キャンセル
             </div>
           </div>
         </div>
@@ -663,9 +664,9 @@ function EncyclopediaPanel({ saveData, onClose }) {
         r.switchTab(r.TABS[(idx + 1) % r.TABS.length]); return;
       }
       if (r.sortedList.length === 0) return;
-      if (k === "arrowup") {
+      if (isKeyUp(e)) {
         e.preventDefault(); r.setFocusIdx(p => Math.max(0, p - 1));
-      } else if (k === "arrowdown") {
+      } else if (isKeyDown(e)) {
         e.preventDefault(); r.setFocusIdx(p => Math.min(r.sortedList.length - 1, p + 1));
       } else if (k === "pagedown" || k === " ") {
         e.preventDefault(); r.setFocusIdx(p => Math.min(r.sortedList.length - 1, p + 10));
@@ -698,7 +699,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
   const stickyArea = (
     <>
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:8 }}>
-        Shift:タブ切替　↑↓:選択　PageDown/Space:+10　PageUp:-10　Z/Enter:説明　X:閉じる
+        Shift:タブ切替　↑↓/テンキー8・2:選択　PageDown/Space:+10　PageUp:-10　Z/Enter:説明　X:閉じる
       </div>
       <div style={{ display:"flex", gap:6, marginBottom:8, flexWrap:"wrap" }}>
         {TABS.map(t => (
@@ -787,9 +788,9 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
       const r = kbRef.current;
       const k = e.key.toLowerCase();
       if (k === "x" || k === "escape") { r.onClose(); return; }
-      if (k === "arrowup") {
+      if (isKeyUp(e)) {
         e.preventDefault(); r.setFocusIdx(p => Math.max(0, p - 1));
-      } else if (k === "arrowdown") {
+      } else if (isKeyDown(e)) {
         e.preventDefault(); r.setFocusIdx(p => Math.min(r.shopItems.length - 1, p + 1));
       } else if (k === "z" || k === "enter") {
         e.preventDefault();
@@ -807,7 +808,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
         所持G: <strong>{gold}G</strong>
       </div>
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
-        ↑↓:選択　Z/Enter:購入　X:閉じる　| 在庫1点・帰還ごとに入荷　購入品は倉庫へ（{whCount}/{whMax}）
+        ↑↓/テンキー8・2:選択　Z/Enter:購入　X:閉じる　| 在庫1点・帰還ごとに入荷　購入品は倉庫へ（{whCount}/{whMax}）
       </div>
       {/* 実行不可メッセージ */}
       {notice && (
@@ -925,7 +926,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
       const r = kbRef.current;
       const k = e.key.toLowerCase();
       if (r.confirmOverwrite) {
-        if (k === "arrowup" || k === "arrowdown") {
+        if (isKeyUp(e) || isKeyDown(e)) {
           e.preventDefault(); r.setConfirmSel(p => p === 0 ? 1 : 0);
         } else if (k === "z" || k === "enter") {
           e.preventDefault();
@@ -938,10 +939,10 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
       }
       if (k === "x" || k === "escape") { r.onClose(); return; }
       const dtIdx = r.DUNGEON_TYPES.findIndex(dt => dt.id === r.dtype);
-      if (k === "arrowup") {
+      if (isKeyUp(e)) {
         e.preventDefault();
         if (dtIdx > 0) r.setDtype(r.DUNGEON_TYPES[dtIdx - 1].id);
-      } else if (k === "arrowdown") {
+      } else if (isKeyDown(e)) {
         e.preventDefault();
         if (dtIdx < r.DUNGEON_TYPES.length - 1) r.setDtype(r.DUNGEON_TYPES[dtIdx + 1].id);
       } else if (k === "z" || k === "enter") {
@@ -956,7 +957,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
     <Panel title="ダンジョン入口" onClose={onClose}>
       {/* 操作ガイド */}
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
-        ↑↓:ダンジョン選択　Z/Enter:出発　X:閉じる
+        ↑↓/テンキー8・2:ダンジョン選択　Z/Enter:出発　X:閉じる
       </div>
       {warehouseOver && (
         <div style={{ marginBottom:10, padding:"8px 10px", background:"#2a1a0d",
@@ -1045,7 +1046,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
               </button>
             ))}
           </div>
-          <div style={{ color:"#555", fontSize:11 }}>↑↓:選択　Z/Enter:決定　X:キャンセル</div>
+          <div style={{ color:"#555", fontSize:11 }}>↑↓/テンキー8・2:選択　Z/Enter:決定　X:キャンセル</div>
         </div>
       ) : (
         <Btn label="▶ 冒険に出発！ [Z]" onClick={handleStart} color="#0f0"
@@ -1140,9 +1141,9 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       const r = kbRef.current;
       if (r.panel !== null) return; // 各パネルが自前でハンドリング
       const k = e.key.toLowerCase();
-      if (k === "arrowup" || k === "arrowleft") {
+      if (isKeyUp(e) || isKeyLeft(e)) {
         e.preventDefault(); r.setMainFocus(p => Math.max(0, p - 1));
-      } else if (k === "arrowdown" || k === "arrowright") {
+      } else if (isKeyDown(e) || isKeyRight(e)) {
         e.preventDefault(); r.setMainFocus(p => Math.min(r.mainItems.length - 1, p + 1));
       } else if (k === "z" || k === "enter") {
         e.preventDefault();
@@ -1234,7 +1235,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
 
       {/* キーボードガイド */}
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:12, textAlign:"center" }}>
-        ↑↓:選択　Z/Enter:決定
+        ↑↓/テンキー8・2:選択　Z/Enter:決定
       </div>
 
       {/* 中断データがある場合：再開ボタン */}
