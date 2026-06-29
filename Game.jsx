@@ -163,7 +163,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const [mobile, setMobile] = useState(false);
   const [ctLoaded, setCtLoaded] = useState(0);
   const [showTileEditor, setShowTileEditor] = useState(false);
+  const showTileEditorRef = useRef(false);
+  showTileEditorRef.current = showTileEditor;
   const [showSettings, setShowSettings] = useState(false);
+  const showSettingsRef = useRef(false);
+  showSettingsRef.current = showSettings;
   const [currentTileset, setCurrentTileset] = useState(() => localStorage.getItem('roguelike_tileset') || 'default');
   const [desktopVW, setDesktopVW] = useState(() => parseInt(localStorage.getItem('roguelike_desktop_vw') || '25'));
   const [landscape, setLandscape] = useState(false);
@@ -2499,6 +2503,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (identifyModeRef.current) return;
       if (floorSelectModeRef.current) return;
       if (msgLogModeRef.current) return;
+      if (showSettingsRef.current || showTileEditorRef.current) return;
       if (lookMode) return;
       if (springMode) return;
       if (putMode) return;
@@ -3532,7 +3537,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (animBusyRef.current) return;
       if (springMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
-      if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current) return;
+      if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;

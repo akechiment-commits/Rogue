@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   validateHubShopPurchase,
   validateBulkToWarehouse,
+  mergeReturnItemsToWarehouse,
 } from "../hubWarehouse.js";
 
 describe("validateHubShopPurchase", () => {
@@ -43,5 +44,34 @@ describe("validateBulkToWarehouse", () => {
       ok: false,
       reason: "nothing_selected",
     });
+  });
+});
+
+describe("mergeReturnItemsToWarehouse", () => {
+  it("空き分だけ持ち帰り品を追加する", () => {
+    const wh = Array.from({ length: 98 }, (_, i) => ({ name: `item${i}`, type: "potion" }));
+    const returns = [{ name: "薬A", type: "potion" }, { name: "薬B", type: "potion" }, { name: "薬C", type: "potion" }];
+    const result = mergeReturnItemsToWarehouse(wh, 100, returns);
+    expect(result.warehouse).toHaveLength(100);
+    expect(result.added).toBe(2);
+    expect(result.overflow).toBe(1);
+  });
+
+  it("ゴールアイテムは倉庫に入れない", () => {
+    const result = mergeReturnItemsToWarehouse([], 100, [
+      { name: "輝く宝玉", type: "goal" },
+      { name: "回復薬", type: "potion" },
+    ]);
+    expect(result.warehouse).toHaveLength(1);
+    expect(result.warehouse[0].name).toBe("回復薬");
+    expect(result.overflow).toBe(0);
+  });
+
+  it("倉庫満杯なら何も追加しない", () => {
+    const wh = Array.from({ length: 100 }, (_, i) => ({ name: `item${i}`, type: "food" }));
+    const result = mergeReturnItemsToWarehouse(wh, 100, [{ name: "パン", type: "food" }]);
+    expect(result.warehouse).toHaveLength(100);
+    expect(result.added).toBe(0);
+    expect(result.overflow).toBe(1);
   });
 });

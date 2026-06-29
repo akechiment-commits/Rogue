@@ -1099,7 +1099,7 @@ function SaveDataPanel({ saveData, onClearSave, onClose }) {
 }
 
 /* ===== メインHUBスクリーン ===== */
-export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave }) {
+export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave, hubNotice, onDismissHubNotice }) {
   const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "shop" | "encyclopedia" | "savedata" */
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
@@ -1171,6 +1171,20 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       alignItems:"center", justifyContent:"center",
       fontFamily:"monospace", color:TXT, padding:16,
     }}>
+
+      {hubNotice && (
+        <div style={{
+          width:"min(680px,96vw)", marginBottom:16, padding:"10px 14px",
+          background:"#2a0d0d", border:"1px solid #6a2a2a", borderRadius:6,
+          color:"#f88", fontSize:13, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12,
+        }}>
+          <span>{hubNotice}</span>
+          <button onClick={onDismissHubNotice}
+            style={{ ...BTN, padding:"4px 10px", fontSize:11, background:"#1a1010", color:"#faa" }}>
+            閉じる
+          </button>
+        </div>
+      )}
 
       {/* タイトル */}
       <div style={{ textAlign:"center", marginBottom:24 }}>
