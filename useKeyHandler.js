@@ -12,6 +12,7 @@ import {
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { genDungeon, prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
+import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 
 export function useKeyHandler({
   // refs
@@ -70,9 +71,9 @@ export function useKeyHandler({
         return;
       }
       if (exitHubConfirm) {
-        if (k === "arrowup" || k === "arrowleft" || k === "h") {
+        if (isKeyUp(e) || isKeyLeft(e)) {
           e.preventDefault(); setExitHubSel(0);
-        } else if (k === "arrowdown" || k === "arrowright" || k === "l") {
+        } else if (isKeyDown(e) || isKeyRight(e)) {
           e.preventDefault(); setExitHubSel(1);
         } else if (k === "enter" || k === " " || k === "z") {
           e.preventDefault();

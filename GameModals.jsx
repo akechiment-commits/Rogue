@@ -3241,7 +3241,7 @@ export function ExitHubConfirmModal({ show, sel, setSel, onConfirm, onCancel, mo
           ))}
         </div>
         <div style={{ color: "#555", fontSize: 11, marginTop: 14, textAlign: "center" }}>
-          ↑↓:選択　Z/Enter:決定　X:やめる
+          ↑↓/テンキー8・2:選択　Z/Enter:決定　X:やめる
         </div>
       </div>
     </div>
