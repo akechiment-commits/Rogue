@@ -372,7 +372,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
         Lv.{p.level} | B{p.depth}F | T:{p.turns} | G:{p.gold}
       </div>
       <div style={{ color: "#555", fontSize: 13, marginBottom: 10 }}>
-        ← → で選択 / Enter で決定
+        ←→/テンキー4・6 で選択 / Enter で決定
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap", justifyContent: "center" }}>
         <button

@@ -86,9 +86,9 @@ export function useKeyHandler({
       }
       if (dead) {
         if (!showScores) {
-          if (k === "arrowleft" || k === "arrowup" || k === "h") {
+          if (isKeyLeft(e) || isKeyUp(e)) {
             e.preventDefault(); setGameOverSel(0);
-          } else if (k === "arrowright" || k === "arrowdown" || k === "l") {
+          } else if (isKeyRight(e) || isKeyDown(e)) {
             e.preventDefault(); setGameOverSel(1);
           } else if (k === "enter" || k === " " || k === "z") {
             e.preventDefault();
