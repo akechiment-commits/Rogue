@@ -22,6 +22,7 @@ jobs:
         with:
           node-version: 20
       - run: npm install
+      - run: npm test
       - run: npx vite build --base /Rogue/
       - if: github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v4

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice } from "../items.js";
 
 describe("getIdentKey", () => {
   it("種別ごとに識別キーを返す", () => {
@@ -22,6 +22,23 @@ describe("itemPrice", () => {
 
   it("祝福品は価格が上がる", () => {
     expect(itemPrice({ type: "potion", sellPrice: 100, blessed: true })).toBe(110);
+  });
+});
+
+describe("getBlessMultiplier", () => {
+  it("祝福・呪い・通常の倍率を返す", () => {
+    expect(getBlessMultiplier({ blessed: true })).toBe(1.5);
+    expect(getBlessMultiplier({ cursed: true })).toBe(0.5);
+    expect(getBlessMultiplier({})).toBe(1);
+    expect(getBlessMultiplier(null)).toBe(1);
+  });
+});
+
+describe("gemSellPrice", () => {
+  it("階層の距離に応じて売値が上がる", () => {
+    const gem = { basePrice: 100, originDepth: 5 };
+    expect(gemSellPrice(gem, 5)).toBe(100);
+    expect(gemSellPrice(gem, 10)).toBe(275);
   });
 });
 
