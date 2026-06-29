@@ -3,6 +3,7 @@ import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
 import { hasGameSave } from "./GameSave.js";
 import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES } from "./items.js";
+import { validateHubShopPurchase, validateBulkToWarehouse } from "./hubWarehouse.js";
 
 /* ===== 拠点ショップのアイテムプール ===== */
 const SHOP_POOL = [
@@ -223,8 +224,11 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
     if (checkedIdxs.size === 0) return;
     /* 1個でも溢れるなら移動しない（slice切り捨てによるアイテム消失防止） */
     const moveCount = [...checkedIdxs].filter(i => i < hubInv.length).length;
-    if (wh.length + moveCount > MAX) {
-      showNotice(`倉庫の空きが足りない！（空き${MAX - wh.length}・選択${moveCount}個）`);
+    const bulkCheck = validateBulkToWarehouse(wh.length, MAX, moveCount);
+    if (!bulkCheck.ok) {
+      if (bulkCheck.reason === "insufficient_space") {
+        showNotice(`倉庫の空きが足りない！（空き${bulkCheck.freeSlots}・選択${bulkCheck.moveCount}個）`);
+      }
       return;
     }
     updateSave(prev => {
@@ -789,10 +793,11 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
 
   const buy = (item) => {
     const price = itemPrice(item);
-    if (gold < price) return;
-    /* 倉庫満杯時は購入不可（slice切り捨てで代金だけ消費される問題の防止） */
-    if (whCount >= whMax) {
-      showNotice(`倉庫が満杯で購入できない！（${whCount}/${whMax}）`);
+    const purchaseCheck = validateHubShopPurchase(whCount, whMax, gold, price);
+    if (!purchaseCheck.ok) {
+      if (purchaseCheck.reason === "warehouse_full") {
+        showNotice(`倉庫が満杯で購入できない！（${whCount}/${whMax}）`);
+      }
       return;
     }
     updateSave(prev => ({

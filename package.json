@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "map-tiles": "node tools/tileset-mapper.mjs"
   },
   "dependencies": {
@@ -16,6 +18,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "canvas": "^3.2.1",
     "vite": "^5.4.14",
+    "vitest": "^3.2.4",
     "xlsx": "^0.18.5"
   }
 }
