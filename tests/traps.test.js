@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
+import { fireTrapItem } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("fireTrapPlayer", () => {
@@ -52,5 +53,18 @@ describe("fireTrapPlayer", () => {
     const ml = [];
     const result = fireTrapPlayer(trap, p, dg, ml);
     expect(result).toBe("pitfall");
+  });
+});
+
+describe("fireTrapItem rockfall", () => {
+  it("落石の罠でモンスターが倒れたときメッセージを出す", () => {
+    const p = makePlayer();
+    const mon = { name: "スライム", hp: 10, maxHp: 10, x: 5, y: 5 };
+    const dg = makeEmptyDg({ monsters: [mon] });
+    const trap = { effect: "rockfall", name: "落石の罠", x: 5, y: 5, id: "t1" };
+    const ml = [];
+    fireTrapItem(trap, { name: "石", type: "misc" }, dg, 5, 5, ml, new Set(), p);
+    expect(dg.monsters).toHaveLength(0);
+    expect(ml.some(m => m.includes("スライムは倒れた！"))).toBe(true);
   });
 });

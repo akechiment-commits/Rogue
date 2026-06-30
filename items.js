@@ -1578,7 +1578,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _rfd2 = rng(15, 25);
         _rfm.hp -= _rfd2;
         ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
-        if (_rfm.hp <= 0) { monsterDrop(_rfm, dg, ml, p); removeMonster(dg, _rfm); }
+        if (_rfm.hp <= 0) {
+          ml.push(`${_rfm.name}は倒れた！`);
+          monsterDrop(_rfm, dg, ml, p);
+          removeMonster(dg, _rfm);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         const _rfd3 = rng(15, 25);
