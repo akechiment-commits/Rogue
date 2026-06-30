@@ -69,6 +69,32 @@ describe("shop item pickup rendering state", () => {
   });
 });
 
+describe("shop floor item claim", () => {
+  /** Game.jsx _chargeShopFloorItem と同じ請求ロジック（shopPrice は維持） */
+  function claimShopFloorItem(item, p, dg) {
+    if (!item.shopPrice) return;
+    if (item.charges != null) item._origCharges = item._origCharges ?? item.charges;
+    const shop = dg.shops.find((s) => s.id === item._shopId) || dg.shops[0];
+    if (shop) {
+      shop.unpaidTotal += item.shopPrice;
+      const sk = dg.monsters.find((m) => m.id === shop.shopkeeperId && m.state === "friendly");
+      if (sk) sk.state = "blocking";
+    }
+  }
+
+  it("足元から使う請求後もshopPriceと_shopIdが残る（拾った場合と同様）", () => {
+    const { dg, shopItem, shopId, sk } = makeShopDg();
+    sk.state = "friendly";
+    dg.shops[0].unpaidTotal = 0;
+    const p = makePlayer({ x: 11, y: 12 });
+    claimShopFloorItem(shopItem, p, dg);
+    expect(shopItem.shopPrice).toBe(100);
+    expect(shopItem._shopId).toBe(shopId);
+    expect(dg.shops[0].unpaidTotal).toBe(100);
+    expect(sk.state).toBe("blocking");
+  });
+});
+
 describe("shopkeeper blocking AI", () => {
   it("未払い時に入口へ移動した後、プレイヤーが店内にいれば毎ターン同じ位置に留まる", () => {
     const { dg, sk, blockPos } = makeShopDg();
