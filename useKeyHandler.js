@@ -26,6 +26,7 @@ export function useKeyHandler({
   msgLogMode, msgLogScrollTop, msgsRef,
   showSign,
   exitHubConfirm, exitHubSel,
+  gameOverCanReturn, performGameOverReturnToHub,
   // state setters
   setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -86,14 +87,18 @@ export function useKeyHandler({
       }
       if (dead) {
         if (!showScores) {
-          if (isKeyLeft(e) || isKeyUp(e)) {
-            e.preventDefault(); setGameOverSel(0);
-          } else if (isKeyRight(e) || isKeyDown(e)) {
-            e.preventDefault(); setGameOverSel(1);
+          const _goCount = gameOverCanReturn ? 3 : 2;
+          if (isKeyUp(e) || isKeyLeft(e)) {
+            e.preventDefault();
+            setGameOverSel((p) => (p - 1 + _goCount) % _goCount);
+          } else if (isKeyDown(e) || isKeyRight(e)) {
+            e.preventDefault();
+            setGameOverSel((p) => (p + 1) % _goCount);
           } else if (k === "enter" || k === " " || k === "z") {
             e.preventDefault();
             if (gameOverSel === 0) init();
-            else setShowScores(true);
+            else if (gameOverSel === 1) setShowScores(true);
+            else if (gameOverSel === 2) performGameOverReturnToHub?.();
           }
         } else {
           if (k === "escape" || k === "enter" || k === " " || k === "z") {
@@ -1220,14 +1225,12 @@ export function useKeyHandler({
           setShopMode(null);
           return;
         }
-        const isUp3 = k === "arrowup" || e.code === "Numpad8";
-        const isDown3 = k === "arrowdown" || e.code === "Numpad2";
         if (shopMode === "pay") {
-          if (isUp3 || isDown3) {
-            setShopMenuSel((p2) => (p2 + (isDown3 ? 1 : -1) + 2) % 2);
+          if (isKeyUp(e) || isKeyDown(e)) {
+            setShopMenuSel((p2) => (p2 + (isKeyDown(e) ? 1 : -1) + 2) % 2);
             return;
           }
-          if (k === "enter" || k === "z" || k === "1") {
+          if (k === "enter" || k === "z" || e.code === "Digit1" || e.code === "Numpad1") {
             if (shopMenuSel === 0) {
               if (sr.current) {
                 const { player: p2, dungeon: dg2 } = sr.current;
@@ -1280,7 +1283,7 @@ export function useKeyHandler({
             } else setShopMode(null);
             return;
           }
-          if (k === "2") {
+          if (e.code === "Digit2") {
             setShopMode(null);
             return;
           }
@@ -1304,8 +1307,8 @@ export function useKeyHandler({
               i.y < _curSellShop.room.y + _curSellShop.room.h,
           ) : [];
           const mlen3 = fis3.length + 1;
-          if (isUp3 || isDown3) {
-            setShopMenuSel((p2) => (p2 + (isDown3 ? 1 : -1) + mlen3) % mlen3);
+          if (isKeyUp(e) || isKeyDown(e)) {
+            setShopMenuSel((p2) => (p2 + (isKeyDown(e) ? 1 : -1) + mlen3) % mlen3);
             return;
           }
           if (k === "enter" || k === "z") {
@@ -1351,8 +1354,8 @@ export function useKeyHandler({
           return;
         }
         if (shopMode === "browse" || shopMode === "browseConfirm") {
-          if (isUp3 || isDown3) {
-            setShopMenuSel((p2) => (p2 + (isDown3 ? 1 : -1) + 2) % 2);
+          if (isKeyUp(e) || isKeyDown(e)) {
+            setShopMenuSel((p2) => (p2 + (isKeyDown(e) ? 1 : -1) + 2) % 2);
             return;
           }
           if (k === "enter" || k === "z") {
@@ -1775,6 +1778,8 @@ export function useKeyHandler({
       setExitHubConfirm,
       setExitHubSel,
       performExitToHub,
+      gameOverCanReturn,
+      performGameOverReturnToHub,
     ],
   );
   useEffect(() => {

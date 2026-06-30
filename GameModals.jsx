@@ -372,7 +372,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
         Lv.{p.level} | B{p.depth}F | T:{p.turns} | G:{p.gold}
       </div>
       <div style={{ color: "#555", fontSize: 13, marginBottom: 10 }}>
-        ←→/テンキー4・6 で選択 / Enter で決定
+        ↑↓/←→/テンキー8・2・4・6:選択 / Enter で決定
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap", justifyContent: "center" }}>
         <button
@@ -1263,6 +1263,9 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 {item.label}
               </button>
             ))}
+            <div style={{ color: "#665533", fontSize: 11, marginTop: 4 }}>
+              ↑↓/テンキー8・2:選択　Z/Enter:決定　X:閉じる
+            </div>
           </div>
         );
       })()}
@@ -1321,6 +1324,9 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                   color: menuSel === mi ? "#ffa" : "#fa8", fontSize: 14, cursor: "pointer", textAlign: "left",
                 }}>{item.label}</button>
               ))}
+              <div style={{ color: "#665533", fontSize: 11, marginTop: 4 }}>
+                ↑↓/テンキー8・2:選択　Z/Enter:決定　X:閉じる
+              </div>
             </div>
           );
         }
@@ -1346,6 +1352,9 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                 fontSize: 14, cursor: item.disabled ? "default" : "pointer", textAlign: "left",
               }}>{item.label}</button>
             ))}
+            <div style={{ color: "#665533", fontSize: 11, marginTop: 4 }}>
+              ↑↓/テンキー8・2:選択　Z/Enter:決定　X:閉じる
+            </div>
           </div>
         );
       })()}
@@ -1431,6 +1440,9 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                     {item.label}
                   </button>
                 ))}
+              </div>
+              <div style={{ color: "#665533", fontSize: 11, marginTop: 4 }}>
+                ↑↓/テンキー8・2:選択　Z/Enter:決定　X:閉じる
               </div>
             </div>
           );

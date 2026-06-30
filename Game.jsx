@@ -2521,6 +2521,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     ml.push("ダンジョンから脱出しますか？");
   }, []);
 
+  const performGameOverReturnToHub = useCallback(() => {
+    if (!onReturnToHub || !gameOverResult) return;
+    onReturnToHub(gameOverResult);
+  }, [onReturnToHub, gameOverResult]);
+
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
       if (dead || !sr.current) return;
@@ -4992,6 +4997,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     msgLogMode, msgLogScrollTop, msgsRef,
     showSign,
     exitHubConfirm, exitHubSel,
+    gameOverCanReturn: !!(onReturnToHub && gameOverResult),
+    performGameOverReturnToHub,
     // state setters
     setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -5759,7 +5766,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 }
                 return;
               }
-              /* === 店broseモード：上下で選択 === */
+              /* === 店モード：上下で選択 === */
+              if (shopMode === "pay") {
+                if (dy !== 0 && dx === 0) setShopMenuSel((p) => (p + dy + 2) % 2);
+                return;
+              }
+              if (shopMode === "sell") {
+                if (!sr.current) return;
+                const { player: _sp2, dungeon: _sd2 } = sr.current;
+                const _ss2 = getShops(_sd2).find(s => s.room &&
+                  _sp2.x >= s.room.x && _sp2.x < s.room.x + s.room.w &&
+                  _sp2.y >= s.room.y && _sp2.y < s.room.y + s.room.h);
+                const _sf2 = _ss2 ? _sd2.items.filter(
+                  (i) => !i.shopPrice &&
+                    i.x >= _ss2.room.x && i.x < _ss2.room.x + _ss2.room.w &&
+                    i.y >= _ss2.room.y && i.y < _ss2.room.y + _ss2.room.h,
+                ) : [];
+                const _slen2 = _sf2.length + 1;
+                if (dy !== 0 && dx === 0 && _slen2 > 0) {
+                  setShopMenuSel((p) => (p + dy + _slen2) % _slen2);
+                }
+                return;
+              }
               if (shopMode === "browse" || shopMode === "browseConfirm") {
                 if (dy !== 0 && dx === 0) setShopMenuSel((p) => (p + dy + 2) % 2);
                 return;
