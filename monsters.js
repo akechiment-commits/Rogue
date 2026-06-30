@@ -2490,6 +2490,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     if (m.state === "blocking") {
       const _bp = m.blockPos;
+      const _skSanctSupp = inMagicSealRoom(_bp.x, _bp.y, dg);
       const _bpSanc = !_skSanctSupp && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bp.x && pc.y === _bp.y);
       if (_bpSanc) {
         /* 聖域なら隣接の別タイルに立つ */
