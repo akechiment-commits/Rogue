@@ -1,6 +1,14 @@
-import { describe, it, expect } from "vitest";
-import { genDungeon, genTutorialFloor, prepareLastFloor, GOAL_ITEMS } from "../dungeon.js";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { genDungeon, genTutorialFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom } from "../dungeon.js";
 import { T, MW, MH } from "../utils.js";
+
+function makeHiddenRoomMap(hr) {
+  const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+  for (let dy = 0; dy < hr.h; dy++)
+    for (let dx = 0; dx < hr.w; dx++)
+      map[hr.y + dy][hr.x + dx] = T.FLOOR;
+  return map;
+}
 
 describe("genTutorialFloor", () => {
   it("1階は看板と初期装備がある", () => {
@@ -37,6 +45,34 @@ describe("genDungeon", () => {
   it("ボスフロア（depth=4）はモンスターを含む", () => {
     const dg = genDungeon(4, "intermediate");
     expect(dg.monsters.length).toBeGreaterThan(0);
+  });
+});
+
+describe("populateHiddenRoom", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("宝物庫でも回転板を必ず1枚配置する", () => {
+    const hr = { x: 10, y: 10, w: 5, h: 4 };
+    const map = makeHiddenRoomMap(hr);
+    const items = [], bigboxes = [], springs = [], traps = [];
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+
+    populateHiddenRoom(hr, map, 5, items, bigboxes, springs, traps);
+
+    expect(hr.isTreasureVault).toBe(true);
+    expect(traps.filter(t => t.effect === "spin").length).toBe(1);
+  });
+
+  it("通常の隠し部屋でも回転板を必ず1枚配置する", () => {
+    const hr = { x: 10, y: 10, w: 5, h: 4 };
+    const map = makeHiddenRoomMap(hr);
+    const items = [], bigboxes = [], springs = [], traps = [];
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+    populateHiddenRoom(hr, map, 5, items, bigboxes, springs, traps);
+
+    expect(hr.isTreasureVault).toBeUndefined();
+    expect(traps.filter(t => t.effect === "spin").length).toBe(1);
   });
 });
 

@@ -329,7 +329,7 @@ function applyStdMods(it, depth) {
   return it;
 }
 
-function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
+export function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
   const allOcc = (x, y) =>
     items.some(i => i.x === x && i.y === y) ||
     bigboxes.some(b => b.x === x && b.y === y) ||
@@ -363,8 +363,7 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
         break;
       }
     }
-    return;
-  }
+  } else {
   /* アイテム 2〜4個（B/A/Sレアリティ限定、祝福30%呪い10%） */
   const itemCount = rng(2, Math.min(4, floorTiles.length));
   let placed = 0;
@@ -407,10 +406,10 @@ function populateHiddenRoom(hr, map, depth, items, bigboxes, springs, traps) {
       break;
     }
   }
-  /* 回転板を必ず1枚配置 */
+  }
+  /* 回転板を必ず1枚配置（宝物庫を含む全隠し部屋） */
   const spinTrap = { name: "回転板", effect: "spin", tile: 29, permanent: true };
-  for (let a = 0; a < 60; a++) {
-    const [tx, ty] = pick(floorTiles);
+  for (const [tx, ty] of shuffle([...floorTiles])) {
     if (allOcc(tx, ty)) continue;
     traps.push({ ...spinTrap, id: uid(), x: tx, y: ty, revealed: false });
     break;
