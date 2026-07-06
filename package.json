@@ -7,7 +7,8 @@
     "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "map-tiles": "node tools/tileset-mapper.mjs"
+    "map-tiles": "node tools/tileset-mapper.mjs",
+    "portrait-editor": "vite --open /portrait-editor.html"
   },
   "dependencies": {
     "react": "^18.3.1",
