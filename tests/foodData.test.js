@@ -79,4 +79,15 @@ describe("foodData", () => {
     const withParen = COOKED_FOODS.filter((n) => /[（(].+[）)]/.test(n));
     expect(withParen).toEqual([]);
   });
+
+  it("各地域の料理が追加されている", () => {
+    expect(RAW_FOODS).toContain("柿");
+    expect(COOKED_FOODS_SAVORY).toContain("味噌カツ");
+    expect(COOKED_FOODS_SAVORY).toContain("チュチュワラ");
+    expect(COOKED_FOODS_SAVORY).toContain("エスコビッチ");
+    expect(COOKED_FOODS_SAVORY).toContain("パニプリ");
+    expect(COOKED_FOODS_SWEET).toContain("メロンパン");
+    expect(COOKED_FOODS_SWEET).toContain("パティビンス");
+    expect(COOKED_FOODS_SWEET).toContain("カルフィ");
+  });
 });
