@@ -83,6 +83,9 @@ describe("foodData", () => {
   it("各地域の料理が追加されている", () => {
     expect(RAW_FOODS).toContain("柿");
     expect(COOKED_FOODS_SAVORY).toContain("味噌カツ");
+    expect(COOKED_FOODS_SAVORY).toContain("そうめん");
+    expect(COOKED_FOODS_SAVORY).toContain("焼肉");
+    expect(COOKED_FOODS_SWEET).toContain("カレーパン");
     expect(COOKED_FOODS_SAVORY).toContain("チュチュワラ");
     expect(COOKED_FOODS_SAVORY).toContain("エスコビッチ");
     expect(COOKED_FOODS_SAVORY).toContain("パニプリ");
