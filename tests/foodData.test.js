@@ -62,4 +62,21 @@ describe("foodData", () => {
     const withFu = COOKED_FOODS.filter((n) => n.includes("風"));
     expect(withFu).toEqual([]);
   });
+
+  it("括弧付きや誤表記だった料理名を修正している", () => {
+    const removed = [
+      "クバン肉のシチュー", "ボボラピスン", "ケークバス", "チェーボー", "マクルート", "ライスケーキ（甘口）",
+    ];
+    for (const name of removed) expect(COOKED_FOODS).not.toContain(name);
+
+    expect(COOKED_FOODS_SAVORY).toContain("クバンボルシチ");
+    expect(COOKED_FOODS_SWEET).toContain("ピサンゴレン");
+    expect(COOKED_FOODS_SWEET).toContain("ケークバサー");
+    expect(COOKED_FOODS_SWEET).toContain("チェバマウ");
+    expect(COOKED_FOODS_SWEET).toContain("マクルード");
+    expect(COOKED_FOODS_SWEET).toContain("ライスケーキ");
+
+    const withParen = COOKED_FOODS.filter((n) => /[（(].+[）)]/.test(n));
+    expect(withParen).toEqual([]);
+  });
 });
