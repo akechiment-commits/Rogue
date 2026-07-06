@@ -5,6 +5,7 @@ import {
   COOKED_FOODS_SWEET,
   COOKED_FOODS,
   FOOD_CAT_MAP,
+  FOOD_POT_EXTRA,
   foodMatchesPotCategory,
 } from "../foodData.js";
 
@@ -89,14 +90,31 @@ describe("foodData", () => {
     expect(COOKED_FOODS_SWEET).toContain("カレーパン");
   });
 
+  it("FOOD_POT_EXTRA の料理名はすべてリストに存在する", () => {
+    for (const name of Object.keys(FOOD_POT_EXTRA)) {
+      expect(COOKED_FOODS).toContain(name);
+    }
+  });
+
   it("壺相性が直感的なカテゴリで判定される", () => {
     const mk = (base, foodCat) => ({ type: "food", _foodBase: base, foodCat });
     expect(foodMatchesPotCategory(mk("餃子", "chinese"), "soy")).toBe(true);
+    expect(foodMatchesPotCategory(mk("餃子", "chinese"), "garlic")).toBe(true);
     expect(foodMatchesPotCategory(mk("麻辣火鍋", "chinese"), "spicy")).toBe(true);
     expect(foodMatchesPotCategory(mk("カレーライス", "japanese"), "curry")).toBe(true);
     expect(foodMatchesPotCategory(mk("寿司", "japanese"), "curry")).toBe(false);
     expect(foodMatchesPotCategory(mk("ハンバーグ", "japanese"), "butter")).toBe(true);
     expect(foodMatchesPotCategory(mk("味噌汁", "japanese"), "miso")).toBe(true);
+    expect(foodMatchesPotCategory(mk("トムヤムクン", "southeast_asian"), "spicy")).toBe(true);
+    expect(foodMatchesPotCategory(mk("フォー", "southeast_asian"), "spicy")).toBe(false);
+    expect(foodMatchesPotCategory(mk("カレーパン", "japanese_sweets"), "curry")).toBe(true);
+    expect(foodMatchesPotCategory(mk("冷奴", "japanese"), "sesame")).toBe(true);
+    expect(foodMatchesPotCategory(mk("ゴマ団子", "asian_sweets"), "sesame")).toBe(true);
+    expect(foodMatchesPotCategory(mk("ライタ", "indian"), "yogurt")).toBe(true);
+    expect(foodMatchesPotCategory(mk("セビーチェ", "spanish"), "lemon")).toBe(true);
+    expect(foodMatchesPotCategory(mk("チョコ大福", "japanese_sweets"), "choco")).toBe(true);
+    expect(foodMatchesPotCategory(mk("バターチキンカレー", "indian"), "butter")).toBe(true);
+    expect(foodMatchesPotCategory(mk("アドボ", "southeast_asian"), "soy")).toBe(true);
   });
 
   it("日式中華は中華欄に入る", () => {
