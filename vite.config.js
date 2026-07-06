@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
+import { transparentizeDataUrl } from "./tools/portraitTransparencyNode.mjs";
 
 const PORTRAIT_DIR = path.resolve(process.cwd(), "tiles/Character");
 const SAFE_PORTRAIT_NAME = /^[a-z][a-z0-9_]*$/;
@@ -51,7 +52,7 @@ function portraitApiPlugin() {
               res.end(JSON.stringify({ error: "画像データが不正です" }));
               return;
             }
-            const buf = Buffer.from(m[2], "base64");
+            const buf = await transparentizeDataUrl(dataUrl);
             fs.mkdirSync(PORTRAIT_DIR, { recursive: true });
             const outPath = path.join(PORTRAIT_DIR, `${file}.png`);
             if (!outPath.startsWith(PORTRAIT_DIR)) throw new Error("invalid path");

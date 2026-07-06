@@ -1,4 +1,5 @@
 import { PORTRAIT_CATEGORIES } from "../portraitCatalog.js";
+import { transparentizeDataUrl } from "../portraitTransparency.js";
 
 const $ = (sel) => document.querySelector(sel);
 const toastEl = $("#toast");
@@ -139,13 +140,14 @@ function buildSlot(cat, slot) {
     }
     zone.classList.add("saving");
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      const raw = await readFileAsDataUrl(file);
+      const dataUrl = await transparentizeDataUrl(raw);
       await savePortrait(slot.file, dataUrl);
       existing.add(slot.file);
       setPreview(true);
       updateStats();
       updateCategoryCounts();
-      showToast(`${slot.file}.png を保存しました`);
+      showToast(`${slot.file}.png を透過処理して保存しました`);
     } catch (e) {
       zone.classList.add("error");
       showToast(e.message, "err");
