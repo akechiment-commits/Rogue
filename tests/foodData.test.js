@@ -86,6 +86,19 @@ describe("foodData", () => {
     expect(COOKED_FOODS_SAVORY).toContain("そうめん");
     expect(COOKED_FOODS_SAVORY).toContain("焼肉");
     expect(COOKED_FOODS_SWEET).toContain("カレーパン");
+  });
+
+  it("日式中華は中華欄に入る", () => {
+    const chukaStart = COOKED_FOODS_SAVORY.indexOf("餃子");
+    const chukaEnd = COOKED_FOODS_SAVORY.indexOf("ビビンバ");
+    const chuka = COOKED_FOODS_SAVORY.slice(chukaStart, chukaEnd);
+    const jpStart = COOKED_FOODS_SAVORY.indexOf("寿司");
+    const jpEnd = COOKED_FOODS_SAVORY.indexOf("ステーキ");
+    const japanese = COOKED_FOODS_SAVORY.slice(jpStart, jpEnd);
+    for (const name of ["焼き餃子", "冷やし中華", "レバニラ炒め", "しゅうまい", "ホイコーロー", "タンメン", "皿うどん", "カニ玉"]) {
+      expect(chuka).toContain(name);
+      expect(japanese).not.toContain(name);
+    }
     expect(COOKED_FOODS_SAVORY).toContain("チュチュワラ");
     expect(COOKED_FOODS_SAVORY).toContain("エスコビッチ");
     expect(COOKED_FOODS_SAVORY).toContain("パニプリ");
