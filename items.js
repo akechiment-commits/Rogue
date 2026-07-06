@@ -51,7 +51,7 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
 }
 import {
   RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS,
-  FOOD_CAT_MAP, POT_CAT_BONUS,
+  FOOD_CAT_MAP, POT_CAT_BONUS, foodMatchesPotCategory,
   RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS,
 } from './foodData.js';
 export { RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS, RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS };
@@ -609,8 +609,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     item.potFlavors.push(pe);
     item.name = pfx + item.name;
     item.value = Math.max(1, Math.floor(item.value * 0.8));
-    const _catBonus = POT_CAT_BONUS[pe];
-    const _catMatch = _catBonus && item.foodCat && _catBonus.includes(item.foodCat);
+    const _catMatch = foodMatchesPotCategory(item, pe);
     const _potMul = _catMatch ? 2.0 : 1.3;
     item.value = Math.floor(item.value * _potMul);
     item.desc = POT_FOOD_DESCS[pe] || item.desc;

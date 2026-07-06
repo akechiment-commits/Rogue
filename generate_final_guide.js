@@ -1,5 +1,11 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
 import { MONS, BOSSES } from './monsters.js';
+import { POT_CAT_LABELS } from './foodData.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const GUIDE_XLSX = path.join(__dirname, 'ローグゲーム完全実装ガイド.xlsx');
 import {
   ITEMS, WANDS, POTS, TRAPS, RINGS, BB_TYPES,
   GEM_TYPES, SPELLS, SPELLBOOKS,
@@ -487,19 +493,14 @@ foodItemData.push(['', 'レモン', '投擲ダメージ1.5倍', '80T']);
 // 調味料の相性ボーナス
 foodItemData.push(['', '', '', '']);
 foodItemData.push(['相性ボーナス', '調味料', '相性◎カテゴリ（満腹度2.0倍）', '不一致時1.3倍']);
-foodItemData.push(['', '味噌', '和食・和菓子', '']);
-foodItemData.push(['', '唐辛子', '韓国・カリブ', '']);
-foodItemData.push(['', 'カレー', 'インド・東南アジア', '']);
-foodItemData.push(['', 'チョコ', '洋菓子・アジア菓子・中東菓子・ブランド菓子', '']);
-foodItemData.push(['', '蜂蜜', '洋菓子・和菓子・アジア菓子・中東菓子', '']);
-foodItemData.push(['', 'オリーブ', 'イタリア・スペイン・ギリシャ・ポルトガル', '']);
-foodItemData.push(['', 'ごま油', '中華・韓国', '']);
-foodItemData.push(['', 'バター', 'フランス・アメリカ・ドイツ・ブランド惣菜', '']);
-foodItemData.push(['', 'ヨーグルト', '中東・ロシア・トルコ・ギリシャ', '']);
-foodItemData.push(['', 'ココナッツ', '東南アジア・アジア菓子・カリブ', '']);
-foodItemData.push(['', '醤油', '和食・中華・韓国', '']);
-foodItemData.push(['', 'にんにく', 'イタリア・スペイン・ポルトガル・トルコ', '']);
-foodItemData.push(['', 'レモン', 'フランス・ギリシャ・その他（北欧等）', '']);
+const _potLabelNames = {
+  miso: '味噌', spicy: '唐辛子', curry: 'カレー', choco: 'チョコ', honey: '蜂蜜',
+  olive: 'オリーブ', sesame: 'ごま油', butter: 'バター', yogurt: 'ヨーグルト',
+  coconut: 'ココナッツ', soy: '醤油', garlic: 'にんにく', lemon: 'レモン',
+};
+for (const [pe, label] of Object.entries(POT_CAT_LABELS)) {
+  foodItemData.push(['', _potLabelNames[pe] ?? pe, label, '']);
+}
 
 addSheet('13_食べ物', foodItemData);
 
@@ -573,8 +574,8 @@ gemData.push(['', '売却の巻物：通常=基本価格の100%、祝福=200%、
 
 addSheet('16_宝石', gemData);
 
-XLSX.writeFile(wb, '/home/user/Rogue/ローグゲーム完全実装ガイド.xlsx');
-console.log('✅ Complete game guide updated: ローグゲーム完全実装ガイド.xlsx');
+XLSX.writeFile(wb, GUIDE_XLSX);
+console.log(`✅ Complete game guide updated: ${GUIDE_XLSX}`);
 console.log('   - 薬・食べ物への薬・巻物・武器防具・指輪・壺・魔法の筆魔法書・状態異常');
 console.log('   - ペン・魔方陣（19種）- 通常・祝福・呪い時効果を追加');
 console.log('   - 罠（19種）を追加');

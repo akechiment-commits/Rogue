@@ -311,22 +311,85 @@ function _buildFoodCatMap() {
 }
 export const FOOD_CAT_MAP = _buildFoodCatMap();
 
-/* 壺の味付けとカテゴリの相性マッピング */
+/* 料理カテゴリの日本語名（壺相性の説明・ガイド用） */
+export const FOOD_CAT_NAMES = {
+  italian: "イタリア", greek: "ギリシャ", chinese: "中華", korean: "韓国",
+  southeast_asian: "東南アジア", french: "フランス", german: "ドイツ",
+  japanese: "和食", american: "アメリカ", caribbean: "カリブ",
+  spanish: "スペイン", portuguese: "ポルトガル", middle_eastern: "中東",
+  turkish: "トルコ", indian: "インド", russian: "東欧・ロシア",
+  georgian: "ジョージア", central_asian: "中央アジア", other: "北欧等",
+  brand_savory: "ブランド惣菜",
+  western_sweets: "洋菓子", japanese_sweets: "和菓子", asian_sweets: "アジア菓子",
+  mideast_sweets: "中東菓子", brand_sweet: "ブランド菓子",
+  curry: "カレー料理", yoshoku: "洋風日本料理",
+};
+
+/* 壺の味付けとカテゴリの相性マッピング（満腹度2.0倍） */
 export const POT_CAT_BONUS = {
   miso:    ["japanese", "japanese_sweets"],
-  spicy:   ["korean", "caribbean"],
-  curry:   ["indian", "southeast_asian", "central_asian"],
+  spicy:   ["korean", "caribbean", "chinese"],
+  curry:   ["indian", "southeast_asian", "central_asian", "curry"],
   choco:   ["western_sweets", "asian_sweets", "mideast_sweets", "brand_sweet"],
   honey:   ["western_sweets", "japanese_sweets", "asian_sweets", "mideast_sweets"],
   olive:   ["italian", "spanish", "greek", "portuguese"],
   sesame:  ["chinese", "korean"],
-  butter:  ["french", "american", "german", "brand_savory"],
+  butter:  ["french", "american", "german", "brand_savory", "yoshoku"],
   yogurt:  ["middle_eastern", "russian", "turkish", "greek", "georgian"],
   coconut: ["southeast_asian", "asian_sweets", "caribbean"],
   soy:     ["japanese", "chinese", "korean"],
   garlic:  ["italian", "spanish", "portuguese", "turkish"],
   lemon:   ["french", "greek", "other"],
 };
+
+/* プレイヤー向け相性説明（ガイド・UI用） */
+export const POT_CAT_LABELS = {
+  miso: "和食・和菓子",
+  spicy: "韓国・中華（麻辣系）・カリブ",
+  curry: "インド・東南アジア・カレー料理（日本カレー含む）",
+  choco: "洋菓子・アジア菓子・中東菓子・ブランド菓子",
+  honey: "洋菓子・和菓子・アジア菓子・中東菓子",
+  olive: "イタリア・スペイン・ギリシャ・ポルトガル",
+  sesame: "中華・韓国",
+  butter: "フランス・アメリカ・ドイツ・洋風日本料理・ブランド惣菜",
+  yogurt: "中東・東欧・トルコ・ギリシャ",
+  coconut: "東南アジア・アジア菓子・カリブ",
+  soy: "和食・中華・韓国",
+  garlic: "イタリア・スペイン・ポルトガル・トルコ",
+  lemon: "フランス・ギリシャ・北欧等",
+};
+
+/**
+ * 基本カテゴリだけでは壺相性が直感とズレる料理への追加タグ。
+ * curry=カレー壺、yoshoku=バター壺 など FOOD_CAT_NAMES を参照。
+ */
+export const FOOD_POT_EXTRA = {
+  "カレーライス": ["curry", "yoshoku"],
+  "スープカレー": ["curry"],
+  "金沢カレー": ["curry"],
+  "カレーうどん": ["curry"],
+  "ハンバーグ": ["yoshoku"],
+  "オムライス": ["yoshoku"],
+  "ナポリタン": ["yoshoku"],
+  "ドリア": ["yoshoku"],
+  "グラタン": ["yoshoku"],
+  "メンチカツ": ["yoshoku"],
+  "エビフライ": ["yoshoku"],
+  "ビーフシチュー": ["yoshoku"],
+  "クリームシチュー": ["yoshoku"],
+  "ハヤシライス": ["yoshoku"],
+  "ポテトサラダ": ["yoshoku"],
+};
+
+/** 壺の味付けと料理の相性（満腹度ボーナス判定） */
+export function foodMatchesPotCategory(item, potEffect) {
+  const bonus = POT_CAT_BONUS[potEffect];
+  if (!bonus) return false;
+  const base = item._foodBase;
+  const extras = (base && FOOD_POT_EXTRA[base]) || [];
+  const cats = [item.foodCat, ...extras].filter(Boolean);
+  return cats.some(c => bonus.includes(c));
+}
 export const RAW_SIZES = [
   { l:"特大",   v:80, w:1 },
   { l:"大きい", v:55, w:2 },

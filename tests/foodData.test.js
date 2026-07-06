@@ -5,6 +5,7 @@ import {
   COOKED_FOODS_SWEET,
   COOKED_FOODS,
   FOOD_CAT_MAP,
+  foodMatchesPotCategory,
 } from "../foodData.js";
 
 const dup = (arr) => arr.filter((x, i) => arr.indexOf(x) !== i);
@@ -86,6 +87,16 @@ describe("foodData", () => {
     expect(COOKED_FOODS_SAVORY).toContain("そうめん");
     expect(COOKED_FOODS_SAVORY).toContain("焼肉");
     expect(COOKED_FOODS_SWEET).toContain("カレーパン");
+  });
+
+  it("壺相性が直感的なカテゴリで判定される", () => {
+    const mk = (base, foodCat) => ({ type: "food", _foodBase: base, foodCat });
+    expect(foodMatchesPotCategory(mk("餃子", "chinese"), "soy")).toBe(true);
+    expect(foodMatchesPotCategory(mk("麻辣火鍋", "chinese"), "spicy")).toBe(true);
+    expect(foodMatchesPotCategory(mk("カレーライス", "japanese"), "curry")).toBe(true);
+    expect(foodMatchesPotCategory(mk("寿司", "japanese"), "curry")).toBe(false);
+    expect(foodMatchesPotCategory(mk("ハンバーグ", "japanese"), "butter")).toBe(true);
+    expect(foodMatchesPotCategory(mk("味噌汁", "japanese"), "miso")).toBe(true);
   });
 
   it("日式中華は中華欄に入る", () => {
