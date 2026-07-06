@@ -243,8 +243,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     onPlayerMiss?.(m);
     return;
   }
-  /* 12% ミス */
-  if (Math.random() >= 0.88) {
+  /* 10% ミス */
+  if (Math.random() >= 0.90) {
     ml.push(`${m.name}の攻撃は外れた！`);
     onPlayerMiss?.(m);
     return;
@@ -1242,7 +1242,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     deathCause: `${m.name}の${_arName}の攻撃で`,
     calcPlDmg: () => { const _pdef = calcPlayerDef(pl); const _ap = m.atk + _arAtkBonus; const _base = Math.floor(_ap * _ap / (_ap + Math.floor(_pdef * 1.5))); return _base === 0 ? 1 : Math.max(1, _base + rng(-2, 2)); },
     calcMonDmg: () => Math.max(1, m.atk + rng(-2, 2)),
-    hitChance: 0.75,
+    hitChance: 0.80,
     applyVulnPentacle: true,
     wakeParalyze: true,
     pierce: _isPierce,
@@ -1458,7 +1458,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * 遠投の魔方陣: farcast→射程∞+壁貫通+貫通, cursed→射程1
  * みかわしの魔方陣: モンスター射手なら発射前に不発、プレイヤー射手では適用しない
  * みかわしの服: モンスター射手のみ、プレイヤー座標で25%回避
- * hitChance: プレイヤー命中時の命中判定（モンスター射手用、1.0=必中、0.75=矢、0.80=水鉄砲 など）
+ * hitChance: プレイヤー命中時の命中判定（モンスター射手用、1.0=必中、0.80=矢、0.80=水鉄砲 など）
  * onMiss(px, py, ml): 回避/不発/外れ時のコールバック（矢などの弾薬を地面に落とす処理）
  * applyVulnPentacle: 脆弱の魔方陣のダメージ補正をプレイヤー命中時に適用するか
  * wakeParalyze: 命中時に金縛りを解除するか
