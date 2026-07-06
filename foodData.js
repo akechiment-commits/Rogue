@@ -400,7 +400,6 @@ export const FOOD_POT_EXTRA = {
   "きなこ大福": ["sesame"],
   "黒蜜きなこ": ["sesame"],
   "ゴマ団子": ["sesame"],
-  "ぜんざい": ["sesame"],
   "餃子": ["garlic"],
   "焼き餃子": ["garlic"],
   "ガーリックシュリンプ": ["garlic"],
