@@ -52,9 +52,14 @@ describe("foodData", () => {
 
   it("ジョージア・中央アジア料理に専用カテゴリが付く", () => {
     expect(FOOD_CAT_MAP.get("チャフカパリ")).toBe("georgian");
-    expect(FOOD_CAT_MAP.get("グルジア風肉饅頭")).toBe("georgian");
+    expect(FOOD_CAT_MAP.get("ヒンカリ")).toBe("georgian");
     expect(FOOD_CAT_MAP.get("プロフ")).toBe("central_asian");
     expect(FOOD_CAT_MAP.get("マンティ")).toBe("central_asian");
     expect(FOOD_CAT_MAP.get("ボフロット")).toBe("mideast_sweets");
+  });
+
+  it("調理済み料理名に「風」が含まれない", () => {
+    const withFu = COOKED_FOODS.filter((n) => n.includes("風"));
+    expect(withFu).toEqual([]);
   });
 });
