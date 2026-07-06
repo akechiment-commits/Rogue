@@ -19,6 +19,7 @@ describe("portraitCatalog", () => {
   it("buildPortraitSets が主要グループを生成する", () => {
     const sets = buildPortraitSets();
     expect(sets.damage).toContain("damage_fire");
+    expect(sets.damage_fire).toEqual(["damage_fire"]);
     expect(sets.attack).toContain("battle_ready_a");
     expect(sets.act_potion).toContain("action_drink_potion");
     expect(sets.hp_low.length).toBeGreaterThanOrEqual(2);

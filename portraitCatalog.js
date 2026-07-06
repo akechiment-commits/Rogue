@@ -10,18 +10,18 @@ export const PORTRAIT_CATEGORIES = [
     desc: "属性・種別ごとのダメージ立ち絵（ランダム候補）",
     group: "damage",
     slots: [
-      { file: "damage_arrow", label: "矢・飛び道具" },
-      { file: "damage_fire", label: "炎" },
-      { file: "damage_ice", label: "氷" },
-      { file: "damage_rock", label: "石・岩" },
-      { file: "damage_trap", label: "罠" },
-      { file: "damage_explosion", label: "爆発" },
-      { file: "damage_explosion_fly", label: "爆発（吹き飛び）" },
-      { file: "damage_falling", label: "落下・穴" },
-      { file: "damage_wet", label: "水・水鉄砲" },
-      { file: "damage_heavy", label: "強打・重い一撃" },
-      { file: "damage_knockback", label: "吹き飛ばし" },
-      { file: "hp_hurt", label: "汎用・軽傷" },
+      { file: "damage_arrow", label: "矢・飛び道具", group: "damage_arrow" },
+      { file: "damage_fire", label: "炎", group: "damage_fire" },
+      { file: "damage_ice", label: "氷", group: "damage_ice" },
+      { file: "damage_rock", label: "石・岩", group: "damage_rock" },
+      { file: "damage_trap", label: "罠", group: "damage_trap" },
+      { file: "damage_explosion", label: "爆発", group: "damage_explosion" },
+      { file: "damage_explosion_fly", label: "爆発（吹き飛び）", group: "damage_explosion" },
+      { file: "damage_falling", label: "落下・穴", group: "damage_falling" },
+      { file: "damage_wet", label: "水・水鉄砲", group: "damage_wet" },
+      { file: "damage_heavy", label: "強打・重い一撃", group: "damage_heavy" },
+      { file: "damage_knockback", label: "吹き飛ばし", group: "damage_knockback" },
+      { file: "hp_hurt", label: "汎用・軽傷", group: "damage" },
     ],
   },
   {
@@ -159,8 +159,12 @@ export function buildPortraitSets() {
     for (const slot of cat.slots) {
       const g = slot.group ?? cat.group;
       if (!g) continue;
-      if (!sets[g]) sets[g] = [];
-      if (!sets[g].includes(slot.file)) sets[g].push(slot.file);
+      const groups = [g];
+      if (cat.id === "damage" && g !== "damage") groups.push("damage");
+      for (const grp of groups) {
+        if (!sets[grp]) sets[grp] = [];
+        if (!sets[grp].includes(slot.file)) sets[grp].push(slot.file);
+      }
     }
   }
   return sets;

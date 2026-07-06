@@ -1,0 +1,67 @@
+import { describe, it, expect } from "vitest";
+import {
+  msgToActionKey,
+  msgToDamageKey,
+  pickDamagePortrait,
+  resolvePortraitEvent,
+  hpKey,
+  PORTRAIT_SETS,
+} from "../portraits.js";
+
+describe("portraits", () => {
+  it("msgToActionKey がアイテム使用を判定する", () => {
+    expect(msgToActionKey("回復薬を飲んだ！")).toBe("act_potion");
+    expect(msgToActionKey("おにぎりを食べた。")).toBe("act_food");
+    expect(msgToActionKey("何もない")).toBeNull();
+  });
+
+  it("msgToDamageKey が属性別ダメージを判定する", () => {
+    expect(msgToDamageKey("スライムが炎ブレスを吐いた！20ダメージ！")).toBe("damage_fire");
+    expect(msgToDamageKey("ドラゴンが氷ブレスを吐いた！15ダメージ！")).toBe("damage_ice");
+    expect(msgToDamageKey("ゴブリンの石が命中！8ダメージ！")).toBe("damage_rock");
+    expect(msgToDamageKey("ゴブリンの攻撃！5ダメージ！")).toBe("damage_heavy");
+  });
+
+  it("pickDamagePortrait がグループからパスを返す", () => {
+    const src = pickDamagePortrait("炎ブレスを吐いた！");
+    expect(src).toMatch(/^\/tiles\/Character\/damage_fire\.png$/);
+    expect(PORTRAIT_SETS.damage_fire).toContain("damage_fire");
+  });
+
+  it("hpKey が HP 帯を返す", () => {
+    expect(hpKey({ hp: 10, maxHp: 100 })).toBe("hp_low");
+    expect(hpKey({ hp: 50, maxHp: 100 })).toBe("hp_mid");
+    expect(hpKey({ hp: 90, maxHp: 100 })).toBe("hp_full");
+  });
+
+  it("resolvePortraitEvent が状態異常を正しく参照する", () => {
+    const player = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: true, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "" });
+    expect(event.src).toMatch(/status_poison/);
+  });
+
+  it("resolvePortraitEvent がダメージ種別をメッセージから選ぶ", () => {
+    const player = {
+      hp: 70, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = { ...player, hp: 80 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "わてりの水鉄砲が命中！12ダメージ！",
+    });
+    expect(event.force).toBe(true);
+    expect(event.src).toMatch(/damage_wet/);
+  });
+});
