@@ -2076,9 +2076,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _stTgtX = _stTgt.kind === "player" ? p.x : _stTgt.m.x;
               const _stTgtY = _stTgt.kind === "player" ? p.y : _stTgt.m.y;
               const _stDropStone = () => placeItemAt(_dg2, _stTgtX, _stTgtY, makeMagicStone(1), ml, new Set());
-              /* 命中100%。プレイヤー宛のみみかわしの服・オリーブ油で回避可能 */
+              /* 命中100%。みかわし魔方陣・みかわしの服・オリーブ油のみ回避可能 */
               let _stDodged = false;
-              if (_stTgt.kind === "player") {
+              if (!_pc.cursed) {
+                const _stHasDodgePc = _dg2.pentacles?.some(pc => {
+                  if (pc.kind !== "dodge" || pc.cursed) return false;
+                  if (pc.blessed) return true;
+                  const _dPcRoom = findRoom(_dg2.rooms, pc.x, pc.y);
+                  return _dPcRoom && findRoom(_dg2.rooms, _stTgtX, _stTgtY) === _dPcRoom;
+                });
+                if (_stHasDodgePc) {
+                  const _dodgeName = _stTgt.kind === "player" ? "プレイヤー" : _stTgt.m.name;
+                  ml.push(`みかわしの魔方陣の加護で${_dodgeName}が${_pc.name}の魔法の石をかわした！魔法の石が足元に落ちた。`);
+                  _stDropStone();
+                  _stDodged = true;
+                }
+              }
+              if (!_stDodged && _stTgt.kind === "player") {
                 if (hasAbility(p.armor, "dodge") && Math.random() < 0.25) {
                   ml.push(`${_pc.name}の魔法の石をひらりとかわした！魔法の石が足元に落ちた。`);
                   _stDropStone();
