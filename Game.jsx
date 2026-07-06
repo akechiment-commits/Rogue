@@ -2075,18 +2075,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _baseDmg = rng(5, 10);
               const _stTgtX = _stTgt.kind === "player" ? p.x : _stTgt.m.x;
               const _stTgtY = _stTgt.kind === "player" ? p.y : _stTgt.m.y;
-              /* みかわしの魔方陣：呪い以外で回避判定 */
-              const _stHasDodge = !_pc.cursed && _dg2.pentacles?.some(pc => {
-                if (pc.kind !== "dodge" || pc.cursed) return false;
-                if (pc.blessed) return true;
-                const _dPcRoom = findRoom(_dg2.rooms, pc.x, pc.y);
-                return _dPcRoom && findRoom(_dg2.rooms, _stTgtX, _stTgtY) === _dPcRoom;
-              });
-              if (_stHasDodge) {
-                const _dodgeName = _stTgt.kind === "player" ? "プレイヤー" : _stTgt.m.name;
-                ml.push(`みかわしの魔方陣の加護で${_dodgeName}が${_pc.name}の魔法の石をかわした！魔法の石が足元に落ちた。`);
-                placeItemAt(_dg2, _stTgtX, _stTgtY, makeMagicStone(1), ml, new Set());
-              } else if (_pc.cursed) {
+              const _stDropStone = () => placeItemAt(_dg2, _stTgtX, _stTgtY, makeMagicStone(1), ml, new Set());
+              /* 命中100%。プレイヤー宛のみみかわしの服・オリーブ油で回避可能 */
+              let _stDodged = false;
+              if (_stTgt.kind === "player") {
+                if (hasAbility(p.armor, "dodge") && Math.random() < 0.25) {
+                  ml.push(`${_pc.name}の魔法の石をひらりとかわした！魔法の石が足元に落ちた。`);
+                  _stDropStone();
+                  _stDodged = true;
+                } else if ((p.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+                  ml.push(`オリーブオイルの力で${_pc.name}の魔法の石をするりとかわした！魔法の石が足元に落ちた。`);
+                  _stDropStone();
+                  _stDodged = true;
+                }
+              }
+              if (!_stDodged && _pc.cursed) {
                 /* 呪い：回復効果 */
                 if (_stTgt.kind === "player") {
                   const _heal = Math.min(_baseDmg, p.maxHp - p.hp);
@@ -2100,7 +2103,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     if (_heal > 0) { _stTgt.m.hp += _heal; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_heal}回復！`); }
                   }
                 }
-              } else {
+              } else if (!_stDodged) {
                 const _stcmsB = inCursedMagicSealRoom(_stTgtX, _stTgtY, _dg2) ? 2 : 1;
                 const _dmg = (_pc.blessed ? _baseDmg * 2 : _baseDmg) * _stcmsB;
                 if (_stTgt.kind === "player") {
