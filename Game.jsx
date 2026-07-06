@@ -1019,7 +1019,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
     /* 発見済みの罠は乗るだけ（重力の魔方陣下は例外で作動） */
-    if (trap.revealed && !hasGravityPentacle(dg, p.x, p.y)) return null;
+    if (trap.revealed && !hasGravityPentacle(dg, p.x, p.y)) {
+      ml.push(`${trap.name}がある。`);
+      return null;
+    }
     if (isPlayerFloating(p, dg)) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
@@ -3697,8 +3700,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             } else if (_gtr === "deferred_explosion") {
               st._pendingMineExplosion = { x: p.x, y: p.y, name: _dashRevTrap.name, nameFn: _nameFn2 };
             }
-          } else {
-            ml.push(`${_dashRevTrap.name}がある。`);
           }
           endTurn(st, p, ml);
           break;
