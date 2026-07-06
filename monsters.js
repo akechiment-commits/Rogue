@@ -1290,7 +1290,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
 function monsterThrowStone(m, dg, pl, ml) {
   const lvl = m.monLevel || 1;
   const isMagic = lvl >= 3;
-  const hitChance = lvl >= 3 ? 0.99 : lvl >= 2 ? 0.90 : 0.75;
+  const hitChance = 0.80;
   const stoneName = isMagic ? "魔法の石" : "石";
   ml.push(`${m.name}が${stoneName}を投げた！`);
   pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, isMagic ? "#cc88ff" : "#aaaaaa");
