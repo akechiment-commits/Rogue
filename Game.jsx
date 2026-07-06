@@ -1015,10 +1015,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (pent) parts.push(pent.name);
     return parts.length > 0 ? parts.join(" / ") : "何もない";
   }, []);
-  const checkTrap = useCallback((p, dg, ml, isDash = false) => {
+  const checkTrap = useCallback((p, dg, ml) => {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
-    if (isDash && trap.revealed) return null;
+    /* 発見済みの罠は乗るだけ（重力の魔方陣下は例外で作動） */
+    if (trap.revealed && !hasGravityPentacle(dg, p.x, p.y)) return null;
     if (isPlayerFloating(p, dg)) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
@@ -3655,7 +3656,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (!_wasInAnyShopD && _isNowInShopD) ml.push("お店に入った。");
         else if (_wasInAnyShopD && !_isNowInShopD) ml.push("お店をあとにした。");
         steps++;
-        const tr = checkTrap(p, dg, ml, true);
+        const tr = checkTrap(p, dg, ml);
         if (tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
           if (nd) {
