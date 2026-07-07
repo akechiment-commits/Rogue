@@ -864,7 +864,7 @@ export const TRAPS = [
   { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73, desc:"踏むと4ターン後に大爆発が起きる。\n爆発は地雷と同じ威力。離れれば回避できる。\n作動済みの爆心地に薬液をかけると消火可能。\n作動済みは爆心地にカウントダウン表示。" },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84, desc:"踏むと50ターン幻惑状態。\n周囲の見た目が狂う。耐惑わしの防具で防げる。" },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85, desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。耐暗闇の防具で防げる。" },
-  { name:"腐敗の罠",       effect:"rot_trap",      tile:94, desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.65倍に。" },
+  { name:"腐敗の罠",       effect:"rot_trap",      tile:94, desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
 ];
 
 /**
@@ -2241,7 +2241,7 @@ export function burnFoodItem(item, ml) {
   } else {
     item.name = "焦げた" + item.name;
   }
-  item.value = Math.max(1, Math.floor(item.value * 0.65));
+  item.value = Math.max(1, Math.floor(item.value * 0.6));
   item.burnt = true;
   ml.push(`${item.name}になった！`);
   return true;
