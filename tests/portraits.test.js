@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   msgToActionKey,
   msgToDamageKey,
+  msgToMeleeAttackKey,
   pickDamagePortrait,
   resolvePortraitEvent,
   hpKey,
@@ -9,6 +10,27 @@ import {
 } from "../portraits.js";
 
 describe("portraits", () => {
+  it("msgToMeleeAttackKey がプレイヤー近接攻撃のみを判定する", () => {
+    expect(msgToMeleeAttackKey("スライムに12ダメージ！会心！")).toBe("attack");
+    expect(msgToMeleeAttackKey("スライムへの攻撃は外れた！")).toBe("attack");
+    expect(msgToMeleeAttackKey("ゴブリンの攻撃！5ダメージ！")).toBeNull();
+    expect(msgToMeleeAttackKey("回復薬を飲んだ！")).toBeNull();
+  });
+
+  it("resolvePortraitEvent が近接攻撃時のみ attack 立ち絵を返す", () => {
+    const player = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const event = resolvePortraitEvent({
+      player,
+      prev: { ...player },
+      lastMsg: "スライムに8ダメージ！",
+    });
+    expect(event.src).toMatch(/battle_melee/);
+  });
+
   it("msgToActionKey がアイテム使用を判定する", () => {
     expect(msgToActionKey("回復薬を飲んだ！")).toBe("act_potion");
     expect(msgToActionKey("おにぎりを食べた。")).toBe("act_food");

@@ -101,7 +101,6 @@ export function usePortrait({
       return;
     }
 
-    tryPortrait("attack");
     if (isLow && Date.now() >= portraitCooldownRef.current) {
       forcePortrait("hp_low");
     }

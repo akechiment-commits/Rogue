@@ -23,6 +23,15 @@ export function hpKey(p) {
   return "hp_full";
 }
 
+/** プレイヤーの近接攻撃メッセージか（モンスターの「の攻撃！」は除外） */
+export function msgToMeleeAttackKey(msg) {
+  if (!msg) return null;
+  if (/への攻撃は外れた/.test(msg)) return "attack";
+  if (/ガーディアンに\d+ダメージ/.test(msg)) return "attack";
+  if (/に\d+ダメージ！/.test(msg) && !/の攻撃！/.test(msg)) return "attack";
+  return null;
+}
+
 /** メッセージからアイテム使用の種別を判定 */
 export function msgToActionKey(msg) {
   if (!msg) return null;
@@ -130,6 +139,11 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, now = Date.now(
   const actionKey = msgToActionKey(lastMsg);
   if (actionKey) {
     return { src: pickPortrait(actionKey), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+  }
+
+  const meleeKey = msgToMeleeAttackKey(lastMsg);
+  if (meleeKey) {
+    return { src: pickPortrait(meleeKey), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
   }
 
   return { isLow, moved: p.x !== prev.x || p.y !== prev.y, now };
