@@ -40,6 +40,13 @@ async function savePortrait(file, dataUrl) {
   return data;
 }
 
+async function transparentizeAll() {
+  const res = await fetch("/api/portraits/transparentize-all", { method: "POST" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "一括透過に失敗しました");
+  return data;
+}
+
 async function deletePortrait(file) {
   const res = await fetch("/api/portraits/delete", {
     method: "POST",
@@ -241,11 +248,33 @@ function buildUI() {
   updateStats();
 }
 
+function setupBatchTransparent() {
+  const btn = $("#btn-batch-transparent");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    if (!confirm("tiles/Character/ 内の全 PNG に透過処理を再適用します。よろしいですか？")) return;
+    btn.disabled = true;
+    try {
+      const data = await transparentizeAll();
+      document.querySelectorAll(".dropzone.has-image img").forEach((img) => {
+        const file = img.closest(".slot")?.dataset?.file;
+        if (file) img.src = portraitUrl(file);
+      });
+      showToast(`${data.count ?? 0} 枚を透過処理しました`);
+    } catch (e) {
+      showToast(e.message, "err");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
 async function init() {
   try {
     await fetchExisting();
     buildUI();
-    showToast("ドロップすると自動でリネーム保存されます");
+    setupBatchTransparent();
+    showToast("ドロップで透過処理＋リネーム保存されます");
   } catch (e) {
     $("#main").innerHTML = `<p class="empty-note">エラー: ${e.message}<br>npm run dev で起動しているか確認してください。</p>`;
     showToast(e.message, "err");

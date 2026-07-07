@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
-import { transparentizeDataUrl } from "./tools/portraitTransparencyNode.mjs";
+import { transparentizeDataUrl, transparentizeImageBuffer } from "./tools/portraitTransparencyNode.mjs";
 
 const PORTRAIT_DIR = path.resolve(process.cwd(), "tiles/Character");
 const SAFE_PORTRAIT_NAME = /^[a-z][a-z0-9_]*$/;
@@ -59,6 +59,26 @@ function portraitApiPlugin() {
             fs.writeFileSync(outPath, buf);
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({ ok: true, path: `tiles/Character/${file}.png` }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+          return;
+        }
+
+        if (url === "/api/portraits/transparentize-all" && req.method === "POST") {
+          try {
+            fs.mkdirSync(PORTRAIT_DIR, { recursive: true });
+            const files = fs.readdirSync(PORTRAIT_DIR).filter((f) => f.endsWith(".png"));
+            let count = 0;
+            for (const file of files) {
+              const full = path.join(PORTRAIT_DIR, file);
+              const out = await transparentizeImageBuffer(fs.readFileSync(full));
+              fs.writeFileSync(full, out);
+              count++;
+            }
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ ok: true, count }));
           } catch (e) {
             res.statusCode = 500;
             res.end(JSON.stringify({ error: e.message }));
