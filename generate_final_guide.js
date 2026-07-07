@@ -471,8 +471,8 @@ foodItemData.push(['特殊状態', '腐った食料', '満腹度×0.4 + ダメ�
 foodItemData.push(['特殊状態', 'ヤバイ食料', '満腹度×0.2 + 大ダメージ + 毒・混乱・幻惑・鈍足', '腐った食料が再腐敗した状態。エンチャントは除去済み']);
 foodItemData.push(['', '焼いた食料', '満腹度×2。生食料を炎の薬/炎の杖/加熱の壺で調理', '']);
 foodItemData.push(['', '焦げた食料', '満腹度×0.6。調理済みに再度炎が当たる', '']);
-foodItemData.push(['', '祝福食料', '満腹度通常（効果は変わらない）', '']);
-foodItemData.push(['', '呪い食料', '満腹度通常（効果は変わらない）', '']);
+foodItemData.push(['', '祝福食料', '満腹度×1.5（特殊効果は変わらない）', 'getBlessMultiplier適用']);
+foodItemData.push(['', '呪い食料', '満腹度×0.5（特殊効果は変わらない）', 'getBlessMultiplier適用']);
 
 // 調味料の壺 固有効果
 foodItemData.push(['', '', '', '']);
