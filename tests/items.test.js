@@ -78,11 +78,12 @@ describe("applyPotionEffect", () => {
 });
 
 describe("rotFood", () => {
-  it("腐敗時に祝福・特殊効果・壺味を除去する", () => {
+  it("腐敗時に祝福・特殊効果・壺味を除去し大きさは残す", () => {
     const food = {
       type: "food",
       name: "カレー味の満腹の特盛りおにぎり",
       _foodBase: "おにぎり",
+      sizeLabel: "特盛り",
       effect: "satiate_food",
       blessed: true,
       cursed: false,
@@ -92,28 +93,32 @@ describe("rotFood", () => {
     };
     rotFood(food);
     expect(food.rotten).toBe(true);
-    expect(food.name).toBe("腐ったおにぎり");
+    expect(food.name).toBe("腐った特盛りおにぎり");
+    expect(food.sizeLabel).toBe("特盛り");
+    expect(food.value).toBe(120);
     expect(food.blessed).toBeUndefined();
     expect(food.cursed).toBeUndefined();
     expect(food.effect).toBeUndefined();
     expect(food.potFlavors).toBeUndefined();
   });
 
-  it("腐った食料はヤバイ化でエンチャントが残らない", () => {
+  it("腐った食料はヤバイ化でエンチャントだけ除去し大きさは残す", () => {
     const food = {
       type: "food",
-      name: "腐ったおにぎり",
+      name: "腐った特盛りおにぎり",
       _foodBase: "おにぎり",
+      sizeLabel: "特盛り",
       rotten: true,
       blessed: true,
       effect: "heal_food",
-      value: 40,
+      value: 80,
     };
     expect(rotFood(food)).toBe("yabai");
     expect(food.yabai).toBe(true);
-    expect(food.name).toBe("ヤバイおにぎり");
+    expect(food.name).toBe("ヤバイ特盛りおにぎり");
+    expect(food.sizeLabel).toBe("特盛り");
     expect(food.blessed).toBeUndefined();
     expect(food.effect).toBeUndefined();
-    expect(food.value).toBe(1);
+    expect(food.value).toBe(80);
   });
 });

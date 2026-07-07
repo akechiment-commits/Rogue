@@ -864,7 +864,7 @@ export const TRAPS = [
   { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73, desc:"踏むと4ターン後に大爆発が起きる。\n爆発は地雷と同じ威力。離れれば回避できる。\n作動済みの爆心地に薬液をかけると消火可能。\n作動済みは爆心地にカウントダウン表示。" },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84, desc:"踏むと50ターン幻惑状態。\n周囲の見た目が狂う。耐惑わしの防具で防げる。" },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85, desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。耐暗闇の防具で防げる。" },
-  { name:"腐敗の罠",       effect:"rot_trap",      tile:94, desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.3倍に。" },
+  { name:"腐敗の罠",       effect:"rot_trap",      tile:94, desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.65倍に。" },
 ];
 
 /**
@@ -2241,7 +2241,7 @@ export function burnFoodItem(item, ml) {
   } else {
     item.name = "焦げた" + item.name;
   }
-  item.value = Math.max(1, Math.floor(item.value / 2));
+  item.value = Math.max(1, Math.floor(item.value * 0.65));
   item.burnt = true;
   ml.push(`${item.name}になった！`);
   return true;
@@ -3741,7 +3741,7 @@ const _FOOD_STATE_PREFIXES = [
   ...Object.values(POT_FOOD_PREFIX),
 ];
 
-/** 壺味・調理・状態接頭語を除いた食料の素の名前 */
+/** 壺味・調理・状態・特殊効果接頭語を除いた食料の素の名前 */
 function _foodDisplayBaseName(item) {
   if (item._foodBase) return item._foodBase;
   let n = item.name;
@@ -3765,6 +3765,14 @@ function _foodDisplayBaseName(item) {
   return n;
 }
 
+/** 大きさ接頭語付きの食料表示名（味付け・特殊効果ラベルは含めない） */
+function _foodSizedName(item) {
+  const base = _foodDisplayBaseName(item);
+  const sz = item.sizeLabel;
+  if (sz && sz !== "普通の") return sz + base;
+  return base;
+}
+
 /** 祝福・呪い・壺加工・特殊効果などを除去（腐敗・ヤバイ化時） */
 function _stripFoodEnchantments(item) {
   delete item.blessed;
@@ -3780,11 +3788,10 @@ function _stripFoodEnchantments(item) {
 
 function _upgradeToYabai(item) {
   _stripFoodEnchantments(item);
-  item.name = "ヤバイ" + _foodDisplayBaseName(item);
+  item.name = "ヤバイ" + _foodSizedName(item);
   item.yabai = true;
   item.rotten = true;
   item.burnt = true;
-  item.value = 1;
   item.desc = "ヤバイ臭いがする。絶対食べるな。";
 }
 
@@ -3797,7 +3804,7 @@ export function rotFood(item) {
   }
   _stripFoodEnchantments(item);
   item.rotten = true;
-  item.name = "腐った" + _foodDisplayBaseName(item);
+  item.name = "腐った" + _foodSizedName(item);
   item.desc = "腐っている。食べるのは危険そうだ。";
   return true;
 }

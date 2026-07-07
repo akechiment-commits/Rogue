@@ -418,9 +418,9 @@ export function useItemActions({
         }
         p.slowTurns = (p.slowTurns || 0) + 10;
         ml.push("体が重くなった…(鈍足10ターン)");
-      /* 腐った食料：満腹度0.3倍、毒＋ダメージ、効果なし */
+      /* 腐った食料：満腹度0.65倍、毒＋ダメージ、効果なし */
       } else if (it.rotten) {
-        const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.3));
+        const _rotVal = Math.max(1, Math.round(it.value * _foodBm * 0.65));
         p.inventory.splice(idx, 1);
         if (p.hunger < 0) p.hunger = 0;
         const _rotAdded = Math.min(_rotVal, p.maxHunger - p.hunger);
