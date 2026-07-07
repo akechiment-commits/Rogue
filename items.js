@@ -3735,16 +3735,57 @@ export function hasRingEffect(p, effect) {
 /* ===== 食料の腐敗 ===== */
 /* food アイテムに「腐った」接頭語を付け、rotten:true フラグを立てる */
 /* 既に腐っている場合はヤバイに昇格する。食料以外には適用しない。 */
-function _upgradeToYabai(item) {
-  let baseName = item.name;
-  for (const pfx of ["腐った", "焦げた", "焼いた"]) {
-    if (baseName.startsWith(pfx)) { baseName = baseName.slice(pfx.length); break; }
+
+const _FOOD_STATE_PREFIXES = [
+  "ヤバイ", "腐った", "焦げた", "焼いた",
+  ...Object.values(POT_FOOD_PREFIX),
+];
+
+/** 壺味・調理・状態接頭語を除いた食料の素の名前 */
+function _foodDisplayBaseName(item) {
+  if (item._foodBase) return item._foodBase;
+  let n = item.name;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const pfx of _FOOD_STATE_PREFIXES) {
+      if (n.startsWith(pfx)) {
+        n = n.slice(pfx.length);
+        changed = true;
+        break;
+      }
+    }
   }
-  item.name = "ヤバイ" + baseName;
+  for (const ef of FOOD_EFFECTS) {
+    if (n.startsWith(ef.l)) { n = n.slice(ef.l.length); break; }
+  }
+  for (const sz of [...RAW_SIZES, ...COOKED_SIZES]) {
+    if (sz.l !== "普通の" && n.startsWith(sz.l)) { n = n.slice(sz.l.length); break; }
+  }
+  return n;
+}
+
+/** 祝福・呪い・壺加工・特殊効果などを除去（腐敗・ヤバイ化時） */
+function _stripFoodEnchantments(item) {
+  delete item.blessed;
+  delete item.cursed;
+  delete item.bcKnown;
+  delete item.fullIdent;
+  delete item.potionEffects;
+  delete item.potFlavors;
+  delete item.smoked;
+  delete item.effect;
+  delete item._foodEfLabel;
+}
+
+function _upgradeToYabai(item) {
+  _stripFoodEnchantments(item);
+  item.name = "ヤバイ" + _foodDisplayBaseName(item);
   item.yabai = true;
   item.rotten = true;
   item.burnt = true;
   item.value = 1;
+  item.desc = "ヤバイ臭いがする。絶対食べるな。";
 }
 
 export function rotFood(item) {
@@ -3754,8 +3795,10 @@ export function rotFood(item) {
     _upgradeToYabai(item);
     return "yabai";
   }
+  _stripFoodEnchantments(item);
   item.rotten = true;
-  if (!item.name.startsWith("腐った")) item.name = "腐った" + item.name;
+  item.name = "腐った" + _foodDisplayBaseName(item);
+  item.desc = "腐っている。食べるのは危険そうだ。";
   return true;
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood } from "../items.js";
 
 describe("getIdentKey", () => {
   it("種別ごとに識別キーを返す", () => {
@@ -74,5 +74,46 @@ describe("applyPotionEffect", () => {
     const ml = [];
     applyPotionEffect("heal", 30, "monster", mon, dg, p, ml, () => {});
     expect(mon.hp).toBe(10);
+  });
+});
+
+describe("rotFood", () => {
+  it("腐敗時に祝福・特殊効果・壺味を除去する", () => {
+    const food = {
+      type: "food",
+      name: "カレー味の満腹の特盛りおにぎり",
+      _foodBase: "おにぎり",
+      effect: "satiate_food",
+      blessed: true,
+      cursed: false,
+      bcKnown: true,
+      potFlavors: ["curry"],
+      value: 120,
+    };
+    rotFood(food);
+    expect(food.rotten).toBe(true);
+    expect(food.name).toBe("腐ったおにぎり");
+    expect(food.blessed).toBeUndefined();
+    expect(food.cursed).toBeUndefined();
+    expect(food.effect).toBeUndefined();
+    expect(food.potFlavors).toBeUndefined();
+  });
+
+  it("腐った食料はヤバイ化でエンチャントが残らない", () => {
+    const food = {
+      type: "food",
+      name: "腐ったおにぎり",
+      _foodBase: "おにぎり",
+      rotten: true,
+      blessed: true,
+      effect: "heal_food",
+      value: 40,
+    };
+    expect(rotFood(food)).toBe("yabai");
+    expect(food.yabai).toBe(true);
+    expect(food.name).toBe("ヤバイおにぎり");
+    expect(food.blessed).toBeUndefined();
+    expect(food.effect).toBeUndefined();
+    expect(food.value).toBe(1);
   });
 });
