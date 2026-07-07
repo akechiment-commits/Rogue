@@ -3,6 +3,9 @@ import {
   PORTRAIT_CATEGORIES,
   ALL_PORTRAIT_FILES,
   buildPortraitSets,
+  mergePortraitCategories,
+  nextVariantFile,
+  collectPortraitFiles,
 } from "../portraitCatalog.js";
 
 describe("portraitCatalog", () => {
@@ -29,5 +32,29 @@ describe("portraitCatalog", () => {
     for (const cat of PORTRAIT_CATEGORIES) {
       expect(cat.slots.length).toBeGreaterThan(0);
     }
+  });
+
+  it("mergePortraitCategories が追加スロットを同グループにマージする", () => {
+    const merged = mergePortraitCategories([
+      {
+        file: "damage_arrow_2",
+        label: "矢・飛び道具 2",
+        group: "damage_arrow",
+        categoryId: "damage",
+        afterFile: "damage_arrow",
+      },
+    ]);
+    const damage = merged.find((c) => c.id === "damage");
+    const idx = damage.slots.findIndex((s) => s.file === "damage_arrow");
+    expect(damage.slots[idx + 1].file).toBe("damage_arrow_2");
+    const sets = buildPortraitSets(merged);
+    expect(sets.damage_arrow).toEqual(["damage_arrow", "damage_arrow_2"]);
+    expect(sets.damage).toContain("damage_arrow_2");
+  });
+
+  it("nextVariantFile が連番ファイル名を生成する", () => {
+    const files = collectPortraitFiles(PORTRAIT_CATEGORIES);
+    files.add("damage_arrow_2");
+    expect(nextVariantFile("damage_arrow", files)).toBe("damage_arrow_3");
   });
 });

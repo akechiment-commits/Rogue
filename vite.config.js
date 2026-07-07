@@ -3,9 +3,25 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
 import { transparentizeDataUrl, transparentizeImageBuffer } from "./tools/portraitTransparencyNode.mjs";
+import {
+  collectPortraitFiles,
+  mergePortraitCategories,
+  nextVariantFile,
+  PORTRAIT_CATEGORIES,
+} from "./portraitCatalog.js";
 
 const PORTRAIT_DIR = path.resolve(process.cwd(), "tiles/Character");
+const EXTRA_SLOTS_PATH = path.resolve(process.cwd(), "portrait-extra-slots.json");
 const SAFE_PORTRAIT_NAME = /^[a-z][a-z0-9_]*$/;
+
+function readExtraSlots() {
+  if (!fs.existsSync(EXTRA_SLOTS_PATH)) return { slots: [] };
+  return JSON.parse(fs.readFileSync(EXTRA_SLOTS_PATH, "utf8"));
+}
+
+function writeExtraSlots(data) {
+  fs.writeFileSync(EXTRA_SLOTS_PATH, `${JSON.stringify(data, null, 2)}\n`);
+}
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -59,6 +75,86 @@ function portraitApiPlugin() {
             fs.writeFileSync(outPath, buf);
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({ ok: true, path: `tiles/Character/${file}.png` }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+          return;
+        }
+
+        if (url === "/api/portraits/extra-slots" && req.method === "GET") {
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify(readExtraSlots()));
+          return;
+        }
+
+        if (url === "/api/portraits/extra-slots/add" && req.method === "POST") {
+          try {
+            const body = await readJsonBody(req);
+            const { categoryId, afterFile } = body;
+            if (!categoryId || !afterFile) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "categoryId と afterFile が必要です" }));
+              return;
+            }
+            const catDef = PORTRAIT_CATEGORIES.find((c) => c.id === categoryId);
+            if (!catDef) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "無効なカテゴリです" }));
+              return;
+            }
+            const data = readExtraSlots();
+            const merged = mergePortraitCategories(data.slots);
+            const cat = merged.find((c) => c.id === categoryId);
+            const afterSlot = cat?.slots.find((s) => s.file === afterFile);
+            if (!afterSlot) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "基準スロットが見つかりません" }));
+              return;
+            }
+            const allFiles = collectPortraitFiles(merged);
+            const file = nextVariantFile(afterFile, allFiles);
+            const n = file.match(/_(\d+)$/)?.[1] ?? "2";
+            const baseLabel = afterSlot.label.replace(/ \d+$/, "");
+            const label = body.label || `${baseLabel} ${n}`;
+            const group = afterSlot.group ?? catDef.group ?? undefined;
+            const entry = { file, label, categoryId, afterFile };
+            if (group) entry.group = group;
+            data.slots.push(entry);
+            writeExtraSlots(data);
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ ok: true, slot: entry }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+          return;
+        }
+
+        if (url === "/api/portraits/extra-slots/remove" && req.method === "POST") {
+          try {
+            const body = await readJsonBody(req);
+            const { file, deleteImage } = body;
+            if (!file || !SAFE_PORTRAIT_NAME.test(file)) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "無効なファイル名です" }));
+              return;
+            }
+            const data = readExtraSlots();
+            const idx = data.slots.findIndex((s) => s.file === file);
+            if (idx < 0) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ error: "追加スロットではないため削除できません" }));
+              return;
+            }
+            data.slots.splice(idx, 1);
+            writeExtraSlots(data);
+            if (deleteImage) {
+              const outPath = path.join(PORTRAIT_DIR, `${file}.png`);
+              if (outPath.startsWith(PORTRAIT_DIR) && fs.existsSync(outPath)) fs.unlinkSync(outPath);
+            }
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ ok: true }));
           } catch (e) {
             res.statusCode = 500;
             res.end(JSON.stringify({ error: e.message }));

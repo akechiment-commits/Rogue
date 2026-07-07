@@ -28,6 +28,20 @@ describe("portraits", () => {
     expect(PORTRAIT_SETS.damage_fire).toContain("damage_fire");
   });
 
+  it("追加スロットがあれば抽選グループに含まれる", async () => {
+    const { mergePortraitCategories, buildPortraitSets } = await import("../portraitCatalog.js");
+    const sets = buildPortraitSets(mergePortraitCategories([
+      {
+        file: "damage_arrow_2",
+        label: "矢 2",
+        group: "damage_arrow",
+        categoryId: "damage",
+        afterFile: "damage_arrow",
+      },
+    ]));
+    expect(sets.damage_arrow).toContain("damage_arrow_2");
+  });
+
   it("hpKey が HP 帯を返す", () => {
     expect(hpKey({ hp: 10, maxHp: 100 })).toBe("hp_low");
     expect(hpKey({ hp: 50, maxHp: 100 })).toBe("hp_mid");

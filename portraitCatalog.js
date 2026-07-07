@@ -152,10 +152,52 @@ export const PORTRAIT_CATEGORIES = [
   },
 ];
 
+/** 登録済みファイル名の集合 */
+export function collectPortraitFiles(categories) {
+  return new Set(categories.flatMap((c) => c.slots.map((s) => s.file)));
+}
+
+/** 同一ベースの次バリアント名（damage_arrow → damage_arrow_2） */
+export function nextVariantFile(baseFile, allFiles) {
+  let n = 2;
+  while (allFiles.has(`${baseFile}_${n}`)) n++;
+  return `${baseFile}_${n}`;
+}
+
+/**
+ * エディタで追加したスロットをベースカタログにマージ
+ * @param {Array<{file,label,group?,categoryId,afterFile}>} extraSlots
+ */
+export function mergePortraitCategories(extraSlots = []) {
+  const cats = PORTRAIT_CATEGORIES.map((c) => ({
+    ...c,
+    slots: c.slots.map((s) => ({ ...s, base: true })),
+  }));
+
+  for (const extra of extraSlots) {
+    const cat = cats.find((c) => c.id === extra.categoryId);
+    if (!cat) continue;
+    const slot = {
+      file: extra.file,
+      label: extra.label,
+      group: extra.group ?? undefined,
+      base: false,
+    };
+    if (extra.afterFile) {
+      const idx = cat.slots.findIndex((s) => s.file === extra.afterFile);
+      if (idx >= 0) cat.slots.splice(idx + 1, 0, slot);
+      else cat.slots.push(slot);
+    } else {
+      cat.slots.push(slot);
+    }
+  }
+  return cats;
+}
+
 /** PORTRAIT_SETS 形式のグループ定義をカタログから生成 */
-export function buildPortraitSets() {
+export function buildPortraitSets(categories = PORTRAIT_CATEGORIES) {
   const sets = {};
-  for (const cat of PORTRAIT_CATEGORIES) {
+  for (const cat of categories) {
     for (const slot of cat.slots) {
       const g = slot.group ?? cat.group;
       if (!g) continue;
@@ -173,3 +215,5 @@ export function buildPortraitSets() {
 export const ALL_PORTRAIT_FILES = PORTRAIT_CATEGORIES.flatMap((c) =>
   c.slots.map((s) => s.file),
 );
+
+export const BASE_PORTRAIT_FILE_SET = new Set(ALL_PORTRAIT_FILES);

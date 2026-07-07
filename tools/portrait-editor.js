@@ -1,9 +1,10 @@
-import { PORTRAIT_CATEGORIES } from "../portraitCatalog.js";
+import { mergePortraitCategories } from "../portraitCatalog.js";
 import { transparentizeDataUrl } from "../portraitTransparency.js";
 
 const $ = (sel) => document.querySelector(sel);
 const toastEl = $("#toast");
 let existing = new Set();
+let categories = [];
 let toastTimer;
 
 function showToast(msg, type = "ok") {
@@ -18,6 +19,13 @@ async function fetchExisting() {
   if (!res.ok) throw new Error("一覧の取得に失敗しました");
   const data = await res.json();
   existing = new Set(data.files || []);
+}
+
+async function fetchCategories() {
+  const res = await fetch("/api/portraits/extra-slots");
+  if (!res.ok) throw new Error("スロット定義の取得に失敗しました");
+  const data = await res.json();
+  categories = mergePortraitCategories(data.slots || []);
 }
 
 function readFileAsDataUrl(file) {
@@ -57,13 +65,34 @@ async function deletePortrait(file) {
   if (!res.ok) throw new Error(data.error || "削除に失敗しました");
 }
 
+async function addExtraSlot(categoryId, afterFile) {
+  const res = await fetch("/api/portraits/extra-slots/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ categoryId, afterFile }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "欄の追加に失敗しました");
+  return data.slot;
+}
+
+async function removeExtraSlot(file, deleteImage) {
+  const res = await fetch("/api/portraits/extra-slots/remove", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file, deleteImage }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "欄の削除に失敗しました");
+}
+
 function portraitUrl(file) {
   return `/tiles/Character/${file}.png?v=${Date.now()}`;
 }
 
 function updateStats() {
-  const total = PORTRAIT_CATEGORIES.reduce((n, c) => n + c.slots.length, 0);
-  const filled = PORTRAIT_CATEGORIES.reduce(
+  const total = categories.reduce((n, c) => n + c.slots.length, 0);
+  const filled = categories.reduce(
     (n, c) => n + c.slots.filter((s) => existing.has(s.file)).length,
     0,
   );
@@ -73,12 +102,37 @@ function updateStats() {
 
 function buildSlot(cat, slot) {
   const wrap = document.createElement("div");
-  wrap.className = "slot";
+  wrap.className = `slot${slot.base === false ? " slot-extra" : ""}`;
   wrap.dataset.file = slot.file;
+
+  const head = document.createElement("div");
+  head.className = "slot-head";
 
   const label = document.createElement("div");
   label.className = "slot-label";
   label.textContent = slot.label;
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "slot-add-btn";
+  addBtn.title = "この立ち絵の欄を追加（例: 矢2, 矢3）";
+  addBtn.textContent = "+ 欄";
+  addBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    addBtn.disabled = true;
+    try {
+      const created = await addExtraSlot(cat.id, slot.file);
+      await fetchCategories();
+      rebuildUI();
+      showToast(`${created.label}（${created.file}.png）の欄を追加しました`);
+    } catch (err) {
+      showToast(err.message, "err");
+    } finally {
+      addBtn.disabled = false;
+    }
+  });
+
+  head.append(label, addBtn);
 
   const fileName = document.createElement("div");
   fileName.className = "slot-file";
@@ -104,11 +158,17 @@ function buildSlot(cat, slot) {
   const delBtn = document.createElement("button");
   delBtn.type = "button";
   delBtn.className = "danger";
-  delBtn.textContent = "削除";
+  delBtn.textContent = "画像削除";
   delBtn.hidden = true;
 
-  actions.append(previewBtn, delBtn);
-  wrap.append(label, fileName, zone, actions);
+  const removeSlotBtn = document.createElement("button");
+  removeSlotBtn.type = "button";
+  removeSlotBtn.className = "danger";
+  removeSlotBtn.textContent = "欄削除";
+  removeSlotBtn.hidden = slot.base !== false;
+
+  actions.append(previewBtn, delBtn, removeSlotBtn);
+  wrap.append(head, fileName, zone, actions);
 
   const input = document.createElement("input");
   input.type = "file";
@@ -125,7 +185,7 @@ function buildSlot(cat, slot) {
       img.src = portraitUrl(slot.file);
       const badge = document.createElement("span");
       badge.className = "badge";
-      badge.textContent = "配置済";
+      badge.textContent = slot.base === false ? "追加欄" : "配置済";
       zone.append(img, badge);
       previewBtn.hidden = false;
       delBtn.hidden = false;
@@ -190,7 +250,7 @@ function buildSlot(cat, slot) {
   });
 
   delBtn.addEventListener("click", async () => {
-    if (!confirm(`${slot.file}.png を削除しますか？`)) return;
+    if (!confirm(`${slot.file}.png の画像を削除しますか？`)) return;
     try {
       await deletePortrait(slot.file);
       existing.delete(slot.file);
@@ -198,6 +258,23 @@ function buildSlot(cat, slot) {
       updateStats();
       updateCategoryCounts();
       showToast(`${slot.file}.png を削除しました`);
+    } catch (e) {
+      showToast(e.message, "err");
+    }
+  });
+
+  removeSlotBtn.addEventListener("click", async () => {
+    const hasImg = existing.has(slot.file);
+    const msg = hasImg
+      ? `${slot.label}（${slot.file}.png）の欄と画像を削除しますか？`
+      : `${slot.label}（${slot.file}.png）の欄を削除しますか？`;
+    if (!confirm(msg)) return;
+    try {
+      await removeExtraSlot(slot.file, hasImg);
+      if (hasImg) existing.delete(slot.file);
+      await fetchCategories();
+      rebuildUI();
+      showToast(`${slot.label} の欄を削除しました`);
     } catch (e) {
       showToast(e.message, "err");
     }
@@ -216,11 +293,12 @@ function updateCategoryCounts() {
   }
 }
 
-function buildUI() {
+function rebuildUI() {
   const main = $("#main");
   main.innerHTML = "";
+  categoryEls.length = 0;
 
-  for (const cat of PORTRAIT_CATEGORIES) {
+  for (const cat of categories) {
     const section = document.createElement("section");
     section.className = "category";
 
@@ -271,10 +349,10 @@ function setupBatchTransparent() {
 
 async function init() {
   try {
-    await fetchExisting();
-    buildUI();
+    await Promise.all([fetchExisting(), fetchCategories()]);
+    rebuildUI();
     setupBatchTransparent();
-    showToast("ドロップで透過処理＋リネーム保存されます");
+    showToast("各欄の「+ 欄」でバリエーションを追加できます");
   } catch (e) {
     $("#main").innerHTML = `<p class="empty-note">エラー: ${e.message}<br>npm run dev で起動しているか確認してください。</p>`;
     showToast(e.message, "err");

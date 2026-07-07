@@ -1,11 +1,14 @@
-import { buildPortraitSets } from "./portraitCatalog.js";
+import extraSlotsJson from "./portrait-extra-slots.json";
+import { buildPortraitSets, mergePortraitCategories } from "./portraitCatalog.js";
+
+const MERGED_PORTRAIT_CATEGORIES = mergePortraitCategories(extraSlotsJson.slots || []);
 
 export const PORTRAIT_COOLDOWN_MS = 4000;
 export const PORTRAIT_FALLBACK = "stand_normal";
 
 export const CHAR_PATH = (name) => `/tiles/Character/${name}.png`;
 
-export const PORTRAIT_SETS = buildPortraitSets();
+export const PORTRAIT_SETS = buildPortraitSets(MERGED_PORTRAIT_CATEGORIES);
 
 export function pickPortrait(key, sets = PORTRAIT_SETS) {
   const list = sets[key];

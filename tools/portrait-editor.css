@@ -149,9 +149,40 @@ main {
   min-height: 200px;
 }
 
+.slot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
 .slot-label {
   font-size: 0.78rem;
   font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.slot-add-btn {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  font-size: 0.65rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--accent);
+}
+
+.slot-add-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(110, 168, 255, 0.12);
+}
+
+.slot-extra {
+  outline: 1px dashed rgba(155, 123, 255, 0.35);
+  outline-offset: 2px;
+  border-radius: 6px;
+  padding: 4px;
 }
 
 .slot-file {
