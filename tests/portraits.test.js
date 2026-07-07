@@ -41,6 +41,8 @@ describe("portraits", () => {
     expect(msgToDamageKey("スライムが炎ブレスを吐いた！20ダメージ！")).toBe("damage_fire");
     expect(msgToDamageKey("ドラゴンが氷ブレスを吐いた！15ダメージ！")).toBe("damage_ice");
     expect(msgToDamageKey("ゴブリンの石が命中！8ダメージ！")).toBe("damage_rock");
+    expect(msgToDamageKey("シオン・ザ・ダークブレットの銃弾が命中！15ダメージ！")).toBe("damage_gun");
+    expect(msgToDamageKey("わてりの水鉄砲が命中！10ダメージ！")).toBe("damage_watergun");
     expect(msgToDamageKey("ゴブリンの攻撃！5ダメージ！")).toBe("damage_heavy");
   });
 
@@ -98,6 +100,6 @@ describe("portraits", () => {
       lastMsg: "わてりの水鉄砲が命中！12ダメージ！",
     });
     expect(event.force).toBe(true);
-    expect(event.src).toMatch(/damage_wet/);
+    expect(event.src).toMatch(/damage_watergun/);
   });
 });
