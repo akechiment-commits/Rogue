@@ -32,8 +32,18 @@ export function msgToMeleeAttackKey(msg) {
   return null;
 }
 
-/** メッセージからアイテム使用の種別を判定 */
-export function msgToActionKey(msg) {
+/** メッセージからアイテム使用の種別を判定（直近ログも参照） */
+export function msgToActionKey(msg, recentMsgs = []) {
+  const texts = [...recentMsgs];
+  if (msg && texts[texts.length - 1] !== msg) texts.push(msg);
+
+  for (let i = texts.length - 1; i >= 0; i--) {
+    const m = texts[i];
+    if (!m) continue;
+    if (/ヤバすぎる！/.test(m)) return "act_food_yabai";
+    if (/腐っていた！/.test(m)) return "act_food_rotten";
+  }
+
   if (!msg) return null;
   if (/薬を飲|ポーション|飲んだ/.test(msg)) return "act_potion";
   if (/食べ|食料|料理/.test(msg)) return "act_food";
@@ -94,7 +104,7 @@ export function snapshotPlayer(p) {
  * gs 変化時の立ち絵イベントを解決。
  * @returns {{ src: string, cooldownUntil: number, force?: boolean } | null}
  */
-export function resolvePortraitEvent({ player: p, prev, lastMsg, now = Date.now() }) {
+export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], now = Date.now() }) {
   if (!p) return null;
 
   if (p.hp <= 0) {
@@ -105,10 +115,13 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, now = Date.now(
   }
 
   const isLow = p.hp / p.maxHp <= 0.25;
+  const actionKey = msgToActionKey(lastMsg, recentMsgs);
+  const badFoodKey =
+    actionKey === "act_food_yabai" || actionKey === "act_food_rotten" ? actionKey : null;
 
   if (p.hp < prev.hp) {
     return {
-      src: pickDamagePortrait(lastMsg),
+      src: badFoodKey ? pickPortrait(badFoodKey) : pickDamagePortrait(lastMsg),
       cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
       force: true,
     };
@@ -138,7 +151,6 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, now = Date.now(
     return { src: pickPortrait("status_oiled"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
   }
 
-  const actionKey = msgToActionKey(lastMsg);
   if (actionKey) {
     return { src: pickPortrait(actionKey), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
   }

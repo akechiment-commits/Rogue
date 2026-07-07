@@ -37,6 +37,46 @@ describe("portraits", () => {
     expect(msgToActionKey("何もない")).toBeNull();
   });
 
+  it("msgToActionKey が腐った・ヤバイ食料を直近ログから判定する", () => {
+    const rottenLog = [
+      "腐ったおにぎりを食べた。(満腹度+3)",
+      "腐っていた！8ダメージを受けた！",
+      "食中毒になった！毒状態になった！攻撃力が徐々に下がっていく…",
+    ];
+    expect(msgToActionKey("食中毒になった！", rottenLog)).toBe("act_food_rotten");
+
+    const yabaiLog = [
+      "ヤバイおにぎりを食べた。(満腹度+1)",
+      "ヤバすぎる！20ダメージ！",
+      "体が重くなった…(鈍足10ターン)",
+    ];
+    expect(msgToActionKey("体が重くなった…", yabaiLog)).toBe("act_food_yabai");
+  });
+
+  it("resolvePortraitEvent が腐った食料のHP減少時に act_food_rotten を優先する", () => {
+    const player = {
+      hp: 72, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: true, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const recentMsgs = [
+      "腐ったおにぎりを食べた。(満腹度+3)",
+      "腐っていた！8ダメージを受けた！",
+    ];
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: recentMsgs[1],
+      recentMsgs,
+    });
+    expect(event.src).toMatch(/action_eat_rotten/);
+  });
+
   it("msgToDamageKey が属性別ダメージを判定する", () => {
     expect(msgToDamageKey("スライムが炎ブレスを吐いた！20ダメージ！")).toBe("damage_fire");
     expect(msgToDamageKey("ドラゴンが氷ブレスを吐いた！15ダメージ！")).toBe("damage_ice");

@@ -75,8 +75,9 @@ export function usePortrait({
     const prev = prevGsRef.current;
     prevGsRef.current = snapshotPlayer(p);
 
-    const lastMsg = msgsRef.current[msgsRef.current.length - 1]?.text ?? "";
-    const event = resolvePortraitEvent({ player: p, prev, lastMsg });
+    const recentMsgs = msgsRef.current.slice(-12).map((m) => m?.text ?? m);
+    const lastMsg = recentMsgs[recentMsgs.length - 1] ?? "";
+    const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs });
 
     if (!event) return;
 
