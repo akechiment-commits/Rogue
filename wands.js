@@ -406,7 +406,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (_trapRes.hitMonster) {
           ml.push(`飛んできた${target.name}が${_trapRes.hitMonster.name}に命中！`);
           fireTrapItem(target, target, dg, _trapRes.x, _trapRes.y, ml, new Set(), p, nameFn);
-          removeTrap(dg, target, ml, { p });
+          removeTrap(dg, target, ml, { fromStep: true, p });
         }
         break;
       }
