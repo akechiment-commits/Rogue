@@ -2375,8 +2375,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           _candidates = TRAPS.filter(t => t.effect !== _existTrap.effect);
           /* 全部同じ種類（理論上ありえないが安全策）なら先頭を除く */
           if (_candidates.length === 0) _candidates = TRAPS.slice(1);
-          /* 既存の罠を除去して新しい罠に置き換える */
-          removeTrap(dg, _existTrap, ml, { p: pl });
+          /* 既存の罠を除去して新しい罠に置き換える（仕掛け直しなのでアイテムは出さない） */
+          removeTrap(dg, _existTrap, ml, { skipLoot: true, p: pl });
         }
         const _newTrap = { ...pick(_candidates), id: uid(), x: m.x, y: m.y, revealed: true };
         dg.traps = dg.traps || [];

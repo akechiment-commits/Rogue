@@ -102,4 +102,13 @@ describe("removeTrap break loot", () => {
     removeTrap(dg, trap, ml, { fromStep: true });
     expect(dg.items).toHaveLength(0);
   });
+
+  it("skipLoot では罠師の置き換え相当でアイテムを出さない", () => {
+    const trap = { effect: "rockfall", name: "落石の罠", x: 4, y: 4, id: "t3" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    removeTrap(dg, trap, ml, { skipLoot: true });
+    expect(dg.traps).toHaveLength(0);
+    expect(dg.items).toHaveLength(0);
+  });
 });

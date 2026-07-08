@@ -1323,12 +1323,12 @@ export function dropTrapBreakLoot(dg, trap, ml, ft = new Set(), p = null) {
   placeItemAt(dg, trap.x, trap.y, item, ml, new Set(ft), 0, p, trap.x, trap.y);
 }
 
-/** 罠を除去。fromStep 以外の破壊時は dropTrapBreakLoot を呼ぶ */
+/** 罠を除去。fromStep / skipLoot 以外の破壊時は dropTrapBreakLoot を呼ぶ */
 export function removeTrap(dg, trap, ml, opts = {}) {
-  const { fromStep = false, message, ft, p } = opts;
+  const { fromStep = false, skipLoot = false, message, ft, p } = opts;
   dg.traps = (dg.traps || []).filter(t => t !== trap);
   if (message) ml.push(message);
-  if (!fromStep) dropTrapBreakLoot(dg, trap, ml, ft, p);
+  if (!fromStep && !skipLoot) dropTrapBreakLoot(dg, trap, ml, ft, p);
 }
 
 /** 複数罠を一括除去（呪いの罠の巻物など） */
