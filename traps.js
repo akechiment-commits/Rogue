@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
@@ -367,8 +367,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
 
   const _breakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
   if (!noBreak && !trap.permanent && Math.random() < _breakChance) {
-    dg.traps = dg.traps.filter((t) => t !== trap);
-    ml.push(`${trap.name}は壊れた。`);
+    removeTrap(dg, trap, ml, { fromStep: true, message: `${trap.name}は壊れた。` });
   }
   return r;
 }

@@ -5,7 +5,7 @@ import {
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
-  hasCursedExplosionPentacle, hasCursedTeleportPentacle, cookFoodMeta, genFood,
+  hasCursedExplosionPentacle, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -402,11 +402,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (_trapRes.hitPlayer) {
           ml.push(`飛んできた${target.name}がプレイヤーに命中！`);
           fireTrapPlayer(target, p, dg, ml, nameFn);
-          dg.traps = dg.traps.filter(t => t !== target);
+          removeTrap(dg, target, ml, { fromStep: true, p });
         } else if (_trapRes.hitMonster) {
           ml.push(`飛んできた${target.name}が${_trapRes.hitMonster.name}に命中！`);
           fireTrapItem(target, target, dg, _trapRes.x, _trapRes.y, ml, new Set(), p, nameFn);
-          dg.traps = dg.traps.filter(t => t !== target);
+          removeTrap(dg, target, ml, { p });
         }
         break;
       }
@@ -489,8 +489,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "trap") {
         if (target.permanent) { ml.push(`${target.name}は破壊できない！`); break; }
-        dg.traps = dg.traps.filter(t => t !== target);
-        ml.push(`雷撃で${target.name}が破壊された！`);
+        removeTrap(dg, target, ml, { message: `雷撃で${target.name}が破壊された！`, p });
         break;
       }
       break;
@@ -606,8 +605,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
-        dg.traps = dg.traps.filter(t => t !== target);
-        ml.push(`軟化の魔法弾で${target.name}が崩れ落ちた！`);
+        removeTrap(dg, target, ml, { message: `軟化の魔法弾で${target.name}が崩れ落ちた！`, p });
         break;
       }
       if (kind === "player") {
@@ -708,8 +706,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
       }
       if (kind === "trap") {
-        dg.traps = dg.traps.filter(t => t !== target);
-        ml.push(`穴掘りの魔法弾で${target.name}が壊れた！`);
+        removeTrap(dg, target, ml, { message: `穴掘りの魔法弾で${target.name}が壊れた！`, p });
       }
       break;
     }
@@ -1285,8 +1282,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "trap") {
         if (target.effect === "bone") {
-          dg.traps = dg.traps.filter(t => t !== target);
-          ml.push(`炎で骨が燃え尽きた！復活は阻まれた！`);
+          removeTrap(dg, target, ml, { message: `炎で骨が燃え尽きた！復活は阻まれた！`, p });
         } else {
           ml.push(`炎が${target.name}に当たったが何も起こらなかった。`);
         }
@@ -1408,8 +1404,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "trap") {
         if (target.permanent) { ml.push(`${target.name}は破壊できない！`); break; }
-        dg.traps = dg.traps.filter(t => t !== target);
-        ml.push(`雷撃で${target.name}が破壊された！`);
+        removeTrap(dg, target, ml, { message: `雷撃で${target.name}が破壊された！`, p });
         break;
       }
       break;

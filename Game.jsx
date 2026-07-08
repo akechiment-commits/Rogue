@@ -22,7 +22,7 @@ import {
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
-  itemPrice, gemSellPrice, setPortalFloorsGetter,
+  itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -1902,8 +1902,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _delCands = _dg2.traps.filter(t => !t.permanent);
               if (_delCands.length > 0) {
                 const _rt = pick(_delCands);
-                _dg2.traps = _dg2.traps.filter(t => t !== _rt);
-                ml.push(`${_pc.name}の呪いで罠が消えた！`);
+                removeTrap(_dg2, _rt, ml, { message: `${_pc.name}の呪いで罠が消えた！`, p });
               }
             } else {
               /* 通常/祝福：対象エリアにランダム罠を配置 */
@@ -3558,8 +3557,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             const _gtr = fireTrapPlayer(_dashRevTrap, p, dg, ml, _nameFn2, lu);
             const _gravTrBreakChance = (_dashRevTrap.effect === "steal_trap" || _dashRevTrap.effect === "summon_trap") ? 0.5 : 0.25;
             if (!_dashRevTrap.permanent && Math.random() < _gravTrBreakChance) {
-              dg.traps = dg.traps.filter(t => t !== _dashRevTrap);
-              ml.push(`${_dashRevTrap.name}は壊れた。`);
+              removeTrap(dg, _dashRevTrap, ml, { fromStep: true, message: `${_dashRevTrap.name}は壊れた。`, p });
             }
             if (_gtr === "pitfall") {
               const nd = chgFloor(p, 1, true);
@@ -4321,7 +4319,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   if (_otx >= 0 && _otx < MW && _oty >= 0 && _oty < MH && dg.map[_oty][_otx] !== T.WALL && dg.map[_oty][_otx] !== T.BWALL) {
                     if (!dg.oilyTiles.some(t => t.x === _otx && t.y === _oty)) dg.oilyTiles.push({ x: _otx, y: _oty });
                     const _aoTrap = dg.traps?.find(t => t.x === _otx && t.y === _oty && !t.permanent);
-                    if (_aoTrap) { dg.traps = dg.traps.filter(t => t !== _aoTrap); ml.push(`油で${_aoTrap.name}が消えた！`); }
+                    if (_aoTrap) removeTrap(dg, _aoTrap, ml, { message: `油で${_aoTrap.name}が消えた！`, p });
                   }
                 }
               };

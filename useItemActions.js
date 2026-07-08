@@ -10,7 +10,7 @@ import {
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
-  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice,
+  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice, removeTrap, removeTraps,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
@@ -1077,7 +1077,7 @@ export function useItemActions({
                   _gft.add(_gt.id);
                   _gt.revealed = true;
                   const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
-                  if (!_gt.permanent && Math.random() < 0.3) { dg.traps = dg.traps.filter((t) => t !== _gt); ml.push(`${_gt.name}は壊れた。`); }
+                  if (!_gt.permanent && Math.random() < 0.3) removeTrap(dg, _gt, ml, { message: `${_gt.name}は壊れた。`, ft: _gft, p });
                   if (_gr === "destroyed") { _placed = true; break; }
                   if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
                   continue;
@@ -1557,8 +1557,7 @@ export function useItemActions({
       } else if (it.effect === "trap_scatter") {
         // 罠の巻物
         if (it.cursed) {
-          dg.traps = dg.traps.filter(t => t.permanent);
-          ml.push("罠の巻物を読んだ！フロア内の全ての罠が消えた！【呪】");
+          removeTraps(dg, dg.traps.filter(t => !t.permanent), ml, { message: "罠の巻物を読んだ！フロア内の全ての罠が消えた！【呪】", p });
         } else {
           const _tCount = it.blessed ? rng(15, 25) : rng(8, 15);
           let _placed = 0;

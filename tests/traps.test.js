@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem } from "../items.js";
+import { fireTrapItem, removeTrap } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("fireTrapPlayer", () => {
@@ -80,5 +80,26 @@ describe("fireTrapItem rockfall", () => {
     expect(stone.x === 5 && stone.y === 5).toBe(false);
     expect(Math.abs(stone.x - 5) + Math.abs(stone.y - 5)).toBeLessThanOrEqual(2);
     expect(ml.some(m => m.includes("転がった"))).toBe(true);
+  });
+});
+
+describe("removeTrap break loot", () => {
+  it("踏む以外で壊れた矢の罠から矢が散らばる", () => {
+    const trap = { effect: "arrow_trap", name: "矢の罠", x: 5, y: 5, id: "t1" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    removeTrap(dg, trap, ml, { message: "壊れた" });
+    expect(dg.traps).toHaveLength(0);
+    expect(dg.items).toHaveLength(1);
+    expect(dg.items[0].name).toBe("矢");
+    expect(dg.items[0].count).toBeGreaterThanOrEqual(2);
+  });
+
+  it("踏んだ後の破壊ではアイテムを出さない", () => {
+    const trap = { effect: "poison_arrow", name: "毒矢の罠", x: 3, y: 3, id: "t2" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    removeTrap(dg, trap, ml, { fromStep: true });
+    expect(dg.items).toHaveLength(0);
   });
 });

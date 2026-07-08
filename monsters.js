@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -1448,8 +1448,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   fireTrapItem(trap, { name: "重力の力", type: "misc", x: m.x, y: m.y }, dg, m.x, m.y, ml, new Set(), pl, it => it.name, luFn);
   const _gravBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
   if (trap.effect !== "explode" && !trap.permanent && Math.random() < _gravBreakChance) {
-    dg.traps = dg.traps.filter(t => t !== trap);
-    ml.push(`${trap.name}は壊れた。`);
+    removeTrap(dg, trap, ml, { fromStep: true, message: `${trap.name}は壊れた。`, p: pl });
   }
 }
 
@@ -2059,7 +2058,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.oilyTiles.some(t => t.x === _tx && t.y === _ty))
         dg.oilyTiles.push({ x: _tx, y: _ty });
       const _ikTrap = dg.traps?.find(t => t.x === _tx && t.y === _ty && !t.permanent);
-      if (_ikTrap) { dg.traps = dg.traps.filter(t => t !== _ikTrap); ml.push(`油で${_ikTrap.name}が消えた！`); }
+      if (_ikTrap) removeTrap(dg, _ikTrap, ml, { message: `油で${_ikTrap.name}が消えた！`, p: pl });
     }
     if (!m._enraged && m.hp <= m.maxHp * 0.5) {
       m._enraged = true;
@@ -2377,7 +2376,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           /* 全部同じ種類（理論上ありえないが安全策）なら先頭を除く */
           if (_candidates.length === 0) _candidates = TRAPS.slice(1);
           /* 既存の罠を除去して新しい罠に置き換える */
-          dg.traps = dg.traps.filter(t => t !== _existTrap);
+          removeTrap(dg, _existTrap, ml, { p: pl });
         }
         const _newTrap = { ...pick(_candidates), id: uid(), x: m.x, y: m.y, revealed: true };
         dg.traps = dg.traps || [];

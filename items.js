@@ -699,7 +699,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
         /* 油がかかったマスの非永続罠を消滅 */
         const _oilTrap = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
-        if (_oilTrap) { dg.traps = dg.traps.filter(t => t !== _oilTrap); ml.push(`油で${_oilTrap.name}が消えた！`); }
+        if (_oilTrap) removeTrap(dg, _oilTrap, ml, { message: `油で${_oilTrap.name}が消えた！`, p });
       }
     }
     /* 油がかかったマスの魔方陣を消滅 */
@@ -757,7 +757,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
         if (_om) { _om.oilyTurns = (_om.oilyTurns || 0) + 100; ml.push(`${_om.name}は油まみれになった！(100ターン)`); }
         if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
         const _ot = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
-        if (_ot) { dg.traps = dg.traps.filter(t => t !== _ot); ml.push(`油で${_ot.name}が消えた！`); }
+        if (_ot) removeTrap(dg, _ot, ml, { message: `油で${_ot.name}が消えた！`, p });
       }
     }
     if (dg.pentacles?.length > 0) {
@@ -847,12 +847,12 @@ export const ARMOR_ABILITIES = [
 /* ===== TRAPS ===== */
 export const TRAPS = [
   { name:"地雷",           effect:"explode",       tile:25, desc:"踏むと周囲8マスが大爆発。敵は即死、プレイヤーはHP半減。\n壁・罠・大箱・床のアイテムも破壊される。" },
-  { name:"矢の罠",         effect:"arrow_trap",    tile:26, desc:"踏むと壁から矢が飛んでくる。\nダメージは小さいが序盤は注意。矢が落ちる。" },
+  { name:"矢の罠",         effect:"arrow_trap",    tile:26, desc:"踏むと壁から矢が飛んでくる。\nダメージは小さいが序盤は注意。矢が落ちる。\n踏む以外で壊れると矢が数本散らばる。" },
   { name:"落とし穴",       effect:"pitfall",       tile:27, desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
   { name:"錆の罠",         effect:"rust",          tile:28, desc:"踏むと装備中の武器or防具の＋値が-1される。\n金属製装備が対象。" },
   { name:"回転板",         effect:"spin",          tile:29, desc:"踏むとランダムな場所に吹き飛ばされる。\n飛んだ先の罠も発動する。" },
   { name:"睡眠ガスの罠",   effect:"sleep",         tile:30, desc:"踏むと6ターン眠る。\n耐眠の防具で防げる。" },
-  { name:"毒矢の罠",       effect:"poison_arrow",  tile:45, desc:"踏むと壁から毒矢が飛んでくる。\nダメージ+毒状態。毒消しの指輪で毒は防げる。" },
+  { name:"毒矢の罠",       effect:"poison_arrow",  tile:45, desc:"踏むと壁から毒矢が飛んでくる。\nダメージ+毒状態。毒消しの指輪で毒は防げる。\n踏む以外で壊れると毒矢が数本散らばる。" },
   { name:"召喚の罠",       effect:"summon_trap",   tile:46, desc:"踏むと周囲に2～4体の敵が出現する。\n出現した敵は即座にこちらを認識している。" },
   { name:"鈍足の罠",       effect:"slow_trap",     tile:47, desc:"踏むと10ターン鈍足になる(速度半減)。\n耐鈍足の防具で防げる。" },
   { name:"封印の罠",       effect:"seal_trap",     tile:48, desc:"踏むと50ターン魔法が封印される。\n巻物・魔法・杖が使えなくなる。耐封印の防具で防げる。" },
@@ -860,7 +860,7 @@ export const TRAPS = [
   { name:"空腹の罠",       effect:"hunger_trap",   tile:50, desc:"踏むと満腹度が最大の10%減少する。" },
   { name:"吹き飛ばしの罠", effect:"blowback_trap", tile:51, desc:"踏むと向いていた方向と逆に最大10マス吹き飛ぶ。\n壁に激突すると10ダメージ。敵に当たると5ダメージ。" },
   { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71, desc:"踏むと5ターン移動不能になる。\n攻撃やアイテム使用は可能。" },
-  { name:"落石の罠",       effect:"rockfall",      tile:72, desc:"踏むと岩が降ってきて15～25ダメージ。\n対象がいなければ石が落ちる（罠マスには重ならず近くに転がる）。" },
+  { name:"落石の罠",       effect:"rockfall",      tile:72, desc:"踏むと岩が降ってきて15～25ダメージ。\n対象がいなければ石が落ちる（罠マスには重ならず近くに転がる）。\n踏む以外で壊れると石が数個散らばる。" },
   { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73, desc:"踏むと4ターン後に大爆発が起きる。\n爆発は地雷と同じ威力。離れれば回避できる。\n作動済みの爆心地に薬液をかけると消火可能。\n作動済みは爆心地にカウントダウン表示。" },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84, desc:"踏むと50ターン幻惑状態。\n周囲の見た目が狂う。耐惑わしの防具で防げる。" },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85, desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。耐暗闇の防具で防げる。" },
@@ -1310,6 +1310,37 @@ export function wallBreakDrop(dg, x, y) {
   if (!drop) return;
   drop.x = x; drop.y = y;
   dg.items.push(drop);
+}
+
+/** 踏む以外で壊れた矢/毒矢/落石罠から対応アイテムをばらまく */
+export function dropTrapBreakLoot(dg, trap, ml, ft = new Set(), p = null) {
+  if (!trap || !dg) return;
+  let item = null;
+  if (trap.effect === "arrow_trap") item = makeArrow(rng(2, 4));
+  else if (trap.effect === "poison_arrow") item = makePoisonArrow(rng(2, 4));
+  else if (trap.effect === "rockfall") item = makeStone(rng(2, 4));
+  if (!item) return;
+  placeItemAt(dg, trap.x, trap.y, item, ml, new Set(ft), 0, p, trap.x, trap.y);
+}
+
+/** 罠を除去。fromStep 以外の破壊時は dropTrapBreakLoot を呼ぶ */
+export function removeTrap(dg, trap, ml, opts = {}) {
+  const { fromStep = false, message, ft, p } = opts;
+  dg.traps = (dg.traps || []).filter(t => t !== trap);
+  if (message) ml.push(message);
+  if (!fromStep) dropTrapBreakLoot(dg, trap, ml, ft, p);
+}
+
+/** 複数罠を一括除去（呪いの罠の巻物など） */
+export function removeTraps(dg, traps, ml, opts = {}) {
+  const gone = traps.filter(t => (dg.traps || []).includes(t));
+  if (gone.length === 0) return;
+  const ids = new Set(gone.map(t => t.id).filter(Boolean));
+  dg.traps = (dg.traps || []).filter(t => !gone.includes(t));
+  if (opts.message) ml.push(opts.message);
+  if (!opts.fromStep) {
+    for (const t of gone) dropTrapBreakLoot(dg, t, ml, ids, opts.p);
+  }
 }
 
 /** 落石罠：対象がいなければ石を通常落下と同様に近くへ置く（罠マスには重ならない） */
@@ -2347,8 +2378,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     const trap = dg.traps.find(t => t.x === x && t.y === y);
     if (trap) {
       if (!trap.permanent) {
-        dg.traps = dg.traps.filter(t => t !== trap);
-        ml.push(`${trap.name}は薬液で壊れた！`);
+        removeTrap(dg, trap, ml, { message: `${trap.name}は薬液で壊れた！`, p });
       }
       trap.revealed = true;
     }
@@ -2574,8 +2604,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
       const _itBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
       if (trap.effect !== "explode" && !trap.permanent && Math.random() < _itBreakChance) {
-        dg.traps = dg.traps.filter(t => t !== trap);
-        ml.push(`${trap.name}は壊れた。`);
+        removeTrap(dg, trap, ml, { message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") return false;
       if (r === "pitfall_player") return "pitfall_player";
@@ -2861,7 +2890,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         }
         /* 罠の破壊（永続回転板は爆発でも壊れない） */
         const ti = dg.traps.findIndex(t => t.x === ax && t.y === ay && !t.permanent);
-        if (ti >= 0) { ml.push("罠が爆発で壊れた！"); dg.traps.splice(ti, 1); }
+        if (ti >= 0) removeTrap(dg, dg.traps[ti], ml, { message: "罠が爆発で壊れた！", p });
         /* 大箱の破壊 */
         if (dg.bigboxes) {
           const bi = dg.bigboxes.findIndex(b => b.x === ax && b.y === ay);
@@ -3121,8 +3150,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       const r = fireTrapItem(trap, item, dg, lx, ly, mlx, ft, p);
       const _entBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
       if (trap.effect !== "explode" && !trap.permanent && Math.random() < _entBreakChance) {
-        dg.traps = dg.traps.filter(t => t !== trap);
-        mlx.push(`${trap.name}は壊れた。`);
+        removeTrap(dg, trap, mlx, { message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") { res.consumed = true; return "destroyed"; }
       res.x = lx; res.y = ly; res.consumed = false;
