@@ -304,6 +304,13 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       noBreak = true; /* 既に除去済み。重複メッセージを避ける */
       break;
     }
+    case "mp_absorb_trap": {
+      const _mpBefore = p.mp || 0;
+      p.mp = Math.max(0, _mpBefore - 5);
+      const _mpLost = _mpBefore - (p.mp || 0);
+      ml.push(`${trap.name}が発動！MPが${_mpLost}吸い取られた！`);
+      break;
+    }
     case "rot_trap": {
       const _rAllFoods = (p.inventory || []).filter(i => i.type === "food" && !i.yabai);
       const _rTarget = _rAllFoods.length > 0 ? _rAllFoods[rng(0, _rAllFoods.length - 1)] : null;

@@ -865,6 +865,7 @@ export const TRAPS = [
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84, desc:"踏むと50ターン幻惑状態。\n周囲の見た目が狂う。耐惑わしの防具で防げる。" },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85, desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。耐暗闇の防具で防げる。" },
   { name:"腐敗の罠",       effect:"rot_trap",      tile:94, desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
+  { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
 ];
 
 /**
@@ -1700,6 +1701,21 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "darkness_proof")) { ml.push("しかし防具が暗闇を防いだ！(耐暗闇)"); }
         else { p.darknessTurns = (p.darknessTurns || 0) + 20; ml.push("暗闇に包まれた！視界が1マスになる！(20ターン)"); }
+      }
+      return "restart";
+    }
+    case "mp_absorb_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _mam = monsterAt(dg, tx, ty);
+      if (_mam) {
+        _mam.sealed = true;
+        ml.push(`${_mam.name}の特技が封印された！`);
+      }
+      if (p && p.x === tx && p.y === ty) {
+        const _mpBefore = p.mp || 0;
+        p.mp = Math.max(0, _mpBefore - 5);
+        const _mpLost = _mpBefore - (p.mp || 0);
+        ml.push(`MPが${_mpLost}吸い取られた！`);
       }
       return "restart";
     }

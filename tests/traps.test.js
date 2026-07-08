@@ -3,6 +3,18 @@ import { fireTrapPlayer } from "../traps.js";
 import { fireTrapItem, removeTrap } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
+describe("fireTrapPlayer mp_absorb_trap", () => {
+  it("プレイヤーのMPが5減る", () => {
+    const p = makePlayer({ mp: 20, maxMp: 30 });
+    const dg = makeEmptyDg();
+    const trap = { effect: "mp_absorb_trap", name: "MP吸収の罠", x: 5, y: 5, id: "t1" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.mp).toBe(15);
+    expect(ml.some(m => m.includes("MPが5吸い取られた"))).toBe(true);
+  });
+});
+
 describe("fireTrapPlayer", () => {
   it("鈍足の罠でプレイヤーが鈍足になる", () => {
     const p = makePlayer();
@@ -53,6 +65,20 @@ describe("fireTrapPlayer", () => {
     const ml = [];
     const result = fireTrapPlayer(trap, p, dg, ml);
     expect(result).toBe("pitfall");
+  });
+});
+
+describe("fireTrapItem mp_absorb_trap", () => {
+  it("モンスターが封印状態になる", () => {
+    const p = makePlayer({ x: 1, y: 1, mp: 20 });
+    const mon = { name: "スライム", hp: 10, x: 5, y: 5 };
+    const dg = makeEmptyDg({ monsters: [mon] });
+    const trap = { effect: "mp_absorb_trap", name: "MP吸収の罠", x: 5, y: 5, id: "t1" };
+    const ml = [];
+    fireTrapItem(trap, { name: "石", type: "misc" }, dg, 5, 5, ml, new Set(), p);
+    expect(mon.sealed).toBe(true);
+    expect(p.mp).toBe(20);
+    expect(ml.some(m => m.includes("特技が封印された"))).toBe(true);
   });
 });
 

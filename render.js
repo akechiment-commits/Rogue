@@ -93,6 +93,7 @@ export const TILE_NAMES = {
   86: "trapmaster",
   93: "wateri",
   94: "trap_rot",
+  120: "trap_mp_absorb",
   87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
   108: "grabber",
   109: "leprechaun",
@@ -194,6 +195,7 @@ export const TILE_RENDER = {
   86: { bg: null, fg: "#c0a030", ch: "T" },
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
+  120: { bg: null, fg: "#5080e8", ch: "^" },
   87:  { bg: null, fg: "#00ccee", ch: "*" }, /* アクアマリン (C) */
   88:  { bg: null, fg: "#ee2244", ch: "*" }, /* ルビー       (B) */
   89:  { bg: null, fg: "#4488ff", ch: "*" }, /* サファイア   (B) */
