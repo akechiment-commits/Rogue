@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
@@ -291,10 +291,8 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     }
     case "rockfall": {
-      const _rfd = rng(15, 25);
-      p.deathCause = `${trap.name}により`;
-      p.hp -= _rfd;
-      ml.push(`${trap.name}が作動！岩が降ってきた！${_rfd}ダメージ！`);
+      ml.push(`${trap.name}が作動！岩が降ってきた！`);
+      applyRockfallEffect(dg, trap.x, trap.y, trap, ml, p);
       break;
     }
     case "time_bomb": {

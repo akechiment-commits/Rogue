@@ -860,7 +860,7 @@ export const TRAPS = [
   { name:"空腹の罠",       effect:"hunger_trap",   tile:50, desc:"踏むと満腹度が最大の10%減少する。" },
   { name:"吹き飛ばしの罠", effect:"blowback_trap", tile:51, desc:"踏むと向いていた方向と逆に最大10マス吹き飛ぶ。\n壁に激突すると10ダメージ。敵に当たると5ダメージ。" },
   { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71, desc:"踏むと5ターン移動不能になる。\n攻撃やアイテム使用は可能。" },
-  { name:"落石の罠",       effect:"rockfall",      tile:72, desc:"踏むと岩が降ってきて15～25ダメージ。" },
+  { name:"落石の罠",       effect:"rockfall",      tile:72, desc:"踏むと岩が降ってきて15～25ダメージ。\n対象がいなければそのマスに石が1個落ちる。" },
   { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73, desc:"踏むと4ターン後に大爆発が起きる。\n爆発は地雷と同じ威力。離れれば回避できる。\n作動済みの爆心地に薬液をかけると消火可能。\n作動済みは爆心地にカウントダウン表示。" },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84, desc:"踏むと50ターン幻惑状態。\n周囲の見た目が狂う。耐惑わしの防具で防げる。" },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85, desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。耐暗闇の防具で防げる。" },
@@ -1312,6 +1312,37 @@ export function wallBreakDrop(dg, x, y) {
   dg.items.push(drop);
 }
 
+/** 落石罠：対象がいなければそのマスに石1個を置く */
+export function applyRockfallEffect(dg, tx, ty, trap, ml, p = null) {
+  let hit = false;
+  const _rfm = monsterAt(dg, tx, ty);
+  if (_rfm) {
+    const _rfd2 = rng(15, 25);
+    _rfm.hp -= _rfd2;
+    hit = true;
+    ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
+    if (_rfm.hp <= 0) {
+      ml.push(`${_rfm.name}は倒れた！`);
+      monsterDrop(_rfm, dg, ml, p);
+      removeMonster(dg, _rfm);
+    }
+  }
+  if (p && p.x === tx && p.y === ty) {
+    const _rfd3 = rng(15, 25);
+    p.deathCause = `${trap.name}により`;
+    p.hp -= _rfd3;
+    hit = true;
+    ml.push(`${_rfd3}ダメージ！`);
+  }
+  if (!hit) {
+    const _stone = makeStone(1);
+    _stone.x = tx;
+    _stone.y = ty;
+    dg.items.push(_stone);
+    ml.push(`岩が転がった。`);
+  }
+}
+
 let _fireTrapDepth = 0;
 export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null) {
   if (_fireTrapDepth > 5) return "stop";
@@ -1572,23 +1603,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "rockfall": {
       ml.push(`${trap.name}が発動！岩が降ってきた！`);
-      const _rfm = monsterAt(dg, tx, ty);
-      if (_rfm) {
-        const _rfd2 = rng(15, 25);
-        _rfm.hp -= _rfd2;
-        ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
-        if (_rfm.hp <= 0) {
-          ml.push(`${_rfm.name}は倒れた！`);
-          monsterDrop(_rfm, dg, ml, p);
-          removeMonster(dg, _rfm);
-        }
-      }
-      if (p && p.x === tx && p.y === ty) {
-        const _rfd3 = rng(15, 25);
-        p.deathCause = `${trap.name}により`;
-        p.hp -= _rfd3;
-        ml.push(`${_rfd3}ダメージ！`);
-      }
+      applyRockfallEffect(dg, tx, ty, trap, ml, p);
       return "restart";
     }
     case "time_bomb": {

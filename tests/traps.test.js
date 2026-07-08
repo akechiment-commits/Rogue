@@ -67,4 +67,17 @@ describe("fireTrapItem rockfall", () => {
     expect(dg.monsters).toHaveLength(0);
     expect(ml.some(m => m.includes("スライムは倒れた！"))).toBe(true);
   });
+
+  it("落石の罠で対象がいないときそのマスに石が落ちる", () => {
+    const p = makePlayer({ x: 1, y: 1 });
+    const dg = makeEmptyDg();
+    const trap = { effect: "rockfall", name: "落石の罠", x: 5, y: 5, id: "t1" };
+    const ml = [];
+    fireTrapItem(trap, { name: "薬", type: "potion" }, dg, 5, 5, ml, new Set(["t1"]), p);
+    expect(dg.items).toHaveLength(1);
+    expect(dg.items[0].name).toBe("石");
+    expect(dg.items[0].x).toBe(5);
+    expect(dg.items[0].y).toBe(5);
+    expect(ml.some(m => m.includes("転がった"))).toBe(true);
+  });
 });
