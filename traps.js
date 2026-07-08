@@ -292,7 +292,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
     }
     case "rockfall": {
       ml.push(`${trap.name}が作動！岩が降ってきた！`);
-      applyRockfallEffect(dg, trap.x, trap.y, trap, ml, p);
+      applyRockfallEffect(dg, trap.x, trap.y, trap, ml, new Set([trap.id]), p);
       break;
     }
     case "time_bomb": {
