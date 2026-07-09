@@ -183,7 +183,7 @@ export const ITEMS = [
   { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"B", weight:4,  sellPrice:350,  desc:"HPを60回復する。HP最大時は最大HP+2。\n祝福：回復量1.5倍+状態異常も回復。最大HP+4。\n呪い：反転して42ダメージ。",                                               tile:17 },
   { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"A", weight:2,  sellPrice:1200, desc:"HPを100回復する。HP最大時は最大HP+3。\n祝福：効果2倍(回復200、最大HP+6)。\n呪い：反転して50ダメージ。", tile:17 },
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと毒状態になり攻撃力が徐々に低下。\n祝福：さらに即座に攻撃力-3。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
-  { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと炎ダメージを受ける。耐火装備で半減。\n祝福：ダメージ1.5倍。呪い：反転してHP回復。\n投げると炎上し周囲にダメージ。", tile:17 },
+  { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと炎ダメージを受ける。耐火装備で軽減（個別or万能2/3・両方半減）。\n祝福：ダメージ1.5倍。呪い：反転してHP回復。\n投げると炎上し周囲にダメージ。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n祝福：12ターン強眠。呪い：反転して4ターン状態異常防止。\n投げると命中した敵を眠らせる。",           tile:16 },
   { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n祝福：20ターン鈍足（速度×0.25）。\n呪い：反転して10ターン加速（2倍速）。\n投げると命中した敵を鈍足にする。", tile:16 },
   { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n祝福：20ターン金縛り＋2回アクション必要。\n呪い：反転して200ターン状態異常防止。\n投げると命中した敵を金縛りにする。", tile:16 },
@@ -237,14 +237,14 @@ export const ITEMS = [
   { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"C", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。", tile:21 },
   { name:"プレートメイル",   type:"armor",  def:8,                       rarity:"B", weight:4,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
   { name:"腹持ちの胴",       type:"armor",  def:3,  ability:"slow_hunger",   rarity:"B", weight:4,  sellPrice:1500, desc:"装備すると空腹の進行が半分になる特製の胴鎧。",    tile:21 },
-  { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"B", weight:4, sellPrice:1000, desc:"雷ダメージを半減し、雷によるアイテム破壊を防ぐ。", tile:21 },
-  { name:"ドラゴンメイル",   type:"armor",  def:8,  ability:"fire_resist",   rarity:"A", weight:2,  sellPrice:3000, desc:"竜の鱗製。炎ダメージを半減しアイテムを炎から守る。", tile:21 },
+  { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"B", weight:4, sellPrice:1000, desc:"雷ダメージを2/3に軽減（万能耐性併用で半減）。雷によるアイテム破壊を防ぐ。", tile:21 },
+  { name:"ドラゴンメイル",   type:"armor",  def:8,  ability:"fire_resist",   rarity:"A", weight:2,  sellPrice:3000, desc:"竜の鱗製。炎ダメージを2/3に軽減（万能耐性併用で半減）。アイテムを炎から守る。", tile:21 },
   { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         rarity:"B", weight:4,  sellPrice:900,  desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
   { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         rarity:"B", weight:4,  sellPrice:1200, desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
   { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  rarity:"A", weight:2,  sellPrice:3000, desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
   { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:8,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠も無効化する。",    tile:21 },
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"A", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
-  { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"B", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを半減。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
+  { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"B", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"C", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n祝福：回復量1.5倍、最大MP+2。\n呪い：反転してMP封印50ターン。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
   { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"C", weight:8,  sellPrice:200,  desc:"飲むとMP封印50ターン。\n祝福：さらに鈍足10ターン。呪い：MP封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n祝福：10ターン混乱。呪い：反転して混乱解消+必中100ターン。\n投げると敵を20ターン混乱(祝：40T、呪：混乱解除)。", tile:16 },
@@ -271,7 +271,7 @@ export const ITEMS = [
   { name:"吸い出しの巻物", type:"scroll", effect:"pot_extract",   rarity:"B", weight:4,  sellPrice:600,
     desc:"選んだ壺の中身を割らずに足元にばらまく。油系は周囲8マスに油も飛散。火薬壺は壺無事のまま爆発。\n呪い：選んだ壺を割る。祝福：中身を吸い出したうえで容量+1。", tile:18 },
   { name:"自爆の巻物", type:"scroll", effect:"self_destruct",      rarity:"B", weight:4,  sellPrice:700,
-    desc:"中心から2マス（5×5）に爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ半減。\n祝福：爆発範囲が中心から3マス（7×7）に拡大。\n呪い：爆発は起きず200ターンの間、炎と爆発が全て不発になる。", tile:18 },
+    desc:"中心から2マス（5×5）に爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ軽減（個別or万能2/3・両方半減）。\n祝福：爆発範囲が中心から3マス（7×7）に拡大。\n呪い：爆発は起きず200ターンの間、炎と爆発が全て不発になる。", tile:18 },
   { name:"バーサーカーの巻物", type:"scroll", effect:"berserker_scroll", rarity:"B", weight:4, sellPrice:600,
     desc:"部屋内の敵全員が50ターンのバーサーク状態になり、敵味方区別なく攻撃する。\n跳ね返った場合：自分が50ターン攻撃力1.5倍になる。\n祝福：効果範囲がフロア全体になる。\n呪い：部屋内の敵が20ターンの平和主義状態になる（攻撃不可）。跳ね返った場合も自分が平和主義状態になる。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"A", weight:2,  sellPrice:120,
@@ -297,7 +297,7 @@ export const FLAMBERGE_T    = { name:"フランベルジュ", type:"weapon", atk
 export const ICESWORD_T     = { name:"アイスソード",   type:"weapon", atk:13, ability:"ice_elem_2",     sellPrice:9000, desc:"氷の剣3本の合成。炎系の敵に2倍ダメージ（上位特効）。", tile:20 };
 export const CHIDORI_T      = { name:"千鳥",           type:"weapon", atk:13, ability:"thunder_elem_2", sellPrice:9000, desc:"雷の剣3本の合成。氷・水系の敵に2倍ダメージ（上位特効）。", tile:20 };
 export const ULTIMA_SWORD_T = { name:"アルテマソード", type:"weapon", atk:20, ability:"fire_elem_2", abilities:["fire_elem_2","ice_elem_2","thunder_elem_2"], sellPrice:25000, desc:"三元の刃3本の合成。全属性弱点の敵に2倍ダメージ（上位特効）。火ダルマには0.5倍。", tile:20 };
-export const TRIELEM_ARMOR_T  = { name:"元素王の鎧",     type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], sellPrice:15000, desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n全属性ダメージ半減・各種副作用も防ぐ。", tile:21 };
+export const TRIELEM_ARMOR_T  = { name:"元素王の鎧",     type:"armor", def:10, ability:"fire_resist", abilities:["fire_resist","ice_resist","lightning_resist"], sellPrice:15000, desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n各属性ダメージ2/3（万能耐性併用で半減）・各種副作用も防ぐ。", tile:21 };
 export const MITHRIL_ARMOR_T  = { name:"ミスリルの胴着", type:"armor", def:13, sellPrice:10000,       desc:"硬くて軽い幻のミスリル製鎧。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"万能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], sellPrice:10000, desc:"三種の特効剣が融合した剣。竜・不死・浮遊の全種族に1.5倍ダメージ。", tile:20 };
 export const IRONMASS_T       = { name:"鉄塊",       type:"weapon", atk:16, ability:"bane_dragon_2",  sellPrice:10000, desc:"ドラゴンキラー3本の合成。ドラゴン系に2倍ダメージ（上位特効）。", tile:20 };
@@ -820,12 +820,12 @@ export const WEAPON_ABILITIES = [
 ];
 
 export const ARMOR_ABILITIES = [
-  { id:"fire_resist",      name:"耐火",     desc:"炎のダメージを半減しアイテムを炎から守る" },
+  { id:"fire_resist",      name:"耐火",     desc:"炎ダメージ2/3（万能耐性併用で半減）。アイテムを炎から守る" },
   { id:"slow_hunger",      name:"節食",     desc:"空腹の進行が半分になる" },
   { id:"regen",            name:"回復",     desc:"毎ターン追加でHP+1回復する" },
   { id:"sleep_proof",      name:"眠れず",   desc:"睡眠効果を無効化する" },
   { id:"thorn",            name:"刃反射",   desc:"近接攻撃を受けた時にダメージの1/3を反射する" },
-  { id:"lightning_resist", name:"雷耐性",   desc:"雷のダメージを半減しアイテムが雷で壊れなくなる" },
+  { id:"lightning_resist", name:"雷耐性",   desc:"雷ダメージ2/3（万能耐性併用で半減）。アイテムが雷で壊れなくなる" },
   { id:"dodge",            name:"みかわし", desc:"25%の確率で攻撃を完全回避する" },
   { id:"wand_reflect",     name:"魔法反射", desc:"モンスターの杖魔法を反射する" },
   { id:"anti_steal",       name:"護盗",     desc:"コソドロに所持品を盗まれなくなる" },
@@ -836,12 +836,12 @@ export const ARMOR_ABILITIES = [
   { id:"confuse_proof",    name:"耐混乱",   desc:"混乱効果を無効化する" },
   { id:"bewitch_proof",    name:"耐惑わし", desc:"幻惑効果を無効化する" },
   { id:"seal_proof",       name:"耐封印",   desc:"封印効果を無効化する" },
-  { id:"ice_resist",       name:"耐氷",     desc:"氷のダメージを半減する" },
+  { id:"ice_resist",       name:"耐氷",     desc:"氷ダメージ2/3（万能耐性併用で半減）。移動封じ・鈍足を防ぐ" },
   /* 呪い専用デメリット能力 */
   { id:"frail",            name:"脆弱",     desc:"近接攻撃を受けた時、ダメージが+3増加する",         curseOnly:true },
   { id:"noisy",            name:"騒音",     desc:"部屋に入るたびに同部屋の敵が全員目を覚ます",       curseOnly:true },
   /* 祝福専用強力能力 */
-  { id:"all_resist",       name:"万能耐性", desc:"炎・氷・雷のダメージをすべて半減する",             blessedOnly:true },
+  { id:"all_resist",       name:"万能耐性", desc:"炎・氷・雷ダメージ2/3。個別耐性と併用で半減",             blessedOnly:true },
   { id:"aura",             name:"闘気",     desc:"毎ターン、隣接する敵全員に2ダメージを与える",       blessedOnly:true },
 ];
 
@@ -895,16 +895,17 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
-    const _hasFireR = ringExplosion && hasFireResist(p);
+    const _hasFireProt = ringExplosion && hasFireResist(p);
     const rawDmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
                  : proportional  ? Math.max(1, Math.floor(p.hp / 2))
                  : rng(10, 20);
-    const dmg = _hasFireR ? Math.max(1, Math.floor(rawDmg / 2)) : rawDmg;
+    const dmg = ringExplosion ? reduceFireDamage(rawDmg, p) : rawDmg;
+    const _fireLbl = ringExplosion ? fireResistDamageLabel(p) : "";
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
-    ml.push(`${srcLabel}！${dmg}ダメージ！${_hasFireR ? "（耐火半減）" : ""}`);
+    ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}`);
     /* 指輪爆発：炎によるアイテム損傷（耐火なし時） */
-    if (ringExplosion && !_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
+    if (ringExplosion && !_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
   }
   const blasted = new Set();
   const _killed = new Set();
@@ -1091,13 +1092,13 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         }
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
         if (p && p.x === ax && p.y === ay) {
-          const _hasFireR = hasFireResist(p);
+          const _hasFireProt = hasFireResist(p);
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
-          const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
+          const dmg = reduceFireDamage(rawDmg, p);
           p.deathCause = `${srcLabel}の爆発により`;
           p.hp -= dmg;
-          ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
-          if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
+          ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}`);
+          if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
         /* モンスター：即死（火ダルマは分裂、ボスは現在HPの4分の1ダメージ） */
         for (const m of [...dg.monsters]) {
@@ -1227,12 +1228,12 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
       }
       /* プレイヤー：HPが1になる＋炎アイテム損傷（耐火時は半減ダメージのみ） */
       if (p && p.x === ax && p.y === ay) {
-        const _hasFireR = hasFireResist(p);
+        const _hasFireProt = hasFireResist(p);
         p.deathCause = "時限爆弾の罠の大爆発により";
-        if (_hasFireR) {
-          const dmg = Math.max(1, Math.floor(p.hp / 2));
+        if (_hasFireProt) {
+          const dmg = reduceFireDamage(Math.max(1, p.hp - 1), p);
           p.hp -= dmg;
-          ml.push(`大爆発！${dmg}ダメージ！(耐火半減)`);
+          ml.push(`大爆発！${dmg}ダメージ！${fireResistDamageLabel(p)}`);
         } else {
           p.hp = 1;
           ml.push(`大爆発！HPが1になった！`);
@@ -1879,7 +1880,6 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   const _monKill = (mon) => {
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
   };
-  const _fireResist = (pl) => hasFireResist(pl);
   switch (eff) {
     case "water": // 水は通常のhealと同じ挙動
     case "heal_big":
@@ -2014,10 +2014,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") {
           const _oilyMult = _oilyCheck(p) ? 2 : 1;
           const rd = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult));
-          const fd = _fireResist(p) ? Math.floor(rd / 2) : rd;
+          const fd = reduceFireDamage(rd, p);
           p.deathCause = "炎の薬の飛散により";
           p.hp -= fd;
-          ml.push(`炎に包まれた！${fd}ダメージ！${_fireResist(p) ? "(耐火)" : ""}${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
+          ml.push(`炎に包まれた！${fd}ダメージ！${fireResistDamageLabel(p)}${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
           applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
       }
@@ -2922,13 +2922,13 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         }
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
         if (p && p.x === ax && p.y === ay) {
-          const _hasFireR = hasFireResist(p);
+          const _hasFireProt = hasFireResist(p);
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
-          const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
+          const dmg = reduceFireDamage(rawDmg, p);
           p.deathCause = `${exPc.name}の爆発により`;
           p.hp -= dmg;
-          ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
-          if (!_hasFireR) applyLightningToInventory(p, dg, ml, luFn, null, true);
+          ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}`);
+          if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
         /* アイテム破壊（巻物・薬・壺） */
         for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
@@ -3548,14 +3548,62 @@ export const SPELLBOOKS=[
   {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"B", weight:4,  sellPrice:2000,  desc:"呪いの魔法を習得できる。火に弱い。",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
-/** 防具の耐火（元素王の鎧の fire_resist 含む・万能耐性も対象） */
+/** 防具の耐火（元素王の鎧の fire_resist 含む・万能耐性も対象）— 所持品破損防止用 */
 export function hasFireResist(p) {
   return hasAbility(p?.armor, "fire_resist") || hasAbility(p?.armor, "all_resist");
 }
 
-/** 防具の雷耐性（万能耐性も対象） */
+/** 防具の雷耐性（万能耐性も対象）— 所持品破損防止用 */
 export function hasLightningResist(p) {
   return hasAbility(p?.armor, "lightning_resist") || hasAbility(p?.armor, "all_resist");
+}
+
+/** 防具の耐氷（万能耐性も対象）— 移動封じ・鈍足防止用 */
+export function hasIceResist(p) {
+  return hasAbility(p?.armor, "ice_resist") || hasAbility(p?.armor, "all_resist");
+}
+
+function _elemResistMult(p, individualId, { includeRingFire = false } = {}) {
+  const hasIndividual = hasAbility(p?.armor, individualId)
+    || (includeRingFire && individualId === "fire_resist" && (p?.rings || []).some(r => r.effect === "fire_resist"));
+  const hasAll = hasAbility(p?.armor, "all_resist");
+  if (!hasIndividual && !hasAll) return null;
+  if (hasIndividual && hasAll) return 0.5;
+  return 2 / 3;
+}
+
+function _elemResistLabel(baseName, p, individualId, { includeRingFire = false } = {}) {
+  const hasIndividual = hasAbility(p?.armor, individualId)
+    || (includeRingFire && individualId === "fire_resist" && (p?.rings || []).some(r => r.effect === "fire_resist"));
+  const hasAll = hasAbility(p?.armor, "all_resist");
+  if (!hasIndividual && !hasAll) return "";
+  if (hasIndividual && hasAll) return `（${baseName}半減）`;
+  return `（${baseName}）`;
+}
+
+/** 炎ダメージ軽減：個別 or 万能のみ→2/3、個別+万能→半減 */
+export function reduceFireDamage(dmg, p, opts = {}) {
+  const mult = _elemResistMult(p, "fire_resist", opts);
+  return mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+}
+export function fireResistDamageLabel(p, opts = {}) {
+  return _elemResistLabel("耐火", p, "fire_resist", opts);
+}
+
+export function reduceIceDamage(dmg, p) {
+  const mult = _elemResistMult(p, "ice_resist");
+  return mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+}
+export function iceResistDamageLabel(p) {
+  return _elemResistLabel("耐氷", p, "ice_resist");
+}
+
+export function reduceLightningDamage(dmg, p) {
+  const mult = _elemResistMult(p, "lightning_resist");
+  return mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+}
+export function lightningResistDamageLabel(p) {
+  return _elemResistLabel("雷耐性", p, "lightning_resist");
 }
 
 /* 雷・炎ダメージを受けたとき所持品1つにランダムで影響を与える */

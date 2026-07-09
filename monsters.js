@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -98,8 +98,8 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
   /* 耐火装備 / 万能耐性 / カレー炎耐性 */
-  const _hasFireR = hasFireResist(pl);
-  if (_hasFireR) dmg = Math.max(1, Math.floor(dmg / 2));
+  const _hasFireProt = hasFireResist(pl);
+  dmg = reduceFireDamage(dmg, pl);
   if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
   /* 油まみれ */
   const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
@@ -107,10 +107,10 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   pl.deathCause = `${m.name}の炎ブレスで`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
-  ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
+  ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
   if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
-  if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null, null, true);
+  if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true);
 }
 
 /* ===== 氷竜ブレス ===== */
@@ -145,13 +145,13 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   let _iDmg = _iBase === 0 ? 1 : Math.max(1, _iBase + rng(-2, 2));
   const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
-  const _hasIceR = hasAbility(pl.armor, "ice_resist") || hasAbility(pl.armor, "all_resist");
-  if (_hasIceR) _iDmg = Math.max(1, Math.floor(_iDmg / 2));
+  const _hasIceR = hasIceResist(pl);
+  _iDmg = reduceIceDamage(_iDmg, pl);
   pl.deathCause = `${m.name}の氷ブレスで`;
   pl.hp -= _iDmg;
   onPlayerHit?.(_iDmg, m);
   if (_hasIceR) {
-    ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！（耐氷：ダメージ半減・鈍足無効）`);
+    ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！${iceResistDamageLabel(pl)}・鈍足無効`);
   } else {
     const _iSlow = rng(3, 6);
     pl.slowTurns = (pl.slowTurns || 0) + _iSlow;

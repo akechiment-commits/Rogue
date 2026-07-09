@@ -21,6 +21,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
+  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps,
 } from "./items.js";
@@ -1528,12 +1529,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _theal = Math.min(25, p.maxHp - p.hp);
           if (_theal > 0) { p.hp += _theal; ml.push(`${_thunderPent.name}の力でHPが${_theal}回復した！`); }
         } else {
-          const _thasLR = hasAbility(p.armor, "lightning_resist") || hasAbility(p.armor, "all_resist");
+          const _thasLR = hasLightningResist(p);
           const _tcmsB = inCursedMagicSealRoom(p.x, p.y, st.dungeon) ? 2 : 1;
-          const _tdmg = Math.max(1, Math.floor((_thunderPent.blessed ? 50 : 25) * (_thasLR ? 0.5 : 1) * _tcmsB));
+          const _tdmg = reduceLightningDamage(Math.max(1, Math.floor((_thunderPent.blessed ? 50 : 25) * _tcmsB)), p);
           p.deathCause = `${_thunderPent.name}の雷撃により`;
           p.hp -= _tdmg;
-          ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！${_thasLR ? "（雷耐性）" : ""}`);
+          ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！${lightningResistDamageLabel(p)}`);
           if (!_thasLR) {
             applyLightningToInventory(p, st.dungeon, ml, lu,
               (it) => itemDisplayName(it, st.fakeNames, st.ident, st.nicknames));

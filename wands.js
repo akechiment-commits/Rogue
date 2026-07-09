@@ -6,7 +6,9 @@ import {
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
-  hasFireResist, hasLightningResist,
+  hasFireResist, hasLightningResist, hasIceResist,
+  reduceFireDamage, reduceIceDamage, reduceLightningDamage,
+  fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -453,10 +455,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         if (inCursedMagicSealRoom(p.x, p.y, dg)) dmg *= 2;
-        if (hasLightningResist(p)) dmg = Math.max(1, Math.floor(dmg / 2));
+        dmg = reduceLightningDamage(dmg, p);
         p.deathCause = "雷の杖の魔法により";
         p.hp -= dmg;
-        ml.push(`雷撃が自分に命中！${dmg}ダメージ！${hasLightningResist(p) ? "（雷耐性）" : ""}`);
+        ml.push(`雷撃が自分に命中！${dmg}ダメージ！${lightningResistDamageLabel(p)}`);
         pushLightningAnim(p.x, p.y);
         applyLightningToInventory(p, dg, ml, luFn, nameFn);
         break;
@@ -1269,11 +1271,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "player") {
         const _fwOily = _fwOilyCheck(p);
         let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1)));
-        const _hasFireR = hasFireResist(p) || (p.rings||[]).some(r=>r.effect==="fire_resist");
-        if (_hasFireR) _fwDmg = Math.max(1, Math.floor(_fwDmg/2));
+        _fwDmg = reduceFireDamage(_fwDmg, p, { includeRingFire: true });
         p.deathCause = "炎の杖の魔法により";
         p.hp -= _fwDmg;
-        ml.push(`炎の弾が自分に命中！${_fwDmg}ダメージ！${_hasFireR ? "(耐火半減)" : ""}`);
+        ml.push(`炎の弾が自分に命中！${_fwDmg}ダメージ！${fireResistDamageLabel(p, { includeRingFire: true })}`);
         applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         break;
       }
@@ -1343,11 +1344,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult));
+        let _iwDmg = reduceIceDamage(Math.max(1, Math.round(rng(15,25) * _iwBlessMult)), p);
         p.deathCause = "氷の杖の魔法により";
         p.hp -= _iwDmg;
-        if (hasAbility(p.armor, "ice_resist")) {
-          ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！（耐氷：移動封じ無効）`);
+        if (hasIceResist(p)) {
+          ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！${iceResistDamageLabel(p)}・移動封じ無効`);
         } else {
           p.immobileTurns = (p.immobileTurns||0) + _iwTurns;
           ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！`);
@@ -1384,11 +1385,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        let _gsSelfDmg = _gsDmg;
-        if (hasLightningResist(p)) _gsSelfDmg = Math.max(1, Math.floor(_gsSelfDmg / 2));
+        const _gsSelfDmg = reduceLightningDamage(_gsDmg, p);
         p.deathCause = "ゴッドスパークの杖により";
         p.hp -= _gsSelfDmg;
-        ml.push(`ゴッドスパーク炸裂！自分に${_gsSelfDmg}ダメージ！${hasLightningResist(p) ? "（雷耐性）" : ""}${_gsBlessed ? "【祝】" : ""}`);
+        ml.push(`ゴッドスパーク炸裂！自分に${_gsSelfDmg}ダメージ！${lightningResistDamageLabel(p)}${_gsBlessed ? "【祝】" : ""}`);
         applyLightningToInventory(p, dg, ml, luFn, nameFn);
         break;
       }
@@ -1718,11 +1718,11 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       /* ゴムゴムの胴 / 万能耐性: 雷ダメージ半減・所持品破壊を防ぐ */
       const _hasLightRes = hasLightningResist(pl);
       let dmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
-      if (_hasLightRes) dmg = Math.max(1, Math.floor(dmg / 2));
+      dmg = reduceLightningDamage(dmg, pl);
       if (inCursedMagicSealRoom(pl.x, pl.y, dg)) dmg *= 2;
       pl.deathCause = `${monName}の雷撃により`;
       pl.hp -= dmg;
-      ml.push(`雷撃が命中！${dmg}ダメージ！${_hasLightRes ? "（雷耐性）" : ""}`);
+      ml.push(`雷撃が命中！${dmg}ダメージ！${lightningResistDamageLabel(pl)}`);
       pushLightningAnim(pl.x, pl.y);
       if (!_hasLightRes) {
         applyLightningToInventory(pl, dg, ml, luFn, nameFn);

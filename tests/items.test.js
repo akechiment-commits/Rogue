@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage } from "../items.js";
 
 describe("getIdentKey", () => {
   it("種別ごとに識別キーを返す", () => {
@@ -149,6 +149,17 @@ describe("doExplosion", () => {
     doExplosion(5, 5, dg, p, ml, null, "地雷");
     expect(ml.some(m => m.includes("不発") && m.includes("42"))).toBe(true);
     expect(ml.some(m => m === "爆発！")).toBe(false);
+  });
+});
+
+describe("reduceFireDamage / reduceLightningDamage / reduceIceDamage", () => {
+  it("個別のみ・万能のみは2/3、個別+万能は半減", () => {
+    expect(reduceFireDamage(30, { armor: { ability: "fire_resist" } })).toBe(20);
+    expect(reduceFireDamage(30, { armor: { ability: "all_resist" } })).toBe(20);
+    expect(reduceFireDamage(30, { armor: { ability: "fire_resist", abilities: ["all_resist"] } })).toBe(15);
+    expect(reduceLightningDamage(30, { armor: { abilities: ["lightning_resist", "all_resist"] } })).toBe(15);
+    expect(reduceIceDamage(30, { armor: { ability: "ice_resist" } })).toBe(20);
+    expect(reduceFireDamage(30, { armor: { ability: "regen" } })).toBe(30);
   });
 });
 
