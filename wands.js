@@ -6,6 +6,7 @@ import {
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
+  hasFireResist, hasLightningResist,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -452,9 +453,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         if (inCursedMagicSealRoom(p.x, p.y, dg)) dmg *= 2;
+        if (hasLightningResist(p)) dmg = Math.max(1, Math.floor(dmg / 2));
         p.deathCause = "雷の杖の魔法により";
         p.hp -= dmg;
-        ml.push(`雷撃が自分に命中！${dmg}ダメージ！`);
+        ml.push(`雷撃が自分に命中！${dmg}ダメージ！${hasLightningResist(p) ? "（雷耐性）" : ""}`);
         pushLightningAnim(p.x, p.y);
         applyLightningToInventory(p, dg, ml, luFn, nameFn);
         break;
@@ -1267,7 +1269,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "player") {
         const _fwOily = _fwOilyCheck(p);
         let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1)));
-        const _hasFireR = hasAbility(p.armor, "fire_resist") || (p.rings||[]).some(r=>r.effect==="fire_resist");
+        const _hasFireR = hasFireResist(p) || (p.rings||[]).some(r=>r.effect==="fire_resist");
         if (_hasFireR) _fwDmg = Math.max(1, Math.floor(_fwDmg/2));
         p.deathCause = "炎の杖の魔法により";
         p.hp -= _fwDmg;
@@ -1382,9 +1384,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
+        let _gsSelfDmg = _gsDmg;
+        if (hasLightningResist(p)) _gsSelfDmg = Math.max(1, Math.floor(_gsSelfDmg / 2));
         p.deathCause = "ゴッドスパークの杖により";
-        p.hp -= _gsDmg;
-        ml.push(`ゴッドスパーク炸裂！自分に${_gsDmg}ダメージ！${_gsBlessed ? "【祝】" : ""}`);
+        p.hp -= _gsSelfDmg;
+        ml.push(`ゴッドスパーク炸裂！自分に${_gsSelfDmg}ダメージ！${hasLightningResist(p) ? "（雷耐性）" : ""}${_gsBlessed ? "【祝】" : ""}`);
         applyLightningToInventory(p, dg, ml, luFn, nameFn);
         break;
       }
@@ -1712,7 +1716,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         return;
       }
       /* ゴムゴムの胴 / 万能耐性: 雷ダメージ半減・所持品破壊を防ぐ */
-      const _hasLightRes = hasAbility(pl.armor, "lightning_resist") || hasAbility(pl.armor, "all_resist");
+      const _hasLightRes = hasLightningResist(pl);
       let dmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
       if (_hasLightRes) dmg = Math.max(1, Math.floor(dmg / 2));
       if (inCursedMagicSealRoom(pl.x, pl.y, dg)) dmg *= 2;

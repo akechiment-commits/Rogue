@@ -3,7 +3,7 @@ import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbi
 import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
-  applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem,
+  applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist,
   applyWandEffect, applyWaterSplash, breakWandAoE, triggerWandBreakEffect, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, fireWandBolt,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
@@ -186,14 +186,11 @@ export function useItemActions({
         } else {
           // 通常/祝福：炎ダメージ（祝福=1.5x）
           const rd = Math.max(1, Math.round((it.value + rng(-5, 5)) * _potBm));
-          const d =
-            hasAbility(p.armor, "fire_resist")
-              ? Math.floor(rd / 2)
-              : rd;
+          const d = hasFireResist(p) ? Math.floor(rd / 2) : rd;
           p.deathCause = "炎の薬を飲んで";
           p.hp -= d;
           ml.push(
-            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${hasAbility(p.armor, "fire_resist") ? "(耐火半減)" : ""}${it.blessed ? "【祝=強炎】" : ""}`,
+            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${hasFireResist(p) ? "(耐火半減)" : ""}${it.blessed ? "【祝=強炎】" : ""}`,
           );
         }
       } else if (it.effect === "sleep") {
@@ -1266,7 +1263,7 @@ export function useItemActions({
           ml.push(it.blessed ? `自爆！中心から3マス（7×7）に大爆発！【祝】` : `自爆！中心から2マス（5×5）に大爆発！`);
           pushExplosionAnim(p.x, p.y);
           // プレイヤーへのダメージを先に適用（連鎖爆発のダメージ計算・ログ順を自然にする）
-          const _sdFireR = hasAbility(p.armor, "fire_resist") || hasAbility(p.armor, "all_resist");
+          const _sdFireR = hasFireResist(p);
           p.deathCause = "自爆の巻物により";
           if (_sdFireR) {
             const _sdDmg = Math.max(1, Math.floor(p.hp / 2));

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory } from "../items.js";
 
 describe("getIdentKey", () => {
   it("種別ごとに識別キーを返す", () => {
@@ -149,6 +149,44 @@ describe("doExplosion", () => {
     doExplosion(5, 5, dg, p, ml, null, "地雷");
     expect(ml.some(m => m.includes("不発") && m.includes("42"))).toBe(true);
     expect(ml.some(m => m === "爆発！")).toBe(false);
+  });
+});
+
+describe("hasFireResist / hasLightningResist", () => {
+  it("耐火・雷耐性と万能耐性を判定する", () => {
+    expect(hasFireResist({ armor: { ability: "fire_resist" } })).toBe(true);
+    expect(hasFireResist({ armor: { ability: "all_resist" } })).toBe(true);
+    expect(hasFireResist({ armor: { ability: "lightning_resist" } })).toBe(false);
+    expect(hasLightningResist({ armor: { abilities: ["lightning_resist"] } })).toBe(true);
+    expect(hasLightningResist({ armor: { ability: "all_resist" } })).toBe(true);
+  });
+});
+
+describe("applyLightningToInventory", () => {
+  const dg = { pentacles: [] };
+
+  it("耐火防具で炎による所持品破壊を防ぐ", () => {
+    const p = { inventory: [{ type: "scroll", name: "テスト巻物" }], armor: { ability: "fire_resist" } };
+    const ml = [];
+    applyLightningToInventory(p, dg, ml, () => {}, null, true);
+    expect(p.inventory).toHaveLength(1);
+    expect(ml).toHaveLength(0);
+  });
+
+  it("雷耐性防具で雷による所持品破壊を防ぐ", () => {
+    const p = { inventory: [{ type: "potion", name: "テスト薬" }], armor: { ability: "lightning_resist" } };
+    const ml = [];
+    applyLightningToInventory(p, dg, ml, () => {}, null, false);
+    expect(p.inventory).toHaveLength(1);
+    expect(ml).toHaveLength(0);
+  });
+
+  it("耐性なしなら所持品が壊れる", () => {
+    const p = { inventory: [{ type: "scroll", name: "テスト巻物" }], armor: { ability: "regen" } };
+    const ml = [];
+    applyLightningToInventory(p, dg, ml, () => {}, null, true);
+    expect(p.inventory).toHaveLength(0);
+    expect(ml.some(m => m.includes("燃えて"))).toBe(true);
   });
 });
 

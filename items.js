@@ -895,7 +895,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
-    const _hasFireR = ringExplosion && hasAbility(p.armor, "fire_resist");
+    const _hasFireR = ringExplosion && hasFireResist(p);
     const rawDmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
                  : proportional  ? Math.max(1, Math.floor(p.hp / 2))
                  : rng(10, 20);
@@ -1091,7 +1091,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         }
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
         if (p && p.x === ax && p.y === ay) {
-          const _hasFireR = hasAbility(p.armor, "fire_resist");
+          const _hasFireR = hasFireResist(p);
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
           const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
           p.deathCause = `${srcLabel}の爆発により`;
@@ -1227,7 +1227,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
       }
       /* プレイヤー：HPが1になる＋炎アイテム損傷（耐火時は半減ダメージのみ） */
       if (p && p.x === ax && p.y === ay) {
-        const _hasFireR = hasAbility(p.armor, "fire_resist");
+        const _hasFireR = hasFireResist(p);
         p.deathCause = "時限爆弾の罠の大爆発により";
         if (_hasFireR) {
           const dmg = Math.max(1, Math.floor(p.hp / 2));
@@ -1879,8 +1879,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
   const _monKill = (mon) => {
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
   };
-  const _fireResist = (pl) =>
-    hasAbility(pl.armor, "fire_resist");
+  const _fireResist = (pl) => hasFireResist(pl);
   switch (eff) {
     case "water": // 水は通常のhealと同じ挙動
     case "heal_big":
@@ -2923,7 +2922,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         }
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
         if (p && p.x === ax && p.y === ay) {
-          const _hasFireR = hasAbility(p.armor, "fire_resist");
+          const _hasFireR = hasFireResist(p);
           const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
           const dmg = _hasFireR ? Math.floor(rawDmg / 2) : rawDmg;
           p.deathCause = `${exPc.name}の爆発により`;
@@ -2965,6 +2964,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
 
 /* 炎によるインベントリ損傷（巻物・薬・魔法書のどれか1つをランダムに消去） */
 export function applyFireInventoryDamage(p, ml) {
+  if (hasFireResist(p)) return;
   const burnables = p.inventory.filter(i => i.type === "scroll" || i.type === "potion" || i.type === "spellbook");
   if (burnables.length === 0) return;
   const victim = burnables[Math.floor(Math.random() * burnables.length)];
@@ -3548,9 +3548,20 @@ export const SPELLBOOKS=[
   {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"B", weight:4,  sellPrice:2000,  desc:"呪いの魔法を習得できる。火に弱い。",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
+/** 防具の耐火（元素王の鎧の fire_resist 含む・万能耐性も対象） */
+export function hasFireResist(p) {
+  return hasAbility(p?.armor, "fire_resist") || hasAbility(p?.armor, "all_resist");
+}
+
+/** 防具の雷耐性（万能耐性も対象） */
+export function hasLightningResist(p) {
+  return hasAbility(p?.armor, "lightning_resist") || hasAbility(p?.armor, "all_resist");
+}
+
 /* 雷・炎ダメージを受けたとき所持品1つにランダムで影響を与える */
 export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFireContext = false) {
   if (p.inventory.length === 0) return;
+  if (isFireContext ? hasFireResist(p) : hasLightningResist(p)) return;
   const dn = (it) => nameFn ? nameFn(it) : it.name;
   const idx = Math.floor(Math.random() * p.inventory.length);
   const victim = p.inventory[idx];

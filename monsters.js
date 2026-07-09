@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -98,7 +98,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
   /* 耐火装備 / 万能耐性 / カレー炎耐性 */
-  const _hasFireR = hasAbility(pl.armor, "fire_resist") || hasAbility(pl.armor, "all_resist");
+  const _hasFireR = hasFireResist(pl);
   if (_hasFireR) dmg = Math.max(1, Math.floor(dmg / 2));
   if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
   /* 油まみれ */
@@ -280,9 +280,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
   if (m.baseKind === "firedemon" && dmg > 0) {
-    const _hasFireR = hasAbility(pl.armor, "fire_resist");
     if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
-    if (!_hasFireR) applyLightningToInventory(pl, dg, ml, null, null, true);
+    if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true);
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) {
       const _bonusDmg = Math.max(1, Math.floor(dmg * 0.5));
