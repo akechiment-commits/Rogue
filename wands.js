@@ -1785,6 +1785,28 @@ function _centerWandTarget(dg, cx, cy, p) {
   return null;
 }
 
+/** 壊し効果の中心から見た周囲8マスの対象（プレイヤー含む） */
+function _collectBreakAdjacentTargets(dg, cx, cy, p) {
+  const targets = [];
+  for (const [adx, ady] of _BW_DIRS) {
+    const ax = cx + adx, ay = cy + ady;
+    if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
+    if (p.x === ax && p.y === ay) {
+      targets.push({ kind: "player", t: p, dx: adx, dy: ady });
+      continue;
+    }
+    const mon = monsterAt(dg, ax, ay);
+    if (mon) { targets.push({ kind: "monster", t: mon, dx: adx, dy: ady }); continue; }
+    const it = itemAt(dg, ax, ay);
+    if (it) { targets.push({ kind: "item", t: it, dx: adx, dy: ady }); continue; }
+    const trap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
+    if (trap) { trap.revealed = true; targets.push({ kind: "trap", t: trap, dx: adx, dy: ady }); continue; }
+    const bb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
+    if (bb) targets.push({ kind: "bigbox", t: bb, dx: adx, dy: ady });
+  }
+  return targets;
+}
+
 function _pitfallBlockedAt(dg, cx, cy) {
   return dg.traps.find(t => t.x === cx && t.y === cy) ||
     dg.items.some(i => i.x === cx && i.y === cy) ||
@@ -1939,6 +1961,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
         ml.push(`壁が溶けて${_sfbFood.name}が現れた！`);
         continue;
       }
+      if (p.x === ax && p.y === ay) { applyWandEffect("soften", "player", p, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbMon = monsterAt(dg, ax, ay);
       if (_sfbMon) { applyWandEffect("soften", "monster", _sfbMon, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbIt = itemAt(dg, ax, ay);
@@ -1973,22 +1996,11 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
     return;
   }
   if (eff === "warp") {
-    const wTargets = [];
-    for (const [adx, ady] of _BW_DIRS) {
-      const ax = cx + adx, ay = cy + ady;
-      if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
-      const wm = monsterAt(dg, ax, ay);
-      if (wm) { wTargets.push({ kind:"monster", t:wm }); continue; }
-      const wi = itemAt(dg, ax, ay);
-      if (wi) { wTargets.push({ kind:"item", t:wi }); continue; }
-      const wt = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
-      if (wt) { wTargets.push({ kind:"trap", t:wt }); continue; }
-      const wb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
-      if (wb) wTargets.push({ kind:"bigbox", t:wb });
-    }
     const _wCenter = _centerWandTarget(dg, cx, cy, p);
     if (_wCenter) applyWandEffect(eff, _wCenter.kind, _wCenter.t, 0, 0, dg, p, ml, luFn, null, blMult);
-    for (const { kind, t } of wTargets) applyWandEffect(eff, kind, t, 0, 0, dg, p, ml, luFn, null, blMult);
+    for (const { kind, t } of _collectBreakAdjacentTargets(dg, cx, cy, p)) {
+      applyWandEffect(eff, kind, t, 0, 0, dg, p, ml, luFn, null, blMult);
+    }
     return;
   }
   /* 体力交換の杖：壊すと隣接する中で最もHPが高いモンスターとHP交換 */
@@ -2012,19 +2024,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
   const rd = pick(_BW_DIRS);
   const _defCenter = _centerWandTarget(dg, cx, cy, p);
   if (_defCenter) applyWandEffect(eff, _defCenter.kind, _defCenter.t, rd[0], rd[1], dg, p, ml, luFn, null, blMult);
-  const targets = [];
-  for (const [adx, ady] of _BW_DIRS) {
-    const ax = cx + adx, ay = cy + ady;
-    if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
-    const mon = monsterAt(dg, ax, ay);
-    if (mon) { targets.push({ kind:"monster", t:mon, dx:adx, dy:ady }); continue; }
-    const it = itemAt(dg, ax, ay);
-    if (it)  { targets.push({ kind:"item", t:it, dx:adx, dy:ady }); continue; }
-    const trap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
-    if (trap) { trap.revealed = true; targets.push({ kind:"trap", t:trap, dx:adx, dy:ady }); continue; }
-    const bb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
-    if (bb) targets.push({ kind:"bigbox", t:bb, dx:adx, dy:ady });
-  }
+  const targets = _collectBreakAdjacentTargets(dg, cx, cy, p);
   const _footBb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
   if (_footBb && !_defCenter) targets.push({ kind:"bigbox", t:_footBb, dx:rd[0], dy:rd[1] });
   for (const { kind, t, dx, dy } of targets) applyWandEffect(eff, kind, t, dx, dy, dg, p, ml, luFn, null, blMult);

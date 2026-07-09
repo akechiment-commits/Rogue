@@ -66,6 +66,18 @@ describe("triggerWandBreakEffect", () => {
     expect(ml.some(m => m.includes("眠"))).toBe(true);
   });
 
+  it("中心が隣のモンスターでもプレイヤーが周囲8マスなら巻き込まれる", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5 });
+    const mon = { name: "ゴブリン", hp: 20, maxHp: 20, x: 6, y: 5, atk: 3, speed: 1 };
+    dg.monsters.push(mon);
+    const ml = [];
+    const wand = { type: "wand", effect: "slow", charges: 2 };
+    triggerWandBreakEffect(wand, 6, 5, dg, p, ml, noop);
+    expect(p.slowTurns).toBe(10);
+    expect(mon.speed).toBeLessThan(1);
+  });
+
   it("残回数に応じてceil(残/2)回発動する", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 5, y: 5 });
