@@ -21,7 +21,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
-  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel,
+  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps,
 } from "./items.js";
@@ -4037,7 +4037,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else if (merged.type === "armor" &&
                  (base.name === "ドラゴンメイル" || base.name === "氷竜のウロコ" || base.name === "ゴムゴムの胴") &&
                  _mabs.includes("fire_resist") && _mabs.includes("ice_resist") && _mabs.includes("lightning_resist")) {
-        const _taAbs = [...new Set([..._mabs, ...TRIELEM_ARMOR_T.abilities])];
+        const _taAbs = [...new Set([..._mabs.filter(a => !ELEM_RESIST_ABILITIES.includes(a)), ...TRIELEM_ARMOR_T.abilities])];
         const _triArmor = { ...TRIELEM_ARMOR_T, id: uid(), plus: merged.plus, ability: _taAbs[0], abilities: _taAbs };
         bb.contents.push(_triArmor);
         bb.capacity = bb.contents.length;
