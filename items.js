@@ -1,6 +1,7 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest } from './utils.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt } from './monsters.js';
+import { triggerWandBreakEffect } from './wands.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 
 /* ポータルの魔方陣の別フロア参照（Game.jsx から getter を登録） */
@@ -57,7 +58,7 @@ import {
 export { RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS, RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS };
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
-export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE } from './wands.js';
+export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE, triggerWandBreakEffect, destroyFloorWand } from './wands.js';
 
 /* ===== 状態異常防止チェックヘルパー ===== */
 export function isStatusImmune(entity, ml, name = null) {
@@ -868,6 +869,13 @@ export const TRAPS = [
   { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
 ];
 
+function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
+  blasted.add(it);
+  const _snap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
+  ml.push(`杖「${nameFn ? nameFn(it) : it.name}」が爆発で壊れ、魔法が炸裂した！`);
+  triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn);
+}
+
 /**
  * 爆発共通処理 (地雷・爆弾矢などから呼ぶ)
  * cx, cy: 爆発の中心。周囲8マス＋中心の計9マスを処理する。
@@ -972,6 +980,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
             for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
             ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
           } else { ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`); }
+        } else if (it.type === "wand") {
+          _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         }
       }
     }
@@ -1135,6 +1145,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           for (const ci of it.contents) placeItemAt(dg, it.x, it.y, ci, ml, _ft2);
           ml.push(`壺「${it.name}」が爆発で割れ、中身が飛び出した！`);
         } else { ml.push(`壺「${it.name}」が爆発で割れた！`); }
+      } else if (it.type === "wand") {
+        _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted);
       }
     }
     if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
@@ -1267,6 +1279,8 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
             for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
             ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
           } else { ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`); }
+        } else if (it.type === "wand") {
+          _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         }
       }
     }
@@ -2902,6 +2916,8 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           else if (it.type === "pot") {
             blasted.add(it);
             if (it.potEffect !== "gunpowder") ml.push(`壺「${it.name}」が爆発で割れた！`);
+          } else if (it.type === "wand") {
+            _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, null, blasted);
           }
         }
         /* 罠の破壊（永続回転板は爆発でも壊れない） */
@@ -3190,10 +3206,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
     scatterPotContents(item, dg, res.x, res.y, p, ml, luFn, nameFn);
   } else if (_isWand) {
-    if ((res.hitMonster || res.hitPlayer) && applyWandFn) {
-      const wbm = item.blessed ? 1.5 : item.cursed ? 0.5 : 1;
-      if (res.hitMonster) applyWandFn(item.effect, "monster", res.hitMonster, dx, dy, dg, p, ml, luFn, bbFn, wbm, nameFn);
-      else if (res.hitPlayer) applyWandFn(item.effect, "player", p, dx, dy, dg, p, ml, luFn, bbFn, wbm, nameFn);
+    if (res.hitMonster || res.hitPlayer) {
+      const _twSnap = { type: "wand", effect: item.effect, charges: item.charges ?? 0, blessed: !!item.blessed, cursed: !!item.cursed, name: item.name };
+      triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn);
     } else {
       if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
       const ft = new Set();

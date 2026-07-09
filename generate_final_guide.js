@@ -433,6 +433,7 @@ const WAND_DETAILS = {
 };
 
 const wandData = [['杖名', 'チャージ', 'レア度', '売値', '通常効果', '祝福効果', '呪い効果', '説明']];
+wandData.push(['【共通ルール】', '', '', '', '残回数がある杖が壊れたとき（インベントリから壊す・軟化/穴掘り/爆発・投げ命中など）は壊れた地点を中心に「壊す」効果が発動（ceil(残回数/2)回）。残0は不発。魔封じの部屋のみ封印', '', '', '']);
 for (const w of [...WANDS, GODSPARKWAND_T]) {
   const d = WAND_DETAILS[w.effect] || {};
   wandData.push([w.name, w.charges, w.rarity, w.sellPrice, d.normal||'', d.blessed||'', d.cursed||'', w.desc]);

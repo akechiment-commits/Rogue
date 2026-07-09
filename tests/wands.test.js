@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyWandEffect } from "../wands.js";
+import { applyWandEffect, triggerWandBreakEffect } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("applyWandEffect", () => {
@@ -38,5 +38,58 @@ describe("applyWandEffect", () => {
     applyWandEffect("sleep", "monster", mon, 1, 0, dg, p, ml, noop);
     expect(mon.sleepTurns).toBeUndefined();
     expect(ml.some(m => m.includes("効かない"))).toBe(true);
+  });
+});
+
+describe("triggerWandBreakEffect", () => {
+  const noop = () => {};
+
+  it("残回数0では発動しない", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5 });
+    const ml = [];
+    const wand = { type: "wand", effect: "sleep", charges: 0 };
+    const res = triggerWandBreakEffect(wand, 5, 5, dg, p, ml, noop);
+    expect(res.triggered).toBe(false);
+    expect(ml.length).toBe(0);
+  });
+
+  it("指定座標を中心に周囲へ効果が出る", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 3, y: 3 });
+    const mon = { name: "スライム", hp: 20, maxHp: 20, x: 6, y: 5, atk: 3 };
+    dg.monsters.push(mon);
+    const ml = [];
+    const wand = { type: "wand", effect: "sleep", charges: 2 };
+    triggerWandBreakEffect(wand, 6, 5, dg, p, ml, noop);
+    expect(mon.sleepTurns).toBe(6);
+    expect(ml.some(m => m.includes("眠"))).toBe(true);
+  });
+
+  it("残回数に応じてceil(残/2)回発動する", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5 });
+    const ml = [];
+    const wand = { type: "wand", effect: "leap", charges: 5 };
+    triggerWandBreakEffect(wand, 5, 5, dg, p, ml, noop);
+    expect(ml.filter(m => m.includes("何も起こらなかった")).length).toBe(3);
+  });
+});
+
+describe("destroyFloorWand", () => {
+  const noop = () => {};
+
+  it("軟化で床の杖が壊れると周囲に壊し効果が出る", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 3, y: 3 });
+    const mon = { name: "ゴブリン", hp: 20, maxHp: 20, x: 7, y: 5, atk: 3 };
+    dg.monsters.push(mon);
+    const wand = { id: "w1", type: "wand", effect: "sleep", charges: 2, name: "眠りの杖", x: 6, y: 5, tile: 24 };
+    dg.items.push(wand);
+    const ml = [];
+    applyWandEffect("soften", "item", wand, 1, 0, dg, p, ml, noop);
+    expect(dg.items.some(i => i.id === "w1")).toBe(false);
+    expect(mon.sleepTurns).toBe(6);
+    expect(ml.some(m => m.includes("崩れ落ちた"))).toBe(true);
   });
 });

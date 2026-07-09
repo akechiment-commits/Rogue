@@ -4,7 +4,7 @@ import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem,
-  applyWandEffect, applyWaterSplash, breakWandAoE, burnFoodItem,
+  applyWandEffect, applyWaterSplash, breakWandAoE, triggerWandBreakEffect, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, fireWandBolt,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
@@ -2057,28 +2057,21 @@ export function useItemActions({
         return;
       }
       try {
-        if (inMagicSealRoom(p.x, p.y, dg)) {
-          /* 封印状態でも杖を壊した場合は効果が発動する。魔封じの部屋のみ無効 */
-          ml.push("魔法が封印されている！効果は発動しなかった。");
-        } else {
-          const times = Math.max(1, Math.ceil((it.charges ?? 0) / 2));
-          const _bwBlMult = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
-          for (let t = 0; t < times; t++) breakWandAoE(p, dg, it.effect, ml, lu, _bwBlMult);
-          /* 呪われたレベルアップの杖の壊し：上の階へワープ */
-          if (p._pendingWarpUp) {
-            delete p._pendingWarpUp;
-            if (p.depth > 1) {
-              const _bwNd = chgFloor(p, -1);
-              if (_bwNd) sr.current.dungeon = _bwNd;
-            } else if (onReturnToHub) {
-              clearGameSave();
-              p.inventory.forEach(i => trackItem(i));
-              const _hasGoalBw = p.inventory.some(i => i.type === "goal");
-              setMsgs((prev) => [...prev.slice(-80), ...ml]);
-              sr.current = { ...sr.current };
-              onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalBw });
-              return;
-            }
+        triggerWandBreakEffect(it, p.x, p.y, dg, p, ml, lu);
+        /* 呪われたレベルアップの杖の壊し：上の階へワープ */
+        if (p._pendingWarpUp) {
+          delete p._pendingWarpUp;
+          if (p.depth > 1) {
+            const _bwNd = chgFloor(p, -1);
+            if (_bwNd) sr.current.dungeon = _bwNd;
+          } else if (onReturnToHub) {
+            clearGameSave();
+            p.inventory.forEach(i => trackItem(i));
+            const _hasGoalBw = p.inventory.some(i => i.type === "goal");
+            setMsgs((prev) => [...prev.slice(-80), ...ml]);
+            sr.current = { ...sr.current };
+            onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalBw });
+            return;
           }
         }
       } catch (e) {
@@ -3281,7 +3274,7 @@ export function useItemActions({
           };
           let lx = p.x, ly = p.y, hit = false, sprHit = null;
           let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
-          let _throwSwapTarget = null; /* 遠投場所替え：最後に当たった敵を記録 */
+
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
@@ -3364,11 +3357,9 @@ export function useItemActions({
                       ml.push("腐った食料がぶつかった！毒状態になった！");
                     }
                   }
-                  /* 杖の場合はプレイヤーへの効果も発動（投げた杖が当たった相手に効果が出る仕様） */
                   if (it.type === "wand") {
-                    const _rfWandBm = getBlessMultiplier(it);
-                    const _rfWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-                    applyWandEffect(it.effect, "player", p, _rfdx, _rfdy, dg, p, ml, lu, bigboxAddItem, _rfWandBm, _rfWandDName);
+                    const _rfSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
+                    triggerWandBreakEffect(_rfSnap, p.x, p.y, dg, p, ml, lu);
                   }
                   /* プレイヤーに当たったアイテムは消滅（床には残らない） */
                 } else if (_rfx !== tx || _rfy !== ty) {
@@ -3396,28 +3387,23 @@ export function useItemActions({
                 break;
               }
               if (it.type === "wand") {
-                /* 杖を投げて命中：チャージ不問で効果を1回発動し消滅 */
-                const _throwWandBm = getBlessMultiplier(it);
-                const _throwWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-                ml.push(`${lb}が${m.name}に命中！`);
-                if (_isFarcast && it.effect === "swap") {
-                  /* 遠投場所替え：最後に当たった敵を記録して後でまとめて入れ替え */
-                  _throwSwapTarget = m;
-                } else {
-                  applyWandEffect(it.effect, "monster", m, dx, dy, dg, p, ml, lu, bigboxAddItem, _throwWandBm, _throwWandDName);
+                if (!_wandFiredEffect) {
+                  ml.push(`${lb}が${m.name}に命中！`);
+                  const _twSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
+                  triggerWandBreakEffect(_twSnap, tx, ty, dg, p, ml, lu);
                   _wandFiredEffect = true;
-                }
-                if (p._pendingWarpUp) {
-                  delete p._pendingWarpUp;
-                  if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
-                  else if (onReturnToHub) {
-                    clearGameSave();
-                    p.inventory.forEach(i => trackItem(i));
-                    const _hasGoalTw = p.inventory.some(i => i.type === "goal");
-                    setMsgs((prev) => [...prev.slice(-80), ...ml]);
-                    sr.current = { ...sr.current };
-                    onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalTw });
-                    return;
+                  if (p._pendingWarpUp) {
+                    delete p._pendingWarpUp;
+                    if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
+                    else if (onReturnToHub) {
+                      clearGameSave();
+                      p.inventory.forEach(i => trackItem(i));
+                      const _hasGoalTw = p.inventory.some(i => i.type === "goal");
+                      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+                      sr.current = { ...sr.current };
+                      onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalTw });
+                      return;
+                    }
                   }
                 }
               } else {
@@ -3457,11 +3443,10 @@ export function useItemActions({
           }
           if (_isFarcast) {
             const lb = _mkThrowLb();
-            /* 遠投場所替え：最後に当たった敵と入れ替え */
-            if (it.type === "wand" && it.effect === "swap" && _throwSwapTarget) {
-              const _throwWandBm = getBlessMultiplier(it);
-              const _throwWandDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-              applyWandEffect("swap", "monster", _throwSwapTarget, dx, dy, dg, p, ml, lu, bigboxAddItem, _throwWandBm, _throwWandDName);
+            if (it.type === "wand" && !_wandFiredEffect) {
+              const _fcSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
+              triggerWandBreakEffect(_fcSnap, lx, ly, dg, p, ml, lu);
+              _wandFiredEffect = true;
             }
             ml.push(`${lb}を投げた。${lb}は消滅した。`);
           } else if (hit && it.type === "wand" && !_wandFiredEffect) {
