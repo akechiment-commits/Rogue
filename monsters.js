@@ -2316,6 +2316,10 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   /* ===== ボムスライム：HPが一桁になると警告→次ターンに爆発 ===== */
   if (m.subtype === "deathbomb" && m.hp > 0 && m.hp <= 9 && !m.deathBombExploded) {
     if (m.deathBombReady) {
+      if (isFireExplosionNullified(dg, pl)) {
+        m.deathBombReady = false;
+        return;
+      }
       m.deathBombExploded = true;
       const _dbX = m.x, _dbY = m.y, _dbName = m.name;
       killMonster(m, dg, pl, ml, _luFn, true); // 自爆→経験値なし
@@ -2334,6 +2338,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _kzChance = (m.monLevel || 1) >= 2 ? 0.50 : 0.25;
       if (m.turnAttacks < (m.maxAttacks ?? 1) && Math.random() < _kzChance) {
         m.turnAttacks++;
+        if (isFireExplosionNullified(dg, pl)) return;
         const _kzX = m.x, _kzY = m.y, _kzName = m.name;
         m.hp = 0;
         killMonster(m, dg, pl, ml, _luFn, true);
