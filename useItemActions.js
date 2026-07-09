@@ -1265,6 +1265,17 @@ export function useItemActions({
           const _sdR = it.blessed ? 3 : 2;
           ml.push(it.blessed ? `自爆！中心から3マス（7×7）に大爆発！【祝】` : `自爆！中心から2マス（5×5）に大爆発！`);
           pushExplosionAnim(p.x, p.y);
+          // プレイヤーへのダメージを先に適用（連鎖爆発のダメージ計算・ログ順を自然にする）
+          const _sdFireR = hasAbility(p.armor, "fire_resist") || hasAbility(p.armor, "all_resist");
+          p.deathCause = "自爆の巻物により";
+          if (_sdFireR) {
+            const _sdDmg = Math.max(1, Math.floor(p.hp / 2));
+            p.hp -= _sdDmg;
+            ml.push(`爆発が自分を直撃！${_sdDmg}ダメージ！（炎耐性で半減）`);
+          } else {
+            p.hp = 1;
+            ml.push(`爆発が自分を直撃！HPが1になった！`);
+          }
           const _sdKilled = new Set();
           for (let _ddx = -_sdR; _ddx <= _sdR; _ddx++) {
             for (let _ddy = -_sdR; _ddy <= _sdR; _ddy++) {
@@ -1332,17 +1343,6 @@ export function useItemActions({
               dg.pentacles = dg.pentacles.filter(pc => !_sdPcs.includes(pc));
               for (const _spc of _sdPcs) ml.push(`爆発で${_spc.name}が消えた！`);
             }
-          }
-          // プレイヤーへのダメージ（爆発範囲は常に自分を含む）
-          const _sdFireR = hasAbility(p.armor, "fire_resist") || hasAbility(p.armor, "all_resist");
-          p.deathCause = "自爆の巻物により";
-          if (_sdFireR) {
-            const _sdDmg = Math.max(1, Math.floor(p.hp / 2));
-            p.hp -= _sdDmg;
-            ml.push(`爆発が自分を直撃！${_sdDmg}ダメージ！（炎耐性で半減）`);
-          } else {
-            p.hp = 1;
-            ml.push(`爆発が自分を直撃！HPが1になった！`);
           }
         }
       } else if (it.effect === "debuff") {
