@@ -6,7 +6,7 @@ import {
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem,
   applyWandEffect, applyWaterSplash, breakWandAoE, triggerWandBreakEffect, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, fireWandBolt,
-  getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle,
+  getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
@@ -1258,15 +1258,12 @@ export function useItemActions({
         }
       } else if (it.effect === "self_destruct") {
         if (it.cursed) {
-          // 呪い：爆発なし、自分のHPが全回復
-          const _sdHeal = p.maxHp - p.hp;
-          p.hp = p.maxHp;
-          ml.push(_sdHeal > 0 ? `爆発は起きず、呪いの力が体を癒した！HP+${_sdHeal}！【呪】` : `爆発は起きず、呪いの力が辺りを包んだ…HPは既に満タンだ。【呪】`);
-          pushHealAnim(p.x, p.y);
+          p.fireExplosionNullTurns = Math.max(p.fireExplosionNullTurns || 0, 200);
+          ml.push("爆発は起きなかった…呪いの力が体を包んだ！200ターンの間、炎と爆発が全て不発になる！【呪】");
         } else {
-          // 通常/祝福：爆発
-          const _sdR = it.blessed ? 2 : 1;
-          ml.push(it.blessed ? `自爆！中心から2マス（5×5）に大爆発！【祝】` : `自爆！周囲8マスに爆発が起きた！`);
+          // 通常/祝福：爆発（通常=半径2マス、祝福=半径3マス）
+          const _sdR = it.blessed ? 3 : 2;
+          ml.push(it.blessed ? `自爆！中心から3マス（7×7）に大爆発！【祝】` : `自爆！中心から2マス（5×5）に大爆発！`);
           pushExplosionAnim(p.x, p.y);
           const _sdKilled = new Set();
           for (let _ddx = -_sdR; _ddx <= _sdR; _ddx++) {
@@ -2656,12 +2653,8 @@ export function useItemActions({
               }
               _baLx = tx; _baLy = ty;
             }
-            if (hasCursedExplosionPentacle(dg)) {
-              ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
-            } else {
-              ml.push("爆発！");
-              doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発", null, lu);
-            }
+            if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
+            doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発", null, lu);
           }
           if (p.arrow.count <= 0) {
             const _baEx = p.arrow;
@@ -2942,7 +2935,7 @@ export function useItemActions({
             pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff4400");
             const _fbLvF = 1 + (_csLv - 1) * 0.2;
             const _fbLand = castSpellBolt(p, dg, spellDef, dx, dy, ml, lu, _csLv);
-            if (_fbLand.hitType !== "sealed" && !hasCursedExplosionPentacle(dg)) {
+            if (_fbLand.hitType !== "sealed" && !isFireExplosionNullified(dg, p)) {
               pushExplosionAnim(_fbLand.x, _fbLand.y);
               if (_fbLand.hitType !== "void") ml.push("爆発！");
               /* プレイヤー爆風 */
@@ -3096,12 +3089,8 @@ export function useItemActions({
               }
               _baLx2 = tx; _baLy2 = ty;
             }
-            if (hasCursedExplosionPentacle(dg)) {
-              ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
-            } else {
-              ml.push("爆発！");
-              doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発", null, lu);
-            }
+            if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
+            doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発", null, lu);
           }
           endTurn(sr.current, p, ml);
           if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -3459,11 +3448,7 @@ export function useItemActions({
             if (sprHit?.kind === "scatter" && it.type === "arrow" && it.bombArrow) {
               /* 爆弾矢を拡散の大箱に投げた：箱の場所で爆発 */
               ml.push(`${_mkThrowLb()}が${sprHit.name}に命中して爆発した！`);
-              if (!hasCursedExplosionPentacle(dg)) {
-                doExplosion(sprHit.x, sprHit.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu);
-              } else {
-                ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
-              }
+              doExplosion(sprHit.x, sprHit.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu);
               p.inventory.splice(p.inventory.indexOf(it), 1);
             } else if (sprHit?.kind) {
               bigboxAddItem(sprHit, it, dg, ml);

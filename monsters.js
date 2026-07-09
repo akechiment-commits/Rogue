@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap } from "./items.js";
+import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -56,8 +56,10 @@ function calcPlayerDef(pl) {
 /* ===== ドラゴン炎ブレス ===== */
 function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 呪われた爆発の魔方陣がある場合は炎を打ち消す */
-  if (hasCursedExplosionPentacle(dg)) {
-    ml.push(`呪われた爆発の魔方陣が${m.name}の炎ブレスを打ち消した！`);
+  if (isFireExplosionNullified(dg, pl)) {
+    ml.push((pl.fireExplosionNullTurns || 0) > 0
+      ? `炎と爆発が不発にされた！（残り${pl.fireExplosionNullTurns}ターン）`
+      : `呪われた爆発の魔方陣が${m.name}の炎ブレスを打ち消した！`);
     return;
   }
   /* 射線上に別のモンスターがいれば、そこで止まって当てる（Lv3は壁貫通） */

@@ -20,7 +20,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
+  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps,
 } from "./items.js";
@@ -435,6 +435,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       poisoned: false,
       poisonAtkLoss: 0,
       sealedTurns: 0,
+      fireExplosionNullTurns: 0,
       invisibleTurns: 0,
       wallWalkTurns: 0,
       rings: [],
@@ -1427,6 +1428,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         p.sealedTurns--;
         if (p.sealedTurns === 0) ml.push("封印が解けた！");
       }
+      if ((p.fireExplosionNullTurns || 0) > 0) {
+        p.fireExplosionNullTurns--;
+        if (p.fireExplosionNullTurns === 0) ml.push("炎と爆発の不発効果が切れた！");
+      }
       /* 毒：3ターンごとに攻撃力-1 */
       if (p.poisoned && p.turns % 3 === 0) {
         if ((p.poisonAtkLoss || 0) >= 3) {
@@ -1767,11 +1772,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _pme = st._pendingMineExplosion;
         delete st._pendingMineExplosion;
         ml.push(`${_pme.name}が発動！`);
-        if (hasCursedExplosionPentacle(st.dungeon)) {
-          ml.push(`呪われた爆発の魔方陣が爆発を打ち消した！`);
-        } else {
-          doExplosion(_pme.x, _pme.y, st.dungeon, p, ml, _pme.nameFn, _pme.name, null, lu, true, false, true);
-        }
+        doExplosion(_pme.x, _pme.y, st.dungeon, p, ml, _pme.nameFn, _pme.name, null, lu, true, false, true);
       }
       /* 時限爆弾カウントダウン */
       if (st.dungeon.pendingBombs?.length > 0 && p.hp > 0) {
@@ -2957,8 +2958,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         }
                         _baLx = _tx; _baLy = _ty;
                       }
-                      if (!hasCursedExplosionPentacle(dg)) { ml.push("爆発！"); doExplosion(_baLx, _baLy, dg, p, ml, _srNF, "爆弾矢の爆発", null, lu); }
-                      else ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
+                      if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
+                      doExplosion(_baLx, _baLy, dg, p, ml, _srNF, "爆弾矢の爆発", null, lu);
                     }
                   /* ── 通常矢 / 毒矢 / 貫きの矢 ── */
                   } else {
@@ -4301,13 +4302,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             const _oilMap = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
             if (item.potEffect === "gunpowder") {
               ml.push(`${_idn}が飛び散って各生き物のもとで爆発した！`);
-              if (hasCursedExplosionPentacle(dg)) {
-                ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
-              } else {
+              if (!isFireExplosionNullified(dg, p)) {
                 for (const _gnMon of [..._scMons]) {
                   doGunpowderExplosion(_gnMon.x, _gnMon.y, dg, p, ml, lu);
                 }
                 if (_scPInRoom) doGunpowderExplosion(p.x, p.y, dg, p, ml, lu);
+              } else {
+                announceFireExplosionNullified(dg, p, ml, "爆発");
               }
               _bbExploded = true;
             } else if (_oilMap[item.potEffect] && (item.contents?.length || 0) < (item.capacity || 3)) {
@@ -4385,8 +4386,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             if (item.type === "arrow" && item.bombArrow) {
               /* 爆弾矢（インベントリから入れた）：各生き物の場所でそれぞれ爆発＋箱も破壊 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
-              if (!hasCursedExplosionPentacle(dg)) {
-                const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              if (!isFireExplosionNullified(dg, p)) {
                 for (const _baMon of [..._scMons]) {
                   doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${item.name}の爆発`, null, lu);
                 }
@@ -4394,7 +4395,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   doExplosion(p.x, p.y, dg, p, ml, _baNF, `${item.name}の爆発`, null, lu);
                 }
               } else {
-                ml.push("呪われた爆発の魔方陣が爆発を打ち消した！");
+                announceFireExplosionNullified(dg, p, ml, `${item.name}の爆発`);
               }
               _bbExploded = true;
             } else {
@@ -5308,6 +5309,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {(p.sealedTurns || 0) > 0 && (
           <span style={{ color: "#8040e0" }}>🔒{p.sealedTurns}</span>
+        )}{" "}
+        {(p.fireExplosionNullTurns || 0) > 0 && (
+          <span style={{ color: "#6080a0" }}>🧯{p.fireExplosionNullTurns}</span>
         )}{" "}
         {(p.defSoftenedTurns || 0) > 0 && (
           <span style={{ color: "#c8a060" }}>🛡↓{p.defSoftenedTurns}</span>

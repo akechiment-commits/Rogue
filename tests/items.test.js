@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion } from "../items.js";
 
 describe("getIdentKey", () => {
   it("種別ごとに識別キーを返す", () => {
@@ -120,5 +120,47 @@ describe("rotFood", () => {
     expect(food.blessed).toBeUndefined();
     expect(food.effect).toBeUndefined();
     expect(food.value).toBe(80);
+  });
+});
+
+describe("isFireExplosionNullified", () => {
+  it("呪われた爆発の魔方陣があると炎・爆発が不発になる", () => {
+    const dg = { pentacles: [{ kind: "explosion", cursed: true }] };
+    expect(isFireExplosionNullified(dg, { fireExplosionNullTurns: 0 })).toBe(true);
+  });
+
+  it("自爆の巻物【呪】バフ中は炎・爆発が不発になる", () => {
+    const dg = { pentacles: [] };
+    expect(isFireExplosionNullified(dg, { fireExplosionNullTurns: 200 })).toBe(true);
+    expect(isFireExplosionNullified(dg, { fireExplosionNullTurns: 0 })).toBe(false);
+  });
+
+  it("雷の魔方陣だけでは炎・爆発は不発にならない", () => {
+    const dg = { pentacles: [{ kind: "thunder_trap", cursed: true }] };
+    expect(isFireExplosionNullified(dg, null)).toBe(false);
+  });
+});
+
+describe("doExplosion", () => {
+  it("炎・爆発不発時は爆発せずメッセージを出す", () => {
+    const dg = { pentacles: [], monsters: [], items: [], map: Array.from({ length: 21 }, () => Array(33).fill(1)), explored: [], visible: [] };
+    const p = { x: 5, y: 5, hp: 50, maxHp: 100, fireExplosionNullTurns: 42, inventory: [] };
+    const ml = [];
+    doExplosion(5, 5, dg, p, ml, null, "地雷");
+    expect(ml.some(m => m.includes("不発") && m.includes("42"))).toBe(true);
+    expect(ml.some(m => m === "爆発！")).toBe(false);
+  });
+});
+
+describe("announceFireExplosionNullified", () => {
+  it("魔方陣とバフで異なるメッセージを出す", () => {
+    const ml1 = [];
+    announceFireExplosionNullified({ pentacles: [{ kind: "explosion", cursed: true }] }, null, ml1, "炎の魔法");
+    expect(ml1[0]).toContain("魔方陣");
+
+    const ml2 = [];
+    announceFireExplosionNullified({ pentacles: [] }, { fireExplosionNullTurns: 10 }, ml2, "爆発");
+    expect(ml2[0]).toContain("不発");
+    expect(ml2[0]).toContain("10");
   });
 });

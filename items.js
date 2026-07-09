@@ -271,7 +271,7 @@ export const ITEMS = [
   { name:"吸い出しの巻物", type:"scroll", effect:"pot_extract",   rarity:"B", weight:4,  sellPrice:600,
     desc:"選んだ壺の中身を割らずに足元にばらまく。油系は周囲8マスに油も飛散。火薬壺は壺無事のまま爆発。\n呪い：選んだ壺を割る。祝福：中身を吸い出したうえで容量+1。", tile:18 },
   { name:"自爆の巻物", type:"scroll", effect:"self_destruct",      rarity:"B", weight:4,  sellPrice:700,
-    desc:"自分と周囲8マスに爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ半減。\n祝福：爆発範囲が5×5に拡大。\n呪い：爆発は起きず自分のHPが全回復する。", tile:18 },
+    desc:"中心から2マス（5×5）に爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ半減。\n祝福：爆発範囲が中心から3マス（7×7）に拡大。\n呪い：爆発は起きず200ターンの間、炎と爆発が全て不発になる。", tile:18 },
   { name:"バーサーカーの巻物", type:"scroll", effect:"berserker_scroll", rarity:"B", weight:4, sellPrice:600,
     desc:"部屋内の敵全員が50ターンのバーサーク状態になり、敵味方区別なく攻撃する。\n跳ね返った場合：自分が50ターン攻撃力1.5倍になる。\n祝福：効果範囲がフロア全体になる。\n呪い：部屋内の敵が20ターンの平和主義状態になる（攻撃不可）。跳ね返った場合も自分が平和主義状態になる。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"A", weight:2,  sellPrice:120,
@@ -884,6 +884,10 @@ function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
  */
 let _mineExplosionDepth = 0;
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false) {
+  if (isFireExplosionNullified(dg, p)) {
+    announceFireExplosionNullified(dg, p, ml, srcLabel);
+    return;
+  }
   if (mineExplosion) {
     if (_mineExplosionDepth > 4) return;
     _mineExplosionDepth++;
@@ -1064,7 +1068,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
 let _gunpowderDepth = 0;
 export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺") {
   if (_gunpowderDepth > 5) return;
-  if (hasCursedExplosionPentacle(dg)) { ml.push(`呪われた爆発の魔方陣が${srcLabel}の爆発を打ち消した！`); return; }
+  if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, `${srcLabel}の爆発`); return; }
   _gunpowderDepth++;
   try {
     pushExplosionAnim(cx, cy);
@@ -1196,6 +1200,10 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
  * 地雷・火薬壺を連鎖爆発させる。
  */
 export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
+  if (isFireExplosionNullified(dg, p)) {
+    announceFireExplosionNullified(dg, p, ml, "時限爆弾の爆発");
+    return;
+  }
   const R = 2;
   pushExplosionAnim(cx, cy);
   ml.push(`時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！`);
@@ -1979,8 +1987,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     }
     case "fire": {
       /* 呪われた爆発の魔方陣：炎を不発にする */
-      if (!cursed && hasCursedExplosionPentacle(dg)) {
-        ml.push("呪われた爆発の魔方陣が炎を打ち消した！");
+      if (!cursed && isFireExplosionNullified(dg, p)) {
+        announceFireExplosionNullified(dg, p, ml, "炎");
         break;
       }
       if (cursed) {
@@ -2837,6 +2845,21 @@ export function hasCursedExplosionPentacle(dg) {
   return dg.pentacles?.some(pc => pc.kind === "explosion" && pc.cursed) ?? false;
 }
 
+/** 炎・爆発が不発になるか（呪われた爆発の魔方陣 or 自爆の巻物【呪】バフ） */
+export function isFireExplosionNullified(dg, p = null) {
+  if (hasCursedExplosionPentacle(dg)) return true;
+  if (p && (p.fireExplosionNullTurns || 0) > 0) return true;
+  return false;
+}
+
+export function announceFireExplosionNullified(dg, p, ml, targetLabel = "爆発") {
+  if (p && (p.fireExplosionNullTurns || 0) > 0) {
+    ml.push(`炎と爆発が不発にされた！（残り${p.fireExplosionNullTurns}ターン）`);
+  } else {
+    ml.push(`呪われた爆発の魔方陣が${targetLabel}を打ち消した！`);
+  }
+}
+
 export function hasCursedTeleportPentacle(dg) {
   return dg.pentacles?.some(pc => pc.kind === "teleport_trap" && pc.cursed) ?? false;
 }
@@ -2846,7 +2869,7 @@ let _explosionDepth = 0;
 function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
   if (_explosionDepth > 4 || !dg.pentacles?.length) return;
   /* 呪われた爆発の魔方陣がある場合は爆発を起こさない */
-  if (hasCursedExplosionPentacle(dg)) return;
+  if (isFireExplosionNullified(dg, p)) return;
   _explosionDepth++;
   try {
     const mRoom = dg.rooms?.find(r => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h);
@@ -3216,8 +3239,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     }
   } else if (_isBombArrow) {
     /* 爆弾矢：着弾点で爆発（呪われた爆発の魔方陣でない場合） */
-    if (hasCursedExplosionPentacle(dg)) {
-      ml.push("呪われた爆発の魔方陣が爆弾矢の爆発を打ち消した！");
+    if (isFireExplosionNullified(dg, p)) {
+      announceFireExplosionNullified(dg, p, ml, "爆弾矢の爆発");
     } else {
       ml.push("爆発！");
       doExplosion(res.x, res.y, dg, p, ml, nameFn, "爆弾矢の爆発", null, luFn);
@@ -3553,7 +3576,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
   const _lvF = 1 + (lv - 1) * 0.2;
   switch (eff) {
     case "fire_bolt": {
-      if (hasCursedExplosionPentacle(dg)) { ml.push("呪われた爆発の魔方陣が炎の魔法を打ち消した！"); break; }
+      if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, "炎の魔法"); break; }
       const _fbOilyMult = kind === "monster" && ((target.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === target.x && t.y === target.y)) ? 2 : 1;
       const dmg = Math.round(rng(20, 30) * _lvF) * _cmsBoost * _fbOilyMult;
       if (kind === "monster") {

@@ -5,7 +5,7 @@ import {
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
-  hasCursedExplosionPentacle, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
+  hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -1220,6 +1220,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "fire_wand": {
       const _fwBlessed = blMult > 1, _fwCursed = blMult < 1;
       const _fwOilyCheck = (char) => (char.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===char.x&&t.y===char.y);
+      if (!_fwCursed && isFireExplosionNullified(dg, p)) {
+        ml.push((p.fireExplosionNullTurns || 0) > 0
+          ? `炎と爆発が不発にされた！（残り${p.fireExplosionNullTurns}ターン）`
+          : "呪われた爆発の魔方陣が炎を打ち消した！");
+        break;
+      }
       if (_fwCursed) {
         /* 呪い：rng(20,30)回復（アンデッドは逆にダメージ） */
         if (kind === "monster") {
