@@ -705,20 +705,24 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         if (vis) {
           /* Player — skip if currently animating (will be drawn separately) */
           if (x === p.x && y === p.y && !_movingEntities.has("player")) {
-            const pf = p.facing || { dx: 0, dy: 1 };
-            const pti = playerTileForFacing(pf);
-            /* アイテム・罠をプレイヤーの下に先描画（階段と同様に隙間から見えるように） */
-            const _pitItem = _itemMap.get(_k(x, y));
-            if (_pitItem && !_pitItem.wallEmbedded) {
-              const _piTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*11+y*19)%9] : _pitItem.tile;
-              drawTile(ctx, ts, _piTile, px2, py2, sz);
+            if ((p.potConfinedTurns || 0) > 0) {
+              drawTile(ctx, ts, TI.POT, px2, py2, sz);
+            } else {
+              const pf = p.facing || { dx: 0, dy: 1 };
+              const pti = playerTileForFacing(pf);
+              /* アイテム・罠をプレイヤーの下に先描画（階段と同様に隙間から見えるように） */
+              const _pitItem = _itemMap.get(_k(x, y));
+              if (_pitItem && !_pitItem.wallEmbedded) {
+                const _piTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*11+y*19)%9] : _pitItem.tile;
+                drawTile(ctx, ts, _piTile, px2, py2, sz);
+              }
+              const _pitTrap = _trapMap.get(_k(x, y));
+              if (_pitTrap?.revealed) {
+                const _ptTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*13+y*7)%9] : _pitTrap.tile;
+                drawTile(ctx, ts, _ptTile, px2, py2, sz);
+              }
+              drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, px2, py2, sz);
             }
-            const _pitTrap = _trapMap.get(_k(x, y));
-            if (_pitTrap?.revealed) {
-              const _ptTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*13+y*7)%9] : _pitTrap.tile;
-              drawTile(ctx, ts, _ptTile, px2, py2, sz);
-            }
-            drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, px2, py2, sz);
             continue;
           }
           /* Monster — skip if animating */
@@ -776,9 +780,13 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       const dpy = (drawY - sy) * sz;
       if (dpx < -sz || dpx > cw + sz || dpy < -sz || dpy > ch + sz) continue;
       if (key === "player") {
-        const pf = p.facing || { dx: 0, dy: 1 };
-        const pti = playerTileForFacing(pf);
-        drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
+        if ((p.potConfinedTurns || 0) > 0) {
+          drawTile(ctx, ts, TI.POT, dpx, dpy, sz);
+        } else {
+          const pf = p.facing || { dx: 0, dy: 1 };
+          const pti = playerTileForFacing(pf);
+          drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
+        }
       } else if (key.startsWith("mon_") && mo.tile != null) {
         /* Skip if neither start nor end position is visible to the player */
         const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];

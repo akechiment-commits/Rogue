@@ -1695,7 +1695,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* 初めて踏み入れたフロアは敵が行動しない（階段降り直後の理不尽攻撃を防ぐ） */
       let _skipMonAct = !!st.dungeon._firstVisit;
       if (_skipMonAct) st.dungeon._firstVisit = false;
-      if (p._potExitSkipMon) { delete p._potExitSkipMon; _skipMonAct = true; }
       /* ===== 4フェーズターン制 ===== */
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
       const _monSnap = new Map();
@@ -2350,12 +2349,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ? `金縛りにあっている...あと${p.paralyzeTurns}ターン`
           : "金縛りが解けた！");
       } else if ((p.potConfinedTurns || 0) > 0) {
-        p.potConfinedTurns--;
-        if (p.potConfinedTurns > 0) {
-          ml.push(`壺の中で待っている...あと${p.potConfinedTurns}ターン`);
+        ml.push("壺から出られない！");
+        if (p.potConfinedTurns > 1) {
+          p.potConfinedTurns--;
         } else {
-          ml.push("壺から出た！動けるようになった。");
-          resolveImprisonPotExit(p, dg, ml, lu);
+          p._potExitAfterMon = true;
         }
       } else if (p.slowSkip) {
         p.slowSkip = false;
@@ -2370,6 +2368,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
       }
       endTurn(st, p, ml);
+      if (p._potExitAfterMon) {
+        delete p._potExitAfterMon;
+        p.potConfinedTurns = 0;
+        ml.push("壺から出た！動けるようになった。");
+        resolveImprisonPotExit(p, dg, ml, lu);
+      }
       /* Collect monster move animations from endTurn */
       const _ad = { monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _monAnimData = monMovesRef.current;
@@ -2399,7 +2403,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _hasAnim = _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.splashes?.length || _ad.monProjectiles?.length || _ad.monProjectileReturns?.length || _ad.itemArcs?.length;
       if (_hasAnim) playAnim(_ad);
     };
-    const timer = setTimeout(tryAdvance, 400);
+    const _advDelay = (gs.player.potConfinedTurns || 0) > 0 ? 120 : 400;
+    const timer = setTimeout(tryAdvance, _advDelay);
     return () => clearTimeout(timer);
   }, [gs, shopMode, endTurn, playAnim, lu]);
 

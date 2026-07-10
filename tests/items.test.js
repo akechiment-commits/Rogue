@@ -277,7 +277,6 @@ describe("imprison pot", () => {
     resolveImprisonPotExit(p, dg, ml, () => {});
     expect(p.inventory).toHaveLength(0);
     expect(dg.monsters).toHaveLength(1);
-    expect(p._potExitSkipMon).toBe(true);
     expect(p.potConfinedPotId).toBeUndefined();
   });
 

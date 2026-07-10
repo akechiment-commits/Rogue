@@ -712,7 +712,7 @@ export function confinePlayerInImprisonPot(pot, p, ml, nameFn = null) {
   return true;
 }
 
-/** とじこめの壺から出たとき、壺を割って消す（閉じ込め敵がいれば放出）。出たターンは敵行動をスキップする */
+/** とじこめの壺から出たとき、壺を割って消す（閉じ込め敵がいれば放出） */
 export function resolveImprisonPotExit(p, dg, ml, luFn, nameFn = null) {
   if (!p.potConfinedPotId) return;
   const potIdx = p.inventory?.findIndex((i) => i.id === p.potConfinedPotId && i.potEffect === "imprison") ?? -1;
@@ -722,7 +722,6 @@ export function resolveImprisonPotExit(p, dg, ml, luFn, nameFn = null) {
     p.inventory.splice(potIdx, 1);
   }
   delete p.potConfinedPotId;
-  p._potExitSkipMon = true;
 }
 
 export function makePot() {
