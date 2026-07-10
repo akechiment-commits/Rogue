@@ -848,7 +848,7 @@ export const ARMOR_ABILITIES = [
 
 /* ===== TRAPS ===== */
 export const TRAPS = [
-  { name:"地雷",           effect:"explode",       tile:25, desc:"踏むと周囲8マスが大爆発。敵は即死、プレイヤーはHP半減。\n壁・罠・大箱・床のアイテムも破壊される。" },
+  { name:"地雷",           effect:"explode",       tile:25, desc:"踏むと周囲8マスが大爆発。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。\n発動後25%で壊れる（他の罠と同様）。" },
   { name:"矢の罠",         effect:"arrow_trap",    tile:26, desc:"踏むと壁から矢が飛んでくる。\nダメージは小さいが序盤は注意。矢が落ちる。\n踏む以外で壊れると矢が数本散らばる。" },
   { name:"落とし穴",       effect:"pitfall",       tile:27, desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
   { name:"錆の罠",         effect:"rust",          tile:28, desc:"踏むと装備中の武器or防具の＋値が-1される。\n金属製装備が対象。" },
@@ -896,12 +896,13 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
-    const _hasFireProt = ringExplosion && hasFireResist(p);
+    const _fireCtx = ringExplosion || mineExplosion;
+    const _hasFireProt = _fireCtx && hasFireResist(p);
     const rawDmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
                  : proportional  ? Math.max(1, Math.floor(p.hp / 2))
                  : rng(10, 20);
-    const dmg = ringExplosion ? reduceFireDamage(rawDmg, p) : rawDmg;
-    const _fireLbl = ringExplosion ? fireResistDamageLabel(p) : "";
+    const dmg = _fireCtx ? reduceFireDamage(rawDmg, p) : rawDmg;
+    const _fireLbl = _fireCtx ? fireResistDamageLabel(p) : "";
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
     ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}`);
@@ -1029,6 +1030,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   if (mineExplosion) {
     const _chainMines = (dg.traps || []).filter(t =>
       t.effect === "explode" &&
+      (t.x !== cx || t.y !== cy) &&
       Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= 1
     );
     if (_chainMines.length > 0) {
@@ -1406,9 +1408,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は爆発で消し飛んだ！`);
-      dg.traps = dg.traps.filter(t => t !== trap);
       doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true);
-      return "destroyed";
+      return "restart";
     }
     case "pitfall": {
       const _pfm = monsterAt(dg, tx, ty);
@@ -2641,7 +2642,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
       const _itBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
-      if (trap.effect !== "explode" && !trap.permanent && Math.random() < _itBreakChance) {
+      if (!trap.permanent && Math.random() < _itBreakChance) {
         removeTrap(dg, trap, ml, { message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") return false;
@@ -3205,7 +3206,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       const ft = new Set(); ft.add(trap.id);
       const r = fireTrapItem(trap, item, dg, lx, ly, mlx, ft, p);
       const _entBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
-      if (trap.effect !== "explode" && !trap.permanent && Math.random() < _entBreakChance) {
+      if (!trap.permanent && Math.random() < _entBreakChance) {
         removeTrap(dg, trap, mlx, { message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") { res.consumed = true; return "destroyed"; }

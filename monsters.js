@@ -1448,7 +1448,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   ml.push(`重力の力で${m.name}が${trap.name}を踏んだ！`);
   fireTrapItem(trap, { name: "重力の力", type: "misc", x: m.x, y: m.y }, dg, m.x, m.y, ml, new Set(), pl, it => it.name, luFn);
   const _gravBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
-  if (trap.effect !== "explode" && !trap.permanent && Math.random() < _gravBreakChance) {
+  if (!trap.permanent && Math.random() < _gravBreakChance) {
     removeTrap(dg, trap, ml, { fromStep: true, message: `${trap.name}は壊れた。`, p: pl });
   }
 }

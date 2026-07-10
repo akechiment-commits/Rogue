@@ -58,6 +58,39 @@ describe("fireTrapPlayer", () => {
     expect(ml.some(m => m.includes("錆び"))).toBe(true);
   });
 
+  it("地雷は発動後も25%未満なら残る", () => {
+    const p = makePlayer({ x: 5, y: 5 });
+    const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      const result = fireTrapPlayer(trap, p, dg, ml);
+      expect(result).toBe("deferred_explosion");
+      expect(dg.traps).toHaveLength(1);
+      expect(dg.traps[0]).toBe(trap);
+    } finally {
+      Math.random = origRandom;
+    }
+  });
+
+  it("地雷は発動後25%以上で壊れる", () => {
+    const p = makePlayer({ x: 5, y: 5 });
+    const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    const origRandom = Math.random;
+    Math.random = () => 0.1;
+    try {
+      fireTrapPlayer(trap, p, dg, ml);
+      expect(dg.traps).toHaveLength(0);
+      expect(ml.some(m => m.includes("壊れた"))).toBe(true);
+    } finally {
+      Math.random = origRandom;
+    }
+  });
+
   it("落とし穴の罠は pitfall を返す", () => {
     const p = makePlayer();
     const dg = makeEmptyDg();
