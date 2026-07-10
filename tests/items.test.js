@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater } from "../items.js";
 import { MW, MH, T } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -278,6 +278,31 @@ describe("imprison pot", () => {
     expect(p.inventory).toHaveLength(0);
     expect(dg.monsters).toHaveLength(1);
     expect(p.potConfinedPotId).toBeUndefined();
+  });
+
+  it("水上は歩ける敵だけ生存しそれ以外は水没する", () => {
+    const dg = {
+      monsters: [],
+      map: Array.from({ length: MH }, () => Array(MW).fill(1)),
+    };
+    dg.map[5][5] = T.WATER;
+    expect(canMonsterSurviveOnWater({ name: "スライム" }, dg, 5, 5)).toBe(false);
+    expect(canMonsterSurviveOnWater({ name: "わてり", waterOnly: true }, dg, 5, 5)).toBe(true);
+    const ml = [];
+    const potSlime = {
+      type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3,
+      confinedMonsters: [{ name: "スライム", hp: 10, maxHp: 10, atk: 3 }],
+    };
+    releaseConfinedMonstersFromPot(potSlime, dg, 5, 5, null, ml);
+    expect(dg.monsters).toHaveLength(0);
+    expect(ml.some(m => m.includes("水に沈んで死んだ"))).toBe(true);
+    const potWateri = {
+      type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3,
+      confinedMonsters: [{ name: "わてり", waterOnly: true, hp: 10, maxHp: 10, atk: 3 }],
+    };
+    releaseConfinedMonstersFromPot(potWateri, dg, 5, 5, null, []);
+    expect(dg.monsters).toHaveLength(1);
+    expect(dg.monsters[0].name).toBe("わてり");
   });
 
   it("放出時はプレイヤー・既存敵・互いに重ならない", () => {

@@ -664,6 +664,14 @@ export function confineMonsterInImprisonPot(pot, mon, dg, ml, nameFn = null) {
   removeMonster(dg, mon);
 }
 
+export function canMonsterSurviveOnWater(mon, dg, x, y) {
+  const tile = dg.map[y]?.[x];
+  const onSpring = dg.springs?.some((s) => s.x === x && s.y === y);
+  const onWater = tile === T.WATER || onSpring;
+  if (!onWater) return true;
+  return !!(mon.waterOnly || mon.baseKind === "im_boss_kraken" || mon.float);
+}
+
 function _isConfinedReleaseBlocked(dg, tx, ty, p, used) {
   if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) return true;
   const tile = dg.map[ty]?.[tx];
@@ -693,6 +701,10 @@ export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
       continue;
     }
     used.add(`${_pos.x},${_pos.y}`);
+    if (!canMonsterSurviveOnWater(snap, dg, _pos.x, _pos.y)) {
+      ml.push(`${snap.name}は水に沈んで死んだ！`);
+      continue;
+    }
     const mon = {
       ...snap,
       id: uid(),

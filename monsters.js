@@ -1801,6 +1801,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _luFn = opts.luFn || (() => {});
   const _onHit = opts.onPlayerHit;
   const _onMiss = opts.onPlayerMiss;
+  const _plPotHidden = (pl.potConfinedTurns || 0) > 0;
   /* 重力の魔方陣：浮遊系モンスターの実効float（魔法無効モンスターは重力の影響を受けない） */
   const _effFloat = m.float && (m.magicImmune || !hasGravityPentacle(dg, m.x, m.y));
   /* 呪い重力の魔方陣：ゾーン内モンスターは浮遊状態扱い（魔法無効モンスターには無効） */
@@ -2208,7 +2209,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
     if (inBounds(_cnx, _cny)) {
-      if (_cnx === pl.x && _cny === pl.y) {
+      if (_cnx === pl.x && _cny === pl.y && !_plPotHidden) {
         if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `混乱した${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
       } else {
         const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
@@ -2537,8 +2538,13 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _plRoom  = findRoom(rooms, pl.x, pl.y);
   const _sameRoom = _monRoom !== null && _plRoom !== null &&
     _monRoom.x === _plRoom.x && _monRoom.y === _plRoom.y;
-  const _plInvis = (pl.invisibleTurns || 0) > 0 || (pl.potConfinedTurns || 0) > 0;
+  const _plInvis = (pl.invisibleTurns || 0) > 0 || _plPotHidden;
   const canSee = !_plInvis && (_sameRoom || ((dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y)));
+  if (_plPotHidden) {
+    m.aware = false;
+    m.lastPx = m.x;
+    m.lastPy = m.y;
+  }
   /* 聖域チェック（魔封じの魔方陣が同部屋にあれば聖域効果は無効） */
   const _sanctSuppressed = inMagicSealRoom(pl.x, pl.y, dg);
   const _plOnSanc = !_sanctSuppressed && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
@@ -2552,7 +2558,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     m.aware = false;
   }
   /* 囮のペン（呪い）: フロア全敵が常にプレイヤーを認識して追跡（魔封じで無効） */
-  if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.cursed)) {
+  if (!_plPotHidden && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.cursed)) {
     m.aware = true;
     m.lastPx = pl.x;
     m.lastPy = pl.y;
@@ -2563,7 +2569,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== 壁歩き（岩霊等）：壁を無視してプレイヤーに直進 ===== */
-  if (m.wallWalker) {
+  if (m.wallWalker && !_plPotHidden) {
     /* 隣接していれば攻撃 */
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
       if (_plOnSanc) return;
