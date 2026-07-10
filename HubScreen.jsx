@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
 import { hasGameSave } from "./GameSave.js";
-import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES } from "./items.js";
+import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES, potOccupancyCount } from "./items.js";
 import { validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 
@@ -76,7 +76,7 @@ function hubItemLabel(it) {
   } else if ((it.type === "wand" || it.type === "pen" || it.type === "marker") && it.charges != null) {
     s += ` [${it.charges}回]`;
   } else if (it.type === "pot") {
-    s += ` [${it.contents?.length || 0}/${it.capacity}]`;
+    s += ` [${potOccupancyCount(it)}/${it.capacity}]`;
   } else if (it.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(it.effect)) {
     s += `+${it.plus || 0}`;
   } else if (it.type === "potion" && (it.effect === "heal" || it.effect === "heal_big")) {

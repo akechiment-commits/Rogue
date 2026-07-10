@@ -268,17 +268,29 @@ describe("imprison pot", () => {
     expect(canConfineMonsterInImprisonPot({ name: "スライム" })).toBe(true);
   });
 
-  it("敵が入った状態で入ると出たとき壺が割れる", () => {
+  it("出たときは常に壺が割れて消える", () => {
     const pot = { id: "pot1", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [{ name: "ゴブリン", hp: 8, maxHp: 8, atk: 2 }] };
     const p = { x: 4, y: 4, inventory: [pot] };
     const dg = { monsters: [], map: Array.from({ length: MH }, () => Array(MW).fill(1)) };
     const ml = [];
     confinePlayerInImprisonPot(pot, p, ml);
-    expect(p.potConfinedBreakOnExit).toBe(true);
     resolveImprisonPotExit(p, dg, ml, () => {});
     expect(p.inventory).toHaveLength(0);
     expect(dg.monsters).toHaveLength(1);
-    expect(p.potConfinedBreakOnExit).toBeUndefined();
+    expect(p._potExitSkipMon).toBe(true);
+    expect(p.potConfinedPotId).toBeUndefined();
+  });
+
+  it("敵なしの壺でも出たとき割れて消える", () => {
+    const pot = { id: "pot2", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
+    const p = { x: 2, y: 2, inventory: [pot] };
+    const dg = { monsters: [], map: Array.from({ length: MH }, () => Array(MW).fill(1)) };
+    const ml = [];
+    confinePlayerInImprisonPot(pot, p, ml);
+    resolveImprisonPotExit(p, dg, ml, () => {});
+    expect(p.inventory).toHaveLength(0);
+    expect(dg.monsters).toHaveLength(0);
+    expect(ml.some(m => m.includes("割れた"))).toBe(true);
   });
 });
 

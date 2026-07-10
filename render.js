@@ -1,5 +1,5 @@
 import { TI, rng } from "./utils.js";
-import { getIdentKey } from "./items.js";
+import { getIdentKey, potOccupancyCount } from "./items.js";
 import { genDungeon } from "./dungeon.js";
 
 /* Tile name mapping — place images at CUSTOM_TILE_PATH/{name}.png to override spritesheet */
@@ -284,7 +284,7 @@ export function _itemPickupSuffix(it, ident) {
   const _key = getIdentKey(it);
   const _isIdent = !_key || ident?.has(_key);
   if (!_isIdent) return "";
-  if (it.type === "pot") return ` [${it.contents?.length || 0}/${it.capacity}]`;
+  if (it.type === "pot") return ` [${potOccupancyCount(it)}/${it.capacity}]`;
   if (_key && !it.fullIdent) return "";
   const _chgTypes = new Set(["wand", "pen", "marker"]);
   const _bcTypes  = new Set(["wand", "pen", "marker", "potion", "scroll", "bottle"]);

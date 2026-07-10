@@ -24,7 +24,7 @@ import {
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps, runMineExplosion,
-  releaseConfinedMonstersFromPot, resolveImprisonPotExit,
+  releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -1214,7 +1214,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if ((p.potConfinedTurns || 0) > 0) {
         p.potConfinedTurns = 0;
         delete p.potConfinedPotId;
-        delete p.potConfinedBreakOnExit;
         ml.push("テレポートして壺から出た！");
       }
       return true;
@@ -1268,7 +1267,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if ((p.potConfinedTurns || 0) > 0) {
       p.potConfinedTurns = 0;
       delete p.potConfinedPotId;
-      delete p.potConfinedBreakOnExit;
       ml.push("テレポートして壺から出た！");
     }
     return true;
@@ -1469,14 +1467,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if ((p.immobileTurns || 0) > 0) {
         p.immobileTurns--;
       }
-      /* とじこめの壺：カウントダウン */
-      if ((p.potConfinedTurns || 0) > 0) {
-        p.potConfinedTurns--;
-        if (p.potConfinedTurns === 0) {
-          ml.push("壺から出た！動けるようになった。");
-          resolveImprisonPotExit(p, st.dungeon, ml, lu);
-        }
-      }
+
       /* 浮遊状態：カウントダウン（呪われた重力の魔方陣による浮遊は魔方陣依存なのでここはスキップ） */
       if ((p.floatTurns || 0) > 0) {
         p.floatTurns--;
@@ -1702,8 +1693,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
       triggerMonsterHouse(st.dungeon, p, ml);
       /* 初めて踏み入れたフロアは敵が行動しない（階段降り直後の理不尽攻撃を防ぐ） */
-      const _skipMonAct = !!st.dungeon._firstVisit;
+      let _skipMonAct = !!st.dungeon._firstVisit;
       if (_skipMonAct) st.dungeon._firstVisit = false;
+      if (p._potExitSkipMon) { delete p._potExitSkipMon; _skipMonAct = true; }
       /* ===== 4フェーズターン制 ===== */
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
       const _monSnap = new Map();
@@ -2331,8 +2323,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   useEffect(() => {
     if (!gs?.player) return;
     if (shopMode) return;
-    const { sleepTurns = 0, paralyzeTurns = 0, slowSkip = false } = gs.player;
-    if (sleepTurns <= 0 && paralyzeTurns <= 0 && !slowSkip) return;
+    const { sleepTurns = 0, paralyzeTurns = 0, slowSkip = false, potConfinedTurns = 0 } = gs.player;
+    if (sleepTurns <= 0 && paralyzeTurns <= 0 && !slowSkip && potConfinedTurns <= 0) return;
     setShowInv(false);
     setThrowMode(null);
     /* Wait for any running animation to finish before advancing */
@@ -2345,7 +2337,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       const st = sr.current;
       const { player: p, dungeon: dg } = st;
-      if (p.sleepTurns <= 0 && p.paralyzeTurns <= 0 && !p.slowSkip) return;
+      if (p.sleepTurns <= 0 && p.paralyzeTurns <= 0 && !p.slowSkip && (p.potConfinedTurns || 0) <= 0) return;
       const ml = [];
       if (p.sleepTurns > 0) {
         p.sleepTurns--;
@@ -2357,6 +2349,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         ml.push(p.paralyzeTurns > 0
           ? `金縛りにあっている...あと${p.paralyzeTurns}ターン`
           : "金縛りが解けた！");
+      } else if ((p.potConfinedTurns || 0) > 0) {
+        p.potConfinedTurns--;
+        if (p.potConfinedTurns > 0) {
+          ml.push(`壺の中で待っている...あと${p.potConfinedTurns}ターン`);
+        } else {
+          ml.push("壺から出た！動けるようになった。");
+          resolveImprisonPotExit(p, dg, ml, lu);
+        }
       } else if (p.slowSkip) {
         p.slowSkip = false;
         const _isEqSlow = p._eqSpeedSlowPending || false;
@@ -2401,7 +2401,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     };
     const timer = setTimeout(tryAdvance, 400);
     return () => clearTimeout(timer);
-  }, [gs, shopMode, endTurn, playAnim]);
+  }, [gs, shopMode, endTurn, playAnim, lu]);
 
   const performExitToHub = useCallback(() => {
     if (!onReturnToHub || !sr.current) return;
@@ -2521,7 +2521,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           acted = true;
         }
       };
-      if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || p.slowSkip) return;
+      if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
       if (type === "inventory") {
         setSpellListMode(false);
         setShowInv((v) => {
@@ -2559,18 +2559,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       if (type === "move" && (dx || dy)) {
         /* ===== 移動封じ状態：移動不可（攻撃は可） ===== */
-        if ((p.immobileTurns || 0) > 0 || (p.potConfinedTurns || 0) > 0) {
+        if ((p.immobileTurns || 0) > 0) {
           const nx0 = p.x + dx, ny0 = p.y + dy;
           const _imMon = monsterAt(dg, nx0, ny0);
           if (!_imMon) {
-            /* 移動しようとしたが封じられている（endTurnでカウントダウン） */
-            const _imRem = (p.potConfinedTurns || 0) > 0 ? p.potConfinedTurns - 1 : p.immobileTurns - 1;
+            const _imRem = p.immobileTurns - 1;
             endTurn(st, p, ml);
-            if ((p.potConfinedTurns || 0) > 0 || _imRem > 0) {
-              ml.push((p.potConfinedTurns || 0) > 0
-                ? `壺の中で動けない...あと${p.potConfinedTurns}ターン`
-                : (_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！"));
-            }
+            ml.push(_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！");
             setMsgs((prev) => [...prev.slice(-80), ...ml]);
             sr.current = { ...st };
             setGs({ ...st });
@@ -5164,7 +5159,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     } else if (it.type === "wand")   s += it.fullIdent ? ` [${it.charges}回]` : (!_isIdent && it._usedCount ? ` (-${it._usedCount})` : "");
     else if (it.type === "marker") s += ` [${it.charges}回]`;
     else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
-    else if (it.type === "pot")    s += _isIdent ? ` [${it.contents?.length || 0}/${it.capacity}]` : "";
+    else if (it.type === "pot")    s += _isIdent ? ` [${potOccupancyCount(it)}/${it.capacity}]` : "";
     else if (it.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(it.effect)) s += `+${it.plus || 0}`;
     if (it.shopPrice) s += ` 〔未払:${it.shopPrice}G〕`;
     return s;

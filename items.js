@@ -512,7 +512,7 @@ export const POTS = [
   { name:"醤油の壺",           type:"pot", potEffect:"soy",      capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れると醤油味になる。食べると経験値1.3倍(100ターン)。", tile:32 },
   { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
   { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
-  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると自分が閉じ込められ残り容量×10ターン動けなくなる（敵に見つからない）。敵に投げると閉じ込められる（ボス不可）。敵が入った状態で自分が入り出ると壺が割れる。割れると中の敵が出る。", tile:32 },
+  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると自分が閉じ込められ残り容量×10ターン動けなくなる（敵に見つからない・ターン自動消費）。出ると壺は割れて消える。敵に投げると閉じ込められる（ボス不可）。割れると中の敵が出る。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -707,20 +707,14 @@ export function confinePlayerInImprisonPot(pot, p, ml, nameFn = null) {
   const turns = rem * 10;
   p.potConfinedTurns = turns;
   p.potConfinedPotId = pot.id;
-  p.potConfinedBreakOnExit = (pot.confinedMonsters?.length || 0) > 0;
   const _pn = nameFn ? nameFn(pot) : pot.name;
   ml.push(`${_pn}に入った！あと${turns}ターン動けない。敵に見つからない。`);
-  if (p.potConfinedBreakOnExit) ml.push("中にいた敵と一緒に出ると壺は割れる…");
   return true;
 }
 
-/** とじこめの壺から出たとき、入る前から敵がいた壺なら割って放出する */
+/** とじこめの壺から出たとき、壺を割って消す（閉じ込め敵がいれば放出）。出たターンは敵行動をスキップする */
 export function resolveImprisonPotExit(p, dg, ml, luFn, nameFn = null) {
-  if (!p.potConfinedBreakOnExit) {
-    delete p.potConfinedPotId;
-    delete p.potConfinedBreakOnExit;
-    return;
-  }
+  if (!p.potConfinedPotId) return;
   const potIdx = p.inventory?.findIndex((i) => i.id === p.potConfinedPotId && i.potEffect === "imprison") ?? -1;
   if (potIdx !== -1) {
     const pot = p.inventory[potIdx];
@@ -728,7 +722,7 @@ export function resolveImprisonPotExit(p, dg, ml, luFn, nameFn = null) {
     p.inventory.splice(potIdx, 1);
   }
   delete p.potConfinedPotId;
-  delete p.potConfinedBreakOnExit;
+  p._potExitSkipMon = true;
 }
 
 export function makePot() {
