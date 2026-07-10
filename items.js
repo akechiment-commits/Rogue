@@ -512,6 +512,7 @@ export const POTS = [
   { name:"醤油の壺",           type:"pot", potEffect:"soy",      capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れると醤油味になる。食べると経験値1.3倍(100ターン)。", tile:32 },
   { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
   { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
+  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると自分が閉じ込められ残り容量×10ターン動けなくなる（敵に見つからない）。敵に投げると閉じ込められる。割れると中の敵が出る。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -552,6 +553,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   const _in = nameFn ? nameFn(item) : item.name;
   const _pn = nameFn ? nameFn(pot) : pot.name;
   const pe = pot.potEffect;
+  if (pe === "imprison") { ml.push(`${_pn}にはアイテムは入れられない。`); return; }
   if (pe === "none" || pe === "greed") { ml.push(`${_in}を${_pn}に入れた。`); return; }
   if (pe === "boil") { /* 実効果はGame.jsx側で処理 */ return; }
   if (pe === "enhance") {
@@ -630,9 +632,89 @@ export function randPotCapacity(potEffect) {
   return rng(3, 5);
 }
 
+export function potOccupancyCount(pot) {
+  if (!pot || pot.type !== "pot") return 0;
+  if (pot.potEffect === "imprison") return pot.confinedMonsters?.length || 0;
+  return pot.contents?.length || 0;
+}
+
+export function imprisonPotRemainingCapacity(pot) {
+  if (!pot || pot.potEffect !== "imprison") {
+    return Math.max(0, (pot?.capacity || 3) - (pot?.contents?.length || 0));
+  }
+  return Math.max(0, (pot.capacity || 3) - (pot.confinedMonsters?.length || 0));
+}
+
+export function canConfineMonsterInImprisonPot(mon) {
+  if (!mon) return false;
+  if (mon.type === "shopkeeper") return false;
+  if (mon.baseKind === "firedemon") return false;
+  if (mon.baseKind === "synthmonster") return false;
+  return true;
+}
+
+export function confineMonsterInImprisonPot(pot, mon, dg, ml, nameFn = null) {
+  if (!pot.confinedMonsters) pot.confinedMonsters = [];
+  const snap = JSON.parse(JSON.stringify(mon));
+  pot.confinedMonsters.push(snap);
+  const _mn = nameFn ? nameFn(mon) : mon.name;
+  const _pn = nameFn ? nameFn(pot) : pot.name;
+  ml.push(`${_mn}を${_pn}に閉じ込めた！`);
+  removeMonster(dg, mon);
+}
+
+export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
+  const confined = pot.confinedMonsters || [];
+  if (confined.length === 0) return;
+  const used = new Set();
+  for (const snap of confined) {
+    let tx = px, ty = py;
+    for (const [dx, dy] of DRO) {
+      const _tx = px + dx, _ty = py + dy;
+      if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) continue;
+      if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) continue;
+      if (monsterAt(dg, _tx, _ty)) continue;
+      const key = `${_tx},${_ty}`;
+      if (used.has(key)) continue;
+      used.add(key);
+      tx = _tx; ty = _ty;
+      break;
+    }
+    const mon = {
+      ...snap,
+      id: uid(),
+      x: tx,
+      y: ty,
+      turnAccum: 0,
+      aware: true,
+      lastPx: p?.x ?? px,
+      lastPy: p?.y ?? py,
+    };
+    dg.monsters.push(mon);
+    wakeIfDormant(mon);
+    ml.push(`${mon.name}が現れた！`);
+  }
+  pot.confinedMonsters = [];
+}
+
+export function confinePlayerInImprisonPot(pot, p, ml, nameFn = null) {
+  const rem = imprisonPotRemainingCapacity(pot);
+  if (rem <= 0) {
+    ml.push("壺に空きがない。");
+    return false;
+  }
+  const turns = rem * 10;
+  p.potConfinedTurns = turns;
+  const _pn = nameFn ? nameFn(pot) : pot.name;
+  ml.push(`${_pn}に入った！あと${turns}ターン動けない。敵に見つからない。`);
+  return true;
+}
+
 export function makePot() {
   const t = pick(POTS);
-  return { ...t, id:uid(), contents:[], capacity: randPotCapacity(t.potEffect) };
+  const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) };
+  if (t.potEffect === "imprison") pot.confinedMonsters = [];
+  return pot;
 }
 
 export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
@@ -651,6 +733,12 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         placeItemAt(dg, px, py, _ri, ml, ft);
       }
     }
+    return;
+  }
+  /* とじこめの壺：閉じ込めた敵を放出 */
+  if (pot.potEffect === "imprison") {
+    ml.push(`${_pn}が割れた！`);
+    releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
     return;
   }
   /* 回復の壺：命中した対象を回復（アンデッドはダメージ） */

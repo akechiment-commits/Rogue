@@ -2537,7 +2537,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _plRoom  = findRoom(rooms, pl.x, pl.y);
   const _sameRoom = _monRoom !== null && _plRoom !== null &&
     _monRoom.x === _plRoom.x && _monRoom.y === _plRoom.y;
-  const _plInvis = (pl.invisibleTurns || 0) > 0;
+  const _plInvis = (pl.invisibleTurns || 0) > 0 || (pl.potConfinedTurns || 0) > 0;
   const canSee = !_plInvis && (_sameRoom || ((dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y)));
   /* 聖域チェック（魔封じの魔方陣が同部屋にあれば聖域効果は無効） */
   const _sanctSuppressed = inMagicSealRoom(pl.x, pl.y, dg);

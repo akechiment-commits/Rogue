@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops, randomTeleportDest } from "./utils.js";
@@ -20,6 +20,7 @@ function isPotEffective(potEffect, item) {
   if (potEffect === "boil") return item.type === "potion" || item.type === "food";
   if (potEffect === "gunpowder") return false;
   if (potEffect === "greed" || potEffect === "heal_pot") return true;
+  if (potEffect === "imprison") return false;
   if (_FOOD_POT_EFFECTS.has(potEffect)) return item.type === "food";
   return false;
 }
@@ -2011,7 +2012,7 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
       {" "}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <span style={{ color: "#fc6", fontSize: 13, fontWeight: "bold" }}>
-          {dname(pot)} ({pot.contents?.length || 0}/{pot.capacity})
+          {dname(pot)} ({potOccupancyCount(pot)}/{pot.capacity})
         </span>
         <button onClick={() => setMode(null)}
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
@@ -2600,7 +2601,7 @@ export function InventoryModal({
                         {it.type === "bottle" && " — 瓶"}
                         {it.type === "scroll" && " — 巻物"}
                         {it.type === "food" && ` — 食料${it.cooked ? "(調理済)" : "(生)"}`}
-                        {it.type === "pot" && ` — 壺 [${it.contents?.length || 0}/${it.capacity}]`}
+                        {it.type === "pot" && ` — 壺 [${potOccupancyCount(it)}/${it.capacity}]`}
                         {it.type === "ring" && ` — 指輪${["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
                       <div style={{ whiteSpace: "pre-wrap" }}>{_isUnidentInv ? "未識別のためわからない。" : (it.desc || "特に情報はない。")}</div>
@@ -2611,7 +2612,10 @@ export function InventoryModal({
                       {it.potionEffects?.length > 0 && (
                         <div style={{ color: "#fc6", marginTop: 3 }}>薬効果: {it.potionEffects.map((e) => ({ heal: "回復", poison: "猛毒", sleep: "睡眠", power: "強化" })[e] || e).join(", ")}</div>
                       )}
-                      {it.type === "pot" && it.contents?.length > 0 && (
+                      {it.type === "pot" && it.potEffect === "imprison" && (it.confinedMonsters?.length || 0) > 0 && (
+                        <div style={{ color: "#ca8", marginTop: 3 }}>閉じ込め: {it.confinedMonsters.map((c) => c.name).join(", ")}</div>
+                      )}
+                      {it.type === "pot" && it.potEffect !== "imprison" && it.contents?.length > 0 && (
                         <div style={{ color: "#ca8", marginTop: 3 }}>中身: {it.contents.map((c) => c.name).join(", ")}</div>
                       )}
                     </div>
@@ -2631,10 +2635,16 @@ export function InventoryModal({
         boxShadow: "0 4px 20px rgba(0,0,0,0.85)", pointerEvents: "none",
       }}>
         <div style={{ color: "#ffcc66", fontSize: 13, fontWeight: "bold", marginBottom: 6, borderBottom: "1px solid #4a3a10", paddingBottom: 4 }}>
-          {itemDisplayName(_previewPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{(_previewPot.contents ?? []).length}/{_previewPot.capacity}]
+          {itemDisplayName(_previewPot, gs?.fakeNames, gs?.ident, gs?.nicknames)}　[{potOccupancyCount(_previewPot)}/{_previewPot.capacity}]
         </div>
-        {(_previewPot.contents ?? []).length === 0 ? (
+        {potOccupancyCount(_previewPot) === 0 ? (
           <div style={{ color: "#666", fontSize: 13 }}>（空）</div>
+        ) : _previewPot.potEffect === "imprison" ? (
+          (_previewPot.confinedMonsters ?? []).map((c, ci) => (
+            <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
+              · {c.name}
+            </div>
+          ))
         ) : (
           (_previewPot.contents ?? []).map((c, ci) => (
             <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>

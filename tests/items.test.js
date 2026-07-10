@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents } from "../items.js";
+import { MW, MH, T } from "../utils.js";
 
 describe("getIdentKey", () => {
   it("種別ごとに識別キーを返す", () => {
@@ -226,6 +227,44 @@ describe("applyLightningToInventory", () => {
     applyLightningToInventory(p, dg, ml, () => {}, null, true);
     expect(p.inventory).toHaveLength(0);
     expect(ml.some(m => m.includes("燃えて"))).toBe(true);
+  });
+});
+
+describe("imprison pot", () => {
+  it("残り容量は閉じ込めた敵の数で減る", () => {
+    const pot = { type: "pot", potEffect: "imprison", capacity: 3, confinedMonsters: [{ name: "スライム" }] };
+    expect(imprisonPotRemainingCapacity(pot)).toBe(2);
+    expect(potOccupancyCount(pot)).toBe(1);
+  });
+
+  it("入れると残り容量×10ターン動けなくなる", () => {
+    const pot = { type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
+    const p = {};
+    const ml = [];
+    expect(confinePlayerInImprisonPot(pot, p, ml)).toBe(true);
+    expect(p.potConfinedTurns).toBe(30);
+    expect(ml.some(m => m.includes("30"))).toBe(true);
+  });
+
+  it("敵を閉じ込めて割れると放出される", () => {
+    const pot = { type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
+    const mon = { id: "m1", name: "スライム", hp: 10, maxHp: 10, x: 5, y: 5, atk: 3 };
+    const dg = { monsters: [mon], map: Array.from({ length: MH }, () => Array(MW).fill(1)) };
+    const ml = [];
+    confineMonsterInImprisonPot(pot, mon, dg, ml);
+    expect(dg.monsters).toHaveLength(0);
+    expect(pot.confinedMonsters).toHaveLength(1);
+    scatterPotContents(pot, dg, 5, 5, null, ml, () => {});
+    expect(dg.monsters).toHaveLength(1);
+    expect(pot.confinedMonsters).toHaveLength(0);
+    expect(ml.some(m => m.includes("割れた"))).toBe(true);
+  });
+
+  it("閉じ込め不可の敵を判定する", () => {
+    expect(canConfineMonsterInImprisonPot({ type: "shopkeeper" })).toBe(false);
+    expect(canConfineMonsterInImprisonPot({ baseKind: "firedemon" })).toBe(false);
+    expect(canConfineMonsterInImprisonPot({ baseKind: "synthmonster" })).toBe(false);
+    expect(canConfineMonsterInImprisonPot({ name: "スライム" })).toBe(true);
   });
 });
 

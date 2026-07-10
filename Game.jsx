@@ -24,6 +24,7 @@ import {
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps, runMineExplosion,
+  releaseConfinedMonstersFromPot,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -438,6 +439,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       sealedTurns: 0,
       fireExplosionNullTurns: 0,
       invisibleTurns: 0,
+      potConfinedTurns: 0,
       wallWalkTurns: 0,
       rings: [],
       maxInventory: dungeonConfig?.dungeonType === "debug" ? 100 : 30,
@@ -1209,6 +1211,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (_rd) { p.x = _rd.x; p.y = _rd.y; ml.push(`${_ph.name}に飲まれてランダムにテレポートした！【呪】`); }
       else ml.push(`${_ph.name}が反応したがテレポート先がない…【呪】`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+      if ((p.potConfinedTurns || 0) > 0) { p.potConfinedTurns = 0; ml.push("テレポートして壺から出た！"); }
       return true;
     }
     /* 描画順サイクル：同フロア + 別フロア（祝福経由・キーアイテム未所持時のみ） */
@@ -1257,6 +1260,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       ml.push(`ポータルから地下${_dest.depth}階の${_dest.portal.name}へ抜けた！`);
     }
     if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+    if ((p.potConfinedTurns || 0) > 0) { p.potConfinedTurns = 0; ml.push("テレポートして壺から出た！"); }
     return true;
   }, []);
   const chgFloor = useCallback((pl, dir, pitfall = false) => {
@@ -1454,6 +1458,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* 移動封じ：カウントダウン */
       if ((p.immobileTurns || 0) > 0) {
         p.immobileTurns--;
+      }
+      /* とじこめの壺：カウントダウン */
+      if ((p.potConfinedTurns || 0) > 0) {
+        p.potConfinedTurns--;
+        if (p.potConfinedTurns === 0) ml.push("壺から出た！動けるようになった。");
       }
       /* 浮遊状態：カウントダウン（呪われた重力の魔方陣による浮遊は魔方陣依存なのでここはスキップ） */
       if ((p.floatTurns || 0) > 0) {
@@ -2537,14 +2546,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       if (type === "move" && (dx || dy)) {
         /* ===== 移動封じ状態：移動不可（攻撃は可） ===== */
-        if ((p.immobileTurns || 0) > 0) {
+        if ((p.immobileTurns || 0) > 0 || (p.potConfinedTurns || 0) > 0) {
           const nx0 = p.x + dx, ny0 = p.y + dy;
           const _imMon = monsterAt(dg, nx0, ny0);
           if (!_imMon) {
             /* 移動しようとしたが封じられている（endTurnでカウントダウン） */
-            const _imRem = p.immobileTurns - 1;
+            const _imRem = (p.potConfinedTurns || 0) > 0 ? p.potConfinedTurns - 1 : p.immobileTurns - 1;
             endTurn(st, p, ml);
-            ml.push(_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！");
+            if ((p.potConfinedTurns || 0) > 0 || _imRem > 0) {
+              ml.push((p.potConfinedTurns || 0) > 0
+                ? `壺の中で動けない...あと${p.potConfinedTurns}ターン`
+                : (_imRem > 0 ? `移動が封じられている...あと${_imRem}ターン` : "移動封じが解けた！"));
+            }
             setMsgs((prev) => [...prev.slice(-80), ...ml]);
             sr.current = { ...st };
             setGs({ ...st });
@@ -4329,6 +4342,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   for (const _opc of _oiledPcs) ml.push(`油が${_opc.name}を消した！`);
                 }
               }
+            } else if (item.potEffect === "imprison") {
+              ml.push(`${_idn}が割れた！`);
+              releaseConfinedMonstersFromPot(item, dg, bb.x, bb.y, p, ml);
             } else {
               const _potDmg = 3 + rng(0, 3);
               const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity || 3) - (item.contents?.length || 0)) * 100 : 0;
@@ -5354,6 +5370,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {(p.invisibleTurns || 0) > 0 && (
           <span style={{ color: "#80e0ff" }}>👻{p.invisibleTurns}</span>
+        )}{" "}
+        {(p.potConfinedTurns || 0) > 0 && (
+          <span style={{ color: "#c8a0e8" }}>🏺{p.potConfinedTurns}</span>
         )}{" "}
         {(p.wallWalkTurns || 0) > 0 && (
           <span style={{ color: "#a0ffa0" }}>🧱{p.wallWalkTurns}</span>

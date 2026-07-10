@@ -10,6 +10,8 @@ import {
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
+  imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
+  confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice, removeTrap, removeTraps,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -1866,23 +1868,39 @@ export function useItemActions({
         }
       }
     } else if (it.type === "pot") {
-      if (!it.contents) it.contents = [];
-      if (it.contents.length >= it.capacity) {
-        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`);
+      if (it.potEffect === "imprison") {
+        if ((p.potConfinedTurns || 0) > 0) {
+          ml.push("既に壺の中にいる。");
+        } else if (confinePlayerInImprisonPot(it, p, ml, dnameRef)) {
+          endTurn(sr.current, p, ml);
+          setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          refreshFOV(dg, p);
+          setSelIdx(null);
+          setShowDesc(null);
+          setShowInv(false);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
       } else {
-        setPutMode({ potIdx: idx });
-        setPutMenuSel(0);
-        setPutPage(0);
-        setShowInv(false);
-        setSelIdx(null);
-        setShowDesc(null);
-        setMsgs((prev) => [
-          ...prev.slice(-80),
-          `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に入れるアイテムを選んでください...(${it.contents.length}/${it.capacity})`,
-        ]);
-        sr.current = { ...sr.current };
-        setGs({ ...sr.current });
-        return;
+        if (!it.contents) it.contents = [];
+        if (it.contents.length >= it.capacity) {
+          ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいだ。`);
+        } else {
+          setPutMode({ potIdx: idx });
+          setPutMenuSel(0);
+          setPutPage(0);
+          setShowInv(false);
+          setSelIdx(null);
+          setShowDesc(null);
+          setMsgs((prev) => [
+            ...prev.slice(-80),
+            `${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に入れるアイテムを選んでください...(${it.contents.length}/${it.capacity})`,
+          ]);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
       }
     }
     endTurn(sr.current, p, ml);
@@ -3170,7 +3188,7 @@ export function useItemActions({
           }
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}${_itemPickupSuffix(it, sr.current?.ident)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false;
+          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false;
           for (let d = 1; d <= _maxRange; d++) {
             const tx = p.x + dx * d, ty = p.y + dy * d;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
@@ -3210,7 +3228,23 @@ export function useItemActions({
                 break;
               }
               if (consumeBarrier(m, ml)) { if (!_isFarcast) { lx = tx; ly = ty; break; } }
-              else {
+              else if (it.potEffect === "imprison") {
+                const _impRem = imprisonPotRemainingCapacity(it);
+                if (_impRem > 0 && canConfineMonsterInImprisonPot(m)) {
+                  confineMonsterInImprisonPot(it, m, dg, ml, dnameRef);
+                  _potImprisoned = true;
+                  lx = tx; ly = ty;
+                  break;
+                }
+                if (_impRem <= 0) {
+                  lx = tx; ly = ty;
+                  break;
+                }
+                const _ptd = clampDmgFixed(m, 3 + rng(0, 3), true);
+                m.hp -= _ptd;
+                ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
+                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              } else {
                 const _ptd = clampDmgFixed(m, 3 + rng(0, 3), true);
                 m.hp -= _ptd;
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
@@ -3235,6 +3269,9 @@ export function useItemActions({
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
             soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
+          } else if (_potImprisoned) {
+            const _impFt = new Set();
+            placeItemAt(dg, lx, ly, it, ml, _impFt, 0, p);
           } else {
             scatterPotContents(it, dg, lx, ly, p, ml, lu, dnameRef);
           }
