@@ -14,6 +14,7 @@ export function usePortrait({
   putMode,
 }) {
   const prevGsRef = useRef(null);
+  const prevMsgCountRef = useRef(0);
   const portraitCooldownRef = useRef(0);
   const walkStepRef = useRef(0);
   const dynamicEnabledRef = useRef(true);
@@ -75,9 +76,15 @@ export function usePortrait({
     const prev = prevGsRef.current;
     prevGsRef.current = snapshotPlayer(p);
 
-    const recentMsgs = msgsRef.current.slice(-12).map((m) => m?.text ?? m);
+    const msgToText = (m) => m?.text ?? m;
+    const recentMsgs = msgsRef.current.slice(-12).map(msgToText);
     const lastMsg = recentMsgs[recentMsgs.length - 1] ?? "";
-    const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs });
+    const newCount = msgsRef.current.length - prevMsgCountRef.current;
+    const newMsgs = newCount > 0
+      ? msgsRef.current.slice(-newCount).map(msgToText)
+      : [];
+    prevMsgCountRef.current = msgsRef.current.length;
+    const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs, newMsgs });
 
     if (!event) return;
 

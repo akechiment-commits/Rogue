@@ -59,6 +59,63 @@ export function msgToActionKey(msg, recentMsgs = []) {
   return null;
 }
 
+/** モンスターがダメージを受けたログか（プレイヤー被ダメと区別） */
+export function isMonsterDamageMsg(msg) {
+  if (!msg) return false;
+  if (msgToMeleeAttackKey(msg)) return true;
+  if (/毒に侵された.+は\d+ダメージ！/.test(msg)) return true;
+  if (/闘気が.+に\d+ダメージ！/.test(msg)) return true;
+  if (/爆風で.+に\d+ダメージ！/.test(msg)) return true;
+  if (/爆発で.+は\d+ダメージ！/.test(msg)) return true;
+  if (/.+は(変な薬を浴びた|炎に包まれた|毒を浴びた|壁に叩きつけられた)！/.test(msg)) return true;
+  if (/.+の(炎|氷)ブレスが.+に命中！/.test(msg)) return true;
+  if (/プレイヤーに(命中|激突|当た)/.test(msg)) return false;
+  if (/が.+に命中！\d+ダメージ！/.test(msg)) return true;
+  if (/に命中！\d+ダメージ！/.test(msg) && !/プレイヤーに/.test(msg)) return true;
+  if (/に\d+ダメージ！/.test(msg) && !/の攻撃！/.test(msg) && !/お互いに/.test(msg)) return true;
+  return false;
+}
+
+/** プレイヤーがダメージを受けたログか */
+export function isPlayerDamageMsg(msg) {
+  if (!msg || isMonsterDamageMsg(msg)) return false;
+  if (/プレイヤーに(命中|激突|当た)/.test(msg)) return true;
+  if (/自分に(激突|命中|直撃|当た)/.test(msg)) return true;
+  if (/自分にも.*\d+ダメージ/.test(msg)) return true;
+  if (/の攻撃！\d+ダメージ！/.test(msg)) return true;
+  if (/が(炎|氷)ブレスを吐いた！\d+ダメージ！/.test(msg)) return true;
+  if (/炎に包まれた！\d+ダメージ！/.test(msg)) return true;
+  if (/変な薬を浴びた！\d+ダメージ！/.test(msg)) return true;
+  if (/腐っていた！\d+ダメージ/.test(msg)) return true;
+  if (/ヤバすぎる！\d+ダメージ/.test(msg)) return true;
+  if (/壁に(激突|叩きつけられた)！\d+ダメージ！/.test(msg)) return true;
+  if (/モンスターに激突した！\d+ダメージ！/.test(msg)) return true;
+  if (/お互いに\d+ダメージ！/.test(msg)) return true;
+  if (/に激突！お互いに\d+ダメージ！/.test(msg)) return true;
+  if (/油まみれに炎が燃え移った！/.test(msg)) return true;
+  if (/油が引火して追加炎ダメージ！/.test(msg)) return true;
+  if (/が跳ね返ってきた！\d+ダメージ！/.test(msg)) return true;
+  if (/の爆発を受けた！\d+ダメージ！/.test(msg)) return true;
+  if (/大爆発！(\d+ダメージ！|HPが1になった！)/.test(msg)) return true;
+  if (/爆発が自分を直撃！/.test(msg)) return true;
+  if (/呪いのエネルギーが爆発した！\d+ダメージ！/.test(msg)) return true;
+  if (/^(矢の罠の矢|毒矢)が命中！\d+ダメージ！/.test(msg)) return true;
+  if (/骨が自分に激突！/.test(msg)) return true;
+  if (/^[^(]+！[1-9]\d*ダメージ！/.test(msg) && !/に/.test(msg.split("！")[0])) return true;
+  if (/が命中！\d+ダメージ！/.test(msg) && !/に命中！/.test(msg)) return true;
+  if (/が墨を吐いた！\d+ダメージ！/.test(msg)) return true;
+  return false;
+}
+
+/** 今回のログからプレイヤー被ダメメッセージを探す（新規ログ優先） */
+export function findPlayerDamageMsg(newMsgs = [], lastMsg = "") {
+  for (let i = newMsgs.length - 1; i >= 0; i--) {
+    if (newMsgs[i] && isPlayerDamageMsg(newMsgs[i])) return newMsgs[i];
+  }
+  if (lastMsg && isPlayerDamageMsg(lastMsg)) return lastMsg;
+  return null;
+}
+
 /** 被ダメージメッセージから立ち絵グループを判定 */
 export function msgToDamageKey(msg) {
   if (!msg) return "damage";
@@ -70,7 +127,7 @@ export function msgToDamageKey(msg) {
   if (/水鉄砲/.test(msg)) return "damage_watergun";
   if (/水の|水没/.test(msg)) return "damage_wet";
   if (/罠|トラップ|岩が降/.test(msg)) return "damage_trap";
-  if (/爆発|炸裂|爆弾|時限/.test(msg)) return "damage_explosion";
+  if (/爆発|炸裂|爆弾|時限|地雷|自爆/.test(msg)) return "damage_explosion";
   if (/吹き飛|激突|壁に叩|壁に激突|ノッカー|挟まれ/.test(msg)) return "damage_knockback";
   if (/穴|落下|奈落|底に落|落とし穴/.test(msg)) return "damage_falling";
   if (/雷|電撃|サンダー|打たれた/.test(msg)) return "damage_heavy";
@@ -104,7 +161,7 @@ export function snapshotPlayer(p) {
  * gs 変化時の立ち絵イベントを解決。
  * @returns {{ src: string, cooldownUntil: number, force?: boolean } | null}
  */
-export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], now = Date.now() }) {
+export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = [], now = Date.now() }) {
   if (!p) return null;
 
   if (p.hp <= 0) {
@@ -120,11 +177,21 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     actionKey === "act_food_yabai" || actionKey === "act_food_rotten" ? actionKey : null;
 
   if (p.hp < prev.hp) {
-    return {
-      src: badFoodKey ? pickPortrait(badFoodKey) : pickDamagePortrait(lastMsg),
-      cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
-      force: true,
-    };
+    if (badFoodKey) {
+      return {
+        src: pickPortrait(badFoodKey),
+        cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+        force: true,
+      };
+    }
+    const damageMsg = findPlayerDamageMsg(newMsgs, lastMsg);
+    if (damageMsg) {
+      return {
+        src: pickDamagePortrait(damageMsg),
+        cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+        force: true,
+      };
+    }
   }
 
   if (p.hp > prev.hp) {

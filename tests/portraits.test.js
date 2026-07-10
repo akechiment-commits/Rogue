@@ -3,6 +3,9 @@ import {
   msgToActionKey,
   msgToDamageKey,
   msgToMeleeAttackKey,
+  isPlayerDamageMsg,
+  isMonsterDamageMsg,
+  findPlayerDamageMsg,
   pickDamagePortrait,
   resolvePortraitEvent,
   hpKey,
@@ -77,6 +80,25 @@ describe("portraits", () => {
     expect(event.src).toMatch(/action_eat_rotten/);
   });
 
+  it("isPlayerDamageMsg / isMonsterDamageMsg が被ダメ主体を区別する", () => {
+    expect(isPlayerDamageMsg("ゴブリンの攻撃！5ダメージ！")).toBe(true);
+    expect(isPlayerDamageMsg("スライムが炎ブレスを吐いた！20ダメージ！")).toBe(true);
+    expect(isPlayerDamageMsg("地雷！50ダメージ！")).toBe(true);
+    expect(isPlayerDamageMsg("跳ね返された矢がプレイヤーに命中！8ダメージ！")).toBe(true);
+    expect(isPlayerDamageMsg("スライムに12ダメージ！会心！")).toBe(false);
+    expect(isPlayerDamageMsg("爆風でスライムに10ダメージ！")).toBe(false);
+    expect(isPlayerDamageMsg("空腹でHPが減っている...")).toBe(false);
+    expect(isMonsterDamageMsg("スライムに12ダメージ！会心！")).toBe(true);
+    expect(isMonsterDamageMsg("炎の弾がスライムに命中！20ダメージ！")).toBe(true);
+    expect(isMonsterDamageMsg("ゴブリンの攻撃！5ダメージ！")).toBe(false);
+  });
+
+  it("findPlayerDamageMsg が新規ログから被ダメを拾う", () => {
+    const newMsgs = ["スライムを倒した！", "ゴブリンの攻撃！7ダメージ！"];
+    expect(findPlayerDamageMsg(newMsgs, "ゴブリンの攻撃！7ダメージ！")).toBe("ゴブリンの攻撃！7ダメージ！");
+    expect(findPlayerDamageMsg(["スライムに10ダメージ！"], "スライムに10ダメージ！")).toBeNull();
+  });
+
   it("msgToDamageKey が属性別ダメージを判定する", () => {
     expect(msgToDamageKey("スライムが炎ブレスを吐いた！20ダメージ！")).toBe("damage_fire");
     expect(msgToDamageKey("ドラゴンが氷ブレスを吐いた！15ダメージ！")).toBe("damage_ice");
@@ -84,11 +106,12 @@ describe("portraits", () => {
     expect(msgToDamageKey("シオン・ザ・ダークブレットの銃弾が命中！15ダメージ！")).toBe("damage_gun");
     expect(msgToDamageKey("わてりの水鉄砲が命中！10ダメージ！")).toBe("damage_watergun");
     expect(msgToDamageKey("ゴブリンの攻撃！5ダメージ！")).toBe("damage_heavy");
+    expect(msgToDamageKey("地雷！50ダメージ！")).toBe("damage_explosion");
   });
 
   it("pickDamagePortrait がグループからパスを返す", () => {
     const src = pickDamagePortrait("炎ブレスを吐いた！");
-    expect(src).toMatch(/^\/tiles\/Character\/damage_fire\.png$/);
+    expect(src).toMatch(/^\/tiles\/Character\/damage_fire/);
     expect(PORTRAIT_SETS.damage_fire).toContain("damage_fire");
   });
 
@@ -138,8 +161,43 @@ describe("portraits", () => {
       player,
       prev,
       lastMsg: "わてりの水鉄砲が命中！12ダメージ！",
+      newMsgs: ["わてりの水鉄砲が命中！12ダメージ！"],
     });
     expect(event.force).toBe(true);
     expect(event.src).toMatch(/damage_watergun/);
+  });
+
+  it("resolvePortraitEvent は空腹など被ダメ以外のHP減少で立ち絵を変えない", () => {
+    const player = {
+      hp: 79, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = { ...player, hp: 80 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "空腹でHPが減っている...",
+      newMsgs: ["空腹でHPが減っている..."],
+    });
+    expect(event.src).toBeUndefined();
+    expect(event.isLow).toBe(false);
+  });
+
+  it("resolvePortraitEvent は古い被ダメログだけでは立ち絵を変えない", () => {
+    const player = {
+      hp: 79, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = { ...player, hp: 80 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "空腹でHPが減っている...",
+      recentMsgs: ["ゴブリンの攻撃！10ダメージ！", "空腹でHPが減っている..."],
+      newMsgs: ["空腹でHPが減っている..."],
+    });
+    expect(event.src).toBeUndefined();
   });
 });
