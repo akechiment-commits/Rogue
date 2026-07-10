@@ -280,6 +280,28 @@ describe("imprison pot", () => {
     expect(p.potConfinedPotId).toBeUndefined();
   });
 
+  it("放出時はプレイヤー・既存敵・互いに重ならない", () => {
+    const pot = {
+      type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3,
+      confinedMonsters: [
+        { name: "スライムA", hp: 10, maxHp: 10, atk: 3 },
+        { name: "スライムB", hp: 10, maxHp: 10, atk: 3 },
+      ],
+    };
+    const p = { x: 5, y: 5 };
+    const existing = { id: "e1", name: "ゴブリン", hp: 8, maxHp: 8, x: 6, y: 5, atk: 2 };
+    const dg = { monsters: [existing], rooms: [{ x: 0, y: 0, w: MW, h: MH }], map: Array.from({ length: MH }, () => Array(MW).fill(1)) };
+    const ml = [];
+    releaseConfinedMonstersFromPot(pot, dg, 5, 5, p, ml);
+    expect(dg.monsters).toHaveLength(3);
+    const released = dg.monsters.filter(m => m.id !== "e1");
+    for (const m of released) {
+      expect(m.x !== 5 || m.y !== 5).toBe(true);
+      expect(m.x !== 6 || m.y !== 5).toBe(true);
+    }
+    expect(released[0].x !== released[1].x || released[0].y !== released[1].y).toBe(true);
+  });
+
   it("敵なしの壺でも出たとき割れて消える", () => {
     const pot = { id: "pot2", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
     const p = { x: 2, y: 2, inventory: [pot] };

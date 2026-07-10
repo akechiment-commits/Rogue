@@ -664,28 +664,40 @@ export function confineMonsterInImprisonPot(pot, mon, dg, ml, nameFn = null) {
   removeMonster(dg, mon);
 }
 
+function _isConfinedReleaseBlocked(dg, tx, ty, p, used) {
+  if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) return true;
+  const tile = dg.map[ty]?.[tx];
+  if (tile === T.WALL || tile === T.BWALL) return true;
+  if (p && p.x === tx && p.y === ty) return true;
+  if (monsterAt(dg, tx, ty)) return true;
+  if (used.has(`${tx},${ty}`)) return true;
+  return false;
+}
+
+function _findConfinedMonsterReleaseTile(dg, cx, cy, p, used) {
+  for (const [dx, dy] of DRO) {
+    const tx = cx + dx, ty = cy + dy;
+    if (!_isConfinedReleaseBlocked(dg, tx, ty, p, used)) return { x: tx, y: ty };
+  }
+  return randomTeleportDest(dg, cx, cy, (x, y) => !_isConfinedReleaseBlocked(dg, x, y, p, used));
+}
+
 export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
   const confined = pot.confinedMonsters || [];
   if (confined.length === 0) return;
   const used = new Set();
   for (const snap of confined) {
-    let tx = px, ty = py;
-    for (const [dx, dy] of DRO) {
-      const _tx = px + dx, _ty = py + dy;
-      if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) continue;
-      if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) continue;
-      if (monsterAt(dg, _tx, _ty)) continue;
-      const key = `${_tx},${_ty}`;
-      if (used.has(key)) continue;
-      used.add(key);
-      tx = _tx; ty = _ty;
-      break;
+    const _pos = _findConfinedMonsterReleaseTile(dg, px, py, p, used);
+    if (!_pos) {
+      ml.push(`${snap.name}を出す場所がなく消えた…`);
+      continue;
     }
+    used.add(`${_pos.x},${_pos.y}`);
     const mon = {
       ...snap,
       id: uid(),
-      x: tx,
-      y: ty,
+      x: _pos.x,
+      y: _pos.y,
       turnAccum: 0,
       aware: true,
       lastPx: p?.x ?? px,
