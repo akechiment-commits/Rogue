@@ -3212,10 +3212,15 @@ export function useItemActions({
                 lx = tx; ly = ty; _potFdBurned = true; break;
               }
               if (!_isFarcast && m.subtype === "reflector") {
-                /* ミラーゴーレム：壺をプレイヤーの足元に跳ね返して中身散乱 */
+                /* ミラーゴーレム：壺をプレイヤーの足元に跳ね返す */
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
                 pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
-                scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+                if (it.potEffect === "imprison") {
+                  if (confinePlayerInImprisonPot(it, p, ml, dnameRef)) p.inventory.push(it);
+                  else scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+                } else {
+                  scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+                }
                 lx = tx; ly = ty; _potFdBurned = true; break;
               }
               if (_potMiss) {

@@ -24,7 +24,7 @@ import {
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps, runMineExplosion,
-  releaseConfinedMonstersFromPot,
+  releaseConfinedMonstersFromPot, resolveImprisonPotExit,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -1211,7 +1211,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (_rd) { p.x = _rd.x; p.y = _rd.y; ml.push(`${_ph.name}に飲まれてランダムにテレポートした！【呪】`); }
       else ml.push(`${_ph.name}が反応したがテレポート先がない…【呪】`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
-      if ((p.potConfinedTurns || 0) > 0) { p.potConfinedTurns = 0; ml.push("テレポートして壺から出た！"); }
+      if ((p.potConfinedTurns || 0) > 0) {
+        p.potConfinedTurns = 0;
+        delete p.potConfinedPotId;
+        delete p.potConfinedBreakOnExit;
+        ml.push("テレポートして壺から出た！");
+      }
       return true;
     }
     /* 描画順サイクル：同フロア + 別フロア（祝福経由・キーアイテム未所持時のみ） */
@@ -1260,7 +1265,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       ml.push(`ポータルから地下${_dest.depth}階の${_dest.portal.name}へ抜けた！`);
     }
     if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
-    if ((p.potConfinedTurns || 0) > 0) { p.potConfinedTurns = 0; ml.push("テレポートして壺から出た！"); }
+    if ((p.potConfinedTurns || 0) > 0) {
+      p.potConfinedTurns = 0;
+      delete p.potConfinedPotId;
+      delete p.potConfinedBreakOnExit;
+      ml.push("テレポートして壺から出た！");
+    }
     return true;
   }, []);
   const chgFloor = useCallback((pl, dir, pitfall = false) => {
@@ -1462,7 +1472,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* とじこめの壺：カウントダウン */
       if ((p.potConfinedTurns || 0) > 0) {
         p.potConfinedTurns--;
-        if (p.potConfinedTurns === 0) ml.push("壺から出た！動けるようになった。");
+        if (p.potConfinedTurns === 0) {
+          ml.push("壺から出た！動けるようになった。");
+          resolveImprisonPotExit(p, st.dungeon, ml, lu);
+        }
       }
       /* 浮遊状態：カウントダウン（呪われた重力の魔方陣による浮遊は魔方陣依存なのでここはスキップ） */
       if ((p.floatTurns || 0) > 0) {

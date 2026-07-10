@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit } from "../items.js";
 import { MW, MH, T } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -262,9 +262,23 @@ describe("imprison pot", () => {
 
   it("閉じ込め不可の敵を判定する", () => {
     expect(canConfineMonsterInImprisonPot({ type: "shopkeeper" })).toBe(false);
+    expect(canConfineMonsterInImprisonPot({ isBoss: true })).toBe(false);
     expect(canConfineMonsterInImprisonPot({ baseKind: "firedemon" })).toBe(false);
     expect(canConfineMonsterInImprisonPot({ baseKind: "synthmonster" })).toBe(false);
     expect(canConfineMonsterInImprisonPot({ name: "スライム" })).toBe(true);
+  });
+
+  it("敵が入った状態で入ると出たとき壺が割れる", () => {
+    const pot = { id: "pot1", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [{ name: "ゴブリン", hp: 8, maxHp: 8, atk: 2 }] };
+    const p = { x: 4, y: 4, inventory: [pot] };
+    const dg = { monsters: [], map: Array.from({ length: MH }, () => Array(MW).fill(1)) };
+    const ml = [];
+    confinePlayerInImprisonPot(pot, p, ml);
+    expect(p.potConfinedBreakOnExit).toBe(true);
+    resolveImprisonPotExit(p, dg, ml, () => {});
+    expect(p.inventory).toHaveLength(0);
+    expect(dg.monsters).toHaveLength(1);
+    expect(p.potConfinedBreakOnExit).toBeUndefined();
   });
 });
 
