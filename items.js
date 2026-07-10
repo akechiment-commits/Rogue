@@ -512,7 +512,7 @@ export const POTS = [
   { name:"醤油の壺",           type:"pot", potEffect:"soy",      capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れると醤油味になる。食べると経験値1.3倍(100ターン)。", tile:32 },
   { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
   { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
-  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると自分が閉じ込められ残り容量×10ターン動けなくなる（敵に見つからない・ターン自動消費）。出ると壺は割れて消える。敵に投げると閉じ込められる（ボス不可）。割れると中の敵が出る。", tile:32 },
+  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると自分が閉じ込められ残り容量×10ターン動けなくなる（敵に見つからない・ターン自動消費）。水上で入ると壺ごと水没して溺死。出ると壺は割れて消える。敵に投げると閉じ込められる（ボス不可・水上は水没）。割れると中の敵が出る。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -702,7 +702,7 @@ export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
     }
     used.add(`${_pos.x},${_pos.y}`);
     if (!canMonsterSurviveOnWater(snap, dg, _pos.x, _pos.y)) {
-      ml.push(`${snap.name}は水に沈んで死んだ！`);
+      ml.push(`${snap.name}は水没した！`);
       continue;
     }
     const mon = {
@@ -722,16 +722,30 @@ export function releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml) {
   pot.confinedMonsters = [];
 }
 
-export function confinePlayerInImprisonPot(pot, p, ml, nameFn = null) {
+function _playerOnWaterTile(p, dg) {
+  if (!dg?.map) return false;
+  return dg.map[p.y]?.[p.x] === T.WATER || dg.springs?.some((s) => s.x === p.x && s.y === p.y);
+}
+
+export function confinePlayerInImprisonPot(pot, p, dg, ml, nameFn = null) {
   const rem = imprisonPotRemainingCapacity(pot);
   if (rem <= 0) {
     ml.push("壺に空きがない。");
     return false;
   }
+  const _pn = nameFn ? nameFn(pot) : pot.name;
+  if (_playerOnWaterTile(p, dg) && !isPlayerFloating(p, dg)) {
+    const _potIdx = p.inventory?.indexOf(pot) ?? -1;
+    if (_potIdx !== -1) p.inventory.splice(_potIdx, 1);
+    ml.push(`${_pn}が水没した！`);
+    ml.push("壺ごと沈んで溺れた！");
+    p.deathCause = "水没により";
+    p.hp = 0;
+    return "drown";
+  }
   const turns = rem * 10;
   p.potConfinedTurns = turns;
   p.potConfinedPotId = pot.id;
-  const _pn = nameFn ? nameFn(pot) : pot.name;
   ml.push(`${_pn}に入った！あと${turns}ターン動けない。敵に見つからない。`);
   return true;
 }

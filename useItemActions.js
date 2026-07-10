@@ -1871,16 +1871,19 @@ export function useItemActions({
       if (it.potEffect === "imprison") {
         if ((p.potConfinedTurns || 0) > 0) {
           ml.push("既に壺の中にいる。");
-        } else if (confinePlayerInImprisonPot(it, p, ml, dnameRef)) {
-          endTurn(sr.current, p, ml);
-          setMsgs((prev) => [...prev.slice(-80), ...ml]);
-          refreshFOV(dg, p);
-          setSelIdx(null);
-          setShowDesc(null);
-          setShowInv(false);
-          sr.current = { ...sr.current };
-          setGs({ ...sr.current });
-          return;
+        } else {
+          const _confRes = confinePlayerInImprisonPot(it, p, dg, ml, dnameRef);
+          if (_confRes === "drown" || _confRes === true) {
+            endTurn(sr.current, p, ml);
+            setMsgs((prev) => [...prev.slice(-80), ...ml]);
+            refreshFOV(dg, p);
+            setSelIdx(null);
+            setShowDesc(null);
+            setShowInv(false);
+            sr.current = { ...sr.current };
+            setGs({ ...sr.current });
+            return;
+          }
         }
       } else {
         if (!it.contents) it.contents = [];
@@ -3216,8 +3219,9 @@ export function useItemActions({
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
                 pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
                 if (it.potEffect === "imprison") {
-                  if (confinePlayerInImprisonPot(it, p, ml, dnameRef)) p.inventory.push(it);
-                  else scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+                  const _impRes = confinePlayerInImprisonPot(it, p, dg, ml, dnameRef);
+                  if (_impRes === true) p.inventory.push(it);
+                  else if (_impRes !== "drown") scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
                 } else {
                   scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
                 }

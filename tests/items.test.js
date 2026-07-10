@@ -241,7 +241,8 @@ describe("imprison pot", () => {
     const pot = { type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
     const p = {};
     const ml = [];
-    expect(confinePlayerInImprisonPot(pot, p, ml)).toBe(true);
+    const _dg = { map: Array.from({ length: MH }, () => Array(MW).fill(1)), springs: [] };
+    expect(confinePlayerInImprisonPot(pot, p, _dg, ml)).toBe(true);
     expect(p.potConfinedTurns).toBe(30);
     expect(ml.some(m => m.includes("30"))).toBe(true);
   });
@@ -271,9 +272,9 @@ describe("imprison pot", () => {
   it("出たときは常に壺が割れて消える", () => {
     const pot = { id: "pot1", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [{ name: "ゴブリン", hp: 8, maxHp: 8, atk: 2 }] };
     const p = { x: 4, y: 4, inventory: [pot] };
-    const dg = { monsters: [], map: Array.from({ length: MH }, () => Array(MW).fill(1)) };
+    const dg = { monsters: [], map: Array.from({ length: MH }, () => Array(MW).fill(1)), springs: [] };
     const ml = [];
-    confinePlayerInImprisonPot(pot, p, ml);
+    confinePlayerInImprisonPot(pot, p, dg, ml);
     resolveImprisonPotExit(p, dg, ml, () => {});
     expect(p.inventory).toHaveLength(0);
     expect(dg.monsters).toHaveLength(1);
@@ -295,7 +296,7 @@ describe("imprison pot", () => {
     };
     releaseConfinedMonstersFromPot(potSlime, dg, 5, 5, null, ml);
     expect(dg.monsters).toHaveLength(0);
-    expect(ml.some(m => m.includes("水に沈んで死んだ"))).toBe(true);
+    expect(ml.some(m => m.includes("水没した"))).toBe(true);
     const potWateri = {
       type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3,
       confinedMonsters: [{ name: "わてり", waterOnly: true, hp: 10, maxHp: 10, atk: 3 }],
@@ -327,12 +328,25 @@ describe("imprison pot", () => {
     expect(released[0].x !== released[1].x || released[0].y !== released[1].y).toBe(true);
   });
 
+  it("水上で入ると壺が水没して溺死する", () => {
+    const pot = { id: "pot1", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(1)), springs: [] };
+    dg.map[3][5] = T.WATER;
+    const p = { x: 5, y: 3, hp: 100, inventory: [pot] };
+    const ml = [];
+    expect(confinePlayerInImprisonPot(pot, p, dg, ml)).toBe("drown");
+    expect(p.hp).toBe(0);
+    expect(p.deathCause).toBe("水没により");
+    expect(p.inventory).toHaveLength(0);
+    expect(ml.some(m => m.includes("水没した"))).toBe(true);
+  });
+
   it("敵なしの壺でも出たとき割れて消える", () => {
     const pot = { id: "pot2", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
     const p = { x: 2, y: 2, inventory: [pot] };
     const dg = { monsters: [], map: Array.from({ length: MH }, () => Array(MW).fill(1)) };
     const ml = [];
-    confinePlayerInImprisonPot(pot, p, ml);
+    confinePlayerInImprisonPot(pot, p, dg, ml);
     resolveImprisonPotExit(p, dg, ml, () => {});
     expect(p.inventory).toHaveLength(0);
     expect(dg.monsters).toHaveLength(0);
