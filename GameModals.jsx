@@ -11,6 +11,19 @@ import { loadSave } from "./SaveData.js";
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
 const _FOOD_POT_EFFECTS = new Set(["choco","spicy","honey","curry","miso","smoke","olive","sesame","butter","yogurt","coconut","soy","garlic","lemon"]);
+const ITEM_DESC_TEXT_STYLE = {
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  overflowWrap: "break-word",
+};
+
+function formatItemDesc(desc) {
+  if (!desc) return "特に情報はない。";
+  if (desc.includes("\n")) return desc;
+  if (desc.length <= 36) return desc;
+  return desc.replace(/。/g, "。\n").replace(/\n$/, "");
+}
+
 function isPotEffective(potEffect, item) {
   if (potEffect === "none") return true;
   if (potEffect === "enhance") return item.type === "weapon" || item.type === "armor" || (item.type === "ring" && _PLUS_RING_EFFECTS.includes(item.effect));
@@ -2504,9 +2517,9 @@ export function InventoryModal({
                     </div>
                     {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
                     {showDesc === 10000 + j && (
-                      <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4 }}>
+                      <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
                         <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>{entry.name}</div>
-                        <div style={{ whiteSpace: "pre-wrap" }}>{(() => { const _kk = getIdentKey(entry); return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : (entry.desc || "特に情報はない。"); })()}</div>
+                        <div style={ITEM_DESC_TEXT_STYLE}>{(() => { const _kk = getIdentKey(entry); return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : formatItemDesc(entry.desc); })()}</div>
                       </div>
                     )}
                   </div>
@@ -2589,7 +2602,7 @@ export function InventoryModal({
                   </div>
                   {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
                   {showDesc === i && (
-                    <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4 }}>
+                    <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
                       <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>
                         {it.name}
                         {it.type === "weapon" && ` — 武器 (攻+${it.atk})`}
@@ -2604,7 +2617,7 @@ export function InventoryModal({
                         {it.type === "pot" && ` — 壺 [${potOccupancyCount(it)}/${it.capacity}]`}
                         {it.type === "ring" && ` — 指輪${["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
-                      <div style={{ whiteSpace: "pre-wrap" }}>{_isUnidentInv ? "未識別のためわからない。" : (it.desc || "特に情報はない。")}</div>
+                      <div style={ITEM_DESC_TEXT_STYLE}>{_isUnidentInv ? "未識別のためわからない。" : formatItemDesc(it.desc)}</div>
                       {it.ability && (() => {
                         const _ab = [...WEAPON_ABILITIES, ...ARMOR_ABILITIES].find((a) => a.id === it.ability);
                         return _ab ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_ab.name}：{_ab.desc}</div> : null;
