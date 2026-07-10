@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { isPlayerFloating } from "./items.js";
 import {
   PORTRAIT_COOLDOWN_MS,
   pickPortrait,
@@ -74,7 +75,8 @@ export function usePortrait({
 
     const p = gs.player;
     const prev = prevGsRef.current;
-    prevGsRef.current = snapshotPlayer(p);
+    const floating = isPlayerFloating(p, gs?.dungeon);
+    prevGsRef.current = snapshotPlayer(p, { floating });
 
     const msgToText = (m) => m?.text ?? m;
     const recentMsgs = msgsRef.current.slice(-12).map(msgToText);
@@ -84,7 +86,7 @@ export function usePortrait({
       ? msgsRef.current.slice(-newCount).map(msgToText)
       : [];
     prevMsgCountRef.current = msgsRef.current.length;
-    const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs, newMsgs });
+    const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs, newMsgs, floating });
 
     if (!event) return;
 

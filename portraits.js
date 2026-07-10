@@ -121,6 +121,7 @@ export function msgToDamageKey(msg) {
   if (!msg) return "damage";
   if (/氷|凍|氷ブレス|氷の魔法/.test(msg)) return "damage_ice";
   if (/炎|火|炎ブレス|炎の魔法|引火|燃え移|油まみれに炎/.test(msg)) return "damage_fire";
+  if (/毒矢|毒を浴び|毒.*ダメージ/.test(msg)) return "damage_poison";
   if (/矢|弓|跳ね返された.*矢|射撃の指輪/.test(msg)) return "damage_arrow";
   if (/石|魔法の石/.test(msg)) return "damage_rock";
   if (/銃撃|銃弾/.test(msg)) return "damage_gun";
@@ -130,8 +131,8 @@ export function msgToDamageKey(msg) {
   if (/爆発|炸裂|爆弾|時限|地雷|自爆/.test(msg)) return "damage_explosion";
   if (/吹き飛|激突|壁に叩|壁に激突|ノッカー|挟まれ/.test(msg)) return "damage_knockback";
   if (/穴|落下|奈落|底に落|落とし穴/.test(msg)) return "damage_falling";
-  if (/雷|電撃|サンダー|打たれた/.test(msg)) return "damage_heavy";
-  if (/痛恨|強打|の攻撃！|攻撃で|武器の反動/.test(msg)) return "damage_heavy";
+  if (/雷の魔法|雷が.*ダメージ|呪われた雷|電撃|サンダー.*ダメージ/.test(msg)) return "damage_lightning";
+  if (/痛恨|強打|の攻撃！|攻撃で|武器の反動|打たれた/.test(msg)) return "damage_heavy";
   return "damage";
 }
 
@@ -161,7 +162,55 @@ export function findHungerMsg(newMsgs = [], lastMsg = "") {
   return null;
 }
 
-export function snapshotPlayer(p) {
+function findMsgInNew(newMsgs, lastMsg, test) {
+  for (let i = newMsgs.length - 1; i >= 0; i--) {
+    if (newMsgs[i] && test(newMsgs[i])) return newMsgs[i];
+  }
+  if (lastMsg && test(lastMsg)) return lastMsg;
+  return null;
+}
+
+/** 呪い装備・呪いデバフ付与のログか */
+export function isCursedAcquireMsg(msg) {
+  if (!msg) return false;
+  return /呪われている！外せなくなった|呪いの力が自分に|呪われていて外せない/.test(msg);
+}
+
+/** 階段・フロア移動のログか */
+export function isStairsMsg(msg) {
+  if (!msg) return false;
+  return /地下\d+階に(降りた|昇った)|地下\d+階に落ちた/.test(msg);
+}
+
+/** 店・買い物のログか */
+export function isShopMsg(msg) {
+  if (!msg) return false;
+  return /代金を支払った|の代金が請求された|を取った！\(\d+G\)|店主が入り口をふさいだ/.test(msg);
+}
+
+/** 装備変更の種別（武器・防具・指輪） */
+export function detectEquipChange(p, prev) {
+  if (!prev) return null;
+  const weaponId = p.weapon?.id ?? null;
+  if (weaponId && weaponId !== (prev.weaponId ?? null)) return "act_equip_weapon";
+  const armorId = p.armor?.id ?? null;
+  if (armorId && armorId !== (prev.armorId ?? null)) return "act_equip_armor";
+  const prevRingIds = new Set(prev.ringIds || []);
+  for (const r of p.rings || []) {
+    if (r?.id && !prevRingIds.has(r.id)) return "act_equip_ring";
+  }
+  return null;
+}
+
+/** 食事で満腹度が大きく回復したか */
+export function isSatiatedGain(p, prev) {
+  const maxH = p.maxHunger || 100;
+  const prevH = prev.hunger ?? 0;
+  const gain = (p.hunger ?? 0) - prevH;
+  return gain >= Math.max(15, Math.floor(maxH * 0.2)) || (p.hunger ?? 0) >= Math.floor(maxH * 0.9);
+}
+
+export function snapshotPlayer(p, opts = {}) {
   return {
     hp: p.hp,
     maxHp: p.maxHp,
@@ -170,12 +219,29 @@ export function snapshotPlayer(p) {
     x: p.x,
     y: p.y,
     level: p.level,
+    weaponId: p.weapon?.id ?? null,
+    armorId: p.armor?.id ?? null,
+    ringIds: (p.rings || []).map((r) => r.id),
     poisoned: !!p.poisoned,
     sleepTurns: p.sleepTurns || 0,
     confusedTurns: p.confusedTurns || 0,
     darknessTurns: p.darknessTurns || 0,
     oilyTurns: p.oilyTurns || 0,
     paralyzeTurns: p.paralyzeTurns || 0,
+    slowTurns: p.slowTurns || 0,
+    bewitchedTurns: p.bewitchedTurns || 0,
+    immobileTurns: p.immobileTurns || 0,
+    mpCooldownTurns: p.mpCooldownTurns || 0,
+    sealedTurns: p.sealedTurns || 0,
+    floating: !!opts.floating,
+  };
+}
+
+function portraitEvent(key, now, force = false) {
+  return {
+    src: pickPortrait(key),
+    cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+    force,
   };
 }
 
@@ -183,7 +249,7 @@ export function snapshotPlayer(p) {
  * gs 変化時の立ち絵イベントを解決。
  * @returns {{ src: string, cooldownUntil: number, force?: boolean } | null}
  */
-export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = [], now = Date.now() }) {
+export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = [], floating = false, now = Date.now() }) {
   if (!p) return null;
 
   if (p.hp <= 0) {
@@ -224,36 +290,78 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
 
   if (p.hp > prev.hp) {
-    return { src: pickPortrait("hp_healed"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent("hp_healed", now);
+  }
+
+  if (
+    (p.hunger ?? 0) > (prev.hunger ?? 0) &&
+    findMsgInNew(newMsgs, lastMsg, (m) => /を食べた[。（]/.test(m)) &&
+    isSatiatedGain(p, prev)
+  ) {
+    return portraitEvent("hp_satiated", now);
   }
 
   if (p.level > prev.level) {
-    return { src: pickPortrait("levelup"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent("levelup", now);
+  }
+
+  if (findMsgInNew(newMsgs, lastMsg, isStairsMsg)) {
+    return portraitEvent("reaction_stairs", now, true);
+  }
+  if (findMsgInNew(newMsgs, lastMsg, isShopMsg)) {
+    return portraitEvent("reaction_shop", now, true);
+  }
+
+  const equipKey = detectEquipChange(p, prev);
+  if (equipKey) {
+    return portraitEvent(equipKey, now);
+  }
+
+  if (findMsgInNew(newMsgs, lastMsg, isCursedAcquireMsg)) {
+    return portraitEvent("status_cursed", now, true);
+  }
+
+  if (p.paralyzeTurns > 0 && prev.paralyzeTurns <= 0) {
+    return portraitEvent("status_paralyze", now);
+  }
+  if (p.immobileTurns > 0 && prev.immobileTurns <= 0) {
+    return portraitEvent("status_immobile", now);
+  }
+  if (p.slowTurns > 0 && prev.slowTurns <= 0) {
+    return portraitEvent("status_slow", now);
+  }
+  if (
+    (p.mpCooldownTurns > 0 && prev.mpCooldownTurns <= 0) ||
+    (p.sealedTurns > 0 && prev.sealedTurns <= 0)
+  ) {
+    return portraitEvent("status_sealed", now);
+  }
+  if (p.bewitchedTurns > 0 && prev.bewitchedTurns <= 0) {
+    return portraitEvent("status_bewitched", now);
+  }
+  if (floating && !prev.floating) {
+    return portraitEvent("status_floating", now);
   }
 
   if (p.poisoned && !prev.poisoned) {
-    return { src: pickPortrait("status_poison"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent("status_poison", now);
   }
   if (p.sleepTurns > 0 && prev.sleepTurns <= 0) {
-    return { src: pickPortrait("status_sleep"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent("status_sleep", now);
   }
   if (p.confusedTurns > 0 && prev.confusedTurns <= 0) {
-    return { src: pickPortrait("status_confused"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent("status_confused", now);
   }
   if (p.darknessTurns > 0 && prev.darknessTurns <= 0) {
-    return { src: pickPortrait("status_blind"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent("status_blind", now);
   }
   if (p.oilyTurns > 0 && prev.oilyTurns <= 0) {
-    return { src: pickPortrait("status_oiled"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent("status_oiled", now);
   }
 
   const hungerMsg = findHungerMsg(newMsgs, lastMsg);
   if (hungerMsg) {
-    return {
-      src: pickPortrait("hp_hunger"),
-      cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
-      force: true,
-    };
+    return portraitEvent("hp_hunger", now, true);
   }
 
   if (actionKey) {

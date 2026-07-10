@@ -9,6 +9,11 @@ import {
   isHungerMsg,
   findHungerMsg,
   isStarving,
+  isStairsMsg,
+  isShopMsg,
+  isCursedAcquireMsg,
+  detectEquipChange,
+  isSatiatedGain,
   pickDamagePortrait,
   resolvePortraitEvent,
   hpKey,
@@ -110,6 +115,8 @@ describe("portraits", () => {
     expect(msgToDamageKey("わてりの水鉄砲が命中！10ダメージ！")).toBe("damage_watergun");
     expect(msgToDamageKey("ゴブリンの攻撃！5ダメージ！")).toBe("damage_heavy");
     expect(msgToDamageKey("地雷！50ダメージ！")).toBe("damage_explosion");
+    expect(msgToDamageKey("毒矢が命中！8ダメージ！毒を受けた！")).toBe("damage_poison");
+    expect(msgToDamageKey("雷の魔法が跳ね返ってきた！25ダメージ！")).toBe("damage_lightning");
   });
 
   it("pickDamagePortrait がグループからパスを返す", () => {
@@ -209,6 +216,80 @@ describe("portraits", () => {
     expect(isHungerMsg("ゴブリンの攻撃！5ダメージ！")).toBe(false);
     expect(isStarving({ hunger: 0 })).toBe(true);
     expect(findHungerMsg(["スライムを倒した", "空腹でHPが減り始めた！"])).toBe("空腹でHPが減り始めた！");
+  });
+
+  it("detectEquipChange が武器・防具・指輪を区別する", () => {
+    const prev = { weaponId: "w1", armorId: "a1", ringIds: ["r1"] };
+    expect(detectEquipChange({ weapon: { id: "w2" }, armor: { id: "a1" }, rings: [{ id: "r1" }] }, prev))
+      .toBe("act_equip_weapon");
+    expect(detectEquipChange({ weapon: { id: "w1" }, armor: { id: "a2" }, rings: [{ id: "r1" }] }, prev))
+      .toBe("act_equip_armor");
+    expect(detectEquipChange({ weapon: { id: "w1" }, armor: { id: "a1" }, rings: [{ id: "r1" }, { id: "r2" }] }, prev))
+      .toBe("act_equip_ring");
+  });
+
+  it("resolvePortraitEvent が状態異常・階段・店・装備を反映する", () => {
+    const base = {
+      hp: 80, maxHp: 100, hunger: 50, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0, darknessTurns: 0, oilyTurns: 0,
+      paralyzeTurns: 0, slowTurns: 0, bewitchedTurns: 0, immobileTurns: 0,
+      mpCooldownTurns: 0, sealedTurns: 0,
+      weaponId: null, armorId: null, ringIds: [], floating: false,
+    };
+    expect(resolvePortraitEvent({
+      player: { ...base, paralyzeTurns: 10 },
+      prev: base,
+      lastMsg: "金縛りになった！(5ターン)",
+      newMsgs: ["金縛りになった！(5ターン)"],
+    }).src).toMatch(/status_paralyze/);
+
+    expect(resolvePortraitEvent({
+      player: base,
+      prev: base,
+      lastMsg: "地下3階に降りた。",
+      newMsgs: ["地下3階に降りた。"],
+    }).src).toMatch(/reaction_stairs/);
+
+    expect(resolvePortraitEvent({
+      player: base,
+      prev: base,
+      lastMsg: "代金を支払った。ありがとうございます！",
+      newMsgs: ["代金を支払った。ありがとうございます！"],
+    }).src).toMatch(/reaction_shop/);
+
+    expect(resolvePortraitEvent({
+      player: { ...base, weapon: { id: "w9", name: "短剣" }, weaponId: "w9" },
+      prev: base,
+      lastMsg: "短剣を装備した。",
+      newMsgs: ["短剣を装備した。"],
+    }).src).toMatch(/action_equip_weapon/);
+  });
+
+  it("resolvePortraitEvent が満腹回復と呪い装備を反映する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, hunger: 20, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0, darknessTurns: 0, oilyTurns: 0,
+      paralyzeTurns: 0, slowTurns: 0, bewitchedTurns: 0, immobileTurns: 0,
+      mpCooldownTurns: 0, sealedTurns: 0, weaponId: null, armorId: null, ringIds: [], floating: false,
+    };
+    const player = { ...prev, hunger: 95 };
+    expect(resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "おにぎりを食べた。(満腹度+40)",
+      newMsgs: ["おにぎりを食べた。(満腹度+40)"],
+    }).src).toMatch(/hp_satiated/);
+    expect(isSatiatedGain(player, prev)).toBe(true);
+
+    expect(resolvePortraitEvent({
+      player: prev,
+      prev,
+      lastMsg: "呪われた鎧を装備した。【呪】呪われている！外せなくなった！",
+      newMsgs: ["呪われた鎧を装備した。【呪】呪われている！外せなくなった！"],
+    }).src).toMatch(/status_cursed/);
+    expect(isCursedAcquireMsg("【呪】呪われている！外せなくなった！")).toBe(true);
+    expect(isStairsMsg("地下5階に落ちた！")).toBe(true);
+    expect(isShopMsg("代金を支払った。ありがとうございます！")).toBe(true);
   });
 
   it("resolvePortraitEvent は古い被ダメログだけでは立ち絵を変えない", () => {

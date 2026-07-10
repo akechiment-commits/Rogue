@@ -23,6 +23,8 @@ export const PORTRAIT_CATEGORIES = [
       { file: "damage_gun", label: "銃撃", group: "damage_gun" },
       { file: "damage_heavy", label: "強打・重い一撃", group: "damage_heavy" },
       { file: "damage_knockback", label: "吹き飛ばし", group: "damage_knockback" },
+      { file: "damage_poison", label: "毒", group: "damage_poison" },
+      { file: "damage_lightning", label: "雷・電撃", group: "damage_lightning" },
       { file: "hp_hurt", label: "汎用・軽傷", group: "damage" },
     ],
   },
@@ -55,6 +57,9 @@ export const PORTRAIT_CATEGORIES = [
       { file: "action_use_pot", label: "壺を使う", group: "act_pot" },
       { file: "action_open_chest", label: "宝箱・大箱", group: "act_chest" },
       { file: "action_point", label: "指差し", group: "act_point" },
+      { file: "action_equip_weapon", label: "武器を装備", group: "act_equip_weapon" },
+      { file: "action_equip_armor", label: "防具を装備", group: "act_equip_armor" },
+      { file: "action_equip_ring", label: "指輪を装備", group: "act_equip_ring" },
     ],
   },
   {
@@ -71,6 +76,7 @@ export const PORTRAIT_CATEGORIES = [
       { file: "hp_critical", label: "危険域", group: "hp_low" },
       { file: "hp_healed", label: "回復した", group: "hp_healed" },
       { file: "hp_hunger", label: "空腹・飢餓", group: "hp_hunger" },
+      { file: "hp_satiated", label: "満腹・満たされた", group: "hp_satiated" },
     ],
   },
   {
@@ -88,6 +94,12 @@ export const PORTRAIT_CATEGORIES = [
       { file: "status_oiled", label: "油まみれ", group: "status_oiled" },
       { file: "status_submerged", label: "水没", group: "status_submerged" },
       { file: "status_relaxed", label: "リラックス", group: "status_relaxed" },
+      { file: "status_paralyze", label: "金縛り", group: "status_paralyze" },
+      { file: "status_slow", label: "鈍足", group: "status_slow" },
+      { file: "status_sealed", label: "封印・MP封印", group: "status_sealed" },
+      { file: "status_bewitched", label: "幻惑", group: "status_bewitched" },
+      { file: "status_immobile", label: "移動不能・影ぬい", group: "status_immobile" },
+      { file: "status_floating", label: "浮遊", group: "status_floating" },
     ],
   },
   {
@@ -104,6 +116,8 @@ export const PORTRAIT_CATEGORIES = [
       { file: "reaction_confused", label: "困惑・混乱", group: "status_confused" },
       { file: "reaction_sad", label: "悲しみ", group: "reaction_sad" },
       { file: "reaction_fall_ground", label: "転倒", group: "reaction_fall" },
+      { file: "reaction_stairs", label: "階段・フロア移動", group: "reaction_stairs" },
+      { file: "reaction_shop", label: "店・買い物", group: "reaction_shop" },
     ],
   },
   {
