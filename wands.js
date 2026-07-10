@@ -1846,15 +1846,25 @@ function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, la
 
 /** 残回数ありの杖が破壊されたとき、指定座標を中心に壊し効果を発動 */
 export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {}) {
-  const { skipSealCheck = false } = opts;
+  const { skipSealCheck = false, singleTargetKind = null, singleTarget = null, effectDx = 0, effectDy = 0 } = opts;
   if (!wand || wand.type !== "wand") return { triggered: false };
-  if ((wand.charges ?? 0) <= 0) return { triggered: false };
+  const blMult = wand.blessed ? 1.5 : wand.cursed ? 0.5 : 1;
+  if ((wand.charges ?? 0) <= 0) {
+    if (!singleTargetKind || !singleTarget) return { triggered: false };
+    if (!skipSealCheck && inMagicSealRoom(cx, cy, dg)) {
+      ml.push("魔法が封印されている！効果は発動しなかった。");
+      return { triggered: false };
+    }
+    const _edx = effectDx || 1;
+    const _edy = effectDy || 0;
+    applyWandEffect(wand.effect, singleTargetKind, singleTarget, _edx, _edy, dg, p, ml, luFn, null, blMult);
+    return { triggered: true, zeroChargeSingle: true };
+  }
   if (!skipSealCheck && inMagicSealRoom(cx, cy, dg)) {
     ml.push("魔法が封印されている！効果は発動しなかった。");
     return { triggered: false };
   }
   const times = Math.max(1, Math.ceil((wand.charges ?? 0) / 2));
-  const blMult = wand.blessed ? 1.5 : wand.cursed ? 0.5 : 1;
   const center = { x: cx, y: cy };
   for (let t = 0; t < times; t++) breakWandAoE(p, dg, wand.effect, ml, luFn, blMult, center);
   return { triggered: true };

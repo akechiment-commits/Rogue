@@ -3345,7 +3345,9 @@ export function useItemActions({
                   }
                   if (it.type === "wand") {
                     const _rfSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
-                    triggerWandBreakEffect(_rfSnap, p.x, p.y, dg, p, ml, lu);
+                    triggerWandBreakEffect(_rfSnap, p.x, p.y, dg, p, ml, lu, {
+                      singleTargetKind: "player", singleTarget: p, effectDx: -_rfdx || 1, effectDy: -_rfdy || 0,
+                    });
                   }
                   /* プレイヤーに当たったアイテムは消滅（床には残らない） */
                 } else if (_rfx !== tx || _rfy !== ty) {
@@ -3376,7 +3378,9 @@ export function useItemActions({
                 if (!_wandFiredEffect) {
                   ml.push(`${lb}が${m.name}に命中！`);
                   const _twSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
-                  triggerWandBreakEffect(_twSnap, tx, ty, dg, p, ml, lu);
+                  triggerWandBreakEffect(_twSnap, tx, ty, dg, p, ml, lu, {
+                    singleTargetKind: "monster", singleTarget: m, effectDx: dx, effectDy: dy,
+                  });
                   _wandFiredEffect = true;
                   if (p._pendingWarpUp) {
                     delete p._pendingWarpUp;
@@ -3431,7 +3435,13 @@ export function useItemActions({
             const lb = _mkThrowLb();
             if (it.type === "wand" && !_wandFiredEffect) {
               const _fcSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
-              triggerWandBreakEffect(_fcSnap, lx, ly, dg, p, ml, lu);
+              const _fcMon = monsterAt(dg, lx, ly);
+              const _fcOpts = _fcMon
+                ? { singleTargetKind: "monster", singleTarget: _fcMon, effectDx: dx, effectDy: dy }
+                : (lx === p.x && ly === p.y)
+                  ? { singleTargetKind: "player", singleTarget: p, effectDx: -dx || 1, effectDy: -dy || 0 }
+                  : {};
+              triggerWandBreakEffect(_fcSnap, lx, ly, dg, p, ml, lu, _fcOpts);
               _wandFiredEffect = true;
             }
             ml.push(`${lb}を投げた。${lb}は消滅した。`);

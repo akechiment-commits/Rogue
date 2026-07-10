@@ -44,7 +44,7 @@ describe("applyWandEffect", () => {
 describe("triggerWandBreakEffect", () => {
   const noop = () => {};
 
-  it("残回数0では発動しない", () => {
+  it("残回数0で命中対象なしでは発動しない", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 5, y: 5 });
     const ml = [];
@@ -52,6 +52,23 @@ describe("triggerWandBreakEffect", () => {
     const res = triggerWandBreakEffect(wand, 5, 5, dg, p, ml, noop);
     expect(res.triggered).toBe(false);
     expect(ml.length).toBe(0);
+  });
+
+  it("残回数0で命中対象ありなら本人に1回だけ効果", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 3, y: 3 });
+    const mon = { name: "スライム", hp: 20, maxHp: 20, x: 6, y: 5, atk: 3 };
+    const bystander = { name: "ゴブリン", hp: 20, maxHp: 20, x: 5, y: 5, atk: 3 };
+    dg.monsters.push(mon, bystander);
+    const ml = [];
+    const wand = { type: "wand", effect: "sleep", charges: 0 };
+    const res = triggerWandBreakEffect(wand, 6, 5, dg, p, ml, noop, {
+      singleTargetKind: "monster", singleTarget: mon, effectDx: 1, effectDy: 0,
+    });
+    expect(res.triggered).toBe(true);
+    expect(res.zeroChargeSingle).toBe(true);
+    expect(mon.sleepTurns).toBe(6);
+    expect(bystander.sleepTurns).toBeUndefined();
   });
 
   it("指定座標を中心に周囲へ効果が出る", () => {

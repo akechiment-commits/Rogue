@@ -3232,7 +3232,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   } else if (_isWand) {
     if (res.hitMonster || res.hitPlayer) {
       const _twSnap = { type: "wand", effect: item.effect, charges: item.charges ?? 0, blessed: !!item.blessed, cursed: !!item.cursed, name: item.name };
-      triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn);
+      const _twDx = Math.sign(res.x - shooter.x) || 1;
+      const _twDy = Math.sign(res.y - shooter.y) || 0;
+      const _twOpts = res.hitMonster
+        ? { singleTargetKind: "monster", singleTarget: res.hitMonster, effectDx: _twDx, effectDy: _twDy }
+        : { singleTargetKind: "player", singleTarget: p, effectDx: -_twDx, effectDy: -_twDy };
+      triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, _twOpts);
     } else {
       if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
       const ft = new Set();
