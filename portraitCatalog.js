@@ -60,7 +60,7 @@ export const PORTRAIT_CATEGORIES = [
   {
     id: "hp",
     label: "HP・体調",
-    desc: "HP帯・瀕死・回復",
+    desc: "HP帯・瀕死・回復・空腹",
     group: null,
     slots: [
       { file: "hp_full", label: "満タン", group: "hp_full" },
@@ -70,6 +70,7 @@ export const PORTRAIT_CATEGORIES = [
       { file: "hp_low_kneel", label: "瀕死・膝", group: "hp_low" },
       { file: "hp_critical", label: "危険域", group: "hp_low" },
       { file: "hp_healed", label: "回復した", group: "hp_healed" },
+      { file: "hp_hunger", label: "空腹・飢餓", group: "hp_hunger" },
     ],
   },
   {

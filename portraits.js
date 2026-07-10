@@ -141,10 +141,32 @@ export function pickDamagePortrait(msg, sets = PORTRAIT_SETS) {
   return pickPortrait("damage", sets);
 }
 
+/** 満腹度0（飢餓状態）か */
+export function isStarving(p) {
+  return (p?.hunger ?? 1) === 0;
+}
+
+/** 空腹・飢餓に関するログか */
+export function isHungerMsg(msg) {
+  if (!msg) return false;
+  return /空腹でHPが減|急に空腹を感じた|満腹度が\d+%下がった/.test(msg);
+}
+
+/** 今回のログから空腹メッセージを探す */
+export function findHungerMsg(newMsgs = [], lastMsg = "") {
+  for (let i = newMsgs.length - 1; i >= 0; i--) {
+    if (newMsgs[i] && isHungerMsg(newMsgs[i])) return newMsgs[i];
+  }
+  if (lastMsg && isHungerMsg(lastMsg)) return lastMsg;
+  return null;
+}
+
 export function snapshotPlayer(p) {
   return {
     hp: p.hp,
     maxHp: p.maxHp,
+    hunger: p.hunger,
+    maxHunger: p.maxHunger,
     x: p.x,
     y: p.y,
     level: p.level,
@@ -192,6 +214,13 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
         force: true,
       };
     }
+    if (isStarving(p) && (isStarving(prev) || findHungerMsg(newMsgs, lastMsg))) {
+      return {
+        src: pickPortrait("hp_hunger"),
+        cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+        force: true,
+      };
+    }
   }
 
   if (p.hp > prev.hp) {
@@ -216,6 +245,15 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
   if (p.oilyTurns > 0 && prev.oilyTurns <= 0) {
     return { src: pickPortrait("status_oiled"), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+  }
+
+  const hungerMsg = findHungerMsg(newMsgs, lastMsg);
+  if (hungerMsg) {
+    return {
+      src: pickPortrait("hp_hunger"),
+      cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+      force: true,
+    };
   }
 
   if (actionKey) {

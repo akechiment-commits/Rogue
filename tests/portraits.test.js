@@ -6,6 +6,9 @@ import {
   isPlayerDamageMsg,
   isMonsterDamageMsg,
   findPlayerDamageMsg,
+  isHungerMsg,
+  findHungerMsg,
+  isStarving,
   pickDamagePortrait,
   resolvePortraitEvent,
   hpKey,
@@ -167,9 +170,9 @@ describe("portraits", () => {
     expect(event.src).toMatch(/damage_watergun/);
   });
 
-  it("resolvePortraitEvent は空腹など被ダメ以外のHP減少で立ち絵を変えない", () => {
+  it("resolvePortraitEvent は飢餓中のHP減少で hp_hunger を出す", () => {
     const player = {
-      hp: 79, maxHp: 100, x: 5, y: 5, level: 3,
+      hp: 79, maxHp: 100, hunger: 0, maxHunger: 100, x: 5, y: 5, level: 3,
       poisoned: false, sleepTurns: 0, confusedTurns: 0,
       darknessTurns: 0, oilyTurns: 0,
     };
@@ -177,16 +180,40 @@ describe("portraits", () => {
     const event = resolvePortraitEvent({
       player,
       prev,
-      lastMsg: "空腹でHPが減っている...",
-      newMsgs: ["空腹でHPが減っている..."],
+      lastMsg: "",
+      newMsgs: [],
     });
-    expect(event.src).toBeUndefined();
-    expect(event.isLow).toBe(false);
+    expect(event.force).toBe(true);
+    expect(event.src).toMatch(/hp_hunger/);
+  });
+
+  it("resolvePortraitEvent は空腹罠で hp_hunger を出す", () => {
+    const player = {
+      hp: 80, maxHp: 100, hunger: 70, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = { ...player, hunger: 80 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "急に空腹を感じた！満腹度が10%下がった。",
+      newMsgs: ["急に空腹を感じた！満腹度が10%下がった。"],
+    });
+    expect(event.src).toMatch(/hp_hunger/);
+  });
+
+  it("isHungerMsg が空腹ログを判定する", () => {
+    expect(isHungerMsg("空腹でHPが減り始めた！")).toBe(true);
+    expect(isHungerMsg("急に空腹を感じた！満腹度が10%下がった。")).toBe(true);
+    expect(isHungerMsg("ゴブリンの攻撃！5ダメージ！")).toBe(false);
+    expect(isStarving({ hunger: 0 })).toBe(true);
+    expect(findHungerMsg(["スライムを倒した", "空腹でHPが減り始めた！"])).toBe("空腹でHPが減り始めた！");
   });
 
   it("resolvePortraitEvent は古い被ダメログだけでは立ち絵を変えない", () => {
     const player = {
-      hp: 79, maxHp: 100, x: 5, y: 5, level: 3,
+      hp: 79, maxHp: 100, hunger: 50, maxHunger: 100, x: 5, y: 5, level: 3,
       poisoned: false, sleepTurns: 0, confusedTurns: 0,
       darknessTurns: 0, oilyTurns: 0,
     };
@@ -194,9 +221,9 @@ describe("portraits", () => {
     const event = resolvePortraitEvent({
       player,
       prev,
-      lastMsg: "空腹でHPが減っている...",
-      recentMsgs: ["ゴブリンの攻撃！10ダメージ！", "空腹でHPが減っている..."],
-      newMsgs: ["空腹でHPが減っている..."],
+      lastMsg: "ターンが経過した。",
+      recentMsgs: ["ゴブリンの攻撃！10ダメージ！", "ターンが経過した。"],
+      newMsgs: ["ターンが経過した。"],
     });
     expect(event.src).toBeUndefined();
   });
