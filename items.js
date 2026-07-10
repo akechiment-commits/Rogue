@@ -899,14 +899,15 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   if (p && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
     const _fireCtx = ringExplosion || mineExplosion;
     const _hasFireProt = _fireCtx && hasFireResist(p);
-    const rawDmg = ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
+    const _oilyMult = oilyDamageMult(dg, p);
+    const rawDmg = (ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
                  : proportional  ? Math.max(1, Math.floor(p.hp / 2))
-                 : rng(10, 20);
+                 : rng(10, 20)) * _oilyMult;
     const dmg = _fireCtx ? reduceFireDamage(rawDmg, p) : rawDmg;
     const _fireLbl = _fireCtx ? fireResistDamageLabel(p) : "";
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
-    ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}`);
+    ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${oilyDamageLabel(dg, p)}`);
     /* 指輪爆発：炎によるアイテム損傷（耐火なし時） */
     if (ringExplosion && !_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
   }
@@ -952,9 +953,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (consumeBarrier(m, ml)) continue;
           if (m.isBoss) {
-            const _bd = Math.max(1, Math.floor(m.hp / 4));
+            const _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
             m.hp -= _bd;
-            ml.push(`爆発で${m.name}は${_bd}ダメージ！`);
+            ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
             if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion); }
             continue;
           }
@@ -962,9 +963,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion);
         } else {
           if (consumeBarrier(m, ml)) continue;
-          let md = proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15);
+          let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
           m.hp -= md;
-          ml.push(`爆風で${m.name}に${md}ダメージ！`);
+          ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}`);
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
         }
       }
@@ -1096,11 +1097,11 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         /* プレイヤー：現HPの3/4ダメージ＋炎アイテム損傷 */
         if (p && p.x === ax && p.y === ay) {
           const _hasFireProt = hasFireResist(p);
-          const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
+          const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4)) * oilyDamageMult(dg, p);
           const dmg = reduceFireDamage(rawDmg, p);
           p.deathCause = `${srcLabel}の爆発により`;
           p.hp -= dmg;
-          ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}`);
+          ml.push(`${srcLabel}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
           if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
         /* モンスター：即死（火ダルマは分裂、ボスは現在HPの4分の1ダメージ） */
@@ -1121,9 +1122,9 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               continue;
             }
             if (m.isBoss) {
-              const _bd = Math.max(1, Math.floor(m.hp / 4));
+              const _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
               m.hp -= _bd;
-              ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！`);
+              ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
               continue;
             }
@@ -1232,11 +1233,17 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
       /* プレイヤー：HPが1になる＋炎アイテム損傷（耐火時は半減ダメージのみ） */
       if (p && p.x === ax && p.y === ay) {
         const _hasFireProt = hasFireResist(p);
+        const _oilyMult = oilyDamageMult(dg, p);
         p.deathCause = "時限爆弾の罠の大爆発により";
         if (_hasFireProt) {
-          const dmg = reduceFireDamage(Math.max(1, p.hp - 1), p);
+          const dmg = reduceFireDamage(Math.max(1, p.hp - 1) * _oilyMult, p);
           p.hp -= dmg;
-          ml.push(`大爆発！${dmg}ダメージ！${fireResistDamageLabel(p)}`);
+          ml.push(`大爆発！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
+        } else if (_oilyMult > 1) {
+          const rawDmg = Math.max(1, (p.hp - 1) * _oilyMult);
+          p.hp -= rawDmg;
+          ml.push(`大爆発！${rawDmg}ダメージ！${oilyDamageLabel(dg, p)}`);
+          if (p.hp > 0) applyLightningToInventory(p, dg, ml, luFn, nameFn, true);
         } else {
           p.hp = 1;
           ml.push(`大爆発！HPが1になった！`);
@@ -1262,9 +1269,9 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
           continue;
         }
         if (m.isBoss) {
-          const _bd = Math.max(1, Math.floor(m.hp / 4));
+          const _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
           m.hp -= _bd;
-          ml.push(`爆発で${m.name}は${_bd}ダメージ！`);
+          ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn); }
           continue;
         }
@@ -2955,9 +2962,9 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 break;
               }
             } else if (m.isBoss) {
-              const _bd = Math.max(1, Math.floor(m.hp / 4));
+              const _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
               m.hp -= _bd;
-              ml.push(`爆発で${m.name}は${_bd}ダメージ！`);
+              ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
             } else {
               ml.push(`爆発で${m.name}は即死した！`);
@@ -2969,11 +2976,11 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         /* プレイヤーへのダメージ（現HP3/4）＋インベントリ損傷 */
         if (p && p.x === ax && p.y === ay) {
           const _hasFireProt = hasFireResist(p);
-          const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4));
+          const rawDmg = Math.max(1, Math.floor(p.hp * 3 / 4)) * oilyDamageMult(dg, p);
           const dmg = reduceFireDamage(rawDmg, p);
           p.deathCause = `${exPc.name}の爆発により`;
           p.hp -= dmg;
-          ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}`);
+          ml.push(`${exPc.name}の爆発を受けた！${dmg}ダメージ！${fireResistDamageLabel(p)}${oilyDamageLabel(dg, p)}`);
           if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
         /* アイテム破壊（巻物・薬・壺） */
@@ -3606,6 +3613,18 @@ export function hasFireResist(p) {
 /** 防具の雷耐性（万能耐性も対象）— 所持品破損防止用 */
 export function hasLightningResist(p) {
   return hasAbility(p?.armor, "lightning_resist") || hasAbility(p?.armor, "all_resist");
+}
+
+/** 油まみれ状態（ターン残り or 油タイル上） */
+export function isOily(dg, char) {
+  if (!char) return false;
+  return (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
+}
+export function oilyDamageMult(dg, char) {
+  return isOily(dg, char) ? 2 : 1;
+}
+export function oilyDamageLabel(dg, char) {
+  return oilyDamageMult(dg, char) > 1 ? "(油まみれ×2)" : "";
 }
 
 /** 防具の耐氷（万能耐性も対象）— 移動封じ・鈍足防止用 */
