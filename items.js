@@ -848,7 +848,7 @@ export const ARMOR_ABILITIES = [
 
 /* ===== TRAPS ===== */
 export const TRAPS = [
-  { name:"地雷",           effect:"explode",       tile:25, desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。\n爆発後25%で壊れる（投げ・重力など全経路共通）。" },
+  { name:"地雷",           effect:"explode",       tile:25, desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。隣の地雷は誘爆する。\n爆発後25%で壊れる（踏む・投げ・誘爆すべて共通）。" },
   { name:"矢の罠",         effect:"arrow_trap",    tile:26, desc:"踏むと壁から矢が飛んでくる。\nダメージは小さいが序盤は注意。矢が落ちる。\n踏む以外で壊れると矢が数本散らばる。" },
   { name:"落とし穴",       effect:"pitfall",       tile:27, desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
   { name:"錆の罠",         effect:"rust",          tile:28, desc:"踏むと装備中の武器or防具の＋値が-1される。\n金属製装備が対象。" },
@@ -891,6 +891,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   if (mineExplosion) {
     if (_mineExplosionDepth > 4) return;
+    if (_mineExplosionDepth === 0) dg._mineDetonatedIds = new Set();
     _mineExplosionDepth++;
   }
   pushExplosionAnim(cx, cy);
@@ -1031,13 +1032,11 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     const _chainMines = (dg.traps || []).filter(t =>
       t.effect === "explode" &&
       (t.x !== cx || t.y !== cy) &&
+      !(dg._mineDetonatedIds?.has(t.id)) &&
       Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= 1
     );
-    if (_chainMines.length > 0) {
-      dg.traps = dg.traps.filter(t => !_chainMines.includes(t));
-      for (const _cm of _chainMines) {
-        doExplosion(_cm.x, _cm.y, dg, p, ml, nameFn, _cm.name, null, luFn, true, false, true);
-      }
+    for (const _cm of _chainMines) {
+      runMineExplosion(dg, mineExplosionPending(_cm, nameFn), p, ml, luFn, { chainMsg: `${_cm.name}が誘爆した！` });
     }
     /* 範囲内の時限爆弾トラップを即爆発 */
     const _chainTimeBombs = (dg.traps || []).filter(t =>
@@ -1065,6 +1064,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
     }
     _mineExplosionDepth--;
+    if (_mineExplosionDepth === 0) delete dg._mineDetonatedIds;
   }
 }
 
@@ -1301,13 +1301,12 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 範囲内の地雷を連鎖爆発 */
   const _chainMines = (dg.traps || []).filter(t =>
-    t.effect === "explode" && Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= R
+    t.effect === "explode" &&
+    !(dg._mineDetonatedIds?.has(t.id)) &&
+    Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= R
   );
-  if (_chainMines.length > 0) {
-    dg.traps = dg.traps.filter(t => !_chainMines.includes(t));
-    for (const _cm of _chainMines) {
-      doExplosion(_cm.x, _cm.y, dg, p, ml, nameFn, _cm.name, null, luFn, true, false, true);
-    }
+  for (const _cm of _chainMines) {
+    runMineExplosion(dg, mineExplosionPending(_cm, nameFn), p, ml, luFn, { chainMsg: `${_cm.name}が誘爆した！` });
   }
   /* 範囲内の火薬壺を連鎖爆発 */
   const _chainPots = dg.items.filter(it =>
@@ -1386,10 +1385,20 @@ export function findMineTrapForPending(dg, pme) {
   ) || null;
 }
 
-/** 地雷の遅延爆発：爆発後に破壊判定（全経路共通） */
-export function runMineExplosion(dg, pme, p, ml, luFn) {
-  doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true);
+/** 地雷の爆発：爆発後に破壊判定（踏む・投げ・誘爆すべて共通） */
+export function runMineExplosion(dg, pme, p, ml, luFn, opts = {}) {
+  const { chainMsg = null } = opts;
   const trap = findMineTrapForPending(dg, pme);
+  if (trap?.id != null && dg._mineDetonatedIds?.has(trap.id)) return;
+  if (trap) {
+    trap.revealed = true;
+    if (trap.id != null) {
+      if (!dg._mineDetonatedIds) dg._mineDetonatedIds = new Set();
+      dg._mineDetonatedIds.add(trap.id);
+    }
+  }
+  if (chainMsg) ml.push(chainMsg);
+  doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true);
   if (trap) maybeBreakTrapAfterStep(trap, dg, ml, { p });
 }
 

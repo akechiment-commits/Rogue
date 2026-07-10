@@ -108,6 +108,24 @@ describe("fireTrapPlayer", () => {
     }
   });
 
+  it("誘爆した地雷も爆発後25%未満なら残る", () => {
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100 });
+    const center = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t0" };
+    const chained = { effect: "explode", name: "地雷", x: 6, y: 5, id: "t1" };
+    const dg = makeEmptyDg({ traps: [center, chained] });
+    const ml = [];
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      runMineExplosion(dg, mineExplosionPending(center), p, ml, () => {});
+      expect(dg.traps.some(t => t.id === "t1")).toBe(true);
+      expect(ml.some(m => m.includes("誘爆"))).toBe(true);
+      expect(ml.some(m => m.includes("壊れた"))).toBe(false);
+    } finally {
+      Math.random = origRandom;
+    }
+  });
+
   it("投げ命中の地雷も爆発後に破壊判定する", () => {
     const p = makePlayer({ x: 1, y: 1, hp: 100, maxHp: 100 });
     const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };
