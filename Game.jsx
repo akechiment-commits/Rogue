@@ -1509,9 +1509,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         ml.push(`壁に挟まれて苦しい！${_wdmg}ダメージ！`);
         if (p.hp <= 0) { p.deathCause = "壁に埋まり"; }
       }
-      /* 水上で浮遊解除：最寄りの陸上に弾き出される */
+      /* 水上で浮遊解除：周囲8マスの陸上に弾き出される。逃げ場がなければ溺死 */
       if (st.dungeon.map[p.y][p.x] === T.WATER && !isPlayerFloating(p, st.dungeon)) {
         const _wDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+        let _waterEjected = false;
         for (const [_wdx, _wdy] of _wDirs) {
           const _wx = p.x + _wdx, _wy = p.y + _wdy;
           if (_wx >= 0 && _wx < MW && _wy >= 0 && _wy < MH &&
@@ -1520,8 +1521,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               !st.dungeon.monsters.some(m => m.x === _wx && m.y === _wy)) {
             p.x = _wx; p.y = _wy;
             ml.push("浮遊が解けて水から弾き出された！");
+            _waterEjected = true;
             break;
           }
+        }
+        if (!_waterEjected) {
+          p.deathCause = "水没により";
+          p.hp = 0;
+          ml.push("周囲に逃げ場がなく溺れた！");
         }
       }
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死（魔封じで無効） */
