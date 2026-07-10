@@ -512,7 +512,7 @@ export const POTS = [
   { name:"醤油の壺",           type:"pot", potEffect:"soy",      capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れると醤油味になる。食べると経験値1.3倍(100ターン)。", tile:32 },
   { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
   { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
-  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると自分が閉じ込められ残り容量×10ターン動けなくなる（敵に見つからない・ターン自動消費）。水上で入ると壺ごと水没して溺死。出ると壺は割れて消える。敵に投げると閉じ込められる（ボス不可・水上は水没）。割れると中の敵が出る。", tile:32 },
+  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると自分が閉じ込められ残り容量×10ターン動けなくなる（敵に見つからない・ターン自動消費）。水上で入ると壺ごと水没して溺死（浮遊中でも）。出ると壺は割れて消える。敵に投げると閉じ込められる（ボス不可・水上は水没）。割れると中の敵が出る。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -734,7 +734,7 @@ export function confinePlayerInImprisonPot(pot, p, dg, ml, nameFn = null) {
     return false;
   }
   const _pn = nameFn ? nameFn(pot) : pot.name;
-  if (_playerOnWaterTile(p, dg) && !isPlayerFloating(p, dg)) {
+  if (_playerOnWaterTile(p, dg)) {
     const _potIdx = p.inventory?.indexOf(pot) ?? -1;
     if (_potIdx !== -1) p.inventory.splice(_potIdx, 1);
     ml.push(`${_pn}が水没した！`);

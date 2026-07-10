@@ -341,6 +341,17 @@ describe("imprison pot", () => {
     expect(ml.some(m => m.includes("水没した"))).toBe(true);
   });
 
+  it("浮遊中でも水上で入ると壺が水没して溺死する", () => {
+    const pot = { id: "pot1b", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(1)), springs: [] };
+    dg.map[3][5] = T.WATER;
+    const p = { x: 5, y: 3, hp: 100, inventory: [pot], rings: [{ effect: "float_ring" }] };
+    const ml = [];
+    expect(confinePlayerInImprisonPot(pot, p, dg, ml)).toBe("drown");
+    expect(p.hp).toBe(0);
+    expect(p.deathCause).toBe("水没により");
+  });
+
   it("敵なしの壺でも出たとき割れて消える", () => {
     const pot = { id: "pot2", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
     const p = { x: 2, y: 2, inventory: [pot] };
