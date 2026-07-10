@@ -1995,7 +1995,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
   }
   if (eff === "ice_wand") {
     let frozenCount = 0;
-    for (const [adx, ady] of _BW_DIRS) {
+    for (const [adx, ady] of [[0, 0], ..._BW_DIRS]) {
       const wx = cx + adx, wy = cy + ady;
       if (wx < 0 || wx >= MW || wy < 0 || wy >= MH) continue;
       if (dg.map[wy][wx] !== T.WATER) continue;
@@ -2010,10 +2010,15 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
           ml.push(`凍った水から${wi.item.name}が現れた！`);
         }
       }
+      if (dg.springs) {
+        const _frozenSpring = dg.springs.find(s => s.x === wx && s.y === wy);
+        if (_frozenSpring) {
+          dg.springs = dg.springs.filter(s => s !== _frozenSpring);
+          ml.push("泉が凍りついて干上がった！");
+        }
+      }
     }
     if (frozenCount > 0) ml.push(`周囲${frozenCount}マスの水が凍りついた！`);
-    else ml.push("杖が壊れたが周囲に水はなかった。");
-    return;
   }
   if (eff === "warp") {
     const _wCenter = _centerWandTarget(dg, cx, cy, p);

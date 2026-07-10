@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyWandEffect, triggerWandBreakEffect } from "../wands.js";
+import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("applyWandEffect", () => {
@@ -93,6 +94,22 @@ describe("triggerWandBreakEffect", () => {
     triggerWandBreakEffect(wand, 6, 5, dg, p, ml, noop);
     expect(p.slowTurns).toBe(10);
     expect(mon.speed).toBeLessThan(1);
+  });
+
+  it("氷の杖を壊すと水を凍らせつつ周囲の敵に氷ダメージ", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 3, y: 3 });
+    dg.map[5][7] = T.WATER;
+    const mon = { name: "スライム", hp: 50, maxHp: 50, x: 6, y: 5, atk: 3 };
+    dg.monsters.push(mon);
+    const ml = [];
+    const wand = { type: "wand", effect: "ice_wand", charges: 2 };
+    triggerWandBreakEffect(wand, 6, 5, dg, p, ml, noop);
+    expect(dg.map[5][7]).toBe(T.FLOOR);
+    expect(mon.hp).toBeLessThan(50);
+    expect(mon.immobileTurns).toBe(5);
+    expect(ml.some(m => m.includes("凍"))).toBe(true);
+    expect(ml.some(m => m.includes("氷"))).toBe(true);
   });
 
   it("残回数に応じてceil(残/2)回発動する", () => {
