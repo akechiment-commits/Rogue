@@ -7,6 +7,7 @@ import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./re
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
+import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -351,9 +352,16 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
       }}
     >
       <img
-        src="/tiles/Character/gameover_dead.png"
+        src={pickDeathPortrait(p.deathCause)}
         alt="dead"
-        style={{ height: mobile ? 180 : 260, objectFit: "contain", marginBottom: 8, filter: "drop-shadow(0 0 16px #f00a)" }}
+        style={{
+          height: mobile ? 180 : 260,
+          objectFit: "contain",
+          marginBottom: 8,
+          filter: isDrownDeath(p.deathCause)
+            ? "drop-shadow(0 0 16px #08fa)"
+            : "drop-shadow(0 0 16px #f00a)",
+        }}
       />
       <div
         style={{

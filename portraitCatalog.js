@@ -141,6 +141,7 @@ export const PORTRAIT_CATEGORIES = [
     group: null,
     slots: [
       { file: "gameover_dead", label: "死亡・ゲームオーバー" },
+      { file: "gameover_drown", label: "溺死・ゲームオーバー", group: "death_drown" },
     ],
   },
 ];

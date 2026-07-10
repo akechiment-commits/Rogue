@@ -15,6 +15,8 @@ import {
   detectEquipChange,
   isSatiatedGain,
   pickDamagePortrait,
+  pickDeathPortrait,
+  isDrownDeath,
   resolvePortraitEvent,
   hpKey,
   PORTRAIT_SETS,
@@ -290,6 +292,23 @@ describe("portraits", () => {
     expect(isCursedAcquireMsg("【呪】呪われている！外せなくなった！")).toBe(true);
     expect(isStairsMsg("地下5階に落ちた！")).toBe(true);
     expect(isShopMsg("代金を支払った。ありがとうございます！")).toBe(true);
+  });
+
+  it("pickDeathPortrait が溺死死因で gameover_drown を返す", () => {
+    expect(isDrownDeath("水没により")).toBe(true);
+    expect(pickDeathPortrait("水没により")).toMatch(/gameover_drown/);
+    expect(pickDeathPortrait("ゴブリンの攻撃により")).toMatch(/gameover_dead/);
+  });
+
+  it("resolvePortraitEvent が溺死時に gameover_drown を返す", () => {
+    const event = resolvePortraitEvent({
+      player: { hp: 0, maxHp: 100, deathCause: "水没により", x: 5, y: 5 },
+      prev: { hp: 10, maxHp: 100, x: 5, y: 5 },
+      lastMsg: "周囲に逃げ場がなく溺れた！",
+      newMsgs: ["周囲に逃げ場がなく溺れた！"],
+    });
+    expect(event.src).toMatch(/gameover_drown/);
+    expect(event.force).toBe(true);
   });
 
   it("resolvePortraitEvent は古い被ダメログだけでは立ち絵を変えない", () => {

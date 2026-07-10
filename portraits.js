@@ -126,7 +126,7 @@ export function msgToDamageKey(msg) {
   if (/石|魔法の石/.test(msg)) return "damage_rock";
   if (/銃撃|銃弾/.test(msg)) return "damage_gun";
   if (/水鉄砲/.test(msg)) return "damage_watergun";
-  if (/水の|水没/.test(msg)) return "damage_wet";
+  if (/水の|水没|溺/.test(msg)) return "damage_wet";
   if (/罠|トラップ|岩が降/.test(msg)) return "damage_trap";
   if (/爆発|炸裂|爆弾|時限|地雷|自爆/.test(msg)) return "damage_explosion";
   if (/吹き飛|激突|壁に叩|壁に激突|ノッカー|挟まれ/.test(msg)) return "damage_knockback";
@@ -245,6 +245,21 @@ function portraitEvent(key, now, force = false) {
   };
 }
 
+/** 溺死によるゲームオーバーか */
+export function isDrownDeath(deathCause) {
+  if (!deathCause) return false;
+  return /水没|溺/.test(deathCause);
+}
+
+/** 死因に応じたゲームオーバー立ち絵 */
+export function pickDeathPortrait(deathCause, sets = PORTRAIT_SETS) {
+  if (isDrownDeath(deathCause)) {
+    if (sets.death_drown?.length) return pickPortrait("death_drown", sets);
+    return CHAR_PATH("gameover_drown");
+  }
+  return CHAR_PATH("gameover_dead");
+}
+
 /**
  * gs 変化時の立ち絵イベントを解決。
  * @returns {{ src: string, cooldownUntil: number, force?: boolean } | null}
@@ -253,7 +268,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   if (!p) return null;
 
   if (p.hp <= 0) {
-    return { src: CHAR_PATH("gameover_dead"), cooldownUntil: now + 99999, force: true };
+    return { src: pickDeathPortrait(p.deathCause), cooldownUntil: now + 99999, force: true };
   }
   if (!prev) {
     return { src: pickPortrait(hpKey(p)), cooldownUntil: now, force: true };

@@ -29,6 +29,7 @@ describe("portraitCatalog", () => {
     expect(sets.damage_watergun).toEqual(["damage_watergun"]);
     expect(sets.damage_gun).toEqual(["damage_gun"]);
     expect(sets.hp_low.length).toBeGreaterThanOrEqual(2);
+    expect(sets.death_drown).toEqual(["gameover_drown"]);
   });
 
   it("全カテゴリにスロットがある", () => {
