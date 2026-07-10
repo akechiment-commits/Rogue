@@ -848,7 +848,7 @@ export const ARMOR_ABILITIES = [
 
 /* ===== TRAPS ===== */
 export const TRAPS = [
-  { name:"地雷",           effect:"explode",       tile:25, desc:"踏むと周囲8マスが大爆発。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。\n発動後25%で壊れる（他の罠と同様）。" },
+  { name:"地雷",           effect:"explode",       tile:25, desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。\n爆発後25%で壊れる（投げ・重力など全経路共通）。" },
   { name:"矢の罠",         effect:"arrow_trap",    tile:26, desc:"踏むと壁から矢が飛んでくる。\nダメージは小さいが序盤は注意。矢が落ちる。\n踏む以外で壊れると矢が数本散らばる。" },
   { name:"落とし穴",       effect:"pitfall",       tile:27, desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
   { name:"錆の罠",         effect:"rust",          tile:28, desc:"踏むと装備中の武器or防具の＋値が-1される。\n金属製装備が対象。" },
@@ -1358,6 +1358,41 @@ export function removeTrap(dg, trap, ml, opts = {}) {
   if (!fromStep && !skipLoot) dropTrapBreakLoot(dg, trap, ml, ft, p);
 }
 
+/** 踏んだ後に罠が壊れる確率（盗み・召喚は50%、それ以外25%） */
+export function trapStepBreakChance(trap) {
+  return (trap?.effect === "steal_trap" || trap?.effect === "summon_trap") ? 0.5 : 0.25;
+}
+
+/** 罠発動後のランダム破壊（fromStep=true で戦利品ドロップなし） */
+export function maybeBreakTrapAfterStep(trap, dg, ml, opts = {}) {
+  if (!trap || trap.permanent) return false;
+  if (!(dg.traps || []).some(t => t === trap || (trap.id != null && t.id === trap.id))) return false;
+  if (Math.random() < trapStepBreakChance(trap)) {
+    removeTrap(dg, trap, ml, { fromStep: true, message: `${trap.name}は壊れた。`, ...opts });
+    return true;
+  }
+  return false;
+}
+
+export function mineExplosionPending(trap, nameFn = null) {
+  return { x: trap.x, y: trap.y, trapId: trap.id, name: trap.name || "地雷", nameFn };
+}
+
+export function findMineTrapForPending(dg, pme) {
+  if (!pme) return null;
+  return (dg.traps || []).find(t =>
+    (pme.trapId != null && t.id === pme.trapId) ||
+    (t.effect === "explode" && t.x === pme.x && t.y === pme.y)
+  ) || null;
+}
+
+/** 地雷の遅延爆発：爆発後に破壊判定（全経路共通） */
+export function runMineExplosion(dg, pme, p, ml, luFn) {
+  doExplosion(pme.x, pme.y, dg, p, ml, pme.nameFn, pme.name, null, luFn, true, false, true);
+  const trap = findMineTrapForPending(dg, pme);
+  if (trap) maybeBreakTrapAfterStep(trap, dg, ml, { p });
+}
+
 /** 複数罠を一括除去（呪いの罠の巻物など） */
 export function removeTraps(dg, traps, ml, opts = {}) {
   const gone = traps.filter(t => (dg.traps || []).includes(t));
@@ -1409,6 +1444,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "explode": {
       ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は爆発で消し飛んだ！`);
       doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true);
+      maybeBreakTrapAfterStep(trap, dg, ml, { p });
       return "restart";
     }
     case "pitfall": {
@@ -2641,8 +2677,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       ft.add(trap.id);
       trap.revealed = true;
       const r = fireTrapItem(trap, item, dg, cx, cy, ml, ft, p);
-      const _itBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
-      if (!trap.permanent && Math.random() < _itBreakChance) {
+      if (trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
         removeTrap(dg, trap, ml, { message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") return false;
@@ -3205,8 +3240,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       trap.revealed = true;
       const ft = new Set(); ft.add(trap.id);
       const r = fireTrapItem(trap, item, dg, lx, ly, mlx, ft, p);
-      const _entBreakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
-      if (!trap.permanent && Math.random() < _entBreakChance) {
+      if (trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
         removeTrap(dg, trap, mlx, { message: `${trap.name}は壊れた。`, ft, p });
       }
       if (r === "destroyed") { res.consumed = true; return "destroyed"; }

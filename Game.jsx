@@ -23,7 +23,7 @@ import {
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
-  itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps,
+  itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps, runMineExplosion,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -908,8 +908,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (_tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
           if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); }
-        } else if (_tr === "deferred_explosion") {
-          sr.current._pendingMineExplosion = { x: p.x, y: p.y, name: trap.name, nameFn: null };
         }
         return _tr;
       },
@@ -1768,12 +1766,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _erfNFn = (gi) => gi.name;
         doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
       }
-      /* 遅延地雷爆発（act()から受け渡し） */
+      /* 遅延地雷爆発（fireTrapPlayer が dg._pendingMineExplosion に登録） */
+      if (!st._pendingMineExplosion && st.dungeon._pendingMineExplosion) {
+        st._pendingMineExplosion = st.dungeon._pendingMineExplosion;
+      }
+      delete st.dungeon._pendingMineExplosion;
       if (st._pendingMineExplosion && p.hp > 0) {
         const _pme = st._pendingMineExplosion;
         delete st._pendingMineExplosion;
         ml.push(`${_pme.name}が発動！`);
-        doExplosion(_pme.x, _pme.y, st.dungeon, p, ml, _pme.nameFn, _pme.name, null, lu, true, false, true);
+        runMineExplosion(st.dungeon, _pme, p, ml, lu);
       }
       /* 時限爆弾カウントダウン */
       if (st.dungeon.pendingBombs?.length > 0 && p.hp > 0) {
@@ -3069,13 +3071,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 ml.push(`地下${p.depth}階に落ちた！`);
               }
             } else if (tr === "deferred_explosion") {
-              /* 地雷：モンスター移動後に爆発させる（endTurnで処理） */
-              const _mineTrap = dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "explode");
-              st._pendingMineExplosion = {
-                x: p.x, y: p.y,
-                name: _mineTrap?.name || "地雷",
-                nameFn: (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
-              };
+              /* 地雷：モンスター移動後に爆発（dg._pendingMineExplosion → endTurn） */
             }
             }
             /* ポータルの魔方陣：移動でその上に乗ると即発動 */
@@ -3266,12 +3262,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (_tr2 === "pitfall") {
                   const nd2 = chgFloor(p, 1, true);
                   if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
-                } else if (_tr2 === "deferred_explosion") {
-                  st._pendingMineExplosion = {
-                    x: p.x, y: p.y,
-                    name: _trapHere.name || "地雷",
-                    nameFn: _tnFn,
-                  };
                 }
               }
               acted = true;
@@ -3538,12 +3528,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           break;
         }
         if (tr === "deferred_explosion") {
-          const _mineTrapD = dg.traps.find(t => t.x === p.x && t.y === p.y && t.effect === "explode");
-          st._pendingMineExplosion = {
-            x: p.x, y: p.y,
-            name: _mineTrapD?.name || "地雷",
-            nameFn: (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
-          };
           endTurn(st, p, ml);
           break;
         }
@@ -3557,15 +3541,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             /* 重力の魔方陣の影響下：既知の罠も作動させる */
             const _nameFn2 = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
             const _gtr = fireTrapPlayer(_dashRevTrap, p, dg, ml, _nameFn2, lu);
-            const _gravTrBreakChance = (_dashRevTrap.effect === "steal_trap" || _dashRevTrap.effect === "summon_trap") ? 0.5 : 0.25;
-            if (!_dashRevTrap.permanent && Math.random() < _gravTrBreakChance) {
-              removeTrap(dg, _dashRevTrap, ml, { fromStep: true, message: `${_dashRevTrap.name}は壊れた。`, p });
+            if (_dashRevTrap.effect !== "explode" && !_dashRevTrap.permanent) {
+              const _gravTrBreakChance = (_dashRevTrap.effect === "steal_trap" || _dashRevTrap.effect === "summon_trap") ? 0.5 : 0.25;
+              if (Math.random() < _gravTrBreakChance) {
+                removeTrap(dg, _dashRevTrap, ml, { fromStep: true, message: `${_dashRevTrap.name}は壊れた。`, p });
+              }
             }
             if (_gtr === "pitfall") {
               const nd = chgFloor(p, 1, true);
               if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に落ちた！`); }
-            } else if (_gtr === "deferred_explosion") {
-              st._pendingMineExplosion = { x: p.x, y: p.y, name: _dashRevTrap.name, nameFn: _nameFn2 };
             }
           }
           endTurn(st, p, ml);
@@ -4967,7 +4951,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const _tnFn = (it) => itemDisplayName(it, s.fakeNames, s.ident, s.nicknames);
     const _tr2 = fireTrapPlayer(trap, _p, _dg, ml, _tnFn, lu);
     if (_tr2 === "pitfall") { const nd2 = chgFloor(_p, 1, true); if (nd2) { s.dungeon = nd2; ml.push(`地下${_p.depth}階に落ちた！`); } }
-    else if (_tr2 === "deferred_explosion") { s._pendingMineExplosion = { x: _p.x, y: _p.y, name: trap.name || "地雷", nameFn: _tnFn }; }
+
     endTurn(s, _p, ml);
     setMsgs(prev => [...prev.slice(-80), ...ml]);
     sr.current = { ...sr.current }; setGs({ ...sr.current });

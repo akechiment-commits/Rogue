@@ -404,12 +404,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _trapRes = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "trap", target, p, luFn);
         if (_trapRes.hitPlayer) {
           ml.push(`飛んできた${target.name}がプレイヤーに命中！`);
-          fireTrapPlayer(target, p, dg, ml, nameFn);
-          removeTrap(dg, target, ml, { fromStep: true, p });
+          const _trapPlR = fireTrapPlayer(target, p, dg, ml, nameFn, luFn);
+          if (_trapPlR !== "deferred_explosion") {
+            removeTrap(dg, target, ml, { fromStep: true, p });
+          }
         } else if (_trapRes.hitMonster) {
           ml.push(`飛んできた${target.name}が${_trapRes.hitMonster.name}に命中！`);
-          fireTrapItem(target, target, dg, _trapRes.x, _trapRes.y, ml, new Set(), p, nameFn);
-          removeTrap(dg, target, ml, { fromStep: true, p });
+          fireTrapItem(target, target, dg, _trapRes.x, _trapRes.y, ml, new Set(), p, nameFn, luFn);
+          if (target.effect !== "explode") {
+            removeTrap(dg, target, ml, { fromStep: true, p });
+          }
         }
         break;
       }

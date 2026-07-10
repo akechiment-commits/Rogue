@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, removeTrap } from "../items.js";
+import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("fireTrapPlayer mp_absorb_trap", () => {
@@ -58,24 +58,7 @@ describe("fireTrapPlayer", () => {
     expect(ml.some(m => m.includes("錆び"))).toBe(true);
   });
 
-  it("地雷は発動後も25%未満なら残る", () => {
-    const p = makePlayer({ x: 5, y: 5 });
-    const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };
-    const dg = makeEmptyDg({ traps: [trap] });
-    const ml = [];
-    const origRandom = Math.random;
-    Math.random = () => 0.99;
-    try {
-      const result = fireTrapPlayer(trap, p, dg, ml);
-      expect(result).toBe("deferred_explosion");
-      expect(dg.traps).toHaveLength(1);
-      expect(dg.traps[0]).toBe(trap);
-    } finally {
-      Math.random = origRandom;
-    }
-  });
-
-  it("地雷は発動後25%以上で壊れる", () => {
+  it("地雷を踏んでも爆発前は壊れず pending に登録される", () => {
     const p = makePlayer({ x: 5, y: 5 });
     const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };
     const dg = makeEmptyDg({ traps: [trap] });
@@ -83,7 +66,57 @@ describe("fireTrapPlayer", () => {
     const origRandom = Math.random;
     Math.random = () => 0.1;
     try {
-      fireTrapPlayer(trap, p, dg, ml);
+      const result = fireTrapPlayer(trap, p, dg, ml);
+      expect(result).toBe("deferred_explosion");
+      expect(dg.traps).toHaveLength(1);
+      expect(dg._pendingMineExplosion?.trapId).toBe("t1");
+      expect(ml.some(m => m.includes("壊れた"))).toBe(false);
+    } finally {
+      Math.random = origRandom;
+    }
+  });
+
+  it("地雷の爆発後25%未満なら残る", () => {
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100 });
+    const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    const origRandom = Math.random;
+    Math.random = () => 0.99;
+    try {
+      runMineExplosion(dg, mineExplosionPending(trap), p, ml, () => {});
+      expect(dg.traps).toHaveLength(1);
+      expect(ml.some(m => m.includes("壊れた"))).toBe(false);
+    } finally {
+      Math.random = origRandom;
+    }
+  });
+
+  it("地雷の爆発後25%以上で壊れる", () => {
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100 });
+    const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    const origRandom = Math.random;
+    Math.random = () => 0.1;
+    try {
+      runMineExplosion(dg, mineExplosionPending(trap), p, ml, () => {});
+      expect(dg.traps).toHaveLength(0);
+      expect(ml.some(m => m.includes("壊れた"))).toBe(true);
+    } finally {
+      Math.random = origRandom;
+    }
+  });
+
+  it("投げ命中の地雷も爆発後に破壊判定する", () => {
+    const p = makePlayer({ x: 1, y: 1, hp: 100, maxHp: 100 });
+    const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    const origRandom = Math.random;
+    Math.random = () => 0.1;
+    try {
+      fireTrapItem(trap, { name: "石", type: "misc" }, dg, 5, 5, ml, new Set(), p);
       expect(dg.traps).toHaveLength(0);
       expect(ml.some(m => m.includes("壊れた"))).toBe(true);
     } finally {

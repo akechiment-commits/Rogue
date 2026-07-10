@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
@@ -9,7 +9,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
 
   switch (trap.effect) {
     case "explode": {
-      /* 地雷は敵ターン後に爆発。発動後の破壊は他罠と同様25%（連鎖の二重爆発は doExplosion 側で防止） */
+      /* 地雷は敵ターン後に爆発。破壊判定は爆発後（runMineExplosion） */
+      noBreak = true;
+      dg._pendingMineExplosion = mineExplosionPending(trap, nameFn);
       r = "deferred_explosion";
       break;
     }

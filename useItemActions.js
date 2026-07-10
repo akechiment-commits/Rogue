@@ -5,7 +5,7 @@ import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWandEffect, applyWaterSplash, breakWandAoE, triggerWandBreakEffect, burnFoodItem,
-  castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, fireWandBolt,
+  castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, fireWandBolt, trapStepBreakChance,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
@@ -1074,7 +1074,7 @@ export function useItemActions({
                   _gft.add(_gt.id);
                   _gt.revealed = true;
                   const _gr = fireTrapItem(_gt, gi, dg, _cx, _cy, ml, _gft, p, dnameRef, lu);
-                  if (!_gt.permanent && Math.random() < 0.3) removeTrap(dg, _gt, ml, { message: `${_gt.name}は壊れた。`, ft: _gft, p });
+                  if (_gt.effect !== "explode" && !_gt.permanent && Math.random() < trapStepBreakChance(_gt)) removeTrap(dg, _gt, ml, { message: `${_gt.name}は壊れた。`, ft: _gft, p });
                   if (_gr === "destroyed") { _placed = true; break; }
                   if (_gr === "restart") { placeItemAt(dg, _cx, _cy, gi, ml, _gft, 0, p); _placed = true; break; }
                   continue;
