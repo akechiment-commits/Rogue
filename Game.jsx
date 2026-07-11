@@ -38,9 +38,10 @@ import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
-import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
+import { rollWishChance, grantWish } from "./wish.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -75,6 +76,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const springMode    = modal.type === 'spring'      ? modal.data : null;
   const springMenuSel = modal.springMenuSel;
   const springPage    = modal.springPage;
+  const wishMode      = modal.type === 'wish'        ? modal.data : null;
+  const wishModeRef = useRef(null);
+  wishModeRef.current = wishMode;
   const bigboxMode    = modal.type === 'bigbox'       ? modal.data : null;
   const bigboxMenuSel = modal.bigboxMenuSel;
   const bigboxPage    = modal.bigboxPage;
@@ -118,6 +122,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const setSpringMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'spring', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setSpringMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { springMenuSel: typeof v === 'function' ? v(modal.springMenuSel) : v } });
   const setSpringPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { springPage: typeof v === 'function' ? v(modal.springPage) : v } });
+  const setWishMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'wish', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setBigboxMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'bigbox', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setBigboxMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxMenuSel: typeof v === 'function' ? v(modal.bigboxMenuSel) : v } });
   const setBigboxPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxPage: typeof v === 'function' ? v(modal.bigboxPage) : v } });
@@ -2499,7 +2504,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (showSettingsRef.current || showTileEditorRef.current) return;
       if (exitHubConfirmRef.current) return;
       if (lookMode) return;
-      if (springMode) return;
+      if (springMode || wishMode) return;
       if (putMode) return;
       if (markerMode) return;
       if (spellListMode) return;
@@ -3501,7 +3506,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     async (dx, dy) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
-      if (springMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || tpSelectModeRef.current || identifyModeRef.current) return;
+      if (springMode || wishMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
       if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
@@ -4546,9 +4551,73 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     },
     [trySynthesize, breakBigbox],
   );
+  /** 願い成功時：泉を必ず干上がらせる */
+  const drySpringAlways = useCallback((dg, p, ml) => {
+    const sprTarget = springTargetRef.current;
+    springTargetRef.current = null;
+    const spr = sprTarget || dg.springs?.find((s) => s.x === p.x && s.y === p.y);
+    if (!spr) return;
+    dg.springs = dg.springs.filter((s) => s !== spr);
+    if (spr.contents?.length > 0) {
+      ml.push("泉が干上がり、中のアイテムが現れた！");
+      const ft = new Set();
+      for (const item of spr.contents) placeItemAt(dg, spr.x, spr.y, item, ml, ft);
+    }
+    ml.push("泉は干上がってしまった...");
+  }, []);
+
+  const confirmWish = useCallback((wish) => {
+    if (!sr.current) return;
+    const { player: p, dungeon: dg } = sr.current;
+    const ml = ["願いが叶った！"];
+    const res = grantWish(wish, {
+      player: p,
+      dungeon: dg,
+      ml,
+      ident: sr.current.ident,
+    });
+    if (!res.ok) {
+      setMsgs((prev) => [...prev.slice(-80), res.message || "願いが叶わなかった…"]);
+      return;
+    }
+    drySpringAlways(dg, p, ml);
+    endTurn(sr.current, p, ml);
+    setMsgs((prev) => [...prev.slice(-80), ...ml]);
+    setWishMode(null);
+    setSpringMode(null);
+    sr.current = { ...sr.current };
+    setGs({ ...sr.current });
+  }, [endTurn, drySpringAlways]);
+
+  const cancelWish = useCallback(() => {
+    const mode = wishModeRef.current;
+    setWishMode(null);
+    if (!sr.current) return;
+    if (mode?.endTurnOnCancel) {
+      const { player: p, dungeon: dg } = sr.current;
+      const ml = ["願いをやめた。"];
+      endTurn(sr.current, p, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+    } else {
+      setMsgs((prev) => [...prev.slice(-80), "願いをやめた。"]);
+    }
+  }, [endTurn]);
+
   const springDrink = useCallback(() => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
+    /* 超低確率で願い */
+    if (rollWishChance("drink")) {
+      const ml = ["泉の底から声が聞こえる…", "「何を願う？」"];
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      setSpringMode(null);
+      setWishMode({ source: "spring", endTurnOnCancel: false });
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+      return;
+    }
     const ml = ["泉の水を飲んだ。"];
     const r = Math.random();
     if (r < 0.15) {
@@ -4779,6 +4848,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (it.cursed) { it.cursed = false; _soakNote = " 呪いが解けた！"; }
         ml.push(`${dnameRef(it)}を泉に浸した。${_soakNote || "何も起こらなかった。"}`);
       }
+      /* 超低確率で願い（浸したあと） */
+      if (rollWishChance("soak")) {
+        ml.push("泉が静かに光り、願いを叶えてくれそうだ…");
+        ml.push("「何を願う？」");
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        setSpringMode(null);
+        setWishMode({ source: "spring", endTurnOnCancel: true });
+        sr.current = { ...sr.current };
+        setGs({ ...sr.current });
+        return;
+      }
       const _dried = springTryDry(dg, p, ml);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -4934,7 +5014,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
     // state values
     gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
-    facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
+    facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
     markerMode, markerMenuSel, markerPage, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
@@ -6154,6 +6234,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} identifyConfirmRef={identifyConfirmRef} identifyCancelRef={identifyCancelRef} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
+      <WishModal mode={wishMode} setMode={setWishMode} onConfirm={confirmWish} onCancel={cancelWish} mobile={mobile} />{" "}
       <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
       <GameOverModal dead={dead} p={p} gameOverSel={gameOverSel} setShowScores={setShowScores} init={init} mobile={mobile} onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined} />
       <EndingModal show={showEnding} p={p} endingResult={endingResult} mobile={mobile} onDismiss={() => { setShowEnding(false); if (onReturnToHub && endingResult) onReturnToHub(endingResult); }} />

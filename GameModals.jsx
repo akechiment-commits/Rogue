@@ -8,6 +8,8 @@ import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
+import { WISH_PRESETS, resolveWishText } from "./wish.js";
+import { isKeyUp, isKeyDown } from "./inputKeys.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -1469,6 +1471,204 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
             </div>
           );
         })()}
+    </div>
+  );
+}
+
+/* ===== Wish Modal（文字入力 ＋ 選択肢） ===== */
+export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
+  const [text, setText] = useState("");
+  const [sel, setSel] = useState(0);
+  const [candidates, setCandidates] = useState(null); // null | template[]
+  const [statusMsg, setStatusMsg] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (mode) {
+      setText("");
+      setSel(0);
+      setCandidates(null);
+      setStatusMsg("");
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [mode]);
+
+  if (!mode) return null;
+
+  const presetRows = WISH_PRESETS;
+  const list = candidates
+    ? candidates.map((t) => ({ kind: "item", label: t.name, template: t, desc: t.desc || "" }))
+    : presetRows.map((w) => ({ kind: "preset", id: w.id, label: w.label, desc: w.desc, group: w.group }));
+
+  const confirmText = () => {
+    const r = resolveWishText(text);
+    if (r.status === "none" || r.status === "forbidden") {
+      setStatusMsg(r.message || "叶わない…");
+      return;
+    }
+    if (r.status === "multi") {
+      setCandidates(r.matches);
+      setSel(0);
+      setStatusMsg("どれを願う？ 候補を選んでください。");
+      return;
+    }
+    // exact / single
+    const tmpl = r.matches[0];
+    onConfirm?.({ kind: "item", template: tmpl, blessed: !!tmpl._wishBlessed });
+  };
+
+  const confirmSel = () => {
+    const row = list[sel];
+    if (!row) return;
+    if (row.kind === "preset") onConfirm?.({ kind: "preset", id: row.id });
+    else onConfirm?.({ kind: "item", template: row.template, blessed: !!row.template._wishBlessed });
+  };
+
+  useEffect(() => {
+    if (!mode) return;
+    const onKey = (e) => {
+      if (e.target === inputRef.current) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.stopPropagation();
+          confirmText();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          onCancel?.();
+        }
+        return;
+      }
+      if (isKeyUp(e)) {
+        e.preventDefault();
+        setSel((s) => (s - 1 + list.length) % Math.max(1, list.length));
+      } else if (isKeyDown(e)) {
+        e.preventDefault();
+        setSel((s) => (s + 1) % Math.max(1, list.length));
+      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
+        e.preventDefault();
+        confirmSel();
+      } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
+        e.preventDefault();
+        if (candidates) {
+          setCandidates(null);
+          setStatusMsg("");
+        } else onCancel?.();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  });
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: mobile ? 8 : 40,
+        left: mobile ? 4 : 24,
+        right: mobile ? 4 : 24,
+        background: "#120a1e",
+        border: "2px solid #a6f",
+        padding: mobile ? 10 : 16,
+        zIndex: 20,
+        borderRadius: 10,
+        boxShadow: "0 6px 28px rgba(80,0,120,0.75)",
+        maxHeight: mobile ? "70dvh" : "75%",
+        overflowY: "auto",
+      }}
+    >
+      <div style={{ color: "#daf", fontWeight: "bold", fontSize: 15, marginBottom: 8 }}>
+        ✦ 何を願う？
+      </div>
+      <div style={{ color: "#9ad", fontSize: 12, marginBottom: 8 }}>
+        下に願いを書くか、一覧から選んでください。
+      </div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        <input
+          ref={inputRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="例: 回復薬 / 祝福の力の指輪"
+          style={{
+            flex: 1,
+            background: "#1a1030",
+            border: "1px solid #75a",
+            color: "#eef",
+            borderRadius: 5,
+            padding: "8px 10px",
+            fontSize: 14,
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+        />
+        <button
+          type="button"
+          onClick={confirmText}
+          style={{
+            background: "#53a",
+            color: "#fff",
+            border: "1px solid #a6f",
+            borderRadius: 5,
+            padding: "6px 12px",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          願う
+        </button>
+      </div>
+      {statusMsg && (
+        <div style={{ color: "#fa8", fontSize: 12, marginBottom: 8 }}>{statusMsg}</div>
+      )}
+      <div style={{ color: "#8af", fontSize: 12, marginBottom: 4 }}>
+        {candidates ? "候補" : "選択肢"}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {list.map((row, i) => (
+          <button
+            key={row.id || row.label + i}
+            type="button"
+            onClick={() => {
+              setSel(i);
+              if (row.kind === "preset") onConfirm?.({ kind: "preset", id: row.id });
+              else onConfirm?.({ kind: "item", template: row.template, blessed: !!row.template._wishBlessed });
+            }}
+            style={{
+              textAlign: "left",
+              padding: "7px 10px",
+              background: sel === i ? "#3a2a5a" : "#1a1230",
+              color: sel === i ? "#fdf" : "#cbe",
+              border: sel === i ? "1px solid #c8f" : "1px solid #435",
+              borderRadius: 5,
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            {row.group ? `[${row.group}] ` : ""}{row.label}
+            {row.desc && (
+              <span style={{ color: "#889", marginLeft: 8, fontSize: 11 }}>— {row.desc}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, gap: 8 }}>
+        <div style={{ color: "#667", fontSize: 11 }}>
+          Enter:文字で願う　↑↓:選択　Z:決定　X:閉じる
+        </div>
+        <button
+          type="button"
+          onClick={() => onCancel?.()}
+          style={{
+            background: "#333",
+            color: "#ccc",
+            border: "1px solid #666",
+            borderRadius: 4,
+            padding: "4px 12px",
+            cursor: "pointer",
+          }}
+        >
+          やめる
+        </button>
+      </div>
     </div>
   );
 }

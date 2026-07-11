@@ -19,7 +19,7 @@ export function useKeyHandler({
   sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
   // state values
   gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
-  facingMode, springMode, springMenuSel, springPage, putMode, putMenuSel, putPage,
+  facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
   markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
@@ -1490,6 +1490,10 @@ export function useKeyHandler({
         }
         return;
       }
+      if (wishMode) {
+        /* WishModal が capture で処理。ここではゲーム操作を止めるだけ */
+        return;
+      }
       if (springMode) {
         e.preventDefault();
         const isUp = k === "arrowup" || e.code === "Numpad8";
@@ -1738,6 +1742,7 @@ export function useKeyHandler({
       springMode,
       springMenuSel,
       springPage,
+      wishMode,
       springDrink,
       springDoSoak,
       putMode,
