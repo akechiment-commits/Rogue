@@ -36,6 +36,13 @@ const GUIDE_DESC_OVERRIDES = {
     '浮遊の指輪とは違い水底に沈んだアイテムを直接拾える。罠は普通に発動し階段も降りられる。\n' +
     '水中を歩くと10ターンずぶ濡れ（炎・爆発ダメージ半減、雷ダメージ2倍）。\n' +
     '壁抜け状態でなくても壁の中にいてダメージを受けない。',
+  'とじこめの壺':
+    'アイテムは入れられない（敵のみ閉じ込め可能）。\n' +
+    '自分が入ると残り容量×10ターン動けない。敵に見つからずターンが自動消費される。\n' +
+    '水中タイル（泉含む）で入ると壺が水没して溺死（浮遊中でも。水中呼吸の指輪で回避）。\n' +
+    'ターン終了で出ると壺は割れて消え、閉じ込めていた敵は周囲に放出される（水上は水歩きできない敵が水没）。\n' +
+    '敵に投げて命中すると閉じ込められる（ボス・店主・炎魔・合成魔は不可）。\n' +
+    '壺が割れると中の敵が放出される。投擲が跳ね返ると自分が閉じ込められることもある。',
 };
 
 function guideDesc(item) {
@@ -286,7 +293,7 @@ addSheet('05_指輪', ringData);
 // ===== 壺（Pot）=====
 const potData = [['壺名', 'potEffect', '容量', 'rarity', 'sellPrice', '説明']];
 for (const p of POTS) {
-  potData.push([p.name, p.potEffect, p.capacity, p.rarity, p.sellPrice, p.desc]);
+  potData.push([p.name, p.potEffect, p.capacity, p.rarity, p.sellPrice, guideDesc(p)]);
 }
 
 addSheet('06_壺', potData);
