@@ -29,6 +29,19 @@ function addSheet(name, data) {
   XLSX.utils.book_append_sheet(wb, ws, name);
 }
 
+/** ゲーム内 desc は簡易、ガイド用はここで詳細版を上書き（items.js の desc は触らない） */
+const GUIDE_DESC_OVERRIDES = {
+  '水中呼吸の指輪':
+    '装備中、水タイルに歩いて入れる。溺死しない（とじこめの壺の水没・浮遊解除後の没水を含む）。\n' +
+    '浮遊の指輪とは違い水底に沈んだアイテムを直接拾える。罠は普通に発動し階段も降りられる。\n' +
+    '水中を歩くと10ターンずぶ濡れ（炎・爆発ダメージ半減、雷ダメージ2倍）。\n' +
+    '壁抜け状態でなくても壁の中にいてダメージを受けない。',
+};
+
+function guideDesc(item) {
+  return GUIDE_DESC_OVERRIDES[item.name] ?? item.desc ?? '';
+}
+
 // アイテム名 → rarity のマップを生成
 const _rarityMap = new Map();
 const _priceMap = new Map();
@@ -265,7 +278,7 @@ addSheet('04_武器防具', weaponArmorData);
 // ===== 指輪（Ring）=====
 const ringData = [['指輪名', 'effect', 'rarity', 'sellPrice', '説明']];
 for (const r of RINGS) {
-  ringData.push([r.name, r.effect, r.rarity, r.sellPrice, r.desc]);
+  ringData.push([r.name, r.effect, r.rarity, r.sellPrice, guideDesc(r)]);
 }
 
 addSheet('05_指輪', ringData);
