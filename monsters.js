@@ -125,7 +125,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     const _iBlock = dg.monsters.find(o => o.x === _ix && o.y === _iy);
     if (_iBlock) {
       let _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_iBlock.def || 0))) + rng(-2, 2));
-      const _iIsWeak = _iBlock.baseKind === "firedemon" || _iBlock.elemWeak === "ice";
+      const _iIsWeak = _iBlock.elemWeak === "ice";
       if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
       _iBlock.hp -= _iDmg;
       const _iSlow = rng(3, 5);
@@ -672,7 +672,7 @@ export const MONS = [
       { name: "覇トロル",           hp: 169, atk: 53, def: 17, exp: 188 },
     ],
   },
-  { name: "火ダルマ",     hp: 74,  atk: 36, def: 6,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",     monLevel: 1, minFloor: 25, maxFloor: 50, float: true, dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
+  { name: "火ダルマ",     hp: 74,  atk: 36, def: 6,  exp: 110, speed: 1,   tile: 61, kind: "beast",    baseKind: "firedemon",     monLevel: 1, minFloor: 25, maxFloor: 50, float: true, elemWeak: "ice", dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "獄炎ダルマ",         hp: 119, atk: 50, def: 10, exp: 176 },
       { name: "煉獄ダルマ",         hp: 189, atk: 67, def: 14, exp: 275 },

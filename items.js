@@ -230,7 +230,7 @@ export const ITEMS = [
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
   { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"B", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
   { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"B", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれ・炎弱点の敵に1.5倍ダメージ。", tile:20 },
-  { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"B", weight:4,  sellPrice:1500, desc:"氷属性の剣。炎系や氷弱点の敵に1.5倍ダメージ。",     tile:20 },
+  { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"B", weight:4,  sellPrice:1500, desc:"氷属性の剣。氷弱点の敵に1.5倍ダメージ。",     tile:20 },
   { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"B", weight:4,  sellPrice:1500, desc:"雷属性の剣。雷弱点の敵に1.5倍ダメージ。",             tile:20 },
   { name:"グラットンソード", type:"weapon", atk:7,  ability:"def_bonus",     rarity:"B", weight:4,  sellPrice:1800, desc:"装備中は防御力が5上がる重厚な剣。",                                   tile:20 },
   { name:"革の鎧",           type:"armor",  def:2,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
@@ -294,7 +294,7 @@ export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:
 export const GOLDEN_AXE_T  = { name:"ゴールデンアクス", type:"weapon", atk:10, ability:"no_degrade", sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。", tile:20 };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], sellPrice:9000, desc:"炎・氷・雷の三元素を宿した剣。\n属性弱点の敵に1.5倍ダメージ。", tile:20 };
 export const FLAMBERGE_T    = { name:"フランベルジュ", type:"weapon", atk:13, ability:"fire_elem_2",    sellPrice:9000, desc:"上位炎属性の剣。炎弱点・油まみれの敵に2倍ダメージ。", tile:20 };
-export const ICESWORD_T     = { name:"アイスソード",   type:"weapon", atk:13, ability:"ice_elem_2",     sellPrice:9000, desc:"上位氷属性の剣。炎系や氷弱点の敵に2倍ダメージ。", tile:20 };
+export const ICESWORD_T     = { name:"アイスソード",   type:"weapon", atk:13, ability:"ice_elem_2",     sellPrice:9000, desc:"上位氷属性の剣。氷弱点の敵に2倍ダメージ。", tile:20 };
 export const CHIDORI_T      = { name:"千鳥",           type:"weapon", atk:13, ability:"thunder_elem_2", sellPrice:9000, desc:"上位雷属性の剣。雷弱点の敵に2倍ダメージ。", tile:20 };
 export const ULTIMA_SWORD_T = { name:"アルテマソード", type:"weapon", atk:20, ability:"fire_elem_2", abilities:["fire_elem_2","ice_elem_2","thunder_elem_2"], sellPrice:25000, desc:"三属性を極めた剣。属性弱点の敵に2倍ダメージ。", tile:20 };
 export const TRIELEM_ARMOR_T  = { name:"元素王の鎧",     type:"armor", def:10, ability:"all_resist", abilities:["all_resist"], sellPrice:15000, desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n万能耐性で各属性ダメージ2/3。錬成で個別耐性を追加すれば半減。\n炎・雷の所持品破壊、氷の移動封じ・鈍足も防ぐ。", tile:21 };
@@ -459,7 +459,7 @@ export const WANDS = [
   { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"C", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：MP封印50T。\n呪い：敵の特技100%化、自分はMP封印解除。", tile:24 },
   { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"B", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"C", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
-  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"C", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n呪い：対象を回復。", tile:24 },
+  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"C", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
   { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"B", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
   { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"C", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n呪い：対象が未識別に戻る。", tile:24 },
 ];
@@ -946,10 +946,10 @@ export const WEAPON_ABILITIES = [
   { id:"inflict_seal",    name:"封印付与",  desc:"攻撃時10%の確率で敵を封印する" },
   { id:"inflict_immobile",name:"影縫い",    desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる" },
   { id:"fire_elem",       name:"炎属性",      desc:"油まみれ・炎弱点の敵に1.5倍ダメージ" },
-  { id:"ice_elem",        name:"氷属性",      desc:"炎系や氷弱点の敵に1.5倍ダメージ" },
+  { id:"ice_elem",        name:"氷属性",      desc:"氷弱点の敵に1.5倍ダメージ" },
   { id:"thunder_elem",    name:"雷属性",      desc:"雷弱点の敵に1.5倍ダメージ" },
   { id:"fire_elem_2",     name:"上位炎属性",  desc:"油まみれ・炎弱点の敵に2倍ダメージ（上位特効）" },
-  { id:"ice_elem_2",      name:"上位氷属性",  desc:"炎系や氷弱点の敵に2倍ダメージ（上位特効）" },
+  { id:"ice_elem_2",      name:"上位氷属性",  desc:"氷弱点の敵に2倍ダメージ（上位特効）" },
   { id:"thunder_elem_2",  name:"上位雷属性",  desc:"雷弱点の敵に2倍ダメージ（上位特効）" },
   { id:"def_bonus",       name:"防御強化",  desc:"装備中、防御力が5上がる" },
   /* 呪い専用デメリット能力 */

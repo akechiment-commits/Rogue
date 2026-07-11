@@ -24,6 +24,25 @@ describe("applyWandEffect", () => {
     expect(mon.sleepTurns).toBe(12);
   });
 
+  it("氷の杖は氷弱点の敵にダメージ2倍", () => {
+    const normal = { name: "スライム", hp: 200, maxHp: 200, x: 6, y: 5, atk: 3 };
+    const weak = { name: "ドラゴン", hp: 200, maxHp: 200, x: 7, y: 5, atk: 3, elemWeak: "ice" };
+    const p = makePlayer();
+    const ml1 = [];
+    const ml2 = [];
+    applyWandEffect("ice_wand", "monster", normal, 1, 0, dg, p, ml1, noop);
+    applyWandEffect("ice_wand", "monster", weak, 1, 0, dg, p, ml2, noop);
+    const dmgNormal = 200 - normal.hp;
+    const dmgWeak = 200 - weak.hp;
+    // normal: rng(15,25) / weak: rng(15,25)*2 → ranges 15-25 vs 30-50
+    expect(dmgNormal).toBeGreaterThanOrEqual(15);
+    expect(dmgNormal).toBeLessThanOrEqual(25);
+    expect(dmgWeak).toBeGreaterThanOrEqual(30);
+    expect(dmgWeak).toBeLessThanOrEqual(50);
+    expect(ml2.some(m => m.includes("氷弱点"))).toBe(true);
+    expect(weak.immobileTurns).toBe(5);
+  });
+
   it("呪われた鈍足の杖はプレイヤーを加速させる", () => {
     const p = makePlayer();
     const ml = [];

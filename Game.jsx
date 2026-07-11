@@ -2755,11 +2755,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   if (_feOily) d = Math.floor(d * _fireElemMult);
                 }
               }
-              /* 氷属性武器：ice弱点×(1.5/2)、火ダルマ×(1.5/2) */
+              /* 氷属性武器：ice弱点×(1.5/2) */
               const _hasIceElem2 = wab === "ice_elem_2" || p.weapon?.abilities?.some(a => a === "ice_elem_2");
               const _hasIceElem  = _hasIceElem2 || wab === "ice_elem" || p.weapon?.abilities?.some(a => a === "ice_elem");
               const _iceElemMult = _hasIceElem2 ? 2.0 : 1.5;
-              if (_hasIceElem && (attackMon.baseKind === "firedemon" || attackMon.elemWeak === "ice")) {
+              if (_hasIceElem && attackMon.elemWeak === "ice") {
                 d = Math.floor(d * _iceElemMult);
               }
               /* 雷属性武器：thunder弱点×(1.5/2) */
@@ -2821,7 +2821,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 (_hasFireElem && attackMon.baseKind === "firedemon" ? "（炎半減）" : "") +
                 (_hasFireElem && attackMon.elemWeak === "fire" ? "炎×2！" : "") +
                 (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
-                (_hasIceElem && (attackMon.baseKind === "firedemon" || attackMon.elemWeak === "ice") ? "氷×2！" : "") +
+                (_hasIceElem && attackMon.elemWeak === "ice" ? (_hasIceElem2 ? "氷弱点×2！" : "氷弱点特効！") : "") +
                 (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);

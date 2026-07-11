@@ -1339,11 +1339,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _iwBlessMult = _iwBlessed ? 2 : 1;
       const _iwTurns = _iwBlessed ? 10 : 5;
       if (kind === "monster") {
-        const _iwFireMult = target.baseKind === "firedemon" ? 2 : 1;
-        let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwFireMult));
+        const _iwIceMult = target.elemWeak === "ice" ? 2 : 1;
+        let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwIceMult));
         target.hp -= _iwDmg;
         target.immobileTurns = (target.immobileTurns||0) + _iwTurns;
-        ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwFireMult>1 ? "炎×2！" : ""}`);
+        ml.push(`氷の弾が${target.name}に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！${_iwIceMult>1 ? "氷弱点×2！" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
         break;
       }
