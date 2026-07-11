@@ -399,6 +399,11 @@ describe("water breath ring and soaked", () => {
     expect(reduceFireDamage(20, soaked)).toBe(10);
     expect(reduceLightningDamage(15, soaked)).toBe(30);
   });
+
+  it("水中呼吸の指輪は壁埋まりダメージ判定の対象外になる", () => {
+    const p = { rings: [{ effect: "water_breath_ring" }] };
+    expect(hasWaterBreathRing(p)).toBe(true);
+  });
 });
 
 describe("announceFireExplosionNullified", () => {

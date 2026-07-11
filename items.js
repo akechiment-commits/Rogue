@@ -4112,7 +4112,7 @@ export const RINGS = [
   { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"A", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
-  { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、水の中を歩いて入れる。溺死しない。\n浮遊とは違い水底のアイテムを直接拾える。\n水中を歩くと10ターンずぶ濡れになる。" },
+  { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、水の中を歩いて入れる。溺死しない。\n浮遊とは違い水底のアイテムを直接拾える。\n水中を歩くと10ターンずぶ濡れになる。\n壁抜け状態でなくても壁の中にいてダメージを受けない。" },
 ];
 
 export function hasRingEffect(p, effect) {
