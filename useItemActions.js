@@ -66,7 +66,7 @@ export function useItemActions({
   sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
   setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
   setPutMode, putMode, setPutMenuSel, setPutPage,
-  setIdentifyMode, setRevealMode,
+  setIdentifyMode, setRevealMode, setWishMode,
   lu, endTurn, chgFloor, withPitfallBag,
   dnameRef, bigboxAddItem,
   onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
@@ -2412,6 +2412,26 @@ export function useItemActions({
         if (p.hunger > 0) delete p._hungerDmgStarted;
         ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた。HPが${_healAmt > 0 ? `${_healAmt}回復した！` : "既に満タンだ。"}`);
         /* 壺には入れない（消滅） */
+      } else if (pot.potEffect === "wish_pot") {
+        /* 願いの壺：入れた物は消え、壺も消えて願いUI */
+        ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた…`);
+        ml.push("壺が光り輝き、願いを叶えてくれそうだ！");
+        /* 壺をインベントリ／床から除去 */
+        if (putMode.floorPot) {
+          dg.items = (dg.items || []).filter((fi) => fi !== pot);
+        } else {
+          const _pi = p.inventory.indexOf(pot);
+          if (_pi !== -1) p.inventory.splice(_pi, 1);
+        }
+        setPutMode(null);
+        setShowInv(false);
+        setSelIdx(null);
+        setShowDesc(null);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        setWishMode({ source: "pot", endTurnOnCancel: true });
+        sr.current = { ...sr.current };
+        setGs({ ...sr.current });
+        return;
       } else {
         applyPotEffect(pot, it, ml, dnameRef);
         pot.contents.push(it);
@@ -2433,7 +2453,7 @@ export function useItemActions({
         setGs({ ...sr.current });
       }
     },
-    [putMode, endTurn],
+    [putMode, endTurn, setWishMode, lu, chgFloor, onReturnToHub],
   );
   const doBreakPot = useCallback(
     (idx) => {
@@ -2802,6 +2822,26 @@ export function useItemActions({
         }
         if ((it.charges ?? 0) <= 0) {
           ml.push(`${dnameRef(it)}を振ったが、力が残っていない...`);
+        } else if (it.effect === "wish") {
+          /* 願いの杖：回数消費は願い成功時。キャンセルなら消費なし */
+          if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+            ml.push(`${dnameRef(it)}を振ったが、魔法が封印されている！`);
+            endTurn(sr.current, p, ml);
+            setMsgs((prev) => [...prev.slice(-80), ...ml]);
+            setThrowMode(null);
+            sr.current = { ...sr.current };
+            setGs({ ...sr.current });
+            return;
+          }
+          ml.push(`${dnameRef(it)}を振った！願いを叶えてくれそうだ…`);
+          ml.push("「何を願う？」");
+          setThrowMode(null);
+          setShowInv(false);
+          setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setWishMode({ source: "wand", wandId: it.id, endTurnOnCancel: false });
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
         } else {
         const _wandBm = getBlessMultiplier(it);
         const _wandIK = getIdentKey(it);

@@ -253,7 +253,7 @@ function pickRareItem(depth) {
   const gens = [
     { w: 6, fn: () => { const t = pickWeighted(_rPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
     { w: 5, fn: () => { const t = pickWeighted(_rPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w: 5, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: t.charges + rng(0, 2) }; } },
+    { w: 5, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "wish" || t.noChargeBoost || t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(0, 2) }; } },
     { w: 4, fn: () => { const t = pickWeighted(_rPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
     { w: 3, fn: () => { const t = pickWeighted(_rPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
     { w: 3, fn: () => { const t = pickWeighted(SPELLBOOKS); return { ...t, id: uid() }; } },
@@ -297,7 +297,7 @@ function buildUniPool(depth, dungeonType) {
     { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
     { w: 10, fn: () => { const t = pickWeighted(iPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
     { w:  8, fn: () => { const t = pickWeighted(iPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand") ? 1 : t.charges+rng(-1,2) }; } },
+    { w:  8, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
     { w:  6, fn: () => { const t = pickWeighted(iPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
     { w:  5, fn: () => { const t = pickWeighted(iPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
@@ -621,7 +621,7 @@ function setupShopRoom(room, map, depth, items, mons) {
   /* 食料候補：ランダムに5〜8種生成して候補に加える */
   const _foodCands = Array.from({ length: rng(5, 8) }, () => genFood());
   /* 専門店の抽選（30%） */
-  const _wandsCands = (pool) => pool.map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand") ? 1 : Math.max(1, w.charges + rng(-1, 1)) }));
+  const _wandsCands = (pool) => pool.map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand" || w.effect === "wish" || w.noChargeBoost) ? 1 : Math.max(1, w.charges + rng(-1, 1)) }));
   const _specialtyOptions = [
     { type: "weapon",    name: "武器屋",   cands: () => [...ITEMS.filter(i => i.type === "weapon"), { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) }], luxury: () => ITEMS.filter(i => i.type === "weapon" && (i.rarity === "A" || i.rarity === "S")) },
     { type: "armor",     name: "防具屋",   cands: () => ITEMS.filter(i => i.type === "armor"),    luxury: () => ITEMS.filter(i => i.type === "armor"    && (i.rarity === "A" || i.rarity === "S")) },
@@ -1777,7 +1777,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
     { w: 10, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
     { w:  8, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand") ? 1 : t.charges+rng(-1,2) }; } },
+    { w:  8, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
     { w:  6, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
     { w:  5, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "armor"));  return { ...t, id: uid() }; } },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },

@@ -1475,6 +1475,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       ml.push("何も起こらなかった。");
       break;
     }
+    case "wish":
+      /* 願いは useItemActions の wand_wave で UI を開く。ここは壊した時など */
+      ml.push("願いの力が空に散った…（願いにはならなかった）");
+      break;
     default:
       /* 未登録の effect が渡された場合は警告 (items.js WANDS への追加を忘れずに) */
       console.warn(`[applyWandEffect] 未登録の effect: "${eff}" — applyWandEffect の switch に case を追加してください`);

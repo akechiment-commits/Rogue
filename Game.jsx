@@ -3839,6 +3839,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const wds = bb.contents.filter((i) => i.type === "wand");
       if (wds.length >= 2) {
         const [wb, wm] = wds;
+        if (wb.effect === "wish" || wm.effect === "wish" || wb.noChargeBoost || wm.noChargeBoost) {
+          ml.push("願いの杖は合成で回数を増やせない…");
+          return;
+        }
         /* ゴッドスパーク合成トラッキング: 炎・雷・氷の3属性を蓄積 */
         const _gsEffects = new Set(["fire_wand", "lightning", "ice_wand"]);
         if (_gsEffects.has(wb.effect) || _gsEffects.has(wm.effect)) {
@@ -4230,9 +4234,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
       } else if (bb.kind === "refill") {
         if (item.type === "wand") {
-          const add = (item.effect === "curse_wand" || item.effect === "bless_wand") ? 1 : rng(1, 3);
-          item.charges = (item.charges || 0) + add;
-          ml.push(`${_idn}の回数が${add}増えた！(${item.charges}回)`);
+          if (item.effect === "wish" || item.noChargeBoost) {
+            ml.push(`${_idn}の回数は増やせない…`);
+          } else {
+            const add = (item.effect === "curse_wand" || item.effect === "bless_wand") ? 1 : rng(1, 3);
+            item.charges = (item.charges || 0) + add;
+            ml.push(`${_idn}の回数が${add}増えた！(${item.charges}回)`);
+          }
         } else if (item.type === "marker") {
           const add = rng(1, 2);
           item.charges = (item.charges || 0) + add;
@@ -4568,6 +4576,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
 
   const confirmWish = useCallback((wish) => {
     if (!sr.current) return;
+    const mode = wishModeRef.current;
     const { player: p, dungeon: dg } = sr.current;
     const ml = ["願いが叶った！"];
     const res = grantWish(wish, {
@@ -4580,11 +4589,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       setMsgs((prev) => [...prev.slice(-80), res.message || "願いが叶わなかった…"]);
       return;
     }
-    drySpringAlways(dg, p, ml);
+    if (mode?.source === "spring") {
+      drySpringAlways(dg, p, ml);
+    } else if (mode?.source === "wand" && mode.wandId) {
+      const wand = p.inventory.find((i) => i.id === mode.wandId);
+      if (wand && wand.type === "wand") {
+        wand.charges = Math.max(0, (wand.charges || 1) - 1);
+        if (wand.charges <= 0) {
+          const wi = p.inventory.indexOf(wand);
+          if (wi !== -1) p.inventory.splice(wi, 1);
+          ml.push("願いの杖は力を使い果たして消えた…");
+        }
+      }
+    }
+    // pot: already consumed when opening wish
     endTurn(sr.current, p, ml);
     setMsgs((prev) => [...prev.slice(-80), ...ml]);
     setWishMode(null);
     setSpringMode(null);
+    setThrowMode(null);
+    setPutMode(null);
+    setShowInv(false);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
   }, [endTurn, drySpringAlways]);
@@ -5065,7 +5090,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     sr, setGs, setMsgs, setShowInv, setSelIdx, setShowDesc,
     setThrowMode, throwMode, setMarkerMode, markerMode, setMarkerMenuSel,
     setPutMode, putMode, setPutMenuSel, setPutPage,
-    setIdentifyMode, setRevealMode,
+    setIdentifyMode, setRevealMode, setWishMode,
     lu, endTurn, chgFloor, withPitfallBag,
     dnameRef, bigboxAddItem,
     onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,

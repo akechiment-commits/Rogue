@@ -9,6 +9,7 @@ import {
   _resetWishCatalogCache,
   getWishItemCatalog,
 } from "../wish.js";
+import { WANDS, POTS, isNoChargeBoostWand } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { MW, MH } from "../utils.js";
 
@@ -95,5 +96,24 @@ describe("wish core", () => {
   it("WISH_PRESETS が揃っている", () => {
     expect(WISH_PRESETS.length).toBeGreaterThanOrEqual(10);
     expect(WISH_PRESETS.every((w) => w.id && w.label)).toBe(true);
+  });
+
+  it("願いの杖は charges1 かつ noChargeBoost", () => {
+    const w = WANDS.find((x) => x.effect === "wish");
+    expect(w).toBeTruthy();
+    expect(w.charges).toBe(1);
+    expect(w.noChargeBoost).toBe(true);
+    expect(isNoChargeBoostWand(w)).toBe(true);
+  });
+
+  it("願いの壺が定義されている", () => {
+    const pot = POTS.find((x) => x.potEffect === "wish_pot");
+    expect(pot).toBeTruthy();
+    expect(pot.name).toBe("願いの壺");
+  });
+
+  it("願いの杖・壺は願いテキストで拒否される", () => {
+    expect(resolveWishText("願いの杖").status).toBe("forbidden");
+    expect(resolveWishText("願いの壺").status).toBe("forbidden");
   });
 });
