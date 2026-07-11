@@ -1521,17 +1521,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 break;
               }
             }
-            if (!_pushed) ml.push("壁に埋まったまま抜け出せない！毎ターンダメージを受ける！");
+            if (!_pushed) ml.push("壁に埋まったまま抜け出せない！");
           }
         }
-      }
-      /* 壁に埋まっている：毎ターン大ダメージ */
-      if ((p.wallWalkTurns || 0) === 0 &&
-          (st.dungeon.map[p.y]?.[p.x] === T.WALL || st.dungeon.map[p.y]?.[p.x] === T.BWALL)) {
-        const _wdmg = 15;
-        p.hp -= _wdmg;
-        ml.push(`壁に挟まれて苦しい！${_wdmg}ダメージ！`);
-        if (p.hp <= 0) { p.deathCause = "壁に埋まり"; }
       }
       /* 水上で浮遊解除：周囲8マスの陸上に弾き出される。逃げ場がなければ溺死 */
       if (st.dungeon.map[p.y][p.x] === T.WATER && !canPlayerWalkOnWater(p, st.dungeon)) {
