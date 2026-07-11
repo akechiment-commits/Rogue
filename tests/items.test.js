@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked } from "../items.js";
 import { MW, MH, T } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -352,6 +352,16 @@ describe("imprison pot", () => {
     expect(p.deathCause).toBe("水没により");
   });
 
+  it("水中呼吸の指輪があれば水上で入っても溺死しない", () => {
+    const pot = { id: "pot1c", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(1)), springs: [] };
+    dg.map[3][5] = T.WATER;
+    const p = { x: 5, y: 3, hp: 100, inventory: [pot], rings: [{ effect: "water_breath_ring" }] };
+    const ml = [];
+    expect(confinePlayerInImprisonPot(pot, p, dg, ml)).toBe(true);
+    expect(p.hp).toBe(100);
+  });
+
   it("敵なしの壺でも出たとき割れて消える", () => {
     const pot = { id: "pot2", type: "pot", potEffect: "imprison", name: "とじこめの壺", capacity: 3, confinedMonsters: [] };
     const p = { x: 2, y: 2, inventory: [pot] };
@@ -362,6 +372,32 @@ describe("imprison pot", () => {
     expect(p.inventory).toHaveLength(0);
     expect(dg.monsters).toHaveLength(0);
     expect(ml.some(m => m.includes("割れた"))).toBe(true);
+  });
+});
+
+describe("water breath ring and soaked", () => {
+  it("水中呼吸の指輪で水タイルを歩ける", () => {
+    const dg = { map: [[T.FLOOR]], pentacles: [] };
+    const p = { rings: [{ effect: "water_breath_ring" }] };
+    expect(hasWaterBreathRing(p)).toBe(true);
+    expect(canPlayerWalkOnWater(p, dg)).toBe(true);
+  });
+
+  it("水中歩行でずぶ濡れになる（浮遊中は除く）", () => {
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)) };
+    dg.map[3][3] = T.WATER;
+    const p = { x: 3, y: 3, rings: [{ effect: "water_breath_ring" }] };
+    const ml = [];
+    applySoakedFromWaterWalk(p, dg, ml);
+    expect(p.soakedTurns).toBe(10);
+    expect(isSoaked(p)).toBe(true);
+    expect(ml.some(m => m.includes("ずぶ濡れ"))).toBe(true);
+  });
+
+  it("ずぶ濡れ中は炎半減・雷2倍", () => {
+    const soaked = { soakedTurns: 10 };
+    expect(reduceFireDamage(20, soaked)).toBe(10);
+    expect(reduceLightningDamage(15, soaked)).toBe(30);
   });
 });
 

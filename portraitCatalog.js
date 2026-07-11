@@ -93,6 +93,7 @@ export const PORTRAIT_CATEGORIES = [
       { file: "status_drunk", label: "酔い", group: "status_drunk" },
       { file: "status_oiled", label: "油まみれ", group: "status_oiled" },
       { file: "status_submerged", label: "水没", group: "status_submerged" },
+      { file: "status_soaked", label: "ずぶ濡れ", group: "status_soaked" },
       { file: "status_relaxed", label: "リラックス", group: "status_relaxed" },
       { file: "status_paralyze", label: "金縛り", group: "status_paralyze" },
       { file: "status_slow", label: "鈍足", group: "status_slow" },

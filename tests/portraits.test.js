@@ -156,10 +156,21 @@ describe("portraits", () => {
     const prev = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
       poisoned: false, sleepTurns: 0, confusedTurns: 0,
-      darknessTurns: 0, oilyTurns: 0,
+      darknessTurns: 0, oilyTurns: 0, soakedTurns: 0,
     };
     const event = resolvePortraitEvent({ player, prev, lastMsg: "" });
     expect(event.src).toMatch(/status_poison/);
+  });
+
+  it("resolvePortraitEvent がずぶ濡れを反映する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0, soakedTurns: 0,
+    };
+    const player = { ...prev, soakedTurns: 10 };
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "ずぶ濡れ" });
+    expect(event.src).toMatch(/status_soaked/);
   });
 
   it("resolvePortraitEvent がダメージ種別をメッセージから選ぶ", () => {

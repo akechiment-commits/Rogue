@@ -20,7 +20,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, isPlayerFloating, doExplosion, doTimeBombExplosion, rotFood,
+  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps, runMineExplosion,
@@ -772,6 +772,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     let go = true;
     while (go) {
       go = false;
+      if (hasWaterBreathRing(p) && dg.map[p.y]?.[p.x] === T.WATER) {
+        const _wiIdx = dg.waterItems?.findIndex((w) => w.x === p.x && w.y === p.y) ?? -1;
+        if (_wiIdx >= 0) {
+          const _wi = dg.waterItems[_wiIdx];
+          const _sunk = { ..._wi.item };
+          delete _sunk.x;
+          delete _sunk.y;
+          if (p.inventory.length < (p.maxInventory || 30)) {
+            if (sr.current.allBcKnown) { _sunk.fullIdent = true; _sunk.bcKnown = true; }
+            if (!['potion','scroll','wand','ring','pen','marker','spellbook','pot'].includes(_sunk.type)) trackItem(_sunk);
+            p.inventory.push(_sunk);
+            ml.push(`${itemDisplayName(_sunk, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を水底から拾った。`);
+            dg.waterItems.splice(_wiIdx, 1);
+            go = true;
+            continue;
+          } else {
+            ml.push(`${_sunk.name}が水底にある。持ち物がいっぱいだ！`);
+          }
+        }
+      }
       const it = dg.items.find((i) => i.x === p.x && i.y === p.y);
       if (!it) break;
       if (it.type === "sign") { break; }
@@ -1463,6 +1483,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         p.oilyTurns--;
         if (p.oilyTurns === 0) ml.push("油が落ちた。炎への弱点が消えた。");
       }
+      if ((p.soakedTurns || 0) > 0) {
+        p.soakedTurns--;
+        if (p.soakedTurns === 0) ml.push("体が乾いた。ずぶ濡れが解けた。");
+      }
       /* 移動封じ：カウントダウン */
       if ((p.immobileTurns || 0) > 0) {
         p.immobileTurns--;
@@ -1510,7 +1534,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (p.hp <= 0) { p.deathCause = "壁に埋まり"; }
       }
       /* 水上で浮遊解除：周囲8マスの陸上に弾き出される。逃げ場がなければ溺死 */
-      if (st.dungeon.map[p.y][p.x] === T.WATER && !isPlayerFloating(p, st.dungeon)) {
+      if (st.dungeon.map[p.y][p.x] === T.WATER && !canPlayerWalkOnWater(p, st.dungeon)) {
         const _wDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
         let _waterEjected = false;
         for (const [_wdx, _wdy] of _wDirs) {
@@ -3059,7 +3083,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
             }
             }
-          } else if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) {
+          } else if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) {
             ml.push("水に阻まれた。");
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL || ((p.wallWalkTurns || 0) > 0 && nx > 0 && nx < MW - 1 && ny > 0 && ny < MH - 1)) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
@@ -3109,6 +3133,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
             /* ポータルの魔方陣：移動でその上に乗ると即発動 */
             if (playerPortalWarp(p, st, ml)) st._portalWarpedThisTurn = true;
+            applySoakedFromWaterWalk(p, dg, ml);
             autoPickup(p, st.dungeon, ml);
             /* 看板：踏んだらポップアップ表示（ダッシュ中断・メッセージログには出さない） */
             const _signStep = st.dungeon.items.find(it => it.type === "sign" && it.x === p.x && it.y === p.y);
@@ -3525,7 +3550,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )
           break;
         if (monsterAt(dg, nx, ny)) break;
-        if (dg.map[ny][nx] === T.WATER && !isPlayerFloating(p, dg)) break;
+        if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         /* 廊下ダッシュ中に部屋の入口手前で停止（ただし最初の1歩は入れる） */
         if (steps > 0 && !startInRoom && !_dRoomSet.has(_dk(p.x, p.y)) && _dRoomSet.has(_dk(nx, ny))) break;
@@ -3549,6 +3574,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _isNowInShopD = _inShopRoomD(p.x, p.y);
         if (!_wasInAnyShopD && _isNowInShopD) ml.push("お店に入った。");
         else if (_wasInAnyShopD && !_isNowInShopD) ml.push("お店をあとにした。");
+        applySoakedFromWaterWalk(p, dg, ml);
         steps++;
         const tr = checkTrap(p, dg, ml);
         if (tr === "pitfall") {
@@ -3593,6 +3619,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if (_dashSign?.type === "sign") {
             endTurn(st, p, ml);
             setShowSign(_dashSign);
+            break;
+          }
+        }
+        if (hasWaterBreathRing(p) && dg.map[p.y]?.[p.x] === T.WATER) {
+          const _dashSunk = dg.waterItems?.find((w) => w.x === p.x && w.y === p.y);
+          if (_dashSunk) {
+            ml.push(`${itemDisplayName(_dashSunk.item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が水底にある。`);
+            endTurn(st, p, ml);
             break;
           }
         }
@@ -5385,6 +5419,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         {(p.immobileTurns || 0) > 0 && (
           <span style={{ color: "#a08060" }}>🦶{p.immobileTurns}</span>
         )}{" "}
+        {(p.soakedTurns || 0) > 0 && (
+          <span style={{ color: "#48a8e8" }}>💧{p.soakedTurns}</span>
+        )}
         {(p.oilyTurns || 0) > 0 && (
           <span style={{ color: "#e0a020" }}>🛢{p.oilyTurns}</span>
         )}{" "}

@@ -734,7 +734,7 @@ export function confinePlayerInImprisonPot(pot, p, dg, ml, nameFn = null) {
     return false;
   }
   const _pn = nameFn ? nameFn(pot) : pot.name;
-  if (_playerOnWaterTile(p, dg)) {
+  if (_playerOnWaterTile(p, dg) && !hasRingEffect(p, "water_breath_ring")) {
     const _potIdx = p.inventory?.indexOf(pot) ?? -1;
     if (_potIdx !== -1) p.inventory.splice(_potIdx, 1);
     ml.push(`${_pn}が水没した！`);
@@ -1043,8 +1043,10 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     const rawDmg = (ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
                  : proportional  ? Math.max(1, Math.floor(p.hp / 2))
                  : rng(10, 20)) * _oilyMult;
-    const dmg = _fireCtx ? reduceFireDamage(rawDmg, p) : rawDmg;
-    const _fireLbl = _fireCtx ? fireResistDamageLabel(p) : "";
+    const dmg = _fireCtx
+      ? reduceFireDamage(rawDmg, p)
+      : _applySoakedFireReduction(rawDmg, p);
+    const _fireLbl = _fireCtx ? fireResistDamageLabel(p) : _soakedFireLabel(p);
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
     ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${oilyDamageLabel(dg, p)}`);
@@ -3791,12 +3793,31 @@ function _elemResistLabel(baseName, p, individualId, { includeRingFire = false }
 }
 
 /** 炎ダメージ軽減：個別 or 万能のみ→2/3、個別+万能→半減 */
+function _applySoakedFireReduction(dmg, p) {
+  if ((p?.soakedTurns || 0) <= 0) return dmg;
+  return Math.max(1, Math.floor(dmg * 0.5));
+}
+
+function _soakedFireLabel(p) {
+  return (p?.soakedTurns || 0) > 0 ? "(ずぶ濡れ半減)" : "";
+}
+
+function _applySoakedLightningBoost(dmg, p) {
+  if ((p?.soakedTurns || 0) <= 0) return dmg;
+  return Math.max(1, Math.floor(dmg * 2));
+}
+
+function _soakedLightningLabel(p) {
+  return (p?.soakedTurns || 0) > 0 ? "(ずぶ濡れ×2)" : "";
+}
+
 export function reduceFireDamage(dmg, p, opts = {}) {
   const mult = _elemResistMult(p, "fire_resist", opts);
-  return mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+  let d = mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+  return _applySoakedFireReduction(d, p);
 }
 export function fireResistDamageLabel(p, opts = {}) {
-  return _elemResistLabel("耐火", p, "fire_resist", opts);
+  return _elemResistLabel("耐火", p, "fire_resist", opts) + _soakedFireLabel(p);
 }
 
 export function reduceIceDamage(dmg, p) {
@@ -3809,10 +3830,11 @@ export function iceResistDamageLabel(p) {
 
 export function reduceLightningDamage(dmg, p) {
   const mult = _elemResistMult(p, "lightning_resist");
-  return mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+  let d = mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+  return _applySoakedLightningBoost(d, p);
 }
 export function lightningResistDamageLabel(p) {
-  return _elemResistLabel("雷耐性", p, "lightning_resist");
+  return _elemResistLabel("雷耐性", p, "lightning_resist") + _soakedLightningLabel(p);
 }
 
 /* 雷・炎ダメージを受けたとき所持品1つにランダムで影響を与える */
@@ -4090,6 +4112,7 @@ export const RINGS = [
   { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"A", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
+  { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、水の中を歩いて入れる。溺死しない。\n浮遊とは違い水底のアイテムを直接拾える。\n水中を歩くと10ターンずぶ濡れになる。" },
 ];
 
 export function hasRingEffect(p, effect) {
@@ -4180,4 +4203,44 @@ export function isPlayerFloating(p, dg) {
   if (!_hasFloat) return false;
   if (dg && hasGravityPentacle(dg, p.x, p.y)) return false;
   return true;
+}
+
+/** 水中呼吸の指輪装備中か */
+export function hasWaterBreathRing(p) {
+  return hasRingEffect(p, "water_breath_ring");
+}
+
+/** 水タイル上を歩行できるか（浮遊 or 水中呼吸） */
+export function canPlayerWalkOnWater(p, dg) {
+  return isPlayerFloating(p, dg) || hasWaterBreathRing(p);
+}
+
+/** ずぶ濡れ状態か */
+export function isSoaked(p) {
+  return (p?.soakedTurns || 0) > 0;
+}
+
+/** 水中を歩いたときずぶ濡れ（10ターン）。浮遊中は付与しない */
+export function applySoakedFromWaterWalk(p, dg, ml) {
+  if (!dg?.map || dg.map[p.y]?.[p.x] !== T.WATER) return;
+  if (isPlayerFloating(p, dg)) return;
+  const _was = p.soakedTurns || 0;
+  p.soakedTurns = 10;
+  if (_was === 0) ml.push("水の中を歩いてずぶ濡れになった！(10ターン)");
+}
+
+export function soakedFireExplosionMult(p) {
+  return isSoaked(p) ? 0.5 : 1;
+}
+
+export function soakedLightningMult(p) {
+  return isSoaked(p) ? 2 : 1;
+}
+
+export function soakedFireExplosionLabel(p) {
+  return _soakedFireLabel(p);
+}
+
+export function soakedLightningLabel(p) {
+  return _soakedLightningLabel(p);
 }

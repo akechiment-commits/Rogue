@@ -227,6 +227,7 @@ export function snapshotPlayer(p, opts = {}) {
     confusedTurns: p.confusedTurns || 0,
     darknessTurns: p.darknessTurns || 0,
     oilyTurns: p.oilyTurns || 0,
+    soakedTurns: p.soakedTurns || 0,
     paralyzeTurns: p.paralyzeTurns || 0,
     slowTurns: p.slowTurns || 0,
     bewitchedTurns: p.bewitchedTurns || 0,
@@ -372,6 +373,9 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
   if (p.oilyTurns > 0 && prev.oilyTurns <= 0) {
     return portraitEvent("status_oiled", now);
+  }
+  if (p.soakedTurns > 0 && prev.soakedTurns <= 0) {
+    return portraitEvent("status_soaked", now);
   }
 
   const hungerMsg = findHungerMsg(newMsgs, lastMsg);
