@@ -1,3 +1,18 @@
 {
-  "slots": []
+  "slots": [
+    {
+      "file": "damage_trap_2",
+      "label": "罠 2",
+      "categoryId": "damage",
+      "afterFile": "damage_trap",
+      "group": "damage_trap"
+    },
+    {
+      "file": "damage_fire_2",
+      "label": "炎 2",
+      "categoryId": "damage",
+      "afterFile": "damage_fire",
+      "group": "damage_fire"
+    }
+  ]
 }
