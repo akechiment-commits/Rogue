@@ -1904,11 +1904,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if (_kh > 0) { _bm.hp += _kh; ml.push(`${_bm.name}は水中で体力を回復した！(+${_kh}HP)`); }
         }
       }
-      /* 油状態：モンスターのカウントダウン */
+      /* 油状態・一時浮遊：モンスターのカウントダウン */
       for (const _om of st.dungeon.monsters) {
         if ((_om.oilyTurns || 0) > 0) {
           _om.oilyTurns = Math.max(0, _om.oilyTurns - (_om.isBoss ? 2 : 1));
           if (_om.oilyTurns <= 0) ml.push(`${_om.name}の油まみれが取れた。`);
+        }
+        if ((_om.floatTurns || 0) > 0) {
+          _om.floatTurns--;
+          if (_om.floatTurns <= 0) ml.push(`${_om.name}の浮遊が解けた！`);
         }
       }
       /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */

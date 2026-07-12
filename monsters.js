@@ -1802,10 +1802,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _onHit = opts.onPlayerHit;
   const _onMiss = opts.onPlayerMiss;
   const _plPotHidden = (pl.potConfinedTurns || 0) > 0;
-  /* 重力の魔方陣：浮遊系モンスターの実効float（魔法無効モンスターは重力の影響を受けない） */
-  const _effFloat = m.float && (m.magicImmune || !hasGravityPentacle(dg, m.x, m.y));
+  /* 重力の魔方陣：浮遊系モンスターの実効float（魔法無効モンスターは重力の影響を受けない）
+   * floatTurns: 浮遊の罠など一時浮遊 */
+  const _hasFloatFlag = !!(m.float || (m.floatTurns || 0) > 0);
+  const _effFloat = _hasFloatFlag && (m.magicImmune || !hasGravityPentacle(dg, m.x, m.y));
   /* 呪い重力の魔方陣：ゾーン内モンスターは浮遊状態扱い（魔法無効モンスターには無効） */
-  const _isCursedGravFloat = !m.float && !m.magicImmune && hasCursedGravityPentacle(dg, m.x, m.y);
+  const _isCursedGravFloat = !_hasFloatFlag && !m.magicImmune && hasCursedGravityPentacle(dg, m.x, m.y);
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
   /* 目覚めたターンは行動しない（袋叩き防止） */

@@ -1056,11 +1056,11 @@ export const TRAPS = [
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85, desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。" },
   { name:"腐敗の罠",       effect:"rot_trap",      tile:94, desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
   { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
-  { name:"浮遊の罠",       effect:"float_trap",     tile:122, desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。" },
-  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, desc:"踏むと100ターン油まみれになる。\n炎・爆発ダメージが2倍。" },
-  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備の知識が失われる。\n見た目名や＋値がわからなくなる。" },
-  { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。" },
-  { name:"増殖の罠",       effect:"multiply_trap",  tile:126, desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。" },
+  { name:"浮遊の罠",       effect:"float_trap",     tile:122, desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。\n敵が踏むと一時的に浮遊する（ボス・店主は無効）。" },
+  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, desc:"踏むと30ターン油まみれになる。\n炎・爆発ダメージが2倍。敵が踏んでも同様。" },
+  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n敵が踏んでも効果なし。" },
+  { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
+  { name:"増殖の罠",       effect:"multiply_trap",  tile:126, desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。敵が踏んでも同効果。" },
 ];
 
 function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
@@ -1697,33 +1697,34 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
   return n;
 }
 
-/** 所持・装備の識別を剥がす */
+/**
+ * 識別済みの所持・装備から1つランダムで未識別に戻す
+ * @returns {{ count: number, item?: object }}
+ */
 export function unidentPlayerItems(p, identSet) {
-  if (!p) return 0;
+  if (!p) return { count: 0 };
   const list = [...(p.inventory || [])];
   if (p.weapon) list.push(p.weapon);
   if (p.armor) list.push(p.armor);
   if (p.arrow) list.push(p.arrow);
   for (const r of p.rings || []) if (r) list.push(r);
-  let n = 0;
   const seen = new Set();
+  const candidates = [];
   for (const it of list) {
     if (!it || seen.has(it)) continue;
     seen.add(it);
-    let changed = false;
     const k = getIdentKey(it);
-    if (k && identSet?.has?.(k)) {
-      identSet.delete(k);
-      changed = true;
-    }
-    if (it.fullIdent || it.bcKnown) {
-      it.fullIdent = false;
-      it.bcKnown = false;
-      changed = true;
-    }
-    if (changed) n++;
+    const knownKey = !!(k && identSet?.has?.(k));
+    const knownFlags = !!(it.fullIdent || it.bcKnown);
+    if (knownKey || knownFlags) candidates.push(it);
   }
-  return n;
+  if (candidates.length === 0) return { count: 0 };
+  const it = candidates[rng(0, candidates.length - 1)];
+  const k = getIdentKey(it);
+  if (k && identSet?.has?.(k)) identSet.delete(k);
+  it.fullIdent = false;
+  it.bcKnown = false;
+  return { count: 1, item: it };
 }
 
 /**
@@ -2160,9 +2161,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "float_trap": {
       ml.push(`${trap.name}が発動！`);
       const _flm = monsterAt(dg, tx, ty);
-      if (_flm && !_flm.isBoss && _flm.type !== "shopkeeper") {
-        _flm.float = true;
-        ml.push(`${_flm.name}が浮遊し始めた！`);
+      if (_flm) {
+        if (_flm.isBoss || _flm.type === "shopkeeper") {
+          ml.push(`${_flm.name}には効果がなかった。`);
+        } else {
+          _flm.floatTurns = Math.max(_flm.floatTurns || 0, 30);
+          ml.push(`${_flm.name}がふわっと浮いた！(浮遊30ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         p.floatTurns = Math.max(p.floatTurns || 0, 30);
@@ -2174,18 +2179,25 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _olm = monsterAt(dg, tx, ty);
       if (_olm) {
-        _olm.oilyTurns = (_olm.oilyTurns || 0) + 100;
-        ml.push(`${_olm.name}は油まみれになった！(100ターン)`);
+        if (_olm.isBoss || _olm.type === "shopkeeper") {
+          ml.push(`${_olm.name}には効果がなかった。`);
+        } else {
+          _olm.oilyTurns = (_olm.oilyTurns || 0) + 30;
+          ml.push(`${_olm.name}は油まみれになった！(30ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
-        p.oilyTurns = (p.oilyTurns || 0) + 100;
-        ml.push("油まみれになった！炎ダメージが2倍になる！(100ターン)");
+        p.oilyTurns = (p.oilyTurns || 0) + 30;
+        ml.push("油まみれになった！炎ダメージが2倍になる！(30ターン)");
       }
       return "restart";
     }
     case "unident_trap": {
       ml.push(`${trap.name}が発動！`);
-      /* アイテム経路では ident Set が無いことが多い。プレイヤーが踏んだ時は fireTrapPlayer を優先 */
+      const _uim = monsterAt(dg, tx, ty);
+      if (_uim) ml.push(`${_uim.name}には効果がなかった。`);
+      /* プレイヤーがマス上なら fireTrapPlayer 側で1個剥がす想定。
+         アイテム経路でプレイヤーが居る場合は何もしない（ident未渡し） */
       if (p && p.x === tx && p.y === ty) {
         ml.push("識別の知識が揺らいだ気がする…");
       }

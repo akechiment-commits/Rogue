@@ -256,26 +256,51 @@ describe("new weird traps", () => {
     expect(p.floatTurns).toBe(30);
   });
 
-  it("油まみれの罠で oilyTurns が付く", () => {
+  it("油まみれの罠で oilyTurns が30付く", () => {
     const p = makePlayer({ x: 5, y: 5 });
     const dg = makeEmptyDg();
     const trap = { effect: "oil_trap", name: "油まみれの罠", x: 5, y: 5, id: "o1" };
     const ml = [];
     fireTrapPlayer(trap, p, dg, ml);
-    expect(p.oilyTurns).toBe(100);
+    expect(p.oilyTurns).toBe(30);
   });
 
-  it("未識別の罠で識別が剥がれる", () => {
+  it("未識別の罠は識別済み1つだけ剥がす", () => {
     const pot = { name: "回復薬", type: "potion", effect: "heal", fullIdent: true, bcKnown: true };
-    const p = makePlayer({ x: 5, y: 5, inventory: [pot] });
-    const ident = new Set(["p:heal"]);
+    const scroll = { name: "テレポートの巻物", type: "scroll", effect: "teleport", fullIdent: true, bcKnown: true };
+    const p = makePlayer({ x: 5, y: 5, inventory: [pot, scroll] });
+    const ident = new Set(["p:heal", "s:teleport"]);
     const dg = makeEmptyDg();
     const trap = { effect: "unident_trap", name: "未識別の罠", x: 5, y: 5, id: "u1" };
     const ml = [];
     fireTrapPlayer(trap, p, dg, ml, null, null, { ident });
-    expect(ident.has("p:heal")).toBe(false);
-    expect(pot.fullIdent).toBe(false);
-    expect(pot.bcKnown).toBe(false);
+    expect(ident.size).toBe(1);
+    const unidentCount = [pot, scroll].filter((i) => !i.fullIdent && !i.bcKnown).length;
+    expect(unidentCount).toBe(1);
+  });
+
+  it("敵が油まみれの罠を踏むと oilyTurns が付く", () => {
+    const p = makePlayer({ x: 1, y: 1 });
+    const mon = { id: "m1", name: "敵", x: 5, y: 5, hp: 10 };
+    const trap = { effect: "oil_trap", name: "油まみれの罠", x: 5, y: 5, id: "o2" };
+    const dg = makeEmptyDg({ traps: [trap], monsters: [mon] });
+    const ml = [];
+    fireTrapItem(trap, { name: "石", type: "arrow" }, dg, 5, 5, ml, new Set(), p);
+    expect(mon.oilyTurns).toBe(30);
+  });
+
+  it("敵が浮遊の罠を踏むと floatTurns が付きボスは無効", () => {
+    const p = makePlayer({ x: 1, y: 1 });
+    const mon = { id: "m1", name: "敵", x: 5, y: 5, hp: 10 };
+    const boss = { id: "b1", name: "ボス", x: 6, y: 6, hp: 100, isBoss: true };
+    const trap = { effect: "float_trap", name: "浮遊の罠", x: 5, y: 5, id: "f2" };
+    const trapB = { effect: "float_trap", name: "浮遊の罠", x: 6, y: 6, id: "f3" };
+    const dg = makeEmptyDg({ traps: [trap, trapB], monsters: [mon, boss] });
+    const ml = [];
+    fireTrapItem(trap, { name: "石", type: "arrow" }, dg, 5, 5, ml, new Set(), p);
+    fireTrapItem(trapB, { name: "石", type: "arrow" }, dg, 6, 6, ml, new Set(), p);
+    expect(mon.floatTurns).toBe(30);
+    expect(boss.floatTurns || 0).toBe(0);
   });
 
   it("鳴動の罠で敵が aware になる", () => {

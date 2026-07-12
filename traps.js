@@ -178,14 +178,18 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "oil_trap": {
-      p.oilyTurns = (p.oilyTurns || 0) + 100;
-      ml.push(`${trap.name}が発動！油まみれになった！炎ダメージが2倍になる！(100ターン)`);
+      p.oilyTurns = (p.oilyTurns || 0) + 30;
+      ml.push(`${trap.name}が発動！油まみれになった！炎ダメージが2倍になる！(30ターン)`);
       break;
     }
     case "unident_trap": {
-      const _n = unidentPlayerItems(p, identSet, ml);
-      if (_n > 0) ml.push(`${trap.name}が発動！所持品の知識が曖昧になった…(${_n}個)`);
-      else ml.push(`${trap.name}が発動！特に思い浮かぶものがなかった。`);
+      const _ur = unidentPlayerItems(p, identSet);
+      if (_ur.count > 0 && _ur.item) {
+        const _nm = nameFn ? nameFn(_ur.item) : _ur.item.name;
+        ml.push(`${trap.name}が発動！${_nm}のことがわからなくなった…`);
+      } else {
+        ml.push(`${trap.name}が発動！特に思い浮かぶものがなかった。`);
+      }
       break;
     }
     case "alarm_trap": {
