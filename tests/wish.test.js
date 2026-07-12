@@ -95,6 +95,27 @@ describe("wish core", () => {
     expect(ml.some((m) => m.includes("を倒した"))).toBe(true);
   });
 
+  it("grantWish wipe_enemies は復活の魔方陣でも敵を蘇らせない", () => {
+    const p = makePlayer({ exp: 0, level: 1, nextExp: 99999 });
+    const dg = makeEmptyDg({
+      monsters: [
+        { id: 1, name: "復活テスト", hp: 10, maxHp: 10, x: 3, y: 3, exp: 10 },
+      ],
+      items: [],
+      traps: [],
+      rooms: [{ x: 0, y: 0, w: 10, h: 10 }],
+      pentacles: [{ kind: "revival", x: 3, y: 3, cursed: false }],
+    });
+    const ml = [];
+    grantWish(
+      { kind: "preset", id: "wipe_enemies" },
+      { player: p, dungeon: dg, ml, luFn: () => {} },
+    );
+    expect(dg.monsters).toHaveLength(0);
+    expect(p.exp).toBe(10);
+    expect(ml.some((m) => m.includes("復活の魔方陣"))).toBe(false);
+  });
+
   it("grantWish item がインベントリに入る", () => {
     const p = makePlayer();
     const dg = makeEmptyDg();

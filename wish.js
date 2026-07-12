@@ -53,7 +53,7 @@ export const WISH_PRESETS = [
   { id: "ident_all", label: "全識別", desc: "持ち物を全て識別する" },
   { id: "map_reveal", label: "フロアを見通す", desc: "このフロアの地図と罠を明らかにする" },
   { id: "level_up", label: "レベルアップ", desc: "レベルが3上がる" },
-  { id: "wipe_enemies", label: "敵の全滅", desc: "このフロアの敵を全て倒す（経験値・ドロップあり）" },
+  { id: "wipe_enemies", label: "敵の全滅", desc: "このフロアの敵を全て倒す（経験値・ドロップあり／復活不可）" },
 ];
 
 /** 道具願いUI用カテゴリ（デバッグ魔法と同様の並び） */
@@ -398,7 +398,8 @@ export function grantWish(wish, ctx) {
           if (!dg.monsters?.includes(mon)) continue; /* 連鎖爆発等で既に消えている */
           mon.hp = 0;
           trackMonster(mon);
-          killMonster(mon, dg, p, ml, luFn, false, null);
+          /* 経験値・ドロップは通常撃破扱いだが、復活の魔方陣では蘇らせない */
+          killMonster(mon, dg, p, ml, luFn, false, null, true);
         }
         return { ok: true };
       }

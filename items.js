@@ -3178,10 +3178,11 @@ export function applyFireInventoryDamage(p, ml) {
 
 /** プレイヤーがモンスターを倒した時の共通処理。
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
-export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null) {
+export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false) {
   const mx = mon.x, my = mon.y;
   /* 復活の魔方陣チェック：魔方陣上/同部屋内でHPゼロになったら全回復で復活（使い捨て） */
-  if (dg.pentacles?.length > 0) {
+  /* noRevive: 願いの敵全滅など、特別に復活させない撃破 */
+  if (!noRevive && dg.pentacles?.length > 0) {
     const _revPc = dg.pentacles.find(pc => {
       if (pc.kind !== "revival" || pc.cursed) return false;
       if (pc.x === mx && pc.y === my) return true;
