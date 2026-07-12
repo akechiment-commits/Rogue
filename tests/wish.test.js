@@ -6,6 +6,8 @@ import {
   makeWishedItem,
   rollWishChance,
   WISH_PRESETS,
+  getDiscoveredWishCatalog,
+  templateFromDiscovery,
   _resetWishCatalogCache,
   getWishItemCatalog,
 } from "../wish.js";
@@ -46,8 +48,8 @@ describe("wish core", () => {
     if (r.status === "multi") expect(r.matches.length).toBeGreaterThan(1);
   });
 
-  it("grantWish full_restore がHPを回復する", () => {
-    const p = makePlayer({ hp: 5, maxHp: 30, mp: 0, maxMp: 10 });
+  it("grantWish full_restore がHPと満腹を回復する", () => {
+    const p = makePlayer({ hp: 5, maxHp: 30, mp: 0, maxMp: 10, hunger: 10, maxHunger: 100 });
     p.poisoned = true;
     p.confusedTurns = 5;
     const dg = makeEmptyDg();
@@ -56,8 +58,33 @@ describe("wish core", () => {
     expect(res.ok).toBe(true);
     expect(p.hp).toBe(30);
     expect(p.mp).toBe(10);
+    expect(p.hunger).toBe(100);
     expect(p.poisoned).toBe(false);
     expect(p.confusedTurns).toBe(0);
+  });
+
+  it("grantWish level_up が3レベル上がる", () => {
+    const p = makePlayer({ level: 1, nextExp: 20, maxHp: 30, hp: 30, atk: 5, def: 1, maxMp: 5 });
+    const dg = makeEmptyDg();
+    const ml = [];
+    const res = grantWish({ kind: "preset", id: "level_up" }, { player: p, dungeon: dg, ml });
+    expect(res.ok).toBe(true);
+    expect(p.level).toBe(4);
+  });
+
+  it("grantWish wipe_enemies が全敵を消す", () => {
+    const p = makePlayer();
+    const dg = makeEmptyDg({
+      monsters: [
+        { id: 1, name: "A", hp: 10, x: 1, y: 1 },
+        { id: 2, name: "B", hp: 10, x: 2, y: 2 },
+      ],
+    });
+    const ml = [];
+    const res = grantWish({ kind: "preset", id: "wipe_enemies" }, { player: p, dungeon: dg, ml });
+    expect(res.ok).toBe(true);
+    expect(dg.monsters).toHaveLength(0);
+    expect(ml.some((m) => m.includes("2体"))).toBe(true);
   });
 
   it("grantWish item がインベントリに入る", () => {
@@ -93,9 +120,32 @@ describe("wish core", () => {
     expect(rollWishChance("drink", () => 0.99)).toBe(false);
   });
 
-  it("WISH_PRESETS が揃っている", () => {
-    expect(WISH_PRESETS.length).toBeGreaterThanOrEqual(10);
+  it("WISH_PRESETS が恩恵5種", () => {
+    expect(WISH_PRESETS.map((w) => w.id)).toEqual([
+      "full_restore",
+      "ident_all",
+      "map_reveal",
+      "level_up",
+      "wipe_enemies",
+    ]);
     expect(WISH_PRESETS.every((w) => w.id && w.label)).toBe(true);
+  });
+
+  it("getDiscoveredWishCatalog が図鑑のみをカテゴリ分けする", () => {
+    const groups = getDiscoveredWishCatalog(
+      { items: { heal: { name: "回復薬", type: "potion", tile: 1 } } },
+      { items: { fire: { name: "炎の杖", type: "wand", tile: 24 } } },
+    );
+    const pot = groups.find((g) => g.key === "potion");
+    const wand = groups.find((g) => g.key === "wand");
+    expect(pot?.items.some((t) => t.name === "回復薬")).toBe(true);
+    expect(wand?.items.some((t) => t.name === "炎の杖")).toBe(true);
+    expect(groups.some((g) => g.items.some((t) => t.name === "全能キラー"))).toBe(false);
+  });
+
+  it("templateFromDiscovery がブラックリストを弾く", () => {
+    expect(templateFromDiscovery({ name: "願いの杖", type: "wand" })).toBeNull();
+    expect(templateFromDiscovery({ name: "回復薬", type: "potion" })?.name).toBe("回復薬");
   });
 
   it("願いの杖は charges1 かつ noChargeBoost", () => {

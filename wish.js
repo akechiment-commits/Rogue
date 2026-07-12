@@ -44,21 +44,31 @@ const SPECIAL_TEMPLATES = [
 ];
 
 /**
- * 固定願い（選択肢）
- * @type {{ id: string, label: string, group: string, desc: string }[]}
+ * 恩恵（選択肢）— UIの「恩恵」から選ぶ固定願い
+ * @type {{ id: string, label: string, desc: string }[]}
  */
 export const WISH_PRESETS = [
-  { id: "full_restore", label: "全快する", group: "体", desc: "HP・MPを全回復し、主要な状態異常を治す" },
-  { id: "level_up", label: "レベルが上がる", group: "体", desc: "レベルが1上がる" },
-  { id: "max_hp", label: "生命力が満ちる", group: "体", desc: "最大HPが5増える" },
-  { id: "max_mp", label: "魔力が深まる", group: "体", desc: "最大MPが3増える" },
-  { id: "expand_inv", label: "荷物が増える", group: "体", desc: "最大所持数が2増える" },
-  { id: "ident_all", label: "全てを見通す", group: "知識", desc: "持ち物を全て識別する" },
-  { id: "map_reveal", label: "地図を知る", group: "知識", desc: "このフロアの地図と罠を明らかにする" },
-  { id: "uncurse_all", label: "呪いを解く", group: "知識", desc: "持ち物と装備の呪いを全て解く" },
-  { id: "random_good_item", label: "良い物を得る", group: "運命", desc: "レアなアイテムが1つ手に入る" },
-  { id: "bless_equipped", label: "装備が輝く", group: "運命", desc: "装備中の武器・防具・指輪を祝福する" },
-  { id: "fill_hunger", label: "腹を満たす", group: "運命", desc: "満腹度が最大になる" },
+  { id: "full_restore", label: "全回復", desc: "HP・MP・満腹度を全回復し、状態異常を治す" },
+  { id: "ident_all", label: "全識別", desc: "持ち物を全て識別する" },
+  { id: "map_reveal", label: "フロアを見通す", desc: "このフロアの地図と罠を明らかにする" },
+  { id: "level_up", label: "レベルアップ", desc: "レベルが3上がる" },
+  { id: "wipe_enemies", label: "敵の全滅", desc: "このフロアの敵を全て倒す" },
+];
+
+/** 道具願いUI用カテゴリ（デバッグ魔法と同様の並び） */
+export const WISH_ITEM_CATEGORIES = [
+  { key: "potion", label: "薬", types: ["potion"] },
+  { key: "scroll", label: "巻物", types: ["scroll"] },
+  { key: "weapon", label: "武器", types: ["weapon"] },
+  { key: "armor", label: "防具", types: ["armor"] },
+  { key: "pen", label: "ペン", types: ["pen", "marker"] },
+  { key: "arrow", label: "飛び道具", types: ["arrow"] },
+  { key: "wand", label: "杖", types: ["wand"] },
+  { key: "spellbook", label: "魔法書", types: ["spellbook"] },
+  { key: "ring", label: "指輪", types: ["ring"] },
+  { key: "pot", label: "壺", types: ["pot"] },
+  { key: "food", label: "食べ物", types: ["food"] },
+  { key: "other", label: "その他", types: null }, // 上記以外
 ];
 
 export function normalizeWishText(s) {
@@ -112,6 +122,72 @@ export function canWishItem(tmpl) {
   if (tmpl.debug || tmpl.name.startsWith("[debug]")) return { ok: false, reason: "debug" };
   if (tmpl.type === "gold") return { ok: false, reason: "gold" };
   return { ok: true };
+}
+
+/**
+ * 図鑑エントリから願えるアイテムテンプレを解決
+ * @param {{ name: string, type?: string, tile?: number }} entry
+ * @returns {object|null}
+ */
+export function templateFromDiscovery(entry) {
+  if (!entry?.name) return null;
+  const cat = getWishItemCatalog();
+  const found = cat.find((t) => t.name === entry.name);
+  if (found) return canWishItem(found).ok ? found : null;
+  // カタログ外（主に食べ物）は図鑑の type/name から仮テンプレを組み立てる
+  if (entry.type === "food") {
+    const tmpl = {
+      name: entry.name,
+      type: "food",
+      effect: "satiate_food",
+      value: 20,
+      tile: entry.tile || 19,
+      desc: "願いで現れた食料。",
+    };
+    return canWishItem(tmpl).ok ? tmpl : null;
+  }
+  return null;
+}
+
+/**
+ * 図鑑（セーブ＋今回の探索）に載っている願える道具をカテゴリ別に返す
+ * @param {{ items?: Record<string, { name: string, type?: string, tile?: number }> }} globalDisc
+ * @param {{ items?: Record<string, { name: string, type?: string, tile?: number }> }} runDisc
+ * @returns {{ key: string, label: string, items: object[] }[]}
+ */
+export function getDiscoveredWishCatalog(globalDisc, runDisc) {
+  const byName = new Map();
+  const addEntries = (bucket) => {
+    if (!bucket) return;
+    for (const e of Object.values(bucket)) {
+      if (!e?.name || byName.has(e.name)) continue;
+      const tmpl = templateFromDiscovery(e);
+      if (tmpl) byName.set(e.name, tmpl);
+    }
+  };
+  addEntries(globalDisc?.items);
+  addEntries(runDisc?.items);
+
+  const typed = new Set();
+  for (const cat of WISH_ITEM_CATEGORIES) {
+    if (cat.types) for (const t of cat.types) typed.add(t);
+  }
+
+  const groups = [];
+  for (const cat of WISH_ITEM_CATEGORIES) {
+    let items;
+    if (cat.types) {
+      items = [...byName.values()]
+        .filter((t) => cat.types.includes(t.type))
+        .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+    } else {
+      items = [...byName.values()]
+        .filter((t) => !typed.has(t.type))
+        .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+    }
+    if (items.length > 0) groups.push({ key: cat.key, label: cat.label, items });
+  }
+  return groups;
 }
 
 /**
@@ -267,16 +343,6 @@ function uncurseAll(p) {
   }
 }
 
-function pickRandomGoodTemplate() {
-  const pool = getWishItemCatalog().filter((t) => {
-    if (!canWishItem(t).ok) return false;
-    const r = t.rarity;
-    return r === "A" || r === "S" || r === "B";
-  });
-  if (pool.length === 0) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
 /**
  * 願いを叶える
  * @param {{ kind: 'preset'|'item', id?: string, template?: object, blessed?: boolean }} wish
@@ -292,29 +358,14 @@ export function grantWish(wish, ctx) {
       case "full_restore": {
         p.hp = p.maxHp;
         if ((p.maxMp || 0) > 0) p.mp = p.maxMp;
+        p.hunger = p.maxHunger || 100;
         clearMajorDebuffs(p);
-        ml.push("体中に力が戻ってきた！全快した！");
+        if (p.hunger > 0) delete p._hungerDmgStarted;
+        ml.push("体中に力が戻ってきた！全快し、腹も満たされた！");
         return { ok: true };
       }
       case "level_up": {
-        forceLevelUp(p, ml);
-        return { ok: true };
-      }
-      case "max_hp": {
-        p.maxHp = (p.maxHp || 1) + 5;
-        p.hp = Math.min(p.maxHp, (p.hp || 0) + 5);
-        ml.push("生命力が満ちた！最大HP+5");
-        return { ok: true };
-      }
-      case "max_mp": {
-        p.maxMp = (p.maxMp || 0) + 3;
-        p.mp = Math.min(p.maxMp, (p.mp || 0) + 3);
-        ml.push("魔力が深まった！最大MP+3");
-        return { ok: true };
-      }
-      case "expand_inv": {
-        p.maxInventory = (p.maxInventory || 30) + 2;
-        ml.push(`荷物が軽くなった気がする！最大所持数${p.maxInventory}`);
+        for (let i = 0; i < 3; i++) forceLevelUp(p, ml);
         return { ok: true };
       }
       case "ident_all": {
@@ -333,36 +384,23 @@ export function grantWish(wish, ctx) {
         ml.push("フロアの姿が頭に浮かんだ！地図と罠が明らかになった！");
         return { ok: true };
       }
+      case "wipe_enemies": {
+        const mons = dg.monsters || [];
+        const n = mons.length;
+        dg.monsters = [];
+        ml.push(n > 0 ? `フロアの敵${n}体が消え失せた！` : "倒す敵がいなかった…");
+        return { ok: true };
+      }
+      /* 旧ID互換（直接呼び出し用） */
+      case "fill_hunger": {
+        p.hunger = p.maxHunger || 100;
+        if (p.hunger > 0) delete p._hungerDmgStarted;
+        ml.push("腹が満たされた！");
+        return { ok: true };
+      }
       case "uncurse_all": {
         uncurseAll(p);
         ml.push("呪いの気配が洗い流された！");
-        return { ok: true };
-      }
-      case "random_good_item": {
-        const tmpl = pickRandomGoodTemplate();
-        if (!tmpl) {
-          ml.push("良い物が思い浮かばなかった…");
-          return { ok: false, message: "叶わなかった" };
-        }
-        const it = makeWishedItem(tmpl);
-        giveItemToPlayer(p, dg, it, ml);
-        return { ok: true };
-      }
-      case "bless_equipped": {
-        let n = 0;
-        for (const it of [p.weapon, p.armor, ...(p.rings || [])]) {
-          if (!it) continue;
-          it.blessed = true;
-          it.cursed = false;
-          it.bcKnown = true;
-          n++;
-        }
-        ml.push(n > 0 ? "装備が聖なる光に包まれた！" : "祝福する装備がなかった…");
-        return { ok: n > 0 };
-      }
-      case "fill_hunger": {
-        p.hunger = p.maxHunger || 100;
-        ml.push("腹が満たされた！");
         return { ok: true };
       }
       default:

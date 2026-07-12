@@ -8,8 +8,8 @@ import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
-import { WISH_PRESETS, resolveWishText } from "./wish.js";
-import { isKeyUp, isKeyDown } from "./inputKeys.js";
+import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
+import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -1475,28 +1475,112 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
   );
 }
 
-/* ===== Wish Modal（文字入力 ＋ 選択肢） ===== */
+/* ===== Wish Modal（文字入力 ＋ 道具/恩恵） ===== */
+const WISH_PAGE_SIZE = 10;
+const WISH_MAIN_OPTS = [
+  { id: "items", label: "道具", desc: "図鑑に載っている道具から選ぶ" },
+  { id: "boons", label: "恩恵", desc: "全回復・識別・見通す・LvUP・敵全滅" },
+];
+
 export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
+  /* view: main | items_cat | items_list | boons | text_cand */
+  const [view, setView] = useState("main");
+  const [categoryKey, setCategoryKey] = useState(null);
   const [text, setText] = useState("");
   const [sel, setSel] = useState(0);
-  const [candidates, setCandidates] = useState(null); // null | template[]
+  const [page, setPage] = useState(0);
+  const [candidates, setCandidates] = useState(null); // template[] | null
   const [statusMsg, setStatusMsg] = useState("");
   const inputRef = useRef(null);
 
-  /* Hooks は mode の有無に関わらず常に同数・同順で呼ぶ（早期 return は全 Hooks の後） */
+  /* Hooks は mode の有無に関わらず常に同数・同順で呼ぶ */
   useEffect(() => {
     if (mode) {
+      setView("main");
+      setCategoryKey(null);
       setText("");
       setSel(0);
+      setPage(0);
       setCandidates(null);
       setStatusMsg("");
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [mode]);
 
-  const list = candidates
-    ? candidates.map((t) => ({ kind: "item", label: t.name, template: t, desc: t.desc || "" }))
-    : WISH_PRESETS.map((w) => ({ kind: "preset", id: w.id, label: w.label, desc: w.desc, group: w.group }));
+  const discGroups = useMemo(() => {
+    if (!mode) return [];
+    try {
+      const globalDisc = loadSave()?.discovered || {};
+      const runDisc = getDiscoveries();
+      return getDiscoveredWishCatalog(globalDisc, runDisc);
+    } catch {
+      return getDiscoveredWishCatalog({}, getDiscoveries());
+    }
+  }, [mode, view]);
+
+  const catItems = useMemo(() => {
+    if (!categoryKey) return [];
+    return discGroups.find((g) => g.key === categoryKey)?.items || [];
+  }, [discGroups, categoryKey]);
+
+  const listRows = useMemo(() => {
+    if (view === "main") {
+      return WISH_MAIN_OPTS.map((o) => ({ kind: "nav", id: o.id, label: o.label, desc: o.desc }));
+    }
+    if (view === "boons") {
+      return WISH_PRESETS.map((w) => ({ kind: "preset", id: w.id, label: w.label, desc: w.desc }));
+    }
+    if (view === "items_cat") {
+      return discGroups.map((g) => ({
+        kind: "cat",
+        id: g.key,
+        label: `${g.label}（${g.items.length}）`,
+        desc: "",
+      }));
+    }
+    if (view === "items_list") {
+      return catItems.map((t) => ({ kind: "item", label: t.name, template: t, desc: t.desc || "" }));
+    }
+    if (view === "text_cand" && candidates) {
+      return candidates.map((t) => ({
+        kind: "item",
+        label: t.name,
+        template: t,
+        desc: t.desc || "",
+      }));
+    }
+    return [];
+  }, [view, discGroups, catItems, candidates]);
+
+  const totalPages = Math.max(1, Math.ceil(listRows.length / WISH_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = listRows.slice(safePage * WISH_PAGE_SIZE, (safePage + 1) * WISH_PAGE_SIZE);
+  const safeSel = Math.min(sel, Math.max(0, pageRows.length - 1));
+
+  const goBack = () => {
+    setStatusMsg("");
+    if (view === "text_cand") {
+      setCandidates(null);
+      setView("main");
+      setSel(0);
+      setPage(0);
+      return;
+    }
+    if (view === "items_list") {
+      setView("items_cat");
+      setCategoryKey(null);
+      setSel(0);
+      setPage(0);
+      return;
+    }
+    if (view === "items_cat" || view === "boons") {
+      setView("main");
+      setSel(0);
+      setPage(0);
+      return;
+    }
+    onCancel?.();
+  };
 
   const confirmText = () => {
     const r = resolveWishText(text);
@@ -1506,20 +1590,56 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
     }
     if (r.status === "multi") {
       setCandidates(r.matches);
+      setView("text_cand");
       setSel(0);
+      setPage(0);
       setStatusMsg("どれを願う？ 候補を選んでください。");
       return;
     }
-    // exact / single
     const tmpl = r.matches[0];
     onConfirm?.({ kind: "item", template: tmpl, blessed: !!tmpl._wishBlessed });
   };
 
-  const confirmSel = () => {
-    const row = list[sel];
+  const activateRow = (row) => {
     if (!row) return;
-    if (row.kind === "preset") onConfirm?.({ kind: "preset", id: row.id });
-    else onConfirm?.({ kind: "item", template: row.template, blessed: !!row.template._wishBlessed });
+    if (row.kind === "nav") {
+      if (row.id === "items") {
+        if (discGroups.length === 0) {
+          setStatusMsg("図鑑に載っている道具がまだない…（直接入力は可能）");
+          return;
+        }
+        setView("items_cat");
+        setSel(0);
+        setPage(0);
+        setStatusMsg("");
+        return;
+      }
+      if (row.id === "boons") {
+        setView("boons");
+        setSel(0);
+        setPage(0);
+        setStatusMsg("");
+        return;
+      }
+    }
+    if (row.kind === "cat") {
+      setCategoryKey(row.id);
+      setView("items_list");
+      setSel(0);
+      setPage(0);
+      return;
+    }
+    if (row.kind === "preset") {
+      onConfirm?.({ kind: "preset", id: row.id });
+      return;
+    }
+    if (row.kind === "item" && row.template) {
+      onConfirm?.({
+        kind: "item",
+        template: row.template,
+        blessed: !!row.template._wishBlessed,
+      });
+    }
   };
 
   useEffect(() => {
@@ -1533,25 +1653,52 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
         } else if (e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
-          onCancel?.();
+          goBack();
         }
         return;
       }
       if (isKeyUp(e)) {
         e.preventDefault();
-        setSel((s) => (s - 1 + list.length) % Math.max(1, list.length));
+        e.stopPropagation();
+        if (safeSel > 0) setSel(safeSel - 1);
+        else if (safePage > 0) {
+          setPage(safePage - 1);
+          setSel(WISH_PAGE_SIZE - 1);
+        } else if (pageRows.length > 0) {
+          setSel(pageRows.length - 1);
+        }
       } else if (isKeyDown(e)) {
         e.preventDefault();
-        setSel((s) => (s + 1) % Math.max(1, list.length));
+        e.stopPropagation();
+        if (safeSel < pageRows.length - 1) setSel(safeSel + 1);
+        else if (safePage < totalPages - 1) {
+          setPage(safePage + 1);
+          setSel(0);
+        } else {
+          setSel(0);
+        }
+      } else if (isKeyLeft(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (totalPages > 1) {
+          setPage((p) => (p - 1 + totalPages) % totalPages);
+          setSel(0);
+        }
+      } else if (isKeyRight(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (totalPages > 1) {
+          setPage((p) => (p + 1) % totalPages);
+          setSel(0);
+        }
       } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
         e.preventDefault();
-        confirmSel();
+        e.stopPropagation();
+        activateRow(pageRows[safeSel]);
       } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
         e.preventDefault();
-        if (candidates) {
-          setCandidates(null);
-          setStatusMsg("");
-        } else onCancel?.();
+        e.stopPropagation();
+        goBack();
       }
     };
     window.addEventListener("keydown", onKey, true);
@@ -1559,6 +1706,20 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
   });
 
   if (!mode) return null;
+
+  const title =
+    view === "main" ? "✦ 何を願う？"
+    : view === "boons" ? "✦ 恩恵を選ぶ"
+    : view === "items_cat" ? "✦ 道具の種類"
+    : view === "items_list" ? `✦ ${discGroups.find((g) => g.key === categoryKey)?.label || "道具"}`
+    : "✦ 候補を選ぶ";
+
+  const help =
+    view === "main"
+      ? "Enter:文字で願う　↑↓:選択　Z:決定　X:やめる"
+      : totalPages > 1
+        ? "↑↓:選択　←→:ページ　Z:決定　X:戻る"
+        : "↑↓:選択　Z:決定　X:戻る";
 
   return (
     <div
@@ -1578,85 +1739,106 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
       }}
     >
       <div style={{ color: "#daf", fontWeight: "bold", fontSize: 15, marginBottom: 8 }}>
-        ✦ 何を願う？
+        {title}
       </div>
-      <div style={{ color: "#9ad", fontSize: 12, marginBottom: 8 }}>
-        下に願いを書くか、一覧から選んでください。
-      </div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-        <input
-          ref={inputRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="例: 回復薬 / 祝福の力の指輪"
-          style={{
-            flex: 1,
-            background: "#1a1030",
-            border: "1px solid #75a",
-            color: "#eef",
-            borderRadius: 5,
-            padding: "8px 10px",
-            fontSize: 14,
-          }}
-          onKeyDown={(e) => e.stopPropagation()}
-        />
-        <button
-          type="button"
-          onClick={confirmText}
-          style={{
-            background: "#53a",
-            color: "#fff",
-            border: "1px solid #a6f",
-            borderRadius: 5,
-            padding: "6px 12px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          願う
-        </button>
-      </div>
+      {view === "main" && (
+        <>
+          <div style={{ color: "#9ad", fontSize: 12, marginBottom: 8 }}>
+            直接入力なら図鑑に無い道具も願えます。一覧は図鑑に載った道具と恩恵から。
+          </div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <input
+              ref={inputRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="例: 回復薬 / 祝福の力の指輪"
+              style={{
+                flex: 1,
+                background: "#1a1030",
+                border: "1px solid #75a",
+                color: "#eef",
+                borderRadius: 5,
+                padding: "8px 10px",
+                fontSize: 14,
+              }}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+            <button
+              type="button"
+              onClick={confirmText}
+              style={{
+                background: "#53a",
+                color: "#fff",
+                border: "1px solid #a6f",
+                borderRadius: 5,
+                padding: "6px 12px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              願う
+            </button>
+          </div>
+        </>
+      )}
       {statusMsg && (
         <div style={{ color: "#fa8", fontSize: 12, marginBottom: 8 }}>{statusMsg}</div>
       )}
-      <div style={{ color: "#8af", fontSize: 12, marginBottom: 4 }}>
-        {candidates ? "候補" : "選択肢"}
-      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {list.map((row, i) => (
+        {pageRows.length === 0 && view === "items_cat" && (
+          <div style={{ color: "#889", fontSize: 13, padding: 8 }}>図鑑に載っている道具がありません。</div>
+        )}
+        {pageRows.map((row, i) => (
           <button
             key={row.id || row.label + i}
             type="button"
             onClick={() => {
               setSel(i);
-              if (row.kind === "preset") onConfirm?.({ kind: "preset", id: row.id });
-              else onConfirm?.({ kind: "item", template: row.template, blessed: !!row.template._wishBlessed });
+              activateRow(row);
             }}
+            onMouseEnter={() => setSel(i)}
             style={{
               textAlign: "left",
               padding: "7px 10px",
-              background: sel === i ? "#3a2a5a" : "#1a1230",
-              color: sel === i ? "#fdf" : "#cbe",
-              border: sel === i ? "1px solid #c8f" : "1px solid #435",
+              background: safeSel === i ? "#3a2a5a" : "#1a1230",
+              color: safeSel === i ? "#fdf" : "#cbe",
+              border: safeSel === i ? "1px solid #c8f" : "1px solid #435",
               borderRadius: 5,
               cursor: "pointer",
               fontSize: 13,
             }}
           >
-            {row.group ? `[${row.group}] ` : ""}{row.label}
+            {safeSel === i ? "▶ " : "  "}{row.label}
             {row.desc && (
               <span style={{ color: "#889", marginLeft: 8, fontSize: 11 }}>— {row.desc}</span>
             )}
           </button>
         ))}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, gap: 8 }}>
-        <div style={{ color: "#667", fontSize: 11 }}>
-          Enter:文字で願う　↑↓:選択　Z:決定　X:閉じる
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+          <button
+            type="button"
+            onClick={() => { setPage((p) => (p - 1 + totalPages) % totalPages); setSel(0); }}
+            style={{ background: "#2a1a40", color: "#caf", border: "1px solid #75a", borderRadius: 4, padding: "2px 10px", cursor: "pointer" }}
+          >
+            ◀
+          </button>
+          <span style={{ color: "#8af", fontSize: 12 }}>{safePage + 1} / {totalPages}</span>
+          <button
+            type="button"
+            onClick={() => { setPage((p) => (p + 1) % totalPages); setSel(0); }}
+            style={{ background: "#2a1a40", color: "#caf", border: "1px solid #75a", borderRadius: 4, padding: "2px 10px", cursor: "pointer" }}
+          >
+            ▶
+          </button>
         </div>
+      )}
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, gap: 8 }}>
+        <div style={{ color: "#667", fontSize: 11 }}>{help}</div>
         <button
           type="button"
-          onClick={() => onCancel?.()}
+          onClick={goBack}
           style={{
             background: "#333",
             color: "#ccc",
@@ -1666,7 +1848,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
             cursor: "pointer",
           }}
         >
-          やめる
+          {view === "main" ? "やめる" : "戻る"}
         </button>
       </div>
     </div>
