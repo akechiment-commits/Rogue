@@ -144,9 +144,19 @@ describe("wish core", () => {
     expect(it.id).toBeTruthy();
   });
 
-  it("rollWishChance が確率に従う", () => {
+  it("rollWishChance が確率に従う（0.5%）", () => {
     expect(rollWishChance("drink", () => 0)).toBe(true);
-    expect(rollWishChance("drink", () => 0.99)).toBe(false);
+    expect(rollWishChance("drink", () => 0.004)).toBe(true);
+    expect(rollWishChance("drink", () => 0.005)).toBe(false);
+    expect(rollWishChance("soak", () => 0.004)).toBe(true);
+    expect(rollWishChance("soak", () => 0.01)).toBe(false);
+  });
+
+  it("願いの杖・壺は超低出現 weight", () => {
+    const w = WANDS.find((x) => x.effect === "wish");
+    const pot = POTS.find((x) => x.potEffect === "wish_pot");
+    expect(w.weight).toBeLessThanOrEqual(0.05);
+    expect(pot.weight).toBeLessThanOrEqual(0.05);
   });
 
   it("WISH_PRESETS が恩恵5種", () => {

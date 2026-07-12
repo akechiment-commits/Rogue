@@ -462,7 +462,7 @@ export const WANDS = [
   { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"C", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
   { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"B", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
   { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"C", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n呪い：対象が未識別に戻る。", tile:24 },
-  { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:1,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
+  { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
 ];
 
 /* ===== BIG BOX TYPES ===== */
@@ -514,7 +514,7 @@ export const POTS = [
   { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
   { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
   { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると閉じ込められる。敵に投げても使える。", tile:32 },
-  { name:"願いの壺",         type:"pot", potEffect:"wish_pot", capacity:3, rarity:"S", weight:1,  sellPrice:12000, desc:"アイテムを入れると願いが叶う。\n入れた物は消え、壺も一回で壊れる。", tile:32 },
+  { name:"願いの壺",         type:"pot", potEffect:"wish_pot", capacity:3, rarity:"S", weight:0.05,  sellPrice:12000, desc:"アイテムを入れると願いが叶う。\n入れた物は消え、壺も一回で壊れる。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {

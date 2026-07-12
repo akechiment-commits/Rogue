@@ -16,9 +16,9 @@ import {
 import { trackMonster } from "./DiscoveryTracker.js";
 import { uid, MW, MH } from "./utils.js";
 
-/** 飲む／浸すで願いが発動する確率 */
-export const WISH_CHANCE_DRINK = 0.01;
-export const WISH_CHANCE_SOAK = 0.008;
+/** 飲む／浸すで願いが発動する確率（各 0.5%） */
+export const WISH_CHANCE_DRINK = 0.005;
+export const WISH_CHANCE_SOAK = 0.005;
 
 /** テキスト願いで拒否する名称（最上位・キー相当） */
 const ITEM_NAME_BLACKLIST = new Set([
