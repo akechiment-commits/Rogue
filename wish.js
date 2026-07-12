@@ -3,28 +3,32 @@
  * 泉の飲む／浸す超低確率、将来の巻物・杖から共通利用する。
  */
 import {
-  ITEMS, WANDS, POTS, RINGS, SPELLBOOKS,
+  ITEMS, WANDS, POTS, RINGS, SPELLBOOKS, BB_TYPES,
   EXCALIBUR_T, CAT_CLAW_T, GOLDEN_AXE_T, SOBURO_T,
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T,
   MITHRIL_ARMOR_T, TRIELEM_ARMOR_T, DIVINE_SHIELD_T,
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, ONI_CLUB_T, GOBLIN_BAT_T,
+  GODSPARKWAND_T,
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T,
   BOMB_ARROW_T, STONE_T, MAGIC_STONE_T,
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
   getIdentKey, placeItemAt, killMonster,
 } from "./items.js";
-import { trackMonster } from "./DiscoveryTracker.js";
-import { uid, MW, MH } from "./utils.js";
+import { trackMonster, trackBigbox } from "./DiscoveryTracker.js";
+import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
 
 /** 飲む／浸すで願いが発動する確率（各 0.5%） */
 export const WISH_CHANCE_DRINK = 0.005;
 export const WISH_CHANCE_SOAK = 0.005;
 
+/** 願いで得られるゴールド量 */
+export const WISH_GOLD_MIN = 10000;
+export const WISH_GOLD_MAX = 20000;
+
 /** テキスト願いで拒否する名称（最上位・キー相当） */
 const ITEM_NAME_BLACKLIST = new Set([
   "全能キラー",
   "アルテマソード",
-  "ゴッドスパークの杖",
   "願いの杖",
   "願いの壺",
   "伝説の王冠",
@@ -39,6 +43,7 @@ const SPECIAL_TEMPLATES = [
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T,
   MITHRIL_ARMOR_T, TRIELEM_ARMOR_T, DIVINE_SHIELD_T,
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, ONI_CLUB_T, GOBLIN_BAT_T,
+  GODSPARKWAND_T,
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T,
   BOMB_ARROW_T, STONE_T, MAGIC_STONE_T,
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
@@ -68,6 +73,7 @@ export const WISH_ITEM_CATEGORIES = [
   { key: "spellbook", label: "魔法書", types: ["spellbook"] },
   { key: "ring", label: "指輪", types: ["ring"] },
   { key: "pot", label: "壺", types: ["pot"] },
+  { key: "bigbox", label: "大箱", types: ["bigbox"] },
   { key: "food", label: "食べ物", types: ["food"] },
   { key: "other", label: "その他", types: null }, // 上記以外
 ];
@@ -79,6 +85,29 @@ export function normalizeWishText(s) {
     .replace(/[\s\u3000]+/g, "")
     .replace(/[の・]/g, "")
     .toLowerCase();
+}
+
+/** テキストでお金を願うときのエイリアス */
+const GOLD_WISH_ALIASES = new Set(
+  ["お金", "金", "金貨", "ゴールド", "マネー", "gold", "money"].map((s) => normalizeWishText(s)),
+);
+
+/** お金願い用の疑似テンプレ */
+export const GOLD_WISH_TEMPLATE = {
+  name: "お金",
+  type: "gold_wish",
+  desc: `金貨が${WISH_GOLD_MIN}〜${WISH_GOLD_MAX}枚手に入る`,
+};
+
+function bbTemplateFromType(bbt) {
+  if (!bbt?.name) return null;
+  return {
+    name: bbt.name,
+    type: "bigbox",
+    kind: bbt.kind,
+    desc: bbt.desc || "",
+    rare: !!bbt.rare,
+  };
 }
 
 function collectCatalog() {
@@ -97,6 +126,8 @@ function collectCatalog() {
   for (const t of RINGS) add(t);
   for (const t of SPELLBOOKS) add(t);
   for (const t of SPECIAL_TEMPLATES) add(t);
+  for (const b of BB_TYPES) add(bbTemplateFromType(b));
+  add(GOLD_WISH_TEMPLATE);
   // ペンは ITEMS に含まれる
   return list;
 }
@@ -121,13 +152,14 @@ export function canWishItem(tmpl) {
   if (ITEM_NAME_BLACKLIST.has(tmpl.name)) return { ok: false, reason: "forbidden" };
   if (tmpl.type === "goal") return { ok: false, reason: "key" };
   if (tmpl.debug || tmpl.name.startsWith("[debug]")) return { ok: false, reason: "debug" };
+  /* gold_wish は許可。通常の type:gold ドロップテンプレは拒否 */
   if (tmpl.type === "gold") return { ok: false, reason: "gold" };
   return { ok: true };
 }
 
 /**
  * 図鑑エントリから願えるアイテムテンプレを解決
- * @param {{ name: string, type?: string, tile?: number }} entry
+ * @param {{ name: string, type?: string, tile?: number, kind?: string }} entry
  * @returns {object|null}
  */
 export function templateFromDiscovery(entry) {
@@ -135,6 +167,11 @@ export function templateFromDiscovery(entry) {
   const cat = getWishItemCatalog();
   const found = cat.find((t) => t.name === entry.name);
   if (found) return canWishItem(found).ok ? found : null;
+  if (entry.kind || entry.type === "bigbox") {
+    const bbt = BB_TYPES.find((b) => b.kind === entry.kind || b.name === entry.name);
+    const tmpl = bbTemplateFromType(bbt);
+    return tmpl && canWishItem(tmpl).ok ? tmpl : null;
+  }
   // カタログ外（主に食べ物）は図鑑の type/name から仮テンプレを組み立てる
   if (entry.type === "food") {
     const tmpl = {
@@ -152,8 +189,8 @@ export function templateFromDiscovery(entry) {
 
 /**
  * 図鑑（セーブ＋今回の探索）に載っている願える道具をカテゴリ別に返す
- * @param {{ items?: Record<string, { name: string, type?: string, tile?: number }> }} globalDisc
- * @param {{ items?: Record<string, { name: string, type?: string, tile?: number }> }} runDisc
+ * @param {{ items?: object, bigboxes?: object }} globalDisc
+ * @param {{ items?: object, bigboxes?: object }} runDisc
  * @returns {{ key: string, label: string, items: object[] }[]}
  */
 export function getDiscoveredWishCatalog(globalDisc, runDisc) {
@@ -168,6 +205,8 @@ export function getDiscoveredWishCatalog(globalDisc, runDisc) {
   };
   addEntries(globalDisc?.items);
   addEntries(runDisc?.items);
+  addEntries(globalDisc?.bigboxes);
+  addEntries(runDisc?.bigboxes);
 
   const typed = new Set();
   for (const cat of WISH_ITEM_CATEGORIES) {
@@ -183,7 +222,7 @@ export function getDiscoveredWishCatalog(globalDisc, runDisc) {
         .sort((a, b) => a.name.localeCompare(b.name, "ja"));
     } else {
       items = [...byName.values()]
-        .filter((t) => !typed.has(t.type))
+        .filter((t) => !typed.has(t.type) && t.type !== "gold_wish")
         .sort((a, b) => a.name.localeCompare(b.name, "ja"));
     }
     if (items.length > 0) groups.push({ key: cat.key, label: cat.label, items });
@@ -207,6 +246,11 @@ export function resolveWishText(raw) {
     core = core.replace(/^祝福の?/, "").replace(/^祝の?/, "");
   }
 
+  // お金（完全一致のエイリアス）
+  if (GOLD_WISH_ALIASES.has(core)) {
+    return { status: "exact", matches: [{ ...GOLD_WISH_TEMPLATE }] };
+  }
+
   // ブラックリスト完全一致は forbidden
   for (const banned of ITEM_NAME_BLACKLIST) {
     if (normalizeWishText(banned) === core) {
@@ -217,6 +261,7 @@ export function resolveWishText(raw) {
   const cat = getWishItemCatalog();
   const scored = [];
   for (const t of cat) {
+    if (t.type === "gold_wish") continue; /* エイリアスで処理済み */
     const n = normalizeWishText(t.name);
     if (n === core) scored.push({ t, rank: 0 });
     else if (n.startsWith(core)) scored.push({ t, rank: 1 });
@@ -289,6 +334,54 @@ function giveItemToPlayer(p, dg, it, ml) {
   const ft = new Set();
   placeItemAt(dg, p.x, p.y, it, ml, ft);
   ml.push(`${it.name}が足元に現れた！（荷物がいっぱい）`);
+}
+
+function grantGoldWish(p, ml) {
+  const amount = rng(WISH_GOLD_MIN, WISH_GOLD_MAX);
+  p.gold = (p.gold || 0) + amount;
+  ml.push(`${amount}ゴールドを手に入れた！`);
+  return { ok: true };
+}
+
+/** 大箱を足元優先で配置（空いていなければ DRO で空きマスを探す） */
+function placeBigboxNearPlayer(dg, p, tmpl, ml) {
+  const bbt = BB_TYPES.find((b) => b.kind === tmpl.kind || b.name === tmpl.name);
+  if (!bbt) {
+    ml.push("大箱の姿が思い浮かばなかった…");
+    return false;
+  }
+  if (!dg.bigboxes) dg.bigboxes = [];
+  let px = null, py = null;
+  for (const [dx, dy] of DRO) {
+    const x = p.x + dx, y = p.y + dy;
+    if (x < 0 || y < 0 || x >= MW || y >= MH) continue;
+    const tile = dg.map?.[y]?.[x];
+    if (!tile || tile === T.WALL || tile === T.BWALL || tile === T.SD || tile === T.SU) continue;
+    if (dg.bigboxes.some((b) => b.x === x && b.y === y)) continue;
+    if (dg.springs?.some((s) => s.x === x && s.y === y)) continue;
+    px = x; py = y;
+    break;
+  }
+  if (px == null) {
+    ml.push(`${bbt.name}を置く場所がない…`);
+    return false;
+  }
+  const bb = {
+    id: uid(),
+    x: px,
+    y: py,
+    tile: TI.BIGBOX ?? 41,
+    kind: bbt.kind,
+    name: bbt.name,
+    capacity: typeof bbt.cap === "function" ? bbt.cap() : (bbt.capacity || 2),
+    contents: [],
+    revealed: true,
+  };
+  dg.bigboxes.push(bb);
+  trackBigbox(bb);
+  if (px === p.x && py === p.y) ml.push(`${bb.name}が足元に現れた！`);
+  else ml.push(`${bb.name}が近くに現れた！`);
+  return true;
 }
 
 function clearMajorDebuffs(p) {
@@ -421,9 +514,17 @@ export function grantWish(wish, ctx) {
   }
 
   if (wish.kind === "item" && wish.template) {
-    const check = canWishItem(wish.template);
+    const tmpl = wish.template;
+    const check = canWishItem(tmpl);
     if (!check.ok) return { ok: false, message: "その願いは叶えてもらえない…" };
-    const it = makeWishedItem(wish.template, { blessed: !!wish.blessed || !!wish.template._wishBlessed });
+    if (tmpl.type === "gold_wish") {
+      return grantGoldWish(p, ml);
+    }
+    if (tmpl.type === "bigbox") {
+      const ok = placeBigboxNearPlayer(dg, p, tmpl, ml);
+      return ok ? { ok: true } : { ok: false, message: "大箱を置けなかった…" };
+    }
+    const it = makeWishedItem(tmpl, { blessed: !!wish.blessed || !!tmpl._wishBlessed });
     giveItemToPlayer(p, dg, it, ml);
     return { ok: true };
   }

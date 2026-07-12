@@ -20,14 +20,17 @@ describe("wish core", () => {
     _resetWishCatalogCache();
   });
 
-  it("カタログに回復薬などが含まれる", () => {
+  it("カタログに回復薬・ゴッドスパーク・大箱が含まれる", () => {
     const cat = getWishItemCatalog();
     expect(cat.some((t) => t.name === "回復薬")).toBe(true);
+    expect(cat.some((t) => t.name === "ゴッドスパークの杖")).toBe(true);
+    expect(cat.some((t) => t.name === "合成の大箱" && t.type === "bigbox")).toBe(true);
     expect(cat.some((t) => t.name === "全能キラー")).toBe(false);
   });
 
-  it("canWishItem が最上位を拒否する", () => {
+  it("canWishItem が最上位を拒否しゴッドスパークは許可", () => {
     expect(canWishItem({ name: "全能キラー", type: "weapon" }).ok).toBe(false);
+    expect(canWishItem({ name: "ゴッドスパークの杖", type: "wand" }).ok).toBe(true);
     expect(canWishItem({ name: "回復薬", type: "potion", effect: "heal" }).ok).toBe(true);
   });
 
@@ -40,6 +43,46 @@ describe("wish core", () => {
   it("resolveWishText が拒否アイテムを forbidden にする", () => {
     const r = resolveWishText("全能キラー");
     expect(r.status).toBe("forbidden");
+  });
+
+  it("resolveWishText がお金を gold_wish にする", () => {
+    const r = resolveWishText("お金");
+    expect(r.status).toBe("exact");
+    expect(r.matches[0].type).toBe("gold_wish");
+  });
+
+  it("resolveWishText が大箱名を解決する", () => {
+    const r = resolveWishText("合成の大箱");
+    expect(r.status).toBe("exact");
+    expect(r.matches[0].type).toBe("bigbox");
+  });
+
+  it("grantWish お金が 1万〜2万 入る", () => {
+    const p = makePlayer({ gold: 0 });
+    const dg = makeEmptyDg();
+    const ml = [];
+    const res = grantWish(
+      { kind: "item", template: { name: "お金", type: "gold_wish" } },
+      { player: p, dungeon: dg, ml },
+    );
+    expect(res.ok).toBe(true);
+    expect(p.gold).toBeGreaterThanOrEqual(10000);
+    expect(p.gold).toBeLessThanOrEqual(20000);
+  });
+
+  it("grantWish 大箱が足元に出る", () => {
+    const p = makePlayer({ x: 5, y: 5 });
+    const dg = makeEmptyDg({ bigboxes: [] });
+    const ml = [];
+    const res = grantWish(
+      { kind: "item", template: { name: "合成の大箱", type: "bigbox", kind: "synthesis" } },
+      { player: p, dungeon: dg, ml },
+    );
+    expect(res.ok).toBe(true);
+    expect(dg.bigboxes).toHaveLength(1);
+    expect(dg.bigboxes[0].kind).toBe("synthesis");
+    expect(dg.bigboxes[0].x).toBe(5);
+    expect(dg.bigboxes[0].y).toBe(5);
   });
 
   it("resolveWishText が部分一致で multi になり得る", () => {
