@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode } from './utils.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt } from './monsters.js';
 import { triggerWandBreakEffect } from './wands.js';
@@ -1036,12 +1036,12 @@ export const ARMOR_ABILITIES = [
 /* ===== TRAPS ===== */
 export const TRAPS = [
   { name:"地雷",           effect:"explode",       tile:25, desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。隣の地雷は誘爆する。" },
-  { name:"矢の罠",         effect:"arrow_trap",    tile:26, desc:"踏むと壁から矢が飛んでくる。\nダメージは小さいが序盤は注意。矢が落ちる。\n踏む以外で壊れると矢が数本散らばる。" },
+  { name:"矢の罠",         effect:"arrow_trap",    tile:26, desc:"踏むと、そのときの正面方向から矢が飛んでくる。\nダメージは小さいが序盤は注意。矢が落ちる。\n踏む以外で壊れると矢が数本散らばる。" },
   { name:"落とし穴",       effect:"pitfall",       tile:27, desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
   { name:"錆の罠",         effect:"rust",          tile:28, desc:"踏むと装備中の武器or防具の＋値が-1される。\n金属製装備が対象。" },
   { name:"回転板",         effect:"spin",          tile:29, desc:"踏むとランダムな場所に吹き飛ばされる。\n飛んだ先の罠も発動する。" },
   { name:"睡眠ガスの罠",   effect:"sleep",         tile:30, desc:"踏むと6ターン眠る。" },
-  { name:"毒矢の罠",       effect:"poison_arrow",  tile:45, desc:"踏むと壁から毒矢が飛んでくる。\nダメージ+毒状態。\n踏む以外で壊れると毒矢が数本散らばる。" },
+  { name:"毒矢の罠",       effect:"poison_arrow",  tile:45, desc:"踏むと、そのときの正面方向から毒矢が飛んでくる。\nダメージ+毒状態。\n踏む以外で壊れると毒矢が数本散らばる。" },
   { name:"召喚の罠",       effect:"summon_trap",   tile:46, desc:"踏むと周囲に2～4体の敵が出現する。\n出現した敵は即座にこちらを認識している。" },
   { name:"鈍足の罠",       effect:"slow_trap",     tile:47, desc:"踏むと10ターン鈍足になる(速度半減)。" },
   { name:"封印の罠",       effect:"seal_trap",     tile:48, desc:"踏むと50ターン魔法が封印される。\n巻物・魔法・杖が使えなくなる。" },
@@ -1640,6 +1640,135 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
   }
 }
 
+/**
+ * 矢/毒矢の罠：作動時プレイヤーの正面方向の壁側から、プレイヤーへ向かって矢が飛ぶ。
+ * @returns {boolean} 命中（または回避で矢が落ちた）したか
+ */
+export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, ft = null } = {}) {
+  const _ft = ft || new Set([trap?.id].filter(Boolean));
+  const face = (p && p.facing) || { dx: 0, dy: 1 };
+  let fdx = Math.sign(face.dx || 0);
+  let fdy = Math.sign(face.dy || 0);
+  if (fdx === 0 && fdy === 0) { fdx = 0; fdy = 1; }
+
+  /* 正面方向へ進み、壁（またはマップ外）を矢の起点にする */
+  const originX = trap?.x ?? p?.x ?? 0;
+  const originY = trap?.y ?? p?.y ?? 0;
+  let ox = originX, oy = originY;
+  for (let i = 0; i < Math.max(MW, MH) + 2; i++) {
+    const nx = ox + fdx, ny = oy + fdy;
+    if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) {
+      ox = nx; oy = ny;
+      break;
+    }
+    if (dg.map[ny]?.[nx] === T.WALL || dg.map[ny]?.[nx] === T.BWALL) {
+      ox = nx; oy = ny;
+      break;
+    }
+    ox = nx; oy = ny;
+  }
+
+  /* 飛行方向：正面からプレイヤー側へ（向きの逆） */
+  const flyDx = -fdx, flyDy = -fdy;
+  const arrow = poison ? makePoisonArrow(1) : makeArrow(1);
+  const label = poison ? "毒矢" : "矢";
+  let hit = false;
+  let lastX = originX, lastY = originY;
+
+  let cx = ox + flyDx, cy = oy + flyDy;
+  for (let step = 0; step < Math.max(MW, MH) + 2; step++) {
+    if (cx < 0 || cy < 0 || cx >= MW || cy >= MH) break;
+    const tile = dg.map[cy]?.[cx];
+    if (tile === T.WALL || tile === T.BWALL) break;
+    lastX = cx; lastY = cy;
+
+    if (p && p.x === cx && p.y === cy) {
+      if (getDodgePentacleMode(dg, p.x, p.y) === "dodge") {
+        ml.push(`みかわしの魔方陣の加護で${label}をかわした！矢が落ちた。`);
+        placeItemAt(dg, cx, cy, arrow, ml, _ft);
+        hit = true;
+        break;
+      }
+      const d = (ARROW_T.atk || 3) + rng(1, 4);
+      p.deathCause = `${trap?.name || label}により`;
+      p.hp -= d;
+      if (poison) {
+        if (hasRingEffect(p, "antidote_ring")) {
+          ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
+        } else {
+          p.poisoned = true;
+          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
+        }
+      } else {
+        ml.push(`矢が命中！${d}ダメージ！`);
+      }
+      hit = true;
+      break;
+    }
+
+    const m = monsterAt(dg, cx, cy);
+    if (m) {
+      if (m.subtype === "reflector") {
+        ml.push(`${label}が${m.name}に弾き返された！`);
+        let rHit = false, rLastX = cx, rLastY = cy;
+        let rx = cx + fdx, ry = cy + fdy;
+        for (let ri = 0; ri < Math.max(MW, MH) + 2; ri++) {
+          if (rx < 0 || ry < 0 || rx >= MW || ry >= MH) break;
+          if (dg.map[ry]?.[rx] === T.WALL || dg.map[ry]?.[rx] === T.BWALL) break;
+          rLastX = rx; rLastY = ry;
+          if (p && p.x === rx && p.y === ry) {
+            rHit = true;
+            const d = (ARROW_T.atk || 3) + rng(1, 4);
+            p.deathCause = `${trap?.name || label}により`;
+            p.hp -= d;
+            if (poison) {
+              if (hasRingEffect(p, "antidote_ring")) {
+                ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！しかし指輪が毒を消した！`);
+              } else {
+                p.poisoned = true;
+                ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！毒を受けた！`);
+              }
+            } else {
+              ml.push(`跳ね返された矢がプレイヤーに命中！${d}ダメージ！`);
+            }
+            break;
+          }
+          rx += fdx; ry += fdy;
+        }
+        if (!rHit) placeItemAt(dg, rLastX, rLastY, arrow, ml, _ft);
+        hit = true;
+        break;
+      }
+      if (getDodgePentacleMode(dg, m.x, m.y) === "dodge") {
+        ml.push(`みかわしの魔方陣の加護で${label}が${m.name}に当たらなかった！矢が落ちた。`);
+        placeItemAt(dg, cx, cy, arrow, ml, _ft);
+      } else {
+        const d = (ARROW_T.atk || 3) + rng(0, 3);
+        m.hp -= d;
+        if (poison) {
+          m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
+          ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
+        } else {
+          ml.push(`矢が${m.name}に命中！${d}ダメージ！`);
+        }
+        if (m.hp <= 0) {
+          ml.push(`${m.name}は倒れた！`);
+          monsterDrop(m, dg, ml, p);
+          removeMonster(dg, m);
+        }
+      }
+      hit = true;
+      break;
+    }
+
+    cx += flyDx;
+    cy += flyDy;
+  }
+
+  if (!hit) placeItemAt(dg, lastX, lastY, arrow, ml, _ft);
+  return hit;
+}
+
 let _fireTrapDepth = 0;
 export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null) {
   if (_fireTrapDepth > 5) return "stop";
@@ -1712,37 +1841,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "arrow_trap": {
       ml.push(`${trap.name}が発動！`);
-      let wx = tx;
-      while (wx > 0 && dg.map[ty][wx - 1] !== T.WALL && dg.map[ty][wx - 1] !== T.BWALL) wx--;
-      wx = Math.max(0, wx - 1);
-      const ar = makeArrow(1);
-      let hit = false, ex = wx;
-      for (let fx = wx + 1; fx < MW; fx++) {
-        if (dg.map[ty][fx] === T.WALL || dg.map[ty][fx] === T.BWALL) { ex = fx - 1; break; }
-        const m = monsterAt(dg, fx, ty);
-        if (m) {
-          const d = ar.atk + rng(0, 3);
-          m.hp -= d;
-          ml.push(`矢が${m.name}に命中！${d}ダメージ！`);
-          if (m.hp <= 0) {
-            ml.push(`${m.name}は倒れた！`);
-            monsterDrop(m, dg, ml, p);
-            removeMonster(dg, m);
-          }
-          hit = true;
-          break;
-        }
-        if (p && p.x === fx && p.y === ty) {
-          const d = ar.atk + rng(0, 3);
-          p.deathCause = "アイテムの矢の罠により";
-          p.hp -= d;
-          ml.push(`矢の罠の矢が命中！${d}ダメージ！`);
-          hit = true;
-          break;
-        }
-        ex = fx;
-      }
-      if (!hit) placeItemAt(dg, ex, ty, ar, ml, ft);
+      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { poison: false, ft });
       return "restart";
     }
     case "spin": {
@@ -1795,37 +1894,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "poison_arrow": {
       ml.push(`${trap.name}が発動！`);
-      let _pawx = tx;
-      while (_pawx > 0 && dg.map[ty][_pawx - 1] !== T.WALL && dg.map[ty][_pawx - 1] !== T.BWALL) _pawx--;
-      _pawx = Math.max(0, _pawx - 1);
-      const _par = makePoisonArrow(1);
-      let _pahit = false, _paex = _pawx;
-      for (let fx = _pawx + 1; fx < MW; fx++) {
-        if (dg.map[ty][fx] === T.WALL || dg.map[ty][fx] === T.BWALL) { _paex = fx - 1; break; }
-        const m = monsterAt(dg, fx, ty);
-        if (m) {
-          const d = _par.atk + rng(0, 3);
-          m.hp -= d;
-          m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-          ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
-          if (m.hp <= 0) { ml.push(`${m.name}は倒れた！`); monsterDrop(m, dg, ml, p); removeMonster(dg, m); }
-          _pahit = true; break;
-        }
-        if (p && p.x === fx && p.y === ty) {
-          const d = _par.atk + rng(0, 3);
-          p.deathCause = `${trap.name}により`;
-          p.hp -= d;
-          if (hasRingEffect(p, "antidote_ring")) {
-            ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
-          } else {
-            p.poisoned = true;
-            ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
-          }
-          _pahit = true; break;
-        }
-        _paex = fx;
-      }
-      if (!_pahit) placeItemAt(dg, _paex, ty, _par, ml, ft);
+      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { poison: true, ft });
       return "restart";
     }
     case "summon_trap": {

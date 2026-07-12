@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
@@ -17,76 +17,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
     }
     case "arrow_trap": {
       ml.push(`${trap.name}が発動！`);
-      let wx = trap.x;
-      while (wx > 0 && dg.map[trap.y][wx - 1] !== T.WALL) wx--;
-      wx = Math.max(0, wx - 1);
-      let hp = false;
-      for (let fx = wx + 1; fx < MW; fx++) {
-        if (dg.map[trap.y][fx] === T.WALL) break;
-        if (fx === p.x && trap.y === p.y) {
-          const _atDodgePc = getDodgePentacleMode(dg, p.x, p.y);
-          if (_atDodgePc === "dodge") {
-            ml.push("みかわしの魔方陣の加護で矢をかわした！矢が落ちた。");
-            hp = true;
-            placeItemAt(dg, fx, trap.y, makeArrow(1), ml, new Set([trap.id]));
-            break;
-          }
-          const d = ARROW_T.atk + rng(1, 4);
-          p.deathCause = `${trap.name}により`;
-          p.hp -= d;
-          ml.push(`矢が命中！${d}ダメージ！`);
-          hp = true;
-          break;
-        }
-        const m = monsterAt(dg, fx, trap.y);
-        if (m) {
-          /* reflector：矢をプレイヤー方向（左）へ跳ね返す */
-          if (m.subtype === "reflector") {
-            ml.push(`矢が${m.name}に弾き返された！`);
-            let _atRx = fx, _atRHit = false;
-            for (let _atRi = fx - 1; _atRi >= 0; _atRi--) {
-              if (dg.map[trap.y][_atRi] === T.WALL || dg.map[trap.y][_atRi] === T.BWALL) break;
-              if (_atRi === p.x && trap.y === p.y) { _atRHit = true; break; }
-              _atRx = _atRi;
-            }
-            if (_atRHit) {
-              const d = ARROW_T.atk + rng(1, 4);
-              p.deathCause = `${trap.name}により`;
-              p.hp -= d;
-              ml.push(`跳ね返された矢がプレイヤーに命中！${d}ダメージ！`);
-            } else {
-              placeItemAt(dg, _atRx, trap.y, makeArrow(1), ml, new Set([trap.id]));
-            }
-            hp = true; break;
-          }
-          const _atMonDodgePc = getDodgePentacleMode(dg, m.x, m.y);
-          if (_atMonDodgePc === "dodge") {
-            ml.push(`みかわしの魔方陣の加護で矢が${m.name}に当たらなかった！矢が落ちた。`);
-            placeItemAt(dg, fx, trap.y, makeArrow(1), ml, new Set([trap.id]));
-          } else {
-            const d = ARROW_T.atk + rng(0, 3);
-            m.hp -= d;
-            ml.push(`矢が${m.name}に命中！${d}ダメージ！`);
-            if (m.hp <= 0) {
-              ml.push(`${m.name}は倒れた！`);
-              dg.monsters = dg.monsters.filter((m2) => m2 !== m);
-            }
-          }
-          hp = true;
-          break;
-        }
-      }
-      if (!hp) {
-        const ar = makeArrow(1);
-        const ft2 = new Set();
-        ft2.add(trap.id);
-        let ex = trap.x;
-        for (let fx = wx + 1; fx < MW; fx++) {
-          if (dg.map[trap.y][fx] === T.WALL) break;
-          ex = fx;
-        }
-        placeItemAt(dg, ex, trap.y, ar, ml, ft2);
-      }
+      fireTrapArrowFromFacing(trap, p, dg, ml, { poison: false });
       break;
     }
     case "pitfall":
@@ -132,83 +63,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       break;
     case "poison_arrow": {
       ml.push(`${trap.name}が発動！`);
-      let _pawx = trap.x;
-      while (_pawx > 0 && dg.map[trap.y][_pawx - 1] !== T.WALL) _pawx--;
-      _pawx = Math.max(0, _pawx - 1);
-      let _pahp = false;
-      let _paex = trap.x;
-      for (let fx = _pawx + 1; fx < MW; fx++) {
-        if (dg.map[trap.y][fx] === T.WALL) break;
-        if (fx === p.x && trap.y === p.y) {
-          const _paDodgePc = getDodgePentacleMode(dg, p.x, p.y);
-          if (_paDodgePc === "dodge") {
-            ml.push("みかわしの魔方陣の加護で毒矢をかわした！矢が落ちた。");
-            placeItemAt(dg, fx, trap.y, makePoisonArrow(1), ml, new Set([trap.id]));
-            _pahp = true;
-            break;
-          }
-          const d = ARROW_T.atk + rng(1, 4);
-          p.deathCause = `${trap.name}により`;
-          p.hp -= d;
-          if (hasRingEffect(p, "antidote_ring")) {
-            ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
-          } else {
-            p.poisoned = true;
-            ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
-          }
-          _pahp = true;
-          break;
-        }
-        const m = monsterAt(dg, fx, trap.y);
-        if (m) {
-          /* reflector：毒矢をプレイヤー方向（左）へ跳ね返す */
-          if (m.subtype === "reflector") {
-            ml.push(`毒矢が${m.name}に弾き返された！`);
-            let _paRx = fx, _paRHit = false;
-            for (let _paRi = fx - 1; _paRi >= 0; _paRi--) {
-              if (dg.map[trap.y][_paRi] === T.WALL || dg.map[trap.y][_paRi] === T.BWALL) break;
-              if (_paRi === p.x && trap.y === p.y) { _paRHit = true; break; }
-              _paRx = _paRi;
-            }
-            if (_paRHit) {
-              const d = ARROW_T.atk + rng(1, 4);
-              p.deathCause = `${trap.name}により`;
-              p.hp -= d;
-              if (hasRingEffect(p, "antidote_ring")) {
-                ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！しかし指輪が毒を消した！`);
-              } else {
-                p.poisoned = true;
-                ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！毒を受けた！`);
-              }
-            } else {
-              placeItemAt(dg, _paRx, trap.y, makePoisonArrow(1), ml, new Set([trap.id]));
-            }
-            _pahp = true; break;
-          }
-          const _paMonDodgePc = getDodgePentacleMode(dg, m.x, m.y);
-          if (_paMonDodgePc === "dodge") {
-            ml.push(`みかわしの魔方陣の加護で毒矢が${m.name}に当たらなかった！矢が落ちた。`);
-            placeItemAt(dg, fx, trap.y, makePoisonArrow(1), ml, new Set([trap.id]));
-          } else {
-            const d = ARROW_T.atk + rng(0, 3);
-            m.hp -= d;
-            m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-            ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
-            if (m.hp <= 0) {
-              ml.push(`${m.name}は倒れた！`);
-              dg.monsters = dg.monsters.filter((m2) => m2 !== m);
-            }
-          }
-          _pahp = true;
-          break;
-        }
-        _paex = fx;
-      }
-      if (!_pahp) {
-        const _par = makePoisonArrow(1);
-        const _paft = new Set([trap.id]);
-        placeItemAt(dg, _paex, trap.y, _par, ml, _paft);
-      }
+      fireTrapArrowFromFacing(trap, p, dg, ml, { poison: true });
       break;
     }
     case "summon_trap": {

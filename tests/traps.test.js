@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending } from "../items.js";
+import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { T, MW, MH } from "../utils.js";
 
 describe("fireTrapPlayer mp_absorb_trap", () => {
   it("プレイヤーのMPが5減る", () => {
@@ -190,6 +191,34 @@ describe("fireTrapItem rockfall", () => {
     expect(stone.x === 5 && stone.y === 5).toBe(false);
     expect(Math.abs(stone.x - 5) + Math.abs(stone.y - 5)).toBeLessThanOrEqual(2);
     expect(ml.some(m => m.includes("転がった"))).toBe(true);
+  });
+});
+
+describe("arrow trap facing", () => {
+  it("矢がプレイヤー正面から飛んできて命中する", () => {
+    /* 床全面。プレイヤーは下向き → 南の壁相当から北へ矢が来る */
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));
+    for (let x = 0; x < MW; x++) map[MH - 1][x] = T.WALL;
+    const p = makePlayer({ x: 10, y: 10, hp: 50, maxHp: 50, facing: { dx: 0, dy: 1 } });
+    const trap = { effect: "arrow_trap", name: "矢の罠", x: 10, y: 10, id: "at1" };
+    const dg = makeEmptyDg({ map, traps: [trap], monsters: [] });
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.hp).toBeLessThan(50);
+    expect(ml.some((m) => m.includes("矢が命中") || m.includes("命中"))).toBe(true);
+  });
+
+  it("正面の敵に矢が当たる（プレイヤーより先）", () => {
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));
+    for (let x = 0; x < MW; x++) map[0][x] = T.WALL;
+    const p = makePlayer({ x: 10, y: 10, hp: 50, maxHp: 50, facing: { dx: 0, dy: -1 } });
+    const mon = { id: "m1", name: "的", x: 10, y: 5, hp: 20, maxHp: 20, atk: 1 };
+    const trap = { effect: "arrow_trap", name: "矢の罠", x: 10, y: 10, id: "at2" };
+    const dg = makeEmptyDg({ map, traps: [trap], monsters: [mon] });
+    const ml = [];
+    fireTrapArrowFromFacing(trap, p, dg, ml, { poison: false });
+    expect(p.hp).toBe(50);
+    expect(mon.hp).toBeLessThan(20);
   });
 });
 
