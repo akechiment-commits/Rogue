@@ -72,19 +72,27 @@ describe("wish core", () => {
     expect(p.level).toBe(4);
   });
 
-  it("grantWish wipe_enemies が全敵を消す", () => {
-    const p = makePlayer();
+  it("grantWish wipe_enemies が通常撃破扱い（経験値）で全敵を倒す", () => {
+    const p = makePlayer({ exp: 0, level: 1, nextExp: 99999 });
     const dg = makeEmptyDg({
       monsters: [
-        { id: 1, name: "A", hp: 10, x: 1, y: 1 },
-        { id: 2, name: "B", hp: 10, x: 2, y: 2 },
+        { id: 1, name: "A", hp: 10, maxHp: 10, x: 1, y: 1, exp: 15 },
+        { id: 2, name: "B", hp: 10, maxHp: 10, x: 2, y: 2, exp: 25 },
       ],
+      items: [],
+      traps: [],
+      pentacles: [],
     });
     const ml = [];
-    const res = grantWish({ kind: "preset", id: "wipe_enemies" }, { player: p, dungeon: dg, ml });
+    const res = grantWish(
+      { kind: "preset", id: "wipe_enemies" },
+      { player: p, dungeon: dg, ml, luFn: () => {} },
+    );
     expect(res.ok).toBe(true);
     expect(dg.monsters).toHaveLength(0);
+    expect(p.exp).toBe(40);
     expect(ml.some((m) => m.includes("2体"))).toBe(true);
+    expect(ml.some((m) => m.includes("を倒した"))).toBe(true);
   });
 
   it("grantWish item がインベントリに入る", () => {

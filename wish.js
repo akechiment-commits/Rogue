@@ -11,8 +11,9 @@ import {
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T,
   BOMB_ARROW_T, STONE_T, MAGIC_STONE_T,
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
-  getIdentKey, placeItemAt,
+  getIdentKey, placeItemAt, killMonster,
 } from "./items.js";
+import { trackMonster } from "./DiscoveryTracker.js";
 import { uid, MW, MH } from "./utils.js";
 
 /** 飲む／浸すで願いが発動する確率 */
@@ -52,7 +53,7 @@ export const WISH_PRESETS = [
   { id: "ident_all", label: "全識別", desc: "持ち物を全て識別する" },
   { id: "map_reveal", label: "フロアを見通す", desc: "このフロアの地図と罠を明らかにする" },
   { id: "level_up", label: "レベルアップ", desc: "レベルが3上がる" },
-  { id: "wipe_enemies", label: "敵の全滅", desc: "このフロアの敵を全て倒す" },
+  { id: "wipe_enemies", label: "敵の全滅", desc: "このフロアの敵を全て倒す（経験値・ドロップあり）" },
 ];
 
 /** 道具願いUI用カテゴリ（デバッグ魔法と同様の並び） */
@@ -346,7 +347,7 @@ function uncurseAll(p) {
 /**
  * 願いを叶える
  * @param {{ kind: 'preset'|'item', id?: string, template?: object, blessed?: boolean }} wish
- * @param {{ player, dungeon, ml: string[], ident?: Set }} ctx
+ * @param {{ player, dungeon, ml: string[], ident?: Set, luFn?: Function }} ctx
  * @returns {{ ok: boolean, message?: string }}
  */
 export function grantWish(wish, ctx) {
@@ -385,10 +386,20 @@ export function grantWish(wish, ctx) {
         return { ok: true };
       }
       case "wipe_enemies": {
-        const mons = dg.monsters || [];
-        const n = mons.length;
-        dg.monsters = [];
-        ml.push(n > 0 ? `フロアの敵${n}体が消え失せた！` : "倒す敵がいなかった…");
+        /* 自分で倒した扱い：経験値・ドロップ・図鑑登録・レベルアップ判定 */
+        const mons = [...(dg.monsters || [])];
+        if (mons.length === 0) {
+          ml.push("倒す敵がいなかった…");
+          return { ok: true };
+        }
+        ml.push(`願いの力でフロアの敵${mons.length}体が倒れた！`);
+        const luFn = typeof ctx.luFn === "function" ? ctx.luFn : (() => {});
+        for (const mon of mons) {
+          if (!dg.monsters?.includes(mon)) continue; /* 連鎖爆発等で既に消えている */
+          mon.hp = 0;
+          trackMonster(mon);
+          killMonster(mon, dg, p, ml, luFn, false, null);
+        }
         return { ok: true };
       }
       /* 旧ID互換（直接呼び出し用） */

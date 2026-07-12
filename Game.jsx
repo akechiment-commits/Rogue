@@ -4584,6 +4584,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       dungeon: dg,
       ml,
       ident: sr.current.ident,
+      luFn: lu,
     });
     if (!res.ok) {
       setMsgs((prev) => [...prev.slice(-80), res.message || "願いが叶わなかった…"]);
@@ -4612,7 +4613,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     setShowInv(false);
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
-  }, [endTurn, drySpringAlways]);
+  }, [endTurn, drySpringAlways, lu]);
 
   const cancelWish = useCallback(() => {
     const mode = wishModeRef.current;
