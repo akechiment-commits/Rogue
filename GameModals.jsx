@@ -1483,6 +1483,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
   const [statusMsg, setStatusMsg] = useState("");
   const inputRef = useRef(null);
 
+  /* Hooks は mode の有無に関わらず常に同数・同順で呼ぶ（早期 return は全 Hooks の後） */
   useEffect(() => {
     if (mode) {
       setText("");
@@ -1493,12 +1494,9 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
     }
   }, [mode]);
 
-  if (!mode) return null;
-
-  const presetRows = WISH_PRESETS;
   const list = candidates
     ? candidates.map((t) => ({ kind: "item", label: t.name, template: t, desc: t.desc || "" }))
-    : presetRows.map((w) => ({ kind: "preset", id: w.id, label: w.label, desc: w.desc, group: w.group }));
+    : WISH_PRESETS.map((w) => ({ kind: "preset", id: w.id, label: w.label, desc: w.desc, group: w.group }));
 
   const confirmText = () => {
     const r = resolveWishText(text);
@@ -1559,6 +1557,8 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   });
+
+  if (!mode) return null;
 
   return (
     <div
