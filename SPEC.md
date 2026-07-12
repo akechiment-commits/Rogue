@@ -12,6 +12,16 @@ React + Vite 製のローグライク。
 2Dキャンバス描画、ターン制、ランダム生成ダンジョン。  
 モバイル・PCどちらにも対応。
 
+### アイテム生成（レア度）
+
+- 共通: `pickLootFromPool(pool, context)`（`items.js`）
+- 基本はテンプレの `weight` による重み抽選（床落ちと同系）
+- 経路 `change` / `shop` / `drop` のみ一定確率で均等抽選（ギャンブル枠）
+  - change 20%（変化の大箱・変化の杖）
+  - shop 15%
+  - drop 15%
+  - floor 0%（常に weight）
+
 ### 願い（Wish）
 
 - 実装: `wish.js`（コア）、`WishModal`（UI）

@@ -2,7 +2,7 @@ import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffl
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
-  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickWeighted, RINGS,
+  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickLootFromPool, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS,
 } from './items.js';
 
@@ -10,8 +10,8 @@ function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
 }
 
-function makeRing() {
-  const t = pickWeighted(RINGS);
+function makeRing(context = "floor") {
+  const t = pickLootFromPool(RINGS, context);
   const ring = { ...t, id: uid() };
   if (ring.effect === "power_ring" || ring.effect === "defense_ring" || ring.effect === "life_ring") ring.plus = rng(1, 3);
   const roll = Math.random();
@@ -24,7 +24,7 @@ function pickBB(exclude = []) {
   /* レア大箱は20%の確率でのみ候補に含まれる */
   const base = Math.random() < 0.20 ? BB_TYPES : BB_TYPES.filter(b => !b.rare);
   const pool = exclude.length ? base.filter(b => !exclude.includes(b.kind)) : base;
-  return pickWeighted(pool.length > 0 ? pool : base);
+  return pickLootFromPool(pool.length > 0 ? pool : base, "floor");
 }
 
 /* ===== BIG ROOM DUNGEON GENERATOR ===== */
@@ -162,7 +162,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   const itemSlots = freeTiles.slice(0, Math.min(rng(5, 9), _half));
   const trapSlots = freeTiles.slice(itemSlots.length, itemSlots.length + Math.min(rng(5, 9), freeTiles.length - itemSlots.length));
   for (const [ix, iy] of itemSlots) {
-    const t = pickWeighted(ITEMS);
+    const t = pickLootFromPool(ITEMS);
     const it = { ...t, id: uid(), x: ix, y: iy };
     if (it.type === "gold") it.value = rng(50, 150 + depth * 40);
     if (it.type !== "gold" && it.type !== "arrow") {
@@ -251,12 +251,12 @@ function genHiddenRooms(map, depth) {
 function pickRareItem(depth) {
   const _rPool = ITEMS.filter(i => i.rarity === "B" || i.rarity === "A" || i.rarity === "S");
   const gens = [
-    { w: 6, fn: () => { const t = pickWeighted(_rPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
-    { w: 5, fn: () => { const t = pickWeighted(_rPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w: 5, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect === "wish" || t.noChargeBoost || t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(0, 2) }; } },
-    { w: 4, fn: () => { const t = pickWeighted(_rPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
-    { w: 3, fn: () => { const t = pickWeighted(_rPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
-    { w: 3, fn: () => { const t = pickWeighted(SPELLBOOKS); return { ...t, id: uid() }; } },
+    { w: 6, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
+    { w: 5, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
+    { w: 5, fn: () => { const t = pickLootFromPool(WANDS); return { ...t, id: uid(), charges: (t.effect === "wish" || t.noChargeBoost || t.effect === "curse_wand" || t.effect === "bless_wand") ? 1 : t.charges + rng(0, 2) }; } },
+    { w: 4, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
+    { w: 3, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
+    { w: 3, fn: () => { const t = pickLootFromPool(SPELLBOOKS); return { ...t, id: uid() }; } },
     { w: 3, fn: () => makeRing() },
     { w: 2, fn: () => makePot() },
     { w: 2, fn: () => ({ name:"金貨", type:"gold", value: rng(200, 500+depth*50), tile:22, id: uid() }) },
@@ -295,14 +295,14 @@ function buildUniPool(depth, dungeonType) {
   const _pens = ITEMS.filter(i => i.type === "pen");
   const gens = [
     { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
-    { w: 10, fn: () => { const t = pickWeighted(iPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickWeighted(iPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
-    { w:  6, fn: () => { const t = pickWeighted(iPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
-    { w:  5, fn: () => { const t = pickWeighted(iPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
+    { w: 10, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
+    { w:  8, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
+    { w:  8, fn: () => { const t = pickLootFromPool(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
+    { w:  6, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
+    { w:  5, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
     { w:  6, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
-    { w:  4, fn: () => { const t = pickWeighted(sbPool); return { ...t, id: uid() }; } },
+    { w:  4, fn: () => { const t = pickLootFromPool(sbPool); return { ...t, id: uid() }; } },
     { w:  4, fn: () => makePot() },
     { w:  2, fn: () => makeRing() },
     { w:  2, fn: () => _pens.length ? { ...pick(_pens), id: uid(), charges: rng(2,3) } : ({ ...genFood(), id: uid() }) },
@@ -516,7 +516,7 @@ function genWallItems(map, depth, items, suspicious = new Set()) {
     if (Math.random() < 0.60) {
       it = { name:"金貨", type:"gold", value: rng(80, 300 + depth * 50), tile:22, id: uid(), x: wx, y: wy, wallEmbedded: true };
     } else {
-      const t = pickWeighted(ITEMS);
+      const t = pickLootFromPool(ITEMS);
       it = { ...t, id: uid(), x: wx, y: wy, wallEmbedded: true };
       if (it.type === 'gold') it.value = rng(80, 300 + depth * 50);
     }
@@ -690,13 +690,13 @@ function setupShopRoom(room, map, depth, items, mons) {
   /* 目玉商品をグリッド先頭スロットに配置 */
   if (luxuryPool.length > 0 && gridSlots.length > 0) {
     const slot = gridSlots.shift();
-    const luxItem = makeShopItem(pick(luxuryPool), slot.x, slot.y);
+    const luxItem = makeShopItem(pickLootFromPool(luxuryPool, "shop") || pick(luxuryPool), slot.x, slot.y);
     luxItem.shopPrice = Math.ceil(luxItem.shopPrice * 1.2);
     items.push(luxItem);
   }
   /* 残りスロットに通常商品を配置（グリッド内のみ） */
   for (const slot of gridSlots) {
-    items.push(makeShopItem(pick(cands), slot.x, slot.y));
+    items.push(makeShopItem(pickLootFromPool(cands, "shop") || pick(cands), slot.x, slot.y));
   }
   const sk = {
     id: uid(), name: '店主', hp: 200, maxHp: 200, atk: 100, def: 100, exp: 0,
@@ -1048,7 +1048,7 @@ function genCorridorFloor(depth, dungeonType = null) {
   /* 罠・泉・大箱・階段は小部屋内にのみ配置 */
   const rndRoom = ()=>{ for(let a=0;a<120;a++){const[x,y]=pick(roomTileList);if(!occ(x,y)&&notSt(x,y))return[x,y];}return null;};
   for(let i=0;i<rng(6,10)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
-  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it={...pickWeighted(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it={...pickLootFromPool(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndRoom();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,3);i++){const p=rndRoom();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   for(let i=0;i<rng(1,2);i++){const p=rndRoom();if(p){const bbt=pickBB();bigboxes.push({id:uid(),x:p[0],y:p[1],tile:TI.BIGBOX,kind:bbt.kind,name:bbt.name,capacity:bbt.cap(),contents:[]});}}
@@ -1192,7 +1192,7 @@ function genRingCorridorFloor(depth, dungeonType = null) {
   };
 
   for(let i=0;i<rng(5,9)+depth;i++){const p=rndCor();if(p)mons.push(mkMon(depth,p[0],p[1],0.12,null,null,dungeonType));}
-  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it={...pickWeighted(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
+  for(let i=0;i<rng(8,14)+depth;i++){const p=rndCor();if(p){const it={...pickLootFromPool(ITEMS),id:uid(),x:p[0],y:p[1]};if(it.type==='gold')it.value=rng(20,80+depth*30);items.push(it);}}
   for(let i=0;i<rng(4,8)+depth;i++){const p=rndPocket();if(p)traps.push({...pick(TRAPS),id:uid(),x:p[0],y:p[1],revealed:false});}
   for(let i=0;i<rng(1,2);i++){const p=rndCor();if(p)springs.push({id:uid(),x:p[0],y:p[1],tile:TI.SPRING,contents:[]});}
   const { visible, explored } = mkVis();
@@ -1520,7 +1520,7 @@ function genBossFloor(depth, dungeonType = null) {
     for (let _a = 0; _a < 100; _a++) {
       const ix = rng(arX + 1, arX + arW - 2), iy = rng(arY + 1, arY + arH - 2);
       if (map[iy][ix] !== T.FLOOR || itemOcc(ix, iy)) continue;
-      const _it = { ...pickWeighted(ITEMS), id: uid(), x: ix, y: iy };
+      const _it = { ...pickLootFromPool(ITEMS), id: uid(), x: ix, y: iy };
       if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
       else { const _br = Math.random(); if (_br < 0.10) _it.blessed = true; else if (_br < 0.25) _it.cursed = true; }
       items.push(_it); break;
@@ -1775,14 +1775,14 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   const _penPool = ITEMS.filter(i => i.type === "pen");
   const _ugGens = [
     { w: 10, fn: () => ({ ...genFood(), id: uid() }) },
-    { w: 10, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
-    { w:  8, fn: () => { const t = pickWeighted(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
-    { w:  6, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
-    { w:  5, fn: () => { const t = pickWeighted(_ITEMS_POOL.filter(i => i.type === "armor"));  return { ...t, id: uid() }; } },
+    { w: 10, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
+    { w:  8, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
+    { w:  8, fn: () => { const t = pickLootFromPool(WANDS); return { ...t, id: uid(), charges: (t.effect==="curse_wand"||t.effect==="bless_wand"||t.effect==="wish"||t.noChargeBoost) ? 1 : t.charges+rng(-1,2) }; } },
+    { w:  6, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
+    { w:  5, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "armor"));  return { ...t, id: uid() }; } },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
     { w:  6, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
-    { w:  4, fn: () => { const t = pickWeighted(_SB_POOL); return { ...t, id: uid() }; } },
+    { w:  4, fn: () => { const t = pickLootFromPool(_SB_POOL); return { ...t, id: uid() }; } },
     { w:  4, fn: () => makePot() },
     { w:  2, fn: () => makeRing() },
     { w:  2, fn: () => _penPool.length ? { ...pick(_penPool), id: uid(), charges: rng(2,3) } : ({ ...genFood(), id: uid() }) },

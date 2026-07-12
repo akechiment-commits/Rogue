@@ -9,6 +9,7 @@ import {
   hasFireResist, hasLightningResist, hasIceResist,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
+  pickLootFromPool,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -573,12 +574,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "item") {
         if (target.type === "goal") { ml.push(`${_dname_item(target)}は変化しなかった！`); break; }
-        const nt = ITEMS[rng(0, ITEMS.length - 2)];
+        const _chgPool = ITEMS.filter((i) => i.type !== "gold" && i.type !== "goal");
+        const nt = pickLootFromPool(_chgPool, "change") || pick(_chgPool);
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
-        const ni = { ...nt, id:uid(), x:ox, y:oy };
-        if (ni.type === "gold") ni.value = rng(5, 50);
+        const ni = { ...nt, id: uid(), x: ox, y: oy };
         dg.items.push(ni);
         ml.push(`${_dname_item(target)}は${nameFn ? nameFn(ni) : ni.name}に変化した！`);
         break;

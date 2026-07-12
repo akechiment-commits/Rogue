@@ -407,11 +407,11 @@ export function itemPrice(it) {
 }
 
 /* weight フィールドを使った重み付き抽選 */
-export function pickWeighted(arr) {
+export function pickWeighted(arr, rngFn = Math.random) {
   const pool = arr.filter(x => (x.weight ?? 1) > 0);
-  if (pool.length === 0) return arr[Math.floor(Math.random() * arr.length)];
+  if (pool.length === 0) return arr[Math.floor(rngFn() * arr.length)];
   const total = pool.reduce((s, x) => s + (x.weight ?? 1), 0);
-  let r = Math.random() * total;
+  let r = rngFn() * total;
   for (const x of pool) { r -= (x.weight ?? 1); if (r <= 0) return x; }
   return pool[pool.length - 1];
 }
@@ -421,6 +421,33 @@ export function wPick(arr) {
   let r = Math.random() * tw;
   for (const x of arr) { r -= x.w; if (r <= 0) return x; }
   return arr[arr.length - 1];
+}
+
+/**
+ * アイテム生成コンテキストごとの「重みを無視して均等抽選」する確率。
+ * floor（床落ち等）は常に weight。変化・店・敵ドロップのみギャンブル枠あり。
+ */
+export const LOOT_UNIFORM_CHANCE = {
+  floor: 0,
+  change: 0.20, /* 変化の大箱・変化の杖 */
+  shop: 0.15,   /* 店の品揃え */
+  drop: 0.15,   /* 敵ドロップ */
+};
+
+/**
+ * 床落ち相当の重み抽選を基本とし、context によっては一定確率で均等抽選。
+ * @param {object[]} pool weight 付きテンプレ配列
+ * @param {'floor'|'change'|'shop'|'drop'} [context='floor']
+ * @param {() => number} [rngFn=Math.random]
+ */
+export function pickLootFromPool(pool, context = "floor", rngFn = Math.random) {
+  if (!pool || pool.length === 0) return null;
+  if (pool.length === 1) return pool[0];
+  const chance = LOOT_UNIFORM_CHANCE[context] ?? 0;
+  if (chance > 0 && rngFn() < chance) {
+    return pool[Math.floor(rngFn() * pool.length)];
+  }
+  return pickWeighted(pool, rngFn);
 }
 
 export function genFood() {
@@ -766,8 +793,9 @@ export function resolveImprisonPotExit(p, dg, ml, luFn, nameFn = null) {
   delete p.potConfinedPotId;
 }
 
-export function makePot() {
-  const t = pick(POTS);
+/** @param {'floor'|'change'|'shop'|'drop'} [context='floor'] */
+export function makePot(context = "floor") {
+  const t = pickLootFromPool(POTS, context) || pick(POTS);
   const pot = { ...t, id: uid(), contents: [], capacity: randPotCapacity(t.potEffect) };
   if (t.potEffect === "imprison") pot.confinedMonsters = [];
   return pot;
@@ -784,7 +812,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     if (_remaining > 0) {
       ml.push(`${_remaining}個のランダムなアイテムが飛び出した！`);
       for (let i = 0; i < _remaining; i++) {
-        const _ri = { ...pickWeighted(ITEMS), id: uid() };
+        const _ri = { ...pickLootFromPool(ITEMS, "floor"), id: uid() };
         if (_ri.type === 'gold') _ri.value = rng(20, 80);
         placeItemAt(dg, px, py, _ri, ml, ft);
       }
@@ -3011,20 +3039,24 @@ export function monsterDrop(m, dg, ml, p = null) {
   /* ランナー（コロポックル等）：必ずアイテムを1つドロップ */
   if (m.subtype === "runner") {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
-    const _t = pick(_pool);
-    const _di = { ..._t, id: uid() };
-    if (_di.type === "pen")  _di.charges = rng(2, 3);
-    else if (_di.type === "wand") _di.charges = Math.max(1, _di.charges + rng(-1, 1));
-    drops.push(_di);
+    const _t = pickLootFromPool(_pool, "drop");
+    if (_t) {
+      const _di = { ..._t, id: uid() };
+      if (_di.type === "pen")  _di.charges = rng(2, 3);
+      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      drops.push(_di);
+    }
   }
   /* 5% ランダムドロップ（一般モンスター） */
   if (Math.random() < 0.05) {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
-    const _t = pick(_pool);
-    const _di = { ..._t, id: uid() };
-    if (_di.type === "pen")  _di.charges = rng(2, 3);
-    else if (_di.type === "wand") _di.charges = Math.max(1, _di.charges + rng(-1, 1));
-    drops.push(_di);
+    const _t = pickLootFromPool(_pool, "drop");
+    if (_t) {
+      const _di = { ..._t, id: uid() };
+      if (_di.type === "pen")  _di.charges = rng(2, 3);
+      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      drops.push(_di);
+    }
   }
   if (drops.length === 0) return;
   const _ft = new Set();

@@ -15,7 +15,7 @@ import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
-  wallBreakDrop, makePot, placeItemAt,
+  wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag, applyWandEffect,
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
@@ -4171,20 +4171,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (rt === "food") {
           nit = { ...genFood(), id: uid() };
         } else if (rt === "wand") {
-          const wt = pick(WANDS);
+          const wt = pickLootFromPool(WANDS, "change") || pick(WANDS);
           nit = { ...wt, id: uid() };
         } else if (rt === "arrow") {
           nit = makeArrow(rng(3, 15));
         } else if (rt === "pot") {
-          nit = makePot();
+          nit = makePot("change");
         } else {
           const pool = ITEMS.filter((i) => i.type === rt);
-          nit = {
-            ...(pool.length
-              ? pick(pool)
-              : pick(ITEMS.filter(i => i.type !== 'gold'))),
-            id: uid(),
-          };
+          const fallback = ITEMS.filter((i) => i.type !== "gold");
+          const tmpl = (pool.length ? pickLootFromPool(pool, "change") : null)
+            || pickLootFromPool(fallback, "change")
+            || pick(fallback);
+          nit = { ...tmpl, id: uid() };
         }
         const idx = bb.contents.indexOf(item);
         if (idx >= 0) bb.contents[idx] = nit;
