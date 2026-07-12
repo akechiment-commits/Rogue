@@ -1860,7 +1860,10 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _stm = monsterAt(dg, tx, ty);
       if (_stm) {
-        const _stNewItem = { ...pick(ITEMS.filter(i => i.type !== 'gold')), id: uid() };
+        /* 敵の一般ドロップと同系統の抽選 */
+        const _stPool = ITEMS.filter((i) => i.type !== "gold");
+        const _stTmpl = pickLootFromPool(_stPool, "drop") || pick(_stPool);
+        const _stNewItem = { ..._stTmpl, id: uid() };
         const _stFtm = new Set();
         const _stRoomm = dg.rooms[rng(0, dg.rooms.length - 1)];
         const _stXm = rng(_stRoomm.x, _stRoomm.x + _stRoomm.w - 1);
