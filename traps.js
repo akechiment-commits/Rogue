@@ -66,6 +66,11 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       fireTrapArrowFromFacing(trap, p, dg, ml, { poison: true });
       break;
     }
+    case "strong_arrow": {
+      ml.push(`${trap.name}が発動！`);
+      fireTrapArrowFromFacing(trap, p, dg, ml, { strong: true });
+      break;
+    }
     case "summon_trap": {
       ml.push(`${trap.name}が発動！`);
       const _sumCount = rng(2, 4);

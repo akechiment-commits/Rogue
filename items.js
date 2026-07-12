@@ -1042,6 +1042,7 @@ export const TRAPS = [
   { name:"回転板",         effect:"spin",          tile:29, desc:"踏むとランダムな場所に吹き飛ばされる。\n飛んだ先の罠も発動する。" },
   { name:"睡眠ガスの罠",   effect:"sleep",         tile:30, desc:"踏むと6ターン眠る。" },
   { name:"毒矢の罠",       effect:"poison_arrow",  tile:45, desc:"踏むと、そのときの正面方向から毒矢が飛んでくる。\nダメージ+毒状態。\n踏む以外で壊れると毒矢が数本散らばる。" },
+  { name:"強矢の罠",       effect:"strong_arrow",  tile:121, desc:"踏むと、そのときの正面方向から強矢が飛んでくる。\n通常の矢よりダメージが大きい。\n踏む以外で壊れると強矢が数本散らばる。" },
   { name:"召喚の罠",       effect:"summon_trap",   tile:46, desc:"踏むと周囲に2～4体の敵が出現する。\n出現した敵は即座にこちらを認識している。" },
   { name:"鈍足の罠",       effect:"slow_trap",     tile:47, desc:"踏むと10ターン鈍足になる(速度半減)。" },
   { name:"封印の罠",       effect:"seal_trap",     tile:48, desc:"踏むと50ターン魔法が封印される。\n巻物・魔法・杖が使えなくなる。" },
@@ -1540,6 +1541,7 @@ export function dropTrapBreakLoot(dg, trap, ml, ft = new Set(), p = null) {
   let item = null;
   if (trap.effect === "arrow_trap") item = makeArrow(rng(2, 4));
   else if (trap.effect === "poison_arrow") item = makePoisonArrow(rng(2, 4));
+  else if (trap.effect === "strong_arrow") item = makeStrongArrow(rng(2, 4));
   else if (trap.effect === "rockfall") item = makeStone(rng(2, 4));
   if (!item) return;
   placeItemAt(dg, trap.x, trap.y, item, ml, new Set(ft), 0, p, trap.x, trap.y);
@@ -1641,10 +1643,11 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
 }
 
 /**
- * 矢/毒矢の罠：作動時プレイヤーの正面方向の壁側から、プレイヤーへ向かって矢が飛ぶ。
+ * 矢/毒矢/強矢の罠：作動時プレイヤーの正面方向の壁側から、プレイヤーへ向かって矢が飛ぶ。
+ * @param {{ poison?: boolean, strong?: boolean, ft?: Set }} opts
  * @returns {boolean} 命中（または回避で矢が落ちた）したか
  */
-export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, ft = null } = {}) {
+export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, strong = false, ft = null } = {}) {
   const _ft = ft || new Set([trap?.id].filter(Boolean));
   const face = (p && p.facing) || { dx: 0, dy: 1 };
   let fdx = Math.sign(face.dx || 0);
@@ -1670,8 +1673,16 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, ft = 
 
   /* 飛行方向：正面からプレイヤー側へ（向きの逆） */
   const flyDx = -fdx, flyDy = -fdy;
-  const arrow = poison ? makePoisonArrow(1) : makeArrow(1);
-  const label = poison ? "毒矢" : "矢";
+  const arrow = poison ? makePoisonArrow(1) : strong ? makeStrongArrow(1) : makeArrow(1);
+  const label = poison ? "毒矢" : strong ? "強矢" : "矢";
+  const baseAtk = poison
+    ? (ARROW_T.atk || 3)
+    : strong
+      ? (STRONG_ARROW_T.atk || 8)
+      : (ARROW_T.atk || 3);
+  /* 強矢は通常より高めの乱数補正 */
+  const dmgPlayer = () => baseAtk + (strong ? rng(2, 6) : rng(1, 4));
+  const dmgMon = () => baseAtk + (strong ? rng(1, 5) : rng(0, 3));
   let hit = false;
   let lastX = originX, lastY = originY;
 
@@ -1689,7 +1700,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, ft = 
         hit = true;
         break;
       }
-      const d = (ARROW_T.atk || 3) + rng(1, 4);
+      const d = dmgPlayer();
       p.deathCause = `${trap?.name || label}により`;
       p.hp -= d;
       if (poison) {
@@ -1700,7 +1711,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, ft = 
           ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
         }
       } else {
-        ml.push(`矢が命中！${d}ダメージ！`);
+        ml.push(`${label}が命中！${d}ダメージ！`);
       }
       hit = true;
       break;
@@ -1718,7 +1729,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, ft = 
           rLastX = rx; rLastY = ry;
           if (p && p.x === rx && p.y === ry) {
             rHit = true;
-            const d = (ARROW_T.atk || 3) + rng(1, 4);
+            const d = dmgPlayer();
             p.deathCause = `${trap?.name || label}により`;
             p.hp -= d;
             if (poison) {
@@ -1729,7 +1740,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, ft = 
                 ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！毒を受けた！`);
               }
             } else {
-              ml.push(`跳ね返された矢がプレイヤーに命中！${d}ダメージ！`);
+              ml.push(`跳ね返された${label}がプレイヤーに命中！${d}ダメージ！`);
             }
             break;
           }
@@ -1743,13 +1754,13 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, ft = 
         ml.push(`みかわしの魔方陣の加護で${label}が${m.name}に当たらなかった！矢が落ちた。`);
         placeItemAt(dg, cx, cy, arrow, ml, _ft);
       } else {
-        const d = (ARROW_T.atk || 3) + rng(0, 3);
+        const d = dmgMon();
         m.hp -= d;
         if (poison) {
           m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
           ml.push(`毒矢が${m.name}に命中！${d}ダメージ！攻撃力が半減した！`);
         } else {
-          ml.push(`矢が${m.name}に命中！${d}ダメージ！`);
+          ml.push(`${label}が${m.name}に命中！${d}ダメージ！`);
         }
         if (m.hp <= 0) {
           ml.push(`${m.name}は倒れた！`);
@@ -1895,6 +1906,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "poison_arrow": {
       ml.push(`${trap.name}が発動！`);
       fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { poison: true, ft });
+      return "restart";
+    }
+    case "strong_arrow": {
+      ml.push(`${trap.name}が発動！`);
+      fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { strong: true, ft });
       return "restart";
     }
     case "summon_trap": {

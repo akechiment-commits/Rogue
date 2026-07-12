@@ -220,6 +220,30 @@ describe("arrow trap facing", () => {
     expect(p.hp).toBe(50);
     expect(mon.hp).toBeLessThan(20);
   });
+
+  it("強矢の罠は通常矢より大きなダメージになる", () => {
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));
+    for (let x = 0; x < MW; x++) map[MH - 1][x] = T.WALL;
+    const p = makePlayer({ x: 10, y: 10, hp: 100, maxHp: 100, facing: { dx: 0, dy: 1 } });
+    const trap = { effect: "strong_arrow", name: "強矢の罠", x: 10, y: 10, id: "sa1" };
+    const dg = makeEmptyDg({ map, traps: [trap], monsters: [] });
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    /* base 8 + rng(2,6) => 10..14 vs 通常矢 max 約7 */
+    expect(p.hp).toBeLessThanOrEqual(90);
+    expect(p.hp).toBeGreaterThanOrEqual(86);
+    expect(ml.some((m) => m.includes("強矢"))).toBe(true);
+  });
+
+  it("壊した強矢の罠から強矢が散らばる", () => {
+    const trap = { effect: "strong_arrow", name: "強矢の罠", x: 5, y: 5, id: "sa2" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    removeTrap(dg, trap, ml, { message: "壊れた" });
+    expect(dg.items).toHaveLength(1);
+    expect(dg.items[0].name).toBe("強矢");
+    expect(dg.items[0].strong).toBe(true);
+  });
 });
 
 describe("removeTrap break loot", () => {
