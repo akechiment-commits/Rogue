@@ -1056,11 +1056,11 @@ export const TRAPS = [
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85, desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。" },
   { name:"腐敗の罠",       effect:"rot_trap",      tile:94, desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
   { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
-  { name:"浮遊の罠",       effect:"float_trap",     tile:122, desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。\n敵が踏むと一時的に浮遊する（ボス・店主は無効）。" },
-  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, desc:"踏むと30ターン油まみれになる。\n炎・爆発ダメージが2倍。敵が踏んでも同様。" },
-  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n敵が踏んでも効果なし。" },
+  { name:"浮遊の罠",       effect:"float_trap",     tile:122, desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。\n敵が踏んでも浮遊する（ボス・店主も有効）。" },
+  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, desc:"踏むと30ターン油まみれになる。\n炎・爆発ダメージが2倍。敵が踏んでも同様（ボス・店主も有効）。" },
+  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n敵が踏むと20ターン混乱する。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
-  { name:"増殖の罠",       effect:"multiply_trap",  tile:126, desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。敵が踏んでも同効果。" },
+  { name:"増殖の罠",       effect:"multiply_trap",  tile:126, desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
 ];
 
 function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
@@ -1562,7 +1562,7 @@ export function removeTrap(dg, trap, ml, opts = {}) {
 
 /** 踏んだ後に罠が壊れる確率（盗み・召喚は50%、それ以外25%） */
 export function trapStepBreakChance(trap) {
-  return (trap?.effect === "steal_trap" || trap?.effect === "summon_trap") ? 0.5 : 0.25;
+  return (trap?.effect === "steal_trap" || trap?.effect === "summon_trap" || trap?.effect === "multiply_trap") ? 0.5 : 0.25;
 }
 
 /** 罠発動後のランダム破壊（fromStep=true で戦利品ドロップなし） */
@@ -2162,12 +2162,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _flm = monsterAt(dg, tx, ty);
       if (_flm) {
-        if (_flm.isBoss || _flm.type === "shopkeeper") {
-          ml.push(`${_flm.name}には効果がなかった。`);
-        } else {
-          _flm.floatTurns = Math.max(_flm.floatTurns || 0, 30);
-          ml.push(`${_flm.name}がふわっと浮いた！(浮遊30ターン)`);
-        }
+        _flm.floatTurns = Math.max(_flm.floatTurns || 0, 30);
+        ml.push(`${_flm.name}がふわっと浮いた！(浮遊30ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
         p.floatTurns = Math.max(p.floatTurns || 0, 30);
@@ -2179,12 +2175,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _olm = monsterAt(dg, tx, ty);
       if (_olm) {
-        if (_olm.isBoss || _olm.type === "shopkeeper") {
-          ml.push(`${_olm.name}には効果がなかった。`);
-        } else {
-          _olm.oilyTurns = (_olm.oilyTurns || 0) + 30;
-          ml.push(`${_olm.name}は油まみれになった！(30ターン)`);
-        }
+        _olm.oilyTurns = (_olm.oilyTurns || 0) + 30;
+        ml.push(`${_olm.name}は油まみれになった！(30ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
         p.oilyTurns = (p.oilyTurns || 0) + 30;
@@ -2195,9 +2187,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "unident_trap": {
       ml.push(`${trap.name}が発動！`);
       const _uim = monsterAt(dg, tx, ty);
-      if (_uim) ml.push(`${_uim.name}には効果がなかった。`);
-      /* プレイヤーがマス上なら fireTrapPlayer 側で1個剥がす想定。
-         アイテム経路でプレイヤーが居る場合は何もしない（ident未渡し） */
+      if (_uim) {
+        _uim.confusedTurns = (_uim.confusedTurns || 0) + 20;
+        ml.push(`${_uim.name}は混乱した！(20ターン)`);
+      }
+      /* プレイヤーがマス上なら fireTrapPlayer 側で1個剥がす想定 */
       if (p && p.x === tx && p.y === ty) {
         ml.push("識別の知識が揺らいだ気がする…");
       }

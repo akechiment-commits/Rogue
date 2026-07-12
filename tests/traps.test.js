@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS } from "../items.js";
+import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -289,7 +289,7 @@ describe("new weird traps", () => {
     expect(mon.oilyTurns).toBe(30);
   });
 
-  it("敵が浮遊の罠を踏むと floatTurns が付きボスは無効", () => {
+  it("敵が浮遊の罠を踏むとボスにも floatTurns が付く", () => {
     const p = makePlayer({ x: 1, y: 1 });
     const mon = { id: "m1", name: "敵", x: 5, y: 5, hp: 10 };
     const boss = { id: "b1", name: "ボス", x: 6, y: 6, hp: 100, isBoss: true };
@@ -300,7 +300,22 @@ describe("new weird traps", () => {
     fireTrapItem(trap, { name: "石", type: "arrow" }, dg, 5, 5, ml, new Set(), p);
     fireTrapItem(trapB, { name: "石", type: "arrow" }, dg, 6, 6, ml, new Set(), p);
     expect(mon.floatTurns).toBe(30);
-    expect(boss.floatTurns || 0).toBe(0);
+    expect(boss.floatTurns).toBe(30);
+  });
+
+  it("未識別の罠を敵が踏むと混乱する", () => {
+    const p = makePlayer({ x: 1, y: 1 });
+    const mon = { id: "m1", name: "敵", x: 5, y: 5, hp: 10 };
+    const trap = { effect: "unident_trap", name: "未識別の罠", x: 5, y: 5, id: "u2" };
+    const dg = makeEmptyDg({ traps: [trap], monsters: [mon] });
+    const ml = [];
+    fireTrapItem(trap, { name: "石", type: "arrow" }, dg, 5, 5, ml, new Set(), p);
+    expect(mon.confusedTurns).toBe(20);
+  });
+
+  it("増殖の罠の破損率は50%", () => {
+    expect(trapStepBreakChance({ effect: "multiply_trap" })).toBe(0.5);
+    expect(trapStepBreakChance({ effect: "oil_trap" })).toBe(0.25);
   });
 
   it("鳴動の罠で敵が aware になる", () => {
