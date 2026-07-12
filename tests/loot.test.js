@@ -3,6 +3,8 @@ import {
   pickLootFromPool,
   pickWeighted,
   LOOT_UNIFORM_CHANCE,
+  MONSTER_RANDOM_DROP_RATE,
+  monsterRandomDropChance,
   ITEMS,
   WANDS,
 } from "../items.js";
@@ -59,5 +61,19 @@ describe("pickLootFromPool", () => {
   it("WANDS でも動く", () => {
     const t = pickLootFromPool(WANDS, "drop");
     expect(t?.type || t?.name).toBeTruthy();
+  });
+
+  it("LOOT_UNIFORM_CHANCE が店20・敵5", () => {
+    expect(LOOT_UNIFORM_CHANCE.shop).toBe(0.20);
+    expect(LOOT_UNIFORM_CHANCE.drop).toBe(0.05);
+    expect(LOOT_UNIFORM_CHANCE.change).toBe(0.20);
+  });
+
+  it("monsterRandomDropChance が特技なし/分裂は2%、特技持ちは5%", () => {
+    expect(monsterRandomDropChance({})).toBe(MONSTER_RANDOM_DROP_RATE.plainOrSplitter);
+    expect(monsterRandomDropChance({ subtype: null })).toBe(0.02);
+    expect(monsterRandomDropChance({ subtype: "splitter" })).toBe(0.02);
+    expect(monsterRandomDropChance({ subtype: "archer" })).toBe(0.05);
+    expect(monsterRandomDropChance({ subtype: "wanduser" })).toBe(0.05);
   });
 });

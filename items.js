@@ -430,9 +430,23 @@ export function wPick(arr) {
 export const LOOT_UNIFORM_CHANCE = {
   floor: 0,
   change: 0.20, /* 変化の大箱・変化の杖 */
-  shop: 0.15,   /* 店の品揃え */
-  drop: 0.15,   /* 敵ドロップ */
+  shop: 0.20,   /* 店の品揃え */
+  drop: 0.05,   /* 敵ドロップ（均等ギャンブル枠） */
 };
+
+/** 一般ランダムドロップ率（固有ドロップは別） */
+export const MONSTER_RANDOM_DROP_RATE = {
+  /** 特技なし / 分裂敵 */
+  plainOrSplitter: 0.02,
+  /** 特技持ち（subtype あり、splitter 以外） */
+  skilled: 0.05,
+};
+
+/** 一般ランダムアイテムドロップの確率（固有ドロップは触らない） */
+export function monsterRandomDropChance(m) {
+  if (!m?.subtype || m.subtype === "splitter") return MONSTER_RANDOM_DROP_RATE.plainOrSplitter;
+  return MONSTER_RANDOM_DROP_RATE.skilled;
+}
 
 /**
  * 床落ち相当の重み抽選を基本とし、context によっては一定確率で均等抽選。
@@ -3047,8 +3061,9 @@ export function monsterDrop(m, dg, ml, p = null) {
       drops.push(_di);
     }
   }
-  /* 5% ランダムドロップ（一般モンスター） */
-  if (Math.random() < 0.05) {
+  /* 一般ランダムドロップ（固有ドロップは上で別処理）
+   * 特技なし・分裂敵: 2%、特技持ち: 5% */
+  if (Math.random() < monsterRandomDropChance(m)) {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
     const _t = pickLootFromPool(_pool, "drop");
     if (_t) {
