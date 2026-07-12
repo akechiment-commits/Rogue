@@ -1,11 +1,12 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing } from "./items.js";
+import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 
-export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
+export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
   trap.revealed = true;
   let r = null;
   let noBreak = false; /* trueのとき作動後の30%破壊チェックをスキップ */
+  const identSet = ctx?.ident || null;
 
   switch (trap.effect) {
     case "explode": {
@@ -50,7 +51,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
       const _spinLandTrap = dg.traps.find(t => t !== trap && t.x === p.x && t.y === p.y);
-      if (_spinLandTrap) fireTrapPlayer(_spinLandTrap, p, dg, ml, nameFn, luFn);
+      if (_spinLandTrap) fireTrapPlayer(_spinLandTrap, p, dg, ml, nameFn, luFn, ctx);
       break;
     }
     case "sleep":
@@ -171,6 +172,40 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
       ml.push(`${trap.name}が発動！MPが${_mpLost}吸い取られた！`);
       break;
     }
+    case "float_trap": {
+      p.floatTurns = Math.max(p.floatTurns || 0, 30);
+      ml.push(`${trap.name}が発動！体がふわっと浮いた！(浮遊30ターン)`);
+      break;
+    }
+    case "oil_trap": {
+      p.oilyTurns = (p.oilyTurns || 0) + 100;
+      ml.push(`${trap.name}が発動！油まみれになった！炎ダメージが2倍になる！(100ターン)`);
+      break;
+    }
+    case "unident_trap": {
+      const _n = unidentPlayerItems(p, identSet, ml);
+      if (_n > 0) ml.push(`${trap.name}が発動！所持品の知識が曖昧になった…(${_n}個)`);
+      else ml.push(`${trap.name}が発動！特に思い浮かぶものがなかった。`);
+      break;
+    }
+    case "alarm_trap": {
+      let _aw = 0;
+      for (const m of dg.monsters || []) {
+        if (m.type === "shopkeeper" && m.state === "friendly") continue;
+        if (!m.aware) _aw++;
+        m.aware = true;
+        if (p) { m.lastPx = p.x; m.lastPy = p.y; }
+      }
+      ml.push(`${trap.name}が発動！フロアに警報が響いた！`);
+      if (_aw > 0) ml.push(`敵が騒ぎに気づいた！`);
+      else ml.push(`すでに敵は警戒していた…`);
+      break;
+    }
+    case "multiply_trap": {
+      ml.push(`${trap.name}が発動！`);
+      multiplyRoomMonsters(dg, trap.x, trap.y, ml, p);
+      break;
+    }
     case "rot_trap": {
       const _rAllFoods = (p.inventory || []).filter(i => i.type === "food" && !i.yabai);
       const _rTarget = _rAllFoods.length > 0 ? _rAllFoods[rng(0, _rAllFoods.length - 1)] : null;
@@ -221,7 +256,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null) {
           ml.push("吹き飛ばされて移動封じが解けた！");
         }
         const _btLandTrap = dg.traps.find(t => t !== trap && t.x === p.x && t.y === p.y);
-        if (_btLandTrap) fireTrapPlayer(_btLandTrap, p, dg, ml, nameFn, luFn);
+        if (_btLandTrap) fireTrapPlayer(_btLandTrap, p, dg, ml, nameFn, luFn, ctx);
       }
       break;
     }

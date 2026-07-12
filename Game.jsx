@@ -922,7 +922,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (isPlayerFloating(p, dg)) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
-    return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu);
+    return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu, { ident: sr.current?.ident });
   }, []);
   const moveMons = useCallback((dg, pl, ml, phaseMode, extraOpts = {}) => {
     const opts = {
@@ -931,7 +931,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       itemNameFn: (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames),
       ...extraOpts,
       fireTrapFn: (trap, p, dg2, ml2) => {
-        const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu);
+        const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu, { ident: sr.current?.ident });
         if (_tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
           if (nd) { sr.current.dungeon = nd; ml2.push(`地下${p.depth}階に落ちた！`); }
@@ -1869,7 +1869,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _ps = st._pendingSpin;
         delete st._pendingSpin;
         const _spinNFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-        fireTrapPlayer(_ps, p, st.dungeon, ml, _spinNFn, lu);
+        fireTrapPlayer(_ps, p, st.dungeon, ml, _spinNFn, lu, { ident: sr.current?.ident });
         _spinFired = true;
       }
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
@@ -3342,7 +3342,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 ml.push("浮遊の指輪を付けているので罠を作動させられない！");
               } else {
                 const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-                const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu);
+                const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu, { ident: sr.current?.ident });
                 if (_tr2 === "pitfall") {
                   const nd2 = chgFloor(p, 1, true);
                   if (nd2) { st.dungeon = nd2; ml.push(`地下${p.depth}階に落ちた！`); }
@@ -3625,7 +3625,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if (hasGravityPentacle(dg, p.x, p.y)) {
             /* 重力の魔方陣の影響下：既知の罠も作動させる */
             const _nameFn2 = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-            const _gtr = fireTrapPlayer(_dashRevTrap, p, dg, ml, _nameFn2, lu);
+            const _gtr = fireTrapPlayer(_dashRevTrap, p, dg, ml, _nameFn2, lu, { ident: sr.current?.ident });
             if (_dashRevTrap.effect !== "explode" && !_dashRevTrap.permanent) {
               const _gravTrBreakChance = (_dashRevTrap.effect === "steal_trap" || _dashRevTrap.effect === "summon_trap") ? 0.5 : 0.25;
               if (Math.random() < _gravTrBreakChance) {
@@ -5145,7 +5145,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const _p = s.player, _dg = s.dungeon, ml = [];
     if (hasRingEffect(_p, "float_ring")) { setMsgs(prev => [...prev.slice(-80), "浮遊の指輪を付けているので罠を作動させられない！"]); return; }
     const _tnFn = (it) => itemDisplayName(it, s.fakeNames, s.ident, s.nicknames);
-    const _tr2 = fireTrapPlayer(trap, _p, _dg, ml, _tnFn, lu);
+    const _tr2 = fireTrapPlayer(trap, _p, _dg, ml, _tnFn, lu, { ident: sr.current?.ident });
     if (_tr2 === "pitfall") { const nd2 = chgFloor(_p, 1, true); if (nd2) { s.dungeon = nd2; ml.push(`地下${_p.depth}階に落ちた！`); } }
 
     endTurn(s, _p, ml);

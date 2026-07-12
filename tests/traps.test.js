@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing } from "../items.js";
+import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -243,6 +243,73 @@ describe("arrow trap facing", () => {
     expect(dg.items).toHaveLength(1);
     expect(dg.items[0].name).toBe("強矢");
     expect(dg.items[0].strong).toBe(true);
+  });
+});
+
+describe("new weird traps", () => {
+  it("浮遊の罠で floatTurns が付く", () => {
+    const p = makePlayer({ x: 5, y: 5 });
+    const dg = makeEmptyDg();
+    const trap = { effect: "float_trap", name: "浮遊の罠", x: 5, y: 5, id: "f1" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.floatTurns).toBe(30);
+  });
+
+  it("油まみれの罠で oilyTurns が付く", () => {
+    const p = makePlayer({ x: 5, y: 5 });
+    const dg = makeEmptyDg();
+    const trap = { effect: "oil_trap", name: "油まみれの罠", x: 5, y: 5, id: "o1" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.oilyTurns).toBe(100);
+  });
+
+  it("未識別の罠で識別が剥がれる", () => {
+    const pot = { name: "回復薬", type: "potion", effect: "heal", fullIdent: true, bcKnown: true };
+    const p = makePlayer({ x: 5, y: 5, inventory: [pot] });
+    const ident = new Set(["p:heal"]);
+    const dg = makeEmptyDg();
+    const trap = { effect: "unident_trap", name: "未識別の罠", x: 5, y: 5, id: "u1" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml, null, null, { ident });
+    expect(ident.has("p:heal")).toBe(false);
+    expect(pot.fullIdent).toBe(false);
+    expect(pot.bcKnown).toBe(false);
+  });
+
+  it("鳴動の罠で敵が aware になる", () => {
+    const p = makePlayer({ x: 5, y: 5 });
+    const m = { id: "m1", name: "敵", x: 8, y: 8, hp: 10, aware: false };
+    const dg = makeEmptyDg({ monsters: [m] });
+    const trap = { effect: "alarm_trap", name: "鳴動の罠", x: 5, y: 5, id: "a1" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(m.aware).toBe(true);
+    expect(m.lastPx).toBe(5);
+  });
+
+  it("増殖の罠で同部屋の敵が分裂しボスは増えない", () => {
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));
+    const rooms = [{ x: 0, y: 0, w: 15, h: 15 }];
+    const p = makePlayer({ x: 2, y: 2 });
+    const m1 = { id: "m1", name: "スライム", x: 4, y: 4, hp: 10, maxHp: 10, aware: false };
+    const boss = { id: "b1", name: "ボス", x: 6, y: 6, hp: 100, maxHp: 100, isBoss: true };
+    const sk = { id: "s1", name: "店主", x: 7, y: 7, hp: 200, type: "shopkeeper" };
+    const dg = makeEmptyDg({ map, rooms, monsters: [m1, boss, sk] });
+    const trap = { effect: "multiply_trap", name: "増殖の罠", x: 2, y: 2, id: "mul1" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(dg.monsters.filter((m) => m.name === "スライム").length).toBe(2);
+    expect(dg.monsters.filter((m) => m.isBoss).length).toBe(1);
+    expect(dg.monsters.filter((m) => m.type === "shopkeeper").length).toBe(1);
+  });
+
+  it("TRAPS に5種が定義されている", () => {
+    const effects = TRAPS.map((t) => t.effect);
+    for (const e of ["float_trap", "oil_trap", "unident_trap", "alarm_trap", "multiply_trap"]) {
+      expect(effects).toContain(e);
+    }
   });
 });
 

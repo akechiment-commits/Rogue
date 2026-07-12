@@ -1,6 +1,6 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode } from './utils.js';
 import { stageBigbox } from './DiscoveryTracker.js';
-import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt } from './monsters.js';
+import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom } from './monsters.js';
 import { triggerWandBreakEffect } from './wands.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 
@@ -1056,6 +1056,11 @@ export const TRAPS = [
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85, desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。" },
   { name:"腐敗の罠",       effect:"rot_trap",      tile:94, desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
   { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
+  { name:"浮遊の罠",       effect:"float_trap",     tile:122, desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。" },
+  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, desc:"踏むと100ターン油まみれになる。\n炎・爆発ダメージが2倍。" },
+  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備の知識が失われる。\n見た目名や＋値がわからなくなる。" },
+  { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。" },
+  { name:"増殖の罠",       effect:"multiply_trap",  tile:126, desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。" },
 ];
 
 function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
@@ -1642,6 +1647,85 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
   }
 }
 
+/** 部屋内の分裂可能敵を1体ずつ複製（ボス・店主除外） */
+export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
+  const room = findRoom(dg.rooms || [], cx, cy);
+  if (!room) {
+    ml.push("しかし分裂する敵がいなかった。");
+    return 0;
+  }
+  const originals = (dg.monsters || []).filter((m) => {
+    if (!m || m.isBoss || m.type === "shopkeeper") return false;
+    return m.x >= room.x && m.x < room.x + room.w && m.y >= room.y && m.y < room.y + room.h;
+  });
+  if (originals.length === 0) {
+    ml.push("しかし分裂する敵がいなかった。");
+    return 0;
+  }
+  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+  let n = 0;
+  for (const m of originals) {
+    for (const [dx, dy] of dirs) {
+      const nx = m.x + dx, ny = m.y + dy;
+      if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
+      const tile = dg.map[ny]?.[nx];
+      if (!tile || tile === T.WALL || tile === T.BWALL) continue;
+      if (tile === T.WATER && !m.float && !m.waterOnly) continue;
+      if (p && nx === p.x && ny === p.y) continue;
+      if (dg.monsters.some((o) => o.x === nx && o.y === ny)) continue;
+      const child = {
+        ...m,
+        id: uid(),
+        x: nx,
+        y: ny,
+        hp: m.maxHp ?? m.hp,
+        maxHp: m.maxHp ?? m.hp,
+        turnAccum: 0,
+        posHistory: [],
+        patrolTarget: null,
+        aware: true,
+      };
+      delete child.hasSplit;
+      delete child.capturedBy;
+      dg.monsters.push(child);
+      n++;
+      break;
+    }
+  }
+  if (n > 0) ml.push(`部屋の敵が分裂した！(+${n}体)`);
+  else ml.push("しかし分裂する場所がなかった。");
+  return n;
+}
+
+/** 所持・装備の識別を剥がす */
+export function unidentPlayerItems(p, identSet) {
+  if (!p) return 0;
+  const list = [...(p.inventory || [])];
+  if (p.weapon) list.push(p.weapon);
+  if (p.armor) list.push(p.armor);
+  if (p.arrow) list.push(p.arrow);
+  for (const r of p.rings || []) if (r) list.push(r);
+  let n = 0;
+  const seen = new Set();
+  for (const it of list) {
+    if (!it || seen.has(it)) continue;
+    seen.add(it);
+    let changed = false;
+    const k = getIdentKey(it);
+    if (k && identSet?.has?.(k)) {
+      identSet.delete(k);
+      changed = true;
+    }
+    if (it.fullIdent || it.bcKnown) {
+      it.fullIdent = false;
+      it.bcKnown = false;
+      changed = true;
+    }
+    if (changed) n++;
+  }
+  return n;
+}
+
 /**
  * 矢/毒矢/強矢の罠：作動時プレイヤーの正面方向の壁側から、プレイヤーへ向かって矢が飛ぶ。
  * @param {{ poison?: boolean, strong?: boolean, ft?: Set }} opts
@@ -2071,6 +2155,57 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _mpLost = _mpBefore - (p.mp || 0);
         ml.push(`MPが${_mpLost}吸い取られた！`);
       }
+      return "restart";
+    }
+    case "float_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _flm = monsterAt(dg, tx, ty);
+      if (_flm && !_flm.isBoss && _flm.type !== "shopkeeper") {
+        _flm.float = true;
+        ml.push(`${_flm.name}が浮遊し始めた！`);
+      }
+      if (p && p.x === tx && p.y === ty) {
+        p.floatTurns = Math.max(p.floatTurns || 0, 30);
+        ml.push("体がふわっと浮いた！(浮遊30ターン)");
+      }
+      return "restart";
+    }
+    case "oil_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _olm = monsterAt(dg, tx, ty);
+      if (_olm) {
+        _olm.oilyTurns = (_olm.oilyTurns || 0) + 100;
+        ml.push(`${_olm.name}は油まみれになった！(100ターン)`);
+      }
+      if (p && p.x === tx && p.y === ty) {
+        p.oilyTurns = (p.oilyTurns || 0) + 100;
+        ml.push("油まみれになった！炎ダメージが2倍になる！(100ターン)");
+      }
+      return "restart";
+    }
+    case "unident_trap": {
+      ml.push(`${trap.name}が発動！`);
+      /* アイテム経路では ident Set が無いことが多い。プレイヤーが踏んだ時は fireTrapPlayer を優先 */
+      if (p && p.x === tx && p.y === ty) {
+        ml.push("識別の知識が揺らいだ気がする…");
+      }
+      return "restart";
+    }
+    case "alarm_trap": {
+      ml.push(`${trap.name}が発動！フロアに警報が響いた！`);
+      let _aw2 = 0;
+      for (const m of dg.monsters || []) {
+        if (m.type === "shopkeeper" && m.state === "friendly") continue;
+        if (!m.aware) _aw2++;
+        m.aware = true;
+        if (p) { m.lastPx = p.x; m.lastPy = p.y; }
+      }
+      if (_aw2 > 0) ml.push("敵が騒ぎに気づいた！");
+      return "restart";
+    }
+    case "multiply_trap": {
+      ml.push(`${trap.name}が発動！`);
+      multiplyRoomMonsters(dg, tx, ty, ml, p);
       return "restart";
     }
     case "rot_trap": {
