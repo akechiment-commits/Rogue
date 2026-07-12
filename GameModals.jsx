@@ -1523,7 +1523,8 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
     return discGroups.find((g) => g.key === categoryKey)?.items || [];
   }, [discGroups, categoryKey]);
 
-  const listRows = useMemo(() => {
+  /* ページング対象の中身（入力・やめるは含めない） */
+  const contentRows = useMemo(() => {
     if (view === "main") {
       return WISH_MAIN_OPTS.map((o) => ({ kind: "nav", id: o.id, label: o.label, desc: o.desc }));
     }
@@ -1552,10 +1553,47 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
     return [];
   }, [view, discGroups, catItems, candidates]);
 
-  const totalPages = Math.max(1, Math.ceil(listRows.length / WISH_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(contentRows.length / WISH_PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
-  const pageRows = listRows.slice(safePage * WISH_PAGE_SIZE, (safePage + 1) * WISH_PAGE_SIZE);
-  const safeSel = Math.min(sel, Math.max(0, pageRows.length - 1));
+  const pageContent = contentRows.slice(safePage * WISH_PAGE_SIZE, (safePage + 1) * WISH_PAGE_SIZE);
+
+  /*
+   * キーボード上下で行き来する行一覧
+   * main: 入力欄 → 道具 → 恩恵 → やめる
+   * その他: 中身… → 戻る（毎ページ末尾）
+   */
+  const navRows = useMemo(() => {
+    if (view === "main") {
+      return [
+        { kind: "input", id: "input", label: "文字入力", desc: "道具名を入力してEnterで願う" },
+        ...pageContent,
+        { kind: "cancel", id: "cancel", label: "やめる", desc: "願いをやめる" },
+      ];
+    }
+    return [
+      ...pageContent,
+      { kind: "back", id: "back", label: "戻る", desc: "" },
+    ];
+  }, [view, pageContent]);
+
+  const safeSel = Math.min(Math.max(0, sel), Math.max(0, navRows.length - 1));
+  const onInputRow = view === "main" && navRows[safeSel]?.kind === "input";
+
+  /* 選択が入力欄のときだけフォーカス */
+  useEffect(() => {
+    if (!mode) return;
+    if (onInputRow) {
+      inputRef.current?.focus();
+    } else if (document.activeElement === inputRef.current) {
+      inputRef.current?.blur();
+    }
+  }, [mode, onInputRow, safeSel, view]);
+
+  const leaveInputToOptions = () => {
+    inputRef.current?.blur();
+    /* 入力の次 = 道具（index 1） */
+    setSel(1);
+  };
 
   const goBack = () => {
     setStatusMsg("");
@@ -1602,6 +1640,18 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
 
   const activateRow = (row) => {
     if (!row) return;
+    if (row.kind === "input") {
+      inputRef.current?.focus();
+      return;
+    }
+    if (row.kind === "cancel") {
+      onCancel?.();
+      return;
+    }
+    if (row.kind === "back") {
+      goBack();
+      return;
+    }
     if (row.kind === "nav") {
       if (row.id === "items") {
         if (discGroups.length === 0) {
@@ -1642,41 +1692,78 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
     }
   };
 
+  const moveSel = (delta) => {
+    const n = navRows.length;
+    if (n <= 0) return;
+    let next = safeSel + delta;
+    if (next < 0) {
+      if (safePage > 0) {
+        setPage(safePage - 1);
+        /* 前ページ末尾は「戻る」行想定 → ページ切替後に末尾へ */
+        setSel(WISH_PAGE_SIZE); /* content max + back; clamp later */
+      } else {
+        next = n - 1;
+        setSel(next);
+      }
+      return;
+    }
+    if (next >= n) {
+      if (safePage < totalPages - 1) {
+        setPage(safePage + 1);
+        setSel(0);
+      } else {
+        setSel(0);
+      }
+      return;
+    }
+    setSel(next);
+  };
+
   useEffect(() => {
     if (!mode) return;
     const onKey = (e) => {
-      if (e.target === inputRef.current) {
+      const inInput = e.target === inputRef.current;
+
+      if (inInput) {
+        /* 入力中: Esc/↓ で選択肢へ。Enter で願う。↑ でやめる側へ */
         if (e.key === "Enter") {
           e.preventDefault();
           e.stopPropagation();
           confirmText();
-        } else if (e.key === "Escape") {
+          return;
+        }
+        if (e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
-          goBack();
+          leaveInputToOptions();
+          return;
         }
+        if (isKeyDown(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+          leaveInputToOptions();
+          return;
+        }
+        if (isKeyUp(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+          inputRef.current?.blur();
+          setSel(navRows.length - 1); /* やめる */
+          return;
+        }
+        /* 通常の文字入力はゲーム側に渡さない */
+        e.stopPropagation();
         return;
       }
+
       if (isKeyUp(e)) {
         e.preventDefault();
         e.stopPropagation();
-        if (safeSel > 0) setSel(safeSel - 1);
-        else if (safePage > 0) {
-          setPage(safePage - 1);
-          setSel(WISH_PAGE_SIZE - 1);
-        } else if (pageRows.length > 0) {
-          setSel(pageRows.length - 1);
-        }
+        moveSel(-1);
       } else if (isKeyDown(e)) {
         e.preventDefault();
         e.stopPropagation();
-        if (safeSel < pageRows.length - 1) setSel(safeSel + 1);
-        else if (safePage < totalPages - 1) {
-          setPage(safePage + 1);
-          setSel(0);
-        } else {
-          setSel(0);
-        }
+        moveSel(1);
       } else if (isKeyLeft(e)) {
         e.preventDefault();
         e.stopPropagation();
@@ -1694,10 +1781,16 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
       } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
         e.preventDefault();
         e.stopPropagation();
-        activateRow(pageRows[safeSel]);
+        const row = navRows[safeSel];
+        if (row?.kind === "input") {
+          confirmText();
+        } else {
+          activateRow(row);
+        }
       } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
         e.preventDefault();
         e.stopPropagation();
+        /* 選択肢上の Esc/X は戻る／キャンセル */
         goBack();
       }
     };
@@ -1716,10 +1809,15 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
 
   const help =
     view === "main"
-      ? "Enter:文字で願う　↑↓:選択　Z:決定　X:やめる"
+      ? "↑↓:入力/選択肢/やめる　Enter:願うor決定　Esc:入力から抜ける　X:やめる"
       : totalPages > 1
         ? "↑↓:選択　←→:ページ　Z:決定　X:戻る"
         : "↑↓:選択　Z:決定　X:戻る";
+
+  /* 表示用: 入力行は別UI、中身＋やめる/戻る */
+  const optionRows = navRows.filter((r) => r.kind !== "input");
+  /* optionRows の index と navRows の対応: main なら +1 */
+  const optionOffset = view === "main" ? 1 : 0;
 
   return (
     <div
@@ -1746,11 +1844,23 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
           <div style={{ color: "#9ad", fontSize: 12, marginBottom: 8 }}>
             直接入力なら図鑑に無い道具も願えます。一覧は図鑑に載った道具と恩恵から。
           </div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              marginBottom: 10,
+              padding: 4,
+              borderRadius: 6,
+              border: onInputRow ? "2px solid #c8f" : "2px solid transparent",
+              background: onInputRow ? "#2a1a45" : "transparent",
+            }}
+            onClick={() => setSel(0)}
+          >
             <input
               ref={inputRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onFocus={() => setSel(0)}
               placeholder="例: 回復薬 / 祝福の力の指輪"
               style={{
                 flex: 1,
@@ -1761,7 +1871,6 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
                 padding: "8px 10px",
                 fontSize: 14,
               }}
-              onKeyDown={(e) => e.stopPropagation()}
             />
             <button
               type="button"
@@ -1785,35 +1894,41 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
         <div style={{ color: "#fa8", fontSize: 12, marginBottom: 8 }}>{statusMsg}</div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {pageRows.length === 0 && view === "items_cat" && (
+        {pageContent.length === 0 && view === "items_cat" && (
           <div style={{ color: "#889", fontSize: 13, padding: 8 }}>図鑑に載っている道具がありません。</div>
         )}
-        {pageRows.map((row, i) => (
-          <button
-            key={row.id || row.label + i}
-            type="button"
-            onClick={() => {
-              setSel(i);
-              activateRow(row);
-            }}
-            onMouseEnter={() => setSel(i)}
-            style={{
-              textAlign: "left",
-              padding: "7px 10px",
-              background: safeSel === i ? "#3a2a5a" : "#1a1230",
-              color: safeSel === i ? "#fdf" : "#cbe",
-              border: safeSel === i ? "1px solid #c8f" : "1px solid #435",
-              borderRadius: 5,
-              cursor: "pointer",
-              fontSize: 13,
-            }}
-          >
-            {safeSel === i ? "▶ " : "  "}{row.label}
-            {row.desc && (
-              <span style={{ color: "#889", marginLeft: 8, fontSize: 11 }}>— {row.desc}</span>
-            )}
-          </button>
-        ))}
+        {optionRows.map((row, i) => {
+          const navIdx = i + optionOffset;
+          const isSel = safeSel === navIdx;
+          const isFooter = row.kind === "cancel" || row.kind === "back";
+          return (
+            <button
+              key={row.id || row.label + i}
+              type="button"
+              onClick={() => {
+                setSel(navIdx);
+                activateRow(row);
+              }}
+              onMouseEnter={() => setSel(navIdx)}
+              style={{
+                textAlign: "left",
+                padding: "7px 10px",
+                background: isSel ? (isFooter ? "#3a2020" : "#3a2a5a") : (isFooter ? "#1a1218" : "#1a1230"),
+                color: isSel ? (isFooter ? "#fdd" : "#fdf") : (isFooter ? "#b99" : "#cbe"),
+                border: isSel ? (isFooter ? "1px solid #f88" : "1px solid #c8f") : "1px solid #435",
+                borderRadius: 5,
+                cursor: "pointer",
+                fontSize: 13,
+                marginTop: isFooter ? 6 : 0,
+              }}
+            >
+              {isSel ? "▶ " : "  "}{row.label}
+              {row.desc && (
+                <span style={{ color: "#889", marginLeft: 8, fontSize: 11 }}>— {row.desc}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
       {totalPages > 1 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
@@ -1834,23 +1949,7 @@ export function WishModal({ mode, setMode, onConfirm, onCancel, mobile }) {
           </button>
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, gap: 8 }}>
-        <div style={{ color: "#667", fontSize: 11 }}>{help}</div>
-        <button
-          type="button"
-          onClick={goBack}
-          style={{
-            background: "#333",
-            color: "#ccc",
-            border: "1px solid #666",
-            borderRadius: 4,
-            padding: "4px 12px",
-            cursor: "pointer",
-          }}
-        >
-          {view === "main" ? "やめる" : "戻る"}
-        </button>
-      </div>
+      <div style={{ color: "#667", fontSize: 11, marginTop: 10 }}>{help}</div>
     </div>
   );
 }
