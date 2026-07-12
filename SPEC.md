@@ -17,7 +17,7 @@ React + Vite 製のローグライク。
 - 共通: `pickLootFromPool(pool, context)`（`items.js`）
 - 基本はテンプレの `weight` による重み抽選（床落ちと同系）
 - 経路 `change` / `shop` / `drop` のみ一定確率で均等抽選（ギャンブル枠）
-  - change 20%（変化の大箱・変化の杖）
+  - change 20%（変化の大箱・変化の杖・強欲な壺・変換の巻物）
   - shop 20%
   - drop 5%
   - floor 0%（常に weight）

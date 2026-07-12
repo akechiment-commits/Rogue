@@ -76,4 +76,8 @@ describe("pickLootFromPool", () => {
     expect(monsterRandomDropChance({ subtype: "archer" })).toBe(0.05);
     expect(monsterRandomDropChance({ subtype: "wanduser" })).toBe(0.05);
   });
+
+  it("強欲な壺・変化は同じ change 確率", () => {
+    expect(LOOT_UNIFORM_CHANCE.change).toBe(0.20);
+  });
 });

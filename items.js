@@ -429,7 +429,7 @@ export function wPick(arr) {
  */
 export const LOOT_UNIFORM_CHANCE = {
   floor: 0,
-  change: 0.20, /* 変化の大箱・変化の杖 */
+  change: 0.20, /* 変化の大箱・変化の杖・強欲な壺・変換の巻物 等 */
   shop: 0.20,   /* 店の品揃え */
   drop: 0.05,   /* 敵ドロップ（均等ギャンブル枠） */
 };
@@ -826,7 +826,8 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     if (_remaining > 0) {
       ml.push(`${_remaining}個のランダムなアイテムが飛び出した！`);
       for (let i = 0; i < _remaining; i++) {
-        const _ri = { ...pickLootFromPool(ITEMS, "floor"), id: uid() };
+        /* 変化の大箱と同系統（weight＋一定確率で均等） */
+        const _ri = { ...(pickLootFromPool(ITEMS, "change") || pick(ITEMS)), id: uid() };
         if (_ri.type === 'gold') _ri.value = rng(20, 80);
         placeItemAt(dg, px, py, _ri, ml, ft);
       }
