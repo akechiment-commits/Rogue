@@ -1873,7 +1873,7 @@ export function useItemActions({
           ml.push("既に壺の中にいる。");
         } else {
           const _confRes = confinePlayerInImprisonPot(it, p, dg, ml, dnameRef);
-          if (_confRes === "drown" || _confRes === true) {
+          if (_confRes === true) {
             endTurn(sr.current, p, ml);
             setMsgs((prev) => [...prev.slice(-80), ...ml]);
             refreshFOV(dg, p);
@@ -3261,7 +3261,7 @@ export function useItemActions({
                 if (it.potEffect === "imprison") {
                   const _impRes = confinePlayerInImprisonPot(it, p, dg, ml, dnameRef);
                   if (_impRes === true) p.inventory.push(it);
-                  else if (_impRes !== "drown") scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+                  else scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
                 } else {
                   scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
                 }

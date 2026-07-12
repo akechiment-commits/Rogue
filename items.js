@@ -742,19 +742,15 @@ export function confinePlayerInImprisonPot(pot, p, dg, ml, nameFn = null) {
     return false;
   }
   const _pn = nameFn ? nameFn(pot) : pot.name;
-  if (_playerOnWaterTile(p, dg) && !hasRingEffect(p, "water_breath_ring")) {
-    const _potIdx = p.inventory?.indexOf(pot) ?? -1;
-    if (_potIdx !== -1) p.inventory.splice(_potIdx, 1);
-    ml.push(`${_pn}が水没した！`);
-    ml.push("壺ごと沈んで溺れた！");
-    p.deathCause = "水没により";
-    p.hp = 0;
-    return "drown";
-  }
   const turns = rem * 10;
   p.potConfinedTurns = turns;
   p.potConfinedPotId = pot.id;
-  ml.push(`${_pn}に入った！あと${turns}ターン動けない。敵に見つからない。`);
+  if (_playerOnWaterTile(p, dg) && !hasRingEffect(p, "water_breath_ring")) {
+    ml.push(`${_pn}が水中に沈んだ！`);
+    ml.push(`${_pn}に入った！あと${turns}ターン動けない。水中では毎ターン息が詰まる…`);
+  } else {
+    ml.push(`${_pn}に入った！あと${turns}ターン動けない。敵に見つからない。`);
+  }
   return true;
 }
 
