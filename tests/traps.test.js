@@ -345,11 +345,41 @@ describe("new weird traps", () => {
     expect(dg.monsters.filter((m) => m.type === "shopkeeper").length).toBe(1);
   });
 
-  it("TRAPS に5種が定義されている", () => {
+  it("TRAPS に新種が定義されている", () => {
     const effects = TRAPS.map((t) => t.effect);
-    for (const e of ["float_trap", "oil_trap", "unident_trap", "alarm_trap", "multiply_trap"]) {
+    for (const e of ["float_trap", "oil_trap", "unident_trap", "alarm_trap", "multiply_trap", "confuse_trap"]) {
       expect(effects).toContain(e);
     }
+  });
+
+  it("混乱の罠でプレイヤーが混乱する", () => {
+    const p = makePlayer({ x: 5, y: 5 });
+    const dg = makeEmptyDg();
+    const trap = { effect: "confuse_trap", name: "混乱の罠", x: 5, y: 5, id: "c1" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.confusedTurns).toBe(10);
+  });
+
+  it("混乱の罠は耐混乱で防げる", () => {
+    const armor = { name: "鎧", type: "armor", ability: "confuse_proof" };
+    const p = makePlayer({ x: 5, y: 5, armor });
+    const dg = makeEmptyDg();
+    const trap = { effect: "confuse_trap", name: "混乱の罠", x: 5, y: 5, id: "c2" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.confusedTurns || 0).toBe(0);
+    expect(ml.some((m) => m.includes("耐混乱"))).toBe(true);
+  });
+
+  it("混乱の罠を敵が踏むと20T混乱", () => {
+    const p = makePlayer({ x: 1, y: 1 });
+    const mon = { id: "m1", name: "敵", x: 5, y: 5, hp: 10 };
+    const trap = { effect: "confuse_trap", name: "混乱の罠", x: 5, y: 5, id: "c3" };
+    const dg = makeEmptyDg({ traps: [trap], monsters: [mon] });
+    const ml = [];
+    fireTrapItem(trap, { name: "石", type: "arrow" }, dg, 5, 5, ml, new Set(), p);
+    expect(mon.confusedTurns).toBe(20);
   });
 });
 

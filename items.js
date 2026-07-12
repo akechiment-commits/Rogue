@@ -1061,6 +1061,7 @@ export const TRAPS = [
   { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n敵が踏むと20ターン混乱する。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
+  { name:"混乱の罠",       effect:"confuse_trap",   tile:127, desc:"踏むと10ターン混乱する。\n敵が踏むと20ターン混乱する。耐混乱の防具で防げる。" },
 ];
 
 function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
@@ -2120,6 +2121,22 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         if (_pHitWall) { p.deathCause = `${trap.name}による壁への衝突により`; p.hp -= 10; ml.push("壁に激突！10ダメージ！"); }
         else if (_pHitMon) { p.hp -= 10; _pHitMon.hp -= 10; ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`); dg.monsters = dg.monsters.filter(m => m.hp > 0); }
         else if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
+      }
+      return "restart";
+    }
+    case "confuse_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _cfm = monsterAt(dg, tx, ty);
+      if (_cfm) {
+        _cfm.confusedTurns = (_cfm.confusedTurns || 0) + 20;
+        ml.push(`${_cfm.name}は混乱した！(20ターン)`);
+      }
+      if (p && p.x === tx && p.y === ty) {
+        if (hasAbility(p.armor, "confuse_proof")) { ml.push("しかし防具が混乱を防いだ！(耐混乱)"); }
+        else {
+          p.confusedTurns = (p.confusedTurns || 0) + 10;
+          ml.push("頭がくらくらする！(混乱10ターン)");
+        }
       }
       return "restart";
     }

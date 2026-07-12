@@ -89,6 +89,15 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       }
       break;
     }
+    case "confuse_trap": {
+      if (hasAbility(p.armor, "confuse_proof")) {
+        ml.push(`${trap.name}が発動！しかし防具が混乱を防いだ！(耐混乱)`);
+      } else {
+        p.confusedTurns = (p.confusedTurns || 0) + 10;
+        ml.push(`${trap.name}が発動！頭がくらくらする！(混乱10ターン)`);
+      }
+      break;
+    }
     case "bewitch_trap": {
       if (hasAbility(p.armor, "bewitch_proof")) {
         ml.push(`${trap.name}が発動！しかし防具が幻惑を防いだ！(耐惑わし)`);
