@@ -28,6 +28,37 @@ export const TI = {
 };
 
 export const rng = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+
+/**
+ * 攻撃 vs 防御のダメージ計算。
+ * 1) 従来: floor(atk^2 / (atk + floor(def * defWeight)))
+ * 2) 防御のソフト割合軽減: 最終ダメージ *= (1 - min(maxRed, def/(def+softK)))
+ *    softK が大きいほど割合軽減は弱い。maxRed で上限を切る（デフォルト40%）。
+ * 3) 乱数 ±2（variance）
+ *
+ * 敵→プレイヤーは defWeight=1.5、プレイヤー→敵・矢は defWeight=1（従来どおり）。
+ */
+export const DEF_SOFT_K = 80;
+export const DEF_SOFT_MAX_RED = 0.40;
+
+export function calcAtkDefDmg(atk, def, {
+  defWeight = 1,
+  softK = DEF_SOFT_K,
+  maxRed = DEF_SOFT_MAX_RED,
+  variance = true,
+  rngFn = rng,
+} = {}) {
+  const ap = Math.max(1, Math.floor(Number(atk) || 0));
+  const df = Math.max(0, Math.floor(Number(def) || 0));
+  const denom = ap + Math.floor(df * defWeight);
+  let base = Math.floor((ap * ap) / Math.max(1, denom));
+  if (base === 0) base = 1;
+  /* 割合軽減：def15 ≒ 15.8%、def30 ≒ 27%、def80 ≒ 40%（上限） */
+  const red = Math.min(maxRed, df / (df + softK));
+  base = Math.max(1, Math.floor(base * (1 - red)));
+  if (variance) base = Math.max(1, base + rngFn(-2, 2));
+  return base;
+}
 export const pick = (arr) => arr[rng(0, arr.length - 1)];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 /** Fisher-Yates シャッフル（in-place）。配列自体を返す */

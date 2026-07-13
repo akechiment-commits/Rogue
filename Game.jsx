@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, calcAtkDefDmg } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -2763,7 +2763,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _baneMult = Math.max(_getBaneMult(wab), ...((p.weapon?.abilities || []).map(a => _getBaneMult(a))));
               const _isBane = _baneMult > 1;
               if (_isBane) ap = Math.floor(ap * _baneMult);
-              let d = Math.max(1, Math.floor(ap * ap / (ap + attackMon.def)) + rng(-2, 2));
+              let d = calcAtkDefDmg(ap, attackMon.def || 0, { defWeight: 1 });
               if (p.weapon?.blessed) d += 3;
               let crit = false;
               const _sesameCritRate = (p.sesameCritTurns || 0) > 0 ? 0.45 : 0.25;

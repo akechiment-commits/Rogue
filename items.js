@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, calcAtkDefDmg } from './utils.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom } from './monsters.js';
 import { triggerWandBreakEffect } from './wands.js';
@@ -3921,7 +3921,7 @@ export function calcProjectileDmg(p, arAtk, def = 0) {
     * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)
     * ((p.lemonThrowTurns || 0) > 0 ? 1.5 : 1)
   ));
-  return Math.max(1, Math.floor(ap * ap / (ap + def)) + rng(-2, 2));
+  return calcAtkDefDmg(ap, def, { defWeight: 1 });
 }
 
 export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null) {

@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
@@ -73,7 +73,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     const _fBlock = dg.monsters.find(o => o.x === _fx && o.y === _fy);
     if (_fBlock) {
       wakeIfDormant(_fBlock, ml);
-      const _fDmgBase = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_fBlock.def || 0))) + rng(-2, 2));
+      const _fDmgBase = calcAtkDefDmg(m.atk, _fBlock.def || 0, { defWeight: 1 });
       /* 火ダルマは炎で回復 */
       if (_fBlock.baseKind === "firedemon") {
         const _fheal = Math.min(_fDmgBase, _fBlock.maxHp - _fBlock.hp);
@@ -92,8 +92,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   }
   /* プレイヤーに命中 */
   const pdef = calcPlayerDef(pl);
-  const _fBase = Math.floor(m.atk * m.atk / (m.atk + Math.floor(pdef * 1.5)));
-  let dmg = _fBase === 0 ? 1 : Math.max(1, _fBase + rng(-2, 2));
+  let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
   /* 脆弱の魔方陣 */
   const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
@@ -124,7 +123,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) return;
     const _iBlock = dg.monsters.find(o => o.x === _ix && o.y === _iy);
     if (_iBlock) {
-      let _iDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_iBlock.def || 0))) + rng(-2, 2));
+      let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
       const _iIsWeak = _iBlock.elemWeak === "ice";
       if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
       _iBlock.hp -= _iDmg;
@@ -141,8 +140,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     }
   }
   const pdef = calcPlayerDef(pl);
-  const _iBase = Math.floor(m.atk * m.atk / (m.atk + Math.floor(pdef * 1.5)));
-  let _iDmg = _iBase === 0 ? 1 : Math.max(1, _iBase + rng(-2, 2));
+  let _iDmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
   const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
   if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
   const _hasIceR = hasIceResist(pl);
@@ -252,8 +250,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     return;
   }
   const pdef = calcPlayerDef(pl);
-  const _mBase = Math.floor(m.atk * m.atk / (m.atk + Math.floor(pdef * 1.5)));
-  let dmg = _mBase === 0 ? 1 : Math.max(1, _mBase + rng(-2, 2));
+  let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
   if (!skipVuln) {
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
     if (vulnPc) dmg = vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (vulnPc.blessed ? 4 : 2);
@@ -1241,7 +1238,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     fireMsg: `${m.name}が${_arName}を放った！`,
     boltName: _arName,
     deathCause: `${m.name}の${_arName}の攻撃で`,
-    calcPlDmg: () => { const _pdef = calcPlayerDef(pl); const _ap = m.atk + _arAtkBonus; const _base = Math.floor(_ap * _ap / (_ap + Math.floor(_pdef * 1.5))); return _base === 0 ? 1 : Math.max(1, _base + rng(-2, 2)); },
+    calcPlDmg: () => calcAtkDefDmg(m.atk + _arAtkBonus, calcPlayerDef(pl), { defWeight: 1.5 }),
     calcMonDmg: () => Math.max(1, m.atk + rng(-2, 2)),
     hitChance: 0.80,
     applyVulnPentacle: true,
@@ -1336,8 +1333,7 @@ function monsterThrowStone(m, dg, pl, ml) {
   const _stBonus = isMagic ? 5 : 3;
   const _stAp = m.atk + _stBonus;
   const _stPdef = calcPlayerDef(pl);
-  const _stBase = Math.floor(_stAp * _stAp / (_stAp + Math.floor(_stPdef * 1.5)));
-  let dmg = _stBase === 0 ? 1 : Math.max(1, _stBase + rng(-2, 2));
+  let dmg = calcAtkDefDmg(_stAp, _stPdef, { defWeight: 1.5 });
   if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
   pl.deathCause = `${m.name}の石投げで`;
   pl.hp -= dmg;
@@ -1966,7 +1962,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         baseRange: 10, animColor: "#111111",
         fireMsg: `${m.name}が銃撃した！`, boltName: "銃弾",
         deathCause: `${m.name}の銃撃で`,
-        calcPlDmg: () => { const _pdef = calcPlayerDef(pl); const _ap = m.atk + 6; const _base = Math.floor(_ap * _ap / (_ap + Math.floor(_pdef * 1.5))); return _base === 0 ? 1 : Math.max(1, _base + rng(-2, 2)); },
+        calcPlDmg: () => calcAtkDefDmg(m.atk + 6, calcPlayerDef(pl), { defWeight: 1.5 }),
         calcMonDmg: (mon) => Math.max(1, m.atk - Math.floor((mon.def || 0) / 2) + rng(-2, 2)),
       });
       if (m.hp > 0) m.turnAttacks++;
@@ -2217,7 +2213,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _other = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
         if (_other) {
           if (!_moveOnly) {
-            const _odmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_other.def || 0))) + rng(-1, 1));
+            const _odmg = Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
             _other.hp -= _odmg;
             ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
             if (_other.hp <= 0) {
@@ -2252,7 +2248,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _dother = dg.monsters.find(o => o !== m && o.x === _dnx && o.y === _dny);
         if (_dother) {
           if (!_moveOnly) {
-            const _dodmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_dother.def || 0))) + rng(-1, 1));
+            const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
             _dother.hp -= _dodmg;
             ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
             if (_dother.hp <= 0) {
@@ -2855,7 +2851,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             const _chOther = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
             if (_chOther) {
               m.turnAttacks++;
-              const _chDmg = Math.max(1, Math.floor(m.atk * m.atk / (m.atk + (_chOther.def || 0))) + rng(-1, 1));
+              const _chDmg = Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
               _chOther.hp -= _chDmg;
               ml.push(`${m.name}が突進して${_chOther.name}に当たった！${_chDmg}ダメージ！`);
               if (_chOther.hp <= 0) {
