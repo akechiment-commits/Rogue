@@ -2560,7 +2560,7 @@ export function useItemActions({
             }
           } else {
             /* 通常の石：必ず3マス先（呪い遠投は1マス先）に着弾 */
-            pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa");
+            pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
             const _stRange = _isCursedFc ? 1 : 3;
             let _stLx = p.x, _stLy = p.y;
             for (let d = 1; d <= _stRange; d++) {
@@ -2655,7 +2655,7 @@ export function useItemActions({
         if (_arItem.bombArrow) {
           const _baName = _arItem.name;
           const _baNF = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
-          const _baOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622");
+          const _baOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622", true);
           p.arrow.count--;
           ml.push(`${_baName}を射った！`);
           if (_isFarcast) {
@@ -2812,7 +2812,7 @@ export function useItemActions({
           return;
         }
         const _shColor = it.poison ? "#60d060" : it.pierce ? "#ff8844" : "#d0a050";
-        const _shOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor);
+        const _shOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor, true);
         shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt);
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
         /* 床から射った矢/石は残量を床に戻す */

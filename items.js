@@ -4417,10 +4417,10 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
 }
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
   let _lx = p.x, _ly = p.y;
-  let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y, _windMsg = false;
+  let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y;
   for (let d = 1; d <= spell.range; d++) {
-    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy);
-    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    /* プレイヤー魔法弾は風で曲がらない */
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy, { wind: false });
     _fdx = _st.dx; _fdy = _st.dy;
     const tx = _st.x, ty = _st.y;
     _cx = tx; _cy = ty;

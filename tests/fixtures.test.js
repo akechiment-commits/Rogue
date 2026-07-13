@@ -44,13 +44,29 @@ describe("風穴", () => {
     let cx = 5, cy = 3, dx = 0, dy = 1;
     let bentOnce = false;
     for (let i = 0; i < 5; i++) {
-      const s = stepProjectile(dg, cx, cy, dx, dy);
+      const s = stepProjectile(dg, cx, cy, dx, dy, { wind: true });
       if (s.bent) bentOnce = true;
       cx = s.x; cy = s.y; dx = s.dx; dy = s.dy;
     }
     expect(bentOnce).toBe(true);
     /* 風が東向きなら x が増えているはず */
     expect(cx).toBeGreaterThan(5);
+  });
+
+  it("stepProjectile wind:false は魔法弾として曲がらない", async () => {
+    const { stepProjectile } = await import("../utils.js");
+    const dg = makeEmptyDg({ vents: [makeVent(5, 5, 1, 0)] });
+    let cx = 5, cy = 3, dx = 0, dy = 1;
+    for (let i = 0; i < 5; i++) {
+      const s = stepProjectile(dg, cx, cy, dx, dy, { wind: false });
+      expect(s.bent).toBe(false);
+      expect(s.dx).toBe(0);
+      expect(s.dy).toBe(1);
+      cx = s.x; cy = s.y; dx = s.dx; dy = s.dy;
+    }
+    /* 南へ一直線：x は変わらず y が増える */
+    expect(cx).toBe(5);
+    expect(cy).toBe(8);
   });
 });
 

@@ -1568,10 +1568,10 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
   }
   const _boltClr = _wandColors[eff] || "#a050f0";
   let lastX = p.x, lastY = p.y;
-  let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y, _windMsg = false;
+  let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y;
   for (let d = 1; d < MW + MH; d++) {
-    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy);
-    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    /* 杖の魔法弾は風で曲がらない */
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy, { wind: false });
     _fdx = _st.dx; _fdy = _st.dy;
     const tx = _st.x, ty = _st.y;
     _cx = tx; _cy = ty;
@@ -1708,11 +1708,11 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
 export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null, blessed = false) {
-  pushMonsterBoltAnim(cx, cy, dx, dy, dg, pl, "lightning");
-  let _fdx = dx, _fdy = dy, _cx = cx, _cy = cy, _windMsg = false;
+  /* 杖の雷撃：判定・アニメとも風で曲がらない */
+  pushMonsterBoltAnim(cx, cy, dx, dy, dg, pl, "lightning", false);
+  let _fdx = dx, _fdy = dy, _cx = cx, _cy = cy;
   for (let d = 1; d < MW + MH; d++) {
-    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy);
-    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy, { wind: false });
     _fdx = _st.dx; _fdy = _st.dy;
     const tx = _st.x, ty = _st.y;
     _cx = tx; _cy = ty;
@@ -1726,17 +1726,6 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
         if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
       } else if (!killerMon) {
         ml.push("魔法弾は壁に消えた。");
-      }
-      return;
-    }
-    /* 風で曲がって発射元の敵自身に戻った */
-    if (killerMon && tx === killerMon.x && ty === killerMon.y) {
-      if (!consumeBarrier(killerMon, ml)) {
-        const _sdmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
-        killerMon.hp -= _sdmg;
-        ml.push(`風に煽られた雷撃が${killerMon.name}自身に当たった！${_sdmg}ダメージ！`);
-        pushLightningAnim(killerMon.x, killerMon.y);
-        if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
       }
       return;
     }

@@ -79,31 +79,35 @@ export function applyWindDir(dg, x, y, dx, dy) {
 }
 
 /**
- * 飛び道具を1マス進める（風穴で方向上書き）。
- * 現在マス→進入先マスの順で風を見てから座標を進める。
+ * 飛び道具を1マス進める。
+ * wind:true のとき風穴で方向上書き（物理弾・ブレス・石）。
+ * wind:false は魔法弾・杖（曲がらない）。
  * @returns {{ x: number, y: number, dx: number, dy: number, bent: boolean }}
  */
-export function stepProjectile(dg, cx, cy, dx, dy) {
+export function stepProjectile(dg, cx, cy, dx, dy, { wind = true } = {}) {
   let fdx = Math.sign(dx || 0), fdy = Math.sign(dy || 0);
   if (fdx === 0 && fdy === 0) fdy = 1;
   const origDx = fdx, origDy = fdy;
-  let w = applyWindDir(dg, cx, cy, fdx, fdy);
-  if (w.bent) { fdx = w.dx; fdy = w.dy; }
-  /* 進入先が風域なら、入る瞬間に曲がる */
-  let nx = cx + fdx, ny = cy + fdy;
-  w = applyWindDir(dg, nx, ny, fdx, fdy);
-  if (w.bent) {
-    fdx = w.dx; fdy = w.dy;
-    nx = cx + fdx; ny = cy + fdy;
+  if (wind) {
+    let w = applyWindDir(dg, cx, cy, fdx, fdy);
+    if (w.bent) { fdx = w.dx; fdy = w.dy; }
+    /* 進入先が風域なら、入る瞬間に曲がる */
+    let nx = cx + fdx, ny = cy + fdy;
+    w = applyWindDir(dg, nx, ny, fdx, fdy);
+    if (w.bent) {
+      fdx = w.dx; fdy = w.dy;
+      nx = cx + fdx; ny = cy + fdy;
+    }
+    return {
+      x: nx, y: ny, dx: fdx, dy: fdy,
+      bent: fdx !== origDx || fdy !== origDy,
+    };
   }
-  return {
-    x: nx, y: ny, dx: fdx, dy: fdy,
-    bent: fdx !== origDx || fdy !== origDy,
-  };
+  return { x: cx + fdx, y: cy + fdy, dx: fdx, dy: fdy, bent: false };
 }
 
 /**
- * 風を含めた飛び道具の経路をトレース。
+ * 飛び道具の経路をトレース。
  * @returns {{ path: {x,y}[], hitSelf: boolean, bent: boolean, endX: number, endY: number, dx: number, dy: number }}
  * path[0] は発射点。
  */
@@ -113,13 +117,14 @@ export function traceProjectilePath(dg, sx, sy, dx, dy, maxRange, {
   stopAtPlayer = null, /* {x,y} を渡すと自分ヒット検出（発射点は無視） */
   stopAtContainers = false,
   passWall = false,
+  wind = true,
 } = {}) {
   const path = [{ x: sx, y: sy }];
   let fdx = Math.sign(dx || 0), fdy = Math.sign(dy || 0);
   if (fdx === 0 && fdy === 0) fdy = 1;
   let cx = sx, cy = sy, bent = false, hitSelf = false;
   for (let d = 1; d <= maxRange; d++) {
-    const st = stepProjectile(dg, cx, cy, fdx, fdy);
+    const st = stepProjectile(dg, cx, cy, fdx, fdy, { wind });
     if (st.bent) bent = true;
     fdx = st.dx; fdy = st.dy;
     const tx = st.x, ty = st.y;

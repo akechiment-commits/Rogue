@@ -57,7 +57,7 @@ function calcPlayerDef(pl) {
   return Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0) + (hasAbility(pl.weapon, "def_bonus") ? 5 : 0) + _misoDef) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1) * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
 }
 
-/* ===== ドラゴン炎ブレス ===== */
+/* ===== ドラゴン炎ブレス（風で曲がる物理ブレス） ===== */
 function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   /* 呪われた爆発の魔方陣がある場合は炎を打ち消す */
   if (isFireExplosionNullified(dg, pl)) {
@@ -66,98 +66,115 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       : `呪われた爆発の魔方陣が${m.name}の炎ブレスを打ち消した！`);
     return;
   }
-  /* 射線上に別のモンスターがいれば、そこで止まって当てる（Lv3は壁貫通） */
   const _fLvl = m.monLevel || 1;
-  const _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
-  for (let _fi = 1; ; _fi++) {
-    const _fx = m.x + _fdx * _fi, _fy = m.y + _fdy * _fi;
-    if (_fx === pl.x && _fy === pl.y) break; // プレイヤーに到達→通常処理へ
-    if (_fx < 0 || _fx >= MW || _fy < 0 || _fy >= MH) return; // 範囲外
-    if (_fLvl < 3 && (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL)) return; // Lv1/2は壁で遮断
-    const _fBlock = dg.monsters.find(o => o.x === _fx && o.y === _fy);
-    if (_fBlock) {
-      wakeIfDormant(_fBlock, ml);
-      const _fDmgBase = calcAtkDefDmg(m.atk, _fBlock.def || 0, { defWeight: 1 });
-      /* 火ダルマは炎で回復 */
-      if (_fBlock.baseKind === "firedemon") {
-        const _fheal = Math.min(_fDmgBase, _fBlock.maxHp - _fBlock.hp);
-        if (_fheal > 0) { _fBlock.hp += _fheal; ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
-        else ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！しかし炎を吸収した！`);
-        return;
-      }
-      /* 油まみれ */
-      const _fOilyMult = (_fBlock.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === _fBlock.x && t.y === _fBlock.y) ? 2 : 1;
-      const _fDmg = _fDmgBase * _fOilyMult;
-      _fBlock.hp -= _fDmg;
-      ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}`);
-      if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); }
+  let _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
+  if (_fdx === 0 && _fdy === 0) _fdy = 1;
+  pushMonsterBoltAnim(m.x, m.y, _fdx, _fdy, dg, pl, "#ff6622");
+  let _cx = m.x, _cy = m.y, _windMsg = false;
+  const _applyFireToMon = (_fBlock) => {
+    wakeIfDormant(_fBlock, ml);
+    const _fDmgBase = calcAtkDefDmg(m.atk, _fBlock.def || 0, { defWeight: 1 });
+    if (_fBlock.baseKind === "firedemon") {
+      const _fheal = Math.min(_fDmgBase, _fBlock.maxHp - _fBlock.hp);
+      if (_fheal > 0) { _fBlock.hp += _fheal; ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
+      else ml.push(`${m.name}の炎ブレスが${_fBlock.name}に当たった！しかし炎を吸収した！`);
       return;
     }
+    const _fOilyMult = (_fBlock.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === _fBlock.x && t.y === _fBlock.y) ? 2 : 1;
+    const _fDmg = _fDmgBase * _fOilyMult;
+    _fBlock.hp -= _fDmg;
+    ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}`);
+    if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); }
+  };
+  const _applyFireToPlayer = () => {
+    const pdef = calcPlayerDef(pl);
+    let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
+    const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
+    if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
+    const _hasFireProt = hasFireResist(pl);
+    dmg = reduceFireDamage(dmg, pl);
+    if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
+    const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
+    if (_oilyMult > 1) dmg *= 2;
+    pl.deathCause = `${m.name}の炎ブレスで`;
+    pl.hp -= dmg;
+    onPlayerHit?.(dmg, m);
+    ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
+    if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
+    if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
+    if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true);
+  };
+  for (let _fi = 1; _fi < MW + MH; _fi++) {
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy, { wind: true });
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が炎ブレスを曲げた！"); _windMsg = true; }
+    _fdx = _st.dx; _fdy = _st.dy;
+    const _fx = _st.x, _fy = _st.y;
+    _cx = _fx; _cy = _fy;
+    if (_fx < 0 || _fx >= MW || _fy < 0 || _fy >= MH) return;
+    if (_fLvl < 3 && (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL)) return;
+    /* 風で自分に戻った */
+    if (_fx === m.x && _fy === m.y) {
+      _applyFireToMon(m);
+      return;
+    }
+    if (_fx === pl.x && _fy === pl.y) { _applyFireToPlayer(); return; }
+    const _fBlock = dg.monsters.find(o => o !== m && o.x === _fx && o.y === _fy);
+    if (_fBlock) { _applyFireToMon(_fBlock); return; }
   }
-  /* プレイヤーに命中 */
-  const pdef = calcPlayerDef(pl);
-  let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
-  /* 脆弱の魔方陣 */
-  const _vulnPc = findVulnPentacle(dg, pl.x, pl.y);
-  if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
-  /* 耐火装備 / 万能耐性 / カレー炎耐性 */
-  const _hasFireProt = hasFireResist(pl);
-  dmg = reduceFireDamage(dmg, pl);
-  if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
-  /* 油まみれ */
-  const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
-  if (_oilyMult > 1) dmg *= 2;
-  pl.deathCause = `${m.name}の炎ブレスで`;
-  pl.hp -= dmg;
-  onPlayerHit?.(dmg, m);
-  ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
-  if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
-  if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
-  if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true);
 }
 
-/* ===== 氷竜ブレス ===== */
+/* ===== 氷竜ブレス（風で曲がる物理ブレス） ===== */
 function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   const _iLvl = m.monLevel || 1;
-  const _idx = Math.sign(pl.x - m.x), _idy = Math.sign(pl.y - m.y);
-  for (let _ii = 1; ; _ii++) {
-    const _ix = m.x + _idx * _ii, _iy = m.y + _idy * _ii;
-    if (_ix === pl.x && _iy === pl.y) break;
+  let _idx = Math.sign(pl.x - m.x), _idy = Math.sign(pl.y - m.y);
+  if (_idx === 0 && _idy === 0) _idy = 1;
+  pushMonsterBoltAnim(m.x, m.y, _idx, _idy, dg, pl, "#80ddff");
+  let _cx = m.x, _cy = m.y, _windMsg = false;
+  const _hitIceMon = (_iBlock) => {
+    let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
+    const _iIsWeak = _iBlock.elemWeak === "ice";
+    if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
+    _iBlock.hp -= _iDmg;
+    const _iSlow = rng(3, 5);
+    if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
+    _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
+    if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow * 2;
+    ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}鈍足${_iSlow}ターン！`);
+    if (_iBlock.hp <= 0) {
+      killMonster(_iBlock, dg, pl, ml, null, false, m);
+      if (_iBlock !== m) monLevelUp(m, dg, ml);
+    }
+  };
+  const _hitIcePl = () => {
+    const pdef = calcPlayerDef(pl);
+    let _iDmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
+    const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
+    if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
+    const _hasIceR = hasIceResist(pl);
+    _iDmg = reduceIceDamage(_iDmg, pl);
+    pl.deathCause = `${m.name}の氷ブレスで`;
+    pl.hp -= _iDmg;
+    onPlayerHit?.(_iDmg, m);
+    if (_hasIceR) {
+      ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！${iceResistDamageLabel(pl)}・鈍足無効`);
+    } else {
+      const _iSlow = rng(3, 6);
+      pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
+      ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
+    }
+  };
+  for (let _ii = 1; _ii < MW + MH; _ii++) {
+    const _st = stepProjectile(dg, _cx, _cy, _idx, _idy, { wind: true });
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が氷ブレスを曲げた！"); _windMsg = true; }
+    _idx = _st.dx; _idy = _st.dy;
+    const _ix = _st.x, _iy = _st.y;
+    _cx = _ix; _cy = _iy;
     if (_ix < 0 || _ix >= MW || _iy < 0 || _iy >= MH) return;
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) return;
-    const _iBlock = dg.monsters.find(o => o.x === _ix && o.y === _iy);
-    if (_iBlock) {
-      let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
-      const _iIsWeak = _iBlock.elemWeak === "ice";
-      if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
-      _iBlock.hp -= _iDmg;
-      const _iSlow = rng(3, 5);
-      if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
-      _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
-      if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow * 2;
-      ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}鈍足${_iSlow}ターン！`);
-      if (_iBlock.hp <= 0) {
-        killMonster(_iBlock, dg, pl, ml, null, false, m);
-        monLevelUp(m, dg, ml);
-      }
-      return;
-    }
-  }
-  const pdef = calcPlayerDef(pl);
-  let _iDmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
-  const _iVulnPc = findVulnPentacle(dg, pl.x, pl.y);
-  if (_iVulnPc) _iDmg = _iVulnPc.cursed ? Math.max(1, Math.floor(_iDmg / 2)) : _iDmg * (_iVulnPc.blessed ? 4 : 2);
-  const _hasIceR = hasIceResist(pl);
-  _iDmg = reduceIceDamage(_iDmg, pl);
-  pl.deathCause = `${m.name}の氷ブレスで`;
-  pl.hp -= _iDmg;
-  onPlayerHit?.(_iDmg, m);
-  if (_hasIceR) {
-    ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！${iceResistDamageLabel(pl)}・鈍足無効`);
-  } else {
-    const _iSlow = rng(3, 6);
-    pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
-    ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
+    if (_ix === m.x && _iy === m.y) { _hitIceMon(m); return; }
+    if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); return; }
+    const _iBlock = dg.monsters.find(o => o !== m && o.x === _ix && o.y === _iy);
+    if (_iBlock) { _hitIceMon(_iBlock); return; }
   }
 }
 
@@ -1288,62 +1305,102 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   });
 }
 
-/* ===== MONSTER STONE THROW (ワッカ) ===== */
+/* ===== MONSTER STONE THROW (ワッカ) — 風で軌道が変わる ===== */
 function monsterThrowStone(m, dg, pl, ml) {
   const lvl = m.monLevel || 1;
   const isMagic = lvl >= 3;
   const hitChance = 0.80;
   const stoneName = isMagic ? "魔法の石" : "石";
+  const dropStone = () => isMagic ? makeMagicStone(1) : makeStone(1);
+  let _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
+  if (_fdx === 0 && _fdy === 0) _fdy = 1;
   ml.push(`${m.name}が${stoneName}を投げた！`);
-  pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, isMagic ? "#cc88ff" : "#aaaaaa");
+  pushMonsterBoltAnim(m.x, m.y, _fdx, _fdy, dg, pl, isMagic ? "#cc88ff" : "#aaaaaa");
 
-  /* みかわしの魔方陣 */
-  const _stDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-  if (_stDodgePcMode === "dodge") {
-    ml.push(`みかわしの魔方陣の加護で${m.name}の${stoneName}をかわした！${stoneName}が落ちた。`);
-    const _sd = safeArrowDrop(pl.x, pl.y, dg);
-    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
-    return;
+  let _cx = m.x, _cy = m.y, _windMsg = false;
+  let _lx = m.x, _ly = m.y;
+  const maxR = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y), 12) + 8;
+  for (let d = 1; d <= maxR; d++) {
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy, { wind: true });
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が石の軌道を変えた！"); _windMsg = true; }
+    _fdx = _st.dx; _fdy = _st.dy;
+    const tx = _st.x, ty = _st.y;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) {
+      const _sd = safeArrowDrop(_lx, _ly, dg);
+      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      ml.push(`${stoneName}は壁に当たって落ちた。`);
+      return;
+    }
+    _cx = tx; _cy = ty; _lx = tx; _ly = ty;
+
+    /* 自分に戻った */
+    if (tx === m.x && ty === m.y) {
+      const _stBonus = isMagic ? 5 : 3;
+      const dmg = calcAtkDefDmg(m.atk + _stBonus, m.def || 0, { defWeight: 1 });
+      m.hp -= dmg;
+      ml.push(`風に煽られた${stoneName}が${m.name}自身に当たった！${dmg}ダメージ！`);
+      if (m.hp <= 0) killMonster(m, dg, pl, ml, null, false, null);
+      return;
+    }
+
+    /* 他モンスター */
+    const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
+    if (hitMon) {
+      const _stBonus = isMagic ? 5 : 3;
+      const dmg = calcAtkDefDmg(m.atk + _stBonus, hitMon.def || 0, { defWeight: 1 });
+      hitMon.hp -= dmg;
+      ml.push(`${m.name}の${stoneName}が${hitMon.name}に命中！${dmg}ダメージ！`);
+      if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, null, false, m);
+      return;
+    }
+
+    /* プレイヤーマス */
+    if (tx === pl.x && ty === pl.y) {
+      const _stDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+      if (_stDodgePcMode === "dodge") {
+        ml.push(`みかわしの魔方陣の加護で${m.name}の${stoneName}をかわした！${stoneName}が落ちた。`);
+        const _sd = safeArrowDrop(pl.x, pl.y, dg);
+        _monDropWithSpring(_sd, dropStone(), dg, ml);
+        return;
+      }
+      const _stSanc = !inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
+      if (_stSanc) {
+        const _sd = safeArrowDrop(pl.x, pl.y, dg);
+        _monDropWithSpring(_sd, dropStone(), dg, ml);
+        ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
+        return;
+      }
+      const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+      if (dodged) {
+        ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
+        const _sd = safeArrowDrop(pl.x, pl.y, dg);
+        _monDropWithSpring(_sd, dropStone(), dg, ml);
+        return;
+      }
+      const miss = _stDodgePcMode !== "sure" && Math.random() >= hitChance;
+      if (miss) {
+        ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
+        const _sd = safeArrowDrop(pl.x, pl.y, dg);
+        _monDropWithSpring(_sd, dropStone(), dg, ml);
+        return;
+      }
+      const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
+      const _stBonus = isMagic ? 5 : 3;
+      const _stAp = m.atk + _stBonus;
+      const _stPdef = calcPlayerDef(pl);
+      let dmg = calcAtkDefDmg(_stAp, _stPdef, { defWeight: 1.5 });
+      if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
+      pl.deathCause = `${m.name}の石投げで`;
+      pl.hp -= dmg;
+      ml.push(`${m.name}の${stoneName}が命中！${dmg}ダメージ！`);
+      if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+      if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+      return;
+    }
   }
-
-  /* 祝福された聖域の魔方陣：飛び道具を防ぐ（魔封じで無効） */
-  const _stSanc = !inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
-  if (_stSanc) {
-    const _sd = safeArrowDrop(pl.x, pl.y, dg);
-    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
-    ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
-    return;
-  }
-
-  /* みかわし（防具の効果） */
-  const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
-  if (dodged) {
-    ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
-    const _sd = safeArrowDrop(pl.x, pl.y, dg);
-    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
-    return;
-  }
-
-  const miss = _stDodgePcMode !== "sure" && Math.random() >= hitChance;
-  if (miss) {
-    ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
-    const _sd = safeArrowDrop(pl.x, pl.y, dg);
-    _monDropWithSpring(_sd, isMagic ? makeMagicStone(1) : makeStone(1), dg, ml);
-    return;
-  }
-
-  /* 命中 */
-  const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
-  const _stBonus = isMagic ? 5 : 3;
-  const _stAp = m.atk + _stBonus;
-  const _stPdef = calcPlayerDef(pl);
-  let dmg = calcAtkDefDmg(_stAp, _stPdef, { defWeight: 1.5 });
-  if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
-  pl.deathCause = `${m.name}の石投げで`;
-  pl.hp -= dmg;
-  ml.push(`${m.name}の${stoneName}が命中！${dmg}ダメージ！`);
-  if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-  if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  const _sd = safeArrowDrop(_lx, _ly, dg);
+  _monDropWithSpring(_sd, dropStone(), dg, ml);
+  ml.push(`${stoneName}はどこかへ落ちた。`);
 }
 
 /* ===== わてり：水鉄砲攻撃 ===== */
@@ -1528,8 +1585,9 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   }
 
   if (fireMsg) ml.push(fireMsg);
-  if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor);
-  else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor);
+  /* 矢・石など物理弾：風で曲がる */
+  if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor, true);
+  else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor, true);
 
   let _plHit = false;
   let _lx = m.x, _ly = m.y;
@@ -1762,13 +1820,13 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
   } = opts;
 
   if (fireMsg) ml.push(fireMsg);
-  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, boltColor);
+  /* 杖の魔法弾：判定・アニメとも風で曲がらない */
+  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, boltColor, false);
 
   let _hit = false;
-  let _cx = m.x, _cy = m.y, _windMsg = false;
+  let _cx = m.x, _cy = m.y;
   for (let _d = 1; _d < range; _d++) {
-    const _st = stepProjectile(dg, _cx, _cy, dx, dy);
-    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    const _st = stepProjectile(dg, _cx, _cy, dx, dy, { wind: false });
     dx = _st.dx; dy = _st.dy;
     const _tx = _st.x, _ty = _st.y;
     _cx = _tx; _cy = _ty;
@@ -1780,12 +1838,6 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     /* 壁/境界：跳ね返って射手に効果 */
     if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) {
       onWallReflect(ml);
-      _hit = true; break;
-    }
-    /* 風で曲がって射手自身に戻った */
-    if (_tx === m.x && _ty === m.y) {
-      ml.push(`風に煽られた${wandLabel}の魔法弾が${m.name}自身に当たった！`);
-      onMonsterHit?.(m, ml);
       _hit = true; break;
     }
     /* プレイヤー命中 */

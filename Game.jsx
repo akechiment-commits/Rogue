@@ -3020,7 +3020,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   p.arrow.count--;
                   /* ── 石 ── */
                   if (_srAr.stone) {
-                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa");
+                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
                     const _stRange = _srCursedFc ? 1 : 3;
                     let _stLx = p.x, _stLy = p.y;
                     for (let _d = 1; _d <= _stRange; _d++) {
@@ -3062,7 +3062,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     }
                   /* ── 魔法の石 ── */
                   } else if (_srAr.magicStone) {
-                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#cc88ff");
+                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#cc88ff", true);
                     const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
                     const _msTarget = [...dg.monsters].filter(mn => Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10).sort((a, b) => _msDist(a) - _msDist(b))[0];
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
@@ -3079,7 +3079,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     }
                   /* ── 爆弾矢 ── */
                   } else if (_srAr.bombArrow) {
-                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622");
+                    pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622", true);
                     ml.push(`【射撃の指輪】${_arName}を射った！`);
                     if (_srFarcast) {
                       ml.push(`${_arName}は消滅した。`);

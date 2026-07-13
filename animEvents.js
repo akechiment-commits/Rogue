@@ -121,12 +121,18 @@ const WAND_COLORS = {
  * Stops at walls, monsters, items, traps, bigboxes.
  * Call BEFORE the actual game logic (which may modify state).
  */
-export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0") {
+/**
+ * @param {boolean|object} [windOrOpts] true/false または { wind?: boolean }
+ *   既定 false（杖・魔法弾）。物理弾（矢・石）は true を渡す。
+ */
+export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0", windOrOpts = false) {
   const color = WAND_COLORS[effectOrColor] || effectOrColor;
+  const wind = typeof windOrOpts === "object" ? !!windOrOpts.wind : !!windOrOpts;
   const tr = traceProjectilePath(dg, sx, sy, dx, dy, MW + MH, {
     stopAtMon: true,
     stopAtPlayer: null,
     stopAtContainers: true,
+    wind,
   });
   /* 罠・アイテムでも止める追加チェックは path 上で実施 */
   let path = tr.path;
@@ -152,11 +158,17 @@ export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0") {
  * Trace a bolt fired BY a monster. Same as pushBoltAnim but also stops at player position.
  * Emits "monProjectile" so it plays in the monster-animation phase.
  */
-export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a050f0") {
+/**
+ * @param {boolean|object} [windOrOpts] true/false または { wind?: boolean }
+ *   物理弾（石・矢・ブレス）は wind:true、杖魔法は wind:false
+ */
+export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a050f0", windOrOpts = true) {
   const color = WAND_COLORS[effectOrColor] || effectOrColor;
+  const wind = typeof windOrOpts === "object" ? (windOrOpts.wind !== false) : !!windOrOpts;
   const tr = traceProjectilePath(dg, sx, sy, dx, dy, MW + MH, {
     stopAtMon: true,
     stopAtPlayer: pl ? { x: pl.x, y: pl.y } : null,
+    wind,
   });
   let path = tr.path;
   let lx = tr.endX, ly = tr.endY;
