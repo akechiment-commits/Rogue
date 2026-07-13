@@ -101,6 +101,57 @@ export function stepProjectile(dg, cx, cy, dx, dy) {
     bent: fdx !== origDx || fdy !== origDy,
   };
 }
+
+/**
+ * 風を含めた飛び道具の経路をトレース。
+ * @returns {{ path: {x,y}[], hitSelf: boolean, bent: boolean, endX: number, endY: number, dx: number, dy: number }}
+ * path[0] は発射点。
+ */
+export function traceProjectilePath(dg, sx, sy, dx, dy, maxRange, {
+  stopAtWall = true,
+  stopAtMon = true,
+  stopAtPlayer = null, /* {x,y} を渡すと自分ヒット検出（発射点は無視） */
+  stopAtContainers = false,
+  passWall = false,
+} = {}) {
+  const path = [{ x: sx, y: sy }];
+  let fdx = Math.sign(dx || 0), fdy = Math.sign(dy || 0);
+  if (fdx === 0 && fdy === 0) fdy = 1;
+  let cx = sx, cy = sy, bent = false, hitSelf = false;
+  for (let d = 1; d <= maxRange; d++) {
+    const st = stepProjectile(dg, cx, cy, fdx, fdy);
+    if (st.bent) bent = true;
+    fdx = st.dx; fdy = st.dy;
+    const tx = st.x, ty = st.y;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+    if (stopAtWall && !passWall && (dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL)) break;
+    path.push({ x: tx, y: ty });
+    cx = tx; cy = ty;
+    if (stopAtPlayer && (tx !== sx || ty !== sy) && tx === stopAtPlayer.x && ty === stopAtPlayer.y) {
+      hitSelf = true;
+      break;
+    }
+    if (stopAtMon && monsterAt(dg, tx, ty)) break;
+    if (stopAtContainers) {
+      if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
+      if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
+    }
+  }
+  const end = path[path.length - 1];
+  return { path, hitSelf, bent, endX: end.x, endY: end.y, dx: fdx, dy: fdy };
+}
+
+/** 折れ線 path 上の progress(0..1) におけるピクセル/マス座標 */
+export function pointOnPath(path, t) {
+  if (!path?.length) return { x: 0, y: 0 };
+  if (path.length === 1) return { x: path[0].x, y: path[0].y };
+  const segs = path.length - 1;
+  const u = Math.max(0, Math.min(1, t)) * segs;
+  const i = Math.min(segs - 1, Math.floor(u));
+  const f = u - i;
+  const a = path[i], b = path[i + 1];
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+}
 export const pick = (arr) => arr[rng(0, arr.length - 1)];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 /** Fisher-Yates シャッフル（in-place）。配列自体を返す */

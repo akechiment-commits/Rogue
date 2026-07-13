@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
 import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -17,7 +17,7 @@ import {
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
-import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim } from "./animEvents.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind } from "./animEvents.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限、風穴で曲がる） */
 function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
@@ -3171,24 +3171,32 @@ export function useItemActions({
         }
 
         p.inventory.splice(idx, 1);
-        /* 投擲アニメーション：アイテムスプライトを着弾点まで飛ばす */
+        /* 投擲アニメ：風で曲がる折れ線 path */
         {
-          const [_teX, _teY] = _traceThrowEnd(p.x, p.y, dx, dy, dg, _maxRange, !_isFarcast);
-          pushItemFlyAnim(p.x, p.y, _teX, _teY, it.tile);
+          const _trFly = pushItemFlyAnimAlongWind(dg, p.x, p.y, dx, dy, _maxRange, it.tile, {
+            stopAtContainers: !_isFarcast,
+            stopAtPlayer: { x: p.x, y: p.y },
+            passWall: !!_isFarcast,
+          });
+          if (_trFly.bent) ml.push("風穴の風が飛び道具を曲げた！");
         }
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false;
+          let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false, _hitSelf = false;
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           let _tFdx = dx, _tFdy = dy, _tCx = p.x, _tCy = p.y, _tWind = false;
           for (let d = 1; d <= _maxRange; d++) {
             const _ts = stepProjectile(dg, _tCx, _tCy, _tFdx, _tFdy);
-            if (_ts.bent && !_tWind) { ml.push("風穴の風が飛び道具を曲げた！"); _tWind = true; }
+            if (_ts.bent && !_tWind) { _tWind = true; }
             _tFdx = _ts.dx; _tFdy = _ts.dy;
             const tx = _ts.x, ty = _ts.y;
             _tCx = tx; _tCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+            /* 風で曲がって自分に当たった */
+            if (tx === p.x && ty === p.y) {
+              lx = tx; ly = ty; _hitSelf = true; break;
+            }
             const m = monsterAt(dg, tx, ty);
             if (m) {
               if (_isFarcast) {
@@ -3224,7 +3232,11 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_fdBurned) {
+          if (_hitSelf) {
+            ml.push(`風に煽られた${dnameRef(it)}が自分に当たった！`);
+            if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml);
+            else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
+          } else if (_fdBurned) {
             /* 火ダルマに燃やされた：何もしない */
           } else if (_isFarcast) {
             /* 遠投：軌道上の全モンスターに個別に効果 */
@@ -3249,16 +3261,17 @@ export function useItemActions({
           }
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}${_itemPickupSuffix(it, sr.current?.ident)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false;
+          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false, _potHitSelf = false;
           let _pFdx = dx, _pFdy = dy, _pCx = p.x, _pCy = p.y, _pWind = false;
           for (let d = 1; d <= _maxRange; d++) {
             const _ps = stepProjectile(dg, _pCx, _pCy, _pFdx, _pFdy);
-            if (_ps.bent && !_pWind) { ml.push("風穴の風が飛び道具を曲げた！"); _pWind = true; }
+            if (_ps.bent && !_pWind) { _pWind = true; }
             _pFdx = _ps.dx; _pFdy = _ps.dy;
             const tx = _ps.x, ty = _ps.y;
             _pCx = tx; _pCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+            if (tx === p.x && ty === p.y) { lx = tx; ly = ty; _potHitSelf = true; break; }
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
@@ -3337,6 +3350,15 @@ export function useItemActions({
           } else if (_isFarcast) {
             /* 遠投：壺は消滅（中身もろとも） */
             ml.push(`${dnameRef(it)}は消滅した。`);
+          } else if (_potHitSelf) {
+            ml.push(`風に煽られた${dnameRef(it)}が自分に当たった！`);
+            if (it.potEffect === "imprison") {
+              const _impRes = confinePlayerInImprisonPot(it, p, dg, ml, dnameRef);
+              if (_impRes === true) p.inventory.push(it);
+              else scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+            } else {
+              scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
+            }
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
@@ -3367,18 +3389,19 @@ export function useItemActions({
             }
             return `${_tnm}${_itemPickupSuffix(it, sr.current?.ident)}`;
           };
-          let lx = p.x, ly = p.y, hit = false, sprHit = null;
+          let lx = p.x, ly = p.y, hit = false, sprHit = null, _genHitSelf = false;
           let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
           let _gFdx = dx, _gFdy = dy, _gCx = p.x, _gCy = p.y, _gWind = false;
 
           for (let d = 1; d <= _maxRange; d++) {
             const _gs = stepProjectile(dg, _gCx, _gCy, _gFdx, _gFdy);
-            if (_gs.bent && !_gWind) { ml.push("風穴の風が飛び道具を曲げた！"); _gWind = true; }
+            if (_gs.bent && !_gWind) { _gWind = true; }
             _gFdx = _gs.dx; _gFdy = _gs.dy;
             const tx = _gs.x, ty = _gs.y;
             _gCx = tx; _gCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+            if (tx === p.x && ty === p.y) { lx = tx; ly = ty; _genHitSelf = true; hit = true; break; }
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
@@ -3545,7 +3568,31 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_isFarcast) {
+          if (_genHitSelf) {
+            const lb = _mkThrowLb();
+            ml.push(`風に煽られた${lb}が自分に当たった！`);
+            if (it.type === "wand") {
+              const _sfSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
+              triggerWandBreakEffect(_sfSnap, p.x, p.y, dg, p, ml, lu, {
+                singleTargetKind: "player", singleTarget: p, effectDx: 0, effectDy: 0,
+              });
+              _wandFiredEffect = true;
+            } else if (it.type === "arrow" && it.bombArrow) {
+              doExplosion(p.x, p.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu);
+            } else {
+              const _selfD = Math.max(1, calcProjectileDmg(p, _tdBaseAtk, 0));
+              p.hp -= _selfD;
+              p.deathCause = "風に煽られた投げ物に当たって";
+              ml.push(`${_selfD}ダメージ！`);
+              if (it.type === "food" && it.yabai) {
+                p.poisoned = true;
+                p.confusedTurns = (p.confusedTurns || 0) + 5;
+                ml.push("ヤバイ食料の影響で毒・混乱した！");
+              } else if (it.type === "food" && it.rotten) {
+                if (!hasRingEffect(p, "antidote_ring")) { p.poisoned = true; ml.push("腐った食料で毒状態になった！"); }
+              }
+            }
+          } else if (_isFarcast) {
             const lb = _mkThrowLb();
             if (it.type === "wand" && !_wandFiredEffect) {
               const _fcSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };

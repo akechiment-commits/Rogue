@@ -3962,6 +3962,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   const _dropItem = () => _isPierce ? makePiercingArrow(1) : _isPoison ? makePoisonArrow(1) : makeArrow(1);
   let lx = p.x, ly = p.y, hit = false;
   let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y, _windMsg = false;
+  const _path = [{ x: p.x, y: p.y }];
   for (let d = 1; d <= _maxR; d++) {
     const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy);
     if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
@@ -3970,6 +3971,15 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     _cx = tx; _cy = ty;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
     if (!_pierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+    _path.push({ x: tx, y: ty });
+    /* 風で曲がって自分に当たった */
+    if (tx === p.x && ty === p.y) {
+      const _selfD = calcProjectileDmg(p, _arAtk, 0);
+      p.hp -= _selfD;
+      p.deathCause = "風に煽られた矢に当たって";
+      ml.push(`風に煽られた${_arName}が自分に当たった！${_selfD}ダメージ！`);
+      hit = true; break;
+    }
     const m = monsterAt(dg, tx, ty);
     if (m) {
       /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す ── */
@@ -4035,6 +4045,10 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       }
     }
     lx = tx; ly = ty;
+  }
+  if (animFn && _path.length > 1) {
+    const _col = _isPierce ? "#ff8844" : _isPoison ? "#60d060" : "#d0a050";
+    animFn({ type: "projectile", fromX: p.x, fromY: p.y, toX: lx, toY: ly, color: _col, path: _path });
   }
   if (_pierceMode || _fc === "cursed") {
     ml.push(`${_arName}を射った。矢は消滅した。`);

@@ -2,9 +2,9 @@ import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt,
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
-/* 石像破壊（fixtures から登録。循環 import 回避） */
-let _statueBreakHandler = null;
-export function setStatueBreakHandler(fn) { _statueBreakHandler = fn; }
+/* 石像破壊（fixtures から登録。循環 import 時の TDZ 回避で object に保持） */
+const _statueBreak = { fn: null };
+export function setStatueBreakHandler(fn) { _statueBreak.fn = fn; }
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -1553,13 +1553,25 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       return;
     }
     /* 石像：ダメージ系の飛び道具が当たると割れる */
-    if (_statueBreakHandler?.(dg, _tx, _ty, pl, ml, luFn, pl?.depth)) {
+    if (_statueBreak.fn?.(dg, _tx, _ty, pl, ml, luFn, pl?.depth)) {
       if (!_passthrough) return;
     }
 
-    /* プレイヤー射手の場合、プレイヤータイルは射手なのでターゲット判定不要（発射点なので _d>=1 で到達不可） */
-    if (!isPlayerShooter && _tx === pl.x && _ty === pl.y && !_plHit) {
+    /* プレイヤー命中：敵の弾、または風で曲がって戻った自弾（_d>=1 で自分マス） */
+    if (_tx === pl.x && _ty === pl.y && !_plHit) {
       _plHit = true;
+      if (isPlayerShooter) {
+        if (customPlHit) {
+          customPlHit(ml, false, null);
+        } else {
+          let _sdmg = calcPlDmg();
+          pl.hp -= _sdmg;
+          pl.deathCause = deathCause ?? "風に煽られた飛び道具で";
+          ml.push(`風に煽られた${boltName}が自分に当たった！${_sdmg}ダメージ！`);
+        }
+        if (onPlHit) onPlHit(ml);
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
+      }
       const _armDodge = _dodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
       if (_armDodge) {
         ml.push(`${boltName}をひらりとかわした！`);

@@ -11,7 +11,7 @@
  *   miss:       { type, x, y }
  */
 
-import { MW, MH, T, monsterAt, itemAt } from './utils.js';
+import { MW, MH, T, monsterAt, itemAt, stepProjectile, traceProjectilePath } from './utils.js';
 
 const animEvents = [];
 
@@ -46,12 +46,33 @@ export function drainPinchAlert() { const v = _pinchAlertPending; _pinchAlertPen
 const _itemArcQueue = [];
 
 /*
- * Player throws an item — straight-line flight with slight arc.
+ * Player throws an item — flight with optional path (wind bends).
+ * path: [{x,y},...] があれば折れ線飛行。なければ from→to 直線。
  * seq=0 ensures it plays before any scatter arcs.
  */
-export function pushItemFlyAnim(fromX, fromY, toX, toY, tile) {
+export function pushItemFlyAnim(fromX, fromY, toX, toY, tile, path = null) {
+  if (path?.length > 1) {
+    const end = path[path.length - 1];
+    _itemArcQueue.push({
+      type: "itemArc", fromX: path[0].x, fromY: path[0].y,
+      toX: end.x, toY: end.y, tile, seq: 0, straight: true, path,
+    });
+    return;
+  }
   if (fromX === toX && fromY === toY) return;
   _itemArcQueue.push({ type: "itemArc", fromX, fromY, toX, toY, tile, seq: 0, straight: true });
+}
+
+/** 風を含む経路で投擲アニメを登録 */
+export function pushItemFlyAnimAlongWind(dg, fromX, fromY, dx, dy, maxRange, tile, opts = {}) {
+  const tr = traceProjectilePath(dg, fromX, fromY, dx, dy, maxRange, {
+    stopAtMon: opts.stopAtMon !== false,
+    stopAtPlayer: opts.stopAtPlayer || null,
+    stopAtContainers: !!opts.stopAtContainers,
+    passWall: !!opts.passWall,
+  });
+  pushItemFlyAnim(fromX, fromY, tr.endX, tr.endY, tile, tr.path);
+  return tr;
 }
 
 /*
@@ -102,32 +123,29 @@ const WAND_COLORS = {
  */
 export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0") {
   const color = WAND_COLORS[effectOrColor] || effectOrColor;
-  let lx = sx, ly = sy;
-  for (let d = 1; d < MW + MH; d++) {
-    const tx = sx + dx * d, ty = sy + dy * d;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-    if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-    if (monsterAt(dg, tx, ty)) { lx = tx; ly = ty; break; }
-    if (itemAt(dg, tx, ty)) { lx = tx; ly = ty; break; }
-    if (dg.traps?.find(t => t.x === tx && t.y === ty)) { lx = tx; ly = ty; break; }
-    if (dg.bigboxes?.find(b => b.x === tx && b.y === ty)) { lx = tx; ly = ty; break; }
-    lx = tx; ly = ty;
+  const tr = traceProjectilePath(dg, sx, sy, dx, dy, MW + MH, {
+    stopAtMon: true,
+    stopAtPlayer: null,
+    stopAtContainers: true,
+  });
+  /* 罠・アイテムでも止める追加チェックは path 上で実施 */
+  let path = tr.path;
+  let endX = tr.endX, endY = tr.endY;
+  for (let i = 1; i < path.length; i++) {
+    const { x: tx, y: ty } = path[i];
+    if (itemAt(dg, tx, ty) || dg.traps?.find(t => t.x === tx && t.y === ty) ||
+        dg.bigboxes?.find(b => b.x === tx && b.y === ty)) {
+      path = path.slice(0, i + 1);
+      endX = tx; endY = ty;
+      break;
+    }
   }
-  if (lx !== sx || ly !== sy) {
-    const evt = { type: "projectile", fromX: sx, fromY: sy, toX: lx, toY: ly, color };
+  if (endX !== sx || endY !== sy) {
+    const evt = { type: "projectile", fromX: sx, fromY: sy, toX: endX, toY: endY, color, path };
     pushAnim(evt);
     return evt;
   }
   return null;
-}
-
-/*
- * Push a projectile animation for a known path (from→to).
- */
-export function pushProjectileAnim(fromX, fromY, toX, toY, color = "#d0a050") {
-  if (fromX !== toX || fromY !== toY) {
-    pushAnim({ type: "projectile", fromX, fromY, toX, toY, color });
-  }
 }
 
 /*
@@ -136,20 +154,30 @@ export function pushProjectileAnim(fromX, fromY, toX, toY, color = "#d0a050") {
  */
 export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a050f0") {
   const color = WAND_COLORS[effectOrColor] || effectOrColor;
-  let lx = sx, ly = sy;
-  for (let d = 1; d < MW + MH; d++) {
-    const tx = sx + dx * d, ty = sy + dy * d;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-    if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-    if (tx === pl.x && ty === pl.y) { lx = tx; ly = ty; break; }
-    if (monsterAt(dg, tx, ty)) { lx = tx; ly = ty; break; }
-    if (itemAt(dg, tx, ty)) { lx = tx; ly = ty; break; }
-    if (dg.traps?.find(t => t.x === tx && t.y === ty)) { lx = tx; ly = ty; break; }
-    if (dg.bigboxes?.find(b => b.x === tx && b.y === ty)) { lx = tx; ly = ty; break; }
-    lx = tx; ly = ty;
+  const tr = traceProjectilePath(dg, sx, sy, dx, dy, MW + MH, {
+    stopAtMon: true,
+    stopAtPlayer: pl ? { x: pl.x, y: pl.y } : null,
+  });
+  let path = tr.path;
+  let lx = tr.endX, ly = tr.endY;
+  for (let i = 1; i < path.length; i++) {
+    const { x: tx, y: ty } = path[i];
+    if (pl && tx === pl.x && ty === pl.y) { lx = tx; ly = ty; path = path.slice(0, i + 1); break; }
+    if (monsterAt(dg, tx, ty) || itemAt(dg, tx, ty) ||
+        dg.traps?.find(t => t.x === tx && t.y === ty) ||
+        dg.bigboxes?.find(b => b.x === tx && b.y === ty)) {
+      lx = tx; ly = ty; path = path.slice(0, i + 1); break;
+    }
   }
   if (lx !== sx || ly !== sy) {
-    pushAnim({ type: "monProjectile", fromX: sx, fromY: sy, toX: lx, toY: ly, color });
+    pushAnim({ type: "monProjectile", fromX: sx, fromY: sy, toX: lx, toY: ly, color, path });
+  }
+}
+
+/** 既知の from→to、または path 折れ線で弾アニメ */
+export function pushProjectileAnim(fromX, fromY, toX, toY, color = "#d0a050", path = null) {
+  if (path?.length > 1 || fromX !== toX || fromY !== toY) {
+    pushAnim({ type: "projectile", fromX, fromY, toX, toY, color, path: path || null });
   }
 }
 

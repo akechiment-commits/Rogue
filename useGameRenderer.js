@@ -236,13 +236,32 @@ function drawFlash(ctx, o, sx, sy, sz, p) {
 }
 
 /* ===== Projectile ===== */
-function drawProjectile(ctx, o, sx, sy, sz, t) {
+function _posOnOverlayPath(o, t, sx, sy, sz) {
+  if (o.path?.length > 1) {
+    /* マス座標 path をピクセル折れ線に */
+    const segs = o.path.length - 1;
+    const u = Math.max(0, Math.min(1, t)) * segs;
+    const i = Math.min(segs - 1, Math.floor(u));
+    const f = u - i;
+    const a = o.path[i], b = o.path[i + 1];
+    const mx = a.x + (b.x - a.x) * f;
+    const my = a.y + (b.y - a.y) * f;
+    return {
+      cx: (mx - sx) * sz + sz / 2,
+      cy: (my - sy) * sz + sz / 2,
+    };
+  }
   const fx = (o.fromX - sx) * sz + sz / 2;
   const fy = (o.fromY - sy) * sz + sz / 2;
   const tx = (o.toX - sx) * sz + sz / 2;
   const ty = (o.toY - sy) * sz + sz / 2;
-  const cx = fx + (tx - fx) * t;
-  const cy = fy + (ty - fy) * t;
+  return { cx: fx + (tx - fx) * t, cy: fy + (ty - fy) * t, fx, fy, tx, ty };
+}
+
+function drawProjectile(ctx, o, sx, sy, sz, t) {
+  const pos = _posOnOverlayPath(o, t, sx, sy, sz);
+  const trail = _posOnOverlayPath(o, Math.max(0, t - 0.12), sx, sy, sz);
+  const cx = pos.cx, cy = pos.cy;
   const alpha = t > 0.9 ? (1 - t) * 10 : 1;
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -252,13 +271,11 @@ function drawProjectile(ctx, o, sx, sy, sz, t) {
   ctx.arc(cx, cy, sz * 0.15, 0, Math.PI * 2);
   ctx.fill();
   /* Trail */
-  ctx.globalAlpha = alpha * 0.4;
-  const bx = fx + (tx - fx) * Math.max(0, t - 0.15);
-  const by = fy + (ty - fy) * Math.max(0, t - 0.15);
+  ctx.globalAlpha = alpha * 0.45;
   ctx.strokeStyle = o.color || "#ffcc44";
-  ctx.lineWidth = Math.max(1, sz * 0.06);
+  ctx.lineWidth = Math.max(1, sz * 0.08);
   ctx.beginPath();
-  ctx.moveTo(bx, by);
+  ctx.moveTo(trail.cx, trail.cy);
   ctx.lineTo(cx, cy);
   ctx.stroke();
   ctx.restore();
@@ -405,6 +422,40 @@ function drawSplashEffect(ctx, o, sx, sy, sz, p) {
 
 /* ===== Item Fly Effect (straight throw or parabolic scatter) ===== */
 function drawItemArc(ctx, o, sx, sy, sz, t) {
+  /* 風で曲がる path 付き投擲：折れ線上を移動（直進→曲がる） */
+  if (o.path?.length > 1 && o.straight) {
+    const segs = o.path.length - 1;
+    const u = Math.max(0, Math.min(1, t)) * segs;
+    const i = Math.min(segs - 1, Math.floor(u));
+    const f = u - i;
+    const a = o.path[i], b = o.path[i + 1];
+    const mx = a.x + (b.x - a.x) * f;
+    const my = a.y + (b.y - a.y) * f;
+    const curX = (mx - sx) * sz + sz / 2;
+    const curY = (my - sy) * sz + sz / 2;
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    const spinAngle = angle + t * Math.PI * 1.5;
+    const drawSz = sz * 0.95;
+    ctx.save();
+    /* 影 */
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(curX, curY + sz * 0.35, sz * 0.18, sz * 0.06, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.translate(curX, curY);
+    ctx.rotate(spinAngle);
+    try {
+      drawTile(ctx, null, o.tile, -drawSz / 2, -drawSz / 2, drawSz);
+    } catch {
+      ctx.fillStyle = "#ffee88";
+      ctx.fillRect(-drawSz / 2, -drawSz / 2, drawSz, drawSz);
+    }
+    ctx.restore();
+    return;
+  }
+
   const fx = (o.fromX - sx) * sz + sz / 2;
   const fy = (o.fromY - sy) * sz + sz / 2;
   const tx2 = (o.toX - sx) * sz + sz / 2;
@@ -651,26 +702,44 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           drawTile(ctx, ts, _fsTi, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
-        /* 風穴 */
+        /* 風穴：濃い枠＋キャンバス矢印（Unicode 斜め文字は潰れるため使わない） */
         const _vent = _ventMap.get(_k(x, y));
         if (_vent && (vis || exp2)) {
-          if (!vis) ctx.globalAlpha = 0.4;
-          ctx.fillStyle = "rgba(120,180,220,0.35)";
-          ctx.fillRect(px2, py2, sz, sz);
-          const _arr =
-            _vent.dx === 1 && _vent.dy === 0 ? "→" :
-            _vent.dx === -1 && _vent.dy === 0 ? "←" :
-            _vent.dx === 0 && _vent.dy === 1 ? "↓" :
-            _vent.dx === 0 && _vent.dy === -1 ? "↑" :
-            _vent.dx === 1 && _vent.dy === 1 ? "↘" :
-            _vent.dx === 1 && _vent.dy === -1 ? "↗" :
-            _vent.dx === -1 && _vent.dy === 1 ? "↙" : "↖";
-          ctx.fillStyle = "#a0d8ff";
-          ctx.font = `bold ${Math.floor(sz * 0.7)}px monospace`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(_arr, px2 + sz / 2, py2 + sz / 2);
-          if (!vis) ctx.globalAlpha = 1;
+          ctx.save();
+          if (!vis) ctx.globalAlpha = 0.45;
+          /* 床のハイライト */
+          ctx.fillStyle = "rgba(30,120,200,0.45)";
+          ctx.fillRect(px2 + 1, py2 + 1, sz - 2, sz - 2);
+          ctx.strokeStyle = "rgba(80,220,255,0.95)";
+          ctx.lineWidth = Math.max(2, sz * 0.08);
+          ctx.strokeRect(px2 + 2, py2 + 2, sz - 4, sz - 4);
+          /* 矢印本体 */
+          const vcx = px2 + sz / 2, vcy = py2 + sz / 2;
+          let vdx = Math.sign(_vent.dx || 0), vdy = Math.sign(_vent.dy || 0);
+          if (vdx === 0 && vdy === 0) vdy = 1;
+          const len = sz * 0.32;
+          const tipX = vcx + vdx * len, tipY = vcy + vdy * len;
+          const tailX = vcx - vdx * len * 0.7, tailY = vcy - vdy * len * 0.7;
+          ctx.strokeStyle = "#e8ffff";
+          ctx.fillStyle = "#40e8ff";
+          ctx.lineWidth = Math.max(2.5, sz * 0.12);
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.beginPath();
+          ctx.moveTo(tailX, tailY);
+          ctx.lineTo(tipX, tipY);
+          ctx.stroke();
+          /* 矢じり */
+          const ang = Math.atan2(vdy, vdx);
+          const ah = sz * 0.22;
+          ctx.beginPath();
+          ctx.moveTo(tipX, tipY);
+          ctx.lineTo(tipX - Math.cos(ang - 0.55) * ah, tipY - Math.sin(ang - 0.55) * ah);
+          ctx.lineTo(tipX - Math.cos(ang + 0.55) * ah, tipY - Math.sin(ang + 0.55) * ah);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
         }
         /* 石像 */
         const _statue = _statueMap.get(_k(x, y));
