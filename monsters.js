@@ -1557,6 +1557,16 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (!_passthrough) return;
     }
 
+    /* 風で曲がって射手（敵）自身に戻った */
+    if (!isPlayerShooter && m.hp != null && _tx === m.x && _ty === m.y) {
+      const _selfDmg = calcMonDmg(m);
+      m.hp -= _selfDmg;
+      ml.push(`風に煽られた${boltName}が${m.name}自身に当たった！${_selfDmg}ダメージ！`);
+      if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, null);
+      if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
+      return;
+    }
+
     /* プレイヤー命中：敵の弾、または風で曲がって戻った自弾（_d>=1 で自分マス） */
     if (_tx === pl.x && _ty === pl.y && !_plHit) {
       _plHit = true;
@@ -1731,7 +1741,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
  *   bbNameFn(bb): 大箱表示名関数（任意、未指定なら .name）
  */
 export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
-  const {
+  let {
     dx, dy,
     range = 20,
     boltColor,
@@ -1755,8 +1765,13 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
   pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, boltColor);
 
   let _hit = false;
+  let _cx = m.x, _cy = m.y, _windMsg = false;
   for (let _d = 1; _d < range; _d++) {
-    const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
+    const _st = stepProjectile(dg, _cx, _cy, dx, dy);
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    dx = _st.dx; dy = _st.dy;
+    const _tx = _st.x, _ty = _st.y;
+    _cx = _tx; _cy = _ty;
     /* 魔封じの魔方陣 */
     if (inMagicSealRoom(_tx, _ty, dg)) {
       ml.push("魔法弾が魔封じの魔方陣で消えた！");
@@ -1765,6 +1780,12 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     /* 壁/境界：跳ね返って射手に効果 */
     if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) {
       onWallReflect(ml);
+      _hit = true; break;
+    }
+    /* 風で曲がって射手自身に戻った */
+    if (_tx === m.x && _ty === m.y) {
+      ml.push(`風に煽られた${wandLabel}の魔法弾が${m.name}自身に当たった！`);
+      onMonsterHit?.(m, ml);
       _hit = true; break;
     }
     /* プレイヤー命中 */

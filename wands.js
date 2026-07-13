@@ -1729,6 +1729,17 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       }
       return;
     }
+    /* 風で曲がって発射元の敵自身に戻った */
+    if (killerMon && tx === killerMon.x && ty === killerMon.y) {
+      if (!consumeBarrier(killerMon, ml)) {
+        const _sdmg = Math.round(rng(15, 25) * (blessed ? 2 : 1));
+        killerMon.hp -= _sdmg;
+        ml.push(`風に煽られた雷撃が${killerMon.name}自身に当たった！${_sdmg}ダメージ！`);
+        pushLightningAnim(killerMon.x, killerMon.y);
+        if (killerMon.hp <= 0) killMonster(killerMon, dg, pl, ml, luFn);
+      }
+      return;
+    }
     if (tx === pl.x && ty === pl.y) {
       /* 祝福された聖域の魔方陣は飛び道具（雷撃）を防ぐ */
       const _lBlessedSanc = dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
