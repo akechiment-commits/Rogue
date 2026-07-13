@@ -529,6 +529,12 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const _sprMap = new Map(); if (dg.springs) for (const s of dg.springs) _sprMap.set(_k(s.x, s.y), s);
     const _bbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _bbMap.set(_k(b.x, b.y), b);
     const _pentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _pentMap.set(_k(pc.x, pc.y), pc);
+    const _ventMap = new Map(); if (dg.vents) for (const v of dg.vents) _ventMap.set(_k(v.x, v.y), v);
+    const _statueMap = new Map(); if (dg.statues) for (const s of dg.statues) _statueMap.set(_k(s.x, s.y), s);
+    const _fakeStairMap = new Map();
+    if (dg.traps) for (const tr of dg.traps) {
+      if (tr.disguise && !tr.revealed) _fakeStairMap.set(_k(tr.x, tr.y), tr);
+    }
     const _pendingBombMap = new Map(); if (dg.pendingBombs) for (const pb of dg.pendingBombs) _pendingBombMap.set(_k(pb.x, pb.y), pb);
     const _oilySet = new Set(); if (dg.oilyTiles) for (const ot of dg.oilyTiles) _oilySet.add(_k(ot.x, ot.y));
     const _roomSet = new Set();
@@ -637,6 +643,48 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.fillRect(px2, py2, sz, sz);
           ctx.globalAlpha = 1;
         }
+        /* 偽階段（未看破）：本物の階段と同じ見た目 */
+        const _fakeSt = _fakeStairMap.get(_k(x, y));
+        if (_fakeSt && (vis || exp2) && t === T.FLOOR) {
+          if (!vis) ctx.globalAlpha = 0.4;
+          const _fsTi = _fakeSt.disguise === "stair_up" ? TI.SU : TI.SD;
+          drawTile(ctx, ts, _fsTi, px2, py2, sz);
+          if (!vis) ctx.globalAlpha = 1;
+        }
+        /* 風穴 */
+        const _vent = _ventMap.get(_k(x, y));
+        if (_vent && (vis || exp2)) {
+          if (!vis) ctx.globalAlpha = 0.4;
+          ctx.fillStyle = "rgba(120,180,220,0.35)";
+          ctx.fillRect(px2, py2, sz, sz);
+          const _arr =
+            _vent.dx === 1 && _vent.dy === 0 ? "→" :
+            _vent.dx === -1 && _vent.dy === 0 ? "←" :
+            _vent.dx === 0 && _vent.dy === 1 ? "↓" :
+            _vent.dx === 0 && _vent.dy === -1 ? "↑" :
+            _vent.dx === 1 && _vent.dy === 1 ? "↘" :
+            _vent.dx === 1 && _vent.dy === -1 ? "↗" :
+            _vent.dx === -1 && _vent.dy === 1 ? "↙" : "↖";
+          ctx.fillStyle = "#a0d8ff";
+          ctx.font = `bold ${Math.floor(sz * 0.7)}px monospace`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(_arr, px2 + sz / 2, py2 + sz / 2);
+          if (!vis) ctx.globalAlpha = 1;
+        }
+        /* 石像 */
+        const _statue = _statueMap.get(_k(x, y));
+        if (_statue && (vis || exp2)) {
+          if (!vis) ctx.globalAlpha = 0.4;
+          ctx.fillStyle = "rgba(160,160,180,0.45)";
+          ctx.fillRect(px2, py2, sz, sz);
+          ctx.fillStyle = "#c8c8d8";
+          ctx.font = `bold ${Math.floor(sz * 0.75)}px monospace`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("¶", px2 + sz / 2, py2 + sz / 2);
+          if (!vis) ctx.globalAlpha = 1;
+        }
         /* Spring */
         const spr = _sprMap.get(_k(x, y));
         if (spr && (vis || exp2)) {
@@ -667,7 +715,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             _pent.kind === "stone_throw"    ? (_pent.blessed ? "#80c0ff" : _pent.cursed ? "#102040" : "#4080cc") :
             _pent.kind === "knockback_aura" ? (_pent.blessed ? "#ffcc80" : _pent.cursed ? "#402010" : "#ff8040") :
             _pent.kind === "explosion"      ? (_pent.blessed ? "#ff8844" : _pent.cursed ? "#301008" : "#ff5500") :
-            _pent.kind === "plain"          ? (_pent.blessed ? "#dddddd" : _pent.cursed ? "#555555" : "#999999") : "#ff6020";
+            _pent.kind === "plain"          ? (_pent.blessed ? "#dddddd" : _pent.cursed ? "#555555" : "#999999") :
+            _pent.kind === "fixed_portal"   ? "#40e0c0" :
+            _pent.kind === "portal"         ? (_pent.blessed ? "#80ffe0" : _pent.cursed ? "#204040" : "#40c0a0") : "#ff6020";
           ctx.globalAlpha = 0.35;
           ctx.fillStyle = _pentClr;
           ctx.fillRect(px2, py2, sz, sz);

@@ -5,6 +5,7 @@ import {
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickLootFromPool, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS,
 } from './items.js';
+import { scatterFloorGimmicks } from './fixtures.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -1582,15 +1583,45 @@ function genBossFloor(depth, dungeonType = null) {
   };
 }
 
+/** 偽階段・風穴・石像・固定転送をフロアにばら撒く */
+function attachFloorGimmicks(dg, depth) {
+  if (!dg) return dg;
+  dg.vents = dg.vents || [];
+  dg.statues = dg.statues || [];
+  dg.pentacles = dg.pentacles || [];
+  dg.traps = dg.traps || [];
+  const g = scatterFloorGimmicks(dg.map, dg.rooms || [], depth, {
+    traps: dg.traps,
+    springs: dg.springs || [],
+    bigboxes: dg.bigboxes || [],
+    pentacles: dg.pentacles,
+    stairUp: dg.stairUp,
+    stairDown: dg.stairDown,
+  });
+  if (g.traps?.length) dg.traps.push(...g.traps);
+  if (g.vents?.length) dg.vents.push(...g.vents);
+  if (g.statues?.length) dg.statues.push(...g.statues);
+  if (g.pentacles?.length) dg.pentacles.push(...g.pentacles);
+  return dg;
+}
+
 export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
   /* ボスフロア：5の倍数階 (B5F=depth4, B10F=depth9, ...) */
-  if (depth % 5 === 4) { const _bf = genBossFloor(depth, dungeonType); _bf.dungeonType = dungeonType; return _bf; }
+  if (depth % 5 === 4) {
+    const _bf = genBossFloor(depth, dungeonType);
+    _bf.dungeonType = dungeonType;
+    attachFloorGimmicks(_bf, depth);
+    return _bf;
+  }
 
   /* 特殊フロア選択（25%の確率でいずれかの特殊フロアになる） */
   /* B1F（depth=0）は特殊フロア一切なし（通常フロア確定） */
   if (depth > 0 && Math.random() < 0.25) {
     const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genShoppingMall, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
-    const _sf = pick(specials)(depth, dungeonType); _sf.dungeonType = dungeonType; return _sf;
+    const _sf = pick(specials)(depth, dungeonType);
+    _sf.dungeonType = dungeonType;
+    attachFloorGimmicks(_sf, depth);
+    return _sf;
   }
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
@@ -1967,7 +1998,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       monsterHouseRoom = mhRoom;
     }
   }
-  return {
+  const _floor = {
     map,
     rooms,
     monsters: mons,
@@ -1985,7 +2016,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     monsterHouseRoom,
     hiddenRooms,
     dungeonType,
+    vents: [],
+    statues: [],
   };
+  attachFloorGimmicks(_floor, depth);
+  return _floor;
 }
 
 /* ===== 最下層変換 ===== */

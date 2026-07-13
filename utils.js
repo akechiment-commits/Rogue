@@ -59,6 +59,24 @@ export function calcAtkDefDmg(atk, def, {
   if (variance) base = Math.max(1, base + rngFn(-2, 2));
   return base;
 }
+
+/** 風穴 5x5 内なら風向き、なければ null（dg.vents 依存・循環 import 回避のため utils に置く） */
+export function getWindAt(dg, x, y) {
+  for (const v of dg?.vents || []) {
+    if (Math.abs(x - v.x) <= 2 && Math.abs(y - v.y) <= 2) {
+      return { dx: v.dx, dy: v.dy, vent: v };
+    }
+  }
+  return null;
+}
+
+/** 飛び道具の進行方向を風で上書き */
+export function applyWindDir(dg, x, y, dx, dy) {
+  const w = getWindAt(dg, x, y);
+  if (!w) return { dx, dy, bent: false };
+  if (w.dx === dx && w.dy === dy) return { dx, dy, bent: false };
+  return { dx: w.dx, dy: w.dy, bent: true };
+}
 export const pick = (arr) => arr[rng(0, arr.length - 1)];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 /** Fisher-Yates シャッフル（in-place）。配列自体を返す */

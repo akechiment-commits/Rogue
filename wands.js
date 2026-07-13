@@ -12,6 +12,7 @@ import {
   pickLootFromPool,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
+import { tryBreakStatueAt } from './fixtures.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 
 /*
@@ -21,6 +22,16 @@ import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from '
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null) {
+  /* 石像：ダメージ／状態異常系なら破壊。場所替え・無害テレポのみは壊さない */
+  if (kind === "statue") {
+    const _harmless = eff === "swap" || eff === "teleport" || eff === "portal";
+    if (!_harmless) {
+      tryBreakStatueAt(dg, target.x, target.y, p, ml, luFn, p?.depth);
+    } else {
+      ml.push(`${target.name}には効果がなかった。`);
+    }
+    return;
+  }
   if (kind === "monster") {
     wakeIfDormant(target, ml);
     /* 魔法無効（キラープラスター等）：杖の魔法弾を完全無効化 */
@@ -1801,6 +1812,8 @@ function _centerWandTarget(dg, cx, cy, p) {
   if (trap) { trap.revealed = true; return { kind: "trap", t: trap }; }
   const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
   if (bb) return { kind: "bigbox", t: bb };
+  const st = dg.statues?.find(s => s.x === cx && s.y === cy);
+  if (st) return { kind: "statue", t: st };
   return null;
 }
 

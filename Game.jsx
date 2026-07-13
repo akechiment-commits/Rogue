@@ -900,6 +900,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const parts = [];
     if (tile === T.SD) parts.push("下り階段");
     else if (tile === T.SU) parts.push("上り階段");
+    else {
+      const _fs = dg.traps?.find(t => t.x === cx && t.y === cy && t.disguise && !t.revealed);
+      if (_fs) parts.push(_fs.disguise === "stair_up" ? "上り階段" : "下り階段");
+    }
     const mon = dg.visible[cy]?.[cx] && dg.monsters.find(m => m.x === cx && m.y === cy);
     if (mon) parts.push(`${mon.name} HP:${mon.hp}/${mon.maxHp}`);
     const floorItems = dg.items.filter(i => i.x === cx && i.y === cy && !i.wallEmbedded);
@@ -915,6 +919,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (bb) parts.push(bbDisplayName(bb, sr.current, bb.revealed === true || !!sr.current?.allBcKnown));
     const pent = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
     if (pent) parts.push(pent.name);
+    const vent = dg.vents?.find(v => v.x === cx && v.y === cy);
+    if (vent) parts.push("風穴");
+    const statue = dg.statues?.find(s => s.x === cx && s.y === cy);
+    if (statue) parts.push("石像");
     return parts.length > 0 ? parts.join(" / ") : "何もない";
   }, []);
   const checkTrap = useCallback((p, dg, ml) => {
@@ -1235,6 +1243,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   /* ポータルの魔方陣のプレイヤー転送ヘルパー（移動・ダッシュ・ターン終了で共用） */
   const playerPortalWarp = useCallback((p, st, ml) => {
     const dg = st.dungeon;
+    /* 固定転送（ペアのみ・ペンポータルと非接続） */
+    const _fp = dg.pentacles?.find(pc => pc.kind === "fixed_portal" && pc.x === p.x && pc.y === p.y);
+    if (_fp) {
+      const _pair = (dg.pentacles || []).find(pc => pc.kind === "fixed_portal" && pc.pairId === _fp.pairId && pc !== _fp);
+      if (!_pair) { ml.push(`${_fp.name}が反応したが、繋がる先がない…`); return false; }
+      if (dg.monsters.some(m => m.x === _pair.x && m.y === _pair.y)) {
+        ml.push("対の転送陣が塞がっていて出られなかった！");
+        return false;
+      }
+      p.x = _pair.x; p.y = _pair.y;
+      ml.push(`${_fp.name}から対の陣へ抜けた！`);
+      if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+      if ((p.potConfinedTurns || 0) > 0) {
+        p.potConfinedTurns = 0;
+        delete p.potConfinedPotId;
+        ml.push("テレポートして壺から出た！");
+      }
+      return true;
+    }
     const _ph = dg.pentacles?.find(pc => pc.kind === "portal" && pc.x === p.x && pc.y === p.y);
     if (!_ph) return false;
     if (_ph.cursed) {
@@ -1253,7 +1280,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const _hasGoal = p.inventory?.some(i => i.type === "goal");
     const _cycle = [{ portal: _ph, dg, depth: p.depth }];
     for (const _pc of dg.pentacles) {
-      if (_pc !== _ph && _pc.kind === "portal" && !_pc.cursed) {
+      if (_pc !== _ph && _pc.kind === "portal" && !_pc.cursed && !_pc.fixed) {
         _cycle.push({ portal: _pc, dg, depth: p.depth });
       }
     }
@@ -1262,7 +1289,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (!_fdg.pentacles) continue;
         const _fd = parseInt(_dStr);
         for (const _pc of _fdg.pentacles) {
-          if (_pc.kind !== "portal" || _pc.cursed) continue;
+          if (_pc.kind !== "portal" || _pc.cursed || _pc.fixed) continue;
           if (!(_ph.blessed && _pc.blessed)) continue;
           _cycle.push({ portal: _pc, dg: _fdg, depth: _fd });
         }
@@ -1780,6 +1807,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (st.dungeon.pentacles?.some(pc => pc.kind === "portal")) {
         const _hasGoalP25 = p.inventory?.some(i => i.type === "goal");
         for (const _mm of [...st.dungeon.monsters]) {
+          const _fixedMon = st.dungeon.pentacles.find(pc => pc.kind === "fixed_portal" && pc.x === _mm.x && pc.y === _mm.y);
+          if (_fixedMon) {
+            const _fpair = st.dungeon.pentacles.find(pc => pc.kind === "fixed_portal" && pc.pairId === _fixedMon.pairId && pc !== _fixedMon);
+            if (_fpair && !st.dungeon.monsters.some(m => m !== _mm && m.x === _fpair.x && m.y === _fpair.y) &&
+                !(_fpair.x === p.x && _fpair.y === p.y)) {
+              _mm.x = _fpair.x; _mm.y = _fpair.y;
+              ml.push(`${_mm.name}が転送の魔法陣から対の陣へ抜けた！`);
+            }
+            continue;
+          }
           const _portalMon = st.dungeon.pentacles.find(pc => pc.kind === "portal" && pc.x === _mm.x && pc.y === _mm.y);
           if (!_portalMon) continue;
           if (_portalMon.cursed) {
@@ -1793,7 +1830,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           /* 描画順サイクル：同フロア + 別フロア（祝福経由・キーアイテム未所持時のみ） */
           const _cycleM = [{ portal: _portalMon, dg: st.dungeon, depth: _portalMon.floor }];
           for (const _pc of st.dungeon.pentacles) {
-            if (_pc !== _portalMon && _pc.kind === "portal" && !_pc.cursed) {
+            if (_pc !== _portalMon && _pc.kind === "portal" && !_pc.cursed && !_pc.fixed) {
               _cycleM.push({ portal: _pc, dg: st.dungeon, depth: _portalMon.floor });
             }
           }
@@ -3180,6 +3217,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             if (_signStep) { setShowSign(_signStep); }
             if (dg.map[p.y][p.x] === T.SD) ml.push("下り階段がある。");
             if (dg.map[p.y][p.x] === T.SU) ml.push("上り階段がある。");
+            {
+              const _fsStep = st.dungeon.traps?.find(t => t.x === p.x && t.y === p.y && t.disguise && !t.revealed);
+              if (_fsStep) ml.push(_fsStep.disguise === "stair_up" ? "上り階段がある。" : "下り階段がある。");
+            }
+            const _ventStep = st.dungeon.vents?.find(v => v.x === p.x && v.y === p.y);
+            if (_ventStep) ml.push("風穴がある。風が流れている…");
+            const _statueStep = st.dungeon.statues?.find(s => s.x === p.x && s.y === p.y);
+            if (_statueStep) ml.push("石像がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
             if (_bbStep) { ml.push(`${bbDisplayName(_bbStep, sr.current, _bbStep.revealed === true || !!sr.current?.allBcKnown)}がある。`); }
             const _sprStep = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);

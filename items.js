@@ -1,4 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, calcAtkDefDmg } from './utils.js';
+import { materializeFakeStair, tryBreakStatueAt, findFixedPortalPair } from './fixtures.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom } from './monsters.js';
 import { triggerWandBreakEffect } from './wands.js';
@@ -15,6 +16,14 @@ export function getTrapIdentSet() { return _trapIdentGetter?.() || null; }
 
 /* ポータル着地時の転送ヘルパー：成功時は placeItemAt の結果、対象なし/失敗時は null */
 function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
+  /* 固定転送：ペアのみ（ペンポータルと非接続） */
+  if (portal.kind === "fixed_portal") {
+    const _pair = findFixedPortalPair(dg, portal);
+    if (!_pair) return null;
+    if (dg.monsters?.some(m => m.x === _pair.x && m.y === _pair.y)) return null;
+    ml.push(`${item.name}が${portal.name}に吸い込まれて対の転送陣から出てきた！`);
+    return placeItemAt(dg, _pair.x, _pair.y, item, ml, ft, dep + 1, p, _pair.x, _pair.y, true);
+  }
   if (portal.cursed) {
     const _rd = randomTeleportDest(dg, portal.x, portal.y);
     if (_rd) {
@@ -26,7 +35,7 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
   const _hasGoal = p?.inventory?.some(i => i.type === "goal");
   const _cycle = [{ portal, dg, depth: portal.floor }];
   for (const _pc of dg.pentacles) {
-    if (_pc !== portal && _pc.kind === "portal" && !_pc.cursed) {
+    if (_pc !== portal && _pc.kind === "portal" && !_pc.cursed && !_pc.fixed) {
       _cycle.push({ portal: _pc, dg, depth: portal.floor });
     }
   }
@@ -35,7 +44,7 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
     for (const [_dStr, _fdg] of Object.entries(_allFloors)) {
       if (!_fdg.pentacles) continue;
       for (const _pc of _fdg.pentacles) {
-        if (_pc.kind !== "portal" || _pc.cursed) continue;
+        if (_pc.kind !== "portal" || _pc.cursed || _pc.fixed || _pc.kind === "fixed_portal") continue;
         if (!(portal.blessed && _pc.blessed)) continue;
         _cycle.push({ portal: _pc, dg: _fdg, depth: parseInt(_dStr) });
       }
@@ -1230,6 +1239,13 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   if (_blastedBB.length > 0) { _blastedBB.forEach(stageBigbox); dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b)); }
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
+  /* 爆発範囲内の石像 */
+  for (let ddx = -1; ddx <= 1; ddx++) {
+    for (let ddy = -1; ddy <= 1; ddy++) {
+      const ax = cx + ddx, ay = cy + ddy;
+      tryBreakStatueAt(dg, ax, ay, p, ml, luFn, p?.depth);
+    }
+  }
   /* 爆発範囲内の魔方陣を消滅 */
   if (dg.pentacles?.length > 0) {
     const _blastPcs = dg.pentacles.filter(pc =>
@@ -1912,6 +1928,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   if (_fireTrapDepth > 5) return "stop";
   _fireTrapDepth++;
   try {
+  if (trap?.effect === "fake_stair") {
+    const _was = trap.name || "偽の階段";
+    materializeFakeStair(trap);
+    ml.push(`${_was}が罠に化けた！（${trap.name}）`);
+    return fireTrapItem(trap, item, dg, tx, ty, ml, ft, p, nameFn, luFn, identSet);
+  }
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は爆発で消し飛んだ！`);
@@ -3132,7 +3154,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
   /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ）
      キーアイテム自体はポータルを通過させない */
   if (!_fromPortal && item.type !== "goal") {
-    const _portal = dg.pentacles?.find(pc => pc.kind === "portal" && pc.x === tx && pc.y === ty);
+    const _portal = dg.pentacles?.find(pc => (pc.kind === "portal" || pc.kind === "fixed_portal") && pc.x === tx && pc.y === ty);
     if (_portal) {
       const _r = _tryItemPortalWarp(dg, _portal, item, ml, ft, dep, p);
       if (_r !== null) return _r;
@@ -3193,7 +3215,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     /* ペンタクル：ポータルなら warp 起動、それ以外は通常通りスキップ */
     const _pcAtCxCy = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
     if (_pcAtCxCy) {
-      if (!_fromPortal && _pcAtCxCy.kind === "portal" && item.type !== "goal") {
+      if (!_fromPortal && (_pcAtCxCy.kind === "portal" || _pcAtCxCy.kind === "fixed_portal") && item.type !== "goal") {
         const _r = _tryItemPortalWarp(dg, _pcAtCxCy, item, ml, ft, dep, p);
         if (_r !== null) return _r;
       }

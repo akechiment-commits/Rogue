@@ -1,4 +1,5 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, applyWindDir } from "./utils.js";
+import { tryBreakStatueAt } from "./fixtures.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
@@ -1476,7 +1477,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  *   モンスター撃破時のkillerMonをnullにして経験値加算する。
  */
 export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
-  const {
+  let {
     dx, dy,
     baseRange = 19,
     animColor = "#aaaaaa",
@@ -1501,6 +1502,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     reflectorRange = 20,
     customPlHit = null,
   } = opts;
+  /* 風穴で方向が変わるため let で保持（opts から分割代入した dx,dy） */
+  dx = Math.sign(dx || 0);
+  dy = Math.sign(dy || 0);
+  if (dx === 0 && dy === 0) dy = 1;
 
   const _shooterPrefix = isPlayerShooter ? "" : `${m.name}の`;
   const _killerMon = isPlayerShooter ? null : m;
@@ -1525,14 +1530,26 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
 
   let _plHit = false;
   let _lx = m.x, _ly = m.y;
+  let _cx = m.x, _cy = m.y; /* 風で曲がるため現在位置を積算 */
+  let _windAnnounced = false;
   for (let _d = 1; _d <= maxRange; _d++) {
-    const _tx = m.x + dx * _d, _ty = m.y + dy * _d;
+    /* 現在マスの風で進行方向を上書き（遠投中も同様） */
+    const _w = applyWindDir(dg, _cx, _cy, dx, dy);
+    if (_w.bent) {
+      dx = _w.dx; dy = _w.dy;
+      if (!_windAnnounced) { ml.push("風穴の風が飛び道具を曲げた！"); _windAnnounced = true; }
+    }
+    const _tx = _cx + dx, _ty = _cy + dy;
     if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
     const _tile = dg.map[_ty]?.[_tx];
     if (_tile === T.WALL || _tile === T.BWALL) {
-      if (_passthrough) continue;
+      if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
       if (onWallStop) onWallStop(_lx, _ly, ml);
       return;
+    }
+    /* 石像：ダメージ系の飛び道具が当たると割れる */
+    if (tryBreakStatueAt(dg, _tx, _ty, pl, ml, luFn, pl?.depth)) {
+      if (!_passthrough) return;
     }
 
     /* プレイヤー射手の場合、プレイヤータイルは射手なのでターゲット判定不要（発射点なので _d>=1 で到達不可） */
@@ -1542,17 +1559,17 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (_armDodge) {
         ml.push(`${boltName}をひらりとかわした！`);
         if (onMiss) onMiss(_tx, _ty, ml);
-        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
       if (!inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y)) {
         ml.push(`祝福された聖域の加護が${boltName}を防いだ！`);
         if (onMiss) onMiss(_tx, _ty, ml);
-        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
       if (_dodgePcMode !== "sure" && hitChance < 1.0 && Math.random() >= hitChance) {
         ml.push(`${_shooterPrefix}${boltName}は外れた！`);
         if (onMiss) onMiss(_tx, _ty, ml);
-        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
       if (customPlHit) {
         /* customPlHit: ダメージ・メッセージ・deathCauseを完全カスタム（壺投げで割れて中身散乱、杖で効果発動など） */
@@ -1570,7 +1587,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       }
       if (onPlHit) onPlHit(ml);
-      if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+      if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
     }
     const _mon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty && mn !== m);
     if (_mon) {
@@ -1633,14 +1650,14 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         _mon.hp -= _mdmg; ml.push(`${_shooterPrefix}${boltName}が${_mon.name}に命中！${_mdmg}ダメージ！`);
         if (_mon.hp <= 0) killMonster(_mon, dg, pl, ml, luFn, false, _killerMon);
       }
-      if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+      if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
     }
     /* 大箱命中（onBigbox未指定なら素通り：シオン銃弾などアイテムでない弾向け）。遠投中は無視して素通り */
     if (onBigbox && !_isFc) {
       const _bb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
       if (_bb) {
         onBigbox(_bb, _tx, _ty, ml);
-        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
     }
     /* 泉命中（onSpring未指定なら素通り：シオン銃弾などアイテムでない弾向け）。遠投中は無視して素通り */
@@ -1648,7 +1665,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       const _spr = dg.springs?.find(s => s.x === _tx && s.y === _ty);
       if (_spr) {
         onSpring(_spr, _tx, _ty, ml);
-        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } return;
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
     }
     /* 罠命中（onTrap未指定なら素通り）。コールバックは"destroyed"を返すと弾消滅、それ以外は飛翔継続 */
