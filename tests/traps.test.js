@@ -313,6 +313,20 @@ describe("new weird traps", () => {
     expect(mon.confusedTurns).toBe(20);
   });
 
+  it("落ちたアイテムで未識別の罠が作動するとそのアイテムが未識別になる", () => {
+    const p = makePlayer({ x: 1, y: 1 });
+    const pot = { name: "回復薬", type: "potion", effect: "heal", fullIdent: true, bcKnown: true, tile: 16 };
+    const trap = { effect: "unident_trap", name: "未識別の罠", x: 5, y: 5, id: "u3" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ident = new Set(["p:heal"]);
+    const ml = [];
+    fireTrapItem(trap, pot, dg, 5, 5, ml, new Set(), p, (it) => it.name, null, ident);
+    expect(pot.fullIdent).toBe(false);
+    expect(pot.bcKnown).toBe(false);
+    expect(ident.has("p:heal")).toBe(false);
+    expect(ml.some((m) => m.includes("未識別になった"))).toBe(true);
+  });
+
   it("増殖の罠の破損率は50%", () => {
     expect(trapStepBreakChance({ effect: "multiply_trap" })).toBe(0.5);
     expect(trapStepBreakChance({ effect: "oil_trap" })).toBe(0.25);

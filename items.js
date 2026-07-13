@@ -8,6 +8,11 @@ import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from
 let _portalFloorsGetter = () => null;
 export function setPortalFloorsGetter(fn) { _portalFloorsGetter = fn; }
 
+/* 未識別の罠などが種別識別セットに触るための getter（Game.jsx から登録） */
+let _trapIdentGetter = () => null;
+export function setTrapIdentGetter(fn) { _trapIdentGetter = fn; }
+export function getTrapIdentSet() { return _trapIdentGetter?.() || null; }
+
 /* ポータル着地時の転送ヘルパー：成功時は placeItemAt の結果、対象なし/失敗時は null */
 function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
   if (portal.cursed) {
@@ -1058,7 +1063,7 @@ export const TRAPS = [
   { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
   { name:"浮遊の罠",       effect:"float_trap",     tile:122, desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。\n敵が踏んでも浮遊する（ボス・店主も有効）。" },
   { name:"油まみれの罠",   effect:"oil_trap",       tile:123, desc:"踏むと30ターン油まみれになる。\n炎・爆発ダメージが2倍。敵が踏んでも同様（ボス・店主も有効）。" },
-  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n敵が踏むと20ターン混乱する。" },
+  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
   { name:"混乱の罠",       effect:"confuse_trap",   tile:127, desc:"踏むと10ターン混乱する。\n敵が踏むと20ターン混乱する。耐混乱の防具で防げる。" },
@@ -1698,6 +1703,29 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
   return n;
 }
 
+/** 単一アイテムを未識別にする（種別識別セットがあれば外す） */
+export function unidentSingleItem(it, identSet = null) {
+  if (!it || it.type === "goal" || it.type === "misc" || it.type === "gold") return false;
+  let changed = false;
+  const k = getIdentKey(it);
+  if (k && identSet?.has?.(k)) {
+    identSet.delete(k);
+    changed = true;
+  }
+  if (it.fullIdent || it.bcKnown) {
+    it.fullIdent = false;
+    it.bcKnown = false;
+    changed = true;
+  }
+  /* 種別キーがなくても「名前付きで判っている」状態を落とす */
+  if (!changed && k) {
+    /* 既に未識別でもフラグは揃えておく */
+    it.fullIdent = false;
+    it.bcKnown = false;
+  }
+  return true;
+}
+
 /**
  * 識別済みの所持・装備から1つランダムで未識別に戻す
  * @returns {{ count: number, item?: object }}
@@ -1721,10 +1749,7 @@ export function unidentPlayerItems(p, identSet) {
   }
   if (candidates.length === 0) return { count: 0 };
   const it = candidates[rng(0, candidates.length - 1)];
-  const k = getIdentKey(it);
-  if (k && identSet?.has?.(k)) identSet.delete(k);
-  it.fullIdent = false;
-  it.bcKnown = false;
+  unidentSingleItem(it, identSet);
   return { count: 1, item: it };
 }
 
@@ -1867,7 +1892,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
 }
 
 let _fireTrapDepth = 0;
-export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null) {
+export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = null, luFn = null, identSet = null) {
   if (_fireTrapDepth > 5) return "stop";
   _fireTrapDepth++;
   try {
@@ -2208,9 +2233,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         _uim.confusedTurns = (_uim.confusedTurns || 0) + 20;
         ml.push(`${_uim.name}は混乱した！(20ターン)`);
       }
-      /* プレイヤーがマス上なら fireTrapPlayer 側で1個剥がす想定 */
-      if (p && p.x === tx && p.y === ty) {
-        ml.push("識別の知識が揺らいだ気がする…");
+      /* 落ちてきた／作動させたアイテム自体を未識別に */
+      const _idSet = identSet || getTrapIdentSet();
+      if (item && item.type !== "misc" && unidentSingleItem(item, _idSet)) {
+        const _unNm = nameFn ? nameFn(item) : item.name;
+        ml.push(`${_unNm}が未識別になった！`);
+      } else if (!item || item.type === "misc") {
+        /* 重力などでアイテム以外が作動 → 何もしない（敵混乱は上） */
       }
       return "restart";
     }

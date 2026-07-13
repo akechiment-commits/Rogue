@@ -23,7 +23,7 @@ import {
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
-  itemPrice, gemSellPrice, setPortalFloorsGetter, removeTrap, removeTraps, runMineExplosion,
+  itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
@@ -541,7 +541,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   /* ポータルの魔方陣の別フロア参照ゲッターを登録 */
   useEffect(() => {
     setPortalFloorsGetter(() => sr.current?.floors);
-    return () => setPortalFloorsGetter(() => null);
+    setTrapIdentGetter(() => sr.current?.ident || null);
+    return () => {
+      setPortalFloorsGetter(() => null);
+      setTrapIdentGetter(() => null);
+    };
   }, []);
 
   /* Canvas render */
