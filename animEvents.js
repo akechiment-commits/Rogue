@@ -165,7 +165,8 @@ export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0", wind
 export function pushMonsterBoltAnim(sx, sy, dx, dy, dg, pl, effectOrColor = "#a050f0", windOrOpts = true) {
   const color = WAND_COLORS[effectOrColor] || effectOrColor;
   const wind = typeof windOrOpts === "object" ? (windOrOpts.wind !== false) : !!windOrOpts;
-  const tr = traceProjectilePath(dg, sx, sy, dx, dy, MW + MH, {
+  const maxRange = typeof windOrOpts === "object" && Number.isFinite(windOrOpts.range) ? windOrOpts.range : MW + MH;
+  const tr = traceProjectilePath(dg, sx, sy, dx, dy, maxRange, {
     stopAtMon: true,
     stopAtPlayer: pl ? { x: pl.x, y: pl.y } : null,
     wind,

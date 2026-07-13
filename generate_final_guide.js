@@ -462,7 +462,7 @@ function monTraits(m) {
   const t = [];
   if (m.float) t.push('浮遊');
   if (m.waterOnly) t.push('水タイルのみ');
-  if (m.subtype === 'watergunner') t.push('水鉄砲攻撃');
+  if (m.subtype === 'watergunner') t.push('水鉄砲攻撃（風穴で曲がる）');
   if (m.elemWeak) t.push(`${m.elemWeak}弱点`);
   if (m.kind === 'undead') t.push('アンデッド');
   if (m.kind === 'dragon') t.push('ドラゴン');
@@ -471,7 +471,7 @@ function monTraits(m) {
   if (m.maxAttacks >= 3) t.push('3回攻撃');
   else if (m.maxAttacks >= 2) t.push('2回攻撃');
   if (m.subtype) {
-    const st = { itemblaster:'アイテム弾き', stealthrower:'アイテム盗んで投げる', runner:'攻撃しない高速逃走', slime:'討伐時に分裂', bombslime:'死亡時爆発', bombgoblin:'体当たり自爆', crystalslime:'物理ダメ固定1', rockspirit:'壁抜け移動', archer:'遠距離矢攻撃', thief:'アイテム盗む', rustbug:'攻撃で装備錆', wizard:'雷の杖使用', walldigger:'壁破壊移動', trapmaster:'隣接に罠設置', trapthrower:'罠を投げる', witchdoc:'呪いの杖使用', disarmer:'装備を剥ぐ', monsterthrow:'敵を投げる', shaman:'周囲モンスターにATK+3', barriermage:'バリア1回持ち', windmage:'吹き飛ばし杖', confusemage:'混乱の杖使用', puller:'プレイヤーを引き寄せる', sleepmage:'眠りの杖使用', firedemon:'炎吸収回復', warpmage:'テレポート杖', grabber:'プレイヤーを掴む', charger:'直線突進', reflector:'物理攻撃反射', knocker:'壁まで吹き飛ばす', magicreflector:'魔法・杖反射', potionthrower:'薬を投げる', icedragon:'氷ブレス' };
+    const st = { itemblaster:'アイテム弾き', stealthrower:'アイテム盗んで投げる', runner:'攻撃しない高速逃走', slime:'討伐時に分裂', bombslime:'死亡時爆発', bombgoblin:'体当たり自爆', crystalslime:'物理ダメ固定1', rockspirit:'壁抜け移動', archer:'遠距離矢攻撃', thief:'アイテム盗む', rustbug:'攻撃で装備錆', wizard:'雷の杖使用', walldigger:'壁破壊移動', trapmaster:'隣接に罠設置', trapthrower:'罠を投げる', witchdoc:'呪いの杖使用', disarmer:'装備を剥ぐ', monsterthrow:'敵を投げる', shaman:'周囲モンスターにATK+3', barriermage:'バリア1回持ち', windmage:'吹き飛ばし杖', confusemage:'混乱の杖使用', puller:'プレイヤーを引き寄せる', sleepmage:'眠りの杖使用', firedemon:'炎吸収回復', warpmage:'テレポート杖', grabber:'プレイヤーを掴む', charger:'直線突進', reflector:'物理攻撃反射', knocker:'壁まで吹き飛ばす', magicreflector:'魔法・杖反射', potionthrower:'薬を投げる（風穴で曲がる）', icedragon:'氷ブレス' };
     if (st[m.subtype]) t.push(st[m.subtype]);
   }
   return t.join('・') || '基本敵';

@@ -1,10 +1,7 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
-
-/* 石像破壊（fixtures から登録。循環 import 時の TDZ 回避で object に保持） */
-const _statueBreak = { fn: null };
-export function setStatueBreakHandler(fn) { _statueBreak.fn = fn; }
+import { tryBreakStatueAt } from "./fixtures.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -192,12 +189,22 @@ const _POTION_THROW_POOL = [
 ];
 function monsterThrowPotion(m, dg, pl, ml, bbFn) {
   const _pot = pick(_POTION_THROW_POOL);
-  const _ptdx = Math.sign(pl.x - m.x), _ptdy = Math.sign(pl.y - m.y);
+  let _ptdx = Math.sign(pl.x - m.x), _ptdy = Math.sign(pl.y - m.y);
   ml.push(`${m.name}が謎の薬を投げた！`);
   pushMonsterBoltAnim(m.x, m.y, _ptdx, _ptdy, dg, pl, "#ff88ff");
   /* 経路上の泉・大箱チェック */
-  let _cx = m.x + _ptdx, _cy = m.y + _ptdy;
-  while (_cx !== pl.x || _cy !== pl.y) {
+  let _cx = m.x, _cy = m.y;
+  let _lastX = m.x, _lastY = m.y;
+  for (let _step = 0; _step < MW + MH; _step++) {
+    const _st = stepProjectile(dg, _cx, _cy, _ptdx, _ptdy, { wind: true });
+    _ptdx = _st.dx; _ptdy = _st.dy;
+    _cx = _st.x; _cy = _st.y;
+    if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
+        dg.map[_cy]?.[_cx] === T.WALL || dg.map[_cy]?.[_cx] === T.BWALL) {
+      splashPotion(dg, _lastX, _lastY, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
+      return;
+    }
+    _lastX = _cx; _lastY = _cy;
     const _spr = dg.springs?.find(s => s.x === _cx && s.y === _cy);
     if (_spr) {
       const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
@@ -242,11 +249,13 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
       splashPotion(dg, _splX, _splY, _pot.effect, _pot.value, pl, ml, null, false, false, null, _mirrorMon);
       return;
     }
-    if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
-        dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL) break;
-    _cx += _ptdx; _cy += _ptdy;
+    const _hitMon = dg.monsters.find(o => o !== m && o.x === _cx && o.y === _cy);
+    if (_hitMon || (_cx === pl.x && _cy === pl.y)) {
+      splashPotion(dg, _cx, _cy, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
+      return;
+    }
   }
-  splashPotion(dg, pl.x, pl.y, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
+  splashPotion(dg, _lastX, _lastY, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
@@ -1060,6 +1069,44 @@ export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, las
   return { ...st, id: uid(), x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
 }
 
+/* 石像の報酬敵は monsters 側から供給し、fixtures との循環 import を避ける。 */
+function spawnStatueMonster(statue, dg, p, ml, depth) {
+  const d = Math.max(0, (typeof depth === "number" ? depth : null) ?? (p?.depth ? p.depth - 1 : 0));
+  let mx = statue.x, my = statue.y;
+  const blocked = (x, y) =>
+    (p && p.x === x && p.y === y) ||
+    (dg.monsters || []).some((m) => m.x === x && m.y === y) ||
+    dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL;
+  if (blocked(mx, my)) {
+    for (const [ox, oy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+      const nx = statue.x + ox, ny = statue.y + oy;
+      if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || blocked(nx, ny)) continue;
+      mx = nx; my = ny;
+      break;
+    }
+    if (blocked(mx, my)) {
+      ml.push("強敵が出現しそうだったが、場所がなかった…");
+      return;
+    }
+  }
+  try {
+    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false);
+    const boosted = Math.min(3, (spawnLevel || 1) + 1);
+    const mon = makeMonsterFromBase(base, boosted, mx, my, {
+      aware: true,
+      lastPx: p?.x ?? mx,
+      lastPy: p?.y ?? my,
+    });
+    dg.monsters.push(mon);
+    ml.push(`${mon.name}が現れた！`);
+  } catch {
+    ml.push("強敵が出現しそうだったが、うまく出られなかった…");
+  }
+}
+
+/* items -> monsters -> fixtures の読込順でも使える、循環なしの登録口。 */
+globalThis.__rogueStatueSpawnHandler = spawnStatueMonster;
+
 /** count 体のモンスターを centerX,centerY 周辺 → ランダム部屋にスポーンさせる */
 export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = false, immediateAct = false } = {}) {
   const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
@@ -1406,10 +1453,10 @@ function monsterThrowStone(m, dg, pl, ml) {
 /* ===== わてり：水鉄砲攻撃 ===== */
 function monsterShootWaterGun(m, dg, pl, ml) {
   const adx = pl.x - m.x, ady = pl.y - m.y;
-  const dx = Math.sign(adx), dy = Math.sign(ady);
+  let dx = Math.sign(adx), dy = Math.sign(ady);
   const maxDist = Math.max(Math.abs(adx), Math.abs(ady));
   ml.push(`${m.name}が水鉄砲を撃った！`);
-  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#20c0ff");
+  pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, "#20c0ff", { wind: true, range: maxDist });
   const miss = Math.random() < 0.20;
   /* みかわしの魔方陣 */
   const _wDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
@@ -1417,8 +1464,12 @@ function monsterShootWaterGun(m, dg, pl, ml) {
     ml.push(`みかわしの魔方陣の加護で${m.name}の水鉄砲をかわした！`);
     return;
   }
+  let _wgX = m.x, _wgY = m.y;
   for (let d = 1; d <= maxDist; d++) {
-    const tx = m.x + dx * d, ty = m.y + dy * d;
+    const _st = stepProjectile(dg, _wgX, _wgY, dx, dy, { wind: true });
+    dx = _st.dx; dy = _st.dy;
+    const tx = _st.x, ty = _st.y;
+    _wgX = tx; _wgY = ty;
     if (!isWalkable(dg.map, tx, ty)) return;
     /* 射線上の魔方陣を消す */
     const _wgPcIdx = dg.pentacles ? dg.pentacles.findIndex(pc => pc.x === tx && pc.y === ty) : -1;
@@ -1611,7 +1662,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       return;
     }
     /* 石像：ダメージ系の飛び道具が当たると割れる */
-    if (_statueBreak.fn?.(dg, _tx, _ty, pl, ml, luFn, pl?.depth)) {
+    if (tryBreakStatueAt(dg, _tx, _ty, pl, ml, luFn, pl?.depth)) {
       if (!_passthrough) return;
     }
 

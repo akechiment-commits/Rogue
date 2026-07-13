@@ -4,7 +4,8 @@
 import { rng, pick, uid, MW, MH, T } from "./utils.js";
 /* items.js との循環 import を避けるため、TRAPS/ITEMS のみ参照し placeItemAt は使わない */
 import { TRAPS, pickLootFromPool, ITEMS, WANDS } from "./items.js";
-import { pickMonsterDef, makeMonsterFromBase, setStatueBreakHandler } from "./monsters.js";
+
+/* monsters.js 側で登録する。fixtures -> monsters の循環 import を避ける。 */
 
 export const FIXTURE_TILE = {
   vent: 128,
@@ -107,38 +108,8 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1) {
     ml.push(`${it.name}が飛び出した！`);
   }
 
-  /* そのフロアで出る敵プールから1体、出現レベルを+1して出す */
-  const d = Math.max(0, (typeof depth === "number" ? depth : null) ?? (p?.depth ? p.depth - 1 : 0));
-  let mx = statue.x, my = statue.y;
-  const blocked = (x, y) =>
-    (p && p.x === x && p.y === y) ||
-    (dg.monsters || []).some((m) => m.x === x && m.y === y) ||
-    dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL;
-  if (blocked(mx, my)) {
-    let placed = false;
-    for (const [ox, oy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
-      const nx = statue.x + ox, ny = statue.y + oy;
-      if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || blocked(nx, ny)) continue;
-      mx = nx; my = ny; placed = true; break;
-    }
-    if (!placed) {
-      ml.push("強敵が出現しそうだったが、場所がなかった…");
-      return true;
-    }
-  }
-  try {
-    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false);
-    const boosted = Math.min(3, (spawnLevel || 1) + 1);
-    const mon = makeMonsterFromBase(base, boosted, mx, my, {
-      aware: true,
-      lastPx: p?.x ?? mx,
-      lastPy: p?.y ?? my,
-    });
-    dg.monsters.push(mon);
-    ml.push(`${mon.name}が現れた！`);
-  } catch {
-    ml.push("強敵が出現しそうだったが、うまく出られなかった…");
-  }
+  /* 出現敵の選択は monsters.js 側で行う（循環 import を作らない）。 */
+  globalThis.__rogueStatueSpawnHandler?.(statue, dg, p, ml, depth);
   return true;
 }
 
@@ -275,6 +246,3 @@ export function scatterFloorGimmicks(map, rooms, depth, {
 
   return { vents, statues, traps: addedTraps, pentacles: addedPentacles };
 }
-
-/* 弾の射線上破壊用ハンドラを monsters に登録（モジュール読込時） */
-setStatueBreakHandler(tryBreakStatueAt);
