@@ -1,4 +1,4 @@
-import { T, MW, MH } from "../utils.js";
+import { T, MW, MH, installPlayerHpReverseHook } from "../utils.js";
 
 export function makeEmptyDg(overrides = {}) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));
@@ -15,7 +15,7 @@ export function makeEmptyDg(overrides = {}) {
 }
 
 export function makePlayer(overrides = {}) {
-  return {
+  const p = {
     hp: 100,
     maxHp: 100,
     x: 5,
@@ -28,4 +28,6 @@ export function makePlayer(overrides = {}) {
     hunger: 80,
     ...overrides,
   };
+  installPlayerHpReverseHook(p);
+  return p;
 }

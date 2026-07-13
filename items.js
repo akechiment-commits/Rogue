@@ -574,6 +574,7 @@ export const POTS = [
   { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
   { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると閉じ込められる。敵に投げても使える。", tile:32 },
   { name:"願いの壺",         type:"pot", potEffect:"wish_pot", capacity:3, rarity:"S", weight:0.05,  sellPrice:12000, desc:"アイテムを入れると願いが叶う。\n入れた物は消え、壺も一回で壊れる。", tile:32 },
+  { name:"クラインの壺",     type:"pot", potEffect:"klein",   capacity:3, rarity:"A", weight:2,  sellPrice:5000, desc:"アイテムを入れると消え、20ターン逆転状態になる。\nダメージが回復に、回復がダメージに反転する。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -691,6 +692,7 @@ export function randPotCapacity(potEffect) {
   if (potEffect === "greed") return rng(3, 5);
   if (potEffect === "enhance" || potEffect === "bless_pot" || potEffect === "curse_pot") return rng(1, 2);
   if (potEffect === "wish_pot") return rng(3, 5);
+  if (potEffect === "klein") return rng(2, 4);
   return rng(3, 5);
 }
 

@@ -305,3 +305,42 @@ export function clampDmgFixed(m, damage, isPhysical = false) {
   if (m.fixedDamageOnly && isPhysical) return Math.min(damage, 1);
   return damage;
 }
+
+/**
+ * プレイヤーの hp 代入をフックし、reverseTurns 中は増減を反転する。
+ * （ダメージ→回復、回復→ダメージ。回復側は maxHp でクランプ）
+ * セーブ後の復元時も呼ぶこと。
+ */
+export function installPlayerHpReverseHook(p) {
+  if (!p || p._hpReverseHook) return p;
+  let raw = Number(p.hp) || 0;
+  Object.defineProperty(p, "hp", {
+    configurable: true,
+    enumerable: true,
+    get() { return raw; },
+    set(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) { raw = v; return; }
+      if ((this.reverseTurns || 0) > 0) {
+        const delta = n - raw;
+        if (delta !== 0) {
+          let next = raw - delta;
+          /* ダメージ意図（delta<0）→回復：maxHp を超えない */
+          if (delta < 0) next = Math.min(this.maxHp ?? next, next);
+          raw = next;
+          return;
+        }
+      }
+      raw = n;
+    },
+  });
+  p._hpReverseHook = true;
+  return p;
+}
+
+/** 逆転状態を付与（ターン加算） */
+export function applyReverseStatus(p, turns = 20) {
+  if (!p || turns <= 0) return;
+  installPlayerHpReverseHook(p);
+  p.reverseTurns = (p.reverseTurns || 0) + turns;
+}

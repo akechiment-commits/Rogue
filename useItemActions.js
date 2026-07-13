@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus } from "./utils.js";
 import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -2412,6 +2412,13 @@ export function useItemActions({
         if (p.hunger > 0) delete p._hungerDmgStarted;
         ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた。HPが${_healAmt > 0 ? `${_healAmt}回復した！` : "既に満タンだ。"}`);
         /* 壺には入れない（消滅） */
+      } else if (pot.potEffect === "klein") {
+        /* クラインの壺：アイテム消滅、逆転状態20ターン */
+        applyReverseStatus(p, 20);
+        pot.capacity = Math.max(0, pot.capacity - 1);
+        ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた。${dnameRef(it)}は消えた！`);
+        ml.push(`体の感覚が反転した！ダメージと回復が逆転する！(逆転${p.reverseTurns}ターン)`);
+        /* 壺には入れない（消滅） */
       } else if (pot.potEffect === "wish_pot") {
         /* 願いの壺：入れた物は消え、壺も消えて願いUI */
         ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた…`);
@@ -2436,7 +2443,7 @@ export function useItemActions({
         applyPotEffect(pot, it, ml, dnameRef);
         pot.contents.push(it);
       }
-      const _potFull = pot.potEffect === "heal_pot" ? pot.capacity <= 0 : pot.contents.length >= pot.capacity;
+      const _potFull = (pot.potEffect === "heal_pot" || pot.potEffect === "klein") ? pot.capacity <= 0 : pot.contents.length >= pot.capacity;
       if (_potFull)
         ml.push(`${itemDisplayName(pot, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}はいっぱいになった。`);
       endTurn(sr.current, p, ml);

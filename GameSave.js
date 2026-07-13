@@ -2,6 +2,8 @@
    ダンジョン途中のゲーム状態をlocalStorageに保存・復元する。
    装備品はインベントリ内のインデックスで参照を保持する。   */
 
+import { installPlayerHpReverseHook } from "./utils.js";
+
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
 
 /* ---------- serialize ---------- */
@@ -32,6 +34,8 @@ function deserializePlayer(data) {
   delete p._armorIdx;
   delete p._arrowIdx;
   delete p._ringIdxs;
+  delete p._hpReverseHook; /* フックは再インストール */
+  installPlayerHpReverseHook(p);
   return p;
 }
 

@@ -35,7 +35,7 @@ function isPotEffective(potEffect, item) {
   if (potEffect === "curse_pot") return item.type !== "gold" && item.type !== "arrow";
   if (potEffect === "boil") return item.type === "potion" || item.type === "food";
   if (potEffect === "gunpowder") return false;
-  if (potEffect === "greed" || potEffect === "heal_pot" || potEffect === "wish_pot") return true;
+  if (potEffect === "greed" || potEffect === "heal_pot" || potEffect === "wish_pot" || potEffect === "klein") return true;
   if (potEffect === "imprison") return false;
   if (_FOOD_POT_EFFECTS.has(potEffect)) return item.type === "food";
   return false;

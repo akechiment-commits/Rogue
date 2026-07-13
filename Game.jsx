@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -446,12 +446,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       invisibleTurns: 0,
       potConfinedTurns: 0,
       wallWalkTurns: 0,
+      reverseTurns: 0,
       rings: [],
       maxInventory: dungeonConfig?.dungeonType === "debug" ? 100 : 30,
       facing: { dx: 0, dy: 1 },
       isThief: false,
       deathCause: "不明の原因により",
     };
+    installPlayerHpReverseHook(p);
     if (dungeonConfig?.startInventory?.length) {
       for (const it of dungeonConfig.startInventory) {
         if (p.inventory.length < (p.maxInventory || 100)) p.inventory.push({ ...it, id: uid() });
@@ -1687,6 +1689,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if ((p.pacifistTurns || 0) > 0) {
         p.pacifistTurns--;
         if (p.pacifistTurns <= 0) ml.push("平和主義状態が解けた！攻撃できるようになった。");
+      }
+      if ((p.reverseTurns || 0) > 0) {
+        p.reverseTurns--;
+        if (p.reverseTurns <= 0) ml.push("逆転状態が解けた！ダメージと回復が元に戻った。");
       }
       if ((p.honeyRegenTurns || 0) > 0) {
         const _hReg = Math.min(2, p.maxHp - p.hp);
@@ -5567,6 +5573,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {(p.wallWalkTurns || 0) > 0 && (
           <span style={{ color: "#a0ffa0" }}>🧱{p.wallWalkTurns}</span>
+        )}{" "}
+        {(p.reverseTurns || 0) > 0 && (
+          <span style={{ color: "#e060e0" }}>☯{p.reverseTurns}</span>
         )}{" "}
       </div>{" "}
       <div
