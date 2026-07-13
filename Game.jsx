@@ -1246,7 +1246,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     /* 固定転送（ペアのみ・ペンポータルと非接続） */
     const _fp = dg.pentacles?.find(pc => pc.kind === "fixed_portal" && pc.x === p.x && pc.y === p.y);
     if (_fp) {
-      const _pair = (dg.pentacles || []).find(pc => pc.kind === "fixed_portal" && pc.pairId === _fp.pairId && pc !== _fp);
+      const _pair = (dg.pentacles || []).find(pc =>
+        pc.kind === "fixed_portal" && pc.pairId === _fp.pairId &&
+        !(pc.x === _fp.x && pc.y === _fp.y));
       if (!_pair) { ml.push(`${_fp.name}が反応したが、繋がる先がない…`); return false; }
       if (dg.monsters.some(m => m.x === _pair.x && m.y === _pair.y)) {
         ml.push("対の転送陣が塞がっていて出られなかった！");
@@ -1644,10 +1646,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           }
         }
       }
-      /* ===== 魔方陣の消耗：自分または敵が上に乗っているターンを累積し30ターンで消滅 ===== */
+      /* ===== 魔方陣の消耗：上に乗っていると30ターンで消滅（固定転送は対象外） ===== */
       if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
         const _toRemove = [];
         for (const _pc of st.dungeon.pentacles) {
+          /* ダンジョン固定の転送陣は何度乗っても消えない（爆発・水など別経路のみ） */
+          if (_pc.kind === "fixed_portal" || _pc.fixed) continue;
           /* プレイヤーが上に乗っている */
           const _playerOn = _pc.x === p.x && _pc.y === p.y;
           /* モンスターが上に乗っている */
@@ -1803,13 +1807,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if ((_ms2.speed ?? 1) <= 1) _ms2._movedThisTurn = true; /* 速度1以下の敵は移動後に攻撃不可。倍速敵はそのまま攻撃できる */
         }
       }
-      /* Phase 2.5: モンスターがポータルの魔方陣に乗っていたらワープ */
-      if (st.dungeon.pentacles?.some(pc => pc.kind === "portal")) {
+      /* Phase 2.5: モンスターがポータル／固定転送に乗っていたらワープ */
+      if (st.dungeon.pentacles?.some(pc => pc.kind === "portal" || pc.kind === "fixed_portal")) {
         const _hasGoalP25 = p.inventory?.some(i => i.type === "goal");
         for (const _mm of [...st.dungeon.monsters]) {
           const _fixedMon = st.dungeon.pentacles.find(pc => pc.kind === "fixed_portal" && pc.x === _mm.x && pc.y === _mm.y);
           if (_fixedMon) {
-            const _fpair = st.dungeon.pentacles.find(pc => pc.kind === "fixed_portal" && pc.pairId === _fixedMon.pairId && pc !== _fixedMon);
+            const _fpair = st.dungeon.pentacles.find(pc =>
+              pc.kind === "fixed_portal" && pc.pairId === _fixedMon.pairId &&
+              !(pc.x === _fixedMon.x && pc.y === _fixedMon.y));
             if (_fpair && !st.dungeon.monsters.some(m => m !== _mm && m.x === _fpair.x && m.y === _fpair.y) &&
                 !(_fpair.x === p.x && _fpair.y === p.y)) {
               _mm.x = _fpair.x; _mm.y = _fpair.y;
@@ -3763,7 +3769,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
         const _dashPc = _dPentMap.get(_dk(p.x, p.y));
         if (_dashPc) {
-          if (_dashPc.kind === "portal") {
+          if (_dashPc.kind === "portal" || _dashPc.kind === "fixed_portal") {
             if (playerPortalWarp(p, st, ml)) st._portalWarpedThisTurn = true;
           } else {
             ml.push(`${_dashPc.name || "魔法陣"}の上に乗った。`);
