@@ -956,8 +956,8 @@ export const INTERMEDIATE_BOSSES = [
   { name: "クラーケン", hp: 720, atk: 65, def: 42, exp: 3000,
     speed: 1, tile: 95, kind: "beast",    baseKind: "im_boss_kraken",
     isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 2, float: true, elemWeak: "thunder" },
-  /* B20F (depth=19) 攻撃力999・特技なし */
-  { name: "2ヘッドドラゴン", hp: 1080, atk: 999, def: 48, exp: 6000,
+  /* B20F (depth=19) 攻撃力255・特技なし */
+  { name: "2ヘッドドラゴン", hp: 1080, atk: 255, def: 48, exp: 6000,
     speed: 1, tile: 96, kind: "dragon",   baseKind: "im_boss_twohead",
     isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1 },
 ];
