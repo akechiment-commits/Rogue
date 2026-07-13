@@ -36,6 +36,22 @@ describe("風穴", () => {
     expect(bent.dy).toBe(0);
     expect(bent.bent).toBe(true);
   });
+
+  it("stepProjectile は風域に入ると曲がる", async () => {
+    const { stepProjectile } = await import("../utils.js");
+    const dg = makeEmptyDg({ vents: [makeVent(5, 5, 1, 0)] });
+    /* (5,3) から上へ → 進入先 (5,4) や次で風域に入り東へ */
+    let cx = 5, cy = 3, dx = 0, dy = 1;
+    let bentOnce = false;
+    for (let i = 0; i < 5; i++) {
+      const s = stepProjectile(dg, cx, cy, dx, dy);
+      if (s.bent) bentOnce = true;
+      cx = s.x; cy = s.y; dx = s.dx; dy = s.dy;
+    }
+    expect(bentOnce).toBe(true);
+    /* 風が東向きなら x が増えているはず */
+    expect(cx).toBeGreaterThan(5);
+  });
 });
 
 describe("固定転送", () => {

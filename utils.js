@@ -77,6 +77,30 @@ export function applyWindDir(dg, x, y, dx, dy) {
   if (w.dx === dx && w.dy === dy) return { dx, dy, bent: false };
   return { dx: w.dx, dy: w.dy, bent: true };
 }
+
+/**
+ * 飛び道具を1マス進める（風穴で方向上書き）。
+ * 現在マス→進入先マスの順で風を見てから座標を進める。
+ * @returns {{ x: number, y: number, dx: number, dy: number, bent: boolean }}
+ */
+export function stepProjectile(dg, cx, cy, dx, dy) {
+  let fdx = Math.sign(dx || 0), fdy = Math.sign(dy || 0);
+  if (fdx === 0 && fdy === 0) fdy = 1;
+  const origDx = fdx, origDy = fdy;
+  let w = applyWindDir(dg, cx, cy, fdx, fdy);
+  if (w.bent) { fdx = w.dx; fdy = w.dy; }
+  /* 進入先が風域なら、入る瞬間に曲がる */
+  let nx = cx + fdx, ny = cy + fdy;
+  w = applyWindDir(dg, nx, ny, fdx, fdy);
+  if (w.bent) {
+    fdx = w.dx; fdy = w.dy;
+    nx = cx + fdx; ny = cy + fdy;
+  }
+  return {
+    x: nx, y: ny, dx: fdx, dy: fdy,
+    bent: fdx !== origDx || fdy !== origDy,
+  };
+}
 export const pick = (arr) => arr[rng(0, arr.length - 1)];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 /** Fisher-Yates シャッフル（in-place）。配列自体を返す */

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile } from "./utils.js";
 import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -19,19 +19,23 @@ import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./Discover
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim } from "./animEvents.js";
 
-/* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限） */
+/* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限、風穴で曲がる） */
 function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
   let lx = px, ly = py;
+  let fdx = dx, fdy = dy, cx = px, cy = py;
   for (let d = 1; d <= maxRange; d++) {
-    const tx = px + dx * d, ty = py + dy * d;
+    const st = stepProjectile(dg, cx, cy, fdx, fdy);
+    fdx = st.dx; fdy = st.dy;
+    const tx = st.x, ty = st.y;
+    cx = tx; cy = ty;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
-    if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
-    lx = tx; ly = ty;
-    if (monsterAt(dg, tx, ty)) break;
+    if (dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) break;
+    if (monsterAt(dg, tx, ty)) return [tx, ty];
     if (stopAtContainers) {
-      if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
-      if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
+      if (dg.springs?.some(s => s.x === tx && s.y === ty)) return [tx, ty];
+      if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) return [tx, ty];
     }
+    lx = tx; ly = ty;
   }
   return [lx, ly];
 }
@@ -3176,8 +3180,13 @@ export function useItemActions({
           ml.push(`${dnameRef(it)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false;
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
+          let _tFdx = dx, _tFdy = dy, _tCx = p.x, _tCy = p.y, _tWind = false;
           for (let d = 1; d <= _maxRange; d++) {
-            const tx = p.x + dx * d, ty = p.y + dy * d;
+            const _ts = stepProjectile(dg, _tCx, _tCy, _tFdx, _tFdy);
+            if (_ts.bent && !_tWind) { ml.push("風穴の風が飛び道具を曲げた！"); _tWind = true; }
+            _tFdx = _ts.dx; _tFdy = _ts.dy;
+            const tx = _ts.x, ty = _ts.y;
+            _tCx = tx; _tCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             const m = monsterAt(dg, tx, ty);
@@ -3241,8 +3250,13 @@ export function useItemActions({
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}${_itemPickupSuffix(it, sr.current?.ident)}を投げた！`);
           let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false;
+          let _pFdx = dx, _pFdy = dy, _pCx = p.x, _pCy = p.y, _pWind = false;
           for (let d = 1; d <= _maxRange; d++) {
-            const tx = p.x + dx * d, ty = p.y + dy * d;
+            const _ps = stepProjectile(dg, _pCx, _pCy, _pFdx, _pFdy);
+            if (_ps.bent && !_pWind) { ml.push("風穴の風が飛び道具を曲げた！"); _pWind = true; }
+            _pFdx = _ps.dx; _pFdy = _ps.dy;
+            const tx = _ps.x, ty = _ps.y;
+            _pCx = tx; _pCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             const m = monsterAt(dg, tx, ty);
@@ -3355,9 +3369,14 @@ export function useItemActions({
           };
           let lx = p.x, ly = p.y, hit = false, sprHit = null;
           let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
+          let _gFdx = dx, _gFdy = dy, _gCx = p.x, _gCy = p.y, _gWind = false;
 
           for (let d = 1; d <= _maxRange; d++) {
-            const tx = p.x + dx * d, ty = p.y + dy * d;
+            const _gs = stepProjectile(dg, _gCx, _gCy, _gFdx, _gFdy);
+            if (_gs.bent && !_gWind) { ml.push("風穴の風が飛び道具を曲げた！"); _gWind = true; }
+            _gFdx = _gs.dx; _gFdy = _gs.dy;
+            const tx = _gs.x, ty = _gs.y;
+            _gCx = tx; _gCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             const m = monsterAt(dg, tx, ty);

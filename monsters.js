@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, applyWindDir } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 
@@ -1536,13 +1536,15 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   let _cx = m.x, _cy = m.y; /* 風で曲がるため現在位置を積算 */
   let _windAnnounced = false;
   for (let _d = 1; _d <= maxRange; _d++) {
-    /* 現在マスの風で進行方向を上書き（遠投中も同様） */
-    const _w = applyWindDir(dg, _cx, _cy, dx, dy);
-    if (_w.bent) {
-      dx = _w.dx; dy = _w.dy;
+    /* 風穴：現在マス／進入先で進行方向を上書きしてから1マス進む */
+    const _step = stepProjectile(dg, _cx, _cy, dx, dy);
+    if (_step.bent) {
+      dx = _step.dx; dy = _step.dy;
       if (!_windAnnounced) { ml.push("風穴の風が飛び道具を曲げた！"); _windAnnounced = true; }
+    } else {
+      dx = _step.dx; dy = _step.dy;
     }
-    const _tx = _cx + dx, _ty = _cy + dy;
+    const _tx = _step.x, _ty = _step.y;
     if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
     const _tile = dg.map[_ty]?.[_tx];
     if (_tile === T.WALL || _tile === T.BWALL) {
@@ -1678,10 +1680,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         const _trapResult = onTrap(_trap, _tx, _ty, ml);
         if (_trapResult === "destroyed") return;
         /* 罠を踏んでも壊れなければ弾は同位置で停止（壁等と同様） */
-        if (_passthrough) { _lx = _tx; _ly = _ty; continue; } _lx = _tx; _ly = _ty; if (onFlyOff) onFlyOff(_lx, _ly, ml); return;
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } _lx = _tx; _ly = _ty; if (onFlyOff) onFlyOff(_lx, _ly, ml); return;
       }
     }
-    _lx = _tx; _ly = _ty;
+    _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
   }
   if (onFlyOff) onFlyOff(_lx, _ly, ml);
 }

@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle } from './utils.js';
+import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
@@ -1568,8 +1568,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
   }
   const _boltClr = _wandColors[eff] || "#a050f0";
   let lastX = p.x, lastY = p.y;
+  let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y, _windMsg = false;
   for (let d = 1; d < MW + MH; d++) {
-    const tx = p.x + dx * d, ty = p.y + dy * d;
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy);
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    _fdx = _st.dx; _fdy = _st.dy;
+    const tx = _st.x, ty = _st.y;
+    _cx = tx; _cy = ty;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) {
       if (eff === "soften") {
@@ -1600,7 +1605,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
           if (_wi) { delete _wi.wallEmbedded; _wi.discovered = true; }
           dg.map[cy][cx] = T.FLOOR;
           wallBreakDrop(dg, cx, cy);
-          dug++; cx += dx; cy += dy;
+          dug++; cx += _fdx; cy += _fdy;
         }
         ml.push(dug > 0 ? `穴掘りの魔法弾が壁を${dug}マス掘り進んだ！` : "魔法弾は壁に消えた。");
         return;
@@ -1611,7 +1616,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         ml.push("魔法弾が跳ね返って自分に当たった！【呪】");
         if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
         const _lpPreX = p.x, _lpPreY = p.y;
-        applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
+        applyWandEffect(eff, "player", p, -_fdx, -_fdy, dg, p, ml, luFn, bbFn, blMult);
         if (p.x !== _lpPreX || p.y !== _lpPreY) {
           pushAnim({ type: "playerKnockback", fromX: _lpPreX, fromY: _lpPreY, toX: p.x, toY: p.y });
         }
@@ -1658,10 +1663,10 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       if (mon.subtype === "magicreflect") {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
         pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: p.x, toY: p.y, color: _boltClr });
-        applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
+        applyWandEffect(eff, "player", p, -_fdx, -_fdy, dg, p, ml, luFn, bbFn, blMult);
         return;
       }
-      applyWandEffect(eff, "monster", mon, dx, dy, dg, p, ml, luFn, bbFn, blMult);
+      applyWandEffect(eff, "monster", mon, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const it = itemAt(dg, tx, ty);
@@ -1675,20 +1680,24 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         ml.push(`水が${nm}に変化した！`);
         return;
       }
-      applyWandEffect(eff, "item", it, dx, dy, dg, p, ml, luFn, bbFn, blMult, nameFn);
+      applyWandEffect(eff, "item", it, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, nameFn);
       return;
     }
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${trap.name}の前に飛びついた！`); return; }
-      applyWandEffect(eff, "trap", trap, dx, dy, dg, p, ml, luFn, bbFn, blMult);
+      applyWandEffect(eff, "trap", trap, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
     if (bb) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${bb.name}の前に飛びついた！`); return; }
-      applyWandEffect(eff, "bigbox", bb, dx, dy, dg, p, ml, luFn, bbFn, blMult);
+      applyWandEffect(eff, "bigbox", bb, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
+      return;
+    }
+    /* 石像：ダメージ／状態異常系の杖が当たると割れる */
+    if (eff !== "swap" && tryBreakStatueAt(dg, tx, ty, p, ml, luFn, p?.depth)) {
       return;
     }
     lastX = tx; lastY = ty;
@@ -1700,8 +1709,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
 /* ===== MONSTER LIGHTNING WAND (fires from cx,cy, checks player position) ===== */
 export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, monName = "モンスター", nameFn = null, killerMon = null, blessed = false) {
   pushMonsterBoltAnim(cx, cy, dx, dy, dg, pl, "lightning");
+  let _fdx = dx, _fdy = dy, _cx = cx, _cy = cy, _windMsg = false;
   for (let d = 1; d < MW + MH; d++) {
-    const tx = cx + dx * d, ty = cy + dy * d;
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy);
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    _fdx = _st.dx; _fdy = _st.dy;
+    const tx = _st.x, ty = _st.y;
+    _cx = tx; _cy = ty;
     if (inMagicSealRoom(tx, ty, dg)) { ml.push("魔法弾が魔封じの魔方陣で消えた！"); return; }
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       if (killerMon && !consumeBarrier(killerMon, ml)) {

@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, calcAtkDefDmg } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, calcAtkDefDmg, stepProjectile } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, findFixedPortalPair } from './fixtures.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom } from './monsters.js';
@@ -3961,8 +3961,13 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   const _arName = st.name || "矢";
   const _dropItem = () => _isPierce ? makePiercingArrow(1) : _isPoison ? makePoisonArrow(1) : makeArrow(1);
   let lx = p.x, ly = p.y, hit = false;
+  let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y, _windMsg = false;
   for (let d = 1; d <= _maxR; d++) {
-    const tx = p.x + dx * d, ty = p.y + dy * d;
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy);
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    _fdx = _st.dx; _fdy = _st.dy;
+    const tx = _st.x, ty = _st.y;
+    _cx = tx; _cy = ty;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
     if (!_pierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
     const m = monsterAt(dg, tx, ty);
@@ -4398,8 +4403,13 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
 }
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
   let _lx = p.x, _ly = p.y;
+  let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y, _windMsg = false;
   for (let d = 1; d <= spell.range; d++) {
-    const tx = p.x + dx * d, ty = p.y + dy * d;
+    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy);
+    if (_st.bent && !_windMsg) { ml.push("風穴の風が飛び道具を曲げた！"); _windMsg = true; }
+    _fdx = _st.dx; _fdy = _st.dy;
+    const tx = _st.x, ty = _st.y;
+    _cx = tx; _cy = ty;
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
     if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) {
       ml.push("魔法弾は壁に消えた。");
@@ -4445,13 +4455,13 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
       } else {
-        applySpellEffect(spell.effect, "monster", mon, dx, dy, dg, p, ml, luFn, lv);
+        applySpellEffect(spell.effect, "monster", mon, _fdx, _fdy, dg, p, ml, luFn, lv);
       }
       return { x: tx, y: ty, hitType: "monster" };
     }
     if (tx === p.x && ty === p.y) continue;
     const it = itemAt(dg, tx, ty);
-    if (it) { applySpellEffect(spell.effect, "item", it, dx, dy, dg, p, ml, luFn, lv); return { x: tx, y: ty, hitType: "item" }; }
+    if (it) { applySpellEffect(spell.effect, "item", it, _fdx, _fdy, dg, p, ml, luFn, lv); return { x: tx, y: ty, hitType: "item" }; }
     _lx = tx; _ly = ty;
   }
   ml.push("魔法弾は虚空に消えた。");
