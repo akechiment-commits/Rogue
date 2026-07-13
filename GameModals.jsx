@@ -778,8 +778,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           if (_isArmorUpMode_ui)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
         }
         if (mode.scrollIdx === i) return false;
-        if (it.type === 'weapon' || it.type === 'armor') {
-          /* 未識別の識別の巻物なら全アイテム表示 */
+        if (it.type === 'weapon' || it.type === 'armor' || it.type === 'food') {
+          /* 未識別の識別の巻物なら全アイテム表示。種別未識別なしでも祝呪の既知/不明で対象 */
           if (mode.mode === 'identify' && mode.showAll) return true;
           return mode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
         }
@@ -1067,13 +1067,13 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         _msgResult = mode.blessed ? `祝福された${_dupDispName}が1つ増えた！【祝】` : `${_dupDispName}が1つ増えた！`;
       }
     } else {
-      const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';
-      const _selKey = _isWA ? null : getIdentKey(_selIt);
+      const _isBcOnly = _selIt.type === 'weapon' || _selIt.type === 'armor' || _selIt.type === 'food';
+      const _selKey = _isBcOnly ? null : getIdentKey(_selIt);
       if (mode.mode === 'identify') {
-        const _wasAlreadyNamed = !_isWA && _selKey && sr.current.ident.has(_selKey);
+        const _wasAlreadyNamed = !_isBcOnly && _selKey && sr.current.ident.has(_selKey);
         if (_selKey) { sr.current.ident.add(_selKey); if (!_wasAlreadyNamed) trackItem(_selIt); }
         _selIt.fullIdent = true; _selIt.bcKnown = true;
-        _msgResult = (_isWA || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
+        _msgResult = (_isBcOnly || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
       } else {
         if (_selKey) sr.current.ident.delete(_selKey);
         _selIt.fullIdent = false; _selIt.bcKnown = false;
@@ -2700,7 +2700,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
         endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
       } else if (spell.effect === "identify_magic") {
         const _idt = p2.inventory.filter(_ii => {
-          if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
+          if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return !_ii.fullIdent && !_ii.bcKnown;
           const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
         });
         if (_idt.length === 0) {
@@ -3052,7 +3052,7 @@ export function InventoryModal({
           }
           const _isUnidentInv = (() => { const _kk = getIdentKey(it); return !!(_kk && gs?.ident && !gs.ident.has(_kk)); })();
           const _isIdentBCUnknown = (() => {
-            if (it.type === 'weapon' || it.type === 'armor') return !it.fullIdent && !it.bcKnown;
+            if (it.type === 'weapon' || it.type === 'armor' || it.type === 'food') return !it.fullIdent && !it.bcKnown;
             const _kk = getIdentKey(it); return !!(_kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown);
           })();
           return (

@@ -629,7 +629,7 @@ export function useKeyHandler({
               if (_isArmorUpMode)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
             }
             if (identifyMode.scrollIdx === i) return false;
-            if (it.type === 'weapon' || it.type === 'armor') {
+            if (it.type === 'weapon' || it.type === 'armor' || it.type === 'food') {
               if (identifyMode.mode === 'identify' && identifyMode.showAll) return true;
               return identifyMode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
             }
@@ -906,13 +906,13 @@ export function useKeyHandler({
             }
             _msgResult = _ml_pe;
           } else {
-            const _isWA = _selIt.type === 'weapon' || _selIt.type === 'armor';
-            const _selKey = _isWA ? null : getIdentKey(_selIt);
+            const _isBcOnly = _selIt.type === 'weapon' || _selIt.type === 'armor' || _selIt.type === 'food';
+            const _selKey = _isBcOnly ? null : getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
-              const _wasAlreadyNamed = !_isWA && _selKey && sr.current.ident.has(_selKey);
+              const _wasAlreadyNamed = !_isBcOnly && _selKey && sr.current.ident.has(_selKey);
               if (_selKey) sr.current.ident.add(_selKey);
               _selIt.fullIdent = true; _selIt.bcKnown = true;
-              _msgResult = (_isWA || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
+              _msgResult = (_isBcOnly || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
             } else {
               if (_selKey) sr.current.ident.delete(_selKey);
               _selIt.fullIdent = false; _selIt.bcKnown = false;
@@ -1101,7 +1101,7 @@ export function useKeyHandler({
               endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
             } else if (spell.effect === "identify_magic") {
               const _idt = p2.inventory.filter(_ii => {
-                if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
+                if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return !_ii.fullIdent && !_ii.bcKnown;
                 const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
               });
               if (_idt.length === 0) {

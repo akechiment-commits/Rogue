@@ -708,7 +708,7 @@ export function useItemActions({
         if (it.cursed) {
           const _tgts = p.inventory.filter((_ii, _i) => {
             if (_i === idx) return false;
-            if (_ii.type === 'weapon' || _ii.type === 'armor') return _ii.fullIdent || _ii.bcKnown;
+            if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return _ii.fullIdent || _ii.bcKnown;
             const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
           });
           if (_tgts.length > 0) {
@@ -725,7 +725,7 @@ export function useItemActions({
           const _tgts = p.inventory.filter((_ii, _i) => {
             if (_i === idx) return false;
             if (_showAll) return true; /* 未識別巻物: 全アイテム表示 */
-            if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
+            if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return !_ii.fullIdent && !_ii.bcKnown;
             const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
           });
           if (_tgts.length > 0 || _scrollFootBb) {
@@ -1449,18 +1449,18 @@ export function useItemActions({
         }
       } else if (it.effect === "identify") {
         if (it.blessed) {
-          // 全アイテム完全識別（武器・防具も含む）
+          // 全アイテム完全識別（武器・防具・食料の祝呪も含む）
           for (const _ii of p.inventory) {
             const _k = getIdentKey(_ii);
-            if (_k) { const _wasU = !sr.current.ident.has(_k); sr.current.ident.add(_k); _ii.fullIdent = true; if (_wasU) trackItem(_ii); }
-            else if (_ii.type === 'weapon' || _ii.type === 'armor') { _ii.fullIdent = true; }
+            if (_k) { const _wasU = !sr.current.ident.has(_k); sr.current.ident.add(_k); _ii.fullIdent = true; _ii.bcKnown = true; if (_wasU) trackItem(_ii); }
+            else if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') { _ii.fullIdent = true; _ii.bcKnown = true; }
           }
           if (_scrollFootBb && !_scrollFootBb.revealed) { _scrollFootBb.revealed = true; trackBigbox(_scrollFootBb); ml.push(`大箱「${_scrollFootBb.name}」の正体が明らかになった！`); }
           ml.push("全てのアイテムが識別された！");
         } else if (it.cursed) {
-          // 識別済みアイテムを1つ選んで未識別に戻す（武器・防具も含む）
+          // 識別済みアイテムを1つ選んで未識別に戻す（武器・防具・食料の祝呪も含む）
           const _targets = p.inventory.filter(_ii => {
-            if (_ii.type === 'weapon' || _ii.type === 'armor') return _ii.fullIdent || _ii.bcKnown;
+            if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return _ii.fullIdent || _ii.bcKnown;
             const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
           });
           if (_targets.length === 0) {
@@ -1474,9 +1474,9 @@ export function useItemActions({
             return;
           }
         } else {
-          // 通常: 1つ選んで識別（武器・防具も含む）
+          // 通常: 1つ選んで識別（武器・防具・食料の祝呪も含む）
           const _targets = p.inventory.filter(_ii => {
-            if (_ii.type === 'weapon' || _ii.type === 'armor') return !_ii.fullIdent && !_ii.bcKnown;
+            if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return !_ii.fullIdent && !_ii.bcKnown;
             const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
           });
           if (_targets.length === 0) {
@@ -2866,12 +2866,14 @@ export function useItemActions({
               if (_isCursed) {
                 const _k2 = getIdentKey(gi);
                 if (_k2) _identSet.delete(_k2);
-                if (gi.type === 'weapon' || gi.type === 'armor') { gi.fullIdent = false; gi.bcKnown = false; }
+                gi.fullIdent = false;
+                gi.bcKnown = false;
                 ml.push(`${_wandItemDName(gi)}が未識別に戻った！【呪】`);
               } else {
                 const _k2 = getIdentKey(gi);
                 if (_k2) { const _wasU2 = !_identSet.has(_k2); _identSet.add(_k2); if (_wasU2) trackItem(gi); }
-                if (gi.type === 'weapon' || gi.type === 'armor') { gi.fullIdent = true; gi.bcKnown = true; }
+                gi.fullIdent = true;
+                gi.bcKnown = true;
                 ml.push(`${gi.name}が識別された！`);
               }
             };
@@ -2921,9 +2923,9 @@ export function useItemActions({
                     const _k2 = getIdentKey(ii);
                     return (_k2 && _identSet.has(_k2)) || ii.fullIdent || ii.bcKnown;
                   } else {
-                    if (ii.type === 'weapon' || ii.type === 'armor') return !ii.fullIdent || !ii.bcKnown;
+                    if (ii.type === 'weapon' || ii.type === 'armor' || ii.type === 'food') return !ii.fullIdent || !ii.bcKnown;
                     const _k2 = getIdentKey(ii);
-                    return _k2 && !_identSet.has(_k2);
+                    return _k2 && (!_identSet.has(_k2) || !ii.fullIdent || !ii.bcKnown);
                   }
                 });
                 if (_candInv.length > 0) {

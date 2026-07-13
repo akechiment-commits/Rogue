@@ -138,6 +138,19 @@ export function getIdentKey(it) {
   return null;
 }
 
+/**
+ * 種別の未識別（偽名）はないが、インスタンス単位で祝呪の既知/不明があるタイプ。
+ * 武器・防具・食料は getIdentKey が null でも fullIdent/bcKnown で祝呪表示を制御する。
+ */
+export function isBcInstanceType(it) {
+  return !!it && (it.type === "weapon" || it.type === "armor" || it.type === "food");
+}
+
+/** 祝呪（と装備の完全識別）が判明しているか */
+export function itemBcKnown(it) {
+  return !!(it && (it.fullIdent || it.bcKnown));
+}
+
 export function generateBbFakeNames() {
   const shuffled = shuffle([...BB_FAKE_NAMES]);
   const bbFakeNames = {};
@@ -1063,7 +1076,7 @@ export const TRAPS = [
   { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
   { name:"浮遊の罠",       effect:"float_trap",     tile:122, desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。\n敵が踏んでも浮遊する（ボス・店主も有効）。" },
   { name:"油まみれの罠",   effect:"oil_trap",       tile:123, desc:"踏むと30ターン油まみれになる。\n炎・爆発ダメージが2倍。敵が踏んでも同様（ボス・店主も有効）。" },
-  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
+  { name:"未識別の罠",     effect:"unident_trap",   tile:124, desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n武器・防具・食料は祝呪がわからなくなる。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
   { name:"混乱の罠",       effect:"confuse_trap",   tile:127, desc:"踏むと10ターン混乱する。\n敵が踏むと20ターン混乱する。耐混乱の防具で防げる。" },
@@ -1703,31 +1716,31 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
   return n;
 }
 
-/** 単一アイテムを未識別にする（種別識別セットがあれば外す） */
+/** 単一アイテムを未識別にする（種別キーを外し、祝呪既知も落とす） */
 export function unidentSingleItem(it, identSet = null) {
-  if (!it || it.type === "goal" || it.type === "misc" || it.type === "gold") return false;
+  if (!it || it.type === "goal" || it.type === "misc" || it.type === "gold" || it.type === "arrow") return false;
   let changed = false;
   const k = getIdentKey(it);
   if (k && identSet?.has?.(k)) {
     identSet.delete(k);
     changed = true;
   }
+  /* 種別未識別がなくても、武器・防具・食料等は祝呪既知を落とす */
   if (it.fullIdent || it.bcKnown) {
     it.fullIdent = false;
     it.bcKnown = false;
     changed = true;
-  }
-  /* 種別キーがなくても「名前付きで判っている」状態を落とす */
-  if (!changed && k) {
-    /* 既に未識別でもフラグは揃えておく */
+  } else if (isBcInstanceType(it) || k) {
+    /* 既に不明でもフラグを揃えておく（表示・再識別の一貫性） */
     it.fullIdent = false;
     it.bcKnown = false;
   }
-  return true;
+  return changed;
 }
 
 /**
  * 識別済みの所持・装備から1つランダムで未識別に戻す
+ * （種別識別済み、または祝呪既知の武器・防具・食料など）
  * @returns {{ count: number, item?: object }}
  */
 export function unidentPlayerItems(p, identSet) {
@@ -1742,9 +1755,10 @@ export function unidentPlayerItems(p, identSet) {
   for (const it of list) {
     if (!it || seen.has(it)) continue;
     seen.add(it);
+    if (it.type === "gold" || it.type === "arrow" || it.type === "goal" || it.type === "misc") continue;
     const k = getIdentKey(it);
     const knownKey = !!(k && identSet?.has?.(k));
-    const knownFlags = !!(it.fullIdent || it.bcKnown);
+    const knownFlags = itemBcKnown(it);
     if (knownKey || knownFlags) candidates.push(it);
   }
   if (candidates.length === 0) return { count: 0 };

@@ -5290,8 +5290,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const _eq = _ep?.weapon === it ? "【武器】" : _ep?.armor === it ? "【防具】" : _ep?.arrow === it ? "【矢】" : (_ep?.rings || []).includes(it) ? "【指輪】" : "";
     const _key = getIdentKey(it);
     const _isIdent = !_key || gs?.ident?.has(_key);
-    /* 識別対象アイテムはfullIdentまたはbcKnownのみ祝呪表示、それ以外(武器・防具等)は常に表示 */
-    const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor' || it.type === 'ring';
+    /* 種別識別あり／武器・防具・食料・指輪は fullIdent|bcKnown のときだけ祝呪表示 */
+    const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor' || it.type === 'ring' || it.type === 'food';
     const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown) : true;
     const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
     let s = (_eq ? _eq : "") + _bc + dname(it);
@@ -5787,7 +5787,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     }
                     if (identifyMode.scrollIdx === i) return false;
                     const _showAll_t = identifyMode.showAll;
-                    if (it.type === 'weapon' || it.type === 'armor') {
+                    if (it.type === 'weapon' || it.type === 'armor' || it.type === 'food') {
                       if (identifyMode.mode === 'identify') return _showAll_t || (!it.fullIdent && !it.bcKnown);
                       return it.fullIdent || it.bcKnown;
                     }

@@ -327,6 +327,57 @@ describe("new weird traps", () => {
     expect(ml.some((m) => m.includes("未識別になった"))).toBe(true);
   });
 
+  it("落ちた武器は種別未識別がなくても祝呪既知が落ちる", () => {
+    const p = makePlayer({ x: 1, y: 1 });
+    const weapon = { name: "ロングソード", type: "weapon", atk: 5, fullIdent: true, bcKnown: true, blessed: true, tile: 20 };
+    const trap = { effect: "unident_trap", name: "未識別の罠", x: 5, y: 5, id: "u4" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    fireTrapItem(trap, weapon, dg, 5, 5, ml, new Set(), p, (it) => it.name, null, new Set());
+    expect(weapon.fullIdent).toBe(false);
+    expect(weapon.bcKnown).toBe(false);
+    expect(weapon.blessed).toBe(true);
+    expect(ml.some((m) => m.includes("未識別になった"))).toBe(true);
+  });
+
+  it("落ちた食料も祝呪既知が落ちる", () => {
+    const p = makePlayer({ x: 1, y: 1 });
+    const food = { name: "大きな肉", type: "food", value: 30, fullIdent: true, bcKnown: true, blessed: true, tile: 19 };
+    const trap = { effect: "unident_trap", name: "未識別の罠", x: 5, y: 5, id: "u5" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    fireTrapItem(trap, food, dg, 5, 5, ml, new Set(), p, (it) => it.name, null, new Set());
+    expect(food.fullIdent).toBe(false);
+    expect(food.bcKnown).toBe(false);
+    expect(food.blessed).toBe(true);
+    expect(ml.some((m) => m.includes("未識別になった"))).toBe(true);
+  });
+
+  it("未識別の罠は装備中の武器の祝呪既知も剥がせる", () => {
+    const weapon = { name: "鉄の剣", type: "weapon", atk: 3, bcKnown: true, cursed: true };
+    const p = makePlayer({ x: 5, y: 5, inventory: [], weapon });
+    const dg = makeEmptyDg();
+    const trap = { effect: "unident_trap", name: "未識別の罠", x: 5, y: 5, id: "u6" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml, null, null, { ident: new Set() });
+    expect(weapon.bcKnown).toBe(false);
+    expect(weapon.fullIdent).toBe(false);
+    expect(weapon.cursed).toBe(true);
+    expect(ml.some((m) => m.includes("わからなくなった"))).toBe(true);
+  });
+
+  it("未識別の罠は食料の祝呪既知も剥がせる", () => {
+    const food = { name: "パン", type: "food", value: 20, bcKnown: true, blessed: true };
+    const p = makePlayer({ x: 5, y: 5, inventory: [food] });
+    const dg = makeEmptyDg();
+    const trap = { effect: "unident_trap", name: "未識別の罠", x: 5, y: 5, id: "u7" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml, null, null, { ident: new Set() });
+    expect(food.bcKnown).toBe(false);
+    expect(food.blessed).toBe(true);
+    expect(ml.some((m) => m.includes("わからなくなった"))).toBe(true);
+  });
+
   it("増殖の罠の破損率は50%", () => {
     expect(trapStepBreakChance({ effect: "multiply_trap" })).toBe(0.5);
     expect(trapStepBreakChance({ effect: "oil_trap" })).toBe(0.25);
