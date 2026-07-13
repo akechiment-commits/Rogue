@@ -49,12 +49,13 @@ describe("固定転送", () => {
 });
 
 describe("石像", () => {
-  it("壊すとアイテムと敵が出る", () => {
+  it("壊すとアイテムとフロア敵（レベル+1）が出る", () => {
     const dg = makeEmptyDg({
       map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
       items: [],
       monsters: [],
       statues: [],
+      dungeonType: "intermediate",
     });
     const st = makeStatue(5, 5);
     dg.statues.push(st);
@@ -62,7 +63,10 @@ describe("石像", () => {
     const ml = [];
     breakStatue(st, dg, p, ml, null, 4);
     expect(dg.statues.length).toBe(0);
-    expect(dg.monsters.some(m => m.name === "石像の番人")).toBe(true);
+    expect(dg.monsters.length).toBeGreaterThanOrEqual(1);
+    const mon = dg.monsters[0];
+    expect(mon.monLevel).toBeGreaterThanOrEqual(2); /* 通常1なら+1で2以上 */
     expect(ml.some(m => m.includes("砕け"))).toBe(true);
+    expect(ml.some(m => m.includes("が現れた"))).toBe(true);
   });
 });

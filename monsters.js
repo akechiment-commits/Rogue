@@ -1,7 +1,10 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, applyWindDir } from "./utils.js";
-import { tryBreakStatueAt } from "./fixtures.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
+
+/* 石像破壊（fixtures から登録。循環 import 回避） */
+let _statueBreakHandler = null;
+export function setStatueBreakHandler(fn) { _statueBreakHandler = fn; }
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -1548,7 +1551,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       return;
     }
     /* 石像：ダメージ系の飛び道具が当たると割れる */
-    if (tryBreakStatueAt(dg, _tx, _ty, pl, ml, luFn, pl?.depth)) {
+    if (_statueBreakHandler?.(dg, _tx, _ty, pl, ml, luFn, pl?.depth)) {
       if (!_passthrough) return;
     }
 

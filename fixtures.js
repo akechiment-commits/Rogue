@@ -4,6 +4,7 @@
 import { rng, pick, uid, MW, MH, T } from "./utils.js";
 /* items.js との循環 import を避けるため、TRAPS/ITEMS のみ参照し placeItemAt は使わない */
 import { TRAPS, pickLootFromPool, ITEMS, WANDS } from "./items.js";
+import { pickMonsterDef, makeMonsterFromBase, setStatueBreakHandler } from "./monsters.js";
 
 export const FIXTURE_TILE = {
   vent: 128,
@@ -106,7 +107,7 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1) {
     ml.push(`${it.name}が飛び出した！`);
   }
 
-  /* 強敵：階層に応じた固定強化敵（循環 import 回避でテンプレ直生成） */
+  /* そのフロアで出る敵プールから1体、出現レベルを+1して出す */
   const d = Math.max(0, (typeof depth === "number" ? depth : null) ?? (p?.depth ? p.depth - 1 : 0));
   let mx = statue.x, my = statue.y;
   const blocked = (x, y) =>
@@ -125,28 +126,19 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1) {
       return true;
     }
   }
-  const _hp = 40 + d * 12;
-  const mon = {
-    id: uid(),
-    name: "石像の番人",
-    x: mx, y: my,
-    hp: _hp, maxHp: _hp,
-    atk: 14 + d * 2,
-    def: 6 + Math.floor(d * 0.8),
-    exp: 40 + d * 15,
-    speed: 1, baseSpeed: 1, turnAccum: 0,
-    tile: 39,
-    kind: "humanoid",
-    baseKind: "statue_guardian",
-    monLevel: Math.min(3, 1 + Math.floor(d / 8)),
-    aware: true,
-    dir: { x: 0, y: 0 },
-    lastPx: p?.x ?? mx,
-    lastPy: p?.y ?? my,
-    patrolTarget: null,
-  };
-  dg.monsters.push(mon);
-  ml.push(`${mon.name}が現れた！`);
+  try {
+    const { base, spawnLevel } = pickMonsterDef(d, dg.dungeonType ?? null, false);
+    const boosted = Math.min(3, (spawnLevel || 1) + 1);
+    const mon = makeMonsterFromBase(base, boosted, mx, my, {
+      aware: true,
+      lastPx: p?.x ?? mx,
+      lastPy: p?.y ?? my,
+    });
+    dg.monsters.push(mon);
+    ml.push(`${mon.name}が現れた！`);
+  } catch {
+    ml.push("強敵が出現しそうだったが、うまく出られなかった…");
+  }
   return true;
 }
 
@@ -283,3 +275,6 @@ export function scatterFloorGimmicks(map, rooms, depth, {
 
   return { vents, statues, traps: addedTraps, pentacles: addedPentacles };
 }
+
+/* 弾の射線上破壊用ハンドラを monsters に登録（モジュール読込時） */
+setStatueBreakHandler(tryBreakStatueAt);
