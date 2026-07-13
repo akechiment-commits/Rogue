@@ -1361,12 +1361,13 @@ function monsterThrowStone(m, dg, pl, ml) {
   const dropStone = () => isMagic ? makeMagicStone(1) : makeStone(1);
   let _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
   if (_fdx === 0 && _fdy === 0) _fdy = 1;
+  /* 風で標的を外しても、狙った距離を超えて飛び続けない。 */
+  const maxR = Math.max(1, Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
   ml.push(`${m.name}が${stoneName}を投げた！`);
-  pushMonsterBoltAnim(m.x, m.y, _fdx, _fdy, dg, pl, isMagic ? "#cc88ff" : "#aaaaaa");
+  pushMonsterBoltAnim(m.x, m.y, _fdx, _fdy, dg, pl, isMagic ? "#cc88ff" : "#aaaaaa", { wind: true, range: maxR });
 
   let _cx = m.x, _cy = m.y, _windMsg = false;
   let _lx = m.x, _ly = m.y;
-  const maxR = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y), 12) + 8;
   for (let d = 1; d <= maxR; d++) {
     const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy, { wind: true });
     if (_st.bent && !_windMsg) { ml.push("風穴の風が石の軌道を変えた！"); _windMsg = true; }
