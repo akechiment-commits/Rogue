@@ -34,7 +34,8 @@ export const PORTRAIT_CATEGORIES = [
     desc: "近接攻撃したとき（+ 欄でバリエーション追加）",
     group: "attack",
     slots: [
-      { file: "battle_melee", label: "近接攻撃" },
+      { file: "battle_melee", label: "近接攻撃（武器）" },
+      { file: "battle_unarmed", label: "素手攻撃", group: "attack_unarmed" },
     ],
   },
   {
@@ -134,6 +135,7 @@ export const PORTRAIT_CATEGORIES = [
       { file: "stand_light_armor", label: "軽装備", group: "hp_full" },
       { file: "stand_walk", label: "歩行", group: "walk" },
       { file: "stand_advance", label: "前進", group: "walk" },
+      { file: "battle_dash", label: "ダッシュ", group: "dash" },
       { file: "stand_back", label: "後ろ向き", group: "stand_back" },
     ],
   },

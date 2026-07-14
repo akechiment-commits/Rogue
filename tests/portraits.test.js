@@ -29,6 +29,8 @@ describe("portraits", () => {
     expect(msgToMeleeAttackKey("スライムへの攻撃は外れた！")).toBe("attack");
     expect(msgToMeleeAttackKey("ゴブリンの攻撃！5ダメージ！")).toBeNull();
     expect(msgToMeleeAttackKey("回復薬を飲んだ！")).toBeNull();
+    expect(msgToMeleeAttackKey("スライムに8ダメージ！", { weapon: null })).toBe("attack_unarmed");
+    expect(msgToMeleeAttackKey("スライムに8ダメージ！", { weapon: { id: 1 } })).toBe("attack");
   });
 
   it("resolvePortraitEvent が近接攻撃時のみ attack 立ち絵を返す", () => {
@@ -36,13 +38,41 @@ describe("portraits", () => {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
       poisoned: false, sleepTurns: 0, confusedTurns: 0,
       darknessTurns: 0, oilyTurns: 0,
+      weapon: { id: "sword-1", type: "weapon" },
     };
+    const prev = { ...player, weaponId: "sword-1", armorId: null, ringIds: [] };
     const event = resolvePortraitEvent({
       player,
-      prev: { ...player },
+      prev,
       lastMsg: "スライムに8ダメージ！",
     });
     expect(event.src).toMatch(/battle_melee/);
+  });
+
+  it("resolvePortraitEvent は武器未装備の攻撃で素手立ち絵を返す", () => {
+    const player = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      weapon: null,
+    };
+    const prev = { ...player, weaponId: null, armorId: null, ringIds: [] };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "スライムに8ダメージ！",
+    });
+    expect(event.src).toMatch(/battle_unarmed/);
+  });
+
+  it("resolvePortraitEvent はダッシュ移動で dash 立ち絵を返す", () => {
+    const prev = { hp: 80, maxHp: 100, x: 5, y: 5, level: 3, weaponId: null };
+    const player = { ...prev, x: 8, y: 5, weapon: null };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "",
+      dashed: true,
+    });
+    expect(event.src).toMatch(/battle_dash/);
   });
 
   it("msgToActionKey がアイテム使用を判定する", () => {

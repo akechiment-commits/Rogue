@@ -86,7 +86,10 @@ export function usePortrait({
       ? msgsRef.current.slice(-newCount).map(msgToText)
       : [];
     prevMsgCountRef.current = msgsRef.current.length;
-    const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs, newMsgs, floating });
+    /* doDash が立てるフラグ：移動後の立ち絵をダッシュに */
+    const dashed = !!p._portraitDash;
+    if (p._portraitDash) delete p._portraitDash;
+    const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs, newMsgs, floating, dashed });
 
     if (!event) return;
 

@@ -23,13 +23,19 @@ export function hpKey(p) {
   return "hp_full";
 }
 
-/** プレイヤーの近接攻撃メッセージか（モンスターの「の攻撃！」は除外） */
-export function msgToMeleeAttackKey(msg) {
+/** プレイヤーの近接攻撃メッセージか（モンスターの「の攻撃！」は除外）
+ *  武器未装備なら attack_unarmed、装備中なら attack
+ *  player 省略時は attack（ダメージ判定用）
+ */
+export function msgToMeleeAttackKey(msg, player = null) {
   if (!msg) return null;
-  if (/への攻撃は外れた/.test(msg)) return "attack";
-  if (/ガーディアンに\d+ダメージ/.test(msg)) return "attack";
-  if (/に\d+ダメージ！/.test(msg) && !/の攻撃！/.test(msg)) return "attack";
-  return null;
+  const isMelee =
+    /への攻撃は外れた/.test(msg) ||
+    /ガーディアンに\d+ダメージ/.test(msg) ||
+    (/に\d+ダメージ！/.test(msg) && !/の攻撃！/.test(msg));
+  if (!isMelee) return null;
+  if (player && !player.weapon) return "attack_unarmed";
+  return "attack";
 }
 
 /** メッセージからアイテム使用の種別を判定（直近ログも参照） */
@@ -272,9 +278,10 @@ export function pickDeathPortrait(deathCause, sets = PORTRAIT_SETS) {
 
 /**
  * gs 変化時の立ち絵イベントを解決。
+ * @param {{ dashed?: boolean }} opts dashed: 今回の移動がダッシュ由来
  * @returns {{ src: string, cooldownUntil: number, force?: boolean } | null}
  */
-export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = [], floating = false, now = Date.now() }) {
+export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = [], floating = false, dashed = false, now = Date.now() }) {
   if (!p) return null;
 
   if (p.hp <= 0) {
@@ -404,10 +411,15 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return portraitEvent(actionKey, now);
   }
 
-  const meleeKey = msgToMeleeAttackKey(lastMsg);
+  const meleeKey = msgToMeleeAttackKey(lastMsg, p);
   if (meleeKey) {
     return portraitEvent(meleeKey, now);
   }
 
-  return { isLow, moved: p.x !== prev.x || p.y !== prev.y, now };
+  const moved = p.x !== prev.x || p.y !== prev.y;
+  if (dashed && moved) {
+    return portraitEvent("dash", now);
+  }
+
+  return { isLow, moved, now };
 }

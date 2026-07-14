@@ -3827,6 +3827,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       if (steps > 0) {
         p.facing = { dx, dy };
+        p._portraitDash = true;
         setDashMode(false);
         if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
         sr.current = { ...st };
