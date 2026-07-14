@@ -63,12 +63,12 @@ export function usePortrait({
   }, [gs, setPortraitSrc]);
 
   useEffect(() => {
-    if (bigboxMode) tryPortrait("act_chest");
-  }, [bigboxMode, tryPortrait]);
+    if (bigboxMode) forcePortrait("act_chest");
+  }, [bigboxMode, forcePortrait]);
 
   useEffect(() => {
-    if (putMode) tryPortrait("act_pot");
-  }, [putMode, tryPortrait]);
+    if (putMode) forcePortrait("act_pot");
+  }, [putMode, forcePortrait]);
 
   useEffect(() => {
     if (!dynamicEnabledRef.current || !gs?.player) return;
@@ -91,7 +91,7 @@ export function usePortrait({
     if (!event) return;
 
     if (event.src) {
-      if (event.force || Date.now() >= portraitCooldownRef.current) {
+      if (event.force || event.bypassCooldown || Date.now() >= portraitCooldownRef.current) {
         setPortraitSrc(event.src);
         portraitCooldownRef.current = event.cooldownUntil;
       }

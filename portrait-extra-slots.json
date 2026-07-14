@@ -13,6 +13,47 @@
       "categoryId": "damage",
       "afterFile": "damage_fire",
       "group": "damage_fire"
+    },
+    {
+      "file": "battle_melee_2",
+      "label": "近接攻撃 2",
+      "categoryId": "attack",
+      "afterFile": "battle_melee",
+      "group": "attack"
+    },
+    {
+      "file": "action_eat_food_2",
+      "label": "食べる 2",
+      "categoryId": "action",
+      "afterFile": "action_eat_food",
+      "group": "act_food"
+    },
+    {
+      "file": "gameover_dead_2",
+      "label": "死亡・ゲームオーバー 2",
+      "categoryId": "special",
+      "afterFile": "gameover_dead"
+    },
+    {
+      "file": "status_poison_2",
+      "label": "毒 2",
+      "categoryId": "status",
+      "afterFile": "status_poison",
+      "group": "status_poison"
+    },
+    {
+      "file": "action_drink_potion_2",
+      "label": "薬を飲む 2",
+      "categoryId": "action",
+      "afterFile": "action_drink_potion",
+      "group": "act_potion"
+    },
+    {
+      "file": "action_eat_food_2_2",
+      "label": "食べる 2",
+      "categoryId": "action",
+      "afterFile": "action_eat_food_2",
+      "group": "act_food"
     }
   ]
 }

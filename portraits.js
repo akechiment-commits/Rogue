@@ -47,14 +47,14 @@ export function msgToActionKey(msg, recentMsgs = []) {
   if (!msg) return null;
   if (/薬を飲|ポーション|飲んだ/.test(msg)) return "act_potion";
   if (/食べ|食料|料理/.test(msg)) return "act_food";
-  if (/魔法書/.test(msg)) return "act_spellbook";
-  if (/巻物|読んだ/.test(msg)) return "act_scroll";
+  if (/魔法書.*(?:を)?(?:読|使)|(?:読|使).*(?:魔法書)/.test(msg)) return "act_spellbook";
+  if (/巻物.*(?:を)?(?:読|使)|(?:読|使).*(?:巻物)/.test(msg)) return "act_scroll";
   if (/杖を振|ワンド/.test(msg)) return "act_wand";
   if (/魔方陣|ペンで/.test(msg)) return "act_pen";
   if (/魔法を放|魔法陣/.test(msg)) return "act_magic";
   if (/矢を射|弓/.test(msg)) return "act_bow";
   if (/投げた|投擲/.test(msg)) return "act_throw";
-  if (/壺/.test(msg)) return "act_pot";
+  if (/(?:壺.*(?:を)?(?:使|割|投|入|取り出)|(?:使|割|投|入|取り出).*(?:壺))/.test(msg)) return "act_pot";
   if (/宝箱/.test(msg)) return "act_chest";
   return null;
 }
@@ -210,6 +210,12 @@ export function isSatiatedGain(p, prev) {
   return gain >= Math.max(15, Math.floor(maxH * 0.2)) || (p.hunger ?? 0) >= Math.floor(maxH * 0.9);
 }
 
+/** 「回復した」は自然回復では出さず、大きなHP回復だけで表示する。 */
+export function isMajorHeal(p, prev) {
+  const gain = (p.hp ?? 0) - (prev.hp ?? 0);
+  return gain >= Math.max(20, Math.ceil((p.maxHp || 100) * 0.2));
+}
+
 export function snapshotPlayer(p, opts = {}) {
   return {
     hp: p.hp,
@@ -238,11 +244,12 @@ export function snapshotPlayer(p, opts = {}) {
   };
 }
 
-function portraitEvent(key, now, force = false) {
+function portraitEvent(key, now, { force = false, rateLimited = false } = {}) {
   return {
     src: pickPortrait(key),
-    cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+    cooldownUntil: rateLimited ? now + PORTRAIT_COOLDOWN_MS : now,
     force,
+    bypassCooldown: !rateLimited,
   };
 }
 
@@ -305,8 +312,8 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     }
   }
 
-  if (p.hp > prev.hp) {
-    return portraitEvent("hp_healed", now);
+  if (isMajorHeal(p, prev)) {
+    return portraitEvent("hp_healed", now, { rateLimited: true });
   }
 
   if (
@@ -322,10 +329,10 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
 
   if (findMsgInNew(newMsgs, lastMsg, isStairsMsg)) {
-    return portraitEvent("reaction_stairs", now, true);
+    return portraitEvent("reaction_stairs", now, { force: true });
   }
   if (findMsgInNew(newMsgs, lastMsg, isShopMsg)) {
-    return portraitEvent("reaction_shop", now, true);
+    return portraitEvent("reaction_shop", now, { force: true });
   }
 
   const equipKey = detectEquipChange(p, prev);
@@ -334,7 +341,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
 
   if (findMsgInNew(newMsgs, lastMsg, isCursedAcquireMsg)) {
-    return portraitEvent("status_cursed", now, true);
+    return portraitEvent("status_cursed", now, { force: true });
   }
 
   if (p.paralyzeTurns > 0 && prev.paralyzeTurns <= 0) {
@@ -380,16 +387,16 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   const hungerMsg = findHungerMsg(newMsgs, lastMsg);
   if (hungerMsg) {
-    return portraitEvent("hp_hunger", now, true);
+    return portraitEvent("hp_hunger", now, { force: true });
   }
 
   if (actionKey) {
-    return { src: pickPortrait(actionKey), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent(actionKey, now);
   }
 
   const meleeKey = msgToMeleeAttackKey(lastMsg);
   if (meleeKey) {
-    return { src: pickPortrait(meleeKey), cooldownUntil: now + PORTRAIT_COOLDOWN_MS };
+    return portraitEvent(meleeKey, now);
   }
 
   return { isLow, moved: p.x !== prev.x || p.y !== prev.y, now };

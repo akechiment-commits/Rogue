@@ -14,6 +14,7 @@ import {
   isCursedAcquireMsg,
   detectEquipChange,
   isSatiatedGain,
+  isMajorHeal,
   pickDamagePortrait,
   pickDeathPortrait,
   isDrownDeath,
@@ -47,6 +48,12 @@ describe("portraits", () => {
   it("msgToActionKey がアイテム使用を判定する", () => {
     expect(msgToActionKey("回復薬を飲んだ！")).toBe("act_potion");
     expect(msgToActionKey("おにぎりを食べた。")).toBe("act_food");
+    expect(msgToActionKey("炎の魔法書を読んだ！")).toBe("act_spellbook");
+    expect(msgToActionKey("回復の巻物を読んだ！")).toBe("act_scroll");
+    expect(msgToActionKey("保存の壺におにぎりを入れた！")).toBe("act_pot");
+    expect(msgToActionKey("炎の魔法書を拾った！")).toBeNull();
+    expect(msgToActionKey("回復の巻物の上に乗った！")).toBeNull();
+    expect(msgToActionKey("保存の壺を拾った！")).toBeNull();
     expect(msgToActionKey("何もない")).toBeNull();
   });
 
@@ -145,6 +152,23 @@ describe("portraits", () => {
     expect(hpKey({ hp: 10, maxHp: 100 })).toBe("hp_low");
     expect(hpKey({ hp: 50, maxHp: 100 })).toBe("hp_mid");
     expect(hpKey({ hp: 90, maxHp: 100 })).toBe("hp_full");
+  });
+
+  it("自然回復では回復立ち絵を出さず、大回復だけを表示する", () => {
+    const prev = { hp: 50, maxHp: 100, x: 5, y: 5, level: 3 };
+    expect(isMajorHeal({ ...prev, hp: 51 }, prev)).toBe(false);
+    expect(isMajorHeal({ ...prev, hp: 70 }, prev)).toBe(true);
+    expect(resolvePortraitEvent({ player: { ...prev, hp: 51 }, prev, lastMsg: "自然回復した" }).src).toBeUndefined();
+    const event = resolvePortraitEvent({ player: { ...prev, hp: 70 }, prev, lastMsg: "大回復した" });
+    expect(event.src).toMatch(/hp_healed/);
+    expect(event.bypassCooldown).toBe(false);
+  });
+
+  it("能動アクションはクールダウンを迂回する", () => {
+    const player = { hp: 80, maxHp: 100, x: 5, y: 5, level: 3 };
+    const event = resolvePortraitEvent({ player, prev: { ...player }, lastMsg: "回復薬を飲んだ！" });
+    expect(event.src).toMatch(/action_drink_potion/);
+    expect(event.bypassCooldown).toBe(true);
   });
 
   it("resolvePortraitEvent が状態異常を正しく参照する", () => {
