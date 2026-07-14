@@ -32,11 +32,13 @@ describe("portraitCatalog", () => {
     expect(sets.death_drown).toEqual(["gameover_drown"]);
     expect(sets.status_soaked).toEqual(["status_soaked"]);
     expect(sets.status_bound).toEqual(["status_bound"]);
+    expect(sets.status_confined).toEqual(["status_confined"]);
   });
 
-  it("状態異常に拘束状態スロットがある", () => {
+  it("状態異常に拘束・閉じ込めスロットがある", () => {
     const status = PORTRAIT_CATEGORIES.find((c) => c.id === "status");
     expect(status.slots.some((s) => s.file === "status_bound" && s.label === "拘束状態")).toBe(true);
+    expect(status.slots.some((s) => s.file === "status_confined" && s.label === "閉じ込め状態")).toBe(true);
   });
 
   it("全カテゴリにスロットがある", () => {

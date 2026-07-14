@@ -197,14 +197,25 @@ describe("portraits", () => {
     expect(event.src).toMatch(/status_soaked/);
   });
 
-  it("resolvePortraitEvent が拘束状態（とじこめ）を反映する", () => {
+  it("resolvePortraitEvent が拘束状態（からめ鬼捕獲）を反映する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      capturedBy: null,
+    };
+    const player = { ...prev, capturedBy: "mon-grabber-1" };
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "からめ鬼に絡め取られた！" });
+    expect(event.src).toMatch(/status_bound/);
+    expect(event.force).toBe(true);
+  });
+
+  it("resolvePortraitEvent が閉じ込め状態（とじこめの壺）を反映する", () => {
     const prev = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
       potConfinedTurns: 0,
     };
     const player = { ...prev, potConfinedTurns: 20 };
     const event = resolvePortraitEvent({ player, prev, lastMsg: "壺に入った！" });
-    expect(event.src).toMatch(/status_bound/);
+    expect(event.src).toMatch(/status_confined/);
     expect(event.force).toBe(true);
   });
 

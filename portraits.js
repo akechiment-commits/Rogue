@@ -236,6 +236,7 @@ export function snapshotPlayer(p, opts = {}) {
     soakedTurns: p.soakedTurns || 0,
     paralyzeTurns: p.paralyzeTurns || 0,
     potConfinedTurns: p.potConfinedTurns || 0,
+    capturedBy: p.capturedBy || null,
     slowTurns: p.slowTurns || 0,
     bewitchedTurns: p.bewitchedTurns || 0,
     immobileTurns: p.immobileTurns || 0,
@@ -348,9 +349,13 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   if (p.paralyzeTurns > 0 && prev.paralyzeTurns <= 0) {
     return portraitEvent("status_paralyze", now);
   }
-  /* とじこめの壺など：行動不能の拘束 */
-  if ((p.potConfinedTurns || 0) > 0 && (prev.potConfinedTurns || 0) <= 0) {
+  /* からめ鬼など：捕獲・拘束（倒すまで逃げられない） */
+  if (p.capturedBy && !prev.capturedBy) {
     return portraitEvent("status_bound", now, { force: true });
+  }
+  /* とじこめの壺：閉じ込め */
+  if ((p.potConfinedTurns || 0) > 0 && (prev.potConfinedTurns || 0) <= 0) {
+    return portraitEvent("status_confined", now, { force: true });
   }
   if (p.immobileTurns > 0 && prev.immobileTurns <= 0) {
     return portraitEvent("status_immobile", now);
