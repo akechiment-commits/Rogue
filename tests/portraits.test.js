@@ -197,6 +197,17 @@ describe("portraits", () => {
     expect(event.src).toMatch(/status_soaked/);
   });
 
+  it("resolvePortraitEvent が拘束状態（とじこめ）を反映する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      potConfinedTurns: 0,
+    };
+    const player = { ...prev, potConfinedTurns: 20 };
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "壺に入った！" });
+    expect(event.src).toMatch(/status_bound/);
+    expect(event.force).toBe(true);
+  });
+
   it("resolvePortraitEvent がダメージ種別をメッセージから選ぶ", () => {
     const player = {
       hp: 70, maxHp: 100, x: 5, y: 5, level: 3,
