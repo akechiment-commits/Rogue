@@ -2558,6 +2558,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     onReturnToHub(gameOverResult);
   }, [onReturnToHub, gameOverResult]);
 
+  const lastMoveAtRef = useRef(0);
   const act = useCallback(
     (type, dx = 0, dy = 0) => {
       if (dead || !sr.current) return;
@@ -2566,6 +2567,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
            interactは階段降下後のアニメ中にバッファすると昇り階段を踏んで逆行する問題があるため除外。 */
         if (type !== "move" && type !== "interact") pendingActRef.current = { type, dx, dy };
         return;
+      }
+      /* 移動の最終ガード：ハンドラが何重に呼ばれても1入力=1マス */
+      if (type === "move") {
+        const now = performance.now();
+        if (now - lastMoveAtRef.current < 80) return;
+        lastMoveAtRef.current = now;
       }
       if (revealModeRef.current) return;
       if (bigboxModeRef.current) return;

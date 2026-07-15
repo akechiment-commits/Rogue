@@ -79,8 +79,7 @@ export function useKeyHandler({
   };
   const handleKey = useCallback(
     (e) => {
-      /* keyup 以外の keydown 自動連打は1アクションに制限（押しっぱなし歩行は anim 後に再入力） */
-      if (e.repeat) return;
+      /* キーリピートはモーダル操作では許可。移動のみ後段の tryDirAction / act 側で抑制 */
       const k = e.key.toLowerCase();
       if (k === "shift") {
         shiftRef.current = true;
@@ -573,72 +572,8 @@ export function useKeyHandler({
         e.preventDefault();
         return;
       }
-      /* テンキー移動（唯一の経路）。Arrow 分岐では isNumpadEvent を必ず除外すること。 */
-      if (isNumpadEvent(e)) {
-        const npm = {
-          Numpad1: [-1, 1],
-          Numpad2: [0, 1],
-          Numpad3: [1, 1],
-          Numpad4: [-1, 0],
-          Numpad5: [0, 0],
-          Numpad6: [1, 0],
-          Numpad7: [-1, -1],
-          Numpad8: [0, -1],
-          Numpad9: [1, -1],
-        };
-        /* code が Arrow* のまま location=NUMPAD の環境もあるので code 優先、なければ key から */
-        const npmCode = (e.code && e.code.startsWith("Numpad"))
-          ? e.code
-          : ({ ArrowUp: "Numpad8", ArrowDown: "Numpad2", ArrowLeft: "Numpad4", ArrowRight: "Numpad6" }[e.key]);
-        const _npmCardinal = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
-        if (
-          npmCode &&
-          npm[npmCode] !== undefined &&
-          !putMode &&
-          !springMode &&
-          !bigboxMode &&
-          !markerMode &&
-          !tpSelectMode &&
-          !spellListMode &&
-          !debugSpellMode &&
-          !msgLogMode &&
-          !(shopModeRef?.current ?? shopMode)
-        ) {
-          e.preventDefault();
-          /* Shift+テンキー縦横：2方向同時押しでのみ斜め移動。縦横対角キー(1/3/7/9)はそのまま */
-          if (shiftRef?.current && npmCode in _npmCardinal) {
-            if (arrowHeldRef) arrowHeldRef.current[_npmCardinal[npmCode]] = true;
-            const _h = arrowHeldRef?.current || {};
-            const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
-            const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
-            if (_sdx !== 0 && _sdy !== 0) {
-              tryDirAction(() => {
-                if (throwMode !== null) execRef.current?.(_sdx, _sdy);
-                else if (!showInv) {
-                  if (aRef.current) doDash(_sdx, _sdy);
-                  else act("move", _sdx, _sdy);
-                }
-              });
-            }
-            return;
-          }
-          const [dx, dy] = npm[npmCode];
-          tryDirAction(() => {
-            if (throwMode !== null) {
-              execRef.current?.(dx, dy);
-            } else if (!showInv) {
-              if (dx === 0 && dy === 0) act("wait");
-              else if (aRef.current) doDash(dx, dy);
-              else act("move", dx, dy);
-            }
-          });
-          return;
-        }
-        /* テンキーだがモーダル中など未処理 → 下の Arrow 分岐に落とさない */
-        if (npmCode && npm[npmCode] !== undefined) {
-          return;
-        }
-      }
+      /* ※ ダンジョン移動（テンキー含む）は全モーダル処理の「後」で行う。
+         ここでテンキーを return すると魔法欄・識別など後続モーダルが操作不能になる */
       if (nicknameMode) {
         // input要素がフォーカスを持つのでキー入力はinputが処理する。ESCのみ対応
         if (k === "escape") { e.preventDefault(); setNicknameMode(null); }
@@ -1663,39 +1598,62 @@ export function useKeyHandler({
         return;
       }
       if (showInv) return;
-      /* 矢印キー移動（テンキーは上で処理済み・ここには来ない） */
-      const km = {
-        arrowup: [0, -1],
-        arrowdown: [0, 1],
-        arrowleft: [-1, 0],
-        arrowright: [1, 0],
-      };
-      if (km[k]) {
-        e.preventDefault();
-        if (isNumpadEvent(e)) return;
-        if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode || (shopModeRef?.current ?? shopMode)) {
-          return;
-        }
-        /* Shift+矢印：2方向同時押しで斜め移動。1方向のみでは動かない */
-        if (shiftRef?.current) {
-          const _dmap = { arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right" };
-          if (arrowHeldRef) arrowHeldRef.current[_dmap[k]] = true;
-          const _h = arrowHeldRef?.current || {};
-          const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
-          const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
-          if (_sdx !== 0 && _sdy !== 0) {
-            tryDirAction(() => {
-              if (aRef.current) doDash(_sdx, _sdy);
-              else act("move", _sdx, _sdy);
-            });
+      /* ===== ダンジョン移動（テンキー・矢印をここで一度だけ処理） ===== */
+      if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode || (shopModeRef?.current ?? shopMode) || throwMode !== null) {
+        /* 投擲方向は throwMode ブロック側。ここでは移動しない */
+      } else {
+        const npm = {
+          Numpad1: [-1, 1], Numpad2: [0, 1], Numpad3: [1, 1],
+          Numpad4: [-1, 0], Numpad5: [0, 0], Numpad6: [1, 0],
+          Numpad7: [-1, -1], Numpad8: [0, -1], Numpad9: [1, -1],
+        };
+        const km = {
+          arrowup: [0, -1], arrowdown: [0, 1], arrowleft: [-1, 0], arrowright: [1, 0],
+        };
+        const _npmCardinal = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
+        let dx = null, dy = null;
+
+        if (isNumpadEvent(e)) {
+          const npmCode = (e.code && e.code.startsWith("Numpad"))
+            ? e.code
+            : ({ ArrowUp: "Numpad8", ArrowDown: "Numpad2", ArrowLeft: "Numpad4", ArrowRight: "Numpad6" }[e.key]);
+          if (npmCode && npm[npmCode] !== undefined) {
+            e.preventDefault();
+            /* Shift+テンキー縦横：2方向同時押しでのみ斜め */
+            if (shiftRef?.current && npmCode in _npmCardinal) {
+              if (arrowHeldRef) arrowHeldRef.current[_npmCardinal[npmCode]] = true;
+              const _h = arrowHeldRef?.current || {};
+              const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
+              const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
+              if (_sdx !== 0 && _sdy !== 0) { dx = _sdx; dy = _sdy; }
+              else { return; }
+            } else {
+              [dx, dy] = npm[npmCode];
+            }
           }
+        } else if (km[k]) {
+          e.preventDefault();
+          if (shiftRef?.current) {
+            const _dmap = { arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right" };
+            if (arrowHeldRef) arrowHeldRef.current[_dmap[k]] = true;
+            const _h = arrowHeldRef?.current || {};
+            const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
+            const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
+            if (_sdx !== 0 && _sdy !== 0) { dx = _sdx; dy = _sdy; }
+            else { return; }
+          } else {
+            [dx, dy] = km[k];
+          }
+        }
+
+        if (dx !== null && dy !== null) {
+          tryDirAction(() => {
+            if (dx === 0 && dy === 0) act("wait");
+            else if (aRef.current) doDash(dx, dy);
+            else act("move", dx, dy);
+          });
           return;
         }
-        tryDirAction(() => {
-          if (aRef.current) doDash(km[k][0], km[k][1]);
-          else act("move", km[k][0], km[k][1]);
-        });
-        return;
       }
       if (k === "w" && !showInv && !bigboxMode && !springMode && !throwMode && !putMode) {
         e.preventDefault();
