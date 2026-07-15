@@ -880,7 +880,7 @@ export function useItemActions({
           } else {
           setFloorSelectMode({ sel: p.depth });
           { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-            setMsgs((prev) => [...prev.slice(-80), ..._rp, "飛びたい階層を選んでください... (↑↓:選択 Z/Enter:決定)"]); }
+            setMsgs((prev) => [...prev.slice(-80), ..._rp, "訪れた階層から選んでください... (↑↓:選択 Z/Enter:決定)"]); }
           setSelIdx(null); setShowDesc(null); setShowInv(false);
           sr.current = { ...sr.current };
           setGs({ ...sr.current });

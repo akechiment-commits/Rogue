@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome, pickLootFromPool } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
-import { T, uid, rng, refreshFOV, getShops, randomTeleportDest } from "./utils.js";
+import { T, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
@@ -3273,28 +3273,40 @@ export function SettingsModal({ show, setShow, loadPortrait, clearPortrait, port
   );
 }
 
-/* ===== Floor Select Modal (cursed teleport) ===== */
+/* ===== Floor Select Modal (cursed teleport: visited floors only) ===== */
 export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, genDungeon, refreshFOV, rng }) {
   if (!mode) return null;
-  const MAX_FLOOR = sr.current?.maxDepth || 50;
+  const _p0 = sr.current?.player;
+  const visited = getVisitedFloors(sr.current, _p0?.depth);
+  const sel = visited.includes(mode.sel) ? mode.sel : (visited[visited.length - 1] ?? mode.sel);
   return (
     <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#111", border: "1px solid #550", borderRadius: 6, padding: "12px 20px", color: "#ffe", minWidth: 180, maxHeight: "70vh", overflowY: "auto" }}>
         <div style={{ color: "#fa0", fontWeight: "bold", marginBottom: 8, textAlign: "center" }}>階層テレポート【呪】</div>
-        <div style={{ color: "#888", fontSize: 13, marginBottom: 8, textAlign: "center" }}>↑↓:選択　Z/Enter:決定</div>
-        {Array.from({ length: MAX_FLOOR }, (_, i) => i + 1).map(f => (
+        <div style={{ color: "#888", fontSize: 13, marginBottom: 8, textAlign: "center" }}>訪れた階層のみ　↑↓:選択　Z/Enter:決定</div>
+        {visited.length === 0 ? (
+          <div style={{ color: "#888", textAlign: "center" }}>飛べる階層がない</div>
+        ) : visited.map(f => (
           <div key={f}
-            style={{ padding: "2px 8px", background: f === mode.sel ? "#443300" : "transparent", color: f === mode.sel ? "#ffcc00" : "#aaa", cursor: "pointer" }}
+            style={{ padding: "2px 8px", background: f === sel ? "#443300" : "transparent", color: f === sel ? "#ffcc00" : "#aaa", cursor: "pointer" }}
             onClick={() => {
               const { player: _p } = sr.current || {};
               if (!_p) return;
+              const _vis = getVisitedFloors(sr.current, _p.depth);
+              if (!_vis.includes(f)) {
+                setMsgs(prev => [...prev.slice(-80), "まだ訪れていない階層には飛べない！"]);
+                return;
+              }
               const _ml = [];
               if (!sr.current.floors) sr.current.floors = {};
               sr.current.floors[_p.depth] = sr.current.dungeon;
               const _saved = sr.current.floors[f];
-              let _d;
-              if (_saved) { _d = _saved; delete sr.current.floors[f]; }
-              else { _d = genDungeon(f - 1); }
+              if (!_saved) {
+                setMsgs(prev => [...prev.slice(-80), "その階層のデータがない！"]);
+                return;
+              }
+              const _d = _saved;
+              delete sr.current.floors[f];
               const _maxDFs = sr.current.maxDepth;
               if (_maxDFs !== null && f >= _maxDFs && !_d.isLastFloor) {
                 prepareLastFloor(_d, sr.current.dungeonType || "beginner");
@@ -3314,7 +3326,7 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
               setGs({ ...sr.current });
             }}
           >
-            {f === mode.sel ? "▶ " : "  "}{f}階
+            {f === sel ? "▶ " : "  "}{f}階
           </div>
         ))}
       </div>

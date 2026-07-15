@@ -366,6 +366,23 @@ export function corridorRange(depth) {
 }
 
 /**
+ * この冒険で既に訪れた階層一覧（昇順）。
+ * 現在階 + floors キャッシュに残っている階。
+ * @param {{ floors?: Record<string|number, unknown>, player?: { depth?: number } }|null} session
+ * @param {number} [currentDepth] 省略時は session.player.depth
+ */
+export function getVisitedFloors(session, currentDepth) {
+  const set = new Set();
+  const d = currentDepth ?? session?.player?.depth;
+  if (d != null && Number(d) > 0) set.add(Number(d));
+  for (const k of Object.keys(session?.floors || {})) {
+    const n = Number(k);
+    if (Number.isFinite(n) && n > 0) set.add(n);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+/**
  * @param {number} rad 廊下レイキャスト半径
  * @param {{ roomVision?: boolean }} [opts] roomVision 未指定時は rad>1 で部屋全体表示
  */

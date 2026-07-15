@@ -215,7 +215,7 @@ export const ITEMS = [
   { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n投げると命中した敵を鈍足にする。", tile:16 },
   { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n投げると命中した敵を金縛りにする。", tile:16 },
   { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"B", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。",           tile:17 },
-  { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"D", weight:8, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：好きな階層を選んで移動できる。",                         tile:18 },
+  { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"D", weight:8, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：この冒険で訪れた階層を選んで移動できる。",                         tile:18 },
   { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"C", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
   { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ防具・または＋値のつく指輪の＋値を1上げる。",  tile:18 },

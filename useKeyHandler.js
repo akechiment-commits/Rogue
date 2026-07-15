@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { MW, MH, T, rng, uid, refreshFOV, getShops } from "./utils.js";
+import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
   ITEMS, SPELLBOOKS, SPELLS, WANDS, POTS, TRAPS, BB_TYPES, RINGS,
@@ -10,7 +10,7 @@ import {
   extractPotContents, scatterPotContents,
 } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
-import { genDungeon, prepareLastFloor } from "./dungeon.js";
+import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 
@@ -175,20 +175,34 @@ export function useKeyHandler({
         e.preventDefault();
         const { player: _fsp } = sr.current || {};
         if (!_fsp) return;
-        const MAX_FLOOR = 30;
+        const _visited = getVisitedFloors(sr.current, _fsp.depth);
+        const _vIdx = Math.max(0, _visited.indexOf(floorSelectMode.sel));
         const isUp   = k === "arrowup"   || e.code === "Numpad8";
         const isDown = k === "arrowdown" || e.code === "Numpad2";
-        if (isUp)   { setFloorSelectMode({ sel: Math.max(1, floorSelectMode.sel - 1) }); return; }
-        if (isDown) { setFloorSelectMode({ sel: Math.min(MAX_FLOOR, floorSelectMode.sel + 1) }); return; }
+        if (isUp) {
+          if (_vIdx > 0) setFloorSelectMode({ sel: _visited[_vIdx - 1] });
+          return;
+        }
+        if (isDown) {
+          if (_vIdx < _visited.length - 1) setFloorSelectMode({ sel: _visited[_vIdx + 1] });
+          return;
+        }
         if (k === "z" || k === "enter") {
           const _f = floorSelectMode.sel;
+          if (!_visited.includes(_f)) {
+            setMsgs((prev) => [...prev.slice(-80), "まだ訪れていない階層には飛べない！"]);
+            return;
+          }
           const _ml = [];
           if (!sr.current.floors) sr.current.floors = {};
           sr.current.floors[_fsp.depth] = sr.current.dungeon;
           const _saved = sr.current.floors[_f];
-          let _d;
-          if (_saved) { _d = _saved; delete sr.current.floors[_f]; }
-          else { _d = genDungeon(_f - 1, sr.current.dungeonType || "beginner"); }
+          if (!_saved) {
+            setMsgs((prev) => [...prev.slice(-80), "その階層のデータがない！"]);
+            return;
+          }
+          const _d = _saved;
+          delete sr.current.floors[_f];
           const _maxDTp = sr.current.maxDepth;
           if (_maxDTp !== null && _f >= _maxDTp && !_d.isLastFloor) {
             prepareLastFloor(_d, sr.current.dungeonType || "beginner");
