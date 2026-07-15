@@ -263,7 +263,7 @@ export const ITEMS = [
   { name:"革の鎧",           type:"armor",  def:2,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
   { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"C", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。", tile:21 },
   { name:"プレートメイル",   type:"armor",  def:8,                       rarity:"B", weight:4,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
-  { name:"腹持ちの胴",       type:"armor",  def:3,  ability:"slow_hunger",   rarity:"B", weight:4,  sellPrice:1500, desc:"装備すると空腹の進行が半分になる特製の胴鎧。",    tile:21 },
+  { name:"腹持ちの胴",       type:"armor",  def:3,  ability:"slow_hunger",   rarity:"B", weight:4,  sellPrice:1500, desc:"装備すると空腹の進行が3/4になる。腹持ち指輪と重ねがけ可（2つで1/2、3つで1/4）。",    tile:21 },
   { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"B", weight:4, sellPrice:1000, desc:"雷ダメージを2/3に軽減（万能耐性併用で半減）。雷によるアイテム破壊を防ぐ。", tile:21 },
   { name:"ドラゴンメイル",   type:"armor",  def:8,  ability:"fire_resist",   rarity:"A", weight:2,  sellPrice:3000, desc:"竜の鱗製。炎ダメージを2/3に軽減（万能耐性併用で半減）。アイテムを炎から守る。", tile:21 },
   { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         rarity:"B", weight:4,  sellPrice:900,  desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
@@ -1040,7 +1040,7 @@ export const WEAPON_ABILITIES = [
 
 export const ARMOR_ABILITIES = [
   { id:"fire_resist",      name:"耐火",     desc:"炎ダメージ2/3（万能耐性併用で半減）。アイテムを炎から守る" },
-  { id:"slow_hunger",      name:"節食",     desc:"空腹の進行が半分になる" },
+  { id:"slow_hunger",      name:"節食",     desc:"空腹の進行が3/4になる（腹持ちと重ねがけ可）" },
   { id:"regen",            name:"回復",     desc:"毎ターン追加でHP+1回復する" },
   { id:"sleep_proof",      name:"眠れず",   desc:"睡眠効果を無効化する" },
   { id:"thorn",            name:"刃反射",   desc:"近接攻撃を受けた時にダメージの1/3を反射する" },
@@ -4513,10 +4513,10 @@ export const RINGS = [
   { name: "値切りの指輪",   type:"ring", effect:"bargain_ring",         rarity:"B", weight:2, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"C", weight:2, sellPrice:500,  tile:60, desc:"装備中、敵が現れやすくなる。" },
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"C", weight:2, sellPrice:500,  tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
-  { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、お腹の減り方と自然回復の量が倍になる。" },
+  { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、自然回復量が倍。空腹は腹持ち等の軽減後の速度がさらに2倍になる。" },
   { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"C", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
   { name: "松明の指輪",     type:"ring", effect:"torch_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、視界範囲が1マス広がる。2つ装備すれば2マス広がる。" },
-  { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、満腹度の減りが半分になる。" },
+  { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、空腹の進行が3/4になる。複数・胴と重ねがけ可（2つで1/2、3つで1/4）。" },
   { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"S", weight:2, sellPrice:10000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
   { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"S", weight:2, sellPrice:10000, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
   { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"A", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
@@ -4527,6 +4527,24 @@ export const RINGS = [
 
 export function hasRingEffect(p, effect) {
   return p.rings?.some(r => r.effect === effect) ?? false;
+}
+
+/**
+ * 1ターンあたりの空腹進行レート（基準: 合計10で満腹度-1 ≒ 通常10ターンに1）。
+ * 腹持ち1つにつき ×3/4（胴+指輪1=1/2、胴+指輪2=1/4）。バターでさらに×1/2。
+ * 回復の指輪は軽減後のレートを×2（上書きしない）。
+ */
+export function calcHungerDrainRate(p) {
+  if (!p) return 1;
+  let n = 0;
+  if (hasAbility(p.armor, "slow_hunger")) n++;
+  for (const r of p.rings || []) {
+    if (r?.effect === "stomach_ring") n++;
+  }
+  let rate = Math.max(0, 4 - n) / 4;
+  if ((p.butterHungerTurns || 0) > 0) rate *= 0.5;
+  if (hasRingEffect(p, "regen_ring")) rate *= 2;
+  return rate;
 }
 
 /* ===== 食料の腐敗 ===== */

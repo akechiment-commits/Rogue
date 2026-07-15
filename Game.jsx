@@ -20,7 +20,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
+  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
@@ -1438,23 +1438,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _etStartHp = p.hp;
       p.turns++;
       const _hasRegenRing = hasRingEffect(p, "regen_ring");
-      const _hasStomachRing = hasRingEffect(p, "stomach_ring");
-      const _butterMul = (p.butterHungerTurns || 0) > 0 ? 2 : 1;
-      const hd =
-        hasAbility(p.armor, "slow_hunger")
-          ? 2 * _butterMul
-          : _hasRegenRing ? 0.5  /* 回復の指輪：空腹が2倍速 */
-          : 1 * _butterMul;
-      /* hd < 1 の場合は整数 turns でのチェックができないので別処理 */
-      if (_hasRegenRing) {
-        if (p.turns % 5 === 0) p.hunger = Math.max(0, p.hunger - 1);
-      } else if (_hasStomachRing) {
-        /* 腹持ちの指輪：空腹が半分速（20ターンに1減少） */
-        if (p.turns % 20 === 0) p.hunger = Math.max(0, p.hunger - 1);
-      } else {
-        if (p.turns % (10 * hd) === 0) {
-          p.hunger = Math.max(0, p.hunger - 1);
-        }
+      /* 腹持ち: 1つにつきハラヘリ×3/4（胴+指輪=1/2、胴+指輪2=1/4）。バター×1/2。回復指輪は軽減後×2 */
+      const _hRate = calcHungerDrainRate(p);
+      p._hungerTick = (p._hungerTick || 0) + _hRate;
+      while (p._hungerTick >= 10) {
+        p._hungerTick -= 10;
+        p.hunger = Math.max(0, p.hunger - 1);
       }
       /* 大食い武器：5ターンごとに追加で満腹度-1（約2倍速） */
       if (hasAbility(p.weapon, "gluttony") && p.turns % 5 === 0) {
