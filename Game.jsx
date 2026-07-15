@@ -12,7 +12,7 @@ import {
   _resolveMonsterWandBolt,
 } from "./monsters.js";
 import {
-  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS,
+  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
@@ -2050,7 +2050,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   if (_dg2.pentacles?.some(pc3 => pc3.x === _tx2 && pc3.y === _ty2)) continue;
                   if (_dg2.oilyTiles?.some(t => t.x === _tx2 && t.y === _ty2)) continue;
                   if (_dg2.statues?.some(s => s.x === _tx2 && s.y === _ty2)) continue;
-                  const _td2 = pick(TRAPS);
+                  const _td2 = pickTrap();
                   _dg2.traps.push({ ..._td2, id: uid(), x: _tx2, y: _ty2, revealed: false });
                   _placed = true;
                 }

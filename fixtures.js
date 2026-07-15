@@ -3,7 +3,7 @@
  */
 import { rng, pick, uid, MW, MH, T } from "./utils.js";
 /* items.js との循環 import を避けるため、TRAPS/ITEMS のみ参照し placeItemAt は使わない */
-import { TRAPS, pickLootFromPool, ITEMS, WANDS } from "./items.js";
+import { TRAPS, pickLootFromPool, pickTrap, ITEMS, WANDS } from "./items.js";
 
 /* monsters.js 側で登録する。fixtures -> monsters の循環 import を避ける。 */
 
@@ -32,7 +32,7 @@ export function makeFakeStairTrap(x, y, dir = "down") {
 export function materializeFakeStair(trap) {
   if (!trap || trap.effect !== "fake_stair") return trap;
   const pool = TRAPS.filter((t) => t.effect !== "fake_stair");
-  const t = pick(pool.length ? pool : TRAPS);
+  const t = pickTrap(pool.length ? pool : TRAPS);
   const id = trap.id, x = trap.x, y = trap.y;
   Object.keys(trap).forEach((k) => { delete trap[k]; });
   Object.assign(trap, { ...t, id, x, y, revealed: true });

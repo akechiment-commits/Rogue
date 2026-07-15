@@ -455,10 +455,10 @@ const statusData = [
 addSheet('09_状態異常', statusData);
 
 // ===== 罠（Trap）=====
-const trapData = [['罠名', 'effect', 'タイル', '効果']];
-trapData.push(['【共通】', '-', '-', '未発見は踏むと発動。発見済みは歩いても上に乗るだけ（重力の魔方陣下は作動）。回転板・地雷は踏むと敵ターン後に発動。破壊判定は発動処理の直後（地雷は爆発・誘爆後）25%（盗み・召喚は50%）。']);
+const trapData = [['罠名', 'effect', 'rarity', 'weight', 'タイル', '効果']];
+trapData.push(['【共通】', '-', '-', '-', '-', '未発見は踏むと発動。発見済みは歩いても上に乗るだけ（重力の魔方陣下は作動）。回転板・地雷は踏むと敵ターン後に発動。破壊判定は発動処理の直後（地雷は爆発・誘爆後）25%（盗み・召喚は50%）。生成は rarity/weight による weight 抽選（E:12 D:8 C:4 B:2 A:1）。']);
 for (const t of TRAPS) {
-  trapData.push([t.name, t.effect, t.tile, guideDesc(t) || '']);
+  trapData.push([t.name, t.effect, t.rarity || '', t.weight ?? '', t.tile, guideDesc(t) || '']);
 }
 
 addSheet('10_罠', trapData);

@@ -3,7 +3,7 @@ import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
-  getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, isStatusImmune, weakenOrClearParalysis,
+  getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
   hasFireResist, hasLightningResist, hasIceResist,
@@ -717,7 +717,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
-        const nt = pick(TRAPS);
+        const nt = pickTrap();
         ml.push(`${target.name}は${nt.name}に変化した！`);
         Object.assign(target, { ...nt, id:target.id, x:target.x, y:target.y, revealed:true });
         break;

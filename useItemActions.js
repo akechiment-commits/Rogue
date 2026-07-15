@@ -3,7 +3,7 @@ import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbi
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
-  EMPTY_BOTTLE, SPELLS, TRAPS,
+  EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWandEffect, applyWaterSplash, breakWandAoE, triggerWandBreakEffect, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, fireWandBolt, trapStepBreakChance,
@@ -1571,7 +1571,7 @@ export function useItemActions({
             if (dg.traps.some(t => t.x === _tx && t.y === _ty)) continue;
             if (dg.items.some(i => i.x === _tx && i.y === _ty)) continue;
             if (dg.oilyTiles?.some(t => t.x === _tx && t.y === _ty)) continue;
-            const _td = pick(TRAPS);
+            const _td = pickTrap();
             dg.traps.push({ ..._td, id: uid(), x: _tx, y: _ty, revealed: false });
             _placed++;
           }
