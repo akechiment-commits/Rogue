@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { MW, MH, T, rng, uid, refreshFOV, getShops } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
@@ -13,6 +13,14 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { genDungeon, prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+
+/** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
+const LOC_NUMPAD = 3;
+
+/** テンキー由来か（NumLock OFF で key が Arrow* になっても code/location で判定） */
+function isNumpadEvent(e) {
+  return e.location === LOC_NUMPAD || !!(e.code && e.code.startsWith("Numpad"));
+}
 
 export function useKeyHandler({
   // refs
@@ -42,6 +50,19 @@ export function useKeyHandler({
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
   bigboxPutItem, sortInventory, getLookDesc, lu,
 }) {
+  /* handleKey を ref 経由で呼び、listener を1本に固定（再bind・HMR多重登録でN回動くのを防ぐ） */
+  const handleKeyRef = useRef(null);
+  /* 同一キー連鎖での二重／三重移動防止 */
+  const dirActionLockRef = useRef(0);
+
+  const tryDirAction = (fn) => {
+    const now = performance.now();
+    if (now - dirActionLockRef.current < 40) return false;
+    dirActionLockRef.current = now;
+    fn();
+    return true;
+  };
+
   const canUse = (it) =>
     ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(it.type);
   const useLabel = (it) => {
@@ -58,6 +79,8 @@ export function useKeyHandler({
   };
   const handleKey = useCallback(
     (e) => {
+      /* keyup 以外の keydown 自動連打は1アクションに制限（押しっぱなし歩行は anim 後に再入力） */
+      if (e.repeat) return;
       const k = e.key.toLowerCase();
       if (k === "shift") {
         shiftRef.current = true;
@@ -550,9 +573,8 @@ export function useKeyHandler({
         e.preventDefault();
         return;
       }
-      /* テンキー移動（唯一の経路）。下の Arrow 分岐と二重にしないこと。
-         NumLock OFF では e.key が Arrow* になるため、Arrow 側は code=Numpad* を無視する。 */
-      if (e.code && e.code.startsWith("Numpad")) {
+      /* テンキー移動（唯一の経路）。Arrow 分岐では isNumpadEvent を必ず除外すること。 */
+      if (isNumpadEvent(e)) {
         const npm = {
           Numpad1: [-1, 1],
           Numpad2: [0, 1],
@@ -564,9 +586,14 @@ export function useKeyHandler({
           Numpad8: [0, -1],
           Numpad9: [1, -1],
         };
+        /* code が Arrow* のまま location=NUMPAD の環境もあるので code 優先、なければ key から */
+        const npmCode = (e.code && e.code.startsWith("Numpad"))
+          ? e.code
+          : ({ ArrowUp: "Numpad8", ArrowDown: "Numpad2", ArrowLeft: "Numpad4", ArrowRight: "Numpad6" }[e.key]);
         const _npmCardinal = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
         if (
-          npm[e.code] !== undefined &&
+          npmCode &&
+          npm[npmCode] !== undefined &&
           !putMode &&
           !springMode &&
           !bigboxMode &&
@@ -579,28 +606,36 @@ export function useKeyHandler({
         ) {
           e.preventDefault();
           /* Shift+テンキー縦横：2方向同時押しでのみ斜め移動。縦横対角キー(1/3/7/9)はそのまま */
-          if (shiftRef?.current && e.code in _npmCardinal) {
-            if (arrowHeldRef) arrowHeldRef.current[_npmCardinal[e.code]] = true;
+          if (shiftRef?.current && npmCode in _npmCardinal) {
+            if (arrowHeldRef) arrowHeldRef.current[_npmCardinal[npmCode]] = true;
             const _h = arrowHeldRef?.current || {};
             const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
             const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
             if (_sdx !== 0 && _sdy !== 0) {
-              if (throwMode !== null) execRef.current?.(_sdx, _sdy);
-              else if (!showInv) {
-                if (aRef.current) doDash(_sdx, _sdy);
-                else act("move", _sdx, _sdy);
-              }
+              tryDirAction(() => {
+                if (throwMode !== null) execRef.current?.(_sdx, _sdy);
+                else if (!showInv) {
+                  if (aRef.current) doDash(_sdx, _sdy);
+                  else act("move", _sdx, _sdy);
+                }
+              });
             }
             return;
           }
-          const [dx, dy] = npm[e.code];
-          if (throwMode !== null) {
-            execRef.current?.(dx, dy);
-          } else if (!showInv) {
-            if (dx === 0 && dy === 0) act("wait");
-            else if (aRef.current) doDash(dx, dy);
-            else act("move", dx, dy);
-          }
+          const [dx, dy] = npm[npmCode];
+          tryDirAction(() => {
+            if (throwMode !== null) {
+              execRef.current?.(dx, dy);
+            } else if (!showInv) {
+              if (dx === 0 && dy === 0) act("wait");
+              else if (aRef.current) doDash(dx, dy);
+              else act("move", dx, dy);
+            }
+          });
+          return;
+        }
+        /* テンキーだがモーダル中など未処理 → 下の Arrow 分岐に落とさない */
+        if (npmCode && npm[npmCode] !== undefined) {
           return;
         }
       }
@@ -1602,10 +1637,7 @@ export function useKeyHandler({
         };
         if (km[k]) {
           e.preventDefault();
-          /* NumLock OFF のテンキーは e.key が Arrow* になる → 上で処理済み */
-          if (e.code && e.code.startsWith("Numpad")) {
-            return;
-          }
+          if (isNumpadEvent(e)) return;
           if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode) {
             return;
           }
@@ -1616,10 +1648,12 @@ export function useKeyHandler({
             const _h = arrowHeldRef?.current || {};
             const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
             const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
-            if (_sdx !== 0 && _sdy !== 0) execRef.current?.(_sdx, _sdy);
+            if (_sdx !== 0 && _sdy !== 0) {
+              tryDirAction(() => execRef.current?.(_sdx, _sdy));
+            }
             return;
           }
-          execRef.current?.(km[k][0], km[k][1]);
+          tryDirAction(() => execRef.current?.(km[k][0], km[k][1]));
         }
         return;
       }
@@ -1629,8 +1663,7 @@ export function useKeyHandler({
         return;
       }
       if (showInv) return;
-      /* テンキー移動は上の Numpad ブロックで処理済み。
-         NumLock OFF 時は e.key が Arrow* になるため、ここで再度動かすと2マス進む */
+      /* 矢印キー移動（テンキーは上で処理済み・ここには来ない） */
       const km = {
         arrowup: [0, -1],
         arrowdown: [0, 1],
@@ -1639,9 +1672,7 @@ export function useKeyHandler({
       };
       if (km[k]) {
         e.preventDefault();
-        if (e.code && e.code.startsWith("Numpad")) {
-          return;
-        }
+        if (isNumpadEvent(e)) return;
         if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode || (shopModeRef?.current ?? shopMode)) {
           return;
         }
@@ -1653,16 +1684,17 @@ export function useKeyHandler({
           const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
           const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
           if (_sdx !== 0 && _sdy !== 0) {
-            if (aRef.current) doDash(_sdx, _sdy);
-            else act("move", _sdx, _sdy);
+            tryDirAction(() => {
+              if (aRef.current) doDash(_sdx, _sdy);
+              else act("move", _sdx, _sdy);
+            });
           }
           return;
         }
-        if (aRef.current) {
-          doDash(km[k][0], km[k][1]);
-        } else {
-          act("move", km[k][0], km[k][1]);
-        }
+        tryDirAction(() => {
+          if (aRef.current) doDash(km[k][0], km[k][1]);
+          else act("move", km[k][0], km[k][1]);
+        });
         return;
       }
       if (k === "w" && !showInv && !bigboxMode && !springMode && !throwMode && !putMode) {
@@ -1780,8 +1812,11 @@ export function useKeyHandler({
       performGameOverReturnToHub,
     ],
   );
+  handleKeyRef.current = handleKey;
+  /* listener はマウント時1本のみ（handleKey の identity 変更で増えない） */
   useEffect(() => {
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [handleKey]);
+    const onKeyDown = (e) => handleKeyRef.current?.(e);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 }

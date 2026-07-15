@@ -3466,7 +3466,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (drainHungerWarn() || drainPinchAlert()) setRevealMode({ pendingMsgs: [] });
       /* Play animations if any were queued */
       const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
-      if (_hasAnim) playAnim(_ad);
+      if (_hasAnim) {
+        /* playAnim の非同期開始前に同期でロックし、同一キー連打で複数 act が通るのを防ぐ */
+        animBusyRef.current = true;
+        playAnim(_ad);
+      }
     },
     [
       dead,
