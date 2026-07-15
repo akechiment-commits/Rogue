@@ -3248,12 +3248,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m._defHalfMagicReady = true;
         return;
       }
-      /* pentaclePainter：同部屋で25%魔方陣描画を予約（何もない床のときだけ） */
+      /* pentaclePainter：同部屋で25%魔方陣描画を予約（足元の状態に関係なく同じ確率で試行） */
       if (m.subtype === "pentaclePainter" && !m.sealed && _sameRoom && _rAtks && Math.random() < 0.25) {
-        if (!isPentacleDrawBlocked(dg, m.x, m.y)) {
-          m._pentacleDrawReady = true;
-          return;
-        }
+        m._pentacleDrawReady = true;
+        return;
       }
     }
     /* ドラゴンLv3：canSee不要なので別途判定 */
@@ -4033,27 +4031,30 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               pc.x >= _ppRoom.x && pc.x < _ppRoom.x + _ppRoom.w &&
               pc.y >= _ppRoom.y && pc.y < _ppRoom.y + _ppRoom.h
             ));
+          /* 描画試行は1回分の行動（成功も失敗も turnAttacks 消費・隣接攻撃にはしない） */
+          m.turnAttacks++;
           if (_ppSeal) {
             ml.push(`${m.name}の魔方陣が魔封じの魔方陣に封じられた！`);
-          } else if (isPentacleDrawBlocked(dg, m.x, m.y)) {
-            /* 階段・アイテム・罠などがあると描けない */
-            ml.push(`${m.name}が魔方陣を描こうとしたが足元に別のものがあって失敗した！`);
-          } else {
-            m.turnAttacks++;
-            const _ppLv = m.monLevel || 1;
-            const _ppKinds1 = [["heal_aura","回復の魔方陣"],["stone_throw","石飛ばしの魔方陣"],["dodge","みかわしの魔方陣"],["light","明かりの魔方陣"]];
-            const _ppKinds2 = [["trap_gen","罠の魔方陣"],["gravity","重力の魔方陣"],["farcast","遠投の魔方陣"],["equal_speed","等速の魔方陣"]];
-            const _ppKinds3 = [["sanctuary","聖域の魔方陣"],["light","明かりの魔方陣"],["heal_aura","回復の魔方陣"],["teleport_trap","テレポートの魔方陣"]];
-            const _ppPool = _ppLv >= 3 ? _ppKinds3 : _ppLv >= 2 ? _ppKinds2 : _ppKinds1;
-            const [_ppKind, _ppName] = pick(_ppPool);
-            const _ppCursed = _ppLv >= 3;
-            dg.pentacles = dg.pentacles || [];
-            dg.pentacles.push({ x: m.x, y: m.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed });
-            ml.push(`${m.name}が足元に${_ppName}を描いた！`);
             return;
           }
+          if (isPentacleDrawBlocked(dg, m.x, m.y)) {
+            /* 階段・アイテム・罠など → 普通に書こうとして失敗（無駄行動） */
+            ml.push(`${m.name}が魔方陣を描こうとしたが足元に別のものがあって失敗した！`);
+            return;
+          }
+          const _ppLv = m.monLevel || 1;
+          const _ppKinds1 = [["heal_aura","回復の魔方陣"],["stone_throw","石飛ばしの魔方陣"],["dodge","みかわしの魔方陣"],["light","明かりの魔方陣"]];
+          const _ppKinds2 = [["trap_gen","罠の魔方陣"],["gravity","重力の魔方陣"],["farcast","遠投の魔方陣"],["equal_speed","等速の魔方陣"]];
+          const _ppKinds3 = [["sanctuary","聖域の魔方陣"],["light","明かりの魔方陣"],["heal_aura","回復の魔方陣"],["teleport_trap","テレポートの魔方陣"]];
+          const _ppPool = _ppLv >= 3 ? _ppKinds3 : _ppLv >= 2 ? _ppKinds2 : _ppKinds1;
+          const [_ppKind, _ppName] = pick(_ppPool);
+          const _ppCursed = _ppLv >= 3;
+          dg.pentacles = dg.pentacles || [];
+          dg.pentacles.push({ x: m.x, y: m.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed });
+          ml.push(`${m.name}が足元に${_ppName}を描いた！`);
+          return;
         }
-        /* 魔封じ or 既存魔方陣 or 不発 → 隣接なら通常攻撃 */
+        /* 描画予約なし → 隣接なら通常攻撃 */
         if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc) {
           m.turnAttacks++;
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
