@@ -550,6 +550,8 @@ export function useKeyHandler({
         e.preventDefault();
         return;
       }
+      /* テンキー移動（唯一の経路）。下の Arrow 分岐と二重にしないこと。
+         NumLock OFF では e.key が Arrow* になるため、Arrow 側は code=Numpad* を無視する。 */
       if (e.code && e.code.startsWith("Numpad")) {
         const npm = {
           Numpad1: [-1, 1],
@@ -569,7 +571,11 @@ export function useKeyHandler({
           !springMode &&
           !bigboxMode &&
           !markerMode &&
-          !tpSelectMode
+          !tpSelectMode &&
+          !spellListMode &&
+          !debugSpellMode &&
+          !msgLogMode &&
+          !(shopModeRef?.current ?? shopMode)
         ) {
           e.preventDefault();
           /* Shift+テンキー縦横：2方向同時押しでのみ斜め移動。縦横対角キー(1/3/7/9)はそのまま */
@@ -1576,6 +1582,7 @@ export function useKeyHandler({
         const _npmThrowCard = { Numpad8: "up", Numpad2: "down", Numpad4: "left", Numpad6: "right" };
         if (e.code in numpadThrow) {
           e.preventDefault();
+          /* 投擲方向もテンキーは1回だけ（下の Arrow 分岐と二重にしない） */
           if (shiftRef?.current && e.code in _npmThrowCard) {
             if (arrowHeldRef) arrowHeldRef.current[_npmThrowCard[e.code]] = true;
             const _h = arrowHeldRef?.current || {};
@@ -1595,6 +1602,10 @@ export function useKeyHandler({
         };
         if (km[k]) {
           e.preventDefault();
+          /* NumLock OFF のテンキーは e.key が Arrow* になる → 上で処理済み */
+          if (e.code && e.code.startsWith("Numpad")) {
+            return;
+          }
           if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode) {
             return;
           }
@@ -1618,29 +1629,8 @@ export function useKeyHandler({
         return;
       }
       if (showInv) return;
-      const numpadGame = {
-        Numpad1: [-1, 1],
-        Numpad2: [0, 1],
-        Numpad3: [1, 1],
-        Numpad4: [-1, 0],
-        Numpad5: null,
-        Numpad6: [1, 0],
-        Numpad7: [-1, -1],
-        Numpad8: [0, -1],
-        Numpad9: [1, -1],
-      };
-      if (e.code in numpadGame && !bigboxMode && !springMode && !putMode && !markerMode && !spellListMode && !debugSpellMode && !msgLogMode && !(shopModeRef?.current ?? shopMode)) {
-        e.preventDefault();
-        const nd = numpadGame[e.code];
-        if (nd === null) {
-          act("wait");
-        } else if (aRef.current) {
-          doDash(nd[0], nd[1]);
-        } else {
-          act("move", nd[0], nd[1]);
-        }
-        return;
-      }
+      /* テンキー移動は上の Numpad ブロックで処理済み。
+         NumLock OFF 時は e.key が Arrow* になるため、ここで再度動かすと2マス進む */
       const km = {
         arrowup: [0, -1],
         arrowdown: [0, 1],
@@ -1649,6 +1639,9 @@ export function useKeyHandler({
       };
       if (km[k]) {
         e.preventDefault();
+        if (e.code && e.code.startsWith("Numpad")) {
+          return;
+        }
         if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode || (shopModeRef?.current ?? shopMode)) {
           return;
         }
