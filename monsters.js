@@ -604,7 +604,8 @@ export const MONS = [
   { name: "ゴースト",     hp: 38,  atk: 18, def: 5,  exp: 45,  speed: 1,   tile: 68, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 20 } },
     levels: [
       { name: "ファントム",         hp: 61,  atk: 25, def: 9,  exp: 72  },
-      { name: "ミラージュ",         hp: 95,  atk: 32, def: 13, exp: 113, speed: 2 },
+      /* 長居罰の最上位壁抜け：高耐久・高火力・2行動。壁・他敵を迂回して接近 */
+      { name: "ミラージュ",         hp: 160, atk: 50, def: 22, exp: 220, speed: 2 },
     ],
   },
   { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 19 } },
@@ -3013,7 +3014,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.aware = true;
   }
 
-  /* ===== 壁歩き（岩霊等）：壁を無視してプレイヤーに直進 ===== */
+  /* ===== 壁歩き（ゴースト系）：壁を無視して接近。他モンスター・聖域は迂回 ===== */
   if (m.wallWalker && !_plPotHidden) {
     /* 隣接していれば攻撃 */
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
@@ -3027,19 +3028,38 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
       if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
-      /* 2回目以降は移動のみ → 直進コードへフォールスルー */
+      /* 2回目以降は移動のみ → 経路探索へフォールスルー */
     }
     if (!_attackOnly) {
-      /* 壁を無視してプレイヤーへ1歩直進 */
-      const _wdx = Math.sign(pl.x - m.x), _wdy = Math.sign(pl.y - m.y);
-      if (_wdx !== 0 || _wdy !== 0) {
-        const _wnx = m.x + _wdx, _wny = m.y + _wdy;
-        if (_wnx > 0 && _wnx < MW - 1 && _wny > 0 && _wny < MH - 1 &&
-            !(_wnx === pl.x && _wny === pl.y) &&
-            !dg.monsters.some(o => o !== m && o.x === _wnx && o.y === _wny) &&
-            !(!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _wnx && pc.y === _wny))) {
-          m.x = _wnx; m.y = _wny;
+      /* 外周・破壊不能壁以外は壁も含め通行可（他モンスターは bfsNext が迂回） */
+      const _wwCan = (x, y) =>
+        x > 0 && x < MW - 1 && y > 0 && y < MH - 1 &&
+        dg.map[y]?.[x] !== T.BWALL;
+      const _wwOk = (nx, ny) =>
+        _wwCan(nx, ny) &&
+        !(nx === pl.x && ny === pl.y) &&
+        !dg.monsters.some(o => o !== m && o.x === nx && o.y === ny) &&
+        !(!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny));
+      const _wn = bfsNext(
+        dg.map, dg.monsters, m.x, m.y, pl.x, pl.y, m,
+        40, dg.pentacles, false, _wwCan, true, dg.rooms, dg
+      );
+      if (_wn && _wwOk(_wn.x, _wn.y)) {
+        m.x = _wn.x; m.y = _wn.y;
+      } else {
+        /* BFS失敗時：周囲8方向でプレイヤー距離が縮まる空きマスへ */
+        const _oldD = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+        let _best = null, _bestD = _oldD;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = m.x + dx, ny = m.y + dy;
+            if (!_wwOk(nx, ny)) continue;
+            const d = Math.max(Math.abs(pl.x - nx), Math.abs(pl.y - ny));
+            if (d < _bestD) { _bestD = d; _best = { x: nx, y: ny }; }
+          }
         }
+        if (_best) { m.x = _best.x; m.y = _best.y; }
       }
     }
     return;
