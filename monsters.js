@@ -2137,6 +2137,22 @@ function isStationaryGrabber(m) {
   return m && (m.subtype === "grabber" || m.baseKind === "grabber");
 }
 
+/** 魔方陣を描ける空床か（プレイヤーのペンと同じ：階段・アイテム・罠等があると不可） */
+function isPentacleDrawBlocked(dg, x, y) {
+  if (!dg?.map) return true;
+  const tile = dg.map[y]?.[x];
+  if (tile === T.WALL || tile === T.BWALL || tile === T.SD || tile === T.SU || tile === T.WATER) return true;
+  if (dg.items?.some(i => i.x === x && i.y === y)) return true;
+  if (dg.traps?.some(t => t.x === x && t.y === y)) return true;
+  if (dg.springs?.some(s => s.x === x && s.y === y)) return true;
+  if (dg.bigboxes?.some(b => b.x === x && b.y === y)) return true;
+  if (dg.oilyTiles?.some(t => t.x === x && t.y === y)) return true;
+  if (dg.statues?.some(s => s.x === x && s.y === y)) return true;
+  if (dg.vents?.some(v => v.x === x && v.y === y)) return true;
+  if (dg.pentacles?.some(pc => pc.x === x && pc.y === y)) return true;
+  return false;
+}
+
 /** 長時間停滞／往復時に別方向へ1歩逃がす */
 function tryUnstickMove(m, dg, pl, float = false) {
   if (!m || !dg) return false;
@@ -3232,10 +3248,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m._defHalfMagicReady = true;
         return;
       }
-      /* pentaclePainter：同部屋で25%魔方陣描画を予約（移動せず攻撃フェーズで発動） */
+      /* pentaclePainter：同部屋で25%魔方陣描画を予約（何もない床のときだけ） */
       if (m.subtype === "pentaclePainter" && !m.sealed && _sameRoom && _rAtks && Math.random() < 0.25) {
-        m._pentacleDrawReady = true;
-        return;
+        if (!isPentacleDrawBlocked(dg, m.x, m.y)) {
+          m._pentacleDrawReady = true;
+          return;
+        }
       }
     }
     /* ドラゴンLv3：canSee不要なので別途判定 */
@@ -4017,8 +4035,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             ));
           if (_ppSeal) {
             ml.push(`${m.name}の魔方陣が魔封じの魔方陣に封じられた！`);
-          } else if (dg.pentacles?.some(pc => pc.x === m.x && pc.y === m.y)) {
-            /* 自分の足元に既に魔方陣あり → 描けない */
+          } else if (isPentacleDrawBlocked(dg, m.x, m.y)) {
+            /* 階段・アイテム・罠などがあると描けない */
+            ml.push(`${m.name}が魔方陣を描こうとしたが足元に別のものがあって失敗した！`);
           } else {
             m.turnAttacks++;
             const _ppLv = m.monLevel || 1;
