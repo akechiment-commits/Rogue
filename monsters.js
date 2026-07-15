@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
@@ -1358,34 +1358,95 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
   });
 }
 
-/* ===== MONSTER STONE THROW (ワッカ) — 風で軌道が変わる ===== */
+/* ===== MONSTER STONE THROW (ワッカ) — ホーミング。風は本来の着弾点にあるときだけ曲がる ===== */
 function monsterThrowStone(m, dg, pl, ml) {
   const lvl = m.monLevel || 1;
   const isMagic = lvl >= 3;
   const hitChance = 0.80;
   const stoneName = isMagic ? "魔法の石" : "石";
   const dropStone = () => isMagic ? makeMagicStone(1) : makeStone(1);
-  let _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
-  if (_fdx === 0 && _fdy === 0) _fdy = 1;
-  /* 風で標的を外しても、狙った距離を超えて飛び続けない。 */
-  const maxR = Math.max(1, Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+  const color = isMagic ? "#cc88ff" : "#aaaaaa";
+  /* 本来の着弾点＝投げた瞬間のプレイヤー位置（ここで風があれば曲がる） */
+  const aimX = pl.x, aimY = pl.y;
+  const windAtAim = getWindAt(dg, aimX, aimY);
   ml.push(`${m.name}が${stoneName}を投げた！`);
-  pushMonsterBoltAnim(m.x, m.y, _fdx, _fdy, dg, pl, isMagic ? "#cc88ff" : "#aaaaaa", { wind: true, range: maxR });
 
-  let _cx = m.x, _cy = m.y, _windMsg = false;
-  let _lx = m.x, _ly = m.y;
-  for (let d = 1; d <= maxR; d++) {
-    const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy, { wind: true });
-    if (_st.bent && !_windMsg) { ml.push("風穴の風が石の軌道を変えた！"); _windMsg = true; }
-    _fdx = _st.dx; _fdy = _st.dy;
-    const tx = _st.x, ty = _st.y;
-    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) {
-      const _sd = safeArrowDrop(_lx, _ly, dg);
+  const _hitPlayer = () => {
+    const _stDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
+    if (_stDodgePcMode === "dodge") {
+      ml.push(`みかわしの魔方陣の加護で${m.name}の${stoneName}をかわした！${stoneName}が落ちた。`);
+      const _sd = safeArrowDrop(pl.x, pl.y, dg);
       _monDropWithSpring(_sd, dropStone(), dg, ml);
-      ml.push(`${stoneName}は壁に当たって落ちた。`);
       return;
     }
-    _cx = tx; _cy = ty; _lx = tx; _ly = ty;
+    const _stSanc = !inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
+    if (_stSanc) {
+      const _sd = safeArrowDrop(pl.x, pl.y, dg);
+      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
+      return;
+    }
+    const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+    if (dodged) {
+      ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
+      const _sd = safeArrowDrop(pl.x, pl.y, dg);
+      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      return;
+    }
+    const miss = _stDodgePcMode !== "sure" && Math.random() >= hitChance;
+    if (miss) {
+      ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
+      const _sd = safeArrowDrop(pl.x, pl.y, dg);
+      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      return;
+    }
+    const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
+    const _stBonus = isMagic ? 5 : 3;
+    const _stAp = m.atk + _stBonus;
+    const _stPdef = calcPlayerDef(pl);
+    let dmg = calcAtkDefDmg(_stAp, _stPdef, { defWeight: 1.5 });
+    if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
+    pl.deathCause = `${m.name}の石投げで`;
+    pl.hp -= dmg;
+    ml.push(`${m.name}の${stoneName}が命中！${dmg}ダメージ！`);
+    if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+    if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  };
+
+  let fdx = Math.sign(pl.x - m.x), fdy = Math.sign(pl.y - m.y);
+  if (fdx === 0 && fdy === 0) fdy = 1;
+  let cx = m.x, cy = m.y, lx = m.x, ly = m.y;
+  let deflected = false;
+  let windMsg = false;
+  const path = [{ x: m.x, y: m.y }];
+  const maxSteps = MW + MH;
+
+  for (let d = 1; d <= maxSteps; d++) {
+    if (!deflected) {
+      /* ホーミング：毎マスプレイヤーへ向きを更新（途中の風は無視） */
+      fdx = Math.sign(pl.x - cx);
+      fdy = Math.sign(pl.y - cy);
+      if (fdx === 0 && fdy === 0) {
+        /* 同一マス＝既に重なっている扱いで命中処理 */
+        _hitPlayer();
+        if (path.length > 1) {
+          pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: cx, toY: cy, color, path });
+        }
+        return;
+      }
+    }
+    const tx = cx + fdx, ty = cy + fdy;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH || dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) {
+      const _sd = safeArrowDrop(lx, ly, dg);
+      _monDropWithSpring(_sd, dropStone(), dg, ml);
+      ml.push(`${stoneName}は壁に当たって落ちた。`);
+      if (path.length > 1) {
+        pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: lx, toY: ly, color, path });
+      }
+      return;
+    }
+    cx = tx; cy = ty; lx = tx; ly = ty;
+    path.push({ x: tx, y: ty });
 
     /* 自分に戻った */
     if (tx === m.x && ty === m.y) {
@@ -1394,6 +1455,7 @@ function monsterThrowStone(m, dg, pl, ml) {
       m.hp -= dmg;
       ml.push(`風に煽られた${stoneName}が${m.name}自身に当たった！${dmg}ダメージ！`);
       if (m.hp <= 0) killMonster(m, dg, pl, ml, null, false, null);
+      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
       return;
     }
 
@@ -1401,6 +1463,7 @@ function monsterThrowStone(m, dg, pl, ml) {
     if (statueAt(dg, tx, ty)) {
       ml.push(`${m.name}の${stoneName}が石像に命中！`);
       hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, { breaks: true });
+      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
       return;
     }
 
@@ -1412,56 +1475,44 @@ function monsterThrowStone(m, dg, pl, ml) {
       hitMon.hp -= dmg;
       ml.push(`${m.name}の${stoneName}が${hitMon.name}に命中！${dmg}ダメージ！`);
       if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, null, false, m);
+      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
       return;
     }
 
-    /* プレイヤーマス */
+    /* 本来の着弾点に風がある → 以降は風向きに直進（ホーミング終了） */
+    if (!deflected && windAtAim && tx === aimX && ty === aimY) {
+      const wdx = windAtAim.dx, wdy = windAtAim.dy;
+      if (wdx !== fdx || wdy !== fdy) {
+        fdx = wdx; fdy = wdy;
+        deflected = true;
+        if (!windMsg) { ml.push("風穴の風が石の軌道を変えた！"); windMsg = true; }
+        /* プレイヤーが着弾点にいれば風より先に命中 */
+        if (tx === pl.x && ty === pl.y) {
+          _hitPlayer();
+          pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
+          return;
+        }
+        continue;
+      }
+    }
+
+    /* プレイヤー命中（ホーミング中／偏向後） */
     if (tx === pl.x && ty === pl.y) {
-      const _stDodgePcMode = getDodgePentacleMode(dg, pl.x, pl.y);
-      if (_stDodgePcMode === "dodge") {
-        ml.push(`みかわしの魔方陣の加護で${m.name}の${stoneName}をかわした！${stoneName}が落ちた。`);
-        const _sd = safeArrowDrop(pl.x, pl.y, dg);
-        _monDropWithSpring(_sd, dropStone(), dg, ml);
-        return;
-      }
-      const _stSanc = !inMagicSealRoom(pl.x, pl.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
-      if (_stSanc) {
-        const _sd = safeArrowDrop(pl.x, pl.y, dg);
-        _monDropWithSpring(_sd, dropStone(), dg, ml);
-        ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
-        return;
-      }
-      const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
-      if (dodged) {
-        ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
-        const _sd = safeArrowDrop(pl.x, pl.y, dg);
-        _monDropWithSpring(_sd, dropStone(), dg, ml);
-        return;
-      }
-      const miss = _stDodgePcMode !== "sure" && Math.random() >= hitChance;
-      if (miss) {
-        ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
-        const _sd = safeArrowDrop(pl.x, pl.y, dg);
-        _monDropWithSpring(_sd, dropStone(), dg, ml);
-        return;
-      }
-      const _stVulnPc = findVulnPentacle(dg, pl.x, pl.y);
-      const _stBonus = isMagic ? 5 : 3;
-      const _stAp = m.atk + _stBonus;
-      const _stPdef = calcPlayerDef(pl);
-      let dmg = calcAtkDefDmg(_stAp, _stPdef, { defWeight: 1.5 });
-      if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
-      pl.deathCause = `${m.name}の石投げで`;
-      pl.hp -= dmg;
-      ml.push(`${m.name}の${stoneName}が命中！${dmg}ダメージ！`);
-      if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
-      if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+      _hitPlayer();
+      pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
       return;
     }
+
+    /* 偏向後は一定距離で落下（無限飛行防止） */
+    if (deflected && d > Math.max(Math.abs(aimX - m.x), Math.abs(aimY - m.y)) + 8) break;
   }
-  const _sd = safeArrowDrop(_lx, _ly, dg);
+
+  const _sd = safeArrowDrop(lx, ly, dg);
   _monDropWithSpring(_sd, dropStone(), dg, ml);
   ml.push(`${stoneName}はどこかへ落ちた。`);
+  if (path.length > 1) {
+    pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: lx, toY: ly, color, path });
+  }
 }
 
 /* ===== わてり：水鉄砲攻撃 ===== */
