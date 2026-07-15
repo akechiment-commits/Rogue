@@ -25,8 +25,12 @@ describe("trap rarity / weight", () => {
     expect(e[0].weight).toBeGreaterThan(b[0].weight);
   });
 
-  it("地雷・時限爆弾・増殖・未識別は B", () => {
-    for (const ef of ["explode", "time_bomb", "multiply_trap", "unident_trap"]) {
+  it("レア度の個別指定", () => {
+    expect(TRAPS.find((x) => x.effect === "explode")?.rarity).toBe("C");
+    expect(TRAPS.find((x) => x.effect === "mp_absorb_trap")?.rarity).toBe("C");
+    expect(TRAPS.find((x) => x.effect === "slow_trap")?.rarity).toBe("C");
+    expect(TRAPS.find((x) => x.effect === "shadow_stitch")?.rarity).toBe("E");
+    for (const ef of ["time_bomb", "multiply_trap", "unident_trap"]) {
       const t = TRAPS.find((x) => x.effect === ef);
       expect(t?.rarity, ef).toBe("B");
     }

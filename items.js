@@ -1097,9 +1097,9 @@ export const TRAPS = [
   /* E: よく出る基本罠 */
   { name:"矢の罠",         effect:"arrow_trap",    tile:26,  rarity:"E", weight:12, desc:"踏むと、そのときの正面方向から矢が飛んでくる。\nダメージは小さいが序盤は注意。矢が落ちる。\n踏む以外で壊れると矢が数本散らばる。" },
   { name:"睡眠ガスの罠",   effect:"sleep",         tile:30,  rarity:"E", weight:12, desc:"踏むと6ターン眠る。" },
-  { name:"鈍足の罠",       effect:"slow_trap",     tile:47,  rarity:"E", weight:12, desc:"踏むと10ターン鈍足になる(速度半減)。" },
+  { name:"鈍足の罠",       effect:"slow_trap",     tile:47,  rarity:"C", weight:4,  desc:"踏むと10ターン鈍足になる(速度半減)。" },
   { name:"空腹の罠",       effect:"hunger_trap",   tile:50,  rarity:"E", weight:12, desc:"踏むと満腹度が最大の10%減少する。" },
-  { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, rarity:"E", weight:12, desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
+  { name:"MP吸収の罠",     effect:"mp_absorb_trap", tile:120, rarity:"C", weight:4,  desc:"踏むとMPが5減る。\nモンスターが踏むと封印状態になる（特技使用不可）。" },
   { name:"混乱の罠",       effect:"confuse_trap",   tile:127, rarity:"E", weight:12, desc:"踏むと10ターン混乱する。\n敵が踏むと20ターン混乱する。耐混乱の防具で防げる。" },
   /* D: やや多い */
   { name:"毒矢の罠",       effect:"poison_arrow",  tile:45,  rarity:"D", weight:8,  desc:"踏むと、そのときの正面方向から毒矢が飛んでくる。\nダメージ+毒状態。\n踏む以外で壊れると毒矢が数本散らばる。" },
@@ -1116,12 +1116,12 @@ export const TRAPS = [
   { name:"召喚の罠",       effect:"summon_trap",   tile:46,  rarity:"C", weight:4,  desc:"踏むと周囲に2～4体の敵が出現する。\n出現した敵は即座にこちらを認識している。" },
   { name:"封印の罠",       effect:"seal_trap",     tile:48,  rarity:"C", weight:4,  desc:"踏むと50ターン魔法が封印される。\n巻物・魔法・杖が使えなくなる。" },
   { name:"盗みの罠",       effect:"steal_trap",    tile:49,  rarity:"C", weight:4,  desc:"踏むと所持品が1つランダムにフロアのどこかへ飛ばされる。\nキーアイテムは盗まれない。" },
-  { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71,  rarity:"C", weight:4,  desc:"踏むと5ターン移動不能になる。\n攻撃やアイテム使用は可能。" },
+  { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71,  rarity:"E", weight:12, desc:"踏むと5ターン移動不能になる。\n攻撃やアイテム使用は可能。" },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84,  rarity:"C", weight:4,  desc:"踏むと50ターン幻惑状態。\n周囲の見た目が狂う。" },
   { name:"腐敗の罠",       effect:"rot_trap",      tile:94,  rarity:"C", weight:4,  desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, rarity:"C", weight:4,  desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
   /* B: レア（危険） */
-  { name:"地雷",           effect:"explode",       tile:25,  rarity:"B", weight:2,  desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。隣の地雷は誘爆する。" },
+  { name:"地雷",           effect:"explode",       tile:25,  rarity:"C", weight:4,  desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。隣の地雷は誘爆する。" },
   { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73,  rarity:"B", weight:2,  desc:"踏むと4ターン後に大爆発が起きる。\n爆発は地雷と同じ威力。離れれば回避できる。\n作動済みの爆心地に薬液をかけると消火可能。\n作動済みは爆心地にカウントダウン表示。" },
   { name:"未識別の罠",     effect:"unident_trap",   tile:124, rarity:"B", weight:2,  desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n武器・防具・食料は祝呪がわからなくなる。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, rarity:"B", weight:2,  desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
