@@ -242,6 +242,20 @@ export function isMajorHeal(p, prev) {
   return gain >= Math.max(20, Math.ceil((p.maxHp || 100) * 0.2));
 }
 
+/** HP0→残りMPで復活したログか（ピンチ復活。通常回復とは別立ち絵） */
+export function isMpReviveMsg(msg) {
+  if (!msg) return false;
+  return /HPがゼロになった！.*残りMP\d+でHP\d+として復活/.test(msg)
+    || /残りMP\d+でHP\d+として復活！MPは\d+ターン回復しない/.test(msg);
+}
+
+/** MP復活立ち絵（未設定時はピンチ系へフォールバック。回復立ち絵は使わない） */
+export function pickMpRevivePortrait(sets = PORTRAIT_SETS) {
+  if (sets.hp_mp_revive?.length) return pickPortrait("hp_mp_revive", sets);
+  if (sets.hp_low?.length) return pickPortrait("hp_low", sets);
+  return CHAR_PATH("hp_critical");
+}
+
 export function snapshotPlayer(p, opts = {}) {
   return {
     hp: p.hp,
@@ -345,6 +359,15 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
    * （死亡・被ダメだけは上で処理済み） */
   if (p.capturedBy) {
     return portraitEvent("status_bound", now, { force: true });
+  }
+
+  /* MP消費でのHP0復活：大回復扱いにせずピンチ専用立ち絵 */
+  if (findMsgInNew(newMsgs, lastMsg, isMpReviveMsg)) {
+    return {
+      src: pickMpRevivePortrait(),
+      cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+      force: true,
+    };
   }
 
   if (isMajorHeal(p, prev)) {

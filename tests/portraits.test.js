@@ -15,6 +15,8 @@ import {
   detectEquipChange,
   isSatiatedGain,
   isMajorHeal,
+  isMpReviveMsg,
+  pickMpRevivePortrait,
   pickDamagePortrait,
   pickDeathPortrait,
   isDrownDeath,
@@ -233,6 +235,25 @@ describe("portraits", () => {
     expect(hpKey({ hp: 10, maxHp: 100 })).toBe("hp_low");
     expect(hpKey({ hp: 50, maxHp: 100 })).toBe("hp_mid");
     expect(hpKey({ hp: 90, maxHp: 100 })).toBe("hp_full");
+  });
+
+  it("MP復活は大回復立ち絵にせずピンチ専用へ", () => {
+    const msg = "HPがゼロになった！残りMP182でHP182として復活！MPは1000ターン回復しない。";
+    expect(isMpReviveMsg(msg)).toBe(true);
+    expect(PORTRAIT_SETS.hp_mp_revive).toContain("hp_mp_revive");
+    const prev = { hp: 16, maxHp: 282, x: 5, y: 5, level: 17, mpSealTurns: 0 };
+    const player = { ...prev, hp: 182, mp: 0, mpSealTurns: 1000 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: msg,
+      newMsgs: ["ぼっちもべの攻撃！16ダメージ！", msg],
+    });
+    expect(event.force).toBe(true);
+    expect(event.src).not.toMatch(/hp_healed|reaction_joy|reaction_motivated/);
+    /* 画像未設定時はピンチ系、設定後は hp_mp_revive */
+    expect(event.src).toMatch(/hp_mp_revive|hp_low|hp_critical/);
+    expect(pickMpRevivePortrait()).toMatch(/hp_mp_revive|hp_low|hp_critical/);
   });
 
   it("自然回復では回復立ち絵を出さず、大回復だけを表示する", () => {

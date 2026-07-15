@@ -76,6 +76,7 @@ export const PORTRAIT_CATEGORIES = [
       { file: "hp_low_kneel", label: "瀕死・膝", group: "hp_low" },
       { file: "hp_critical", label: "危険域", group: "hp_low" },
       { file: "hp_healed", label: "回復した", group: "hp_healed" },
+      { file: "hp_mp_revive", label: "MPで復活（ピンチ）", group: "hp_mp_revive" },
       { file: "hp_hunger", label: "空腹・飢餓", group: "hp_hunger" },
       { file: "hp_satiated", label: "満腹・満たされた", group: "hp_satiated" },
     ],
