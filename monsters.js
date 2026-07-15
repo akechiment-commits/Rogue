@@ -2020,7 +2020,19 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
   if (!_hit) ml.push(`${wandLabel}の魔法弾は虚空に消えた。`);
 }
 
+/** モンスターAI本体。終了時に移動があれば重力罠を踏ませる（未覚醒パトロール含む） */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
+  const _sx = m.x, _sy = m.y;
+  try {
+    _monsterAIBody(m, dg, pl, ml, opts);
+  } finally {
+    if (m.x !== _sx || m.y !== _sy) {
+      _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
+    }
+  }
+}
+
+function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
   const _luFn = opts.luFn || (() => {});
@@ -2674,7 +2686,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.x = _gcNext.x;
         m.y = _gcNext.y;
         _gelCubeAbsorbItems(m, dg, ml);
-        _checkGravityTrap(m, dg, pl, ml, _luFn);
         return;
       }
     }
@@ -4050,7 +4061,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
         if (_forceAlt) m.posHistory = [];
-        _checkGravityTrap(m, dg, pl, ml, _luFn);
         return;
       }
       /* 次マスが別モンスターに占有 */
@@ -4070,7 +4080,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           m.x = next.x; m.y = next.y;
           if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
           if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
-          _checkGravityTrap(m, dg, pl, ml, _luFn);
           return;
         }
       }
@@ -4109,7 +4118,6 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         m.x = _ab.x; m.y = _ab.y;
         if (m.baseKind === "firedemon") _fireDemonBurnItems(m, dg, ml);
         if (m.baseKind === "gelcube") _gelCubeAbsorbItems(m, dg, ml);
-        _checkGravityTrap(m, dg, pl, ml, _luFn);
         return;
       }
       return; /* 前の敵が動けない場合は自然なキューイングで待機 */
@@ -4247,6 +4255,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           break;
         }
         if (!_sidestepped && m.dir) m.dir = { x: -m.dir.x, y: -m.dir.y };
+        if (_sidestepped) return;
         if (!_forceAlt) return;
       }
       /* BFS経路なし（壁で遮断）→ 次ターンで目標を再選択 */
