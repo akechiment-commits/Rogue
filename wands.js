@@ -12,8 +12,18 @@ import {
   pickLootFromPool,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
-import { tryBreakStatueAt, wandEffectBreaksStatue, hitStatueWithAction, statueAt } from './fixtures.js';
+import { tryBreakStatueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, hitStatueWithAction, statueAt } from './fixtures.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
+
+/** 石像のテレポート先（他石像・敵・プレイヤー・大箱を避ける） */
+function statueTeleportDest(dg, ox, oy, p) {
+  return randomTeleportDest(dg, ox, oy, (x, y) =>
+    !dg.monsters.some(m => m.x === x && m.y === y) &&
+    !(p && p.x === x && p.y === y) &&
+    !dg.statues?.some(s => s.x === x && s.y === y) &&
+    !dg.bigboxes?.some(b => b.x === x && b.y === y)
+  );
+}
 
 /*
  * 新しい杖エフェクトを追加する手順:
@@ -22,11 +32,110 @@ import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from '
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null) {
-  /* 石像：ダメージ／有害効果なら破壊。場所替え・テレポ等は壊さない */
+  /* 石像：位置系は壊さず効果発動。穴掘り・軟化は敵なし破壊。それ以外は有害なら破壊 */
   if (kind === "statue") {
-    hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, {
-      breaks: wandEffectBreaksStatue(eff),
-    });
+    if (wandEffectStatueLootOnly(eff)) {
+      hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, {
+        breaks: true,
+        spawnMonster: false,
+      });
+      return;
+    }
+    if (wandEffectBreaksStatue(eff)) {
+      hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, { breaks: true });
+      return;
+    }
+    /* 場所替え・テレポ・飛びつき（呪い）など：石像を壊さず効果を出す */
+    if (eff === "swap") {
+      const _swBless = blMult > 1, _swCurse = blMult < 1;
+      if (_swCurse) {
+        const _leapX = target.x - dx, _leapY = target.y - dy;
+        if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH &&
+            dg.map[_leapY]?.[_leapX] !== T.WALL && dg.map[_leapY]?.[_leapX] !== T.BWALL &&
+            !dg.monsters.some(m2 => m2.x === _leapX && m2.y === _leapY) &&
+            !(_leapX === p.x && _leapY === p.y) &&
+            !dg.statues?.some(s => s !== target && s.x === _leapX && s.y === _leapY) &&
+            !dg.bigboxes?.some(b => b.x === _leapX && b.y === _leapY)) {
+          p.x = _leapX; p.y = _leapY;
+          if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+          ml.push(`${target.name}の前に飛びついた！【呪】`);
+        } else {
+          ml.push("飛びつけなかった。【呪】");
+        }
+        return;
+      }
+      const [ox, oy] = [p.x, p.y];
+      p.x = target.x; p.y = target.y;
+      target.x = ox; target.y = oy;
+      if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+      ml.push(`${target.name}と位置が入れ替わった！`);
+      if (_swBless) {
+        /* 石像に金縛りは意味がないので祝福は通常交換のみ */
+      }
+      return;
+    }
+    if (eff === "leap") {
+      /* 通常飛びつきは fireWandBolt 側。ここは呪い：石像をランダムTP */
+      if (blMult < 1) {
+        const _lpd = statueTeleportDest(dg, target.x, target.y, p);
+        if (!_lpd) { ml.push("テレポートに失敗した。"); return; }
+        target.x = _lpd.x; target.y = _lpd.y;
+        ml.push(`${target.name}はどこかへテレポートした！【呪】`);
+      }
+      return;
+    }
+    if (eff === "warp") {
+      const _wCursed = blMult < 1, _wBlessed = blMult > 1;
+      if (!_wCursed && hasCursedTeleportPentacle(dg)) {
+        ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
+        return;
+      }
+      if (_wCursed) {
+        const _w1x = target.x + dx, _w1y = target.y + dy;
+        if (_w1x >= 0 && _w1x < MW && _w1y >= 0 && _w1y < MH &&
+            dg.map[_w1y]?.[_w1x] !== T.WALL && dg.map[_w1y]?.[_w1x] !== T.BWALL &&
+            !dg.monsters.some(m => m.x === _w1x && m.y === _w1y) &&
+            !(p.x === _w1x && p.y === _w1y) &&
+            !dg.statues?.some(s => s !== target && s.x === _w1x && s.y === _w1y) &&
+            !dg.bigboxes?.some(b => b.x === _w1x && b.y === _w1y)) {
+          target.x = _w1x; target.y = _w1y;
+          ml.push(`${target.name}が少しだけテレポートした。`);
+        } else {
+          ml.push("テレポートに失敗した。");
+        }
+        return;
+      }
+      if (_wBlessed) {
+        let stairsX = -1, stairsY = -1;
+        for (let fy = 0; fy < MH; fy++)
+          for (let fx = 0; fx < MW; fx++)
+            if (dg.map[fy][fx] === T.SD) { stairsX = fx; stairsY = fy; }
+        if (stairsX >= 0) {
+          const _wbAdj = [];
+          for (const [_ax, _ay] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]) {
+            const _nx = stairsX + _ax, _ny = stairsY + _ay;
+            if (_nx >= 0 && _nx < MW && _ny >= 0 && _ny < MH && dg.map[_ny][_nx] === T.FLOOR &&
+                !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny) &&
+                !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
+                !(p.x === _nx && p.y === _ny) &&
+                !dg.statues?.some(s => s !== target && s.x === _nx && s.y === _ny))
+              _wbAdj.push({ x: _nx, y: _ny });
+          }
+          if (_wbAdj.length > 0) {
+            const _wd = pick(_wbAdj);
+            target.x = _wd.x; target.y = _wd.y;
+            ml.push(`${target.name}は階段の隣に飛んだ！`);
+            return;
+          }
+        }
+      }
+      const _dest = statueTeleportDest(dg, target.x, target.y, p);
+      if (!_dest) { ml.push("テレポートに失敗した。"); return; }
+      target.x = _dest.x; target.y = _dest.y;
+      ml.push(`${target.name}はどこかへテレポートした！`);
+      return;
+    }
+    ml.push(`${target.name}には効果がなかった。`);
     return;
   }
   if (kind === "monster") {
@@ -1693,11 +1802,16 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       applyWandEffect(eff, "bigbox", bb, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
-    /* 石像：ダメージ系杖は破壊、場所替え等は効果なしで止まる */
+    /* 石像：飛びつきは前へ。それ以外は applyWandEffect（位置系は壊さず、穴掘り・軟化は敵なし破壊） */
     if (statueAt(dg, tx, ty)) {
-      hitStatueWithAction(dg, tx, ty, p, ml, luFn, p?.depth, {
-        breaks: wandEffectBreaksStatue(eff),
-      });
+      const st = statueAt(dg, tx, ty);
+      if (eff === "leap" && blMult >= 1) {
+        p.x = lastX; p.y = lastY;
+        if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+        ml.push(`${st.name}の前に飛びついた！`);
+        return;
+      }
+      applyWandEffect(eff, "statue", st, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, nameFn);
       return;
     }
     lastX = tx; lastY = ty;
@@ -1852,7 +1966,9 @@ function _collectBreakAdjacentTargets(dg, cx, cy, p) {
     const trap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
     if (trap) { trap.revealed = true; targets.push({ kind: "trap", t: trap, dx: adx, dy: ady }); continue; }
     const bb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
-    if (bb) targets.push({ kind: "bigbox", t: bb, dx: adx, dy: ady });
+    if (bb) { targets.push({ kind: "bigbox", t: bb, dx: adx, dy: ady }); continue; }
+    const st = statueAt(dg, ax, ay);
+    if (st) targets.push({ kind: "statue", t: st, dx: adx, dy: ady });
   }
   return targets;
 }
@@ -2002,6 +2118,9 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
     } else if (_sfcEnt?.kind === "monster") {
       applyWandEffect("soften", "monster", _sfcEnt.t, 0, 0, dg, p, ml, luFn, null, blMult);
       ml.push("軟化の杖が壊れた！");
+    } else if (_sfcEnt?.kind === "statue") {
+      applyWandEffect("soften", "statue", _sfcEnt.t, 0, 0, dg, p, ml, luFn, null, blMult);
+      ml.push("軟化の杖が壊れた！");
     } else {
       ml.push("軟化の杖が壊れた！");
     }
@@ -2029,7 +2148,9 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
       const _sfbTrap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
       if (_sfbTrap) { _sfbTrap.revealed = true; applyWandEffect("soften", "trap", _sfbTrap, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbBb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
-      if (_sfbBb) applyWandEffect("soften", "bigbox", _sfbBb, adx, ady, dg, p, ml, luFn, null, blMult);
+      if (_sfbBb) { applyWandEffect("soften", "bigbox", _sfbBb, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      const _sfbSt = statueAt(dg, ax, ay);
+      if (_sfbSt) applyWandEffect("soften", "statue", _sfbSt, adx, ady, dg, p, ml, luFn, null, blMult);
     }
     return;
   }

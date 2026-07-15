@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { applyWandEffect, triggerWandBreakEffect } from "../wands.js";
+import { applyWandEffect, triggerWandBreakEffect, fireWandBolt } from "../wands.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+import { makeStatue } from "../fixtures.js";
 
 describe("applyWandEffect", () => {
   const dg = makeEmptyDg();
@@ -58,6 +59,72 @@ describe("applyWandEffect", () => {
     applyWandEffect("sleep", "monster", mon, 1, 0, dg, p, ml, noop);
     expect(mon.sleepTurns).toBeUndefined();
     expect(ml.some(m => m.includes("効かない"))).toBe(true);
+  });
+
+  it("石像と場所替えできる（壊れない）", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [],
+    });
+    const st = makeStatue(8, 5);
+    dg.statues.push(st);
+    const p = makePlayer({ x: 5, y: 5 });
+    const ml = [];
+    applyWandEffect("swap", "statue", st, 1, 0, dg, p, ml, noop);
+    expect(p.x).toBe(8);
+    expect(p.y).toBe(5);
+    expect(st.x).toBe(5);
+    expect(st.y).toBe(5);
+    expect(dg.statues.length).toBe(1);
+    expect(ml.some(m => m.includes("入れ替わった"))).toBe(true);
+  });
+
+  it("石像にテレポートの杖で石像が移動する（壊れない）", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [],
+    });
+    const st = makeStatue(8, 5);
+    dg.statues.push(st);
+    const p = makePlayer({ x: 5, y: 5 });
+    const ml = [];
+    applyWandEffect("warp", "statue", st, 1, 0, dg, p, ml, noop);
+    expect(dg.statues.length).toBe(1);
+    expect(st.x !== 8 || st.y !== 5).toBe(true);
+    expect(ml.some(m => m.includes("テレポート"))).toBe(true);
+  });
+
+  it("石像に穴掘り・軟化は敵なしでアイテムのみ", () => {
+    for (const eff of ["dig", "soften"]) {
+      const dg = makeEmptyDg({
+        map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+        items: [], monsters: [], statues: [], dungeonType: "intermediate",
+      });
+      const st = makeStatue(8, 5);
+      dg.statues.push(st);
+      const p = makePlayer({ x: 5, y: 5, depth: 5 });
+      const ml = [];
+      applyWandEffect(eff, "statue", st, 1, 0, dg, p, ml, noop);
+      expect(dg.statues.length).toBe(0);
+      expect(dg.monsters.length).toBe(0);
+      expect(dg.items.length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("飛びつきの杖は石像の前に着地する", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [], traps: [],
+    });
+    const st = makeStatue(10, 5);
+    dg.statues.push(st);
+    const p = makePlayer({ x: 5, y: 5 });
+    const ml = [];
+    fireWandBolt(p, dg, "leap", 1, 0, ml, noop, null, 1);
+    expect(p.x).toBe(9);
+    expect(p.y).toBe(5);
+    expect(dg.statues.length).toBe(1);
+    expect(ml.some(m => m.includes("飛びついた"))).toBe(true);
   });
 });
 

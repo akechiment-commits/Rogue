@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   makeFakeStairTrap, materializeFakeStair, trapDisplayAsStair,
   makeVent, makeStatue, makeFixedPortalPair, findFixedPortalPair,
-  breakStatue, applyWindDir, getWindAt, wandEffectBreaksStatue, throwItemBreaksStatue,
-  hitStatueWithAction,
+  breakStatue, applyWindDir, getWindAt, wandEffectBreaksStatue, wandEffectStatueLootOnly,
+  throwItemBreaksStatue, hitStatueWithAction,
 } from "../fixtures.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
@@ -82,19 +82,24 @@ describe("固定転送", () => {
 });
 
 describe("石像破壊ルール", () => {
-  it("杖：雷・吹飛ばしは壊し、場所替え・テレポ・穴掘りは壊さない", () => {
+  it("杖：雷・吹飛ばしは壊し、場所替え・テレポ・飛びつきは壊さない。穴掘り・軟化は壊す", () => {
     expect(wandEffectBreaksStatue("lightning")).toBe(true);
     expect(wandEffectBreaksStatue("knockback")).toBe(true);
     expect(wandEffectBreaksStatue("swap")).toBe(false);
     expect(wandEffectBreaksStatue("warp")).toBe(false);
     expect(wandEffectBreaksStatue("leap")).toBe(false);
-    expect(wandEffectBreaksStatue("dig")).toBe(false);
+    expect(wandEffectBreaksStatue("dig")).toBe(true);
+    expect(wandEffectBreaksStatue("soften")).toBe(true);
+    expect(wandEffectStatueLootOnly("dig")).toBe(true);
+    expect(wandEffectStatueLootOnly("soften")).toBe(true);
+    expect(wandEffectStatueLootOnly("lightning")).toBe(false);
   });
 
   it("投擲：武器は壊し、場所替えの杖は壊さない", () => {
     expect(throwItemBreaksStatue({ type: "weapon", atk: 5 })).toBe(true);
     expect(throwItemBreaksStatue({ type: "wand", effect: "lightning" })).toBe(true);
     expect(throwItemBreaksStatue({ type: "wand", effect: "swap" })).toBe(false);
+    expect(throwItemBreaksStatue({ type: "wand", effect: "dig" })).toBe(true);
   });
 
   it("hitStatueWithAction は breaks:false で壊さずメッセージのみ", () => {
@@ -109,6 +114,21 @@ describe("石像破壊ルール", () => {
     hitStatueWithAction(dg, 3, 3, p, ml, null, 3, { breaks: false });
     expect(dg.statues.length).toBe(1);
     expect(ml.some(m => m.includes("効果がなかった"))).toBe(true);
+  });
+
+  it("hitStatueWithAction は spawnMonster:false で敵なし破壊", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [], dungeonType: "intermediate",
+    });
+    const st = makeStatue(3, 3);
+    dg.statues.push(st);
+    const p = makePlayer({ x: 1, y: 1, depth: 3 });
+    const ml = [];
+    hitStatueWithAction(dg, 3, 3, p, ml, null, 3, { breaks: true, spawnMonster: false });
+    expect(dg.statues.length).toBe(0);
+    expect(dg.monsters.length).toBe(0);
+    expect(dg.items.length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -132,5 +152,24 @@ describe("石像", () => {
     expect(mon.monLevel).toBeGreaterThanOrEqual(2); /* 通常1なら+1で2以上 */
     expect(ml.some(m => m.includes("砕け"))).toBe(true);
     expect(ml.some(m => m.includes("が現れた"))).toBe(true);
+  });
+
+  it("spawnMonster:false ではアイテムのみ", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [],
+      monsters: [],
+      statues: [],
+      dungeonType: "intermediate",
+    });
+    const st = makeStatue(5, 5);
+    dg.statues.push(st);
+    const p = makePlayer({ x: 1, y: 1, depth: 5 });
+    const ml = [];
+    breakStatue(st, dg, p, ml, null, 4, { spawnMonster: false });
+    expect(dg.statues.length).toBe(0);
+    expect(dg.monsters.length).toBe(0);
+    expect(dg.items.length).toBeGreaterThanOrEqual(1);
+    expect(ml.some(m => m.includes("が現れた"))).toBe(false);
   });
 });

@@ -83,11 +83,12 @@ export function statueAt(dg, x, y) {
 }
 
 /**
- * 石像を破壊。レア寄りアイテム＋強敵を出す。
- * @param {{ cause?: string }} opts
+ * 石像を破壊。レア寄りアイテムを出す。通常は強敵も出す。
+ * @param {{ spawnMonster?: boolean }} opts spawnMonster:false で敵なし（穴掘り・軟化）
  */
-export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1) {
+export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}) {
   if (!statue || !dg) return false;
+  const spawnMonster = opts.spawnMonster !== false;
   dg.statues = (dg.statues || []).filter((s) => s !== statue && s.id !== statue.id);
   ml.push(`${statue.name}が砕け散った！`);
 
@@ -109,7 +110,9 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1) {
   }
 
   /* 出現敵の選択は monsters.js 側で行う（循環 import を作らない）。 */
-  globalThis.__rogueStatueSpawnHandler?.(statue, dg, p, ml, depth);
+  if (spawnMonster) {
+    globalThis.__rogueStatueSpawnHandler?.(statue, dg, p, ml, depth);
+  }
   return true;
 }
 
@@ -126,17 +129,23 @@ export function tryBreakStatueAt(dg, x, y, p, ml, luFn, depth) {
 /**
  * 杖・魔法の effect が石像を壊すか。
  * ダメージ／有害状態異常／攻撃的な効果 → true
- * 場所替え・テレポ・地形変化・祝福呪いなど非ダメージ → false
+ * 場所替え・テレポ・飛びつきなど位置系・祝福呪い → false
+ * 穴掘り・軟化は壊す（敵は出さずアイテムのみ → wandEffectStatueLootOnly）
  */
 export function wandEffectBreaksStatue(eff) {
   if (!eff) return false;
   const safe = new Set([
-    "swap", "warp", "leap", "dig",
+    "swap", "warp", "leap",
     "bless_wand", "curse_wand",
     "levelup", "portal",
     "vitality_swap",
   ]);
   return !safe.has(eff);
+}
+
+/** 穴掘り・軟化：石像を壊すが敵は出さずアイテムのみ */
+export function wandEffectStatueLootOnly(eff) {
+  return eff === "dig" || eff === "soften";
 }
 
 /**
@@ -151,16 +160,17 @@ export function throwItemBreaksStatue(it) {
 
 /**
  * 石像タイルにダメージ行動が到達したら破壊を試す。
+ * @param {{ breaks?: boolean, spawnMonster?: boolean }} opts
  * @returns {boolean} 壊した／石像があった
  */
-export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, { breaks = true } = {}) {
+export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, { breaks = true, spawnMonster = true } = {}) {
   const st = statueAt(dg, x, y);
   if (!st) return false;
   if (!breaks) {
     ml.push(`${st.name}には効果がなかった。`);
     return true; /* 当たったが壊さない */
   }
-  return breakStatue(st, dg, p, ml, luFn, depth);
+  return breakStatue(st, dg, p, ml, luFn, depth, { spawnMonster });
 }
 
 /* ===== 固定転送（ポータル流用・ペア固定・ペンと非接続） ===== */

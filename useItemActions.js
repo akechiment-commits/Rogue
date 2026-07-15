@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
-import { statueAt, hitStatueWithAction, throwItemBreaksStatue } from "./fixtures.js";
+import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -3426,19 +3426,43 @@ export function useItemActions({
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             if (tx === p.x && ty === p.y) { lx = tx; ly = ty; _genHitSelf = true; hit = true; break; }
-            /* 石像：投擲ダメージ／有害効果で破壊 */
+            /* 石像：杖は位置系を壊さず発動／穴掘り・軟化は敵なし破壊／その他は通常破壊 */
             if (!_isFarcast && statueAt(dg, tx, ty)) {
+              const st = statueAt(dg, tx, ty);
               const lb = _mkThrowLb();
-              const _br = throwItemBreaksStatue(it);
-              if (_br) {
-                ml.push(`${lb}が石像に命中！`);
-                hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: true });
-                if (it.type === "wand") _wandFiredEffect = true; /* 消費済み */
+              ml.push(`${lb}が石像に命中！`);
+              if (it.type === "wand") {
+                const _stBl = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
+                if (it.effect === "leap" && _stBl >= 1) {
+                  if (hasGravityPentacle(dg, p.x, p.y)) {
+                    ml.push("重力の魔方陣の力で飛びつきが無効になった！");
+                  } else {
+                    const _lx2 = st.x - _gFdx, _ly2 = st.y - _gFdy;
+                    if (_lx2 >= 0 && _lx2 < MW && _ly2 >= 0 && _ly2 < MH &&
+                        dg.map[_ly2]?.[_lx2] !== T.WALL && dg.map[_ly2]?.[_lx2] !== T.BWALL &&
+                        !dg.monsters.some(m => m.x === _lx2 && m.y === _ly2) &&
+                        !dg.statues?.some(s => s.x === _lx2 && s.y === _ly2) &&
+                        !dg.bigboxes?.some(b => b.x === _lx2 && b.y === _ly2)) {
+                      p.x = _lx2; p.y = _ly2;
+                      if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+                      ml.push(`${st.name}の前に飛びついた！`);
+                    } else {
+                      ml.push("飛びつけなかった。");
+                    }
+                  }
+                } else {
+                  applyWandEffect(it.effect, "statue", st, _gFdx, _gFdy, dg, p, ml, lu, null, _stBl, dnameRef);
+                }
+                _wandFiredEffect = true;
+              } else if (throwItemBreaksStatue(it)) {
+                hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, {
+                  breaks: true,
+                  spawnMonster: !wandEffectStatueLootOnly(it.effect),
+                });
               } else {
                 hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: false });
                 const _sft = new Set();
                 withPitfallBag(() => placeItemAt(dg, tx, ty, it, ml, _sft));
-                if (it.type === "wand") _wandFiredEffect = true;
               }
               lx = tx; ly = ty; hit = true;
               break;
