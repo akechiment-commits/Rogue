@@ -27,7 +27,6 @@ import {
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
-import { tryBreakStatueAt } from "./fixtures.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
@@ -3177,9 +3176,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           } else if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) {
             ml.push("水に阻まれた。");
           } else if (dg.statues?.some(s => s.x === nx && s.y === ny)) {
-            /* 石像に突っ込んだ＝近接攻撃として破壊 */
-            tryBreakStatueAt(dg, nx, ny, p, ml, lu, p?.depth);
-            acted = true;
+            /* 移動で突っ込んでも壊さない。表示のみ・ターン消費なし */
+            ml.push("石像がある。");
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL || ((p.wallWalkTurns || 0) > 0 && nx > 0 && nx < MW - 1 && ny > 0 && ny < MH - 1)) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
