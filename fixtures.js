@@ -338,11 +338,8 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     vents.push(makeVent(p[0], p[1], dx, dy));
   }
 
-  /* 石像 0〜2
-   * TEMP: テスト用に出現率を大幅アップ（確認できたら元に戻す）
-   * 通常: Math.random() < 0.28 ? rng(1, 2) : 0
-   */
-  const stN = rng(2, 4);
+  /* 石像 0〜2（約28%で1〜2体） */
+  const stN = Math.random() < 0.28 ? rng(1, 2) : 0;
   for (let i = 0; i < stN; i++) {
     const p = rndFloor();
     if (!p) break;

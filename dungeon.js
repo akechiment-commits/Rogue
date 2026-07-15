@@ -429,15 +429,18 @@ function genProtrusions(map, rooms) {
   ];
   for (const room of rooms) {
     if (room.w < 4 || room.h < 4) continue;
-    // 60% で突起なし、35% で1個、5% で2個
-    const numP = Math.random() < 0.60 ? 0 : Math.random() < 0.93 ? 1 : 2;
+    // 部屋前の1マス突起（無意味な廊下っぽい凹凸）を減らす
+    // 82% なし、15% 1個、3% 2個（旧: 60%/35%/5%）
+    const numP = Math.random() < 0.82 ? 0 : Math.random() < 0.94 ? 1 : 2;
     let placed = 0;
     for (let attempt = 0; attempt < numP * 8 && placed < numP; attempt++) {
       const { side, ddx, ddy } = pick(DIRS);
       const isHoriz = ddy !== 0; // 上下方向に突き出す
       const wallLen = isHoriz ? room.w : room.h;   // 壁の長さ
+      if (wallLen < 5) continue; // 狭い壁には付けない
       const pw = rng(2, Math.min(3, wallLen - 2));  // 突起の幅（壁に沿う方向）
-      const pd = rng(1, 2);                         // 突起の奥行き（壁から外側）
+      /* 奥行き1（部屋前の無意味な1マス廊下）は稀に。通常は2マスの出っ張り */
+      const pd = Math.random() < 0.25 ? 1 : 2;
       const maxOfs = wallLen - pw - 1;
       if (maxOfs < 1) continue;
       const ofs = rng(1, maxOfs);
@@ -504,7 +507,9 @@ function genWallItems(map, depth, items, suspicious = new Set()) {
     }
   }
   if (wallCands.length === 0) return;
-  const count = rng(2, Math.min(5, wallCands.length));
+  /* 壁埋めアイテムは控えめ（旧 2〜5 → 0〜3、30%で0） */
+  const count = Math.random() < 0.30 ? 0 : rng(1, Math.min(3, wallCands.length));
+  if (count <= 0) return;
   const used = new Set();
   let placed = 0;
   for (let i = 0; i < count * 30 && placed < count; i++) {
@@ -1826,8 +1831,9 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     for (const g of _ugGens) { r -= g.w; if (r <= 0) return g.fn(); }
     return _ugGens[_ugGens.length - 1].fn();
   };
+  /* 床落ちアイテム数（旧: 初2-16 / 中3-18 / 高1-9 は多めだった） */
   const _totalItems = dungeonType === "advanced" || dungeonType === "legend"
-    ? rng(1, 9) : dungeonType === "intermediate" ? rng(3, 18) : rng(2, 16);
+    ? rng(1, 7) : dungeonType === "intermediate" ? rng(2, 11) : rng(1, 9);
   for (let i = 0; i < _totalItems; i++) {
     const rm = pick(rooms);
     for (let _a = 0; _a < 30; _a++) {
