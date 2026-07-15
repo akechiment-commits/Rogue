@@ -1248,6 +1248,118 @@ export function getOpenDirs(map, x, y, float = false, dg = null) {
   return res;
 }
 
+/** 部屋から廊下などへ出る出口マス（部屋外の歩行可能タイル） */
+export function getRoomExits(map, room, dg = null, float = false) {
+  if (!room) return [];
+  const exits = [];
+  const seen = new Set();
+  const tryAdd = (ex, ey) => {
+    if (!canEnter(map, ex, ey, float, dg)) return;
+    const k = ex + ey * MW;
+    if (seen.has(k)) return;
+    seen.add(k);
+    exits.push({ x: ex, y: ey });
+  };
+  for (let x = room.x; x < room.x + room.w; x++) {
+    tryAdd(x, room.y - 1);
+    tryAdd(x, room.y + room.h);
+  }
+  for (let y = room.y; y < room.y + room.h; y++) {
+    tryAdd(room.x - 1, y);
+    tryAdd(room.x + room.w, y);
+  }
+  return exits;
+}
+
+/**
+ * プレイヤーから逃げる1歩。
+ * 同室なら出口へBFS（一時的に近づいても廊下へ出る）。
+ * その後は他部屋・遠方床を目指し、最後に局所で遠い隣接マス。
+ * @returns {{x:number,y:number}|null}
+ */
+export function fleeFromPlayerStep(m, dg, pl, float = false) {
+  if (!m || !dg || !pl) return null;
+  const map = dg.map;
+  const rooms = dg.rooms || [];
+  const mons = dg.monsters || [];
+  const plDist2 = (x, y) => (x - pl.x) * (x - pl.x) + (y - pl.y) * (y - pl.y);
+  /* プレイヤーマスは通れない（通り道にすると隣接へ突っ込んでしまう） */
+  const fleeFilter = (x, y) => {
+    if (x === pl.x && y === pl.y) return false;
+    return canEnter(map, x, y, float, dg);
+  };
+  const tryGoal = (tx, ty) => {
+    if (tx == null || ty == null) return null;
+    if (tx === m.x && ty === m.y) return null;
+    const next = bfsNext(map, mons, m.x, m.y, tx, ty, m, 60, dg.pentacles, float, fleeFilter, true, rooms, dg);
+    if (!next) return null;
+    if (next.x === pl.x && next.y === pl.y) return null;
+    if (mons.some(o => o !== m && o.x === next.x && o.y === next.y)) return null;
+    if (!canEnter(map, next.x, next.y, float, dg)) return null;
+    return next;
+  };
+
+  const room = findRoom(rooms, m.x, m.y);
+  const plRoom = findRoom(rooms, pl.x, pl.y);
+
+  /* A) プレイヤーと同室：遠い出口へ（近づくリスクを取ってでも廊下へ） */
+  if (room && plRoom === room) {
+    const exits = getRoomExits(map, room, dg, float);
+    exits.sort((a, b) => plDist2(b.x, b.y) - plDist2(a.x, a.y));
+    for (const ex of exits) {
+      const n = tryGoal(ex.x, ex.y);
+      if (n) return n;
+    }
+  }
+
+  /* B) 他部屋の中心（プレイヤーと別部屋を優先）→ 遠方サンプル */
+  const farGoals = [];
+  for (const r of rooms) {
+    if (plRoom && r === plRoom) continue;
+    const cx = r.x + Math.floor(r.w / 2);
+    const cy = r.y + Math.floor(r.h / 2);
+    if (canEnter(map, cx, cy, float, dg)) farGoals.push({ x: cx, y: cy, score: plDist2(cx, cy) });
+    /* 部屋の四隅も候補 */
+    for (const [cx2, cy2] of [
+      [r.x, r.y], [r.x + r.w - 1, r.y],
+      [r.x, r.y + r.h - 1], [r.x + r.w - 1, r.y + r.h - 1],
+    ]) {
+      if (canEnter(map, cx2, cy2, float, dg)) farGoals.push({ x: cx2, y: cy2, score: plDist2(cx2, cy2) });
+    }
+  }
+  for (let i = 0; i < 30; i++) {
+    const x = rng(1, MW - 2), y = rng(1, MH - 2);
+    if (!canEnter(map, x, y, float, dg)) continue;
+    farGoals.push({ x, y, score: plDist2(x, y) });
+  }
+  farGoals.sort((a, b) => b.score - a.score);
+  const seenG = new Set();
+  let tried = 0;
+  for (const g of farGoals) {
+    const k = g.x + g.y * MW;
+    if (seenG.has(k)) continue;
+    seenG.add(k);
+    const n = tryGoal(g.x, g.y);
+    if (n) return n;
+    if (++tried >= 10) break;
+  }
+
+  /* C) 局所：プレイヤーから遠い隣接（最後の手段） */
+  const local = [];
+  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    const nx = m.x + dx, ny = m.y + dy;
+    if (!canEnter(map, nx, ny, float, dg)) continue;
+    if (mons.some(o => o !== m && o.x === nx && o.y === ny)) continue;
+    if (nx === pl.x && ny === pl.y) continue;
+    if (!inMagicSealRoom(m.x, m.y, dg) &&
+        dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
+    local.push({ x: nx, y: ny, score: plDist2(nx, ny) });
+  }
+  local.sort((a, b) => b.score - a.score);
+  if (local.length > 0) return { x: local[0].x, y: local[0].y };
+  return null;
+}
+
 /* ===== STRAIGHT-LINE CHECK ===== */
 export function inStraightLine(x0, y0, x1, y1) {
   const adx = Math.abs(x1 - x0), ady = Math.abs(y1 - y0);
@@ -2517,17 +2629,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _isPerm = m.fleeingTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - (m.isBoss ? 2 : 1));
     if (m.subtype === "grabber") { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; } /* grabberは幻惑中も絶対移動しない */
-    const _fcands = [];
-    for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-      const _fnx = m.x + _fmx, _fny = m.y + _fmy;
-      if (!canEnter(dg.map, _fnx, _fny, _effFloat, dg)) continue;
-      if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
-      if (_fnx === pl.x && _fny === pl.y) continue;
-      const _score = (_fnx - pl.x) * (_fnx - pl.x) + (_fny - pl.y) * (_fny - pl.y);
-      _fcands.push({ x: _fnx, y: _fny, score: _score });
+    if (!_attackOnly) {
+      const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat);
+      if (_fleeStep) {
+        m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
+        m.x = _fleeStep.x; m.y = _fleeStep.y;
+      }
     }
-    _fcands.sort((a, b) => b.score - a.score);
-    if (!_attackOnly && _fcands.length > 0) { m.x = _fcands[0].x; m.y = _fcands[0].y; }
     if (!_isPerm && m.fleeingTurns <= 0) { ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
@@ -3268,21 +3376,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── runner（コロポックル等）：常にプレイヤーから逃げる。攻撃しない ── */
+    /* ── runner（フクマル等）：認識中は効率逃走（出口BFS）。未覚醒は通常パトロール ── */
     /* 封印中は逃げずに通常AI（接近・攻撃）で動く */
     if (m.subtype === "runner" && !m.sealed) {
       if (!_attackOnly) {
-        const _rcands = [];
-        for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-          const _rnx = m.x + _rmx, _rny = m.y + _rmy;
-          if (!isWalkable(dg.map, _rnx, _rny, dg)) continue;
-          if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
-          if (_rnx === pl.x && _rny === pl.y) continue;
-          const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
-          _rcands.push({ x: _rnx, y: _rny, score: _score });
+        const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat);
+        if (_fleeStep) {
+          m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
+          m.x = _fleeStep.x; m.y = _fleeStep.y;
         }
-        _rcands.sort((a, b) => b.score - a.score);
-        if (_rcands.length > 0) { m.x = _rcands[0].x; m.y = _rcands[0].y; }
       }
       return;
     }
@@ -3363,20 +3465,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _initMax = [200, 500, 1000][_lv - 1];
         m.heldGold = rng(_initMin, _initMax);
       }
-      /* 盗んだ後は逃げ回る（runnerと同じ逃走ロジック） */
+      /* 盗んだ後は逃げ回る（runnerと同じ効率逃走） */
       if (m._stolenFromPlayer) {
         if (!_attackOnly) {
-          const _gtRcands = [];
-          for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
-            const _rnx = m.x + _rmx, _rny = m.y + _rmy;
-            if (!isWalkable(dg.map, _rnx, _rny, dg)) continue;
-            if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
-            if (_rnx === pl.x && _rny === pl.y) continue;
-            const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
-            _gtRcands.push({ x: _rnx, y: _rny, score: _score });
+          const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat);
+          if (_fleeStep) {
+            m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
+            m.x = _fleeStep.x; m.y = _fleeStep.y;
           }
-          _gtRcands.sort((a, b) => b.score - a.score);
-          if (_gtRcands.length > 0) { m.x = _gtRcands[0].x; m.y = _gtRcands[0].y; }
         }
         return;
       }
