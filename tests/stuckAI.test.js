@@ -57,6 +57,32 @@ describe("からめ鬼は動かない", () => {
 });
 
 describe("詰まり脱出", () => {
+  it("プレイヤー隣接中は詰まり脱出で動かない", () => {
+    const map = openMap();
+    const m = {
+      name: "スライム", baseKind: "slime",
+      x: 10, y: 10, hp: 20, maxHp: 20, atk: 5, def: 0, exp: 5,
+      speed: 1, baseSpeed: 1, aware: true, dormant: false,
+      lastPx: 10, lastPy: 10, turnAccum: 0, monLevel: 1, dir: { x: 0, y: 0 },
+      _idleStuck: 10,
+      posHistory: [
+        { x: 10, y: 10 }, { x: 10, y: 10 }, { x: 10, y: 10 },
+        { x: 10, y: 10 }, { x: 10, y: 10 }, { x: 10, y: 10 },
+      ],
+    };
+    const pl = makePlayer({ x: 11, y: 10 }); /* 隣接 */
+    const dg = makeEmptyDg({
+      map,
+      rooms: [{ x: 5, y: 5, w: 15, h: 15 }],
+      monsters: [m],
+      items: [], traps: [],
+      visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
+    });
+    monsterAI(m, dg, pl, [], { moveOnly: true });
+    expect(m.x).toBe(10);
+    expect(m.y).toBe(10);
+  });
+
   it("同マスに4ターン停滞したら空きマスへ動く", () => {
     const map = openMap();
     /* 目標方向を塞ぎ、周囲は開いている */

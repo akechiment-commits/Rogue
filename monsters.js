@@ -2198,16 +2198,23 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
     if (!opts.attackOnly && !isStationaryGrabber(m) && m.type !== "shopkeeper" &&
         !m.dormant && !m.dormantHouse) {
-      if (!moved) {
-        m._idleStuck = (m._idleStuck || 0) + 1;
-      } else {
+      /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
+      const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&
+        (pl.potConfinedTurns || 0) <= 0;
+      if (_adjPl) {
         m._idleStuck = 0;
-      }
-      const stuckHist = isPosHistoryStuck(m);
-      /* 4ターン以上同マス停滞、または往復・停滞パターンなら別方向へ */
-      if (m._idleStuck >= 4 || stuckHist) {
-        if (tryUnstickMove(m, dg, pl, _float)) {
-          _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
+      } else {
+        if (!moved) {
+          m._idleStuck = (m._idleStuck || 0) + 1;
+        } else {
+          m._idleStuck = 0;
+        }
+        const stuckHist = isPosHistoryStuck(m);
+        /* 4ターン以上同マス停滞、または往復・停滞パターンなら別方向へ */
+        if (m._idleStuck >= 4 || stuckHist) {
+          if (tryUnstickMove(m, dg, pl, _float)) {
+            _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
+          }
         }
       }
     }
