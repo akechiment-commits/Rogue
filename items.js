@@ -452,13 +452,14 @@ export function wPick(arr) {
 
 /**
  * アイテム生成コンテキストごとの「重みを無視して均等抽選」する確率。
- * floor（床落ち等）は常に weight。変化・店・敵ドロップのみギャンブル枠あり。
+ * ※均等枠は廃止（0）。願いの杖(weight 0.05)等が店・変化で出過ぎるため。
+ * 常に weight 重み抽選。キーは互換のため残す。
  */
 export const LOOT_UNIFORM_CHANCE = {
   floor: 0,
-  change: 0.10, /* 変化の大箱・変化の杖・強欲な壺・変換の巻物 等 */
-  shop: 0.10,   /* 店の品揃え */
-  drop: 0.05,   /* 敵ドロップ（均等ギャンブル枠） */
+  change: 0, /* 変化の大箱・変化の杖・強欲な壺・変換の巻物 等 */
+  shop: 0,   /* 店の品揃え */
+  drop: 0,   /* 敵ドロップ */
 };
 
 /** 一般ランダムドロップ率（固有ドロップは別） */
@@ -476,15 +477,16 @@ export function monsterRandomDropChance(m) {
 }
 
 /**
- * 床落ち相当の重み抽選を基本とし、context によっては一定確率で均等抽選。
+ * weight による重み抽選（全 context 共通。均等枠は使わない）。
  * @param {object[]} pool weight 付きテンプレ配列
- * @param {'floor'|'change'|'shop'|'drop'} [context='floor']
+ * @param {'floor'|'change'|'shop'|'drop'} [context='floor'] 互換用（抽選には未使用）
  * @param {() => number} [rngFn=Math.random]
  */
 export function pickLootFromPool(pool, context = "floor", rngFn = Math.random) {
   if (!pool || pool.length === 0) return null;
   if (pool.length === 1) return pool[0];
   const chance = LOOT_UNIFORM_CHANCE[context] ?? 0;
+  /* 後方互換：万一 chance>0 なら均等。現行は全 0 */
   if (chance > 0 && rngFn() < chance) {
     return pool[Math.floor(rngFn() * pool.length)];
   }
