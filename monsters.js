@@ -1169,7 +1169,7 @@ export function hasLOS(map, x0, y0, x1, y1) {
 }
 
 /* ===== BFS PATHFINDING ===== */
-export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false, tileFilter = null, fallbackNearest = false, rooms = null) {
+export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles = null, float = false, tileFilter = null, fallbackNearest = false, rooms = null, dg = null) {
   if (sx === tx && sy === ty) return null;
   /* モンスター位置と聖域位置をSetに変換 (O(1)ルックアップ) */
   const monSet = new Set();
@@ -1231,7 +1231,7 @@ export function findRoom(rooms, x, y) {
   );
 }
 
-export function getOpenDirs(map, x, y, float = false) {
+export function getOpenDirs(map, x, y, float = false, dg = null) {
   const res = [];
   const ds = [
     [-1, 0],
@@ -2280,7 +2280,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         }
       }
       if (_target) {
-        const _next = bfsNext(dg.map, dg.monsters, m.x, m.y, _target.x, _target.y, m, 40, dg.pentacles, true, null, false, dg.rooms);
+        const _next = bfsNext(dg.map, dg.monsters, m.x, m.y, _target.x, _target.y, m, 40, dg.pentacles, true, null, false, dg.rooms, dg);
         if (_next && !(_next.x === pl.x && _next.y === pl.y)) { m.x = _next.x; m.y = _next.y; }
       }
       return;
@@ -2595,7 +2595,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _gcTarget = dg.items.reduce((best, it) =>
         Math.hypot(it.x - m.x, it.y - m.y) < Math.hypot(best.x - m.x, best.y - m.y) ? it : best
       );
-      const _gcNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _gcTarget.x, _gcTarget.y, m, 30, dg.pentacles, _effFloat, null, false, dg.rooms);
+      const _gcNext = bfsNext(dg.map, dg.monsters, m.x, m.y, _gcTarget.x, _gcTarget.y, m, 30, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
       if (_gcNext && !dg.monsters.some(o => o !== m && o.x === _gcNext.x && o.y === _gcNext.y)) {
         if (_gcNext.x === pl.x && _gcNext.y === pl.y) {
           if (!_plOnSanc &&
@@ -2681,7 +2681,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             m.x = _bp.x; m.y = _bp.y;
           } else {
             /* blockPos が塞がれていたらBFSで1歩近づく */
-            const _bn = bfsNext(dg.map, dg.monsters, m.x, m.y, _bp.x, _bp.y, m, 10, null, _effFloat, null, false, dg.rooms);
+            const _bn = bfsNext(dg.map, dg.monsters, m.x, m.y, _bp.x, _bp.y, m, 10, null, _effFloat, null, false, dg.rooms, dg);
             if (_bn && (_bn.x !== pl.x || _bn.y !== pl.y) &&
                 !dg.monsters.some(o => o !== m && o.x === _bn.x && o.y === _bn.y)) {
               m.x = _bn.x; m.y = _bn.y;
@@ -2891,7 +2891,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           /* プレイヤー・他モンスターを障害物扱いにして迂回路を探す */
           const _decoyTileFilter = (x, y) =>
             (x === pl.x && y === pl.y) ? false : canEnter(map, x, y, _effFloat, dg);
-          const _dn = bfsNext(map, dg.monsters, m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat, _decoyTileFilter, true, dg.rooms);
+          const _dn = bfsNext(map, dg.monsters, m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat, _decoyTileFilter, true, dg.rooms, dg);
           if (_dn) {
             /* BFS到達成功か最近傍タイルへの第一歩（到達不可の場合）を取得 */
             m._decoyLuredOk = true; /* 次のattackOnlyフェーズでも囮ロジック維持 */
@@ -3584,7 +3584,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           return;
         } else {
           /* 傷ついた味方へ接近 */
-          const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles, _effFloat, null, false, dg.rooms);
+          const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
           if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
               !dg.monsters.some(o => o !== m && o.x === _hn.x && o.y === _hn.y)) {
             m.x = _hn.x; m.y = _hn.y;
@@ -3680,7 +3680,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _bd = Math.max(Math.abs(_bm.x - m.x), Math.abs(_bm.y - m.y));
           if (_bd < _bNearDist) { _bNearDist = _bd; _bTx = _bm.x; _bTy = _bm.y; }
         }
-        const _bNext = bfsNext(map, [], m.x, m.y, _bTx, _bTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms);
+        const _bNext = bfsNext(map, [], m.x, m.y, _bTx, _bTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_bNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _bNext.x && pc.y === _bNext.y) &&
             !dg.monsters.some(o => o !== m && o.x === _bNext.x && o.y === _bNext.y) &&
@@ -3740,7 +3740,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (!_attackOnly) {
         const _kpTx = canSee ? pl.x : m.lastPx;
         const _kpTy = canSee ? pl.y : m.lastPy;
-        const _kpNext = bfsNext(map, [], m.x, m.y, _kpTx, _kpTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms);
+        const _kpNext = bfsNext(map, [], m.x, m.y, _kpTx, _kpTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_kpNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _kpNext.x && pc.y === _kpNext.y) &&
             !dg.monsters.some(o => o !== m && o.x === _kpNext.x && o.y === _kpNext.y) &&
@@ -3795,7 +3795,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (!_attackOnly) {
         const _ppTx = canSee ? pl.x : m.lastPx;
         const _ppTy = canSee ? pl.y : m.lastPy;
-        const _ppNext = bfsNext(map, [], m.x, m.y, _ppTx, _ppTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms);
+        const _ppNext = bfsNext(map, [], m.x, m.y, _ppTx, _ppTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
         if (_ppNext &&
             !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _ppNext.x && pc.y === _ppNext.y) &&
             !dg.monsters.some(o => o !== m && o.x === _ppNext.x && o.y === _ppNext.y) &&
@@ -3825,7 +3825,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             const _gd = Math.max(Math.abs(_gm.x - m.x), Math.abs(_gm.y - m.y));
             if (_gd < _gaNear) { _gaNear = _gd; _gaTx = _gm.x; _gaTy = _gm.y; }
           }
-          const _gaNext = bfsNext(map, [], m.x, m.y, _gaTx, _gaTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms);
+          const _gaNext = bfsNext(map, [], m.x, m.y, _gaTx, _gaTy, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
           if (_gaNext &&
               !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _gaNext.x && pc.y === _gaNext.y) &&
               !dg.monsters.some(o => o !== m && o.x === _gaNext.x && o.y === _gaNext.y) &&
@@ -3933,7 +3933,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       }
 
       /* 距離3以上：プレイヤーに近づくがチェビシェフ距離2未満には踏み込まない */
-      const _dbNext = bfsNext(map, [], m.x, m.y, pl.x, pl.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms);
+      const _dbNext = bfsNext(map, [], m.x, m.y, pl.x, pl.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
       if (_dbNext) {
         const _newDist = Math.max(Math.abs(pl.x - _dbNext.x), Math.abs(pl.y - _dbNext.y));
         if (_newDist >= 2 && !dg.monsters.some(o => o !== m && o.x === _dbNext.x && o.y === _dbNext.y)) {
@@ -3966,7 +3966,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (!inBounds(nx, ny)) return false;
       return map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false);
     } : null;
-    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles, _effFloat, _wateriFilter, false, dg.rooms);
+    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles, _effFloat, _wateriFilter, false, dg.rooms, dg);
     if (next && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) return;
     if (next) {
       if (next.x === pl.x && next.y === pl.y) {
@@ -3996,7 +3996,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _bNext = bfsNext(map, [], _blocker.x, _blocker.y,
           (_blocker.aware ? (_blocker.lastPx ?? pl.x) : (m.x)),
           (_blocker.aware ? (_blocker.lastPy ?? pl.y) : (m.y)),
-          _blocker, 4, dg.pentacles, _blocker.float, null, false, dg.rooms);
+          _blocker, 4, dg.pentacles, _blocker.float, null, false, dg.rooms, dg);
         if (_bNext && _bNext.x === m.x && _bNext.y === m.y && _blocker.type !== "shopkeeper" &&
             /* waterOnly：スワップ先が水/泉でない場合はスワップ不可 */
             (!m.waterOnly || map[next.y]?.[next.x] === T.WATER || dg.springs?.some(s => s.x === next.x && s.y === next.y))) {
@@ -4159,7 +4159,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     if (m.patrolTarget) {
       const next = bfsNext(map, [], m.x, m.y,
-        m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, _effFloat, null, false, dg.rooms);
+        m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
       if (next && !(next.x === pl.x && next.y === pl.y) &&
           !((!inMagicSealRoom(m.x, m.y, dg)) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y))) {
         if (!dg.monsters.some(o => o !== m && o.x === next.x && o.y === next.y)) {
