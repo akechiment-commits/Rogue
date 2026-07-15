@@ -83,7 +83,7 @@ describe("詰まり脱出", () => {
     expect(m.y).toBe(10);
   });
 
-  it("同マスに4ターン停滞したら空きマスへ動く", () => {
+  it("同マスに9ターン停滞したら空きマスへ動く", () => {
     const map = openMap();
     /* 目標方向を塞ぎ、周囲は開いている */
     const wallMon = {
@@ -97,8 +97,8 @@ describe("詰まり脱出", () => {
       x: 10, y: 10, hp: 11, maxHp: 11, atk: 0, def: 0, exp: 50,
       speed: 2, baseSpeed: 2, aware: true, dormant: false, sealed: false,
       lastPx: 20, lastPy: 10, turnAccum: 0, monLevel: 1, dir: { x: 0, y: 0 },
-      /* 既に停滞扱いに近づける */
-      _idleStuck: 3,
+      /* 既に停滞扱いに近づける（+1 で 9） */
+      _idleStuck: 8,
       posHistory: [
         { x: 10, y: 10 }, { x: 10, y: 10 }, { x: 10, y: 10 },
         { x: 10, y: 10 }, { x: 10, y: 10 }, { x: 10, y: 10 },
@@ -112,10 +112,9 @@ describe("詰まり脱出", () => {
       items: [], traps: [],
       visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
     });
-    /* flee が出口へ動く可能性もあるが、少なくとも同マス固定はしない */
     const before = { x: m.x, y: m.y };
     monsterAI(m, dg, pl, [], { moveOnly: true });
-    /* _idleStuck が 3→4 で unstick、または flee で移動 */
+    /* _idleStuck が 8→9 で unstick、または flee で移動 */
     expect(m.x !== before.x || m.y !== before.y).toBe(true);
   });
 });

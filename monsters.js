@@ -2210,8 +2210,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           m._idleStuck = 0;
         }
         const stuckHist = isPosHistoryStuck(m);
-        /* 4ターン以上同マス停滞、または往復・停滞パターンなら別方向へ */
-        if (m._idleStuck >= 4 || stuckHist) {
+        /* 9ターン以上同マス停滞、または往復・停滞パターンなら別方向へ */
+        if (m._idleStuck >= 9 || stuckHist) {
           if (tryUnstickMove(m, dg, pl, _float)) {
             _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
           }
