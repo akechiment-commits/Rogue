@@ -832,9 +832,9 @@ export const MONS = [
       { name: "クレストバード", hp: 85,  atk: 30, def: 13, exp: 135, speed: 2,  dungeonFloors: { advanced: { min: 22, max: 28 } } },
     ],
   },
-  /* ===== ラクガキ魔：同部屋でプレイヤー足元に魔方陣を描く ===== */
+  /* ===== ラクガキ魔：同部屋で自分の足元に魔方陣を描く ===== */
   { name: "ラクガキ魔",   hp: 22,  atk: 9,  def: 3,  exp: 36,  speed: 1,   tile: 111, kind: "humanoid", baseKind: "rakugakima",    monLevel: 1, minFloor: 10, maxFloor: 30, subtype: "pentaclePainter", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 17 }, advanced: { min: 8, max: 15 } },
-    desc: "同じ部屋にいると足元に魔方陣を描いてくる。レベルが上がるほど凶悪な魔方陣に。",
+    desc: "同じ部屋にいると自分の足元に魔方陣を描いてくる。レベルが上がるほど凶悪な魔方陣に。",
     levels: [
       { name: "ラクガキ妖精",       hp: 42,  atk: 17, def: 7,  exp: 70,  dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 15, max: 22 } } },
       { name: "ラクガキバンシー",   hp: 68,  atk: 25, def: 12, exp: 118, dungeonFloors: { advanced: { min: 22, max: 28 } } },
@@ -3758,7 +3758,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    /* ── pentaclePainter（ラクガキ魔等）：同部屋でプレイヤー足元に魔方陣を描く ── */
+    /* ── pentaclePainter（ラクガキ魔等）：同部屋で自分の足元に魔方陣を描く ── */
     if (m.subtype === "pentaclePainter" && !m.sealed) {
       if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) {
         if (canSee && m._pentacleDrawReady) {
@@ -3773,8 +3773,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             ));
           if (_ppSeal) {
             ml.push(`${m.name}の魔方陣が魔封じの魔方陣に封じられた！`);
-          } else if (dg.pentacles?.some(pc => pc.x === pl.x && pc.y === pl.y)) {
-            /* 既に魔方陣あり → 描けない */
+          } else if (dg.pentacles?.some(pc => pc.x === m.x && pc.y === m.y)) {
+            /* 自分の足元に既に魔方陣あり → 描けない */
           } else {
             m.turnAttacks++;
             const _ppLv = m.monLevel || 1;
@@ -3785,8 +3785,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             const [_ppKind, _ppName] = pick(_ppPool);
             const _ppCursed = _ppLv >= 3;
             dg.pentacles = dg.pentacles || [];
-            dg.pentacles.push({ x: pl.x, y: pl.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed });
-            ml.push(`${m.name}がプレイヤーの足元に${_ppName}を描いた！`);
+            dg.pentacles.push({ x: m.x, y: m.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed });
+            ml.push(`${m.name}が足元に${_ppName}を描いた！`);
             return;
           }
         }
