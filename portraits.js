@@ -56,8 +56,9 @@ export function msgToActionKey(msg, recentMsgs = []) {
   if (/魔法書.*(?:を)?(?:読|使)|(?:読|使).*(?:魔法書)/.test(msg)) return "act_spellbook";
   if (/巻物.*(?:を)?(?:読|使)|(?:読|使).*(?:巻物)/.test(msg)) return "act_scroll";
   if (/杖を振|ワンド/.test(msg)) return "act_wand";
-  if (/魔方陣|ペンで/.test(msg)) return "act_pen";
-  if (/魔法を放|魔法陣/.test(msg)) return "act_magic";
+  /* 描いたときだけ。かすれ・消滅・加護メッセージの「魔方陣」は除外 */
+  if (/を描いた|ペンで/.test(msg)) return "act_pen";
+  if (/魔法を放/.test(msg)) return "act_magic";
   if (/矢を射|弓/.test(msg)) return "act_bow";
   if (/投げた|投擲/.test(msg)) return "act_throw";
   if (/(?:壺.*(?:を)?(?:使|割|投|入|取り出)|(?:使|割|投|入|取り出).*(?:壺))/.test(msg)) return "act_pot";

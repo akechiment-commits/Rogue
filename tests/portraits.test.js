@@ -81,10 +81,15 @@ describe("portraits", () => {
     expect(msgToActionKey("炎の魔法書を読んだ！")).toBe("act_spellbook");
     expect(msgToActionKey("回復の巻物を読んだ！")).toBe("act_scroll");
     expect(msgToActionKey("保存の壺におにぎりを入れた！")).toBe("act_pot");
+    expect(msgToActionKey("足元に重力の魔方陣を描いた！(残り1回)")).toBe("act_pen");
     expect(msgToActionKey("炎の魔法書を拾った！")).toBeNull();
     expect(msgToActionKey("回復の巻物の上に乗った！")).toBeNull();
     expect(msgToActionKey("保存の壺を拾った！")).toBeNull();
     expect(msgToActionKey("何もない")).toBeNull();
+    /* かすれ・消滅は描画立ち絵にしない */
+    expect(msgToActionKey("重力の魔方陣がかすれてきた…(残り5ターン)")).toBeNull();
+    expect(msgToActionKey("重力の魔方陣が消えた！")).toBeNull();
+    expect(msgToActionKey("みかわしの魔方陣の加護でかわした！")).toBeNull();
   });
 
   it("msgToActionKey が腐った・ヤバイ食料を直近ログから判定する", () => {
