@@ -20,7 +20,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
+  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
@@ -3409,8 +3409,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _allS2 = getShops(dg);
                 const _pickShop = _allS2.find(s => s.id === _grIt._shopId) || _allS2[0];
                 if (_pickShop) {
-                  const _actualPrice = calcShopBuyPrice(p, _grIt.shopPrice);
-                  _pickShop.unpaidTotal += _actualPrice;
+                  const _actualPrice = applyShopUnpaidCharge(_grIt, _pickShop, p);
                   const _sk2 = dg.monsters.find((m) => m.id === _pickShop.shopkeeperId && m.state === "friendly");
                   if (_sk2) _sk2.state = "blocking";
                   ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${shopPriceNote(p)}) 店主が入り口をふさいだ。`);
@@ -5233,8 +5232,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _allS = getShops(_dg);
       const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
       if (_ps) {
-        const _ap = calcShopBuyPrice(_p, item.shopPrice);
-        _ps.unpaidTotal += _ap;
+        const _ap = applyShopUnpaidCharge(item, _ps, _p);
         const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
         if (_sk) _sk.state = "blocking";
         ml.push(`${dnameRef(item)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`);
@@ -5266,13 +5264,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const _allS = getShops(_dg);
     const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
     if (_ps) {
-      const _ap = calcShopBuyPrice(_p, item.shopPrice);
-      _ps.unpaidTotal += _ap;
+      const _ap = applyShopUnpaidCharge(item, _ps, _p);
       const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
       if (_sk) _sk.state = "blocking";
       setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`]);
     }
-    /* shopPrice/_shopId は拾った場合と同様に維持（未払い表示・店への返却・使用分請求に必要） */
+    /* shopPrice/_shopId/_shopCharge は拾った場合と同様に維持（未払い表示・店への返却・使用分請求に必要） */
   };
   const _doFloorItemAction = (item, actionFn, skipCapCheck = false, keepInInventory = false) => {
     const s = sr.current; if (!s) return;
@@ -5439,7 +5436,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
     else if (it.type === "pot")    s += _isIdent ? ` [${potOccupancyCount(it)}/${it.capacity}]` : "";
     else if (it.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(it.effect)) s += `+${it.plus || 0}`;
-    if (it.shopPrice) s += ` 〔未払:${it.shopPrice}G〕`;
+    if (it.shopPrice) s += ` 〔未払:${getShopItemCharge(it)}G〕`;
     return s;
   };
   const iBtn = (l, c, fn) => (

@@ -1943,12 +1943,13 @@ export function useItemActions({
     const _allShopsDrop = getShops(dg);
     const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
     const prevDebt = _itemShopDrop?.unpaidTotal ?? 0;
-    /* 返却前にチャージ使用コストを算出（placeItemAtがshopPriceを書き換える前に計算） */
+    /* 返却前にチャージ使用コストを算出（請求額 _shopCharge 基準。placeItemAt が書き換える前） */
     const _chargeCost = (it._origCharges != null && it.charges != null && it._origCharges > 0 && it.charges < it._origCharges)
       ? (() => {
           const _po = itemPrice({ ...it, charges: it._origCharges });
           const _pc = itemPrice({ ...it, charges: it.charges });
-          return _po > 0 ? Math.max(0, Math.round((it.shopPrice || 0) * (1 - _pc / _po))) : 0;
+          const _owed = it._shopCharge != null ? it._shopCharge : (it.shopPrice || 0);
+          return _po > 0 ? Math.max(0, Math.round(_owed * (1 - _pc / _po))) : 0;
         })()
       : 0;
     /* 足元に泉があればアイテムを泉に落とす */

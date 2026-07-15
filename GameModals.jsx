@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome, pickLootFromPool } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
@@ -1251,7 +1251,7 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       const _clearShopPrice = (it2) => {
                         if (it2.shopPrice && (!it2._shopId || it2._shopId === _curShop2.id)) {
                           if (it2.type === "gem") it2._gemBuyPrice = it2.shopPrice;
-                          delete it2.shopPrice; delete it2._shopId;
+                          delete it2.shopPrice; delete it2._shopId; delete it2._shopCharge;
                         }
                         if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice);
                       };
@@ -3074,7 +3074,7 @@ export function InventoryModal({
                   <TileIcon item={it} size={16} />
                   {iLabel(it)}
                   {it.shopPrice
-                    ? <span style={{ color: "#ff6622", fontSize: 12, marginLeft: 4 }}>〔未払:{it.shopPrice}G〕</span>
+                    ? <span style={{ color: "#ff6622", fontSize: 12, marginLeft: 4 }}>〔未払:{getShopItemCharge(it)}G〕</span>
                     : (_inShopRoom2 && it.type !== "gold"
                         ? <span style={{ color: "#aaa880", fontSize: 12, marginLeft: 4 }}>売:{Math.ceil(itemPrice(it) * 0.5)}G</span>
                         : null)

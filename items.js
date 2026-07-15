@@ -3266,15 +3266,17 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       if (_iShop) {
         const r = _iShop.room;
         if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
-          /* チャージを消費した分は返金しない（0回でも基本価値分は返金） */
-          let _refundVal = item.shopPrice;
+          /* 返金は拾い時の請求額(_shopCharge)基準。値上げ/値切りとズレない */
+          let _refundVal = getShopItemCharge(item);
           if (item._origCharges != null && item.charges != null && item._origCharges > 0 && item.charges < item._origCharges) {
             const _priceOrig = itemPrice({ ...item, charges: item._origCharges });
             const _priceCur  = itemPrice({ ...item, charges: item.charges });
-            _refundVal = _priceOrig > 0 ? Math.max(0, Math.round(item.shopPrice * (_priceCur / _priceOrig))) : 0;
-            item.shopPrice = _refundVal; /* 次に拾われた時の値段を更新 */
+            const _ratio = _priceOrig > 0 ? (_priceCur / _priceOrig) : 0;
+            _refundVal = Math.max(0, Math.round(_refundVal * _ratio));
+            item.shopPrice = Math.max(0, Math.round((item.shopPrice || 0) * _ratio)); /* 次に拾う list 価格 */
           }
           _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - _refundVal);
+          delete item._shopCharge; /* 棚に戻ったので次回拾い時に再計算 */
           if (_iShop.unpaidTotal === 0) {
             const sk = dg.monsters.find(m => m.id === _iShop.shopkeeperId && m.state === "blocking");
             if (sk) moveShopkeeperHome(sk, _iShop, dg);
@@ -4580,6 +4582,28 @@ export function shopPriceNote(p) {
   if (hasRingEffect(p, "markup_ring")) notes.push("5割増！");
   if (hasRingEffect(p, "bargain_ring")) notes.push("3割引！");
   return notes.length ? " " + notes.join("") : "";
+}
+
+/**
+ * 店商品の未払い計上額。
+ * 拾い時に _shopCharge を記録（値上げ・値切り反映）。なければ list 価格 shopPrice。
+ */
+export function getShopItemCharge(item) {
+  if (!item) return 0;
+  if (item._shopCharge != null) return item._shopCharge;
+  return item.shopPrice || 0;
+}
+
+/**
+ * 店商品の未払いを加算し、返却精算用に _shopCharge を記録する。
+ * @returns {number} 加算した金額
+ */
+export function applyShopUnpaidCharge(item, shop, p) {
+  if (!item?.shopPrice || !shop) return 0;
+  const charged = calcShopBuyPrice(p, item.shopPrice);
+  item._shopCharge = charged;
+  shop.unpaidTotal += charged;
+  return charged;
 }
 
 /**
