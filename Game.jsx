@@ -2027,8 +2027,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
             }
           }
-          /* --- 罠の魔方陣：毎ターン30%で罠が増える --- */
-          if (!_pcMagicSealed && _pc.kind === "trap_gen" && _inRange && Math.random() < 0.1) {
+          /* --- 罠の魔方陣：同フロアでターン経過すれば別部屋でも発動（配置先は魔方陣の部屋／祝福はフロア） --- */
+          if (!_pcMagicSealed && _pc.kind === "trap_gen" && Math.random() < 0.1) {
             if (_pc.cursed) {
               /* 呪い：フロア内の罠をランダムに1つ消す（永続回転板は除外） */
               const _delCands = _dg2.traps.filter(t => !t.permanent);
@@ -2037,7 +2037,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 removeTrap(_dg2, _rt, ml, { message: `${_pc.name}の呪いで罠が消えた！`, p });
               }
             } else {
-              /* 通常/祝福：対象エリアにランダム罠を配置 */
+              /* 通常：魔方陣のある部屋 / 祝福：フロア内ランダム部屋（プレイヤー同室は不要） */
               const _tgScope = _pc.blessed ? _dg2.rooms : (_pcRoom ? [_pcRoom] : []);
               if (_tgScope.length > 0) {
                 const _tgR = pick(_tgScope);

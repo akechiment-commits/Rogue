@@ -235,7 +235,7 @@ export const ITEMS = [
   { name:"遠投のペン",       type:"pen",    effect:"farcast",       charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。\n呪い：射程が1マスになる。", tile:42 },
   { name:"明かりのペン",     type:"pen",    effect:"light",         charges:2, rarity:"C", weight:8,  sellPrice:700,  desc:"足元に明かりの魔方陣を描く。\n同じ部屋の地形・敵・アイテムが全て見える。\n呪い：視界1マスに。", tile:42 },
   { name:"テレポートのペン", type:"pen",    effect:"teleport_trap", charges:2, rarity:"B", weight:4,  sellPrice:1200,  desc:"足元にテレポートの魔方陣を描く。\n描いた瞬間ランダムテレポート。部屋内で毎ターン確率でTP。\n呪い：テレポート無効化。", tile:42 },
-  { name:"罠のペン",         type:"pen",    effect:"trap_gen",      charges:2, rarity:"D", weight:12, sellPrice:300,  desc:"足元に罠の魔方陣を描く。\n毎ターン確率で部屋に罠が増える。\n呪い：毎ターン罠が消える。", tile:42 },
+  { name:"罠のペン",         type:"pen",    effect:"trap_gen",      charges:2, rarity:"D", weight:12, sellPrice:300,  desc:"足元に罠の魔方陣を描く。\n毎ターン確率で部屋に罠が増える（別部屋でも発動）。\n呪い：毎ターン罠が消える。", tile:42 },
   { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, rarity:"C", weight:8,  sellPrice:800,  desc:"足元に石飛ばしの魔方陣を描く。\n部屋内のキャラに毎ターン25%で魔法の石が飛ぶ（命中100%）。\n回避はみかわし魔方陣・みかわしの服・オリーブ油のみ。\n呪い：回復効果。", tile:42 },
   { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, rarity:"A", weight:2,  sellPrice:3500,  desc:"足元に吹き飛ばしの魔方陣を描く。\n部屋内で近接攻撃を受けた者が5マス吹き飛ぶ。\n呪い：1マスだけ。", tile:42 },
   { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"B", weight:4,  sellPrice:1500, desc:"足元に爆発の魔方陣を描く。\n部屋内で倒された敵が爆発し周囲8マスにHP3/4ダメージ。壁・罠・大箱も破壊。\n呪い：炎・雷を不発に。", tile:42 },
