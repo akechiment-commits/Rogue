@@ -238,6 +238,55 @@ describe("portraits", () => {
     expect(event.force).toBe(true);
   });
 
+  it("拘束中は攻撃など他行動より拘束立ち絵を優先する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      capturedBy: "mon-grabber-1",
+      weaponId: "sword-1",
+    };
+    const player = {
+      ...prev,
+      weapon: { id: "sword-1", type: "weapon" },
+      capturedBy: "mon-grabber-1",
+    };
+    const attack = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "からめ鬼に8ダメージ！",
+    });
+    expect(attack.src).toMatch(/status_bound/);
+    expect(attack.force).toBe(true);
+
+    const potion = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "回復薬を飲んだ！",
+    });
+    expect(potion.src).toMatch(/status_bound/);
+  });
+
+  it("拘束中でも死亡・被ダメは優先される", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      capturedBy: "mon-grabber-1",
+    };
+    const hurt = resolvePortraitEvent({
+      player: { ...prev, hp: 60, weapon: null },
+      prev,
+      lastMsg: "からめ鬼の攻撃！20ダメージ！",
+      newMsgs: ["からめ鬼の攻撃！20ダメージ！"],
+    });
+    expect(hurt.src).toMatch(/hp_hurt|damage_/);
+    expect(hurt.force).toBe(true);
+
+    const dead = resolvePortraitEvent({
+      player: { ...prev, hp: 0, deathCause: "からめ鬼の攻撃で", weapon: null },
+      prev,
+      lastMsg: "",
+    });
+    expect(dead.src).toMatch(/gameover_dead/);
+  });
+
   it("resolvePortraitEvent が閉じ込め状態（とじこめの壺）を反映する", () => {
     const prev = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,

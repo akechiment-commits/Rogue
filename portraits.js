@@ -321,6 +321,12 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     }
   }
 
+  /* からめ鬼など拘束中：攻撃・アイテム使用・歩行より拘束立ち絵を常に優先
+   * （死亡・被ダメだけは上で処理済み） */
+  if (p.capturedBy) {
+    return portraitEvent("status_bound", now, { force: true });
+  }
+
   if (isMajorHeal(p, prev)) {
     return portraitEvent("hp_healed", now, { rateLimited: true });
   }
@@ -355,10 +361,6 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   if (p.paralyzeTurns > 0 && prev.paralyzeTurns <= 0) {
     return portraitEvent("status_paralyze", now);
-  }
-  /* からめ鬼など：捕獲・拘束（倒すまで逃げられない） */
-  if (p.capturedBy && !prev.capturedBy) {
-    return portraitEvent("status_bound", now, { force: true });
   }
   /* とじこめの壺：閉じ込め */
   if ((p.potConfinedTurns || 0) > 0 && (prev.potConfinedTurns || 0) <= 0) {
