@@ -48,4 +48,16 @@ describe("calcHungerDrainRate", () => {
       rings: [{ effect: "regen_ring" }],
     })).toBeCloseTo(2.0);
   });
+
+  it("空腹の指輪は軽減後を2倍", () => {
+    expect(calcHungerDrainRate({
+      armor: null,
+      rings: [{ effect: "hunger_ring" }],
+    })).toBeCloseTo(2.0);
+    /* 腹持ち+空腹 → 0.75*2 = 1.5 */
+    expect(calcHungerDrainRate({
+      armor: null,
+      rings: [{ effect: "stomach_ring" }, { effect: "hunger_ring" }],
+    })).toBeCloseTo(1.5);
+  });
 });

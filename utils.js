@@ -365,11 +365,17 @@ export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }
 
-export function computeFOV(map, px, py, rad, vis, exp, rooms = []) {
+/**
+ * @param {number} rad 廊下レイキャスト半径
+ * @param {{ roomVision?: boolean }} [opts] roomVision 未指定時は rad>1 で部屋全体表示
+ */
+export function computeFOV(map, px, py, rad, vis, exp, rooms = [], opts = {}) {
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) vis[y][x] = false;
 
-  // 部屋内なら同じ部屋全体（+ 隣接壁）を表示（暗闇中は無効）
-  if (rad > 1) {
+  // 部屋内なら同じ部屋全体（+ 隣接壁）を表示（暗闇の薬など roomVision=false のとき無効）
+  // 暗闇の指輪は廊下半径のみ減らし、部屋視界は維持する
+  const roomVision = opts.roomVision !== undefined ? opts.roomVision : rad > 1;
+  if (roomVision) {
     const playerRoom = rooms.find(r => px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h);
     if (playerRoom) {
       for (let ry = playerRoom.y - 1; ry <= playerRoom.y + playerRoom.h; ry++) {
@@ -406,8 +412,13 @@ export function computeFOV(map, px, py, rad, vis, exp, rooms = []) {
 /* FOV再計算 + アイテム発見マーキングを一括実行するラッパー */
 export function refreshFOV(dg, p) {
   const torchBonus = (p.visionBonus || 0);
-  const rad = ((p.darknessTurns || 0) > 0 ? 1 : corridorRange(p.depth)) + torchBonus;
-  computeFOV(dg.map, p.x, p.y, rad, dg.visible, dg.explored, [...(dg.rooms || []), ...(dg.hiddenRooms || [])]);
+  const darknessTurns = (p.darknessTurns || 0) > 0;
+  const darkRingPen = (p.rings || []).filter(r => r && r.effect === "darkness_ring").length;
+  const base = darknessTurns ? 1 : corridorRange(p.depth);
+  /* 暗闇の指輪は廊下視界のみ-1（部屋全体表示は維持）。下限1 */
+  const corridorRad = Math.max(1, base + torchBonus - darkRingPen);
+  const roomVision = !darknessTurns && (base + torchBonus) > 1;
+  computeFOV(dg.map, p.x, p.y, corridorRad, dg.visible, dg.explored, [...(dg.rooms || []), ...(dg.hiddenRooms || [])], { roomVision });
   for (const it of dg.items) { if (dg.visible[it.y]?.[it.x]) it.discovered = true; }
 }
 

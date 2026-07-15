@@ -298,6 +298,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* タトゥーバード: 25%で痛恨の一撃（ダメージ2倍） */
   const _tbCrit = m.subtype === "tattoobird" && Math.random() < 0.25;
   if (_tbCrit) dmg *= 2;
+  /* 平和の指輪：受ける近接ダメージ半減 */
+  if (hasRingEffect(pl, "peace_ring")) dmg = Math.max(1, Math.floor(dmg / 2));
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);

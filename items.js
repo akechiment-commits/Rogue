@@ -4550,6 +4550,13 @@ export const RINGS = [
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
   { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"水の中に入れる。" },
+  { name: "鈍足の指輪",     type:"ring", effect:"slow_ring",              rarity:"E", weight:12, sellPrice:200,  tile:60, desc:"装備中、速度が半減する（2ターンに1回しか行動できない）。" },
+  { name: "空腹の指輪",     type:"ring", effect:"hunger_ring",            rarity:"E", weight:12, sellPrice:200,  tile:60, desc:"装備中、空腹の進行が2倍になる。" },
+  { name: "足音の指輪",     type:"ring", effect:"footstep_ring",          rarity:"E", weight:12, sellPrice:200,  tile:60, desc:"装備中、歩くたびに足音が響き近くの敵が目を覚ます。" },
+  { name: "値上げの指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:200,  tile:60, desc:"装備中、店のアイテムが5割増しで買わされる。" },
+  { name: "自慢の指輪",     type:"ring", effect:"vanity_ring",            rarity:"E", weight:12, sellPrice:100,  tile:60, desc:"自慢げに輝いているが、特に効果はない。" },
+  { name: "暗闇の指輪",     type:"ring", effect:"darkness_ring",          rarity:"E", weight:12, sellPrice:300,  tile:60, desc:"装備中、廊下での視界が1マス狭くなる。" },
+  { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:800,  tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
 ];
 
 export function hasRingEffect(p, effect) {
@@ -4557,9 +4564,28 @@ export function hasRingEffect(p, effect) {
 }
 
 /**
+ * 店での購入価格（未払い加算用）。
+ * 値上げの指輪: ×1.5、値切りの指輪: ×0.7。両方装備時は両方乗算。
+ */
+export function calcShopBuyPrice(p, shopPrice) {
+  let price = shopPrice || 0;
+  if (hasRingEffect(p, "markup_ring")) price = Math.floor(price * 1.5);
+  if (hasRingEffect(p, "bargain_ring")) price = Math.floor(price * 0.7);
+  return Math.max(1, price);
+}
+
+/** 店購入メッセージ用の価格注記（" 5割増！" など。無ければ空文字） */
+export function shopPriceNote(p) {
+  const notes = [];
+  if (hasRingEffect(p, "markup_ring")) notes.push("5割増！");
+  if (hasRingEffect(p, "bargain_ring")) notes.push("3割引！");
+  return notes.length ? " " + notes.join("") : "";
+}
+
+/**
  * 1ターンあたりの空腹進行レート（基準: 合計10で満腹度-1 ≒ 通常10ターンに1）。
  * 腹持ち1つにつき ×3/4（胴+指輪1=1/2、胴+指輪2=1/4）。バターでさらに×1/2。
- * 回復の指輪は軽減後のレートを×2（上書きしない）。
+ * 回復の指輪・空腹の指輪は軽減後のレートを×2（上書きしない・重ねがけ可）。
  */
 export function calcHungerDrainRate(p) {
   if (!p) return 1;
@@ -4571,6 +4597,7 @@ export function calcHungerDrainRate(p) {
   let rate = Math.max(0, 4 - n) / 4;
   if ((p.butterHungerTurns || 0) > 0) rate *= 0.5;
   if (hasRingEffect(p, "regen_ring")) rate *= 2;
+  if (hasRingEffect(p, "hunger_ring")) rate *= 2;
   return rate;
 }
 

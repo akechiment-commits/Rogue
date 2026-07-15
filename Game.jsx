@@ -20,7 +20,7 @@ import {
   monsterFireLightning, checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
+  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
@@ -1675,6 +1675,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (p.slowTurns <= 0) { ml.push("鈍足が解けた！"); }
         else if (!_isSlowAutoAdv) { p.slowSkip = true; }
       }
+      /* 鈍足の指輪：装備中は常に速度半減（2ターンに1回行動） */
+      if (hasRingEffect(p, "slow_ring") && !_isSlowAutoAdv) {
+        p.slowSkip = true;
+      }
       if ((p.confusedTurns || 0) > 0) {
         p.confusedTurns--;
         if (p.confusedTurns <= 0) ml.push("混乱が解けた！");
@@ -2857,6 +2861,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
               /* 水晶スライム系：固定ダメージ以外は1ダメージ（近接は非固定扱い） */
               d = clampDmgFixed(attackMon, d, true);
+              /* 平和の指輪：近接与ダメージを1に */
+              if (hasRingEffect(p, "peace_ring")) d = 1;
               wakeIfDormant(attackMon, ml);
               /* ── ガーディアンチェック：隣接する guardian が肩代わり ── */
               const _guardMon = dg.monsters.find(gm =>
@@ -3273,6 +3279,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (_noisyWoke > 0) ml.push(`騒がしい音が響いた！（${_noisyWoke}体が目を覚ました）`);
               }
             }
+            /* 足音の指輪：移動するたび、同部屋 or チェビシェフ距離4以内の敵を起こす */
+            if (hasRingEffect(p, "footstep_ring") && (p.x !== _oldPx || p.y !== _oldPy)) {
+              const _fsRoom = findRoom(dg.rooms, p.x, p.y);
+              let _fsWoke = 0;
+              for (const _fm of dg.monsters) {
+                if (_fm.aware && !_fm.dormant && !_fm.dormantHouse) continue;
+                const _fmRoom = findRoom(dg.rooms, _fm.x, _fm.y);
+                const _near = Math.max(Math.abs(_fm.x - p.x), Math.abs(_fm.y - p.y)) <= 4;
+                if ((_fsRoom && _fmRoom === _fsRoom) || _near) {
+                  wakeIfDormant(_fm, ml);
+                  _fm.aware = true;
+                  _fsWoke++;
+                }
+              }
+              if (_fsWoke > 0) ml.push(`足音が響いた！（${_fsWoke}体が目を覚ました）`);
+            }
             }
           }
         }
@@ -3387,12 +3409,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _allS2 = getShops(dg);
                 const _pickShop = _allS2.find(s => s.id === _grIt._shopId) || _allS2[0];
                 if (_pickShop) {
-                  const _bargain = hasRingEffect(p, "bargain_ring");
-                  const _actualPrice = _bargain ? Math.max(1, Math.floor(_grIt.shopPrice * 0.7)) : _grIt.shopPrice;
+                  const _actualPrice = calcShopBuyPrice(p, _grIt.shopPrice);
                   _pickShop.unpaidTotal += _actualPrice;
                   const _sk2 = dg.monsters.find((m) => m.id === _pickShop.shopkeeperId && m.state === "friendly");
                   if (_sk2) _sk2.state = "blocking";
-                  ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${_bargain ? " 3割引！" : ""}) 店主が入り口をふさいだ。`);
+                  ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${shopPriceNote(p)}) 店主が入り口をふさいだ。`);
                 } else {
                   ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
                 }
@@ -5212,12 +5233,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _allS = getShops(_dg);
       const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
       if (_ps) {
-        const _bg = hasRingEffect(_p, "bargain_ring");
-        const _ap = _bg ? Math.max(1, Math.floor(item.shopPrice * 0.7)) : item.shopPrice;
+        const _ap = calcShopBuyPrice(_p, item.shopPrice);
         _ps.unpaidTotal += _ap;
         const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
         if (_sk) _sk.state = "blocking";
-        ml.push(`${dnameRef(item)}を取った！(${_ap}G${_bg ? " 3割引！" : ""}) 店主が入り口をふさいだ。`);
+        ml.push(`${dnameRef(item)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`);
       }
     } else {
       ml.push(`${dnameRef(item)}を拾った！`);
@@ -5246,12 +5266,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     const _allS = getShops(_dg);
     const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
     if (_ps) {
-      const _bg = hasRingEffect(_p, "bargain_ring");
-      const _ap = _bg ? Math.max(1, Math.floor(item.shopPrice * 0.7)) : item.shopPrice;
+      const _ap = calcShopBuyPrice(_p, item.shopPrice);
       _ps.unpaidTotal += _ap;
       const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
       if (_sk) _sk.state = "blocking";
-      setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${_bg ? " 3割引！" : ""}) 店主が入り口をふさいだ。`]);
+      setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`]);
     }
     /* shopPrice/_shopId は拾った場合と同様に維持（未払い表示・店への返却・使用分請求に必要） */
   };
