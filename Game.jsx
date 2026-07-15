@@ -2056,6 +2056,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   if (_dg2.bigboxes?.some(b => b.x === _tx2 && b.y === _ty2)) continue;
                   if (_dg2.pentacles?.some(pc3 => pc3.x === _tx2 && pc3.y === _ty2)) continue;
                   if (_dg2.oilyTiles?.some(t => t.x === _tx2 && t.y === _ty2)) continue;
+                  if (_dg2.statues?.some(s => s.x === _tx2 && s.y === _ty2)) continue;
                   const _td2 = pick(TRAPS);
                   _dg2.traps.push({ ..._td2, id: uid(), x: _tx2, y: _ty2, revealed: false });
                   _placed = true;

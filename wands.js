@@ -12,16 +12,22 @@ import {
   pickLootFromPool,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
-import { tryBreakStatueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, hitStatueWithAction, statueAt } from './fixtures.js';
+import { tryBreakStatueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, hitStatueWithAction, statueAt, displaceObjectsFromStatue } from './fixtures.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 
-/** 石像のテレポート先（他石像・敵・プレイヤー・大箱を避ける） */
+/** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */
 function statueTeleportDest(dg, ox, oy, p) {
   return randomTeleportDest(dg, ox, oy, (x, y) =>
     !dg.monsters.some(m => m.x === x && m.y === y) &&
     !(p && p.x === x && p.y === y) &&
     !dg.statues?.some(s => s.x === x && s.y === y) &&
-    !dg.bigboxes?.some(b => b.x === x && b.y === y)
+    !dg.bigboxes?.some(b => b.x === x && b.y === y) &&
+    !dg.items?.some(i => i.x === x && i.y === y) &&
+    !dg.traps?.some(t => t.x === x && t.y === y) &&
+    !dg.springs?.some(s => s.x === x && s.y === y) &&
+    !dg.pentacles?.some(pc => pc.x === x && pc.y === y) &&
+    !dg.vents?.some(v => v.x === x && v.y === y) &&
+    !dg.oilyTiles?.some(t => t.x === x && t.y === y)
   );
 }
 
@@ -67,6 +73,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const [ox, oy] = [p.x, p.y];
       p.x = target.x; p.y = target.y;
       target.x = ox; target.y = oy;
+      displaceObjectsFromStatue(dg, target.x, target.y, ml);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
       ml.push(`${target.name}と位置が入れ替わった！`);
       if (_swBless) {
@@ -80,6 +87,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _lpd = statueTeleportDest(dg, target.x, target.y, p);
         if (!_lpd) { ml.push("テレポートに失敗した。"); return; }
         target.x = _lpd.x; target.y = _lpd.y;
+        displaceObjectsFromStatue(dg, target.x, target.y, ml);
         ml.push(`${target.name}はどこかへテレポートした！【呪】`);
       }
       return;
@@ -97,8 +105,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !dg.monsters.some(m => m.x === _w1x && m.y === _w1y) &&
             !(p.x === _w1x && p.y === _w1y) &&
             !dg.statues?.some(s => s !== target && s.x === _w1x && s.y === _w1y) &&
-            !dg.bigboxes?.some(b => b.x === _w1x && b.y === _w1y)) {
+            !dg.bigboxes?.some(b => b.x === _w1x && b.y === _w1y) &&
+            !dg.items?.some(i => i.x === _w1x && i.y === _w1y) &&
+            !dg.traps?.some(t => t.x === _w1x && t.y === _w1y)) {
           target.x = _w1x; target.y = _w1y;
+          displaceObjectsFromStatue(dg, target.x, target.y, ml);
           ml.push(`${target.name}が少しだけテレポートした。`);
         } else {
           ml.push("テレポートに失敗した。");
@@ -118,12 +129,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 !dg.bigboxes?.some(b => b.x === _nx && b.y === _ny) &&
                 !dg.monsters.some(m => m.x === _nx && m.y === _ny) &&
                 !(p.x === _nx && p.y === _ny) &&
-                !dg.statues?.some(s => s !== target && s.x === _nx && s.y === _ny))
+                !dg.statues?.some(s => s !== target && s.x === _nx && s.y === _ny) &&
+                !dg.items?.some(i => i.x === _nx && i.y === _ny) &&
+                !dg.traps?.some(t => t.x === _nx && t.y === _ny))
               _wbAdj.push({ x: _nx, y: _ny });
           }
           if (_wbAdj.length > 0) {
             const _wd = pick(_wbAdj);
             target.x = _wd.x; target.y = _wd.y;
+            displaceObjectsFromStatue(dg, target.x, target.y, ml);
             ml.push(`${target.name}は階段の隣に飛んだ！`);
             return;
           }
@@ -132,6 +146,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _dest = statueTeleportDest(dg, target.x, target.y, p);
       if (!_dest) { ml.push("テレポートに失敗した。"); return; }
       target.x = _dest.x; target.y = _dest.y;
+      displaceObjectsFromStatue(dg, target.x, target.y, ml);
       ml.push(`${target.name}はどこかへテレポートした！`);
       return;
     }
@@ -1980,6 +1995,7 @@ function _pitfallBlockedAt(dg, cx, cy) {
     dg.bigboxes?.some(b => b.x === cx && b.y === cy) ||
     dg.pentacles?.some(pc => pc.x === cx && pc.y === cy) ||
     dg.oilyTiles?.some(t => t.x === cx && t.y === cy) ||
+    statueAt(dg, cx, cy) ||
     dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU;
 }
 

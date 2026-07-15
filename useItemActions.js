@@ -1622,6 +1622,7 @@ export function useItemActions({
         dg.springs?.some((s) => s.x === p.x && s.y === p.y) ||
         dg.bigboxes?.some((b) => b.x === p.x && b.y === p.y) ||
         dg.oilyTiles?.some((t) => t.x === p.x && t.y === p.y) ||
+        dg.statues?.some((s) => s.x === p.x && s.y === p.y) ||
         dg.map[p.y][p.x] === T.SD ||
         dg.map[p.y][p.x] === T.SU ||
         dg.map[p.y][p.x] === T.WATER;

@@ -82,6 +82,68 @@ export function statueAt(dg, x, y) {
   return (dg.statues || []).find((s) => s.x === x && s.y === y) || null;
 }
 
+const _STATUE_NEI = [
+  [0, -1], [0, 1], [-1, 0], [1, 0],
+  [-1, -1], [-1, 1], [1, -1], [1, 1],
+  [0, -2], [0, 2], [-2, 0], [2, 0],
+];
+
+/** 石像マスに置ける空き隣マス（石像・壁・他オブジェクトなし） */
+function _freeNeighborOffStatue(dg, x, y) {
+  for (const [dx, dy] of _STATUE_NEI) {
+    const nx = x + dx, ny = y + dy;
+    if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) continue;
+    const tile = dg.map[ny]?.[nx];
+    if (tile !== T.FLOOR) continue;
+    if (statueAt(dg, nx, ny)) continue;
+    if (dg.items?.some(i => i.x === nx && i.y === ny)) continue;
+    if (dg.traps?.some(t => t.x === nx && t.y === ny)) continue;
+    if (dg.springs?.some(s => s.x === nx && s.y === ny)) continue;
+    if (dg.bigboxes?.some(b => b.x === nx && b.y === ny)) continue;
+    if (dg.pentacles?.some(pc => pc.x === nx && pc.y === ny)) continue;
+    if (dg.vents?.some(v => v.x === nx && v.y === ny)) continue;
+    if (dg.oilyTiles?.some(t => t.x === nx && t.y === ny)) continue;
+    return { x: nx, y: ny };
+  }
+  return null;
+}
+
+/**
+ * 石像マス上に重なっているオブジェクトを隣へ退ける。
+ * 石像の移動先や、誤って重なった場合の救済用（破壊直後の報酬配置は石像削除後なので対象外）。
+ */
+export function displaceObjectsFromStatue(dg, x, y, ml = null) {
+  if (!dg || statueAt(dg, x, y) == null) return;
+  const moveList = (arr, label) => {
+    if (!arr?.length) return;
+    for (const o of [...arr]) {
+      if (o.x !== x || o.y !== y) continue;
+      const dest = _freeNeighborOffStatue(dg, x, y);
+      if (dest) {
+        o.x = dest.x; o.y = dest.y;
+        if (ml) ml.push(`${label || o.name || "何か"}が石像を避けてずれた。`);
+      } else if (arr === dg.items) {
+        dg.items = dg.items.filter(i => i !== o);
+        if (ml) ml.push(`${o.name}は行き場がなく消えた。`);
+      } else if (arr === dg.traps && !o.permanent) {
+        dg.traps = dg.traps.filter(t => t !== o);
+      } else if (arr === dg.oilyTiles) {
+        dg.oilyTiles = dg.oilyTiles.filter(t => t !== o);
+      } else if (arr === dg.pentacles && !o.fixed && o.kind !== "fixed_portal") {
+        dg.pentacles = dg.pentacles.filter(pc => pc !== o);
+      }
+      /* 泉・大箱・固定転送・永続罠は移動失敗時そのまま（稀） */
+    }
+  };
+  moveList(dg.items, null);
+  moveList(dg.traps, "罠");
+  moveList(dg.springs, "泉");
+  moveList(dg.bigboxes, "大箱");
+  moveList(dg.pentacles, "魔方陣");
+  moveList(dg.vents, "風穴");
+  moveList(dg.oilyTiles, "油");
+}
+
 /**
  * 石像を破壊。レア寄りアイテムを出す。通常は強敵も出す。
  * @param {{ spawnMonster?: boolean }} opts spawnMonster:false で敵なし（穴掘り・軟化）

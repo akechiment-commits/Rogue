@@ -910,6 +910,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         const tx = px + dx, ty = py + dy;
         if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
         if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) continue;
+        if (statueAt(dg, tx, ty)) continue;
         if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty))
           dg.oilyTiles.push({ x: tx, y: ty });
         const mon = monsterAt(dg, tx, ty);
@@ -970,6 +971,7 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
         const tx = px + dx, ty = py + dy;
         if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
         if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) continue;
+        if (statueAt(dg, tx, ty)) continue;
         if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty)) dg.oilyTiles.push({ x: tx, y: ty });
         const _om = monsterAt(dg, tx, ty);
         if (_om) { _om.oilyTurns = (_om.oilyTurns || 0) + 100; ml.push(`${_om.name}は油まみれになった！(100ターン)`); }
@@ -3213,6 +3215,8 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       return true;
     }
     if (dg.bigboxes?.some(b => b.x === cx && b.y === cy)) continue;
+    /* 石像：上にアイテムを重ねない */
+    if (statueAt(dg, cx, cy)) continue;
     /* ペンタクル：ポータルなら warp 起動、それ以外は通常通りスキップ */
     const _pcAtCxCy = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
     if (_pcAtCxCy) {
@@ -3575,6 +3579,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       const _tile = dg.map[by]?.[bx];
       if (!_tile || _tile === T.WALL || _tile === T.BWALL) return true;
       if (_tile === T.SD || _tile === T.SU) return true;
+      if (statueAt(dg, bx, by)) return true;
       if (dg.items.some(i => i.x === bx && i.y === by)) return true;
       if (dg.traps.some(t => t.x === bx && t.y === by)) return true;
       if (dg.bigboxes?.some(b => b.x === bx && b.y === by)) return true;

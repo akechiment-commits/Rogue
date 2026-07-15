@@ -3,8 +3,9 @@ import {
   makeFakeStairTrap, materializeFakeStair, trapDisplayAsStair,
   makeVent, makeStatue, makeFixedPortalPair, findFixedPortalPair,
   breakStatue, applyWindDir, getWindAt, wandEffectBreaksStatue, wandEffectStatueLootOnly,
-  throwItemBreaksStatue, hitStatueWithAction,
+  throwItemBreaksStatue, hitStatueWithAction, displaceObjectsFromStatue, statueAt,
 } from "../fixtures.js";
+import { placeItemAt } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
 
@@ -171,5 +172,33 @@ describe("石像", () => {
     expect(dg.monsters.length).toBe(0);
     expect(dg.items.length).toBeGreaterThanOrEqual(1);
     expect(ml.some(m => m.includes("が現れた"))).toBe(false);
+  });
+
+  it("placeItemAt は石像マスを避けて隣に置く", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [], traps: [],
+    });
+    dg.statues.push(makeStatue(5, 5));
+    const ml = [];
+    const it = { name: "石", type: "arrow", id: "i1", tile: 23 };
+    placeItemAt(dg, 5, 5, it, ml, new Set());
+    expect(dg.items.length).toBe(1);
+    expect(dg.items[0].x === 5 && dg.items[0].y === 5).toBe(false);
+    expect(statueAt(dg, dg.items[0].x, dg.items[0].y)).toBeNull();
+  });
+
+  it("displaceObjectsFromStatue は石像上のアイテム・罠を隣へ移す", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [{ name: "矢", type: "arrow", id: "a1", x: 5, y: 5, tile: 21 }],
+      traps: [{ name: "矢の罠", effect: "arrow", id: "t1", x: 5, y: 5, revealed: false }],
+      monsters: [], statues: [],
+    });
+    dg.statues.push(makeStatue(5, 5));
+    const ml = [];
+    displaceObjectsFromStatue(dg, 5, 5, ml);
+    expect(dg.items[0].x === 5 && dg.items[0].y === 5).toBe(false);
+    expect(dg.traps[0].x === 5 && dg.traps[0].y === 5).toBe(false);
   });
 });

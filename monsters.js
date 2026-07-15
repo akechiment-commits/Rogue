@@ -1258,6 +1258,7 @@ export function inStraightLine(x0, y0, x1, y1) {
 function _arrowBlocked(x, y, dg) {
   if (dg.map[y]?.[x] === T.WALL || dg.map[y]?.[x] === T.BWALL) return true;
   if (dg.map[y]?.[x] === T.SD || dg.map[y]?.[x] === T.SU) return true;
+  if (dg.statues?.some(s => s.x === x && s.y === y)) return true;
   if (dg.bigboxes?.some(b => b.x === x && b.y === y)) return true;
   if (dg.pentacles?.some(pc => pc.x === x && pc.y === y)) return true;
   if (dg.items?.some(i => i.x === x && i.y === y)) return true;
@@ -2295,7 +2296,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     dg.oilyTiles = dg.oilyTiles || [];
     for (const [_dx, _dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
       const _tx = m.x + _dx, _ty = m.y + _dy;
-      if (dg.map[_ty]?.[_tx] === T.FLOOR && !dg.oilyTiles.some(t => t.x === _tx && t.y === _ty))
+      if (dg.map[_ty]?.[_tx] === T.FLOOR &&
+          !dg.statues?.some(s => s.x === _tx && s.y === _ty) &&
+          !dg.oilyTiles.some(t => t.x === _tx && t.y === _ty))
         dg.oilyTiles.push({ x: _tx, y: _ty });
       const _ikTrap = dg.traps?.find(t => t.x === _tx && t.y === _ty && !t.permanent);
       if (_ikTrap) removeTrap(dg, _ikTrap, ml, { message: `油で${_ikTrap.name}が消えた！`, p: pl });
