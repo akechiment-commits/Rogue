@@ -132,6 +132,8 @@ describe("portraits", () => {
     expect(isPlayerDamageMsg("スライムが炎ブレスを吐いた！20ダメージ！")).toBe(true);
     expect(isPlayerDamageMsg("地雷！50ダメージ！")).toBe(true);
     expect(isPlayerDamageMsg("跳ね返された矢がプレイヤーに命中！8ダメージ！")).toBe(true);
+    expect(isPlayerDamageMsg("岩が命中！19ダメージ！")).toBe(true);
+    expect(isPlayerDamageMsg("19ダメージ！")).toBe(false); /* 落石の旧メッセージ：被ダメ判定に乗らない */
     expect(isPlayerDamageMsg("スライムに12ダメージ！会心！")).toBe(false);
     expect(isPlayerDamageMsg("爆風でスライムに10ダメージ！")).toBe(false);
     expect(isPlayerDamageMsg("空腹でHPが減っている...")).toBe(false);
@@ -150,6 +152,8 @@ describe("portraits", () => {
     expect(msgToDamageKey("スライムが炎ブレスを吐いた！20ダメージ！")).toBe("damage_fire");
     expect(msgToDamageKey("ドラゴンが氷ブレスを吐いた！15ダメージ！")).toBe("damage_ice");
     expect(msgToDamageKey("ゴブリンの石が命中！8ダメージ！")).toBe("damage_rock");
+    expect(msgToDamageKey("岩が命中！19ダメージ！")).toBe("damage_rock");
+    expect(msgToDamageKey("落石の罠が作動！岩が降ってきた！")).toBe("damage_rock");
     expect(msgToDamageKey("シオン・ザ・ダークブレットの銃弾が命中！15ダメージ！")).toBe("damage_gun");
     expect(msgToDamageKey("わてりの水鉄砲が命中！10ダメージ！")).toBe("damage_watergun");
     expect(msgToDamageKey("ゴブリンの攻撃！5ダメージ！")).toBe("damage_heavy");
@@ -323,6 +327,23 @@ describe("portraits", () => {
     });
     expect(event.force).toBe(true);
     expect(event.src).toMatch(/damage_watergun/);
+  });
+
+  it("resolvePortraitEvent が落石の岩命中で damage_rock を出す", () => {
+    const player = {
+      hp: 250, maxHp: 267, x: 5, y: 5, level: 14,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = { ...player, hp: 269 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "岩が命中！19ダメージ！",
+      newMsgs: ["落石の罠が作動！岩が降ってきた！", "岩が命中！19ダメージ！"],
+    });
+    expect(event.force).toBe(true);
+    expect(event.src).toMatch(/damage_rock/);
   });
 
   it("resolvePortraitEvent は飢餓中のHP減少で hp_hunger を出す", () => {

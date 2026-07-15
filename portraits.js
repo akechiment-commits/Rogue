@@ -129,11 +129,11 @@ export function msgToDamageKey(msg) {
   if (/炎|火|炎ブレス|炎の魔法|引火|燃え移|油まみれに炎/.test(msg)) return "damage_fire";
   if (/毒矢|毒を浴び|毒.*ダメージ/.test(msg)) return "damage_poison";
   if (/矢|弓|跳ね返された.*矢|射撃の指輪/.test(msg)) return "damage_arrow";
-  if (/石|魔法の石/.test(msg)) return "damage_rock";
+  if (/石|魔法の石|岩が命中|岩が降/.test(msg)) return "damage_rock";
   if (/銃撃|銃弾/.test(msg)) return "damage_gun";
   if (/水鉄砲/.test(msg)) return "damage_watergun";
   if (/水の|水没|溺/.test(msg)) return "damage_wet";
-  if (/罠|トラップ|岩が降/.test(msg)) return "damage_trap";
+  if (/罠|トラップ/.test(msg)) return "damage_trap";
   if (/爆発|炸裂|爆弾|時限|地雷|自爆/.test(msg)) return "damage_explosion";
   if (/吹き飛|激突|壁に叩|壁に激突|ノッカー|挟まれ/.test(msg)) return "damage_knockback";
   /* 「風穴」を落下と誤認しないよう bare「穴」は使わない */

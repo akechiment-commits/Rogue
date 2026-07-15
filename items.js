@@ -1674,7 +1674,8 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
     p.deathCause = `${trap.name}により`;
     p.hp -= _rfd3;
     hit = true;
-    ml.push(`${_rfd3}ダメージ！`);
+    /* 「Nダメージ！」単体だと立ち絵の被ダメ判定に乗らないので岩命中を明示 */
+    ml.push(`岩が命中！${_rfd3}ダメージ！`);
   }
   if (!hit) {
     const _rfFt = ft ? new Set(ft) : new Set();
