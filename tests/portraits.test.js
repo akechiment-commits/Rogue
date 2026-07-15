@@ -159,8 +159,8 @@ describe("portraits", () => {
     expect(isMonsterDamageMsg("回復の魔方陣の回復力がゾンビを傷つけた！5ダメージ！（アンデッド）")).toBe(true);
     expect(isPlayerDamageMsg("回復の魔方陣の回復力がゾンビを傷つけた！5ダメージ！（アンデッド）")).toBe(false);
     expect(isMonsterDamageMsg("石飛ばしの魔方陣の魔法の石がゾンビに当たった！5ダメージ！")).toBe(true);
-    /* 会心と同様、ダメージ行に痛恨が続く形式 */
-    const critHit = "タトゥーバードの攻撃！8ダメージ！痛恨の一撃！";
+    /* 痛恨はダメージ数値の前：〜の攻撃！痛恨の一撃！Nダメージ！ */
+    const critHit = "タトゥーバードの攻撃！痛恨の一撃！8ダメージ！";
     expect(isPlayerDamageMsg(critHit)).toBe(true);
     expect(msgToDamageKey(critHit)).toBe("damage_heavy");
     expect(msgToDamageKey("痛恨の一撃！")).toBe("damage_heavy");
