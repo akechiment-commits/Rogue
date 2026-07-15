@@ -2985,7 +2985,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _sameRoom = _monRoom !== null && _plRoom !== null &&
     _monRoom.x === _plRoom.x && _monRoom.y === _plRoom.y;
   const _plInvis = (pl.invisibleTurns || 0) > 0 || _plPotHidden;
-  const canSee = !_plInvis && (_sameRoom || ((dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(map, m.x, m.y, pl.x, pl.y)));
+  /*
+   * 敵の視認は「敵側のLOS」で判定する。
+   * 旧: プレイヤーFOV内に敵がいること必須 → 暗い通路の敵がプレイヤーを見失い、
+   *     古い lastPx や巡回で反対方向へ歩き続けることがあった。
+   * 新: 同部屋、または視線が通る（チェビシェフ距離内）。
+   */
+  const _chebPl = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+  const _MON_VISION = 12;
+  const canSee = !_plInvis && (
+    _sameRoom ||
+    (_chebPl <= _MON_VISION && hasLOS(map, m.x, m.y, pl.x, pl.y))
+  );
   if (_plPotHidden) {
     m.aware = false;
     m.lastPx = m.x;
@@ -4260,7 +4271,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (!inBounds(nx, ny)) return false;
       return map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false);
     } : null;
-    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 40, dg.pentacles, _effFloat, _wateriFilter, false, dg.rooms, dg);
+    /* fallbackNearest: 完全到達不可でもプレイヤー方向へ寄る（通路詰まりで右往左往を減らす） */
+    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 60, dg.pentacles, _effFloat, _wateriFilter, true, dg.rooms, dg);
     if (next && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) return;
     if (next) {
       if (next.x === pl.x && next.y === pl.y) {
