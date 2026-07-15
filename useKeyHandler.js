@@ -17,10 +17,57 @@ import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
 
+/** window 上の単一 keydown（HMR で多重登録されても差し替え） */
+const ROGUE_KD = "__rogueKeydownV2";
+
 /** テンキー由来か（NumLock OFF で key が Arrow* になっても code/location で判定） */
 function isNumpadEvent(e) {
   return e.location === LOC_NUMPAD || !!(e.code && e.code.startsWith("Numpad"));
 }
+
+/**
+ * テンキー1押しで OS/ブラウザが Numpad* と Arrow* など複数 keydown を飛ばすことがある。
+ * 同一方向の連続イベントを 1 回に潰す（見渡す・インベントリ・ダンジョン移動すべて共通）。
+ */
+let _dirGateT = 0;
+let _dirGateFamily = "";
+
+function directionFamily(e) {
+  const c = e.code || "";
+  const k = (e.key || "").toLowerCase();
+  if (c === "Numpad8" || k === "arrowup") return "up";
+  if (c === "Numpad2" || k === "arrowdown") return "down";
+  if (c === "Numpad4" || k === "arrowleft") return "left";
+  if (c === "Numpad6" || k === "arrowright") return "right";
+  if (c === "Numpad7") return "upleft";
+  if (c === "Numpad9") return "upright";
+  if (c === "Numpad1") return "downleft";
+  if (c === "Numpad3") return "downright";
+  if (c === "Numpad5") return "wait";
+  return null;
+}
+
+/** @returns {boolean} true = このイベントは捨てる */
+function isDuplicateDirectionEvent(e) {
+  const fam = directionFamily(e);
+  if (!fam) return false;
+  const now = performance.now();
+  /* 押しっぱなしの key repeat は歩行用に通す（極端な連打だけ間引き） */
+  if (e.repeat) {
+    if (now - _dirGateT < 50) return true;
+    _dirGateFamily = fam;
+    _dirGateT = now;
+    return false;
+  }
+  /* 同一方向の非リピートが 150ms 以内に複数 = テンキーの多重 keydown */
+  if (fam === _dirGateFamily && now - _dirGateT < 150) return true;
+  _dirGateFamily = fam;
+  _dirGateT = now;
+  return false;
+}
+
+/* テスト用に export */
+export { isDuplicateDirectionEvent, directionFamily };
 
 export function useKeyHandler({
   // refs
@@ -50,18 +97,8 @@ export function useKeyHandler({
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
   bigboxPutItem, sortInventory, getLookDesc, lu,
 }) {
-  /* handleKey を ref 経由で呼び、listener を1本に固定（再bind・HMR多重登録でN回動くのを防ぐ） */
+  /* handleKey を ref 経由で呼び、listener を1本に固定 */
   const handleKeyRef = useRef(null);
-  /* 同一キー連鎖での二重／三重移動防止 */
-  const dirActionLockRef = useRef(0);
-
-  const tryDirAction = (fn) => {
-    const now = performance.now();
-    if (now - dirActionLockRef.current < 40) return false;
-    dirActionLockRef.current = now;
-    fn();
-    return true;
-  };
 
   const canUse = (it) =>
     ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(it.type);
@@ -79,13 +116,18 @@ export function useKeyHandler({
   };
   const handleKey = useCallback(
     (e) => {
-      /* キーリピートはモーダル操作では許可。移動のみ後段の tryDirAction / act 側で抑制 */
       const k = e.key.toLowerCase();
       if (k === "shift") {
         shiftRef.current = true;
       }
       if (k === "a") {
         aRef.current = true;
+      }
+      /* テンキー多重 keydown をここで落とす（見渡す・メニュー・歩行すべて） */
+      if (isDuplicateDirectionEvent(e)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
       }
       if (showSign) {
         if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
@@ -1584,11 +1626,11 @@ export function useKeyHandler({
             const _sdx = (_h.right ? 1 : 0) - (_h.left ? 1 : 0);
             const _sdy = (_h.down ? 1 : 0) - (_h.up ? 1 : 0);
             if (_sdx !== 0 && _sdy !== 0) {
-              tryDirAction(() => execRef.current?.(_sdx, _sdy));
+              execRef.current?.(_sdx, _sdy);
             }
             return;
           }
-          tryDirAction(() => execRef.current?.(km[k][0], km[k][1]));
+          execRef.current?.(km[k][0], km[k][1]);
         }
         return;
       }
@@ -1647,11 +1689,9 @@ export function useKeyHandler({
         }
 
         if (dx !== null && dy !== null) {
-          tryDirAction(() => {
-            if (dx === 0 && dy === 0) act("wait");
-            else if (aRef.current) doDash(dx, dy);
-            else act("move", dx, dy);
-          });
+          if (dx === 0 && dy === 0) act("wait");
+          else if (aRef.current) doDash(dx, dy);
+          else act("move", dx, dy);
           return;
         }
       }
@@ -1771,10 +1811,21 @@ export function useKeyHandler({
     ],
   );
   handleKeyRef.current = handleKey;
-  /* listener はマウント時1本のみ（handleKey の identity 変更で増えない） */
+  /* グローバルに keydown は常に1本。HMR 後も古い listener を必ず外す */
   useEffect(() => {
     const onKeyDown = (e) => handleKeyRef.current?.(e);
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    if (typeof window !== "undefined") {
+      if (window[ROGUE_KD]) {
+        window.removeEventListener("keydown", window[ROGUE_KD], true);
+      }
+      window[ROGUE_KD] = onKeyDown;
+      window.addEventListener("keydown", onKeyDown, true);
+    }
+    return () => {
+      if (typeof window !== "undefined" && window[ROGUE_KD] === onKeyDown) {
+        window.removeEventListener("keydown", onKeyDown, true);
+        delete window[ROGUE_KD];
+      }
+    };
   }, []);
 }
