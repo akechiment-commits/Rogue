@@ -1831,9 +1831,9 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     for (const g of _ugGens) { r -= g.w; if (r <= 0) return g.fn(); }
     return _ugGens[_ugGens.length - 1].fn();
   };
-  /* 床落ちアイテム数（旧: 初2-16 / 中3-18 / 高1-9 は多めだった） */
+  /* 床落ちアイテム数：最低を確保しつつ上限を抑える（1個フロアを避ける） */
   const _totalItems = dungeonType === "advanced" || dungeonType === "legend"
-    ? rng(1, 7) : dungeonType === "intermediate" ? rng(2, 11) : rng(1, 9);
+    ? rng(3, 6) : dungeonType === "intermediate" ? rng(4, 9) : rng(4, 8);
   for (let i = 0; i < _totalItems; i++) {
     const rm = pick(rooms);
     for (let _a = 0; _a < 30; _a++) {
