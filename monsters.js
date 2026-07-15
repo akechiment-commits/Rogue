@@ -2133,14 +2133,83 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
   if (!_hit) ml.push(`${wandLabel}の魔法弾は虚空に消えた。`);
 }
 
-/** モンスターAI本体。終了時に移動があれば重力罠を踏ませる（未覚醒パトロール含む） */
+function isStationaryGrabber(m) {
+  return m && (m.subtype === "grabber" || m.baseKind === "grabber");
+}
+
+/** 長時間停滞／往復時に別方向へ1歩逃がす */
+function tryUnstickMove(m, dg, pl, float = false) {
+  if (!m || !dg) return false;
+  if (isStationaryGrabber(m) || m.type === "shopkeeper" || m.dormant || m.dormantHouse) return false;
+  const map = dg.map;
+  const recent = new Set((m.posHistory || []).map(p => p.x + p.y * MW));
+  recent.add(m.x + m.y * MW);
+  const dirs = shuffle([[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]);
+  const tryDirs = (preferNew) => {
+    for (const [dx, dy] of dirs) {
+      const nx = m.x + dx, ny = m.y + dy;
+      if (!canEnter(map, nx, ny, float, dg)) continue;
+      if (nx === pl?.x && ny === pl?.y) continue;
+      if (dg.monsters.some(o => o !== m && o.x === nx && o.y === ny)) continue;
+      if (!inMagicSealRoom(m.x, m.y, dg) &&
+          dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
+      if (preferNew && recent.has(nx + ny * MW)) continue;
+      m.dir = { x: dx, y: dy };
+      m.x = nx; m.y = ny;
+      m.posHistory = [];
+      m._idleStuck = 0;
+      m.patrolTarget = null;
+      return true;
+    }
+    return false;
+  };
+  /* 最近通ったマス以外を優先 → だめならどこでも */
+  return tryDirs(true) || tryDirs(false);
+}
+
+function isPosHistoryStuck(m) {
+  const ph = m.posHistory || [];
+  if (ph.length < 6) return false;
+  const allSame = ph.every(p => p.x === ph[0].x && p.y === ph[0].y);
+  const isOsc = (ph[0].x !== ph[1].x || ph[0].y !== ph[1].y) &&
+    ph.every((p, i) => i % 2 === 0
+      ? (p.x === ph[0].x && p.y === ph[0].y)
+      : (p.x === ph[1].x && p.y === ph[1].y));
+  return allSame || isOsc;
+}
+
+/** モンスターAI。移動後は重力罠。長時間動けなければ別方向へ強制移動。 */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _sx = m.x, _sy = m.y;
+  const _float = !!(m.float || (m.floatTurns || 0) > 0) &&
+    (m.magicImmune || !hasGravityPentacle(dg, m.x, m.y));
   try {
     _monsterAIBody(m, dg, pl, ml, opts);
   } finally {
-    if (m.x !== _sx || m.y !== _sy) {
+    /* からめ鬼：AI中のスワップ等で動いたら必ず元位置へ（未発見歩行の原因） */
+    if (isStationaryGrabber(m) && (m.x !== _sx || m.y !== _sy)) {
+      m.x = _sx; m.y = _sy;
+      m.dir = { x: 0, y: 0 };
+    }
+    const moved = m.x !== _sx || m.y !== _sy;
+    if (moved) {
       _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
+    }
+    /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
+    if (!opts.attackOnly && !isStationaryGrabber(m) && m.type !== "shopkeeper" &&
+        !m.dormant && !m.dormantHouse) {
+      if (!moved) {
+        m._idleStuck = (m._idleStuck || 0) + 1;
+      } else {
+        m._idleStuck = 0;
+      }
+      const stuckHist = isPosHistoryStuck(m);
+      /* 4ターン以上同マス停滞、または往復・停滞パターンなら別方向へ */
+      if (m._idleStuck >= 4 || stuckHist) {
+        if (tryUnstickMove(m, dg, pl, _float)) {
+          _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
+        }
+      }
     }
   }
 }
@@ -2558,7 +2627,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
     if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - (m.isBoss ? 2 : 1));
-    if (m.subtype === "grabber") { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; } /* grabberは混乱中も絶対移動しない */
+    if (isStationaryGrabber(m)) { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
@@ -2591,7 +2660,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - (m.isBoss ? 2 : 1));
-    if (m.subtype === "grabber") { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; } /* grabberは暗闇中も絶対移動しない */
+    if (isStationaryGrabber(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (!m.darkDir) {
       const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
       m.darkDir = pick(_ddirs);
@@ -2628,7 +2697,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - (m.isBoss ? 2 : 1));
-    if (m.subtype === "grabber") { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; } /* grabberは幻惑中も絶対移動しない */
+    if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (!_attackOnly) {
       const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat);
       if (_fleeStep) {
@@ -2997,7 +3066,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
   if (m.aware) {
     /* ── grabber（からめ鬼等）：静止型 ─ 移動コードより先に処理して即return ── */
-    if (m.subtype === "grabber") {
+    if (isStationaryGrabber(m)) {
       if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
         let _justCaptured = false;
         if (!pl.capturedBy) {
@@ -3014,7 +3083,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           }
         }
       }
-      return; /* からめ鬼は絶対に移動しない */
+      return; /* からめ鬼は絶対に移動しない（スワップも finally で差し戻し） */
     }
 
     /* ===== 囮のペン（通常・祝福）: 特技含む全行動を囮に誘導 ===== */
@@ -4165,15 +4234,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* 次マスが別モンスターに占有 */
       /* 対向（互いに相手のマスへ向かっている）なら位置を交換してデッドロック解消 */
       const _blocker = dg.monsters.find(o => o !== m && o.x === next.x && o.y === next.y);
-      if (_blocker) {
+      if (_blocker && !isStationaryGrabber(_blocker) && _blocker.type !== "shopkeeper") {
         const _bNext = bfsNext(map, [], _blocker.x, _blocker.y,
           (_blocker.aware ? (_blocker.lastPx ?? pl.x) : (m.x)),
           (_blocker.aware ? (_blocker.lastPy ?? pl.y) : (m.y)),
           _blocker, 4, dg.pentacles, _blocker.float, null, false, dg.rooms, dg);
-        if (_bNext && _bNext.x === m.x && _bNext.y === m.y && _blocker.type !== "shopkeeper" &&
+        if (_bNext && _bNext.x === m.x && _bNext.y === m.y &&
             /* waterOnly：スワップ先が水/泉でない場合はスワップ不可 */
             (!m.waterOnly || map[next.y]?.[next.x] === T.WATER || dg.springs?.some(s => s.x === next.x && s.y === next.y))) {
-          /* 正面衝突：スワップ（店主はスワップ不可） */
+          /* 正面衝突：スワップ（店主・からめ鬼はスワップ不可） */
           _blocker.x = m.x; _blocker.y = m.y;
           m.dir = { x: next.x - m.x, y: next.y - m.y };
           m.x = next.x; m.y = next.y;
@@ -4247,7 +4316,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* waterOnlyモンスターは水上のみ移動可能なため、未覚醒時はその場で待機 */
     if (m.waterOnly) return;
     /* grabberは覚醒前も動かない */
-    if (m.subtype === "grabber") return;
+    if (isStationaryGrabber(m)) return;
     const room = findRoom(rooms, m.x, m.y);
     const _arrived = m.patrolTarget &&
       m.x === m.patrolTarget.x && m.y === m.patrolTarget.y;
