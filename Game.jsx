@@ -27,6 +27,7 @@ import {
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
+import { statueAt, hitStatueWithAction } from "./fixtures.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
@@ -3030,13 +3031,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
                     const _stRange = _srCursedFc ? 1 : 3;
                     let _stLx = p.x, _stLy = p.y;
+                    let _stHitStatue = false;
                     for (let _d = 1; _d <= _stRange; _d++) {
                       const _tx = p.x + dx * _d, _ty = p.y + dy * _d;
                       if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
                       if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
                       _stLx = _tx; _stLy = _ty;
+                      if (statueAt(dg, _tx, _ty)) { _stHitStatue = true; break; }
                     }
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
+                    if (_stHitStatue) {
+                      ml.push(`${_arName}が石像に命中！`);
+                      hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, { breaks: true });
+                    } else {
                     const _stM = monsterAt(dg, _stLx, _stLy);
                     if (_stM && _stM.subtype === "reflector") {
                       ml.push(`${_arName}が${_stM.name}に弾き返された！`);
@@ -3066,6 +3073,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     } else {
                       if (_stM) ml.push(`${_arName}は${_stM.name}に外れた！`);
                       const _stft = new Set(); placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft);
+                    }
                     }
                   /* ── 魔法の石 ── */
                   } else if (_srAr.magicStone) {

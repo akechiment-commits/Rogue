@@ -2564,11 +2564,13 @@ export function useItemActions({
             pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
             const _stRange = _isCursedFc ? 1 : 3;
             let _stLx = p.x, _stLy = p.y;
+            let _stHitStatue = false;
             for (let d = 1; d <= _stRange; d++) {
               const tx = p.x + dx * d, ty = p.y + dy * d;
               if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               _stLx = tx; _stLy = ty;
+              if (statueAt(dg, tx, ty)) { _stHitStatue = true; break; }
               if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
               if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
             }
@@ -2578,7 +2580,10 @@ export function useItemActions({
             const _stSureHit = (p.sureHitTurns || 0) > 0;
             const _stAtk = _arItem.atk || 3;
             ml.push(`${_stName}を投げた！`);
-            if (_stM) {
+            if (_stHitStatue) {
+              ml.push(`${_stName}が石像に命中！`);
+              hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, { breaks: true });
+            } else if (_stM) {
               /* ── reflector：石をプレイヤーへ跳ね返す ── */
               if (_stM.subtype === "reflector") {
                 ml.push(`${_stName}が${_stM.name}に弾き返された！`);
@@ -3085,11 +3090,13 @@ export function useItemActions({
           } else {
             const _stRange2 = _isCursedFc ? 1 : 3;
             let _stLx2 = p.x, _stLy2 = p.y;
+            let _stHitStatue2 = false;
             for (let d = 1; d <= _stRange2; d++) {
               const tx = p.x + dx * d, ty = p.y + dy * d;
               if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               _stLx2 = tx; _stLy2 = ty;
+              if (statueAt(dg, tx, ty)) { _stHitStatue2 = true; break; }
               if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
               if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
             }
@@ -3097,7 +3104,10 @@ export function useItemActions({
             const _stBB2 = dg.bigboxes?.find(b => b.x === _stLx2 && b.y === _stLy2);
             const _stSpr2 = dg.springs?.find(s => s.x === _stLx2 && s.y === _stLy2);
             ml.push(`${_invStName}を投げた！`);
-            if (_stM2) {
+            if (_stHitStatue2) {
+              ml.push(`${_invStName}が石像に命中！`);
+              hitStatueWithAction(dg, _stLx2, _stLy2, p, ml, lu, p?.depth, { breaks: true });
+            } else if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
               const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
               if (_stMiss2) {

@@ -1397,6 +1397,13 @@ function monsterThrowStone(m, dg, pl, ml) {
       return;
     }
 
+    /* 石像 */
+    if (statueAt(dg, tx, ty)) {
+      ml.push(`${m.name}の${stoneName}が石像に命中！`);
+      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, { breaks: true });
+      return;
+    }
+
     /* 他モンスター */
     const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
     if (hitMon) {
