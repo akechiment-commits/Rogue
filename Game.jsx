@@ -1801,12 +1801,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if ((_ms2.speed ?? 1) <= 1) _ms2._movedThisTurn = true; /* 速度1以下の敵は移動後に攻撃不可。倍速敵はそのまま攻撃できる */
         }
       }
-      /* Phase 2.5: モンスターがポータル／固定転送に乗っていたらワープ */
+      /* Phase 2.5: モンスターがポータル／固定転送に乗っていたらワープ
+       * 着地済み（このターン移動していない／最初から陣上）は再転送しない。
+       * さもないと対の陣の上で往復バウンドして近づいてこない。 */
       if (st.dungeon.pentacles?.some(pc => pc.kind === "portal" || pc.kind === "fixed_portal")) {
         const _hasGoalP25 = p.inventory?.some(i => i.type === "goal");
         for (const _mm of [...st.dungeon.monsters]) {
           const _fixedMon = st.dungeon.pentacles.find(pc => pc.kind === "fixed_portal" && pc.x === _mm.x && pc.y === _mm.y);
           if (_fixedMon) {
+            const _msnap = _monSnap.get(_mm.id);
+            /* ターン開始時から同じ転送陣にいた＝前回着地済み → バウンド防止 */
+            const _startedOnPad = _msnap && _msnap.x === _fixedMon.x && _msnap.y === _fixedMon.y;
+            if (_startedOnPad) continue;
             const _fpair = st.dungeon.pentacles.find(pc =>
               pc.kind === "fixed_portal" && pc.pairId === _fixedMon.pairId &&
               !(pc.x === _fixedMon.x && pc.y === _fixedMon.y));
@@ -1819,6 +1825,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           }
           const _portalMon = st.dungeon.pentacles.find(pc => pc.kind === "portal" && pc.x === _mm.x && pc.y === _mm.y);
           if (!_portalMon) continue;
+          /* ターン開始時から同じポータル上＝着地済み → 往復バウンド防止 */
+          {
+            const _psnap = _monSnap.get(_mm.id);
+            if (_psnap && _psnap.x === _portalMon.x && _psnap.y === _portalMon.y) continue;
+          }
           if (_portalMon.cursed) {
             const _rdM = randomTeleportDest(st.dungeon, _mm.x, _mm.y);
             if (_rdM && !st.dungeon.monsters.some(m => m !== _mm && m.x === _rdM.x && m.y === _rdM.y) && !(p.x === _rdM.x && p.y === _rdM.y)) {

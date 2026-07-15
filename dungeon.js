@@ -260,7 +260,7 @@ function pickRareItem(depth) {
     { w: 3, fn: () => { const t = pickLootFromPool(SPELLBOOKS); return { ...t, id: uid() }; } },
     { w: 3, fn: () => makeRing() },
     { w: 2, fn: () => makePot() },
-    { w: 2, fn: () => ({ name:"金貨", type:"gold", value: rng(200, 500+depth*50), tile:22, id: uid() }) },
+    { w: 6, fn: () => ({ name:"金貨", type:"gold", value: rng(200, 500+depth*50), tile:22, id: uid() }) },
   ];
   const _rt = gens.reduce((s, g) => s + g.w, 0);
   let r = Math.random() * _rt;
@@ -302,7 +302,7 @@ function buildUniPool(depth, dungeonType) {
     { w:  6, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
     { w:  5, fn: () => { const t = pickLootFromPool(iPool.filter(i => i.type === "armor")); return { ...t, id: uid() }; } },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
-    { w:  6, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
+    { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
     { w:  4, fn: () => { const t = pickLootFromPool(sbPool); return { ...t, id: uid() }; } },
     { w:  4, fn: () => makePot() },
     { w:  2, fn: () => makeRing() },
@@ -517,9 +517,9 @@ function genWallItems(map, depth, items, suspicious = new Set()) {
     const key = `${wx},${wy}`;
     if (used.has(key) || items.some(it => it.x === wx && it.y === wy)) continue;
     used.add(key);
-    /* 壁埋めアイテムは60%の確率で埋蔵金（金貨） */
+    /* 壁埋めアイテムは75%の確率で埋蔵金（金貨） */
     let it;
-    if (Math.random() < 0.60) {
+    if (Math.random() < 0.75) {
       it = { name:"金貨", type:"gold", value: rng(80, 300 + depth * 50), tile:22, id: uid(), x: wx, y: wy, wallEmbedded: true };
     } else {
       const t = pickLootFromPool(ITEMS);
@@ -1818,7 +1818,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     { w:  6, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "weapon")); return { ...t, id: uid() }; } },
     { w:  5, fn: () => { const t = pickLootFromPool(_ITEMS_POOL.filter(i => i.type === "armor"));  return { ...t, id: uid() }; } },
     { w:  6, fn: () => ({ ...ARROW_T, id: uid(), count: rng(3, 15) }) },
-    { w:  6, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
+    { w: 14, fn: () => ({ name:"金貨", type:"gold", value: rng(30, 100+depth*30), tile:22, id: uid() }) },
     { w:  4, fn: () => { const t = pickLootFromPool(_SB_POOL); return { ...t, id: uid() }; } },
     { w:  4, fn: () => makePot() },
     { w:  2, fn: () => makeRing() },
