@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
+import { statueAt, hitStatueWithAction, throwItemBreaksStatue } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS,
@@ -3197,6 +3198,13 @@ export function useItemActions({
             if (tx === p.x && ty === p.y) {
               lx = tx; ly = ty; _hitSelf = true; break;
             }
+            /* 石像：投擲で破壊 */
+            if (!_isFarcast && statueAt(dg, tx, ty)) {
+              lx = tx; ly = ty;
+              hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: true });
+              _fdBurned = true; /* アイテム消費済みとして着地処理スキップ */
+              break;
+            }
             const m = monsterAt(dg, tx, ty);
             if (m) {
               if (_isFarcast) {
@@ -3272,6 +3280,12 @@ export function useItemActions({
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             if (tx === p.x && ty === p.y) { lx = tx; ly = ty; _potHitSelf = true; break; }
+            if (!_isFarcast && statueAt(dg, tx, ty)) {
+              lx = tx; ly = ty;
+              hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: true });
+              _potFdBurned = true; /* 壺は割れて消費 */
+              break;
+            }
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
@@ -3402,6 +3416,23 @@ export function useItemActions({
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
             if (tx === p.x && ty === p.y) { lx = tx; ly = ty; _genHitSelf = true; hit = true; break; }
+            /* 石像：投擲ダメージ／有害効果で破壊 */
+            if (!_isFarcast && statueAt(dg, tx, ty)) {
+              const lb = _mkThrowLb();
+              const _br = throwItemBreaksStatue(it);
+              if (_br) {
+                ml.push(`${lb}が石像に命中！`);
+                hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: true });
+                if (it.type === "wand") _wandFiredEffect = true; /* 消費済み */
+              } else {
+                hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: false });
+                const _sft = new Set();
+                withPitfallBag(() => placeItemAt(dg, tx, ty, it, ml, _sft));
+                if (it.type === "wand") _wandFiredEffect = true;
+              }
+              lx = tx; ly = ty; hit = true;
+              break;
+            }
             const m = monsterAt(dg, tx, ty);
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;

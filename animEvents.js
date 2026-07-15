@@ -12,6 +12,7 @@
  */
 
 import { MW, MH, T, monsterAt, itemAt, stepProjectile, traceProjectilePath } from './utils.js';
+import { statueAt } from './fixtures.js';
 
 const animEvents = [];
 
@@ -140,7 +141,7 @@ export function pushBoltAnim(sx, sy, dx, dy, dg, effectOrColor = "#a050f0", wind
   for (let i = 1; i < path.length; i++) {
     const { x: tx, y: ty } = path[i];
     if (itemAt(dg, tx, ty) || dg.traps?.find(t => t.x === tx && t.y === ty) ||
-        dg.bigboxes?.find(b => b.x === tx && b.y === ty)) {
+        dg.bigboxes?.find(b => b.x === tx && b.y === ty) || statueAt(dg, tx, ty)) {
       path = path.slice(0, i + 1);
       endX = tx; endY = ty;
       break;

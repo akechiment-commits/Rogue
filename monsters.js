@@ -1,7 +1,7 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile } from "./utils.js";
 import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
-import { tryBreakStatueAt } from "./fixtures.js";
+import { statueAt, hitStatueWithAction } from "./fixtures.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -1668,8 +1668,9 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (onWallStop) onWallStop(_lx, _ly, ml);
       return;
     }
-    /* 石像：ダメージ系の飛び道具が当たると割れる */
-    if (tryBreakStatueAt(dg, _tx, _ty, pl, ml, luFn, pl?.depth)) {
+    /* 石像：物理弾は破壊 */
+    if (statueAt(dg, _tx, _ty)) {
+      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, { breaks: true });
       if (!_passthrough) return;
     }
 
@@ -1896,6 +1897,11 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     /* 壁/境界：跳ね返って射手に効果 */
     if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH || dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) {
       onWallReflect(ml);
+      _hit = true; break;
+    }
+    /* 石像：敵の杖弾は有害効果なので破壊 */
+    if (statueAt(dg, _tx, _ty)) {
+      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, { breaks: true });
       _hit = true; break;
     }
     /* プレイヤー命中 */

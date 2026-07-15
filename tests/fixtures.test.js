@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   makeFakeStairTrap, materializeFakeStair, trapDisplayAsStair,
   makeVent, makeStatue, makeFixedPortalPair, findFixedPortalPair,
-  breakStatue, applyWindDir, getWindAt,
+  breakStatue, applyWindDir, getWindAt, wandEffectBreaksStatue, throwItemBreaksStatue,
+  hitStatueWithAction,
 } from "../fixtures.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
@@ -77,6 +78,37 @@ describe("固定転送", () => {
     const dg = makeEmptyDg({ pentacles: [a, b] });
     expect(findFixedPortalPair(dg, a)).toBe(b);
     expect(findFixedPortalPair(dg, b)).toBe(a);
+  });
+});
+
+describe("石像破壊ルール", () => {
+  it("杖：雷・吹飛ばしは壊し、場所替え・テレポ・穴掘りは壊さない", () => {
+    expect(wandEffectBreaksStatue("lightning")).toBe(true);
+    expect(wandEffectBreaksStatue("knockback")).toBe(true);
+    expect(wandEffectBreaksStatue("swap")).toBe(false);
+    expect(wandEffectBreaksStatue("warp")).toBe(false);
+    expect(wandEffectBreaksStatue("leap")).toBe(false);
+    expect(wandEffectBreaksStatue("dig")).toBe(false);
+  });
+
+  it("投擲：武器は壊し、場所替えの杖は壊さない", () => {
+    expect(throwItemBreaksStatue({ type: "weapon", atk: 5 })).toBe(true);
+    expect(throwItemBreaksStatue({ type: "wand", effect: "lightning" })).toBe(true);
+    expect(throwItemBreaksStatue({ type: "wand", effect: "swap" })).toBe(false);
+  });
+
+  it("hitStatueWithAction は breaks:false で壊さずメッセージのみ", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [], dungeonType: "intermediate",
+    });
+    const st = makeStatue(3, 3);
+    dg.statues.push(st);
+    const p = makePlayer({ x: 1, y: 1, depth: 3 });
+    const ml = [];
+    hitStatueWithAction(dg, 3, 3, p, ml, null, 3, { breaks: false });
+    expect(dg.statues.length).toBe(1);
+    expect(ml.some(m => m.includes("効果がなかった"))).toBe(true);
   });
 });
 

@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, calcAtkDefDmg, stepProjectile } from './utils.js';
-import { materializeFakeStair, tryBreakStatueAt, findFixedPortalPair } from './fixtures.js';
+import { materializeFakeStair, tryBreakStatueAt, findFixedPortalPair, statueAt, hitStatueWithAction } from './fixtures.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom } from './monsters.js';
 import { triggerWandBreakEffect } from './wands.js';
@@ -3980,6 +3980,14 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       ml.push(`風に煽られた${_arName}が自分に当たった！${_selfD}ダメージ！`);
       hit = true; break;
     }
+    /* 石像：矢は破壊して止まる（貫通矢も1体分として割る） */
+    if (statueAt(dg, tx, ty)) {
+      ml.push(`${_arName}が石像に命中！`);
+      tryBreakStatueAt(dg, tx, ty, p, ml, luFn, p?.depth);
+      hit = true;
+      if (!_pierceMode) break;
+      continue;
+    }
     const m = monsterAt(dg, tx, ty);
     if (m) {
       /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す ── */
@@ -4432,6 +4440,12 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     if (inMagicSealRoom(tx, ty, dg)) {
       ml.push("魔法弾が魔封じの魔方陣で消えた！");
       return { x: tx, y: ty, hitType: "sealed" };
+    }
+    /* 石像：ダメージ系スペルは破壊。睡眠・金縛りなどは壊れない */
+    if (statueAt(dg, tx, ty)) {
+      const _breaks = ["fire_bolt", "ice_bolt", "lightning_magic", "poison_bolt"].includes(spell.effect);
+      hitStatueWithAction(dg, tx, ty, p, ml, luFn, p?.depth, { breaks: _breaks });
+      return { x: tx, y: ty, hitType: _breaks ? "statue" : "statue_safe" };
     }
     const mon = monsterAt(dg, tx, ty);
     if (mon) {

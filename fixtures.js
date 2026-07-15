@@ -123,6 +123,46 @@ export function tryBreakStatueAt(dg, x, y, p, ml, luFn, depth) {
   return breakStatue(st, dg, p, ml, luFn, depth);
 }
 
+/**
+ * 杖・魔法の effect が石像を壊すか。
+ * ダメージ／有害状態異常／攻撃的な効果 → true
+ * 場所替え・テレポ・地形変化・祝福呪いなど非ダメージ → false
+ */
+export function wandEffectBreaksStatue(eff) {
+  if (!eff) return false;
+  const safe = new Set([
+    "swap", "warp", "leap", "dig",
+    "bless_wand", "curse_wand",
+    "levelup", "portal",
+    "vitality_swap",
+  ]);
+  return !safe.has(eff);
+}
+
+/**
+ * 投擲物が石像を壊すか（物理的に当たるもの・有害な薬など）。
+ */
+export function throwItemBreaksStatue(it) {
+  if (!it) return true;
+  if (it.type === "wand") return wandEffectBreaksStatue(it.effect);
+  /* 巻物・ペンは投擲ダメージ自体はあるので壊す。白紙なども含む */
+  return true;
+}
+
+/**
+ * 石像タイルにダメージ行動が到達したら破壊を試す。
+ * @returns {boolean} 壊した／石像があった
+ */
+export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, { breaks = true } = {}) {
+  const st = statueAt(dg, x, y);
+  if (!st) return false;
+  if (!breaks) {
+    ml.push(`${st.name}には効果がなかった。`);
+    return true; /* 当たったが壊さない */
+  }
+  return breakStatue(st, dg, p, ml, luFn, depth);
+}
+
 /* ===== 固定転送（ポータル流用・ペア固定・ペンと非接続） ===== */
 export function makeFixedPortalPair(x1, y1, x2, y2, depth) {
   const pairId = uid();

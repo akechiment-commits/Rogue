@@ -12,7 +12,7 @@ import {
   pickLootFromPool,
 } from './items.js';
 import { fireTrapPlayer } from './traps.js';
-import { tryBreakStatueAt } from './fixtures.js';
+import { tryBreakStatueAt, wandEffectBreaksStatue, hitStatueWithAction, statueAt } from './fixtures.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 
 /*
@@ -22,14 +22,11 @@ import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from '
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null) {
-  /* 石像：ダメージ／状態異常系なら破壊。場所替え・無害テレポのみは壊さない */
+  /* 石像：ダメージ／有害効果なら破壊。場所替え・テレポ等は壊さない */
   if (kind === "statue") {
-    const _harmless = eff === "swap" || eff === "teleport" || eff === "portal";
-    if (!_harmless) {
-      tryBreakStatueAt(dg, target.x, target.y, p, ml, luFn, p?.depth);
-    } else {
-      ml.push(`${target.name}には効果がなかった。`);
-    }
+    hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, {
+      breaks: wandEffectBreaksStatue(eff),
+    });
     return;
   }
   if (kind === "monster") {
@@ -1696,8 +1693,11 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       applyWandEffect(eff, "bigbox", bb, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
-    /* 石像：ダメージ／状態異常系の杖が当たると割れる */
-    if (eff !== "swap" && tryBreakStatueAt(dg, tx, ty, p, ml, luFn, p?.depth)) {
+    /* 石像：ダメージ系杖は破壊、場所替え等は効果なしで止まる */
+    if (statueAt(dg, tx, ty)) {
+      hitStatueWithAction(dg, tx, ty, p, ml, luFn, p?.depth, {
+        breaks: wandEffectBreaksStatue(eff),
+      });
       return;
     }
     lastX = tx; lastY = ty;
@@ -1792,6 +1792,10 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     if (trap) {
       trap.revealed = true;
       applyWandEffect("lightning", "trap", trap, dx, dy, dg, pl, ml, luFn, bbFn);
+      return;
+    }
+    if (statueAt(dg, tx, ty)) {
+      hitStatueWithAction(dg, tx, ty, pl, ml, luFn, pl?.depth, { breaks: true });
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
