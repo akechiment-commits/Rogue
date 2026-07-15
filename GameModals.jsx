@@ -907,8 +907,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     } else if (mode.mode === 'transform_item') {
       /* ===== 変換の巻物 ===== */
       const _p_tsf = sr.current.player;
-      const _RARITY_UP   = { D:"C", C:"B", B:"A", A:"S", S:"S" };
-      const _RARITY_DOWN = { D:"D", C:"D", B:"C", A:"B", S:"A" };
+      /* E(最コモン)→…→S(最レア)。同レア同 weight */
+      const _RARITY_UP   = { E:"D", D:"C", C:"B", B:"A", A:"S", S:"S" };
+      const _RARITY_DOWN = { E:"E", D:"E", C:"D", B:"C", A:"B", S:"A" };
       const _excludeKey = (t) => t.type === "gold" || (t.effect === _selIt.effect && t.type === _selIt.type);
       let _pool;
       if (mode.blessed) {

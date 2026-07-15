@@ -206,106 +206,106 @@ export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
  * ────────────────────────────────────────────────────────────────
  */
 export const ITEMS = [
-  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"D", weight:12, sellPrice:100,  desc:"HPを30回復する。HP最大時は最大HP+1。\n呪い：反転して21ダメージ。",                                               tile:16 },
-  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"B", weight:4,  sellPrice:350,  desc:"HPを60回復する。HP最大時は最大HP+2。\n呪い：反転して42ダメージ。",                                               tile:17 },
-  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"A", weight:2,  sellPrice:1200, desc:"HPを100回復する。HP最大時は最大HP+3。\n呪い：反転して50ダメージ。", tile:17 },
-  { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと毒状態になり攻撃力が徐々に低下。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
-  { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと炎ダメージを受ける。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：反転してHP回復。\n投げると炎上し周囲にダメージ。", tile:17 },
-  { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
-  { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"C", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n投げると命中した敵を鈍足にする。", tile:16 },
-  { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n投げると命中した敵を金縛りにする。", tile:16 },
-  { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"A", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。",           tile:17 },
-  { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"D", weight:12, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：好きな階層を選んで移動できる。",                         tile:18 },
-  { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"B", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
-  { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"A", weight:4,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
-  { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"A", weight:4,  sellPrice:800,  desc:"選んだ防具・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
-  { name:"雷の巻物",         type:"scroll", effect:"thunder",            rarity:"B", weight:4,  sellPrice:500,  desc:"視界内の敵全てに雷ダメージ(30-40)。\n呪い：自分にも同ダメージ。", tile:18 },
-  { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"C", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。\n呪い：自分含め視界内全員に35ダメージ。", tile:18 },
-  { name:"道具寄せの巻物",   type:"scroll", effect:"item_gather",        rarity:"A", weight:4,  sellPrice:400,  desc:"フロアのアイテムを自分の周りに引き寄せる。\n呪い：アイテムをフロアにランダム散布。",     tile:18 },
-  { name:"眠りの巻物",       type:"scroll", effect:"sleep_scroll",       rarity:"B", weight:4,  sellPrice:600,  desc:"視界内の敵を6ターン眠らせる。", tile:18 },
-  { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"B", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。", tile:18 },
-  { name:"炎の巻物",         type:"scroll", effect:"flame",               rarity:"B", weight:4,  sellPrice:550,  desc:"視界内の敵に炎ダメージ(30-40)。油まみれの対象は2倍。\n呪い：自分にも同ダメージ。", tile:18 },
+  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。HP最大時は最大HP+1。\n呪い：反転して21ダメージ。",                                               tile:16 },
+  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。HP最大時は最大HP+2。\n呪い：反転して42ダメージ。",                                               tile:17 },
+  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。HP最大時は最大HP+3。\n呪い：反転して50ダメージ。", tile:17 },
+  { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと毒状態になり攻撃力が徐々に低下。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
+  { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと炎ダメージを受ける。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：反転してHP回復。\n投げると炎上し周囲にダメージ。", tile:17 },
+  { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
+  { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n投げると命中した敵を鈍足にする。", tile:16 },
+  { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n投げると命中した敵を金縛りにする。", tile:16 },
+  { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"B", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。",           tile:17 },
+  { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"E", weight:12, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：好きな階層を選んで移動できる。",                         tile:18 },
+  { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"C", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
+  { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"C", weight:4,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
+  { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"C", weight:4,  sellPrice:800,  desc:"選んだ防具・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
+  { name:"雷の巻物",         type:"scroll", effect:"thunder",            rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵全てに雷ダメージ(30-40)。\n呪い：自分にも同ダメージ。", tile:18 },
+  { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"D", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。\n呪い：自分含め視界内全員に35ダメージ。", tile:18 },
+  { name:"道具寄せの巻物",   type:"scroll", effect:"item_gather",        rarity:"C", weight:4,  sellPrice:400,  desc:"フロアのアイテムを自分の周りに引き寄せる。\n呪い：アイテムをフロアにランダム散布。",     tile:18 },
+  { name:"眠りの巻物",       type:"scroll", effect:"sleep_scroll",       rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵を6ターン眠らせる。", tile:18 },
+  { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。", tile:18 },
+  { name:"炎の巻物",         type:"scroll", effect:"flame",               rarity:"C", weight:4,  sellPrice:550,  desc:"視界内の敵に炎ダメージ(30-40)。油まみれの対象は2倍。\n呪い：自分にも同ダメージ。", tile:18 },
   { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。", tile:18 },
-  { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:6,  sellPrice:300,  desc:"半径5の壁を全て壊す。\n呪い：周囲を壁に変える。",             tile:18 },
-  { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"B", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。", tile:18 },
-  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:2,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。\n呪い：自分が弾き出され踏むと即死。", tile:42 },
-  { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"B", weight:4,  sellPrice:1200,  desc:"足元に脆弱の魔方陣を描く。\n同じ部屋にいる者全員の受けるダメージが2倍になる。", tile:42 },
-  { name:"魔封じのペン",     type:"pen",    effect:"magic_seal",    charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に魔封じの魔方陣を描く。\n部屋内では一切の魔法が無効になる。外からの魔法弾も消える。", tile:42 },
-  { name:"雷のペン",         type:"pen",    effect:"thunder_trap",  charges:2, rarity:"C", weight:8,  sellPrice:600,  desc:"足元に雷の魔方陣を描く。真上にいると毎ターン25ダメージ。\n呪い：逆に毎ターン25回復。", tile:42 },
-  { name:"遠投のペン",       type:"pen",    effect:"farcast",       charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。\n呪い：射程が1マスになる。", tile:42 },
-  { name:"明かりのペン",     type:"pen",    effect:"light",         charges:2, rarity:"C", weight:8,  sellPrice:700,  desc:"足元に明かりの魔方陣を描く。\n同じ部屋の地形・敵・アイテムが全て見える。\n呪い：視界1マスに。", tile:42 },
-  { name:"テレポートのペン", type:"pen",    effect:"teleport_trap", charges:2, rarity:"B", weight:4,  sellPrice:1200,  desc:"足元にテレポートの魔方陣を描く。\n描いた瞬間ランダムテレポート。部屋内で毎ターン確率でTP。\n呪い：テレポート無効化。", tile:42 },
-  { name:"罠のペン",         type:"pen",    effect:"trap_gen",      charges:2, rarity:"D", weight:12, sellPrice:300,  desc:"足元に罠の魔方陣を描く。\n毎ターン確率で部屋に罠が増える（別部屋でも発動）。\n呪い：毎ターン高確率で罠が消える。", tile:42 },
-  { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, rarity:"C", weight:8,  sellPrice:800,  desc:"足元に石飛ばしの魔方陣を描く。\n部屋内のキャラに毎ターン25%で魔法の石が飛ぶ（命中100%）。\n回避はみかわし魔方陣・みかわしの服・オリーブ油のみ。\n呪い：回復効果。", tile:42 },
-  { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, rarity:"A", weight:2,  sellPrice:3500,  desc:"足元に吹き飛ばしの魔方陣を描く。\n部屋内で近接攻撃を受けた者が5マス吹き飛ぶ。\n呪い：1マスだけ。", tile:42 },
-  { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"B", weight:4,  sellPrice:1500, desc:"足元に爆発の魔方陣を描く。\n部屋内で倒された敵が爆発し周囲8マスにHP3/4ダメージ。壁・罠・大箱も破壊。\n呪い：炎・雷を不発に。", tile:42 },
-  { name:"囮のペン",         type:"pen",    effect:"decoy",         charges:2, rarity:"A", weight:2,  sellPrice:4000,  desc:"足元に囮の魔方陣を描く。\n部屋内の敵がプレイヤーを無視して魔方陣に集まり、陣取ると動かなくなる。\n近づいた敵同士は互いに攻撃し合う。", tile:42 },
-  { name:"ただのペン",       type:"pen",    effect:"plain",         charges:2, rarity:"D", weight:12, sellPrice:50,   desc:"何も起こらない魔方陣を描く。\n他のペンに合成してインクを補充できる。", tile:42 },
-  { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に重力の魔方陣を描く。\n部屋内：浮遊不可・敵が罠にかかる・吹飛ばし/飛びつき無効。\n水上の浮遊系敵は即死。\n呪い：全員浮遊状態。", tile:42 },
-  { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"A", weight:2,  sellPrice:3500, desc:"足元にみかわしの魔方陣を描く。\n部屋内で投げ物・矢・石が必ず外れる(魔法・炎は除く)。\n呪い：逆に必ず命中。", tile:42 },
-  { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"B", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。\n部屋内の全員が速度に関わらず1回行動になる。\n呪い：全員鈍足。", tile:42 },
-  { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"B", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n呪い：逆に5ダメージ。", tile:42 },
-  { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"S", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・使い捨て）。\n呪い：何も起きない。", tile:42 },
-  { name:"ポータルのペン",   type:"pen",    effect:"portal",        charges:2, rarity:"A", weight:2,  sellPrice:3500,  desc:"足元にポータルの魔方陣を描く。\n同じフロアに2個書くと魔方陣同士が繋がりワープできる。\n上に投げたものも反対側から出てくる。\n呪い：ランダムワープになる。", tile:42 },
-  { name:"短剣",             type:"weapon", atk:3,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
-  { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"C", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
-  { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"B", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },
-  { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"A", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
-  { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"A", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。", tile:20 },
-  { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"A", weight:2,  sellPrice:1500, desc:"浮遊している敵に1.5倍ダメージを与える槍。",   tile:20 },
-  { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical",      rarity:"A", weight:2,  sellPrice:2500, desc:"25%の確率で会心の一撃（2倍ダメージ）が出る斧。",  tile:20 },
-  { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
-  { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"B", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
-  { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"B", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれ・炎弱点の敵に1.5倍ダメージ。", tile:20 },
-  { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"B", weight:4,  sellPrice:1500, desc:"氷属性の剣。氷弱点の敵に1.5倍ダメージ。",     tile:20 },
-  { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"B", weight:4,  sellPrice:1500, desc:"雷属性の剣。雷弱点の敵に1.5倍ダメージ。",             tile:20 },
-  { name:"グラットンソード", type:"weapon", atk:7,  ability:"def_bonus",     rarity:"B", weight:4,  sellPrice:1800, desc:"装備中は防御力が5上がる重厚な剣。",                                   tile:20 },
-  { name:"革の鎧",           type:"armor",  def:2,                       rarity:"D", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
-  { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"C", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。", tile:21 },
-  { name:"プレートメイル",   type:"armor",  def:8,                       rarity:"B", weight:4,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
-  { name:"腹持ちの胴",       type:"armor",  def:3,  ability:"slow_hunger",   rarity:"B", weight:4,  sellPrice:1500, desc:"装備すると空腹の進行が3/4になる。腹持ち指輪と重ねがけ可（2つで1/2、3つで1/4）。",    tile:21 },
-  { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"B", weight:4, sellPrice:1000, desc:"雷ダメージを2/3に軽減（万能耐性併用で半減）。雷によるアイテム破壊を防ぐ。", tile:21 },
-  { name:"ドラゴンメイル",   type:"armor",  def:8,  ability:"fire_resist",   rarity:"A", weight:2,  sellPrice:3000, desc:"竜の鱗製。炎ダメージを2/3に軽減（万能耐性併用で半減）。アイテムを炎から守る。", tile:21 },
-  { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         rarity:"B", weight:4,  sellPrice:900,  desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
-  { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         rarity:"B", weight:4,  sellPrice:1200, desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
-  { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  rarity:"A", weight:2,  sellPrice:3000, desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
-  { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:8,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠も無効化する。",    tile:21 },
-  { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"A", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
-  { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"B", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
-  { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"C", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
-  { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"C", weight:8,  sellPrice:200,  desc:"飲むとMP封印50ターン。\n呪い：MP封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
-  { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"C", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱(祝：40T、呪：混乱解除)。", tile:16 },
-  { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"B", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：反転してモンスター感知100ターン。\n投げると敵を50ターン暗闇に(祝：永続、呪：暗闇解除)。", tile:16 },
-  { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"B", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：反転してフロアの罠を全て看破。\n投げると敵を50ターン逃走させる(祝：永続、呪：逃走解除)。", tile:16 },
-  { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"S", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：1階上にワープ。\n投げると敵がレベルアップ(祝：2段階、呪：レベルダウン)。", tile:17 },
+  { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"D", weight:8,  sellPrice:300,  desc:"半径5の壁を全て壊す。\n呪い：周囲を壁に変える。",             tile:18 },
+  { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"C", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。", tile:18 },
+  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"B", weight:2,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。\n呪い：自分が弾き出され踏むと即死。", tile:42 },
+  { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"C", weight:4,  sellPrice:1200,  desc:"足元に脆弱の魔方陣を描く。\n同じ部屋にいる者全員の受けるダメージが2倍になる。", tile:42 },
+  { name:"魔封じのペン",     type:"pen",    effect:"magic_seal",    charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に魔封じの魔方陣を描く。\n部屋内では一切の魔法が無効になる。外からの魔法弾も消える。", tile:42 },
+  { name:"雷のペン",         type:"pen",    effect:"thunder_trap",  charges:2, rarity:"D", weight:8,  sellPrice:600,  desc:"足元に雷の魔方陣を描く。真上にいると毎ターン25ダメージ。\n呪い：逆に毎ターン25回復。", tile:42 },
+  { name:"遠投のペン",       type:"pen",    effect:"farcast",       charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に遠投の魔方陣を描く。部屋内で投げたものが壁まで貫通して飛ぶ。\n呪い：射程が1マスになる。", tile:42 },
+  { name:"明かりのペン",     type:"pen",    effect:"light",         charges:2, rarity:"D", weight:8,  sellPrice:700,  desc:"足元に明かりの魔方陣を描く。\n同じ部屋の地形・敵・アイテムが全て見える。\n呪い：視界1マスに。", tile:42 },
+  { name:"テレポートのペン", type:"pen",    effect:"teleport_trap", charges:2, rarity:"C", weight:4,  sellPrice:1200,  desc:"足元にテレポートの魔方陣を描く。\n描いた瞬間ランダムテレポート。部屋内で毎ターン確率でTP。\n呪い：テレポート無効化。", tile:42 },
+  { name:"罠のペン",         type:"pen",    effect:"trap_gen",      charges:2, rarity:"E", weight:12, sellPrice:300,  desc:"足元に罠の魔方陣を描く。\n毎ターン確率で部屋に罠が増える（別部屋でも発動）。\n呪い：毎ターン高確率で罠が消える。", tile:42 },
+  { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, rarity:"D", weight:8,  sellPrice:800,  desc:"足元に石飛ばしの魔方陣を描く。\n部屋内のキャラに毎ターン25%で魔法の石が飛ぶ（命中100%）。\n回避はみかわし魔方陣・みかわしの服・オリーブ油のみ。\n呪い：回復効果。", tile:42 },
+  { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, rarity:"B", weight:2,  sellPrice:3500,  desc:"足元に吹き飛ばしの魔方陣を描く。\n部屋内で近接攻撃を受けた者が5マス吹き飛ぶ。\n呪い：1マスだけ。", tile:42 },
+  { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"C", weight:4,  sellPrice:1500, desc:"足元に爆発の魔方陣を描く。\n部屋内で倒された敵が爆発し周囲8マスにHP3/4ダメージ。壁・罠・大箱も破壊。\n呪い：炎・雷を不発に。", tile:42 },
+  { name:"囮のペン",         type:"pen",    effect:"decoy",         charges:2, rarity:"B", weight:2,  sellPrice:4000,  desc:"足元に囮の魔方陣を描く。\n部屋内の敵がプレイヤーを無視して魔方陣に集まり、陣取ると動かなくなる。\n近づいた敵同士は互いに攻撃し合う。", tile:42 },
+  { name:"ただのペン",       type:"pen",    effect:"plain",         charges:2, rarity:"E", weight:12, sellPrice:50,   desc:"何も起こらない魔方陣を描く。\n他のペンに合成してインクを補充できる。", tile:42 },
+  { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に重力の魔方陣を描く。\n部屋内：浮遊不可・敵が罠にかかる・吹飛ばし/飛びつき無効。\n水上の浮遊系敵は即死。\n呪い：全員浮遊状態。", tile:42 },
+  { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"B", weight:2,  sellPrice:3500, desc:"足元にみかわしの魔方陣を描く。\n部屋内で投げ物・矢・石が必ず外れる(魔法・炎は除く)。\n呪い：逆に必ず命中。", tile:42 },
+  { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"C", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。\n部屋内の全員が速度に関わらず1回行動になる。\n呪い：全員鈍足。", tile:42 },
+  { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n呪い：逆に5ダメージ。", tile:42 },
+  { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"A", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・使い捨て）。\n呪い：何も起きない。", tile:42 },
+  { name:"ポータルのペン",   type:"pen",    effect:"portal",        charges:2, rarity:"B", weight:2,  sellPrice:3500,  desc:"足元にポータルの魔方陣を描く。\n同じフロアに2個書くと魔方陣同士が繋がりワープできる。\n上に投げたものも反対側から出てくる。\n呪い：ランダムワープになる。", tile:42 },
+  { name:"短剣",             type:"weapon", atk:3,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
+  { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
+  { name:"バトルアクス",     type:"weapon", atk:10,                      rarity:"C", weight:4,  sellPrice:1200, desc:"重厚な戦斧。",                     tile:20 },
+  { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"B", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
+  { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"B", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。", tile:20 },
+  { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"B", weight:2,  sellPrice:1500, desc:"浮遊している敵に1.5倍ダメージを与える槍。",   tile:20 },
+  { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical",      rarity:"B", weight:2,  sellPrice:2500, desc:"25%の確率で会心の一撃（2倍ダメージ）が出る斧。",  tile:20 },
+  { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"D", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
+  { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"C", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
+  { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"C", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれ・炎弱点の敵に1.5倍ダメージ。", tile:20 },
+  { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"C", weight:4,  sellPrice:1500, desc:"氷属性の剣。氷弱点の敵に1.5倍ダメージ。",     tile:20 },
+  { name:"雷の剣",           type:"weapon", atk:7,  ability:"thunder_elem",  rarity:"C", weight:4,  sellPrice:1500, desc:"雷属性の剣。雷弱点の敵に1.5倍ダメージ。",             tile:20 },
+  { name:"グラットンソード", type:"weapon", atk:7,  ability:"def_bonus",     rarity:"C", weight:4,  sellPrice:1800, desc:"装備中は防御力が5上がる重厚な剣。",                                   tile:20 },
+  { name:"革の鎧",           type:"armor",  def:2,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
+  { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"D", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。", tile:21 },
+  { name:"プレートメイル",   type:"armor",  def:8,                       rarity:"C", weight:4,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
+  { name:"腹持ちの胴",       type:"armor",  def:3,  ability:"slow_hunger",   rarity:"C", weight:4,  sellPrice:1500, desc:"装備すると空腹の進行が3/4になる。腹持ち指輪と重ねがけ可（2つで1/2、3つで1/4）。",    tile:21 },
+  { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"C", weight:4, sellPrice:1000, desc:"雷ダメージを2/3に軽減（万能耐性併用で半減）。雷によるアイテム破壊を防ぐ。", tile:21 },
+  { name:"ドラゴンメイル",   type:"armor",  def:8,  ability:"fire_resist",   rarity:"B", weight:2,  sellPrice:3000, desc:"竜の鱗製。炎ダメージを2/3に軽減（万能耐性併用で半減）。アイテムを炎から守る。", tile:21 },
+  { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         rarity:"C", weight:4,  sellPrice:900,  desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
+  { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         rarity:"C", weight:4,  sellPrice:1200, desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
+  { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  rarity:"B", weight:2,  sellPrice:3000, desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
+  { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"D", weight:8,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠も無効化する。",    tile:21 },
+  { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"B", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
+  { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
+  { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
+  { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"D", weight:8,  sellPrice:200,  desc:"飲むとMP封印50ターン。\n呪い：MP封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
+  { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱(祝：40T、呪：混乱解除)。", tile:16 },
+  { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：反転してモンスター感知100ターン。\n投げると敵を50ターン暗闇に(祝：永続、呪：暗闇解除)。", tile:16 },
+  { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：反転してフロアの罠を全て看破。\n投げると敵を50ターン逃走させる(祝：永続、呪：逃走解除)。", tile:16 },
+  { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：1階上にワープ。\n投げると敵がレベルアップ(祝：2段階、呪：レベルダウン)。", tile:17 },
   { name:"金貨",             type:"gold",   value:1,                     desc:"金貨。",                           tile:22 },
-  { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"C", weight:8,  sellPrice:250,
+  { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"D", weight:8,  sellPrice:250,
     desc:"持ち物から1つ選んで識別する。\n呪い：識別を解除。", tile:18 },
-  { name:"複製の巻物", type:"scroll", effect:"duplicate",         rarity:"S", weight:1,  sellPrice:6000,
+  { name:"複製の巻物", type:"scroll", effect:"duplicate",         rarity:"A", weight:1,  sellPrice:6000,
     desc:"持ち物から1つ選んで複製する。\n呪い：選んだものが消える。", tile:18 },
   { name:"売却の巻物", type:"scroll", effect:"sell_item",         rarity:"C", weight:4,  sellPrice:600,
     desc:"持ち物から1つ選んで換金する。\n呪い：半額。", tile:18 },
-  { name:"変換の巻物", type:"scroll", effect:"transform_item",    rarity:"B", weight:4,  sellPrice:700,
+  { name:"変換の巻物", type:"scroll", effect:"transform_item",    rarity:"C", weight:4,  sellPrice:700,
     desc:"持ち物から1つ選んで別のアイテムに変える。\n呪い：レアリティが低いものに変化。", tile:18 },
-  { name:"錬成の巻物", type:"scroll", effect:"forge_item",        rarity:"A", weight:2,  sellPrice:2000,
+  { name:"錬成の巻物", type:"scroll", effect:"forge_item",        rarity:"B", weight:2,  sellPrice:2000,
     desc:"持ち物の武器か防具を1つ選んでランダムな能力を付与する。\n呪い：役に立たない能力。", tile:18 },
-  { name:"召喚の巻物", type:"scroll", effect:"summon",            rarity:"D", weight:12, sellPrice:50,
+  { name:"召喚の巻物", type:"scroll", effect:"summon",            rarity:"E", weight:12, sellPrice:50,
     desc:"敵を4体召喚する。\n呪い：部屋内の敵を別の部屋に飛ばす。", tile:18 },
-  { name:"収納上手の巻物", type:"scroll", effect:"expand_inv",   rarity:"A", weight:4,  sellPrice:800,
+  { name:"収納上手の巻物", type:"scroll", effect:"expand_inv",   rarity:"C", weight:4,  sellPrice:800,
     desc:"最大所持数が1～3増える。", tile:18 },
-  { name:"罠の巻物", type:"scroll", effect:"trap_scatter",        rarity:"D", weight:12, sellPrice:30,
+  { name:"罠の巻物", type:"scroll", effect:"trap_scatter",        rarity:"E", weight:12, sellPrice:30,
     desc:"読むと同じフロアの部屋内に大量の罠が出現する。\n呪い：フロア内の全ての罠が消える。", tile:18 },
-  { name:"吸い出しの巻物", type:"scroll", effect:"pot_extract",   rarity:"B", weight:4,  sellPrice:600,
+  { name:"吸い出しの巻物", type:"scroll", effect:"pot_extract",   rarity:"C", weight:4,  sellPrice:600,
     desc:"選んだ壺の中身を足元にばらまく。", tile:18 },
-  { name:"自爆の巻物", type:"scroll", effect:"self_destruct",      rarity:"B", weight:4,  sellPrice:700,
+  { name:"自爆の巻物", type:"scroll", effect:"self_destruct",      rarity:"C", weight:4,  sellPrice:700,
     desc:"中心から2マス（5×5）に爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ軽減（個別or万能2/3・両方半減）。\n呪い：爆発は起きず200ターンの間、炎と爆発が全て不発になる。", tile:18 },
-  { name:"バーサーカーの巻物", type:"scroll", effect:"berserker_scroll", rarity:"B", weight:4, sellPrice:600,
+  { name:"バーサーカーの巻物", type:"scroll", effect:"berserker_scroll", rarity:"C", weight:4, sellPrice:600,
     desc:"部屋内の敵全員が50ターンのバーサーク状態になり、敵味方区別なく攻撃する。\n呪い：部屋内の敵が20ターンの平和主義状態になる（攻撃不可）。", tile:18 },
-  { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"A", weight:2,  sellPrice:120,
+  { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"B", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
-  { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"C", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
-  { name:"貫きの矢", type:"arrow", atk:5, pierce:true, count:3,   rarity:"B", weight:4,  sellPrice:60,   desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
-  { name:"強矢",     type:"arrow", atk:8, strong:true,   count:3,   rarity:"B", weight:4,  sellPrice:80,   desc:"攻撃力の高い強力な矢。99本まで束にできる。",                   tile:23 },
+  { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"D", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
+  { name:"貫きの矢", type:"arrow", atk:5, pierce:true, count:3,   rarity:"C", weight:4,  sellPrice:60,   desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", tile:23 },
+  { name:"強矢",     type:"arrow", atk:8, strong:true,   count:3,   rarity:"C", weight:4,  sellPrice:80,   desc:"攻撃力の高い強力な矢。99本まで束にできる。",                   tile:23 },
 ];
 
 export function getBlessMultiplier(it) {
@@ -336,29 +336,29 @@ export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand
 export const GOBLIN_BAT_T     = { name:"ゴブリンバット", type:"weapon", atk:4, rarity:"D", sellPrice:80, desc:"ゴブリンが持っている粗削りな鈍器。", tile:20 };
 export const ONI_CLUB_T       = { name:"鬼棍棒",       type:"weapon", atk:8, ability:"critical", sellPrice:1200, desc:"25%の確率で会心の一撃が出る棍棒。", tile:20 };
 
-export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,                 rarity:"D", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
-export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"C", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
-export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierce:true,     rarity:"B", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
-export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:true,       rarity:"B", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
-export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"D", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
-export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"C", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
-export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"A", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
-export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"D", weight:12, sellPrice:5,    desc:"空の瓶。今のところ使い道はない。",         tile:16 };
-export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"D", weight:12, sellPrice:5,    desc:"泉の水。飲むと満腹度+3。投げると着弾点のアイテムに祝福(祝)/呪い(呪)を付与。壺に当たると容量変化。", tile:16 };
-export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"B", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
-export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"A", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
+export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,                 rarity:"E", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
+export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"D", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
+export const PIERCING_ARROW_T= { name:"貫きの矢", type:"arrow", atk:5, pierce:true,     rarity:"C", weight:4,  sellPrice:60,  desc:"全てを貫通して飛ぶ矢。99本まで束にできる。", count:1, tile:23 };
+export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:true,       rarity:"C", weight:4,  sellPrice:80,  desc:"攻撃力の高い強力な矢。99本まで束にできる。", count:1, tile:23 };
+export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
+export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
+export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
+export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"空の瓶。今のところ使い道はない。",         tile:16 };
+export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと満腹度+3。投げると着弾点のアイテムに祝福(祝)/呪い(呪)を付与。壺に当たると容量変化。", tile:16 };
+export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"C", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
+export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"B", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
 
 
 /* ===== 宝石 ===== */
 export const GEM_TYPES = [
-  { name: "ルビー",       type: "gem", rarity: "B", weight: 8,  basePrice: 1500, tile: 88,  desc: "深紅の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "サファイア",   type: "gem", rarity: "B", weight: 8,  basePrice: 2500, tile: 89,  desc: "深青の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "エメラルド",   type: "gem", rarity: "B", weight: 8,  basePrice: 2000, tile: 90,  desc: "緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "トパーズ",     type: "gem", rarity: "C", weight: 12, basePrice: 800,  tile: 91,  desc: "黄色の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "アメジスト",   type: "gem", rarity: "C", weight: 12, basePrice: 500,  tile: 92,  desc: "紫の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "アクアマリン", type: "gem", rarity: "C", weight: 10, basePrice: 1100, tile: 87,  desc: "青緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "ダイヤモンド", type: "gem", rarity: "A", weight: 3,  basePrice: 8000, tile: 101, desc: "無色透明の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "オパール",     type: "gem", rarity: "A", weight: 3,  basePrice: 5000, tile: 102, desc: "虹色の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "ルビー",       type: "gem", rarity:"D", weight:8,  basePrice: 1500, tile: 88,  desc: "深紅の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "サファイア",   type: "gem", rarity:"D", weight:8,  basePrice: 2500, tile: 89,  desc: "深青の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "エメラルド",   type: "gem", rarity:"D", weight:8,  basePrice: 2000, tile: 90,  desc: "緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "トパーズ",     type: "gem", rarity:"E", weight:12, basePrice: 800,  tile: 91,  desc: "黄色の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "アメジスト",   type: "gem", rarity:"E", weight:12, basePrice: 500,  tile: 92,  desc: "紫の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "アクアマリン", type: "gem", rarity:"E", weight:12, basePrice: 1100, tile: 87,  desc: "青緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "ダイヤモンド", type: "gem", rarity:"C", weight:4,  basePrice: 8000, tile: 101, desc: "無色透明の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "オパール",     type: "gem", rarity:"C", weight:4,  basePrice: 5000, tile: 102, desc: "虹色の宝石。買った店から遠い階の店で売ると高値がつく。" },
 ];
 
 /* 宝石の売値を計算する（originDepth から currentDepth の距離に応じて上昇） */
@@ -451,15 +451,31 @@ export function wPick(arr) {
 }
 
 /**
+ * レア度 → weight（同レア度は同 weight。E が最コモン、S が最レア）
+ * E:12 D:8 C:4 B:2 A:1 S:0.05
+ */
+export const RARITY_WEIGHT = { E: 12, D: 8, C: 4, B: 2, A: 1, S: 0.05 };
+export const RARITY_RANK = { E: 0, D: 1, C: 2, B: 3, A: 4, S: 5 };
+export const RARITY_ORDER = ["E", "D", "C", "B", "A", "S"];
+
+export function rarityAtLeast(minR) {
+  const m = RARITY_RANK[minR] ?? 0;
+  return RARITY_ORDER.filter((r) => (RARITY_RANK[r] ?? 0) >= m);
+}
+export function isRarityAtLeast(item, minR) {
+  if (!item?.rarity) return false;
+  return (RARITY_RANK[item.rarity] ?? -1) >= (RARITY_RANK[minR] ?? 0);
+}
+
+/**
  * 店・変化・ドロップで「いいもの寄り」にする運枠。
- * 均等抽選はしない（weight 0.05 の願い等が量産されるため）。
- * 運が当たると指定レア以上のサブプールで **weight 抽選**。外れは全体を weight。
+ * 運が当たると指定レア以上のサブプールで weight 抽選（帯内は同レア同 weight）。
  */
 export const LOOT_LUCK = {
   floor:  { chance: 0,    rarities: null },
-  shop:   { chance: 0.18, rarities: ["B", "A", "S"] }, /* 店 */
-  change: { chance: 0.18, rarities: ["B", "A", "S"] }, /* 変化の大箱・杖・強欲壺・変換巻物 */
-  drop:   { chance: 0.10, rarities: ["C", "B", "A", "S"] }, /* 敵ドロップ */
+  shop:   { chance: 0.18, rarities: rarityAtLeast("C") }, /* C/B/A/S */
+  change: { chance: 0.18, rarities: rarityAtLeast("C") },
+  drop:   { chance: 0.10, rarities: rarityAtLeast("D") }, /* D 以上 */
 };
 
 /** @deprecated 均等枠は廃止。互換のため 0 固定で残す */
@@ -519,28 +535,28 @@ export function genFood() {
 
 /* ===== WANDS ===== */
 export const WANDS = [
-  { name:"ふきとばしの杖", type:"wand", effect:"knockback", charges:5, rarity:"C", weight:8,  sellPrice:300,  desc:"振ると対象を吹き飛ばす。壊すと周囲全てを吹き飛ばす。",                           tile:24 },
-  { name:"雷の杖",         type:"wand", effect:"lightning", charges:4, rarity:"C", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
-  { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:6, rarity:"B", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },
-  { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると対象を別の何かに変える。壊すと周囲全てを変化。",                           tile:24 },
-  { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:5, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
-  { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"B", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。\n壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
-  { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"C", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。壊しても何も起こらない。",                     tile:24 },
-  { name:"テレポートの杖", type:"wand", effect:"warp",      charges:4, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
-  { name:"金縛りの杖",     type:"wand", effect:"paralyze",  charges:5, rarity:"A", weight:2,  sellPrice:500, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。", tile:24 },
-  { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"B", weight:4,  sellPrice:400,  desc:"振ると対象を眠りに落とす。眠りの罠と同様の効果。",                                   tile:24 },
-  { name:"祝福の杖",       type:"wand", effect:"bless_wand",charges:1, rarity:"S", weight:1,  sellPrice:8000, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
-  { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:1, rarity:"A", weight:2,  sellPrice:1500, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
-  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"A", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：自分は1階上へワープ、敵はレベルダウン。", tile:24 },
-  { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"C", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。\n自分：5ターン、敵：20ターン混乱。", tile:24 },
-  { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:5, rarity:"B", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：フロア全体が見える。", tile:24 },
-  { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"B", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n呪い：罠が全て見える。", tile:24 },
-  { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"C", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：MP封印50T。\n呪い：敵の特技100%化、自分はMP封印解除。", tile:24 },
-  { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"B", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
-  { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"C", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
-  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"C", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
-  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"B", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
-  { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"C", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n呪い：対象が未識別に戻る。", tile:24 },
+  { name:"ふきとばしの杖", type:"wand", effect:"knockback", charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を吹き飛ばす。壊すと周囲全てを吹き飛ばす。",                           tile:24 },
+  { name:"雷の杖",         type:"wand", effect:"lightning", charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
+  { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:6, rarity:"C", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },
+  { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を別の何かに変える。壊すと周囲全てを変化。",                           tile:24 },
+  { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:5, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
+  { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"C", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。\n壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
+  { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"D", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。壊しても何も起こらない。",                     tile:24 },
+  { name:"テレポートの杖", type:"wand", effect:"warp",      charges:4, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
+  { name:"金縛りの杖",     type:"wand", effect:"paralyze",  charges:5, rarity:"B", weight:2,  sellPrice:500, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。", tile:24 },
+  { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"C", weight:4,  sellPrice:400,  desc:"振ると対象を眠りに落とす。眠りの罠と同様の効果。",                                   tile:24 },
+  { name:"祝福の杖",       type:"wand", effect:"bless_wand",charges:1, rarity:"A", weight:1,  sellPrice:8000, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
+  { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:1, rarity:"B", weight:2,  sellPrice:1500, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
+  { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"B", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：自分は1階上へワープ、敵はレベルダウン。", tile:24 },
+  { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。\n自分：5ターン、敵：20ターン混乱。", tile:24 },
+  { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:5, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：フロア全体が見える。", tile:24 },
+  { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n呪い：罠が全て見える。", tile:24 },
+  { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"D", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：MP封印50T。\n呪い：敵の特技100%化、自分はMP封印解除。", tile:24 },
+  { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
+  { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
+  { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
+  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
+  { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n呪い：対象が未識別に戻る。", tile:24 },
   { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
 ];
 
@@ -569,32 +585,32 @@ export const BB_FAKE_NAMES = [
 
 /* ===== POTS ===== */
 export const POTS = [
-  { name:"チョコの壺",         type:"pot", potEffect:"choco",     capacity:3, rarity:"C", weight:8,  sellPrice:600,  desc:"食料を入れるとチョコがけになる。食べるとHP35回復＋状態異常回復。",  tile:32 },
-  { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"B", weight:4,  sellPrice:900,  desc:"食料を入れると激辛になる。食べると直接攻撃・矢ダメージ1.5倍(50ターン)。",     tile:32 },
-  { name:"蜂蜜の壺",           type:"pot", potEffect:"honey",     capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとはちみつ漬けになる。食べると毎ターンHP+2自然回復(80ターン)。",   tile:32 },
-  { name:"保存の壺",           type:"pot", potEffect:"none",      capacity:5, rarity:"C", weight:8,  sellPrice:1500, desc:"アイテムを安全に保管できる。",         tile:32 },
-  { name:"強化の壺",           type:"pot", potEffect:"enhance",   capacity:2, rarity:"A", weight:2,  sellPrice:4000, desc:"装備品の性能が上がる。",               tile:32 },
-  { name:"弱化の壺",           type:"pot", potEffect:"weaken",    capacity:3, rarity:"C", weight:8,  sellPrice:150,  desc:"入れた装備品が劣化する呪いの壺。",     tile:32 },
-  { name:"カレーの壺",         type:"pot", potEffect:"curry",     capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとカレー味になる。食べると炎ダメージ半減(100ターン)。",       tile:32 },
-  { name:"味噌の壺",           type:"pot", potEffect:"miso",      capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れると味噌漬けになる。食べると防御力+8(100ターン)。",       tile:32 },
-  { name:"燻製の壺",           type:"pot", potEffect:"smoke",     capacity:3, rarity:"B", weight:4,  sellPrice:1000, desc:"食料を燻製にする。食べると最大満腹度が上がる。", tile:32 },
-  { name:"祝福の壺",           type:"pot", potEffect:"bless_pot", capacity:3, rarity:"S", weight:1,  sellPrice:9000, desc:"入れたアイテムを祝福する。",           tile:32 },
-  { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"A", weight:8,  sellPrice:2000, desc:"入れたアイテムを呪う。",               tile:32 },
-  { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"薬を入れると部屋中に薬効が広がる。\n生の食料を入れると焼いた状態になる。\nその他のものは保管できる。", tile:32 },
-  { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"B", weight:4,  sellPrice:700,  desc:"割れると5×5マスを巻き込む大爆発を起こす。\n炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化。\n中身は爆発で消える。", tile:32 },
-  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。\n食べると被攻撃15%回避(80ターン)。\n割れると周囲に油が飛散する。", tile:32 },
-  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。\n食べると会心率UP(80ターン)。\n割れると周囲に油が飛散する。",         tile:32 },
-  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"C", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。\n食べると満腹度減少速度半減(100ターン)。\n割れると周囲に油が飛散する。",         tile:32 },
-  { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとヨーグルト漬けになる。食べると毒・混乱免疫(100ターン)。",   tile:32 },
-  { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。食べるとMP+10回復。",   tile:32 },
-  { name:"強欲な壺",           type:"pot", potEffect:"greed",    capacity:4, rarity:"B", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
-  { name:"回復の壺",           type:"pot", potEffect:"heal_pot", capacity:3, rarity:"B", weight:4,  sellPrice:2000, desc:"アイテムを入れると消滅するが、プレイヤーのHPが100回復する。容量分だけ使える。", tile:32 },
-  { name:"醤油の壺",           type:"pot", potEffect:"soy",      capacity:3, rarity:"C", weight:8,  sellPrice:500,  desc:"食料を入れると醤油味になる。食べると経験値1.3倍(100ターン)。", tile:32 },
-  { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
-  { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"B", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
-  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"A", weight:2,  sellPrice:3500, desc:"入れると閉じ込められる。敵に投げても使える。", tile:32 },
+  { name:"チョコの壺",         type:"pot", potEffect:"choco",     capacity:3, rarity:"D", weight:8,  sellPrice:600,  desc:"食料を入れるとチョコがけになる。食べるとHP35回復＋状態異常回復。",  tile:32 },
+  { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"C", weight:4,  sellPrice:900,  desc:"食料を入れると激辛になる。食べると直接攻撃・矢ダメージ1.5倍(50ターン)。",     tile:32 },
+  { name:"蜂蜜の壺",           type:"pot", potEffect:"honey",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとはちみつ漬けになる。食べると毎ターンHP+2自然回復(80ターン)。",   tile:32 },
+  { name:"保存の壺",           type:"pot", potEffect:"none",      capacity:5, rarity:"D", weight:8,  sellPrice:1500, desc:"アイテムを安全に保管できる。",         tile:32 },
+  { name:"強化の壺",           type:"pot", potEffect:"enhance",   capacity:2, rarity:"B", weight:2,  sellPrice:4000, desc:"装備品の性能が上がる。",               tile:32 },
+  { name:"弱化の壺",           type:"pot", potEffect:"weaken",    capacity:3, rarity:"D", weight:8,  sellPrice:150,  desc:"入れた装備品が劣化する呪いの壺。",     tile:32 },
+  { name:"カレーの壺",         type:"pot", potEffect:"curry",     capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとカレー味になる。食べると炎ダメージ半減(100ターン)。",       tile:32 },
+  { name:"味噌の壺",           type:"pot", potEffect:"miso",      capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れると味噌漬けになる。食べると防御力+8(100ターン)。",       tile:32 },
+  { name:"燻製の壺",           type:"pot", potEffect:"smoke",     capacity:3, rarity:"C", weight:4,  sellPrice:1000, desc:"食料を燻製にする。食べると最大満腹度が上がる。", tile:32 },
+  { name:"祝福の壺",           type:"pot", potEffect:"bless_pot", capacity:3, rarity:"A", weight:1,  sellPrice:9000, desc:"入れたアイテムを祝福する。",           tile:32 },
+  { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"D", weight:8,  sellPrice:2000, desc:"入れたアイテムを呪う。",               tile:32 },
+  { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"薬を入れると部屋中に薬効が広がる。\n生の食料を入れると焼いた状態になる。\nその他のものは保管できる。", tile:32 },
+  { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"C", weight:4,  sellPrice:700,  desc:"割れると5×5マスを巻き込む大爆発を起こす。\n炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化。\n中身は爆発で消える。", tile:32 },
+  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。\n食べると被攻撃15%回避(80ターン)。\n割れると周囲に油が飛散する。", tile:32 },
+  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。\n食べると会心率UP(80ターン)。\n割れると周囲に油が飛散する。",         tile:32 },
+  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。\n食べると満腹度減少速度半減(100ターン)。\n割れると周囲に油が飛散する。",         tile:32 },
+  { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとヨーグルト漬けになる。食べると毒・混乱免疫(100ターン)。",   tile:32 },
+  { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。食べるとMP+10回復。",   tile:32 },
+  { name:"強欲な壺",           type:"pot", potEffect:"greed",    capacity:4, rarity:"C", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
+  { name:"回復の壺",           type:"pot", potEffect:"heal_pot", capacity:3, rarity:"C", weight:4,  sellPrice:2000, desc:"アイテムを入れると消滅するが、プレイヤーのHPが100回復する。容量分だけ使える。", tile:32 },
+  { name:"醤油の壺",           type:"pot", potEffect:"soy",      capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れると醤油味になる。食べると経験値1.3倍(100ターン)。", tile:32 },
+  { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
+  { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
+  { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"B", weight:2,  sellPrice:3500, desc:"入れると閉じ込められる。敵に投げても使える。", tile:32 },
   { name:"願いの壺",         type:"pot", potEffect:"wish_pot", capacity:3, rarity:"S", weight:0.05,  sellPrice:12000, desc:"アイテムを入れると願いが叶う。\n入れた物は消え、壺も一回で壊れる。", tile:32 },
-  { name:"クラインの壺",     type:"pot", potEffect:"klein",   capacity:3, rarity:"A", weight:2,  sellPrice:5000, desc:"アイテムを入れると消え、20ターン逆転状態になる。\nダメージが回復に、回復がダメージに反転する。", tile:32 },
+  { name:"クラインの壺",     type:"pot", potEffect:"klein",   capacity:3, rarity:"B", weight:2,  sellPrice:5000, desc:"アイテムを入れると消え、20ターン逆転状態になる。\nダメージが回復に、回復がダメージに反転する。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -3282,21 +3298,21 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _gv = [600, 1500, 3000, 6000][_tier - 1] + rng(0, 100 * _tier);
     placeItemAt(dg, m.x, m.y, { name: "ボスの財宝", type: "gold", value: _gv, tile: 22, id: uid() }, ml, _ft, 0, p);
     /* 強化武器 (+tier+1) */
-    const _wpPool = ITEMS.filter(i => i.type === "weapon" && ["B","A","S"].includes(i.rarity));
+    const _wpPool = ITEMS.filter(i => i.type === "weapon" && ["C", "B", "A", "S"].includes(i.rarity));
     placeItemAt(dg, m.x, m.y,
       { ...pick(_wpPool.length ? _wpPool : ITEMS.filter(i => i.type === "weapon")), plus: _tier + 1, id: uid() },
       ml, _ft, 0, p);
     /* 強化防具 (+tier、tier2+) */
     if (_tier >= 2) {
-      const _arPool = ITEMS.filter(i => i.type === "armor" && ["B","A","S"].includes(i.rarity));
+      const _arPool = ITEMS.filter(i => i.type === "armor" && ["C", "B", "A", "S"].includes(i.rarity));
       placeItemAt(dg, m.x, m.y,
         { ...pick(_arPool.length ? _arPool : ITEMS.filter(i => i.type === "armor")), plus: _tier, id: uid() },
         ml, _ft, 0, p);
     }
-    /* 高レア巻物 (A/Sランク、tier数分) S確率15% */
-    const _scAPool = ITEMS.filter(i => i.type === "scroll" && i.rarity === "A");
+    /* 高レア巻物 (B/A 中心、S があれば15%) */
+    const _scAPool = ITEMS.filter(i => i.type === "scroll" && (i.rarity === "A" || i.rarity === "B"));
     const _scSPool = ITEMS.filter(i => i.type === "scroll" && i.rarity === "S");
-    const _scFallback = ITEMS.filter(i => i.type === "scroll" && i.rarity !== "D");
+    const _scFallback = ITEMS.filter(i => i.type === "scroll" && i.rarity !== "E" && i.rarity !== "D");
     for (let _si = 0; _si < _tier; _si++) {
       const _useS = _scSPool.length > 0 && _scAPool.length > 0 && Math.random() < 0.15;
       const _scPick = _useS ? pick(_scSPool) : pick(_scAPool.length ? _scAPool : _scFallback);
@@ -4138,23 +4154,23 @@ export const SPELLS=[
   {id:"debug_summon_bb",  name:"[debug]大箱召喚", mpCost:0,  fixedMpCost:true, effect:"debug_summon_bb",   needsDir:false, debug:true, desc:"任意の大箱を1つ選んで呼び出す。MP:0"},
 ];
 export const SPELLBOOKS=[
-  {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"B", weight:4,  sellPrice:2500,  desc:"炎の魔法を習得できる。火に弱い。",tile:43},
-  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"B", weight:4,  sellPrice:2500,  desc:"氷の魔法を習得できる。火に弱い。",tile:43},
-  {name:"雷の魔法書",       type:"spellbook",spell:"lightning_magic", rarity:"B", weight:4,  sellPrice:3000,  desc:"雷の魔法を習得できる。火に弱い。",tile:43},
-  {name:"眠りの魔法書",     type:"spellbook",spell:"sleep_bolt",      rarity:"B", weight:4,  sellPrice:2500,  desc:"眠りの魔法を習得できる。火に弱い。",tile:43},
-  {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic", rarity:"A", weight:2,  sellPrice:5000,  desc:"テレポートの魔法を習得できる。火に弱い。",tile:43},
-  {name:"テレポートアザーの魔法書",type:"spellbook",spell:"teleport_other",rarity:"A", weight:2,  sellPrice:5000,  desc:"テレポートアザーの魔法を習得できる。火に弱い。",tile:43},
-  {name:"毒の魔法書",            type:"spellbook",spell:"poison_bolt",   rarity:"B", weight:4,  sellPrice:2500,  desc:"毒の魔法を習得できる。火に弱い。",tile:43},
-  {name:"透明の魔法書",          type:"spellbook",spell:"invisible_magic",rarity:"A", weight:2,  sellPrice:6000,  desc:"透明の魔法を習得できる。火に弱い。",tile:43},
-  {name:"壁抜けの魔法書",        type:"spellbook",spell:"wallwalk_magic", rarity:"A", weight:2,  sellPrice:8000,  desc:"壁抜けの魔法を習得できる。火に弱い。",tile:43},
-  {name:"回復の魔法書",       type:"spellbook",spell:"heal_magic",       rarity:"A", weight:2,  sellPrice:5000,  desc:"回復の魔法を習得できる。火に弱い。",tile:43},
-  {name:"HP吸収の魔法書",    type:"spellbook",spell:"drain_hp",         rarity:"B", weight:4,  sellPrice:3000,  desc:"HP吸収の魔法を習得できる。火に弱い。",tile:43},
-  {name:"金縛りの魔法書",    type:"spellbook",spell:"paralyze_magic",   rarity:"B", weight:4,  sellPrice:2500,  desc:"金縛りの魔法を習得できる。火に弱い。",tile:43},
-  {name:"食料生成の魔法書",  type:"spellbook",spell:"food_create",       rarity:"B", weight:4,  sellPrice:2000,  desc:"食料生成の魔法を習得できる。火に弱い。",tile:43},
-  {name:"変化の魔法書",      type:"spellbook",spell:"transform_magic",  rarity:"B", weight:4,  sellPrice:2500,  desc:"変化の魔法を習得できる。火に弱い。",tile:43},
-  {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"A", weight:2,  sellPrice:3500,  desc:"識別の魔法を習得できる。火に弱い。",tile:43},
-  {name:"祝福の魔法書",     type:"spellbook",spell:"bless_magic",     rarity:"S", weight:1,  sellPrice:10000, desc:"祝福の魔法を習得できる。火に弱い。",tile:43},
-  {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"B", weight:4,  sellPrice:2000,  desc:"呪いの魔法を習得できる。火に弱い。",tile:43},];
+  {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"C", weight:4,  sellPrice:2500,  desc:"炎の魔法を習得できる。火に弱い。",tile:43},
+  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"氷の魔法を習得できる。火に弱い。",tile:43},
+  {name:"雷の魔法書",       type:"spellbook",spell:"lightning_magic", rarity:"C", weight:4,  sellPrice:3000,  desc:"雷の魔法を習得できる。火に弱い。",tile:43},
+  {name:"眠りの魔法書",     type:"spellbook",spell:"sleep_bolt",      rarity:"C", weight:4,  sellPrice:2500,  desc:"眠りの魔法を習得できる。火に弱い。",tile:43},
+  {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"テレポートの魔法を習得できる。火に弱い。",tile:43},
+  {name:"テレポートアザーの魔法書",type:"spellbook",spell:"teleport_other",rarity:"B", weight:2,  sellPrice:5000,  desc:"テレポートアザーの魔法を習得できる。火に弱い。",tile:43},
+  {name:"毒の魔法書",            type:"spellbook",spell:"poison_bolt",   rarity:"C", weight:4,  sellPrice:2500,  desc:"毒の魔法を習得できる。火に弱い。",tile:43},
+  {name:"透明の魔法書",          type:"spellbook",spell:"invisible_magic",rarity:"B", weight:2,  sellPrice:6000,  desc:"透明の魔法を習得できる。火に弱い。",tile:43},
+  {name:"壁抜けの魔法書",        type:"spellbook",spell:"wallwalk_magic", rarity:"B", weight:2,  sellPrice:8000,  desc:"壁抜けの魔法を習得できる。火に弱い。",tile:43},
+  {name:"回復の魔法書",       type:"spellbook",spell:"heal_magic",       rarity:"B", weight:2,  sellPrice:5000,  desc:"回復の魔法を習得できる。火に弱い。",tile:43},
+  {name:"HP吸収の魔法書",    type:"spellbook",spell:"drain_hp",         rarity:"C", weight:4,  sellPrice:3000,  desc:"HP吸収の魔法を習得できる。火に弱い。",tile:43},
+  {name:"金縛りの魔法書",    type:"spellbook",spell:"paralyze_magic",   rarity:"C", weight:4,  sellPrice:2500,  desc:"金縛りの魔法を習得できる。火に弱い。",tile:43},
+  {name:"食料生成の魔法書",  type:"spellbook",spell:"food_create",       rarity:"C", weight:4,  sellPrice:2000,  desc:"食料生成の魔法を習得できる。火に弱い。",tile:43},
+  {name:"変化の魔法書",      type:"spellbook",spell:"transform_magic",  rarity:"C", weight:4,  sellPrice:2500,  desc:"変化の魔法を習得できる。火に弱い。",tile:43},
+  {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"B", weight:2,  sellPrice:3500,  desc:"識別の魔法を習得できる。火に弱い。",tile:43},
+  {name:"祝福の魔法書",     type:"spellbook",spell:"bless_magic",     rarity:"A", weight:1,  sellPrice:10000, desc:"祝福の魔法を習得できる。火に弱い。",tile:43},
+  {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"呪いの魔法を習得できる。火に弱い。",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */
@@ -4515,22 +4531,22 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
 
 /* ===== RINGS ===== */
 export const RINGS = [
-  { name: "力の指輪",       type:"ring", effect:"power_ring",   plus:0, rarity:"D", weight:5, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
-  { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"D", weight:5, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
-  { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"D", weight:5, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。合成や強化で＋値を上げられる。" },
-  { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"C", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
+  { name: "力の指輪",       type:"ring", effect:"power_ring",   plus:0, rarity:"C", weight:4, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ攻撃力が増える。合成や強化で＋値を上げられる。" },
+  { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"C", weight:4, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
+  { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:4, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。合成や強化で＋値を上げられる。" },
+  { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
-  { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"C", weight:2, sellPrice:1000, tile:60, desc:"装備中、毒が無効になる。" },
+  { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備中、毒が無効になる。" },
   { name: "値切りの指輪",   type:"ring", effect:"bargain_ring",         rarity:"B", weight:2, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
-  { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"C", weight:2, sellPrice:500,  tile:60, desc:"装備中、敵が現れやすくなる。" },
-  { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"C", weight:2, sellPrice:500,  tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
+  { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"B", weight:2, sellPrice:500,  tile:60, desc:"装備中、敵が現れやすくなる。" },
+  { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"B", weight:2, sellPrice:500,  tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
   { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、自然回復量が倍。空腹は腹持ち等の軽減後の速度がさらに2倍になる。" },
-  { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"C", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
+  { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"A", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
   { name: "松明の指輪",     type:"ring", effect:"torch_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、視界範囲が1マス広がる。2つ装備すれば2マス広がる。" },
   { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、空腹の進行が3/4になる。複数・胴と重ねがけ可（2つで1/2、3つで1/4）。" },
-  { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"S", weight:2, sellPrice:10000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
-  { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"S", weight:2, sellPrice:10000, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
-  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"A", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
+  { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"B", weight:2, sellPrice:10000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
+  { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"B", weight:2, sellPrice:10000, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
+  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
   { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"水の中に入れる。" },

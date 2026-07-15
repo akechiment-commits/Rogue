@@ -15,13 +15,19 @@ React + Vite 製のローグライク。
 ### アイテム生成（レア度）
 
 - 共通: `pickLootFromPool(pool, context)`（`items.js`）
-- 基本はテンプレの `weight` による重み抽選
-- 店・変化・ドロップは **運枠**（`LOOT_LUCK`）：一定確率で上レア帯に絞ってから weight 抽選
-  - shop / change: 18% で B/A/S 帯のみ weight（外れは全プール weight）
-  - drop: 10% で C/B/A/S 帯のみ weight
-  - floor: 運枠なし（常に全プール weight）
-- **均等抽選（weight 無視）は使わない**（願い weight 0.05 等が量産されるため。帯内でも weight を守る）
-- 敵の一般ランダムドロップ率: 特技なし・分裂 2% / 特技持ち 5%（矢・バット等の固有ドロップは別）
+- **レア度と weight は 1:1**（同レアは同 weight）
+  | レア | weight | 目安 |
+  | E | 12 | 最コモン |
+  | D | 8 | |
+  | C | 4 | |
+  | B | 2 | |
+  | A | 1 | |
+  | S | 0.05 | 願い級のみ |
+- 基本は `weight` 抽選。店・変化・ドロップは **運枠**（`LOOT_LUCK`）
+  - shop / change: 18% で C 以上のみ weight
+  - drop: 10% で D 以上のみ weight
+  - floor: 運枠なし
+- 敵の一般ランダムドロップ率: 特技なし・分裂 2% / 特技持ち 5%
 
 ### 床ギミック（拾えない固定物）
 

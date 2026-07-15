@@ -156,8 +156,8 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
 
   /* ややレア寄りの床落ち */
   const rarePool = [
-    ...ITEMS.filter((i) => i.rarity === "A" || i.rarity === "B" || i.rarity === "S"),
-    ...WANDS.filter((w) => w.rarity === "A" || w.rarity === "B" || w.rarity === "S"),
+    ...ITEMS.filter((i) => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S"),
+    ...WANDS.filter((w) => w.rarity === "C" || w.rarity === "B" || w.rarity === "A" || w.rarity === "S"),
   ];
   const tmpl = (rarePool.length ? pickLootFromPool(rarePool, "drop") : null) || pick(ITEMS);
   if (tmpl && tmpl.type !== "goal") {

@@ -250,7 +250,7 @@ function genHiddenRooms(map, depth) {
 
 /* ── 隠し部屋・浮島用：B/A/Sレアリティ限定アイテム生成 ── */
 function pickRareItem(depth) {
-  const _rPool = ITEMS.filter(i => i.rarity === "B" || i.rarity === "A" || i.rarity === "S");
+  const _rPool = ITEMS.filter(i => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S");
   const gens = [
     { w: 6, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "potion")); return { ...t, id: uid() }; } },
     { w: 5, fn: () => { const t = pickLootFromPool(_rPool.filter(i => i.type === "scroll")); return { ...t, id: uid() }; } },
@@ -624,15 +624,16 @@ function setupShopRoom(room, map, depth, items, mons) {
   /* 専門店の抽選（30%） */
   const _wandsCands = (pool) => pool.map(w => ({ ...w, charges: (w.effect === "curse_wand" || w.effect === "bless_wand" || w.effect === "wish" || w.noChargeBoost) ? 1 : Math.max(1, w.charges + rng(-1, 1)) }));
   const _specialtyOptions = [
-    { type: "weapon",    name: "武器屋",   cands: () => [...ITEMS.filter(i => i.type === "weapon"), { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) }], luxury: () => ITEMS.filter(i => i.type === "weapon" && (i.rarity === "A" || i.rarity === "S")) },
-    { type: "armor",     name: "防具屋",   cands: () => ITEMS.filter(i => i.type === "armor"),    luxury: () => ITEMS.filter(i => i.type === "armor"    && (i.rarity === "A" || i.rarity === "S")) },
-    { type: "potion",    name: "薬屋",     cands: () => ITEMS.filter(i => i.type === "potion"),   luxury: () => ITEMS.filter(i => i.type === "potion"   && (i.rarity === "A" || i.rarity === "S")) },
-    { type: "scroll",    name: "巻物屋",   cands: () => ITEMS.filter(i => i.type === "scroll"),   luxury: () => ITEMS.filter(i => i.type === "scroll"   && (i.rarity === "A" || i.rarity === "S")) },
-    { type: "wand",      name: "杖屋",     cands: () => _wandsCands(WANDS),                       luxury: () => _wandsCands(WANDS.filter(w => w.rarity === "A" || w.rarity === "S")) },
-    { type: "ring",      name: "指輪屋",   cands: () => [...RINGS],                               luxury: () => RINGS.filter(r => r.rarity === "A" || r.rarity === "S") },
+    /* luxury: B 以上（weight≤2）。旧 A/S 相当の希少枠 */
+    { type: "weapon",    name: "武器屋",   cands: () => [...ITEMS.filter(i => i.type === "weapon"), { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) }], luxury: () => ITEMS.filter(i => i.type === "weapon" && (i.rarity === "B" || i.rarity === "A" || i.rarity === "S")) },
+    { type: "armor",     name: "防具屋",   cands: () => ITEMS.filter(i => i.type === "armor"),    luxury: () => ITEMS.filter(i => i.type === "armor"    && (i.rarity === "B" || i.rarity === "A" || i.rarity === "S")) },
+    { type: "potion",    name: "薬屋",     cands: () => ITEMS.filter(i => i.type === "potion"),   luxury: () => ITEMS.filter(i => i.type === "potion"   && (i.rarity === "B" || i.rarity === "A" || i.rarity === "S")) },
+    { type: "scroll",    name: "巻物屋",   cands: () => ITEMS.filter(i => i.type === "scroll"),   luxury: () => ITEMS.filter(i => i.type === "scroll"   && (i.rarity === "B" || i.rarity === "A" || i.rarity === "S")) },
+    { type: "wand",      name: "杖屋",     cands: () => _wandsCands(WANDS),                       luxury: () => _wandsCands(WANDS.filter(w => w.rarity === "B" || w.rarity === "A" || w.rarity === "S")) },
+    { type: "ring",      name: "指輪屋",   cands: () => [...RINGS],                               luxury: () => RINGS.filter(r => r.rarity === "B" || r.rarity === "A" || r.rarity === "S") },
     { type: "food",      name: "食料屋",   cands: () => Array.from({ length: rng(8, 14) }, () => genFood()), luxury: () => [] },
-    { type: "pot",       name: "壺屋",     cands: () => [...POTS],                                luxury: () => POTS.filter(p => p.rarity === "A" || p.rarity === "S") },
-    { type: "spellbook", name: "魔法書屋", cands: () => [...SPELLBOOKS],                          luxury: () => SPELLBOOKS.filter(sb => sb.rarity === "A" || sb.rarity === "S") },
+    { type: "pot",       name: "壺屋",     cands: () => [...POTS],                                luxury: () => POTS.filter(p => p.rarity === "B" || p.rarity === "A" || p.rarity === "S") },
+    { type: "spellbook", name: "魔法書屋", cands: () => [...SPELLBOOKS],                          luxury: () => SPELLBOOKS.filter(sb => sb.rarity === "B" || sb.rarity === "A" || sb.rarity === "S") },
     { type: "gem",       name: "宝石店",   cands: () => GEM_TYPES.map(g => ({ ...g, originDepth: depth + 1 })), luxury: () => [] },
   ];
   let specialtyType = null, specialtyName = null, cands, luxuryPool;
@@ -653,11 +654,11 @@ function setupShopRoom(room, map, depth, items, mons) {
       ...gemCands, ...gemCands,
     ];
     luxuryPool = [
-      ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'A' || i.rarity === 'S')),
-      ..._wandsCands(WANDS.filter(w => w.rarity === 'A' || w.rarity === 'S')),
-      ...POTS.filter(p => p.rarity === 'A' || p.rarity === 'S'),
-      ...RINGS.filter(r => r.rarity === 'A' || r.rarity === 'S'),
-      ...SPELLBOOKS.filter(sb => sb.rarity === 'A' || sb.rarity === 'S'),
+      ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'B' || i.rarity === 'A' || i.rarity === 'S')),
+      ..._wandsCands(WANDS.filter(w => w.rarity === 'B' || w.rarity === 'A' || w.rarity === 'S')),
+      ...POTS.filter(p => p.rarity === 'B' || p.rarity === 'A' || p.rarity === 'S'),
+      ...RINGS.filter(r => r.rarity === 'B' || r.rarity === 'A' || r.rarity === 'S'),
+      ...SPELLBOOKS.filter(sb => sb.rarity === 'B' || sb.rarity === 'A' || sb.rarity === 'S'),
     ];
   }
   const makeShopItem = (base, x, y) => {

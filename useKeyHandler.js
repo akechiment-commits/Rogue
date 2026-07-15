@@ -782,8 +782,8 @@ export function useKeyHandler({
                                               : `${_selIt.name}を${_earned}Gで換金した！`;
           } else if (identifyMode.mode === 'transform_item') {
             /* ===== 変換の巻物 ===== */
-            const _RARITY_UP   = { D:"C", C:"B", B:"A", A:"S", S:"S" };
-            const _RARITY_DOWN = { D:"D", C:"D", B:"C", A:"B", S:"A" };
+            const _RARITY_UP   = { E:"D", D:"C", C:"B", B:"A", A:"S", S:"S" };
+            const _RARITY_DOWN = { E:"E", D:"E", C:"D", B:"C", A:"B", S:"A" };
             const _excl = (t) => t.type === "gold" || (t.effect === _selIt.effect && t.type === _selIt.type);
             let _tsfPool;
             if (identifyMode.blessed) {
