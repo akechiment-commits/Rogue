@@ -4043,8 +4043,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             return;
           }
           const _ppLv = m.monLevel || 1;
-          const _ppKinds1 = [["heal_aura","回復の魔方陣"],["stone_throw","石飛ばしの魔方陣"],["dodge","みかわしの魔方陣"],["light","明かりの魔方陣"]];
-          const _ppKinds2 = [["trap_gen","罠の魔方陣"],["gravity","重力の魔方陣"],["farcast","遠投の魔方陣"],["equal_speed","等速の魔方陣"]];
+          const _ppKinds1 = [["heal_aura","回復の魔方陣"],["stone_throw","石飛ばしの魔方陣"],["equal_speed","等速の魔方陣"],["light","明かりの魔方陣"]];
+          const _ppKinds2 = [["trap_gen","罠の魔方陣"],["gravity","重力の魔方陣"],["farcast","遠投の魔方陣"],["dodge","みかわしの魔方陣"]];
           const _ppKinds3 = [["sanctuary","聖域の魔方陣"],["light","明かりの魔方陣"],["heal_aura","回復の魔方陣"],["teleport_trap","テレポートの魔方陣"]];
           const _ppPool = _ppLv >= 3 ? _ppKinds3 : _ppLv >= 2 ? _ppKinds2 : _ppKinds1;
           const [_ppKind, _ppName] = pick(_ppPool);
