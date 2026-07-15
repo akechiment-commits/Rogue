@@ -451,15 +451,23 @@ export function wPick(arr) {
 }
 
 /**
- * アイテム生成コンテキストごとの「重みを無視して均等抽選」する確率。
- * ※均等枠は廃止（0）。願いの杖(weight 0.05)等が店・変化で出過ぎるため。
- * 常に weight 重み抽選。キーは互換のため残す。
+ * 店・変化・ドロップで「いいもの寄り」にする運枠。
+ * 均等抽選はしない（weight 0.05 の願い等が量産されるため）。
+ * 運が当たると指定レア以上のサブプールで **weight 抽選**。外れは全体を weight。
  */
+export const LOOT_LUCK = {
+  floor:  { chance: 0,    rarities: null },
+  shop:   { chance: 0.18, rarities: ["B", "A", "S"] }, /* 店 */
+  change: { chance: 0.18, rarities: ["B", "A", "S"] }, /* 変化の大箱・杖・強欲壺・変換巻物 */
+  drop:   { chance: 0.10, rarities: ["C", "B", "A", "S"] }, /* 敵ドロップ */
+};
+
+/** @deprecated 均等枠は廃止。互換のため 0 固定で残す */
 export const LOOT_UNIFORM_CHANCE = {
   floor: 0,
-  change: 0, /* 変化の大箱・変化の杖・強欲な壺・変換の巻物 等 */
-  shop: 0,   /* 店の品揃え */
-  drop: 0,   /* 敵ドロップ */
+  change: 0,
+  shop: 0,
+  drop: 0,
 };
 
 /** 一般ランダムドロップ率（固有ドロップは別） */
@@ -477,18 +485,19 @@ export function monsterRandomDropChance(m) {
 }
 
 /**
- * weight による重み抽選（全 context 共通。均等枠は使わない）。
+ * weight 抽選。shop/change/drop は一定確率で上レア帯に寄る（帯内は weight）。
  * @param {object[]} pool weight 付きテンプレ配列
- * @param {'floor'|'change'|'shop'|'drop'} [context='floor'] 互換用（抽選には未使用）
+ * @param {'floor'|'change'|'shop'|'drop'} [context='floor']
  * @param {() => number} [rngFn=Math.random]
  */
 export function pickLootFromPool(pool, context = "floor", rngFn = Math.random) {
   if (!pool || pool.length === 0) return null;
   if (pool.length === 1) return pool[0];
-  const chance = LOOT_UNIFORM_CHANCE[context] ?? 0;
-  /* 後方互換：万一 chance>0 なら均等。現行は全 0 */
-  if (chance > 0 && rngFn() < chance) {
-    return pool[Math.floor(rngFn() * pool.length)];
+  const luck = LOOT_LUCK[context] || LOOT_LUCK.floor;
+  if (luck.chance > 0 && luck.rarities?.length && rngFn() < luck.chance) {
+    const rset = new Set(luck.rarities);
+    const good = pool.filter((i) => i && rset.has(i.rarity));
+    if (good.length > 0) return pickWeighted(good, rngFn);
   }
   return pickWeighted(pool, rngFn);
 }

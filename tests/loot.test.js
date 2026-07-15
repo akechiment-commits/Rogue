@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   pickLootFromPool,
   pickWeighted,
+  LOOT_LUCK,
   LOOT_UNIFORM_CHANCE,
   MONSTER_RANDOM_DROP_RATE,
   monsterRandomDropChance,
@@ -11,26 +12,64 @@ import {
 
 describe("pickLootFromPool", () => {
   const pool = [
-    { name: "common", weight: 1000 },
-    { name: "rare", weight: 1 },
+    { name: "d-item", rarity: "D", weight: 100 },
+    { name: "b-item", rarity: "B", weight: 10 },
+    { name: "s-wish", rarity: "S", weight: 0.05 },
   ];
 
-  it("全 context で均等枠は 0（常に weight）", () => {
-    expect(LOOT_UNIFORM_CHANCE.floor).toBe(0);
+  it("均等枠は廃止（0）", () => {
     expect(LOOT_UNIFORM_CHANCE.shop).toBe(0);
     expect(LOOT_UNIFORM_CHANCE.change).toBe(0);
     expect(LOOT_UNIFORM_CHANCE.drop).toBe(0);
   });
 
-  it("floor / shop / change とも重み抽選", () => {
-    for (const ctx of ["floor", "shop", "change", "drop"]) {
-      let common = 0;
-      for (let i = 0; i < 40; i++) {
-        const t = pickLootFromPool(pool, ctx, () => 0.0001);
-        if (t.name === "common") common++;
-      }
-      expect(common).toBe(40);
-    }
+  it("LOOT_LUCK: 店・変化は B/A/S、ドロップは C 以上", () => {
+    expect(LOOT_LUCK.shop.chance).toBe(0.18);
+    expect(LOOT_LUCK.shop.rarities).toEqual(["B", "A", "S"]);
+    expect(LOOT_LUCK.change.chance).toBe(0.18);
+    expect(LOOT_LUCK.drop.chance).toBe(0.10);
+    expect(LOOT_LUCK.drop.rarities).toContain("C");
+    expect(LOOT_LUCK.floor.chance).toBe(0);
+  });
+
+  it("floor は運枠なしで重み抽選", () => {
+    const t = pickLootFromPool(pool, "floor", () => 0.0001);
+    expect(t.name).toBe("d-item");
+  });
+
+  it("shop 運枠ヒット時は B/A/S のみ（帯内は weight）", () => {
+    let n = 0;
+    const rngFn = () => {
+      n++;
+      if (n === 1) return 0.0; /* luck hit */
+      return 0.0001; /* pickWeighted → heaviest in B/A/S = b-item */
+    };
+    const t = pickLootFromPool(pool, "shop", rngFn);
+    expect(t.name).toBe("b-item");
+    expect(t.rarity).not.toBe("D");
+  });
+
+  it("shop 運枠外れは全体 weight（D が選ばれる）", () => {
+    let n = 0;
+    const rngFn = () => {
+      n++;
+      if (n === 1) return 0.99; /* no luck */
+      return 0.0001; /* full pool → d-item */
+    };
+    const t = pickLootFromPool(pool, "shop", rngFn);
+    expect(t.name).toBe("d-item");
+  });
+
+  it("運枠でも超低 weight の S は帯内で出にくい（b が優先）", () => {
+    /* luck hit + weight roll favors b-item over s-wish */
+    let n = 0;
+    const rngFn = () => {
+      n++;
+      if (n === 1) return 0.0;
+      return 0.0001;
+    };
+    const t = pickLootFromPool(pool, "change", rngFn);
+    expect(t.name).toBe("b-item");
   });
 
   it("空プールは null", () => {
