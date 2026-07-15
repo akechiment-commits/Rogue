@@ -76,6 +76,9 @@ export function isMonsterDamageMsg(msg) {
   if (/爆発で.+は\d+ダメージ！/.test(msg)) return true;
   if (/.+は(変な薬を浴びた|炎に包まれた|毒を浴びた|壁に叩きつけられた)！/.test(msg)) return true;
   if (/.+の(炎|氷)ブレスが.+に命中！/.test(msg)) return true;
+  /* 回復魔方陣がアンデッドを傷つける等 */
+  if (/を傷つけた！\d+ダメージ/.test(msg)) return true;
+  if (/が.+に当たった！\d+ダメージ/.test(msg) && !/プレイヤーに|自分に/.test(msg)) return true;
   if (/プレイヤーに(命中|激突|当た)/.test(msg)) return false;
   if (/が.+に命中！\d+ダメージ！/.test(msg)) return true;
   if (/に命中！\d+ダメージ！/.test(msg) && !/プレイヤーに/.test(msg)) return true;
@@ -86,6 +89,8 @@ export function isMonsterDamageMsg(msg) {
 /** プレイヤーがダメージを受けたログか */
 export function isPlayerDamageMsg(msg) {
   if (!msg || isMonsterDamageMsg(msg)) return false;
+  /* タトゥーバード等の痛恨は被ダメ確定の後続ログ */
+  if (/痛恨の一撃/.test(msg)) return true;
   if (/プレイヤーに(命中|激突|当た)/.test(msg)) return true;
   if (/自分に(激突|命中|直撃|当た)/.test(msg)) return true;
   if (/自分にも.*\d+ダメージ/.test(msg)) return true;
@@ -108,7 +113,11 @@ export function isPlayerDamageMsg(msg) {
   if (/呪いのエネルギーが爆発した！\d+ダメージ！/.test(msg)) return true;
   if (/^(矢の罠の矢|毒矢)が命中！\d+ダメージ！/.test(msg)) return true;
   if (/骨が自分に激突！/.test(msg)) return true;
-  if (/^[^(]+！[1-9]\d*ダメージ！/.test(msg) && !/に/.test(msg.split("！")[0])) return true;
+  /* 汎用パターン：第三者へのダメージ文（傷つけた・当たった等）は除外 */
+  if (/^[^(]+！[1-9]\d*ダメージ！/.test(msg) && !/に/.test(msg.split("！")[0])) {
+    if (/を傷つけ|を倒した|に当たった|に命中|回復力が/.test(msg)) return false;
+    return true;
+  }
   if (/が命中！\d+ダメージ！/.test(msg) && !/に命中！/.test(msg)) return true;
   if (/が墨を吐いた！\d+ダメージ！/.test(msg)) return true;
   return false;
@@ -116,6 +125,11 @@ export function isPlayerDamageMsg(msg) {
 
 /** 今回のログからプレイヤー被ダメメッセージを探す（新規ログ優先） */
 export function findPlayerDamageMsg(newMsgs = [], lastMsg = "") {
+  /* 痛恨は強打立ち絵のため、同バッチ内なら優先して返す */
+  for (let i = newMsgs.length - 1; i >= 0; i--) {
+    if (newMsgs[i] && /痛恨の一撃/.test(newMsgs[i])) return newMsgs[i];
+  }
+  if (lastMsg && /痛恨の一撃/.test(lastMsg)) return lastMsg;
   for (let i = newMsgs.length - 1; i >= 0; i--) {
     if (newMsgs[i] && isPlayerDamageMsg(newMsgs[i])) return newMsgs[i];
   }

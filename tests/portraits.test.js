@@ -155,6 +155,34 @@ describe("portraits", () => {
     expect(findPlayerDamageMsg(["スライムに10ダメージ！"], "スライムに10ダメージ！")).toBeNull();
   });
 
+  it("痛恨の一撃は強打立ち絵。回復魔方陣の敵ダメージを被ダメと誤認しない", () => {
+    expect(isMonsterDamageMsg("回復の魔方陣の回復力がゾンビを傷つけた！5ダメージ！（アンデッド）")).toBe(true);
+    expect(isPlayerDamageMsg("回復の魔方陣の回復力がゾンビを傷つけた！5ダメージ！（アンデッド）")).toBe(false);
+    expect(isMonsterDamageMsg("石飛ばしの魔方陣の魔法の石がゾンビに当たった！5ダメージ！")).toBe(true);
+    expect(isPlayerDamageMsg("痛恨の一撃！")).toBe(true);
+    expect(msgToDamageKey("痛恨の一撃！")).toBe("damage_heavy");
+
+    const batch = [
+      "タトゥーバードの攻撃！8ダメージ！",
+      "痛恨の一撃！",
+      "回復の魔方陣の回復力がゾンビを傷つけた！5ダメージ！（アンデッド）",
+      "石飛ばしの魔方陣の魔法の石がゾンビに当たった！5ダメージ！",
+    ];
+    expect(findPlayerDamageMsg(batch, batch[batch.length - 1])).toBe("痛恨の一撃！");
+
+    const prev = { hp: 59, maxHp: 282, x: 5, y: 5, level: 17 };
+    const player = { ...prev, hp: 51 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: batch[batch.length - 1],
+      recentMsgs: batch,
+      newMsgs: batch,
+    });
+    expect(event.src).toMatch(/damage_heavy/);
+    expect(event.force).toBe(true);
+  });
+
   it("msgToDamageKey が属性別ダメージを判定する", () => {
     expect(msgToDamageKey("スライムが炎ブレスを吐いた！20ダメージ！")).toBe("damage_fire");
     expect(msgToDamageKey("ドラゴンが氷ブレスを吐いた！15ダメージ！")).toBe("damage_ice");
