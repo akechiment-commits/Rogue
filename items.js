@@ -4556,7 +4556,7 @@ export const RINGS = [
   { name: "空腹の指輪",     type:"ring", effect:"hunger_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、空腹の進行が2倍になる。" },
   { name: "足音の指輪",     type:"ring", effect:"footstep_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、歩くたびに足音が響き近くの敵が目を覚ます。" },
   { name: "値上げの指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、店のアイテムが5割増しで買わされる。" },
-  { name: "自慢の指輪",     type:"ring", effect:"vanity_ring",            rarity:"E", weight:12, sellPrice:900,  tile:60, desc:"自慢げに輝いているが、特に効果はない。" },
+  { name: "自慢の指輪",     type:"ring", effect:"vanity_ring",            rarity:"E", weight:12, sellPrice:5000, tile:60, desc:"自慢げに輝いているが、特に効果はない。見た目だけで妙に高い。" },
   { name: "暗闇の指輪",     type:"ring", effect:"darkness_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、廊下での視界が1マス狭くなる。" },
   { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:1200, tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
 ];
