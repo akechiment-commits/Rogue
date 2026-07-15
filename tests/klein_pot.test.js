@@ -45,6 +45,22 @@ describe("クラインの壺", () => {
     expect(p.hp).toBe(30);
   });
 
+  it("逆転状態で回復が致死ダメージになると死因が逆転回復になる", () => {
+    const p = makePlayer({ hp: 10, maxHp: 100, deathCause: "ゴブリンの攻撃で" });
+    applyReverseStatus(p, 20);
+    p.hp = Math.min(p.maxHp, p.hp + 50); /* 回復意図 → 50ダメージで死亡 */
+    expect(p.hp).toBeLessThanOrEqual(0);
+    expect(p.deathCause).toBe("逆転状態での回復により");
+  });
+
+  it("逆転状態で非致死の回復ダメージでは死因を上書きしない", () => {
+    const p = makePlayer({ hp: 80, maxHp: 100, deathCause: "前回の死因" });
+    applyReverseStatus(p, 20);
+    p.hp = Math.min(p.maxHp, p.hp + 10); /* → 70 */
+    expect(p.hp).toBe(70);
+    expect(p.deathCause).toBe("前回の死因");
+  });
+
   it("逆転が切れると通常の増減に戻る", () => {
     const p = makePlayer({ hp: 50, maxHp: 100 });
     applyReverseStatus(p, 1);

@@ -466,6 +466,7 @@ export function clampDmgFixed(m, damage, isPhysical = false) {
 /**
  * プレイヤーの hp 代入をフックし、reverseTurns 中は増減を反転する。
  * （ダメージ→回復、回復→ダメージ。回復側は maxHp でクランプ）
+ * 回復意図が逆転して HP0 以下になった場合は死因を設定する。
  * セーブ後の復元時も呼ぶこと。
  */
 export function installPlayerHpReverseHook(p) {
@@ -484,6 +485,10 @@ export function installPlayerHpReverseHook(p) {
           let next = raw - delta;
           /* ダメージ意図（delta<0）→回復：maxHp を超えない */
           if (delta < 0) next = Math.min(this.maxHp ?? next, next);
+          /* 回復意図（delta>0）→ダメージ：致死ならクライン逆転の死因 */
+          if (delta > 0 && next <= 0) {
+            this.deathCause = "逆転状態での回復により";
+          }
           raw = next;
           return;
         }
