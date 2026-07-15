@@ -2028,16 +2028,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
           }
           /* --- 罠の魔方陣：同フロアでターン経過すれば別部屋でも発動（配置先は魔方陣の部屋／祝福はフロア） --- */
-          if (!_pcMagicSealed && _pc.kind === "trap_gen" && Math.random() < 0.1) {
+          if (!_pcMagicSealed && _pc.kind === "trap_gen") {
             if (_pc.cursed) {
-              /* 呪い：フロア内の罠をランダムに1つ消す（永続回転板は除外） */
-              const _delCands = _dg2.traps.filter(t => !t.permanent);
-              if (_delCands.length > 0) {
-                const _rt = pick(_delCands);
-                removeTrap(_dg2, _rt, ml, { message: `${_pc.name}の呪いで罠が消えた！`, p });
+              /* 呪い：毎ターン30%でフロア内の罠を1つ消す（永続回転板は除外） */
+              if (Math.random() < 0.3) {
+                const _delCands = _dg2.traps.filter(t => !t.permanent);
+                if (_delCands.length > 0) {
+                  const _rt = pick(_delCands);
+                  removeTrap(_dg2, _rt, ml, { message: `${_pc.name}の呪いで罠が消えた！`, p });
+                }
               }
-            } else {
-              /* 通常：魔方陣のある部屋 / 祝福：フロア内ランダム部屋（プレイヤー同室は不要） */
+            } else if (Math.random() < 0.1) {
+              /* 通常/祝福：毎ターン10%。魔方陣の部屋 / 祝福はフロア内ランダム部屋 */
               const _tgScope = _pc.blessed ? _dg2.rooms : (_pcRoom ? [_pcRoom] : []);
               if (_tgScope.length > 0) {
                 const _tgR = pick(_tgScope);
