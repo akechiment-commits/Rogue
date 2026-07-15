@@ -303,8 +303,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
-  ml.push(msgFn(dmg));
-  if (_tbCrit) ml.push("痛恨の一撃！");
+  /* 痛恨は会心と同様、ダメージ行に続けて出す（後続の部屋効果ログより前・同一行） */
+  ml.push(msgFn(dmg) + (_tbCrit ? "痛恨の一撃！" : ""));
   if (!skipThorn && hasAbility(pl.armor, "thorn") && dmg > 0) {
     const td = Math.max(1, Math.floor(dmg / 3));
     m.hp -= td;
