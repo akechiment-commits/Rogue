@@ -456,8 +456,8 @@ export function wPick(arr) {
  */
 export const LOOT_UNIFORM_CHANCE = {
   floor: 0,
-  change: 0.20, /* 変化の大箱・変化の杖・強欲な壺・変換の巻物 等 */
-  shop: 0.20,   /* 店の品揃え */
+  change: 0.10, /* 変化の大箱・変化の杖・強欲な壺・変換の巻物 等 */
+  shop: 0.10,   /* 店の品揃え */
   drop: 0.05,   /* 敵ドロップ（均等ギャンブル枠） */
 };
 

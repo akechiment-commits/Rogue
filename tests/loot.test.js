@@ -26,7 +26,7 @@ describe("pickLootFromPool", () => {
   });
 
   it("change で均等枠が当たると rare も選ばれ得る", () => {
-    /* rng: 1回目 < 0.20 で均等、2回目で index 1 (rare) */
+    /* rng: 1回目 < 0.10 で均等、2回目で index 1 (rare) */
     let n = 0;
     const rngFn = () => {
       n++;
@@ -63,10 +63,10 @@ describe("pickLootFromPool", () => {
     expect(t?.type || t?.name).toBeTruthy();
   });
 
-  it("LOOT_UNIFORM_CHANCE が店20・敵5", () => {
-    expect(LOOT_UNIFORM_CHANCE.shop).toBe(0.20);
+  it("LOOT_UNIFORM_CHANCE が店10・変化10・敵5", () => {
+    expect(LOOT_UNIFORM_CHANCE.shop).toBe(0.10);
     expect(LOOT_UNIFORM_CHANCE.drop).toBe(0.05);
-    expect(LOOT_UNIFORM_CHANCE.change).toBe(0.20);
+    expect(LOOT_UNIFORM_CHANCE.change).toBe(0.10);
   });
 
   it("monsterRandomDropChance が特技なし/分裂は2%、特技持ちは5%", () => {
@@ -78,6 +78,6 @@ describe("pickLootFromPool", () => {
   });
 
   it("強欲な壺・変化は同じ change 確率", () => {
-    expect(LOOT_UNIFORM_CHANCE.change).toBe(0.20);
+    expect(LOOT_UNIFORM_CHANCE.change).toBe(0.10);
   });
 });
