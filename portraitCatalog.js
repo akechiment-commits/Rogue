@@ -200,12 +200,9 @@ export function buildPortraitSets(categories = PORTRAIT_CATEGORIES) {
     for (const slot of cat.slots) {
       const g = slot.group ?? cat.group;
       if (!g) continue;
-      const groups = [g];
-      if (cat.id === "damage" && g !== "damage") groups.push("damage");
-      for (const grp of groups) {
-        if (!sets[grp]) sets[grp] = [];
-        if (!sets[grp].includes(slot.file)) sets[grp].push(slot.file);
-      }
+      /* 属性ダメージを汎用 damage に混ぜない（落下絵が投擲ヒット等で出ないように） */
+      if (!sets[g]) sets[g] = [];
+      if (!sets[g].includes(slot.file)) sets[g].push(slot.file);
     }
   }
   return sets;

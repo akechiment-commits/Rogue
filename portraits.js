@@ -136,16 +136,21 @@ export function msgToDamageKey(msg) {
   if (/罠|トラップ|岩が降/.test(msg)) return "damage_trap";
   if (/爆発|炸裂|爆弾|時限|地雷|自爆/.test(msg)) return "damage_explosion";
   if (/吹き飛|激突|壁に叩|壁に激突|ノッカー|挟まれ/.test(msg)) return "damage_knockback";
-  if (/穴|落下|奈落|底に落|落とし穴/.test(msg)) return "damage_falling";
+  /* 「風穴」を落下と誤認しないよう bare「穴」は使わない */
+  if (/落下|奈落|底に落|落とし穴|穴に落ち/.test(msg)) return "damage_falling";
   if (/雷の魔法|雷が.*ダメージ|呪われた雷|電撃|サンダー.*ダメージ/.test(msg)) return "damage_lightning";
+  /* 風で曲がった投擲の自分ヒットなど物理ヒット */
+  if (/風に煽られ|自分に当た|飛び道具が自分/.test(msg)) return "damage_heavy";
   if (/痛恨|強打|の攻撃！|攻撃で|武器の反動|打たれた/.test(msg)) return "damage_heavy";
   return "damage";
 }
 
 export function pickDamagePortrait(msg, sets = PORTRAIT_SETS) {
   const key = msgToDamageKey(msg);
-  if (sets[key]?.length) return pickPortrait(key, sets);
-  return pickPortrait("damage", sets);
+  /* 汎用は hp_hurt のみ。属性プールに落下などが混ざらないようにする */
+  if (key !== "damage" && sets[key]?.length) return pickPortrait(key, sets);
+  if (sets.damage?.length) return pickPortrait("damage", sets);
+  return CHAR_PATH("hp_hurt");
 }
 
 /** 満腹度0（飢餓状態）か */

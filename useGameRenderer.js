@@ -741,17 +741,28 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.stroke();
           ctx.restore();
         }
-        /* 石像 */
+        /* 石像（視認しやすい灰色ブロック＋石マーク） */
         const _statue = _statueMap.get(_k(x, y));
         if (_statue && (vis || exp2)) {
-          if (!vis) ctx.globalAlpha = 0.4;
-          ctx.fillStyle = "rgba(160,160,180,0.45)";
-          ctx.fillRect(px2, py2, sz, sz);
-          ctx.fillStyle = "#c8c8d8";
-          ctx.font = `bold ${Math.floor(sz * 0.75)}px monospace`;
+          if (!vis) ctx.globalAlpha = 0.45;
+          const m = Math.max(1, Math.floor(sz * 0.08));
+          /* 本体 */
+          ctx.fillStyle = "#6a6a78";
+          ctx.fillRect(px2 + m, py2 + m, sz - m * 2, sz - m * 2);
+          /* ハイライト／影で立体感 */
+          ctx.fillStyle = "#9a9aaa";
+          ctx.fillRect(px2 + m, py2 + m, sz - m * 2, Math.max(2, Math.floor(sz * 0.18)));
+          ctx.fillStyle = "#3a3a48";
+          ctx.fillRect(px2 + m, py2 + sz - m - Math.max(2, Math.floor(sz * 0.14)), sz - m * 2, Math.max(2, Math.floor(sz * 0.14)));
+          /* 枠 */
+          ctx.strokeStyle = "#d8d8e8";
+          ctx.lineWidth = Math.max(1, sz * 0.06);
+          ctx.strokeRect(px2 + m + 0.5, py2 + m + 0.5, sz - m * 2 - 1, sz - m * 2 - 1);
+          ctx.fillStyle = "#f0f0ff";
+          ctx.font = `bold ${Math.floor(sz * 0.55)}px sans-serif`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText("¶", px2 + sz / 2, py2 + sz / 2);
+          ctx.fillText("石", px2 + sz / 2, py2 + sz / 2 + 1);
           if (!vis) ctx.globalAlpha = 1;
         }
         /* Spring */

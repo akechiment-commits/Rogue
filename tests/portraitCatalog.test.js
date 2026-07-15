@@ -21,8 +21,10 @@ describe("portraitCatalog", () => {
 
   it("buildPortraitSets が主要グループを生成する", () => {
     const sets = buildPortraitSets();
-    expect(sets.damage).toContain("damage_fire");
+    /* 汎用 damage は hp_hurt のみ（属性を混ぜない） */
+    expect(sets.damage).toEqual(["hp_hurt"]);
     expect(sets.damage_fire).toEqual(["damage_fire"]);
+    expect(sets.damage).not.toContain("damage_falling");
     expect(sets.attack).toEqual(["battle_melee"]);
     expect(sets.attack_unarmed).toEqual(["battle_unarmed"]);
     expect(sets.dash).toEqual(["battle_dash"]);
@@ -64,7 +66,7 @@ describe("portraitCatalog", () => {
     expect(damage.slots[idx + 1].file).toBe("damage_arrow_2");
     const sets = buildPortraitSets(merged);
     expect(sets.damage_arrow).toEqual(["damage_arrow", "damage_arrow_2"]);
-    expect(sets.damage).toContain("damage_arrow_2");
+    expect(sets.damage).not.toContain("damage_arrow_2");
   });
 
   it("nextVariantFile が連番ファイル名を生成する", () => {

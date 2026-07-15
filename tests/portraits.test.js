@@ -156,6 +156,16 @@ describe("portraits", () => {
     expect(msgToDamageKey("地雷！50ダメージ！")).toBe("damage_explosion");
     expect(msgToDamageKey("毒矢が命中！8ダメージ！毒を受けた！")).toBe("damage_poison");
     expect(msgToDamageKey("雷の魔法が跳ね返ってきた！25ダメージ！")).toBe("damage_lightning");
+    /* 風穴メッセージを落とし穴と誤認しない */
+    expect(msgToDamageKey("風穴の風が飛び道具を曲げた！")).not.toBe("damage_falling");
+    expect(msgToDamageKey("風に煽られた短剣 (攻+3)が自分に当たった！")).toBe("damage_heavy");
+    expect(msgToDamageKey("落とし穴が発動！穴に落ちた！")).toBe("damage_falling");
+  });
+
+  it("汎用ダメージ立ち絵に落下絵が混ざらない", () => {
+    const src = pickDamagePortrait("風に煽られた短剣が自分に当たった！");
+    expect(src).not.toMatch(/damage_falling/);
+    expect(src).toMatch(/damage_heavy|hp_hurt/);
   });
 
   it("pickDamagePortrait がグループからパスを返す", () => {

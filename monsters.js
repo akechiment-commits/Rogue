@@ -44,9 +44,15 @@ function _gelCubeAbsorbItems(m, dg, ml) {
 
 /* ===== 境界・通行判定ヘルパー ===== */
 function inBounds(x, y) { return x >= 0 && x < MW && y >= 0 && y < MH; }
-function isWalkable(map, x, y) { return inBounds(x, y) && map[y][x] !== T.WALL && map[y][x] !== T.BWALL; }
+function isWalkable(map, x, y, dg = null) {
+  if (!inBounds(x, y) || map[y][x] === T.WALL || map[y][x] === T.BWALL) return false;
+  if (dg?.statues?.some(s => s.x === x && s.y === y)) return false;
+  return true;
+}
 /* 水タイルを考慮：浮遊(float)なら水上通行可 */
-function canEnter(map, x, y, float = false) { return isWalkable(map, x, y) && (float || map[y]?.[x] !== T.WATER); }
+function canEnter(map, x, y, float = false, dg = null) {
+  return isWalkable(map, x, y, dg) && (float || map[y]?.[x] !== T.WATER);
+}
 
 /* ===== プレイヤー防御力計算ヘルパー ===== */
 function calcPlayerDef(pl) {
@@ -1186,7 +1192,7 @@ export function bfsNext(map, mons, sx, sy, tx, ty, self, maxDist = 20, pentacles
   );
   const _canEnterFn = tileFilter
     ? (x, y) => tileFilter(x, y)
-    : (x, y) => canEnter(map, x, y, float);
+    : (x, y) => canEnter(map, x, y, float, dg);
   /* fallbackNearest: 目標未到達時に最も目標に近いタイルへの第一歩を記録 */
   let _nearFx = null, _nearFy = null, _nearDist = Infinity;
   let steps = 0;
@@ -1236,7 +1242,7 @@ export function getOpenDirs(map, x, y, float = false) {
   for (const [dx, dy] of ds) {
     const nx = x + dx,
       ny = y + dy;
-    if (canEnter(map, nx, ny, float))
+    if (canEnter(map, nx, ny, float, dg))
       res.push({ x: dx, y: dy });
   }
   return res;
@@ -1471,7 +1477,7 @@ function monsterShootWaterGun(m, dg, pl, ml) {
     dx = _st.dx; dy = _st.dy;
     const tx = _st.x, ty = _st.y;
     _wgX = tx; _wgY = ty;
-    if (!isWalkable(dg.map, tx, ty)) return;
+    if (!isWalkable(dg.map, tx, ty, dg)) return;
     /* 射線上の魔方陣を消す */
     const _wgPcIdx = dg.pentacles ? dg.pentacles.findIndex(pc => pc.x === tx && pc.y === ty) : -1;
     if (_wgPcIdx >= 0) {
@@ -2009,7 +2015,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _pshuf = [..._pdirs].sort(() => Math.random() - 0.5);
       for (const [_pdx, _pdy] of _pshuf) {
         const _pnx = m.x + _pdx, _pny = m.y + _pdy;
-        if (!canEnter(dg.map, _pnx, _pny, _effFloat)) continue;
+        if (!canEnter(dg.map, _pnx, _pny, _effFloat, dg)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _pnx && o.y === _pny)) continue;
         if (_pnx === pl.x && _pny === pl.y) continue;
         if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _pnx && pc.y === _pny)) continue;
@@ -2381,7 +2387,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               monLevelUp(m, dg, ml);
             }
           }
-        } else if (!_attackOnly && isWalkable(dg.map, _cnx, _cny)) {
+        } else if (!_attackOnly && isWalkable(dg.map, _cnx, _cny, dg)) {
           m.x = _cnx; m.y = _cny;
         }
       }
@@ -2400,7 +2406,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.darkDir = pick(_ddirs);
     }
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
-    if (canEnter(dg.map, _dnx, _dny, _effFloat)) {
+    if (canEnter(dg.map, _dnx, _dny, _effFloat, dg)) {
       if (_dnx === pl.x && _dny === pl.y) {
         if (!_moveOnly && m.turnAttacks < (m.maxAttacks ?? 1)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
       } else {
@@ -2435,7 +2441,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _fcands = [];
     for (const [_fmx, _fmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
       const _fnx = m.x + _fmx, _fny = m.y + _fmy;
-      if (!canEnter(dg.map, _fnx, _fny, _effFloat)) continue;
+      if (!canEnter(dg.map, _fnx, _fny, _effFloat, dg)) continue;
       if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
       if (_fnx === pl.x && _fny === pl.y) continue;
       const _score = (_fnx - pl.x) * (_fnx - pl.x) + (_fny - pl.y) * (_fny - pl.y);
@@ -2455,7 +2461,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _splitDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
       for (const [_sdx, _sdy] of _splitDirs) {
         const _snx = m.x + _sdx, _sny = m.y + _sdy;
-        if (!canEnter(dg.map, _snx, _sny)) continue;
+        if (!canEnter(dg.map, _snx, _sny, false, dg)) continue;
         if (_snx === pl.x && _sny === pl.y) continue;
         if (dg.monsters.some(o => o.x === _snx && o.y === _sny)) continue;
         const _child = { ...m, id: uid(), x: _snx, y: _sny,
@@ -2514,7 +2520,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const _tmLvl = m.monLevel || 1;
     /* Lv3は廊下も可、Lv1/2は部屋内のみ */
     const _tmRoom = findRoom(dg.rooms, m.x, m.y);
-    const _tmCanPlace = _tmLvl >= 3 ? isWalkable(dg.map, m.x, m.y) : _tmRoom !== null;
+    const _tmCanPlace = _tmLvl >= 3 ? isWalkable(dg.map, m.x, m.y, dg) : _tmRoom !== null;
     if (_tmCanPlace) {
       /* Lv2以上は発動確率50%、Lv1は25% */
       const _tmChance = _tmLvl >= 2 ? 0.25 : 0.125;
@@ -2884,7 +2890,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           m._decoyLuredOk = false; /* BFS前にリセット */
           /* プレイヤー・他モンスターを障害物扱いにして迂回路を探す */
           const _decoyTileFilter = (x, y) =>
-            (x === pl.x && y === pl.y) ? false : canEnter(map, x, y, _effFloat);
+            (x === pl.x && y === pl.y) ? false : canEnter(map, x, y, _effFloat, dg);
           const _dn = bfsNext(map, dg.monsters, m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat, _decoyTileFilter, true, dg.rooms);
           if (_dn) {
             /* BFS到達成功か最近傍タイルへの第一歩（到達不可の場合）を取得 */
@@ -3104,7 +3110,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1);
           const _adjPl = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]
             .map(([ddx, ddy]) => ({ x: pl.x + ddx, y: pl.y + ddy }))
-            .filter(({ x, y }) => isWalkable(dg.map, x, y) &&
+            .filter(({ x, y }) => isWalkable(dg.map, x, y, dg) &&
               !dg.monsters.some(o => o.x === x && o.y === y));
           if (_adjMons.length > 0 && _adjPl.length > 0 && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
             const _thrown = pick(_adjMons);
@@ -3191,7 +3197,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _rcands = [];
         for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
           const _rnx = m.x + _rmx, _rny = m.y + _rmy;
-          if (!isWalkable(dg.map, _rnx, _rny)) continue;
+          if (!isWalkable(dg.map, _rnx, _rny, dg)) continue;
           if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
           if (_rnx === pl.x && _rny === pl.y) continue;
           const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
@@ -3238,7 +3244,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
               const _tdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
               for (const [_ddx, _ddy] of _tdirs) {
                 const _cx = _tgt.x + _ddx, _cy = _tgt.y + _ddy;
-                if (isWalkable(dg.map, _cx, _cy) &&
+                if (isWalkable(dg.map, _cx, _cy, dg) &&
                     !dg.monsters.some(o => o.x === _cx && o.y === _cy) &&
                     !(_cx === pl.x && _cy === pl.y)) {
                   _wx = _cx; _wy = _cy; _placed = true; break;
@@ -3285,7 +3291,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _gtRcands = [];
           for (const [_rmx, _rmy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]]) {
             const _rnx = m.x + _rmx, _rny = m.y + _rmy;
-            if (!isWalkable(dg.map, _rnx, _rny)) continue;
+            if (!isWalkable(dg.map, _rnx, _rny, dg)) continue;
             if (dg.monsters.some(o => o !== m && o.x === _rnx && o.y === _rny)) continue;
             if (_rnx === pl.x && _rny === pl.y) continue;
             const _score = (_rnx - pl.x) * (_rnx - pl.x) + (_rny - pl.y) * (_rny - pl.y);
@@ -3632,7 +3638,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       if (_pulDist >= 2 && _pulDist <= _pullRange) {
         const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
         const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
-        if (isWalkable(dg.map, _pnx, _pny) && !dg.monsters.some(o => o.x === _pnx && o.y === _pny)) {
+        if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => o.x === _pnx && o.y === _pny)) {
           pl.x = _pnx; pl.y = _pny;
           ml.push(`${m.name}に引き寄せられた！`);
           if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("引っ張られて目が覚めた！"); }
@@ -3848,7 +3854,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
             if (!inBounds(_anx, _any)) continue;
             if (map[_any][_anx] !== T.WATER && !dg.springs?.some(s => s.x === _anx && s.y === _any)) continue;
           } else {
-            if (!isWalkable(map, _anx, _any)) continue;
+            if (!isWalkable(map, _anx, _any, dg)) continue;
           }
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
           if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
@@ -3879,7 +3885,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         const _farCands = [];
         for (const [_fdx, _fdy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
           const _fnx = m.x + _fdx, _fny = m.y + _fdy;
-          if (!isWalkable(map, _fnx, _fny)) continue;
+          if (!isWalkable(map, _fnx, _fny, dg)) continue;
           if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
           if (_fnx === pl.x && _fny === pl.y) continue;
           _farCands.push({ x: _fnx, y: _fny, dist: Math.max(Math.abs(pl.x - _fnx), Math.abs(pl.y - _fny)) });
@@ -3908,7 +3914,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           const _alignCands = [];
           for (const [_amx, _amy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
             const _anx = m.x + _amx, _any = m.y + _amy;
-            if (!isWalkable(map, _anx, _any)) continue;
+            if (!isWalkable(map, _anx, _any, dg)) continue;
             if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
             if (_anx === pl.x && _any === pl.y) continue;
             const _d2x = pl.x - _anx, _d2y = pl.y - _any;
@@ -4014,12 +4020,12 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           if (!inBounds(_anx, _any)) continue;
           if (map[_any][_anx] !== T.WATER && !dg.springs?.some(s => s.x === _anx && s.y === _any)) continue;
         } else {
-          if (!canEnter(map, _anx, _any, _effFloat)) continue;
+          if (!canEnter(map, _anx, _any, _effFloat, dg)) continue;
         }
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
         if (_adx !== 0 && _ady !== 0) {
-          if (!canEnter(map, m.x + _adx, m.y, _effFloat) && !canEnter(map, m.x, m.y + _ady, _effFloat)) continue;
+          if (!canEnter(map, m.x + _adx, m.y, _effFloat, dg) && !canEnter(map, m.x, m.y + _ady, _effFloat, dg)) continue;
         }
         const _nd = Math.max(Math.abs(tx - _anx), Math.abs(ty - _any));
         if (_nd <= _curDist) _altMoves.push({ x: _anx, y: _any, dist: _nd });
@@ -4052,7 +4058,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         if (m.waterOnly) {
           if (!inBounds(_fnx, _fny)) continue;
           if (map[_fny][_fnx] !== T.WATER && !dg.springs?.some(s => s.x === _fnx && s.y === _fny)) continue;
-        } else if (!canEnter(map, _fnx, _fny, _effFloat)) continue;
+        } else if (!canEnter(map, _fnx, _fny, _effFloat, dg)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
@@ -4095,19 +4101,19 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           for (let _a = 0; _a < 30; _a++) {
             const _tx = rng(destRoom.x, destRoom.x + destRoom.w - 1);
             const _ty = rng(destRoom.y, destRoom.y + destRoom.h - 1);
-            if (isWalkable(map, _tx, _ty)) { m.patrolTarget = { x: _tx, y: _ty }; break; }
+            if (isWalkable(map, _tx, _ty, dg)) { m.patrolTarget = { x: _tx, y: _ty }; break; }
           }
         }
         if (!m.patrolTarget) {
           /* フォールバック：部屋の出口タイルを目標に */
           const exits = [];
           for (let ex = room.x; ex < room.x + room.w; ex++) {
-            if (isWalkable(map, ex, room.y - 1))     exits.push({ x: ex, y: room.y - 1 });
-            if (isWalkable(map, ex, room.y + room.h)) exits.push({ x: ex, y: room.y + room.h });
+            if (isWalkable(map, ex, room.y - 1, dg))     exits.push({ x: ex, y: room.y - 1 });
+            if (isWalkable(map, ex, room.y + room.h, dg)) exits.push({ x: ex, y: room.y + room.h });
           }
           for (let ey = room.y; ey < room.y + room.h; ey++) {
-            if (isWalkable(map, room.x - 1, ey))     exits.push({ x: room.x - 1, y: ey });
-            if (isWalkable(map, room.x + room.w, ey)) exits.push({ x: room.x + room.w, y: ey });
+            if (isWalkable(map, room.x - 1, ey, dg))     exits.push({ x: room.x - 1, y: ey });
+            if (isWalkable(map, room.x + room.w, ey, dg)) exits.push({ x: room.x + room.w, y: ey });
           }
           if (exits.length > 0) {
             const _prev = m.lastPatrolTarget;
@@ -4118,7 +4124,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       } else {
         /* 廊下・壁破壊後エリア：来た方向の逆を避けて進行方向を決定 */
         const dirs4 = [[0,1],[0,-1],[1,0],[-1,0]];
-        const open = dirs4.filter(([dx,dy]) => isWalkable(map, m.x + dx, m.y + dy));
+        const open = dirs4.filter(([dx,dy]) => isWalkable(map, m.x + dx, m.y + dy, dg));
         /* m.dir の逆方向（戻る方向）を除外 */
         const notRev = m.dir
           ? open.filter(([dx,dy]) => !(dx === -m.dir.x && dy === -m.dir.y))
@@ -4129,7 +4135,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
           let _ptx = m.x, _pty = m.y;
           for (let _s = 1; _s <= 16; _s++) {
             const _nx = m.x + chosen[0] * _s, _ny = m.y + chosen[1] * _s;
-            if (!isWalkable(map, _nx, _ny)) break;
+            if (!isWalkable(map, _nx, _ny, dg)) break;
             _ptx = _nx; _pty = _ny;
           }
           m.patrolTarget = { x: _ptx, y: _pty };
@@ -4167,7 +4173,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         let _sidestepped = false;
         for (const [_adx, _ady] of _tryDirs4) {
           const _anx = m.x + _adx, _any = m.y + _ady;
-          if (!isWalkable(map, _anx, _any)) continue;
+          if (!isWalkable(map, _anx, _any, dg)) continue;
           if (_anx === pl.x && _any === pl.y) continue;
           if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
           if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
@@ -4188,7 +4194,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       const _fd4 = shuffle([[0,-1],[0,1],[-1,0],[1,0]]);
       for (const [_fdx, _fdy] of _fd4) {
         const _fnx = m.x + _fdx, _fny = m.y + _fdy;
-        if (!isWalkable(map, _fnx, _fny)) continue;
+        if (!isWalkable(map, _fnx, _fny, dg)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;

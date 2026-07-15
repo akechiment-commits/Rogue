@@ -3168,6 +3168,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             }
           } else if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) {
             ml.push("水に阻まれた。");
+          } else if (dg.statues?.some(s => s.x === nx && s.y === ny)) {
+            ml.push("石像がある。");
           } else if (dg.map[ny][nx] !== T.WALL && dg.map[ny][nx] !== T.BWALL || ((p.wallWalkTurns || 0) > 0 && nx > 0 && nx < MW - 1 && ny > 0 && ny < MH - 1)) {
             /* 呪われた聖域の魔方陣：プレイヤーは通行できない */
             const _cursedSanc = dg.pentacles?.find(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === nx && pc.y === ny);
@@ -3549,6 +3551,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else {
         const spr = dg.springs?.find((s) => s.x === nx && s.y === ny);
         const bb6 = dg.bigboxes?.find((b) => b.x === nx && b.y === ny);
+        const _statueFront = dg.statues?.find((s) => s.x === nx && s.y === ny);
         if (spr) {
           springTargetRef.current = spr;
           setSpringMode("menu"); setSpringMenuSel(0);
@@ -3557,6 +3560,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           bigboxRef.current = bb6;
           setBigboxMode("menu"); setBigboxMenuSel(0);
           setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb6, sr.current, bb6.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
+        } else if (_statueFront) {
+          setMsgs((prev) => [...prev.slice(-80), "石像がある。"]);
         } else {
           const trap6 = dg.traps?.find((t) => t.x === nx && t.y === ny && t.revealed);
           const items6 = (dg.items || []).filter((i) => i.x === nx && i.y === ny);
@@ -3641,6 +3646,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )
           break;
         if (monsterAt(dg, nx, ny)) break;
+        if (dg.statues?.some(s => s.x === nx && s.y === ny)) break;
         if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
         /* 廊下ダッシュ中に部屋の入口手前で停止（ただし最初の1歩は入れる） */
