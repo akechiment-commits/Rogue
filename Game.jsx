@@ -3247,13 +3247,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
             if (_pentStep) ml.push(`${_pentStep.name}の上にいる。`);
-            /* 宝物庫発見チェック */
+            /* 隠し部屋／宝物庫の発見メッセージ */
             const _hrFound = st.dungeon.hiddenRooms?.find(hr =>
-              hr.isTreasureVault && !hr.discovered &&
+              !hr.discovered &&
               p.x >= hr.x && p.x < hr.x + hr.w &&
               p.y >= hr.y && p.y < hr.y + hr.h
             );
-            if (_hrFound) { _hrFound.discovered = true; ml.push("★ 宝物庫を発見した！"); }
+            if (_hrFound) {
+              _hrFound.discovered = true;
+              ml.push(_hrFound.isTreasureVault ? "★ 宝物庫を発見した！" : "★ 隠し部屋を発見した！");
+            }
             /* 騒音防具：新しい部屋に入った時、同部屋の敵が全員目を覚ます */
             if (hasAbility(p.armor, "noisy")) {
               const _noisyOldRoom = findRoom(dg.rooms, _oldPx, _oldPy);
