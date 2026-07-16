@@ -2223,7 +2223,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
       {bigboxRef.current && (
         <div style={{ color: "#d4a870", fontSize: 13, marginBottom: 6 }}>
           {_bbIsRevealed
-            ? <>内容: {bigboxRef.current.contents.length}/{bigboxRef.current.capacity}{bigboxRef.current.contents.length > 0 && ": " + bigboxRef.current.contents.map((i) => i.name).join(", ")}</>
+            ? <>内容: {bigboxRef.current.contents.length}/{bigboxRef.current.capacity}{bigboxRef.current.contents.length > 0 && ": " + bigboxRef.current.contents.map((i) => itemDisplayName(i, gs?.fakeNames, gs?.ident, gs?.nicknames)).join(", ")}</>
             : "内容: 不明"}
         </div>
       )}
@@ -3035,7 +3035,7 @@ export function InventoryModal({
                     {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
                     {showDesc === 10000 + j && (
                       <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
-                        <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>{entry.name}</div>
+                        <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>{iLabel(entry)}</div>
                         <div style={ITEM_DESC_TEXT_STYLE}>{(() => { const _kk = getIdentKey(entry); return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : formatItemDesc(entry.desc); })()}</div>
                       </div>
                     )}
@@ -3121,7 +3121,7 @@ export function InventoryModal({
                   {showDesc === i && (
                     <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
                       <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>
-                        {it.name}
+                        {itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames)}
                         {it.type === "weapon" && ` — 武器 (攻+${it.atk})`}
                         {it.type === "armor" && ` — 防具 (防+${it.def})`}
                         {it.type === "arrow" && ` — 矢 (攻${it.atk}, ${it.count}本)`}
@@ -3146,7 +3146,7 @@ export function InventoryModal({
                         <div style={{ color: "#ca8", marginTop: 3 }}>閉じ込め: {it.confinedMonsters.map((c) => c.name).join(", ")}</div>
                       )}
                       {it.type === "pot" && it.potEffect !== "imprison" && it.contents?.length > 0 && (
-                        <div style={{ color: "#ca8", marginTop: 3 }}>中身: {it.contents.map((c) => c.name).join(", ")}</div>
+                        <div style={{ color: "#ca8", marginTop: 3 }}>中身: {it.contents.map((c) => itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames)).join(", ")}</div>
                       )}
                     </div>
                   )}
@@ -3178,7 +3178,7 @@ export function InventoryModal({
         ) : (
           (_previewPot.contents ?? []).map((c, ci) => (
             <div key={ci} style={{ color: "#ccaa88", fontSize: 13, lineHeight: "1.6em" }}>
-              · {c.name}
+              · {itemDisplayName(c, gs?.fakeNames, gs?.ident, gs?.nicknames)}
             </div>
           ))
         )}
