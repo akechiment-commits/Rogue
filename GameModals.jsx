@@ -541,6 +541,8 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
   const [_listPage, _setListPage] = useState(0);
   const [_listSel, _setListSel] = useState(0);
   const [_menuSel, _setMenuSel] = useState(0); /* 第1画面のカーソル位置 */
+  /* 名付けを Z/Enter で開いた直後、同じキーで「自分でつける」が即確定するのを防ぐ */
+  const _blockConfirmUntilUp = useRef(true);
   const _isBigbox = mode?.identKey?.startsWith("bk:");
   const _typePrefix = _isBigbox ? null : mode?.identKey?.[0];
   const _typeMap = { p: 'potion', s: 'scroll', w: 'wand', n: 'pen', o: 'pot' };
@@ -588,8 +590,28 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     setMode(null);
     sr.current = { ...sr.current }; setGs({ ...sr.current });
   };
-  /* サブモードリセット（モードが変わったとき） */
-  useEffect(() => { _setSubMode(null); _setListPage(0); _setListSel(0); _setMenuSel(0); }, [mode?.identKey]);
+  /* サブモードリセット（モードが変わったとき）＋開きキーの食いつき防止 */
+  useEffect(() => {
+    _setSubMode(null);
+    _setListPage(0);
+    _setListSel(0);
+    _setMenuSel(0);
+    _blockConfirmUntilUp.current = true;
+    const _onUp = (e) => {
+      if (e.key === "Enter" || e.key === "z" || e.key === "Z" || e.code === "NumpadEnter") {
+        _blockConfirmUntilUp.current = false;
+      }
+    };
+    /* 押しっぱなし解放を待つ。万一 keyup を逃しても短時間で解除 */
+    const _t = setTimeout(() => { _blockConfirmUntilUp.current = false; }, 400);
+    window.addEventListener("keyup", _onUp);
+    return () => {
+      clearTimeout(_t);
+      window.removeEventListener("keyup", _onUp);
+    };
+  }, [mode?.identKey]);
+  const _isConfirmKey = (e) =>
+    e.key === "Enter" || e.key === "z" || e.key === "Z" || e.code === "NumpadEnter";
   /* 第1画面のキーボード操作 */
   useEffect(() => {
     if (_subMode !== null || !mode) return;
@@ -605,8 +627,10 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       } else if (e.key === "ArrowDown" || e.code === "Numpad2") {
         e.preventDefault();
         _setMenuSel(s => (s + 1) % _menuItems.length);
-      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
+      } else if (_isConfirmKey(e)) {
         e.preventDefault();
+        /* インベントリで Z/Enter した同一キーで即「自分でつける」へ飛ばない */
+        if (_blockConfirmUntilUp.current) return;
         const item = _menuItems[_menuSel];
         if (item?.enabled) item.action();
       } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
@@ -616,7 +640,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     };
     window.addEventListener("keydown", _onKey);
     return () => window.removeEventListener("keydown", _onKey);
-  });
+  }, [_subMode, mode, _menuSel, _knownNames.length, setMode]);
   /* リストモードのキーボード操作 */
   useEffect(() => {
     if (_subMode !== "list" || !mode) return;
@@ -639,8 +663,9 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
       } else if (_isNext(e)) {
         e.preventDefault();
         if (_listPage < _totalPages - 1) { _setListPage(p => p + 1); _setListSel(0); }
-      } else if (e.key === "Enter" || e.key === "z" || e.key === "Z") {
+      } else if (_isConfirmKey(e)) {
         e.preventDefault();
+        if (_blockConfirmUntilUp.current) return;
         const _n = _pageNames[_listSel];
         if (_n) _applyNick(_n);
       } else if (e.key === "Escape" || e.key === "x" || e.key === "X") {
@@ -650,7 +675,7 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     };
     window.addEventListener("keydown", _onKey);
     return () => window.removeEventListener("keydown", _onKey);
-  });
+  }, [_subMode, mode, _listSel, _listPage, _pageNames, _totalPages]);
   const _btnStyle = (col = "#4a6a9a") => ({
     background: col, border: "1px solid #556", color: "#fff", borderRadius: 4,
     padding: "6px 16px", cursor: "pointer", fontSize: 13,
