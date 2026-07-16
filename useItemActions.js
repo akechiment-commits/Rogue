@@ -760,7 +760,7 @@ export function useItemActions({
           });
           if (_tgts.length > 0 || _scrollFootBb) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-            setMsgs((prev) => [...prev.slice(-80), "識別するアイテムを選んでください。"]);
+            setMsgs((prev) => [...prev.slice(-80), _wasUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]);
             setIdentifyMode({ mode: 'identify', sel: 0, scrollIdx: idx, wasUnknown: _wasUnknown, showAll: _showAll, identKey: _ik_scr || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
@@ -1511,8 +1511,8 @@ export function useItemActions({
             ml.push("未識別のアイテムがない。");
           } else {
             { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
-              setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, "識別するアイテムを選んでください。"]); }
-            setIdentifyMode({ mode: 'identify' });
+              setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, _wasUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]); }
+            setIdentifyMode({ mode: 'identify', wasUnknown: _wasUnknown });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;

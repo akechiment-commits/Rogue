@@ -1141,17 +1141,20 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <span style={{ color: "#ff0", fontSize: 13, fontWeight: "bold" }}>
-          {mode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
+          {/* 未識別の選択式巻物は効果をバレない共通文 */}
+          {mode.wasUnknown ? "どのアイテムを選びますか？"
+            : mode.mode === 'bless' ? "祝福するアイテムを選んでください【祝】"
             : mode.mode === 'curse' ? "呪うアイテムを選んでください【呪】"
-            : mode.mode === 'duplicate' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "複製するアイテムを選んでください（複製品が祝福される）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
-            : mode.mode === 'identify' ? (mode.showAll ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください")
-            : mode.mode === 'sell_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
-            : mode.mode === 'transform_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
-            : mode.mode === 'forge_item' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
-            : mode.mode === 'weapon_up' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する武器/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/指輪を選んでください（－1）【呪】" : "強化する武器/指輪を選んでください（＋1）")
-            : mode.mode === 'armor_up'  ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.blessed ? "強化する防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する防具/指輪を選んでください（－1）【呪】" : "強化する防具/指輪を選んでください（＋1）")
-            : mode.mode === 'pot_extract' ? (mode.wasUnknown ? "どのアイテムを選びますか？" : mode.cursed ? "割る壺を選んでください【呪】" : mode.blessed ? "吸い出す壺を選んでください（容量+1）【祝】" : "吸い出す壺を選んでください")
-            : (mode.wasUnknown ? "どのアイテムを選びますか？" : "識別を解除するアイテムを選んでください【呪】")}
+            : mode.mode === 'duplicate' ? (mode.blessed ? "複製するアイテムを選んでください（複製品が祝福される）【祝】" : mode.cursed ? "複製するアイテムを選んでください（消えてしまう）【呪】" : "複製するアイテムを選んでください")
+            : mode.mode === 'identify' ? "識別するアイテムを選んでください"
+            : mode.mode === 'sell_item' ? (mode.blessed ? "換金するアイテムを選んでください（2倍）【祝】" : mode.cursed ? "換金するアイテムを選んでください（半額）【呪】" : "換金するアイテムを選んでください")
+            : mode.mode === 'transform_item' ? (mode.blessed ? "変換するアイテムを選んでください（レア度↑）【祝】" : mode.cursed ? "変換するアイテムを選んでください（レア度↓）【呪】" : "変換するアイテムを選んでください")
+            : mode.mode === 'forge_item' ? (mode.blessed ? "錬成する武器/防具を選んでください（強力な能力）【祝】" : mode.cursed ? "錬成する武器/防具を選んでください（役に立たない能力）【呪】" : "錬成する武器/防具を選んでください")
+            : mode.mode === 'weapon_up' ? (mode.blessed ? "強化する武器/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する武器/指輪を選んでください（－1）【呪】" : "強化する武器/指輪を選んでください（＋1）")
+            : mode.mode === 'armor_up'  ? (mode.blessed ? "強化する防具/指輪を選んでください（＋2）【祝】" : mode.cursed ? "強化する防具/指輪を選んでください（－1）【呪】" : "強化する防具/指輪を選んでください（＋1）")
+            : mode.mode === 'pot_extract' ? (mode.cursed ? "割る壺を選んでください【呪】" : mode.blessed ? "吸い出す壺を選んでください（容量+1）【祝】" : "吸い出す壺を選んでください")
+            : mode.mode === 'unidentify' ? "識別を解除するアイテムを選んでください【呪】"
+            : "どのアイテムを選びますか？"}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {_idTotalPg_ui > 1 && (
