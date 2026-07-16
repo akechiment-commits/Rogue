@@ -10,7 +10,7 @@ import {
   hasFireResist, hasLightningResist, hasIceResist,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
-  pickLootFromPool,
+  pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, hitStatueWithAction, statueAt, displaceObjectsFromStatue } from './fixtures.js';
@@ -1487,6 +1487,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.hp -= _iwDmg;
         if (hasIceResist(p)) {
           ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！${iceResistDamageLabel(p)}・移動封じ無効`);
+        } else if (isPlayerOnWater(p, dg)) {
+          ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！`);
+          applyWaterIceFreeze(p, dg, ml, _iwTurns);
         } else {
           p.immobileTurns = (p.immobileTurns||0) + _iwTurns;
           ml.push(`氷の弾が自分に命中！${_iwDmg}ダメージ！移動封じ${_iwTurns}ターン！`);
@@ -1754,30 +1757,8 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       }
       return;
     }
-    /* 氷の杖：水タイルを凍結して普通の床にする */
-    if (eff === "ice_wand" && dg.map[ty][tx] === T.WATER) {
-      dg.map[ty][tx] = T.FLOOR;
-      ml.push("氷の魔法が水を凍らせた！");
-      if (dg.waterItems) {
-        const _frozen = dg.waterItems.filter(wi => wi.x === tx && wi.y === ty);
-        dg.waterItems = dg.waterItems.filter(wi => !(wi.x === tx && wi.y === ty));
-        for (const wi of _frozen) {
-          wi.item.x = tx; wi.item.y = ty;
-          dg.items.push(wi.item);
-          ml.push(`凍った水から${resolveItemName(wi.item)}が現れた！`);
-        }
-      }
-      /* 泉が水タイル上にある場合は干上がらせる */
-      if (dg.springs) {
-        const _frozenSpring = dg.springs.find(s => s.x === tx && s.y === ty);
-        if (_frozenSpring) {
-          dg.springs = dg.springs.filter(s => s !== _frozenSpring);
-          ml.push("泉が凍りついて干上がった！");
-        }
-      }
-      lastX = tx; lastY = ty;
-      continue;
-    }
+    /* 氷の杖：射線上の水を凍らせる（通過・命中判定はその後） */
+    if (eff === "ice_wand") freezeWaterTile(dg, tx, ty, ml);
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
@@ -2176,25 +2157,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
     for (const [adx, ady] of [[0, 0], ..._BW_DIRS]) {
       const wx = cx + adx, wy = cy + ady;
       if (wx < 0 || wx >= MW || wy < 0 || wy >= MH) continue;
-      if (dg.map[wy][wx] !== T.WATER) continue;
-      dg.map[wy][wx] = T.FLOOR;
-      frozenCount++;
-      if (dg.waterItems) {
-        const frozen = dg.waterItems.filter(wi => wi.x === wx && wi.y === wy);
-        dg.waterItems = dg.waterItems.filter(wi => !(wi.x === wx && wi.y === wy));
-        for (const wi of frozen) {
-          wi.item.x = wx; wi.item.y = wy;
-          dg.items.push(wi.item);
-          ml.push(`凍った水から${resolveItemName(wi.item)}が現れた！`);
-        }
-      }
-      if (dg.springs) {
-        const _frozenSpring = dg.springs.find(s => s.x === wx && s.y === wy);
-        if (_frozenSpring) {
-          dg.springs = dg.springs.filter(s => s !== _frozenSpring);
-          ml.push("泉が凍りついて干上がった！");
-        }
-      }
+      if (freezeWaterTile(dg, wx, wy, null)) frozenCount++;
     }
     if (frozenCount > 0) ml.push(`周囲${frozenCount}マスの水が凍りついた！`);
   }

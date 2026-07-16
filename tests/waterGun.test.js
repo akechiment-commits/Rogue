@@ -9,6 +9,12 @@ import {
   applySoakedFromWaterWalk,
   shrinkFoodOneStep,
   blankScrollOrSpellbook,
+  reduceIceDamage,
+  iceResistDamageLabel,
+  applyWaterIceFreeze,
+  isPlayerOnWater,
+  applyFrozenPhysicalMult,
+  freezeWaterTile,
 } from "../items.js";
 import { fireTrapPlayer } from "../traps.js";
 import { msgToActionKey } from "../portraits.js";
@@ -138,6 +144,43 @@ describe("水鉄砲・耐水", () => {
     expect(p.soakedTurns).toBe(0);
     expect(p.inventory[0].effect).toBe("teleport");
     expect(ml.some((m) => m.includes("耐水"))).toBe(true);
+  });
+});
+
+describe("ずぶ濡れ・凍結・氷", () => {
+  it("ずぶ濡れで氷ダメージが2倍", () => {
+    const dry = reduceIceDamage(20, { soakedTurns: 0, armor: null });
+    const wet = reduceIceDamage(20, { soakedTurns: 5, armor: null });
+    expect(wet).toBe(dry * 2);
+    expect(iceResistDamageLabel({ soakedTurns: 3, armor: null })).toContain("ずぶ濡れ");
+  });
+
+  it("水中で氷攻撃すると凍結する", () => {
+    const p = { x: 1, y: 1, frozenTurns: 0, armor: null };
+    const dg = { map: [[T.WALL, T.WALL], [T.WALL, T.WATER]], springs: [] };
+    const ml = [];
+    expect(isPlayerOnWater(p, dg)).toBe(true);
+    expect(applyWaterIceFreeze(p, dg, ml, 5)).toBe(true);
+    expect(p.frozenTurns).toBe(5);
+    expect(ml.some((m) => m.includes("凍りついた"))).toBe(true);
+  });
+
+  it("凍結中は物理ダメージ2倍", () => {
+    expect(applyFrozenPhysicalMult(10, { frozenTurns: 3 })).toBe(20);
+    expect(applyFrozenPhysicalMult(10, { frozenTurns: 0 })).toBe(10);
+  });
+
+  it("freezeWaterTile が水を床にする", () => {
+    const dg = {
+      map: [[T.WATER]],
+      waterItems: [{ x: 0, y: 0, item: { name: "石", type: "arrow" } }],
+      items: [],
+      springs: [],
+    };
+    const ml = [];
+    expect(freezeWaterTile(dg, 0, 0, ml)).toBe(true);
+    expect(dg.map[0][0]).toBe(T.FLOOR);
+    expect(dg.items.length).toBe(1);
   });
 });
 

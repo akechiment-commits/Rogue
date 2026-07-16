@@ -435,6 +435,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       turns: 0,
       sleepTurns: 0,
       paralyzeTurns: 0,
+      frozenTurns: 0,
       slowTurns: 0,
       slowSkip: false,
       hasteTurns: 0,
@@ -2444,8 +2445,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   useEffect(() => {
     if (!gs?.player) return;
     if (shopMode) return;
-    const { sleepTurns = 0, paralyzeTurns = 0, slowSkip = false, potConfinedTurns = 0 } = gs.player;
-    if (sleepTurns <= 0 && paralyzeTurns <= 0 && !slowSkip && potConfinedTurns <= 0) return;
+    const { sleepTurns = 0, paralyzeTurns = 0, frozenTurns = 0, slowSkip = false, potConfinedTurns = 0 } = gs.player;
+    if (sleepTurns <= 0 && paralyzeTurns <= 0 && frozenTurns <= 0 && !slowSkip && potConfinedTurns <= 0) return;
     setShowInv(false);
     setThrowMode(null);
     /* Wait for any running animation to finish before advancing */
@@ -2458,7 +2459,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       const st = sr.current;
       const { player: p, dungeon: dg } = st;
-      if (p.sleepTurns <= 0 && p.paralyzeTurns <= 0 && !p.slowSkip && (p.potConfinedTurns || 0) <= 0) return;
+      if (p.sleepTurns <= 0 && p.paralyzeTurns <= 0 && (p.frozenTurns || 0) <= 0 && !p.slowSkip && (p.potConfinedTurns || 0) <= 0) return;
       const ml = [];
       if (p.sleepTurns > 0) {
         p.sleepTurns--;
@@ -2470,6 +2471,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         ml.push(p.paralyzeTurns > 0
           ? `金縛りにあっている...あと${p.paralyzeTurns}ターン`
           : "金縛りが解けた！");
+      } else if ((p.frozenTurns || 0) > 0) {
+        p.frozenTurns--;
+        ml.push(p.frozenTurns > 0
+          ? `凍りついている...あと${p.frozenTurns}ターン`
+          : "氷が解けた！動けるようになった！");
       } else if ((p.potConfinedTurns || 0) > 0) {
         ml.push("壺から出られない！");
         if (p.potConfinedTurns > 1) {
@@ -2655,7 +2661,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           acted = true;
         }
       };
-      if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
+      if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
       if (type === "inventory") {
         setSpellListMode(false);
         setShowInv((v) => {
@@ -2685,6 +2691,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         ml.push(p.paralyzeTurns > 0
           ? `金縛りにあっている...あと${p.paralyzeTurns}ターン`
           : "金縛りが解けた！");
+        endTurn(st, p, ml);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        sr.current = { ...st };
+        setGs({ ...st });
+        return;
+      }
+      if ((p.frozenTurns || 0) > 0) {
+        p.frozenTurns--;
+        ml.push(p.frozenTurns > 0
+          ? `凍りついている...あと${p.frozenTurns}ターン`
+          : "氷が解けた！動けるようになった！");
         endTurn(st, p, ml);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         sr.current = { ...st };
@@ -5680,6 +5697,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {(p.soakedTurns || 0) > 0 && (
           <span style={{ color: "#48a8e8" }}>💧{p.soakedTurns}</span>
+        )}
+        {(p.frozenTurns || 0) > 0 && (
+          <span style={{ color: "#80ddff" }}>🧊{p.frozenTurns}</span>
         )}
         {(p.oilyTurns || 0) > 0 && (
           <span style={{ color: "#e0a020" }}>🛢{p.oilyTurns}</span>

@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 
@@ -160,6 +160,9 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     onPlayerHit?.(_iDmg, m);
     if (_hasIceR) {
       ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！${iceResistDamageLabel(pl)}・鈍足無効`);
+    } else if (isPlayerOnWater(pl, dg)) {
+      ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！`);
+      applyWaterIceFreeze(pl, dg, ml, 5);
     } else {
       const _iSlow = rng(3, 6);
       pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
@@ -173,6 +176,8 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     const _ix = _st.x, _iy = _st.y;
     _cx = _ix; _cy = _iy;
     if (_ix < 0 || _ix >= MW || _iy < 0 || _iy >= MH) return;
+    /* 氷の杖と同様：射線上の水を凍らせる（止まらない） */
+    freezeWaterTile(dg, _ix, _iy, ml);
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) return;
     if (_ix === m.x && _iy === m.y) { _hitIceMon(m); return; }
     if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); return; }
@@ -300,12 +305,16 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   if (_tbCrit) dmg *= 2;
   /* 平和の指輪：受ける近接ダメージ半減 */
   if (hasRingEffect(pl, "peace_ring")) dmg = Math.max(1, Math.floor(dmg / 2));
+  /* 凍結：物理ダメージ2倍 */
+  const _fzLbl = frozenPhysicalLabel(pl);
+  dmg = applyFrozenPhysicalMult(dmg, pl);
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
   /* 痛恨はダメージ数値の前：〜の攻撃！痛恨の一撃！Nダメージ！ */
   let _hitMsg = msgFn(dmg);
   if (_tbCrit) _hitMsg = _hitMsg.replace(/(\d+)ダメージ！/, "痛恨の一撃！$1ダメージ！");
+  if (_fzLbl && !_hitMsg.includes("凍結")) _hitMsg = _hitMsg.replace(/(\d+ダメージ！)/, `$1${_fzLbl}`);
   ml.push(_hitMsg);
   if (!skipThorn && hasAbility(pl.armor, "thorn") && dmg > 0) {
     const td = Math.max(1, Math.floor(dmg / 3));

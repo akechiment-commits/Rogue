@@ -3788,10 +3788,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
         return;
       }
-      const dmg = _isPot ? _potDmg() : _projDmg();
+      let dmg = _isPot ? _potDmg() : _projDmg();
+      dmg = applyFrozenPhysicalMult(dmg, p);
       p.deathCause = deathCausePhrase;
       p.hp -= dmg;
-      mlx.push(_isPot ? potPlHitMsg(dmg) : plHitMsg(dmg));
+      const _plHit = (_isPot ? potPlHitMsg(dmg) : plHitMsg(dmg)) + frozenPhysicalLabel(p);
+      mlx.push(_plHit);
       if (p.sleepTurns > 0) { p.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
       /* ヤバイ食料：追加ダメ+状態異常複合 */
       if (item.type === "food" && item.yabai) {
@@ -4397,12 +4399,86 @@ export function fireResistDamageLabel(p, opts = {}) {
   return _elemResistLabel("耐火", p, "fire_resist", opts) + _soakedFireLabel(p);
 }
 
+function _applySoakedIceBoost(dmg, p) {
+  if ((p?.soakedTurns || 0) <= 0) return dmg;
+  return Math.max(1, Math.floor(dmg * 2));
+}
+function _soakedIceLabel(p) {
+  return (p?.soakedTurns || 0) > 0 ? "(ずぶ濡れ×2)" : "";
+}
+
 export function reduceIceDamage(dmg, p) {
   const mult = _elemResistMult(p, "ice_resist");
-  return mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+  let d = mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+  return _applySoakedIceBoost(d, p);
 }
 export function iceResistDamageLabel(p) {
-  return _elemResistLabel("耐氷", p, "ice_resist");
+  return _elemResistLabel("耐氷", p, "ice_resist") + _soakedIceLabel(p);
+}
+
+/** プレイヤーが水タイルまたは泉の上にいるか */
+export function isPlayerOnWater(p, dg) {
+  if (!p || !dg?.map) return false;
+  if (dg.map[p.y]?.[p.x] === T.WATER) return true;
+  return !!(dg.springs?.some((s) => s.x === p.x && s.y === p.y));
+}
+
+/**
+ * 水中で氷属性攻撃を受けたときの凍結。
+ * 5ターン行動不能＋物理ダメージ2倍。耐氷で無効。
+ * @returns {boolean}
+ */
+export function applyWaterIceFreeze(p, dg, ml, turns = 5) {
+  if (!isPlayerOnWater(p, dg)) return false;
+  if (hasIceResist(p)) {
+    if (ml) ml.push("防具が氷を弾いた！凍結しなかった。(耐氷)");
+    return false;
+  }
+  const _was = p.frozenTurns || 0;
+  p.frozenTurns = Math.max(_was, turns);
+  if (ml) {
+    if (_was <= 0) ml.push(`水の中で凍りついた！${turns}ターン行動不能！物理ダメージ2倍！`);
+    else ml.push(`さらに凍りついた！(凍結${p.frozenTurns}ターン)`);
+  }
+  return true;
+}
+
+/** 凍結中の物理ダメージ2倍 */
+export function applyFrozenPhysicalMult(dmg, p) {
+  if ((p?.frozenTurns || 0) <= 0) return dmg;
+  return Math.max(1, Math.floor(dmg * 2));
+}
+export function frozenPhysicalLabel(p) {
+  return (p?.frozenTurns || 0) > 0 ? "(凍結×2)" : "";
+}
+
+/**
+ * 水タイルを凍らせて床にする（氷の杖・氷ブレス共通）。
+ * @returns {boolean} 凍らせたか
+ */
+export function freezeWaterTile(dg, x, y, ml = null, nameFn = null) {
+  if (!dg?.map || dg.map[y]?.[x] !== T.WATER) return false;
+  dg.map[y][x] = T.FLOOR;
+  if (ml) ml.push("氷が水を凍らせた！");
+  if (dg.waterItems) {
+    const _frozen = dg.waterItems.filter((wi) => wi.x === x && wi.y === y);
+    dg.waterItems = dg.waterItems.filter((wi) => !(wi.x === x && wi.y === y));
+    for (const wi of _frozen) {
+      wi.item.x = x;
+      wi.item.y = y;
+      if (!dg.items) dg.items = [];
+      dg.items.push(wi.item);
+      if (ml) ml.push(`凍った水から${resolveItemName(wi.item, nameFn)}が現れた！`);
+    }
+  }
+  if (dg.springs) {
+    const _fs = dg.springs.find((s) => s.x === x && s.y === y);
+    if (_fs) {
+      dg.springs = dg.springs.filter((s) => s !== _fs);
+      if (ml) ml.push("泉が凍りついて干上がった！");
+    }
+  }
+  return true;
 }
 
 export function reduceLightningDamage(dmg, p) {
@@ -4911,10 +4987,18 @@ export function soakedLightningMult(p) {
   return isSoaked(p) ? 2 : 1;
 }
 
+export function soakedIceMult(p) {
+  return isSoaked(p) ? 2 : 1;
+}
+
 export function soakedFireExplosionLabel(p) {
   return _soakedFireLabel(p);
 }
 
 export function soakedLightningLabel(p) {
   return _soakedLightningLabel(p);
+}
+
+export function soakedIceLabel(p) {
+  return _soakedIceLabel(p);
 }
