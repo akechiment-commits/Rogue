@@ -51,6 +51,46 @@ describe("portraits", () => {
     expect(event.src).toMatch(/battle_melee/);
   });
 
+  it("同ターンに倒した／敵反撃があっても近接立ち絵を優先する", () => {
+    const player = {
+      hp: 75, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+      weapon: { id: "sword-1", type: "weapon" },
+    };
+    const prev = { ...player, hp: 80, weaponId: "sword-1", armorId: null, ringIds: [] };
+    /* lastMsg は敵反撃。攻撃ログは newMsgs の途中 */
+    const newMsgs = [
+      "スライムに12ダメージ！",
+      "スライムを倒した！(+5exp)",
+      "ゴブリンの攻撃！5ダメージ！",
+    ];
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: newMsgs[newMsgs.length - 1],
+      newMsgs,
+      recentMsgs: newMsgs,
+    });
+    expect(event.src).toMatch(/battle_melee/);
+  });
+
+  it("倒したメッセージだけが lastMsg でも newMsgs の攻撃で近接になる", () => {
+    const player = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      weapon: { id: "sword-1", type: "weapon" },
+    };
+    const prev = { ...player, weaponId: "sword-1", armorId: null, ringIds: [] };
+    const newMsgs = ["スライムに20ダメージ！", "スライムを倒した！(+5exp)"];
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "スライムを倒した！(+5exp)",
+      newMsgs,
+    });
+    expect(event.src).toMatch(/battle_melee/);
+  });
+
   it("resolvePortraitEvent は武器未装備の攻撃で素手立ち絵を返す", () => {
     const player = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,

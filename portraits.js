@@ -45,6 +45,18 @@ export function msgToMeleeAttackKey(msg, player = null) {
   return "attack";
 }
 
+/**
+ * 今回のログバッチから近接攻撃キーを探す。
+ * lastMsg だけだと「倒した」「敵の反撃」で埋もれて攻撃立ち絵が出ないため newMsgs を遡る。
+ */
+export function findMeleeAttackKey(newMsgs = [], lastMsg = "", player = null) {
+  for (let i = newMsgs.length - 1; i >= 0; i--) {
+    const k = msgToMeleeAttackKey(newMsgs[i], player);
+    if (k) return k;
+  }
+  return msgToMeleeAttackKey(lastMsg, player);
+}
+
 /** メッセージからアイテム使用の種別を判定（直近ログも参照） */
 export function msgToActionKey(msg, recentMsgs = []) {
   const texts = [...recentMsgs];
@@ -490,7 +502,9 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return portraitEvent(actionKey, now);
   }
 
-  const meleeKey = msgToMeleeAttackKey(lastMsg, p);
+  /* 近接：newMsgs 全体を見る（同ターンの「倒した／敵反撃」で lastMsg が上書きされても拾う）
+   * 被ダメより優先（自分が振った行動を優先表示） */
+  const meleeKey = findMeleeAttackKey(newMsgs, lastMsg, p);
   if (meleeKey) {
     return portraitEvent(meleeKey, now);
   }
