@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 
@@ -1691,18 +1691,23 @@ function monsterShootWaterGun(m, dg, pl, ml) {
       ml.push(`${m.name}の水鉄砲が命中！${dmg}ダメージ！`);
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
       if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
-      /* Lv2以上：命中時に食料を腐らせるか武器を劣化させる */
+      /* ずぶ濡れ＋所持品への水影響（耐水で無効） */
+      if (!hasWaterProof(pl)) {
+        applySoakedStatus(pl, ml, 10, "水を浴びてずぶ濡れになった！(10ターン)");
+        applyWaterGunToInventory(pl, ml, null);
+      } else {
+        ml.push("防具が水を弾いた！(耐水)");
+      }
+      /* Lv2以上：追加で食料腐敗 or 武器錆（耐水では防がない＝物理的劣化） */
       const _wLvl = m.monLevel || 1;
-      if (_wLvl >= 2 && Math.random() < 0.5) {
+      if (_wLvl >= 2 && Math.random() < 0.5 && !hasWaterProof(pl)) {
         const _foods = pl.inventory.filter(i => i.type === "food" && !i.rotten);
         const _canDegrade = pl.weapon && !hasAbility(pl.weapon, "no_degrade");
         if (_foods.length > 0 && (_canDegrade ? Math.random() < 0.6 : true)) {
-          /* 食料をランダムに1つ腐らせる */
           const _tf = pick(_foods);
           rotFood(_tf);
-          ml.push(`水びたしになって${_tf.name}が腐ってしまった！`);
+          ml.push(`水びたしになって${resolveItemName(_tf)}が腐ってしまった！`);
         } else if (_canDegrade) {
-          /* 装備中の武器を劣化させる */
           const _op = pl.weapon.plus || 0;
           pl.weapon.plus = _op - 1;
           const _fpp = v => v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`;

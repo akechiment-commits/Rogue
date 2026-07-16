@@ -51,6 +51,9 @@ export function msgToActionKey(msg, recentMsgs = []) {
   }
 
   if (!msg) return null;
+  /* 泉は「飲んだ」より先に判定（薬立ち絵に吸われないように） */
+  if (/泉の水を飲んだ|清らかな水を飲んだ/.test(msg)) return "act_spring_drink";
+  if (/を泉に浸した|泉に浸した/.test(msg)) return "act_spring_soak";
   if (/薬を飲|ポーション|飲んだ/.test(msg)) return "act_potion";
   if (/食べ|食料|料理/.test(msg)) return "act_food";
   if (/魔法書.*(?:を)?(?:読|使)|(?:読|使).*(?:魔法書)/.test(msg)) return "act_spellbook";

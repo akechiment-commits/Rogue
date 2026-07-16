@@ -45,6 +45,8 @@ export const PORTRAIT_CATEGORIES = [
     group: null,
     slots: [
       { file: "action_drink_potion", label: "薬を飲む", group: "act_potion" },
+      { file: "action_drink_spring", label: "泉の水を飲む", group: "act_spring_drink" },
+      { file: "action_soak_spring", label: "泉に浸す", group: "act_spring_soak" },
       { file: "action_eat_food", label: "食べる", group: "act_food" },
       { file: "action_eat_rotten", label: "腐ったものを食べる", group: "act_food_rotten" },
       { file: "action_eat_yabai", label: "ヤバイものを食べる", group: "act_food_yabai" },

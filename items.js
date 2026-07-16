@@ -288,6 +288,7 @@ export const ITEMS = [
   { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:4,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠も無効化する。",    tile:21 },
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"B", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
+  { name:"アーマーガッパ",   type:"armor",  def:4,  ability:"water_proof",   rarity:"C", weight:4,  sellPrice:1400, desc:"河童の甲羅を模した鎧。水鉄砲・ずぶ濡れを無効化する。\n所持品が水で白紙化・縮小・インク減りしない。", tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
   { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"D", weight:8,  sellPrice:200,  desc:"飲むとMP封印50ターン。\n呪い：MP封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱(祝：40T、呪：混乱解除)。", tile:16 },
@@ -1099,6 +1100,7 @@ export const ARMOR_ABILITIES = [
   { id:"bewitch_proof",    name:"耐惑わし", desc:"幻惑効果を無効化する" },
   { id:"seal_proof",       name:"耐封印",   desc:"封印効果を無効化する" },
   { id:"ice_resist",       name:"耐氷",     desc:"氷ダメージ2/3（万能耐性併用で半減）。移動封じ・鈍足を防ぐ" },
+  { id:"water_proof",      name:"耐水",     desc:"水鉄砲の所持品被害とずぶ濡れを無効化する" },
   /* 呪い専用デメリット能力 */
   { id:"frail",            name:"脆弱",     desc:"近接攻撃を受けた時、ダメージが+3増加する",         curseOnly:true },
   { id:"noisy",            name:"騒音",     desc:"部屋に入るたびに同部屋の敵が全員目を覚ます",       curseOnly:true },
@@ -1141,6 +1143,7 @@ export const TRAPS = [
   { name:"時限爆弾の罠",   effect:"time_bomb",     tile:73,  rarity:"B", weight:2,  desc:"踏むと4ターン後に大爆発が起きる。\n爆発は地雷と同じ威力。離れれば回避できる。\n作動済みの爆心地に薬液をかけると消火可能。\n作動済みは爆心地にカウントダウン表示。" },
   { name:"未識別の罠",     effect:"unident_trap",   tile:124, rarity:"B", weight:2,  desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n武器・防具・食料は祝呪がわからなくなる。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, rarity:"B", weight:2,  desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
+  { name:"水鉄砲の罠",     effect:"watergun_trap",  tile:132, rarity:"D", weight:8,  desc:"踏むと水鉄砲を浴びる。ずぶ濡れになり、所持品に水の影響が出る。\n巻物・魔法書は白紙化、食料はサイズ1段階縮小、ペンはインク-1。\nアーマーガッパ（耐水）で防げる。" },
 ];
 
 /**
@@ -4217,6 +4220,120 @@ export function hasLightningResist(p) {
   return hasAbility(p?.armor, "lightning_resist") || hasAbility(p?.armor, "all_resist");
 }
 
+/** 防具の耐水（水鉄砲・ずぶ濡れ・所持品の水被害） */
+export function hasWaterProof(p) {
+  return hasAbility(p?.armor, "water_proof");
+}
+
+/** 食料サイズ1段階縮小（水鉄砲など）。最小サイズなら false */
+export function shrinkFoodOneStep(item, ml = null, nameFn = null) {
+  if (!item || item.type !== "food") return false;
+  const szLevels = item.cooked
+    ? [
+        { l: "一口", v: 10 },
+        { l: "小盛り", v: 20 },
+        { l: "普通の", v: 35 },
+        { l: "大盛り", v: 55 },
+        { l: "特盛り", v: 80 },
+        { l: "爆盛り", v: 120 },
+      ]
+    : [
+        { l: "極小の", v: 10 },
+        { l: "小さい", v: 20 },
+        { l: "普通の", v: 35 },
+        { l: "大きい", v: 55 },
+        { l: "特大", v: 80 },
+        { l: "超特大", v: 120 },
+      ];
+  const _hasSzLabel = item.sizeLabel !== undefined;
+  for (let si = szLevels.length - 1; si >= 1; si--) {
+    const curL = szLevels[si].l;
+    const matches = _hasSzLabel ? item.sizeLabel === curL : item.name.includes(curL);
+    if (!matches) continue;
+    const oldName = item.name;
+    const cur = szLevels[si];
+    const prev = szLevels[si - 1];
+    if (_hasSzLabel && item._foodBase && item._foodEfLabel) {
+      const efStart = item.name.indexOf(item._foodEfLabel);
+      const cookPfx = efStart > 0 ? item.name.slice(0, efStart) : "";
+      item.name = cookPfx + item._foodEfLabel + (prev.l === "普通の" ? "" : prev.l) + item._foodBase;
+    } else {
+      item.name = item.name.replace(cur.l, prev.l === "普通の" ? "" : prev.l);
+    }
+    item.sizeLabel = prev.l;
+    item.value = Math.max(1, Math.round((item.value * prev.v) / cur.v));
+    if (ml) {
+      const _dn = resolveItemName({ ...item, name: oldName }, nameFn);
+      ml.push(`水を浴びて${_dn}が小さくなった！→${item.name}`);
+    }
+    return true;
+  }
+  /* ラベル無しの旧形式：最小サイズ扱い */
+  if (ml) ml.push(`${resolveItemName(item, nameFn)}はこれ以上小さくならない。`);
+  return false;
+}
+
+/** 巻物・魔法書を白紙化（既に白紙なら false） */
+export function blankScrollOrSpellbook(item, ml = null, nameFn = null) {
+  if (!item) return false;
+  if (item.type === "scroll" && item.effect !== "blank") {
+    const _dn = resolveItemName(item, nameFn);
+    item.name = "白紙の巻物";
+    item.effect = "blank";
+    item.desc = "何も書かれていない。魔法の筆で書き込める。";
+    if (ml) ml.push(`水を浴びて巻物「${_dn}」の文字が消えた！`);
+    return true;
+  }
+  if (item.type === "spellbook" && item.spell) {
+    const _dn = resolveItemName(item, nameFn);
+    item.name = "白紙の魔法書";
+    item.spell = null;
+    item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
+    if (ml) ml.push(`水を浴びて魔法書「${_dn}」の文字が消えた！`);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 水鉄砲など：所持品に水の影響（炎・雷と同様にランダム1点）。
+ * 巻物/魔法書→白紙、食料→サイズ-1、ペン→インク-1。耐水で無効。
+ * @returns {boolean} 何か影響が出たか
+ */
+export function applyWaterGunToInventory(p, ml, nameFn = null) {
+  if (!p?.inventory?.length) return false;
+  if (hasWaterProof(p)) {
+    if (ml) ml.push("防具が水を弾いた！所持品は無事だ。(耐水)");
+    return false;
+  }
+  const vulnerable = p.inventory.filter((it) => {
+    if (it.type === "scroll" && it.effect !== "blank") return true;
+    if (it.type === "spellbook" && it.spell) return true;
+    if (it.type === "food") return true;
+    if (it.type === "pen" && (it.charges ?? 0) > 0) return true;
+    return false;
+  });
+  if (vulnerable.length === 0) {
+    if (ml) ml.push("水を浴びたが所持品に変化はなかった。");
+    return false;
+  }
+  const victim = vulnerable[Math.floor(Math.random() * vulnerable.length)];
+  if (victim.type === "scroll" || victim.type === "spellbook") {
+    return blankScrollOrSpellbook(victim, ml, nameFn);
+  }
+  if (victim.type === "food") {
+    return shrinkFoodOneStep(victim, ml, nameFn);
+  }
+  if (victim.type === "pen") {
+    const _dn = resolveItemName(victim, nameFn);
+    const prev = victim.charges ?? 0;
+    victim.charges = Math.max(0, prev - 1);
+    if (ml) ml.push(`水を浴びて${_dn}のインクが1減った！(残${victim.charges}回)`);
+    return true;
+  }
+  return false;
+}
+
 /** 油まみれ状態（ターン残り or 油タイル上） */
 export function isOily(dg, char) {
   if (!char) return false;
@@ -4758,13 +4875,32 @@ export function isSoaked(p) {
   return (p?.soakedTurns || 0) > 0;
 }
 
-/** 水中を歩いたときずぶ濡れ（10ターン）。浮遊中は付与しない */
+/** 水中を歩いたときずぶ濡れ（10ターン）。浮遊中・耐水は付与しない */
 export function applySoakedFromWaterWalk(p, dg, ml) {
   if (!dg?.map || dg.map[p.y]?.[p.x] !== T.WATER) return;
   if (isPlayerFloating(p, dg)) return;
+  if (hasWaterProof(p)) return;
   const _was = p.soakedTurns || 0;
   p.soakedTurns = 10;
   if (_was === 0) ml.push("水の中を歩いてずぶ濡れになった！(10ターン)");
+}
+
+/**
+ * ずぶ濡れ付与（水鉄砲など）。耐水で無効。
+ * @param {number} [turns=10]
+ * @returns {boolean} 付与したか
+ */
+export function applySoakedStatus(p, ml, turns = 10, msg = null) {
+  if (!p) return false;
+  if (hasWaterProof(p)) {
+    if (ml) ml.push("防具が水を弾いた！ずぶ濡れにならなかった。(耐水)");
+    return false;
+  }
+  const _was = p.soakedTurns || 0;
+  p.soakedTurns = Math.max(_was, turns);
+  if (ml && _was === 0) ml.push(msg || `ずぶ濡れになった！(${turns}ターン)`);
+  else if (ml && _was > 0 && p.soakedTurns > _was) ml.push(`ずぶ濡れが長引いた！(${p.soakedTurns}ターン)`);
+  return true;
 }
 
 export function soakedFireExplosionMult(p) {

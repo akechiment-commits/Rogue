@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 
@@ -225,6 +225,16 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     case "multiply_trap": {
       ml.push(`${trap.name}が発動！`);
       multiplyRoomMonsters(dg, trap.x, trap.y, ml, p);
+      break;
+    }
+    case "watergun_trap": {
+      if (hasWaterProof(p)) {
+        ml.push(`${trap.name}が発動！しかし防具が水を弾いた！(耐水)`);
+      } else {
+        ml.push(`${trap.name}が発動！水鉄砲を浴びた！`);
+        applySoakedStatus(p, ml, 10, "ずぶ濡れになった！(10ターン)");
+        applyWaterGunToInventory(p, ml, nameFn);
+      }
       break;
     }
     case "rot_trap": {

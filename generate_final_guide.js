@@ -450,7 +450,7 @@ const statusData = [
   ['必中（sureHitTurns）', '攻撃・投擲が外れない', '-', '混乱の薬（呪い）'],
   ['浮遊', '罠にかからない。階段が降りられない。水上で解けたとき周囲8マスに陸がなければ毎ターンHP-15', '浮遊状態の敵特性', 'ペン（重力-呪い）'],
   ['油まみれ', '炎・爆発ダメージが2倍', '炎・爆発ダメージが2倍', '壺（油系）破裂'],
-  ['ずぶ濡れ（soakedTurns）', '炎・爆発ダメージ半減', '雷ダメージ2倍', '水中歩行（浮遊以外）10ターン'],
+  ['ずぶ濡れ（soakedTurns）', '炎・爆発ダメージ半減。耐水（アーマーガッパ）で無効', '雷ダメージ2倍', '水中歩行（浮遊以外）10T・水鉄砲の罠・わてり水鉄砲'],
 ];
 
 addSheet('09_状態異常', statusData);
@@ -470,7 +470,7 @@ function monTraits(m) {
   const t = [];
   if (m.float) t.push('浮遊');
   if (m.waterOnly) t.push('水タイルのみ');
-  if (m.subtype === 'watergunner') t.push('水鉄砲攻撃（風穴で曲がる）');
+  if (m.subtype === 'watergunner') t.push('水鉄砲攻撃（風穴で曲がる・命中時ずぶ濡れ＋所持品に水影響）');
   if (m.elemWeak) t.push(`${m.elemWeak}弱点`);
   if (m.kind === 'undead') t.push('アンデッド');
   if (m.kind === 'dragon') t.push('ドラゴン');
