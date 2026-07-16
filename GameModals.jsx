@@ -2524,10 +2524,18 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
 }
 
 /* ===== Pot Put Modal ===== */
-export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutItem, iLabel, dname, mobile }) {
+export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutItem, onCancel, iLabel, dname, mobile }) {
   if (!mode) return null;
   const pot = mode.floorPot || p.inventory[mode.potIdx];
   if (!pot) return null;
+  const _cancel = onCancel || (() => setMode(null));
+  const pItems = p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx);
+  const _psp = 10;
+  const _tpp = Math.max(1, Math.ceil(pItems.length / _psp));
+  const _pgp = pItems.slice(putPage * _psp, (putPage + 1) * _psp);
+  const _potKey = getIdentKey(pot);
+  const _potKnown = !!(gs?.allBcKnown || pot.fullIdent || (_potKey && gs?.ident?.has(_potKey)));
+  const isCancelSel = putMenuSel >= _pgp.length;
   return (
     <div
       style={{
@@ -2544,7 +2552,7 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
         <span style={{ color: "#fc6", fontSize: 13, fontWeight: "bold" }}>
           {dname(pot)} ({potOccupancyCount(pot)}/{pot.capacity})
         </span>
-        <button onClick={() => setMode(null)}
+        <button onClick={_cancel}
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>{" "}
       {pot.contents?.length > 0 && (
@@ -2553,54 +2561,52 @@ export function PotPutModal({ mode, setMode, p, gs, putPage, putMenuSel, doPutIt
         </div>
       )}{" "}
       <div style={{ color: "#ca8", fontSize: 13, marginBottom: 6 }}>入れるアイテムを選んでください</div>{" "}
-      {(() => {
-        const pItems = p.inventory.map((it, i) => ({ it, i })).filter(({ i }) => mode.floorPot ? true : i !== mode.potIdx);
-        const _psp = 10;
-        const _tpp = Math.max(1, Math.ceil(pItems.length / _psp));
-        const _pgp = pItems.slice(putPage * _psp, (putPage + 1) * _psp);
-        const _potKey = getIdentKey(pot);
-        const _potKnown = !!(gs?.allBcKnown || pot.fullIdent || (_potKey && gs?.ident?.has(_potKey)));
-        return pItems.length === 0 ? (
-          <div style={{ color: "#666", fontSize: 13 }}>入れるアイテムがない。</div>
-        ) : (
-          <div>
-            {_tpp > 1 && (
-              <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 13 }}>
-                <span>←→でページ切替</span>
-                <span style={{ color: "#ccc" }}>{putPage + 1}/{_tpp}ページ</span>
-                <span>({putPage * _psp + 1}〜{Math.min((putPage + 1) * _psp, pItems.length)}件)</span>
+      {pItems.length === 0 ? (
+        <div style={{ color: "#666", fontSize: 13 }}>入れるアイテムがない。</div>
+      ) : (
+        <div>
+          {_tpp > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 13 }}>
+              <span>←→でページ切替</span>
+              <span style={{ color: "#ccc" }}>{putPage + 1}/{_tpp}ページ</span>
+              <span>({putPage * _psp + 1}〜{Math.min((putPage + 1) * _psp, pItems.length)}件)</span>
+            </div>
+          )}
+          {_pgp.map(({ it: it2, i: i2 }, vi) => {
+            const isPot = it2.type === "pot";
+            const isSel = vi === putMenuSel;
+            const isDisabled = isPot;
+            const isEff = _potKnown && isPotEffective(pot.potEffect, it2);
+            return (
+              <div key={i2} onClick={() => { if (!isDisabled) doPutItem(i2); }}
+                style={{
+                  padding: "5px 8px", margin: "2px 0",
+                  background: isSel ? (isDisabled ? "#3a1a1a" : isEff ? "#1a3a1a" : "#28285a")
+                    : (isDisabled ? "#1a1a1a" : isEff ? "#0e2010" : "#18182a"),
+                  border: "1px solid " + (isDisabled ? "#333" : isSel ? (isEff ? "#6fa" : "#88c") : (isEff ? "#3a6a3a" : "#3a3a5a")),
+                  borderRadius: 4, cursor: isDisabled ? "not-allowed" : "pointer", fontSize: 13,
+                  color: isDisabled ? "#555" : isEff ? "#8fe870" : "#aab",
+                  opacity: isDisabled ? 0.5 : 1,
+                }}
+              >
+                {iLabel(it2)}{isDisabled && " (入れられない)"}
               </div>
-            )}
-            {_pgp.map(({ it: it2, i: i2 }, vi) => {
-              const isPot = it2.type === "pot";
-              const isSel = vi === putMenuSel;
-              const isDisabled = isPot;
-              const isEff = _potKnown && isPotEffective(pot.potEffect, it2);
-              return (
-                <div key={i2} onClick={() => { if (!isDisabled) doPutItem(i2); }}
-                  style={{
-                    padding: "5px 8px", margin: "2px 0",
-                    background: isSel ? (isDisabled ? "#3a1a1a" : isEff ? "#1a3a1a" : "#28285a")
-                      : (isDisabled ? "#1a1a1a" : isEff ? "#0e2010" : "#18182a"),
-                    border: "1px solid " + (isDisabled ? "#333" : isSel ? (isEff ? "#6fa" : "#88c") : (isEff ? "#3a6a3a" : "#3a3a5a")),
-                    borderRadius: 4, cursor: isDisabled ? "not-allowed" : "pointer", fontSize: 13,
-                    color: isDisabled ? "#555" : isEff ? "#8fe870" : "#aab",
-                    opacity: isDisabled ? 0.5 : 1,
-                  }}
-                >
-                  {iLabel(it2)}{isDisabled && " (入れられない)"}
-                </div>
-              );
-            })}
-            {"}"}
-          </div>
-        );
-      })()}{" "}
+            );
+          })}
+        </div>
+      )}{" "}
       <div style={{ color: "#556", fontSize: 12, marginTop: 4 }}>
-        {p.inventory.length > 11 ? "↑↓:選択 ←→:ページ Z:決定 X:閉じる" : "↑↓:選択 Z:決定 X:閉じる"}
+        {_tpp > 1 ? "↑↓:選択（やめる可） ←→:ページ Z:決定 X:戻る" : "↑↓:選択（やめる可） Z:決定 X:戻る"}
       </div>{" "}
-      <button onClick={() => setMode(null)}
-        style={{ marginTop: 8, padding: "5px 16px", background: "#222", color: "#888", border: "1px solid #444", borderRadius: 5, fontSize: 13, cursor: "pointer" }}>
+      <button onClick={_cancel}
+        style={{
+          marginTop: 8, padding: "5px 16px",
+          background: isCancelSel ? "#3a2a2a" : "#222",
+          color: isCancelSel ? "#fcc" : "#888",
+          border: isCancelSel ? "1px solid #a66" : "1px solid #444",
+          borderRadius: 5, fontSize: 13, cursor: "pointer",
+          fontWeight: isCancelSel ? "bold" : "normal",
+        }}>
         やめる
       </button>{" "}
     </div>

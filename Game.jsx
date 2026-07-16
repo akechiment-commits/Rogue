@@ -5367,7 +5367,23 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     setShowDesc(null);
     setMsgs(prev => [...prev.slice(-80), "入れるアイテムを選んでください。"]);
   };
-  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand };
+  /* 壺入れをやめる：所持品から開いた場合は壺にカーソルを戻して所持品を再表示 */
+  const cancelPutMode = () => {
+    const pm = putMode;
+    const potIdx = pm && !pm.floorPot && typeof pm.potIdx === "number" ? pm.potIdx : null;
+    setPutMode(null);
+    setPutPage(0);
+    setPutMenuSel(0);
+    setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
+    if (potIdx != null && potIdx >= 0) {
+      setShowInv(true);
+      setInvPage(Math.floor(potIdx / 10));
+      setSelIdx(potIdx % 10);
+      setInvMenuSel(null);
+      setShowDesc(null);
+    }
+  };
+  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
   execRef.current = execDirection;
   if (!gs) return null;
   const { player: p } = gs;
@@ -5921,12 +5937,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if (putMode) {
                 if (!sr.current) return;
                 const inv4 = sr.current.player.inventory;
-                const pItems4 = inv4.map((it, i) => ({ it, i })).filter(({ i }) => i !== putMode.potIdx);
+                const pItems4 = inv4.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
                 const _ps4 = 10;
                 const _tp4 = Math.max(1, Math.ceil(pItems4.length / _ps4));
                 const _plen4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4).length;
-                if (dy !== 0 && dx === 0 && _plen4 > 0) {
-                  setPutMenuSel((s) => (s + dy + _plen4) % _plen4);
+                const _selCount4 = _plen4 + 1; /* やめる */
+                if (dy !== 0 && dx === 0 && _selCount4 > 0) {
+                  setPutMenuSel((s) => (s + dy + _selCount4) % _selCount4);
                 } else if (dx !== 0 && dy === 0 && _tp4 > 1) {
                   setPutPage((p) => (p + dx + _tp4) % _tp4);
                   setPutMenuSel(0);
@@ -6080,7 +6097,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     if (spellListMode) { setSpellListMode(false); return; }
                     if (shopMode === "browseConfirm") { setShopMode("browse"); setShopMenuSel(0); return; }
                     if (shopMode === "browse") { setShopMode(null); return; }
-                    if (putMode) { setPutMode(null); setPutPage(0); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
+                    if (putMode) { cancelPutMode(); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
                     if (showInv && invMenuSel !== null) { setInvMenuSel(null); return; }
@@ -6161,8 +6178,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     }
                     if (putMode) {
                       const _putInv = sr.current?.player?.inventory || [];
-                      const _putItems = _putInv.map((it, i) => ({ it, i })).filter(({ i }) => i !== putMode.potIdx);
-                      const _putSel = _putItems[putPage * 10 + putMenuSel];
+                      const _putItems = _putInv.map((it, i) => ({ it, i })).filter(({ i }) => putMode.floorPot ? true : i !== putMode.potIdx);
+                      const _pgItems = _putItems.slice(putPage * 10, (putPage + 1) * 10);
+                      const _putLocal = Math.min(putMenuSel, _pgItems.length); /* length = やめる */
+                      if (_putLocal >= _pgItems.length) { cancelPutMode(); return; }
+                      const _putSel = _pgItems[_putLocal];
                       if (_putSel && _putSel.it.type !== "pot") doPutItem(_putSel.i);
                       return;
                     }
@@ -6382,7 +6402,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       )}{" "}
       <TpSelectModal mode={tpSelectMode} setMode={setTpSelectMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} mobile={mobile} />{" "}
       <FloorSelectModal mode={floorSelectMode} setMode={setFloorSelectMode} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} genDungeon={genDungeon} refreshFOV={refreshFOV} rng={rng} />{" "}
-      <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
+      <PotPutModal mode={putMode} setMode={setPutMode} p={p} gs={gs} putPage={putPage} putMenuSel={putMenuSel} doPutItem={doPutItem} onCancel={cancelPutMode} iLabel={iLabel} dname={dname} mobile={mobile} />{" "}
       <MarkerModal mode={markerMode} setMode={setMarkerMode} sr={sr} menuSel={markerMenuSel} setMenuSel={setMarkerMenuSel} page={markerPage} setPage={setMarkerPage} doMarkerWrite={doMarkerWrite} setMsgs={setMsgs} mobile={mobile} pastIdent={pastIdent} discoveredItems={discoveredItems} />{" "}
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} spellConfirmRef={spellConfirmRef} />{" "}
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />

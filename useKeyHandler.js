@@ -977,26 +977,25 @@ export function useKeyHandler({
       if (putMode) {
         e.preventDefault();
         if (k === "escape" || k === "x") {
-          setPutMode(null);
-          setPutPage(0);
-          setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
+          invActRef.current?.cancelPut?.();
           return;
         }
         if (!sr.current) return;
         const inv4 = sr.current.player.inventory;
         const pItems4 = inv4
           .map((it, i) => ({ it, i }))
-          .filter(({ i }) => i !== putMode.potIdx);
+          .filter(({ i }) => (putMode.floorPot ? true : i !== putMode.potIdx));
         const _ps4 = 10;
         const _tp4 = Math.max(1, Math.ceil(pItems4.length / _ps4));
         const _pg4 = pItems4.slice(putPage * _ps4, (putPage + 1) * _ps4);
         const _plen4 = _pg4.length;
+        const _selCount4 = _plen4 + 1; /* 末尾が「やめる」 */
         const isUp4 = k === "arrowup" || e.code === "Numpad8";
         const isDown4 = k === "arrowdown" || e.code === "Numpad2";
         const isLeft4 = k === "arrowleft" || e.code === "Numpad4";
         const isRight4 = k === "arrowright" || e.code === "Numpad6";
-        if ((isUp4 || isDown4) && _plen4 > 0) {
-          setPutMenuSel((s) => (s + (isDown4 ? 1 : -1) + _plen4) % _plen4);
+        if ((isUp4 || isDown4) && _selCount4 > 0) {
+          setPutMenuSel((s) => (s + (isDown4 ? 1 : -1) + _selCount4) % _selCount4);
           return;
         }
         if ((isLeft4 || isRight4) && _tp4 > 1) {
@@ -1004,14 +1003,21 @@ export function useKeyHandler({
           setPutMenuSel(0);
           return;
         }
-        if ((k === "enter" || k === "z") && _plen4 > 0) {
-          const sel4 = _pg4[Math.min(putMenuSel, _plen4 - 1)];
-          if (sel4.it.type === "pot")
-            setMsgs((prev) => [
-              ...prev.slice(-80),
-              "壺の中に壺は入れられない。",
-            ]);
-          else invActRef.current?.put?.(sel4.i);
+        if (k === "enter" || k === "z") {
+          const _localSel = Math.min(putMenuSel, _selCount4 - 1);
+          if (_localSel >= _plen4) {
+            invActRef.current?.cancelPut?.();
+            return;
+          }
+          if (_plen4 > 0) {
+            const sel4 = _pg4[_localSel];
+            if (sel4.it.type === "pot")
+              setMsgs((prev) => [
+                ...prev.slice(-80),
+                "壺の中に壺は入れられない。",
+              ]);
+            else invActRef.current?.put?.(sel4.i);
+          }
         }
         return;
       }
