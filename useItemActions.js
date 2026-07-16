@@ -707,6 +707,18 @@ export function useItemActions({
         setGs({ ...sr.current });
         return;
       }
+      /* 封印中／魔封じ部屋は巻物を使えない（消費なし・ターン消費） */
+      if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+        ml.push(`${it.name || "巻物"}を読もうとしたが、魔法が封印されていて発動しなかった！`);
+        endTurn(sr.current, p, ml);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        setSelIdx(null);
+        setShowDesc(null);
+        setShowInv(false);
+        sr.current = { ...sr.current };
+        setGs({ ...sr.current });
+        return;
+      }
       if (it.effect === "blank") {
         ml.push("白紙の巻物だ。魔法の筆で書き込めるかもしれない。");
         endTurn(sr.current, p, ml);
@@ -879,9 +891,7 @@ export function useItemActions({
       const _scrBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
-      if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-        ml.push(`${it.name}を読んだが、魔法が封印されている！`);
-      } else if (it.effect === "teleport") {
+      if (it.effect === "teleport") {
         const _tpBlocked = dg.pentacles?.some(pc => pc.kind === "teleport_trap" && pc.cursed);
         if (_tpBlocked) {
           ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
@@ -2167,6 +2177,18 @@ export function useItemActions({
       setGs({ ...sr.current });
       return;
     }
+    /* 封印中／魔封じ部屋は魔法書を使えない（消費なし・ターン消費） */
+    if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
+      ml.push(`${it.name}を読もうとしたが、魔法が封印されていて発動しなかった！`);
+      endTurn(sr.current, p, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      setSelIdx(null);
+      setShowDesc(null);
+      setShowInv(false);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+      return;
+    }
     /* 未識別チェック（dnameRef は render後に定義されているが closure で参照可能） */
     const _sbIK = getIdentKey(it); // "b:fire_bolt" etc
     const _wasUnknown = !!(_sbIK && !sr.current.ident.has(_sbIK));
@@ -2174,10 +2196,7 @@ export function useItemActions({
     const _revReal = _wasUnknown ? it.name : null;
     /* 識別 */
     if (_sbIK && _wasUnknown) { sr.current.ident.add(_sbIK); trackItem(it); }
-    if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-      p.inventory.splice(idx, 1);
-      ml.push(`${it.name}を読んだが、魔法が封印されている！魔法書は消えた。`);
-    } else if (it.cursed) {
+    if (it.cursed) {
       // 呪い：この魔法以外のランダムな魔法を1つ選んで習得 or レベルアップ
       if (!p.spellLevels) p.spellLevels = {};
       const _otherSpells = SPELLS.filter((s) => s.id !== it.spell && !s.debug);
