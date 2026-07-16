@@ -184,7 +184,8 @@ describe("portraits", () => {
       newMsgs: batch,
     });
     expect(event.src).toMatch(/damage_heavy/);
-    expect(event.force).toBe(true);
+    expect(event.force).toBe(false);
+    expect(event.lowPriority).toBe(true);
   });
 
   it("msgToDamageKey が属性別ダメージを判定する", () => {
@@ -273,6 +274,23 @@ describe("portraits", () => {
     expect(event.bypassCooldown).toBe(true);
   });
 
+  it("毒などの状態異常中は被ダメで上書きせず状態を維持する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: true, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0, soakedTurns: 0,
+    };
+    const player = { ...prev, hp: 70 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "ゴブリンの攻撃！10ダメージ！",
+      newMsgs: ["ゴブリンの攻撃！10ダメージ！"],
+    });
+    expect(event.src).toMatch(/status_poison/);
+    expect(event.holdKey).toBe("status_poison");
+  });
+
   it("resolvePortraitEvent が状態異常を正しく参照する", () => {
     const player = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
@@ -337,7 +355,7 @@ describe("portraits", () => {
     expect(potion.src).toMatch(/status_bound/);
   });
 
-  it("拘束中でも死亡・被ダメは優先される", () => {
+  it("拘束中は被ダメより拘束を維持し、死亡だけ優先する", () => {
     const prev = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
       capturedBy: "mon-grabber-1",
@@ -348,8 +366,8 @@ describe("portraits", () => {
       lastMsg: "からめ鬼の攻撃！20ダメージ！",
       newMsgs: ["からめ鬼の攻撃！20ダメージ！"],
     });
-    expect(hurt.src).toMatch(/hp_hurt|damage_/);
-    expect(hurt.force).toBe(true);
+    expect(hurt.src).toMatch(/status_bound/);
+    expect(hurt.holdKey).toBe("status_bound");
 
     const dead = resolvePortraitEvent({
       player: { ...prev, hp: 0, deathCause: "からめ鬼の攻撃で", weapon: null },
@@ -383,7 +401,8 @@ describe("portraits", () => {
       lastMsg: "わてりの水鉄砲が命中！12ダメージ！",
       newMsgs: ["わてりの水鉄砲が命中！12ダメージ！"],
     });
-    expect(event.force).toBe(true);
+    expect(event.force).toBe(false);
+    expect(event.lowPriority).toBe(true);
     expect(event.src).toMatch(/damage_watergun/);
   });
 
@@ -400,7 +419,8 @@ describe("portraits", () => {
       lastMsg: "岩が命中！19ダメージ！",
       newMsgs: ["落石の罠が作動！岩が降ってきた！", "岩が命中！19ダメージ！"],
     });
-    expect(event.force).toBe(true);
+    expect(event.force).toBe(false);
+    expect(event.lowPriority).toBe(true);
     expect(event.src).toMatch(/damage_rock/);
   });
 

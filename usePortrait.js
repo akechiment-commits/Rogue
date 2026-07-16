@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef } from "react";
 import { isPlayerFloating } from "./items.js";
 import {
   PORTRAIT_COOLDOWN_MS,
+  PORTRAIT_WALK_COOLDOWN_MS,
+  PORTRAIT_WALK_STEPS_MIN,
+  PORTRAIT_WALK_STEPS_JITTER,
   pickPortrait,
   resolvePortraitEvent,
   snapshotPlayer,
@@ -18,6 +21,8 @@ export function usePortrait({
   const prevMsgCountRef = useRef(0);
   const portraitCooldownRef = useRef(0);
   const walkStepRef = useRef(0);
+  /** 状態異常立ち絵をキー単位で保持（毎回 random し直さない） */
+  const heldStatusKeyRef = useRef(null);
   const dynamicEnabledRef = useRef(true);
   const msgsRef = useRef(msgs);
   msgsRef.current = msgs;
@@ -37,6 +42,7 @@ export function usePortrait({
 
   const forcePortrait = useCallback((key) => {
     if (!dynamicEnabledRef.current) return;
+    heldStatusKeyRef.current = null;
     pickAndSet(key);
   }, [pickAndSet]);
 
@@ -44,6 +50,7 @@ export function usePortrait({
     if (!dynamicEnabledRef.current) return false;
     const now = Date.now();
     if (now < portraitCooldownRef.current) return false;
+    heldStatusKeyRef.current = null;
     pickAndSet(key);
     return true;
   }, [pickAndSet]);
@@ -55,6 +62,7 @@ export function usePortrait({
   const resumeDynamic = useCallback(() => {
     dynamicEnabledRef.current = true;
     portraitCooldownRef.current = 0;
+    heldStatusKeyRef.current = null;
     if (gs?.player) {
       setPortraitSrc(pickPortrait(
         gs.player.hp / gs.player.maxHp <= 0.25 ? "hp_low" : "hp_full",
@@ -86,35 +94,68 @@ export function usePortrait({
       ? msgsRef.current.slice(-newCount).map(msgToText)
       : [];
     prevMsgCountRef.current = msgsRef.current.length;
-    /* doDash が立てるフラグ：移動後の立ち絵をダッシュに */
     const dashed = !!p._portraitDash;
     if (p._portraitDash) delete p._portraitDash;
     const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs, newMsgs, floating, dashed });
 
     if (!event) return;
 
-    if (event.src) {
-      if (event.force || event.bypassCooldown || Date.now() >= portraitCooldownRef.current) {
+    const now = Date.now();
+
+    /* 状態異常の維持：同じ holdKey なら立ち絵を差し替えない */
+    if (event.holdKey) {
+      if (heldStatusKeyRef.current !== event.holdKey) {
+        heldStatusKeyRef.current = event.holdKey;
         setPortraitSrc(event.src);
-        portraitCooldownRef.current = event.cooldownUntil;
+        portraitCooldownRef.current = event.cooldownUntil ?? (now + PORTRAIT_COOLDOWN_MS);
+      } else {
+        /* クールダウンを延長し、歩行・被ダメが割り込みにくくする */
+        portraitCooldownRef.current = Math.max(
+          portraitCooldownRef.current,
+          now + PORTRAIT_WALK_COOLDOWN_MS,
+        );
       }
       return;
     }
 
+    heldStatusKeyRef.current = null;
+
+    if (event.src) {
+      const canApply =
+        event.force ||
+        event.bypassCooldown ||
+        now >= portraitCooldownRef.current;
+      if (canApply) {
+        setPortraitSrc(event.src);
+        portraitCooldownRef.current = event.cooldownUntil ?? (now + PORTRAIT_COOLDOWN_MS);
+      }
+      return;
+    }
+
+    /* 低優先フォールバック：歩行・瀕死。クールダウン中は何もしない */
     const isLow = event.isLow;
+    if (now < portraitCooldownRef.current) {
+      if (isLow) return;
+      return;
+    }
+
     if (event.moved) {
       walkStepRef.current++;
-      const threshold = 3 + Math.floor(Math.random() * 3);
+      const threshold = PORTRAIT_WALK_STEPS_MIN + Math.floor(Math.random() * PORTRAIT_WALK_STEPS_JITTER);
       if (walkStepRef.current >= threshold) {
         walkStepRef.current = 0;
-        if (!tryPortrait("walk") && isLow) forcePortrait("hp_low");
-      } else if (isLow) {
-        tryPortrait("hp_low");
+        if (tryPortrait("walk")) {
+          portraitCooldownRef.current = now + PORTRAIT_WALK_COOLDOWN_MS;
+        } else if (isLow) {
+          forcePortrait("hp_low");
+        }
       }
       return;
     }
 
-    if (isLow && Date.now() >= portraitCooldownRef.current) {
+    walkStepRef.current = 0;
+
+    if (isLow) {
       forcePortrait("hp_low");
     }
   }, [gs, setPortraitSrc, tryPortrait, forcePortrait]);

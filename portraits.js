@@ -4,6 +4,13 @@ import { buildPortraitSets, mergePortraitCategories } from "./portraitCatalog.js
 const MERGED_PORTRAIT_CATEGORIES = mergePortraitCategories(extraSlotsJson.slots || []);
 
 export const PORTRAIT_COOLDOWN_MS = 4000;
+/** 被ダメ立ち絵：他が無いときだけ。連続ヒットで切り替わりすぎないよう長め */
+export const PORTRAIT_DAMAGE_COOLDOWN_MS = 10000;
+/** 歩行立ち絵：無イベント時のみ */
+export const PORTRAIT_WALK_COOLDOWN_MS = 8000;
+/** 歩行立ち絵を出すまでの最低歩数 */
+export const PORTRAIT_WALK_STEPS_MIN = 12;
+export const PORTRAIT_WALK_STEPS_JITTER = 8;
 export const PORTRAIT_FALLBACK = "stand_normal";
 
 export const CHAR_PATH = (name) => `/tiles/Character/${name}.png`;
@@ -283,10 +290,35 @@ export function snapshotPlayer(p, opts = {}) {
     slowTurns: p.slowTurns || 0,
     bewitchedTurns: p.bewitchedTurns || 0,
     immobileTurns: p.immobileTurns || 0,
+    frozenTurns: p.frozenTurns || 0,
     mpCooldownTurns: p.mpCooldownTurns || 0,
     sealedTurns: p.sealedTurns || 0,
     floating: !!opts.floating,
   };
+}
+
+/**
+ * 継続中の状態異常立ち絵キー（優先度順・最初にマッチしたもの）。
+ * 歩行・被ダメより強く、治るまで維持する。
+ */
+export function getActiveStatusPortraitKey(p, floating = false) {
+  if (!p) return null;
+  if (p.capturedBy) return "status_bound";
+  if ((p.potConfinedTurns || 0) > 0) return "status_confined";
+  if ((p.paralyzeTurns || 0) > 0) return "status_paralyze";
+  if ((p.sleepTurns || 0) > 0) return "status_sleep";
+  if ((p.frozenTurns || 0) > 0) return "status_immobile"; /* 凍結は移動封じ寄り立ち絵を流用 */
+  if ((p.immobileTurns || 0) > 0) return "status_immobile";
+  if (p.poisoned) return "status_poison";
+  if ((p.confusedTurns || 0) > 0) return "status_confused";
+  if ((p.darknessTurns || 0) > 0) return "status_blind";
+  if ((p.bewitchedTurns || 0) > 0) return "status_bewitched";
+  if ((p.slowTurns || 0) > 0) return "status_slow";
+  if ((p.mpCooldownTurns || 0) > 0 || (p.sealedTurns || 0) > 0) return "status_sealed";
+  if ((p.oilyTurns || 0) > 0) return "status_oiled";
+  if ((p.soakedTurns || 0) > 0) return "status_soaked";
+  if (floating) return "status_floating";
+  return null;
 }
 
 function portraitEvent(key, now, { force = false, rateLimited = false } = {}) {
@@ -315,8 +347,16 @@ export function pickDeathPortrait(deathCause, sets = PORTRAIT_SETS) {
 
 /**
  * gs 変化時の立ち絵イベントを解決。
- * @param {{ dashed?: boolean }} opts dashed: 今回の移動がダッシュ由来
- * @returns {{ src: string, cooldownUntil: number, force?: boolean } | null}
+ *
+ * 優先度（高い順）:
+ *  1. 死亡
+ *  2. 腐った/ヤバイ食事（例外的ワンショット）
+ *  3. 状態異常の維持（治るまで歩行・被ダメで上書きしない）
+ *  4. 復活・大回復・満腹・LvUp・階段・店・装備・呪い
+ *  5. アイテム使用・近接攻撃
+ *  6. 被ダメ・ダッシュ・歩行（低優先・クールダウン長め）
+ *
+ * @returns {{ src?: string, cooldownUntil?: number, force?: boolean, holdKey?: string, isLow?: boolean, moved?: boolean, lowPriority?: boolean } | null}
  */
 export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = [], floating = false, dashed = false, now = Date.now() }) {
   if (!p) return null;
@@ -332,39 +372,28 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const actionKey = msgToActionKey(lastMsg, recentMsgs);
   const badFoodKey =
     actionKey === "act_food_yabai" || actionKey === "act_food_rotten" ? actionKey : null;
+  const stickyKey = getActiveStatusPortraitKey(p, floating);
 
-  if (p.hp < prev.hp) {
-    if (badFoodKey) {
-      return {
-        src: pickPortrait(badFoodKey),
-        cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
-        force: true,
-      };
-    }
-    const damageMsg = findPlayerDamageMsg(newMsgs, lastMsg);
-    if (damageMsg) {
-      return {
-        src: pickDamagePortrait(damageMsg),
-        cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
-        force: true,
-      };
-    }
-    if (isStarving(p) && (isStarving(prev) || findHungerMsg(newMsgs, lastMsg))) {
-      return {
-        src: pickPortrait("hp_hunger"),
-        cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
-        force: true,
-      };
-    }
+  /* 腐った/ヤバイ食事は状態異常より先（食べた瞬間のリアクション） */
+  if (p.hp < prev.hp && badFoodKey) {
+    return {
+      src: pickPortrait(badFoodKey),
+      cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+      force: true,
+    };
   }
 
-  /* からめ鬼など拘束中：攻撃・アイテム使用・歩行より拘束立ち絵を常に優先
-   * （死亡・被ダメだけは上で処理済み） */
-  if (p.capturedBy) {
-    return portraitEvent("status_bound", now, { force: true });
+  /* 状態異常中：治るまでその立ち絵を維持（歩行・被ダメ・通常行動で上書きしない） */
+  if (stickyKey) {
+    return {
+      src: pickPortrait(stickyKey),
+      cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+      force: true,
+      holdKey: stickyKey,
+    };
   }
 
-  /* MP消費でのHP0復活：大回復扱いにせずピンチ専用立ち絵 */
+  /* MP消費でのHP0復活 */
   if (findMsgInNew(newMsgs, lastMsg, isMpReviveMsg)) {
     return {
       src: pickMpRevivePortrait(),
@@ -405,49 +434,51 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return portraitEvent("status_cursed", now, { force: true });
   }
 
+  /* 状態異常「付与瞬間」— sticky が無いフレーム用（付与と同時に sticky に乗るのでほぼ到達しない） */
   if (p.paralyzeTurns > 0 && prev.paralyzeTurns <= 0) {
-    return portraitEvent("status_paralyze", now);
+    return portraitEvent("status_paralyze", now, { force: true });
   }
-  /* とじこめの壺：閉じ込め */
   if ((p.potConfinedTurns || 0) > 0 && (prev.potConfinedTurns || 0) <= 0) {
     return portraitEvent("status_confined", now, { force: true });
   }
   if (p.immobileTurns > 0 && prev.immobileTurns <= 0) {
-    return portraitEvent("status_immobile", now);
+    return portraitEvent("status_immobile", now, { force: true });
+  }
+  if ((p.frozenTurns || 0) > 0 && (prev.frozenTurns || 0) <= 0) {
+    return portraitEvent("status_immobile", now, { force: true });
   }
   if (p.slowTurns > 0 && prev.slowTurns <= 0) {
-    return portraitEvent("status_slow", now);
+    return portraitEvent("status_slow", now, { force: true });
   }
   if (
     (p.mpCooldownTurns > 0 && prev.mpCooldownTurns <= 0) ||
     (p.sealedTurns > 0 && prev.sealedTurns <= 0)
   ) {
-    return portraitEvent("status_sealed", now);
+    return portraitEvent("status_sealed", now, { force: true });
   }
   if (p.bewitchedTurns > 0 && prev.bewitchedTurns <= 0) {
-    return portraitEvent("status_bewitched", now);
+    return portraitEvent("status_bewitched", now, { force: true });
   }
   if (floating && !prev.floating) {
-    return portraitEvent("status_floating", now);
+    return portraitEvent("status_floating", now, { force: true });
   }
-
   if (p.poisoned && !prev.poisoned) {
-    return portraitEvent("status_poison", now);
+    return portraitEvent("status_poison", now, { force: true });
   }
   if (p.sleepTurns > 0 && prev.sleepTurns <= 0) {
-    return portraitEvent("status_sleep", now);
+    return portraitEvent("status_sleep", now, { force: true });
   }
   if (p.confusedTurns > 0 && prev.confusedTurns <= 0) {
-    return portraitEvent("status_confused", now);
+    return portraitEvent("status_confused", now, { force: true });
   }
   if (p.darknessTurns > 0 && prev.darknessTurns <= 0) {
-    return portraitEvent("status_blind", now);
+    return portraitEvent("status_blind", now, { force: true });
   }
   if (p.oilyTurns > 0 && prev.oilyTurns <= 0) {
-    return portraitEvent("status_oiled", now);
+    return portraitEvent("status_oiled", now, { force: true });
   }
   if (p.soakedTurns > 0 && prev.soakedTurns <= 0) {
-    return portraitEvent("status_soaked", now);
+    return portraitEvent("status_soaked", now, { force: true });
   }
 
   const hungerMsg = findHungerMsg(newMsgs, lastMsg);
@@ -464,9 +495,36 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return portraitEvent(meleeKey, now);
   }
 
+  /* 被ダメ：状態異常なし＆クールダウン明けのみ（force しない） */
+  if (p.hp < prev.hp) {
+    const damageMsg = findPlayerDamageMsg(newMsgs, lastMsg);
+    if (damageMsg) {
+      return {
+        src: pickDamagePortrait(damageMsg),
+        cooldownUntil: now + PORTRAIT_DAMAGE_COOLDOWN_MS,
+        force: false,
+        lowPriority: true,
+        bypassCooldown: false,
+      };
+    }
+    if (isStarving(p) && (isStarving(prev) || findHungerMsg(newMsgs, lastMsg))) {
+      return {
+        src: pickPortrait("hp_hunger"),
+        cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
+        force: true,
+      };
+    }
+  }
+
   const moved = p.x !== prev.x || p.y !== prev.y;
+  /* ダッシュも低優先（クールダウン尊重） */
   if (dashed && moved) {
-    return portraitEvent("dash", now);
+    return {
+      src: pickPortrait("dash"),
+      cooldownUntil: now + PORTRAIT_WALK_COOLDOWN_MS,
+      force: false,
+      lowPriority: true,
+    };
   }
 
   return { isLow, moved, now };
