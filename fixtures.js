@@ -168,7 +168,9 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
     /* placeItemAt を使うと items↔fixtures 循環になるため直接配置 */
     if (!dg.items) dg.items = [];
     dg.items.push(it);
-    ml.push(`${it.name}が飛び出した！`);
+    /* 未識別名を使う（render 循環回避のため nameFn / グローバルを参照） */
+    const _dn = (opts.itemNameFn || globalThis.__rogueItemNameFn)?.(it) || it.name;
+    ml.push(`${_dn}が飛び出した！`);
   }
 
   /* 出現敵の選択は monsters.js 側で行う（循環 import を作らない）。 */

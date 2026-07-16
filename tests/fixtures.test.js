@@ -174,6 +174,26 @@ describe("石像", () => {
     expect(ml.some(m => m.includes("が現れた"))).toBe(false);
   });
 
+  it("飛び出しメッセージは itemNameFn で未識別名を使える", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [],
+      monsters: [],
+      statues: [],
+      dungeonType: "intermediate",
+    });
+    const st = makeStatue(5, 5);
+    dg.statues.push(st);
+    const p = makePlayer({ x: 1, y: 1, depth: 5 });
+    const ml = [];
+    breakStatue(st, dg, p, ml, null, 4, {
+      spawnMonster: false,
+      itemNameFn: () => "謎の棒",
+    });
+    expect(ml.some((m) => m.includes("謎の棒が飛び出した"))).toBe(true);
+    expect(ml.some((m) => m.includes("が飛び出した") && !m.includes("謎の棒"))).toBe(false);
+  });
+
   it("placeItemAt は石像マスを避けて隣に置く", () => {
     const dg = makeEmptyDg({
       map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),

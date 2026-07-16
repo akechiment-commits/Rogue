@@ -5384,6 +5384,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
   };
   invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
+  /* fixtures.js 等（render 循環回避）から未識別名でメッセージを出す用 */
+  globalThis.__rogueItemNameFn = (it) =>
+    itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
   execRef.current = execDirection;
   if (!gs) return null;
   const { player: p } = gs;
