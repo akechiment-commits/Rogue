@@ -695,6 +695,18 @@ export function useItemActions({
       }
       } // end else (non-rotten food)
     } else if (it.type === "scroll") {
+      /* 暗闇中は巻物を読めない（消費なし・ターン消費） */
+      if ((p.darknessTurns || 0) > 0) {
+        ml.push("暗くて巻物の文字が読めない！");
+        endTurn(sr.current, p, ml);
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        setSelIdx(null);
+        setShowDesc(null);
+        setShowInv(false);
+        sr.current = { ...sr.current };
+        setGs({ ...sr.current });
+        return;
+      }
       if (it.effect === "blank") {
         ml.push("白紙の巻物だ。魔法の筆で書き込めるかもしれない。");
         endTurn(sr.current, p, ml);
@@ -2143,6 +2155,18 @@ export function useItemActions({
     if (!it || it.type !== "spellbook") return;
     const ml = [];
     if (!p.spells) p.spells = [];
+    /* 暗闇中は魔法書を読めない（消費なし・ターン消費） */
+    if ((p.darknessTurns || 0) > 0) {
+      ml.push("暗くて魔法書の文字が読めない！");
+      endTurn(sr.current, p, ml);
+      setMsgs((prev) => [...prev.slice(-80), ...ml]);
+      setSelIdx(null);
+      setShowDesc(null);
+      setShowInv(false);
+      sr.current = { ...sr.current };
+      setGs({ ...sr.current });
+      return;
+    }
     /* 未識別チェック（dnameRef は render後に定義されているが closure で参照可能） */
     const _sbIK = getIdentKey(it); // "b:fire_bolt" etc
     const _wasUnknown = !!(_sbIK && !sr.current.ident.has(_sbIK));
