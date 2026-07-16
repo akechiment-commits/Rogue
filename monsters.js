@@ -2986,17 +2986,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     _monRoom.x === _plRoom.x && _monRoom.y === _plRoom.y;
   const _plInvis = (pl.invisibleTurns || 0) > 0 || _plPotHidden;
   /*
-   * 敵の視認は「敵側のLOS」で判定する。
-   * 旧: プレイヤーFOV内に敵がいること必須 → 暗い通路の敵がプレイヤーを見失い、
-   *     古い lastPx や巡回で反対方向へ歩き続けることがあった。
-   * 新: 同部屋、または視線が通る（チェビシェフ距離内）。
+   * 視認（相互認識）:
+   * - 同部屋
+   * - 隣接
+   * - プレイヤーの視界内にいる（FOV 対称：見える敵はこちらも認識する）
+   *
+   * 旧実装は「FOV内 かつ hasLOS」で、廊下2マス視界内でも Bresenham が角壁で
+   * hasLOS を落とすと canSee=false → 古い lastPx（画面右など）へ歩き続けた。
+   * 遠くの暗闇の敵は FOV 外のままなので、認識しない挙動は維持される。
    */
-  const _chebPl = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-  const _MON_VISION = 12;
-  const canSee = !_plInvis && (
-    _sameRoom ||
-    (_chebPl <= _MON_VISION && hasLOS(map, m.x, m.y, pl.x, pl.y))
-  );
+  const _inPlayerFov = !!(dg.visible?.[m.y]?.[m.x]);
+  const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+  const canSee = !_plInvis && (_sameRoom || _adjPl || _inPlayerFov);
   if (_plPotHidden) {
     m.aware = false;
     m.lastPx = m.x;
@@ -4249,8 +4250,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    /* adjacent attack */
-    if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+    /* adjacent attack：隣接していれば canSee 不問（透明時は _plInvis で除外済み） */
+    if (_adjPl && !_plInvis) {
       if (_moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       /* 聖域チェック：プレイヤーが聖域の上なら攻撃不可 */
       if (_plOnSanc) return;
@@ -4271,8 +4272,37 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (!inBounds(nx, ny)) return false;
       return map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false);
     } : null;
-    /* fallbackNearest: 完全到達不可でもプレイヤー方向へ寄る（通路詰まりで右往左往を減らす） */
-    const next = bfsNext(map, [], m.x, m.y, tx, ty, m, 60, dg.pentacles, _effFloat, _wateriFilter, true, dg.rooms, dg);
+    /* fallbackNearest: 完全到達不可でもプレイヤー方向へ寄る */
+    let next = bfsNext(map, [], m.x, m.y, tx, ty, m, 60, dg.pentacles, _effFloat, _wateriFilter, true, dg.rooms, dg);
+    /* 認識中なのに距離が縮まない／経路なし → 転送陣経由で接近 */
+    if (canSee && !_plInvis) {
+      const _curD = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+      const _nextD = next ? Math.max(Math.abs(pl.x - next.x), Math.abs(pl.y - next.y)) : Infinity;
+      if (!next || _nextD >= _curD) {
+        const _pads = (dg.pentacles || []).filter(pc =>
+          pc.kind === "fixed_portal" || (pc.kind === "portal" && !pc.cursed && !pc.fixed));
+        let _bestToPad = null, _bestPairD = _curD;
+        for (const _pad of _pads) {
+          if (m.x === _pad.x && m.y === _pad.y) continue; /* 陣上は Phase2.5 に任せる */
+          let _dest = null;
+          if (_pad.kind === "fixed_portal") {
+            _dest = (dg.pentacles || []).find(pc =>
+              pc.kind === "fixed_portal" && pc.pairId === _pad.pairId && pc !== _pad);
+          } else {
+            _dest = (dg.pentacles || []).find(pc =>
+              pc !== _pad && pc.kind === "portal" && !pc.cursed && !pc.fixed);
+          }
+          if (!_dest) continue;
+          const _pairD = Math.max(Math.abs(pl.x - _dest.x), Math.abs(pl.y - _dest.y));
+          if (_pairD >= _bestPairD) continue;
+          const _toPad = bfsNext(map, [], m.x, m.y, _pad.x, _pad.y, m, 60, dg.pentacles, _effFloat, _wateriFilter, false, dg.rooms, dg);
+          if (!_toPad) continue;
+          _bestPairD = _pairD;
+          _bestToPad = _toPad;
+        }
+        if (_bestToPad) next = _bestToPad;
+      }
+    }
     if (next && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y)) return;
     if (next) {
       if (next.x === pl.x && next.y === pl.y) {
