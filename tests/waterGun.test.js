@@ -20,7 +20,8 @@ describe("水鉄砲・耐水", () => {
     const t = TRAPS.find((x) => x.effect === "watergun_trap");
     expect(t).toBeTruthy();
     expect(t.name).toBe("水鉄砲の罠");
-    expect(t.rarity).toBe("D");
+    expect(t.rarity).toBe("C");
+    expect(t.weight).toBe(4);
   });
 
   it("アーマーガッパに耐水がある", () => {
