@@ -473,6 +473,9 @@ function monTraits(m) {
   if (m.waterOnly) t.push('水タイルのみ');
   if (m.subtype === 'watergunner') t.push('水鉄砲攻撃（風穴で曲がる・命中時ずぶ濡れ＋所持品に水影響）');
   if (m.elemWeak) t.push(`${m.elemWeak}弱点`);
+  if (m.elemResist === 'fire') t.push('炎半減');
+  if (m.elemResist === 'ice') t.push('氷半減');
+  if (m.elemResist === 'thunder') t.push('雷半減');
   if (m.kind === 'undead') t.push('アンデッド');
   if (m.kind === 'dragon') t.push('ドラゴン');
   if ((m.speed || 1) >= 2) t.push('倍速');

@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
-import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
+import { MONS, monLevelUp, monLevelDown, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName,
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
@@ -1401,8 +1401,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         }
         const _fwOily = _fwOilyCheck(target);
         let _fwDmg = Math.max(1, Math.round(rng(20,30) * _fwBlessMult * (_fwOily ? 2 : 1)));
+        _fwDmg = scaleMonFireDmg(target, _fwDmg);
         target.hp -= _fwDmg;
-        ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwOily ? "油まみれ×2！" : ""}`);
+        ml.push(`炎の弾が${target.name}に命中！${_fwDmg}ダメージ！${_fwOily ? "油まみれ×2！" : ""}${monFireDmgLabel(target)}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
         break;
       }

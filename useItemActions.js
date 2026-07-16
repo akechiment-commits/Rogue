@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
-import { findRoom, spawnMonsters, _resolveBolt } from "./monsters.js";
+import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
@@ -1225,8 +1225,9 @@ export function useItemActions({
             if (_m.elemWeak === "fire") _flDmg = Math.round(_flDmg * 1.5);
             const _flOily = _flOilyCheck(_m);
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
+            _flDmg = scaleMonFireDmg(_m, _flDmg);
             _m.hp -= _flDmg;
-            ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_m.elemWeak === "fire" ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${it.blessed ? "（祝福）" : ""}`);
+            ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_m.elemWeak === "fire" ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${monFireDmgLabel(_m)}${it.blessed ? "（祝福）" : ""}`);
             pushExplosionAnim(_m.x, _m.y);
             if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }

@@ -1,7 +1,7 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, calcAtkDefDmg, stepProjectile } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, findFixedPortalPair, statueAt, hitStatueWithAction } from './fixtures.js';
 import { stageBigbox } from './DiscoveryTracker.js';
-import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom } from './monsters.js';
+import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import { triggerWandBreakEffect } from './wands.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 
@@ -1242,9 +1242,10 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (consumeBarrier(m, ml)) continue;
           if (m.isBoss) {
-            const _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
+            let _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
+            _bd = scaleMonFireDmg(m, _bd);
             m.hp -= _bd;
-            ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
+            ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
             if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion); }
             continue;
           }
@@ -1253,8 +1254,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         } else {
           if (consumeBarrier(m, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
+          md = scaleMonFireDmg(m, md);
           m.hp -= md;
-          ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}`);
+          ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
         }
       }
@@ -2627,9 +2629,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             break;
           }
           const _oilyMult = _oilyCheck(target) ? 2 : 1;
-          const d = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult));
+          const d = scaleMonFireDmg(target, Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult)));
           target.hp -= d;
-          ml.push(`${target.name}は炎に包まれた！${d}ダメージ！${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
+          ml.push(`${target.name}は炎に包まれた！${d}ダメージ！${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
           _monKill(target);
         }
         if (kind === "player") {
@@ -4530,7 +4532,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           else ml.push(`炎の魔法が${target.name}に当たった！しかし炎を吸収した！`);
           break;
         }
-        target.hp -= dmg; ml.push(`炎の魔法が${target.name}に命中！${dmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}`);
+        const _fbDmg = scaleMonFireDmg(target, dmg);
+        target.hp -= _fbDmg; ml.push(`炎の魔法が${target.name}に命中！${_fbDmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
       if (kind === "item" && target.type === "pot" && target.potEffect === "gunpowder") {
@@ -4540,12 +4543,13 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       } break;
     }
     case "ice_bolt": {
-      const dmg = Math.round(rng(15, 22) * _lvF) * _cmsBoost;
+      let dmg = Math.round(rng(15, 22) * _lvF) * _cmsBoost;
       const _iceFreeze = Math.round(3 * _lvF);
       if (kind === "monster") {
+        if (target.elemWeak === "ice") dmg = Math.floor(dmg * 1.5);
         target.hp -= dmg;
         target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
-        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！`);
+        ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       } break;
     }

@@ -55,6 +55,21 @@ function canEnter(map, x, y, float = false, dg = null) {
 }
 
 /* ===== プレイヤー防御力計算ヘルパー ===== */
+/** モンスターの炎耐性倍率（elemResist:"fire" → 半減）。火ダルマの吸収は別処理 */
+export function monFireDmgMult(m) {
+  if (m?.elemResist === "fire") return 0.5;
+  return 1;
+}
+export function monFireDmgLabel(m) {
+  return monFireDmgMult(m) < 1 ? "(炎半減)" : "";
+}
+/** 炎ダメージを耐性適用して返す（最低1） */
+export function scaleMonFireDmg(m, dmg) {
+  const mult = monFireDmgMult(m);
+  if (mult >= 1) return Math.max(1, dmg | 0);
+  return Math.max(1, Math.floor((dmg | 0) * mult));
+}
+
 function calcPlayerDef(pl) {
   const _misoDef = (pl.misoDefTurns || 0) > 0 ? 8 : 0;
   return Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0) + (hasAbility(pl.weapon, "def_bonus") ? 5 : 0) + _misoDef) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1) * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
@@ -84,9 +99,9 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       return;
     }
     const _fOilyMult = (_fBlock.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === _fBlock.x && t.y === _fBlock.y) ? 2 : 1;
-    const _fDmg = _fDmgBase * _fOilyMult;
+    const _fDmg = scaleMonFireDmg(_fBlock, _fDmgBase * _fOilyMult);
     _fBlock.hp -= _fDmg;
-    ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}`);
+    ml.push(`${m.name}の炎ブレスが${_fBlock.name}に命中！${_fDmg}ダメージ！${_fOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(_fBlock)}`);
     if (_fBlock.hp <= 0) { killMonster(_fBlock, dg, pl, ml, null, false, m); }
   };
   const _applyFireToPlayer = () => {
@@ -997,7 +1012,8 @@ export const INTERMEDIATE_BOSSES = [
   /* B5F (depth=4) 直線炎ブレス */
   { name: "サラマンダー", hp: 280, atk: 38, def: 20, exp: 700,
     speed: 1, tile: 93, kind: "dragon",   baseKind: "im_boss_salamander",
-    isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 2 },
+    isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 2,
+    elemWeak: "ice", elemResist: "fire" },
   /* B10F (depth=9) 攻撃時35%移動封じ＋毎ターン5HP回復 */
   { name: "ティターン", hp: 460, atk: 52, def: 27, exp: 1500,
     speed: 1, tile: 94, kind: "humanoid", baseKind: "im_boss_titan",

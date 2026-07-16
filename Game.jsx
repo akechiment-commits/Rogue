@@ -2859,6 +2859,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if (_hasFireElem) {
                 if (attackMon.baseKind === "firedemon") {
                   d = Math.max(1, Math.floor(d * 0.5));
+                } else if (attackMon.elemResist === "fire") {
+                  d = Math.max(1, Math.floor(d * 0.5));
                 } else if (attackMon.elemWeak === "fire") {
                   d = Math.floor(d * _fireElemMult);
                 } else {
@@ -2931,9 +2933,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const atkSfx =
                 (crit ? "会心！" : "") +
                 (_isBane ? (_baneMult >= 2 ? "上位特効！" : "特効！") : "") +
-                (_hasFireElem && attackMon.baseKind === "firedemon" ? "（炎半減）" : "") +
+                (_hasFireElem && (attackMon.baseKind === "firedemon" || attackMon.elemResist === "fire") ? "（炎半減）" : "") +
                 (_hasFireElem && attackMon.elemWeak === "fire" ? "炎×2！" : "") +
-                (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
+                (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemResist !== "fire" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
                 (_hasIceElem && attackMon.elemWeak === "ice" ? (_hasIceElem2 ? "氷弱点×2！" : "氷弱点特効！") : "") +
                 (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
