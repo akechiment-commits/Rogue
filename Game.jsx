@@ -800,7 +800,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             go = true;
             continue;
           } else {
-            ml.push(`${_sunk.name}が水底にある。持ち物がいっぱいだ！`);
+            ml.push(`${itemDisplayName(_sunk, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が水底にある。持ち物がいっぱいだ！`);
           }
         }
       }
@@ -1891,7 +1891,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* 爆発の指輪：5%の確率で爆発 */
       if (p.hp > 0 && hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
         ml.push("指輪が爆発した！");
-        const _erfNFn = (gi) => gi.name;
+        const _erfNFn = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
         doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
       }
       /* 遅延地雷爆発（fireTrapPlayer が dg._pendingMineExplosion に登録） */
@@ -3029,7 +3029,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _fcMode = (hasRingEffect(p, "farcast_ring") && _rawFc !== "cursed") ? "farcast" : _rawFc;
                 const _srFarcast = _fcMode === "farcast";
                 const _srCursedFc = _fcMode === "cursed";
-                const _srNF = (it) => it.name || "?";
+                const _srNF = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames) || "?";
                 for (let _si = 0; _si < _srCount; _si++) {
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
@@ -4574,7 +4574,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
               }
               if (_scPInRoom) {
-                p.deathCause = `${item.name}が当たって`;
+                p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 p.hp -= _potDmg;
                 ml.push(`${_idn}がプレイヤーに命中！${_potDmg}ダメージ！`);
                 if (_healPotAmt > 0) {
@@ -4595,13 +4595,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               if (!isFireExplosionNullified(dg, p)) {
                 for (const _baMon of [..._scMons]) {
-                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${item.name}の爆発`, null, lu);
+                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu);
                 }
                 if (_scPInRoom) {
-                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${item.name}の爆発`, null, lu);
+                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu);
                 }
               } else {
-                announceFireExplosionNullified(dg, p, ml, `${item.name}の爆発`);
+                announceFireExplosionNullified(dg, p, ml, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`);
               }
               _bbExploded = true;
             } else {
@@ -4639,7 +4639,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
               }
               if (_scPInRoom) {
-                p.deathCause = `${item.name}が当たって`;
+                p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 const _scPDmg = _scUseCalc ? calcProjectileDmg(p, _scBaseAtk, 0) : _scBaseAtk + rng(0, 3);
                 p.hp -= _scPDmg;
                 let _pmsg = `${_idn}がプレイヤーに命中！${_scPDmg}ダメージ！`;

@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 
@@ -151,7 +151,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
           if (dg.map[_ty]?.[_tx] === T.FLOOR) { _stX = _tx; _stY = _ty; break; }
         }
         placeItemAt(dg, _stX, _stY, _stItem, ml, _stFt);
-        ml.push(`${trap.name}が発動！${nameFn ? nameFn(_stItem) : _stItem.name}がどこかへ飛んでいった！`);
+        ml.push(`${trap.name}が発動！${resolveItemName(_stItem, nameFn)}がどこかへ飛んでいった！`);
       } else {
         ml.push(`${trap.name}が発動！しかし何も盗まれなかった。`);
       }
@@ -202,7 +202,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     case "unident_trap": {
       const _ur = unidentPlayerItems(p, identSet);
       if (_ur.count > 0 && _ur.item) {
-        const _nm = nameFn ? nameFn(_ur.item) : _ur.item.name;
+        const _nm = resolveItemName(_ur.item, nameFn);
         ml.push(`${trap.name}が発動！${_nm}のことがわからなくなった…`);
       } else {
         ml.push(`${trap.name}が発動！特に思い浮かぶものがなかった。`);

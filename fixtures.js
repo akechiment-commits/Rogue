@@ -3,7 +3,7 @@
  */
 import { rng, pick, uid, MW, MH, T } from "./utils.js";
 /* items.js との循環 import を避けるため、TRAPS/ITEMS のみ参照し placeItemAt は使わない */
-import { TRAPS, pickLootFromPool, pickTrap, ITEMS, WANDS } from "./items.js";
+import { TRAPS, pickLootFromPool, pickTrap, ITEMS, WANDS, resolveItemName } from "./items.js";
 
 /* monsters.js 側で登録する。fixtures -> monsters の循環 import を避ける。 */
 
@@ -121,10 +121,10 @@ export function displaceObjectsFromStatue(dg, x, y, ml = null) {
       const dest = _freeNeighborOffStatue(dg, x, y);
       if (dest) {
         o.x = dest.x; o.y = dest.y;
-        if (ml) ml.push(`${label || o.name || "何か"}が石像を避けてずれた。`);
+        if (ml) ml.push(`${label || (o.type ? resolveItemName(o) : o.name) || "何か"}が石像を避けてずれた。`);
       } else if (arr === dg.items) {
         dg.items = dg.items.filter(i => i !== o);
-        if (ml) ml.push(`${o.name}は行き場がなく消えた。`);
+        if (ml) ml.push(`${o.type ? resolveItemName(o) : o.name}は行き場がなく消えた。`);
       } else if (arr === dg.traps && !o.permanent) {
         dg.traps = dg.traps.filter(t => t !== o);
       } else if (arr === dg.oilyTiles) {
@@ -169,7 +169,7 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
     if (!dg.items) dg.items = [];
     dg.items.push(it);
     /* 未識別名を使う（render 循環回避のため nameFn / グローバルを参照） */
-    const _dn = (opts.itemNameFn || globalThis.__rogueItemNameFn)?.(it) || it.name;
+    const _dn = resolveItemName(it, opts.itemNameFn);
     ml.push(`${_dn}が飛び出した！`);
   }
 

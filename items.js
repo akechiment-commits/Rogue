@@ -21,13 +21,13 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
     const _pair = findFixedPortalPair(dg, portal);
     if (!_pair) return null;
     if (dg.monsters?.some(m => m.x === _pair.x && m.y === _pair.y)) return null;
-    ml.push(`${item.name}が${portal.name}に吸い込まれて対の転送陣から出てきた！`);
+    ml.push(`${resolveItemName(item)}が${portal.name}に吸い込まれて対の転送陣から出てきた！`);
     return placeItemAt(dg, _pair.x, _pair.y, item, ml, ft, dep + 1, p, _pair.x, _pair.y, true);
   }
   if (portal.cursed) {
     const _rd = randomTeleportDest(dg, portal.x, portal.y);
     if (_rd) {
-      ml.push(`${item.name}が${portal.name}に飲み込まれて飛んだ！【呪】`);
+      ml.push(`${resolveItemName(item)}が${portal.name}に飲み込まれて飛んだ！【呪】`);
       return placeItemAt(dg, _rd.x, _rd.y, item, ml, ft, dep + 1, p, _rd.x, _rd.y, true);
     }
     return null;
@@ -145,6 +145,22 @@ export function getIdentKey(it) {
   if (it.type === 'spellbook' && it.spell) return `b:${it.spell}`;
   if (it.type === 'ring') return `r:${it.effect}`;
   return null;
+}
+
+/**
+ * プレイヤー向けアイテム表示名。未識別は偽名。
+ * nameFn があれば優先、なければ Game が登録する __rogueItemNameFn を使う。
+ * （fixtures 等の循環 import 回避用）
+ */
+export function resolveItemName(it, nameFn = null) {
+  if (!it) return "?";
+  if (typeof nameFn === "function") {
+    try { return nameFn(it); } catch (_) { /* fall through */ }
+  }
+  if (typeof globalThis !== "undefined" && typeof globalThis.__rogueItemNameFn === "function") {
+    try { return globalThis.__rogueItemNameFn(it); } catch (_) { /* fall through */ }
+  }
+  return it.name || "?";
 }
 
 /**
@@ -648,8 +664,8 @@ export const POT_FOOD_DESCS = {
 };
 
 export function applyPotEffect(pot, item, ml, nameFn = null) {
-  const _in = nameFn ? nameFn(item) : item.name;
-  const _pn = nameFn ? nameFn(pot) : pot.name;
+  const _in = resolveItemName(item, nameFn);
+  const _pn = resolveItemName(pot, nameFn);
   const pe = pot.potEffect;
   if (pe === "imprison") { ml.push(`${_pn}にはアイテムは入れられない。`); return; }
   if (pe === "none" || pe === "greed") { ml.push(`${_in}を${_pn}に入れた。`); return; }
@@ -763,8 +779,8 @@ export function confineMonsterInImprisonPot(pot, mon, dg, ml, nameFn = null) {
   if (!pot.confinedMonsters) pot.confinedMonsters = [];
   const snap = JSON.parse(JSON.stringify(mon));
   pot.confinedMonsters.push(snap);
-  const _mn = nameFn ? nameFn(mon) : mon.name;
-  const _pn = nameFn ? nameFn(pot) : pot.name;
+  const _mn = resolveItemName(mon, nameFn);
+  const _pn = resolveItemName(pot, nameFn);
   ml.push(`${_mn}を${_pn}に閉じ込めた！`);
   removeMonster(dg, mon);
 }
@@ -838,7 +854,7 @@ export function confinePlayerInImprisonPot(pot, p, dg, ml, nameFn = null) {
     ml.push("壺に空きがない。");
     return false;
   }
-  const _pn = nameFn ? nameFn(pot) : pot.name;
+  const _pn = resolveItemName(pot, nameFn);
   const turns = rem * 10;
   p.potConfinedTurns = turns;
   p.potConfinedPotId = pot.id;
@@ -872,7 +888,7 @@ export function makePot(context = "floor") {
 }
 
 export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
-  const _pn = nameFn ? nameFn(pot) : pot.name;
+  const _pn = resolveItemName(pot, nameFn);
   /* 強欲な壺：中身＋残り容量分のランダムアイテムを出す */
   if (pot.potEffect === "greed") {
     const _remaining = Math.max(0, (pot.capacity || 4) - (pot.contents?.length || 0));
@@ -984,13 +1000,13 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
     return { potRemovedAt: _idx !== -1 ? _idx : null };
   }
   if (pot.potEffect === "gunpowder") {
-    ml.push(`${pot.name}から火薬が吸い出され爆発した！`);
-    doGunpowderExplosion(px, py, dg, p, ml, luFn, pot.name);
+    ml.push(`${resolveItemName(pot)}から火薬が吸い出され爆発した！`);
+    doGunpowderExplosion(px, py, dg, p, ml, luFn, resolveItemName(pot));
     return { potRemovedAt: null };
   }
   const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
   if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
-    ml.push(`${pot.name}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
+    ml.push(`${resolveItemName(pot)}から${_oilEffects[pot.potEffect]}が溢れ出た！`);
     pushSplashAnim(px, py, "#ccaa44");
     dg.oilyTiles = dg.oilyTiles || [];
     for (let dy = -1; dy <= 1; dy++) {
@@ -1014,15 +1030,15 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
   }
   const ft = new Set();
   if ((pot.contents?.length || 0) > 0) {
-    ml.push(`${pot.name}から中身が飛び出した！`);
+    ml.push(`${resolveItemName(pot)}から中身が飛び出した！`);
     for (const item of [...pot.contents]) { placeItemAt(dg, px, py, item, ml, ft); }
     pot.contents = [];
   } else {
-    ml.push(`${pot.name}は空だった。`);
+    ml.push(`${resolveItemName(pot)}は空だった。`);
   }
   if (blessed) {
     pot.capacity = (pot.capacity || 1) + 1;
-    ml.push(`${pot.name}の容量が1増えた！(${pot.capacity})【祝】`);
+    ml.push(`${resolveItemName(pot)}の容量が1増えた！(${pot.capacity})【祝】`);
   }
   return { potRemovedAt: null };
 }
@@ -1141,7 +1157,7 @@ export function pickTrap(pool = TRAPS, rngFn = Math.random) {
 function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
   blasted.add(it);
   const _snap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
-  ml.push(`杖「${nameFn ? nameFn(it) : it.name}」が爆発で壊れ、魔法が炸裂した！`);
+  ml.push(`杖「${resolveItemName(it, nameFn)}」が爆発で壊れ、魔法が炸裂した！`);
   triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn);
 }
 
@@ -1242,11 +1258,11 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       /* アイテム破壊 */
       for (const it of dg.items.filter(i => i !== excludeItem && i.x === ax && i.y === ay)) {
         if (it.type === "scroll") {
-          blasted.add(it); ml.push(`巻物「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
+          blasted.add(it); ml.push(`巻物「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "spellbook") {
-          blasted.add(it); ml.push(`魔法書「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
+          blasted.add(it); ml.push(`魔法書「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "potion") {
-          blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
+          blasted.add(it); ml.push(`薬「${resolveItemName(it, nameFn)}」が割れてなくなった！`);
         } else if (it.type === "food") {
           if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
@@ -1257,8 +1273,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           } else if (it.contents?.length > 0) {
             const ft2 = new Set();
             for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
-            ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
-          } else { ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`); }
+            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れ、中身が飛び出した！`);
+          } else { ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`); }
         } else if (it.type === "wand") {
           _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         }
@@ -1303,7 +1319,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   /* 破壊された火薬壺の連鎖爆発 */
   for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
-    doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+    doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
   }
   /* 地雷モード：範囲内の他の地雷・時限爆弾を連鎖爆発 */
   if (mineExplosion) {
@@ -1418,9 +1434,9 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       if (Math.max(Math.abs(it.x - cx), Math.abs(it.y - cy)) > 2) continue;
       if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 火薬壺は後で連鎖処理 */
       if (it.type === "scroll" || it.type === "spellbook") {
-        _blasted.add(it); ml.push(`巻物「${it.name}」が爆風で燃えてなくなった！`);
+        _blasted.add(it); ml.push(`巻物「${resolveItemName(it)}」が爆風で燃えてなくなった！`);
       } else if (it.type === "potion") {
-        _blasted.add(it); ml.push(`薬「${it.name}」が爆風で割れてなくなった！`);
+        _blasted.add(it); ml.push(`薬「${resolveItemName(it)}」が爆風で割れてなくなった！`);
       } else if (it.type === "food") {
         if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); }
@@ -1429,8 +1445,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         if (it.contents?.length > 0) {
           const _ft2 = new Set();
           for (const ci of it.contents) placeItemAt(dg, it.x, it.y, ci, ml, _ft2);
-          ml.push(`壺「${it.name}」が爆発で割れ、中身が飛び出した！`);
-        } else { ml.push(`壺「${it.name}」が爆発で割れた！`); }
+          ml.push(`壺「${resolveItemName(it)}」が爆発で割れ、中身が飛び出した！`);
+        } else { ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`); }
       } else if (it.type === "wand") {
         _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted);
       }
@@ -1460,7 +1476,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
     );
     if (_chainPots.length > 0) {
       dg.items = dg.items.filter(i => !_chainPots.includes(i));
-      for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+      for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
     }
     /* 爆発範囲内の魔方陣を消滅 */
     if (dg.pentacles?.length > 0) {
@@ -1560,11 +1576,11 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
       for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
         if (it.type === "pot" && it.potEffect === "gunpowder") continue; /* 後で連鎖 */
         if (it.type === "scroll") {
-          blasted.add(it); ml.push(`巻物「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
+          blasted.add(it); ml.push(`巻物「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "spellbook") {
-          blasted.add(it); ml.push(`魔法書「${nameFn ? nameFn(it) : it.name}」が燃えてなくなった！`);
+          blasted.add(it); ml.push(`魔法書「${resolveItemName(it, nameFn)}」が燃えてなくなった！`);
         } else if (it.type === "potion") {
-          blasted.add(it); ml.push(`薬「${nameFn ? nameFn(it) : it.name}」が割れてなくなった！`);
+          blasted.add(it); ml.push(`薬「${resolveItemName(it, nameFn)}」が割れてなくなった！`);
         } else if (it.type === "food") {
           if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
@@ -1573,8 +1589,8 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
           if (it.contents?.length > 0) {
             const ft2 = new Set();
             for (const ci of it.contents) placeItemAt(dg, ax, ay, ci, ml, ft2);
-            ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れ、中身が飛び出した！`);
-          } else { ml.push(`壺「${nameFn ? nameFn(it) : it.name}」が爆発で割れた！`); }
+            ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れ、中身が飛び出した！`);
+          } else { ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`); }
         } else if (it.type === "wand") {
           _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
         }
@@ -1599,7 +1615,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
   );
   if (_chainPots.length > 0) {
     dg.items = dg.items.filter(i => !_chainPots.includes(i));
-    for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+    for (const _gp of _chainPots) doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
   }
   /* 爆発範囲内の魔方陣を消滅 */
   if (dg.pentacles?.length > 0) {
@@ -1982,7 +1998,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   }
   switch (trap.effect) {
     case "explode": {
-      ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は爆発で消し飛んだ！`);
+      ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は爆発で消し飛んだ！`);
       doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true);
       maybeBreakTrapAfterStep(trap, dg, ml, { p });
       return "restart";
@@ -2008,9 +2024,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       }
       if (_pitfallBag) {
         _pitfallBag.push({ kind: 'item', entity: item });
-        ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は穴に落ちて次の階へ落下した！`);
+        ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて次の階へ落下した！`);
       } else {
-        ml.push(`${trap.name}が発動！${nameFn ? nameFn(item) : item.name}は穴に落ちて消えた！`);
+        ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて消えた！`);
       }
       if (p && p.x === tx && p.y === ty) return "pitfall_player";
       return "destroyed";
@@ -2020,7 +2036,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _op2 = item.plus || 0;
         item.plus = _op2 - 1;
         const _fp2 = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
-        ml.push(`${trap.name}が発動！${item.name}が錆びた！(${_fp2(_op2)}→${_fp2(item.plus)})`);
+        ml.push(`${trap.name}が発動！${resolveItemName(item)}が錆びた！(${_fp2(_op2)}→${_fp2(item.plus)})`);
       } else {
         ml.push(`${trap.name}が発動！`);
       }
@@ -2051,7 +2067,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       return "restart";
     }
     case "spin": {
-      ml.push(`${trap.name}が発動！${item.name}はどこかへ吹き飛んだ！`);
+      ml.push(`${trap.name}が発動！${resolveItemName(item)}はどこかへ吹き飛んだ！`);
       if (dg.rooms?.length) {
         const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
         const nx = rng(rm.x, rm.x + rm.w - 1);
@@ -2160,7 +2176,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _stY = rng(_stRoom.y, _stRoom.y + _stRoom.h - 1);
         const _stFinal = (_stItem.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stItem.plus || 0 } : _stItem;
         placeItemAt(dg, _stX, _stY, _stFinal, ml, _stFt);
-        ml.push(`${nameFn ? nameFn(_stItem) : _stItem.name}がどこかへ飛んでいった！${_stFinal !== _stItem ? "なぜかソボロ助広に変化した…！" : ""}`);
+        ml.push(`${resolveItemName(_stItem, nameFn)}がどこかへ飛んでいった！${_stFinal !== _stItem ? "なぜかソボロ助広に変化した…！" : ""}`);
       }
       return "restart";
     }
@@ -2320,7 +2336,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       /* 落ちてきた／作動させたアイテム自体を未識別に */
       const _idSet = identSet || getTrapIdentSet();
       if (item && item.type !== "misc" && unidentSingleItem(item, _idSet)) {
-        const _unNm = nameFn ? nameFn(item) : item.name;
+        const _unNm = resolveItemName(item, nameFn);
         ml.push(`${_unNm}が未識別になった！`);
       } else if (!item || item.type === "misc") {
         /* 重力などでアイテム以外が作動 → 何もしない（敵混乱は上） */
@@ -3042,7 +3058,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
         chargeShopItem(it, dg, ml);
       } else if (br === "gunpowder_explode") {
         removeFloorItem(dg, it);
-        doGunpowderExplosion(x, y, dg, p, ml, luFn, it.name);
+        doGunpowderExplosion(x, y, dg, p, ml, luFn, resolveItemName(it, dnFn));
       }
     }
   }
@@ -3057,26 +3073,26 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml) {
   if (it.type === "pot") {
     if (blessed) {
       it.capacity = (it.capacity || 1) + 1;
-      ml.push(`${it.name}が祝福の水を浴びた！(容量+1 → ${it.capacity})【祝】`);
+      ml.push(`${resolveItemName(it)}が祝福の水を浴びた！(容量+1 → ${it.capacity})【祝】`);
     } else if (cursed) {
       const _nc = Math.max(0, (it.capacity || 1) - 1);
       if ((it.contents?.length || 0) > _nc) {
         const _fts = new Set();
         for (const _ci of (it.contents || [])) placeItemAt(dg, cx, cy, _ci, ml, _fts);
         removeFloorItem(dg, it);
-        ml.push(`${it.name}が呪いの水を浴びて割れた！中身が飛び出した！【呪】`);
+        ml.push(`${resolveItemName(it)}が呪いの水を浴びて割れた！中身が飛び出した！【呪】`);
       } else {
         it.capacity = _nc;
-        ml.push(`${it.name}が呪いの水を浴びた！(容量-1 → ${it.capacity})【呪】`);
+        ml.push(`${resolveItemName(it)}が呪いの水を浴びた！(容量-1 → ${it.capacity})【呪】`);
       }
     }
   } else if (it.type !== "gold" && it.type !== "arrow") {
     if (blessed) {
       it.blessed = true; it.cursed = false; it.bcKnown = true;
-      ml.push(`${it.name}が祝福の水を浴びた！【祝】`);
+      ml.push(`${resolveItemName(it)}が祝福の水を浴びた！【祝】`);
     } else if (cursed) {
       it.cursed = true; it.blessed = false; it.bcKnown = true;
-      ml.push(`${it.name}が呪いの水を浴びた！【呪】`);
+      ml.push(`${resolveItemName(it)}が呪いの水を浴びた！【呪】`);
     }
   }
 }
@@ -3196,7 +3212,7 @@ function soakItem(item) {
 }
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false) {
-  if (dep > 30) { ml.push(`${item.name}は消えてしまった！`); return false; }
+  if (dep > 30) { ml.push(`${resolveItemName(item)}は消えてしまった！`); return false; }
   /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ）
      キーアイテム自体はポータルを通過させない */
   if (!_fromPortal && item.type !== "goal") {
@@ -3214,7 +3230,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     if (!dg.waterItems.some(wi => wi.x === tx && wi.y === ty)) {
       const sunk = soakItem({ ...item, x: tx, y: ty });
       dg.waterItems.push({ x: tx, y: ty, item: sunk });
-      ml.push(sunk.name !== item.name ? `${item.name}が水に濡れて白紙になった！` : `${item.name}が水に沈んだ！`);
+      ml.push(sunk.name !== item.name ? `${resolveItemName(item)}が水に濡れて白紙になった！` : `${resolveItemName(item)}が水に沈んだ！`);
       pushItemArcAnim(_animOx, _animOy, tx, ty, item.tile, dep + 1);
       return false;
     }
@@ -3230,7 +3246,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       if (dg.waterItems.some(wi => wi.x === cx && wi.y === cy)) continue;
       const sunk = soakItem({ ...item, x: cx, y: cy });
       dg.waterItems.push({ x: cx, y: cy, item: sunk });
-      ml.push(sunk.name !== item.name ? `${item.name}が水に濡れて白紙になった！` : `${item.name}が水に沈んだ！`);
+      ml.push(sunk.name !== item.name ? `${resolveItemName(item)}が水に濡れて白紙になった！` : `${resolveItemName(item)}が水に沈んだ！`);
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       return false;
     }
@@ -3253,7 +3269,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     if (dg.traps.some(t => t.x === cx && t.y === cy)) continue;
     if (dg.springs?.some(s => s.x === cx && s.y === cy)) {
       const _spr = dg.springs.find(s => s.x === cx && s.y === cy);
-      soakItemIntoSpring(_spr, item, ml, dg, it => it.name);
+      soakItemIntoSpring(_spr, item, ml, dg, null);
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
       return true;
     }
@@ -3303,7 +3319,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     }
     return true;
   }
-  ml.push(`${item.name}は消えてしまった！`);
+  ml.push(`${resolveItemName(item)}は消えてしまった！`);
   return false;
 }
 
@@ -3542,12 +3558,12 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         }
         /* アイテム破壊（巻物・薬・壺） */
         for (const it of dg.items.filter(i => i.x === ax && i.y === ay)) {
-          if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${it.name}」が燃えてなくなった！`); }
-          else if (it.type === "potion") { blasted.add(it); ml.push(`薬「${it.name}」が割れてなくなった！`); }
-          else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${it.name}」が燃えてなくなった！`); }
+          if (it.type === "scroll") { blasted.add(it); ml.push(`巻物「${resolveItemName(it)}」が燃えてなくなった！`); }
+          else if (it.type === "potion") { blasted.add(it); ml.push(`薬「${resolveItemName(it)}」が割れてなくなった！`); }
+          else if (it.type === "spellbook") { blasted.add(it); ml.push(`魔法書「${resolveItemName(it)}」が燃えてなくなった！`); }
           else if (it.type === "pot") {
             blasted.add(it);
-            if (it.potEffect !== "gunpowder") ml.push(`壺「${it.name}」が爆発で割れた！`);
+            if (it.potEffect !== "gunpowder") ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`);
           } else if (it.type === "wand") {
             _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, null, blasted);
           }
@@ -3565,7 +3581,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
     dg.items = dg.items.filter(i => !blasted.has(i));
     /* 破壊された火薬壺の連鎖爆発 */
     for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
-      doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, _gp.name);
+      doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
     }
   } finally {
     _explosionDepth--;
@@ -3580,7 +3596,7 @@ export function applyFireInventoryDamage(p, ml) {
   const victim = burnables[Math.floor(Math.random() * burnables.length)];
   p.inventory = p.inventory.filter(i => i !== victim);
   const verb = victim.type === "potion" ? "割れてなくなった" : "燃えてなくなった";
-  ml.push(`爆発の熱で所持していた「${victim.name}」が${verb}！`);
+  ml.push(`爆発の熱で所持していた「${resolveItemName(victim)}」が${verb}！`);
 }
 
 /** プレイヤーがモンスターを倒した時の共通処理。
@@ -3681,15 +3697,15 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
 export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn, opts = {}) {
   const {
     bbFn = null,
-    nameFn = (it) => it.name,
+    nameFn = null,
     applyWandFn = null,
     killerMon = null,
     reflectorRange = range,
     animColor = item.type === "potion" ? "#88ccff" : "#ffdd44",
-    monHitMsg = (target, dmg) => `飛んできた${nameFn(item)}が${target.name}に命中！${dmg}ダメージ！`,
-    plHitMsg = (dmg) => `飛んできた${nameFn(item)}がプレイヤーに命中！${dmg}ダメージ！`,
-    potHitMsg = (target, dmg) => `飛んできた${nameFn(item)}が${target.name}に当たって割れた！${dmg}ダメージ！`,
-    potPlHitMsg = (dmg) => `飛んできた${nameFn(item)}がプレイヤーに当たって割れた！${dmg}ダメージ！`,
+    monHitMsg = (target, dmg) => `飛んできた${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
+    plHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}がプレイヤーに命中！${dmg}ダメージ！`,
+    potHitMsg = (target, dmg) => `飛んできた${resolveItemName(item, nameFn)}が${target.name}に当たって割れた！${dmg}ダメージ！`,
+    potPlHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}がプレイヤーに当たって割れた！${dmg}ダメージ！`,
     /* 薬瓶/杖の命中前置きメッセージ（splash/applyWandの前に push される） */
     potionHitMsg = null,         /* (target) => string|null */
     potionPlHitMsg = null,       /* () => string|null */
@@ -3699,7 +3715,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     springLandMsg = null,        /* (spr, lx, ly) => string|null */
     bigboxLandMsg = null,        /* (bb, lx, ly) => string|null */
     noHitLandMsg = null,         /* (lx, ly, item) => string|null（壁/末端で何にも当たらず着地時） */
-    deathCausePhrase = `飛んできた${item.name}に`,
+    deathCausePhrase = `飛んできた${resolveItemName(item)}に`,
   } = opts;
 
   const _isPotion = item.type === "potion";
@@ -3945,7 +3961,7 @@ export function chargeShopItem(item, dg, ml) {
   _shop.unpaidTotal += item.shopPrice;
   const sk = dg.monsters.find(m => m.id === _shop.shopkeeperId && m.state === "friendly");
   if (sk) sk.state = "blocking";
-  ml.push(`${item.name}(${item.shopPrice}G)の代金が請求された！`);
+  ml.push(`${resolveItemName(item)}(${item.shopPrice}G)の代金が請求された！`);
 }
 
 export function inMagicSealRoom(x, y, dg) {
@@ -4285,7 +4301,7 @@ export function lightningResistDamageLabel(p) {
 export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFireContext = false) {
   if (p.inventory.length === 0) return;
   if (isFireContext ? hasFireResist(p) : hasLightningResist(p)) return;
-  const dn = (it) => nameFn ? nameFn(it) : it.name;
+  const dn = (it) => resolveItemName(it, nameFn);
   const idx = Math.floor(Math.random() * p.inventory.length);
   const victim = p.inventory[idx];
   if (victim.type === "pot") {

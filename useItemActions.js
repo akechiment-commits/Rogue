@@ -14,6 +14,7 @@ import {
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice, removeTrap, removeTraps,
+  resolveItemName,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
@@ -709,7 +710,7 @@ export function useItemActions({
       }
       /* 封印中／魔封じ部屋は巻物を使えない（消費なし・ターン消費） */
       if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-        ml.push(`${it.name || "巻物"}を読もうとしたが、魔法が封印されていて発動しなかった！`);
+        ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames) || "巻物"}を読もうとしたが、魔法が封印されていて発動しなかった！`);
         endTurn(sr.current, p, ml);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         setSelIdx(null);
@@ -1115,7 +1116,7 @@ export function useItemActions({
                 _placed = true;
                 break;
               }
-              if (!_placed) ml.push(`${gi.name}は引き寄せられなかった！`);
+              if (!_placed) ml.push(`${resolveItemName(gi, dnameRef)}は引き寄せられなかった！`);
             }
           });
           ml.push(`${_cnt}個のアイテムを引き寄せた！`);
@@ -1332,9 +1333,9 @@ export function useItemActions({
             if (Math.max(Math.abs(_sdit.x - p.x), Math.abs(_sdit.y - p.y)) > _sdR) continue;
             if (_sdit.type === "pot" && _sdit.potEffect === "gunpowder") continue;
             if (_sdit.type === "scroll" || _sdit.type === "spellbook") {
-              _sdBlasted.add(_sdit); ml.push(`巻物「${_sdit.name}」が爆風で燃えてなくなった！`);
+              _sdBlasted.add(_sdit); ml.push(`巻物「${resolveItemName(_sdit, dnameRef)}」が爆風で燃えてなくなった！`);
             } else if (_sdit.type === "potion") {
-              _sdBlasted.add(_sdit); ml.push(`薬「${_sdit.name}」が爆風で割れてなくなった！`);
+              _sdBlasted.add(_sdit); ml.push(`薬「${resolveItemName(_sdit, dnameRef)}」が爆風で割れてなくなった！`);
             } else if (_sdit.type === "food") {
               if (!_sdit.cooked) { _sdit.value *= 2; cookFoodMeta(_sdit); _sdit.name = "焼いた" + _sdit.name; ml.push(`${_sdit.name}になった！`); }
               else { burnFoodItem(_sdit, ml); }
@@ -1343,8 +1344,8 @@ export function useItemActions({
               if (_sdit.contents?.length > 0) {
                 const _sdft = new Set();
                 for (const ci of _sdit.contents) placeItemAt(dg, _sdit.x, _sdit.y, ci, ml, _sdft);
-                ml.push(`壺「${_sdit.name}」が爆発で割れ、中身が飛び出した！`);
-              } else { ml.push(`壺「${_sdit.name}」が爆発で割れた！`); }
+                ml.push(`壺「${resolveItemName(_sdit, dnameRef)}」が爆発で割れ、中身が飛び出した！`);
+              } else { ml.push(`壺「${resolveItemName(_sdit, dnameRef)}」が爆発で割れた！`); }
             }
           }
           if (_sdBlasted.size > 0) dg.items = dg.items.filter(i => !_sdBlasted.has(i));
@@ -1860,8 +1861,7 @@ export function useItemActions({
             ml.push(`${_rdn(it)}を装備した。${it.cursed ? "【呪】呪われている！外せなくなった！" : ""}`);
             if (it.effect === "explode_ring") {
               ml.push("指輪が爆発した！");
-              const _rnFn2 = (gi) => gi.name;
-              doExplosion(p.x, p.y, dg, p, ml, _rnFn2, "爆発の指輪", null, null, false, true);
+              doExplosion(p.x, p.y, dg, p, ml, dnameRef, "爆発の指輪", null, null, false, true);
             }
             if (it.effect === "antidote_ring" && p.poisoned) {
               p.poisoned = false;
@@ -1884,8 +1884,7 @@ export function useItemActions({
           /* 爆発の指輪：装備時即爆発 */
           if (it.effect === "explode_ring") {
             ml.push("指輪が爆発した！");
-            const _rnFn = (gi) => gi.name;
-            doExplosion(p.x, p.y, dg, p, ml, _rnFn, "爆発の指輪", null, null, false, true);
+            doExplosion(p.x, p.y, dg, p, ml, dnameRef, "爆発の指輪", null, null, false, true);
           }
           /* 毒消しの指輪：装備時に毒を解除 */
           if (it.effect === "antidote_ring" && p.poisoned) {
@@ -2179,7 +2178,7 @@ export function useItemActions({
     }
     /* 封印中／魔封じ部屋は魔法書を使えない（消費なし・ターン消費） */
     if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
-      ml.push(`${it.name}を読もうとしたが、魔法が封印されていて発動しなかった！`);
+      ml.push(`${itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を読もうとしたが、魔法が封印されていて発動しなかった！`);
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       setSelIdx(null);
@@ -2679,7 +2678,7 @@ export function useItemActions({
               }
               }
             } else if (_stSpr) {
-              soakItemIntoSpring(_stSpr, makeStone(1), ml, dg, it => it.name);
+              soakItemIntoSpring(_stSpr, makeStone(1), ml, dg, null);
             } else if (_stBB) {
               bigboxAddItem(_stBB, makeStone(1), dg, ml);
             } else {
@@ -2845,7 +2844,7 @@ export function useItemActions({
           },
           onSpring: _arIsPierce ? null : (spr, lx, ly, mlx) => {
             mlx.push(`${_arName}を射った。`);
-            soakItemIntoSpring(spr, _arDropItem(), mlx, dg, it => it.name);
+            soakItemIntoSpring(spr, _arDropItem(), mlx, dg, null);
           },
           onWallStop: _arEndDrop,
           onFlyOff: _arEndDrop,
@@ -2936,7 +2935,7 @@ export function useItemActions({
                 if (_k2) { const _wasU2 = !_identSet.has(_k2); _identSet.add(_k2); if (_wasU2) trackItem(gi); }
                 gi.fullIdent = true;
                 gi.bcKnown = true;
-                ml.push(`${gi.name}が識別された！`);
+                ml.push(`${resolveItemName(gi, dnameRef)}が識別された！`);
               }
             };
             // レイ走査
@@ -3167,7 +3166,7 @@ export function useItemActions({
                 if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
               }
             } else if (_stSpr2) {
-              soakItemIntoSpring(_stSpr2, makeStone(1), ml, dg, it => it.name);
+              soakItemIntoSpring(_stSpr2, makeStone(1), ml, dg, null);
             } else if (_stBB2) {
               bigboxAddItem(_stBB2, makeStone(1), dg, ml);
             } else {
@@ -3564,7 +3563,7 @@ export function useItemActions({
                 const _rfToY = _rfHitPlayer ? p.y : _rfy;
                 pushItemReturnAnim(tx, ty, _rfToX, _rfToY, it.tile);
                 if (_rfHitPlayer) {
-                  p.deathCause = `跳ね返された${it.name}に`;
+                  p.deathCause = `跳ね返された${resolveItemName(it, dnameRef)}に`;
                   const _rfTdDmg = calcProjectileDmg(p, _tdBaseAtk, 0);
                   p.hp -= _rfTdDmg;
                   ml.push(`跳ね返された${lb}がプレイヤーに命中！${_rfTdDmg}ダメージ！消滅した。`);
@@ -3733,7 +3732,7 @@ export function useItemActions({
             } else if (sprHit && !sprHit.kind) {
               soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
             } else if (it.type === "bottle") {
-              ml.push(`${it.name}は割れてしまった！`);
+              ml.push(`${resolveItemName(it, dnameRef)}は割れてしまった！`);
             } else {
               const ft = new Set();
               withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft, 0, p));

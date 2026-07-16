@@ -1,6 +1,7 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
 import { MONS, monLevelUp, monLevelDown, wakeIfDormant } from './monsters.js';
 import {
+  resolveItemName,
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
@@ -10,7 +11,7 @@ import {
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool,
-} from './items.js';
+} from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, hitStatueWithAction, statueAt, displaceObjectsFromStatue } from './fixtures.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
@@ -161,7 +162,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     if (consumeBarrier(target, ml)) return;
   }
   /* 地面のアイテムは未識別名で表示するため、呼び出し元から nameFn を受け取る */
-  const _dname_item = (t) => (nameFn && kind === "item") ? nameFn(t) : t.name;
+  const _dname_item = (t) => (kind === "item") ? resolveItemName(t, nameFn) : t.name;
   /* ── big box pre-handler ── */
   if (kind === "bigbox") {
     if (eff === "swap") {
@@ -315,7 +316,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (target.contents?.length > 0) {
           const fts = new Set();
           for (const ci of target.contents) placeItemAt(dg, bbx, bby, ci, ml, fts);
-          ml.push(`${target.name}は壁に叩きつけられて壊れた！中身が飛び出した！`);
+          ml.push(`${resolveItemName(target, nameFn)}は壁に叩きつけられて壊れた！中身が飛び出した！`);
         } else {
           ml.push(`${target.name}は壁に叩きつけられて壊れた！`);
         }
@@ -365,7 +366,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _sfts = new Set();
       for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _sfts);
       dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
-      ml.push(`軟化の魔法弾で${target.name}が崩れ落ちた！${(target.contents?.length||0) > 0 ? "中身が飛び出した！" : ""}`);
+      ml.push(`軟化の魔法弾で${resolveItemName(target, nameFn)}が崩れ落ちた！${(target.contents?.length||0) > 0 ? "中身が飛び出した！" : ""}`);
       return;
     }
     if (eff === "slow" || eff === "paralyze" || eff === "sleep" ||
@@ -392,7 +393,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _fts = new Set();
           for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
           dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
-          ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！【呪】`);
+          ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！【呪】`);
         } else {
           target.capacity = _newCap;
           ml.push(`${target.name}が呪われた！(容量-1 → ${target.capacity})【呪】`);
@@ -416,7 +417,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _fts = new Set();
           for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
           dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
-          ml.push(`${target.name}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
+          ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
         } else {
           target.capacity = _newCap;
           ml.push(`${target.name}が呪われた！(容量-${_loss} → ${target.capacity})${_cwBlessed ? "【祝】" : ""}`);
@@ -429,9 +430,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     if (target.contents?.length > 0) {
       const fts = new Set();
       for (const ci of target.contents) placeItemAt(dg, target.x, target.y, ci, ml, fts);
-      ml.push(`${target.name}が壊れて中身が飛び出した！`);
+      ml.push(`${resolveItemName(target, nameFn)}が壊れて中身が飛び出した！`);
     } else {
-      ml.push(`${target.name}が壊れた！`);
+      ml.push(`${resolveItemName(target, nameFn)}が壊れた！`);
     }
     return;
   }
@@ -713,7 +714,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         chargeShopItem(target, dg, ml);
         const ni = { ...nt, id: uid(), x: ox, y: oy };
         dg.items.push(ni);
-        ml.push(`${_dname_item(target)}は${nameFn ? nameFn(ni) : ni.name}に変化した！`);
+        ml.push(`${_dname_item(target)}は${resolveItemName(ni, nameFn)}に変化した！`);
         break;
       }
       if (kind === "trap") {
@@ -846,7 +847,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.contents && target.contents.length > 0) {
             const ft = new Set();
             for (const ci of target.contents) placeItemAt(dg, target.x, target.y, ci, ml, ft);
-            ml.push(`${target.name}が壊れて中身が飛び出した！`);
+            ml.push(`${resolveItemName(target, nameFn)}が壊れて中身が飛び出した！`);
           } else {
             ml.push(`${target.name}は壊れた！`);
           }
@@ -1537,7 +1538,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (target.type === "pot") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
-          ml.push(`雷撃で${target.name}が割れた！`);
+          ml.push(`雷撃で${resolveItemName(target, nameFn)}が割れた！`);
           scatterPotContents(target, dg, target.x, target.y, p, ml, luFn, nameFn);
         } else if (target.type === "bottle") {
           removeFloorItem(dg, target);
@@ -1763,7 +1764,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         for (const wi of _frozen) {
           wi.item.x = tx; wi.item.y = ty;
           dg.items.push(wi.item);
-          ml.push(`凍った水から${wi.item.name}が現れた！`);
+          ml.push(`凍った水から${resolveItemName(wi.item)}が現れた！`);
         }
       }
       /* 泉が水タイル上にある場合は干上がらせる */
@@ -2184,7 +2185,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
         for (const wi of frozen) {
           wi.item.x = wx; wi.item.y = wy;
           dg.items.push(wi.item);
-          ml.push(`凍った水から${wi.item.name}が現れた！`);
+          ml.push(`凍った水から${resolveItemName(wi.item)}が現れた！`);
         }
       }
       if (dg.springs) {

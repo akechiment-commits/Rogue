@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
-import { getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 
@@ -10,7 +10,7 @@ function _fireDemonBurnItems(m, dg, ml) {
   for (const it of _items) {
     if (it.type === "scroll" || it.type === "spellbook") {
       _toRemove.add(it);
-      ml.push(`${m.name}が通った！「${it.name}」が燃えてなくなった！`);
+      ml.push(`${m.name}が通った！「${resolveItemName(it)}」が燃えてなくなった！`);
     } else if (it.type === "food") {
       if (!it.cooked) {
         it.value = Math.floor((it.value || 10) * 2); cookFoodMeta(it);
@@ -37,7 +37,7 @@ function _gelCubeAbsorbItems(m, dg, ml) {
     if (!m._gelBaseAtk) m._gelBaseAtk = m.atk;
     m._gelBoost = Math.min(10, (m._gelBoost || 1) * 1.2);
     m.atk = Math.round(m._gelBaseAtk * m._gelBoost);
-    ml.push(`${m.name}が「${it.name}」を取り込んだ！（攻撃力×${m._gelBoost.toFixed(2)}→${m.atk}）`);
+    ml.push(`${m.name}が「${resolveItemName(it)}」を取り込んだ！（攻撃力×${m._gelBoost.toFixed(2)}→${m.atk}）`);
   }
   dg.items = dg.items.filter(it => !(it.x === m.x && it.y === m.y));
 }
@@ -214,7 +214,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
     const _spr = dg.springs?.find(s => s.x === _cx && s.y === _cy);
     if (_spr) {
       const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-      soakItemIntoSpring(_spr, { ..._potItem, x: _cx, y: _cy }, ml, dg, it => it.name);
+      soakItemIntoSpring(_spr, { ..._potItem, x: _cx, y: _cy }, ml, dg, null);
       return;
     }
     const _bb = dg.bigboxes?.find(b => b.x === _cx && b.y === _cy);
@@ -237,7 +237,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
         const _rrSpr = dg.springs?.find(s => s.x === _rrx && s.y === _rry);
         if (_rrSpr) {
           const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
-          soakItemIntoSpring(_rrSpr, { ..._potItem, x: _rrx, y: _rry }, ml, dg, it => it.name);
+          soakItemIntoSpring(_rrSpr, { ..._potItem, x: _rrx, y: _rry }, ml, dg, null);
           return;
         }
         const _rrBb = dg.bigboxes?.find(b => b.x === _rrx && b.y === _rry);
@@ -1403,7 +1403,7 @@ function safeArrowDrop(x, y, dg) {
 function _monDropWithSpring(pos, item, dg, ml) {
   if (!pos) return;
   const spr = dg.springs?.find(s => s.x === pos.x && s.y === pos.y);
-  if (spr) { soakItemIntoSpring(spr, { ...item, x: pos.x, y: pos.y }, ml, dg, it => it.name); }
+  if (spr) { soakItemIntoSpring(spr, { ...item, x: pos.x, y: pos.y }, ml, dg, null); }
   else { dg.items.push({ ...item, x: pos.x, y: pos.y }); }
 }
 
@@ -1469,7 +1469,7 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     },
     onSpring: (spr, lx, ly, mlx) => {
       mlx.push(`${m.name}の${_arName}が泉に落ちた！`);
-      soakItemIntoSpring(spr, { ..._makeAr(), x: lx, y: ly }, mlx, dg, it => it.name);
+      soakItemIntoSpring(spr, { ..._makeAr(), x: lx, y: ly }, mlx, dg, null);
     },
     onWallStop: _dropAr,
     onFlyOff: _dropAr,
@@ -2050,7 +2050,7 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     onBigbox = null,
     onItem = null,
     onTrap = null,
-    itemNameFn = (it) => it.name,
+    itemNameFn = null,
     bbNameFn = (bb) => bb.name,
   } = opts;
 
@@ -3666,7 +3666,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               }
               if (_pick.it.effect === "torch_ring") pl.visionBonus = Math.max(0, (pl.visionBonus || 0) - 1);
             }
-            ml.push(`${m.name}に${_pick.it.name}を外された！`);
+            ml.push(`${m.name}に${resolveItemName(_pick.it)}を外された！`);
           }
           return;
         }
