@@ -4475,16 +4475,15 @@ export function applyBubbleGoldScroll(p, ml, { blessed = false, cursed = false }
     p.gold = Math.max(0, (p.gold || 0) - lost);
     p.bubbleGoldQueue.push({ turns: 10, delta: amount }); // 後で増える
     if (ml) {
-      if (lost >= amount) ml.push(`${amount}G失った！（10ターン後に戻る）【呪】`);
-      else if (lost > 0) ml.push(`${lost}G失った！（10ターン後に${amount}G戻る／手元が足りず一部帳消し）【呪】`);
-      else ml.push(`所持金が0のため減らせなかった…（10ターン後に${amount}G手に入る）【呪】`);
+      if (lost > 0) ml.push(`${lost}G失った！【呪】`);
+      else ml.push("所持金が0のため減らせなかった…【呪】");
     }
     return -lost;
   }
   p.gold = (p.gold || 0) + amount;
   p.bubbleGoldQueue.push({ turns: 10, delta: -amount }); // 後で減る
   const tag = blessed ? "【祝】" : "";
-  if (ml) ml.push(`${amount}G手に入れた！（10ターン後に消える）${tag}`);
+  if (ml) ml.push(`${amount}G手に入れた！${tag}`);
   return amount;
 }
 
