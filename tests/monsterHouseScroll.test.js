@@ -106,4 +106,61 @@ describe("モンスターの巻物", () => {
     applyMonsterHouseToRoom(dg, dg.rooms[0], p, ml, { playerInRoom: true });
     expect(dg.monsters.some((m) => m.x === p.x && m.y === p.y)).toBe(false);
   });
+
+  it("既存の大箱・泉・石像・罠・アイテムの上にアイテム/罠/大箱/泉を重ねない", () => {
+    const dg = makeRoomDg();
+    dg.bigboxes = [{ id: "bb1", x: 4, y: 3, kind: "wood", name: "木箱", capacity: 5, contents: [] }];
+    dg.springs = [{ id: "sp1", x: 6, y: 3, contents: [] }];
+    dg.statues = [{ id: "st1", x: 7, y: 4 }];
+    dg.traps = [{ id: "tr1", x: 3, y: 4, name: "落とし穴", effect: "pit", revealed: false }];
+    dg.items = [{ id: "it1", name: "パン", type: "food", x: 8, y: 5 }];
+    const occupied = new Set([
+      "4,3", "6,3", "7,4", "3,4", "8,5",
+      "3,3", "8,6", // stairs
+    ]);
+    const p = { x: 5, y: 5, depth: 5 };
+    const ml = [];
+    applyMonsterHouseToRoom(dg, dg.rooms[0], p, ml, { playerInRoom: true });
+
+    const key = (x, y) => `${x},${y}`;
+    const fixtureLists = [
+      dg.items,
+      dg.traps,
+      dg.bigboxes,
+      dg.springs,
+      dg.statues,
+    ];
+    // フィクスチャ同士が同一マスに重ならない
+    const seen = new Set();
+    for (const list of fixtureLists) {
+      for (const f of list) {
+        const k = key(f.x, f.y);
+        expect(seen.has(k)).toBe(false);
+        seen.add(k);
+      }
+    }
+    // 既存占有マスに新規アイテム/罠/大箱/泉が載っていない（既存自身は残る）
+    for (const it of dg.items) {
+      if (it.id === "it1") continue;
+      expect(occupied.has(key(it.x, it.y))).toBe(false);
+    }
+    for (const t of dg.traps) {
+      if (t.id === "tr1") continue;
+      expect(occupied.has(key(t.x, t.y))).toBe(false);
+    }
+    for (const b of dg.bigboxes) {
+      if (b.id === "bb1") continue;
+      expect(occupied.has(key(b.x, b.y))).toBe(false);
+    }
+    for (const s of dg.springs) {
+      if (s.id === "sp1") continue;
+      expect(occupied.has(key(s.x, s.y))).toBe(false);
+    }
+    // 既存フィクスチャは残っている
+    expect(dg.bigboxes.some((b) => b.id === "bb1" && b.x === 4 && b.y === 3)).toBe(true);
+    expect(dg.springs.some((s) => s.id === "sp1")).toBe(true);
+    expect(dg.statues.some((s) => s.id === "st1")).toBe(true);
+    expect(dg.traps.some((t) => t.id === "tr1")).toBe(true);
+    expect(dg.items.some((i) => i.id === "it1")).toBe(true);
+  });
 });

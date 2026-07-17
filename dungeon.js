@@ -123,16 +123,31 @@ function genBigRoom(depth, dungeonType = null) {
 
 /* ===== MONSTER HOUSE CONTENT GENERATOR ===== */
 /**
- * @param {{ levelBoost?: number, awake?: boolean, avoid?: {x:number,y:number}[] }} [opts]
+ * @param {{ levelBoost?: number, awake?: boolean, avoid?: {x:number,y:number}[], statues?: {x:number,y:number}[] }} [opts]
  *   levelBoost: 生成後 monLevelUp を何回かけるか（強モンスターハウス）
  *   awake: true なら dormantHouse にせず即認識（部屋内で巻物を読んだとき）
  *   avoid: 配置を避ける座標（プレイヤー足元など）
+ *   statues: 石像配列（重なり禁止用）
  */
 function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType = null, opts = {}) {
   const levelBoost = opts.levelBoost || 0;
   const awake = !!opts.awake;
   const avoid = opts.avoid || [];
+  const statues = opts.statues || [];
   const isAvoid = (x, y) => avoid.some((a) => a.x === x && a.y === y);
+  /* 罠・アイテム・大箱・泉・石像・階段・avoid はすべて重ならない */
+  const fixtureOcc = (x, y) =>
+    isAvoid(x, y) ||
+    (x === su.x && y === su.y) ||
+    (x === sd.x && y === sd.y) ||
+    items.some((i) => i.x === x && i.y === y) ||
+    traps.some((t) => t.x === x && t.y === y) ||
+    bigboxes.some((b) => b.x === x && b.y === y) ||
+    springs.some((s) => s.x === x && s.y === y) ||
+    statues.some((s) => s.x === x && s.y === y);
+  const monOcc = (x, y) => mons.some((m) => m.x === x && m.y === y);
+  const allOcc = (x, y) => monOcc(x, y) || fixtureOcc(x, y);
+
   /* 通常配置でハウス部屋に入り込んだモンスターを除去（店主は残す） */
   for (let i = mons.length - 1; i >= 0; i--) {
     const m = mons[i];
@@ -140,21 +155,23 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     if (m.x >= room.x && m.x < room.x + room.w && m.y >= room.y && m.y < room.y + room.h)
       mons.splice(i, 1);
   }
-  /* 部屋内の全フロアタイルをシャッフルして確実に埋める */
+  /* 配置可能タイル：既存フィクスチャの上には置かない */
   const roomFloorTiles = [];
   for (let fy = room.y; fy < room.y + room.h; fy++)
     for (let fx = room.x; fx < room.x + room.w; fx++)
-      if (map[fy]?.[fx] === T.FLOOR && !(fx === su.x && fy === su.y) && !(fx === sd.x && fy === sd.y) && !isAvoid(fx, fy))
+      if (map[fy]?.[fx] === T.FLOOR && !fixtureOcc(fx, fy) && !monOcc(fx, fy))
         roomFloorTiles.push([fx, fy]);
   /* Fisher-Yatesシャッフル */
   for (let i = roomFloorTiles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [roomFloorTiles[i], roomFloorTiles[j]] = [roomFloorTiles[j], roomFloorTiles[i]];
   }
-  /* モンスターハウス：最低8体、最大25体 */
-  const monCount = Math.min(25, Math.max(8, Math.floor(roomFloorTiles.length * 0.65)));
+  /* モンスターハウス：空きが十分なら最低8・最大25、足りなければ空き全部 */
+  const monPlace = roomFloorTiles.length >= 8
+    ? Math.min(25, Math.max(8, Math.floor(roomFloorTiles.length * 0.65)))
+    : roomFloorTiles.length;
   const spawned = [];
-  for (let i = 0; i < Math.min(monCount, roomFloorTiles.length); i++) {
+  for (let i = 0; i < monPlace; i++) {
     const [mx, my] = roomFloorTiles[i];
     const _mh = mkMon(depth, mx, my, 0, map, springs, dungeonType);
     if (awake) {
@@ -173,12 +190,11 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
       for (let b = 0; b < levelBoost; b++) monLevelUp(_m, { monsters: mons }, _silent);
     }
   }
-  /* アイテムと罠を半々に配置（空きタイルを先に収集してシャッフル → 前半アイテム・後半罠） */
-  const monOcc = (x, y) => mons.some(m => m.x === x && m.y === y);
+  /* アイテムと罠：モンスター配置後の空き（既存フィクスチャも除外） */
   const freeTiles = [];
   for (let fy2 = room.y; fy2 < room.y + room.h; fy2++)
     for (let fx2 = room.x; fx2 < room.x + room.w; fx2++)
-      if (map[fy2][fx2] === T.FLOOR && !monOcc(fx2, fy2) && !(fx2 === su.x && fy2 === su.y) && !(fx2 === sd.x && fy2 === sd.y) && !isAvoid(fx2, fy2))
+      if (map[fy2]?.[fx2] === T.FLOOR && !allOcc(fx2, fy2))
         freeTiles.push([fx2, fy2]);
   for (let i = freeTiles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -188,6 +204,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   const itemSlots = freeTiles.slice(0, Math.min(rng(5, 9), _half));
   const trapSlots = freeTiles.slice(itemSlots.length, itemSlots.length + Math.min(rng(5, 9), freeTiles.length - itemSlots.length));
   for (const [ix, iy] of itemSlots) {
+    if (allOcc(ix, iy)) continue;
     const t = pickLootFromPool(ITEMS);
     const it = { ...t, id: uid(), x: ix, y: iy };
     if (it.type === "gold") it.value = rng(50, 150 + depth * 40);
@@ -199,21 +216,16 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     items.push(it);
   }
   for (const [tx, ty] of trapSlots) {
+    if (allOcc(tx, ty)) continue;
     const t = pickTrap();
     traps.push({ ...t, id: uid(), x: tx, y: ty, revealed: false });
   }
-  const allOcc = (x, y) =>
-    mons.some(m => m.x === x && m.y === y) ||
-    items.some(i => i.x === x && i.y === y) ||
-    bigboxes.some(b => b.x === x && b.y === y) ||
-    springs.some(s => s.x === x && s.y === y) ||
-    traps.some(t => t.x === x && t.y === y);
   /* 高確率で大箱・泉を追加 */
   for (let bi = 0; bi < rng(2, 4); bi++) {
     for (let a = 0; a < 80; a++) {
       const bx = rng(room.x + 1, room.x + room.w - 2);
       const by = rng(room.y + 1, room.y + room.h - 2);
-      if (map[by][bx] !== T.FLOOR) continue;
+      if (map[by]?.[bx] !== T.FLOOR) continue;
       if (allOcc(bx, by)) continue;
       const bbt = pickBB();
       bigboxes.push({ id: uid(), x: bx, y: by, tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] });
@@ -224,7 +236,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     for (let a = 0; a < 80; a++) {
       const sx = rng(room.x + 1, room.x + room.w - 2);
       const sy = rng(room.y + 1, room.y + room.h - 2);
-      if (map[sy][sx] !== T.FLOOR) continue;
+      if (map[sy]?.[sx] !== T.FLOOR) continue;
       if (allOcc(sx, sy)) continue;
       springs.push({ id: uid(), x: sx, y: sy, tile: TI.SPRING, contents: [] });
       break;
@@ -279,6 +291,7 @@ export function applyMonsterHouseToRoom(dg, room, p, ml, opts = {}) {
   if (!dg.traps) dg.traps = [];
   if (!dg.springs) dg.springs = [];
   if (!dg.bigboxes) dg.bigboxes = [];
+  if (!dg.statues) dg.statues = [];
   const depth = Math.max(0, (p?.depth || 1) - 1);
   const su = dg.stairUp || { x: -99, y: -99 };
   const sd = dg.stairDown || { x: -99, y: -99 };
@@ -286,7 +299,7 @@ export function applyMonsterHouseToRoom(dg, room, p, ml, opts = {}) {
   genMonsterHouseContent(
     room, depth, dg.map, dg.monsters, dg.items, dg.traps, dg.springs, dg.bigboxes,
     su, sd, dg.dungeonType || null,
-    { levelBoost: strong ? 1 : 0, awake: playerInRoom, avoid },
+    { levelBoost: strong ? 1 : 0, awake: playerInRoom, avoid, statues: dg.statues },
   );
   if (playerInRoom) {
     ml.push(strong
