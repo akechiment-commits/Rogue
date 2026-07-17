@@ -148,14 +148,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   const monOcc = (x, y) => mons.some((m) => m.x === x && m.y === y);
   const allOcc = (x, y) => monOcc(x, y) || fixtureOcc(x, y);
 
-  /* 通常配置でハウス部屋に入り込んだモンスターを除去（店主は残す） */
-  for (let i = mons.length - 1; i >= 0; i--) {
-    const m = mons[i];
-    if (m.type === "shopkeeper" || m.type === "guard") continue;
-    if (m.x >= room.x && m.x < room.x + room.w && m.y >= room.y && m.y < room.y + room.h)
-      mons.splice(i, 1);
-  }
-  /* 配置可能タイル：既存フィクスチャの上には置かない */
+  /* 既存モンスターは残す。空きマスに新規を追加（既存マスには重ねない） */
   const roomFloorTiles = [];
   for (let fy = room.y; fy < room.y + room.h; fy++)
     for (let fx = room.x; fx < room.x + room.w; fx++)

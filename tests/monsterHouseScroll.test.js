@@ -107,6 +107,29 @@ describe("モンスターの巻物", () => {
     expect(dg.monsters.some((m) => m.x === p.x && m.y === p.y)).toBe(false);
   });
 
+  it("既に部屋にいたモンスターは消えない", () => {
+    const dg = makeRoomDg();
+    const existing = {
+      id: "keep-me",
+      name: "ラット",
+      x: 4,
+      y: 4,
+      type: "mon",
+      aware: false,
+      dormantHouse: false,
+    };
+    dg.monsters = [existing];
+    const p = { x: 5, y: 5, depth: 5 };
+    const ml = [];
+    applyMonsterHouseToRoom(dg, dg.rooms[0], p, ml, { playerInRoom: true });
+    const kept = dg.monsters.find((m) => m.id === "keep-me");
+    expect(kept).toBeTruthy();
+    expect(kept.x).toBe(4);
+    expect(kept.y).toBe(4);
+    expect(dg.monsters.some((m) => m.x === 4 && m.y === 4 && m.id !== "keep-me")).toBe(false);
+    expect(dg.monsters.length).toBeGreaterThan(1);
+  });
+
   it("既存の大箱・泉・石像・罠・アイテムの上にアイテム/罠/大箱/泉を重ねない", () => {
     const dg = makeRoomDg();
     dg.bigboxes = [{ id: "bb1", x: 4, y: 3, kind: "wood", name: "木箱", capacity: 5, contents: [] }];
