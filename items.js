@@ -321,7 +321,7 @@ export const ITEMS = [
   { name:"モンスターの巻物", type:"scroll", effect:"monster_house", rarity:"B", weight:2, sellPrice:900,
     desc:"読んだ部屋がモンスターハウスになり、敵・アイテム・罠が新たに配置される。\n廊下や店など部屋外で読むと、どこかの部屋へテレポートしてから発動する（テレポート不能時は自分は動かず別部屋がハウス化）。\n祝福：強モンスターハウス（敵が1レベル上がった状態）。\n呪い：同部屋の敵を全て別の部屋へテレポートさせる。", tile:18 },
   { name:"あぶく銭の巻物", type:"scroll", effect:"bubble_gold", rarity:"C", weight:4, sellPrice:500,
-    desc:"読むと大金が手に入るが、しばらくすると消える。", tile:18 },
+    desc:"読むと大金が手に入るが、しばらくすると消える。\n呪い：先に減って、しばらくすると戻る。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"B", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"D", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
@@ -4459,34 +4459,56 @@ export function frozenPhysicalLabel(p) {
 }
 
 /**
- * あぶく銭の巻物：即時に gold を増やし、10ターン後に同額を差し引く（0未満にはしない）。
- * 祝福: 20000 / 通常・呪い: 10000。複数回読むとキューに積む。
+ * あぶく銭の巻物。
+ * 通常: +10000 → 10ターン後 -10000
+ * 祝福: +20000 → 10ターン後 -20000
+ * 呪い: -10000（0未満にしない）→ 10ターン後 +10000
+ * 複数回読むとキューに積む。
+ * @returns {number} 即時に変化した金額（増は正・減は負。減が足りない場合は実際の減額）
  */
 export function applyBubbleGoldScroll(p, ml, { blessed = false, cursed = false } = {}) {
   if (!p) return 0;
   const amount = blessed ? 20000 : 10000;
-  p.gold = (p.gold || 0) + amount;
   p.bubbleGoldQueue = p.bubbleGoldQueue || [];
-  p.bubbleGoldQueue.push({ turns: 10, amount });
-  const tag = blessed ? "【祝】" : cursed ? "【呪】" : "";
+  if (cursed && !blessed) {
+    const lost = Math.min(Math.max(0, p.gold || 0), amount);
+    p.gold = Math.max(0, (p.gold || 0) - lost);
+    p.bubbleGoldQueue.push({ turns: 10, delta: amount }); // 後で増える
+    if (ml) {
+      if (lost >= amount) ml.push(`${amount}G失った！（10ターン後に戻る）【呪】`);
+      else if (lost > 0) ml.push(`${lost}G失った！（10ターン後に${amount}G戻る／手元が足りず一部帳消し）【呪】`);
+      else ml.push(`所持金が0のため減らせなかった…（10ターン後に${amount}G手に入る）【呪】`);
+    }
+    return -lost;
+  }
+  p.gold = (p.gold || 0) + amount;
+  p.bubbleGoldQueue.push({ turns: 10, delta: -amount }); // 後で減る
+  const tag = blessed ? "【祝】" : "";
   if (ml) ml.push(`${amount}G手に入れた！（10ターン後に消える）${tag}`);
   return amount;
 }
 
-/** あぶく銭キューを1ターン進める。turns が 0 になった分だけ gold を減らし、0未満にはしない。 */
+/** あぶく銭キューを1ターン進める。delta が負なら減（0未満にしない）、正なら増。 */
 export function tickBubbleGold(p, ml) {
   if (!p?.bubbleGoldQueue?.length) return;
   const next = [];
   for (const entry of p.bubbleGoldQueue) {
     entry.turns = (entry.turns || 0) - 1;
     if (entry.turns <= 0) {
-      const want = entry.amount || 0;
-      const lost = Math.min(Math.max(0, p.gold || 0), want);
-      p.gold = Math.max(0, (p.gold || 0) - lost);
-      if (ml) {
-        if (lost >= want && want > 0) ml.push(`あぶく銭が消えた…${lost}G失った！`);
-        else if (lost > 0) ml.push(`あぶく銭が消えた…${lost}G失った！（手元が足りず${want - lost}G分は帳消し）`);
-        else ml.push("あぶく銭が消えた…（手元の金は0のまま）");
+      // 後方互換: 旧 save の amount は「後で減らす額」
+      const delta = entry.delta != null ? entry.delta : -(entry.amount || 0);
+      if (delta < 0) {
+        const want = -delta;
+        const lost = Math.min(Math.max(0, p.gold || 0), want);
+        p.gold = Math.max(0, (p.gold || 0) - lost);
+        if (ml) {
+          if (lost >= want && want > 0) ml.push(`あぶく銭が消えた…${lost}G失った！`);
+          else if (lost > 0) ml.push(`あぶく銭が消えた…${lost}G失った！（手元が足りず${want - lost}G分は帳消し）`);
+          else ml.push("あぶく銭が消えた…（手元の金は0のまま）");
+        }
+      } else if (delta > 0) {
+        p.gold = (p.gold || 0) + delta;
+        if (ml) ml.push(`あぶく銭が戻ってきた！${delta}G手に入れた！`);
       }
     } else {
       next.push(entry);

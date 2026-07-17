@@ -1771,7 +1771,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         p.defDebuffTurns--;
         if (p.defDebuffTurns <= 0) ml.push("防御力の半減デバフが解けた！");
       }
-      /* あぶく銭の巻物：10ターン後に増えた分を差し引く（0未満にしない） */
+      /* あぶく銭の巻物：10ターン後に増減を反転（減少は0未満にしない） */
       tickBubbleGold(p, ml);
       /* 2倍速：endTurnが呼ばれた時（2回目の行動後）のみ消費 */
       if ((p.hasteTurns || 0) > 0) {
