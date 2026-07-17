@@ -15,7 +15,7 @@ import {
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice, removeTrap, removeTraps,
-  resolveItemName,
+  resolveItemName, applyBubbleGoldScroll,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
@@ -1530,6 +1530,8 @@ export function useItemActions({
       } else if (it.effect === "monster_house") {
         applyMonsterScroll(dg, p, ml, { blessed: !!it.blessed, cursed: !!it.cursed });
         refreshFOV(dg, p);
+      } else if (it.effect === "bubble_gold") {
+        applyBubbleGoldScroll(p, ml, { blessed: !!it.blessed, cursed: !!it.cursed });
       } else if (it.effect === "summon") {
         // 召喚の巻物
         if (it.cursed) {

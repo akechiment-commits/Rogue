@@ -25,6 +25,7 @@ import {
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
+  tickBubbleGold,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
@@ -1770,6 +1771,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         p.defDebuffTurns--;
         if (p.defDebuffTurns <= 0) ml.push("防御力の半減デバフが解けた！");
       }
+      /* あぶく銭の巻物：10ターン後に増えた分を差し引く（0未満にしない） */
+      tickBubbleGold(p, ml);
       /* 2倍速：endTurnが呼ばれた時（2回目の行動後）のみ消費 */
       if ((p.hasteTurns || 0) > 0) {
         p.hasteTurns--;
@@ -5642,6 +5645,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {(p.sealedTurns || 0) > 0 && (
           <span style={{ color: "#8040e0" }}>🔒{p.sealedTurns}</span>
+        )}{" "}
+        {(p.bubbleGoldQueue?.length > 0) && (
+          <span style={{ color: "#e0c040" }} title="あぶく銭">
+            💰↓{Math.min(...p.bubbleGoldQueue.map((e) => e.turns || 0))}
+          </span>
         )}{" "}
         {(p.fireExplosionNullTurns || 0) > 0 && (
           <span style={{ color: "#6080a0" }}>🧯{p.fireExplosionNullTurns}</span>
