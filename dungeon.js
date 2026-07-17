@@ -1,5 +1,5 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffle } from './utils.js';
-import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef } from './monsters.js';
+import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickLootFromPool, pickTrap, RINGS,
@@ -122,10 +122,21 @@ function genBigRoom(depth, dungeonType = null) {
 }
 
 /* ===== MONSTER HOUSE CONTENT GENERATOR ===== */
-function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType = null) {
-  /* 通常配置でハウス部屋に入り込んだモンスターを除去（配置スペースを確保） */
+/**
+ * @param {{ levelBoost?: number, awake?: boolean, avoid?: {x:number,y:number}[] }} [opts]
+ *   levelBoost: 生成後 monLevelUp を何回かけるか（強モンスターハウス）
+ *   awake: true なら dormantHouse にせず即認識（部屋内で巻物を読んだとき）
+ *   avoid: 配置を避ける座標（プレイヤー足元など）
+ */
+function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType = null, opts = {}) {
+  const levelBoost = opts.levelBoost || 0;
+  const awake = !!opts.awake;
+  const avoid = opts.avoid || [];
+  const isAvoid = (x, y) => avoid.some((a) => a.x === x && a.y === y);
+  /* 通常配置でハウス部屋に入り込んだモンスターを除去（店主は残す） */
   for (let i = mons.length - 1; i >= 0; i--) {
     const m = mons[i];
+    if (m.type === "shopkeeper" || m.type === "guard") continue;
     if (m.x >= room.x && m.x < room.x + room.w && m.y >= room.y && m.y < room.y + room.h)
       mons.splice(i, 1);
   }
@@ -133,7 +144,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   const roomFloorTiles = [];
   for (let fy = room.y; fy < room.y + room.h; fy++)
     for (let fx = room.x; fx < room.x + room.w; fx++)
-      if (map[fy]?.[fx] === T.FLOOR && !(fx === su.x && fy === su.y) && !(fx === sd.x && fy === sd.y))
+      if (map[fy]?.[fx] === T.FLOOR && !(fx === su.x && fy === su.y) && !(fx === sd.x && fy === sd.y) && !isAvoid(fx, fy))
         roomFloorTiles.push([fx, fy]);
   /* Fisher-Yatesシャッフル */
   for (let i = roomFloorTiles.length - 1; i > 0; i--) {
@@ -142,18 +153,32 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
   }
   /* モンスターハウス：最低8体、最大25体 */
   const monCount = Math.min(25, Math.max(8, Math.floor(roomFloorTiles.length * 0.65)));
+  const spawned = [];
   for (let i = 0; i < Math.min(monCount, roomFloorTiles.length); i++) {
     const [mx, my] = roomFloorTiles[i];
-    const _mh = mkMon(depth, mx, my, 0, map, null, dungeonType);
-    _mh.dormantHouse = true;
+    const _mh = mkMon(depth, mx, my, 0, map, springs, dungeonType);
+    if (awake) {
+      _mh.dormantHouse = false;
+      _mh.aware = true;
+      _mh._justWoke = true;
+    } else {
+      _mh.dormantHouse = true;
+    }
     mons.push(_mh);
+    spawned.push(_mh);
+  }
+  if (levelBoost > 0) {
+    const _silent = [];
+    for (const _m of spawned) {
+      for (let b = 0; b < levelBoost; b++) monLevelUp(_m, { monsters: mons }, _silent);
+    }
   }
   /* アイテムと罠を半々に配置（空きタイルを先に収集してシャッフル → 前半アイテム・後半罠） */
   const monOcc = (x, y) => mons.some(m => m.x === x && m.y === y);
   const freeTiles = [];
   for (let fy2 = room.y; fy2 < room.y + room.h; fy2++)
     for (let fx2 = room.x; fx2 < room.x + room.w; fx2++)
-      if (map[fy2][fx2] === T.FLOOR && !monOcc(fx2, fy2) && !(fx2 === su.x && fy2 === su.y) && !(fx2 === sd.x && fy2 === sd.y))
+      if (map[fy2][fx2] === T.FLOOR && !monOcc(fx2, fy2) && !(fx2 === su.x && fy2 === su.y) && !(fx2 === sd.x && fy2 === sd.y) && !isAvoid(fx2, fy2))
         freeTiles.push([fx2, fy2]);
   for (let i = freeTiles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -222,6 +247,153 @@ export function triggerMonsterHouse(dg, p, ml) {
   ml.push(`モンスターハウスだ！敵が一斉に目覚めた！(${sleeping.length}体)`);
   dg.monsterSenseActive = true; /* このフロアの全モンスター位置が見えるようになる */
   dg.monsterHouseRoom = null;
+}
+
+/** 店部屋かどうか（モンスターハウス対象外） */
+function isShopRoom(dg, room) {
+  if (!room) return false;
+  return getShops(dg).some((s) =>
+    s.room && s.room.x === room.x && s.room.y === room.y && s.room.w === room.w && s.room.h === room.h
+  );
+}
+
+/** モンスターハウス化できる部屋一覧（店を除く） */
+function getMonsterHouseCandidateRooms(dg) {
+  const rooms = dg.rooms || [];
+  const nonShop = rooms.filter((r) => !isShopRoom(dg, r));
+  return nonShop.length > 0 ? nonShop : rooms;
+}
+
+/**
+ * 部屋をモンスターハウス化する（モンスターの巻物用）。
+ * @param {{ strong?: boolean, playerInRoom?: boolean }} opts
+ *   strong: 敵を1レベル上げて配置（祝福）
+ *   playerInRoom: プレイヤーがその部屋にいる（即覚醒）
+ */
+export function applyMonsterHouseToRoom(dg, room, p, ml, opts = {}) {
+  if (!dg || !room) return false;
+  const strong = !!opts.strong;
+  const playerInRoom = !!opts.playerInRoom;
+  if (!dg.monsters) dg.monsters = [];
+  if (!dg.items) dg.items = [];
+  if (!dg.traps) dg.traps = [];
+  if (!dg.springs) dg.springs = [];
+  if (!dg.bigboxes) dg.bigboxes = [];
+  const depth = Math.max(0, (p?.depth || 1) - 1);
+  const su = dg.stairUp || { x: -99, y: -99 };
+  const sd = dg.stairDown || { x: -99, y: -99 };
+  const avoid = playerInRoom && p ? [{ x: p.x, y: p.y }] : [];
+  genMonsterHouseContent(
+    room, depth, dg.map, dg.monsters, dg.items, dg.traps, dg.springs, dg.bigboxes,
+    su, sd, dg.dungeonType || null,
+    { levelBoost: strong ? 1 : 0, awake: playerInRoom, avoid },
+  );
+  if (playerInRoom) {
+    ml.push(strong
+      ? "強モンスターハウスだ！強力な敵が一斉に現れた！"
+      : "モンスターハウスだ！敵が一斉に現れた！");
+    dg.monsterSenseActive = true;
+    dg.monsterHouseRoom = null;
+  } else {
+    dg.monsterHouseRoom = room;
+    ml.push(strong
+      ? "どこかの部屋が強モンスターハウスになった気配がする..."
+      : "どこかの部屋がモンスターハウスになった気配がする...");
+  }
+  return true;
+}
+
+/**
+ * モンスターの巻物の効果を実行。
+ * 通常/祝福: 部屋をモンスターハウス化（廊下・店では別部屋へテレポートしてから）
+ * 呪い: 同部屋の敵を別部屋へ飛ばす
+ */
+export function applyMonsterScroll(dg, p, ml, { blessed = false, cursed = false } = {}) {
+  if (!dg || !p) return;
+  const _tpBlocked = dg.pentacles?.some((pc) => pc.kind === "teleport_trap" && pc.cursed);
+
+  if (cursed) {
+    const _sumRoom = findRoomLocal(dg, p.x, p.y);
+    const _inRoom = _sumRoom
+      ? dg.monsters.filter((m) =>
+          m.type !== "shopkeeper" && m.type !== "guard" &&
+          m.x >= _sumRoom.x && m.x < _sumRoom.x + _sumRoom.w &&
+          m.y >= _sumRoom.y && m.y < _sumRoom.y + _sumRoom.h)
+      : [];
+    if (_tpBlocked) {
+      ml.push("呪われたテレポートの魔方陣に阻まれて効果が無効化された！【呪】");
+      return;
+    }
+    if (!_sumRoom || _inRoom.length === 0) {
+      ml.push("部屋に飛ばせる敵がいなかった。【呪】");
+      return;
+    }
+    const _otherRooms = (dg.rooms || []).filter((r) => r !== _sumRoom);
+    let _teleportedCount = 0;
+    for (const _sm of _inRoom) {
+      if (_sm.magicImmune) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
+      const _tr = pick(_otherRooms);
+      if (!_tr) continue;
+      for (let _att = 0; _att < 30; _att++) {
+        const _tx = rng(_tr.x, _tr.x + _tr.w - 1);
+        const _ty = rng(_tr.y, _tr.y + _tr.h - 1);
+        if (dg.map[_ty]?.[_tx] !== T.FLOOR) continue;
+        if (dg.monsters.some((m) => m.x === _tx && m.y === _ty)) continue;
+        if (_tx === p.x && _ty === p.y) continue;
+        _sm.x = _tx; _sm.y = _ty; _sm.aware = false;
+        _teleportedCount++;
+        break;
+      }
+    }
+    if (_teleportedCount > 0) ml.push(`${_teleportedCount}体の敵が別の部屋へ飛んだ！【呪】`);
+    else ml.push("敵はどこへも飛ばなかった。【呪】");
+    return;
+  }
+
+  /* 通常・祝福 */
+  const cands = getMonsterHouseCandidateRooms(dg);
+  if (cands.length === 0) {
+    ml.push("モンスターハウスにできる部屋がない。");
+    return;
+  }
+  let room = findRoomLocal(dg, p.x, p.y);
+  const inUsableRoom = room && cands.includes(room);
+
+  if (!inUsableRoom) {
+    /* 廊下・店など：どこかの部屋へテレポートしてからハウス化 */
+    const dest = pick(cands);
+    let teleported = false;
+    if (!_tpBlocked) {
+      for (let a = 0; a < 40; a++) {
+        const tx = rng(dest.x, dest.x + dest.w - 1);
+        const ty = rng(dest.y, dest.y + dest.h - 1);
+        if (dg.map[ty]?.[tx] !== T.FLOOR) continue;
+        if (dg.monsters.some((m) => m.x === tx && m.y === ty)) continue;
+        p.x = tx; p.y = ty;
+        if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
+        ml.push("巻物の力で別の部屋へテレポートした！");
+        teleported = true;
+        room = dest;
+        break;
+      }
+    } else {
+      ml.push("呪われたテレポートの魔方陣に阻まれてテレポートできない！");
+    }
+    if (teleported) {
+      applyMonsterHouseToRoom(dg, room, p, ml, { strong: blessed, playerInRoom: true });
+    } else {
+      /* ワープせず、どこかの部屋をハウス化（プレイヤー未入室 → 休眠配置） */
+      applyMonsterHouseToRoom(dg, dest, p, ml, { strong: blessed, playerInRoom: false });
+    }
+    return;
+  }
+
+  applyMonsterHouseToRoom(dg, room, p, ml, { strong: blessed, playerInRoom: true });
+}
+
+/** dungeon.js 内用（monsters.findRoom と同等） */
+function findRoomLocal(dg, x, y) {
+  return (dg.rooms || []).find((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) || null;
 }
 
 /* ===== HIDDEN ROOM GENERATOR ===== */

@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
+import { applyMonsterScroll } from "./dungeon.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
@@ -1526,6 +1527,9 @@ export function useItemActions({
           ml.push("複製できるアイテムがない。");
         }
         /* 魔封じ時は魔法封印メッセージが ml に入っているので何もしない */
+      } else if (it.effect === "monster_house") {
+        applyMonsterScroll(dg, p, ml, { blessed: !!it.blessed, cursed: !!it.cursed });
+        refreshFOV(dg, p);
       } else if (it.effect === "summon") {
         // 召喚の巻物
         if (it.cursed) {

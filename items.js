@@ -318,6 +318,8 @@ export const ITEMS = [
     desc:"中心から2マス（5×5）に爆発が起き、自分のHPが1になる。範囲内の敵は炎無効でない限り即死。炎耐性ありなら自ダメ軽減（個別or万能2/3・両方半減）。\n呪い：爆発は起きず200ターンの間、炎と爆発が全て不発になる。", tile:18 },
   { name:"バーサーカーの巻物", type:"scroll", effect:"berserker_scroll", rarity:"C", weight:4, sellPrice:600,
     desc:"部屋内の敵全員が50ターンのバーサーク状態になり、敵味方区別なく攻撃する。\n呪い：部屋内の敵が20ターンの平和主義状態になる（攻撃不可）。", tile:18 },
+  { name:"モンスターの巻物", type:"scroll", effect:"monster_house", rarity:"B", weight:2, sellPrice:900,
+    desc:"読んだ部屋がモンスターハウスになり、敵・アイテム・罠が新たに配置される。\n廊下や店など部屋外で読むと、どこかの部屋へテレポートしてから発動する（テレポート不能時は自分は動かず別部屋がハウス化）。\n祝福：強モンスターハウス（敵が1レベル上がった状態）。\n呪い：同部屋の敵を全て別の部屋へテレポートさせる。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"B", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"D", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
