@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep } from "../turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep } from "../turnUpkeep.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -70,6 +70,16 @@ describe("advanceCoreStatusTimers", () => {
     advanceCoreStatusTimers(player, messages, { hasRingEffect: (entry, effect) => entry.rings.some((ring) => ring.effect === effect) });
     expect(player.slowSkip).toBe(true);
     expect(messages).toEqual(["混乱が解けた！", "暗闇が晴れた！視界が戻った！", "必中状態が切れた！"]);
+  });
+});
+
+describe("advanceConsumableBuffTimers", () => {
+  it("食料由来の強化を減らし、蜂蜜は回復して終了を通知する", () => {
+    const player = makePlayer({ hp: 90, spicyAtkTurns: 1, curryFireResTurns: 1, honeyRegenTurns: 1 });
+    const messages = [];
+    advanceConsumableBuffTimers(player, messages);
+    expect(player.hp).toBe(92);
+    expect(messages).toEqual(["辛さによるダメージブーストが切れた！", "カレーの炎耐性が切れた！", "蜂蜜の自然回復が切れた！"]);
   });
 });
 

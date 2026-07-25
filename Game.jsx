@@ -48,7 +48,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
-import { advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep } from "./turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep } from "./turnUpkeep.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1557,68 +1557,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       /* ===== 状態異常カウントダウン（ダッシュ含む全ターン進行で共通） ===== */
       advanceCoreStatusTimers(p, ml, { hasRingEffect, isSlowAutoAdvance: _isSlowAutoAdv });
-      if ((p.spicyAtkTurns || 0) > 0) {
-        p.spicyAtkTurns--;
-        if (p.spicyAtkTurns <= 0) ml.push("辛さによるダメージブーストが切れた！");
-      }
-      if ((p.pacifistTurns || 0) > 0) {
-        p.pacifistTurns--;
-        if (p.pacifistTurns <= 0) ml.push("平和主義状態が解けた！攻撃できるようになった。");
-      }
-      if ((p.reverseTurns || 0) > 0) {
-        p.reverseTurns--;
-        if (p.reverseTurns <= 0) ml.push("逆転状態が解けた！ダメージと回復が元に戻った。");
-      }
-      if ((p.honeyRegenTurns || 0) > 0) {
-        const _hReg = Math.min(2, p.maxHp - p.hp);
-        if (_hReg > 0) p.hp += _hReg;
-        p.honeyRegenTurns--;
-        if (p.honeyRegenTurns <= 0) ml.push("蜂蜜の自然回復が切れた！");
-      }
-      if ((p.curryFireResTurns || 0) > 0) {
-        p.curryFireResTurns--;
-        if (p.curryFireResTurns <= 0) ml.push("カレーの炎耐性が切れた！");
-      }
-      if ((p.misoDefTurns || 0) > 0) {
-        p.misoDefTurns--;
-        if (p.misoDefTurns <= 0) ml.push("味噌の防御ブーストが切れた！");
-      }
-      if ((p.oliveEvasionTurns || 0) > 0) {
-        p.oliveEvasionTurns--;
-        if (p.oliveEvasionTurns <= 0) ml.push("オリーブオイルの回避効果が切れた！");
-      }
-      if ((p.sesameCritTurns || 0) > 0) {
-        p.sesameCritTurns--;
-        if (p.sesameCritTurns <= 0) ml.push("ごまの会心ブーストが切れた！");
-      }
-      if ((p.butterHungerTurns || 0) > 0) {
-        p.butterHungerTurns--;
-        if (p.butterHungerTurns <= 0) ml.push("バターの腹持ち効果が切れた！");
-      }
-      if ((p.yogurtImmuneTurns || 0) > 0) {
-        p.yogurtImmuneTurns--;
-        if (p.yogurtImmuneTurns <= 0) ml.push("ヨーグルトの免疫効果が切れた！");
-      }
-      if ((p.soyExpTurns || 0) > 0) {
-        p.soyExpTurns--;
-        if (p.soyExpTurns <= 0) ml.push("醤油の経験値ブーストが切れた！");
-      }
-      if ((p.garlicDmgTurns || 0) > 0) {
-        p.garlicDmgTurns--;
-        if (p.garlicDmgTurns <= 0) ml.push("にんにくの追加ダメージが切れた！");
-      }
-      if ((p.lemonThrowTurns || 0) > 0) {
-        p.lemonThrowTurns--;
-        if (p.lemonThrowTurns <= 0) ml.push("レモンの投擲ブーストが切れた！");
-      }
-      if ((p.atkDebuffTurns || 0) > 0) {
-        p.atkDebuffTurns--;
-        if (p.atkDebuffTurns <= 0) ml.push("攻撃力の半減デバフが解けた！");
-      }
-      if ((p.defDebuffTurns || 0) > 0) {
-        p.defDebuffTurns--;
-        if (p.defDebuffTurns <= 0) ml.push("防御力の半減デバフが解けた！");
-      }
+      advanceConsumableBuffTimers(p, ml);
       /* あぶく銭の巻物：10ターン後に増減を反転（減少は0未満にしない） */
       tickBubbleGold(p, ml);
       /* 2倍速：endTurnが呼ばれた時（2回目の行動後）のみ消費 */

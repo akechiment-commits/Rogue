@@ -109,3 +109,35 @@ export function advanceCoreStatusTimers(player, messages, { hasRingEffect, isSlo
     }
   }
 }
+
+/** 食料などで得る一時強化とデバフを更新する。 */
+export function advanceConsumableBuffTimers(player, messages) {
+  const timers = [
+    ["spicyAtkTurns", "辛さによるダメージブーストが切れた！"],
+    ["pacifistTurns", "平和主義状態が解けた！攻撃できるようになった。"],
+    ["reverseTurns", "逆転状態が解けた！ダメージと回復が元に戻った。"],
+    ["curryFireResTurns", "カレーの炎耐性が切れた！"],
+    ["misoDefTurns", "味噌の防御ブーストが切れた！"],
+    ["oliveEvasionTurns", "オリーブオイルの回避効果が切れた！"],
+    ["sesameCritTurns", "ごまの会心ブーストが切れた！"],
+    ["butterHungerTurns", "バターの腹持ち効果が切れた！"],
+    ["yogurtImmuneTurns", "ヨーグルトの免疫効果が切れた！"],
+    ["soyExpTurns", "醤油の経験値ブーストが切れた！"],
+    ["garlicDmgTurns", "にんにくの追加ダメージが切れた！"],
+    ["lemonThrowTurns", "レモンの投擲ブーストが切れた！"],
+    ["atkDebuffTurns", "攻撃力の半減デバフが解けた！"],
+    ["defDebuffTurns", "防御力の半減デバフが解けた！"],
+  ];
+  for (const [key, message] of timers) {
+    if ((player[key] || 0) > 0) {
+      player[key]--;
+      if (player[key] <= 0) messages.push(message);
+    }
+  }
+  if ((player.honeyRegenTurns || 0) > 0) {
+    const heal = Math.min(2, player.maxHp - player.hp);
+    if (heal > 0) player.hp += heal;
+    player.honeyRegenTurns--;
+    if (player.honeyRegenTurns <= 0) messages.push("蜂蜜の自然回復が切れた！");
+  }
+}
