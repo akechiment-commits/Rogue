@@ -44,6 +44,7 @@ import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyMod
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
+import { describeLookCell } from "./lookDescription.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -885,49 +886,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
     }
   }, []);
-  const getLookDesc = useCallback((cx, cy, dg) => {
-    if (!dg) return "";
-    const tile = dg.map[cy]?.[cx];
-    if (!dg.explored[cy]?.[cx]) return "未探索";
-    /* 壁タイルの場合 */
-    if (tile === T.WALL || tile === T.BWALL) {
-      if (dg.itemsRevealed) {
-        const _wi = dg.items.find(i => i.x === cx && i.y === cy && i.wallEmbedded);
-        if (_wi) {
-          const _nm = itemDisplayName(_wi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-          return `壁の中: ${_nm}`;
-        }
-      }
-      return tile === T.BWALL ? "壊せる壁" : "壁";
-    }
-    const parts = [];
-    if (tile === T.SD) parts.push("下り階段");
-    else if (tile === T.SU) parts.push("上り階段");
-    else {
-      const _fs = dg.traps?.find(t => t.x === cx && t.y === cy && t.disguise && !t.revealed);
-      if (_fs) parts.push(_fs.disguise === "stair_up" ? "上り階段" : "下り階段");
-    }
-    const mon = dg.visible[cy]?.[cx] && dg.monsters.find(m => m.x === cx && m.y === cy);
-    if (mon) parts.push(`${mon.name} HP:${mon.hp}/${mon.maxHp}`);
-    const floorItems = dg.items.filter(i => i.x === cx && i.y === cy && !i.wallEmbedded);
-    for (const it of floorItems) {
-      const nm = itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-      parts.push(it.shopPrice ? `${nm}(${it.shopPrice}G)` : nm);
-    }
-    const trap = dg.traps.find(t => t.x === cx && t.y === cy && t.revealed);
-    if (trap) parts.push(`罠:${trap.name}`);
-    const spring = dg.springs?.find(s => s.x === cx && s.y === cy);
-    if (spring) parts.push(spring.name || "泉");
-    const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
-    if (bb) parts.push(bbDisplayName(bb, sr.current, bb.revealed === true || !!sr.current?.allBcKnown));
-    const pent = dg.pentacles?.find(pc => pc.x === cx && pc.y === cy);
-    if (pent) parts.push(pent.name);
-    const vent = dg.vents?.find(v => v.x === cx && v.y === cy);
-    if (vent) parts.push("風穴");
-    const statue = dg.statues?.find(s => s.x === cx && s.y === cy);
-    if (statue) parts.push("石像");
-    return parts.length > 0 ? parts.join(" / ") : "何もない";
-  }, []);
+  const getLookDesc = useCallback((x, y, dungeon) => describeLookCell({
+    x,
+    y,
+    dungeon,
+    session: sr.current,
+    itemDisplayName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+    bigboxDisplayName: (bigbox, revealed) => bbDisplayName(bigbox, sr.current, revealed),
+  }), []);
   const checkTrap = useCallback((p, dg, ml) => {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;

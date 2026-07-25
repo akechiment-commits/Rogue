@@ -273,6 +273,7 @@ React + Vite 製のローグライク。
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
 | `GameHelpers.js` | 戦闘・アイテム使用などのヘルパー |
+| `lookDescription.js` | 調べるモードのマス説明を組み立てる純粋ロジック |
 | `GameModals.jsx` | インベントリ・各種モーダルUI |
 | `GameButtons.jsx` | モバイル用ボタン |
 | `HubScreen.jsx` | タイトル・ダンジョン選択画面 |
