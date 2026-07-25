@@ -51,6 +51,7 @@ import { formatInventoryItem } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "./turnUpkeep.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
+import { collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1440,18 +1441,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (_skipMonAct) st.dungeon._firstVisit = false;
       /* ===== 4フェーズターン制 ===== */
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
-      const _monSnap = new Map();
-      for (const _ms of st.dungeon.monsters) _monSnap.set(_ms.id, { x: _ms.x, y: _ms.y });
+      const _monAnimation = createMonsterTurnAnimation();
+      const _monSnap = snapshotMonsterPositions(st.dungeon.monsters);
       if (!_skipMonAct) moveMons(st.dungeon, p, ml, "moveOnly");
       /* Capture monster position changes for animation + mark movers */
-      const _mmoves = [], _mattacks = [], _mdamages = [];
-      for (const _ms2 of st.dungeon.monsters) {
-        const _snap = _monSnap.get(_ms2.id);
-        if (_snap && (_ms2.x !== _snap.x || _ms2.y !== _snap.y)) {
-          _mmoves.push({ id: _ms2.id, fromX: _snap.x, fromY: _snap.y, toX: _ms2.x, toY: _ms2.y, tile: _ms2.tile, hp: _ms2.hp, maxHp: _ms2.maxHp });
-          if ((_ms2.speed ?? 1) <= 1) _ms2._movedThisTurn = true; /* 速度1以下の敵は移動後に攻撃不可。倍速敵はそのまま攻撃できる */
-        }
-      }
+      collectMonsterMoves(_monAnimation, st.dungeon.monsters, _monSnap);
       /* Phase 2.5: モンスターがポータル／固定転送に乗っていたらワープ
        * 着地済み（このターン移動していない／最初から陣上）は再転送しない。
        * さもないと対の陣の上で往復バウンドして近づいてこない。 */
@@ -1597,10 +1591,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         },
       });
       if (_perHitEvents.length > 0) {
-        if (_hadActualHit && p.hp > 0) _mattacks.push({ type: "flash", x: p.x, y: p.y, color: "#ff4400" });
-        _mdamages.push(..._perHitEvents);
+        collectMonsterAttackEvents(_monAnimation, _perHitEvents, _perHitLunges, _hadActualHit, p);
       }
-      monMovesRef.current = { moves: _mmoves, attacks: _mattacks, damages: _mdamages, lunges: _perHitLunges };
+      monMovesRef.current = _monAnimation;
       /* ターン終了：ボスHP自然回復 */
       for (const _bm of st.dungeon.monsters) {
         if (_bm.hp <= 0) continue;
