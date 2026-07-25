@@ -57,7 +57,7 @@ import { resolveTurnHazards } from "./turnHazards.js";
 import { transitMonstersThroughPortals } from "./monsterPortalTransit.js";
 import { runMonsterAttackPhase } from "./monsterAttackPhase.js";
 import { applyVisibilityOverrides } from "./visibilityOverrides.js";
-import { resolveTeleportAndTrapPentacleEffect } from "./pentacleTurnEffects.js";
+import { resolveTeleportAndTrapPentacleEffect, resolveStoneAndHealingPentacleEffect } from "./pentacleTurnEffects.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1504,6 +1504,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             findRoom, inMagicSealRoom, random: Math.random, randomTeleportDest,
             pick, rng, T, pickTrap, uid, removeTrap,
           });
+          resolveStoneAndHealingPentacleEffect(_pc, _dg2, p, ml, {
+            findRoom, inMagicSealRoom, inCursedMagicSealRoom, random: Math.random, pick, rng,
+            MW, MH, T, hasAbility, makeMagicStone, placeItemAt, killMonster, trackMonster, lu,
+          });
+          /* 石飛ばし・回復は上の専用モジュールで解決済み。以下は旧実装を削除するまで到達しない。 */
+          continue;
           /* --- 石飛ばしの魔方陣：毎ターン25%で部屋内キャラに魔法の石を飛ばす --- */
           if (!_pcMagicSealed && _pc.kind === "stone_throw" && _pcRoom && Math.random() < 0.25) {
             /* 部屋内の全キャラ（プレイヤー＋モンスター）をターゲット候補に */
