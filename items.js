@@ -405,7 +405,7 @@ export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:tru
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。投げると割れる。",     tile:16 };
-export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと満腹度+3。投げると着弾点のアイテムに祝福(祝)/呪い(呪)を付与。壺に当たると容量変化。", tile:16 };
+export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。投げると周囲の腐敗・焦げた食料を元に戻す。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"C", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
 export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"B", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
 
@@ -3038,10 +3038,19 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   }
 }
 
-/* 祝福・呪いの水を投擲：着弾点のアイテム1つのみに祝呪効果（周囲8マス無効） */
+/* 通常の水は薬と同じ3×3に飛散して食料を元に戻す。
+   祝福・呪いの水だけは着弾点のアイテム1つのみに祝呪効果（周囲8マス無効）。 */
 export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml) {
-  ml.push("瓶が割れた！");
+  ml.push(blessed || cursed ? "瓶が割れた！" : "瓶が割れて水が飛び散った！");
   pushSplashAnim(cx, cy, blessed ? "#aaddff" : cursed ? "#aa88ff" : "#88ccff");
+  if (!blessed && !cursed) {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const x = cx + dx, y = cy + dy;
+      if (x < 0 || x >= MW || y < 0 || y >= MH || dg.map[y][x] === T.WALL || dg.map[y][x] === T.BWALL) continue;
+      restoreFoodWithWater(itemAt(dg, x, y), ml);
+    }
+    return;
+  }
   const it = itemAt(dg, cx, cy);
   if (!it) { if (blessed || cursed) ml.push("着弾点にアイテムがなかった…"); return; }
   if (it.type === "pot") {
@@ -4946,6 +4955,20 @@ function _foodSizedName(item) {
   const sz = item.sizeLabel;
   if (sz && sz !== "普通の") return sz + base;
   return base;
+}
+
+/** 通常の水で腐敗・焦げ状態を戻す。腐敗で失われた食料効果は戻らない。 */
+function restoreFoodWithWater(item, ml) {
+  if (item?.type !== "food" || (!item.rotten && !item.burnt && !item.yabai)) return false;
+  const before = item.name;
+  if (item.burnt) item.value = Math.max(1, Math.ceil((item.value || 1) / 0.6));
+  item.name = (item.cooked ? "焼いた" : "") + _foodSizedName(item);
+  item.desc = FOOD_DESCS[item.effect] || "食べると満腹度が回復する。";
+  delete item.rotten;
+  delete item.burnt;
+  delete item.yabai;
+  ml.push(`${before}が水で元に戻った！`);
+  return true;
 }
 
 /** 祝福・呪い・壺加工・特殊効果などを除去（腐敗・ヤバイ化時） */
