@@ -48,7 +48,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
-import { advanceEarlyStatusTimers, advancePlayerUpkeep } from "./turnUpkeep.js";
+import { advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep } from "./turnUpkeep.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1556,43 +1556,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         p.hasteTurns = Math.max(p.hasteTurns || 0, 2);
       }
       /* ===== 状態異常カウントダウン（ダッシュ含む全ターン進行で共通） ===== */
-      if ((p.slowTurns || 0) > 0) {
-        p.slowTurns--;
-        if (p.slowTurns <= 0) { ml.push("鈍足が解けた！"); }
-        else if (!_isSlowAutoAdv) { p.slowSkip = true; }
-      }
-      /* 鈍足の指輪：装備中は常に速度半減（2ターンに1回行動） */
-      if (hasRingEffect(p, "slow_ring") && !_isSlowAutoAdv) {
-        p.slowSkip = true;
-      }
-      if ((p.confusedTurns || 0) > 0) {
-        p.confusedTurns--;
-        if (p.confusedTurns <= 0) ml.push("混乱が解けた！");
-      }
-      if ((p.darknessTurns || 0) > 0) {
-        p.darknessTurns--;
-        if (p.darknessTurns <= 0) ml.push("暗闇が晴れた！視界が戻った！");
-      }
-      if ((p.bewitchedTurns || 0) > 0) {
-        p.bewitchedTurns--;
-        if (p.bewitchedTurns <= 0) ml.push("幻惑が解けた！周囲の見た目が正常に戻った！");
-      }
-      if ((p.defSoftenedTurns || 0) > 0) {
-        p.defSoftenedTurns--;
-        if (p.defSoftenedTurns <= 0) ml.push("軟化が解けた！防御力が戻った！");
-      }
-      if ((p.monsterSenseTurns || 0) > 0) {
-        p.monsterSenseTurns--;
-        if (p.monsterSenseTurns <= 0) ml.push("モンスター感知が切れた！");
-      }
-      if ((p.statusImmune || 0) > 0) {
-        p.statusImmune--;
-        if (p.statusImmune <= 0) ml.push("状態防止が切れた！");
-      }
-      if ((p.sureHitTurns || 0) > 0) {
-        p.sureHitTurns--;
-        if (p.sureHitTurns <= 0) ml.push("必中状態が切れた！");
-      }
+      advanceCoreStatusTimers(p, ml, { hasRingEffect, isSlowAutoAdvance: _isSlowAutoAdv });
       if ((p.spicyAtkTurns || 0) > 0) {
         p.spicyAtkTurns--;
         if (p.spicyAtkTurns <= 0) ml.push("辛さによるダメージブーストが切れた！");

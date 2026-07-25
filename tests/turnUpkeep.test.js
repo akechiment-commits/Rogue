@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceEarlyStatusTimers, advancePlayerUpkeep } from "../turnUpkeep.js";
+import { advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep } from "../turnUpkeep.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -48,6 +48,28 @@ describe("advancePlayerUpkeep", () => {
     const player = makePlayer({ turns: 4, hunger: 20, weapon: { ability: "gluttony" } });
     advance(player);
     expect(player.hunger).toBe(18);
+  });
+});
+
+describe("advanceCoreStatusTimers", () => {
+  it("鈍足中は行動スキップを予約し、終了時に通知する", () => {
+    const player = makePlayer({ slowTurns: 2 });
+    advanceCoreStatusTimers(player, [], { hasRingEffect: () => false });
+    expect(player).toMatchObject({ slowTurns: 1, slowSkip: true });
+    const messages = [];
+    player.slowTurns = 1;
+    delete player.slowSkip;
+    advanceCoreStatusTimers(player, messages, { hasRingEffect: () => false });
+    expect(player.slowSkip).toBeUndefined();
+    expect(messages).toEqual(["鈍足が解けた！"]);
+  });
+
+  it("鈍足指輪と各状態の解除を処理する", () => {
+    const player = makePlayer({ rings: [{ effect: "slow_ring" }], confusedTurns: 1, darknessTurns: 1, sureHitTurns: 1 });
+    const messages = [];
+    advanceCoreStatusTimers(player, messages, { hasRingEffect: (entry, effect) => entry.rings.some((ring) => ring.effect === effect) });
+    expect(player.slowSkip).toBe(true);
+    expect(messages).toEqual(["混乱が解けた！", "暗闇が晴れた！視界が戻った！", "必中状態が切れた！"]);
   });
 });
 

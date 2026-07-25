@@ -84,3 +84,28 @@ export function advanceEarlyStatusTimers(player, messages) {
     if (player.invisibleTurns === 0) messages.push("透明が解けた！敵に見えるようになった。");
   }
 }
+
+/** 行動速度と知覚系の基本状態タイマーを更新する。 */
+export function advanceCoreStatusTimers(player, messages, { hasRingEffect, isSlowAutoAdvance = false }) {
+  if ((player.slowTurns || 0) > 0) {
+    player.slowTurns--;
+    if (player.slowTurns <= 0) messages.push("鈍足が解けた！");
+    else if (!isSlowAutoAdvance) player.slowSkip = true;
+  }
+  if (hasRingEffect(player, "slow_ring") && !isSlowAutoAdvance) player.slowSkip = true;
+  const timedMessages = [
+    ["confusedTurns", "混乱が解けた！"],
+    ["darknessTurns", "暗闇が晴れた！視界が戻った！"],
+    ["bewitchedTurns", "幻惑が解けた！周囲の見た目が正常に戻った！"],
+    ["defSoftenedTurns", "軟化が解けた！防御力が戻った！"],
+    ["monsterSenseTurns", "モンスター感知が切れた！"],
+    ["statusImmune", "状態防止が切れた！"],
+    ["sureHitTurns", "必中状態が切れた！"],
+  ];
+  for (const [key, message] of timedMessages) {
+    if ((player[key] || 0) > 0) {
+      player[key]--;
+      if (player[key] <= 0) messages.push(message);
+    }
+  }
+}
