@@ -276,6 +276,7 @@ React + Vite 製のローグライク。
 | `playerTerrainEffects.js` | 壁抜け解除・壁埋まり・深水・泉での壺閉じ込めによる毎ターン地形効果 |
 | `playerPentacleEffects.js` | 呪われた聖域と雷の魔方陣について、プレイヤー足元で起きる毎ターン効果 |
 | `monsterTurnAnimation.js` | モンスター移動・攻撃のアニメーション用スナップショットとイベント記録 |
+| `monsterUpkeep.js` | 攻撃後のボス回復・敵の状態タイマー・雷の魔方陣の敵への毎ターン効果 |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
@@ -302,6 +303,7 @@ React + Vite 製のローグライク。
 | `Game.jsx` | `playerTerrainEffects.js` | 壁抜け終了時の押し出し、壁埋まり、深水・泉上の壺によるダメージ |
 | `Game.jsx` | `playerPentacleEffects.js` | 呪われた聖域の即死、雷の魔方陣の雷撃・回復・打ち消し・所持品への雷 |
 | `Game.jsx` | `monsterTurnAnimation.js` | モンスター移動前後の差分、等速敵の移動済み印、攻撃フラッシュ・命中・突進の描画データ |
+| `Game.jsx` | `monsterUpkeep.js` | ボス自然回復、油／浮遊の終了、雷の魔方陣による敵の回復・ダメージ・撃破 |
 | `Game.jsx` | `lookDescription.js` | 調べるモードで表示するマスの説明文 |
 | `Game.jsx` | `messageLog.js` | メッセージへのフロアターン付与と履歴上限の管理 |
 | `Game.jsx` | `inventoryRules.js` / `inventoryLabel.js` | インベントリの利用可否・使用ラベル・ソート・表示名 |

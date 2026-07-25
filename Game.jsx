@@ -52,6 +52,7 @@ import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advanceP
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
+import { advanceMonsterUpkeep } from "./monsterUpkeep.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1594,53 +1595,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         collectMonsterAttackEvents(_monAnimation, _perHitEvents, _perHitLunges, _hadActualHit, p);
       }
       monMovesRef.current = _monAnimation;
-      /* ターン終了：ボスHP自然回復 */
-      for (const _bm of st.dungeon.monsters) {
-        if (_bm.hp <= 0) continue;
-        if (_bm.baseKind === "im_boss_titan") {
-          const _th = Math.min(5, _bm.maxHp - _bm.hp);
-          if (_th > 0) { _bm.hp += _th; ml.push(`${_bm.name}の肉体が再生した！(+${_th}HP)`); }
-        }
-        if (_bm.baseKind === "im_boss_kraken" && st.dungeon.map[_bm.y]?.[_bm.x] === T.WATER) {
-          const _kh = Math.min(20, _bm.maxHp - _bm.hp);
-          if (_kh > 0) { _bm.hp += _kh; ml.push(`${_bm.name}は水中で体力を回復した！(+${_kh}HP)`); }
-        }
-      }
-      /* 油状態・一時浮遊：モンスターのカウントダウン */
-      for (const _om of st.dungeon.monsters) {
-        if ((_om.oilyTurns || 0) > 0) {
-          _om.oilyTurns = Math.max(0, _om.oilyTurns - (_om.isBoss ? 2 : 1));
-          if (_om.oilyTurns <= 0) ml.push(`${_om.name}の油まみれが取れた。`);
-        }
-        if ((_om.floatTurns || 0) > 0) {
-          _om.floatTurns--;
-          if (_om.floatTurns <= 0) ml.push(`${_om.name}の浮遊が解けた！`);
-        }
-      }
-      /* 雷の魔方陣：モンスターにも適用（moveMons後に最終位置で判定） */
-      if (st.dungeon.pentacles?.some((pc) => pc.kind === "thunder_trap") && !hasCursedExplosionPentacle(st.dungeon)) {
-        for (const _m of [...st.dungeon.monsters]) {
-          const _tp = st.dungeon.pentacles.find((pc) => pc.kind === "thunder_trap" && pc.x === _m.x && pc.y === _m.y);
-          if (_tp && !_m.magicImmune && !inMagicSealRoom(_tp.x, _tp.y, st.dungeon)) {
-            if (_tp.cursed) {
-              if (_m.kind === "undead") {
-                _m.hp -= 25; ml.push(`${_tp.name}の力が${_m.name}を傷つけた！25ダメージ！(アンデッド)`);
-                if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, st.dungeon, p, ml, lu); }
-              } else {
-                const _mheal = Math.min(25, _m.maxHp - _m.hp);
-                if (_mheal > 0) { _m.hp += _mheal; ml.push(`${_tp.name}の力で${_m.name}のHPが${_mheal}回復した！`); }
-              }
-            } else {
-              const _tpWeakMult = _m.elemWeak === "thunder" ? 1.5 : 1;
-              const _tpcmsB = inCursedMagicSealRoom(_tp.x, _tp.y, st.dungeon) ? 2 : 1;
-              const _tmdmg = Math.round((_tp.blessed ? 50 : 25) * _tpWeakMult * _tpcmsB);
-              _m.hp -= _tmdmg;
-              ml.push(`${_tp.name}が${_m.name}を打った！${_tmdmg}ダメージ！${_tpWeakMult > 1 ? "雷弱点！" : ""}`);
-              if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, st.dungeon, p, ml, lu); }
-            }
-          }
-        }
-      }
+      advanceMonsterUpkeep(st.dungeon, p, ml, {
+        hasCursedExplosionPentacle,
+        inMagicSealRoom,
+        inCursedMagicSealRoom,
+        onMonsterDefeated: (monster) => {
+          trackMonster(monster);
+          killMonster(monster, st.dungeon, p, ml, lu);
+        },
+      });
       /* ===== 新ペン魔方陣の毎ターン効果 ===== */
       if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
         const _dg2 = st.dungeon;
