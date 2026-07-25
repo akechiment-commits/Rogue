@@ -50,6 +50,7 @@ import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from ".
 import { formatInventoryItem } from "./inventoryLabel.js";
 import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn } from "./turnUpkeep.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
+import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1412,36 +1413,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       });
       advanceEarlyStatusTimers(p, ml);
       advancePlayerTerrainEffects(p, st.dungeon, ml);
-      /* 呪われた聖域の魔方陣：強制的に上に乗ると即死（魔封じで無効） */
-      const _cursedSancOn = !inMagicSealRoom(p.x, p.y, st.dungeon) && st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
-      if (_cursedSancOn && p.hp > 0) {
-        p.deathCause = `${_cursedSancOn.name}により`;
-        p.hp = 0;
-        ml.push(`${_cursedSancOn.name}に触れた！呪いの力で即死した！`);
-      }
-      /* 雷の魔方陣：真上にいると毎ターンダメージ（呪いは回復） */
-      const _thunderPent = st.dungeon.pentacles?.find((pc) => pc.kind === "thunder_trap" && pc.x === p.x && pc.y === p.y);
-      if (_thunderPent && p.hp > 0 && !inMagicSealRoom(p.x, p.y, st.dungeon)) {
-        if (!_thunderPent.cursed && hasCursedExplosionPentacle(st.dungeon)) {
-          ml.push("呪われた爆発の魔方陣が雷を打ち消した！");
-        } else if (_thunderPent.cursed) {
-          const _theal = Math.min(25, p.maxHp - p.hp);
-          if (_theal > 0) { p.hp += _theal; ml.push(`${_thunderPent.name}の力でHPが${_theal}回復した！`); }
-        } else {
-          const _thasLR = hasLightningResist(p);
-          const _tcmsB = inCursedMagicSealRoom(p.x, p.y, st.dungeon) ? 2 : 1;
-          const _tdmg = reduceLightningDamage(Math.max(1, Math.floor((_thunderPent.blessed ? 50 : 25) * _tcmsB)), p);
-          p.deathCause = `${_thunderPent.name}の雷撃により`;
-          p.hp -= _tdmg;
-          ml.push(`${_thunderPent.name}に打たれた！${_tdmg}ダメージ！${lightningResistDamageLabel(p)}`);
-          if (!_thasLR) {
-            applyLightningToInventory(p, st.dungeon, ml, lu,
-              (it) => itemDisplayName(it, st.fakeNames, st.ident, st.nicknames));
-          } else {
-            ml.push("ゴムゴムの胴がアイテムへの雷を弾いた！");
-          }
-        }
-      }
+      resolvePlayerPentacleEffects(p, st.dungeon, ml, {
+        inMagicSealRoom,
+        inCursedMagicSealRoom,
+        hasCursedExplosionPentacle,
+        hasLightningResist,
+        reduceLightningDamage,
+        lightningResistDamageLabel,
+        applyLightningToInventory,
+        lu,
+        getItemName: (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames),
+      });
       /* ===== 魔方陣の消耗：上に乗っていると30ターンで消滅（固定転送は対象外） ===== */
       advancePentacleWear(p, st.dungeon, ml);
       checkShopTheft(p, st.dungeon, ml);
