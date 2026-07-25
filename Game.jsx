@@ -48,7 +48,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
-import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear } from "./turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn } from "./turnUpkeep.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -2211,8 +2211,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   useEffect(() => {
     if (!gs?.player) return;
     if (shopMode) return;
-    const { sleepTurns = 0, paralyzeTurns = 0, frozenTurns = 0, slowSkip = false, potConfinedTurns = 0 } = gs.player;
-    if (sleepTurns <= 0 && paralyzeTurns <= 0 && frozenTurns <= 0 && !slowSkip && potConfinedTurns <= 0) return;
+    if (!hasForcedTurn(gs.player)) return;
     setShowInv(false);
     setThrowMode(null);
     /* Wait for any running animation to finish before advancing */
@@ -2225,45 +2224,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       const st = sr.current;
       const { player: p, dungeon: dg } = st;
-      if (p.sleepTurns <= 0 && p.paralyzeTurns <= 0 && (p.frozenTurns || 0) <= 0 && !p.slowSkip && (p.potConfinedTurns || 0) <= 0) return;
+      if (!hasForcedTurn(p)) return;
       const ml = [];
-      if (p.sleepTurns > 0) {
-        p.sleepTurns--;
-        ml.push(p.sleepTurns > 0
-          ? `眠っている...あと${p.sleepTurns}ターン`
-          : "目が覚めた！");
-      } else if (p.paralyzeTurns > 0) {
-        p.paralyzeTurns--;
-        ml.push(p.paralyzeTurns > 0
-          ? `金縛りにあっている...あと${p.paralyzeTurns}ターン`
-          : "金縛りが解けた！");
-      } else if ((p.frozenTurns || 0) > 0) {
-        p.frozenTurns--;
-        ml.push(p.frozenTurns > 0
-          ? `凍りついている...あと${p.frozenTurns}ターン`
-          : "氷が解けた！動けるようになった！");
-      } else if ((p.potConfinedTurns || 0) > 0) {
-        ml.push("壺から出られない！");
-        if (p.potConfinedTurns > 1) {
-          p.potConfinedTurns--;
-        } else {
-          p._potExitAfterMon = true;
-        }
-      } else if (p.slowSkip) {
-        p.slowSkip = false;
-        const _isEqSlow = p._eqSpeedSlowPending || false;
-        delete p._eqSpeedSlowPending;
-        if (_isEqSlow) {
-          ml.push("等速の魔方陣によりターンがスキップされた...");
-          p._eqSpeedAutoAdv = true; /* endTurnに等速スキップターンであることを伝える */
-        } else {
-          ml.push("鈍足でターンがスキップされた...");
-          p._slowAutoAdv = true; /* endTurnに鈍足スキップターンであることを伝える */
-        }
-      }
+      const _forcedTurn = advanceForcedTurn(p, ml);
       endTurn(st, p, ml);
-      if (p._potExitAfterMon) {
-        delete p._potExitAfterMon;
+      if (_forcedTurn.exitPotAfterTurn) {
         p.potConfinedTurns = 0;
         ml.push("壺から出た！動けるようになった。");
         resolveImprisonPotExit(p, dg, ml, lu);

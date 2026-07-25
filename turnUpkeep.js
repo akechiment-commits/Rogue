@@ -79,6 +79,56 @@ export function advancePentacleWear(player, dungeon, messages) {
   }
 }
 
+/** プレイヤー操作を受け付けず、ターンだけを進める状態かを返す。 */
+export function hasForcedTurn(player) {
+  return (player.sleepTurns || 0) > 0 ||
+    (player.paralyzeTurns || 0) > 0 ||
+    (player.frozenTurns || 0) > 0 ||
+    !!player.slowSkip ||
+    (player.potConfinedTurns || 0) > 0;
+}
+
+/**
+ * 行動不能・自動スキップの1ターン分を進める。
+ * 壺からの脱出だけは敵行動後に解決するため、呼び出し側へ通知する。
+ */
+export function advanceForcedTurn(player, messages) {
+  if ((player.sleepTurns || 0) > 0) {
+    player.sleepTurns--;
+    messages.push(player.sleepTurns > 0 ? `眠っている...あと${player.sleepTurns}ターン` : "目が覚めた！");
+    return { advanced: true, exitPotAfterTurn: false };
+  }
+  if ((player.paralyzeTurns || 0) > 0) {
+    player.paralyzeTurns--;
+    messages.push(player.paralyzeTurns > 0 ? `金縛りにあっている...あと${player.paralyzeTurns}ターン` : "金縛りが解けた！");
+    return { advanced: true, exitPotAfterTurn: false };
+  }
+  if ((player.frozenTurns || 0) > 0) {
+    player.frozenTurns--;
+    messages.push(player.frozenTurns > 0 ? `凍りついている...あと${player.frozenTurns}ターン` : "氷が解けた！動けるようになった！");
+    return { advanced: true, exitPotAfterTurn: false };
+  }
+  if ((player.potConfinedTurns || 0) > 0) {
+    messages.push("壺から出られない！");
+    if (player.potConfinedTurns > 1) player.potConfinedTurns--;
+    return { advanced: true, exitPotAfterTurn: player.potConfinedTurns === 1 };
+  }
+  if (player.slowSkip) {
+    player.slowSkip = false;
+    const isEqualSpeedSkip = player._eqSpeedSlowPending || false;
+    delete player._eqSpeedSlowPending;
+    if (isEqualSpeedSkip) {
+      messages.push("等速の魔方陣によりターンがスキップされた...");
+      player._eqSpeedAutoAdv = true;
+    } else {
+      messages.push("鈍足でターンがスキップされた...");
+      player._slowAutoAdv = true;
+    }
+    return { advanced: true, exitPotAfterTurn: false };
+  }
+  return { advanced: false, exitPotAfterTurn: false };
+}
+
 /** 敵行動より前に減少する、地形に依存しない状態タイマーを更新する。 */
 export function advanceEarlyStatusTimers(player, messages) {
   if ((player.mpCooldownTurns || 0) > 0) player.mpCooldownTurns--;

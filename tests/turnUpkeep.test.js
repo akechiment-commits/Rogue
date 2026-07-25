@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear } from "../turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn } from "../turnUpkeep.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -92,6 +92,32 @@ describe("advancePentacleWear", () => {
     advancePentacleWear(makePlayer({ x: 5, y: 5 }), dungeon, messages);
     expect(dungeon.pentacles).toEqual([portal]);
     expect(messages.at(-1)).toBe("火炎の魔方陣が消えた！");
+  });
+});
+
+describe("advanceForcedTurn", () => {
+  it("眠り・金縛り・凍結を優先順に1ターンずつ進め、解除を通知する", () => {
+    const player = makePlayer({ sleepTurns: 1, paralyzeTurns: 1, frozenTurns: 1 });
+    const messages = [];
+    expect(hasForcedTurn(player)).toBe(true);
+    expect(advanceForcedTurn(player, messages)).toEqual({ advanced: true, exitPotAfterTurn: false });
+    expect(player.sleepTurns).toBe(0);
+    expect(messages).toEqual(["目が覚めた！"]);
+  });
+
+  it("壺の最終ターンは敵行動後の脱出を要求し、鈍足の種類を引き継ぐ", () => {
+    const confined = makePlayer({ potConfinedTurns: 1 });
+    const potMessages = [];
+    expect(advanceForcedTurn(confined, potMessages)).toEqual({ advanced: true, exitPotAfterTurn: true });
+    expect(confined.potConfinedTurns).toBe(1);
+    expect(potMessages).toEqual(["壺から出られない！"]);
+
+    const slowed = makePlayer({ slowSkip: true, _eqSpeedSlowPending: true });
+    const slowMessages = [];
+    advanceForcedTurn(slowed, slowMessages);
+    expect(slowed).toMatchObject({ slowSkip: false, _eqSpeedAutoAdv: true });
+    expect(slowed._eqSpeedSlowPending).toBeUndefined();
+    expect(slowMessages).toEqual(["等速の魔方陣によりターンがスキップされた..."]);
   });
 });
 
