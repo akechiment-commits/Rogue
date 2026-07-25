@@ -48,7 +48,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
-import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura } from "./turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear } from "./turnUpkeep.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1515,23 +1515,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
       }
       /* ===== 魔方陣の消耗：上に乗っていると30ターンで消滅（固定転送は対象外） ===== */
-      if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
-        const _toRemove = [];
-        for (const _pc of st.dungeon.pentacles) {
-          /* ダンジョン固定の転送陣は何度乗っても消えない（爆発・水など別経路のみ） */
-          if (_pc.kind === "fixed_portal" || _pc.fixed) continue;
-          /* プレイヤーが上に乗っている */
-          const _playerOn = _pc.x === p.x && _pc.y === p.y;
-          /* モンスターが上に乗っている */
-          const _monOn = !_playerOn && st.dungeon.monsters.some(m => m.hp > 0 && m.x === _pc.x && m.y === _pc.y);
-          if (_playerOn || _monOn) {
-            _pc.standTurns = (_pc.standTurns || 0) + 1;
-            if (_pc.standTurns === 25) ml.push(`${_pc.name}がかすれてきた…(残り${30 - _pc.standTurns}ターン)`);
-            if (_pc.standTurns >= 30) { _toRemove.push(_pc); ml.push(`${_pc.name}が消えた！`); }
-          }
-        }
-        if (_toRemove.length > 0) st.dungeon.pentacles = st.dungeon.pentacles.filter(pc => !_toRemove.includes(pc));
-      }
+      advancePentacleWear(p, st.dungeon, ml);
       checkShopTheft(p, st.dungeon, ml);
       /* ===== 等速の魔方陣：プレイヤー速度制御（カウントダウン前に判定） ===== */
       const _isEqAutoAdv = p._eqSpeedAutoAdv || false;

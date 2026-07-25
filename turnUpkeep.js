@@ -53,6 +53,32 @@ export function applyArmorAura(player, dungeon, messages, { hasAbility, killMons
   }
 }
 
+/** 乗られ続けた魔方陣を消耗させる。固定転送陣は別経路でしか消えない。 */
+export function advancePentacleWear(player, dungeon, messages) {
+  if (!dungeon.pentacles?.length || player.hp <= 0) return;
+  const toRemove = [];
+  for (const pentacle of dungeon.pentacles) {
+    if (pentacle.kind === "fixed_portal" || pentacle.fixed) continue;
+    const playerOn = pentacle.x === player.x && pentacle.y === player.y;
+    const monsterOn = !playerOn && dungeon.monsters.some((monster) =>
+      monster.hp > 0 && monster.x === pentacle.x && monster.y === pentacle.y
+    );
+    if (!playerOn && !monsterOn) continue;
+
+    pentacle.standTurns = (pentacle.standTurns || 0) + 1;
+    if (pentacle.standTurns === 25) {
+      messages.push(`${pentacle.name}がかすれてきた…(残り${30 - pentacle.standTurns}ターン)`);
+    }
+    if (pentacle.standTurns >= 30) {
+      toRemove.push(pentacle);
+      messages.push(`${pentacle.name}が消えた！`);
+    }
+  }
+  if (toRemove.length > 0) {
+    dungeon.pentacles = dungeon.pentacles.filter((pentacle) => !toRemove.includes(pentacle));
+  }
+}
+
 /** 敵行動より前に減少する、地形に依存しない状態タイマーを更新する。 */
 export function advanceEarlyStatusTimers(player, messages) {
   if ((player.mpCooldownTurns || 0) > 0) player.mpCooldownTurns--;

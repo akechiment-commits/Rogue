@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura } from "../turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear } from "../turnUpkeep.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -73,6 +73,25 @@ describe("applyArmorAura", () => {
     expect(distant.hp).toBe(5);
     expect(defeated).toEqual([adjacent]);
     expect(messages).toEqual(["闘気がコウモリに2ダメージ！"]);
+  });
+});
+
+describe("advancePentacleWear", () => {
+  it("25ターン目に警告し、30ターン目に非固定の魔方陣だけを消す", () => {
+    const fading = { name: "火炎の魔方陣", x: 5, y: 5, standTurns: 24 };
+    const portal = { name: "固定転送", kind: "fixed_portal", x: 5, y: 5, standTurns: 29 };
+    const dungeon = { pentacles: [fading, portal], monsters: [] };
+    const messages = [];
+
+    advancePentacleWear(makePlayer({ x: 5, y: 5 }), dungeon, messages);
+    expect(fading.standTurns).toBe(25);
+    expect(portal.standTurns).toBe(29);
+    expect(messages).toEqual(["火炎の魔方陣がかすれてきた…(残り5ターン)"]);
+
+    fading.standTurns = 29;
+    advancePentacleWear(makePlayer({ x: 5, y: 5 }), dungeon, messages);
+    expect(dungeon.pentacles).toEqual([portal]);
+    expect(messages.at(-1)).toBe("火炎の魔方陣が消えた！");
   });
 });
 
