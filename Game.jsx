@@ -48,6 +48,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
+import { advancePlayerUpkeep } from "./turnUpkeep.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1397,35 +1398,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _etPfBag = [];
       setPitfallBag(_etPfBag);
       const _etStartHp = p.hp;
-      p.turns++;
-      const _hasRegenRing = hasRingEffect(p, "regen_ring");
-      /* 腹持ち: 1つにつきハラヘリ×3/4（胴+指輪=1/2、胴+指輪2=1/4）。バター×1/2。回復指輪は軽減後×2 */
-      const _hRate = calcHungerDrainRate(p);
-      p._hungerTick = (p._hungerTick || 0) + _hRate;
-      while (p._hungerTick >= 10) {
-        p._hungerTick -= 10;
-        p.hunger = Math.max(0, p.hunger - 1);
-      }
-      /* 大食い武器：5ターンごとに追加で満腹度-1（約2倍速） */
-      if (hasAbility(p.weapon, "gluttony") && p.turns % 5 === 0) {
-        p.hunger = Math.max(0, p.hunger - 1);
-      }
-      if (p.hunger === 0) {
-        p.deathCause = "空腹により";
-        if (!p._hungerDmgStarted) {
-          p._hungerDmgStarted = true;
-          ml.push("空腹でHPが減り始めた！");
-          signalHungerWarn();
-        } else if (p.turns % 10 === 0) {
-          ml.push("空腹でHPが減っている...");
-        }
-        p.hp--;
-      } else if (p.hp > 0 && p.hp < p.maxHp) {
-        const _baseRegen = Math.max(1, Math.floor(p.maxHp / 100)) +
-          (hasAbility(p.armor, "regen") ? 1 : 0);
-        const regenAmt = _hasRegenRing ? _baseRegen * 2 : _baseRegen;  /* 回復の指輪：回復量2倍 */
-        p.hp = Math.min(p.maxHp, p.hp + regenAmt);
-      }
+      advancePlayerUpkeep(p, ml, {
+        hasAbility,
+        hasRingEffect,
+        calcHungerDrainRate,
+        onHungerDamageStarted: signalHungerWarn,
+      });
       /* 闘気防具：毎ターン隣接する敵全員に2ダメージ */
       if (hasAbility(p.armor, "aura") && st.dungeon.monsters.length > 0) {
         const _auraMons = st.dungeon.monsters.filter(m =>

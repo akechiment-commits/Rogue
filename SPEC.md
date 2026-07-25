@@ -272,6 +272,7 @@ React + Vite 製のローグライク。
 | `lootRules.js` | レア度・重み付き抽選・運枠・一般ドロップ率の純粋ルール |
 | `inventoryRules.js` | インベントリの種別順・名前順ソート規則 |
 | `inventoryLabel.js` | インベントリの装備・識別・能力値を含む表示ラベル生成 |
+| `turnUpkeep.js` | ターンごとの空腹・自然回復など基礎状態の更新 |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
