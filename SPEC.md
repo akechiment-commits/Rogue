@@ -297,7 +297,7 @@ React + Vite 製のローグライク。
 
 | 元の置き場 | 移設先 | 分離した担当 |
 |---|---|---|
-| `Game.jsx` | `turnUpkeep.js` | 空腹・自然回復、MP、毒、基本状態タイマー、食料由来の一時効果、行動不能／自動スキップ、闘気防具、魔方陣の消耗 |
+| `Game.jsx` | `turnUpkeep.js` | 空腹・自然回復、MP、毒、基本状態タイマー、食料由来の一時効果、行動不能／自動スキップ、闘気防具、魔方陣消耗、等速・鈍足・倍速の速度フェーズ |
 | `Game.jsx` | `playerTerrainEffects.js` | 壁抜け終了時の押し出し、壁埋まり、深水・泉上の壺によるダメージ |
 | `Game.jsx` | `playerPentacleEffects.js` | 呪われた聖域の即死、雷の魔方陣の雷撃・回復・打ち消し・所持品への雷 |
 | `Game.jsx` | `lookDescription.js` | 調べるモードで表示するマスの説明文 |

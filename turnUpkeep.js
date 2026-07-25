@@ -232,3 +232,40 @@ export function advanceConsumableBuffTimers(player, messages) {
     if (player.honeyRegenTurns <= 0) messages.push("蜂蜜の自然回復が切れた！");
   }
 }
+
+/** 等速の魔方陣、鈍足、倍速、ターン制の一時効果を所定順で進める。 */
+export function advancePlayerSpeedPhase(player, dungeon, messages, {
+  findRoom,
+  inMagicSealRoom,
+  hasRingEffect,
+  tickBubbleGold,
+}) {
+  const isEqualSpeedAutoAdvance = player._eqSpeedAutoAdv || false;
+  delete player._eqSpeedAutoAdv;
+  const isSlowAutoAdvance = player._slowAutoAdv || false;
+  delete player._slowAutoAdv;
+  const equalSpeedPentacle = !inMagicSealRoom(player.x, player.y, dungeon) && dungeon.pentacles?.find((pentacle) => {
+    if (pentacle.kind !== "equal_speed") return false;
+    const pentacleRoom = findRoom(dungeon.rooms, pentacle.x, pentacle.y);
+    return pentacleRoom && findRoom(dungeon.rooms, player.x, player.y) === pentacleRoom;
+  });
+
+  if (equalSpeedPentacle?.blessed) {
+    player.hasteTurns = Math.max(player.hasteTurns || 0, 2);
+  }
+  advanceCoreStatusTimers(player, messages, { hasRingEffect, isSlowAutoAdvance });
+  advanceConsumableBuffTimers(player, messages);
+  tickBubbleGold(player, messages);
+
+  if ((player.hasteTurns || 0) > 0) {
+    player.hasteTurns--;
+    if (player.hasteTurns <= 0) {
+      player.hasteUsed = false;
+      if (!equalSpeedPentacle?.blessed) messages.push("2倍速が解けた！");
+    }
+  }
+  if (equalSpeedPentacle?.cursed && !isEqualSpeedAutoAdvance) {
+    player.slowSkip = true;
+    player._eqSpeedSlowPending = true;
+  }
+}

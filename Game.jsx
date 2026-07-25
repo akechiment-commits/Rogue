@@ -48,7 +48,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
-import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn } from "./turnUpkeep.js";
+import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "./turnUpkeep.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 
@@ -1427,38 +1427,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* ===== 魔方陣の消耗：上に乗っていると30ターンで消滅（固定転送は対象外） ===== */
       advancePentacleWear(p, st.dungeon, ml);
       checkShopTheft(p, st.dungeon, ml);
-      /* ===== 等速の魔方陣：プレイヤー速度制御（カウントダウン前に判定） ===== */
-      const _isEqAutoAdv = p._eqSpeedAutoAdv || false;
-      delete p._eqSpeedAutoAdv;
-      const _isSlowAutoAdv = p._slowAutoAdv || false;
-      delete p._slowAutoAdv;
-      const _eqPcP = !inMagicSealRoom(p.x, p.y, st.dungeon) && st.dungeon.pentacles?.find(pc => {
-        if (pc.kind !== "equal_speed") return false;
-        const _pRm = findRoom(st.dungeon.rooms, pc.x, pc.y);
-        return _pRm && findRoom(st.dungeon.rooms, p.x, p.y) === _pRm;
+      advancePlayerSpeedPhase(p, st.dungeon, ml, {
+        findRoom,
+        inMagicSealRoom,
+        hasRingEffect,
+        tickBubbleGold,
       });
-      /* 祝福：hasteTurnsを2以上に維持して毎ターン2回行動を保証 */
-      if (_eqPcP?.blessed) {
-        p.hasteTurns = Math.max(p.hasteTurns || 0, 2);
-      }
-      /* ===== 状態異常カウントダウン（ダッシュ含む全ターン進行で共通） ===== */
-      advanceCoreStatusTimers(p, ml, { hasRingEffect, isSlowAutoAdvance: _isSlowAutoAdv });
-      advanceConsumableBuffTimers(p, ml);
-      /* あぶく銭の巻物：10ターン後に増減を反転（減少は0未満にしない） */
-      tickBubbleGold(p, ml);
-      /* 2倍速：endTurnが呼ばれた時（2回目の行動後）のみ消費 */
-      if ((p.hasteTurns || 0) > 0) {
-        p.hasteTurns--;
-        if (p.hasteTurns <= 0) {
-          p.hasteUsed = false;
-          if (!_eqPcP?.blessed) ml.push("2倍速が解けた！"); /* 等速祝福中はメッセージ抑制 */
-        }
-      }
-      /* 呪い：自動ターンスキップ（等速スキップ中のendTurnでは再適用しない） */
-      if (_eqPcP?.cursed && !_isEqAutoAdv) {
-        p.slowSkip = true;
-        p._eqSpeedSlowPending = true;
-      }
       /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
       triggerMonsterHouse(st.dungeon, p, ml);
       /* 初めて踏み入れたフロアは敵が行動しない（階段降り直後の理不尽攻撃を防ぐ） */

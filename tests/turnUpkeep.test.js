@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn } from "../turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "../turnUpkeep.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -118,6 +118,38 @@ describe("advanceForcedTurn", () => {
     expect(slowed).toMatchObject({ slowSkip: false, _eqSpeedAutoAdv: true });
     expect(slowed._eqSpeedSlowPending).toBeUndefined();
     expect(slowMessages).toEqual(["等速の魔方陣によりターンがスキップされた..."]);
+  });
+});
+
+describe("advancePlayerSpeedPhase", () => {
+  function advanceSpeed(player, pentacle, messages = []) {
+    const room = {};
+    const dungeon = { rooms: [room], pentacles: pentacle ? [pentacle] : [] };
+    advancePlayerSpeedPhase(player, dungeon, messages, {
+      findRoom: () => room,
+      inMagicSealRoom: () => false,
+      hasRingEffect: () => false,
+      tickBubbleGold: () => {},
+    });
+    return messages;
+  }
+
+  it("祝福された等速の魔方陣は倍速を毎ターン維持する", () => {
+    const player = makePlayer({ x: 5, y: 5, hasteTurns: 0 });
+    const messages = advanceSpeed(player, { kind: "equal_speed", blessed: true, x: 5, y: 5 });
+    expect(player.hasteTurns).toBe(1);
+    expect(messages).toEqual([]);
+  });
+
+  it("呪われた等速は自動スキップを予約し、通常の倍速終了は通知する", () => {
+    const cursed = makePlayer({ x: 5, y: 5 });
+    advanceSpeed(cursed, { kind: "equal_speed", cursed: true, x: 5, y: 5 });
+    expect(cursed).toMatchObject({ slowSkip: true, _eqSpeedSlowPending: true });
+
+    const hasted = makePlayer({ x: 5, y: 5, hasteTurns: 1, hasteUsed: true });
+    const messages = advanceSpeed(hasted, null);
+    expect(hasted).toMatchObject({ hasteTurns: 0, hasteUsed: false });
+    expect(messages).toEqual(["2倍速が解けた！"]);
   });
 });
 
