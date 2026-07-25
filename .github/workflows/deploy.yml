@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, 'claude/**']
+    branches: [main]
 
 permissions:
   contents: read
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
+      - run: npm ci
       - run: npm test
       - run: npx vite build --base /Rogue/
       - if: github.ref == 'refs/heads/main'
