@@ -5,8 +5,8 @@ import {
   breakStatue, applyWindDir, getWindAt, wandEffectBreaksStatue, wandEffectStatueLootOnly,
   throwItemBreaksStatue, hitStatueWithAction, displaceObjectsFromStatue, statueAt,
 } from "../fixtures.js";
-import { getFixtureItemDeps, placeItemAt } from "../items.js";
-import "../monsters.js";
+import { doExplosion, getFixtureItemDeps, placeItemAt } from "../items.js";
+import { monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
 
@@ -180,6 +180,64 @@ describe("石像", () => {
     expect(dg.monsters.length).toBe(0);
     expect(dg.items.length).toBeGreaterThanOrEqual(1);
     expect(ml.some(m => m.includes("が現れた"))).toBe(false);
+  });
+
+  it("爆発で壊れるとアイテムも敵も出さず粉々になる", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [],
+      monsters: [],
+      statues: [makeStatue(5, 5)],
+      dungeonType: "intermediate",
+    });
+    const p = makePlayer({ x: 20, y: 20, depth: 5 });
+    const ml = [];
+
+    doExplosion(5, 5, dg, p, ml);
+
+    expect(dg.statues).toEqual([]);
+    expect(dg.items).toEqual([]);
+    expect(dg.monsters).toEqual([]);
+    expect(ml).toContain("石像が爆発で粉々になって消えた！");
+    expect(ml.some(m => m.includes("飛び出した") || m.includes("が現れた"))).toBe(false);
+  });
+
+  it.each([
+    ["dragon", "炎"],
+    ["icedragon", "氷"],
+  ])("敵の%sブレスが石像に当たると中身が出てそこで止まる", (baseKind, element) => {
+    const attacker = {
+      id: "breath-user",
+      name: baseKind === "dragon" ? "ドラゴン" : "氷竜",
+      baseKind,
+      x: 2, y: 5,
+      hp: 100, maxHp: 100, atk: 20, def: 5, exp: 1,
+      speed: 1, baseSpeed: 1, turnAccum: 0,
+      turnAttacks: 0, maxAttacks: 1,
+      monLevel: 1, aware: true, dormant: false, sealed: false,
+      alwaysUseSpecial: true,
+      dir: { x: 1, y: 0 }, lastPx: 8, lastPy: 5,
+    };
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      rooms: [{ x: 1, y: 1, w: 15, h: 10 }],
+      items: [],
+      monsters: [attacker],
+      statues: [makeStatue(5, 5)],
+      dungeonType: "intermediate",
+    });
+    const p = makePlayer({ x: 8, y: 5, depth: 5 });
+    const ml = [];
+
+    monsterAI(attacker, dg, p, ml, { attackOnly: true });
+
+    expect(dg.statues).toEqual([]);
+    expect(dg.items.length).toBeGreaterThanOrEqual(1);
+    expect(dg.monsters.length).toBeGreaterThanOrEqual(2);
+    expect(p.hp).toBe(100);
+    expect(ml.some(m => m.includes(`${element}ブレスが石像に命中`))).toBe(true);
+    expect(ml.some(m => m.includes("飛び出した"))).toBe(true);
+    expect(ml.some(m => m.includes("が現れた"))).toBe(true);
   });
 
   it("飛び出しメッセージは itemNameFn で未識別名を使える", () => {

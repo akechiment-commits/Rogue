@@ -1272,7 +1272,13 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   for (let ddx = -1; ddx <= 1; ddx++) {
     for (let ddy = -1; ddy <= 1; ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
-      tryBreakStatueAt(dg, ax, ay, p, ml, luFn, p?.depth, getFixtureItemDeps());
+      hitStatueWithAction(dg, ax, ay, p, ml, luFn, p?.depth, {
+        breaks: true,
+        spawnItem: false,
+        spawnMonster: false,
+        breakMessage: "石像が爆発で粉々になって消えた！",
+        itemDeps: getFixtureItemDeps(),
+      });
     }
   }
   /* 爆発範囲内の魔方陣を消滅 */

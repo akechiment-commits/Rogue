@@ -139,6 +139,14 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       _applyFireToMon(m);
       return;
     }
+    if (statueAt(dg, _fx, _fy)) {
+      ml.push(`${m.name}の炎ブレスが石像に命中！`);
+      hitStatueWithAction(dg, _fx, _fy, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
+      return;
+    }
     if (_fx === pl.x && _fy === pl.y) { _applyFireToPlayer(); return; }
     const _fBlock = dg.monsters.find(o => o !== m && o.x === _fx && o.y === _fy);
     if (_fBlock) { _applyFireToMon(_fBlock); return; }
@@ -199,6 +207,14 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     freezeWaterTile(dg, _ix, _iy, ml);
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) return;
     if (_ix === m.x && _iy === m.y) { _hitIceMon(m); return; }
+    if (statueAt(dg, _ix, _iy)) {
+      ml.push(`${m.name}の氷ブレスが石像に命中！`);
+      hitStatueWithAction(dg, _ix, _iy, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
+      return;
+    }
     if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); return; }
     const _iBlock = dg.monsters.find(o => o !== m && o.x === _ix && o.y === _iy);
     if (_iBlock) { _hitIceMon(_iBlock); return; }

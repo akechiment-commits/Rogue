@@ -158,7 +158,8 @@ export function displaceObjectsFromStatue(dg, x, y, ml = null, itemDeps) {
 
 /**
  * 石像を破壊。レア寄りアイテムを出す。通常は強敵も出す。
- * @param {{ spawnMonster?: boolean }} opts spawnMonster:false で敵なし（穴掘り・軟化）
+ * @param {{ spawnItem?: boolean, spawnMonster?: boolean, breakMessage?: string }} opts
+ *   spawnItem:false / spawnMonster:false で中身ごと消滅（爆発）
  */
 export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}) {
   if (!statue || !dg) return false;
@@ -168,27 +169,30 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
     pickLootFromPool: chooseLoot,
     resolveItemName: itemName,
   } = opts.itemDeps;
+  const spawnItem = opts.spawnItem !== false;
   const spawnMonster = opts.spawnMonster !== false;
   dg.statues = (dg.statues || []).filter((s) => s !== statue && s.id !== statue.id);
-  ml.push(`${statue.name}が砕け散った！`);
+  ml.push(opts.breakMessage || `${statue.name}が砕け散った！`);
 
   /* ややレア寄りの床落ち */
-  const rarePool = [
-    ...items.filter((i) => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S"),
-    ...wands.filter((w) => w.rarity === "C" || w.rarity === "B" || w.rarity === "A" || w.rarity === "S"),
-  ];
-  const tmpl = (rarePool.length ? chooseLoot(rarePool, "drop") : null) || pick(items);
-  if (tmpl && tmpl.type !== "goal") {
-    const it = { ...tmpl, id: uid(), x: statue.x, y: statue.y };
-    if (it.type === "wand" && it.charges != null && it.effect !== "wish") {
-      it.charges = Math.max(1, (it.charges || 1) + rng(-1, 1));
+  if (spawnItem) {
+    const rarePool = [
+      ...items.filter((i) => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S"),
+      ...wands.filter((w) => w.rarity === "C" || w.rarity === "B" || w.rarity === "A" || w.rarity === "S"),
+    ];
+    const tmpl = (rarePool.length ? chooseLoot(rarePool, "drop") : null) || pick(items);
+    if (tmpl && tmpl.type !== "goal") {
+      const it = { ...tmpl, id: uid(), x: statue.x, y: statue.y };
+      if (it.type === "wand" && it.charges != null && it.effect !== "wish") {
+        it.charges = Math.max(1, (it.charges || 1) + rng(-1, 1));
+      }
+      /* placeItemAt を使うと items↔fixtures 循環になるため直接配置 */
+      if (!dg.items) dg.items = [];
+      dg.items.push(it);
+      /* 未識別名を使う（render 循環回避のため nameFn / グローバルを参照） */
+      const _dn = itemName(it, opts.itemNameFn);
+      ml.push(`${_dn}が飛び出した！`);
     }
-    /* placeItemAt を使うと items↔fixtures 循環になるため直接配置 */
-    if (!dg.items) dg.items = [];
-    dg.items.push(it);
-    /* 未識別名を使う（render 循環回避のため nameFn / グローバルを参照） */
-    const _dn = itemName(it, opts.itemNameFn);
-    ml.push(`${_dn}が飛び出した！`);
   }
 
   /* 出現敵の選択は monsters.js 側で行う（循環 import を作らない）。 */
@@ -226,12 +230,14 @@ export function throwItemBreaksStatue(it) {
 
 /**
  * 石像タイルにダメージ行動が到達したら破壊を試す。
- * @param {{ breaks?: boolean, spawnMonster?: boolean }} opts
+ * @param {{ breaks?: boolean, spawnItem?: boolean, spawnMonster?: boolean, breakMessage?: string }} opts
  * @returns {boolean} 壊した／石像があった
  */
 export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, {
   breaks = true,
+  spawnItem = true,
   spawnMonster = true,
+  breakMessage,
   itemDeps,
 } = {}) {
   const st = statueAt(dg, x, y);
@@ -240,7 +246,12 @@ export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, {
     ml.push(`${st.name}には効果がなかった。`);
     return true; /* 当たったが壊さない */
   }
-  return breakStatue(st, dg, p, ml, luFn, depth, { spawnMonster, itemDeps });
+  return breakStatue(st, dg, p, ml, luFn, depth, {
+    spawnItem,
+    spawnMonster,
+    breakMessage,
+    itemDeps,
+  });
 }
 
 /* ===== 固定転送（ポータル流用・ペア固定・ペンと非接続） ===== */
