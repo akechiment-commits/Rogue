@@ -54,6 +54,7 @@ import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
 import { advanceMonsterUpkeep } from "./monsterUpkeep.js";
 import { resolveTurnHazards } from "./turnHazards.js";
+import { transitMonstersThroughPortals } from "./monsterPortalTransit.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1448,87 +1449,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (!_skipMonAct) moveMons(st.dungeon, p, ml, "moveOnly");
       /* Capture monster position changes for animation + mark movers */
       collectMonsterMoves(_monAnimation, st.dungeon.monsters, _monSnap);
-      /* Phase 2.5: モンスターがポータル／固定転送に乗っていたらワープ
-       * 着地済み（このターン移動していない／最初から陣上）は再転送しない。
-       * さもないと対の陣の上で往復バウンドして近づいてこない。 */
-      if (st.dungeon.pentacles?.some(pc => pc.kind === "portal" || pc.kind === "fixed_portal")) {
-        const _hasGoalP25 = p.inventory?.some(i => i.type === "goal");
-        for (const _mm of [...st.dungeon.monsters]) {
-          const _fixedMon = st.dungeon.pentacles.find(pc => pc.kind === "fixed_portal" && pc.x === _mm.x && pc.y === _mm.y);
-          if (_fixedMon) {
-            const _msnap = _monSnap.get(_mm.id);
-            /* ターン開始時から同じ転送陣にいた＝前回着地済み → バウンド防止 */
-            const _startedOnPad = _msnap && _msnap.x === _fixedMon.x && _msnap.y === _fixedMon.y;
-            if (_startedOnPad) continue;
-            const _fpair = st.dungeon.pentacles.find(pc =>
-              pc.kind === "fixed_portal" && pc.pairId === _fixedMon.pairId &&
-              !(pc.x === _fixedMon.x && pc.y === _fixedMon.y));
-            if (_fpair && !st.dungeon.monsters.some(m => m !== _mm && m.x === _fpair.x && m.y === _fpair.y) &&
-                !(_fpair.x === p.x && _fpair.y === p.y)) {
-              _mm.x = _fpair.x; _mm.y = _fpair.y;
-              ml.push(`${_mm.name}が転送の魔法陣から対の陣へ抜けた！`);
-            }
-            continue;
-          }
-          const _portalMon = st.dungeon.pentacles.find(pc => pc.kind === "portal" && pc.x === _mm.x && pc.y === _mm.y);
-          if (!_portalMon) continue;
-          /* ターン開始時から同じポータル上＝着地済み → 往復バウンド防止 */
-          {
-            const _psnap = _monSnap.get(_mm.id);
-            if (_psnap && _psnap.x === _portalMon.x && _psnap.y === _portalMon.y) continue;
-          }
-          if (_portalMon.cursed) {
-            const _rdM = randomTeleportDest(st.dungeon, _mm.x, _mm.y);
-            if (_rdM && !st.dungeon.monsters.some(m => m !== _mm && m.x === _rdM.x && m.y === _rdM.y) && !(p.x === _rdM.x && p.y === _rdM.y)) {
-              _mm.x = _rdM.x; _mm.y = _rdM.y;
-              ml.push(`${_mm.name}が${_portalMon.name}に飲まれてランダムに飛んだ！【呪】`);
-            }
-            continue;
-          }
-          /* 描画順サイクル：同フロア + 別フロア（祝福経由・キーアイテム未所持時のみ） */
-          const _cycleM = [{ portal: _portalMon, dg: st.dungeon, depth: _portalMon.floor }];
-          for (const _pc of st.dungeon.pentacles) {
-            if (_pc !== _portalMon && _pc.kind === "portal" && !_pc.cursed && !_pc.fixed) {
-              _cycleM.push({ portal: _pc, dg: st.dungeon, depth: _portalMon.floor });
-            }
-          }
-          if (!_hasGoalP25 && sr.current.floors) {
-            for (const [_dStr, _fdg] of Object.entries(sr.current.floors)) {
-              if (!_fdg.pentacles) continue;
-              const _fd = parseInt(_dStr);
-              for (const _pc of _fdg.pentacles) {
-                if (_pc.kind !== "portal" || _pc.cursed) continue;
-                if (!(_portalMon.blessed && _pc.blessed)) continue;
-                _cycleM.push({ portal: _pc, dg: _fdg, depth: _fd });
-              }
-            }
-          }
-          if (_cycleM.length < 2) continue;
-          _cycleM.sort((a, b) => (a.portal.drawOrder || 0) - (b.portal.drawOrder || 0));
-          const _idxM = _cycleM.findIndex(e => e.portal === _portalMon);
-          let _destM = null;
-          for (let _offM = 1; _offM < _cycleM.length; _offM++) {
-            const _candM = _cycleM[(_idxM + _offM) % _cycleM.length];
-            /* 出口に他のモンスターがいたら不可 */
-            if (_candM.dg.monsters?.some(m => m !== _mm && m.x === _candM.portal.x && m.y === _candM.portal.y)) continue;
-            /* 同フロア出口にプレイヤーがいたら不可 */
-            if (_candM.dg === st.dungeon && _candM.portal.x === p.x && _candM.portal.y === p.y) continue;
-            _destM = _candM; break;
-          }
-          if (!_destM) continue;
-          if (_destM.dg === st.dungeon) {
-            _mm.x = _destM.portal.x; _mm.y = _destM.portal.y;
-            ml.push(`${_mm.name}がポータルから${_destM.portal.name}へ抜けた！`);
-          } else {
-            /* 別フロアへ：current dungeon から削除し、行き先 dungeon の monsters に追加 */
-            st.dungeon.monsters = st.dungeon.monsters.filter(m => m !== _mm);
-            _mm.x = _destM.portal.x; _mm.y = _destM.portal.y;
-            _destM.dg.monsters = _destM.dg.monsters || [];
-            _destM.dg.monsters.push(_mm);
-            ml.push(`${_mm.name}がポータルに飲み込まれてどこかへ消えた！`);
-          }
-        }
-      }
+      transitMonstersThroughPortals(st, p, ml, _monSnap, { randomTeleportDest });
       /* プレイヤーがポータルの上で1ターン経過したらワープ（移動・ダッシュで既に転送済みならスキップ） */
       if (!st._portalWarpedThisTurn && p.hp > 0) {
         playerPortalWarp(p, st, ml);

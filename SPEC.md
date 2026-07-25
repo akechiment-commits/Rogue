@@ -278,6 +278,7 @@ React + Vite 製のローグライク。
 | `monsterTurnAnimation.js` | モンスター移動・攻撃のアニメーション用スナップショットとイベント記録 |
 | `monsterUpkeep.js` | 攻撃後のボス回復・敵の状態タイマー・雷の魔方陣の敵への毎ターン効果 |
 | `turnHazards.js` | 敵移動後・敵攻撃前の遅延地雷・時限爆弾・回転板・爆発の指輪の解決 |
+| `monsterPortalTransit.js` | 敵移動後の固定転送陣・ポータル転送（呪い・別フロア移動を含む） |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
@@ -306,6 +307,7 @@ React + Vite 製のローグライク。
 | `Game.jsx` | `monsterTurnAnimation.js` | モンスター移動前後の差分、等速敵の移動済み印、攻撃フラッシュ・命中・突進の描画データ |
 | `Game.jsx` | `monsterUpkeep.js` | ボス自然回復、油／浮遊の終了、雷の魔方陣による敵の回復・ダメージ・撃破 |
 | `Game.jsx` | `turnHazards.js` | Phase 3 の爆発の指輪、遅延地雷、時限爆弾、遅延回転板と攻撃スキップ判定 |
+| `Game.jsx` | `monsterPortalTransit.js` | Phase 2.5 の固定転送陣・ポータルに乗った敵の転送と、着地後の再転送防止 |
 | `Game.jsx` | `lookDescription.js` | 調べるモードで表示するマスの説明文 |
 | `Game.jsx` | `messageLog.js` | メッセージへのフロアターン付与と履歴上限の管理 |
 | `Game.jsx` | `inventoryRules.js` / `inventoryLabel.js` | インベントリの利用可否・使用ラベル・ソート・表示名 |
