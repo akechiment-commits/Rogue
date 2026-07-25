@@ -283,6 +283,7 @@ React + Vite 製のローグライク。
 | `visibilityOverrides.js` | 明かりの魔方陣とスターライト／ダークネスによる refreshFOV 後の視界上書き |
 | `pentacleTurnEffects.js` | 転送・罠生成・石飛ばし・回復の魔方陣による毎ターン効果 |
 | `fixtureQueries.js` | 石像・固定転送陣の副作用を持たない照会と杖効果判定 |
+| `monsterRuntime.js` | アイテム処理から敵実装を循環なしで呼ぶための実行時ポートと休眠解除ルール |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
@@ -326,6 +327,8 @@ React + Vite 製のローグライク。
 `fixtures.js` は `items.js` を import しない。偽階段の実体化や石像破壊で必要なアイテムカタログ・名前解決は、呼び出し側が `getFixtureItemDeps()` で渡して依存方向を `items → fixtures` に固定する。
 
 `items.js` は `wands.js` を import／再exportしない。杖破壊時の効果は `wands.js` が `setWandBreakEffectHandler()` で登録し、UIは杖APIを `wands.js` から直接importする。モンスター投擲に必要な杖効果も `monsterAI` の `applyWandFn` として呼び出し側から渡す。
+
+`items.js` は `monsters.js` を import しない。敵生成・レベル変化・弾道解決などは `monsters.js` が `monsterRuntime.js` へ登録し、アイテム処理は実行時ポート経由で呼ぶ。ルート実装モジュールの循環依存は `tests/moduleDependencies.test.js` で0件を固定する。
 
 ### スプライト画像の場所
 

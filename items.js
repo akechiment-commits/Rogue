@@ -2,7 +2,17 @@ import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, 
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox } from './DiscoveryTracker.js';
-import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
+import {
+  findMonsterRoom as findRoom,
+  getMonsterCatalog,
+  monLevelDown,
+  monLevelUp,
+  monsterFireDamageLabel as monFireDmgLabel,
+  resolveMonsterBolt as _resolveBolt,
+  scaleMonsterFireDamage as scaleMonFireDmg,
+  spawnMonsters,
+  wakeIfDormant,
+} from './monsterRuntime.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -4602,7 +4612,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     case "transform_magic": {
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
-        const nt = pick(MONS); const prevName = target.name; const ox = target.x, oy = target.y;
+        const nt = pick(getMonsterCatalog()); const prevName = target.name; const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, wallWalker: nt.wallWalker });
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;

@@ -6,6 +6,7 @@ import {
   throwItemBreaksStatue, hitStatueWithAction, displaceObjectsFromStatue, statueAt,
 } from "../fixtures.js";
 import { getFixtureItemDeps, placeItemAt } from "../items.js";
+import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
 

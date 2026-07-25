@@ -1,8 +1,11 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
-import { hitStatueWithAction } from "./fixtures.js";
+import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
+import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
+
+export { wakeIfDormant } from "./monsterRuntime.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -1141,8 +1144,7 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
   }
 }
 
-/* items -> monsters -> fixtures の読込順でも使える、循環なしの登録口。 */
-globalThis.__rogueStatueSpawnHandler = spawnStatueMonster;
+setStatueSpawnHandler(spawnStatueMonster);
 
 /** count 体のモンスターを centerX,centerY 周辺 → ランダム部屋にスポーンさせる */
 export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = false, immediateAct = false } = {}) {
@@ -1748,21 +1750,6 @@ function monsterShootWaterGun(m, dg, pl, ml) {
   }
 }
 
-/* 仮眠中のモンスターを強制覚醒させる。モンスターへの全アクションから呼ぶ */
-export function wakeIfDormant(m, ml) {
-  if (m.dormantHouse) {
-    m.dormantHouse = false;
-    m.aware = true;
-    ml.push(`${m.name}が目を覚ました！`);
-    return;
-  }
-  if (!m.dormant) return;
-  m.dormant = false;
-  m._dormantTouched = false;
-  delete m._dormantHp;
-  ml.push(`${m.name}が目を覚ました！`);
-}
-
 /* ===== MONSTER AI ===== */
 /* 重力ゾーンで罠を踏む処理 */
 function _checkGravityTrap(m, dg, pl, ml, luFn) {
@@ -2281,6 +2268,17 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
 }
+
+registerMonsterRuntime({
+  getMonsterCatalog: () => MONS,
+  spawnMonsters,
+  monLevelUp,
+  monLevelDown,
+  resolveMonsterBolt: _resolveBolt,
+  findMonsterRoom: findRoom,
+  scaleMonsterFireDamage: scaleMonFireDmg,
+  monsterFireDamageLabel: monFireDmgLabel,
+});
 
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;

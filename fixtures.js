@@ -16,7 +16,10 @@ export {
   wandEffectStatueLootOnly,
 } from "./fixtureQueries.js";
 
-/* monsters.js 側で登録する。fixtures -> monsters の循環 import を避ける。 */
+let statueSpawnHandler = null;
+export function setStatueSpawnHandler(handler) {
+  statueSpawnHandler = handler;
+}
 
 export const FIXTURE_TILE = {
   vent: 128,
@@ -190,7 +193,7 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
 
   /* 出現敵の選択は monsters.js 側で行う（循環 import を作らない）。 */
   if (spawnMonster) {
-    globalThis.__rogueStatueSpawnHandler?.(statue, dg, p, ml, depth);
+    statueSpawnHandler?.(statue, dg, p, ml, depth);
   }
   return true;
 }
