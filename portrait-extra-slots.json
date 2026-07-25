@@ -54,6 +54,174 @@
       "categoryId": "action",
       "afterFile": "action_eat_food_2",
       "group": "act_food"
+    },
+    {
+      "file": "status_bound_2",
+      "label": "拘束状態 2",
+      "categoryId": "status",
+      "afterFile": "status_bound",
+      "group": "status_bound"
+    },
+    {
+      "file": "battle_unarmed_2",
+      "label": "素手攻撃 2",
+      "categoryId": "attack",
+      "afterFile": "battle_unarmed",
+      "group": "attack_unarmed"
+    },
+    {
+      "file": "damage_arrow_2",
+      "label": "矢・飛び道具 2",
+      "categoryId": "damage",
+      "afterFile": "damage_arrow",
+      "group": "damage_arrow"
+    },
+    {
+      "file": "damage_gun_2",
+      "label": "銃撃（胸・左向き）",
+      "categoryId": "damage",
+      "afterFile": "damage_gun",
+      "group": "damage_gun"
+    },
+    {
+      "file": "damage_gun_3",
+      "label": "銃撃（脇・左向き）",
+      "categoryId": "damage",
+      "afterFile": "damage_gun_2",
+      "group": "damage_gun"
+    },
+    {
+      "file": "damage_gun_4",
+      "label": "銃撃（太もも・左向き）",
+      "categoryId": "damage",
+      "afterFile": "damage_gun_3",
+      "group": "damage_gun"
+    },
+    {
+      "file": "action_equip_armor_2",
+      "label": "防具を装備（胸当て拾い）",
+      "categoryId": "action",
+      "afterFile": "action_equip_armor",
+      "group": "act_equip_armor"
+    },
+    {
+      "file": "action_equip_armor_3",
+      "label": "防具を装備（胴締め）",
+      "categoryId": "action",
+      "afterFile": "action_equip_armor_2",
+      "group": "act_equip_armor"
+    },
+    {
+      "file": "action_equip_armor_4",
+      "label": "防具を装備（脚鎧）",
+      "categoryId": "action",
+      "afterFile": "action_equip_armor_3",
+      "group": "act_equip_armor"
+    },
+    {
+      "file": "action_equip_armor_5",
+      "label": "防具を装備（脚外し）",
+      "categoryId": "action",
+      "afterFile": "action_equip_armor_4",
+      "group": "act_equip_armor"
+    },
+    {
+      "file": "action_equip_armor_6",
+      "label": "防具を装備（手袋）",
+      "categoryId": "action",
+      "afterFile": "action_equip_armor_5",
+      "group": "act_equip_armor"
+    },
+    {
+      "file": "action_equip_armor_7",
+      "label": "防具を装備（ほぼ完了）",
+      "categoryId": "action",
+      "afterFile": "action_equip_armor_6",
+      "group": "act_equip_armor"
+    },
+    {
+      "file": "reaction_fall_mild",
+      "label": "転倒（軽い）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_fall_ground",
+      "group": "reaction_fall"
+    },
+    {
+      "file": "reaction_fall_normal",
+      "label": "転倒（普通）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_fall_mild",
+      "group": "reaction_fall"
+    },
+    {
+      "file": "reaction_fall_dizzy",
+      "label": "転倒（ふらつき）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_fall_normal",
+      "group": "reaction_fall"
+    },
+    {
+      "file": "reaction_fall_hurt",
+      "label": "転倒（痛い）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_fall_dizzy",
+      "group": "reaction_fall"
+    },
+    {
+      "file": "reaction_fall_severe",
+      "label": "転倒（かなり痛い）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_fall_hurt",
+      "group": "reaction_fall"
+    },
+    {
+      "file": "reaction_fall_heavy",
+      "label": "転倒（痛々しい）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_fall_severe",
+      "group": "reaction_fall"
+    },
+    {
+      "file": "reaction_shop_greet",
+      "label": "店（挨拶）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_shop",
+      "group": "reaction_shop"
+    },
+    {
+      "file": "reaction_shop_browse",
+      "label": "店（品定め）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_shop_greet",
+      "group": "reaction_shop"
+    },
+    {
+      "file": "reaction_shop_count",
+      "label": "店（所持金）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_shop_browse",
+      "group": "reaction_shop"
+    },
+    {
+      "file": "reaction_shop_hesitant",
+      "label": "店（迷い）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_shop_count",
+      "group": "reaction_shop"
+    },
+    {
+      "file": "reaction_shop_bargain",
+      "label": "店（掘り出し物）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_shop_hesitant",
+      "group": "reaction_shop"
+    },
+    {
+      "file": "reaction_shop_purchase",
+      "label": "店（購入）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_shop_bargain",
+      "group": "reaction_shop"
     }
   ]
 }
