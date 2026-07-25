@@ -2259,6 +2259,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             {
               const _srCount = (p.rings || []).filter(r => r.effect === "shoot_ring").length;
               if (_srCount > 0) {
+                /* 下手投げの指輪は射撃の指輪による追加発射にも適用する。 */
+                const _srForceMiss = hasRingEffect(p, "miss_throw_ring");
                 const _rawFc = getFarcastMode(p.x, p.y, dg);
                 const _fcMode = (hasRingEffect(p, "farcast_ring") && _rawFc !== "cursed") ? "farcast" : _rawFc;
                 const _srFarcast = _fcMode === "farcast";
@@ -2310,7 +2312,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       } else {
                         const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft);
                       }
-                    } else if (_stM && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
+                    } else if (_stM && !_srForceMiss && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                       if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { _stM.state = "hostile"; ml.push("店主が怒った！"); }
@@ -2332,7 +2334,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     } else if (_msTarget.subtype === "reflector") {
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
-                    } else if (!isEvasionDisabledByStatus(_msTarget) && Math.random() >= 0.90) {
+                    } else if (_srForceMiss || (!isEvasionDisabledByStatus(_msTarget) && Math.random() >= 0.90)) {
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
                       const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
                     } else {
@@ -2355,7 +2357,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
                         if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
                         const _baM = monsterAt(dg, _tx, _ty);
-                        if (_baM) {
+                        if (_baM && !_srForceMiss) {
                           const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
                           _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
                           if (_baM.type === "shopkeeper" && _baM.state !== "hostile") { _baM.state = "hostile"; ml.push("店主が怒った！"); }
@@ -2396,7 +2398,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       },
                       onMonHit: (mon, mlx) => {
                         /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
-                        if (!isEvasionDisabledByStatus(mon) && Math.random() >= 0.75) {
+                        if (_srForceMiss || (!isEvasionDisabledByStatus(mon) && Math.random() >= 0.75)) {
                           if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
                           mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
                           const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _dropFn(), mlx, _mft);

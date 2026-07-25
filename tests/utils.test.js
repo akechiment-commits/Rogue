@@ -23,10 +23,10 @@ describe("hasAbility", () => {
 });
 
 describe("isEvasionDisabledByStatus", () => {
-  it("移動封じ・鈍足・金縛り・眠りでは通常回避を無効にする", () => {
+  it("移動封じ・鈍足・金縛り・眠り・凍結では通常回避を無効にする", () => {
     for (const target of [
       { immobileTurns: 1 }, { slowTurns: 1 }, { paralyzeTurns: 1 },
-      { paralyzed: true }, { sleepTurns: 1 },
+      { paralyzed: true }, { sleepTurns: 1 }, { frozenTurns: 1 },
     ]) expect(isEvasionDisabledByStatus(target)).toBe(true);
     expect(isEvasionDisabledByStatus({})).toBe(false);
   });

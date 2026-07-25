@@ -386,7 +386,8 @@ export function isEvasionDisabledByStatus(target) {
     (target?.slowTurns || 0) > 0 ||
     !!target?.paralyzed ||
     (target?.paralyzeTurns || 0) > 0 ||
-    (target?.sleepTurns || 0) > 0;
+    (target?.sleepTurns || 0) > 0 ||
+    (target?.frozenTurns || 0) > 0;
 }
 
 export function corridorRange(depth) {
