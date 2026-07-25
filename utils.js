@@ -380,6 +380,15 @@ export function getDodgePentacleMode(dg, x, y) {
   return null;
 }
 
+/* 通常の回避判定を行えない状態。みかわしの魔方陣などの絶対回避は別途優先する。 */
+export function isEvasionDisabledByStatus(target) {
+  return (target?.immobileTurns || 0) > 0 ||
+    (target?.slowTurns || 0) > 0 ||
+    !!target?.paralyzed ||
+    (target?.paralyzeTurns || 0) > 0 ||
+    (target?.sleepTurns || 0) > 0;
+}
+
 export function corridorRange(depth) {
   return depth >= 2 ? 2 : 6;
 }

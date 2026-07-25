@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, calcAtkDefDmg } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, calcAtkDefDmg, isEvasionDisabledByStatus } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -2030,7 +2030,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             } else {
               /* 近接命中率95%（必中状態なら100%） */
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
-              if (!_meleeSureHit && Math.random() >= 0.95) {
+              if (!_meleeSureHit && !isEvasionDisabledByStatus(attackMon) && Math.random() >= 0.95) {
                 ml.push(`${attackMon.name}への攻撃は外れた！`);
                 _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
                 _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
@@ -2129,7 +2129,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 acted = true;
               } else {
               /* タトゥーバード: 50%ひらりと回避 */
-              const _tbDodge = attackMon.subtype === "tattoobird" && Math.random() < 0.50;
+              const _tbDodge = !isEvasionDisabledByStatus(attackMon) && attackMon.subtype === "tattoobird" && Math.random() < 0.50;
               if (_tbDodge) {
                 ml.push(`${attackMon.name}はひらりとかわした！`);
                 _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
@@ -2310,7 +2310,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       } else {
                         const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft);
                       }
-                    } else if (_stM && Math.random() < 0.90) {
+                    } else if (_stM && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                       if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { _stM.state = "hostile"; ml.push("店主が怒った！"); }
@@ -2332,7 +2332,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     } else if (_msTarget.subtype === "reflector") {
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
-                    } else if (Math.random() >= 0.90) {
+                    } else if (!isEvasionDisabledByStatus(_msTarget) && Math.random() >= 0.90) {
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
                       const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
                     } else {
@@ -2396,7 +2396,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       },
                       onMonHit: (mon, mlx) => {
                         /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
-                        if (Math.random() >= 0.75) {
+                        if (!isEvasionDisabledByStatus(mon) && Math.random() >= 0.75) {
                           if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
                           mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
                           const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _dropFn(), mlx, _mft);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createSeededRng, getShops, hasAbility, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
+import { createSeededRng, getShops, hasAbility, isEvasionDisabledByStatus, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
 
 describe("sortWarehouseItems", () => {
   it("種別順→名前順でソートする", () => {
@@ -19,6 +19,16 @@ describe("hasAbility", () => {
     expect(hasAbility({ abilities: ["thorn", "dodge"] }, "dodge")).toBe(true);
     expect(hasAbility({ ability: "thorn" }, "dodge")).toBe(false);
     expect(hasAbility(null, "thorn")).toBe(false);
+  });
+});
+
+describe("isEvasionDisabledByStatus", () => {
+  it("移動封じ・鈍足・金縛り・眠りでは通常回避を無効にする", () => {
+    for (const target of [
+      { immobileTurns: 1 }, { slowTurns: 1 }, { paralyzeTurns: 1 },
+      { paralyzed: true }, { sleepTurns: 1 },
+    ]) expect(isEvasionDisabledByStatus(target)).toBe(true);
+    expect(isEvasionDisabledByStatus({})).toBe(false);
   });
 });
 

@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
@@ -316,20 +316,21 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
+  const _cannotEvade = isEvasionDisabledByStatus(pl);
   /* dodge: 25% 完全回避 */
-  if (hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
+  if (!_cannotEvade && hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
     ml.push(`${m.name}の攻撃をひらりとかわした！`);
     onPlayerMiss?.(m);
     return;
   }
   /* オリーブオイル回避: 15% */
-  if ((pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+  if (!_cannotEvade && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
     ml.push(`オリーブオイルの力で${m.name}の攻撃をするりとかわした！`);
     onPlayerMiss?.(m);
     return;
   }
   /* 10% ミス */
-  if (Math.random() >= 0.90) {
+  if (!_cannotEvade && Math.random() >= 0.90) {
     ml.push(`${m.name}の攻撃は外れた！`);
     onPlayerMiss?.(m);
     return;
@@ -1557,14 +1558,14 @@ function monsterThrowStone(m, dg, pl, ml) {
       ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
       return;
     }
-    const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+    const dodged = _stDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
     if (dodged) {
       ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
       const _sd = safeArrowDrop(pl.x, pl.y, dg);
       _monDropWithSpring(_sd, dropStone(), dg, ml);
       return;
     }
-    const miss = _stDodgePcMode !== "sure" && Math.random() >= hitChance;
+    const miss = _stDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && Math.random() >= hitChance;
     if (miss) {
       ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
       const _sd = safeArrowDrop(pl.x, pl.y, dg);
@@ -1744,7 +1745,7 @@ function monsterShootWaterGun(m, dg, pl, ml) {
       return;
     }
     if (tx === pl.x && ty === pl.y) {
-      if (_wDodgePcMode !== "sure" && miss) {
+      if (_wDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && miss) {
         ml.push(`${m.name}の水鉄砲は外れた！`);
         return;
       }
@@ -1944,7 +1945,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onPlHit) onPlHit(ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
-      const _armDodge = _dodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+      const _armDodge = _dodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
       if (_armDodge) {
         ml.push(`${boltName}をひらりとかわした！`);
         if (onMiss) onMiss(_tx, _ty, ml);
@@ -1955,7 +1956,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onMiss) onMiss(_tx, _ty, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
-      if (_dodgePcMode !== "sure" && hitChance < 1.0 && Math.random() >= hitChance) {
+      if (_dodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hitChance < 1.0 && Math.random() >= hitChance) {
         ml.push(`${_shooterPrefix}${boltName}は外れた！`);
         if (onMiss) onMiss(_tx, _ty, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;

@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll } from "./dungeon.js";
@@ -2594,7 +2594,7 @@ export function useItemActions({
             } else {
               const _msSureHit = (p.sureHitTurns || 0) > 0;
               const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
-              const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (!_msSureHit && !(_msDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (!_msSureHit && !isEvasionDisabledByStatus(_msTarget) && !(_msDodgePcMode === "sure") && Math.random() >= 0.90));
               const _msDmg = _msMiss ? 0 : calcProjectileDmg(p, _arItem.atk || 5, _msTarget.def);
               if (_msMiss) {
                 if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
@@ -2678,7 +2678,7 @@ export function useItemActions({
               ml.push(`${_stName}が${_stM.name}に飲み込まれた！（攻撃力×${_stM._gelBoost.toFixed(2)}→${_stM.atk}）`);
               } else {
               const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
-              const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (!_stSureHit && !(_stDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (!_stSureHit && !isEvasionDisabledByStatus(_stM) && !(_stDodgePcMode === "sure") && Math.random() >= 0.90));
               if (_stMiss) {
                 if (_stDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
@@ -2830,7 +2830,7 @@ export function useItemActions({
             /* 命中率: dodge魔方陣・必中状態を考慮 */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
             const _arDodgePcMode = getDodgePentacleMode(dg, mon.x, mon.y);
-            const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (!_arSureHit && !(_arDodgePcMode === "sure") && Math.random() >= 0.90));
+            const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (!_arSureHit && !isEvasionDisabledByStatus(mon) && !(_arDodgePcMode === "sure") && Math.random() >= 0.90));
             if (_arMiss) {
               if (_arDodgePcMode === "dodge") mlx.push(`みかわしの魔方陣の加護で${mon.name}に矢が当たらなかった！`);
               if (_arIsPierce) {
@@ -3135,7 +3135,7 @@ export function useItemActions({
               reflectMagicStoneToPlayer(p, _msTarget2, _invStName, _invStAtk, ml);
             } else {
               const _msDodgePcMode2 = getDodgePentacleMode(dg, _msTarget2.x, _msTarget2.y);
-              const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));
+              const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !isEvasionDisabledByStatus(_msTarget2) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));
               if (_msMiss2) {
                 if (_msDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
@@ -3173,7 +3173,7 @@ export function useItemActions({
               });
             } else if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
-              const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
+              const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !isEvasionDisabledByStatus(_stM2) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
               if (_stMiss2) {
                 if (_stDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
@@ -3370,7 +3370,7 @@ export function useItemActions({
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
               const _potDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
-              const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_potSureHit && !(_potDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_potSureHit && !isEvasionDisabledByStatus(m) && !(_potDodgePcMode === "sure") && Math.random() >= 0.90));
               if (!_isFarcast && m.baseKind === "firedemon") {
                 /* 火ダルマ：非遠投の壺を燃やして消滅 */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
@@ -3542,7 +3542,7 @@ export function useItemActions({
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
-              const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !isEvasionDisabledByStatus(m) && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));
               const lb = _mkThrowLb();
               if (!_isFarcast && m.baseKind === "firedemon") {
                 /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
