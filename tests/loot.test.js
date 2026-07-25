@@ -1,18 +1,20 @@
 import { describe, it, expect } from "vitest";
 import {
-  pickLootFromPool,
-  pickWeighted,
-  LOOT_LUCK,
-  RARITY_WEIGHT,
-  RARITY_ORDER,
   ITEMS,
   WANDS,
   RINGS,
   POTS,
   SPELLBOOKS,
-  MONSTER_RANDOM_DROP_RATE,
-  monsterRandomDropChance,
 } from "../items.js";
+import {
+  LOOT_LUCK,
+  MONSTER_RANDOM_DROP_RATE,
+  RARITY_ORDER,
+  RARITY_WEIGHT,
+  monsterRandomDropChance,
+  pickLootFromPool,
+  pickWeighted,
+} from "../lootRules.js";
 
 describe("レア度 = weight", () => {
   it("全アイテムで rarity と weight が RARITY_WEIGHT と一致", () => {

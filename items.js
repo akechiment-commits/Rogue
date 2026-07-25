@@ -4,6 +4,15 @@ import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import { triggerWandBreakEffect } from './wands.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
+import {
+  LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
+  isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
+} from './lootRules.js';
+
+export {
+  LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
+  isRarityAtLeast, monsterRandomDropChance, pickLootFromPool, pickWeighted, rarityAtLeast,
+} from './lootRules.js';
 
 /* ポータルの魔方陣の別フロア参照（Game.jsx から getter を登録） */
 let _portalFloorsGetter = () => null;
@@ -454,89 +463,8 @@ export function itemPrice(it) {
   return Math.round(30 * _bcMult);
 }
 
-/* weight フィールドを使った重み付き抽選 */
-export function pickWeighted(arr, rngFn = Math.random) {
-  const pool = arr.filter(x => (x.weight ?? 1) > 0);
-  if (pool.length === 0) return arr[Math.floor(rngFn() * arr.length)];
-  const total = pool.reduce((s, x) => s + (x.weight ?? 1), 0);
-  let r = rngFn() * total;
-  for (const x of pool) { r -= (x.weight ?? 1); if (r <= 0) return x; }
-  return pool[pool.length - 1];
-}
-
 export function wPick(arr) {
-  const tw = arr.reduce((s, x) => s + x.w, 0);
-  let r = Math.random() * tw;
-  for (const x of arr) { r -= x.w; if (r <= 0) return x; }
-  return arr[arr.length - 1];
-}
-
-/**
- * レア度 → weight（同レア度は同 weight。E が最コモン、S が最レア）
- * E:12 D:8 C:4 B:2 A:1 S:0.05
- */
-export const RARITY_WEIGHT = { E: 12, D: 8, C: 4, B: 2, A: 1, S: 0.05 };
-export const RARITY_RANK = { E: 0, D: 1, C: 2, B: 3, A: 4, S: 5 };
-export const RARITY_ORDER = ["E", "D", "C", "B", "A", "S"];
-
-export function rarityAtLeast(minR) {
-  const m = RARITY_RANK[minR] ?? 0;
-  return RARITY_ORDER.filter((r) => (RARITY_RANK[r] ?? 0) >= m);
-}
-export function isRarityAtLeast(item, minR) {
-  if (!item?.rarity) return false;
-  return (RARITY_RANK[item.rarity] ?? -1) >= (RARITY_RANK[minR] ?? 0);
-}
-
-/**
- * 店・変化・ドロップで「いいもの寄り」にする運枠。
- * 運が当たると指定レア以上のサブプールで weight 抽選（帯内は同レア同 weight）。
- */
-export const LOOT_LUCK = {
-  floor:  { chance: 0,    rarities: null },
-  shop:   { chance: 0.18, rarities: rarityAtLeast("C") }, /* C/B/A/S */
-  change: { chance: 0.18, rarities: rarityAtLeast("C") },
-  drop:   { chance: 0.10, rarities: rarityAtLeast("D") }, /* D 以上 */
-};
-
-/** @deprecated 均等枠は廃止。互換のため 0 固定で残す */
-export const LOOT_UNIFORM_CHANCE = {
-  floor: 0,
-  change: 0,
-  shop: 0,
-  drop: 0,
-};
-
-/** 一般ランダムドロップ率（固有ドロップは別） */
-export const MONSTER_RANDOM_DROP_RATE = {
-  /** 特技なし / 分裂敵 */
-  plainOrSplitter: 0.02,
-  /** 特技持ち（subtype あり、splitter 以外） */
-  skilled: 0.05,
-};
-
-/** 一般ランダムアイテムドロップの確率（固有ドロップは触らない） */
-export function monsterRandomDropChance(m) {
-  if (!m?.subtype || m.subtype === "splitter") return MONSTER_RANDOM_DROP_RATE.plainOrSplitter;
-  return MONSTER_RANDOM_DROP_RATE.skilled;
-}
-
-/**
- * weight 抽選。shop/change/drop は一定確率で上レア帯に寄る（帯内は weight）。
- * @param {object[]} pool weight 付きテンプレ配列
- * @param {'floor'|'change'|'shop'|'drop'} [context='floor']
- * @param {() => number} [rngFn=Math.random]
- */
-export function pickLootFromPool(pool, context = "floor", rngFn = Math.random) {
-  if (!pool || pool.length === 0) return null;
-  if (pool.length === 1) return pool[0];
-  const luck = LOOT_LUCK[context] || LOOT_LUCK.floor;
-  if (luck.chance > 0 && luck.rarities?.length && rngFn() < luck.chance) {
-    const rset = new Set(luck.rarities);
-    const good = pool.filter((i) => i && rset.has(i.rarity));
-    if (good.length > 0) return pickWeighted(good, rngFn);
-  }
-  return pickWeighted(pool, rngFn);
+  return pickByWeight(arr);
 }
 
 export function genFood() {
