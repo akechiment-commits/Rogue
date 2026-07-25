@@ -1,5 +1,6 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, calcAtkDefDmg, stepProjectile } from './utils.js';
-import { materializeFakeStair, tryBreakStatueAt, findFixedPortalPair, statueAt, hitStatueWithAction } from './fixtures.js';
+import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
+import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import { triggerWandBreakEffect } from './wands.js';

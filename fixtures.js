@@ -4,6 +4,19 @@
 import { rng, pick, uid, MW, MH, T } from "./utils.js";
 /* items.js との循環 import を避けるため、TRAPS/ITEMS のみ参照し placeItemAt は使わない */
 import { TRAPS, pickLootFromPool, pickTrap, ITEMS, WANDS, resolveItemName } from "./items.js";
+import {
+  findFixedPortalPair,
+  statueAt,
+  wandEffectBreaksStatue,
+  wandEffectStatueLootOnly,
+} from "./fixtureQueries.js";
+
+export {
+  findFixedPortalPair,
+  statueAt,
+  wandEffectBreaksStatue,
+  wandEffectStatueLootOnly,
+} from "./fixtureQueries.js";
 
 /* monsters.js 側で登録する。fixtures -> monsters の循環 import を避ける。 */
 
@@ -76,10 +89,6 @@ export function makeStatue(x, y) {
     tile: FIXTURE_TILE.statue,
     name: "石像",
   };
-}
-
-export function statueAt(dg, x, y) {
-  return (dg.statues || []).find((s) => s.x === x && s.y === y) || null;
 }
 
 const _STATUE_NEI = [
@@ -196,22 +205,6 @@ export function tryBreakStatueAt(dg, x, y, p, ml, luFn, depth) {
  * 場所替え・テレポ・飛びつきなど位置系・祝福呪い → false
  * 穴掘り・軟化は壊す（敵は出さずアイテムのみ → wandEffectStatueLootOnly）
  */
-export function wandEffectBreaksStatue(eff) {
-  if (!eff) return false;
-  const safe = new Set([
-    "swap", "warp", "leap",
-    "bless_wand", "curse_wand",
-    "levelup", "portal",
-    "vitality_swap",
-  ]);
-  return !safe.has(eff);
-}
-
-/** 穴掘り・軟化：石像を壊すが敵は出さずアイテムのみ */
-export function wandEffectStatueLootOnly(eff) {
-  return eff === "dig" || eff === "soften";
-}
-
 /**
  * 投擲物が石像を壊すか（物理的に当たるもの・有害な薬など）。
  */
@@ -262,14 +255,6 @@ export function makeFixedPortalPair(x1, y1, x2, y2, depth) {
       tile: FIXTURE_TILE.fixedPortal,
     },
   ];
-}
-
-export function findFixedPortalPair(dg, portal) {
-  if (!portal || portal.kind !== "fixed_portal") return null;
-  return (dg.pentacles || []).find(
-    (pc) => pc.kind === "fixed_portal" && pc.pairId === portal.pairId && pc !== portal &&
-      !(pc.x === portal.x && pc.y === portal.y),
-  ) || null;
 }
 
 /**

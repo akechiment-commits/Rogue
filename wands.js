@@ -13,7 +13,8 @@ import {
   pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
-import { tryBreakStatueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, hitStatueWithAction, statueAt, displaceObjectsFromStatue } from './fixtures.js';
+import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
+import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 
 /** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */

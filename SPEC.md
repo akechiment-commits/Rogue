@@ -282,6 +282,7 @@ React + Vite 製のローグライク。
 | `monsterAttackPhase.js` | 敵攻撃フェーズの実行と、命中・回避・突進の描画イベント生成 |
 | `visibilityOverrides.js` | 明かりの魔方陣とスターライト／ダークネスによる refreshFOV 後の視界上書き |
 | `pentacleTurnEffects.js` | 転送・罠生成・石飛ばし・回復の魔方陣による毎ターン効果 |
+| `fixtureQueries.js` | 石像・固定転送陣の副作用を持たない照会と杖効果判定 |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
@@ -318,6 +319,7 @@ React + Vite 製のローグライク。
 | `Game.jsx` | `messageLog.js` | メッセージへのフロアターン付与と履歴上限の管理 |
 | `Game.jsx` | `inventoryRules.js` / `inventoryLabel.js` | インベントリの利用可否・使用ラベル・ソート・表示名 |
 | `items.js` | `lootRules.js` | レア度／重み抽選、運枠、一般ドロップ抽選 |
+| `fixtures.js` | `fixtureQueries.js` | 石像検索、固定転送陣のペア検索、杖による石像破壊判定 |
 
 各分離先には対応する `tests/*.test.js` を置く。挙動変更を伴わない整理でも、既存のメッセージ・処理順・副作用をテストで固定してから `Game.jsx` 側を呼び出しだけにする。
 
