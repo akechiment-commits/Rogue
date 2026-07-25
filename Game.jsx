@@ -57,7 +57,10 @@ import { resolveTurnHazards } from "./turnHazards.js";
 import { transitMonstersThroughPortals } from "./monsterPortalTransit.js";
 import { runMonsterAttackPhase } from "./monsterAttackPhase.js";
 import { applyVisibilityOverrides } from "./visibilityOverrides.js";
-import { resolveTeleportAndTrapPentacleEffect } from "./pentacleTurnEffects.js";
+import {
+  resolveStoneAndHealingPentacleEffect,
+  resolveTeleportAndTrapPentacleEffect,
+} from "./pentacleTurnEffects.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1491,166 +1494,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* ===== 新ペン魔方陣の毎ターン効果 ===== */
       if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
         const _dg2 = st.dungeon;
-        const _pRoom = findRoom(_dg2.rooms, p.x, p.y);
         for (const _pc of _dg2.pentacles) {
-          const _pcRoom = findRoom(_dg2.rooms, _pc.x, _pc.y);
-          const _floorWide = _pc.blessed; // 祝福はフロア全体
-          const _inRange = _floorWide || (_pRoom && _pcRoom && _pRoom === _pcRoom);
-          /* 魔封じの魔方陣：自分以外の魔方陣の効果を封じる */
-          const _pcMagicSealed = _pc.kind !== "magic_seal" && inMagicSealRoom(_pc.x, _pc.y, _dg2);
-          /* --- 明かりの魔方陣 --- */
-          /* (rendering only; handled in refreshFOV override below) */
           resolveTeleportAndTrapPentacleEffect(_pc, _dg2, p, ml, {
             findRoom, inMagicSealRoom, random: Math.random, randomTeleportDest,
             pick, rng, T, pickTrap, uid, removeTrap,
           });
-          /* --- 石飛ばしの魔方陣：毎ターン25%で部屋内キャラに魔法の石を飛ばす --- */
-          if (!_pcMagicSealed && _pc.kind === "stone_throw" && _pcRoom && Math.random() < 0.25) {
-            /* 部屋内の全キャラ（プレイヤー＋モンスター）をターゲット候補に */
-            const _stTargets = [];
-            const _plInRoom = _pRoom === _pcRoom;
-            if (_plInRoom) _stTargets.push({ kind: "player" });
-            for (const _stM of _dg2.monsters) {
-              if (_stM.magicImmune) continue;
-              const _stMRoom = findRoom(_dg2.rooms, _stM.x, _stM.y);
-              if (_stMRoom === _pcRoom) _stTargets.push({ kind: "monster", m: _stM });
-            }
-            if (_stTargets.length > 0) {
-              const _stTgt = pick(_stTargets);
-              const _baseDmg = rng(5, 10);
-              const _stTgtX = _stTgt.kind === "player" ? p.x : _stTgt.m.x;
-              const _stTgtY = _stTgt.kind === "player" ? p.y : _stTgt.m.y;
-              const _stDropStone = () => placeItemAt(_dg2, _stTgtX, _stTgtY, makeMagicStone(1), ml, new Set());
-              /* 命中100%。みかわし魔方陣・みかわしの服・オリーブ油のみ回避可能 */
-              let _stDodged = false;
-              if (!_pc.cursed) {
-                const _stHasDodgePc = _dg2.pentacles?.some(pc => {
-                  if (pc.kind !== "dodge" || pc.cursed) return false;
-                  if (pc.blessed) return true;
-                  const _dPcRoom = findRoom(_dg2.rooms, pc.x, pc.y);
-                  return _dPcRoom && findRoom(_dg2.rooms, _stTgtX, _stTgtY) === _dPcRoom;
-                });
-                if (_stHasDodgePc) {
-                  const _dodgeName = _stTgt.kind === "player" ? "プレイヤー" : _stTgt.m.name;
-                  ml.push(`みかわしの魔方陣の加護で${_dodgeName}が${_pc.name}の魔法の石をかわした！魔法の石が足元に落ちた。`);
-                  _stDropStone();
-                  _stDodged = true;
-                }
-              }
-              if (!_stDodged && _stTgt.kind === "player") {
-                if (hasAbility(p.armor, "dodge") && Math.random() < 0.25) {
-                  ml.push(`${_pc.name}の魔法の石をひらりとかわした！魔法の石が足元に落ちた。`);
-                  _stDropStone();
-                  _stDodged = true;
-                } else if ((p.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
-                  ml.push(`オリーブオイルの力で${_pc.name}の魔法の石をするりとかわした！魔法の石が足元に落ちた。`);
-                  _stDropStone();
-                  _stDodged = true;
-                }
-              }
-              if (!_stDodged && _pc.cursed) {
-                /* 呪い：回復効果 */
-                if (_stTgt.kind === "player") {
-                  const _heal = Math.min(_baseDmg, p.maxHp - p.hp);
-                  if (_heal > 0) { p.hp += _heal; ml.push(`${_pc.name}の魔法の石がプレイヤーに当たった！${_heal}回復！`); }
-                } else {
-                  if (_stTgt.m.kind === "undead") {
-                    _stTgt.m.hp -= _baseDmg; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_baseDmg}ダメージ！(アンデッド)`);
-                    if (_stTgt.m.hp <= 0) { trackMonster(_stTgt.m); killMonster(_stTgt.m, st.dungeon, p, ml, lu); }
-                  } else {
-                    const _heal = Math.min(_baseDmg, _stTgt.m.maxHp - _stTgt.m.hp);
-                    if (_heal > 0) { _stTgt.m.hp += _heal; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_heal}回復！`); }
-                  }
-                }
-              } else if (!_stDodged) {
-                const _stcmsB = inCursedMagicSealRoom(_stTgtX, _stTgtY, _dg2) ? 2 : 1;
-                const _dmg = (_pc.blessed ? _baseDmg * 2 : _baseDmg) * _stcmsB;
-                if (_stTgt.kind === "player") {
-                  p.deathCause = `${_pc.name}の魔法の石により`;
-                  p.hp -= _dmg;
-                  ml.push(`${_pc.name}の魔法の石がプレイヤーに当たった！${_dmg}ダメージ！`);
-                } else if (_stTgt.m.baseKind === "gelcube") {
-                  /* ゼラチンキューブ：魔法の石を飲み込む */
-                  _stTgt.m.heldItems = _stTgt.m.heldItems || [];
-                  _stTgt.m.heldItems.push(makeMagicStone(1));
-                  if (!_stTgt.m._gelBaseAtk) _stTgt.m._gelBaseAtk = _stTgt.m.atk;
-                  _stTgt.m._gelBoost = Math.min(10, (_stTgt.m._gelBoost || 1) * 1.2);
-                  _stTgt.m.atk = Math.round(_stTgt.m._gelBaseAtk * _stTgt.m._gelBoost);
-                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に飲み込まれた！（攻撃力×${_stTgt.m._gelBoost.toFixed(2)}→${_stTgt.m.atk}）`);
-                } else if (_stTgt.m.baseKind === "synthmonster") {
-                  /* 合成獣：魔法の石を飲み込んで速度アップ */
-                  _stTgt.m.heldItems = _stTgt.m.heldItems || [];
-                  _stTgt.m.heldItems.push(makeMagicStone(1));
-                  const _synthPrev = _stTgt.m.speed || 0.5;
-                  _stTgt.m.speed = Math.min(3, _synthPrev + 0.5);
-                  _stTgt.m.maxAttacks = Math.ceil(_stTgt.m.speed);
-                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に飲み込まれた！${_stTgt.m.speed !== _synthPrev ? `(速度${_stTgt.m.speed})` : ""}`);
-                } else if (_stTgt.m.subtype === "reflector") {
-                  /* ミラーゴーレム：跳ね返して魔方陣周辺に落とす */
-                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に弾き返された！`);
-                  const _rfCands = [];
-                  for (let _rdy = -2; _rdy <= 2; _rdy++) {
-                    for (let _rdx = -2; _rdx <= 2; _rdx++) {
-                      const _cx = _pc.x + _rdx, _cy = _pc.y + _rdy;
-                      if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
-                      if (_dg2.map[_cy][_cx] !== T.FLOOR) continue;
-                      if (_cx === p.x && _cy === p.y) continue;
-                      if (_dg2.items.some(i => i.x === _cx && i.y === _cy)) continue;
-                      if (_dg2.monsters.some(mn => mn.x === _cx && mn.y === _cy)) continue;
-                      _rfCands.push([_cx, _cy]);
-                    }
-                  }
-                  if (_rfCands.length > 0) {
-                    const [_dropX, _dropY] = pick(_rfCands);
-                    placeItemAt(_dg2, _dropX, _dropY, makeMagicStone(1), ml, new Set());
-                    ml.push(`魔法の石が魔方陣の周辺に落ちた。`);
-                  }
-                } else {
-                  _stTgt.m.hp -= _dmg;
-                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_dmg}ダメージ！`);
-                  if (_stTgt.m.hp <= 0) { trackMonster(_stTgt.m); killMonster(_stTgt.m, _dg2, p, ml, lu); }
-                }
-              }
-            }
-          }
-          /* --- 回復の魔方陣：毎ターン部屋内全員に5(祝10)回復 / 呪いは逆に5ダメージ --- */
-          if (!_pcMagicSealed && _pc.kind === "heal_aura" && _pcRoom) {
-            const _hBase = _pc.blessed ? 10 : 5;
-            /* プレイヤーへの効果 */
-            if (_inRange) {
-              if (_pc.cursed) {
-                const _hcmsB = inCursedMagicSealRoom(p.x, p.y, _dg2) ? 2 : 1;
-                const _hDmg = _hBase * _hcmsB;
-                p.deathCause = `${_pc.name}の呪いにより`;
-                p.hp -= _hDmg;
-                ml.push(`${_pc.name}の呪いで${_hDmg}ダメージを受けた！`);
-              } else {
-                const _ph = Math.min(_hBase, p.maxHp - p.hp);
-                if (_ph > 0) { p.hp += _ph; }
-              }
-            }
-            /* モンスターへの効果（魔法無効モンスターはスキップ） */
-            for (const _hm of _dg2.monsters) {
-              if (_hm.hp <= 0) continue;
-              if (_hm.magicImmune) continue;
-              const _hmRoom = findRoom(_dg2.rooms, _hm.x, _hm.y);
-              if (_hmRoom !== _pcRoom) continue;
-              if (_pc.cursed) {
-                const _hmcmsB = inCursedMagicSealRoom(_hm.x, _hm.y, _dg2) ? 2 : 1;
-                const _hmDmg = _hBase * _hmcmsB;
-                _hm.hp -= _hmDmg;
-                ml.push(`${_pc.name}の呪いで${_hm.name}が${_hmDmg}ダメージを受けた！`);
-                if (_hm.hp <= 0) { trackMonster(_hm); killMonster(_hm, _dg2, p, ml, lu); }
-              } else if (_hm.kind === "undead") {
-                _hm.hp -= _hBase;
-                ml.push(`${_pc.name}の回復力が${_hm.name}を傷つけた！${_hBase}ダメージ！(アンデッド)`);
-                if (_hm.hp <= 0) { trackMonster(_hm); killMonster(_hm, _dg2, p, ml, lu); }
-              } else {
-                const _mh = Math.min(_hBase, _hm.maxHp - _hm.hp);
-                if (_mh > 0) _hm.hp += _mh;
-              }
-            }
-          }
+          resolveStoneAndHealingPentacleEffect(_pc, _dg2, p, ml, {
+            findRoom,
+            inMagicSealRoom,
+            inCursedMagicSealRoom,
+            random: Math.random,
+            pick,
+            rng,
+            T,
+            hasAbility,
+            makeMagicStone,
+            placeItemAt,
+            onMonsterDefeated: (monster) => {
+              trackMonster(monster);
+              killMonster(monster, _dg2, p, ml, lu);
+            },
+          });
         }
       }
       refreshFOV(st.dungeon, p);

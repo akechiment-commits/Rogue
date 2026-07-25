@@ -281,7 +281,7 @@ React + Vite 製のローグライク。
 | `monsterPortalTransit.js` | 敵移動後の固定転送陣・ポータル転送（呪い・別フロア移動を含む） |
 | `monsterAttackPhase.js` | 敵攻撃フェーズの実行と、命中・回避・突進の描画イベント生成 |
 | `visibilityOverrides.js` | 明かりの魔方陣とスターライト／ダークネスによる refreshFOV 後の視界上書き |
-| `pentacleTurnEffects.js` | 転送・罠生成の魔方陣による毎ターン効果 |
+| `pentacleTurnEffects.js` | 転送・罠生成・石飛ばし・回復の魔方陣による毎ターン効果 |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
@@ -313,7 +313,7 @@ React + Vite 製のローグライク。
 | `Game.jsx` | `monsterPortalTransit.js` | Phase 2.5 の固定転送陣・ポータルに乗った敵の転送と、着地後の再転送防止 |
 | `Game.jsx` | `monsterAttackPhase.js` | Phase 4 の敵攻撃実行と、アニメーションへ渡す命中・回避・突進データ |
 | `Game.jsx` | `visibilityOverrides.js` | 明かりの魔方陣と視界操作モンスターの視界・探索済みマスへの上書き |
-| `Game.jsx` | `pentacleTurnEffects.js` | 転送の魔方陣と罠の魔方陣による毎ターンの転送・罠生成／削除 |
+| `Game.jsx` | `pentacleTurnEffects.js` | 転送・罠生成・石飛ばし・回復の魔方陣による毎ターン効果 |
 | `Game.jsx` | `lookDescription.js` | 調べるモードで表示するマスの説明文 |
 | `Game.jsx` | `messageLog.js` | メッセージへのフロアターン付与と履歴上限の管理 |
 | `Game.jsx` | `inventoryRules.js` / `inventoryLabel.js` | インベントリの利用可否・使用ラベル・ソート・表示名 |
