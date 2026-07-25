@@ -5,6 +5,7 @@
 import { installPlayerHpReverseHook } from "./utils.js";
 
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
+const GAME_SAVE_VERSION = 2;
 
 /* ---------- serialize ---------- */
 
@@ -39,12 +40,36 @@ function deserializePlayer(data) {
   return p;
 }
 
+/* ---------- migration / validation ---------- */
+
+function migrateV1ToV2(data) {
+  return {
+    ...data,
+    version: GAME_SAVE_VERSION,
+    floors: data.floors || {},
+    ident: data.ident || [],
+    nicknames: data.nicknames || {},
+    floorTurns: data.floorTurns || 0,
+    penSpriteMap: data.penSpriteMap || {},
+    potionSpriteMap: data.potionSpriteMap || {},
+    msgs: data.msgs || [],
+  };
+}
+
+function normalizeSaveData(data) {
+  if (!data || typeof data !== 'object') return null;
+  const migrated = data.version === 1 ? migrateV1ToV2(data) : data;
+  if (migrated.version !== GAME_SAVE_VERSION) return null;
+  if (!migrated.player || !Array.isArray(migrated.player.inventory)) return null;
+  return migrated;
+}
+
 /* ---------- public API ---------- */
 
 export function saveGameState(session, msgs, dungeonConfig, discoveries) {
   try {
     const data = {
-      version: 1,
+      version: GAME_SAVE_VERSION,
       timestamp: Date.now(),
       player: serializePlayer(session.player),
       dungeon: session.dungeon,
@@ -76,8 +101,8 @@ export function loadGameState() {
   try {
     const raw = localStorage.getItem(GAME_SAVE_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (!data || data.version !== 1) return null;
+    const data = normalizeSaveData(JSON.parse(raw));
+    if (!data) return null;
     return {
       player: deserializePlayer(data.player),
       dungeon: data.dungeon,

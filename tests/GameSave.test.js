@@ -65,6 +65,31 @@ describe("GameSave", () => {
     expect(loaded.potionSpriteMap).toEqual({ heal: 7 });
     expect(loaded.msgs).toEqual(["テストメッセージ"]);
     expect(loaded.dungeonConfig).toEqual({ type: "beginner" });
+    expect(JSON.parse(localStorage._data.roguelike_dungeon_save_v1).version).toBe(2);
+  });
+
+  it("v1 の途中セーブを v2 として読み込める", () => {
+    saveGameState(makeSession(), ["以前のメッセージ"], null, null);
+    const legacy = JSON.parse(localStorage._data.roguelike_dungeon_save_v1);
+    legacy.version = 1;
+    delete legacy.nicknames;
+    delete legacy.penSpriteMap;
+    delete legacy.potionSpriteMap;
+    localStorage._data.roguelike_dungeon_save_v1 = JSON.stringify(legacy);
+
+    const loaded = loadGameState();
+    expect(loaded.player.weapon).toBe(loaded.player.inventory[0]);
+    expect(loaded.nicknames).toEqual({});
+    expect(loaded.penSpriteMap).toEqual({});
+    expect(loaded.potionSpriteMap).toEqual({});
+  });
+
+  it("未知の版または壊れた途中セーブは読み込まない", () => {
+    localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify({ version: 99 }));
+    expect(loadGameState()).toBeNull();
+
+    localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify({ version: 2, player: {} }));
+    expect(loadGameState()).toBeNull();
   });
 
   it("clearGameSave で削除される", () => {

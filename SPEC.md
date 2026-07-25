@@ -336,7 +336,7 @@ public/
 
 ## セーブデータ
 
-`localStorage` キー: `roguelike_dungeon_save_v1`  
+`localStorage` キー: `roguelike_dungeon_save_v1`（保存形式 v2。v1 はロード時に互換変換）
 ファイル: `GameSave.js`
 
 - 装備品はインベントリインデックスで保存
