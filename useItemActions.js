@@ -6,8 +6,8 @@ import { applyMonsterScroll } from "./dungeon.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
-  applyWandEffect, applyWaterSplash, breakWandAoE, triggerWandBreakEffect, burnFoodItem,
-  castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, fireWandBolt, trapStepBreakChance,
+  applyWaterSplash, burnFoodItem,
+  castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
@@ -17,6 +17,7 @@ import {
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps,
 } from "./items.js";
+import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";

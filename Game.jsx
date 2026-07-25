@@ -16,8 +16,8 @@ import {
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
-  setPitfallBag, clearPitfallBag, applyWandEffect,
-  monsterFireLightning, checkShopTheft, applyLightningToInventory,
+  setPitfallBag, clearPitfallBag,
+  checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
@@ -27,6 +27,7 @@ import {
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
   tickBubbleGold, getFixtureItemDeps,
 } from "./items.js";
+import { applyWandEffect, monsterFireLightning } from "./wands.js";
 import { fireTrapPlayer } from "./traps.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -918,6 +919,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       bbFn: bigboxAddItem,
       luFn: lu,
       itemNameFn: (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames),
+      applyWandFn: applyWandEffect,
       ...extraOpts,
       fireTrapFn: (trap, p, dg2, ml2) => {
         const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu, { ident: sr.current?.ident });

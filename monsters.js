@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { hitStatueWithAction } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
@@ -3749,7 +3749,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             killerMon: m,
             bbFn: opts.bbFn,
             nameFn: opts.itemNameFn,
-            applyWandFn: applyWandEffect,
+            applyWandFn: opts.applyWandFn,
             /* 通常アイテム：「弾いて」「当てた」 */
             monHitMsg: (target, dmg) => `${m.name}が${_ibN}を弾いて${target.name}に当てた！${dmg}ダメージ！消滅した。`,
             /* 壺：「弾かれ」「当たって割れた」 */
@@ -3848,7 +3848,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _srRes = throwItemAlongLine(m, dg, _throwItem, _srDx, _srDy, _srDist, ml, pl, _luFn, {
               animColor: "#ff8800",
               killerMon: m,
-              applyWandFn: applyWandEffect,
+              applyWandFn: opts.applyWandFn,
               /* 中間敵命中：「${m}が投げた${item}が${target}に...」 */
               monHitMsg: (target, dmg) => `${m.name}が投げた${_throwItem.name}が${target.name}に命中！${dmg}ダメージ！消滅した。`,
               potHitMsg: (target, dmg) => `${m.name}が投げた${_throwItem.name}が${target.name}に当たって割れた！${dmg}ダメージ！`,

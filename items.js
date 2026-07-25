@@ -3,7 +3,6 @@ import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './f
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import { MONS, spawnMonsters, monLevelUp, monLevelDown, wakeIfDormant, _resolveBolt, findRoom, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
-import { triggerWandBreakEffect } from './wands.js';
 import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
 import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -93,7 +92,17 @@ import {
 export { RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS, RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS };
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
-export { applyWandEffect, fireWandBolt, monsterFireLightning, breakWandAoE, triggerWandBreakEffect, destroyFloorWand } from './wands.js';
+let _wandBreakEffectHandler = null;
+export function setWandBreakEffectHandler(handler) {
+  _wandBreakEffectHandler = handler;
+}
+
+function _triggerWandBreakEffect(...args) {
+  if (!_wandBreakEffectHandler) {
+    throw new Error("杖破壊効果のhandlerが未登録です");
+  }
+  return _wandBreakEffectHandler(...args);
+}
 
 /* ===== 状態異常防止チェックヘルパー ===== */
 export function isStatusImmune(entity, ml, name = null) {
@@ -1105,7 +1114,7 @@ function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
   blasted.add(it);
   const _snap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
   ml.push(`杖「${resolveItemName(it, nameFn)}」が爆発で壊れ、魔法が炸裂した！`);
-  triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn);
+  _triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn);
 }
 
 /**
@@ -3814,7 +3823,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       const _twOpts = res.hitMonster
         ? { singleTargetKind: "monster", singleTarget: res.hitMonster, effectDx: _twDx, effectDy: _twDy }
         : { singleTargetKind: "player", singleTarget: p, effectDx: -_twDx, effectDy: -_twDy };
-      triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, _twOpts);
+      _triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, _twOpts);
     } else {
       if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
       const ft = new Set();

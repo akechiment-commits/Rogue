@@ -11,6 +11,7 @@ import {
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
+  setWandBreakEffectHandler,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
@@ -2204,3 +2205,5 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
   if (_footBb && !_defCenter) targets.push({ kind:"bigbox", t:_footBb, dx:rd[0], dy:rd[1] });
   for (const { kind, t, dx, dy } of targets) applyWandEffect(eff, kind, t, dx, dy, dg, p, ml, luFn, null, blMult);
 }
+
+setWandBreakEffectHandler(triggerWandBreakEffect);

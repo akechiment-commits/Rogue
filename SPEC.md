@@ -325,6 +325,8 @@ React + Vite 製のローグライク。
 
 `fixtures.js` は `items.js` を import しない。偽階段の実体化や石像破壊で必要なアイテムカタログ・名前解決は、呼び出し側が `getFixtureItemDeps()` で渡して依存方向を `items → fixtures` に固定する。
 
+`items.js` は `wands.js` を import／再exportしない。杖破壊時の効果は `wands.js` が `setWandBreakEffectHandler()` で登録し、UIは杖APIを `wands.js` から直接importする。モンスター投擲に必要な杖効果も `monsterAI` の `applyWandFn` として呼び出し側から渡す。
+
 ### スプライト画像の場所
 
 ```
