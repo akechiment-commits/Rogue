@@ -2877,7 +2877,7 @@ export function useItemActions({
         }
         const _shColor = it.poison ? "#60d060" : it.pierce ? "#ff8844" : "#d0a050";
         const _shOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor, true);
-        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt);
+        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt, { forceMiss: _forceMiss });
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
         /* 床から射った矢/石は残量を床に戻す */
         if (floorArrowRef?.current) {
@@ -3485,6 +3485,7 @@ export function useItemActions({
           };
           let lx = p.x, ly = p.y, hit = false, sprHit = null, _genHitSelf = false;
           let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
+          let _wandPlacedOnMiss = false; /* ミス時の杖を既に着地させたか */
           let _gFdx = dx, _gFdy = dy, _gCx = p.x, _gCy = p.y, _gWind = false;
 
           for (let d = 1; d <= _maxRange; d++) {
@@ -3643,6 +3644,7 @@ export function useItemActions({
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
                 const _fm_ft = new Set();
                 withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, _fm_ft));
+                if (it.type === "wand") _wandPlacedOnMiss = true;
                 const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
                 if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;
@@ -3742,7 +3744,7 @@ export function useItemActions({
               _wandFiredEffect = true;
             }
             ml.push(`${lb}を投げた。${lb}は消滅した。`);
-          } else if (hit && it.type === "wand" && !_wandFiredEffect) {
+          } else if (hit && it.type === "wand" && !_wandFiredEffect && !_wandPlacedOnMiss) {
             /* 外れた杖は足元に落ちる */
             const ft = new Set();
             withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));

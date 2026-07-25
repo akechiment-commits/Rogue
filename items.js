@@ -4003,7 +4003,7 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
   return dmg;
 }
 
-export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null) {
+export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null, { forceMiss = false } = {}) {
   const st = p.inventory[idx];
   if (!st || st.type !== "arrow") return;
   st.count--;
@@ -4047,6 +4047,15 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     const m = monsterAt(dg, tx, ty);
     if (m) {
+      /* 下手投げなどの絶対ミスは、反射・障壁より先に処理する。 */
+      if (forceMiss) {
+        if (_pierceMode) continue;
+        ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
+        const _missFt = new Set();
+        placeItemAt(dg, tx, ty, _dropItem(), ml, _missFt);
+        hit = true;
+        break;
+      }
       /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す ── */
       if (!_pierceMode && m.subtype === "reflector") {
         ml.push(`${_arName}が${m.name}に弾き返された！`);

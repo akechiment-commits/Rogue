@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow } from "../items.js";
 import { MW, MH, T } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -27,6 +27,25 @@ describe("魔法の石の反射", () => {
     expect(player.paralyzeTurns).toBe(0);
     expect(messages.some(message => message.includes("弾き返された"))).toBe(true);
     expect(messages.some(message => message.includes("プレイヤーにホーミング命中"))).toBe(true);
+  });
+});
+
+describe("下手投げの矢", () => {
+  it("アイテム欄から射っても敵に命中せず、その足元に落ちる", () => {
+    const arrow = { name: "矢", type: "arrow", count: 1, atk: 3 };
+    const target = { name: "的", x: 3, y: 1, hp: 30, maxHp: 30, def: 0 };
+    const player = { x: 1, y: 1, atk: 10, rings: [], inventory: [arrow] };
+    const dungeon = {
+      map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
+      monsters: [target], items: [], traps: [], pentacles: [], rooms: [], hiddenRooms: [],
+    };
+    const messages = [];
+
+    shootArrow(player, dungeon, 0, 1, 0, messages, () => {}, null, null, null, { forceMiss: true });
+
+    expect(target.hp).toBe(30);
+    expect(dungeon.items).toContainEqual(expect.objectContaining({ x: 3, y: 1, type: "arrow" }));
+    expect(messages).toContain("矢は的に外れ、足元に落ちた！");
   });
 });
 
