@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep } from "../turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura } from "../turnUpkeep.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -48,6 +48,31 @@ describe("advancePlayerUpkeep", () => {
     const player = makePlayer({ turns: 4, hunger: 20, weapon: { ability: "gluttony" } });
     advance(player);
     expect(player.hunger).toBe(18);
+  });
+});
+
+describe("applyArmorAura", () => {
+  it("隣接する敵だけにダメージを与え、倒した敵を既存の撃破処理へ渡す", () => {
+    const adjacent = { name: "コウモリ", x: 6, y: 5, hp: 2 };
+    const distant = { name: "ゴブリン", x: 7, y: 5, hp: 5 };
+    const dungeon = { monsters: [adjacent, distant] };
+    const defeated = [];
+    const messages = [];
+
+    applyArmorAura(
+      makePlayer({ x: 5, y: 5, armor: { ability: "aura" } }),
+      dungeon,
+      messages,
+      {
+        hasAbility: (item, id) => item?.ability === id,
+        killMonster: (monster) => defeated.push(monster),
+      },
+    );
+
+    expect(adjacent.hp).toBe(0);
+    expect(distant.hp).toBe(5);
+    expect(defeated).toEqual([adjacent]);
+    expect(messages).toEqual(["闘気がコウモリに2ダメージ！"]);
   });
 });
 

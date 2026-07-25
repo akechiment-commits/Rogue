@@ -38,6 +38,21 @@ export function advancePlayerUpkeep(player, messages, {
   }
 }
 
+/** 闘気防具の隣接ダメージを適用し、倒した敵は既存の撃破処理へ渡す。 */
+export function applyArmorAura(player, dungeon, messages, { hasAbility, killMonster }) {
+  if (!hasAbility(player.armor, "aura") || dungeon.monsters.length === 0) return;
+  const adjacentMonsters = dungeon.monsters.filter((monster) =>
+    Math.abs(monster.x - player.x) <= 1 && Math.abs(monster.y - player.y) <= 1
+  );
+  for (const monster of adjacentMonsters) {
+    monster.hp -= 2;
+    messages.push(`闘気が${monster.name}に2ダメージ！`);
+    if (monster.hp <= 0 && dungeon.monsters.includes(monster)) {
+      killMonster(monster);
+    }
+  }
+}
+
 /** 敵行動より前に減少する、地形に依存しない状態タイマーを更新する。 */
 export function advanceEarlyStatusTimers(player, messages) {
   if ((player.mpCooldownTurns || 0) > 0) player.mpCooldownTurns--;

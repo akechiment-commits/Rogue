@@ -48,7 +48,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
-import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep } from "./turnUpkeep.js";
+import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura } from "./turnUpkeep.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1405,18 +1405,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         onHungerDamageStarted: signalHungerWarn,
       });
       /* 闘気防具：毎ターン隣接する敵全員に2ダメージ */
-      if (hasAbility(p.armor, "aura") && st.dungeon.monsters.length > 0) {
-        const _auraMons = st.dungeon.monsters.filter(m =>
-          Math.abs(m.x - p.x) <= 1 && Math.abs(m.y - p.y) <= 1
-        );
-        for (const _am of _auraMons) {
-          _am.hp -= 2;
-          ml.push(`闘気が${_am.name}に2ダメージ！`);
-          if (_am.hp <= 0 && st.dungeon.monsters.includes(_am)) {
-            killMonster(_am, st.dungeon, p, ml, lu);
-          }
-        }
-      }
+      applyArmorAura(p, st.dungeon, ml, {
+        hasAbility,
+        killMonster: (monster) => killMonster(monster, st.dungeon, p, ml, lu),
+      });
       advanceEarlyStatusTimers(p, ml);
       /* 壁抜け状態：カウントダウン。解除時に壁の中にいたら押し出す */
       if ((p.wallWalkTurns || 0) > 0) {
