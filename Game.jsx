@@ -49,6 +49,7 @@ import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
 import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn } from "./turnUpkeep.js";
+import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1410,80 +1411,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         killMonster: (monster) => killMonster(monster, st.dungeon, p, ml, lu),
       });
       advanceEarlyStatusTimers(p, ml);
-      /* 壁抜け状態：カウントダウン。解除時に壁の中にいたら押し出す */
-      if ((p.wallWalkTurns || 0) > 0) {
-        p.wallWalkTurns--;
-        if (p.wallWalkTurns === 0) {
-          ml.push("壁抜けが解けた！");
-          if (st.dungeon.map[p.y]?.[p.x] === T.WALL || st.dungeon.map[p.y]?.[p.x] === T.BWALL) {
-            const _wwDirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
-            let _pushed = false;
-            for (const [_wdx, _wdy] of _wwDirs) {
-              const _wx = p.x + _wdx, _wy = p.y + _wdy;
-              if (_wx >= 0 && _wx < MW && _wy >= 0 && _wy < MH &&
-                  st.dungeon.map[_wy][_wx] !== T.WALL && st.dungeon.map[_wy][_wx] !== T.BWALL &&
-                  !st.dungeon.monsters.some(m => m.x === _wx && m.y === _wy)) {
-                p.x = _wx; p.y = _wy;
-                ml.push("壁の外に押し出された！");
-                _pushed = true;
-                break;
-              }
-            }
-            if (!_pushed) {
-              ml.push(hasWaterBreathRing(p)
-                ? "壁に埋まったまま抜け出せない！"
-                : "壁に埋まったまま抜け出せない！毎ターンダメージを受ける！");
-            }
-          }
-        }
-      }
-      /* 壁に埋まっている：毎ターン大ダメージ（水中呼吸の指輪で無効） */
-      if ((p.wallWalkTurns || 0) === 0 && !hasWaterBreathRing(p) &&
-          (st.dungeon.map[p.y]?.[p.x] === T.WALL || st.dungeon.map[p.y]?.[p.x] === T.BWALL)) {
-        const _wdmg = 15;
-        p.hp -= _wdmg;
-        ml.push(`壁に挟まれて苦しい！${_wdmg}ダメージ！`);
-        if (p.hp <= 0) { p.deathCause = "壁に埋まり"; }
-      }
-      /* 深い水（T.WATER）上で水歩き不可：壺の外なら周囲8マスへ弾き出し、それでも水中なら毎ターン15ダメ
-       * 泉は床の上に載るオブジェクトなので歩行可・溺水対象外。壺で泉に沈んだときだけダメージ */
-      {
-        const _onDeepWater = st.dungeon.map[p.y]?.[p.x] === T.WATER;
-        const _onSpring = !!(st.dungeon.springs?.some((s) => s.x === p.x && s.y === p.y));
-        const _potIn = (p.potConfinedTurns || 0) > 0;
-        const _canWalkWater = canPlayerWalkOnWater(p, st.dungeon);
-        if (_onDeepWater && !_canWalkWater && p.hp > 0) {
-          if (!_potIn) {
-            const _wDirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
-            for (const [_wdx, _wdy] of _wDirs) {
-              const _wx = p.x + _wdx, _wy = p.y + _wdy;
-              if (_wx >= 0 && _wx < MW && _wy >= 0 && _wy < MH &&
-                  st.dungeon.map[_wy][_wx] !== T.WALL && st.dungeon.map[_wy][_wx] !== T.BWALL &&
-                  st.dungeon.map[_wy][_wx] !== T.WATER &&
-                  !st.dungeon.monsters.some((m) => m.x === _wx && m.y === _wy)) {
-                p.x = _wx; p.y = _wy;
-                ml.push("浮遊が解けて水から弾き出された！");
-                break;
-              }
-            }
-          }
-          const _stillDeep = st.dungeon.map[p.y]?.[p.x] === T.WATER;
-          if (_stillDeep && !canPlayerWalkOnWater(p, st.dungeon) && p.hp > 0) {
-            const _wdmg = 15;
-            p.hp -= _wdmg;
-            ml.push(_potIn
-              ? `水中の壺の中で息ができない！${_wdmg}ダメージ！`
-              : `溺れて苦しい！${_wdmg}ダメージ！`);
-            if (p.hp <= 0) p.deathCause = "水没により";
-          }
-        } else if (_potIn && _onSpring && !hasWaterBreathRing(p) && p.hp > 0) {
-          /* 泉上のとじこめ壺：水中呼吸が無ければ毎ターン15（泉そのものは歩ける） */
-          const _wdmg = 15;
-          p.hp -= _wdmg;
-          ml.push(`水中の壺の中で息ができない！${_wdmg}ダメージ！`);
-          if (p.hp <= 0) p.deathCause = "水没により";
-        }
-      }
+      advancePlayerTerrainEffects(p, st.dungeon, ml);
       /* 呪われた聖域の魔方陣：強制的に上に乗ると即死（魔封じで無効） */
       const _cursedSancOn = !inMagicSealRoom(p.x, p.y, st.dungeon) && st.dungeon.pentacles?.find((pc) => pc.kind === "sanctuary" && pc.cursed && pc.x === p.x && pc.y === p.y);
       if (_cursedSancOn && p.hp > 0) {
