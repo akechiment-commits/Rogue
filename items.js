@@ -3180,6 +3180,7 @@ function soakItem(item) {
 }
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false) {
+  if (item?._ephemeralTrapTrigger) return false;
   if (dep > 30) { ml.push(`${resolveItemName(item)}は消えてしまった！`); return false; }
   /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ）
      キーアイテム自体はポータルを通過させない */

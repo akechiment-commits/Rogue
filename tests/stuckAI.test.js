@@ -57,6 +57,37 @@ describe("からめ鬼は動かない", () => {
 });
 
 describe("詰まり脱出", () => {
+  it("金縛り中は詰まり脱出でも移動しない", () => {
+    const map = Array.from({ length: 30 }, () => Array(60).fill(T.WALL));
+    map[10][10] = T.FLOOR;
+    map[10][11] = T.FLOOR;
+    const m = {
+      name: "バーサーカー", baseKind: "berserker",
+      x: 10, y: 10, hp: 30, maxHp: 30, atk: 10, def: 3, exp: 10,
+      speed: 1, baseSpeed: 1, aware: true, dormant: false, paralyzed: true,
+      lastPx: 20, lastPy: 10, turnAccum: 0, monLevel: 1, dir: { x: 1, y: 0 },
+      _idleStuck: 8,
+      posHistory: Array.from({ length: 6 }, () => ({ x: 10, y: 10 })),
+    };
+    const pl = makePlayer({ x: 20, y: 10 });
+    const dg = makeEmptyDg({
+      map,
+      rooms: [{ x: 9, y: 9, w: 4, h: 3 }],
+      monsters: [m],
+      items: [],
+      traps: [{ id: "trap", name: "睡眠ガスの罠", effect: "sleep", x: 11, y: 10 }],
+      pentacles: [{ id: "gravity", kind: "gravity", x: 10, y: 10 }],
+    });
+    const messages = [];
+
+    for (let turn = 0; turn < 12; turn++) {
+      monsterAI(m, dg, pl, messages, { moveOnly: true });
+    }
+
+    expect({ x: m.x, y: m.y }).toEqual({ x: 10, y: 10 });
+    expect(messages.some((message) => message.includes("重力の力"))).toBe(false);
+  });
+
   it("プレイヤー隣接中は詰まり脱出で動かない", () => {
     const map = openMap();
     const m = {

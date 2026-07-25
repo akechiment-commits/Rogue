@@ -7,15 +7,28 @@ import { installPlayerHpReverseHook } from "./utils.js";
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
 const GAME_SAVE_VERSION = 2;
 
+function isInternalGravityTrigger(item) {
+  return item?.name === '重力の力' && item?.type === 'misc';
+}
+
+function withoutInternalGravityTriggers(dungeon) {
+  if (!dungeon || !Array.isArray(dungeon.items)) return dungeon;
+  return {
+    ...dungeon,
+    items: dungeon.items.filter(item => !isInternalGravityTrigger(item)),
+  };
+}
+
 /* ---------- serialize ---------- */
 
 function serializePlayer(p) {
-  const out = { ...p };
+  const inventory = p.inventory.filter(item => !isInternalGravityTrigger(item));
+  const out = { ...p, inventory };
   /* 装備品をインデックスに変換（inventory内のオブジェクト参照を保存不可能なため） */
-  out._weaponIdx = p.weapon ? p.inventory.indexOf(p.weapon) : -1;
-  out._armorIdx  = p.armor  ? p.inventory.indexOf(p.armor)  : -1;
-  out._arrowIdx  = p.arrow  ? p.inventory.indexOf(p.arrow)  : -1;
-  out._ringIdxs  = (p.rings || []).map(r => p.inventory.indexOf(r));
+  out._weaponIdx = p.weapon ? inventory.indexOf(p.weapon) : -1;
+  out._armorIdx  = p.armor  ? inventory.indexOf(p.armor)  : -1;
+  out._arrowIdx  = p.arrow  ? inventory.indexOf(p.arrow)  : -1;
+  out._ringIdxs  = (p.rings || []).map(r => inventory.indexOf(r));
   /* シリアライズ用に参照を消す（JSONで循環しないように） */
   delete out.weapon;
   delete out.armor;
@@ -61,6 +74,23 @@ function normalizeSaveData(data) {
   const migrated = data.version === 1 ? migrateV1ToV2(data) : data;
   if (migrated.version !== GAME_SAVE_VERSION) return null;
   if (!migrated.player || !Array.isArray(migrated.player.inventory)) return null;
+  const oldInventory = migrated.player.inventory;
+  const remapIndex = (index) => {
+    if (!Number.isInteger(index) || index < 0 || isInternalGravityTrigger(oldInventory[index])) return -1;
+    return index - oldInventory.slice(0, index).filter(isInternalGravityTrigger).length;
+  };
+  migrated.player.inventory = oldInventory.filter(item => !isInternalGravityTrigger(item));
+  migrated.player._weaponIdx = remapIndex(migrated.player._weaponIdx);
+  migrated.player._armorIdx = remapIndex(migrated.player._armorIdx);
+  migrated.player._arrowIdx = remapIndex(migrated.player._arrowIdx);
+  migrated.player._ringIdxs = (migrated.player._ringIdxs || []).map(remapIndex);
+  migrated.dungeon = withoutInternalGravityTriggers(migrated.dungeon);
+  migrated.floors = Object.fromEntries(
+    Object.entries(migrated.floors || {}).map(([depth, dungeon]) => [
+      depth,
+      withoutInternalGravityTriggers(dungeon),
+    ]),
+  );
   return migrated;
 }
 
@@ -72,8 +102,13 @@ export function saveGameState(session, msgs, dungeonConfig, discoveries) {
       version: GAME_SAVE_VERSION,
       timestamp: Date.now(),
       player: serializePlayer(session.player),
-      dungeon: session.dungeon,
-      floors: session.floors || {},
+      dungeon: withoutInternalGravityTriggers(session.dungeon),
+      floors: Object.fromEntries(
+        Object.entries(session.floors || {}).map(([depth, dungeon]) => [
+          depth,
+          withoutInternalGravityTriggers(dungeon),
+        ]),
+      ),
       ident: [...(session.ident || [])],       /* Set → Array */
       fakeNames: session.fakeNames,
       bbFakeNames: session.bbFakeNames,

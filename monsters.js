@@ -1758,7 +1758,18 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   if (!trap) return;
   trap.revealed = true;
   ml.push(`重力の力で${m.name}が${trap.name}を踏んだ！`);
-  fireTrapItem(trap, { name: "重力の力", type: "misc", x: m.x, y: m.y }, dg, m.x, m.y, ml, new Set(), pl, it => it.name, luFn);
+  fireTrapItem(
+    trap,
+    { name: "重力の力", type: "misc", x: m.x, y: m.y, _ephemeralTrapTrigger: true },
+    dg,
+    m.x,
+    m.y,
+    ml,
+    new Set(),
+    pl,
+    it => it.name,
+    luFn,
+  );
   if (trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
     removeTrap(dg, trap, ml, { fromStep: true, message: `${trap.name}は壊れた。`, p: pl });
   }
@@ -2243,8 +2254,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (moved) {
       _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
     }
+    const movementDisabled =
+      m.paralyzed ||
+      (m.sleepTurns || 0) > 0 ||
+      (m.immobileTurns || 0) > 0;
+    if (movementDisabled) {
+      m._idleStuck = 0;
+      m.posHistory = [];
+    }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!opts.attackOnly && !isStationaryGrabber(m) && m.type !== "shopkeeper" &&
+    if (!movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && m.type !== "shopkeeper" &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&
