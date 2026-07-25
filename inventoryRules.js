@@ -27,3 +27,19 @@ export function compareInventoryItems(a, b) {
 export function sortInventoryItems(items) {
   return items.sort(compareInventoryItems);
 }
+
+export function getInventoryUseLabel(item, player) {
+  if (item.type === "weapon") return player?.weapon === item ? "外す" : "装備";
+  if (item.type === "armor") return player?.armor === item ? "外す" : "装備";
+  if (item.type === "arrow") return player?.arrow === item ? "外す" : "装備";
+  if (item.type === "ring") return (player?.rings || []).includes(item) ? "外す" : "装備";
+  if (item.type === "food") return "食べる";
+  if (item.type === "scroll") return "読む";
+  if (item.type === "pen") return "描く";
+  if (item.type === "pot") return "入れる";
+  return "使う";
+}
+
+export function canUseInventoryItem(item) {
+  return ["potion", "food", "scroll", "weapon", "armor", "arrow", "ring", "pot", "pen"].includes(item.type);
+}
