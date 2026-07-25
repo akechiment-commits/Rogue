@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advancePlayerUpkeep } from "../turnUpkeep.js";
+import { advanceEarlyStatusTimers, advancePlayerUpkeep } from "../turnUpkeep.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -48,5 +48,34 @@ describe("advancePlayerUpkeep", () => {
     const player = makePlayer({ turns: 4, hunger: 20, weapon: { ability: "gluttony" } });
     advance(player);
     expect(player.hunger).toBe(18);
+  });
+});
+
+describe("advanceEarlyStatusTimers", () => {
+  it("各状態を減らし、終了メッセージを順序どおり追加する", () => {
+    const player = makePlayer({ turns: 1, sealedTurns: 1, fireExplosionNullTurns: 1, oilyTurns: 1, soakedTurns: 1, immobileTurns: 1, floatTurns: 1, invisibleTurns: 1 });
+    const messages = [];
+    advanceEarlyStatusTimers(player, messages);
+    expect(player).toMatchObject({ sealedTurns: 0, fireExplosionNullTurns: 0, oilyTurns: 0, soakedTurns: 0, immobileTurns: 0, floatTurns: 0, invisibleTurns: 0 });
+    expect(messages).toEqual(["封印が解けた！", "炎と爆発の不発効果が切れた！", "油が落ちた。炎への弱点が消えた。", "体が乾いた。ずぶ濡れが解けた。", "浮遊が解けた！", "透明が解けた！敵に見えるようになった。"]);
+  });
+
+  it("100ターン目はMPを自然回復し、クールダウン中は回復しない", () => {
+    const player = makePlayer({ turns: 100, mp: 2, maxMp: 4 });
+    advanceEarlyStatusTimers(player, []);
+    expect(player.mp).toBe(3);
+    player.mpCooldownTurns = 2;
+    advanceEarlyStatusTimers(player, []);
+    expect(player.mp).toBe(3);
+    expect(player.mpCooldownTurns).toBe(1);
+  });
+
+  it("毒は3ターンごとに攻撃力を下げ、3回で解ける", () => {
+    const player = makePlayer({ turns: 3, atk: 5, poisoned: true, poisonAtkLoss: 2 });
+    const messages = [];
+    advanceEarlyStatusTimers(player, messages);
+    expect(player.atk).toBe(4);
+    expect(player.poisoned).toBe(false);
+    expect(messages).toEqual(["毒に冒されている！攻撃力が下がった...", "毒の効果が切れた。"]);
   });
 });

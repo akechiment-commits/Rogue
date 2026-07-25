@@ -48,7 +48,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
-import { advancePlayerUpkeep } from "./turnUpkeep.js";
+import { advanceEarlyStatusTimers, advancePlayerUpkeep } from "./turnUpkeep.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1417,60 +1417,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           }
         }
       }
-      /* MPクールダウンカウント */
-      if ((p.mpCooldownTurns || 0) > 0) p.mpCooldownTurns--;
-      /* MP自然回復：100ターンにつき1（封印中は回復しない） */
-      if (p.turns % 100 === 0 && (p.mpCooldownTurns || 0) === 0 && (p.mp || 0) < (p.maxMp || 0)) {
-        p.mp = Math.min(p.mp + 1, p.maxMp);
-      }
-      /* 封印カウントダウン */
-      if ((p.sealedTurns || 0) > 0) {
-        p.sealedTurns--;
-        if (p.sealedTurns === 0) ml.push("封印が解けた！");
-      }
-      if ((p.fireExplosionNullTurns || 0) > 0) {
-        p.fireExplosionNullTurns--;
-        if (p.fireExplosionNullTurns === 0) ml.push("炎と爆発の不発効果が切れた！");
-      }
-      /* 毒：3ターンごとに攻撃力-1 */
-      if (p.poisoned && p.turns % 3 === 0) {
-        if ((p.poisonAtkLoss || 0) >= 3) {
-          p.poisoned = false;
-          ml.push("毒の効果が切れた。攻撃力の低下は残っている...");
-        } else if (p.atk > 1) {
-          p.atk--;
-          p.poisonAtkLoss = (p.poisonAtkLoss || 0) + 1;
-          ml.push("毒に冒されている！攻撃力が下がった...");
-          if (p.poisonAtkLoss >= 3) {
-            p.poisoned = false;
-            ml.push("毒の効果が切れた。");
-          }
-        }
-      }
-      /* 油状態：カウントダウン */
-      if ((p.oilyTurns || 0) > 0) {
-        p.oilyTurns--;
-        if (p.oilyTurns === 0) ml.push("油が落ちた。炎への弱点が消えた。");
-      }
-      if ((p.soakedTurns || 0) > 0) {
-        p.soakedTurns--;
-        if (p.soakedTurns === 0) ml.push("体が乾いた。ずぶ濡れが解けた。");
-      }
-      /* 移動封じ：カウントダウン */
-      if ((p.immobileTurns || 0) > 0) {
-        p.immobileTurns--;
-      }
-
-      /* 浮遊状態：カウントダウン（呪われた重力の魔方陣による浮遊は魔方陣依存なのでここはスキップ） */
-      if ((p.floatTurns || 0) > 0) {
-        p.floatTurns--;
-        if (p.floatTurns === 0) ml.push("浮遊が解けた！");
-      }
-      /* 透明状態：カウントダウン */
-      if ((p.invisibleTurns || 0) > 0) {
-        p.invisibleTurns--;
-        if (p.invisibleTurns === 0) ml.push("透明が解けた！敵に見えるようになった。");
-      }
+      advanceEarlyStatusTimers(p, ml);
       /* 壁抜け状態：カウントダウン。解除時に壁の中にいたら押し出す */
       if ((p.wallWalkTurns || 0) > 0) {
         p.wallWalkTurns--;
