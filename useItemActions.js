@@ -15,7 +15,7 @@ import {
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice, removeTrap, removeTraps,
-  resolveItemName, applyBubbleGoldScroll,
+  resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps,
 } from "./items.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
@@ -2633,7 +2633,10 @@ export function useItemActions({
             ml.push(`${_stName}を投げた！`);
             if (_stHitStatue) {
               ml.push(`${_stName}が石像に命中！`);
-              hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, { breaks: true });
+              hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
+                breaks: true,
+                itemDeps: getFixtureItemDeps(),
+              });
             } else if (_stM) {
               /* ── reflector：石をプレイヤーへ跳ね返す ── */
               if (_stM.subtype === "reflector") {
@@ -3157,7 +3160,10 @@ export function useItemActions({
             ml.push(`${_invStName}を投げた！`);
             if (_stHitStatue2) {
               ml.push(`${_invStName}が石像に命中！`);
-              hitStatueWithAction(dg, _stLx2, _stLy2, p, ml, lu, p?.depth, { breaks: true });
+              hitStatueWithAction(dg, _stLx2, _stLy2, p, ml, lu, p?.depth, {
+                breaks: true,
+                itemDeps: getFixtureItemDeps(),
+              });
             } else if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
               const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
@@ -3262,7 +3268,10 @@ export function useItemActions({
             /* 石像：投擲で破壊 */
             if (!_isFarcast && statueAt(dg, tx, ty)) {
               lx = tx; ly = ty;
-              hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: true });
+              hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, {
+                breaks: true,
+                itemDeps: getFixtureItemDeps(),
+              });
               _fdBurned = true; /* アイテム消費済みとして着地処理スキップ */
               break;
             }
@@ -3343,7 +3352,10 @@ export function useItemActions({
             if (tx === p.x && ty === p.y) { lx = tx; ly = ty; _potHitSelf = true; break; }
             if (!_isFarcast && statueAt(dg, tx, ty)) {
               lx = tx; ly = ty;
-              hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: true });
+              hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, {
+                breaks: true,
+                itemDeps: getFixtureItemDeps(),
+              });
               _potFdBurned = true; /* 壺は割れて消費 */
               break;
             }
@@ -3509,6 +3521,7 @@ export function useItemActions({
                 hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, {
                   breaks: true,
                   spawnMonster: !wandEffectStatueLootOnly(it.effect),
+                  itemDeps: getFixtureItemDeps(),
                 });
               } else {
                 hitStatueWithAction(dg, tx, ty, p, ml, lu, p?.depth, { breaks: false });

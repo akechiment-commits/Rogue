@@ -25,7 +25,7 @@ import {
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
-  tickBubbleGold,
+  tickBubbleGold, getFixtureItemDeps,
 } from "./items.js";
 import { fireTrapPlayer } from "./traps.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
@@ -2283,7 +2283,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     if (_stHitStatue) {
                       ml.push(`${_arName}が石像に命中！`);
-                      hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, { breaks: true });
+                      hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
+                        breaks: true,
+                        itemDeps: getFixtureItemDeps(),
+                      });
                     } else {
                     const _stM = monsterAt(dg, _stLx, _stLy);
                     if (_stM && _stM.subtype === "reflector") {

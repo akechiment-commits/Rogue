@@ -15,6 +15,17 @@ export {
   isRarityAtLeast, monsterRandomDropChance, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
 
+export function getFixtureItemDeps() {
+  return {
+    traps: TRAPS,
+    items: ITEMS,
+    wands: WANDS,
+    pickTrap,
+    pickLootFromPool,
+    resolveItemName,
+  };
+}
+
 /* ポータルの魔方陣の別フロア参照（Game.jsx から getter を登録） */
 let _portalFloorsGetter = () => null;
 export function setPortalFloorsGetter(fn) { _portalFloorsGetter = fn; }
@@ -1242,7 +1253,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   for (let ddx = -1; ddx <= 1; ddx++) {
     for (let ddy = -1; ddy <= 1; ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
-      tryBreakStatueAt(dg, ax, ay, p, ml, luFn, p?.depth);
+      tryBreakStatueAt(dg, ax, ay, p, ml, luFn, p?.depth, getFixtureItemDeps());
     }
   }
   /* 爆発範囲内の魔方陣を消滅 */
@@ -1930,7 +1941,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
   try {
   if (trap?.effect === "fake_stair") {
     const _was = trap.name || "偽の階段";
-    materializeFakeStair(trap);
+    materializeFakeStair(trap, getFixtureItemDeps());
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapItem(trap, item, dg, tx, ty, ml, ft, p, nameFn, luFn, identSet);
   }
@@ -3990,7 +4001,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     /* 石像：矢は破壊して止まる（貫通矢も1体分として割る） */
     if (statueAt(dg, tx, ty)) {
       ml.push(`${_arName}が石像に命中！`);
-      tryBreakStatueAt(dg, tx, ty, p, ml, luFn, p?.depth);
+      tryBreakStatueAt(dg, tx, ty, p, ml, luFn, p?.depth, getFixtureItemDeps());
       hit = true;
       if (!_pierceMode) break;
       continue;
@@ -4699,7 +4710,10 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     /* 石像：ダメージ系スペルは破壊。睡眠・金縛りなどは壊れない */
     if (statueAt(dg, tx, ty)) {
       const _breaks = ["fire_bolt", "ice_bolt", "lightning_magic", "poison_bolt"].includes(spell.effect);
-      hitStatueWithAction(dg, tx, ty, p, ml, luFn, p?.depth, { breaks: _breaks });
+      hitStatueWithAction(dg, tx, ty, p, ml, luFn, p?.depth, {
+        breaks: _breaks,
+        itemDeps: getFixtureItemDeps(),
+      });
       return { x: tx, y: ty, hitType: _breaks ? "statue" : "statue_safe" };
     }
     const mon = monsterAt(dg, tx, ty);

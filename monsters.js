@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { hitStatueWithAction } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
@@ -1606,7 +1606,10 @@ function monsterThrowStone(m, dg, pl, ml) {
     /* 石像 */
     if (statueAt(dg, tx, ty)) {
       ml.push(`${m.name}の${stoneName}が石像に命中！`);
-      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, { breaks: true });
+      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
       return;
     }
@@ -1877,7 +1880,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     }
     /* 石像：物理弾は破壊 */
     if (statueAt(dg, _tx, _ty)) {
-      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, { breaks: true });
+      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       if (!_passthrough) return;
     }
 
@@ -2108,7 +2114,10 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     }
     /* 石像：敵の杖弾は有害効果なので破壊 */
     if (statueAt(dg, _tx, _ty)) {
-      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, { breaks: true });
+      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       _hit = true; break;
     }
     /* プレイヤー命中 */

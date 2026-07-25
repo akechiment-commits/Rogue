@@ -5,7 +5,7 @@ import {
   breakStatue, applyWindDir, getWindAt, wandEffectBreaksStatue, wandEffectStatueLootOnly,
   throwItemBreaksStatue, hitStatueWithAction, displaceObjectsFromStatue, statueAt,
 } from "../fixtures.js";
-import { placeItemAt } from "../items.js";
+import { getFixtureItemDeps, placeItemAt } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
 
@@ -20,7 +20,7 @@ describe("偽階段", () => {
 
   it("materialize で通常罠に変わる", () => {
     const t = makeFakeStairTrap(1, 1, "down");
-    materializeFakeStair(t);
+    materializeFakeStair(t, getFixtureItemDeps());
     expect(t.effect).not.toBe("fake_stair");
     expect(t.revealed).toBe(true);
     expect(t.disguise).toBeUndefined();
@@ -126,7 +126,11 @@ describe("石像破壊ルール", () => {
     dg.statues.push(st);
     const p = makePlayer({ x: 1, y: 1, depth: 3 });
     const ml = [];
-    hitStatueWithAction(dg, 3, 3, p, ml, null, 3, { breaks: true, spawnMonster: false });
+    hitStatueWithAction(dg, 3, 3, p, ml, null, 3, {
+      breaks: true,
+      spawnMonster: false,
+      itemDeps: getFixtureItemDeps(),
+    });
     expect(dg.statues.length).toBe(0);
     expect(dg.monsters.length).toBe(0);
     expect(dg.items.length).toBeGreaterThanOrEqual(1);
@@ -146,7 +150,7 @@ describe("石像", () => {
     dg.statues.push(st);
     const p = makePlayer({ x: 1, y: 1, depth: 5 });
     const ml = [];
-    breakStatue(st, dg, p, ml, null, 4);
+    breakStatue(st, dg, p, ml, null, 4, { itemDeps: getFixtureItemDeps() });
     expect(dg.statues.length).toBe(0);
     expect(dg.monsters.length).toBeGreaterThanOrEqual(1);
     const mon = dg.monsters[0];
@@ -167,7 +171,10 @@ describe("石像", () => {
     dg.statues.push(st);
     const p = makePlayer({ x: 1, y: 1, depth: 5 });
     const ml = [];
-    breakStatue(st, dg, p, ml, null, 4, { spawnMonster: false });
+    breakStatue(st, dg, p, ml, null, 4, {
+      spawnMonster: false,
+      itemDeps: getFixtureItemDeps(),
+    });
     expect(dg.statues.length).toBe(0);
     expect(dg.monsters.length).toBe(0);
     expect(dg.items.length).toBeGreaterThanOrEqual(1);
@@ -189,6 +196,7 @@ describe("石像", () => {
     breakStatue(st, dg, p, ml, null, 4, {
       spawnMonster: false,
       itemNameFn: () => "謎の棒",
+      itemDeps: getFixtureItemDeps(),
     });
     expect(ml.some((m) => m.includes("謎の棒が飛び出した"))).toBe(true);
     expect(ml.some((m) => m.includes("が飛び出した") && !m.includes("謎の棒"))).toBe(false);
@@ -217,7 +225,7 @@ describe("石像", () => {
     });
     dg.statues.push(makeStatue(5, 5));
     const ml = [];
-    displaceObjectsFromStatue(dg, 5, 5, ml);
+    displaceObjectsFromStatue(dg, 5, 5, ml, getFixtureItemDeps());
     expect(dg.items[0].x === 5 && dg.items[0].y === 5).toBe(false);
     expect(dg.traps[0].x === 5 && dg.traps[0].y === 5).toBe(false);
   });

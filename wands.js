@@ -10,7 +10,7 @@ import {
   hasFireResist, hasLightningResist, hasIceResist,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
-  pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater,
+  pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
@@ -46,11 +46,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, {
         breaks: true,
         spawnMonster: false,
+        itemDeps: getFixtureItemDeps(),
       });
       return;
     }
     if (wandEffectBreaksStatue(eff)) {
-      hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, { breaks: true });
+      hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       return;
     }
     /* 場所替え・テレポ・飛びつき（呪い）など：石像を壊さず効果を出す */
@@ -75,7 +79,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const [ox, oy] = [p.x, p.y];
       p.x = target.x; p.y = target.y;
       target.x = ox; target.y = oy;
-      displaceObjectsFromStatue(dg, target.x, target.y, ml);
+      displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
       ml.push(`${target.name}と位置が入れ替わった！`);
       if (_swBless) {
@@ -89,7 +93,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _lpd = statueTeleportDest(dg, target.x, target.y, p);
         if (!_lpd) { ml.push("テレポートに失敗した。"); return; }
         target.x = _lpd.x; target.y = _lpd.y;
-        displaceObjectsFromStatue(dg, target.x, target.y, ml);
+        displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
         ml.push(`${target.name}はどこかへテレポートした！【呪】`);
       }
       return;
@@ -111,7 +115,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !dg.items?.some(i => i.x === _w1x && i.y === _w1y) &&
             !dg.traps?.some(t => t.x === _w1x && t.y === _w1y)) {
           target.x = _w1x; target.y = _w1y;
-          displaceObjectsFromStatue(dg, target.x, target.y, ml);
+          displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
           ml.push(`${target.name}が少しだけテレポートした。`);
         } else {
           ml.push("テレポートに失敗した。");
@@ -139,7 +143,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (_wbAdj.length > 0) {
             const _wd = pick(_wbAdj);
             target.x = _wd.x; target.y = _wd.y;
-            displaceObjectsFromStatue(dg, target.x, target.y, ml);
+            displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
             ml.push(`${target.name}は階段の隣に飛んだ！`);
             return;
           }
@@ -148,7 +152,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _dest = statueTeleportDest(dg, target.x, target.y, p);
       if (!_dest) { ml.push("テレポートに失敗した。"); return; }
       target.x = _dest.x; target.y = _dest.y;
-      displaceObjectsFromStatue(dg, target.x, target.y, ml);
+      displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
       ml.push(`${target.name}はどこかへテレポートした！`);
       return;
     }
@@ -1908,7 +1912,10 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       return;
     }
     if (statueAt(dg, tx, ty)) {
-      hitStatueWithAction(dg, tx, ty, pl, ml, luFn, pl?.depth, { breaks: true });
+      hitStatueWithAction(dg, tx, ty, pl, ml, luFn, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
