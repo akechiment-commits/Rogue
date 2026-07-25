@@ -275,6 +275,7 @@ React + Vite 製のローグライク。
 | `GameSave.js` | セーブ・ロード（localStorage） |
 | `GameHelpers.js` | 戦闘・アイテム使用などのヘルパー |
 | `lookDescription.js` | 調べるモードのマス説明を組み立てる純粋ロジック |
+| `messageLog.js` | メッセージのターン付与・履歴追加を正規化する純粋ロジック |
 | `GameModals.jsx` | インベントリ・各種モーダルUI |
 | `GameButtons.jsx` | モバイル用ボタン |
 | `HubScreen.jsx` | タイトル・ダンジョン選択画面 |

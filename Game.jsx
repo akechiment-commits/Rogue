@@ -45,6 +45,7 @@ import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
 import { describeLookCell } from "./lookDescription.js";
+import { applyMessageUpdate } from "./messageLog.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -52,17 +53,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   /* フロアターン付きメッセージ追加ラッパー */
   const setMsgs = useCallback((updater) => {
     const t = sr.current?.floorTurns ?? 0;
-    const _tag = (m) => typeof m === "string" ? { text: m, turn: t } : (m?.turn !== undefined ? m : { ...m, turn: t });
-    if (typeof updater === "function") {
-      _setMsgs(prev => {
-        const result = updater(prev);
-        const oldLen = Math.min(prev.length, 80);
-        return result.map((m, i) => i < oldLen ? m : _tag(m));
-      });
-    } else {
-      const arr = Array.isArray(updater) ? updater : [updater];
-      _setMsgs(arr.map(_tag));
-    }
+    _setMsgs((previous) => applyMessageUpdate(previous, updater, t));
   }, []);
   const [showInv, setShowInv] = useState(false);
   const [dropMode, setDropMode] = useState(false);
