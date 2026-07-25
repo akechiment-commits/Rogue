@@ -27,7 +27,26 @@ export const TI = {
   SIGN: 110,
 };
 
-export const rng = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+/**
+ * シードから再現可能な 0 以上 1 未満の乱数関数を作る。
+ * 乱数を受け取れるドメイン関数に渡して、生成・抽選のテストを固定できる。
+ */
+export function createSeededRng(seed) {
+  let state = 2166136261;
+  for (const char of String(seed)) {
+    state = Math.imul(state ^ char.charCodeAt(0), 16777619);
+  }
+  state = (state >>> 0) || 0x6d2b79f5;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export const rng = (a, b, randomFn = Math.random) => Math.floor(randomFn() * (b - a + 1)) + a;
 
 /**
  * 攻撃 vs 防御のダメージ計算。
@@ -157,12 +176,12 @@ export function pointOnPath(path, t) {
   const a = path[i], b = path[i + 1];
   return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
 }
-export const pick = (arr) => arr[rng(0, arr.length - 1)];
+export const pick = (arr, randomFn = Math.random) => arr[rng(0, arr.length - 1, randomFn)];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 /** Fisher-Yates シャッフル（in-place）。配列自体を返す */
-export function shuffle(arr) {
+export function shuffle(arr, randomFn = Math.random) {
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(randomFn() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;

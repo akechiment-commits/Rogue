@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortWarehouseItems, hasAbility, getShops } from "../utils.js";
+import { createSeededRng, getShops, hasAbility, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
 
 describe("sortWarehouseItems", () => {
   it("種別順→名前順でソートする", () => {
@@ -30,5 +30,29 @@ describe("getShops", () => {
     expect(getShops(a)).toHaveLength(2);
     expect(getShops(b)).toEqual([{ x: 3 }]);
     expect(getShops(c)).toEqual([]);
+  });
+});
+
+describe("seeded random helpers", () => {
+  it("同じ seed なら同じ乱数列と抽選結果になる", () => {
+    const first = createSeededRng("dungeon-42");
+    const second = createSeededRng("dungeon-42");
+    expect(Array.from({ length: 6 }, () => first())).toEqual(
+      Array.from({ length: 6 }, () => second()),
+    );
+
+    const a = createSeededRng(42);
+    const b = createSeededRng(42);
+    expect(Array.from({ length: 8 }, () => pick(["a", "b", "c"], a))).toEqual(
+      Array.from({ length: 8 }, () => pick(["a", "b", "c"], b)),
+    );
+  });
+
+  it("rng と shuffle は注入された乱数関数を使える", () => {
+    expect(rng(3, 8, () => 0)).toBe(3);
+    expect(rng(3, 8, () => 0.9999)).toBe(8);
+    const a = shuffle([1, 2, 3, 4], createSeededRng("shuffle"));
+    const b = shuffle([1, 2, 3, 4], createSeededRng("shuffle"));
+    expect(a).toEqual(b);
   });
 });
