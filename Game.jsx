@@ -57,6 +57,7 @@ import { resolveTurnHazards } from "./turnHazards.js";
 import { transitMonstersThroughPortals } from "./monsterPortalTransit.js";
 import { runMonsterAttackPhase } from "./monsterAttackPhase.js";
 import { applyVisibilityOverrides } from "./visibilityOverrides.js";
+import { resolveTeleportAndTrapPentacleEffect } from "./pentacleTurnEffects.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1499,65 +1500,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const _pcMagicSealed = _pc.kind !== "magic_seal" && inMagicSealRoom(_pc.x, _pc.y, _dg2);
           /* --- 明かりの魔方陣 --- */
           /* (rendering only; handled in refreshFOV override below) */
-          /* --- テレポートの魔方陣：各生物が独立して毎ターン10%でテレポート --- */
-          if (!_pcMagicSealed && _pc.kind === "teleport_trap" && !_pc.cursed) {
-            const _tpFloorBlocked = _dg2.pentacles.some(pc2 => pc2 !== _pc && pc2.kind === "teleport_trap" && pc2.cursed);
-            if (!_tpFloorBlocked) {
-                /* プレイヤーが対象範囲内なら個別抽選 */
-              if (_inRange && Math.random() < 0.1) {
-                const _tp = randomTeleportDest(_dg2, p.x, p.y);
-                if (_tp) { p.x = _tp.x; p.y = _tp.y; }
-                ml.push(`${_pc.name}の力でテレポートした！`);
-              }
-              /* 魔方陣と同じ部屋にいるモンスターを個別抽選（祝福ならフロア全体） */
-              for (const _tpM of _dg2.monsters) {
-                if (_tpM.magicImmune) continue;
-                const _tpMRoom = findRoom(_dg2.rooms, _tpM.x, _tpM.y);
-                if ((_pc.blessed ? true : _tpMRoom === _pcRoom) && Math.random() < 0.1) {
-                  const _tp = randomTeleportDest(_dg2, _tpM.x, _tpM.y);
-                  if (_tp) { _tpM.x = _tp.x; _tpM.y = _tp.y; }
-                  ml.push(`${_pc.name}の力で${_tpM.name}がテレポートした！`);
-                }
-              }
-            }
-          }
-          /* --- 罠の魔方陣：同フロアでターン経過すれば別部屋でも発動（配置先は魔方陣の部屋／祝福はフロア） --- */
-          if (!_pcMagicSealed && _pc.kind === "trap_gen") {
-            if (_pc.cursed) {
-              /* 呪い：毎ターン30%でフロア内の罠を1つ消す（永続回転板は除外） */
-              if (Math.random() < 0.3) {
-                const _delCands = _dg2.traps.filter(t => !t.permanent);
-                if (_delCands.length > 0) {
-                  const _rt = pick(_delCands);
-                  removeTrap(_dg2, _rt, ml, { message: `${_pc.name}の呪いで罠が消えた！`, p });
-                }
-              }
-            } else if (Math.random() < 0.1) {
-              /* 通常/祝福：毎ターン10%。魔方陣の部屋 / 祝福はフロア内ランダム部屋 */
-              const _tgScope = _pc.blessed ? _dg2.rooms : (_pcRoom ? [_pcRoom] : []);
-              if (_tgScope.length > 0) {
-                const _tgR = pick(_tgScope);
-                let _placed = false;
-                for (let _att = 0; _att < 20 && !_placed; _att++) {
-                  const _tx2 = rng(_tgR.x, _tgR.x + _tgR.w - 1);
-                  const _ty2 = rng(_tgR.y, _tgR.y + _tgR.h - 1);
-                  if (_tx2 === p.x && _ty2 === p.y) continue;
-                  if (_dg2.map[_ty2][_tx2] !== T.FLOOR) continue;
-                  if (_dg2.traps.some(t => t.x === _tx2 && t.y === _ty2)) continue;
-                  if (_dg2.items.some(i => i.x === _tx2 && i.y === _ty2)) continue;
-                  if (_dg2.monsters.some(m => m.x === _tx2 && m.y === _ty2)) continue;
-                  if (_dg2.springs?.some(s => s.x === _tx2 && s.y === _ty2)) continue;
-                  if (_dg2.bigboxes?.some(b => b.x === _tx2 && b.y === _ty2)) continue;
-                  if (_dg2.pentacles?.some(pc3 => pc3.x === _tx2 && pc3.y === _ty2)) continue;
-                  if (_dg2.oilyTiles?.some(t => t.x === _tx2 && t.y === _ty2)) continue;
-                  if (_dg2.statues?.some(s => s.x === _tx2 && s.y === _ty2)) continue;
-                  const _td2 = pickTrap();
-                  _dg2.traps.push({ ..._td2, id: uid(), x: _tx2, y: _ty2, revealed: false });
-                  _placed = true;
-                }
-              }
-            }
-          }
+          resolveTeleportAndTrapPentacleEffect(_pc, _dg2, p, ml, {
+            findRoom, inMagicSealRoom, random: Math.random, randomTeleportDest,
+            pick, rng, T, pickTrap, uid, removeTrap,
+          });
           /* --- 石飛ばしの魔方陣：毎ターン25%で部屋内キャラに魔法の石を飛ばす --- */
           if (!_pcMagicSealed && _pc.kind === "stone_throw" && _pcRoom && Math.random() < 0.25) {
             /* 部屋内の全キャラ（プレイヤー＋モンスター）をターゲット候補に */
