@@ -3641,6 +3641,10 @@ export function useItemActions({
                   lx = tx; ly = ty; hit = true; break;
                 }
                 lx = tx; ly = ty; hit = true;
+                if (it.type === "bottle") {
+                  ml.push(`${lb}は${m.name}に外れ、足元で割れた！`);
+                  break;
+                }
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
                 const _fm_ft = new Set();
                 withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, _fm_ft));
