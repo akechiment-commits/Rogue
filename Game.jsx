@@ -47,6 +47,7 @@ import { rollWishChance, grantWish } from "./wish.js";
 import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
+import { formatInventoryItem } from "./inventoryLabel.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -5354,65 +5355,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   /* 表示名ヘルパー (gsを参照) */
   const dname = (it) => itemDisplayName(it, gs?.fakeNames, gs?.ident, gs?.nicknames);
 
-  const iLabel = (it) => {
-    const _ep = gs?.player;
-    const _eq = _ep?.weapon === it ? "【武器】" : _ep?.armor === it ? "【防具】" : _ep?.arrow === it ? "【矢】" : (_ep?.rings || []).includes(it) ? "【指輪】" : "";
-    const _key = getIdentKey(it);
-    const _isIdent = !_key || gs?.ident?.has(_key);
-    /* 種別識別あり／武器・防具・食料・指輪は fullIdent|bcKnown のときだけ祝呪表示 */
-    const _needFullIdent = !!_key || it.type === 'weapon' || it.type === 'armor' || it.type === 'ring' || it.type === 'food';
-    const _showBC = _needFullIdent ? (it.fullIdent || it.bcKnown) : true;
-    const _bc = _showBC ? (it.blessed ? "【祝】" : it.cursed ? "【呪】" : "") : "";
-    let s = (_eq ? _eq : "") + _bc + dname(it);
-    if (it.type === "arrow") s += ` (${it.count}${(it.stone || it.magicStone) ? "個" : "本"})`;
-    else if (it.type === "weapon") {
-      if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
-      s += ` (攻+${it.atk + (it.plus || 0)})`;
-      const _waIds = [
-        ...new Set(
-          [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(
-            Boolean,
-          ),
-        ),
-      ];
-      const _waNames = _waIds
-        .map((id) => WEAPON_ABILITIES.find((a) => a.id === id)?.name)
-        .filter(Boolean);
-      if (_waNames.length) s += ` [${_waNames.join("・")}]`;
-    } else if (it.type === "armor") {
-      if (it.plus) s += (it.plus > 0 ? "+" : "") + it.plus;
-      s += ` (防+${it.def + (it.plus || 0)})`;
-      const _aaIds = [
-        ...new Set(
-          [...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(
-            Boolean,
-          ),
-        ),
-      ];
-      const _aaNames = _aaIds
-        .map((id) => ARMOR_ABILITIES.find((a) => a.id === id)?.name)
-        .filter(Boolean);
-      if (_aaNames.length) s += ` [${_aaNames.join("・")}]`;
-    } else if (it.type === "potion" && (it.effect === "heal" || it.effect === "heal_big") && _isIdent)
-      s += ` (HP+${it.value})`;
-    else if (it.type === "food") {
-      const _rotMult = it.rotten ? 0.3 : 1;
-      s += `(満+${Math.max(1, Math.round(it.value * _rotMult))})`;
-      if (it.rotten || !it.cooked || it.potionEffects?.length) {
-        s += "(";
-        if (it.rotten) s += "腐";
-        else if (!it.cooked) s += "生";
-        if (it.potionEffects?.length) s += "★";
-        s += ")";
-      }
-    } else if (it.type === "wand")   s += it.fullIdent ? ` [${it.charges}回]` : (!_isIdent && it._usedCount ? ` (-${it._usedCount})` : "");
-    else if (it.type === "marker") s += ` [${it.charges}回]`;
-    else if (it.type === "pen")    s += it.fullIdent ? ` [${it.charges || 0}回]` : "";
-    else if (it.type === "pot")    s += _isIdent ? ` [${potOccupancyCount(it)}/${it.capacity}]` : "";
-    else if (it.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(it.effect)) s += `+${it.plus || 0}`;
-    if (it.shopPrice) s += ` 〔未払:${getShopItemCharge(it)}G〕`;
-    return s;
-  };
+  const iLabel = (item) => formatInventoryItem(item, {
+    player: gs?.player,
+    identified: gs?.ident,
+    displayName: dname,
+    getIdentKey,
+    weaponAbilities: WEAPON_ABILITIES,
+    armorAbilities: ARMOR_ABILITIES,
+    potOccupancyCount,
+    getShopItemCharge,
+  });
   const iBtn = (l, c, fn) => (
     <button
       onClick={fn}
