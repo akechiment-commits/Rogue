@@ -55,6 +55,7 @@ import { collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnima
 import { advanceMonsterUpkeep } from "./monsterUpkeep.js";
 import { resolveTurnHazards } from "./turnHazards.js";
 import { transitMonstersThroughPortals } from "./monsterPortalTransit.js";
+import { runMonsterAttackPhase } from "./monsterAttackPhase.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1467,22 +1468,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         ident: sr.current?.ident,
       });
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
-      const _perHitEvents = [];
-      const _perHitLunges = [];
-      let _hadActualHit = false;
-      if (!_skipMonAct && !_spinFired) moveMons(st.dungeon, p, ml, "attackOnly", {
-        onPlayerHit: (dmg, mon) => {
-          _perHitEvents.push({ type: "damage", x: p.x, y: p.y, value: dmg, color: "#ff6644" });
-          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
-          _hadActualHit = true;
-        },
-        onPlayerMiss: (mon) => {
-          _perHitEvents.push({ type: "miss", x: p.x, y: p.y });
-          if (mon) _perHitLunges.push({ id: mon.id, tile: mon.tile, fromX: mon.x, fromY: mon.y, toX: p.x, toY: p.y, hp: mon.hp, maxHp: mon.maxHp });
-        },
+      const _attackPhase = runMonsterAttackPhase(st.dungeon, p, ml, {
+        skipMonsterActions: _skipMonAct,
+        spinFired: _spinFired,
+        moveMons,
       });
-      if (_perHitEvents.length > 0) {
-        collectMonsterAttackEvents(_monAnimation, _perHitEvents, _perHitLunges, _hadActualHit, p);
+      if (_attackPhase.hitEvents.length > 0) {
+        collectMonsterAttackEvents(_monAnimation, _attackPhase.hitEvents, _attackPhase.lunges, _attackPhase.hadActualHit, p);
       }
       monMovesRef.current = _monAnimation;
       advanceMonsterUpkeep(st.dungeon, p, ml, {
