@@ -240,6 +240,78 @@ describe("石像", () => {
     expect(ml.some(m => m.includes("が現れた"))).toBe(true);
   });
 
+  it.each([
+    ["potionthrow", "薬瓶"],
+    ["watergunner", "水鉄砲"],
+  ])("敵の%sが石像に当たると中身が出てそこで止まる", (subtype, attackName) => {
+    const attacker = {
+      id: "projectile-user",
+      name: subtype === "potionthrow" ? "薬師" : "わてり",
+      baseKind: subtype === "potionthrow" ? "potionthrower" : "wateri",
+      subtype,
+      x: 2, y: 5,
+      hp: 100, maxHp: 100, atk: 20, def: 5, exp: 1,
+      speed: 1, baseSpeed: 1, turnAccum: 0,
+      turnAttacks: 0, maxAttacks: 1,
+      monLevel: 1, aware: true, dormant: false, sealed: false,
+      alwaysUseSpecial: true,
+      dir: { x: 1, y: 0 }, lastPx: 7, lastPy: 5,
+    };
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      rooms: [{ x: 1, y: 1, w: 15, h: 10 }],
+      items: [],
+      monsters: [attacker],
+      statues: [makeStatue(4, 5)],
+      dungeonType: "intermediate",
+    });
+    const p = makePlayer({ x: 7, y: 5, depth: 5 });
+    const ml = [];
+
+    monsterAI(attacker, dg, p, ml, { attackOnly: true });
+
+    expect(dg.statues).toEqual([]);
+    expect(dg.items.length).toBeGreaterThanOrEqual(1);
+    expect(p.hp).toBe(100);
+    expect(ml.some(m => m.includes(`${attackName}が石像に命中`))).toBe(true);
+    expect(ml.some(m => m.includes("飛び出した"))).toBe(true);
+    expect(ml.some(m => m.includes("が現れた"))).toBe(true);
+  });
+
+  it("クラーケンの墨が石像に当たると中身が出てそこで止まる", () => {
+    const attacker = {
+      id: "kraken",
+      name: "クラーケン",
+      baseKind: "im_boss_kraken",
+      x: 2, y: 5,
+      hp: 200, maxHp: 200, atk: 30, def: 10, exp: 1,
+      speed: 1, baseSpeed: 1, turnAccum: 0,
+      turnAttacks: 0, maxAttacks: 2,
+      monLevel: 1, aware: true, dormant: false, sealed: false,
+      _krakInkReady: true,
+      dir: { x: 1, y: 0 }, lastPx: 7, lastPy: 5,
+    };
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      rooms: [{ x: 1, y: 1, w: 15, h: 10 }],
+      items: [],
+      monsters: [attacker],
+      statues: [makeStatue(4, 5)],
+      dungeonType: "intermediate",
+    });
+    const p = makePlayer({ x: 7, y: 5, depth: 5 });
+    const ml = [];
+
+    monsterAI(attacker, dg, p, ml, { attackOnly: true });
+
+    expect(dg.statues).toEqual([]);
+    expect(dg.items.length).toBeGreaterThanOrEqual(1);
+    expect(p.hp).toBe(100);
+    expect(ml.some(m => m.includes("墨が石像に命中"))).toBe(true);
+    expect(ml.some(m => m.includes("飛び出した"))).toBe(true);
+    expect(ml.some(m => m.includes("が現れた"))).toBe(true);
+  });
+
   it("飛び出しメッセージは itemNameFn で未識別名を使える", () => {
     const dg = makeEmptyDg({
       map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),

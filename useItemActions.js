@@ -14,7 +14,7 @@ import {
   placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
-  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, itemPrice, removeTrap, removeTraps,
+  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
@@ -2588,6 +2588,9 @@ export function useItemActions({
             ml.push(`${_stName}を投げた！`);
             if (!_msTarget) {
               ml.push(`近くに敵がいない！${_stName}は消えた。`);
+            } else if (_msTarget.subtype === "reflector") {
+              pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
+              reflectMagicStoneToPlayer(p, _msTarget, _stName, _arItem.atk || 5, ml);
             } else {
               const _msSureHit = (p.sureHitTurns || 0) > 0;
               const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
@@ -3127,6 +3130,9 @@ export function useItemActions({
             ml.push(`${_invStName}を投げた！`);
             if (!_msTarget2) {
               ml.push(`近くに敵がいない！${_invStName}は消えた。`);
+            } else if (_msTarget2.subtype === "reflector") {
+              pushAnim({ type: "projectileReturn", fromX: _msTarget2.x, fromY: _msTarget2.y, toX: p.x, toY: p.y, color: "#cc88ff" });
+              reflectMagicStoneToPlayer(p, _msTarget2, _invStName, _invStAtk, ml);
             } else {
               const _msDodgePcMode2 = getDodgePentacleMode(dg, _msTarget2.x, _msTarget2.y);
               const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));

@@ -125,7 +125,7 @@ const GUIDE_DESC_OVERRIDES = {
   "錆の罠": "踏むと装備中の武器or防具の＋値が-1される。\n金属製装備が対象。",
   "鑑定の大箱": "入れたアイテムを識別する。\n薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。",
   "雷の剣": "雷属性の剣。氷・水系の敵（氷竜・わてり等）に1.5倍ダメージ。",
-  "魔法の石": "10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",
+  "魔法の石": "10マス以内の最も近い敵にホーミングして命中する石。物理投擲反射の敵に当たるとプレイヤーへホーミング反射される。99個まで束にできる。",
   "魔法の筆": "白紙の巻物に好きな魔法を書き込める。充填の大箱で回数を増やせる。筆同士の合成で容量合算。",
 };
 
@@ -473,7 +473,8 @@ function monTraits(m) {
   const t = [];
   if (m.float) t.push('浮遊');
   if (m.waterOnly) t.push('水タイルのみ');
-  if (m.subtype === 'watergunner') t.push('水鉄砲攻撃（風穴で曲がる・命中時ずぶ濡れ＋所持品に水影響）');
+  if (m.subtype === 'watergunner') t.push('水鉄砲攻撃（風穴で曲がる・命中時ずぶ濡れ＋所持品に水影響・石像で停止して破壊）');
+  if (m.baseKind === 'im_boss_kraken') t.push('直線墨攻撃（ダメージ＋暗闇・石像で停止して破壊）');
   if (m.elemWeak) t.push(`${m.elemWeak}弱点`);
   if (m.elemResist === 'fire') t.push('炎半減');
   if (m.elemResist === 'ice') t.push('氷半減');
@@ -485,7 +486,7 @@ function monTraits(m) {
   if (m.maxAttacks >= 3) t.push('3回攻撃');
   else if (m.maxAttacks >= 2) t.push('2回攻撃');
   if (m.subtype) {
-    const st = { itemblaster:'アイテム弾き', stealthrower:'アイテム盗んで投げる', runner:'攻撃しない。未覚醒は徘徊、認識後は出口BFSで効率逃走', slime:'討伐時に分裂', bombslime:'死亡時爆発', bombgoblin:'体当たり自爆', crystalslime:'物理ダメ固定1', rockspirit:'壁抜け移動', archer:'遠距離矢攻撃', stonethrow:'石投げ（プレイヤーへホーミング。本来の着弾点に風があればその方向へ逸れる）', thief:'アイテム盗む', rustbug:'攻撃で装備錆', wizard:'雷の杖使用', walldigger:'壁破壊移動', trapmaster:'隣接に罠設置', trapthrower:'罠を投げる', witchdoc:'呪いの杖使用', disarmer:'装備を剥ぐ', monsterthrow:'敵を投げる', shaman:'周囲モンスターにATK+3', barriermage:'バリア1回持ち', windmage:'吹き飛ばし杖', confusemage:'混乱の杖使用', puller:'プレイヤーを引き寄せる', sleepmage:'眠りの杖使用', firedemon:'炎吸収回復', warpmage:'テレポート杖', grabber:'プレイヤーを掴む', charger:'直線突進', reflector:'物理攻撃反射', knocker:'壁まで吹き飛ばす', magicreflector:'魔法・杖反射', potionthrower:'薬を投げる（風穴で曲がる）', icedragon:'氷ブレス' };
+    const st = { itemblaster:'アイテム弾き', stealthrower:'アイテム盗んで投げる', runner:'攻撃しない。未覚醒は徘徊、認識後は出口BFSで効率逃走', slime:'討伐時に分裂', bombslime:'死亡時爆発', bombgoblin:'体当たり自爆', crystalslime:'物理ダメ固定1', rockspirit:'壁抜け移動', archer:'遠距離矢攻撃', stonethrow:'石投げ（プレイヤーへホーミング。本来の着弾点に風があればその方向へ逸れる）', thief:'アイテム盗む', rustbug:'攻撃で装備錆', wizard:'雷の杖使用', walldigger:'壁破壊移動', trapmaster:'隣接に罠設置', trapthrower:'罠を投げる', witchdoc:'呪いの杖使用', disarmer:'装備を剥ぐ', monsterthrow:'敵を投げる', shaman:'周囲モンスターにATK+3', barriermage:'バリア1回持ち', windmage:'吹き飛ばし杖', confusemage:'混乱の杖使用', puller:'プレイヤーを引き寄せる', sleepmage:'眠りの杖使用', firedemon:'炎吸収回復', warpmage:'テレポート杖', grabber:'プレイヤーを掴む', charger:'直線突進', reflector:'物理攻撃反射（魔法の石もプレイヤーへホーミング反射）', knocker:'壁まで吹き飛ばす', magicreflect:'魔法・杖反射', potionthrow:'薬を投げる（風穴で曲がる・石像で停止して破壊）', icedragon:'氷ブレス' };
     if (st[m.subtype]) t.push(st[m.subtype]);
   }
   return t.join('・') || '基本敵';

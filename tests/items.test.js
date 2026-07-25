@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer } from "../items.js";
 import { MW, MH, T } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -9,6 +9,24 @@ describe("getIdentKey", () => {
     expect(getIdentKey({ type: "scroll", effect: "blank" })).toBeNull();
     expect(getIdentKey({ type: "wand", effect: "sleep" })).toBe("w:sleep");
     expect(getIdentKey({ type: "gold" })).toBeNull();
+  });
+});
+
+describe("魔法の石の反射", () => {
+  it("投擲反射敵からプレイヤーへ跳ね返ってダメージを与える", () => {
+    const player = { hp: 100, atk: 12, rings: [], sleepTurns: 3, paralyzeTurns: 2 };
+    const reflector = { name: "ほっちもぺ", subtype: "reflector" };
+    const messages = [];
+
+    const damage = reflectMagicStoneToPlayer(player, reflector, "魔法の石", 5, messages);
+
+    expect(damage).toBeGreaterThan(0);
+    expect(player.hp).toBe(100 - damage);
+    expect(player.deathCause).toBe("ほっちもぺに跳ね返された魔法の石で");
+    expect(player.sleepTurns).toBe(0);
+    expect(player.paralyzeTurns).toBe(0);
+    expect(messages.some(message => message.includes("弾き返された"))).toBe(true);
+    expect(messages.some(message => message.includes("プレイヤーにホーミング命中"))).toBe(true);
   });
 });
 

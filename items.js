@@ -3990,6 +3990,19 @@ export function calcProjectileDmg(p, arAtk, def = 0) {
   return calcAtkDefDmg(ap, def, { defWeight: 1 });
 }
 
+/** reflector に当たった魔法の石をプレイヤーへホーミング反射する。 */
+export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml) {
+  if (!p || reflector?.subtype !== "reflector") return null;
+  const dmg = calcProjectileDmg(p, stoneAtk || 5, 0);
+  p.hp -= dmg;
+  p.deathCause = `${reflector.name}に跳ね返された${stoneName}で`;
+  ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
+  ml.push(`跳ね返された${stoneName}がプレイヤーにホーミング命中！${dmg}ダメージ！消滅した。`);
+  if (p.sleepTurns > 0) { p.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+  if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  return dmg;
+}
+
 export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null) {
   const st = p.inventory[idx];
   if (!st || st.type !== "arrow") return;

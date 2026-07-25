@@ -251,6 +251,15 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
       return;
     }
     _lastX = _cx; _lastY = _cy;
+    if (statueAt(dg, _cx, _cy)) {
+      ml.push(`${m.name}の薬瓶が石像に命中！`);
+      hitStatueWithAction(dg, _cx, _cy, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
+      splashPotion(dg, _cx, _cy, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
+      return;
+    }
     const _spr = dg.springs?.find(s => s.x === _cx && s.y === _cy);
     if (_spr) {
       const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
@@ -1700,7 +1709,16 @@ function monsterShootWaterGun(m, dg, pl, ml) {
     dx = _st.dx; dy = _st.dy;
     const tx = _st.x, ty = _st.y;
     _wgX = tx; _wgY = ty;
-    if (!isWalkable(dg.map, tx, ty, dg)) return;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH ||
+        dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) return;
+    if (statueAt(dg, tx, ty)) {
+      ml.push(`${m.name}の水鉄砲が石像に命中！`);
+      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
+      return;
+    }
     /* 射線上の魔方陣を消す */
     const _wgPcIdx = dg.pentacles ? dg.pentacles.findIndex(pc => pc.x === tx && pc.y === ty) : -1;
     if (_wgPcIdx >= 0) {
@@ -2667,6 +2685,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _ktx = m.x + _kidx * _ki2, _kty = m.y + _kidy * _ki2;
         if (_ktx < 0 || _ktx >= MW || _kty < 0 || _kty >= MH) break;
         if (dg.map[_kty]?.[_ktx] === T.WALL || dg.map[_kty]?.[_ktx] === T.BWALL) break;
+        if (statueAt(dg, _ktx, _kty)) {
+          ml.push(`${m.name}の墨が石像に命中！`);
+          hitStatueWithAction(dg, _ktx, _kty, pl, ml, null, pl?.depth, {
+            breaks: true,
+            itemDeps: getFixtureItemDeps(),
+          });
+          break;
+        }
         if (_ktx === pl.x && _kty === pl.y) {
           const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
           pl.hp -= _kiDmg;
@@ -3840,7 +3866,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _srDx = Math.sign(pl.x - m.x), _srDy = Math.sign(pl.y - m.y);
         if (_srStraight) {
           /* 経路チェック：障害物があれば投げない、途中に敵がいればそちらに命中 */
-          let _srHitMon = null, _srPathOk = true;
+          let _srHitMon = null, _srHitStatue = false, _srPathOk = true;
           let _cx = m.x + _srDx, _cy = m.y + _srDy;
           while (_cx !== pl.x || _cy !== pl.y) {
             if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
@@ -3849,6 +3875,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 dg.springs?.some(s => s.x === _cx && s.y === _cy)) {
               _srPathOk = false; break;
             }
+            if (statueAt(dg, _cx, _cy)) { _srHitStatue = true; break; }
             const _midMon = dg.monsters.find(mo => mo.x === _cx && mo.y === _cy);
             if (_midMon) { _srHitMon = _midMon; break; }
             _cx += _srDx; _cy += _srDy;
@@ -3857,7 +3884,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _throwItem = m.heldItems[0];
             /* 中間敵に命中する場合：throwItemAlongLineに任せる */
             /* 中間敵なし＋プレイヤー到達の場合：anti-steal/25%missを先に判定 */
-            if (!_srHitMon) {
+            if (!_srHitMon && !_srHitStatue) {
               const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
               if (_srAntiSteal) {
                 m.heldItems.splice(0, 1);
