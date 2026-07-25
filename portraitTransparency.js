@@ -6,6 +6,7 @@
 export const DEFAULT_TRANSPARENCY_OPTIONS = {
   threshold: 20,
   nearWhite: 220,
+  nearBlack: 20,
   greenMin: 150,
 };
 
@@ -21,12 +22,20 @@ export function isNearWhite(r, g, b, nearWhite = DEFAULT_TRANSPARENCY_OPTIONS.ne
   return r >= nearWhite && g >= nearWhite && b >= nearWhite;
 }
 
+export function isNearBlack(r, g, b, nearBlack = DEFAULT_TRANSPARENCY_OPTIONS.nearBlack) {
+  return r <= nearBlack && g <= nearBlack && b <= nearBlack;
+}
+
 export function isGreenBg(r, g, b, greenMin = DEFAULT_TRANSPARENCY_OPTIONS.greenMin) {
   return g >= greenMin && g > r + 20 && g > b + 20;
 }
 
-function isBgSeed(r, g, b, opts) {
-  return isNearWhite(r, g, b, opts.nearWhite) || isGreenBg(r, g, b, opts.greenMin);
+export function isPortraitBackgroundSeed(r, g, b, a, options = {}) {
+  const opts = { ...DEFAULT_TRANSPARENCY_OPTIONS, ...options };
+  if (a === 0) return false;
+  return isNearWhite(r, g, b, opts.nearWhite) ||
+    isNearBlack(r, g, b, opts.nearBlack) ||
+    isGreenBg(r, g, b, opts.greenMin);
 }
 
 /**
@@ -52,7 +61,8 @@ export function floodFillTransparent(data, width, height, options = {}) {
     const r = data[idx];
     const g = data[idx + 1];
     const b = data[idx + 2];
-    if (!isBgSeed(r, g, b, opts)) continue;
+    const a = data[idx + 3];
+    if (!isPortraitBackgroundSeed(r, g, b, a, opts)) continue;
     const cell = cy * width + cx;
     if (visited[cell]) continue;
     visited[cell] = 1;

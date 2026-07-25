@@ -3204,7 +3204,7 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, setShowScores, se
     <div
       style={{
         position: "absolute", right: 0, top: 0, bottom: 0,
-        width: mobile ? 140 : 220, background: "#000",
+        width: mobile ? 140 : 220, background: "#f5f0e8",
         borderLeft: "1px solid #c8b89a",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between",
         padding: "8px 4px", boxSizing: "border-box", zIndex: 10,
