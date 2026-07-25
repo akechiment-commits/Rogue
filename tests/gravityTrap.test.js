@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
 
 describe("重力の魔方陣と敵の罠踏み", () => {
   it("未覚醒パトロールでも重力下では罠を踏む", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
     const map = Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR));
     /* 部屋 (2,2)-(12,12) */
     const rooms = [{ x: 2, y: 2, w: 11, h: 11 }];
@@ -28,13 +29,18 @@ describe("重力の魔方陣と敵の罠踏み", () => {
     });
     const pl = makePlayer({ x: 20, y: 20 }); /* 別の場所＝見えていない */
     const ml = [];
-    monsterAI(mon, dg, pl, ml, { luFn: () => {} });
-    expect(mon.x).toBe(6);
-    expect(mon.y).toBe(5);
-    expect(ml.some(m => m.includes("重力の力") && m.includes("踏んだ"))).toBe(true);
+    try {
+      monsterAI(mon, dg, pl, ml, { luFn: () => {} });
+      expect(mon.x).toBe(6);
+      expect(mon.y).toBe(5);
+      expect(ml.some(m => m.includes("重力の力") && m.includes("踏んだ"))).toBe(true);
+    } finally {
+      random.mockRestore();
+    }
   });
 
   it("重力なしでは敵は罠を踏まない", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
     const map = Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR));
     const rooms = [{ x: 2, y: 2, w: 11, h: 11 }];
     const trap = {
@@ -54,8 +60,12 @@ describe("重力の魔方陣と敵の罠踏み", () => {
     });
     const pl = makePlayer({ x: 20, y: 20 });
     const ml = [];
-    monsterAI(mon, dg, pl, ml, { luFn: () => {} });
-    expect(mon.x).toBe(6);
-    expect(ml.some(m => m.includes("踏んだ"))).toBe(false);
+    try {
+      monsterAI(mon, dg, pl, ml, { luFn: () => {} });
+      expect(mon.x).toBe(6);
+      expect(ml.some(m => m.includes("踏んだ"))).toBe(false);
+    } finally {
+      random.mockRestore();
+    }
   });
 });
