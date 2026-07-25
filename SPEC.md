@@ -277,6 +277,7 @@ React + Vite 製のローグライク。
 | `playerPentacleEffects.js` | 呪われた聖域と雷の魔方陣について、プレイヤー足元で起きる毎ターン効果 |
 | `monsterTurnAnimation.js` | モンスター移動・攻撃のアニメーション用スナップショットとイベント記録 |
 | `monsterUpkeep.js` | 攻撃後のボス回復・敵の状態タイマー・雷の魔方陣の敵への毎ターン効果 |
+| `turnHazards.js` | 敵移動後・敵攻撃前の遅延地雷・時限爆弾・回転板・爆発の指輪の解決 |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
@@ -304,6 +305,7 @@ React + Vite 製のローグライク。
 | `Game.jsx` | `playerPentacleEffects.js` | 呪われた聖域の即死、雷の魔方陣の雷撃・回復・打ち消し・所持品への雷 |
 | `Game.jsx` | `monsterTurnAnimation.js` | モンスター移動前後の差分、等速敵の移動済み印、攻撃フラッシュ・命中・突進の描画データ |
 | `Game.jsx` | `monsterUpkeep.js` | ボス自然回復、油／浮遊の終了、雷の魔方陣による敵の回復・ダメージ・撃破 |
+| `Game.jsx` | `turnHazards.js` | Phase 3 の爆発の指輪、遅延地雷、時限爆弾、遅延回転板と攻撃スキップ判定 |
 | `Game.jsx` | `lookDescription.js` | 調べるモードで表示するマスの説明文 |
 | `Game.jsx` | `messageLog.js` | メッセージへのフロアターン付与と履歴上限の管理 |
 | `Game.jsx` | `inventoryRules.js` / `inventoryLabel.js` | インベントリの利用可否・使用ラベル・ソート・表示名 |

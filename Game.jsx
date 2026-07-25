@@ -53,6 +53,7 @@ import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
 import { advanceMonsterUpkeep } from "./monsterUpkeep.js";
+import { resolveTurnHazards } from "./turnHazards.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1534,48 +1535,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       delete st._portalWarpedThisTurn;
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
-      /* 爆発の指輪：5%の確率で爆発 */
-      if (p.hp > 0 && hasRingEffect(p, "explode_ring") && Math.random() < 0.05) {
-        ml.push("指輪が爆発した！");
-        const _erfNFn = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-        doExplosion(p.x, p.y, st.dungeon, p, ml, _erfNFn, "爆発の指輪", null, null, false, true);
-      }
-      /* 遅延地雷爆発（fireTrapPlayer が dg._pendingMineExplosion に登録） */
-      if (!st._pendingMineExplosion && st.dungeon._pendingMineExplosion) {
-        st._pendingMineExplosion = st.dungeon._pendingMineExplosion;
-      }
-      delete st.dungeon._pendingMineExplosion;
-      if (st._pendingMineExplosion && p.hp > 0) {
-        const _pme = st._pendingMineExplosion;
-        delete st._pendingMineExplosion;
-        ml.push(`${_pme.name}が発動！`);
-        runMineExplosion(st.dungeon, _pme, p, ml, lu);
-      }
-      /* 時限爆弾カウントダウン */
-      if (st.dungeon.pendingBombs?.length > 0 && p.hp > 0) {
-        const _nameFnBomb = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-        const _remaining = [];
-        for (const _pb of st.dungeon.pendingBombs) {
-          _pb.turnsLeft--;
-          if (_pb.turnsLeft <= 0) {
-            ml.push(`時限爆弾の罠が大爆発した！`);
-            doTimeBombExplosion(_pb.x, _pb.y, st.dungeon, p, ml, lu, _nameFnBomb);
-          } else {
-            ml.push(`時限爆弾の罠：あと${_pb.turnsLeft}ターンで爆発！`);
-            _remaining.push(_pb);
-          }
-        }
-        st.dungeon.pendingBombs = _remaining;
-      }
-      /* 遅延回転板：敵移動後に発動してPhase4攻撃をスキップ */
-      let _spinFired = false;
-      if (st._pendingSpin && p.hp > 0) {
-        const _ps = st._pendingSpin;
-        delete st._pendingSpin;
-        const _spinNFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-        fireTrapPlayer(_ps, p, st.dungeon, ml, _spinNFn, lu, { ident: sr.current?.ident });
-        _spinFired = true;
-      }
+      const { spinFired: _spinFired } = resolveTurnHazards(st, p, ml, {
+        hasRingEffect,
+        doExplosion,
+        runMineExplosion,
+        doTimeBombExplosion,
+        fireTrapPlayer,
+        getItemName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+        lu,
+        ident: sr.current?.ident,
+      });
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
       const _perHitEvents = [];
       const _perHitLunges = [];
