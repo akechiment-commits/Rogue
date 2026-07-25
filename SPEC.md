@@ -270,6 +270,7 @@ React + Vite 製のローグライク。
 | `dungeon.js` | ダンジョン生成ロジック |
 | `items.js` | 全アイテム定義・識別・フェイク名テーブル |
 | `lootRules.js` | レア度・重み付き抽選・運枠・一般ドロップ率の純粋ルール |
+| `inventoryRules.js` | インベントリの種別順・名前順ソート規則 |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |

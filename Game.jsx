@@ -46,6 +46,7 @@ import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } f
 import { rollWishChance, grantWish } from "./wish.js";
 import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
+import { sortInventoryItems } from "./inventoryRules.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -5067,29 +5068,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const sortInventory = useCallback(() => {
     if (!sr.current) return;
     const p = sr.current.player;
-    const ORDER = [
-      "weapon",
-      "armor",
-      "ring",
-      "arrow",
-      "potion",
-      "scroll",
-      "food",
-      "wand",
-      "marker",
-      "pen",
-      "pot",
-      "bottle",
-      "gold",
-    ];
-    p.inventory.sort((a, b) => {
-      const oa = ORDER.indexOf(a.type);
-      const ob = ORDER.indexOf(b.type);
-      const ca = oa >= 0 ? oa : ORDER.length;
-      const cb = ob >= 0 ? ob : ORDER.length;
-      if (ca !== cb) return ca - cb;
-      return a.name.localeCompare(b.name, "ja");
-    });
+    sortInventoryItems(p.inventory);
     setInvPage(0);
     setSelIdx(null);
     setInvMenuSel(null);
