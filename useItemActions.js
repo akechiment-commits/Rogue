@@ -4,7 +4,7 @@ import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueL
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll } from "./dungeon.js";
 import {
-  EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap,
+  EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap, makeRandomPotion,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
@@ -3697,7 +3697,16 @@ export function useItemActions({
                     m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
                     ml.push(`${it.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
                   }
-                  if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+                  if (m.hp <= 0) {
+                    trackMonster(m);
+                    killMonster(m, dg, p, ml, lu);
+                    if (it.type === "bottle") {
+                      const _bottleDrop = makeRandomPotion();
+                      const _bottleFt = new Set();
+                      withPitfallBag(() => placeItemAt(dg, tx, ty, _bottleDrop, ml, _bottleFt, 0, p));
+                      ml.push(`空き瓶が割れ、${_bottleDrop.name}が${m.name}の足元に残った！`);
+                    }
+                  }
                 }
               }
               if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; }
