@@ -41,4 +41,14 @@ describe("trap rarity / weight", () => {
     const t = pickTrap(pool);
     expect(t.rarity).toBe("E");
   });
+
+  it("レア罠の運枠が当たると C 以上だけから抽選する", () => {
+    const pool = [
+      { name: "通常罠", rarity: "E", weight: 12 },
+      { name: "レア罠", rarity: "C", weight: 4 },
+    ];
+    let calls = 0;
+    const rng = () => (++calls === 1 ? 0 : 0.01);
+    expect(pickTrap(pool, rng, 0.36).name).toBe("レア罠");
+  });
 });

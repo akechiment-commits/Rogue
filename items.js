@@ -1119,10 +1119,15 @@ export const TRAPS = [
  * 罠テンプレの weight 抽選（rarity 未設定時は weight 1）。
  * @param {object[]} [pool=TRAPS]
  * @param {() => number} [rngFn]
+ * @param {number} [rareChance=0] C以上だけから抽選する運枠の確率
  */
-export function pickTrap(pool = TRAPS, rngFn = Math.random) {
+export function pickTrap(pool = TRAPS, rngFn = Math.random, rareChance = 0) {
   if (!pool || pool.length === 0) return null;
   if (pool.length === 1) return pool[0];
+  if (rareChance > 0 && rngFn() < rareChance) {
+    const rare = pool.filter((trap) => isRarityAtLeast(trap, "C"));
+    if (rare.length > 0) return pickWeighted(rare, rngFn);
+  }
   return pickWeighted(pool, rngFn);
 }
 

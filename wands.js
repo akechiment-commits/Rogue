@@ -728,7 +728,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
-        const nt = pickTrap();
+        const nt = pickTrap(TRAPS, Math.random, blMult < 1 ? 0.36 : 0);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         Object.assign(target, { ...nt, id:target.id, x:target.x, y:target.y, revealed:true });
         break;
