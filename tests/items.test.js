@@ -166,16 +166,19 @@ describe("水の飛散", () => {
     const rotten = { type: "food", name: "腐ったおにぎり", _foodBase: "おにぎり", rotten: true, value: 20, x: 4, y: 4 };
     const burnt = { type: "food", name: "焦げた焼いたパン", _foodBase: "パン", cooked: true, burnt: true, value: 12, x: 6, y: 6 };
     const outside = { type: "food", name: "腐った肉", _foodBase: "肉", rotten: true, value: 20, x: 7, y: 7 };
-    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)), items: [rotten, burnt, outside] };
+    const pentacle = { name: "回復の魔方陣", x: 4, y: 5 };
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)), items: [rotten, burnt, outside], monsters: [], traps: [], pentacles: [pentacle], pendingBombs: [] };
     const ml = [];
+    const p = { x: 0, y: 0, hp: 10, maxHp: 10 };
 
-    applyWaterSplash(dg, 5, 5, false, false, ml);
+    applyWaterSplash(dg, 5, 5, false, false, ml, p, () => {});
 
     expect(rotten).toMatchObject({ name: "おにぎり" });
     expect(rotten.rotten).toBeUndefined();
     expect(burnt).toMatchObject({ name: "焼いたパン", value: 20 });
     expect(burnt.burnt).toBeUndefined();
     expect(outside.rotten).toBe(true);
+    expect(dg.pentacles).toHaveLength(0);
   });
 
   it("祝福・呪いの水は従来どおり着弾マスだけに作用する", () => {

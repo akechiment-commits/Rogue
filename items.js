@@ -2923,6 +2923,10 @@ export function burnFoodItem(item, ml) {
 
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
   const _dn = dnFn ? dnFn(item) : item.name;
+  if (eff === "water" && item.type === "food") {
+    restoreFoodWithWater(item, ml);
+    return;
+  }
   /* 火薬壺は炎で誘爆 */
   if (item.type === "pot" && item.potEffect === "gunpowder" && eff === "fire") return "gunpowder_explode";
   if (item.type === "spellbook") {
@@ -3038,19 +3042,15 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   }
 }
 
-/* 通常の水は薬と同じ3×3に飛散して食料を元に戻す。
+/* 通常の水は薬と同じ3×3の共通飛散処理を行い、食料を元に戻す。
    祝福・呪いの水だけは着弾点のアイテム1つのみに祝呪効果（周囲8マス無効）。 */
-export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml) {
-  ml.push(blessed || cursed ? "瓶が割れた！" : "瓶が割れて水が飛び散った！");
-  pushSplashAnim(cx, cy, blessed ? "#aaddff" : cursed ? "#aa88ff" : "#88ccff");
+export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn = null, dnFn = null) {
   if (!blessed && !cursed) {
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-      const x = cx + dx, y = cy + dy;
-      if (x < 0 || x >= MW || y < 0 || y >= MH || dg.map[y][x] === T.WALL || dg.map[y][x] === T.BWALL) continue;
-      restoreFoodWithWater(itemAt(dg, x, y), ml);
-    }
+    splashPotion(dg, cx, cy, "water", WATER_BOTTLE.value, p, ml, luFn, false, false, dnFn);
     return;
   }
+  ml.push("瓶が割れた！");
+  pushSplashAnim(cx, cy, blessed ? "#aaddff" : "#aa88ff");
   const it = itemAt(dg, cx, cy);
   if (!it) { if (blessed || cursed) ml.push("着弾点にアイテムがなかった…"); return; }
   if (it.type === "pot") {

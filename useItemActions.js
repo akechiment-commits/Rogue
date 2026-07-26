@@ -3302,7 +3302,7 @@ export function useItemActions({
                 /* ミラーゴーレム：薬をプレイヤーに向かって跳ね返す */
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
                 pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
-                if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml);
+                if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
                 else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else {
@@ -3319,7 +3319,7 @@ export function useItemActions({
           }
           if (_hitSelf) {
             ml.push(`風に煽られた${dnameRef(it)}が自分に当たった！`);
-            if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml);
+            if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           } else if (_fdBurned) {
             /* 火ダルマに燃やされた：何もしない */
@@ -3334,14 +3334,14 @@ export function useItemActions({
             ml.push(`${dnameRef(it)}は消滅した。`);
           } else if (_isCursedFc) {
             /* 呪い遠投：1マスで落ちてsplash */
-            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
+            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
             soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
           } else if (!sprHit) {
-            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
+            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           }
         } else if (it.type === "pot") {
