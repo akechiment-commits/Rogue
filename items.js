@@ -4,7 +4,7 @@ import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import {
   findMonsterRoom as findRoom,
-  getMonsterCatalog,
+  pickTransformMonsterDef,
   monLevelDown,
   monLevelUp,
   monsterFireDamageLabel as monFireDmgLabel,
@@ -524,7 +524,7 @@ export const WANDS = [
   { name:"ふきとばしの杖", type:"wand", effect:"knockback", charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を吹き飛ばす。壊すと周囲全てを吹き飛ばす。",                           tile:24 },
   { name:"雷の杖",         type:"wand", effect:"lightning", charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
   { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:6, rarity:"C", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },
-  { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を別の何かに変える。壊すと周囲全てを変化。",                           tile:24 },
+  { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"対象を同じ階層の敵に変える。壊すと周囲全てを変化。",                           tile:24 },
   { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:5, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
   { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"C", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。\n壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
   { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"D", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。壊しても何も起こらない。",                     tile:24 },
@@ -4192,7 +4192,7 @@ export const SPELLS=[
   {id:"drain_hp",       name:"HP吸収の魔法",      mpCost:12, effect:"drain_hp",        range:10,  needsDir:true,  desc:"方向を選び敵のHPを吸い取って自分が回復する。MP:12"},
   {id:"paralyze_magic", name:"金縛りの魔法",      mpCost:10, effect:"paralyze_magic",  range:10,  needsDir:true,  desc:"方向を選び敵を金縛りにする。MP:10"},
   {id:"food_create",    name:"食料生成の魔法",    mpCost:8,  effect:"food_create",                needsDir:false, desc:"ランダムな食料をひとつ生成する。MP:8"},
-  {id:"transform_magic",name:"変化の魔法",        mpCost:10, effect:"transform_magic", range:10,  needsDir:true,  desc:"対象を変化させる。MP:10"},
+  {id:"transform_magic",name:"変化の魔法",        mpCost:10, effect:"transform_magic", range:10,  needsDir:true,  desc:"対象を同じ階層の敵に変える。MP:10"},
   {id:"identify_magic", name:"識別の魔法",        mpCost:5,  effect:"identify_magic",             needsDir:false, desc:"持ち物から1つ選んで識別する。MP:5"},
   {id:"bless_magic",    name:"祝福の魔法",        mpCost:18, effect:"bless_magic",                needsDir:false, desc:"アイテムを1つ選んで祝福する。MP:18"},
   {id:"curse_magic",    name:"呪いの魔法",        mpCost:5,  effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:5"},
@@ -4656,7 +4656,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     case "transform_magic": {
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
-        const nt = pick(getMonsterCatalog()); const prevName = target.name; const ox = target.x, oy = target.y;
+        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1); const prevName = target.name; const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, wallWalker: nt.wallWalker });
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;

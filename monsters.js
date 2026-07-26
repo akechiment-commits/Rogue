@@ -1113,6 +1113,34 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
   return { base, spawnLevel };
 }
 
+/**
+ * 変化の杖・魔法用。現在のフロアに出現する種族から、指定Lvの定義を返す。
+ * 祝福／呪いのLv補正は元の敵を基準にし、Lv1〜3の範囲で止める。
+ */
+export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel = 1, levelOffset = 0) {
+  const floor = depth + 1;
+  const targetLevel = Math.max(1, Math.min(3, (sourceLevel || 1) + levelOffset));
+  const eligible = MONS.filter(m => {
+    if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
+    const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
+    if (df === null) return false;
+    const minF = df?.min !== undefined ? df.min : m.minFloor;
+    const maxF = df?.max !== undefined ? df.max : m.maxFloor;
+    if (minF <= floor && floor <= maxF) return true;
+    return m.levels?.some(lv => {
+      const lvDf = dungeonType ? lv.dungeonFloors?.[dungeonType] : undefined;
+      if (lvDf === null) return false;
+      const lvMin = lvDf?.min ?? lv.minFloor;
+      const lvMax = lvDf?.max ?? lv.maxFloor;
+      return lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax);
+    }) ?? false;
+  });
+  const compatible = eligible.filter(m => targetLevel === 1 || m.levels?.[targetLevel - 2]);
+  const base = pick(compatible.length > 0 ? compatible : eligible.length > 0 ? eligible : MONS);
+  const availableLevel = Math.min(targetLevel, (base.levels?.length || 0) + 1);
+  return buildMonStats(base, availableLevel);
+}
+
 /** depth/spawnLevel からモンスターのステータスオブジェクトを作る */
 function buildMonStats(base, spawnLevel) {
   const { levels: _lvls, ...mt } = base;
@@ -2325,6 +2353,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
 
 registerMonsterRuntime({
   getMonsterCatalog: () => MONS,
+  pickTransformMonsterDef,
   spawnMonsters,
   monLevelUp,
   monLevelDown,

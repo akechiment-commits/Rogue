@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
-import { MONS, monLevelUp, monLevelDown, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
+import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName,
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
@@ -696,7 +696,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "transform": {
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の杖が効かなかった！`); break; }
-        const nt = pick(MONS);
+        const levelOffset = blMult > 1 ? -1 : blMult < 1 ? 1 : 0;
+        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, levelOffset);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id:target.id, x:ox, y:oy, maxHp:nt.hp,
