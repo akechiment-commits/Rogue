@@ -717,7 +717,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "item") {
         if (target.type === "goal") { ml.push(`${_dname_item(target)}は変化しなかった！`); break; }
         const _chgPool = ITEMS.filter((i) => i.type !== "gold" && i.type !== "goal");
-        const nt = pickLootFromPool(_chgPool, "change") || pick(_chgPool);
+        const _chgContext = blMult > 1 ? "change_blessed" : blMult < 1 ? "change_cursed" : "change";
+        const nt = pickLootFromPool(_chgPool, _chgContext) || pick(_chgPool);
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
