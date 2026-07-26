@@ -369,9 +369,9 @@ export const ITEMS = [
   { name:"強矢",     type:"arrow", atk:8, strong:true,   count:3,   rarity:"C", weight:4,  sellPrice:80,   desc:"攻撃力の高い強力な矢。99本まで束にできる。",                   tile:23 },
 ];
 
-/** 空き瓶で敵を倒した際に出現する、通常の薬を1つ生成する。 */
-export function makeRandomPotion() {
-  const potion = pick(ITEMS.filter((item) => item.type === "potion"));
+/** 空き瓶で敵を倒した際に出現する、レア度重み付きの通常薬を1つ生成する。 */
+export function makeRandomPotion(randomFn = Math.random) {
+  const potion = pickLootFromPool(ITEMS.filter((item) => item.type === "potion"), "drop", randomFn);
   return { ...potion, id: uid() };
 }
 

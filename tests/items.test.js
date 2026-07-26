@@ -194,12 +194,13 @@ describe("水の飛散", () => {
 });
 
 describe("空き瓶の薬ドロップ", () => {
-  it("通常の薬を新しいIDで1つ生成する", () => {
-    const potion = makeRandomPotion();
+  it("通常の薬をレア度重み付きで新しいIDとして生成する", () => {
+    const potion = makeRandomPotion(() => 0.99);
 
     expect(potion.type).toBe("potion");
     expect(potion.effect).not.toBe("water");
     expect(potion.id).toBeTruthy();
+    expect(potion.name).toBe("レベルアップの薬");
   });
 });
 
