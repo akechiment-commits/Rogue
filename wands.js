@@ -708,8 +708,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         const h = rng(-10, 10);
-        p.hp += h;
-        ml.push(h >= 0 ? `体に変化が...HP+${h}` : `体に異変が...HP${h}`);
+        p.maxHp = Math.max(1, p.maxHp + h);
+        p.hp = Math.min(p.hp, p.maxHp);
+        if (h < 0) p.deathCause = "変化の杖で";
+        ml.push(h >= 0 ? `体に変化が...最大HP+${h}` : `体に異変が...最大HP${h}`);
         break;
       }
       if (kind === "item") {

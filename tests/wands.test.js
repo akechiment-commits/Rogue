@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { applyWandEffect, triggerWandBreakEffect, fireWandBolt } from "../wands.js";
 import { applySpellEffect } from "../items.js";
 import { T } from "../utils.js";
@@ -82,6 +82,19 @@ describe("applyWandEffect", () => {
     applySpellEffect("transform_magic", "monster", mon, 1, 0, dg, p, [], noop);
     expect(mon.monLevel).toBe(2);
     expect(["殺人ネズミ", "青バット", "大ムカデ"]).toContain(mon.name);
+  });
+
+  it("自分に跳ね返った変化の杖は最大HPを変化させ、減少時は死因を記録する", () => {
+    const p = makePlayer({ hp: 100, maxHp: 100 });
+    const rngSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      applyWandEffect("transform", "player", p, 0, 0, makeEmptyDg(), p, [], noop);
+      expect(p.maxHp).toBe(90);
+      expect(p.hp).toBe(90);
+      expect(p.deathCause).toBe("変化の杖で");
+    } finally {
+      rngSpy.mockRestore();
+    }
   });
 
   it("石像と場所替えできる（壊れない）", () => {
