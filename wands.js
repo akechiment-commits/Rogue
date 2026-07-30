@@ -17,7 +17,7 @@ import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
-import { statusTurns, isPermanentTurns } from './statusDuration.js';
+import { statusTurns, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
 
 /** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */
 function statueTeleportDest(dg, ox, oy, p) {
@@ -666,10 +666,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed: _sBless, target });
           ml.push(`${target.name}は鈍足になった！`);
           if (_sBless) {
-            /* 祝福：金縛りも追加 */
-            target.paralyzed = true; target._paralyzeHp = target.hp;
-            if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", target }));
-            ml.push(`さらに${target.name}は金縛りになった！`);
+            /* 祝福：金縛りも追加（鈍足杖の祝福なので金縛り自体は通常100T） */
+            applyMonsterParalyze(target, { ml });
           }
           break;
         }
@@ -821,9 +819,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           luFn(p, ml);
         } else if (_swBless) {
           /* 祝福：入れ替わった先で金縛り */
-          target.paralyzed = true; target._paralyzeHp = target.hp;
-          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", target }));
-          ml.push(`${target.name}は金縛りになった！`);
+          applyMonsterParalyze(target, { ml });
         }
         break;
       }
@@ -923,8 +919,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (stairsX >= 0) {
           if (kind === "monster") {
             target.x = stairsX; target.y = stairsY;
-            target.paralyzed = true; target._paralyzeHp = target.hp;
-            if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", target }));
+            applyMonsterParalyze(target, { ml: null });
             ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！`);
           } else if (kind === "player") {
             const _stOccupied = dg.monsters.some(m => m.x === stairsX && m.y === stairsY);
@@ -1035,10 +1030,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "monster") {
         if (isStatusImmune(target, ml, target.name)) break;
-        target.paralyzed = true; target._paralyzeHp = target.hp;
-        if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", blessed: _pzBlessed, target }));
-        if (_pzBlessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
-        else ml.push(`${target.name}は金縛りになった！動けない！`);
+        applyMonsterParalyze(target, { blessed: _pzBlessed, ml });
         break;
       }
       if (kind === "player") {

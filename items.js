@@ -18,7 +18,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { statusTurns, PERMANENT_TURNS, isPermanentTurns } from './statusDuration.js';
+import { statusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -1113,7 +1113,7 @@ export const TRAPS = [
   { name:"落石の罠",       effect:"rockfall",      tile:72,  rarity:"D", weight:8,  desc:"踏むと岩が降ってきて15～25ダメージ。\n対象がいなければ石が落ちる（罠マスには重ならず近くに転がる）。\n踏む以外で壊れると石が数個散らばる。" },
   { name:"吹き飛ばしの罠", effect:"blowback_trap", tile:51,  rarity:"D", weight:8,  desc:"踏むと向いていた方向と逆に最大10マス吹き飛ぶ。\n壁に激突すると10ダメージ。敵に当たると5ダメージ。" },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85,  rarity:"D", weight:8,  desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。" },
-  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, rarity:"D", weight:8,  desc:"踏むと100ターン油まみれになる。\n炎・爆発ダメージが2倍。敵が踏んでも同様（ボス・店主も有効）。" },
+  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, rarity:"D", weight:8,  desc:"踏むと油まみれになる（プレイヤー50ターン／敵100ターン）。\n炎・爆発ダメージが2倍。敵が踏んでも同様（ボス・店主も有効）。" },
   { name:"浮遊の罠",       effect:"float_trap",     tile:122, rarity:"D", weight:8,  desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。\n敵が踏んでも浮遊する（ボス・店主も有効）。" },
   /* C: ややレア */
   { name:"落とし穴",       effect:"pitfall",       tile:27,  rarity:"C", weight:4,  desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
@@ -2802,10 +2802,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       } else {
         if (kind === "monster") {
           if (isStatusImmune(target, ml, target.name)) break;
-          target.paralyzed = true;
-          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", blessed, target }));
-          if (blessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
-          else ml.push(`${target.name}は金縛りになった！`);
+          applyMonsterParalyze(target, { blessed, ml });
         }
         if (kind === "player") {
           if (isStatusImmune(p, ml)) break;
@@ -4887,8 +4884,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     case "paralyze_magic": {
       if (kind === "monster") {
         if (!isStatusImmune(target, ml, target.name)) {
-          target.paralyzed = true;
-          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", target }));
+          applyMonsterParalyze(target, { ml: null });
           ml.push(`金縛りの魔法が${target.name}に命中！金縛りになった！`);
         }
       } break;

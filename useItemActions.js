@@ -22,7 +22,7 @@ import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind } from "./animEvents.js";
-import { statusTurns } from "./statusDuration.js";
+import { statusTurns, applyMonsterParalyze } from "./statusDuration.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限、風穴で曲がる） */
 function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
@@ -1485,8 +1485,7 @@ export function useItemActions({
               }
               if (consumeBarrier(_m, ml)) continue;
               if ((_m.statusImmune || 0) > 0) { ml.push(`${_m.name}には効かなかった！(状態防止中)`); continue; }
-              if (_m.isBoss) { _m.paralyzed = true; _m.paralyzeTurns = statusTurns("paralyze", { kind: "monster", target: _m }); }
-              else _m.paralyzed = true;
+              applyMonsterParalyze(_m, { blessed: !!it.blessed, ml: null });
               ml.push(`${_m.name}が金縛りになった！${it.blessed ? "【祝】" : ""}`);
             }
           }

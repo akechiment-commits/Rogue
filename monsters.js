@@ -2482,16 +2482,21 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (m.sleepTurns <= 0) { ml.push(`${m.name}の睡眠が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
-  /* 金縛り（ダメージを受けたら即解除、ボスのみターン経過でも解除） */
+  /* 金縛り（ダメージで解除。ターン経過でも解除。永続=9999 は時間では解けない） */
   if (m.paralyzed) {
     if (m._paralyzeHp != null && m.hp < m._paralyzeHp) {
-      m.paralyzed = false; m._paralyzeHp = null;
+      m.paralyzed = false; m._paralyzeHp = null; m.paralyzeTurns = 0;
       ml.push(`${m.name}はダメージで金縛りが解けた！`);
       m.turnAccum = 0; m._movedThisTurn = true; return;
     }
-    if (m.isBoss && (m.paralyzeTurns || 0) > 0 && !_attackOnly) {
-      m.paralyzeTurns = Math.max(0, m.paralyzeTurns - 2);
-      if (m.paralyzeTurns <= 0) { m.paralyzed = false; m._paralyzeHp = null; ml.push(`${m.name}の金縛りが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
+    const _pzPerm = (m.paralyzeTurns || 0) >= 9999;
+    if (!_pzPerm && (m.paralyzeTurns || 0) > 0 && !_attackOnly) {
+      m.paralyzeTurns = Math.max(0, m.paralyzeTurns - (m.isBoss ? 2 : 1));
+      if (m.paralyzeTurns <= 0) {
+        m.paralyzed = false; m._paralyzeHp = null;
+        ml.push(`${m.name}の金縛りが解けた！`);
+        m.turnAccum = 0; m._movedThisTurn = true; return;
+      }
     }
     if (m.paralyzed) return;
   }

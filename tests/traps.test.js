@@ -262,7 +262,7 @@ describe("new weird traps", () => {
     const trap = { effect: "oil_trap", name: "油まみれの罠", x: 5, y: 5, id: "o1" };
     const ml = [];
     fireTrapPlayer(trap, p, dg, ml);
-    expect(p.oilyTurns).toBe(100);
+    expect(p.oilyTurns).toBe(50);
   });
 
   it("未識別の罠は識別済み1つだけ剥がす", () => {
