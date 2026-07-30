@@ -230,6 +230,12 @@ export function isStairsMsg(msg) {
   return /地下\d+階に(降りた|昇った)|地下\d+階に落ちた/.test(msg);
 }
 
+/** 転倒の罠など、転んだログか */
+export function isFallMsg(msg) {
+  if (!msg) return false;
+  return /転倒の罠が発動|転んでしまった！/.test(msg);
+}
+
 /** 店・買い物のログか */
 export function isShopMsg(msg) {
   if (!msg) return false;
@@ -432,6 +438,9 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   if (findMsgInNew(newMsgs, lastMsg, isStairsMsg)) {
     return portraitEvent("reaction_stairs", now, { force: true });
+  }
+  if (findMsgInNew(newMsgs, lastMsg, isFallMsg)) {
+    return portraitEvent("reaction_fall", now, { force: true });
   }
   if (findMsgInNew(newMsgs, lastMsg, isShopMsg)) {
     return portraitEvent("reaction_shop", now, { force: true });

@@ -987,6 +987,7 @@ D[48] = trapTile("#8040e0", "#6030b0"); // Seal
 D[49] = trapTile("#d0d020", "#a0a010"); // Steal
 D[50] = trapTile("#d06000", "#a04800"); // Hunger
 D[51] = trapTile("#20e0c0", "#10b090"); // Blowback
+D[133] = trapTile("#c09050", "#906030"); // Trip / fall
 
 /* ===== SPECIAL ===== */
 

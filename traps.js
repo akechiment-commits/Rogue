@@ -157,6 +157,43 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       }
       break;
     }
+    case "trip_trap": {
+      /* 転倒：小ダメージ + 所持品を数個周囲へ落とす（罠・泉・水に落ち得る） */
+      const _tripDmg = rng(3, 8);
+      p.deathCause = `${trap.name}による転倒により`;
+      p.hp -= _tripDmg;
+      ml.push(`${trap.name}が発動！転んでしまった！${_tripDmg}ダメージ！`);
+      const _tripCand = (p.inventory || []).filter((i) => i && i.type !== "goal");
+      if (_tripCand.length === 0) {
+        ml.push("しかし落とすものはなかった。");
+      } else {
+        const _tripN = Math.min(_tripCand.length, rng(2, 4));
+        /* シャッフルして先頭から落とす */
+        for (let i = _tripCand.length - 1; i > 0; i--) {
+          const j = rng(0, i);
+          const tmp = _tripCand[i];
+          _tripCand[i] = _tripCand[j];
+          _tripCand[j] = tmp;
+        }
+        const _tripDrop = _tripCand.slice(0, _tripN);
+        const _tripFt = new Set([trap.id]);
+        const _droppedNames = [];
+        for (const _it of _tripDrop) {
+          const _idx = p.inventory.indexOf(_it);
+          if (_idx === -1) continue;
+          p.inventory.splice(_idx, 1);
+          if (p.weapon === _it) p.weapon = null;
+          if (p.armor === _it) p.armor = null;
+          if (Array.isArray(p.rings)) p.rings = p.rings.filter((r) => r !== _it);
+          placeItemAt(dg, p.x, p.y, _it, ml, _tripFt, 0, p, p.x, p.y);
+          _droppedNames.push(resolveItemName(_it, nameFn));
+        }
+        if (_droppedNames.length > 0) {
+          ml.push(`${_droppedNames.join("、")}を落とした！`);
+        }
+      }
+      break;
+    }
     case "hunger_trap": {
       const _loss = Math.floor((p.maxHunger || 100) * 0.1);
       p.hunger = Math.max(0, (p.hunger || 0) - _loss);
