@@ -3,28 +3,33 @@
  *
  * ルール:
  * - 同じ状態異常なら、付与原因に関わらず同じ基準ターン（対象種別ごと）
- * - 祝福されたアイテムが原因のときだけ例外: 時間2倍、または永続（9999）
- * - ボスは従来どおり効果時間が半減（主に tick 側で isBoss ? 2 : 1 減算）。
- *   付与時に半分を入れない（二重半減を防ぐ）。
- * - 永続（9999）のボス扱い:
- *     seal / mpCooldown … 有限 BOSS_SEAL_TURNS（20T）に置換
- *     それ以外（暗闇・幻惑・金縛り祝福など）… 付与は永続のまま。
- *     tick 側は 9999 を減らさないためボスでも時間では解けない
- *     （金縛りはダメージ解除が別途有効）
+ * - 祝福されたアイテムが原因のときだけ例外: 時間2倍
+ * - ボスは tick 側で半減（isBoss ? 2 : 1 減算）。付与時に半分は入れない
+ * - 「永続」になるのは通常敵への封印・金縛りなど。ボスに永続は付けず有限化
+ *
+ * 金縛り（敵）の特例:
+ * - 通常敵: 時間制限なし（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
+ * - ボス: 有限 BOSS_PARALYZE_TURNS（50）。祝福時は ×2 の 100T
  */
 
 export const PERMANENT_TURNS = 9999;
 
-/** ボスへの「本来永続」封印系の有限ターン */
+/** ボスへの「本来永続」系の有限ターン（封印など） */
 export const BOSS_SEAL_TURNS = 20;
+
+/** ボス金縛りの有限ターン（通常敵は永続＝被ダメ解除） */
+export const BOSS_PARALYZE_TURNS = 50;
 
 /**
  * 基準ターン（通常・呪い・罠・敵特技・副次効果すべて共通）
  * player / monster で別値を持てる
+ *
+ * 注意: paralyze.monster はボス用の有限ターン参照用。
+ * 通常敵は applyMonsterParalyze で永続扱い（ターン非消費）。
  */
 export const STATUS_BASE = {
   sleep:         { player: 6,   monster: 6 },
-  paralyze:      { player: 10,  monster: 100 },
+  paralyze:      { player: 10,  monster: BOSS_PARALYZE_TURNS },
   slow:          { player: 10,  monster: 10 },
   confuse:       { player: 5,   monster: 20 },
   darkness:      { player: 20,  monster: 50 },
@@ -46,17 +51,14 @@ export const STATUS_BASE = {
   berserker:     { player: 50,  monster: 50 },
 };
 
-/** 祝福時、モンスターに永続になる状態 */
-const BLESS_PERMANENT_ON_MONSTER = new Set(["darkness", "bewitch", "paralyze"]);
-
-/** ボスに付けると有限化する「永続」ステータス */
+/** ベースが永続のとき、ボスへは有限化するステータス */
 const BOSS_FINITE_WHEN_PERMANENT = new Set(["seal", "mpCooldown"]);
 
 /**
  * @param {string} status STATUS_BASE のキー
  * @param {object} [opts]
  * @param {"player"|"monster"} [opts.kind]
- * @param {boolean} [opts.blessed] 祝福アイテム由来なら true
+ * @param {boolean} [opts.blessed] 祝福アイテム由来なら true（×2）
  * @param {{ isBoss?: boolean }|null} [opts.target] ボス判定用
  * @returns {number}
  */
@@ -70,15 +72,12 @@ export function statusTurns(status, opts = {}) {
 
   let turns = kind === "monster" ? def.monster : def.player;
 
-  if (blessed) {
-    if (kind === "monster" && BLESS_PERMANENT_ON_MONSTER.has(status)) {
-      turns = PERMANENT_TURNS;
-    } else if (turns < PERMANENT_TURNS) {
-      turns *= 2;
-    }
+  // 祝福は基本すべて ×2（永続ベースは ×2 しない）
+  if (blessed && turns < PERMANENT_TURNS) {
+    turns *= 2;
   }
 
-  // 封印系の永続だけボスは有限化。他の永続はボスでも 9999 のまま
+  // 永続をボスに付ける場合は有限化（封印系）
   if (
     kind === "monster" &&
     target?.isBoss &&
@@ -96,20 +95,33 @@ export function isPermanentTurns(t) {
 }
 
 /**
- * モンスターに金縛りを付与（通常100T / 祝福は永続 / ボスは tick 半減）。
- * ダメージでも解除される（_paralyzeHp 監視）。
- * @returns {number} 付与ターン
+ * モンスターに金縛りを付与。
+ * - 通常敵: 永続（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
+ * - ボス: 有限 50T（祝福 100T）。tick 半減あり。被ダメでも解除
+ * @returns {number} 付与ターン（通常敵の永続は PERMANENT_TURNS）
  */
 export function applyMonsterParalyze(target, { blessed = false, ml = null, name = null } = {}) {
   if (!target) return 0;
-  const turns = statusTurns("paralyze", { kind: "monster", blessed, target });
+  const nm = name || target.name || "敵";
   target.paralyzed = true;
   target._paralyzeHp = target.hp;
-  target.paralyzeTurns = Math.max(target.paralyzeTurns || 0, turns);
-  if (ml) {
-    const nm = name || target.name || "敵";
-    if (isPermanentTurns(turns)) ml.push(`${nm}は永続の金縛りになった！動けない！${blessed ? "【祝】" : ""}`);
-    else ml.push(`${nm}は金縛りになった！(${turns}ターン)${blessed ? "【祝】" : ""}`);
+
+  if (target.isBoss) {
+    const turns = statusTurns("paralyze", { kind: "monster", blessed, target });
+    target.paralyzeTurns = Math.max(target.paralyzeTurns || 0, turns);
+    target.paralyzeHits = 0;
+    if (ml) ml.push(`${nm}は金縛りになった！(${turns}ターン)${blessed ? "【祝】" : ""}`);
+    return turns;
   }
-  return turns;
+
+  // 通常敵: 時間制限なし
+  target.paralyzeTurns = 0;
+  if (blessed) {
+    target.paralyzeHits = 2;
+    if (ml) ml.push(`${nm}は強い金縛りになった！2回ダメージを受けないと解けない！【祝】`);
+  } else {
+    target.paralyzeHits = 0;
+    if (ml) ml.push(`${nm}は金縛りになった！動けない！`);
+  }
+  return PERMANENT_TURNS;
 }
