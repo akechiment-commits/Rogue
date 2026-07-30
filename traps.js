@@ -163,7 +163,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       p.deathCause = `${trap.name}による転倒により`;
       p.hp -= _tripDmg;
       ml.push(`${trap.name}が発動！転んでしまった！${_tripDmg}ダメージ！`);
-      const _tripCand = (p.inventory || []).filter((i) => i && i.type !== "goal");
+      /* 装備中の武器・防具・指輪は落とさない（インベントリ内の未装備のみ） */
+      const _eq = new Set([p.weapon, p.armor, ...(p.rings || [])].filter(Boolean));
+      const _tripCand = (p.inventory || []).filter((i) => i && i.type !== "goal" && !_eq.has(i));
       if (_tripCand.length === 0) {
         ml.push("しかし落とすものはなかった。");
       } else {
@@ -182,9 +184,6 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
           const _idx = p.inventory.indexOf(_it);
           if (_idx === -1) continue;
           p.inventory.splice(_idx, 1);
-          if (p.weapon === _it) p.weapon = null;
-          if (p.armor === _it) p.armor = null;
-          if (Array.isArray(p.rings)) p.rings = p.rings.filter((r) => r !== _it);
           placeItemAt(dg, p.x, p.y, _it, ml, _tripFt, 0, p, p.x, p.y);
           _droppedNames.push(resolveItemName(_it, nameFn));
         }

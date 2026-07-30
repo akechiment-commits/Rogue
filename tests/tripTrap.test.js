@@ -45,10 +45,36 @@ describe("転倒の罠 trip_trap", () => {
     expect(p.hp).toBeGreaterThanOrEqual(50 - 8);
     expect(ml.some((m) => m.includes("転んでしまった"))).toBe(true);
     expect(trap.revealed).toBe(true);
-    /* 何かがインベントリから減っている */
+    /* 装備中の剣は残る */
+    expect(p.weapon).toBe(sword);
+    expect(p.inventory).toContain(sword);
+    /* 未装備は減っている */
     expect(p.inventory.length).toBeLessThan(3);
-    /* 落ちた分は床・水・罠処理のいずれかで消費されている想定（消えた表示もあり得る） */
     expect(ml.some((m) => m.includes("を落とした") || m.includes("水") || m.includes("沈") || m.includes("消えて"))).toBe(true);
+  });
+
+  it("装備中の防具・指輪は落とさない", () => {
+    const armor = { name: "鉄の鎧", type: "armor", id: "a1" };
+    const ring = { name: "力の指輪", type: "ring", id: "r1" };
+    const food = { name: "パン", type: "food", id: "f9" };
+    const food2 = { name: "肉", type: "food", id: "f10" };
+    const p = makePlayer({
+      hp: 40,
+      maxHp: 40,
+      x: 5,
+      y: 5,
+      armor,
+      rings: [ring],
+      inventory: [armor, ring, food, food2],
+    });
+    const trap = { effect: "trip_trap", name: "転倒の罠", x: 5, y: 5, id: "tripEq" };
+    const dg = makeEmptyDg({ traps: [trap], items: [], rooms: [{ x: 1, y: 1, w: 10, h: 10 }] });
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.armor).toBe(armor);
+    expect(p.rings).toContain(ring);
+    expect(p.inventory).toContain(armor);
+    expect(p.inventory).toContain(ring);
   });
 
   it("キーアイテムは落とさない", () => {

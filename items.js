@@ -1113,7 +1113,7 @@ export const TRAPS = [
   { name:"未識別の罠",     effect:"unident_trap",   tile:124, rarity:"B", weight:2,  desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n武器・防具・食料は祝呪がわからなくなる。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, rarity:"B", weight:2,  desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
   { name:"水鉄砲の罠",     effect:"watergun_trap",  tile:132, rarity:"C", weight:4,  desc:"踏むと水鉄砲を浴びる。ずぶ濡れになり、所持品に水の影響が出る。\n巻物・魔法書は白紙化、食料はサイズ1段階縮小、ペンはインク-1。\nアーマーガッパ（耐水）で防げる。" },
-  { name:"転倒の罠",       effect:"trip_trap",      tile:133, rarity:"D", weight:8,  desc:"踏むと転んで小ダメージを受け、所持品が数個ランダムに周囲へ落ちる。\n落ちた先の罠・泉・水にも作用する。キーアイテムは落ちない。" },
+  { name:"転倒の罠",       effect:"trip_trap",      tile:133, rarity:"D", weight:8,  desc:"踏むと転んで小ダメージを受け、所持品が数個ランダムに周囲へ落ちる。\n装備中の武器・防具・指輪とキーアイテムは落ちない。\n落ちた先の罠・泉・水にも作用する。" },
 ];
 
 /**
@@ -2181,7 +2181,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         p.deathCause = `${trap.name}による転倒により`;
         p.hp -= _td;
         ml.push(`転んでしまった！${_td}ダメージ！`);
-        const _cand = (p.inventory || []).filter((i) => i && i.type !== "goal");
+        const _eq = new Set([p.weapon, p.armor, ...(p.rings || [])].filter(Boolean));
+        const _cand = (p.inventory || []).filter((i) => i && i.type !== "goal" && !_eq.has(i));
         if (_cand.length > 0) {
           const _n = Math.min(_cand.length, rng(2, 4));
           for (let i = _cand.length - 1; i > 0; i--) {
@@ -2196,9 +2197,6 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
             const _idx = p.inventory.indexOf(_it);
             if (_idx === -1) continue;
             p.inventory.splice(_idx, 1);
-            if (p.weapon === _it) p.weapon = null;
-            if (p.armor === _it) p.armor = null;
-            if (Array.isArray(p.rings)) p.rings = p.rings.filter((r) => r !== _it);
             placeItemAt(dg, p.x, p.y, _it, ml, _ft, 0, p, p.x, p.y);
             _names.push(resolveItemName(_it, nameFn));
           }
