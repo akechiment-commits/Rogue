@@ -59,6 +59,16 @@ describe("pickLootFromPool", () => {
     expect(t.name).toBe("c-item");
   });
 
+  it("変化の祝福・呪いはアイテム変化の運枠だけを増減する", () => {
+    const makeRng = () => {
+      let n = 0;
+      return () => (++n === 1 ? 0.2 : 0.0001);
+    };
+    expect(pickLootFromPool(pool, "change", makeRng()).name).toBe("e-item");
+    expect(pickLootFromPool(pool, "change_blessed", makeRng()).name).toBe("c-item");
+    expect(pickLootFromPool(pool, "change_cursed", makeRng()).name).toBe("e-item");
+  });
+
   it("空プールは null", () => {
     expect(pickLootFromPool([], "floor")).toBeNull();
   });

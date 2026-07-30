@@ -1,10 +1,10 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll } from "./dungeon.js";
 import {
-  EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap,
+  EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap, makeRandomPotion,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
@@ -2594,7 +2594,7 @@ export function useItemActions({
             } else {
               const _msSureHit = (p.sureHitTurns || 0) > 0;
               const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
-              const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (!_msSureHit && !(_msDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _msMiss = _msDodgePcMode === "dodge" || (_forceMiss || (!_msSureHit && !isEvasionDisabledByStatus(_msTarget) && !(_msDodgePcMode === "sure") && Math.random() >= 0.90));
               const _msDmg = _msMiss ? 0 : calcProjectileDmg(p, _arItem.atk || 5, _msTarget.def);
               if (_msMiss) {
                 if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
@@ -2678,7 +2678,7 @@ export function useItemActions({
               ml.push(`${_stName}が${_stM.name}に飲み込まれた！（攻撃力×${_stM._gelBoost.toFixed(2)}→${_stM.atk}）`);
               } else {
               const _stDodgePcMode = getDodgePentacleMode(dg, _stM.x, _stM.y);
-              const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (!_stSureHit && !(_stDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _stMiss = _stDodgePcMode === "dodge" || (_forceMiss || (!_stSureHit && !isEvasionDisabledByStatus(_stM) && !(_stDodgePcMode === "sure") && Math.random() >= 0.90));
               if (_stMiss) {
                 if (_stDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
@@ -2830,7 +2830,7 @@ export function useItemActions({
             /* 命中率: dodge魔方陣・必中状態を考慮 */
             const _arSureHit = (p.sureHitTurns || 0) > 0;
             const _arDodgePcMode = getDodgePentacleMode(dg, mon.x, mon.y);
-            const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (!_arSureHit && !(_arDodgePcMode === "sure") && Math.random() >= 0.90));
+            const _arMiss = _arDodgePcMode === "dodge" || (_forceMiss || (!_arSureHit && !isEvasionDisabledByStatus(mon) && !(_arDodgePcMode === "sure") && Math.random() >= 0.90));
             if (_arMiss) {
               if (_arDodgePcMode === "dodge") mlx.push(`みかわしの魔方陣の加護で${mon.name}に矢が当たらなかった！`);
               if (_arIsPierce) {
@@ -2877,7 +2877,7 @@ export function useItemActions({
         }
         const _shColor = it.poison ? "#60d060" : it.pierce ? "#ff8844" : "#d0a050";
         const _shOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor, true);
-        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt);
+        shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt, { forceMiss: _forceMiss });
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
         /* 床から射った矢/石は残量を床に戻す */
         if (floorArrowRef?.current) {
@@ -3135,7 +3135,7 @@ export function useItemActions({
               reflectMagicStoneToPlayer(p, _msTarget2, _invStName, _invStAtk, ml);
             } else {
               const _msDodgePcMode2 = getDodgePentacleMode(dg, _msTarget2.x, _msTarget2.y);
-              const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));
+              const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !isEvasionDisabledByStatus(_msTarget2) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));
               if (_msMiss2) {
                 if (_msDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
@@ -3173,7 +3173,7 @@ export function useItemActions({
               });
             } else if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
-              const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
+              const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !isEvasionDisabledByStatus(_stM2) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
               if (_stMiss2) {
                 if (_stDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
@@ -3302,7 +3302,7 @@ export function useItemActions({
                 /* ミラーゴーレム：薬をプレイヤーに向かって跳ね返す */
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
                 pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
-                if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml);
+                if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
                 else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else {
@@ -3319,7 +3319,7 @@ export function useItemActions({
           }
           if (_hitSelf) {
             ml.push(`風に煽られた${dnameRef(it)}が自分に当たった！`);
-            if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml);
+            if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           } else if (_fdBurned) {
             /* 火ダルマに燃やされた：何もしない */
@@ -3334,14 +3334,14 @@ export function useItemActions({
             ml.push(`${dnameRef(it)}は消滅した。`);
           } else if (_isCursedFc) {
             /* 呪い遠投：1マスで落ちてsplash */
-            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
+            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           } else if (sprHit?.kind) {
             bigboxAddItem(sprHit, it, dg, ml);
           } else if (sprHit && !sprHit.kind) {
             soakItemIntoSpring(sprHit, it, ml, dg, dnameRef);
           } else if (!sprHit) {
-            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml);
+            if (it.effect === "water") applyWaterSplash(dg, lx, ly, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, lx, ly, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
           }
         } else if (it.type === "pot") {
@@ -3370,7 +3370,7 @@ export function useItemActions({
             if (m) {
               const _potSureHit = (p.sureHitTurns || 0) > 0;
               const _potDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
-              const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_potSureHit && !(_potDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_potSureHit && !isEvasionDisabledByStatus(m) && !(_potDodgePcMode === "sure") && Math.random() >= 0.90));
               if (!_isFarcast && m.baseKind === "firedemon") {
                 /* 火ダルマ：非遠投の壺を燃やして消滅 */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！（中身も消えた）`);
@@ -3485,6 +3485,7 @@ export function useItemActions({
           };
           let lx = p.x, ly = p.y, hit = false, sprHit = null, _genHitSelf = false;
           let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
+          let _wandPlacedOnMiss = false; /* ミス時の杖を既に着地させたか */
           let _gFdx = dx, _gFdy = dy, _gCx = p.x, _gCy = p.y, _gWind = false;
 
           for (let d = 1; d <= _maxRange; d++) {
@@ -3542,7 +3543,7 @@ export function useItemActions({
             if (m) {
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
-              const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));
+              const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !isEvasionDisabledByStatus(m) && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));
               const lb = _mkThrowLb();
               if (!_isFarcast && m.baseKind === "firedemon") {
                 /* 火ダルマ：非遠投のアイテムを燃やして消滅（矢も含む） */
@@ -3640,9 +3641,14 @@ export function useItemActions({
                   lx = tx; ly = ty; hit = true; break;
                 }
                 lx = tx; ly = ty; hit = true;
+                if (it.type === "bottle") {
+                  ml.push(`${lb}は${m.name}に外れ、足元で割れた！`);
+                  break;
+                }
                 ml.push(`${lb}は${m.name}に外れ、足元に落ちた！`);
                 const _fm_ft = new Set();
                 withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, _fm_ft));
+                if (it.type === "wand") _wandPlacedOnMiss = true;
                 const _thTrap = dg.traps.find(t => t.x === tx && t.y === ty);
                 if (_thTrap) fireTrapItem(_thTrap, it, dg, tx, ty, ml, new Set(), p, dnameRef, lu);
                 break;
@@ -3691,7 +3697,16 @@ export function useItemActions({
                     m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
                     ml.push(`${it.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
                   }
-                  if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+                  if (m.hp <= 0) {
+                    trackMonster(m);
+                    killMonster(m, dg, p, ml, lu);
+                    if (it.type === "bottle") {
+                      const _bottleDrop = makeRandomPotion();
+                      const _bottleFt = new Set();
+                      withPitfallBag(() => placeItemAt(dg, tx, ty, _bottleDrop, ml, _bottleFt, 0, p));
+                      ml.push(`空き瓶が割れ、${_bottleDrop.name}が${m.name}の足元に残った！`);
+                    }
+                  }
                 }
               }
               if (!_isFarcast) { lx = tx; ly = ty; hit = true; break; }
@@ -3742,7 +3757,7 @@ export function useItemActions({
               _wandFiredEffect = true;
             }
             ml.push(`${lb}を投げた。${lb}は消滅した。`);
-          } else if (hit && it.type === "wand" && !_wandFiredEffect) {
+          } else if (hit && it.type === "wand" && !_wandFiredEffect && !_wandPlacedOnMiss) {
             /* 外れた杖は足元に落ちる */
             const ft = new Set();
             withPitfallBag(() => placeItemAt(dg, lx, ly, it, ml, ft));

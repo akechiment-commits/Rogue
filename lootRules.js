@@ -42,6 +42,8 @@ export const LOOT_LUCK = {
   floor: { chance: 0, rarities: null },
   shop: { chance: 0.18, rarities: rarityAtLeast("C") },
   change: { chance: 0.18, rarities: rarityAtLeast("C") },
+  change_blessed: { chance: 0.36, rarities: rarityAtLeast("C") },
+  change_cursed: { chance: 0.09, rarities: rarityAtLeast("C") },
   drop: { chance: 0.10, rarities: rarityAtLeast("D") },
 };
 

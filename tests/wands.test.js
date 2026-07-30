@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { applyWandEffect, triggerWandBreakEffect, fireWandBolt } from "../wands.js";
+import { applySpellEffect } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { makeStatue } from "../fixtures.js";
@@ -59,6 +60,41 @@ describe("applyWandEffect", () => {
     applyWandEffect("sleep", "monster", mon, 1, 0, dg, p, ml, noop);
     expect(mon.sleepTurns).toBeUndefined();
     expect(ml.some(m => m.includes("効かない"))).toBe(true);
+  });
+
+  it("変化の杖は現フロアの敵へ変え、祝福・呪いでLvを補正する", () => {
+    const floorOneNames = ["ネズミ", "バット", "ムカデ"];
+    const p = makePlayer({ depth: 0 });
+    for (const [sourceLevel, blMult, expectedLevel] of [[2, 1, 2], [1, 2, 1], [3, 0.5, 3]]) {
+      const dg = makeEmptyDg();
+      const mon = { name: "対象", hp: 20, maxHp: 20, x: 6, y: 5, monLevel: sourceLevel };
+      applyWandEffect("transform", "monster", mon, 1, 0, dg, p, [], noop, null, blMult);
+      expect(mon.monLevel).toBe(expectedLevel);
+      const namesByLevel = [floorOneNames, ["殺人ネズミ", "青バット", "大ムカデ"], ["ものすごいネズミ", "ゴルァバット", "覇ムカデ"]];
+      expect(namesByLevel[expectedLevel - 1]).toContain(mon.name);
+    }
+  });
+
+  it("変化の魔法は現フロアの敵へ同Lvで変化する", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ depth: 0 });
+    const mon = { name: "対象", hp: 20, maxHp: 20, x: 6, y: 5, monLevel: 2 };
+    applySpellEffect("transform_magic", "monster", mon, 1, 0, dg, p, [], noop);
+    expect(mon.monLevel).toBe(2);
+    expect(["殺人ネズミ", "青バット", "大ムカデ"]).toContain(mon.name);
+  });
+
+  it("自分に跳ね返った変化の杖は最大HPを変化させ、減少時は死因を記録する", () => {
+    const p = makePlayer({ hp: 100, maxHp: 100 });
+    const rngSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      applyWandEffect("transform", "player", p, 0, 0, makeEmptyDg(), p, [], noop);
+      expect(p.maxHp).toBe(90);
+      expect(p.hp).toBe(90);
+      expect(p.deathCause).toBe("変化の杖で");
+    } finally {
+      rngSpy.mockRestore();
+    }
   });
 
   it("石像と場所替えできる（壊れない）", () => {

@@ -20,6 +20,10 @@ export function getMonsterCatalog() {
   return requireRuntime("getMonsterCatalog")();
 }
 
+export function pickTransformMonsterDef(...args) {
+  return requireRuntime("pickTransformMonsterDef")(...args);
+}
+
 export function spawnMonsters(...args) {
   return requireRuntime("spawnMonsters")(...args);
 }

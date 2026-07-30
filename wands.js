@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
-import { MONS, monLevelUp, monLevelDown, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
+import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName,
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
@@ -696,7 +696,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "transform": {
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の杖が効かなかった！`); break; }
-        const nt = pick(MONS);
+        const levelOffset = blMult > 1 ? -1 : blMult < 1 ? 1 : 0;
+        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, levelOffset);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id:target.id, x:ox, y:oy, maxHp:nt.hp,
@@ -707,14 +708,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         const h = rng(-10, 10);
-        p.hp += h;
-        ml.push(h >= 0 ? `体に変化が...HP+${h}` : `体に異変が...HP${h}`);
+        p.maxHp = Math.max(1, p.maxHp + h);
+        p.hp = Math.min(p.hp, p.maxHp);
+        if (h < 0) p.deathCause = "変化の杖で";
+        ml.push(h >= 0 ? `体に変化が...最大HP+${h}` : `体に異変が...最大HP${h}`);
         break;
       }
       if (kind === "item") {
         if (target.type === "goal") { ml.push(`${_dname_item(target)}は変化しなかった！`); break; }
         const _chgPool = ITEMS.filter((i) => i.type !== "gold" && i.type !== "goal");
-        const nt = pickLootFromPool(_chgPool, "change") || pick(_chgPool);
+        const _chgContext = blMult > 1 ? "change_blessed" : blMult < 1 ? "change_cursed" : "change";
+        const nt = pickLootFromPool(_chgPool, _chgContext) || pick(_chgPool);
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
@@ -724,7 +728,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
-        const nt = pickTrap();
+        const nt = blMult > 1
+          ? pickTrap(TRAPS, Math.random, 0.36, (trap) => trap.rarity === "D" || trap.rarity === "E")
+          : pickTrap(TRAPS, Math.random, blMult < 1 ? 0.36 : 0);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         Object.assign(target, { ...nt, id:target.id, x:target.x, y:target.y, revealed:true });
         break;

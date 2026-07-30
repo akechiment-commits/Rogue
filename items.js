@@ -4,7 +4,7 @@ import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox } from './DiscoveryTracker.js';
 import {
   findMonsterRoom as findRoom,
-  getMonsterCatalog,
+  pickTransformMonsterDef,
   monLevelDown,
   monLevelUp,
   monsterFireDamageLabel as monFireDmgLabel,
@@ -369,6 +369,12 @@ export const ITEMS = [
   { name:"強矢",     type:"arrow", atk:8, strong:true,   count:3,   rarity:"C", weight:4,  sellPrice:80,   desc:"攻撃力の高い強力な矢。99本まで束にできる。",                   tile:23 },
 ];
 
+/** 空き瓶で敵を倒した際に出現する、レア度重み付きの通常薬を1つ生成する。 */
+export function makeRandomPotion(randomFn = Math.random) {
+  const potion = pickLootFromPool(ITEMS.filter((item) => item.type === "potion"), "drop", randomFn);
+  return { ...potion, id: uid() };
+}
+
 export function getBlessMultiplier(it) {
   if (!it) return 1;
   if (it.blessed) return 1.5;
@@ -404,8 +410,8 @@ export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
-export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"空の瓶。今のところ使い道はない。",         tile:16 };
-export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと満腹度+3。投げると着弾点のアイテムに祝福(祝)/呪い(呪)を付与。壺に当たると容量変化。", tile:16 };
+export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵を倒すと薬を落とす。", tile:16 };
+export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。投げると周囲の腐敗・焦げた食料を元に戻す。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"C", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
 export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"B", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
 
@@ -518,7 +524,7 @@ export const WANDS = [
   { name:"ふきとばしの杖", type:"wand", effect:"knockback", charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を吹き飛ばす。壊すと周囲全てを吹き飛ばす。",                           tile:24 },
   { name:"雷の杖",         type:"wand", effect:"lightning", charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
   { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:6, rarity:"C", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },
-  { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を別の何かに変える。壊すと周囲全てを変化。",                           tile:24 },
+  { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"対象を同じ階層の敵に変える。壊すと周囲全てを変化。",                           tile:24 },
   { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:5, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
   { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"C", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。\n壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
   { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"D", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。壊しても何も起こらない。",                     tile:24 },
@@ -1113,10 +1119,16 @@ export const TRAPS = [
  * 罠テンプレの weight 抽選（rarity 未設定時は weight 1）。
  * @param {object[]} [pool=TRAPS]
  * @param {() => number} [rngFn]
+ * @param {number} [biasChance=0] 条件付き抽選を行う運枠の確率
+ * @param {(trap: object) => boolean} [biasFilter] 運枠の候補を絞る条件（既定はC以上）
  */
-export function pickTrap(pool = TRAPS, rngFn = Math.random) {
+export function pickTrap(pool = TRAPS, rngFn = Math.random, biasChance = 0, biasFilter = null) {
   if (!pool || pool.length === 0) return null;
   if (pool.length === 1) return pool[0];
+  if (biasChance > 0 && rngFn() < biasChance) {
+    const biased = pool.filter(biasFilter || ((trap) => isRarityAtLeast(trap, "C")));
+    if (biased.length > 0) return pickWeighted(biased, rngFn);
+  }
   return pickWeighted(pool, rngFn);
 }
 
@@ -2923,6 +2935,10 @@ export function burnFoodItem(item, ml) {
 
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
   const _dn = dnFn ? dnFn(item) : item.name;
+  if (eff === "water" && item.type === "food") {
+    restoreFoodWithWater(item, ml);
+    return;
+  }
   /* 火薬壺は炎で誘爆 */
   if (item.type === "pot" && item.potEffect === "gunpowder" && eff === "fire") return "gunpowder_explode";
   if (item.type === "spellbook") {
@@ -3038,10 +3054,15 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   }
 }
 
-/* 祝福・呪いの水を投擲：着弾点のアイテム1つのみに祝呪効果（周囲8マス無効） */
-export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml) {
+/* 通常の水は薬と同じ3×3の共通飛散処理を行い、食料を元に戻す。
+   祝福・呪いの水だけは着弾点のアイテム1つのみに祝呪効果（周囲8マス無効）。 */
+export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn = null, dnFn = null) {
+  if (!blessed && !cursed) {
+    splashPotion(dg, cx, cy, "water", WATER_BOTTLE.value, p, ml, luFn, false, false, dnFn);
+    return;
+  }
   ml.push("瓶が割れた！");
-  pushSplashAnim(cx, cy, blessed ? "#aaddff" : cursed ? "#aa88ff" : "#88ccff");
+  pushSplashAnim(cx, cy, blessed ? "#aaddff" : "#aa88ff");
   const it = itemAt(dg, cx, cy);
   if (!it) { if (blessed || cursed) ml.push("着弾点にアイテムがなかった…"); return; }
   if (it.type === "pot") {
@@ -4003,7 +4024,7 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
   return dmg;
 }
 
-export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null) {
+export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, outgoingBolt = null, { forceMiss = false } = {}) {
   const st = p.inventory[idx];
   if (!st || st.type !== "arrow") return;
   st.count--;
@@ -4047,6 +4068,15 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     const m = monsterAt(dg, tx, ty);
     if (m) {
+      /* 下手投げなどの絶対ミスは、反射・障壁より先に処理する。 */
+      if (forceMiss) {
+        if (_pierceMode) continue;
+        ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
+        const _missFt = new Set();
+        placeItemAt(dg, tx, ty, _dropItem(), ml, _missFt);
+        hit = true;
+        break;
+      }
       /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す ── */
       if (!_pierceMode && m.subtype === "reflector") {
         ml.push(`${_arName}が${m.name}に弾き返された！`);
@@ -4168,7 +4198,7 @@ export const SPELLS=[
   {id:"drain_hp",       name:"HP吸収の魔法",      mpCost:12, effect:"drain_hp",        range:10,  needsDir:true,  desc:"方向を選び敵のHPを吸い取って自分が回復する。MP:12"},
   {id:"paralyze_magic", name:"金縛りの魔法",      mpCost:10, effect:"paralyze_magic",  range:10,  needsDir:true,  desc:"方向を選び敵を金縛りにする。MP:10"},
   {id:"food_create",    name:"食料生成の魔法",    mpCost:8,  effect:"food_create",                needsDir:false, desc:"ランダムな食料をひとつ生成する。MP:8"},
-  {id:"transform_magic",name:"変化の魔法",        mpCost:10, effect:"transform_magic", range:10,  needsDir:true,  desc:"対象を変化させる。MP:10"},
+  {id:"transform_magic",name:"変化の魔法",        mpCost:10, effect:"transform_magic", range:10,  needsDir:true,  desc:"対象を同じ階層の敵に変える。MP:10"},
   {id:"identify_magic", name:"識別の魔法",        mpCost:5,  effect:"identify_magic",             needsDir:false, desc:"持ち物から1つ選んで識別する。MP:5"},
   {id:"bless_magic",    name:"祝福の魔法",        mpCost:18, effect:"bless_magic",                needsDir:false, desc:"アイテムを1つ選んで祝福する。MP:18"},
   {id:"curse_magic",    name:"呪いの魔法",        mpCost:5,  effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:5"},
@@ -4632,7 +4662,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     case "transform_magic": {
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
-        const nt = pick(getMonsterCatalog()); const prevName = target.name; const ox = target.x, oy = target.y;
+        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1); const prevName = target.name; const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, wallWalker: nt.wallWalker });
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;
@@ -4937,6 +4967,20 @@ function _foodSizedName(item) {
   const sz = item.sizeLabel;
   if (sz && sz !== "普通の") return sz + base;
   return base;
+}
+
+/** 通常の水で腐敗・焦げ状態を戻す。腐敗で失われた食料効果は戻らない。 */
+function restoreFoodWithWater(item, ml) {
+  if (item?.type !== "food" || (!item.rotten && !item.burnt && !item.yabai)) return false;
+  const before = item.name;
+  if (item.burnt) item.value = Math.max(1, Math.ceil((item.value || 1) / 0.6));
+  item.name = (item.cooked ? "焼いた" : "") + _foodSizedName(item);
+  item.desc = FOOD_DESCS[item.effect] || "食べると満腹度が回復する。";
+  delete item.rotten;
+  delete item.burnt;
+  delete item.yabai;
+  ml.push(`${before}が水で元に戻った！`);
+  return true;
 }
 
 /** 祝福・呪い・壺加工・特殊効果などを除去（腐敗・ヤバイ化時） */
