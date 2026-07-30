@@ -136,7 +136,8 @@ function buildSlot(cat, slot) {
 
   const fileName = document.createElement("div");
   fileName.className = "slot-file";
-  fileName.textContent = `${slot.file}.png`;
+  const groupHint = slot.group ? ` · ${slot.group}` : "";
+  fileName.textContent = `${slot.file}.png${groupHint}`;
 
   const zone = document.createElement("div");
   zone.className = "dropzone";

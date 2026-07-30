@@ -8,17 +8,31 @@
       "group": "damage_trap"
     },
     {
-      "file": "damage_fire_2",
-      "label": "炎 2",
-      "categoryId": "damage",
-      "afterFile": "damage_fire",
-      "group": "damage_fire"
+      "file": "action_use_wand_2",
+      "label": "杖を掲げる",
+      "categoryId": "action",
+      "afterFile": "action_use_wand",
+      "group": "act_wand"
     },
     {
       "file": "battle_melee_2",
-      "label": "近接攻撃 2",
+      "label": "近接（586・正式）",
       "categoryId": "attack",
       "afterFile": "battle_melee",
+      "group": "attack"
+    },
+    {
+      "file": "battle_melee_3",
+      "label": "近接（595・正式）",
+      "categoryId": "attack",
+      "afterFile": "battle_melee_2",
+      "group": "attack"
+    },
+    {
+      "file": "battle_melee_4",
+      "label": "近接（598・正式）",
+      "categoryId": "attack",
+      "afterFile": "battle_melee_3",
       "group": "attack"
     },
     {
@@ -35,27 +49,6 @@
       "afterFile": "gameover_dead"
     },
     {
-      "file": "status_poison_2",
-      "label": "毒 2",
-      "categoryId": "status",
-      "afterFile": "status_poison",
-      "group": "status_poison"
-    },
-    {
-      "file": "action_drink_potion_2",
-      "label": "薬を飲む 2",
-      "categoryId": "action",
-      "afterFile": "action_drink_potion",
-      "group": "act_potion"
-    },
-    {
-      "file": "action_eat_food_2_2",
-      "label": "食べる 2",
-      "categoryId": "action",
-      "afterFile": "action_eat_food_2",
-      "group": "act_food"
-    },
-    {
       "file": "status_bound_2",
       "label": "拘束状態 2",
       "categoryId": "status",
@@ -64,7 +57,7 @@
     },
     {
       "file": "battle_unarmed_2",
-      "label": "素手攻撃 2",
+      "label": "素手（正式・566）",
       "categoryId": "attack",
       "afterFile": "battle_unarmed",
       "group": "attack_unarmed"
@@ -78,23 +71,9 @@
     },
     {
       "file": "damage_gun_2",
-      "label": "銃撃（胸・左向き）",
+      "label": "銃撃（脇・正式）",
       "categoryId": "damage",
       "afterFile": "damage_gun",
-      "group": "damage_gun"
-    },
-    {
-      "file": "damage_gun_3",
-      "label": "銃撃（脇・左向き）",
-      "categoryId": "damage",
-      "afterFile": "damage_gun_2",
-      "group": "damage_gun"
-    },
-    {
-      "file": "damage_gun_4",
-      "label": "銃撃（太もも・左向き）",
-      "categoryId": "damage",
-      "afterFile": "damage_gun_3",
       "group": "damage_gun"
     },
     {
@@ -222,6 +201,20 @@
       "categoryId": "reaction",
       "afterFile": "reaction_shop_bargain",
       "group": "reaction_shop"
+    },
+    {
+      "file": "battle_dash_2",
+      "label": "ダッシュ 2",
+      "categoryId": "stand",
+      "afterFile": "battle_dash",
+      "group": "dash"
+    },
+    {
+      "file": "damage_rock_2",
+      "label": "石・岩 2",
+      "categoryId": "damage",
+      "afterFile": "damage_rock",
+      "group": "damage_rock"
     }
   ]
 }
