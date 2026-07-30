@@ -84,6 +84,28 @@ describe("GameSave", () => {
     expect(loaded.potionSpriteMap).toEqual({});
   });
 
+  it("内部用の重力の力を途中セーブから除去する", () => {
+    const session = makeSession();
+    const gravityTrigger = { name: "重力の力", type: "misc" };
+    const ring = { id: "r1", name: "力の指輪", type: "ring" };
+    session.player.inventory = [gravityTrigger, ...session.player.inventory, ring];
+    session.player.weapon = session.player.inventory[1];
+    session.player.armor = session.player.inventory[2];
+    session.player.rings = [ring];
+    session.dungeon.items = [{ ...gravityTrigger, x: 5, y: 5 }];
+    session.floors[2] = { depth: 2, items: [{ ...gravityTrigger, x: 3, y: 3 }] };
+
+    expect(saveGameState(session, [], null, null)).toBe(true);
+    const loaded = loadGameState();
+
+    expect(loaded.player.inventory.some(item => item.name === "重力の力")).toBe(false);
+    expect(loaded.player.weapon?.name).toBe("短剣");
+    expect(loaded.player.armor?.name).toBe("皮の服");
+    expect(loaded.player.rings).toEqual([loaded.player.inventory[2]]);
+    expect(loaded.dungeon.items).toEqual([]);
+    expect(loaded.floors[2].items).toEqual([]);
+  });
+
   it("未知の版または壊れた途中セーブは読み込まない", () => {
     localStorage.setItem("roguelike_dungeon_save_v1", JSON.stringify({ version: 99 }));
     expect(loadGameState()).toBeNull();

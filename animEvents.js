@@ -12,7 +12,7 @@
  */
 
 import { MW, MH, T, monsterAt, itemAt, stepProjectile, traceProjectilePath } from './utils.js';
-import { statueAt } from './fixtures.js';
+import { statueAt } from './fixtureQueries.js';
 
 const animEvents = [];
 

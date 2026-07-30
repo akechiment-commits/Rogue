@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, getBlessMultiplier, gemSellPrice, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, getBlessMultiplier, gemSellPrice, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow } from "../items.js";
 import { MW, MH, T } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -9,6 +9,43 @@ describe("getIdentKey", () => {
     expect(getIdentKey({ type: "scroll", effect: "blank" })).toBeNull();
     expect(getIdentKey({ type: "wand", effect: "sleep" })).toBe("w:sleep");
     expect(getIdentKey({ type: "gold" })).toBeNull();
+  });
+});
+
+describe("魔法の石の反射", () => {
+  it("投擲反射敵からプレイヤーへ跳ね返ってダメージを与える", () => {
+    const player = { hp: 100, atk: 12, rings: [], sleepTurns: 3, paralyzeTurns: 2 };
+    const reflector = { name: "ほっちもぺ", subtype: "reflector" };
+    const messages = [];
+
+    const damage = reflectMagicStoneToPlayer(player, reflector, "魔法の石", 5, messages);
+
+    expect(damage).toBeGreaterThan(0);
+    expect(player.hp).toBe(100 - damage);
+    expect(player.deathCause).toBe("ほっちもぺに跳ね返された魔法の石で");
+    expect(player.sleepTurns).toBe(0);
+    expect(player.paralyzeTurns).toBe(0);
+    expect(messages.some(message => message.includes("弾き返された"))).toBe(true);
+    expect(messages.some(message => message.includes("プレイヤーにホーミング命中"))).toBe(true);
+  });
+});
+
+describe("下手投げの矢", () => {
+  it("アイテム欄から射っても敵に命中せず、その足元に落ちる", () => {
+    const arrow = { name: "矢", type: "arrow", count: 1, atk: 3 };
+    const target = { name: "的", x: 3, y: 1, hp: 30, maxHp: 30, def: 0 };
+    const player = { x: 1, y: 1, atk: 10, rings: [], inventory: [arrow] };
+    const dungeon = {
+      map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
+      monsters: [target], items: [], traps: [], pentacles: [], rooms: [], hiddenRooms: [],
+    };
+    const messages = [];
+
+    shootArrow(player, dungeon, 0, 1, 0, messages, () => {}, null, null, null, { forceMiss: true });
+
+    expect(target.hp).toBe(30);
+    expect(dungeon.items).toContainEqual(expect.objectContaining({ x: 3, y: 1, type: "arrow" }));
+    expect(messages).toContain("矢は的に外れ、足元に落ちた！");
   });
 });
 
@@ -121,6 +158,49 @@ describe("rotFood", () => {
     expect(food.blessed).toBeUndefined();
     expect(food.effect).toBeUndefined();
     expect(food.value).toBe(80);
+  });
+});
+
+describe("水の飛散", () => {
+  it("通常の水は3×3内の腐敗・焦げた食料を元に戻す", () => {
+    const rotten = { type: "food", name: "腐ったおにぎり", _foodBase: "おにぎり", rotten: true, value: 20, x: 4, y: 4 };
+    const burnt = { type: "food", name: "焦げた焼いたパン", _foodBase: "パン", cooked: true, burnt: true, value: 12, x: 6, y: 6 };
+    const outside = { type: "food", name: "腐った肉", _foodBase: "肉", rotten: true, value: 20, x: 7, y: 7 };
+    const pentacle = { name: "回復の魔方陣", x: 4, y: 5 };
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)), items: [rotten, burnt, outside], monsters: [], traps: [], pentacles: [pentacle], pendingBombs: [] };
+    const ml = [];
+    const p = { x: 0, y: 0, hp: 10, maxHp: 10 };
+
+    applyWaterSplash(dg, 5, 5, false, false, ml, p, () => {});
+
+    expect(rotten).toMatchObject({ name: "おにぎり" });
+    expect(rotten.rotten).toBeUndefined();
+    expect(burnt).toMatchObject({ name: "焼いたパン", value: 20 });
+    expect(burnt.burnt).toBeUndefined();
+    expect(outside.rotten).toBe(true);
+    expect(dg.pentacles).toHaveLength(0);
+  });
+
+  it("祝福・呪いの水は従来どおり着弾マスだけに作用する", () => {
+    const center = { type: "weapon", name: "剣", x: 5, y: 5 };
+    const adjacent = { type: "weapon", name: "槍", x: 6, y: 5 };
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)), items: [center, adjacent] };
+
+    applyWaterSplash(dg, 5, 5, true, false, []);
+
+    expect(center.blessed).toBe(true);
+    expect(adjacent.blessed).toBeUndefined();
+  });
+});
+
+describe("空き瓶の薬ドロップ", () => {
+  it("通常の薬をレア度重み付きで新しいIDとして生成する", () => {
+    const potion = makeRandomPotion(() => 0.99);
+
+    expect(potion.type).toBe("potion");
+    expect(potion.effect).not.toBe("water");
+    expect(potion.id).toBeTruthy();
+    expect(potion.name).toBe("レベルアップの薬");
   });
 });
 

@@ -68,4 +68,31 @@ describe("重力の魔方陣と敵の罠踏み", () => {
       random.mockRestore();
     }
   });
+
+  it("罠を作動させる重力の力は床アイテムにならない", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const map = Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR));
+    const mon = {
+      name: "スライム", hp: 20, maxHp: 20, atk: 3, def: 0, exp: 1,
+      x: 5, y: 5, speed: 1, baseSpeed: 1, turnAccum: 0,
+      aware: false, dormant: false, float: false,
+      dir: { x: 1, y: 0 }, lastPx: 5, lastPy: 5,
+      patrolTarget: { x: 10, y: 5 }, monLevel: 1,
+    };
+    const dg = makeEmptyDg({
+      map,
+      rooms: [{ x: 2, y: 2, w: 11, h: 11 }],
+      monsters: [mon],
+      traps: [{ name: "回転板", effect: "spin", id: "spin", x: 6, y: 5 }],
+      items: [],
+      pentacles: [{ kind: "gravity", name: "重力の魔方陣", x: 4, y: 4 }],
+    });
+
+    try {
+      monsterAI(mon, dg, makePlayer({ x: 20, y: 20 }), [], { luFn: () => {} });
+      expect(dg.items.some((item) => item.name === "重力の力")).toBe(false);
+    } finally {
+      random.mockRestore();
+    }
+  });
 });

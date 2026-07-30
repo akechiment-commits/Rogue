@@ -1,7 +1,11 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, applyWandEffect, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel } from "./items.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
-import { statueAt, hitStatueWithAction } from "./fixtures.js";
+import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
+import { statueAt } from "./fixtureQueries.js";
+import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
+
+export { wakeIfDormant } from "./monsterRuntime.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
 function _fireDemonBurnItems(m, dg, ml) {
@@ -135,6 +139,14 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
       _applyFireToMon(m);
       return;
     }
+    if (statueAt(dg, _fx, _fy)) {
+      ml.push(`${m.name}の炎ブレスが石像に命中！`);
+      hitStatueWithAction(dg, _fx, _fy, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
+      return;
+    }
     if (_fx === pl.x && _fy === pl.y) { _applyFireToPlayer(); return; }
     const _fBlock = dg.monsters.find(o => o !== m && o.x === _fx && o.y === _fy);
     if (_fBlock) { _applyFireToMon(_fBlock); return; }
@@ -195,6 +207,14 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     freezeWaterTile(dg, _ix, _iy, ml);
     if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) return;
     if (_ix === m.x && _iy === m.y) { _hitIceMon(m); return; }
+    if (statueAt(dg, _ix, _iy)) {
+      ml.push(`${m.name}の氷ブレスが石像に命中！`);
+      hitStatueWithAction(dg, _ix, _iy, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
+      return;
+    }
     if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); return; }
     const _iBlock = dg.monsters.find(o => o !== m && o.x === _ix && o.y === _iy);
     if (_iBlock) { _hitIceMon(_iBlock); return; }
@@ -231,6 +251,15 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
       return;
     }
     _lastX = _cx; _lastY = _cy;
+    if (statueAt(dg, _cx, _cy)) {
+      ml.push(`${m.name}の薬瓶が石像に命中！`);
+      hitStatueWithAction(dg, _cx, _cy, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
+      splashPotion(dg, _cx, _cy, _pot.effect, _pot.value, pl, ml, null, false, false, null, m);
+      return;
+    }
     const _spr = dg.springs?.find(s => s.x === _cx && s.y === _cy);
     if (_spr) {
       const _potItem = { name: _pot.name, type: "potion", effect: _pot.effect, value: _pot.value || 0, tile: _pot.tile, id: uid() };
@@ -287,20 +316,21 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
+  const _cannotEvade = isEvasionDisabledByStatus(pl);
   /* dodge: 25% 完全回避 */
-  if (hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
+  if (!_cannotEvade && hasAbility(pl.armor, "dodge") && Math.random() < 0.25) {
     ml.push(`${m.name}の攻撃をひらりとかわした！`);
     onPlayerMiss?.(m);
     return;
   }
   /* オリーブオイル回避: 15% */
-  if ((pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
+  if (!_cannotEvade && (pl.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
     ml.push(`オリーブオイルの力で${m.name}の攻撃をするりとかわした！`);
     onPlayerMiss?.(m);
     return;
   }
   /* 10% ミス */
-  if (Math.random() >= 0.90) {
+  if (!_cannotEvade && Math.random() >= 0.90) {
     ml.push(`${m.name}の攻撃は外れた！`);
     onPlayerMiss?.(m);
     return;
@@ -1083,6 +1113,34 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
   return { base, spawnLevel };
 }
 
+/**
+ * 変化の杖・魔法用。現在のフロアに出現する種族から、指定Lvの定義を返す。
+ * 祝福／呪いのLv補正は元の敵を基準にし、Lv1〜3の範囲で止める。
+ */
+export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel = 1, levelOffset = 0) {
+  const floor = depth + 1;
+  const targetLevel = Math.max(1, Math.min(3, (sourceLevel || 1) + levelOffset));
+  const eligible = MONS.filter(m => {
+    if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
+    const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
+    if (df === null) return false;
+    const minF = df?.min !== undefined ? df.min : m.minFloor;
+    const maxF = df?.max !== undefined ? df.max : m.maxFloor;
+    if (minF <= floor && floor <= maxF) return true;
+    return m.levels?.some(lv => {
+      const lvDf = dungeonType ? lv.dungeonFloors?.[dungeonType] : undefined;
+      if (lvDf === null) return false;
+      const lvMin = lvDf?.min ?? lv.minFloor;
+      const lvMax = lvDf?.max ?? lv.maxFloor;
+      return lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax);
+    }) ?? false;
+  });
+  const compatible = eligible.filter(m => targetLevel === 1 || m.levels?.[targetLevel - 2]);
+  const base = pick(compatible.length > 0 ? compatible : eligible.length > 0 ? eligible : MONS);
+  const availableLevel = Math.min(targetLevel, (base.levels?.length || 0) + 1);
+  return buildMonStats(base, availableLevel);
+}
+
 /** depth/spawnLevel からモンスターのステータスオブジェクトを作る */
 function buildMonStats(base, spawnLevel) {
   const { levels: _lvls, ...mt } = base;
@@ -1140,8 +1198,7 @@ function spawnStatueMonster(statue, dg, p, ml, depth) {
   }
 }
 
-/* items -> monsters -> fixtures の読込順でも使える、循環なしの登録口。 */
-globalThis.__rogueStatueSpawnHandler = spawnStatueMonster;
+setStatueSpawnHandler(spawnStatueMonster);
 
 /** count 体のモンスターを centerX,centerY 周辺 → ランダム部屋にスポーンさせる */
 export function spawnMonsters(dg, count, depth, centerX, centerY, p, { aware = false, immediateAct = false } = {}) {
@@ -1529,14 +1586,14 @@ function monsterThrowStone(m, dg, pl, ml) {
       ml.push(`祝福された聖域の加護が${m.name}の${stoneName}を防いだ！${stoneName}が落ちた。`);
       return;
     }
-    const dodged = _stDodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+    const dodged = _stDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
     if (dodged) {
       ml.push(`${stoneName}をひらりとかわした！${stoneName}が落ちた。`);
       const _sd = safeArrowDrop(pl.x, pl.y, dg);
       _monDropWithSpring(_sd, dropStone(), dg, ml);
       return;
     }
-    const miss = _stDodgePcMode !== "sure" && Math.random() >= hitChance;
+    const miss = _stDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && Math.random() >= hitChance;
     if (miss) {
       ml.push(`${stoneName}は外れた！${stoneName}が足元に落ちた。`);
       const _sd = safeArrowDrop(pl.x, pl.y, dg);
@@ -1605,7 +1662,10 @@ function monsterThrowStone(m, dg, pl, ml) {
     /* 石像 */
     if (statueAt(dg, tx, ty)) {
       ml.push(`${m.name}の${stoneName}が石像に命中！`);
-      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, { breaks: true });
+      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: tx, toY: ty, color, path });
       return;
     }
@@ -1678,7 +1738,16 @@ function monsterShootWaterGun(m, dg, pl, ml) {
     dx = _st.dx; dy = _st.dy;
     const tx = _st.x, ty = _st.y;
     _wgX = tx; _wgY = ty;
-    if (!isWalkable(dg.map, tx, ty, dg)) return;
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH ||
+        dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) return;
+    if (statueAt(dg, tx, ty)) {
+      ml.push(`${m.name}の水鉄砲が石像に命中！`);
+      hitStatueWithAction(dg, tx, ty, pl, ml, null, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
+      return;
+    }
     /* 射線上の魔方陣を消す */
     const _wgPcIdx = dg.pentacles ? dg.pentacles.findIndex(pc => pc.x === tx && pc.y === ty) : -1;
     if (_wgPcIdx >= 0) {
@@ -1704,7 +1773,7 @@ function monsterShootWaterGun(m, dg, pl, ml) {
       return;
     }
     if (tx === pl.x && ty === pl.y) {
-      if (_wDodgePcMode !== "sure" && miss) {
+      if (_wDodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && miss) {
         ml.push(`${m.name}の水鉄砲は外れた！`);
         return;
       }
@@ -1744,21 +1813,6 @@ function monsterShootWaterGun(m, dg, pl, ml) {
   }
 }
 
-/* 仮眠中のモンスターを強制覚醒させる。モンスターへの全アクションから呼ぶ */
-export function wakeIfDormant(m, ml) {
-  if (m.dormantHouse) {
-    m.dormantHouse = false;
-    m.aware = true;
-    ml.push(`${m.name}が目を覚ました！`);
-    return;
-  }
-  if (!m.dormant) return;
-  m.dormant = false;
-  m._dormantTouched = false;
-  delete m._dormantHp;
-  ml.push(`${m.name}が目を覚ました！`);
-}
-
 /* ===== MONSTER AI ===== */
 /* 重力ゾーンで罠を踏む処理 */
 function _checkGravityTrap(m, dg, pl, ml, luFn) {
@@ -1767,7 +1821,18 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   if (!trap) return;
   trap.revealed = true;
   ml.push(`重力の力で${m.name}が${trap.name}を踏んだ！`);
-  fireTrapItem(trap, { name: "重力の力", type: "misc", x: m.x, y: m.y }, dg, m.x, m.y, ml, new Set(), pl, it => it.name, luFn);
+  fireTrapItem(
+    trap,
+    { name: "重力の力", type: "misc", x: m.x, y: m.y, _ephemeralTrapTrigger: true },
+    dg,
+    m.x,
+    m.y,
+    ml,
+    new Set(),
+    pl,
+    it => it.name,
+    luFn,
+  );
   if (trap.effect !== "explode" && !trap.permanent && Math.random() < trapStepBreakChance(trap)) {
     removeTrap(dg, trap, ml, { fromStep: true, message: `${trap.name}は壊れた。`, p: pl });
   }
@@ -1876,7 +1941,10 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     }
     /* 石像：物理弾は破壊 */
     if (statueAt(dg, _tx, _ty)) {
-      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, { breaks: true });
+      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       if (!_passthrough) return;
     }
 
@@ -1905,7 +1973,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onPlHit) onPlHit(ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
-      const _armDodge = _dodgePcMode !== "sure" && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
+      const _armDodge = _dodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hasAbility(pl.armor, "dodge") && Math.random() < 0.25;
       if (_armDodge) {
         ml.push(`${boltName}をひらりとかわした！`);
         if (onMiss) onMiss(_tx, _ty, ml);
@@ -1916,7 +1984,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         if (onMiss) onMiss(_tx, _ty, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
-      if (_dodgePcMode !== "sure" && hitChance < 1.0 && Math.random() >= hitChance) {
+      if (_dodgePcMode !== "sure" && !isEvasionDisabledByStatus(pl) && hitChance < 1.0 && Math.random() >= hitChance) {
         ml.push(`${_shooterPrefix}${boltName}は外れた！`);
         if (onMiss) onMiss(_tx, _ty, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
@@ -2107,7 +2175,10 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     }
     /* 石像：敵の杖弾は有害効果なので破壊 */
     if (statueAt(dg, _tx, _ty)) {
-      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, { breaks: true });
+      hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       _hit = true; break;
     }
     /* プレイヤー命中 */
@@ -2246,8 +2317,16 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     if (moved) {
       _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
     }
+    const movementDisabled =
+      m.paralyzed ||
+      (m.sleepTurns || 0) > 0 ||
+      (m.immobileTurns || 0) > 0;
+    if (movementDisabled) {
+      m._idleStuck = 0;
+      m.posHistory = [];
+    }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!opts.attackOnly && !isStationaryGrabber(m) && m.type !== "shopkeeper" &&
+    if (!movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && m.type !== "shopkeeper" &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&
@@ -2271,6 +2350,18 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
   }
 }
+
+registerMonsterRuntime({
+  getMonsterCatalog: () => MONS,
+  pickTransformMonsterDef,
+  spawnMonsters,
+  monLevelUp,
+  monLevelDown,
+  resolveMonsterBolt: _resolveBolt,
+  findMonsterRoom: findRoom,
+  scaleMonsterFireDamage: scaleMonFireDmg,
+  monsterFireDamageLabel: monFireDmgLabel,
+});
 
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
@@ -2624,6 +2715,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _ktx = m.x + _kidx * _ki2, _kty = m.y + _kidy * _ki2;
         if (_ktx < 0 || _ktx >= MW || _kty < 0 || _kty >= MH) break;
         if (dg.map[_kty]?.[_ktx] === T.WALL || dg.map[_kty]?.[_ktx] === T.BWALL) break;
+        if (statueAt(dg, _ktx, _kty)) {
+          ml.push(`${m.name}の墨が石像に命中！`);
+          hitStatueWithAction(dg, _ktx, _kty, pl, ml, null, pl?.depth, {
+            breaks: true,
+            itemDeps: getFixtureItemDeps(),
+          });
+          break;
+        }
         if (_ktx === pl.x && _kty === pl.y) {
           const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
           pl.hp -= _kiDmg;
@@ -3739,7 +3838,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             killerMon: m,
             bbFn: opts.bbFn,
             nameFn: opts.itemNameFn,
-            applyWandFn: applyWandEffect,
+            applyWandFn: opts.applyWandFn,
             /* 通常アイテム：「弾いて」「当てた」 */
             monHitMsg: (target, dmg) => `${m.name}が${_ibN}を弾いて${target.name}に当てた！${dmg}ダメージ！消滅した。`,
             /* 壺：「弾かれ」「当たって割れた」 */
@@ -3797,7 +3896,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _srDx = Math.sign(pl.x - m.x), _srDy = Math.sign(pl.y - m.y);
         if (_srStraight) {
           /* 経路チェック：障害物があれば投げない、途中に敵がいればそちらに命中 */
-          let _srHitMon = null, _srPathOk = true;
+          let _srHitMon = null, _srHitStatue = false, _srPathOk = true;
           let _cx = m.x + _srDx, _cy = m.y + _srDy;
           while (_cx !== pl.x || _cy !== pl.y) {
             if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
@@ -3806,6 +3905,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 dg.springs?.some(s => s.x === _cx && s.y === _cy)) {
               _srPathOk = false; break;
             }
+            if (statueAt(dg, _cx, _cy)) { _srHitStatue = true; break; }
             const _midMon = dg.monsters.find(mo => mo.x === _cx && mo.y === _cy);
             if (_midMon) { _srHitMon = _midMon; break; }
             _cx += _srDx; _cy += _srDy;
@@ -3814,7 +3914,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _throwItem = m.heldItems[0];
             /* 中間敵に命中する場合：throwItemAlongLineに任せる */
             /* 中間敵なし＋プレイヤー到達の場合：anti-steal/25%missを先に判定 */
-            if (!_srHitMon) {
+            if (!_srHitMon && !_srHitStatue) {
               const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
               if (_srAntiSteal) {
                 m.heldItems.splice(0, 1);
@@ -3838,7 +3938,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _srRes = throwItemAlongLine(m, dg, _throwItem, _srDx, _srDy, _srDist, ml, pl, _luFn, {
               animColor: "#ff8800",
               killerMon: m,
-              applyWandFn: applyWandEffect,
+              applyWandFn: opts.applyWandFn,
               /* 中間敵命中：「${m}が投げた${item}が${target}に...」 */
               monHitMsg: (target, dmg) => `${m.name}が投げた${_throwItem.name}が${target.name}に命中！${dmg}ダメージ！消滅した。`,
               potHitMsg: (target, dmg) => `${m.name}が投げた${_throwItem.name}が${target.name}に当たって割れた！${dmg}ダメージ！`,

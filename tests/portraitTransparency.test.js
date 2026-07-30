@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   colorDist,
+  isNearBlack,
   isNearWhite,
   isGreenBg,
   floodFillTransparent,
@@ -39,9 +40,28 @@ describe("portraitTransparency", () => {
     expect(data[data.length - 1]).toBe(0);
   });
 
+  it("外周から連結した黒背景だけを透過する", () => {
+    const data = makeImage(5, 5, (x, y) => {
+      if (x === 2 && y === 2) return [0, 0, 0, 255];
+      if (x >= 1 && x <= 3 && y >= 1 && y <= 3) return [180, 120, 80, 255];
+      return [0, 0, 0, 255];
+    });
+    floodFillTransparent(data, 5, 5);
+    expect(data[3]).toBe(0);
+    expect(data[(2 * 5 + 2) * 4 + 3]).toBe(255);
+  });
+
+  it("既に透過済みの黒いコーナーは背景シードにしない", () => {
+    const data = makeImage(3, 3, () => [0, 0, 0, 0]);
+    data[(1 * 3 + 1) * 4 + 3] = 255;
+    floodFillTransparent(data, 3, 3);
+    expect(data[(1 * 3 + 1) * 4 + 3]).toBe(255);
+  });
+
   it("色距離判定", () => {
     expect(colorDist(234, 229, 233, 255, 255, 255)).toBe(26);
     expect(isNearWhite(230, 230, 230)).toBe(true);
+    expect(isNearBlack(10, 10, 10)).toBe(true);
     expect(isGreenBg(20, 200, 20)).toBe(true);
   });
 });

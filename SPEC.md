@@ -34,7 +34,7 @@ React + Vite 製のローグライク。
 - 実装: `fixtures.js`（生成は `dungeon.attachFloorGimmicks`）
 - **偽階段**: 罠データ。未看破時は階段タイルに見える。踏むとランダムな通常罠に化けて発動。看破・杖・薬は通常罠と同様
 - **風穴**: `dg.vents`。中心±2 の 5×5 で**物理**飛び道具の進行方向を風向きに上書き（遠投中も同様）。対象: 投擲・矢・石（ワッカ含む）・ブレスなど。`stepProjectile(..., { wind: true })`。**杖・魔法弾は曲がらない**（`wind: false`）
-- **石像**: `dg.statues`。**ダメージ／有害効果**（投擲・矢・杖弾・爆発など）で破壊→ややレアなアイテム＋**そのフロアの出現敵プールから1体（出現レベル+1、最大3）**。通行不可。**アイテム・罠・泉・大箱・魔方陣・油など床オブジェクトは重ならない**（`placeItemAt` は隣へ、罠生成・落とし穴等も石像マスを避ける。石像移動時は `displaceObjectsFromStatue`）。**移動で突っ込む／Z・Enterで正面調べは「石像がある。」表示のみ・ターン消費なし**（近接では壊さない）。**場所替え・テレポート・飛びつき**は壊さず効果を発揮（位置交換／石像を飛ばす／前に飛びつく）。**穴掘り・軟化**で破壊時は**アイテムのみ**（敵は出ない）。実装: `fixtures.hitStatueWithAction` / `wandEffectBreaksStatue` / `wandEffectStatueLootOnly`
+- **石像**: `dg.statues`。**ダメージ／有害効果**（投擲・矢・敵の薬投げ／水鉄砲／墨／炎・氷ブレス・銃弾・杖弾など）で破壊→ややレアなアイテム＋**そのフロアの出現敵プールから1体（出現レベル+1、最大3）**。ただし**爆発で破壊された場合は粉々になり、アイテムも敵も出ない**。通行不可。**アイテム・罠・泉・大箱・魔方陣・油など床オブジェクトは重ならない**（`placeItemAt` は隣へ、罠生成・落とし穴等も石像マスを避ける。石像移動時は `displaceObjectsFromStatue`）。**移動で突っ込む／Z・Enterで正面調べは「石像がある。」表示のみ・ターン消費なし**（近接では壊さない）。**場所替え・テレポート・飛びつき**は壊さず効果を発揮（位置交換／石像を飛ばす／前に飛びつく）。**穴掘り・軟化**で破壊時は**アイテムのみ**（敵は出ない）。実装: `fixtures.hitStatueWithAction` / `wandEffectBreaksStatue` / `wandEffectStatueLootOnly`
 - **固定転送**: `pentacles` の `kind:"fixed_portal"`。生成時ペア固定。ペンのポータルとは非接続。プレイヤー・敵・投げ物も転送。乗ってのかすれ消耗はしない（爆発・油・薬液など破壊経路は対象）
 
 ### ダメージ計算（攻撃 vs 防御）
@@ -281,7 +281,9 @@ React + Vite 製のローグライク。
 | `monsterPortalTransit.js` | 敵移動後の固定転送陣・ポータル転送（呪い・別フロア移動を含む） |
 | `monsterAttackPhase.js` | 敵攻撃フェーズの実行と、命中・回避・突進の描画イベント生成 |
 | `visibilityOverrides.js` | 明かりの魔方陣とスターライト／ダークネスによる refreshFOV 後の視界上書き |
-| `pentacleTurnEffects.js` | 転送・罠生成の魔方陣による毎ターン効果 |
+| `pentacleTurnEffects.js` | 転送・罠生成・石飛ばし・回復の魔方陣による毎ターン効果 |
+| `fixtureQueries.js` | 石像・固定転送陣の副作用を持たない照会と杖効果判定 |
+| `monsterRuntime.js` | アイテム処理から敵実装を循環なしで呼ぶための実行時ポートと休眠解除ルール |
 | `monsters.js` | 全モンスター定義・AI |
 | `traps.js` | 罠定義・発動ロジック |
 | `GameSave.js` | セーブ・ロード（localStorage） |
@@ -313,13 +315,22 @@ React + Vite 製のローグライク。
 | `Game.jsx` | `monsterPortalTransit.js` | Phase 2.5 の固定転送陣・ポータルに乗った敵の転送と、着地後の再転送防止 |
 | `Game.jsx` | `monsterAttackPhase.js` | Phase 4 の敵攻撃実行と、アニメーションへ渡す命中・回避・突進データ |
 | `Game.jsx` | `visibilityOverrides.js` | 明かりの魔方陣と視界操作モンスターの視界・探索済みマスへの上書き |
-| `Game.jsx` | `pentacleTurnEffects.js` | 転送の魔方陣と罠の魔方陣による毎ターンの転送・罠生成／削除 |
+| `Game.jsx` | `pentacleTurnEffects.js` | 転送・罠生成・石飛ばし・回復の魔方陣による毎ターン効果 |
 | `Game.jsx` | `lookDescription.js` | 調べるモードで表示するマスの説明文 |
 | `Game.jsx` | `messageLog.js` | メッセージへのフロアターン付与と履歴上限の管理 |
 | `Game.jsx` | `inventoryRules.js` / `inventoryLabel.js` | インベントリの利用可否・使用ラベル・ソート・表示名 |
 | `items.js` | `lootRules.js` | レア度／重み抽選、運枠、一般ドロップ抽選 |
+| `fixtures.js` | `fixtureQueries.js` | 石像検索、固定転送陣のペア検索、杖による石像破壊判定 |
 
 各分離先には対応する `tests/*.test.js` を置く。挙動変更を伴わない整理でも、既存のメッセージ・処理順・副作用をテストで固定してから `Game.jsx` 側を呼び出しだけにする。
+
+`fixtures.js` は `items.js` を import しない。偽階段の実体化や石像破壊で必要なアイテムカタログ・名前解決は、呼び出し側が `getFixtureItemDeps()` で渡して依存方向を `items → fixtures` に固定する。
+
+`items.js` は `wands.js` を import／再exportしない。杖破壊時の効果は `wands.js` が `setWandBreakEffectHandler()` で登録し、UIは杖APIを `wands.js` から直接importする。モンスター投擲に必要な杖効果も `monsterAI` の `applyWandFn` として呼び出し側から渡す。
+
+`items.js` は `monsters.js` を import しない。敵生成・レベル変化・弾道解決などは `monsters.js` が `monsterRuntime.js` へ登録し、アイテム処理は実行時ポート経由で呼ぶ。ルート実装モジュールの循環依存は `tests/moduleDependencies.test.js` で0件を固定する。
+
+敵の金縛り・睡眠・移動封じ中は、AIの詰まり脱出処理でも座標を動かさない。重力の魔方陣が敵に罠を踏ませる際の「重力の力」は内部トリガーであり、床アイテムとして生成・取得されない。
 
 ### スプライト画像の場所
 
@@ -338,10 +349,8 @@ public/
 
 ## キャラクター立ち絵システム
 
-> **⚠️ 透過処理が作業一時停止中**  
-> threshold=20 のフラッドフィル透過を適用済みだが、一部画像でまだ背景が残っている可能性あり。  
-> 再開時は `make_transparent.py` を使い、コーナー色(約R234,G229,B233)から距離20以内を透過する方針。  
-> 純白エフェクト(255,255,255)はコーナーからの距離が26のため threshold=20 で保持される。
+2026-07-26 に `tiles/Character` 直下の全立ち絵を確認し、黒・白・グリーンバックのうち四隅から連結する背景だけを透過済み。
+再処理には `npm run portrait-transparent` を使う。色差 threshold=20 のフラッドフィルなので、キャラクター内部の黒い衣装や影、白いエフェクトは保持される。
 
 ### 立ち絵ファイル（`tiles/Character/`）
 
@@ -370,7 +379,7 @@ public/
 
 ### サイドバーへの表示（`GameModals.jsx` の `SidebarPanel`）
 
-- 右サイドバー背景色 `#f5f0e8`（白系で透過残りを目立たなくする力技）
+- 右サイドバー背景色 `#f5f0e8`
 - 画像幅 220%・overflow: visible（意図的にはみ出し）
 - ゲームオーバー画面では `gameover_dead.png` を赤いドロップシャドウ付きで大きく表示
 

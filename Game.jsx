@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, calcAtkDefDmg } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, calcAtkDefDmg, isEvasionDisabledByStatus } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -16,17 +16,18 @@ import {
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
-  setPitfallBag, clearPitfallBag, applyWandEffect,
-  monsterFireLightning, checkShopTheft, applyLightningToInventory,
+  setPitfallBag, clearPitfallBag,
+  checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
-  applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg,
+  applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
-  tickBubbleGold,
+  tickBubbleGold, getFixtureItemDeps,
 } from "./items.js";
+import { applyWandEffect, monsterFireLightning } from "./wands.js";
 import { fireTrapPlayer } from "./traps.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -57,7 +58,10 @@ import { resolveTurnHazards } from "./turnHazards.js";
 import { transitMonstersThroughPortals } from "./monsterPortalTransit.js";
 import { runMonsterAttackPhase } from "./monsterAttackPhase.js";
 import { applyVisibilityOverrides } from "./visibilityOverrides.js";
-import { resolveTeleportAndTrapPentacleEffect } from "./pentacleTurnEffects.js";
+import {
+  resolveStoneAndHealingPentacleEffect,
+  resolveTeleportAndTrapPentacleEffect,
+} from "./pentacleTurnEffects.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -915,6 +919,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       bbFn: bigboxAddItem,
       luFn: lu,
       itemNameFn: (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames),
+      applyWandFn: applyWandEffect,
       ...extraOpts,
       fireTrapFn: (trap, p, dg2, ml2) => {
         const _tr = fireTrapPlayer(trap, p, dg2, ml2, null, lu, { ident: sr.current?.ident });
@@ -1491,166 +1496,27 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* ===== 新ペン魔方陣の毎ターン効果 ===== */
       if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
         const _dg2 = st.dungeon;
-        const _pRoom = findRoom(_dg2.rooms, p.x, p.y);
         for (const _pc of _dg2.pentacles) {
-          const _pcRoom = findRoom(_dg2.rooms, _pc.x, _pc.y);
-          const _floorWide = _pc.blessed; // 祝福はフロア全体
-          const _inRange = _floorWide || (_pRoom && _pcRoom && _pRoom === _pcRoom);
-          /* 魔封じの魔方陣：自分以外の魔方陣の効果を封じる */
-          const _pcMagicSealed = _pc.kind !== "magic_seal" && inMagicSealRoom(_pc.x, _pc.y, _dg2);
-          /* --- 明かりの魔方陣 --- */
-          /* (rendering only; handled in refreshFOV override below) */
           resolveTeleportAndTrapPentacleEffect(_pc, _dg2, p, ml, {
             findRoom, inMagicSealRoom, random: Math.random, randomTeleportDest,
             pick, rng, T, pickTrap, uid, removeTrap,
           });
-          /* --- 石飛ばしの魔方陣：毎ターン25%で部屋内キャラに魔法の石を飛ばす --- */
-          if (!_pcMagicSealed && _pc.kind === "stone_throw" && _pcRoom && Math.random() < 0.25) {
-            /* 部屋内の全キャラ（プレイヤー＋モンスター）をターゲット候補に */
-            const _stTargets = [];
-            const _plInRoom = _pRoom === _pcRoom;
-            if (_plInRoom) _stTargets.push({ kind: "player" });
-            for (const _stM of _dg2.monsters) {
-              if (_stM.magicImmune) continue;
-              const _stMRoom = findRoom(_dg2.rooms, _stM.x, _stM.y);
-              if (_stMRoom === _pcRoom) _stTargets.push({ kind: "monster", m: _stM });
-            }
-            if (_stTargets.length > 0) {
-              const _stTgt = pick(_stTargets);
-              const _baseDmg = rng(5, 10);
-              const _stTgtX = _stTgt.kind === "player" ? p.x : _stTgt.m.x;
-              const _stTgtY = _stTgt.kind === "player" ? p.y : _stTgt.m.y;
-              const _stDropStone = () => placeItemAt(_dg2, _stTgtX, _stTgtY, makeMagicStone(1), ml, new Set());
-              /* 命中100%。みかわし魔方陣・みかわしの服・オリーブ油のみ回避可能 */
-              let _stDodged = false;
-              if (!_pc.cursed) {
-                const _stHasDodgePc = _dg2.pentacles?.some(pc => {
-                  if (pc.kind !== "dodge" || pc.cursed) return false;
-                  if (pc.blessed) return true;
-                  const _dPcRoom = findRoom(_dg2.rooms, pc.x, pc.y);
-                  return _dPcRoom && findRoom(_dg2.rooms, _stTgtX, _stTgtY) === _dPcRoom;
-                });
-                if (_stHasDodgePc) {
-                  const _dodgeName = _stTgt.kind === "player" ? "プレイヤー" : _stTgt.m.name;
-                  ml.push(`みかわしの魔方陣の加護で${_dodgeName}が${_pc.name}の魔法の石をかわした！魔法の石が足元に落ちた。`);
-                  _stDropStone();
-                  _stDodged = true;
-                }
-              }
-              if (!_stDodged && _stTgt.kind === "player") {
-                if (hasAbility(p.armor, "dodge") && Math.random() < 0.25) {
-                  ml.push(`${_pc.name}の魔法の石をひらりとかわした！魔法の石が足元に落ちた。`);
-                  _stDropStone();
-                  _stDodged = true;
-                } else if ((p.oliveEvasionTurns || 0) > 0 && Math.random() < 0.15) {
-                  ml.push(`オリーブオイルの力で${_pc.name}の魔法の石をするりとかわした！魔法の石が足元に落ちた。`);
-                  _stDropStone();
-                  _stDodged = true;
-                }
-              }
-              if (!_stDodged && _pc.cursed) {
-                /* 呪い：回復効果 */
-                if (_stTgt.kind === "player") {
-                  const _heal = Math.min(_baseDmg, p.maxHp - p.hp);
-                  if (_heal > 0) { p.hp += _heal; ml.push(`${_pc.name}の魔法の石がプレイヤーに当たった！${_heal}回復！`); }
-                } else {
-                  if (_stTgt.m.kind === "undead") {
-                    _stTgt.m.hp -= _baseDmg; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_baseDmg}ダメージ！(アンデッド)`);
-                    if (_stTgt.m.hp <= 0) { trackMonster(_stTgt.m); killMonster(_stTgt.m, st.dungeon, p, ml, lu); }
-                  } else {
-                    const _heal = Math.min(_baseDmg, _stTgt.m.maxHp - _stTgt.m.hp);
-                    if (_heal > 0) { _stTgt.m.hp += _heal; ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_heal}回復！`); }
-                  }
-                }
-              } else if (!_stDodged) {
-                const _stcmsB = inCursedMagicSealRoom(_stTgtX, _stTgtY, _dg2) ? 2 : 1;
-                const _dmg = (_pc.blessed ? _baseDmg * 2 : _baseDmg) * _stcmsB;
-                if (_stTgt.kind === "player") {
-                  p.deathCause = `${_pc.name}の魔法の石により`;
-                  p.hp -= _dmg;
-                  ml.push(`${_pc.name}の魔法の石がプレイヤーに当たった！${_dmg}ダメージ！`);
-                } else if (_stTgt.m.baseKind === "gelcube") {
-                  /* ゼラチンキューブ：魔法の石を飲み込む */
-                  _stTgt.m.heldItems = _stTgt.m.heldItems || [];
-                  _stTgt.m.heldItems.push(makeMagicStone(1));
-                  if (!_stTgt.m._gelBaseAtk) _stTgt.m._gelBaseAtk = _stTgt.m.atk;
-                  _stTgt.m._gelBoost = Math.min(10, (_stTgt.m._gelBoost || 1) * 1.2);
-                  _stTgt.m.atk = Math.round(_stTgt.m._gelBaseAtk * _stTgt.m._gelBoost);
-                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に飲み込まれた！（攻撃力×${_stTgt.m._gelBoost.toFixed(2)}→${_stTgt.m.atk}）`);
-                } else if (_stTgt.m.baseKind === "synthmonster") {
-                  /* 合成獣：魔法の石を飲み込んで速度アップ */
-                  _stTgt.m.heldItems = _stTgt.m.heldItems || [];
-                  _stTgt.m.heldItems.push(makeMagicStone(1));
-                  const _synthPrev = _stTgt.m.speed || 0.5;
-                  _stTgt.m.speed = Math.min(3, _synthPrev + 0.5);
-                  _stTgt.m.maxAttacks = Math.ceil(_stTgt.m.speed);
-                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に飲み込まれた！${_stTgt.m.speed !== _synthPrev ? `(速度${_stTgt.m.speed})` : ""}`);
-                } else if (_stTgt.m.subtype === "reflector") {
-                  /* ミラーゴーレム：跳ね返して魔方陣周辺に落とす */
-                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に弾き返された！`);
-                  const _rfCands = [];
-                  for (let _rdy = -2; _rdy <= 2; _rdy++) {
-                    for (let _rdx = -2; _rdx <= 2; _rdx++) {
-                      const _cx = _pc.x + _rdx, _cy = _pc.y + _rdy;
-                      if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
-                      if (_dg2.map[_cy][_cx] !== T.FLOOR) continue;
-                      if (_cx === p.x && _cy === p.y) continue;
-                      if (_dg2.items.some(i => i.x === _cx && i.y === _cy)) continue;
-                      if (_dg2.monsters.some(mn => mn.x === _cx && mn.y === _cy)) continue;
-                      _rfCands.push([_cx, _cy]);
-                    }
-                  }
-                  if (_rfCands.length > 0) {
-                    const [_dropX, _dropY] = pick(_rfCands);
-                    placeItemAt(_dg2, _dropX, _dropY, makeMagicStone(1), ml, new Set());
-                    ml.push(`魔法の石が魔方陣の周辺に落ちた。`);
-                  }
-                } else {
-                  _stTgt.m.hp -= _dmg;
-                  ml.push(`${_pc.name}の魔法の石が${_stTgt.m.name}に当たった！${_dmg}ダメージ！`);
-                  if (_stTgt.m.hp <= 0) { trackMonster(_stTgt.m); killMonster(_stTgt.m, _dg2, p, ml, lu); }
-                }
-              }
-            }
-          }
-          /* --- 回復の魔方陣：毎ターン部屋内全員に5(祝10)回復 / 呪いは逆に5ダメージ --- */
-          if (!_pcMagicSealed && _pc.kind === "heal_aura" && _pcRoom) {
-            const _hBase = _pc.blessed ? 10 : 5;
-            /* プレイヤーへの効果 */
-            if (_inRange) {
-              if (_pc.cursed) {
-                const _hcmsB = inCursedMagicSealRoom(p.x, p.y, _dg2) ? 2 : 1;
-                const _hDmg = _hBase * _hcmsB;
-                p.deathCause = `${_pc.name}の呪いにより`;
-                p.hp -= _hDmg;
-                ml.push(`${_pc.name}の呪いで${_hDmg}ダメージを受けた！`);
-              } else {
-                const _ph = Math.min(_hBase, p.maxHp - p.hp);
-                if (_ph > 0) { p.hp += _ph; }
-              }
-            }
-            /* モンスターへの効果（魔法無効モンスターはスキップ） */
-            for (const _hm of _dg2.monsters) {
-              if (_hm.hp <= 0) continue;
-              if (_hm.magicImmune) continue;
-              const _hmRoom = findRoom(_dg2.rooms, _hm.x, _hm.y);
-              if (_hmRoom !== _pcRoom) continue;
-              if (_pc.cursed) {
-                const _hmcmsB = inCursedMagicSealRoom(_hm.x, _hm.y, _dg2) ? 2 : 1;
-                const _hmDmg = _hBase * _hmcmsB;
-                _hm.hp -= _hmDmg;
-                ml.push(`${_pc.name}の呪いで${_hm.name}が${_hmDmg}ダメージを受けた！`);
-                if (_hm.hp <= 0) { trackMonster(_hm); killMonster(_hm, _dg2, p, ml, lu); }
-              } else if (_hm.kind === "undead") {
-                _hm.hp -= _hBase;
-                ml.push(`${_pc.name}の回復力が${_hm.name}を傷つけた！${_hBase}ダメージ！(アンデッド)`);
-                if (_hm.hp <= 0) { trackMonster(_hm); killMonster(_hm, _dg2, p, ml, lu); }
-              } else {
-                const _mh = Math.min(_hBase, _hm.maxHp - _hm.hp);
-                if (_mh > 0) _hm.hp += _mh;
-              }
-            }
-          }
+          resolveStoneAndHealingPentacleEffect(_pc, _dg2, p, ml, {
+            findRoom,
+            inMagicSealRoom,
+            inCursedMagicSealRoom,
+            random: Math.random,
+            pick,
+            rng,
+            T,
+            hasAbility,
+            makeMagicStone,
+            placeItemAt,
+            onMonsterDefeated: (monster) => {
+              trackMonster(monster);
+              killMonster(monster, _dg2, p, ml, lu);
+            },
+          });
         }
       }
       refreshFOV(st.dungeon, p);
@@ -2164,7 +2030,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             } else {
               /* 近接命中率95%（必中状態なら100%） */
               const _meleeSureHit = (p.sureHitTurns || 0) > 0;
-              if (!_meleeSureHit && Math.random() >= 0.95) {
+              if (!_meleeSureHit && !isEvasionDisabledByStatus(attackMon) && Math.random() >= 0.95) {
                 ml.push(`${attackMon.name}への攻撃は外れた！`);
                 _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
                 _ad.damages.push({ type: "miss", x: attackMon.x, y: attackMon.y });
@@ -2263,7 +2129,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 acted = true;
               } else {
               /* タトゥーバード: 50%ひらりと回避 */
-              const _tbDodge = attackMon.subtype === "tattoobird" && Math.random() < 0.50;
+              const _tbDodge = !isEvasionDisabledByStatus(attackMon) && attackMon.subtype === "tattoobird" && Math.random() < 0.50;
               if (_tbDodge) {
                 ml.push(`${attackMon.name}はひらりとかわした！`);
                 _ad.attacks.push({ type: "attack", x: attackMon.x, y: attackMon.y, dx, dy });
@@ -2393,6 +2259,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             {
               const _srCount = (p.rings || []).filter(r => r.effect === "shoot_ring").length;
               if (_srCount > 0) {
+                /* 下手投げの指輪は射撃の指輪による追加発射にも適用する。 */
+                const _srForceMiss = hasRingEffect(p, "miss_throw_ring");
                 const _rawFc = getFarcastMode(p.x, p.y, dg);
                 const _fcMode = (hasRingEffect(p, "farcast_ring") && _rawFc !== "cursed") ? "farcast" : _rawFc;
                 const _srFarcast = _fcMode === "farcast";
@@ -2419,7 +2287,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     if (_stHitStatue) {
                       ml.push(`${_arName}が石像に命中！`);
-                      hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, { breaks: true });
+                      hitStatueWithAction(dg, _stLx, _stLy, p, ml, lu, p?.depth, {
+                        breaks: true,
+                        itemDeps: getFixtureItemDeps(),
+                      });
                     } else {
                     const _stM = monsterAt(dg, _stLx, _stLy);
                     if (_stM && _stM.subtype === "reflector") {
@@ -2441,7 +2312,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       } else {
                         const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft);
                       }
-                    } else if (_stM && Math.random() < 0.90) {
+                    } else if (_stM && !_srForceMiss && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                       if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { _stM.state = "hostile"; ml.push("店主が怒った！"); }
@@ -2460,7 +2331,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     if (!_msTarget) {
                       ml.push(`近くに敵がいない！${_arName}は消えた。`);
-                    } else if (Math.random() >= 0.90) {
+                    } else if (_msTarget.subtype === "reflector") {
+                      pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
+                      reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
+                    } else if (_srForceMiss || (!isEvasionDisabledByStatus(_msTarget) && Math.random() >= 0.90)) {
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
                       const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
                     } else {
@@ -2483,7 +2357,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         if (_tx < 0 || _tx >= MW || _ty < 0 || _ty >= MH) break;
                         if (dg.map[_ty][_tx] === T.WALL || dg.map[_ty][_tx] === T.BWALL) break;
                         const _baM = monsterAt(dg, _tx, _ty);
-                        if (_baM) {
+                        if (_baM && !_srForceMiss) {
                           const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
                           _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
                           if (_baM.type === "shopkeeper" && _baM.state !== "hostile") { _baM.state = "hostile"; ml.push("店主が怒った！"); }
@@ -2524,7 +2398,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       },
                       onMonHit: (mon, mlx) => {
                         /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
-                        if (Math.random() >= 0.75) {
+                        if (_srForceMiss || (!isEvasionDisabledByStatus(mon) && Math.random() >= 0.75)) {
                           if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
                           mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
                           const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _dropFn(), mlx, _mft);

@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
-import { MONS, monLevelUp, monLevelDown, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
+import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName,
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
@@ -10,10 +10,12 @@ import {
   hasFireResist, hasLightningResist, hasIceResist,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
-  pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater,
+  pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
+  setWandBreakEffectHandler,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
-import { tryBreakStatueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, hitStatueWithAction, statueAt, displaceObjectsFromStatue } from './fixtures.js';
+import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
+import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 
 /** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */
@@ -45,11 +47,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, {
         breaks: true,
         spawnMonster: false,
+        itemDeps: getFixtureItemDeps(),
       });
       return;
     }
     if (wandEffectBreaksStatue(eff)) {
-      hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, { breaks: true });
+      hitStatueWithAction(dg, target.x, target.y, p, ml, luFn, p?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       return;
     }
     /* 場所替え・テレポ・飛びつき（呪い）など：石像を壊さず効果を出す */
@@ -74,7 +80,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const [ox, oy] = [p.x, p.y];
       p.x = target.x; p.y = target.y;
       target.x = ox; target.y = oy;
-      displaceObjectsFromStatue(dg, target.x, target.y, ml);
+      displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
       ml.push(`${target.name}と位置が入れ替わった！`);
       if (_swBless) {
@@ -88,7 +94,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _lpd = statueTeleportDest(dg, target.x, target.y, p);
         if (!_lpd) { ml.push("テレポートに失敗した。"); return; }
         target.x = _lpd.x; target.y = _lpd.y;
-        displaceObjectsFromStatue(dg, target.x, target.y, ml);
+        displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
         ml.push(`${target.name}はどこかへテレポートした！【呪】`);
       }
       return;
@@ -110,7 +116,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !dg.items?.some(i => i.x === _w1x && i.y === _w1y) &&
             !dg.traps?.some(t => t.x === _w1x && t.y === _w1y)) {
           target.x = _w1x; target.y = _w1y;
-          displaceObjectsFromStatue(dg, target.x, target.y, ml);
+          displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
           ml.push(`${target.name}が少しだけテレポートした。`);
         } else {
           ml.push("テレポートに失敗した。");
@@ -138,7 +144,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (_wbAdj.length > 0) {
             const _wd = pick(_wbAdj);
             target.x = _wd.x; target.y = _wd.y;
-            displaceObjectsFromStatue(dg, target.x, target.y, ml);
+            displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
             ml.push(`${target.name}は階段の隣に飛んだ！`);
             return;
           }
@@ -147,7 +153,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _dest = statueTeleportDest(dg, target.x, target.y, p);
       if (!_dest) { ml.push("テレポートに失敗した。"); return; }
       target.x = _dest.x; target.y = _dest.y;
-      displaceObjectsFromStatue(dg, target.x, target.y, ml);
+      displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
       ml.push(`${target.name}はどこかへテレポートした！`);
       return;
     }
@@ -690,7 +696,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "transform": {
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の杖が効かなかった！`); break; }
-        const nt = pick(MONS);
+        const levelOffset = blMult > 1 ? -1 : blMult < 1 ? 1 : 0;
+        const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1, levelOffset);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         const ox = target.x, oy = target.y;
         Object.assign(target, { ...nt, id:target.id, x:ox, y:oy, maxHp:nt.hp,
@@ -701,14 +708,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         const h = rng(-10, 10);
-        p.hp += h;
-        ml.push(h >= 0 ? `体に変化が...HP+${h}` : `体に異変が...HP${h}`);
+        p.maxHp = Math.max(1, p.maxHp + h);
+        p.hp = Math.min(p.hp, p.maxHp);
+        if (h < 0) p.deathCause = "変化の杖で";
+        ml.push(h >= 0 ? `体に変化が...最大HP+${h}` : `体に異変が...最大HP${h}`);
         break;
       }
       if (kind === "item") {
         if (target.type === "goal") { ml.push(`${_dname_item(target)}は変化しなかった！`); break; }
         const _chgPool = ITEMS.filter((i) => i.type !== "gold" && i.type !== "goal");
-        const nt = pickLootFromPool(_chgPool, "change") || pick(_chgPool);
+        const _chgContext = blMult > 1 ? "change_blessed" : blMult < 1 ? "change_cursed" : "change";
+        const nt = pickLootFromPool(_chgPool, _chgContext) || pick(_chgPool);
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);
@@ -718,7 +728,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "trap") {
-        const nt = pickTrap();
+        const nt = blMult > 1
+          ? pickTrap(TRAPS, Math.random, 0.36, (trap) => trap.rarity === "D" || trap.rarity === "E")
+          : pickTrap(TRAPS, Math.random, blMult < 1 ? 0.36 : 0);
         ml.push(`${target.name}は${nt.name}に変化した！`);
         Object.assign(target, { ...nt, id:target.id, x:target.x, y:target.y, revealed:true });
         break;
@@ -1907,7 +1919,10 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       return;
     }
     if (statueAt(dg, tx, ty)) {
-      hitStatueWithAction(dg, tx, ty, pl, ml, luFn, pl?.depth, { breaks: true });
+      hitStatueWithAction(dg, tx, ty, pl, ml, luFn, pl?.depth, {
+        breaks: true,
+        itemDeps: getFixtureItemDeps(),
+      });
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
@@ -2196,3 +2211,5 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
   if (_footBb && !_defCenter) targets.push({ kind:"bigbox", t:_footBb, dx:rd[0], dy:rd[1] });
   for (const { kind, t, dx, dy } of targets) applyWandEffect(eff, kind, t, dx, dy, dg, p, ml, luFn, null, blMult);
 }
+
+setWandBreakEffectHandler(triggerWandBreakEffect);

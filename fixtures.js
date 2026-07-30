@@ -2,10 +2,24 @@
  * ダンジョン固定ギミック：偽階段・風穴・石像・固定転送
  */
 import { rng, pick, uid, MW, MH, T } from "./utils.js";
-/* items.js との循環 import を避けるため、TRAPS/ITEMS のみ参照し placeItemAt は使わない */
-import { TRAPS, pickLootFromPool, pickTrap, ITEMS, WANDS, resolveItemName } from "./items.js";
+import {
+  findFixedPortalPair,
+  statueAt,
+  wandEffectBreaksStatue,
+  wandEffectStatueLootOnly,
+} from "./fixtureQueries.js";
 
-/* monsters.js 側で登録する。fixtures -> monsters の循環 import を避ける。 */
+export {
+  findFixedPortalPair,
+  statueAt,
+  wandEffectBreaksStatue,
+  wandEffectStatueLootOnly,
+} from "./fixtureQueries.js";
+
+let statueSpawnHandler = null;
+export function setStatueSpawnHandler(handler) {
+  statueSpawnHandler = handler;
+}
 
 export const FIXTURE_TILE = {
   vent: 128,
@@ -29,10 +43,11 @@ export function makeFakeStairTrap(x, y, dir = "down") {
 }
 
 /** 偽階段をランダムな通常罠に差し替えて返す（同一オブジェクトを破壊的に更新） */
-export function materializeFakeStair(trap) {
+export function materializeFakeStair(trap, itemDeps) {
   if (!trap || trap.effect !== "fake_stair") return trap;
-  const pool = TRAPS.filter((t) => t.effect !== "fake_stair");
-  const t = pickTrap(pool.length ? pool : TRAPS);
+  const { traps, pickTrap: chooseTrap } = itemDeps;
+  const pool = traps.filter((t) => t.effect !== "fake_stair");
+  const t = chooseTrap(pool.length ? pool : traps);
   const id = trap.id, x = trap.x, y = trap.y;
   Object.keys(trap).forEach((k) => { delete trap[k]; });
   Object.assign(trap, { ...t, id, x, y, revealed: true });
@@ -78,10 +93,6 @@ export function makeStatue(x, y) {
   };
 }
 
-export function statueAt(dg, x, y) {
-  return (dg.statues || []).find((s) => s.x === x && s.y === y) || null;
-}
-
 const _STATUE_NEI = [
   [0, -1], [0, 1], [-1, 0], [1, 0],
   [-1, -1], [-1, 1], [1, -1], [1, 1],
@@ -112,8 +123,9 @@ function _freeNeighborOffStatue(dg, x, y) {
  * 石像マス上に重なっているオブジェクトを隣へ退ける。
  * 石像の移動先や、誤って重なった場合の救済用（破壊直後の報酬配置は石像削除後なので対象外）。
  */
-export function displaceObjectsFromStatue(dg, x, y, ml = null) {
+export function displaceObjectsFromStatue(dg, x, y, ml = null, itemDeps) {
   if (!dg || statueAt(dg, x, y) == null) return;
+  const { resolveItemName: itemName } = itemDeps;
   const moveList = (arr, label) => {
     if (!arr?.length) return;
     for (const o of [...arr]) {
@@ -121,10 +133,10 @@ export function displaceObjectsFromStatue(dg, x, y, ml = null) {
       const dest = _freeNeighborOffStatue(dg, x, y);
       if (dest) {
         o.x = dest.x; o.y = dest.y;
-        if (ml) ml.push(`${label || (o.type ? resolveItemName(o) : o.name) || "何か"}が石像を避けてずれた。`);
+        if (ml) ml.push(`${label || (o.type ? itemName(o) : o.name) || "何か"}が石像を避けてずれた。`);
       } else if (arr === dg.items) {
         dg.items = dg.items.filter(i => i !== o);
-        if (ml) ml.push(`${o.type ? resolveItemName(o) : o.name}は行き場がなく消えた。`);
+        if (ml) ml.push(`${o.type ? itemName(o) : o.name}は行き場がなく消えた。`);
       } else if (arr === dg.traps && !o.permanent) {
         dg.traps = dg.traps.filter(t => t !== o);
       } else if (arr === dg.oilyTiles) {
@@ -146,36 +158,46 @@ export function displaceObjectsFromStatue(dg, x, y, ml = null) {
 
 /**
  * 石像を破壊。レア寄りアイテムを出す。通常は強敵も出す。
- * @param {{ spawnMonster?: boolean }} opts spawnMonster:false で敵なし（穴掘り・軟化）
+ * @param {{ spawnItem?: boolean, spawnMonster?: boolean, breakMessage?: string }} opts
+ *   spawnItem:false / spawnMonster:false で中身ごと消滅（爆発）
  */
 export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}) {
   if (!statue || !dg) return false;
+  const {
+    items,
+    wands,
+    pickLootFromPool: chooseLoot,
+    resolveItemName: itemName,
+  } = opts.itemDeps;
+  const spawnItem = opts.spawnItem !== false;
   const spawnMonster = opts.spawnMonster !== false;
   dg.statues = (dg.statues || []).filter((s) => s !== statue && s.id !== statue.id);
-  ml.push(`${statue.name}が砕け散った！`);
+  ml.push(opts.breakMessage || `${statue.name}が砕け散った！`);
 
   /* ややレア寄りの床落ち */
-  const rarePool = [
-    ...ITEMS.filter((i) => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S"),
-    ...WANDS.filter((w) => w.rarity === "C" || w.rarity === "B" || w.rarity === "A" || w.rarity === "S"),
-  ];
-  const tmpl = (rarePool.length ? pickLootFromPool(rarePool, "drop") : null) || pick(ITEMS);
-  if (tmpl && tmpl.type !== "goal") {
-    const it = { ...tmpl, id: uid(), x: statue.x, y: statue.y };
-    if (it.type === "wand" && it.charges != null && it.effect !== "wish") {
-      it.charges = Math.max(1, (it.charges || 1) + rng(-1, 1));
+  if (spawnItem) {
+    const rarePool = [
+      ...items.filter((i) => i.rarity === "C" || i.rarity === "B" || i.rarity === "A" || i.rarity === "S"),
+      ...wands.filter((w) => w.rarity === "C" || w.rarity === "B" || w.rarity === "A" || w.rarity === "S"),
+    ];
+    const tmpl = (rarePool.length ? chooseLoot(rarePool, "drop") : null) || pick(items);
+    if (tmpl && tmpl.type !== "goal") {
+      const it = { ...tmpl, id: uid(), x: statue.x, y: statue.y };
+      if (it.type === "wand" && it.charges != null && it.effect !== "wish") {
+        it.charges = Math.max(1, (it.charges || 1) + rng(-1, 1));
+      }
+      /* placeItemAt を使うと items↔fixtures 循環になるため直接配置 */
+      if (!dg.items) dg.items = [];
+      dg.items.push(it);
+      /* 未識別名を使う（render 循環回避のため nameFn / グローバルを参照） */
+      const _dn = itemName(it, opts.itemNameFn);
+      ml.push(`${_dn}が飛び出した！`);
     }
-    /* placeItemAt を使うと items↔fixtures 循環になるため直接配置 */
-    if (!dg.items) dg.items = [];
-    dg.items.push(it);
-    /* 未識別名を使う（render 循環回避のため nameFn / グローバルを参照） */
-    const _dn = resolveItemName(it, opts.itemNameFn);
-    ml.push(`${_dn}が飛び出した！`);
   }
 
   /* 出現敵の選択は monsters.js 側で行う（循環 import を作らない）。 */
   if (spawnMonster) {
-    globalThis.__rogueStatueSpawnHandler?.(statue, dg, p, ml, depth);
+    statueSpawnHandler?.(statue, dg, p, ml, depth);
   }
   return true;
 }
@@ -184,10 +206,10 @@ export function breakStatue(statue, dg, p, ml, luFn = null, depth = 1, opts = {}
  * ダメージ／状態異常を与えるアクションで石像破壊を試みる。
  * 場所替えなど無害アクションでは呼ばないこと。
  */
-export function tryBreakStatueAt(dg, x, y, p, ml, luFn, depth) {
+export function tryBreakStatueAt(dg, x, y, p, ml, luFn, depth, itemDeps) {
   const st = statueAt(dg, x, y);
   if (!st) return false;
-  return breakStatue(st, dg, p, ml, luFn, depth);
+  return breakStatue(st, dg, p, ml, luFn, depth, { itemDeps });
 }
 
 /**
@@ -196,22 +218,6 @@ export function tryBreakStatueAt(dg, x, y, p, ml, luFn, depth) {
  * 場所替え・テレポ・飛びつきなど位置系・祝福呪い → false
  * 穴掘り・軟化は壊す（敵は出さずアイテムのみ → wandEffectStatueLootOnly）
  */
-export function wandEffectBreaksStatue(eff) {
-  if (!eff) return false;
-  const safe = new Set([
-    "swap", "warp", "leap",
-    "bless_wand", "curse_wand",
-    "levelup", "portal",
-    "vitality_swap",
-  ]);
-  return !safe.has(eff);
-}
-
-/** 穴掘り・軟化：石像を壊すが敵は出さずアイテムのみ */
-export function wandEffectStatueLootOnly(eff) {
-  return eff === "dig" || eff === "soften";
-}
-
 /**
  * 投擲物が石像を壊すか（物理的に当たるもの・有害な薬など）。
  */
@@ -224,17 +230,28 @@ export function throwItemBreaksStatue(it) {
 
 /**
  * 石像タイルにダメージ行動が到達したら破壊を試す。
- * @param {{ breaks?: boolean, spawnMonster?: boolean }} opts
+ * @param {{ breaks?: boolean, spawnItem?: boolean, spawnMonster?: boolean, breakMessage?: string }} opts
  * @returns {boolean} 壊した／石像があった
  */
-export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, { breaks = true, spawnMonster = true } = {}) {
+export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, {
+  breaks = true,
+  spawnItem = true,
+  spawnMonster = true,
+  breakMessage,
+  itemDeps,
+} = {}) {
   const st = statueAt(dg, x, y);
   if (!st) return false;
   if (!breaks) {
     ml.push(`${st.name}には効果がなかった。`);
     return true; /* 当たったが壊さない */
   }
-  return breakStatue(st, dg, p, ml, luFn, depth, { spawnMonster });
+  return breakStatue(st, dg, p, ml, luFn, depth, {
+    spawnItem,
+    spawnMonster,
+    breakMessage,
+    itemDeps,
+  });
 }
 
 /* ===== 固定転送（ポータル流用・ペア固定・ペンと非接続） ===== */
@@ -262,14 +279,6 @@ export function makeFixedPortalPair(x1, y1, x2, y2, depth) {
       tile: FIXTURE_TILE.fixedPortal,
     },
   ];
-}
-
-export function findFixedPortalPair(dg, portal) {
-  if (!portal || portal.kind !== "fixed_portal") return null;
-  return (dg.pentacles || []).find(
-    (pc) => pc.kind === "fixed_portal" && pc.pairId === portal.pairId && pc !== portal &&
-      !(pc.x === portal.x && pc.y === portal.y),
-  ) || null;
 }
 
 /**
