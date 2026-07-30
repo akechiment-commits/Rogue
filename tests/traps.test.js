@@ -262,7 +262,7 @@ describe("new weird traps", () => {
     const trap = { effect: "oil_trap", name: "油まみれの罠", x: 5, y: 5, id: "o1" };
     const ml = [];
     fireTrapPlayer(trap, p, dg, ml);
-    expect(p.oilyTurns).toBe(30);
+    expect(p.oilyTurns).toBe(100);
   });
 
   it("未識別の罠は識別済み1つだけ剥がす", () => {
@@ -286,7 +286,7 @@ describe("new weird traps", () => {
     const dg = makeEmptyDg({ traps: [trap], monsters: [mon] });
     const ml = [];
     fireTrapItem(trap, { name: "石", type: "arrow" }, dg, 5, 5, ml, new Set(), p);
-    expect(mon.oilyTurns).toBe(30);
+    expect(mon.oilyTurns).toBe(100);
   });
 
   it("敵が浮遊の罠を踏むとボスにも floatTurns が付く", () => {
@@ -423,7 +423,7 @@ describe("new weird traps", () => {
     const trap = { effect: "confuse_trap", name: "混乱の罠", x: 5, y: 5, id: "c1" };
     const ml = [];
     fireTrapPlayer(trap, p, dg, ml);
-    expect(p.confusedTurns).toBe(10);
+    expect(p.confusedTurns).toBe(5);
   });
 
   it("混乱の罠は耐混乱で防げる", () => {

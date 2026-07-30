@@ -17,6 +17,7 @@ import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
+import { statusTurns, isPermanentTurns } from './statusDuration.js';
 
 /** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */
 function statueTeleportDest(dg, ox, oy, p) {
@@ -652,8 +653,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
-          p.hasteTurns = (p.hasteTurns || 0) + 10;
-          ml.push("体が軽くなった！(2倍速10ターン)【呪】");
+          const _ht = statusTurns("haste", { kind: "player" });
+          p.hasteTurns = (p.hasteTurns || 0) + _ht;
+          ml.push(`体が軽くなった！(2倍速${_ht}ターン)【呪】`);
           break;
         }
       } else {
@@ -661,12 +663,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (isStatusImmune(target, ml, target.name)) break;
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, target.speed * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + (_sBless ? 20 : 10);
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed: _sBless, target });
           ml.push(`${target.name}は鈍足になった！`);
           if (_sBless) {
             /* 祝福：金縛りも追加 */
             target.paralyzed = true; target._paralyzeHp = target.hp;
-            if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, 10);
+            if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", target }));
             ml.push(`さらに${target.name}は金縛りになった！`);
           }
           break;
@@ -676,15 +678,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (hasAbility(p.armor, "slow_proof")) {
             ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
           } else {
-            p.slowTurns = (p.slowTurns || 0) + (_sBless ? 20 : 10);
-            ml.push(`体が重くなった...(鈍足${_sBless ? 20 : 10}ターン)`);
+            const _st = statusTurns("slow", { kind: "player", blessed: _sBless });
+            p.slowTurns = (p.slowTurns || 0) + _st;
+            ml.push(`体が重くなった...(鈍足${_st}ターン)`);
           }
           if (_sBless) {
             if (hasAbility(p.armor, "paralyze_proof")) {
               ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)");
             } else {
-              p.paralyzeTurns = Math.max(p.paralyzeTurns || 0, 10);
-              ml.push("さらに金縛りになった！(10ターン)");
+              const _pt = statusTurns("paralyze", { kind: "player" });
+              p.paralyzeTurns = Math.max(p.paralyzeTurns || 0, _pt);
+              ml.push(`さらに金縛りになった！(${_pt}ターン)`);
             }
           }
           break;
@@ -767,8 +771,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        p.defSoftenedTurns = (p.defSoftenedTurns || 0) + 50;
-        ml.push(`軟化の魔法弾が自分に命中！防御力が半減した！(50ターン)`);
+        const _ds = statusTurns("defSoftened", { kind: "player", blessed: _sfBlessed });
+        p.defSoftenedTurns = (p.defSoftenedTurns || 0) + _ds;
+        ml.push(`軟化の魔法弾が自分に命中！防御力が半減した！(${_ds}ターン)`);
         break;
       }
       break;
@@ -817,7 +822,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (_swBless) {
           /* 祝福：入れ替わった先で金縛り */
           target.paralyzed = true; target._paralyzeHp = target.hp;
-          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, 10);
+          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", target }));
           ml.push(`${target.name}は金縛りになった！`);
         }
         break;
@@ -919,7 +924,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (kind === "monster") {
             target.x = stairsX; target.y = stairsY;
             target.paralyzed = true; target._paralyzeHp = target.hp;
-            if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, 10);
+            if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", target }));
             ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！`);
           } else if (kind === "player") {
             const _stOccupied = dg.monsters.some(m => m.x === stairsX && m.y === stairsY);
@@ -959,7 +964,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             if (hasAbility(p.armor, "paralyze_proof")) {
               ml.push("階段の上にテレポートした！金縛り効果を受けたが防具が防いだ！(耐金縛り)");
             } else {
-              p.paralyzeTurns = 10;
+              p.paralyzeTurns = statusTurns("paralyze", { kind: "player" });
               ml.push("階段の上にテレポートした！しかし金縛りになった！(10ターン)");
             }
           } else if (kind === "item" || kind === "trap") {
@@ -1013,15 +1018,25 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "paralyze": {
       const _pzBlessed = blMult > 1, _pzCursed = blMult < 1;
       if (_pzCursed) {
-        // 呪い→対象が状態異常防止状態200ターン
-        if (kind === "monster") { target.statusImmune = (target.statusImmune || 0) + 200; ml.push(`${target.name}は状態異常を防ぐ力を得た！(200ターン)【呪】`); break; }
-        if (kind === "player")  { p.statusImmune = (p.statusImmune || 0) + 200; ml.push("状態異常を防ぐ力が宿った！(200ターン)【呪→状態防止】"); break; }
+        // 呪い→対象が状態異常防止状態
+        if (kind === "monster") {
+          const _si = statusTurns("statusImmune", { kind: "monster", target });
+          target.statusImmune = (target.statusImmune || 0) + _si;
+          ml.push(`${target.name}は状態異常を防ぐ力を得た！(${_si}ターン)【呪】`);
+          break;
+        }
+        if (kind === "player") {
+          const _si = statusTurns("statusImmune", { kind: "player" });
+          p.statusImmune = (p.statusImmune || 0) + _si;
+          ml.push(`状態異常を防ぐ力が宿った！(${_si}ターン)【呪→状態防止】`);
+          break;
+        }
         ml.push("魔法弾は効果なく消えた。"); break;
       }
       if (kind === "monster") {
         if (isStatusImmune(target, ml, target.name)) break;
         target.paralyzed = true; target._paralyzeHp = target.hp;
-        if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, _pzBlessed ? 20 : 10);
+        if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", blessed: _pzBlessed, target }));
         if (_pzBlessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
         else ml.push(`${target.name}は金縛りになった！動けない！`);
         break;
@@ -1031,7 +1046,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (hasAbility(p.armor, "paralyze_proof")) {
           ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)");
         } else {
-          p.paralyzeTurns = _pzBlessed ? 20 : 10;
+          p.paralyzeTurns = statusTurns("paralyze", { kind: "player", blessed: _pzBlessed });
           ml.push(`金縛りになった！(${p.paralyzeTurns}ターン)${_pzBlessed ? "(強金縛り)" : ""}`);
         }
         break;
@@ -1049,9 +1064,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         else ml.push("魔法弾は効果なく消えた。");
         break;
       }
-      const st = _slBlessed ? 12 : 6;
       if (kind === "monster") {
         if (isStatusImmune(target, ml, target.name)) break;
+        const st = statusTurns("sleep", { kind: "monster", blessed: _slBlessed, target });
         target.sleepTurns = (target.sleepTurns || 0) + st;
         ml.push(`${target.name}は眠りに落ちた！(${st}ターン)${_slBlessed ? "【祝=強眠】" : ""}`);
         break;
@@ -1061,6 +1076,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (hasAbility(p.armor, "sleep_proof")) {
           ml.push("しかし眠れなかった！(耐眠)");
         } else {
+          const st = statusTurns("sleep", { kind: "player", blessed: _slBlessed });
           p.sleepTurns = (p.sleepTurns || 0) + st;
           ml.push(`眠りに落ちた...(${st}ターン)${_slBlessed ? "【祝=強眠】" : ""}`);
         }
@@ -1087,25 +1103,27 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (kind === "monster") {
           if (isStatusImmune(target, ml, target.name)) break;
           target.sealed = true;
-          target.sealedTurns = Math.max(target.sealedTurns || 0, target.isBoss ? 20 : 9999);
+          target.sealedTurns = Math.max(target.sealedTurns || 0, statusTurns("seal", { kind: "monster", blessed: _seBlessed, target }));
           ml.push(`${target.name}は封印された！`);
           if (_seBlessed) {
             if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed: _seBlessed, target });
             ml.push(`さらに${target.name}は鈍足になった！(祝福)`);
           }
           break;
         }
         if (kind === "player") {
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + (_seBlessed ? 100 : 50);
-          ml.push(`魔力が封じられた！(MP封印${_seBlessed ? 100 : 50}ターン)`);
+          const _mt = statusTurns("mpCooldown", { kind: "player", blessed: _seBlessed });
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
+          ml.push(`魔力が封じられた！(MP封印${_mt}ターン)`);
           if (_seBlessed) {
             if (hasAbility(p.armor, "slow_proof")) {
               ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
             } else {
-              p.slowTurns = (p.slowTurns || 0) + 10;
-              ml.push("さらに鈍足10ターン！(祝福)");
+              const _st = statusTurns("slow", { kind: "player" });
+              p.slowTurns = (p.slowTurns || 0) + _st;
+              ml.push(`さらに鈍足${_st}ターン！(祝福)`);
             }
           }
           break;
@@ -1152,7 +1170,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた祝福の杖→敵を鈍足にする
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
           ml.push(`${target.name}が呪いで鈍足になった！【呪】`);
         } else {
           const _bh = Math.round(rng(10, 20) * blMult);
@@ -1235,7 +1253,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else {
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
           ml.push(`${target.name}が呪いで鈍足になった！`);
         }
         break;
@@ -1268,15 +1286,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (kind === "monster") { target.confusedTurns = 0; ml.push(`${target.name}の混乱が解けた！`); break; }
         if (kind === "player") {
           p.confusedTurns = 0;
-          p.sureHitTurns = (p.sureHitTurns || 0) + 100;
-          ml.push("頭が冴えた！混乱が消え、必中状態になった！(100ターン)【呪→必中】");
+          const _sh = statusTurns("sureHit", { kind: "player" });
+          p.sureHitTurns = (p.sureHitTurns || 0) + _sh;
+          ml.push(`頭が冴えた！混乱が消え、必中状態になった！(${_sh}ターン)【呪→必中】`);
           break;
         }
         ml.push("魔法弾は効果なく消えた。"); break;
       }
       if (kind === "monster") {
         if (isStatusImmune(target, ml, target.name)) break;
-        const _cfTurns = _cfBlessed ? 40 : 20;
+        const _cfTurns = statusTurns("confuse", { kind: "monster", blessed: _cfBlessed, target });
         target.confusedTurns = (target.confusedTurns || 0) + _cfTurns;
         ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${_cfBlessed ? "【祝=強混乱】" : ""}`);
         break;
@@ -1285,7 +1304,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (hasAbility(p.armor, "confuse_proof")) {
           ml.push("混乱効果を受けたが防具が防いだ！(耐混乱)");
         } else {
-          const _cfTurns = _cfBlessed ? 10 : 5;
+          const _cfTurns = statusTurns("confuse", { kind: "player", blessed: _cfBlessed });
           p.confusedTurns = (p.confusedTurns || 0) + _cfTurns;
           ml.push(`混乱した！(${p.confusedTurns}ターン)${_cfBlessed ? "【祝=強混乱】" : ""}`);
         }
@@ -1303,19 +1322,20 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
-        const _dkBaseTurns = _dkBlessed ? 9999 : (target.isBoss ? 25 : 50);
+        const _dkBaseTurns = statusTurns("darkness", { kind: "monster", blessed: _dkBlessed, target });
         target.darknessTurns = _dkBaseTurns;
         target.darkDir = null;
         target.aware = false;
-        ml.push(`${target.name}は暗闇に包まれた！${_dkBlessed ? "(永続)" : `(${_dkBaseTurns}ターン)`}`);
+        ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dkBaseTurns) ? "(永続)" : `(${_dkBaseTurns}ターン)`}`);
         break;
       }
       if (kind === "player") {
         if (hasAbility(p.armor, "darkness_proof")) {
           ml.push("暗闇効果を受けたが防具が防いだ！(耐暗闇)");
         } else {
-          p.darknessTurns = (p.darknessTurns || 0) + (_dkBlessed ? 40 : 20);
-          ml.push(`暗闇に包まれた！視界が1マスになる！(${_dkBlessed ? 40 : 20}ターン)${_dkBlessed ? "(祝福)" : ""}`);
+          const _dt = statusTurns("darkness", { kind: "player", blessed: _dkBlessed });
+          p.darknessTurns = (p.darknessTurns || 0) + _dt;
+          ml.push(`暗闇に包まれた！視界が1マスになる！(${_dt}ターン)${_dkBlessed ? "(祝福)" : ""}`);
         }
         break;
       }
@@ -1330,16 +1350,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
-        const _bwBaseTurns = _bwBlessed ? 9999 : (target.isBoss ? 25 : 50);
+        const _bwBaseTurns = statusTurns("bewitch", { kind: "monster", blessed: _bwBlessed, target });
         target.fleeingTurns = _bwBaseTurns;
-        ml.push(`${target.name}は幻惑状態になり逃げ出した！${_bwBlessed ? "(永続)" : `(${_bwBaseTurns}ターン)`}`);
+        ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bwBaseTurns) ? "(永続)" : `(${_bwBaseTurns}ターン)`}`);
         break;
       }
       if (kind === "player") {
         if (hasAbility(p.armor, "bewitch_proof")) {
           ml.push("幻惑効果を受けたが防具が防いだ！(耐惑わし)");
         } else {
-          p.bewitchedTurns = (p.bewitchedTurns || 0) + (_bwBlessed ? 100 : 50);
+          const _bt = statusTurns("bewitch", { kind: "player", blessed: _bwBlessed });
+          p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
           ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${_bwBlessed ? "(祝福)" : ""}`);
         }
         break;
@@ -1484,8 +1505,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       const _iwBlessMult = _iwBlessed ? 2 : 1;
-      const _iwTurns = _iwBlessed ? 10 : 5;
       if (kind === "monster") {
+        const _iwTurns = statusTurns("immobile", { kind: "monster", blessed: _iwBlessed, target });
         const _iwIceMult = target.elemWeak === "ice" ? 2 : 1;
         let _iwDmg = Math.max(1, Math.round(rng(15,25) * _iwBlessMult * _iwIceMult));
         target.hp -= _iwDmg;
@@ -1495,6 +1516,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
+        const _iwTurns = statusTurns("immobile", { kind: "player", blessed: _iwBlessed });
         let _iwDmg = reduceIceDamage(Math.max(1, Math.round(rng(15,25) * _iwBlessMult)), p);
         p.deathCause = "氷の杖の魔法により";
         p.hp -= _iwDmg;
@@ -2124,11 +2146,12 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
       ml.push(_sfcWalled > 0 ? "壊せる壁に囲まれた！【呪】" : "杖が壊れたが何も起こらなかった。【呪】");
       return;
     }
-    /* 通常/祝福：中心の防御半減50ターン＋落とし穴＋周囲に軟化効果（壁は食料に変化） */
+    /* 通常/祝福：中心の防御半減＋落とし穴＋周囲に軟化効果（壁は食料に変化） */
     const _sfcEnt = _centerWandTarget(dg, cx, cy, p);
     if (_sfcEnt?.kind === "player") {
-      p.defSoftenedTurns = (p.defSoftenedTurns || 0) + 50;
-      ml.push("軟化の杖が壊れた！防御力が半減した！(50ターン)");
+      const _ds = statusTurns("defSoftened", { kind: "player", blessed: blMult > 1 });
+      p.defSoftenedTurns = (p.defSoftenedTurns || 0) + _ds;
+      ml.push(`軟化の杖が壊れた！防御力が半減した！(${_ds}ターン)`);
     } else if (_sfcEnt?.kind === "monster") {
       applyWandEffect("soften", "monster", _sfcEnt.t, 0, 0, dg, p, ml, luFn, null, blMult);
       ml.push("軟化の杖が壊れた！");

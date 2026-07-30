@@ -18,6 +18,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
+import { statusTurns, PERMANENT_TURNS, isPermanentTurns } from './statusDuration.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -927,8 +928,16 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty))
           dg.oilyTiles.push({ x: tx, y: ty });
         const mon = monsterAt(dg, tx, ty);
-        if (mon) { mon.oilyTurns = (mon.oilyTurns || 0) + 100; ml.push(`${mon.name}は油まみれになった！(100ターン)`); }
-        if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
+        if (mon) {
+          const _ot = statusTurns("oily", { kind: "monster", target: mon });
+          mon.oilyTurns = (mon.oilyTurns || 0) + _ot;
+          ml.push(`${mon.name}は油まみれになった！(${_ot}ターン)`);
+        }
+        if (tx === p.x && ty === p.y) {
+          const _ot = statusTurns("oily", { kind: "player" });
+          p.oilyTurns = (p.oilyTurns || 0) + _ot;
+          ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+        }
         /* 油がかかったマスの非永続罠を消滅 */
         const _oilTrap = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
         if (_oilTrap) removeTrap(dg, _oilTrap, ml, { message: `油で${_oilTrap.name}が消えた！`, p });
@@ -987,8 +996,16 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
         if (statueAt(dg, tx, ty)) continue;
         if (!dg.oilyTiles.some(t => t.x === tx && t.y === ty)) dg.oilyTiles.push({ x: tx, y: ty });
         const _om = monsterAt(dg, tx, ty);
-        if (_om) { _om.oilyTurns = (_om.oilyTurns || 0) + 100; ml.push(`${_om.name}は油まみれになった！(100ターン)`); }
-        if (tx === p.x && ty === p.y) { p.oilyTurns = (p.oilyTurns || 0) + 100; ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)"); }
+        if (_om) {
+          const _ot = statusTurns("oily", { kind: "monster", target: _om });
+          _om.oilyTurns = (_om.oilyTurns || 0) + _ot;
+          ml.push(`${_om.name}は油まみれになった！(${_ot}ターン)`);
+        }
+        if (tx === p.x && ty === p.y) {
+          const _ot = statusTurns("oily", { kind: "player" });
+          p.oilyTurns = (p.oilyTurns || 0) + _ot;
+          ml.push(`油を浴びた！炎ダメージが2倍になる！(${_ot}ターン)`);
+        }
         const _ot = dg.traps?.find(t => t.x === tx && t.y === ty && !t.permanent);
         if (_ot) removeTrap(dg, _ot, ml, { message: `油で${_ot.name}が消えた！`, p });
       }
@@ -1096,7 +1113,7 @@ export const TRAPS = [
   { name:"落石の罠",       effect:"rockfall",      tile:72,  rarity:"D", weight:8,  desc:"踏むと岩が降ってきて15～25ダメージ。\n対象がいなければ石が落ちる（罠マスには重ならず近くに転がる）。\n踏む以外で壊れると石が数個散らばる。" },
   { name:"吹き飛ばしの罠", effect:"blowback_trap", tile:51,  rarity:"D", weight:8,  desc:"踏むと向いていた方向と逆に最大10マス吹き飛ぶ。\n壁に激突すると10ダメージ。敵に当たると5ダメージ。" },
   { name:"暗闇の罠",       effect:"darkness_trap", tile:85,  rarity:"D", weight:8,  desc:"踏むと20ターン暗闇状態。\n視界が1マスになる。" },
-  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, rarity:"D", weight:8,  desc:"踏むと30ターン油まみれになる。\n炎・爆発ダメージが2倍。敵が踏んでも同様（ボス・店主も有効）。" },
+  { name:"油まみれの罠",   effect:"oil_trap",       tile:123, rarity:"D", weight:8,  desc:"踏むと100ターン油まみれになる。\n炎・爆発ダメージが2倍。敵が踏んでも同様（ボス・店主も有効）。" },
   { name:"浮遊の罠",       effect:"float_trap",     tile:122, rarity:"D", weight:8,  desc:"踏むと30ターン浮遊する。\n罠にかからなくなるが、階段を降りられなくなる。\n敵が踏んでも浮遊する（ボス・店主も有効）。" },
   /* C: ややレア */
   { name:"落とし穴",       effect:"pitfall",       tile:27,  rarity:"C", weight:4,  desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
@@ -2088,15 +2105,17 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _slm = monsterAt(dg, tx, ty);
       if (_slm) {
-        _slm.sleepTurns = (_slm.sleepTurns || 0) + 6;
-        ml.push(`${_slm.name}が眠りに落ちた！`);
+        const _mst = statusTurns("sleep", { kind: "monster", target: _slm });
+        _slm.sleepTurns = (_slm.sleepTurns || 0) + _mst;
+        ml.push(`${_slm.name}が眠りに落ちた！(${_mst}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
         if (p.armor?.ability === "sleep_proof") {
           ml.push(`しかし眠れなかった！(耐眠)`);
         } else {
-          p.sleepTurns = (p.sleepTurns || 0) + 6;
-          ml.push(`眠りに落ちた...`);
+          const _pst = statusTurns("sleep", { kind: "player" });
+          p.sleepTurns = (p.sleepTurns || 0) + _pst;
+          ml.push(`眠りに落ちた...(${_pst}ターン)`);
         }
       }
       return "restart";
@@ -2122,20 +2141,37 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "slow_trap": {
       ml.push(`${trap.name}が発動！`);
       const _slwm = monsterAt(dg, tx, ty);
-      if (_slwm) { _slwm.speed = Math.max(0.25, _slwm.speed * 0.5); ml.push(`${_slwm.name}が鈍足になった！`); }
+      if (_slwm) {
+        if (_slwm.isBoss && _slwm._preSlowSpeed === undefined) _slwm._preSlowSpeed = _slwm.speed;
+        _slwm.speed = Math.max(0.25, _slwm.speed * 0.5);
+        if (_slwm.isBoss) _slwm.bossSlowTurns = (_slwm.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target: _slwm });
+        ml.push(`${_slwm.name}が鈍足になった！`);
+      }
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "slow_proof")) { ml.push(`しかし防具が鈍足を防いだ！(耐鈍足)`); }
-        else { p.slowTurns = (p.slowTurns || 0) + 10; ml.push(`体が重くなった...(鈍足10ターン)`); }
+        else {
+          const _st = statusTurns("slow", { kind: "player" });
+          p.slowTurns = (p.slowTurns || 0) + _st;
+          ml.push(`体が重くなった...(鈍足${_st}ターン)`);
+        }
       }
       return "restart";
     }
     case "seal_trap": {
       ml.push(`${trap.name}が発動！`);
       const _seam = monsterAt(dg, tx, ty);
-      if (_seam) { _seam.sealed = true; ml.push(`${_seam.name}の特技が封印された！`); }
+      if (_seam) {
+        _seam.sealed = true;
+        _seam.sealedTurns = Math.max(_seam.sealedTurns || 0, statusTurns("seal", { kind: "monster", target: _seam }));
+        ml.push(`${_seam.name}の特技が封印された！`);
+      }
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "seal_proof")) { ml.push(`しかし防具が封印を防いだ！(耐封印)`); }
-        else { p.sealedTurns = (p.sealedTurns || 0) + 50; ml.push(`魔法が封印された！(50ターン)`); }
+        else {
+          const _st = statusTurns("seal", { kind: "player" });
+          p.sealedTurns = (p.sealedTurns || 0) + _st;
+          ml.push(`魔法が封印された！(${_st}ターン)`);
+        }
       }
       return "restart";
     }
@@ -2215,10 +2251,15 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "shadow_stitch": {
       ml.push(`${trap.name}が発動！`);
       const _ssm = monsterAt(dg, tx, ty);
-      if (_ssm) { _ssm.immobileTurns = (_ssm.immobileTurns || 0) + 5; ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(5ターン移動封じ)`); }
+      if (_ssm) {
+        const _it = statusTurns("immobile", { kind: "monster", target: _ssm });
+        _ssm.immobileTurns = (_ssm.immobileTurns || 0) + _it;
+        ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(${_it}ターン移動封じ)`);
+      }
       if (p && p.x === tx && p.y === ty) {
-        p.immobileTurns = (p.immobileTurns || 0) + 5;
-        ml.push(`影に縫い付けられた！(5ターン移動不能)`);
+        const _it = statusTurns("immobile", { kind: "player" });
+        p.immobileTurns = (p.immobileTurns || 0) + _it;
+        ml.push(`影に縫い付けられた！(${_it}ターン移動不能)`);
       }
       return "restart";
     }
@@ -2278,14 +2319,16 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _cfm = monsterAt(dg, tx, ty);
       if (_cfm) {
-        _cfm.confusedTurns = (_cfm.confusedTurns || 0) + 20;
-        ml.push(`${_cfm.name}は混乱した！(20ターン)`);
+        const _ct = statusTurns("confuse", { kind: "monster", target: _cfm });
+        _cfm.confusedTurns = (_cfm.confusedTurns || 0) + _ct;
+        ml.push(`${_cfm.name}は混乱した！(${_ct}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "confuse_proof")) { ml.push("しかし防具が混乱を防いだ！(耐混乱)"); }
         else {
-          p.confusedTurns = (p.confusedTurns || 0) + 10;
-          ml.push("頭がくらくらする！(混乱10ターン)");
+          const _ct = statusTurns("confuse", { kind: "player" });
+          p.confusedTurns = (p.confusedTurns || 0) + _ct;
+          ml.push(`頭がくらくらする！(混乱${_ct}ターン)`);
         }
       }
       return "restart";
@@ -2293,20 +2336,38 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "bewitch_trap": {
       ml.push(`${trap.name}が発動！`);
       const _bwtm = monsterAt(dg, tx, ty);
-      if (_bwtm) { _bwtm.fleeingTurns = (_bwtm.fleeingTurns || 0) + 50; ml.push(`${_bwtm.name}が幻惑された！(50ターン)`); }
+      if (_bwtm) {
+        const _bt = statusTurns("bewitch", { kind: "monster", target: _bwtm });
+        _bwtm.fleeingTurns = (_bwtm.fleeingTurns || 0) + _bt;
+        ml.push(`${_bwtm.name}が幻惑された！(${_bt}ターン)`);
+      }
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "bewitch_proof")) { ml.push("しかし防具が幻惑を防いだ！(耐惑わし)"); }
-        else { p.bewitchedTurns = (p.bewitchedTurns || 0) + 50; ml.push("幻惑された！周囲の見た目がおかしくなった！(50ターン)"); }
+        else {
+          const _bt = statusTurns("bewitch", { kind: "player" });
+          p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
+          ml.push(`幻惑された！周囲の見た目がおかしくなった！(${_bt}ターン)`);
+        }
       }
       return "restart";
     }
     case "darkness_trap": {
       ml.push(`${trap.name}が発動！`);
       const _dktm = monsterAt(dg, tx, ty);
-      if (_dktm) { _dktm.darknessTurns = (_dktm.darknessTurns || 0) + 20; _dktm.darkDir = null; _dktm.aware = false; ml.push(`${_dktm.name}が暗闇に包まれた！(20ターン)`); }
+      if (_dktm) {
+        const _dt = statusTurns("darkness", { kind: "monster", target: _dktm });
+        _dktm.darknessTurns = (_dktm.darknessTurns || 0) + _dt;
+        _dktm.darkDir = null;
+        _dktm.aware = false;
+        ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
+      }
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "darkness_proof")) { ml.push("しかし防具が暗闇を防いだ！(耐暗闇)"); }
-        else { p.darknessTurns = (p.darknessTurns || 0) + 20; ml.push("暗闇に包まれた！視界が1マスになる！(20ターン)"); }
+        else {
+          const _dt = statusTurns("darkness", { kind: "player" });
+          p.darknessTurns = (p.darknessTurns || 0) + _dt;
+          ml.push(`暗闇に包まれた！視界が1マスになる！(${_dt}ターン)`);
+        }
       }
       return "restart";
     }
@@ -2329,12 +2390,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _flm = monsterAt(dg, tx, ty);
       if (_flm) {
-        _flm.floatTurns = Math.max(_flm.floatTurns || 0, 30);
-        ml.push(`${_flm.name}がふわっと浮いた！(浮遊30ターン)`);
+        const _ft = statusTurns("float", { kind: "monster", target: _flm });
+        _flm.floatTurns = Math.max(_flm.floatTurns || 0, _ft);
+        ml.push(`${_flm.name}がふわっと浮いた！(浮遊${_ft}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
-        p.floatTurns = Math.max(p.floatTurns || 0, 30);
-        ml.push("体がふわっと浮いた！(浮遊30ターン)");
+        const _ft = statusTurns("float", { kind: "player" });
+        p.floatTurns = Math.max(p.floatTurns || 0, _ft);
+        ml.push(`体がふわっと浮いた！(浮遊${_ft}ターン)`);
       }
       return "restart";
     }
@@ -2342,12 +2405,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _olm = monsterAt(dg, tx, ty);
       if (_olm) {
-        _olm.oilyTurns = (_olm.oilyTurns || 0) + 30;
-        ml.push(`${_olm.name}は油まみれになった！(30ターン)`);
+        const _ot = statusTurns("oily", { kind: "monster", target: _olm });
+        _olm.oilyTurns = (_olm.oilyTurns || 0) + _ot;
+        ml.push(`${_olm.name}は油まみれになった！(${_ot}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
-        p.oilyTurns = (p.oilyTurns || 0) + 30;
-        ml.push("油まみれになった！炎ダメージが2倍になる！(30ターン)");
+        const _ot = statusTurns("oily", { kind: "player" });
+        p.oilyTurns = (p.oilyTurns || 0) + _ot;
+        ml.push(`油まみれになった！炎ダメージが2倍になる！(${_ot}ターン)`);
       }
       return "restart";
     }
@@ -2355,8 +2420,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _uim = monsterAt(dg, tx, ty);
       if (_uim) {
-        _uim.confusedTurns = (_uim.confusedTurns || 0) + 20;
-        ml.push(`${_uim.name}は混乱した！(20ターン)`);
+        const _ct = statusTurns("confuse", { kind: "monster", target: _uim });
+        _uim.confusedTurns = (_uim.confusedTurns || 0) + _ct;
+        ml.push(`${_uim.name}は混乱した！(${_ct}ターン)`);
       }
       /* 落ちてきた／作動させたアイテム自体を未識別に */
       const _idSet = identSet || getTrapIdentSet();
@@ -2590,7 +2656,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           const dmg = Math.max(1, Math.round((val + rng(-3, 3)) * (blessed ? 1.5 : 1)));
           target.hp -= dmg;
-          const _poisonTurns = blessed ? 8 : 5;
+          const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
           target.poisonedTurns = Math.max(target.poisonedTurns || 0, _poisonTurns);
           if (!target.poisonHalfAtk) {
             target.poisonOrigAtk = target.atk;
@@ -2672,11 +2738,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") { target.sleepTurns = 0; ml.push(`${target.name}が目を覚ました！(覚醒)`); }
         if (kind === "player") { dg.monsterSenseActive = true; ml.push("幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】"); }
       } else {
-        const t = blessed ? 12 : 6;
         if (kind === "monster") {
+          const t = statusTurns("sleep", { kind: "monster", blessed, target });
           if (!isStatusImmune(target, ml, target.name)) { target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`${target.name}は眠りに落ちた！(${t}ターン)${blessed ? "(強眠)" : ""}`); }
         }
         if (kind === "player") {
+          const t = statusTurns("sleep", { kind: "player", blessed });
           if (!isStatusImmune(p, ml)) { p.sleepTurns = (p.sleepTurns || 0) + t; ml.push(`眠りに落ちた...(${t}ターン)${blessed ? "(強眠)" : ""}`); }
         }
       }
@@ -2697,25 +2764,46 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (cursed) {
         // 反転→加速
         if (kind === "monster") { target.speed = Math.min(2, (target.speed || 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
-        if (kind === "player") { p.hasteTurns = (p.hasteTurns || 0) + 10; ml.push("体が軽くなった！(2倍速10ターン)【呪→加速】"); }
+        if (kind === "player") {
+          const _ht = statusTurns("haste", { kind: "player" });
+          p.hasteTurns = (p.hasteTurns || 0) + _ht;
+          ml.push(`体が軽くなった！(2倍速${_ht}ターン)【呪→加速】`);
+        }
       } else {
-        if (kind === "monster") { if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed; target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5)); if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10; ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`); }
+        if (kind === "monster") {
+          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
+          target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5));
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed, target });
+          ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`);
+        }
         if (kind === "player") {
           if (hasAbility(p.armor, "slow_proof")) { ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)"); }
-          else { const _st = blessed ? 20 : 10; p.slowTurns = (p.slowTurns || 0) + _st; ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`); }
+          else {
+            const _st = statusTurns("slow", { kind: "player", blessed });
+            p.slowTurns = (p.slowTurns || 0) + _st;
+            ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`);
+          }
         }
       }
       break;
     case "paralyze":
       if (cursed) {
-        // 呪い→状態異常防止200ターン
-        if (kind === "monster") { target.statusImmune = (target.statusImmune || 0) + 200; ml.push(`${target.name}は状態異常を防ぐ力を得た！(200ターン)`); }
-        if (kind === "player")  { p.statusImmune = (p.statusImmune || 0) + 200; ml.push("状態異常を防ぐ力が宿った！(200ターン)【呪→状態防止】"); }
+        // 呪い→状態異常防止
+        if (kind === "monster") {
+          const _si = statusTurns("statusImmune", { kind: "monster", target });
+          target.statusImmune = (target.statusImmune || 0) + _si;
+          ml.push(`${target.name}は状態異常を防ぐ力を得た！(${_si}ターン)`);
+        }
+        if (kind === "player") {
+          const _si = statusTurns("statusImmune", { kind: "player" });
+          p.statusImmune = (p.statusImmune || 0) + _si;
+          ml.push(`状態異常を防ぐ力が宿った！(${_si}ターン)【呪→状態防止】`);
+        }
       } else {
         if (kind === "monster") {
           if (isStatusImmune(target, ml, target.name)) break;
           target.paralyzed = true;
-          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, blessed ? 20 : 10);
+          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", blessed, target }));
           if (blessed) { target.paralyzeHits = 2; ml.push(`${target.name}は強い金縛りになった！2回アクションが必要！`); }
           else ml.push(`${target.name}は金縛りになった！`);
         }
@@ -2723,7 +2811,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (isStatusImmune(p, ml)) break;
           if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛り効果を受けたが防具が防いだ！(耐金縛り)"); }
           else {
-            const _pt = blessed ? 20 : 10;
+            const _pt = statusTurns("paralyze", { kind: "player", blessed });
             p.paralyzeTurns = _pt;
             ml.push(`金縛りになった！(${_pt}ターン)${blessed ? "(強金縛り)" : ""}`);
           }
@@ -2732,27 +2820,36 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       break;
     case "confuse":
       if (cursed) {
-        // 呪い→混乱解消 + 必中100ターン（攻撃・投擲が外れなくなる）
+        // 呪い→混乱解消 + 必中（攻撃・投擲が外れなくなる）
         if (kind === "monster") { target.confusedTurns = 0; ml.push(`${target.name}の混乱が解けた！`); }
         if (kind === "player") {
           p.confusedTurns = 0;
-          p.sureHitTurns = (p.sureHitTurns || 0) + 100;
-          ml.push("頭が冴えた！混乱が消え、必中状態になった！(100ターン)【呪→必中】");
+          const _sh = statusTurns("sureHit", { kind: "player" });
+          p.sureHitTurns = (p.sureHitTurns || 0) + _sh;
+          ml.push(`頭が冴えた！混乱が消え、必中状態になった！(${_sh}ターン)【呪→必中】`);
         }
       } else {
-        if (kind === "monster") { const _ct = blessed ? 40 : 20; target.confusedTurns = (target.confusedTurns || 0) + _ct; ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
+        if (kind === "monster") {
+          const _ct = statusTurns("confuse", { kind: "monster", blessed, target });
+          target.confusedTurns = (target.confusedTurns || 0) + _ct;
+          ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`);
+        }
         if (kind === "player") {
           if (hasAbility(p.armor, "confuse_proof")) { ml.push("混乱効果を受けたが防具が防いだ！(耐混乱)"); }
-          else { const _ct = blessed ? 10 : 5; p.confusedTurns = (p.confusedTurns || 0) + _ct; ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`); }
+          else {
+            const _ct = statusTurns("confuse", { kind: "player", blessed });
+            p.confusedTurns = (p.confusedTurns || 0) + _ct;
+            ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`);
+          }
         }
       }
       break;
     case "mana":
       if (kind === "player") {
         if (cursed) {
-          // 反転→MP封印50ターン
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
-          ml.push("魔力が封じられた！(MP封印50ターン)【呪】");
+          const _mt = statusTurns("mpCooldown", { kind: "player" });
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
+          ml.push(`魔力が封じられた！(MP封印${_mt}ターン)【呪】`);
         } else if ((p.mpCooldownTurns || 0) > 0) {
           ml.push(`MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
         } else {
@@ -2772,8 +2869,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (cursed) {
           // 呪い：封印（ボスは有限ターン）
           target.sealed = true;
-          target.sealedTurns = Math.max(target.sealedTurns||0, target.isBoss ? 20 : 9999);
-          target.mpCooldownTurns = target.isBoss ? 20 : 9999;
+          const _st = statusTurns("seal", { kind: "monster", target });
+          target.sealedTurns = Math.max(target.sealedTurns||0, _st);
+          target.mpCooldownTurns = statusTurns("mpCooldown", { kind: "monster", target });
           ml.push(target.isBoss ? `${target.name}は封印された！` : `${target.name}は永続的に封印された！【呪→永続封印】`);
         } else {
           // 通常/祝福：特技使用率100%
@@ -2785,13 +2883,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "darkness":
       if (kind === "player") {
         if (cursed) {
-          p.monsterSenseTurns = (p.monsterSenseTurns || 0) + 100;
-          ml.push("呪われた薬！フロアのモンスターが感知できる！(100ターン)【呪→感知】");
+          const _ms = statusTurns("monsterSense", { kind: "player" });
+          p.monsterSenseTurns = (p.monsterSenseTurns || 0) + _ms;
+          ml.push(`呪われた薬！フロアのモンスターが感知できる！(${_ms}ターン)【呪→感知】`);
         } else {
           if (hasAbility(p.armor, "darkness_proof")) {
             ml.push("暗闇効果を受けたが防具が防いだ！(耐暗闇)");
           } else {
-            const _dt = blessed ? 50 : 20;
+            const _dt = statusTurns("darkness", { kind: "player", blessed });
             p.darknessTurns = (p.darknessTurns || 0) + _dt;
             ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${blessed ? "(祝福)" : ""}`);
           }
@@ -2803,10 +2902,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           target.darkDir = null;
           ml.push(`${target.name}の暗闇が晴れた！【呪→解除】`);
         } else {
-          target.darknessTurns = blessed ? 9999 : 50;
+          const _dt = statusTurns("darkness", { kind: "monster", blessed, target });
+          target.darknessTurns = _dt;
           target.darkDir = null;
           target.aware = false;
-          ml.push(`${target.name}は暗闇に包まれた！${blessed ? "(永続)" : "(50ターン)"}`);
+          ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
         }
       }
       break;
@@ -2819,7 +2919,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (hasAbility(p.armor, "bewitch_proof")) {
             ml.push("幻惑効果を受けたが防具が防いだ！(耐惑わし)");
           } else {
-            const _bt = blessed ? 100 : 50;
+            const _bt = statusTurns("bewitch", { kind: "player", blessed });
             p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
             ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${blessed ? "(祝福)" : ""}`);
           }
@@ -2830,8 +2930,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           target.fleeingTurns = 0;
           ml.push(`${target.name}の幻惑が解けた！【呪→解除】`);
         } else {
-          target.fleeingTurns = blessed ? 9999 : 50;
-          ml.push(`${target.name}は幻惑状態になり逃げ出した！${blessed ? "(永続)" : "(50ターン)"}`);
+          const _bt = statusTurns("bewitch", { kind: "monster", blessed, target });
+          target.fleeingTurns = _bt;
+          ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bt) ? "(永続)" : `(${_bt}ターン)`}`);
         }
       }
       break;
@@ -2870,12 +2971,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           // 通常/祝福：封印状態（祝福：さらに鈍足）
           target.sealed = true;
-          target.sealedTurns = Math.max(target.sealedTurns||0, target.isBoss ? 20 : 9999);
+          target.sealedTurns = Math.max(target.sealedTurns||0, statusTurns("seal", { kind: "monster", blessed, target }));
           ml.push(`${target.name}は封印された！`);
           if (blessed) {
             if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + 10;
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed, target });
             ml.push(`さらに${target.name}は鈍足になった！(祝福)`);
           }
         }
@@ -2886,15 +2987,17 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.mpCooldownTurns = 0;
           ml.push("MP封印が解けた！【呪→解封】");
         } else {
-          // 通常/祝福：MP封印50ターン（祝福：さらに鈍足10ターン）
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + 50;
-          ml.push(`魔力が封じられた！(MP封印50ターン)${blessed ? "(祝福)" : ""}`);
+          // 通常/祝福：MP封印（祝福：さらに鈍足）
+          const _mt = statusTurns("mpCooldown", { kind: "player", blessed });
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
+          ml.push(`魔力が封じられた！(MP封印${_mt}ターン)${blessed ? "(祝福)" : ""}`);
           if (blessed) {
             if (hasAbility(p.armor, "slow_proof")) {
               ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
             } else {
-              p.slowTurns = (p.slowTurns || 0) + 10;
-              ml.push("さらに鈍足10ターン！");
+              const _st = statusTurns("slow", { kind: "player" });
+              p.slowTurns = (p.slowTurns || 0) + _st;
+              ml.push(`さらに鈍足${_st}ターン！`);
             }
           }
         }
@@ -3795,9 +3898,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         mlx.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
         if (mon.hp > 0) {
           mon.poisoned = true;
-          mon.confusedTurns = (mon.confusedTurns || 0) + 5;
-          mon.fleeingTurns = (mon.fleeingTurns || 0) + 10;
-          mon.slowTurns = (mon.slowTurns || 0) + 10;
+          mon.poisonedTurns = Math.max(mon.poisonedTurns || 0, statusTurns("poison", { kind: "monster", target: mon }));
+          mon.confusedTurns = (mon.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target: mon });
+          mon.fleeingTurns = (mon.fleeingTurns || 0) + statusTurns("bewitch", { kind: "monster", target: mon });
+          if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
+          mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
+          if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target: mon });
           mlx.push(`${mon.name}は毒・混乱・幻惑・鈍足状態になった！`);
         }
       }
@@ -3839,8 +3945,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
           p.poisoned = true;
           mlx.push("食中毒になった！毒状態になった！");
         }
-        p.confusedTurns = (p.confusedTurns || 0) + 5;
-        p.slowTurns = (p.slowTurns || 0) + 10;
+        p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
+        p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
         mlx.push("混乱・鈍足状態になった！");
       } else if (item.type === "food" && item.rotten && !item.yabai) {
         if (hasRingEffect(p, "antidote_ring")) {
@@ -4479,10 +4585,11 @@ export function isPlayerOnWater(p, dg) {
 
 /**
  * 水中で氷属性攻撃を受けたときの凍結。
- * 5ターン行動不能＋物理ダメージ2倍。耐氷で無効。
+ * 行動不能＋物理ダメージ2倍。耐氷で無効。
  * @returns {boolean}
  */
-export function applyWaterIceFreeze(p, dg, ml, turns = 5) {
+export function applyWaterIceFreeze(p, dg, ml, turns = null) {
+  if (turns == null) turns = statusTurns("frozen", { kind: "player" });
   if (!isPlayerOnWater(p, dg)) return false;
   if (hasIceResist(p)) {
     if (ml) ml.push("防具が氷を弾いた！凍結しなかった。(耐氷)");
@@ -4654,7 +4761,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "ice_bolt": {
       let dmg = Math.round(rng(15, 22) * _lvF) * _cmsBoost;
-      const _iceFreeze = Math.round(3 * _lvF);
+      const _iceFreeze = statusTurns("immobile", { kind: "monster", target });
       if (kind === "monster") {
         if (target.elemWeak === "ice") dmg = Math.floor(dmg * 1.5);
         target.hp -= dmg;
@@ -4695,7 +4802,11 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       } break;
     }
     case "sleep_bolt": {
-      if (kind === "monster") { const t = 5 + lv; target.sleepTurns = (target.sleepTurns || 0) + t; ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`); }
+      if (kind === "monster") {
+        const t = statusTurns("sleep", { kind: "monster", target });
+        target.sleepTurns = (target.sleepTurns || 0) + t;
+        ml.push(`眠りの魔法が${target.name}に命中！${t}ターン眠りについた！`);
+      }
       break;
     }
     case "transform_magic": {
@@ -4722,8 +4833,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "poison_bolt": {
       if (kind === "monster") {
-        target.poisonedTurns = (target.poisonedTurns || 0) + Math.round(10 * _lvF);
-        ml.push(`毒の魔法が${target.name}に命中！毒に侵された！`);
+        const _pt = statusTurns("poison", { kind: "monster", target });
+        target.poisonedTurns = (target.poisonedTurns || 0) + _pt;
+        ml.push(`毒の魔法が${target.name}に命中！毒に侵された！(${_pt}ターン)`);
       } break;
     }
     case "invisible_magic": {
@@ -4776,7 +4888,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "monster") {
         if (!isStatusImmune(target, ml, target.name)) {
           target.paralyzed = true;
-          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, Math.round(10 * _lvF));
+          if (target.isBoss) target.paralyzeTurns = Math.max(target.paralyzeTurns||0, statusTurns("paralyze", { kind: "monster", target }));
           ml.push(`金縛りの魔法が${target.name}に命中！金縛りになった！`);
         }
       } break;
@@ -4837,7 +4949,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           case "ice_bolt": { const _rd = Math.round(rng(15, 22) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された氷の魔法で"; ml.push(`氷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "lightning_magic": { const _rd = Math.round(rng(22, 32) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された雷の魔法で"; ml.push(`雷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "sleep_bolt": {
-            const _rt = 5 + lv;
+            const _rt = statusTurns("sleep", { kind: "player" });
             if ((p.statusImmune || 0) > 0) { ml.push("眠りの魔法が跳ね返ってきた！しかし状態防止中のため効かなかった！"); }
             else if (hasAbility(p.armor, "sleep_proof")) { ml.push("眠りの魔法が跳ね返ってきた！しかし防具が防いだ！(耐眠)"); }
             else { p.sleepTurns = (p.sleepTurns || 0) + _rt; ml.push(`眠りの魔法が跳ね返ってきた！${_rt}ターン眠った！`); }
@@ -4845,13 +4957,23 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           }
           case "poison_bolt": {
             if (hasRingEffect(p, "antidote_ring")) { ml.push("毒の魔法が跳ね返ってきたが指輪が毒を消した！"); }
-            else { p.poisonedTurns = (p.poisonedTurns || 0) + Math.round(10 * _rfLvF); p.poisoned = true; ml.push("毒の魔法が跳ね返ってきた！毒に侵された！"); }
+            else {
+              const _pt = statusTurns("poison", { kind: "player" });
+              p.poisonedTurns = (p.poisonedTurns || 0) + _pt;
+              p.poisoned = true;
+              ml.push(`毒の魔法が跳ね返ってきた！毒に侵された！(${_pt}ターン)`);
+            }
             break;
           }
           case "paralyze_magic": {
             if ((p.statusImmune || 0) > 0) { ml.push("金縛りの魔法が跳ね返ってきた！しかし状態防止中のため効かなかった！"); }
             else if (hasAbility(p.armor, "paralyze_proof")) { ml.push("金縛りの魔法が跳ね返ってきた！しかし防具が防いだ！(耐金縛り)"); }
-            else { p.paralyzed = true; p.paralyzeTurns = (p.paralyzeTurns || 0) + 10; ml.push("金縛りの魔法が跳ね返ってきた！金縛りになった！(10ターン)"); }
+            else {
+              const _pt = statusTurns("paralyze", { kind: "player" });
+              p.paralyzed = true;
+              p.paralyzeTurns = (p.paralyzeTurns || 0) + _pt;
+              ml.push(`金縛りの魔法が跳ね返ってきた！金縛りになった！(${_pt}ターン)`);
+            }
             break;
           }
           case "teleport_other": { const _rtf = []; for (let _rty = 0; _rty < MH; _rty++) for (let _rtx = 0; _rtx < MW; _rtx++) if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => m.x === _rtx && m.y === _rty)) _rtf.push({ x: _rtx, y: _rty }); if (_rtf.length > 0) { const _rtd = pick(_rtf); p.x = _rtd.x; p.y = _rtd.y; ml.push("テレポートの魔法が跳ね返ってきた！どこかへ飛ばされた！"); } break; }
@@ -5082,22 +5204,24 @@ export function isSoaked(p) {
   return (p?.soakedTurns || 0) > 0;
 }
 
-/** 水中を歩いたときずぶ濡れ（10ターン）。浮遊中・耐水は付与しない */
+/** 水中を歩いたときずぶ濡れ。浮遊中・耐水は付与しない */
 export function applySoakedFromWaterWalk(p, dg, ml) {
   if (!dg?.map || dg.map[p.y]?.[p.x] !== T.WATER) return;
   if (isPlayerFloating(p, dg)) return;
   if (hasWaterProof(p)) return;
   const _was = p.soakedTurns || 0;
-  p.soakedTurns = 10;
-  if (_was === 0) ml.push("水の中を歩いてずぶ濡れになった！(10ターン)");
+  const _st = statusTurns("soaked", { kind: "player" });
+  p.soakedTurns = _st;
+  if (_was === 0) ml.push(`水の中を歩いてずぶ濡れになった！(${_st}ターン)`);
 }
 
 /**
  * ずぶ濡れ付与（水鉄砲など）。耐水で無効。
- * @param {number} [turns=10]
+ * @param {number} [turns] 省略時は基準ターン
  * @returns {boolean} 付与したか
  */
-export function applySoakedStatus(p, ml, turns = 10, msg = null) {
+export function applySoakedStatus(p, ml, turns = null, msg = null) {
+  if (turns == null) turns = statusTurns("soaked", { kind: "player" });
   if (!p) return false;
   if (hasWaterProof(p)) {
     if (ml) ml.push("防具が水を弾いた！ずぶ濡れにならなかった。(耐水)");

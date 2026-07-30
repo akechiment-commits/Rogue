@@ -4,6 +4,7 @@ import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./a
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
+import { statusTurns } from "./statusDuration.js";
 
 export { wakeIfDormant } from "./monsterRuntime.js";
 
@@ -165,10 +166,10 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     const _iIsWeak = _iBlock.elemWeak === "ice";
     if (_iIsWeak) _iDmg = Math.floor(_iDmg * 1.5);
     _iBlock.hp -= _iDmg;
-    const _iSlow = rng(3, 5);
+    const _iSlow = statusTurns("bossSlow", { kind: "monster", target: _iBlock });
     if (_iBlock.isBoss && _iBlock._preSlowSpeed === undefined) _iBlock._preSlowSpeed = _iBlock.speed;
     _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
-    if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow * 2;
+    if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow;
     ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}鈍足${_iSlow}ターン！`);
     if (_iBlock.hp <= 0) {
       killMonster(_iBlock, dg, pl, ml, null, false, m);
@@ -189,9 +190,9 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
       ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！${iceResistDamageLabel(pl)}・鈍足無効`);
     } else if (isPlayerOnWater(pl, dg)) {
       ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！`);
-      applyWaterIceFreeze(pl, dg, ml, 5);
+      applyWaterIceFreeze(pl, dg, ml, statusTurns("frozen", { kind: "player" }));
     } else {
-      const _iSlow = rng(3, 6);
+      const _iSlow = statusTurns("slow", { kind: "player" });
       pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
       ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
     }
@@ -416,18 +417,20 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       if ((pl.yogurtImmuneTurns || 0) > 0) {
         ml.push(`${m.name}の鋭い爪が頭を掻いた！しかし乳酸菌が混乱を防いだ！`);
       } else {
-        pl.confusedTurns = (pl.confusedTurns || 0) + 3;
-        ml.push(`${m.name}の鋭い爪で頭を掻かれた！混乱した！(3ターン)`);
+        const _ct = statusTurns("confuse", { kind: "player" });
+        pl.confusedTurns = (pl.confusedTurns || 0) + _ct;
+        ml.push(`${m.name}の鋭い爪で頭を掻かれた！混乱した！(${_ct}ターン)`);
       }
     }
     if (m.baseKind === "boss_demonking" && Math.random() < 0.25) {
-      const _pt = rng(2, 4);
+      const _pt = statusTurns("paralyze", { kind: "player" });
       pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
       ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
     }
     if (m.baseKind === "boss_warlord" && Math.random() < 0.30) {
-      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + 8;
-      ml.push(`魔将軍の刃が鎧を砕いた！防御力が半減した！(8ターン)`);
+      const _ds = statusTurns("defSoftened", { kind: "player" });
+      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
+      ml.push(`魔将軍の刃が鎧を砕いた！防御力が半減した！(${_ds}ターン)`);
     }
     if (m.baseKind === "boss_skullking" && Math.random() < 0.35) {
       const _drain = Math.min(20, pl.hp - 1);
@@ -443,8 +446,9 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       }
     }
     if (m.baseKind === "boss_voidmonk" && Math.random() < 0.25) {
-      pl.sealedTurns = (pl.sealedTurns || 0) + 12;
-      ml.push(`虚無の僧侶の呪いが魔力を封じた！魔法が封印された！(12ターン)`);
+      const _st = statusTurns("seal", { kind: "player" });
+      pl.sealedTurns = (pl.sealedTurns || 0) + _st;
+      ml.push(`虚無の僧侶の呪いが魔力を封じた！魔法が封印された！(${_st}ターン)`);
     }
     if (m.baseKind === "boss_infernoking" && Math.random() < 0.40) {
       if (hasRingEffect(pl, "antidote_ring")) {
@@ -458,19 +462,21 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     }
     if (m.baseKind === "boss_abyssgod") {
       if (Math.random() < 0.35) {
-        const _pt = rng(2, 3);
+        const _pt = statusTurns("paralyze", { kind: "player" });
         pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
         ml.push(`深淵神の一撃が意識を蝕んだ！金縛りになった！(${_pt}ターン)`);
       }
       if (Math.random() < 0.25) {
-        pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + 10;
-        ml.push(`深淵神の呪いで防御が崩れた！防御力が半減した！(10ターン)`);
+        const _ds = statusTurns("defSoftened", { kind: "player" });
+        pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
+        ml.push(`深淵神の呪いで防御が崩れた！防御力が半減した！(${_ds}ターン)`);
       }
     }
     /* 中級ボス固有 on-hit */
     if (m.baseKind === "im_boss_titan" && Math.random() < 0.35) {
-      pl.immobileTurns = (pl.immobileTurns || 0) + 3;
-      ml.push(`${m.name}の強烈な一撃！移動封じ！(3ターン)`);
+      const _it = statusTurns("immobile", { kind: "player" });
+      pl.immobileTurns = (pl.immobileTurns || 0) + _it;
+      ml.push(`${m.name}の強烈な一撃！移動封じ！(${_it}ターン)`);
     }
   }
   /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
@@ -2599,7 +2605,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.baseKind === "boss_flamedragon" && !_moveOnly) {
     const _fdVisible = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_fdVisible && Math.random() < 0.40) {
-      pl.oilyTurns = (pl.oilyTurns || 0) + 8;
+      pl.oilyTurns = (pl.oilyTurns || 0) + statusTurns("oily", { kind: "player" });
       ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(8ターン)`);
       return; /* ブレス行動消費 */
     }
@@ -2612,12 +2618,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (m._statusCooldown <= 0) {
       m._statusCooldown = 5;
       const _r = Math.random();
-      if (_r < 0.33) { pl.slowTurns = (pl.slowTurns || 0) + 6; ml.push(`${m.name}の呪いで足が重くなった！(6ターン)`); }
+      if (_r < 0.33) { const _st = statusTurns("slow", { kind: "player" }); pl.slowTurns = (pl.slowTurns || 0) + _st; ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`); }
       else if (_r < 0.66) {
         if ((pl.yogurtImmuneTurns || 0) > 0) { ml.push(`${m.name}の幻術！しかし乳酸菌が混乱を防いだ！`); }
-        else { pl.confusedTurns = (pl.confusedTurns || 0) + 4; ml.push(`${m.name}の幻術で混乱した！(4ターン)`); }
+        else { const _ct = statusTurns("confuse", { kind: "player" }); pl.confusedTurns = (pl.confusedTurns || 0) + _ct; ml.push(`${m.name}の幻術で混乱した！(${_ct}ターン)`); }
       }
-      else { pl.sealedTurns = (pl.sealedTurns || 0) + 6; ml.push(`${m.name}の空間歪曲で魔法が封印された！(6ターン)`); }
+      else { const _st = statusTurns("seal", { kind: "player" }); pl.sealedTurns = (pl.sealedTurns || 0) + _st; ml.push(`${m.name}の空間歪曲で魔法が封印された！(${_st}ターン)`); }
       return; /* 状態異常付与行動消費 */
     }
   }
@@ -2727,7 +2733,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
           pl.hp -= _kiDmg;
           pl.deathCause = `${m.name}の墨で`;
-          pl.darknessTurns = (pl.darknessTurns || 0) + 15;
+          pl.darknessTurns = (pl.darknessTurns || 0) + statusTurns("darkness", { kind: "player" });
           ml.push(`${m.name}が墨を吐いた！${_kiDmg}ダメージ！暗闇状態になった！(15ターン)`);
           _onHit?.(_kiDmg, m);
           break;
@@ -4153,7 +4159,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             } else if (_plOnBlessedSanc) {
               ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
             } else {
-              pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + 50;
+              pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + statusTurns("defSoftened", { kind: "player" });
               ml.push(`${m.name}の魔法！防御力が50ターン半減した！`);
             }
             return;

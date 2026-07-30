@@ -2,6 +2,7 @@ import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, rando
 import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
+import { statusTurns } from "./statusDuration.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
   /* 偽階段：ランダムな通常罠に化けてから再発動 */
@@ -66,8 +67,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (hasAbility(p.armor, "sleep_proof")) {
         ml.push(`${trap.name}が発動！しかし眠れなかった！(耐眠)`);
       } else {
-        p.sleepTurns = (p.sleepTurns || 0) + 6;
-        ml.push(`${trap.name}が発動！眠りに落ちた...(6ターン)`);
+        const _st = statusTurns("sleep", { kind: "player" });
+        p.sleepTurns = (p.sleepTurns || 0) + _st;
+        ml.push(`${trap.name}が発動！眠りに落ちた...(${_st}ターン)`);
       }
       break;
     case "poison_arrow": {
@@ -92,8 +94,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (hasAbility(p.armor, "slow_proof")) {
         ml.push(`${trap.name}が発動！しかし防具が鈍足を防いだ！(耐鈍足)`);
       } else {
-        p.slowTurns = (p.slowTurns || 0) + 10;
-        ml.push(`${trap.name}が発動！体が重くなった...(鈍足10ターン)`);
+        const _st = statusTurns("slow", { kind: "player" });
+        p.slowTurns = (p.slowTurns || 0) + _st;
+        ml.push(`${trap.name}が発動！体が重くなった...(鈍足${_st}ターン)`);
       }
       break;
     }
@@ -101,8 +104,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (hasAbility(p.armor, "confuse_proof")) {
         ml.push(`${trap.name}が発動！しかし防具が混乱を防いだ！(耐混乱)`);
       } else {
-        p.confusedTurns = (p.confusedTurns || 0) + 10;
-        ml.push(`${trap.name}が発動！頭がくらくらする！(混乱10ターン)`);
+        const _ct = statusTurns("confuse", { kind: "player" });
+        p.confusedTurns = (p.confusedTurns || 0) + _ct;
+        ml.push(`${trap.name}が発動！頭がくらくらする！(混乱${_ct}ターン)`);
       }
       break;
     }
@@ -110,8 +114,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (hasAbility(p.armor, "bewitch_proof")) {
         ml.push(`${trap.name}が発動！しかし防具が幻惑を防いだ！(耐惑わし)`);
       } else {
-        p.bewitchedTurns = (p.bewitchedTurns || 0) + 50;
-        ml.push(`${trap.name}が発動！幻惑された！周囲の見た目がおかしくなった！(50ターン)`);
+        const _bt = statusTurns("bewitch", { kind: "player" });
+        p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
+        ml.push(`${trap.name}が発動！幻惑された！周囲の見た目がおかしくなった！(${_bt}ターン)`);
       }
       break;
     }
@@ -119,8 +124,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (hasAbility(p.armor, "darkness_proof")) {
         ml.push(`${trap.name}が発動！しかし防具が暗闇を防いだ！(耐暗闇)`);
       } else {
-        p.darknessTurns = (p.darknessTurns || 0) + 20;
-        ml.push(`${trap.name}が発動！暗闇に包まれた！視界が1マスになる！(20ターン)`);
+        const _dt = statusTurns("darkness", { kind: "player" });
+        p.darknessTurns = (p.darknessTurns || 0) + _dt;
+        ml.push(`${trap.name}が発動！暗闇に包まれた！視界が1マスになる！(${_dt}ターン)`);
       }
       break;
     }
@@ -128,8 +134,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (hasAbility(p.armor, "seal_proof")) {
         ml.push(`${trap.name}が発動！しかし防具が封印を防いだ！(耐封印)`);
       } else {
-        p.sealedTurns = (p.sealedTurns || 0) + 50;
-        ml.push(`${trap.name}が発動！魔法が封印された！(50ターン)`);
+        const _st = statusTurns("seal", { kind: "player" });
+        p.sealedTurns = (p.sealedTurns || 0) + _st;
+        ml.push(`${trap.name}が発動！魔法が封印された！(${_st}ターン)`);
       }
       break;
     }
@@ -200,8 +207,9 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "shadow_stitch": {
-      p.immobileTurns = (p.immobileTurns || 0) + 5;
-      ml.push(`${trap.name}が作動！影に縫い付けられた！(5ターン移動不能)`);
+      const _it = statusTurns("immobile", { kind: "player" });
+      p.immobileTurns = (p.immobileTurns || 0) + _it;
+      ml.push(`${trap.name}が作動！影に縫い付けられた！(${_it}ターン移動不能)`);
       break;
     }
     case "rockfall": {
@@ -226,13 +234,15 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "float_trap": {
-      p.floatTurns = Math.max(p.floatTurns || 0, 30);
-      ml.push(`${trap.name}が発動！体がふわっと浮いた！(浮遊30ターン)`);
+      const _ft = statusTurns("float", { kind: "player" });
+      p.floatTurns = Math.max(p.floatTurns || 0, _ft);
+      ml.push(`${trap.name}が発動！体がふわっと浮いた！(浮遊${_ft}ターン)`);
       break;
     }
     case "oil_trap": {
-      p.oilyTurns = (p.oilyTurns || 0) + 30;
-      ml.push(`${trap.name}が発動！油まみれになった！炎ダメージが2倍になる！(30ターン)`);
+      const _ot = statusTurns("oily", { kind: "player" });
+      p.oilyTurns = (p.oilyTurns || 0) + _ot;
+      ml.push(`${trap.name}が発動！油まみれになった！炎ダメージが2倍になる！(${_ot}ターン)`);
       break;
     }
     case "unident_trap": {
