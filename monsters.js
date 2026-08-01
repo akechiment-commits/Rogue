@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
@@ -643,6 +643,12 @@ export const MONS = [
     levels: [
       { name: "強錆虫",             hp: 39,  atk: 18, def: 5,  exp: 64,  dungeonFloors: { advanced: { min: 21, max: 23 } } },
       { name: "覇錆虫",             hp: 61,  atk: 25, def: 7,  exp: 100 },
+    ],
+  },
+  { name: "足払い鬼",     hp: 28,  atk: 15, def: 3,  exp: 42,  speed: 1,   tile: 86,  kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 9,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 7, max: 16 } },
+    levels: [
+      { name: "強足払い鬼",         hp: 46,  atk: 21, def: 6,  exp: 68,  dungeonFloors: { advanced: { min: 18, max: 22 } } },
+      { name: "覇足払い鬼",         hp: 68,  atk: 28, def: 10, exp: 100 },
     ],
   },
   { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", wandEffect: "lightning", dungeonFloors: { intermediate: { min: 11, max: 17 }, advanced: { min: 9, max: 17 } },
@@ -4060,6 +4066,24 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
       /* 強化・回復対象なし → 通常行動（プレイヤーへ接近）にフォールスルー */
+    }
+
+    /* ── tripper（足払い鬼等）：隣接時 25% で転ばせ特技 ── */
+    if (m.subtype === "tripper" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+      if (_moveOnly) return;
+      if (_plOnSanc) return;
+      if (m.turnAttacks < (m.maxAttacks ?? 1)) {
+        if (!m.sealed && (m.alwaysUseSpecial || Math.random() < 0.25)) {
+          m.turnAttacks++;
+          ml.push(`${m.name}が足払いを繰り出した！`);
+          applyPlayerTrip(pl, dg, ml, {
+            cause: `${m.name}の足払いにより`,
+            checkFloat: true,
+          });
+          return;
+        }
+      }
+      /* 特技不発時は通常近接へフォールスルー */
     }
 
     /* ── ruster（錆虫等）：攻撃時に武器か防具を錆びさせる ── */

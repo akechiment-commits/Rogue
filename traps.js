@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
@@ -166,42 +166,13 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     }
     case "trip_trap": {
       /* 転倒：小ダメージ + 所持品を数個周囲へ落とす（罠・泉・水に落ち得る） */
-      if (hasRingEffect(p, "core_ring")) {
-        ml.push(`${trap.name}が発動！しかし体幹の指輪で踏ん張り、転ばなかった！`);
-        break;
-      }
-      const _tripDmg = rng(3, 8);
-      p.deathCause = `${trap.name}による転倒により`;
-      p.hp -= _tripDmg;
-      ml.push(`${trap.name}が発動！転んでしまった！${_tripDmg}ダメージ！`);
-      /* 装備中の武器・防具・指輪は落とさない（インベントリ内の未装備のみ） */
-      const _eq = new Set([p.weapon, p.armor, ...(p.rings || [])].filter(Boolean));
-      const _tripCand = (p.inventory || []).filter((i) => i && i.type !== "goal" && !_eq.has(i));
-      if (_tripCand.length === 0) {
-        ml.push("しかし落とすものはなかった。");
-      } else {
-        const _tripN = Math.min(_tripCand.length, rng(2, 4));
-        /* シャッフルして先頭から落とす */
-        for (let i = _tripCand.length - 1; i > 0; i--) {
-          const j = rng(0, i);
-          const tmp = _tripCand[i];
-          _tripCand[i] = _tripCand[j];
-          _tripCand[j] = tmp;
-        }
-        const _tripDrop = _tripCand.slice(0, _tripN);
-        const _tripFt = new Set([trap.id]);
-        const _droppedNames = [];
-        for (const _it of _tripDrop) {
-          const _idx = p.inventory.indexOf(_it);
-          if (_idx === -1) continue;
-          p.inventory.splice(_idx, 1);
-          placeItemAt(dg, p.x, p.y, _it, ml, _tripFt, 0, p, p.x, p.y);
-          _droppedNames.push(resolveItemName(_it, nameFn));
-        }
-        if (_droppedNames.length > 0) {
-          ml.push(`${_droppedNames.join("、")}を落とした！`);
-        }
-      }
+      ml.push(`${trap.name}が発動！`);
+      applyPlayerTrip(p, dg, ml, {
+        nameFn,
+        trapId: trap.id,
+        cause: `${trap.name}による転倒により`,
+        checkFloat: false,
+      });
       break;
     }
     case "hunger_trap": {

@@ -2213,35 +2213,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         if (_trm.hp <= 0) killMonster(_trm, dg, p, ml, luFn);
       }
       if (p && p.x === tx && p.y === ty) {
-        if (hasRingEffect(p, "core_ring")) {
-          ml.push("しかし体幹の指輪で踏ん張り、転ばなかった！");
-          return "restart";
-        }
-        const _td = rng(3, 8);
-        p.deathCause = `${trap.name}による転倒により`;
-        p.hp -= _td;
-        ml.push(`転んでしまった！${_td}ダメージ！`);
-        const _eq = new Set([p.weapon, p.armor, ...(p.rings || [])].filter(Boolean));
-        const _cand = (p.inventory || []).filter((i) => i && i.type !== "goal" && !_eq.has(i));
-        if (_cand.length > 0) {
-          const _n = Math.min(_cand.length, rng(2, 4));
-          for (let i = _cand.length - 1; i > 0; i--) {
-            const j = rng(0, i);
-            const tmp = _cand[i];
-            _cand[i] = _cand[j];
-            _cand[j] = tmp;
-          }
-          const _ft = new Set([trap.id, ...(ft || [])]);
-          const _names = [];
-          for (const _it of _cand.slice(0, _n)) {
-            const _idx = p.inventory.indexOf(_it);
-            if (_idx === -1) continue;
-            p.inventory.splice(_idx, 1);
-            placeItemAt(dg, p.x, p.y, _it, ml, _ft, 0, p, p.x, p.y);
-            _names.push(resolveItemName(_it, nameFn));
-          }
-          if (_names.length) ml.push(`${_names.join("、")}を落とした！`);
-        }
+        applyPlayerTrip(p, dg, ml, {
+          nameFn,
+          trapId: trap.id,
+          cause: `${trap.name}による転倒により`,
+          checkFloat: false,
+        });
       }
       return "restart";
     }
@@ -5037,6 +5014,64 @@ export function hasRingEffect(p, effect) {
 /** 体幹の指輪：転倒および強制移動を防ぐ */
 export function resistsForcedMove(p) {
   return hasRingEffect(p, "core_ring");
+}
+
+/**
+ * プレイヤー転倒処理（転倒の罠・敵の足払い特技で共通）
+ * @param {object} opts
+ * @param {Function|null} [opts.nameFn]
+ * @param {string|number|null} [opts.trapId] 罠ID（落ちたアイテムの着地判定用）
+ * @param {string|null} [opts.cause] deathCause 用文言
+ * @param {boolean} [opts.checkFloat] true なら浮遊でも回避（敵特技用）
+ * @returns {"blocked_core"|"blocked_float"|"tripped"|null}
+ */
+export function applyPlayerTrip(p, dg, ml, opts = {}) {
+  if (!p || !ml) return null;
+  const {
+    nameFn = null,
+    trapId = null,
+    cause = "転倒により",
+    checkFloat = false,
+  } = opts;
+
+  if (hasRingEffect(p, "core_ring")) {
+    ml.push("しかし体幹の指輪で踏ん張り、転ばなかった！");
+    return "blocked_core";
+  }
+  if (checkFloat && isPlayerFloating(p, dg)) {
+    ml.push("しかし浮遊していて転ばなかった！");
+    return "blocked_float";
+  }
+
+  const dmg = rng(3, 8);
+  p.deathCause = cause;
+  p.hp -= dmg;
+  ml.push(`転んでしまった！${dmg}ダメージ！`);
+
+  const eq = new Set([p.weapon, p.armor, ...(p.rings || [])].filter(Boolean));
+  const cand = (p.inventory || []).filter((i) => i && i.type !== "goal" && !eq.has(i));
+  if (cand.length === 0) {
+    ml.push("しかし落とすものはなかった。");
+    return "tripped";
+  }
+  const n = Math.min(cand.length, rng(2, 4));
+  for (let i = cand.length - 1; i > 0; i--) {
+    const j = rng(0, i);
+    const tmp = cand[i];
+    cand[i] = cand[j];
+    cand[j] = tmp;
+  }
+  const ft = new Set(trapId != null ? [trapId] : []);
+  const names = [];
+  for (const it of cand.slice(0, n)) {
+    const idx = p.inventory.indexOf(it);
+    if (idx === -1) continue;
+    p.inventory.splice(idx, 1);
+    placeItemAt(dg, p.x, p.y, it, ml, ft, 0, p, p.x, p.y);
+    names.push(resolveItemName(it, nameFn));
+  }
+  if (names.length > 0) ml.push(`${names.join("、")}を落とした！`);
+  return "tripped";
 }
 
 /**
