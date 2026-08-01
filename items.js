@@ -1130,7 +1130,7 @@ export const TRAPS = [
   { name:"未識別の罠",     effect:"unident_trap",   tile:124, rarity:"B", weight:2,  desc:"踏むと、識別していた所持品・装備のうち1つがランダムで未識別に戻る。\n武器・防具・食料は祝呪がわからなくなる。\n落ちたアイテムで作動すると、そのアイテムが未識別になる。\n敵が踏むと20ターン混乱する。" },
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, rarity:"B", weight:2,  desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
   { name:"水鉄砲の罠",     effect:"watergun_trap",  tile:132, rarity:"C", weight:4,  desc:"踏むと水鉄砲を浴びる。ずぶ濡れになり、所持品に水の影響が出る。\n巻物・魔法書は白紙化、食料はサイズ1段階縮小、ペンはインク-1。\nアーマーガッパ（耐水）で防げる。" },
-  { name:"転倒の罠",       effect:"trip_trap",      tile:133, rarity:"D", weight:8,  desc:"踏むと転んで小ダメージを受け、所持品が数個ランダムに周囲へ落ちる。\n装備中の武器・防具・指輪とキーアイテムは落ちない。\n落ちた先の罠・泉・水にも作用する。" },
+  { name:"転倒の罠",       effect:"trip_trap",      tile:133, rarity:"D", weight:8,  desc:"踏むと転んで小ダメージを受け、所持品が数個ランダムに周囲へ落ちる。\n装備中の武器・防具・指輪とキーアイテムは落ちない。\n落ちた先の罠・泉・水にも作用する。\n体幹の指輪で無効。" },
 ];
 
 /**
@@ -2213,6 +2213,10 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         if (_trm.hp <= 0) killMonster(_trm, dg, p, ml, luFn);
       }
       if (p && p.x === tx && p.y === ty) {
+        if (hasRingEffect(p, "core_ring")) {
+          ml.push("しかし体幹の指輪で踏ん張り、転ばなかった！");
+          return "restart";
+        }
         const _td = rng(3, 8);
         p.deathCause = `${trap.name}による転倒により`;
         p.hp -= _td;
@@ -4030,6 +4034,10 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 }
 
 export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, collisionAtk = 0) {
+  if (kind === "player" && resistsForcedMove(p)) {
+    if (ml) ml.push("体幹の指輪のおかげで踏ん張った！強制移動を防いだ！");
+    return { x, y, consumed: false, blocked: true };
+  }
   let cx = x, cy = y;
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
@@ -5019,10 +5027,16 @@ export const RINGS = [
   { name: "自慢の指輪",     type:"ring", effect:"vanity_ring",            rarity:"E", weight:12, sellPrice:5000, tile:60, desc:"自慢げに輝いているが、特に効果はない。見た目だけで妙に高い。" },
   { name: "暗闇の指輪",     type:"ring", effect:"darkness_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、廊下での視界が1マス狭くなる。" },
   { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:1200, tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
+  { name: "体幹の指輪",     type:"ring", effect:"core_ring",              rarity:"B", weight:2,  sellPrice:3500, tile:60, desc:"装備中、転倒しなくなる。\n敵による吹き飛ばし・引き寄せ・罠への投げつけなど、強制的な移動を防ぐ。" },
 ];
 
 export function hasRingEffect(p, effect) {
   return p.rings?.some(r => r.effect === effect) ?? false;
+}
+
+/** 体幹の指輪：転倒および強制移動を防ぐ */
+export function resistsForcedMove(p) {
+  return hasRingEffect(p, "core_ring");
 }
 
 /**

@@ -3,9 +3,9 @@ import { calcShopBuyPrice, shopPriceNote, hasRingEffect, RINGS } from "../items.
 import { computeFOV, refreshFOV, corridorRange, MW, MH } from "../utils.js";
 
 describe("junk rings helpers", () => {
-  it("RINGS に鈍足・空腹・足音・値上げ・自慢・暗闇・平和が含まれる", () => {
+  it("RINGS に鈍足・空腹・足音・値上げ・自慢・暗闇・平和・体幹が含まれる", () => {
     const effects = new Set(RINGS.map(r => r.effect));
-    for (const e of ["slow_ring", "hunger_ring", "footstep_ring", "markup_ring", "vanity_ring", "darkness_ring", "peace_ring"]) {
+    for (const e of ["slow_ring", "hunger_ring", "footstep_ring", "markup_ring", "vanity_ring", "darkness_ring", "peace_ring", "core_ring"]) {
       expect(effects.has(e)).toBe(true);
     }
   });

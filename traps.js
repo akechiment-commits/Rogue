@@ -166,6 +166,10 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     }
     case "trip_trap": {
       /* 転倒：小ダメージ + 所持品を数個周囲へ落とす（罠・泉・水に落ち得る） */
+      if (hasRingEffect(p, "core_ring")) {
+        ml.push(`${trap.name}が発動！しかし体幹の指輪で踏ん張り、転ばなかった！`);
+        break;
+      }
       const _tripDmg = rng(3, 8);
       p.deathCause = `${trap.name}による転倒により`;
       p.hp -= _tripDmg;

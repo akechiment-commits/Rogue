@@ -14,6 +14,27 @@ describe("転倒の罠 trip_trap", () => {
     expect(t.weight).toBe(8);
   });
 
+  it("体幹の指輪で転倒を無効化する", () => {
+    const food = { name: "パン", type: "food", id: "f1" };
+    const ring = { name: "体幹の指輪", type: "ring", effect: "core_ring", id: "cr1" };
+    const p = makePlayer({
+      hp: 50,
+      maxHp: 50,
+      x: 5,
+      y: 5,
+      rings: [ring],
+      inventory: [ring, food],
+    });
+    const trap = { effect: "trip_trap", name: "転倒の罠", x: 5, y: 5, id: "tripCore" };
+    const dg = makeEmptyDg({ traps: [trap], items: [], rooms: [{ x: 1, y: 1, w: 10, h: 10 }] });
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(p.hp).toBe(50);
+    expect(p.inventory).toContain(food);
+    expect(ml.some((m) => m.includes("体幹") || m.includes("転ばなかった"))).toBe(true);
+    expect(ml.some((m) => m.includes("転んでしまった"))).toBe(false);
+  });
+
   it("踏むと小ダメージと所持品ドロップ", () => {
     const sword = { name: "短剣", type: "weapon", plus: 0, id: "w1" };
     const food = { name: "パン", type: "food", id: "f1" };

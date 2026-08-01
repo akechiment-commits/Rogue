@@ -7,7 +7,7 @@ import {
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
-  hasFireResist, hasLightningResist, hasIceResist,
+  hasFireResist, hasLightningResist, hasIceResist, hasRingEffect,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
@@ -512,6 +512,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "player") {
         if (hasGravityPentacle(dg, p.x, p.y)) { ml.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); break; }
+        if (hasRingEffect(p, "core_ring")) { ml.push("体幹の指輪のおかげで踏ん張った！吹き飛ばされなかった！"); break; }
         ml.push("自分が吹き飛ばされた！");
         p.hp -= _kbDmgBase;
         pushEntity(dg, p.x, p.y, dx, dy, d, ml, "player", p, p, luFn, collisionAtk);

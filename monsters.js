@@ -383,31 +383,35 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   /* ノッカー：攻撃後にプレイヤーを2〜4マス吹き飛ばす */
   if (m.subtype === "knocker" && dmg > 0) {
-    const _knLvl = m.monLevel || 1;
-    const _knDist = _knLvl >= 3 ? 4 : _knLvl >= 2 ? 3 : 2;
-    const _kndx = Math.sign(pl.x - m.x), _kndy = Math.sign(pl.y - m.y);
-    if (_kndx !== 0 || _kndy !== 0) {
-      let _knx = pl.x, _kny = pl.y, _knMoved = 0;
-      for (let _ki = 0; _ki < _knDist; _ki++) {
-        const _nx = _knx + _kndx, _ny = _kny + _kndy;
-        if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH ||
-            dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-          pl.deathCause = "吹き飛ばされての壁への激突により";
-          pl.hp -= 5;
-          ml.push("壁に叩きつけられた！5ダメージ！");
-          break;
+    if (hasRingEffect(pl, "core_ring")) {
+      ml.push("体幹の指輪のおかげで踏ん張った！吹き飛ばされなかった！");
+    } else {
+      const _knLvl = m.monLevel || 1;
+      const _knDist = _knLvl >= 3 ? 4 : _knLvl >= 2 ? 3 : 2;
+      const _kndx = Math.sign(pl.x - m.x), _kndy = Math.sign(pl.y - m.y);
+      if (_kndx !== 0 || _kndy !== 0) {
+        let _knx = pl.x, _kny = pl.y, _knMoved = 0;
+        for (let _ki = 0; _ki < _knDist; _ki++) {
+          const _nx = _knx + _kndx, _ny = _kny + _kndy;
+          if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH ||
+              dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
+            pl.deathCause = "吹き飛ばされての壁への激突により";
+            pl.hp -= 5;
+            ml.push("壁に叩きつけられた！5ダメージ！");
+            break;
+          }
+          if (dg.monsters.some(mn => mn !== m && mn.x === _nx && mn.y === _ny)) {
+            pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
+            pl.hp -= 5;
+            ml.push("モンスターに激突した！5ダメージ！");
+            break;
+          }
+          _knx = _nx; _kny = _ny; _knMoved++;
         }
-        if (dg.monsters.some(mn => mn !== m && mn.x === _nx && mn.y === _ny)) {
-          pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
-          pl.hp -= 5;
-          ml.push("モンスターに激突した！5ダメージ！");
-          break;
+        if (_knMoved > 0) {
+          pl.x = _knx; pl.y = _kny;
+          ml.push(`${m.name}の一撃で${_knMoved}マス吹き飛ばされた！`);
         }
-        _knx = _nx; _kny = _ny; _knMoved++;
-      }
-      if (_knMoved > 0) {
-        pl.x = _knx; pl.y = _kny;
-        ml.push(`${m.name}の一撃で${_knMoved}マス吹き飛ばされた！`);
       }
     }
   }
@@ -485,24 +489,28 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     const _kbPc = _plRoom && dg.pentacles.find(pc =>
       pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _plRoom);
     if (_kbPc) {
-      const _kdx = Math.sign(pl.x - m.x), _kdy = Math.sign(pl.y - m.y);
-      if (_kdx !== 0 || _kdy !== 0) {
-        const _dist = _kbPc.cursed ? 1 : _kbPc.blessed ? 99 : 5;
-        let _cx2 = pl.x, _cy2 = pl.y;
-        let _moved = 0;
-        for (let _ki = 0; _ki < _dist; _ki++) {
-          const _nx = _cx2 + _kdx, _ny = _cy2 + _kdy;
-          if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-            pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= 5; ml.push("壁に叩きつけられた！5ダメージ！");
-            break;
+      if (hasRingEffect(pl, "core_ring")) {
+        ml.push("体幹の指輪のおかげで踏ん張った！吹き飛ばされなかった！");
+      } else {
+        const _kdx = Math.sign(pl.x - m.x), _kdy = Math.sign(pl.y - m.y);
+        if (_kdx !== 0 || _kdy !== 0) {
+          const _dist = _kbPc.cursed ? 1 : _kbPc.blessed ? 99 : 5;
+          let _cx2 = pl.x, _cy2 = pl.y;
+          let _moved = 0;
+          for (let _ki = 0; _ki < _dist; _ki++) {
+            const _nx = _cx2 + _kdx, _ny = _cy2 + _kdy;
+            if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
+              pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= 5; ml.push("壁に叩きつけられた！5ダメージ！");
+              break;
+            }
+            if (dg.monsters.some(mon2 => mon2 !== m && mon2.x === _nx && mon2.y === _ny)) {
+              pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= 5; ml.push("モンスターに激突した！5ダメージ！");
+              break;
+            }
+            _cx2 = _nx; _cy2 = _ny; _moved++;
           }
-          if (dg.monsters.some(mon2 => mon2 !== m && mon2.x === _nx && mon2.y === _ny)) {
-            pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= 5; ml.push("モンスターに激突した！5ダメージ！");
-            break;
-          }
-          _cx2 = _nx; _cy2 = _ny; _moved++;
+          if (_moved > 0) { pl.x = _cx2; pl.y = _cy2; ml.push(`${_kbPc.name}の力で${_moved}マス吹き飛ばされた！`); }
         }
-        if (_moved > 0) { pl.x = _cx2; pl.y = _cy2; ml.push(`${_kbPc.name}の力で${_moved}マス吹き飛ばされた！`); }
       }
     }
   }
@@ -3525,6 +3533,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_ttCands.length > 0 && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           const _ttTrap = _ttCands[0];
           m.turnAttacks++;
+          if (hasRingEffect(pl, "core_ring")) {
+            ml.push(`${m.name}がプレイヤーを${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
+            return;
+          }
           pl.x = _ttTrap.x; pl.y = _ttTrap.y;
           ml.push(`${m.name}がプレイヤーを${_ttTrap.name}に向かって放り投げた！`);
           if ((pl.immobileTurns || 0) > 0) { pl.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
@@ -4078,13 +4090,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _pullRange = _pullLvl >= 3 ? 8 : _pullLvl >= 2 ? 6 : 4;
       const _pulDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
       if (_pulDist >= 2 && _pulDist <= _pullRange) {
-        const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
-        const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
-        if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => o.x === _pnx && o.y === _pny)) {
-          pl.x = _pnx; pl.y = _pny;
-          ml.push(`${m.name}に引き寄せられた！`);
-          if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("引っ張られて目が覚めた！"); }
-          if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("引っ張られて金縛りが解けた！"); }
+        if (hasRingEffect(pl, "core_ring")) {
+          ml.push(`${m.name}に引き寄せられそうになったが、体幹の指輪で踏ん張った！`);
+        } else {
+          const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
+          const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
+          if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => o.x === _pnx && o.y === _pny)) {
+            pl.x = _pnx; pl.y = _pny;
+            ml.push(`${m.name}に引き寄せられた！`);
+            if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("引っ張られて目が覚めた！"); }
+            if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("引っ張られて金縛りが解けた！"); }
+          }
         }
       }
       /* 引き寄せ後も通常攻撃・移動にフォールスルー */
