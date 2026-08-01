@@ -765,7 +765,55 @@ export function canMonsterSurviveOnWater(mon, dg, x, y) {
   const onSpring = dg.springs?.some((s) => s.x === x && s.y === y);
   const onWater = tile === T.WATER || onSpring;
   if (!onWater) return true;
-  return !!(mon.waterOnly || mon.baseKind === "im_boss_kraken" || mon.float);
+  /* 実効浮遊（封印で固有floatは無効）・水生のみ生存 */
+  return !!(mon.waterOnly || mon.baseKind === "im_boss_kraken" || monEffectiveFloat(mon));
+}
+
+/**
+ * 封印などで浮遊が落ち、深い水上に残った敵を重力と同様に陸へ弾き出す。
+ * 逃げ場がなければ即死。
+ * @returns {"ejected"|"killed"|"ok"|null}
+ */
+export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
+  if (!m || !dg?.map || !ml) return null;
+  if (!m.sealed) return null;
+  /* まだ浮遊できている（一時floatTurns等）なら何もしない */
+  if (monEffectiveFloat(m)) return "ok";
+  if (m.waterOnly || m.baseKind === "im_boss_kraken") return "ok";
+  if (dg.map[m.y]?.[m.x] !== T.WATER) return "ok";
+
+  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+  for (const [dx, dy] of dirs) {
+    const nx = m.x + dx, ny = m.y + dy;
+    if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) continue;
+    const tile = dg.map[ny]?.[nx];
+    if (tile === T.WALL || tile === T.BWALL || tile === T.WATER) continue;
+    if (dg.monsters.some((o) => o !== m && o.x === nx && o.y === ny)) continue;
+    if (p && p.x === nx && p.y === ny) continue;
+    m.x = nx;
+    m.y = ny;
+    ml.push(`封印で浮遊が解け、${m.name}が水上から弾き出された！`);
+    return "ejected";
+  }
+  ml.push(`封印で浮遊が解け、${m.name}は逃げ場がなく即死した！`);
+  killMonster(m, dg, p, ml, luFn);
+  return "killed";
+}
+
+/**
+ * モンスターに封印を付与し、水上浮遊の弾き出し／即死を解決する。
+ */
+export function applyMonsterSeal(target, dg, p, ml, luFn, opts = {}) {
+  if (!target) return null;
+  const { blessed = false, sealedTurns = null, message = null } = opts;
+  target.sealed = true;
+  const turns = sealedTurns != null
+    ? sealedTurns
+    : statusTurns("seal", { kind: "monster", blessed, target });
+  target.sealedTurns = Math.max(target.sealedTurns || 0, turns);
+  if (message) ml.push(message);
+  else ml.push(`${target.name}は封印された！`);
+  return resolveSealedFloatOnWater(target, dg, p, ml, luFn);
 }
 
 function _isConfinedReleaseBlocked(dg, tx, ty, p, used) {
@@ -2165,9 +2213,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _seam = monsterAt(dg, tx, ty);
       if (_seam) {
-        _seam.sealed = true;
-        _seam.sealedTurns = Math.max(_seam.sealedTurns || 0, statusTurns("seal", { kind: "monster", target: _seam }));
-        ml.push(`${_seam.name}の特技が封印された！`);
+        applyMonsterSeal(_seam, dg, p, ml, luFn, {
+          message: `${_seam.name}の特技が封印された！`,
+        });
       }
       if (p && p.x === tx && p.y === ty) {
         if (hasAbility(p.armor, "seal_proof")) { ml.push(`しかし防具が封印を防いだ！(耐封印)`); }
@@ -2360,8 +2408,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _mam = monsterAt(dg, tx, ty);
       if (_mam) {
-        _mam.sealed = true;
-        ml.push(`${_mam.name}の特技が封印された！`);
+        applyMonsterSeal(_mam, dg, p, ml, luFn, {
+          message: `${_mam.name}の特技が封印された！`,
+        });
       }
       if (p && p.x === tx && p.y === ty) {
         const _mpBefore = p.mp || 0;
@@ -2850,11 +2899,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "monster") {
         if (cursed) {
           // 呪い：封印（ボスは有限ターン）
-          target.sealed = true;
-          const _st = statusTurns("seal", { kind: "monster", target });
-          target.sealedTurns = Math.max(target.sealedTurns||0, _st);
+          applyMonsterSeal(target, dg, p, ml, luFn, {
+            message: target.isBoss ? `${target.name}は封印された！` : `${target.name}は永続的に封印された！【呪→永続封印】`,
+          });
           target.mpCooldownTurns = statusTurns("mpCooldown", { kind: "monster", target });
-          ml.push(target.isBoss ? `${target.name}は封印された！` : `${target.name}は永続的に封印された！【呪→永続封印】`);
         } else {
           // 通常/祝福：特技使用率100%
           target.alwaysUseSpecial = true;
@@ -2952,10 +3000,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`${target.name}の特技使用率が100%になった！【呪】`);
         } else {
           // 通常/祝福：封印状態（祝福：さらに鈍足）
-          target.sealed = true;
-          target.sealedTurns = Math.max(target.sealedTurns||0, statusTurns("seal", { kind: "monster", blessed, target }));
-          ml.push(`${target.name}は封印された！`);
-          if (blessed) {
+          applyMonsterSeal(target, dg, p, ml, luFn, { blessed });
+          if (blessed && target.hp > 0 && dg.monsters?.includes(target)) {
             if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
             if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed, target });

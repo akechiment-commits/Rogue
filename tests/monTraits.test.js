@@ -4,7 +4,9 @@ import {
   monReflectsMagic, monEffectiveMaxAttacks, monEffectiveWallWalker,
   monEffectiveFixedDamageOnly, monEffectiveSpeed,
 } from "../monTraits.js";
-import { clampDmgFixed, consumeBarrier } from "../utils.js";
+import { clampDmgFixed, consumeBarrier, T } from "../utils.js";
+import { applyMonsterSeal, resolveSealedFloatOnWater } from "../items.js";
+import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("封印中の敵特性無効化", () => {
   it("浮遊：固有floatは封印で落ち、floatTurnsは残る", () => {
@@ -38,5 +40,50 @@ describe("封印中の敵特性無効化", () => {
     const m = { name: "蟹", barrier: 2, sealed: true };
     expect(consumeBarrier(m, [])).toBe(false);
     expect(m.barrier).toBe(2);
+  });
+
+  it("水上の浮遊敵を封印すると陸へ弾き出す", () => {
+    const map = Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR));
+    map[5][5] = T.WATER;
+    const bat = { name: "バット", id: "b1", x: 5, y: 5, hp: 10, maxHp: 10, float: true, exp: 1, atk: 1, def: 0 };
+    const p = makePlayer({ x: 1, y: 1 });
+    const dg = makeEmptyDg({ map, monsters: [bat], items: [], traps: [] });
+    const ml = [];
+    const r = applyMonsterSeal(bat, dg, p, ml, null);
+    expect(r).toBe("ejected");
+    expect(bat.sealed).toBe(true);
+    expect(dg.map[bat.y][bat.x]).not.toBe(T.WATER);
+    expect(ml.some((m) => m.includes("弾き出された"))).toBe(true);
+  });
+
+  it("水上の浮遊敵は逃げ場がなければ封印で即死", () => {
+    const map = Array.from({ length: 5 }, () => Array(5).fill(T.WATER));
+    const bat = { name: "バット", id: "b2", x: 2, y: 2, hp: 10, maxHp: 10, float: true, exp: 1, atk: 1, def: 0 };
+    const p = makePlayer({ x: 0, y: 0 });
+    const dg = makeEmptyDg({ map, monsters: [bat], items: [], traps: [] });
+    const ml = [];
+    /* killMonster が map 操作するため最低限のフィールド */
+    dg.rooms = [];
+    dg.explored = Array.from({ length: 5 }, () => Array(5).fill(false));
+    const r = resolveSealedFloatOnWater(
+      Object.assign(bat, { sealed: true }),
+      dg, p, ml,
+      (m) => { dg.monsters = dg.monsters.filter((x) => x !== m); },
+    );
+    expect(r).toBe("killed");
+    expect(ml.some((m) => m.includes("即死"))).toBe(true);
+  });
+
+  it("水生敵は封印しても水上で弾き出されない", () => {
+    const map = Array.from({ length: 8 }, () => Array(8).fill(T.FLOOR));
+    map[4][4] = T.WATER;
+    const w = { name: "わてり", id: "w1", x: 4, y: 4, hp: 20, maxHp: 20, waterOnly: true, float: false };
+    const p = makePlayer({ x: 1, y: 1 });
+    const dg = makeEmptyDg({ map, monsters: [w], items: [] });
+    const ml = [];
+    const r = applyMonsterSeal(w, dg, p, ml, null);
+    expect(r).toBe("ok");
+    expect(w.x).toBe(4);
+    expect(w.y).toBe(4);
   });
 });

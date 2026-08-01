@@ -7,7 +7,7 @@ import {
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
-  hasFireResist, hasLightningResist, hasIceResist, hasRingEffect,
+  hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, applyMonsterSeal,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
   pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
@@ -1097,10 +1097,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       } else {
         if (kind === "monster") {
           if (isStatusImmune(target, ml, target.name)) break;
-          target.sealed = true;
-          target.sealedTurns = Math.max(target.sealedTurns || 0, statusTurns("seal", { kind: "monster", blessed: _seBlessed, target }));
-          ml.push(`${target.name}は封印された！`);
-          if (_seBlessed) {
+          applyMonsterSeal(target, dg, p, ml, luFn, { blessed: _seBlessed });
+          if (_seBlessed && target.hp > 0 && dg.monsters?.includes(target)) {
             if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
             if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed: _seBlessed, target });

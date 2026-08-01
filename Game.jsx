@@ -20,7 +20,7 @@ import {
   checkShopTheft, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood,
+  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
@@ -2222,7 +2222,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は暗闇になった！${attackMon.isBoss ? "(13ターン)" : "(永続)"}`); }],
                   ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + (attackMon.isBoss ? 10 : 20); ml.push(`${attackMon.name}は混乱した！(${attackMon.isBoss ? 5 : 20}ターン)`); }],
                   ["inflict_bewitch",  () => { attackMon.fleeingTurns = (attackMon.fleeingTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${attackMon.isBoss ? 13 : 50}ターン)`); }],
-                  ["inflict_seal",     () => { attackMon.sealed = true; attackMon.sealedTurns = (attackMon.sealedTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は封印された！${attackMon.isBoss ? "(13ターン)" : "(永続)"}`); }],
+                  ["inflict_seal",     () => { applyMonsterSeal(attackMon, dg, p, ml, lu, { sealedTurns: attackMon.isBoss ? 25 : 9999, message: `${attackMon.name}は封印された！${attackMon.isBoss ? "(13ターン)" : "(永続)"}` }); }],
                 ];
                 for (const [abId, fn] of _inflicts) {
                   if (wabHas(abId) && Math.random() < 0.1) fn();
