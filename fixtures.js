@@ -290,6 +290,7 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   springs = [],
   bigboxes = [],
   pentacles = [],
+  items = [],
   stairUp = null,
   stairDown = null,
   occ = null,
@@ -311,6 +312,8 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     if (addedPentacles.some((pc) => pc.x === x && pc.y === y)) return true;
     if (vents.some((v) => v.x === x && v.y === y)) return true;
     if (statues.some((s) => s.x === x && s.y === y)) return true;
+    /* 偽階段などは未看破時もアイテムと重ならないようにする */
+    if (items.some((it) => it.x === x && it.y === y)) return true;
     if (occ && occ(x, y)) return true;
     return false;
   };

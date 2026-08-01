@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  makeFakeStairTrap, materializeFakeStair, trapDisplayAsStair,
+  makeFakeStairTrap, materializeFakeStair, trapDisplayAsStair, scatterFloorGimmicks,
   makeVent, makeStatue, makeFixedPortalPair, findFixedPortalPair,
   breakStatue, applyWindDir, getWindAt, wandEffectBreaksStatue, wandEffectStatueLootOnly,
   throwItemBreaksStatue, hitStatueWithAction, displaceObjectsFromStatue, statueAt,
@@ -25,6 +25,31 @@ describe("偽階段", () => {
     expect(t.effect).not.toBe("fake_stair");
     expect(t.revealed).toBe(true);
     expect(t.disguise).toBeUndefined();
+  });
+
+  it("ギミック配置は既存アイテムのマスを避ける", () => {
+    /* 狭い部屋の全床にアイテムを置いた状態では偽階段等が乗らない */
+    const map = Array.from({ length: 10 }, () => Array(10).fill(T.WALL));
+    for (let y = 2; y <= 4; y++) for (let x = 2; x <= 4; x++) map[y][x] = T.FLOOR;
+    const rooms = [{ x: 2, y: 2, w: 3, h: 3 }];
+    const items = [];
+    for (let y = 2; y <= 4; y++) for (let x = 2; x <= 4; x++) {
+      items.push({ name: "石", type: "arrow", x, y });
+    }
+    let sawOverlap = false;
+    for (let i = 0; i < 40; i++) {
+      const g = scatterFloorGimmicks(map, rooms, 3, { items });
+      for (const t of g.traps || []) {
+        if (items.some((it) => it.x === t.x && it.y === t.y)) sawOverlap = true;
+      }
+      for (const v of g.vents || []) {
+        if (items.some((it) => it.x === v.x && it.y === v.y)) sawOverlap = true;
+      }
+      for (const s of g.statues || []) {
+        if (items.some((it) => it.x === s.x && it.y === s.y)) sawOverlap = true;
+      }
+    }
+    expect(sawOverlap).toBe(false);
   });
 });
 

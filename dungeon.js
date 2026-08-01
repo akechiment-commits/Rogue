@@ -1779,6 +1779,7 @@ function attachFloorGimmicks(dg, depth) {
     springs: dg.springs || [],
     bigboxes: dg.bigboxes || [],
     pentacles: dg.pentacles,
+    items: dg.items || [],
     stairUp: dg.stairUp,
     stairDown: dg.stairDown,
   });
