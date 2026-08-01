@@ -3716,7 +3716,9 @@ export function useItemActions({
                       const _bottleDrop = makeRandomPotion();
                       const _bottleFt = new Set();
                       withPitfallBag(() => placeItemAt(dg, tx, ty, _bottleDrop, ml, _bottleFt, 0, p));
-                      ml.push(`空き瓶が割れ、${_bottleDrop.name}が${m.name}の足元に残った！`);
+                      /* 未識別なら偽名／ニックネームで表示（真名は出さない） */
+                      const _dropNm = resolveItemName(_bottleDrop, dnameRef);
+                      ml.push(`${m.name}の足元に${_dropNm}が残った！`);
                     }
                   }
                 }
