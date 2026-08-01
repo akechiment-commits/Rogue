@@ -337,7 +337,7 @@ export function applyMonsterScroll(dg, p, ml, { blessed = false, cursed = false 
     const _otherRooms = (dg.rooms || []).filter((r) => r !== _sumRoom);
     let _teleportedCount = 0;
     for (const _sm of _inRoom) {
-      if (_sm.magicImmune) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
+      if (_sm.magicImmune && !_sm.sealed) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
       const _tr = pick(_otherRooms);
       if (!_tr) continue;
       for (let _att = 0; _att < 30; _att++) {

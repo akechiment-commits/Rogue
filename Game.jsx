@@ -1185,7 +1185,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       }
       /* moveOnly / both: ターン蓄積・turnAttacksリセットは移動フェーズで */
       /* 等速の魔方陣：部屋内では速度を固定する（通常=1回, 祝福=2回, 呪い=0.5回）（魔法無効モンスターには無効） */
-      const _eqPcM = !m.magicImmune && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.find(pc => {
+      /* 封印中は魔法無効特性も落ちるので等速魔方陣の影響を受ける。倍速・鈍足は等速1に */
+      const _eqPcM = !(m.magicImmune && !m.sealed) && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.find(pc => {
         if (pc.kind !== "equal_speed") return false;
         const _pcRoom = findRoom(dg.rooms, pc.x, pc.y);
         return _pcRoom && findRoom(dg.rooms, m.x, m.y) === _pcRoom;
@@ -2072,7 +2073,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _hasFireElem  = _hasFireElem2 || wab === "fire_elem" || p.weapon?.abilities?.some(a => a === "fire_elem");
               const _fireElemMult = _hasFireElem2 ? 2.0 : 1.5;
               if (_hasFireElem) {
-                if (attackMon.baseKind === "firedemon") {
+                if (attackMon.baseKind === "firedemon" && !attackMon.sealed) {
                   d = Math.max(1, Math.floor(d * 0.5));
                 } else if (attackMon.elemResist === "fire") {
                   d = Math.max(1, Math.floor(d * 0.5));
@@ -2099,10 +2100,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
               /* 脆弱の魔方陣チェック：祝福4倍/通常2倍/呪い半減（魔法無効モンスターには無効） */
               const _vulnRoom = findRoom(dg.rooms, attackMon.x, attackMon.y);
-              const _vulnPc = !attackMon.magicImmune && _vulnRoom && dg.pentacles?.find((pc) => pc.kind === "vulnerability" && pc.x >= _vulnRoom.x && pc.x < _vulnRoom.x + _vulnRoom.w && pc.y >= _vulnRoom.y && pc.y < _vulnRoom.y + _vulnRoom.h);
+              const _vulnPc = !(attackMon.magicImmune && !attackMon.sealed) && _vulnRoom && dg.pentacles?.find((pc) => pc.kind === "vulnerability" && pc.x >= _vulnRoom.x && pc.x < _vulnRoom.x + _vulnRoom.w && pc.y >= _vulnRoom.y && pc.y < _vulnRoom.y + _vulnRoom.h);
               if (_vulnPc) d = _vulnPc.cursed ? Math.max(1, Math.floor(d / 2)) : d * (_vulnPc.blessed ? 4 : 2);
               /* 壁の中の壁歩きモンスターへの攻撃：ダメージ半減 */
-              const _atkInWall = attackMon.wallWalker && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
+              const _atkInWall = attackMon.wallWalker && !attackMon.sealed && dg.map[attackMon.y]?.[attackMon.x] === T.WALL;
               if (_atkInWall) d = Math.max(1, Math.floor(d / 2));
               /* 水晶スライム系：固定ダメージ以外は1ダメージ（近接は非固定扱い） */
               d = clampDmgFixed(attackMon, d, true);
@@ -2189,7 +2190,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 }
               }
               /* 吹き飛ばしの魔方陣：プレイヤーが近接攻撃したモンスターを吹き飛ばす */
-              if (attackMon.hp > 0 && !attackMon.magicImmune && dg.pentacles?.length > 0 && !inMagicSealRoom(p.x, p.y, dg)) {
+              if (attackMon.hp > 0 && !(attackMon.magicImmune && !attackMon.sealed) && dg.pentacles?.length > 0 && !inMagicSealRoom(p.x, p.y, dg)) {
                 const _kbRoom = findRoom(dg.rooms, p.x, p.y);
                 const _kbPcP = _kbRoom && dg.pentacles.find(pc =>
                   pc.kind === "knockback_aura" && findRoom(dg.rooms, pc.x, pc.y) === _kbRoom);
@@ -2293,7 +2294,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       });
                     } else {
                     const _stM = monsterAt(dg, _stLx, _stLy);
-                    if (_stM && _stM.subtype === "reflector") {
+                    if (_stM && _stM.subtype === "reflector" && !_stM.sealed) {
                       ml.push(`${_arName}が${_stM.name}に弾き返された！`);
                       const _stRdx = Math.sign(p.x - _stLx), _stRdy = Math.sign(p.y - _stLy);
                       let _stRx = _stLx, _stRy = _stLy, _stRHit = false;
@@ -2331,7 +2332,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     if (!_msTarget) {
                       ml.push(`近くに敵がいない！${_arName}は消えた。`);
-                    } else if (_msTarget.subtype === "reflector") {
+                    } else if (_msTarget.subtype === "reflector" && !_msTarget.sealed) {
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
                     } else if (_srForceMiss || (!isEvasionDisabledByStatus(_msTarget) && Math.random() >= 0.90)) {

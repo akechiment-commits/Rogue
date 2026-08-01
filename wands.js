@@ -18,6 +18,8 @@ import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 import { statusTurns, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
+import { monEffectiveMagicImmune, monReflectsMagic } from './monTraits.js';
+
 
 /** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */
 function statueTeleportDest(dg, ox, oy, p) {
@@ -164,7 +166,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   if (kind === "monster") {
     wakeIfDormant(target, ml);
     /* 魔法無効（キラープラスター等）：杖の魔法弾を完全無効化 */
-    if (target.magicImmune) { ml.push(`魔法は${target.name}に効かない！`); return; }
+    if (monEffectiveMagicImmune(target)) { ml.push(`魔法は${target.name}に効かない！`); return; }
     /* バリア術師：近接以外の全効果（杖・状態異常・爆発等）を1回分無効化 */
     if (consumeBarrier(target, ml)) return;
   }
@@ -1418,8 +1420,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       const _fwBlessMult = _fwBlessed ? 2 : 1;
       if (kind === "monster") {
-        /* 火ダルマ：回復 */
-        if (target.baseKind === "firedemon") {
+        /* 火ダルマ：回復（封印中は特性無効） */
+        if (target.baseKind === "firedemon" && !target.sealed) {
           const _fwHeal = Math.min(Math.round(rng(20,30) * _fwBlessMult), target.maxHp - target.hp);
           if (_fwHeal > 0) { target.hp += _fwHeal; ml.push(`炎が${target.name}を癒した！HP+${_fwHeal}`); }
           else ml.push(`${target.name}には効果がなかった。`);
@@ -1791,7 +1793,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     if (mon) {
       if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
       /* 魔法反射：魔法ボルトをプレイヤーに跳ね返す */
-      if (mon.subtype === "magicreflect") {
+      if (monReflectsMagic(mon)) {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
         pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: p.x, toY: p.y, color: _boltClr });
         applyWandEffect(eff, "player", p, -_fdx, -_fdy, dg, p, ml, luFn, bbFn, blMult);
@@ -1908,7 +1910,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     }
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
-      if (mon.subtype === "magicreflect" && killerMon) {
+      if (monReflectsMagic(mon) && killerMon) {
         ml.push(`${mon.name}が雷撃を跳ね返した！`);
         if (!consumeBarrier(killerMon, ml)) {
           const _rdmg = rng(15, 25);

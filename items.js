@@ -19,6 +19,10 @@ import {
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
 import { statusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
+import {
+  monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
+  monEffectiveFixedDamageOnly,
+} from './monTraits.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -1216,8 +1220,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       for (const m of [...dg.monsters.filter(m => m.x === ax && m.y === ay)]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
-        /* 火ダルマ：爆発で分裂 */
-        if (m.baseKind === "firedemon") {
+        /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
+        if (m.baseKind === "firedemon" && !m.sealed) {
           ml.push(`${m.name}が爆発を受けて分裂した！`);
           const _sd8 = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
           for (const [_sx, _sy] of _sd8) {
@@ -1773,7 +1777,7 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
       if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
       const tile = dg.map[ny]?.[nx];
       if (!tile || tile === T.WALL || tile === T.BWALL) continue;
-      if (tile === T.WATER && !m.float && !m.waterOnly) continue;
+      if (tile === T.WATER && !monEffectiveFloat(m) && !m.waterOnly) continue;
       if (p && nx === p.x && ny === p.y) continue;
       if (dg.monsters.some((o) => o.x === nx && o.y === ny)) continue;
       const child = {
@@ -1928,7 +1932,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
 
     const m = monsterAt(dg, cx, cy);
     if (m) {
-      if (m.subtype === "reflector") {
+      if (monReflectsProjectiles(m)) {
         ml.push(`${label}が${m.name}に弾き返された！`);
         let rHit = false, rLastX = cx, rLastY = cy;
         let rx = cx + fdx, ry = cy + fdy;
@@ -2688,8 +2692,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         const dmg = val + rng(-5, 5);
         const _oilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
         if (kind === "monster") {
-          /* 火ダルマは炎で回復 */
-          if (target.baseKind === "firedemon") {
+          /* 火ダルマは炎で回復（封印中は特性無効で通常ダメ） */
+          if (target.baseKind === "firedemon" && !target.sealed) {
             const _fheal = Math.min(Math.round(dmg * (blessed ? 1.5 : 1)), target.maxHp - target.hp);
             if (_fheal > 0) { target.hp += _fheal; ml.push(`炎を受けた${target.name}が回復した！(+${_fheal}HP)`); }
             else ml.push(`${target.name}は炎を吸収した！`);
@@ -4140,7 +4144,7 @@ export function calcProjectileDmg(p, arAtk, def = 0) {
 
 /** reflector に当たった魔法の石をプレイヤーへホーミング反射する。 */
 export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml) {
-  if (!p || reflector?.subtype !== "reflector") return null;
+  if (!p || !monReflectsProjectiles(reflector)) return null;
   const dmg = calcProjectileDmg(p, stoneAtk || 5, 0);
   p.hp -= dmg;
   p.deathCause = `${reflector.name}に跳ね返された${stoneName}で`;
@@ -4204,8 +4208,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         hit = true;
         break;
       }
-      /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す ── */
-      if (!_pierceMode && m.subtype === "reflector") {
+      /* ── reflector（ミラーゴーレム等）：矢をプレイヤーへ跳ね返す（封印中は無効） ── */
+      if (!_pierceMode && monReflectsProjectiles(m)) {
         ml.push(`${_arName}が${m.name}に弾き返された！`);
         const _rdx = Math.sign(p.x - tx), _rdy = Math.sign(p.y - ty);
         let _rx = tx, _ry = ty, _rHit = false;
@@ -4713,7 +4717,7 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
 export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv = 1) {
   if (kind === "monster") {
     wakeIfDormant(target, ml);
-    if (target.magicImmune) { ml.push(`魔法は${target.name}に効かない！`); return; }
+    if (monEffectiveMagicImmune(target)) { ml.push(`魔法は${target.name}に効かない！`); return; }
     if (consumeBarrier(target, ml)) return;
   }
   const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
@@ -4724,8 +4728,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       const _fbOilyMult = kind === "monster" && ((target.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === target.x && t.y === target.y)) ? 2 : 1;
       const dmg = Math.round(rng(20, 30) * _lvF) * _cmsBoost * _fbOilyMult;
       if (kind === "monster") {
-        /* 火ダルマは炎の魔法で回復 */
-        if (target.baseKind === "firedemon") {
+        /* 火ダルマは炎の魔法で回復（封印中は特性無効） */
+        if (target.baseKind === "firedemon" && !target.sealed) {
           const _fheal = Math.min(dmg, target.maxHp - target.hp);
           if (_fheal > 0) { target.hp += _fheal; ml.push(`炎の魔法が${target.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
           else ml.push(`炎の魔法が${target.name}に当たった！しかし炎を吸収した！`);
@@ -4920,9 +4924,9 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
       wakeIfDormant(mon, ml);
-      if (mon.magicImmune) {
+      if (monEffectiveMagicImmune(mon)) {
         ml.push(`魔法は${mon.name}に効かない！`);
-      } else if (mon.subtype === "magicreflect") {
+      } else if (monReflectsMagic(mon)) {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
         const _rfLvF = 1 + (lv - 1) * 0.2;
         switch (spell.effect) {

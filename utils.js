@@ -473,7 +473,8 @@ export function refreshFOV(dg, p) {
    バリアがあれば1回分消費してtrueを返す（呼び出し側はダメージをスキップ）。
    barrier は数値（残り回数）。0 またはfalsy なら無効。 */
 export function consumeBarrier(m, ml) {
-  if (!m.barrier) return false;
+  /* 封印中はバリア特性も無効 */
+  if (!m.barrier || m.sealed) return false;
   m.barrier -= 1;
   if (m.barrier > 0) {
     ml.push(`${m.name}のバリアが攻撃を弾いた！残り${m.barrier}回！`);
@@ -488,7 +489,8 @@ export function consumeBarrier(m, ml) {
    近接・矢・投擲など物理扱いにはisPhysical=trueを渡す。
    杖・魔法・爆発はisPhysical=false（デフォルト）でスキップ。 */
 export function clampDmgFixed(m, damage, isPhysical = false) {
-  if (m.fixedDamageOnly && isPhysical) return Math.min(damage, 1);
+  /* 封印中は固定ダメ特性を無効化 */
+  if (m.fixedDamageOnly && !m.sealed && isPhysical) return Math.min(damage, 1);
   return damage;
 }
 
