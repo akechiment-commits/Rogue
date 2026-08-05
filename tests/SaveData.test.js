@@ -48,6 +48,8 @@ describe("loadSave", () => {
     expect(save.hubGold).toBe(0);
     expect(save.warehouseMax).toBe(100);
     expect(save.discovered.items).toEqual({});
+    expect(save.playerName).toBe("");
+    expect(save.playerId).toBe("");
   });
 
   it("欠けたキーを DEFAULT_SAVE で補完する", () => {
@@ -56,5 +58,18 @@ describe("loadSave", () => {
     expect(save.hubGold).toBe(500);
     expect(save.warehouseMax).toBe(100);
     expect(save.clearedDungeons).toEqual({});
+    expect(save.playerName).toBe("");
+    expect(save.playerId).toBe("");
+  });
+
+  it("既存の playerName を保持する", () => {
+    localStorage.setItem("roguelike_hub_v1", JSON.stringify({
+      hubGold: 1,
+      playerName: "冒険者",
+      playerId: "abc",
+    }));
+    const save = loadSave();
+    expect(save.playerName).toBe("冒険者");
+    expect(save.playerId).toBe("abc");
   });
 });

@@ -5,6 +5,7 @@ import { hasGameSave } from "./GameSave.js";
 import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES, potOccupancyCount } from "./items.js";
 import { validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+import { applyPlayerNameToSave, normalizePlayerName, PLAYER_NAME_MAX, playerLabel } from "./playerLabel.js";
 
 /* ===== 共通スタイル ===== */
 const BG   = "#09090f";
@@ -1057,12 +1058,88 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   );
 }
 
+/* ===== 初回プレイヤー名入力 ===== */
+function PlayerNameModal({ onConfirm }) {
+  const [value, setValue] = useState("");
+  const [error, setError] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const submit = () => {
+    const n = normalizePlayerName(value);
+    if (!n.ok) {
+      setError(n.error);
+      return;
+    }
+    setError("");
+    onConfirm(n.name);
+  };
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.92)",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      zIndex:100, padding:16, fontFamily:"monospace",
+    }}>
+      <div style={{
+        background:CARD, border:`1px solid ${BDR}`, borderRadius:8,
+        width:"min(400px,96vw)", padding:20,
+      }}>
+        <div style={{ color:"#fff", fontWeight:"bold", fontSize:16, marginBottom:8 }}>
+          プレイヤー名を入力
+        </div>
+        <div style={{ color:"#888", fontSize:12, marginBottom:14, lineHeight:1.5 }}>
+          冒険者の名前です。ランキングにもこの名前が表示されます。
+          （{PLAYER_NAME_MAX}文字以内）
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          maxLength={PLAYER_NAME_MAX * 2}
+          placeholder="例: しろがね"
+          onChange={(e) => { setValue(e.target.value); setError(""); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); submit(); }
+          }}
+          style={{
+            width:"100%", boxSizing:"border-box", padding:"10px 12px",
+            background:"#0a0a12", border:`1px solid ${BDR}`, borderRadius:5,
+            color:"#eee", fontFamily:"monospace", fontSize:15, outline:"none",
+          }}
+        />
+        {error && (
+          <div style={{ color:"#f66", fontSize:12, marginTop:8 }}>{error}</div>
+        )}
+        <button
+          type="button"
+          onClick={submit}
+          style={{
+            ...BTN, width:"100%", marginTop:16, padding:"12px 0",
+            background:"#0c2240", color:"#4df", borderColor:"#1a3a5a",
+            fontSize:15, fontWeight:"bold",
+          }}
+        >
+          決定
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ===== セーブデータ管理パネル ===== */
 function SaveDataPanel({ saveData, onClearSave, onClose }) {
   const [confirm, setConfirm] = useState(false);
   return (
     <Panel title="セーブデータ管理" onClose={onClose}>
       <div style={{ display:"flex", flexDirection:"column", gap:8, color:TXT }}>
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${BDR}` }}>
+          <span style={{ color:"#888" }}>プレイヤー名</span>
+          <span style={{ color:"#8cf" }}>{playerLabel(saveData.playerName)}</span>
+        </div>
         <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${BDR}` }}>
           <span style={{ color:"#888" }}>総探索回数</span>
           <span>{saveData.totalRuns || 0} 回</span>
@@ -1112,13 +1189,22 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
 
+  const needsName = !String(saveData.playerName || "").trim();
   const hubGold      = saveData.hubGold      || 0;
   const hubInvCount  = (saveData.hubInventory || []).length;
   const warehouseCount = (saveData.warehouse  || []).length;
   const warehouseMax     = saveData.warehouseMax || 100;
   const warehouseOver    = isWarehouseOverCapacity(warehouseCount, warehouseMax);
 
+  const handleConfirmName = (name) => {
+    updateSave(prev => {
+      const applied = applyPlayerNameToSave(prev, name);
+      return applied.ok ? applied.save : prev;
+    });
+  };
+
   const handleStartDungeon = (config) => {
+    if (needsName) return;
     setPanel(null);
     onStartDungeon(config);
   };
@@ -1130,15 +1216,17 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
     { id:"encyclopedia" },            { id:"savedata" },
   ];
   const activateMain = (id) => {
+    if (needsName) return;
     if (id === "resume") onResumeDungeon?.();
     else setPanel(id);
   };
 
-  kbRef.current = { panel, mainFocus, setMainFocus, mainItems, activateMain };
+  kbRef.current = { panel, mainFocus, setMainFocus, mainItems, activateMain, needsName };
 
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
+      if (r.needsName) return; // 名前入力中は地上キーを無効
       if (r.panel !== null) return; // 各パネルが自前でハンドリング
       const k = e.key.toLowerCase();
       if (isKeyUp(e) || isKeyLeft(e)) {
@@ -1202,7 +1290,14 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
         <div style={{ color:"#555", fontSize:12, marginTop:4 }}>
           冒険者の拠点
         </div>
+        {!needsName && (
+          <div style={{ color:"#8cf", fontSize:13, marginTop:8 }}>
+            冒険者: <span style={{ color:"#fff", fontWeight:"bold" }}>{playerLabel(saveData.playerName)}</span>
+          </div>
+        )}
       </div>
+
+      {needsName && <PlayerNameModal onConfirm={handleConfirmName} />}
 
       {/* ステータスバー */}
       <div style={{
@@ -1241,7 +1336,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       {/* 中断データがある場合：再開ボタン */}
       {resumeExists && (
         <button
-          onClick={onResumeDungeon}
+          onClick={() => { if (!needsName) onResumeDungeon?.(); }}
           style={{
             ...BTN, width:"min(360px,90vw)", padding:"18px 0", marginBottom:8,
             background: focusedId === "resume" ? "#233a0e" : "#1a2808", color:"#8f4",
@@ -1256,7 +1351,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
 
       {/* メインボタン：ダンジョンへ */}
       <button
-        onClick={() => setPanel("dungeon")}
+        onClick={() => { if (!needsName) setPanel("dungeon"); }}
         style={{
           ...BTN, width:"min(360px,90vw)", padding:"18px 0", marginBottom:16,
           background: focusedId === "dungeon" ? "#0c2240" : "#081828", color:"#4df",

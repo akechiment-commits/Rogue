@@ -3,6 +3,8 @@ const SAVE_KEY = 'roguelike_hub_v1';
 
 export const DEFAULT_SAVE = {
   version: 1,
+  playerName: "",           /* 表示名（初回入力必須。空なら名前入力モーダル） */
+  playerId: "",             /* 匿名ID（ランキング投稿用・初回名前確定時に発行） */
   hubGold: 0,
   warehouse: [],            /* array of item objects */
   hubInventory: [],         /* items player will carry into dungeon */
