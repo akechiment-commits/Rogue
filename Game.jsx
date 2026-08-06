@@ -67,6 +67,7 @@ import { buildRunResultExtras } from "./runScore.js";
 import { createRunTimer } from "./runTimer.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
+import { ensureStairsPresent } from "./floorObjectPlacement.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "" } = {}) {
   const [gs, setGs] = useState(null);
@@ -1406,6 +1407,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     } else {
       d.bigboxes?.forEach(bb => { if (bb.revealed === undefined) bb.revealed = false; });
     }
+    /* 階段欠落の安全網（最深層・宝部屋は下りなし） */
+    ensureStairsPresent(d, {
+      isLastFloor: !!(d.isLastFloor || d.isTreasureRoom || (_maxD !== null && nd >= _maxD && sr.current.dungeonType !== "tutorial")),
+      p: pl,
+    });
     /* チュートリアル識別制御: 2階は祝呪アイテムのキーだけ解放、他の階は全アイテム識別 */
     if (sr.current.dungeonType === "tutorial") {
       if (nd !== 2) {
@@ -1736,6 +1742,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       clearPitfallBag();
       if (!st.floors) st.floors = {};
       processPitfallBag(_etPfBag, st.floors, p.depth);
+      /* 階段が杖などで消えた場合の復元（最深層・宝部屋は下りを要求しない） */
+      const _maxDEt = st.maxDepth;
+      ensureStairsPresent(st.dungeon, {
+        isLastFloor: !!(
+          st.dungeon.isLastFloor ||
+          st.dungeon.isTreasureRoom ||
+          (_maxDEt != null && p.depth >= _maxDEt && st.dungeonType !== "tutorial")
+        ),
+        p,
+        ml,
+      });
       /* ピンチアラート：このターンの全ダメージ（薬・罠・敵含む）で再度受けたら死ぬ場合に警告 */
       if (p.hp > 0) {
         const _etDmg = Math.max(0, _etStartHp - p.hp);

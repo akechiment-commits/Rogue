@@ -130,3 +130,108 @@ export function pushStair(dg, stair, dx, dy, dist) {
   if (cx !== stair.x || cy !== stair.y) moveStairTo(dg, stair, cx, cy);
   return { x: stair.x, y: stair.y };
 }
+
+function _scanStairTiles(dg, tileType) {
+  const found = [];
+  if (!dg?.map) return found;
+  const h = dg.map.length;
+  const w = dg.map[0]?.length || 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (dg.map[y][x] === tileType) found.push({ x, y });
+    }
+  }
+  return found;
+}
+
+function _placeStairTile(dg, dir, p) {
+  const tileType = dir === "up" ? T.SU : T.SD;
+  /* 既存の同種階段マスを掃除してから置く（参照ずれ対策） */
+  for (const t of _scanStairTiles(dg, tileType)) {
+    dg.map[t.y][t.x] = T.FLOOR;
+  }
+  const cell = pickFreeFloorObjectCell(dg, null, p, p?.x ?? 1, p?.y ?? 1);
+  if (!cell) return false;
+  dg.map[cell.y][cell.x] = tileType;
+  if (dir === "up") dg.stairUp = { x: cell.x, y: cell.y };
+  else dg.stairDown = { x: cell.x, y: cell.y };
+  return true;
+}
+
+/**
+ * 階段が消えていた／マップと参照が食い違っていたら復元する。
+ * 最深層（isLastFloor）・宝部屋は下り階段を要求しない。
+ *
+ * @param {object} dg
+ * @param {{ isLastFloor?: boolean, p?: object, ml?: string[], message?: boolean }} [opts]
+ * @returns {{ fixedUp: boolean, fixedDown: boolean }}
+ */
+export function ensureStairsPresent(dg, opts = {}) {
+  if (!dg?.map) return { fixedUp: false, fixedDown: false };
+  const isLast = !!(opts.isLastFloor || dg.isLastFloor || dg.isTreasureRoom);
+  const needUp = opts.needUp !== false;
+  const needDown = opts.needDown !== undefined ? !!opts.needDown : !isLast;
+  let fixedUp = false;
+  let fixedDown = false;
+
+  if (needUp) {
+    let ups = _scanStairTiles(dg, T.SU);
+    /* 余分な上り階段は1つに */
+    if (ups.length > 1) {
+      for (const t of ups.slice(1)) dg.map[t.y][t.x] = T.FLOOR;
+      ups = [ups[0]];
+      fixedUp = true;
+    }
+    if (ups.length === 1) {
+      const u = ups[0];
+      if (!dg.stairUp || dg.stairUp.x !== u.x || dg.stairUp.y !== u.y) {
+        dg.stairUp = { x: u.x, y: u.y };
+        fixedUp = true;
+      }
+    } else {
+      /* 参照だけあるがタイルが無い */
+      if (dg.stairUp) {
+        const { x, y } = dg.stairUp;
+        if (dg.map[y]?.[x] !== T.SU) dg.stairUp = null;
+      }
+      if (_placeStairTile(dg, "up", opts.p)) fixedUp = true;
+    }
+  }
+
+  if (needDown) {
+    let downs = _scanStairTiles(dg, T.SD);
+    if (downs.length > 1) {
+      for (const t of downs.slice(1)) dg.map[t.y][t.x] = T.FLOOR;
+      downs = [downs[0]];
+      fixedDown = true;
+    }
+    if (downs.length === 1) {
+      const d = downs[0];
+      if (!dg.stairDown || dg.stairDown.x !== d.x || dg.stairDown.y !== d.y) {
+        dg.stairDown = { x: d.x, y: d.y };
+        fixedDown = true;
+      }
+    } else {
+      if (dg.stairDown) {
+        const { x, y } = dg.stairDown;
+        if (dg.map[y]?.[x] !== T.SD) dg.stairDown = null;
+      }
+      if (_placeStairTile(dg, "down", opts.p)) fixedDown = true;
+    }
+  } else {
+    /* 最深層：下り階段タイルが残っていたら消す（意図しない残存） */
+    for (const t of _scanStairTiles(dg, T.SD)) {
+      dg.map[t.y][t.x] = T.FLOOR;
+      fixedDown = true;
+    }
+    if (dg.stairDown) {
+      dg.stairDown = null;
+      fixedDown = true;
+    }
+  }
+
+  if ((fixedUp || fixedDown) && opts.ml && opts.message !== false) {
+    opts.ml.push("不思議な力が階段を復元した！");
+  }
+  return { fixedUp, fixedDown };
+}

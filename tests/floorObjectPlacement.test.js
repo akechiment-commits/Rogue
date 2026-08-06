@@ -8,6 +8,7 @@ import {
   stairRefAt,
   moveStairTo,
   pushStair,
+  ensureStairsPresent,
 } from "../floorObjectPlacement.js";
 import { pushEntity } from "../items.js";
 
@@ -125,5 +126,34 @@ describe("stairs", () => {
     expect(st.x).toBe(5);
     expect(dg.map[5][5]).toBe(T.SD);
     expect(dg.map[5][2]).toBe(T.FLOOR);
+  });
+
+  it("ensureStairsPresent が欠けた上り・下りを復元する", () => {
+    const dg = makeDg();
+    dg.stairUp = null;
+    dg.stairDown = null;
+    const ml = [];
+    const r = ensureStairsPresent(dg, { p: { x: 2, y: 2 }, ml });
+    expect(r.fixedUp).toBe(true);
+    expect(r.fixedDown).toBe(true);
+    expect(dg.map[dg.stairUp.y][dg.stairUp.x]).toBe(T.SU);
+    expect(dg.map[dg.stairDown.y][dg.stairDown.x]).toBe(T.SD);
+    expect(ml.some((m) => String(m).includes("階段"))).toBe(true);
+  });
+
+  it("最深層では下りを復元しない", () => {
+    const dg = makeDg();
+    dg.isLastFloor = true;
+    dg.stairUp = null;
+    dg.stairDown = null;
+    ensureStairsPresent(dg, { isLastFloor: true, p: { x: 2, y: 2 }, message: false });
+    expect(dg.stairUp).toBeTruthy();
+    expect(dg.map[dg.stairUp.y][dg.stairUp.x]).toBe(T.SU);
+    expect(dg.stairDown).toBeNull();
+    const downs = [];
+    for (let y = 0; y < 10; y++)
+      for (let x = 0; x < 10; x++)
+        if (dg.map[y][x] === T.SD) downs.push(1);
+    expect(downs.length).toBe(0);
   });
 });

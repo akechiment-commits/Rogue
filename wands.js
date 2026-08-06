@@ -29,6 +29,7 @@ import {
   stairRefAt,
   moveStairTo,
   pushStair,
+  ensureStairsPresent,
 } from './floorObjectPlacement.js';
 
 
@@ -582,6 +583,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _flName = floorMoveLabel(kind, target);
         ml.push(`${_flName}が吹き飛んだ！`);
         pushStair(dg, target, dx, dy, d);
+        ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml });
         break;
       }
       break;
@@ -877,6 +879,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           p.x = fromX; p.y = fromY;
           ml.push(`${_flName}と位置が入れ替わった！`);
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+          ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml });
           break;
         }
         ml.push(`${_flName}と位置が入れ替わった！`);
