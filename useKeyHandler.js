@@ -1306,6 +1306,7 @@ export function useKeyHandler({
                   p2.gold -= _totalUnpaid;
                   _allShopsPay.forEach(sh => { sh.unpaidTotal = 0; });
                   dg2.shopTheft = false;
+                  p2.isThief = false;
                   const _clearShopPrice2 = (it2) => {
                     if (it2.shopPrice) { delete it2.shopPrice; delete it2._shopId; delete it2._shopCharge; }
                     if (it2.type === "pot" && it2.contents) it2.contents.forEach(_clearShopPrice2);

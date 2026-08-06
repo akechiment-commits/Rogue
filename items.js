@@ -4500,21 +4500,70 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   }
 }
 
-export function checkShopTheft(p, dg, ml) {
-  if (!dg || p.isThief) return;
+/**
+ * 店泥棒状態にする（警備員スポーン用 shopTheft・isThief・店主敵対・値札解除）。
+ * 既に泥棒でも、未払い店主を敵対に揃える。
+ * @returns {boolean} 新たに泥棒扱いにした（メッセージ用）
+ */
+export function declareShopTheft(p, dg, ml, opts = {}) {
+  if (!dg || !p) return false;
+  const wasThief = !!(dg.shopTheft || p.isThief);
+  dg.shopTheft = true;
+  p.isThief = true;
+  /* 未払い商品の値札を外す（支払い対象は unpaidTotal 側に残る） */
+  for (const it of p.inventory || []) {
+    if (it.shopPrice != null || it._shopId != null) {
+      delete it.shopPrice;
+      delete it._shopId;
+      delete it._shopCharge;
+      delete it._origCharges;
+      delete it._origCount;
+    }
+  }
+  /* 未払いのある店（または forceAll）の店主を敵対化。モールで複数店あっても漏れない */
   const shops = getShops(dg);
   for (const s of shops) {
-    if (s.unpaidTotal <= 0) continue;
+    if (!opts.forceAll && (s.unpaidTotal || 0) <= 0) continue;
+    const sk = dg.monsters.find((m) => m.id === s.shopkeeperId);
+    if (sk) {
+      sk.state = "hostile";
+      sk.aware = true;
+      sk.lastPx = p.x;
+      sk.lastPy = p.y;
+    }
+  }
+  /* 警備員を次ターン以降すぐ出せるようスポーン予定を前倒し */
+  if (dg.nextGuardSpawnTurn == null || dg.nextGuardSpawnTurn > (p.turns ?? 0)) {
+    dg.nextGuardSpawnTurn = p.turns ?? 0;
+  }
+  if (!wasThief && ml && opts.message !== null) {
+    ml.push(opts.message || "商品を持ったまま店を出た！泥棒扱いになった！");
+  }
+  return !wasThief;
+}
+
+/** 未払いを抱えたまま店の外にいるか確認し、泥棒状態にする（endTurn 等） */
+export function checkShopTheft(p, dg, ml) {
+  if (!dg || !p || p.isThief) return;
+  const shops = getShops(dg);
+  for (const s of shops) {
+    if ((s.unpaidTotal || 0) <= 0 || !s.room) continue;
     const inShop = p.x >= s.room.x && p.x < s.room.x + s.room.w &&
                    p.y >= s.room.y && p.y < s.room.y + s.room.h;
     if (!inShop) {
-      p.isThief = true;
-      const sk = dg.monsters.find(m => m.id === s.shopkeeperId);
-      if (sk) { sk.state = "hostile"; sk.aware = true; sk.lastPx = p.x; sk.lastPy = p.y; }
-      ml.push("商品を持ったまま店を出た！泥棒扱いになった！");
+      declareShopTheft(p, dg, ml);
       return;
     }
   }
+}
+
+/** 店主の敵対を回復で解除してよいか（泥棒中・未払い中は不可） */
+export function canCalmShopkeeper(m, dg, p) {
+  if (!m || m.type !== "shopkeeper" || m.state !== "hostile") return false;
+  if (dg?.shopTheft || p?.isThief) return false;
+  const shop = getShops(dg).find((s) => s.shopkeeperId === m.id);
+  if (shop && (shop.unpaidTotal || 0) > 0) return false;
+  return m.hp >= m.maxHp;
 }
 
 /* 支払い後に店主を空きマスへ戻す（homePos が塞がっている場合は店内の別フロアタイルへ） */

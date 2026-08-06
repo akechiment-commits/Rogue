@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { T, MW, MH, removeFloorItem } from "../utils.js";
 import { monsterAI } from "../monsters.js";
-import { applyShopUnpaidCharge } from "../items.js";
+import { applyShopUnpaidCharge, checkShopTheft, declareShopTheft, canCalmShopkeeper } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 function makeShopDg() {
@@ -82,6 +82,51 @@ describe("shop floor item claim", () => {
     expect(shopItem._shopId).toBe(shopId);
     expect(dg.shops[0].unpaidTotal).toBe(100);
     expect(sk.state).toBe("blocking");
+  });
+});
+
+describe("shop theft declare", () => {
+  it("テレポート離脱相当：checkShopTheft が shopTheft と警備員スポーン準備を立てる", () => {
+    const { dg, sk, shopId } = makeShopDg();
+    sk.state = "friendly";
+    dg.shops[0].unpaidTotal = 150;
+    dg.shopTheft = false;
+    const p = makePlayer({ x: 1, y: 1, turns: 20 }); /* 店外 */
+    p.isThief = false;
+    const ml = [];
+    checkShopTheft(p, dg, ml);
+    expect(p.isThief).toBe(true);
+    expect(dg.shopTheft).toBe(true);
+    expect(sk.state).toBe("hostile");
+    expect(dg.nextGuardSpawnTurn).toBe(20);
+    expect(ml.some((m) => /泥棒/.test(m))).toBe(true);
+  });
+
+  it("泥棒中は店主を全快させても敵対が解けない", () => {
+    const { dg, sk } = makeShopDg();
+    sk.state = "hostile";
+    sk.hp = sk.maxHp;
+    dg.shopTheft = true;
+    const p = makePlayer({ x: 1, y: 1, isThief: true });
+    expect(canCalmShopkeeper(sk, dg, p)).toBe(false);
+    dg.shopTheft = false;
+    p.isThief = false;
+    dg.shops[0].unpaidTotal = 0;
+    expect(canCalmShopkeeper(sk, dg, p)).toBe(true);
+  });
+
+  it("declareShopTheft は値札を外して未払い店主を敵対にする", () => {
+    const { dg, sk, shopId } = makeShopDg();
+    sk.state = "blocking";
+    dg.shops[0].unpaidTotal = 80;
+    const p = makePlayer({
+      x: 12, y: 12,
+      inventory: [{ name: "薬", type: "potion", shopPrice: 80, _shopId: shopId }],
+    });
+    declareShopTheft(p, dg, [], { message: "店から盗んで逃げた！" });
+    expect(p.inventory[0].shopPrice).toBeUndefined();
+    expect(sk.state).toBe("hostile");
+    expect(dg.shopTheft).toBe(true);
   });
 });
 

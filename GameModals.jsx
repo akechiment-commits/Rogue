@@ -1286,7 +1286,10 @@ export function ShopModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel, setM
                       };
                       p2.inventory.forEach(_clearShopPrice);
                       /* 全店舗が清算済みなら盗難フラグを解除 */
-                      if (getShops(dg2).every(s => s.unpaidTotal === 0)) dg2.shopTheft = false;
+                      if (getShops(dg2).every(s => s.unpaidTotal === 0)) {
+                        dg2.shopTheft = false;
+                        p2.isThief = false;
+                      }
                       /* この店の店主を元の位置に戻す */
                       const _sk5 = (_adjSk2) || dg2.monsters.find(m => m.id === _curShop2.shopkeeperId);
                       if (_sk5) moveShopkeeperHome(_sk5, _curShop2, dg2);

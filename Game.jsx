@@ -18,7 +18,7 @@ import {
   makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
-  checkShopTheft, applyLightningToInventory,
+  checkShopTheft, declareShopTheft, canCalmShopkeeper, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal,
@@ -1351,20 +1351,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (!sr.current.floors) sr.current.floors = {};
     /* 店の商品を持ったまま階層を離脱した場合は即座に泥棒状態にする */
     const _hasUnpaidItems = pl.inventory.some(ci => ci.shopPrice);
-    if (_hasUnpaidItems) {
-      sr.current.dungeon.shopTheft = true;
-      for (const _ci of pl.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
-    } else {
-      const _chgShops = sr.current.dungeon?.shops || (sr.current.dungeon?.shop ? [sr.current.dungeon.shop] : []);
-      for (const _cs of _chgShops) {
-        if (_cs.unpaidTotal > 0 && _cs.room &&
-            pl.x >= _cs.room.x && pl.x < _cs.room.x + _cs.room.w &&
-            pl.y >= _cs.room.y && pl.y < _cs.room.y + _cs.room.h) {
-          sr.current.dungeon.shopTheft = true;
-          for (const _ci of pl.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
-          break;
-        }
-      }
+    const _chgShops = getShops(sr.current.dungeon);
+    const _wasInUnpaidShop = _chgShops.some(s => (s.unpaidTotal || 0) > 0 && s.room &&
+      pl.x >= s.room.x && pl.x < s.room.x + s.room.w &&
+      pl.y >= s.room.y && pl.y < s.room.y + s.room.h);
+    if (_hasUnpaidItems || _wasInUnpaidShop) {
+      declareShopTheft(pl, sr.current.dungeon, null, { message: null });
     }
     sr.current.floors[pl.depth] = sr.current.dungeon;
     const _saved = sr.current.floors[nd];
@@ -2555,9 +2547,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             for (const _esh of _wasInShopOf) {
               if (!(p.x >= _esh.room.x && p.x < _esh.room.x + _esh.room.w &&
                   p.y >= _esh.room.y && p.y < _esh.room.y + _esh.room.h)) {
-                dg.shopTheft = true;
-                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
-                ml.push("店から盗んで逃げた！");
+                declareShopTheft(p, dg, ml, { message: "店から盗んで逃げた！" });
                 break;
               }
             }
@@ -3053,9 +3043,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         for (const _eshD of _wasInShopDOf) {
           if (!(p.x >= _eshD.room.x && p.x < _eshD.room.x + _eshD.room.w &&
               p.y >= _eshD.room.y && p.y < _eshD.room.y + _eshD.room.h)) {
-            dg.shopTheft = true;
-            for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
-            ml.push("店から盗んで逃げた！");
+            declareShopTheft(p, dg, ml, { message: "店から盗んで逃げた！" });
             break;
           }
         }
@@ -3910,7 +3898,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     const _hpPrev = m.hp;
                     m.hp = Math.min(m.maxHp, m.hp + _healPotAmt);
                     ml.push(`${m.name}のHPが${m.hp - _hpPrev}回復した！`);
-                    if (m.type === "shopkeeper" && m.state === "hostile" && m.hp >= m.maxHp && !dg.shopTheft) {
+                    if (canCalmShopkeeper(m, dg, p)) {
                       m.state = "friendly";
                       ml.push("店主のHPが全快した！敵対状態が解除された。");
                     }

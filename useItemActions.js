@@ -16,7 +16,7 @@ import {
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
-  makeArrowUnitFromStack, peelShopArrowUnit,
+  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, canCalmShopkeeper,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -3070,9 +3070,7 @@ export function useItemActions({
               const _wNowIn = p.x >= _ws.room.x && p.x < _ws.room.x + _ws.room.w &&
                               p.y >= _ws.room.y && p.y < _ws.room.y + _ws.room.h;
               if (_wWasIn && !_wNowIn && _ws.unpaidTotal > 0) {
-                dg.shopTheft = true;
-                for (const _ci of p.inventory) { delete _ci.shopPrice; delete _ci._shopId; }
-                ml.push("店から盗んで逃げた！");
+                declareShopTheft(p, dg, ml, { message: "店から盗んで逃げた！" });
                 break;
               }
             }
@@ -3846,7 +3844,7 @@ export function useItemActions({
         if (m.hp < hp && m.state !== "hostile") {
           m.state = "hostile";
           ml.push("店主が怒った！");
-        } else if (m.state === "hostile" && m.hp >= m.maxHp && !dg.shopTheft) {
+        } else if (canCalmShopkeeper(m, dg, p)) {
           m.state = "friendly";
           ml.push("店主のHPが全快した！敵対状態が解除された。");
         }
