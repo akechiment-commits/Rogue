@@ -13,7 +13,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
-  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
@@ -3442,6 +3442,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else {
         delete merged.chainmailMerge;
       }
+      /* 革の鎧マージカウント（3枚で腹持ちの胴） */
+      if (base.name === "革の鎧" && mat.name === "革の鎧") {
+        merged.leatherMerge = (base.leatherMerge || 1) + (mat.leatherMerge || 1);
+      } else {
+        delete merged.leatherMerge;
+      }
       /* ゴブリンバットマージカウント */
       if (base.name === "ゴブリンバット" && mat.name === "ゴブリンバット") {
         merged.goblinBatMerge = (base.goblinBatMerge || 1) + (mat.goblinBatMerge || 1);
@@ -3516,6 +3522,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         bb.contents.push(_mithril);
         bb.capacity = bb.contents.length;
         ml.push(`合成完了！鎖帷子3枚が融合してミスリルの胴着に変化した！`);
+      /* 革の鎧3枚→腹持ちの胴に変化 */
+      } else if (merged.leatherMerge >= 3) {
+        const _stAbs = [...new Set([...(_mabs || []), STOMACH_ARMOR_T.ability].filter(Boolean))];
+        const _stomach = {
+          ...STOMACH_ARMOR_T,
+          id: uid(),
+          plus: merged.plus,
+          ability: _stAbs[0],
+          abilities: _stAbs.length ? _stAbs : undefined,
+        };
+        bb.contents.push(_stomach);
+        bb.capacity = bb.contents.length;
+        ml.push(`合成完了！革の鎧3枚が融合して腹持ちの胴に変化した！`);
       /* ゴブリンバット3本→鬼棍棒に変化 */
       } else if (merged.goblinBatMerge >= 3) {
         const _oniClub = { ...ONI_CLUB_T, id: uid(), plus: merged.plus };

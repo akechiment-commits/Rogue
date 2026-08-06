@@ -327,7 +327,6 @@ export const ITEMS = [
   { name:"革の鎧",           type:"armor",  def:2,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽い鎧。",                         tile:21 },
   { name:"鎖帷子",           type:"armor",  def:5,                       rarity:"D", weight:8,  sellPrice:300,  desc:"斬撃に強い鎧。", tile:21 },
   { name:"プレートメイル",   type:"armor",  def:8,                       rarity:"B", weight:2,  sellPrice:1200, desc:"最強の重装鎧。",                   tile:21 },
-  { name:"腹持ちの胴",       type:"armor",  def:3,  ability:"slow_hunger",   rarity:"C", weight:4,  sellPrice:1500, desc:"装備すると空腹の進行が3/4になる。腹持ち指輪と重ねがけ可（2つで1/2、3つで1/4）。",    tile:21 },
   { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"C", weight:4, sellPrice:1000, desc:"雷ダメージを2/3に軽減（万能耐性併用で半減）。雷によるアイテム破壊を防ぐ。", tile:21 },
   { name:"ドラゴンメイル",   type:"armor",  def:8,  ability:"fire_resist",   rarity:"B", weight:2,  sellPrice:3000, desc:"竜の鱗製。炎ダメージを2/3に軽減（万能耐性併用で半減）。アイテムを炎から守る。", tile:21 },
   { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         rarity:"C", weight:4,  sellPrice:900,  desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
@@ -402,6 +401,8 @@ export const ULTIMA_SWORD_T = { name:"アルテマソード", type:"weapon", atk
 export const TRIELEM_ARMOR_T  = { name:"元素王の鎧",     type:"armor", def:10, ability:"all_resist", abilities:["all_resist"], sellPrice:15000, desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n万能耐性で各属性ダメージ2/3。錬成で個別耐性を追加すれば半減。\n炎・雷の所持品破壊、氷の移動封じ・鈍足も防ぐ。", tile:21 };
 export const ELEM_RESIST_ABILITIES = ["fire_resist", "ice_resist", "lightning_resist"];
 export const MITHRIL_ARMOR_T  = { name:"ミスリルの胴着", type:"armor", def:13, sellPrice:10000,       desc:"硬くて軽い幻のミスリル製鎧。", tile:21 };
+/** 革の鎧3枚の特殊合成。通常ドロップしない */
+export const STOMACH_ARMOR_T  = { name:"腹持ちの胴", type:"armor", def:3, ability:"slow_hunger", sellPrice:1500, desc:"装備すると空腹の進行が3/4になる。腹持ち指輪と重ねがけ可（2つで1/2、3つで1/4）。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"万能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], sellPrice:10000, desc:"竜・不死・浮遊の全種族に1.5倍ダメージを与える剣。", tile:20 };
 export const IRONMASS_T       = { name:"鉄塊",       type:"weapon", atk:16, ability:"bane_dragon_2",  sellPrice:10000, desc:"ドラゴン系に2倍ダメージを与える上位特効剣。", tile:20 };
 export const SNIPER_T         = { name:"スナイパー", type:"weapon", atk:12, ability:"bane_float_2",   sellPrice:10000, desc:"浮遊している敵に2倍ダメージを与える上位特効剣。", tile:20 };

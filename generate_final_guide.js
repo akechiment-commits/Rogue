@@ -15,7 +15,7 @@ import {
   CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T,
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T,
-  TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T,
+  TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
   GOBLIN_BAT_T, ONI_CLUB_T,
   GODSPARKWAND_T,
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STONE_T, MAGIC_STONE_T, BOMB_ARROW_T,
@@ -65,6 +65,8 @@ const GUIDE_DESC_OVERRIDES = {
   "千鳥": "雷の剣3本の合成。氷・水系の敵に2倍ダメージ（上位特効）。",
   "召喚の罠": "踏むと周囲に2～4体の敵が出現する。\n出現した敵は即座にこちらを認識している。",
   "合成の大箱": "2つのアイテムを合成する。\n武器/防具同士→能力引継ぎ。杖/ペン同士→チャージ合算。\n杖+装備→異種合成で杖の能力が宿る。\n特定の組み合わせで特殊合成が発生することもある。",
+  "腹持ちの胴": "革の鎧3枚の特殊合成で生まれる（通常ドロップしない）。\n装備すると空腹の進行が3/4になる。腹持ちの指輪と重ねがけ可（2つで1/2、3つで1/4）。",
+  "ミスリルの胴着": "鎖帷子3枚の特殊合成で生まれる。硬くて軽い幻のミスリル製鎧（DEF13）。",
   "吹き飛ばしの罠": "踏むと向いていた方向と逆に最大10マス吹き飛ぶ。\n壁に激突すると10ダメージ。敵に当たると5ダメージ。",
   "呪いの壺": "入れたアイテムを呪う。矢は対象外。",
   "呪いの大箱": "【レア】入れたアイテムを呪う。\n壺は容量-1。食料は腐る。金貨・キーアイテムには効果がない。",
@@ -350,7 +352,7 @@ const _specialWeapons = [
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
   ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T,
 ];
-const _specialArmors  = [TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, DIVINE_SHIELD_T];
+const _specialArmors  = [TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T];
 
 const weaponArmorData = [['種類', 'ATK/DEF', 'ability', 'rarity', 'sellPrice', '説明']];
 weaponArmorData.push(['【武器】装備時に呪いあり→外せない。+値で攻撃力上昇', '', '', '', '', '']);
