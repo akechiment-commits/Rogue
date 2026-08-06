@@ -1071,8 +1071,15 @@ function RankingPanel({ saveData, onClose }) {
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState("");
+  /* focusArea: 0=scope 1=board 2=dungeon 3=list */
+  const [focusArea, setFocusArea] = useState(0);
+  const [listFocus, setListFocus] = useState(0);
+  const kbRef = useRef(null);
+  const listRowRefs = useRef([]);
 
   const playerId = saveData.playerId || "";
+  const SCOPES = ["all", "mine"];
+  const BOARDS = ["score", "clear"];
 
   useEffect(() => {
     let cancelled = false;
@@ -1096,11 +1103,92 @@ function RankingPanel({ saveData, onClose }) {
       setStats({ totalRuns: st.totalRuns || 0, clears: st.clears || {} });
       if (!list.ok && list.error && list.error !== "network") setError(list.error);
       setLoading(false);
+      setListFocus(0);
     })();
     return () => { cancelled = true; };
   }, [scope, board, dungeon, playerId]);
 
-  const tabBtn = (id, label, active, onClick) => (
+  useEffect(() => {
+    if (focusArea !== 3) return;
+    listRowRefs.current[listFocus]?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [listFocus, focusArea, entries]);
+
+  kbRef.current = {
+    onClose, focusArea, setFocusArea, listFocus, setListFocus,
+    scope, setScope, board, setBoard, dungeon, setDungeon,
+    entries, SCOPES, BOARDS, dungeons: RANKING_DUNGEONS,
+  };
+
+  useEffect(() => {
+    const fn = (e) => {
+      const r = kbRef.current;
+      const k = e.key.toLowerCase();
+      if (k === "x" || k === "escape") {
+        e.preventDefault();
+        r.onClose();
+        return;
+      }
+      if (isKeyUp(e)) {
+        e.preventDefault();
+        if (r.focusArea === 3) {
+          if (r.listFocus > 0) r.setListFocus(r.listFocus - 1);
+          else r.setFocusArea(2);
+        } else {
+          r.setFocusArea(a => Math.max(0, a - 1));
+        }
+        return;
+      }
+      if (isKeyDown(e)) {
+        e.preventDefault();
+        if (r.focusArea < 3) {
+          r.setFocusArea(a => a + 1);
+          if (r.focusArea + 1 === 3) r.setListFocus(0);
+        } else if (r.entries.length > 0) {
+          r.setListFocus(i => Math.min(r.entries.length - 1, i + 1));
+        }
+        return;
+      }
+      if (isKeyLeft(e) || isKeyRight(e)) {
+        e.preventDefault();
+        const dir = isKeyRight(e) ? 1 : -1;
+        if (r.focusArea === 0) {
+          const i = r.SCOPES.indexOf(r.scope);
+          r.setScope(r.SCOPES[(i + dir + r.SCOPES.length) % r.SCOPES.length]);
+        } else if (r.focusArea === 1) {
+          const i = r.BOARDS.indexOf(r.board);
+          r.setBoard(r.BOARDS[(i + dir + r.BOARDS.length) % r.BOARDS.length]);
+        } else if (r.focusArea === 2) {
+          const i = r.dungeons.findIndex(d => d.id === r.dungeon);
+          const ni = (i + dir + r.dungeons.length) % r.dungeons.length;
+          r.setDungeon(r.dungeons[ni].id);
+        } else if (r.focusArea === 3 && r.entries.length > 0) {
+          r.setListFocus(i => {
+            const n = r.entries.length;
+            return (i + dir + n) % n;
+          });
+        }
+        return;
+      }
+      /* PageUp/PageDown: 一覧を大きく移動 */
+      if (r.focusArea === 3 && r.entries.length > 0) {
+        if (k === "pageup") {
+          e.preventDefault();
+          r.setListFocus(i => Math.max(0, i - 10));
+        } else if (k === "pagedown" || k === " ") {
+          e.preventDefault();
+          r.setListFocus(i => Math.min(r.entries.length - 1, i + 10));
+        }
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, []);
+
+  const focusRing = (active) => active
+    ? { outline: "2px solid #4af", outlineOffset: 2, boxShadow: "0 0 8px #2060a0" }
+    : {};
+
+  const tabBtn = (id, label, active, onClick, focused) => (
     <button
       type="button"
       onClick={onClick}
@@ -1110,6 +1198,8 @@ function RankingPanel({ saveData, onClose }) {
         color: active ? "#8cf" : "#888",
         borderColor: active ? "#4af" : BDR,
         fontWeight: active ? "bold" : "normal",
+        ...focusRing(focused && active),
+        ...(focused && !active ? { borderColor: "#446" } : {}),
       }}
     >
       {label}
@@ -1118,27 +1208,55 @@ function RankingPanel({ saveData, onClose }) {
 
   return (
     <Panel title="ランキング" onClose={onClose} wide>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
-        {tabBtn("all", "全体", scope === "all", () => setScope("all"))}
-        {tabBtn("mine", "自分", scope === "mine", () => setScope("mine"))}
-        <span style={{ width:1, background:BDR, margin:"0 4px" }} />
-        {tabBtn("score", "スコア", board === "score", () => setBoard("score"))}
-        {tabBtn("clear", "クリアタイム", board === "clear", () => setBoard("clear"))}
+      <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
+        ↑↓/テンキー8・2:項目移動　←→/テンキー4・6:選択変更　X:閉じる
+      </div>
+      <div style={{
+        display:"flex", flexWrap:"wrap", gap:8, marginBottom:10,
+        padding: focusArea === 0 ? 4 : 0,
+        borderRadius:6,
+        border: focusArea === 0 ? "1px solid #2a4a6a" : "1px solid transparent",
+      }}>
+        {tabBtn("all", "全体", scope === "all", () => { setScope("all"); setFocusArea(0); }, focusArea === 0)}
+        {tabBtn("mine", "自分", scope === "mine", () => { setScope("mine"); setFocusArea(0); }, focusArea === 0)}
+      </div>
+      <div style={{
+        display:"flex", flexWrap:"wrap", gap:8, marginBottom:10,
+        padding: focusArea === 1 ? 4 : 0,
+        borderRadius:6,
+        border: focusArea === 1 ? "1px solid #2a4a6a" : "1px solid transparent",
+      }}>
+        {tabBtn("score", "スコア", board === "score", () => { setBoard("score"); setFocusArea(1); }, focusArea === 1)}
+        {tabBtn("clear", "クリアタイム", board === "clear", () => { setBoard("clear"); setFocusArea(1); }, focusArea === 1)}
       </div>
       <div style={{ marginBottom:10 }}>
-        <select
-          value={dungeon}
-          onChange={(e) => setDungeon(e.target.value)}
-          style={{
-            width:"100%", padding:"8px 10px", background:"#0a0a12",
-            border:`1px solid ${BDR}`, borderRadius:5, color:"#eee",
-            fontFamily:"monospace", fontSize:13,
-          }}
-        >
-          {RANKING_DUNGEONS.map((d) => (
-            <option key={d.id} value={d.id}>{d.label}</option>
-          ))}
-        </select>
+        <div style={{
+          display:"flex", flexWrap:"wrap", gap:6,
+          padding: focusArea === 2 ? 4 : 0,
+          borderRadius:6,
+          border: focusArea === 2 ? "1px solid #2a4a6a" : "1px solid transparent",
+        }}>
+          {RANKING_DUNGEONS.map((d) => {
+            const active = dungeon === d.id;
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => { setDungeon(d.id); setFocusArea(2); }}
+                style={{
+                  ...BTN, padding:"8px 12px", fontSize:12,
+                  background: active ? "#1a2840" : CARD,
+                  color: active ? "#fc8" : "#888",
+                  borderColor: active ? "#a80" : BDR,
+                  fontWeight: active ? "bold" : "normal",
+                  ...focusRing(focusArea === 2 && active),
+                }}
+              >
+                {d.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div style={{
         display:"flex", gap:16, flexWrap:"wrap", marginBottom:12,
@@ -1153,11 +1271,20 @@ function RankingPanel({ saveData, onClose }) {
       ) : error ? (
         <div style={{ color:"#f66", padding:12 }}>{error}</div>
       ) : entries.length === 0 ? (
-        <div style={{ color:"#666", padding:20, textAlign:"center" }}>
+        <div style={{
+          color:"#666", padding:20, textAlign:"center",
+          border: focusArea === 3 ? "1px solid #2a4a6a" : "1px solid transparent",
+          borderRadius:6,
+        }}>
           {scope === "mine" ? "まだ自分の記録がありません。" : "まだ記録がありません。"}
         </div>
       ) : (
-        <div style={{ overflowX:"auto" }}>
+        <div style={{
+          overflowX:"auto",
+          border: focusArea === 3 ? "1px solid #2a4a6a" : "1px solid transparent",
+          borderRadius:6,
+          padding: focusArea === 3 ? 4 : 0,
+        }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, color:TXT }}>
             <thead>
               <tr style={{ color:"#666", textAlign:"left" }}>
@@ -1181,8 +1308,19 @@ function RankingPanel({ saveData, onClose }) {
                   : `${e.score?.toLocaleString?.() ?? e.score}G`;
                 const result = e.cleared ? "クリア" : e.survived ? "生還" : "死亡";
                 const resultColor = e.cleared ? "#8f8" : e.survived ? "#8cf" : "#f88";
+                const rowFocus = focusArea === 3 && listFocus === i;
                 return (
-                  <tr key={e.runId || i} style={{ borderBottom:`1px solid #1a1a28` }}>
+                  <tr
+                    key={e.runId || i}
+                    ref={(el) => { listRowRefs.current[i] = el; }}
+                    onClick={() => { setFocusArea(3); setListFocus(i); }}
+                    style={{
+                      borderBottom:`1px solid #1a1a28`,
+                      background: rowFocus ? "#1a2840" : "transparent",
+                      boxShadow: rowFocus ? "inset 0 0 0 1px #4af" : "none",
+                      cursor: "pointer",
+                    }}
+                  >
                     <td style={{ padding:"7px 4px", color:GOLD }}>{rankLabel}</td>
                     <td style={{ padding:"7px 4px", color:"#eee" }}>{e.playerName || "???"}</td>
                     <td style={{ padding:"7px 4px", color:"#fc8" }}>{metric}</td>
@@ -1201,7 +1339,7 @@ function RankingPanel({ saveData, onClose }) {
       )}
       <div style={{ color:"#444", fontSize:10, marginTop:12, lineHeight:1.5 }}>
         スコア＝所持金＋所持品価値。クリアタイムは実時間（タブ非表示中は停止）。
-        結果が出るたびに記録されます。
+        結果が出るたびに記録されます。チュートリアルは対象外。
       </div>
     </Panel>
   );
@@ -1280,15 +1418,168 @@ function PlayerNameModal({ onConfirm }) {
 }
 
 /* ===== セーブデータ管理パネル ===== */
-function SaveDataPanel({ saveData, onClearSave, onClose }) {
+function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
   const [confirm, setConfirm] = useState(false);
+  const [confirmSel, setConfirmSel] = useState(0); /* 0=消去 1=キャンセル */
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState(saveData.playerName || "");
+  const [nameError, setNameError] = useState("");
+  const [btnFocus, setBtnFocus] = useState(0); /* 0=名前変更 1=データ消去 */
+  const nameInputRef = useRef(null);
+  const kbRef = useRef(null);
+
+  useEffect(() => {
+    if (renaming) {
+      setNameDraft(saveData.playerName || "");
+      setNameError("");
+      setTimeout(() => nameInputRef.current?.focus(), 0);
+    }
+  }, [renaming, saveData.playerName]);
+
+  const applyRename = () => {
+    const applied = applyPlayerNameToSave(saveData, nameDraft);
+    if (!applied.ok) {
+      setNameError(applied.error);
+      return false;
+    }
+    updateSave(() => applied.save);
+    setRenaming(false);
+    setNameError("");
+    return true;
+  };
+
+  const cancelRename = () => {
+    setRenaming(false);
+    setNameDraft(saveData.playerName || "");
+    setNameError("");
+  };
+
+  kbRef.current = {
+    onClose, confirm, setConfirm, confirmSel, setConfirmSel,
+    renaming, btnFocus, setBtnFocus, applyRename, cancelRename,
+    setRenaming, onClearSave,
+  };
+
+  useEffect(() => {
+    const fn = (e) => {
+      const r = kbRef.current;
+      const k = e.key.toLowerCase();
+      const tag = (e.target && e.target.tagName) || "";
+      const typing = tag === "INPUT" || tag === "TEXTAREA";
+
+      if (r.renaming) {
+        if (k === "escape") {
+          e.preventDefault();
+          r.cancelRename();
+        } else if ((k === "enter" || k === "z") && !e.nativeEvent?.isComposing) {
+          /* 入力中の Z は文字として扱う。Enter のみ決定 */
+          if (k === "enter") {
+            e.preventDefault();
+            r.applyRename();
+          }
+        }
+        return;
+      }
+
+      if (typing) return;
+
+      if (r.confirm) {
+        if (isKeyUp(e) || isKeyDown(e) || isKeyLeft(e) || isKeyRight(e)) {
+          e.preventDefault();
+          r.setConfirmSel(s => (s === 0 ? 1 : 0));
+        } else if (k === "z" || k === "enter") {
+          e.preventDefault();
+          if (r.confirmSel === 0) { r.onClearSave(); r.onClose(); }
+          else { r.setConfirm(false); r.setConfirmSel(0); }
+        } else if (k === "x" || k === "escape") {
+          e.preventDefault();
+          r.setConfirm(false);
+          r.setConfirmSel(0);
+        }
+        return;
+      }
+
+      if (k === "x" || k === "escape") {
+        e.preventDefault();
+        r.onClose();
+        return;
+      }
+      if (isKeyUp(e) || isKeyDown(e)) {
+        e.preventDefault();
+        r.setBtnFocus(f => (f === 0 ? 1 : 0));
+      } else if (k === "z" || k === "enter") {
+        e.preventDefault();
+        if (r.btnFocus === 0) r.setRenaming(true);
+        else { r.setConfirm(true); r.setConfirmSel(0); }
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, []);
+
+  const btnStyle = (focused, color) => ({
+    ...BTN,
+    width: "100%",
+    padding: "10px 0",
+    fontSize: 13,
+    color,
+    background: focused ? "#1a1a30" : CARD,
+    borderColor: focused ? "#44f" : BDR,
+    boxShadow: focused ? "0 0 8px #224" : "none",
+    fontWeight: focused ? "bold" : "normal",
+  });
+
   return (
     <Panel title="セーブデータ管理" onClose={onClose}>
+      <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
+        {renaming
+          ? "Enter:決定　Esc:キャンセル"
+          : confirm
+            ? "←→/↑↓:選択　Z/Enter:決定　X:戻る"
+            : "↑↓:選択　Z/Enter:決定　X:閉じる"}
+      </div>
       <div style={{ display:"flex", flexDirection:"column", gap:8, color:TXT }}>
-        <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${BDR}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+          padding:"6px 0", borderBottom:`1px solid ${BDR}`, gap:8, flexWrap:"wrap" }}>
           <span style={{ color:"#888" }}>プレイヤー名</span>
-          <span style={{ color:"#8cf" }}>{playerLabel(saveData.playerName)}</span>
+          <span style={{ color:"#8cf", fontWeight:"bold" }}>{playerLabel(saveData.playerName)}</span>
         </div>
+        {renaming && (
+          <div style={{ padding:"10px 0", borderBottom:`1px solid ${BDR}` }}>
+            <div style={{ color:"#aaa", fontSize:12, marginBottom:6 }}>
+              新しい名前（{PLAYER_NAME_MAX}文字以内）
+            </div>
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={nameDraft}
+              maxLength={PLAYER_NAME_MAX * 2}
+              onChange={(e) => { setNameDraft(e.target.value); setNameError(""); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applyRename();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  cancelRename();
+                }
+              }}
+              style={{
+                width:"100%", boxSizing:"border-box", padding:"8px 10px",
+                background:"#0a0a12", border:`1px solid ${BDR}`, borderRadius:5,
+                color:"#eee", fontFamily:"monospace", fontSize:14, outline:"none",
+              }}
+            />
+            {nameError && (
+              <div style={{ color:"#f66", fontSize:12, marginTop:6 }}>{nameError}</div>
+            )}
+            <div style={{ display:"flex", gap:8, marginTop:10 }}>
+              <Btn label="変更する [Enter]" onClick={applyRename} color="#4df"
+                style={{ flex:1, background:"#0c2240" }} />
+              <Btn label="キャンセル [Esc]" onClick={cancelRename} color="#888" style={{ flex:1 }} />
+            </div>
+          </div>
+        )}
         <div style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:`1px solid ${BDR}` }}>
           <span style={{ color:"#888" }}>総探索回数</span>
           <span>{saveData.totalRuns || 0} 回</span>
@@ -1314,16 +1605,51 @@ function SaveDataPanel({ saveData, onClearSave, onClose }) {
           <span>{Object.keys(saveData.discovered?.monsters || {}).length} 種</span>
         </div>
       </div>
-      <div style={{ marginTop:20 }}>
-        {!confirm ? (
-          <Btn label="セーブデータを消去" onClick={() => setConfirm(true)} color="#f44"
-            style={{ fontSize:12, background:"#180808" }} />
-        ) : (
+      <div style={{ marginTop:20, display:"flex", flexDirection:"column", gap:8 }}>
+        {!renaming && !confirm && (
+          <>
+            <button
+              type="button"
+              onClick={() => { setBtnFocus(0); setRenaming(true); }}
+              style={btnStyle(btnFocus === 0, "#8cf")}
+            >
+              プレイヤー名を変更
+            </button>
+            <button
+              type="button"
+              onClick={() => { setBtnFocus(1); setConfirm(true); setConfirmSel(0); }}
+              style={{ ...btnStyle(btnFocus === 1, "#f44"), background: btnFocus === 1 ? "#2a1010" : "#180808" }}
+            >
+              セーブデータを消去
+            </button>
+          </>
+        )}
+        {confirm && (
           <div>
             <div style={{ color:"#f44", marginBottom:10, fontSize:13 }}>本当に消去しますか？この操作は取り消せません。</div>
             <div style={{ display:"flex", gap:8 }}>
-              <Btn label="消去する" onClick={() => { onClearSave(); onClose(); }} color="#f44" />
-              <Btn label="キャンセル" onClick={() => setConfirm(false)} color="#888" />
+              <Btn
+                label="消去する"
+                onClick={() => { onClearSave(); onClose(); }}
+                color="#f44"
+                style={{
+                  flex:1,
+                  borderColor: confirmSel === 0 ? "#f44" : BDR,
+                  boxShadow: confirmSel === 0 ? "0 0 8px #622" : "none",
+                  fontWeight: confirmSel === 0 ? "bold" : "normal",
+                }}
+              />
+              <Btn
+                label="キャンセル"
+                onClick={() => { setConfirm(false); setConfirmSel(0); }}
+                color="#888"
+                style={{
+                  flex:1,
+                  borderColor: confirmSel === 1 ? "#88f" : BDR,
+                  boxShadow: confirmSel === 1 ? "0 0 8px #224" : "none",
+                  fontWeight: confirmSel === 1 ? "bold" : "normal",
+                }}
+              />
             </div>
           </div>
         )}
@@ -1573,6 +1899,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       {panel === "savedata" && (
         <SaveDataPanel
           saveData={saveData}
+          updateSave={updateSave}
           onClearSave={onClearSave}
           onClose={() => setPanel(null)}
         />
