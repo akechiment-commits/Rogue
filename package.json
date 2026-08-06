@@ -12,6 +12,7 @@
     "portrait-transparent": "python tools/portrait-transparent-batch.py"
   },
   "dependencies": {
+    "@upstash/redis": "^1.38.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

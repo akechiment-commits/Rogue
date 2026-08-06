@@ -4,6 +4,7 @@ import { resetDiscoveries } from "./DiscoveryTracker.js";
 import { loadGameState, clearGameSave } from "./GameSave.js";
 import { mergeReturnItemsToWarehouse } from "./hubWarehouse.js";
 import { rollHubShopStock } from "./hubShop.js";
+import { submitRunResult, RANKING_DUNGEON_IDS } from "./rankingClient.js";
 import RoguelikeGame from "./Game.jsx";
 import HubScreen from "./HubScreen.jsx";
 
@@ -51,6 +52,8 @@ export default function App() {
     /* 二重呼び出し防止 */
     if (returnedRef.current) return;
     returnedRef.current = true;
+    const rankPlayerId = saveData?.playerId || "";
+    const rankPlayerName = saveData?.playerName || "";
     updateSave(prev => {
       const next = { ...prev };
       /* survived=true: 100% gold; death: 50% gold */
@@ -80,13 +83,36 @@ export default function App() {
       next.hubShopStock = rollHubShopStock();
       /* ダンジョンクリア記録（オブジェクトを新規生成して prev の参照を共有しない） */
       if (result.cleared) {
-        const _dt = dungeonConfig?.dungeonType || "beginner";
+        const _dt = dungeonConfig?.dungeonType || result.dungeonType || "beginner";
         next.clearedDungeons = { ...(prev.clearedDungeons || {}), [_dt]: true };
       }
       return next;
     });
+    /* オンラインランキング投稿（失敗しても進行は止めない） */
+    const dungeonType = result.dungeonType || dungeonConfig?.dungeonType || "beginner";
+    if (
+      rankPlayerId &&
+      rankPlayerName &&
+      RANKING_DUNGEON_IDS.includes(dungeonType)
+    ) {
+      submitRunResult({
+        playerId: rankPlayerId,
+        playerName: rankPlayerName,
+        dungeonType,
+        score: result.score ?? 0,
+        turns: result.turns ?? 0,
+        elapsedMs: result.elapsedMs ?? 0,
+        depth: result.depth ?? 0,
+        level: result.level ?? 0,
+        cleared: !!result.cleared,
+        survived: !!result.survived,
+        cause: result.cause || "",
+        gold: result.gold ?? result.earnedGold ?? 0,
+        itemsValue: result.itemsValue ?? 0,
+      }).catch(() => {});
+    }
     setScreen("hub");
-  }, [updateSave, dungeonConfig]);
+  }, [updateSave, dungeonConfig, saveData?.playerId, saveData?.playerName]);
 
   const handleClearSave = useCallback(() => {
     clearSave();

@@ -6,6 +6,8 @@ import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES
 import { validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { applyPlayerNameToSave, normalizePlayerName, PLAYER_NAME_MAX, playerLabel } from "./playerLabel.js";
+import { fetchRanking, fetchRankingStats, RANKING_DUNGEONS } from "./rankingClient.js";
+import { formatElapsed } from "./runScore.js";
 
 /* ===== 共通スタイル ===== */
 const BG   = "#09090f";
@@ -1058,6 +1060,153 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   );
 }
 
+/* ===== オンラインランキング ===== */
+function RankingPanel({ saveData, onClose }) {
+  const [scope, setScope] = useState("all"); /* all | mine */
+  const [board, setBoard] = useState("score"); /* score | clear */
+  const [dungeon, setDungeon] = useState("beginner");
+  const [entries, setEntries] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState({ totalRuns: 0, clears: {} });
+  const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
+  const [error, setError] = useState("");
+
+  const playerId = saveData.playerId || "";
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError("");
+      const [list, st] = await Promise.all([
+        fetchRanking({
+          board,
+          dungeon,
+          limit: 50,
+          mine: scope === "mine",
+          playerId: scope === "mine" ? playerId : undefined,
+        }),
+        fetchRankingStats(),
+      ]);
+      if (cancelled) return;
+      setOffline(!!(list.offline || st.offline));
+      setEntries(list.entries || []);
+      setTotal(list.total || 0);
+      setStats({ totalRuns: st.totalRuns || 0, clears: st.clears || {} });
+      if (!list.ok && list.error && list.error !== "network") setError(list.error);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [scope, board, dungeon, playerId]);
+
+  const tabBtn = (id, label, active, onClick) => (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        ...BTN, padding:"6px 12px", fontSize:12,
+        background: active ? "#1a2840" : CARD,
+        color: active ? "#8cf" : "#888",
+        borderColor: active ? "#4af" : BDR,
+        fontWeight: active ? "bold" : "normal",
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <Panel title="ランキング" onClose={onClose} wide>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}>
+        {tabBtn("all", "全体", scope === "all", () => setScope("all"))}
+        {tabBtn("mine", "自分", scope === "mine", () => setScope("mine"))}
+        <span style={{ width:1, background:BDR, margin:"0 4px" }} />
+        {tabBtn("score", "スコア", board === "score", () => setBoard("score"))}
+        {tabBtn("clear", "クリアタイム", board === "clear", () => setBoard("clear"))}
+      </div>
+      <div style={{ marginBottom:10 }}>
+        <select
+          value={dungeon}
+          onChange={(e) => setDungeon(e.target.value)}
+          style={{
+            width:"100%", padding:"8px 10px", background:"#0a0a12",
+            border:`1px solid ${BDR}`, borderRadius:5, color:"#eee",
+            fontFamily:"monospace", fontSize:13,
+          }}
+        >
+          {RANKING_DUNGEONS.map((d) => (
+            <option key={d.id} value={d.id}>{d.label}</option>
+          ))}
+        </select>
+      </div>
+      <div style={{
+        display:"flex", gap:16, flexWrap:"wrap", marginBottom:12,
+        padding:"8px 10px", background:"#0a0a12", borderRadius:5, fontSize:12, color:"#aaa",
+      }}>
+        <span>全世界挑戦: <b style={{ color:"#fff" }}>{stats.totalRuns}</b> 回</span>
+        <span>このダンジョンクリア: <b style={{ color:"#8f8" }}>{stats.clears?.[dungeon] || 0}</b> 回</span>
+        {offline && <span style={{ color:"#f80" }}>オフライン（サーバー未設定）</span>}
+      </div>
+      {loading ? (
+        <div style={{ color:"#666", padding:20, textAlign:"center" }}>読み込み中…</div>
+      ) : error ? (
+        <div style={{ color:"#f66", padding:12 }}>{error}</div>
+      ) : entries.length === 0 ? (
+        <div style={{ color:"#666", padding:20, textAlign:"center" }}>
+          {scope === "mine" ? "まだ自分の記録がありません。" : "まだ記録がありません。"}
+        </div>
+      ) : (
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, color:TXT }}>
+            <thead>
+              <tr style={{ color:"#666", textAlign:"left" }}>
+                <th style={{ padding:"6px 4px", borderBottom:`1px solid ${BDR}` }}>#</th>
+                <th style={{ padding:"6px 4px", borderBottom:`1px solid ${BDR}` }}>名前</th>
+                <th style={{ padding:"6px 4px", borderBottom:`1px solid ${BDR}` }}>
+                  {board === "clear" ? "時間" : "スコア"}
+                </th>
+                <th style={{ padding:"6px 4px", borderBottom:`1px solid ${BDR}` }}>T</th>
+                <th style={{ padding:"6px 4px", borderBottom:`1px solid ${BDR}` }}>階</th>
+                <th style={{ padding:"6px 4px", borderBottom:`1px solid ${BDR}` }}>結果</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e, i) => {
+                const rankLabel = e.rank != null
+                  ? (scope === "mine" && e.total ? `${e.rank}/${e.total}` : String(e.rank))
+                  : String(i + 1);
+                const metric = board === "clear"
+                  ? formatElapsed(e.elapsedMs)
+                  : `${e.score?.toLocaleString?.() ?? e.score}G`;
+                const result = e.cleared ? "クリア" : e.survived ? "生還" : "死亡";
+                const resultColor = e.cleared ? "#8f8" : e.survived ? "#8cf" : "#f88";
+                return (
+                  <tr key={e.runId || i} style={{ borderBottom:`1px solid #1a1a28` }}>
+                    <td style={{ padding:"7px 4px", color:GOLD }}>{rankLabel}</td>
+                    <td style={{ padding:"7px 4px", color:"#eee" }}>{e.playerName || "???"}</td>
+                    <td style={{ padding:"7px 4px", color:"#fc8" }}>{metric}</td>
+                    <td style={{ padding:"7px 4px", color:"#888" }}>{e.turns ?? "-"}</td>
+                    <td style={{ padding:"7px 4px", color:"#888" }}>B{e.depth ?? 0}</td>
+                    <td style={{ padding:"7px 4px", color:resultColor }}>{result}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {scope === "all" && total > 0 && (
+            <div style={{ color:"#555", fontSize:11, marginTop:8 }}>全 {total} 件中 上位を表示</div>
+          )}
+        </div>
+      )}
+      <div style={{ color:"#444", fontSize:10, marginTop:12, lineHeight:1.5 }}>
+        スコア＝所持金＋所持品価値。クリアタイムは実時間（タブ非表示中は停止）。
+        結果が出るたびに記録されます。
+      </div>
+    </Panel>
+  );
+}
+
 /* ===== 初回プレイヤー名入力 ===== */
 function PlayerNameModal({ onConfirm }) {
   const [value, setValue] = useState("");
@@ -1185,7 +1334,7 @@ function SaveDataPanel({ saveData, onClearSave, onClose }) {
 
 /* ===== メインHUBスクリーン ===== */
 export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave }) {
-  const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "shop" | "encyclopedia" | "savedata" */
+  const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "shop" | "encyclopedia" | "savedata" | "ranking" */
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
 
@@ -1213,7 +1362,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const mainItems = [
     ...(resumeExists                  ? [{ id:"resume" }]       : []),
     { id:"dungeon" }, { id:"items" }, { id:"shop" },
-    { id:"encyclopedia" },            { id:"savedata" },
+    { id:"encyclopedia" }, { id:"ranking" }, { id:"savedata" },
   ];
   const activateMain = (id) => {
     if (needsName) return;
@@ -1373,6 +1522,8 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
           onClick={() => setPanel("shop")} color={GOLD} />
         <HubBtn icon="📖" label="図鑑"     btnId="encyclopedia" sub="発見記録"
           onClick={() => setPanel("encyclopedia")} color="#a8f" />
+        <HubBtn icon="🏆" label="ランキング" btnId="ranking" sub="全体・自分"
+          onClick={() => { if (!needsName) setPanel("ranking"); }} color="#fc8" />
         <HubBtn icon="💾" label="データ"   btnId="savedata" sub="セーブ管理"
           onClick={() => setPanel("savedata")} color="#888" />
       </div>
@@ -1409,6 +1560,12 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       )}
       {panel === "encyclopedia" && (
         <EncyclopediaPanel
+          saveData={saveData}
+          onClose={() => setPanel(null)}
+        />
+      )}
+      {panel === "ranking" && (
+        <RankingPanel
           saveData={saveData}
           onClose={() => setPanel(null)}
         />
