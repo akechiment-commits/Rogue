@@ -2902,6 +2902,7 @@ export function InventoryModal({
   const _fl = listFloorInventoryEntries(gs?.dungeon, p.x, p.y, {
     allBcKnown: !!gs?.allBcKnown,
     bbFakeNames: gs?.bbFakeNames,
+    ident: gs?.ident,
   });
   const _flItems = _fl.items;
   const _flTraps = _fl.traps;

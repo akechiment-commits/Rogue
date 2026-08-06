@@ -3,7 +3,7 @@
  * アイテム・罠に加え、風穴・魔方陣・泉・大箱を含める。
  */
 
-import { ITEMS, BB_TYPES } from "./items.js";
+import { BB_TYPES } from "./items.js";
 
 export const VENT_FLOOR_DESC =
   "一定範囲の物理飛び道具（投擲・矢・石・ブレスなど）の向きを風向きに変える。杖や魔法弾は曲がらない。";
@@ -11,43 +11,91 @@ export const VENT_FLOOR_DESC =
 export const FIXED_PORTAL_FLOOR_DESC =
   "対になる転送陣と常に繋がっている。乗ると反対側へ転送される。プレイヤー・敵・投げた物も通る。ペンのポータルとは繋がらない。";
 
-export const PORTAL_FLOOR_DESC =
-  "ポータル同士が繋がると乗ってワープできる。上に投げた物も反対側から出る。呪いだとランダムワープになる。";
-
 export const SPRING_FLOOR_DESC =
   "神秘の泉。水を飲んだりアイテムを浸したりできる。状態が変わったり、ごく稀に願いが叶うこともある。";
 
 export const BIGBOX_UNKNOWN_DESC =
   "正体不明の大箱。開けると中にアイテムを入れたり取り出したりできる。";
 
+/** 未識別の魔方陣（描いたペンの種類が未判明） */
+export const PENTACLE_UNKNOWN_DESC =
+  "正体不明の魔方陣。何の効果があるのか分からない。";
+
+/**
+ * 魔方陣そのものの効果説明（ペンの説明文のコピーではない書き下ろし）。
+ * key = pentacle.kind / pen effect
+ */
+export const PENTACLE_FLOOR_DESCS = {
+  sanctuary:
+    "モンスターはこの魔方陣を通過できず、上にいる者への近接攻撃もできない。\n呪い：描いた直後に隣接へ弾き出され、乗ると即死しうる（魔封じ下では無効など例外あり）。",
+  vulnerability:
+    "同じ部屋にいる者全員が受けるダメージが2倍になる。",
+  magic_seal:
+    "同じ部屋では魔法が一切効かなくなる。外から飛んできた魔法弾も消える。",
+  thunder_trap:
+    "真上にいると毎ターン雷ダメージを受ける。\n呪い：逆に毎ターンHPが回復する。",
+  farcast:
+    "同じ部屋で投げた物が壁まで貫通して飛ぶ。\n呪い：射程が1マスに縮む。",
+  light:
+    "同じ部屋の地形・敵・アイテムがすべて見える。\n呪い：視界が1マスに狭まる。",
+  teleport_trap:
+    "描いた瞬間にランダムテレポートし、その後も部屋内で確率テレポートする。\n呪い：テレポートを封じる。",
+  trap_gen:
+    "毎ターン確率で部屋に罠が増える（別部屋でも発動することがある）。\n呪い：毎ターン高確率で罠が消える。",
+  stone_throw:
+    "部屋内のキャラに毎ターン確率で魔法の石が飛ぶ。\n呪い：石の効果が回復に変わる。",
+  knockback_aura:
+    "部屋内で近接攻撃を受けた者が大きく吹き飛ぶ。\n呪い：吹き飛びがごく短い。",
+  explosion:
+    "部屋内で倒された敵が爆発し、周囲に大きなダメージを与える。壁・罠・大箱も壊れる。\n呪い：炎・雷を不発にする。",
+  decoy:
+    "部屋内の敵がプレイヤーを無視してこの魔方陣へ集まり、陣取ると動かなくなる。近づいた敵同士は互いに攻撃し合う。",
+  plain:
+    "見た目だけの魔方陣で、特に効果はない。",
+  gravity:
+    "部屋内では浮遊できず、敵が罠にかかりやすく、吹き飛ばしや飛びつきが無効になる。水上の浮遊系敵は危険。\n呪い：部屋内の全員が浮遊状態になる。",
+  dodge:
+    "部屋内では投げ物・矢・石が必ず外れる（魔法や炎など一部は除く）。\n呪い：逆に必ず命中する。",
+  equal_speed:
+    "部屋内の全員が速度に関係なく1回ずつ行動する。\n呪い：全員が鈍足になる。",
+  heal_aura:
+    "部屋内の全員が毎ターン少しHPを回復する。アンデッドには逆効果。\n呪い：毎ターン少しダメージを受ける。",
+  revival:
+    "この魔方陣の上でHPがゼロになると、HP全回復で一度だけ復活する（敵味方問わず・使い捨て）。\n呪い：何も起きない。",
+  portal:
+    "ポータル同士が繋がると乗ってワープできる。上に投げた物も反対側から出る。\n呪い：ランダムな場所へ飛ぶ。",
+  fixed_portal: FIXED_PORTAL_FLOOR_DESC,
+};
+
 /** 説明のみ（踏む・拾うなし）の足元ロール */
 export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle", "spring", "bigbox"]);
 
-function penTemplate(kind) {
-  if (!kind || kind === "fixed_portal") return null;
-  return ITEMS.find((i) => i.type === "pen" && i.effect === kind) || null;
+/**
+ * 魔方陣が識別済みか。
+ * 未識別ペンで描いた場合 penIK が付き、ident にそのキーが無い間は未識別。
+ */
+export function isPentacleIdentified(pc, ident) {
+  if (!pc) return false;
+  if (pc.kind === "fixed_portal") return true;
+  if (!pc.penIK) return true; /* 描画時に識別済みだった */
+  if (!ident) return false;
+  if (ident instanceof Set) return ident.has(pc.penIK);
+  if (typeof ident.has === "function") return ident.has(pc.penIK);
+  if (Array.isArray(ident)) return ident.includes(pc.penIK);
+  return false;
 }
 
-function pentacleDesc(pc) {
-  if (pc.desc) return pc.desc;
-  if (pc.kind === "fixed_portal") return FIXED_PORTAL_FLOOR_DESC;
-  if (pc.kind === "portal") {
-    const pen = penTemplate("portal");
-    return pen?.desc || PORTAL_FLOOR_DESC;
-  }
-  const pen = penTemplate(pc.kind);
-  if (pen?.desc) return pen.desc;
-  return "魔方陣。効果は種類によって異なる。";
+function pentacleFloorDesc(pc, ident) {
+  if (!isPentacleIdentified(pc, ident)) return PENTACLE_UNKNOWN_DESC;
+  if (pc.desc && pc.kind === "fixed_portal") return pc.desc;
+  return PENTACLE_FLOOR_DESCS[pc.kind] || "魔方陣。効果は種類によって異なる。";
 }
 
-function pentacleName(pc) {
+function pentacleDisplayName(pc, ident) {
+  /* 名称は描画時に付いたものを優先（未識別は偽名のまま） */
   if (pc.name) return pc.name;
   if (pc.kind === "fixed_portal") return "転送の魔法陣";
-  const pen = penTemplate(pc.kind);
-  if (pen?.name) {
-    /* 「○○のペン」→「○○の魔方陣」 */
-    return pen.name.replace(/のペン$/, "の魔方陣");
-  }
+  if (!isPentacleIdentified(pc, ident)) return "謎の魔方陣";
   return "魔方陣";
 }
 
@@ -55,12 +103,13 @@ function pentacleName(pc) {
  * @param {object|null|undefined} dungeon
  * @param {number} x
  * @param {number} y
- * @param {{ allBcKnown?: boolean, bbFakeNames?: object }} [opts]
+ * @param {{ allBcKnown?: boolean, bbFakeNames?: object, ident?: Set|string[] }} [opts]
  */
 export function listFloorInventoryEntries(dungeon, x, y, opts = {}) {
   if (!dungeon || !Number.isFinite(x) || !Number.isFinite(y)) {
     return { items: [], traps: [], fixtures: [], all: [] };
   }
+  const ident = opts.ident;
   const items = (dungeon.items || []).filter(
     (i) => i.x === x && i.y === y && !i.wallEmbedded && !i.noPickup,
   );
@@ -81,9 +130,10 @@ export function listFloorInventoryEntries(dungeon, x, y, opts = {}) {
     .map((pc) => ({
       ...pc,
       _floorRole: "pentacle",
-      name: pentacleName(pc),
-      desc: pentacleDesc(pc),
+      name: pentacleDisplayName(pc, ident),
+      desc: pentacleFloorDesc(pc, ident),
       tile: pc.tile ?? 42,
+      _pentacleIdentified: isPentacleIdentified(pc, ident),
     }));
 
   const springs = (dungeon.springs || [])
@@ -126,10 +176,6 @@ export function floorEntryRole(entry, items, traps) {
   if (!entry) return "unknown";
   if (entry._floorRole) return entry._floorRole;
   if (entry.type === "vent") return "vent";
-  if (entry.kind === "portal" || entry.kind === "fixed_portal" || entry.kind) {
-    /* pentacle objects use .kind without being items */
-    if (!entry.type && entry.kind) return "pentacle";
-  }
   if (items?.includes?.(entry)) return "item";
   if (traps?.includes?.(entry)) return "trap";
   return "unknown";

@@ -5047,6 +5047,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y, {
                   allBcKnown: !!sr.current?.allBcKnown,
                   bbFakeNames: sr.current?.bbFakeNames,
+                  ident: sr.current?.ident,
                 }) : { items: [], traps: [], all: [] };
                 const _flItems2 = _fl2.items;
                 const _flTraps2 = _fl2.traps;
@@ -5423,6 +5424,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         const _fl3 = _dg3 && _p3 ? listFloorInventoryEntries(_dg3, _p3.x, _p3.y, {
                           allBcKnown: !!sr.current?.allBcKnown,
                           bbFakeNames: sr.current?.bbFakeNames,
+                          ident: sr.current?.ident,
                         }) : { items: [], traps: [], all: [] };
                         const _flItems3 = _fl3.items;
                         const _flTraps3 = _fl3.traps;

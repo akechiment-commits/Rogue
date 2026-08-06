@@ -380,6 +380,7 @@ export function useKeyHandler({
         const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y, {
           allBcKnown: !!sr.current?.allBcKnown,
           bbFakeNames: sr.current?.bbFakeNames,
+          ident: sr.current?.ident,
         }) : { items: [], traps: [], all: [] };
         const _flItems2 = _fl2.items;
         const _flTraps2 = _fl2.traps;
