@@ -1,7 +1,6 @@
 /** オンラインランキング API クライアント */
 
 export const RANKING_DUNGEONS = [
-  { id: "tutorial", label: "チュートリアル" },
   { id: "beginner", label: "初心者" },
   { id: "intermediate", label: "中級者" },
   { id: "advanced", label: "上級者" },

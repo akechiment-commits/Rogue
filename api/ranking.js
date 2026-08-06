@@ -10,7 +10,8 @@
 
 import { Redis } from "@upstash/redis";
 
-const ALLOWED_DUNGEONS = ["tutorial", "beginner", "intermediate", "advanced", "legend"];
+/* チュートリアル・デバッグは対象外 */
+const ALLOWED_DUNGEONS = ["beginner", "intermediate", "advanced", "legend"];
 const MAX_BOARD = 2000;
 const MAX_MINE = 100;
 const RATE_LIMIT_SEC = 8;

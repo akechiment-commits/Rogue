@@ -26,6 +26,10 @@ describe("validateSubmitPayload", () => {
     expect(validateSubmitPayload({ ...base, dungeonType: "debug" }).ok).toBe(false);
   });
 
+  it("tutorial は拒否", () => {
+    expect(validateSubmitPayload({ ...base, dungeonType: "tutorial" }).ok).toBe(false);
+  });
+
   it("許可ダンジョンのみ", () => {
     for (const id of RANKING_DUNGEON_IDS) {
       expect(validateSubmitPayload({ ...base, dungeonType: id }).ok).toBe(true);
