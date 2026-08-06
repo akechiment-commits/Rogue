@@ -1021,13 +1021,13 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _ARMOR_WEAK    = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof","frail","noisy"]);
       const _strongSet = _isWeapon ? _WEAPON_STRONG : _ARMOR_STRONG;
       const _weakSet   = _isWeapon ? _WEAPON_WEAK   : _ARMOR_WEAK;
-      const _candidateAbils = _allAbils.filter(ab => !_ownedIds.has(ab.id) && (
+      const _candidateAbils = _allAbils.filter(ab => !_ownedIds.has(ab.id) && !ab.specialOnly && (
         mode.blessed ? _strongSet.has(ab.id)
       : mode.cursed  ? _weakSet.has(ab.id)
       : !ab.curseOnly && !ab.blessedOnly  /* 通常巻物では専用能力は出ない */
       ));
-      /* プールが空なら全体から（既所持除く） */
-      const _finalPool = _candidateAbils.length > 0 ? _candidateAbils : _allAbils.filter(ab => !_ownedIds.has(ab.id));
+      /* プールが空なら全体から（既所持・特殊合成専用除く） */
+      const _finalPool = _candidateAbils.length > 0 ? _candidateAbils : _allAbils.filter(ab => !_ownedIds.has(ab.id) && !ab.specialOnly);
       if (_finalPool.length > 0) {
         const _newAb = _finalPool[Math.floor(Math.random() * _finalPool.length)];
         _selIt.abilities = [...(_selIt.abilities || []), _newAb.id].filter(Boolean);

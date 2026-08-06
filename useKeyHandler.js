@@ -865,9 +865,11 @@ export function useKeyHandler({
             const _AW = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof"]);
             const _str = _isWeapon ? _WS : _AS;
             const _wk  = _isWeapon ? _WW : _AW;
-            const _cands = _allAbils.filter(ab => !_owned.has(ab.id) && (
-              identifyMode.blessed ? _str.has(ab.id) : identifyMode.cursed ? _wk.has(ab.id) : true));
-            const _pool = _cands.length > 0 ? _cands : _allAbils.filter(ab => !_owned.has(ab.id));
+            const _cands = _allAbils.filter(ab => !_owned.has(ab.id) && !ab.specialOnly && (
+              identifyMode.blessed ? _str.has(ab.id)
+              : identifyMode.cursed ? _wk.has(ab.id)
+              : !ab.curseOnly && !ab.blessedOnly));
+            const _pool = _cands.length > 0 ? _cands : _allAbils.filter(ab => !_owned.has(ab.id) && !ab.specialOnly);
             if (_pool.length > 0) {
               const _ab = _pool[Math.floor(Math.random() * _pool.length)];
               _selIt.abilities = [...(_selIt.abilities || []), _ab.id].filter(Boolean);

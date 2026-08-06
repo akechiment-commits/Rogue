@@ -495,8 +495,19 @@ export function clampDmgFixed(m, damage, isPhysical = false) {
 }
 
 /**
- * プレイヤーの hp 代入をフックし、reverseTurns 中は増減を反転する。
- * （ダメージ→回復、回復→ダメージ。回復側は maxHp でクランプ）
+ * 最終被ダメ軽減（防具 ability: dmg_reduce）。
+ * HP 代入フックでも使う。メッセージ表示前に使うと表示と実減が一致する。
+ */
+export function reduceFinalPlayerDamage(p, dmg) {
+  if (!p || !Number.isFinite(dmg) || dmg <= 0) return dmg;
+  if (!hasAbility(p.armor, "dmg_reduce")) return dmg;
+  return Math.max(1, Math.floor(dmg * 0.9));
+}
+
+/**
+ * プレイヤーの hp 代入をフックし、
+ * - reverseTurns 中は増減を反転する（ダメージ→回復、回復→ダメージ）
+ * - 防具 dmg_reduce 時は減少分を1割軽減する（最終被ダメ）
  * 回復意図が逆転して HP0 以下になった場合は死因を設定する。
  * セーブ後の復元時も呼ぶこと。
  */
@@ -521,6 +532,16 @@ export function installPlayerHpReverseHook(p) {
             this.deathCause = "逆転状態での回復により";
           }
           raw = next;
+          return;
+        }
+      }
+      /* 被ダメ軽減：HP が減る代入に適用。
+         p.hp=0 / p.hp=1 のような絶対指定は「即死・1残し」意図なので軽減しない */
+      if (n < raw && hasAbility(this.armor, "dmg_reduce")) {
+        const loss = raw - n;
+        if (loss > 0 && !(n <= 1 && loss > 1)) {
+          const reducedLoss = Math.max(1, Math.floor(loss * 0.9));
+          raw = Math.max(0, raw - reducedLoss);
           return;
         }
       }

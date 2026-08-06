@@ -400,7 +400,7 @@ export const CHIDORI_T      = { name:"千鳥",           type:"weapon", atk:13, 
 export const ULTIMA_SWORD_T = { name:"アルテマソード", type:"weapon", atk:20, ability:"fire_elem_2", abilities:["fire_elem_2","ice_elem_2","thunder_elem_2"], sellPrice:25000, desc:"三属性を極めた剣。属性弱点の敵に2倍ダメージ。", tile:20 };
 export const TRIELEM_ARMOR_T  = { name:"元素王の鎧",     type:"armor", def:10, ability:"all_resist", abilities:["all_resist"], sellPrice:15000, desc:"炎・氷・雷すべてに耐性を持つ至高の鎧。\n万能耐性で各属性ダメージ2/3。錬成で個別耐性を追加すれば半減。\n炎・雷の所持品破壊、氷の移動封じ・鈍足も防ぐ。", tile:21 };
 export const ELEM_RESIST_ABILITIES = ["fire_resist", "ice_resist", "lightning_resist"];
-export const MITHRIL_ARMOR_T  = { name:"ミスリルの胴着", type:"armor", def:18, sellPrice:10000,       desc:"硬くて軽い幻のミスリル製鎧。", tile:21 };
+export const MITHRIL_ARMOR_T  = { name:"ミスリルの胴着", type:"armor", def:18, ability:"dmg_reduce", sellPrice:10000, desc:"硬くて軽い幻のミスリル製鎧。\n最終的な被ダメージが1割減少する。", tile:21 };
 /** 革の鎧3枚の特殊合成。通常ドロップしない */
 export const STOMACH_ARMOR_T  = { name:"腹持ちの胴", type:"armor", def:3, ability:"slow_hunger", sellPrice:1500, desc:"装備すると空腹の進行が3/4になる。腹持ち指輪と重ねがけ可（2つで1/2、3つで1/4）。", tile:21 };
 export const ALLBANE_SWORD_T  = { name:"万能キラー", type:"weapon", atk:11, ability:"bane_dragon", abilities:["bane_dragon","bane_undead","bane_float"], sellPrice:10000, desc:"竜・不死・浮遊の全種族に1.5倍ダメージを与える剣。", tile:20 };
@@ -1143,6 +1143,8 @@ export const ARMOR_ABILITIES = [
   { id:"seal_proof",       name:"耐封印",   desc:"封印効果を無効化する" },
   { id:"ice_resist",       name:"耐氷",     desc:"氷ダメージ2/3（万能耐性併用で半減）。移動封じ・鈍足を防ぐ" },
   { id:"water_proof",      name:"耐水",     desc:"水鉄砲の所持品被害とずぶ濡れを無効化する" },
+  /* 特殊合成専用（錬成では出ない） */
+  { id:"dmg_reduce",       name:"被ダメ軽減", desc:"最終的な被ダメージが1割減少する", specialOnly:true },
   /* 呪い専用デメリット能力 */
   { id:"frail",            name:"脆弱",     desc:"近接攻撃を受けた時、ダメージが+3増加する",         curseOnly:true },
   { id:"noisy",            name:"騒音",     desc:"部屋に入るたびに同部屋の敵が全員目を覚ます",       curseOnly:true },
