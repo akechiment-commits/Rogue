@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, blockPlayerStatus } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
@@ -64,12 +64,12 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "sleep":
-      if (hasAbility(p.armor, "sleep_proof")) {
-        ml.push(`${trap.name}が発動！しかし眠れなかった！(耐眠)`);
-      } else {
+      ml.push(`${trap.name}が発動！`);
+      if (blockPlayerStatus(p, ml, { proofAbility: "sleep_proof", proofMsg: "しかし眠れなかった！(耐眠)" })) break;
+      {
         const _st = statusTurns("sleep", { kind: "player" });
         p.sleepTurns = (p.sleepTurns || 0) + _st;
-        ml.push(`${trap.name}が発動！眠りに落ちた...(${_st}ターン)`);
+        ml.push(`眠りに落ちた...(${_st}ターン)`);
       }
       break;
     case "poison_arrow": {
@@ -91,52 +91,52 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "slow_trap": {
-      if (hasAbility(p.armor, "slow_proof")) {
-        ml.push(`${trap.name}が発動！しかし防具が鈍足を防いだ！(耐鈍足)`);
-      } else {
+      ml.push(`${trap.name}が発動！`);
+      if (blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) break;
+      {
         const _st = statusTurns("slow", { kind: "player" });
         p.slowTurns = (p.slowTurns || 0) + _st;
-        ml.push(`${trap.name}が発動！体が重くなった...(鈍足${_st}ターン)`);
+        ml.push(`体が重くなった...(鈍足${_st}ターン)`);
       }
       break;
     }
     case "confuse_trap": {
-      if (hasAbility(p.armor, "confuse_proof")) {
-        ml.push(`${trap.name}が発動！しかし防具が混乱を防いだ！(耐混乱)`);
-      } else {
+      ml.push(`${trap.name}が発動！`);
+      if (blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "しかし防具が混乱を防いだ！(耐混乱)" })) break;
+      {
         const _ct = statusTurns("confuse", { kind: "player" });
         p.confusedTurns = (p.confusedTurns || 0) + _ct;
-        ml.push(`${trap.name}が発動！頭がくらくらする！(混乱${_ct}ターン)`);
+        ml.push(`頭がくらくらする！(混乱${_ct}ターン)`);
       }
       break;
     }
     case "bewitch_trap": {
-      if (hasAbility(p.armor, "bewitch_proof")) {
-        ml.push(`${trap.name}が発動！しかし防具が幻惑を防いだ！(耐惑わし)`);
-      } else {
+      ml.push(`${trap.name}が発動！`);
+      if (blockPlayerStatus(p, ml, { proofAbility: "bewitch_proof", proofMsg: "しかし防具が幻惑を防いだ！(耐惑わし)" })) break;
+      {
         const _bt = statusTurns("bewitch", { kind: "player" });
         p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
-        ml.push(`${trap.name}が発動！幻惑された！周囲の見た目がおかしくなった！(${_bt}ターン)`);
+        ml.push(`幻惑された！周囲の見た目がおかしくなった！(${_bt}ターン)`);
       }
       break;
     }
     case "darkness_trap": {
-      if (hasAbility(p.armor, "darkness_proof")) {
-        ml.push(`${trap.name}が発動！しかし防具が暗闇を防いだ！(耐暗闇)`);
-      } else {
+      ml.push(`${trap.name}が発動！`);
+      if (blockPlayerStatus(p, ml, { proofAbility: "darkness_proof", proofMsg: "しかし防具が暗闇を防いだ！(耐暗闇)" })) break;
+      {
         const _dt = statusTurns("darkness", { kind: "player" });
         p.darknessTurns = (p.darknessTurns || 0) + _dt;
-        ml.push(`${trap.name}が発動！暗闇に包まれた！視界が1マスになる！(${_dt}ターン)`);
+        ml.push(`暗闇に包まれた！視界が1マスになる！(${_dt}ターン)`);
       }
       break;
     }
     case "seal_trap": {
-      if (hasAbility(p.armor, "seal_proof")) {
-        ml.push(`${trap.name}が発動！しかし防具が封印を防いだ！(耐封印)`);
-      } else {
+      ml.push(`${trap.name}が発動！`);
+      if (blockPlayerStatus(p, ml, { proofAbility: "seal_proof", proofMsg: "しかし防具が封印を防いだ！(耐封印)" })) break;
+      {
         const _st = statusTurns("seal", { kind: "player" });
         p.sealedTurns = (p.sealedTurns || 0) + _st;
-        ml.push(`${trap.name}が発動！魔法が封印された！(${_st}ターン)`);
+        ml.push(`魔法が封印された！(${_st}ターン)`);
       }
       break;
     }

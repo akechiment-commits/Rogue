@@ -125,8 +125,22 @@ function _triggerWandBreakEffect(...args) {
 /* ===== 状態異常防止チェックヘルパー ===== */
 export function isStatusImmune(entity, ml, name = null) {
   if ((entity.statusImmune || 0) <= 0) return false;
-  ml.push(name ? `${name}には効かなかった！(状態防止中)` : "状態防止中のため効かなかった！");
+  if (ml) ml.push(name ? `${name}には効かなかった！(状態防止中)` : "状態防止中のため効かなかった！");
   return true;
+}
+
+/**
+ * プレイヤーへの状態異常を防ぐ（statusImmune → 防具耐性）。
+ * @returns {boolean} true = 防いだ
+ */
+export function blockPlayerStatus(p, ml, { proofAbility = null, proofMsg = null } = {}) {
+  if (!p) return false;
+  if (isStatusImmune(p, ml)) return true;
+  if (proofAbility && hasAbility(p.armor, proofAbility)) {
+    if (ml) ml.push(proofMsg || "しかし防具が防いだ！");
+    return true;
+  }
+  return false;
 }
 
 /* ===== 金縛り弱体/解除ヘルパー ===== */
@@ -2168,8 +2182,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         ml.push(`${_slm.name}が眠りに落ちた！(${_mst}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
-        if (p.armor?.ability === "sleep_proof") {
-          ml.push(`しかし眠れなかった！(耐眠)`);
+        if (blockPlayerStatus(p, ml, { proofAbility: "sleep_proof", proofMsg: "しかし眠れなかった！(耐眠)" })) {
+          /* blocked */
         } else {
           const _pst = statusTurns("sleep", { kind: "player" });
           p.sleepTurns = (p.sleepTurns || 0) + _pst;
@@ -2206,8 +2220,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         ml.push(`${_slwm.name}が鈍足になった！`);
       }
       if (p && p.x === tx && p.y === ty) {
-        if (hasAbility(p.armor, "slow_proof")) { ml.push(`しかし防具が鈍足を防いだ！(耐鈍足)`); }
-        else {
+        if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) {
           const _st = statusTurns("slow", { kind: "player" });
           p.slowTurns = (p.slowTurns || 0) + _st;
           ml.push(`体が重くなった...(鈍足${_st}ターン)`);
@@ -2224,8 +2237,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         });
       }
       if (p && p.x === tx && p.y === ty) {
-        if (hasAbility(p.armor, "seal_proof")) { ml.push(`しかし防具が封印を防いだ！(耐封印)`); }
-        else {
+        if (!blockPlayerStatus(p, ml, { proofAbility: "seal_proof", proofMsg: "しかし防具が封印を防いだ！(耐封印)" })) {
           const _st = statusTurns("seal", { kind: "player" });
           p.sealedTurns = (p.sealedTurns || 0) + _st;
           ml.push(`魔法が封印された！(${_st}ターン)`);
@@ -2296,9 +2308,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         ml.push(`${_ssm.name}が影に縫い付けられ動けなくなった！(${_it}ターン移動封じ)`);
       }
       if (p && p.x === tx && p.y === ty) {
-        const _it = statusTurns("immobile", { kind: "player" });
-        p.immobileTurns = (p.immobileTurns || 0) + _it;
-        ml.push(`影に縫い付けられた！(${_it}ターン移動不能)`);
+        if (!blockPlayerStatus(p, ml)) {
+          const _it = statusTurns("immobile", { kind: "player" });
+          p.immobileTurns = (p.immobileTurns || 0) + _it;
+          ml.push(`影に縫い付けられた！(${_it}ターン移動不能)`);
+        }
       }
       return "restart";
     }
@@ -2363,8 +2377,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         ml.push(`${_cfm.name}は混乱した！(${_ct}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
-        if (hasAbility(p.armor, "confuse_proof")) { ml.push("しかし防具が混乱を防いだ！(耐混乱)"); }
-        else {
+        if (!blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "しかし防具が混乱を防いだ！(耐混乱)" })) {
           const _ct = statusTurns("confuse", { kind: "player" });
           p.confusedTurns = (p.confusedTurns || 0) + _ct;
           ml.push(`頭がくらくらする！(混乱${_ct}ターン)`);
@@ -2381,8 +2394,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         ml.push(`${_bwtm.name}が幻惑された！(${_bt}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
-        if (hasAbility(p.armor, "bewitch_proof")) { ml.push("しかし防具が幻惑を防いだ！(耐惑わし)"); }
-        else {
+        if (!blockPlayerStatus(p, ml, { proofAbility: "bewitch_proof", proofMsg: "しかし防具が幻惑を防いだ！(耐惑わし)" })) {
           const _bt = statusTurns("bewitch", { kind: "player" });
           p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
           ml.push(`幻惑された！周囲の見た目がおかしくなった！(${_bt}ターン)`);
@@ -2401,8 +2413,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
       }
       if (p && p.x === tx && p.y === ty) {
-        if (hasAbility(p.armor, "darkness_proof")) { ml.push("しかし防具が暗闇を防いだ！(耐暗闇)"); }
-        else {
+        if (!blockPlayerStatus(p, ml, { proofAbility: "darkness_proof", proofMsg: "しかし防具が暗闇を防いだ！(耐暗闇)" })) {
           const _dt = statusTurns("darkness", { kind: "player" });
           p.darknessTurns = (p.darknessTurns || 0) + _dt;
           ml.push(`暗闇に包まれた！視界が1マスになる！(${_dt}ターン)`);
@@ -2895,8 +2906,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`);
         }
         if (kind === "player") {
-          if (hasAbility(p.armor, "slow_proof")) { ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)"); }
-          else {
+          if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "鈍足効果を受けたが防具が防いだ！(耐鈍足)" })) {
             const _st = statusTurns("slow", { kind: "player", blessed });
             p.slowTurns = (p.slowTurns || 0) + _st;
             ml.push(`体が重くなった...(鈍足${_st}ターン)${blessed ? "(強鈍足)" : ""}`);
@@ -2950,8 +2960,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`${target.name}が混乱した！(${target.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`);
         }
         if (kind === "player") {
-          if (hasAbility(p.armor, "confuse_proof")) { ml.push("混乱効果を受けたが防具が防いだ！(耐混乱)"); }
-          else {
+          if (!blockPlayerStatus(p, ml, { proofAbility: "confuse_proof", proofMsg: "混乱効果を受けたが防具が防いだ！(耐混乱)" })) {
             const _ct = statusTurns("confuse", { kind: "player", blessed });
             p.confusedTurns = (p.confusedTurns || 0) + _ct;
             ml.push(`混乱した！(${p.confusedTurns}ターン)${blessed ? "(強混乱)" : ""}`);
@@ -3001,9 +3010,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.monsterSenseTurns = (p.monsterSenseTurns || 0) + _ms;
           ml.push(`呪われた薬！フロアのモンスターが感知できる！(${_ms}ターン)【呪→感知】`);
         } else {
-          if (hasAbility(p.armor, "darkness_proof")) {
-            ml.push("暗闇効果を受けたが防具が防いだ！(耐暗闇)");
-          } else {
+          if (!blockPlayerStatus(p, ml, { proofAbility: "darkness_proof", proofMsg: "暗闇効果を受けたが防具が防いだ！(耐暗闇)" })) {
             const _dt = statusTurns("darkness", { kind: "player", blessed });
             p.darknessTurns = (p.darknessTurns || 0) + _dt;
             ml.push(`暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${blessed ? "(祝福)" : ""}`);
@@ -3016,11 +3023,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           target.darkDir = null;
           ml.push(`${target.name}の暗闇が晴れた！【呪→解除】`);
         } else {
-          const _dt = statusTurns("darkness", { kind: "monster", blessed, target });
-          target.darknessTurns = _dt;
-          target.darkDir = null;
-          target.aware = false;
-          ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
+          if (!isStatusImmune(target, ml, target.name)) {
+            const _dt = statusTurns("darkness", { kind: "monster", blessed, target });
+            target.darknessTurns = _dt;
+            target.darkDir = null;
+            target.aware = false;
+            ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
+          }
         }
       }
       break;
@@ -3030,9 +3039,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           dg.traps.forEach(t => t.revealed = true);
           ml.push("呪われた薬！フロアの罠が全て見えた！【呪→罠看破】");
         } else {
-          if (hasAbility(p.armor, "bewitch_proof")) {
-            ml.push("幻惑効果を受けたが防具が防いだ！(耐惑わし)");
-          } else {
+          if (!blockPlayerStatus(p, ml, { proofAbility: "bewitch_proof", proofMsg: "幻惑効果を受けたが防具が防いだ！(耐惑わし)" })) {
             const _bt = statusTurns("bewitch", { kind: "player", blessed });
             p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
             ml.push(`幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${blessed ? "(祝福)" : ""}`);
@@ -3098,15 +3105,13 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           // 呪い：MP封印解除
           p.mpCooldownTurns = 0;
           ml.push("MP封印が解けた！【呪→解封】");
-        } else {
+        } else if (!blockPlayerStatus(p, ml, { proofAbility: "seal_proof", proofMsg: "封印効果を受けたが防具が防いだ！(耐封印)" })) {
           // 通常/祝福：MP封印（祝福：さらに鈍足）
-          const _mt = statusTurns("mpCooldown", { kind: "player", blessed });
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
+          const _mt = statusTurns("mpBound", { kind: "player", blessed });
+          p.mpBoundTurns = (p.mpBoundTurns || 0) + _mt;
           ml.push(`魔力が封じられた！(MP封印${_mt}ターン)${blessed ? "(祝福)" : ""}`);
           if (blessed) {
-            if (hasAbility(p.armor, "slow_proof")) {
-              ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
-            } else {
+            if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "鈍足効果を受けたが防具が防いだ！(耐鈍足)" })) {
               const _st = statusTurns("slow", { kind: "player" });
               p.slowTurns = (p.slowTurns || 0) + _st;
               ml.push(`さらに鈍足${_st}ターン！`);

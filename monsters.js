@@ -428,7 +428,9 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* ボス固有攻撃エフェクト */
   if (dmg > 0) {
     if (m.baseKind === "boss_blaze" && Math.random() < 0.35) {
-      if ((pl.yogurtImmuneTurns || 0) > 0) {
+      if ((pl.statusImmune || 0) > 0) {
+        ml.push(`${m.name}の鋭い爪が頭を掻いた！しかし状態防止中のため混乱しなかった！`);
+      } else if ((pl.yogurtImmuneTurns || 0) > 0) {
         ml.push(`${m.name}の鋭い爪が頭を掻いた！しかし乳酸菌が混乱を防いだ！`);
       } else {
         const _ct = statusTurns("confuse", { kind: "player" });
@@ -437,14 +439,22 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       }
     }
     if (m.baseKind === "boss_demonking" && Math.random() < 0.25) {
-      const _pt = statusTurns("paralyze", { kind: "player" });
-      pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
-      ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
+      if ((pl.statusImmune || 0) > 0) {
+        ml.push(`魔神王の一撃が魂を縛った！しかし状態防止中のため効かなかった！`);
+      } else {
+        const _pt = statusTurns("paralyze", { kind: "player" });
+        pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
+        ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
+      }
     }
     if (m.baseKind === "boss_warlord" && Math.random() < 0.30) {
-      const _ds = statusTurns("defSoftened", { kind: "player" });
-      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
-      ml.push(`魔将軍の刃が鎧を砕いた！防御力が半減した！(${_ds}ターン)`);
+      if ((pl.statusImmune || 0) > 0) {
+        ml.push(`魔将軍の刃が鎧を砕いた！しかし状態防止中のため効かなかった！`);
+      } else {
+        const _ds = statusTurns("defSoftened", { kind: "player" });
+        pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
+        ml.push(`魔将軍の刃が鎧を砕いた！防御力が半減した！(${_ds}ターン)`);
+      }
     }
     if (m.baseKind === "boss_skullking" && Math.random() < 0.35) {
       const _drain = Math.min(20, pl.hp - 1);
@@ -460,12 +470,18 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       }
     }
     if (m.baseKind === "boss_voidmonk" && Math.random() < 0.25) {
-      const _st = statusTurns("seal", { kind: "player" });
-      pl.sealedTurns = (pl.sealedTurns || 0) + _st;
-      ml.push(`虚無の僧侶の呪いが魔力を封じた！魔法が封印された！(${_st}ターン)`);
+      if ((pl.statusImmune || 0) > 0) {
+        ml.push(`虚無の僧侶の呪いが魔力を封じた！しかし状態防止中のため効かなかった！`);
+      } else {
+        const _st = statusTurns("seal", { kind: "player" });
+        pl.sealedTurns = (pl.sealedTurns || 0) + _st;
+        ml.push(`虚無の僧侶の呪いが魔力を封じた！魔法が封印された！(${_st}ターン)`);
+      }
     }
     if (m.baseKind === "boss_infernoking" && Math.random() < 0.40) {
-      if (hasRingEffect(pl, "antidote_ring")) {
+      if ((pl.statusImmune || 0) > 0) {
+        ml.push(`煉獄公の爪に毒が！しかし状態防止中のため効かなかった！`);
+      } else if (hasRingEffect(pl, "antidote_ring")) {
         ml.push(`煉獄公の爪に毒が！しかし指輪が毒を消した！`);
       } else if ((pl.yogurtImmuneTurns || 0) > 0) {
         ml.push(`煉獄公の爪に毒が！しかし乳酸菌が毒を防いだ！`);
@@ -476,21 +492,33 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     }
     if (m.baseKind === "boss_abyssgod") {
       if (Math.random() < 0.35) {
-        const _pt = statusTurns("paralyze", { kind: "player" });
-        pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
-        ml.push(`深淵神の一撃が意識を蝕んだ！金縛りになった！(${_pt}ターン)`);
+        if ((pl.statusImmune || 0) > 0) {
+          ml.push(`深淵神の一撃が意識を蝕んだ！しかし状態防止中のため効かなかった！`);
+        } else {
+          const _pt = statusTurns("paralyze", { kind: "player" });
+          pl.paralyzeTurns = (pl.paralyzeTurns || 0) + _pt;
+          ml.push(`深淵神の一撃が意識を蝕んだ！金縛りになった！(${_pt}ターン)`);
+        }
       }
       if (Math.random() < 0.25) {
-        const _ds = statusTurns("defSoftened", { kind: "player" });
-        pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
-        ml.push(`深淵神の呪いで防御が崩れた！防御力が半減した！(${_ds}ターン)`);
+        if ((pl.statusImmune || 0) > 0) {
+          ml.push(`深淵神の呪いで防御が崩れた！しかし状態防止中のため効かなかった！`);
+        } else {
+          const _ds = statusTurns("defSoftened", { kind: "player" });
+          pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
+          ml.push(`深淵神の呪いで防御が崩れた！防御力が半減した！(${_ds}ターン)`);
+        }
       }
     }
     /* 中級ボス固有 on-hit */
     if (m.baseKind === "im_boss_titan" && Math.random() < 0.35) {
-      const _it = statusTurns("immobile", { kind: "player" });
-      pl.immobileTurns = (pl.immobileTurns || 0) + _it;
-      ml.push(`${m.name}の強烈な一撃！移動封じ！(${_it}ターン)`);
+      if ((pl.statusImmune || 0) > 0) {
+        ml.push(`${m.name}の強烈な一撃！しかし状態防止中のため移動封じは効かなかった！`);
+      } else {
+        const _it = statusTurns("immobile", { kind: "player" });
+        pl.immobileTurns = (pl.immobileTurns || 0) + _it;
+        ml.push(`${m.name}の強烈な一撃！移動封じ！(${_it}ターン)`);
+      }
     }
   }
   /* 吹き飛ばしの魔方陣：近接攻撃を受けたプレイヤーを吹き飛ばす */
