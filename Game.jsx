@@ -65,6 +65,7 @@ import {
 import { pl, setActivePlayerName } from "./playerLabel.js";
 import { buildRunResultExtras } from "./runScore.js";
 import { createRunTimer } from "./runTimer.js";
+import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount } from "./floorInventory.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "" } = {}) {
   const [gs, setGs] = useState(null);
@@ -5043,9 +5044,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _invOnlyPg = Math.ceil(inv.length / 10) || 1;
                 const _dg2 = sr.current?.dungeon;
                 const _p2 = sr.current?.player;
-                const _flItems2 = _dg2 && _p2 ? (_dg2.items || []).filter(i => i.x === _p2.x && i.y === _p2.y && !i.wallEmbedded && !i.noPickup) : [];
-                const _flTraps2 = _dg2 && _p2 ? (_dg2.traps || []).filter(t => t.x === _p2.x && t.y === _p2.y) : [];
-                const _flAll2 = [..._flItems2, ..._flTraps2];
+                const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y) : { items: [], traps: [], all: [] };
+                const _flItems2 = _fl2.items;
+                const _flTraps2 = _fl2.traps;
+                const _flAll2 = _fl2.all;
                 const _hasFl2 = _flAll2.length > 0;
                 const totalPages = _invOnlyPg + (_hasFl2 ? 1 : 0);
                 const _isFloorPg2 = _hasFl2 && invPage === _invOnlyPg;
@@ -5054,17 +5056,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   const _flLen2 = _flAll2.length;
                   if (invMenuSel !== null && selIdx !== null && selIdx < _flLen2) {
                     const _fle2 = _flAll2[selIdx];
-                    const _fIsI2 = _flItems2.includes(_fle2);
-                    let _flN2 = 2; // トラップ: 踏む+説明
-                    if (_fIsI2) {
-                      _flN2 = 1;
-                      if (_fle2.type === "pot") _flN2 += 1; else if (_fle2.type === "marker") _flN2 += 1; else if (canUse(_fle2)) _flN2 += 1;
-                      if (_fle2.type === "spellbook") _flN2 += 1;
-                      if (_fle2.type === "arrow") _flN2 += 1;
-                      if (_fle2.type === "wand") _flN2 += 2;
-                      if (_fle2.type === "pot") _flN2 += 1;
-                      _flN2 += 2; // 投げる+説明
-                    }
+                    const _flN2 = floorEntryActionCount(_fle2, _flItems2, _flTraps2, canUse);
                     if (dx !== 0 && dy === 0) { setInvMenuSel((s) => (s + dx + _flN2) % _flN2); }
                     else if (dy !== 0 && dx === 0) { setInvMenuSel(null); setSelIdx((prev) => prev === null ? (dy > 0 ? 0 : _flLen2 - 1) : (prev + dy + _flLen2) % _flLen2); setShowDesc(null); }
                     return;
@@ -5425,18 +5417,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         /* 足元ページの場合 */
                         const _dg3 = sr.current?.dungeon;
                         const _p3 = sr.current?.player;
-                        const _flItems3 = _dg3 && _p3 ? (_dg3.items || []).filter(i => i.x === _p3.x && i.y === _p3.y && !i.wallEmbedded && !i.noPickup) : [];
-                        const _flTraps3 = _dg3 && _p3 ? (_dg3.traps || []).filter(t => t.x === _p3.x && t.y === _p3.y) : [];
-                        const _flAll3 = [..._flItems3, ..._flTraps3];
+                        const _fl3 = _dg3 && _p3 ? listFloorInventoryEntries(_dg3, _p3.x, _p3.y) : { items: [], traps: [], all: [] };
+                        const _flItems3 = _fl3.items;
+                        const _flTraps3 = _fl3.traps;
+                        const _flAll3 = _fl3.all;
                         const _invOnlyPg3 = Math.ceil((_p3?.inventory?.length || 0) / 10) || 1;
                         const _isFlPg3 = _flAll3.length > 0 && invPage === _invOnlyPg3;
                         if (_isFlPg3 && selIdx < _flAll3.length) {
                           const _fle3 = _flAll3[selIdx];
-                          const _fIsI3 = _flItems3.includes(_fle3);
+                          const _fRole3 = floorEntryRole(_fle3, _flItems3, _flTraps3);
                           if (invMenuSel !== null) {
                             const _fns3 = [];
-                            if (!_fIsI3) {
+                            if (_fRole3 === "trap") {
                               _fns3.push(() => invActRef.current?.floorTrap?.(_fle3));
+                              _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
+                            } else if (_fRole3 === "vent" || _fRole3 === "portal") {
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else {
                               _fns3.push(() => invActRef.current?.floorPickup?.(_fle3));

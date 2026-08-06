@@ -77,6 +77,7 @@ export function makeVent(x, y, dx, dy) {
     dy: fdx === 0 && fdy === 0 ? 0 : fdy,
     tile: FIXTURE_TILE.vent,
     name: "風穴",
+    desc: "一定範囲の物理飛び道具（投擲・矢・石・ブレスなど）の向きを風向きに変える。杖や魔法弾は曲がらない。",
   };
 }
 
@@ -257,6 +258,8 @@ export function hitStatueWithAction(dg, x, y, p, ml, luFn, depth, {
 /* ===== 固定転送（ポータル流用・ペア固定・ペンと非接続） ===== */
 export function makeFixedPortalPair(x1, y1, x2, y2, depth) {
   const pairId = uid();
+  const portalDesc =
+    "対になる転送陣と常に繋がっている。乗ると反対側へ転送される。プレイヤー・敵・投げた物も通る。ペンのポータルとは繋がらない。";
   return [
     {
       id: uid(),
@@ -267,6 +270,7 @@ export function makeFixedPortalPair(x1, y1, x2, y2, depth) {
       floor: depth,
       fixed: true,
       tile: FIXTURE_TILE.fixedPortal,
+      desc: portalDesc,
     },
     {
       id: uid(),
@@ -277,6 +281,7 @@ export function makeFixedPortalPair(x1, y1, x2, y2, depth) {
       floor: depth,
       fixed: true,
       tile: FIXTURE_TILE.fixedPortal,
+      desc: portalDesc,
     },
   ];
 }

@@ -10,6 +10,7 @@ import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel } from "./floorInventory.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -2897,18 +2898,22 @@ export function InventoryModal({
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
-  /* 足元のアイテム・罠 */
-  const _flItems = (gs?.dungeon?.items || []).filter(i => i.x === p.x && i.y === p.y && !i.wallEmbedded && !i.noPickup);
-  const _flTraps = (gs?.dungeon?.traps || []).filter(t => t.x === p.x && t.y === p.y);
-  const _flAll = [..._flItems, ..._flTraps];
+  /* 足元のアイテム・罠・風穴・転送魔方陣 */
+  const _fl = listFloorInventoryEntries(gs?.dungeon, p.x, p.y);
+  const _flItems = _fl.items;
+  const _flTraps = _fl.traps;
+  const _flAll = _fl.all;
   const _hasFl = _flAll.length > 0;
   const _invTotalPg = Math.ceil(p.inventory.length / 10) || 1;
   const _totalPg = _invTotalPg + (_hasFl ? 1 : 0);
   const _isFloorPg = _hasFl && invPage === _invTotalPg;
   const _getFloorActs = (entry) => {
-    const _isItem = _flItems.includes(entry);
-    if (!_isItem) return [
+    const _role = floorEntryRole(entry, _flItems, _flTraps);
+    if (_role === "trap") return [
       { label: "踏む", fn: () => doFloorTrap?.(entry) },
+      { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) },
+    ];
+    if (_role === "vent" || _role === "portal") return [
       { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) },
     ];
     const _isEquipType = ["weapon","armor","arrow","ring"].includes(entry.type);
@@ -2981,7 +2986,7 @@ export function InventoryModal({
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 6, color: "#888", fontSize: 13 }}>
           <span>←→でページ移動</span>
           {_isFloorPg
-            ? <span style={{ color: "#8cf", fontWeight: "bold" }}>★ 足元のアイテム・罠</span>
+            ? <span style={{ color: "#8cf", fontWeight: "bold" }}>★ 足元のアイテム・罠・ギミック</span>
             : <><span style={{ color: "#ccc" }}>{invPage + 1}/{_invTotalPg}ページ</span>
                 <span>({invPage * 10 + 1}〜{Math.min((invPage + 1) * 10, p.inventory.length)}件)</span></>
           }
@@ -3014,20 +3019,23 @@ export function InventoryModal({
           <div style={{ color: "#555", padding: 8 }}>足元には何もない。</div>
         ) : (
           _flAll.map((entry, j) => {
-            const _fIsItem = _flItems.includes(entry);
+            const _fRole = floorEntryRole(entry, _flItems, _flTraps);
+            const _fIsItem = _fRole === "item";
             const _fActs = _getFloorActs(entry);
+            const _fLabel = floorEntryLabel(entry, _flItems, _flTraps, iLabel);
+            const _fColor = _fIsItem ? "#ccc" : _fRole === "trap" ? "#f86" : _fRole === "vent" ? "#8cf" : "#ca8";
             return (
-              <div key={entry.id || j} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}
+              <div key={entry.id || `${_fRole}-${j}`} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}
                 style={{ borderBottom: "1px solid #222", borderRadius: 4, marginBottom: 1 }}>
                 <div onClick={() => { setSelIdx(selIdx === j ? null : j); setInvMenuSel(null); setShowDesc(null); setTimeout(() => containerRef?.current?.focus(), 0); }}
                   style={{ padding: "7px 8px", cursor: "pointer", fontSize: mobile ? 13 : 12,
                     background: selIdx === j ? "#252540" : "transparent", borderRadius: 4,
                     display: "flex", alignItems: "center", justifyContent: "space-between",
-                    color: _fIsItem ? "#ccc" : "#f86",
+                    color: _fColor,
                   }}>
                   <span style={{ display: "flex", alignItems: "center" }}>
                     <TileIcon item={entry} size={16} />
-                    {_fIsItem ? iLabel(entry) : `【罠】${entry.name}`}
+                    {_fLabel}
                   </span>
                   <span style={{ color: "#555", fontSize: 12 }}>{selIdx === j ? (invMenuSel !== null ? "▶" : "▲") : "▼"}</span>
                 </div>
@@ -3044,8 +3052,12 @@ export function InventoryModal({
                     {invMenuSel !== null && <div style={{ color: "#888", fontSize: 12, marginTop: 2 }}>←→:選択 Z:決定 X:キャンセル</div>}
                     {showDesc === 10000 + j && (
                       <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
-                        <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>{iLabel(entry)}</div>
-                        <div style={ITEM_DESC_TEXT_STYLE}>{(() => { const _kk = getIdentKey(entry); return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : formatItemDesc(entry.desc); })()}</div>
+                        <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>{_fLabel}</div>
+                        <div style={ITEM_DESC_TEXT_STYLE}>{(() => {
+                          if (_fRole !== "item") return formatItemDesc(entry.desc);
+                          const _kk = getIdentKey(entry);
+                          return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : formatItemDesc(entry.desc);
+                        })()}</div>
                       </div>
                     )}
                   </div>

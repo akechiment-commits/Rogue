@@ -13,6 +13,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
+import { listFloorInventoryEntries, floorEntryRole } from "./floorInventory.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -376,9 +377,10 @@ export function useKeyHandler({
         const inv = sr.current?.player?.inventory || [];
         const _p2 = sr.current?.player;
         const _dg2 = sr.current?.dungeon;
-        const _flItems2 = (_dg2?.items || []).filter(i => i.x === _p2?.x && i.y === _p2?.y && !i.wallEmbedded && !i.noPickup);
-        const _flTraps2 = (_dg2?.traps || []).filter(t => t.x === _p2?.x && t.y === _p2?.y);
-        const _flAll2 = [..._flItems2, ..._flTraps2];
+        const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y) : { items: [], traps: [], all: [] };
+        const _flItems2 = _fl2.items;
+        const _flTraps2 = _fl2.traps;
+        const _flAll2 = _fl2.all;
         const _hasFl2 = _flAll2.length > 0;
         const _invTotalPg2 = Math.ceil(inv.length / 10) || 1;
         const totalPages = _invTotalPg2 + (_hasFl2 ? 1 : 0);
@@ -435,12 +437,17 @@ export function useKeyHandler({
           return a;
         };
         const getFloorActs2 = (entry) => {
-          const _fIsItem2 = _flItems2.includes(entry);
-          if (!_fIsItem2) {
+          const _role2 = floorEntryRole(entry, _flItems2, _flTraps2);
+          const _j2 = _flAll2.indexOf(entry);
+          const _descAct = { label: "説明", fn: () => setShowDesc((p) => (p === 10000 + _j2 ? null : 10000 + _j2)) };
+          if (_role2 === "trap") {
             return [
               { label: "踏む", fn: () => invActRef.current?.floorTrap?.(entry) },
-              { label: "説明", fn: () => setShowDesc((p) => (p === 10000 + (_flAll2.indexOf(entry)) ? null : 10000 + _flAll2.indexOf(entry))) },
+              _descAct,
             ];
+          }
+          if (_role2 === "vent" || _role2 === "portal") {
+            return [_descAct];
           }
           const _isEquipType2 = ["weapon","armor","arrow","ring"].includes(entry.type);
           const acts2 = [];
@@ -461,8 +468,7 @@ export function useKeyHandler({
           if (entry.type === "wand") _addFloorAct2("壊す", (idx) => invActRef.current?.breakWand?.(idx), true, false);
           if (entry.type === "pot") _addFloorAct2("割る", (idx) => invActRef.current?.breakPot?.(idx), true, false);
           _addFloorAct2(entry.type === "arrow" ? "投げる(束)" : "投げる", (idx) => invActRef.current?.throw?.(idx), true, true);
-          const _j2 = _flAll2.indexOf(entry);
-          acts2.push({ label: "説明", fn: () => setShowDesc((p) => (p === 10000 + _j2 ? null : 10000 + _j2)) });
+          acts2.push(_descAct);
           return acts2;
         };
         if (invMenuSel !== null) {
