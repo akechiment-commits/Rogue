@@ -3,7 +3,11 @@ import {
   calcShopBuyPrice,
   applyShopUnpaidCharge,
   getShopItemCharge,
+  getShopUsedCost,
+  getShopRefundAmount,
+  getShopRemainingRatio,
   placeItemAt,
+  itemPrice,
 } from "../items.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -87,5 +91,81 @@ describe("shop charge / refund with markup ring", () => {
     expect(shop.unpaidTotal).toBe(100);
     placeItemAt(dg, 12, 12, item, [], new Set(), 0, p);
     expect(shop.unpaidTotal).toBe(0);
+  });
+
+  it("二重請求しない", () => {
+    const { shop, shopId } = makeShopRoom();
+    const p = { rings: [] };
+    const item = {
+      id: "it4", name: "薬", type: "potion", effect: "heal", tile: 16,
+      shopPrice: 100, _shopId: shopId,
+    };
+    expect(applyShopUnpaidCharge(item, shop, p)).toBe(100);
+    expect(applyShopUnpaidCharge(item, shop, p)).toBe(0);
+    expect(shop.unpaidTotal).toBe(100);
+  });
+});
+
+describe("shop arrow count proration", () => {
+  it("射った本数分だけ未払いに残り、残りを返すと按分返金", () => {
+    const { dg, shop, shopId } = makeShopRoom();
+    const p = { rings: [] };
+    const arrows = {
+      id: "ar1", name: "矢", type: "arrow", atk: 3, count: 10, tile: 23,
+      shopPrice: 100, _shopId: shopId, sellPrice: 10,
+    };
+    applyShopUnpaidCharge(arrows, shop, p);
+    expect(shop.unpaidTotal).toBe(100);
+    expect(arrows._origCount).toBe(10);
+
+    /* 3本射った */
+    arrows.count = 7;
+    expect(getShopRemainingRatio(arrows)).toBeCloseTo(0.7);
+    expect(getShopUsedCost(arrows)).toBe(30);
+    expect(getShopRefundAmount(arrows)).toBe(70);
+
+    placeItemAt(dg, 12, 12, arrows, [], new Set(), 0, p);
+    expect(shop.unpaidTotal).toBe(30); /* 射った3本分 */
+    expect(arrows._shopCharge).toBeUndefined();
+    expect(arrows._origCount).toBeUndefined();
+  });
+
+  it("全部撃ち尽くすと返金なし（全額請求のまま）", () => {
+    const { shop, shopId } = makeShopRoom();
+    const p = { rings: [] };
+    const arrows = {
+      id: "ar2", name: "矢", type: "arrow", count: 5,
+      shopPrice: 50, _shopId: shopId,
+    };
+    applyShopUnpaidCharge(arrows, shop, p);
+    arrows.count = 0;
+    expect(getShopUsedCost(arrows)).toBe(50);
+    expect(getShopRefundAmount(arrows)).toBe(0);
+    expect(shop.unpaidTotal).toBe(50);
+  });
+});
+
+describe("shop marker charge proration", () => {
+  it("魔法の筆の使用分を残して返却できる", () => {
+    const { dg, shop, shopId } = makeShopRoom();
+    const p = { rings: [] };
+    const marker = {
+      id: "mk1", name: "魔法の筆", type: "marker", charges: 3, tile: 41,
+      shopPrice: itemPrice({ type: "marker", charges: 3, sellPrice: 1500 }),
+      _shopId: shopId, sellPrice: 1500,
+    };
+    const full = marker.shopPrice;
+    applyShopUnpaidCharge(marker, shop, p);
+    expect(shop.unpaidTotal).toBe(full);
+    expect(marker._origCharges).toBe(3);
+
+    marker.charges = 2; /* 1回使用 */
+    const used = getShopUsedCost(marker);
+    const refund = getShopRefundAmount(marker);
+    expect(used + refund).toBe(full);
+    expect(used).toBeGreaterThan(0);
+
+    placeItemAt(dg, 12, 12, marker, [], new Set(), 0, p);
+    expect(shop.unpaidTotal).toBe(used);
   });
 });

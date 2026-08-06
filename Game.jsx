@@ -2736,7 +2736,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
             else {
               if (sr.current.allBcKnown) { _grIt.fullIdent = true; _grIt.bcKnown = true; }
-              if (_grIt.charges != null) _grIt._origCharges = _grIt._origCharges ?? _grIt.charges;
               p.inventory.push(_grIt);
               if (_grIt.shopPrice) {
                 const _allS2 = getShops(dg);
@@ -2745,7 +2744,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   const _actualPrice = applyShopUnpaidCharge(_grIt, _pickShop, p);
                   const _sk2 = dg.monsters.find((m) => m.id === _pickShop.shopkeeperId && m.state === "friendly");
                   if (_sk2) _sk2.state = "blocking";
-                  ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${shopPriceNote(p)}) 店主が入り口をふさいだ。`);
+                  if (_actualPrice > 0) {
+                    ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_actualPrice}G${shopPriceNote(p)}) 店主が入り口をふさいだ。`);
+                  } else {
+                    ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！`);
+                  }
                 } else {
                   ml.push(`${itemDisplayName(_grIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を取った！(${_grIt.shopPrice}G) 店主が入り口をふさいだ。`);
                 }
@@ -4532,7 +4535,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _ap = applyShopUnpaidCharge(item, _ps, _p);
         const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
         if (_sk) _sk.state = "blocking";
-        ml.push(`${dnameRef(item)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`);
+        if (_ap > 0) ml.push(`${dnameRef(item)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`);
+        else ml.push(`${dnameRef(item)}を取った！`);
       }
     } else {
       ml.push(`${dnameRef(item)}を拾った！`);
@@ -4589,14 +4593,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   };
   const _chargeShopFloorItem = (item, _p, _dg, s) => {
     if (!item.shopPrice) return;
-    if (item.charges != null) item._origCharges = item._origCharges ?? item.charges;
     const _allS = getShops(_dg);
     const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
     if (_ps) {
       const _ap = applyShopUnpaidCharge(item, _ps, _p);
       const _sk = _dg.monsters.find(m => m.id === _ps.shopkeeperId && m.state === "friendly");
       if (_sk) _sk.state = "blocking";
-      setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`]);
+      /* 既請求済みなら二重メッセージ・二重加算しない（apply が 0） */
+      if (_ap > 0) {
+        setMsgs(prev => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を取った！(${_ap}G${shopPriceNote(_p)}) 店主が入り口をふさいだ。`]);
+      }
     }
     /* shopPrice/_shopId/_shopCharge は拾った場合と同様に維持（未払い表示・店への返却・使用分請求に必要） */
   };

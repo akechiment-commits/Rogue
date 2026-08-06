@@ -15,7 +15,7 @@ import {
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
-  resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps,
+  resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -1985,15 +1985,8 @@ export function useItemActions({
     const _allShopsDrop = getShops(dg);
     const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
     const prevDebt = _itemShopDrop?.unpaidTotal ?? 0;
-    /* 返却前にチャージ使用コストを算出（請求額 _shopCharge 基準。placeItemAt が書き換える前） */
-    const _chargeCost = (it._origCharges != null && it.charges != null && it._origCharges > 0 && it.charges < it._origCharges)
-      ? (() => {
-          const _po = itemPrice({ ...it, charges: it._origCharges });
-          const _pc = itemPrice({ ...it, charges: it.charges });
-          const _owed = it._shopCharge != null ? it._shopCharge : (it.shopPrice || 0);
-          return _po > 0 ? Math.max(0, Math.round(_owed * (1 - _pc / _po))) : 0;
-        })()
-      : 0;
+    /* 返却前に使用分コストを算出（チャージ・矢本数。placeItemAt が書き換える前） */
+    const _chargeCost = getShopUsedCost(it);
     /* 足元に泉があればアイテムを泉に落とす */
     const _dropSpr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
     if (_dropSpr) {
@@ -2329,23 +2322,32 @@ export function useItemActions({
       if (marker.charges <= 0) {
         p.inventory.splice(markerMode.markerIdx, 1);
         ml.push(`${marker.name}のインクが切れた。`);
+        /* 使い切った場合は足元返却不要（使用分は未払いに残る） */
+        if (floorPenDropRef?.current === marker) floorPenDropRef.current = null;
       }
-      /* 床のペンを使った場合は描いた後に隣のマスに落とす */
+      /* 床の魔法の筆：使用後は placeItemAt で足元に戻し、チャージ使用分を正しく精算 */
       if (floorPenDropRef?.current === marker) {
         floorPenDropRef.current = null;
         const _pi = p.inventory.indexOf(marker);
         if (_pi !== -1) {
-          const { dungeon: dg } = sr.current;
-          const _adj4 = [[-1,0],[1,0],[0,-1],[0,1]];
-          const _adj = _adj4.find(([dx,dy]) => {
-            const nx = p.x + dx, ny = p.y + dy;
-            return dg.map[ny]?.[nx] === T.FLOOR && !dg.items.find(i => i.x === nx && i.y === ny);
-          });
+          const { dungeon: dg, player: _pp } = sr.current;
           p.inventory.splice(_pi, 1);
-          marker.x = _adj ? p.x + _adj[0] : p.x;
-          marker.y = _adj ? p.y + _adj[1] : p.y;
-          dg.items.push(marker);
-          ml.push(`${marker.name}を${_adj ? "横のマス" : "足元"}に落とした。`);
+          const _prevDebt = (() => {
+            const _sh = getShops(dg).find(s => s.id === marker._shopId) || getShops(dg).find(s => s.unpaidTotal > 0);
+            return _sh?.unpaidTotal ?? 0;
+          })();
+          const _usedCost = getShopUsedCost(marker);
+          placeItemAt(dg, _pp.x, _pp.y, marker, ml, new Set(), 0, _pp);
+          const _shAfter = getShops(dg).find(s => s.id === marker._shopId) || getShops(dg).find(s => s.unpaidTotal > 0);
+          if (marker.shopPrice != null && _shAfter && _shAfter.unpaidTotal < _prevDebt) {
+            if (_usedCost > 0) {
+              ml.push(`${marker.name}を足元に戻した。使用分${_usedCost}Gが請求された！（未払い残高：${_shAfter.unpaidTotal}G）`);
+            } else {
+              ml.push(`${marker.name}を足元に戻した。`);
+            }
+          } else {
+            ml.push(`${marker.name}を足元に戻した。`);
+          }
         }
       }
       setMarkerMode(null);

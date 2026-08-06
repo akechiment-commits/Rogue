@@ -3467,17 +3467,16 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       if (_iShop) {
         const r = _iShop.room;
         if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
-          /* 返金は拾い時の請求額(_shopCharge)基準。値上げ/値切りとズレない */
-          let _refundVal = getShopItemCharge(item);
-          if (item._origCharges != null && item.charges != null && item._origCharges > 0 && item.charges < item._origCharges) {
-            const _priceOrig = itemPrice({ ...item, charges: item._origCharges });
-            const _priceCur  = itemPrice({ ...item, charges: item.charges });
-            const _ratio = _priceOrig > 0 ? (_priceCur / _priceOrig) : 0;
-            _refundVal = Math.max(0, Math.round(_refundVal * _ratio));
+          /* 返金は拾い時の請求額(_shopCharge)基準。チャージ・矢本数の使用分は残す */
+          const _ratio = getShopRemainingRatio(item);
+          let _refundVal = getShopRefundAmount(item);
+          if (_ratio < 1) {
             item.shopPrice = Math.max(0, Math.round((item.shopPrice || 0) * _ratio)); /* 次に拾う list 価格 */
           }
           _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - _refundVal);
           delete item._shopCharge; /* 棚に戻ったので次回拾い時に再計算 */
+          delete item._origCharges;
+          delete item._origCount;
           if (_iShop.unpaidTotal === 0) {
             const sk = dg.monsters.find(m => m.id === _iShop.shopkeeperId && m.state === "blocking");
             if (sk) moveShopkeeperHome(sk, _iShop, dg);
@@ -5179,11 +5178,54 @@ export function getShopItemCharge(item) {
 }
 
 /**
+ * 使用・消費後の残り価値比率（0〜1）。
+ * 杖・魔法の筆の残チャージ、矢の残本数で按分する。
+ * 消費がなければ 1。
+ */
+export function getShopRemainingRatio(item) {
+  if (!item) return 1;
+  /* 矢・石：1本（個）単位で按分 */
+  if (item.type === "arrow" && item._origCount != null && item._origCount > 0 && item.count != null) {
+    if (item.count >= item._origCount) return 1;
+    return Math.max(0, Math.min(1, Math.max(0, item.count) / item._origCount));
+  }
+  /* 杖・ペン・マーカー：チャージで按分（価格関数に合わせる） */
+  if (item._origCharges != null && item._origCharges > 0 && item.charges != null) {
+    if (item.charges >= item._origCharges) return 1;
+    const priceOrig = itemPrice({ ...item, charges: item._origCharges });
+    const priceCur = itemPrice({ ...item, charges: Math.max(0, item.charges) });
+    if (priceOrig <= 0) return item.charges / item._origCharges;
+    return Math.max(0, Math.min(1, priceCur / priceOrig));
+  }
+  return 1;
+}
+
+/** 返却時に残るべき使用分コスト（請求額 − 返金額） */
+export function getShopUsedCost(item) {
+  const owed = getShopItemCharge(item);
+  if (owed <= 0) return 0;
+  const ratio = getShopRemainingRatio(item);
+  return Math.max(0, Math.round(owed * (1 - ratio)));
+}
+
+/** 店に戻したときの返金額 */
+export function getShopRefundAmount(item) {
+  const owed = getShopItemCharge(item);
+  if (owed <= 0) return 0;
+  return Math.max(0, Math.round(owed * getShopRemainingRatio(item)));
+}
+
+/**
  * 店商品の未払いを加算し、返却精算用に _shopCharge を記録する。
- * @returns {number} 加算した金額
+ * 既に請求済み（_shopCharge あり）の場合は二重加算しない（0 を返す）。
+ * @returns {number} 今回新たに加算した金額
  */
 export function applyShopUnpaidCharge(item, shop, p) {
   if (!item?.shopPrice || !shop) return 0;
+  /* 返却按分用の初期状態を記録（矢の本数・杖等のチャージ） */
+  if (item.charges != null) item._origCharges = item._origCharges ?? item.charges;
+  if (item.type === "arrow" && item.count != null) item._origCount = item._origCount ?? item.count;
+  if (item._shopCharge != null) return 0; /* 既にこの請求サイクルで計上済み */
   const charged = calcShopBuyPrice(p, item.shopPrice);
   item._shopCharge = charged;
   shop.unpaidTotal += charged;
