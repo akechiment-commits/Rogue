@@ -65,7 +65,7 @@ import {
 import { pl, setActivePlayerName } from "./playerLabel.js";
 import { buildRunResultExtras } from "./runScore.js";
 import { createRunTimer } from "./runTimer.js";
-import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES } from "./floorInventory.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "" } = {}) {
   const [gs, setGs] = useState(null);
@@ -5044,7 +5044,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _invOnlyPg = Math.ceil(inv.length / 10) || 1;
                 const _dg2 = sr.current?.dungeon;
                 const _p2 = sr.current?.player;
-                const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y) : { items: [], traps: [], all: [] };
+                const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y, {
+                  allBcKnown: !!sr.current?.allBcKnown,
+                  bbFakeNames: sr.current?.bbFakeNames,
+                }) : { items: [], traps: [], all: [] };
                 const _flItems2 = _fl2.items;
                 const _flTraps2 = _fl2.traps;
                 const _flAll2 = _fl2.all;
@@ -5417,7 +5420,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         /* 足元ページの場合 */
                         const _dg3 = sr.current?.dungeon;
                         const _p3 = sr.current?.player;
-                        const _fl3 = _dg3 && _p3 ? listFloorInventoryEntries(_dg3, _p3.x, _p3.y) : { items: [], traps: [], all: [] };
+                        const _fl3 = _dg3 && _p3 ? listFloorInventoryEntries(_dg3, _p3.x, _p3.y, {
+                          allBcKnown: !!sr.current?.allBcKnown,
+                          bbFakeNames: sr.current?.bbFakeNames,
+                        }) : { items: [], traps: [], all: [] };
                         const _flItems3 = _fl3.items;
                         const _flTraps3 = _fl3.traps;
                         const _flAll3 = _fl3.all;
@@ -5431,7 +5437,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                             if (_fRole3 === "trap") {
                               _fns3.push(() => invActRef.current?.floorTrap?.(_fle3));
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
-                            } else if (_fRole3 === "vent" || _fRole3 === "portal") {
+                            } else if (FLOOR_INFO_ROLES.has(_fRole3)) {
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else {
                               _fns3.push(() => invActRef.current?.floorPickup?.(_fle3));

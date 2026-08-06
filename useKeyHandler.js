@@ -13,7 +13,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
-import { listFloorInventoryEntries, floorEntryRole } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES } from "./floorInventory.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -377,7 +377,10 @@ export function useKeyHandler({
         const inv = sr.current?.player?.inventory || [];
         const _p2 = sr.current?.player;
         const _dg2 = sr.current?.dungeon;
-        const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y) : { items: [], traps: [], all: [] };
+        const _fl2 = _dg2 && _p2 ? listFloorInventoryEntries(_dg2, _p2.x, _p2.y, {
+          allBcKnown: !!sr.current?.allBcKnown,
+          bbFakeNames: sr.current?.bbFakeNames,
+        }) : { items: [], traps: [], all: [] };
         const _flItems2 = _fl2.items;
         const _flTraps2 = _fl2.traps;
         const _flAll2 = _fl2.all;
@@ -446,7 +449,7 @@ export function useKeyHandler({
               _descAct,
             ];
           }
-          if (_role2 === "vent" || _role2 === "portal") {
+          if (FLOOR_INFO_ROLES.has(_role2)) {
             return [_descAct];
           }
           const _isEquipType2 = ["weapon","armor","arrow","ring"].includes(entry.type);

@@ -10,7 +10,7 @@ import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
-import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES } from "./floorInventory.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -2898,8 +2898,11 @@ export function InventoryModal({
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
-  /* 足元のアイテム・罠・風穴・転送魔方陣 */
-  const _fl = listFloorInventoryEntries(gs?.dungeon, p.x, p.y);
+  /* 足元のアイテム・罠・風穴・魔方陣・泉・大箱 */
+  const _fl = listFloorInventoryEntries(gs?.dungeon, p.x, p.y, {
+    allBcKnown: !!gs?.allBcKnown,
+    bbFakeNames: gs?.bbFakeNames,
+  });
   const _flItems = _fl.items;
   const _flTraps = _fl.traps;
   const _flAll = _fl.all;
@@ -2913,7 +2916,7 @@ export function InventoryModal({
       { label: "踏む", fn: () => doFloorTrap?.(entry) },
       { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) },
     ];
-    if (_role === "vent" || _role === "portal") return [
+    if (FLOOR_INFO_ROLES.has(_role)) return [
       { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) },
     ];
     const _isEquipType = ["weapon","armor","arrow","ring"].includes(entry.type);
@@ -3023,7 +3026,13 @@ export function InventoryModal({
             const _fIsItem = _fRole === "item";
             const _fActs = _getFloorActs(entry);
             const _fLabel = floorEntryLabel(entry, _flItems, _flTraps, iLabel);
-            const _fColor = _fIsItem ? "#ccc" : _fRole === "trap" ? "#f86" : _fRole === "vent" ? "#8cf" : "#ca8";
+            const _fColor = _fIsItem ? "#ccc"
+              : _fRole === "trap" ? "#f86"
+              : _fRole === "vent" ? "#8cf"
+              : _fRole === "spring" ? "#6af"
+              : _fRole === "bigbox" ? "#da8"
+              : _fRole === "pentacle" ? "#ca8"
+              : "#aaa";
             return (
               <div key={entry.id || `${_fRole}-${j}`} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}
                 style={{ borderBottom: "1px solid #222", borderRadius: 4, marginBottom: 1 }}>
