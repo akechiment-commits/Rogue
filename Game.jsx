@@ -63,10 +63,13 @@ import {
   resolveTeleportAndTrapPentacleEffect,
 } from "./pentacleTurnEffects.js";
 import { pl, setActivePlayerName } from "./playerLabel.js";
+import { buildRunResultExtras } from "./runScore.js";
+import { createRunTimer } from "./runTimer.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "" } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
+  const runTimerRef = useRef(null);
   /* フロアターン付きメッセージ追加ラッパー */
   const setMsgs = useCallback((updater) => {
     const t = sr.current?.floorTurns ?? 0;
@@ -533,6 +536,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         maxDepth: resumeState.maxDepth,
         allBcKnown: resumeState.allBcKnown,
         floorTurns: resumeState.floorTurns || 0,
+        runActiveMs: resumeState.runActiveMs || 0,
         penSpriteMap: resumeState.penSpriteMap || Object.fromEntries([...new Set(ITEMS.filter(i => i.type === 'pen').map(i => i.effect))].map(e => [e, Math.floor(Math.random() * 9) + 1])),
         potionSpriteMap: resumeState.potionSpriteMap || Object.fromEntries([...new Set(ITEMS.filter(i => i.type === 'potion').map(i => i.effect))].map(e => [e, Math.floor(Math.random() * 25) + 1])),
       };
@@ -546,9 +550,28 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     }
   }, []);
   useEffect(initOrResume, [initOrResume]);
+
+  /* ── 探索実時間タイマー（タブ非表示中は停止・中断セーブで継続） ── */
+  useEffect(() => {
+    if (!gs) return;
+    const initial = resumeState ? (resumeState.runActiveMs || 0) : 0;
+    /* 既にタイマーがある場合は付け替えない（gs 更新でリセットしない） */
+    if (runTimerRef.current) return undefined;
+    const timer = createRunTimer(initial);
+    runTimerRef.current = timer;
+    const detach = timer.attach();
+    return () => {
+      detach();
+      if (runTimerRef.current === timer) runTimerRef.current = null;
+    };
+  }, [gs]);
+
   /* ── 自動セーブ: ゲーム状態が変わるたびにlocalStorageに保存 ── */
   useEffect(() => {
     if (!gs || dead || showEnding) return;
+    if (sr.current && runTimerRef.current) {
+      sr.current.runActiveMs = runTimerRef.current.getElapsedMs();
+    }
     saveGameState(sr.current, msgsRef.current, dungeonConfig, getDiscoveries());
   }, [gs, dead, showEnding]);
   useEffect(() => {
@@ -1644,6 +1667,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } else {
           ml.push("あなたは死んだ...ゲームオーバー。");
           clearGameSave();
+          runTimerRef.current?.freeze();
+          const _runExtras = buildRunResultExtras(p, runTimerRef.current);
           try {
             const _scores = JSON.parse(localStorage.getItem("roguelike_scores") || "[]");
             _scores.unshift({
@@ -1652,6 +1677,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               level: p.level,
               depth: p.depth,
               turns: p.turns,
+              score: _runExtras.score,
+              itemsValue: _runExtras.itemsValue,
+              elapsedMs: _runExtras.elapsedMs,
               date: new Date().toLocaleDateString("ja-JP"),
             });
             localStorage.setItem("roguelike_scores", JSON.stringify(_scores.slice(0, 20)));
@@ -1660,7 +1688,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           setGameOverSel(0);
           setDead(true);
           commitPendingBigboxes();
-          setGameOverResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: false, identifiedEffects: [...(sr.current?.ident || [])] });
+          setGameOverResult({
+            earnedGold: p.gold,
+            depth: p.depth,
+            discoveries: getDiscoveries(),
+            survived: false,
+            cleared: false,
+            identifiedEffects: [...(sr.current?.ident || [])],
+            dungeonType: sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner",
+            cause: p.deathCause || "不明",
+            ..._runExtras,
+          });
         }
       }
       /* 骨のカウントダウン：0になったらスケルトン復活（真上に誰かいたら先延ばし） */
@@ -1762,6 +1800,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (!onReturnToHub || !sr.current) return;
     const p = sr.current.player;
     clearGameSave();
+    runTimerRef.current?.freeze();
+    const _runExtras = buildRunResultExtras(p, runTimerRef.current);
     p.inventory.forEach((i) => trackItem(i));
     commitPendingBigboxes();
     const _hasGoal = p.inventory.some((it) => it.type === "goal");
@@ -1773,6 +1813,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       returnItems: [...p.inventory],
       cleared: _hasGoal,
       identifiedEffects: [...(sr.current?.ident || [])],
+      dungeonType: sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner",
+      cause: _hasGoal ? "クリア" : "生還",
+      ..._runExtras,
     };
     setExitHubConfirm(false);
     if (_hasGoal) {
@@ -1781,7 +1824,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     } else {
       onReturnToHub(payload);
     }
-  }, [onReturnToHub]);
+  }, [onReturnToHub, dungeonConfig]);
 
   const requestExitToHub = useCallback((ml) => {
     setExitHubSel(0);

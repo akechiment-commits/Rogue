@@ -33,6 +33,7 @@ function makeSession() {
     maxDepth: 10,
     allBcKnown: true,
     floorTurns: 42,
+    runActiveMs: 12345,
     penSpriteMap: { holy: 3 },
     potionSpriteMap: { heal: 7 },
   };
@@ -61,6 +62,7 @@ describe("GameSave", () => {
     expect(loaded.player.armor).toBe(loaded.player.inventory[1]);
     expect(loaded.ident).toEqual(new Set(["p:heal", "s:teleport"]));
     expect(loaded.floorTurns).toBe(42);
+    expect(loaded.runActiveMs).toBe(12345);
     expect(loaded.penSpriteMap).toEqual({ holy: 3 });
     expect(loaded.potionSpriteMap).toEqual({ heal: 7 });
     expect(loaded.msgs).toEqual(["テストメッセージ"]);
