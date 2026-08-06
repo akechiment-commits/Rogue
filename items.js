@@ -24,6 +24,7 @@ import {
   monEffectiveFixedDamageOnly,
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
+import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -307,7 +308,7 @@ export const ITEMS = [
   { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"B", weight:2,  sellPrice:3500, desc:"足元にみかわしの魔方陣を描く。\n部屋内で投げ物・矢・石が必ず外れる(魔法・炎は除く)。\n呪い：逆に必ず命中。", tile:42 },
   { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"C", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。\n部屋内の全員が速度に関わらず1回行動になる。\n呪い：全員鈍足。", tile:42 },
   { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n呪い：逆に5ダメージ。", tile:42 },
-  { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"A", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・使い捨て）。\n呪い：何も起きない。", tile:42 },
+  { name:"復活のペン",       type:"pen",    effect:"revival",       charges:2, rarity:"A", weight:1,  sellPrice:8000,  desc:"足元に復活の魔方陣を描く。\n魔方陣の上でHPがゼロになった者はHP全回復で復活する（敵味方問わず・使い捨て）。\n呪い：同じ部屋での蘇りをすべて封じる（MP復活・復活魔方陣・骨からの復活など）。", tile:42 },
   { name:"ポータルのペン",   type:"pen",    effect:"portal",        charges:2, rarity:"B", weight:2,  sellPrice:3500,  desc:"足元にポータルの魔方陣を描く。\n同じフロアに2個書くと魔方陣同士が繋がりワープできる。\n上に投げたものも反対側から出てくる。\n呪い：ランダムワープになる。", tile:42 },
   { name:"短剣",             type:"weapon", atk:3,                       rarity:"E", weight:12, sellPrice:50,   desc:"軽いダガー。",                     tile:20 },
   { name:"ロングソード",     type:"weapon", atk:6,                       rarity:"D", weight:8,  sellPrice:300,  desc:"冒険者の定番武器。",               tile:20 },
@@ -3770,9 +3771,11 @@ export function applyFireInventoryDamage(p, ml) {
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
 export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false) {
   const mx = mon.x, my = mon.y;
+  /* 呪われた復活の魔方陣：同部屋の蘇りを封じる（復活魔方陣・骨残しなど） */
+  const _reviveBlocked = isRevivalSuppressedAt(dg, mx, my);
   /* 復活の魔方陣チェック：魔方陣上/同部屋内でHPゼロになったら全回復で復活（使い捨て） */
   /* noRevive: 願いの敵全滅など、特別に復活させない撃破 */
-  if (!noRevive && dg.pentacles?.length > 0) {
+  if (!noRevive && !_reviveBlocked && dg.pentacles?.length > 0) {
     const _revPc = dg.pentacles.find(pc => {
       if (pc.kind !== "revival" || pc.cursed) return false;
       if (pc.x === mx && pc.y === my) return true;
@@ -3800,39 +3803,44 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   }
   monsterDrop(mon, dg, ml, p);
   removeMonster(dg, mon);
-  /* スケルトン：50%で骨を残し5ターン後に復活 */
+  /* スケルトン：50%で骨を残し5ターン後に復活（復活抑制下では骨を残さない） */
   if (mon.baseKind === "skeleton" && Math.random() < 0.5) {
-    /* 骨の配置先：アイテム・罠・階段・大箱・泉と重ならないマスをDRO(24マス)で探す */
-    const _boneBlocked = (bx, by) => {
-      const _tile = dg.map[by]?.[bx];
-      if (!_tile || _tile === T.WALL || _tile === T.BWALL) return true;
-      if (_tile === T.SD || _tile === T.SU) return true;
-      if (statueAt(dg, bx, by)) return true;
-      if (dg.items.some(i => i.x === bx && i.y === by)) return true;
-      if (dg.traps.some(t => t.x === bx && t.y === by)) return true;
-      if (dg.bigboxes?.some(b => b.x === bx && b.y === by)) return true;
-      if (dg.springs?.some(s => s.x === bx && s.y === by)) return true;
-      if (dg.oilyTiles?.some(t => t.x === bx && t.y === by)) return true;
-      return false;
-    };
-    /* 足元が空いていればその場、塞がっていれば DRO 順で最初の空きマス */
-    let _bx = null, _by = null;
-    for (const [dx, dy] of DRO) {
-      if (!_boneBlocked(mx + dx, my + dy)) { _bx = mx + dx; _by = my + dy; break; }
+    if (_reviveBlocked) {
+      ml.push(REVIVAL_SUPPRESS_MSG);
+      ml.push(`${mon.name}の骨は散らばって消えた。`);
+    } else {
+      /* 骨の配置先：アイテム・罠・階段・大箱・泉と重ならないマスをDRO(24マス)で探す */
+      const _boneBlocked = (bx, by) => {
+        const _tile = dg.map[by]?.[bx];
+        if (!_tile || _tile === T.WALL || _tile === T.BWALL) return true;
+        if (_tile === T.SD || _tile === T.SU) return true;
+        if (statueAt(dg, bx, by)) return true;
+        if (dg.items.some(i => i.x === bx && i.y === by)) return true;
+        if (dg.traps.some(t => t.x === bx && t.y === by)) return true;
+        if (dg.bigboxes?.some(b => b.x === bx && b.y === by)) return true;
+        if (dg.springs?.some(s => s.x === bx && s.y === by)) return true;
+        if (dg.oilyTiles?.some(t => t.x === bx && t.y === by)) return true;
+        return false;
+      };
+      /* 足元が空いていればその場、塞がっていれば DRO 順で最初の空きマス */
+      let _bx = null, _by = null;
+      for (const [dx, dy] of DRO) {
+        if (!_boneBlocked(mx + dx, my + dy)) { _bx = mx + dx; _by = my + dy; break; }
+      }
+      if (_bx === null) {
+        ml.push(`${mon.name}の骨は行き場がなく消えた。`);
+        return;
+      }
+      dg.traps.push({
+        id: uid(), name: "骨", effect: "bone", tile: 107,
+        x: _bx, y: _by, revealed: true, permanent: false,
+        reviveIn: 5,
+        monData: { baseKind: mon.baseKind, name: mon.name, hp: mon.maxHp, maxHp: mon.maxHp,
+          atk: mon.atk, def: mon.def, exp: mon.exp, speed: mon.speed ?? 1, tile: mon.tile,
+          kind: mon.kind, monLevel: mon.monLevel || 1, levels: mon.levels }
+      });
+      ml.push(`${mon.name}の骨が残った...5ターン後に復活するかもしれない。`);
     }
-    if (_bx === null) {
-      ml.push(`${mon.name}の骨は行き場がなく消えた。`);
-      return;
-    }
-    dg.traps.push({
-      id: uid(), name: "骨", effect: "bone", tile: 107,
-      x: _bx, y: _by, revealed: true, permanent: false,
-      reviveIn: 5,
-      monData: { baseKind: mon.baseKind, name: mon.name, hp: mon.maxHp, maxHp: mon.maxHp,
-        atk: mon.atk, def: mon.def, exp: mon.exp, speed: mon.speed ?? 1, tile: mon.tile,
-        kind: mon.kind, monLevel: mon.monLevel || 1, levels: mon.levels }
-    });
-    ml.push(`${mon.name}の骨が残った...5ターン後に復活するかもしれない。`);
   }
   /* からめ鬼が死んだ場合：捕獲状態を解除 */
   if (mon.subtype === "grabber" && p && p.capturedBy === mon.id) {

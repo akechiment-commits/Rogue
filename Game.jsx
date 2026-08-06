@@ -66,6 +66,7 @@ import { pl, setActivePlayerName } from "./playerLabel.js";
 import { buildRunResultExtras } from "./runScore.js";
 import { createRunTimer } from "./runTimer.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES } from "./floorInventory.js";
+import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "" } = {}) {
   const [gs, setGs] = useState(null);
@@ -1645,8 +1646,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
       }
       if (p.hp <= 0) {
+        /* 呪われた復活の魔方陣：同部屋の蘇りをすべて封じる */
+        const _reviveBlocked = isRevivalSuppressedAt(st.dungeon, p.x, p.y);
         /* 復活の魔方陣チェック：魔方陣上/同部屋（祝福）にいればHP全回復で復活（使い捨て） */
-        const _revPcP = st.dungeon.pentacles?.find(pc => {
+        const _revPcP = _reviveBlocked ? null : st.dungeon.pentacles?.find(pc => {
           if (pc.kind !== "revival" || pc.cursed) return false;
           if (pc.x === p.x && pc.y === p.y) return true;
           if (pc.blessed) {
@@ -1658,14 +1661,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (_revPcP) {
           p.hp = p.maxHp;
           ml.push("復活の魔方陣の力でHP全回復！");
-        } else if ((p.mp || 0) > 0) {
+        } else if (!_reviveBlocked && (p.mp || 0) > 0) {
           /* MPが残っていれば残MP分のHPで復活 */
           const revHp = p.mp;
           p.hp = revHp;
           p.mp = 0;
-          p.mpCooldownTurns = 1000;
+          p.mpSealTurns = 1000;
           ml.push(`HPがゼロになった！残りMP${revHp}でHP${revHp}として復活！MPは1000ターン回復しない。`);
         } else {
+          if (_reviveBlocked) ml.push(REVIVAL_SUPPRESS_MSG);
           ml.push("あなたは死んだ...ゲームオーバー。");
           clearGameSave();
           runTimerRef.current?.freeze();
@@ -1707,6 +1711,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _reviveBones = st.dungeon.traps.filter(t => t.effect === "bone" && t.reviveIn !== undefined);
         for (const _bone of _reviveBones) {
           if (_bone.reviveIn > 0) { _bone.reviveIn--; continue; }
+          /* 呪われた復活の魔方陣：骨からの復活を封じる */
+          if (isRevivalSuppressedAt(st.dungeon, _bone.x, _bone.y)) {
+            st.dungeon.traps = st.dungeon.traps.filter(t => t !== _bone);
+            ml.push(REVIVAL_SUPPRESS_MSG);
+            ml.push("骨は散らばって消えた。");
+            continue;
+          }
           /* reviveIn === 0：タイルが空くまで待機して復活 */
           const _occupied = monsterAt(st.dungeon, _bone.x, _bone.y) || (p.x === _bone.x && p.y === _bone.y);
           if (_occupied) continue; /* どかれるまで毎ターン再試行 */
