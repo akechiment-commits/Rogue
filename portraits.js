@@ -84,7 +84,19 @@ export function msgToActionKey(msg, recentMsgs = []) {
   if (/魔法を放/.test(msg)) return "act_magic";
   if (/矢を射|弓/.test(msg)) return "act_bow";
   if (/投げた|投擲/.test(msg)) return "act_throw";
-  if (/(?:壺.*(?:を)?(?:使|割|投|入|取り出)|(?:使|割|投|入|取り出).*(?:壺))/.test(msg)) return "act_pot";
+  /* プレイヤーが壺を操作したときだけ。
+   * 「壺〜が爆発で割れた」など副次破壊は除外（自爆の巻物後に壺使用立ち絵になるのを防ぐ） */
+  if (/が爆発で割れ|が割れて|が爆発で壊れ/.test(msg)) {
+    /* fall through — not act_pot */
+  } else if (
+    /壺を(?:使|割|投|入|取り)/.test(msg) ||
+    /を割った！/.test(msg) && /壺/.test(msg) ||
+    /壺に.+を(?:入れ|投じ)/.test(msg) ||
+    /を.+壺に(?:入れ|投じ)/.test(msg) ||
+    /加熱の壺で/.test(msg)
+  ) {
+    return "act_pot";
+  }
   if (/宝箱/.test(msg)) return "act_chest";
   return null;
 }
@@ -514,6 +526,19 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const hungerMsg = findHungerMsg(newMsgs, lastMsg);
   if (hungerMsg) {
     return portraitEvent("hp_hunger", now, { force: true });
+  }
+
+  /* 自爆・大爆発などプレイヤーが爆発ダメージを受けた場合は、
+   * 後続の「壺が割れた」などの行動ログより爆発立ち絵を優先する */
+  if (p.hp < prev.hp) {
+    const explosionDmgMsg = findPlayerDamageMsg(newMsgs, lastMsg, p?.playerName);
+    if (explosionDmgMsg && msgToDamageKey(explosionDmgMsg) === "damage_explosion") {
+      return {
+        src: pickDamagePortrait(explosionDmgMsg),
+        cooldownUntil: now + PORTRAIT_DAMAGE_COOLDOWN_MS,
+        force: true,
+      };
+    }
   }
 
   if (actionKey) {

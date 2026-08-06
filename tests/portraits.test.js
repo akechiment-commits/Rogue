@@ -123,6 +123,10 @@ describe("portraits", () => {
     expect(msgToActionKey("炎の魔法書を読んだ！")).toBe("act_spellbook");
     expect(msgToActionKey("回復の巻物を読んだ！")).toBe("act_scroll");
     expect(msgToActionKey("保存の壺におにぎりを入れた！")).toBe("act_pot");
+    expect(msgToActionKey("チョコの壺を割った！")).toBe("act_pot");
+    /* 爆発の副次で壺が割れただけでは壺使用にしない */
+    expect(msgToActionKey("壺「弱化の壺」が爆発で割れた！")).toBeNull();
+    expect(msgToActionKey("壺「カレーの壺」が爆発で割れ、中身が飛び出した！")).toBeNull();
     expect(msgToActionKey("足元に重力の魔方陣を描いた！(残り1回)")).toBe("act_pen");
     expect(msgToActionKey("魔方陣を描いた瞬間、テレポートした！")).toBe("act_pen");
     expect(msgToActionKey("炎の魔法書を拾った！")).toBeNull();
@@ -613,5 +617,31 @@ describe("portraits", () => {
       newMsgs: ["ターンが経過した。"],
     });
     expect(event.src).toBeUndefined();
+  });
+
+  it("自爆の巻物後に壺が割れても爆発立ち絵を優先する", () => {
+    const player = {
+      hp: 1, maxHp: 210, hunger: 41, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = { ...player, hp: 206 };
+    const newMsgs = [
+      "自爆！中心から2マス（5×5）に大爆発！",
+      "爆発が自分を直撃！HPが1になった！",
+      "壺「弱化の壺」が爆発で割れた！",
+      "壺「カレーの壺」が爆発で割れた！",
+      "壺「味噌の壺」が爆発で割れた！",
+      "壺「燻製の壺」が爆発で割れた！",
+    ];
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: newMsgs[newMsgs.length - 1],
+      newMsgs,
+      recentMsgs: newMsgs,
+    });
+    expect(event.src).toMatch(/damage_explosion/);
+    expect(event.force).toBe(true);
   });
 });
