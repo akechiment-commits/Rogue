@@ -10,6 +10,8 @@ import {
   itemPrice,
   makeArrowUnitFromStack,
   peelShopArrowUnit,
+  chargeShopItem,
+  claimShopItemIfOutside,
 } from "../items.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -169,6 +171,58 @@ describe("shop arrow unit peel / flags", () => {
     expect(unit._shopCharge).toBe(10);
     expect(applyShopUnpaidCharge(unit, shop, p)).toBe(0);
     expect(shop.unpaidTotal).toBe(40);
+  });
+});
+
+describe("shop item forced outside", () => {
+  it("店外に着地したら請求して値札を外す", () => {
+    const { dg, shop, shopId } = makeShopRoom();
+    /* 店の外に床を用意 */
+    for (let y = 3; y < 6; y++) for (let x = 3; x < 6; x++) dg.map[y][x] = T.FLOOR;
+    const p = { rings: [] };
+    const item = {
+      id: "out1", name: "薬", type: "potion", effect: "heal", tile: 16,
+      shopPrice: 100, _shopId: shopId,
+    };
+    const ml = [];
+    placeItemAt(dg, 4, 4, item, ml, new Set(), 0, p);
+    expect(shop.unpaidTotal).toBe(100);
+    expect(item.shopPrice).toBeUndefined();
+    expect(item._shopId).toBeUndefined();
+    expect(ml.some((m) => /100G.*請求/.test(m))).toBe(true);
+  });
+
+  it("テレポート相当：claimShopItemIfOutside で店外なら請求+値札解除", () => {
+    const { dg, shop, shopId } = makeShopRoom();
+    const p = { rings: [] };
+    const item = {
+      id: "tp1", name: "杖", type: "wand", effect: "knockback", charges: 3, tile: 24,
+      shopPrice: 200, _shopId: shopId, x: 12, y: 12,
+    };
+    dg.items.push(item);
+    /* 店内のまま */
+    expect(claimShopItemIfOutside(item, dg, 12, 12, [], p)).toBe(false);
+    expect(item.shopPrice).toBe(200);
+    expect(shop.unpaidTotal).toBe(0);
+    /* 店外へ */
+    item.x = 3; item.y = 3;
+    expect(claimShopItemIfOutside(item, dg, 3, 3, [], p)).toBe(true);
+    expect(shop.unpaidTotal).toBe(200);
+    expect(item.shopPrice).toBeUndefined();
+  });
+
+  it("既請求済みなら二重請求せず値札だけ外す", () => {
+    const { dg, shop, shopId } = makeShopRoom();
+    const p = { rings: [] };
+    const item = {
+      id: "dup1", name: "薬", type: "potion", effect: "heal", tile: 16,
+      shopPrice: 100, _shopId: shopId,
+    };
+    applyShopUnpaidCharge(item, shop, p);
+    expect(shop.unpaidTotal).toBe(100);
+    chargeShopItem(item, dg, [], p);
+    expect(shop.unpaidTotal).toBe(100);
+    expect(item.shopPrice).toBeUndefined();
   });
 });
 

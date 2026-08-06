@@ -3540,26 +3540,33 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1, item);
     if (item.shopPrice) {
       const _allS = getShops(dg);
-      const _iShop = _allS.find(s => s.id === item._shopId && s.unpaidTotal > 0) ||
-                     _allS.find(s => s.unpaidTotal > 0);
-      if (_iShop) {
+      const _iShop = _allS.find(s => s.id === item._shopId) ||
+                     _allS.find(s => s.unpaidTotal > 0) ||
+                     _allS[0];
+      if (_iShop?.room) {
         const r = _iShop.room;
-        if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) {
+        const _inShop = cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h;
+        if (_inShop) {
           /* 返金は拾い時の請求額(_shopCharge)基準。チャージ・矢本数の使用分は残す */
-          const _ratio = getShopRemainingRatio(item);
-          let _refundVal = getShopRefundAmount(item);
-          if (_ratio < 1) {
-            item.shopPrice = Math.max(0, Math.round((item.shopPrice || 0) * _ratio)); /* 次に拾う list 価格 */
+          if (_iShop.unpaidTotal > 0 && item._shopCharge != null) {
+            const _ratio = getShopRemainingRatio(item);
+            let _refundVal = getShopRefundAmount(item);
+            if (_ratio < 1) {
+              item.shopPrice = Math.max(0, Math.round((item.shopPrice || 0) * _ratio)); /* 次に拾う list 価格 */
+            }
+            _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - _refundVal);
+            delete item._shopCharge; /* 棚に戻ったので次回拾い時に再計算 */
+            delete item._origCharges;
+            delete item._origCount;
+            if (_iShop.unpaidTotal === 0) {
+              const sk = dg.monsters.find(m => m.id === _iShop.shopkeeperId && m.state === "blocking");
+              if (sk) moveShopkeeperHome(sk, _iShop, dg);
+              if (ml) ml.push("残高がゼロになった。店主が入り口を開けた。");
+            }
           }
-          _iShop.unpaidTotal = Math.max(0, _iShop.unpaidTotal - _refundVal);
-          delete item._shopCharge; /* 棚に戻ったので次回拾い時に再計算 */
-          delete item._origCharges;
-          delete item._origCount;
-          if (_iShop.unpaidTotal === 0) {
-            const sk = dg.monsters.find(m => m.id === _iShop.shopkeeperId && m.state === "blocking");
-            if (sk) moveShopkeeperHome(sk, _iShop, dg);
-            if (ml) ml.push("残高がゼロになった。店主が入り口を開けた。");
-          }
+        } else {
+          /* 店外着地：投げ・吹き飛ばし等と同じく請求して値札を外す */
+          chargeShopItem(item, dg, ml, p);
         }
       }
     }
@@ -4230,15 +4237,63 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
   return { x:cx, y:cy, consumed:false };
 }
 
-export function chargeShopItem(item, dg, ml) {
-  if (!item.shopPrice) return;
+/** 店商品の値札・請求メタを外す（店外排出後など） */
+export function clearShopItemTags(item) {
+  if (!item) return;
+  delete item.shopPrice;
+  delete item._shopId;
+  delete item._shopCharge;
+  delete item._origCharges;
+  delete item._origCount;
+}
+
+/**
+ * 店商品を請求して値札を外す（破壊・店外排出用）。
+ * 既に _shopCharge がある場合は二重加算せずタグだけ外す。
+ * @returns {number} 今回新たに加算した金額
+ */
+export function chargeShopItem(item, dg, ml, p = null) {
+  if (!item?.shopPrice) return 0;
   const _allS = getShops(dg);
   const _shop = _allS.find(s => s.id === item._shopId) || _allS[0];
-  if (!_shop) return;
-  _shop.unpaidTotal += item.shopPrice;
-  const sk = dg.monsters.find(m => m.id === _shop.shopkeeperId && m.state === "friendly");
-  if (sk) sk.state = "blocking";
-  ml.push(`${resolveItemName(item)}(${item.shopPrice}G)の代金が請求された！`);
+  if (!_shop) {
+    clearShopItemTags(item);
+    return 0;
+  }
+  let charged = 0;
+  if (item._shopCharge == null) {
+    if (p) {
+      charged = applyShopUnpaidCharge(item, _shop, p);
+    } else {
+      charged = item.shopPrice || 0;
+      item._shopCharge = charged;
+      _shop.unpaidTotal += charged;
+    }
+    if (charged > 0) {
+      const sk = dg.monsters.find(m => m.id === _shop.shopkeeperId && m.state === "friendly");
+      if (sk) sk.state = "blocking";
+      if (ml) ml.push(`${resolveItemName(item)}(${charged}G)の代金が請求された！`);
+    }
+  }
+  /* 店外・破壊後は値札付き商品を残さない */
+  clearShopItemTags(item);
+  return charged;
+}
+
+/**
+ * 座標 (x,y) が所属店の外なら請求して値札を外す。
+ * テレポート／吹き飛ばし／場所替えなどで店商品が移動したあとに呼ぶ。
+ * @returns {boolean} 店外として処理したか
+ */
+export function claimShopItemIfOutside(item, dg, x, y, ml, p = null) {
+  if (!item?.shopPrice) return false;
+  const _allS = getShops(dg);
+  const _shop = _allS.find(s => s.id === item._shopId) || _allS[0];
+  if (!_shop?.room) return false;
+  const r = _shop.room;
+  if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return false;
+  chargeShopItem(item, dg, ml, p);
+  return true;
 }
 
 export function inMagicSealRoom(x, y, dg) {

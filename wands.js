@@ -5,7 +5,7 @@ import {
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
-  chargeShopItem, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
+  chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
   hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, applyMonsterSeal,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
@@ -542,15 +542,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const res = throwItemAlongLine(_shooter, dg, target, dx, dy, d, ml, p, luFn, {
           bbFn, nameFn, applyWandFn: applyWandEffect,
         });
-        /* shop charge：店外に飛び出したら課金 */
+        /* 店外へ出た／途中で消えた店商品は請求して値札を外す（placeItemAt でも処理されるが消費時の保険） */
         if (target.shopPrice) {
-          const _allShopsW = getShops(dg);
-          const _iShopW = _allShopsW.find(s => s.id === target._shopId) || _allShopsW.find(s => s.unpaidTotal > 0);
-          if (_iShopW) {
-            const r = _iShopW.room;
-            const inShop = res.x >= r.x && res.x < r.x + r.w && res.y >= r.y && res.y < r.y + r.h;
-            if (!inShop) chargeShopItem(target, dg, ml);
-          }
+          if (res.consumed) chargeShopItem(target, dg, ml, p);
+          else claimShopItemIfOutside(target, dg, res.x, res.y, ml, p);
         }
         break;
       }
@@ -858,6 +853,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         p.x = target.x; p.y = target.y;
         target.x = ox;  target.y = oy;
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+        claimShopItemIfOutside(target, dg, target.x, target.y, ml, p);
         break;
       }
       if (FLOOR_MOVE_KINDS.has(kind)) {
@@ -949,7 +945,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _lpd = randomTeleportDest(dg, _lpOx, _lpOy, (x, y) => !dg.monsters.some(m => m.x === x && m.y === y));
         if (!_lpd) { ml.push("テレポートに失敗した。"); break; }
         if (kind === "monster") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${target.name}はどこかへテレポートした！【呪】`); }
-        else if (kind === "item") { target.x = _lpd.x; target.y = _lpd.y; ml.push(`${_dname_item(target)}はどこかへ飛んだ！【呪】`); }
+        else if (kind === "item") {
+          target.x = _lpd.x; target.y = _lpd.y;
+          ml.push(`${_dname_item(target)}はどこかへ飛んだ！【呪】`);
+          claimShopItemIfOutside(target, dg, target.x, target.y, ml, p);
+        }
         else if (kind === "player") { p.x = _lpd.x; p.y = _lpd.y; ml.push("ランダムにテレポートした！【呪】"); }
       }
       break;
@@ -985,7 +985,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !(kind === "monster" && p.x === _w1x && p.y === _w1y)) {
           if (kind === "monster") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少しだけテレポートした。`); }
           else if (kind === "player") { p.x = _w1x; p.y = _w1y; ml.push("少しだけテレポートした。"); }
-          else if (kind === "item") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少し移動した。`); }
+          else if (kind === "item") {
+            target.x = _w1x; target.y = _w1y;
+            ml.push(`${target.name}が少し移動した。`);
+            claimShopItemIfOutside(target, dg, target.x, target.y, ml, p);
+          }
         } else {
           ml.push("テレポートに失敗した。");
         }
@@ -1069,6 +1073,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 target.x = _wd.x; target.y = _wd.y;
               }
               ml.push(`${kind === "item" ? target.name : _flName}は階段の隣に飛んだ！`);
+              if (kind === "item") claimShopItemIfOutside(target, dg, target.x, target.y, ml, p);
             } else if (FLOOR_MOVE_KINDS.has(kind)) {
               const _wd2 = pickFreeFloorObjectCell(dg, kind === "stair" ? null : target, p, target.x, target.y);
               if (_wd2) {
@@ -1090,6 +1095,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                 const _wd2 = pick(_wf);
                 target.x = _wd2.x; target.y = _wd2.y;
                 ml.push(`${target.name}はどこかへ飛んだ！`);
+                if (kind === "item") claimShopItemIfOutside(target, dg, target.x, target.y, ml, p);
               }
             }
           }
@@ -1117,7 +1123,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (!dest) { ml.push("テレポートに失敗した。"); break; }
       if (kind === "monster") { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへテレポートした！`); }
       if (kind === "player")  { p.x = dest.x; p.y = dest.y; ml.push("テレポートした！"); }
-      if (kind === "item")    { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへ飛んだ！`); }
+      if (kind === "item") {
+        target.x = dest.x; target.y = dest.y;
+        ml.push(`${target.name}はどこかへ飛んだ！`);
+        claimShopItemIfOutside(target, dg, target.x, target.y, ml, p);
+      }
       break;
     }
     case "paralyze": {
