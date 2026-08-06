@@ -135,7 +135,10 @@ export const PORTRAIT_CATEGORIES = [
     slots: [
       { file: "stand_normal", label: "通常", group: "hp_full" },
       { file: "stand_equipped", label: "装備", group: "hp_full" },
-      { file: "stand_light_armor", label: "軽装備", group: "hp_full" },
+      /* 革の鎧・腹持ちの胴装備時の待機のみ（idleStandKey） */
+      { file: "stand_light_armor", label: "軽装備（革・腹持ち）", group: "stand_light_armor" },
+      /* 防具未装備の待機のみ */
+      { file: "stand_unarmored", label: "未装備（下着）", group: "stand_unarmored" },
       { file: "stand_walk", label: "歩行", group: "walk" },
       { file: "stand_advance", label: "前進", group: "walk" },
       { file: "battle_dash", label: "ダッシュ", group: "dash" },

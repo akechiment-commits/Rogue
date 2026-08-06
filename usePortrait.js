@@ -6,6 +6,7 @@ import {
   PORTRAIT_WALK_STEPS_MIN,
   PORTRAIT_WALK_STEPS_JITTER,
   pickPortrait,
+  idleStandKey,
   resolvePortraitEvent,
   snapshotPlayer,
 } from "./portraits.js";
@@ -64,9 +65,7 @@ export function usePortrait({
     portraitCooldownRef.current = 0;
     heldStatusKeyRef.current = null;
     if (gs?.player) {
-      setPortraitSrc(pickPortrait(
-        gs.player.hp / gs.player.maxHp <= 0.25 ? "hp_low" : "hp_full",
-      ));
+      setPortraitSrc(pickPortrait(idleStandKey(gs.player)));
     }
   }, [gs, setPortraitSrc]);
 
@@ -155,13 +154,8 @@ export function usePortrait({
 
     walkStepRef.current = 0;
 
-    /* 立ち止まっているとき：瀕死はピンチ、それ以外は通常立ち絵群（stand_normal 等）へ戻す
-     * 歩行・ダッシュ立ち絵が張り付き、通常が出ないのを防ぐ */
-    if (isLow) {
-      forcePortrait("hp_low");
-    } else {
-      tryPortrait("hp_full");
-    }
+    /* 立ち止まっているとき：装備に応じた待機立ち絵へ戻す（歩行・ダッシュの張り付き防止） */
+    tryPortrait(idleStandKey(p));
   }, [gs, setPortraitSrc, tryPortrait, forcePortrait]);
 
   return { pauseDynamic, resumeDynamic };

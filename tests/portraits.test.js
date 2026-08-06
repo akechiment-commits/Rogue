@@ -22,6 +22,8 @@ import {
   isDrownDeath,
   resolvePortraitEvent,
   hpKey,
+  idleStandKey,
+  isLightArmorStand,
   PORTRAIT_SETS,
 } from "../portraits.js";
 
@@ -282,6 +284,33 @@ describe("portraits", () => {
     expect(hpKey({ hp: 10, maxHp: 100 })).toBe("hp_low");
     expect(hpKey({ hp: 50, maxHp: 100 })).toBe("hp_mid");
     expect(hpKey({ hp: 90, maxHp: 100 })).toBe("hp_full");
+  });
+
+  it("idleStandKey が防具で待機立ち絵を分岐する", () => {
+    expect(isLightArmorStand({ name: "革の鎧" })).toBe(true);
+    expect(isLightArmorStand({ name: "腹持ちの胴" })).toBe(true);
+    expect(isLightArmorStand({ name: "プレートメイル" })).toBe(false);
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: null })).toBe("stand_unarmored");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "革の鎧" } })).toBe("stand_light_armor");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "腹持ちの胴" } })).toBe("stand_light_armor");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "プレートメイル" } })).toBe("hp_full");
+    expect(idleStandKey({ hp: 10, maxHp: 100, armor: null })).toBe("hp_low");
+  });
+
+  it("防具を外すと未装備立ち絵になる", () => {
+    const player = {
+      hp: 90, maxHp: 100, x: 5, y: 5, level: 3, armor: null,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const prev = {
+      ...player,
+      armorId: "leather-1",
+      weaponId: null,
+      ringIds: [],
+    };
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "革の鎧を外した。" });
+    expect(event.src).toMatch(/stand_unarmored/);
   });
 
   it("MP復活は大回復立ち絵にせずピンチ専用へ", () => {

@@ -37,6 +37,10 @@ describe("portraitCatalog", () => {
     expect(sets.status_soaked).toEqual(["status_soaked"]);
     expect(sets.status_bound).toEqual(["status_bound"]);
     expect(sets.status_confined).toEqual(["status_confined"]);
+    expect(sets.stand_light_armor).toEqual(["stand_light_armor"]);
+    expect(sets.stand_unarmored).toEqual(["stand_unarmored"]);
+    expect(sets.hp_full).not.toContain("stand_light_armor");
+    expect(sets.hp_full).not.toContain("stand_unarmored");
   });
 
   it("状態異常に拘束・閉じ込めスロットがある", () => {

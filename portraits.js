@@ -31,6 +31,28 @@ export function hpKey(p) {
   return "hp_full";
 }
 
+/** 軽装備立ち絵を出す防具名（革の鎧・腹持ちの胴） */
+export const LIGHT_ARMOR_STAND_NAMES = new Set(["革の鎧", "腹持ちの胴"]);
+
+export function isLightArmorStand(armor) {
+  if (!armor) return false;
+  return LIGHT_ARMOR_STAND_NAMES.has(armor.name);
+}
+
+/**
+ * 待機時の立ち絵グループ。
+ * HP満タン寄りのみ装備で分岐：未装備→下着、革/腹持ち→軽装、その他→通常装備群。
+ */
+export function idleStandKey(p) {
+  if (!p) return "hp_full";
+  const r = (p.hp ?? 0) / Math.max(1, p.maxHp ?? 1);
+  if (r <= 0.25) return "hp_low";
+  if (r <= 0.6) return "hp_mid";
+  if (!p.armor) return "stand_unarmored";
+  if (isLightArmorStand(p.armor)) return "stand_light_armor";
+  return "hp_full";
+}
+
 /** プレイヤーの近接攻撃メッセージか（モンスターの「の攻撃！」は除外）
  *  武器未装備なら attack_unarmed、装備中なら attack
  *  player 省略時は attack（ダメージ判定用）
@@ -426,7 +448,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return { src: pickDeathPortrait(p.deathCause), cooldownUntil: now + 99999, force: true };
   }
   if (!prev) {
-    return { src: pickPortrait(hpKey(p)), cooldownUntil: now, force: true };
+    return { src: pickPortrait(idleStandKey(p)), cooldownUntil: now, force: true };
   }
 
   const isLow = p.hp / p.maxHp <= 0.25;
@@ -492,6 +514,10 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const equipKey = detectEquipChange(p, prev);
   if (equipKey) {
     return portraitEvent(equipKey, now);
+  }
+  /* 防具を外した直後は未装備（下着）待機へ */
+  if ((prev.armorId ?? null) && !p.armor) {
+    return portraitEvent("stand_unarmored", now);
   }
 
   if (findMsgInNew(newMsgs, lastMsg, isCursedAcquireMsg)) {
