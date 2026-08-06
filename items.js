@@ -25,6 +25,7 @@ import {
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
+import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -4075,6 +4076,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     return { x, y, consumed: false, blocked: true };
   }
   let cx = x, cy = y;
+  const _isFloorObj = kind === "trap" || kind === "vent" || kind === "pentacle";
   for (let i = 0; i < dist; i++) {
     const nx = cx + dx, ny = cy + dy;
     if (nx < 0 || nx >= MW || ny < 0 || ny >= MH || dg.map[ny][nx] === T.WALL || dg.map[ny][nx] === T.BWALL) {
@@ -4093,6 +4095,20 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
         entity.x = nx; entity.y = ny;
         return { x: nx, y: ny, hitMonster: _trapM };
       }
+    }
+    /* 風穴・魔方陣：キャラに乗せず手前で止まる */
+    if ((kind === "vent" || kind === "pentacle") &&
+        ((p && p.x === nx && p.y === ny) || monsterAt(dg, nx, ny))) {
+      break;
+    }
+    /* 床物体：他オブジェクトと重ならない手前で止まる */
+    if (_isFloorObj && isFloorOccupancyBlocked(dg, nx, ny, {
+      ignore: entity,
+      p,
+      allowPlayer: kind === "trap", /* 罠のみ着弾で命中処理（上で既に処理） */
+      allowMonster: kind === "trap",
+    })) {
+      break;
     }
     /* kind === "item" は throwItemAlongLine() に移行済み（呼び出し側で直接呼ぶ） */
     if (kind === "monster") {
@@ -4133,7 +4149,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     cx = nx; cy = ny;
   }
   if (kind === "monster" || kind === "player") { entity.x = cx; entity.y = cy; }
-  else if (kind === "trap") { entity.x = cx; entity.y = cy; }
+  else if (_isFloorObj) { entity.x = cx; entity.y = cy; }
   return { x:cx, y:cy, consumed:false };
 }
 
