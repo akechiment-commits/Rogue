@@ -13,7 +13,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
-import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel } from "./floorInventory.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -447,6 +447,24 @@ export function useKeyHandler({
           if (_role2 === "trap") {
             return [
               { label: "踏む", fn: () => invActRef.current?.floorTrap?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "stair") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorStair?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "bigbox") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorBigbox?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "spring") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorSpring?.(entry) },
               _descAct,
             ];
           }

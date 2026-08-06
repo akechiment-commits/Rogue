@@ -10,7 +10,7 @@ import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
-import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel } from "./floorInventory.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -2894,7 +2894,7 @@ export function InventoryModal({
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
   containerRef, penMergeMode,
-  doFloorPickup, doFloorTrap, doFloorItemAction, doFloorOpenPutMode, doFloorPen, doFloorWaveWand,
+  doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorItemAction, doFloorOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
@@ -2913,12 +2913,25 @@ export function InventoryModal({
   const _isFloorPg = _hasFl && invPage === _invTotalPg;
   const _getFloorActs = (entry) => {
     const _role = floorEntryRole(entry, _flItems, _flTraps);
+    const _descAct = { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) };
     if (_role === "trap") return [
       { label: "踏む", fn: () => doFloorTrap?.(entry) },
-      { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) },
+      _descAct,
+    ];
+    if (_role === "stair") return [
+      { label: floorUseLabel(entry, p), fn: () => doFloorStair?.(entry) },
+      _descAct,
+    ];
+    if (_role === "bigbox") return [
+      { label: floorUseLabel(entry, p), fn: () => doFloorBigbox?.(entry) },
+      _descAct,
+    ];
+    if (_role === "spring") return [
+      { label: floorUseLabel(entry, p), fn: () => doFloorSpring?.(entry) },
+      _descAct,
     ];
     if (FLOOR_INFO_ROLES.has(_role)) return [
-      { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) },
+      _descAct,
     ];
     const _isEquipType = ["weapon","armor","arrow","ring"].includes(entry.type);
     const a = [{ label: "拾う", fn: () => doFloorPickup?.(entry) }];

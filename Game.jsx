@@ -1900,7 +1900,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (debugSpellModeRef.current) return;
       if (shopModeRef.current) return;
       if (throwMode !== null && type !== "inventory") return;
-      if (showInv && type !== "inventory") return;
+      /* 足元ページから階段使用するときは inventory を閉じつつ stairs_* を通す */
+      if (showInv && type !== "inventory" && type !== "stairs_down" && type !== "stairs_up") return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       let acted = false;
@@ -4554,6 +4555,38 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     sr.current = { ...sr.current }; setGs({ ...sr.current });
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null);
   };
+  /** 足元ページから階段を使う（F/interact と同じ） */
+  const _doFloorStair = (stair) => {
+    setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
+    if (stair?.stairDir === "up") act("stairs_up");
+    else act("stairs_down");
+  };
+  /** 足元ページから大箱を調べる */
+  const _doFloorBigbox = (bbEntry) => {
+    const s = sr.current; if (!s) return;
+    const _dg = s.dungeon;
+    const bb = _dg.bigboxes?.find((b) =>
+      (bbEntry.id != null && b.id === bbEntry.id) || (b.x === bbEntry.x && b.y === bbEntry.y)
+    ) || bbEntry;
+    bigboxRef.current = bb;
+    setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
+    setBigboxMode("menu"); setBigboxMenuSel(0);
+    setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb, s, bb.revealed === true || !!s.allBcKnown)}がある。どうする？`]);
+    sr.current = { ...s }; setGs({ ...sr.current });
+  };
+  /** 足元ページから泉を使う */
+  const _doFloorSpring = (sprEntry) => {
+    const s = sr.current; if (!s) return;
+    const _dg = s.dungeon;
+    const spr = _dg.springs?.find((sp) =>
+      (sprEntry.id != null && sp.id === sprEntry.id) || (sp.x === sprEntry.x && sp.y === sprEntry.y)
+    ) || sprEntry;
+    springTargetRef.current = spr;
+    setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
+    setSpringMode("menu"); setSpringMenuSel(0);
+    setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
+    sr.current = { ...s }; setGs({ ...sr.current });
+  };
   const _chargeShopFloorItem = (item, _p, _dg, s) => {
     if (!item.shopPrice) return;
     if (item.charges != null) item._origCharges = item._origCharges ?? item.charges;
@@ -4668,7 +4701,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       setShowDesc(null);
     }
   };
-  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
+  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
   /* fixtures.js 等（render 循環回避）から未識別名でメッセージを出す用 */
   globalThis.__rogueItemNameFn = (it) =>
     itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -5467,6 +5500,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                             if (_fRole3 === "trap") {
                               _fns3.push(() => invActRef.current?.floorTrap?.(_fle3));
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
+                            } else if (_fRole3 === "stair") {
+                              _fns3.push(() => invActRef.current?.floorStair?.(_fle3));
+                              _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
+                            } else if (_fRole3 === "bigbox") {
+                              _fns3.push(() => invActRef.current?.floorBigbox?.(_fle3));
+                              _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
+                            } else if (_fRole3 === "spring") {
+                              _fns3.push(() => invActRef.current?.floorSpring?.(_fle3));
+                              _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else if (FLOOR_INFO_ROLES.has(_fRole3)) {
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else {
@@ -5663,7 +5705,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <WishModal mode={wishMode} setMode={setWishMode} onConfirm={confirmWish} onCancel={cancelWish} mobile={mobile} />{" "}
-      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
+      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
       <GameOverModal dead={dead} p={p} gameOverSel={gameOverSel} setShowScores={setShowScores} init={init} mobile={mobile} onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined} />
       <EndingModal show={showEnding} p={p} endingResult={endingResult} mobile={mobile} onDismiss={() => { setShowEnding(false); if (onReturnToHub && endingResult) onReturnToHub(endingResult); }} />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />

@@ -4,10 +4,12 @@ import {
   floorEntryRole,
   floorEntryLabel,
   floorEntryActionCount,
+  floorUseLabel,
   isPentacleIdentified,
   PENTACLE_UNKNOWN_DESC,
   PENTACLE_FLOOR_DESCS,
   FLOOR_INFO_ROLES,
+  FLOOR_USABLE_ROLES,
 } from "../floorInventory.js";
 
 describe("pentacle identification / desc", () => {
@@ -85,6 +87,21 @@ describe("labels and action counts", () => {
     expect(floorEntryLabel(pent, [], [])).toBe("【魔方陣】聖域の魔方陣");
     expect(floorEntryActionCount(pent, [], [])).toBe(1);
     expect(FLOOR_INFO_ROLES.has("pentacle")).toBe(true);
+    expect(FLOOR_INFO_ROLES.has("stair")).toBe(false);
     expect(floorEntryRole(pent, [], [])).toBe("pentacle");
+  });
+
+  it("階段・大箱・泉は使用+説明の2アクション", () => {
+    expect(FLOOR_USABLE_ROLES.has("stair")).toBe(true);
+    expect(FLOOR_USABLE_ROLES.has("bigbox")).toBe(true);
+    expect(FLOOR_USABLE_ROLES.has("spring")).toBe(true);
+    expect(floorEntryActionCount({ _floorRole: "stair", stairDir: "down" }, [], [])).toBe(2);
+    expect(floorEntryActionCount({ _floorRole: "bigbox" }, [], [])).toBe(2);
+    expect(floorEntryActionCount({ _floorRole: "spring" }, [], [])).toBe(2);
+    expect(floorUseLabel({ _floorRole: "stair", stairDir: "down" })).toBe("降りる");
+    expect(floorUseLabel({ _floorRole: "stair", stairDir: "up" }, { depth: 1 })).toBe("出る");
+    expect(floorUseLabel({ _floorRole: "stair", stairDir: "up" }, { depth: 3 })).toBe("上る");
+    expect(floorUseLabel({ _floorRole: "bigbox" })).toBe("調べる");
+    expect(floorUseLabel({ _floorRole: "spring" })).toBe("使う");
   });
 });

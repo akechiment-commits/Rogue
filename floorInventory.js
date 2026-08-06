@@ -68,8 +68,11 @@ export const PENTACLE_FLOOR_DESCS = {
   fixed_portal: FIXED_PORTAL_FLOOR_DESC,
 };
 
-/** 説明のみ（踏む・拾うなし）の足元ロール */
-export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle", "spring", "bigbox", "stair"]);
+/** 説明のみ（踏む・使うなし）の足元ロール */
+export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle"]);
+
+/** 足元から「使う／降りる等」できるロール（説明と合わせて2アクション） */
+export const FLOOR_USABLE_ROLES = new Set(["spring", "bigbox", "stair"]);
 
 /**
  * 魔方陣が識別済みか。
@@ -199,10 +202,30 @@ export function floorEntryLabel(entry, items, traps, itemLabelFn) {
   return entry.name || "？";
 }
 
+/**
+ * 足元フィクスチャの主アクションラベル（踏む／使う／降りるなど）。
+ * @param {object} entry
+ * @param {{ depth?: number }} [player]
+ */
+export function floorUseLabel(entry, player) {
+  const role = entry?._floorRole || entry?.type;
+  if (role === "trap") return "踏む";
+  if (role === "spring") return "使う";
+  if (role === "bigbox") return "調べる";
+  if (role === "stair") {
+    if (entry.stairDir === "up") {
+      return player?.depth === 1 ? "出る" : "上る";
+    }
+    return "降りる";
+  }
+  return "使う";
+}
+
 /** 足元ページのアクション数（キーボード左右用） */
 export function floorEntryActionCount(entry, items, traps, canUseFn) {
   const role = floorEntryRole(entry, items, traps);
   if (role === "trap") return 2; /* 踏む + 説明 */
+  if (FLOOR_USABLE_ROLES.has(role)) return 2; /* 使う/調べる/階段 + 説明 */
   if (FLOOR_INFO_ROLES.has(role)) return 1; /* 説明のみ */
   if (role !== "item") return 1;
   let n = 1; /* 拾う */
