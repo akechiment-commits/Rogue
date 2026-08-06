@@ -644,4 +644,44 @@ describe("portraits", () => {
     expect(event.src).toMatch(/damage_explosion/);
     expect(event.force).toBe(true);
   });
+
+  it("雷撃・雷の魔方陣・炎の杖/薬の自分被ダメを属性立ち絵にする", () => {
+    expect(isPlayerDamageMsg("雷撃が自分に命中！25ダメージ！")).toBe(true);
+    expect(msgToDamageKey("雷撃が自分に命中！25ダメージ！")).toBe("damage_lightning");
+    expect(isPlayerDamageMsg("雷の魔方陣に打たれた！25ダメージ！")).toBe(true);
+    expect(msgToDamageKey("雷の魔方陣に打たれた！25ダメージ！")).toBe("damage_lightning");
+    expect(isPlayerDamageMsg("炎の弾が自分に命中！20ダメージ！")).toBe(true);
+    expect(msgToDamageKey("炎の弾が自分に命中！20ダメージ！")).toBe("damage_fire");
+    expect(isPlayerDamageMsg("炎の薬を飲んだ。体が燃えるように熱い！15ダメージ！")).toBe(true);
+    expect(msgToDamageKey("炎の薬を飲んだ。体が燃えるように熱い！15ダメージ！")).toBe("damage_fire");
+
+    const base = {
+      maxHp: 100, hunger: 50, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0,
+      darknessTurns: 0, oilyTurns: 0,
+    };
+    const thunder = resolvePortraitEvent({
+      player: { ...base, hp: 70 },
+      prev: { ...base, hp: 95 },
+      lastMsg: "雷の魔方陣に打たれた！25ダメージ！",
+      newMsgs: ["足元に雷の魔方陣を描いた！(残り1回)", "雷の魔方陣に打たれた！25ダメージ！"],
+    });
+    expect(thunder.src).toMatch(/damage_lightning/);
+
+    const fireWand = resolvePortraitEvent({
+      player: { ...base, hp: 70 },
+      prev: { ...base, hp: 90 },
+      lastMsg: "炎の弾が自分に命中！20ダメージ！",
+      newMsgs: ["炎の杖を振った！(残り3)", "炎の弾が自分に命中！20ダメージ！"],
+    });
+    expect(fireWand.src).toMatch(/damage_fire/);
+
+    const firePot = resolvePortraitEvent({
+      player: { ...base, hp: 80 },
+      prev: { ...base, hp: 95 },
+      lastMsg: "炎の薬を飲んだ。体が燃えるように熱い！15ダメージ！",
+      newMsgs: ["炎の薬を飲んだ。体が燃えるように熱い！15ダメージ！"],
+    });
+    expect(firePot.src).toMatch(/damage_fire/);
+  });
 });

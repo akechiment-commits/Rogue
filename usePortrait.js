@@ -155,8 +155,12 @@ export function usePortrait({
 
     walkStepRef.current = 0;
 
+    /* 立ち止まっているとき：瀕死はピンチ、それ以外は通常立ち絵群（stand_normal 等）へ戻す
+     * 歩行・ダッシュ立ち絵が張り付き、通常が出ないのを防ぐ */
     if (isLow) {
       forcePortrait("hp_low");
+    } else {
+      tryPortrait("hp_full");
     }
   }, [gs, setPortraitSrc, tryPortrait, forcePortrait]);
 

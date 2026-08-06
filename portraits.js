@@ -156,6 +156,15 @@ export function isPlayerDamageMsg(msg, playerName) {
   if (/呪いのエネルギーが爆発した！\d+ダメージ！/.test(msg)) return true;
   if (/^(矢の罠の矢|毒矢)が命中！\d+ダメージ！/.test(msg)) return true;
   if (/骨が自分に激突！/.test(msg)) return true;
+  /* 杖・魔法弾の自分ヒット（「Xに命中」汎用が 自分に を除外するため個別） */
+  if (/自分に命中！/.test(msg) && /ダメージ/.test(msg)) return true;
+  if (/雷撃が命中！/.test(msg)) return true;
+  if (/に打たれた！\d+ダメージ/.test(msg)) return true; /* 雷の魔方陣など */
+  if (/体が燃えるように熱い！/.test(msg)) return true; /* 炎の薬 */
+  if (/ゴッドスパーク炸裂！自分に/.test(msg)) return true;
+  if (/呪われた雷が自分/.test(msg)) return true;
+  if (/呪われた炎が爆発した！/.test(msg)) return true;
+  if (/(炎|雷)の魔法が跳ね返ってきた！/.test(msg)) return true;
   /* 汎用パターン：第三者へのダメージ文（傷つけた・当たった等）は除外 */
   if (/^[^(]+！[1-9]\d*ダメージ！/.test(msg) && !/に/.test(msg.split("！")[0])) {
     if (/を傷つけ|を倒した|に当たった|に命中|回復力が/.test(msg)) return false;
@@ -183,8 +192,8 @@ export function findPlayerDamageMsg(newMsgs = [], lastMsg = "", playerName) {
 /** 被ダメージメッセージから立ち絵グループを判定 */
 export function msgToDamageKey(msg) {
   if (!msg) return "damage";
-  if (/氷|凍|氷ブレス|氷の魔法/.test(msg)) return "damage_ice";
-  if (/炎|火|炎ブレス|炎の魔法|引火|燃え移|油まみれに炎/.test(msg)) return "damage_fire";
+  if (/氷|凍|氷ブレス|氷の魔法|氷の弾/.test(msg)) return "damage_ice";
+  if (/炎|火|炎ブレス|炎の魔法|炎の弾|引火|燃え移|油まみれに炎|燃えるように熱い/.test(msg)) return "damage_fire";
   if (/毒矢|毒を浴び|毒.*ダメージ/.test(msg)) return "damage_poison";
   if (/矢|弓|跳ね返された.*矢|射撃の指輪/.test(msg)) return "damage_arrow";
   if (/石|魔法の石|岩が命中|岩が降/.test(msg)) return "damage_rock";
@@ -196,12 +205,25 @@ export function msgToDamageKey(msg) {
   if (/吹き飛|激突|壁に叩|壁に激突|ノッカー|挟まれ/.test(msg)) return "damage_knockback";
   /* 「風穴」を落下と誤認しないよう bare「穴」は使わない */
   if (/落下|奈落|底に落|落とし穴|穴に落ち/.test(msg)) return "damage_falling";
-  if (/雷の魔法|雷が.*ダメージ|呪われた雷|電撃|サンダー.*ダメージ/.test(msg)) return "damage_lightning";
+  /* 雷撃・魔方陣・巻物。打たれたは雷系メッセージ内だけ（近接の「打たれた」は下で heavy） */
+  if (/雷撃|雷の魔法|雷の魔方陣|呪われた雷|電撃|サンダー|ゴッドスパーク|雷が自分/.test(msg)) {
+    return "damage_lightning";
+  }
+  if (/に打たれた！/.test(msg) && /雷|魔方陣/.test(msg)) return "damage_lightning";
   /* 風で曲がった投擲の自分ヒットなど物理ヒット */
   if (/風に煽られ|自分に当た|飛び道具が自分/.test(msg)) return "damage_heavy";
   if (/痛恨|強打|の攻撃！|攻撃で|武器の反動|打たれた/.test(msg)) return "damage_heavy";
   return "damage";
 }
+
+/** 属性被ダメは杖・薬などの行動立ち絵より優先する */
+export const PRIORITY_DAMAGE_KEYS = new Set([
+  "damage_explosion",
+  "damage_fire",
+  "damage_lightning",
+  "damage_ice",
+  "damage_poison",
+]);
 
 export function pickDamagePortrait(msg, sets = PORTRAIT_SETS) {
   const key = msgToDamageKey(msg);
@@ -528,13 +550,12 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return portraitEvent("hp_hunger", now, { force: true });
   }
 
-  /* 自爆・大爆発などプレイヤーが爆発ダメージを受けた場合は、
-   * 後続の「壺が割れた」などの行動ログより爆発立ち絵を優先する */
+  /* 属性被ダメ（爆発・炎・雷・氷・毒）は杖・薬・壺割れなどの行動立ち絵より優先 */
   if (p.hp < prev.hp) {
-    const explosionDmgMsg = findPlayerDamageMsg(newMsgs, lastMsg, p?.playerName);
-    if (explosionDmgMsg && msgToDamageKey(explosionDmgMsg) === "damage_explosion") {
+    const priorityDmgMsg = findPlayerDamageMsg(newMsgs, lastMsg, p?.playerName);
+    if (priorityDmgMsg && PRIORITY_DAMAGE_KEYS.has(msgToDamageKey(priorityDmgMsg))) {
       return {
-        src: pickDamagePortrait(explosionDmgMsg),
+        src: pickDamagePortrait(priorityDmgMsg),
         cooldownUntil: now + PORTRAIT_DAMAGE_COOLDOWN_MS,
         force: true,
       };
