@@ -3033,6 +3033,7 @@ export function InventoryModal({
               : _fRole === "spring" ? "#6af"
               : _fRole === "bigbox" ? "#da8"
               : _fRole === "pentacle" ? "#ca8"
+              : _fRole === "stair" ? "#8a8"
               : "#aaa";
             return (
               <div key={entry.id || `${_fRole}-${j}`} onMouseEnter={() => setHoveredIdx(j)} onMouseLeave={() => setHoveredIdx(null)}

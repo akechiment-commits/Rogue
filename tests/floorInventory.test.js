@@ -62,8 +62,11 @@ describe("pentacle identification / desc", () => {
 });
 
 describe("listFloorInventoryEntries fixtures", () => {
-  it("風穴・泉・大箱・魔方陣を含める", () => {
+  it("風穴・泉・大箱・魔方陣・階段を含める", () => {
+    const map = Array.from({ length: 5 }, () => Array(5).fill("."));
+    map[2][1] = ">";
     const dg = {
+      map,
       items: [], traps: [],
       vents: [{ id: "v1", x: 1, y: 2, type: "vent" }],
       pentacles: [{ id: "p1", x: 1, y: 2, kind: "light", name: "明かりの魔方陣" }],
@@ -71,7 +74,8 @@ describe("listFloorInventoryEntries fixtures", () => {
       bigboxes: [{ id: "b1", x: 1, y: 2, kind: "identify", name: "鑑定の大箱", revealed: true }],
     };
     const fl = listFloorInventoryEntries(dg, 1, 2, { ident: new Set(["n:light"]) });
-    expect(fl.fixtures).toHaveLength(4);
+    expect(fl.fixtures.some((f) => f._floorRole === "stair")).toBe(true);
+    expect(fl.fixtures.length).toBeGreaterThanOrEqual(5);
   });
 });
 

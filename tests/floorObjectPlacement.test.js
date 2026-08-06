@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { T } from "../utils.js";
+/* T.SD / T.SU used for stair map updates */
 import {
   isFloorOccupancyBlocked,
   pickFreeFloorObjectCell,
   canStepFloorObjectTo,
+  stairRefAt,
+  moveStairTo,
+  pushStair,
 } from "../floorObjectPlacement.js";
 import { pushEntity } from "../items.js";
 
@@ -95,5 +99,31 @@ describe("canStepFloorObjectTo", () => {
     expect(canStepFloorObjectTo(dg, 3, 3, null, null)).toBe(true);
     dg.vents.push({ x: 3, y: 3 });
     expect(canStepFloorObjectTo(dg, 3, 3, null, null)).toBe(false);
+  });
+});
+
+describe("stairs", () => {
+  it("stairRefAt / moveStairTo がマップと stairDown を更新する", () => {
+    const dg = makeDg();
+    dg.map[5][2] = T.SD;
+    dg.stairDown = { x: 2, y: 5 };
+    const st = stairRefAt(dg, 2, 5);
+    expect(st.stairDir).toBe("down");
+    expect(moveStairTo(dg, st, 4, 5)).toBe(true);
+    expect(dg.map[5][2]).toBe(T.FLOOR);
+    expect(dg.map[5][4]).toBe(T.SD);
+    expect(dg.stairDown).toEqual({ x: 4, y: 5 });
+  });
+
+  it("階段はオブジェクト手前で止まる", () => {
+    const dg = makeDg();
+    dg.map[5][2] = T.SD;
+    dg.stairDown = { x: 2, y: 5 };
+    dg.items.push({ x: 6, y: 5, name: "薬" });
+    const st = stairRefAt(dg, 2, 5);
+    pushStair(dg, st, 1, 0, 10);
+    expect(st.x).toBe(5);
+    expect(dg.map[5][5]).toBe(T.SD);
+    expect(dg.map[5][2]).toBe(T.FLOOR);
   });
 });

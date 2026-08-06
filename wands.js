@@ -26,6 +26,9 @@ import {
   canStepFloorObjectTo,
   FLOOR_MOVE_KINDS,
   floorMoveLabel,
+  stairRefAt,
+  moveStairTo,
+  pushStair,
 } from './floorObjectPlacement.js';
 
 
@@ -575,6 +578,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         pushEntity(dg, target.x, target.y, dx, dy, d, ml, kind, target, p, luFn);
         break;
       }
+      if (kind === "stair") {
+        const _flName = floorMoveLabel(kind, target);
+        ml.push(`${_flName}が吹き飛んだ！`);
+        pushStair(dg, target, dx, dy, d);
+        break;
+      }
       break;
     }
     case "lightning": {
@@ -854,8 +863,20 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (kind === "trap" && target.permanent) { ml.push(`${_flName}は動かせない！`); break; }
         const [ox, oy] = [p.x, p.y];
         /* プレイヤーがいたマスに床物体を置けるか（プレイヤーは離れるので除外） */
-        if (isFloorOccupancyBlocked(dg, ox, oy, { ignore: target })) {
+        if (isFloorOccupancyBlocked(dg, ox, oy, { ignore: kind === "stair" ? null : target, allowPlayer: true, allowMonster: true })) {
           ml.push(`${_flName}を動かせなかった。`);
+          break;
+        }
+        /* 階段はマップタイル移動 */
+        if (kind === "stair") {
+          const fromX = target.x, fromY = target.y;
+          if (!moveStairTo(dg, target, ox, oy)) {
+            ml.push(`${_flName}を動かせなかった。`);
+            break;
+          }
+          p.x = fromX; p.y = fromY;
+          ml.push(`${_flName}と位置が入れ替わった！`);
+          if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
           break;
         }
         ml.push(`${_flName}と位置が入れ替わった！`);
@@ -912,9 +933,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _lpOy = kind === "player" ? p.y : target.y;
         if (FLOOR_MOVE_KINDS.has(kind)) {
           if (kind === "trap" && target.permanent) { ml.push(`${target.name}は動かせない！`); break; }
-          const _lpd = pickFreeFloorObjectCell(dg, target, p, _lpOx, _lpOy);
+          const _lpd = pickFreeFloorObjectCell(dg, kind === "stair" ? null : target, p, _lpOx, _lpOy);
           if (!_lpd) { ml.push("テレポートに失敗した。"); break; }
-          target.x = _lpd.x; target.y = _lpd.y;
+          if (kind === "stair") {
+            if (!moveStairTo(dg, target, _lpd.x, _lpd.y)) { ml.push("テレポートに失敗した。"); break; }
+          } else {
+            target.x = _lpd.x; target.y = _lpd.y;
+          }
           ml.push(`${floorMoveLabel(kind, target)}はどこかへ飛んだ！【呪】`);
           break;
         }
@@ -937,8 +962,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (FLOOR_MOVE_KINDS.has(kind)) {
           if (kind === "trap" && target.permanent) { ml.push(`${target.name}は動かせない！`); break; }
           const _w1x = target.x + dx, _w1y = target.y + dy;
-          if (canStepFloorObjectTo(dg, _w1x, _w1y, target, p)) {
-            target.x = _w1x; target.y = _w1y;
+          if (canStepFloorObjectTo(dg, _w1x, _w1y, kind === "stair" ? null : target, p)) {
+            if (kind === "stair") {
+              if (!moveStairTo(dg, target, _w1x, _w1y)) { ml.push("テレポートに失敗した。"); break; }
+            } else {
+              target.x = _w1x; target.y = _w1y;
+            }
             ml.push(`${floorMoveLabel(kind, target)}が少し移動した。`);
           } else {
             ml.push("テレポートに失敗した。");
@@ -1031,11 +1060,22 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             const _flName = floorMoveLabel(kind, target);
             if (_wbAdj.length > 0) {
               const _wd = pick(_wbAdj);
-              target.x = _wd.x; target.y = _wd.y;
+              if (kind === "stair") {
+                if (!moveStairTo(dg, target, _wd.x, _wd.y)) { ml.push("テレポートに失敗した。"); break; }
+              } else {
+                target.x = _wd.x; target.y = _wd.y;
+              }
               ml.push(`${kind === "item" ? target.name : _flName}は階段の隣に飛んだ！`);
             } else if (FLOOR_MOVE_KINDS.has(kind)) {
-              const _wd2 = pickFreeFloorObjectCell(dg, target, p, target.x, target.y);
-              if (_wd2) { target.x = _wd2.x; target.y = _wd2.y; ml.push(`${_flName}はどこかへ飛んだ！`); }
+              const _wd2 = pickFreeFloorObjectCell(dg, kind === "stair" ? null : target, p, target.x, target.y);
+              if (_wd2) {
+                if (kind === "stair") {
+                  if (!moveStairTo(dg, target, _wd2.x, _wd2.y)) { ml.push("テレポートに失敗した。"); break; }
+                } else {
+                  target.x = _wd2.x; target.y = _wd2.y;
+                }
+                ml.push(`${_flName}はどこかへ飛んだ！`);
+              }
               else ml.push("テレポートに失敗した。");
             } else {
               const _wf = [];
@@ -1060,9 +1100,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _warpOy = kind === "player" ? p.y : target.y;
       if (FLOOR_MOVE_KINDS.has(kind)) {
         if (kind === "trap" && target.permanent) { ml.push(`${target.name}は動かせない！`); break; }
-        const dest = pickFreeFloorObjectCell(dg, target, p, _warpOx, _warpOy);
+        const dest = pickFreeFloorObjectCell(dg, kind === "stair" ? null : target, p, _warpOx, _warpOy);
         if (!dest) { ml.push("テレポートに失敗した。"); break; }
-        target.x = dest.x; target.y = dest.y;
+        if (kind === "stair") {
+          if (!moveStairTo(dg, target, dest.x, dest.y)) { ml.push("テレポートに失敗した。"); break; }
+        } else {
+          target.x = dest.x; target.y = dest.y;
+        }
         ml.push(`${floorMoveLabel(kind, target)}はどこかへ飛んだ！`);
         break;
       }
@@ -1901,6 +1945,17 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         return;
       }
       applyWandEffect(eff, "pentacle", pent, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
+      return;
+    }
+    const stairHit = stairRefAt(dg, tx, ty);
+    if (stairHit) {
+      if (eff === "leap" && blMult >= 1) {
+        p.x = lastX; p.y = lastY;
+        if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+        ml.push(`${stairHit.name}の前に飛びついた！`);
+        return;
+      }
+      applyWandEffect(eff, "stair", stairHit, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);

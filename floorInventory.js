@@ -4,6 +4,7 @@
  */
 
 import { BB_TYPES } from "./items.js";
+import { stairRefAt } from "./floorObjectPlacement.js";
 
 export const VENT_FLOOR_DESC =
   "一定範囲の物理飛び道具（投擲・矢・石・ブレスなど）の向きを風向きに変える。杖や魔法弾は曲がらない。";
@@ -68,7 +69,7 @@ export const PENTACLE_FLOOR_DESCS = {
 };
 
 /** 説明のみ（踏む・拾うなし）の足元ロール */
-export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle", "spring", "bigbox"]);
+export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle", "spring", "bigbox", "stair"]);
 
 /**
  * 魔方陣が識別済みか。
@@ -163,7 +164,11 @@ export function listFloorInventoryEntries(dungeon, x, y, opts = {}) {
       };
     });
 
-  const fixtures = [...vents, ...pentacles, ...springs, ...bigboxes];
+  const stairs = [];
+  const stair = stairRefAt(dungeon, x, y);
+  if (stair) stairs.push(stair);
+
+  const fixtures = [...vents, ...pentacles, ...springs, ...bigboxes, ...stairs];
   return {
     items,
     traps,
@@ -190,6 +195,7 @@ export function floorEntryLabel(entry, items, traps, itemLabelFn) {
   if (role === "pentacle") return `【魔方陣】${entry.name || "魔方陣"}`;
   if (role === "spring") return `【泉】${entry.name || "泉"}`;
   if (role === "bigbox") return `【大箱】${entry.name || "大箱"}`;
+  if (role === "stair") return `【階段】${entry.name || "階段"}`;
   return entry.name || "？";
 }
 
