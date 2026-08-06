@@ -10,7 +10,7 @@ import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
-import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -2917,10 +2917,13 @@ export function InventoryModal({
   const _getFloorActs = (entry) => {
     const _role = floorEntryRole(entry, _flItems, _flTraps);
     const _descAct = { label: "説明", fn: () => setShowDesc(10000 + _flAll.indexOf(entry)) };
-    if (_role === "trap") return [
-      { label: "踏む", fn: () => doFloorTrap?.(entry) },
-      _descAct,
-    ];
+    if (_role === "trap") {
+      if (isNonSteppableFloorTrap(entry)) return [_descAct]; /* 骨：説明のみ */
+      return [
+        { label: "踏む", fn: () => doFloorTrap?.(entry) },
+        _descAct,
+      ];
+    }
     if (_role === "stair") return [
       { label: floorUseLabel(entry, p), fn: () => doFloorStair?.(entry) },
       _descAct,
@@ -3081,6 +3084,7 @@ export function InventoryModal({
                       <div style={{ background: "#18182a", border: "1px solid #3a3a5a", borderRadius: 5, padding: "8px 10px", color: "#aab", fontSize: 13, lineHeight: "1.5em", marginTop: 4, maxWidth: mobile ? "100%" : "calc(100% - 230px)", boxSizing: "border-box" }}>
                         <div style={{ fontWeight: "bold", marginBottom: 4, fontSize: 14 }}>{_fLabel}</div>
                         <div style={ITEM_DESC_TEXT_STYLE}>{(() => {
+                          if (_fRole === "trap") return formatItemDesc(floorTrapDesc(entry) || entry.desc);
                           if (_fRole !== "item") return formatItemDesc(entry.desc);
                           const _kk = getIdentKey(entry);
                           return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : formatItemDesc(entry.desc);

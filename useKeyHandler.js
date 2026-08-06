@@ -13,7 +13,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
-import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -445,6 +445,7 @@ export function useKeyHandler({
           const _j2 = _flAll2.indexOf(entry);
           const _descAct = { label: "説明", fn: () => setShowDesc((p) => (p === 10000 + _j2 ? null : 10000 + _j2)) };
           if (_role2 === "trap") {
+            if (isNonSteppableFloorTrap(entry)) return [_descAct];
             return [
               { label: "踏む", fn: () => invActRef.current?.floorTrap?.(entry) },
               _descAct,

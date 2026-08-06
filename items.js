@@ -3928,6 +3928,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
         id: uid(), name: "骨", effect: "bone", tile: 107,
         x: _bx, y: _by, revealed: true, permanent: false,
         reviveIn: 5,
+        desc: `倒れた${mon.name}の骨。あと5ターンで復活するかもしれない。踏んでも何も起きない。`,
         monData: { baseKind: mon.baseKind, name: mon.name, hp: mon.maxHp, maxHp: mon.maxHp,
           atk: mon.atk, def: mon.def, exp: mon.exp, speed: mon.speed ?? 1, tile: mon.tile,
           kind: mon.kind, monLevel: mon.monLevel || 1, levels: mon.levels }

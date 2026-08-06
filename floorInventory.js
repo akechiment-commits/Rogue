@@ -74,6 +74,34 @@ export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle"]);
 /** 足元から「使う／降りる等」できるロール（説明と合わせて2アクション） */
 export const FLOOR_USABLE_ROLES = new Set(["spring", "bigbox", "stair"]);
 
+/** スケルトンの骨（罠扱いだが踏んでも発動しない） */
+export const BONE_FLOOR_DESC =
+  "倒れたスケルトンの骨。数ターン後に復活することがある。踏んでも何も起きない。";
+
+/** 足元で「踏む」できない罠（骨など） */
+export function isNonSteppableFloorTrap(entry) {
+  return entry?.effect === "bone";
+}
+
+/** 足元の罠・フィクスチャの説明文 */
+export function floorTrapDesc(entry) {
+  if (!entry) return null;
+  if (entry.effect === "bone") {
+    const monName = entry.monData?.name;
+    let d = monName ? `倒れた${monName}の骨。` : "倒れたスケルトンの骨。";
+    if (typeof entry.reviveIn === "number" && entry.reviveIn >= 0) {
+      d += entry.reviveIn === 0
+        ? "まもなく復活しそうだ。"
+        : `あと${entry.reviveIn}ターンで復活するかもしれない。`;
+    } else {
+      d += "数ターン後に復活するかもしれない。";
+    }
+    d += "踏んでも何も起きない。";
+    return d;
+  }
+  return entry.desc || null;
+}
+
 /**
  * 魔方陣が識別済みか。
  * 未識別ペンで描いた場合 penIK が付き、ident にそのキーが無い間は未識別。
@@ -224,7 +252,10 @@ export function floorUseLabel(entry, player) {
 /** 足元ページのアクション数（キーボード左右用） */
 export function floorEntryActionCount(entry, items, traps, canUseFn) {
   const role = floorEntryRole(entry, items, traps);
-  if (role === "trap") return 2; /* 踏む + 説明 */
+  if (role === "trap") {
+    if (isNonSteppableFloorTrap(entry)) return 1; /* 骨など：説明のみ */
+    return 2; /* 踏む + 説明 */
+  }
   if (FLOOR_USABLE_ROLES.has(role)) return 2; /* 使う/調べる/階段 + 説明 */
   if (FLOOR_INFO_ROLES.has(role)) return 1; /* 説明のみ */
   if (role !== "item") return 1;

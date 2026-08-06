@@ -66,7 +66,7 @@ import {
 import { pl, setActivePlayerName } from "./playerLabel.js";
 import { buildRunResultExtras } from "./runScore.js";
 import { createRunTimer } from "./runTimer.js";
-import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES } from "./floorInventory.js";
+import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 
@@ -5531,7 +5531,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                           if (invMenuSel !== null) {
                             const _fns3 = [];
                             if (_fRole3 === "trap") {
-                              _fns3.push(() => invActRef.current?.floorTrap?.(_fle3));
+                              if (!isNonSteppableFloorTrap(_fle3)) {
+                                _fns3.push(() => invActRef.current?.floorTrap?.(_fle3));
+                              }
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else if (_fRole3 === "stair") {
                               _fns3.push(() => invActRef.current?.floorStair?.(_fle3));
