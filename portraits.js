@@ -1,5 +1,6 @@
 import extraSlotsJson from "./portrait-extra-slots.json";
 import { buildPortraitSets, mergePortraitCategories } from "./portraitCatalog.js";
+import { getActivePlayerName, playerTargetAlt } from "./playerLabel.js";
 
 const MERGED_PORTRAIT_CATEGORIES = mergePortraitCategories(extraSlotsJson.slots || []);
 
@@ -88,8 +89,15 @@ export function msgToActionKey(msg, recentMsgs = []) {
   return null;
 }
 
+/** プレイヤー対象ヒット（「Xに命中」系）か */
+function isPlayerTargetHitMsg(msg, playerName) {
+  if (!msg) return false;
+  const alt = playerTargetAlt(playerName ?? getActivePlayerName());
+  return new RegExp(`(?:${alt})に(命中|激突|当た|ホーミング命中)`).test(msg);
+}
+
 /** モンスターがダメージを受けたログか（プレイヤー被ダメと区別） */
-export function isMonsterDamageMsg(msg) {
+export function isMonsterDamageMsg(msg, playerName) {
   if (!msg) return false;
   if (msgToMeleeAttackKey(msg)) return true;
   if (/毒に侵された.+は\d+ダメージ！/.test(msg)) return true;
@@ -100,20 +108,21 @@ export function isMonsterDamageMsg(msg) {
   if (/.+の(炎|氷)ブレスが.+に命中！/.test(msg)) return true;
   /* 回復魔方陣がアンデッドを傷つける等 */
   if (/を傷つけた！\d+ダメージ/.test(msg)) return true;
-  if (/が.+に当たった！\d+ダメージ/.test(msg) && !/プレイヤーに|自分に/.test(msg)) return true;
-  if (/プレイヤーに(命中|激突|当た)/.test(msg)) return false;
+  if (isPlayerTargetHitMsg(msg, playerName)) return false;
+  const alt = playerTargetAlt(playerName ?? getActivePlayerName());
+  if (/が.+に当たった！\d+ダメージ/.test(msg) && !new RegExp(`(?:${alt})に`).test(msg)) return true;
   if (/が.+に命中！\d+ダメージ！/.test(msg)) return true;
-  if (/に命中！\d+ダメージ！/.test(msg) && !/プレイヤーに/.test(msg)) return true;
+  if (/に命中！\d+ダメージ！/.test(msg) && !new RegExp(`(?:${alt})に命中`).test(msg)) return true;
   if (/に\d+ダメージ！/.test(msg) && !/の攻撃！/.test(msg) && !/お互いに/.test(msg)) return true;
   return false;
 }
 
 /** プレイヤーがダメージを受けたログか */
-export function isPlayerDamageMsg(msg) {
-  if (!msg || isMonsterDamageMsg(msg)) return false;
+export function isPlayerDamageMsg(msg, playerName) {
+  if (!msg || isMonsterDamageMsg(msg, playerName)) return false;
   /* タトゥーバード等の痛恨は被ダメ確定の後続ログ */
   if (/痛恨の一撃/.test(msg)) return true;
-  if (/プレイヤーに(命中|激突|当た)/.test(msg)) return true;
+  if (isPlayerTargetHitMsg(msg, playerName)) return true;
   if (/自分に(激突|命中|直撃|当た)/.test(msg)) return true;
   if (/自分にも.*\d+ダメージ/.test(msg)) return true;
   if (/の攻撃！\d+ダメージ！/.test(msg)) return true;
@@ -146,16 +155,16 @@ export function isPlayerDamageMsg(msg) {
 }
 
 /** 今回のログからプレイヤー被ダメメッセージを探す（新規ログ優先） */
-export function findPlayerDamageMsg(newMsgs = [], lastMsg = "") {
+export function findPlayerDamageMsg(newMsgs = [], lastMsg = "", playerName) {
   /* 痛恨は強打立ち絵のため、同バッチ内なら優先して返す */
   for (let i = newMsgs.length - 1; i >= 0; i--) {
     if (newMsgs[i] && /痛恨の一撃/.test(newMsgs[i])) return newMsgs[i];
   }
   if (lastMsg && /痛恨の一撃/.test(lastMsg)) return lastMsg;
   for (let i = newMsgs.length - 1; i >= 0; i--) {
-    if (newMsgs[i] && isPlayerDamageMsg(newMsgs[i])) return newMsgs[i];
+    if (newMsgs[i] && isPlayerDamageMsg(newMsgs[i], playerName)) return newMsgs[i];
   }
-  if (lastMsg && isPlayerDamageMsg(lastMsg)) return lastMsg;
+  if (lastMsg && isPlayerDamageMsg(lastMsg, playerName)) return lastMsg;
   return null;
 }
 
@@ -520,7 +529,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   /* 被ダメ：状態異常なし＆クールダウン明けのみ（force しない） */
   if (p.hp < prev.hp) {
-    const damageMsg = findPlayerDamageMsg(newMsgs, lastMsg);
+    const damageMsg = findPlayerDamageMsg(newMsgs, lastMsg, p?.playerName);
     if (damageMsg) {
       return {
         src: pickDamagePortrait(damageMsg),

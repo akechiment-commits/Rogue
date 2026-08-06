@@ -103,6 +103,7 @@ export default function App() {
         pastIdent={saveData?.identifiedEffects || []}
         discoveredItems={saveData?.discovered?.items || {}}
         resumeState={resumeState}
+        playerName={saveData?.playerName || ""}
       />
     );
   }

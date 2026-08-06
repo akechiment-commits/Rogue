@@ -19,6 +19,7 @@ import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fi
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
 import { statusTurns, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
 import { monEffectiveMagicImmune, monReflectsMagic } from './monTraits.js';
+import { pl } from './playerLabel.js';
 
 
 /** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */
@@ -547,7 +548,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${target.name}が吹き飛んだ！`);
         const _trapRes = pushEntity(dg, target.x, target.y, dx, dy, d, ml, "trap", target, p, luFn);
         if (_trapRes.hitPlayer) {
-          ml.push(`飛んできた${target.name}がプレイヤーに命中！`);
+          ml.push(`飛んできた${target.name}が${pl()}に命中！`);
           const _trapPlR = fireTrapPlayer(target, p, dg, ml, nameFn, luFn);
           if (_trapPlR !== "deferred_explosion") {
             removeTrap(dg, target, ml, { fromStep: true, p });

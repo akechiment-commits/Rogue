@@ -23,6 +23,7 @@ import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./Discover
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind } from "./animEvents.js";
 import { statusTurns, applyMonsterParalyze } from "./statusDuration.js";
+import { pl } from "./playerLabel.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限、風穴で曲がる） */
 function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
@@ -2676,7 +2677,7 @@ export function useItemActions({
                   const _stRefDmg = calcProjectileDmg(p, _stAtk, 0);
                   p.hp -= _stRefDmg;
                   p.deathCause = `${_stM.name}に跳ね返された${_stName}で`;
-                  ml.push(`跳ね返された${_stName}がプレイヤーに命中！${_stRefDmg}ダメージ！消滅した。`);
+                  ml.push(`跳ね返された${_stName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
                 } else if (_stRx !== _stLx || _stRy !== _stLy) {
                   const _stRft = new Set();
                   withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft));
@@ -3606,7 +3607,7 @@ export function useItemActions({
                   p.deathCause = `跳ね返された${resolveItemName(it, dnameRef)}に`;
                   const _rfTdDmg = calcProjectileDmg(p, _tdBaseAtk, 0);
                   p.hp -= _rfTdDmg;
-                  ml.push(`跳ね返された${lb}がプレイヤーに命中！${_rfTdDmg}ダメージ！消滅した。`);
+                  ml.push(`跳ね返された${lb}が${pl()}に命中！${_rfTdDmg}ダメージ！消滅した。`);
                   if (it.type === "food" && it.yabai) {
                     const _rfyDmg = rng(15, 25);
                     p.hp -= _rfyDmg;

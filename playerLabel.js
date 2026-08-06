@@ -13,6 +13,48 @@ export function playerLabel(name) {
 }
 
 /**
+ * プレイヤーオブジェクトまたは名前から表示名を取る（ログ文用）。
+ * @param {object|string|null|undefined} pOrName
+ */
+export function plName(pOrName) {
+  if (pOrName && typeof pOrName === "object") return playerLabel(pOrName.playerName);
+  return playerLabel(pOrName);
+}
+
+/* 現在の探索中プレイヤー名（ログ生成箇所が p を持たない場合用） */
+let _activePlayerName = "";
+
+export function setActivePlayerName(name) {
+  _activePlayerName = name != null ? String(name) : "";
+}
+
+/** アクティブプレイヤーの表示名（未設定時は「プレイヤー」） */
+export function pl() {
+  return playerLabel(_activePlayerName);
+}
+
+export function getActivePlayerName() {
+  return _activePlayerName;
+}
+
+/** 正規表現用に特殊文字をエスケープ */
+export function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * メッセージ中のプレイヤー対象を検出する正規表現断片
+ * （「プレイヤー」「自分」、設定名を OR）
+ * @param {string|null|undefined} playerName
+ */
+export function playerTargetAlt(playerName) {
+  const names = ["プレイヤー", "自分"];
+  const n = playerLabel(playerName);
+  if (n && n !== "プレイヤー" && !names.includes(n)) names.push(escapeRegExp(n));
+  return names.join("|");
+}
+
+/**
  * 入力を正規化して検証する。
  * @returns {{ ok: true, name: string } | { ok: false, error: string }}
  */

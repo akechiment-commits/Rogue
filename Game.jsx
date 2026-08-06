@@ -62,8 +62,9 @@ import {
   resolveStoneAndHealingPentacleEffect,
   resolveTeleportAndTrapPentacleEffect,
 } from "./pentacleTurnEffects.js";
+import { pl, setActivePlayerName } from "./playerLabel.js";
 
-export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null } = {}) {
+export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "" } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   /* フロアターン付きメッセージ追加ラッパー */
@@ -463,7 +464,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       facing: { dx: 0, dy: 1 },
       isThief: false,
       deathCause: "不明の原因により",
+      playerName: playerName || "",
     };
+    setActivePlayerName(p.playerName);
     installPlayerHpReverseHook(p);
     if (dungeonConfig?.startInventory?.length) {
       for (const it of dungeonConfig.startInventory) {
@@ -514,8 +517,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       setDashMode(false);
       /* DiscoveryTracker に前回の発見データを復元 */
       restoreDiscoveries(resumeState.discoveries);
+      const _resumePlayer = resumeState.player;
+      if (playerName) _resumePlayer.playerName = playerName;
+      setActivePlayerName(_resumePlayer.playerName || playerName || "");
       const rs = {
-        player: resumeState.player,
+        player: _resumePlayer,
         dungeon: resumeState.dungeon,
         floors: resumeState.floors || {},
         ident: resumeState.ident,
@@ -2309,7 +2315,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         const _stRefDmg = calcProjectileDmg(p, _srAr.atk || 3, 0);
                         p.hp -= _stRefDmg;
                         p.deathCause = `${_stM.name}に跳ね返された${_arName}で`;
-                        ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_stRefDmg}ダメージ！消滅した。`);
+                        ml.push(`跳ね返された${_arName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
                       } else {
                         const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft);
                       }
@@ -3819,11 +3825,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               if (_scPInRoom) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 p.hp -= _potDmg;
-                ml.push(`${_idn}がプレイヤーに命中！${_potDmg}ダメージ！`);
+                ml.push(`${_idn}が${pl()}に命中！${_potDmg}ダメージ！`);
                 if (_healPotAmt > 0) {
                   const _prevHp = p.hp;
                   p.hp = Math.min(p.maxHp, p.hp + _healPotAmt);
-                  if (p.hp > _prevHp) ml.push(`プレイヤーのHPが${p.hp - _prevHp}回復した！`);
+                  if (p.hp > _prevHp) ml.push(`${pl()}のHPが${p.hp - _prevHp}回復した！`);
                 }
               }
               ml.push(`${_idn}は割れた！`);
@@ -3885,7 +3891,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
                 const _scPDmg = _scUseCalc ? calcProjectileDmg(p, _scBaseAtk, 0) : _scBaseAtk + rng(0, 3);
                 p.hp -= _scPDmg;
-                let _pmsg = `${_idn}がプレイヤーに命中！${_scPDmg}ダメージ！`;
+                let _pmsg = `${_idn}が${pl()}に命中！${_scPDmg}ダメージ！`;
                 if (item.type === "arrow" && item.poison && !hasRingEffect(p, "antidote_ring")) { p.poisoned = true; _pmsg += "毒を受けた！"; }
                 ml.push(_pmsg);
                 if (item.type === "food" && item.yabai) {

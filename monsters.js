@@ -5,6 +5,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns } from "./statusDuration.js";
+import { pl } from "./playerLabel.js";
 
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
@@ -2058,7 +2059,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               }
               pl.hp -= _rrdmg;
               pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
-              ml.push(`跳ね返された${boltName}がプレイヤーに命中！${_rrdmg}ダメージ！`);
+              ml.push(`跳ね返された${boltName}が${pl()}に命中！${_rrdmg}ダメージ！`);
               if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
               if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             }
@@ -2548,7 +2549,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (dg.map[_wy]?.[_wx] !== T.FLOOR) continue;
         if (dg.monsters.some(mn => mn !== m && mn.x === _wx && mn.y === _wy)) continue;
         m.x = _wx; m.y = _wy;
-        ml.push(`${m.name}が閃光とともにプレイヤーの目前に降り立った！`);
+        ml.push(`${m.name}が閃光とともに${pl()}の目前に降り立った！`);
         _warped = true;
         break;
       }
@@ -3549,11 +3550,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _ttTrap = _ttCands[0];
           m.turnAttacks++;
           if (hasRingEffect(pl, "core_ring")) {
-            ml.push(`${m.name}がプレイヤーを${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
+            ml.push(`${m.name}が${pl()}を${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
             return;
           }
           pl.x = _ttTrap.x; pl.y = _ttTrap.y;
-          ml.push(`${m.name}がプレイヤーを${_ttTrap.name}に向かって放り投げた！`);
+          ml.push(`${m.name}が${pl()}を${_ttTrap.name}に向かって放り投げた！`);
           if ((pl.immobileTurns || 0) > 0) { pl.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
           opts.fireTrapFn(_ttTrap, pl, dg, ml);
           return;
@@ -3599,7 +3600,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             wakeIfDormant(_thrown, ml);
             _thrown.x = _dest.x; _thrown.y = _dest.y;
             _thrown.aware = true;
-            ml.push(`${m.name}が${_thrown.name}をプレイヤーの隣に投げた！`);
+            ml.push(`${m.name}が${_thrown.name}を${pl()}の隣に投げた！`);
             return;
           }
         }
@@ -3885,8 +3886,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             /* 杖：「弾いて」「当てた」（apply前にpush） */
             wandHitMsg: (target) => `${m.name}が${_ibN}を弾いて${target.name}に当てた！`,
             /* 反射→プレイヤー命中時の薬瓶/杖前置き */
-            potionPlHitMsg: () => `弾き返された${_ibN}がプレイヤーに命中して割れた！`,
-            wandPlHitMsg: () => `弾き返された${_ibN}がプレイヤーに当たった！`,
+            potionPlHitMsg: () => `弾き返された${_ibN}が${pl()}に命中して割れた！`,
+            wandPlHitMsg: () => `弾き返された${_ibN}が${pl()}に当たった！`,
             /* 泉/大箱着弾 */
             springLandMsg: () => `${m.name}に${_ibN}を弾かれ泉に落ちた！`,
             bigboxLandMsg: (bb) => `${m.name}に${_ibN}を弾かれ${bb.name}に入った！`,

@@ -2,6 +2,8 @@
  * 毎ターン解決する、移動・罠に関する魔方陣効果。
  * 呼び出し側は魔方陣配列の順番を保って 1 枚ずつ呼ぶこと。
  */
+import { pl } from "./playerLabel.js";
+
 export function resolveTeleportAndTrapPentacleEffect(pc, dungeon, player, messages, deps) {
   const {
     findRoom, inMagicSealRoom, random, randomTeleportDest,
@@ -157,7 +159,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
       return findRoom(dungeon.rooms, other.x, other.y) === targetRoom;
     });
     if (dodgePentacle) {
-      const targetName = target.kind === "player" ? "プレイヤー" : targetMonster.name;
+      const targetName = target.kind === "player" ? pl() : targetMonster.name;
       messages.push(`みかわしの魔方陣の加護で${targetName}が${pc.name}の魔法の石をかわした！魔法の石が足元に落ちた。`);
       dropStoneAt();
       dodged = true;
@@ -182,7 +184,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
       const heal = Math.min(baseAmount, player.maxHp - player.hp);
       if (heal > 0) {
         player.hp += heal;
-        messages.push(`${pc.name}の魔法の石がプレイヤーに当たった！${heal}回復！`);
+        messages.push(`${pc.name}の魔法の石が${pl()}に当たった！${heal}回復！`);
       }
     } else if (targetMonster.kind === "undead") {
       targetMonster.hp -= baseAmount;
@@ -203,7 +205,7 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   if (target.kind === "player") {
     player.deathCause = `${pc.name}の魔法の石により`;
     player.hp -= damage;
-    messages.push(`${pc.name}の魔法の石がプレイヤーに当たった！${damage}ダメージ！`);
+    messages.push(`${pc.name}の魔法の石が${pl()}に当たった！${damage}ダメージ！`);
     return;
   }
 

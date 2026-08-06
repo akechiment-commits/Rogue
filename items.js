@@ -23,6 +23,7 @@ import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
   monEffectiveFixedDamageOnly,
 } from './monTraits.js';
+import { pl } from './playerLabel.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -1995,13 +1996,13 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
             p.hp -= d;
             if (poison) {
               if (hasRingEffect(p, "antidote_ring")) {
-                ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！しかし指輪が毒を消した！`);
+                ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！しかし指輪が毒を消した！`);
               } else {
                 p.poisoned = true;
-                ml.push(`跳ね返された毒矢がプレイヤーに命中！${d}ダメージ！毒を受けた！`);
+                ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！`);
               }
             } else {
-              ml.push(`跳ね返された${label}がプレイヤーに命中！${d}ダメージ！`);
+              ml.push(`跳ね返された${label}が${pl()}に命中！${d}ダメージ！`);
             }
             break;
           }
@@ -3869,9 +3870,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     reflectorRange = range,
     animColor = item.type === "potion" ? "#88ccff" : "#ffdd44",
     monHitMsg = (target, dmg) => `飛んできた${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
-    plHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}がプレイヤーに命中！${dmg}ダメージ！`,
+    plHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}が${pl()}に命中！${dmg}ダメージ！`,
     potHitMsg = (target, dmg) => `飛んできた${resolveItemName(item, nameFn)}が${target.name}に当たって割れた！${dmg}ダメージ！`,
-    potPlHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}がプレイヤーに当たって割れた！${dmg}ダメージ！`,
+    potPlHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}が${pl()}に当たって割れた！${dmg}ダメージ！`,
     /* 薬瓶/杖の命中前置きメッセージ（splash/applyWandの前に push される） */
     potionHitMsg = null,         /* (target) => string|null */
     potionPlHitMsg = null,       /* () => string|null */
@@ -4093,7 +4094,7 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
           entity.hp -= collisionAtk;
           p.deathCause = `${entity.name}との衝突により`;
           p.hp -= collisionAtk;
-          ml.push(`${entity.name}がプレイヤーに激突！お互いに${collisionAtk}ダメージ！`);
+          ml.push(`${entity.name}が${pl()}に激突！お互いに${collisionAtk}ダメージ！`);
         }
         break;
       }
@@ -4195,7 +4196,7 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
   p.hp -= dmg;
   p.deathCause = `${reflector.name}に跳ね返された${stoneName}で`;
   ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
-  ml.push(`跳ね返された${stoneName}がプレイヤーにホーミング命中！${dmg}ダメージ！消滅した。`);
+  ml.push(`跳ね返された${stoneName}が${pl()}にホーミング命中！${dmg}ダメージ！消滅した。`);
   if (p.sleepTurns > 0) { p.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
   if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   return dmg;
@@ -4279,11 +4280,11 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           p.hp -= _refDmg;
           if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
             p.poisoned = true;
-            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_refDmg}ダメージ！毒を受けた！`);
+            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！`);
           } else if (_isPoison) {
-            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_refDmg}ダメージ！しかし指輪が毒を消した！`);
+            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！しかし指輪が毒を消した！`);
           } else {
-            ml.push(`跳ね返された${_arName}がプレイヤーに命中！${_refDmg}ダメージ！消滅した。`);
+            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！消滅した。`);
           }
         } else if (_rx !== tx || _ry !== ty) {
           const _rft = new Set();

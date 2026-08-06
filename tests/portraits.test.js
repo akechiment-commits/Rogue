@@ -181,6 +181,8 @@ describe("portraits", () => {
     expect(isPlayerDamageMsg("スライムが炎ブレスを吐いた！20ダメージ！")).toBe(true);
     expect(isPlayerDamageMsg("地雷！50ダメージ！")).toBe(true);
     expect(isPlayerDamageMsg("跳ね返された矢がプレイヤーに命中！8ダメージ！")).toBe(true);
+    expect(isPlayerDamageMsg("跳ね返された矢がしろがねに命中！8ダメージ！", "しろがね")).toBe(true);
+    expect(isMonsterDamageMsg("跳ね返された矢がしろがねに命中！8ダメージ！", "しろがね")).toBe(false);
     expect(isPlayerDamageMsg("岩が命中！19ダメージ！")).toBe(true);
     expect(isPlayerDamageMsg("19ダメージ！")).toBe(false); /* 落石の旧メッセージ：被ダメ判定に乗らない */
     expect(isPlayerDamageMsg("スライムに12ダメージ！会心！")).toBe(false);
