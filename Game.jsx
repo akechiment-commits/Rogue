@@ -15,6 +15,7 @@ import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
+  makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, applyLightningToInventory,
@@ -2351,6 +2352,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   const _srAr = p.arrow;
                   const _arName = _srAr.name || "矢";
                   p.arrow.count--;
+                  let _srUnit = null;
+                  const _srDrop = () => {
+                    if (!_srUnit) _srUnit = makeArrowUnitFromStack(_srAr);
+                    return _srUnit;
+                  };
+                  const _srPeel = () => { if (!_srUnit) peelShopArrowUnit(_srAr); };
                   /* ── 石 ── */
                   if (_srAr.stone) {
                     pushBoltAnim(p.x, p.y, dx, dy, dg, "#aaaaaa", true);
@@ -2371,6 +2378,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         breaks: true,
                         itemDeps: getFixtureItemDeps(),
                       });
+                      _srPeel();
                     } else {
                     const _stM = monsterAt(dg, _stLx, _stLy);
                     if (_stM && _stM.subtype === "reflector" && !_stM.sealed) {
@@ -2389,8 +2397,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         p.hp -= _stRefDmg;
                         p.deathCause = `${_stM.name}に跳ね返された${_arName}で`;
                         ml.push(`跳ね返された${_arName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
+                        _srPeel();
                       } else {
-                        const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft);
+                        const _stRft = new Set(); placeItemAt(dg, _stRx, _stRy, _srDrop(), ml, _stRft);
                       }
                     } else if (_stM && !_srForceMiss && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
@@ -2398,9 +2407,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { _stM.state = "hostile"; ml.push("店主が怒った！"); }
                       _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
                       if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
+                      _srPeel();
                     } else {
                       if (_stM) ml.push(`${_arName}は${_stM.name}に外れた！`);
-                      const _stft = new Set(); placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft);
+                      const _stft = new Set(); placeItemAt(dg, _stLx, _stLy, _srDrop(), ml, _stft);
                     }
                     }
                   /* ── 魔法の石 ── */
@@ -2411,21 +2421,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     ml.push(`【射撃の指輪】${_arName}を投げた！`);
                     if (!_msTarget) {
                       ml.push(`近くに敵がいない！${_arName}は消えた。`);
+                      _srPeel();
                     } else if (_msTarget.subtype === "reflector" && !_msTarget.sealed) {
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
+                      _srPeel();
                     } else if (_srForceMiss || (!isEvasionDisabledByStatus(_msTarget) && Math.random() >= 0.90)) {
                       ml.push(`${_arName}は${_msTarget.name}に外れ、足元に落ちた！`);
-                      const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft);
+                      const _msft = new Set(); placeItemAt(dg, _msTarget.x, _msTarget.y, _srDrop(), ml, _msft);
                     } else {
                       const _msDmg = clampDmgFixed(_msTarget, calcProjectileDmg(p, _srAr.atk || 5, _msTarget.def), true);
                       _msTarget.hp -= _msDmg; ml.push(`${_arName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
                       _ad.damages.push({ type: "damage", x: _msTarget.x, y: _msTarget.y, value: _msDmg, color: "#cc88ff" });
                       if (_msTarget.hp <= 0) { _ad.damages.push({ type: "flash", x: _msTarget.x, y: _msTarget.y, color: "#ff2200", duration: 150 }); killMonster(_msTarget, dg, p, ml, lu, false); }
+                      _srPeel();
                     }
                   /* ── 爆弾矢 ── */
                   } else if (_srAr.bombArrow) {
                     pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622", true);
+                    peelShopArrowUnit(_srAr);
                     ml.push(`【射撃の指輪】${_arName}を射った！`);
                     if (_srFarcast) {
                       ml.push(`${_arName}は消滅した。`);
@@ -2455,12 +2469,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                     const _isPierce = !!_srAr.pierce;
                     const _isPoison = !!_srAr.poison;
                     const _arColor = _isPoison ? "#60d060" : _isPierce ? "#ff8844" : "#d0a050";
-                    const _dropFn = () => _isPierce ? makePiercingArrow(1) : _isPoison ? makePoisonArrow(1) : makeArrow(1);
                     const _srBaseAtk = _srAr.atk || 3;
                     const _arEndDrop = (lx, ly, mlx) => {
-                      if (_srFarcast || _srCursedFc) { mlx.push(`【射撃の指輪】${_arName}は消滅した。`); return; }
+                      if (_srFarcast || _srCursedFc) {
+                        mlx.push(`【射撃の指輪】${_arName}は消滅した。`);
+                        _srPeel();
+                        return;
+                      }
                       mlx.push(`【射撃の指輪】${_arName}を発射した。`);
-                      const _ft = new Set(); placeItemAt(dg, lx, ly, _dropFn(), mlx, _ft);
+                      const _ft = new Set(); placeItemAt(dg, lx, ly, _srDrop(), mlx, _ft);
                     };
                     _resolveBolt(p, dg, p, ml, lu, {
                       isPlayerShooter: true,
@@ -2475,13 +2492,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
                           p.poisoned = true; mlx.push("毒を受けた！");
                         }
+                        _srPeel();
                       },
                       onMonHit: (mon, mlx) => {
                         /* 命中率75%（auto-fireは sureHit/forceMiss/dodge魔方陣を考慮しない） */
                         if (_srForceMiss || (!isEvasionDisabledByStatus(mon) && Math.random() >= 0.75)) {
                           if (_isPierce) { mlx.push(`【射撃の指輪】${_arName}は${mon.name}をすり抜けた！`); return; }
                           mlx.push(`【射撃の指輪】${_arName}は${mon.name}に外れた！`);
-                          const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _dropFn(), mlx, _mft);
+                          const _mft = new Set(); placeItemAt(dg, mon.x, mon.y, _srDrop(), mlx, _mft);
                           return;
                         }
                         const _srDmg = clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true);
@@ -2498,10 +2516,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                         mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
                         _ad.damages.push({ type: "damage", x: mon.x, y: mon.y, value: _srDmg, color: _arColor });
                         if (mon.hp <= 0) { _ad.damages.push({ type: "flash", x: mon.x, y: mon.y, color: "#ff2200", duration: 150 }); killMonster(mon, dg, p, mlx, lu, false); }
+                        if (!_isPierce) _srPeel();
                       },
                       onWallStop: _arEndDrop,
                       onFlyOff: _arEndDrop,
                     });
+                    _srPeel();
                   }
                   if (p.arrow && p.arrow.count <= 0) {
                     p.inventory = p.inventory.filter(i => i !== _srAr);

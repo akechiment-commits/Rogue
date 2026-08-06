@@ -8,6 +8,8 @@ import {
   getShopRemainingRatio,
   placeItemAt,
   itemPrice,
+  makeArrowUnitFromStack,
+  peelShopArrowUnit,
 } from "../items.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -106,8 +108,8 @@ describe("shop charge / refund with markup ring", () => {
   });
 });
 
-describe("shop arrow count proration", () => {
-  it("射った本数分だけ未払いに残り、残りを返すと按分返金", () => {
+describe("shop arrow unit peel / flags", () => {
+  it("射た1本に店フラグと請求が付き、残束の請求が減る", () => {
     const { dg, shop, shopId } = makeShopRoom();
     const p = { rings: [] };
     const arrows = {
@@ -116,21 +118,30 @@ describe("shop arrow count proration", () => {
     };
     applyShopUnpaidCharge(arrows, shop, p);
     expect(shop.unpaidTotal).toBe(100);
-    expect(arrows._origCount).toBe(10);
+    expect(arrows._shopCharge).toBe(100);
 
-    /* 3本射った */
-    arrows.count = 7;
-    expect(getShopRemainingRatio(arrows)).toBeCloseTo(0.7);
-    expect(getShopUsedCost(arrows)).toBe(30);
-    expect(getShopRefundAmount(arrows)).toBe(70);
+    /* 1本射って着弾 */
+    arrows.count--;
+    const unit = makeArrowUnitFromStack(arrows);
+    expect(unit.count).toBe(1);
+    expect(unit.shopPrice).toBeGreaterThan(0);
+    expect(unit._shopId).toBe(shopId);
+    expect(unit._shopCharge).toBe(10);
+    expect(arrows.count).toBe(9);
+    expect(arrows._shopCharge).toBe(90);
+    expect(arrows.shopPrice).toBe(90);
+    expect(shop.unpaidTotal).toBe(100); /* 未払い総額は拾い時のまま */
 
+    /* 着弾した1本を店に戻す */
+    placeItemAt(dg, 12, 12, unit, [], new Set(), 0, p);
+    expect(shop.unpaidTotal).toBe(90);
+
+    /* 残束を戻す */
     placeItemAt(dg, 12, 12, arrows, [], new Set(), 0, p);
-    expect(shop.unpaidTotal).toBe(30); /* 射った3本分 */
-    expect(arrows._shopCharge).toBeUndefined();
-    expect(arrows._origCount).toBeUndefined();
+    expect(shop.unpaidTotal).toBe(0);
   });
 
-  it("全部撃ち尽くすと返金なし（全額請求のまま）", () => {
+  it("消滅（落ちない）でも1本分の請求が残る", () => {
     const { shop, shopId } = makeShopRoom();
     const p = { rings: [] };
     const arrows = {
@@ -138,10 +149,26 @@ describe("shop arrow count proration", () => {
       shopPrice: 50, _shopId: shopId,
     };
     applyShopUnpaidCharge(arrows, shop, p);
-    arrows.count = 0;
-    expect(getShopUsedCost(arrows)).toBe(50);
-    expect(getShopRefundAmount(arrows)).toBe(0);
-    expect(shop.unpaidTotal).toBe(50);
+    arrows.count--;
+    peelShopArrowUnit(arrows); /* 命中で消滅 */
+    expect(arrows.count).toBe(4);
+    expect(arrows._shopCharge).toBe(40);
+    expect(shop.unpaidTotal).toBe(50); /* 使った1本分10Gが未払いに残る */
+  });
+
+  it("着弾した店の矢を拾い直しても二重請求しない", () => {
+    const { shop, shopId } = makeShopRoom();
+    const p = { rings: [] };
+    const arrows = {
+      id: "ar3", name: "矢", type: "arrow", count: 4,
+      shopPrice: 40, _shopId: shopId,
+    };
+    applyShopUnpaidCharge(arrows, shop, p);
+    arrows.count--;
+    const unit = makeArrowUnitFromStack(arrows);
+    expect(unit._shopCharge).toBe(10);
+    expect(applyShopUnpaidCharge(unit, shop, p)).toBe(0);
+    expect(shop.unpaidTotal).toBe(40);
   });
 });
 

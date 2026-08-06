@@ -2583,6 +2583,84 @@ export function makeMagicStone(c = 1) {
   return { ...MAGIC_STONE_T, id:uid(), count:Math.min(99, c) };
 }
 
+/**
+ * 矢スタックの type/属性に合った1本（店フラグなし）を生成。
+ */
+export function makeBasicArrowUnit(stack) {
+  if (!stack || stack.type !== "arrow") return makeArrow(1);
+  if (stack.magicStone) return makeMagicStone(1);
+  if (stack.stone) return makeStone(1);
+  if (stack.bombArrow) return makeBombArrow(1);
+  if (stack.pierce) return makePiercingArrow(1);
+  if (stack.poison) return makePoisonArrow(1);
+  if (stack.strong) return makeStrongArrow(1);
+  const u = makeArrow(1);
+  if (stack.name) u.name = stack.name;
+  if (stack.atk != null) u.atk = stack.atk;
+  if (stack.tile != null) u.tile = stack.tile;
+  if (stack.desc) u.desc = stack.desc;
+  if (stack.sellPrice != null) u.sellPrice = stack.sellPrice;
+  if (stack.blessed) u.blessed = true;
+  if (stack.cursed) u.cursed = true;
+  return u;
+}
+
+/**
+ * count を既に1減らした矢スタックから、1本分の店商品フラグ・請求を分離する。
+ * 着弾アイテムに付けるプロパティを返す（非店なら null）。
+ * 消滅して落ちない場合も呼び、スタック側の請求を1本分減らす（未払いは本体に残る）。
+ */
+export function peelShopArrowUnit(stack) {
+  if (!stack || (stack.shopPrice == null && stack._shopId == null)) return null;
+  const shopId = stack._shopId;
+  const left = Math.max(0, stack.count | 0);
+  const n = left + 1;
+  const listTotal = stack.shopPrice || 0;
+  const hasCharge = stack._shopCharge != null;
+  const chargeTotal = hasCharge ? stack._shopCharge : null;
+  let unitList;
+  let unitCharge = null;
+  if (left <= 0) {
+    unitList = listTotal;
+    unitCharge = chargeTotal;
+    delete stack.shopPrice;
+    delete stack._shopId;
+    delete stack._shopCharge;
+    delete stack._origCount;
+  } else {
+    unitList = n > 0 ? Math.round(listTotal / n) : listTotal;
+    if (listTotal > 0 && unitList < 1) unitList = 1;
+    if (unitList > listTotal) unitList = listTotal;
+    stack.shopPrice = listTotal - unitList;
+    if (hasCharge) {
+      unitCharge = Math.round(chargeTotal / n);
+      stack._shopCharge = Math.max(0, chargeTotal - unitCharge);
+    }
+    /* 残束は分離後の請求額をそのまま返せるよう orig を現在本数に合わせる */
+    stack._origCount = left;
+  }
+  const props = {};
+  if (unitList > 0 || listTotal > 0) props.shopPrice = unitList > 0 ? unitList : 1;
+  if (shopId != null) props._shopId = shopId;
+  if (unitCharge != null) {
+    props._shopCharge = unitCharge;
+    props._origCount = 1;
+  }
+  return props;
+}
+
+/**
+ * 射撃・投擲でスタックから1本分を切り出す。
+ * ※ 呼び出し前に stack.count-- 済みであること。
+ * 店商品なら shopPrice / _shopId / _shopCharge を1本に引き継ぐ。
+ */
+export function makeArrowUnitFromStack(stack) {
+  const unit = makeBasicArrowUnit(stack);
+  const shop = peelShopArrowUnit(stack);
+  if (shop) Object.assign(unit, shop);
+  return unit;
+}
+
 export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
   let r = c;
   for (const i of inv) {
@@ -4238,7 +4316,15 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   const _pierceMode = _isPierce || _isFc;
   const _maxR = _fc === "cursed" ? 1 : _pierceMode ? 50 : 10;
   const _arName = st.name || "矢";
-  const _dropItem = () => _isPierce ? makePiercingArrow(1) : _isPoison ? makePoisonArrow(1) : makeArrow(1);
+  /* 店商品フラグ付き1本。複数回呼ばないよう1回だけ生成して使い回す */
+  let _shotUnit = null;
+  const _dropItem = () => {
+    if (!_shotUnit) _shotUnit = makeArrowUnitFromStack(st);
+    return _shotUnit;
+  };
+  const _ensureShopPeeled = () => {
+    if (!_shotUnit) peelShopArrowUnit(st);
+  };
   let lx = p.x, ly = p.y, hit = false;
   let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y, _windMsg = false;
   const _path = [{ x: p.x, y: p.y }];
@@ -4348,10 +4434,14 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   }
   if (_pierceMode || _fc === "cursed") {
     ml.push(`${_arName}を射った。矢は消滅した。`);
+    _ensureShopPeeled(); /* 消滅でも店請求は1本分スタックから外す */
   } else if (!hit) {
     ml.push(`${_arName}を射った。`);
     const ft = new Set();
     placeItemAt(dg, lx, ly, _dropItem(), ml, ft);
+  } else {
+    /* 命中で落ちなかった場合も店フラグ請求を1本分分離 */
+    _ensureShopPeeled();
   }
 }
 

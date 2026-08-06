@@ -16,6 +16,7 @@ import {
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
+  makeArrowUnitFromStack, peelShopArrowUnit,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -2590,9 +2591,16 @@ export function useItemActions({
         if (_arItem.stone || _arItem.magicStone) {
           const _stName = _arItem.name;
           p.arrow.count--;
+          let _stUnit = null;
+          const _stDrop = () => {
+            if (!_stUnit) _stUnit = makeArrowUnitFromStack(_arItem);
+            return _stUnit;
+          };
+          const _stPeelIfNeeded = () => { if (!_stUnit) peelShopArrowUnit(_arItem); };
           if (_isFarcast) {
             /* 遠投：消滅 */
             ml.push(`${_stName}を投げた。${_stName}は消滅した。`);
+            _stPeelIfNeeded();
           } else if (_arItem.magicStone) {
             /* 魔法の石：10マス以内の最近敵にホーミング */
             const _msDist = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
@@ -2603,9 +2611,11 @@ export function useItemActions({
             ml.push(`${_stName}を投げた！`);
             if (!_msTarget) {
               ml.push(`近くに敵がいない！${_stName}は消えた。`);
+              _stPeelIfNeeded();
             } else if (_msTarget.subtype === "reflector") {
               pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
               reflectMagicStoneToPlayer(p, _msTarget, _stName, _arItem.atk || 5, ml);
+              _stPeelIfNeeded();
             } else {
               const _msSureHit = (p.sureHitTurns || 0) > 0;
               const _msDodgePcMode = getDodgePentacleMode(dg, _msTarget.x, _msTarget.y);
@@ -2615,10 +2625,10 @@ export function useItemActions({
                 if (_msDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_msTarget.name}に外れ、足元に落ちた！`);
                 const _msft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, makeMagicStone(1), ml, _msft));
+                withPitfallBag(() => placeItemAt(dg, _msTarget.x, _msTarget.y, _stDrop(), ml, _msft));
               } else if (_msTarget.baseKind === "gelcube") {
                 _msTarget.heldItems = _msTarget.heldItems || [];
-                _msTarget.heldItems.push(makeMagicStone(1));
+                _msTarget.heldItems.push(_stDrop());
                 if (!_msTarget._gelBaseAtk) _msTarget._gelBaseAtk = _msTarget.atk;
                 _msTarget._gelBoost = Math.min(10, (_msTarget._gelBoost || 1) * 1.2);
                 _msTarget.atk = Math.round(_msTarget._gelBaseAtk * _msTarget._gelBoost);
@@ -2627,6 +2637,7 @@ export function useItemActions({
                 _msTarget.hp -= _msDmg;
                 ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
                 if (_msTarget.hp <= 0) { trackMonster(_msTarget); killMonster(_msTarget, dg, p, ml, lu); }
+                _stPeelIfNeeded();
               }
             }
           } else {
@@ -2656,6 +2667,7 @@ export function useItemActions({
                 breaks: true,
                 itemDeps: getFixtureItemDeps(),
               });
+              _stPeelIfNeeded();
             } else if (_stM) {
               /* ── reflector：石をプレイヤーへ跳ね返す ── */
               if (_stM.subtype === "reflector") {
@@ -2680,13 +2692,16 @@ export function useItemActions({
                   p.hp -= _stRefDmg;
                   p.deathCause = `${_stM.name}に跳ね返された${_stName}で`;
                   ml.push(`跳ね返された${_stName}が${pl()}に命中！${_stRefDmg}ダメージ！消滅した。`);
+                  _stPeelIfNeeded();
                 } else if (_stRx !== _stLx || _stRy !== _stLy) {
                   const _stRft = new Set();
-                  withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, makeStone(1), ml, _stRft));
+                  withPitfallBag(() => placeItemAt(dg, _stRx, _stRy, _stDrop(), ml, _stRft));
+                } else {
+                  _stPeelIfNeeded();
                 }
               } else if (_stM.baseKind === "gelcube") {
               _stM.heldItems = _stM.heldItems || [];
-              _stM.heldItems.push(makeStone(1));
+              _stM.heldItems.push(_stDrop());
               if (!_stM._gelBaseAtk) _stM._gelBaseAtk = _stM.atk;
               _stM._gelBoost = Math.min(10, (_stM._gelBoost || 1) * 1.2);
               _stM.atk = Math.round(_stM._gelBaseAtk * _stM._gelBoost);
@@ -2698,22 +2713,23 @@ export function useItemActions({
                 if (_stDodgePcMode === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM.name}に${_stName}が当たらなかった！`);
                 ml.push(`${_stName}は${_stM.name}に外れた！`);
                 const _stft = new Set();
-                withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft));
+                withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft));
               } else {
                 const _stDmg = calcProjectileDmg(p, _stAtk, _stM.def);
                 _stM.hp -= _stDmg;
                 ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                 if (_stM.hp <= 0) { trackMonster(_stM); killMonster(_stM, dg, p, ml, lu); }
+                _stPeelIfNeeded();
               }
               }
             } else if (_stSpr) {
-              soakItemIntoSpring(_stSpr, makeStone(1), ml, dg, null);
+              soakItemIntoSpring(_stSpr, _stDrop(), ml, dg, null);
             } else if (_stBB) {
-              bigboxAddItem(_stBB, makeStone(1), dg, ml);
+              bigboxAddItem(_stBB, _stDrop(), dg, ml);
             } else {
               /* 敵なし：着弾点に落ちる（罠も起動） */
               const _stft = new Set();
-              withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, makeStone(1), ml, _stft));
+              withPitfallBag(() => placeItemAt(dg, _stLx, _stLy, _stDrop(), ml, _stft));
             }
           }
           if (p.arrow.count <= 0) {
@@ -2736,6 +2752,7 @@ export function useItemActions({
           const _baNF = (it) => itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
           const _baOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff6622", true);
           p.arrow.count--;
+          peelShopArrowUnit(_arItem); /* 爆発で消えるので請求だけ1本分分離 */
           ml.push(`${_baName}を射った！`);
           if (_isFarcast) {
             ml.push(`${_baName}は消滅した。`);
@@ -2801,15 +2818,24 @@ export function useItemActions({
         const _arIsPierce = !!_arItem.pierce;
         const _arName = _arItem.name || "矢";
         const _arBaseAtk = _arItem.atk || 3;
-        const _arDropItem = () => _arIsPierce ? makePiercingArrow(1) : _arIsPoison ? makePoisonArrow(1) : makeArrow(1);
         const _arColor = _arIsPoison ? "#60d060" : _arIsPierce ? "#ff8844" : "#d0a050";
         p.arrow.count--;
+        let _arUnit = null;
+        const _arDropItem = () => {
+          if (!_arUnit) _arUnit = makeArrowUnitFromStack(_arItem);
+          return _arUnit;
+        };
+        const _arPeelIfNeeded = () => { if (!_arUnit) peelShopArrowUnit(_arItem); };
         const _arDropAt = (px, py, mlx) => {
           const _ft = new Set();
           withPitfallBag(() => placeItemAt(dg, px, py, _arDropItem(), mlx, _ft));
         };
         const _arEndDrop = (px, py, mlx) => {
-          if (_arIsPierce || _isCursedFc) { mlx.push(`${_arName}を射った。${_arName}は消滅した。`); return; }
+          if (_arIsPierce || _isCursedFc) {
+            mlx.push(`${_arName}を射った。${_arName}は消滅した。`);
+            _arPeelIfNeeded();
+            return;
+          }
           mlx.push(`${_arName}を射った。`);
           _arDropAt(px, py, mlx);
         };
@@ -2829,6 +2855,7 @@ export function useItemActions({
             } else if (_arIsPoison) {
               mlx.push("しかし指輪が毒を消した！");
             }
+            _arPeelIfNeeded();
           },
           onMonHit: (mon, mlx) => {
             const _isFcM = getFarcastMode(p.x, p.y, dg) === "farcast";
@@ -2866,6 +2893,7 @@ export function useItemActions({
             if (_arIsPoison) mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
             mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
             if (mon.hp <= 0) { trackMonster(mon); killMonster(mon, dg, p, mlx, lu); }
+            if (!_arIsPierce) _arPeelIfNeeded();
           },
           onBigbox: _arIsPierce ? null : (bb, lx, ly, mlx) => {
             mlx.push(`${_arName}を射った。`);
@@ -2878,6 +2906,8 @@ export function useItemActions({
           onWallStop: _arEndDrop,
           onFlyOff: _arEndDrop,
         });
+        /* 貫通などで一度も着弾処理されなかった場合の店請求分離 */
+        _arPeelIfNeeded();
         if (p.arrow.count <= 0) {
           const _ex = p.arrow;
           p.arrow = null;
@@ -3135,8 +3165,15 @@ export function useItemActions({
           if (it.count <= 0) p.inventory.splice(idx, 1);
           const _invStName = it.name;
           const _invStAtk = it.atk || (it.magicStone ? 5 : 3);
+          let _invStUnit = null;
+          const _invStDrop = () => {
+            if (!_invStUnit) _invStUnit = makeArrowUnitFromStack(it);
+            return _invStUnit;
+          };
+          const _invStPeel = () => { if (!_invStUnit) peelShopArrowUnit(it); };
           if (_isFarcast) {
             ml.push(`${_invStName}を投げた。${_invStName}は消滅した。`);
+            _invStPeel();
           } else if (it.magicStone) {
             const _msDist2 = (mn) => Math.hypot(mn.x - p.x, mn.y - p.y);
             const _msTarget2 = [...dg.monsters]
@@ -3145,9 +3182,11 @@ export function useItemActions({
             ml.push(`${_invStName}を投げた！`);
             if (!_msTarget2) {
               ml.push(`近くに敵がいない！${_invStName}は消えた。`);
+              _invStPeel();
             } else if (_msTarget2.subtype === "reflector") {
               pushAnim({ type: "projectileReturn", fromX: _msTarget2.x, fromY: _msTarget2.y, toX: p.x, toY: p.y, color: "#cc88ff" });
               reflectMagicStoneToPlayer(p, _msTarget2, _invStName, _invStAtk, ml);
+              _invStPeel();
             } else {
               const _msDodgePcMode2 = getDodgePentacleMode(dg, _msTarget2.x, _msTarget2.y);
               const _msMiss2 = _msDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !isEvasionDisabledByStatus(_msTarget2) && !(_msDodgePcMode2 === "sure") && Math.random() >= 0.90));
@@ -3155,12 +3194,13 @@ export function useItemActions({
                 if (_msDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_msTarget2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_msTarget2.name}に外れ、足元に落ちた！`);
                 const _msft2 = new Set();
-                withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, makeMagicStone(1), ml, _msft2));
+                withPitfallBag(() => placeItemAt(dg, _msTarget2.x, _msTarget2.y, _invStDrop(), ml, _msft2));
               } else {
                 const _msDmg2 = calcProjectileDmg(p, _invStAtk, _msTarget2.def);
                 _msTarget2.hp -= _msDmg2;
                 ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
                 if (_msTarget2.hp <= 0) { trackMonster(_msTarget2); killMonster(_msTarget2, dg, p, ml, lu); }
+                _invStPeel();
               }
             }
           } else {
@@ -3186,6 +3226,7 @@ export function useItemActions({
                 breaks: true,
                 itemDeps: getFixtureItemDeps(),
               });
+              _invStPeel();
             } else if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
               const _stMiss2 = _stDodgePcMode2 === "dodge" || (_forceMiss || (!((p.sureHitTurns || 0) > 0) && !isEvasionDisabledByStatus(_stM2) && !(_stDodgePcMode2 === "sure") && Math.random() >= 0.90));
@@ -3193,20 +3234,21 @@ export function useItemActions({
                 if (_stDodgePcMode2 === "dodge") ml.push(`みかわしの魔方陣の加護で${_stM2.name}に${_invStName}が当たらなかった！`);
                 ml.push(`${_invStName}は${_stM2.name}に外れた！`);
                 const _stft2 = new Set();
-                withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
+                withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, _invStDrop(), ml, _stft2));
               } else {
                 const _stDmg2 = calcProjectileDmg(p, _invStAtk, _stM2.def);
                 _stM2.hp -= _stDmg2;
                 ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
                 if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
+                _invStPeel();
               }
             } else if (_stSpr2) {
-              soakItemIntoSpring(_stSpr2, makeStone(1), ml, dg, null);
+              soakItemIntoSpring(_stSpr2, _invStDrop(), ml, dg, null);
             } else if (_stBB2) {
-              bigboxAddItem(_stBB2, makeStone(1), dg, ml);
+              bigboxAddItem(_stBB2, _invStDrop(), dg, ml);
             } else {
               const _stft2 = new Set();
-              withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, makeStone(1), ml, _stft2));
+              withPitfallBag(() => placeItemAt(dg, _stLx2, _stLy2, _invStDrop(), ml, _stft2));
             }
           }
           endTurn(sr.current, p, ml);
@@ -3221,6 +3263,7 @@ export function useItemActions({
         if (it.type === "arrow" && it.bombArrow) {
           it.count--;
           if (it.count <= 0) p.inventory.splice(idx, 1);
+          peelShopArrowUnit(it);
           const _baName2 = it.name;
           const _baNF2 = (gi) => itemDisplayName(gi, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
           ml.push(`${_baName2}を射った！`);
