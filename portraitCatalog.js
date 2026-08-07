@@ -36,7 +36,6 @@ export const PORTRAIT_CATEGORIES = [
     slots: [
       { file: "battle_melee", label: "近接攻撃（武器）" },
       { file: "battle_unarmed", label: "素手攻撃", group: "attack_unarmed" },
-      { file: "battle_unarmed_2", label: "素手攻撃2", group: "attack_unarmed" },
       { file: "battle_unarmed_unarmored", label: "素手攻撃（未装備）", group: "attack_unarmed_bare" },
       { file: "battle_unarmed_unarmored_2", label: "素手攻撃（未装備）2", group: "attack_unarmed_bare" },
     ],

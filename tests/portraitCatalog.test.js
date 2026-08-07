@@ -26,9 +26,7 @@ describe("portraitCatalog", () => {
     expect(sets.damage_fire).toEqual(["damage_fire"]);
     expect(sets.damage).not.toContain("damage_falling");
     expect(sets.attack).toEqual(["battle_melee"]);
-    expect(sets.attack_unarmed).toEqual(
-      expect.arrayContaining(["battle_unarmed", "battle_unarmed_2"]),
-    );
+    expect(sets.attack_unarmed).toEqual(["battle_unarmed"]);
     expect(sets.dash).toEqual(["battle_dash"]);
     expect(sets.act_potion).toContain("action_drink_potion");
     expect(sets.act_scroll).toEqual(["action_read_scroll"]);
