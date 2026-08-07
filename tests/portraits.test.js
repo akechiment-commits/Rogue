@@ -24,6 +24,7 @@ import {
   hpKey,
   idleStandKey,
   isLightArmorStand,
+  resolvePortraitSetKey,
   PORTRAIT_SETS,
 } from "../portraits.js";
 
@@ -295,6 +296,19 @@ describe("portraits", () => {
     expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "腹持ちの胴" } })).toBe("stand_light_armor");
     expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "プレートメイル" } })).toBe("hp_full");
     expect(idleStandKey({ hp: 10, maxHp: 100, armor: null })).toBe("hp_low");
+  });
+
+  it("未装備時は歩行・素手攻撃を下着姿グループに差し替える", () => {
+    expect(resolvePortraitSetKey("walk", { armor: null })).toBe("walk_unarmored");
+    expect(resolvePortraitSetKey("attack_unarmed", { armor: null })).toBe("attack_unarmed_bare");
+    expect(resolvePortraitSetKey("walk", { armor: { name: "革の鎧" } })).toBe("walk");
+    expect(resolvePortraitSetKey("attack_unarmed", { armor: { name: "プレートメイル" } })).toBe("attack_unarmed");
+    expect(PORTRAIT_SETS.walk_unarmored).toEqual(
+      expect.arrayContaining(["stand_unarmored_walk", "stand_unarmored_advance"]),
+    );
+    expect(PORTRAIT_SETS.attack_unarmed_bare).toEqual(
+      expect.arrayContaining(["battle_unarmed_unarmored", "battle_unarmed_unarmored_2"]),
+    );
   });
 
   it("防具を外すと未装備立ち絵になる", () => {

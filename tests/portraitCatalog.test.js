@@ -41,6 +41,12 @@ describe("portraitCatalog", () => {
     expect(sets.stand_unarmored).toEqual(["stand_unarmored"]);
     expect(sets.hp_full).not.toContain("stand_light_armor");
     expect(sets.hp_full).not.toContain("stand_unarmored");
+    expect(sets.walk_unarmored).toEqual(
+      expect.arrayContaining(["stand_unarmored_walk", "stand_unarmored_advance"]),
+    );
+    expect(sets.attack_unarmed_bare).toEqual(
+      expect.arrayContaining(["battle_unarmed_unarmored", "battle_unarmed_unarmored_2"]),
+    );
   });
 
   it("状態異常に拘束・閉じ込めスロットがある", () => {

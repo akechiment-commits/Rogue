@@ -6,6 +6,7 @@ import {
   PORTRAIT_WALK_STEPS_MIN,
   PORTRAIT_WALK_STEPS_JITTER,
   pickPortrait,
+  pickPortraitForPlayer,
   idleStandKey,
   resolvePortraitEvent,
   snapshotPlayer,
@@ -37,9 +38,9 @@ export function usePortrait({
   }, [setPortraitSrc]);
 
   const pickAndSet = useCallback((key) => {
-    setPortraitSrc(pickPortrait(key));
+    setPortraitSrc(pickPortraitForPlayer(key, gs?.player));
     portraitCooldownRef.current = Date.now() + PORTRAIT_COOLDOWN_MS;
-  }, [setPortraitSrc]);
+  }, [setPortraitSrc, gs]);
 
   const forcePortrait = useCallback((key) => {
     if (!dynamicEnabledRef.current) return;

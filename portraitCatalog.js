@@ -36,6 +36,8 @@ export const PORTRAIT_CATEGORIES = [
     slots: [
       { file: "battle_melee", label: "近接攻撃（武器）" },
       { file: "battle_unarmed", label: "素手攻撃", group: "attack_unarmed" },
+      { file: "battle_unarmed_unarmored", label: "素手攻撃（未装備）", group: "attack_unarmed_bare" },
+      { file: "battle_unarmed_unarmored_2", label: "素手攻撃（未装備）2", group: "attack_unarmed_bare" },
     ],
   },
   {
@@ -141,6 +143,8 @@ export const PORTRAIT_CATEGORIES = [
       { file: "stand_unarmored", label: "未装備（下着）", group: "stand_unarmored" },
       { file: "stand_walk", label: "歩行", group: "walk" },
       { file: "stand_advance", label: "前進", group: "walk" },
+      { file: "stand_unarmored_walk", label: "歩行（未装備）", group: "walk_unarmored" },
+      { file: "stand_unarmored_advance", label: "前進（未装備）", group: "walk_unarmored" },
       { file: "battle_dash", label: "ダッシュ", group: "dash" },
       { file: "stand_back", label: "後ろ向き", group: "stand_back" },
     ],

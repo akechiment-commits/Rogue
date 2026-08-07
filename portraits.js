@@ -24,6 +24,23 @@ export function pickPortrait(key, sets = PORTRAIT_SETS) {
   return CHAR_PATH(list[Math.floor(Math.random() * list.length)]);
 }
 
+/**
+ * 防具なし時は下着姿の歩行・素手攻撃グループへ差し替える。
+ * @param {string} key
+ * @param {{ armor?: unknown } | null | undefined} player
+ */
+export function resolvePortraitSetKey(key, player = null) {
+  if (!key || player?.armor) return key;
+  if (key === "walk") return "walk_unarmored";
+  if (key === "attack_unarmed") return "attack_unarmed_bare";
+  return key;
+}
+
+/** プレイヤー装備を考慮して立ち絵パスを選ぶ */
+export function pickPortraitForPlayer(key, player = null, sets = PORTRAIT_SETS) {
+  return pickPortrait(resolvePortraitSetKey(key, player), sets);
+}
+
 export function hpKey(p) {
   const r = p.hp / p.maxHp;
   if (r <= 0.25) return "hp_low";
@@ -404,9 +421,9 @@ export function getActiveStatusPortraitKey(p, floating = false) {
   return null;
 }
 
-function portraitEvent(key, now, { force = false, rateLimited = false } = {}) {
+function portraitEvent(key, now, { force = false, rateLimited = false, player = null } = {}) {
   return {
-    src: pickPortrait(key),
+    src: pickPortraitForPlayer(key, player),
     cooldownUntil: rateLimited ? now + PORTRAIT_COOLDOWN_MS : now,
     force,
     bypassCooldown: !rateLimited,
@@ -456,6 +473,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const badFoodKey =
     actionKey === "act_food_yabai" || actionKey === "act_food_rotten" ? actionKey : null;
   const stickyKey = getActiveStatusPortraitKey(p, floating);
+  const pe = (key, opts = {}) => portraitEvent(key, now, { ...opts, player: p });
 
   /* 腐った/ヤバイ食事は状態異常より先（食べた瞬間のリアクション） */
   if (p.hp < prev.hp && badFoodKey) {
@@ -486,7 +504,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
 
   if (isMajorHeal(p, prev)) {
-    return portraitEvent("hp_healed", now, { rateLimited: true });
+    return pe("hp_healed", { rateLimited: true });
   }
 
   if (
@@ -494,86 +512,86 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     findMsgInNew(newMsgs, lastMsg, (m) => /を食べた[。（]/.test(m)) &&
     isSatiatedGain(p, prev)
   ) {
-    return portraitEvent("hp_satiated", now);
+    return pe("hp_satiated");
   }
 
   if (p.level > prev.level) {
-    return portraitEvent("levelup", now);
+    return pe("levelup");
   }
 
   if (findMsgInNew(newMsgs, lastMsg, isStairsMsg)) {
-    return portraitEvent("reaction_stairs", now, { force: true });
+    return pe("reaction_stairs", { force: true });
   }
   if (findMsgInNew(newMsgs, lastMsg, isFallMsg)) {
-    return portraitEvent("reaction_fall", now, { force: true });
+    return pe("reaction_fall", { force: true });
   }
   if (findMsgInNew(newMsgs, lastMsg, isShopMsg)) {
-    return portraitEvent("reaction_shop", now, { force: true });
+    return pe("reaction_shop", { force: true });
   }
 
   const equipKey = detectEquipChange(p, prev);
   if (equipKey) {
-    return portraitEvent(equipKey, now);
+    return pe(equipKey);
   }
   /* 防具を外した直後は未装備（下着）待機へ */
   if ((prev.armorId ?? null) && !p.armor) {
-    return portraitEvent("stand_unarmored", now);
+    return pe("stand_unarmored");
   }
 
   if (findMsgInNew(newMsgs, lastMsg, isCursedAcquireMsg)) {
-    return portraitEvent("status_cursed", now, { force: true });
+    return pe("status_cursed", { force: true });
   }
 
   /* 状態異常「付与瞬間」— sticky が無いフレーム用（付与と同時に sticky に乗るのでほぼ到達しない） */
   if (p.paralyzeTurns > 0 && prev.paralyzeTurns <= 0) {
-    return portraitEvent("status_paralyze", now, { force: true });
+    return pe("status_paralyze", { force: true });
   }
   if ((p.potConfinedTurns || 0) > 0 && (prev.potConfinedTurns || 0) <= 0) {
-    return portraitEvent("status_confined", now, { force: true });
+    return pe("status_confined", { force: true });
   }
   if (p.immobileTurns > 0 && prev.immobileTurns <= 0) {
-    return portraitEvent("status_immobile", now, { force: true });
+    return pe("status_immobile", { force: true });
   }
   if ((p.frozenTurns || 0) > 0 && (prev.frozenTurns || 0) <= 0) {
-    return portraitEvent("status_immobile", now, { force: true });
+    return pe("status_immobile", { force: true });
   }
   if (p.slowTurns > 0 && prev.slowTurns <= 0) {
-    return portraitEvent("status_slow", now, { force: true });
+    return pe("status_slow", { force: true });
   }
   if (
     (p.mpCooldownTurns > 0 && prev.mpCooldownTurns <= 0) ||
     (p.sealedTurns > 0 && prev.sealedTurns <= 0)
   ) {
-    return portraitEvent("status_sealed", now, { force: true });
+    return pe("status_sealed", { force: true });
   }
   if (p.bewitchedTurns > 0 && prev.bewitchedTurns <= 0) {
-    return portraitEvent("status_bewitched", now, { force: true });
+    return pe("status_bewitched", { force: true });
   }
   if (floating && !prev.floating) {
-    return portraitEvent("status_floating", now, { force: true });
+    return pe("status_floating", { force: true });
   }
   if (p.poisoned && !prev.poisoned) {
-    return portraitEvent("status_poison", now, { force: true });
+    return pe("status_poison", { force: true });
   }
   if (p.sleepTurns > 0 && prev.sleepTurns <= 0) {
-    return portraitEvent("status_sleep", now, { force: true });
+    return pe("status_sleep", { force: true });
   }
   if (p.confusedTurns > 0 && prev.confusedTurns <= 0) {
-    return portraitEvent("status_confused", now, { force: true });
+    return pe("status_confused", { force: true });
   }
   if (p.darknessTurns > 0 && prev.darknessTurns <= 0) {
-    return portraitEvent("status_blind", now, { force: true });
+    return pe("status_blind", { force: true });
   }
   if (p.oilyTurns > 0 && prev.oilyTurns <= 0) {
-    return portraitEvent("status_oiled", now, { force: true });
+    return pe("status_oiled", { force: true });
   }
   if (p.soakedTurns > 0 && prev.soakedTurns <= 0) {
-    return portraitEvent("status_soaked", now, { force: true });
+    return pe("status_soaked", { force: true });
   }
 
   const hungerMsg = findHungerMsg(newMsgs, lastMsg);
   if (hungerMsg) {
-    return portraitEvent("hp_hunger", now, { force: true });
+    return pe("hp_hunger", { force: true });
   }
 
   /* 属性被ダメ（爆発・炎・雷・氷・毒）は杖・薬・壺割れなどの行動立ち絵より優先 */
@@ -589,14 +607,14 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
 
   if (actionKey) {
-    return portraitEvent(actionKey, now);
+    return pe(actionKey);
   }
 
   /* 近接：newMsgs 全体を見る（同ターンの「倒した／敵反撃」で lastMsg が上書きされても拾う）
    * 被ダメより優先（自分が振った行動を優先表示） */
   const meleeKey = findMeleeAttackKey(newMsgs, lastMsg, p);
   if (meleeKey) {
-    return portraitEvent(meleeKey, now);
+    return pe(meleeKey);
   }
 
   /* 被ダメ：状態異常なし＆クールダウン明けのみ（force しない） */
