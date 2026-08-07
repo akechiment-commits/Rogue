@@ -405,6 +405,26 @@ export function getBlessMultiplier(it) {
 
 export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical",    sellPrice:3000, desc:"鋭い爪の形をした武器。25%の確率で会心の一撃。", tile:20 };
 export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。", tile:20 };
+
+/** 盗み系：ロングソードは10%でソボロ助広に変化 */
+export function maybeLongswordToSoboro(item) {
+  if (item?.name === "ロングソード" && Math.random() < 0.10) {
+    return { ...SOBURO_T, id: uid(), plus: item.plus || 0 };
+  }
+  return item;
+}
+
+/** 部屋内のランダムな床マス（盗みの罠などで使用） */
+export function pickRandomFloorInRooms(dg) {
+  if (!dg?.rooms?.length) return null;
+  for (let a = 0; a < 200; a++) {
+    const room = dg.rooms[rng(0, dg.rooms.length - 1)];
+    const x = rng(room.x, room.x + room.w - 1);
+    const y = rng(room.y, room.y + room.h - 1);
+    if (dg.map[y]?.[x] === T.FLOOR) return { x, y };
+  }
+  return null;
+}
 export const EXCALIBUR_T   = { name:"エクスカリバー", type:"weapon", atk:15, ability:"bane_undead_2", sellPrice:5000, desc:"聖なる伝説の剣。アンデッド系に2倍ダメージ（上位特効）。", tile:20 };
 export const GOLDEN_AXE_T  = { name:"ゴールデンアクス", type:"weapon", atk:10, ability:"no_degrade", sellPrice:2500, desc:"錆びず＋値が下がらない黄金の斧。", tile:20 };
 export const TRIELEM_SWORD_T = { name:"三元の刃", type:"weapon", atk:12, ability:"fire_elem", abilities:["fire_elem","ice_elem","thunder_elem"], sellPrice:9000, desc:"炎・氷・雷の三元素を宿した剣。\n属性弱点の敵に1.5倍ダメージ。", tile:20 };
@@ -1191,7 +1211,7 @@ export const TRAPS = [
   { name:"落とし穴",       effect:"pitfall",       tile:27,  rarity:"C", weight:4,  desc:"踏むと次のフロアに落ちる。\nアイテムも一緒に落ちる。" },
   { name:"召喚の罠",       effect:"summon_trap",   tile:46,  rarity:"C", weight:4,  desc:"踏むと周囲に2～4体の敵が出現する。\n出現した敵は即座にこちらを認識している。" },
   { name:"封印の罠",       effect:"seal_trap",     tile:48,  rarity:"C", weight:4,  desc:"踏むと50ターン魔法が封印される。\n巻物・魔法・杖が使えなくなる。" },
-  { name:"盗みの罠",       effect:"steal_trap",    tile:49,  rarity:"C", weight:4,  desc:"踏むと所持品が1つランダムにフロアのどこかへ飛ばされる。\nキーアイテムは盗まれない。" },
+  { name:"盗みの罠",       effect:"steal_trap",    tile:49,  rarity:"C", weight:4,  desc:"踏むと所持品が1つランダムにフロアのどこかへ飛ばされる。\nアイテムで起動した場合もそのアイテムが飛ばされる。\nロングソードは10%でソボロ助広に変化する。\nキーアイテムは盗まれない。" },
   { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71,  rarity:"E", weight:12, desc:"踏むと5ターン移動不能になる。\n攻撃やアイテム使用は可能。" },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84,  rarity:"C", weight:4,  desc:"踏むと50ターン幻惑状態。\n周囲の見た目が狂う。" },
   { name:"腐敗の罠",       effect:"rot_trap",      tile:94,  rarity:"C", weight:4,  desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
@@ -2258,23 +2278,37 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         const _stPool = ITEMS.filter((i) => i.type !== "gold");
         const _stTmpl = pickLootFromPool(_stPool, "drop") || pick(_stPool);
         const _stNewItem = { ..._stTmpl, id: uid() };
-        const _stFtm = new Set();
-        const _stRoomm = dg.rooms[rng(0, dg.rooms.length - 1)];
-        const _stXm = rng(_stRoomm.x, _stRoomm.x + _stRoomm.w - 1);
-        const _stYm = rng(_stRoomm.y, _stRoomm.y + _stRoomm.h - 1);
-        placeItemAt(dg, _stXm, _stYm, _stNewItem, ml, _stFtm);
+        const _stFtm = new Set([...(ft || [])]);
+        if (trap.id != null) _stFtm.add(trap.id);
+        const _stPosM = pickRandomFloorInRooms(dg) || { x: tx, y: ty };
+        placeItemAt(dg, _stPosM.x, _stPosM.y, _stNewItem, ml, _stFtm, 0, p);
         ml.push(`フロアのどこかにアイテムが出現した！`);
       }
       if (p && p.x === tx && p.y === ty && p.inventory && p.inventory.length > 0) {
-        const _stIdx = rng(0, p.inventory.length - 1);
-        const _stItem = p.inventory.splice(_stIdx, 1)[0];
-        const _stFt = new Set();
-        const _stRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
-        const _stX = rng(_stRoom.x, _stRoom.x + _stRoom.w - 1);
-        const _stY = rng(_stRoom.y, _stRoom.y + _stRoom.h - 1);
-        const _stFinal = (_stItem.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stItem.plus || 0 } : _stItem;
-        placeItemAt(dg, _stX, _stY, _stFinal, ml, _stFt);
-        ml.push(`${resolveItemName(_stItem, nameFn)}がどこかへ飛んでいった！${_stFinal !== _stItem ? "なぜかソボロ助広に変化した…！" : ""}`);
+        const _stCandidates = p.inventory.filter((i) => i.type !== "goal");
+        if (_stCandidates.length > 0) {
+          const _stItem = _stCandidates[rng(0, _stCandidates.length - 1)];
+          const _stIdx = p.inventory.indexOf(_stItem);
+          if (_stIdx !== -1) p.inventory.splice(_stIdx, 1);
+          const _stFt = new Set([...(ft || [])]);
+          if (trap.id != null) _stFt.add(trap.id);
+          const _stPos = pickRandomFloorInRooms(dg) || { x: tx, y: ty };
+          const _stFinal = maybeLongswordToSoboro(_stItem);
+          placeItemAt(dg, _stPos.x, _stPos.y, _stFinal, ml, _stFt, 0, p);
+          const _soboro = _stFinal !== _stItem && _stFinal?.name === "ソボロ助広";
+          ml.push(`${resolveItemName(_stItem, nameFn)}がどこかへ飛んでいった！${_soboro ? "なぜかソボロ助広に変化した…！" : ""}`);
+        }
+      }
+      /* 起動したアイテム自体もフロアのどこかへ飛ばす（内部トリガーは除く） */
+      if (item && !item._ephemeralTrapTrigger) {
+        const _stFt2 = new Set([...(ft || [])]);
+        if (trap.id != null) _stFt2.add(trap.id);
+        const _stPos2 = pickRandomFloorInRooms(dg) || { x: tx, y: ty };
+        const _stFinal2 = maybeLongswordToSoboro(item);
+        placeItemAt(dg, _stPos2.x, _stPos2.y, _stFinal2, ml, _stFt2, 0, p);
+        const _soboro2 = _stFinal2 !== item && _stFinal2?.name === "ソボロ助広";
+        ml.push(`${resolveItemName(item, nameFn)}がどこかへ飛んでいった！${_soboro2 ? "なぜかソボロ助広に変化した…！" : ""}`);
+        return "destroyed";
       }
       return "restart";
     }

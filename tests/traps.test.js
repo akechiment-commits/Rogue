@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance } from "../items.js";
+import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
+import { vi } from "vitest";
 
 describe("fireTrapPlayer mp_absorb_trap", () => {
   it("プレイヤーのMPが5減る", () => {
@@ -445,6 +446,50 @@ describe("new weird traps", () => {
     const ml = [];
     fireTrapItem(trap, { name: "石", type: "arrow" }, dg, 5, 5, ml, new Set(), p);
     expect(mon.confusedTurns).toBe(20);
+  });
+
+  it("アイテムで盗みの罠を起動すると起動アイテムがフロアに飛ぶ", () => {
+    const map = Array.from({ length: 15 }, () => Array(20).fill(T.FLOOR));
+    const rooms = [{ x: 1, y: 1, w: 10, h: 10 }];
+    const trap = { effect: "steal_trap", name: "盗みの罠", x: 5, y: 5, id: "st1" };
+    const dg = makeEmptyDg({ map, rooms, traps: [trap], monsters: [], items: [] });
+    const p = makePlayer({ x: 1, y: 1 });
+    const stone = { name: "石", type: "misc", id: "stone1", tile: 23 };
+    const ml = [];
+    const r = fireTrapItem(trap, stone, dg, 5, 5, ml, new Set(["st1"]), p);
+    expect(r).toBe("destroyed");
+    expect(dg.items.some((it) => it.id === "stone1" || it.name === "石")).toBe(true);
+    expect(ml.some((m) => String(m).includes("どこかへ飛んでいった"))).toBe(true);
+  });
+
+  it("maybeLongswordToSoboro がロングソードを変換し得る", () => {
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.05);
+    try {
+      const out = maybeLongswordToSoboro({ name: "ロングソード", type: "weapon", plus: 1, id: "ls1" });
+      expect(out.name).toBe(SOBURO_T.name);
+      expect(out.plus).toBe(1);
+    } finally {
+      rnd.mockRestore();
+    }
+    expect(maybeLongswordToSoboro({ name: "石", type: "misc" }).name).toBe("石");
+  });
+
+  it("アイテム起動の盗みの罠でロングソードがソボロ助広になり得る", () => {
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.05);
+    const map = Array.from({ length: 15 }, () => Array(20).fill(T.FLOOR));
+    const rooms = [{ x: 1, y: 1, w: 10, h: 10 }];
+    const trap = { effect: "steal_trap", name: "盗みの罠", x: 5, y: 5, id: "st2" };
+    const dg = makeEmptyDg({ map, rooms, traps: [trap], monsters: [], items: [] });
+    const p = makePlayer({ x: 1, y: 1 });
+    const sword = { name: "ロングソード", type: "weapon", plus: 2, id: "ls2", tile: 20 };
+    const ml = [];
+    try {
+      fireTrapItem(trap, sword, dg, 5, 5, ml, new Set(["st2"]), p);
+      expect(dg.items.some((it) => it.name === "ソボロ助広")).toBe(true);
+      expect(ml.some((m) => String(m).includes("ソボロ助広"))).toBe(true);
+    } finally {
+      rnd.mockRestore();
+    }
   });
 });
 

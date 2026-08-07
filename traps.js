@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, blockPlayerStatus } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
@@ -150,15 +150,11 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
         const _stIdx = p.inventory.indexOf(_stItem);
         p.inventory.splice(_stIdx, 1);
         const _stFt = new Set([trap.id]);
-        let _stX = p.x, _stY = p.y;
-        for (let _a = 0; _a < 200; _a++) {
-          const _stRoom = dg.rooms[rng(0, dg.rooms.length - 1)];
-          const _tx = rng(_stRoom.x, _stRoom.x + _stRoom.w - 1);
-          const _ty = rng(_stRoom.y, _stRoom.y + _stRoom.h - 1);
-          if (dg.map[_ty]?.[_tx] === T.FLOOR) { _stX = _tx; _stY = _ty; break; }
-        }
-        placeItemAt(dg, _stX, _stY, _stItem, ml, _stFt);
-        ml.push(`${trap.name}が発動！${resolveItemName(_stItem, nameFn)}がどこかへ飛んでいった！`);
+        const _stPos = pickRandomFloorInRooms(dg) || { x: p.x, y: p.y };
+        const _stFinal = maybeLongswordToSoboro(_stItem);
+        placeItemAt(dg, _stPos.x, _stPos.y, _stFinal, ml, _stFt);
+        const _soboro = _stFinal !== _stItem && _stFinal?.name === "ソボロ助広";
+        ml.push(`${trap.name}が発動！${resolveItemName(_stItem, nameFn)}がどこかへ飛んでいった！${_soboro ? "なぜかソボロ助広に変化した…！" : ""}`);
       } else {
         ml.push(`${trap.name}が発動！しかし何も盗まれなかった。`);
       }
