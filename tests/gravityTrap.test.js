@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { T } from "../utils.js";
+import { T, hasGravityPentacle } from "../utils.js";
+import { fireTrapPlayer } from "../traps.js";
 
 describe("重力の魔方陣と敵の罠踏み", () => {
   it("未覚醒パトロールでも重力下では罠を踏む", () => {
@@ -67,6 +68,30 @@ describe("重力の魔方陣と敵の罠踏み", () => {
     } finally {
       random.mockRestore();
     }
+  });
+
+  it("重力下の既知罠は checkTrap だけで1回作動する（ダッシュ二重発動防止）", () => {
+    /* ダッシュは checkTrap のあと「既知罠」ブロックへ進む。
+     * checkTrap は重力下で既知罠も fireTrapPlayer するため、
+     * 既知罠ブロックで再 fire すると二重発動になる。再 fire しないことを契約として固定する。 */
+    const map = Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR));
+    const trap = {
+      name: "鈍足の罠", effect: "slow_trap", tile: 26, id: "t1",
+      x: 3, y: 3, revealed: true,
+    };
+    const dg = makeEmptyDg({
+      map,
+      rooms: [{ x: 1, y: 1, w: 6, h: 6 }],
+      monsters: [],
+      traps: [trap],
+      items: [],
+      pentacles: [{ kind: "gravity", name: "重力の魔方陣", x: 3, y: 3 }],
+    });
+    const pl = makePlayer({ x: 3, y: 3 });
+    expect(hasGravityPentacle(dg, 3, 3)).toBe(true);
+    const ml = [];
+    fireTrapPlayer(trap, pl, dg, ml);
+    expect(ml.filter((m) => String(m).includes("発動")).length).toBe(1);
   });
 
   it("罠を作動させる重力の力は床アイテムにならない", () => {

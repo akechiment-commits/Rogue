@@ -3072,21 +3072,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
         const _dashRevTrap = (() => { const _t = _dTrapMap.get(_dk(p.x, p.y)); return _t?.revealed ? _t : undefined; })();
         if (_dashRevTrap) {
-          if (hasGravityPentacle(dg, p.x, p.y)) {
-            /* 重力の魔方陣の影響下：既知の罠も作動させる */
-            const _nameFn2 = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-            const _gtr = fireTrapPlayer(_dashRevTrap, p, dg, ml, _nameFn2, lu, { ident: sr.current?.ident });
-            if (_dashRevTrap.effect !== "explode" && !_dashRevTrap.permanent) {
-              const _gravTrBreakChance = (_dashRevTrap.effect === "steal_trap" || _dashRevTrap.effect === "summon_trap") ? 0.5 : 0.25;
-              if (Math.random() < _gravTrBreakChance) {
-                removeTrap(dg, _dashRevTrap, ml, { fromStep: true, message: `${_dashRevTrap.name}は壊れた。`, p });
-              }
-            }
-            if (_gtr === "pitfall") {
-              const nd = chgFloor(p, 1, true);
-              if (nd) { st.dungeon = nd; ml.push(`地下${p.depth}階に落ちた！`); }
-            }
-          }
+          /* 既知の罠（または直前の checkTrap で発見・作動した罠）でダッシュ停止。
+           * 重力下の既知罠作動も checkTrap 内で済む。ここで fireTrapPlayer すると二重発動になる。 */
           endTurn(st, p, ml);
           break;
         }
