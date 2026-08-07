@@ -2098,11 +2098,16 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           }
         }
       }
-      if (_pitfallBag) {
-        _pitfallBag.push({ kind: 'item', entity: item });
-        ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて次の階へ落下した！`);
-      } else {
-        ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて消えた！`);
+      /* 重力の力など内部トリガーは落下アイテムにしない（拾えるとバグ） */
+      if (item && !item._ephemeralTrapTrigger) {
+        if (_pitfallBag) {
+          _pitfallBag.push({ kind: 'item', entity: item });
+          ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて次の階へ落下した！`);
+        } else {
+          ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は穴に落ちて消えた！`);
+        }
+      } else if (item?._ephemeralTrapTrigger) {
+        ml.push(`${trap.name}が発動！`);
       }
       if (p && p.x === tx && p.y === ty) return "pitfall_player";
       return "destroyed";

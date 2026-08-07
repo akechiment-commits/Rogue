@@ -3,6 +3,7 @@ import { monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, hasGravityPentacle } from "../utils.js";
 import { fireTrapPlayer } from "../traps.js";
+import { fireTrapItem, setPitfallBag, clearPitfallBag } from "../items.js";
 
 describe("重力の魔方陣と敵の罠踏み", () => {
   it("未覚醒パトロールでも重力下では罠を踏む", () => {
@@ -120,4 +121,46 @@ describe("重力の魔方陣と敵の罠踏み", () => {
       random.mockRestore();
     }
   });
+
+  it("重力で敵が落とし穴に落ちても重力の力は下階へ落ちない", () => {
+    const map = Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR));
+    const mon = {
+      name: "ネズミ", hp: 5, maxHp: 5, atk: 1, def: 0, exp: 1,
+      x: 3, y: 3, speed: 1, baseSpeed: 1,
+    };
+    const trap = {
+      name: "落とし穴", effect: "pitfall", tile: 26, id: "pit1",
+      x: 3, y: 3, revealed: true,
+    };
+    const dg = makeEmptyDg({
+      map,
+      rooms: [{ x: 1, y: 1, w: 6, h: 6 }],
+      monsters: [mon],
+      traps: [trap],
+      items: [],
+      pentacles: [],
+    });
+    const bag = [];
+    setPitfallBag(bag);
+    const ml = [];
+    try {
+      fireTrapItem(
+        trap,
+        { name: "重力の力", type: "misc", x: 3, y: 3, _ephemeralTrapTrigger: true },
+        dg,
+        3,
+        3,
+        ml,
+        new Set(),
+        makePlayer({ x: 8, y: 8 }),
+      );
+      expect(bag.some((e) => e.kind === "monster")).toBe(true);
+      expect(bag.some((e) => e.kind === "item" && e.entity?.name === "重力の力")).toBe(false);
+      expect(ml.some((m) => String(m).includes("重力の力は穴に落ちて"))).toBe(false);
+    } finally {
+      clearPitfallBag();
+    }
+  });
 });
+
+
