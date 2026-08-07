@@ -957,6 +957,14 @@ export const MONS = [
       { name: "ラクガキバンシー",   hp: 68,  atk: 25, def: 12, exp: 118, dungeonFloors: { advanced: { min: 22, max: 28 } } },
     ],
   },
+  /* ===== ものまね師：隣接キャラの特技を模倣 ===== */
+  { name: "ものまね師",   hp: 34,  atk: 17, def: 5,  exp: 72,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 20 }, advanced: { min: 12, max: 24 } },
+    desc: "隣の敵の特技をまねてくる。隣接しているとき高確率で特技を使う。",
+    levels: [
+      { name: "ものまね名優",     hp: 55,  atk: 24, def: 9,  exp: 115, dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 16, max: 26 } } },
+      { name: "ものまね帝王",     hp: 88,  atk: 32, def: 14, exp: 175, dungeonFloors: { advanced: { min: 22, max: 30 } } },
+    ],
+  },
 ];
 
 /* ===== モンスターレベルアップテーブル (MONS の levels から自動生成) ===== */
@@ -2358,6 +2366,278 @@ function isPosHistoryStuck(m) {
   return allSame || isOsc;
 }
 
+/* ===== ものまね師：隣接キャラの特技コピー ===== */
+const _MIMIC_SKIP_SUBTYPES = new Set([
+  "mimic", "runner", "deathbomb", "kamikaze", "reflector", "magicreflect", "guardian",
+]);
+
+/** ものまねの対象になる特技持ちか（パッシブのみの敵は除外） */
+export function isMimicableSkillSource(o) {
+  if (!o || (o.hp || 0) <= 0) return false;
+  if (o.subtype === "mimic" || o.baseKind === "mimic") return false;
+  if (o.type === "shopkeeper") return false;
+  if (o.subtype) {
+    if (_MIMIC_SKIP_SUBTYPES.has(o.subtype)) return false;
+    return true;
+  }
+  if (o.type === "guard") return true;
+  if (["dragon", "icedragon", "barriermage"].includes(o.baseKind)) return false; /* ブレス等は隣接コピー向きでないため当面除外 */
+  return false;
+}
+
+/** 隣接する特技持ちモンスター一覧 */
+export function getAdjacentMimicSources(m, dg) {
+  return (dg.monsters || []).filter((o) =>
+    o !== m &&
+    Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) === 1 &&
+    isMimicableSkillSource(o),
+  );
+}
+
+/**
+ * コピー元の特技を一時的に借りて1回だけ使用を試みる。
+ * 成功したら true（呼び出し元は return）。失敗時は通常AIへフォールスルー。
+ */
+export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
+  if (!m || m.subtype !== "mimic" || m.sealed) return false;
+  if (ctx.moveOnly) return false;
+  const sources = getAdjacentMimicSources(m, dg);
+  if (!sources.length) return false;
+  if (!(m.alwaysUseSpecial || Math.random() < 0.5)) return false;
+
+  const src = pick(sources);
+  ml.push(`${m.name}が${src.name}のものまねをした！`);
+
+  const bak = {
+    subtype: m.subtype,
+    wandEffect: m.wandEffect,
+    baseKind: m.baseKind,
+    monLevel: m.monLevel,
+    type: m.type,
+    alwaysUseSpecial: m.alwaysUseSpecial,
+  };
+  m.subtype = src.subtype;
+  m.wandEffect = src.wandEffect;
+  m.baseKind = src.baseKind;
+  m.monLevel = src.monLevel || 1;
+  if (src.type === "guard") m.type = "guard";
+  m.alwaysUseSpecial = true;
+
+  try {
+    return forceMonsterCopiedSpecial(m, dg, pl, ml, opts, ctx);
+  } finally {
+    m.subtype = bak.subtype;
+    m.wandEffect = bak.wandEffect;
+    m.baseKind = bak.baseKind;
+    m.monLevel = bak.monLevel;
+    m.type = bak.type;
+    m.alwaysUseSpecial = bak.alwaysUseSpecial;
+  }
+}
+
+/** 一時的に付与された subtype/baseKind で特技を1回試す（成功で true） */
+function forceMonsterCopiedSpecial(m, dg, pl, ml, opts, ctx) {
+  if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
+  const canSee = !!ctx.canSee;
+  const _plOnBlessedSanc = !!ctx.plOnBlessedSanc;
+  const _sameRoom = !!ctx.sameRoom;
+  const _onHit = opts.onPlayerHit;
+  const _onMiss = opts.onPlayerMiss;
+  const _luFn = opts.luFn || (() => {});
+  const adx = pl.x - m.x, ady = pl.y - m.y;
+  const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
+  const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
+  const adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+
+  /* 遠距離特技（視界あり前提が多い） */
+  if (canSee) {
+    if (m.subtype === "archer" && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10) {
+      m.turnAttacks++;
+      monsterShootArrow(m, dg, pl, ml, opts);
+      return true;
+    }
+    if (m.subtype === "watergunner" && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 8) {
+      m.turnAttacks++;
+      monsterShootWaterGun(m, dg, pl, ml);
+      return true;
+    }
+    if (m.subtype === "stonethrow" && !m.sealed && !_plOnBlessedSanc) {
+      const _stLvl = m.monLevel || 1;
+      const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
+      if (lineLen <= _stRange) {
+        m.turnAttacks++;
+        monsterThrowStone(m, dg, pl, ml);
+        return true;
+      }
+    }
+    if (m.subtype === "potionthrow" && !m.sealed && !_plOnBlessedSanc && canSee) {
+      const _ptLvl = m.monLevel || 1;
+      const _ptRange = _ptLvl >= 3 ? 10 : _ptLvl >= 2 ? 7 : 5;
+      if (inLine && lineLen <= _ptRange) {
+        m.turnAttacks++;
+        monsterThrowPotion(m, dg, pl, ml, opts.bbFn);
+        return true;
+      }
+    }
+    if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && !_plOnBlessedSanc) {
+      const rooms = dg.rooms;
+      const _wRoom = findRoom(rooms, m.x, m.y);
+      const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
+        (_wRoom && dg.pentacles?.some(pc =>
+          pc.kind === "magic_seal" &&
+          pc.x >= _wRoom.x && pc.x < _wRoom.x + _wRoom.w &&
+          pc.y >= _wRoom.y && pc.y < _wRoom.y + _wRoom.h
+        ));
+      if (!_wSeal) {
+        m.turnAttacks++;
+        opts.monsterWandFn(m, Math.sign(adx), Math.sign(ady));
+        return true;
+      }
+    }
+    if (m.subtype === "charger" && !m.sealed && inLine && lineLen >= 2) {
+      m.turnAttacks++;
+      const _chdx = Math.sign(adx), _chdy = Math.sign(ady);
+      const _chLvl = m.monLevel || 1;
+      const _chRange = _chLvl >= 3 ? 8 : _chLvl >= 2 ? 5 : 3;
+      let _chMoved = 0;
+      for (let _ci = 0; _ci < _chRange; _ci++) {
+        const _cnx = m.x + _chdx, _cny = m.y + _chdy;
+        if (_cnx < 0 || _cnx >= MW || _cny < 0 || _cny >= MH) break;
+        if (dg.map[_cny]?.[_cnx] === T.WALL || dg.map[_cny]?.[_cnx] === T.BWALL) break;
+        if (_cnx === pl.x && _cny === pl.y) {
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}が突進して${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+          break;
+        }
+        const _chOther = dg.monsters.find(o => o !== m && o.x === _cnx && o.y === _cny);
+        if (_chOther) {
+          const _chDmg = Math.max(1, m.atk - Math.floor((_chOther.def || 0) / 2));
+          _chOther.hp -= _chDmg;
+          ml.push(`${m.name}が突進して${_chOther.name}に当たった！${_chDmg}ダメージ！`);
+          if (_chOther.hp <= 0) {
+            ml.push(`${_chOther.name}は倒れた！`);
+            removeMonster(dg, _chOther);
+          }
+          break;
+        }
+        m.x = _cnx; m.y = _cny; _chMoved++;
+      }
+      if (_chMoved > 0) ml.push(`${m.name}が突進した！`);
+      return true;
+    }
+    if (m.type === "guard" && !m.sealed && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8) {
+      m.turnAttacks++;
+      ml.push(`${m.name}が暗闇の薬を投げた！`);
+      pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#334466");
+      splashPotion(dg, pl.x, pl.y, "darkness", 20, pl, ml, null, false, false);
+      return true;
+    }
+  }
+
+  /* 隣接向け特技 */
+  if (adjPl) {
+    if (m.subtype === "tripper" && !m.sealed) {
+      m.turnAttacks++;
+      ml.push(`${m.name}が足払いを繰り出した！`);
+      applyPlayerTrip(pl, dg, ml, {
+        cause: `${m.name}の足払いにより`,
+        checkFloat: true,
+      });
+      return true;
+    }
+    if (m.subtype === "ruster" && !m.sealed) {
+      m.turnAttacks++;
+      const _eq = pl.weapon || pl.armor;
+      if (_eq && !hasAbility(_eq, "no_degrade")) {
+        const _op = _eq.plus || 0;
+        _eq.plus = _op - 1;
+        ml.push(`${m.name}が${_eq.name}を錆びさせた！`);
+      } else {
+        ml.push(`${m.name}が錆を飛ばしたが効果がなかった！`);
+      }
+      return true;
+    }
+    if (m.subtype === "thief" && !m.sealed) {
+      /* 既存盗賊ロジックは長いので通常攻撃にフォールスルーさせず、簡易版 */
+      m.turnAttacks++;
+      if (hasAbility(pl.armor, "anti_steal")) {
+        ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+      } else if (pl.inventory?.length) {
+        const cands = pl.inventory.filter((i) => i.type !== "goal");
+        if (cands.length) {
+          const stolen = cands[rng(0, cands.length - 1)];
+          const idx = pl.inventory.indexOf(stolen);
+          if (idx !== -1) pl.inventory.splice(idx, 1);
+          placeItemAt(dg, m.x, m.y, stolen, ml, new Set());
+          ml.push(`${m.name}が${stolen.name}を盗んだ！`);
+        } else {
+          ml.push(`${m.name}は盗めるものを持っていなかった！`);
+        }
+      } else {
+        ml.push(`${m.name}は盗めるものを持っていなかった！`);
+      }
+      return true;
+    }
+    if (m.subtype === "knocker" && !m.sealed && !_plOnBlessedSanc) {
+      m.turnAttacks++;
+      const _kdx = Math.sign(pl.x - m.x) || (Math.random() < 0.5 ? -1 : 1);
+      const _kdy = Math.sign(pl.y - m.y);
+      let _kx = pl.x, _ky = pl.y;
+      for (let i = 0; i < 20; i++) {
+        const nx = _kx + _kdx, ny = _ky + _kdy;
+        if (nx < 0 || nx >= MW || ny < 0 || ny >= MH) break;
+        if (dg.map[ny]?.[nx] === T.WALL || dg.map[ny]?.[nx] === T.BWALL) break;
+        if (dg.monsters.some((o) => o.x === nx && o.y === ny)) break;
+        _kx = nx; _ky = ny;
+      }
+      pl.x = _kx; pl.y = _ky;
+      ml.push(`${m.name}が${pl()}を吹き飛ばした！`);
+      return true;
+    }
+    if (m.subtype === "berserker" && !m.sealed) {
+      m.turnAttacks++;
+      m.berserkerTurns = (m.berserkerTurns || 0) + 10;
+      ml.push(`${m.name}がバーサークした！`);
+      monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      return true;
+    }
+  }
+
+  /* サポーター：同室でバフ */
+  if (m.subtype === "supporter" && canSee && _sameRoom) {
+    m.turnAttacks++;
+    let buffed = 0;
+    for (const o of dg.monsters) {
+      if (o === m || o.hp <= 0) continue;
+      if (Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) <= 3) {
+        o.atk = (o.atk || 0) + 3;
+        buffed++;
+      }
+    }
+    ml.push(buffed > 0 ? `${m.name}が周囲の敵を鼓舞した！` : `${m.name}が鼓舞したが効果はなかった。`);
+    return true;
+  }
+
+  /* 罠師：隣接に罠設置（簡易） */
+  if (m.subtype === "trapmaster" && !m.sealed) {
+    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (const [dx, dy] of dirs) {
+      const nx = m.x + dx, ny = m.y + dy;
+      if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
+      if (dg.map[ny]?.[nx] !== T.FLOOR) continue;
+      if (dg.traps?.some((t) => t.x === nx && t.y === ny)) continue;
+      if (nx === pl.x && ny === pl.y) continue;
+      const tmpl = pick(TRAPS);
+      if (!tmpl) break;
+      dg.traps.push({ ...tmpl, id: uid(), x: nx, y: ny, revealed: false });
+      m.turnAttacks++;
+      ml.push(`${m.name}が罠を仕掛けた！`);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /** モンスターAI。移動後は重力罠。長時間動けなければ別方向へ強制移動。 */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _sx = m.x, _sy = m.y;
@@ -3496,6 +3776,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
       const _rdy = m._rangedAttackThisTurn;
       if (_rdy) delete m._rangedAttackThisTurn;
+
+      /* ── ものまね師：隣接キャラの特技を50%で模倣 ── */
+      if (m.subtype === "mimic" && !m.sealed) {
+        if (tryMimicAdjacentSkill(m, dg, pl, ml, opts, {
+          moveOnly: false,
+          canSee,
+          plOnBlessedSanc: _plOnBlessedSanc,
+          sameRoom: _sameRoom,
+        })) return;
+      }
 
       /* ── charger（突進角獣等）：一直線上で突進攻撃（移動フェーズで予約済み） ── */
       if (m.subtype === "charger" && !m.sealed && _rdy && m.turnAttacks < monEffectiveMaxAttacks(m)) {
