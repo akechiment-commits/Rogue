@@ -64,13 +64,14 @@ import {
   resolveTeleportAndTrapPentacleEffect,
 } from "./pentacleTurnEffects.js";
 import { pl, setActivePlayerName } from "./playerLabel.js";
+import { makeStarterFoodItem } from "./favoriteFood.js";
 import { buildRunResultExtras } from "./runScore.js";
 import { createRunTimer } from "./runTimer.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 
-export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "" } = {}) {
+export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "" } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   const runTimerRef = useRef(null);
@@ -443,7 +444,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       armor: null,
       arrow: null,
       inventory: [
-        { name:"満腹の特盛りおにぎり", type:"food", effect:"satiate_food", value:120, desc:"とても腹持ちが良さそうだ。", tile:19, cooked:true, id: uid() },
+        makeStarterFoodItem(favoriteFood),
       ],
       spells: dungeonConfig?.dungeonType === "debug"
         ? ["debug_summon_mon","debug_get_item","debug_create_trap","debug_summon_bb","bless_magic","curse_magic"]

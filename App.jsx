@@ -130,6 +130,7 @@ export default function App() {
         discoveredItems={saveData?.discovered?.items || {}}
         resumeState={resumeState}
         playerName={saveData?.playerName || ""}
+        favoriteFood={saveData?.favoriteFood || ""}
       />
     );
   }

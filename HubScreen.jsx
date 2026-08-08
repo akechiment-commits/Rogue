@@ -6,6 +6,12 @@ import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES
 import { validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { applyPlayerNameToSave, normalizePlayerName, PLAYER_NAME_MAX, playerLabel } from "./playerLabel.js";
+import {
+  applyFavoriteFoodToSave,
+  normalizeFavoriteFood,
+  FAVORITE_FOOD_MAX,
+  favoriteFoodLabel,
+} from "./favoriteFood.js";
 import { fetchRanking, fetchRankingStats, RANKING_DUNGEONS } from "./rankingClient.js";
 import { formatElapsed } from "./runScore.js";
 
@@ -1417,47 +1423,135 @@ function PlayerNameModal({ onConfirm }) {
   );
 }
 
+/* ===== 初回：好きな食べ物入力 ===== */
+function FavoriteFoodModal({ onConfirm }) {
+  const [value, setValue] = useState("");
+  const [error, setError] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const submit = () => {
+    const n = normalizeFavoriteFood(value);
+    if (!n.ok) {
+      setError(n.error);
+      return;
+    }
+    setError("");
+    onConfirm(n.name);
+  };
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.92)",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      zIndex:100, padding:16, fontFamily:"monospace",
+    }}>
+      <div style={{
+        background:CARD, border:`1px solid ${BDR}`, borderRadius:8,
+        width:"min(400px,96vw)", padding:20,
+      }}>
+        <div style={{ color:"#fff", fontWeight:"bold", fontSize:16, marginBottom:8 }}>
+          好きな食べ物を入力
+        </div>
+        <div style={{ color:"#888", fontSize:12, marginBottom:14, lineHeight:1.5 }}>
+          冒険の最初に持つ食料の名前になります。
+          （例: おにぎり → 「満腹の特盛りおにぎり」）
+          （{FAVORITE_FOOD_MAX}文字以内）
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          maxLength={FAVORITE_FOOD_MAX * 2}
+          placeholder="例: おにぎり"
+          onChange={(e) => { setValue(e.target.value); setError(""); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); submit(); }
+          }}
+          style={{
+            width:"100%", boxSizing:"border-box", padding:"10px 12px",
+            background:"#0a0a12", border:`1px solid ${BDR}`, borderRadius:5,
+            color:"#eee", fontFamily:"monospace", fontSize:15, outline:"none",
+          }}
+        />
+        {error && (
+          <div style={{ color:"#f66", fontSize:12, marginTop:8 }}>{error}</div>
+        )}
+        <button
+          type="button"
+          onClick={submit}
+          style={{
+            ...BTN, width:"100%", marginTop:16, padding:"12px 0",
+            background:"#0c2240", color:"#4df", borderColor:"#1a3a5a",
+            fontSize:15, fontWeight:"bold",
+          }}
+        >
+          決定
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ===== セーブデータ管理パネル ===== */
 function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
   const [confirm, setConfirm] = useState(false);
   const [confirmSel, setConfirmSel] = useState(0); /* 0=消去 1=キャンセル */
-  const [renaming, setRenaming] = useState(false);
+  const [editMode, setEditMode] = useState(null); /* null | "name" | "food" */
   const [nameDraft, setNameDraft] = useState(saveData.playerName || "");
-  const [nameError, setNameError] = useState("");
-  const [btnFocus, setBtnFocus] = useState(0); /* 0=名前変更 1=データ消去 */
-  const nameInputRef = useRef(null);
+  const [foodDraft, setFoodDraft] = useState(saveData.favoriteFood || "");
+  const [editError, setEditError] = useState("");
+  const [btnFocus, setBtnFocus] = useState(0); /* 0=名前 1=食べ物 2=データ消去 */
+  const editInputRef = useRef(null);
   const kbRef = useRef(null);
 
   useEffect(() => {
-    if (renaming) {
+    if (editMode === "name") {
       setNameDraft(saveData.playerName || "");
-      setNameError("");
-      setTimeout(() => nameInputRef.current?.focus(), 0);
+      setEditError("");
+      setTimeout(() => editInputRef.current?.focus(), 0);
+    } else if (editMode === "food") {
+      setFoodDraft(saveData.favoriteFood || "");
+      setEditError("");
+      setTimeout(() => editInputRef.current?.focus(), 0);
     }
-  }, [renaming, saveData.playerName]);
+  }, [editMode, saveData.playerName, saveData.favoriteFood]);
 
-  const applyRename = () => {
-    const applied = applyPlayerNameToSave(saveData, nameDraft);
-    if (!applied.ok) {
-      setNameError(applied.error);
-      return false;
+  const applyEdit = () => {
+    if (editMode === "name") {
+      const applied = applyPlayerNameToSave(saveData, nameDraft);
+      if (!applied.ok) {
+        setEditError(applied.error);
+        return false;
+      }
+      updateSave(() => applied.save);
+    } else if (editMode === "food") {
+      const applied = applyFavoriteFoodToSave(saveData, foodDraft);
+      if (!applied.ok) {
+        setEditError(applied.error);
+        return false;
+      }
+      updateSave(() => applied.save);
     }
-    updateSave(() => applied.save);
-    setRenaming(false);
-    setNameError("");
+    setEditMode(null);
+    setEditError("");
     return true;
   };
 
-  const cancelRename = () => {
-    setRenaming(false);
+  const cancelEdit = () => {
+    setEditMode(null);
     setNameDraft(saveData.playerName || "");
-    setNameError("");
+    setFoodDraft(saveData.favoriteFood || "");
+    setEditError("");
   };
 
   kbRef.current = {
     onClose, confirm, setConfirm, confirmSel, setConfirmSel,
-    renaming, btnFocus, setBtnFocus, applyRename, cancelRename,
-    setRenaming, onClearSave,
+    editMode, btnFocus, setBtnFocus, applyEdit, cancelEdit,
+    setEditMode, onClearSave,
   };
 
   useEffect(() => {
@@ -1467,15 +1561,15 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
       const tag = (e.target && e.target.tagName) || "";
       const typing = tag === "INPUT" || tag === "TEXTAREA";
 
-      if (r.renaming) {
+      if (r.editMode) {
         if (k === "escape") {
           e.preventDefault();
-          r.cancelRename();
+          r.cancelEdit();
         } else if ((k === "enter" || k === "z") && !e.nativeEvent?.isComposing) {
           /* 入力中の Z は文字として扱う。Enter のみ決定 */
           if (k === "enter") {
             e.preventDefault();
-            r.applyRename();
+            r.applyEdit();
           }
         }
         return;
@@ -1504,12 +1598,16 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
         r.onClose();
         return;
       }
-      if (isKeyUp(e) || isKeyDown(e)) {
+      if (isKeyUp(e)) {
         e.preventDefault();
-        r.setBtnFocus(f => (f === 0 ? 1 : 0));
+        r.setBtnFocus(f => (f + 2) % 3);
+      } else if (isKeyDown(e)) {
+        e.preventDefault();
+        r.setBtnFocus(f => (f + 1) % 3);
       } else if (k === "z" || k === "enter") {
         e.preventDefault();
-        if (r.btnFocus === 0) r.setRenaming(true);
+        if (r.btnFocus === 0) r.setEditMode("name");
+        else if (r.btnFocus === 1) r.setEditMode("food");
         else { r.setConfirm(true); r.setConfirmSel(0); }
       }
     };
@@ -1532,7 +1630,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
   return (
     <Panel title="セーブデータ管理" onClose={onClose}>
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
-        {renaming
+        {editMode
           ? "Enter:決定　Esc:キャンセル"
           : confirm
             ? "←→/↑↓:選択　Z/Enter:決定　X:戻る"
@@ -1544,24 +1642,29 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
           <span style={{ color:"#888" }}>プレイヤー名</span>
           <span style={{ color:"#8cf", fontWeight:"bold" }}>{playerLabel(saveData.playerName)}</span>
         </div>
-        {renaming && (
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+          padding:"6px 0", borderBottom:`1px solid ${BDR}`, gap:8, flexWrap:"wrap" }}>
+          <span style={{ color:"#888" }}>好きな食べ物</span>
+          <span style={{ color:"#fc8", fontWeight:"bold" }}>{favoriteFoodLabel(saveData.favoriteFood)}</span>
+        </div>
+        {editMode === "name" && (
           <div style={{ padding:"10px 0", borderBottom:`1px solid ${BDR}` }}>
             <div style={{ color:"#aaa", fontSize:12, marginBottom:6 }}>
               新しい名前（{PLAYER_NAME_MAX}文字以内）
             </div>
             <input
-              ref={nameInputRef}
+              ref={editInputRef}
               type="text"
               value={nameDraft}
               maxLength={PLAYER_NAME_MAX * 2}
-              onChange={(e) => { setNameDraft(e.target.value); setNameError(""); }}
+              onChange={(e) => { setNameDraft(e.target.value); setEditError(""); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  applyRename();
+                  applyEdit();
                 } else if (e.key === "Escape") {
                   e.preventDefault();
-                  cancelRename();
+                  cancelEdit();
                 }
               }}
               style={{
@@ -1570,13 +1673,49 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
                 color:"#eee", fontFamily:"monospace", fontSize:14, outline:"none",
               }}
             />
-            {nameError && (
-              <div style={{ color:"#f66", fontSize:12, marginTop:6 }}>{nameError}</div>
+            {editError && (
+              <div style={{ color:"#f66", fontSize:12, marginTop:6 }}>{editError}</div>
             )}
             <div style={{ display:"flex", gap:8, marginTop:10 }}>
-              <Btn label="変更する [Enter]" onClick={applyRename} color="#4df"
+              <Btn label="変更する [Enter]" onClick={applyEdit} color="#4df"
                 style={{ flex:1, background:"#0c2240" }} />
-              <Btn label="キャンセル [Esc]" onClick={cancelRename} color="#888" style={{ flex:1 }} />
+              <Btn label="キャンセル [Esc]" onClick={cancelEdit} color="#888" style={{ flex:1 }} />
+            </div>
+          </div>
+        )}
+        {editMode === "food" && (
+          <div style={{ padding:"10px 0", borderBottom:`1px solid ${BDR}` }}>
+            <div style={{ color:"#aaa", fontSize:12, marginBottom:6 }}>
+              好きな食べ物（{FAVORITE_FOOD_MAX}文字以内）※次の探索から初期食料に反映
+            </div>
+            <input
+              ref={editInputRef}
+              type="text"
+              value={foodDraft}
+              maxLength={FAVORITE_FOOD_MAX * 2}
+              onChange={(e) => { setFoodDraft(e.target.value); setEditError(""); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applyEdit();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  cancelEdit();
+                }
+              }}
+              style={{
+                width:"100%", boxSizing:"border-box", padding:"8px 10px",
+                background:"#0a0a12", border:`1px solid ${BDR}`, borderRadius:5,
+                color:"#eee", fontFamily:"monospace", fontSize:14, outline:"none",
+              }}
+            />
+            {editError && (
+              <div style={{ color:"#f66", fontSize:12, marginTop:6 }}>{editError}</div>
+            )}
+            <div style={{ display:"flex", gap:8, marginTop:10 }}>
+              <Btn label="変更する [Enter]" onClick={applyEdit} color="#4df"
+                style={{ flex:1, background:"#0c2240" }} />
+              <Btn label="キャンセル [Esc]" onClick={cancelEdit} color="#888" style={{ flex:1 }} />
             </div>
           </div>
         )}
@@ -1606,19 +1745,26 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
         </div>
       </div>
       <div style={{ marginTop:20, display:"flex", flexDirection:"column", gap:8 }}>
-        {!renaming && !confirm && (
+        {!editMode && !confirm && (
           <>
             <button
               type="button"
-              onClick={() => { setBtnFocus(0); setRenaming(true); }}
+              onClick={() => { setBtnFocus(0); setEditMode("name"); }}
               style={btnStyle(btnFocus === 0, "#8cf")}
             >
               プレイヤー名を変更
             </button>
             <button
               type="button"
-              onClick={() => { setBtnFocus(1); setConfirm(true); setConfirmSel(0); }}
-              style={{ ...btnStyle(btnFocus === 1, "#f44"), background: btnFocus === 1 ? "#2a1010" : "#180808" }}
+              onClick={() => { setBtnFocus(1); setEditMode("food"); }}
+              style={btnStyle(btnFocus === 1, "#fc8")}
+            >
+              好きな食べ物を変更
+            </button>
+            <button
+              type="button"
+              onClick={() => { setBtnFocus(2); setConfirm(true); setConfirmSel(0); }}
+              style={{ ...btnStyle(btnFocus === 2, "#f44"), background: btnFocus === 2 ? "#2a1010" : "#180808" }}
             >
               セーブデータを消去
             </button>
@@ -1665,6 +1811,9 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const kbRef = useRef(null);
 
   const needsName = !String(saveData.playerName || "").trim();
+  const needsFood = !String(saveData.favoriteFood || "").trim();
+  /* 名前の次に好きな食べ物を聞く（既存セーブで未設定なら食べ物だけ聞く） */
+  const needsSetup = needsName || needsFood;
   const hubGold      = saveData.hubGold      || 0;
   const hubInvCount  = (saveData.hubInventory || []).length;
   const warehouseCount = (saveData.warehouse  || []).length;
@@ -1678,8 +1827,15 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
     });
   };
 
+  const handleConfirmFood = (food) => {
+    updateSave(prev => {
+      const applied = applyFavoriteFoodToSave(prev, food);
+      return applied.ok ? applied.save : prev;
+    });
+  };
+
   const handleStartDungeon = (config) => {
-    if (needsName) return;
+    if (needsSetup) return;
     setPanel(null);
     onStartDungeon(config);
   };
@@ -1691,17 +1847,17 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
     { id:"encyclopedia" }, { id:"ranking" }, { id:"savedata" },
   ];
   const activateMain = (id) => {
-    if (needsName) return;
+    if (needsSetup) return;
     if (id === "resume") onResumeDungeon?.();
     else setPanel(id);
   };
 
-  kbRef.current = { panel, mainFocus, setMainFocus, mainItems, activateMain, needsName };
+  kbRef.current = { panel, mainFocus, setMainFocus, mainItems, activateMain, needsSetup };
 
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      if (r.needsName) return; // 名前入力中は地上キーを無効
+      if (r.needsSetup) return; // 名前・食べ物入力中は地上キーを無効
       if (r.panel !== null) return; // 各パネルが自前でハンドリング
       const k = e.key.toLowerCase();
       if (isKeyUp(e) || isKeyLeft(e)) {
@@ -1765,14 +1921,17 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
         <div style={{ color:"#555", fontSize:12, marginTop:4 }}>
           冒険者の拠点
         </div>
-        {!needsName && (
+        {!needsSetup && (
           <div style={{ color:"#8cf", fontSize:13, marginTop:8 }}>
             冒険者: <span style={{ color:"#fff", fontWeight:"bold" }}>{playerLabel(saveData.playerName)}</span>
+            <span style={{ color:"#666" }}> ／ </span>
+            <span style={{ color:"#fc8" }}>好物: {favoriteFoodLabel(saveData.favoriteFood)}</span>
           </div>
         )}
       </div>
 
       {needsName && <PlayerNameModal onConfirm={handleConfirmName} />}
+      {!needsName && needsFood && <FavoriteFoodModal onConfirm={handleConfirmFood} />}
 
       {/* ステータスバー */}
       <div style={{
@@ -1811,7 +1970,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       {/* 中断データがある場合：再開ボタン */}
       {resumeExists && (
         <button
-          onClick={() => { if (!needsName) onResumeDungeon?.(); }}
+          onClick={() => { if (!needsSetup) onResumeDungeon?.(); }}
           style={{
             ...BTN, width:"min(360px,90vw)", padding:"18px 0", marginBottom:8,
             background: focusedId === "resume" ? "#233a0e" : "#1a2808", color:"#8f4",
@@ -1826,7 +1985,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
 
       {/* メインボタン：ダンジョンへ */}
       <button
-        onClick={() => { if (!needsName) setPanel("dungeon"); }}
+        onClick={() => { if (!needsSetup) setPanel("dungeon"); }}
         style={{
           ...BTN, width:"min(360px,90vw)", padding:"18px 0", marginBottom:16,
           background: focusedId === "dungeon" ? "#0c2240" : "#081828", color:"#4df",
@@ -1849,7 +2008,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
         <HubBtn icon="📖" label="図鑑"     btnId="encyclopedia" sub="発見記録"
           onClick={() => setPanel("encyclopedia")} color="#a8f" />
         <HubBtn icon="🏆" label="ランキング" btnId="ranking" sub="全体・自分"
-          onClick={() => { if (!needsName) setPanel("ranking"); }} color="#fc8" />
+          onClick={() => { if (!needsSetup) setPanel("ranking"); }} color="#fc8" />
         <HubBtn icon="💾" label="データ"   btnId="savedata" sub="セーブ管理"
           onClick={() => setPanel("savedata")} color="#888" />
       </div>
