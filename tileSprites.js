@@ -987,6 +987,21 @@ D[48] = trapTile("#8040e0", "#6030b0"); // Seal
 D[49] = trapTile("#d0d020", "#a0a010"); // Steal
 D[50] = trapTile("#d06000", "#a04800"); // Hunger
 D[51] = trapTile("#20e0c0", "#10b090"); // Blowback
+D[71] = trapTile("#404060", "#282840"); // Shadow stitch
+D[72] = trapTile("#a08060", "#806040"); // Rockfall
+D[73] = trapTile("#e04020", "#b03010"); // Time bomb
+D[84] = trapTile("#c060e0", "#9030b0"); // Bewitch
+D[85] = trapTile("#202028", "#101018"); // Darkness
+D[94] = trapTile("#60a040", "#408020"); // Rot
+D[120] = trapTile("#a040e0", "#7020b0"); // MP absorb
+D[121] = trapTile("#f0a020", "#c08010"); // Strong arrow
+D[122] = trapTile("#a0e0ff", "#70b0d0"); // Float
+D[123] = trapTile("#806020", "#604010"); // Oil
+D[124] = trapTile("#c0c0c0", "#909090"); // Unident
+D[125] = trapTile("#f0e040", "#c0b020"); // Alarm
+D[126] = trapTile("#e040e0", "#b020b0"); // Multiply
+D[127] = trapTile("#e0e040", "#b0b020"); // Confuse
+D[132] = trapTile("#40a0e0", "#2080c0"); // Watergun
 D[133] = trapTile("#c09050", "#906030"); // Trip / fall
 
 /* ===== SPECIAL ===== */

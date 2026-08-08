@@ -102,7 +102,7 @@ export const TILE_NAMES = {
   126: "trap_multiply",
   127: "trap_confuse",
   132: "trap_watergun",
-  133: "trap_spin", /* 転倒の罠：専用画像がなければ回転板を流用 */
+  133: "trap_trip",
   87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
   108: "grabber",
   109: "leprechaun",
