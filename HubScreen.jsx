@@ -1453,20 +1453,15 @@ function FavoriteFoodModal({ onConfirm }) {
         background:CARD, border:`1px solid ${BDR}`, borderRadius:8,
         width:"min(400px,96vw)", padding:20,
       }}>
-        <div style={{ color:"#fff", fontWeight:"bold", fontSize:16, marginBottom:8 }}>
-          好きな食べ物を入力
-        </div>
-        <div style={{ color:"#888", fontSize:12, marginBottom:14, lineHeight:1.5 }}>
-          冒険の最初に持つ食料の名前になります。
-          （例: おにぎり → 「満腹の特盛りおにぎり」）
-          （{FAVORITE_FOOD_MAX}文字以内）
+        <div style={{ color:"#fff", fontWeight:"bold", fontSize:16, marginBottom:14 }}>
+          好きな食べ物は？
         </div>
         <input
           ref={inputRef}
           type="text"
           value={value}
           maxLength={FAVORITE_FOOD_MAX * 2}
-          placeholder="例: おにぎり"
+          placeholder=""
           onChange={(e) => { setValue(e.target.value); setError(""); }}
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); submit(); }
@@ -1686,7 +1681,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
         {editMode === "food" && (
           <div style={{ padding:"10px 0", borderBottom:`1px solid ${BDR}` }}>
             <div style={{ color:"#aaa", fontSize:12, marginBottom:6 }}>
-              好きな食べ物（{FAVORITE_FOOD_MAX}文字以内）※次の探索から初期食料に反映
+              好きな食べ物は？（{FAVORITE_FOOD_MAX}文字以内）
             </div>
             <input
               ref={editInputRef}
