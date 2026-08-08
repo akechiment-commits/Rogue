@@ -14,7 +14,7 @@ import {
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
-  genFood, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
+  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
@@ -410,6 +410,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     setPutMode(null);
     setDashMode(false);
     resetDiscoveries();
+    /* ダンジョン生成前に好きな食べ物を食料抽選へ反映 */
+    setFavoriteFoodBase(favoriteFood);
     const startDepth = dungeonConfig?.startDepth || 1;
     const _initDt = dungeonConfig?.dungeonType || "beginner";
     const _initMobile = Math.min(window.innerWidth, window.innerHeight) < 700;
@@ -530,6 +532,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _resumePlayer = resumeState.player;
       if (playerName) _resumePlayer.playerName = playerName;
       setActivePlayerName(_resumePlayer.playerName || playerName || "");
+      setFavoriteFoodBase(favoriteFood);
       const rs = {
         player: _resumePlayer,
         dungeon: resumeState.dungeon,

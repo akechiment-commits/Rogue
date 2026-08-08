@@ -547,9 +547,33 @@ export function wPick(arr) {
   return pickByWeight(arr);
 }
 
+/* 好きな食べ物：genFood のベース名プールに混ぜる（ダンジョン開始時に set） */
+let _favoriteFoodBase = "";
+
+/** ダンジョン探索中の好きな食べ物ベース名を設定（空なら無効） */
+export function setFavoriteFoodBase(name) {
+  const s = name != null ? String(name).trim() : "";
+  _favoriteFoodBase = s;
+}
+
+export function getFavoriteFoodBase() {
+  return _favoriteFoodBase;
+}
+
+/**
+ * 食料生成用のベース名一覧。
+ * 好きな食べ物が設定されていてリストに無ければ生・調理どちらにも追加する。
+ */
+export function getFoodBasePool(cooked) {
+  const base = cooked ? COOKED_FOODS : RAW_FOODS;
+  const fav = _favoriteFoodBase;
+  if (!fav || base.includes(fav)) return base;
+  return [...base, fav];
+}
+
 export function genFood() {
   const cooked = Math.random() < 0.5;
-  const names = cooked ? COOKED_FOODS : RAW_FOODS;
+  const names = getFoodBasePool(cooked);
   const sizes = cooked ? COOKED_SIZES : RAW_SIZES;
   const fn = pick(names);
   const sz = wPick(sizes);
