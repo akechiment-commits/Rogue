@@ -2508,20 +2508,50 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
 }
 
 /**
+ * moveOnly 用：実行可能な隣接特技があれば 50% で予約してその場に留まる。
+ * （移動すると攻撃フェーズがスキップされ、プレイヤー非隣接時にものまねできなくなる）
+ */
+export function tryReserveMimicSkill(m, dg, pl, opts = {}, ctx = {}) {
+  if (!m || m.subtype !== "mimic" || m.sealed) return false;
+  if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
+  const sources = getAdjacentMimicSources(m, dg).filter((src) =>
+    canMimicSourceSkill(src, m, dg, pl, opts, ctx),
+  );
+  if (!sources.length) return false;
+  if (!(m.alwaysUseSpecial || Math.random() < 0.5)) return false;
+  const src = pick(sources);
+  m._mimicReady = true;
+  m._mimicSourceId = src.id;
+  return true;
+}
+
+/**
  * コピー元の特技を一時的に借りて1回だけ使用を試みる。
  * 成功（特技の試行自体を行った）ら true。条件外・抽選外れは false（通常AIへ）。
  * 宣言後に通常攻撃へフォールスルーしないよう、試行可能なものだけ選ぶ。
+ * ctx.forceReady: moveOnly で予約済みなら再抽選せず実行する。
  */
 export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
   if (!m || m.subtype !== "mimic" || m.sealed) return false;
   if (ctx.moveOnly) return false;
   if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
 
-  const sources = getAdjacentMimicSources(m, dg).filter((src) =>
+  const forceReady = !!(ctx.forceReady || m._mimicReady);
+  const preferredId = ctx.preferredSourceId ?? m._mimicSourceId;
+  delete m._mimicReady;
+  delete m._mimicSourceId;
+
+  let sources = getAdjacentMimicSources(m, dg).filter((src) =>
     canMimicSourceSkill(src, m, dg, pl, opts, ctx),
   );
   if (!sources.length) return false;
-  if (!(m.alwaysUseSpecial || Math.random() < 0.5)) return false;
+  /* 予約時に選んだソースがまだ有効なら優先 */
+  if (preferredId != null) {
+    const pref = sources.find((s) => s.id === preferredId);
+    if (pref) sources = [pref];
+  }
+  /* 予約済みなら再抽選しない。未予約（both フェーズ等）は 50% */
+  if (!forceReady && !(m.alwaysUseSpecial || Math.random() < 0.5)) return false;
 
   const src = pick(sources);
   ml.push(`${m.name}が${src.name}のものまねをした！`);
@@ -3973,6 +4003,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         m._pentacleDrawReady = true;
         return;
       }
+      /* ものまね師：実行可能特技があれば予約して移動しない（プレイヤー非隣接でも攻撃フェーズで発動） */
+      if (m.subtype === "mimic" && !m.sealed && _rAtks) {
+        if (tryReserveMimicSkill(m, dg, pl, opts, {
+          canSee,
+          plOnBlessedSanc: _plOnBlessedSanc,
+          sameRoom: _sameRoom,
+        })) return;
+      }
     }
     /* ドラゴンLv3：canSee不要なので別途判定 */
     if (_moveOnly && m.aware && m.baseKind === "dragon" && !m.sealed && (m.monLevel || 1) >= 3) {
@@ -3990,13 +4028,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _rdy = m._rangedAttackThisTurn;
       if (_rdy) delete m._rangedAttackThisTurn;
 
-      /* ── ものまね師：隣接キャラの特技を50%で模倣 ── */
+      /* ── ものまね師：隣接キャラの特技を模倣（moveOnly 予約があれば再抽選なし） ── */
       if (m.subtype === "mimic" && !m.sealed) {
         if (tryMimicAdjacentSkill(m, dg, pl, ml, opts, {
           moveOnly: false,
           canSee,
           plOnBlessedSanc: _plOnBlessedSanc,
           sameRoom: _sameRoom,
+          forceReady: !!m._mimicReady,
+          preferredSourceId: m._mimicSourceId,
         })) return;
       }
 

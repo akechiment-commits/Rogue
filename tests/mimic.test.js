@@ -5,6 +5,8 @@ import {
   getAdjacentMimicSources,
   canMimicSourceSkill,
   tryMimicAdjacentSkill,
+  tryReserveMimicSkill,
+  monsterAI,
 } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
@@ -240,5 +242,83 @@ describe("ものまね師", () => {
     const archer = { id: "a", name: "アーチャー", subtype: "archer", x: 6, y: 5, hp: 10 };
     const dg = makeEmptyDg({ monsters: [mimic, archer] });
     expect(tryMimicAdjacentSkill(mimic, dg, makePlayer({ x: 5, y: 8 }), [], {}, { canSee: true })).toBe(false);
+  });
+
+  it("プレイヤー非隣接でもワッカ隣接なら moveOnly 予約→attackOnly で石投げ", () => {
+    const { map, rooms } = makeRoomMap();
+    const mimic = makeMimic(5, 5);
+    const wokka = {
+      id: "w1", name: "ワッカ", subtype: "stonethrow", baseKind: "wokka",
+      x: 6, y: 5, hp: 20, monLevel: 1,
+    };
+    const pl = makePlayer({ x: 5, y: 8 }); /* 距離3・非隣接・射程内 */
+    const dg = makeEmptyDg({
+      map, rooms,
+      monsters: [mimic, wokka],
+      traps: [], items: [], pentacles: [],
+      visible: Array.from({ length: 15 }, () => Array(20).fill(true)),
+    });
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
+      const mlMove = [];
+      monsterAI(mimic, dg, pl, mlMove, { moveOnly: true });
+      expect(mimic.x).toBe(5);
+      expect(mimic.y).toBe(5);
+      expect(mimic._mimicReady).toBe(true);
+
+      const mlAtk = [];
+      monsterAI(mimic, dg, pl, mlAtk, { attackOnly: true });
+      expect(mlAtk.some((m) => String(m).includes("ものまね"))).toBe(true);
+      expect(mlAtk.some((m) => String(m).includes("攻撃！"))).toBe(false);
+      expect(mimic.turnAttacks).toBeGreaterThanOrEqual(1);
+      expect(mimic._mimicReady).toBeFalsy();
+    } finally {
+      rnd.mockRestore();
+    }
+  });
+
+  it("プレイヤー非隣接でもラクガキ魔隣接なら moveOnly 予約→attackOnly で描画", () => {
+    const { map, rooms } = makeRoomMap();
+    const mimic = makeMimic(5, 5);
+    const painter = {
+      id: "p1", name: "ラクガキ魔", subtype: "pentaclePainter", baseKind: "rakugakima",
+      x: 6, y: 5, hp: 20, monLevel: 1,
+    };
+    const pl = makePlayer({ x: 9, y: 9 }); /* 非隣接・非一直線 */
+    const dg = makeEmptyDg({
+      map, rooms,
+      monsters: [mimic, painter],
+      traps: [], items: [], pentacles: [],
+      visible: Array.from({ length: 15 }, () => Array(20).fill(true)),
+    });
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
+      monsterAI(mimic, dg, pl, [], { moveOnly: true });
+      expect(mimic.x).toBe(5);
+      expect(mimic.y).toBe(5);
+      expect(mimic._mimicReady).toBe(true);
+
+      const ml = [];
+      monsterAI(mimic, dg, pl, ml, { attackOnly: true });
+      expect(ml.some((m) => String(m).includes("ものまね"))).toBe(true);
+      expect(ml.some((m) => String(m).includes("を描いた") || String(m).includes("失敗"))).toBe(true);
+      expect(ml.some((m) => String(m).includes("攻撃！"))).toBe(false);
+    } finally {
+      rnd.mockRestore();
+    }
+  });
+
+  it("tryReserveMimicSkill は条件外なら予約しない", () => {
+    const { map, rooms } = makeRoomMap();
+    const mimic = makeMimic(5, 5);
+    const archer = {
+      id: "a1", name: "アーチャー", subtype: "archer", x: 6, y: 5, hp: 10, monLevel: 1,
+    };
+    const pl = makePlayer({ x: 7, y: 9 }); /* 非一直線 */
+    const dg = makeEmptyDg({ map, rooms, monsters: [mimic, archer] });
+    expect(tryReserveMimicSkill(mimic, dg, pl, {}, {
+      canSee: true, sameRoom: true, plOnBlessedSanc: false,
+    })).toBe(false);
+    expect(mimic._mimicReady).toBeFalsy();
   });
 });
