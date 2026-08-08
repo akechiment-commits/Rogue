@@ -5327,6 +5327,34 @@ export function hasRingEffect(p, effect) {
   return p.rings?.some(r => r.effect === effect) ?? false;
 }
 
+/**
+ * ダンジョン入場時の初期装備（短剣・革の鎧）をインベントリに追加して装備する。
+ * 所持上限に空きがない場合はそのアイテムは入らない（満杯なら何も入らない）。
+ * @returns {{ dagger: object|null, armor: object|null }}
+ */
+export function grantDungeonStarterGear(player, { uidFn = uid, catalog = ITEMS } = {}) {
+  if (!player) return { dagger: null, armor: null };
+  player.inventory = player.inventory || [];
+  const maxInv = player.maxInventory || 30;
+  const result = { dagger: null, armor: null };
+
+  const tryAddEquip = (name, slot) => {
+    if (player.inventory.length >= maxInv) return null;
+    const tmpl = catalog.find((i) => i.name === name);
+    if (!tmpl) return null;
+    const it = { ...tmpl, id: uidFn(), plus: 0 };
+    player.inventory.push(it);
+    player[slot] = it;
+    return it;
+  };
+
+  result.dagger = tryAddEquip("短剣", "weapon");
+  result.armor = tryAddEquip("革の鎧", "armor");
+  return result;
+}
+
+
+
 /** 体幹の指輪：転倒および強制移動を防ぐ */
 export function resistsForcedMove(p) {
   return hasRingEffect(p, "core_ring");

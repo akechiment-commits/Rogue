@@ -48,8 +48,8 @@ export function hpKey(p) {
   return "hp_full";
 }
 
-/** 軽装備立ち絵を出す防具名（革の鎧・腹持ちの胴） */
-export const LIGHT_ARMOR_STAND_NAMES = new Set(["革の鎧", "腹持ちの胴"]);
+/** 軽装備立ち絵を出す防具名（みかわしの服・腹持ちの胴） */
+export const LIGHT_ARMOR_STAND_NAMES = new Set(["みかわしの服", "腹持ちの胴"]);
 
 export function isLightArmorStand(armor) {
   if (!armor) return false;
@@ -58,7 +58,7 @@ export function isLightArmorStand(armor) {
 
 /**
  * 待機時の立ち絵グループ。
- * HP満タン寄りのみ装備で分岐：未装備→下着、革/腹持ち→軽装、その他→通常装備群。
+ * HP満タン寄りのみ装備で分岐：未装備→下着、みかわし/腹持ち→軽装、その他→通常装備群。
  */
 export function idleStandKey(p) {
   if (!p) return "hp_full";

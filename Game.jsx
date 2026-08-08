@@ -21,7 +21,7 @@ import {
   checkShopTheft, declareShopTheft, canCalmShopkeeper, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal,
+  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
@@ -431,7 +431,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       mp: dungeonConfig?.dungeonType === "debug" ? 200 : 20,
       maxMp: dungeonConfig?.dungeonType === "debug" ? 200 : 20,
       atk: 5,
-      def: 2,
+      def: 0,
       level: 1,
       exp: 0,
       nextExp: 10,
@@ -480,6 +480,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (p.inventory.length < (p.maxInventory || 100)) p.inventory.push({ ...it, id: uid() });
       }
     }
+    /* 初期装備：短剣・革の鎧（空きがなければ入らない） */
+    grantDungeonStarterGear(p);
     refreshFOV(d, p);
     const _dt = dungeonConfig?.dungeonType || "beginner";
     const _allIdentKeys = (_dt === "debug" || _dt === "beginner")

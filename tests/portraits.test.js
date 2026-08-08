@@ -288,12 +288,14 @@ describe("portraits", () => {
   });
 
   it("idleStandKey が防具で待機立ち絵を分岐する", () => {
-    expect(isLightArmorStand({ name: "革の鎧" })).toBe(true);
+    expect(isLightArmorStand({ name: "みかわしの服" })).toBe(true);
     expect(isLightArmorStand({ name: "腹持ちの胴" })).toBe(true);
+    expect(isLightArmorStand({ name: "革の鎧" })).toBe(false);
     expect(isLightArmorStand({ name: "プレートメイル" })).toBe(false);
     expect(idleStandKey({ hp: 90, maxHp: 100, armor: null })).toBe("stand_unarmored");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "革の鎧" } })).toBe("stand_light_armor");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "みかわしの服" } })).toBe("stand_light_armor");
     expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "腹持ちの胴" } })).toBe("stand_light_armor");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "革の鎧" } })).toBe("hp_full");
     expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "プレートメイル" } })).toBe("hp_full");
     expect(idleStandKey({ hp: 10, maxHp: 100, armor: null })).toBe("hp_low");
   });
