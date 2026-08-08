@@ -52,6 +52,27 @@ describe("advancePlayerUpkeep", () => {
     expect(player.hp).toBe(72);
   });
 
+  it("回復の指輪2個なら自然回復が+2", () => {
+    /* base 1 + 指輪×2 = 3 */
+    const player = makePlayer({
+      hp: 70,
+      rings: [{ effect: "regen_ring" }, { effect: "regen_ring" }],
+    });
+    advance(player);
+    expect(player.hp).toBe(73);
+  });
+
+  it("再生防具と回復の指輪2個はすべて加算される", () => {
+    /* base 1 + 再生+1 + 指輪×2 = 4 */
+    const player = makePlayer({
+      hp: 70,
+      armor: { ability: "regen" },
+      rings: [{ effect: "regen_ring" }, { effect: "regen_ring" }],
+    });
+    advance(player);
+    expect(player.hp).toBe(74);
+  });
+
   it("大食い武器は5ターン目に追加で空腹度を減らす", () => {
     const player = makePlayer({ turns: 4, hunger: 20, weapon: { ability: "gluttony" } });
     advance(player);

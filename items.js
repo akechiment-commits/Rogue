@@ -5303,7 +5303,7 @@ export const RINGS = [
   { name: "値切りの指輪",   type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"D", weight:8, sellPrice:1000, tile:60, desc:"装備中、敵が現れやすくなる。" },
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
-  { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、毎ターンのHP自然回復量が1増える。" },
+  { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、毎ターンのHP自然回復量が1増える。2つ装備すれば2増える。再生付き装備とも重複する。" },
   { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"A", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
   { name: "松明の指輪",     type:"ring", effect:"torch_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、視界範囲が1マス広がる。2つ装備すれば2マス広がる。" },
   { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、空腹の進行が3/4になる。複数・胴と重ねがけ可（2つで1/2、3つで1/4）。" },

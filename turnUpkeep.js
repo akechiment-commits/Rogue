@@ -9,7 +9,8 @@ export function advancePlayerUpkeep(player, messages, {
   onHungerDamageStarted = () => {},
 }) {
   player.turns++;
-  const hasRegenRing = hasRingEffect(player, "regen_ring");
+  /* 回復の指輪は装備個数分だけ +1（2個なら +2）。再生防具とも加算で重複 */
+  const regenRingCount = (player.rings || []).filter((r) => r?.effect === "regen_ring").length;
   const hungerRate = calcHungerDrainRate(player);
   player._hungerTick = (player._hungerTick || 0) + hungerRate;
   while (player._hungerTick >= 10) {
@@ -34,7 +35,7 @@ export function advancePlayerUpkeep(player, messages, {
   } else if (player.hp > 0 && player.hp < player.maxHp) {
     const baseRegen = Math.max(1, Math.floor(player.maxHp / 100))
       + (hasAbility(player.armor, "regen") ? 1 : 0)
-      + (hasRegenRing ? 1 : 0);
+      + regenRingCount;
     player.hp = Math.min(player.maxHp, player.hp + baseRegen);
   }
 }
