@@ -32,9 +32,10 @@ export function advancePlayerUpkeep(player, messages, {
     }
     player.hp--;
   } else if (player.hp > 0 && player.hp < player.maxHp) {
-    const baseRegen = Math.max(1, Math.floor(player.maxHp / 100)) + (hasAbility(player.armor, "regen") ? 1 : 0);
-    const regenAmount = hasRegenRing ? baseRegen * 2 : baseRegen;
-    player.hp = Math.min(player.maxHp, player.hp + regenAmount);
+    const baseRegen = Math.max(1, Math.floor(player.maxHp / 100))
+      + (hasAbility(player.armor, "regen") ? 1 : 0)
+      + (hasRegenRing ? 1 : 0);
+    player.hp = Math.min(player.maxHp, player.hp + baseRegen);
   }
 }
 

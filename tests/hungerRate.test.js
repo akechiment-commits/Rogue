@@ -36,17 +36,15 @@ describe("calcHungerDrainRate", () => {
     })).toBeCloseTo(0.25);
   });
 
-  it("回復指輪は軽減後を2倍（上書きしない）", () => {
-    /* 胴+指輪 → 0.5、回復で 1.0 */
+  it("回復の指輪は空腹レートに影響しない", () => {
     expect(calcHungerDrainRate({
       armor: { ability: "slow_hunger" },
       rings: [{ effect: "stomach_ring" }, { effect: "regen_ring" }],
-    })).toBeCloseTo(1.0);
-    /* 素+回復 → 2.0 */
+    })).toBeCloseTo(0.5);
     expect(calcHungerDrainRate({
       armor: null,
       rings: [{ effect: "regen_ring" }],
-    })).toBeCloseTo(2.0);
+    })).toBeCloseTo(1.0);
   });
 
   it("空腹の指輪は軽減後を2倍", () => {

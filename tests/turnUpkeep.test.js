@@ -38,10 +38,18 @@ describe("advancePlayerUpkeep", () => {
     expect(warnings).toBe(1);
   });
 
-  it("再生防具と回復の指輪は自然回復量を加算・倍化する", () => {
+  it("再生防具と回復の指輪は自然回復量をそれぞれ+1する", () => {
+    /* base floor(100/100)=1 + 再生防具+1 + 回復指輪+1 = 3 */
     const player = makePlayer({ hp: 70, armor: { ability: "regen" }, rings: [{ effect: "regen_ring" }] });
     advance(player);
-    expect(player.hp).toBe(74);
+    expect(player.hp).toBe(73);
+  });
+
+  it("回復の指輪だけなら自然回復が+1", () => {
+    /* base 1 + 指輪+1 = 2 */
+    const player = makePlayer({ hp: 70, rings: [{ effect: "regen_ring" }] });
+    advance(player);
+    expect(player.hp).toBe(72);
   });
 
   it("大食い武器は5ターン目に追加で空腹度を減らす", () => {

@@ -5303,7 +5303,7 @@ export const RINGS = [
   { name: "値切りの指輪",   type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"D", weight:8, sellPrice:1000, tile:60, desc:"装備中、敵が現れやすくなる。" },
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
-  { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、自然回復量が倍。空腹は腹持ち等の軽減後の速度がさらに2倍になる。" },
+  { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、毎ターンのHP自然回復量が1増える。" },
   { name: "爆発の指輪",     type:"ring", effect:"explode_ring",         rarity:"A", weight:1, sellPrice:2000, tile:60, desc:"装備時に自分が爆発する。装備中もたまに爆発する。" },
   { name: "松明の指輪",     type:"ring", effect:"torch_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、視界範囲が1マス広がる。2つ装備すれば2マス広がる。" },
   { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、空腹の進行が3/4になる。複数・胴と重ねがけ可（2つで1/2、3つで1/4）。" },
@@ -5477,7 +5477,7 @@ export function applyShopUnpaidCharge(item, shop, p) {
 /**
  * 1ターンあたりの空腹進行レート（基準: 合計10で満腹度-1 ≒ 通常10ターンに1）。
  * 腹持ち1つにつき ×3/4（胴+指輪1=1/2、胴+指輪2=1/4）。バターでさらに×1/2。
- * 回復の指輪・空腹の指輪は軽減後のレートを×2（上書きしない・重ねがけ可）。
+ * 空腹の指輪は軽減後のレートを×2（上書きしない・重ねがけ可）。
  */
 export function calcHungerDrainRate(p) {
   if (!p) return 1;
@@ -5488,7 +5488,6 @@ export function calcHungerDrainRate(p) {
   }
   let rate = Math.max(0, 4 - n) / 4;
   if ((p.butterHungerTurns || 0) > 0) rate *= 0.5;
-  if (hasRingEffect(p, "regen_ring")) rate *= 2;
   if (hasRingEffect(p, "hunger_ring")) rate *= 2;
   return rate;
 }
