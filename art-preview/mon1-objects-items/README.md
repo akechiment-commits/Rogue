@@ -18,7 +18,16 @@
 
 ## アイテムカテゴリ
 
-`potion`, `scroll`, `weapon`, `armor`, `arrow`, `ring`, `wand`, `pen`, `marker`, `spellbook`, `pot`, `gem`, `gold`, `bottle` を各1枚。食料は `item_food_raw.png`（未調理）と `item_food_cooked.png`（調理済み）を別に用意。
+`potion`, `scroll`, `weapon`, `armor`, `arrow`, `ring`, `wand`, `pen`, `marker`, `spellbook`, `pot`, `gem`, `gold`, `bottle` を各1枚。食料は `item_food_raw_fruit.png`（未調理）と `item_food_cooked_plated.png`（調理済み）を別に用意。
+
+## 食料の可読性改訂版
+
+| 種類 | グラフィックの意図 |
+|---|---|
+| 未調理 | 生肉ではなく、赤い果実・黄色い果実・葉をまとめた「そのまま食べられる素材」 |
+| 調理済み | 皿に盛った色の濃い料理と湯気で、「調理された食事」を明示 |
+
+小さなゲーム内タイルでも、素材と料理のシルエットが一目で分かれるようにした改訂版。
 
 ## 地形タイル候補
 
