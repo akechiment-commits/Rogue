@@ -3038,7 +3038,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.sealed && m.isBoss && !_attackOnly) {
     if ((m.sealedTurns || 0) > 0) {
       m.sealedTurns = Math.max(0, m.sealedTurns - 2);
-      if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
+      /* 封印は解除されたターンから通常行動できる。睡眠・金縛りとは異なり、ここでreturnしない。 */
+      if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); }
     }
   }
   /* ── grabber捕獲解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */

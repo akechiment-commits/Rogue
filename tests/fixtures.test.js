@@ -132,6 +132,43 @@ describe("フリージア", () => {
       randomSpy.mockRestore();
     }
   });
+
+  it("封印が解けたターンから行動する", () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      const attacker = {
+        id: "freesia",
+        name: "好まざる猫「フリージア」",
+        baseKind: "boss_blaze",
+        isBoss: true,
+        sealed: true,
+        sealedTurns: 1,
+        x: 4, y: 5,
+        hp: 150, maxHp: 150, atk: 24, def: 16, exp: 500,
+        speed: 1, baseSpeed: 1, turnAccum: 0,
+        turnAttacks: 0, maxAttacks: 1, monLevel: 1,
+        aware: true, dormant: false,
+        dir: { x: 1, y: 0 },
+      };
+      const dg = makeEmptyDg({
+        rooms: [{ x: 1, y: 1, w: 10, h: 10 }],
+        monsters: [attacker],
+      });
+      const p = makePlayer({ x: 5, y: 5 });
+      const ml = [];
+
+      /* 実ゲームと同じく、移動フェーズ後に解除済みフラグを見て攻撃フェーズへ進む。 */
+      monsterAI(attacker, dg, p, ml, { moveOnly: true });
+      if (attacker._movedThisTurn) delete attacker._movedThisTurn;
+      else monsterAI(attacker, dg, p, ml, { attackOnly: true });
+
+      expect(attacker.sealed).toBe(false);
+      expect(p.hp).toBeLessThan(100);
+      expect(ml).toContain("好まざる猫「フリージア」の封印が解けた！");
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
 });
 
 describe("固定転送", () => {
