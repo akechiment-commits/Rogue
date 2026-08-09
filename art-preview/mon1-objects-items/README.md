@@ -47,4 +47,18 @@
 
 連続配置確認用：`terrain_tileable_repeat_preview.png`
 
+## 可読性優先改訂版
+
+32px表示で「床」と「壁」の役割が直感的に分かれるよう、色・面の向き・模様をさらに分離した版。部屋の床は明るく平たい石床、廊下の床は不定形の敷石、通常の壁は横積みの暗いレンガ、外周壁は黒い補強プレート、壊せる壁は明るい亀裂・欠損・落石で表現している。現在の候補ではこの版を第一候補とする。
+
+| ファイル | 対象 |
+|---|---|
+| `terrain_room_floor_readable.png` | 部屋の床 |
+| `terrain_corridor_floor_readable.png` | 廊下の床 |
+| `terrain_wall_readable.png` | 通常の壁 |
+| `terrain_outer_wall_readable.png` | 外周の壊せない壁 |
+| `terrain_breakable_wall_readable.png` | 壊せる壁（亀裂・欠損・落石） |
+
+確認用シート：`terrain_readability_preview.png`、連続配置確認用：`terrain_readability_repeat_preview.png`
+
 アイテム／オブジェクトは128×128の透過PNG、地形タイルは128×128の不透明PNG。実際のタイルへの差し替えは行っていない。
