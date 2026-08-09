@@ -484,6 +484,7 @@ addSheet('10_罠', trapData);
 // モンスターの特性を取得するヘルパー
 function monTraits(m) {
   const t = [];
+  if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時35%で混乱（封印中は発動しない）');
   if (m.float) t.push('浮遊');
   if (m.waterOnly) t.push('水タイルのみ');
   if (m.subtype === 'watergunner') t.push('水鉄砲攻撃（風穴で曲がる・命中時ずぶ濡れ＋所持品に水影響・石像で停止して破壊）');

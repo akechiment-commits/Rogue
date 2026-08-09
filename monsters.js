@@ -427,7 +427,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   /* ボス固有攻撃エフェクト */
   if (dmg > 0) {
-    if (m.baseKind === "boss_blaze" && Math.random() < 0.35) {
+    if (m.baseKind === "boss_blaze" && !m.sealed && Math.random() < 0.35) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`${m.name}の鋭い爪が頭を掻いた！しかし状態防止中のため混乱しなかった！`);
       } else if ((pl.yogurtImmuneTurns || 0) > 0) {

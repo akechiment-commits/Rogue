@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   makeFakeStairTrap, materializeFakeStair, trapDisplayAsStair, scatterFloorGimmicks,
   makeVent, makeStatue, makeFixedPortalPair, findFixedPortalPair,
@@ -95,6 +95,42 @@ describe("風穴", () => {
     /* 南へ一直線：x は変わらず y が増える */
     expect(cx).toBe(5);
     expect(cy).toBe(8);
+  });
+});
+
+describe("フリージア", () => {
+  it("封印中は近接攻撃の混乱効果を発動しない", () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const attacker = {
+        id: "freesia",
+        name: "好まざる猫「フリージア」",
+        baseKind: "boss_blaze",
+        isBoss: true,
+        sealed: true,
+        sealedTurns: 10,
+        x: 4, y: 5,
+        hp: 150, maxHp: 150, atk: 24, def: 16, exp: 500,
+        speed: 1, baseSpeed: 1, turnAccum: 0,
+        turnAttacks: 0, maxAttacks: 1, monLevel: 1,
+        aware: true, dormant: false,
+        dir: { x: 1, y: 0 },
+      };
+      const dg = makeEmptyDg({
+        rooms: [{ x: 1, y: 1, w: 10, h: 10 }],
+        monsters: [attacker],
+      });
+      const p = makePlayer({ x: 5, y: 5 });
+      const ml = [];
+
+      monsterAI(attacker, dg, p, ml, { attackOnly: true });
+
+      expect(p.hp).toBeLessThan(100);
+      expect(p.confusedTurns || 0).toBe(0);
+      expect(ml.some(msg => msg.includes("混乱した"))).toBe(false);
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 });
 
