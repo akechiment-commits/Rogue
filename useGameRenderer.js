@@ -531,7 +531,18 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const _penTile = (it) => { const vi = 2000 + _penMap?.[it.effect]; return (it.tile === 42 && _penMap?.[it.effect] != null && customTileImages[vi]) ? vi : it.tile; };
     const _potMap = _gs.potionSpriteMap;
     const _potTile = (it) => { const vi = 3000 + _potMap?.[it.effect]; return ((it.tile === 16 || it.tile === 17) && it.type === 'potion' && _potMap?.[it.effect] != null && customTileImages[vi]) ? vi : it.tile; };
-    const _spriteTile = (it) => { const p2 = _potTile(it); return p2 !== it.tile ? p2 : _penTile(it); };
+    const _categoryTile = (it) => {
+      if (it?.type === "potion" && customTileImages[TI.ITEM_POTION]) return TI.ITEM_POTION;
+      if (it?.type === "bottle" && customTileImages[TI.ITEM_BOTTLE]) return TI.ITEM_BOTTLE;
+      if (it?.type === "pen" && customTileImages[TI.ITEM_PEN]) return TI.ITEM_PEN;
+      return null;
+    };
+    const _spriteTile = (it) => {
+      const category = _categoryTile(it);
+      if (category != null) return category;
+      const p2 = _potTile(it);
+      return p2 !== it.tile ? p2 : _penTile(it);
+    };
     const vw = mobile ? (landscape ? VW_L : VW_M) : (desktopVW || VW_D);
     const contW = cvs.parentElement?.clientWidth || 600;
     const sz = Math.max(12, Math.floor(contW / vw));
@@ -746,28 +757,32 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.stroke();
           ctx.restore();
         }
-        /* 石像（視認しやすい灰色ブロック＋石マーク） */
+        /* 石像：スタイル3では専用画像、その他では従来のフォールバック */
         const _statue = _statueMap.get(_k(x, y));
         if (_statue && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.45;
-          const m = Math.max(1, Math.floor(sz * 0.08));
-          /* 本体 */
-          ctx.fillStyle = "#6a6a78";
-          ctx.fillRect(px2 + m, py2 + m, sz - m * 2, sz - m * 2);
-          /* ハイライト／影で立体感 */
-          ctx.fillStyle = "#9a9aaa";
-          ctx.fillRect(px2 + m, py2 + m, sz - m * 2, Math.max(2, Math.floor(sz * 0.18)));
-          ctx.fillStyle = "#3a3a48";
-          ctx.fillRect(px2 + m, py2 + sz - m - Math.max(2, Math.floor(sz * 0.14)), sz - m * 2, Math.max(2, Math.floor(sz * 0.14)));
-          /* 枠 */
-          ctx.strokeStyle = "#d8d8e8";
-          ctx.lineWidth = Math.max(1, sz * 0.06);
-          ctx.strokeRect(px2 + m + 0.5, py2 + m + 0.5, sz - m * 2 - 1, sz - m * 2 - 1);
-          ctx.fillStyle = "#f0f0ff";
-          ctx.font = `bold ${Math.floor(sz * 0.55)}px sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("石", px2 + sz / 2, py2 + sz / 2 + 1);
+          if (customTileImages[TI.STATUE]) {
+            drawTile(ctx, ts, TI.STATUE, px2, py2, sz);
+          } else {
+            const m = Math.max(1, Math.floor(sz * 0.08));
+            /* 本体 */
+            ctx.fillStyle = "#6a6a78";
+            ctx.fillRect(px2 + m, py2 + m, sz - m * 2, sz - m * 2);
+            /* ハイライト／影で立体感 */
+            ctx.fillStyle = "#9a9aaa";
+            ctx.fillRect(px2 + m, py2 + m, sz - m * 2, Math.max(2, Math.floor(sz * 0.18)));
+            ctx.fillStyle = "#3a3a48";
+            ctx.fillRect(px2 + m, py2 + sz - m - Math.max(2, Math.floor(sz * 0.14)), sz - m * 2, Math.max(2, Math.floor(sz * 0.14)));
+            /* 枠 */
+            ctx.strokeStyle = "#d8d8e8";
+            ctx.lineWidth = Math.max(1, sz * 0.06);
+            ctx.strokeRect(px2 + m + 0.5, py2 + m + 0.5, sz - m * 2 - 1, sz - m * 2 - 1);
+            ctx.fillStyle = "#f0f0ff";
+            ctx.font = `bold ${Math.floor(sz * 0.55)}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("石", px2 + sz / 2, py2 + sz / 2 + 1);
+          }
           if (!vis) ctx.globalAlpha = 1;
         }
         /* Spring */
@@ -807,7 +822,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.fillStyle = _pentClr;
           ctx.fillRect(px2, py2, sz, sz);
           ctx.globalAlpha = 0.85;
-          const _pentImg = customTileImages[74];
+          const _pentImg = customTileImages[_pent.kind === "fixed_portal" ? TI.FIXED_PORTAL : TI.PENTACLE];
           if (_pentImg) {
             ctx.drawImage(_pentImg, px2, py2, sz, sz);
           } else {
@@ -848,7 +863,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
               /* アイテム・罠をプレイヤーの下に先描画（階段と同様に隙間から見えるように） */
               const _pitItem = _itemMap.get(_k(x, y));
               if (_pitItem && !_pitItem.wallEmbedded) {
-                const _piTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*11+y*19)%9] : _pitItem.tile;
+                const _piTile = (p.bewitchedTurns||0)>0 ? [16,17,18,20,21,22,23,24,32][(x*11+y*19)%9] : _spriteTile(_pitItem);
                 drawTile(ctx, ts, _piTile, px2, py2, sz);
               }
               const _pitTrap = _trapMap.get(_k(x, y));
