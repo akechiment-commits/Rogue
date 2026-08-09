@@ -25,6 +25,9 @@ export const TI = {
   PLAYER_UP_RIGHT: 65,
   FOOD_COOKED: 66,
   SIGN: 110,
+  BREAKABLE_WALL: 134,
+  OUTER_WALL: 135,
+  WATER: 136,
 };
 
 /**

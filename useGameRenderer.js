@@ -596,6 +596,9 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     /* Set of entities currently animating movement (skip normal draw at destination) */
     const _movingEntities = new Set();
     for (const [key] of moveOffsets) _movingEntities.add(key);
+    const _hasBreakableWallArt = !!customTileImages[TI.BREAKABLE_WALL];
+    const _hasOuterWallArt = !!customTileImages[TI.OUTER_WALL];
+    const _hasWaterArt = !!customTileImages[TI.WATER];
 
     for (let vy = 0; vy < vh; vy++) {
       for (let vx = 0; vx < vw; vx++) {
@@ -614,15 +617,17 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           continue;
         }
         const t = dg.map[y][x];
+        const _isOuterWall = t === T.WALL && (x === 0 || x === MW - 1 || y === 0 || y === MH - 1);
         let ti = TI.FLOOR;
-        if (t === T.WALL) ti = TI.WALL;
-        else if (t === T.BWALL) ti = TI.WALL; /* base tile overridden below */
+        if (t === T.WALL) ti = _isOuterWall && _hasOuterWallArt ? TI.OUTER_WALL : TI.WALL;
+        else if (t === T.BWALL) ti = _hasBreakableWallArt ? TI.BREAKABLE_WALL : TI.WALL;
+        else if (t === T.WATER) ti = _hasWaterArt ? TI.WATER : TI.FLOOR;
         else if (t === T.SD) ti = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 3 + y * 17) % 9] : TI.SD;
         else if (t === T.SU) ti = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 5 + y * 11) % 9] : TI.SU;
         if (t === T.FLOOR && !_roomSet.has(_k(x, y))) ti = TI.CORR;
         drawTile(ctx, ts, ti, px2, py2, sz);
         /* 壊せる壁：特有の背景色＋目立つヒビ表示 */
-        if (t === T.BWALL && (vis || exp2)) {
+        if (t === T.BWALL && !_hasBreakableWallArt && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.4;
           /* 通常壁より明るい褐色の背景 */
           ctx.fillStyle = "#3a2a14";
@@ -664,7 +669,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           }
         }
         /* Water tile */
-        if (t === T.WATER && (vis || exp2)) {
+        if (t === T.WATER && !_hasWaterArt && (vis || exp2)) {
           ctx.globalAlpha = vis ? 1 : 0.4;
           ctx.fillStyle = "#0d2a5c";
           ctx.fillRect(px2, py2, sz, sz);
@@ -678,14 +683,14 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.textBaseline = "middle";
           ctx.fillText("~", px2 + sz / 2, py2 + sz / 2);
           ctx.globalAlpha = 1;
-          if (vis && dg.waterItems?.some(wi => wi.x === x && wi.y === y)) {
-            ctx.globalAlpha = 0.4;
-            ctx.fillStyle = "#ffee88";
-            ctx.beginPath();
-            ctx.arc(px2 + sz * 0.8, py2 + sz * 0.2, sz * 0.15, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1;
-          }
+        }
+        if (t === T.WATER && vis && dg.waterItems?.some(wi => wi.x === x && wi.y === y)) {
+          ctx.globalAlpha = 0.4;
+          ctx.fillStyle = "#ffee88";
+          ctx.beginPath();
+          ctx.arc(px2 + sz * 0.8, py2 + sz * 0.2, sz * 0.15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
         }
         /* Oily floor */
         if (_oilySet.has(_k(x, y)) && (vis || exp2)) {
