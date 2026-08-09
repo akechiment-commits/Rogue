@@ -18,14 +18,14 @@
 
 ## アイテムカテゴリ
 
-`potion`, `scroll`, `weapon`, `armor`, `arrow`, `ring`, `wand`, `pen`, `marker`, `spellbook`, `pot`, `gem`, `gold`, `bottle` を各1枚。食料は `item_food_raw_fruit.png`（未調理）と `item_food_cooked_plated_v2.png`（調理済み）を別に用意。
+`potion`, `scroll`, `weapon`, `armor`, `arrow`, `ring`, `wand`, `pen`, `marker`, `spellbook`, `pot`, `gem`, `gold`, `bottle` を各1枚。食料は `item_food_raw_fruit.png`（未調理）と `item_food_cooked_plated_v3.png`（調理済み）を別に用意。杖は `item_wand_flashy.png` に更新。
 
 ## 食料の可読性改訂版
 
 | 種類 | グラフィックの意図 |
 |---|---|
 | 未調理 | 生肉ではなく、赤い果実・黄色い果実・葉をまとめた「そのまま食べられる素材」 |
-| 調理済み | 大きな具材を皿に盛り、太い湯気を添えて「調理された食事」を明示 |
+| 調理済み | 湯気を使わず、皿・大きな一皿料理・赤いソース・葉で「調理された食事」を明示 |
 
 小さなゲーム内タイルでも、素材と料理のシルエットが一目で分かれるようにした改訂版。
 
@@ -33,10 +33,11 @@
 
 | 対象 | 採用グラフィック | 変更点 |
 |---|---|---|
-| 調理済み食料 | `item_food_cooked_plated_v2.png` | 細かい具材を減らし、皿・大きな具材・太い湯気を優先 |
+| 調理済み食料 | `item_food_cooked_plated_v3.png` | 湯気を削除し、皿・大きな卵料理・赤いソース・葉のシルエットを優先 |
 | 大箱 | `object_bigbox_plain.png` | 鍵・錠前・金具・革帯を外した、単純な木箱 |
+| 杖 | `item_wand_flashy.png` | 青紫の大きな発光宝石、金の装飾、星形の魔力で派手さを明示 |
 
-確認用シート：`food_box_v3_preview.png`
+確認用シート：`food_wand_v4_preview.png`（大箱は `food_box_v3_preview.png`）
 
 ## 地形タイル候補
 
