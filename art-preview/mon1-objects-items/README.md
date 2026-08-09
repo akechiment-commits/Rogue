@@ -32,4 +32,19 @@
 
 確認用シート：`terrain_food_preview.png`
 
+## 連続配置用の改訂版
+
+前節の地形候補を、4×4で並べたときの継ぎ目と反復感を確認した改訂版。実際の候補としてはこちらを優先する。
+
+| ファイル | 対象 |
+|---|---|
+| `terrain_room_floor_tileable.png` | 部屋の床 |
+| `terrain_corridor_floor_tileable.png` | 廊下の床 |
+| `terrain_wall_tileable.png` | 通常の壁 |
+| `terrain_outer_wall_tileable.png` | 外周の壊せない壁 |
+| `terrain_breakable_wall_tileable.png` | 壊せる壁 |
+| `terrain_water_channel.png` | 水路／水面 |
+
+連続配置確認用：`terrain_tileable_repeat_preview.png`
+
 アイテム／オブジェクトは128×128の透過PNG、地形タイルは128×128の不透明PNG。実際のタイルへの差し替えは行っていない。
