@@ -18,6 +18,18 @@
 
 ## アイテムカテゴリ
 
-`potion`, `scroll`, `weapon`, `armor`, `arrow`, `ring`, `wand`, `pen`, `marker`, `spellbook`, `food`, `pot`, `gem`, `gold`, `bottle` を各1枚。
+`potion`, `scroll`, `weapon`, `armor`, `arrow`, `ring`, `wand`, `pen`, `marker`, `spellbook`, `pot`, `gem`, `gold`, `bottle` を各1枚。食料は `item_food_raw.png`（未調理）と `item_food_cooked.png`（調理済み）を別に用意。
 
-全画像は128×128の透過PNG。実際のタイルへの差し替えは行っていない。
+## 地形タイル候補
+
+| ファイル | 対象 |
+|---|---|
+| `terrain_room_floor.png` | 部屋の床 |
+| `terrain_corridor_floor.png` | 廊下の床 |
+| `terrain_wall.png` | 通常の壁 |
+| `terrain_outer_wall.png` | 外周の壊せない壁 |
+| `terrain_breakable_wall.png` | 壊せる壁 |
+
+確認用シート：`terrain_food_preview.png`
+
+アイテム／オブジェクトは128×128の透過PNG、地形タイルは128×128の不透明PNG。実際のタイルへの差し替えは行っていない。
