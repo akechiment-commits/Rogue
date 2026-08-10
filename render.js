@@ -116,6 +116,8 @@ export const TILE_NAMES = {
   87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
   184: "garnet", 185: "lapis_lazuli", 186: "turquoise", 187: "moonstone", 188: "black_onyx", 189: "alexandrite",
   190: "goal_orb", 191: "goal_crimson_stone", 192: "goal_crown", 193: "goal_forbidden_tome",
+  194: "wind_hole_right", 195: "wind_hole_down_right", 196: "wind_hole_down", 197: "wind_hole_down_left",
+  198: "wind_hole_left", 199: "wind_hole_up_left", 200: "wind_hole_up", 201: "wind_hole_up_right",
   108: "grabber",
   109: "leprechaun",
   110: "sign",

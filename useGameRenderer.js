@@ -2,6 +2,12 @@ import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { T, TI, MW, MH, clamp } from './utils.js';
 import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from './render.js';
 
+/* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
+const VENT_TILE_BY_DIR = {
+  '1,0': 194, '1,1': 195, '0,1': 196, '-1,1': 197,
+  '-1,0': 198, '-1,-1': 199, '0,-1': 200, '1,-1': 201,
+};
+
 /* Easing */
 function easeOutQuad(t) { return t * (2 - t); }
 
@@ -718,43 +724,46 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           drawTile(ctx, ts, _fsTi, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
-        /* 風穴：濃い枠＋キャンバス矢印（Unicode 斜め文字は潰れるため使わない） */
+        /* 風穴：風向き別の専用スプライト。画像が未読込の環境では従来描画を使う */
         const _vent = _ventMap.get(_k(x, y));
         if (_vent && (vis || exp2)) {
           ctx.save();
           if (!vis) ctx.globalAlpha = 0.45;
-          /* 床のハイライト */
-          ctx.fillStyle = "rgba(30,120,200,0.45)";
-          ctx.fillRect(px2 + 1, py2 + 1, sz - 2, sz - 2);
-          ctx.strokeStyle = "rgba(80,220,255,0.95)";
-          ctx.lineWidth = Math.max(2, sz * 0.08);
-          ctx.strokeRect(px2 + 2, py2 + 2, sz - 4, sz - 4);
-          /* 矢印本体 */
-          const vcx = px2 + sz / 2, vcy = py2 + sz / 2;
           let vdx = Math.sign(_vent.dx || 0), vdy = Math.sign(_vent.dy || 0);
           if (vdx === 0 && vdy === 0) vdy = 1;
-          const len = sz * 0.32;
-          const tipX = vcx + vdx * len, tipY = vcy + vdy * len;
-          const tailX = vcx - vdx * len * 0.7, tailY = vcy - vdy * len * 0.7;
-          ctx.strokeStyle = "#e8ffff";
-          ctx.fillStyle = "#40e8ff";
-          ctx.lineWidth = Math.max(2.5, sz * 0.12);
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-          ctx.beginPath();
-          ctx.moveTo(tailX, tailY);
-          ctx.lineTo(tipX, tipY);
-          ctx.stroke();
-          /* 矢じり */
-          const ang = Math.atan2(vdy, vdx);
-          const ah = sz * 0.22;
-          ctx.beginPath();
-          ctx.moveTo(tipX, tipY);
-          ctx.lineTo(tipX - Math.cos(ang - 0.55) * ah, tipY - Math.sin(ang - 0.55) * ah);
-          ctx.lineTo(tipX - Math.cos(ang + 0.55) * ah, tipY - Math.sin(ang + 0.55) * ah);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
+          const _ventTile = VENT_TILE_BY_DIR[`${vdx},${vdy}`];
+          if (_ventTile && customTileImages[_ventTile]) {
+            drawTile(ctx, ts, _ventTile, px2, py2, sz);
+          } else {
+            /* 旧環境用のフォールバック：濃い枠＋キャンバス矢印 */
+            ctx.fillStyle = "rgba(30,120,200,0.45)";
+            ctx.fillRect(px2 + 1, py2 + 1, sz - 2, sz - 2);
+            ctx.strokeStyle = "rgba(80,220,255,0.95)";
+            ctx.lineWidth = Math.max(2, sz * 0.08);
+            ctx.strokeRect(px2 + 2, py2 + 2, sz - 4, sz - 4);
+            const vcx = px2 + sz / 2, vcy = py2 + sz / 2;
+            const len = sz * 0.32;
+            const tipX = vcx + vdx * len, tipY = vcy + vdy * len;
+            const tailX = vcx - vdx * len * 0.7, tailY = vcy - vdy * len * 0.7;
+            ctx.strokeStyle = "#e8ffff";
+            ctx.fillStyle = "#40e8ff";
+            ctx.lineWidth = Math.max(2.5, sz * 0.12);
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(tailX, tailY);
+            ctx.lineTo(tipX, tipY);
+            ctx.stroke();
+            const ang = Math.atan2(vdy, vdx);
+            const ah = sz * 0.22;
+            ctx.beginPath();
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(tipX - Math.cos(ang - 0.55) * ah, tipY - Math.sin(ang - 0.55) * ah);
+            ctx.lineTo(tipX - Math.cos(ang + 0.55) * ah, tipY - Math.sin(ang + 0.55) * ah);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
           ctx.restore();
         }
         /* 石像：スタイル3では専用画像、その他では従来のフォールバック */
