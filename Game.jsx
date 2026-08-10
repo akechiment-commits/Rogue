@@ -36,7 +36,7 @@ import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPen
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
-import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP } from "./tilesetMap.js";
+import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
 import { useGameRenderer } from './useGameRenderer.js';
 import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
@@ -263,24 +263,40 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       ...Object.keys(MONSTER_SHEET_MAP).map(Number),
       ...Object.keys(PLAYER_SHEET_MAP).map(Number),
     ])];
+    const loadedIds = new Set();
 
     const _loadTile = (id) => new Promise((res) => {
       /* mon1のtile 42はpenSpriteMapで別途上書きするのでスキップ */
       if (name === 'mon1' && id === 42) { res(); return; }
-      const img = new Image();
-      const canvas = document.createElement('canvas');
-      img.onload = () => {
-        canvas.width = img.width; canvas.height = img.height;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        customTileImages[id] = canvas;
-        res();
+      const paths = [`/tiles/sprites/${name}/tile_${id}.png`];
+      if (name === 'dawnlike' && TILE_NAMES[id]) paths.push(`/tiles/${TILE_NAMES[id]}.png`);
+      const tryPath = (pathIndex) => {
+        if (pathIndex >= paths.length) { res(); return; }
+        const img = new Image();
+        const canvas = document.createElement('canvas');
+        img.onload = () => {
+          canvas.width = img.width; canvas.height = img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          customTileImages[id] = canvas;
+          loadedIds.add(id);
+          res();
+        };
+        img.onerror = () => tryPath(pathIndex + 1);
+        img.src = paths[pathIndex];
       };
-      img.onerror = () => res(); // 失敗しても続行
-      img.src = `/tiles/sprites/${name}/tile_${id}.png`;
+      tryPath(0);
     });
 
     try {
       await Promise.all(uniqueIds.map(_loadTile));
+      if (name === 'dawnlike') {
+        for (const [rawId, fallbackId] of Object.entries(DAWNLIKE_FALLBACKS)) {
+          const id = Number(rawId);
+          if (!loadedIds.has(id) && customTileImages[fallbackId]) {
+            customTileImages[id] = customTileImages[fallbackId];
+          }
+        }
+      }
       setCurrentTileset(name);
       localStorage.setItem('roguelike_tileset', name);
       setCtLoaded(c => c + 1);

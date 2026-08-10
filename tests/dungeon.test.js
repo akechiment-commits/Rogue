@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genTutorialFloor, genCorridorFloor, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
+import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
 import { T, MW, MH } from "../utils.js";
 
 function makeHiddenRoomMap(hr) {
@@ -58,6 +58,29 @@ describe("genDungeon", () => {
   it("ボスフロア（depth=4）はモンスターを含む", () => {
     const dg = genDungeon(4, "intermediate");
     expect(dg.monsters.length).toBeGreaterThan(0);
+  });
+});
+
+describe("genDebugDungeon", () => {
+  it("B1Fにカラペンを配置し、敵部屋へ到達できる", () => {
+    const floor = genDebugDungeon();
+    const karapen = floor.monsters.find((m) => m.name === "カラペン");
+    expect(karapen).toBeTruthy();
+
+    const passable = (x, y) => x >= 0 && x < MW && y >= 0 && y < MH && floor.map[y][x] !== T.WALL;
+    const seen = new Set([`${floor.stairUp.x},${floor.stairUp.y}`]);
+    const queue = [floor.stairUp];
+    for (let i = 0; i < queue.length; i++) {
+      const { x, y } = queue[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy, key = `${nx},${ny}`;
+        if (passable(nx, ny) && !seen.has(key)) {
+          seen.add(key);
+          queue.push({ x: nx, y: ny });
+        }
+      }
+    }
+    expect(seen.has(`${karapen.x},${karapen.y}`)).toBe(true);
   });
 });
 

@@ -121,9 +121,9 @@ function TileIcon({ item, size = 16 }) {
 
 /* ===== Tile Editor Modal ===== */
 const TILESET_LABELS = {
-  default:   'スタイル1 (ドット絵)',
-  dawnlike:  'スタイル2 (DawnLike)',
-  mon1:      'スタイル3 (新チップセット)',
+  default:   'スタイル1:シンプル',
+  dawnlike:  'スタイル2:クラシック',
+  mon1:      'スタイル3:リッチ',
 };
 
 export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile, setCtLoaded, loadTileset, currentTileset }) {
@@ -3490,7 +3490,11 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   let isPickingCategory = false;
 
   if (effect === "debug_summon_mon") {
-    for (const m of MONS) {
+    /* カラペン系はデバッグ召喚の先頭に固定して見つけやすくする */
+    const debugMons = [...MONS].sort((a, b) =>
+      Number(b.subtype === "itempusher") - Number(a.subtype === "itempusher")
+    );
+    for (const m of debugMons) {
       entries.push({ label: `${m.name} (Lv1)`, value: { base: m, lv: 1 } });
       const lvs = MON_LEVELS[m.baseKind];
       if (lvs) {

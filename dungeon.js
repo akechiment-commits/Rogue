@@ -2394,6 +2394,8 @@ function makeDebugLayout() {
   const MR = { x: 1, y: 19, w: MW - 2, h: 10 };
   for (let dy = 0; dy < MR.h; dy++)
     for (let dx = 0; dx < MR.w; dx++) map[MR.y + dy][MR.x + dx] = T.FLOOR;
+  /* デバッグB1Fでは、全モンスターを実際に見に行けるよう中央に通路を1本だけ開ける */
+  map[18][Math.floor(MW / 2)] = T.FLOOR;
 
   const su = { x: IR.x + 1, y: IR.y + 1 };
   map[su.y][su.x] = T.SU;

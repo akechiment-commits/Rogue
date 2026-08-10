@@ -23,6 +23,12 @@ const TXT  = "#ccc";
 const GOLD = "#f0c040";
 const BTN  = { fontFamily:"monospace", cursor:"pointer", borderRadius:5, border:`1px solid ${BDR}`, fontSize:13 };
 
+const GRAPHIC_STYLE_OPTIONS = [
+  { id: "mon1", label: "スタイル3:リッチ", desc: "個別イラスト中心" },
+  { id: "dawnlike", label: "スタイル2:クラシック", desc: "DawnLikeタイル" },
+  { id: "default", label: "スタイル1:シンプル", desc: "シンプルなタイル" },
+];
+
 const Btn = ({ label, onClick, color="#8cf", style={} }) => (
   <button
     onClick={onClick}
@@ -1491,6 +1497,73 @@ function FavoriteFoodModal({ onConfirm }) {
   );
 }
 
+/* ===== 初回：グラフィックスタイル選択 ===== */
+function GraphicStyleModal({ onConfirm }) {
+  const [selected, setSelected] = useState(0);
+  const selectedRef = useRef(0);
+
+  useEffect(() => {
+    const fn = (e) => {
+      if (isKeyUp(e)) {
+        e.preventDefault();
+        selectedRef.current = (selectedRef.current + GRAPHIC_STYLE_OPTIONS.length - 1) % GRAPHIC_STYLE_OPTIONS.length;
+        setSelected(selectedRef.current);
+      } else if (isKeyDown(e)) {
+        e.preventDefault();
+        selectedRef.current = (selectedRef.current + 1) % GRAPHIC_STYLE_OPTIONS.length;
+        setSelected(selectedRef.current);
+      } else if (e.key.toLowerCase() === "z" || e.key === "Enter") {
+        e.preventDefault();
+        onConfirm(GRAPHIC_STYLE_OPTIONS[selectedRef.current].id);
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [onConfirm]);
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.92)",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      zIndex:100, padding:16, fontFamily:"monospace",
+    }}>
+      <div style={{
+        background:CARD, border:`1px solid ${BDR}`, borderRadius:8,
+        width:"min(430px,96vw)", padding:20,
+      }}>
+        <div style={{ color:"#fff", fontWeight:"bold", fontSize:16, marginBottom:8 }}>
+          グラフィックスタイルを選択
+        </div>
+        <div style={{ color:"#888", fontSize:12, marginBottom:14, lineHeight:1.5 }}>
+          冒険中に使うタイル画像のスタイルです。あとから設定で変更できます。
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+          {GRAPHIC_STYLE_OPTIONS.map((option, index) => {
+            const active = selected === index;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => { selectedRef.current = index; setSelected(index); onConfirm(option.id); }}
+                style={{
+                  ...BTN, textAlign:"left", padding:"10px 12px",
+                  background: active ? "#1a2940" : "#0d0d16",
+                  color: active ? "#fff" : "#aaa",
+                  borderColor: active ? "#4d8cff" : BDR,
+                }}
+              >
+                <div style={{ fontWeight:"bold", fontSize:14 }}>{active ? "▶ " : "　"}{option.label}</div>
+                <div style={{ color: active ? "#9bc5ff" : "#666", fontSize:11, marginTop:3, paddingLeft:20 }}>{option.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ color:"#666", fontSize:11, marginTop:12 }}>↑↓／テンキー8・2:選択　Z／Enter:決定</div>
+      </div>
+    </div>
+  );
+}
+
 /* ===== セーブデータ管理パネル ===== */
 function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
   const [confirm, setConfirm] = useState(false);
@@ -1807,8 +1880,9 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
 
   const needsName = !String(saveData.playerName || "").trim();
   const needsFood = !String(saveData.favoriteFood || "").trim();
-  /* 名前の次に好きな食べ物を聞く（既存セーブで未設定なら食べ物だけ聞く） */
-  const needsSetup = needsName || needsFood;
+  const needsStyle = !GRAPHIC_STYLE_OPTIONS.some(({ id }) => id === saveData.graphicStyle);
+  /* 名前 → 好きな食べ物 → グラフィックスタイルの順で初回設定する */
+  const needsSetup = needsName || needsFood || needsStyle;
   const hubGold      = saveData.hubGold      || 0;
   const hubInvCount  = (saveData.hubInventory || []).length;
   const warehouseCount = (saveData.warehouse  || []).length;
@@ -1829,8 +1903,15 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
     });
   };
 
+  const handleConfirmStyle = (style) => {
+    if (!GRAPHIC_STYLE_OPTIONS.some(({ id }) => id === style)) return;
+    try { localStorage.setItem("roguelike_tileset", style); } catch {}
+    updateSave(prev => ({ ...prev, graphicStyle: style }));
+  };
+
   const handleStartDungeon = (config) => {
     if (needsSetup) return;
+    try { localStorage.setItem("roguelike_tileset", saveData.graphicStyle); } catch {}
     setPanel(null);
     onStartDungeon(config);
   };
@@ -1927,6 +2008,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
 
       {needsName && <PlayerNameModal onConfirm={handleConfirmName} />}
       {!needsName && needsFood && <FavoriteFoodModal onConfirm={handleConfirmFood} />}
+      {!needsName && !needsFood && needsStyle && <GraphicStyleModal onConfirm={handleConfirmStyle} />}
 
       {/* ステータスバー */}
       <div style={{
