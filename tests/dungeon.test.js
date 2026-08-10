@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genTutorialFloor, genCorridorFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
+import { genDungeon, genTutorialFloor, genCorridorFloor, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
 import { T, MW, MH } from "../utils.js";
 
 function makeHiddenRoomMap(hr) {
@@ -97,6 +97,18 @@ describe("genCorridorFloor", () => {
     expect(junctions).toBeGreaterThan(40);
     expect(deadEnds).toBeGreaterThan(15);
     expect(seen.has(goalKey)).toBe(true);
+  });
+});
+
+describe("genMiniRoom", () => {
+  it("超小型1部屋フロアは12×8マス程度に収まる", () => {
+    const floor = genMiniRoom(8, "intermediate");
+
+    expect(floor.floorType).toBe("miniRoom");
+    expect(floor.rooms).toHaveLength(1);
+    expect(floor.rooms[0]).toMatchObject({ w: 12, h: 8 });
+    expect(floor.map[floor.stairUp.y][floor.stairUp.x]).toBe(T.SU);
+    expect(floor.map[floor.stairDown.y][floor.stairDown.x]).toBe(T.SD);
   });
 });
 

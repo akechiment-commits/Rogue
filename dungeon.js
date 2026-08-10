@@ -1016,9 +1016,10 @@ function genMiddleRoom(depth, dungeonType = null) {
 }
 
 /* ===== MINI ROOM (超小型1部屋フロア) ===== */
-function genMiniRoom(depth, dungeonType = null) {
+export function genMiniRoom(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
-  const rw = Math.floor(MW * 0.25), rh = Math.floor(MH * 0.33);
+  /* 60×30マップでは12×8。名前どおり、階段以外が密集する小空間にする。 */
+  const rw = Math.floor(MW * 0.20), rh = Math.floor(MH * 0.27);
   const rx = Math.floor((MW - rw) / 2), ry = Math.floor((MH - rh) / 2);
   for (let dy = 0; dy < rh; dy++)
     for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
