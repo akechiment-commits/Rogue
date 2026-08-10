@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, calcAtkDefDmg, isEvasionDisabledByStatus } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -1444,6 +1444,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   }, []);
   const endTurn = useCallback(
     (st, p, ml) => {
+      installPlayerHpMessageHook(ml, p);
       st.floorTurns = (st.floorTurns || 0) + 1;
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
@@ -1782,7 +1783,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const st = sr.current;
       const { player: p, dungeon: dg } = st;
       if (!hasForcedTurn(p)) return;
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       const _forcedTurn = advanceForcedTurn(p, ml);
       endTurn(st, p, ml);
       if (_forcedTurn.exitPotAfterTurn) {
@@ -1904,7 +1905,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       let acted = false;
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       /* Animation data collected during this turn */
       const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _oldPx = p.x, _oldPy = p.y;
@@ -2986,7 +2987,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       let steps = 0;
       /* ダッシュ用座標マップ構築 */
       const _dk = (x, y) => y * MW + x;
@@ -4124,6 +4125,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       return;
     }
     const ml = ["泉の水を飲んだ。"];
+    installPlayerHpMessageHook(ml, p);
     const r = Math.random();
     if (r < 0.15) {
       // HP回復
@@ -4269,7 +4271,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const { player: p, dungeon: dg } = sr.current;
       const it = p.inventory[idx];
       if (!it) return;
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       if (it.type === "bottle") {
         p.inventory.splice(idx, 1);
         const wb = { ...WATER_BOTTLE, id: uid() };
@@ -4386,7 +4388,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const it = p.inventory[itemIdx];
       if (!it) return;
       const bb = bigboxRef.current;
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       if (bb.contents.length >= bb.capacity) {
         ml.push(`${bbDisplayName(bb, sr.current)}はもういっぱいだ。`);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);

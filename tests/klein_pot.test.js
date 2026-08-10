@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { POTS, randPotCapacity } from "../items.js";
-import { applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
+import { applyReverseStatus, installPlayerHpMessageHook, installPlayerHpReverseHook, playerHpEffectLabel } from "../utils.js";
 import { makePlayer } from "./helpers.js";
 
 describe("クラインの壺", () => {
@@ -43,6 +43,26 @@ describe("クラインの壺", () => {
     applyReverseStatus(p, 20);
     p.hp = Math.min(p.maxHp, p.hp + 20); /* 回復意図 → ダメージ */
     expect(p.hp).toBe(30);
+  });
+
+  it("逆転状態ではHP効果の表示も反転する", () => {
+    const p = makePlayer({ hp: 50, maxHp: 100 });
+    expect(playerHpEffectLabel(p, 12, "damage")).toBe("12ダメージ");
+    expect(playerHpEffectLabel(p, 12, "heal")).toBe("12回復");
+    applyReverseStatus(p, 20);
+    expect(playerHpEffectLabel(p, 12, "damage")).toBe("12回復");
+    expect(playerHpEffectLabel(p, 12, "heal")).toBe("12ダメージ");
+  });
+
+  it("逆転状態の直後に追加された既存ログも反転する", () => {
+    const p = makePlayer({ hp: 50, maxHp: 100 });
+    const messages = installPlayerHpMessageHook([], p);
+    applyReverseStatus(p, 20);
+    p.hp -= 12;
+    messages.push("敵の攻撃！12ダメージ！");
+    p.hp += 8;
+    messages.push("HPが8回復した！");
+    expect(messages.map((message) => message)).toEqual(["敵の攻撃！12回復！", "HPが8ダメージを受けた！"]);
   });
 
   it("逆転状態で回復が致死ダメージになると死因が逆転回復になる", () => {

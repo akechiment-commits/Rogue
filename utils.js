@@ -515,6 +515,63 @@ export function reduceFinalPlayerDamage(p, dmg) {
 }
 
 /**
+ * プレイヤーに対するHP効果の表示ラベルを返す。
+ * 実際のHP変化と同じく、逆転状態ではダメージと回復を入れ替える。
+ * amount は表示したい効果量（ダメージ軽減など適用後）を渡す。
+ */
+export function playerHpEffectLabel(p, amount, intent = "damage") {
+  const reversed = (p?.reverseTurns || 0) > 0;
+  const isDamage = reversed ? intent !== "damage" : intent === "damage";
+  return `${amount}${isDamage ? "ダメージ" : "回復"}`;
+}
+
+function rewritePlayerHpMessage(message, p, effect) {
+  if (!effect || (p?.reverseTurns || 0) <= 0) return message;
+  const text = typeof message === "string" ? message : message?.text;
+  if (typeof text !== "string") return message;
+  const amount = String(effect.amount);
+  let next = text;
+  if (effect.intent === "damage") {
+    const mutual = `お互いに${amount}ダメージ`;
+    if (next.includes(mutual)) {
+      next = next.replace(mutual, `自分は${amount}回復、相手は${amount}ダメージ`);
+    } else {
+      next = next.replaceAll(`${amount}ダメージを受けた`, `${amount}回復した`);
+      next = next.replaceAll(`${amount}ダメージ！`, `${amount}回復！`);
+      next = next.replaceAll(`${amount}ダメージ`, `${amount}回復`);
+      next = next.replaceAll(`${amount}HP吸収`, `${amount}回復`);
+      next = next.replaceAll(`HP-${amount}`, `HPが${amount}回復`);
+    }
+  } else {
+    next = next.replaceAll(`${amount}回復した`, `${amount}ダメージを受けた`);
+    next = next.replaceAll(`${amount}回復！`, `${amount}ダメージ！`);
+    next = next.replaceAll(`${amount}回復`, `${amount}ダメージ`);
+    next = next.replaceAll(`HP+${amount}`, `HPが${amount}ダメージ`);
+  }
+  if (next === text) return message;
+  return typeof message === "string" ? next : { ...message, text: next };
+}
+
+/**
+ * プレイヤーHPの直後に追加されるログを、逆転状態の実際の効果に合わせる。
+ * ゲーム側の各HP処理を個別に書き換えなくても、既存のログ形式を保ったまま補正できる。
+ */
+export function installPlayerHpMessageHook(messages, p) {
+  if (!Array.isArray(messages) || !p || messages._playerHpMessageHook) return messages;
+  const rawPush = messages.push.bind(messages);
+  Object.defineProperty(messages, "_playerHpMessageHook", { value: true, enumerable: false });
+  messages.push = (...items) => {
+    const effect = p._lastHpEffectForMessage;
+    delete p._lastHpEffectForMessage;
+    const nextItems = effect
+      ? items.map((message) => rewritePlayerHpMessage(message, p, effect))
+      : items;
+    return rawPush(...nextItems);
+  };
+  return messages;
+}
+
+/**
  * プレイヤーの hp 代入をフックし、
  * - reverseTurns 中は増減を反転する（ダメージ→回復、回復→ダメージ）
  * - 防具 dmg_reduce 時は減少分を1割軽減する（最終被ダメ）
@@ -534,6 +591,20 @@ export function installPlayerHpReverseHook(p) {
       if ((this.reverseTurns || 0) > 0) {
         const delta = n - raw;
         if (delta !== 0) {
+          const effect = {
+            amount: Math.abs(delta),
+            intent: delta < 0 ? "damage" : "heal",
+          };
+          if (Object.prototype.hasOwnProperty.call(this, "_lastHpEffectForMessage")) {
+            this._lastHpEffectForMessage = effect;
+          } else {
+            Object.defineProperty(this, "_lastHpEffectForMessage", {
+              configurable: true,
+              enumerable: false,
+              writable: true,
+              value: effect,
+            });
+          }
           let next = raw - delta;
           /* ダメージ意図（delta<0）→回復：maxHp を超えない */
           if (delta < 0) next = Math.min(this.maxHp ?? next, next);

@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
@@ -132,7 +132,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     pl.deathCause = `${m.name}の炎ブレスで`;
     pl.hp -= dmg;
     onPlayerHit?.(dmg, m);
-    ml.push(`${m.name}が炎ブレスを吐いた！${dmg}ダメージ！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
+    ml.push(`${m.name}が炎ブレスを吐いた！${playerHpEffectLabel(pl, dmg)}！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
     if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
     if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
     if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true);
@@ -197,14 +197,14 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     pl.hp -= _iDmg;
     onPlayerHit?.(_iDmg, m);
     if (_hasIceR) {
-      ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！${iceResistDamageLabel(pl)}・鈍足無効`);
+      ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！${iceResistDamageLabel(pl)}・鈍足無効`);
     } else if (isPlayerOnWater(pl, dg)) {
-      ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！`);
+      ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！`);
       applyWaterIceFreeze(pl, dg, ml, statusTurns("frozen", { kind: "player" }));
     } else {
       const _iSlow = statusTurns("slow", { kind: "player" });
       pl.slowTurns = (pl.slowTurns || 0) + _iSlow;
-      ml.push(`${m.name}が氷ブレスを吐いた！${_iDmg}ダメージ！鈍足${_iSlow}ターン！`);
+      ml.push(`${m.name}が氷ブレスを吐いた！${playerHpEffectLabel(pl, _iDmg)}！鈍足${_iSlow}ターン！`);
     }
   };
   for (let _ii = 1; _ii < MW + MH; _ii++) {
@@ -369,8 +369,9 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   onPlayerHit?.(dmg, m);
   /* 痛恨はダメージ数値の前：〜の攻撃！痛恨の一撃！Nダメージ！ */
   let _hitMsg = msgFn(dmg);
-  if (_tbCrit) _hitMsg = _hitMsg.replace(/(\d+)ダメージ！/, "痛恨の一撃！$1ダメージ！");
-  if (_fzLbl && !_hitMsg.includes("凍結")) _hitMsg = _hitMsg.replace(/(\d+ダメージ！)/, `$1${_fzLbl}`);
+  _hitMsg = _hitMsg.replace(`${dmg}ダメージ！`, `${playerHpEffectLabel(pl, dmg)}！`);
+  if (_tbCrit) _hitMsg = _hitMsg.replace(/(\d+)(ダメージ|回復)！/, "痛恨の一撃！$1$2！");
+  if (_fzLbl && !_hitMsg.includes("凍結")) _hitMsg = _hitMsg.replace(/(\d+(?:ダメージ|回復)！)/, `$1${_fzLbl}`);
   ml.push(_hitMsg);
   if (!skipThorn && hasAbility(pl.armor, "thorn") && dmg > 0) {
     const td = Math.max(1, Math.floor(dmg / 3));
@@ -388,7 +389,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     if (_oilyMult > 1) {
       const _bonusDmg = Math.max(1, Math.floor(dmg * 0.5));
       pl.hp -= _bonusDmg;
-      ml.push(`油まみれに炎が燃え移った！${_bonusDmg}ダメージ！`);
+      ml.push(`油まみれに炎が燃え移った！${playerHpEffectLabel(pl, _bonusDmg)}！`);
     }
   }
   /* ノッカー：攻撃後にプレイヤーを2〜4マス吹き飛ばす */
@@ -407,13 +408,13 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
               dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
             pl.deathCause = "吹き飛ばされての壁への激突により";
             pl.hp -= 5;
-            ml.push("壁に叩きつけられた！5ダメージ！");
+            ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, 5)}！`);
             break;
           }
           if (dg.monsters.some(mn => mn !== m && mn.x === _nx && mn.y === _ny)) {
             pl.deathCause = "吹き飛ばされてモンスターへの衝突により";
             pl.hp -= 5;
-            ml.push("モンスターに激突した！5ダメージ！");
+            ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, 5)}！`);
             break;
           }
           _knx = _nx; _kny = _ny; _knMoved++;
@@ -458,7 +459,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     }
     if (m.baseKind === "boss_skullking" && Math.random() < 0.35) {
       const _drain = Math.min(20, pl.hp - 1);
-      if (_drain > 0) { pl.hp -= _drain; m.hp = Math.min(m.maxHp, m.hp + _drain); ml.push(`骸骨王が命を吸い取った！${_drain}HP吸収！`); }
+      if (_drain > 0) { pl.hp -= _drain; m.hp = Math.min(m.maxHp, m.hp + _drain); ml.push(`骸骨王が命を吸い取った！${playerHpEffectLabel(pl, _drain)}！`); }
     }
     if (m.baseKind === "boss_flamedragon") {
       const _oily = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y);
@@ -466,7 +467,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         const _xdmg = Math.max(1, Math.floor(dmg * 0.5));
         pl.deathCause = `${m.name}の炎攻撃により`;
         pl.hp -= _xdmg;
-        ml.push(`油が引火して追加炎ダメージ！${_xdmg}ダメージ！`);
+        ml.push(`油が引火して追加炎ダメージ！${playerHpEffectLabel(pl, _xdmg)}！`);
       }
     }
     if (m.baseKind === "boss_voidmonk" && Math.random() < 0.25) {
@@ -538,11 +539,11 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
           for (let _ki = 0; _ki < _dist; _ki++) {
             const _nx = _cx2 + _kdx, _ny = _cy2 + _kdy;
             if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-              pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= 5; ml.push("壁に叩きつけられた！5ダメージ！");
+              pl.deathCause = "吹き飛ばされての壁への激突により"; pl.hp -= 5; ml.push(`壁に叩きつけられた！${playerHpEffectLabel(pl, 5)}！`);
               break;
             }
             if (dg.monsters.some(mon2 => mon2 !== m && mon2.x === _nx && mon2.y === _ny)) {
-              pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= 5; ml.push("モンスターに激突した！5ダメージ！");
+              pl.deathCause = "吹き飛ばされてモンスターへの衝突により"; pl.hp -= 5; ml.push(`モンスターに激突した！${playerHpEffectLabel(pl, 5)}！`);
               break;
             }
             _cx2 = _nx; _cy2 = _ny; _moved++;
@@ -1674,7 +1675,7 @@ function monsterThrowStone(m, dg, pl, ml) {
     if (_stVulnPc) dmg = _stVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_stVulnPc.blessed ? 4 : 2);
     pl.deathCause = `${m.name}の石投げで`;
     pl.hp -= dmg;
-    ml.push(`${m.name}の${stoneName}が命中！${dmg}ダメージ！`);
+    ml.push(`${m.name}の${stoneName}が命中！${playerHpEffectLabel(pl, dmg)}！`);
     if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
     if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   };
@@ -1848,7 +1849,7 @@ function monsterShootWaterGun(m, dg, pl, ml) {
       if (_wVulnPc) dmg = _wVulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_wVulnPc.blessed ? 4 : 2);
       pl.deathCause = `${m.name}の水鉄砲で`;
       pl.hp -= dmg;
-      ml.push(`${m.name}の水鉄砲が命中！${dmg}ダメージ！`);
+      ml.push(`${m.name}の水鉄砲が命中！${playerHpEffectLabel(pl, dmg)}！`);
       if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
       if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       /* ずぶ濡れ＋所持品への水影響（耐水で無効） */
@@ -2034,7 +2035,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
           let _sdmg = calcPlDmg();
           pl.hp -= _sdmg;
           pl.deathCause = deathCause ?? "風に煽られた飛び道具で";
-          ml.push(`風に煽られた${boltName}が自分に当たった！${_sdmg}ダメージ！`);
+          ml.push(`風に煽られた${boltName}が自分に当たった！${playerHpEffectLabel(pl, _sdmg)}！`);
         }
         if (onPlHit) onPlHit(ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
@@ -2066,7 +2067,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         }
         pl.hp -= _dmg;
         pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
-        ml.push(`${_shooterPrefix}${boltName}が命中！${_dmg}ダメージ！`);
+        ml.push(`${_shooterPrefix}${boltName}が命中！${playerHpEffectLabel(pl, _dmg)}！`);
         if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
         if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       }
@@ -2095,7 +2096,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               }
               pl.hp -= _rrdmg;
               pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
-              ml.push(`跳ね返された${boltName}が${pl()}に命中！${_rrdmg}ダメージ！`);
+              ml.push(`跳ね返された${boltName}が${pl()}に命中！${playerHpEffectLabel(pl, _rrdmg)}！`);
               if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
               if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             }
@@ -3314,7 +3315,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           pl.hp -= _kiDmg;
           pl.deathCause = `${m.name}の墨で`;
           pl.darknessTurns = (pl.darknessTurns || 0) + statusTurns("darkness", { kind: "player" });
-          ml.push(`${m.name}が墨を吐いた！${_kiDmg}ダメージ！暗闇状態になった！(15ターン)`);
+          ml.push(`${m.name}が墨を吐いた！${playerHpEffectLabel(pl, _kiDmg)}！暗闇状態になった！(15ターン)`);
           _onHit?.(_kiDmg, m);
           break;
         }

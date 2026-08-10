@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, stepProjectile, traceProjectilePath } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
 import { applyMonsterScroll } from "./dungeon.js";
@@ -90,7 +90,7 @@ export function useItemActions({
     if (!it) return;
     if (p.sleepTurns > 0 || p.paralyzeTurns > 0) return;
 
-    const ml = [];
+    const ml = installPlayerHpMessageHook([], p);
     // 未識別消耗品の判定（使用前に取得）
     const _ik_reveal = (it.type === 'potion' || it.type === 'scroll') ? getIdentKey(it) : null;
     const _wasUnknown = !!(_ik_reveal && !sr.current.ident.has(_ik_reveal));
@@ -1981,7 +1981,7 @@ export function useItemActions({
     }
     _forceUnequip(p, it);
     p.inventory.splice(idx, 1);
-    const ml = [],
+    const ml = installPlayerHpMessageHook([], p),
       ft = new Set();
     const _allShopsDrop = getShops(dg);
     const _itemShopDrop = _allShopsDrop.find(s => s.id === it._shopId) || _allShopsDrop.find(s => s.unpaidTotal > 0);
@@ -2074,7 +2074,7 @@ export function useItemActions({
     const it = sr.current.player.inventory[idx];
     if (!it || it.type !== "wand") return;
     if (it.charges <= 0) {
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], sr.current.player);
       ml.push("杖の力が残っていない...");
       setShowInv(false);
       setSelIdx(null);
@@ -2101,7 +2101,7 @@ export function useItemActions({
       const it = p.inventory[idx];
       if (!it || it.type !== "wand") return;
       p.inventory.splice(idx, 1);
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       ml.push(`${dnameRef(it)}を壊した！`);
       if ((it.charges ?? 0) <= 0) {
         ml.push("しかし力が残っていないので何も起きなかった。");
@@ -2177,7 +2177,7 @@ export function useItemActions({
     const { player: p, dungeon: dg } = sr.current;
     const it = p.inventory[idx];
     if (!it || it.type !== "spellbook") return;
-    const ml = [];
+    const ml = installPlayerHpMessageHook([], p);
     if (!p.spells) p.spells = [];
     /* 暗闇中は魔法書を読めない（消費なし・ターン消費） */
     if ((p.darknessTurns || 0) > 0) {
@@ -2286,7 +2286,7 @@ export function useItemActions({
       const marker = p.inventory[markerMode.markerIdx];
       const blank = p.inventory[blankIdx];
       if (!marker || marker.type !== "marker") { setMarkerMode(null); return; }
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       if (markerMode.blankKind === "spellbook") {
         if (!blank || blank.type !== "spellbook" || blank.spell) { setMarkerMode(null); return; }
         if (marker.charges < 5) {
@@ -2400,7 +2400,7 @@ export function useItemActions({
       _forceUnequip(p, it);
       p.inventory.splice(itemIdx, 1);
       if (!putMode.floorPot && itemIdx < putMode.potIdx) putMode.potIdx--;
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       if (pot.potEffect === "boil") {
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を加熱の壺に投じた！薬効が部屋中に広がった！`);
@@ -2542,7 +2542,7 @@ export function useItemActions({
       const it = p.inventory[idx];
       if (!it || it.type !== "pot") return;
       p.inventory.splice(idx, 1);
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       ml.push(`${dnameRef(it)}を割った！`);
       try {
         scatterPotContents(it, dg, p.x, p.y, p, ml, lu, dnameRef);
@@ -2565,7 +2565,7 @@ export function useItemActions({
       if (!throwMode || !sr.current) return;
       const { idx, mode } = throwMode;
       const { player: p, dungeon: dg } = sr.current;
-      const ml = [];
+      const ml = installPlayerHpMessageHook([], p);
       const _skSnap = dg.monsters.filter(m => m.type === "shopkeeper").map(m => ({ m, hp: m.hp }));
       /* 遠投判定（投げ・射撃にのみ影響） */
       const _throwRelated = (mode === "shoot_equipped" || mode === "shoot" || mode === "throw" || !mode);
