@@ -408,7 +408,7 @@ export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8
 /** カラペン系が押し付ける、置くことも投げることもできない敵専用アイテム */
 export const CHARGED_FUZZBALL_T = {
   name:"帯電毛玉", type:"charged_fuzzball", tile:109, noDrop:true, noThrow:true,
-  sellPrice:0, desc:"置くことも投げることもできない。箱や壺には入れられる。",
+  sellPrice:0, desc:"置くことも投げることもできない。箱や壺には入れられるが、床に落ちると消える。",
 };
 
 /** 盗み系：ロングソードは10%でソボロ助広に変化 */
@@ -3612,6 +3612,12 @@ function soakItem(item) {
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false) {
   if (item?._ephemeralTrapTrigger) return false;
+  /* 帯電毛玉は所持品または箱・壺の中にだけ存在できる。破壊・散乱などで
+     床へ出る経路は、罠や泉などの床効果を発生させず、その場で消滅させる。 */
+  if (item?.type === "charged_fuzzball") {
+    ml?.push(`${resolveItemName(item)}は床に落ちると消えてしまった！`);
+    return false;
+  }
   if (dep > 30) { ml.push(`${resolveItemName(item)}は消えてしまった！`); return false; }
   /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ）
      キーアイテム自体はポータルを通過させない */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHARGED_FUZZBALL_T } from "../items.js";
+import { CHARGED_FUZZBALL_T, breakBigboxContents, placeItemAt, scatterPotContents } from "../items.js";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -54,5 +54,23 @@ describe("カラペン系と帯電毛玉", () => {
     expect(CHARGED_FUZZBALL_T.type).toBe("charged_fuzzball");
     expect(CHARGED_FUZZBALL_T.noDrop).toBe(true);
     expect(CHARGED_FUZZBALL_T.noThrow).toBe(true);
+  });
+
+  it("床へ出た帯電毛玉は消滅し、箱・壺の中身散乱でも床に残らない", () => {
+    const makeFuzzball = (id) => ({ ...CHARGED_FUZZBALL_T, id });
+    const dg = makeEmptyDg({
+      bigboxes: [{ kind: "normal", name: "大箱", x: 5, y: 5, capacity: 1, contents: [makeFuzzball("bb-fuzz")] }],
+    });
+    const messages = [];
+
+    expect(placeItemAt(dg, 5, 5, makeFuzzball("floor-fuzz"), messages, new Set())).toBe(false);
+    breakBigboxContents(dg.bigboxes[0], dg, messages);
+    scatterPotContents(
+      { name: "保存の壺", potEffect: "none", capacity: 1, contents: [makeFuzzball("pot-fuzz")] },
+      dg, 5, 5, null, messages, null,
+    );
+
+    expect(dg.items.some((item) => item.type === "charged_fuzzball")).toBe(false);
+    expect(messages.filter((message) => message.includes("帯電毛玉は床に落ちると消えてしまった！"))).toHaveLength(3);
   });
 });
