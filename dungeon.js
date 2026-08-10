@@ -754,6 +754,87 @@ function countRoomEntrances(room, map) {
   }
   return n;
 }
+
+/* ===== 通常フロアの変則レイアウト ===== */
+/* 特殊フロアではなく、通常の部屋・通路生成にだけ適用する。 */
+export function chooseNormalLayout(roll = Math.random()) {
+  const r = Number.isFinite(roll) ? Math.max(0, Math.min(0.999999, roll)) : Math.random();
+  if (r < 0.12) return "centralCross";
+  if (r < 0.23) return "courtyard";
+  if (r < 0.38) return "wideRooms";
+  return "standard";
+}
+
+function carveNormalFloor(map, x, y) {
+  if (map[y]?.[x] === T.WALL) map[y][x] = T.FLOOR;
+}
+
+function carveNormalHorizontal(map, y, x1, x2, width = 1) {
+  const xa = Math.min(x1, x2), xb = Math.max(x1, x2);
+  const half = Math.floor((width - 1) / 2);
+  for (let x = xa; x <= xb; x++)
+    for (let dy = -half; dy < width - half; dy++) carveNormalFloor(map, x, y + dy);
+}
+
+function carveNormalVertical(map, x, y1, y2, width = 1) {
+  const ya = Math.min(y1, y2), yb = Math.max(y1, y2);
+  const half = Math.floor((width - 1) / 2);
+  for (let y = ya; y <= yb; y++)
+    for (let dx = -half; dx < width - half; dx++) carveNormalFloor(map, x + dx, y);
+}
+
+function carveNormalPath(map, x1, y1, x2, y2, width = 1, horizontalFirst = true) {
+  if (horizontalFirst) {
+    carveNormalHorizontal(map, y1, x1, x2, width);
+    carveNormalVertical(map, x2, y1, y2, width);
+  } else {
+    carveNormalVertical(map, x1, y1, y2, width);
+    carveNormalHorizontal(map, y2, x1, x2, width);
+  }
+}
+
+function carveNormalRect(map, x, y, w, h) {
+  for (let dy = 0; dy < h; dy++)
+    for (let dx = 0; dx < w; dx++) carveNormalFloor(map, x + dx, y + dy);
+}
+
+function applyNormalLayoutVariant(map, rooms, pairs, layout) {
+  if (layout === "wideRooms") {
+    /* 既存の接続を太くするだけなので、部屋の連結性は変わらない。 */
+    for (const [ai, bi] of pairs) {
+      if (Math.random() >= 0.82) continue;
+      const a = rooms[ai], b = rooms[bi];
+      carveNormalPath(map, a.cx, a.cy, b.cx, b.cy, 2, Math.random() < 0.5);
+    }
+    return;
+  }
+
+  const centerX = Math.floor(MW / 2), centerY = Math.floor(MH / 2);
+  const roomDistance = (room) => Math.abs(room.cx - centerX) + Math.abs(room.cy - centerY);
+  const targets = [...rooms]
+    .sort((a, b) => roomDistance(a) - roomDistance(b))
+    .slice(0, Math.min(layout === "centralCross" ? 3 : 4, rooms.length));
+
+  if (layout === "centralCross") {
+    /* 外周近くまで伸びる太い十字路。中央で進路を選べる。 */
+    carveNormalHorizontal(map, centerY, 2, MW - 3, 3);
+    carveNormalVertical(map, centerX, 2, MH - 3, 3);
+    for (const room of targets)
+      carveNormalPath(map, centerX, centerY, room.cx, room.cy, 2, Math.random() < 0.5);
+    return;
+  }
+
+  if (layout === "courtyard") {
+    /* 中央広場＋放射状の太い連絡路。部屋の外に広い歩行空間を作る。 */
+    const plazaW = 14, plazaH = 8;
+    const plazaX = Math.floor((MW - plazaW) / 2), plazaY = Math.floor((MH - plazaH) / 2);
+    carveNormalRect(map, plazaX, plazaY, plazaW, plazaH);
+    const plazaCX = plazaX + Math.floor(plazaW / 2), plazaCY = plazaY + Math.floor(plazaH / 2);
+    for (const room of targets)
+      carveNormalPath(map, plazaCX, plazaCY, room.cx, room.cy, 2, Math.random() < 0.5);
+  }
+}
+
 /* 部屋をショップにセットアップし、shopDataを返す */
 function setupShopRoom(room, map, depth, items, mons) {
   const shopId = uid();
@@ -1808,15 +1889,28 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     attachFloorGimmicks(_sf, depth);
     return _sf;
   }
+  const normalLayout = chooseNormalLayout();
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rooms = [];
-  const tgt = rng(4, 7);
+  const tgt = normalLayout === "wideRooms" ? rng(5, 8) : rng(4, 7);
   for (let i = 0; i < tgt * 60 && rooms.length < tgt; i++) {
     const roll = Math.random();
     let rw,
       rh,
       isL = false;
-    if (roll < 0.06) {
+    if (normalLayout === "wideRooms") {
+      if (roll < 0.28) {
+        rw = rng(10, Math.min(14, MW - 4));
+        rh = rng(6, Math.min(9, MH - 4));
+      } else if (roll < 0.44) {
+        isL = true;
+        rw = rng(7, 11);
+        rh = rng(5, 8);
+      } else {
+        rw = rng(5, 10);
+        rh = rng(4, 7);
+      }
+    } else if (roll < 0.06) {
       rw = rng(3, 4);
       rh = rng(3, 4);
     } else if (roll < 0.12) {
@@ -1933,6 +2027,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       }
     }
   }
+  applyNormalLayoutVariant(map, rooms, pairs, normalLayout);
   /* 部屋の壁に出っ張りを追加（アイテム埋め込み候補となる怪しい壁を生成） */
   const suspiciousWalls = genProtrusions(map, rooms);
 
@@ -2204,6 +2299,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     dungeonType,
     vents: [],
     statues: [],
+    layoutVariant: normalLayout,
   };
   attachFloorGimmicks(_floor, depth);
   return _floor;

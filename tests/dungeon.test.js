@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genTutorialFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom } from "../dungeon.js";
+import { genDungeon, genTutorialFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
 import { T, MW, MH } from "../utils.js";
 
 function makeHiddenRoomMap(hr) {
@@ -40,6 +40,19 @@ describe("genDungeon", () => {
     expect(dg.stairUp).toBeTruthy();
     expect(dg.stairDown).toBeTruthy();
     expect(dg.rooms.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("通常フロアの変則レイアウト抽選は標準を含む", () => {
+    expect(chooseNormalLayout(0.00)).toBe("centralCross");
+    expect(chooseNormalLayout(0.12)).toBe("courtyard");
+    expect(chooseNormalLayout(0.23)).toBe("wideRooms");
+    expect(chooseNormalLayout(0.38)).toBe("standard");
+  });
+
+  it("変則レイアウトも特殊フロア扱いにならない", () => {
+    const dg = genDungeon(0, "beginner");
+    expect(["standard", "centralCross", "courtyard", "wideRooms"]).toContain(dg.layoutVariant);
+    expect(dg.floorType).toBeUndefined();
   });
 
   it("ボスフロア（depth=4）はモンスターを含む", () => {
