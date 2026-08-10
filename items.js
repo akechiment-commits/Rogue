@@ -1015,9 +1015,19 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
         }
       }
       if (p && p.x === px && p.y === py) {
-        const _prevHp = p.hp;
-        p.hp = Math.min(p.maxHp, p.hp + _hpAmt);
-        if (p.hp > _prevHp) ml.push(`HPが${p.hp - _prevHp}回復した！`);
+        const _isReverseHp = (p.reverseTurns || 0) > 0;
+        const _hpRoom = Math.max(0, p.maxHp - p.hp);
+        const _healIntent = _hpRoom > 0 ? Math.min(_hpAmt, _hpRoom) : (_isReverseHp ? _hpAmt : 0);
+        if (_healIntent > 0) {
+          if (_isReverseHp) {
+            p.hp += _healIntent;
+            ml.push(`HPが${_healIntent}ダメージを受けた！`);
+          } else {
+            const _prevHp = p.hp;
+            p.hp = Math.min(p.maxHp, p.hp + _healIntent);
+            if (p.hp > _prevHp) ml.push(`HPが${p.hp - _prevHp}回復した！`);
+          }
+        }
       }
     }
     return;
@@ -2805,7 +2815,18 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") {
           const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp);
           if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
-          else if (eff === "heal" || eff === "heal_big") { const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1); p.maxHp += _up; p.hp += _up; ml.push(`HPが満タンだったのでHP最大値が${_up}上昇した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
+          else if (eff === "heal" || eff === "heal_big") {
+            const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1);
+            if ((p.reverseTurns || 0) > 0) {
+              p.hp += _up;
+              ml.push(`HPが満タンだったので${_up}ダメージを受けた！${blessed ? "(祝福)" : ""}`);
+            } else {
+              p.maxHp += _up;
+              p.hp += _up;
+              ml.push(`HPが満タンだったのでHP最大値が${_up}上昇した！${blessed ? "(祝福)" : ""}`);
+            }
+            pushHealAnim(p.x, p.y);
+          }
         }
       }
       break;
@@ -2830,7 +2851,18 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         const _shHeal = Math.round(val * _shMult);
         const _shh = Math.min(_shHeal, p.maxHp - p.hp);
         if (_shh > 0) { p.hp += _shh; ml.push(`HPが${_shh}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
-        else { const _shUp = blessed ? 6 : 3; p.maxHp += _shUp; p.hp += _shUp; ml.push(`HPが満タンだったのでHP最大値が${_shUp}上昇した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
+        else {
+          const _shUp = blessed ? 6 : 3;
+          if ((p.reverseTurns || 0) > 0) {
+            p.hp += _shUp;
+            ml.push(`HPが満タンだったので${_shUp}ダメージを受けた！${blessed ? "(祝福)" : ""}`);
+          } else {
+            p.maxHp += _shUp;
+            p.hp += _shUp;
+            ml.push(`HPが満タンだったのでHP最大値が${_shUp}上昇した！${blessed ? "(祝福)" : ""}`);
+          }
+          pushHealAnim(p.x, p.y);
+        }
       }
       break;
     }

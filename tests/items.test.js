@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, getBlessMultiplier, gemSellPrice, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow } from "../items.js";
-import { MW, MH, T } from "../utils.js";
+import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 
 describe("getIdentKey", () => {
   it("種別ごとに識別キーを返す", () => {
@@ -106,12 +106,36 @@ describe("applyPotionEffect", () => {
     expect(ml.some(m => m.includes("ダメージ"))).toBe(true);
   });
 
+  it("逆転状態で満タンの回復薬は最大HPを増やさずダメージになる", () => {
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    installPlayerHpReverseHook(p);
+    applyReverseStatus(p, 20);
+    const ml = [];
+    applyPotionEffect("heal", 30, "player", null, dg, p, ml, () => {});
+    expect(p.maxHp).toBe(100);
+    expect(p.hp).toBe(99);
+    expect(ml.some(m => m.includes("1ダメージを受けた"))).toBe(true);
+  });
+
   it("アンデッドへの回復薬はダメージになる", () => {
     const mon = { name: "ゾンビ", kind: "undead", hp: 40, maxHp: 40, x: 2, y: 2, atk: 5 };
     const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
     const ml = [];
     applyPotionEffect("heal", 30, "monster", mon, dg, p, ml, () => {});
     expect(mon.hp).toBe(10);
+  });
+
+  it("逆転状態で満タンの回復の壺は回復量分のダメージになる", () => {
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    installPlayerHpReverseHook(p);
+    applyReverseStatus(p, 20);
+    const ml = [];
+    scatterPotContents(
+      { name: "回復の壺", potEffect: "heal_pot", capacity: 3, contents: [{}, {}] },
+      dg, p.x, p.y, p, ml, () => {},
+    );
+    expect(p.hp).toBe(0);
+    expect(ml.some(m => m.includes("100ダメージを受けた"))).toBe(true);
   });
 });
 

@@ -113,6 +113,7 @@ export function useItemActions({
         return false;
       };
       if (it.effect === "heal" || it.effect === "heal_big") {
+        const _isReverseHp = (p.reverseTurns || 0) > 0;
         if (it.cursed) {
           // 呪い：反転→ダメージ
           const d = Math.max(1, Math.round(it.value * 0.7));
@@ -126,9 +127,15 @@ export function useItemActions({
           if (h <= 0) {
             // HPが最大：最大HP上昇（回復薬+1/+2、大回復薬+2/+4）
             const _maxHpGain = (it.effect === "heal_big" ? 2 : 1) * (it.blessed ? 2 : 1);
-            p.maxHp += _maxHpGain;
-            p.hp += _maxHpGain;
-            _hMsg = `${it.name}を飲んだ。HPが最大なので最大HP+${_maxHpGain}！${it.blessed ? "（祝福）" : ""}`;
+            if (_isReverseHp) {
+              /* 逆転中は最大HPを増やさず、満タン時の回復効果をダメージとして適用 */
+              p.hp += _maxHpGain;
+              _hMsg = `${it.name}を飲んだ。HPが最大なので${_maxHpGain}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`;
+            } else {
+              p.maxHp += _maxHpGain;
+              p.hp += _maxHpGain;
+              _hMsg = `${it.name}を飲んだ。HPが最大なので最大HP+${_maxHpGain}！${it.blessed ? "（祝福）" : ""}`;
+            }
           } else {
             p.hp += h;
             _hMsg = `${it.name}を飲んだ。HP+${h}${it.blessed ? "（祝福）" : ""}`;
@@ -159,8 +166,13 @@ export function useItemActions({
             ml.push(`${it.name}を飲んだ。HP+${_shh}！${it.blessed ? "（祝福）" : ""}`);
           } else {
             const _shUp = it.blessed ? 6 : 3;
-            p.maxHp += _shUp; p.hp += _shUp;
-            ml.push(`${it.name}を飲んだ。HPが最大なのでHP最大値+${_shUp}！${it.blessed ? "（祝福）" : ""}`);
+            if ((p.reverseTurns || 0) > 0) {
+              p.hp += _shUp;
+              ml.push(`${it.name}を飲んだ。HPが最大なので${_shUp}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`);
+            } else {
+              p.maxHp += _shUp; p.hp += _shUp;
+              ml.push(`${it.name}を飲んだ。HPが最大なのでHP最大値+${_shUp}！${it.blessed ? "（祝福）" : ""}`);
+            }
           }
         }
       } else if (it.effect === "poison") {
@@ -2479,11 +2491,15 @@ export function useItemActions({
         }
       } else if (pot.potEffect === "heal_pot") {
         /* 回復の壺：アイテムは消滅、プレイヤーHP+100 */
-        const _healAmt = Math.min(100, p.maxHp - p.hp);
-        p.hp += _healAmt;
+        const _isReverseHp = (p.reverseTurns || 0) > 0;
+        const _hpRoom = Math.max(0, p.maxHp - p.hp);
+        const _healAmt = _hpRoom > 0 ? Math.min(100, _hpRoom) : (_isReverseHp ? 100 : 0);
+        if (_healAmt > 0) p.hp += _healAmt;
         pot.capacity = Math.max(0, pot.capacity - 1);
         if (p.hunger > 0) delete p._hungerDmgStarted;
-        ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた。HPが${_healAmt > 0 ? `${_healAmt}回復した！` : "既に満タンだ。"}`);
+        ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた。${_healAmt > 0
+          ? (_isReverseHp ? `HPが${_healAmt}ダメージを受けた！` : `HPが${_healAmt}回復した！`)
+          : "既に満タンだ。"}`);
         /* 壺には入れない（消滅） */
       } else if (pot.potEffect === "klein") {
         /* クラインの壺：アイテム消滅、逆転状態20ターン */
