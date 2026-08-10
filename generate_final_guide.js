@@ -486,6 +486,7 @@ function monTraits(m) {
   const t = [];
   if (m.baseKind === 'boss_blaze') t.push('近接攻撃命中時35%で混乱（封印中は発動しない）');
   if (m.isBoss) t.push('封印は解除ターンから通常行動（睡眠・金縛りは解除ターン行動なし）');
+  if (m.isBoss && m.tile >= 137 && m.tile <= 144) t.push(`スタイル3専用画像（tile_${m.tile}.png）`);
   if (m.float) t.push('浮遊');
   if (m.waterOnly) t.push('水タイルのみ');
   if (m.subtype === 'watergunner') t.push('水鉄砲攻撃（風穴で曲がる・命中時ずぶ濡れ＋所持品に水影響・石像で停止して破壊）');

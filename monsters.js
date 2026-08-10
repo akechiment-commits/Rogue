@@ -1051,19 +1051,19 @@ export function monLevelDown(mon, dg, ml) {
 export const BOSSES = [
   /* 第1ボス B5F (depth=4) */
   { name: "好まざる猫「フリージア」", hp: 150,   atk: 24,  def: 16,  exp: 500,
-    speed: 1,   tile: 89, kind: "beast",    baseKind: "boss_blaze",
+    speed: 1,   tile: 137, kind: "beast",    baseKind: "boss_blaze",
     isBoss: true, bossTier: 1,  monLevel: 1, maxAttacks: 2 },
   /* 第2ボス B10F (depth=9) */
   { name: "シオン・ザ・ダークブレット", hp: 300,   atk: 35,  def: 23,  exp: 1200,
-    speed: 1,   tile: 90, kind: "humanoid", baseKind: "boss_darkbullet",
+    speed: 1,   tile: 138, kind: "humanoid", baseKind: "boss_darkbullet",
     isBoss: true, bossTier: 2,  monLevel: 1, maxAttacks: 1 },
   /* 第3ボス B15F (depth=14) */
   { name: "深淵の番人", hp: 600,   atk: 56,  def: 32,  exp: 2500,
-    speed: 1,   tile: 91, kind: "beast",    baseKind: "boss_guardian",
+    speed: 1,   tile: 139, kind: "beast",    baseKind: "boss_guardian",
     isBoss: true, bossTier: 3,  monLevel: 1, maxAttacks: 3 },
   /* 第4ボス B20F (depth=19) */
   { name: "魔神王",     hp: 900,   atk: 73,  def: 41,  exp: 5000,
-    speed: 2,   tile: 92, kind: "beast",    baseKind: "boss_demonking",
+    speed: 2,   tile: 140, kind: "beast",    baseKind: "boss_demonking",
     isBoss: true, bossTier: 4,  monLevel: 1, maxAttacks: 3, float: true },
   /* 第5ボス B25F (depth=24)
    * 【鎧砕き蓄積型】遅いが攻撃を受けるたびに防御が半減し続ける。後半は1発が致命的になる。
@@ -1107,20 +1107,20 @@ export const BOSSES = [
 export const INTERMEDIATE_BOSSES = [
   /* B5F (depth=4) 直線炎ブレス */
   { name: "サラマンダー", hp: 280, atk: 38, def: 20, exp: 700,
-    speed: 1, tile: 93, kind: "dragon",   baseKind: "im_boss_salamander",
+    speed: 1, tile: 141, kind: "dragon",   baseKind: "im_boss_salamander",
     isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 2,
     elemWeak: "ice", elemResist: "fire" },
   /* B10F (depth=9) 攻撃時35%移動封じ＋毎ターン5HP回復 */
   { name: "ティターン", hp: 460, atk: 52, def: 27, exp: 1500,
-    speed: 1, tile: 94, kind: "humanoid", baseKind: "im_boss_titan",
+    speed: 1, tile: 142, kind: "humanoid", baseKind: "im_boss_titan",
     isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1 },
   /* B15F (depth=14) 水中20HP/ターン回復＋HP半減で逃走＋一直線墨（暗闇+ダメージ） */
   { name: "クラーケン", hp: 720, atk: 65, def: 42, exp: 3000,
-    speed: 1, tile: 95, kind: "beast",    baseKind: "im_boss_kraken",
+    speed: 1, tile: 143, kind: "beast",    baseKind: "im_boss_kraken",
     isBoss: true, bossTier: 3, monLevel: 1, maxAttacks: 2, float: true, elemWeak: "thunder" },
   /* B20F (depth=19) 攻撃力255・特技なし */
   { name: "2ヘッドドラゴン", hp: 1080, atk: 255, def: 48, exp: 6000,
-    speed: 1, tile: 96, kind: "dragon",   baseKind: "im_boss_twohead",
+    speed: 1, tile: 144, kind: "dragon",   baseKind: "im_boss_twohead",
     isBoss: true, bossTier: 4, monLevel: 1, maxAttacks: 1 },
 ];
 

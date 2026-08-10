@@ -6,7 +6,20 @@ import {
 } from "../monTraits.js";
 import { clampDmgFixed, consumeBarrier, T } from "../utils.js";
 import { applyMonsterSeal, resolveSealedFloatOnWater } from "../items.js";
+import { BOSSES, INTERMEDIATE_BOSSES } from "../monsters.js";
+import { MONSTER_SHEET_MAP } from "../tilesetMap.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
+
+describe("中級までのボス用スタイル3画像", () => {
+  it("8体すべてが衝突しない専用タイルIDと読み込みマップを持つ", () => {
+    const bosses = [...BOSSES.slice(0, 4), ...INTERMEDIATE_BOSSES];
+    const tileIds = bosses.map((boss) => boss.tile);
+
+    expect(tileIds).toEqual([137, 138, 139, 140, 141, 142, 143, 144]);
+    expect(new Set(tileIds).size).toBe(bosses.length);
+    expect(tileIds.every((tileId) => MONSTER_SHEET_MAP[tileId])).toBe(true);
+  });
+});
 
 describe("封印中の敵特性無効化", () => {
   it("浮遊：固有floatは封印で落ち、floatTurnsは残る", () => {
