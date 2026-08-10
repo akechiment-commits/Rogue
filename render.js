@@ -253,6 +253,52 @@ export const TILE_RENDER = {
   115: { bg: null, fg: "#aa66ff", ch: "s" }, /* 水晶スライム  */
   116: { bg: null, fg: "#cc8844", ch: "O" }, /* ハンマーオーガ*/
   117: { bg: null, fg: "#ee6622", ch: "B" }, /* バーサーカー  */
+  /* 専用画像がない追加モンスターは、スタイル1では識別用の文字で表示 */
+  137: { bg: null, fg: "#ff8844", ch: "F" }, /* フリージア */
+  138: { bg: null, fg: "#c080ff", ch: "S" }, /* シオン */
+  139: { bg: null, fg: "#b0b0c0", ch: "G" }, /* 深淵の番人 */
+  140: { bg: null, fg: "#ff4466", ch: "M" }, /* 魔神王 */
+  141: { bg: null, fg: "#ff6622", ch: "R" }, /* サラマンダー */
+  142: { bg: null, fg: "#c0a080", ch: "T" }, /* ティターン */
+  143: { bg: null, fg: "#40b8d8", ch: "K" }, /* クラーケン */
+  144: { bg: null, fg: "#ff5522", ch: "2" }, /* 2ヘッドドラゴン */
+  145: { bg: null, fg: "#80c8ff", ch: "G" }, /* ゴースト */
+  146: { bg: null, fg: "#c89058", ch: "B" }, /* かいりきベア */
+  147: { bg: null, fg: "#e06060", ch: "C" }, /* バリア蟹 */
+  148: { bg: null, fg: "#e09030", ch: "A" }, /* アーチャー */
+  149: { bg: null, fg: "#ffd040", ch: "T" }, /* ゴールドタイガー */
+  150: { bg: null, fg: "#c040c0", ch: "T" }, /* 罠師 */
+  151: { bg: null, fg: "#ff6040", ch: "O" }, /* 足払い鬼 */
+  152: { bg: null, fg: "#6040a0", ch: "D" }, /* ダークネス */
+  153: { bg: null, fg: "#cc44aa", ch: "T" }, /* 盗投士 */
+  154: { bg: null, fg: "#b08050", ch: "R" }, /* 岩砕き */
+  155: { bg: null, fg: "#a0a0a0", ch: "G" }, /* ガーディアン */
+  156: { bg: null, fg: "#70a0d0", ch: "D" }, /* 解装士 */
+  157: { bg: null, fg: "#40e0ff", ch: "W" }, /* ウィンドメイジ */
+  158: { bg: null, fg: "#c0a050", ch: "D" }, /* マイナーダイミョウ */
+  159: { bg: null, fg: "#40c060", ch: "B" }, /* ボルガ */
+  160: { bg: null, fg: "#d080e0", ch: "L" }, /* ルカチュウ */
+  161: { bg: null, fg: "#40b040", ch: "S" }, /* 大蛇 */
+  162: { bg: null, fg: "#60c8ff", ch: "I" }, /* 氷竜 */
+  163: { bg: null, fg: "#60d060", ch: "P" }, /* 薬師 */
+  164: { bg: null, fg: "#ff4466", ch: "i" }, /* インプ */
+  165: { bg: null, fg: "#ffe060", ch: "*" }, /* スターライト */
+  166: { bg: null, fg: "#c060ff", ch: "M" }, /* 魔法反射師 */
+  167: { bg: null, fg: "#e0e0e0", ch: "m" }, /* ものまね師 */
+  168: { bg: null, fg: "#ff8040", ch: "C" }, /* 突進角獣 */
+  169: { bg: null, fg: "#d040d0", ch: "h" }, /* ほっちもぺ */
+  170: { bg: null, fg: "#a06020", ch: "t" }, /* コソドロ */
+  171: { bg: null, fg: "#f0a0d0", ch: "F" }, /* フクマル */
+  172: { bg: null, fg: "#60d0e0", ch: "W" }, /* ワッカ */
+  173: { bg: null, fg: "#d060ff", ch: "c" }, /* 混乱術師 */
+  174: { bg: null, fg: "#80ddaa", ch: "G" }, /* ゼラチンキューブ */
+  175: { bg: null, fg: "#60a0ff", ch: "W" }, /* ウィザード */
+  176: { bg: null, fg: "#d0b060", ch: "Q" }, /* 合成獣 */
+  177: { bg: null, fg: "#40c0d0", ch: "T" }, /* 引きダコ */
+  178: { bg: null, fg: "#80b0ff", ch: "S" }, /* 眠り術師 */
+  179: { bg: null, fg: "#a0a0a0", ch: "G" }, /* ガーゴイル */
+  180: { bg: null, fg: "#ff7020", ch: "B" }, /* バーサーカー */
+  183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
 };
 
 /* Canvas drawing helper */
@@ -295,7 +341,17 @@ export function drawTile(ctx, ts, idx, dx, dy, sz) {
     ctx.textBaseline = "middle";
     ctx.fillText(td.ch, dx + sz / 2, dy + sz / 2);
     ctx.textAlign = "start";
+    return;
   }
+  /* 将来追加される未登録IDも空白にせず、最低限の識別文字を表示 */
+  ctx.fillStyle = "#20202c";
+  ctx.fillRect(dx, dy, sz, sz);
+  ctx.fillStyle = "#bbbbcc";
+  ctx.font = "bold " + Math.floor(sz * 0.75) + "px monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("?", dx + sz / 2, dy + sz / 2);
+  ctx.textAlign = "start";
 }
 
 export const VW_M = 17,
