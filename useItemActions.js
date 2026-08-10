@@ -11,7 +11,7 @@ import {
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
-  placeItemAt, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
+  placeItemAt, breakBigboxContents, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
@@ -1383,8 +1383,7 @@ export function useItemActions({
           const _sdBlastedBB = (dg.bigboxes || []).filter(b => Math.max(Math.abs(b.x - p.x), Math.abs(b.y - p.y)) <= _sdR);
           for (const _sbb of _sdBlastedBB) {
             ml.push(`${_sbb.name}が爆発で壊れた！`);
-            const _sdbbft = new Set();
-            for (const ci of (_sbb.contents || [])) placeItemAt(dg, _sbb.x, _sbb.y, ci, ml, _sdbbft);
+            breakBigboxContents(_sbb, dg, ml);
           }
           if (_sdBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_sdBlastedBB.includes(b));
           // 連鎖爆発（範囲内の床上火薬壺）
@@ -1986,6 +1985,10 @@ export function useItemActions({
     const { player: p, dungeon: dg } = sr.current;
     const it = p.inventory[idx];
     if (!it) return;
+    if (it.noDrop) {
+      setMsgs((prev) => [...prev.slice(-80), `${it.name}は置けない！`]);
+      return;
+    }
     const _isEquipped = p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
     if (_isEquipped && it.cursed) {
       setMsgs((prev) => [...prev.slice(-80), "呪われているので外せない！"]);
@@ -2050,6 +2053,10 @@ export function useItemActions({
   }, [endTurn]);
   const doThrow = useCallback((idx) => {
     const _it = sr.current?.player?.inventory[idx];
+    if (_it?.noThrow) {
+      setMsgs((prev) => [...prev.slice(-80), `${_it.name}は投げられない！`]);
+      return;
+    }
     if (_it?.cursed) {
       const p = sr.current.player;
       const _isEquipped = p.weapon === _it || p.armor === _it || (p.rings || []).includes(_it);

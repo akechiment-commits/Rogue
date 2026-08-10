@@ -1,7 +1,7 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
-  resolveItemName,
+  resolveItemName, breakBigboxContents,
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
@@ -323,20 +323,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         bbx = nx; bby = ny;
       }
       if (bbroke) {
-        dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
+        breakBigboxContents(target, dg, ml, nameFn, bbx, bby);
         if (_bbHitMon) {
           const _bbDmg = rng(20, 40);
           _bbHitMon.hp -= _bbDmg;
           ml.push(`${target.name}が${_bbHitMon.name}に激突！${_bbDmg}ダメージ！${target.name}は壊れた！`);
           if (_bbHitMon.hp <= 0) killMonster(_bbHitMon, dg, p, ml, luFn);
           if (target.contents?.length > 0) {
-            const fts = new Set();
-            for (const ci of target.contents) placeItemAt(dg, bbx, bby, ci, ml, fts);
             ml.push("中身が飛び出した！");
           }
         } else if (target.contents?.length > 0) {
-          const fts = new Set();
-          for (const ci of target.contents) placeItemAt(dg, bbx, bby, ci, ml, fts);
           ml.push(`${resolveItemName(target, nameFn)}は壁に叩きつけられて壊れた！中身が飛び出した！`);
         } else {
           ml.push(`${target.name}は壁に叩きつけられて壊れた！`);
@@ -384,9 +380,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     }
     if (eff === "soften") {
       /* 大箱を破壊して中身を散乱 */
-      const _sfts = new Set();
-      for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _sfts);
-      dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
+      breakBigboxContents(target, dg, ml, nameFn);
       ml.push(`軟化の魔法弾で${resolveItemName(target, nameFn)}が崩れ落ちた！${(target.contents?.length||0) > 0 ? "中身が飛び出した！" : ""}`);
       return;
     }
@@ -411,9 +405,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (_bwCursed) {
         const _newCap = Math.max(0, (target.capacity || 1) - 1);
         if ((target.contents?.length || 0) > _newCap) {
-          const _fts = new Set();
-          for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-          dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
+          breakBigboxContents(target, dg, ml, nameFn);
           ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！【呪】`);
         } else {
           target.capacity = _newCap;
@@ -435,9 +427,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         const _loss = _cwBlessed ? 2 : 1;
         const _newCap = Math.max(0, (target.capacity || 1) - _loss);
         if ((target.contents?.length || 0) > _newCap) {
-          const _fts = new Set();
-          for (const _ci of (target.contents || [])) placeItemAt(dg, target.x, target.y, _ci, ml, _fts);
-          dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
+          breakBigboxContents(target, dg, ml, nameFn);
           ml.push(`${resolveItemName(target, nameFn)}が呪いで壊れた！中身が飛び出した！${_cwBlessed ? "【祝】" : ""}`);
         } else {
           target.capacity = _newCap;
@@ -447,10 +437,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       return;
     }
     /* default: break and scatter (dig, lightning, etc.) */
-    dg.bigboxes = dg.bigboxes?.filter(b => b !== target);
+    breakBigboxContents(target, dg, ml, nameFn);
     if (target.contents?.length > 0) {
-      const fts = new Set();
-      for (const ci of target.contents) placeItemAt(dg, target.x, target.y, ci, ml, fts);
       ml.push(`${resolveItemName(target, nameFn)}が壊れて中身が飛び出した！`);
     } else {
       ml.push(`${resolveItemName(target, nameFn)}が壊れた！`);

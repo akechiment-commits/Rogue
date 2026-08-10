@@ -972,6 +972,41 @@ export function makePot(context = "floor") {
   return pot;
 }
 
+/** 変化の大箱と同じ抽選表から、変化後のアイテムを1個作る。 */
+export function makeChangeBoxItem() {
+  const kinds = ["potion", "weapon", "armor", "food", "wand", "arrow", "pot"];
+  const rt = pick(kinds);
+  if (rt === "food") return { ...genFood(), id: uid() };
+  if (rt === "wand") {
+    const wt = pickLootFromPool(WANDS, "change") || pick(WANDS);
+    return { ...wt, id: uid() };
+  }
+  if (rt === "arrow") return makeArrow(rng(3, 15));
+  if (rt === "pot") return makePot("change");
+  const pool = ITEMS.filter((i) => i.type === rt);
+  const fallback = ITEMS.filter((i) => i.type !== "gold" && i.type !== "charged_fuzzball");
+  const tmpl = (pool.length ? pickLootFromPool(pool, "change") : null)
+    || pickLootFromPool(fallback, "change")
+    || pick(fallback);
+  return { ...tmpl, id: uid() };
+}
+
+/** 大箱が壊れたときの共通処理。ゴミ箱だけは追加で変化抽選品を落とす。 */
+export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dropY = null) {
+  if (!bb || !dg) return;
+  const x = dropX ?? bb.x;
+  const y = dropY ?? bb.y;
+  const ft = new Set();
+  for (const item of [...(bb.contents || [])]) placeItemAt(dg, x, y, item, ml, ft);
+  if (bb.kind === "trash") {
+    const loot = makeChangeBoxItem();
+    placeItemAt(dg, x, y, loot, ml, ft);
+    ml.push(`ゴミ箱から${resolveItemName(loot, nameFn)}が飛び出した！`);
+  }
+  stageBigbox(bb);
+  dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
+}
+
 export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
   const _pn = resolveItemName(pot, nameFn);
   /* 強欲な壺：中身＋残り容量分のランダムアイテムを出す */
@@ -1416,12 +1451,11 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         if (_blastedBB.includes(_hbb)) continue;
         _blastedBB.push(_hbb);
         ml.push(`${_hbb.name}が爆発で壊れた！`);
-        const ft = new Set();
-        for (const ci of (_hbb.contents || [])) placeItemAt(dg, _hbb.x, _hbb.y, ci, ml, ft);
+        breakBigboxContents(_hbb, dg, ml);
       }
     }
   }
-  if (_blastedBB.length > 0) { _blastedBB.forEach(stageBigbox); dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b)); }
+  if (_blastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b));
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 爆発範囲内の石像 */
@@ -1593,8 +1627,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           if (_gpBlastedBB.includes(_hbb)) continue;
           _gpBlastedBB.push(_hbb);
           ml.push(`${_hbb.name}が爆発で壊れた！`);
-          const _gpft = new Set();
-          for (const ci of (_hbb.contents || [])) placeItemAt(dg, _hbb.x, _hbb.y, ci, ml, _gpft);
+          breakBigboxContents(_hbb, dg, ml);
         }
       }
     }
@@ -3930,7 +3963,11 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
         /* 大箱の破壊 */
         if (dg.bigboxes) {
           const bi = dg.bigboxes.findIndex(b => b.x === ax && b.y === ay);
-          if (bi >= 0) { ml.push("大箱が爆発で壊れた！"); dg.bigboxes.splice(bi, 1); }
+          if (bi >= 0) {
+            const bb = dg.bigboxes[bi];
+            breakBigboxContents(bb, dg, ml);
+            ml.push("大箱が爆発で壊れた！");
+          }
         }
       }
     }

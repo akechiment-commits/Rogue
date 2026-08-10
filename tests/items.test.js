@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, getBlessMultiplier, gemSellPrice, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, getBlessMultiplier, gemSellPrice, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -136,6 +136,31 @@ describe("applyPotionEffect", () => {
     );
     expect(p.hp).toBe(0);
     expect(ml.some(m => m.includes("100ダメージを受けた"))).toBe(true);
+  });
+});
+
+describe("ゴミ箱の破壊報酬", () => {
+  it("変化の大箱と同じ系統のアイテムを1個生成する", () => {
+    const item = makeChangeBoxItem();
+    expect(["potion", "weapon", "armor", "food", "wand", "arrow", "pot"]).toContain(item.type);
+    expect(item.id).toBeTruthy();
+  });
+
+  it("ゴミ箱が壊れると中身に加えてランダム品を落とす", () => {
+    const dungeon = {
+      map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
+      items: [], monsters: [], traps: [], springs: [], pentacles: [], bigboxes: [],
+    };
+    const bb = { kind: "trash", name: "ゴミ箱", x: 10, y: 10, capacity: 0, contents: [{ name: "石", type: "arrow", tile: 22, count: 1, id: "inside" }] };
+    dungeon.bigboxes.push(bb);
+    const messages = [];
+
+    breakBigboxContents(bb, dungeon, messages);
+
+    expect(dungeon.bigboxes).not.toContain(bb);
+    expect(dungeon.items).toHaveLength(2);
+    expect(dungeon.items.some(item => item.id === "inside")).toBe(true);
+    expect(messages.some(message => message.includes("ゴミ箱から"))).toBe(true);
   });
 });
 

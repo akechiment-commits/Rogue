@@ -16,7 +16,7 @@ import {
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
   makeArrowUnitFromStack, peelShopArrowUnit,
-  wallBreakDrop, makePot, placeItemAt, pickLootFromPool,
+  wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, canCalmShopkeeper, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
@@ -1012,10 +1012,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _hbbDN = _wbBbNameFn(bb);
               const _newCap = Math.max(0, (bb.capacity || 1) - 1);
               if ((bb.contents?.length || 0) > _newCap) {
-                const _fts2 = new Set();
-                for (const _ci of (bb.contents || [])) placeItemAt(dg, bb.x, bb.y, _ci, mlx, _fts2);
-                stageBigbox(bb);
-                dg.bigboxes = dg.bigboxes.filter(b => b !== bb);
+                breakBigboxContents(bb, dg, mlx, _wbItemNameFn);
                 mlx.push(`呪いの魔法弾が${_hbbDN}に命中！容量オーバーで壊れた！中身が飛び出した！`);
               } else {
                 bb.capacity = _newCap;
@@ -3250,10 +3247,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   }, []);
   const breakBigbox = useCallback((bb, dg, ml) => {
     ml.push(`${bbDisplayName(bb, sr.current)}が壊れた！中身がばらまかれた！`);
-    const ft = new Set();
-    for (const item of bb.contents) placeItemAt(dg, bb.x, bb.y, item, ml, ft);
-    stageBigbox(bb);
-    dg.bigboxes = dg.bigboxes.filter((b) => b !== bb);
+    breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
   }, []);
   const trySynthesize = useCallback(
     (bb, ml) => {
@@ -3629,26 +3623,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else if (bb.kind === "change" && item.type === "goal") {
         ml.push(`${item.name}は変化しなかった！`);
       } else if (bb.kind === "change") {
-        const kinds = ["potion", "weapon", "armor", "food", "wand", "arrow", "pot"];
-        const rt = pick(kinds);
-        let nit;
-        if (rt === "food") {
-          nit = { ...genFood(), id: uid() };
-        } else if (rt === "wand") {
-          const wt = pickLootFromPool(WANDS, "change") || pick(WANDS);
-          nit = { ...wt, id: uid() };
-        } else if (rt === "arrow") {
-          nit = makeArrow(rng(3, 15));
-        } else if (rt === "pot") {
-          nit = makePot("change");
-        } else {
-          const pool = ITEMS.filter((i) => i.type === rt);
-          const fallback = ITEMS.filter((i) => i.type !== "gold");
-          const tmpl = (pool.length ? pickLootFromPool(pool, "change") : null)
-            || pickLootFromPool(fallback, "change")
-            || pick(fallback);
-          nit = { ...tmpl, id: uid() };
-        }
+        const nit = makeChangeBoxItem();
         const idx = bb.contents.indexOf(item);
         if (idx >= 0) bb.contents[idx] = nit;
         ml.push(`${_idn}が${itemDisplayName(nit, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}に変化した！`);
@@ -4019,10 +3994,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         }
         /* 爆発系は箱ごと破壊、それ以外は容量を1減らす */
         if (_bbExploded) {
-          stageBigbox(bb);
-          dg.bigboxes = dg.bigboxes.filter(b => b !== bb);
-          const _bbFt = new Set();
-          for (const ci of (bb.contents || [])) placeItemAt(dg, bb.x, bb.y, ci, ml, _bbFt);
+          breakBigboxContents(bb, dg, ml, (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
           if (bb.contents?.length > 0) ml.push(`${bbDisplayName(bb, sr.current)}が壊れ中身が飛び出した！`);
           else ml.push(`${bbDisplayName(bb, sr.current)}が爆発で壊れた！`);
         } else {
@@ -4395,7 +4367,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         return;
       }
       const _bbIsEquipped = p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
-      if (_bbIsEquipped && it.cursed) {
+      if (_bbIsEquipped && it.cursed && bb.kind !== "trash") {
         ml.push("呪われているので外せない！");
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         return;
