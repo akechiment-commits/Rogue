@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
 import { MONS, BOSSES } from './monsters.js';
 import { POT_CAT_LABELS } from './foodData.js';
+import { GOAL_ITEMS } from './dungeon.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUIDE_XLSX = path.join(__dirname, 'ローグゲーム完全実装ガイド.xlsx');
@@ -197,6 +198,7 @@ const indexData = [
   ['15. 泉 - Spring', '飲む効果・浸す効果'],
   ['16. 宝石 - Gem（14種）', '基本価格・遠距離ボーナス'],
   ['17. 敵専用アイテム', '帯電毛玉など、敵の特技でのみ入手するアイテム'],
+  ['18. 目標アイテム（4種）', '各ダンジョン最下層から持ち帰るキーアイテム'],
   [''],
   ['データ来源'],
   ['items.js - applyPotionEffect（1818-2205行）', '薬の完全実装'],
@@ -733,6 +735,16 @@ const enemyItemData = [
 ];
 
 addSheet('17_敵専用アイテム', enemyItemData);
+
+// ===== 目標アイテム（Key Item） =====
+const goalItemData = [
+  ['ダンジョン', '名称', 'タイルID', '説明'],
+];
+for (const [dungeonType, item] of Object.entries(GOAL_ITEMS)) {
+  goalItemData.push([dungeonType, item.name, item.tile, item.desc]);
+}
+goalItemData.push(['', '', '', 'スタイル3では各キーアイテムに専用グラフィックを使用']);
+addSheet('18_目標アイテム', goalItemData);
 
 XLSX.writeFile(wb, GUIDE_XLSX);
 console.log(`✅ Complete game guide updated: ${GUIDE_XLSX}`);

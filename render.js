@@ -115,6 +115,7 @@ export const TILE_NAMES = {
   4003: "item_pen_category",
   87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
   184: "garnet", 185: "lapis_lazuli", 186: "turquoise", 187: "moonstone", 188: "black_onyx", 189: "alexandrite",
+  190: "goal_orb", 191: "goal_crimson_stone", 192: "goal_crown", 193: "goal_forbidden_tome",
   108: "grabber",
   109: "leprechaun",
   110: "sign",
@@ -238,6 +239,10 @@ export const TILE_RENDER = {
   187: { bg: null, fg: "#d9e7ff", ch: "*" }, /* ムーンストーン */
   188: { bg: null, fg: "#bfc5d0", ch: "*" }, /* ブラックオニキス */
   189: { bg: null, fg: "#55c8a0", ch: "*" }, /* アレキサンドライト */
+  190: { bg: null, fg: "#fff0a0", ch: "O" }, /* 輝く宝玉 */
+  191: { bg: null, fg: "#ee3344", ch: "M" }, /* 深紅の魔石 */
+  192: { bg: null, fg: "#ffd04a", ch: "C" }, /* 伝説の王冠 */
+  193: { bg: null, fg: "#b56cff", ch: "B" }, /* 深淵の禁書 */
   /* ===== ボス tier 5〜10 ===== */
   95:  { bg: null, fg: "#aa8833", ch: "B" }, /* 魔将軍  */
   96:  { bg: null, fg: "#ccccaa", ch: "B" }, /* 骸骨王  */

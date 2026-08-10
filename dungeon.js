@@ -2318,10 +2318,10 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
 
 /* ===== 最下層変換 ===== */
 export const GOAL_ITEMS = {
-  beginner:     { name:"輝く宝玉",       type:"goal", desc:"地上に持ち帰ればダンジョン踏破の証となる。", tile:22 },
-  intermediate: { name:"深紅の魔石",     type:"goal", desc:"強大な魔力を秘めた石。地上に持ち帰ろう。",   tile:22 },
-  advanced:     { name:"伝説の王冠",     type:"goal", desc:"かつての王が残した冠。地上に持ち帰ろう。",   tile:22 },
-  legend:       { name:"深淵の禁書",     type:"goal", desc:"深淵の底に封じられた禁断の書。地上に持ち帰れば真の伝説の冒険者だ。", tile:22 },
+  beginner:     { name:"輝く宝玉",       type:"goal", desc:"地上に持ち帰ればダンジョン踏破の証となる。", tile:190 },
+  intermediate: { name:"深紅の魔石",     type:"goal", desc:"強大な魔力を秘めた石。地上に持ち帰ろう。",   tile:191 },
+  advanced:     { name:"伝説の王冠",     type:"goal", desc:"かつての王が残した冠。地上に持ち帰ろう。",   tile:192 },
+  legend:       { name:"深淵の禁書",     type:"goal", desc:"深淵の底に封じられた禁断の書。地上に持ち帰れば真の伝説の冒険者だ。", tile:193 },
 };
 
 export function prepareLastFloor(dg, dungeonType) {
