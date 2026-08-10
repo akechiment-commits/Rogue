@@ -3241,7 +3241,7 @@ export function InventoryModal({
 }
 
 /* ===== Sidebar Portrait Panel ===== */
-export function SidebarPanel({ mobile, landscape, portraitSrc, setShowScores, setShowSettings }) {
+export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings }) {
   if (!(!mobile || landscape)) return null;
   return (
     <div
@@ -3254,11 +3254,13 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, setShowScores, se
       }}
     >
       <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible", position: "relative" }}>
-        <img
-          src={portraitSrc || "/tiles/Character/stand_normal.png"}
-          alt="portrait"
-          style={{ width: "220%", objectFit: "contain" }}
-        />
+        {showPortrait && (
+          <img
+            src={portraitSrc || "/tiles/Character/stand_normal.png"}
+            alt="portrait"
+            style={{ width: "220%", objectFit: "contain" }}
+          />
+        )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
         <button onClick={() => setShowSettings(true)}
