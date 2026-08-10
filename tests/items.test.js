@@ -78,6 +78,20 @@ describe("gemSellPrice", () => {
     expect(new Set(prices).size).toBe(prices.length);
   });
 
+  it("現実の希少性を意識した序列で、300Gから10000Gに収まる", () => {
+    const expectedOrder = [
+      "アメジスト", "トパーズ", "ガーネット", "ブラックオニキス",
+      "ラピスラズリ", "ターコイズ", "ムーンストーン", "オパール",
+      "アクアマリン", "エメラルド", "サファイア", "ダイヤモンド",
+      "ルビー", "アレキサンドライト",
+    ];
+    const sorted = [...GEM_TYPES].sort((a, b) => a.basePrice - b.basePrice);
+    expect(sorted.map(gem => gem.name)).toEqual(expectedOrder);
+    expect(sorted[0].basePrice).toBe(300);
+    expect(sorted.at(-1).basePrice).toBe(10000);
+    expect(sorted.every(gem => gem.basePrice >= 300 && gem.basePrice <= 10000)).toBe(true);
+  });
+
   it("階層の距離に応じて売値が上がる", () => {
     const gem = { basePrice: 100, originDepth: 5 };
     expect(gemSellPrice(gem, 5)).toBe(100);
