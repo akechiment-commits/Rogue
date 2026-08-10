@@ -1207,15 +1207,15 @@ function genSpinFloor(depth, dungeonType = null, _retries = 0) {
 }
 
 /* ===== CORRIDOR FLOOR (迷路状廊下フロア) ===== */
-function genCorridorFloor(depth, dungeonType = null) {
+export function genCorridorFloor(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
 
   /* ── DFS完全迷路 ─────────────────────────────────────────────────────── */
-  /* S=4: ノード座標 nodeX(c)=2+4c, nodeY(r)=2+4r
-   * 隣接ノード間の廊下は幅1タイル。ノード間隔4のためMW=60→14列, MH=30→6行 */
-  const S = 4;
-  const COLS = Math.floor((MW - 3) / S); // 14
-  const ROWS = Math.floor((MH - 3) / S); // 6
+  /* S=2: ノード座標 nodeX(c)=2+2c, nodeY(r)=2+2r
+   * 隣接ノードの間に壁を1枚残す、細い廊下主体の古典的な迷路。 */
+  const S = 2;
+  const COLS = Math.floor((MW - 4) / S) + 1;
+  const ROWS = Math.floor((MH - 4) / S) + 1;
   const nodeX = c => 2 + c * S;
   const nodeY = r => 2 + r * S;
   const DIRS4 = [[1,0],[-1,0],[0,1],[0,-1]];
@@ -1239,15 +1239,17 @@ function genCorridorFloor(depth, dungeonType = null) {
     } else { stack.pop(); }
   }
 
-  /* 少数のループ追加（行き止まりを減らしすぎず程よい分岐を保つ） */
-  for (let i = 0; i < rng(3, 6); i++) {
-    const c = rng(0, COLS - 2), r = rng(0, ROWS - 2);
-    if (Math.random() < 0.5) {
-      const y=nodeY(r); for(let x=nodeX(c);x<=nodeX(c+1);x++) map[y][x]=T.FLOOR;
-    } else {
-      const x=nodeX(c); for(let y=nodeY(r);y<=nodeY(r+1);y++) map[y][x]=T.FLOOR;
+  /* 既存の壁を候補化してからループを追加。無効な重複開通を避ける。 */
+  const loopEdges = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = nodeX(c), y = nodeY(r);
+      if (c + 1 < COLS && map[y][x + 1] === T.WALL) loopEdges.push([x + 1, y]);
+      if (r + 1 < ROWS && map[y + 1][x] === T.WALL) loopEdges.push([x, y + 1]);
     }
   }
+  shuffle(loopEdges);
+  for (const [x, y] of loopEdges.slice(0, Math.min(loopEdges.length, rng(10, 18)))) map[y][x] = T.FLOOR;
 
   /* ── 階段配置（左1/3 ↑・右1/3 ↓） ─────────────────────────────────── */
   const leftNC = [], rightNC = [];
@@ -1266,7 +1268,7 @@ function genCorridorFloor(depth, dungeonType = null) {
   const su = { x:suX, y:suY }, sd = { x:sdX, y:sdY };
 
   /* ── 行き止まりノード検出 ───────────────────────────────────────────── */
-  /* 隣接ノードとの間の廊下タイル（ノード間隔S=4 → 中間 = (x+x2)/2）があるか確認 */
+  /* 隣接ノードとの間の廊下タイル（中間 = (x+x2)/2）があるか確認 */
   const deadEnds = [];
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -1282,16 +1284,24 @@ function genCorridorFloor(depth, dungeonType = null) {
     }
   }
 
-  /* ── 3×3 小部屋（廊下扱い）を各ノードに配置 ────────────────────────── */
-  /* 階段2箇所は必ず、行き止まりからランダムに6〜10箇所選択              */
+  /* ── 階段周辺＋一部行き止まりにだけ小さな退避空間を配置 ──────────────── */
+  /* 以前のように多数の3×3部屋を作らず、迷路の細い廊下を維持する。 */
   shuffle(deadEnds);
-  const roomNodes = [[suC,suR],[sdC,sdR], ...deadEnds.slice(0, rng(6, 10))];
+  const roomNodes = [[suC,suR],[sdC,sdR]];
+  const pocketCount = rng(3, 5);
+  for (const [nc, nr] of deadEnds) {
+    if (roomNodes.some(([pc, pr]) => Math.abs(pc - nc) <= 1 && Math.abs(pr - nr) <= 1)) continue;
+    roomNodes.push([nc, nr]);
+    if (roomNodes.length >= pocketCount + 2) break;
+  }
   const roomTiles = new Set();
   const rooms = [];
-  for (const [nc, nr] of roomNodes) {
+  for (let ri = 0; ri < roomNodes.length; ri++) {
+    const [nc, nr] = roomNodes[ri];
     const cx=nodeX(nc), cy=nodeY(nr);
-    for (let dy=-1; dy<=1; dy++) {
-      for (let dx=-1; dx<=1; dx++) {
+    const radius = ri < 2 ? 1 : 0;
+    for (let dy=-radius; dy<=radius; dy++) {
+      for (let dx=-radius; dx<=radius; dx++) {
         const sx=cx+dx, sy=cy+dy;
         if (sx>=1&&sx<MW-1&&sy>=1&&sy<MH-1) {
           if (map[sy][sx]===T.WALL) map[sy][sx]=T.FLOOR;
@@ -1299,7 +1309,7 @@ function genCorridorFloor(depth, dungeonType = null) {
         }
       }
     }
-    rooms.push({ x:cx-1, y:cy-1, w:3, h:3, cx, cy });
+    rooms.push({ x:cx-radius, y:cy-radius, w:radius * 2 + 1, h:radius * 2 + 1, cx, cy });
   }
 
   /* ── スポーン ──────────────────────────────────────────────────────── */

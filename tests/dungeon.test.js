@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genTutorialFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
+import { genDungeon, genTutorialFloor, genCorridorFloor, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
 import { T, MW, MH } from "../utils.js";
 
 function makeHiddenRoomMap(hr) {
@@ -58,6 +58,45 @@ describe("genDungeon", () => {
   it("ボスフロア（depth=4）はモンスターを含む", () => {
     const dg = genDungeon(4, "intermediate");
     expect(dg.monsters.length).toBeGreaterThan(0);
+  });
+});
+
+describe("genCorridorFloor", () => {
+  it("分岐と行き止まりを持つ迷路になり、階段同士が接続される", () => {
+    const floor = genCorridorFloor(8, "intermediate");
+    const passable = (x, y) => x >= 0 && x < MW && y >= 0 && y < MH && floor.map[y][x] !== T.WALL;
+    let junctions = 0;
+    let deadEnds = 0;
+
+    for (let y = 1; y < MH - 1; y++) {
+      for (let x = 1; x < MW - 1; x++) {
+        if (!passable(x, y)) continue;
+        const exits = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+          .filter(([dx, dy]) => passable(x + dx, y + dy)).length;
+        if (exits >= 3) junctions++;
+        if (exits === 1) deadEnds++;
+      }
+    }
+
+    const startKey = `${floor.stairUp.x},${floor.stairUp.y}`;
+    const goalKey = `${floor.stairDown.x},${floor.stairDown.y}`;
+    const seen = new Set([startKey]);
+    const queue = [floor.stairUp];
+    for (let i = 0; i < queue.length; i++) {
+      const { x, y } = queue[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy, key = `${nx},${ny}`;
+        if (passable(nx, ny) && !seen.has(key)) {
+          seen.add(key);
+          queue.push({ x: nx, y: ny });
+        }
+      }
+    }
+
+    expect(floor.floorType).toBe("corridorFloor");
+    expect(junctions).toBeGreaterThan(40);
+    expect(deadEnds).toBeGreaterThan(15);
+    expect(seen.has(goalKey)).toBe(true);
   });
 });
 
