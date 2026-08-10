@@ -883,6 +883,8 @@ function setupShopRoom(room, map, depth, items, mons) {
   const socc = (x, y) => items.some(i => i.x === x && i.y === y);
   /* 宝石を候補に追加（originDepth を p.depth と合わせた 1-indexed で設定） */
   const gemCands = GEM_TYPES.map(g => ({ ...g, originDepth: depth + 1 }));
+  /* 高級宝石（C以上）は宝石専門店だけに並べ、通常店では発見できないようにする */
+  const _standardGemCands = gemCands.filter(g => g.rarity === "E" || g.rarity === "D");
   /* 食料候補：ランダムに5〜8種生成して候補に加える */
   const _foodCands = Array.from({ length: rng(5, 8) }, () => genFood());
   /* 専門店の抽選（30%） */
@@ -915,7 +917,7 @@ function setupShopRoom(room, map, depth, items, mons) {
       ...RINGS,
       ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
       ..._foodCands,
-      ...gemCands, ...gemCands,
+      ..._standardGemCands, ..._standardGemCands,
     ];
     luxuryPool = [
       ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'B' || i.rarity === 'A' || i.rarity === 'S')),
@@ -961,8 +963,9 @@ function setupShopRoom(room, map, depth, items, mons) {
     items.push(luxItem);
   }
   /* 残りスロットに通常商品を配置（グリッド内のみ） */
+  const _lootContext = specialtyType === "gem" ? "shop_gem" : "shop";
   for (const slot of gridSlots) {
-    items.push(makeShopItem(pickLootFromPool(cands, "shop") || pick(cands), slot.x, slot.y));
+    items.push(makeShopItem(pickLootFromPool(cands, _lootContext) || pick(cands), slot.x, slot.y));
   }
   const sk = {
     id: uid(), name: '店主', hp: 200, maxHp: 200, atk: 100, def: 100, exp: 0,

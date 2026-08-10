@@ -466,20 +466,21 @@ export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,   
 
 /* ===== 宝石 ===== */
 export const GEM_TYPES = [
-  { name: "ルビー",       type: "gem", rarity:"D", weight:8,  basePrice: 8000, tile: 88,  desc: "深紅の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "サファイア",   type: "gem", rarity:"D", weight:8,  basePrice: 7000, tile: 89,  desc: "深青の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "エメラルド",   type: "gem", rarity:"D", weight:8,  basePrice: 6000, tile: 90,  desc: "緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  /* 価格帯に合わせて E→A の順に希少化。宝石専門店ではこの重みをそのまま使用する。 */
+  { name: "ルビー",       type: "gem", rarity:"B", weight:2,  basePrice: 8000, tile: 88,  desc: "深紅の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "サファイア",   type: "gem", rarity:"B", weight:2,  basePrice: 7000, tile: 89,  desc: "深青の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "エメラルド",   type: "gem", rarity:"C", weight:4,  basePrice: 6000, tile: 90,  desc: "緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
   { name: "トパーズ",     type: "gem", rarity:"E", weight:12, basePrice: 500,  tile: 91,  desc: "黄色の宝石。買った店から遠い階の店で売ると高値がつく。" },
   { name: "アメジスト",   type: "gem", rarity:"E", weight:12, basePrice: 300,  tile: 92,  desc: "紫の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "アクアマリン", type: "gem", rarity:"E", weight:12, basePrice: 4000, tile: 87,  desc: "青緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "ダイヤモンド", type: "gem", rarity:"C", weight:4,  basePrice: 9000, tile: 101, desc: "無色透明の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "アクアマリン", type: "gem", rarity:"D", weight:8,  basePrice: 4000, tile: 87,  desc: "青緑の宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "ダイヤモンド", type: "gem", rarity:"B", weight:2,  basePrice: 9000, tile: 101, desc: "無色透明の宝石。買った店から遠い階の店で売ると高値がつく。" },
   { name: "オパール",     type: "gem", rarity:"C", weight:4,  basePrice: 5000, tile: 102, desc: "虹色の宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "ガーネット",   type: "gem", rarity:"E", weight:12, basePrice: 1700, tile: 184, desc: "暗赤色で丸みのある宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "ガーネット",   type: "gem", rarity:"D", weight:8,  basePrice: 1700, tile: 184, desc: "暗赤色で丸みのある宝石。買った店から遠い階の店で売ると高値がつく。" },
   { name: "ラピスラズリ", type: "gem", rarity:"D", weight:8,  basePrice: 3000, tile: 185, desc: "金色の斑点が入った濃紺の宝石。買った店から遠い階の店で売ると高値がつく。" },
   { name: "ターコイズ",   type: "gem", rarity:"E", weight:12, basePrice: 1200,  tile: 186, desc: "黒い筋の入った青緑色の宝石。買った店から遠い階の店で売ると高値がつく。" },
   { name: "ムーンストーン", type: "gem", rarity:"D", weight:8, basePrice: 2300, tile: 187, desc: "乳白色の中で淡い青い光が揺れる宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "ブラックオニキス", type: "gem", rarity:"D", weight:8, basePrice: 800, tile: 188, desc: "白い縞模様を持つ黒い宝石。買った店から遠い階の店で売ると高値がつく。" },
-  { name: "アレキサンドライト", type: "gem", rarity:"C", weight:4, basePrice: 10000, tile: 189, desc: "緑と赤紫の二色に輝く希少な宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "ブラックオニキス", type: "gem", rarity:"E", weight:12, basePrice: 800, tile: 188, desc: "白い縞模様を持つ黒い宝石。買った店から遠い階の店で売ると高値がつく。" },
+  { name: "アレキサンドライト", type: "gem", rarity:"A", weight:1, basePrice: 10000, tile: 189, desc: "緑と赤紫の二色に輝く希少な宝石。買った店から遠い階の店で売ると高値がつく。" },
 ];
 
 /* 宝石の売値を計算する（originDepth から currentDepth の距離に応じて上昇） */

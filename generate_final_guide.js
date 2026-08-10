@@ -710,22 +710,24 @@ addSheet('15_泉', springData);
 
 // ===== 宝石（Gem）=====
 const gemData = [
-  ['宝石名', 'rarity', '基本価格', '売値計算', '説明'],
-  ['', '', '', '基本価格（300〜10000G） × (1 + 階差 × 0.35)  ※買った階から遠いほど高値', ''],
+  ['宝石名', 'rarity', 'weight', '宝石専門店1枠の出現率', '基本価格', '売値計算', '説明'],
+  ['', '', '', '専門店では幸運枠なし。weight / 全宝石weight で抽選', '基本価格（300〜10000G）', '基本価格 × (1 + 階差 × 0.35)  ※買った階から遠いほど高値', ''],
 ];
+const gemWeightTotal = GEM_TYPES.reduce((sum, g) => sum + g.weight, 0);
 for (const g of GEM_TYPES) {
   const ex1 = Math.round(g.basePrice * (1 + 5 * 0.35));
   const ex2 = Math.round(g.basePrice * (1 + 10 * 0.35));
   const ex3 = Math.round(g.basePrice * (1 + 20 * 0.35));
   gemData.push([
-    g.name, g.rarity, g.basePrice,
+    g.name, g.rarity, g.weight, `${(g.weight / gemWeightTotal * 100).toFixed(2)}%`, g.basePrice,
     `5階差:${ex1}G / 10階差:${ex2}G / 20階差:${ex3}G`,
     g.desc,
   ]);
 }
-gemData.push(['', '', '', '', '']);
-gemData.push(['【補足】', '宝石は呪い/祝福状態で売値が変動する（通常×1、祝福×1.5、呪い×0.5）', '', '', '']);
-gemData.push(['', '売却の巻物：通常=基本価格の100%、祝福=200%、呪い=50%換金', '', '', '']);
+gemData.push(['', '', '', '', '', '', '']);
+gemData.push(['【出現仕様】', '宝石は店限定。通常店にはE/Dランクのみ、C以上は宝石専門店限定。宝石専門店は特殊店候補10種のうち1種で、商品枠は最低6枠。', '', '', '', '', '']);
+gemData.push(['【補足】', '宝石は呪い/祝福状態で売値が変動する（通常×1、祝福×1.5、呪い×0.5）', '', '', '', '', '']);
+gemData.push(['', '売却の巻物：通常=基本価格の100%、祝福=200%、呪い=50%換金', '', '', '', '', '']);
 
 addSheet('16_宝石', gemData);
 

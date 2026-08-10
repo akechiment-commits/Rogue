@@ -5,6 +5,7 @@ import {
   RINGS,
   POTS,
   SPELLBOOKS,
+  GEM_TYPES,
 } from "../items.js";
 import {
   LOOT_LUCK,
@@ -28,6 +29,14 @@ describe("レア度 = weight", () => {
   it("RARITY_ORDER は E→S", () => {
     expect(RARITY_ORDER).toEqual(["E", "D", "C", "B", "A", "S"]);
   });
+
+  it("宝石は価格帯に応じた rarity / weight を持つ", () => {
+    for (const gem of GEM_TYPES) {
+      expect(gem.weight, gem.name).toBe(RARITY_WEIGHT[gem.rarity]);
+    }
+    expect(GEM_TYPES.find((gem) => gem.name === "アレキサンドライト").rarity).toBe("A");
+    expect(GEM_TYPES.find((gem) => gem.name === "アレキサンドライト").weight).toBe(1);
+  });
 });
 
 describe("pickLootFromPool", () => {
@@ -40,6 +49,7 @@ describe("pickLootFromPool", () => {
   it("LOOT_LUCK: 店は C 以上", () => {
     expect(LOOT_LUCK.shop.chance).toBe(0.18);
     expect(LOOT_LUCK.shop.rarities).toEqual(["C", "B", "A", "S"]);
+    expect(LOOT_LUCK.shop_gem.chance).toBe(0);
     expect(LOOT_LUCK.drop.rarities).toEqual(["D", "C", "B", "A", "S"]);
   });
 

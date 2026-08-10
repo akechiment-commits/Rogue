@@ -41,6 +41,8 @@ export function pickByWeight(entries, randomFn = Math.random) {
 export const LOOT_LUCK = {
   floor: { chance: 0, rarities: null },
   shop: { chance: 0.18, rarities: rarityAtLeast("C") },
+  /* 宝石専門店は価格帯に応じた重みをそのまま使い、高級宝石の優遇抽選を行わない */
+  shop_gem: { chance: 0, rarities: null },
   change: { chance: 0.18, rarities: rarityAtLeast("C") },
   change_blessed: { chance: 0.36, rarities: rarityAtLeast("C") },
   change_cursed: { chance: 0.09, rarities: rarityAtLeast("C") },
