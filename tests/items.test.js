@@ -80,12 +80,20 @@ describe("gemSellPrice", () => {
 
   it("現実の希少性を意識した序列で、300Gから10000Gに収まる", () => {
     const expectedOrder = [
-      "アメジスト", "トパーズ", "ガーネット", "ブラックオニキス",
-      "ラピスラズリ", "ターコイズ", "ムーンストーン", "オパール",
-      "アクアマリン", "エメラルド", "サファイア", "ダイヤモンド",
-      "ルビー", "アレキサンドライト",
+      "アメジスト", "トパーズ", "ブラックオニキス", "ラピスラズリ",
+      "ターコイズ", "ガーネット", "ムーンストーン", "オパール",
+      "アクアマリン", "エメラルド", "サファイア", "ルビー",
+      "ダイヤモンド", "アレキサンドライト",
     ];
+    const expectedPrices = {
+      "アメジスト": 300, "トパーズ": 500, "ブラックオニキス": 700,
+      "ラピスラズリ": 900, "ターコイズ": 1100, "ガーネット": 1500,
+      "ムーンストーン": 2000, "オパール": 2600, "アクアマリン": 3000,
+      "エメラルド": 7500, "サファイア": 8200, "ルビー": 9000,
+      "ダイヤモンド": 9500, "アレキサンドライト": 10000,
+    };
     const sorted = [...GEM_TYPES].sort((a, b) => a.basePrice - b.basePrice);
+    expect(Object.fromEntries(GEM_TYPES.map(gem => [gem.name, gem.basePrice]))).toEqual(expectedPrices);
     expect(sorted.map(gem => gem.name)).toEqual(expectedOrder);
     expect(sorted[0].basePrice).toBe(300);
     expect(sorted.at(-1).basePrice).toBe(10000);
