@@ -2351,7 +2351,9 @@ function tryUnstickMove(m, dg, pl, float = false) {
   const tryDirs = (preferNew) => {
     for (const [dx, dy] of dirs) {
       const nx = m.x + dx, ny = m.y + dy;
-      if (!canEnter(map, nx, ny, float, dg)) continue;
+      const _waterOnlyDest = m.waterOnly && inBounds(nx, ny) &&
+        (map[ny]?.[nx] === T.WATER || dg.springs?.some(s => s.x === nx && s.y === ny));
+      if (m.waterOnly ? !_waterOnlyDest : !canEnter(map, nx, ny, float, dg)) continue;
       if (nx === pl?.x && ny === pl?.y) continue;
       if (dg.monsters.some(o => o !== m && o.x === nx && o.y === ny)) continue;
       if (!inMagicSealRoom(m.x, m.y, dg) &&
@@ -2970,6 +2972,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
   const _luFn = opts.luFn || (() => {});
+  const _canMoveTo = (x, y) => m.waterOnly
+    ? inBounds(x, y) && (dg.map[y]?.[x] === T.WATER || dg.springs?.some(s => s.x === x && s.y === y))
+    : canEnter(dg.map, x, y, _effFloat, dg);
   const _onHit = opts.onPlayerHit;
   const _onMiss = opts.onPlayerMiss;
   const _plPotHidden = (pl.potConfinedTurns || 0) > 0;
@@ -3025,7 +3030,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _pshuf = [..._pdirs].sort(() => Math.random() - 0.5);
       for (const [_pdx, _pdy] of _pshuf) {
         const _pnx = m.x + _pdx, _pny = m.y + _pdy;
-        if (!canEnter(dg.map, _pnx, _pny, _effFloat, dg)) continue;
+        if (!_canMoveTo(_pnx, _pny)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _pnx && o.y === _pny)) continue;
         if (_pnx === pl.x && _pny === pl.y) continue;
         if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _pnx && pc.y === _pny)) continue;
@@ -3408,7 +3413,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
             if (_other.hp <= 0) killMonster(_other, dg, pl, ml, _luFn, false, m);
           }
-        } else if (!_attackOnly && isWalkable(dg.map, _cnx, _cny, dg)) {
+        } else if (!_attackOnly && _canMoveTo(_cnx, _cny) && isWalkable(dg.map, _cnx, _cny, dg)) {
           m.x = _cnx; m.y = _cny;
         }
       }
@@ -3427,7 +3432,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       m.darkDir = pick(_ddirs);
     }
     const _dnx = m.x + m.darkDir[0], _dny = m.y + m.darkDir[1];
-    if (canEnter(dg.map, _dnx, _dny, _effFloat, dg)) {
+    if (_canMoveTo(_dnx, _dny)) {
       if (_dnx === pl.x && _dny === pl.y) {
         if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `暗闇の${m.name}が突進して攻撃！${d}ダメージ！`, { skipVuln: true, skipThorn: true, onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
       } else {
@@ -3457,7 +3462,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (!_attackOnly) {
       const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat);
-      if (_fleeStep) {
+      if (_fleeStep && _canMoveTo(_fleeStep.x, _fleeStep.y)) {
         m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
         m.x = _fleeStep.x; m.y = _fleeStep.y;
       }
