@@ -418,11 +418,16 @@ export function useKeyHandler({
               label: "割る",
               fn: () => invActRef.current?.breakPot?.(ai),
             });
-          a.push({ label: "置く", fn: () => invActRef.current?.drop?.(ai) });
-          a.push({
-            label: it.type === "arrow" ? "投げる(束)" : "投げる",
-            fn: () => invActRef.current?.throw?.(ai),
-          });
+          if (!it.noDrop)
+            a.push({ label: "置く", fn: () => invActRef.current?.drop?.(ai) });
+          const _isCursedEquipped = it.cursed && (
+            gs?.player?.weapon === it || gs?.player?.armor === it || (gs?.player?.rings || []).includes(it)
+          );
+          if (!_isCursedEquipped && !it.noThrow)
+            a.push({
+              label: it.type === "arrow" ? "投げる(束)" : "投げる",
+              fn: () => invActRef.current?.throw?.(ai),
+            });
           a.push({
             label: "説明",
             fn: () => setShowDesc((p) => (p === ai ? null : ai)),
