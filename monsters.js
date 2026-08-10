@@ -594,13 +594,13 @@ export const MONS = [
       { name: "覇ムカデ",               hp: 40,  atk: 17, def: 16, exp: 38, dungeonFloors: { advanced: { min: 15, max: 17 } } },
     ],
   },
-  { name: "マイナーダイミョウ", hp: 30,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 39,  kind: "humanoid", baseKind: "itemblaster",  monLevel: 1, minFloor: 6,  maxFloor: 22, subtype: "itemblast", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 16 }, advanced: { min: 7, max: 15 } },
+  { name: "マイナーダイミョウ", hp: 30,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 158, kind: "humanoid", baseKind: "itemblaster",  monLevel: 1, minFloor: 6,  maxFloor: 22, subtype: "itemblast", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 16 }, advanced: { min: 7, max: 15 } },
     levels: [
       { name: "メジャーダイミョウ",     hp: 48,  atk: 23, def: 5,  exp: 68,  dungeonFloors: { advanced: { min: 27, max: 29 } } },
       { name: "ミフネ",                 hp: 70,  atk: 29, def: 8,  exp: 98  },
     ],
   },
-  { name: "盗投士",       hp: 28,  atk: 16, def: 3,  exp: 45,  speed: 1,   tile: 69, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 17 }, advanced: { min: 9, max: 17 } },
+  { name: "盗投士",       hp: 28,  atk: 16, def: 3,  exp: 45,  speed: 1,   tile: 153, kind: "humanoid", baseKind: "stealthrower", monLevel: 1, minFloor: 8,  maxFloor: 24, subtype: "stealthrower", dungeonFloors: { beginner: null, intermediate: { min: 12, max: 17 }, advanced: { min: 9, max: 17 } },
     levels: [
       { name: "大盗投士",               hp: 46,  atk: 22, def: 5,  exp: 72,  dungeonFloors: { advanced: { min: 24, max: 26 } } },
       { name: "覇盗投士",               hp: 67,  atk: 29, def: 8,  exp: 108 },
@@ -654,7 +654,7 @@ export const MONS = [
       { name: "赤分裂スライム",     hp: 74,  atk: 29, def: 7,  exp: 80 },
     ],
   },
-  { name: "アーチャー",   hp: 30,  atk: 18, def: 3,  exp: 34,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "archer",        monLevel: 1, minFloor: 8,  maxFloor: 21, subtype: "archer", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 6, max: 12 }, advanced: { min: 5, max: 12 } },
+  { name: "アーチャー",   hp: 30,  atk: 18, def: 3,  exp: 34,  speed: 1,   tile: 148, kind: "humanoid", baseKind: "archer",        monLevel: 1, minFloor: 8,  maxFloor: 21, subtype: "archer", dungeonFloors: { beginner: { min: 7, max: 10 }, intermediate: { min: 6, max: 12 }, advanced: { min: 5, max: 12 } },
     levels: [
       { name: "古参アーチャー",     hp: 47,  atk: 25, def: 7,  exp: 54, dungeonFloors: { advanced: { min: 15, max: 20 } } },
       { name: "弓の達人",           hp: 74,  atk: 32, def: 12, exp: 85, dungeonFloors: { advanced: { min: 24, max: 26 } } },
@@ -666,7 +666,7 @@ export const MONS = [
       { name: "フェンリル",         hp: 68,  atk: 36, def: 10, exp: 100, dungeonFloors: { advanced: { min: 24, max: 26 } } },
     ],
   },
-  { name: "コソドロ",     hp: 16,  atk: 7,  def: 0,  exp: 35,  speed: 2,   tile: 69, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 16 }, advanced: { min: 7, max: 16 } },
+  { name: "コソドロ",     hp: 16,  atk: 7,  def: 0,  exp: 35,  speed: 2,   tile: 153, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 16 }, advanced: { min: 7, max: 16 } },
     levels: [
       { name: "大盗賊",             hp: 27,  atk: 11, def: 2,  exp: 56  },
       { name: "怪盗",               hp: 43,  atk: 14, def: 3,  exp: 88  },
@@ -684,7 +684,7 @@ export const MONS = [
       { name: "覇錆虫",             hp: 61,  atk: 25, def: 7,  exp: 100 },
     ],
   },
-  { name: "足払い鬼",     hp: 28,  atk: 15, def: 3,  exp: 42,  speed: 1,   tile: 86,  kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 9,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 7, max: 16 } },
+  { name: "足払い鬼",     hp: 28,  atk: 15, def: 3,  exp: 42,  speed: 1,   tile: 151, kind: "humanoid", baseKind: "tripper",      monLevel: 1, minFloor: 9,  maxFloor: 24, subtype: "tripper", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 7, max: 16 } },
     levels: [
       { name: "強足払い鬼",         hp: 46,  atk: 21, def: 6,  exp: 68,  dungeonFloors: { advanced: { min: 18, max: 22 } } },
       { name: "覇足払い鬼",         hp: 68,  atk: 28, def: 10, exp: 100 },
@@ -714,7 +714,7 @@ export const MONS = [
       { name: "覇水晶スライム",     hp: 11,  atk: 32, def: 0,  exp: 125 },
     ],
   },
-  { name: "ゴースト",     hp: 38,  atk: 18, def: 5,  exp: 45,  speed: 1,   tile: 68, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 20 } },
+  { name: "ゴースト",     hp: 38,  atk: 18, def: 5,  exp: 45,  speed: 1,   tile: 145, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 20 } },
     levels: [
       { name: "ファントム",         hp: 61,  atk: 25, def: 9,  exp: 72  },
       /* 長居罰の最上位壁抜け：高耐久・高火力・2行動。壁・他敵を迂回して接近 */
@@ -733,13 +733,13 @@ export const MONS = [
       { name: "覇ゼラチンキューブ", hp: 203, atk: 40, def: 13, exp: 175, dungeonFloors: { advanced: { min: 28, max: 29 } } },
     ],
   },
-  { name: "岩砕き",       hp: 68,  atk: 28, def: 7,  exp: 65,  speed: 0.5, tile: 76, kind: "beast",    baseKind: "walldigger",    monLevel: 1, minFloor: 16, maxFloor: 50, wallDigger: true, dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 23 } },
+  { name: "岩砕き",       hp: 68,  atk: 28, def: 7,  exp: 65,  speed: 0.5, tile: 154, kind: "beast",    baseKind: "walldigger",    monLevel: 1, minFloor: 16, maxFloor: 50, wallDigger: true, dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 23 } },
     levels: [
       { name: "強岩砕き",           hp: 108, atk: 38, def: 12, exp: 104 },
       { name: "覇岩砕き",           hp: 169, atk: 50, def: 16, exp: 163 },
     ],
   },
-  { name: "罠師",         hp: 34,  atk: 18, def: 3,  exp: 48,  speed: 1,   tile: 86, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 22 } },
+  { name: "罠師",         hp: 34,  atk: 18, def: 3,  exp: 48,  speed: 1,   tile: 150, kind: "humanoid", baseKind: "trapmaster",    monLevel: 1, minFloor: 16, maxFloor: 50, subtype: "trapmaster", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "罠の達人",           hp: 54,  atk: 25, def: 7,  exp: 77  },
       { name: "罠の覇者",           hp: 85,  atk: 32, def: 12, exp: 120 },
@@ -751,7 +751,7 @@ export const MONS = [
       { name: "覇大蛇",             hp: 119, atk: 42, def: 13, exp: 130 },
     ],
   },
-  { name: "ゴールドタイガー", hp: 38,  atk: 20, def: 5,  exp: 55,  speed: 1,   tile: 39, kind: "humanoid", baseKind: "trapthrower",   monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "trapthrower", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 14, max: 24 } },
+  { name: "ゴールドタイガー", hp: 38,  atk: 20, def: 5,  exp: 55,  speed: 1,   tile: 149, kind: "humanoid", baseKind: "trapthrower",   monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "trapthrower", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 14, max: 24 } },
     levels: [
       { name: "ずっと見てタイガー", hp: 61,  atk: 28, def: 9,  exp: 88  },
       { name: "よく頑張っタイガー", hp: 95,  atk: 36, def: 13, exp: 138 },
@@ -763,13 +763,13 @@ export const MONS = [
       { name: "大呪術師",           hp: 85,  atk: 29, def: 13, exp: 138 },
     ],
   },
-  { name: "解装士",       hp: 38,  atk: 20, def: 5,  exp: 58,  speed: 1,   tile: 59, kind: "humanoid", baseKind: "disarmer",      monLevel: 1, minFloor: 19, maxFloor: 50, subtype: "disarmer", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
+  { name: "解装士",       hp: 38,  atk: 20, def: 5,  exp: 58,  speed: 1,   tile: 156, kind: "humanoid", baseKind: "disarmer",      monLevel: 1, minFloor: 19, maxFloor: 50, subtype: "disarmer", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
     levels: [
       { name: "強解装士",           hp: 61,  atk: 28, def: 9,  exp: 93  },
       { name: "覇解装士",           hp: 95,  atk: 36, def: 13, exp: 145 },
     ],
   },
-  { name: "かいりきベア", hp: 43,  atk: 22, def: 6,  exp: 62,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "monsterthrow",  monLevel: 1, minFloor: 20, maxFloor: 50, subtype: "monsterthrow", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
+  { name: "かいりきベア", hp: 43,  atk: 22, def: 6,  exp: 62,  speed: 1,   tile: 146, kind: "humanoid", baseKind: "monsterthrow",  monLevel: 1, minFloor: 20, maxFloor: 50, subtype: "monsterthrow", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
     levels: [
       { name: "かいりきベア・セブン", hp: 69,  atk: 31, def: 10, exp: 99  },
       { name: "かいりきベア・イレブン", hp: 108, atk: 40, def: 14, exp: 155 },
@@ -787,13 +787,13 @@ export const MONS = [
       { name: "覇合成獣",           hp: 135, atk: 38, def: 13, exp: 200 },
     ],
   },
-  { name: "バリア蟹",     hp: 43,  atk: 20, def: 3,  exp: 68,  speed: 1,   tile: 54, kind: "humanoid", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, barrier: 1, dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 16, max: 27 } },
+  { name: "バリア蟹",     hp: 43,  atk: 20, def: 3,  exp: 68,  speed: 1,   tile: 147, kind: "humanoid", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, barrier: 1, dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 16, max: 27 } },
     levels: [
       { name: "シールド蟹",         hp: 69,  atk: 28, def: 6,  exp: 109, barrier: 2 },
       { name: "なんでも無効蟹",     hp: 108, atk: 36, def: 9,  exp: 170, barrier: 3 },
     ],
   },
-  { name: "ウィンドメイジ", hp: 38, atk: 20, def: 5, exp: 65,  speed: 1,   tile: 54, kind: "humanoid", baseKind: "windmage",     monLevel: 1, minFloor: 23, maxFloor: 50, subtype: "wanduser", wandEffect: "blowback_wand", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 27 } },
+  { name: "ウィンドメイジ", hp: 38, atk: 20, def: 5, exp: 65,  speed: 1,   tile: 157, kind: "humanoid", baseKind: "windmage",     monLevel: 1, minFloor: 23, maxFloor: 50, subtype: "wanduser", wandEffect: "blowback_wand", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "強ウィンドメイジ",   hp: 61,  atk: 28, def: 9,  exp: 104 },
       { name: "風の覇者",           hp: 95,  atk: 36, def: 13, exp: 163 },
@@ -914,7 +914,7 @@ export const MONS = [
       { name: "キラープラスター", hp: 88,  atk: 36, def: 11, exp: 148 },
     ],
   },
-  { name: "ガーディアン",  hp: 48,  atk: 16, def: 14, exp: 70,  speed: 1,   tile: 59, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian", dungeons: ["beginner"] },
+  { name: "ガーディアン",  hp: 48,  atk: 16, def: 14, exp: 70,  speed: 1,   tile: 155, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian", dungeons: ["beginner"] },
   { name: "氷竜",         hp: 65,  atk: 32, def: 10, exp: 125, speed: 1,   tile: 14, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { advanced: { min: 21, max: 30 } },
     levels: [
       { name: "ブルードラゴン",             hp: 105, atk: 44, def: 16, exp: 200 },
@@ -935,7 +935,7 @@ export const MONS = [
       { name: "スターライトⅢ",     hp: 138, atk: 50, def: 17, exp: 200 },
     ],
   },
-  { name: "ダークネス",   hp: 65,  atk: 30, def: 10, exp: 95,  speed: 1,   tile: 52, kind: "beast",   baseKind: "darkness",      monLevel: 1, minFloor: 20, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 21, max: 30 } },
+  { name: "ダークネス",   hp: 65,  atk: 30, def: 10, exp: 95,  speed: 1,   tile: 152, kind: "beast",   baseKind: "darkness",      monLevel: 1, minFloor: 20, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 21, max: 30 } },
     desc: "同じ部屋にいると周囲の光を喰らい、プレイヤーの視界を1マスに狭める闇の精霊。",
     levels: [
       { name: "ダークネスⅡ",       hp: 104, atk: 43, def: 15, exp: 152 },
