@@ -883,8 +883,9 @@ function setupShopRoom(room, map, depth, items, mons) {
   const socc = (x, y) => items.some(i => i.x === x && i.y === y);
   /* 宝石を候補に追加（originDepth を p.depth と合わせた 1-indexed で設定） */
   const gemCands = GEM_TYPES.map(g => ({ ...g, originDepth: depth + 1 }));
-  /* 高級宝石（C以上）は宝石専門店だけに並べ、通常店では発見できないようにする */
+  /* 通常宝石は2セット、高級宝石（C以上）は1セットだけ通常店に加え、専門店より低確率にする */
   const _standardGemCands = gemCands.filter(g => g.rarity === "E" || g.rarity === "D");
+  const _rareGemCands = gemCands.filter(g => g.rarity !== "E" && g.rarity !== "D");
   /* 食料候補：ランダムに5〜8種生成して候補に加える */
   const _foodCands = Array.from({ length: rng(5, 8) }, () => genFood());
   /* 専門店の抽選（30%） */
@@ -917,7 +918,7 @@ function setupShopRoom(room, map, depth, items, mons) {
       ...RINGS,
       ...SPELLBOOKS, { ...ARROW_T }, { ...MAGIC_MARKER, charges: rng(1, 2) },
       ..._foodCands,
-      ..._standardGemCands, ..._standardGemCands,
+      ..._standardGemCands, ..._standardGemCands, ..._rareGemCands,
     ];
     luxuryPool = [
       ...ITEMS.filter(i => i.type !== 'gold' && (i.rarity === 'B' || i.rarity === 'A' || i.rarity === 'S')),
