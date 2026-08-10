@@ -2174,8 +2174,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     case "explode": {
       ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は爆発で消し飛んだ！`);
       doExplosion(tx, ty, dg, p, ml, nameFn, trap.name, item, luFn, true, false, true);
+      /* 地雷を直接起動したアイテムは爆発で消費する。
+         重力などの内部トリガーと、罠を別の罠へ移す処理では対象外にする。 */
+      if (item && item !== trap && !item._ephemeralTrapTrigger && Array.isArray(dg.items)) {
+        dg.items = dg.items.filter(it => it !== item);
+      }
       maybeBreakTrapAfterStep(trap, dg, ml, { p });
-      return "restart";
+      return "destroyed";
     }
     case "pitfall": {
       const _pfm = monsterAt(dg, tx, ty);
@@ -3656,7 +3661,8 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       }
       if (r === "destroyed") return false;
       if (r === "pitfall_player") return "pitfall_player";
-      /* restart: 罠座標を新しい出発地点として再帰（seq が一段上がる） */
+      /* restart: 罠座標を新しい出発地点として再帰（seq が一段上がる）。
+         destroyed の場合は起動アイテムも消費済みなので再配置しない。 */
       if (r === "restart") return placeItemAt(dg, cx, cy, item, ml, ft, dep + 1, p, cx, cy);
       continue;
     }

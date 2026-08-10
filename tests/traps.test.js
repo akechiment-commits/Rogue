@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
-import { fireTrapItem, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
+import { fireTrapItem, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
 import { vi } from "vitest";
@@ -136,9 +136,45 @@ describe("fireTrapPlayer", () => {
     const origRandom = Math.random;
     Math.random = () => 0.1;
     try {
-      fireTrapItem(trap, { name: "石", type: "misc" }, dg, 5, 5, ml, new Set(), p);
+      const r = fireTrapItem(trap, { name: "石", type: "misc" }, dg, 5, 5, ml, new Set(), p);
+      expect(r).toBe("destroyed");
       expect(dg.traps).toHaveLength(0);
       expect(ml.some(m => m.includes("壊れた"))).toBe(true);
+    } finally {
+      Math.random = origRandom;
+    }
+  });
+
+  it("地雷を直接起動した杖は消滅して床に残らない", () => {
+    const p = makePlayer({ x: 1, y: 1, hp: 100, maxHp: 100 });
+    const wand = { name: "テレポートの杖", type: "wand", tile: 24, id: "wand1" };
+    const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t2" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const ml = [];
+    const origRandom = Math.random;
+    Math.random = () => 0.1;
+    try {
+      placeItemAt(dg, 5, 5, wand, ml, new Set(), 0, p);
+      expect(dg.items).not.toContain(wand);
+      expect(dg.items.some(it => it.id === "wand1")).toBe(false);
+      expect(ml.some(m => m.includes("テレポートの杖は爆発で消し飛んだ！"))).toBe(true);
+    } finally {
+      Math.random = origRandom;
+    }
+  });
+
+  it("床にあるアイテムが直接地雷を起動した場合も消滅する", () => {
+    const p = makePlayer({ x: 1, y: 1, hp: 100, maxHp: 100 });
+    const wand = { name: "転送の杖", type: "wand", tile: 24, id: "wand2", x: 5, y: 5 };
+    const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t3" };
+    const dg = makeEmptyDg({ traps: [trap], items: [wand] });
+    const ml = [];
+    const origRandom = Math.random;
+    Math.random = () => 0.1;
+    try {
+      const r = fireTrapItem(trap, wand, dg, 5, 5, ml, new Set(), p);
+      expect(r).toBe("destroyed");
+      expect(dg.items).not.toContain(wand);
     } finally {
       Math.random = origRandom;
     }
