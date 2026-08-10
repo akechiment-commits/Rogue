@@ -630,7 +630,7 @@ export const MONS = [
       { name: "アンデッドナイト",   hp: 61,  atk: 32, def: 13, exp: 62, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "フクマル",     hp: 11,  atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 70, kind: "beast",    baseKind: "runner",        monLevel: 1, minFloor: 5,  maxFloor: 30, subtype: "runner", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 4, max: 18 }, advanced: { min: 4, max: 22 } },
+  { name: "フクマル",     hp: 11,  atk: 0,  def: 0,  exp: 50,  speed: 2,   tile: 171, kind: "beast",    baseKind: "runner",        monLevel: 1, minFloor: 5,  maxFloor: 30, subtype: "runner", dungeonFloors: { beginner: { min: 5, max: 8 }, intermediate: { min: 4, max: 18 }, advanced: { min: 4, max: 22 } },
     levels: [
       { name: "フクフクマル",       hp: 16,  atk: 0,  def: 0,  exp: 80,  dungeonFloors: { advanced: { min: 17, max: 19 } } },
       { name: "コイトフクマル",     hp: 24,  atk: 0,  def: 0,  exp: 120, dungeonFloors: { advanced: { min: 20, max: 22 } } },
@@ -642,7 +642,7 @@ export const MONS = [
       { name: "強ゾンビ",           hp: 130, atk: 42, def: 18, exp: 110, dungeonFloors: { advanced: { min: 22, max: 24 } } },
     ],
   },
-  { name: "ワッカ",       hp: 24,  atk: 17, def: 2,  exp: 28,  speed: 1,   tile: 67, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 9, max: 14 }, advanced: { min: 6, max: 14 } },
+  { name: "ワッカ",       hp: 24,  atk: 17, def: 2,  exp: 28,  speed: 1,   tile: 172, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 9, max: 14 }, advanced: { min: 6, max: 14 } },
     levels: [
       { name: "ぷにぷにワッカ",     hp: 38,  atk: 24, def: 5,  exp: 45 },
       { name: "シン・ワッカ",       hp: 61,  atk: 32, def: 7,  exp: 72 },
@@ -690,7 +690,7 @@ export const MONS = [
       { name: "覇足払い鬼",         hp: 68,  atk: 28, def: 10, exp: 100 },
     ],
   },
-  { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 40, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", wandEffect: "lightning", dungeonFloors: { intermediate: { min: 11, max: 17 }, advanced: { min: 9, max: 17 } },
+  { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", wandEffect: "lightning", dungeonFloors: { intermediate: { min: 11, max: 17 }, advanced: { min: 9, max: 17 } },
     levels: [
       { name: "強ウィザード",       hp: 39,  atk: 24, def: 7,  exp: 67,  dungeonFloors: { advanced: { min: 22, max: 25 } } },
       { name: "大魔導士",           hp: 61,  atk: 29, def: 12, exp: 105 },
@@ -727,7 +727,7 @@ export const MONS = [
       { name: "オーク王",           hp: 101, atk: 40, def: 16, exp: 120, dungeonFloors: { advanced: { min: 25, max: 26 } } },
     ],
   },
-  { name: "ゼラチンキューブ", hp: 81, atk: 22, def: 5, exp: 70,  speed: 0.5, tile: 79, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "fire", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 22 } },
+  { name: "ゼラチンキューブ", hp: 81, atk: 22, def: 5, exp: 70,  speed: 0.5, tile: 174, kind: "beast", baseKind: "gelcube",       monLevel: 1, minFloor: 15, maxFloor: 50, elemWeak: "fire", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "強ゼラチンキューブ", hp: 130, atk: 31, def: 9,  exp: 112, dungeonFloors: { advanced: { min: 25, max: 27 } } },
       { name: "覇ゼラチンキューブ", hp: 203, atk: 40, def: 13, exp: 175, dungeonFloors: { advanced: { min: 28, max: 29 } } },
@@ -781,7 +781,7 @@ export const MONS = [
       { name: "大シャーマン",       hp: 101, atk: 29, def: 13, exp: 150 },
     ],
   },
-  { name: "合成獣",       hp: 54,  atk: 20, def: 5,  exp: 80,  speed: 0.5, tile: 80, kind: "beast",    baseKind: "synthmonster",  monLevel: 1, minFloor: 21, maxFloor: 50, dungeonFloors: { advanced: { min: 16, max: 26 } },
+  { name: "合成獣",       hp: 54,  atk: 20, def: 5,  exp: 80,  speed: 0.5, tile: 176, kind: "beast",    baseKind: "synthmonster",  monLevel: 1, minFloor: 21, maxFloor: 50, dungeonFloors: { advanced: { min: 16, max: 26 } },
     levels: [
       { name: "強合成獣",           hp: 86,  atk: 29, def: 9,  exp: 128 },
       { name: "覇合成獣",           hp: 135, atk: 38, def: 13, exp: 200 },
@@ -799,19 +799,19 @@ export const MONS = [
       { name: "風の覇者",           hp: 95,  atk: 36, def: 13, exp: 163 },
     ],
   },
-  { name: "混乱術師",     hp: 41,  atk: 20, def: 5,  exp: 72,  speed: 1,   tile: 81, kind: "humanoid", baseKind: "confusemage",   monLevel: 1, minFloor: 23, maxFloor: 50, subtype: "wanduser", wandEffect: "confuse_wand", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 27 } },
+  { name: "混乱術師",     hp: 41,  atk: 20, def: 5,  exp: 72,  speed: 1,   tile: 173, kind: "humanoid", baseKind: "confusemage",   monLevel: 1, minFloor: 23, maxFloor: 50, subtype: "wanduser", wandEffect: "confuse_wand", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "強混乱術師",         hp: 65,  atk: 28, def: 9,  exp: 115 },
       { name: "大混乱術師",         hp: 101, atk: 35, def: 13, exp: 180 },
     ],
   },
-  { name: "引きダコ",     hp: 61,  atk: 24, def: 6,  exp: 75,  speed: 1,   tile: 78, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, subtype: "puller", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
+  { name: "引きダコ",     hp: 61,  atk: 24, def: 6,  exp: 75,  speed: 1,   tile: 177, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, subtype: "puller", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
     levels: [
       { name: "強引きダコ",         hp: 97,  atk: 32, def: 10, exp: 120 },
       { name: "覇引きダコ",         hp: 153, atk: 43, def: 14, exp: 188 },
     ],
   },
-  { name: "眠り術師",     hp: 43,  atk: 22, def: 6,  exp: 80,  speed: 1,   tile: 82, kind: "humanoid", baseKind: "sleepmage",     monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "wanduser", wandEffect: "sleep_wand", dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
+  { name: "眠り術師",     hp: 43,  atk: 22, def: 6,  exp: 80,  speed: 1,   tile: 178, kind: "humanoid", baseKind: "sleepmage",     monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "wanduser", wandEffect: "sleep_wand", dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "強眠り術師",         hp: 69,  atk: 29, def: 10, exp: 128 },
       { name: "大眠り術師",         hp: 108, atk: 36, def: 16, exp: 200 },
@@ -835,7 +835,7 @@ export const MONS = [
       { name: "大転移術師",         hp: 117, atk: 38, def: 16, exp: 225 },
     ],
   },
-  { name: "ガーゴイル",   hp: 88,  atk: 32, def: 16, exp: 90,  speed: 0.5, tile: 52, kind: "undead",   baseKind: "gargoyle",      monLevel: 1, minFloor: 26, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 19, max: 29 } },
+  { name: "ガーゴイル",   hp: 88,  atk: 32, def: 16, exp: 90,  speed: 0.5, tile: 179, kind: "undead",   baseKind: "gargoyle",      monLevel: 1, minFloor: 26, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 19, max: 29 } },
     levels: [
       { name: "強ガーゴイル",       hp: 140, atk: 46, def: 21, exp: 144 },
       { name: "覇ガーゴイル",       hp: 220, atk: 58, def: 27, exp: 225 },
@@ -902,7 +902,7 @@ export const MONS = [
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
     ],
   },
-  { name: "バーサーカー", hp: 55,  atk: 26, def: 8,  exp: 65,  speed: 1,   tile: 117, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { advanced: { min: 11, max: 21 } },
+  { name: "バーサーカー", hp: 55,  atk: 26, def: 8,  exp: 65,  speed: 1,   tile: 180, kind: "humanoid", baseKind: "berserker",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "berserker", dungeonFloors: { advanced: { min: 11, max: 21 } },
     levels: [
       { name: "バーサーカー2",      hp: 90,  atk: 40, def: 13, exp: 104, dungeonFloors: { advanced: { min: 26, max: 27 } } },
       { name: "バーサーカー99",     hp: 145, atk: 58, def: 20, exp: 166, dungeonFloors: { advanced: { min: 28, max: 29 } } },
