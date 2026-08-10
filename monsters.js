@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
@@ -181,10 +181,7 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     _iBlock.speed = Math.max(0.25, (_iBlock.speed || 1) * 0.5);
     if (_iBlock.isBoss) _iBlock.bossSlowTurns = (_iBlock.bossSlowTurns || 0) + _iSlow;
     ml.push(`${m.name}の氷ブレスが${_iBlock.name}に命中！${_iDmg}ダメージ！${_iIsWeak ? "氷弱点特効！" : ""}鈍足${_iSlow}ターン！`);
-    if (_iBlock.hp <= 0) {
-      killMonster(_iBlock, dg, pl, ml, null, false, m);
-      if (_iBlock !== m) monLevelUp(m, dg, ml);
-    }
+    if (_iBlock.hp <= 0) killMonster(_iBlock, dg, pl, ml, null, false, m);
   };
   const _hitIcePl = () => {
     const pdef = calcPlayerDef(pl);
@@ -1803,7 +1800,7 @@ function monsterThrowStone(m, dg, pl, ml) {
 }
 
 /* ===== わてり：水鉄砲攻撃 ===== */
-function monsterShootWaterGun(m, dg, pl, ml) {
+function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
   const adx = pl.x - m.x, ady = pl.y - m.y;
   let dx = Math.sign(adx), dy = Math.sign(ady);
   const maxDist = Math.max(Math.abs(adx), Math.abs(ady));
@@ -1852,7 +1849,7 @@ function monsterShootWaterGun(m, dg, pl, ml) {
         const dmg = Math.max(1, Math.floor(m.atk * 0.8) + rng(-1, 1));
         hitMon.hp -= dmg;
         ml.push(`${m.name}の水鉄砲が${hitMon.name}に命中！${dmg}ダメージ！`);
-        if (hitMon.hp <= 0) { ml.push(`${hitMon.name}は倒れた！`); removeMonster(dg, hitMon); }
+        if (hitMon.hp <= 0) killMonster(hitMon, dg, pl, ml, luFn, false, m);
       }
       return;
     }
@@ -2724,7 +2721,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     }
     if (m.subtype === "watergunner" && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 8) {
       m.turnAttacks++;
-      monsterShootWaterGun(m, dg, pl, ml);
+      monsterShootWaterGun(m, dg, pl, ml, _luFn);
       return true;
     }
     if (m.subtype === "stonethrow" && !_plOnBlessedSanc) {
@@ -2782,8 +2779,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
           _chOther.hp -= _chDmg;
           ml.push(`${m.name}が突進して${_chOther.name}に当たった！${_chDmg}ダメージ！`);
           if (_chOther.hp <= 0) {
-            ml.push(`${_chOther.name}は倒れた！`);
-            removeMonster(dg, _chOther);
+            killMonster(_chOther, dg, pl, ml, _luFn, false, m);
           }
           break;
         }
@@ -3410,11 +3406,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _odmg = Math.max(1, calcAtkDefDmg(m.atk, _other.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
             _other.hp -= _odmg;
             ml.push(`混乱した${m.name}が${_other.name}を攻撃！${_odmg}ダメージ！`);
-            if (_other.hp <= 0) {
-              ml.push(`${_other.name}は倒れた！`);
-              removeMonster(dg, _other);
-              monLevelUp(m, dg, ml);
-            }
+            if (_other.hp <= 0) killMonster(_other, dg, pl, ml, _luFn, false, m);
           }
         } else if (!_attackOnly && isWalkable(dg.map, _cnx, _cny, dg)) {
           m.x = _cnx; m.y = _cny;
@@ -3445,11 +3437,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _dodmg = Math.max(1, calcAtkDefDmg(m.atk, _dother.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
             _dother.hp -= _dodmg;
             ml.push(`暗闇の${m.name}が${_dother.name}に突進！${_dodmg}ダメージ！`);
-            if (_dother.hp <= 0) {
-              ml.push(`${_dother.name}は倒れた！`);
-              removeMonster(dg, _dother);
-              monLevelUp(m, dg, ml);
-            }
+            if (_dother.hp <= 0) killMonster(_dother, dg, pl, ml, _luFn, false, m);
           }
         } else if (!_attackOnly) {
           m.x = _dnx; m.y = _dny;
@@ -4094,11 +4082,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               const _chDmg = Math.max(1, calcAtkDefDmg(m.atk, _chOther.def || 0, { defWeight: 1, variance: false }) + rng(-1, 1));
               _chOther.hp -= _chDmg;
               ml.push(`${m.name}が突進して${_chOther.name}に当たった！${_chDmg}ダメージ！`);
-              if (_chOther.hp <= 0) {
-                ml.push(`${_chOther.name}は倒れた！`);
-                removeMonster(dg, _chOther);
-                monLevelUp(m, dg, ml);
-              }
+              if (_chOther.hp <= 0) killMonster(_chOther, dg, pl, ml, _luFn, false, m);
               break;
             }
             m.x = _cnx; m.y = _cny; _chMoved++;
@@ -4117,7 +4101,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* ── watergunner（わてり等）：一直線上で水鉄砲攻撃 ── */
       if (m.subtype === "watergunner" && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 8 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
-        monsterShootWaterGun(m, dg, pl, ml);
+        monsterShootWaterGun(m, dg, pl, ml, _luFn);
         return;
       }
 
