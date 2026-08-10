@@ -19,6 +19,7 @@ import {
   GOBLIN_BAT_T, ONI_CLUB_T,
   GODSPARKWAND_T,
   ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STONE_T, MAGIC_STONE_T, BOMB_ARROW_T,
+  CHARGED_FUZZBALL_T,
 } from './items.js';
 
 const wb = XLSX.utils.book_new();
@@ -46,6 +47,7 @@ const GUIDE_DESC_OVERRIDES = {
   "カレーの壺": "食料を入れるとカレー味になる。食べると炎ダメージ半減(100ターン)。",
   "ココナッツの壺": "食料をココナッツ風味に。食べるとMP+10回復。",
   "ゴミ箱": "入れたアイテムが消滅し、使うたびに容量が1減る。容量超過・爆発・杖など壊れる理由を問わず、壊れた時は中身を散らし、変化の大箱と同じ抽選表からランダムなアイテムを1個追加で出す。呪われた装備中アイテムもゴミ箱にだけは入れられる（他の大箱では外せないため不可）。",
+  "帯電毛玉": "カラペン系が所持品に空きがある時だけ隣接して押し付ける敵専用アイテム。インベントリから直接置くことも投げることもできないが、箱や壺には入れられる。",
   "ゴムゴムの胴": "雷ダメージを2/3に軽減（万能耐性併用で半減）。雷によるアイテム破壊を防ぐ。",
   "スナイパー": "バードキラー3本の合成。浮遊している敵に2倍ダメージ（上位特効）。",
   "チョコの壺": "食料を入れるとチョコがけになる。食べるとHP35回復＋状態異常回復。",
@@ -188,12 +190,13 @@ const indexData = [
   ['08. 魔法の筆・魔法書', '書き込み機構と習得システム'],
   ['09. 状態異常（14種）', 'プレイヤー・モンスターの状態異常一覧'],
   ['10. 罠（転倒含む）', '全罠の効果'],
-  ['11. モンスター図鑑（60種+ボス10体）', 'ゲーム内に出現する全敵（各3形態あり）'],
+  ['11. モンスター図鑑（61種+ボス10体）', 'ゲーム内に出現する全敵（各3形態あり）'],
   ['12. 杖 - Wand（22種）', '全杖の通常・祝福・呪い時効果'],
   ['13. 食べ物（11効果種）', '食べ物の効果・サイズ・状態一覧'],
   ['14. 大箱 - BigBox（9種）', '全大箱の効果'],
   ['15. 泉 - Spring', '飲む効果・浸す効果'],
   ['16. 宝石 - Gem（8種）', '基本価格・遠距離ボーナス'],
+  ['17. 敵専用アイテム', '帯電毛玉など、敵の特技でのみ入手するアイテム'],
   [''],
   ['データ来源'],
   ['items.js - applyPotionEffect（1818-2205行）', '薬の完全実装'],
@@ -505,7 +508,7 @@ function monTraits(m) {
   if (m.maxAttacks >= 3) t.push('3回攻撃');
   else if (m.maxAttacks >= 2) t.push('2回攻撃');
   if (m.subtype) {
-    const st = { itemblaster:'アイテム弾き', stealthrower:'アイテム盗んで投げる', runner:'攻撃しない。未覚醒は徘徊、認識後は出口BFSで効率逃走', slime:'討伐時に分裂', bombslime:'死亡時爆発', bombgoblin:'体当たり自爆', crystalslime:'物理ダメ固定1', rockspirit:'壁抜け移動', archer:'遠距離矢攻撃', stonethrow:'石投げ（プレイヤーへホーミング。本来の着弾点に風があればその方向へ逸れる）', thief:'アイテム盗む', rustbug:'攻撃で装備錆', wizard:'雷の杖使用', walldigger:'壁破壊移動', trapmaster:'隣接に罠設置', trapthrower:'罠を投げる', witchdoc:'呪いの杖使用', disarmer:'装備を剥ぐ', monsterthrow:'敵を投げる', shaman:'周囲モンスターにATK+3', barriermage:'バリア1回持ち', windmage:'吹き飛ばし杖', confusemage:'混乱の杖使用', puller:'プレイヤーを引き寄せる', sleepmage:'眠りの杖使用', firedemon:'炎吸収回復', warpmage:'テレポート杖', grabber:'プレイヤーを掴む', charger:'直線突進', reflector:'物理攻撃反射（魔法の石もプレイヤーへホーミング反射）', knocker:'壁まで吹き飛ばす', magicreflect:'魔法・杖反射', potionthrow:'薬を投げる（風穴で曲がる・石像で停止して破壊）', icedragon:'氷ブレス', tripper:'隣接時25%で足払い（転倒・所持品落下）。体幹の指輪・浮遊で回避', ruster:'攻撃で装備錆', mimic:'隣接する特技持ちの特技を、その特技の実行条件を満たすとき50%で模倣（封印中は不可）。例: ラクガキ魔はプレイヤー認識時どこでも試行（足元失敗可）、アーチャー／ドラゴンは一直線、ルカチュウ等は同部屋、ワッカ系は射程内、隣接限定特技は隣接時' };
+    const st = { itemblaster:'アイテム弾き', stealthrower:'アイテム盗んで投げる', runner:'攻撃しない。未覚醒は徘徊、認識後は出口BFSで効率逃走', slime:'討伐時に分裂', bombslime:'死亡時爆発', bombgoblin:'体当たり自爆', crystalslime:'物理ダメ固定1', rockspirit:'壁抜け移動', archer:'遠距離矢攻撃', stonethrow:'石投げ（プレイヤーへホーミング。本来の着弾点に風があればその方向へ逸れる）', thief:'アイテム盗む', rustbug:'攻撃で装備錆', wizard:'雷の杖使用', walldigger:'壁破壊移動', trapmaster:'隣接に罠設置', trapthrower:'罠を投げる', witchdoc:'呪いの杖使用', disarmer:'装備を剥ぐ', monsterthrow:'敵を投げる', shaman:'周囲モンスターにATK+3', barriermage:'バリア1回持ち', windmage:'吹き飛ばし杖', confusemage:'混乱の杖使用', puller:'プレイヤーを引き寄せる', sleepmage:'眠りの杖使用', firedemon:'炎吸収回復', warpmage:'テレポート杖', grabber:'プレイヤーを掴む', charger:'直線突進', reflector:'物理攻撃反射（魔法の石もプレイヤーへホーミング反射）', knocker:'壁まで吹き飛ばす', magicreflect:'魔法・杖反射', potionthrow:'薬を投げる（風穴で曲がる・石像で停止して破壊）', icedragon:'氷ブレス', tripper:'隣接時25%で足払い（転倒・所持品落下）。体幹の指輪・浮遊で回避', ruster:'攻撃で装備錆', itempusher:'隣接時、所持品に空きがあれば帯電毛玉を押し付ける', mimic:'隣接する特技持ちの特技を、その特技の実行条件を満たすとき50%で模倣（封印中は不可）。例: ラクガキ魔はプレイヤー認識時どこでも試行（足元失敗可）、アーチャー／ドラゴンは一直線、ルカチュウ等は同部屋、ワッカ系は射程内、隣接限定特技は隣接時' };
     if (st[m.subtype]) t.push(st[m.subtype]);
   }
   return t.join('・') || '基本敵';
@@ -722,6 +725,14 @@ gemData.push(['【補足】', '宝石は呪い/祝福状態で売値が変動す
 gemData.push(['', '売却の巻物：通常=基本価格の100%、祝福=200%、呪い=50%換金', '', '', '']);
 
 addSheet('16_宝石', gemData);
+
+// ===== 敵専用アイテム =====
+const enemyItemData = [
+  ['名称', '種別', '置く', '投げる', '箱', '壺', '入手方法', '説明'],
+  [CHARGED_FUZZBALL_T.name, CHARGED_FUZZBALL_T.type, '不可', '不可', '可', '可', 'カラペン／パタペン／ゴゴペン', guideDesc(CHARGED_FUZZBALL_T)],
+];
+
+addSheet('17_敵専用アイテム', enemyItemData);
 
 XLSX.writeFile(wb, GUIDE_XLSX);
 console.log(`✅ Complete game guide updated: ${GUIDE_XLSX}`);

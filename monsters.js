@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeMonster, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
@@ -696,6 +696,12 @@ export const MONS = [
       { name: "大魔導士",           hp: 61,  atk: 29, def: 12, exp: 105 },
     ],
   },
+  { name: "カラペン",     hp: 32,  atk: 15, def: 4,  exp: 48,  speed: 1,   tile: 183, kind: "beast",    baseKind: "itempusher",  monLevel: 1, minFloor: 11, maxFloor: 30, float: true, subtype: "itempusher", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 18 }, advanced: { min: 9, max: 22 } },
+    levels: [
+      { name: "パタペン",             hp: 52,  atk: 23, def: 7,  exp: 78,  dungeonFloors: { advanced: { min: 18, max: 23 } } },
+      { name: "ゴゴペン",             hp: 82,  atk: 31, def: 11, exp: 125, dungeonFloors: { advanced: { min: 24, max: 30 } } },
+    ],
+  },
   { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "強ボムスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
@@ -1215,6 +1221,17 @@ function buildMonStats(base, spawnLevel) {
     return { ...mt, ...base.levels[spawnLevel - 2], monLevel: spawnLevel };
   }
   return mt;
+}
+
+function hasInventorySpaceForMonsterGift(player) {
+  return !!player?.inventory && player.inventory.length < (player.maxInventory || 30);
+}
+
+function pushChargedFuzzball(mon, player, messages) {
+  if (!hasInventorySpaceForMonsterGift(player)) return false;
+  player.inventory.push({ ...CHARGED_FUZZBALL_T, id: uid() });
+  messages.push(`${mon.name}が帯電毛玉を押し付けてきた！`);
+  return true;
 }
 
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
@@ -2376,6 +2393,7 @@ const _MIMIC_SKIP_SUBTYPES = new Set([
 /** 隣接限定かつコピー実行実装済みの特技（プレイヤー隣接時のみ真似る） */
 const _MIMIC_ADJ_SUBTYPES = new Set([
   "tripper", "ruster", "thief", "knocker", "berserker", "trapmaster",
+  "itempusher",
 ]);
 
 /** ものまねの対象になる特技持ちか（パッシブのみの敵は除外） */
@@ -2480,6 +2498,7 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
 
   /* 隣接限定特技 */
   if (subtype && _MIMIC_ADJ_SUBTYPES.has(subtype)) {
+    if (subtype === "itempusher") return adjPl && !plOnBlessedSanc && hasInventorySpaceForMonsterGift(pl);
     return adjPl;
   }
 
@@ -2604,6 +2623,12 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
   const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
   const adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+
+  if (m.subtype === "itempusher" && adjPl && !_plOnBlessedSanc && hasInventorySpaceForMonsterGift(pl)) {
+    m.turnAttacks++;
+    pushChargedFuzzball(m, pl, ml);
+    return true;
+  }
 
   /* ── ラクガキ魔：認識中なら足元に魔方陣（失敗位置なら失敗メッセージで行動消費） ── */
   if (m.subtype === "pentaclePainter" && canSee) {
@@ -4240,6 +4265,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_ibCanFire && !_plOnBlessedSanc) {
         m.turnAttacks++;
         monsterIceBreath(m, dg, pl, ml, _onHit);
+        return;
+      }
+    }
+
+    /* ── itempusher（カラペン系）：隣接時、空き枠があれば帯電毛玉を押し付ける ── */
+    if (m.subtype === "itempusher" && !m.sealed) {
+      const _ipAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      if (_ipAdj && _moveOnly) return; /* 隣接中は移動せず、攻撃フェーズで特技を試す */
+      if (_ipAdj && !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          hasInventorySpaceForMonsterGift(pl) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m.turnAttacks++;
+        pushChargedFuzzball(m, pl, ml);
         return;
       }
     }

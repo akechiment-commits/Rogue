@@ -405,6 +405,11 @@ export function getBlessMultiplier(it) {
 
 export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical",    sellPrice:3000, desc:"鋭い爪の形をした武器。25%の確率で会心の一撃。", tile:20 };
 export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。", tile:20 };
+/** カラペン系が押し付ける、置くことも投げることもできない敵専用アイテム */
+export const CHARGED_FUZZBALL_T = {
+  name:"帯電毛玉", type:"charged_fuzzball", tile:109, noDrop:true, noThrow:true,
+  sellPrice:0, desc:"置くことも投げることもできない。箱や壺には入れられる。",
+};
 
 /** 盗み系：ロングソードは10%でソボロ助広に変化 */
 export function maybeLongswordToSoboro(item) {
