@@ -114,6 +114,7 @@ export const TILE_NAMES = {
   4002: "item_bottle",
   4003: "item_pen_category",
   87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
+  184: "garnet", 185: "lapis_lazuli", 186: "turquoise", 187: "moonstone", 188: "black_onyx", 189: "alexandrite",
   108: "grabber",
   109: "leprechaun",
   110: "sign",
@@ -231,6 +232,12 @@ export const TILE_RENDER = {
   92:  { bg: null, fg: "#cc44ff", ch: "*" }, /* アメジスト   (C) */
   101: { bg: null, fg: "#e8f4ff", ch: "*" }, /* ダイヤモンド (A) */
   102: { bg: null, fg: "#ffaadd", ch: "*" }, /* オパール     (A) */
+  184: { bg: null, fg: "#b52b4c", ch: "*" }, /* ガーネット */
+  185: { bg: null, fg: "#3555bb", ch: "*" }, /* ラピスラズリ */
+  186: { bg: null, fg: "#28c4c0", ch: "*" }, /* ターコイズ */
+  187: { bg: null, fg: "#d9e7ff", ch: "*" }, /* ムーンストーン */
+  188: { bg: null, fg: "#bfc5d0", ch: "*" }, /* ブラックオニキス */
+  189: { bg: null, fg: "#55c8a0", ch: "*" }, /* アレキサンドライト */
   /* ===== ボス tier 5〜10 ===== */
   95:  { bg: null, fg: "#aa8833", ch: "B" }, /* 魔将軍  */
   96:  { bg: null, fg: "#ccccaa", ch: "B" }, /* 骸骨王  */
