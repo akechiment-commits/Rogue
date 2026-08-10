@@ -618,7 +618,7 @@ export const MONS = [
       { name: "ゴブリン王",         hp: 80,  atk: 28, def: 11, exp: 58, dungeonFloors: { advanced: { min: 18, max: 20 } } },
     ],
   },
-  { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 53, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 6, max: 12 }, advanced: { min: 5, max: 12 } },
+  { name: "インプ",       hp: 26,  atk: 18, def: 4,  exp: 28,  speed: 2,   tile: 164, kind: "beast",    baseKind: "imp",           monLevel: 1, minFloor: 3,  maxFloor: 17, float: true, dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 6, max: 12 }, advanced: { min: 5, max: 12 } },
     levels: [
       { name: "強インプ",           hp: 42,  atk: 23, def: 7,  exp: 45, dungeonFloors: { advanced: { min: 15, max: 18 } } },
       { name: "覇インプ",           hp: 65,  atk: 30, def: 11, exp: 70, dungeonFloors: { advanced: { min: 20, max: 22 } } },
@@ -666,7 +666,7 @@ export const MONS = [
       { name: "フェンリル",         hp: 68,  atk: 36, def: 10, exp: 100, dungeonFloors: { advanced: { min: 24, max: 26 } } },
     ],
   },
-  { name: "コソドロ",     hp: 16,  atk: 7,  def: 0,  exp: 35,  speed: 2,   tile: 153, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 16 }, advanced: { min: 7, max: 16 } },
+  { name: "コソドロ",     hp: 16,  atk: 7,  def: 0,  exp: 35,  speed: 2,   tile: 170, kind: "humanoid", baseKind: "thief",         monLevel: 1, minFloor: 9,  maxFloor: 20, subtype: "thief", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 16 }, advanced: { min: 7, max: 16 } },
     levels: [
       { name: "大盗賊",             hp: 27,  atk: 11, def: 2,  exp: 56  },
       { name: "怪盗",               hp: 43,  atk: 14, def: 3,  exp: 88  },
@@ -702,7 +702,7 @@ export const MONS = [
       { name: "覇ボムスライム",     hp: 95,  atk: 29, def: 5,  exp: 138 },
     ],
   },
-  { name: "ボルガ",       hp: 28,  atk: 12, def: 0,  exp: 60,  speed: 1,   tile: 8,  kind: "humanoid", baseKind: "bombgoblin",    monLevel: 1, minFloor: 12, maxFloor: 26, subtype: "kamikaze", dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
+  { name: "ボルガ",       hp: 28,  atk: 12, def: 0,  exp: 60,  speed: 1,   tile: 159, kind: "humanoid", baseKind: "bombgoblin",    monLevel: 1, minFloor: 12, maxFloor: 26, subtype: "kamikaze", dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "ボルガ博士",         hp: 48,  atk: 18, def: 2,  exp: 96,  speed: 1 },
       { name: "頭の中にダイナマイト", hp: 75, atk: 24, def: 4,  exp: 150 },
@@ -745,7 +745,7 @@ export const MONS = [
       { name: "罠の覇者",           hp: 85,  atk: 32, def: 12, exp: 120 },
     ],
   },
-  { name: "大蛇",         hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 12, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, maxAttacks: 2, dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 22 } },
+  { name: "大蛇",         hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, maxAttacks: 2, dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "強大蛇",             hp: 76,  atk: 32, def: 9,  exp: 83  },
       { name: "覇大蛇",             hp: 119, atk: 42, def: 13, exp: 130 },
@@ -872,13 +872,13 @@ export const MONS = [
       { name: "覇からめ鬼",         hp: 138, atk: 43, def: 19, exp: 138, dungeonFloors: { advanced: { min: 20, max: 22 } } },
     ],
   },
-  { name: "突進角獣",    hp: 62,  atk: 26, def: 8,  exp: 62,  speed: 1,   tile: 56, kind: "beast",    baseKind: "charger",       monLevel: 1, minFloor: 10, maxFloor: 35, subtype: "charger", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 18 }, advanced: { min: 8, max: 18 } },
+  { name: "突進角獣",    hp: 62,  atk: 26, def: 8,  exp: 62,  speed: 1,   tile: 168, kind: "beast",    baseKind: "charger",       monLevel: 1, minFloor: 10, maxFloor: 35, subtype: "charger", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 18 }, advanced: { min: 8, max: 18 } },
     levels: [
       { name: "強突進角獣",         hp: 99,  atk: 38, def: 12, exp: 99,  dungeonFloors: { advanced: { min: 23, max: 25 } } },
       { name: "覇突進角獣",         hp: 155, atk: 53, def: 16, exp: 155 },
     ],
   },
-  { name: "ほっちもぺ",   hp: 68, atk: 24, def: 18, exp: 70, speed: 1,   tile: 57, kind: "beast",   baseKind: "reflector",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "reflector", dungeonFloors: { intermediate: { min: 12, max: 18 }, advanced: { min: 9, max: 18 } },
+  { name: "ほっちもぺ",   hp: 68, atk: 24, def: 18, exp: 70, speed: 1,   tile: 169, kind: "beast",   baseKind: "reflector",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "reflector", dungeonFloors: { intermediate: { min: 12, max: 18 }, advanced: { min: 9, max: 18 } },
     levels: [
       { name: "ほっちんもっぺ",     hp: 109, atk: 35, def: 24, exp: 112, dungeonFloors: { advanced: { min: 22, max: 26 } } },
       { name: "むちちむち",         hp: 170, atk: 46, def: 31, exp: 175 },
@@ -890,13 +890,13 @@ export const MONS = [
       { name: "覇ハンマーオーガ",   hp: 188, atk: 67, def: 17, exp: 200 },
     ],
   },
-  { name: "魔法反射師",   hp: 38,  atk: 19, def: 8,  exp: 75,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "magicreflector", monLevel: 1, minFloor: 13, maxFloor: 50, subtype: "magicreflect", dungeonFloors: { intermediate: { min: 16, max: 20 }, advanced: { min: 12, max: 22 } },
+  { name: "魔法反射師",   hp: 38,  atk: 19, def: 8,  exp: 75,  speed: 1,   tile: 166, kind: "humanoid", baseKind: "magicreflector", monLevel: 1, minFloor: 13, maxFloor: 50, subtype: "magicreflect", dungeonFloors: { intermediate: { min: 16, max: 20 }, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "強魔法反射師",       hp: 61,  atk: 26, def: 13, exp: 120 },
       { name: "覇魔法反射師",       hp: 95,  atk: 35, def: 18, exp: 188 },
     ],
   },
-  { name: "薬師",         hp: 30,  atk: 16, def: 3,  exp: 48,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 10, maxFloor: 50, subtype: "potionthrow", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 18 }, advanced: { min: 8, max: 18 } },
+  { name: "薬師",         hp: 30,  atk: 16, def: 3,  exp: 48,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "potionthrower", monLevel: 1, minFloor: 10, maxFloor: 50, subtype: "potionthrow", dungeonFloors: { beginner: null, intermediate: { min: 11, max: 18 }, advanced: { min: 8, max: 18 } },
     levels: [
       { name: "ポーションメーカー", hp: 48,  atk: 22, def: 6,  exp: 76  },
       { name: "ポーションマスター", hp: 75,  atk: 29, def: 10, exp: 120 },
@@ -908,14 +908,14 @@ export const MONS = [
       { name: "バーサーカー99",     hp: 145, atk: 58, def: 20, exp: 166, dungeonFloors: { advanced: { min: 28, max: 29 } } },
     ],
   },
-  { name: "ルカチュウ", hp: 35, atk: 18, def: 4,  exp: 58,  speed: 1,   tile: 8, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf", magicImmune: true, dungeonFloors: { advanced: { min: 11, max: 21 } },
+  { name: "ルカチュウ", hp: 35, atk: 18, def: 4,  exp: 58,  speed: 1,   tile: 160, kind: "humanoid", baseKind: "killplaster",   monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "defhalf", magicImmune: true, dungeonFloors: { advanced: { min: 11, max: 21 } },
     levels: [
       { name: "ラプラス",       hp: 56,  atk: 25, def: 7,  exp: 92,  dungeonFloors: { advanced: { min: 25, max: 27 } } },
       { name: "キラープラスター", hp: 88,  atk: 36, def: 11, exp: 148 },
     ],
   },
   { name: "ガーディアン",  hp: 48,  atk: 16, def: 14, exp: 70,  speed: 1,   tile: 155, kind: "humanoid", baseKind: "guardian",      monLevel: 1, minFloor: 10, maxFloor: 10, subtype: "guardian", dungeons: ["beginner"] },
-  { name: "氷竜",         hp: 65,  atk: 32, def: 10, exp: 125, speed: 1,   tile: 14, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { advanced: { min: 21, max: 30 } },
+  { name: "氷竜",         hp: 65,  atk: 32, def: 10, exp: 125, speed: 1,   tile: 162, kind: "beast",    baseKind: "icedragon",     monLevel: 1, minFloor: 18, maxFloor: 50, elemWeak: "thunder", dungeonFloors: { advanced: { min: 21, max: 30 } },
     levels: [
       { name: "ブルードラゴン",             hp: 105, atk: 44, def: 16, exp: 200 },
       { name: "ブルードラゴン 天界の七竜", hp: 168, atk: 58, def: 22, exp: 320 },
@@ -928,7 +928,7 @@ export const MONS = [
     ],
   },
   /* ===== 視界操作モンスター ===== */
-  { name: "スターライト", hp: 55,  atk: 26, def: 8,  exp: 80,  speed: 1,   tile: 53, kind: "beast",   baseKind: "starlight",     monLevel: 1, minFloor: 15, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 16, max: 27 } },
+  { name: "スターライト", hp: 55,  atk: 26, def: 8,  exp: 80,  speed: 1,   tile: 165, kind: "beast",   baseKind: "starlight",     monLevel: 1, minFloor: 15, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 16, max: 27 } },
     desc: "同じ部屋にいるだけで周囲を明るく照らし続ける光の精霊。",
     levels: [
       { name: "スターライトⅡ",     hp: 88,  atk: 38, def: 12, exp: 128 },
@@ -959,7 +959,7 @@ export const MONS = [
     ],
   },
   /* ===== ものまね師：隣接キャラの特技を模倣 ===== */
-  { name: "ものまね師",   hp: 34,  atk: 17, def: 5,  exp: 72,  speed: 1,   tile: 55, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 20 }, advanced: { min: 12, max: 24 } },
+  { name: "ものまね師",   hp: 34,  atk: 17, def: 5,  exp: 72,  speed: 1,   tile: 167, kind: "humanoid", baseKind: "mimic",         monLevel: 1, minFloor: 12, maxFloor: 50, subtype: "mimic", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 20 }, advanced: { min: 12, max: 24 } },
     desc: "隣の敵の特技をまねてくる。隣接しているとき高確率で特技を使う。",
     levels: [
       { name: "ものまね名優",     hp: 55,  atk: 24, def: 9,  exp: 115, dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 16, max: 26 } } },
