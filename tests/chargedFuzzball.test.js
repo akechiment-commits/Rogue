@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CHARGED_FUZZBALL_T, breakBigboxContents, placeItemAt, scatterPotContents } from "../items.js";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -72,5 +72,58 @@ describe("カラペン系と帯電毛玉", () => {
 
     expect(dg.items.some((item) => item.type === "charged_fuzzball")).toBe(false);
     expect(messages.filter((message) => message.includes("帯電毛玉は床に落ちると消えてしまった！"))).toHaveLength(3);
+  });
+
+  it("ゴゴペンは10マス以内の直線上へ帯電毛玉を投げ、命中時だけ押し付ける", () => {
+    const base = MONS.find((m) => m.name === "カラペン");
+    const mon = makeMonsterFromBase(base, 3, 5, 5);
+    mon.alwaysUseSpecial = true;
+    mon.aware = true;
+    mon.turnAttacks = 0;
+    const player = makePlayer({ x: 5, y: 15, maxInventory: 2 });
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [mon],
+      visible: Array.from({ length: 30 }, () => Array(40).fill(true)),
+    });
+    const messages = [];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+
+    try {
+      monsterAI(mon, dg, player, messages, { attackOnly: true });
+    } finally {
+      randomSpy.mockRestore();
+    }
+
+    expect(player.inventory).toHaveLength(1);
+    expect(player.inventory[0]).toMatchObject(CHARGED_FUZZBALL_T);
+    expect(messages).toContain("ゴゴペンが帯電毛玉を投げつけてきた！");
+    expect(messages).toContain("ゴゴペンの帯電毛玉が命中！アイテム欄に押し付けられた！");
+  });
+
+  it("ゴゴペンの投射は通常の飛び道具と同じく外れる", () => {
+    const base = MONS.find((m) => m.name === "カラペン");
+    const mon = makeMonsterFromBase(base, 3, 5, 5);
+    mon.alwaysUseSpecial = true;
+    mon.aware = true;
+    mon.turnAttacks = 0;
+    const player = makePlayer({ x: 5, y: 8, maxInventory: 2 });
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [mon],
+      visible: Array.from({ length: 30 }, () => Array(40).fill(true)),
+    });
+    const messages = [];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.99);
+
+    try {
+      monsterAI(mon, dg, player, messages, { attackOnly: true });
+    } finally {
+      randomSpy.mockRestore();
+    }
+
+    expect(player.inventory).toHaveLength(0);
+    expect(dg.items.some((item) => item.type === "charged_fuzzball")).toBe(false);
+    expect(messages).toContain("ゴゴペンの帯電毛玉は外れた！");
   });
 });

@@ -1224,10 +1224,10 @@ function hasInventorySpaceForMonsterGift(player) {
   return !!player?.inventory && player.inventory.length < (player.maxInventory || 30);
 }
 
-function pushChargedFuzzball(mon, player, messages) {
+function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯電毛玉を押し付けてきた！`) {
   if (!hasInventorySpaceForMonsterGift(player)) return false;
   player.inventory.push({ ...CHARGED_FUZZBALL_T, id: uid() });
-  messages.push(`${mon.name}が帯電毛玉を押し付けてきた！`);
+  messages.push(message);
   return true;
 }
 
@@ -1636,6 +1636,26 @@ function monsterShootArrow(m, dg, pl, ml, opts) {
     },
     onWallStop: _dropAr,
     onFlyOff: _dropAr,
+  });
+}
+
+/* ===== ゴゴペンの帯電毛玉投射 ===== */
+function monsterThrowChargedFuzzball(m, dg, pl, ml, luFn) {
+  _resolveBolt(m, dg, pl, ml, luFn, {
+    dx: Math.sign(pl.x - m.x),
+    dy: Math.sign(pl.y - m.y),
+    baseRange: 10,
+    animColor: "#66ddff",
+    fireMsg: `${m.name}が帯電毛玉を投げつけてきた！`,
+    boltName: "帯電毛玉",
+    hitChance: 0.80,
+    /* 帯電毛玉はダメージを与えず、命中時だけインベントリへ入る */
+    customPlHit: (mlx) => {
+      pushChargedFuzzball(m, pl, mlx, `${m.name}の帯電毛玉が命中！アイテム欄に押し付けられた！`);
+    },
+    onMonHit: (mon, mlx) => {
+      mlx.push(`${m.name}の帯電毛玉が${mon.name}に当たって消えた。`);
+    },
   });
 }
 
@@ -2971,6 +2991,7 @@ registerMonsterRuntime({
 function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _moveOnly = opts.moveOnly || false;
   let _attackOnly = opts.attackOnly || false;
+  let _rangedAttackReady = false;
   const _luFn = opts.luFn || (() => {});
   const _canMoveTo = (x, y) => m.waterOnly
     ? inBounds(x, y) && (dg.map[y]?.[x] === T.WATER || dg.springs?.some(s => s.x === x && s.y === y))
@@ -4007,9 +4028,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
+      const _itempusherLvl0 = m.monLevel || 1;
+      const _itempusherRdy = m.subtype === "itempusher" && _itempusherLvl0 >= 3 && !m.sealed &&
+        !_plOnBlessedSanc && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10 &&
+        hasInventorySpaceForMonsterGift(pl);
       const _guardDarkRdy0 = m.type === "guard" && !m.sealed && _rAtks && (_radx === 0 || _rady === 0) && _rLen >= 2 && _rLen <= 8;
       const _darkBulletRdy0 = m.baseKind === "boss_darkbullet" && !m.sealed && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _guardDarkRdy0 || _darkBulletRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -4046,7 +4071,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const lineLen = Math.max(Math.abs(adx), Math.abs(ady));
       const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
       const _rdy = m._rangedAttackThisTurn;
-      if (_rdy) delete m._rangedAttackThisTurn;
+      if (_rdy) {
+        delete m._rangedAttackThisTurn;
+        _rangedAttackReady = true;
+      }
 
       /* ── ものまね師：隣接キャラの特技を模倣（moveOnly 予約があれば再抽選なし） ── */
       if (m.subtype === "mimic" && !m.sealed) {
@@ -4262,6 +4290,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (m.subtype === "itempusher" && !m.sealed) {
       const _ipAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       if (_ipAdj && _moveOnly) return; /* 隣接中は移動せず、攻撃フェーズで特技を試す */
+      const _ipLvl = m.monLevel || 1;
+      const _ipAdx = pl.x - m.x, _ipAdy = pl.y - m.y;
+      const _ipDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+      const _ipLine = _ipAdx === 0 || _ipAdy === 0 || Math.abs(_ipAdx) === Math.abs(_ipAdy);
+      if (_ipLvl >= 3 && !_ipAdj && _ipLine && _ipDist >= 2 && _ipDist <= 10 &&
+          !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          hasInventorySpaceForMonsterGift(pl) && (_rangedAttackReady || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m.turnAttacks++;
+        monsterThrowChargedFuzzball(m, dg, pl, ml, _luFn);
+        return;
+      }
       if (_ipAdj && !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
           hasInventorySpaceForMonsterGift(pl) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
