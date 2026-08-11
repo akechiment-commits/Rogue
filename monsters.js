@@ -714,6 +714,13 @@ export const MONS = [
       { name: "アイテムモドキ王", hp: 95,  atk: 39, def: 13, exp: 138, dungeonFloors: { advanced: { min: 26, max: 30 } } },
     ],
   },
+  { name: "拾い投げ",     hp: 43,  atk: 20, def: 5,  exp: 62,  speed: 1,   tile: 163, kind: "humanoid", baseKind: "itemThrower",  monLevel: 1, minFloor: 13, maxFloor: 35, subtype: "itemThrower", dungeonFloors: { beginner: null, intermediate: { min: 14, max: 20 }, advanced: { min: 11, max: 25 } },
+    desc: "プレイヤーを認識すると、隣接していない間は床のアイテムを拾い、一直線上から投げつける。投げる前に倒せばアイテムを落とす。",
+    levels: [
+      { name: "強拾い投げ",   hp: 69,  atk: 29, def: 9,  exp: 100, dungeonFloors: { advanced: { min: 26, max: 30 } } },
+      { name: "拾い投げ王",   hp: 108, atk: 40, def: 14, exp: 158, dungeonFloors: { advanced: { min: 31, max: 35 } } },
+    ],
+  },
   { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "強ボムスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
@@ -2419,6 +2426,43 @@ export function revealItemMimicAt(dg, x, y, pl, ml, luFn = null) {
     mimic.turnAttacks++;
     monsterAttackPlayer(mimic, dg, pl, ml, d => `${mimic.name}の攻撃！${d}ダメージ！`, { luFn });
   }
+  return true;
+}
+
+function itemThrowerRange(m) {
+  const level = m.monLevel || 1;
+  return level >= 3 ? 10 : level >= 2 ? 8 : 5;
+}
+
+function itemThrowerTarget(m, dg) {
+  return (dg.items || [])
+    .filter(i => i.x !== undefined && i.y !== undefined && i.type !== "sign" && !i.wallEmbedded)
+    .filter(i => !dg.monsters?.some(o => o !== m && o.disguisedAsItem && o.x === i.x && o.y === i.y))
+    .map(i => ({ item: i, dist: Math.max(Math.abs(i.x - m.x), Math.abs(i.y - m.y)) }))
+    .sort((a, b) => a.dist - b.dist)[0]?.item || null;
+}
+
+function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit) {
+  const item = m.carriedItem;
+  if (!item) return false;
+  const dx = Math.sign(pl.x - m.x), dy = Math.sign(pl.y - m.y);
+  const name = resolveItemName(item);
+  delete m.carriedItem;
+  const result = throwItemAlongLine(m, dg, item, dx, dy, itemThrowerRange(m), ml, pl, luFn, {
+    animColor: "#ffbb55",
+    killerMon: m,
+    nameFn: (it) => resolveItemName(it),
+    monHitMsg: (target, dmg) => `${m.name}が${name}を投げつけて${target.name}に命中！${dmg}ダメージ！`,
+    potHitMsg: (target, dmg) => `${m.name}が${name}を投げつけて${target.name}に命中！${dmg}ダメージ！壺が割れた！`,
+    potionHitMsg: (target) => `${m.name}が${name}を投げつけて${target.name}に命中！`,
+    wandHitMsg: (target) => `${m.name}が${name}を投げつけて${target.name}に命中！`,
+    plHitMsg: (dmg) => `${m.name}が${name}を投げつけてきた！${dmg}ダメージ！`,
+    potPlHitMsg: (dmg) => `${m.name}が${name}を投げつけてきた！${dmg}ダメージ！壺が割れた！`,
+    potionPlHitMsg: () => `${m.name}が${name}を投げつけてきた！`,
+    wandPlHitMsg: () => `${m.name}が${name}を投げつけてきた！`,
+    noHitLandMsg: () => `${m.name}が${name}を投げつけたが、床に落ちた。`,
+  });
+  if (result.hitPlayer) onHit?.(m);
   return true;
 }
 
@@ -4133,6 +4177,49 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
     }
+
+    /* ── itemThrower（拾い投げ）：床のアイテムを拾い、一直線上から投げる ── */
+    if (m.subtype === "itemThrower" && !m.sealed && m.aware && !_plInvis) {
+      const _itAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      const _itDx = pl.x - m.x, _itDy = pl.y - m.y;
+      const _itDist = Math.max(Math.abs(_itDx), Math.abs(_itDy));
+      const _itLine = _itDx === 0 || _itDy === 0 || Math.abs(_itDx) === Math.abs(_itDy);
+      const _itRange = itemThrowerRange(m);
+      if (!_moveOnly && m._itemThrowerPickedThisTurn) {
+        delete m._itemThrowerPickedThisTurn;
+        return;
+      }
+      if (m.carriedItem) {
+        /* 投げられる条件が整ったら、移動フェーズではその場に留まる。 */
+        if (_moveOnly && !_itAdj && _itLine && _itDist >= 2 && _itDist <= _itRange && m.turnAttacks < monEffectiveMaxAttacks(m)) return;
+        if (!_moveOnly && !_itAdj && _itLine && _itDist >= 2 && _itDist <= _itRange && m.turnAttacks < monEffectiveMaxAttacks(m) && !_plOnBlessedSanc) {
+          m.turnAttacks++;
+          monsterThrowCarriedItem(m, dg, pl, ml, _luFn, _onHit);
+          return;
+        }
+      } else if (!_itAdj && !_attackOnly) {
+        const _itTarget = itemThrowerTarget(m, dg);
+        if (_itTarget && _itTarget.x === m.x && _itTarget.y === m.y) {
+          dg.items = dg.items.filter(i => i !== _itTarget);
+          delete _itTarget.x;
+          delete _itTarget.y;
+          m.carriedItem = _itTarget;
+          m._itemThrowerPickedThisTurn = true;
+          ml.push(`${m.name}が${resolveItemName(_itTarget)}を拾った！`);
+          return;
+        }
+        if (_itTarget) {
+          const _itNext = bfsNext(map, [], m.x, m.y, _itTarget.x, _itTarget.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
+          if (_itNext && !(_itNext.x === pl.x && _itNext.y === pl.y) &&
+              !dg.monsters.some(o => o !== m && o.x === _itNext.x && o.y === _itNext.y)) {
+            m.dir = { x: _itNext.x - m.x, y: _itNext.y - m.y };
+            m.x = _itNext.x; m.y = _itNext.y;
+            return;
+          }
+        }
+      }
+    }
+
     /* ── ranged special attacks (only when player is visible) ── */
     /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
     if (_moveOnly && canSee) {

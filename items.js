@@ -4050,6 +4050,14 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     ml.push(`${mon.name}を倒した！(+${_expGain}exp${_soyMul > 1 ? " 醤油効果!" : ""})`);
     p.exp += _expGain;
   }
+  /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */
+  if (mon.carriedItem) {
+    const _held = mon.carriedItem;
+    delete mon.carriedItem;
+    const _ft = new Set();
+    placeItemAt(dg, mx, my, _held, ml, _ft, 0, p);
+    ml.push(`${mon.name}が持っていた${resolveItemName(_held)}を落とした！`);
+  }
   monsterDrop(mon, dg, ml, p);
   removeMonster(dg, mon);
   /* スケルトン：50%で骨を残し5ターン後に復活（復活抑制下では骨を残さない） */
