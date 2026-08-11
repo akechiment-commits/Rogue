@@ -215,6 +215,34 @@
       "categoryId": "damage",
       "afterFile": "damage_rock",
       "group": "damage_rock"
+    },
+    {
+      "file": "hp_mid_2",
+      "label": "HP中減少 2",
+      "categoryId": "hp",
+      "afterFile": "hp_mid",
+      "group": "hp_mid"
+    },
+    {
+      "file": "hp_low_stand_2",
+      "label": "瀕死・立ち 2",
+      "categoryId": "hp",
+      "afterFile": "hp_low_stand",
+      "group": "hp_low"
+    },
+    {
+      "file": "hp_low_kneel_2",
+      "label": "瀕死・膝 2",
+      "categoryId": "hp",
+      "afterFile": "hp_low_kneel",
+      "group": "hp_low"
+    },
+    {
+      "file": "hp_critical_2",
+      "label": "危険域 2",
+      "categoryId": "hp",
+      "afterFile": "hp_critical",
+      "group": "hp_low"
     }
   ]
 }
