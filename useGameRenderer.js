@@ -636,13 +636,21 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         const t = dg.map[y][x];
         const _isOuterWall = t === T.WALL && (x === 0 || x === MW - 1 || y === 0 || y === MH - 1);
         let ti = TI.FLOOR;
+        let _stairTile = null;
         if (t === T.WALL) ti = _isOuterWall && _hasOuterWallArt ? TI.OUTER_WALL : TI.WALL;
         else if (t === T.BWALL) ti = _hasBreakableWallArt ? TI.BREAKABLE_WALL : TI.WALL;
         else if (t === T.WATER) ti = _hasWaterArt ? TI.WATER : TI.FLOOR;
-        else if (t === T.SD) ti = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 3 + y * 17) % 9] : TI.SD;
-        else if (t === T.SU) ti = (p.bewitchedTurns || 0) > 0 ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 5 + y * 11) % 9] : TI.SU;
+        else if (t === T.SD) {
+          if ((p.bewitchedTurns || 0) > 0) ti = [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 3 + y * 17) % 9];
+          else { _stairTile = TI.SD; ti = TI.CORR; }
+        }
+        else if (t === T.SU) {
+          if ((p.bewitchedTurns || 0) > 0) ti = [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 5 + y * 11) % 9];
+          else { _stairTile = TI.SU; ti = TI.CORR; }
+        }
         if (t === T.FLOOR && !_roomSet.has(_k(x, y))) ti = TI.CORR;
         drawTile(ctx, ts, ti, px2, py2, sz);
+        if (_stairTile != null) drawTile(ctx, ts, _stairTile, px2, py2, sz);
         /* 壊せる壁：特有の背景色＋目立つヒビ表示 */
         if (t === T.BWALL && !_hasBreakableWallArt && (vis || exp2)) {
           if (!vis) ctx.globalAlpha = 0.4;
@@ -721,6 +729,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         if (_fakeSt && (vis || exp2) && t === T.FLOOR) {
           if (!vis) ctx.globalAlpha = 0.4;
           const _fsTi = _fakeSt.disguise === "stair_up" ? TI.SU : TI.SD;
+          drawTile(ctx, ts, TI.CORR, px2, py2, sz);
           drawTile(ctx, ts, _fsTi, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
