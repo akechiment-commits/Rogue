@@ -37,6 +37,9 @@ import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
 import { generateTileImages } from "./tileSprites.js";
 import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tilesetMap.js";
+
+/* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
+const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
 import { useGameRenderer } from './useGameRenderer.js';
 import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
@@ -269,7 +272,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* mon1のtile 42はpenSpriteMapで別途上書きするのでスキップ */
       if (name === 'mon1' && id === 42) { res(); return; }
       const paths = [`/tiles/sprites/${name}/tile_${id}.png`];
-      if (name === 'dawnlike' && TILE_NAMES[id]) paths.push(`/tiles/${TILE_NAMES[id]}.png`);
+      if (name === 'mon1' && VENT_TILE_IDS.has(id) && TILE_NAMES[id]) {
+        paths.push(`/tiles/${TILE_NAMES[id]}.png`);
+      } else if (name === 'dawnlike' && TILE_NAMES[id] && !VENT_TILE_IDS.has(id)) {
+        paths.push(`/tiles/${TILE_NAMES[id]}.png`);
+      }
       const tryPath = (pathIndex) => {
         if (pathIndex >= paths.length) { res(); return; }
         const img = new Image();
@@ -395,6 +402,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     /* Phase 2: Try loading custom PNGs (overrides generated art) */
     Object.entries(TILE_NAMES).forEach(([idx, name]) => {
       const iidx = parseInt(idx);
+      /* スタイル1は風穴をキャンバス矢印で表示する */
+      if (VENT_TILE_IDS.has(iidx)) return;
       const img = new Image();
       img.onload = () => {
         customTileImages[iidx] = img;
