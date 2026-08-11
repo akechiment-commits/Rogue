@@ -322,7 +322,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
-function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
+function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
   const _cannotEvade = isEvasionDisabledByStatus(pl);
   /* dodge: 25% 完全回避 */
@@ -356,6 +356,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* タトゥーバード: 25%で痛恨の一撃（ダメージ2倍） */
   const _tbCrit = m.subtype === "tattoobird" && Math.random() < 0.25;
   if (_tbCrit) dmg *= 2;
+  if (damageMultiplier !== 1) dmg = Math.max(1, Math.floor(dmg * damageMultiplier));
   /* 平和の指輪：受ける近接ダメージ半減 */
   if (hasRingEffect(pl, "peace_ring")) dmg = Math.max(1, Math.floor(dmg / 2));
   /* 凍結：物理ダメージ2倍 */
@@ -697,6 +698,13 @@ export const MONS = [
     levels: [
       { name: "パタペン",             hp: 52,  atk: 23, def: 7,  exp: 78,  dungeonFloors: { advanced: { min: 18, max: 23 } } },
       { name: "ゴゴペン",             hp: 82,  atk: 31, def: 11, exp: 125, dungeonFloors: { advanced: { min: 24, max: 30 } } },
+    ],
+  },
+  { name: "夢喰い",       hp: 46,  atk: 21, def: 6,  exp: 66,  speed: 1,   tile: 178, kind: "beast",    baseKind: "dreamEater",  monLevel: 1, minFloor: 15, maxFloor: 35, subtype: "dreamEater", dungeonFloors: { intermediate: { min: 16, max: 20 }, advanced: { min: 13, max: 24 } },
+    desc: "眠っている敵を起こして夢を喰らい、自分のHPを回復する。プレイヤーが眠っているときは2倍打撃とHP吸収を行う。",
+    levels: [
+      { name: "強夢喰い",       hp: 74,  atk: 31, def: 10, exp: 106, dungeonFloors: { advanced: { min: 25, max: 28 } } },
+      { name: "夢喰い王",       hp: 116, atk: 43, def: 15, exp: 166, dungeonFloors: { advanced: { min: 29, max: 35 } } },
     ],
   },
   { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
@@ -2344,6 +2352,49 @@ function isStationaryGrabber(m) {
   return m && (m.subtype === "grabber" || m.baseKind === "grabber");
 }
 
+/* ===== 夢喰い：眠っている敵を起こして回復／睡眠中のプレイヤーから吸収 ===== */
+function findDreamEaterTarget(m, dg) {
+  return (dg.monsters || [])
+    .filter(o => o !== m && (o.hp || 0) > 0 && (o.sleepTurns || 0) > 0)
+    .map(o => ({ monster: o, dist: Math.max(Math.abs(o.x - m.x), Math.abs(o.y - m.y)) }))
+    .filter(o => o.dist <= 8)
+    .sort((a, b) => a.dist - b.dist)[0]?.monster || null;
+}
+
+function dreamEaterWakeTarget(m, dg, ml) {
+  const target = findDreamEaterTarget(m, dg);
+  if (!target) return false;
+  target.sleepTurns = 0;
+  target._justWoke = true;
+  target.turnAccum = 0;
+  target._movedThisTurn = true;
+  const heal = Math.min(m.maxHp - m.hp, Math.max(5, Math.floor(m.maxHp * 0.15)));
+  if (heal > 0) {
+    m.hp += heal;
+    ml.push(`${m.name}が${target.name}を起こし、夢を喰らってHPが${heal}回復した！`);
+  } else {
+    ml.push(`${m.name}が${target.name}を起こした！`);
+  }
+  return true;
+}
+
+function dreamEaterStrike(m, dg, pl, ml, onHit, onMiss, luFn) {
+  let hit = false;
+  let absorbed = 0;
+  monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の夢喰い攻撃！${d}ダメージ！`, {
+    damageMultiplier: 2,
+    onPlayerHit: (dmg, mon) => {
+      hit = true;
+      onHit?.(dmg, mon);
+      absorbed = Math.min(dmg, m.maxHp - m.hp);
+      if (absorbed > 0) m.hp += absorbed;
+    },
+    onPlayerMiss: onMiss,
+    luFn,
+  });
+  if (hit && absorbed > 0) ml.push(`${m.name}はHPを${absorbed}吸収した！`);
+}
+
 /** 魔方陣を描ける空床か（プレイヤーのペンと同じ：階段・アイテム・罠等があると不可） */
 function isPentacleDrawBlocked(dg, x, y) {
   if (!dg?.map) return true;
@@ -3879,6 +3930,33 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   if (m.aware) {
+    /* ── 夢喰い：睡眠中のプレイヤーを倍打撃＋吸収。いなければ眠った敵を起こして自身を回復 ── */
+    if (m.subtype === "dreamEater" && !m.sealed && !inMagicSealRoom(m.x, m.y, dg)) {
+      const _dePlayerAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
+      const _dePlayerSleep = _dePlayerAdj && (pl.sleepTurns || 0) > 0 && !_plOnBlessedSanc;
+      if (_dePlayerSleep && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        if (_moveOnly) {
+          m._dreamEaterStrikeReady = true;
+          return;
+        }
+        delete m._dreamEaterStrikeReady;
+        m.turnAttacks++;
+        dreamEaterStrike(m, dg, pl, ml, _onHit, _onMiss, _luFn);
+        return;
+      }
+      const _deTarget = findDreamEaterTarget(m, dg);
+      if (_deTarget) {
+        if (_moveOnly) {
+          m._dreamEaterTargetId = _deTarget.id;
+          return;
+        }
+        delete m._dreamEaterTargetId;
+        dreamEaterWakeTarget(m, dg, ml);
+        return;
+      }
+      delete m._dreamEaterTargetId;
+    }
+
     /* ── grabber（からめ鬼等）：静止型 ─ 移動コードより先に処理して即return ── */
     if (isStationaryGrabber(m)) {
       if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
