@@ -707,6 +707,13 @@ export const MONS = [
       { name: "夢喰い王",       hp: 116, atk: 43, def: 15, exp: 166, dungeonFloors: { advanced: { min: 29, max: 35 } } },
     ],
   },
+  { name: "アイテムモドキ", hp: 38,  atk: 19, def: 5,  exp: 54,  speed: 1,   tile: 167, kind: "beast",    baseKind: "itemMimic",  monLevel: 1, minFloor: 9, maxFloor: 30, subtype: "itemMimic", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 17 }, advanced: { min: 8, max: 21 } },
+    desc: "床のアイテムに化ける。拾おうとすると正体を現し、その場で攻撃する。",
+    levels: [
+      { name: "強アイテムモドキ", hp: 61,  atk: 28, def: 8,  exp: 88,  dungeonFloors: { advanced: { min: 22, max: 25 } } },
+      { name: "アイテムモドキ王", hp: 95,  atk: 39, def: 13, exp: 138, dungeonFloors: { advanced: { min: 26, max: 30 } } },
+    ],
+  },
   { name: "ボムスライム", hp: 38,  atk: 14, def: 2,  exp: 55,  speed: 1,   tile: 114, kind: "beast",    baseKind: "bombslime",     monLevel: 1, minFloor: 11, maxFloor: 24, elemWeak: "fire", subtype: "deathbomb", dungeonFloors: { intermediate: { min: 13, max: 18 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "強ボムスライム",     hp: 61,  atk: 22, def: 3,  exp: 88  },
@@ -2395,6 +2402,26 @@ function dreamEaterStrike(m, dg, pl, ml, onHit, onMiss, luFn) {
   if (hit && absorbed > 0) ml.push(`${m.name}はHPを${absorbed}吸収した！`);
 }
 
+/** アイテムモドキの拾い上げを起動。床アイテムは残し、正体を現して即攻撃する。 */
+export function revealItemMimicAt(dg, x, y, pl, ml, luFn = null) {
+  const mimic = (dg.monsters || []).find(m =>
+    m.subtype === "itemMimic" && m.disguisedAsItem && m.x === x && m.y === y &&
+    dg.items?.some(i => i.x === x && i.y === y && (!m.disguiseItemId || i.id === m.disguiseItemId))
+  );
+  if (!mimic) return false;
+  mimic.disguisedAsItem = false;
+  delete mimic.disguiseItemId;
+  mimic.aware = true;
+  mimic._itemMimicRevealed = true;
+  mimic.turnAttacks = 0;
+  ml.push(`${mimic.name}が正体を現した！`);
+  if (pl && mimic.turnAttacks < monEffectiveMaxAttacks(mimic)) {
+    mimic.turnAttacks++;
+    monsterAttackPlayer(mimic, dg, pl, ml, d => `${mimic.name}の攻撃！${d}ダメージ！`, { luFn });
+  }
+  return true;
+}
+
 /** 魔方陣を描ける空床か（プレイヤーのペンと同じ：階段・アイテム・罠等があると不可） */
 function isPentacleDrawBlocked(dg, x, y) {
   if (!dg?.map) return true;
@@ -3058,6 +3085,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _isCursedGravFloat = !_hasFloatFlag && !monEffectiveMagicImmune(m) && hasCursedGravityPentacle(dg, m.x, m.y);
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
+  /* アイテムモドキ：拾われた直後の反撃は、このターンの敵フェーズでは重ねて行わない */
+  if (m._itemMimicRevealed) { delete m._itemMimicRevealed; return; }
   /* 目覚めたターンは行動しない（袋叩き防止） */
   if (m._justWoke) { m._justWoke = false; return; }
   /* 囮のペン（祝福）: 仮眠中でも起こして誘導（dormant チェックより先に処理）（魔封じで無効） */
@@ -3830,6 +3859,38 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* 囮のペン（祝福）: フロア全敵に囮への認識を付与（魔封じで無効） */
   if (!m.aware && !inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some(pc => pc.kind === "decoy" && pc.blessed && !(pl.x === pc.x && pl.y === pc.y))) {
     m.aware = true;
+  }
+
+  /* ── itemMimic（アイテムモドキ）：床アイテムの位置まで移動して化ける ── */
+  if (m.subtype === "itemMimic") {
+    const _disguiseItem = dg.items?.find(i =>
+      i.x === m.x && i.y === m.y && (!m.disguiseItemId || i.id === m.disguiseItemId)
+    );
+    if (m.disguisedAsItem) {
+      if (_disguiseItem) return;
+      m.disguisedAsItem = false;
+      delete m.disguiseItemId;
+    }
+    const _itemTarget = (dg.items || [])
+      .filter(i => i.x !== undefined && i.y !== undefined && !i.wallEmbedded)
+      .map(i => ({ item: i, dist: Math.max(Math.abs(i.x - m.x), Math.abs(i.y - m.y)) }))
+      .sort((a, b) => a.dist - b.dist)[0]?.item;
+    if (_itemTarget && _itemTarget.x === m.x && _itemTarget.y === m.y) {
+      m.disguisedAsItem = true;
+      m.disguiseItemId = _itemTarget.id;
+      m.aware = false;
+      return;
+    }
+    if (_itemTarget && m.aware && !_attackOnly) {
+      const _imNext = bfsNext(map, [], m.x, m.y, _itemTarget.x, _itemTarget.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
+      if (_imNext && !(_imNext.x === pl.x && _imNext.y === pl.y) &&
+          !dg.monsters.some(o => o !== m && o.x === _imNext.x && o.y === _imNext.y)) {
+        m.dir = { x: _imNext.x - m.x, y: _imNext.y - m.y };
+        m.x = _imNext.x; m.y = _imNext.y;
+        return;
+      }
+    }
+    /* アイテムが無い場合は通常敵として振る舞う（床にアイテムが生成されるまで停止しない）。 */
   }
 
   /* ===== 壁歩き（ゴースト系）：壁を無視して接近。他モンスター・聖域は迂回 ===== */

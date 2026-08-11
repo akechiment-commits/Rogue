@@ -197,7 +197,7 @@ export function shuffle(arr, randomFn = Math.random) {
   return arr;
 }
 export const removeFloorItem = (dg, item) => { dg.items = dg.items.filter(i => i !== item); };
-export const monsterAt = (dg, x, y) => dg.monsters.find(m => m.x === x && m.y === y);
+export const monsterAt = (dg, x, y) => dg.monsters.find(m => !m.disguisedAsItem && m.x === x && m.y === y);
 export const itemAt = (dg, x, y) => dg.items.find(i => i.x === x && i.y === y);
 export const removeMonster = (dg, mon) => { dg.monsters = dg.monsters.filter(m => m !== mon); };
 

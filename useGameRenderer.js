@@ -589,7 +589,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
 
     /* 座標インデックス構築 */
     const _k = (x, y) => y * MW + x;
-    const _monMap = new Map(); for (const m of dg.monsters) _monMap.set(_k(m.x, m.y), m);
+    const _monMap = new Map(); for (const m of dg.monsters) { if (!m.disguisedAsItem) _monMap.set(_k(m.x, m.y), m); }
     const _flying = flyingItemsRef.current;
     /* flyingItemsRef はアイテムオブジェクト参照で管理 → 同座標の既存アイテムは隠さない */
     const _itemMap = new Map(); for (const i of dg.items) { if (!_itemMap.has(_k(i.x, i.y)) && !_flying.has(i)) _itemMap.set(_k(i.x, i.y), i); }
