@@ -11,6 +11,7 @@ import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
+import { formatPlusSuffix } from "./inventoryLabel.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -2986,7 +2987,7 @@ export function InventoryModal({
       </div>
       {p.weapon && (
         <div style={{ color: "#aaa", fontSize: 13, marginBottom: 2 }}>
-          武器: <span style={{ color: "#fa0" }}>{p.weapon.name}{p.weapon.plus ? "+" + p.weapon.plus : ""}</span> (攻+{p.weapon.atk + (p.weapon.plus || 0)})
+          武器: <span style={{ color: "#fa0" }}>{p.weapon.name}{formatPlusSuffix(p.weapon.plus)}</span> (攻+{p.weapon.atk + (p.weapon.plus || 0)})
           {(p.weapon.ability || p.weapon.abilities?.length > 0) && (
             <span style={{ color: "#fc6", fontSize: 9 }}> [{[...new Set([...(p.weapon.abilities || []), ...(p.weapon.ability ? [p.weapon.ability] : [])])].map((id) => WEAPON_ABILITIES.find((a) => a.id === id)?.name).filter(Boolean).join("・")}]</span>
           )}
@@ -2994,7 +2995,7 @@ export function InventoryModal({
       )}
       {p.armor && (
         <div style={{ color: "#aaa", fontSize: 13, marginBottom: 2 }}>
-          防具: <span style={{ color: "#08f" }}>{p.armor.name}{p.armor.plus ? "+" + p.armor.plus : ""}</span> (防+{p.armor.def + (p.armor.plus || 0)})
+          防具: <span style={{ color: "#08f" }}>{p.armor.name}{formatPlusSuffix(p.armor.plus)}</span> (防+{p.armor.def + (p.armor.plus || 0)})
           {(p.armor.ability || p.armor.abilities?.length > 0) && (
             <span style={{ color: "#6cf", fontSize: 9 }}> [{[...new Set([...(p.armor.abilities || []), ...(p.armor.ability ? [p.armor.ability] : [])])].map((id) => ARMOR_ABILITIES.find((a) => a.id === id)?.name).filter(Boolean).join("・")}]</span>
           )}

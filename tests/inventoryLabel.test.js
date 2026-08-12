@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatInventoryItem } from "../inventoryLabel.js";
+import { formatInventoryItem, formatPlusSuffix } from "../inventoryLabel.js";
 
 function label(item, overrides = {}) {
   return formatInventoryItem(item, {
@@ -16,9 +16,20 @@ function label(item, overrides = {}) {
 }
 
 describe("formatInventoryItem", () => {
+  it("強化値の符号を正しく表示する", () => {
+    expect(formatPlusSuffix(2)).toBe("+2");
+    expect(formatPlusSuffix(-1)).toBe("-1");
+    expect(formatPlusSuffix(0)).toBe("");
+  });
+
   it("装備中の武器、祝福、強化値、能力を表示する", () => {
     const sword = { type: "weapon", name: "短剣", atk: 3, plus: 2, blessed: true, bcKnown: true, abilities: ["flame"] };
     expect(label(sword, { player: { weapon: sword } })).toBe("【武器】【祝】短剣+2 (攻+5) [炎]");
+  });
+
+  it("防具の負の強化値を正しく表示する", () => {
+    const armor = { type: "armor", name: "プレートメイル", def: 10, plus: -1, bcKnown: true };
+    expect(label(armor, { player: { armor } })).toBe("【防具】プレートメイル-1 (防+9)");
   });
 
   it("未識別の回復薬は効果量を表示しない", () => {

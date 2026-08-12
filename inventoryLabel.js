@@ -3,6 +3,12 @@ function abilityNames(item, abilities) {
   return ids.map((id) => abilities.find((ability) => ability.id === id)?.name).filter(Boolean);
 }
 
+/** 強化値を符号付きで表示する（負値は「+-1」ではなく「-1」）。 */
+export function formatPlusSuffix(plus) {
+  const value = Number(plus) || 0;
+  return value === 0 ? "" : `${value > 0 ? "+" : ""}${value}`;
+}
+
 /** インベントリに表示する1アイテム分のラベルを組み立てる。 */
 export function formatInventoryItem(item, {
   player,
@@ -28,12 +34,12 @@ export function formatInventoryItem(item, {
   if (item.type === "arrow") {
     label += ` (${item.count}${(item.stone || item.magicStone) ? "個" : "本"})`;
   } else if (item.type === "weapon") {
-    if (item.plus) label += (item.plus > 0 ? "+" : "") + item.plus;
+    label += formatPlusSuffix(item.plus);
     label += ` (攻+${item.atk + (item.plus || 0)})`;
     const names = abilityNames(item, weaponAbilities);
     if (names.length) label += ` [${names.join("・")}]`;
   } else if (item.type === "armor") {
-    if (item.plus) label += (item.plus > 0 ? "+" : "") + item.plus;
+    label += formatPlusSuffix(item.plus);
     label += ` (防+${item.def + (item.plus || 0)})`;
     const names = abilityNames(item, armorAbilities);
     if (names.length) label += ` [${names.join("・")}]`;
