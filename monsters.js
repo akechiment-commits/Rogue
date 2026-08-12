@@ -2463,14 +2463,19 @@ function itemThrowerRange(m) {
 }
 
 function itemThrowerTarget(m, dg) {
+  const _room = findRoom(dg.rooms || [], m.x, m.y);
+  /* 拾い投げは、認識できている同じ部屋の床だけを探す。部屋外や別室は対象外。 */
+  if (!_room) return null;
   return (dg.items || [])
     .filter(i => i.x !== undefined && i.y !== undefined && i.type !== "sign" && !i.wallEmbedded)
+    .filter(i => i.shopPrice == null && i._shopId == null && i._shopCharge == null)
+    .filter(i => findRoom(dg.rooms || [], i.x, i.y) === _room)
     .filter(i => !dg.monsters?.some(o => o !== m && o.disguisedAsItem && o.x === i.x && o.y === i.y))
     .map(i => ({ item: i, dist: Math.max(Math.abs(i.x - m.x), Math.abs(i.y - m.y)) }))
     .sort((a, b) => a.dist - b.dist)[0]?.item || null;
 }
 
-function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit) {
+function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit, opts = {}) {
   const item = m.carriedItem;
   if (!item) return false;
   const dx = Math.sign(pl.x - m.x), dy = Math.sign(pl.y - m.y);
@@ -2479,6 +2484,7 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit) {
   const result = throwItemAlongLine(m, dg, item, dx, dy, itemThrowerRange(m), ml, pl, luFn, {
     animColor: "#ffbb55",
     killerMon: m,
+    bbFn: opts.bbFn,
     nameFn: (it) => resolveItemName(it),
     monHitMsg: (target, dmg) => `${m.name}が${name}を投げつけて${target.name}に命中！${dmg}ダメージ！`,
     potHitMsg: (target, dmg) => `${m.name}が${name}を投げつけて${target.name}に命中！${dmg}ダメージ！壺が割れた！`,
@@ -2488,7 +2494,9 @@ function monsterThrowCarriedItem(m, dg, pl, ml, luFn, onHit) {
     potPlHitMsg: (dmg) => `${m.name}が${name}を投げつけてきた！${dmg}ダメージ！壺が割れた！`,
     potionPlHitMsg: () => `${m.name}が${name}を投げつけてきた！`,
     wandPlHitMsg: () => `${m.name}が${name}を投げつけてきた！`,
-    noHitLandMsg: () => `${m.name}が${name}を投げつけたが、床に落ちた。`,
+    bigboxLandMsg: (bb) => `${m.name}が${name}を投げつけて${bb.name}に当てた。`,
+    springLandMsg: (spr) => `${m.name}が${name}を投げつけて${spr?.name || "泉"}に落とした。`,
+    noHitLandMsg: () => `${m.name}が${name}を投げつけたが、遮られて地面に落ちた。`,
   });
   if (result.hitPlayer) onHit?.(m);
   return true;
@@ -4222,7 +4230,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_moveOnly && !_itAdj && _itLine && _itDist >= 2 && _itDist <= _itRange && m.turnAttacks < monEffectiveMaxAttacks(m)) return;
         if (!_moveOnly && !_itAdj && _itLine && _itDist >= 2 && _itDist <= _itRange && m.turnAttacks < monEffectiveMaxAttacks(m) && !_plOnBlessedSanc) {
           m.turnAttacks++;
-          monsterThrowCarriedItem(m, dg, pl, ml, _luFn, _onHit);
+          monsterThrowCarriedItem(m, dg, pl, ml, _luFn, _onHit, opts);
           return;
         }
       } else if (!_itAdj && !_attackOnly) {
