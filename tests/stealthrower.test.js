@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
-import { killMonster, throwItemAlongLine } from "../items.js";
+import { CHARGED_FUZZBALL_T, killMonster, throwItemAlongLine } from "../items.js";
 import { makeStatue, makeVent } from "../fixtures.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -132,5 +132,60 @@ describe("盗投士", () => {
 
     expect(messages.join(" ")).toContain("泉に落ちた");
     expect(messages.join(" ")).not.toContain("undefined");
+  });
+
+  it("盗投士が外した帯電毛玉は床に残らず消滅する", () => {
+    const base = MONS.find((m) => m.baseKind === "stealthrower");
+    const thief = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    const player = makePlayer({ x: 5, y: 8 });
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [thief],
+      visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
+    });
+    const held = { ...CHARGED_FUZZBALL_T, id: "stolen-fuzz-miss" };
+    thief._stealthrowerHeldItem = held;
+    thief.heldItems = [held];
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.01);
+
+    try {
+      monsterAI(thief, dg, player, messages, { attackOnly: true });
+    } finally {
+      random.mockRestore();
+    }
+
+    expect(dg.items.some((item) => item.id === held.id)).toBe(false);
+    expect(messages.join(" ")).toContain("帯電毛玉は床に落ちると消えてしまった！");
+  });
+
+  it("盗投士の帯電毛玉が大箱に当たると大箱へ収納される", () => {
+    const base = MONS.find((m) => m.baseKind === "stealthrower");
+    const thief = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    const player = makePlayer({ x: 5, y: 8 });
+    const bigbox = { x: 5, y: 6, kind: "normal", name: "大箱", capacity: 2, contents: [] };
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [thief],
+      bigboxes: [bigbox],
+      visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
+    });
+    const held = { ...CHARGED_FUZZBALL_T, id: "stolen-fuzz-box" };
+    thief._stealthrowerHeldItem = held;
+    thief.heldItems = [held];
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+
+    try {
+      monsterAI(thief, dg, player, messages, {
+        attackOnly: true,
+        bbFn: (bb, item) => bb.contents.push(item),
+      });
+    } finally {
+      random.mockRestore();
+    }
+
+    expect(bigbox.contents.some((item) => item.id === held.id)).toBe(true);
+    expect(dg.items.some((item) => item.id === held.id)).toBe(false);
   });
 });

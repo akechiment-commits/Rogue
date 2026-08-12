@@ -4845,9 +4845,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               if (Math.random() < 0.25) {
                 clearStealthrowerHeldItem(m, _throwItem);
                 pushMonsterBoltAnim(m.x, m.y, _srDx, _srDy, dg, pl, "#ff8800");
-                ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきたが外れた！足元に落ちた。`);
-                const _srDrop = safeArrowDrop(pl.x, pl.y, dg);
-                _monDropWithSpring(_srDrop, _throwItem, dg, ml);
+                if (_throwItem.type === "charged_fuzzball") {
+                  ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきたが外れた！`);
+                  /* 帯電毛玉は床に存在できないため、外れても落下配置しない。 */
+                  placeItemAt(dg, pl.x, pl.y, _throwItem, ml, new Set());
+                } else {
+                  ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきたが外れた！足元に落ちた。`);
+                  const _srDrop = safeArrowDrop(pl.x, pl.y, dg);
+                  _monDropWithSpring(_srDrop, _throwItem, dg, ml);
+                }
                 return;
               }
             }
@@ -4856,6 +4862,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             const _srRes = throwItemAlongLine(m, dg, _throwItem, _srDx, _srDy, _srDist, ml, pl, _luFn, {
               animColor: "#ff8800",
               killerMon: m,
+              bbFn: opts.bbFn,
               applyWandFn: opts.applyWandFn,
               /* 中間敵命中：「${m}が投げた${item}が${target}に...」 */
               monHitMsg: (target, dmg) => `${m.name}が投げた${_throwItem.name}が${target.name}に命中！${dmg}ダメージ！消滅した。`,
