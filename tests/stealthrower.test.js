@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
-import { killMonster } from "../items.js";
+import { killMonster, throwItemAlongLine } from "../items.js";
+import { makeStatue, makeVent } from "../fixtures.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("盗投士", () => {
@@ -67,5 +68,43 @@ describe("盗投士", () => {
     expect(thief._stealthrowerHeldItem).toBeUndefined();
     expect(dg.items.some((item) => item.id === held.id)).toBe(true);
     expect(messages.join(" ")).toContain("地面に落ちた");
+  });
+
+  it("風で盗投士自身に戻った投擲物は地面に落ちず消滅する", () => {
+    const base = MONS.find((m) => m.baseKind === "stealthrower");
+    const thief = makeMonsterFromBase(base, 1, 4, 4, { aware: true });
+    const player = makePlayer({ x: 1, y: 1 });
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [thief],
+      vents: [makeVent(0, 0, 1, 1)],
+    });
+    const held = { id: "wind-hit", name: "風に飛ばされた指輪", type: "ring", effect: "power_ring" };
+    const messages = [];
+
+    const result = throwItemAlongLine(thief, dg, held, -1, -1, 10, messages, player, null, {});
+
+    expect(messages.join(" ")).toContain("自身に当たった");
+    expect(result.consumed).toBe(true);
+    expect(dg.items.some((item) => item.id === held.id)).toBe(false);
+  });
+
+  it("石像に当たった投擲物は石像を壊して消滅する", () => {
+    const base = MONS.find((m) => m.baseKind === "stealthrower");
+    const thief = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    const player = makePlayer({ x: 5, y: 8 });
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [thief],
+      statues: [makeStatue(5, 6)],
+    });
+    const held = { id: "statue-hit", name: "石像に当たる指輪", type: "ring", effect: "power_ring" };
+    const messages = [];
+
+    const result = throwItemAlongLine(thief, dg, held, 0, 1, 10, messages, player, null, {});
+
+    expect(result.consumed).toBe(true);
+    expect(dg.statues).toHaveLength(0);
+    expect(dg.items.some((item) => item.id === held.id)).toBe(false);
   });
 });

@@ -4267,6 +4267,14 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       if (bigboxLandMsg) { const _m = bigboxLandMsg(bb, lx, ly); if (_m) mlx.push(_m); }
       res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly;
     },
+    onStatue: (statue, lx, ly) => {
+      /* 石像に当たった投擲物は、石像を壊した時点で消費する。 */
+      res.consumed = true; res.hitStatue = statue; res.x = lx; res.y = ly;
+    },
+    onSelfHit: (mon, lx, ly) => {
+      /* 風で射手自身に戻った場合も、敵に実際に命中したので消費する。 */
+      res.consumed = true; res.hitMonster = mon; res.x = lx; res.y = ly;
+    },
     onTrap: (trap, lx, ly, mlx) => {
       if (_isPotion) {
         res.consumed = true; res.splash = true; res.x = lx; res.y = ly;
@@ -4296,7 +4304,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
-  const _noHit = !res.spring && !res.bigbox && !res.hitMonster && !res.hitPlayer;
+  const _noHit = !res.spring && !res.bigbox && !res.hitMonster && !res.hitPlayer && !res.hitStatue;
   if (res.spring) {
     soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
   } else if (res.bigbox) {
@@ -4317,7 +4325,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         ? { singleTargetKind: "monster", singleTarget: res.hitMonster, effectDx: _twDx, effectDy: _twDy }
         : { singleTargetKind: "player", singleTarget: p, effectDx: -_twDx, effectDy: -_twDy };
       _triggerWandBreakEffect(_twSnap, res.x, res.y, dg, p, ml, luFn, _twOpts);
-    } else {
+    } else if (!res.hitStatue) {
       if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
       const ft = new Set();
       placeItemAt(dg, res.x, res.y, item, ml, ft);

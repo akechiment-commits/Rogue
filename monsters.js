@@ -2003,6 +2003,8 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  *   未指定なら泉を素通り。pierce/farcastでない場合はspringで弾道終了（onSpring指定時のみ）。
  * onTrap(trap, lx, ly, ml) => string|undefined: 罠命中時のコールバック（押し出されアイテムが罠を踏む等）。
  *   未指定なら罠を素通り。"destroyed"を返すとアイテム消滅、それ以外は弾道はそこで終了。
+ * onStatue(statue, lx, ly, ml): 物理弾が石像に命中した時のコールバック。
+ * onSelfHit(mon, lx, ly, ml): 風などで敵の飛び道具が射手自身に命中した時のコールバック。
  * onWallStop(lx, ly, ml): pierce/farcast以外で壁にぶつかって止まった時のコールバック
  * onFlyOff(lx, ly, ml): 飛距離を使い切って何にも当たらず終了した時のコールバック
  * isPlayerShooter: プレイヤーが射手の場合true（mにplを渡す）。dodge魔方陣の早期returnをスキップ、
@@ -2025,6 +2027,8 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     onBigbox = null,
     onSpring = null,
     onTrap = null,
+    onStatue = null,
+    onSelfHit = null,
     onWallStop = null,
     onFlyOff = null,
     hitChance = 1.0,
@@ -2084,11 +2088,13 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       return;
     }
     /* 石像：物理弾は破壊 */
-    if (statueAt(dg, _tx, _ty)) {
+    const _statue = statueAt(dg, _tx, _ty);
+    if (_statue) {
       hitStatueWithAction(dg, _tx, _ty, pl, ml, luFn, pl?.depth, {
         breaks: true,
         itemDeps: getFixtureItemDeps(),
       });
+      if (onStatue) onStatue(_statue, _tx, _ty, ml);
       if (!_passthrough) return;
     }
 
@@ -2098,6 +2104,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       m.hp -= _selfDmg;
       ml.push(`風に煽られた${boltName}が${m.name}自身に当たった！${_selfDmg}ダメージ！`);
       if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn, false, null);
+      if (onSelfHit) onSelfHit(m, _tx, _ty, ml);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
       return;
     }
