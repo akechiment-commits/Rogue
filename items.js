@@ -4158,8 +4158,12 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   const _isWand = item.type === "wand";
   const _isBombArrow = item.type === "arrow" && item.bombArrow;
   const _isPierceArrow = item.type === "arrow" && item.pierce;
-  const _itemName = nameFn(item);
+  const _itemName = nameFn ? nameFn(item) : resolveItemName(item);
   const res = { x: shooter.x, y: shooter.y, consumed: false };
+  /* _resolveBolt は壁・射程端でコールバック後に戻るため、最後の有効マスを
+     resへ引き継ぐ。これがないと投擲物が発射地点扱いになり、遮蔽物の裏で
+     消えたように見える。 */
+  let _terminalStop = null;
 
   /* 通常投擲ダメージ計算（武器は+値含む、それ以外は3+rng(0,3)） */
   const _projDmg = () => Math.max(1, (item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : 3) + rng(0, 3));
@@ -4277,9 +4281,18 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       if (r === "destroyed") { res.consumed = true; return "destroyed"; }
       res.x = lx; res.y = ly; res.consumed = false;
     },
-    onWallStop: (lx, ly) => { res.x = lx; res.y = ly; },
-    onFlyOff: (lx, ly) => { res.x = lx; res.y = ly; },
+    onWallStop: (lx, ly) => {
+      _terminalStop = { x: lx, y: ly };
+    },
+    onFlyOff: (lx, ly) => {
+      _terminalStop = { x: lx, y: ly };
+    },
   });
+
+  if (_terminalStop) {
+    res.x = _terminalStop.x;
+    res.y = _terminalStop.y;
+  }
 
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */

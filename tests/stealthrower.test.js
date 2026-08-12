@@ -46,4 +46,26 @@ describe("盗投士", () => {
     expect(dg.items.some((item) => item.id === held.id)).toBe(true);
     expect(thief._stealthrowerHeldItem).toBeUndefined();
   });
+
+  it("射線上に壁があっても投擲し、壁の手前にアイテムを落とす", () => {
+    const base = MONS.find((m) => m.baseKind === "stealthrower");
+    const held = { id: "blocked", name: "手投げの指輪", type: "ring", effect: "power_ring", tile: 1 };
+    const thief = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    thief._stealthrowerHeldItem = held;
+    thief.heldItems = [held];
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [thief],
+      visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
+    });
+    dg.map[6][5] = "#";
+    const player = makePlayer({ x: 5, y: 8 });
+    const messages = [];
+
+    monsterAI(thief, dg, player, messages, { attackOnly: true });
+
+    expect(thief._stealthrowerHeldItem).toBeUndefined();
+    expect(dg.items.some((item) => item.id === held.id)).toBe(true);
+    expect(messages.join(" ")).toContain("地面に落ちた");
+  });
 });

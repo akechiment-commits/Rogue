@@ -4796,48 +4796,36 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       const _srDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
       const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
-      /* moveOnlyフェーズ：アイテム持ちで直線上かつ経路クリアなら移動せず（攻撃フェーズで投げる） */
+      /* moveOnlyフェーズ：アイテム持ちで射程内の直線上なら移動せず（攻撃フェーズで投げる） */
       if (_moveOnly && _srHeldItem && canSee && _srDist > 1 && _srDist <= 8 && _srStraight) {
-        const _srDxM = Math.sign(pl.x - m.x), _srDyM = Math.sign(pl.y - m.y);
-        let _srPathOkM = true;
-        let _cxM = m.x + _srDxM, _cyM = m.y + _srDyM;
-        while (_cxM !== pl.x || _cyM !== pl.y) {
-          if (_cxM < 0 || _cxM >= MW || _cyM < 0 || _cyM >= MH ||
-              dg.map[_cyM][_cxM] === T.WALL || dg.map[_cyM][_cxM] === T.BWALL ||
-              dg.bigboxes?.some(b => b.x === _cxM && b.y === _cyM) ||
-              dg.springs?.some(s => s.x === _cxM && s.y === _cyM)) {
-            _srPathOkM = false; break;
-          }
-          if (dg.monsters.find(mo => mo.x === _cxM && mo.y === _cyM)) break; /* 途中の敵：攻撃フェーズに委ねる */
-          _cxM += _srDxM; _cyM += _srDyM;
-        }
-        if (_srPathOkM) return; /* 経路クリア：移動せず攻撃フェーズに委ねる */
-        /* 経路に障害物：移動コードへフォールスルーして接近 */
+        /* 遮蔽物があっても投擲物はそこで止まって落ちるため、射線の確保だけで
+         * 攻撃を予約する。遮蔽物の有無は攻撃フェーズの弾道処理に任せる。 */
+        return;
       }
       /* 投擲フェーズ：アイテムを持っていて視界内（moveOnlyは上でreturn済 or フォールスルー） */
       if (!_moveOnly && _srHeldItem && canSee && _srDist <= 8) {
         const _srDx = Math.sign(pl.x - m.x), _srDy = Math.sign(pl.y - m.y);
         if (_srStraight) {
           /* 経路チェック：障害物があれば投げない、途中に敵がいればそちらに命中 */
-          let _srHitMon = null, _srHitStatue = false, _srPathOk = true;
+          let _srHitMon = null, _srHitStatue = false, _srPathBlocked = false;
           let _cx = m.x + _srDx, _cy = m.y + _srDy;
           while (_cx !== pl.x || _cy !== pl.y) {
             if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH ||
                 dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL ||
                 dg.bigboxes?.some(b => b.x === _cx && b.y === _cy) ||
                 dg.springs?.some(s => s.x === _cx && s.y === _cy)) {
-              _srPathOk = false; break;
+              _srPathBlocked = true; break;
             }
             if (statueAt(dg, _cx, _cy)) { _srHitStatue = true; break; }
             const _midMon = dg.monsters.find(mo => mo.x === _cx && mo.y === _cy);
             if (_midMon) { _srHitMon = _midMon; break; }
             _cx += _srDx; _cy += _srDy;
           }
-          if (_srPathOk) {
+          {
             const _throwItem = _srHeldItem;
             /* 中間敵に命中する場合：throwItemAlongLineに任せる */
             /* 中間敵なし＋プレイヤー到達の場合：anti-steal/25%missを先に判定 */
-            if (!_srHitMon && !_srHitStatue) {
+            if (!_srHitMon && !_srHitStatue && !_srPathBlocked) {
               const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
               if (_srAntiSteal) {
                 clearStealthrowerHeldItem(m, _throwItem);
@@ -4872,6 +4860,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               potPlHitMsg: (dmg) => `${m.name}が盗んだ${_throwItem.name}を投げてきた！${dmg}ダメージ！壺が割れた！`,
               potionPlHitMsg: () => `${m.name}が盗んだ${_throwItem.name}を投げてきた！`,
               wandPlHitMsg: () => `${m.name}が盗んだ${_throwItem.name}を投げてきた！`,
+              bigboxLandMsg: (bb) => `${m.name}が盗んだ${_throwItem.name}が${bb.name}に当たった。`,
+              springLandMsg: (spr) => `${m.name}が盗んだ${_throwItem.name}が${spr.name}に落ちた。`,
+              noHitLandMsg: () => `${m.name}が盗んだ${_throwItem.name}は遮られて地面に落ちた。`,
             });
             /* プレイヤー命中時の追加コールバック（既存仕様：potion/pot以外の命中で発動） */
             if (_srRes.hitPlayer && _throwItem.type !== "potion" && _throwItem.type !== "pot") {
@@ -4879,9 +4870,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             }
             return;
           }
-          /* 経路に障害物：隣接なら通常攻撃、非隣接なら接近 */
         }
-        /* 非直線または障害物：隣接なら通常攻撃して終了、非隣接は移動コードへ */
+        /* 非直線：隣接なら通常攻撃して終了、非隣接は移動コードへ */
         if (_srAdj) {
           if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
           return;
