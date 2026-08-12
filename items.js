@@ -3811,10 +3811,12 @@ export function monsterDrop(m, dg, ml, p = null) {
     m.heldGold = 0;
   }
   /* 盗投士：盗んで持っていたアイテムをその場にばらまく */
-  if (m.baseKind === "stealthrower" && m.heldItems?.length > 0) {
+  if (m.baseKind === "stealthrower" && (m._stealthrowerHeldItem || m.heldItems?.length > 0)) {
     const _ft = new Set();
-    for (const it of m.heldItems) { placeItemAt(dg, m.x, m.y, it, ml, _ft, 0, p); }
+    const _held = m._stealthrowerHeldItem ? [m._stealthrowerHeldItem] : (m.heldItems || []);
+    for (const it of _held) { placeItemAt(dg, m.x, m.y, it, ml, _ft, 0, p); }
     m.heldItems = [];
+    delete m._stealthrowerHeldItem;
   }
   /* 合成獣：synthBoxの中身を全てその場にばらまく */
   if (m.baseKind === "synthmonster" && m.synthBox?.contents?.length > 0) {

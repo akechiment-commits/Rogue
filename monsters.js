@@ -1246,6 +1246,27 @@ function hasInventorySpaceForMonsterGift(player) {
   return !!player?.inventory && player.inventory.length < (player.maxInventory || 30);
 }
 
+/* 盗投士は「盗んだアイテムを1個だけ」保持する。配列だけを状態源にすると、
+ * フロア更新や古いセーブデータの正規化で配列が空になった際に、手持ちを
+ * 失った扱いになって再び盗めてしまうため、単一の保持スロットも同期する。 */
+function syncStealthrowerHeldItem(m) {
+  if (!Array.isArray(m.heldItems)) m.heldItems = [];
+  if (m._stealthrowerHeldItem) {
+    if (m.heldItems[0] !== m._stealthrowerHeldItem || m.heldItems.length > 1) {
+      m.heldItems = [m._stealthrowerHeldItem];
+    }
+  } else if (m.heldItems.length > 0) {
+    m._stealthrowerHeldItem = m.heldItems[0];
+    m.heldItems = [m._stealthrowerHeldItem];
+  }
+  return m._stealthrowerHeldItem || null;
+}
+
+function clearStealthrowerHeldItem(m, item) {
+  m.heldItems = Array.isArray(m.heldItems) ? m.heldItems.filter(it => it !== item) : [];
+  delete m._stealthrowerHeldItem;
+}
+
 function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯電毛玉を押し付けてきた！`) {
   if (!hasInventorySpaceForMonsterGift(player)) return false;
   player.inventory.push({ ...CHARGED_FUZZBALL_T, id: uid() });
@@ -4771,12 +4792,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
     /* ── stealthrower（盗投士等）：盗む→次ターンに投げる ── */
     if (m.subtype === "stealthrower" && !m.sealed) {
-      m.heldItems = m.heldItems || [];
+      const _srHeldItem = syncStealthrowerHeldItem(m);
       const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       const _srDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
       const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
       /* moveOnlyフェーズ：アイテム持ちで直線上かつ経路クリアなら移動せず（攻撃フェーズで投げる） */
-      if (_moveOnly && m.heldItems.length > 0 && canSee && _srDist > 1 && _srDist <= 8 && _srStraight) {
+      if (_moveOnly && _srHeldItem && canSee && _srDist > 1 && _srDist <= 8 && _srStraight) {
         const _srDxM = Math.sign(pl.x - m.x), _srDyM = Math.sign(pl.y - m.y);
         let _srPathOkM = true;
         let _cxM = m.x + _srDxM, _cyM = m.y + _srDyM;
@@ -4794,7 +4815,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         /* 経路に障害物：移動コードへフォールスルーして接近 */
       }
       /* 投擲フェーズ：アイテムを持っていて視界内（moveOnlyは上でreturn済 or フォールスルー） */
-      if (!_moveOnly && m.heldItems.length > 0 && canSee && _srDist <= 8) {
+      if (!_moveOnly && _srHeldItem && canSee && _srDist <= 8) {
         const _srDx = Math.sign(pl.x - m.x), _srDy = Math.sign(pl.y - m.y);
         if (_srStraight) {
           /* 経路チェック：障害物があれば投げない、途中に敵がいればそちらに命中 */
@@ -4813,13 +4834,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             _cx += _srDx; _cy += _srDy;
           }
           if (_srPathOk) {
-            const _throwItem = m.heldItems[0];
+            const _throwItem = _srHeldItem;
             /* 中間敵に命中する場合：throwItemAlongLineに任せる */
             /* 中間敵なし＋プレイヤー到達の場合：anti-steal/25%missを先に判定 */
             if (!_srHitMon && !_srHitStatue) {
               const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
               if (_srAntiSteal) {
-                m.heldItems.splice(0, 1);
+                clearStealthrowerHeldItem(m, _throwItem);
                 pushMonsterBoltAnim(m.x, m.y, _srDx, _srDy, dg, pl, "#ff8800");
                 ml.push(`護盗の鎧が${m.name}の投擲を防いだ！${_throwItem.name}は地面に落ちた！`);
                 const _srft = new Set();
@@ -4827,7 +4848,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
                 return;
               }
               if (Math.random() < 0.25) {
-                m.heldItems.splice(0, 1);
+                clearStealthrowerHeldItem(m, _throwItem);
                 pushMonsterBoltAnim(m.x, m.y, _srDx, _srDy, dg, pl, "#ff8800");
                 ml.push(`${m.name}が盗んだ${_throwItem.name}を投げてきたが外れた！足元に落ちた。`);
                 const _srDrop = safeArrowDrop(pl.x, pl.y, dg);
@@ -4836,7 +4857,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               }
             }
             /* 投擲：throwItemAlongLineで弾道・命中・薬瓶splash・壺scatter・杖発動を統合処理 */
-            m.heldItems.splice(0, 1);
+            clearStealthrowerHeldItem(m, _throwItem);
             const _srRes = throwItemAlongLine(m, dg, _throwItem, _srDx, _srDy, _srDist, ml, pl, _luFn, {
               animColor: "#ff8800",
               killerMon: m,
@@ -4867,8 +4888,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
         /* 非隣接 → フォールスルーして移動 */
       }
-      /* 盗みフェーズ：隣接かつ手ぶら（moveOnlyはフォールスルー） */
-      if (!_moveOnly && _srAdj && m.heldItems.length === 0) {
+      /* 盗みフェーズ：隣接かつ手ぶら（moveOnlyはフォールスルー）。
+       * 手持ち中はここへ絶対に入らず、投擲・死亡まで1個限定。 */
+      if (!_moveOnly && _srAdj && !_srHeldItem) {
         const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
         if (_srAntiSteal) {
           ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
@@ -4880,7 +4902,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _stolen = pick(_srStealable);
           pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
           const _srFinal = (_stolen.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stolen.plus || 0 } : _stolen;
-          m.heldItems.push(_srFinal);
+          m._stealthrowerHeldItem = _srFinal;
+          m.heldItems = [_srFinal];
           const _srSoboroMsg = _srFinal !== _stolen ? "ソボロ助広に変化した！" : "";
           ml.push(`${m.name}が${_stolen.name}を盗んだ！次のターンに投げてくるぞ！${_srSoboroMsg}`);
           return;
