@@ -4868,7 +4868,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
               potionPlHitMsg: () => `${m.name}が盗んだ${_throwItem.name}を投げてきた！`,
               wandPlHitMsg: () => `${m.name}が盗んだ${_throwItem.name}を投げてきた！`,
               bigboxLandMsg: (bb) => `${m.name}が盗んだ${_throwItem.name}が${bb.name}に当たった。`,
-              springLandMsg: (spr) => `${m.name}が盗んだ${_throwItem.name}が${spr.name}に落ちた。`,
+              springLandMsg: (spr) => `${m.name}が盗んだ${_throwItem.name}が${spr?.name || "泉"}に落ちた。`,
               noHitLandMsg: () => `${m.name}が盗んだ${_throwItem.name}は遮られて地面に落ちた。`,
             });
             /* プレイヤー命中時の追加コールバック（既存仕様：potion/pot以外の命中で発動） */

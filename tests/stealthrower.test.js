@@ -107,4 +107,30 @@ describe("盗投士", () => {
     expect(dg.statues).toHaveLength(0);
     expect(dg.items.some((item) => item.id === held.id)).toBe(false);
   });
+
+  it("泉に落ちた時は泉の名前を表示する", () => {
+    const base = MONS.find((m) => m.baseKind === "stealthrower");
+    const thief = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    const player = makePlayer({ x: 5, y: 8 });
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [thief],
+      springs: [{ x: 5, y: 6, contents: [] }],
+      visible: Array.from({ length: 30 }, () => Array(60).fill(true)),
+    });
+    const held = { id: "spring-hit", name: "泉に落ちる指輪", type: "ring", effect: "power_ring" };
+    thief._stealthrowerHeldItem = held;
+    thief.heldItems = [held];
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+
+    try {
+      monsterAI(thief, dg, player, messages, { attackOnly: true });
+    } finally {
+      random.mockRestore();
+    }
+
+    expect(messages.join(" ")).toContain("泉に落ちた");
+    expect(messages.join(" ")).not.toContain("undefined");
+  });
 });
