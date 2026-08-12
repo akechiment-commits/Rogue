@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CHARGED_FUZZBALL_T, breakBigboxContents, placeItemAt, scatterPotContents } from "../items.js";
+import { CHARGED_FUZZBALL_T, applyFireInventoryDamage, applyWaterGunToInventory, breakBigboxContents, placeItemAt, scatterPotContents } from "../items.js";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -54,6 +54,20 @@ describe("カラペン系と帯電毛玉", () => {
     expect(CHARGED_FUZZBALL_T.type).toBe("charged_fuzzball");
     expect(CHARGED_FUZZBALL_T.noDrop).toBe(true);
     expect(CHARGED_FUZZBALL_T.noThrow).toBe(true);
+  });
+
+  it("炎・水の所持品影響を受けると消滅する", () => {
+    const firePlayer = { armor: null, inventory: [{ ...CHARGED_FUZZBALL_T, id: "fire-fuzz" }] };
+    const fireMessages = [];
+    applyFireInventoryDamage(firePlayer, fireMessages);
+    expect(firePlayer.inventory).toHaveLength(0);
+    expect(fireMessages).toContain("爆発の熱で所持していた「帯電毛玉」が炎で消滅した！");
+
+    const waterPlayer = { armor: null, inventory: [{ ...CHARGED_FUZZBALL_T, id: "water-fuzz" }] };
+    const waterMessages = [];
+    expect(applyWaterGunToInventory(waterPlayer, waterMessages)).toBe(true);
+    expect(waterPlayer.inventory).toHaveLength(0);
+    expect(waterMessages).toContain("水を浴びて帯電毛玉が消滅した！");
   });
 
   it("床へ出た帯電毛玉は消滅し、箱・壺の中身散乱でも床に残らない", () => {

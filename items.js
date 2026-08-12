@@ -4007,14 +4007,14 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
   }
 }
 
-/* 炎によるインベントリ損傷（巻物・薬・魔法書のどれか1つをランダムに消去） */
+/* 炎によるインベントリ損傷（巻物・薬・魔法書・帯電毛玉のどれか1つをランダムに消去） */
 export function applyFireInventoryDamage(p, ml) {
   if (hasFireResist(p)) return;
-  const burnables = p.inventory.filter(i => i.type === "scroll" || i.type === "potion" || i.type === "spellbook");
+  const burnables = p.inventory.filter(i => i.type === "scroll" || i.type === "potion" || i.type === "spellbook" || i.type === "charged_fuzzball");
   if (burnables.length === 0) return;
   const victim = burnables[Math.floor(Math.random() * burnables.length)];
   p.inventory = p.inventory.filter(i => i !== victim);
-  const verb = victim.type === "potion" ? "割れてなくなった" : "燃えてなくなった";
+  const verb = victim.type === "potion" ? "割れてなくなった" : victim.type === "charged_fuzzball" ? "炎で消滅した" : "燃えてなくなった";
   ml.push(`爆発の熱で所持していた「${resolveItemName(victim)}」が${verb}！`);
 }
 
@@ -4905,7 +4905,7 @@ export function blankScrollOrSpellbook(item, ml = null, nameFn = null) {
 
 /**
  * 水鉄砲など：所持品に水の影響（炎・雷と同様にランダム1点）。
- * 巻物/魔法書→白紙、食料→サイズ-1、ペン→インク-1。耐水で無効。
+ * 巻物/魔法書→白紙、食料→サイズ-1、ペン→インク-1、帯電毛玉→消滅。耐水で無効。
  * @returns {boolean} 何か影響が出たか
  */
 export function applyWaterGunToInventory(p, ml, nameFn = null) {
@@ -4915,6 +4915,7 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
     return false;
   }
   const vulnerable = p.inventory.filter((it) => {
+    if (it.type === "charged_fuzzball") return true;
     if (it.type === "scroll" && it.effect !== "blank") return true;
     if (it.type === "spellbook" && it.spell) return true;
     if (it.type === "food") return true;
@@ -4931,6 +4932,11 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
   }
   if (victim.type === "food") {
     return shrinkFoodOneStep(victim, ml, nameFn);
+  }
+  if (victim.type === "charged_fuzzball") {
+    p.inventory = p.inventory.filter((it) => it !== victim);
+    if (ml) ml.push(`水を浴びて${resolveItemName(victim, nameFn)}が消滅した！`);
+    return true;
   }
   if (victim.type === "pen") {
     const _dn = resolveItemName(victim, nameFn);
