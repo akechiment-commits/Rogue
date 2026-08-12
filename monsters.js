@@ -742,12 +742,12 @@ export const MONS = [
   { name: "ゴースト",     hp: 38,  atk: 18, def: 5,  exp: 45,  speed: 1,   tile: 145, kind: "undead",   baseKind: "rockspirit",    monLevel: 1, minFloor: 14, maxFloor: 28, wallWalker: true, dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 20 } },
     levels: [
       { name: "ファントム",         hp: 61,  atk: 25, def: 9,  exp: 72  },
-      /* 長居罰の最上位壁抜け：高耐久・高火力・2行動。壁・他敵を迂回して接近 */
-      { name: "ミラージュ",         hp: 160, atk: 50, def: 22, exp: 220, speed: 2 },
+      /* 長居罰の最上位壁抜け：高耐久・高火力・3倍速。壁・他敵を迂回して接近 */
+      { name: "ミラージュ",         hp: 160, atk: 50, def: 22, exp: 220, speed: 3 },
     ],
   },
-  /* 長居ペナルティ専用：等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
-  { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, penaltyOnly: true,
+  /* 長居ペナルティ専用：壁抜け・浮遊。等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
+  { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
     desc: "同一フロアに長居したときだけ現れる。等速で特殊能力はないが、非常に頑丈で攻撃力も高い。" },
   { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 19 } },
     levels: [

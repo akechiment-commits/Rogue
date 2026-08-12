@@ -11,6 +11,8 @@ describe("長居ペナルティ専用モンスター", () => {
     expect(penalty.name).toBe("刻限の巨像");
     expect(penalty.speed).toBe(1);
     expect(penalty.subtype).toBeUndefined();
+    expect(penalty.wallWalker).toBe(true);
+    expect(penalty.float).toBe(true);
     expect(penalty.hp).toBeGreaterThan(mirageLv3.hp);
     expect(penalty.atk).toBeGreaterThan(mirageLv3.atk);
     expect(penalty.def).toBeGreaterThan(mirageLv3.def);
@@ -20,6 +22,10 @@ describe("長居ペナルティ専用モンスター", () => {
     expect(spawned.speed).toBe(1);
     expect(spawned.baseSpeed).toBe(1);
     expect(spawned.penaltyOnly).toBe(true);
+
+    const mirageSpawned = makeMonsterFromBase(mirage, 3, 4, 4, { aware: true });
+    expect(mirageSpawned.name).toBe("ミラージュ");
+    expect(mirageSpawned.speed).toBe(3);
   });
 
   it("通常生成と変化の対象には含まれない", () => {
