@@ -1267,6 +1267,17 @@ function clearStealthrowerHeldItem(m, item) {
   delete m._stealthrowerHeldItem;
 }
 
+/* 所持品から弾き出すアイテムが装備中なら、装備参照も同時に解除する。 */
+function detachPlayerEquipment(pl, item) {
+  if (!pl || !item) return;
+  if (pl.weapon === item) pl.weapon = null;
+  if (pl.armor === item) pl.armor = null;
+  if (pl.arrow === item) pl.arrow = null;
+  if (Array.isArray(pl.rings) && pl.rings.includes(item)) {
+    pl.rings = pl.rings.filter(ring => ring !== item);
+  }
+}
+
 function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯電毛玉を押し付けてきた！`) {
   if (!hasInventorySpaceForMonsterGift(player)) return false;
   player.inventory.push({ ...CHARGED_FUZZBALL_T, id: uid() });
@@ -4762,6 +4773,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _ibCands = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
         if (_ibCands.length > 0) {
           const _ibItem = pick(_ibCands);
+          detachPlayerEquipment(pl, _ibItem);
           pl.inventory.splice(pl.inventory.indexOf(_ibItem), 1);
           const _ibN = opts.itemNameFn ? opts.itemNameFn(_ibItem) : _ibItem.name;
           /* 弾く方向：プレイヤーからモンスターの反対方向（プレイヤーの後ろ） */
