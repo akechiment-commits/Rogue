@@ -559,7 +559,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  * 新しい敵を追加する手順:
  *   1. MONS配列に新しいエントリを追加（出現階層順で挿入）
  *      必須: name, hp, atk, def, exp, speed, tile, kind, baseKind, monLevel:1
- *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect
+ *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect, penaltyOnly
  *        subtype の選択肢: "archer" | "stonethrow" | "wanduser" | "supporter"
  *                         | "thief" | "goldthief" | "runner" | "itemblast" | "stealthrower"
  *                         (特殊AIが必要なら monsterAI に追記)
@@ -746,6 +746,9 @@ export const MONS = [
       { name: "ミラージュ",         hp: 160, atk: 50, def: 22, exp: 220, speed: 2 },
     ],
   },
+  /* 長居ペナルティ専用：等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
+  { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, penaltyOnly: true,
+    desc: "同一フロアに長居したときだけ現れる。等速で特殊能力はないが、非常に頑丈で攻撃力も高い。" },
   { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "オーク将",           hp: 65,  atk: 31, def: 12, exp: 77,  dungeonFloors: { advanced: { min: 22, max: 24 } } },
@@ -1167,6 +1170,7 @@ export function makeGuard(x, y, plx, ply) {
 export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false) {
   const floor = depth + 1;
   const eligible = MONS.filter(m => {
+    if (m.penaltyOnly) return false;
     if (excludeWaterOnly && m.waterOnly) return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
     const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
@@ -1183,7 +1187,7 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
       return lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax);
     }) ?? false;
   });
-  const base = eligible.length > 0 ? pick(eligible) : MONS[0];
+  const base = eligible.length > 0 ? pick(eligible) : (MONS.find(m => !m.penaltyOnly) ?? MONS[0]);
 
   /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
      高レベルから順にチェックし、最初に条件を満たしたレベルを採用する */
@@ -1213,6 +1217,7 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
   const floor = depth + 1;
   const targetLevel = Math.max(1, Math.min(3, (sourceLevel || 1) + levelOffset));
   const eligible = MONS.filter(m => {
+    if (m.penaltyOnly) return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
     const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false;
@@ -1228,7 +1233,8 @@ export function pickTransformMonsterDef(depth, dungeonType = null, sourceLevel =
     }) ?? false;
   });
   const compatible = eligible.filter(m => targetLevel === 1 || m.levels?.[targetLevel - 2]);
-  const base = pick(compatible.length > 0 ? compatible : eligible.length > 0 ? eligible : MONS);
+  const fallback = MONS.filter(m => !m.penaltyOnly);
+  const base = pick(compatible.length > 0 ? compatible : eligible.length > 0 ? eligible : fallback.length > 0 ? fallback : MONS);
   const availableLevel = Math.min(targetLevel, (base.levels?.length || 0) + 1);
   return buildMonStats(base, availableLevel);
 }
