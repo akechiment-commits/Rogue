@@ -1908,7 +1908,6 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const handleConfirmStyle = (style) => {
     if (!GRAPHIC_STYLE_OPTIONS.some(({ id }) => id === style)) return;
     try { localStorage.setItem("roguelike_tileset", style); } catch {}
-    setStyleSetupConfirmed(true);
     updateSave(prev => ({ ...prev, graphicStyle: style, initialSetupComplete: true }));
   };
 
