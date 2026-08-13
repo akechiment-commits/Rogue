@@ -23,8 +23,8 @@ export function pushAnim(event) {
 }
 
 /** プレイヤーのテレポート演出を登録（座標更新は呼び出し側で行う） */
-export function pushPlayerTeleportAnim(fromX, fromY, toX, toY) {
-  if (fromX === toX && fromY === toY) return;
+export function pushPlayerTeleportAnim(fromX, fromY, toX, toY, force = false) {
+  if (!force && fromX === toX && fromY === toY) return;
   pushAnim({ type: "playerTeleport", fromX, fromY, toX, toY });
 }
 

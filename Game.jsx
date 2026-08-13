@@ -864,7 +864,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       flyingItemsRef.current = new Set(_arcs.flat().filter(a => a.itemRef).map(a => a.itemRef));
       renderFrame();
     }
-    if (d.projectiles.length || d.projectileReturns?.length || d.explosions.length || d.splashes?.length || d.damages.length || d.monProjectiles?.length || d.monProjectileReturns?.length || _arcs.length) playAnim(d);
+    if (d.playerKnockback || d.playerTeleport || d.projectiles.length || d.projectileReturns?.length || d.explosions.length || d.splashes?.length || d.damages.length || d.monProjectiles?.length || d.monProjectileReturns?.length || _arcs.length) playAnim(d);
   }, [gs, playAnim, renderFrame]);
   const lu = useCallback((p, ml) => {
     while (p.exp >= p.nextExp) {
@@ -1408,6 +1408,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     return true;
   }, []);
   const chgFloor = useCallback((pl, dir, pitfall = false) => {
+    const _pitfallFromX = pl.x, _pitfallFromY = pl.y;
     const nd = pl.depth + dir;
     if (nd < 1) return null;
     const _maxD = sr.current.maxDepth;
@@ -1488,6 +1489,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       pl.y = _stTarget.y;
     }
     refreshFOV(d, pl);
+    /* 落とし穴・ランダム階層移動は同座標でも、落下してから出現する待機を必ず入れる */
+    if (pitfall) pushPlayerTeleportAnim(_pitfallFromX, _pitfallFromY, pl.x, pl.y, true);
     if (sr.current.dungeonType !== "tutorial") d.nextSpawnTurn = pl.turns + 30;
     d._firstVisit = !_saved;
     sr.current.floorTurns = 0; /* 階層移動でフロアターンをリセット */

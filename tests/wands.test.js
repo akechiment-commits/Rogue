@@ -71,6 +71,12 @@ describe("applyWandEffect", () => {
     expect(drainAnims()).toEqual([]);
   });
 
+  it("階層移動は同じ座標でも落下待機を発行できる", () => {
+    drainAnims();
+    pushPlayerTeleportAnim(5, 5, 5, 5, true);
+    expect(drainAnims()).toContainEqual({ type: "playerTeleport", fromX: 5, fromY: 5, toX: 5, toY: 5 });
+  });
+
   it("魔法無効のモンスターには杖が効かない", () => {
     const mon = { name: "キラープラスター", magicImmune: true, hp: 50, maxHp: 50, x: 6, y: 5 };
     const p = makePlayer();
