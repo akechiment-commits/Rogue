@@ -96,6 +96,8 @@ export function useItemActions({
     const _wasUnknown = !!(_ik_reveal && !sr.current.ident.has(_ik_reveal));
     const _revFake = _wasUnknown ? itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames) : null;
     const _revReal = _wasUnknown ? it.name : null;
+    /* 消費前の表示名を固定する。使用処理の途中で識別状態が変わっても真名を漏らさない。 */
+    const _useItemName = _wasUnknown ? _revFake : dnameRef(it);
     if (it.type === "potion") {
       const _potBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
@@ -117,7 +119,7 @@ export function useItemActions({
           const d = Math.max(1, Math.round(it.value * 0.7));
           p.deathCause = "呪われた回復薬を飲んで";
           p.hp -= d;
-          ml.push(`${it.name}を飲んだ。まずい！${d}ダメージ！【呪】`);
+          ml.push(`${_useItemName}を飲んだ。まずい！${d}ダメージ！【呪】`);
         } else {
           // 通常/祝福：HP回復（祝福=1.5x + 全状態異常回復）
           const h = Math.min(Math.round(it.value * _potBm), p.maxHp - p.hp);
@@ -128,15 +130,15 @@ export function useItemActions({
             if (_isReverseHp) {
               /* 逆転中は最大HPを増やさず、満タン時の回復効果をダメージとして適用 */
               p.hp += _maxHpGain;
-              _hMsg = `${it.name}を飲んだ。HPが最大なので${_maxHpGain}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`;
+              _hMsg = `${_useItemName}を飲んだ。HPが最大なので${_maxHpGain}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`;
             } else {
               p.maxHp += _maxHpGain;
               p.hp += _maxHpGain;
-              _hMsg = `${it.name}を飲んだ。HPが最大なので最大HP+${_maxHpGain}！${it.blessed ? "（祝福）" : ""}`;
+              _hMsg = `${_useItemName}を飲んだ。HPが最大なので最大HP+${_maxHpGain}！${it.blessed ? "（祝福）" : ""}`;
             }
           } else {
             p.hp += h;
-            _hMsg = `${it.name}を飲んだ。HP+${h}${it.blessed ? "（祝福）" : ""}`;
+            _hMsg = `${_useItemName}を飲んだ。HP+${h}${it.blessed ? "（祝福）" : ""}`;
           }
           if (it.blessed) {
             const _cured = [];
@@ -154,22 +156,22 @@ export function useItemActions({
           const _shd = Math.max(1, Math.round(it.value * 0.5));
           p.deathCause = "呪われた超回復薬を飲んで";
           p.hp -= _shd;
-          ml.push(`${it.name}を飲んだ。まずい！${_shd}ダメージ！【呪】`);
+          ml.push(`${_useItemName}を飲んだ。まずい！${_shd}ダメージ！【呪】`);
         } else {
           const _shMult = it.blessed ? 2 : 1;
           const _shHeal = Math.round(it.value * _shMult);
           const _shh = Math.min(_shHeal, p.maxHp - p.hp);
           if (_shh > 0) {
             p.hp += _shh;
-            ml.push(`${it.name}を飲んだ。HP+${_shh}！${it.blessed ? "（祝福）" : ""}`);
+            ml.push(`${_useItemName}を飲んだ。HP+${_shh}！${it.blessed ? "（祝福）" : ""}`);
           } else {
             const _shUp = it.blessed ? 6 : 3;
             if ((p.reverseTurns || 0) > 0) {
               p.hp += _shUp;
-              ml.push(`${it.name}を飲んだ。HPが最大なので${_shUp}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`);
+              ml.push(`${_useItemName}を飲んだ。HPが最大なので${_shUp}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`);
             } else {
               p.maxHp += _shUp; p.hp += _shUp;
-              ml.push(`${it.name}を飲んだ。HPが最大なのでHP最大値+${_shUp}！${it.blessed ? "（祝福）" : ""}`);
+              ml.push(`${_useItemName}を飲んだ。HPが最大なのでHP最大値+${_shUp}！${it.blessed ? "（祝福）" : ""}`);
             }
           }
         }
@@ -180,29 +182,29 @@ export function useItemActions({
           const _hadAtkLoss = !p.poisoned && (p.poisonAtkLoss || 0) > 0;
           if (_hadAtkLoss) clearPlayerPoison(p);
           if (_wasPoison || _hadAtkLoss) {
-            ml.push(`${it.name}を飲んだ。毒が体から消えた！攻撃力も回復！【呪→解毒】`);
+            ml.push(`${_useItemName}を飲んだ。毒が体から消えた！攻撃力も回復！【呪→解毒】`);
           } else {
-            ml.push(`${it.name}を飲んだ。変な味がするが…毒はかかっていなかった。【呪→解毒】`);
+            ml.push(`${_useItemName}を飲んだ。変な味がするが…毒はかかっていなかった。【呪→解毒】`);
           }
         } else if (hasRingEffect(p, "antidote_ring")) {
-          ml.push(`${it.name}を飲んだ。毒を受けたが指輪が毒を消した！`);
+          ml.push(`${_useItemName}を飲んだ。毒を受けたが指輪が毒を消した！`);
         } else {
           // 通常：毒状態を付与。付与時に攻撃力低下、効果中は毎ターンダメージ
           const _poison = applyPlayerPoison(p, { blessed: it.blessed });
           if (it.blessed) {
-            ml.push(`${it.name}を飲んだ。強烈な毒を浴びた！毒状態になり攻撃力が${_poison.atkLoss}下がった！【祝=強毒】`);
+            ml.push(`${_useItemName}を飲んだ。強烈な毒を浴びた！毒状態になり攻撃力が${_poison.atkLoss}下がった！【祝=強毒】`);
           } else {
-            ml.push(`${it.name}を飲んだ。${_poison.atkLoss > 0 ? "毒状態になった！攻撃力が下がった！" : "毒状態が続いている！"}`);
+            ml.push(`${_useItemName}を飲んだ。${_poison.atkLoss > 0 ? "毒状態になった！攻撃力が下がった！" : "毒状態が続いている！"}`);
           }
         }
       } else if (it.effect === "fire") {
         if (!it.cursed && dg.pentacles?.some(pc => pc.kind === "explosion" && pc.cursed)) {
-          ml.push(`${it.name}を飲んだが、呪われた爆発の魔方陣が炎を打ち消した！`);
+          ml.push(`${_useItemName}を飲んだが、呪われた爆発の魔方陣が炎を打ち消した！`);
         } else if (it.cursed) {
           // 呪い：反転→HP回復
           const h = Math.min(it.value, p.maxHp - p.hp);
           p.hp += h;
-          ml.push(`${it.name}を飲んだ。体が温まりHP+${h}回復した！【呪→回復】`);
+          ml.push(`${_useItemName}を飲んだ。体が温まりHP+${h}回復した！【呪→回復】`);
         } else {
           // 通常/祝福：炎ダメージ（祝福=1.5x）
           const rd = Math.max(1, Math.round((it.value + rng(-5, 5)) * _potBm));
@@ -210,27 +212,27 @@ export function useItemActions({
           p.deathCause = "炎の薬を飲んで";
           p.hp -= d;
           ml.push(
-            `${it.name}を飲んだ。体が燃えるように熱い！${d}ダメージ！${fireResistDamageLabel(p)}${it.blessed ? "【祝=強炎】" : ""}`,
+            `${_useItemName}を飲んだ。体が燃えるように熱い！${d}ダメージ！${fireResistDamageLabel(p)}${it.blessed ? "【祝=強炎】" : ""}`,
           );
         }
       } else if (it.effect === "sleep") {
         if (it.cursed) {
           // 呪い：反転→フロア中全ての敵の位置が常に見通せる
           dg.monsterSenseActive = true;
-          ml.push(`${it.name}を飲んだ。幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】`);
+          ml.push(`${_useItemName}を飲んだ。幻覚が見える...フロアの敵が全て見え続ける！【呪→透視】`);
         } else {
           // 通常/祝福：プレイヤーを眠らせる（祝福=2倍ターン）
           const t = statusTurns("sleep", { kind: "player", blessed: !!it.blessed });
           if (
             hasAbility(p.armor, "sleep_proof")
           ) {
-            ml.push(`${it.name}を飲んだ。なんとも無い。(耐眠)`);
+            ml.push(`${_useItemName}を飲んだ。なんとも無い。(耐眠)`);
           } else if ((p.statusImmune || 0) > 0) {
-            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+            ml.push(`${_useItemName}を飲んだ。状態防止中のため効かなかった！`);
           } else {
             p.sleepTurns = (p.sleepTurns || 0) + t;
             ml.push(
-              `${it.name}を飲んだ。眠くなってきた...(${t}ターン)${it.blessed ? "【祝=強眠】" : ""}`,
+              `${_useItemName}を飲んだ。眠くなってきた...(${t}ターン)${it.blessed ? "【祝=強眠】" : ""}`,
             );
           }
         }
@@ -239,29 +241,29 @@ export function useItemActions({
           // 呪い：反転→攻撃力減少
           const _pv = Math.max(1, Math.round(it.value * 0.5));
           p.atk = Math.max(1, p.atk - _pv);
-          ml.push(`${it.name}を飲んだ。力が抜けた...攻撃力-${_pv}【呪】`);
+          ml.push(`${_useItemName}を飲んだ。力が抜けた...攻撃力-${_pv}【呪】`);
         } else {
           // 通常/祝福：攻撃力増加（祝福=1.5x）
           const _pv = Math.max(1, Math.round(it.value * _potBm));
           p.atk += _pv;
-          ml.push(`${it.name}を飲んだ。力が湧いてきた！攻撃力+${_pv}${it.blessed ? "（祝福）" : ""}`);
+          ml.push(`${_useItemName}を飲んだ。力が湧いてきた！攻撃力+${_pv}${it.blessed ? "（祝福）" : ""}`);
         }
       } else if (it.effect === "slow") {
         if (it.cursed) {
           // 呪い：反転→2倍速
           const _ht = statusTurns("haste", { kind: "player" });
           p.hasteTurns = (p.hasteTurns || 0) + _ht;
-          ml.push(`${it.name}を飲んだ。体が軽くなった！(2倍速${_ht}ターン)【呪→加速】`);
+          ml.push(`${_useItemName}を飲んだ。体が軽くなった！(2倍速${_ht}ターン)【呪→加速】`);
         } else {
           // 通常/祝福：鈍足（祝福=2倍ターン）
           const _st = statusTurns("slow", { kind: "player", blessed: !!it.blessed });
           if ((p.statusImmune || 0) > 0) {
-            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+            ml.push(`${_useItemName}を飲んだ。状態防止中のため効かなかった！`);
           } else if (hasAbility(p.armor, "slow_proof")) {
-            ml.push(`${it.name}を飲んだ。しかし防具が鈍足を防いだ！(耐鈍足)`);
+            ml.push(`${_useItemName}を飲んだ。しかし防具が鈍足を防いだ！(耐鈍足)`);
           } else {
             p.slowTurns = (p.slowTurns || 0) + _st;
-            ml.push(`${it.name}を飲んだ。体が重くなった...(鈍足${_st}ターン)${it.blessed ? "【祝=強鈍】" : ""}`);
+            ml.push(`${_useItemName}を飲んだ。体が重くなった...(鈍足${_st}ターン)${it.blessed ? "【祝=強鈍】" : ""}`);
           }
         }
       } else if (it.effect === "confuse") {
@@ -270,33 +272,33 @@ export function useItemActions({
           p.confusedTurns = 0;
           const _sh = statusTurns("sureHit", { kind: "player" });
           p.sureHitTurns = (p.sureHitTurns || 0) + _sh;
-          ml.push(`${it.name}を飲んだ。頭が冴えた！混乱が消え、必中状態になった！(${_sh}ターン)【呪→必中】`);
+          ml.push(`${_useItemName}を飲んだ。頭が冴えた！混乱が消え、必中状態になった！(${_sh}ターン)【呪→必中】`);
         } else if ((p.statusImmune || 0) > 0) {
-          ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+          ml.push(`${_useItemName}を飲んだ。状態防止中のため効かなかった！`);
         } else if (hasAbility(p.armor, "confuse_proof")) {
-          ml.push(`${it.name}を飲んだ。しかし防具が混乱を防いだ！(耐混乱)`);
+          ml.push(`${_useItemName}を飲んだ。しかし防具が混乱を防いだ！(耐混乱)`);
         } else {
           // 通常/祝福：混乱（祝福=2倍ターン）
           const _cturns = statusTurns("confuse", { kind: "player", blessed: !!it.blessed });
           p.confusedTurns = (p.confusedTurns || 0) + _cturns;
-          ml.push(`${it.name}を飲んだ。頭がくらくらする！(混乱${p.confusedTurns}ターン)${it.blessed ? "【祝=強混乱】" : ""}`);
+          ml.push(`${_useItemName}を飲んだ。頭がくらくらする！(混乱${p.confusedTurns}ターン)${it.blessed ? "【祝=強混乱】" : ""}`);
         }
       } else if (it.effect === "paralyze") {
         if (it.cursed) {
           // 呪い→状態異常防止
           const _si = statusTurns("statusImmune", { kind: "player" });
           p.statusImmune = (p.statusImmune || 0) + _si;
-          ml.push(`${it.name}を飲んだ。状態異常を防ぐ力が宿った！(${_si}ターン)【呪→状態防止】`);
+          ml.push(`${_useItemName}を飲んだ。状態異常を防ぐ力が宿った！(${_si}ターン)【呪→状態防止】`);
         } else {
           // 通常/祝福：金縛り（祝福=2倍ターン）
           if ((p.statusImmune || 0) > 0) {
-            ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+            ml.push(`${_useItemName}を飲んだ。状態防止中のため効かなかった！`);
           } else if (hasAbility(p.armor, "paralyze_proof")) {
-            ml.push(`${it.name}を飲んだ。しかし防具が金縛りを防いだ！(耐金縛り)`);
+            ml.push(`${_useItemName}を飲んだ。しかし防具が金縛りを防いだ！(耐金縛り)`);
           } else {
             const _pt = statusTurns("paralyze", { kind: "player", blessed: !!it.blessed });
             p.paralyzeTurns = _pt;
-            ml.push(`${it.name}を飲んだ。体が動かない！(${_pt}ターン金縛り)${it.blessed ? "【祝=強金縛り】" : ""}`);
+            ml.push(`${_useItemName}を飲んだ。体が動かない！(${_pt}ターン金縛り)${it.blessed ? "【祝=強金縛り】" : ""}`);
           }
         }
       } else if (it.effect === "mana") {
@@ -304,9 +306,9 @@ export function useItemActions({
           // 呪い：反転→MP封印
           const _mt = statusTurns("mpCooldown", { kind: "player" });
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
-          ml.push(`${it.name}を飲んだ。魔力が封じられた！(MP封印${_mt}ターン)【呪】`);
+          ml.push(`${_useItemName}を飲んだ。魔力が封じられた！(MP封印${_mt}ターン)【呪】`);
         } else if ((p.mpCooldownTurns || 0) > 0) {
-          ml.push(`${it.name}を飲んだ。MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
+          ml.push(`${_useItemName}を飲んだ。MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
         } else {
           // 通常/祝福：MP回復（祝福=1.5x）。MP最大時は最大MP増加
           const _madd = Math.min(Math.round(it.value * _potBm), (p.maxMp || 20) - (p.mp || 0));
@@ -314,22 +316,22 @@ export function useItemActions({
             const _maxMpGain = it.blessed ? 2 : 1;
             p.maxMp = (p.maxMp || 20) + _maxMpGain;
             p.mp = (p.mp || 0) + _maxMpGain;
-            ml.push(`${it.name}を飲んだ。MPが最大なので最大MP+${_maxMpGain}！${it.blessed ? "（祝福）" : ""}`);
+            ml.push(`${_useItemName}を飲んだ。MPが最大なので最大MP+${_maxMpGain}！${it.blessed ? "（祝福）" : ""}`);
           } else {
             p.mp = (p.mp || 0) + _madd;
-            ml.push(`${it.name}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
+            ml.push(`${_useItemName}を飲んだ。MP+${_madd}${it.blessed ? "（祝福）" : ""}`);
           }
         }
       } else if (it.effect === "seal") {
         if (it.cursed) {
           // 呪い：MP封印解除
           p.mpCooldownTurns = 0;
-          ml.push(`${it.name}を飲んだ。MP封印が解けた！【呪→解封】`);
+          ml.push(`${_useItemName}を飲んだ。MP封印が解けた！【呪→解封】`);
         } else {
           // 通常/祝福：MP封印（祝福：さらに鈍足）
           const _mt = statusTurns("mpCooldown", { kind: "player", blessed: !!it.blessed });
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
-          let _seMsg = `${it.name}を飲んだ。魔力が封じられた！(MP封印${_mt}ターン)${it.blessed ? "（祝福）" : ""}`;
+          let _seMsg = `${_useItemName}を飲んだ。魔力が封じられた！(MP封印${_mt}ターン)${it.blessed ? "（祝福）" : ""}`;
           if (it.blessed) {
             if (hasAbility(p.armor, "slow_proof")) {
               _seMsg += " 鈍足は防具が防いだ！(耐鈍足)";
@@ -345,35 +347,35 @@ export function useItemActions({
         if (it.cursed) {
           const _ms = statusTurns("monsterSense", { kind: "player" });
           p.monsterSenseTurns = (p.monsterSenseTurns || 0) + _ms;
-          ml.push(`${it.name}を飲んだ。フロアのモンスターが感知できる！(${_ms}ターン)【呪→感知】`);
+          ml.push(`${_useItemName}を飲んだ。フロアのモンスターが感知できる！(${_ms}ターン)【呪→感知】`);
         } else if (hasAbility(p.armor, "darkness_proof")) {
-          ml.push(`${it.name}を飲んだ。しかし防具が暗闇を防いだ！(耐暗闇)`);
+          ml.push(`${_useItemName}を飲んだ。しかし防具が暗闇を防いだ！(耐暗闇)`);
         } else if ((p.statusImmune || 0) > 0) {
-          ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+          ml.push(`${_useItemName}を飲んだ。状態防止中のため効かなかった！`);
         } else {
           const _dt = statusTurns("darkness", { kind: "player", blessed: !!it.blessed });
           p.darknessTurns = (p.darknessTurns || 0) + _dt;
-          ml.push(`${it.name}を飲んだ。暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${it.blessed ? "【祝=強暗闇】" : ""}`);
+          ml.push(`${_useItemName}を飲んだ。暗闇に包まれた！視界が1マスになる！(${p.darknessTurns}ターン)${it.blessed ? "【祝=強暗闇】" : ""}`);
         }
       } else if (it.effect === "bewitch") {
         if (it.cursed) {
           dg.traps.forEach(t => t.revealed = true);
-          ml.push(`${it.name}を飲んだ。フロアの罠が全て見えた！【呪→罠看破】`);
+          ml.push(`${_useItemName}を飲んだ。フロアの罠が全て見えた！【呪→罠看破】`);
         } else if (hasAbility(p.armor, "bewitch_proof")) {
-          ml.push(`${it.name}を飲んだ。しかし防具が幻惑を防いだ！(耐惑わし)`);
+          ml.push(`${_useItemName}を飲んだ。しかし防具が幻惑を防いだ！(耐惑わし)`);
         } else if ((p.statusImmune || 0) > 0) {
-          ml.push(`${it.name}を飲んだ。状態防止中のため効かなかった！`);
+          ml.push(`${_useItemName}を飲んだ。状態防止中のため効かなかった！`);
         } else {
           const _bt = statusTurns("bewitch", { kind: "player", blessed: !!it.blessed });
           p.bewitchedTurns = (p.bewitchedTurns || 0) + _bt;
-          ml.push(`${it.name}を飲んだ。幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${it.blessed ? "【祝=強幻惑】" : ""}`);
+          ml.push(`${_useItemName}を飲んだ。幻惑された！周囲の見た目がおかしくなった！(${p.bewitchedTurns}ターン)${it.blessed ? "【祝=強幻惑】" : ""}`);
         }
       } else if (it.effect === "levelup") {
         if (it.cursed) {
           // 呪い：1階上へワープ（1階なら効果なし）
           if (p.depth <= 1) {
             if (onReturnToHub) {
-              ml.push(`${it.name}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
+              ml.push(`${_useItemName}を飲んだ。天井を突き破って地上へ飛ばされた！【呪】`);
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
               sr.current = { ...sr.current };
               clearGameSave();
@@ -382,10 +384,10 @@ export function useItemActions({
               onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalP });
               return;
             } else {
-              ml.push(`${it.name}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
+              ml.push(`${_useItemName}を飲んだ。ここは1階だ。何も起こらなかった。【呪】`);
             }
           } else {
-            ml.push(`${it.name}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
+            ml.push(`${_useItemName}を飲んだ。天井を突き破って上の階へ飛ばされた！【呪】`);
             const _luNd = chgFloor(p, -1, true);
             if (_luNd) sr.current.dungeon = _luNd;
           }
@@ -395,7 +397,7 @@ export function useItemActions({
             p.exp = p.nextExp;
             lu(p, ml);
           }
-          ml.push(`${it.name}を飲んだ。${it.blessed ? "【祝=2レベルアップ】" : ""}`);
+          ml.push(`${_useItemName}を飲んだ。${it.blessed ? "【祝=2レベルアップ】" : ""}`);
         }
       }
       if (floorPotRef?.current === true) {
@@ -420,7 +422,7 @@ export function useItemActions({
         const _yabaiDmg = rng(15, 25);
         p.deathCause = "ヤバイ食料を食べて";
         p.hp -= _yabaiDmg;
-        ml.push(`${it.name}を食べた。(満腹度+${_yabaiAdded})`);
+        ml.push(`${_useItemName}を食べた。(満腹度+${_yabaiAdded})`);
         ml.push(`ヤバすぎる！${_yabaiDmg}ダメージ！`);
         if (hasRingEffect(p, "antidote_ring")) {
           ml.push("毒消しの指輪が毒を防いだ！");
@@ -452,7 +454,7 @@ export function useItemActions({
         const _rotDmg = rng(5, 10);
         p.deathCause = "腐った食料を食べて";
         p.hp -= _rotDmg;
-        ml.push(`${it.name}を食べた。(満腹度+${_rotAdded})`);
+        ml.push(`${_useItemName}を食べた。(満腹度+${_rotAdded})`);
         ml.push(`腐っていた！${_rotDmg}ダメージを受けた！`);
         if (hasRingEffect(p, "antidote_ring")) {
           ml.push("毒消しの指輪が毒を防いだ！");
@@ -468,7 +470,7 @@ export function useItemActions({
       p.hunger = Math.min(p.maxHunger, p.hunger + _foodVal);
       if (p.hunger > 0) delete p._hungerDmgStarted;
       ml.push(
-        `${it.name}を食べた。(満腹度+${_foodAdded})${it.blessed ? "（祝福：よく味わえた）" : it.cursed ? "（呪い：まずかった）" : ""}`,
+        `${_useItemName}を食べた。(満腹度+${_foodAdded})${it.blessed ? "（祝福：よく味わえた）" : it.cursed ? "（呪い：まずかった）" : ""}`,
       );
       const fe = it.effect;
       /* 大きさによる効果 tier: 極小/一口=0, 小/小盛=1, 普通=2, 大/大盛=3, 特大/特盛=4, 超特大/爆盛=5 */
@@ -1661,7 +1663,7 @@ export function useItemActions({
       }
     } else if (it.type === "pen") {
       if ((it.charges || 0) <= 0) {
-        ml.push(`${it.name}のインクが尽きている。充填の大箱で補充できる。`);
+        ml.push(`${dnameRef(it)}のインクが尽きている。充填の大箱で補充できる。`);
         endTurn(sr.current, p, ml);
         setMsgs((prev) => [...prev.slice(-80), ...ml]);
         setSelIdx(null); setShowDesc(null); setShowInv(false);
@@ -2230,6 +2232,7 @@ export function useItemActions({
     const _wasUnknown = !!(_sbIK && !sr.current.ident.has(_sbIK));
     const _revFake = _wasUnknown ? itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames) : null;
     const _revReal = _wasUnknown ? it.name : null;
+    const _bookName = _wasUnknown ? _revFake : dnameRef(it);
     /* 識別 */
     if (_sbIK && _wasUnknown) { sr.current.ident.add(_sbIK); trackItem(it); }
     if (it.cursed) {
@@ -2242,18 +2245,18 @@ export function useItemActions({
       });
       p.inventory.splice(idx, 1);
       if (_candidates.length === 0) {
-        ml.push(`${it.name}を読んだが、呪いで魔力が乱れ何も起きなかった。【呪】`);
+        ml.push(`${_bookName}を読んだが、呪いで魔力が乱れ何も起きなかった。【呪】`);
       } else {
         const _tgt = pick(_candidates);
         if (p.spells.includes(_tgt.id)) {
           const _curLv = p.spellLevels[_tgt.id] || 1;
           const _newLv = _curLv + 1;
           p.spellLevels[_tgt.id] = _newLv;
-          ml.push(`${it.name}を読んだ。呪いで魔力が乱れ「${_tgt.name}」がレベルアップした！(Lv.${_newLv})【呪】`);
+          ml.push(`${_bookName}を読んだ。呪いで魔力が乱れ「${_tgt.name}」がレベルアップした！(Lv.${_newLv})【呪】`);
         } else {
           p.spells = [...p.spells, _tgt.id];
           p.spellLevels[_tgt.id] = 1;
-          ml.push(`${it.name}を読んだ。呪いで魔力が乱れ「${_tgt.name}」を習得した！(Lv.1)【呪】`);
+          ml.push(`${_bookName}を読んだ。呪いで魔力が乱れ「${_tgt.name}」を習得した！(Lv.1)【呪】`);
         }
       }
     } else if (p.spells.includes(it.spell)) {
@@ -2274,7 +2277,7 @@ export function useItemActions({
         p.spellLevels[it.spell] = _newLv;
         p.inventory.splice(idx, 1);
         const _newCost = _spellCost(spellDef, _newLv);
-        ml.push(`${it.name}を読んだ。「${_spName}」がレベルアップ！(Lv.${_newLv} 消費MP:${_newCost})${it.blessed ? "【祝】" : ""}`);
+        ml.push(`${_bookName}を読んだ。「${_spName}」がレベルアップ！(Lv.${_newLv} 消費MP:${_newCost})${it.blessed ? "【祝】" : ""}`);
       }
     } else {
       // 未習得 → 習得（祝福ならLv.2から）
@@ -2288,7 +2291,7 @@ export function useItemActions({
         ? Math.max(1, Math.round(sd.mpCost * (1 - (lv - 1) * 0.15)))
         : (sd?.mpCost ?? 1);
       const _initCost = _spellCostInit(spellDef, _startLv);
-      ml.push(`${it.name}を読んだ。「${spellDef ? spellDef.name : it.spell}」を習得した！(Lv.${_startLv} 消費MP:${_initCost})${it.blessed ? "【祝】" : ""}`);
+      ml.push(`${_bookName}を読んだ。「${spellDef ? spellDef.name : it.spell}」を習得した！(Lv.${_startLv} 消費MP:${_initCost})${it.blessed ? "【祝】" : ""}`);
     }
     setShowInv(false); setSelIdx(null); setShowDesc(null);
     endTurn(sr.current, p, ml);

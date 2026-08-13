@@ -3724,7 +3724,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           const before = item.plus || 0;
           item.plus = before + 1;
           const fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
-          ml.push(`${item.name}が強化された！(${fp(before)}→${fp(item.plus)})`);
+          ml.push(`${_idn}が強化された！(${fp(before)}→${fp(item.plus)})`);
         } else if (item.type === "pot") {
           item.capacity = (item.capacity || 1) + 1;
           ml.push(`${_idn}の容量が1増えた！(${item.capacity})`);
@@ -3791,10 +3791,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } else if (item.type === "marker") {
           const add = rng(1, 2);
           item.charges = (item.charges || 0) + add;
-          ml.push(`${item.name}のインクが${add}回分補充された！(${item.charges}回)`);
+          ml.push(`${_idn}のインクが${add}回分補充された！(${item.charges}回)`);
         } else if (item.type === "pen") {
           item.charges = (item.charges || 0) + 1;
-          ml.push(`${item.name}のインクが1回分補充された！(${item.charges}回)`);
+          ml.push(`${_idn}のインクが1回分補充された！(${item.charges}回)`);
         } else {
           ml.push(`${_idn}には効果がなかった。`);
         }

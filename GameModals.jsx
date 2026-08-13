@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
@@ -828,19 +828,24 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     const _absIdx = _idPage_ui * 10 + _vi;
     const { it: _selIt } = _filtered[_absIdx] ?? {};
     if (!_selIt) return;
+    /* 操作で識別状態が変わる前の、プレイヤー向け表示名を固定する。 */
+    const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     /* ===== 大箱ターゲット処理 ===== */
     if (_selIt._isBbTarget) {
       const _bb = sr.current.dungeon?.bigboxes?.find(b => b.id === _selIt._bbId);
       let _bbMsg = "";
       if (_bb) {
         const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
+        const _bbDN = (_bb.revealed || sr.current.allBcKnown || mode.mode === 'identify')
+          ? _bb.name
+          : (sr.current.bbFakeNames?.[_bb.kind] || "謎の大箱");
         if (mode.mode === 'identify') {
           _bb.revealed = true; trackBigbox(_bb);
           _bbMsg = `大箱「${_bb.name}」の正体が明らかになった！`;
         } else if (mode.mode === 'duplicate') {
           if (mode.cursed) {
             sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
-            _bbMsg = `${_bb.name}が消えてしまった！【呪】`;
+            _bbMsg = `${_bbDN}が消えてしまった！【呪】`;
           } else {
             const _dg_bb = sr.current.dungeon;
             let _dupPlaced = false;
@@ -851,7 +856,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
                 if (mode.blessed) { trackBigbox(_newBb); }
                 _dg_bb.bigboxes.push(_newBb);
                 _dupPlaced = true;
-                _bbMsg = mode.blessed ? `祝福された${_bb.name}が隣に現れた！【祝】` : `${_bb.name}の複製が隣に現れた！`;
+                _bbMsg = mode.blessed ? `祝福された${_bbDN}が隣に現れた！【祝】` : `${_bbDN}の複製が隣に現れた！`;
                 break;
               }
             }
@@ -863,16 +868,19 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           const _earnedG = mode.blessed ? _baseG * 2 : mode.cursed ? Math.floor(_baseG / 2) : _baseG;
           sr.current.player.gold = (sr.current.player.gold || 0) + _earnedG;
           sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
-          _bbMsg = mode.blessed ? `${_bb.name}を${_earnedG}Gで換金した！（2倍）【祝】`
-                 : mode.cursed  ? `${_bb.name}を${_earnedG}Gで換金した…（半額）【呪】`
-                                : `${_bb.name}を${_earnedG}Gで換金した！`;
+          _bbMsg = mode.blessed ? `${_bbDN}を${_earnedG}Gで換金した！（2倍）【祝】`
+                 : mode.cursed  ? `${_bbDN}を${_earnedG}Gで換金した…（半額）【呪】`
+                                : `${_bbDN}を${_earnedG}Gで換金した！`;
         } else if (mode.mode === 'transform_item' || mode.mode === 'forge_item') {
           const _otherBbs = BB_TYPES.filter(t => t.kind !== _bb.kind);
           const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
           if (_newBbT) {
-            const _oldBbName = _bb.name;
+            const _oldBbName = _bbDN;
             _bb.kind = _newBbT.kind; _bb.name = _newBbT.name; _bb.capacity = _newBbT.cap(); _bb.contents = []; _bb.revealed = false;
-            _bbMsg = `${_oldBbName}が${_newBbT.name}に変わった！`;
+            const _newBbName = mode.blessed || sr.current.allBcKnown
+              ? _newBbT.name
+              : (sr.current.bbFakeNames?.[_newBbT.kind] || "謎の大箱");
+            _bbMsg = `${_oldBbName}が${_newBbName}に変わった！`;
           } else { _bbMsg = "変化しなかった。"; }
         } else if (mode.mode === 'pot_extract') {
           const _extBbItems = [...(_bb.contents || [])];
@@ -881,15 +889,15 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           for (const _ci of _extBbItems) placeItemAt(sr.current.dungeon, sr.current.player.x, sr.current.player.y, _ci, [], _extBbFts);
           if (mode.cursed) {
             sr.current.dungeon.bigboxes = sr.current.dungeon.bigboxes.filter(b => b.id !== _bb.id);
-            _bbMsg = `${_bb.name}の中身を吸い出した！大箱は壊れた！【呪】`;
+            _bbMsg = `${_bbDN}の中身を吸い出した！大箱は壊れた！【呪】`;
           } else {
             if (mode.blessed) _bb.capacity = (_bb.capacity || 1) + 1;
             _bbMsg = _extBbItems.length > 0
-              ? `${_bb.name}から${_extBbItems.map(c => c.name).join('、')}が出た！${mode.blessed ? '（容量+1）【祝】' : ''}`
-              : `${_bb.name}は空だった。${mode.blessed ? '（容量+1）【祝】' : ''}`;
+              ? `${_bbDN}から${_extBbItems.map(c => itemDisplayName(c, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)).join('、')}が出た！${mode.blessed ? '（容量+1）【祝】' : ''}`
+              : `${_bbDN}は空だった。${mode.blessed ? '（容量+1）【祝】' : ''}`;
           }
         } else if (mode.mode === 'weapon_up' || mode.mode === 'armor_up') {
-          _bbMsg = `${_bb.name}には効果がなかった。巻物は消えた。`;
+          _bbMsg = `${_bbDN}には効果がなかった。巻物は消えた。`;
         }
       }
       if (mode.identKey) { const _scrWasUnk = !sr.current.ident.has(mode.identKey); sr.current.ident.add(mode.identKey); if (_scrWasUnk && mode.scrollIdx != null) { const _sc = sr.current.player.inventory[mode.scrollIdx]; if (_sc) trackItem(_sc); } }
@@ -929,9 +937,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         if (mode.scrollIdx != null && _rmIdx_sell < mode.scrollIdx) mode.scrollIdx--;
       }
       _p_sell.gold = (_p_sell.gold || 0) + _earned;
-      _msgResult = mode.blessed ? `${_selIt.name}を${_earned}Gで換金した！（2倍）【祝】`
-                : mode.cursed  ? `${_selIt.name}を${_earned}Gで換金した…（半額）【呪】`
-                                : `${_selIt.name}を${_earned}Gで換金した！`;
+      _msgResult = formatSoldItemMessage(_selIt, _earned, mode.blessed, mode.cursed,
+        (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames));
     } else if (mode.mode === 'transform_item') {
       /* ===== 変換の巻物 ===== */
       const _p_tsf = sr.current.player;
@@ -967,9 +974,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           // splice(idx, 1, newItem) は置換なので配列長は変わらず scrollIdx の調整不要
         }
         const _newItDN = itemDisplayName(_newIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-        _msgResult = mode.blessed ? `${_selIt.name}が${_newItDN}に変わった！【祝】`
-                   : mode.cursed  ? `${_selIt.name}が${_newItDN}に変わってしまった…【呪】`
-                                  : `${_selIt.name}が${_newItDN}に変わった！`;
+        _msgResult = mode.blessed ? `${_selItDN}が${_newItDN}に変わった！【祝】`
+                   : mode.cursed  ? `${_selItDN}が${_newItDN}に変わってしまった…【呪】`
+                                  : `${_selItDN}が${_newItDN}に変わった！`;
       } else {
         _msgResult = "変換できるアイテムがなかった。";
       }
@@ -1003,11 +1010,11 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         } else {
           _selIt.plus = _bef + _gain;
           const _glow = _gain > 0 ? "輝いた" : "くすんだ";
-          _msgResult = `${_selIt.name}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
+          _msgResult = `${_selItDN}が${_glow}！(${_fp(_bef)}→${_fp(_selIt.plus)})${_sfx}`;
           if (_gain > 0 && _selIt.cursed) { _selIt.cursed = false; _msgResult += " 呪いが解けた！"; }
         }
       } else {
-        _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
+        _msgResult = `${_selItDN}には効果がなかった。巻物は消えた。`;
       }
       const _rmIdx_up = _p_up.inventory.findIndex((_, _ri) => _ri === mode.scrollIdx);
       if (_rmIdx_up !== -1) _p_up.inventory.splice(_rmIdx_up, 1);
@@ -1036,11 +1043,11 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         if (!_selIt.ability) _selIt.ability = _newAb.id;
         if (_newAb.id === "pickaxe" && _selIt.durability == null) _selIt.durability = 30;
         _selIt.fullIdent = true;
-        _msgResult = mode.blessed ? `${_selIt.name}に「${_newAb.name}」が宿った！【祝】`
-                   : mode.cursed  ? `${_selIt.name}に「${_newAb.name}」が刻まれてしまった…【呪】`
-                                  : `${_selIt.name}に「${_newAb.name}」が宿った！`;
+        _msgResult = mode.blessed ? `${_selItDN}に「${_newAb.name}」が宿った！【祝】`
+                   : mode.cursed  ? `${_selItDN}に「${_newAb.name}」が刻まれてしまった…【呪】`
+                                  : `${_selItDN}に「${_newAb.name}」が宿った！`;
       } else {
-        _msgResult = `${_selIt.name}はもうこれ以上能力を宿せない。`;
+        _msgResult = `${_selItDN}はもうこれ以上能力を宿せない。`;
       }
     } else if (mode.mode === 'pot_extract') {
       /* ===== 吸い出しの巻物 ===== */
@@ -1077,14 +1084,14 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _p_dup = sr.current.player;
       if (_dupCount === 0) {
         if (_selIt.type === "goal") {
-          _msgResult = `${_selIt.name}は呪いに耐えた！【呪】`;
+          _msgResult = `${_selItDN}は呪いに耐えた！【呪】`;
         } else {
           const _rmIdx = _p_dup.inventory.indexOf(_selIt);
           if (_rmIdx !== -1) {
             _p_dup.inventory.splice(_rmIdx, 1);
             if (mode.scrollIdx != null && _rmIdx < mode.scrollIdx) mode.scrollIdx--;
           }
-          _msgResult = `${_selIt.name}が消えてしまった！【呪】`;
+          _msgResult = `${_selItDN}が消えてしまった！【呪】`;
         }
       } else {
         const _makeFreshM = () => {

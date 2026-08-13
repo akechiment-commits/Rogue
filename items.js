@@ -96,8 +96,8 @@ function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
     if (_next.dg.monsters?.some(m => m.x === _next.portal.x && m.y === _next.portal.y)) continue;
     const _crossFloor = _next.dg !== dg;
     ml.push(_crossFloor
-      ? `${item.name}が${portal.name}に吸い込まれて地下${_next.depth}階の${_next.portal.name}から出てきた！`
-      : `${item.name}が${portal.name}に吸い込まれて${_next.portal.name}から出てきた！`);
+      ? `${resolveItemName(item)}が${portal.name}に吸い込まれて地下${_next.depth}階の${_next.portal.name}から出てきた！`
+      : `${resolveItemName(item)}が${portal.name}に吸い込まれて${_next.portal.name}から出てきた！`);
     return placeItemAt(_next.dg, _next.portal.x, _next.portal.y, item, ml, ft, dep + 1, p, _next.portal.x, _next.portal.y, true);
   }
   return null;
@@ -223,6 +223,17 @@ export function resolveItemName(it, nameFn = null) {
     try { return globalThis.__rogueItemNameFn(it); } catch (_) { /* fall through */ }
   }
   return it.name || "?";
+}
+
+/**
+ * 売却の巻物の結果メッセージ。未識別アイテムは、確定処理で識別状態を
+ * 変える前に渡された表示名解決関数で表示する。
+ */
+export function formatSoldItemMessage(item, earned, blessed = false, cursed = false, nameFn = null) {
+  const name = resolveItemName(item, nameFn);
+  if (blessed) return `${name}を${earned}Gで換金した！（2倍）【祝】`;
+  if (cursed) return `${name}を${earned}Gで換金した…（半額）【呪】`;
+  return `${name}を${earned}Gで換金した！`;
 }
 
 /**
@@ -732,7 +743,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
       const _g = rng(1, 2);
       item.plus = (item.plus || 0) + _g;
-      ml.push(`${item.name}が強化された！(+${item.plus})`);
+      ml.push(`${resolveItemName(item, nameFn)}が強化された！(+${item.plus})`);
       return;
     }
     ml.push(`${_in}を${_pn}に入れた。効果はなかった。`);
@@ -743,7 +754,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
       const _d = rng(1, 2);
       item.plus = (item.plus || 0) - _d;
       const _ps = item.plus;
-      ml.push(`${item.name}が劣化した！(${_ps >= 0 ? "+" : ""}${_ps})`);
+      ml.push(`${resolveItemName(item, nameFn)}が劣化した！(${_ps >= 0 ? "+" : ""}${_ps})`);
       return;
     }
     ml.push(`${_in}を${_pn}に入れた。`);
@@ -3386,7 +3397,7 @@ export function burnFoodItem(item, ml) {
 }
 
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
-  const _dn = dnFn ? dnFn(item) : item.name;
+  const _dn = dnFn ? dnFn(item) : resolveItemName(item);
   if (eff === "water" && item.type === "food") {
     restoreFoodWithWater(item, ml);
     return;
@@ -3545,7 +3556,7 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
 }
 
 export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
-  const _dn = (it) => dnFn ? dnFn(it) : it.name;
+  const _dn = (it) => dnFn ? dnFn(it) : resolveItemName(it);
   spr.contents = spr.contents || [];
   if (item.type === "bottle") {
     const wb = { ...WATER_BOTTLE, id:uid() };
