@@ -75,6 +75,7 @@ import { createRunTimer } from "./runTimer.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
+import { getPlayerStairBlockMessage } from "./stairRules.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "" } = {}) {
   const [gs, setGs] = useState(null);
@@ -2746,7 +2747,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } else ml.push("矢を装備していない。");
       } else if (type === "stairs_down") {
         if (dg.map[p.y][p.x] === T.SD) {
-          if (isPlayerFloating(p, dg)) {
+          const _stairBlock = getPlayerStairBlockMessage(p);
+          if (_stairBlock) {
+            ml.push(_stairBlock);
+          } else if (isPlayerFloating(p, dg)) {
             ml.push("浮遊しているので階段を降りられない！");
           } else {
             doStair(1);
@@ -2754,7 +2758,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         } else ml.push("ここに下り階段はない。");
       } else if (type === "stairs_up") {
         if (dg.map[p.y][p.x] === T.SU) {
-          if (p.depth === 1) {
+          const _stairBlock = getPlayerStairBlockMessage(p);
+          if (_stairBlock) {
+            ml.push(_stairBlock);
+          } else if (p.depth === 1) {
             if (onReturnToHub) {
               requestExitToHub(ml);
               sr.current = { ...st }; setGs({ ...st });
@@ -2767,13 +2774,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else if (type === "interact") {
         /* 足元の階段チェック */
         if (dg.map[p.y][p.x] === T.SD) {
-          if (isPlayerFloating(p, dg)) {
+          const _stairBlock = getPlayerStairBlockMessage(p);
+          if (_stairBlock) {
+            ml.push(_stairBlock);
+          } else if (isPlayerFloating(p, dg)) {
             ml.push("浮遊しているので階段を降りられない！");
           } else {
             doStair(1);
           }
         } else if (dg.map[p.y][p.x] === T.SU) {
-          if (p.depth === 1) {
+          const _stairBlock = getPlayerStairBlockMessage(p);
+          if (_stairBlock) {
+            ml.push(_stairBlock);
+          } else if (p.depth === 1) {
             if (onReturnToHub) {
               requestExitToHub(ml);
               sr.current = { ...st }; setGs({ ...st });
