@@ -22,6 +22,8 @@ describe("アイテムモドキ", () => {
       x: 5,
       y: 5,
     });
+    expect(dg.items[0].tile).not.toBe(167);
+    expect(dg.items[0].disguiseTile).toBe(dg.items[0].tile);
     expect(monsterAt(dg, 5, 5)).toBeUndefined();
   });
 
@@ -44,6 +46,20 @@ describe("アイテムモドキ", () => {
     expect(monsterAt(dg, 5, 5)).toBe(mimic);
     expect(player.hp).toBeLessThan(100);
     expect(messages.join(" ")).toContain("正体を現した");
+  });
+
+  it("離れたマスへ踏み込もうとした時もプレイヤーを移動させず正体を現す", () => {
+    const base = MONS.find((m) => m.baseKind === "itemMimic");
+    const mimic = makeMonsterFromBase(base, 1, 6, 5, { aware: true });
+    const player = makePlayer({ x: 5, y: 5, def: 0 });
+    const dg = makeEmptyDg({ rooms: [], monsters: [mimic] });
+    const messages = [];
+    monsterAI(mimic, dg, player, messages, { moveOnly: true });
+
+    expect(revealItemMimicAt(dg, 6, 5, player, messages)).toBe(true);
+    expect(player).toMatchObject({ x: 5, y: 5 });
+    expect(mimic).toMatchObject({ x: 6, y: 5, disguisedAsItem: false });
+    expect(player.hp).toBeLessThan(100);
   });
 
   it("炎や爆発で偽アイテムが消えると、本体も残らない", () => {

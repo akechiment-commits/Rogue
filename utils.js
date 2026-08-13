@@ -201,6 +201,19 @@ export function shuffle(arr, randomFn = Math.random) {
  * 吹き飛ばし・引き寄せで一時的に床から外す場合だけ保持できる。 */
 export const ITEM_MIMIC_ITEM_TYPE = "item_mimic";
 
+/* 偽アイテムに使う、実際に床で見かけるアイテムのタイル群。
+ * 画像だけを借りるため、正体を現すまでは元アイテムの効果や種別は持たせない。 */
+const ITEM_MIMIC_DISGUISE_TILES = [
+  16, 17, 18, 19, 20, 21, 22, 23, 24,
+  32, 41, 42, 43, 60, 66,
+  87, 88, 89, 90, 91, 92, 101, 102,
+  184, 185, 186, 187, 188, 189, 190, 191, 192, 193,
+];
+
+function pickItemMimicDisguiseTile() {
+  return ITEM_MIMIC_DISGUISE_TILES[Math.floor(Math.random() * ITEM_MIMIC_DISGUISE_TILES.length)];
+}
+
 export function destroyItemMimicFloorItem(dg, item) {
   if (!dg || !item?.itemMimicId) return;
   const mimic = dg.monsters?.find(m => m.id === item.itemMimicId);
@@ -221,11 +234,13 @@ export function ensureItemMimicFloorItems(dg) {
     const itemId = mimic.disguiseItemId || `item-mimic-${mimic.id}`;
     let item = dg.items.find(i => i.itemMimicId === mimic.id || i.id === itemId);
     if (!item) {
+      const disguiseTile = mimic.disguiseTile || pickItemMimicDisguiseTile();
       item = {
         id: itemId,
         name: "アイテムモドキ",
         type: ITEM_MIMIC_ITEM_TYPE,
-        tile: mimic.tile,
+        tile: disguiseTile,
+        disguiseTile,
         x: mimic.x,
         y: mimic.y,
         discovered: true,
@@ -233,14 +248,16 @@ export function ensureItemMimicFloorItems(dg) {
       };
       dg.items.unshift(item);
     } else {
+      if (!item.disguiseTile) item.disguiseTile = mimic.disguiseTile || pickItemMimicDisguiseTile();
       item.itemMimicId = mimic.id;
       item.type = ITEM_MIMIC_ITEM_TYPE;
       item.name = "アイテムモドキ";
-      item.tile = mimic.tile;
+      item.tile = item.disguiseTile;
       /* 杖などで床アイテムが移動した場合はアイテム側を正とする。 */
       mimic.x = item.x;
       mimic.y = item.y;
     }
+    mimic.disguiseTile = item.disguiseTile;
     mimic.disguiseItemId = item.id;
     activeIds.add(item.id);
   }

@@ -2127,7 +2127,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const nx = p.x + dx,
           ny = p.y + dy;
         p.facing = { dx, dy };
-        if (nx >= 0 && nx < MW && ny >= 0 && ny < MH) {
+        /* アイテムモドキを拾おうとした移動は、そこへ踏み込まずに正体を現す。 */
+        const _steppedItemMimic = nx >= 0 && nx < MW && ny >= 0 && ny < MH &&
+          revealItemMimicAt(dg, nx, ny, p, ml, lu);
+        if (_steppedItemMimic) acted = true;
+        if (!_steppedItemMimic && nx >= 0 && nx < MW && ny >= 0 && ny < MH) {
           const wab = p.weapon?.ability;
           const wabHas = (id) =>
             id === wab || p.weapon?.abilities?.includes(id) || false;
