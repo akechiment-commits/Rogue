@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
+import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
 
 function makeHiddenRoomMap(hr) {
@@ -58,6 +59,13 @@ describe("genDungeon", () => {
   it("ボスフロア（depth=4）はモンスターを含む", () => {
     const dg = genDungeon(4, "intermediate");
     expect(dg.monsters.length).toBeGreaterThan(0);
+  });
+
+  it("アイテムモドキを除外した敵抽選では選ばれない", () => {
+    for (let i = 0; i < 40; i++) {
+      const { base } = pickMonsterDef(10, "intermediate", false, { excludeItemMimic: true });
+      expect(base.baseKind).not.toBe("itemMimic");
+    }
   });
 });
 

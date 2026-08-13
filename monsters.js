@@ -1174,11 +1174,12 @@ export function makeGuard(x, y, plx, ply) {
  * スポーンレベル (1〜3) を返す共通ロジック。
  * progress = (floor - minFloor) / range で lv2/lv3 の確率が上がる。
  */
-export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false) {
+export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = false, { excludeItemMimic = false } = {}) {
   const floor = depth + 1;
   const eligible = MONS.filter(m => {
     if (m.penaltyOnly) return false;
     if (excludeWaterOnly && m.waterOnly) return false;
+    if (excludeItemMimic && m.baseKind === "itemMimic") return false;
     if (m.dungeons && dungeonType && !m.dungeons.includes(dungeonType)) return false;
     const df = dungeonType ? m.dungeonFloors?.[dungeonType] : undefined;
     if (df === null) return false; // このダンジョンには出現しない
@@ -1194,7 +1195,8 @@ export function pickMonsterDef(depth, dungeonType = null, excludeWaterOnly = fal
       return lvMin !== undefined && floor >= lvMin && (lvMax === undefined || floor <= lvMax);
     }) ?? false;
   });
-  const base = eligible.length > 0 ? pick(eligible) : (MONS.find(m => !m.penaltyOnly) ?? MONS[0]);
+  const fallback = MONS.filter(m => !m.penaltyOnly && (!excludeItemMimic || m.baseKind !== "itemMimic"));
+  const base = eligible.length > 0 ? pick(eligible) : (fallback[0] ?? MONS[0]);
 
   /* レベル決定：levelsエントリに minFloor/dungeonFloors が明示されている場合のみ昇格
      高レベルから順にチェックし、最初に条件を満たしたレベルを採用する */

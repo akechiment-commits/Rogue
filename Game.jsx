@@ -3078,6 +3078,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
       const ml = installPlayerHpMessageHook([], p);
       let steps = 0;
+      let dashMimicRevealed = false;
       /* ダッシュ用座標マップ構築 */
       const _dk = (x, y) => y * MW + x;
       const _dRoomSet = new Set();
@@ -3126,6 +3127,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (dg.statues?.some(s => s.x === nx && s.y === ny)) break;
         if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
+        /* ダッシュでも、アイテムモドキへ踏み込む前に正体を現させて停止する。 */
+        if (revealItemMimicAt(dg, nx, ny, p, ml, lu)) {
+          dashMimicRevealed = true;
+          endTurn(st, p, ml);
+          break;
+        }
         /* 廊下ダッシュ中に部屋の入口手前で停止（ただし最初の1歩は入れる） */
         if (steps > 0 && !startInRoom && !_dRoomSet.has(_dk(p.x, p.y)) && _dRoomSet.has(_dk(nx, ny))) break;
         const _allShopsD = getShops(dg);
@@ -3296,6 +3303,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (steps > 0) {
         p.facing = { dx, dy };
         p._portraitDash = true;
+        setDashMode(false);
+        if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        sr.current = { ...st };
+        setGs({ ...st });
+      } else if (dashMimicRevealed) {
         setDashMode(false);
         if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
         sr.current = { ...st };
