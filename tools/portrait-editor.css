@@ -287,6 +287,10 @@ main {
   backdrop-filter: blur(6px);
 }
 
+.preview-modal[hidden] {
+  display: none !important;
+}
+
 .preview-dialog {
   display: flex;
   flex-direction: column;

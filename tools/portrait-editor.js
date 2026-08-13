@@ -12,13 +12,14 @@ let categories = [];
 let toastTimer;
 
 function closePreview() {
-  if (!previewModal || previewModal.hidden) return;
+  if (!previewModal) return;
   previewModal.hidden = true;
   document.body.classList.remove("preview-open");
-  previewImage.removeAttribute("src");
+  previewImage?.removeAttribute("src");
 }
 
 function openPreview(slot) {
+  if (!previewModal || !previewImage || !previewTitle || !previewFile) return;
   previewTitle.textContent = slot.label;
   previewFile.textContent = `${slot.file}.png`;
   previewImage.alt = slot.label;
