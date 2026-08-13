@@ -7,6 +7,7 @@ export const DEFAULT_SAVE = {
   playerId: "",             /* 匿名ID（ランキング投稿用・初回名前確定時に発行） */
   favoriteFood: "",         /* 好きな食べ物（初回入力。ダンジョン開始時の初期食料名に使う） */
   graphicStyle: "",         /* 初回選択: mon1 / dawnlike / default */
+  initialSetupComplete: false, /* 名前・食べ物・グラフィックスタイルの初回設定完了 */
   hubGold: 0,
   warehouse: [],            /* array of item objects */
   hubInventory: [],         /* items player will carry into dungeon */

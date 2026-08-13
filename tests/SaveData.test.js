@@ -50,6 +50,7 @@ describe("loadSave", () => {
     expect(save.discovered.items).toEqual({});
     expect(save.playerName).toBe("");
     expect(save.playerId).toBe("");
+    expect(save.initialSetupComplete).toBe(false);
   });
 
   it("欠けたキーを DEFAULT_SAVE で補完する", () => {
@@ -60,6 +61,7 @@ describe("loadSave", () => {
     expect(save.clearedDungeons).toEqual({});
     expect(save.playerName).toBe("");
     expect(save.playerId).toBe("");
+    expect(save.initialSetupComplete).toBe(false);
   });
 
   it("既存の playerName を保持する", () => {

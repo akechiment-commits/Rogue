@@ -1880,7 +1880,9 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
 
   const needsName = !String(saveData.playerName || "").trim();
   const needsFood = !String(saveData.favoriteFood || "").trim();
-  const needsStyle = !GRAPHIC_STYLE_OPTIONS.some(({ id }) => id === saveData.graphicStyle);
+  const hasGraphicStyle = GRAPHIC_STYLE_OPTIONS.some(({ id }) => id === saveData.graphicStyle);
+  /* 過去の途中セーブにgraphicStyleだけ残っていても、初回設定完了までは選択を省略しない。 */
+  const needsStyle = !hasGraphicStyle || saveData.initialSetupComplete !== true;
   /* 名前 → 好きな食べ物 → グラフィックスタイルの順で初回設定する */
   const needsSetup = needsName || needsFood || needsStyle;
   const hubGold      = saveData.hubGold      || 0;
@@ -1906,7 +1908,8 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const handleConfirmStyle = (style) => {
     if (!GRAPHIC_STYLE_OPTIONS.some(({ id }) => id === style)) return;
     try { localStorage.setItem("roguelike_tileset", style); } catch {}
-    updateSave(prev => ({ ...prev, graphicStyle: style }));
+    setStyleSetupConfirmed(true);
+    updateSave(prev => ({ ...prev, graphicStyle: style, initialSetupComplete: true }));
   };
 
   const handleStartDungeon = (config) => {
