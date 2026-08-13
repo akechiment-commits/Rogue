@@ -1852,7 +1852,7 @@ export function useItemActions({
       }
     } else if (it.type === "arrow") {
       if (p.arrow === it) { p.arrow = null; ml.push(`${it.name}を外した。`); }
-      else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone) ? "個" : "本"})を装備した。`); }
+      else { p.arrow = it; ml.push(`${it.name}(${it.count}${(it.stone || it.magicStone || it.specialProjectile) ? "個" : "本"})を装備した。`); }
     } else if (it.type === "ring") {
       const _rdn = (r) => itemDisplayName(r, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       const equipped = (p.rings || []).some(r => r === it);
@@ -2038,7 +2038,7 @@ export function useItemActions({
         if (it.plus) _dropLbl += (it.plus > 0 ? "+" : "") + it.plus;
         _dropLbl += ` (防+${it.def + (it.plus || 0)})`;
       } else if (it.type === "arrow") {
-        _dropLbl += `(${it.count}${it.stone || it.magicStone ? "個" : "本"})`;
+        _dropLbl += `(${it.count}${it.stone || it.magicStone || it.specialProjectile ? "個" : "本"})`;
       } else if (it.type === "gold") {
         _dropLbl += `(${it.count}枚)`;
       }
@@ -2613,6 +2613,18 @@ export function useItemActions({
         }
         const _arItem = p.arrow;
 
+        /* ── 1マスずつ進む特殊飛び道具 ── */
+        if (_arItem.specialProjectile) {
+          shootArrow(p, dg, p.inventory.indexOf(_arItem), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, { forceMiss: _forceMiss });
+          if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
+
         /* ── 石 / 魔法の石 専用処理 ── */
         if (_arItem.stone || _arItem.magicStone) {
           const _stName = _arItem.name;
@@ -2947,8 +2959,8 @@ export function useItemActions({
           setThrowMode(null);
           return;
         }
-        const _shColor = it.poison ? "#60d060" : it.pierce ? "#ff8844" : "#d0a050";
-        const _shOutBolt = pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor, true);
+        const _shColor = it.specialProjectile ? "#d08cff" : it.poison ? "#60d060" : it.pierce ? "#ff8844" : "#d0a050";
+        const _shOutBolt = it.specialProjectile ? null : pushBoltAnim(p.x, p.y, dx, dy, dg, _shColor, true);
         shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, _shOutBolt, { forceMiss: _forceMiss });
         if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
         /* 床から射った矢/石は残量を床に戻す */
@@ -3182,6 +3194,17 @@ export function useItemActions({
           return;
         }
         _forceUnequip(p, it);
+
+        /* ── インベントリから投げる特殊飛び道具 ── */
+        if (it.type === "arrow" && it.specialProjectile) {
+          shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, null, { forceMiss: _forceMiss });
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
 
         /* ── インベントリから投げる石／魔法の石 専用処理 ── */
         if (it.type === "arrow" && (it.stone || it.magicStone)) {
@@ -3554,7 +3577,7 @@ export function useItemActions({
               : 3;
           /* 投げメッセージ用ラベル生成：武器/防具は+値付き、杖/ペンはチャージ付き、矢は本数付き */
           const _mkThrowLb = () => {
-            if (it.type === "arrow") return (it.stone || it.magicStone) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`;
+            if (it.type === "arrow") return (it.stone || it.magicStone || it.specialProjectile) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`;
             const _tnm = dnameRef(it);
             if (it.type === "weapon") {
               const _tp = it.plus ? (it.plus > 0 ? "+" : "") + it.plus : "";

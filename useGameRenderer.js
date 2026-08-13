@@ -604,6 +604,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       if (tr.disguise && !tr.revealed) _fakeStairMap.set(_k(tr.x, tr.y), tr);
     }
     const _pendingBombMap = new Map(); if (dg.pendingBombs) for (const pb of dg.pendingBombs) _pendingBombMap.set(_k(pb.x, pb.y), pb);
+    const _specialProjectileMap = new Map(); if (dg.specialProjectiles) for (const sp of dg.specialProjectiles) _specialProjectileMap.set(_k(sp.x, sp.y), sp);
     const _oilySet = new Set(); if (dg.oilyTiles) for (const ot of dg.oilyTiles) _oilySet.add(_k(ot.x, ot.y));
     const _roomSet = new Set();
     for (const r of [...dg.rooms, ...(dg.hiddenRooms || [])]) {
@@ -869,6 +870,68 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
             drawTile(ctx, ts, 73, px2, py2, sz);
             ctx.globalAlpha = 1;
           }
+        }
+        /* 1ターン1マスで進む特殊飛び道具 */
+        const _spAt = _specialProjectileMap.get(_k(x, y));
+        if (_spAt && vis) {
+          const _spColor = _spAt.kind === "torpedo" ? "#48c8ff" : _spAt.kind === "crawling_bomb" ? "#ff6848" : "#d08cff";
+          const _spCx = px2 + sz / 2, _spCy = py2 + sz / 2;
+          ctx.save();
+          ctx.shadowColor = _spColor;
+          ctx.shadowBlur = Math.max(2, sz * 0.12);
+          if (_spAt.kind === "torpedo") {
+            ctx.fillStyle = "#214d78";
+            ctx.beginPath();
+            ctx.ellipse(_spCx, _spCy, sz * 0.34, sz * 0.18, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = _spColor;
+            ctx.beginPath();
+            ctx.moveTo(_spCx + sz * 0.38, _spCy);
+            ctx.lineTo(_spCx + sz * 0.08, _spCy - sz * 0.18);
+            ctx.lineTo(_spCx + sz * 0.08, _spCy + sz * 0.18);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = "#b8f4ff";
+            ctx.lineWidth = Math.max(1, sz * 0.06);
+            ctx.beginPath();
+            ctx.moveTo(_spCx - sz * 0.42, _spCy - sz * 0.12);
+            ctx.lineTo(_spCx - sz * 0.52, _spCy - sz * 0.22);
+            ctx.moveTo(_spCx - sz * 0.42, _spCy + sz * 0.12);
+            ctx.lineTo(_spCx - sz * 0.52, _spCy + sz * 0.22);
+            ctx.stroke();
+          } else if (_spAt.kind === "crawling_bomb") {
+            ctx.fillStyle = "#50251e";
+            ctx.beginPath();
+            ctx.arc(_spCx, _spCy, sz * 0.28, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = _spColor;
+            ctx.lineWidth = Math.max(1.5, sz * 0.08);
+            ctx.stroke();
+            ctx.fillStyle = "#ffd050";
+            ctx.beginPath();
+            ctx.arc(_spCx + sz * 0.12, _spCy - sz * 0.23, sz * 0.07, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#9e3324";
+            ctx.beginPath();
+            ctx.moveTo(_spCx - sz * 0.30, _spCy + sz * 0.22);
+            ctx.lineTo(_spCx - sz * 0.48, _spCy + sz * 0.38);
+            ctx.stroke();
+          } else {
+            ctx.strokeStyle = _spColor;
+            ctx.lineWidth = Math.max(1.5, sz * 0.08);
+            ctx.beginPath();
+            ctx.moveTo(_spCx, _spCy - sz * 0.36);
+            ctx.lineTo(_spCx + sz * 0.30, _spCy);
+            ctx.lineTo(_spCx, _spCy + sz * 0.36);
+            ctx.lineTo(_spCx - sz * 0.30, _spCy);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.fillStyle = "#fff0ff";
+            ctx.beginPath();
+            ctx.arc(_spCx, _spCy, sz * 0.11, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
         }
         if (vis) {
           /* Player — skip if currently animating (will be drawn separately) */

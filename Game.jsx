@@ -15,7 +15,7 @@ import {
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
-  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv,
+  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles,
   makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
@@ -921,12 +921,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           break;
         }
       } else if (it.type === "arrow" && !it.shopPrice) {
-        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30, !!it.bombArrow, !!it.strong)) {
-          ml.push(`${it.name || "矢"}(${it.count}本)を拾った。`);
+        const _arrowUnit = it.specialProjectile ? "個" : "本";
+        if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30, !!it.bombArrow, !!it.strong, it.specialProjectile || null)) {
+          ml.push(`${it.name || "矢"}(${it.count}${_arrowUnit})を拾った。`);
           removeFloorItem(dg, it);
           go = true;
         } else {
-          ml.push(`${it.name || "矢"}(${it.count}本)がある。持ち物がいっぱいだ！`);
+          ml.push(`${it.name || "矢"}(${it.count}${_arrowUnit})がある。持ち物がいっぱいだ！`);
           break;
         }
       } else if (it.type === "goal") {
@@ -1547,6 +1548,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       });
       /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
       triggerMonsterHouse(st.dungeon, p, ml);
+      /* 特殊飛び道具：プレイヤーの行動後に1ターン分だけ進む */
+      advanceSpecialProjectiles(st.dungeon, p, ml, lu);
       /* 初めて踏み入れたフロアは敵が行動しない（階段降り直後の理不尽攻撃を防ぐ） */
       let _skipMonAct = !!st.dungeon._firstVisit;
       if (_skipMonAct) st.dungeon._firstVisit = false;
@@ -2812,8 +2815,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");
             } else if (_grIt.type === "arrow" && !_grIt.shopPrice) {
-              if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30, !!_grIt.bombArrow, !!_grIt.strong)) {
-                ml.push(`${_grIt.name || "矢"}(${_grIt.count}本)を拾った。`);
+              const _grArrowUnit = _grIt.specialProjectile ? "個" : "本";
+              if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30, !!_grIt.bombArrow, !!_grIt.strong, _grIt.specialProjectile || null)) {
+                ml.push(`${_grIt.name || "矢"}(${_grIt.count}${_grArrowUnit})を拾った。`);
                 removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");
             } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
@@ -3183,7 +3187,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               const _ns2 = _ids2.map((id) => _AB2.find((a) => a.id === id)?.name).filter(Boolean);
               if (_ns2.length) _lbl += " [" + _ns2.join("・") + "]";
             } else if (_dashIt.type === "arrow") {
-              _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone ? "個" : "本"})`;
+              _lbl += `(${_dashIt.count}${_dashIt.stone || _dashIt.magicStone || _dashIt.specialProjectile ? "個" : "本"})`;
             } else if (_dashIt.type === "gold") {
               _lbl += `(${_dashIt.value}枚)`;
             }
@@ -4933,7 +4937,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         )}{" "}
         {p.arrow && (
           <span style={{ color: "#dda050" }}>
-            {p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
+            {p.arrow.stone ? "石" : p.arrow.magicStone ? "魔法の石" : p.arrow.bombArrow ? "爆弾矢" : p.arrow.specialProjectile ? p.arrow.name : p.arrow.poison ? "毒矢" : p.arrow.pierce ? "貫きの矢" : "矢"}:{p.arrow.count}
           </span>
         )}{" "}
         {(p.rings || []).map((r, i) => (

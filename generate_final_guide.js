@@ -19,7 +19,8 @@ import {
   TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
   GOBLIN_BAT_T, ONI_CLUB_T,
   GODSPARKWAND_T,
-  ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STONE_T, MAGIC_STONE_T, BOMB_ARROW_T,
+  ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, MAGIC_STONE_T, BOMB_ARROW_T,
+  TORPEDO_T, CRAWLING_BOMB_T, HOMING_SHOT_T,
   CHARGED_FUZZBALL_T,
 } from './items.js';
 
@@ -137,6 +138,9 @@ const GUIDE_DESC_OVERRIDES = {
   "鑑定の大箱": "入れたアイテムを識別する。\n薬・巻物・杖の見た目名が判明し、武器・防具の呪い状態も分かる。",
   "雷の剣": "雷属性の剣。氷・水系の敵（氷竜・わてり等）に1.5倍ダメージ。",
   "魔法の石": "10マス以内の最も近い敵にホーミングして命中する石。物理投擲反射の敵に当たるとプレイヤーへホーミング反射される。99個まで束にできる。",
+  "魚雷": "矢と同じように束ねて装備・射撃・投擲できる特殊飛び道具。発射後はプレイヤーの行動終了ごとに1マス進む。水タイルの上だけを進み、敵に命中するとダメージを与えて消滅する。水の外・壁に進もうとすると消滅する。遠投中や下手投げでは消滅する。",
+  "這いずり爆弾": "矢と同じように束ねて装備・射撃・投擲できる特殊飛び道具。発射後はプレイヤーの行動終了ごとに1マス這い、敵・石像・大箱・プレイヤー・壁に触れるとその地点で通常の爆発を起こして消滅する。遠投中や下手投げでは消滅する。",
+  "誘導弾": "矢と同じように束ねて装備・射撃・投擲できる特殊飛び道具。発射時に10マス以内の敵を目標に選び、以後はプレイヤーの行動終了ごとに1マスずつ、壁を避けながら追尾する。敵に命中するとダメージを与えて消滅し、目標がいなくても直進して壁などで消滅する。遠投中や下手投げでは消滅する。",
   "魔法の筆": "白紙の巻物に好きな魔法を書き込める。充填の大箱で回数を増やせる。筆同士の合成で容量合算。",
 };
 
@@ -199,6 +203,7 @@ const indexData = [
   ['16. 宝石 - Gem（14種）', '基本価格・遠距離ボーナス'],
   ['17. 敵専用アイテム', '帯電毛玉など、敵の特技でのみ入手するアイテム'],
   ['18. 目標アイテム（4種）', '各ダンジョン最下層から持ち帰るキーアイテム'],
+  ['19. 飛び道具', '矢・石・特殊飛び道具の束ね・装備・射撃と命中処理'],
   [''],
   ['データ来源'],
   ['items.js - applyPotionEffect（1818-2205行）', '薬の完全実装'],
@@ -754,6 +759,23 @@ for (const [dungeonType, item] of Object.entries(GOAL_ITEMS)) {
 }
 goalItemData.push(['', '', '', 'スタイル3では各キーアイテムに専用グラフィックを使用']);
 addSheet('18_目標アイテム', goalItemData);
+
+// ===== 飛び道具 =====
+const projectileData = [['名称', '攻撃力', 'レア度', '重み', '売値', '束', '挙動', '説明']];
+for (const a of [ARROW_T, POISON_ARROW_T, PIERCING_ARROW_T, STRONG_ARROW_T, STONE_T, MAGIC_STONE_T, BOMB_ARROW_T, TORPEDO_T, CRAWLING_BOMB_T, HOMING_SHOT_T]) {
+  const behavior = a.specialProjectile === 'torpedo' ? '水上を1マス/ターン進む'
+    : a.specialProjectile === 'crawling_bomb' ? '床を1マス/ターン進み接触爆発'
+    : a.specialProjectile === 'homing' ? '敵を追尾して1マス/ターン進む'
+    : a.bombArrow ? '着弾点で爆発'
+    : a.magicStone ? '10マス以内の敵へ即時ホーミング'
+    : a.stone ? '3マス先に着弾'
+    : a.pierce ? '敵・壁を貫通'
+    : a.poison ? '命中時に毒'
+    : a.strong ? '高威力'
+    : '通常の矢';
+  projectileData.push([a.name, a.atk, a.rarity, a.weight, a.sellPrice, '99個/本まで', behavior, guideDesc(a)]);
+}
+addSheet('19_飛び道具', projectileData);
 
 XLSX.writeFile(wb, GUIDE_XLSX);
 console.log(`✅ Complete game guide updated: ${GUIDE_XLSX}`);
