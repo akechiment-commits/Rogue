@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
-import { T, TI, MW, MH, clamp } from './utils.js';
+import { T, TI, MW, MH, clamp, ensureItemMimicFloorItems } from './utils.js';
 import { drawTile, VW_M, VH_M, VW_D, VH_D, VW_L, VH_L, customTileImages } from './render.js';
 
 /* 風穴の風向き別スプライト（画像未読込時は既存のキャンバス矢印へフォールバック） */
@@ -533,6 +533,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       ctx = cvs.getContext("2d");
     const ts = null;
     const { player: p, dungeon: dg } = _gs;
+    ensureItemMimicFloorItems(dg);
     const _penMap = _gs.penSpriteMap;
     const _penTile = (it) => { const vi = 2000 + _penMap?.[it.effect]; return (it.tile === 42 && _penMap?.[it.effect] != null && customTileImages[vi]) ? vi : it.tile; };
     const _potMap = _gs.potionSpriteMap;

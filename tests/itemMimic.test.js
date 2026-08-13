@@ -1,31 +1,35 @@
 import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI, revealItemMimicAt } from "../monsters.js";
+import { doExplosion } from "../items.js";
+import { fireWandBolt } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { monsterAt } from "../utils.js";
 
 describe("アイテムモドキ", () => {
-  it("床アイテムの上で姿を隠し、占有判定から外れる", () => {
+  it("出現時からアイテムモドキとして待機し、通常の敵占有判定から外れる", () => {
     const base = MONS.find((m) => m.baseKind === "itemMimic");
     const mimic = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
-    mimic.turnAttacks = 0;
-    const item = { id: "floor-item", name: "薬", type: "potion", x: 5, y: 5 };
-    const dg = makeEmptyDg({ rooms: [], items: [item], monsters: [mimic] });
+    const dg = makeEmptyDg({ rooms: [], monsters: [mimic] });
 
     monsterAI(mimic, dg, makePlayer({ x: 20, y: 20 }), [], { moveOnly: true });
 
     expect(mimic.disguisedAsItem).toBe(true);
-    expect(mimic.disguiseItemId).toBe(item.id);
+    expect(dg.items).toHaveLength(1);
+    expect(dg.items[0]).toMatchObject({
+      name: "アイテムモドキ",
+      type: "item_mimic",
+      itemMimicId: mimic.id,
+      x: 5,
+      y: 5,
+    });
     expect(monsterAt(dg, 5, 5)).toBeUndefined();
   });
 
-  it("拾おうとすると正体を現し、アイテムを残したまま攻撃する", () => {
+  it("偽アイテムを拾おうとすると偽アイテムだけ消えて正体を現し、攻撃する", () => {
     const base = MONS.find((m) => m.baseKind === "itemMimic");
     const mimic = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
-    mimic.disguisedAsItem = true;
-    mimic.disguiseItemId = "floor-item";
-    const item = { id: "floor-item", name: "薬", type: "potion", x: 5, y: 5 };
     const player = makePlayer({ x: 5, y: 5, def: 0 });
-    const dg = makeEmptyDg({ rooms: [], items: [item], monsters: [mimic] });
+    const dg = makeEmptyDg({ rooms: [], monsters: [mimic] });
     const messages = [];
     const random = vi.spyOn(Math, "random").mockReturnValue(0.01);
 
@@ -36,8 +40,38 @@ describe("アイテムモドキ", () => {
     }
 
     expect(mimic.disguisedAsItem).toBe(false);
-    expect(dg.items).toContain(item);
+    expect(dg.items).toHaveLength(0);
+    expect(monsterAt(dg, 5, 5)).toBe(mimic);
     expect(player.hp).toBeLessThan(100);
     expect(messages.join(" ")).toContain("正体を現した");
+  });
+
+  it("炎や爆発で偽アイテムが消えると、本体も残らない", () => {
+    const base = MONS.find((m) => m.baseKind === "itemMimic");
+    const mimic = makeMonsterFromBase(base, 1, 5, 5);
+    const dg = makeEmptyDg({ rooms: [], monsters: [mimic] });
+    const messages = [];
+    monsterAI(mimic, dg, makePlayer({ x: 20, y: 20 }), messages, { moveOnly: true });
+    const player = makePlayer({ x: 20, y: 20 });
+
+    doExplosion(5, 5, dg, player, messages);
+
+    expect(dg.items).toHaveLength(0);
+    expect(dg.monsters).not.toContain(mimic);
+    expect(messages.join(" ")).toContain("アイテムモドキ");
+  });
+
+  it("炎の杖の魔法弾も敵ではなく偽アイテムに当たり、両方を消す", () => {
+    const base = MONS.find((m) => m.baseKind === "itemMimic");
+    const mimic = makeMonsterFromBase(base, 1, 5, 5);
+    const dg = makeEmptyDg({ rooms: [], monsters: [mimic] });
+    const messages = [];
+    monsterAI(mimic, dg, makePlayer({ x: 20, y: 20 }), messages, { moveOnly: true });
+    const player = makePlayer({ x: 5, y: 4 });
+
+    fireWandBolt(player, dg, "fire_wand", 0, 1, messages, () => {}, () => {});
+
+    expect(dg.items).toHaveLength(0);
+    expect(dg.monsters).not.toContain(mimic);
   });
 });

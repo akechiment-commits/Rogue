@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox } from './DiscoveryTracker.js';
@@ -1347,6 +1347,7 @@ function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
  */
 let _mineExplosionDepth = 0;
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false) {
+  ensureItemMimicFloorItems(dg);
   if (isFireExplosionNullified(dg, p)) {
     announceFireExplosionNullified(dg, p, ml, srcLabel);
     return;
@@ -1395,7 +1396,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
       /* モンスターダメージ */
       const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
-      for (const m of [...dg.monsters.filter(m => m.x === ax && m.y === ay)]) {
+      for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem && m.x === ax && m.y === ay)]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
@@ -1457,6 +1458,9 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           } else { ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`); }
         } else if (it.type === "wand") {
           _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
+        } else if (it.type === "item_mimic") {
+          blasted.add(it);
+          ml.push(`「${resolveItemName(it, nameFn)}」が爆発で消えた！`);
         }
       }
     }
@@ -1477,6 +1481,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     }
   }
   if (_blastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b));
+  for (const it of blasted) destroyItemMimicFloorItem(dg, it);
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 爆発範囲内の石像 */
@@ -1552,6 +1557,7 @@ let _gunpowderDepth = 0;
 export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬壺") {
   if (_gunpowderDepth > 5) return;
   if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, `${srcLabel}の爆発`); return; }
+  ensureItemMimicFloorItems(dg);
   _gunpowderDepth++;
   try {
     pushExplosionAnim(cx, cy);
@@ -1583,7 +1589,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
           if (!_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
         }
         /* モンスター：即死（火ダルマは分裂、ボスは現在HPの4分の1ダメージ） */
-        for (const m of [...dg.monsters]) {
+        for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
           if (m.x === ax && m.y === ay) {
             if (m.baseKind === "firedemon") {
               ml.push(`${srcLabel}の爆発で${m.name}が分裂した！`);
@@ -1634,8 +1640,12 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
         } else { ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`); }
       } else if (it.type === "wand") {
         _explosionBreakWand(it, it.x, it.y, dg, p, ml, luFn, null, _blasted);
+      } else if (it.type === "item_mimic") {
+        _blasted.add(it);
+        ml.push(`「${resolveItemName(it)}」が爆発で消えた！`);
       }
     }
+    for (const it of _blasted) destroyItemMimicFloorItem(dg, it);
     if (_blasted.size > 0) dg.items = dg.items.filter(i => !_blasted.has(i));
     /* 範囲内の大箱を破壊 */
     const _gpBlastedBB = [];
@@ -1686,6 +1696,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
     announceFireExplosionNullified(dg, p, ml, "時限爆弾の爆発");
     return;
   }
+  ensureItemMimicFloorItems(dg);
   const R = 2;
   pushExplosionAnim(cx, cy);
   ml.push(`時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！`);
@@ -1728,7 +1739,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
         }
       }
       /* モンスター：炎無効(火ダルマ)以外は消滅（ボスは現在HPの4分の1ダメージ） */
-      for (const m of [...dg.monsters.filter(mm => mm.x === ax && mm.y === ay)]) {
+      for (const m of [...dg.monsters.filter(mm => !mm.disguisedAsItem && mm.x === ax && mm.y === ay)]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
         if (m.baseKind === "firedemon") {
@@ -1777,10 +1788,14 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
           } else { ml.push(`壺「${resolveItemName(it, nameFn)}」が爆発で割れた！`); }
         } else if (it.type === "wand") {
           _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted);
+        } else if (it.type === "item_mimic") {
+          blasted.add(it);
+          ml.push(`「${resolveItemName(it, nameFn)}」が爆発で消えた！`);
         }
       }
     }
   }
+  for (const it of blasted) destroyItemMimicFloorItem(dg, it);
   if (blasted.size > 0) dg.items = dg.items.filter(i => !blasted.has(i));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 範囲内の地雷を連鎖爆発 */
@@ -3943,6 +3958,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
   if (_explosionDepth > 4 || !dg.pentacles?.length) return;
   /* 呪われた爆発の魔方陣がある場合は爆発を起こさない */
   if (isFireExplosionNullified(dg, p)) return;
+  ensureItemMimicFloorItems(dg);
   _explosionDepth++;
   try {
     const mRoom = dg.rooms?.find(r => mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h);
@@ -3967,7 +3983,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
           continue;
         }
         /* モンスターへのダメージ（即死→連鎖爆発） */
-        for (const m of [...dg.monsters]) {
+        for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem)]) {
           if (m.x === ax && m.y === ay) {
             wakeIfDormant(m, ml);
             if (m.baseKind === "firedemon") {
@@ -4014,6 +4030,9 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
             if (it.potEffect !== "gunpowder") ml.push(`壺「${resolveItemName(it)}」が爆発で割れた！`);
           } else if (it.type === "wand") {
             _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, null, blasted);
+          } else if (it.type === "item_mimic") {
+            blasted.add(it);
+            ml.push(`「${resolveItemName(it)}」が爆発で消えた！`);
           }
         }
         /* 罠の破壊（永続回転板は爆発でも壊れない） */
@@ -4038,6 +4057,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
       dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
       for (const _bpc of _blastPcs) ml.push(`爆発で${_bpc.name}が消えた！`);
     }
+    for (const it of blasted) destroyItemMimicFloorItem(dg, it);
     dg.items = dg.items.filter(i => !blasted.has(i));
     /* 破壊された火薬壺の連鎖爆発 */
     for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
@@ -4341,6 +4361,13 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   if (_terminalStop) {
     res.x = _terminalStop.x;
     res.y = _terminalStop.y;
+  }
+
+  /* 偽アイテムが命中・泉・大箱などで消費された場合は、紐付いた本体も消す。
+     何にも当たらず着地する場合だけ、偽アイテムとして床に残す。 */
+  if (item.itemMimicId && (res.consumed || res.spring || res.bigbox || res.hitStatue)) {
+    destroyItemMimicFloorItem(dg, item);
+    dg.items = dg.items.filter(i => i !== item);
   }
 
   /* 着弾後のアイテム種別ごとの処理 */

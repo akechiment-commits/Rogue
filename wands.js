@@ -489,7 +489,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           /* アイテムを目の前に引き寄せる */
           const _pullIx = p.x + dx, _pullIy = p.y + dy;
           if (_pullIx >= 0 && _pullIx < MW && _pullIy >= 0 && _pullIy < MH && dg.map[_pullIy][_pullIx] !== T.WALL && dg.map[_pullIy][_pullIx] !== T.BWALL) {
-            removeFloorItem(dg, target);
+            removeFloorItem(dg, target, { preserveItemMimic: true });
             const ft = new Set();
             placeItemAt(dg, _pullIx, _pullIy, target, ml, ft);
             ml.push(`${target.name}を引き寄せた！【呪】`);
@@ -539,7 +539,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "item") {
         ml.push(`${target.name}が吹き飛んだ！`);
-        removeFloorItem(dg, target);
+        removeFloorItem(dg, target, { preserveItemMimic: true });
         /* 仮想射手（押し出し起点：アイテムの元位置） */
         const _shooter = { x: target.x, y: target.y, name: target.name };
         const res = throwItemAlongLine(_shooter, dg, target, dx, dy, d, ml, p, luFn, {
@@ -635,7 +635,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
-        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") {
+        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`${target.name}は雷で焼けた！`);
@@ -1564,7 +1564,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
-        if (target.type === "spellbook" || target.type === "scroll" || target.type === "potion") {
+        if (target.type === "spellbook" || target.type === "scroll" || target.type === "potion" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`炎で${_dname_item(target)}が燃えた！`);
@@ -1682,7 +1682,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "item") {
-        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook") {
+        if (target.type === "potion" || target.type === "scroll" || target.type === "spellbook" || target.type === "item_mimic") {
           removeFloorItem(dg, target);
           chargeShopItem(target, dg, ml);
           ml.push(`${target.name}は雷で焼けた！`);

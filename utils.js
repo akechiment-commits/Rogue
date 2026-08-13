@@ -196,9 +196,70 @@ export function shuffle(arr, randomFn = Math.random) {
   }
   return arr;
 }
-export const removeFloorItem = (dg, item) => { dg.items = dg.items.filter(i => i !== item); };
-export const monsterAt = (dg, x, y) => dg.monsters.find(m => !m.disguisedAsItem && m.x === x && m.y === y);
-export const itemAt = (dg, x, y) => dg.items.find(i => i.x === x && i.y === y);
+/* アイテムモドキは、化けている間だけ「床アイテム」として存在する。
+ * 通常の床アイテム処理から消された時は本体も消滅するが、杖の
+ * 吹き飛ばし・引き寄せで一時的に床から外す場合だけ保持できる。 */
+export const ITEM_MIMIC_ITEM_TYPE = "item_mimic";
+
+export function destroyItemMimicFloorItem(dg, item) {
+  if (!dg || !item?.itemMimicId) return;
+  const mimic = dg.monsters?.find(m => m.id === item.itemMimicId);
+  if (mimic) {
+    mimic._itemMimicDestroyed = true;
+    mimic.disguisedAsItem = false;
+    dg.monsters = dg.monsters.filter(m => m !== mimic);
+  }
+}
+
+/** 化けているアイテムモドキの床アイテムを必ず生成・同期する。 */
+export function ensureItemMimicFloorItems(dg) {
+  if (!dg || !Array.isArray(dg.monsters) || !Array.isArray(dg.items)) return;
+  const activeIds = new Set();
+  for (const mimic of dg.monsters) {
+    if (mimic.subtype !== "itemMimic" || mimic._itemMimicDestroyed || mimic.disguisedAsItem === false) continue;
+    mimic.disguisedAsItem = true;
+    const itemId = mimic.disguiseItemId || `item-mimic-${mimic.id}`;
+    let item = dg.items.find(i => i.itemMimicId === mimic.id || i.id === itemId);
+    if (!item) {
+      item = {
+        id: itemId,
+        name: "アイテムモドキ",
+        type: ITEM_MIMIC_ITEM_TYPE,
+        tile: mimic.tile,
+        x: mimic.x,
+        y: mimic.y,
+        discovered: true,
+        itemMimicId: mimic.id,
+      };
+      dg.items.unshift(item);
+    } else {
+      item.itemMimicId = mimic.id;
+      item.type = ITEM_MIMIC_ITEM_TYPE;
+      item.name = "アイテムモドキ";
+      item.tile = mimic.tile;
+      /* 杖などで床アイテムが移動した場合はアイテム側を正とする。 */
+      mimic.x = item.x;
+      mimic.y = item.y;
+    }
+    mimic.disguiseItemId = item.id;
+    activeIds.add(item.id);
+  }
+  /* 正体を現した／破壊された後に残った偽アイテムは掃除する。 */
+  dg.items = dg.items.filter(i => !i.itemMimicId || activeIds.has(i.id));
+}
+
+export const removeFloorItem = (dg, item, { preserveItemMimic = false } = {}) => {
+  dg.items = dg.items.filter(i => i !== item);
+  if (item?.itemMimicId && !preserveItemMimic) destroyItemMimicFloorItem(dg, item);
+};
+export const monsterAt = (dg, x, y) => {
+  ensureItemMimicFloorItems(dg);
+  return dg.monsters.find(m => !m.disguisedAsItem && m.x === x && m.y === y);
+};
+export const itemAt = (dg, x, y) => {
+  ensureItemMimicFloorItems(dg);
+  return dg.items.find(i => i.x === x && i.y === y);
+};
 export const removeMonster = (dg, mon) => { dg.monsters = dg.monsters.filter(m => m !== mon); };
 
 /**

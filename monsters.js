@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
@@ -1302,13 +1302,17 @@ function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯
 export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false } = {}) {
   const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly);
   const st = buildMonStats(base, spawnLevel);
-  return { ...st, id: uid(), x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
+  const id = uid();
+  return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
 
 /** 指定のベース定義・レベルでモンスターを生成する（固定取り巻き用） */
 export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false } = {}) {
   const st = buildMonStats(base, spawnLevel);
-  return { ...st, id: uid(), x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null };
+  const id = uid();
+  return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
 
 /* 石像の報酬敵は monsters 側から供給し、fixtures との循環 import を避ける。 */
@@ -2182,7 +2186,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (onPlHit) onPlHit(ml);
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
     }
-    const _mon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty && mn !== m);
+    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && mn.x === _tx && mn.y === _ty && mn !== m);
     if (_mon) {
       /* reflector（ほっちもぺ等）：弾を射手方向へ跳ね返す（遠投貫通中は反射しない） */
       if (monReflectsProjectiles(_mon) && !_passthrough) {
@@ -2374,7 +2378,7 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
       _hit = true; break;
     }
     /* モンスター命中 */
-    const _mon = dg.monsters.find(mn => mn.x === _tx && mn.y === _ty && mn !== m);
+    const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && mn.x === _tx && mn.y === _ty && mn !== m);
     if (_mon) {
       /* 魔法無効（キラープラスター等）：杖の魔法弾を完全無効化 */
       if (monEffectiveMagicImmune(_mon)) {
@@ -2461,13 +2465,17 @@ function dreamEaterStrike(m, dg, pl, ml, onHit, onMiss, luFn) {
   if (hit && absorbed > 0) ml.push(`${m.name}はHPを${absorbed}吸収した！`);
 }
 
-/** アイテムモドキの拾い上げを起動。床アイテムは残し、正体を現して即攻撃する。 */
+/** アイテムモドキの偽アイテムを拾おうとした時に正体を現し、即攻撃する。 */
 export function revealItemMimicAt(dg, x, y, pl, ml, luFn = null) {
+  ensureItemMimicFloorItems(dg);
   const mimic = (dg.monsters || []).find(m =>
     m.subtype === "itemMimic" && m.disguisedAsItem && m.x === x && m.y === y &&
-    dg.items?.some(i => i.x === x && i.y === y && (!m.disguiseItemId || i.id === m.disguiseItemId))
+    dg.items?.some(i => i.itemMimicId === m.id && i.x === x && i.y === y)
   );
   if (!mimic) return false;
+  const fakeItem = dg.items.find(i => i.itemMimicId === mimic.id);
+  /* 偽アイテムは拾われたので消える。本体のモンスターはその場に残す。 */
+  dg.items = dg.items.filter(i => i !== fakeItem);
   mimic.disguisedAsItem = false;
   delete mimic.disguiseItemId;
   mimic.aware = true;
@@ -3967,36 +3975,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.aware = true;
   }
 
-  /* ── itemMimic（アイテムモドキ）：床アイテムの位置まで移動して化ける ── */
+  /* ── itemMimic（アイテムモドキ）：出現時から偽アイテムとして待機 ── */
   if (m.subtype === "itemMimic") {
-    const _disguiseItem = dg.items?.find(i =>
-      i.x === m.x && i.y === m.y && (!m.disguiseItemId || i.id === m.disguiseItemId)
-    );
-    if (m.disguisedAsItem) {
-      if (_disguiseItem) return;
-      m.disguisedAsItem = false;
-      delete m.disguiseItemId;
-    }
-    const _itemTarget = (dg.items || [])
-      .filter(i => i.x !== undefined && i.y !== undefined && !i.wallEmbedded)
-      .map(i => ({ item: i, dist: Math.max(Math.abs(i.x - m.x), Math.abs(i.y - m.y)) }))
-      .sort((a, b) => a.dist - b.dist)[0]?.item;
-    if (_itemTarget && _itemTarget.x === m.x && _itemTarget.y === m.y) {
-      m.disguisedAsItem = true;
-      m.disguiseItemId = _itemTarget.id;
-      m.aware = false;
-      return;
-    }
-    if (_itemTarget && m.aware && !_attackOnly) {
-      const _imNext = bfsNext(map, [], m.x, m.y, _itemTarget.x, _itemTarget.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
-      if (_imNext && !(_imNext.x === pl.x && _imNext.y === pl.y) &&
-          !dg.monsters.some(o => o !== m && o.x === _imNext.x && o.y === _imNext.y)) {
-        m.dir = { x: _imNext.x - m.x, y: _imNext.y - m.y };
-        m.x = _imNext.x; m.y = _imNext.y;
-        return;
-      }
-    }
-    /* アイテムが無い場合は通常敵として振る舞う（床にアイテムが生成されるまで停止しない）。 */
+    ensureItemMimicFloorItems(dg);
+    if (m.disguisedAsItem !== false) return;
   }
 
   /* ===== 壁歩き（ゴースト系）：壁を無視して接近。他モンスター・聖域は迂回 ===== */
