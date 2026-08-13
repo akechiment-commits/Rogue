@@ -25,6 +25,7 @@ import {
   idleStandKey,
   isLightArmorStand,
   resolvePortraitSetKey,
+  pickPortraitForPlayer,
   PORTRAIT_SETS,
 } from "../portraits.js";
 
@@ -310,6 +311,26 @@ describe("portraits", () => {
     );
     expect(PORTRAIT_SETS.attack_unarmed_bare).toEqual(
       expect.arrayContaining(["battle_unarmed_unarmored", "battle_unarmed_unarmored_2"]),
+    );
+  });
+
+  it("全状況を防具なしグループへ分岐し、空欄時は元グループへ戻せる", () => {
+    expect(resolvePortraitSetKey("damage_fire", { armor: null })).toBe("damage_fire_unarmored");
+    expect(resolvePortraitSetKey("act_potion", { armor: null })).toBe("act_potion_unarmored");
+    expect(resolvePortraitSetKey("status_poison", { armor: null })).toBe("status_poison_unarmored");
+    expect(resolvePortraitSetKey("damage_fire", { armor: { name: "革の鎧" } })).toBe("damage_fire");
+
+    const baseOnly = { damage_fire: ["damage_fire"] };
+    expect(pickPortraitForPlayer("damage_fire", { armor: null }, baseOnly)).toBe(
+      "/tiles/Character/damage_fire.png",
+    );
+
+    const withBranch = {
+      damage_fire: ["damage_fire"],
+      damage_fire_unarmored: ["damage_fire_unarmored"],
+    };
+    expect(pickPortraitForPlayer("damage_fire", { armor: null }, withBranch)).toMatch(
+      /^\/tiles\/Character\/damage_fire_unarmored\.png\?portraitFallback=/,
     );
   });
 

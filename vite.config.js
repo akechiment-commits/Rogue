@@ -120,6 +120,7 @@ function portraitApiPlugin() {
             const group = afterSlot.group ?? catDef.group ?? undefined;
             const entry = { file, label, categoryId, afterFile };
             if (group) entry.group = group;
+            if (afterSlot.armorVariantOf) entry.armorVariantOf = afterSlot.armorVariantOf;
             data.slots.push(entry);
             writeExtraSlots(data);
             res.setHeader("Content-Type", "application/json");

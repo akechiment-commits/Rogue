@@ -3,7 +3,7 @@
  * file: tiles/Character/{file}.png として保存される
  * group: PORTRAIT_SETS のキー（ランダム抽選グループ）
  */
-export const PORTRAIT_CATEGORIES = [
+const BASE_PORTRAIT_CATEGORIES = [
   {
     id: "damage",
     label: "被ダメージ",
@@ -155,11 +155,50 @@ export const PORTRAIT_CATEGORIES = [
     desc: "ゲームオーバーなど",
     group: null,
     slots: [
-      { file: "gameover_dead", label: "死亡・ゲームオーバー" },
+      { file: "gameover_dead", label: "死亡・ゲームオーバー", group: "death_dead" },
       { file: "gameover_drown", label: "溺死・ゲームオーバー", group: "death_drown" },
     ],
   },
 ];
+
+/*
+ * 防具なし立ち絵は状況グループ単位で分岐する。
+ * 既に専用グループを持つ歩行・素手攻撃・待機は二重登録しない。
+ * 画像ファイル自体は必須にせず、空欄ならゲーム側が元グループへ戻す。
+ */
+const UNARMORED_ALREADY_SEPARATE = new Set([
+  "attack_unarmed",
+  "attack_unarmed_bare",
+  "walk",
+  "walk_unarmored",
+  "stand_light_armor",
+  "stand_unarmored",
+]);
+
+function addUnarmoredSituationSlots(categories) {
+  const seenGroups = new Set();
+  return categories.map((category) => ({
+    ...category,
+    slots: category.slots.flatMap((slot) => {
+      const group = slot.group ?? category.group;
+      if (!group || UNARMORED_ALREADY_SEPARATE.has(group) || seenGroups.has(group)) {
+        return [slot];
+      }
+      seenGroups.add(group);
+      return [
+        slot,
+        {
+          file: `${group}_unarmored`,
+          label: `${slot.label}（防具なし）`,
+          group: `${group}_unarmored`,
+          armorVariantOf: group,
+        },
+      ];
+    }),
+  }));
+}
+
+export const PORTRAIT_CATEGORIES = addUnarmoredSituationSlots(BASE_PORTRAIT_CATEGORIES);
 
 /** 登録済みファイル名の集合 */
 export function collectPortraitFiles(categories) {
@@ -190,6 +229,7 @@ export function mergePortraitCategories(extraSlots = []) {
       file: extra.file,
       label: extra.label,
       group: extra.group ?? undefined,
+      armorVariantOf: extra.armorVariantOf,
       base: false,
     };
     if (extra.afterFile) {

@@ -5,7 +5,6 @@ import {
   PORTRAIT_WALK_COOLDOWN_MS,
   PORTRAIT_WALK_STEPS_MIN,
   PORTRAIT_WALK_STEPS_JITTER,
-  pickPortrait,
   pickPortraitForPlayer,
   idleStandKey,
   resolvePortraitEvent,
@@ -66,7 +65,7 @@ export function usePortrait({
     portraitCooldownRef.current = 0;
     heldStatusKeyRef.current = null;
     if (gs?.player) {
-      setPortraitSrc(pickPortrait(idleStandKey(gs.player)));
+      setPortraitSrc(pickPortraitForPlayer(idleStandKey(gs.player), gs.player));
     }
   }, [gs, setPortraitSrc]);
 

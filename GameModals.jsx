@@ -3275,6 +3275,14 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
           <img
             src={portraitSrc || "/tiles/Character/stand_normal.png"}
             alt="portrait"
+            onError={(e) => {
+              const img = e.currentTarget;
+              if (img.dataset.portraitFallbackApplied === "1") return;
+              const fallback = new URL(img.src, window.location.href).searchParams.get("portraitFallback");
+              if (!fallback) return;
+              img.dataset.portraitFallbackApplied = "1";
+              img.src = fallback;
+            }}
             style={{ width: "220%", objectFit: "contain" }}
           />
         )}

@@ -187,6 +187,14 @@ main {
   padding: 4px;
 }
 
+.slot-unarmored {
+  outline: 1px dashed rgba(255, 190, 100, 0.55);
+  outline-offset: 2px;
+  border-radius: 6px;
+  padding: 4px;
+  background: rgba(120, 75, 25, 0.08);
+}
+
 .slot-file {
   font-size: 0.7rem;
   color: var(--muted);
