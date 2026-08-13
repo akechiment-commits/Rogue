@@ -28,6 +28,16 @@ export function pushPlayerTeleportAnim(fromX, fromY, toX, toY) {
   pushAnim({ type: "playerTeleport", fromX, fromY, toX, toY });
 }
 
+/** プレイヤーの強制移動を登録（吹き飛ばし・引き寄せ・飛びつきなど） */
+export function pushPlayerKnockbackAnim(fromX, fromY, toX, toY, dx = null, dy = null) {
+  if (fromX === toX && fromY === toY) return;
+  const _dx0 = dx == null ? Math.sign(toX - fromX) : dx;
+  const _dy0 = dy == null ? Math.sign(toY - fromY) : dy;
+  const _dx = Object.is(_dx0, -0) ? 0 : _dx0;
+  const _dy = Object.is(_dy0, -0) ? 0 : _dy0;
+  pushAnim({ type: "playerKnockback", fromX, fromY, toX, toY, dx: _dx, dy: _dy });
+}
+
 export function drainAnims() {
   const evts = [...animEvents];
   animEvents.length = 0;

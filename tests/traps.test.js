@@ -4,6 +4,7 @@ import { fireTrapItem, placeItemAt, removeTrap, runMineExplosion, mineExplosionP
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
 import { vi } from "vitest";
+import { drainAnims } from "../animEvents.js";
 
 describe("fireTrapPlayer mp_absorb_trap", () => {
   it("プレイヤーのMPが5減る", () => {
@@ -18,6 +19,16 @@ describe("fireTrapPlayer mp_absorb_trap", () => {
 });
 
 describe("fireTrapPlayer", () => {
+  it("吹き飛ばしの罠はプレイヤーのスライド演出を発行する", () => {
+    drainAnims();
+    const p = makePlayer({ x: 5, y: 5, facing: { dx: 1, dy: 0 } });
+    const dg = makeEmptyDg();
+    const trap = { effect: "blowback_trap", name: "吹き飛ばしの罠", x: 5, y: 5, id: "blowback" };
+    fireTrapPlayer(trap, p, dg, []);
+    const ev = drainAnims().find(e => e.type === "playerKnockback");
+    expect(ev).toMatchObject({ fromX: 5, fromY: 5, toX: 0, toY: 5, dx: -1, dy: 0 });
+  });
+
   it("鈍足の罠でプレイヤーが鈍足になる", () => {
     const p = makePlayer();
     const dg = makeEmptyDg();

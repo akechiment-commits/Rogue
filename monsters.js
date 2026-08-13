@@ -1,6 +1,6 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, itemAt, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
-import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./animEvents.js";
+import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
@@ -418,7 +418,9 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
           _knx = _nx; _kny = _ny; _knMoved++;
         }
         if (_knMoved > 0) {
+          const _knFromX = pl.x, _knFromY = pl.y;
           pl.x = _knx; pl.y = _kny;
+          pushPlayerKnockbackAnim(_knFromX, _knFromY, pl.x, pl.y, _kndx, _kndy);
           ml.push(`${m.name}の一撃で${_knMoved}マス吹き飛ばされた！`);
         }
       }
@@ -546,7 +548,12 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
             }
             _cx2 = _nx; _cy2 = _ny; _moved++;
           }
-          if (_moved > 0) { pl.x = _cx2; pl.y = _cy2; ml.push(`${_kbPc.name}の力で${_moved}マス吹き飛ばされた！`); }
+          if (_moved > 0) {
+            const _kbFromX = pl.x, _kbFromY = pl.y;
+            pl.x = _cx2; pl.y = _cy2;
+            pushPlayerKnockbackAnim(_kbFromX, _kbFromY, pl.x, pl.y, _kdx, _kdy);
+            ml.push(`${_kbPc.name}の力で${_moved}マス吹き飛ばされた！`);
+          }
         }
       }
     }
@@ -3049,7 +3056,9 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
         if (dg.monsters.some((o) => o.x === nx && o.y === ny)) break;
         _kx = nx; _ky = ny;
       }
+      const _knockFromX = pl.x, _knockFromY = pl.y;
       pl.x = _kx; pl.y = _ky;
+      pushPlayerKnockbackAnim(_knockFromX, _knockFromY, pl.x, pl.y, _kdx, _kdy);
       ml.push(`${m.name}が${pl()}を吹き飛ばした！`);
       return true;
     }
@@ -4447,7 +4456,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             ml.push(`${m.name}が${pl()}を${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
             return;
           }
+          const _throwFromX = pl.x, _throwFromY = pl.y;
           pl.x = _ttTrap.x; pl.y = _ttTrap.y;
+          pushPlayerKnockbackAnim(_throwFromX, _throwFromY, pl.x, pl.y);
           ml.push(`${m.name}が${pl()}を${_ttTrap.name}に向かって放り投げた！`);
           if ((pl.immobileTurns || 0) > 0) { pl.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
           opts.fireTrapFn(_ttTrap, pl, dg, ml);
@@ -5047,7 +5058,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
           const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
           if (isWalkable(dg.map, _pnx, _pny, dg) && !dg.monsters.some(o => o.x === _pnx && o.y === _pny)) {
+            const _pullFromX = pl.x, _pullFromY = pl.y;
             pl.x = _pnx; pl.y = _pny;
+            pushPlayerKnockbackAnim(_pullFromX, _pullFromY, pl.x, pl.y, _puldx, _puldy);
             ml.push(`${m.name}に引き寄せられた！`);
             if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("引っ張られて目が覚めた！"); }
             if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("引っ張られて金縛りが解けた！"); }

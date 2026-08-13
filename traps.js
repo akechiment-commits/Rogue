@@ -3,6 +3,7 @@ import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doEx
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
+import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
   /* 偽階段：ランダムな通常罠に化けてから再発動 */
@@ -55,8 +56,12 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       break;
     }
     case "spin": {
+      const _spinFromX = p.x, _spinFromY = p.y;
       const _spinDst = randomTeleportDest(dg, p.x, p.y, (x, y) => !dg.monsters.some(m => m.x === x && m.y === y));
-      if (_spinDst) { p.x = _spinDst.x; p.y = _spinDst.y; }
+      if (_spinDst) {
+        p.x = _spinDst.x; p.y = _spinDst.y;
+        pushPlayerTeleportAnim(_spinFromX, _spinFromY, p.x, p.y);
+      }
       ml.push(`${trap.name}が発動！吹き飛ばされた！`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
       const _spinLandTrap = dg.traps.find(t => t !== trap && t.x === p.x && t.y === p.y);
@@ -273,6 +278,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     case "blowback_trap": {
       const _pfd = p.facing || { dx: 0, dy: 1 };
       const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
+      const _blowFromX = p.x, _blowFromY = p.y;
       ml.push(`${trap.name}が発動！向いていた方向と逆に吹き飛ばされた！`);
       if (_pbdx !== 0 || _pbdy !== 0) {
         let _bbHitWall = false, _bbHitMon = null;
@@ -305,6 +311,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
         }
         const _btLandTrap = dg.traps.find(t => t !== trap && t.x === p.x && t.y === p.y);
         if (_btLandTrap) fireTrapPlayer(_btLandTrap, p, dg, ml, nameFn, luFn, ctx);
+        pushPlayerKnockbackAnim(_blowFromX, _blowFromY, p.x, p.y, _pbdx, _pbdy);
       }
       break;
     }

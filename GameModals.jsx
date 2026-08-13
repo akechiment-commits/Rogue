@@ -3400,10 +3400,12 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
               if (_maxDFs !== null && f >= _maxDFs && !_d.isLastFloor) {
                 prepareLastFloor(_d, sr.current.dungeonType || "beginner");
               }
+              const _tpFromX = _p.x, _tpFromY = _p.y;
               _p.depth = f;
               const _tpDst = randomTeleportDest(_d, -999, -999);
               if (_tpDst) { _p.x = _tpDst.x; _p.y = _tpDst.y; }
               else { _p.x = _d.stairUp.x; _p.y = _d.stairUp.y; }
+              pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
               refreshFOV(_d, _p);
               _d.nextSpawnTurn = _p.turns + rng(10, 50);
               sr.current.dungeon = _d;

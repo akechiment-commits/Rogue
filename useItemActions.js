@@ -22,7 +22,7 @@ import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } f
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
-import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim } from "./animEvents.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
 
@@ -1765,7 +1765,9 @@ export function useItemActions({
             if (_px >= 0 && _px < MW && _py >= 0 && _py < MH && dg.map[_py][_px] !== T.WALL && dg.map[_py][_px] !== T.BWALL &&
                 !dg.monsters.some(m => m.x === _px && m.y === _py) &&
                 !dg.pentacles.some(pc => pc.kind === "sanctuary" && pc.cursed && pc.x === _px && pc.y === _py)) {
+              const _pushFromX = p.x, _pushFromY = p.y;
               p.x = _px; p.y = _py;
+              pushPlayerKnockbackAnim(_pushFromX, _pushFromY, p.x, p.y, _pdx, _pdy);
               ml.push("呪われた魔方陣に弾き出された！");
               _pushed = true;
               break;
@@ -3595,7 +3597,9 @@ export function useItemActions({
                         !dg.monsters.some(m => m.x === _lx2 && m.y === _ly2) &&
                         !dg.statues?.some(s => s.x === _lx2 && s.y === _ly2) &&
                         !dg.bigboxes?.some(b => b.x === _lx2 && b.y === _ly2)) {
+                      const _leapFromX = p.x, _leapFromY = p.y;
                       p.x = _lx2; p.y = _ly2;
+                      pushPlayerKnockbackAnim(_leapFromX, _leapFromY, p.x, p.y, _gFdx, _gFdy);
                       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
                       ml.push(`${st.name}の前に飛びついた！`);
                     } else {

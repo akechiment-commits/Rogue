@@ -13,7 +13,7 @@ import {
   spawnMonsters,
   wakeIfDormant,
 } from './monsterRuntime.js';
-import { pushAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushPlayerTeleportAnim } from './animEvents.js';
+import { pushAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
@@ -2272,9 +2272,11 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         if (p && p.x === tx && p.y === ty) {
           if (_spinTpBlock) { ml.push("呪われたテレポートの魔方陣に阻まれて吹き飛ばなかった！"); }
           else {
+            const _spinFromX = p.x, _spinFromY = p.y;
             const _psr = dg.rooms[rng(0, dg.rooms.length - 1)];
             p.x = rng(_psr.x, _psr.x + _psr.w - 1);
             p.y = rng(_psr.y, _psr.y + _psr.h - 1);
+            pushPlayerTeleportAnim(_spinFromX, _spinFromY, p.x, p.y);
             ml.push(`吹き飛ばされた！`);
             if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
           }
@@ -2476,6 +2478,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (p && p.x === tx && p.y === ty) {
         const _pfd = p.facing || { dx: 0, dy: 1 };
         const _pbdx = -(_pfd.dx || 0), _pbdy = -(_pfd.dy || 0);
+        const _blowFromX = p.x, _blowFromY = p.y;
         let _pHitWall = false, _pHitMon = null;
         for (let i = 0; i < 10; i++) {
           const _pnx = p.x + _pbdx, _pny = p.y + _pbdy;
@@ -2488,6 +2491,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         if (_pHitWall) { p.deathCause = `${trap.name}による壁への衝突により`; p.hp -= 10; ml.push("壁に激突！10ダメージ！"); }
         else if (_pHitMon) { p.hp -= 10; _pHitMon.hp -= 10; ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`); dg.monsters = dg.monsters.filter(m => m.hp > 0); }
         else if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
+        pushPlayerKnockbackAnim(_blowFromX, _blowFromY, p.x, p.y, _pbdx, _pbdy);
       }
       return "restart";
     }

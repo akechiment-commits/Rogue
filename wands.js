@@ -16,7 +16,7 @@ import {
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
-import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim } from './animEvents.js';
+import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
 import { monEffectiveMagicImmune, monReflectsMagic } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -61,6 +61,16 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     p.x = toX; p.y = toY;
     pushPlayerTeleportAnim(_fromX, _fromY, p.x, p.y);
   };
+  const _knockbackPlayer = (toX, toY, dx = null, dy = null) => {
+    const _fromX = p.x, _fromY = p.y;
+    p.x = toX; p.y = toY;
+    pushPlayerKnockbackAnim(_fromX, _fromY, p.x, p.y, dx, dy);
+  };
+  const _swapPlayerTo = (toX, toY) => {
+    const _fromX = p.x, _fromY = p.y;
+    p.x = toX; p.y = toY;
+    pushPlayerTeleportAnim(_fromX, _fromY, p.x, p.y);
+  };
   /* 石像：位置系は壊さず効果発動。穴掘り・軟化は敵なし破壊。それ以外は有害なら破壊 */
   if (kind === "statue") {
     if (wandEffectStatueLootOnly(eff)) {
@@ -89,7 +99,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !(_leapX === p.x && _leapY === p.y) &&
             !dg.statues?.some(s => s !== target && s.x === _leapX && s.y === _leapY) &&
             !dg.bigboxes?.some(b => b.x === _leapX && b.y === _leapY)) {
-          p.x = _leapX; p.y = _leapY;
+          _knockbackPlayer(_leapX, _leapY, -dx, -dy);
           if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
           ml.push(`${target.name}の前に飛びついた！【呪】`);
         } else {
@@ -98,7 +108,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         return;
       }
       const [ox, oy] = [p.x, p.y];
-      p.x = target.x; p.y = target.y;
+      _swapPlayerTo(target.x, target.y);
       target.x = ox; target.y = oy;
       displaceObjectsFromStatue(dg, target.x, target.y, ml, getFixtureItemDeps());
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
@@ -198,7 +208,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (_lpx >= 0 && _lpx < MW && _lpy >= 0 && _lpy < MH &&
             dg.map[_lpy][_lpx] !== T.WALL && dg.map[_lpy][_lpx] !== T.BWALL &&
             !dg.monsters.some(m => m.x === _lpx && m.y === _lpy)) {
-          p.x = _lpx; p.y = _lpy;
+          _knockbackPlayer(_lpx, _lpy);
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
           ml.push(`${target.name}に引き寄せられた！【呪】`);
         } else {
@@ -207,7 +217,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         return;
       }
       const [ox, oy] = [p.x, p.y];
-      p.x = target.x; p.y = target.y;
+      _swapPlayerTo(target.x, target.y);
       target.x = ox;  target.y = oy;
       if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
       ml.push(`${target.name}と位置が入れ替わった！`);
@@ -375,7 +385,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if ((dx !== 0 || dy !== 0) && _lpx >= 0 && _lpx < MW && _lpy >= 0 && _lpy < MH &&
             dg.map[_lpy][_lpx] !== T.WALL && dg.map[_lpy][_lpx] !== T.BWALL &&
             !(_lpx === p.x && _lpy === p.y)) {
-          p.x = _lpx; p.y = _lpy;
+          _knockbackPlayer(_lpx, _lpy, -dx, -dy);
           ml.push(`${target.name}の前に飛びついた！`);
         } else {
           ml.push("飛びつけなかった。");
@@ -803,7 +813,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               dg.map[_leapY][_leapX] !== T.WALL && dg.map[_leapY][_leapX] !== T.BWALL &&
               !dg.monsters.some(m2 => m2 !== target && m2.x === _leapX && m2.y === _leapY) &&
               !(_leapX === p.x && _leapY === p.y)) {
-            p.x = _leapX; p.y = _leapY;
+            _knockbackPlayer(_leapX, _leapY, -dx, -dy);
             if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
             ml.push(`${target.name}の前に飛びついた！【呪】`);
           } else {
@@ -812,7 +822,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else if (kind === "item" || FLOOR_MOVE_KINDS.has(kind)) {
           const _leapX = target.x - dx, _leapY = target.y - dy;
           if (_leapX >= 0 && _leapX < MW && _leapY >= 0 && _leapY < MH && dg.map[_leapY][_leapX] !== T.WALL && dg.map[_leapY][_leapX] !== T.BWALL) {
-            p.x = _leapX; p.y = _leapY;
+            _knockbackPlayer(_leapX, _leapY, -dx, -dy);
             if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
             ml.push(`${floorMoveLabel(kind, target)}の前に飛びついた！【呪】`);
           }
@@ -821,7 +831,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "monster") {
         const [ox, oy] = [p.x, p.y];
-        p.x = target.x; p.y = target.y;
+        _swapPlayerTo(target.x, target.y);
         target.x = ox;  target.y = oy;
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${target.name}と位置が入れ替わった！`);
@@ -843,7 +853,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "item") {
         const [ox, oy] = [p.x, p.y];
         ml.push(`${target.name}と位置が入れ替わった！`);
-        p.x = target.x; p.y = target.y;
+        _swapPlayerTo(target.x, target.y);
         target.x = ox;  target.y = oy;
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         claimShopItemIfOutside(target, dg, target.x, target.y, ml, p);
@@ -865,14 +875,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             ml.push(`${_flName}を動かせなかった。`);
             break;
           }
-          p.x = fromX; p.y = fromY;
+          _swapPlayerTo(fromX, fromY);
           ml.push(`${_flName}と位置が入れ替わった！`);
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
           ensureStairsPresent(dg, { isLastFloor: !!dg.isLastFloor || !!dg.isTreasureRoom, p, ml });
           break;
         }
         ml.push(`${_flName}と位置が入れ替わった！`);
-        p.x = target.x; p.y = target.y;
+        _swapPlayerTo(target.x, target.y);
         target.x = ox; target.y = oy;
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         break;
@@ -1831,6 +1841,11 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
   }
   const _boltClr = _wandColors[eff] || "#a050f0";
   let lastX = p.x, lastY = p.y;
+  const _landPlayer = (toX, toY, moveDx = null, moveDy = null) => {
+    const _fromX = p.x, _fromY = p.y;
+    p.x = toX; p.y = toY;
+    pushPlayerKnockbackAnim(_fromX, _fromY, p.x, p.y, moveDx, moveDy);
+  };
   let _fdx = dx, _fdy = dy, _cx = p.x, _cy = p.y;
   for (let d = 1; d < MW + MH; d++) {
     /* 杖の魔法弾は風で曲がらない */
@@ -1874,32 +1889,23 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         return;
       }
       if (eff === "leap") {
-        if (blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push("壁の前に飛びついた！"); return; }
+        if (blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push("壁の前に飛びついた！"); return; }
         // 呪い：跳ね返って自分に当たる → プレイヤーがランダムテレポート
         ml.push("魔法弾が跳ね返って自分に当たった！【呪】");
         if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
-        const _lpPreX = p.x, _lpPreY = p.y;
         applyWandEffect(eff, "player", p, -_fdx, -_fdy, dg, p, ml, luFn, bbFn, blMult);
-        if (p.x !== _lpPreX || p.y !== _lpPreY) {
-          pushAnim({ type: "playerKnockback", fromX: _lpPreX, fromY: _lpPreY, toX: p.x, toY: p.y });
-        }
         return;
       }
       ml.push("魔法弾は壁に跳ね返った！");
       if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
-      /* 吹き飛び前のプレイヤー位置を記録 → projectileReturn の後に slide アニメ */
-      const _kbPreX = p.x, _kbPreY = p.y;
       applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
-      if (p.x !== _kbPreX || p.y !== _kbPreY) {
-        pushAnim({ type: "playerKnockback", fromX: _kbPreX, fromY: _kbPreY, toX: p.x, toY: p.y });
-      }
       return;
     }
     /* 氷の杖：射線上の水を凍らせる（通過・命中判定はその後） */
     if (eff === "ice_wand") freezeWaterTile(dg, tx, ty, ml);
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
       /* 魔法反射：魔法ボルトをプレイヤーに跳ね返す */
       if (monReflectsMagic(mon)) {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
@@ -1912,7 +1918,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     }
     const it = itemAt(dg, tx, ty);
     if (it) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${it.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${it.name}の前に飛びついた！`); return; }
       /* water bottle → matching potion */
       const BOTTLE_XFORM = { slow:"鈍足の薬", paralyze:"金縛りの薬", sleep:"眠りの薬", confuse:"混乱の薬", darkness:"暗闇の薬", bewitch:"惑わしの薬", levelup:"レベルアップの薬", seal:"封印の薬" };
       if (it.effect === "water" && BOTTLE_XFORM[eff]) {
@@ -1927,14 +1933,14 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${trap.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${trap.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "trap", trap, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
     const vent = dg.vents?.find(v => v.x === tx && v.y === ty);
     if (vent) {
       if (eff === "leap" && blMult >= 1) {
-        p.x = lastX; p.y = lastY;
+        _landPlayer(lastX, lastY, _fdx, _fdy);
         if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${vent.name || "風穴"}の前に飛びついた！`);
         return;
@@ -1945,7 +1951,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const pent = dg.pentacles?.find(pc => pc.x === tx && pc.y === ty);
     if (pent) {
       if (eff === "leap" && blMult >= 1) {
-        p.x = lastX; p.y = lastY;
+        _landPlayer(lastX, lastY, _fdx, _fdy);
         if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${pent.name || "魔方陣"}の前に飛びついた！`);
         return;
@@ -1956,7 +1962,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const stairHit = stairRefAt(dg, tx, ty);
     if (stairHit) {
       if (eff === "leap" && blMult >= 1) {
-        p.x = lastX; p.y = lastY;
+        _landPlayer(lastX, lastY, _fdx, _fdy);
         if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${stairHit.name}の前に飛びついた！`);
         return;
@@ -1966,7 +1972,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     }
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
     if (bb) {
-      if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${bb.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${bb.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "bigbox", bb, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
     }
@@ -1974,7 +1980,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     if (statueAt(dg, tx, ty)) {
       const st = statueAt(dg, tx, ty);
       if (eff === "leap" && blMult >= 1) {
-        p.x = lastX; p.y = lastY;
+        _landPlayer(lastX, lastY, _fdx, _fdy);
         if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${st.name}の前に飛びついた！`);
         return;
@@ -1984,7 +1990,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     }
     lastX = tx; lastY = ty;
   }
-  if (eff === "leap" && blMult >= 1) { p.x = lastX; p.y = lastY; if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push("虚空の先に飛びついた！"); return; }
+  if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push("虚空の先に飛びついた！"); return; }
   ml.push("魔法弾は虚空に消えた。");
 }
 

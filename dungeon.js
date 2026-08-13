@@ -6,6 +6,7 @@ import {
   GEM_TYPES, RAW_FOODS, COOKED_FOODS,
 } from './items.js';
 import { scatterFloorGimmicks } from './fixtures.js';
+import { pushPlayerTeleportAnim } from './animEvents.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -375,7 +376,9 @@ export function applyMonsterScroll(dg, p, ml, { blessed = false, cursed = false 
         const ty = rng(dest.y, dest.y + dest.h - 1);
         if (dg.map[ty]?.[tx] !== T.FLOOR) continue;
         if (dg.monsters.some((m) => m.x === tx && m.y === ty)) continue;
+        const _tpFromX = p.x, _tpFromY = p.y;
         p.x = tx; p.y = ty;
+        pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
         if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
         ml.push("巻物の力で別の部屋へテレポートした！");
         teleported = true;
