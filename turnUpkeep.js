@@ -2,6 +2,8 @@
  * プレイヤーのターン開始後に必ず進む基礎状態（ターン数・空腹・自然回復）を更新する。
  * 依存する装備判定は注入し、ゲーム UI や敵行動には依存しない。
  */
+import { statusTurns } from "./statusDuration.js";
+
 export function advancePlayerUpkeep(player, messages, {
   hasAbility,
   hasRingEffect,
@@ -32,7 +34,7 @@ export function advancePlayerUpkeep(player, messages, {
       messages.push("空腹でHPが減っている...");
     }
     player.hp--;
-  } else if (player.hp > 0 && player.hp < player.maxHp) {
+  } else if (!player.poisoned && player.hp > 0 && player.hp < player.maxHp) {
     const baseRegen = Math.max(1, Math.floor(player.maxHp / 100))
       + (hasAbility(player.armor, "regen") ? 1 : 0)
       + regenRingCount;
@@ -145,18 +147,19 @@ export function advanceEarlyStatusTimers(player, messages) {
     player.fireExplosionNullTurns--;
     if (player.fireExplosionNullTurns === 0) messages.push("炎と爆発の不発効果が切れた！");
   }
-  if (player.poisoned && player.turns % 3 === 0) {
-    if ((player.poisonAtkLoss || 0) >= 3) {
+  if (player.poisoned) {
+    if ((player.poisonedTurns || 0) <= 0) {
+      player.poisonedTurns = statusTurns("poison", { kind: "player" });
+    }
+    player.poisonedTurns--;
+    if (player.hp > 0) {
+      player.deathCause = "毒により";
+      player.hp--;
+      messages.push("毒に冒されている！1ダメージ！");
+    }
+    if (player.poisonedTurns <= 0) {
       player.poisoned = false;
       messages.push("毒の効果が切れた。攻撃力の低下は残っている...");
-    } else if (player.atk > 1) {
-      player.atk--;
-      player.poisonAtkLoss = (player.poisonAtkLoss || 0) + 1;
-      messages.push("毒に冒されている！攻撃力が下がった...");
-      if (player.poisonAtkLoss >= 3) {
-        player.poisoned = false;
-        messages.push("毒の効果が切れた。");
-      }
     }
   }
   if ((player.oilyTurns || 0) > 0) {
@@ -228,8 +231,10 @@ export function advanceConsumableBuffTimers(player, messages) {
     }
   }
   if ((player.honeyRegenTurns || 0) > 0) {
-    const heal = Math.min(2, player.maxHp - player.hp);
-    if (heal > 0) player.hp += heal;
+    if (!player.poisoned) {
+      const heal = Math.min(2, player.maxHp - player.hp);
+      if (heal > 0) player.hp += heal;
+    }
     player.honeyRegenTurns--;
     if (player.honeyRegenTurns <= 0) messages.push("蜂蜜の自然回復が切れた！");
   }

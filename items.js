@@ -18,7 +18,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { statusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
+import { statusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
   monEffectiveFixedDamageOnly,
@@ -287,7 +287,7 @@ export const ITEMS = [
   { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。HP最大時は最大HP+1。\n呪い：反転して21ダメージ。",                                               tile:16 },
   { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。HP最大時は最大HP+2。\n呪い：反転して42ダメージ。",                                               tile:17 },
   { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。HP最大時は最大HP+3。\n呪い：反転して50ダメージ。", tile:17 },
-  { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと毒状態になり攻撃力が徐々に低下。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
+  { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと炎ダメージを受ける。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：反転してHP回復。\n投げると炎上し周囲にダメージ。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
   { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n投げると命中した敵を鈍足にする。", tile:16 },
@@ -2087,8 +2087,8 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
         if (hasRingEffect(p, "antidote_ring")) {
           ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
         } else {
-          p.poisoned = true;
-          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！`);
+          const _poison = applyPlayerPoison(p);
+          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
       } else {
         ml.push(`${label}が命中！${d}ダメージ！`);
@@ -2116,8 +2116,8 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
               if (hasRingEffect(p, "antidote_ring")) {
                 ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！しかし指輪が毒を消した！`);
               } else {
-                p.poisoned = true;
-                ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！`);
+                const _poison = applyPlayerPoison(p);
+                ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
               }
             } else {
               ml.push(`跳ね返された${label}が${pl()}に命中！${d}ダメージ！`);
@@ -2945,8 +2945,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (cursed) {
           // 反転→解毒
           if (p.poisoned) {
-            p.poisoned = false;
-            if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+            clearPlayerPoison(p);
             ml.push("毒が体から消えた！攻撃力も回復！【呪→解毒】");
           } else {
             ml.push("変な味がするが…毒はかかっていなかった。【呪→解毒】");
@@ -2954,14 +2953,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else if (hasRingEffect(p, "antidote_ring")) {
           ml.push("毒を浴びたが指輪が毒を消した！");
         } else {
-          p.poisoned = true;
+          const _poison = applyPlayerPoison(p, { blessed });
           if (blessed) {
-            const extraLoss = Math.min(3, p.atk - 1);
-            p.atk -= extraLoss;
-            p.poisonAtkLoss = (p.poisonAtkLoss || 0) + extraLoss;
-            ml.push(`強烈な毒を浴びた！毒状態になり攻撃力が${extraLoss}下がった！(強毒)`);
+            ml.push(`強烈な毒を浴びた！毒状態になり攻撃力が${_poison.atkLoss}下がった！(強毒)`);
           } else {
-            ml.push("毒状態になった！攻撃力が徐々に下がっていく…");
+            ml.push(_poison.atkLoss > 0 ? "毒状態になった！攻撃力が下がった！" : "毒状態が続いている！");
           }
         }
       }
@@ -4243,8 +4239,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
-          p.poisoned = true;
-          mlx.push("食中毒になった！毒状態になった！");
+          const _poison = applyPlayerPoison(p);
+          mlx.push(`食中毒になった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
         p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
         p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
@@ -4253,8 +4249,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
-          p.poisoned = true;
-          mlx.push("腐った食料がぶつかった！毒状態になった！");
+          const _poison = applyPlayerPoison(p);
+          mlx.push(`腐った食料がぶつかった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
       }
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
@@ -4639,8 +4635,8 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           const _refDmg = calcProjectileDmg(p, _arAtk, 0);
           p.hp -= _refDmg;
           if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
-            p.poisoned = true;
-            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！`);
+            const _poison = applyPlayerPoison(p);
+            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
           } else if (_isPoison) {
             ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！しかし指輪が毒を消した！`);
           } else {
@@ -5409,10 +5405,8 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           case "poison_bolt": {
             if (hasRingEffect(p, "antidote_ring")) { ml.push("毒の魔法が跳ね返ってきたが指輪が毒を消した！"); }
             else {
-              const _pt = statusTurns("poison", { kind: "player" });
-              p.poisonedTurns = (p.poisonedTurns || 0) + _pt;
-              p.poisoned = true;
-              ml.push(`毒の魔法が跳ね返ってきた！毒に侵された！(${_pt}ターン)`);
+              const _poison = applyPlayerPoison(p);
+              ml.push(`毒の魔法が跳ね返ってきた！毒に侵された！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
             }
             break;
           }

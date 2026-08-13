@@ -23,7 +23,7 @@ import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind } from "./animEvents.js";
-import { statusTurns, applyMonsterParalyze } from "./statusDuration.js";
+import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限、風穴で曲がる） */
@@ -106,9 +106,7 @@ export function useItemActions({
       // 毒回復ヘルパー
       const _curePoison = () => {
         if (p.poisoned) {
-          p.poisoned = false;
-          if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
-          return true;
+          return clearPlayerPoison(p);
         }
         return false;
       };
@@ -146,7 +144,7 @@ export function useItemActions({
             if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _cured.push("混乱"); }
             if ((p.slowTurns || 0) > 0) { p.slowTurns = 0; _cured.push("鈍足"); }
             if (_curePoison()) _cured.push("毒");
-            if (!p.poisoned && (p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; _cured.push("毒による攻撃力低下"); }
+            if (!p.poisoned && (p.poisonAtkLoss || 0) > 0) { clearPlayerPoison(p); _cured.push("毒による攻撃力低下"); }
             if (_cured.length > 0) _hMsg += ` ${_cured.join("・")}も解消！`;
           }
           ml.push(_hMsg);
@@ -180,7 +178,7 @@ export function useItemActions({
           // 呪い：反転→解毒薬
           const _wasPoison = _curePoison();
           const _hadAtkLoss = !p.poisoned && (p.poisonAtkLoss || 0) > 0;
-          if (_hadAtkLoss) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+          if (_hadAtkLoss) clearPlayerPoison(p);
           if (_wasPoison || _hadAtkLoss) {
             ml.push(`${it.name}を飲んだ。毒が体から消えた！攻撃力も回復！【呪→解毒】`);
           } else {
@@ -189,15 +187,12 @@ export function useItemActions({
         } else if (hasRingEffect(p, "antidote_ring")) {
           ml.push(`${it.name}を飲んだ。毒を受けたが指輪が毒を消した！`);
         } else {
-          // 通常：毒状態を付与。祝福=即時ATK-3の追加ペナルティ
-          p.poisoned = true;
+          // 通常：毒状態を付与。付与時に攻撃力低下、効果中は毎ターンダメージ
+          const _poison = applyPlayerPoison(p, { blessed: it.blessed });
           if (it.blessed) {
-            const _extraLoss = Math.min(3, p.atk - 1);
-            p.atk -= _extraLoss;
-            p.poisonAtkLoss = (p.poisonAtkLoss || 0) + _extraLoss;
-            ml.push(`${it.name}を飲んだ。強烈な毒を浴びた！毒状態になり攻撃力が${_extraLoss}下がった！【祝=強毒】`);
+            ml.push(`${it.name}を飲んだ。強烈な毒を浴びた！毒状態になり攻撃力が${_poison.atkLoss}下がった！【祝=強毒】`);
           } else {
-            ml.push(`${it.name}を飲んだ。毒状態になった！攻撃力が徐々に下がっていく…`);
+            ml.push(`${it.name}を飲んだ。${_poison.atkLoss > 0 ? "毒状態になった！攻撃力が下がった！" : "毒状態が続いている！"}`);
           }
         }
       } else if (it.effect === "fire") {
@@ -430,8 +425,8 @@ export function useItemActions({
         if (hasRingEffect(p, "antidote_ring")) {
           ml.push("毒消しの指輪が毒を防いだ！");
         } else {
-          p.poisoned = true;
-          ml.push("食中毒になった！毒状態になった！攻撃力が徐々に下がっていく…");
+          const _poison = applyPlayerPoison(p);
+          ml.push(`食中毒になった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
         if ((p.yogurtImmuneTurns || 0) > 0) {
           ml.push("乳酸菌が混乱を防いだ！");
@@ -462,8 +457,8 @@ export function useItemActions({
         if (hasRingEffect(p, "antidote_ring")) {
           ml.push("毒消しの指輪が毒を防いだ！");
         } else {
-          p.poisoned = true;
-          ml.push("食中毒になった！毒状態になった！攻撃力が徐々に下がっていく…");
+          const _poison = applyPlayerPoison(p);
+          ml.push(`食中毒になった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
       } else {
       const _foodVal = Math.max(1, Math.round(it.value * _foodBm));
@@ -522,11 +517,10 @@ export function useItemActions({
         if (p.sleepTurns > 0) { p.sleepTurns = 0; _acured.push("睡眠"); }
         if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; _acured.push("金縛り"); }
         if (p.poisoned) {
-          p.poisoned = false;
-          if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+          clearPlayerPoison(p);
           _acured.push("毒");
         } else if ((p.poisonAtkLoss || 0) > 0) {
-          p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0;
+          clearPlayerPoison(p);
           _acured.push("毒による攻撃力低下");
         }
         if (_acured.length > 0) ml.push(`状態異常が消えた！(${_acured.join("・")})`);
@@ -558,8 +552,8 @@ export function useItemActions({
             if (hasRingEffect(p, "antidote_ring")) {
               ml.push("毒が混じっていたが指輪が毒を消した！");
             } else {
-              p.poisoned = true;
-              ml.push("毒が混じっていた！毒状態になった！攻撃力が徐々に下がっていく…");
+              const _poison = applyPlayerPoison(p);
+              ml.push(`毒が混じっていた！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
             }
           } else if (pe === "sleep") {
             const st = rng(3, 6);
@@ -599,13 +593,12 @@ export function useItemActions({
             if (hasRingEffect(p, "antidote_ring")) {
               ml.push("呪いの回復成分があったが指輪が毒を消した！");
             } else {
-              p.poisoned = true;
-              ml.push("呪いの回復成分が！毒状態になった！攻撃力が徐々に下がっていく…");
+              const _poison = applyPlayerPoison(p);
+              ml.push(`呪いの回復成分が！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
             }
           } else if (pe === "c_poison") {
             if (p.poisoned) {
-              p.poisoned = false;
-              if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+              clearPlayerPoison(p);
               ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
             } else ml.push("解毒成分が入っていたが毒ではなかった。");
           } else if (pe === "c_sleep") {
@@ -661,7 +654,7 @@ export function useItemActions({
             const _chAh = Math.min(35, p.maxHp - p.hp);
             p.hp += _chAh;
             const _chCured = [];
-            if (p.poisoned) { p.poisoned = false; _chCured.push("毒"); }
+            if (p.poisoned) { clearPlayerPoison(p); _chCured.push("毒"); }
             if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _chCured.push("眠り"); }
             if ((p.paralyzeTurns || 0) > 0) { p.paralyzeTurns = 0; _chCured.push("金縛り"); }
             if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _chCured.push("混乱"); }
@@ -699,7 +692,7 @@ export function useItemActions({
             ml.push("バターのカロリーで腹持ち抜群！満腹度減少半減(100ターン)");
           } else if (_pf === "yogurt") {
             p.yogurtImmuneTurns = (p.yogurtImmuneTurns || 0) + 100;
-            if (p.poisoned) { p.poisoned = false; ml.push("乳酸菌が毒を中和した！"); }
+            if (p.poisoned) { clearPlayerPoison(p); ml.push("乳酸菌が毒を中和した！"); }
             if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; ml.push("乳酸菌が混乱を鎮めた！"); }
             ml.push("乳酸菌パワーで毒・混乱を寄せ付けない！(100ターン)");
           } else if (_pf === "coconut") {
@@ -1897,8 +1890,7 @@ export function useItemActions({
               doExplosion(p.x, p.y, dg, p, ml, dnameRef, "爆発の指輪", null, null, false, true);
             }
             if (it.effect === "antidote_ring" && p.poisoned) {
-              p.poisoned = false;
-              if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+              clearPlayerPoison(p);
               ml.push("指輪の力で毒が消えた！攻撃力も回復！");
             }
           }
@@ -1921,8 +1913,7 @@ export function useItemActions({
           }
           /* 毒消しの指輪：装備時に毒を解除 */
           if (it.effect === "antidote_ring" && p.poisoned) {
-            p.poisoned = false;
-            if ((p.poisonAtkLoss || 0) > 0) { p.atk += p.poisonAtkLoss; p.poisonAtkLoss = 0; }
+            clearPlayerPoison(p);
             ml.push("指輪の力で毒が消えた！攻撃力も回復！");
           }
         }
@@ -2874,7 +2865,8 @@ export function useItemActions({
           onPlHit: (mlx) => {
             /* reflector経由でプレイヤー命中時の毒処理 */
             if (_arIsPoison && !hasRingEffect(p, "antidote_ring")) {
-              p.poisoned = true; mlx.push("毒を受けた！");
+              const _poison = applyPlayerPoison(p);
+              mlx.push(_poison.atkLoss > 0 ? "毒を受けた！攻撃力が下がった！" : "毒を受けた！");
             } else if (_arIsPoison) {
               mlx.push("しかし指輪が毒を消した！");
             }
@@ -3682,8 +3674,8 @@ export function useItemActions({
                     if (hasRingEffect(p, "antidote_ring")) {
                       ml.push("毒消しの指輪が毒を防いだ！");
                     } else {
-                      p.poisoned = true;
-                      ml.push("食中毒になった！毒状態になった！");
+                      const _poison = applyPlayerPoison(p);
+                      ml.push(`食中毒になった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                     }
                     p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
                     p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
@@ -3692,8 +3684,8 @@ export function useItemActions({
                     if (hasRingEffect(p, "antidote_ring")) {
                       ml.push("毒消しの指輪が毒を防いだ！");
                     } else {
-                      p.poisoned = true;
-                      ml.push("腐った食料がぶつかった！毒状態になった！");
+                      const _poison = applyPlayerPoison(p);
+                      ml.push(`腐った食料がぶつかった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                     }
                   }
                   if (it.type === "wand") {
@@ -3817,11 +3809,14 @@ export function useItemActions({
               p.deathCause = "風に煽られた投げ物に当たって";
               ml.push(`${_selfD}ダメージ！`);
               if (it.type === "food" && it.yabai) {
-                p.poisoned = true;
+                const _poison = applyPlayerPoison(p);
                 p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
-                ml.push("ヤバイ食料の影響で毒・混乱した！");
+                ml.push(`ヤバイ食料の影響で毒・混乱した！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
               } else if (it.type === "food" && it.rotten) {
-                if (!hasRingEffect(p, "antidote_ring")) { p.poisoned = true; ml.push("腐った食料で毒状態になった！"); }
+                if (!hasRingEffect(p, "antidote_ring")) {
+                  const _poison = applyPlayerPoison(p);
+                  ml.push(`腐った食料で毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                }
               }
             }
           } else if (_isFarcast) {

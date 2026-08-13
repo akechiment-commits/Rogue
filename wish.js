@@ -16,6 +16,7 @@ import {
 } from "./items.js";
 import { trackMonster, trackBigbox } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
+import { clearPlayerPoison } from "./statusDuration.js";
 
 /** 飲む／浸すで願いが発動する確率（各 0.5%） */
 export const WISH_CHANCE_DRINK = 0.005;
@@ -385,7 +386,7 @@ function placeBigboxNearPlayer(dg, p, tmpl, ml) {
 }
 
 function clearMajorDebuffs(p) {
-  p.poisoned = false;
+  clearPlayerPoison(p);
   p.sleepTurns = 0;
   p.paralyzeTurns = 0;
   p.confusedTurns = 0;

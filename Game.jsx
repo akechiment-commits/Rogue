@@ -55,6 +55,7 @@ import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "./turnUpkeep.js";
+import { applyPlayerPoison } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
@@ -488,6 +489,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       hasteUsed: false,
       confusedTurns: 0,
       poisoned: false,
+      poisonedTurns: 0,
       poisonAtkLoss: 0,
       sealedTurns: 0,
       fireExplosionNullTurns: 0,
@@ -2512,7 +2514,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                       calcPlDmg: () => calcProjectileDmg(p, _srBaseAtk, 0),
                       onPlHit: (mlx) => {
                         if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
-                          p.poisoned = true; mlx.push("毒を受けた！");
+                          const _poison = applyPlayerPoison(p);
+                          mlx.push(_poison.atkLoss > 0 ? "毒を受けた！攻撃力が下がった！" : "毒を受けた！");
                         }
                         _srPeel();
                       },
@@ -3992,7 +3995,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 const _scPDmg = _scUseCalc ? calcProjectileDmg(p, _scBaseAtk, 0) : _scBaseAtk + rng(0, 3);
                 p.hp -= _scPDmg;
                 let _pmsg = `${_idn}が${pl()}に命中！${_scPDmg}ダメージ！`;
-                if (item.type === "arrow" && item.poison && !hasRingEffect(p, "antidote_ring")) { p.poisoned = true; _pmsg += "毒を受けた！"; }
+                if (item.type === "arrow" && item.poison && !hasRingEffect(p, "antidote_ring")) {
+                  const _poison = applyPlayerPoison(p);
+                  _pmsg += _poison.atkLoss > 0 ? "毒を受けた！攻撃力が下がった！" : "毒を受けた！";
+                }
                 ml.push(_pmsg);
                 if (item.type === "food" && item.yabai) {
                   const _syScDmg = rng(15, 25);
@@ -4002,8 +4008,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   if (hasRingEffect(p, "antidote_ring")) {
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
-                    p.poisoned = true;
-                    ml.push("食中毒になった！毒状態になった！");
+                    const _poison = applyPlayerPoison(p);
+                    ml.push(`食中毒になった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                   }
                   p.confusedTurns = (p.confusedTurns || 0) + 5;
                   p.slowTurns = (p.slowTurns || 0) + 10;
@@ -4012,8 +4018,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                   if (hasRingEffect(p, "antidote_ring")) {
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
-                    p.poisoned = true;
-                    ml.push("腐った食料がぶつかった！毒状態になった！");
+                    const _poison = applyPlayerPoison(p);
+                    ml.push(`腐った食料がぶつかった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                   }
                 }
               }
@@ -4217,8 +4223,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       ml.push(`苦い...！${d}ダメージ！`);
     } else if (r < 0.90) {
       // 毒状態になる
-      p.poisoned = true;
-      ml.push("なんか変な味がした...毒だ！");
+      const _poison = applyPlayerPoison(p);
+      ml.push(`なんか変な味がした...毒だ！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
     } else if (r < 0.95) {
       // 所持品がランダムで呪われる（壺は容量-1）
       const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && (i.type === "pot" || !i.cursed));

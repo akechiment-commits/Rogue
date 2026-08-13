@@ -4,7 +4,7 @@ import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim } from "./a
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
-import { statusTurns } from "./statusDuration.js";
+import { statusTurns, applyPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
 
 export { wakeIfDormant } from "./monsterRuntime.js";
@@ -485,8 +485,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       } else if ((pl.yogurtImmuneTurns || 0) > 0) {
         ml.push(`煉獄公の爪に毒が！しかし乳酸菌が毒を防いだ！`);
       } else {
-        pl.poisoned = true;
-        ml.push(`煉獄公の爪に毒が！毒を受けた！攻撃力が徐々に下がっていく…`);
+        const _poison = applyPlayerPoison(pl);
+        ml.push(`煉獄公の爪に毒が！毒を受けた！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
       }
     }
     if (m.baseKind === "boss_abyssgod") {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { advanceConsumableBuffTimers, advanceCoreStatusTimers, advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "../turnUpkeep.js";
+import { applyPlayerPoison } from "../statusDuration.js";
 
 function makePlayer(overrides = {}) {
   return { hp: 50, maxHp: 100, hunger: 40, turns: 0, weapon: null, armor: null, rings: [], ...overrides };
@@ -212,6 +213,13 @@ describe("advanceConsumableBuffTimers", () => {
     expect(player.hp).toBe(92);
     expect(messages).toEqual(["辛さによるダメージブーストが切れた！", "カレーの炎耐性が切れた！", "蜂蜜の自然回復が切れた！"]);
   });
+
+  it("毒中は蜂蜜の自然回復も停止する", () => {
+    const player = makePlayer({ hp: 90, poisoned: true, honeyRegenTurns: 1 });
+    advanceConsumableBuffTimers(player, []);
+    expect(player.hp).toBe(90);
+    expect(player.honeyRegenTurns).toBe(0);
+  });
 });
 
 describe("advanceEarlyStatusTimers", () => {
@@ -233,12 +241,28 @@ describe("advanceEarlyStatusTimers", () => {
     expect(player.mpCooldownTurns).toBe(1);
   });
 
-  it("毒は3ターンごとに攻撃力を下げ、3回で解ける", () => {
-    const player = makePlayer({ turns: 3, atk: 5, poisoned: true, poisonAtkLoss: 2 });
+  it("毒は付与時に攻撃力を下げ、効果中は毎ターンダメージを与える", () => {
+    const player = makePlayer({ turns: 0, hp: 50, atk: 5 });
+    const poison = applyPlayerPoison(player);
+    expect(poison).toMatchObject({ newlyApplied: true, atkLoss: 1, turns: 5 });
+    expect(player).toMatchObject({ poisoned: true, poisonedTurns: 5, atk: 4, poisonAtkLoss: 1 });
+
     const messages = [];
+    advance(player, messages);
     advanceEarlyStatusTimers(player, messages);
-    expect(player.atk).toBe(4);
+    expect(player.hp).toBe(49);
+    expect(player.poisonedTurns).toBe(4);
+    expect(messages).toContain("毒に冒されている！1ダメージ！");
+  });
+
+  it("毒の効果中は自然回復せず、持続時間が切れる", () => {
+    const player = makePlayer({ turns: 0, hp: 50, poisoned: true, poisonedTurns: 1, atk: 4, poisonAtkLoss: 1 });
+    const messages = [];
+    advance(player, messages);
+    advanceEarlyStatusTimers(player, messages);
+    expect(player.hp).toBe(49);
     expect(player.poisoned).toBe(false);
-    expect(messages).toEqual(["毒に冒されている！攻撃力が下がった...", "毒の効果が切れた。"]);
+    expect(player.atk).toBe(4);
+    expect(messages).toEqual(["毒に冒されている！1ダメージ！", "毒の効果が切れた。攻撃力の低下は残っている..."]);
   });
 });

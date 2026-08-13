@@ -95,6 +95,41 @@ export function isPermanentTurns(t) {
 }
 
 /**
+ * プレイヤーへ毒を付与する。
+ * 毒の再付与では攻撃力低下を重ねず、持続時間だけ更新する。
+ * 攻撃力低下は解毒処理で戻すため poisonAtkLoss に記録する。
+ */
+export function applyPlayerPoison(player, { blessed = false } = {}) {
+  if (!player) return { newlyApplied: false, atkLoss: 0, turns: 0 };
+  const newlyApplied = !player.poisoned;
+  const turns = statusTurns("poison", { kind: "player", blessed });
+  player.poisoned = true;
+  player.poisonedTurns = Math.max(player.poisonedTurns || 0, turns);
+
+  let atkLoss = 0;
+  if (newlyApplied) {
+    const desiredLoss = blessed ? 3 : 1;
+    atkLoss = Math.min(desiredLoss, Math.max(0, (player.atk || 1) - 1));
+    player.atk = Math.max(1, (player.atk || 1) - atkLoss);
+    player.poisonAtkLoss = (player.poisonAtkLoss || 0) + atkLoss;
+  }
+  return { newlyApplied, atkLoss, turns };
+}
+
+/** プレイヤーの毒と、それに紐づく攻撃力低下をまとめて解除する。 */
+export function clearPlayerPoison(player) {
+  if (!player) return false;
+  const hadPoison = !!player.poisoned || (player.poisonedTurns || 0) > 0;
+  player.poisoned = false;
+  player.poisonedTurns = 0;
+  if ((player.poisonAtkLoss || 0) > 0) {
+    player.atk += player.poisonAtkLoss;
+    player.poisonAtkLoss = 0;
+  }
+  return hadPoison;
+}
+
+/**
  * モンスターに金縛りを付与。
  * - 通常敵: 永続（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
  * - ボス: 有限 50T（祝福 100T）。tick 半減あり。被ダメでも解除
