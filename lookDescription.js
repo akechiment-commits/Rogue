@@ -24,6 +24,34 @@ export function describeLookCell({
     return tile === T.BWALL ? "壊せる壁" : "壁";
   }
 
+  /* 幻惑中は、画面上のオブジェクトが別のものに見えるのと同様に
+     「見渡す」の識別情報も信頼できないようにする。壁・風穴・石像は
+     グラフィックが変わらないため、通常どおり表示する。 */
+  const bewitched = (session?.player?.bewitchedTurns || 0) > 0;
+  if (bewitched) {
+    const parts = [];
+    const disguisedTrap = dungeon.traps?.find((trap) => trap.x === x && trap.y === y && trap.disguise && !trap.revealed);
+    if (disguisedTrap) parts.push("階段のようなもの");
+
+    const monster = dungeon.visible[y]?.[x] && dungeon.monsters.find((mon) => mon.x === x && mon.y === y);
+    if (monster) parts.push("何かの影");
+
+    const items = dungeon.items.filter((entry) => entry.x === x && entry.y === y && !entry.wallEmbedded);
+    if (items.length > 0) parts.push("何かが落ちている");
+
+    const trap = dungeon.traps.find((entry) => entry.x === x && entry.y === y && entry.revealed);
+    if (trap) parts.push("床に何かある");
+
+    const spring = dungeon.springs?.find((entry) => entry.x === x && entry.y === y);
+    if (spring) parts.push("何かの水たまり");
+    const bigbox = dungeon.bigboxes?.find((entry) => entry.x === x && entry.y === y);
+    if (bigbox) parts.push("何か大きな箱のようなもの");
+    if (dungeon.pentacles?.some((entry) => entry.x === x && entry.y === y)) parts.push("床の模様");
+    if (dungeon.vents?.some((entry) => entry.x === x && entry.y === y)) parts.push("風穴");
+    if (dungeon.statues?.some((entry) => entry.x === x && entry.y === y)) parts.push("石像");
+    return parts.length > 0 ? parts.join(" / ") : "何もない";
+  }
+
   const parts = [];
   if (tile === T.SD) parts.push("下り階段");
   else if (tile === T.SU) parts.push("上り階段");

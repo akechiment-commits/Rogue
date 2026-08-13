@@ -1303,7 +1303,7 @@ export const TRAPS = [
   { name:"封印の罠",       effect:"seal_trap",     tile:48,  rarity:"C", weight:4,  desc:"踏むと50ターン魔法が封印される。\n巻物・魔法・杖が使えなくなる。" },
   { name:"盗みの罠",       effect:"steal_trap",    tile:49,  rarity:"C", weight:4,  desc:"踏むと所持品が1つランダムにフロアのどこかへ飛ばされる。\nアイテムで起動した場合もそのアイテムが飛ばされる。\nロングソードは10%でソボロ助広に変化する。\nキーアイテムは盗まれない。" },
   { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71,  rarity:"E", weight:12, desc:"踏むと5ターン移動不能になる。\n攻撃やアイテム使用は可能。" },
-  { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84,  rarity:"C", weight:4,  desc:"踏むと50ターン幻惑状態。\n周囲の見た目が狂う。" },
+  { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84,  rarity:"C", weight:4,  desc:"踏むと50ターン幻惑状態。\n周囲の見た目と、見渡すで得られる情報が狂う。" },
   { name:"腐敗の罠",       effect:"rot_trap",      tile:94,  rarity:"C", weight:4,  desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, rarity:"C", weight:4,  desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
   /* B: レア（危険） */
