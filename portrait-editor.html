@@ -21,6 +21,20 @@
     <main id="main">
       <p class="empty-note">読み込み中…</p>
     </main>
+    <div id="preview-modal" class="preview-modal" hidden>
+      <div class="preview-dialog" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+        <div class="preview-dialog-head">
+          <div>
+            <h2 id="preview-title">立ち絵プレビュー</h2>
+            <p id="preview-file" class="preview-file"></p>
+          </div>
+          <button type="button" id="preview-close" class="preview-close" aria-label="プレビューを閉じる">閉じる</button>
+        </div>
+        <div class="preview-canvas">
+          <img id="preview-image" alt="" />
+        </div>
+      </div>
+    </div>
     <div id="toast"></div>
     <script type="module" src="/tools/portrait-editor.js"></script>
   </body>

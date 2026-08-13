@@ -3,9 +3,38 @@ import { transparentizeDataUrl } from "../portraitTransparency.js";
 
 const $ = (sel) => document.querySelector(sel);
 const toastEl = $("#toast");
+const previewModal = $("#preview-modal");
+const previewImage = $("#preview-image");
+const previewTitle = $("#preview-title");
+const previewFile = $("#preview-file");
 let existing = new Set();
 let categories = [];
 let toastTimer;
+
+function closePreview() {
+  if (!previewModal || previewModal.hidden) return;
+  previewModal.hidden = true;
+  document.body.classList.remove("preview-open");
+  previewImage.removeAttribute("src");
+}
+
+function openPreview(slot) {
+  previewTitle.textContent = slot.label;
+  previewFile.textContent = `${slot.file}.png`;
+  previewImage.alt = slot.label;
+  previewImage.src = portraitUrl(slot.file);
+  previewModal.hidden = false;
+  document.body.classList.add("preview-open");
+  $("#preview-close")?.focus();
+}
+
+$("#preview-close")?.addEventListener("click", closePreview);
+previewModal?.addEventListener("click", (e) => {
+  if (e.target === previewModal) closePreview();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closePreview();
+});
 
 function showToast(msg, type = "ok") {
   toastEl.textContent = msg;
@@ -247,7 +276,7 @@ function buildSlot(cat, slot) {
   });
 
   previewBtn.addEventListener("click", () => {
-    window.open(portraitUrl(slot.file), "_blank", "noopener");
+    openPreview(slot);
   });
 
   delBtn.addEventListener("click", async () => {
