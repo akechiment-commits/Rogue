@@ -1053,10 +1053,12 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       }
       _msgResult = _ml_ext;
     } else if (mode.mode === 'bless') {
+      /* 未識別品は祝福処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
+      const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (_selIt.type === 'pot') {
         _selIt.capacity = (_selIt.capacity || 1) + 1;
-        _msgResult = `${_selIt.name}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
-      } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を祝福した！【祝】`; }
+        _msgResult = `${_selItDN}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
+      } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selItDN}を祝福した！【祝】`; }
     } else if (mode.mode === 'curse') {
       if (_selIt.type === 'pot') {
         const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
