@@ -1060,15 +1060,17 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         _msgResult = `${_selItDN}を祝福した！(容量+1 → ${_selIt.capacity})【祝】`;
       } else { _selIt.blessed = true; _selIt.cursed = false; _selIt.bcKnown = true; _msgResult = `${_selItDN}を祝福した！【祝】`; }
     } else if (mode.mode === 'curse') {
+      /* 未識別品は呪い処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
+      const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
       if (_selIt.type === 'pot') {
         const _nc = Math.max(0, (_selIt.capacity || 1) - 1);
         const _p_ui = sr.current.player;
         if ((_selIt.contents?.length || 0) > _nc) {
           const _rmIdx2 = _p_ui.inventory.indexOf(_selIt);
           if (_rmIdx2 !== -1) { const _fts3 = new Set(); for (const _ci of (_selIt.contents || [])) placeItemAt(sr.current.dungeon, _p_ui.x, _p_ui.y, _ci, [], _fts3); _p_ui.inventory.splice(_rmIdx2, 1); }
-          _msgResult = `${_selIt.name}が呪いで割れた！中身が足元に落ちた！【呪】`;
-        } else { _selIt.capacity = _nc; _msgResult = `${_selIt.name}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
-      } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selIt.name}を呪った！【呪】`; }
+          _msgResult = `${_selItDN}が呪いで割れた！中身が足元に落ちた！【呪】`;
+        } else { _selIt.capacity = _nc; _msgResult = `${_selItDN}を呪った！(容量-1 → ${_selIt.capacity})【呪】`; }
+      } else { _selIt.cursed = true; _selIt.blessed = false; _selIt.bcKnown = true; _msgResult = `${_selItDN}を呪った！【呪】`; }
     } else if (mode.mode === 'duplicate') {
       const _dupCount = mode.cursed ? 0 : 1;
       const _p_dup = sr.current.player;
