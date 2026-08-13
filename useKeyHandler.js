@@ -14,6 +14,7 @@ import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
+import { pushPlayerTeleportAnim } from "./animEvents.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -249,6 +250,7 @@ export function useKeyHandler({
         if (ncx !== cx || ncy !== cy) { setTpSelectMode({ cx: ncx, cy: ncy }); return; }
         const doTpConfirm = (tx, ty) => {
           const ml = [];
+          const _tpFromX = p.x, _tpFromY = p.y;
           const isWalkable = dg.map[ty]?.[tx] !== T.WALL && dg.map[ty]?.[tx] !== T.BWALL && dg.map[ty]?.[tx] !== undefined;
           if (isWalkable) {
             p.x = tx; p.y = ty;
@@ -259,6 +261,7 @@ export function useKeyHandler({
             p.y = rng(rm.y, rm.y + rm.h - 1);
             ml.push("壁の中！ランダムにテレポートした。");
           }
+          pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
           endTurn(sr.current, p, ml);
           refreshFOV(dg, p);
           setTpSelectMode(null);

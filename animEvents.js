@@ -9,6 +9,8 @@
  *   damage:     { type, x, y, value, color }
  *   flash:      { type, x, y, color }
  *   miss:       { type, x, y }
+ *   playerKnockback: { type, fromX, fromY, toX, toY, dx, dy }
+ *   playerTeleport: { type, fromX, fromY, toX, toY }
  */
 
 import { MW, MH, T, monsterAt, itemAt, stepProjectile, traceProjectilePath } from './utils.js';
@@ -18,6 +20,12 @@ const animEvents = [];
 
 export function pushAnim(event) {
   animEvents.push(event);
+}
+
+/** プレイヤーのテレポート演出を登録（座標更新は呼び出し側で行う） */
+export function pushPlayerTeleportAnim(fromX, fromY, toX, toY) {
+  if (fromX === toX && fromY === toY) return;
+  pushAnim({ type: "playerTeleport", fromX, fromY, toX, toY });
 }
 
 export function drainAnims() {

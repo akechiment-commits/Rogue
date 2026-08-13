@@ -13,7 +13,7 @@ import {
   spawnMonsters,
   wakeIfDormant,
 } from './monsterRuntime.js';
-import { pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim } from './animEvents.js';
+import { pushAnim, pushExplosionAnim, pushSplashAnim, pushHealAnim, pushItemArcAnim, pushPlayerTeleportAnim } from './animEvents.js';
 import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
@@ -4424,7 +4424,13 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
     }
     cx = nx; cy = ny;
   }
-  if (kind === "monster" || kind === "player") { entity.x = cx; entity.y = cy; }
+  if (kind === "monster") { entity.x = cx; entity.y = cy; }
+  else if (kind === "player") {
+    entity.x = cx; entity.y = cy;
+    if (cx !== x || cy !== y) {
+      pushAnim({ type: "playerKnockback", fromX: x, fromY: y, toX: cx, toY: cy, dx, dy });
+    }
+  }
   else if (_isFloorObj) { entity.x = cx; entity.y = cy; }
   return { x:cx, y:cy, consumed:false };
 }
@@ -5311,7 +5317,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
               _tmf.push({ x: _tx, y: _ty });
         if (_tmf.length === 0) { ml.push("テレポートに失敗した。"); break; }
         const _tmd = pick(_tmf);
+        const _tpFromX = p.x, _tpFromY = p.y;
         p.x = _tmd.x; p.y = _tmd.y;
+        pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
         ml.push("ランダムな場所にテレポートした！");
       } break;
     }
@@ -5421,7 +5429,19 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
             }
             break;
           }
-          case "teleport_other": { const _rtf = []; for (let _rty = 0; _rty < MH; _rty++) for (let _rtx = 0; _rtx < MW; _rtx++) if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => m.x === _rtx && m.y === _rty)) _rtf.push({ x: _rtx, y: _rty }); if (_rtf.length > 0) { const _rtd = pick(_rtf); p.x = _rtd.x; p.y = _rtd.y; ml.push("テレポートの魔法が跳ね返ってきた！どこかへ飛ばされた！"); } break; }
+          case "teleport_other": {
+            const _rtf = [];
+            for (let _rty = 0; _rty < MH; _rty++) for (let _rtx = 0; _rtx < MW; _rtx++)
+              if (dg.map[_rty][_rtx] === T.FLOOR && !(p.x === _rtx && p.y === _rty) && !dg.monsters.some(m => m.x === _rtx && m.y === _rty)) _rtf.push({ x: _rtx, y: _rty });
+            if (_rtf.length > 0) {
+              const _rtd = pick(_rtf);
+              const _tpFromX = p.x, _tpFromY = p.y;
+              p.x = _rtd.x; p.y = _rtd.y;
+              pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+              ml.push("テレポートの魔法が跳ね返ってきた！どこかへ飛ばされた！");
+            }
+            break;
+          }
           case "drain_hp": { const _rd = Math.round(rng(15, 25) * _rfLvF); p.hp -= _rd; p.deathCause = "反射されたHP吸収の魔法で"; ml.push(`HP吸収の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "transform_magic": { const _th = rng(-10, 10); p.hp += _th; if (_th < 0) p.deathCause = "反射された変化の魔法で"; ml.push(`変化の魔法が跳ね返ってきた！${_th >= 0 ? `体に変化が...HP+${_th}` : `体に異変が...HP${_th}`}`); break; }
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;

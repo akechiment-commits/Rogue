@@ -4,6 +4,7 @@ import { applySpellEffect } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { makeStatue } from "../fixtures.js";
+import { drainAnims, pushPlayerTeleportAnim } from "../animEvents.js";
 
 describe("applyWandEffect", () => {
   const dg = makeEmptyDg();
@@ -51,6 +52,23 @@ describe("applyWandEffect", () => {
     applyWandEffect("slow", "player", p, 0, 0, dg, p, ml, noop, null, 0.5);
     expect(p.hasteTurns).toBe(10);
     expect(ml.some(m => m.includes("2倍速"))).toBe(true);
+  });
+
+  it("プレイヤーの吹き飛ばしは移動元・移動先の演出イベントを発行する", () => {
+    drainAnims();
+    const localDg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5 });
+    applyWandEffect("knockback", "player", p, 1, 0, localDg, p, [], noop);
+    const ev = drainAnims().find(e => e.type === "playerKnockback");
+    expect(ev).toMatchObject({ fromX: 5, fromY: 5, toX: 15, toY: 5, dx: 1, dy: 0 });
+  });
+
+  it("プレイヤーのテレポート演出は同じマスでは発行しない", () => {
+    drainAnims();
+    pushPlayerTeleportAnim(5, 5, 12, 8);
+    expect(drainAnims()).toContainEqual({ type: "playerTeleport", fromX: 5, fromY: 5, toX: 12, toY: 8 });
+    pushPlayerTeleportAnim(5, 5, 5, 5);
+    expect(drainAnims()).toEqual([]);
   });
 
   it("魔法無効のモンスターには杖が効かない", () => {

@@ -948,6 +948,10 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
       const dpy = (drawY - sy) * sz;
       if (dpx < -sz || dpx > cw + sz || dpy < -sz || dpy > ch + sz) continue;
       if (key === "player") {
+        const _moveAlpha = mo.alpha ?? 1;
+        if (_moveAlpha <= 0) continue;
+        ctx.save();
+        ctx.globalAlpha = _moveAlpha;
         if ((p.potConfinedTurns || 0) > 0) {
           drawTile(ctx, ts, TI.POT, dpx, dpy, sz);
         } else {
@@ -955,6 +959,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           const pti = playerTileForFacing(pf);
           drawTile(ctx, ts, customTileImages[pti] ? pti : TI.PLAYER, dpx, dpy, sz);
         }
+        ctx.restore();
       } else if (key.startsWith("mon_") && mo.tile != null) {
         /* Skip if neither start nor end position is visible to the player */
         const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];

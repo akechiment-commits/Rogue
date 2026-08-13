@@ -45,7 +45,7 @@ import { useGameRenderer } from './useGameRenderer.js';
 import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
-import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
+import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
@@ -670,6 +670,26 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       });
       moveOffsetsRef.current.delete("player");
     }
+    /* Phase 1b: Player teleport — 消失、短い間、移動先で出現 */
+    if (data.playerTeleport) {
+      const _tp = data.playerTeleport;
+      await _phase(120, (t) => {
+        moveOffsetsRef.current.set("player", { ..._tp, progress: 0, alpha: 1 - t });
+        renderFrame();
+      });
+      await _phase(90, () => {
+        moveOffsetsRef.current.set("player", { ..._tp, progress: 0, alpha: 0 });
+        renderFrame();
+      });
+      await _phase(140, (t) => {
+        moveOffsetsRef.current.set("player", {
+          fromX: _tp.toX, fromY: _tp.toY, toX: _tp.toX, toY: _tp.toY,
+          progress: 1, alpha: t,
+        });
+        renderFrame();
+      });
+      moveOffsetsRef.current.delete("player");
+    }
     /* Phase 2: Attack slash + damage popup */
     if (data.attacks?.length || data.damages?.length) {
       const dur = data.damages?.length ? 400 : 120;
@@ -836,6 +856,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       else if (e.type === "damage") d.damages.push(e);
       else if (e.type === "flash") (d.flashes = d.flashes || []).push(e);
       else if (e.type === "playerKnockback") d.playerKnockback = e;
+      else if (e.type === "playerTeleport") d.playerTeleport = e;
     }
     if (_arcs.length) {
       d.itemArcs = _arcs;
@@ -1173,7 +1194,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
               }
               const _rp = _tpRand(pl.x, pl.y);
-              if (_rp) { pl.x = _rp.x; pl.y = _rp.y; mlx.push("テレポートの魔法弾を受けた！どこかへテレポートした！"); }
+              if (_rp) {
+                const _tpFromX = pl.x, _tpFromY = pl.y;
+                pl.x = _rp.x; pl.y = _rp.y;
+                pushPlayerTeleportAnim(_tpFromX, _tpFromY, pl.x, pl.y);
+                mlx.push("テレポートの魔法弾を受けた！どこかへテレポートした！");
+              }
               else mlx.push("テレポートに失敗した。");
             },
             onMonsterHit: (mon, mlx) => {
@@ -1286,6 +1312,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   /* ポータルの魔方陣のプレイヤー転送ヘルパー（移動・ダッシュ・ターン終了で共用） */
   const playerPortalWarp = useCallback((p, st, ml) => {
     const dg = st.dungeon;
+    const _tpFromX = p.x, _tpFromY = p.y;
     /* 固定転送（ペアのみ・ペンポータルと非接続） */
     const _fp = dg.pentacles?.find(pc => pc.kind === "fixed_portal" && pc.x === p.x && pc.y === p.y);
     if (_fp) {
@@ -1298,6 +1325,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         return false;
       }
       p.x = _pair.x; p.y = _pair.y;
+      pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
       ml.push(`${_fp.name}から対の陣へ抜けた！`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
       if ((p.potConfinedTurns || 0) > 0) {
@@ -1311,7 +1339,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (!_ph) return false;
     if (_ph.cursed) {
       const _rd = randomTeleportDest(dg, p.x, p.y);
-      if (_rd) { p.x = _rd.x; p.y = _rd.y; ml.push(`${_ph.name}に飲まれてランダムにテレポートした！【呪】`); }
+      if (_rd) {
+        p.x = _rd.x; p.y = _rd.y;
+        pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+        ml.push(`${_ph.name}に飲まれてランダムにテレポートした！【呪】`);
+      }
       else ml.push(`${_ph.name}が反応したがテレポート先がない…【呪】`);
       if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
       if ((p.potConfinedTurns || 0) > 0) {
@@ -1366,6 +1398,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       refreshFOV(_dest.dg, p);
       ml.push(`ポータルから地下${_dest.depth}階の${_dest.portal.name}へ抜けた！`);
     }
+    pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
     if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
     if ((p.potConfinedTurns || 0) > 0) {
       p.potConfinedTurns = 0;
@@ -1817,7 +1850,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         resolveImprisonPotExit(p, dg, ml, lu);
       }
       /* Collect monster move animations from endTurn */
-      const _ad = { monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
+      const _ad = { playerKnockback: null, playerTeleport: null, monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _monAnimData = monMovesRef.current;
       if (_monAnimData) {
         _ad.monMoves = _monAnimData.moves || [];
@@ -1833,6 +1866,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         else if (_de.type === "monProjectile") (_ad.monProjectiles = _ad.monProjectiles || []).push(_de);
         else if (_de.type === "monProjectileReturn") (_ad.monProjectileReturns = _ad.monProjectileReturns || []).push(_de);
         else if (_de.type === "damage") (_ad.damages = _ad.damages || []).push(_de);
+        else if (_de.type === "playerKnockback") _ad.playerKnockback = _de;
+        else if (_de.type === "playerTeleport") _ad.playerTeleport = _de;
       }
       const _itemArcBatches2 = drainItemArcs();
       if (_itemArcBatches2.length) {
@@ -1842,7 +1877,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       sr.current = { ...st };
       setGs({ ...st });
-      const _hasAnim = _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.splashes?.length || _ad.monProjectiles?.length || _ad.monProjectileReturns?.length || _ad.itemArcs?.length;
+      const _hasAnim = _ad.playerKnockback || _ad.playerTeleport || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || _ad.explosions?.length || _ad.splashes?.length || _ad.monProjectiles?.length || _ad.monProjectileReturns?.length || _ad.itemArcs?.length;
       if (_hasAnim) playAnim(_ad);
     };
     const _advDelay = (gs.player.potConfinedTurns || 0) > 0 ? 120 : 400;
@@ -1932,7 +1967,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       let acted = false;
       const ml = installPlayerHpMessageHook([], p);
       /* Animation data collected during this turn */
-      const _ad = { playerMove: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
+      const _ad = { playerMove: null, playerKnockback: null, playerTeleport: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
         /* チュートリアルB5Fからの下り → 完了 */
@@ -2866,6 +2901,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         else if (_de.type === "explosion") (_ad.explosions = _ad.explosions || []).push(_de);
         else if (_de.type === "damage") _ad.damages.push(_de);
         else if (_de.type === "flash") (_ad.flashes = _ad.flashes || []).push(_de);
+        else if (_de.type === "playerKnockback") _ad.playerKnockback = _de;
+        else if (_de.type === "playerTeleport") _ad.playerTeleport = _de;
       }
       const _itemArcBatches = drainItemArcs();
       if (_itemArcBatches.length) {
@@ -2877,7 +2914,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       setGs({ ...st });
       if (drainHungerWarn() || drainPinchAlert()) setRevealMode({ pendingMsgs: [] });
       /* Play animations if any were queued */
-      const _hasAnim = _ad.playerMove || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
+      const _hasAnim = _ad.playerMove || _ad.playerKnockback || _ad.playerTeleport || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
       if (_hasAnim) {
         /* playAnim の非同期開始前に同期でロックし、同一キー連打で複数 act が通るのを防ぐ */
         animBusyRef.current = true;

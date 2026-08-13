@@ -16,7 +16,7 @@ import {
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
-import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim } from './animEvents.js';
+import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim } from './animEvents.js';
 import { statusTurns, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
 import { monEffectiveMagicImmune, monReflectsMagic } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -56,6 +56,11 @@ function statueTeleportDest(dg, ox, oy, p) {
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
 export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null) {
+  const _teleportPlayer = (toX, toY) => {
+    const _fromX = p.x, _fromY = p.y;
+    p.x = toX; p.y = toY;
+    pushPlayerTeleportAnim(_fromX, _fromY, p.x, p.y);
+  };
   /* 石像：位置系は壊さず効果発動。穴掘り・軟化は敵なし破壊。それ以外は有害なら破壊 */
   if (kind === "statue") {
     if (wandEffectStatueLootOnly(eff)) {
@@ -938,7 +943,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           ml.push(`${_dname_item(target)}はどこかへ飛んだ！【呪】`);
           claimShopItemIfOutside(target, dg, target.x, target.y, ml, p);
         }
-        else if (kind === "player") { p.x = _lpd.x; p.y = _lpd.y; ml.push("ランダムにテレポートした！【呪】"); }
+        else if (kind === "player") { _teleportPlayer(_lpd.x, _lpd.y); ml.push("ランダムにテレポートした！【呪】"); }
       }
       break;
     }
@@ -972,7 +977,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             !dg.monsters.some(m => m.x === _w1x && m.y === _w1y) &&
             !(kind === "monster" && p.x === _w1x && p.y === _w1y)) {
           if (kind === "monster") { target.x = _w1x; target.y = _w1y; ml.push(`${target.name}が少しだけテレポートした。`); }
-          else if (kind === "player") { p.x = _w1x; p.y = _w1y; ml.push("少しだけテレポートした。"); }
+          else if (kind === "player") { _teleportPlayer(_w1x, _w1y); ml.push("少しだけテレポートした。"); }
           else if (kind === "item") {
             target.x = _w1x; target.y = _w1y;
             ml.push(`${target.name}が少し移動した。`);
@@ -1009,7 +1014,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               }
               if (_stAdj.length > 0) {
                 const _sd = pick(_stAdj);
-                p.x = _sd.x; p.y = _sd.y;
+                _teleportPlayer(_sd.x, _sd.y);
               } else {
                 // 隣も全部塞がっていればマップ全体から空きフロアを探す
                 const _stAll = [];
@@ -1021,13 +1026,13 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
                       _stAll.push({ x: fx, y: fy });
                 if (_stAll.length > 0) {
                   const _sd2 = pick(_stAll);
-                  p.x = _sd2.x; p.y = _sd2.y;
+                  _teleportPlayer(_sd2.x, _sd2.y);
                 } else {
-                  p.x = stairsX; p.y = stairsY;
+                  _teleportPlayer(stairsX, stairsY);
                 }
               }
             } else {
-              p.x = stairsX; p.y = stairsY;
+              _teleportPlayer(stairsX, stairsY);
             }
             if (hasAbility(p.armor, "paralyze_proof")) {
               ml.push("階段の上にテレポートした！金縛り効果を受けたが防具が防いだ！(耐金縛り)");
@@ -1110,7 +1115,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const dest = randomTeleportDest(dg, _warpOx, _warpOy, (x, y) => !monsterAt(dg, x, y));
       if (!dest) { ml.push("テレポートに失敗した。"); break; }
       if (kind === "monster") { target.x = dest.x; target.y = dest.y; ml.push(`${target.name}はどこかへテレポートした！`); }
-      if (kind === "player")  { p.x = dest.x; p.y = dest.y; ml.push("テレポートした！"); }
+      if (kind === "player")  { _teleportPlayer(dest.x, dest.y); ml.push("テレポートした！"); }
       if (kind === "item") {
         target.x = dest.x; target.y = dest.y;
         ml.push(`${target.name}はどこかへ飛んだ！`);

@@ -12,6 +12,7 @@ import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
 import { formatPlusSuffix } from "./inventoryLabel.js";
+import { pushPlayerTeleportAnim } from "./animEvents.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -2504,10 +2505,12 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             const { player: _p, dungeon: _dg } = sr.current || {};
             if (!_p || !_dg) return;
             const { cx: _tx, cy: _ty } = mode;
+            const _tpFromX = _p.x, _tpFromY = _p.y;
             const _ml = [];
             const _walk = _dg.map[_ty]?.[_tx] !== T.WALL && _dg.map[_ty]?.[_tx] !== T.BWALL && _dg.map[_ty]?.[_tx] !== undefined;
             if (_walk) { _p.x = _tx; _p.y = _ty; if ((_p.immobileTurns||0) > 0) { _p.immobileTurns = 0; _ml.push("テレポートして移動封じが解けた！"); } _ml.push("テレポートした！（目的地指定）【祝】"); }
             else { const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1); if ((_p.immobileTurns||0) > 0) { _p.immobileTurns = 0; _ml.push("テレポートして移動封じが解けた！"); } _ml.push("壁の中！ランダムにテレポートした。"); }
+            pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
             endTurn(sr.current, _p, _ml);
             refreshFOV(_dg, _p);
             setMode(null);
@@ -2518,8 +2521,10 @@ export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           <button onClick={() => {
             const { player: _p, dungeon: _dg } = sr.current || {};
             if (!_p || !_dg) return;
+            const _tpFromX = _p.x, _tpFromY = _p.y;
             const _ml = [];
             const _rm = _dg.rooms[rng(0, _dg.rooms.length - 1)]; _p.x = rng(_rm.x, _rm.x + _rm.w - 1); _p.y = rng(_rm.y, _rm.y + _rm.h - 1);
+            pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
             if ((_p.immobileTurns||0) > 0) { _p.immobileTurns = 0; _ml.push("テレポートして移動封じが解けた！"); }
             _ml.push("テレポートした！");
             endTurn(sr.current, _p, _ml);

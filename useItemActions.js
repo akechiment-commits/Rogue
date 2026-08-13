@@ -22,7 +22,7 @@ import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } f
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
-import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind } from "./animEvents.js";
+import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim } from "./animEvents.js";
 import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
 
@@ -936,7 +936,11 @@ export function useItemActions({
           return;
         } else {
           const _tpDst = randomTeleportDest(dg, p.x, p.y);
-          if (_tpDst) { p.x = _tpDst.x; p.y = _tpDst.y; }
+          if (_tpDst) {
+            const _tpFromX = p.x, _tpFromY = p.y;
+            p.x = _tpDst.x; p.y = _tpDst.y;
+            pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+          }
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
           ml.push("テレポートした！");
         }
@@ -1589,7 +1593,9 @@ export function useItemActions({
                 const _ptx = rng(_ptr.x + 1, _ptr.x + _ptr.w - 2);
                 const _pty = rng(_ptr.y + 1, _ptr.y + _ptr.h - 2);
                 if (dg.map[_pty]?.[_ptx] === T.FLOOR && !dg.monsters.some((m) => m.x === _ptx && m.y === _pty)) {
+                  const _tpFromX = p.x, _tpFromY = p.y;
                   p.x = _ptx; p.y = _pty;
+                  pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
                   if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
                   ml.push("反射によって自分が別の部屋へ飛ばされた！");
                   break;
@@ -1770,7 +1776,11 @@ export function useItemActions({
         /* テレポートの魔方陣：描いた瞬間に即テレポート（呪い以外） */
         if (it.effect === "teleport_trap" && !_isCursed) {
           const _ptpDst = randomTeleportDest(dg, p.x, p.y);
-          if (_ptpDst) { p.x = _ptpDst.x; p.y = _ptpDst.y; }
+          if (_ptpDst) {
+            const _tpFromX = p.x, _tpFromY = p.y;
+            p.x = _ptpDst.x; p.y = _ptpDst.y;
+            pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+          }
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("テレポートして移動封じが解けた！"); }
           ml.push("魔方陣を描いた瞬間、テレポートした！");
         }
