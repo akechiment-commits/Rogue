@@ -26,6 +26,29 @@ export function collectMonsterMoves(animation, monsters, snapshot) {
   }
 }
 
+/** 攻撃フェーズ内で移動した突進を、専用の長めのスライドとして記録する。 */
+export function collectChargerMoves(animation, monsters) {
+  for (const monster of monsters) {
+    const rush = monster._chargerMoveAnimation;
+    if (!rush || (rush.fromX === rush.toX && rush.fromY === rush.toY)) {
+      delete monster._chargerMoveAnimation;
+      continue;
+    }
+    animation.moves.push({
+      id: monster.id,
+      fromX: rush.fromX,
+      fromY: rush.fromY,
+      toX: rush.toX,
+      toY: rush.toY,
+      tile: monster.tile,
+      hp: monster.hp,
+      maxHp: monster.maxHp,
+      charger: true,
+    });
+    delete monster._chargerMoveAnimation;
+  }
+}
+
 /** 攻撃フェーズで発生した命中・回避イベントを、描画用データに反映する。 */
 export function collectMonsterAttackEvents(animation, hitEvents, lunges, hadActualHit, player) {
   if (hadActualHit && player.hp > 0) {

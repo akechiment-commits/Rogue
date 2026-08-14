@@ -59,7 +59,7 @@ import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advanceP
 import { applyPlayerPoison } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
-import { collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
+import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
 import { advanceMonsterUpkeep } from "./monsterUpkeep.js";
 import { resolveTurnHazards } from "./turnHazards.js";
 import { transitMonstersThroughPortals } from "./monsterPortalTransit.js";
@@ -768,9 +768,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       });
       overlaysRef.current = [];
     }
-    /* Phase 3: Monster moves (50ms) */
+    /* Phase 3: Monster moves — 突進は軌道が見えるよう少し長めに表示 */
     if (data.monMoves?.length) {
-      await _phase(50, (t) => {
+      const _monMoveDur = data.monMoves.some(mm => mm.charger) ? 180 : 50;
+      await _phase(_monMoveDur, (t) => {
         for (const mm of data.monMoves) moveOffsetsRef.current.set("mon_" + mm.id, { ...mm, progress: t });
         renderFrame();
       });
@@ -1585,6 +1586,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         spinFired: _spinFired,
         moveMons,
       });
+      /* 突進は攻撃フェーズ中に座標が変わるため、ここで移動イベントを回収する。 */
+      collectChargerMoves(_monAnimation, st.dungeon.monsters);
       if (_attackPhase.hitEvents.length > 0) {
         collectMonsterAttackEvents(_monAnimation, _attackPhase.hitEvents, _attackPhase.lunges, _attackPhase.hadActualHit, p);
       }
