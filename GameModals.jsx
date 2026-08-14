@@ -13,6 +13,7 @@ import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
 import { formatPlusSuffix } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
+import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -780,13 +781,6 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   if (!mode || !gs) return null;
   const _p = gs.player;
   const _isBCMode_ui = mode.mode === 'bless' || mode.mode === 'curse';
-  const _isDupMode_ui = mode.mode === 'duplicate';
-  const _isSellMode_ui = mode.mode === 'sell_item';
-  const _isTsfMode_ui = mode.mode === 'transform_item';
-  const _isForgeMode_ui = mode.mode === 'forge_item';
-  const _isWeaponUpMode_ui = mode.mode === 'weapon_up';
-  const _isArmorUpMode_ui  = mode.mode === 'armor_up';
-  const _isPotExtractMode_ui = mode.mode === 'pot_extract';
   const _footBb = mode.bbFootId ? gs?.dungeon?.bigboxes?.find(b => b.id === mode.bbFootId) : null;
   const _footBbName = _footBb ? ((_footBb.revealed || gs?.allBcKnown) ? _footBb.name : (gs?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
   const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify';
@@ -795,27 +789,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
     ..._p.inventory
       .map((it, i) => ({ it, i }))
       .filter(({ it, i }) => {
-        if (_isBCMode_ui) return it.type !== "gold"; /* bless/curse: scrollIdxなし */
-        if (_isDupMode_ui || _isSellMode_ui || _isTsfMode_ui) return it.type !== "gold" && i !== mode.scrollIdx;
-        if (_isForgeMode_ui) return it.type === "weapon" || it.type === "armor"; /* scrollは weapon/armorでないので自動除外 */
-        if (_isPotExtractMode_ui) return it.type === "pot" && i !== mode.scrollIdx;
-        if (_isWeaponUpMode_ui || _isArmorUpMode_ui) {
-          if (mode.wasUnknown) return it.type !== "gold" && i !== mode.scrollIdx;
-          const _PR = ["power_ring","defense_ring","life_ring"];
-          if (_isWeaponUpMode_ui) return it.type === "weapon" || (it.type === "ring" && _PR.includes(it.effect));
-          if (_isArmorUpMode_ui)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
-        }
-        if (mode.scrollIdx === i) return false;
-        if (it.type === 'weapon' || it.type === 'armor' || it.type === 'food') {
-          /* 未識別の識別の巻物なら全アイテム表示。種別未識別なしでも祝呪の既知/不明で対象 */
-          if (mode.mode === 'identify' && mode.showAll) return true;
-          return mode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
-        }
-        const k = getIdentKey(it);
-        if (!k) return mode.mode === 'identify' && mode.showAll; /* showAllなら識別キーなしも表示 */
-        if (mode.mode === 'identify' && mode.showAll) return true; /* 未識別巻物: 全アイテム */
-        if (mode.mode === 'identify') return !gs.ident?.has(k) || (!it.fullIdent && !it.bcKnown);
-        return gs.ident?.has(k);
+        return isScrollTargetCandidate(mode, it, i, gs.ident);
       }),
   ];
   const _idPage_ui = mode.page || 0;
@@ -986,7 +960,10 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
       const _gain = mode.blessed ? 2 : mode.cursed ? -1 : 1;
       const _sfx = mode.blessed ? "【祝】" : mode.cursed ? "【呪】" : "";
-      if (_selIt.type === "weapon" || _selIt.type === "armor" || _selIt.type === "ring") {
+      const _isValidUpTarget = mode.mode === "weapon_up"
+        ? (_selIt.type === "weapon" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)))
+        : (_selIt.type === "armor" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)));
+      if (_isValidUpTarget) {
         const _bef = _selIt.plus || 0;
         /* 武器強化の巻物による特殊変化（通常5%/祝福10%/呪い20%） */
         const _tChance = mode.blessed ? 0.10 : mode.cursed ? 0.20 : 0.05;
@@ -1020,6 +997,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       if (_rmIdx_up !== -1) _p_up.inventory.splice(_rmIdx_up, 1);
     } else if (mode.mode === 'forge_item') {
       /* ===== 錬成の巻物 ===== */
+      if (_selIt.type !== "weapon" && _selIt.type !== "armor") {
+        _msgResult = `${_selItDN}には効果がなかった。巻物は消えた。`;
+      } else {
       const _isWeapon = _selIt.type === "weapon";
       const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
       const _ownedIds = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
@@ -1049,17 +1029,20 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       } else {
         _msgResult = `${_selItDN}はもうこれ以上能力を宿せない。`;
       }
+      }
     } else if (mode.mode === 'pot_extract') {
       /* ===== 吸い出しの巻物 ===== */
       const _p_ext = sr.current.player;
       const _dg_ext = sr.current.dungeon;
       const _ml_ext = [];
-      const _extRes = extractPotContents(_selIt, _dg_ext, _p_ext.x, _p_ext.y, _p_ext, _ml_ext, null, mode.blessed, mode.cursed);
+      const _extRes = _selIt.type === "pot"
+        ? extractPotContents(_selIt, _dg_ext, _p_ext.x, _p_ext.y, _p_ext, _ml_ext, null, mode.blessed, mode.cursed)
+        : null;
       /* 壺がインベントリから削除されていたら scrollIdx を補正 */
       if (_extRes?.potRemovedAt != null && mode.scrollIdx != null && _extRes.potRemovedAt < mode.scrollIdx) {
         mode.scrollIdx--;
       }
-      _msgResult = _ml_ext;
+      _msgResult = _selIt.type === "pot" ? _ml_ext : `${_selItDN}には効果がなかった。巻物は消えた。`;
     } else if (mode.mode === 'bless') {
       /* 未識別品は祝福処理で bcKnown を更新する前の表示名を使う（本名漏洩防止） */
       const _selItDN = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
