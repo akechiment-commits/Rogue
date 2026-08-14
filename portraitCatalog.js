@@ -74,11 +74,11 @@ const BASE_PORTRAIT_CATEGORIES = [
     group: null,
     slots: [
       { file: "hp_full", label: "満タン", group: "hp_full" },
-      { file: "hp_high", label: "高め", group: "hp_full" },
+      { file: "hp_high", label: "高め", group: "hp_high" },
       { file: "hp_mid", label: "中程度", group: "hp_mid" },
-      { file: "hp_low_stand", label: "瀕死・立ち", group: "hp_low" },
-      { file: "hp_low_kneel", label: "瀕死・膝", group: "hp_low" },
-      { file: "hp_critical", label: "危険域", group: "hp_low" },
+      { file: "hp_low_stand", label: "瀕死・立ち", group: "hp_low_stand", unarmoredFile: "hp_low_unarmored" },
+      { file: "hp_low_kneel", label: "瀕死・膝", group: "hp_low_kneel" },
+      { file: "hp_critical", label: "危険域", group: "hp_critical" },
       { file: "hp_healed", label: "回復した", group: "hp_healed" },
       { file: "hp_mp_revive", label: "MPで復活（ピンチ）", group: "hp_mp_revive" },
       { file: "hp_hunger", label: "空腹・飢餓", group: "hp_hunger" },
@@ -188,7 +188,7 @@ function addUnarmoredSituationSlots(categories) {
       return [
         slot,
         {
-          file: `${group}_unarmored`,
+          file: slot.unarmoredFile ?? `${group}_unarmored`,
           label: `${slot.label}（防具なし）`,
           group: `${group}_unarmored`,
           armorVariantOf: group,

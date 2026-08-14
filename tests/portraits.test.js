@@ -305,9 +305,12 @@ describe("portraits", () => {
   });
 
   it("hpKey が HP 帯を返す", () => {
-    expect(hpKey({ hp: 10, maxHp: 100 })).toBe("hp_low");
+    expect(hpKey({ hp: 100, maxHp: 100 })).toBe("hp_full");
+    expect(hpKey({ hp: 90, maxHp: 100 })).toBe("hp_high");
     expect(hpKey({ hp: 50, maxHp: 100 })).toBe("hp_mid");
-    expect(hpKey({ hp: 90, maxHp: 100 })).toBe("hp_full");
+    expect(hpKey({ hp: 25, maxHp: 100 })).toBe("hp_low_stand");
+    expect(hpKey({ hp: 15, maxHp: 100 })).toBe("hp_low_kneel");
+    expect(hpKey({ hp: 5, maxHp: 100 })).toBe("hp_critical");
   });
 
   it("idleStandKey が防具で待機立ち絵を分岐する", () => {
@@ -315,12 +318,15 @@ describe("portraits", () => {
     expect(isLightArmorStand({ name: "腹持ちの胴" })).toBe(true);
     expect(isLightArmorStand({ name: "革の鎧" })).toBe(false);
     expect(isLightArmorStand({ name: "プレートメイル" })).toBe(false);
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: null })).toBe("stand_unarmored");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "みかわしの服" } })).toBe("stand_light_armor");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "腹持ちの胴" } })).toBe("stand_light_armor");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "革の鎧" } })).toBe("hp_full");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "プレートメイル" } })).toBe("hp_full");
-    expect(idleStandKey({ hp: 10, maxHp: 100, armor: null })).toBe("hp_low");
+    expect(idleStandKey({ hp: 100, maxHp: 100, armor: null })).toBe("stand_unarmored");
+    expect(idleStandKey({ hp: 100, maxHp: 100, armor: { name: "みかわしの服" } })).toBe("stand_light_armor");
+    expect(idleStandKey({ hp: 100, maxHp: 100, armor: { name: "腹持ちの胴" } })).toBe("stand_light_armor");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: null })).toBe("hp_high");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "みかわしの服" } })).toBe("hp_high");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "革の鎧" } })).toBe("hp_high");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "プレートメイル" } })).toBe("hp_high");
+    expect(idleStandKey({ hp: 10, maxHp: 100, armor: null })).toBe("hp_low_kneel");
+    expect(idleStandKey({ hp: 5, maxHp: 100, armor: null })).toBe("hp_critical");
   });
 
   it("未装備時は歩行・素手攻撃を下着姿グループに差し替える", () => {

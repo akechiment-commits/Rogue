@@ -6,6 +6,7 @@ import {
   PORTRAIT_WALK_STEPS_MIN,
   PORTRAIT_WALK_STEPS_JITTER,
   pickPortraitForPlayer,
+  hpKey,
   idleStandKey,
   resolvePortraitEvent,
   snapshotPlayer,
@@ -146,7 +147,7 @@ export function usePortrait({
         if (tryPortrait("walk")) {
           portraitCooldownRef.current = now + PORTRAIT_WALK_COOLDOWN_MS;
         } else if (isLow) {
-          forcePortrait("hp_low");
+          forcePortrait(hpKey(p));
         }
       }
       return;

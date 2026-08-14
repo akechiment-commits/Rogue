@@ -228,14 +228,14 @@
       "label": "瀕死・立ち 2",
       "categoryId": "hp",
       "afterFile": "hp_low_stand",
-      "group": "hp_low"
+      "group": "hp_low_stand"
     },
     {
       "file": "hp_low_kneel_2",
       "label": "瀕死・膝 2",
       "categoryId": "hp",
       "afterFile": "hp_low_kneel",
-      "group": "hp_low"
+      "group": "hp_low_kneel"
     },
     {
       "file": "hp_critical_2",

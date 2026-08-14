@@ -52,9 +52,14 @@ export function pickPortraitForPlayer(key, player = null, sets = PORTRAIT_SETS) 
 }
 
 export function hpKey(p) {
-  const r = p.hp / p.maxHp;
-  if (r <= 0.25) return "hp_low";
+  const hp = Math.max(0, Number(p?.hp) || 0);
+  const maxHp = Math.max(1, Number(p?.maxHp) || 1);
+  const r = hp / maxHp;
+  if (r <= 0.05) return "hp_critical";
+  if (r <= 0.15) return "hp_low_kneel";
+  if (r <= 0.25) return "hp_low_stand";
   if (r <= 0.6) return "hp_mid";
+  if (r < 1) return "hp_high";
   return "hp_full";
 }
 
@@ -72,12 +77,11 @@ export function isLightArmorStand(armor) {
  */
 export function idleStandKey(p) {
   if (!p) return "hp_full";
-  const r = (p.hp ?? 0) / Math.max(1, p.maxHp ?? 1);
-  if (r <= 0.25) return "hp_low";
-  if (r <= 0.6) return "hp_mid";
+  const band = hpKey(p);
+  if (band !== "hp_full") return band;
   if (!p.armor) return "stand_unarmored";
   if (isLightArmorStand(p.armor)) return "stand_light_armor";
-  return "hp_full";
+  return band;
 }
 
 /** プレイヤーの近接攻撃メッセージか（モンスターの「の攻撃！」は除外）
@@ -388,7 +392,7 @@ export function isMpReviveMsg(msg) {
 /** MP復活立ち絵（未設定時はピンチ系へフォールバック。回復立ち絵は使わない） */
 export function pickMpRevivePortrait(sets = PORTRAIT_SETS, player = null) {
   if (sets.hp_mp_revive?.length) return pickPortraitForPlayer("hp_mp_revive", player, sets);
-  if (sets.hp_low?.length) return pickPortraitForPlayer("hp_low", player, sets);
+  if (sets.hp_low_stand?.length) return pickPortraitForPlayer("hp_low_stand", player, sets);
   return CHAR_PATH("hp_critical");
 }
 
