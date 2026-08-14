@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   msgToActionKey,
+  findItemActionKey,
   msgToDamageKey,
   msgToMeleeAttackKey,
   isPlayerDamageMsg,
@@ -142,6 +143,27 @@ describe("portraits", () => {
     expect(msgToActionKey("重力の魔方陣が消えた！")).toBeNull();
     expect(msgToActionKey("みかわしの魔方陣の加護でかわした！")).toBeNull();
     expect(msgToActionKey("ラクガキ魔が足元に回復の魔方陣を描いた！")).toBeNull();
+  });
+
+  it("アイテム使用立ち絵は今回追加されたログだけを参照する", () => {
+    expect(findItemActionKey([
+      "回復の巻物を読んだ！",
+      "何も起きなかった。",
+    ])).toBe("act_scroll");
+    expect(findItemActionKey([])).toBeNull();
+    expect(findItemActionKey(["回復の巻物を拾った！"])).toBeNull();
+
+    const player = { hp: 80, maxHp: 100, x: 6, y: 5, level: 3 };
+    const prev = { ...player, x: 5, y: 5 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "回復の巻物を読んだ！",
+      recentMsgs: ["回復の巻物を読んだ！"],
+      newMsgs: [],
+    });
+    expect(event.src).toBeUndefined();
+    expect(event.moved).toBe(true);
   });
 
   it("msgToActionKey が腐った・ヤバイ食料を直近ログから判定する", () => {

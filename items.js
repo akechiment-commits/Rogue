@@ -5732,7 +5732,7 @@ export const RINGS = [
   { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、空腹の進行が3/4になる。複数・胴と重ねがけ可（2つで1/2、3つで1/4）。" },
   { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"A", weight:1, sellPrice:10000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
   { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"A", weight:1, sellPrice:10000, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
-  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
+  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、通常の敵への近接攻撃で与えたダメージの8分の1だけHPを吸収する。アンデッドへの攻撃では同量の反動ダメージを受ける。" },
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
   { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"水の中に入れる。" },

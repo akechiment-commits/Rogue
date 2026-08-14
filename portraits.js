@@ -150,6 +150,22 @@ export function msgToActionKey(msg, recentMsgs = []) {
   return null;
 }
 
+/**
+ * 今回追加されたログだけからアイテム操作立ち絵を探す。
+ *
+ * lastMsg だけを毎回参照すると、移動や拾得で gs が更新された際にも
+ * 過去の「巻物を読んだ」などが再発火してしまう。newMsgs が空なら
+ * 「今回はアイテム操作なし」とし、現在の操作に紐づくログだけを返す。
+ */
+export function findItemActionKey(newMsgs = []) {
+  if (!Array.isArray(newMsgs) || newMsgs.length === 0) return null;
+  for (let i = newMsgs.length - 1; i >= 0; i--) {
+    const key = msgToActionKey(newMsgs[i], newMsgs);
+    if (key) return key;
+  }
+  return null;
+}
+
 /** プレイヤー対象ヒット（「Xに命中」系）か */
 function isPlayerTargetHitMsg(msg, playerName) {
   if (!msg) return false;
@@ -469,7 +485,7 @@ export function pickDeathPortrait(deathCause, sets = PORTRAIT_SETS, player = nul
  *
  * @returns {{ src?: string, cooldownUntil?: number, force?: boolean, holdKey?: string, isLow?: boolean, moved?: boolean, lowPriority?: boolean } | null}
  */
-export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = [], floating = false, dashed = false, now = Date.now() }) {
+export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = null, floating = false, dashed = false, now = Date.now() }) {
   if (!p) return null;
 
   if (p.hp <= 0) {
@@ -480,7 +496,13 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
 
   const isLow = p.hp / p.maxHp <= 0.25;
-  const actionKey = msgToActionKey(lastMsg, recentMsgs);
+  const hasNewMsgBatch = Array.isArray(newMsgs);
+  newMsgs = hasNewMsgBatch ? newMsgs : [];
+  /* usePortrait は newMsgs=[] を渡すため、過去のアイテム使用ログを再利用しない。
+   * 旧呼び出し側が newMsgs を省略した場合だけ lastMsg にフォールバックする。 */
+  const actionKey = hasNewMsgBatch
+    ? findItemActionKey(newMsgs)
+    : msgToActionKey(lastMsg, recentMsgs);
   const badFoodKey =
     actionKey === "act_food_yabai" || actionKey === "act_food_rotten" ? actionKey : null;
   const stickyKey = getActiveStatusPortraitKey(p, floating);

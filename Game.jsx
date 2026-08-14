@@ -2307,11 +2307,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
-              /* 吸血の指輪：与ダメの1/8をHP吸収 */
+              /* 吸血の指輪：通常の敵には与ダメの1/8を吸収し、アンデッドには反動を受ける */
               if (hasRingEffect(p, "vampire_ring")) {
                 const _vamp = Math.max(1, Math.floor(d / 8));
-                p.hp = Math.min(p.maxHp, p.hp + _vamp);
-                ml.push(`吸血でHP+${_vamp}！`);
+                if (attackMon.kind === "undead") {
+                  p.deathCause = "吸血の指輪がアンデッドに反発したことにより";
+                  p.hp -= _vamp;
+                  ml.push(`吸血の指輪がアンデッドに反発！${_vamp}ダメージ！`);
+                } else {
+                  p.hp = Math.min(p.maxHp, p.hp + _vamp);
+                  ml.push(`吸血でHP+${_vamp}！`);
+                }
               }
               /* 吸血武器：与ダメの30%をHP回復 */
               if (wabHas("lifesteal")) {
