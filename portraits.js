@@ -55,10 +55,10 @@ export function hpKey(p) {
   const hp = Math.max(0, Number(p?.hp) || 0);
   const maxHp = Math.max(1, Number(p?.maxHp) || 1);
   const r = hp / maxHp;
-  if (r <= 0.05) return "hp_critical";
-  if (r <= 0.15) return "hp_low_kneel";
-  if (r <= 0.25) return "hp_low_stand";
-  if (r <= 0.6) return "hp_mid";
+  if (r <= 0.15) return "hp_critical";
+  if (r <= 0.3) return "hp_low_kneel";
+  if (r <= 0.5) return "hp_low_stand";
+  if (r <= 0.75) return "hp_mid";
   if (r < 1) return "hp_high";
   return "hp_full";
 }
