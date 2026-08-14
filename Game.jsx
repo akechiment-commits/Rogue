@@ -3362,13 +3362,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   }, []);
   const trySynthesize = useCallback(
     (bb, ml) => {
+      const _dn = (item) => itemDisplayName(
+        item,
+        sr.current?.fakeNames,
+        sr.current?.ident,
+        sr.current?.nicknames,
+      );
       /* 力・守り・命の指輪（異種混合OK） → 先に入れた指輪に後の+値を加算して後を消す */
       const _PLUS_RING_EFFECTS = ["power_ring", "defense_ring", "life_ring"];
       const _plusRings = bb.contents.filter(i => i.type === "ring" && _PLUS_RING_EFFECTS.includes(i.effect));
       if (_plusRings.length >= 2) {
         const [ra, rb] = _plusRings;
         ra.plus = (ra.plus || 0) + (rb.plus || 0);
-        ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
+        ml.push(`合成完了！${_dn(ra)}の＋値が増えた！(+${ra.plus})`);
         bb.contents = bb.contents.filter(i => i !== rb);
         bb.capacity = bb.contents.length;
         return;
@@ -3379,7 +3385,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const add = mm.charges || 0;
         mb.charges = (mb.charges || 0) + add;
         ml.push(
-          `合成完了！${mb.name}の容量が${add}増えた！(${mb.charges}回)`,
+          `合成完了！${_dn(mb)}の容量が${add}増えた！(${mb.charges}回)`,
         );
         bb.contents = bb.contents.filter((i) => i !== mm);
         bb.capacity = bb.contents.length;
@@ -3391,13 +3397,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (pb.effect === pm.effect) {
           const add = pm.charges || 0;
           pb.charges = (pb.charges || 0) + add;
-          ml.push(`合成完了！${pb.name}の回数が${add}増えた！(${pb.charges}回)`);
+          ml.push(`合成完了！${_dn(pb)}の回数が${add}増えた！(${pb.charges}回)`);
           bb.contents = bb.contents.filter((i) => i !== pm);
           bb.capacity = bb.contents.length;
         } else {
           const add = Math.max(1, Math.floor((pm.charges || 0) / 2));
           pb.charges = (pb.charges || 0) + add;
-          ml.push(`${pm.name}の回数の半分が${pb.name}に加算された！(+${add}回 → ${pb.charges}回)`);
+          ml.push(`${_dn(pm)}の回数の半分が${_dn(pb)}に加算された！(+${add}回 → ${pb.charges}回)`);
           bb.contents = bb.contents.filter((i) => i !== pm);
           bb.capacity = bb.contents.length;
         }
@@ -3432,19 +3438,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           wb.mergedWandEffects = [..._merged];
           bb.contents = bb.contents.filter(i => i !== wm);
           bb.capacity = bb.contents.length;
-          ml.push(`合成完了！${wb.name}の回数が増えた！(${wb.charges}回) [三属性杖: ${wb.mergedWandEffects.join("/")}]`);
+          ml.push(`合成完了！${_dn(wb)}の回数が増えた！(${wb.charges}回)`);
           return;
         }
         if (wb.name === wm.name) {
           wb.charges = (wb.charges || 0) + (wm.charges || 0);
           ml.push(
-            `合成完了！${wb.name}の回数が${wm.charges}増えた！(${wb.charges}回)`,
+            `合成完了！${_dn(wb)}の回数が${wm.charges}増えた！(${wb.charges}回)`,
           );
         } else {
           const _ad = Math.max(1, Math.floor((wm.charges || 0) / 2));
           wb.charges = (wb.charges || 0) + _ad;
           ml.push(
-            `合成完了！${wb.name}の回数が${_ad}増えた！(${wb.charges}回)`,
+            `合成完了！${_dn(wb)}の回数が${_ad}増えた！(${wb.charges}回)`,
           );
         }
         bb.contents = bb.contents.filter((i) => i !== wm);
@@ -3472,7 +3478,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _toAbs = (it) => [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean))];
         const _curAbs = _toAbs(_swEquip);
         if (_curAbs.includes(_swAbId)) {
-          ml.push(`${_swEquip.name}には既にその能力がある。合成できなかった。`);
+          ml.push(`${_dn(_swEquip)}には既にその能力がある。合成できなかった。`);
         } else {
           const _newAbs = [..._curAbs, _swAbId];
           const merged = { ..._swEquip, id: uid(), ability: _newAbs[0], abilities: _newAbs };
@@ -3481,7 +3487,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           bb.capacity = bb.contents.length;
           const _AB = _swEquip.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
           const _abName = _AB.find(a => a.id === _swAbId)?.name || _swAbId;
-          ml.push(`合成完了！${_swEquip.name}に${_swWand.name}の力が宿った！[${_abName}]`);
+          ml.push(`合成完了！${_dn(_swEquip)}に${_dn(_swWand)}の力が宿った！[${_abName}]`);
         }
         return;
       }
@@ -3493,11 +3499,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           /* 同種の壺：容量を加算 */
           const add = pb.capacity || 0;
           pa.capacity = (pa.capacity || 0) + add;
-          ml.push(`合成完了！${pa.name}の容量が${add}増えた！(容量${pa.capacity})`);
+          ml.push(`合成完了！${_dn(pa)}の容量が${add}増えた！(容量${pa.capacity})`);
         } else {
           /* 別種の壺：容量を1増加 */
           pa.capacity = (pa.capacity || 0) + 1;
-          ml.push(`合成完了！${pa.name}の容量が1増えた！(容量${pa.capacity})`);
+          ml.push(`合成完了！${_dn(pa)}の容量が1増えた！(容量${pa.capacity})`);
         }
         bb.contents = bb.contents.filter((i) => i !== pb);
         bb.capacity = bb.contents.length;
@@ -3713,7 +3719,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else {
         bb.contents.push(merged);
         bb.capacity = bb.contents.length;
-        ml.push(`合成完了！${base.name}と${mat.name}が融合した！`);
+        ml.push(`合成完了！${_dn(base)}と${_dn(mat)}が融合した！`);
       }
     },
     [uid],
@@ -3732,7 +3738,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (bb.kind === "synthesis") {
         trySynthesize(bb, ml);
       } else if (bb.kind === "change" && item.type === "goal") {
-        ml.push(`${item.name}は変化しなかった！`);
+        ml.push(`${_idn}は変化しなかった！`);
       } else if (bb.kind === "change") {
         const nit = makeChangeBoxItem();
         const idx = bb.contents.indexOf(item);
@@ -3789,12 +3795,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
               item.sizeLabel = next.l;
               item.value = Math.round((item.value * next.v) / cur.v);
-              ml.push(`${oldName}が大きくなった！→${item.name}`);
+              ml.push(`${_idn}が大きくなった！→${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}`);
               upgraded = true;
               break;
             }
           }
-          if (!upgraded) ml.push(`${item.name}はすでに最大サイズだ。`);
+          if (!upgraded) ml.push(`${_idn}はすでに最大サイズだ。`);
         } else {
           ml.push(`${_idn}には効果がなかった。`);
         }
@@ -3888,7 +3894,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if (item.rotten) {
             ml.push(`${_idn}はすでに腐っている。`);
           } else {
-            const _cOrigName = item.name;
+            const _cOrigName = _idn;
             rotFood(item);
             item.bcKnown = true;
             ml.push(`${_cOrigName}が腐ってしまった！`);
@@ -4365,7 +4371,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         else if (it.cursed) { wb.cursed = true; wb.bcKnown = true; }
         const _sfx = it.blessed ? "【祝】" : it.cursed ? "【呪】" : "";
         p.inventory.push(wb);
-        ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！${_sfx}`);
+        ml.push(`${dnameRef(it)}に水を汲んだ。${dnameRef(wb)}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
         /* 特殊変化：ロングソード→エクスカリバー(5%)、短剣→猫の爪(5%)、バトルアクス/戦神の斧→ゴールデンアクス(20%) */
         if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
