@@ -70,7 +70,7 @@ const GUIDE_DESC_OVERRIDES = {
   "レモンの壺": "食料をレモン風味に。食べると投擲ダメージ1.5倍(80ターン)。",
   "万能キラー": "三種の特効剣が融合。竜・不死・浮遊の全種族に1.5倍ダメージ。",
   "三元の刃": "炎・氷・雷の三元素を宿した至高の剣。全属性弱点の敵に1.5倍ダメージ。火ダルマには0.5倍。",
-  "保存の壺": "アイテムを安全に保管できる（効果なし・容量5）。",
+  "保存の壺": "アイテムを安全に保管できる（効果なし）。通常フロアの初期容量は7〜10、店の商品はテンプレート値の5。",
   "元素王の鎧": "炎・氷・雷すべてに耐性。万能耐性で各属性ダメージ2/3。錬成で個別耐性を追加すれば半減。炎・雷の所持品破壊、氷の移動封じ・鈍足も防ぐ。",
   "充填の大箱": "杖・ペン・魔法の筆の使用回数をランダムに回復する。",
   "全能キラー": "万能キラー3本の合成。竜・不死・浮遊の全種族に2倍ダメージ（上位特効）。",
@@ -407,9 +407,21 @@ for (const r of RINGS) {
 addSheet('05_指輪', ringData);
 
 // ===== 壺（Pot）=====
-const potData = [['壺名', 'potEffect', '容量', 'rarity', 'sellPrice', '説明']];
+const POT_INITIAL_CAPACITY_RANGES = Object.freeze({
+  none: '7〜10',
+  greed: '3〜5',
+  enhance: '1〜2',
+  bless_pot: '1〜2',
+  curse_pot: '1〜2',
+  wish_pot: '3〜5',
+  klein: '2〜4',
+});
+const potInitialCapacityRange = (p) => POT_INITIAL_CAPACITY_RANGES[p.potEffect] ?? '3〜5';
+
+const potData = [['壺名', 'potEffect', 'テンプレート容量 / 通常フロア初期容量範囲', 'rarity', 'sellPrice', '説明']];
+potData.push(['【生成ルール】', '', '通常フロアはrandPotCapacity()で効果別に抽選。店の商品はPOTSテンプレートのcapacity値を使用。', '', '', '保存=7〜10、強化/祝福/呪い=1〜2、クライン=2〜4、その他=3〜5（願い・強欲を含む）']);
 for (const p of POTS) {
-  potData.push([p.name, p.potEffect, p.capacity, p.rarity, p.sellPrice, guideDesc(p)]);
+  potData.push([p.name, p.potEffect, `${p.capacity} / ${potInitialCapacityRange(p)}`, p.rarity, p.sellPrice, guideDesc(p)]);
 }
 
 addSheet('06_壺', potData);
@@ -593,11 +605,17 @@ const WAND_DETAILS = {
   wish:           { normal:'願いUIを開く（成功時に回数消費）。生成時charges=1固定。充填・合成で回数増加不可', blessed:'同上', cursed:'同上' },
 };
 
-const wandData = [['杖名', 'チャージ', 'レア度', '売値', '通常効果', '祝福効果', '呪い効果', '説明']];
+const isFixedWandCharge = (w) => ['curse_wand', 'bless_wand', 'wish'].includes(w.effect) || w.noChargeBoost;
+const wandInitialChargeRange = (w) => isFixedWandCharge(w)
+  ? '1（固定） / 1'
+  : `${w.charges} / ${Math.max(1, w.charges - 1)}〜${w.charges + 2}`;
+
+const wandData = [['杖名', '基本チャージ / 通常フロア初期範囲', 'レア度', '売値', '通常効果', '祝福効果', '呪い効果', '説明']];
+wandData.push(['【生成ルール】', '通常・特殊フロア：基本値+rng(-1,2)／隠し・レア部屋：基本値+rng(0,2)／店：基本値+rng(-1,1)（最低1）', '', '', '', '', '', '祝福の杖・呪いの杖・願いの杖・noChargeBoostは生成時1固定。デバッグ・チュートリアルは基本値固定']);
 wandData.push(['【共通ルール】', '', '', '', '残回数がある杖が壊れたとき（インベントリから壊す・軟化/穴掘り/爆発・投げ命中など）は壊れた地点を中心に「壊す」効果が発動（ceil(残回数/2)回）。残0は投げ等で命中した本人に1回だけ効果（周囲なし）。手動破壊・外部破壊は不発。魔封じの部屋のみ封印', '', '', '']);
 for (const w of [...WANDS, GODSPARKWAND_T]) {
   const d = WAND_DETAILS[w.effect] || {};
-  wandData.push([w.name, w.charges, w.rarity, w.sellPrice, d.normal||'', d.blessed||'', d.cursed||'', guideDesc(w)]);
+  wandData.push([w.name, wandInitialChargeRange(w), w.rarity, w.sellPrice, d.normal||'', d.blessed||'', d.cursed||'', guideDesc(w)]);
 }
 
 addSheet('12_杖', wandData);
