@@ -242,7 +242,66 @@
       "label": "危険域 2",
       "categoryId": "hp",
       "afterFile": "hp_critical",
-      "group": "hp_low"
+      "group": "hp_critical"
+    },
+    {
+      "file": "damage_fire_2",
+      "label": "炎 2",
+      "categoryId": "damage",
+      "afterFile": "damage_fire",
+      "group": "damage_fire"
+    },
+    {
+      "file": "hp_critical_2_2",
+      "label": "危険域 2",
+      "categoryId": "hp",
+      "afterFile": "hp_critical_2",
+      "group": "hp_critical"
+    },
+    {
+      "file": "hp_low_kneel_2_2",
+      "label": "瀕死・膝 2",
+      "categoryId": "hp",
+      "afterFile": "hp_low_kneel_2",
+      "group": "hp_low_kneel"
+    },
+    {
+      "file": "hp_low_kneel_3",
+      "label": "瀕死・膝 3",
+      "categoryId": "hp",
+      "afterFile": "hp_low_kneel",
+      "group": "hp_low_kneel"
+    },
+    {
+      "file": "death_dead_unarmored_2",
+      "label": "死亡・ゲームオーバー（防具なし） 2",
+      "categoryId": "special",
+      "afterFile": "death_dead_unarmored",
+      "group": "death_dead_unarmored",
+      "armorVariantOf": "death_dead"
+    },
+    {
+      "file": "attack_unarmored_2",
+      "label": "近接攻撃（武器）（防具なし） 2",
+      "categoryId": "attack",
+      "afterFile": "attack_unarmored",
+      "group": "attack_unarmored",
+      "armorVariantOf": "attack"
+    },
+    {
+      "file": "battle_melee_5",
+      "label": "近接攻撃（武器） 5",
+      "categoryId": "attack",
+      "afterFile": "battle_melee",
+      "group": "attack"
+    },
+    {
+      "file": "hp_low_unarmored_2",
+      "label": "瀕死・立ち（防具なし） 2",
+      "categoryId": "hp",
+      "afterFile": "hp_low_unarmored",
+      "group": "hp_low_stand_unarmored",
+      "armorVariantOf": "hp_low_stand"
     }
   ]
 }
