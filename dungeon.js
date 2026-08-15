@@ -719,11 +719,12 @@ function mkVis() {
     explored: Array.from({ length: MH }, () => Array(MW).fill(false)),
   };
 }
-function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dungeonType = null) {
+function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dungeonType = null, spawnOpts = {}) {
+  const _pickOpts = { excludeItemMimic: !!spawnOpts.excludeItemMimic };
   /* waterOnlyモンスターは水タイル・泉以外には出現しない。非水タイルの場合は通常モンスターを選び直す */
   let base, spawnLevel;
   for (let _mi = 0; _mi < 8; _mi++) {
-    ({ base, spawnLevel } = pickMonsterDef(depth, dungeonType));
+    ({ base, spawnLevel } = pickMonsterDef(depth, dungeonType, false, _pickOpts));
     if (!base.waterOnly) break;
     const _isWater = map ? (map[y]?.[x] === T.WATER || springs?.some(s => s.x === x && s.y === y)) : false;
     if (_isWater) break;
@@ -731,7 +732,7 @@ function mkMon(depth, x, y, dormantRate = 0.12, map = null, springs = null, dung
   /* ループ後も waterOnly が残っていた場合（mapなし等）は非waterOnlyに強制変更 */
   const _finalIsWater = map ? (map[y]?.[x] === T.WATER || springs?.some(s => s.x === x && s.y === y)) : false;
   if (base.waterOnly && !_finalIsWater) {
-    ({ base, spawnLevel } = pickMonsterDef(depth, dungeonType, true));
+    ({ base, spawnLevel } = pickMonsterDef(depth, dungeonType, true, _pickOpts));
   }
   const { levels: _lvls, ...mt } = base;
   const st = spawnLevel >= 2 && base.levels?.[spawnLevel - 2]
@@ -1117,14 +1118,14 @@ function genShoppingMall(depth, dungeonType = null, _retries = 0) {
     allShops.push(setupShopRoom(room, map, depth, items, mons));
   }
   const shopData = allShops[0] || null;
-  /* 廊下にモンスター・罠を少量配置 */
+  /* 廊下にモンスター・罠を少量配置（商品を置かないためアイテムモドキは除外） */
   const occ = mkOcc(items, mons, traps);
   const inAnyRoom = (x, y) => validRooms.some(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
   for (let i = 0; i < rng(2, 4); i++) {
     for (let a = 0; a < 80; a++) {
       const mx = rng(1, MW - 2), my = rng(1, MH - 2);
       if (map[my][mx] !== T.FLOOR || occ(mx, my) || inAnyRoom(mx, my)) continue;
-      mons.push(mkMon(depth, mx, my, 0.12, null, null, dungeonType)); break;
+      mons.push(mkMon(depth, mx, my, 0.12, null, null, dungeonType, { excludeItemMimic: true })); break;
     }
   }
   for (let i = 0; i < rng(3, 6); i++) {

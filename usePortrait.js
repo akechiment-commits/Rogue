@@ -5,8 +5,8 @@ import {
   PORTRAIT_WALK_COOLDOWN_MS,
   PORTRAIT_WALK_STEPS_MIN,
   PORTRAIT_WALK_STEPS_JITTER,
-  pickPortrait,
   pickPortraitForPlayer,
+  hpKey,
   idleStandKey,
   resolvePortraitEvent,
   snapshotPlayer,
@@ -66,7 +66,7 @@ export function usePortrait({
     portraitCooldownRef.current = 0;
     heldStatusKeyRef.current = null;
     if (gs?.player) {
-      setPortraitSrc(pickPortrait(idleStandKey(gs.player)));
+      setPortraitSrc(pickPortraitForPlayer(idleStandKey(gs.player), gs.player));
     }
   }, [gs, setPortraitSrc]);
 
@@ -147,7 +147,7 @@ export function usePortrait({
         if (tryPortrait("walk")) {
           portraitCooldownRef.current = now + PORTRAIT_WALK_COOLDOWN_MS;
         } else if (isLow) {
-          forcePortrait("hp_low");
+          forcePortrait(hpKey(p));
         }
       }
       return;

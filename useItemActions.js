@@ -25,6 +25,7 @@ import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
+import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限、風穴で曲がる） */
 function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
@@ -755,11 +756,8 @@ export function useItemActions({
       if (it.effect === "identify" && !it.blessed && !inMagicSealRoom(p.x, p.y, dg)) {
         const _ik_scr = getIdentKey(it); // "s:identify"
         if (it.cursed) {
-          const _tgts = p.inventory.filter((_ii, _i) => {
-            if (_i === idx) return false;
-            if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return _ii.fullIdent || _ii.bcKnown;
-            const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
-          });
+          const _tgts = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+            { mode: "unidentify", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
           if (_tgts.length > 0) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
             setMsgs((prev) => [...prev.slice(-80), _wasUnknown ? "どのアイテムを選びますか？" : "どのアイテムの識別を解除する？【呪】"]);
@@ -771,12 +769,8 @@ export function useItemActions({
         } else {
           /* 未識別の巻物だった場合は全アイテム選択可（識別効果がわからないため）、識別済みなら未識別アイテムのみ */
           const _showAll = _wasUnknown;
-          const _tgts = p.inventory.filter((_ii, _i) => {
-            if (_i === idx) return false;
-            if (_showAll) return true; /* 未識別巻物: 全アイテム表示 */
-            if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return !_ii.fullIdent && !_ii.bcKnown;
-            const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
-          });
+          const _tgts = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+            { mode: "identify", scrollIdx: idx, wasUnknown: _wasUnknown, showAll: _showAll }, _ii, _i, sr.current.ident));
           if (_tgts.length > 0 || _scrollFootBb) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
             setMsgs((prev) => [...prev.slice(-80), _wasUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]);
@@ -789,7 +783,8 @@ export function useItemActions({
       }
       /* 複製の巻物：アイテム選択ダイアログが必要な場合はsplice前にreturn（identify同様） */
       if (it.effect === "duplicate" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _dupTargets = p.inventory.filter((_ii, _i) => _ii.type !== "gold" && _i !== idx);
+        const _dupTargets = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+          { mode: "duplicate", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
         if (_dupTargets.length > 0 || _scrollFootBb) {
           const _ik_dup = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
@@ -806,7 +801,8 @@ export function useItemActions({
       }
       /* 売却の巻物 */
       if (it.effect === "sell_item" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _sellTargets = p.inventory.filter((_ii, _i) => _ii.type !== "gold" && _i !== idx);
+        const _sellTargets = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+          { mode: "sell_item", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
         if (_sellTargets.length > 0 || _scrollFootBb) {
           const _ik_sell = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
@@ -823,7 +819,8 @@ export function useItemActions({
       }
       /* 変換の巻物 */
       if (it.effect === "transform_item" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _tsfTargets = p.inventory.filter((_ii, _i) => _ii.type !== "gold" && _i !== idx);
+        const _tsfTargets = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+          { mode: "transform_item", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
         if (_tsfTargets.length > 0 || _scrollFootBb) {
           const _ik_tsf = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
@@ -840,7 +837,8 @@ export function useItemActions({
       }
       /* 錬成の巻物 */
       if (it.effect === "forge_item" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _forgeTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || _ii.type === "armor");
+        const _forgeTargets = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+          { mode: "forge_item", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
         if (_forgeTargets.length > 0 || _scrollFootBb) {
           const _ik_fg = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
@@ -857,7 +855,8 @@ export function useItemActions({
       }
       /* 吸い出しの巻物 */
       if (it.effect === "pot_extract" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _potTargets = p.inventory.filter((_ii) => _ii.type === "pot");
+        const _potTargets = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+          { mode: "pot_extract", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
         if (_potTargets.length > 0 || _scrollFootBb) {
           const _ik_pe = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
@@ -874,9 +873,9 @@ export function useItemActions({
       }
       /* 武器強化の巻物 */
       if (it.effect === "weapon_up" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _PLUS_RINGS = ["power_ring","defense_ring","life_ring"];
-        const _wupTargets = p.inventory.filter((_ii) => _ii.type === "weapon" || (_ii.type === "ring" && _PLUS_RINGS.includes(_ii.effect)));
-        if (_wupTargets.length > 0 || _wasUnknown || _scrollFootBb) {
+        const _wupTargets = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+          { mode: "weapon_up", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
+        if (_wupTargets.length > 0 || _scrollFootBb) {
           const _ik_wu = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
           setIdentifyMode({ mode: 'weapon_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_wu || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
@@ -892,9 +891,9 @@ export function useItemActions({
       }
       /* 防具強化の巻物 */
       if (it.effect === "armor_up" && !inMagicSealRoom(p.x, p.y, dg) && !((p.sealedTurns || 0) > 0)) {
-        const _PLUS_RINGS = ["power_ring","defense_ring","life_ring"];
-        const _aupTargets = p.inventory.filter((_ii) => _ii.type === "armor" || (_ii.type === "ring" && _PLUS_RINGS.includes(_ii.effect)));
-        if (_aupTargets.length > 0 || _wasUnknown || _scrollFootBb) {
+        const _aupTargets = p.inventory.filter((_ii, _i) => isScrollTargetCandidate(
+          { mode: "armor_up", scrollIdx: idx, wasUnknown: _wasUnknown }, _ii, _i, sr.current.ident));
+        if (_aupTargets.length > 0 || _scrollFootBb) {
           const _ik_au = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
           setIdentifyMode({ mode: 'armor_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_au || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });

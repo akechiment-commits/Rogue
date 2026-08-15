@@ -24,6 +24,13 @@ export function pickPortrait(key, sets = PORTRAIT_SETS) {
   return CHAR_PATH(list[Math.floor(Math.random() * list.length)]);
 }
 
+/* 防具なし欄が空のとき、img の読み込み失敗時に元の状況へ戻すための情報 */
+function addPortraitFallback(src, fallback) {
+  if (!src || !fallback || src === fallback) return src;
+  const joiner = src.includes("?") ? "&" : "?";
+  return `${src}${joiner}portraitFallback=${encodeURIComponent(fallback)}`;
+}
+
 /**
  * 防具なし時は下着姿の歩行・素手攻撃グループへ差し替える。
  * @param {string} key
@@ -33,18 +40,26 @@ export function resolvePortraitSetKey(key, player = null) {
   if (!key || player?.armor) return key;
   if (key === "walk") return "walk_unarmored";
   if (key === "attack_unarmed") return "attack_unarmed_bare";
-  return key;
+  if (key.endsWith("_unarmored") || key.endsWith("_bare")) return key;
+  return `${key}_unarmored`;
 }
 
 /** プレイヤー装備を考慮して立ち絵パスを選ぶ */
 export function pickPortraitForPlayer(key, player = null, sets = PORTRAIT_SETS) {
-  return pickPortrait(resolvePortraitSetKey(key, player), sets);
+  const resolvedKey = resolvePortraitSetKey(key, player);
+  if (resolvedKey === key || !sets[resolvedKey]?.length) return pickPortrait(key, sets);
+  return addPortraitFallback(pickPortrait(resolvedKey, sets), pickPortrait(key, sets));
 }
 
 export function hpKey(p) {
-  const r = p.hp / p.maxHp;
-  if (r <= 0.25) return "hp_low";
-  if (r <= 0.6) return "hp_mid";
+  const hp = Math.max(0, Number(p?.hp) || 0);
+  const maxHp = Math.max(1, Number(p?.maxHp) || 1);
+  const r = hp / maxHp;
+  if (r <= 0.15) return "hp_critical";
+  if (r <= 0.3) return "hp_low_kneel";
+  if (r <= 0.5) return "hp_low_stand";
+  if (r <= 0.75) return "hp_mid";
+  if (r < 1) return "hp_high";
   return "hp_full";
 }
 
@@ -62,12 +77,11 @@ export function isLightArmorStand(armor) {
  */
 export function idleStandKey(p) {
   if (!p) return "hp_full";
-  const r = (p.hp ?? 0) / Math.max(1, p.maxHp ?? 1);
-  if (r <= 0.25) return "hp_low";
-  if (r <= 0.6) return "hp_mid";
+  const band = hpKey(p);
+  if (band !== "hp_full") return band;
   if (!p.armor) return "stand_unarmored";
   if (isLightArmorStand(p.armor)) return "stand_light_armor";
-  return "hp_full";
+  return band;
 }
 
 /** プレイヤーの近接攻撃メッセージか（モンスターの「の攻撃！」は除外）
@@ -137,6 +151,22 @@ export function msgToActionKey(msg, recentMsgs = []) {
     return "act_pot";
   }
   if (/宝箱/.test(msg)) return "act_chest";
+  return null;
+}
+
+/**
+ * 今回追加されたログだけからアイテム操作立ち絵を探す。
+ *
+ * lastMsg だけを毎回参照すると、移動や拾得で gs が更新された際にも
+ * 過去の「巻物を読んだ」などが再発火してしまう。newMsgs が空なら
+ * 「今回はアイテム操作なし」とし、現在の操作に紐づくログだけを返す。
+ */
+export function findItemActionKey(newMsgs = []) {
+  if (!Array.isArray(newMsgs) || newMsgs.length === 0) return null;
+  for (let i = newMsgs.length - 1; i >= 0; i--) {
+    const key = msgToActionKey(newMsgs[i], newMsgs);
+    if (key) return key;
+  }
   return null;
 }
 
@@ -264,11 +294,11 @@ export const PRIORITY_DAMAGE_KEYS = new Set([
   "damage_poison",
 ]);
 
-export function pickDamagePortrait(msg, sets = PORTRAIT_SETS) {
+export function pickDamagePortrait(msg, sets = PORTRAIT_SETS, player = null) {
   const key = msgToDamageKey(msg);
   /* 汎用は hp_hurt のみ。属性プールに落下などが混ざらないようにする */
-  if (key !== "damage" && sets[key]?.length) return pickPortrait(key, sets);
-  if (sets.damage?.length) return pickPortrait("damage", sets);
+  if (key !== "damage" && sets[key]?.length) return pickPortraitForPlayer(key, player, sets);
+  if (sets.damage?.length) return pickPortraitForPlayer("damage", player, sets);
   return CHAR_PATH("hp_hurt");
 }
 
@@ -360,9 +390,9 @@ export function isMpReviveMsg(msg) {
 }
 
 /** MP復活立ち絵（未設定時はピンチ系へフォールバック。回復立ち絵は使わない） */
-export function pickMpRevivePortrait(sets = PORTRAIT_SETS) {
-  if (sets.hp_mp_revive?.length) return pickPortrait("hp_mp_revive", sets);
-  if (sets.hp_low?.length) return pickPortrait("hp_low", sets);
+export function pickMpRevivePortrait(sets = PORTRAIT_SETS, player = null) {
+  if (sets.hp_mp_revive?.length) return pickPortraitForPlayer("hp_mp_revive", player, sets);
+  if (sets.hp_low_stand?.length) return pickPortraitForPlayer("hp_low_stand", player, sets);
   return CHAR_PATH("hp_critical");
 }
 
@@ -437,11 +467,12 @@ export function isDrownDeath(deathCause) {
 }
 
 /** 死因に応じたゲームオーバー立ち絵 */
-export function pickDeathPortrait(deathCause, sets = PORTRAIT_SETS) {
+export function pickDeathPortrait(deathCause, sets = PORTRAIT_SETS, player = null) {
   if (isDrownDeath(deathCause)) {
-    if (sets.death_drown?.length) return pickPortrait("death_drown", sets);
+    if (sets.death_drown?.length) return pickPortraitForPlayer("death_drown", player, sets);
     return CHAR_PATH("gameover_drown");
   }
+  if (sets.death_dead?.length) return pickPortraitForPlayer("death_dead", player, sets);
   return CHAR_PATH("gameover_dead");
 }
 
@@ -458,18 +489,24 @@ export function pickDeathPortrait(deathCause, sets = PORTRAIT_SETS) {
  *
  * @returns {{ src?: string, cooldownUntil?: number, force?: boolean, holdKey?: string, isLow?: boolean, moved?: boolean, lowPriority?: boolean } | null}
  */
-export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = [], floating = false, dashed = false, now = Date.now() }) {
+export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = [], newMsgs = null, floating = false, dashed = false, now = Date.now() }) {
   if (!p) return null;
 
   if (p.hp <= 0) {
-    return { src: pickDeathPortrait(p.deathCause), cooldownUntil: now + 99999, force: true };
+    return { src: pickDeathPortrait(p.deathCause, PORTRAIT_SETS, p), cooldownUntil: now + 99999, force: true };
   }
   if (!prev) {
-    return { src: pickPortrait(idleStandKey(p)), cooldownUntil: now, force: true };
+    return { src: pickPortraitForPlayer(idleStandKey(p), p), cooldownUntil: now, force: true };
   }
 
   const isLow = p.hp / p.maxHp <= 0.25;
-  const actionKey = msgToActionKey(lastMsg, recentMsgs);
+  const hasNewMsgBatch = Array.isArray(newMsgs);
+  newMsgs = hasNewMsgBatch ? newMsgs : [];
+  /* usePortrait は newMsgs=[] を渡すため、過去のアイテム使用ログを再利用しない。
+   * 旧呼び出し側が newMsgs を省略した場合だけ lastMsg にフォールバックする。 */
+  const actionKey = hasNewMsgBatch
+    ? findItemActionKey(newMsgs)
+    : msgToActionKey(lastMsg, recentMsgs);
   const badFoodKey =
     actionKey === "act_food_yabai" || actionKey === "act_food_rotten" ? actionKey : null;
   const stickyKey = getActiveStatusPortraitKey(p, floating);
@@ -478,7 +515,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   /* 腐った/ヤバイ食事は状態異常より先（食べた瞬間のリアクション） */
   if (p.hp < prev.hp && badFoodKey) {
     return {
-      src: pickPortrait(badFoodKey),
+      src: pickPortraitForPlayer(badFoodKey, p),
       cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
       force: true,
     };
@@ -487,7 +524,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   /* 状態異常中：治るまでその立ち絵を維持（歩行・被ダメ・通常行動で上書きしない） */
   if (stickyKey) {
     return {
-      src: pickPortrait(stickyKey),
+      src: pickPortraitForPlayer(stickyKey, p),
       cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
       force: true,
       holdKey: stickyKey,
@@ -497,7 +534,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   /* MP消費でのHP0復活 */
   if (findMsgInNew(newMsgs, lastMsg, isMpReviveMsg)) {
     return {
-      src: pickMpRevivePortrait(),
+      src: pickMpRevivePortrait(PORTRAIT_SETS, p),
       cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
       force: true,
     };
@@ -599,7 +636,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     const priorityDmgMsg = findPlayerDamageMsg(newMsgs, lastMsg, p?.playerName);
     if (priorityDmgMsg && PRIORITY_DAMAGE_KEYS.has(msgToDamageKey(priorityDmgMsg))) {
       return {
-        src: pickDamagePortrait(priorityDmgMsg),
+        src: pickDamagePortrait(priorityDmgMsg, PORTRAIT_SETS, p),
         cooldownUntil: now + PORTRAIT_DAMAGE_COOLDOWN_MS,
         force: true,
       };
@@ -622,7 +659,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     const damageMsg = findPlayerDamageMsg(newMsgs, lastMsg, p?.playerName);
     if (damageMsg) {
       return {
-        src: pickDamagePortrait(damageMsg),
+        src: pickDamagePortrait(damageMsg, PORTRAIT_SETS, p),
         cooldownUntil: now + PORTRAIT_DAMAGE_COOLDOWN_MS,
         force: false,
         lowPriority: true,
@@ -631,7 +668,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     }
     if (isStarving(p) && (isStarving(prev) || findHungerMsg(newMsgs, lastMsg))) {
       return {
-        src: pickPortrait("hp_hunger"),
+        src: pickPortraitForPlayer("hp_hunger", p),
         cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
         force: true,
       };
@@ -642,7 +679,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   /* ダッシュも低優先（クールダウン尊重） */
   if (dashed && moved) {
     return {
-      src: pickPortrait("dash"),
+      src: pickPortraitForPlayer("dash", p),
       cooldownUntil: now + PORTRAIT_WALK_COOLDOWN_MS,
       force: false,
       lowPriority: true,

@@ -48,7 +48,7 @@ function makeShopRoom() {
 }
 
 describe("shop charge / refund with markup ring", () => {
-  it("値上げで請求した金額を戻すと未払いがゼロになる", () => {
+  it("観光客の効果で請求した金額を戻すと未払いがゼロになる", () => {
     const { dg, shop, shopId } = makeShopRoom();
     const p = { rings: [{ effect: "markup_ring" }] };
     const item = {
@@ -71,7 +71,7 @@ describe("shop charge / refund with markup ring", () => {
     expect(ml.some((m) => /残高がゼロ|入り口を開け/.test(m))).toBe(true);
   });
 
-  it("値切りでも請求額と返金額が一致する", () => {
+  it("買い物上手でも請求額と返金額が一致する", () => {
     const { dg, shop, shopId } = makeShopRoom();
     const p = { rings: [{ effect: "bargain_ring" }] };
     const item = {

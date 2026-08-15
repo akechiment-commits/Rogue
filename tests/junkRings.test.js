@@ -3,14 +3,19 @@ import { calcShopBuyPrice, shopPriceNote, hasRingEffect, RINGS } from "../items.
 import { computeFOV, refreshFOV, corridorRange, MW, MH } from "../utils.js";
 
 describe("junk rings helpers", () => {
-  it("RINGS に鈍足・空腹・足音・値上げ・自慢・暗闇・平和・体幹が含まれる", () => {
+  it("RINGS に鈍足・空腹・足音・観光客・自慢・暗闇・平和・体幹が含まれる", () => {
     const effects = new Set(RINGS.map(r => r.effect));
     for (const e of ["slow_ring", "hunger_ring", "footstep_ring", "markup_ring", "vanity_ring", "darkness_ring", "peace_ring", "core_ring"]) {
       expect(effects.has(e)).toBe(true);
     }
   });
 
-  it("calcShopBuyPrice: 値切り×0.7 / 値上げ×1.5 / 両方", () => {
+  it("店用リングの表示名が効果に対応している", () => {
+    expect(RINGS.find(r => r.effect === "bargain_ring").name).toBe("買い物上手の指輪");
+    expect(RINGS.find(r => r.effect === "markup_ring").name).toBe("観光客の指輪");
+  });
+
+  it("calcShopBuyPrice: 買い物上手×0.7 / 観光客×1.5 / 両方", () => {
     expect(calcShopBuyPrice({ rings: [] }, 100)).toBe(100);
     expect(calcShopBuyPrice({ rings: [{ effect: "bargain_ring" }] }, 100)).toBe(70);
     expect(calcShopBuyPrice({ rings: [{ effect: "markup_ring" }] }, 100)).toBe(150);

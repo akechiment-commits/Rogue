@@ -15,6 +15,7 @@ import { getDiscoveries, trackBigbox, trackItem } from "./DiscoveryTracker.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
+import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -677,36 +678,10 @@ export function useKeyHandler({
         if (!sr.current) return;
         const _p_id = sr.current.player;
         const _isBCMode = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
-        const _isDupMode = identifyMode.mode === 'duplicate';
-        const _isSellMode = identifyMode.mode === 'sell_item';
-        const _isTsfMode  = identifyMode.mode === 'transform_item';
-        const _isForgeMode = identifyMode.mode === 'forge_item';
-        const _isWeaponUpMode = identifyMode.mode === 'weapon_up';
-        const _isArmorUpMode  = identifyMode.mode === 'armor_up';
-        const _isPotExtractMode = identifyMode.mode === 'pot_extract';
         const _filt_id = _p_id.inventory
           .map((_it, _i) => ({ it: _it, i: _i }))
           .filter(({ it, i }) => {
-            if (_isBCMode) return it.type !== "gold";
-            if (_isDupMode || _isSellMode || _isTsfMode) return it.type !== "gold" && i !== identifyMode.scrollIdx;
-            if (_isForgeMode) return it.type === "weapon" || it.type === "armor";
-            if (_isPotExtractMode) return it.type === "pot" && i !== identifyMode.scrollIdx;
-            if (_isWeaponUpMode || _isArmorUpMode) {
-              if (identifyMode.wasUnknown) return it.type !== "gold" && i !== identifyMode.scrollIdx;
-              const _PR = ["power_ring","defense_ring","life_ring"];
-              if (_isWeaponUpMode) return it.type === "weapon" || (it.type === "ring" && _PR.includes(it.effect));
-              if (_isArmorUpMode)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
-            }
-            if (identifyMode.scrollIdx === i) return false;
-            if (it.type === 'weapon' || it.type === 'armor' || it.type === 'food') {
-              if (identifyMode.mode === 'identify' && identifyMode.showAll) return true;
-              return identifyMode.mode === 'identify' ? (!it.fullIdent && !it.bcKnown) : (it.fullIdent || it.bcKnown);
-            }
-            const _k = getIdentKey(it);
-            if (!_k) return identifyMode.mode === 'identify' && identifyMode.showAll;
-            if (identifyMode.mode === 'identify' && identifyMode.showAll) return true;
-            if (identifyMode.mode === 'identify') return !sr.current.ident.has(_k) || (!it.fullIdent && !it.bcKnown);
-            return sr.current.ident.has(_k);
+            return isScrollTargetCandidate(identifyMode, it, i, sr.current.ident);
           });
         const _dg_id = sr.current.dungeon;
         const _footBb_id = identifyMode.bbFootId ? _dg_id?.bigboxes?.find(b => b.id === identifyMode.bbFootId) : null;
@@ -865,6 +840,9 @@ export function useKeyHandler({
             } else { _msgResult = "変換できるアイテムがなかった。"; }
           } else if (identifyMode.mode === 'forge_item') {
             /* ===== 錬成の巻物 ===== */
+            if (_selIt.type !== "weapon" && _selIt.type !== "armor") {
+              _msgResult = `${_selIt.name}には効果がなかった。巻物は消えた。`;
+            } else {
             const _isWeapon = _selIt.type === "weapon";
             const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
             const _owned = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
@@ -889,12 +867,16 @@ export function useKeyHandler({
                          : identifyMode.cursed  ? `${_selIt.name}に「${_ab.name}」が刻まれてしまった…【呪】`
                                                 : `${_selIt.name}に「${_ab.name}」が宿った！`;
             } else { _msgResult = `${_selIt.name}はもうこれ以上能力を宿せない。`; }
+            }
           } else if (identifyMode.mode === 'weapon_up' || identifyMode.mode === 'armor_up') {
             /* ===== 武器強化・防具強化の巻物 ===== */
             const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? "無印" : `${v}`);
             const _gain = identifyMode.blessed ? 2 : identifyMode.cursed ? -1 : 1;
             const _sfx = identifyMode.blessed ? "【祝】" : identifyMode.cursed ? "【呪】" : "";
-            if (_selIt.type === "weapon" || _selIt.type === "armor") {
+            const _isValidUpTarget = identifyMode.mode === "weapon_up"
+              ? (_selIt.type === "weapon" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)))
+              : (_selIt.type === "armor" || (_selIt.type === "ring" && ["power_ring","defense_ring","life_ring"].includes(_selIt.effect)));
+            if (_isValidUpTarget) {
               const _bef = _selIt.plus || 0;
               _selIt.plus = _bef + _gain;
               const _glow = _gain > 0 ? "輝いた" : "くすんだ";
@@ -970,12 +952,14 @@ export function useKeyHandler({
             const _p_pe = sr.current.player;
             const _dg_pe = sr.current.dungeon;
             const _ml_pe = [];
-            const _peRes = extractPotContents(_selIt, _dg_pe, _p_pe.x, _p_pe.y, _p_pe, _ml_pe, null, identifyMode.blessed, identifyMode.cursed);
+            const _peRes = _selIt.type === "pot"
+              ? extractPotContents(_selIt, _dg_pe, _p_pe.x, _p_pe.y, _p_pe, _ml_pe, null, identifyMode.blessed, identifyMode.cursed)
+              : null;
             /* 壺がインベントリから削除されていたら scrollIdx を補正 */
             if (_peRes?.potRemovedAt != null && identifyMode.scrollIdx != null && _peRes.potRemovedAt < identifyMode.scrollIdx) {
               identifyMode.scrollIdx--;
             }
-            _msgResult = _ml_pe;
+            _msgResult = _selIt.type === "pot" ? _ml_pe : `${_selIt.name}には効果がなかった。巻物は消えた。`;
           } else {
             const _isBcOnly = _selIt.type === 'weapon' || _selIt.type === 'armor' || _selIt.type === 'food';
             const _selKey = _isBcOnly ? null : getIdentKey(_selIt);

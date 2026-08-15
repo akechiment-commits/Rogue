@@ -32,8 +32,14 @@ describe("portraitCatalog", () => {
     expect(sets.act_scroll).toEqual(["action_read_scroll"]);
     expect(sets.damage_watergun).toEqual(["damage_watergun"]);
     expect(sets.damage_gun).toEqual(["damage_gun"]);
-    expect(sets.hp_low.length).toBeGreaterThanOrEqual(2);
+    expect(sets.hp_full).toContain("hp_full");
+    expect(sets.hp_high).toEqual(["hp_high"]);
+    expect(sets.hp_mid).toContain("hp_mid");
+    expect(sets.hp_low_stand).toContain("hp_low_stand");
+    expect(sets.hp_low_kneel).toContain("hp_low_kneel");
+    expect(sets.hp_critical).toContain("hp_critical");
     expect(sets.death_drown).toEqual(["gameover_drown"]);
+    expect(sets.death_dead_unarmored).toEqual(["death_dead_unarmored"]);
     expect(sets.status_soaked).toEqual(["status_soaked"]);
     expect(sets.status_bound).toEqual(["status_bound"]);
     expect(sets.status_confined).toEqual(["status_confined"]);
@@ -47,6 +53,16 @@ describe("portraitCatalog", () => {
     expect(sets.attack_unarmed_bare).toEqual(
       expect.arrayContaining(["battle_unarmed_unarmored", "battle_unarmed_unarmored_2"]),
     );
+    expect(sets.damage_fire_unarmored).toEqual(["damage_fire_unarmored"]);
+    expect(sets.hp_full_unarmored).toEqual(["hp_full_unarmored"]);
+    expect(sets.hp_high_unarmored).toEqual(["hp_high_unarmored"]);
+    expect(sets.hp_mid_unarmored).toEqual(["hp_mid_unarmored"]);
+    expect(sets.hp_low_stand_unarmored).toContain("hp_low_unarmored");
+    expect(sets.hp_low_kneel_unarmored).toEqual(["hp_low_kneel_unarmored"]);
+    expect(sets.hp_critical_unarmored).toEqual(["hp_critical_unarmored"]);
+    expect(sets.act_potion_unarmored).toEqual(["act_potion_unarmored"]);
+    expect(sets.status_poison_unarmored).toEqual(["status_poison_unarmored"]);
+    expect(sets.reaction_shop_unarmored).toEqual(["reaction_shop_unarmored"]);
   });
 
   it("状態異常に拘束・閉じ込めスロットがある", () => {
@@ -77,6 +93,26 @@ describe("portraitCatalog", () => {
     const sets = buildPortraitSets(merged);
     expect(sets.damage_arrow).toEqual(["damage_arrow", "damage_arrow_2"]);
     expect(sets.damage).not.toContain("damage_arrow_2");
+  });
+
+  it("防具なし欄の追加バリエーションも同じ属性を保持する", () => {
+    const merged = mergePortraitCategories([
+      {
+        file: "damage_fire_unarmored_2",
+        label: "炎（防具なし）2",
+        group: "damage_fire_unarmored",
+        categoryId: "damage",
+        afterFile: "damage_fire_unarmored",
+        armorVariantOf: "damage_fire",
+      },
+    ]);
+    const damage = merged.find((c) => c.id === "damage");
+    const slot = damage.slots.find((s) => s.file === "damage_fire_unarmored_2");
+    expect(slot.armorVariantOf).toBe("damage_fire");
+    expect(buildPortraitSets(merged).damage_fire_unarmored).toEqual([
+      "damage_fire_unarmored",
+      "damage_fire_unarmored_2",
+    ]);
   });
 
   it("nextVariantFile が連番ファイル名を生成する", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  collectChargerMoves,
   collectMonsterAttackEvents,
   collectMonsterMoves,
   createMonsterTurnAnimation,
@@ -35,5 +36,31 @@ describe("monster turn animation", () => {
     expect(animation.attacks).toEqual([{ type: "flash", x: 5, y: 5, color: "#ff4400" }]);
     expect(animation.damages).toEqual(events);
     expect(animation.lunges).toEqual(lunges);
+  });
+
+  it("攻撃フェーズ中の突進を長い移動アニメーションとして記録する", () => {
+    const charger = {
+      id: "charger",
+      tile: 168,
+      hp: 62,
+      maxHp: 62,
+      _chargerMoveAnimation: { fromX: 2, fromY: 4, toX: 5, toY: 4 },
+    };
+    const animation = createMonsterTurnAnimation();
+
+    collectChargerMoves(animation, [charger]);
+
+    expect(animation.moves).toEqual([{
+      id: "charger",
+      fromX: 2,
+      fromY: 4,
+      toX: 5,
+      toY: 4,
+      tile: 168,
+      hp: 62,
+      maxHp: 62,
+      charger: true,
+    }]);
+    expect(charger._chargerMoveAnimation).toBeUndefined();
   });
 });

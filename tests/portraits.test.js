@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   msgToActionKey,
+  findItemActionKey,
   msgToDamageKey,
   msgToMeleeAttackKey,
   isPlayerDamageMsg,
@@ -25,6 +26,7 @@ import {
   idleStandKey,
   isLightArmorStand,
   resolvePortraitSetKey,
+  pickPortraitForPlayer,
   PORTRAIT_SETS,
 } from "../portraits.js";
 
@@ -141,6 +143,27 @@ describe("portraits", () => {
     expect(msgToActionKey("重力の魔方陣が消えた！")).toBeNull();
     expect(msgToActionKey("みかわしの魔方陣の加護でかわした！")).toBeNull();
     expect(msgToActionKey("ラクガキ魔が足元に回復の魔方陣を描いた！")).toBeNull();
+  });
+
+  it("アイテム使用立ち絵は今回追加されたログだけを参照する", () => {
+    expect(findItemActionKey([
+      "回復の巻物を読んだ！",
+      "何も起きなかった。",
+    ])).toBe("act_scroll");
+    expect(findItemActionKey([])).toBeNull();
+    expect(findItemActionKey(["回復の巻物を拾った！"])).toBeNull();
+
+    const player = { hp: 80, maxHp: 100, x: 6, y: 5, level: 3 };
+    const prev = { ...player, x: 5, y: 5 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "回復の巻物を読んだ！",
+      recentMsgs: ["回復の巻物を読んだ！"],
+      newMsgs: [],
+    });
+    expect(event.src).toBeUndefined();
+    expect(event.moved).toBe(true);
   });
 
   it("msgToActionKey が腐った・ヤバイ食料を直近ログから判定する", () => {
@@ -282,9 +305,12 @@ describe("portraits", () => {
   });
 
   it("hpKey が HP 帯を返す", () => {
-    expect(hpKey({ hp: 10, maxHp: 100 })).toBe("hp_low");
-    expect(hpKey({ hp: 50, maxHp: 100 })).toBe("hp_mid");
-    expect(hpKey({ hp: 90, maxHp: 100 })).toBe("hp_full");
+    expect(hpKey({ hp: 100, maxHp: 100 })).toBe("hp_full");
+    expect(hpKey({ hp: 90, maxHp: 100 })).toBe("hp_high");
+    expect(hpKey({ hp: 75, maxHp: 100 })).toBe("hp_mid");
+    expect(hpKey({ hp: 50, maxHp: 100 })).toBe("hp_low_stand");
+    expect(hpKey({ hp: 30, maxHp: 100 })).toBe("hp_low_kneel");
+    expect(hpKey({ hp: 15, maxHp: 100 })).toBe("hp_critical");
   });
 
   it("idleStandKey が防具で待機立ち絵を分岐する", () => {
@@ -292,12 +318,15 @@ describe("portraits", () => {
     expect(isLightArmorStand({ name: "腹持ちの胴" })).toBe(true);
     expect(isLightArmorStand({ name: "革の鎧" })).toBe(false);
     expect(isLightArmorStand({ name: "プレートメイル" })).toBe(false);
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: null })).toBe("stand_unarmored");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "みかわしの服" } })).toBe("stand_light_armor");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "腹持ちの胴" } })).toBe("stand_light_armor");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "革の鎧" } })).toBe("hp_full");
-    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "プレートメイル" } })).toBe("hp_full");
-    expect(idleStandKey({ hp: 10, maxHp: 100, armor: null })).toBe("hp_low");
+    expect(idleStandKey({ hp: 100, maxHp: 100, armor: null })).toBe("stand_unarmored");
+    expect(idleStandKey({ hp: 100, maxHp: 100, armor: { name: "みかわしの服" } })).toBe("stand_light_armor");
+    expect(idleStandKey({ hp: 100, maxHp: 100, armor: { name: "腹持ちの胴" } })).toBe("stand_light_armor");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: null })).toBe("hp_high");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "みかわしの服" } })).toBe("hp_high");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "革の鎧" } })).toBe("hp_high");
+    expect(idleStandKey({ hp: 90, maxHp: 100, armor: { name: "プレートメイル" } })).toBe("hp_high");
+    expect(idleStandKey({ hp: 30, maxHp: 100, armor: null })).toBe("hp_low_kneel");
+    expect(idleStandKey({ hp: 15, maxHp: 100, armor: null })).toBe("hp_critical");
   });
 
   it("未装備時は歩行・素手攻撃を下着姿グループに差し替える", () => {
@@ -310,6 +339,26 @@ describe("portraits", () => {
     );
     expect(PORTRAIT_SETS.attack_unarmed_bare).toEqual(
       expect.arrayContaining(["battle_unarmed_unarmored", "battle_unarmed_unarmored_2"]),
+    );
+  });
+
+  it("全状況を防具なしグループへ分岐し、空欄時は元グループへ戻せる", () => {
+    expect(resolvePortraitSetKey("damage_fire", { armor: null })).toBe("damage_fire_unarmored");
+    expect(resolvePortraitSetKey("act_potion", { armor: null })).toBe("act_potion_unarmored");
+    expect(resolvePortraitSetKey("status_poison", { armor: null })).toBe("status_poison_unarmored");
+    expect(resolvePortraitSetKey("damage_fire", { armor: { name: "革の鎧" } })).toBe("damage_fire");
+
+    const baseOnly = { damage_fire: ["damage_fire"] };
+    expect(pickPortraitForPlayer("damage_fire", { armor: null }, baseOnly)).toBe(
+      "/tiles/Character/damage_fire.png",
+    );
+
+    const withBranch = {
+      damage_fire: ["damage_fire"],
+      damage_fire_unarmored: ["damage_fire_unarmored"],
+    };
+    expect(pickPortraitForPlayer("damage_fire", { armor: null }, withBranch)).toMatch(
+      /^\/tiles\/Character\/damage_fire_unarmored\.png\?portraitFallback=/,
     );
   });
 

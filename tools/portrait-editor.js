@@ -12,13 +12,14 @@ let categories = [];
 let toastTimer;
 
 function closePreview() {
-  if (!previewModal || previewModal.hidden) return;
+  if (!previewModal) return;
   previewModal.hidden = true;
   document.body.classList.remove("preview-open");
-  previewImage.removeAttribute("src");
+  previewImage?.removeAttribute("src");
 }
 
 function openPreview(slot) {
+  if (!previewModal || !previewImage || !previewTitle || !previewFile) return;
   previewTitle.textContent = slot.label;
   previewFile.textContent = `${slot.file}.png`;
   previewImage.alt = slot.label;
@@ -131,7 +132,7 @@ function updateStats() {
 
 function buildSlot(cat, slot) {
   const wrap = document.createElement("div");
-  wrap.className = `slot${slot.base === false ? " slot-extra" : ""}`;
+  wrap.className = `slot${slot.base === false ? " slot-extra" : ""}${slot.armorVariantOf ? " slot-unarmored" : ""}`;
   wrap.dataset.file = slot.file;
 
   const head = document.createElement("div");
@@ -215,7 +216,7 @@ function buildSlot(cat, slot) {
       img.src = portraitUrl(slot.file);
       const badge = document.createElement("span");
       badge.className = "badge";
-      badge.textContent = slot.base === false ? "追加欄" : "配置済";
+      badge.textContent = slot.armorVariantOf ? "防具なし・配置済" : slot.base === false ? "追加欄" : "配置済";
       zone.append(img, badge);
       previewBtn.hidden = false;
       delBtn.hidden = false;

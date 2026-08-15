@@ -53,12 +53,13 @@ import { rollWishChance, grantWish } from "./wish.js";
 import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
+import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "./turnUpkeep.js";
 import { applyPlayerPoison } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
-import { collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
+import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
 import { advanceMonsterUpkeep } from "./monsterUpkeep.js";
 import { resolveTurnHazards } from "./turnHazards.js";
 import { transitMonstersThroughPortals } from "./monsterPortalTransit.js";
@@ -767,9 +768,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       });
       overlaysRef.current = [];
     }
-    /* Phase 3: Monster moves (50ms) */
+    /* Phase 3: Monster moves — 突進は軌道が見えるよう少し長めに表示 */
     if (data.monMoves?.length) {
-      await _phase(50, (t) => {
+      const _monMoveDur = data.monMoves.some(mm => mm.charger) ? 180 : 50;
+      await _phase(_monMoveDur, (t) => {
         for (const mm of data.monMoves) moveOffsetsRef.current.set("mon_" + mm.id, { ...mm, progress: t });
         renderFrame();
       });
@@ -1584,6 +1586,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         spinFired: _spinFired,
         moveMons,
       });
+      /* 突進は攻撃フェーズ中に座標が変わるため、ここで移動イベントを回収する。 */
+      collectChargerMoves(_monAnimation, st.dungeon.monsters);
       if (_attackPhase.hitEvents.length > 0) {
         collectMonsterAttackEvents(_monAnimation, _attackPhase.hitEvents, _attackPhase.lunges, _attackPhase.hadActualHit, p);
       }
@@ -2306,11 +2310,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
               ml.push(`${attackMon.name}に${d}ダメージ！${atkSfx}`);
-              /* 吸血の指輪：与ダメの1/8をHP吸収 */
+              /* 吸血の指輪：通常の敵には与ダメの1/8を吸収し、アンデッドには反動を受ける */
               if (hasRingEffect(p, "vampire_ring")) {
                 const _vamp = Math.max(1, Math.floor(d / 8));
-                p.hp = Math.min(p.maxHp, p.hp + _vamp);
-                ml.push(`吸血でHP+${_vamp}！`);
+                if (attackMon.kind === "undead") {
+                  p.deathCause = "吸血の指輪がアンデッドに反発したことにより";
+                  p.hp -= _vamp;
+                  ml.push(`吸血の指輪がアンデッドに反発！${_vamp}ダメージ！`);
+                } else {
+                  p.hp = Math.min(p.maxHp, p.hp + _vamp);
+                  ml.push(`吸血でHP+${_vamp}！`);
+                }
               }
               /* 吸血武器：与ダメの30%をHP回復 */
               if (wabHas("lifesteal")) {
@@ -3078,6 +3088,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
       const ml = installPlayerHpMessageHook([], p);
       let steps = 0;
+      let dashMimicRevealed = false;
       /* ダッシュ用座標マップ構築 */
       const _dk = (x, y) => y * MW + x;
       const _dRoomSet = new Set();
@@ -3126,6 +3137,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (dg.statues?.some(s => s.x === nx && s.y === ny)) break;
         if (dg.map[ny][nx] === T.WATER && !canPlayerWalkOnWater(p, dg)) break;
         { const _dpc = _dPentMap.get(_dk(nx, ny)); if (_dpc?.kind === "sanctuary" && _dpc.cursed) break; }
+        /* ダッシュでも、アイテムモドキへ踏み込む前に正体を現させて停止する。 */
+        if (revealItemMimicAt(dg, nx, ny, p, ml, lu)) {
+          dashMimicRevealed = true;
+          endTurn(st, p, ml);
+          break;
+        }
         /* 廊下ダッシュ中に部屋の入口手前で停止（ただし最初の1歩は入れる） */
         if (steps > 0 && !startInRoom && !_dRoomSet.has(_dk(p.x, p.y)) && _dRoomSet.has(_dk(nx, ny))) break;
         const _allShopsD = getShops(dg);
@@ -3300,6 +3317,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
         sr.current = { ...st };
         setGs({ ...st });
+      } else if (dashMimicRevealed) {
+        setDashMode(false);
+        if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        sr.current = { ...st };
+        setGs({ ...st });
       } else {
         setMsgs((prev) => [...prev.slice(-80), "進めない。"]);
         setDashMode(false);
@@ -3343,13 +3365,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   }, []);
   const trySynthesize = useCallback(
     (bb, ml) => {
+      const _dn = (item) => itemDisplayName(
+        item,
+        sr.current?.fakeNames,
+        sr.current?.ident,
+        sr.current?.nicknames,
+      );
       /* 力・守り・命の指輪（異種混合OK） → 先に入れた指輪に後の+値を加算して後を消す */
       const _PLUS_RING_EFFECTS = ["power_ring", "defense_ring", "life_ring"];
       const _plusRings = bb.contents.filter(i => i.type === "ring" && _PLUS_RING_EFFECTS.includes(i.effect));
       if (_plusRings.length >= 2) {
         const [ra, rb] = _plusRings;
         ra.plus = (ra.plus || 0) + (rb.plus || 0);
-        ml.push(`合成完了！${ra.name}の＋値が増えた！(+${ra.plus})`);
+        ml.push(`合成完了！${_dn(ra)}の＋値が増えた！(+${ra.plus})`);
         bb.contents = bb.contents.filter(i => i !== rb);
         bb.capacity = bb.contents.length;
         return;
@@ -3360,7 +3388,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const add = mm.charges || 0;
         mb.charges = (mb.charges || 0) + add;
         ml.push(
-          `合成完了！${mb.name}の容量が${add}増えた！(${mb.charges}回)`,
+          `合成完了！${_dn(mb)}の容量が${add}増えた！(${mb.charges}回)`,
         );
         bb.contents = bb.contents.filter((i) => i !== mm);
         bb.capacity = bb.contents.length;
@@ -3372,13 +3400,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (pb.effect === pm.effect) {
           const add = pm.charges || 0;
           pb.charges = (pb.charges || 0) + add;
-          ml.push(`合成完了！${pb.name}の回数が${add}増えた！(${pb.charges}回)`);
+          ml.push(`合成完了！${_dn(pb)}の回数が${add}増えた！(${pb.charges}回)`);
           bb.contents = bb.contents.filter((i) => i !== pm);
           bb.capacity = bb.contents.length;
         } else {
           const add = Math.max(1, Math.floor((pm.charges || 0) / 2));
           pb.charges = (pb.charges || 0) + add;
-          ml.push(`${pm.name}の回数の半分が${pb.name}に加算された！(+${add}回 → ${pb.charges}回)`);
+          ml.push(`${_dn(pm)}の回数の半分が${_dn(pb)}に加算された！(+${add}回 → ${pb.charges}回)`);
           bb.contents = bb.contents.filter((i) => i !== pm);
           bb.capacity = bb.contents.length;
         }
@@ -3413,19 +3441,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           wb.mergedWandEffects = [..._merged];
           bb.contents = bb.contents.filter(i => i !== wm);
           bb.capacity = bb.contents.length;
-          ml.push(`合成完了！${wb.name}の回数が増えた！(${wb.charges}回) [三属性杖: ${wb.mergedWandEffects.join("/")}]`);
+          ml.push(`合成完了！${_dn(wb)}の回数が増えた！(${wb.charges}回)`);
           return;
         }
         if (wb.name === wm.name) {
           wb.charges = (wb.charges || 0) + (wm.charges || 0);
           ml.push(
-            `合成完了！${wb.name}の回数が${wm.charges}増えた！(${wb.charges}回)`,
+            `合成完了！${_dn(wb)}の回数が${wm.charges}増えた！(${wb.charges}回)`,
           );
         } else {
           const _ad = Math.max(1, Math.floor((wm.charges || 0) / 2));
           wb.charges = (wb.charges || 0) + _ad;
           ml.push(
-            `合成完了！${wb.name}の回数が${_ad}増えた！(${wb.charges}回)`,
+            `合成完了！${_dn(wb)}の回数が${_ad}増えた！(${wb.charges}回)`,
           );
         }
         bb.contents = bb.contents.filter((i) => i !== wm);
@@ -3453,7 +3481,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         const _toAbs = (it) => [...new Set([...(it.abilities || []), ...(it.ability ? [it.ability] : [])].filter(Boolean))];
         const _curAbs = _toAbs(_swEquip);
         if (_curAbs.includes(_swAbId)) {
-          ml.push(`${_swEquip.name}には既にその能力がある。合成できなかった。`);
+          ml.push(`${_dn(_swEquip)}には既にその能力がある。合成できなかった。`);
         } else {
           const _newAbs = [..._curAbs, _swAbId];
           const merged = { ..._swEquip, id: uid(), ability: _newAbs[0], abilities: _newAbs };
@@ -3462,7 +3490,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           bb.capacity = bb.contents.length;
           const _AB = _swEquip.type === "weapon" ? WEAPON_ABILITIES : ARMOR_ABILITIES;
           const _abName = _AB.find(a => a.id === _swAbId)?.name || _swAbId;
-          ml.push(`合成完了！${_swEquip.name}に${_swWand.name}の力が宿った！[${_abName}]`);
+          ml.push(`合成完了！${_dn(_swEquip)}に${_dn(_swWand)}の力が宿った！[${_abName}]`);
         }
         return;
       }
@@ -3474,11 +3502,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           /* 同種の壺：容量を加算 */
           const add = pb.capacity || 0;
           pa.capacity = (pa.capacity || 0) + add;
-          ml.push(`合成完了！${pa.name}の容量が${add}増えた！(容量${pa.capacity})`);
+          ml.push(`合成完了！${_dn(pa)}の容量が${add}増えた！(容量${pa.capacity})`);
         } else {
           /* 別種の壺：容量を1増加 */
           pa.capacity = (pa.capacity || 0) + 1;
-          ml.push(`合成完了！${pa.name}の容量が1増えた！(容量${pa.capacity})`);
+          ml.push(`合成完了！${_dn(pa)}の容量が1増えた！(容量${pa.capacity})`);
         }
         bb.contents = bb.contents.filter((i) => i !== pb);
         bb.capacity = bb.contents.length;
@@ -3694,7 +3722,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       } else {
         bb.contents.push(merged);
         bb.capacity = bb.contents.length;
-        ml.push(`合成完了！${base.name}と${mat.name}が融合した！`);
+        ml.push(`合成完了！${_dn(base)}と${_dn(mat)}が融合した！`);
       }
     },
     [uid],
@@ -3713,7 +3741,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (bb.kind === "synthesis") {
         trySynthesize(bb, ml);
       } else if (bb.kind === "change" && item.type === "goal") {
-        ml.push(`${item.name}は変化しなかった！`);
+        ml.push(`${_idn}は変化しなかった！`);
       } else if (bb.kind === "change") {
         const nit = makeChangeBoxItem();
         const idx = bb.contents.indexOf(item);
@@ -3770,12 +3798,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               }
               item.sizeLabel = next.l;
               item.value = Math.round((item.value * next.v) / cur.v);
-              ml.push(`${oldName}が大きくなった！→${item.name}`);
+              ml.push(`${_idn}が大きくなった！→${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}`);
               upgraded = true;
               break;
             }
           }
-          if (!upgraded) ml.push(`${item.name}はすでに最大サイズだ。`);
+          if (!upgraded) ml.push(`${_idn}はすでに最大サイズだ。`);
         } else {
           ml.push(`${_idn}には効果がなかった。`);
         }
@@ -3869,7 +3897,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           if (item.rotten) {
             ml.push(`${_idn}はすでに腐っている。`);
           } else {
-            const _cOrigName = item.name;
+            const _cOrigName = _idn;
             rotFood(item);
             item.bcKnown = true;
             ml.push(`${_cOrigName}が腐ってしまった！`);
@@ -4346,7 +4374,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         else if (it.cursed) { wb.cursed = true; wb.bcKnown = true; }
         const _sfx = it.blessed ? "【祝】" : it.cursed ? "【呪】" : "";
         p.inventory.push(wb);
-        ml.push(`${it.name}に水を汲んだ。${wb.name}を手に入れた！${_sfx}`);
+        ml.push(`${dnameRef(it)}に水を汲んだ。${dnameRef(wb)}を手に入れた！${_sfx}`);
       } else if (it.type === "weapon" || it.type === "armor") {
         /* 特殊変化：ロングソード→エクスカリバー(5%)、短剣→猫の爪(5%)、バトルアクス/戦神の斧→ゴールデンアクス(20%) */
         if (it.type === "weapon" && it.name === "ロングソード" && Math.random() < 0.05) {
@@ -5269,34 +5297,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
                 if (!sr.current) return;
                 const _p = sr.current.player;
                 const _isBCMode_t = identifyMode.mode === 'bless' || identifyMode.mode === 'curse';
-                const _isDupMode_t = identifyMode.mode === 'duplicate';
-                const _isSellMode_t = identifyMode.mode === 'sell_item';
-                const _isTsfMode_t = identifyMode.mode === 'transform_item';
-                const _isForgeMode_t = identifyMode.mode === 'forge_item';
-                const _isWeaponUpMode_t = identifyMode.mode === 'weapon_up';
-                const _isArmorUpMode_t  = identifyMode.mode === 'armor_up';
                 const _filt = _p.inventory
                   .map((_it, _i) => ({ it: _it, i: _i }))
                   .filter(({ it, i }) => {
-                    if (_isBCMode_t || _isDupMode_t) return it.type !== "gold";
-                    if (_isSellMode_t || _isTsfMode_t) return it.type !== "gold" && i !== identifyMode.scrollIdx;
-                    if (_isForgeMode_t) return it.type === "weapon" || it.type === "armor";
-                    if (_isWeaponUpMode_t || _isArmorUpMode_t) {
-                      if (identifyMode.wasUnknown) return it.type !== "gold" && i !== identifyMode.scrollIdx;
-                      const _PR = ["power_ring","defense_ring","life_ring"];
-                      if (_isWeaponUpMode_t) return it.type === "weapon" || (it.type === "ring" && _PR.includes(it.effect));
-                      if (_isArmorUpMode_t)  return it.type === "armor"  || (it.type === "ring" && _PR.includes(it.effect));
-                    }
-                    if (identifyMode.scrollIdx === i) return false;
-                    const _showAll_t = identifyMode.showAll;
-                    if (it.type === 'weapon' || it.type === 'armor' || it.type === 'food') {
-                      if (identifyMode.mode === 'identify') return _showAll_t || (!it.fullIdent && !it.bcKnown);
-                      return it.fullIdent || it.bcKnown;
-                    }
-                    const _k = getIdentKey(it);
-                    if (!_k) return false;
-                    if (identifyMode.mode === 'identify') return _showAll_t || !sr.current.ident.has(_k) || (!it.fullIdent && !it.bcKnown);
-                    return sr.current.ident.has(_k);
+                    return isScrollTargetCandidate(identifyMode, it, i, sr.current.ident);
                   });
                 const _hasBbTgt = !!(identifyMode.bbFootId && !_isBCMode_t && identifyMode.mode !== 'unidentify' && sr.current?.dungeon?.bigboxes?.find(b => b.id === identifyMode.bbFootId));
                 const _len = _filt.length + (_hasBbTgt ? 1 : 0);

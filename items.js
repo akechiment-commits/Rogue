@@ -3311,8 +3311,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push("MP封印が解けた！【呪→解封】");
         } else if (!blockPlayerStatus(p, ml, { proofAbility: "seal_proof", proofMsg: "封印効果を受けたが防具が防いだ！(耐封印)" })) {
           // 通常/祝福：MP封印（祝福：さらに鈍足）
-          const _mt = statusTurns("mpBound", { kind: "player", blessed });
-          p.mpBoundTurns = (p.mpBoundTurns || 0) + _mt;
+          const _mt = statusTurns("mpCooldown", { kind: "player", blessed });
+          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
           ml.push(`魔力が封じられた！(MP封印${_mt}ターン)${blessed ? "(祝福)" : ""}`);
           if (blessed) {
             if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "鈍足効果を受けたが防具が防いだ！(耐鈍足)" })) {
@@ -5723,7 +5723,7 @@ export const RINGS = [
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
   { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備中、毒が無効になる。" },
-  { name: "値切りの指輪",   type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
+  { name: "買い物上手の指輪", type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
   { name: "魔物呼びの指輪", type:"ring", effect:"spawn_ring",           rarity:"D", weight:8, sellPrice:1000, tile:60, desc:"装備中、敵が現れやすくなる。" },
   { name: "下手投げの指輪", type:"ring", effect:"miss_throw_ring",      rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、投げたものが必ず外れるようになる。" },
   { name: "回復の指輪",     type:"ring", effect:"regen_ring",           rarity:"B", weight:2, sellPrice:1200, tile:60, desc:"装備中、毎ターンのHP自然回復量が1増える。2つ装備すれば2増える。再生付き装備とも重複する。" },
@@ -5732,14 +5732,14 @@ export const RINGS = [
   { name: "腹持ちの指輪",   type:"ring", effect:"stomach_ring",          rarity:"A", weight:1, sellPrice:5000, tile:60, desc:"装備中、空腹の進行が3/4になる。複数・胴と重ねがけ可（2つで1/2、3つで1/4）。" },
   { name: "透視の指輪",     type:"ring", effect:"clairvoyance_ring",      rarity:"A", weight:1, sellPrice:10000, tile:60, desc:"装備中、壁越しでもモンスターの位置が見え続ける。" },
   { name: "感知の指輪",     type:"ring", effect:"detect_ring",            rarity:"A", weight:1, sellPrice:10000, tile:60, desc:"装備中、フロア全体の落ちているアイテムの位置が見え続ける。" },
-  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、近接攻撃で与えたダメージの8分の1だけHPを吸収する。" },
+  { name: "吸血の指輪",     type:"ring", effect:"vampire_ring",           rarity:"B", weight:2, sellPrice:3000, tile:60, desc:"装備中、通常の敵への近接攻撃で与えたダメージの8分の1だけHPを吸収する。アンデッドへの攻撃では同量の反動ダメージを受ける。" },
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
   { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"水の中に入れる。" },
   { name: "鈍足の指輪",     type:"ring", effect:"slow_ring",              rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、速度が半減する（2ターンに1回しか行動できない）。" },
   { name: "空腹の指輪",     type:"ring", effect:"hunger_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、空腹の進行が2倍になる。" },
   { name: "足音の指輪",     type:"ring", effect:"footstep_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、歩くたびに足音が響き近くの敵が目を覚ます。" },
-  { name: "値上げの指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、店のアイテムが5割増しで買わされる。" },
+  { name: "観光客の指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、店のアイテムが5割増しで買わされる。" },
   { name: "自慢の指輪",     type:"ring", effect:"vanity_ring",            rarity:"E", weight:12, sellPrice:5000, tile:60, desc:"自慢げに輝いているが、特に効果はない。見た目だけで妙に高い。" },
   { name: "暗闇の指輪",     type:"ring", effect:"darkness_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、廊下での視界が1マス狭くなる。" },
   { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:1200, tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
@@ -5843,7 +5843,7 @@ export function applyPlayerTrip(p, dg, ml, opts = {}) {
 
 /**
  * 店での購入価格（未払い加算用）。
- * 値上げの指輪: ×1.5、値切りの指輪: ×0.7。両方装備時は両方乗算。
+ * 観光客の指輪: ×1.5、買い物上手の指輪: ×0.7。両方装備時は両方乗算。
  */
 export function calcShopBuyPrice(p, shopPrice) {
   let price = shopPrice || 0;
@@ -5862,7 +5862,7 @@ export function shopPriceNote(p) {
 
 /**
  * 店商品の未払い計上額。
- * 拾い時に _shopCharge を記録（値上げ・値切り反映）。なければ list 価格 shopPrice。
+ * 拾い時に _shopCharge を記録（観光客・買い物上手の効果を反映）。なければ list 価格 shopPrice。
  */
 export function getShopItemCharge(item) {
   if (!item) return 0;

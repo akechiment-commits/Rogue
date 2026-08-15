@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -150,6 +150,21 @@ describe("applyPotionEffect", () => {
     const ml = [];
     applyPotionEffect("heal", 30, "monster", mon, dg, p, ml, () => {});
     expect(mon.hp).toBe(10);
+  });
+
+  it("投擲された封印の薬でもMP封印は50ターンになる", () => {
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    const splashDungeon = {
+      ...dg,
+      map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
+      traps: [],
+    };
+    const ml = [];
+
+    splashPotion(splashDungeon, p.x, p.y, "seal", 0, p, ml, () => {});
+
+    expect(p.mpCooldownTurns).toBe(50);
+    expect(ml.some(m => m.includes("MP封印50ターン"))).toBe(true);
   });
 
   it("逆転状態で満タンの回復の壺は回復量分のダメージになる", () => {
