@@ -315,7 +315,7 @@ export const ITEMS = [
   { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。", tile:18 },
   { name:"炎の巻物",         type:"scroll", effect:"flame",               rarity:"C", weight:4,  sellPrice:550,  desc:"視界内の敵に炎ダメージ(30-40)。油まみれの対象は2倍。\n呪い：自分にも同ダメージ。", tile:18 },
   { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。", tile:18 },
-  { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:4,  sellPrice:300,  desc:"半径5の壁を全て壊す。\n呪い：周囲を壁に変える。",             tile:18 },
+  { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:4,  sellPrice:300,  desc:"半径10の壁を全て壊す。\n祝福：外周以外のフロア内の壁を全て壊す。\n呪い：周囲を壁に変える。", tile:18 },
   { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"C", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。", tile:18 },
   { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:1,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。\n呪い：自分が弾き出され踏むと即死。", tile:42 },
   { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"C", weight:4,  sellPrice:1200,  desc:"足元に脆弱の魔方陣を描く。\n同じ部屋にいる者全員の受けるダメージが2倍になる。", tile:42 },

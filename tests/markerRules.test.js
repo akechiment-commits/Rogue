@@ -5,6 +5,8 @@ describe("魔法の筆のインク消費量", () => {
   it("巻物ごとの消費量を返す", () => {
     expect(getMarkerInkCost({ type: "scroll", effect: "duplicate" })).toBe(3);
     expect(getMarkerInkCost({ type: "scroll", effect: "expand_inv" })).toBe(2);
+    expect(getMarkerInkCost({ type: "scroll", effect: "pot_extract" })).toBe(2);
+    expect(getMarkerInkCost({ type: "scroll", effect: "monster_house" })).toBe(2);
     expect(getMarkerInkCost({ type: "scroll", effect: "identify" })).toBe(1);
   });
 

@@ -1462,14 +1462,26 @@ export function useItemActions({
           }
           ml.push(_bwCount > 0 ? `周囲が壁に変わった！(${_bwCount}マス)【呪】` : "周囲に床がなかった。【呪】");
         } else {
-          const _bwRadius = it.blessed ? 10 : 5;
           let _bwCount = 0;
-          for (let _by2 = p.y - _bwRadius; _by2 <= p.y + _bwRadius; _by2++) {
-            for (let _bx2 = p.x - _bwRadius; _bx2 <= p.x + _bwRadius; _bx2++) {
-              if (_bx2 <= 0 || _bx2 >= MW - 1 || _by2 <= 0 || _by2 >= MH - 1) continue;
-              if (_bx2 === p.x && _by2 === p.y) continue;
-              if (dg.map[_by2][_bx2] === T.WALL || dg.map[_by2][_bx2] === T.BWALL) {
-                dg.map[_by2][_bx2] = T.FLOOR; _bwCount++;
+          if (it.blessed) {
+            /* 祝福：外周壁を残してフロア内の壁をすべて壊す */
+            for (let _by2 = 1; _by2 < MH - 1; _by2++) {
+              for (let _bx2 = 1; _bx2 < MW - 1; _bx2++) {
+                if (dg.map[_by2][_bx2] === T.WALL || dg.map[_by2][_bx2] === T.BWALL) {
+                  dg.map[_by2][_bx2] = T.FLOOR; _bwCount++;
+                }
+              }
+            }
+          } else {
+            /* 通常：プレイヤーを中心に半径10マス */
+            const _bwRadius = 10;
+            for (let _by2 = p.y - _bwRadius; _by2 <= p.y + _bwRadius; _by2++) {
+              for (let _bx2 = p.x - _bwRadius; _bx2 <= p.x + _bwRadius; _bx2++) {
+                if (_bx2 <= 0 || _bx2 >= MW - 1 || _by2 <= 0 || _by2 >= MH - 1) continue;
+                if (_bx2 === p.x && _by2 === p.y) continue;
+                if (dg.map[_by2][_bx2] === T.WALL || dg.map[_by2][_bx2] === T.BWALL) {
+                  dg.map[_by2][_bx2] = T.FLOOR; _bwCount++;
+                }
               }
             }
           }

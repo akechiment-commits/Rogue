@@ -4,6 +4,8 @@ export const MARKER_SPELLBOOK_INK_COST = 5;
 const MARKER_SCROLL_INK_COSTS = Object.freeze({
   duplicate: 3,
   expand_inv: 2,
+  pot_extract: 2,
+  monster_house: 2,
 });
 
 export function getMarkerInkCost(item) {
