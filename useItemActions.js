@@ -26,6 +26,7 @@ import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLigh
 import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
+import { getMarkerInkCost } from "./markerRules.js";
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限、風穴で曲がる） */
 function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
@@ -2313,8 +2314,9 @@ export function useItemActions({
       const ml = installPlayerHpMessageHook([], p);
       if (markerMode.blankKind === "spellbook") {
         if (!blank || blank.type !== "spellbook" || blank.spell) { setMarkerMode(null); return; }
-        if (marker.charges < 5) {
-          ml.push(`インクが足りない！(必要:5回 現在:${marker.charges}回)`);
+        const _cost = getMarkerInkCost(template);
+        if (marker.charges < _cost) {
+          ml.push(`インクが足りない！(必要:${_cost}回 現在:${marker.charges}回)`);
           setMarkerMode(null);
           setMsgs((prev) => [...prev.slice(-80), ...ml]);
           return;
@@ -2322,13 +2324,11 @@ export function useItemActions({
         blank.name = template.name;
         blank.spell = template.spell;
         blank.desc = template.desc;
-        marker.charges -= 5;
+        marker.charges -= _cost;
         ml.push(`${template.name}に変化した！[${marker.name} 残り${marker.charges}回]`);
       } else {
         if (!blank || blank.effect !== "blank") { setMarkerMode(null); return; }
-        /* 巻物の種類ごとの消費チャージ数 */
-        const _markerCost = { duplicate: 3, expand_inv: 2 };
-        const _cost = _markerCost[template.effect] ?? 1;
+        const _cost = getMarkerInkCost(template);
         if (marker.charges < _cost) {
           ml.push(`インクが足りない！(必要:${_cost}回 現在:${marker.charges}回)`);
           setMarkerMode(null);

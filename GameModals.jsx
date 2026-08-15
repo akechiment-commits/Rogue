@@ -14,6 +14,7 @@ import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_
 import { formatPlusSuffix } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
+import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -2659,7 +2660,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, page = 0, 
           style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div style={{ color: "#c090ee", fontSize: 13, marginBottom: 6 }}>
-        {isBlankStep ? "書き込む白紙アイテムを選んでください" : isSpellbookTypeStep ? "変える魔法書の種類を選んでください (インク5回消費)" : "書き込む魔法を選んでください（識別済みのもののみ）"}
+        {isBlankStep ? "書き込む白紙アイテムを選んでください" : isSpellbookTypeStep ? `変える魔法書の種類を選んでください (インク${MARKER_SPELLBOOK_INK_COST}回消費)` : "書き込む魔法を選んでください（識別済みのもののみ）"}
       </div>
       {_mlen === 0 ? (
         <div style={{ color: "#aaa", fontSize: 13 }}>{isBlankStep ? "白紙の巻物も白紙の魔法書もない。" : !isSpellbookTypeStep && !isBlankStep ? "書き込める巻物がまだない。" : "選択肢がない。"}</div>
@@ -2698,6 +2699,7 @@ export function MarkerModal({ mode, setMode, sr, menuSel, setMenuSel, page = 0, 
                 {it.name}
                 {isBlankStep && it.type === "spellbook" ? <span style={{ color: "#5090cc", marginLeft: 6, fontSize: 12 }}>[魔法書]</span> : null}
                 {isBlankStep && it.type === "scroll" ? <span style={{ color: "#888855", marginLeft: 6, fontSize: 12 }}>[巻物]</span> : null}
+                {!isBlankStep ? <span style={{ color: "#d0a060", marginLeft: 6, fontSize: 12 }}>[インク{getMarkerInkCost(it)}回分]</span> : null}
                 {!isBlankStep && it.desc ? <span style={{ color: "#776688", marginLeft: 6, fontSize: 12 }}>{it.desc}</span> : null}
               </div>
             );
