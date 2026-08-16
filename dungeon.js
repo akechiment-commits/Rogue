@@ -2,7 +2,7 @@ import { rng, pick, uid, clamp, MW, MH, T, TI, getShops, isNarrowPassage, shuffl
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonsterFromBase, pickMonsterDef, monLevelUp } from './monsters.js';
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
-  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, itemPrice, pickLootFromPool, pickTrap, RINGS,
+  SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS,
 } from './items.js';
 import { scatterFloorGimmicks } from './fixtures.js';
@@ -935,6 +935,7 @@ function setupShopRoom(room, map, depth, items, mons) {
   const makeShopItem = (base, x, y) => {
     const sit = { ...base, id: uid(), x, y };
     if (sit.type === 'arrow') sit.count = rng(5, 20);
+    if (sit.type === 'pot') sit.capacity = randPotCapacity(sit.potEffect);
     sit.shopPrice = itemPrice(sit);
     sit._shopId = shopId;
     return sit;

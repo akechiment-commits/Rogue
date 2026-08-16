@@ -620,25 +620,25 @@ export function genFood() {
 
 /* ===== WANDS ===== */
 export const WANDS = [
-  { name:"ふきとばしの杖", type:"wand", effect:"knockback", charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を吹き飛ばす。壊すと周囲全てを吹き飛ばす。",                           tile:24 },
-  { name:"雷の杖",         type:"wand", effect:"lightning", charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
-  { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:6, rarity:"C", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },
+  { name:"ふきとばしの杖", type:"wand", effect:"knockback", charges:6, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を吹き飛ばす。壊すと周囲全てを吹き飛ばす。",                           tile:24 },
+  { name:"雷の杖",         type:"wand", effect:"lightning", charges:6, rarity:"D", weight:8,  sellPrice:700,  desc:"振ると雷撃が飛ぶ。壊すと周囲に落雷。",                                           tile:24 },
+  { name:"鈍足の杖",       type:"wand", effect:"slow",      charges:4, rarity:"C", weight:4,  sellPrice:300,  desc:"振ると対象の速度を半減。壊すと周囲全てを鈍足に。",  tile:24 },
   { name:"変化の杖",       type:"wand", effect:"transform", charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"対象を同じ階層の敵に変える。壊すと周囲全てを変化。",                           tile:24 },
-  { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:5, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
+  { name:"場所替えの杖",   type:"wand", effect:"swap",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象と位置を交換する。壊すと周囲をシャッフル。",                           tile:24 },
   { name:"穴掘りの杖",     type:"wand", effect:"dig",       charges:5, rarity:"C", weight:4,  sellPrice:600,  desc:"壁に当てると一直線上の壁を掘り進む。\n壊すと周囲の壁を消し足元に穴が開く。",       tile:24 },
   { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"D", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。壊しても何も起こらない。",                     tile:24 },
-  { name:"テレポートの杖", type:"wand", effect:"warp",      charges:4, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
+  { name:"テレポートの杖", type:"wand", effect:"warp",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
   { name:"金縛りの杖",     type:"wand", effect:"paralyze",  charges:5, rarity:"B", weight:2,  sellPrice:500, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。", tile:24 },
   { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"C", weight:4,  sellPrice:400,  desc:"振ると対象を眠りに落とす。眠りの罠と同様の効果。",                                   tile:24 },
   { name:"祝福の杖",       type:"wand", effect:"bless_wand",charges:1, rarity:"A", weight:1,  sellPrice:8000, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
   { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:1, rarity:"A", weight:1,  sellPrice:1500, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
   { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"B", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：自分は1階上へワープ、敵はレベルダウン。", tile:24 },
   { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。\n自分：5ターン、敵：20ターン混乱。", tile:24 },
-  { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:5, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：フロア全体が見える。", tile:24 },
+  { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:4, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：フロア全体が見える。", tile:24 },
   { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n呪い：罠が全て見える。", tile:24 },
   { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"D", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：MP封印50T。\n呪い：敵の特技100%化、自分はMP封印解除。", tile:24 },
   { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
-  { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
+  { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:6, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
   { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
   { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
   { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n呪い：対象が未識別に戻る。", tile:24 },
@@ -809,8 +809,8 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
 }
 
 export function randPotCapacity(potEffect) {
-  if (potEffect === "none") return rng(7, 10);
-  if (potEffect === "greed") return rng(3, 5);
+  if (potEffect === "none") return rng(6, 9);
+  if (potEffect === "greed" || potEffect === "weaken" || potEffect === "gunpowder") return rng(4, 6);
   if (potEffect === "enhance" || potEffect === "bless_pot" || potEffect === "curse_pot") return rng(1, 2);
   if (potEffect === "wish_pot") return rng(3, 5);
   if (potEffect === "klein") return rng(2, 4);

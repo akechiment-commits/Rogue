@@ -70,7 +70,7 @@ const GUIDE_DESC_OVERRIDES = {
   "レモンの壺": "食料をレモン風味に。食べると投擲ダメージ1.5倍(80ターン)。",
   "万能キラー": "三種の特効剣が融合。竜・不死・浮遊の全種族に1.5倍ダメージ。",
   "三元の刃": "炎・氷・雷の三元素を宿した至高の剣。全属性弱点の敵に1.5倍ダメージ。火ダルマには0.5倍。",
-  "保存の壺": "アイテムを安全に保管できる（効果なし）。通常フロアの初期容量は7〜10、店の商品はテンプレート値の5。",
+  "保存の壺": "アイテムを安全に保管できる（効果なし）。通常フロアと店の初期容量は6〜9。",
   "元素王の鎧": "炎・氷・雷すべてに耐性。万能耐性で各属性ダメージ2/3。錬成で個別耐性を追加すれば半減。炎・雷の所持品破壊、氷の移動封じ・鈍足も防ぐ。",
   "充填の大箱": "杖・ペン・魔法の筆の使用回数をランダムに回復する。",
   "全能キラー": "万能キラー3本の合成。竜・不死・浮遊の全種族に2倍ダメージ（上位特効）。",
@@ -408,8 +408,10 @@ addSheet('05_指輪', ringData);
 
 // ===== 壺（Pot）=====
 const POT_INITIAL_CAPACITY_RANGES = Object.freeze({
-  none: '7〜10',
-  greed: '3〜5',
+  none: '6〜9',
+  greed: '4〜6',
+  weaken: '4〜6',
+  gunpowder: '4〜6',
   enhance: '1〜2',
   bless_pot: '1〜2',
   curse_pot: '1〜2',
@@ -418,8 +420,8 @@ const POT_INITIAL_CAPACITY_RANGES = Object.freeze({
 });
 const potInitialCapacityRange = (p) => POT_INITIAL_CAPACITY_RANGES[p.potEffect] ?? '3〜5';
 
-const potData = [['壺名', 'potEffect', 'テンプレート容量 / 通常フロア初期容量範囲', 'rarity', 'sellPrice', '説明']];
-potData.push(['【生成ルール】', '', '通常フロアはrandPotCapacity()で効果別に抽選。店の商品はPOTSテンプレートのcapacity値を使用。', '', '', '保存=7〜10、強化/祝福/呪い=1〜2、クライン=2〜4、その他=3〜5（願い・強欲を含む）']);
+const potData = [['壺名', 'potEffect', 'テンプレート容量 / フロア・店 初期容量範囲', 'rarity', 'sellPrice', '説明']];
+potData.push(['【生成ルール】', '', '通常フロアと店はrandPotCapacity()で効果別に抽選。テンプレートcapacity値は基準値・固定配置用。', '', '', '保存=6〜9、弱化/火薬/強欲=4〜6、強化/祝福/呪い=1〜2、クライン=2〜4、その他=3〜5（願いを含む）']);
 for (const p of POTS) {
   potData.push([p.name, p.potEffect, `${p.capacity} / ${potInitialCapacityRange(p)}`, p.rarity, p.sellPrice, guideDesc(p)]);
 }
