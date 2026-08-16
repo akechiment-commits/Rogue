@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSoldItemMessage } from "../items.js";
+import { formatSoldItemMessage, generateFakeNames, getIdentKey, ITEMS, WANDS, POTS, SPELLBOOKS, RINGS } from "../items.js";
 import { itemDisplayName } from "../render.js";
 
 describe("アイテム表示名の識別保護", () => {
@@ -22,5 +22,25 @@ describe("アイテム表示名の識別保護", () => {
     );
     expect(message).toContain("薬:おいしい薬");
     expect(message).not.toContain("回復薬");
+  });
+
+  it("同じカテゴリの未識別名は重複しない", () => {
+    const allItems = [...ITEMS, ...WANDS];
+    const fakeNames = generateFakeNames(allItems, POTS, SPELLBOOKS, RINGS);
+    const groups = [
+      allItems.filter((it) => it.type === "potion" && it.effect !== "water"),
+      allItems.filter((it) => it.type === "scroll" && it.effect !== "blank"),
+      allItems.filter((it) => it.type === "wand"),
+      allItems.filter((it) => it.type === "pen"),
+      POTS,
+      SPELLBOOKS.filter((it) => it.spell),
+      RINGS.filter((it) => it.type === "ring"),
+    ];
+
+    for (const group of groups) {
+      const names = [...new Set(group.map(getIdentKey).filter(Boolean))].map((key) => fakeNames[key]);
+      expect(names.every(Boolean)).toBe(true);
+      expect(new Set(names).size).toBe(names.length);
+    }
   });
 });
