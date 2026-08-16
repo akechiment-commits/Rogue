@@ -8,7 +8,7 @@ import { GOAL_ITEMS } from './dungeon.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUIDE_XLSX = path.join(__dirname, 'ローグゲーム完全実装ガイド.xlsx');
 import {
-  ITEMS, WANDS, POTS, TRAPS, RINGS, BB_TYPES,
+  ITEMS, WANDS, POTS, TRAPS, RINGS, BB_TYPES, BB_FAKE_NAMES, UNIDENTIFIED_NAME_POOLS,
   GEM_TYPES, SPELLS, SPELLBOOKS,
   RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS,
   POTION_FOOD_PREFIX,
@@ -215,6 +215,7 @@ const indexData = [
   ['18. 目標アイテム（5種）', '各ダンジョン最下層から持ち帰るキーアイテム（訓練の証を含む）'],
   ['19. 飛び道具', '矢・石・特殊飛び道具の束ね・装備・射撃と命中処理'],
   ['20. チュートリアル', '3階構成の目的・教材・完了条件'],
+  ['21. 未識別名', 'カテゴリ別の偽名プール一覧（大箱を含む）'],
   ['識別システム', '未識別アイテムはカテゴリごとの偽名で表示。同じカテゴリ内で偽名が重複しないよう、登録アイテム数を十分に上回る名前プールを使用'],
   [''],
   ['データ来源'],
@@ -820,6 +821,23 @@ const tutorialData = [
   ['識別', '教材として明示されたB2Fの眠りの杖と回復薬だけ識別済み', 'B3Fの薬・巻物は未識別', 'チュートリアル全体を全識別にはせず、鑑定の大箱または試用による判断を体験させる。'],
 ];
 addSheet('20_チュートリアル', tutorialData);
+
+// ===== 未識別名（Unidentified Names）=====
+const unidentifiedNameData = [
+  ['カテゴリ', '未識別名', '割り当てルール'],
+  ['仕様', 'カテゴリごとの名前を探索開始時にシャッフルして割り当て', '同じカテゴリ内では重複なし。ニックネーム登録後も元の偽名を併記'],
+];
+const unidentifiedCategoryLabels = {
+  potion: '薬', scroll: '巻物', wand: '杖', pen: 'ペン', pot: '壺', spellbook: '魔法書', ring: '指輪',
+};
+for (const [category, names] of Object.entries(UNIDENTIFIED_NAME_POOLS)) {
+  const note = category === 'potion' ? '水は「透明な薬」固定。それ以外の薬へシャッフル割り当て' : 'カテゴリ内で重複しないようシャッフル割り当て';
+  for (const name of names) unidentifiedNameData.push([unidentifiedCategoryLabels[category], name, note]);
+}
+for (const name of BB_FAKE_NAMES) {
+  unidentifiedNameData.push(['大箱', name, 'BB_FAKE_NAMESをシャッフルして大箱kindへ割り当て']);
+}
+addSheet('21_未識別名', unidentifiedNameData);
 
 XLSX.writeFile(wb, GUIDE_XLSX);
 console.log(`✅ Complete game guide updated: ${GUIDE_XLSX}`);

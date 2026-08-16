@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSoldItemMessage, generateFakeNames, getIdentKey, ITEMS, WANDS, POTS, SPELLBOOKS, RINGS } from "../items.js";
+import { formatSoldItemMessage, generateFakeNames, generateBbFakeNames, getIdentKey, ITEMS, WANDS, POTS, SPELLBOOKS, RINGS, BB_TYPES, BB_FAKE_NAMES } from "../items.js";
 import { itemDisplayName } from "../render.js";
 
 describe("アイテム表示名の識別保護", () => {
@@ -42,5 +42,12 @@ describe("アイテム表示名の識別保護", () => {
       expect(names.every(Boolean)).toBe(true);
       expect(new Set(names).size).toBe(names.length);
     }
+  });
+
+  it("大箱の未識別名も重複せず、種類数に対して十分な候補がある", () => {
+    const fakeNames = generateBbFakeNames();
+    const names = BB_TYPES.map((bb) => fakeNames[bb.kind]);
+    expect(BB_FAKE_NAMES.length).toBeGreaterThan(BB_TYPES.length * 3);
+    expect(new Set(names).size).toBe(names.length);
   });
 });
