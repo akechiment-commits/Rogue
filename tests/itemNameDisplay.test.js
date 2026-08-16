@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSoldItemMessage, generateFakeNames, generateBbFakeNames, getIdentKey, ITEMS, WANDS, POTS, SPELLBOOKS, RINGS, BB_TYPES, BB_FAKE_NAMES } from "../items.js";
+import { formatSoldItemMessage, generateFakeNames, generateBbFakeNames, getIdentKey, ITEMS, WANDS, POTS, SPELLBOOKS, RINGS, BB_TYPES, BB_FAKE_NAMES, UNIDENTIFIED_NAME_POOLS } from "../items.js";
 import { itemDisplayName } from "../render.js";
 
 describe("アイテム表示名の識別保護", () => {
@@ -49,5 +49,17 @@ describe("アイテム表示名の識別保護", () => {
     const names = BB_TYPES.map((bb) => fakeNames[bb.kind]);
     expect(BB_FAKE_NAMES.length).toBeGreaterThan(BB_TYPES.length * 3);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("固有アイテムを連想しやすい偽名を使わない", () => {
+    const banned = new Set([
+      "古代の壺", "旅人の壺", "魔法の大箱", "魔除けの壺", "王家の壺", "封印の壺",
+      "古代の大箱", "旅人の大箱", "王家の大箱", "濡れた巻物", "白紙に見える巻物",
+    ]);
+    const allNames = [
+      ...Object.values(UNIDENTIFIED_NAME_POOLS).flat(),
+      ...BB_FAKE_NAMES,
+    ];
+    expect(allNames.filter((name) => banned.has(name))).toEqual([]);
   });
 });
