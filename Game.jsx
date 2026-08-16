@@ -513,8 +513,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         if (p.inventory.length < (p.maxInventory || 100)) p.inventory.push({ ...it, id: uid() });
       }
     }
-    /* 初期装備：短剣・革の鎧（空きがなければ入らない） */
-    grantDungeonStarterGear(p);
+    /* チュートリアルでは床から拾って装備する体験を優先する。 */
+    if (_initDt !== "tutorial") grantDungeonStarterGear(p);
     refreshFOV(d, p);
     const _dt = dungeonConfig?.dungeonType || "beginner";
     const _allIdentKeys = (_dt === "debug" || _dt === "beginner")
@@ -525,7 +525,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ...RINGS.map(r => `r:${r.effect}`),
         ])
       : new Set();
-    const _allBcKnown = _dt === "debug" || _dt === "beginner" || _dt === "tutorial";
+    const _allBcKnown = _dt === "debug" || _dt === "beginner";
     if (_allBcKnown) {
       [...p.inventory, ...d.items].forEach(it => { it.fullIdent = true; it.bcKnown = true; });
       d.bigboxes?.forEach(bb => trackBigbox(bb));
@@ -1475,13 +1475,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       isLastFloor: !!(d.isLastFloor || d.isTreasureRoom || (_maxD !== null && nd >= _maxD && sr.current.dungeonType !== "tutorial")),
       p: pl,
     });
-    /* チュートリアル識別制御: 2階は祝呪アイテムのキーだけ解放、他の階は全アイテム識別 */
+    /* チュートリアルは教材として明示した道具だけ識別済みにする。 */
     if (sr.current.dungeonType === "tutorial") {
-      if (nd !== 2) {
-        d.items.forEach(it => { const _k = getIdentKey(it); if (_k) sr.current.ident.add(_k); });
-      } else {
-        d.items.forEach(it => { if (it.blessed || it.cursed || it.preIdent) { const _k = getIdentKey(it); if (_k) sr.current.ident.add(_k); } });
-      }
+      d.items.forEach(it => {
+        if (!it.preIdent) return;
+        const _k = getIdentKey(it);
+        if (_k) sr.current.ident.add(_k);
+      });
     }
     if (pitfall) {
       const _pr = d.rooms[rng(0, d.rooms.length - 1)];
@@ -1981,10 +1981,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const _ad = { playerMove: null, playerKnockback: null, playerTeleport: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
-        /* チュートリアルB5Fからの下り → 完了 */
-        if (sr.current.dungeonType === "tutorial" && p.depth >= 5 && dir > 0) {
+        /* チュートリアルは最深部の証をB1Fまで持ち帰って完了。 */
+        if (sr.current.dungeonType === "tutorial" && p.depth === 1 && dir < 0) {
+          const _hasTutorialProof = p.inventory.some(it => it.type === "goal" && it.name === GOAL_ITEMS.tutorial.name);
+          if (!_hasTutorialProof) {
+            ml.push("地下3階の「訓練の証」を持ち帰ろう。");
+            return;
+          }
           clearGameSave();
-          setEndingResult({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, isTutorial: true, identifiedEffects: [...(sr.current?.ident || [])] });
+          setEndingResult({ earnedGold: p.gold, depth: 3, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, isTutorial: true, identifiedEffects: [...(sr.current?.ident || [])] });
           setShowEnding(true);
           return;
         }
@@ -1995,7 +2000,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           ml.push(`地下${p.depth}階に${dir > 0 ? "降りた" : "昇った"}。`);
           if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
           /* ── キーアイテム所持中に上昇 → 遺物の番人が出現 ── */
-          if (dir === -1 && p.inventory.some(it => it.type === "goal")) {
+          if (dir === -1 && st.dungeonType !== "tutorial" && p.inventory.some(it => it.type === "goal")) {
             let _cands = [];
             for (let _gy = 0; _gy < MH; _gy++)
               for (let _gx = 0; _gx < MW; _gx++)
@@ -4838,6 +4843,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   execRef.current = execDirection;
   if (!gs) return null;
   const { player: p } = gs;
+  const _tutorialHasProof = gs.dungeonType === "tutorial"
+    && p.inventory.some(it => it.type === "goal" && it.name === GOAL_ITEMS.tutorial.name);
+  const _tutorialObjective = gs.dungeonType === "tutorial"
+    ? (_tutorialHasProof
+      ? "B1Fの上り階段から地上へ戻ろう"
+      : gs.dungeon?.tutorialObjective)
+    : null;
   const hpP = (p.hp / p.maxHp) * 100,
     hunP = (p.hunger / p.maxHunger) * 100,
     expP = (p.exp / p.nextExp) * 100;
@@ -5145,6 +5157,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           />
         </div>{" "}
       </div>
+      {_tutorialObjective && (
+        <div style={{
+          margin: "2px 2px 4px",
+          padding: mobile ? "5px 8px" : "6px 10px",
+          border: "1px solid #3f8f5f",
+          borderRadius: 5,
+          background: "linear-gradient(90deg, rgba(12,48,28,0.96), rgba(8,26,18,0.96))",
+          color: "#b8ffd0",
+          fontSize: mobile ? 11 : 13,
+          fontWeight: "bold",
+          textAlign: "center",
+        }}>
+          目的：{_tutorialObjective}
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         style={{

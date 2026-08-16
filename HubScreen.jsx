@@ -898,7 +898,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   useEffect(() => () => clearTimeout(noticeTimerRef.current), []);
 
   const DUNGEON_TYPES = [
-    { id:"tutorial",     label:"チュートリアル",     desc:"全5階。ローグライクの基本から独自システムまで学べる入門ダンジョン", color:"#8f8", maxFloors:5   },
+    { id:"tutorial",     label:"チュートリアル",     desc:"全3階。道具を使って危機を越え、生きて帰る短い入門ダンジョン", color:"#8f8", maxFloors:3   },
     { id:"beginner",     label:"初心者ダンジョン",   desc:"全10階",                                    color:"#8cf", maxFloors:10  },
     { id:"intermediate", label:"中級者ダンジョン",   desc:"全20階",                                    color:"#fc8", maxFloors:20  },
     { id:"advanced",     label:"上級者ダンジョン",   desc:"全30階",                                    color:"#f88", maxFloors:30  },

@@ -3731,9 +3731,9 @@ export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
       >
         {isTutorial ? (
           <>
-            ローグライクの基本をマスターした！<br />
-            次は「初心者ダンジョン」に挑戦しよう。<br />
-            本格的な冒険が君を待っている！
+            訓練の証を生きて持ち帰った！<br />
+            危険な敵とは戦わず、道具や退路を使ってもいい。<br />
+            次は「初心者ダンジョン」に挑戦しよう。
           </>
         ) : (
           <>

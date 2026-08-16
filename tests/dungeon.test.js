@@ -12,7 +12,7 @@ function makeHiddenRoomMap(hr) {
 }
 
 describe("genTutorialFloor", () => {
-  it("1階は看板と初期装備がある", () => {
+  it("1階は移動・装備・戦闘を試せる", () => {
     const floor = genTutorialFloor(1);
     expect(floor.floorType).toBe("tutorialFloor");
     expect(floor.tutorialFloor).toBe(1);
@@ -21,15 +21,29 @@ describe("genTutorialFloor", () => {
     expect(floor.items.some(i => i.type === "sign")).toBe(true);
     expect(floor.items.some(i => i.name === "短剣")).toBe(true);
     expect(floor.items.some(i => i.name === "革の鎧")).toBe(true);
+    expect(floor.monsters.some(m => m.baseKind === "rat")).toBe(true);
+    expect(floor.tutorialObjective).toContain("装備");
     expect(floor.map[floor.stairUp.y][floor.stairUp.x]).toBe(T.SU);
     expect(floor.map[floor.stairDown.y][floor.stairDown.x]).toBe(T.SD);
   });
 
-  it("4階以降は4部屋構成になる", () => {
-    const f3 = genTutorialFloor(3);
-    const f4 = genTutorialFloor(4);
-    expect(f3.rooms.length).toBe(3);
-    expect(f4.rooms.length).toBe(4);
+  it("2階は強敵に杖か迂回で対処できる4部屋構成", () => {
+    const floor = genTutorialFloor(2);
+    expect(floor.rooms.length).toBe(4);
+    expect(floor.monsters.some(m => m.baseKind === "goblin")).toBe(true);
+    expect(floor.items.some(i => i.type === "wand" && i.effect === "sleep" && i.preIdent)).toBe(true);
+    expect(floor.tutorialObjective).toContain("迂回");
+  });
+
+  it("3階は訓練の証を取って引き返す最深部", () => {
+    const floor = genTutorialFloor(3);
+    expect(floor.rooms.length).toBe(4);
+    expect(floor.isLastFloor).toBe(true);
+    expect(floor.stairDown).toBeNull();
+    expect(floor.items.some(i => i.type === "goal" && i.name === GOAL_ITEMS.tutorial.name)).toBe(true);
+    expect(floor.items.some(i => i.type === "potion" && !i.preIdent)).toBe(true);
+    expect(floor.bigboxes.some(b => b.kind === "identify" && b.revealed)).toBe(true);
+    expect(floor.traps.some(t => t.revealed)).toBe(true);
   });
 });
 

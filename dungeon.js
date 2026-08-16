@@ -2327,6 +2327,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
 
 /* ===== 最下層変換 ===== */
 export const GOAL_ITEMS = {
+  tutorial:     { name:"訓練の証",         type:"goal", desc:"最深部で手に入れ、B1Fの上り階段から地上へ持ち帰ればチュートリアル完了。", tile:190 },
   beginner:     { name:"輝く宝玉",       type:"goal", desc:"地上に持ち帰ればダンジョン踏破の証となる。", tile:190 },
   intermediate: { name:"深紅の魔石",     type:"goal", desc:"強大な魔力を秘めた石。地上に持ち帰ろう。",   tile:191 },
   advanced:     { name:"伝説の王冠",     type:"goal", desc:"かつての王が残した冠。地上に持ち帰ろう。",   tile:192 },
@@ -2603,7 +2604,7 @@ export function genDebugFloorByDepth(nd, dungeonType = "beginner") {
   return genDungeon(nd - 1, dungeonType);
 }
 
-/* ===== TUTORIAL DUNGEON (全5階固定コンテンツ) ===== */
+/* ===== TUTORIAL DUNGEON (全3階固定コンテンツ) ===== */
 
 /* 3部屋＋L字通路でチュートリアルマップを組み立てるヘルパー */
 function buildTutorialMap(rs, corrs) {
@@ -2626,23 +2627,22 @@ function buildTutorialMap(rs, corrs) {
 
 export function genTutorialFloor(floorNum, opts = {}) {
   const mb = opts.mobile ?? false;
-  // Room A (左上): SU + 看板A + 関連アイテム   floor x∈[3,15], y∈[3,10]
-  // Room B (右上): 看板B + 関連アイテム         floor x∈[26,38], y∈[3,10]
-  // Room C (右下): 看板C + 関連アイテム + SD    floor x∈[26,38], y∈[18,25]
-  // 通路: A-B 横 (y=7), B-C 縦 (x=32)
   const RA = { x: 3, y: 3, w: 13, h: 8 };
   const RB = { x: 26, y: 3, w: 13, h: 8 };
   const RC = { x: 26, y: 18, w: 13, h: 8 };
   const RD = { x: 3, y: 18, w: 13, h: 8 };
-  const _has4Rooms = floorNum >= 4;
-  const { map, rooms } = _has4Rooms
-    ? buildTutorialMap([RA, RB, RC, RD], [[0, 1], [1, 2], [2, 3]])
-    : buildTutorialMap([RA, RB, RC], [[0, 1], [1, 2]]);
+  const isChoiceFloor = floorNum === 2;
+  const isReturnFloor = floorNum >= 3;
+  const { map, rooms } = isChoiceFloor
+    ? buildTutorialMap([RA, RB, RC, RD], [[0, 1], [1, 2], [0, 3], [3, 2]])
+    : isReturnFloor
+      ? buildTutorialMap([RA, RB, RC, RD], [[0, 1], [1, 2], [2, 3]])
+      : buildTutorialMap([RA, RB, RC], [[0, 1], [1, 2]]);
 
   const su = { x: 4, y: 4 };
   const sd = { x: 37, y: 24 };
   map[su.y][su.x] = T.SU;
-  map[sd.y][sd.x] = T.SD;
+  if (!isReturnFloor) map[sd.y][sd.x] = T.SD;
 
   const items = [];
   const monsters = [];
@@ -2660,265 +2660,59 @@ export function genTutorialFloor(floorNum, opts = {}) {
   };
 
   if (floorNum === 1) {
-    // Room A: 移動と攻撃
-    mkSign(9, 4, [
+    mkSign(8, 4, [
       mb
-        ? "【移動と攻撃】矢印ボタンで移動できる。斜め方向ボタンで斜め移動もできる。"
-        : "【移動と攻撃】矢印キー・テンキーで移動できる。スマホは矢印ボタンを使おう。",
+        ? "矢印ボタンで移動。敵の方向へ進むと攻撃する。"
+        : "矢印キー・テンキーで移動。敵の方向へ進むと攻撃する。",
+      "こちらが1回行動すると、敵も1回行動する。まずは床の装備を拾おう。",
       mb
-        ? "敵に向かって移動すると自動で攻撃！ターンは移動・攻撃・アイテム使用ごとに進む。"
-        : "敵に向かって移動すると自動で攻撃！Shiftを押しながら矢印キー2方向同時押しで斜め移動ができる。テンキーの斜めキー(1/3/7/9)でも斜め移動可能。ターンは移動・攻撃・アイテム使用ごとに進む。",
+        ? "袋ボタンから短剣と革の鎧を装備できる。"
+        : "Xキーで持ち物を開き、短剣と革の鎧を装備できる。",
     ]);
     const sword = ITEMS.find(i => i.name === "短剣");
     const armor = ITEMS.find(i => i.name === "革の鎧");
-    items.push({ ...sword, id: uid(), x: 5, y: 8, plus: 0 });
-    items.push({ ...armor, id: uid(), x: 8, y: 8, plus: 0 });
-
-    // Room B: アイテムと持ち物
-    mkSign(32, 4, [
-      "【アイテムと持ち物】床のアイテムは踏むと自動で拾える（上限30個）。",
-      mb
-        ? "バッグアイコンで持ち物を開いてアイテムを使ったり捨てたりできる。"
-        : "XキーかEscキーで持ち物を開いてアイテムを使ったり捨てたりできる。",
-      "武器・防具は装備するとステータスが上がる。",
+    items.push({ ...sword, id: uid(), x: 6, y: 7, plus: 0, fullIdent: true, bcKnown: true });
+    items.push({ ...armor, id: uid(), x: 9, y: 7, plus: 0, fullIdent: true, bcKnown: true });
+    mkMon("rat", 30, 7);
+    mkMon("rat", 34, 22);
+    mkSign(29, 19, [
+      "傷ついても、満腹なら歩くうちにHPが回復する。食料は空腹になるまで取っておいてもいい。",
+      mb ? "「>」の上で足ボタンを押すと次の階へ進む。" : "「>」の上でFキーを押すと次の階へ進む。",
     ]);
-    const f1 = genFood(); items.push({ ...f1, id: uid(), x: 28, y: 7 });
-    const f2 = genFood(); items.push({ ...f2, id: uid(), x: 31, y: 7 });
-
-    // Room C: 空腹と階段
-    mkSign(32, 19, [
-      "【空腹・HP・階段】ターンを使うたびに空腹になる。食料を食べて満腹を維持しよう！",
-      "空腹が続くとHPが削れていく。HPが0になるとゲームオーバー。",
-      mb
-        ? "「>」の下り階段を踏んで「足」ボタンを押すと次の階へ進める。"
-        : "「>」の下り階段を踏んで足元ボタン(F)を押すと次の階へ進める。",
-      mb
-        ? "「走」ボタンでダッシュモードに切り替え、矢印ボタンで移動するとダッシュ！ダッシュ中はアイテムを自動で拾わない。"
-        : "Aキーを押しながら移動するとダッシュ！ダッシュ中はアイテムを自動で拾わない。",
-    ]);
-    const f3 = genFood(); items.push({ ...f3, id: uid(), x: 28, y: 22 });
-    const f4 = genFood(); items.push({ ...f4, id: uid(), x: 31, y: 22 });
-    mkMon("rat", 35, 23);
 
   } else if (floorNum === 2) {
-    // Room A: 識別①
-    mkSign(9, 4, [
-      "【識別①：謎のアイテム】薬・巻物・杖・ペン・魔法書・指輪は正体不明の名前で落ちている。",
-      "使ってみると正体が判明するよ。良い効果も悪い効果もある。",
-      "次の部屋の鑑定の大箱に入れれば安全に識別できる。識別の巻物でも1つ選んで識別できる。",
+    mkSign(8, 4, [
+      "正面のゴブリンは殴り合うと危険。眠りの杖を使うか、別の道を探そう。",
+      mb ? "杖は袋から「振る」を選び、方向ボタンで狙う。" : "杖は持ち物から「振る」を選び、方向キーで狙う。",
+      "敵を全部倒す必要はない。階段へ着けば十分だ。",
     ]);
+    const sleepWand = WANDS.find(w => w.effect === "sleep");
     const healPot = ITEMS.find(i => i.effect === "heal");
-    const sleepPot = ITEMS.find(i => i.effect === "sleep");
-    items.push({ ...healPot,  id: uid(), x: 6, y: 8 });
-    items.push({ ...sleepPot, id: uid(), x: 9, y: 8 });
-
-    // Room B: 大箱の使い方
-    mkSign(32, 4, [
-      mb
-        ? "【識別②：大箱の使い方】大箱の前で「前」ボタン、または大箱の上で「足」ボタンを押すと調べられる。"
-        : "【識別②：大箱の使い方】大箱の前でZキー、または大箱の上でFキーを押すと調べられる。",
-      "アイテムを選んで「入れる」を押すと大箱に入れられる。鑑定の大箱で安全に識別！",
-      "識別の巻物でもOK。満タンの大箱にさらにアイテムを投げつけると大箱を壊せる！",
-    ]);
-    const identBB = BB_TYPES.find(b => b.kind === "identify");
-    bigboxes.push({ id: uid(), x: 32, y: 7, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: 1, contents: [], revealed: true });
-    const powerPot = ITEMS.find(i => i.effect === "power");
-    const identScroll = ITEMS.find(i => i.effect === "identify");
-    if (powerPot)    items.push({ ...powerPot,    id: uid(), x: 28, y: 7 });
-    if (identScroll) items.push({ ...identScroll, id: uid(), x: 35, y: 7, preIdent: true });
-
-    // Room C: 祝福と呪い・泉の使い方
-    mkSign(32, 19, [
-      "【識別③：祝福と呪い】アイテムには「祝福【祝】」「通常」「呪い【呪】」の3状態がある。",
-      "祝福アイテムは効果が強化。呪いアイテムは装備を外せなくなったり逆効果になったりする。",
-      mb
-        ? "泉の前で「前」ボタン、または泉の上で「足」ボタンを押すとアイテムを浸せる。状態が変わることも！"
-        : "泉の前でZキー、または泉の上でFキーを押すとアイテムを浸せる。状態が変わることも！",
-    ]);
-    mkSign(28, 19, [
-      "【魔法の筆と白紙の巻物】白紙の巻物は何も書かれていない特殊な巻物。",
-      "魔法の筆を使うと、識別済みの巻物・魔法書の魔法を白紙の巻物に書き込める！",
-      "好きな魔法を複製したいときに使おう。魔法の筆は充填の大箱で回数を増やせる。",
-    ]);
-    springs.push({ id: uid(), x: 32, y: 23, tile: TI.SPRING, contents: [] });
-    const tpScroll = ITEMS.find(i => i.effect === "teleport");
-    if (tpScroll) items.push({ ...tpScroll, id: uid(), x: 28, y: 21, preIdent: true });
-    items.push({ ...MAGIC_MARKER, id: uid(), x: 29, y: 21, charges: 1 });
-    const powerPot2 = ITEMS.find(i => i.effect === "power");
-    if (powerPot2) {
-      items.push({ ...powerPot2, id: uid(), x: 28, y: 23, blessed: true });
-      items.push({ ...powerPot2, id: uid(), x: 30, y: 23 });
-      items.push({ ...powerPot2, id: uid(), x: 34, y: 23, cursed: true });
-    }
-
-  } else if (floorNum === 3) {
-    // Room A: 壺の基本＋加熱の壺（合体）
-    mkSign(9, 4, [
-      "【壺の使い方】壺にはアイテムを入れられる。持ち物でアイテムを選んで「入れる」を選択。",
-      "一度入れたアイテムは取り出せない！壺を割ると中身が床に散らばる。",
-      "壺も正体不明のものがある。使ってみるか識別して正体を確かめよう。",
-      "加熱の壺：薬を入れると部屋中に薬効が広がる（自分にも効く）。生の食料を焼くこともできる！",
-    ]);
-    const nonePot = POTS.find(p => p.potEffect === "none");
-    const gunPot  = POTS.find(p => p.potEffect === "gunpowder");
-    const boilPot = POTS.find(p => p.potEffect === "boil");
-    const healPot2 = ITEMS.find(i => i.effect === "heal");
-    if (nonePot)  items.push({ ...nonePot,  id: uid(), x: 5, y: 8, contents: [] });
-    if (gunPot)   items.push({ ...gunPot,   id: uid(), x: 8, y: 8, contents: [] });
-    if (boilPot)  items.push({ ...boilPot,  id: uid(), x: 11, y: 8, contents: [] });
-    items.push({ ...healPot2, id: uid(), x: 6, y: 6 });
-    items.push({ ...healPot2, id: uid(), x: 9, y: 6 });
-
-    // Room B: 食料への投薬チュートリアル
-    mkSign(32, 4, [
-      "【食料への投薬】食料に薬を投げつけると料理に追加効果が付く！",
-      "例：回復薬→HP回復強化、力の薬→攻撃力アップ効果など。",
-      "右側に食料が6つある。回復薬を投げて追加効果を試してみよう！",
-    ]);
-    const healPot3 = ITEMS.find(i => i.effect === "heal");
-    items.push({ ...healPot3, id: uid(), x: 28, y: 6 });
-    for (const [fx, fy] of [[38,5],[38,6],[38,7],[38,8],[38,9],[38,10]]) {
-      items.push({ ...genFood(), id: uid(), x: fx, y: fy });
-    }
-
-    // Room C: 杖チュートリアル（壁反射）
-    mkSign(32, 19, [
-      "【杖】杖を振った方向に魔法弾が飛ぶ。敵に当てると様々な効果が起きる。",
-      "壁に向かって振ると魔法弾が跳ね返って自分に当たる！呪われた杖は効果が反転するので注意。",
-      "杖を壊すと自分の周囲の全てのマスに効果が出る！",
-      "識別前はリスクあり。鑑定の大箱で安全に確かめよう。この呪われた鈍足の杖を壁に振ってみよう！",
-    ]);
-    const slowWand = WANDS.find(w => w.effect === "slow");
-    if (slowWand) items.push({ ...slowWand, id: uid(), x: 29, y: 22, cursed: true, charges: slowWand.charges });
-
-  } else if (floorNum === 4) {
-    // Room A: ペンのチュートリアル
-    mkSign(9, 4, [
-      "【ペン】ペンを使うと足元に魔法陣を描ける。魔法陣は描いてあるだけで効果を発揮する。",
-      "祝福されたペンは効果が強化され、呪われたペンは効果が反転する。",
-      "魔法陣の上に立っていると少しずつかすれていく。薬をかければすぐに消せる。",
-    ]);
-    const thunderPen = ITEMS.find(i => i.effect === "thunder_trap");
-    const stonePen   = ITEMS.find(i => i.effect === "stone_throw");
-    const healPot4   = ITEMS.find(i => i.effect === "heal");
-    if (thunderPen) items.push({ ...thunderPen, id: uid(), x: 6, y: 7, cursed: true });
-    if (stonePen)   items.push({ ...stonePen,   id: uid(), x: 8, y: 7 });
-    if (healPot4)   items.push({ ...healPot4,   id: uid(), x: 10, y: 7 });
-
-    // Room B: 状態異常で敵対処（看板と杖は入口近く、ゴブリンは奥の隅）
-    mkSign(27, 6, [
-      "【敵への対処】強敵も状態異常にすれば簡単に倒せる！",
-      "眠りの杖で眠らせると敵は完全に行動できなくなる。その間に一方的に攻撃しよう！",
-      "鈍足の杖で速度を半減させると、こちらが2回行動できて有利に戦える。",
-    ]);
-    const sleepWand4 = WANDS.find(w => w.effect === "sleep");
-    const slowWand4  = WANDS.find(w => w.effect === "slow");
-    if (sleepWand4) items.push({ ...sleepWand4, id: uid(), x: 27, y: 7, charges: sleepWand4.charges });
-    if (slowWand4)  items.push({ ...slowWand4,  id: uid(), x: 29, y: 7, charges: slowWand4.charges });
-    mkMon("goblin", 37, 4);
-
-    // Room C: 大箱まとめ（旧Room B）
-    mkSign(32, 19, [
-      mb
-        ? "【大箱まとめ】大箱の上で「足」ボタン・前で「前」ボタンで調べられる。合成・強化・識別・充填・変化など様々。"
-        : "【大箱まとめ】大箱の前でZ・上でFで調べられる。合成・強化・識別・充填・変化など様々。",
-      "大箱にはアイテムを投げ入れる事もできる。満タンの大箱にさらに投げ入れると壊して中身を取り出せる！",
-      "識別の大箱は祝呪も判明する。容量は大箱ごとに異なる。",
-    ]);
-    const synthBB = BB_TYPES.find(b => b.kind === "synthesis");
-    const enhBB   = BB_TYPES.find(b => b.kind === "enhance");
-    const identBB  = BB_TYPES.find(b => b.kind === "identify");
-    const refillBB = BB_TYPES.find(b => b.kind === "refill");
-    const changeBB = BB_TYPES.find(b => b.kind === "change");
-    if (synthBB)  bigboxes.push({ id: uid(), x: 27, y: 21, tile: TI.BIGBOX, kind: synthBB.kind,  name: synthBB.name,  capacity: synthBB.cap(),  contents: [], revealed: true });
-    if (enhBB)    bigboxes.push({ id: uid(), x: 29, y: 21, tile: TI.BIGBOX, kind: enhBB.kind,    name: enhBB.name,    capacity: enhBB.cap(),    contents: [], revealed: true });
-    if (identBB)  bigboxes.push({ id: uid(), x: 31, y: 21, tile: TI.BIGBOX, kind: identBB.kind,  name: identBB.name,  capacity: identBB.cap(),  contents: [], revealed: true });
-    if (refillBB) bigboxes.push({ id: uid(), x: 33, y: 21, tile: TI.BIGBOX, kind: refillBB.kind, name: refillBB.name, capacity: refillBB.cap(), contents: [], revealed: true });
-    if (changeBB) bigboxes.push({ id: uid(), x: 35, y: 21, tile: TI.BIGBOX, kind: changeBB.kind, name: changeBB.name, capacity: changeBB.cap(), contents: [], revealed: true });
-    const sword = ITEMS.find(i => i.name === "短剣");
-    const wandB  = WANDS[0];
-    items.push({ ...sword, id: uid(), x: 28, y: 24, plus: 0 });
-    items.push({ ...sword, id: uid(), x: 31, y: 24, plus: 0 });
-    if (wandB) items.push({ ...wandB, id: uid(), x: 34, y: 24, charges: 3 });
-
-    // Room D: 特殊な大箱（旧Room C） — SDをRDに移動
-    map[sd.y][sd.x] = T.WALL;
-    sd.x = 4; sd.y = 25;
-    map[sd.y][sd.x] = T.SD;
-    const scatterBB = BB_TYPES.find(b => b.kind === "scatter");
-    if (scatterBB) bigboxes.push({ id: uid(), x: 14, y: 19, tile: TI.BIGBOX, kind: scatterBB.kind, name: scatterBB.name, capacity: scatterBB.cap(), contents: [], revealed: true });
-    const bewitchPot = ITEMS.find(i => i.effect === "paralyze");
-    if (bewitchPot) items.push({ ...bewitchPot, id: uid(), x: 14, y: 20 });
-    mkSign(14, 21, [
-      "【大箱③：拡散の大箱】アイテムを入れると部屋中の全員に効果を当てる！",
-      "金縛りの薬を入れると敵が全員動けなくなる。コボルドが3体いるが切り抜けられるか？",
-      "分裂・祝福・呪いの大箱はレア！大切に使おう。",
-    ]);
-    mkMon("kobold", 4, 23);
-    mkMon("kobold", 4, 24);
-    mkMon("kobold", 5, 24);
+    if (sleepWand) items.push({ ...sleepWand, id: uid(), x: 6, y: 7, charges: 2, preIdent: true, fullIdent: true, bcKnown: true });
+    if (healPot) items.push({ ...healPot, id: uid(), x: 10, y: 7, preIdent: true, fullIdent: true, bcKnown: true });
+    mkMon("goblin", 32, 7);
+    mkMon("rat", 9, 22);
 
   } else {
-    // B5F
-    // Room A: 罠
-    mkSign(9, 4, [
-      "【罠】ダンジョンには様々な罠が隠れている！踏むと発動する。",
-      mb
-        ? "「罠」ボタンで周囲1マスの隠れた罠を見つけられる。怪しい場所は先に調べよう。"
-        : "Sキー（または探るボタン）で周囲1マスの隠れた罠を見つけられる。怪しい場所は先に調べよう。",
-      "発見済みの罠は歩いても発動せず上に乗れる（重力の魔方陣下は例外）。矢・鈍足・空腹・影ぬいなど種類は様々。",
+    mkSign(8, 4, [
+      "最深部に「訓練の証」がある。手に入れたら、この上り階段まで生きて戻ろう。",
+      "正体不明の道具は使えば判明する。鑑定の大箱なら安全に識別できる。",
+      "道具を残すか今使うか、自分で決めよう。",
     ]);
-    const trapDefs = [
-      TRAPS.find(t => t.effect === "arrow_trap"),
-      TRAPS.find(t => t.effect === "slow_trap"),
-      TRAPS.find(t => t.effect === "hunger_trap"),
-      TRAPS.find(t => t.effect === "shadow_stitch"),
-    ].filter(Boolean);
-    const trapPos = [[5, 6], [9, 6], [5, 9], [9, 9]];
-    trapDefs.forEach((trap, i) => {
-      traps.push({ ...trap, id: uid(), x: trapPos[i][0], y: trapPos[i][1], revealed: true });
-    });
-
-    // Room B: 合成チュートリアル
-    mkSign(32, 4, [
-      "【合成：合成の大箱の使い方】武器同士・防具同士を入れると片方の能力をもう片方に引き継いで合成する。",
-      "ペン同士・杖同士はチャージ数が合算。武器や防具に杖を入れると杖の能力が宿る（異種合成）！",
-      "特定の組み合わせで特殊な武器が生まれることがある。雷の剣を合成してみよう！",
-    ]);
-    const synthBB5 = BB_TYPES.find(b => b.kind === "synthesis");
-    if (synthBB5) bigboxes.push({ id: uid(), x: 32, y: 7, tile: TI.BIGBOX, kind: synthBB5.kind, name: synthBB5.name, capacity: synthBB5.cap(), contents: [], revealed: true });
-    const thunderSword = ITEMS.find(i => i.name === "雷の剣");
-    if (thunderSword) {
-      items.push({ ...thunderSword, id: uid(), x: 28, y: 7, plus: 0 });
-      items.push({ ...thunderSword, id: uid(), x: 30, y: 7, plus: 0 });
-      items.push({ ...thunderSword, id: uid(), x: 34, y: 7, plus: 0 });
-    }
-
-    // Room C: 魔法チュートリアル
-    mkSign(32, 19, [
-      mb
-        ? "【魔法】MPを消費して強力な魔法を使える。「魔」ボタンで魔法リストを開いて発動。"
-        : "【魔法】MPを消費して強力な魔法を使える。Cキーで魔法リストを開いて発動。",
-      "魔法書を読むと魔法を習得。習得後は魔法書がなくても使い続けられる。",
-      "MPはマナ回復薬やレベルアップで回復する。MP切れに備えて節約しよう！",
-    ]);
-    const fireSpellbook = SPELLBOOKS.find(sb => sb.spell === "fire_bolt");
-    const manaPot = ITEMS.find(i => i.effect === "mana");
-    if (fireSpellbook) items.push({ ...fireSpellbook, id: uid(), x: 29, y: 22 });
-    if (manaPot)       items.push({ ...manaPot,       id: uid(), x: 32, y: 22 });
-
-    // Room D: ゴール・操作まとめ（SDをRDに移動）
-    map[sd.y][sd.x] = T.WALL;
-    sd.x = 4; sd.y = 25;
-    map[sd.y][sd.x] = T.SD;
-    mkSign(9, 19, mb ? [
-      "【操作まとめ】袋:アイテム欄を開く　前:目の前を調べる　足:足元を調べる　向:向きを変える",
-      "魔:魔法を使う　罠:罠を探る　見:見渡す　矢:矢を射る　走:ダッシュ　待:待機",
-      "★ チュートリアル完了！「初心者ダンジョン」で本格攻略に挑戦しよう！",
-    ] : [
-      "【操作まとめ】X:アイテム欄を開く　Z:目の前を調べる　F:足元を調べる　T:向きを変える",
-      "C:魔法を使う　S:罠を探る　W:見渡す　Q:矢を射る　A:ダッシュ　.:待機",
-      "★ チュートリアル完了！「初心者ダンジョン」で本格攻略に挑戦しよう！",
+    const sleepPot = ITEMS.find(i => i.effect === "sleep");
+    const teleportScroll = ITEMS.find(i => i.effect === "teleport");
+    if (sleepPot) items.push({ ...sleepPot, id: uid(), x: 29, y: 7 });
+    if (teleportScroll) items.push({ ...teleportScroll, id: uid(), x: 31, y: 7 });
+    const identBB = BB_TYPES.find(b => b.kind === "identify");
+    if (identBB) bigboxes.push({ id: uid(), x: 35, y: 7, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: 2, contents: [], revealed: true });
+    const arrowTrap = TRAPS.find(t => t.effect === "arrow_trap");
+    if (arrowTrap) traps.push({ ...arrowTrap, id: uid(), x: 32, y: 14, revealed: true });
+    items.push({ ...genFood(), id: uid(), x: 29, y: 22 });
+    items.push({ ...GOAL_ITEMS.tutorial, id: uid(), x: 5, y: 23 });
+    mkMon("kobold", 10, 23);
+    mkSign(13, 20, [
+      "訓練の証を拾ったら引き返そう。敵を倒し切る必要はない。",
+      "B1Fの上り階段から地上へ戻れば完了だ。",
     ]);
   }
 
@@ -2926,8 +2720,14 @@ export function genTutorialFloor(floorNum, opts = {}) {
   const exp = Array.from({ length: MH }, () => Array(MW).fill(false));
   return {
     map, rooms, monsters, items, traps, springs, bigboxes,
-    stairUp: su, stairDown: sd, visible: vis, explored: exp,
+    stairUp: su, stairDown: isReturnFloor ? null : sd, visible: vis, explored: exp,
     shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [], pentacles: [],
     floorType: "tutorialFloor", tutorialFloor: floorNum,
+    tutorialObjective: floorNum === 1
+      ? "装備を拾い、敵を越えて下り階段へ進もう"
+      : floorNum === 2
+        ? "杖・迂回・逃走を使い、下り階段へたどり着こう"
+        : "訓練の証を手に入れ、B1Fの上り階段から生還しよう",
+    isLastFloor: isReturnFloor,
   };
 }
