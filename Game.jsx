@@ -498,6 +498,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       invisibleTurns: 0,
       potConfinedTurns: 0,
       wallWalkTurns: 0,
+      _wallSuffocationDamage: false,
       reverseTurns: 0,
       rings: [],
       maxInventory: dungeonConfig?.dungeonType === "debug" ? 100 : 30,

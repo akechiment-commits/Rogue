@@ -528,6 +528,36 @@ describe("portraits", () => {
     expect(event.force).toBe(true);
   });
 
+  it("壁ダメージ中だけ壁埋まり・窒息立ち絵を維持する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      _wallSuffocationDamage: false, wallWalkTurns: 0,
+    };
+    const event = resolvePortraitEvent({
+      player: { ...prev, hp: 65, _wallSuffocationDamage: true },
+      prev,
+      lastMsg: "壁に挟まれて苦しい！15ダメージ！",
+      newMsgs: ["壁に挟まれて苦しい！15ダメージ！"],
+    });
+    expect(event.src).toMatch(/status_wall_suffocation/);
+    expect(event.holdKey).toBe("status_wall_suffocation");
+    expect(event.force).toBe(true);
+  });
+
+  it("壁抜け中は窒息フラグがあっても壁埋まり立ち絵を出さない", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      _wallSuffocationDamage: false, wallWalkTurns: 2,
+    };
+    const event = resolvePortraitEvent({
+      player: { ...prev, hp: 65, _wallSuffocationDamage: true },
+      prev,
+      lastMsg: "壁に挟まれて苦しい！15ダメージ！",
+      newMsgs: ["壁に挟まれて苦しい！15ダメージ！"],
+    });
+    expect(event.src).toBeUndefined();
+  });
+
   it("resolvePortraitEvent がダメージ種別をメッセージから選ぶ", () => {
     const player = {
       hp: 70, maxHp: 100, x: 5, y: 5, level: 3,

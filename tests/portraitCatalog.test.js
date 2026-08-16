@@ -43,6 +43,7 @@ describe("portraitCatalog", () => {
     expect(sets.status_soaked).toEqual(["status_soaked"]);
     expect(sets.status_bound).toEqual(["status_bound"]);
     expect(sets.status_confined).toEqual(["status_confined"]);
+    expect(sets.status_wall_suffocation).toEqual(["status_wall_suffocation"]);
     expect(sets.stand_light_armor).toEqual(["stand_light_armor"]);
     expect(sets.stand_unarmored).toEqual(["stand_unarmored"]);
     expect(sets.hp_full).not.toContain("stand_light_armor");
@@ -69,6 +70,7 @@ describe("portraitCatalog", () => {
     const status = PORTRAIT_CATEGORIES.find((c) => c.id === "status");
     expect(status.slots.some((s) => s.file === "status_bound" && s.label === "拘束状態")).toBe(true);
     expect(status.slots.some((s) => s.file === "status_confined" && s.label === "閉じ込め状態")).toBe(true);
+    expect(status.slots.some((s) => s.file === "status_wall_suffocation" && s.label === "壁埋まり・窒息中")).toBe(true);
   });
 
   it("全カテゴリにスロットがある", () => {

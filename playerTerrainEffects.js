@@ -13,6 +13,9 @@ function hasMonsterAt(dungeon, x, y) {
 
 /** 壁抜け解除、壁埋まり、深水・泉での地形ダメージをターンごとに解決する。 */
 export function advancePlayerTerrainEffects(player, dungeon, messages) {
+  /* 壁埋まり窒息立ち絵は、このターンに実際の壁ダメージが発生した時だけ有効。 */
+  player._wallSuffocationDamage = false;
+
   if ((player.wallWalkTurns || 0) > 0) {
     player.wallWalkTurns--;
     if (player.wallWalkTurns === 0) {
@@ -43,6 +46,7 @@ export function advancePlayerTerrainEffects(player, dungeon, messages) {
   if ((player.wallWalkTurns || 0) === 0 && !hasWaterBreathRing(player) && isWall(dungeon.map[player.y]?.[player.x])) {
     const damage = 15;
     player.hp -= damage;
+    player._wallSuffocationDamage = true;
     messages.push(`壁に挟まれて苦しい！${damage}ダメージ！`);
     if (player.hp <= 0) player.deathCause = "壁に埋まり";
   }
