@@ -739,6 +739,21 @@
       "target": "damage_wet.png",
       "source": "gameover/go_drown.png",
       "matchScore": 0.908
+    },
+    {
+      "target": "action_use_pot.png",
+      "source": "action/action_use_pot.png",
+      "matchScore": 2.797
+    },
+    {
+      "target": "status_confined.png",
+      "source": "status/status_confined_01.png",
+      "matchScore": 1.83
+    },
+    {
+      "target": "status_immobile.png",
+      "source": "status/status_immobile_01.png",
+      "matchScore": 1.954
     }
   ]
 }
