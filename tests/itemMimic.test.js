@@ -48,15 +48,47 @@ describe("アイテムモドキ", () => {
     expect(messages.join(" ")).toContain("正体を現した");
   });
 
+  it("正体を現したターンは敵フェーズで追加攻撃せず、次のターンから通常攻撃する", () => {
+    const base = MONS.find((m) => m.baseKind === "itemMimic");
+    const mimic = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    const player = makePlayer({ x: 5, y: 5, def: 0 });
+    const dg = makeEmptyDg({ rooms: [], monsters: [mimic] });
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.01);
+
+    try {
+      monsterAI(mimic, dg, player, messages, { moveOnly: true });
+      expect(revealItemMimicAt(dg, 5, 5, player, messages)).toBe(true);
+    } finally {
+      random.mockRestore();
+    }
+
+    const hpAfterReveal = player.hp;
+    monsterAI(mimic, dg, player, messages, { moveOnly: true });
+    expect(mimic._itemMimicRevealed).toBe(true);
+    monsterAI(mimic, dg, player, messages, { attackOnly: true });
+    expect(player.hp).toBe(hpAfterReveal);
+    expect(mimic._itemMimicRevealed).toBeUndefined();
+
+    mimic.turnAttacks = 0;
+    monsterAI(mimic, dg, player, messages, { attackOnly: true });
+    expect(player.hp).toBeLessThan(hpAfterReveal);
+  });
+
   it("離れたマスへ踏み込もうとした時もプレイヤーを移動させず正体を現す", () => {
     const base = MONS.find((m) => m.baseKind === "itemMimic");
     const mimic = makeMonsterFromBase(base, 1, 6, 5, { aware: true });
     const player = makePlayer({ x: 5, y: 5, def: 0 });
     const dg = makeEmptyDg({ rooms: [], monsters: [mimic] });
     const messages = [];
-    monsterAI(mimic, dg, player, messages, { moveOnly: true });
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.01);
+    try {
+      monsterAI(mimic, dg, player, messages, { moveOnly: true });
+      expect(revealItemMimicAt(dg, 6, 5, player, messages)).toBe(true);
+    } finally {
+      random.mockRestore();
+    }
 
-    expect(revealItemMimicAt(dg, 6, 5, player, messages)).toBe(true);
     expect(player).toMatchObject({ x: 5, y: 5 });
     expect(mimic).toMatchObject({ x: 6, y: 5, disguisedAsItem: false });
     expect(player.hp).toBeLessThan(100);

@@ -3205,8 +3205,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _isCursedGravFloat = !_hasFloatFlag && !monEffectiveMagicImmune(m) && hasCursedGravityPentacle(dg, m.x, m.y);
   /* モンスターハウス仮眠：triggerMonsterHouseで解除されるまで動かない */
   if (m.dormantHouse) return;
-  /* アイテムモドキ：拾われた直後の反撃は、このターンの敵フェーズでは重ねて行わない */
-  if (m._itemMimicRevealed) { delete m._itemMimicRevealed; return; }
+  /* アイテムモドキ：拾われた直後の反撃は、このターンの敵フェーズでは重ねて行わない。
+   * 移動フェーズでフラグを消すと、その直後の攻撃フェーズで二重攻撃になるため、
+   * 攻撃フェーズまで保持してから消費する。 */
+  if (m._itemMimicRevealed) {
+    if (_attackOnly) delete m._itemMimicRevealed;
+    return;
+  }
   /* 目覚めたターンは行動しない（袋叩き防止） */
   if (m._justWoke) { m._justWoke = false; return; }
   /* 囮のペン（祝福）: 仮眠中でも起こして誘導（dormant チェックより先に処理）（魔封じで無効） */
