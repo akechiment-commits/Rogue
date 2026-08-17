@@ -82,7 +82,7 @@ export function useKeyHandler({
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
-  showSign,
+  showSign, miniTip,
   exitHubConfirm, exitHubSel,
   gameOverCanReturn, performGameOverReturnToHub, onDismissEnding,
   // state setters
@@ -94,7 +94,7 @@ export function useKeyHandler({
   setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
   setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
   setMsgLogMode, setMsgLogScrollTop,
-  setShowSign,
+  setShowSign, closeMiniTip,
   setExitHubConfirm, setExitHubSel, performExitToHub,
   // callbacks
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
@@ -135,6 +135,12 @@ export function useKeyHandler({
       if (showEnding) {
         e.preventDefault();
         if (k === "enter" || k === " " || k === "z") onDismissEnding?.();
+        return;
+      }
+      if (miniTip) {
+        if (k === "escape" || k === "x" || k === "enter" || k === " " || k === "z") {
+          e.preventDefault(); closeMiniTip?.();
+        }
         return;
       }
       if (showSign) {
@@ -1866,6 +1872,8 @@ export function useKeyHandler({
       lookMode,
       getLookDesc,
       showSign,
+      miniTip,
+      closeMiniTip,
       exitHubConfirm,
       exitHubSel,
       setExitHubConfirm,

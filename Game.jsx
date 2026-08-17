@@ -47,7 +47,7 @@ import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickDeathPortrait } from "./portraits.js";
-import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
@@ -78,8 +78,9 @@ import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
+import { getFirstEncounterTip, isUnidentifiedEncounterItem } from "./firstEncounterTips.js";
 
-export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "" } = {}) {
+export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   const runTimerRef = useRef(null);
@@ -198,6 +199,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [showEnding, setShowEnding] = useState(false);
   const [endingResult, setEndingResult] = useState(null);
   const [showSign, setShowSign] = useState(null);
+  const [miniTip, setMiniTip] = useState(null);
   const [mobile, setMobile] = useState(false);
   const [ctLoaded, setCtLoaded] = useState(0);
   const [showTileEditor, setShowTileEditor] = useState(false);
@@ -383,6 +385,41 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     invActRef = useRef(null),
     doMarkerWriteRef = useRef(null);
   const canvasRef = useRef(null);
+  const miniTipRef = useRef(null);
+  const miniTipQueueRef = useRef([]);
+  const seenMiniTipsRef = useRef(new Set(seenMiniTips));
+  useEffect(() => {
+    for (const key of seenMiniTips) seenMiniTipsRef.current.add(key);
+  }, [seenMiniTips]);
+  const showFirstEncounterTip = useCallback((key) => {
+    const dungeonType = sr.current?.dungeonType || dungeonConfig?.dungeonType;
+    const tip = getFirstEncounterTip(key, dungeonType, seenMiniTipsRef.current);
+    if (!tip) return false;
+    seenMiniTipsRef.current.add(key);
+    onMiniTipSeen?.(key);
+    if (miniTipRef.current) miniTipQueueRef.current.push(tip);
+    else {
+      miniTipRef.current = tip;
+      setMiniTip(tip);
+    }
+    return true;
+  }, [dungeonConfig?.dungeonType, onMiniTipSeen]);
+  const closeMiniTip = useCallback(() => {
+    const next = miniTipQueueRef.current.shift() || null;
+    miniTipRef.current = next;
+    setMiniTip(next);
+  }, []);
+  const maybeTipForItem = useCallback((item) => {
+    if (isUnidentifiedEncounterItem(item, sr.current?.ident, sr.current?.allBcKnown)) {
+      showFirstEncounterTip("unidentified_item");
+    }
+  }, [showFirstEncounterTip]);
+  const triggerMonsterHouseWithTip = useCallback((dg, p, ml) => {
+    const pendingRoom = dg?.monsterHouseRoom;
+    const hadDormantMonsters = dg?.monsters?.some((monster) => monster.dormantHouse);
+    triggerMonsterHouse(dg, p, ml);
+    if (pendingRoom && hadDormantMonsters && !dg.monsterHouseRoom) showFirstEncounterTip("monster_house");
+  }, [showFirstEncounterTip]);
   useEffect(() => {
     const c = () => {
       setMobile(Math.min(window.innerWidth, window.innerHeight) < 700);
@@ -912,6 +949,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             if (sr.current.allBcKnown) { _sunk.fullIdent = true; _sunk.bcKnown = true; }
             if (!['potion','scroll','wand','ring','pen','marker','spellbook','pot'].includes(_sunk.type)) trackItem(_sunk);
             p.inventory.push(_sunk);
+            maybeTipForItem(_sunk);
             ml.push(`${itemDisplayName(_sunk, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を水底から拾った。`);
             dg.waterItems.splice(_wiIdx, 1);
             go = true;
@@ -952,6 +990,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       } else if (it.type === "goal") {
         trackItem(it);
         p.inventory.push(it);
+        showFirstEncounterTip("goal_item");
         ml.push(`★${it.name}を手に入れた！地上に持ち帰ろう！★`);
         removeFloorItem(dg, it);
         go = true;
@@ -963,6 +1002,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         /* 識別が必要なタイプは識別時に登録するため拾い時はスキップ */
         if (!['potion','scroll','wand','ring','pen','marker','spellbook','pot'].includes(it.type)) trackItem(it);
         p.inventory.push(it);
+        maybeTipForItem(it);
         {
           const _w = it.type === "weapon",
             _a = it.type === "armor";
@@ -1001,7 +1041,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         break;
       }
     }
-  }, []);
+  }, [lu, maybeTipForItem, showFirstEncounterTip]);
   const getLookDesc = useCallback((x, y, dungeon) => describeLookCell({
     x,
     y,
@@ -1019,11 +1059,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       return null;
     }
     if (isPlayerFloating(p, dg)) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
+    showFirstEncounterTip("trap");
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
     onActivated?.(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu, { ident: sr.current?.ident });
-  }, []);
+  }, [lu, showFirstEncounterTip]);
   const moveMons = useCallback((dg, pl, ml, phaseMode, extraOpts = {}) => {
     const opts = {
       bbFn: bigboxAddItem,
@@ -1565,7 +1606,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         tickBubbleGold,
       });
       /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
-      triggerMonsterHouse(st.dungeon, p, ml);
+      triggerMonsterHouseWithTip(st.dungeon, p, ml);
       /* 初めて踏み入れたフロアは敵が行動しない（階段降り直後の理不尽攻撃を防ぐ） */
       let _skipMonAct = !!st.dungeon._firstVisit;
       if (_skipMonAct) st.dungeon._firstVisit = false;
@@ -1863,13 +1904,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       }
     },
-    [moveMons, lu],
+    [moveMons, lu, triggerMonsterHouseWithTip],
   );
 
   /* auto-advance turns while player is sleeping, paralyzed, or slow-skipping */
   useEffect(() => {
     if (!gs?.player) return;
     if (shopMode) return;
+    if (miniTip) return;
     if (!hasForcedTurn(gs.player)) return;
     setShowInv(false);
     setThrowMode(null);
@@ -1926,7 +1968,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _advDelay = (gs.player.potConfinedTurns || 0) > 0 ? 120 : 400;
     const timer = setTimeout(tryAdvance, _advDelay);
     return () => clearTimeout(timer);
-  }, [gs, shopMode, endTurn, playAnim, lu]);
+  }, [gs, shopMode, miniTip, endTurn, playAnim, lu]);
 
   const performExitToHub = useCallback(() => {
     if (!onReturnToHub || !sr.current) return;
@@ -1994,6 +2036,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (bigboxModeRef.current) return;
       if (nicknameModeRef.current) return;
       if (showSignRef.current) return;
+      if (miniTipRef.current) return;
       if (tpSelectModeRef.current) return;
       if (identifyModeRef.current) return;
       if (floorSelectModeRef.current) return;
@@ -2683,7 +2726,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               }
             }
             const _isNowInShop = _inShopRoomM(p.x, p.y);
-            if (!_wasInAnyShop && _isNowInShop) ml.push("お店に入った。");
+            if (!_wasInAnyShop && _isNowInShop) {
+              ml.push("お店に入った。");
+              showFirstEncounterTip("shop");
+            }
             else if (_wasInAnyShop && !_isNowInShop) ml.push("お店をあとにした。");
             acted = true;
             /* 移動で回転板を踏んだ時は敵移動後に発動（理不尽攻撃防止） */
@@ -2790,7 +2836,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             }
           }
         }
-        if (found.length > 0) ml.push(`罠を発見！：${found.join("、")}`);
+        if (found.length > 0) {
+          ml.push(`罠を発見！：${found.join("、")}`);
+          showFirstEncounterTip("trap");
+        }
         else ml.push("周囲に罠はない。");
         acted = true;
       } else if (type === "shoot_arrow") {
@@ -2859,6 +2908,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const bb2 = dg.bigboxes?.find((b) => b.x === p.x && b.y === p.y);
           if (bb2) {
             bigboxRef.current = bb2;
+            showFirstEncounterTip("bigbox");
             setBigboxMode("menu"); setBigboxMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb2, sr.current, bb2.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
@@ -2866,6 +2916,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
           if (spr) {
             springTargetRef.current = spr;
+            showFirstEncounterTip("spring");
             setSpringMode("menu"); setSpringMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
             sr.current = { ...st }; setGs({ ...st }); return;
@@ -2896,6 +2947,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             else {
               if (sr.current.allBcKnown) { _grIt.fullIdent = true; _grIt.bcKnown = true; }
               p.inventory.push(_grIt);
+              if (_grIt.type === "goal") showFirstEncounterTip("goal_item");
+              else if (!_grIt.shopPrice) maybeTipForItem(_grIt);
               if (_grIt.shopPrice) {
                 const _allS2 = getShops(dg);
                 const _pickShop = _allS2.find(s => s.id === _grIt._shopId) || _allS2[0];
@@ -2935,6 +2988,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 ml.push("浮遊の指輪を付けているので罠を作動させられない！");
               } else {
                 const _tnFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+                showFirstEncounterTip("trap");
                 const _tr2 = fireTrapPlayer(_trapHere, p, dg, ml, _tnFn, lu, { ident: sr.current?.ident });
                 if (_tr2 === "pitfall") {
                   const nd2 = chgFloor(p, 1, true);
@@ -2948,7 +3002,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       if (acted) {
         /* モンスターハウストリガー */
-        triggerMonsterHouse(st.dungeon, p, ml);
+        triggerMonsterHouseWithTip(st.dungeon, p, ml);
         /* 2倍速：1回目の行動はendTurnせず、2回目でendTurn */
         if ((p.hasteTurns || 0) > 0 && !p.hasteUsed) {
           p.hasteUsed = true;
@@ -3015,6 +3069,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       endTurn,
       lookMode,
       playAnim,
+      maybeTipForItem,
+      showFirstEncounterTip,
+      triggerMonsterHouseWithTip,
     ],
   );
   actRef.current = act; /* 常に最新の act を参照（playAnim のバッファ実行用） */
@@ -3086,10 +3143,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _statueFront = dg.statues?.find((s) => s.x === nx && s.y === ny);
         if (spr) {
           springTargetRef.current = spr;
+          showFirstEncounterTip("spring");
           setSpringMode("menu"); setSpringMenuSel(0);
           setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
         } else if (bb6) {
           bigboxRef.current = bb6;
+          showFirstEncounterTip("bigbox");
           setBigboxMode("menu"); setBigboxMenuSel(0);
           setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb6, sr.current, bb6.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
         } else if (_statueFront) {
@@ -3120,14 +3179,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       }
     }
-  }, [act, lookMode]);
+  }, [act, lookMode, showFirstEncounterTip]);
   const doDash = useCallback(
     async (dx, dy) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
       if (springMode || wishMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
-      if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
+      if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
@@ -3218,7 +3277,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
         }
         const _isNowInShopD = _inShopRoomD(p.x, p.y);
-        if (!_wasInAnyShopD && _isNowInShopD) ml.push("お店に入った。");
+        if (!_wasInAnyShopD && _isNowInShopD) {
+          ml.push("お店に入った。");
+          showFirstEncounterTip("shop");
+        }
         else if (_wasInAnyShopD && !_isNowInShopD) ml.push("お店をあとにした。");
         applySoakedFromWaterWalk(p, dg, ml);
         steps++;
@@ -3347,7 +3409,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _invLenBefore  = p.inventory.length;
         const _goldBefore    = p.gold;
         p._dashInterrupt = false;
-        triggerMonsterHouse(st.dungeon, p, ml);
+        triggerMonsterHouseWithTip(st.dungeon, p, ml);
         endTurn(st, p, ml);
         /* 各ステップの状態をキャンバスに一瞬描画（ダッシュ高速移動演出） */
         gsOverrideRef.current = { ...st };
@@ -3400,6 +3462,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       checkTrap,
       chgFloor,
       endTurn,
+      showFirstEncounterTip,
+      triggerMonsterHouseWithTip,
     ],
   );
   const springTryDry = useCallback((dg, p, ml) => {
@@ -4662,7 +4726,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
     msgLogMode, msgLogScrollTop, msgsRef,
-    showSign,
+    showSign, miniTip,
     exitHubConfirm, exitHubSel,
     gameOverCanReturn: !!(onReturnToHub && gameOverResult),
     performGameOverReturnToHub,
@@ -4676,7 +4740,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
     setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
     setMsgLogMode, setMsgLogScrollTop,
-    setShowSign,
+    setShowSign, closeMiniTip,
     setExitHubConfirm, setExitHubSel, performExitToHub,
     // callbacks
     init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
@@ -4716,6 +4780,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (_p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
     _dg.items = _dg.items.filter(i => i !== item);
     _p.inventory.push(item);
+    if (item.type === "goal") showFirstEncounterTip("goal_item");
+    else if (!item.shopPrice) maybeTipForItem(item);
     if (item.shopPrice) {
       const _allS = getShops(_dg);
       const _ps = _allS.find(sh => sh.id === item._shopId) || _allS[0];
@@ -4739,6 +4805,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _p = s.player, _dg = s.dungeon, ml = [];
     if (hasRingEffect(_p, "float_ring")) { setMsgs(prev => [...prev.slice(-80), "浮遊の指輪を付けているので罠を作動させられない！"]); return; }
     const _tnFn = (it) => itemDisplayName(it, s.fakeNames, s.ident, s.nicknames);
+    showFirstEncounterTip("trap");
     const _tr2 = fireTrapPlayer(trap, _p, _dg, ml, _tnFn, lu, { ident: sr.current?.ident });
     if (_tr2 === "pitfall") { const nd2 = chgFloor(_p, 1, true); if (nd2) { s.dungeon = nd2; ml.push(`地下${_p.depth}階に落ちた！`); } }
 
@@ -4761,6 +4828,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       (bbEntry.id != null && b.id === bbEntry.id) || (b.x === bbEntry.x && b.y === bbEntry.y)
     ) || bbEntry;
     bigboxRef.current = bb;
+    showFirstEncounterTip("bigbox");
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
     setBigboxMode("menu"); setBigboxMenuSel(0);
     setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb, s, bb.revealed === true || !!s.allBcKnown)}がある。どうする？`]);
@@ -4774,6 +4842,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       (sprEntry.id != null && sp.id === sprEntry.id) || (sp.x === sprEntry.x && sp.y === sprEntry.y)
     ) || sprEntry;
     springTargetRef.current = spr;
+    showFirstEncounterTip("spring");
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
     setSpringMode("menu"); setSpringMenuSel(0);
     setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
@@ -5557,9 +5626,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 />
                 <AB
                   small
-                  label={showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
+                  label={miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
                   onClick={() => {
+                    if (miniTip) { closeMiniTip(); return; }
                     if (showSign) { setShowSign(null); return; }
                     if (spellListMode) { setSpellListMode(false); return; }
                     if (shopMode === "browseConfirm") { setShopMode("browse"); setShopMenuSel(0); return; }
@@ -5573,7 +5643,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (identifyMode) { identifyCancelRef.current?.(); setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     act("inventory");
                   }}
-                  color={showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
+                  color={miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
                 />
                 <AB
                   small
@@ -5892,6 +5962,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <SpellListModal mode={spellListMode} setMode={setSpellListMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={spellMenuSel} setMenuSel={setSpellMenuSel} page={spellPage} setPage={setSpellPage} setIdentifyMode={setIdentifyMode} setShowInv={setShowInv} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setThrowMode={setThrowMode} setDebugSpellMode={setDebugSpellMode} endTurn={endTurn} lu={lu} mobile={mobile} spellConfirmRef={spellConfirmRef} />{" "}
       <DebugSpellModal mode={debugSpellMode} setMode={setDebugSpellMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={debugSpellMenuSel} setMenuSel={setDebugSpellMenuSel} endTurn={endTurn} mobile={mobile} />
       <SignModal sign={showSign} onClose={() => setShowSign(null)} mobile={mobile} />
+      <MiniTipModal tip={miniTip} onClose={closeMiniTip} mobile={mobile} />
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />

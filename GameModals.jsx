@@ -4048,6 +4048,63 @@ export function SignModal({ sign, onClose, mobile }) {
   );
 }
 
+export function MiniTipModal({ tip, onClose, mobile }) {
+  if (!tip) return null;
+  return (
+    <div style={{
+      position: "absolute", inset: 0,
+      background: "rgba(0,0,0,0.76)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 70,
+    }}>
+      <div style={{
+        background: "#071625",
+        border: "3px solid #3aa7d8",
+        borderRadius: 9,
+        padding: mobile ? 16 : 22,
+        maxWidth: mobile ? 330 : 460,
+        width: "90%",
+        boxShadow: "0 6px 36px rgba(0,0,0,0.92), 0 0 18px rgba(58,167,216,0.3)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div>
+            <div style={{ color: "#77d8ff", fontSize: mobile ? 11 : 12, letterSpacing: 1, marginBottom: 3 }}>
+              初遭遇ミニ解説
+            </div>
+            <div style={{ color: "#dff7ff", fontSize: mobile ? 15 : 17, fontWeight: "bold" }}>
+              {tip.title}
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="ミニ解説を閉じる"
+            style={{ background: "#0b2a3d", color: "#bdefff", border: "1px solid #3aa7d8", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>
+            ✕
+          </button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {tip.text.map((line, i) => (
+            <div key={i} style={{ color: "#d5eaf2", fontSize: mobile ? 12 : 13, lineHeight: "1.65em" }}>
+              {line}
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 18, textAlign: "center" }}>
+          <button onClick={onClose}
+            style={{
+              background: "#0e405a", color: "#dff7ff", border: "2px solid #3aa7d8",
+              borderRadius: 6, padding: "8px 36px", cursor: "pointer",
+              fontSize: mobile ? 13 : 14, fontWeight: "bold", letterSpacing: 1,
+            }}>
+            わかった
+          </button>
+        </div>
+        <div style={{ color: "#6f9caf", fontSize: mobile ? 10 : 11, textAlign: "center", marginTop: 9 }}>
+          Enter / Z / Space / X: 閉じる
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ===== 地上帰還確認 ===== */
 export function ExitHubConfirmModal({ show, sel, setSel, onConfirm, onCancel, mobile }) {
   if (!show) return null;

@@ -4,6 +4,7 @@ import XLSX from 'xlsx';
 import { MONS, BOSSES } from './monsters.js';
 import { POT_CAT_LABELS } from './foodData.js';
 import { GOAL_ITEMS } from './dungeon.js';
+import { FIRST_ENCOUNTER_TIPS } from './firstEncounterTips.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUIDE_XLSX = path.join(__dirname, 'ローグゲーム完全実装ガイド.xlsx');
@@ -216,6 +217,7 @@ const indexData = [
   ['19. 飛び道具', '矢・石・特殊飛び道具の束ね・装備・射撃と命中処理'],
   ['20. チュートリアル', '3階構成の目的・教材・完了条件'],
   ['21. 未識別名', 'カテゴリ別の偽名プール一覧（大箱を含む）'],
+  ['22. 初遭遇ミニ解説', '本編で初めて重要事象に遭遇した時の一度限りの説明'],
   ['識別システム', '未識別アイテムはカテゴリごとの偽名で表示。同じカテゴリ内で偽名が重複しないよう、登録アイテム数を十分に上回る名前プールを使用'],
   [''],
   ['データ来源'],
@@ -838,6 +840,31 @@ for (const name of BB_FAKE_NAMES) {
   unidentifiedNameData.push(['大箱', name, 'BB_FAKE_NAMESをシャッフルして大箱kindへ割り当て']);
 }
 addSheet('21_未識別名', unidentifiedNameData);
+
+// ===== 初遭遇ミニ解説 =====
+const miniTipTriggers = {
+  unidentified_item: '未識別の薬・巻物・杖・指輪・ペン・壺・魔法書を拾う',
+  trap: '隠れた罠が作動する、罠探しで発見する、または足元から罠を起動する',
+  shop: 'ダンジョン内の店へ入る',
+  spring: '足元・正面・フロア一覧から泉を調べる',
+  bigbox: '足元・正面・フロア一覧から大箱を調べる',
+  monster_house: 'モンスターハウスへ入り、部屋が起動する',
+  goal_item: 'ダンジョンの目標アイテムを拾う',
+};
+const miniTipData = [['キー', '見出し', '初回表示条件', '本文', '共通仕様']];
+for (const [key, tip] of Object.entries(FIRST_ENCOUNTER_TIPS)) {
+  miniTipData.push([
+    key,
+    tip.title,
+    miniTipTriggers[key],
+    tip.text.join('\n'),
+    'beginner / intermediate / advanced / legend のみ。セーブ単位で1回表示し、tutorial / debug では表示しない。表示済みキーは seenMiniTips へ即時保存する。',
+  ]);
+}
+addSheet('22_初遭遇ミニ解説', miniTipData);
+wb.Sheets['22_初遭遇ミニ解説']['!cols'] = [
+  { wch: 20 }, { wch: 22 }, { wch: 48 }, { wch: 72 }, { wch: 86 },
+];
 
 XLSX.writeFile(wb, GUIDE_XLSX);
 console.log(`✅ Complete game guide updated: ${GUIDE_XLSX}`);

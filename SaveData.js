@@ -19,6 +19,7 @@ export const DEFAULT_SAVE = {
     bigboxes: {},           /* { kind: { name, kind, tile, count } } */
   },
   identifiedEffects: [],    /* 永続的に識別済みの巻物・魔法書のeffectキー（魔法の筆用） */
+  seenMiniTips: [],         /* 本編の初遭遇ミニ解説を表示済みのキー */
   clearedDungeons: {},      /* { dungeonType: true } クリア済みダンジョン記録 */
   totalRuns: 0,
   bestDepth: 0,
@@ -43,6 +44,7 @@ export function loadSave() {
         bigboxes: { ...(data.discovered?.bigboxes || {}) },
       },
       identifiedEffects: [...(data.identifiedEffects || [])],
+      seenMiniTips:       [...new Set(data.seenMiniTips || [])],
       clearedDungeons:   { ...(data.clearedDungeons   || {}) },
       hubShopStock:      [...(data.hubShopStock      || [])],
     };

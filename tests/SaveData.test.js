@@ -51,6 +51,7 @@ describe("loadSave", () => {
     expect(save.playerName).toBe("");
     expect(save.playerId).toBe("");
     expect(save.initialSetupComplete).toBe(false);
+    expect(save.seenMiniTips).toEqual([]);
   });
 
   it("欠けたキーを DEFAULT_SAVE で補完する", () => {
@@ -62,6 +63,12 @@ describe("loadSave", () => {
     expect(save.playerName).toBe("");
     expect(save.playerId).toBe("");
     expect(save.initialSetupComplete).toBe(false);
+    expect(save.seenMiniTips).toEqual([]);
+  });
+
+  it("表示済みミニ解説を重複なしで復元する", () => {
+    localStorage.setItem("roguelike_hub_v1", JSON.stringify({ seenMiniTips: ["trap", "shop", "trap"] }));
+    expect(loadSave().seenMiniTips).toEqual(["trap", "shop"]);
   });
 
   it("既存の playerName を保持する", () => {

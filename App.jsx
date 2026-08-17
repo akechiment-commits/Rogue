@@ -145,6 +145,16 @@ export default function App() {
     setSaveData(loadSave());
   }, []);
 
+  const markMiniTipSeen = useCallback((key) => {
+    if (!key) return;
+    updateSave(prev => {
+      const seen = new Set(prev.seenMiniTips || []);
+      if (seen.has(key)) return prev;
+      seen.add(key);
+      return { ...prev, seenMiniTips: [...seen] };
+    });
+  }, [updateSave]);
+
   if (screen === "dungeon") {
     return (
       <RoguelikeGame
@@ -157,6 +167,8 @@ export default function App() {
         resumeState={resumeState}
         playerName={saveData?.playerName || ""}
         favoriteFood={saveData?.favoriteFood || ""}
+        seenMiniTips={saveData?.seenMiniTips || []}
+        onMiniTipSeen={markMiniTipSeen}
       />
     );
   }
