@@ -1,0 +1,142 @@
+{
+  "entries": [
+    {
+      "target": "action_eat_food_2.png",
+      "source": "action_eat_food_2.png",
+      "sourceObject": "fe9dccf7a29a1bd73fa7aaeb1fc11fdc4f0a5ef6",
+      "matchScore": 1.588
+    },
+    {
+      "target": "action_eat_yabai.png",
+      "source": "action_eat_yabai.png",
+      "sourceObject": "0e7974c8564c96c9ef7df5d34411be542fa1d564",
+      "matchScore": 2.008
+    },
+    {
+      "target": "action_hold_pot.png",
+      "source": "action_hold_pot.png",
+      "sourceObject": "563ee5e1922bf32aaf6f8682149323ce5b4cee34",
+      "matchScore": 1.535
+    },
+    {
+      "target": "action_use_wand.png",
+      "source": "action_use_wand.png",
+      "sourceObject": "965b691457a3491662b8059a420f443f02f4db4f",
+      "matchScore": 1.703
+    },
+    {
+      "target": "battle_dash.png",
+      "source": "battle_dash.png",
+      "sourceObject": "2afdab6e78d5e01d5bb07ab2ffcb28e53b568fa1",
+      "matchScore": 1.615
+    },
+    {
+      "target": "battle_dash_2.png",
+      "source": "battle_dash_2.png",
+      "sourceObject": "430bb8156078975e26ed384fe752f22eda602128",
+      "matchScore": 2.245
+    },
+    {
+      "target": "damage_explosion.png",
+      "source": "damage_explosion.png",
+      "sourceObject": "c28d33ad86d4f63edb2b970b1fddff2dd751a626",
+      "matchScore": 0.02
+    },
+    {
+      "target": "damage_explosion_fly.png",
+      "source": "damage_explosion_fly.png",
+      "sourceObject": "97e2d9cba3d4fe87b314a48e67ea26f607c6fc8f",
+      "matchScore": 0.791
+    },
+    {
+      "target": "damage_gun_3.png",
+      "source": "damage_gun_3.png",
+      "sourceObject": "6422370dc51e1b6bbc81780ea7e6a2860dd4972a",
+      "matchScore": 1.828
+    },
+    {
+      "target": "damage_gun_4.png",
+      "source": "damage_gun_4.png",
+      "sourceObject": "b9cdeea9a0d4a0f0bf4b912e9318e5d70b770ebe",
+      "matchScore": 1.915
+    },
+    {
+      "target": "damage_poison.png",
+      "source": "damage_poison.png",
+      "sourceObject": "a034fbe239d48bacb3494a4a93fe39f29dab01e2",
+      "matchScore": 2.23
+    },
+    {
+      "target": "damage_rock.png",
+      "source": "damage_rock.png",
+      "sourceObject": "b2d9903739f3138b271af11671d9b556dd148916",
+      "matchScore": 1.018
+    },
+    {
+      "target": "damage_rock_2.png",
+      "source": "damage_rock_2.png",
+      "sourceObject": "e6cb0ddbd17df28b57d9f2d193c9bf8d74e428f4",
+      "matchScore": 1.868
+    },
+    {
+      "target": "gameover_drown.png",
+      "source": "gameover_drown.png",
+      "sourceObject": "fe77013ae83cfc1c394170560f8dd22fe55be823",
+      "matchScore": 2.381
+    },
+    {
+      "target": "hp_low_stand_2.png",
+      "source": "hp_low_stand_2.png",
+      "sourceObject": "bddeb8dfa8416092ee094169247b771f80cea034",
+      "matchScore": 0.023
+    },
+    {
+      "target": "hp_mp_revive.png",
+      "source": "hp_mp_revive.png",
+      "sourceObject": "e834616d18564d123c352438540c3533e1490688",
+      "matchScore": 1.874
+    },
+    {
+      "target": "hp_satiated.png",
+      "source": "hp_satiated.png",
+      "sourceObject": "affc73396775aaa983cf15a0da8bcc75abe9c7c4",
+      "matchScore": 2.041
+    },
+    {
+      "target": "reaction_confused.png",
+      "source": "reaction_confused.png",
+      "sourceObject": "7df4a8f73d59ff930c0867279d7cbf299e2456f5",
+      "matchScore": 2.341
+    },
+    {
+      "target": "reaction_motivated.png",
+      "source": "reaction_motivated.png",
+      "sourceObject": "6a523bff83b17927eaceb8eb9224131e7d2e379b",
+      "matchScore": 1.787
+    },
+    {
+      "target": "stand_equipped.png",
+      "source": "stand_equipped.png",
+      "sourceObject": "6aa1563fd5625122dd779b0be23f26b83810e91e",
+      "matchScore": 1.255
+    },
+    {
+      "target": "stand_normal.png",
+      "source": "stand_normal.png",
+      "sourceObject": "d239be5d5d1acb508ae6c3dbd361bf07eb4f8278",
+      "matchScore": 0.467
+    },
+    {
+      "target": "status_bound_2.png",
+      "source": "status_bound_2.png",
+      "sourceObject": "19e52fc3134046c2f7ef2f721e1fa68231eefde9",
+      "matchScore": 2.58
+    },
+    {
+      "target": "status_poison.png",
+      "source": "status_poison.png",
+      "sourceObject": "f2a49bcac1d2e9360c0e3b79b3a2745fd6e436f5",
+      "matchScore": 0.923
+    }
+  ]
+}
