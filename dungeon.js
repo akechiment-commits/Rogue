@@ -2636,10 +2636,10 @@ function buildTutorialMap(rs, corrs) {
 
 export function genTutorialFloor(floorNum, opts = {}) {
   const mb = opts.mobile ?? false;
-  const RA = { x: 3, y: 3, w: 13, h: 8 };
-  const RB = { x: 26, y: 3, w: 13, h: 8 };
-  const RC = { x: 26, y: 18, w: 13, h: 8 };
-  const RD = { x: 3, y: 18, w: 13, h: 8 };
+  const RA = { x: 6, y: 4, w: 9, h: 6 };
+  const RB = { x: 22, y: 4, w: 9, h: 6 };
+  const RC = { x: 22, y: 15, w: 9, h: 6 };
+  const RD = { x: 6, y: 15, w: 9, h: 6 };
   const isChoiceFloor = floorNum === 2;
   const isReturnFloor = floorNum >= 3;
   const { map, rooms } = isChoiceFloor
@@ -2648,8 +2648,8 @@ export function genTutorialFloor(floorNum, opts = {}) {
       ? buildTutorialMap([RA, RB, RC, RD], [[0, 1], [1, 2], [2, 3]])
       : buildTutorialMap([RA, RB, RC], [[0, 1], [1, 2]]);
 
-  const su = { x: 4, y: 4 };
-  const sd = { x: 37, y: 24 };
+  const su = { x: 7, y: 5 };
+  const sd = { x: 29, y: 19 };
   map[su.y][su.x] = T.SU;
   if (!isReturnFloor) map[sd.y][sd.x] = T.SD;
 
@@ -2669,57 +2669,57 @@ export function genTutorialFloor(floorNum, opts = {}) {
   };
 
   if (floorNum === 1) {
-    mkSign(8, 4, [
+    mkSign(10, 5, [
       mb
         ? "矢印ボタンで移動。敵の方向へ進むと攻撃する。"
         : "矢印キー・テンキーで移動。敵の方向へ進むと攻撃する。",
       "こちらが1回行動すると、敵も1回行動する。まずは床の装備を拾おう。",
       mb
-        ? "袋ボタンから短剣と革の鎧を装備できる。"
-        : "Xキーで持ち物を開き、短剣と革の鎧を装備できる。",
+        ? "袋ボタンから、床のロングソードと鎖帷子を装備してみよう。"
+        : "Xキーで持ち物を開き、床のロングソードと鎖帷子を装備してみよう。",
     ]);
-    const sword = ITEMS.find(i => i.name === "短剣");
-    const armor = ITEMS.find(i => i.name === "革の鎧");
-    items.push({ ...sword, id: uid(), x: 6, y: 7, plus: 0, fullIdent: true, bcKnown: true });
-    items.push({ ...armor, id: uid(), x: 9, y: 7, plus: 0, fullIdent: true, bcKnown: true });
-    mkMon("rat", 30, 7);
-    mkMon("rat", 34, 22);
-    mkSign(29, 19, [
+    const sword = ITEMS.find(i => i.name === "ロングソード");
+    const armor = ITEMS.find(i => i.name === "鎖帷子");
+    items.push({ ...sword, id: uid(), x: 9, y: 8, plus: 0, fullIdent: true, bcKnown: true });
+    items.push({ ...armor, id: uid(), x: 12, y: 8, plus: 0, fullIdent: true, bcKnown: true });
+    mkMon("rat", 24, 7);
+    mkMon("rat", 27, 18);
+    mkSign(23, 16, [
       "傷ついても、満腹なら歩くうちにHPが回復する。食料は空腹になるまで取っておいてもいい。",
       mb ? "「>」の上で足ボタンを押すと次の階へ進む。" : "「>」の上でFキーを押すと次の階へ進む。",
     ]);
 
   } else if (floorNum === 2) {
-    mkSign(8, 4, [
+    mkSign(10, 5, [
       "正面のゴブリンは殴り合うと危険。眠りの杖を使うか、別の道を探そう。",
       mb ? "杖は袋から「振る」を選び、方向ボタンで狙う。" : "杖は持ち物から「振る」を選び、方向キーで狙う。",
       "敵を全部倒す必要はない。階段へ着けば十分だ。",
     ]);
     const sleepWand = WANDS.find(w => w.effect === "sleep");
     const healPot = ITEMS.find(i => i.effect === "heal");
-    if (sleepWand) items.push({ ...sleepWand, id: uid(), x: 6, y: 7, charges: 2, preIdent: true, fullIdent: true, bcKnown: true });
-    if (healPot) items.push({ ...healPot, id: uid(), x: 10, y: 7, preIdent: true, fullIdent: true, bcKnown: true });
-    mkMon("goblin", 32, 7);
-    mkMon("rat", 9, 22);
+    if (sleepWand) items.push({ ...sleepWand, id: uid(), x: 9, y: 8, charges: 2, preIdent: true, fullIdent: true, bcKnown: true });
+    if (healPot) items.push({ ...healPot, id: uid(), x: 12, y: 8, preIdent: true, fullIdent: true, bcKnown: true });
+    mkMon("goblin", 26, 7);
+    mkMon("rat", 10, 18);
 
   } else {
-    mkSign(8, 4, [
+    mkSign(10, 5, [
       "最深部に「訓練の証」がある。手に入れたら、この上り階段まで生きて戻ろう。",
       "正体不明の道具は使えば判明する。鑑定の大箱なら安全に識別できる。",
       "道具を残すか今使うか、自分で決めよう。",
     ]);
     const sleepPot = ITEMS.find(i => i.effect === "sleep");
     const teleportScroll = ITEMS.find(i => i.effect === "teleport");
-    if (sleepPot) items.push({ ...sleepPot, id: uid(), x: 29, y: 7 });
-    if (teleportScroll) items.push({ ...teleportScroll, id: uid(), x: 31, y: 7 });
+    if (sleepPot) items.push({ ...sleepPot, id: uid(), x: 24, y: 7 });
+    if (teleportScroll) items.push({ ...teleportScroll, id: uid(), x: 26, y: 7 });
     const identBB = BB_TYPES.find(b => b.kind === "identify");
-    if (identBB) bigboxes.push({ id: uid(), x: 35, y: 7, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: 2, contents: [], revealed: true });
+    if (identBB) bigboxes.push({ id: uid(), x: 29, y: 7, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: 2, contents: [], revealed: true });
     const arrowTrap = TRAPS.find(t => t.effect === "arrow_trap");
-    if (arrowTrap) traps.push({ ...arrowTrap, id: uid(), x: 32, y: 14, revealed: true });
-    items.push({ ...genFood(), id: uid(), x: 29, y: 22 });
-    items.push({ ...GOAL_ITEMS.tutorial, id: uid(), x: 5, y: 23 });
-    mkMon("kobold", 10, 23);
-    mkSign(13, 20, [
+    if (arrowTrap) traps.push({ ...arrowTrap, id: uid(), x: 26, y: 12, revealed: true });
+    items.push({ ...genFood(), id: uid(), x: 24, y: 18 });
+    items.push({ ...GOAL_ITEMS.tutorial, id: uid(), x: 8, y: 18 });
+    mkMon("kobold", 12, 18);
+    mkSign(12, 16, [
       "訓練の証を拾ったら引き返そう。敵を倒し切る必要はない。",
       "B1Fの上り階段から地上へ戻れば完了だ。",
     ]);

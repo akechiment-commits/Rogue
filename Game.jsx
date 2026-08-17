@@ -520,8 +520,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (p.inventory.length < (p.maxInventory || 100)) p.inventory.push({ ...it, id: uid() });
       }
     }
-    /* チュートリアルでは床から拾って装備する体験を優先する。 */
-    if (_initDt !== "tutorial") grantDungeonStarterGear(p);
+    /* 初期装備：短剣・革の鎧（空きがなければ入らない） */
+    grantDungeonStarterGear(p);
     refreshFOV(d, p);
     const _dt = dungeonConfig?.dungeonType || "beginner";
     const _allIdentKeys = (_dt === "debug" || _dt === "beginner")
