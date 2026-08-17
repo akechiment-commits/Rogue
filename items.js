@@ -441,7 +441,7 @@ export const ITEMS = [
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"B", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
   { name:"魚雷", type:"arrow", atk:64, specialProjectile:"torpedo", count:3, rarity:"C", weight:4, sellPrice:150,
-    desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。水の外に出ると消える。99個まで束にできる。", tile:23 },
+    desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", tile:23 },
   { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", count:3, rarity:"B", weight:2, sellPrice:250,
     desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。99個まで束にできる。", tile:23 },
   { name:"誘導弾", type:"arrow", atk:7, specialProjectile:"homing", count:3, rarity:"B", weight:2, sellPrice:220,
@@ -519,7 +519,7 @@ export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
-export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:64, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。水の外に出ると消える。99個まで束にできる。", count:1, tile:23 };
+export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:64, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵を倒すと薬を落とす。", tile:16 };
@@ -4751,6 +4751,13 @@ function detonateCrawlingBomb(sp, dg, p, ml, luFn, message) {
   doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, true, false, true);
 }
 
+function landTorpedoAsItem(sp, dg, p, ml) {
+  const _torpedo = makeTorpedo(Math.max(1, sp.count | 0));
+  const _ft = new Set();
+  placeItemAt(dg, sp.x, sp.y, _torpedo, ml, _ft, 0, p);
+  ml.push(`${sp.name}は水の外に出て、その場に残った。`);
+}
+
 function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
   const _trap = dg.traps?.find(t => t.x === x && t.y === y);
   if (!_trap) return false;
@@ -4868,10 +4875,6 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
     }
     return true;
   }
-  if (_kind === "torpedo" && dg.map?.[_first.y]?.[_first.x] !== T.WATER) {
-    ml.push(`${_displayName}は水に入れず消えた。`);
-    return true;
-  }
   const _target = _kind === "homing" ? nearestSpecialProjectileTarget(dg, p.x, p.y, 10) : null;
   dg.specialProjectiles ||= [];
   dg.specialProjectiles.push({
@@ -4880,6 +4883,7 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
     atk: (st.atk || 1) + (bundle ? _bundleCount : 0),
     x: p.x, y: p.y, dx: _first.dx, dy: _first.dy,
     targetId: _target?.id ?? null, turnsLeft: _kind === "torpedo" ? 30 : 20,
+    count: _kind === "torpedo" ? _bundleCount : 1,
     hasMoved: false,
   });
   ml.push(`${_displayName}を${_verb}！`);
@@ -4926,10 +4930,6 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
       }
       continue;
     }
-    if (sp.kind === "torpedo" && dg.map?.[_next.y]?.[_next.x] !== T.WATER) {
-      ml.push(`${sp.name}は水の外に出て消えた。`);
-      continue;
-    }
     sp.dx = _next.dx ?? sp.dx;
     sp.dy = _next.dy ?? sp.dy;
     const _pathHit = specialProjectilePathHitMonster(sp, _next, dg, monsterSnapshots);
@@ -4958,6 +4958,10 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     }
     if (_player && sp.kind !== "homing") {
       specialProjectilePlayerHit(sp, p, ml);
+      continue;
+    }
+    if (sp.kind === "torpedo" && dg.map?.[_impactY]?.[_impactX] !== T.WATER) {
+      landTorpedoAsItem(sp, dg, p, ml);
       continue;
     }
     if (sp.turnsLeft > 0) _remaining.push(sp);

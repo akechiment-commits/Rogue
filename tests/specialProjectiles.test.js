@@ -39,7 +39,7 @@ describe("特殊飛び道具", () => {
     expect(inventory[1].specialProjectile).toBe("homing");
   });
 
-  it("魚雷は水上を1マスずつ進み、陸に出ると消える", () => {
+  it("魚雷は水上を1マスずつ進み、水中の敵に当たる", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const dg = makeDungeon();
     dg.map[2][3] = T.WATER;
@@ -58,6 +58,44 @@ describe("特殊飛び道具", () => {
     expect(target.hp).toBeLessThan(80);
     expect(dg.specialProjectiles || []).toHaveLength(0);
     vi.restoreAllMocks();
+  });
+
+  it("魚雷は水の外へ出るとアイテムとして残る", () => {
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WATER;
+    const p = makePlayer([makeTorpedo(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+    expect(dg.specialProjectiles).toHaveLength(1);
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(dg.specialProjectiles || []).toHaveLength(0);
+    expect(dg.items).toContainEqual(expect.objectContaining({ name: "魚雷", count: 1, x: 4, y: 2 }));
+  });
+
+  it("魚雷を地上へ向けて撃っても最初の地上マスに残る", () => {
+    const dg = makeDungeon();
+    const p = makePlayer([makeTorpedo(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(dg.specialProjectiles || []).toHaveLength(0);
+    expect(dg.items).toContainEqual(expect.objectContaining({ name: "魚雷", count: 1, x: 3, y: 2 }));
+  });
+
+  it("束投げした魚雷が地上に残る時は束数も維持する", () => {
+    const dg = makeDungeon();
+    const p = makePlayer([makeTorpedo(4)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {}, null, null, null, { bundle: true });
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(dg.items).toContainEqual(expect.objectContaining({ name: "魚雷", count: 4, x: 3, y: 2 }));
   });
 
   it("特殊弾は束から1個ずつ発射でき、魚雷は従来の約8倍の攻撃力を持つ", () => {
