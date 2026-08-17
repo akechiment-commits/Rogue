@@ -194,6 +194,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const [gameOverSel, setGameOverSel] = useState(0);
   const [gameOverView, setGameOverView] = useState(null);
   const [gameOverPortrait, setGameOverPortrait] = useState(null);
+  const gameOverInventoryRef = useRef(null);
   const [showEnding, setShowEnding] = useState(false);
   const [endingResult, setEndingResult] = useState(null);
   const [showSign, setShowSign] = useState(null);
@@ -4648,7 +4649,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   }, [markerMode]);
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
+    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
     // state values
     gs, dead, showScores, gameOverSel, gameOverView, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
@@ -5902,11 +5903,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         mobile={mobile}
         portraitSrc={gameOverPortrait}
         onViewMap={() => { setShowScores(false); setGameOverView("map"); }}
-        onViewInventory={() => { setShowScores(false); setGameOverView("inventory"); }}
+        onViewInventory={() => { setShowScores(false); setGameOverView("inventory"); gameOverInventoryRef.current = null; }}
         onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined}
       />
       <GameOverMapView show={dead && gameOverView === "map"} onReopen={() => setGameOverView(null)} mobile={mobile} />
-      <GameOverInventoryModal show={dead && gameOverView === "inventory"} p={p} mobile={mobile} iLabel={iLabel} onReopen={() => setGameOverView(null)} />
+      <GameOverInventoryModal show={dead && gameOverView === "inventory"} p={p} mobile={mobile} iLabel={iLabel} inventoryRef={gameOverInventoryRef} onReopen={() => setGameOverView(null)} />
       <EndingModal show={showEnding} p={p} endingResult={endingResult} mobile={mobile} onDismiss={() => { setShowEnding(false); if (onReturnToHub && endingResult) onReturnToHub(endingResult); }} />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} />

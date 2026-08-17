@@ -74,7 +74,7 @@ export { isDuplicateDirectionEvent, directionFamily };
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
+  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
   gs, dead, showScores, gameOverSel, gameOverView, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
@@ -153,6 +153,13 @@ export function useKeyHandler({
         return;
       }
       if (dead) {
+        if (gameOverView === "inventory" && (isKeyUp(e) || isKeyDown(e) || isKeyLeft(e) || isKeyRight(e))) {
+          e.preventDefault();
+          const _scrollDir = isKeyUp(e) || isKeyLeft(e) ? -1 : 1;
+          const _inventoryEl = gameOverInventoryRef?.current;
+          if (_inventoryEl) _inventoryEl.scrollTop = Math.max(0, _inventoryEl.scrollTop + _scrollDir * 96);
+          return;
+        }
         if (gameOverView) {
           e.preventDefault();
           setGameOverView(null);

@@ -584,7 +584,7 @@ export function GameOverMapView({ show, onReopen, mobile }) {
 }
 
 /* ===== Game Over: inventory peek ===== */
-export function GameOverInventoryModal({ show, p, mobile, iLabel, onReopen }) {
+export function GameOverInventoryModal({ show, p, mobile, iLabel, inventoryRef, onReopen }) {
   if (!show) return null;
   const inventory = p?.inventory || [];
   return (
@@ -618,7 +618,7 @@ export function GameOverInventoryModal({ show, p, mobile, iLabel, onReopen }) {
         <div style={{ padding: mobile ? "12px 14px 8px" : "16px 20px 10px", color: "#d8a8ff", fontSize: mobile ? 16 : 19, fontWeight: "bold", borderBottom: "1px solid #30283a" }}>
           死亡時の持ち物 ({inventory.length})
         </div>
-        <div style={{ padding: mobile ? "8px 10px" : "10px 14px", overflowY: "auto" }}>
+        <div ref={inventoryRef} style={{ padding: mobile ? "8px 10px" : "10px 14px", overflowY: "auto" }}>
           {inventory.length === 0 ? (
             <div style={{ color: "#888", padding: 12 }}>何も持っていなかった。</div>
           ) : (
@@ -642,7 +642,7 @@ export function GameOverInventoryModal({ show, p, mobile, iLabel, onReopen }) {
           )}
         </div>
         <div style={{ padding: mobile ? "8px 10px 10px" : "10px 14px 14px", color: "#888", fontSize: 12, textAlign: "center", borderTop: "1px solid #30283a" }}>
-          何かキーを押すか、下のボタンでゲームオーバー画面に戻る
+          ↑↓/←→・テンキー8/2/4/6:スクロール　その他のキー:ゲームオーバー画面に戻る
           <div style={{ marginTop: 8 }}>
             <button
               onClick={onReopen}
