@@ -352,6 +352,12 @@ export function isFallMsg(msg) {
   return /転倒の罠が発動|転んでしまった！/.test(msg);
 }
 
+/** 召喚の罠が発動したログか */
+export function isSummonTrapMsg(msg) {
+  if (!msg) return false;
+  return /召喚の罠が発動/.test(msg);
+}
+
 /** 店・買い物のログか */
 export function isShopMsg(msg) {
   if (!msg) return false;
@@ -518,6 +524,12 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     actionKey === "act_food_yabai" || actionKey === "act_food_rotten" ? actionKey : null;
   const stickyKey = getActiveStatusPortraitKey(p, floating);
   const pe = (key, opts = {}) => portraitEvent(key, now, { ...opts, player: p });
+
+  /* 召喚の罠は、敵の即時行動や被ダメが同じターンに続いても専用リアクションを優先 */
+  if (findMsgInNew(newMsgs, lastMsg, isSummonTrapMsg)) {
+    /* エディタ欄とイベントキーは先に用意し、画像投入までは驚き立ち絵を仮使用 */
+    return pe("reaction_surprised", { force: true });
+  }
 
   /* 腐った/ヤバイ食事は状態異常より先（食べた瞬間のリアクション） */
   if (p.hp < prev.hp && badFoodKey) {

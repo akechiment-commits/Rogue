@@ -64,6 +64,8 @@ describe("portraitCatalog", () => {
     expect(sets.act_potion_unarmored).toEqual(["act_potion_unarmored"]);
     expect(sets.status_poison_unarmored).toEqual(["status_poison_unarmored"]);
     expect(sets.reaction_shop_unarmored).toEqual(["reaction_shop_unarmored"]);
+    expect(sets.reaction_summon_trap).toEqual(["reaction_summon_trap"]);
+    expect(sets.reaction_summon_trap_unarmored).toEqual(["reaction_summon_trap_unarmored"]);
   });
 
   it("状態異常に拘束・閉じ込めスロットがある", () => {

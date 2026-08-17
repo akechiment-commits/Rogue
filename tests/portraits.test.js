@@ -11,6 +11,7 @@ import {
   findHungerMsg,
   isStarving,
   isStairsMsg,
+  isSummonTrapMsg,
   isShopMsg,
   isCursedAcquireMsg,
   detectEquipChange,
@@ -698,6 +699,25 @@ describe("portraits", () => {
       lastMsg: "短剣を装備した。",
       newMsgs: ["短剣を装備した。"],
     }).src).toMatch(/action_equip_weapon/);
+  });
+
+  it("召喚の罠は同ターンの被ダメより専用リアクションを優先する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      weaponId: null, armorId: null, ringIds: [],
+    };
+    const player = { ...prev, hp: 70, x: 6 };
+    const summonMsg = "召喚の罠が発動！";
+    expect(isSummonTrapMsg(summonMsg)).toBe(true);
+    expect(isSummonTrapMsg("矢の罠が発動！")).toBe(false);
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "ゴブリンの攻撃！10ダメージ！",
+      newMsgs: [summonMsg, "ゴブリンの攻撃！10ダメージ！"],
+    });
+    expect(event.src).toMatch(/reaction_surprised/);
+    expect(event.force).toBe(true);
   });
 
   it("resolvePortraitEvent が満腹回復と呪い装備を反映する", () => {

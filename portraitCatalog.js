@@ -128,6 +128,7 @@ const BASE_PORTRAIT_CATEGORIES = [
       { file: "reaction_fall_ground", label: "転倒", group: "reaction_fall" },
       { file: "reaction_stairs", label: "階段・フロア移動", group: "reaction_stairs" },
       { file: "reaction_shop", label: "店・買い物", group: "reaction_shop" },
+      { file: "reaction_summon_trap", label: "召喚の罠", group: "reaction_summon_trap" },
     ],
   },
   {

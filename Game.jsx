@@ -693,6 +693,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       });
       moveOffsetsRef.current.delete("player");
     }
+    /* プレイヤーが罠を発動したときは、ログ・立ち絵を確認できる間を作る */
+    if (data.trapWait) {
+      const _trapWaitDur = data.trapWait.effect === "summon_trap" ? 520 : 300;
+      await _phase(_trapWaitDur, () => {
+        renderFrame();
+      });
+    }
     /* Phase 2: Attack slash + damage popup */
     if (data.attacks?.length || data.damages?.length) {
       const dur = data.damages?.length ? 400 : 120;
@@ -995,7 +1002,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     itemDisplayName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
     bigboxDisplayName: (bigbox, revealed) => bbDisplayName(bigbox, sr.current, revealed),
   }), []);
-  const checkTrap = useCallback((p, dg, ml) => {
+  const checkTrap = useCallback((p, dg, ml, onActivated = null) => {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;
     /* 発見済みの罠は乗るだけ（重力の魔方陣下は例外で作動） */
@@ -1006,6 +1013,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (isPlayerFloating(p, dg)) { trap.revealed = true; ml.push(`浮遊しているので${trap.name}を回避した！`); return null; }
     const _nameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
     trackTrap(trap);
+    onActivated?.(trap);
     return fireTrapPlayer(trap, p, dg, ml, _nameFn, lu, { ident: sr.current?.ident });
   }, []);
   const moveMons = useCallback((dg, pl, ml, phaseMode, extraOpts = {}) => {
@@ -1979,7 +1987,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       let acted = false;
       const ml = installPlayerHpMessageHook([], p);
       /* Animation data collected during this turn */
-      const _ad = { playerMove: null, playerKnockback: null, playerTeleport: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
+      const _ad = { playerMove: null, playerKnockback: null, playerTeleport: null, trapWait: null, attacks: [], damages: [], monMoves: [], monAttacks: [], monDamages: [], monLunges: [] };
       const _oldPx = p.x, _oldPy = p.y;
       const doStair = (dir) => {
         /* チュートリアルは最深部の証をB1Fまで持ち帰って完了。 */
@@ -2656,8 +2664,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
               trackTrap(_spinHere);
               _spinHere.revealed = true;
               st._pendingSpin = _spinHere;
+              _ad.trapWait = { effect: _spinHere.effect };
             } else {
-            const tr = checkTrap(p, dg, ml);
+            const tr = checkTrap(p, dg, ml, (trap) => {
+              _ad.trapWait = { effect: trap.effect };
+            });
             if (tr === "pitfall") {
               const nd = chgFloor(p, 1, true);
               if (nd) {
@@ -2954,7 +2965,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       setGs({ ...st });
       if (drainHungerWarn() || drainPinchAlert()) setRevealMode({ pendingMsgs: [] });
       /* Play animations if any were queued */
-      const _hasAnim = _ad.playerMove || _ad.playerKnockback || _ad.playerTeleport || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
+      const _hasAnim = _ad.playerMove || _ad.playerKnockback || _ad.playerTeleport || _ad.trapWait || _ad.attacks.length || _ad.damages.length || _ad.monMoves.length || _ad.monAttacks.length || _ad.monDamages.length || (_ad.projectiles && _ad.projectiles.length) || (_ad.projectileReturns && _ad.projectileReturns.length) || (_ad.explosions && _ad.explosions.length) || (_ad.splashes && _ad.splashes.length) || (_ad.monProjectiles && _ad.monProjectiles.length) || (_ad.monProjectileReturns && _ad.monProjectileReturns.length) || (_ad.itemArcs && _ad.itemArcs.length);
       if (_hasAnim) {
         /* playAnim の非同期開始前に同期でロックし、同一キー連打で複数 act が通るのを防ぐ */
         animBusyRef.current = true;
@@ -3095,6 +3106,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       const ml = installPlayerHpMessageHook([], p);
       let steps = 0;
       let dashMimicRevealed = false;
+      let dashTrapWaitEffect = null;
+      const waitForDashTrap = async () => {
+        if (!dashTrapWaitEffect) return;
+        /* ダッシュは専用の playAnim 経路を通らないため、発動後に直接待つ */
+        setMsgs((prev) => [...prev.slice(-80), ...ml]);
+        ml.length = 0;
+        sr.current = { ...st };
+        setGs({ ...st });
+        const _trapWaitDur = dashTrapWaitEffect === "summon_trap" ? 520 : 300;
+        await new Promise(r => setTimeout(r, _trapWaitDur));
+        dashTrapWaitEffect = null;
+      };
       /* ダッシュ用座標マップ構築 */
       const _dk = (x, y) => y * MW + x;
       const _dRoomSet = new Set();
@@ -3171,7 +3194,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         else if (_wasInAnyShopD && !_isNowInShopD) ml.push("お店をあとにした。");
         applySoakedFromWaterWalk(p, dg, ml);
         steps++;
-        const tr = checkTrap(p, dg, ml);
+        const tr = checkTrap(p, dg, ml, (trap) => {
+          dashTrapWaitEffect = trap.effect;
+        });
         if (tr === "pitfall") {
           const nd = chgFloor(p, 1, true);
           if (nd) {
@@ -3179,14 +3204,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             ml.push(`地下${p.depth}階に落ちた！`);
           }
           endTurn(st, p, ml);
+          await waitForDashTrap();
           break;
         }
         if (tr === "deferred_explosion") {
           endTurn(st, p, ml);
+          await waitForDashTrap();
           break;
         }
         if (tr) {
           endTurn(st, p, ml);
+          await waitForDashTrap();
           break;
         }
         const _dashRevTrap = (() => { const _t = _dTrapMap.get(_dk(p.x, p.y)); return _t?.revealed ? _t : undefined; })();
@@ -3300,6 +3328,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
         await new Promise(r => setTimeout(r, 20));
         gsOverrideRef.current = null;
         animBusyRef.current = false;
+        await waitForDashTrap();
         if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0 ||
             (p.confusedTurns||0) > _confBefore || (p.slowTurns||0) > _slowBefore ||
             (p.sealedTurns||0) > _sealBefore   || (p.immobileTurns||0) > _immBefore ||
