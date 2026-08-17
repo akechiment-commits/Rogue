@@ -47,48 +47,9 @@ export default function App() {
     setScreen("dungeon");
   }, []);
 
-  /* Dungeon → Hub (called on death OR voluntary exit) */
-  const returnToHub = useCallback((result) => {
-    /* 二重呼び出し防止 */
-    if (returnedRef.current) return;
-    returnedRef.current = true;
+  const submitRankingIfEligible = useCallback((result) => {
     const rankPlayerId = saveData?.playerId || "";
     const rankPlayerName = saveData?.playerName || "";
-    updateSave(prev => {
-      const next = { ...prev };
-      /* survived=true: 100% gold; death: 50% gold */
-      const goldRate = result.survived ? 1.0 : 0.5;
-      next.hubGold = (prev.hubGold || 0) + Math.floor((result.earnedGold || 0) * goldRate);
-      next.totalRuns = (prev.totalRuns || 0) + 1;
-      next.bestDepth = Math.max(prev.bestDepth || 0, result.depth || 0);
-      next.bestGold  = Math.max(prev.bestGold  || 0, result.earnedGold || 0);
-      /* Merge encyclopedia discoveries */
-      next.discovered = mergeDiscoveries(prev.discovered, result.discoveries || {});
-      /* 識別済み巻物・魔法書エフェクトを永続保存（魔法の筆用） */
-      if (result.identifiedEffects?.length) {
-        const _prev = new Set(prev.identifiedEffects || []);
-        for (const e of result.identifiedEffects) _prev.add(e);
-        next.identifiedEffects = [..._prev];
-      }
-      /* Voluntary exit: carry items to warehouse (goal items excluded) */
-      if (result.survived && result.returnItems?.length) {
-        const merged = mergeReturnItemsToWarehouse(
-          prev.warehouse,
-          prev.warehouseMax || 100,
-          result.returnItems,
-        );
-        next.warehouse = merged.warehouse;
-      }
-      /* 拠点ショップを入荷（帰還のたびに1点） */
-      next.hubShopStock = rollHubShopStock();
-      /* ダンジョンクリア記録（オブジェクトを新規生成して prev の参照を共有しない） */
-      if (result.cleared) {
-        const _dt = dungeonConfig?.dungeonType || result.dungeonType || "beginner";
-        next.clearedDungeons = { ...(prev.clearedDungeons || {}), [_dt]: true };
-      }
-      return next;
-    });
-    /* オンラインランキング投稿（失敗しても進行は止めない） */
     const dungeonType = result.dungeonType || dungeonConfig?.dungeonType || "beginner";
     if (
       rankPlayerId &&
@@ -111,8 +72,72 @@ export default function App() {
         itemsValue: result.itemsValue ?? 0,
       }).catch(() => {});
     }
+  }, [dungeonConfig?.dungeonType, saveData?.playerId, saveData?.playerName]);
+
+  /* 死亡直後に、拠点へ戻らなくても今回の記録を永続化する。 */
+  const recordGameOver = useCallback((result) => {
+    updateSave(prev => {
+      const next = { ...prev };
+      next.totalRuns = (prev.totalRuns || 0) + 1;
+      next.bestDepth = Math.max(prev.bestDepth || 0, result.depth || 0);
+      next.bestGold = Math.max(prev.bestGold || 0, result.earnedGold || 0);
+      next.discovered = mergeDiscoveries(prev.discovered, result.discoveries || {});
+      if (result.identifiedEffects?.length) {
+        const _prev = new Set(prev.identifiedEffects || []);
+        for (const e of result.identifiedEffects) _prev.add(e);
+        next.identifiedEffects = [..._prev];
+      }
+      return next;
+    });
+    submitRankingIfEligible(result);
+  }, [submitRankingIfEligible, updateSave]);
+
+  /* Dungeon → Hub (called on death OR voluntary exit) */
+  const returnToHub = useCallback((result) => {
+    /* 二重呼び出し防止 */
+    if (returnedRef.current) return;
+    returnedRef.current = true;
+    const _alreadyRecorded = !!result.runRecorded;
+    updateSave(prev => {
+      const next = { ...prev };
+      /* survived=true: 100% gold; death: 50% gold */
+      const goldRate = result.survived ? 1.0 : 0.5;
+      next.hubGold = (prev.hubGold || 0) + Math.floor((result.earnedGold || 0) * goldRate);
+      if (!_alreadyRecorded) {
+        next.totalRuns = (prev.totalRuns || 0) + 1;
+        next.bestDepth = Math.max(prev.bestDepth || 0, result.depth || 0);
+        next.bestGold  = Math.max(prev.bestGold  || 0, result.earnedGold || 0);
+        /* Merge encyclopedia discoveries */
+        next.discovered = mergeDiscoveries(prev.discovered, result.discoveries || {});
+        /* 識別済み巻物・魔法書エフェクトを永続保存（魔法の筆用） */
+        if (result.identifiedEffects?.length) {
+          const _prev = new Set(prev.identifiedEffects || []);
+          for (const e of result.identifiedEffects) _prev.add(e);
+          next.identifiedEffects = [..._prev];
+        }
+      }
+      /* Voluntary exit: carry items to warehouse (goal items excluded) */
+      if (result.survived && result.returnItems?.length) {
+        const merged = mergeReturnItemsToWarehouse(
+          prev.warehouse,
+          prev.warehouseMax || 100,
+          result.returnItems,
+        );
+        next.warehouse = merged.warehouse;
+      }
+      /* 拠点ショップを入荷（帰還のたびに1点） */
+      next.hubShopStock = rollHubShopStock();
+      /* ダンジョンクリア記録（オブジェクトを新規生成して prev の参照を共有しない） */
+      if (result.cleared) {
+        const _dt = dungeonConfig?.dungeonType || result.dungeonType || "beginner";
+        next.clearedDungeons = { ...(prev.clearedDungeons || {}), [_dt]: true };
+      }
+      return next;
+    });
+    /* オンラインランキング投稿（失敗しても進行は止めない） */
+    if (!_alreadyRecorded) submitRankingIfEligible(result);
     setScreen("hub");
-  }, [updateSave, dungeonConfig, saveData?.playerId, saveData?.playerName]);
+  }, [submitRankingIfEligible, updateSave]);
 
   const handleClearSave = useCallback(() => {
     clearSave();
@@ -126,6 +151,7 @@ export default function App() {
         key={dungeonConfig?._key}
         dungeonConfig={dungeonConfig}
         onReturnToHub={returnToHub}
+        onGameOverRecorded={recordGameOver}
         pastIdent={saveData?.identifiedEffects || []}
         discoveredItems={saveData?.discovered?.items || {}}
         resumeState={resumeState}

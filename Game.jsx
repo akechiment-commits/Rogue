@@ -79,7 +79,7 @@ import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
 
-export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "" } = {}) {
+export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "" } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   const runTimerRef = useRef(null);
@@ -1796,7 +1796,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
           setShowInv(false);
           setDead(true);
           commitPendingBigboxes();
-          setGameOverResult({
+          const _gameOverPayload = {
             earnedGold: p.gold,
             depth: p.depth,
             discoveries: getDiscoveries(),
@@ -1805,8 +1805,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             identifiedEffects: [...(sr.current?.ident || [])],
             dungeonType: sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner",
             cause: _deathCause,
+            runRecorded: true,
             ..._runExtras,
-          });
+          };
+          onGameOverRecorded?.(_gameOverPayload);
+          setGameOverResult(_gameOverPayload);
         }
       }
       /* 骨のカウントダウン：0になったらスケルトン復活（真上に誰かいたら先延ばし） */
