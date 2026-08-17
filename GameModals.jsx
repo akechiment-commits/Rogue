@@ -3759,14 +3759,18 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     if (effect === "debug_summon_mon") {
       const { base, lv } = entry.value;
       const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+      const lvData = lv >= 2 ? (MON_LEVELS[base.baseKind]?.[lv - 2] || {}) : {};
+      const canUseWater = !!(lvData.waterOnly ?? base.waterOnly) || !!(lvData.float ?? base.float);
       let placed = false;
       for (const [ddx, ddy] of dirs) {
         const nx = p.x + ddx, ny = p.y + ddy;
         if (nx < 0 || ny < 0 || nx >= dg.map[0].length || ny >= dg.map.length) continue;
-        if (dg.map[ny][nx] !== "." && dg.map[ny][nx] !== "+" && dg.map[ny][nx] !== "<" && dg.map[ny][nx] !== ">") continue;
+        const tile = dg.map[ny][nx];
+        const normalTile = tile === "." || tile === "+" || tile === "<" || tile === ">";
+        const waterTile = tile === T.WATER || dg.springs?.some(s => s.x === nx && s.y === ny);
+        if (!normalTile && !(canUseWater && waterTile)) continue;
         if (dg.monsters.some(m => m.x === nx && m.y === ny)) continue;
         if (nx === p.x && ny === p.y) continue;
-        const lvData = lv >= 2 ? (MON_LEVELS[base.baseKind]?.[lv - 2] || {}) : {};
         const mon = {
           ...base, ...lvData, id: uid(), x: nx, y: ny,
           maxHp: (lvData.hp || base.hp), hp: (lvData.hp || base.hp),
@@ -3797,14 +3801,20 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         ml.push(`${it.name}を手に入れた！`);
       }
     } else if (effect === "debug_create_trap") {
-      const existing = dg.traps?.find(t => t.x === p.x && t.y === p.y);
-      if (existing) {
-        ml.push("足元にはすでに罠がある！");
-      } else {
-        const trap = { ...entry.value, id: uid(), x: p.x, y: p.y, revealed: true };
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],[0,0]];
+      let placed = false;
+      for (const [ddx, ddy] of dirs) {
+        const nx = p.x + ddx, ny = p.y + ddy;
+        if (nx < 0 || ny < 0 || nx >= dg.map[0].length || ny >= dg.map.length) continue;
+        if (dg.map[ny][nx] !== "." && dg.map[ny][nx] !== "+" && dg.map[ny][nx] !== "<" && dg.map[ny][nx] !== ">") continue;
+        if (dg.traps?.some(t => t.x === nx && t.y === ny)) continue;
+        const trap = { ...entry.value, id: uid(), x: nx, y: ny, revealed: true };
         (dg.traps || (dg.traps = [])).push(trap);
         ml.push(`${trap.name}を作った！`);
+        placed = true;
+        break;
       }
+      if (!placed) ml.push("作る場所がない！");
     } else if (effect === "debug_summon_bb") {
       const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],[0,0]];
       let placed = false;
