@@ -791,7 +791,7 @@ const goalItemData = [
 for (const [dungeonType, item] of Object.entries(GOAL_ITEMS)) {
   goalItemData.push([dungeonType, item.name, item.tile, item.desc]);
 }
-goalItemData.push(['', '', '', 'スタイル3では各キーアイテムに専用グラフィックを使用']);
+goalItemData.push(['', '', '', '各キーアイテムは最終フロアの本来の下り階段位置に配置。スタイル3では各キーアイテムに専用グラフィックを使用']);
 addSheet('18_目標アイテム', goalItemData);
 
 // ===== 飛び道具 =====

@@ -32,7 +32,7 @@ import {
 import { applyWandEffect, monsterFireLightning } from "./wands.js";
 import { fireTrapPlayer } from "./traps.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
-import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
+import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, getLastFloorGoalPosition, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
 import { trackItem, trackMonster, trackTrap, trackBigbox, stageBigbox, commitPendingBigboxes, resetDiscoveries, restoreDiscoveries, getDiscoveries } from "./DiscoveryTracker.js";
 import { saveGameState, clearGameSave } from "./GameSave.js";
 import { TILE_NAMES, customTileImages, clearCustomTileImages, _itemPickupSuffix, processPitfallBag, itemDisplayName } from "./render.js";
@@ -1468,10 +1468,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       if (!_hasGoalInv && !_hasGoalFloor) {
         const _dt = sr.current.dungeonType || "beginner";
         const _gtmpl = GOAL_ITEMS[_dt] || GOAL_ITEMS.beginner;
-        const _gr = d.rooms[d.rooms.length - 1];
-        const _gx = _gr.cx ?? (_gr.x + Math.floor(_gr.w / 2));
-        const _gy = _gr.cy ?? (_gr.y + Math.floor(_gr.h / 2));
-        d.items.push({ ..._gtmpl, id: uid(), x: _gx, y: _gy });
+        const _goalPos = getLastFloorGoalPosition(d);
+        d.items.push({ ..._gtmpl, id: uid(), x: _goalPos.x, y: _goalPos.y });
       }
     }
     if (sr.current.allBcKnown) {

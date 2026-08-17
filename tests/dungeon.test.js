@@ -188,8 +188,12 @@ describe("populateHiddenRoom", () => {
 describe("prepareLastFloor", () => {
   it("最下層にゴールアイテムを配置し下り階段を除去する", () => {
     const dg = genDungeon(9, "beginner");
+    const originalStairDown = { ...dg.stairDown };
     prepareLastFloor(dg, "beginner");
     expect(dg.stairDown).toBeNull();
-    expect(dg.items.some(i => i.type === "goal" && i.name === GOAL_ITEMS.beginner.name)).toBe(true);
+    const goal = dg.items.find(i => i.type === "goal" && i.name === GOAL_ITEMS.beginner.name);
+    expect(goal).toBeTruthy();
+    expect(goal).toMatchObject(originalStairDown);
+    expect(dg.lastFloorGoalPos).toEqual(originalStairDown);
   });
 });

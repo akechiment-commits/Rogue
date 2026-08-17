@@ -2334,18 +2334,27 @@ export const GOAL_ITEMS = {
   legend:       { name:"深淵の禁書",     type:"goal", desc:"深淵の底に封じられた禁断の書。地上に持ち帰れば真の伝説の冒険者だ。", tile:193 },
 };
 
+/** 最終フロアの目標アイテムを置く座標（本来の下り階段位置） */
+export function getLastFloorGoalPosition(dg) {
+  if (dg?.stairDown) return { x: dg.stairDown.x, y: dg.stairDown.y };
+  if (dg?.lastFloorGoalPos) return { x: dg.lastFloorGoalPos.x, y: dg.lastFloorGoalPos.y };
+  const gr = dg?.rooms?.[dg.rooms.length - 1];
+  return gr
+    ? { x: gr.cx ?? (gr.x + Math.floor(gr.w / 2)), y: gr.cy ?? (gr.y + Math.floor(gr.h / 2)) }
+    : { x: 0, y: 0 };
+}
+
 export function prepareLastFloor(dg, dungeonType) {
+  const _goalPos = getLastFloorGoalPosition(dg);
   /* 下り階段を床に変更 */
   if (dg.stairDown) {
     dg.map[dg.stairDown.y][dg.stairDown.x] = T.FLOOR;
     dg.stairDown = null;
   }
-  /* 目標アイテムを最後の部屋の中央付近に配置 */
+  /* 本来の下り階段位置を記録し、そこへ目標アイテムを配置 */
+  dg.lastFloorGoalPos = _goalPos;
   const tmpl = GOAL_ITEMS[dungeonType] || GOAL_ITEMS.beginner;
-  const gr = dg.rooms[dg.rooms.length - 1];
-  const gx = gr.cx ?? (gr.x + Math.floor(gr.w / 2));
-  const gy = gr.cy ?? (gr.y + Math.floor(gr.h / 2));
-  dg.items.push({ ...tmpl, id: uid(), x: gx, y: gy });
+  dg.items.push({ ...tmpl, id: uid(), x: _goalPos.x, y: _goalPos.y });
   dg.isLastFloor = true;
 }
 
