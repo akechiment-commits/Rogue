@@ -76,7 +76,7 @@ export function useKeyHandler({
   // refs
   sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
   // state values
-  gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
+  gs, dead, showScores, gameOverSel, gameOverView, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
   markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
@@ -86,7 +86,7 @@ export function useKeyHandler({
   exitHubConfirm, exitHubSel,
   gameOverCanReturn, performGameOverReturnToHub,
   // state setters
-  setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
+  setGs, setMsgs, setGameOverSel, setGameOverView, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
   setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
   setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
@@ -153,8 +153,13 @@ export function useKeyHandler({
         return;
       }
       if (dead) {
+        if (gameOverView) {
+          e.preventDefault();
+          setGameOverView(null);
+          return;
+        }
         if (!showScores) {
-          const _goCount = gameOverCanReturn ? 3 : 2;
+          const _goCount = gameOverCanReturn ? 5 : 4;
           if (isKeyUp(e) || isKeyLeft(e)) {
             e.preventDefault();
             setGameOverSel((p) => (p - 1 + _goCount) % _goCount);
@@ -165,7 +170,9 @@ export function useKeyHandler({
             e.preventDefault();
             if (gameOverSel === 0) init();
             else if (gameOverSel === 1) setShowScores(true);
-            else if (gameOverSel === 2) performGameOverReturnToHub?.();
+            else if (gameOverSel === 2) { setShowScores(false); setGameOverView("map"); }
+            else if (gameOverSel === 3) { setShowScores(false); setGameOverView("inventory"); }
+            else if (gameOverSel === 4) performGameOverReturnToHub?.();
           }
         } else {
           if (k === "escape" || k === "enter" || k === " " || k === "z") {
@@ -1836,6 +1843,7 @@ export function useKeyHandler({
       msgLogScrollTop,
       dead,
       gameOverSel,
+      gameOverView,
       showScores,
       nicknameMode,
       identifyMode,

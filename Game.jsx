@@ -46,7 +46,8 @@ import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
-import { TileEditorModal, GameOverModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
+import { pickDeathPortrait } from "./portraits.js";
+import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
@@ -191,6 +192,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const [gameOverResult, setGameOverResult] = useState(null);
   const [showScores, setShowScores] = useState(false);
   const [gameOverSel, setGameOverSel] = useState(0);
+  const [gameOverView, setGameOverView] = useState(null);
+  const [gameOverPortrait, setGameOverPortrait] = useState(null);
   const [showEnding, setShowEnding] = useState(false);
   const [endingResult, setEndingResult] = useState(null);
   const [showSign, setShowSign] = useState(null);
@@ -430,6 +433,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
   const init = useCallback(() => {
     setDead(false);
     setGameOverResult(null);
+    setGameOverView(null);
+    setGameOverPortrait(null);
     setMsgs(["冒険が始まった！"]);
     setShowInv(false);
     setSelIdx(null);
@@ -551,6 +556,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     if (resumeState) {
       setDead(false);
       setGameOverResult(null);
+      setGameOverView(null);
+      setGameOverPortrait(null);
       setShowInv(false);
       setSelIdx(null);
       setShowDesc(null);
@@ -1771,8 +1778,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             });
             localStorage.setItem("roguelike_scores", JSON.stringify(_scores.slice(0, 20)));
           } catch (_e) {}
-          p.inventory.forEach(i => trackItem(i));
+          /* 死亡時点の所持品は、最後に確認できる情報として完全識別する。 */
+          const identifyOnDeath = (item) => {
+            if (!item) return;
+            const _identKey = getIdentKey(item);
+            if (_identKey) sr.current.ident.add(_identKey);
+            item.fullIdent = true;
+            item.bcKnown = true;
+            trackItem(item);
+            if (Array.isArray(item.contents)) item.contents.forEach(identifyOnDeath);
+          };
+          p.inventory.forEach(identifyOnDeath);
+          const _deathCause = p.deathCause || "不明";
+          setGameOverPortrait(pickDeathPortrait(_deathCause, undefined, p));
+          setGameOverView(null);
           setGameOverSel(0);
+          setShowInv(false);
           setDead(true);
           commitPendingBigboxes();
           setGameOverResult({
@@ -1783,7 +1804,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
             cleared: false,
             identifiedEffects: [...(sr.current?.ident || [])],
             dungeonType: sr.current?.dungeonType || dungeonConfig?.dungeonType || "beginner",
-            cause: p.deathCause || "不明",
+            cause: _deathCause,
             ..._runExtras,
           });
         }
@@ -4626,7 +4647,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     // refs
     sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef,
     // state values
-    gs, dead, showScores, gameOverSel, throwMode, showInv, selIdx, invPage, invMenuSel,
+    gs, dead, showScores, gameOverSel, gameOverView, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
     markerMode, markerMenuSel, markerPage, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
@@ -4637,7 +4658,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
     gameOverCanReturn: !!(onReturnToHub && gameOverResult),
     performGameOverReturnToHub,
     // state setters
-    setGs, setMsgs, setGameOverSel, setShowScores, setFloorSelectMode, setTpSelectMode,
+    setGs, setMsgs, setGameOverSel, setGameOverView, setShowScores, setFloorSelectMode, setTpSelectMode,
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
     setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
     setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
@@ -5869,7 +5890,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <WishModal mode={wishMode} setMode={setWishMode} onConfirm={confirmWish} onCancel={cancelWish} mobile={mobile} />{" "}
       <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
-      <GameOverModal dead={dead} p={p} gameOverSel={gameOverSel} setShowScores={setShowScores} init={init} mobile={mobile} onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined} />
+      <GameOverModal
+        dead={dead && !gameOverView}
+        p={p}
+        gameOverSel={gameOverSel}
+        setShowScores={setShowScores}
+        init={init}
+        mobile={mobile}
+        portraitSrc={gameOverPortrait}
+        onViewMap={() => { setShowScores(false); setGameOverView("map"); }}
+        onViewInventory={() => { setShowScores(false); setGameOverView("inventory"); }}
+        onReturnToHub={onReturnToHub && gameOverResult ? () => onReturnToHub(gameOverResult) : undefined}
+      />
+      <GameOverMapView show={dead && gameOverView === "map"} onReopen={() => setGameOverView(null)} mobile={mobile} />
+      <GameOverInventoryModal show={dead && gameOverView === "inventory"} p={p} mobile={mobile} iLabel={iLabel} onReopen={() => setGameOverView(null)} />
       <EndingModal show={showEnding} p={p} endingResult={endingResult} mobile={mobile} onDismiss={() => { setShowEnding(false); if (onReturnToHub && endingResult) onReturnToHub(endingResult); }} />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} />

@@ -342,8 +342,9 @@ export function TileEditorModal({ show, setShow, loadCustomTile, clearCustomTile
 }
 
 /* ===== Game Over Modal ===== */
-export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobile, onReturnToHub }) {
+export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobile, onReturnToHub, portraitSrc, onViewMap, onViewInventory }) {
   if (!dead) return null;
+  const returnSelection = onReturnToHub ? 4 : null;
   return (
     <div
       style={{
@@ -386,7 +387,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
           }}
         >
           <img
-            src={pickDeathPortrait(p.deathCause)}
+            src={portraitSrc || pickDeathPortrait(p.deathCause, undefined, p)}
             alt="dead"
             style={{
               width: "100%",
@@ -485,26 +486,171 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
         >
           {gameOverSel === 1 ? "▶ " : "　"}スコアを見る
         </button>
+        <button
+          onClick={onViewMap}
+          style={{
+            padding: "10px 20px",
+            width: mobile ? "auto" : "100%",
+            background: gameOverSel === 2 ? "#102828" : "#181828",
+            color: "#8ff",
+            border: `1px solid ${gameOverSel === 2 ? "#8ff" : "#2a4a4a"}`,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            fontSize: 14,
+            borderRadius: 6,
+            boxShadow: gameOverSel === 2 ? "0 0 8px #0aa" : "none",
+          }}
+        >
+          {gameOverSel === 2 ? "▶ " : "　"}状況を見る
+        </button>
+        <button
+          onClick={onViewInventory}
+          style={{
+            padding: "10px 20px",
+            width: mobile ? "auto" : "100%",
+            background: gameOverSel === 3 ? "#20182c" : "#181828",
+            color: "#d8a8ff",
+            border: `1px solid ${gameOverSel === 3 ? "#d8a8ff" : "#4a3a5a"}`,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            fontSize: 14,
+            borderRadius: 6,
+            boxShadow: gameOverSel === 3 ? "0 0 8px #a5f" : "none",
+          }}
+        >
+          {gameOverSel === 3 ? "▶ " : "　"}持ち物を見る
+        </button>
         {onReturnToHub && (
           <button
             onClick={onReturnToHub}
             style={{
               padding: "10px 20px",
               width: mobile ? "auto" : "100%",
-              background: gameOverSel === 2 ? "#1a1208" : "#181828",
+              background: gameOverSel === returnSelection ? "#1a1208" : "#181828",
               color: "#f0c040",
-              border: `1px solid ${gameOverSel === 2 ? "#f0c040" : "#3a2a08"}`,
+              border: `1px solid ${gameOverSel === returnSelection ? "#f0c040" : "#3a2a08"}`,
               cursor: "pointer",
               fontFamily: "inherit",
               fontSize: 14,
               borderRadius: 6,
-              boxShadow: gameOverSel === 2 ? "0 0 8px #c09020" : "none",
+              boxShadow: gameOverSel === returnSelection ? "0 0 8px #c09020" : "none",
             }}
           >
-            {gameOverSel === 2 ? "▶ " : "　"}地上に戻る
+            {gameOverSel === returnSelection ? "▶ " : "　"}地上に戻る
           </button>
         )}
       </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===== Game Over: map peek ===== */
+export function GameOverMapView({ show, onReopen, mobile }) {
+  if (!show) return null;
+  return (
+    <div
+      onClick={onReopen}
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 19,
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        padding: mobile ? 8 : 18,
+        boxSizing: "border-box",
+        cursor: "pointer",
+      }}
+      aria-label="状況を見る。クリックまたはキー入力でゲームオーバー画面に戻る"
+    >
+      <div
+        style={{
+          padding: "8px 16px",
+          color: "#d8e8ff",
+          background: "rgba(4, 8, 18, 0.88)",
+          border: "1px solid #557090",
+          borderRadius: 6,
+          fontSize: mobile ? 12 : 14,
+          textAlign: "center",
+          boxShadow: "0 0 12px rgba(0,0,0,0.6)",
+        }}
+      >
+        死亡時の状況を表示中 — 何かキーまたは画面を押すとゲームオーバー画面に戻る
+      </div>
+    </div>
+  );
+}
+
+/* ===== Game Over: inventory peek ===== */
+export function GameOverInventoryModal({ show, p, mobile, iLabel, onReopen }) {
+  if (!show) return null;
+  const inventory = p?.inventory || [];
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onReopen(); }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 21,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: mobile ? 8 : 18,
+        boxSizing: "border-box",
+        background: "rgba(0,0,0,0.92)",
+      }}
+    >
+      <div
+        style={{
+          width: mobile ? "min(96%, 440px)" : "min(92%, 720px)",
+          maxHeight: "92%",
+          display: "flex",
+          flexDirection: "column",
+          background: "#12121c",
+          border: "1px solid #5a4a70",
+          borderRadius: 8,
+          boxShadow: "0 0 24px rgba(0,0,0,0.8)",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: mobile ? "12px 14px 8px" : "16px 20px 10px", color: "#d8a8ff", fontSize: mobile ? 16 : 19, fontWeight: "bold", borderBottom: "1px solid #30283a" }}>
+          死亡時の持ち物 ({inventory.length})
+        </div>
+        <div style={{ padding: mobile ? "8px 10px" : "10px 14px", overflowY: "auto" }}>
+          {inventory.length === 0 ? (
+            <div style={{ color: "#888", padding: 12 }}>何も持っていなかった。</div>
+          ) : (
+            inventory.map((item, index) => (
+              <div
+                key={item.id || `${item.type}-${index}`}
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "baseline",
+                  padding: "7px 8px",
+                  color: "#ddd",
+                  borderBottom: "1px solid #252532",
+                  fontSize: mobile ? 13 : 14,
+                }}
+              >
+                <span style={{ color: "#777", minWidth: 28, textAlign: "right" }}>{index + 1}.</span>
+                <span>{iLabel ? iLabel(item) : item.name || "不明なアイテム"}</span>
+              </div>
+            ))
+          )}
+        </div>
+        <div style={{ padding: mobile ? "8px 10px 10px" : "10px 14px 14px", color: "#888", fontSize: 12, textAlign: "center", borderTop: "1px solid #30283a" }}>
+          何かキーを押すか、下のボタンでゲームオーバー画面に戻る
+          <div style={{ marginTop: 8 }}>
+            <button
+              onClick={onReopen}
+              style={{ padding: "8px 22px", background: "#20182c", color: "#d8a8ff", border: "1px solid #8a6aaa", borderRadius: 5, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}
+            >
+              ゲームオーバー画面に戻る
+            </button>
+          </div>
         </div>
       </div>
     </div>
