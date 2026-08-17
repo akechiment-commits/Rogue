@@ -519,7 +519,7 @@ export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
-export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等のダメージを着弾点と周囲1マスに1回だけ与える。水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
+export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等の無属性ダメージを着弾点と周囲1マスに1回だけ与える。地上の爆発は自分にも自分の防御力で計算したダメージを与え、水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵を倒すと薬を落とす。", tile:16 };
@@ -1399,6 +1399,19 @@ function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
   _triggerWandBreakEffect(_snap, ax, ay, dg, p, ml, luFn);
 }
 
+function calcPlayerDefForProjectile(p) {
+  const _misoDef = (p?.misoDefTurns || 0) > 0 ? 8 : 0;
+  const _base = (p?.def || 0)
+    + (p?.armor?.def || 0)
+    + (p?.armor?.plus || 0)
+    + (p?.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)
+    + (hasAbility(p?.weapon, "def_bonus") ? 5 : 0)
+    + _misoDef;
+  return Math.floor(_base
+    * ((p?.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
+    * ((p?.defDebuffTurns || 0) > 0 ? 0.5 : 1));
+}
+
 /**
  * 爆発共通処理 (地雷・爆弾矢などから呼ぶ)
  * cx, cy: 爆発の中心。周囲8マス＋中心の計9マスを処理する。
@@ -1408,7 +1421,7 @@ function _explosionBreakWand(it, ax, ay, dg, p, ml, luFn, nameFn, blasted) {
 let _mineExplosionDepth = 0;
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
   ensureItemMimicFloorItems(dg);
-  if (isFireExplosionNullified(dg, p)) {
+  if (!options.nonElemental && isFireExplosionNullified(dg, p)) {
     announceFireExplosionNullified(dg, p, ml, srcLabel);
     return;
   }
@@ -1421,19 +1434,23 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   /* プレイヤーへのダメージ（中心含む1タイル以内） */
   const _playerSafeInWater = options.playerSafeInWater && dg.map?.[cy]?.[cx] === T.WATER;
   if (p && !_playerSafeInWater && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
+    const _projectileDmg = options.projectileAtk != null
+      ? calcProjectileDmg(p, options.projectileAtk, calcPlayerDefForProjectile(p))
+      : null;
     const _fireCtx = ringExplosion || mineExplosion;
     const _hasFireProt = _fireCtx && hasFireResist(p);
     const _oilyMult = oilyDamageMult(dg, p);
-    const rawDmg = (ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
+    const rawDmg = _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
                  : proportional  ? Math.max(1, Math.floor(p.hp / 2))
-                 : rng(10, 20)) * _oilyMult;
-    const dmg = _fireCtx
-      ? reduceFireDamage(rawDmg, p)
+                 : rng(10, 20)) * _oilyMult);
+    const dmg = _projectileDmg != null
+      ? _projectileDmg
+      : _fireCtx ? reduceFireDamage(rawDmg, p)
       : _applySoakedFireReduction(rawDmg, p);
-    const _fireLbl = _fireCtx ? fireResistDamageLabel(p) : _soakedFireLabel(p);
+    const _fireLbl = _projectileDmg != null ? "" : _fireCtx ? fireResistDamageLabel(p) : _soakedFireLabel(p);
     p.deathCause = `${srcLabel}により`;
     p.hp -= dmg;
-    ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${oilyDamageLabel(dg, p)}`);
+    ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${_projectileDmg != null ? "" : oilyDamageLabel(dg, p)}`);
     /* 指輪爆発：炎によるアイテム損傷（耐火なし時） */
     if (ringExplosion && !_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
   }
@@ -4773,7 +4790,7 @@ function detonateTorpedo(sp, dg, p, ml, luFn, monster = null) {
     ? [monster]
     : [];
   ml.push(`${sp.name}が着弾点で爆発した！`);
-  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { playerSafeInWater: _inWater, projectileAtk: sp.atk, forcedMonsters: _forceMonster });
+  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { playerSafeInWater: _inWater, nonElemental: true, projectileAtk: sp.atk, forcedMonsters: _forceMonster });
 }
 
 function landTorpedoAsItem(sp, dg, p, ml) {

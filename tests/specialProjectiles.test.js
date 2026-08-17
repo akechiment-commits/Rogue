@@ -170,17 +170,23 @@ describe("特殊飛び道具", () => {
     vi.restoreAllMocks();
   });
 
-  it("魚雷の地上爆発は隣接する自分にも当たる", () => {
+  it("魚雷の地上爆発は自分の攻撃力・防御力で無属性ダメージを計算する", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const dg = makeDungeon();
     dg.monsters.push({ id: "ground-target", name: "地上の敵", x: 3, y: 2, hp: 200, maxHp: 200, def: 0 });
     const p = makePlayer([makeTorpedo(1)]);
+    p.def = 10;
+    p.armor = { def: 5, plus: 2 };
+    p.rings = [{ effect: "defense_ring", plus: 3 }];
+    p.oilyTurns = 10;
+    p.soakedTurns = 10;
     const ml = [];
 
     shootArrow(p, dg, 0, 1, 0, ml, () => {});
     advanceSpecialProjectiles(dg, p, ml, () => {});
 
-    expect(p.hp).toBeLessThan(100);
+    const expectedDamage = calcProjectileDmg(p, 70, 20);
+    expect(p.hp).toBe(100 - expectedDamage);
     vi.restoreAllMocks();
   });
 
