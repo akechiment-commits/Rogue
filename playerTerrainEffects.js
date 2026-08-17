@@ -15,6 +15,8 @@ function hasMonsterAt(dungeon, x, y) {
 export function advancePlayerTerrainEffects(player, dungeon, messages) {
   /* 壁埋まり窒息立ち絵は、このターンに実際の壁ダメージが発生した時だけ有効。 */
   player._wallSuffocationDamage = false;
+  /* 水没立ち絵も、このターンに実際の水中窒息ダメージが発生した時だけ有効。 */
+  player._waterSuffocationDamage = false;
 
   if ((player.wallWalkTurns || 0) > 0) {
     player.wallWalkTurns--;
@@ -73,6 +75,7 @@ export function advancePlayerTerrainEffects(player, dungeon, messages) {
     if (stillDeepWater && !canPlayerWalkOnWater(player, dungeon) && player.hp > 0) {
       const damage = 15;
       player.hp -= damage;
+      player._waterSuffocationDamage = true;
       messages.push(confinedInPot
         ? `水中の壺の中で息ができない！${damage}ダメージ！`
         : `溺れて苦しい！${damage}ダメージ！`);
@@ -81,6 +84,7 @@ export function advancePlayerTerrainEffects(player, dungeon, messages) {
   } else if (confinedInPot && onSpring && !hasWaterBreathRing(player) && player.hp > 0) {
     const damage = 15;
     player.hp -= damage;
+    player._waterSuffocationDamage = true;
     messages.push(`水中の壺の中で息ができない！${damage}ダメージ！`);
     if (player.hp <= 0) player.deathCause = "水没により";
   }

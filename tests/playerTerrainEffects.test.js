@@ -56,7 +56,7 @@ describe("advancePlayerTerrainEffects", () => {
 
     advancePlayerTerrainEffects(player, makeDungeon(map), messages);
 
-    expect(player).toMatchObject({ x: 5, y: 5, hp: -5, deathCause: "水没により" });
+    expect(player).toMatchObject({ x: 5, y: 5, hp: -5, deathCause: "水没により", _waterSuffocationDamage: true });
     expect(messages).toEqual(["水中の壺の中で息ができない！15ダメージ！"]);
   });
 });

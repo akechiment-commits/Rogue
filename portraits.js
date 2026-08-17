@@ -436,6 +436,7 @@ export function snapshotPlayer(p, opts = {}) {
     mpCooldownTurns: p.mpCooldownTurns || 0,
     sealedTurns: p.sealedTurns || 0,
     wallSuffocationDamage: !!p._wallSuffocationDamage,
+    waterSuffocationDamage: !!p._waterSuffocationDamage,
     wallWalkTurns: p.wallWalkTurns || 0,
     floating: !!opts.floating,
   };
@@ -448,6 +449,7 @@ export function snapshotPlayer(p, opts = {}) {
 export function getActiveStatusPortraitKey(p, floating = false) {
   if (!p) return null;
   if (p._wallSuffocationDamage && !(p.wallWalkTurns > 0)) return "status_wall_suffocation";
+  if (p._waterSuffocationDamage) return "status_submerged";
   if (p.capturedBy) return "status_bound";
   if ((p.potConfinedTurns || 0) > 0) return "status_confined";
   if ((p.paralyzeTurns || 0) > 0) return "status_paralyze";

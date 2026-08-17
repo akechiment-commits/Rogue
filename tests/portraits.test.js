@@ -597,6 +597,22 @@ describe("portraits", () => {
     expect(event.src).toBeUndefined();
   });
 
+  it("水中で窒息ダメージを受けたターンだけ水没立ち絵を出す", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      _waterSuffocationDamage: false,
+    };
+    const event = resolvePortraitEvent({
+      player: { ...prev, hp: 65, _waterSuffocationDamage: true },
+      prev,
+      lastMsg: "溺れて苦しい！15ダメージ！",
+      newMsgs: ["溺れて苦しい！15ダメージ！"],
+    });
+    expect(event.src).toMatch(/status_submerged/);
+    expect(event.holdKey).toBe("status_submerged");
+    expect(event.force).toBe(true);
+  });
+
   it("resolvePortraitEvent がダメージ種別をメッセージから選ぶ", () => {
     const player = {
       hp: 70, maxHp: 100, x: 5, y: 5, level: 3,
