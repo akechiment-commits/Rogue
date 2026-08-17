@@ -519,7 +519,7 @@ export const STRONG_ARROW_T  = { name:"強矢",     type:"arrow", atk:8, strong:
 export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:true,      rarity:"E", weight:12, sellPrice:5,   desc:"必ず3マス先に着弾する石。99個まで束にできる。遠投の魔方陣では消滅する。呪われた遠投では1マス先に着弾。",  count:1, tile:23 };
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
-export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると攻撃力70で着弾点を爆発させ、周囲1マスを巻き込む。水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
+export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等のダメージを着弾点と周囲1マスに1回だけ与える。水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵を倒すと薬を落とす。", tile:16 };
@@ -1457,7 +1457,15 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       }
       /* モンスターダメージ */
       const _hasExPentacle = dg.pentacles?.some(pc => pc.kind === "explosion" && !pc.cursed) ?? false;
-      for (const m of [...dg.monsters.filter(m => !m.disguisedAsItem && m.x === ax && m.y === ay)]) {
+      const _blastMonsters = dg.monsters.filter(m => !m.disguisedAsItem && m.x === ax && m.y === ay);
+      if (ddx === 0 && ddy === 0) {
+        for (const forcedMonster of options.forcedMonsters || []) {
+          if (forcedMonster && !(_blastMonsters.includes(forcedMonster)) && (forcedMonster.hp ?? 1) > 0) {
+            _blastMonsters.push(forcedMonster);
+          }
+        }
+      }
+      for (const m of [..._blastMonsters]) {
         if (_killed.has(m)) continue;
         wakeIfDormant(m, ml);
         /* 火ダルマ：爆発で分裂（封印中は特性無効で通常ダメージ） */
@@ -1488,6 +1496,13 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           }
           m.hp = 0;
           _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills || ringExplosion);
+        } else if (options.projectileAtk != null) {
+          /* 特殊弾の爆発：通常命中と同じ攻撃力計算を、爆心地を含む各敵へ一度だけ適用する。 */
+          if (consumeBarrier(m, ml)) continue;
+          const md = clampDmgFixed(m, calcProjectileDmg(p, options.projectileAtk, m.def), true);
+          m.hp -= md;
+          ml.push(`${srcLabel}で${m.name}に${md}ダメージ！`);
+          if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
         } else {
           if (consumeBarrier(m, ml)) continue;
           let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
@@ -4753,10 +4768,12 @@ function detonateCrawlingBomb(sp, dg, p, ml, luFn, message) {
 }
 
 function detonateTorpedo(sp, dg, p, ml, luFn, monster = null) {
-  if (monster) specialProjectileHitMonster(sp, monster, dg, p, ml, luFn);
   const _inWater = dg.map?.[sp.y]?.[sp.x] === T.WATER;
+  const _forceMonster = monster && Math.max(Math.abs(monster.x - sp.x), Math.abs(monster.y - sp.y)) > 1
+    ? [monster]
+    : [];
   ml.push(`${sp.name}が着弾点で爆発した！`);
-  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { playerSafeInWater: _inWater });
+  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { playerSafeInWater: _inWater, projectileAtk: sp.atk, forcedMonsters: _forceMonster });
 }
 
 function landTorpedoAsItem(sp, dg, p, ml) {

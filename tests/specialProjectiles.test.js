@@ -6,6 +6,7 @@ import {
   addArrowsInv,
   shootArrow,
   advanceSpecialProjectiles,
+  calcProjectileDmg,
 } from "../items.js";
 import "../monsters.js";
 import { MW, MH, T } from "../utils.js";
@@ -150,7 +151,7 @@ describe("特殊飛び道具", () => {
     expect(ml).toContain("魚雷(4個)を投げた！");
   });
 
-  it("魚雷は着弾点で爆発し、周囲1マスの敵も巻き込む", () => {
+  it("魚雷は着弾点で通常命中相当の爆発を1回だけ起こし、周囲1マスも巻き込む", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const dg = makeDungeon();
     const target = { id: "blast-center", name: "中心の敵", x: 3, y: 2, hp: 200, maxHp: 200, def: 0 };
@@ -162,8 +163,9 @@ describe("特殊飛び道具", () => {
     shootArrow(p, dg, 0, 1, 0, ml, () => {});
     advanceSpecialProjectiles(dg, p, ml, () => {});
 
-    expect(target.hp).toBeLessThan(200);
-    expect(nearby.hp).toBeLessThan(200);
+    const expectedDamage = calcProjectileDmg(p, 70, 0);
+    expect(target.hp).toBe(200 - expectedDamage);
+    expect(nearby.hp).toBe(200 - expectedDamage);
     expect(ml.some(message => message.includes("魚雷") && message.includes("爆発"))).toBe(true);
     vi.restoreAllMocks();
   });
