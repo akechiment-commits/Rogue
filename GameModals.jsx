@@ -351,32 +351,77 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
         inset: 0,
         background: "rgba(0,0,0,0.9)",
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 20,
         borderRadius: 6,
+        padding: mobile ? 8 : 18,
+        boxSizing: "border-box",
+        overflow: "auto",
       }}
     >
-      <img
-        src={pickDeathPortrait(p.deathCause)}
-        alt="dead"
-        style={{
-          height: mobile ? 180 : 260,
-          objectFit: "contain",
-          marginBottom: 8,
-          filter: isDrownDeath(p.deathCause)
-            ? "drop-shadow(0 0 16px #08fa)"
-            : "drop-shadow(0 0 16px #f00a)",
-        }}
-      />
       <div
+        style={{
+          width: mobile ? "min(94%, 440px)" : "min(96%, 1040px)",
+          height: mobile ? "min(94%, 680px)" : "min(92%, 680px)",
+          maxHeight: "100%",
+          display: "grid",
+          gridTemplateColumns: mobile ? "1fr" : "minmax(0, 1.3fr) minmax(285px, 0.7fr)",
+          gridTemplateRows: mobile ? "minmax(0, 1fr) auto" : "1fr",
+          background: "rgba(4, 5, 14, 0.86)",
+          border: "1px solid #34344a",
+          borderRadius: 10,
+          boxShadow: "0 0 28px rgba(0,0,0,0.7)",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            minHeight: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: mobile ? 6 : 12,
+            overflow: "hidden",
+          }}
+        >
+          <img
+            src={pickDeathPortrait(p.deathCause)}
+            alt="dead"
+            style={{
+              width: "100%",
+              height: "100%",
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+              filter: isDrownDeath(p.deathCause)
+                ? "drop-shadow(0 0 20px #08fa)"
+                : "drop-shadow(0 0 20px #f00a)",
+            }}
+          />
+        </div>
+        <div
+          style={{
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: mobile ? "8px 10px 12px" : "26px 22px",
+            background: "rgba(5, 6, 16, 0.94)",
+            borderLeft: mobile ? "none" : "1px solid #34344a",
+            borderTop: mobile ? "1px solid #34344a" : "none",
+            textAlign: "center",
+          }}
+        >
+        <div
         style={{
           color: "#f33",
           fontSize: mobile ? 20 : 26,
           fontWeight: "bold",
           textShadow: "0 0 12px #f00",
           marginBottom: 6,
+          whiteSpace: "nowrap",
         }}
       >
         *** GAME OVER ***
@@ -384,9 +429,10 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
       <div
         style={{
           color: "#f88",
-          fontSize: mobile ? 13 : 16,
+          fontSize: mobile ? 13 : 17,
           marginBottom: 6,
           textAlign: "center",
+          lineHeight: 1.5,
         }}
       >
         {p.deathCause || "不明の原因により"}倒れた
@@ -394,20 +440,22 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
       <div
         style={{
           color: "#777",
-          fontSize: mobile ? 11 : 13,
+          fontSize: mobile ? 11 : 14,
           marginBottom: 4,
+          lineHeight: 1.5,
         }}
       >
         Lv.{p.level} | B{p.depth}F | T:{p.turns} | G:{p.gold}
       </div>
-      <div style={{ color: "#555", fontSize: 13, marginBottom: 10 }}>
+      <div style={{ color: "#777", fontSize: mobile ? 11 : 13, marginBottom: 14, lineHeight: 1.5 }}>
         ↑↓/←→/テンキー8・2・4・6:選択 / Enter で決定
       </div>
-      <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap", justifyContent: "center" }}>
+      <div style={{ display: "flex", flexDirection: mobile ? "row" : "column", width: "100%", gap: 10, marginTop: 4, flexWrap: "wrap", justifyContent: "center", alignItems: "center" }}>
         <button
           onClick={init}
           style={{
             padding: "10px 28px",
+            width: mobile ? "auto" : "100%",
             background: gameOverSel === 0 ? "#162816" : "#181828",
             color: "#0f0",
             border: `1px solid ${gameOverSel === 0 ? "#0f0" : "#2a4a2a"}`,
@@ -424,6 +472,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
           onClick={() => setShowScores(true)}
           style={{
             padding: "10px 20px",
+            width: mobile ? "auto" : "100%",
             background: gameOverSel === 1 ? "#101828" : "#181828",
             color: "#8cf",
             border: `1px solid ${gameOverSel === 1 ? "#8cf" : "#2a3a4a"}`,
@@ -441,6 +490,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
             onClick={onReturnToHub}
             style={{
               padding: "10px 20px",
+              width: mobile ? "auto" : "100%",
               background: gameOverSel === 2 ? "#1a1208" : "#181828",
               color: "#f0c040",
               border: `1px solid ${gameOverSel === 2 ? "#f0c040" : "#3a2a08"}`,
@@ -454,6 +504,8 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
             {gameOverSel === 2 ? "▶ " : "　"}地上に戻る
           </button>
         )}
+      </div>
+        </div>
       </div>
     </div>
   );
