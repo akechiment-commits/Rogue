@@ -131,7 +131,11 @@ export function msgToActionKey(msg, recentMsgs = []) {
   if (/食べ|食料|料理/.test(msg)) return "act_food";
   if (/魔法書.*(?:を)?(?:読|使)|(?:読|使).*(?:魔法書)/.test(msg)) return "act_spellbook";
   if (/巻物.*(?:を)?(?:読|使)|(?:読|使).*(?:巻物)/.test(msg)) return "act_scroll";
-  if (/杖を振|ワンド/.test(msg)) return "act_wand";
+  /* 敵の「○○が杖を振った！」はプレイヤーの使用ログではない */
+  if (
+    /杖を振|ワンド/.test(msg) &&
+    !/^[^！\n]*が[^！\n]*(?:杖を振|ワンド)/.test(msg)
+  ) return "act_wand";
   /* プレイヤー自身が描いたときだけ（敵「〜が足元に〜を描いた」は除外） */
   if (/^足元に.+を描いた|魔方陣を描いた瞬間|ペンで/.test(msg)) return "act_pen";
   if (/魔法を放/.test(msg)) return "act_magic";
@@ -333,7 +337,7 @@ function findMsgInNew(newMsgs, lastMsg, test) {
 /** 呪い装備・呪いデバフ付与のログか */
 export function isCursedAcquireMsg(msg) {
   if (!msg) return false;
-  return /呪われている！外せなくなった|呪いの力が自分に|呪われていて外せない/.test(msg);
+  return /呪われている！外せなくなった|呪いの力が自分に|呪われていて外せない|が呪われた！(?:【呪】)?/.test(msg);
 }
 
 /** 階段・フロア移動のログか */
