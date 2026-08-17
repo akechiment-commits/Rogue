@@ -51,7 +51,8 @@ export function isPortraitBackgroundSeed(r, g, b, a, options = {}) {
 }
 
 /** コーナーから背景色サンプル（既に α=0 でも RGB が残っていれば採用） */
-export function sampleCornerBackgroundColors(data, width, height) {
+export function sampleCornerBackgroundColors(data, width, height, options = {}) {
+  const opts = { ...DEFAULT_TRANSPARENCY_OPTIONS, ...options };
   const corners = [
     [0, 0],
     [width - 1, 0],
@@ -67,6 +68,10 @@ export function sampleCornerBackgroundColors(data, width, height) {
     const b = data[idx + 2];
     const a = data[idx + 3];
     if (a === 0 && r === 0 && g === 0 && b === 0) continue;
+    /* 黒背景は輪郭線や衣装の影と同じ色になりやすいため、
+       外周の穴埋め用の色見本には使わない。外周の透過自体は
+       floodFillTransparent が連結範囲だけを対象に行う。 */
+    if (isNearBlack(r, g, b, Math.max(opts.nearBlack, 40))) continue;
     if (a > 0 && !isPortraitBackgroundSeed(r, g, b, a)) continue;
     if (a === 0 && !isNearWhite(r, g, b, 200) && !isGreenBg(r, g, b) && !isNearBlack(r, g, b, 40)) {
       /* 透過済みコーナーの残 RGB が背景っぽくないなら無視 */
@@ -78,6 +83,69 @@ export function sampleCornerBackgroundColors(data, width, height) {
     refs.push({ r, g, b });
   }
   return refs;
+}
+
+/**
+ * 以前の黒背景透過で、キャラクター内部の黒い線・影まで α=0 になった
+ * PNG を救済する。外周に触れていない小さな暗部だけを復元するため、
+ * 通常の新規画像（全ピクセル不透明）には影響しない。
+ */
+export function restoreEnclosedDarkPixels(data, width, height, options = {}) {
+  const opts = { ...DEFAULT_TRANSPARENCY_OPTIONS, ...options };
+  const maxRestore = Math.max(
+    opts.maxHolePixels,
+    Math.floor(width * height * opts.maxHoleRatio),
+  );
+  const visited = new Uint8Array(width * height);
+  const isDarkTransparent = (x, y) => {
+    const idx = (y * width + x) * 4;
+    return data[idx + 3] < 8 && isNearBlack(
+      data[idx],
+      data[idx + 1],
+      data[idx + 2],
+      Math.max(opts.nearBlack, 35),
+    );
+  };
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const start = y * width + x;
+      if (visited[start] || !isDarkTransparent(x, y)) continue;
+
+      const cells = [];
+      const queue = [[x, y]];
+      visited[start] = 1;
+      let touchesEdge = false;
+      let qh = 0;
+      while (qh < queue.length) {
+        const [cx, cy] = queue[qh++];
+        cells.push(cx, cy);
+        if (cx === 0 || cy === 0 || cx === width - 1 || cy === height - 1) {
+          touchesEdge = true;
+        }
+        for (const [nx, ny] of [
+          [cx - 1, cy],
+          [cx + 1, cy],
+          [cx, cy - 1],
+          [cx, cy + 1],
+        ]) {
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          const cell = ny * width + nx;
+          if (visited[cell] || !isDarkTransparent(nx, ny)) continue;
+          visited[cell] = 1;
+          queue.push([nx, ny]);
+        }
+      }
+
+      const pixelCount = cells.length / 2;
+      if (touchesEdge || pixelCount > maxRestore) continue;
+      for (let i = 0; i < cells.length; i += 2) {
+        data[(cells[i + 1] * width + cells[i]) * 4 + 3] = 255;
+      }
+    }
+  }
+
+  return data;
 }
 
 function isBackgroundLikePixel(r, g, b, a, refs, opts) {
@@ -168,7 +236,7 @@ export function floodFillTransparent(data, width, height, options = {}) {
  */
 export function punchEnclosedBackgroundHoles(data, width, height, options = {}) {
   const opts = { ...DEFAULT_TRANSPARENCY_OPTIONS, ...options };
-  const refs = sampleCornerBackgroundColors(data, width, height);
+  const refs = sampleCornerBackgroundColors(data, width, height, opts);
   const maxHole = Math.max(
     opts.maxHolePixels,
     Math.floor(width * height * opts.maxHoleRatio),
@@ -235,6 +303,8 @@ export function punchEnclosedBackgroundHoles(data, width, height, options = {}) 
 
 /** Canvas ImageData 互換オブジェクトに透過を適用 */
 export function applyPortraitTransparency(imageData, options = {}) {
+  /* 過去に黒背景の内部まで抜いてしまった画像を先に救済する。 */
+  restoreEnclosedDarkPixels(imageData.data, imageData.width, imageData.height, options);
   floodFillTransparent(imageData.data, imageData.width, imageData.height, options);
   punchEnclosedBackgroundHoles(imageData.data, imageData.width, imageData.height, options);
   return imageData;

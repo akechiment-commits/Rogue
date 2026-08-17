@@ -6,6 +6,7 @@ import {
   isGreenBg,
   floodFillTransparent,
   punchEnclosedBackgroundHoles,
+  restoreEnclosedDarkPixels,
   applyPortraitTransparency,
 } from "../portraitTransparency.js";
 
@@ -87,6 +88,27 @@ describe("portraitTransparency", () => {
     });
     punchEnclosedBackgroundHoles(data, 10, 10, { maxHolePixels: 20, maxHoleRatio: 0 });
     expect(alphaAt(data, 10, 5, 5)).toBe(255);
+  });
+
+  it("黒背景の透過で欠けた内部の暗部を復元する", () => {
+    const data = makeImage(7, 7, (x, y) => {
+      if (x === 0 || y === 0 || x === 6 || y === 6) return [0, 0, 0, 0];
+      if (x === 3 && y === 3) return [0, 0, 0, 0];
+      return [180, 120, 80, 255];
+    });
+    restoreEnclosedDarkPixels(data, 7, 7);
+    expect(alphaAt(data, 7, 3, 3)).toBe(255);
+    expect(alphaAt(data, 7, 0, 0)).toBe(0);
+  });
+
+  it("黒いキャラクター内部を閉じた穴として透過しない", () => {
+    const data = makeImage(7, 7, (x, y) => {
+      if (x === 0 || y === 0 || x === 6 || y === 6) return [0, 0, 0, 255];
+      if (x === 3 && y === 3) return [0, 0, 0, 255];
+      return [180, 120, 80, 255];
+    });
+    punchEnclosedBackgroundHoles(data, 7, 7);
+    expect(alphaAt(data, 7, 3, 3)).toBe(255);
   });
 
   it("applyPortraitTransparency は外周＋閉じ穴の両方を透過する", () => {
