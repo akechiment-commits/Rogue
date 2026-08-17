@@ -1025,6 +1025,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
         }
         ctx.restore();
       } else if (key.startsWith("mon_") && mo.tile != null) {
+        const _movingMonRef = dg.monsters.find(m => m.id === key.slice(4));
+        if (_movingMonRef?.subtype === "itemMimic" && _movingMonRef.disguisedAsItem !== false) continue;
         /* Skip if neither start nor end position is visible to the player */
         const _fromVis = dg.visible[Math.round(mo.fromY)]?.[Math.round(mo.fromX)];
         const _toVis = dg.visible[Math.round(mo.toY)]?.[Math.round(mo.toX)];
@@ -1042,8 +1044,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           ctx.fillRect(dpx + 1, dpy, Math.max(1, bw * hpR), bh);
         }
         /* status overlays: look up live monster object by id */
-        const _movMonRef = dg.monsters.find(m => m.id === key.slice(4));
-        if (_movMonRef) drawMonsterOverlays(ctx, _movMonRef, dpx, dpy, sz);
+        if (_movingMonRef) drawMonsterOverlays(ctx, _movingMonRef, dpx, dpy, sz);
       }
     }
 
@@ -1052,6 +1053,7 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     if ((p.monsterSenseTurns || 0) > 0 || dg.monsterSenseActive || _hasClairvoyanceRing) {
       for (const _sm of dg.monsters) {
         if (_sm.wallWalker) continue;
+        if (_sm.subtype === "itemMimic" && _sm.disguisedAsItem !== false) continue;
         if (dg.visible[_sm.y]?.[_sm.x]) continue;
         if (_sm.x < sx || _sm.x >= sx + vw || _sm.y < sy || _sm.y >= sy + vh) continue;
         if (_movingEntities.has("mon_" + _sm.id)) continue;
