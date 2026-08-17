@@ -56,8 +56,52 @@ describe("特殊飛び道具", () => {
     expect(dg.specialProjectiles[0]).toMatchObject({ x: 3, y: 2 });
     advanceSpecialProjectiles(dg, p, ml, () => {});
     expect(target.hp).toBeLessThan(80);
-    expect(dg.specialProjectiles).toHaveLength(0);
+    expect(dg.specialProjectiles || []).toHaveLength(0);
     vi.restoreAllMocks();
+  });
+
+  it("特殊弾は束から1個ずつ発射でき、魚雷は従来の約8倍の攻撃力を持つ", () => {
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WATER;
+    const torpedo = makeTorpedo(3);
+    const p = makePlayer([torpedo]);
+    const ml = [];
+
+    expect(torpedo.atk).toBe(64);
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    expect(p.inventory[0].count).toBe(1);
+    expect(dg.specialProjectiles).toHaveLength(2);
+  });
+
+  it("特殊弾を投げると束全体を1発にまとめて消費する", () => {
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WATER;
+    const torpedo = makeTorpedo(4);
+    const p = makePlayer([torpedo]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {}, null, null, null, { bundle: true });
+
+    expect(p.inventory).toHaveLength(0);
+    expect(dg.specialProjectiles).toHaveLength(1);
+    expect(dg.specialProjectiles[0]).toMatchObject({ name: "魚雷(4個)", atk: 68 });
+    expect(ml).toContain("魚雷(4個)を投げた！");
+  });
+
+  it("敵の移動経路と特殊弾の経路が交差しても命中する", () => {
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WATER;
+    const target = { id: "crossing-target", name: "倍速の敵", x: 1, y: 2, hp: 80, maxHp: 80, def: 0 };
+    dg.monsters.push(target);
+    const p = makePlayer([makeTorpedo(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    const snapshot = new Map([[target.id, { x: 5, y: 2 }]]);
+    advanceSpecialProjectiles(dg, p, ml, () => {}, snapshot);
+    expect(target.hp).toBeLessThan(80);
+    expect(dg.specialProjectiles).toHaveLength(0);
   });
 
   it("這いずり爆弾は壁に触れると爆発する", () => {
@@ -70,7 +114,46 @@ describe("特殊飛び道具", () => {
     expect(dg.specialProjectiles).toHaveLength(1);
     advanceSpecialProjectiles(dg, p, ml, () => {});
     expect(dg.specialProjectiles).toHaveLength(0);
+    expect(p.hp).toBe(50);
     expect(ml.some(message => message.includes("這いずり爆弾") && message.includes("爆発"))).toBe(true);
+  });
+
+  it("這いずり爆弾は敵を消滅させ、自分には現在HPの半分を与える", () => {
+    const dg = makeDungeon();
+    const target = { id: "bomb-target", name: "敵", x: 3, y: 2, hp: 80, maxHp: 80, def: 0 };
+    dg.monsters.push(target);
+    const p = makePlayer([makeCrawlingBomb(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+    expect(p.hp).toBe(50);
+    expect(dg.monsters).toHaveLength(0);
+    expect(dg.specialProjectiles).toHaveLength(0);
+  });
+
+  it("這いずり爆弾は壁に向けて撃つとその場で即爆発する", () => {
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WALL;
+    const p = makePlayer([makeCrawlingBomb(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    expect(p.hp).toBe(50);
+    expect(dg.specialProjectiles || []).toHaveLength(0);
+    expect(ml.some(message => message.includes("壁に触れてその場で爆発"))).toBe(true);
+  });
+
+  it("這いずり爆弾は軌道上の罠を作動させて消費される", () => {
+    const dg = makeDungeon();
+    dg.traps.push({ id: "sleep-trap", name: "睡眠の罠", effect: "sleep", x: 3, y: 2, permanent: true });
+    const p = makePlayer([makeCrawlingBomb(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+    expect(dg.specialProjectiles).toHaveLength(0);
+    expect(ml.some(message => message.includes("睡眠の罠が発動"))).toBe(true);
   });
 
   it("誘導弾は10マス以内の敵へ1マスずつ近づいて命中する", () => {

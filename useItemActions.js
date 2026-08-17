@@ -3211,7 +3211,11 @@ export function useItemActions({
 
         /* ── インベントリから投げる特殊飛び道具 ── */
         if (it.type === "arrow" && it.specialProjectile) {
-          shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, null, { forceMiss: _forceMiss });
+          /* 通常の矢と同じく「投げる」は束全体を1発にまとめる。 */
+          shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+            forceMiss: _forceMiss,
+            bundle: true,
+          });
           endTurn(sr.current, p, ml);
           if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
           setThrowMode(null);

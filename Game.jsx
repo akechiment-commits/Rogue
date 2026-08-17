@@ -1552,8 +1552,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       });
       /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
       triggerMonsterHouse(st.dungeon, p, ml);
-      /* 特殊飛び道具：プレイヤーの行動後に1ターン分だけ進む */
-      advanceSpecialProjectiles(st.dungeon, p, ml, lu);
       /* 初めて踏み入れたフロアは敵が行動しない（階段降り直後の理不尽攻撃を防ぐ） */
       let _skipMonAct = !!st.dungeon._firstVisit;
       if (_skipMonAct) st.dungeon._firstVisit = false;
@@ -1565,6 +1563,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, pastIdent 
       /* Capture monster position changes for animation + mark movers */
       collectMonsterMoves(_monAnimation, st.dungeon.monsters, _monSnap);
       transitMonstersThroughPortals(st, p, ml, _monSnap, { randomTeleportDest });
+      /* 特殊飛び道具：敵の移動後に進め、移動経路との交差も命中扱いにする */
+      advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap);
       /* プレイヤーがポータルの上で1ターン経過したらワープ（移動・ダッシュで既に転送済みならスキップ） */
       if (!st._portalWarpedThisTurn && p.hp > 0) {
         playerPortalWarp(p, st, ml);
