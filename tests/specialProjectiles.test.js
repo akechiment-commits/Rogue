@@ -7,6 +7,7 @@ import {
   shootArrow,
   advanceSpecialProjectiles,
 } from "../items.js";
+import "../monsters.js";
 import { MW, MH, T } from "../utils.js";
 
 function makeDungeon(fill = T.FLOOR) {
@@ -60,6 +61,28 @@ describe("特殊飛び道具", () => {
     vi.restoreAllMocks();
   });
 
+  it("魚雷は水中に入ると近くの敵を追尾する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WATER;
+    dg.map[3][3] = T.WATER;
+    dg.map[4][3] = T.WATER;
+    const target = { id: "water-homing-target", name: "水中の標的", x: 3, y: 4, hp: 200, maxHp: 200, def: 0 };
+    dg.monsters.push(target);
+    const p = makePlayer([makeTorpedo(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+    expect(dg.specialProjectiles[0]).toMatchObject({ x: 3, y: 2 });
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+    expect(dg.specialProjectiles[0]).toMatchObject({ x: 3, y: 3 });
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+    expect(target.hp).toBeLessThan(200);
+    expect(dg.specialProjectiles).toHaveLength(0);
+    vi.restoreAllMocks();
+  });
+
   it("魚雷は水の外へ出るとアイテムとして残る", () => {
     const dg = makeDungeon();
     dg.map[2][3] = T.WATER;
@@ -98,14 +121,14 @@ describe("特殊飛び道具", () => {
     expect(dg.items).toContainEqual(expect.objectContaining({ name: "魚雷", count: 4, x: 3, y: 2 }));
   });
 
-  it("特殊弾は束から1個ずつ発射でき、魚雷は従来の約8倍の攻撃力を持つ", () => {
+  it("特殊弾は束から1個ずつ発射でき、魚雷の攻撃力は70", () => {
     const dg = makeDungeon();
     dg.map[2][3] = T.WATER;
     const torpedo = makeTorpedo(3);
     const p = makePlayer([torpedo]);
     const ml = [];
 
-    expect(torpedo.atk).toBe(64);
+    expect(torpedo.atk).toBe(70);
     shootArrow(p, dg, 0, 1, 0, ml, () => {});
     shootArrow(p, dg, 0, 1, 0, ml, () => {});
     expect(p.inventory[0].count).toBe(1);
@@ -123,8 +146,55 @@ describe("特殊飛び道具", () => {
 
     expect(p.inventory).toHaveLength(0);
     expect(dg.specialProjectiles).toHaveLength(1);
-    expect(dg.specialProjectiles[0]).toMatchObject({ name: "魚雷(4個)", atk: 68 });
+    expect(dg.specialProjectiles[0]).toMatchObject({ name: "魚雷(4個)", atk: 74 });
     expect(ml).toContain("魚雷(4個)を投げた！");
+  });
+
+  it("魚雷は着弾点で爆発し、周囲1マスの敵も巻き込む", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const dg = makeDungeon();
+    const target = { id: "blast-center", name: "中心の敵", x: 3, y: 2, hp: 200, maxHp: 200, def: 0 };
+    const nearby = { id: "blast-nearby", name: "隣の敵", x: 4, y: 2, hp: 200, maxHp: 200, def: 0 };
+    dg.monsters.push(target, nearby);
+    const p = makePlayer([makeTorpedo(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(target.hp).toBeLessThan(200);
+    expect(nearby.hp).toBeLessThan(200);
+    expect(ml.some(message => message.includes("魚雷") && message.includes("爆発"))).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it("魚雷の地上爆発は隣接する自分にも当たる", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const dg = makeDungeon();
+    dg.monsters.push({ id: "ground-target", name: "地上の敵", x: 3, y: 2, hp: 200, maxHp: 200, def: 0 });
+    const p = makePlayer([makeTorpedo(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(p.hp).toBeLessThan(100);
+    vi.restoreAllMocks();
+  });
+
+  it("魚雷の水中爆発は隣接していても自分には当たらない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WATER;
+    dg.monsters.push({ id: "water-target", name: "水中の敵", x: 3, y: 2, hp: 200, maxHp: 200, def: 0 });
+    const p = makePlayer([makeTorpedo(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(p.hp).toBe(100);
+    vi.restoreAllMocks();
   });
 
   it("敵の移動経路と特殊弾の経路が交差しても命中する", () => {
