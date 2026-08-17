@@ -2715,8 +2715,12 @@ export function genTutorialFloor(floorNum, opts = {}) {
     if (teleportScroll) items.push({ ...teleportScroll, id: uid(), x: 26, y: 7 });
     const identBB = BB_TYPES.find(b => b.kind === "identify");
     if (identBB) bigboxes.push({ id: uid(), x: 29, y: 7, tile: TI.BIGBOX, kind: identBB.kind, name: identBB.name, capacity: 2, contents: [], revealed: true });
+    mkSign(26, 11, [
+      "この先の廊下には見えない罠がある。踏むと発動し、姿を現す。",
+      "一度姿を現した罠は、歩いて通っても作動しない。",
+    ]);
     const arrowTrap = TRAPS.find(t => t.effect === "arrow_trap");
-    if (arrowTrap) traps.push({ ...arrowTrap, id: uid(), x: 26, y: 12, revealed: true });
+    if (arrowTrap) traps.push({ ...arrowTrap, id: uid(), x: 26, y: 12, revealed: false });
     items.push({ ...genFood(), id: uid(), x: 24, y: 18 });
     items.push({ ...GOAL_ITEMS.tutorial, id: uid(), x: 8, y: 18 });
     mkMon("kobold", 12, 18);

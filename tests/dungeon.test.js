@@ -52,7 +52,12 @@ describe("genTutorialFloor", () => {
     expect(signText).toContain("中身を回収");
     expect(floor.items.some(i => i.type === "potion" && !i.preIdent)).toBe(true);
     expect(floor.bigboxes.some(b => b.kind === "identify" && b.revealed)).toBe(true);
-    expect(floor.traps.some(t => t.revealed)).toBe(true);
+    const arrowTrap = floor.traps.find(t => t.effect === "arrow_trap");
+    expect(arrowTrap?.revealed).toBe(false);
+    const trapSign = floor.items.find(i => i.type === "sign" && i.text?.some(line => line.includes("見えない罠")));
+    expect(trapSign).toMatchObject({ x: arrowTrap.x, y: arrowTrap.y - 1 });
+    expect(signText).toContain("見えない罠");
+    expect(signText).toContain("歩いて通っても作動しない");
   });
 });
 
