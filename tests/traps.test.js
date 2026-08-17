@@ -243,6 +243,21 @@ describe("fireTrapItem rockfall", () => {
 });
 
 describe("arrow trap facing", () => {
+  it("permanent指定なら破損抽選に当選しても残る", () => {
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));
+    const p = makePlayer({ x: 10, y: 10, hp: 50, maxHp: 50, facing: { dx: 0, dy: 1 } });
+    const trap = { effect: "arrow_trap", name: "矢の罠", x: 10, y: 10, id: "tutorial-arrow", permanent: true };
+    const dg = makeEmptyDg({ map, traps: [trap], monsters: [] });
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      fireTrapPlayer(trap, p, dg, []);
+      expect(trap.revealed).toBe(true);
+      expect(dg.traps).toContain(trap);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   it("矢がプレイヤー正面から飛んできて命中する", () => {
     /* 床全面。プレイヤーは下向き → 南の壁相当から北へ矢が来る */
     const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));

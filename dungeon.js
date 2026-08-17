@@ -2720,7 +2720,7 @@ export function genTutorialFloor(floorNum, opts = {}) {
       "一度姿を現した罠は、歩いて通っても作動しない。",
     ]);
     const arrowTrap = TRAPS.find(t => t.effect === "arrow_trap");
-    if (arrowTrap) traps.push({ ...arrowTrap, id: uid(), x: 26, y: 12, revealed: false });
+    if (arrowTrap) traps.push({ ...arrowTrap, id: uid(), x: 26, y: 12, revealed: false, permanent: true });
     items.push({ ...genFood(), id: uid(), x: 24, y: 18 });
     items.push({ ...GOAL_ITEMS.tutorial, id: uid(), x: 8, y: 18 });
     mkMon("kobold", 12, 18);

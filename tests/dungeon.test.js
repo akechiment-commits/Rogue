@@ -54,6 +54,7 @@ describe("genTutorialFloor", () => {
     expect(floor.bigboxes.some(b => b.kind === "identify" && b.revealed)).toBe(true);
     const arrowTrap = floor.traps.find(t => t.effect === "arrow_trap");
     expect(arrowTrap?.revealed).toBe(false);
+    expect(arrowTrap?.permanent).toBe(true);
     const trapSign = floor.items.find(i => i.type === "sign" && i.text?.some(line => line.includes("見えない罠")));
     expect(trapSign).toMatchObject({ x: arrowTrap.x, y: arrowTrap.y - 1 });
     expect(signText).toContain("見えない罠");
