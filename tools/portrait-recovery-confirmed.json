@@ -554,6 +554,191 @@
       "target": "status_soaked_unarmored.png",
       "source": "status_soaked_unarmored.png",
       "matchScore": 0.741
+    },
+    {
+      "target": "stand_unarmored_advance.png",
+      "source": "stand_unarmored_advance_2.png",
+      "matchScore": 0.016
+    },
+    {
+      "target": "hp_mid_2.png",
+      "source": "hp_low_stand_ruined_alt.png",
+      "matchScore": 0.016
+    },
+    {
+      "target": "hp_mid.png",
+      "source": "hp/hp_low_stand_2.png",
+      "matchScore": 0.024
+    },
+    {
+      "target": "reaction_sad_unarmored.png",
+      "source": "hp_low_kneel_unarmored.png",
+      "matchScore": 0.027
+    },
+    {
+      "target": "hp_low_kneel_2_2.png",
+      "source": "hp/hp_low_kneel_ground_ruined.png",
+      "matchScore": 0.039
+    },
+    {
+      "target": "hp_critical_unarmored_2.png",
+      "source": "stand_unarmored_hurt_5_faint_5.png",
+      "matchScore": 0.046
+    },
+    {
+      "target": "hp_critical_2_2.png",
+      "source": "hp/hp_low_kneel_ground_blood.png",
+      "matchScore": 0.049
+    },
+    {
+      "target": "hp_critical_2.png",
+      "source": "hp/hp_low_kneel_blood.png",
+      "matchScore": 0.057
+    },
+    {
+      "target": "status_wall_suffocation.png",
+      "source": "status_wall_stuck_2.png",
+      "matchScore": 0.085
+    },
+    {
+      "target": "status_wall_suffocation_2.png",
+      "source": "status_wall_stuck.png",
+      "matchScore": 0.091
+    },
+    {
+      "target": "hp_critical_unarmored.png",
+      "source": "stand_unarmored_hurt_5_faint.png",
+      "matchScore": 0.105
+    },
+    {
+      "target": "hp_low_unarmored_2.png",
+      "source": "hp_low_stand_unarmored_2.png",
+      "matchScore": 0.186
+    },
+    {
+      "target": "status_wall_suffocation_unarmored_2.png",
+      "source": "status_wall_stuck_unarmored_2.png",
+      "matchScore": 0.207
+    },
+    {
+      "target": "damage_heavy_unarmored.png",
+      "source": "status_immobile_unarmored.png",
+      "matchScore": 0.224
+    },
+    {
+      "target": "hp_low_kneel_unarmored.png",
+      "source": "hp_critical_unarmored.png",
+      "matchScore": 0.247
+    },
+    {
+      "target": "levelup_unarmored.png",
+      "source": "reaction_levelup_unarmored.png",
+      "matchScore": 0.276
+    },
+    {
+      "target": "hp_high_unarmored.png",
+      "source": "hp_full_unarmored.png",
+      "matchScore": 0.29
+    },
+    {
+      "target": "hp_mp_revive_unarmored.png",
+      "source": "reaction_fall_ground_unarmored.png",
+      "matchScore": 0.29
+    },
+    {
+      "target": "reaction_shop_unarmored.png",
+      "source": "reaction_joy_unarmored.png",
+      "matchScore": 0.305
+    },
+    {
+      "target": "hp_full_unarmored.png",
+      "source": "reaction_motivated_unarmored.png",
+      "matchScore": 0.311
+    },
+    {
+      "target": "status_oiled.png",
+      "source": "status/status_oiled_2.png",
+      "matchScore": 0.38
+    },
+    {
+      "target": "status_wall_suffocation_unarmored.png",
+      "source": "status_wall_stuck_unarmored.png",
+      "matchScore": 0.386
+    },
+    {
+      "target": "damage_unarmored.png",
+      "source": "damage_heavy_unarmored.png",
+      "matchScore": 0.391
+    },
+    {
+      "target": "stand_unarmored_walk.png",
+      "source": "stand_unarmored_walk_2.png",
+      "matchScore": 0.41
+    },
+    {
+      "target": "gameover_dead_2.png",
+      "source": "gameover/go_fire_bloody.png",
+      "matchScore": 0.418
+    },
+    {
+      "target": "reaction_fall_unarmored.png",
+      "source": "stand_unarmored_fall.png",
+      "matchScore": 0.45
+    },
+    {
+      "target": "hp_low_unarmored.png",
+      "source": "hp_low_stand_unarmored.png",
+      "matchScore": 0.465
+    },
+    {
+      "target": "status_bewitched.png",
+      "source": "status_bewitched_heart.png",
+      "matchScore": 0.51
+    },
+    {
+      "target": "damage_fire.png",
+      "source": "damage/damage_fire_recoil.png",
+      "matchScore": 0.527
+    },
+    {
+      "target": "attack_unarmored.png",
+      "source": "battle_melee_unarmored_rising_step.png",
+      "matchScore": 0.685
+    },
+    {
+      "target": "attack_unarmored_2.png",
+      "source": "battle_melee_unarmored.png",
+      "matchScore": 0.705
+    },
+    {
+      "target": "death_dead_unarmored_2.png",
+      "source": "gameover_dead_unarmored_kneel.png",
+      "matchScore": 0.715
+    },
+    {
+      "target": "status_confused_unarmored.png",
+      "source": "reaction_confused_unarmored.png",
+      "matchScore": 0.727
+    },
+    {
+      "target": "dash_unarmored.png",
+      "source": "battle_dash_unarmored.png",
+      "matchScore": 0.74
+    },
+    {
+      "target": "hp_low_kneel_2.png",
+      "source": "hp/hp_low_kneel_ruined.png",
+      "matchScore": 0.824
+    },
+    {
+      "target": "gameover_dead.png",
+      "source": "gameover/go_generic_bloody.png",
+      "matchScore": 0.877
+    },
+    {
+      "target": "damage_wet.png",
+      "source": "gameover/go_drown.png",
+      "matchScore": 0.908
     }
   ]
 }
