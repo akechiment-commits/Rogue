@@ -44,6 +44,12 @@ describe("genTutorialFloor", () => {
     expect(floor.isLastFloor).toBe(true);
     expect(floor.stairDown).toBeNull();
     expect(floor.items.some(i => i.type === "goal" && i.name === GOAL_ITEMS.tutorial.name)).toBe(true);
+    const signText = floor.items
+      .filter(i => i.type === "sign")
+      .flatMap(i => i.text || [])
+      .join(" ");
+    expect(signText).toContain("容量オーバー");
+    expect(signText).toContain("中身を回収");
     expect(floor.items.some(i => i.type === "potion" && !i.preIdent)).toBe(true);
     expect(floor.bigboxes.some(b => b.kind === "identify" && b.revealed)).toBe(true);
     expect(floor.traps.some(t => t.revealed)).toBe(true);
