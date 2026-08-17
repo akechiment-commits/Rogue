@@ -754,6 +754,31 @@
       "target": "status_immobile.png",
       "source": "status/status_immobile_01.png",
       "matchScore": 1.954
+    },
+    {
+      "target": "hp_low_kneel_3.png",
+      "source": "hp/hp_low_kneel_ground.png",
+      "matchScore": 1.758
+    },
+    {
+      "target": "status_cursed.png",
+      "source": "traps/trap_summon.png",
+      "matchScore": 0.223
+    },
+    {
+      "target": "status_submerged.png",
+      "source": "status/status_submerged_03.png",
+      "matchScore": 0.22
+    },
+    {
+      "target": "status_submerged_unarmored.png",
+      "source": "status_submerged_unarmored.png",
+      "matchScore": 1.391
+    },
+    {
+      "target": "death_drown_unarmored.png",
+      "source": "gameover_drown_unarmored.png",
+      "matchScore": 2.088
     }
   ]
 }
