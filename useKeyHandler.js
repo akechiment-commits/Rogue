@@ -76,7 +76,7 @@ export function useKeyHandler({
   // refs
   sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
-  gs, dead, showScores, gameOverSel, gameOverView, throwMode, showInv, selIdx, invPage, invMenuSel,
+  gs, dead, showEnding, showScores, gameOverSel, gameOverView, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
   markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
@@ -84,7 +84,7 @@ export function useKeyHandler({
   msgLogMode, msgLogScrollTop, msgsRef,
   showSign,
   exitHubConfirm, exitHubSel,
-  gameOverCanReturn, performGameOverReturnToHub,
+  gameOverCanReturn, performGameOverReturnToHub, onDismissEnding,
   // state setters
   setGs, setMsgs, setGameOverSel, setGameOverView, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
@@ -130,6 +130,11 @@ export function useKeyHandler({
       if (isDuplicateDirectionEvent(e)) {
         e.preventDefault();
         e.stopImmediatePropagation();
+        return;
+      }
+      if (showEnding) {
+        e.preventDefault();
+        if (k === "enter" || k === " " || k === "z") onDismissEnding?.();
         return;
       }
       if (showSign) {
@@ -1849,6 +1854,7 @@ export function useKeyHandler({
       msgLogMode,
       msgLogScrollTop,
       dead,
+      showEnding,
       gameOverSel,
       gameOverView,
       showScores,
@@ -1867,6 +1873,7 @@ export function useKeyHandler({
       performExitToHub,
       gameOverCanReturn,
       performGameOverReturnToHub,
+      onDismissEnding,
     ],
   );
   handleKeyRef.current = handleKey;

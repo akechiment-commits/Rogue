@@ -3986,6 +3986,9 @@ export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
       >
         {isTutorial ? "Hubに戻る" : "地上に帰還する"}
       </button>
+      <div style={{ color: "#8a7440", fontSize: mobile ? 11 : 13, marginTop: 10 }}>
+        Enter / Z / Space: 決定
+      </div>
     </div>
   );
 }
