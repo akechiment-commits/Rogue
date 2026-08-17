@@ -5,6 +5,8 @@ import { getActivePlayerName, playerTargetAlt } from "./playerLabel.js";
 const MERGED_PORTRAIT_CATEGORIES = mergePortraitCategories(extraSlotsJson.slots || []);
 
 export const PORTRAIT_COOLDOWN_MS = 4000;
+/** 腐敗・ヤバイ食事の専用リアクションを状態異常が上書きしない表示時間 */
+export const PORTRAIT_BAD_FOOD_HOLD_MS = 3000;
 /** 被ダメ立ち絵：他が無いときだけ。連続ヒットで切り替わりすぎないよう長め */
 export const PORTRAIT_DAMAGE_COOLDOWN_MS = 10000;
 /** 歩行立ち絵：無イベント時のみ */
@@ -537,6 +539,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
       src: pickPortraitForPlayer(badFoodKey, p),
       cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
       force: true,
+      transientHoldMs: PORTRAIT_BAD_FOOD_HOLD_MS,
     };
   }
 

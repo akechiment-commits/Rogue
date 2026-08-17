@@ -22,6 +22,7 @@ export function usePortrait({
   const prevGsRef = useRef(null);
   const prevMsgCountRef = useRef(0);
   const portraitCooldownRef = useRef(0);
+  const transientPortraitHoldRef = useRef(null);
   const walkStepRef = useRef(0);
   /** 状態異常立ち絵をキー単位で保持（毎回 random し直さない） */
   const heldStatusKeyRef = useRef(null);
@@ -44,6 +45,7 @@ export function usePortrait({
 
   const forcePortrait = useCallback((key) => {
     if (!dynamicEnabledRef.current) return;
+    transientPortraitHoldRef.current = null;
     heldStatusKeyRef.current = null;
     pickAndSet(key);
   }, [pickAndSet]);
@@ -64,6 +66,7 @@ export function usePortrait({
   const resumeDynamic = useCallback(() => {
     dynamicEnabledRef.current = true;
     portraitCooldownRef.current = 0;
+    transientPortraitHoldRef.current = null;
     heldStatusKeyRef.current = null;
     if (gs?.player) {
       setPortraitSrc(pickPortraitForPlayer(idleStandKey(gs.player), gs.player));
@@ -96,11 +99,15 @@ export function usePortrait({
     prevMsgCountRef.current = msgsRef.current.length;
     const dashed = !!p._portraitDash;
     if (p._portraitDash) delete p._portraitDash;
+    const now = Date.now();
+    const transientHold = transientPortraitHoldRef.current;
+    if (transientHold) {
+      if (now < transientHold.until) return;
+      transientPortraitHoldRef.current = null;
+    }
     const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs, newMsgs, floating, dashed });
 
     if (!event) return;
-
-    const now = Date.now();
 
     /* 状態異常の維持：同じ holdKey なら立ち絵を差し替えない */
     if (event.holdKey) {
@@ -121,6 +128,11 @@ export function usePortrait({
     heldStatusKeyRef.current = null;
 
     if (event.src) {
+      if (event.transientHoldMs > 0) {
+        transientPortraitHoldRef.current = {
+          until: now + event.transientHoldMs,
+        };
+      }
       const canApply =
         event.force ||
         event.bypassCooldown ||

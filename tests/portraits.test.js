@@ -28,6 +28,7 @@ import {
   isLightArmorStand,
   resolvePortraitSetKey,
   pickPortraitForPlayer,
+  PORTRAIT_BAD_FOOD_HOLD_MS,
   PORTRAIT_SETS,
 } from "../portraits.js";
 
@@ -205,6 +206,25 @@ describe("portraits", () => {
       recentMsgs,
     });
     expect(event.src).toMatch(/action_eat_rotten/);
+    expect(event.transientHoldMs).toBe(PORTRAIT_BAD_FOOD_HOLD_MS);
+  });
+
+  it("ヤバイ食料の専用立ち絵は付与された状態異常より先に返す", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      poisoned: false, confusedTurns: 0, bewitchedTurns: 0, slowTurns: 0,
+    };
+    const player = {
+      ...prev, hp: 60, poisoned: true, confusedTurns: 5, bewitchedTurns: 10, slowTurns: 10,
+    };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "体が重くなった…(鈍足10ターン)",
+      newMsgs: ["ヤバイおにぎりを食べた。(満腹度+1)", "ヤバすぎる！20ダメージ！", "体が重くなった…(鈍足10ターン)"],
+    });
+    expect(event.src).toMatch(/action_eat_yabai/);
+    expect(event.transientHoldMs).toBe(PORTRAIT_BAD_FOOD_HOLD_MS);
   });
 
   it("isPlayerDamageMsg / isMonsterDamageMsg が被ダメ主体を区別する", () => {
