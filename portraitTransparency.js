@@ -11,6 +11,8 @@ export const DEFAULT_TRANSPARENCY_OPTIONS = {
   threshold: 20,
   nearWhite: 220,
   nearBlack: 20,
+  /** 黒背景の自動透過は純黒だけ。暗い髪・レース・影を巻き込まない。 */
+  blackBackgroundThreshold: 0,
   greenMin: 150,
   /**
    * 閉じた背景島を透過する最大ピクセル数。
@@ -46,7 +48,7 @@ export function isPortraitBackgroundSeed(r, g, b, a, options = {}) {
   const opts = { ...DEFAULT_TRANSPARENCY_OPTIONS, ...options };
   if (a === 0) return false;
   return isNearWhite(r, g, b, opts.nearWhite) ||
-    isNearBlack(r, g, b, opts.nearBlack) ||
+    isNearBlack(r, g, b, opts.blackBackgroundThreshold) ||
     isGreenBg(r, g, b, opts.greenMin);
 }
 
@@ -208,7 +210,13 @@ export function floodFillTransparent(data, width, height, options = {}) {
     const g = data[idx + 1];
     const b = data[idx + 2];
 
-    if (colorDist(r, g, b, refR, refG, refB) > opts.threshold) continue;
+    const tolerance = isNearBlack(
+      refR,
+      refG,
+      refB,
+      opts.blackBackgroundThreshold,
+    ) ? opts.blackBackgroundThreshold : opts.threshold;
+    if (colorDist(r, g, b, refR, refG, refB) > tolerance) continue;
 
     data[idx + 3] = 0;
 
@@ -237,6 +245,21 @@ export function floodFillTransparent(data, width, height, options = {}) {
 export function punchEnclosedBackgroundHoles(data, width, height, options = {}) {
   const opts = { ...DEFAULT_TRANSPARENCY_OPTIONS, ...options };
   const refs = sampleCornerBackgroundColors(data, width, height, opts);
+  const corners = [
+    [0, 0],
+    [width - 1, 0],
+    [0, height - 1],
+    [width - 1, height - 1],
+  ];
+  const hasBlackOuterBackground = corners.some(([cx, cy]) => {
+    const idx = (cy * width + cx) * 4;
+    return isNearBlack(
+      data[idx],
+      data[idx + 1],
+      data[idx + 2],
+      Math.max(opts.nearBlack, 40),
+    );
+  });
   const maxHole = Math.max(
     opts.maxHolePixels,
     Math.floor(width * height * opts.maxHoleRatio),
@@ -244,6 +267,8 @@ export function punchEnclosedBackgroundHoles(data, width, height, options = {}) 
 
   const visited = new Uint8Array(width * height);
   const isBg = (x, y) => {
+    /* 黒背景画像では白い肌・レースを背景島と誤認しない。 */
+    if (refs.length === 0 && hasBlackOuterBackground) return false;
     const idx = (y * width + x) * 4;
     return isBackgroundLikePixel(
       data[idx],

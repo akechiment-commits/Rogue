@@ -1,0 +1,559 @@
+{
+  "entries": [
+    {
+      "target": "act_bow_unarmored.png",
+      "source": "action_shoot_bow_unarmored.png",
+      "matchScore": 0.191
+    },
+    {
+      "target": "act_chest_unarmored.png",
+      "source": "action_open_chest_unarmored.png",
+      "matchScore": 0.009
+    },
+    {
+      "target": "act_equip_armor_unarmored.png",
+      "source": "action_equip_armor_unarmored_on.png",
+      "matchScore": 0.474
+    },
+    {
+      "target": "act_equip_ring_unarmored.png",
+      "source": "action_equip_ring_unarmored.png",
+      "matchScore": 0.012
+    },
+    {
+      "target": "act_equip_weapon_unarmored.png",
+      "source": "action_equip_weapon_unarmored.png",
+      "matchScore": 0.652
+    },
+    {
+      "target": "act_food_rotten_unarmored.png",
+      "source": "action_eat_rotten_unarmored.png",
+      "matchScore": 0.231
+    },
+    {
+      "target": "act_food_unarmored.png",
+      "source": "action_eat_food_unarmored.png",
+      "matchScore": 0.152
+    },
+    {
+      "target": "act_food_yabai_unarmored.png",
+      "source": "action_eat_yabai_unarmored.png",
+      "matchScore": 0.327
+    },
+    {
+      "target": "act_magic_unarmored.png",
+      "source": "action_cast_magic_unarmored.png",
+      "matchScore": 0.311
+    },
+    {
+      "target": "act_pen_unarmored.png",
+      "source": "action_use_pen_unarmored.png",
+      "matchScore": 1.505
+    },
+    {
+      "target": "act_point_unarmored.png",
+      "source": "action_point_unarmored.png",
+      "matchScore": 0.197
+    },
+    {
+      "target": "act_pot_unarmored.png",
+      "source": "action_use_pot_unarmored.png",
+      "matchScore": 0.189
+    },
+    {
+      "target": "act_potion_unarmored.png",
+      "source": "action_drink_potion_unarmored.png",
+      "matchScore": 0.146
+    },
+    {
+      "target": "act_scroll_unarmored.png",
+      "source": "action_read_scroll_unarmored.png",
+      "matchScore": 0.011
+    },
+    {
+      "target": "act_spellbook_unarmored.png",
+      "source": "action_read_spellbook_unarmored.png",
+      "matchScore": 0.646
+    },
+    {
+      "target": "act_spring_drink_unarmored.png",
+      "source": "action_drink_spring_unarmored.png",
+      "matchScore": 0.42
+    },
+    {
+      "target": "act_spring_soak_unarmored.png",
+      "source": "action_soak_spring_unarmored.png",
+      "matchScore": 0.5
+    },
+    {
+      "target": "act_throw_unarmored.png",
+      "source": "action_throw_unarmored.png",
+      "matchScore": 0.432
+    },
+    {
+      "target": "act_wand_unarmored.png",
+      "source": "action_use_wand_unarmored.png",
+      "matchScore": 0.02
+    },
+    {
+      "target": "action_cast_magic.png",
+      "source": "action\\action_cast_magic.png",
+      "matchScore": 1.314
+    },
+    {
+      "target": "action_drink_potion.png",
+      "source": "action\\action_drink_potion.png",
+      "matchScore": 0.64
+    },
+    {
+      "target": "action_drink_spring.png",
+      "source": "action\\action_drink_spring.png",
+      "matchScore": 0.807
+    },
+    {
+      "target": "action_eat_food.png",
+      "source": "action\\action_eat_food.png",
+      "matchScore": 0.577
+    },
+    {
+      "target": "action_eat_rotten.png",
+      "source": "action\\action_eat_rotten.png",
+      "matchScore": 0.695
+    },
+    {
+      "target": "action_equip_ring.png",
+      "source": "action\\action_equip_ring.png",
+      "matchScore": 1.601
+    },
+    {
+      "target": "action_equip_weapon.png",
+      "source": "action\\action_equip_weapon.png",
+      "matchScore": 1.058
+    },
+    {
+      "target": "action_open_chest.png",
+      "source": "action\\action_open_chest.png",
+      "matchScore": 2.142
+    },
+    {
+      "target": "action_point.png",
+      "source": "action\\action_point.png",
+      "matchScore": 0.658
+    },
+    {
+      "target": "action_read_spellbook.png",
+      "source": "action\\action_read_spellbook.png",
+      "matchScore": 0.687
+    },
+    {
+      "target": "action_shoot_bow.png",
+      "source": "action\\action_shoot_bow.png",
+      "matchScore": 1.02
+    },
+    {
+      "target": "action_throw.png",
+      "source": "action\\action_throw.png",
+      "matchScore": 2.19
+    },
+    {
+      "target": "action_use_pen.png",
+      "source": "action\\action_use_pen.png",
+      "matchScore": 0.968
+    },
+    {
+      "target": "action_use_wand_2.png",
+      "source": "action\\action_use_wand_2.png",
+      "matchScore": 1.391
+    },
+    {
+      "target": "battle_melee.png",
+      "source": "battle_sword_v3\\battle_melee.png",
+      "matchScore": 1.424
+    },
+    {
+      "target": "battle_melee_2.png",
+      "source": "battle_sword_v3\\battle_melee_2.png",
+      "matchScore": 1.311
+    },
+    {
+      "target": "battle_melee_3.png",
+      "source": "battle_sword_v3\\battle_melee_3.png",
+      "matchScore": 1.213
+    },
+    {
+      "target": "battle_melee_4.png",
+      "source": "battle_sword_v3\\battle_melee_4.png",
+      "matchScore": 1.53
+    },
+    {
+      "target": "battle_unarmed.png",
+      "source": "battle_unarmed\\battle_unarmed.png",
+      "matchScore": 0.928
+    },
+    {
+      "target": "damage_arrow_unarmored.png",
+      "source": "damage_arrow_unarmored.png",
+      "matchScore": 0.17
+    },
+    {
+      "target": "damage_explosion_unarmored.png",
+      "source": "damage_explosion_unarmored.png",
+      "matchScore": 0.48
+    },
+    {
+      "target": "damage_falling_unarmored.png",
+      "source": "damage_falling_unarmored.png",
+      "matchScore": 0.039
+    },
+    {
+      "target": "damage_fire_2.png",
+      "source": "damage\\damage_fire_2.png",
+      "matchScore": 1.388
+    },
+    {
+      "target": "damage_fire_unarmored.png",
+      "source": "damage_fire_unarmored.png",
+      "matchScore": 0.187
+    },
+    {
+      "target": "damage_gun.png",
+      "source": "damage\\damage_gun.png",
+      "matchScore": 0.281
+    },
+    {
+      "target": "damage_gun_2.png",
+      "source": "damage\\damage_gun_2.png",
+      "matchScore": 0.166
+    },
+    {
+      "target": "damage_gun_unarmored.png",
+      "source": "damage_gun_unarmored.png",
+      "matchScore": 0.48
+    },
+    {
+      "target": "damage_ice_unarmored.png",
+      "source": "damage_ice_unarmored.png",
+      "matchScore": 0.295
+    },
+    {
+      "target": "damage_knockback_unarmored.png",
+      "source": "damage_knockback_unarmored.png",
+      "matchScore": 0.663
+    },
+    {
+      "target": "damage_lightning_unarmored.png",
+      "source": "damage_lightning_unarmored.png",
+      "matchScore": 2.989
+    },
+    {
+      "target": "damage_poison_unarmored.png",
+      "source": "damage_poison_unarmored.png",
+      "matchScore": 0.448
+    },
+    {
+      "target": "damage_rock_unarmored.png",
+      "source": "damage_rock_unarmored.png",
+      "matchScore": 0.232
+    },
+    {
+      "target": "damage_trap_unarmored.png",
+      "source": "damage_trap_unarmored.png",
+      "matchScore": 0.603
+    },
+    {
+      "target": "damage_watergun_unarmored.png",
+      "source": "damage_watergun_unarmored.png",
+      "matchScore": 1.362
+    },
+    {
+      "target": "damage_wet_unarmored.png",
+      "source": "damage_wet_unarmored.png",
+      "matchScore": 0.428
+    },
+    {
+      "target": "death_dead_unarmored.png",
+      "source": "gameover_dead_unarmored.png",
+      "matchScore": 0.322
+    },
+    {
+      "target": "hp_critical.png",
+      "source": "hp\\hp_critical.png",
+      "matchScore": 0.806
+    },
+    {
+      "target": "hp_full.png",
+      "source": "hp\\hp_full.png",
+      "matchScore": 0.638
+    },
+    {
+      "target": "hp_healed.png",
+      "source": "hp\\v1_effects\\hp_healed.png",
+      "matchScore": 0.982
+    },
+    {
+      "target": "hp_healed_unarmored.png",
+      "source": "hp_healed_unarmored.png",
+      "matchScore": 0.766
+    },
+    {
+      "target": "hp_high.png",
+      "source": "hp\\hp_high.png",
+      "matchScore": 0.646
+    },
+    {
+      "target": "hp_hunger.png",
+      "source": "hp\\v1_effects\\hp_hunger.png",
+      "matchScore": 1.755
+    },
+    {
+      "target": "hp_hunger_unarmored.png",
+      "source": "hp_hunger_unarmored.png",
+      "matchScore": 0.305
+    },
+    {
+      "target": "hp_low_kneel.png",
+      "source": "hp\\hp_low_kneel.png",
+      "matchScore": 0.749
+    },
+    {
+      "target": "hp_low_stand.png",
+      "source": "hp\\hp_low_stand.png",
+      "matchScore": 0.627
+    },
+    {
+      "target": "hp_mid_unarmored.png",
+      "source": "hp_mid_unarmored.png",
+      "matchScore": 0.169
+    },
+    {
+      "target": "hp_satiated_unarmored.png",
+      "source": "hp_satiated_unarmored.png",
+      "matchScore": 0.244
+    },
+    {
+      "target": "reaction_fall_dizzy.png",
+      "source": "reaction\\reaction_fall_dizzy.png",
+      "matchScore": 0.591
+    },
+    {
+      "target": "reaction_fall_ground.png",
+      "source": "reaction\\reaction_fall_ground.png",
+      "matchScore": 0.794
+    },
+    {
+      "target": "reaction_fall_hurt.png",
+      "source": "reaction\\reaction_fall_hurt.png",
+      "matchScore": 2.671
+    },
+    {
+      "target": "reaction_fall_mild.png",
+      "source": "reaction\\reaction_fall_mild.png",
+      "matchScore": 0.656
+    },
+    {
+      "target": "reaction_fall_normal.png",
+      "source": "reaction\\reaction_fall_normal.png",
+      "matchScore": 0.882
+    },
+    {
+      "target": "reaction_fall_severe.png",
+      "source": "reaction\\reaction_fall_severe.png",
+      "matchScore": 1.086
+    },
+    {
+      "target": "reaction_joy.png",
+      "source": "reaction\\reaction_joy.png",
+      "matchScore": 0.649
+    },
+    {
+      "target": "reaction_levelup.png",
+      "source": "reaction\\reaction_levelup.png",
+      "matchScore": 0.647
+    },
+    {
+      "target": "reaction_sad.png",
+      "source": "reaction\\reaction_sad.png",
+      "matchScore": 0.637
+    },
+    {
+      "target": "reaction_shop.png",
+      "source": "reaction\\reaction_shop.png",
+      "matchScore": 0.659
+    },
+    {
+      "target": "reaction_shop_bargain.png",
+      "source": "reaction\\reaction_shop_bargain.png",
+      "matchScore": 0.692
+    },
+    {
+      "target": "reaction_shop_browse.png",
+      "source": "reaction\\reaction_shop_browse.png",
+      "matchScore": 0.665
+    },
+    {
+      "target": "reaction_shop_count.png",
+      "source": "reaction\\reaction_shop_count.png",
+      "matchScore": 0.651
+    },
+    {
+      "target": "reaction_shop_greet.png",
+      "source": "reaction\\reaction_shop_greet.png",
+      "matchScore": 0.636
+    },
+    {
+      "target": "reaction_shop_hesitant.png",
+      "source": "reaction\\reaction_shop_hesitant.png",
+      "matchScore": 0.644
+    },
+    {
+      "target": "reaction_shop_purchase.png",
+      "source": "reaction\\reaction_shop_purchase.png",
+      "matchScore": 0.643
+    },
+    {
+      "target": "reaction_stairs.png",
+      "source": "reaction\\reaction_stairs.png",
+      "matchScore": 0.886
+    },
+    {
+      "target": "reaction_stairs_unarmored.png",
+      "source": "reaction_stairs_unarmored.png",
+      "matchScore": 0.008
+    },
+    {
+      "target": "reaction_surprised.png",
+      "source": "reaction\\reaction_surprised.png",
+      "matchScore": 0.65
+    },
+    {
+      "target": "reaction_surprised_joy.png",
+      "source": "reaction\\reaction_surprised_joy.png",
+      "matchScore": 0.658
+    },
+    {
+      "target": "reaction_surprised_unarmored.png",
+      "source": "reaction_surprised_unarmored.png",
+      "matchScore": 0.198
+    },
+    {
+      "target": "stand_back.png",
+      "source": "stand_back.png",
+      "matchScore": 0.571
+    },
+    {
+      "target": "stand_back_unarmored.png",
+      "source": "stand_back_unarmored.png",
+      "matchScore": 0.018
+    },
+    {
+      "target": "status_bewitched_unarmored.png",
+      "source": "status_bewitched_unarmored.png",
+      "matchScore": 0.255
+    },
+    {
+      "target": "status_blind.png",
+      "source": "status_blind.png",
+      "matchScore": 2.663
+    },
+    {
+      "target": "status_blind_unarmored.png",
+      "source": "status_blind_unarmored.png",
+      "matchScore": 0.169
+    },
+    {
+      "target": "status_bound.png",
+      "source": "status_bound.png",
+      "matchScore": 1.331
+    },
+    {
+      "target": "status_bound_unarmored.png",
+      "source": "status_bound_unarmored.png",
+      "matchScore": 0.207
+    },
+    {
+      "target": "status_confined_unarmored.png",
+      "source": "status_confined_unarmored.png",
+      "matchScore": 0.01
+    },
+    {
+      "target": "status_cursed_unarmored.png",
+      "source": "status_cursed_unarmored.png",
+      "matchScore": 0.429
+    },
+    {
+      "target": "status_drunk.png",
+      "source": "status_drunk.png",
+      "matchScore": 0.566
+    },
+    {
+      "target": "status_drunk_unarmored.png",
+      "source": "status_drunk_unarmored.png",
+      "matchScore": 0.295
+    },
+    {
+      "target": "status_floating.png",
+      "source": "status_floating.png",
+      "matchScore": 0.991
+    },
+    {
+      "target": "status_floating_unarmored.png",
+      "source": "status_floating_unarmored.png",
+      "matchScore": 0.326
+    },
+    {
+      "target": "status_oiled_unarmored.png",
+      "source": "status_oiled_unarmored.png",
+      "matchScore": 0.014
+    },
+    {
+      "target": "status_paralyze.png",
+      "source": "status\\status_paralyze.png",
+      "matchScore": 0.672
+    },
+    {
+      "target": "status_paralyze_unarmored.png",
+      "source": "status_paralyze_unarmored.png",
+      "matchScore": 0.256
+    },
+    {
+      "target": "status_poison_unarmored.png",
+      "source": "status_poison_unarmored.png",
+      "matchScore": 0.45
+    },
+    {
+      "target": "status_relaxed_unarmored.png",
+      "source": "status_relaxed_unarmored.png",
+      "matchScore": 0.017
+    },
+    {
+      "target": "status_sealed_unarmored.png",
+      "source": "status_sealed_unarmored.png",
+      "matchScore": 0.034
+    },
+    {
+      "target": "status_sleep.png",
+      "source": "status_sleep.png",
+      "matchScore": 2.893
+    },
+    {
+      "target": "status_sleep_unarmored.png",
+      "source": "status_sleep_unarmored.png",
+      "matchScore": 0.014
+    },
+    {
+      "target": "status_slow.png",
+      "source": "status_slow.png",
+      "matchScore": 0.601
+    },
+    {
+      "target": "status_slow_unarmored.png",
+      "source": "status_slow_unarmored.png",
+      "matchScore": 0.287
+    },
+    {
+      "target": "status_soaked_unarmored.png",
+      "source": "status_soaked_unarmored.png",
+      "matchScore": 0.741
+    }
+  ]
+}

@@ -58,6 +58,26 @@ describe("portraitTransparency", () => {
     expect(alphaAt(data, 5, 2, 2)).toBe(255);
   });
 
+  it("黒背景の近似色にある暗い装飾は透過しない", () => {
+    const data = makeImage(5, 5, (x, y) => {
+      if (x >= 1 && x <= 3 && y >= 1 && y <= 3) return [10, 3, 1, 255];
+      return [0, 0, 0, 255];
+    });
+    floodFillTransparent(data, 5, 5);
+    expect(alphaAt(data, 5, 0, 0)).toBe(0);
+    expect(alphaAt(data, 5, 2, 2)).toBe(255);
+  });
+
+  it("黒背景画像の白い装飾を背景島として透過しない", () => {
+    const data = makeImage(7, 7, (x, y) => {
+      if (x === 3 && y === 3) return [244, 231, 222, 255];
+      return [0, 0, 0, 255];
+    });
+    applyPortraitTransparency({ data, width: 7, height: 7 });
+    expect(alphaAt(data, 7, 0, 0)).toBe(0);
+    expect(alphaAt(data, 7, 3, 3)).toBe(255);
+  });
+
   it("既に透過済みの黒いコーナーは背景シードにしない", () => {
     const data = makeImage(3, 3, () => [0, 0, 0, 0]);
     data[(1 * 3 + 1) * 4 + 3] = 255;
