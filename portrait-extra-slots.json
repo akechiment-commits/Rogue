@@ -302,6 +302,180 @@
       "afterFile": "hp_low_unarmored",
       "group": "hp_low_stand_unarmored",
       "armorVariantOf": "hp_low_stand"
+    },
+    {
+      "file": "reaction_trap_arrow",
+      "label": "罠踏み：矢の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_arrow"
+    },
+    {
+      "file": "reaction_trap_sleep",
+      "label": "罠踏み：睡眠ガスの罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_sleep"
+    },
+    {
+      "file": "reaction_trap_slow",
+      "label": "罠踏み：鈍足の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_slow"
+    },
+    {
+      "file": "reaction_trap_hunger",
+      "label": "罠踏み：空腹の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_hunger"
+    },
+    {
+      "file": "reaction_trap_mp_absorb",
+      "label": "罠踏み：MP吸収の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_mp_absorb"
+    },
+    {
+      "file": "reaction_trap_confuse",
+      "label": "罠踏み：混乱の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_confuse"
+    },
+    {
+      "file": "reaction_trap_poison_arrow",
+      "label": "罠踏み：毒矢の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_poison_arrow"
+    },
+    {
+      "file": "reaction_trap_strong_arrow",
+      "label": "罠踏み：強矢の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_strong_arrow"
+    },
+    {
+      "file": "reaction_trap_rust",
+      "label": "罠踏み：錆の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_rust"
+    },
+    {
+      "file": "reaction_trap_spin",
+      "label": "罠踏み：回転板",
+      "categoryId": "reaction",
+      "group": "reaction_trap_spin"
+    },
+    {
+      "file": "reaction_trap_rockfall",
+      "label": "罠踏み：落石の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_rockfall"
+    },
+    {
+      "file": "reaction_trap_blowback",
+      "label": "罠踏み：吹き飛ばしの罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_blowback"
+    },
+    {
+      "file": "reaction_trap_darkness",
+      "label": "罠踏み：暗闇の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_darkness"
+    },
+    {
+      "file": "reaction_trap_oil",
+      "label": "罠踏み：油まみれの罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_oil"
+    },
+    {
+      "file": "reaction_trap_float",
+      "label": "罠踏み：浮遊の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_float"
+    },
+    {
+      "file": "reaction_trap_pitfall",
+      "label": "罠踏み：落とし穴",
+      "categoryId": "reaction",
+      "group": "reaction_trap_pitfall"
+    },
+    {
+      "file": "reaction_trap_summon",
+      "label": "罠踏み：召喚の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_summon"
+    },
+    {
+      "file": "reaction_trap_seal",
+      "label": "罠踏み：封印の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_seal"
+    },
+    {
+      "file": "reaction_trap_steal",
+      "label": "罠踏み：盗みの罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_steal"
+    },
+    {
+      "file": "reaction_trap_shadow_stitch",
+      "label": "罠踏み：影ぬいの罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_shadow_stitch"
+    },
+    {
+      "file": "reaction_trap_bewitch",
+      "label": "罠踏み：惑わしの罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_bewitch"
+    },
+    {
+      "file": "reaction_trap_rot",
+      "label": "罠踏み：腐敗の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_rot"
+    },
+    {
+      "file": "reaction_trap_alarm",
+      "label": "罠踏み：鳴動の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_alarm"
+    },
+    {
+      "file": "reaction_trap_mine",
+      "label": "罠踏み：地雷",
+      "categoryId": "reaction",
+      "group": "reaction_trap_mine"
+    },
+    {
+      "file": "reaction_trap_time_bomb",
+      "label": "罠踏み：時限爆弾の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_time_bomb"
+    },
+    {
+      "file": "reaction_trap_unident",
+      "label": "罠踏み：未識別の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_unident"
+    },
+    {
+      "file": "reaction_trap_multiply",
+      "label": "罠踏み：増殖の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_multiply"
+    },
+    {
+      "file": "reaction_trap_watergun",
+      "label": "罠踏み：水鉄砲の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_watergun"
+    },
+    {
+      "file": "reaction_trap_trip",
+      "label": "罠踏み：転倒の罠",
+      "categoryId": "reaction",
+      "group": "reaction_trap_trip"
     }
   ]
 }
