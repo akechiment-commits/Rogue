@@ -416,6 +416,158 @@
       "label": "罠踏み：転倒の罠",
       "categoryId": "reaction",
       "group": "reaction_trap_trip"
+    },
+    {
+      "file": "reaction_trap_arrow_unarmored",
+      "label": "罠踏み：矢の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_arrow",
+      "group": "reaction_trap_arrow_unarmored",
+      "armorVariantOf": "reaction_trap_arrow"
+    },
+    {
+      "file": "reaction_trap_mp_absorb_unarmored",
+      "label": "罠踏み：MP吸収の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_mp_absorb",
+      "group": "reaction_trap_mp_absorb_unarmored",
+      "armorVariantOf": "reaction_trap_mp_absorb"
+    },
+    {
+      "file": "reaction_trap_poison_arrow_unarmored",
+      "label": "罠踏み：毒矢の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_poison_arrow",
+      "group": "reaction_trap_poison_arrow_unarmored",
+      "armorVariantOf": "reaction_trap_poison_arrow"
+    },
+    {
+      "file": "reaction_trap_strong_arrow_unarmored",
+      "label": "罠踏み：強矢の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_strong_arrow",
+      "group": "reaction_trap_strong_arrow_unarmored",
+      "armorVariantOf": "reaction_trap_strong_arrow"
+    },
+    {
+      "file": "reaction_trap_rust_unarmored",
+      "label": "罠踏み：錆の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_rust",
+      "group": "reaction_trap_rust_unarmored",
+      "armorVariantOf": "reaction_trap_rust"
+    },
+    {
+      "file": "reaction_trap_spin_unarmored",
+      "label": "罠踏み：回転板（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_spin",
+      "group": "reaction_trap_spin_unarmored",
+      "armorVariantOf": "reaction_trap_spin"
+    },
+    {
+      "file": "reaction_trap_rockfall_unarmored",
+      "label": "罠踏み：落石の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_rockfall",
+      "group": "reaction_trap_rockfall_unarmored",
+      "armorVariantOf": "reaction_trap_rockfall"
+    },
+    {
+      "file": "reaction_trap_blowback_unarmored",
+      "label": "罠踏み：吹き飛ばしの罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_blowback",
+      "group": "reaction_trap_blowback_unarmored",
+      "armorVariantOf": "reaction_trap_blowback"
+    },
+    {
+      "file": "reaction_trap_pitfall_unarmored",
+      "label": "罠踏み：落とし穴（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_pitfall",
+      "group": "reaction_trap_pitfall_unarmored",
+      "armorVariantOf": "reaction_trap_pitfall"
+    },
+    {
+      "file": "reaction_trap_summon_unarmored",
+      "label": "罠踏み：召喚の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_summon",
+      "group": "reaction_trap_summon_unarmored",
+      "armorVariantOf": "reaction_trap_summon"
+    },
+    {
+      "file": "reaction_trap_steal_unarmored",
+      "label": "罠踏み：盗みの罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_steal",
+      "group": "reaction_trap_steal_unarmored",
+      "armorVariantOf": "reaction_trap_steal"
+    },
+    {
+      "file": "reaction_trap_rot_unarmored",
+      "label": "罠踏み：腐敗の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_rot",
+      "group": "reaction_trap_rot_unarmored",
+      "armorVariantOf": "reaction_trap_rot"
+    },
+    {
+      "file": "reaction_trap_alarm_unarmored",
+      "label": "罠踏み：鳴動の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_alarm",
+      "group": "reaction_trap_alarm_unarmored",
+      "armorVariantOf": "reaction_trap_alarm"
+    },
+    {
+      "file": "reaction_trap_mine_unarmored",
+      "label": "罠踏み：地雷（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_mine",
+      "group": "reaction_trap_mine_unarmored",
+      "armorVariantOf": "reaction_trap_mine"
+    },
+    {
+      "file": "reaction_trap_time_bomb_unarmored",
+      "label": "罠踏み：時限爆弾の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_time_bomb",
+      "group": "reaction_trap_time_bomb_unarmored",
+      "armorVariantOf": "reaction_trap_time_bomb"
+    },
+    {
+      "file": "reaction_trap_unident_unarmored",
+      "label": "罠踏み：未識別の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_unident",
+      "group": "reaction_trap_unident_unarmored",
+      "armorVariantOf": "reaction_trap_unident"
+    },
+    {
+      "file": "reaction_trap_multiply_unarmored",
+      "label": "罠踏み：増殖の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_multiply",
+      "group": "reaction_trap_multiply_unarmored",
+      "armorVariantOf": "reaction_trap_multiply"
+    },
+    {
+      "file": "reaction_trap_watergun_unarmored",
+      "label": "罠踏み：水鉄砲の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_watergun",
+      "group": "reaction_trap_watergun_unarmored",
+      "armorVariantOf": "reaction_trap_watergun"
+    },
+    {
+      "file": "reaction_trap_trip_unarmored",
+      "label": "罠踏み：転倒の罠（防具なし）",
+      "categoryId": "reaction",
+      "afterFile": "reaction_trap_trip",
+      "group": "reaction_trap_trip_unarmored",
+      "armorVariantOf": "reaction_trap_trip"
     }
   ]
 }
