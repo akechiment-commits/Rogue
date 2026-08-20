@@ -76,12 +76,12 @@ describe("portraitCatalog", () => {
     expect(status.slots.some((s) => s.file === "status_wall_suffocation" && s.label === "壁埋まり・窒息中")).toBe(true);
   });
 
-  it("29種類の罠踏み専用スロットがある", () => {
+  it("19種類の固有罠踏み専用スロットがある", () => {
     const merged = mergePortraitCategories(extraSlots.slots);
     const reaction = merged.find((c) => c.id === "reaction");
     const trapSlots = reaction.slots.filter((s) => s.file.startsWith("reaction_trap_"));
-    expect(trapSlots).toHaveLength(29);
-    expect(new Set(trapSlots.map((s) => s.group)).size).toBe(29);
+    expect(trapSlots).toHaveLength(19);
+    expect(new Set(trapSlots.map((s) => s.group)).size).toBe(19);
     expect(trapSlots.every((s) => s.label.startsWith("罠踏み："))).toBe(true);
   });
 

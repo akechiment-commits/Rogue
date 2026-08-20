@@ -310,34 +310,10 @@
       "group": "reaction_trap_arrow"
     },
     {
-      "file": "reaction_trap_sleep",
-      "label": "罠踏み：睡眠ガスの罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_sleep"
-    },
-    {
-      "file": "reaction_trap_slow",
-      "label": "罠踏み：鈍足の罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_slow"
-    },
-    {
-      "file": "reaction_trap_hunger",
-      "label": "罠踏み：空腹の罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_hunger"
-    },
-    {
       "file": "reaction_trap_mp_absorb",
       "label": "罠踏み：MP吸収の罠",
       "categoryId": "reaction",
       "group": "reaction_trap_mp_absorb"
-    },
-    {
-      "file": "reaction_trap_confuse",
-      "label": "罠踏み：混乱の罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_confuse"
     },
     {
       "file": "reaction_trap_poison_arrow",
@@ -376,24 +352,6 @@
       "group": "reaction_trap_blowback"
     },
     {
-      "file": "reaction_trap_darkness",
-      "label": "罠踏み：暗闇の罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_darkness"
-    },
-    {
-      "file": "reaction_trap_oil",
-      "label": "罠踏み：油まみれの罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_oil"
-    },
-    {
-      "file": "reaction_trap_float",
-      "label": "罠踏み：浮遊の罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_float"
-    },
-    {
       "file": "reaction_trap_pitfall",
       "label": "罠踏み：落とし穴",
       "categoryId": "reaction",
@@ -406,28 +364,10 @@
       "group": "reaction_trap_summon"
     },
     {
-      "file": "reaction_trap_seal",
-      "label": "罠踏み：封印の罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_seal"
-    },
-    {
       "file": "reaction_trap_steal",
       "label": "罠踏み：盗みの罠",
       "categoryId": "reaction",
       "group": "reaction_trap_steal"
-    },
-    {
-      "file": "reaction_trap_shadow_stitch",
-      "label": "罠踏み：影ぬいの罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_shadow_stitch"
-    },
-    {
-      "file": "reaction_trap_bewitch",
-      "label": "罠踏み：惑わしの罠",
-      "categoryId": "reaction",
-      "group": "reaction_trap_bewitch"
     },
     {
       "file": "reaction_trap_rot",
