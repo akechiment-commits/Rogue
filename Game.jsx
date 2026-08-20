@@ -78,16 +78,24 @@ import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
-import { getFirstEncounterTip, isUnidentifiedEncounterItem } from "./firstEncounterTips.js";
+import { getFirstEncounterMessageTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip, isUnidentifiedEncounterItem } from "./firstEncounterTips.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
   const [msgs, _setMsgs] = useState([{ text: "冒険が始まった！", turn: 0 }]);
   const runTimerRef = useRef(null);
+  const newMiniTipMessagesRef = useRef([]);
   /* フロアターン付きメッセージ追加ラッパー */
   const setMsgs = useCallback((updater) => {
     const t = sr.current?.floorTurns ?? 0;
-    _setMsgs((previous) => applyMessageUpdate(previous, updater, t));
+    _setMsgs((previous) => {
+      const next = applyMessageUpdate(previous, updater, t);
+      const previousRows = new Set(previous);
+      for (const row of next) {
+        if (!previousRows.has(row)) newMiniTipMessagesRef.current.push(row);
+      }
+      return next;
+    });
   }, []);
   const [showInv, setShowInv] = useState(false);
   const [dropMode, setDropMode] = useState(false);
@@ -420,6 +428,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     triggerMonsterHouse(dg, p, ml);
     if (pendingRoom && hadDormantMonsters && !dg.monsterHouseRoom) showFirstEncounterTip("monster_house");
   }, [showFirstEncounterTip]);
+  useEffect(() => {
+    const newMessages = newMiniTipMessagesRef.current.splice(0);
+    for (const key of getFirstEncounterMessageTipKeys(newMessages)) showFirstEncounterTip(key);
+  }, [msgs, showFirstEncounterTip]);
+  useEffect(() => {
+    if (!gs?.player || !gs?.dungeon) return;
+    const { player: p, dungeon: dg } = gs;
+    const keys = getFirstEncounterStateTipKeys(gs, {
+      isDeepWater: dg.map?.[p.y]?.[p.x] === T.WATER,
+    });
+    /* 1ターンに新しい状況解説は1件まで。残りは次の状態更新時に判定する。 */
+    for (const key of keys) {
+      if (showFirstEncounterTip(key)) break;
+    }
+  }, [gs, showFirstEncounterTip]);
   useEffect(() => {
     const c = () => {
       setMobile(Math.min(window.innerWidth, window.innerHeight) < 700);

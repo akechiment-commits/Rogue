@@ -842,21 +842,12 @@ for (const name of BB_FAKE_NAMES) {
 addSheet('21_未識別名', unidentifiedNameData);
 
 // ===== 初遭遇ミニ解説 =====
-const miniTipTriggers = {
-  unidentified_item: '未識別の薬・巻物・杖・指輪・ペン・壺・魔法書を拾う',
-  trap: '隠れた罠が作動する、罠探しで発見する、または足元から罠を起動する',
-  shop: 'ダンジョン内の店へ入る',
-  spring: '足元・正面・フロア一覧から泉を調べる',
-  bigbox: '足元・正面・フロア一覧から大箱を調べる',
-  monster_house: 'モンスターハウスへ入り、部屋が起動する',
-  goal_item: 'ダンジョンの目標アイテムを拾う',
-};
 const miniTipData = [['キー', '見出し', '初回表示条件', '本文', '共通仕様']];
 for (const [key, tip] of Object.entries(FIRST_ENCOUNTER_TIPS)) {
   miniTipData.push([
     key,
     tip.title,
-    miniTipTriggers[key],
+    tip.trigger,
     tip.text.join('\n'),
     'beginner / intermediate / advanced / legend のみ。セーブ単位で1回表示し、tutorial / debug では表示しない。表示済みキーは seenMiniTips へ即時保存する。',
   ]);
