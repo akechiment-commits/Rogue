@@ -54,6 +54,13 @@ export function getFirstEncounterTip(key, dungeonType, seenTips = []) {
   return tip ? { key, ...tip } : null;
 }
 
+export function getSeenFirstEncounterTips(seenTips = []) {
+  const seen = seenTips instanceof Set ? seenTips : new Set(seenTips || []);
+  return Object.entries(FIRST_ENCOUNTER_TIPS)
+    .filter(([key]) => seen.has(key))
+    .map(([key, tip]) => ({ key, name: tip.title, ...tip }));
+}
+
 const IDENTIFIED_TYPES = new Set(["potion", "scroll", "wand", "ring", "pen", "spellbook", "pot"]);
 
 export function isUnidentifiedEncounterItem(item, ident, allBcKnown = false) {

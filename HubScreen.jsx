@@ -14,6 +14,7 @@ import {
 } from "./favoriteFood.js";
 import { fetchRanking, fetchRankingStats, RANKING_DUNGEONS } from "./rankingClient.js";
 import { formatElapsed } from "./runScore.js";
+import { FIRST_ENCOUNTER_TIPS, getSeenFirstEncounterTips } from "./firstEncounterTips.js";
 
 /* ===== 共通スタイル ===== */
 const BG   = "#09090f";
@@ -633,8 +634,8 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
 
 /* ===== 図鑑パネル ===== */
 function EncyclopediaPanel({ saveData, onClose }) {
-  const TABS = ["items", "monsters", "traps", "bigboxes"];
-  const TAB_LABEL = { items:"アイテム", monsters:"モンスター", traps:"罠", bigboxes:"大箱" };
+  const TABS = ["items", "monsters", "traps", "bigboxes", "tips"];
+  const TAB_LABEL = { items:"アイテム", monsters:"モンスター", traps:"罠", bigboxes:"大箱", tips:"Tips" };
 
   const [tab, setTab] = useState("items");
   const [focusIdx, setFocusIdx] = useState(0);
@@ -642,6 +643,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
   const kbRef = useRef(null);
   const itemRefs = useRef([]);
   const disc = saveData.discovered || {};
+  const seenTips = saveData.seenMiniTips || [];
 
   const switchTab = (t) => { setTab(t); setFocusIdx(0); setDescKey(null); };
 
@@ -650,15 +652,20 @@ function EncyclopediaPanel({ saveData, onClose }) {
     if (tabName === "traps") { const t = TRAPS.find(t => t.effect === key || t.name === key); return t?.desc || null; }
     if (tabName === "bigboxes") { const b = BB_TYPES.find(b => b.kind === key); return b?.desc || null; }
     if (tabName === "items") { const it = _allItems.find(it => (it.effect || (it.type + '_' + it.name)) === key); return it?.desc || null; }
+    if (tabName === "tips") {
+      const tip = FIRST_ENCOUNTER_TIPS[key];
+      return tip ? `【表示された状況】\n${tip.trigger}\n\n${tip.text.join("\n")}` : null;
+    }
     return null;
   };
 
   const sortedList = useMemo(() => {
+    if (tab === "tips") return getSeenFirstEncounterTips(seenTips);
     const entries = disc[tab] || {};
     return Object.entries(entries)
       .map(([key, val]) => ({ key, ...val }))
       .sort((a, b) => a.name.localeCompare(b.name, "ja"));
-  }, [tab, disc]);
+  }, [tab, disc, seenTips]);
 
   const safeFocus = sortedList.length === 0 ? 0 : Math.min(focusIdx, sortedList.length - 1);
 
@@ -709,6 +716,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
     monsters: `遭遇モンスター: ${Object.keys(disc.monsters || {}).length}種`,
     traps:    `踏んだ罠: ${Object.keys(disc.traps    || {}).length}種`,
     bigboxes: `識別済み大箱: ${Object.keys(disc.bigboxes || {}).length}種`,
+    tips:     `表示済みTips: ${getSeenFirstEncounterTips(seenTips).length}/${Object.keys(FIRST_ENCOUNTER_TIPS).length}件`,
   };
 
   const stickyArea = (
@@ -728,7 +736,9 @@ function EncyclopediaPanel({ saveData, onClose }) {
   return (
     <Panel title="図鑑" onClose={onClose} wide sticky={stickyArea}>
       {sortedList.length === 0 ? (
-        <div style={{ color:"#555", padding:"20px 0", textAlign:"center" }}>まだ発見がありません。</div>
+        <div style={{ color:"#555", padding:"20px 0", textAlign:"center" }}>
+          {tab === "tips" ? "まだ表示されたTipsがありません。" : "まだ発見がありません。"}
+        </div>
       ) : (
         <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
           {sortedList.map((e, i) => {
@@ -744,7 +754,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
                   border: isFocus ? "1px solid #44f" : "1px solid transparent" }}>
                 <div style={{ display:"flex", justifyContent:"space-between" }}>
                   <span>{e.name}</span>
-                  <span style={{ color:"#555" }}>{e.count}回</span>
+                  <span style={{ color:"#555" }}>{tab === "tips" ? "既読" : `${e.count}回`}</span>
                 </div>
                 {isDesc && desc && (
                   <div style={{ color:"#8899aa", fontSize:12, marginTop:4, whiteSpace:"pre-wrap", lineHeight:"1.5em" }}>

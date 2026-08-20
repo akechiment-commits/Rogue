@@ -4,6 +4,7 @@ import {
   getFirstEncounterMessageTipKeys,
   getFirstEncounterStateTipKeys,
   getFirstEncounterTip,
+  getSeenFirstEncounterTips,
   isUnidentifiedEncounterItem,
 } from "../firstEncounterTips.js";
 
@@ -66,5 +67,13 @@ describe("first encounter tips", () => {
       "★ 隠し部屋を発見した！",
     ]);
     expect(keys).toEqual(["fake_stair", "hidden_room", "item_mimic", "reflection"]);
+  });
+
+  it("図鑑用に表示済みTipsだけを定義順で返す", () => {
+    expect(getSeenFirstEncounterTips(["trap", "hunger", "unknown"])).toEqual([
+      expect.objectContaining({ key: "trap", name: "隠れた罠" }),
+      expect.objectContaining({ key: "hunger", name: "空腹" }),
+    ]);
+    expect(getSeenFirstEncounterTips([])).toEqual([]);
   });
 });
