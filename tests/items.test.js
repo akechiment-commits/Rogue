@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -191,6 +191,33 @@ describe("ペン初期回数", () => {
     expect(penInitialCharges({ effect: "vulnerability", rarity: "C" }, () => 0.99)).toBe(3);
     expect(penInitialCharges({ effect: "plain", rarity: "E" }, () => 0)).toBe(4);
     expect(penInitialCharges({ effect: "plain", rarity: "E" }, () => 0.99)).toBe(5);
+  });
+});
+
+describe("骨の上での撃破ドロップ", () => {
+  it("敵を先に除去してからドロップし、骨の破壊は一度だけ行う", () => {
+    const monster = {
+      id: "fukumaru-bone-test", name: "フクマル", baseKind: "runner", subtype: "runner",
+      hp: 0, maxHp: 11, atk: 0, def: 0, exp: 50, speed: 2, x: 2, y: 2,
+    };
+    const bone = {
+      id: "bone-test", name: "骨", effect: "bone", x: 2, y: 2, reviveIn: 5,
+      monData: { baseKind: "skeleton", name: "スケルトン", maxHp: 24 },
+    };
+    const dungeon = {
+      map: Array.from({ length: 8 }, () => Array(8).fill(T.FLOOR)),
+      monsters: [monster], items: [], traps: [bone], bigboxes: [], springs: [],
+      pentacles: [], rooms: [],
+    };
+    const player = { x: 0, y: 0, hp: 100, maxHp: 100, exp: 0, atk: 10, rings: [], inventory: [] };
+    const messages = [];
+
+    killMonster(monster, dungeon, player, messages, null, true);
+
+    expect(dungeon.monsters).toEqual([]);
+    expect(dungeon.traps).not.toContain(bone);
+    expect(messages.filter((message) => message.includes("フクマルは消し飛んだ！"))).toHaveLength(1);
+    expect(messages.filter((message) => message.includes("骨がフクマルに激突！"))).toHaveLength(0);
   });
 });
 

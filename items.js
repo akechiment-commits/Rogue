@@ -4228,6 +4228,9 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     ml.push(`${mon.name}を倒した！(+${_expGain}exp${_soyMul > 1 ? " 醤油効果!" : ""})`);
     p.exp += _expGain;
   }
+  /* 先に撃破対象を消す。ドロップが骨の上に落ちて骨を壊しても、
+     既に倒れた同じモンスターを骨の衝突対象として再処理しない。 */
+  removeMonster(dg, mon);
   /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */
   if (mon.carriedItem) {
     const _held = mon.carriedItem;
@@ -4237,7 +4240,6 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
     ml.push(`${mon.name}が持っていた${resolveItemName(_held)}を落とした！`);
   }
   monsterDrop(mon, dg, ml, p);
-  removeMonster(dg, mon);
   /* スケルトン：50%で骨を残し5ターン後に復活（復活抑制下では骨を残さない） */
   if (mon.baseKind === "skeleton" && Math.random() < 0.5) {
     if (_reviveBlocked) {
