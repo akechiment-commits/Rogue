@@ -58,4 +58,32 @@ describe("逃走AI fleeFromPlayerStep", () => {
     monsterAI(m, dg, pl, ml, {});
     expect(m.x === 2 && m.y === 2).toBe(false);
   });
+
+  it("プレイヤーの隣を通らずに逃げられる経路を優先する", () => {
+    const map = Array.from({ length: 30 }, () => Array(60).fill(T.WALL));
+    for (let y = 2; y <= 8; y++) {
+      for (let x = 2; x <= 8; x++) map[y][x] = T.FLOOR;
+    }
+    for (let x = 2; x <= 8; x++) {
+      map[1][x] = T.FLOOR;
+      map[9][x] = T.FLOOR;
+    }
+    const pl = makePlayer({ x: 5, y: 5 });
+    const m = { name: "フクマル", x: 5, y: 4, subtype: "runner", hp: 11, maxHp: 11, float: false, posHistory: [] };
+    const dg = makeEmptyDg({ map, rooms: [{ x: 2, y: 2, w: 7, h: 7 }], monsters: [m], items: [], traps: [], statues: [] });
+    const step = fleeFromPlayerStep(m, dg, pl, false);
+    expect(step).not.toBeNull();
+    expect(Math.max(Math.abs(step.x - pl.x), Math.abs(step.y - pl.y))).toBeGreaterThan(1);
+  });
+
+  it("直近のマスを避けて同じ場所の往復を抑える", () => {
+    const { map, rooms } = makeRoomWithCorridor();
+    const pl = makePlayer({ x: 8, y: 5 });
+    const m = { name: "フクマル", x: 4, y: 4, subtype: "runner", hp: 11, maxHp: 11, float: false,
+      posHistory: [{ x: 4, y: 4 }, { x: 4, y: 3 }, { x: 4, y: 4 }] };
+    const dg = makeEmptyDg({ map, rooms, monsters: [m], items: [], traps: [], statues: [] });
+    const step = fleeFromPlayerStep(m, dg, pl, false);
+    expect(step).not.toBeNull();
+    expect(step.x === 4 && step.y === 3).toBe(false);
+  });
 });

@@ -1515,7 +1515,8 @@ export function getRoomExits(map, room, dg = null, float = false) {
 /**
  * プレイヤーから逃げる1歩。
  * 同室なら出口へBFS（一時的に近づいても廊下へ出る）。
- * その後は他部屋・遠方床を目指し、最後に局所で遠い隣接マス。
+ * プレイヤー隣接は「隣接を避ける経路」「直近マスを避ける経路」を
+ * 先に試し、どちらも無い場合だけ段階的に条件を緩める。
  * @returns {{x:number,y:number}|null}
  */
 export function fleeFromPlayerStep(m, dg, pl, float = false) {
@@ -1524,17 +1525,27 @@ export function fleeFromPlayerStep(m, dg, pl, float = false) {
   const rooms = dg.rooms || [];
   const mons = dg.monsters || [];
   const plDist2 = (x, y) => (x - pl.x) * (x - pl.x) + (y - pl.y) * (y - pl.y);
-  /* プレイヤーマスは通れない（通り道にすると隣接へ突っ込んでしまう） */
-  const fleeFilter = (x, y) => {
+  const recent = new Set((m.posHistory || []).map(p => p.x + p.y * MW));
+  const isPlayerAdjacent = (x, y) => Math.max(Math.abs(x - pl.x), Math.abs(y - pl.y)) <= 1;
+  const localDirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+
+  const makeFleeFilter = ({ avoidAdjacent, avoidRecent }) => (x, y) => {
     if (x === pl.x && y === pl.y) return false;
+    if (avoidAdjacent && isPlayerAdjacent(x, y)) return false;
+    if (avoidRecent && recent.has(x + y * MW)) return false;
     return canEnter(map, x, y, float, dg);
   };
-  const tryGoal = (tx, ty) => {
-    if (tx == null || ty == null) return null;
-    if (tx === m.x && ty === m.y) return null;
-    const next = bfsNext(map, mons, m.x, m.y, tx, ty, m, 60, dg.pentacles, float, fleeFilter, true, rooms, dg);
+
+  const tryGoal = (tx, ty, mode) => {
+    if (tx == null || ty == null || (tx === m.x && ty === m.y)) return null;
+    const next = bfsNext(
+      map, mons, m.x, m.y, tx, ty, m, 60, dg.pentacles, float,
+      makeFleeFilter(mode), true, rooms, dg,
+    );
     if (!next) return null;
     if (next.x === pl.x && next.y === pl.y) return null;
+    if (mode.avoidAdjacent && isPlayerAdjacent(next.x, next.y)) return null;
+    if (mode.avoidRecent && recent.has(next.x + next.y * MW)) return null;
     if (mons.some(o => o !== m && o.x === next.x && o.y === next.y)) return null;
     if (!canEnter(map, next.x, next.y, float, dg)) return null;
     return next;
@@ -1542,25 +1553,17 @@ export function fleeFromPlayerStep(m, dg, pl, float = false) {
 
   const room = findRoom(rooms, m.x, m.y);
   const plRoom = findRoom(rooms, pl.x, pl.y);
+  const exits = room && plRoom === room
+    ? getRoomExits(map, room, dg, float).sort((a, b) => plDist2(b.x, b.y) - plDist2(a.x, a.y))
+    : [];
 
-  /* A) プレイヤーと同室：遠い出口へ（近づくリスクを取ってでも廊下へ） */
-  if (room && plRoom === room) {
-    const exits = getRoomExits(map, room, dg, float);
-    exits.sort((a, b) => plDist2(b.x, b.y) - plDist2(a.x, a.y));
-    for (const ex of exits) {
-      const n = tryGoal(ex.x, ex.y);
-      if (n) return n;
-    }
-  }
-
-  /* B) 他部屋の中心（プレイヤーと別部屋を優先）→ 遠方サンプル */
+  /* プレイヤーと別部屋の中心・隅・遠方サンプルを候補にする。 */
   const farGoals = [];
   for (const r of rooms) {
     if (plRoom && r === plRoom) continue;
     const cx = r.x + Math.floor(r.w / 2);
     const cy = r.y + Math.floor(r.h / 2);
     if (canEnter(map, cx, cy, float, dg)) farGoals.push({ x: cx, y: cy, score: plDist2(cx, cy) });
-    /* 部屋の四隅も候補 */
     for (const [cx2, cy2] of [
       [r.x, r.y], [r.x + r.w - 1, r.y],
       [r.x, r.y + r.h - 1], [r.x + r.w - 1, r.y + r.h - 1],
@@ -1570,34 +1573,54 @@ export function fleeFromPlayerStep(m, dg, pl, float = false) {
   }
   for (let i = 0; i < 30; i++) {
     const x = rng(1, MW - 2), y = rng(1, MH - 2);
-    if (!canEnter(map, x, y, float, dg)) continue;
-    farGoals.push({ x, y, score: plDist2(x, y) });
+    if (canEnter(map, x, y, float, dg)) farGoals.push({ x, y, score: plDist2(x, y) });
   }
   farGoals.sort((a, b) => b.score - a.score);
+  const uniqueFarGoals = [];
   const seenG = new Set();
-  let tried = 0;
   for (const g of farGoals) {
     const k = g.x + g.y * MW;
     if (seenG.has(k)) continue;
     seenG.add(k);
-    const n = tryGoal(g.x, g.y);
-    if (n) return n;
-    if (++tried >= 10) break;
+    uniqueFarGoals.push(g);
+    if (uniqueFarGoals.length >= 10) break;
   }
 
-  /* C) 局所：プレイヤーから遠い隣接（最後の手段） */
-  const local = [];
-  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    const nx = m.x + dx, ny = m.y + dy;
-    if (!canEnter(map, nx, ny, float, dg)) continue;
-    if (mons.some(o => o !== m && o.x === nx && o.y === ny)) continue;
-    if (nx === pl.x && ny === pl.y) continue;
-    if (!inMagicSealRoom(m.x, m.y, dg) &&
-        dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
-    local.push({ x: nx, y: ny, score: plDist2(nx, ny) });
+  const localStep = (mode) => {
+    const local = [];
+    for (const [dx, dy] of localDirs) {
+      const nx = m.x + dx, ny = m.y + dy;
+      if (!canEnter(map, nx, ny, float, dg)) continue;
+      if (mons.some(o => o !== m && o.x === nx && o.y === ny)) continue;
+      if (nx === pl.x && ny === pl.y) continue;
+      if (mode.avoidAdjacent && isPlayerAdjacent(nx, ny)) continue;
+      if (mode.avoidRecent && recent.has(nx + ny * MW)) continue;
+      if (!inMagicSealRoom(m.x, m.y, dg) &&
+          dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === nx && pc.y === ny)) continue;
+      local.push({ x: nx, y: ny, score: plDist2(nx, ny) });
+    }
+    local.sort((a, b) => b.score - a.score);
+    return local[0] ? { x: local[0].x, y: local[0].y } : null;
+  };
+
+  /* 隣接禁止・直近マス禁止 → 隣接禁止 → 直近マス禁止 → 最終手段 */
+  for (const mode of [
+    { avoidAdjacent: true, avoidRecent: true },
+    { avoidAdjacent: true, avoidRecent: false },
+    { avoidAdjacent: false, avoidRecent: true },
+    { avoidAdjacent: false, avoidRecent: false },
+  ]) {
+    for (const ex of exits) {
+      const next = tryGoal(ex.x, ex.y, mode);
+      if (next) return next;
+    }
+    for (const goal of uniqueFarGoals) {
+      const next = tryGoal(goal.x, goal.y, mode);
+      if (next) return next;
+    }
+    const local = localStep(mode);
+    if (local) return local;
   }
-  local.sort((a, b) => b.score - a.score);
-  if (local.length > 0) return { x: local[0].x, y: local[0].y };
   return null;
 }
 
