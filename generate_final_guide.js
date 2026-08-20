@@ -463,7 +463,7 @@ const penData = [
 
 const penInitialChargeRange = (pen) => {
   if (pen?.effect === 'plain' || pen?.rarity === 'E') return '4〜5';
-  if (pen?.rarity === 'A' || pen?.rarity === 'B') return '1〜2';
+  if (pen?.effect !== 'portal' && (pen?.rarity === 'A' || pen?.rarity === 'B')) return '1〜2';
   return '2〜3';
 };
 penData[0].splice(2, 0, '通常フロア初期回数');

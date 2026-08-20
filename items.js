@@ -338,10 +338,10 @@ export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
  *     2. applyPotEffect() に potEffect の処理を追加（if チェーン）
  * ────────────────────────────────────────────────────────────────
  */
-/** ペンの通常生成時初期回数。A/Bは強力、Eのただのペンは多め。 */
+/** ペンの通常生成時初期回数。ポータルは必要数を確保しやすく通常枠にする。 */
 export function penInitialCharges(pen, randomFn = Math.random) {
   if (pen?.effect === "plain" || pen?.rarity === "E") return rng(4, 5, randomFn);
-  if (pen?.rarity === "A" || pen?.rarity === "B") return rng(1, 2, randomFn);
+  if (pen?.effect !== "portal" && (pen?.rarity === "A" || pen?.rarity === "B")) return rng(1, 2, randomFn);
   return rng(2, 3, randomFn);
 }
 
