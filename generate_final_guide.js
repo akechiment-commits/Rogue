@@ -461,6 +461,17 @@ const penData = [
   ['ポータルのペン', 'portal', '同じフロアに2個以上で描画順サイクルを形成。乗ると次のポータルへ転送、上に投げ・落とした物も次のポータルから出現。出口がモンスターで塞がっていたら次の候補へスキップ。1個だけだと無効', '同上に加え、別フロアの祝福ポータルとも繋がる（同フロア内は祝福問わず参加）。プレイヤーがキーアイテム所持中は別フロア接続が無効化される', 'サイクルに参加せず、乗った/着地した者をランダムテレポートさせる'],
 ];
 
+const penInitialChargeRange = (pen) => {
+  if (pen?.effect === 'plain' || pen?.rarity === 'E') return '4〜5';
+  if (pen?.rarity === 'A' || pen?.rarity === 'B') return '1〜2';
+  return '2〜3';
+};
+penData[0].splice(2, 0, '通常フロア初期回数');
+for (let i = 1; i < penData.length; i++) {
+  const pen = ITEMS.find((item) => item.name === penData[i][0]);
+  penData[i].splice(2, 0, penInitialChargeRange(pen));
+}
+
 addSheet('07_ペン', injectRarityAndPrice(penData));
 
 // ===== 魔法の筆・魔法書 =====

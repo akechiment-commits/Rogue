@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -178,6 +178,17 @@ describe("applyPotionEffect", () => {
     );
     expect(p.hp).toBe(0);
     expect(ml.some(m => m.includes("100ダメージを受けた"))).toBe(true);
+  });
+});
+
+describe("ペン初期回数", () => {
+  it("強力なペンは1〜2、通常は2〜3、ただのペンは4〜5", () => {
+    expect(penInitialCharges({ effect: "sanctuary", rarity: "A" }, () => 0)).toBe(1);
+    expect(penInitialCharges({ effect: "sanctuary", rarity: "A" }, () => 0.99)).toBe(2);
+    expect(penInitialCharges({ effect: "vulnerability", rarity: "C" }, () => 0)).toBe(2);
+    expect(penInitialCharges({ effect: "vulnerability", rarity: "C" }, () => 0.99)).toBe(3);
+    expect(penInitialCharges({ effect: "plain", rarity: "E" }, () => 0)).toBe(4);
+    expect(penInitialCharges({ effect: "plain", rarity: "E" }, () => 0.99)).toBe(5);
   });
 });
 

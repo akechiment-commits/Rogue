@@ -338,6 +338,13 @@ export function generateFakeNames(items, pots, spellbooks = [], rings = []) {
  *     2. applyPotEffect() に potEffect の処理を追加（if チェーン）
  * ────────────────────────────────────────────────────────────────
  */
+/** ペンの通常生成時初期回数。A/Bは強力、Eのただのペンは多め。 */
+export function penInitialCharges(pen, randomFn = Math.random) {
+  if (pen?.effect === "plain" || pen?.rarity === "E") return rng(4, 5, randomFn);
+  if (pen?.rarity === "A" || pen?.rarity === "B") return rng(1, 2, randomFn);
+  return rng(2, 3, randomFn);
+}
+
 export const ITEMS = [
   { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。HP最大時は最大HP+1。\n呪い：反転して21ダメージ。",                                               tile:16 },
   { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。HP最大時は最大HP+2。\n呪い：反転して42ダメージ。",                                               tile:17 },
@@ -4007,7 +4014,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = pickLootFromPool(_pool, "drop");
     if (_t) {
       const _di = { ..._t, id: uid() };
-      if (_di.type === "pen")  _di.charges = rng(2, 3);
+      if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);
     }
@@ -4019,7 +4026,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     const _t = pickLootFromPool(_pool, "drop");
     if (_t) {
       const _di = { ..._t, id: uid() };
-      if (_di.type === "pen")  _di.charges = rng(2, 3);
+      if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
       else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
       drops.push(_di);
     }

@@ -3,7 +3,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonster
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
-  GEM_TYPES, RAW_FOODS, COOKED_FOODS,
+  GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges,
 } from './items.js';
 import { scatterFloorGimmicks } from './fixtures.js';
 import { pushPlayerTeleportAnim } from './animEvents.js';
@@ -500,7 +500,7 @@ function buildUniPool(depth, dungeonType) {
     { w:  4, fn: () => { const t = pickLootFromPool(sbPool); return { ...t, id: uid() }; } },
     { w:  4, fn: () => makePot() },
     { w:  2, fn: () => makeRing() },
-    { w:  2, fn: () => _pens.length ? { ...pick(_pens), id: uid(), charges: rng(2,3) } : ({ ...genFood(), id: uid() }) },
+    { w:  2, fn: () => { if (!_pens.length) return { ...genFood(), id: uid() }; const t = pick(_pens); return { ...t, id: uid(), charges: penInitialCharges(t) }; } },
     { w:  1, fn: () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }) },
   ];
   const _ut = gens.reduce((s, g) => s + g.w, 0);
@@ -2125,7 +2125,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
     { w:  4, fn: () => { const t = pickLootFromPool(_SB_POOL); return { ...t, id: uid() }; } },
     { w:  4, fn: () => makePot() },
     { w:  2, fn: () => makeRing() },
-    { w:  2, fn: () => _penPool.length ? { ...pick(_penPool), id: uid(), charges: rng(2,3) } : ({ ...genFood(), id: uid() }) },
+    { w:  2, fn: () => { if (!_penPool.length) return { ...genFood(), id: uid() }; const t = pick(_penPool); return { ...t, id: uid(), charges: penInitialCharges(t) }; } },
     { w:  1, fn: () => ({ ...MAGIC_MARKER, id: uid(), charges: rng(1, 2) }) },
   ];
   const _ugTotal = _ugGens.reduce((s, g) => s + g.w, 0);
@@ -2488,6 +2488,7 @@ export function genDebugDungeon() {
     const p = nextItemPos();
     const it = { ...tmpl, id: uid(), x: p.x, y: p.y };
     if (it.type === 'gold') it.value = 9999;
+    if (it.type === 'pen') it.charges = penInitialCharges(it);
     items.push(it);
   }
   for (const tmpl of WANDS) {
@@ -2561,6 +2562,7 @@ export function genDebugDungeonFloor2() {
       const p = nextItemPos();
       const it = { ...tmpl, ...variant, id: uid(), x: p.x, y: p.y };
       if (tmpl.type === 'wand') it.charges = tmpl.maxCharges ?? tmpl.charges ?? 5;
+      else if (tmpl.type === 'pen') it.charges = penInitialCharges(it);
       items.push(it);
     }
   }
