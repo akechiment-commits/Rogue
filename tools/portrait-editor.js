@@ -239,7 +239,12 @@ function buildSlot(cat, slot) {
     zone.classList.add("saving");
     try {
       const raw = await readFileAsDataUrl(file);
-      const dataUrl = await transparentizeDataUrl(raw);
+      /* stand_unarmored の元画像は黒背景が (1,1,1) のため、
+         純黒限定の安全策では背景を拾えない。外周連結の近黒だけを許可する。 */
+      const transparencyOptions = slot.file === "stand_unarmored"
+        ? { blackBackgroundThreshold: 8 }
+        : {};
+      const dataUrl = await transparentizeDataUrl(raw, transparencyOptions);
       await savePortrait(slot.file, dataUrl);
       existing.add(slot.file);
       setPreview(true);

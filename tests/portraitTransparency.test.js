@@ -68,6 +68,16 @@ describe("portraitTransparency", () => {
     expect(alphaAt(data, 5, 2, 2)).toBe(255);
   });
 
+  it("指定時だけ外周に連結した近黒背景を透過する", () => {
+    const data = makeImage(5, 5, (x, y) => {
+      if (x >= 1 && x <= 3 && y >= 1 && y <= 3) return [10, 3, 1, 255];
+      return [1, 1, 1, 255];
+    });
+    floodFillTransparent(data, 5, 5, { blackBackgroundThreshold: 8 });
+    expect(alphaAt(data, 5, 0, 0)).toBe(0);
+    expect(alphaAt(data, 5, 2, 2)).toBe(255);
+  });
+
   it("黒背景画像の白い装飾を背景島として透過しない", () => {
     const data = makeImage(7, 7, (x, y) => {
       if (x === 3 && y === 3) return [244, 231, 222, 255];
