@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 
 describe("getIdentKey", () => {
@@ -178,6 +178,20 @@ describe("applyPotionEffect", () => {
     );
     expect(p.hp).toBe(0);
     expect(ml.some(m => m.includes("100ダメージを受けた"))).toBe(true);
+  });
+});
+
+describe("祝呪系の壺", () => {
+  it("祝福・呪いの壺に別の壺を入れても容量だけが変わる", () => {
+    const target = { name: "保存の壺", type: "pot", potEffect: "none", capacity: 5 };
+    const blessed = { name: "祝福の壺", type: "pot", potEffect: "bless_pot" };
+    const cursed = { name: "呪いの壺", type: "pot", potEffect: "curse_pot" };
+    applyPotEffect(blessed, target, []);
+    expect(target.capacity).toBe(6);
+    expect(target.blessed).toBeUndefined();
+    applyPotEffect(cursed, target, []);
+    expect(target.capacity).toBe(5);
+    expect(target.cursed).toBeUndefined();
   });
 });
 

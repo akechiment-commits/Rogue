@@ -32,6 +32,26 @@ import {
   ensureStairsPresent,
 } from './floorObjectPlacement.js';
 
+function changeInventoryPotCapacity(pot, delta, p, dg, ml) {
+  if (pot?.type !== "pot") return false;
+  const next = Math.max(0, (pot.capacity || 1) + delta);
+  delete pot.blessed;
+  delete pot.cursed;
+  if (delta < 0 && (pot.contents?.length || 0) > next) {
+    const idx = p.inventory.indexOf(pot);
+    if (idx !== -1) {
+      const ft = new Set();
+      for (const content of [...(pot.contents || [])]) placeItemAt(dg, p.x, p.y, content, ml, ft);
+      p.inventory.splice(idx, 1);
+      ml.push(`${resolveItemName(pot)}が容量不足で割れ、中身が足元に落ちた！`);
+    }
+    return true;
+  }
+  pot.capacity = next;
+  ml.push(`${resolveItemName(pot)}の容量が${delta > 0 ? 1 : -1}${delta > 0 ? "増えた" : "減った"}！(${pot.capacity})`);
+  return true;
+}
+
 
 /** 石像のテレポート先（他石像・敵・プレイヤー・床オブジェクトを避ける） */
 function statueTeleportDest(dg, ox, oy, p) {
@@ -1303,14 +1323,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた祝福の杖→所持品を1つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _t = pick(_inv);
-          _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
-          ml.push(`${_t.name}が呪われた！【呪】`);
+          if (!changeInventoryPotCapacity(_t, -1, p, dg, ml)) {
+            _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
+            ml.push(`${_t.name}が呪われた！【呪】`);
+          }
         } else {
           // 通常→1つ祝福、祝福→2つ祝福
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _count = _bwBlessed ? 2 : 1;
           const _pool = shuffle([..._inv]).slice(0, _count);
-          for (const _t of _pool) { _t.blessed = true; _t.cursed = false; _t.bcKnown = true; ml.push(`${_t.name}が祝福された！【祝】`); }
+          for (const _t of _pool) {
+            if (!changeInventoryPotCapacity(_t, 1, p, dg, ml)) {
+              _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
+              ml.push(`${_t.name}が祝福された！【祝】`);
+            }
+          }
           if (_bwBlessed) ml.push("（祝福の杖の力で2つ祝福された！）");
         }
         break;
@@ -1377,14 +1404,21 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた呪いの杖→所持品を1つ祝福（反転）
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _t = pick(_inv);
-          _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
-          ml.push(`${_t.name}が祝福された！【呪→祝】`);
+          if (!changeInventoryPotCapacity(_t, 1, p, dg, ml)) {
+            _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
+            ml.push(`${_t.name}が祝福された！【呪→祝】`);
+          }
         } else {
           // 通常→1つ呪う、祝福→2つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _count = _cwBlessed ? 2 : 1;
           const _pool = shuffle([..._inv]).slice(0, _count);
-          for (const _t of _pool) { _t.cursed = true; _t.blessed = false; _t.bcKnown = true; ml.push(`${_t.name}が呪われた！【呪】`); }
+          for (const _t of _pool) {
+            if (!changeInventoryPotCapacity(_t, -1, p, dg, ml)) {
+              _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
+              ml.push(`${_t.name}が呪われた！【呪】`);
+            }
+          }
           if (_cwBlessed) ml.push("（祝福された呪いの杖の力で2つ呪われた！）");
         }
         break;

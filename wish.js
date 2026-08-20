@@ -305,9 +305,15 @@ export function makeWishedItem(tmpl, opts = {}) {
   const it = { ...tmpl, id: uid() };
   delete it.weight;
   if (opts.blessed) {
-    it.blessed = true;
-    it.cursed = false;
-    it.bcKnown = true;
+    if (it.type === "pot") {
+      it.capacity = (it.capacity || 3) + 1;
+      delete it.blessed;
+      delete it.cursed;
+    } else {
+      it.blessed = true;
+      it.cursed = false;
+      it.bcKnown = true;
+    }
   }
   if (it.type === "arrow") {
     it.count = it.count || (it.stone || it.magicStone ? 10 : 10);

@@ -187,6 +187,14 @@ describe("wish core", () => {
     expect(it.id).toBeTruthy();
   });
 
+  it("祝福された願いの壺は祝呪フラグではなく容量が増える", () => {
+    const tmpl = POTS.find((t) => t.potEffect === "sesame");
+    const it = makeWishedItem(tmpl, { blessed: true });
+    expect(it.capacity).toBe(tmpl.capacity + 1);
+    expect(it.blessed).toBeUndefined();
+    expect(it.cursed).toBeUndefined();
+  });
+
   it("rollWishChance が確率に従う（0.5%）", () => {
     expect(rollWishChance("drink", () => 0)).toBe(true);
     expect(rollWishChance("drink", () => 0.004)).toBe(true);

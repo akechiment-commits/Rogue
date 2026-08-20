@@ -810,18 +810,32 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     return;
   }
   if (pe === "bless_pot") {
-    item.blessed = true;
-    item.cursed  = false;
-    item.bcKnown = true;
-    ml.push(`${_in}が祝福された！【祝】`);
+    if (item.type === "pot") {
+      delete item.blessed;
+      delete item.cursed;
+      item.capacity = (item.capacity || 1) + 1;
+      ml.push(`${_in}の容量が1増えた！(${item.capacity})【祝】`);
+    } else {
+      item.blessed = true;
+      item.cursed  = false;
+      item.bcKnown = true;
+      ml.push(`${_in}が祝福された！【祝】`);
+    }
     return;
   }
   if (pe === "curse_pot") {
     if (item.type === "arrow") { ml.push(`${_in}は呪いを受け付けない。`); return; }
-    item.cursed  = true;
-    item.blessed = false;
-    item.bcKnown = true;
-    ml.push(`${_in}が呪われた！【呪】`);
+    if (item.type === "pot") {
+      delete item.blessed;
+      delete item.cursed;
+      item.capacity = Math.max(0, (item.capacity || 1) - 1);
+      ml.push(`${_in}の容量が1減った！(${item.capacity})【呪】`);
+    } else {
+      item.cursed  = true;
+      item.blessed = false;
+      item.bcKnown = true;
+      ml.push(`${_in}が呪われた！【呪】`);
+    }
     return;
   }
   if (pe === "smoke") {

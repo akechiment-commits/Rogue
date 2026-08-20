@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout } from "../dungeon.js";
+import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -95,6 +95,28 @@ describe("genDungeon", () => {
       const { base } = pickMonsterDef(10, "intermediate", false, { excludeItemMimic: true });
       expect(base.baseKind).not.toBe("itemMimic");
     }
+  });
+});
+
+describe("applyGeneratedBlessCurse", () => {
+  it("壺の祝呪をフラグではなく容量へ変換する", () => {
+    const blessedPot = { type: "pot", capacity: 3, blessed: true };
+    applyGeneratedBlessCurse(blessedPot, 0.10, 0.25, () => 0.05);
+    expect(blessedPot).toMatchObject({ capacity: 4 });
+    expect(blessedPot.blessed).toBeUndefined();
+    expect(blessedPot.cursed).toBeUndefined();
+
+    const cursedPot = { type: "pot", capacity: 3, cursed: true };
+    applyGeneratedBlessCurse(cursedPot, 0.10, 0.25, () => 0.20);
+    expect(cursedPot).toMatchObject({ capacity: 2 });
+    expect(cursedPot.blessed).toBeUndefined();
+    expect(cursedPot.cursed).toBeUndefined();
+  });
+
+  it("壺以外は祝呪フラグを付ける", () => {
+    const weapon = { type: "weapon" };
+    applyGeneratedBlessCurse(weapon, 0.10, 0.25, () => 0.05);
+    expect(weapon).toMatchObject({ blessed: true, cursed: false });
   });
 });
 

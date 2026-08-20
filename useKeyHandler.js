@@ -967,7 +967,17 @@ export function useKeyHandler({
                 return { ...rest, id: uid() };
               };
               const _newIt = _makeFresh();
-              if (identifyMode.blessed) { _newIt.blessed = true; _newIt.cursed = false; _newIt.bcKnown = true; }
+              if (identifyMode.blessed) {
+                if (_newIt.type === "pot") {
+                  _newIt.capacity = (_newIt.capacity || 3) + 1;
+                  delete _newIt.blessed;
+                  delete _newIt.cursed;
+                } else {
+                  _newIt.blessed = true;
+                  _newIt.cursed = false;
+                  _newIt.bcKnown = true;
+                }
+              }
               _p_id.inventory.push(_newIt);
               const _dupDispName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               _msgResult = identifyMode.blessed ? `祝福された${_dupDispName}が1つ増えた！【祝】` : `${_dupDispName}が1つ増えた！`;

@@ -22,6 +22,27 @@ function makeRing(context = "floor") {
   return ring;
 }
 
+/** 生成時の祝福・呪い抽選。壺だけは祝呪フラグではなく容量へ変換する。 */
+export function applyGeneratedBlessCurse(item, blessedThreshold, cursedThreshold, randomFn = Math.random) {
+  if (!item || item.type === "gold" || item.type === "arrow") return item;
+  const roll = randomFn();
+  if (item.type === "pot") {
+    delete item.blessed;
+    delete item.cursed;
+    if (roll < blessedThreshold) item.capacity = (item.capacity ?? 0) + 1;
+    else if (roll < cursedThreshold) item.capacity = Math.max(0, (item.capacity ?? 0) - 1);
+    return item;
+  }
+  if (roll < blessedThreshold) {
+    item.blessed = true;
+    item.cursed = false;
+  } else if (roll < cursedThreshold) {
+    item.cursed = true;
+    item.blessed = false;
+  }
+  return item;
+}
+
 function pickBB(exclude = []) {
   /* レア大箱は20%の確率でのみ候補に含まれる */
   const base = Math.random() < 0.20 ? BB_TYPES : BB_TYPES.filter(b => !b.rare);
@@ -202,11 +223,7 @@ function genMonsterHouseContent(room, depth, map, mons, items, traps, springs, b
     const t = pickLootFromPool(ITEMS);
     const it = { ...t, id: uid(), x: ix, y: iy };
     if (it.type === "gold") it.value = rng(50, 150 + depth * 40);
-    if (it.type !== "gold" && it.type !== "arrow") {
-      const _br = Math.random();
-      if (_br < 0.12) it.blessed = true;
-      else if (_br < 0.28) it.cursed = true;
-    }
+    applyGeneratedBlessCurse(it, 0.12, 0.28);
     items.push(it);
   }
   for (const [tx, ty] of trapSlots) {
@@ -449,11 +466,7 @@ function pickRareItem(depth) {
   return gens[gens.length - 1].fn();
 }
 function applyRareMods(it, depth) {
-  if (it.type !== "gold") {
-    const _br = Math.random();
-    if (_br < 0.30) it.blessed = true;
-    else if (_br < 0.40) it.cursed = true;
-  }
+  applyGeneratedBlessCurse(it, 0.30, 0.40);
   if (it.type === "weapon" || it.type === "armor") {
     const pr = Math.random();
     if (pr < 0.15 + depth * 0.02) it.plus = rng(2, 4);
@@ -494,11 +507,7 @@ function buildUniPool(depth, dungeonType) {
   return () => { let r = Math.random() * _ut; for (const g of gens) { r -= g.w; if (r <= 0) return g.fn(); } return gens[gens.length-1].fn(); };
 }
 function applyStdMods(it, depth) {
-  if (it.type !== "gold" && it.type !== "arrow") {
-    const _br = Math.random();
-    if (_br < 0.10) it.blessed = true;
-    else if (_br < 0.25) it.cursed = true;
-  }
+  applyGeneratedBlessCurse(it, 0.10, 0.25);
   if (it.type === "weapon" || it.type === "armor") {
     const pr = Math.random();
     if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);
@@ -1808,7 +1817,7 @@ function genBossFloor(depth, dungeonType = null) {
       if (map[iy][ix] !== T.FLOOR || itemOcc(ix, iy)) continue;
       const _it = { ...pickLootFromPool(ITEMS), id: uid(), x: ix, y: iy };
       if (_it.type === "gold") _it.value = rng(50, 100 + depth * 30);
-      else { const _br = Math.random(); if (_br < 0.10) _it.blessed = true; else if (_br < 0.25) _it.cursed = true; }
+      else applyGeneratedBlessCurse(_it, 0.10, 0.25);
       items.push(_it); break;
     }
   }
@@ -2136,11 +2145,7 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       if (map[iy][ix] !== T.FLOOR || occ(ix, iy)) continue;
       const it = _pickUG();
       it.x = ix; it.y = iy;
-      if (it.type !== "gold" && it.type !== "arrow") {
-        const _br = Math.random();
-        if (_br < 0.10) it.blessed = true;
-        else if (_br < 0.25) it.cursed = true;
-      }
+      applyGeneratedBlessCurse(it, 0.10, 0.25);
       if (it.type === "weapon" || it.type === "armor") {
         const pr = Math.random();
         if (pr < 0.05 + depth * 0.01) it.plus = rng(2, 3);

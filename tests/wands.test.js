@@ -54,6 +54,24 @@ describe("applyWandEffect", () => {
     expect(ml.some(m => m.includes("2倍速"))).toBe(true);
   });
 
+  it("祝福の杖は所持中の壺の容量を増やす", () => {
+    const p = makePlayer();
+    const pot = { name: "ごま油の壺", type: "pot", capacity: 3 };
+    p.inventory = [pot];
+    applyWandEffect("bless_wand", "player", p, 0, 0, makeEmptyDg(), p, [], noop);
+    expect(pot.capacity).toBe(4);
+    expect(pot.blessed).toBeUndefined();
+  });
+
+  it("呪いの杖は所持中の壺の容量を減らす", () => {
+    const p = makePlayer();
+    const pot = { name: "ごま油の壺", type: "pot", capacity: 3 };
+    p.inventory = [pot];
+    applyWandEffect("curse_wand", "player", p, 0, 0, makeEmptyDg(), p, [], noop);
+    expect(pot.capacity).toBe(2);
+    expect(pot.cursed).toBeUndefined();
+  });
+
   it("プレイヤーの吹き飛ばしは移動元・移動先の演出イベントを発行する", () => {
     drainAnims();
     const localDg = makeEmptyDg();

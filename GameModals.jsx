@@ -1283,7 +1283,17 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           return _copy;
         };
         const _newItM = _makeFreshM();
-        if (mode.blessed) { _newItM.blessed = true; _newItM.cursed = false; _newItM.bcKnown = true; }
+        if (mode.blessed) {
+          if (_newItM.type === "pot") {
+            _newItM.capacity = (_newItM.capacity || 3) + 1;
+            delete _newItM.blessed;
+            delete _newItM.cursed;
+          } else {
+            _newItM.blessed = true;
+            _newItM.cursed = false;
+            _newItM.bcKnown = true;
+          }
+        }
         _p_dup.inventory.push(_newItM);
         const _dupDispName = iLabel(_selIt);
         _msgResult = mode.blessed ? `祝福された${_dupDispName}が1つ増えた！【祝】` : `${_dupDispName}が1つ増えた！`;
