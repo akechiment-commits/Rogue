@@ -2535,7 +2535,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (_trm) {
         const _td = rng(3, 8);
         _trm.hp -= _td;
-        ml.push(`${_trm.name}が転んだ！${_td}ダメージ！`);
+        _trm.knockdownTurns = Math.max(_trm.knockdownTurns || 0, 2);
+        ml.push(`${_trm.name}が転んだ！${_td}ダメージ！(2ターン行動不能)`);
         if (_trm.hp <= 0) killMonster(_trm, dg, p, ml, luFn);
       }
       if (p && p.x === tx && p.y === ty) {

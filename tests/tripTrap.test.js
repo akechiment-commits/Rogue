@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
+import { monsterAI } from "../monsters.js";
 import { fireTrapItem, TRAPS, placeItemAt } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
@@ -209,5 +210,31 @@ describe("転倒の罠 trip_trap", () => {
     const r = fireTrapItem(trap, item, dg, 5, 5, ml, new Set(), null);
     expect(r).toBe("restart");
     expect(ml.some((m) => m.includes("転倒の罠が発動"))).toBe(true);
+  });
+
+  it("敵に作動すると2ターン行動不能にする", () => {
+    const mon = {
+      name: "フクマル", baseKind: "runner", subtype: "runner", monLevel: 1,
+      hp: 30, maxHp: 30, atk: 8, def: 0, x: 5, y: 5, speed: 1,
+    };
+    const p = makePlayer({ hp: 50, maxHp: 50, x: 5, y: 6 });
+    const trap = { effect: "trip_trap", name: "転倒の罠", x: 5, y: 5, id: "tripMon" };
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 20 }, () => Array(20).fill(T.FLOOR)),
+      rooms: [{ x: 1, y: 1, w: 12, h: 12 }],
+      monsters: [mon], traps: [trap], items: [],
+    });
+    const ml = [];
+    fireTrapItem(trap, { name: "石", type: "stone" }, dg, 5, 5, ml, new Set(), p);
+    expect(mon.knockdownTurns).toBe(2);
+    expect(ml.some((m) => m.includes("2ターン行動不能"))).toBe(true);
+
+    const hpBefore = p.hp;
+    monsterAI(mon, dg, p, [], { attackOnly: true });
+    expect(p.hp).toBe(hpBefore);
+    monsterAI(mon, dg, p, [], { moveOnly: true });
+    expect(mon.knockdownTurns).toBe(1);
+    monsterAI(mon, dg, p, [], { moveOnly: true });
+    expect(mon.knockdownTurns).toBe(0);
   });
 });

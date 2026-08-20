@@ -41,6 +41,14 @@ describe("封印中の敵特性無効化", () => {
     expect(monReflectsMagic({ subtype: "magicreflect", sealed: true })).toBe(false);
   });
 
+  it("フクマルはLv2で投擲物、Lv3で魔法も反射する", () => {
+    expect(monReflectsProjectiles({ baseKind: "runner", monLevel: 1 })).toBe(false);
+    expect(monReflectsProjectiles({ baseKind: "runner", monLevel: 2 })).toBe(true);
+    expect(monReflectsMagic({ baseKind: "runner", monLevel: 2 })).toBe(false);
+    expect(monReflectsMagic({ baseKind: "runner", monLevel: 3 })).toBe(true);
+    expect(monReflectsMagic({ baseKind: "runner", monLevel: 3, sealed: true })).toBe(false);
+  });
+
   it("速度と攻撃回数は封印で1", () => {
     expect(monEffectiveSpeed({ speed: 2, sealed: true })).toBe(1);
     expect(monEffectiveMaxAttacks({ maxAttacks: 3, sealed: true })).toBe(1);

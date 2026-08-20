@@ -80,6 +80,7 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.confusedTurns || 0) > 0)                              _sts.push("#f09020"); // 混乱：橙
   if (mon.bewitched || (mon.bewitchedTurns || 0) > 0 || (mon.fleeingTurns || 0) > 0) _sts.push("#e0c020"); // 幻惑：黄金
   if ((mon.immobileTurns || 0) > 0)                              _sts.push("#50c8e8"); // 移動封じ：氷青
+  if ((mon.knockdownTurns || 0) > 0)                              _sts.push("#d09050"); // 転倒：橙茶
   if ((mon.poisonedTurns || 0) > 0)                              _sts.push("#b040d0"); // 毒：紫
   if (mon.sealed || (mon.sealedTurns || 0) > 0)                  _sts.push("#909090"); // 封印：灰
   if ((mon.darknessTurns || 0) > 0 && mon.darknessTurns < 9999)  _sts.push("#604878"); // 暗闇：暗紫

@@ -31,12 +31,18 @@ export function monEffectiveFixedDamageOnly(m) {
 
 /** 物理投射物を跳ね返す（ほっちもぺ等） */
 export function monReflectsProjectiles(m) {
-  return !!(m && !m.sealed && m.subtype === "reflector");
+  return !!(m && !m.sealed && (
+    m.subtype === "reflector" ||
+    (m.baseKind === "runner" && (m.monLevel || 1) >= 2)
+  ));
 }
 
 /** 魔法・杖を跳ね返す */
 export function monReflectsMagic(m) {
-  return !!(m && !m.sealed && m.subtype === "magicreflect");
+  return !!(m && !m.sealed && (
+    m.subtype === "magicreflect" ||
+    (m.baseKind === "runner" && (m.monLevel || 1) >= 3)
+  ));
 }
 
 /** 封印中は1回行動まで */

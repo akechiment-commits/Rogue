@@ -3166,7 +3166,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     const movementDisabled =
       m.paralyzed ||
       (m.sleepTurns || 0) > 0 ||
-      (m.immobileTurns || 0) > 0;
+      (m.immobileTurns || 0) > 0 ||
+      (m.knockdownTurns || 0) > 0;
     if (movementDisabled) {
       m._idleStuck = 0;
       m.posHistory = [];
@@ -3323,7 +3324,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _gRelDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
     const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0 ||
       (m.darknessTurns || 0) > 0 || (m.fleeingTurns || 0) > 0 || m.sealed || m.bewitched ||
-      (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || m.blind || (m.oilyTurns || 0) > 0;
+      (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || m.blind || (m.oilyTurns || 0) > 0;
     if (_gRelDist > 1 || _gBadStatus) {
       pl.capturedBy = null;
       ml.push(`${m.name}の捕獲が解けた！`);
@@ -3332,6 +3333,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.sleepTurns > 0) {
     if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - (m.isBoss ? 2 : 1));
     if (m.sleepTurns <= 0) { ml.push(`${m.name}の睡眠が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
+    return;
+  }
+  /* 転倒状態：罠で転んだ敵は2ターン、攻撃・移動ともにできない。 */
+  if ((m.knockdownTurns || 0) > 0) {
+    if (!_attackOnly) m.knockdownTurns = Math.max(0, m.knockdownTurns - 1);
+    if (m.knockdownTurns <= 0) {
+      ml.push(`${m.name}が起き上がった！`);
+      m.turnAccum = 0;
+      m._movedThisTurn = true;
+    }
     return;
   }
   /* 金縛り: 被ダメで解除。通常敵は時間制限なし。ボスのみ paralyzeTurns で時間解除（tick半減） */
