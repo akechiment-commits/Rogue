@@ -9,6 +9,9 @@ export const RANKING_DUNGEONS = [
 
 export const RANKING_DUNGEON_IDS = RANKING_DUNGEONS.map((d) => d.id);
 
+const LOCAL_RANKING_KEY = "roguelike_ranking_local_v1";
+const LOCAL_RANKING_LIMIT = 1000;
+
 /**
  * @param {object} body
  * @returns {{ ok: true, body: object } | { ok: false, error: string }}
@@ -57,6 +60,119 @@ async function parseJson(res) {
   }
 }
 
+function readLocalRuns() {
+  try {
+    if (typeof localStorage === "undefined") return [];
+    const parsed = JSON.parse(localStorage.getItem(LOCAL_RANKING_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.filter((entry) => entry && typeof entry === "object") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalRuns(runs) {
+  try {
+    if (typeof localStorage === "undefined") return false;
+    localStorage.setItem(LOCAL_RANKING_KEY, JSON.stringify(runs));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function makeLocalRunId() {
+  return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function storeLocalRun(body) {
+  const localId = makeLocalRunId();
+  const entry = {
+    ...body,
+    localId,
+    runId: localId,
+    createdAt: Date.now(),
+    serverSubmitted: false,
+  };
+  const runs = readLocalRuns();
+  const stored = writeLocalRuns([entry, ...runs].slice(0, LOCAL_RANKING_LIMIT));
+  return { localId, stored };
+}
+
+function markLocalRunSubmitted(localId, serverRunId) {
+  if (!localId) return;
+  const runs = readLocalRuns();
+  const next = runs.map((entry) => entry.localId === localId
+    ? { ...entry, serverSubmitted: true, serverRunId: serverRunId || null }
+    : entry);
+  writeLocalRuns(next);
+}
+
+function localRunSignature(entry) {
+  return [
+    entry.playerId,
+    entry.dungeonType,
+    entry.score,
+    entry.turns,
+    entry.elapsedMs,
+    entry.depth,
+    entry.level,
+    entry.cleared ? 1 : 0,
+  ].join("|");
+}
+
+function getLocalRanking({ board, dungeon, playerId, limit = 50, pendingOnly = false } = {}) {
+  const runs = readLocalRuns()
+    .filter((entry) => entry.playerId === playerId && entry.dungeonType === dungeon)
+    .filter((entry) => board !== "clear" || entry.cleared)
+    .filter((entry) => !pendingOnly || !entry.serverSubmitted);
+  runs.sort((a, b) => {
+    const metric = board === "clear"
+      ? (Number(a.elapsedMs) || 0) - (Number(b.elapsedMs) || 0)
+      : (Number(b.score) || 0) - (Number(a.score) || 0);
+    return metric || (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
+  });
+  return {
+    entries: runs.slice(0, limit).map((entry) => ({
+      ...entry,
+      rank: null,
+      total: null,
+      localOnly: true,
+    })),
+    total: runs.length,
+  };
+}
+
+function localOfflineResult(opts, board, dungeon, error = "offline") {
+  const local = opts.mine && opts.playerId
+    ? getLocalRanking({ board, dungeon, playerId: opts.playerId, limit: opts.limit })
+    : { entries: [], total: 0 };
+  return {
+    ok: true,
+    offline: true,
+    entries: local.entries,
+    total: local.total,
+    board,
+    dungeon,
+    local: true,
+    error,
+  };
+}
+
+function mergePendingLocalEntries(entries, opts, board, dungeon, limit) {
+  if (!opts.mine || !opts.playerId) return entries.slice(0, limit);
+  const pending = getLocalRanking({
+    board,
+    dungeon,
+    playerId: opts.playerId,
+    limit,
+    pendingOnly: true,
+  }).entries;
+  if (pending.length === 0) return entries.slice(0, limit);
+  const serverSignatures = new Set(entries.map(localRunSignature));
+  const pendingOnly = pending.filter((entry) => !serverSignatures.has(localRunSignature(entry)));
+  return [...pendingOnly, ...entries].slice(0, limit);
+}
+
 /**
  * ランキング一覧を取得。
  * @param {{ board?: 'score'|'clear', dungeon?: string, limit?: number, playerId?: string, mine?: boolean }} opts
@@ -74,18 +190,22 @@ export async function fetchRanking(opts = {}) {
     const res = await fetch(`/api/ranking?${params}`, { method: "GET" });
     const data = await parseJson(res);
     if (!res.ok || !data) {
-      return { ok: false, offline: true, entries: [], total: 0, error: data?.error || "fetch failed" };
+      return localOfflineResult(opts, board, dungeon, data?.error || "fetch failed");
     }
+    if (data.offline) {
+      return localOfflineResult(opts, board, dungeon, data.error || "offline");
+    }
+    const serverEntries = Array.isArray(data.entries) ? data.entries : [];
     return {
       ok: true,
-      offline: !!data.offline,
-      entries: Array.isArray(data.entries) ? data.entries : [],
+      offline: false,
+      entries: mergePendingLocalEntries(serverEntries, opts, board, dungeon, limit),
       total: Number(data.total) || 0,
       board: data.board || board,
       dungeon: data.dungeon || dungeon,
     };
   } catch {
-    return { ok: false, offline: true, entries: [], total: 0, error: "network" };
+    return localOfflineResult(opts, board, dungeon, "network");
   }
 }
 
@@ -115,6 +235,7 @@ export async function fetchRankingStats() {
 export async function submitRunResult(raw) {
   const v = validateSubmitPayload(raw);
   if (!v.ok) return { ok: false, error: v.error };
+  const local = storeLocalRun(v.body);
   try {
     const res = await fetch("/api/ranking", {
       method: "POST",
@@ -123,13 +244,14 @@ export async function submitRunResult(raw) {
     });
     const data = await parseJson(res);
     if (res.status === 503 || data?.offline) {
-      return { ok: false, offline: true, error: data?.error || "offline" };
+      return { ok: false, offline: true, localId: local.localId, error: data?.error || "offline" };
     }
     if (!res.ok) {
-      return { ok: false, error: data?.error || `http ${res.status}` };
+      return { ok: false, localId: local.localId, error: data?.error || `http ${res.status}` };
     }
-    return { ok: true, runId: data?.runId, ranks: data?.ranks };
+    markLocalRunSubmitted(local.localId, data?.runId);
+    return { ok: true, localId: local.localId, runId: data?.runId, ranks: data?.ranks };
   } catch {
-    return { ok: false, offline: true, error: "network" };
+    return { ok: false, offline: true, localId: local.localId, error: "network" };
   }
 }

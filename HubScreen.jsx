@@ -1286,7 +1286,9 @@ function RankingPanel({ saveData, onClose }) {
       }}>
         <span>全世界挑戦: <b style={{ color:"#fff" }}>{stats.totalRuns}</b> 回</span>
         <span>このダンジョンクリア: <b style={{ color:"#8f8" }}>{stats.clears?.[dungeon] || 0}</b> 回</span>
-        {offline && <span style={{ color:"#f80" }}>オフライン（サーバー未設定）</span>}
+        {offline && <span style={{ color:"#f80" }}>
+          {scope === "mine" ? "オフライン（自分のローカル記録を表示）" : "オフライン（サーバー未接続）"}
+        </span>}
       </div>
       {loading ? (
         <div style={{ color:"#666", padding:20, textAlign:"center" }}>読み込み中…</div>
