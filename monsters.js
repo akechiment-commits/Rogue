@@ -10,12 +10,12 @@ import { pl } from "./playerLabel.js";
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
   monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
-  monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic,
+  monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles,
   monEffectiveMaxAttacks, monEffectiveSpeed,
 } from "./monTraits.js";
 import {
   monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
-  monReflectsProjectiles, monReflectsMagic, monEffectiveMaxAttacks,
+  monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks,
 } from "./monTraits.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -917,6 +917,13 @@ export const MONS = [
     levels: [
       { name: "ほっちんもっぺ",     hp: 109, atk: 35, def: 24, exp: 112, dungeonFloors: { advanced: { min: 22, max: 26 } } },
       { name: "むちちむち",         hp: 170, atk: 46, def: 31, exp: 175 },
+    ],
+  },
+  { name: "かわしモグラ", hp: 54, atk: 21, def: 6, exp: 60, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 12, maxFloor: 35, subtype: "dodgemole", dungeonFloors: { intermediate: { min: 13, max: 20 }, advanced: { min: 10, max: 25 } },
+    desc: "通常の投擲物・矢・杖の光弾・魔法・巻物の効果を潜ってかわす。石や魔法の石、薬の飛沫、這いずり爆弾、魚雷、追尾弾は当たる。",
+    levels: [
+      { name: "ひょいひょいモグラ", hp: 86, atk: 30, def: 10, exp: 100, dungeonFloors: { advanced: { min: 23, max: 27 } } },
+      { name: "ディグダグダグダ", hp: 135, atk: 42, def: 15, exp: 165, dungeonFloors: { advanced: { min: 28, max: 35 } } },
     ],
   },
   { name: "ハンマーオーガ", hp: 75, atk: 36, def: 9,  exp: 80,  speed: 1,   tile: 116, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 50, subtype: "knocker", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 23 } },
@@ -2213,6 +2220,11 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     }
     const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && mn.x === _tx && mn.y === _ty && mn !== m);
     if (_mon) {
+      if (monSubmergesProjectiles(_mon)) {
+        ml.push(`${_mon.name}が潜って${boltName}をかわした！`);
+        _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty;
+        continue;
+      }
       /* reflector（ほっちもぺ等）：弾を射手方向へ跳ね返す（遠投貫通中は反射しない） */
       if (monReflectsProjectiles(_mon) && !_passthrough) {
         ml.push(`${boltName}が${_mon.name}に弾き返された！`);
@@ -2405,6 +2417,10 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     /* モンスター命中 */
     const _mon = dg.monsters.find(mn => !mn.disguisedAsItem && mn.x === _tx && mn.y === _ty && mn !== m);
     if (_mon) {
+      if (monSubmergesProjectiles(_mon)) {
+        ml.push(`${_mon.name}が潜って${wandLabel}の魔法弾をかわした！`);
+        continue;
+      }
       /* 魔法無効（キラープラスター等）：杖の魔法弾を完全無効化 */
       if (monEffectiveMagicImmune(_mon)) {
         ml.push(`魔法は${_mon.name}に効かない！`);

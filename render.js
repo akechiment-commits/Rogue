@@ -115,6 +115,7 @@ export const TILE_NAMES = {
   4003: "item_pen_category",
   87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
   184: "garnet", 185: "lapis_lazuli", 186: "turquoise", 187: "moonstone", 188: "black_onyx", 189: "alexandrite",
+  181: "dodgemole",
   190: "goal_orb", 191: "goal_crimson_stone", 192: "goal_crown", 193: "goal_forbidden_tome",
   194: "wind_hole_right", 195: "wind_hole_down_right", 196: "wind_hole_down", 197: "wind_hole_down_left",
   198: "wind_hole_left", 199: "wind_hole_up_left", 200: "wind_hole_up", 201: "wind_hole_up_right",
@@ -312,6 +313,7 @@ export const TILE_RENDER = {
   178: { bg: null, fg: "#80b0ff", ch: "S" }, /* 眠り術師 */
   179: { bg: null, fg: "#a0a0a0", ch: "G" }, /* ガーゴイル */
   180: { bg: null, fg: "#ff7020", ch: "B" }, /* バーサーカー */
+  181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
 };
 

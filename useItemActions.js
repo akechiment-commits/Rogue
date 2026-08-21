@@ -27,6 +27,13 @@ import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
+import { monSubmergesProjectiles } from "./monTraits.js";
+
+function skipDodgemoleScroll(mon, ml, label = "巻物の効果") {
+  if (!monSubmergesProjectiles(mon)) return false;
+  ml.push(`${mon.name}が潜って${label}をかわした！`);
+  return true;
+}
 
 /* 投擲着弾点を事前計算（壁・モンスター停止、maxRange制限、風穴で曲がる） */
 function _traceThrowEnd(px, py, dx, dy, dg, maxRange, stopAtContainers = false) {
@@ -982,6 +989,7 @@ export function useItemActions({
           }
           for (const _m of _tTargets) {
             if (_m.hp <= 0) continue;
+            if (skipDodgemoleScroll(_m, ml)) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               let _rdmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
@@ -1020,6 +1028,7 @@ export function useItemActions({
           ml.push(`呪いのエネルギーが爆発した！${_rdmg}ダメージ！【呪】`);
           pushExplosionAnim(p.x, p.y);
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (skipDodgemoleScroll(_m, ml, "呪いのエネルギー")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               const _refC = Math.min(_rdmg, p.maxHp - p.hp);
@@ -1045,6 +1054,7 @@ export function useItemActions({
           pushHealAnim(p.x, p.y);
           ml.push(`体が癒された！HP+${_ra}${it.blessed ? "【祝】" : ""}`);
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (skipDodgemoleScroll(_m, ml, "回復の効果")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               const _refN = Math.min(_rh, p.maxHp - p.hp);
@@ -1152,6 +1162,7 @@ export function useItemActions({
           else if (hasAbility(p.armor, "sleep_proof")) ml.push("眠気が辺りを包んだ！しかし防具が防いだ！(耐眠)【呪】");
           else { p.sleepTurns = (p.sleepTurns || 0) + _pst; ml.push(`眠気が辺りを包んだ！${_pst}ターン眠ってしまう…【呪】`); }
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (skipDodgemoleScroll(_m, ml, "眠りの効果")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
@@ -1173,6 +1184,7 @@ export function useItemActions({
             ml.push(it.blessed ? "眠気が漂うが、フロアに敵はいない。【祝】" : "眠気が漂うが、視界に敵はいない。");
           } else {
             for (const _m of _sSleep) {
+              if (skipDodgemoleScroll(_m, ml, "眠りの効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
               if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
@@ -1196,6 +1208,7 @@ export function useItemActions({
           else if (hasAbility(p.armor, "confuse_proof")) ml.push("混乱ガスが辺りを包んだ！しかし防具が防いだ！(耐混乱)【呪】");
           else { p.confusedTurns = (p.confusedTurns || 0) + _pct; ml.push(`混乱ガスが辺りを包んだ！${_pct}ターン混乱する…【呪】`); }
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
+            if (skipDodgemoleScroll(_m, ml, "混乱ガス")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
@@ -1215,6 +1228,7 @@ export function useItemActions({
           if (_cfTgts.length === 0) { ml.push(it.blessed ? "混乱ガスが漂うが、フロアに敵はいない。【祝】" : "混乱ガスが漂うが、視界に敵はいない。"); }
           else {
             for (const _m of _cfTgts) {
+              if (skipDodgemoleScroll(_m, ml, "混乱ガス")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
               if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
@@ -1237,6 +1251,7 @@ export function useItemActions({
         else {
           for (const _m of _flTgts) {
             if (_m.hp <= 0) continue;
+            if (skipDodgemoleScroll(_m, ml, "炎の効果")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               const _refFlDmg = Math.max(1, Math.round(rng(15, 25) * _scrBm));
@@ -1276,6 +1291,7 @@ export function useItemActions({
             ml.push("平和の気が辺りを包んだが、部屋に敵はいない。【呪】");
           } else {
             for (const _m of _bsCurTgts) {
+              if (skipDodgemoleScroll(_m, ml, "平和の効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
               if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が平和を跳ね返したが、状態防止中のため効かなかった！`); continue; }
@@ -1298,6 +1314,7 @@ export function useItemActions({
             ml.push(it.blessed ? "バーサークの気が漂うが、フロアに敵はいない。【祝】" : "バーサークの気が漂うが、部屋に敵はいない。");
           } else {
             for (const _m of _bsTgts) {
+              if (skipDodgemoleScroll(_m, ml, "バーサークの効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
               if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}がバーサークを跳ね返したが、状態防止中のため効かなかった！`); continue; }
@@ -1340,6 +1357,7 @@ export function useItemActions({
               if (dg.map[_ay][_ax] === T.WALL || dg.map[_ay][_ax] === T.BWALL) continue;
               for (const _m of dg.monsters.filter(mm => mm.x === _ax && mm.y === _ay)) {
                 if (_sdKilled.has(_m) || _m.hp <= 0) continue;
+                if (skipDodgemoleScroll(_m, ml, "爆発")) continue;
                 if (_m.baseKind === "firedemon") { ml.push(`${_m.name}には爆発が効かない！（炎無効）`); continue; }
                 pushExplosionAnim(_ax, _ay);
                 if (_m.isBoss) {
@@ -1411,6 +1429,7 @@ export function useItemActions({
           if (_dbTgts.length === 0) { ml.push("視界に敵はいない。"); }
           else {
             for (const _m of _dbTgts) {
+              if (skipDodgemoleScroll(_m, ml, "解除の効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
                 // 反射：自分に攻撃力半減・防御力半減デバフ
@@ -1500,6 +1519,7 @@ export function useItemActions({
           if (_btTgts.length === 0) { ml.push(it.blessed ? "視界に敵はいない。" : "周囲に敵はいない。"); }
           else {
             for (const _m of _btTgts) {
+              if (skipDodgemoleScroll(_m, ml, "金縛りの効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が金縛りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
@@ -1587,6 +1607,7 @@ export function useItemActions({
             let _teleportedCount = 0;
             let _reflectedToPlayer = false;
             for (const _sm of _inRoom) {
+              if (skipDodgemoleScroll(_sm, ml, "召喚の呪い")) continue;
               if (_sm.magicImmune) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
               if (_sm.subtype === "magicreflect") { ml.push(`${_sm.name}が呪いの召喚を跳ね返した！`); _reflectedToPlayer = true; continue; }
               if (consumeBarrier(_sm, ml)) continue;
@@ -3408,6 +3429,11 @@ export function useItemActions({
             }
             const m = monsterAt(dg, tx, ty);
             if (m) {
+              if (monSubmergesProjectiles(m)) {
+                ml.push(`${m.name}が潜って${dnameRef(it)}をかわした！`);
+                lx = tx; ly = ty;
+                continue;
+              }
               if (_isFarcast) {
                 /* 遠投：splash せず個別に薬効果を適用、貫通 */
                 _potHits.push(m);
@@ -3492,6 +3518,11 @@ export function useItemActions({
             }
             const m = monsterAt(dg, tx, ty);
             if (m) {
+              if (monSubmergesProjectiles(m)) {
+                ml.push(`${m.name}が潜って${dnameRef(it)}をかわした！`);
+                lx = tx; ly = ty;
+                continue;
+              }
               const _potSureHit = (p.sureHitTurns || 0) > 0;
               const _potDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
               const _potMiss = _potDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_potSureHit && !isEvasionDisabledByStatus(m) && !(_potDodgePcMode === "sure") && Math.random() >= 0.90));
@@ -3667,6 +3698,11 @@ export function useItemActions({
             }
             const m = monsterAt(dg, tx, ty);
             if (m) {
+              if (monSubmergesProjectiles(m)) {
+                ml.push(`${m.name}が潜って${lb}をかわした！`);
+                lx = tx; ly = ty;
+                continue;
+              }
               const _thSureHit = (p.sureHitTurns || 0) > 0;
               const _thDodgePcMode = !_isFarcast ? getDodgePentacleMode(dg, m.x, m.y) : null;
               const _thMiss = _thDodgePcMode === "dodge" || (_forceMiss || (!_isFarcast && !_thSureHit && !isEvasionDisabledByStatus(m) && !(_thDodgePcMode === "sure") && Math.random() >= 0.90));

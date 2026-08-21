@@ -7,6 +7,7 @@ import {
 } from './items.js';
 import { scatterFloorGimmicks } from './fixtures.js';
 import { pushPlayerTeleportAnim } from './animEvents.js';
+import { monSubmergesProjectiles } from './monTraits.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -355,6 +356,10 @@ export function applyMonsterScroll(dg, p, ml, { blessed = false, cursed = false 
     const _otherRooms = (dg.rooms || []).filter((r) => r !== _sumRoom);
     let _teleportedCount = 0;
     for (const _sm of _inRoom) {
+      if (monSubmergesProjectiles(_sm)) {
+        ml.push(`${_sm.name}が潜って召喚の呪いをかわした！`);
+        continue;
+      }
       if (_sm.magicImmune && !_sm.sealed) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
       const _tr = pick(_otherRooms);
       if (!_tr) continue;

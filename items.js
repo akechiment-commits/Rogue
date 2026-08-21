@@ -21,7 +21,7 @@ import {
 import { statusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
-  monEffectiveFixedDamageOnly,
+  monEffectiveFixedDamageOnly, monSubmergesProjectiles,
 } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
@@ -5101,6 +5101,10 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     const m = monsterAt(dg, tx, ty);
     if (m) {
+      if (monSubmergesProjectiles(m) && !st.stone && !st.magicStone) {
+        ml.push(m.name + "が潜って" + _arName + "をかわした！");
+        continue;
+      }
       /* 下手投げなどの絶対ミスは、反射・障壁より先に処理する。 */
       if (forceMiss) {
         if (_pierceMode) continue;
@@ -5886,6 +5890,11 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
     }
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
+      if (monSubmergesProjectiles(mon)) {
+        ml.push(`${mon.name}が潜って魔法をかわした！`);
+        _lx = tx; _ly = ty;
+        continue;
+      }
       wakeIfDormant(mon, ml);
       if (monEffectiveMagicImmune(mon)) {
         ml.push(`魔法は${mon.name}に効かない！`);

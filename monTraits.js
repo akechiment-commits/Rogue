@@ -45,6 +45,11 @@ export function monReflectsMagic(m) {
   ));
 }
 
+/** 通常の投擲物・魔法弾・巻物・杖の効果を潜ってかわす（かわしモグラ） */
+export function monSubmergesProjectiles(m) {
+  return !!(m && !m.sealed && m.baseKind === "dodgemole");
+}
+
 /** 封印中は1回行動まで */
 export function monEffectiveMaxAttacks(m) {
   if (!m) return 1;

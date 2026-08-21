@@ -18,7 +18,7 @@ import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
-import { monEffectiveMagicImmune, monReflectsMagic } from './monTraits.js';
+import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import {
   isFloorOccupancyBlocked,
@@ -211,6 +211,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     return;
   }
   if (kind === "monster") {
+    if (monSubmergesProjectiles(target)) {
+      ml.push(`${target.name}が潜って杖の効果をかわした！`);
+      return;
+    }
     wakeIfDormant(target, ml);
     /* 魔法無効（キラープラスター等）：杖の魔法弾を完全無効化 */
     if (monEffectiveMagicImmune(target)) { ml.push(`魔法は${target.name}に効かない！`); return; }
@@ -1939,6 +1943,11 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     if (eff === "ice_wand") freezeWaterTile(dg, tx, ty, ml);
     const mon = monsterAt(dg, tx, ty);
     if (mon) {
+      if (monSubmergesProjectiles(mon)) {
+        ml.push(`${mon.name}が潜って杖の光弾をかわした！`);
+        lastX = tx; lastY = ty;
+        continue;
+      }
       if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
       /* 魔法反射：魔法ボルトをプレイヤーに跳ね返す */
       if (monReflectsMagic(mon)) {
@@ -2205,7 +2214,12 @@ function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, la
     return;
   }
   const mon = monsterAt(dg, cx, cy);
-  if (mon && !consumeBarrier(mon, ml)) {
+  if (mon) {
+    if (monSubmergesProjectiles(mon)) {
+      ml.push(`${mon.name}が潜って杖の爆発をかわした！`);
+      return;
+    }
+    if (consumeBarrier(mon, ml)) return;
     mon.hp -= dmg;
     ml.push(`${label}爆発で${mon.name}に${dmg}ダメージ！`);
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
