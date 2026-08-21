@@ -116,6 +116,15 @@ describe("foodData", () => {
     expect(COOKED_FOODS_SWEET).toContain("カレーパン");
   });
 
+  it("重複整理後の目標数に揃い、新規料理の相性も個別設定される", () => {
+    expect(RAW_FOODS).toHaveLength(400);
+    expect(COOKED_FOODS).toHaveLength(1000);
+    expect(FOOD_CAT_MAP.get("バインセオ")).toBe("southeast_asian");
+    expect(FOOD_CAT_MAP.get("チョリソー")).toBe("spanish");
+    expect(FOOD_CAT_MAP.get("パブロバ")).toBe("western_sweets");
+    expect(foodMatchesPotCategory({ _foodBase: "カイザーシュマーレン", foodCat: "western_sweets" }, "butter")).toBe(true);
+  });
+
   it("FOOD_POT_EXTRA の料理名はすべてリストに存在する", () => {
     for (const name of Object.keys(FOOD_POT_EXTRA)) {
       expect(COOKED_FOODS).toContain(name);
