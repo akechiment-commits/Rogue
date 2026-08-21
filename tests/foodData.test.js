@@ -11,6 +11,21 @@ import {
 
 const dup = (arr) => arr.filter((x, i) => arr.indexOf(x) !== i);
 
+const canonicalFoodAliases = [
+  ["すもも", "プラム"],
+  ["柿", "カキノキの実"],
+  ["回鍋肉", "ホイコーロー"],
+  ["焼売", "しゅうまい"],
+  ["豚汁", "とん汁"],
+  ["石狩鍋", "いしかり鍋"],
+  ["のっぺ汁", "のっぺい汁"],
+  ["グーラッシュ", "グラーシュ"],
+  ["わらび餅", "わらびもち"],
+  ["マッサマンカレー", "ゲーンマッサマン"],
+  ["おはぎ", "ぼた餅"],
+  ["カリーヴルスト", "カレーソーセージ"],
+];
+
 describe("foodData", () => {
   it("リスト内に重複がない", () => {
     expect(dup(RAW_FOODS)).toEqual([]);
@@ -21,6 +36,14 @@ describe("foodData", () => {
   it("生食材と調理済みで名前が被らない", () => {
     expect(RAW_FOODS.filter((n) => COOKED_FOODS.includes(n))).toEqual([]);
     expect(COOKED_FOODS_SAVORY.filter((n) => COOKED_FOODS_SWEET.includes(n))).toEqual([]);
+  });
+
+  it("同一料理の表記揺れを別の食料として登録しない", () => {
+    for (const [canonical, alias] of canonicalFoodAliases) {
+      const all = [...RAW_FOODS, ...COOKED_FOODS];
+      expect(all).toContain(canonical);
+      expect(all).not.toContain(alias);
+    }
   });
 
   it("危険・誤分類だった食材を除去・修正している", () => {
@@ -124,7 +147,7 @@ describe("foodData", () => {
     const jpStart = COOKED_FOODS_SAVORY.indexOf("寿司");
     const jpEnd = COOKED_FOODS_SAVORY.indexOf("ステーキ");
     const japanese = COOKED_FOODS_SAVORY.slice(jpStart, jpEnd);
-    for (const name of ["焼き餃子", "冷やし中華", "レバニラ炒め", "しゅうまい", "ホイコーロー", "タンメン", "皿うどん", "カニ玉"]) {
+    for (const name of ["焼き餃子", "冷やし中華", "レバニラ炒め", "タンメン", "皿うどん", "カニ玉"]) {
       expect(chuka).toContain(name);
       expect(japanese).not.toContain(name);
     }
