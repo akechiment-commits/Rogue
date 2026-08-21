@@ -658,7 +658,10 @@ export function genFood() {
   const cooked = Math.random() < 0.5;
   const names = getFoodBasePool(cooked);
   const sizes = cooked ? COOKED_SIZES : RAW_SIZES;
-  const fn = pick(names);
+  /* 好物は食料生成時にちょうど1%で選出。通常抽選との二重当選は避ける。 */
+  const _forceFavorite = _favoriteFoodBase && Math.random() < 0.01;
+  const _normalNames = _favoriteFoodBase ? names.filter(name => name !== _favoriteFoodBase) : names;
+  const fn = _forceFavorite ? _favoriteFoodBase : pick(_normalNames.length ? _normalNames : names);
   const sz = wPick(sizes);
   const ef = wPick(FOOD_EFFECTS);
   /* 「普通の」は名前に表示しない */

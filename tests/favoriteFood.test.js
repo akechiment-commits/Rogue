@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   normalizeFavoriteFood,
   applyFavoriteFoodToSave,
@@ -11,6 +11,7 @@ import {
   setFavoriteFoodBase,
   getFavoriteFoodBase,
   getFoodBasePool,
+  genFood,
   COOKED_FOODS,
   RAW_FOODS,
 } from "../items.js";
@@ -69,6 +70,7 @@ describe("favoriteFoodLabel", () => {
 describe("getFoodBasePool / setFavoriteFoodBase", () => {
   afterEach(() => {
     setFavoriteFoodBase("");
+    vi.restoreAllMocks();
   });
 
   it("未設定なら通常プールのみ", () => {
@@ -90,5 +92,14 @@ describe("getFoodBasePool / setFavoriteFoodBase", () => {
     setFavoriteFoodBase("おにぎり");
     expect(COOKED_FOODS.includes("おにぎり")).toBe(true);
     expect(getFoodBasePool(true)).toBe(COOKED_FOODS);
+  });
+
+  it("食料生成時は1%の抽選で好物を選ぶ", () => {
+    setFavoriteFoodBase("おにぎり");
+    vi.spyOn(Math, "random")
+      .mockReturnValueOnce(0.2)   // 生食料を選ぶ
+      .mockReturnValueOnce(0.005) // 好物の1%抽選に当選
+      .mockReturnValue(0);
+    expect(genFood()._foodBase).toBe("おにぎり");
   });
 });

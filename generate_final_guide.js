@@ -675,6 +675,7 @@ foodItemData.push(['', '焼いた食料', '満腹度×2。生食料を炎の薬/
 foodItemData.push(['', '焦げた食料', '満腹度×0.6。調理済みに再度炎が当たる', '通常の水の飛散で焼いた食料に戻り、満腹度も元へ戻る']);
 foodItemData.push(['', '祝福食料', '満腹度×1.5（特殊効果は変わらない）', 'getBlessMultiplier適用']);
 foodItemData.push(['', '呪い食料', '満腹度×0.5（特殊効果は変わらない）', 'getBlessMultiplier適用']);
+foodItemData.push(['生成', '好きな食べ物', '食料生成時に1%で出現', '通常の食料名抽選からは除外して実効1%に調整']);
 
 // 調味料の壺 固有効果
 foodItemData.push(['', '', '', '']);
