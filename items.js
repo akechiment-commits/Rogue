@@ -3997,6 +3997,25 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
 }
 
 export function monsterDrop(m, dg, ml, p = null) {
+  /* 遺物の番人：ボス扱いにせず、金貨と通常枠のランダムアイテムだけを確定で落とす。 */
+  if (m.relicGuardian) {
+    const _ft = new Set();
+    const _stage = Math.max(1, m.guardianStage || 1);
+    const _gv = 200 + _stage * 100 + rng(0, 100);
+    placeItemAt(dg, m.x, m.y,
+      { name: "金貨", type: "gold", value: _gv, tile: 22, id: uid() },
+      ml, _ft, 0, p);
+    const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
+    const _t = pickLootFromPool(_pool, "drop");
+    if (_t) {
+      const _di = { ..._t, id: uid() };
+      if (_di.type === "pen") _di.charges = penInitialCharges(_di);
+      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      placeItemAt(dg, m.x, m.y, _di, ml, _ft, 0, p);
+    }
+    ml.push(`${m.name}を倒した！金貨とアイテムが落ちた！`);
+    return;
+  }
   /* ===== ボスドロップ（通常ドロップをスキップして専用報酬を散布） ===== */
   if (m.isBoss) {
     const _tier = m.bossTier || 1;

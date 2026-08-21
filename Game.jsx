@@ -79,6 +79,7 @@ import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
 import { getFirstEncounterMessageTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip, isUnidentifiedEncounterItem } from "./firstEncounterTips.js";
+import { makeRelicGuardian } from "./relicGuardian.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -2096,7 +2097,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           setShowEnding(true);
           return;
         }
-        const _prevDepth = p.depth; /* chgFloor が p.depth を書き換える前に保存 */
         const nd = chgFloor(p, dir);
         if (nd) {
           st.dungeon = nd;
@@ -2114,21 +2114,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             const _pool = _far.length ? _far : _mid.length ? _mid : _cands;
             if (_pool.length > 0) {
               const [_px, _py] = pick(_pool);
-              const _baseD = sr.current.maxDepth ?? _prevDepth; /* 最深深度基準 */
-              const _phMax = 60 + _baseD * 10;
-              const _pSpeed = _baseD >= 20 ? 2 : 1;
-              nd.monsters.push({
-                id: uid(), name: "遺物の番人",
-                hp: _phMax, maxHp: _phMax,
-                atk: 18 + _baseD * 2,
-                def: 8  + _baseD,
-                exp: 150 + _baseD * 20,
-                speed: _pSpeed, baseSpeed: _pSpeed, turnAccum: 0,
-                tile: 58, kind: "beast", baseKind: "pursuer",
-                monLevel: 1, isBoss: true, aware: true,
-                x: _px, y: _py,
-                dir: { x: 0, y: 0 }, lastPx: p.x, lastPy: p.y, patrolTarget: null,
-              });
+              nd.monsters.push(makeRelicGuardian({
+                x: _px,
+                y: _py,
+                maxDepth: sr.current.maxDepth ?? p.depth,
+                currentDepth: p.depth,
+                lastPx: p.x,
+                lastPy: p.y,
+              }));
               ml.push("キーアイテムを察知した遺物の番人が現れた！");
             }
           }

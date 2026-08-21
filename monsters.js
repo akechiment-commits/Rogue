@@ -3430,7 +3430,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
     if (m.paralyzed) return;
   }
-  /* ===== ボス固有AI ===== */
+  /* ===== 特殊AI ===== */
   /* 遺物の番人：7ターンごとにプレイヤーの隣に瞬間移動（逃げ場なし）
      HP50%以下で激昂：毎ターン5HP回復 + 次ワープまでの間隔が4ターンに縮む */
   if (m.baseKind === "pursuer" && !_moveOnly) {
