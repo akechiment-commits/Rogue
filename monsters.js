@@ -160,7 +160,14 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     }
     if (_fx === pl.x && _fy === pl.y) { _applyFireToPlayer(); return; }
     const _fBlock = dg.monsters.find(o => o !== m && o.x === _fx && o.y === _fy);
-    if (_fBlock) { _applyFireToMon(_fBlock); return; }
+    if (_fBlock) {
+      if (monSubmergesProjectiles(_fBlock) && _fLvl <= 1) {
+        ml.push(`${_fBlock.name}が潜って炎ブレスをかわした！`);
+        continue;
+      }
+      _applyFireToMon(_fBlock);
+      return;
+    }
   }
 }
 
@@ -225,7 +232,14 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     }
     if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); return; }
     const _iBlock = dg.monsters.find(o => o !== m && o.x === _ix && o.y === _iy);
-    if (_iBlock) { _hitIceMon(_iBlock); return; }
+    if (_iBlock) {
+      if (monSubmergesProjectiles(_iBlock) && _iLvl <= 1) {
+        ml.push(`${_iBlock.name}が潜って氷ブレスをかわした！`);
+        continue;
+      }
+      _hitIceMon(_iBlock);
+      return;
+    }
   }
 }
 
@@ -920,7 +934,7 @@ export const MONS = [
     ],
   },
   { name: "かわしモグラ", hp: 54, atk: 21, def: 6, exp: 60, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 12, maxFloor: 35, subtype: "dodgemole", dungeonFloors: { intermediate: { min: 13, max: 20 }, advanced: { min: 10, max: 25 } },
-    desc: "通常の投擲物・矢・杖の光弾・魔法・巻物の効果を潜ってかわす。石や魔法の石、薬の飛沫、這いずり爆弾、魚雷、追尾弾は当たる。",
+    desc: "通常の投擲物・矢・杖の光弾・魔法・巻物の効果・矢罠・水鉄砲を潜ってかわす。直線型のLv1ブレスもかわすが、Lv2以降の追尾型ブレスは当たる。爆風は当たる。",
     levels: [
       { name: "ひょいひょいモグラ", hp: 86, atk: 30, def: 10, exp: 100, dungeonFloors: { advanced: { min: 23, max: 27 } } },
       { name: "ディグダグダグダ", hp: 135, atk: 42, def: 15, exp: 165, dungeonFloors: { advanced: { min: 28, max: 35 } } },
@@ -1962,6 +1976,10 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
     /* 途中のモンスターに当たった場合 */
     const hitMon = dg.monsters.find(o => o !== m && o.x === tx && o.y === ty);
     if (hitMon) {
+      if (monSubmergesProjectiles(hitMon)) {
+        ml.push(`${hitMon.name}が潜って水鉄砲をかわした！`);
+        continue;
+      }
       const _wgWater = hitMon.waterOnly || hitMon.baseKind === "im_boss_kraken";
       if (_wgWater) {
         /* 水属性モンスターは回復 */

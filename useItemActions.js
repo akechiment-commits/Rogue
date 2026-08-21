@@ -2838,6 +2838,11 @@ export function useItemActions({
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               const _baM = monsterAt(dg, tx, ty);
               if (_baM) {
+                if (monSubmergesProjectiles(_baM)) {
+                  ml.push(_baM.name + "が潜って爆弾矢をかわした！");
+                  _baLx = tx; _baLy = ty;
+                  continue;
+                }
                 /* reflector：爆弾矢を跳ね返す（爆発はそのまま発生） */
                 if (_baM.subtype === "reflector") {
                   ml.push(`${_baName}が${_baM.name}に弾き返された！`);
@@ -3365,6 +3370,11 @@ export function useItemActions({
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               const _baM2 = monsterAt(dg, tx, ty);
               if (_baM2) {
+                if (monSubmergesProjectiles(_baM2)) {
+                  ml.push(_baM2.name + "が潜って爆弾矢をかわした！");
+                  _baLx2 = tx; _baLy2 = ty;
+                  continue;
+                }
                 const _baDmg2 = calcProjectileDmg(p, it.atk || 6, _baM2.def);
                 _baM2.hp -= _baDmg2;
                 ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);

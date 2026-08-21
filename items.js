@@ -2237,6 +2237,10 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
 
     const m = monsterAt(dg, cx, cy);
     if (m) {
+      if (monSubmergesProjectiles(m)) {
+        ml.push(`${m.name}が潜って${label}をかわした！`);
+        continue;
+      }
       if (monReflectsProjectiles(m)) {
         ml.push(`${label}が${m.name}に弾き返された！`);
         let rHit = false, rLastX = cx, rLastY = cy;
