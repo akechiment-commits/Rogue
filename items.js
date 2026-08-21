@@ -1354,7 +1354,7 @@ export function weaponCriticalRate(weapon, sesameActive = false) {
     ...(weapon?.ability ? [weapon.ability] : []),
   ]);
   const criticalKinds = CRITICAL_ABILITY_IDS.reduce((n, id) => n + (abilities.has(id) ? 1 : 0), 0);
-  const sesameBonus = sesameActive ? 0.20 : 0;
+  const sesameBonus = sesameActive ? 0.25 : 0;
   return Math.min(1, criticalKinds * 0.25 + sesameBonus);
 }
 

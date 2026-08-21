@@ -28,7 +28,8 @@ describe("会心能力の合成", () => {
     expect(weaponCriticalRate({ ability: "critical_oni_club" })).toBe(0.25);
     expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe"] })).toBe(0.50);
     expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe", "critical_cat_claw"] })).toBe(0.75);
-    expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe"] }, true)).toBe(0.70);
+    expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe"] }, true)).toBe(0.75);
+    expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe", "critical_cat_claw"] }, true)).toBe(1);
   });
 });
 
