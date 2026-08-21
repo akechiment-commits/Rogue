@@ -16,6 +16,12 @@ describe("first encounter tips", () => {
     expect(getFirstEncounterTip("trap", "debug", [])).toBeNull();
   });
 
+  it("復活の解説に骨を壊す手段を含める", () => {
+    const tip = getFirstEncounterTip("revival", "beginner", []);
+    expect(tip.text[1]).toContain("投擲物");
+    expect(tip.text[1]).toContain("炎の杖");
+  });
+
   it("攻略上重要な状況を幅広く網羅する", () => {
     expect(Object.keys(FIRST_ENCOUNTER_TIPS).length).toBeGreaterThanOrEqual(40);
     expect(Object.keys(FIRST_ENCOUNTER_TIPS)).toEqual(expect.arrayContaining([
