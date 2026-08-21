@@ -20,7 +20,7 @@ import {
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
   checkShopTheft, declareShopTheft, canCalmShopkeeper, applyLightningToInventory,
-  WEAPON_ABILITIES, ARMOR_ABILITIES, inMagicSealRoom, inCursedMagicSealRoom,
+  WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
@@ -2319,8 +2319,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               let d = calcAtkDefDmg(ap, attackMon.def || 0, { defWeight: 1 });
               if (p.weapon?.blessed) d += 3;
               let crit = false;
-              const _sesameCritRate = (p.sesameCritTurns || 0) > 0 ? 0.45 : 0.25;
-              if (wabHas("critical") && Math.random() < _sesameCritRate) {
+              const _criticalRate = weaponCriticalRate(p.weapon, (p.sesameCritTurns || 0) > 0);
+              if (_criticalRate > 0 && Math.random() < _criticalRate) {
                 d *= 2;
                 crit = true;
               }

@@ -871,7 +871,7 @@ export function useKeyHandler({
             const _isWeapon = _selIt.type === "weapon";
             const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
             const _owned = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
-            const _WS = new Set(["reach","critical","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid"]);
+            const _WS = new Set(["reach","critical","critical_oni_club","critical_war_god_axe","critical_cat_claw","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid"]);
             const _WW = new Set(["no_degrade","def_bonus","inflict_slow","knockback"]);
             const _AS = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist"]);
             const _AW = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof"]);

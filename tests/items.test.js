@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { setFavoriteFoodBase } from "../items.js";
+import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T } from "../items.js";
 
 afterEach(() => setFavoriteFoodBase(""));
 
@@ -16,6 +17,17 @@ describe("好物の調味料相性", () => {
       expect(item.value, potEffect).toBe(32);
       expect(ml.at(-1), potEffect).toContain("相性抜群");
     }
+  });
+});
+
+describe("会心能力の合成", () => {
+  it("鬼棍棒・戦神の斧・猫の爪を別系統として25%ずつ加算する", () => {
+    expect(ONI_CLUB_T.ability).toBe("critical_oni_club");
+    expect(CAT_CLAW_T.ability).toBe("critical_cat_claw");
+    expect(weaponCriticalRate({ ability: "critical_oni_club" })).toBe(0.25);
+    expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe"] })).toBe(0.50);
+    expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe", "critical_cat_claw"] })).toBe(0.75);
+    expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe"] }, true)).toBe(0.70);
   });
 });
 

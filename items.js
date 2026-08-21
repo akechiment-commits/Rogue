@@ -393,7 +393,7 @@ export const ITEMS = [
   { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"B", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
   { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"B", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。", tile:20 },
   { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"B", weight:2,  sellPrice:1500, desc:"浮遊している敵に1.5倍ダメージを与える槍。",   tile:20 },
-  { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical",      rarity:"B", weight:2,  sellPrice:2500, desc:"25%の確率で会心の一撃（2倍ダメージ）が出る斧。",  tile:20 },
+  { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical_war_god_axe", rarity:"B", weight:2,  sellPrice:2500, desc:"25%の確率で会心の一撃（2倍ダメージ）が出る斧。鬼棍棒・猫の爪の会心能力と合成すると会心率が各25%加算される。",  tile:20 },
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"D", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
   { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"C", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
   { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"C", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれ・炎弱点の敵に1.5倍ダメージ。", tile:20 },
@@ -471,7 +471,7 @@ export function getBlessMultiplier(it) {
   return 1;
 }
 
-export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical",    sellPrice:3000, desc:"鋭い爪の形をした武器。25%の確率で会心の一撃。", tile:20 };
+export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical_cat_claw", sellPrice:3000, desc:"鋭い爪の形をした武器。25%の確率で会心の一撃。鬼棍棒・戦神の斧の会心能力と合成すると会心率が各25%加算される。", tile:20 };
 export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。", tile:20 };
 /** カラペン系が押し付ける、置くことも投げることもできない敵専用アイテム */
 export const CHARGED_FUZZBALL_T = {
@@ -517,7 +517,7 @@ export const GODBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:18,
 export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:12, ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           sellPrice:15000, desc:"刃反射・みかわし・杖反射を備えた鎧。",       tile:21 };
 export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"振ると100ダメージを与える究極の杖。\n呪い：100回復。", tile:24 };
 export const GOBLIN_BAT_T     = { name:"ゴブリンバット", type:"weapon", atk:4, rarity:"D", sellPrice:80, desc:"ゴブリンが持っている粗削りな鈍器。", tile:20 };
-export const ONI_CLUB_T       = { name:"鬼棍棒",       type:"weapon", atk:8, ability:"critical", sellPrice:1200, desc:"25%の確率で会心の一撃が出る棍棒。", tile:20 };
+export const ONI_CLUB_T       = { name:"鬼棍棒",       type:"weapon", atk:8, ability:"critical_oni_club", sellPrice:1200, desc:"25%の確率で会心の一撃が出る棍棒。戦神の斧・猫の爪の会心能力と合成すると会心率が各25%加算される。", tile:20 };
 
 export const ARROW_T         = { name:"矢",       type:"arrow", atk:3,                 rarity:"E", weight:12, sellPrice:10,  desc:"99本まで束にできる矢。",                 count:1, tile:23 };
 export const POISON_ARROW_T  = { name:"毒矢",     type:"arrow", atk:2, poison:true,     rarity:"D", weight:8,  sellPrice:30,  desc:"毒を持つ矢。99本まで束にできる。",        count:1, tile:23 };
@@ -1297,6 +1297,21 @@ export function extractPotContents(pot, dg, px, py, p, ml, luFn, blessed, cursed
 }
 
 /* ===== WEAPON / ARMOR ABILITIES ===== */
+export const CRITICAL_ABILITY_IDS = [
+  "critical", "critical_oni_club", "critical_war_god_axe", "critical_cat_claw",
+];
+
+/** 武器に宿る会心能力の合計率。各系統は合成で1回ずつ加算する。 */
+export function weaponCriticalRate(weapon, sesameActive = false) {
+  const abilities = new Set([
+    ...(weapon?.abilities || []),
+    ...(weapon?.ability ? [weapon.ability] : []),
+  ]);
+  const criticalKinds = CRITICAL_ABILITY_IDS.reduce((n, id) => n + (abilities.has(id) ? 1 : 0), 0);
+  const sesameBonus = sesameActive ? 0.20 : 0;
+  return Math.min(1, criticalKinds * 0.25 + sesameBonus);
+}
+
 export const WEAPON_ABILITIES = [
   { id:"reach",         name:"長柄",      desc:"2マス先の敵まで攻撃できる" },
   { id:"bane_beast",    name:"獣特効",    desc:"獣系の敵(ネズミ・大蛇)に1.5倍ダメージ" },
@@ -1309,6 +1324,9 @@ export const WEAPON_ABILITIES = [
   { id:"bane_float",    name:"浮遊特効",  desc:"浮遊している敵(インプ・ガーゴイル・ヴァンパイア・デーモン)に1.5倍ダメージ" },
   { id:"knockback",     name:"吹き飛ばし",desc:"攻撃した敵を1マス吹き飛ばす" },
   { id:"critical",      name:"会心",      desc:"25%の確率でダメージ2倍のクリティカルヒット" },
+  { id:"critical_oni_club",    name:"鬼棍棒の会心",    desc:"鬼棍棒由来の会心。合成した種類ごとに会心率が25%加算される" },
+  { id:"critical_war_god_axe", name:"戦神の斧の会心", desc:"戦神の斧由来の会心。合成した種類ごとに会心率が25%加算される" },
+  { id:"critical_cat_claw",    name:"猫の爪の会心",    desc:"猫の爪由来の会心。合成した種類ごとに会心率が25%加算される" },
   { id:"no_degrade",    name:"不錆",      desc:"錆の罠や泉に落ちても＋値が下がらない" },
   { id:"pickaxe",       name:"穴掘り",    desc:"装備して壁に体当たりすると壁を掘れる（耐久制）" },
   { id:"inflict_slow",    name:"鈍足付与",  desc:"攻撃時10%の確率で敵を鈍足にする" },

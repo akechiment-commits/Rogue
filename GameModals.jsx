@@ -1203,7 +1203,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       const _allAbils = _isWeapon ? WEAPON_ABILITIES : ARMOR_ABILITIES;
       const _ownedIds = new Set([...(_selIt.abilities || []), _selIt.ability].filter(Boolean));
       /* 祝福・呪いで選出プールを絞る */
-      const _WEAPON_STRONG = new Set(["reach","critical","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid","lifesteal","double_strike"]);
+      const _WEAPON_STRONG = new Set(["reach","critical","critical_oni_club","critical_war_god_axe","critical_cat_claw","bane_dragon","bane_float","fire_elem","ice_elem","thunder_elem","inflict_seal","inflict_immobile","inflict_bewitch","bane_undead","bane_humanoid","lifesteal","double_strike"]);
       const _WEAPON_WEAK   = new Set(["no_degrade","def_bonus","inflict_slow","knockback","recoil","gluttony"]);
       const _ARMOR_STRONG  = new Set(["regen","thorn","dodge","wand_reflect","fire_resist","lightning_resist","ice_resist","water_proof","all_resist","aura"]);
       const _ARMOR_WEAK    = new Set(["slow_hunger","anti_steal","no_degrade","sleep_proof","frail","noisy"]);
