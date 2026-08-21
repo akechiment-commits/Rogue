@@ -115,6 +115,8 @@ export function findMeleeAttackKey(newMsgs = [], lastMsg = "", player = null) {
 
 /** メッセージからアイテム使用の種別を判定（直近ログも参照） */
 export function msgToActionKey(msg, recentMsgs = []) {
+  /* 敵に食べさせた投擲食料はプレイヤーの食事ではない。 */
+  if (/食べさせられた/.test(msg || "")) return null;
   const texts = [...recentMsgs];
   if (msg && texts[texts.length - 1] !== msg) texts.push(msg);
 

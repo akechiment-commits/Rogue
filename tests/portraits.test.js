@@ -145,6 +145,14 @@ describe("portraits", () => {
     expect(msgToActionKey("重力の魔方陣が消えた！")).toBeNull();
     expect(msgToActionKey("みかわしの魔方陣の加護でかわした！")).toBeNull();
     expect(msgToActionKey("ラクガキ魔が足元に回復の魔方陣を描いた！")).toBeNull();
+    expect(msgToActionKey("腐った食料を食べさせられた遺物の番人の攻撃力が半減した！")).toBeNull();
+  });
+
+  it("敵に食べさせた腐敗食料ではプレイヤーの食事立ち絵を出さない", () => {
+    expect(findItemActionKey([
+      "腐った極小のキウイが遺物の番人に命中！13ダメージ！",
+      "腐った食料を食べさせられた遺物の番人の攻撃力が半減した！",
+    ])).toBeNull();
   });
 
   it("アイテム使用立ち絵は今回追加されたログだけを参照する", () => {
