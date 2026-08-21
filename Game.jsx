@@ -23,7 +23,7 @@ import {
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear,
-  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES,
+  hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
@@ -3688,6 +3688,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ability: _mabs[0] || undefined,
         abilities: _mabs.length ? _mabs : undefined,
       };
+      if (_mabs.includes("oil_proof")) {
+        const _oilUses = (it) => hasAbility(it, "oil_proof") ? Math.max(0, Math.floor(it.oilProofUses ?? 3)) : 0;
+        merged.oilProofUses = Math.max(_oilUses(base), _oilUses(mat), 1);
+      } else {
+        delete merged.oilProofUses;
+      }
       /* 短剣の合成カウント: 短剣同士なら加算、短剣+他なら消失 */
       if (base.name === "短剣" && mat.name === "短剣") {
         merged.daggerMerge = (base.daggerMerge || 1) + (mat.daggerMerge || 1);
@@ -4551,20 +4557,24 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
           it.abilities = _newAbs; it.ability = _newAbs[0];
           ml.push(`${_oldName}が黄金の輝きを放ち...ゴールデンアクスに変化した！`);
-        } else if (hasAbility(it, "no_degrade")) {
-          let _ndNote = "";
-          if (it.cursed) { it.cursed = false; _ndNote = " 呪いが解けた！"; }
-          ml.push(`${it.name}が水に浸かったが金でできているので錆びなかった！${_ndNote}`);
         } else {
           let _rustNote = "";
           if (it.cursed) { it.cursed = false; _rustNote = " 呪いが解けた！"; }
-          const _op = it.plus || 0;
-          it.plus = _op - 1;
-          const _fp = (v) =>
-            v > 0 ? `+${v}` : v === 0 ? `\u7121\u5370` : `${v}`;
-          ml.push(
-            `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_rustNote}`,
-          );
+          const _guard = consumeItemDegradeProtection(it);
+          if (_guard) {
+            const _guardMsg = _guard.kind === "permanent"
+              ? "金でできているので錆びなかった！"
+              : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
+            ml.push(`${it.name}が水に浸かったが${_guardMsg}${_rustNote}`);
+          } else {
+            const _op = it.plus || 0;
+            it.plus = _op - 1;
+            const _fp = (v) =>
+              v > 0 ? `+${v}` : v === 0 ? `\u7121\u5370` : `${v}`;
+            ml.push(
+              `${it.name}が水に浸かり...錆びてしまった！(${_fp(_op)}→${_fp(it.plus)})${_rustNote}`,
+            );
+          }
         }
       } else if (it.type === "scroll") {
         if (it.effect !== "blank") {

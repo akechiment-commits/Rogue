@@ -3,6 +3,7 @@ import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPoti
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { setFavoriteFoodBase } from "../items.js";
 import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T } from "../items.js";
+import { addOilProofAbility, consumeItemDegradeProtection, soakItemIntoSpring } from "../items.js";
 
 afterEach(() => setFavoriteFoodBase(""));
 
@@ -28,6 +29,38 @@ describe("会心能力の合成", () => {
     expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe"] })).toBe(0.50);
     expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe", "critical_cat_claw"] })).toBe(0.75);
     expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe"] }, true)).toBe(0.70);
+  });
+});
+
+describe("油膜の劣化防止", () => {
+  it("油系の壺で武器・防具に3回限定の油膜が付く", () => {
+    for (const potEffect of ["olive", "sesame", "butter"]) {
+      const item = { type: "weapon", name: "短剣", plus: 0 };
+      const ml = [];
+      applyPotEffect({ type: "pot", name: `${potEffect}の壺`, potEffect }, item, ml);
+      expect(item.ability, potEffect).toBe("oil_proof");
+      expect(item.oilProofUses, potEffect).toBe(3);
+      expect(ml.at(-1), potEffect).toContain("3回");
+    }
+  });
+
+  it("油膜は劣化を3回防いだあと能力ごと消える", () => {
+    const item = { type: "armor", name: "革の鎧" };
+    expect(addOilProofAbility(item)).toBe(true);
+    expect(consumeItemDegradeProtection(item).remaining).toBe(2);
+    expect(consumeItemDegradeProtection(item).remaining).toBe(1);
+    expect(consumeItemDegradeProtection(item).remaining).toBe(0);
+    expect(item.ability).toBeUndefined();
+    expect(item.oilProofUses).toBeUndefined();
+    expect(consumeItemDegradeProtection(item)).toBeNull();
+  });
+
+  it("泉に浸した劣化防止装備は＋値を下げず油膜を1回消費する", () => {
+    const item = { type: "weapon", name: "短剣", plus: 2, ability: "oil_proof", oilProofUses: 3 };
+    const ml = [];
+    soakItemIntoSpring({ contents: [] }, item, ml);
+    expect(item.plus).toBe(2);
+    expect(item.oilProofUses).toBe(2);
   });
 });
 

@@ -742,9 +742,9 @@ export const POTS = [
   { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"A", weight:1,  sellPrice:2000, desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"薬を入れると部屋中に薬効が広がる。\n生の食料を入れると焼いた状態になる。\nその他のものは保管できる。", tile:32 },
   { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"C", weight:4,  sellPrice:700,  desc:"割れると5×5マスを巻き込む大爆発を起こす。\n炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化。\n中身は爆発で消える。", tile:32 },
-  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。\n食べると被攻撃15%回避(80ターン)。\n割れると周囲に油が飛散する。", tile:32 },
-  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。\n食べると会心率UP(80ターン)。\n割れると周囲に油が飛散する。",         tile:32 },
-  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。\n食べると満腹度減少速度半減(100ターン)。\n割れると周囲に油が飛散する。",         tile:32 },
+  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。\n食べると被攻撃15%回避(80ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。", tile:32 },
+  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。\n食べると会心率UP(80ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。",         tile:32 },
+  { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。\n食べると満腹度減少速度半減(100ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。",         tile:32 },
   { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとヨーグルト漬けになる。食べると毒・混乱免疫(100ターン)。",   tile:32 },
   { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。食べるとMP+10回復。",   tile:32 },
   { name:"強欲な壺",           type:"pot", potEffect:"greed",    capacity:4, rarity:"C", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
@@ -790,6 +790,44 @@ export const POT_FOOD_DESCS = {
   garlic:  "にんにくの香りが漂う。",
   lemon:   "爽やかなレモンの香り。",
 };
+
+export const OIL_PROOF_ABILITY = "oil_proof";
+export const OIL_POT_EFFECTS = new Set(["olive", "sesame", "butter"]);
+
+/** 油膜能力を装備へ付与する。既に持っている場合は重ねて増やさない。 */
+export function addOilProofAbility(item) {
+  if (!item || (item.type !== "weapon" && item.type !== "armor")) return false;
+  if (hasAbility(item, OIL_PROOF_ABILITY)) return false;
+  const abilities = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : []), OIL_PROOF_ABILITY])];
+  item.abilities = abilities;
+  item.ability = abilities[0];
+  item.oilProofUses = 3;
+  return true;
+}
+
+/** 劣化を防ぐ能力を1回消費する。恒久の不錆は消費しない。 */
+export function consumeItemDegradeProtection(item) {
+  if (hasAbility(item, "no_degrade")) return { kind: "permanent", remaining: null };
+  if (!hasAbility(item, OIL_PROOF_ABILITY)) return null;
+  const uses = Math.max(0, Math.floor(item.oilProofUses ?? 3));
+  if (uses <= 0) return null;
+  const remaining = uses - 1;
+  if (remaining > 0) {
+    item.oilProofUses = remaining;
+  } else {
+    const abilities = [...new Set([...(item.abilities || []), ...(item.ability ? [item.ability] : [])])]
+      .filter(id => id !== OIL_PROOF_ABILITY);
+    if (abilities.length) {
+      item.abilities = abilities;
+      item.ability = abilities[0];
+    } else {
+      delete item.abilities;
+      delete item.ability;
+    }
+    delete item.oilProofUses;
+  }
+  return { kind: "oil", remaining };
+}
 
 export function applyPotEffect(pot, item, ml, nameFn = null) {
   const _in = resolveItemName(item, nameFn);
@@ -861,6 +899,14 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
       ml.push(`${item.name}になった！(食べると最大満腹度UP)`);
       return;
     }
+  }
+  if (OIL_POT_EFFECTS.has(pe) && (item.type === "weapon" || item.type === "armor")) {
+    if (addOilProofAbility(item)) {
+      ml.push(`${_in}に油膜の能力が付いた！(劣化を3回防ぐ)`);
+    } else {
+      ml.push(`${_in}には既に油膜の能力がある。`);
+    }
+    return;
   }
   const pfx = POT_FOOD_PREFIX[pe];
   if (pfx && item.type === "food") {
@@ -1327,6 +1373,7 @@ export const WEAPON_ABILITIES = [
   { id:"critical_oni_club",    name:"鬼棍棒の会心",    desc:"鬼棍棒由来の会心。合成した種類ごとに会心率が25%加算される" },
   { id:"critical_war_god_axe", name:"戦神の斧の会心", desc:"戦神の斧由来の会心。合成した種類ごとに会心率が25%加算される" },
   { id:"critical_cat_claw",    name:"猫の爪の会心",    desc:"猫の爪由来の会心。合成した種類ごとに会心率が25%加算される" },
+  { id:"oil_proof",       name:"油膜",      desc:"錆・劣化を3回防ぐ。防ぐたび残り回数が減り、0回で能力が消える" },
   { id:"no_degrade",    name:"不錆",      desc:"錆の罠や泉に落ちても＋値が下がらない" },
   { id:"pickaxe",       name:"穴掘り",    desc:"装備して壁に体当たりすると壁を掘れる（耐久制）" },
   { id:"inflict_slow",    name:"鈍足付与",  desc:"攻撃時10%の確率で敵を鈍足にする" },
@@ -1363,6 +1410,7 @@ export const ARMOR_ABILITIES = [
   { id:"wand_reflect",     name:"魔法反射", desc:"モンスターの杖魔法を反射する" },
   { id:"anti_steal",       name:"護盗",     desc:"コソドロに所持品を盗まれなくなる" },
   { id:"no_degrade",       name:"不錆",     desc:"錆の罠や泉に落ちても＋値が下がらない" },
+  { id:"oil_proof",        name:"油膜",     desc:"錆・劣化を3回防ぐ。防ぐたび残り回数が減り、0回で能力が消える" },
   { id:"slow_proof",       name:"耐鈍足",   desc:"鈍足効果を無効化する" },
   { id:"paralyze_proof",   name:"耐金縛り", desc:"金縛り効果を無効化する" },
   { id:"darkness_proof",   name:"耐暗闇",   desc:"暗闇効果を無効化する" },
@@ -2383,10 +2431,18 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "rust": {
       if (item.type === "weapon" || item.type === "armor") {
-        const _op2 = item.plus || 0;
-        item.plus = _op2 - 1;
-        const _fp2 = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
-        ml.push(`${trap.name}が発動！${resolveItemName(item)}が錆びた！(${_fp2(_op2)}→${_fp2(item.plus)})`);
+        const _guard = consumeItemDegradeProtection(item);
+        if (_guard) {
+          const _guardMsg = _guard.kind === "permanent"
+            ? "金でできているので錆びなかった！"
+            : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
+          ml.push(`${trap.name}が発動！${resolveItemName(item)}は${_guardMsg}`);
+        } else {
+          const _op2 = item.plus || 0;
+          item.plus = _op2 - 1;
+          const _fp2 = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
+          ml.push(`${trap.name}が発動！${resolveItemName(item)}が錆びた！(${_fp2(_op2)}→${_fp2(item.plus)})`);
+        }
       } else {
         ml.push(`${trap.name}が発動！`);
       }
@@ -2399,8 +2455,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (p && p.x === tx && p.y === ty) {
         const _peq = p.weapon || p.armor;
         if (_peq) {
-          if (hasAbility(_peq, "no_degrade")) {
-            ml.push(`${_peq.name}は金でできているので錆びなかった！`);
+          const _guard = consumeItemDegradeProtection(_peq);
+          if (_guard) {
+            const _guardMsg = _guard.kind === "permanent"
+              ? "金でできているので錆びなかった！"
+              : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
+            ml.push(`${_peq.name}は${_guardMsg}`);
           } else {
             const _pop = _peq.plus || 0;
             _peq.plus = _pop - 1;
@@ -3722,20 +3782,30 @@ export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
       const _newAbs = [...new Set([..._oldAbs, GOLDEN_AXE_T.ability])];
       item.abilities = _newAbs; item.ability = _newAbs[0];
       ml.push(_oldName + "が泉の中で黄金の輝きを放ち...ゴールデンアクスに変化した！");
-    } else if (hasAbility(item, "no_degrade")) {
-      ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _wNote);
     } else {
-      const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
-      const _op = item.plus || 0;
-      item.plus = _op - 1;
-      ml.push(_dn(item) + "が泉に落ちた...錆びた！(" + _fp(_op) + "→" + _fp(item.plus) + ")" + _wNote);
+      const _guard = consumeItemDegradeProtection(item);
+      if (_guard) {
+        const _guardMsg = _guard.kind === "permanent"
+          ? "金でできているので錆びなかった！"
+          : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
+        ml.push(_dn(item) + "が泉に落ちたが" + _guardMsg + _wNote);
+      } else {
+        const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
+        const _op = item.plus || 0;
+        item.plus = _op - 1;
+        ml.push(_dn(item) + "が泉に落ちた...錆びた！(" + _fp(_op) + "→" + _fp(item.plus) + ")" + _wNote);
+      }
     }
     spr.contents.push(item);
   } else if (item.type === "armor") {
     let _aNote = "";
     if (item.cursed) { item.cursed = false; _aNote += " 呪いが解けた！"; }
-    if (hasAbility(item, "no_degrade")) {
-      ml.push(_dn(item) + "が泉に落ちたが金でできているので錆びなかった！" + _aNote);
+    const _guard = consumeItemDegradeProtection(item);
+    if (_guard) {
+      const _guardMsg = _guard.kind === "permanent"
+        ? "金でできているので錆びなかった！"
+        : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
+      ml.push(_dn(item) + "が泉に落ちたが" + _guardMsg + _aNote);
     } else {
       const _fp = v => v > 0 ? "+" + v : v === 0 ? "無印" : "" + v;
       const _op = item.plus || 0;

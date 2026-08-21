@@ -71,6 +71,18 @@ describe("fireTrapPlayer", () => {
     expect(ml.some(m => m.includes("錆び"))).toBe(true);
   });
 
+  it("油膜付き装備は錆を防ぎ、3回目で油膜が消える", () => {
+    const sword = { name: "短剣", type: "weapon", plus: 2, ability: "oil_proof", oilProofUses: 1 };
+    const p = makePlayer({ weapon: sword, inventory: [sword] });
+    const dg = makeEmptyDg();
+    const trap = { effect: "rust", name: "錆びの罠", x: 5, y: 5, id: "t1" };
+    const ml = [];
+    fireTrapPlayer(trap, p, dg, ml);
+    expect(sword.plus).toBe(2);
+    expect(sword.ability).toBeUndefined();
+    expect(ml.some(m => m.includes("油膜が錆を防いだ"))).toBe(true);
+  });
+
   it("地雷を踏んでも爆発前は壊れず pending に登録される", () => {
     const p = makePlayer({ x: 5, y: 5 });
     const trap = { effect: "explode", name: "地雷", x: 5, y: 5, id: "t1" };

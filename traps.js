@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
@@ -41,10 +41,18 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       if (p.armor  && !hasAbility(p.armor,  "no_degrade")) _rustCands.push(p.armor);
       const _eq = _rustCands[0];
       if (_eq) {
-        const _op = _eq.plus || 0;
-        _eq.plus = _op - 1;
-        const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? `無印` : `${v}`);
-        ml.push(`${trap.name}が発動！${_eq.name}が錆びた！(${_fp(_op)}→${_fp(_eq.plus)})`);
+        const _guard = consumeItemDegradeProtection(_eq);
+        if (_guard) {
+          const _guardMsg = _guard.kind === "permanent"
+            ? "金でできているので錆びなかった！"
+            : `油膜が錆を防いだ！(残り${_guard.remaining}回)${_guard.remaining === 0 ? " 油膜の能力が消えた！" : ""}`;
+          ml.push(`${trap.name}が発動！${_eq.name}は${_guardMsg}`);
+        } else {
+          const _op = _eq.plus || 0;
+          _eq.plus = _op - 1;
+          const _fp = (v) => (v > 0 ? `+${v}` : v === 0 ? `無印` : `${v}`);
+          ml.push(`${trap.name}が発動！${_eq.name}が錆びた！(${_fp(_op)}→${_fp(_eq.plus)})`);
+        }
       } else {
         const _ndName = p.weapon?.name || p.armor?.name;
         if (_ndName) {
