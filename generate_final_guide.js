@@ -697,6 +697,8 @@ foodItemData.push(['', 'レモン', '投擲ダメージ1.5倍', '80T']);
 // 調味料の相性ボーナス
 foodItemData.push(['', '', '', '']);
 foodItemData.push(['相性ボーナス', '調味料', '相性◎カテゴリ（満腹度2.0倍）', '不一致時1.3倍']);
+foodItemData.push(['相性ボーナス', '生食料', '全400種に食材ごとの相性タグを設定', '該当する味付け壺で満腹度2.0倍']);
+foodItemData.push(['相性ボーナス', '好きな食べ物', '全13種の味付け壺で相性抜群', '通常の食材相性より優先']);
 const _potLabelNames = {
   miso: '味噌', spicy: '唐辛子', curry: 'カレー', choco: 'チョコ', honey: '蜂蜜',
   olive: 'オリーブ', sesame: 'ごま油', butter: 'バター', yogurt: 'ヨーグルト',

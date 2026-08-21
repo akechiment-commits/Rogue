@@ -345,20 +345,101 @@ export const FOOD_CAT_NAMES = {
 
 /* 壺の味付けとカテゴリの相性マッピング（満腹度2.0倍） */
 export const POT_CAT_BONUS = {
-  miso:    ["japanese", "japanese_sweets"],
+  miso:    ["japanese", "japanese_sweets", "miso"],
   spicy:   ["korean", "caribbean", "chinese", "spicy"],
   curry:   ["indian", "southeast_asian", "central_asian", "curry"],
   choco:   ["western_sweets", "asian_sweets", "mideast_sweets", "brand_sweet", "choco"],
-  honey:   ["western_sweets", "japanese_sweets", "asian_sweets", "mideast_sweets"],
-  olive:   ["italian", "spanish", "greek", "portuguese"],
+  honey:   ["western_sweets", "japanese_sweets", "asian_sweets", "mideast_sweets", "honey"],
+  olive:   ["italian", "spanish", "greek", "portuguese", "olive"],
   sesame:  ["chinese", "korean", "sesame"],
   butter:  ["french", "american", "german", "brand_savory", "yoshoku", "butter"],
   yogurt:  ["middle_eastern", "russian", "turkish", "greek", "georgian", "yogurt"],
-  coconut: ["southeast_asian", "asian_sweets", "caribbean"],
+  coconut: ["southeast_asian", "asian_sweets", "caribbean", "coconut"],
   soy:     ["japanese", "chinese", "korean", "soy"],
   garlic:  ["italian", "spanish", "portuguese", "turkish", "garlic"],
   lemon:   ["french", "greek", "other", "lemon"],
 };
+
+/*
+ * 生食料にも「この味付けなら特に合う」という相性を持たせる。
+ * 範囲で大枠を割り当てたあと、食材の性質がはっきりするものだけ個別に上書き・追加する。
+ * 未設定の生食料を残さないよう、最後に全件検査する。
+ */
+function _buildRawFoodPotExtra() {
+  const m = {};
+  const assignRange = (start, end, tags) => {
+    const from = RAW_FOODS.indexOf(start);
+    const to = end == null ? RAW_FOODS.length : RAW_FOODS.indexOf(end);
+    if (from < 0 || to < 0 || from >= to) throw new Error(`生食料相性範囲が不正: ${start}〜${end}`);
+    for (const name of RAW_FOODS.slice(from, to)) m[name] = [...tags];
+  };
+  const add = (names, tags) => {
+    for (const name of names) {
+      if (!RAW_FOODS.includes(name)) throw new Error(`生食料相性の対象が不正: ${name}`);
+      m[name] = [...new Set([...(m[name] || []), ...tags])];
+    }
+  };
+
+  assignRange("いちご", "かぼちゃ", ["honey"]);
+  assignRange("かぼちゃ", "しいたけ", ["miso", "soy"]);
+  assignRange("しいたけ", "くるみ", ["miso", "butter"]);
+  assignRange("くるみ", "しょうが", ["honey", "butter"]);
+  assignRange("しょうが", "昆布", ["garlic"]);
+  assignRange("昆布", "むかご", ["miso", "soy", "sesame"]);
+  assignRange("むかご", "まぐろ", ["miso", "soy"]);
+  assignRange("まぐろ", "鶏肉", ["soy", "lemon"]);
+  assignRange("鶏肉", null, ["soy", "garlic"]);
+
+  /* 果物：柑橘・酸味、南国果実、アボカドは相性を個別に追加。 */
+  add(["レモン","ライム","グレープフルーツ","オレンジ","梅","あんず","ゆず","すだち","かぼす",
+    "きんかん","カラマンシー","タマリンド","デコポン","ハッサク","ポンカン","せとか","いよかん",
+    "はるみ","タンカン","ネーブル","シークヮーサー","サンザシ"], ["lemon"]);
+  add(["マンゴー","パイナップル","ココナッツ","ドラゴンフルーツ","パッションフルーツ","グアバ",
+    "マンゴスチン","アセロラ","ランブータン","サワーソップ","ジャックフルーツ","ブレッドフルーツ",
+    "クプアス"], ["coconut"]);
+  add(["アボカド"], ["olive", "lemon"]);
+
+  /* 野菜：辛味のある品種、地中海野菜、香味野菜を個別に調整。 */
+  add(["ししとう","万願寺とうがらし"], ["spicy"]);
+  add(["アーティチョーク","フェンネル","チコリ","エンダイブ","ラディッキオ","セロリアック",
+    "ルッコラ","ズッキーニ"], ["olive", "lemon"]);
+  add(["バジル","パセリ","ミント","ディル"], ["olive", "lemon"]);
+  add(["みょうが","しそ","三つ葉","ふき","うるい","はこべ","おかひじき","金時草","マコモダケ",
+    "菜の花","壬生菜","らっきょう"], ["japanese"]);
+
+  /* 木の実・種：甘味・乳脂肪系、豆類は醤油系を追加。 */
+  add(["大豆","小豆","ひよこ豆","レンズ豆","緑豆","黒豆","金時豆","白いんげん","インゲン豆","ライ豆",
+    "えだまめ","そらまめ","えごま","そばの実"], ["soy"]);
+  add(["ゴマ","かぼちゃの種","サフラワーの種","ケシの実"], ["sesame"]);
+
+  /* ハーブ・香辛料：用途がはっきりする味付けだけを付ける。 */
+  add(["しょうが"], ["soy", "spicy"]);
+  add(["にんにく"], ["garlic"]);
+  add(["唐辛子","わさび","花椒","山椒","黒胡椒","白胡椒"], ["spicy"]);
+  add(["パクチー","ディル","レモングラス"], ["lemon"]);
+  add(["ガランガル","コブミカンの葉","フェヌグリーク","カルダモン","クミン","ウコン","スターアニス"], ["curry"]);
+  add(["ローズマリー","タイム","セージ","オレガノ","タラゴン","チャービル","マジョラム","ローリエ"], ["olive", "garlic"]);
+  add(["シナモン","クローブ","ナツメグ","バニラビーンズ","よもぎ"], ["honey"]);
+
+  /* 魚介：刺身・焼き魚の薬味に合う酸味と醤油を基本にする。 */
+  add(["サーモン","ヒラメ","タイ","カレイ","アジ","イワシ","カツオ","ブリ","カンパチ","ハマチ",
+    "メカジキ","シマアジ","イサキ","キンメダイ","マコガレイ","サワラ","クエ","ノドグロ","スズキ",
+    "タチウオ","キジハタ","アマダイ","ソウダガツオ","シラウオ","ワカサギ","アユ","ヒラマサ","カワハギ",
+    "キス","メバル"], ["soy", "lemon"]);
+  add(["甘エビ","ボタンエビ","車エビ","シャコ","毛ガニ","ズワイガニ","タラバガニ","渡りガニ","牡蠣",
+    "ホタテ","ハマグリ","アサリ","シジミ","アワビ","サザエ","トコブシ","ウニ","いくら","とびっこ",
+    "数の子","ナマコ","ホヤ"], ["soy", "lemon", "garlic"]);
+
+  /* 肉・卵：醤油・にんにくを基本に、卵だけバターも追加。 */
+  add(["鶏卵","うずら卵"], ["butter"]);
+  add(["羊肉","鹿肉","猪肉","馬肉","カモ肉","ウサギ肉","ターキー"], ["spicy"]);
+
+  const missing = RAW_FOODS.filter(name => !m[name] || m[name].length === 0);
+  if (missing.length) throw new Error(`生食料相性が未設定: ${missing.join(", ")}`);
+  return m;
+}
+
+export const RAW_FOOD_POT_EXTRA = _buildRawFoodPotExtra();
 
 /* プレイヤー向け相性説明（ガイド・UI用） */
 export const POT_CAT_LABELS = {
@@ -382,6 +463,7 @@ export const POT_CAT_LABELS = {
  * curry=カレー壺、yoshoku=バター壺 など FOOD_CAT_NAMES を参照。
  */
 export const FOOD_POT_EXTRA = {
+  ...RAW_FOOD_POT_EXTRA,
   "カレーライス": ["curry", "yoshoku"],
   "スープカレー": ["curry"],
   "金沢カレー": ["curry"],

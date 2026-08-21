@@ -1,6 +1,23 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
+import { setFavoriteFoodBase } from "../items.js";
+
+afterEach(() => setFavoriteFoodBase(""));
+
+describe("好物の調味料相性", () => {
+  it("好物はすべての味付け壺で相性抜群になる", () => {
+    setFavoriteFoodBase("好物の名前");
+    const potEffects = ["choco", "spicy", "honey", "curry", "miso", "olive", "sesame", "butter", "yogurt", "coconut", "soy", "garlic", "lemon"];
+    for (const potEffect of potEffects) {
+      const item = { type: "food", name: "好物の名前", _foodBase: "好物の名前", value: 20 };
+      const ml = [];
+      applyPotEffect({ type: "pot", name: `${potEffect}の壺`, potEffect }, item, ml);
+      expect(item.value, potEffect).toBe(32);
+      expect(ml.at(-1), potEffect).toContain("相性抜群");
+    }
+  });
+});
 
 describe("getIdentKey", () => {
   it("種別ごとに識別キーを返す", () => {

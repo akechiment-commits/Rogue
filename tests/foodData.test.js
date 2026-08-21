@@ -5,6 +5,7 @@ import {
   COOKED_FOODS_SWEET,
   COOKED_FOODS,
   FOOD_CAT_MAP,
+  POT_CAT_BONUS,
   FOOD_POT_EXTRA,
   foodMatchesPotCategory,
 } from "../foodData.js";
@@ -125,9 +126,22 @@ describe("foodData", () => {
     expect(foodMatchesPotCategory({ _foodBase: "カイザーシュマーレン", foodCat: "western_sweets" }, "butter")).toBe(true);
   });
 
+  it("全食料に少なくとも1つの調味料相性がある", () => {
+    const potTags = Object.values(POT_CAT_BONUS).flat();
+    for (const name of RAW_FOODS) {
+      const tags = FOOD_POT_EXTRA[name] || [];
+      expect(tags.length, name).toBeGreaterThan(0);
+      expect(tags.some(tag => potTags.includes(tag)), name).toBe(true);
+    }
+    for (const name of COOKED_FOODS) {
+      const category = FOOD_CAT_MAP.get(name);
+      expect(Object.values(POT_CAT_BONUS).some(tags => tags.includes(category)), name).toBe(true);
+    }
+  });
+
   it("FOOD_POT_EXTRA の料理名はすべてリストに存在する", () => {
     for (const name of Object.keys(FOOD_POT_EXTRA)) {
-      expect(COOKED_FOODS).toContain(name);
+      expect([...RAW_FOODS, ...COOKED_FOODS]).toContain(name);
     }
   });
 

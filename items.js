@@ -866,7 +866,9 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     item.potFlavors.push(pe);
     item.name = pfx + item.name;
     item.value = Math.max(1, Math.floor(item.value * 0.8));
-    const _catMatch = foodMatchesPotCategory(item, pe);
+    /* 好物はどの調味料の壺でも相性抜群。任意入力の名前にも対応する。 */
+    const _isFavoriteFood = item._foodBase && item._foodBase === _favoriteFoodBase;
+    const _catMatch = _isFavoriteFood || foodMatchesPotCategory(item, pe);
     const _potMul = _catMatch ? 2.0 : 1.3;
     item.value = Math.floor(item.value * _potMul);
     item.desc = POT_FOOD_DESCS[pe] || item.desc;
