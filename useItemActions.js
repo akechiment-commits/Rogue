@@ -11,7 +11,7 @@ import {
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
-  placeItemAt, breakBigboxContents, scatterPotContents, shootArrow, soakItemIntoSpring, splashPotion,
+  placeItemAt, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
@@ -27,7 +27,7 @@ import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
-import { monSubmergesProjectiles } from "./monTraits.js";
+import { monSubmergesProjectiles, monReflectsProjectiles } from "./monTraits.js";
 
 function skipDodgemoleScroll(mon, ml, label = "巻物の効果") {
   if (!monSubmergesProjectiles(mon)) return false;
@@ -3234,6 +3234,51 @@ export function useItemActions({
           return;
         }
         _forceUnequip(p, it);
+
+        /* ── ワッカの指輪：特殊飛び道具以外を魔法の石のようにホーミング ── */
+        if (mode === "throw" && hasRingEffect(p, "wakka_ring") && !it.specialProjectile) {
+          const _wakkaName = dnameRef(it);
+          const _wakkaTarget = [...dg.monsters]
+            .filter(mn => !mn.disguisedAsItem && (mn.hp ?? 1) > 0 &&
+              Math.max(Math.abs(mn.x - p.x), Math.abs(mn.y - p.y)) <= 10)
+            .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+          p.inventory.splice(idx, 1);
+          ml.push(_wakkaName + "を投げた！");
+          if (_isFarcast) {
+            ml.push(_wakkaName + "は遠投の力で消滅した。");
+          } else if (!_wakkaTarget) {
+            ml.push("近くに敵がいない！" + _wakkaName + "は消えた。");
+          } else {
+            const _wakkaDodgeMode = getDodgePentacleMode(dg, _wakkaTarget.x, _wakkaTarget.y);
+            if (_wakkaDodgeMode === "dodge") {
+              ml.push("みかわしの魔方陣の加護で" + _wakkaTarget.name + "に" + _wakkaName + "が当たらなかった！");
+              const _wakkaFt = new Set();
+              withPitfallBag(() => placeItemAt(dg, _wakkaTarget.x, _wakkaTarget.y, it, ml, _wakkaFt));
+            } else if (monReflectsProjectiles(_wakkaTarget)) {
+              reflectMagicStoneToPlayer(p, _wakkaTarget, _wakkaName, it.atk || 5, ml);
+            } else {
+              const _wakkaWasMole = monSubmergesProjectiles(_wakkaTarget);
+              if (_wakkaWasMole) _wakkaTarget._wakkaRingHit = true;
+              try {
+                throwItemAlongLine(p, dg, it, 0, 0, 10, ml, p, lu, {
+                  homingTarget: _wakkaTarget,
+                  bypassDodgemole: true,
+                  nameFn: dnameRef,
+                  bbFn: bigboxAddItem,
+                  animColor: "#cc88ff",
+                });
+              } finally {
+                if (_wakkaWasMole) delete _wakkaTarget._wakkaRingHit;
+              }
+            }
+          }
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
 
         /* ── インベントリから投げる特殊飛び道具 ── */
         if (it.type === "arrow" && it.specialProjectile) {

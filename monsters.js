@@ -2116,6 +2116,8 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     isPlayerShooter = false,
     reflectorRange = 20,
     customPlHit = null,
+    homingTarget = null,
+    bypassDodgemole = false,
   } = opts;
   /* 風穴で方向が変わるため let で保持（opts から分割代入した dx,dy） */
   dx = Math.sign(dx || 0);
@@ -2140,6 +2142,38 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
   }
 
   if (fireMsg) ml.push(fireMsg);
+  /* 魔法の石式ホーミング：壁や途中の対象を無視して指定敵へ直撃させる。 */
+  if (homingTarget) {
+    const _homingMon = dg.monsters?.find(mn =>
+      mn === homingTarget && !mn.disguisedAsItem && (mn.hp ?? 1) > 0
+    );
+    if (!_homingMon) {
+      if (onFlyOff) onFlyOff(m.x, m.y, ml);
+      return;
+    }
+    pushAnim({
+      type: isPlayerShooter ? "projectile" : "monProjectile",
+      fromX: m.x,
+      fromY: m.y,
+      toX: _homingMon.x,
+      toY: _homingMon.y,
+      color: animColor,
+    });
+    if (monSubmergesProjectiles(_homingMon) && !bypassDodgemole) {
+      ml.push(`${_homingMon.name}が潜って${boltName}をかわした！`);
+      return;
+    }
+    if (onMonHit) {
+      onMonHit(_homingMon, ml, _homingMon.x, _homingMon.y);
+    } else {
+      wakeIfDormant(_homingMon, ml);
+      const _homingDmg = calcMonDmg(_homingMon);
+      _homingMon.hp -= _homingDmg;
+      ml.push(`${_shooterPrefix}${boltName}が${_homingMon.name}に命中！${_homingDmg}ダメージ！`);
+      if (_homingMon.hp <= 0) killMonster(_homingMon, dg, pl, ml, luFn, false, _killerMon);
+    }
+    return;
+  }
   /* 矢・石など物理弾：風で曲がる */
   if (isPlayerShooter) pushBoltAnim(m.x, m.y, dx, dy, dg, animColor, true);
   else pushMonsterBoltAnim(m.x, m.y, dx, dy, dg, pl, animColor, true);

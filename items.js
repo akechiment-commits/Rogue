@@ -4318,6 +4318,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     applyWandFn = null,
     killerMon = null,
     reflectorRange = range,
+    homingTarget = null,
+    bypassDodgemole = false,
     animColor = item.type === "potion" ? "#88ccff" : "#ffdd44",
     monHitMsg = (target, dmg) => `飛んできた${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
     plHitMsg = (dmg) => `飛んできた${resolveItemName(item, nameFn)}が${pl()}に命中！${dmg}ダメージ！`,
@@ -4441,6 +4443,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       }
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
     },
+    homingTarget,
+    bypassDodgemole,
     onSpring: (spr, lx, ly, mlx) => {
       if (springLandMsg) { const _m = springLandMsg(spr, lx, ly); if (_m) mlx.push(_m); }
       res.consumed = true; res.spring = spr; res.x = lx; res.y = ly;
@@ -5972,6 +5976,7 @@ export const RINGS = [
   { name: "守りの指輪",     type:"ring", effect:"defense_ring", plus:0, rarity:"C", weight:4, sellPrice:1000, tile:60, desc:"装備中、＋値の分だけ防御力が増える。合成や強化で＋値を上げられる。" },
   { name: "命の指輪",       type:"ring", effect:"life_ring",    plus:0, rarity:"C", weight:4, sellPrice:1200, tile:60, desc:"装備中、＋値×5だけ最大HPが増える。合成や強化で＋値を上げられる。" },
   { name: "遠投の指輪",     type:"ring", effect:"farcast_ring",         rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、常に遠投状態で物を投げられる。" },
+  { name: "ワッカの指輪",   type:"ring", effect:"wakka_ring",            rarity:"A", weight:1, sellPrice:6000, tile:60, desc:"装備中、投げたものが10マス以内の最も近い敵へホーミングし必中になる。這いずり爆弾・魚雷・追尾弾は対象外。みかわしの魔方陣にはかわされる。" },
   { name: "浮遊の指輪",     type:"ring", effect:"float_ring",           rarity:"B", weight:2, sellPrice:1500, tile:60, desc:"装備中、罠にかからなくなる。\nただし階段を降りられなくなる。" },
   { name: "毒消しの指輪",   type:"ring", effect:"antidote_ring",        rarity:"B", weight:2, sellPrice:1000, tile:60, desc:"装備中、毒が無効になる。" },
   { name: "買い物上手の指輪", type:"ring", effect:"bargain_ring",         rarity:"A", weight:1, sellPrice:2500, tile:60, desc:"装備中、店のアイテムが3割引で買える。" },
