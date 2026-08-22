@@ -5044,7 +5044,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         shoot_equipped: "矢を射る方向",
         shoot: "矢を射る方向",
         wand_wave: "杖を振る方向",
-        throw: "投げる方向",
+        throw: throwMode.bundle === false ? "射つ方向" : "投げる方向",
       }[throwMode.mode] || "方向選択"
     : "";
   /* 表示名ヘルパー (gsを参照) */

@@ -2107,7 +2107,7 @@ export function useItemActions({
     setShowInv(false);
     setSelIdx(null);
     setShowDesc(null);
-    setThrowMode({ idx, mode: "throw" });
+    setThrowMode({ idx, mode: "throw", bundle: true });
     const _nm = _it ? itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames) : "アイテム";
     setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
   }, []);
@@ -2116,11 +2116,12 @@ export function useItemActions({
     setSelIdx(null);
     setShowDesc(null);
     const _it = sr.current?.player?.inventory[idx];
-    /* 石・魔法の石・爆弾矢は投げるモードで処理（装備時と同じ挙動） */
+    /* 石・魔法の石・爆弾矢は方向選択を共有するが、射つ場合は1個だけ消費する。 */
     if (_it?.stone || _it?.magicStone || _it?.bombArrow) {
-      setThrowMode({ idx, mode: "throw" });
+      setThrowMode({ idx, mode: "throw", bundle: false });
       const _nm = itemDisplayName(_it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-      setMsgs((prev) => [...prev.slice(-80), `${_nm}を投げる方向を選んでください...`]);
+      const _verb = _it.bombArrow ? "射つ" : "投げる";
+      setMsgs((prev) => [...prev.slice(-80), `${_nm}を${_verb}方向を選んでください...`]);
       return;
     }
     setThrowMode({ idx, mode: "shoot" });
@@ -3437,16 +3438,23 @@ export function useItemActions({
 
         /* ── 爆弾矢 (道具欄から) 専用処理 ── */
         if (it.type === "arrow" && it.bombArrow) {
-          const _baCount2 = Math.max(1, it.count | 0);
-          /* 通常の矢束と同じく、「投げる」は束全体を1発にまとめる。 */
-          it.count = 0;
-          p.inventory.splice(idx, 1);
-          peelShopArrowUnit(it);
+          const _bundleThrow2 = throwMode.bundle === true;
+          const _baCount2 = _bundleThrow2 ? Math.max(1, it.count | 0) : 1;
+          if (_bundleThrow2) {
+            /* 通常の矢束と同じく、「投げる」は束全体を1発にまとめる。 */
+            it.count = 0;
+            p.inventory.splice(idx, 1);
+            peelShopArrowUnit(it);
+          } else {
+            it.count--;
+            if (it.count <= 0) p.inventory.splice(idx, 1);
+            peelShopArrowUnit(it);
+          }
           const _baBaseName2 = it.name;
-          const _baName2 = _baCount2 > 1 ? `${_baBaseName2}(${_baCount2}本)` : _baBaseName2;
-          const _baAtk2 = (it.atk || 6) + (_baCount2 > 1 ? _baCount2 : 0);
+          const _baName2 = _bundleThrow2 && _baCount2 > 1 ? `${_baBaseName2}(${_baCount2}本)` : _baBaseName2;
+          const _baAtk2 = (it.atk || 6) + (_bundleThrow2 && _baCount2 > 1 ? _baCount2 : 0);
           const _baNF2 = (gi) => itemDisplayName(gi, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
-          ml.push(`${_baName2}を投げた！`);
+          ml.push(`${_baName2}を${_bundleThrow2 ? "投げた" : "射った"}！`);
           if (_isFarcast) {
             ml.push(`${_baName2}は消滅した。`);
           } else {
