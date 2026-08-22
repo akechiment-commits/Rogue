@@ -16,10 +16,16 @@ describe("first encounter tips", () => {
     expect(getFirstEncounterTip("trap", "debug", [])).toBeNull();
   });
 
-  it("復活の解説に骨を壊す手段を含める", () => {
-    const tip = getFirstEncounterTip("revival", "beginner", []);
+  it("敵の骨の解説に骨を壊す手段を含める", () => {
+    const tip = getFirstEncounterTip("enemy_bone_revival", "beginner", []);
     expect(tip.text[1]).toContain("投擲物");
     expect(tip.text[1]).toContain("炎の杖");
+  });
+
+  it("復活の種類ごとに別のTipsを返す", () => {
+    expect(getFirstEncounterTip("enemy_bone_revival", "beginner", [])).toBeTruthy();
+    expect(getFirstEncounterTip("mp_revival", "beginner", [])).toBeTruthy();
+    expect(getFirstEncounterTip("revival_pentacle", "beginner", [])).toBeTruthy();
   });
 
   it("攻略上重要な状況を幅広く網羅する", () => {
@@ -73,6 +79,12 @@ describe("first encounter tips", () => {
       "★ 隠し部屋を発見した！",
     ]);
     expect(keys).toEqual(["fake_stair", "hidden_room", "item_mimic", "reflection"]);
+  });
+
+  it("復活メッセージを骨・MP・魔方陣へ分けて検出する", () => {
+    expect(getFirstEncounterMessageTipKeys(["スケルトンの骨が残った...5ターン後に復活するかもしれない。"])).toEqual(["enemy_bone_revival"]);
+    expect(getFirstEncounterMessageTipKeys(["HPがゼロになった！残りMP5でHP5として復活！MPは1000ターン回復しない。"])).toEqual(["mp_revival"]);
+    expect(getFirstEncounterMessageTipKeys(["復活の魔方陣の力でHP全回復！"])).toEqual(["revival_pentacle"]);
   });
 
   it("図鑑用に表示済みTipsだけを定義順で返す", () => {
