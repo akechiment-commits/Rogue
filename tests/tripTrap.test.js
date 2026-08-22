@@ -186,6 +186,7 @@ describe("転倒の罠 trip_trap", () => {
 
   it("isFallMsg / 立ち絵 reaction_fall が転倒ログで出る", () => {
     expect(isFallMsg("転倒の罠が発動！転んでしまった！5ダメージ！")).toBe(true);
+    expect(isFallMsg("転倒の罠が発動！")).toBe(false);
     expect(isFallMsg("矢の罠が発動！")).toBe(false);
     const base = {
       hp: 40, maxHp: 50, hunger: 50, maxHunger: 100, x: 5, y: 5, level: 1,

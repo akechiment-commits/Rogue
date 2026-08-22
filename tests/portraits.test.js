@@ -176,6 +176,24 @@ describe("portraits", () => {
     expect(event.moved).toBe(true);
   });
 
+  it("新しいログがあるとき過去の食事・転倒ログを再利用しない", () => {
+    const prev = {
+      hp: 80, maxHp: 100, hunger: 20, maxHunger: 100, x: 5, y: 5, level: 3,
+      poisoned: false, sleepTurns: 0, confusedTurns: 0, darknessTurns: 0, oilyTurns: 0,
+      paralyzeTurns: 0, slowTurns: 0, bewitchedTurns: 0, immobileTurns: 0,
+      mpCooldownTurns: 0, sealedTurns: 0, weaponId: null, armorId: null, ringIds: [], floating: false,
+    };
+    const player = { ...prev, hunger: 95 };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "転倒の罠が発動！",
+      newMsgs: ["時限爆弾の罠が大爆発した！5×5マスに爆風が吹き荒れる！"],
+    });
+    expect(event.src).toBeUndefined();
+    expect(event.moved).toBe(false);
+  });
+
   it("msgToActionKey が腐った・ヤバイ食料を直近ログから判定する", () => {
     const rottenLog = [
       "腐ったおにぎりを食べた。(満腹度+3)",

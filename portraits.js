@@ -353,7 +353,8 @@ export function isStairsMsg(msg) {
 /** 転倒の罠など、転んだログか */
 export function isFallMsg(msg) {
   if (!msg) return false;
-  return /転倒の罠が発動|転んでしまった！/.test(msg);
+  /* 罠がアイテム・敵で作動しただけの「転倒の罠が発動！」は除外する。 */
+  return /転んでしまった！/.test(msg);
 }
 
 /** 召喚の罠が発動したログか */
@@ -521,6 +522,8 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const isLow = p.hp / p.maxHp <= 0.25;
   const hasNewMsgBatch = Array.isArray(newMsgs);
   newMsgs = hasNewMsgBatch ? newMsgs : [];
+  /* newMsgs が渡された場合、lastMsg は過去ログなのでイベント判定に使わない。 */
+  const eventLastMsg = hasNewMsgBatch ? "" : lastMsg;
   /* usePortrait は newMsgs=[] を渡すため、過去のアイテム使用ログを再利用しない。
    * 旧呼び出し側が newMsgs を省略した場合だけ lastMsg にフォールバックする。 */
   const actionKey = hasNewMsgBatch
@@ -532,7 +535,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const pe = (key, opts = {}) => portraitEvent(key, now, { ...opts, player: p });
 
   /* 召喚の罠は、敵の即時行動や被ダメが同じターンに続いても専用リアクションを優先 */
-  if (findMsgInNew(newMsgs, lastMsg, isSummonTrapMsg)) {
+  if (findMsgInNew(newMsgs, eventLastMsg, isSummonTrapMsg)) {
     /* エディタ欄とイベントキーは先に用意し、画像投入までは驚き立ち絵を仮使用 */
     return pe("reaction_surprised", { force: true });
   }
@@ -558,7 +561,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   }
 
   /* MP消費でのHP0復活 */
-  if (findMsgInNew(newMsgs, lastMsg, isMpReviveMsg)) {
+  if (findMsgInNew(newMsgs, eventLastMsg, isMpReviveMsg)) {
     return {
       src: pickMpRevivePortrait(PORTRAIT_SETS, p),
       cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
@@ -572,7 +575,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   if (
     (p.hunger ?? 0) > (prev.hunger ?? 0) &&
-    findMsgInNew(newMsgs, lastMsg, (m) => /を食べた[。（]/.test(m)) &&
+    findMsgInNew(newMsgs, eventLastMsg, (m) => /を食べた[。（]/.test(m)) &&
     isSatiatedGain(p, prev)
   ) {
     return pe("hp_satiated");
@@ -582,13 +585,13 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return pe("levelup");
   }
 
-  if (findMsgInNew(newMsgs, lastMsg, isStairsMsg)) {
+  if (findMsgInNew(newMsgs, eventLastMsg, isStairsMsg)) {
     return pe("reaction_stairs", { force: true });
   }
-  if (findMsgInNew(newMsgs, lastMsg, isFallMsg)) {
+  if (findMsgInNew(newMsgs, eventLastMsg, isFallMsg)) {
     return pe("reaction_fall", { force: true });
   }
-  if (findMsgInNew(newMsgs, lastMsg, isShopMsg)) {
+  if (findMsgInNew(newMsgs, eventLastMsg, isShopMsg)) {
     return pe("reaction_shop", { force: true });
   }
 
@@ -601,7 +604,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return pe("stand_unarmored");
   }
 
-  if (findMsgInNew(newMsgs, lastMsg, isCursedAcquireMsg)) {
+  if (findMsgInNew(newMsgs, eventLastMsg, isCursedAcquireMsg)) {
     return pe("status_cursed", { force: true });
   }
 
@@ -652,14 +655,14 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return pe("status_soaked", { force: true });
   }
 
-  const hungerMsg = findHungerMsg(newMsgs, lastMsg);
+  const hungerMsg = findHungerMsg(newMsgs, eventLastMsg);
   if (hungerMsg) {
     return pe("hp_hunger", { force: true });
   }
 
   /* 属性被ダメ（爆発・炎・雷・氷・毒）は杖・薬・壺割れなどの行動立ち絵より優先 */
   if (p.hp < prev.hp) {
-    const priorityDmgMsg = findPlayerDamageMsg(newMsgs, lastMsg, p?.playerName);
+    const priorityDmgMsg = findPlayerDamageMsg(newMsgs, eventLastMsg, p?.playerName);
     if (priorityDmgMsg && PRIORITY_DAMAGE_KEYS.has(msgToDamageKey(priorityDmgMsg))) {
       return {
         src: pickDamagePortrait(priorityDmgMsg, PORTRAIT_SETS, p),
@@ -675,14 +678,14 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
 
   /* 近接：newMsgs 全体を見る（同ターンの「倒した／敵反撃」で lastMsg が上書きされても拾う）
    * 被ダメより優先（自分が振った行動を優先表示） */
-  const meleeKey = findMeleeAttackKey(newMsgs, lastMsg, p);
+  const meleeKey = findMeleeAttackKey(newMsgs, eventLastMsg, p);
   if (meleeKey) {
     return pe(meleeKey);
   }
 
   /* 被ダメ：状態異常なし＆クールダウン明けのみ（force しない） */
   if (p.hp < prev.hp) {
-    const damageMsg = findPlayerDamageMsg(newMsgs, lastMsg, p?.playerName);
+    const damageMsg = findPlayerDamageMsg(newMsgs, eventLastMsg, p?.playerName);
     if (damageMsg) {
       return {
         src: pickDamagePortrait(damageMsg, PORTRAIT_SETS, p),
@@ -692,7 +695,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
         bypassCooldown: false,
       };
     }
-    if (isStarving(p) && (isStarving(prev) || findHungerMsg(newMsgs, lastMsg))) {
+    if (isStarving(p) && (isStarving(prev) || findHungerMsg(newMsgs, eventLastMsg))) {
       return {
         src: pickPortraitForPlayer("hp_hunger", p),
         cooldownUntil: now + PORTRAIT_COOLDOWN_MS,
