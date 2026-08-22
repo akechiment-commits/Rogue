@@ -3437,12 +3437,16 @@ export function useItemActions({
 
         /* ── 爆弾矢 (道具欄から) 専用処理 ── */
         if (it.type === "arrow" && it.bombArrow) {
-          it.count--;
-          if (it.count <= 0) p.inventory.splice(idx, 1);
+          const _baCount2 = Math.max(1, it.count | 0);
+          /* 通常の矢束と同じく、「投げる」は束全体を1発にまとめる。 */
+          it.count = 0;
+          p.inventory.splice(idx, 1);
           peelShopArrowUnit(it);
-          const _baName2 = it.name;
+          const _baBaseName2 = it.name;
+          const _baName2 = _baCount2 > 1 ? `${_baBaseName2}(${_baCount2}本)` : _baBaseName2;
+          const _baAtk2 = (it.atk || 6) + (_baCount2 > 1 ? _baCount2 : 0);
           const _baNF2 = (gi) => itemDisplayName(gi, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
-          ml.push(`${_baName2}を射った！`);
+          ml.push(`${_baName2}を投げた！`);
           if (_isFarcast) {
             ml.push(`${_baName2}は消滅した。`);
           } else {
@@ -3459,7 +3463,7 @@ export function useItemActions({
                   _baLx2 = tx; _baLy2 = ty;
                   continue;
                 }
-                const _baDmg2 = calcProjectileDmg(p, it.atk || 6, _baM2.def);
+                const _baDmg2 = calcProjectileDmg(p, _baAtk2, _baM2.def);
                 _baM2.hp -= _baDmg2;
                 ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
                 if (_baM2.hp <= 0) { trackMonster(_baM2); killMonster(_baM2, dg, p, ml, lu); }

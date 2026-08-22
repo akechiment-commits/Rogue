@@ -5150,6 +5150,7 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
   const _bundleCount = bundle ? consumeSpecialProjectileBundle(p, st) : 1;
   const _displayName = bundle && _bundleCount > 1 ? `${_name}(${_bundleCount}個)` : _name;
   const _verb = bundle ? "投げた" : "射った";
+  const _launchAtk = (st.atk || 1) + (bundle ? _bundleCount : 0);
   if (!bundle) consumeSpecialProjectileArrow(p, idx, st);
   const _fc = getFarcastMode(p.x, p.y, dg);
   if (forceMiss || _fc === "farcast") {
@@ -5167,6 +5168,14 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
         luFn,
         `${_displayName}が壁に触れてその場で爆発した！`,
       );
+    } else if (_kind === "torpedo") {
+      detonateTorpedo(
+        { name: _displayName, x: p.x, y: p.y, atk: _launchAtk },
+        dg,
+        p,
+        ml,
+        luFn,
+      );
     } else {
       ml.push(`${_displayName}を${_verb}が、すぐに壁に当たって消えた。`);
     }
@@ -5177,7 +5186,7 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
   dg.specialProjectiles.push({
     id: uid(), kind: _kind, name: _displayName,
     /* 束投げは通常の矢束と同じく、束全体を1発にまとめて攻撃力へ加算する。 */
-    atk: (st.atk || 1) + (bundle ? _bundleCount : 0),
+    atk: _launchAtk,
     x: p.x, y: p.y, dx: _first.dx, dy: _first.dy,
     targetId: _target?.id ?? null, turnsLeft: _kind === "torpedo" ? 30 : 20,
     count: _kind === "torpedo" ? _bundleCount : 1,

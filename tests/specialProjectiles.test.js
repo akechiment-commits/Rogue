@@ -111,6 +111,23 @@ describe("特殊飛び道具", () => {
     expect(dg.items).toContainEqual(expect.objectContaining({ name: "魚雷", count: 1, x: 3, y: 2 }));
   });
 
+  it("魚雷は隣接する壁に向けて撃つと発射地点で敵命中相当の爆発を起こす", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WALL;
+    const target = { id: "wall-blast-target", name: "壁際の敵", x: 2, y: 3, hp: 200, maxHp: 200, def: 0 };
+    dg.monsters.push(target);
+    const p = makePlayer([makeTorpedo(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+
+    expect(p.hp).toBeLessThan(100);
+    expect(target.hp).toBe(200 - calcProjectileDmg(p, 70, 0));
+    expect(ml.some(message => message.includes("魚雷") && message.includes("爆発"))).toBe(true);
+    vi.restoreAllMocks();
+  });
+
   it("束投げした魚雷が地上に残る時は束数も維持する", () => {
     const dg = makeDungeon();
     const p = makePlayer([makeTorpedo(4)]);
