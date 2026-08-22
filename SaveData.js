@@ -24,7 +24,7 @@ export const DEFAULT_SAVE = {
   totalRuns: 0,
   bestDepth: 0,
   bestGold:  0,
-  hubShopStock: [],       /* 拠点ショップの在庫（帰還ごとに更新・最大1点） */
+  hubShopStock: [],       /* 拠点ショップの在庫（帰還ごとに5〜9点更新） */
 };
 
 export function loadSave() {

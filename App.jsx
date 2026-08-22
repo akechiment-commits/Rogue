@@ -125,7 +125,7 @@ export default function App() {
         );
         next.warehouse = merged.warehouse;
       }
-      /* 拠点ショップを入荷（帰還のたびに1点） */
+      /* 拠点ショップを入荷（帰還のたびに5〜9点） */
       next.hubShopStock = rollHubShopStock();
       /* ダンジョンクリア記録（オブジェクトを新規生成して prev の参照を共有しない） */
       if (result.cleared) {

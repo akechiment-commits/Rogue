@@ -859,8 +859,9 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
       ...prev,
       hubGold:   prev.hubGold - price,
       warehouse: sortWarehouseItems([...(prev.warehouse || []), { ...item, id: uid() }]),
-      hubShopStock: [],
+      hubShopStock: (prev.hubShopStock || []).filter(stockItem => stockItem !== item),
     }));
+    setFocusIdx(current => Math.max(0, Math.min(current, shopItems.length - 2)));
   };
 
   kbRef.current = { shopItems, focusIdx, setFocusIdx, buy, onClose, gold };
@@ -890,7 +891,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
         所持G: <strong>{gold}G</strong>
       </div>
       <div style={{ color:"#8a9ab0", fontSize:11, marginBottom:10 }}>
-        ↑↓/テンキー8・2:選択　Z/Enter:購入　X:閉じる　| 在庫1点・帰還ごとに入荷　購入品は倉庫へ（{whCount}/{whMax}）
+        ↑↓/テンキー8・2:選択　Z/Enter:購入　X:閉じる　| 在庫5〜9点・帰還ごとに入荷　購入品は倉庫へ（{whCount}/{whMax}）
       </div>
       {/* 実行不可メッセージ */}
       {notice && (
