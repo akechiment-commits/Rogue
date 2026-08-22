@@ -1022,6 +1022,13 @@ export const MONS = [
       { name: "ものまね帝王",     hp: 88,  atk: 32, def: 14, exp: 175, dungeonFloors: { advanced: { min: 22, max: 30 } } },
     ],
   },
+  { name: "スネークマン", hp: 32, atk: 14, def: 4, exp: 38, speed: 1, tile: 202, kind: "humanoid", baseKind: "lizardman", monLevel: 1, minFloor: 9, maxFloor: 28, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 8, max: 16 } },
+    desc: "水上・水中を移動する。プレイヤーを視界に捉えると、アーマーブレスで自分か隣接する敵の防御力を10上げることがある。放置すると重ね掛けでどんどん硬くなる。",
+    levels: [
+      { name: "リザードマン", hp: 54, atk: 24, def: 9, exp: 78, tile: 203, minFloor: 17, maxFloor: 24, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 23 } } },
+      { name: "とかげせんし", hp: 86, atk: 36, def: 14, exp: 128, tile: 204, minFloor: 25, maxFloor: 30, dungeonFloors: { advanced: { min: 24, max: 30 } } },
+    ],
+  },
 ];
 
 /* ===== モンスターレベルアップテーブル (MONS の levels から自動生成) ===== */
@@ -1062,6 +1069,7 @@ export function monLevelUp(mon, dg, ml) {
   mon.maxHp  = template.hp;
   mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
   mon.monLevel = nextLevel;
+  if (template.tile !== undefined) mon.tile = template.tile;
   if (template.barrier !== undefined) mon.barrier = template.barrier;
   if (mon.baseKind === "gelcube" && nextLevel === 3) {
     mon.speed = 1;
@@ -1100,6 +1108,7 @@ export function monLevelDown(mon, dg, ml) {
   mon.maxHp  = template.hp;
   mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
   mon.monLevel = prevLevel;
+  if (template.tile !== undefined) mon.tile = template.tile;
   ml.push(`${oldName}がレベルダウンして${mon.name}になった！`);
   return true;
 }
@@ -2706,6 +2715,23 @@ const _MIMIC_ADJ_SUBTYPES = new Set([
   "itempusher",
 ]);
 
+function armorBreathTargets(m, dg) {
+  return (dg.monsters || []).filter((target) =>
+    target.hp > 0 &&
+    (target === m || Math.max(Math.abs(target.x - m.x), Math.abs(target.y - m.y)) <= 1),
+  );
+}
+
+function useArmorBreath(m, dg, ml) {
+  const targets = armorBreathTargets(m, dg);
+  if (targets.length === 0) return false;
+  const target = pick(targets);
+  target.def = (target.def || 0) + 10;
+  m.turnAttacks++;
+  ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が10上がった！`);
+  return true;
+}
+
 /** ものまねの対象になる特技持ちか（パッシブのみの敵は除外） */
 export function isMimicableSkillSource(o) {
   if (!o || (o.hp || 0) <= 0) return false;
@@ -2761,6 +2787,9 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   /* ルカチュウ等：部屋内範囲 → 同部屋かつ認識 */
   if (subtype === "defhalf") return canSee && sameRoom;
   if (subtype === "supporter") return canSee && sameRoom;
+  if (subtype === "armorbreath") {
+    return canSee && !inMagicSealRoom(src.x, src.y, dg) && armorBreathTargets(m, dg).length > 0;
+  }
 
   /* アーチャー・水鉄砲：一直線＋射程 */
   if (subtype === "archer") {
@@ -3000,6 +3029,11 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       ml.push(`${m.name}の魔法！防御力が50ターン半減した！`);
     }
     return true;
+  }
+
+  /* ── armorbreath：自分または隣接する味方の防御力を上げる ── */
+  if (m.subtype === "armorbreath" && canSee && !inMagicSealRoom(m.x, m.y, dg)) {
+    return useArmorBreath(m, dg, ml);
   }
 
   /* ── ドラゴン／氷竜ブレス ── */
@@ -4427,7 +4461,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         hasInventorySpaceForMonsterGift(pl);
       const _guardDarkRdy0 = m.type === "guard" && !m.sealed && _rAtks && (_radx === 0 || _rady === 0) && _rLen >= 2 && _rLen <= 8;
       const _darkBulletRdy0 = m.baseKind === "boss_darkbullet" && !m.sealed && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _armorBreathRdy0 = m.subtype === "armorbreath" && !m.sealed &&
+        !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -4467,6 +4503,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_rdy) {
         delete m._rangedAttackThisTurn;
         _rangedAttackReady = true;
+      }
+
+      if (m.subtype === "armorbreath" && !m.sealed && _rangedAttackReady &&
+          !inMagicSealRoom(m.x, m.y, dg) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        if (useArmorBreath(m, dg, ml)) return;
       }
 
       /* ── ものまね師：隣接キャラの特技を模倣（moveOnly 予約があれば再抽選なし） ── */
