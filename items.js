@@ -450,7 +450,7 @@ export const ITEMS = [
   { name:"魚雷", type:"arrow", atk:64, specialProjectile:"torpedo", count:3, rarity:"C", weight:4, sellPrice:150,
     desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", tile:23 },
   { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", count:3, rarity:"B", weight:2, sellPrice:250,
-    desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。99個まで束にできる。", tile:23 },
+    desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", tile:23 },
   { name:"誘導弾", type:"arrow", atk:7, specialProjectile:"homing", count:3, rarity:"B", weight:2, sellPrice:220,
     desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"D", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
@@ -527,7 +527,7 @@ export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:tru
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
 export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等の無属性ダメージを着弾点と周囲1マスに1回だけ与える。地上の爆発は自分にも自分の防御力で計算したダメージを与え、水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
-export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。99個まで束にできる。", count:1, tile:23 };
+export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵を倒すと薬を落とす。", tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。投げると周囲の腐敗・焦げた食料を元に戻す。", tile:16 };
@@ -1506,7 +1506,7 @@ function calcPlayerDefForProjectile(p) {
 
 /**
  * 爆発共通処理 (地雷・爆弾矢などから呼ぶ)
- * cx, cy: 爆発の中心。周囲8マス＋中心の計9マスを処理する。
+ * cx, cy: 爆発の中心。options.radius（既定1）の正方形範囲を処理する。
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
  * mineExplosion: true のとき地雷モード（炎無効でない敵は消滅＋範囲内地雷を連鎖爆発）
  */
@@ -1522,34 +1522,43 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     if (_mineExplosionDepth === 0) dg._mineDetonatedIds = new Set();
     _mineExplosionDepth++;
   }
+  const _blastRadius = Math.max(1, Math.floor(Number.isFinite(options.radius) ? options.radius : 1));
   pushExplosionAnim(cx, cy);
-  /* プレイヤーへのダメージ（中心含む1タイル以内） */
+  /* プレイヤーへのダメージ（中心含む爆発範囲内） */
   const _playerSafeInWater = options.playerSafeInWater && dg.map?.[cy]?.[cx] === T.WATER;
-  if (p && !_playerSafeInWater && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= 1) {
+  if (p && !_playerSafeInWater && Math.max(Math.abs(p.x - cx), Math.abs(p.y - cy)) <= _blastRadius) {
+    const _playerHpBefore = p.hp;
+    const _playerHpOne = options.playerHpOne === true;
     const _projectileDmg = options.projectileAtk != null
       ? calcProjectileDmg(p, options.projectileAtk, calcPlayerDefForProjectile(p))
       : null;
     const _fireCtx = ringExplosion || mineExplosion;
     const _hasFireProt = _fireCtx && hasFireResist(p);
     const _oilyMult = oilyDamageMult(dg, p);
-    const rawDmg = _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
-                 : proportional  ? Math.max(1, Math.floor(p.hp / 2))
-                 : rng(10, 20)) * _oilyMult);
-    const dmg = _projectileDmg != null
+    const rawDmg = _playerHpOne ? Math.max(0, _playerHpBefore - 1)
+      : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
+        : proportional ? Math.max(1, Math.floor(p.hp / 2))
+        : rng(10, 20)) * _oilyMult);
+    const dmg = _playerHpOne ? rawDmg : _projectileDmg != null
       ? _projectileDmg
       : _fireCtx ? reduceFireDamage(rawDmg, p)
       : _applySoakedFireReduction(rawDmg, p);
-    const _fireLbl = _projectileDmg != null ? "" : _fireCtx ? fireResistDamageLabel(p) : _soakedFireLabel(p);
     p.deathCause = `${srcLabel}により`;
-    p.hp -= dmg;
-    ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${_projectileDmg != null ? "" : oilyDamageLabel(dg, p)}`);
+    if (_playerHpOne) {
+      p.hp = Math.min(_playerHpBefore, 1);
+      ml.push(`${srcLabel}！HPが1になった！`);
+    } else {
+      const _fireLbl = _projectileDmg != null ? "" : _fireCtx ? fireResistDamageLabel(p) : _soakedFireLabel(p);
+      p.hp -= dmg;
+      ml.push(`${srcLabel}！${dmg}ダメージ！${_fireLbl}${_projectileDmg != null ? "" : oilyDamageLabel(dg, p)}`);
+    }
     /* 指輪爆発：炎によるアイテム損傷（耐火なし時） */
     if (ringExplosion && !_hasFireProt) applyLightningToInventory(p, dg, ml, luFn, null, true);
   }
   const blasted = new Set();
   const _killed = new Set();
-  for (let ddx = -1; ddx <= 1; ddx++) {
-    for (let ddy = -1; ddy <= 1; ddy++) {
+  for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
+    for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
       if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
       /* 壁の破壊 */
@@ -1652,8 +1661,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   }
   /* 爆発範囲内の大箱を破壊 */
   const _blastedBB = [];
-  for (let ddx = -1; ddx <= 1; ddx++) {
-    for (let ddy = -1; ddy <= 1; ddy++) {
+  for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
+    for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
       if (ax < 0 || ax >= MW || ay < 0 || ay >= MH) continue;
       const _hitBBs = (dg.bigboxes || []).filter(b => b.x === ax && b.y === ay);
@@ -1670,8 +1679,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 爆発範囲内の石像 */
-  for (let ddx = -1; ddx <= 1; ddx++) {
-    for (let ddy = -1; ddy <= 1; ddy++) {
+  for (let ddx = -_blastRadius; ddx <= _blastRadius; ddx++) {
+    for (let ddy = -_blastRadius; ddy <= _blastRadius; ddy++) {
       const ax = cx + ddx, ay = cy + ddy;
       hitStatueWithAction(dg, ax, ay, p, ml, luFn, p?.depth, {
         breaks: true,
@@ -1685,7 +1694,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
   /* 爆発範囲内の魔方陣を消滅 */
   if (dg.pentacles?.length > 0) {
     const _blastPcs = dg.pentacles.filter(pc =>
-      Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= 1
+      Math.max(Math.abs(pc.x - cx), Math.abs(pc.y - cy)) <= _blastRadius
     );
     if (_blastPcs.length > 0) {
       dg.pentacles = dg.pentacles.filter(pc => !_blastPcs.includes(pc));
@@ -1702,7 +1711,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
       t.effect === "explode" &&
       (t.x !== cx || t.y !== cy) &&
       !(dg._mineDetonatedIds?.has(t.id)) &&
-      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= 1
+      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= _blastRadius
     );
     for (const _cm of _chainMines) {
       runMineExplosion(dg, mineExplosionPending(_cm, nameFn), p, ml, luFn, { chainMsg: `${_cm.name}が誘爆した！` });
@@ -1710,7 +1719,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     /* 範囲内の時限爆弾トラップを即爆発 */
     const _chainTimeBombs = (dg.traps || []).filter(t =>
       t.effect === "time_bomb" &&
-      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= 1
+      Math.max(Math.abs(t.x - cx), Math.abs(t.y - cy)) <= _blastRadius
     );
     if (_chainTimeBombs.length > 0) {
       dg.traps = dg.traps.filter(t => !_chainTimeBombs.includes(t));
@@ -1722,7 +1731,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     /* 範囲内のpendingBombs（作動済み時限爆弾）も即爆発 */
     if (dg.pendingBombs?.length > 0) {
       const _chainPending = dg.pendingBombs.filter(pb =>
-        Math.max(Math.abs(pb.x - cx), Math.abs(pb.y - cy)) <= 1
+        Math.max(Math.abs(pb.x - cx), Math.abs(pb.y - cy)) <= _blastRadius
       );
       if (_chainPending.length > 0) {
         dg.pendingBombs = dg.pendingBombs.filter(pb => !_chainPending.includes(pb));
@@ -4924,8 +4933,13 @@ function specialProjectilePathHitMonster(sp, next, dg, monsterSnapshots = null) 
 
 function detonateCrawlingBomb(sp, dg, p, ml, luFn, message) {
   ml.push(message || `${sp.name}が爆発した！`);
-  /* 地雷と同じく非ボス敵は消滅、プレイヤーは現在HPの半分を受ける。 */
-  doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, true, false, true);
+  const _bundleCount = Math.max(1, sp.bundleCount | 0);
+  /* 初期の1個は半径1、以降は3個増えるごとに半径を1拡大し、10個以上で半径4。 */
+  const _blastRadius = Math.min(4, 1 + Math.floor(Math.max(0, _bundleCount - 1) / 3));
+  doExplosion(
+    sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, true, false, true, false,
+    { radius: _blastRadius, playerHpOne: _bundleCount >= 2 },
+  );
 }
 
 function detonateTorpedo(sp, dg, p, ml, luFn, monster = null) {
@@ -5049,7 +5063,7 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
   if (!specialProjectileCellOpen(dg, _first.x, _first.y)) {
     if (_kind === "crawling_bomb") {
       detonateCrawlingBomb(
-        { name: _displayName, x: p.x, y: p.y },
+        { name: _displayName, x: p.x, y: p.y, bundleCount: _bundleCount },
         dg,
         p,
         ml,
@@ -5070,6 +5084,7 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
     x: p.x, y: p.y, dx: _first.dx, dy: _first.dy,
     targetId: _target?.id ?? null, turnsLeft: _kind === "torpedo" ? 30 : 20,
     count: _kind === "torpedo" ? _bundleCount : 1,
+    bundleCount: _kind === "crawling_bomb" ? _bundleCount : 1,
     hasMoved: false,
   });
   ml.push(`${_displayName}を${_verb}！`);

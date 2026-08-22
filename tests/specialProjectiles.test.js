@@ -260,6 +260,35 @@ describe("特殊飛び道具", () => {
     expect(ml.some(message => message.includes("壁に触れてその場で爆発"))).toBe(true);
   });
 
+  it("這いずり爆弾の束投げは4個で爆発半径が広がり、自分のHPを1にする", () => {
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WALL;
+    const target = { id: "bundle-radius-target", name: "範囲内の敵", x: 4, y: 2, hp: 80, maxHp: 80, def: 0 };
+    dg.monsters.push(target);
+    const p = makePlayer([makeCrawlingBomb(4)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {}, null, null, null, { bundle: true });
+
+    expect(p.hp).toBe(1);
+    expect(dg.monsters).toHaveLength(0);
+    expect(dg.specialProjectiles || []).toHaveLength(0);
+  });
+
+  it("這いずり爆弾の束投げは10個以上で爆発半径4になる", () => {
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WALL;
+    const target = { id: "bundle-max-radius-target", name: "最大範囲の敵", x: 6, y: 2, hp: 80, maxHp: 80, def: 0 };
+    dg.monsters.push(target);
+    const p = makePlayer([makeCrawlingBomb(10)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {}, null, null, null, { bundle: true });
+
+    expect(p.hp).toBe(1);
+    expect(dg.monsters).toHaveLength(0);
+  });
+
   it("這いずり爆弾は軌道上の罠を作動させて消費される", () => {
     const dg = makeDungeon();
     dg.traps.push({ id: "sleep-trap", name: "睡眠の罠", effect: "sleep", x: 3, y: 2, permanent: true });
