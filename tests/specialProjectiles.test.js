@@ -343,6 +343,21 @@ describe("特殊飛び道具", () => {
     }
   });
 
+  it("這いずり爆弾が地雷を起動すると地雷と自身の2回爆発になる", () => {
+    const dg = makeDungeon();
+    dg.traps.push({ id: "mine-trap", name: "地雷", effect: "explode", x: 3, y: 2, permanent: true });
+    const p = { ...makePlayer([makeCrawlingBomb(1)]), x: 8, y: 2 };
+    const ml = [];
+
+    shootArrow({ ...p, x: 2, y: 2 }, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(dg.specialProjectiles || []).toHaveLength(0);
+    expect(ml.filter(message => message.includes("爆発")).length).toBeGreaterThanOrEqual(2);
+    expect(ml.some(message => message.includes("地雷が発動"))).toBe(true);
+    expect(ml.some(message => message.includes("誘爆して爆発した"))).toBe(true);
+  });
+
   it("這いずり爆弾は回転板で別の床へ飛び、吹き飛ばしで着弾爆発する", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const dg = makeDungeon();
