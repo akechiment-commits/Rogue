@@ -1,9 +1,10 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { setFavoriteFoodBase } from "../items.js";
 import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T } from "../items.js";
 import { addOilProofAbility, consumeItemDegradeProtection, soakItemIntoSpring } from "../items.js";
+import "../monsters.js";
 
 afterEach(() => setFavoriteFoodBase(""));
 
@@ -431,6 +432,25 @@ describe("isFireExplosionNullified", () => {
 });
 
 describe("doExplosion", () => {
+  it("爆発のdamageBonusは通常爆発の敵ダメージに加算される", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const makeDungeon = () => ({
+      pentacles: [],
+      monsters: [{ id: "blast-target", name: "標的", x: 5, y: 5, hp: 100, maxHp: 100, def: 0 }],
+      items: [],
+      map: Array.from({ length: 21 }, () => Array(33).fill(1)),
+      explored: [],
+      visible: [],
+      traps: [],
+    });
+    const single = makeDungeon();
+    const bundle = makeDungeon();
+    doExplosion(5, 5, single, { x: 0, y: 0, hp: 100, maxHp: 100, inventory: [] }, [], null, "爆弾矢の爆発");
+    doExplosion(5, 5, bundle, { x: 0, y: 0, hp: 100, maxHp: 100, inventory: [] }, [], null, "爆弾矢の爆発", null, null, false, false, false, false, { damageBonus: 3 });
+    expect(bundle.monsters[0].hp).toBe(single.monsters[0].hp - 3);
+    vi.restoreAllMocks();
+  });
+
   it("地雷爆発は耐火でダメージ軽減される", () => {
     const dg = { pentacles: [], monsters: [], items: [], map: Array.from({ length: 21 }, () => Array(33).fill(1)), explored: [], visible: [], traps: [] };
     const p = { x: 5, y: 5, hp: 100, maxHp: 100, armor: { ability: "fire_resist" }, inventory: [] };

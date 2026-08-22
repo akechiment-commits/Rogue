@@ -1523,6 +1523,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     _mineExplosionDepth++;
   }
   const _blastRadius = Math.max(1, Math.floor(Number.isFinite(options.radius) ? options.radius : 1));
+  const _explosionDamageBonus = Math.max(0, Math.floor(Number(options.damageBonus) || 0));
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む爆発範囲内） */
   const _playerSafeInWater = options.playerSafeInWater && dg.map?.[cy]?.[cx] === T.WATER;
@@ -1538,7 +1539,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     const rawDmg = _playerHpOne ? Math.max(0, _playerHpBefore - 1)
       : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
         : proportional ? Math.max(1, Math.floor(p.hp / 2))
-        : rng(10, 20)) * _oilyMult);
+        : rng(10, 20) + _explosionDamageBonus) * _oilyMult);
     const dmg = _playerHpOne ? rawDmg : _projectileDmg != null
       ? _projectileDmg
       : _fireCtx ? reduceFireDamage(rawDmg, p)
@@ -1623,7 +1624,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn, noExpKills); }
         } else {
           if (consumeBarrier(m, ml)) continue;
-          let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15)) * oilyDamageMult(dg, m);
+          let md = (proportional ? Math.max(1, Math.floor(m.hp / 2)) : rng(8, 15) + _explosionDamageBonus) * oilyDamageMult(dg, m);
           md = scaleMonFireDmg(m, md);
           m.hp -= md;
           ml.push(`爆風で${m.name}に${md}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);

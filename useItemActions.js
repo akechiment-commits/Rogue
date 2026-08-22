@@ -3487,7 +3487,22 @@ export function useItemActions({
               _baLx2 = tx; _baLy2 = ty;
             }
             if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
-            doExplosion(_baLx2, _baLy2, dg, p, ml, _baNF2, "爆弾矢の爆発", null, lu);
+            doExplosion(
+              _baLx2,
+              _baLy2,
+              dg,
+              p,
+              ml,
+              _baNF2,
+              "爆弾矢の爆発",
+              null,
+              lu,
+              false,
+              false,
+              false,
+              false,
+              { damageBonus: _bundleThrow2 && _baCount2 > 1 ? _baCount2 : 0 },
+            );
           }
           endTurn(sr.current, p, ml);
           if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
