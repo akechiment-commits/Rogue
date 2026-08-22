@@ -39,6 +39,12 @@ describe("first encounter tips", () => {
     expect(tip.text[1]).not.toContain("Fキー");
   });
 
+  it("祝福・呪いと杖の壁反射を解説する", () => {
+    expect(getFirstEncounterTip("blessing_curse", "beginner", [])).toMatchObject({ title: "祝福と呪い" });
+    expect(getFirstEncounterTip("wand_wall_reflect", "beginner", [])).toMatchObject({ title: "杖の魔法弾の反射" });
+    expect(FIRST_ENCOUNTER_TIPS.wand_wall_reflect.text[0]).toContain("自分へ戻ってくる");
+  });
+
   it("攻略上重要な状況を幅広く網羅する", () => {
     expect(Object.keys(FIRST_ENCOUNTER_TIPS).length).toBeGreaterThanOrEqual(40);
     expect(Object.keys(FIRST_ENCOUNTER_TIPS)).toEqual(expect.arrayContaining([
@@ -96,6 +102,11 @@ describe("first encounter tips", () => {
     expect(getFirstEncounterMessageTipKeys(["スケルトンの骨が残った...5ターン後に復活するかもしれない。"])).toEqual(["enemy_bone_revival"]);
     expect(getFirstEncounterMessageTipKeys(["HPがゼロになった！残りMP5でHP5として復活！MPは1000ターン回復しない。"])).toEqual(["mp_revival"]);
     expect(getFirstEncounterMessageTipKeys(["復活の魔方陣の力でHP全回復！"])).toEqual(["revival_pentacle"]);
+  });
+
+  it("祝呪と杖の壁反射メッセージを検出する", () => {
+    expect(getFirstEncounterMessageTipKeys(["青い薬が祝福された！【祝】"])).toEqual(["blessing_curse"]);
+    expect(getFirstEncounterMessageTipKeys(["魔法弾は壁に跳ね返った！"])).toEqual(["wand_wall_reflect"]);
   });
 
   it("図鑑用に表示済みTipsだけを定義順で返す", () => {
