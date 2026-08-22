@@ -9,9 +9,12 @@ from PIL import Image
 PORTRAIT_DIR = Path(__file__).resolve().parent.parent / "tiles" / "Character"
 THRESHOLD = 20
 NEAR_WHITE = 220
-NEAR_BLACK = 20
+# 暗い髪・レース・装飾まで外周背景として巻き込まない。
+# 黒背景を処理する場合も、背景キーは純黒だけに限定する。
+NEAR_BLACK = 0
 GREEN_MIN = 150
 PALETTE_COLORS = 256
+SKIP_ALREADY_TRANSPARENT = True
 
 
 def color_distance(first, second):
@@ -70,6 +73,11 @@ def transparentize_exterior(image):
 
 def process_image(path):
     image = Image.open(path).convert("RGBA")
+    if SKIP_ALREADY_TRANSPARENT:
+        alpha_min, alpha_max = image.getchannel("A").getextrema()
+        if alpha_min < 255:
+            print(f"  skipped {path.name}: already contains transparency")
+            return 0
     changed = transparentize_exterior(image)
     if changed == 0:
         return 0
