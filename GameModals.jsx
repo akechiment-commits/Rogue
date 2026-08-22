@@ -3476,7 +3476,13 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
               img.dataset.portraitFallbackApplied = "1";
               img.src = fallback;
             }}
-            style={{ width: "220%", objectFit: "contain" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+            }}
           />
         )}
       </div>
