@@ -2724,9 +2724,35 @@ function armorBreathTargets(m, dg) {
 }
 
 function useArmorBreath(m, dg, ml) {
+  if (inMagicSealRoom(m.x, m.y, dg)) {
+    ml.push(`${m.name}のアーマーブレスが魔封じの魔法陣で無効になった！`);
+    m.turnAttacks++;
+    return true;
+  }
   const targets = armorBreathTargets(m, dg);
   if (targets.length === 0) return false;
   const target = pick(targets);
+  if (inMagicSealRoom(target.x, target.y, dg)) {
+    ml.push(`${m.name}のアーマーブレスが魔封じの魔法陣で無効になった！`);
+    m.turnAttacks++;
+    return true;
+  }
+  if (monEffectiveMagicImmune(target)) {
+    ml.push(`魔法は${target.name}に効かない！`);
+    m.turnAttacks++;
+    return true;
+  }
+  if (monReflectsMagic(target)) {
+    ml.push(`${target.name}がアーマーブレスを反射した！`);
+    if (inMagicSealRoom(m.x, m.y, dg) || monEffectiveMagicImmune(m)) {
+      ml.push(`魔法は${m.name}に効かない！`);
+    } else {
+      addArmorBreathBuff(m);
+      ml.push(`跳ね返ったアーマーブレスが${m.name}にかかり、防御力が${ARMOR_BREATH_DEF_BONUS}上がった！`);
+    }
+    m.turnAttacks++;
+    return true;
+  }
   addArmorBreathBuff(target);
   m.turnAttacks++;
   ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が${ARMOR_BREATH_DEF_BONUS}上がった！`);

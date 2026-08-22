@@ -81,4 +81,70 @@ describe("スネークマン系", () => {
     expect(mon.armorBreathBuffs).toBeUndefined();
     expect(messages).toContain("スネークマンのアーマーブレスの強化が封印で解除された！");
   });
+
+  it("魔法無効の対象には効かない", () => {
+    const base = MONS.find((m) => m.baseKind === "lizardman");
+    const snake = makeMonsterFromBase(base, 1, 5, 5);
+    const immune = { id: "immune", name: "魔法無効の敵", hp: 20, maxHp: 20, atk: 5, def: 3, magicImmune: true, x: 6, y: 5 };
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [snake, immune],
+      visible: Array.from({ length: 30 }, () => Array(40).fill(true)),
+    });
+    const messages = [];
+    const player = makePlayer({ x: 5, y: 10 });
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+
+    try {
+      snake.turnAttacks = 0;
+      snake._rangedAttackThisTurn = true;
+      monsterAI(snake, dg, player, messages, { attackOnly: true });
+    } finally {
+      random.mockRestore();
+    }
+
+    expect(immune.def).toBe(3);
+    expect(messages).toContain("魔法は魔法無効の敵に効かない！");
+  });
+
+  it("魔法反射の対象なら唱えたトカゲ側にかかる", () => {
+    const base = MONS.find((m) => m.baseKind === "lizardman");
+    const snake = makeMonsterFromBase(base, 1, 5, 5);
+    const reflector = { id: "reflector", name: "魔法反射の敵", hp: 20, maxHp: 20, atk: 5, def: 3, subtype: "magicreflect", x: 6, y: 5 };
+    const dg = makeEmptyDg({
+      rooms: [],
+      monsters: [snake, reflector],
+      visible: Array.from({ length: 30 }, () => Array(40).fill(true)),
+    });
+    const messages = [];
+    const player = makePlayer({ x: 5, y: 10 });
+
+    snake.turnAttacks = 0;
+    snake._rangedAttackThisTurn = true;
+    monsterAI(snake, dg, player, messages, { attackOnly: true });
+
+    expect(reflector.def).toBe(3);
+    expect(snake.def).toBe(9);
+    expect(messages).toContain("魔法反射の敵がアーマーブレスを反射した！");
+    expect(messages).toContain("跳ね返ったアーマーブレスがスネークマンにかかり、防御力が5上がった！");
+  });
+
+  it("魔封じの魔法陣の中では発動しない", () => {
+    const base = MONS.find((m) => m.baseKind === "lizardman");
+    const snake = makeMonsterFromBase(base, 1, 5, 5);
+    const ally = { id: "ally", name: "隣の敵", hp: 20, maxHp: 20, atk: 5, def: 3, x: 6, y: 5 };
+    const dg = makeEmptyDg({
+      rooms: [{ x: 0, y: 0, w: 40, h: 30 }],
+      monsters: [snake, ally],
+      pentacles: [{ kind: "magic_seal", x: 5, y: 5, blessed: false, cursed: false }],
+    });
+    const messages = [];
+    const player = makePlayer({ x: 5, y: 10 });
+
+    snake.turnAttacks = 0;
+    snake._rangedAttackThisTurn = true;
+    monsterAI(snake, dg, player, messages, { attackOnly: true });
+
+    expect(ally.def).toBe(3);
+  });
 });
