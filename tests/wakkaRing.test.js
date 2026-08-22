@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RINGS, throwItemAlongLine } from "../items.js";
+import { RINGS, makeArrow, shootArrow, throwItemAlongLine } from "../items.js";
 import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -61,5 +61,23 @@ describe("ワッカの指輪", () => {
     });
 
     expect(mole.hp).toBe(50);
+  });
+
+  it("射撃処理でもワッカの指輪は通常矢を必中ホーミングさせる", () => {
+    const p = makePlayer({ x: 5, y: 5, atk: 12 });
+    const arrow = makeArrow(1);
+    p.inventory = [arrow];
+    const target = { id: "shot-target", name: "遠くの敵", x: 12, y: 5, hp: 50, maxHp: 50, def: 0 };
+    const dg = makeEmptyDg({
+      monsters: [target],
+      map: Array.from({ length: 30 }, () => Array(60).fill(0)),
+    });
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, null, null, null, null, { wakka: true });
+
+    expect(target.hp).toBeLessThan(50);
+    expect(ml.some((message) => message.includes("ホーミング必中"))).toBe(true);
+    expect(p.inventory).toHaveLength(0);
   });
 });

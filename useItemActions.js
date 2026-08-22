@@ -2648,6 +2648,22 @@ export function useItemActions({
         }
         const _arItem = p.arrow;
 
+        /* ワッカの指輪：装備中の通常飛び道具も魔法の石と同じ必中ホーミング。
+           這いずり爆弾・魚雷・誘導弾などの特殊飛び道具は従来どおり。 */
+        if (hasRingEffect(p, "wakka_ring") && !_arItem.specialProjectile) {
+          shootArrow(p, dg, p.inventory.indexOf(_arItem), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+            forceMiss: _forceMiss,
+            wakka: true,
+          });
+          if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
+          return;
+        }
+
         /* ── 1マスずつ進む特殊飛び道具 ── */
         if (_arItem.specialProjectile) {
           shootArrow(p, dg, p.inventory.indexOf(_arItem), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, { forceMiss: _forceMiss });
@@ -2997,6 +3013,29 @@ export function useItemActions({
         const it = p.inventory[idx];
         if (!it) {
           setThrowMode(null);
+          return;
+        }
+        if (hasRingEffect(p, "wakka_ring") && !it.specialProjectile) {
+          shootArrow(p, dg, idx, dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+            forceMiss: _forceMiss,
+            wakka: true,
+          });
+          if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
+          /* 床から拾って射った矢は、残弾があれば足元へ戻す。 */
+          if (floorArrowRef?.current) {
+            const _fa = floorArrowRef.current;
+            floorArrowRef.current = null;
+            const _faI = p.inventory.indexOf(_fa);
+            if (_faI !== -1) {
+              p.inventory.splice(_faI, 1);
+              placeItemAt(dg, p.x, p.y, _fa, ml, new Set(), 0, p);
+            }
+          }
+          endTurn(sr.current, p, ml);
+          if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
+          setThrowMode(null);
+          sr.current = { ...sr.current };
+          setGs({ ...sr.current });
           return;
         }
         const _shColor = it.specialProjectile ? "#d08cff" : it.poison ? "#60d060" : it.pierce ? "#ff8844" : "#d0a050";

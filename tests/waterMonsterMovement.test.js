@@ -27,4 +27,16 @@ describe("水上限定モンスターの自発移動", () => {
     expect({ x: wateri.x, y: wateri.y }).toEqual({ x: 5, y: 5 });
     expect(dg.map[wateri.y][wateri.x]).toBe(T.WATER);
   });
+
+  it("ワッカ系は通常床から水中へ自発移動できる", () => {
+    const wokka = makeMonsterFromBase(MONS.find((m) => m.baseKind === "wokka"), 1, 4, 5, { aware: true });
+    const dg = makeWaterBattlefield(wokka);
+    const p = makePlayer({ x: 9, y: 5 });
+
+    monsterAI(wokka, dg, p, [], { moveOnly: true });
+
+    expect(wokka.waterWalker).toBe(true);
+    expect({ x: wokka.x, y: wokka.y }).toEqual({ x: 5, y: 5 });
+    expect(dg.map[wokka.y][wokka.x]).toBe(T.WATER);
+  });
 });

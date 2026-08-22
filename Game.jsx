@@ -2531,6 +2531,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 for (let _si = 0; _si < _srCount; _si++) {
                   if (!p.arrow || p.arrow.count <= 0) break;
                   const _srAr = p.arrow;
+                  if (hasRingEffect(p, "wakka_ring") && !_srAr.specialProjectile) {
+                    shootArrow(p, dg, p.inventory.indexOf(_srAr), dx, dy, ml, lu, bigboxAddItem, pushAnim, null, {
+                      forceMiss: _srForceMiss,
+                      wakka: true,
+                    });
+                    if (p.arrow && !p.inventory.includes(p.arrow)) p.arrow = null;
+                    continue;
+                  }
                   const _arName = _srAr.name || "矢";
                   p.arrow.count--;
                   let _srUnit = null;

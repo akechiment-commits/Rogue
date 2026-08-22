@@ -5,7 +5,7 @@ import {
   monEffectiveFixedDamageOnly, monEffectiveSpeed,
 } from "../monTraits.js";
 import { clampDmgFixed, consumeBarrier, T } from "../utils.js";
-import { applyMonsterSeal, resolveSealedFloatOnWater } from "../items.js";
+import { applyMonsterSeal, canMonsterSurviveOnWater, resolveSealedFloatOnWater } from "../items.js";
 import { BOSSES, INTERMEDIATE_BOSSES } from "../monsters.js";
 import { MONSTER_SHEET_MAP } from "../tilesetMap.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -106,5 +106,18 @@ describe("封印中の敵特性無効化", () => {
     expect(r).toBe("ok");
     expect(w.x).toBe(4);
     expect(w.y).toBe(4);
+  });
+
+  it("ワッカ系の水中歩行は封印や重力で無効にならない", () => {
+    const map = Array.from({ length: 8 }, () => Array(8).fill(T.FLOOR));
+    map[4][4] = T.WATER;
+    const w = { name: "ワッカ", id: "wokka-water", x: 4, y: 4, hp: 20, maxHp: 20, waterWalker: true, sealed: true };
+    const p = makePlayer({ x: 1, y: 1 });
+    const dg = makeEmptyDg({ map, monsters: [w], items: [] });
+    const ml = [];
+
+    expect(canMonsterSurviveOnWater(w, dg, 4, 4)).toBe(true);
+    expect(resolveSealedFloatOnWater(w, dg, p, ml, null)).toBe("ok");
+    expect({ x: w.x, y: w.y }).toEqual({ x: 4, y: 4 });
   });
 });

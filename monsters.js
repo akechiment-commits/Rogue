@@ -64,9 +64,9 @@ function isWalkable(map, x, y, dg = null) {
   if (dg?.statues?.some(s => s.x === x && s.y === y)) return false;
   return true;
 }
-/* 水タイルを考慮：浮遊(float)なら水上通行可 */
-function canEnter(map, x, y, float = false, dg = null) {
-  return isWalkable(map, x, y, dg) && (float || map[y]?.[x] !== T.WATER);
+/* 水タイルを考慮：浮遊(float)または水中歩行(waterWalker)なら通行可 */
+function canEnter(map, x, y, float = false, dg = null, waterWalker = false) {
+  return isWalkable(map, x, y, dg) && (float || waterWalker || map[y]?.[x] !== T.WATER);
 }
 
 /* ===== プレイヤー防御力計算ヘルパー ===== */
@@ -661,7 +661,7 @@ export const MONS = [
       { name: "強ゾンビ",           hp: 130, atk: 42, def: 18, exp: 110, dungeonFloors: { advanced: { min: 22, max: 24 } } },
     ],
   },
-  { name: "ワッカ",       hp: 24,  atk: 17, def: 2,  exp: 28,  speed: 1,   tile: 172, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 9, max: 14 }, advanced: { min: 6, max: 14 } },
+  { name: "ワッカ",       hp: 24,  atk: 17, def: 2,  exp: 28,  speed: 1,   tile: 172, kind: "beast",    baseKind: "wokka",         monLevel: 1, minFloor: 6,  maxFloor: 18, waterWalker: true, subtype: "stonethrow", dungeonFloors: { beginner: { min: 8, max: 10 }, intermediate: { min: 9, max: 14 }, advanced: { min: 6, max: 14 } },
     levels: [
       { name: "ぷにぷにワッカ",     hp: 38,  atk: 24, def: 5,  exp: 45 },
       { name: "シン・ワッカ",       hp: 61,  atk: 32, def: 7,  exp: 72 },
@@ -1511,12 +1511,12 @@ export function getOpenDirs(map, x, y, float = false, dg = null) {
 }
 
 /** 部屋から廊下などへ出る出口マス（部屋外の歩行可能タイル） */
-export function getRoomExits(map, room, dg = null, float = false) {
+export function getRoomExits(map, room, dg = null, float = false, waterWalker = false) {
   if (!room) return [];
   const exits = [];
   const seen = new Set();
   const tryAdd = (ex, ey) => {
-    if (!canEnter(map, ex, ey, float, dg)) return;
+    if (!canEnter(map, ex, ey, float, dg, waterWalker)) return;
     const k = ex + ey * MW;
     if (seen.has(k)) return;
     seen.add(k);
@@ -1540,7 +1540,7 @@ export function getRoomExits(map, room, dg = null, float = false) {
  * 先に試し、どちらも無い場合だけ段階的に条件を緩める。
  * @returns {{x:number,y:number}|null}
  */
-export function fleeFromPlayerStep(m, dg, pl, float = false) {
+export function fleeFromPlayerStep(m, dg, pl, float = false, waterWalker = false) {
   if (!m || !dg || !pl) return null;
   const map = dg.map;
   const rooms = dg.rooms || [];
@@ -1554,7 +1554,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false) {
     if (x === pl.x && y === pl.y) return false;
     if (avoidAdjacent && isPlayerAdjacent(x, y)) return false;
     if (avoidRecent && recent.has(x + y * MW)) return false;
-    return canEnter(map, x, y, float, dg);
+    return canEnter(map, x, y, float, dg, waterWalker);
   };
 
   const tryGoal = (tx, ty, mode) => {
@@ -1568,14 +1568,14 @@ export function fleeFromPlayerStep(m, dg, pl, float = false) {
     if (mode.avoidAdjacent && isPlayerAdjacent(next.x, next.y)) return null;
     if (mode.avoidRecent && recent.has(next.x + next.y * MW)) return null;
     if (mons.some(o => o !== m && o.x === next.x && o.y === next.y)) return null;
-    if (!canEnter(map, next.x, next.y, float, dg)) return null;
+    if (!canEnter(map, next.x, next.y, float, dg, waterWalker)) return null;
     return next;
   };
 
   const room = findRoom(rooms, m.x, m.y);
   const plRoom = findRoom(rooms, pl.x, pl.y);
   const exits = room && plRoom === room
-    ? getRoomExits(map, room, dg, float).sort((a, b) => plDist2(b.x, b.y) - plDist2(a.x, a.y))
+    ? getRoomExits(map, room, dg, float, waterWalker).sort((a, b) => plDist2(b.x, b.y) - plDist2(a.x, a.y))
     : [];
 
   /* プレイヤーと別部屋の中心・隅・遠方サンプルを候補にする。 */
@@ -1584,17 +1584,17 @@ export function fleeFromPlayerStep(m, dg, pl, float = false) {
     if (plRoom && r === plRoom) continue;
     const cx = r.x + Math.floor(r.w / 2);
     const cy = r.y + Math.floor(r.h / 2);
-    if (canEnter(map, cx, cy, float, dg)) farGoals.push({ x: cx, y: cy, score: plDist2(cx, cy) });
+    if (canEnter(map, cx, cy, float, dg, waterWalker)) farGoals.push({ x: cx, y: cy, score: plDist2(cx, cy) });
     for (const [cx2, cy2] of [
       [r.x, r.y], [r.x + r.w - 1, r.y],
       [r.x, r.y + r.h - 1], [r.x + r.w - 1, r.y + r.h - 1],
     ]) {
-      if (canEnter(map, cx2, cy2, float, dg)) farGoals.push({ x: cx2, y: cy2, score: plDist2(cx2, cy2) });
+      if (canEnter(map, cx2, cy2, float, dg, waterWalker)) farGoals.push({ x: cx2, y: cy2, score: plDist2(cx2, cy2) });
     }
   }
   for (let i = 0; i < 30; i++) {
     const x = rng(1, MW - 2), y = rng(1, MH - 2);
-    if (canEnter(map, x, y, float, dg)) farGoals.push({ x, y, score: plDist2(x, y) });
+    if (canEnter(map, x, y, float, dg, waterWalker)) farGoals.push({ x, y, score: plDist2(x, y) });
   }
   farGoals.sort((a, b) => b.score - a.score);
   const uniqueFarGoals = [];
@@ -1611,7 +1611,7 @@ export function fleeFromPlayerStep(m, dg, pl, float = false) {
     const local = [];
     for (const [dx, dy] of localDirs) {
       const nx = m.x + dx, ny = m.y + dy;
-      if (!canEnter(map, nx, ny, float, dg)) continue;
+      if (!canEnter(map, nx, ny, float, dg, waterWalker)) continue;
       if (mons.some(o => o !== m && o.x === nx && o.y === ny)) continue;
       if (nx === pl.x && ny === pl.y) continue;
       if (mode.avoidAdjacent && isPlayerAdjacent(nx, ny)) continue;
@@ -2664,7 +2664,7 @@ function tryUnstickMove(m, dg, pl, float = false) {
       const nx = m.x + dx, ny = m.y + dy;
       const _waterOnlyDest = m.waterOnly && inBounds(nx, ny) &&
         (map[ny]?.[nx] === T.WATER || dg.springs?.some(s => s.x === nx && s.y === ny));
-      if (m.waterOnly ? !_waterOnlyDest : !canEnter(map, nx, ny, float, dg)) continue;
+      if (m.waterOnly ? !_waterOnlyDest : !canEnter(map, nx, ny, float, dg, m.waterWalker)) continue;
       if (nx === pl?.x && ny === pl?.y) continue;
       if (dg.monsters.some(o => o !== m && o.x === nx && o.y === ny)) continue;
       if (!inMagicSealRoom(m.x, m.y, dg) &&
@@ -3295,7 +3295,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _luFn = opts.luFn || (() => {});
   const _canMoveTo = (x, y) => m.waterOnly
     ? inBounds(x, y) && (dg.map[y]?.[x] === T.WATER || dg.springs?.some(s => s.x === x && s.y === y))
-    : canEnter(dg.map, x, y, _effFloat, dg);
+    : canEnter(dg.map, x, y, _effFloat, dg, m.waterWalker);
   const _onHit = opts.onPlayerHit;
   const _onMiss = opts.onPlayerMiss;
   const _plPotHidden = (pl.potConfinedTurns || 0) > 0;
@@ -3799,7 +3799,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - (m.isBoss ? 2 : 1));
     if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (!_attackOnly) {
-      const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat);
+      const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat, m.waterWalker);
       if (_fleeStep && _canMoveTo(_fleeStep.x, _fleeStep.y)) {
         m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
         m.x = _fleeStep.x; m.y = _fleeStep.y;
@@ -4309,7 +4309,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           m._decoyLuredOk = false; /* BFS前にリセット */
           /* プレイヤー・他モンスターを障害物扱いにして迂回路を探す */
           const _decoyTileFilter = (x, y) =>
-            (x === pl.x && y === pl.y) ? false : canEnter(map, x, y, _effFloat, dg);
+            (x === pl.x && y === pl.y) ? false : canEnter(map, x, y, _effFloat, dg, m.waterWalker);
           const _dn = bfsNext(map, dg.monsters, m.x, m.y, _decoyPc.x, _decoyPc.y, m, _decoyMaxDist, dg.pentacles, _effFloat, _decoyTileFilter, true, dg.rooms, dg);
           if (_dn) {
             /* BFS到達成功か最近傍タイルへの第一歩（到達不可の場合）を取得 */
@@ -4712,7 +4712,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* 封印中は逃げずに通常AI（接近・攻撃）で動く */
     if (m.subtype === "runner" && !m.sealed) {
       if (!_attackOnly) {
-        const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat);
+        const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat, m.waterWalker);
         if (_fleeStep) {
           m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
           m.x = _fleeStep.x; m.y = _fleeStep.y;
@@ -4800,7 +4800,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* 盗んだ後は逃げ回る（runnerと同じ効率逃走） */
       if (m._stolenFromPlayer) {
         if (!_attackOnly) {
-          const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat);
+          const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat, m.waterWalker);
           if (_fleeStep) {
             m.dir = { x: _fleeStep.x - m.x, y: _fleeStep.y - m.y };
             m.x = _fleeStep.x; m.y = _fleeStep.y;
@@ -5496,11 +5496,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
     /* move toward target */
     /* BFSで最短経路を求める。部屋内での壁ぶつかりを防ぎ、通路への最適経路を辿る。 */
-    /* わてり：水タイル・泉のみ移動可能 */
-    const _wateriFilter = m.waterOnly ? (nx, ny) => {
-      if (!inBounds(nx, ny)) return false;
-      return map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false);
-    } : null;
+    /* わてりは水タイル・泉のみ、ワッカ系は水タイルも含む歩行可能マスへ移動 */
+    const _wateriFilter = m.waterOnly
+      ? (nx, ny) => {
+          if (!inBounds(nx, ny)) return false;
+          return map[ny][nx] === T.WATER || (dg.springs?.some(s => s.x === nx && s.y === ny) ?? false);
+        }
+      : m.waterWalker
+        ? (nx, ny) => isWalkable(map, nx, ny, dg)
+        : null;
     /* fallbackNearest: 完全到達不可でもプレイヤー方向へ寄る */
     let next = bfsNext(map, [], m.x, m.y, tx, ty, m, 60, dg.pentacles, _effFloat, _wateriFilter, true, dg.rooms, dg);
     /* 認識中なのに距離が縮まない／経路なし → 転送陣経由で接近 */
@@ -5583,12 +5587,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           if (!inBounds(_anx, _any)) continue;
           if (map[_any][_anx] !== T.WATER && !dg.springs?.some(s => s.x === _anx && s.y === _any)) continue;
         } else {
-          if (!canEnter(map, _anx, _any, _effFloat, dg)) continue;
+          if (!canEnter(map, _anx, _any, _effFloat, dg, m.waterWalker)) continue;
         }
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
         if (_adx !== 0 && _ady !== 0) {
-          if (!canEnter(map, m.x + _adx, m.y, _effFloat, dg) && !canEnter(map, m.x, m.y + _ady, _effFloat, dg)) continue;
+          if (!canEnter(map, m.x + _adx, m.y, _effFloat, dg, m.waterWalker) &&
+              !canEnter(map, m.x, m.y + _ady, _effFloat, dg, m.waterWalker)) continue;
         }
         const _nd = Math.max(Math.abs(tx - _anx), Math.abs(ty - _any));
         if (_nd <= _curDist) _altMoves.push({ x: _anx, y: _any, dist: _nd });
@@ -5620,7 +5625,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (m.waterOnly) {
           if (!inBounds(_fnx, _fny)) continue;
           if (map[_fny][_fnx] !== T.WATER && !dg.springs?.some(s => s.x === _fnx && s.y === _fny)) continue;
-        } else if (!canEnter(map, _fnx, _fny, _effFloat, dg)) continue;
+        } else if (!canEnter(map, _fnx, _fny, _effFloat, dg, m.waterWalker)) continue;
         if (_fnx === pl.x && _fny === pl.y) continue;
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _fnx && pc.y === _fny)) continue;
         if (dg.monsters.some(o => o !== m && o.x === _fnx && o.y === _fny)) continue;
@@ -5720,8 +5725,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
     if (m.patrolTarget) {
+      const _patrolTileFilter = m.waterWalker
+        ? (x, y) => isWalkable(map, x, y, dg)
+        : null;
       const next = bfsNext(map, [], m.x, m.y,
-        m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
+        m.patrolTarget.x, m.patrolTarget.y, m, 100, dg.pentacles, _effFloat, _patrolTileFilter, false, dg.rooms, dg);
       if (next && !(next.x === pl.x && next.y === pl.y) &&
           !((!inMagicSealRoom(m.x, m.y, dg)) && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === next.x && pc.y === next.y))) {
         if (!dg.monsters.some(o => o !== m && o.x === next.x && o.y === next.y)) {
