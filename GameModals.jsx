@@ -3480,11 +3480,9 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
             }}
             style={fitWideFallPortrait
               ? {
-                width: "100%",
-                height: "100%",
-                maxWidth: "100%",
-                maxHeight: "100%",
+                width: "220%",
                 objectFit: "contain",
+                transform: "translateX(-10%)",
               }
               : { width: "220%", objectFit: "contain" }}
           />
