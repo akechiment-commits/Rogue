@@ -15,6 +15,8 @@ import {
 import { fetchRanking, fetchRankingStats, RANKING_DUNGEONS } from "./rankingClient.js";
 import { formatElapsed } from "./runScore.js";
 import { FIRST_ENCOUNTER_TIPS, getSeenFirstEncounterTips } from "./firstEncounterTips.js";
+import { getItemCatalogEntry, getItemCategoryEntries, ITEM_CATEGORY_DEFS } from "./encyclopediaData.js";
+import { getMonsterDescription, getMonsterNumber } from "./monsterEncyclopedia.js";
 
 /* ===== 共通スタイル ===== */
 const BG   = "#09090f";
@@ -638,6 +640,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
   const TAB_LABEL = { items:"アイテム", monsters:"モンスター", traps:"罠", bigboxes:"大箱", tips:"Tips" };
 
   const [tab, setTab] = useState("items");
+  const [itemCategory, setItemCategory] = useState(ITEM_CATEGORY_DEFS[0].id);
   const [focusIdx, setFocusIdx] = useState(0);
   const [descKey, setDescKey] = useState(null);
   const kbRef = useRef(null);
@@ -647,11 +650,12 @@ function EncyclopediaPanel({ saveData, onClose }) {
 
   const switchTab = (t) => { setTab(t); setFocusIdx(0); setDescKey(null); };
 
-  const _allItems = useMemo(() => [...ITEMS, ...WANDS, ...POTS, ...RINGS], []);
-  const lookupDesc = (key, tabName) => {
-    if (tabName === "traps") { const t = TRAPS.find(t => t.effect === key || t.name === key); return t?.desc || null; }
-    if (tabName === "bigboxes") { const b = BB_TYPES.find(b => b.kind === key); return b?.desc || null; }
-    if (tabName === "items") { const it = _allItems.find(it => (it.effect || (it.type + '_' + it.name)) === key); return it?.desc || null; }
+  const lookupDesc = (entry, tabName) => {
+    const key = entry.key;
+    if (tabName === "traps") { const t = TRAPS.find(t => t.effect === key || t.name === key); return t?.desc || entry.desc || null; }
+    if (tabName === "bigboxes") { const b = BB_TYPES.find(b => b.kind === key); return b?.desc || entry.desc || null; }
+    if (tabName === "items") { return getItemCatalogEntry(key, entry)?.desc || null; }
+    if (tabName === "monsters") { return getMonsterDescription(entry.name); }
     if (tabName === "tips") {
       const tip = FIRST_ENCOUNTER_TIPS[key];
       return tip ? `【表示された状況】\n${tip.trigger}\n\n${tip.text.join("\n")}` : null;
@@ -661,11 +665,28 @@ function EncyclopediaPanel({ saveData, onClose }) {
 
   const sortedList = useMemo(() => {
     if (tab === "tips") return getSeenFirstEncounterTips(seenTips);
+    if (tab === "items") return getItemCategoryEntries(disc.items, itemCategory);
     const entries = disc[tab] || {};
     return Object.entries(entries)
       .map(([key, val]) => ({ key, ...val }))
-      .sort((a, b) => a.name.localeCompare(b.name, "ja"));
-  }, [tab, disc, seenTips]);
+      .sort((a, b) => {
+        if (tab === "monsters") {
+          return (getMonsterNumber(a.name) ?? Number.MAX_SAFE_INTEGER) -
+            (getMonsterNumber(b.name) ?? Number.MAX_SAFE_INTEGER);
+        }
+        if (tab === "traps") {
+          const ao = TRAPS.findIndex(t => t.effect === a.key || t.name === a.name);
+          const bo = TRAPS.findIndex(t => t.effect === b.key || t.name === b.name);
+          return (ao < 0 ? Number.MAX_SAFE_INTEGER : ao) - (bo < 0 ? Number.MAX_SAFE_INTEGER : bo);
+        }
+        if (tab === "bigboxes") {
+          const ao = BB_TYPES.findIndex(box => box.kind === a.key);
+          const bo = BB_TYPES.findIndex(box => box.kind === b.key);
+          return (ao < 0 ? Number.MAX_SAFE_INTEGER : ao) - (bo < 0 ? Number.MAX_SAFE_INTEGER : bo);
+        }
+        return a.name.localeCompare(b.name, "ja");
+      });
+  }, [tab, disc, seenTips, itemCategory]);
 
   const safeFocus = sortedList.length === 0 ? 0 : Math.min(focusIdx, sortedList.length - 1);
 
@@ -673,7 +694,15 @@ function EncyclopediaPanel({ saveData, onClose }) {
     itemRefs.current[safeFocus]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [focusIdx, tab]);
 
-  kbRef.current = { sortedList, safeFocus, setFocusIdx, tab, switchTab, TABS, setDescKey, onClose };
+  const itemCategoryCounts = useMemo(() => new Map(
+    ITEM_CATEGORY_DEFS.map(category => [category.id, getItemCategoryEntries(disc.items, category.id).length]),
+  ), [disc.items]);
+  const selectedCategory = ITEM_CATEGORY_DEFS.find(category => category.id === itemCategory) || ITEM_CATEGORY_DEFS[0];
+
+  kbRef.current = {
+    sortedList, safeFocus, setFocusIdx, tab, switchTab, TABS, setDescKey, onClose,
+    itemCategory, setItemCategory, itemCategories: ITEM_CATEGORY_DEFS,
+  };
 
   useEffect(() => {
     const fn = (e) => {
@@ -684,6 +713,17 @@ function EncyclopediaPanel({ saveData, onClose }) {
         e.preventDefault();
         const idx = r.TABS.indexOf(r.tab);
         r.switchTab(r.TABS[(idx + 1) % r.TABS.length]); return;
+      }
+      if (r.tab === "items" && (isKeyLeft(e) || isKeyRight(e))) {
+        e.preventDefault();
+        const idx = r.itemCategories.findIndex(category => category.id === r.itemCategory);
+        const next = isKeyRight(e)
+          ? (idx + 1) % r.itemCategories.length
+          : (idx - 1 + r.itemCategories.length) % r.itemCategories.length;
+        r.setItemCategory(r.itemCategories[next].id);
+        r.setFocusIdx(0);
+        r.setDescKey(null);
+        return;
       }
       if (r.sortedList.length === 0) return;
       if (isKeyUp(e)) {
@@ -712,7 +752,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
   });
 
   const countLabel = {
-    items:    `発見アイテム: ${Object.keys(disc.items    || {}).length}種`,
+    items:    `発見アイテム: ${Object.keys(disc.items || {}).length}種　${selectedCategory.label}: ${sortedList.length}種`,
     monsters: `遭遇モンスター: ${Object.keys(disc.monsters || {}).length}種`,
     traps:    `踏んだ罠: ${Object.keys(disc.traps    || {}).length}種`,
     bigboxes: `識別済み大箱: ${Object.keys(disc.bigboxes || {}).length}種`,
@@ -729,6 +769,22 @@ function EncyclopediaPanel({ saveData, onClose }) {
           <button key={t} onClick={() => switchTab(t)} style={tabStyle(t)}>{TAB_LABEL[t]}</button>
         ))}
       </div>
+      {tab === "items" && (
+        <div style={{ display:"flex", gap:4, marginBottom:8, flexWrap:"wrap", maxHeight:76, overflowY:"auto" }}>
+          {ITEM_CATEGORY_DEFS.map(category => {
+            const selected = itemCategory === category.id;
+            return (
+              <button key={category.id} onClick={() => { setItemCategory(category.id); setFocusIdx(0); setDescKey(null); }}
+                style={{ ...BTN, padding:"4px 8px", fontSize:11,
+                  background: selected ? "#1b2140" : CARD,
+                  color: selected ? "#9cf" : "#687080",
+                  borderColor: selected ? "#4b78cc" : BDR }}>
+                {category.label} <span style={{ color: selected ? "#dff" : "#555" }}>({itemCategoryCounts.get(category.id) || 0})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div style={{ color:"#666", fontSize:11 }}>{countLabel[tab]}</div>
     </>
   );
@@ -744,7 +800,8 @@ function EncyclopediaPanel({ saveData, onClose }) {
           {sortedList.map((e, i) => {
             const isFocus = safeFocus === i;
             const isDesc  = descKey === e.key;
-            const desc    = isDesc ? lookupDesc(e.key, tab) : null;
+            const desc    = isDesc ? lookupDesc(e, tab) : null;
+            const number  = tab === "monsters" ? getMonsterNumber(e.name) : null;
             return (
               <div key={i} ref={el => itemRefs.current[i] = el}
                 onClick={() => { setFocusIdx(i); setDescKey(prev => prev === e.key ? null : e.key); }}
@@ -753,7 +810,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
                   borderRadius:3, color:TXT, cursor:"pointer",
                   border: isFocus ? "1px solid #44f" : "1px solid transparent" }}>
                 <div style={{ display:"flex", justifyContent:"space-between" }}>
-                  <span>{e.name}</span>
+                  <span>{number != null ? `No.${String(number).padStart(3, "0")} ` : ""}{e.name}</span>
                   <span style={{ color:"#555" }}>{tab === "tips" ? "既読" : `${e.count}回`}</span>
                 </div>
                 {isDesc && desc && (
