@@ -289,7 +289,7 @@ describe("特殊飛び道具", () => {
     expect(dg.monsters).toHaveLength(0);
   });
 
-  it("這いずり爆弾は軌道上の罠を作動させて消費される", () => {
+  it("這いずり爆弾は軌道上の通常罠を作動させても転がり続ける", () => {
     const dg = makeDungeon();
     dg.traps.push({ id: "sleep-trap", name: "睡眠の罠", effect: "sleep", x: 3, y: 2, permanent: true });
     const p = makePlayer([makeCrawlingBomb(1)]);
@@ -297,8 +297,79 @@ describe("特殊飛び道具", () => {
 
     shootArrow(p, dg, 0, 1, 0, ml, () => {});
     advanceSpecialProjectiles(dg, p, ml, () => {});
-    expect(dg.specialProjectiles).toHaveLength(0);
+    expect(dg.specialProjectiles).toHaveLength(1);
+    expect(dg.specialProjectiles[0]).toMatchObject({ x: 3, y: 2 });
     expect(ml.some(message => message.includes("睡眠の罠が発動"))).toBe(true);
+  });
+
+  it("這いずり爆弾は水に入ると爆発せずアイテムとして沈む", () => {
+    const dg = makeDungeon();
+    dg.map[2][3] = T.WATER;
+    const p = makePlayer([makeCrawlingBomb(2)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {}, null, null, null, { bundle: true });
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(dg.specialProjectiles || []).toHaveLength(0);
+    expect(dg.waterItems).toContainEqual(expect.objectContaining({ x: 3, y: 2, item: expect.objectContaining({ name: "這いずり爆弾", count: 2 }) }));
+    expect(ml.some(message => message.includes("爆発"))).toBe(false);
+  });
+
+  it("這いずり爆弾は泉に入ると泉の中身になる", () => {
+    const dg = makeDungeon();
+    dg.springs.push({ x: 3, y: 2, contents: [] });
+    const p = makePlayer([makeCrawlingBomb(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(dg.specialProjectiles || []).toHaveLength(0);
+    expect(dg.springs[0].contents).toContainEqual(expect.objectContaining({ name: "這いずり爆弾", specialProjectile: "crawling_bomb" }));
+  });
+
+  it("這いずり爆弾は水鉄砲で消え、落とし穴と地雷で消滅する", () => {
+    for (const effect of ["watergun_trap", "pitfall", "explode"]) {
+      const dg = makeDungeon();
+      dg.traps.push({ id: `${effect}-trap`, name: effect === "pitfall" ? "落とし穴" : effect === "explode" ? "地雷" : "水鉄砲の罠", effect, x: 3, y: 2, permanent: true });
+      const p = makePlayer([makeCrawlingBomb(1)]);
+      const ml = [];
+
+      shootArrow(p, dg, 0, 1, 0, ml, () => {});
+      advanceSpecialProjectiles(dg, p, ml, () => {});
+
+      expect(dg.specialProjectiles || []).toHaveLength(0);
+    }
+  });
+
+  it("這いずり爆弾は回転板で別の床へ飛び、吹き飛ばしで着弾爆発する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const dg = makeDungeon();
+    dg.rooms = [{ x: 6, y: 6, w: 3, h: 3 }];
+    dg.traps.push({ id: "spin-trap", name: "回転板", effect: "spin", x: 3, y: 2, permanent: true });
+    const p = makePlayer([makeCrawlingBomb(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+    expect(dg.specialProjectiles).toHaveLength(1);
+    expect(dg.specialProjectiles[0]).toMatchObject({ x: 6, y: 6 });
+
+    const dgBlow = makeDungeon();
+    dgBlow.map[2][1] = T.WALL;
+    dgBlow.traps.push({ id: "blow-trap", name: "吹き飛ばしの罠", effect: "blowback_trap", x: 3, y: 2, permanent: true });
+    const pBlow = makePlayer([makeCrawlingBomb(1)]);
+    pBlow.x = 8;
+    const mlBlow = [];
+    shootArrow({ ...pBlow, x: 2, y: 2 }, dgBlow, 0, 1, 0, mlBlow, () => {});
+    dgBlow.specialProjectiles[0].x = 2;
+    dgBlow.specialProjectiles[0].y = 2;
+    dgBlow.specialProjectiles[0].hasMoved = true;
+    advanceSpecialProjectiles(dgBlow, pBlow, mlBlow, () => {});
+    expect(dgBlow.specialProjectiles || []).toHaveLength(0);
+    expect(mlBlow.some(message => message.includes("着弾し、爆発した"))).toBe(true);
+    vi.restoreAllMocks();
   });
 
   it("誘導弾は10マス以内の敵へ1マスずつ近づいて命中する", () => {

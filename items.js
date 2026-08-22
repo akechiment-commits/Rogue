@@ -450,7 +450,7 @@ export const ITEMS = [
   { name:"魚雷", type:"arrow", atk:64, specialProjectile:"torpedo", count:3, rarity:"C", weight:4, sellPrice:150,
     desc:"水上を1マスずつ進み、水中の敵に大ダメージを与える魚雷。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", tile:23 },
   { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", count:3, rarity:"B", weight:2, sellPrice:250,
-    desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", tile:23 },
+    desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", tile:23 },
   { name:"誘導弾", type:"arrow", atk:7, specialProjectile:"homing", count:3, rarity:"B", weight:2, sellPrice:220,
     desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", tile:23 },
   { name:"毒矢",     type:"arrow", atk:2, poison:true, count:3,   rarity:"D", weight:8,  sellPrice:30,   desc:"毒を持つ矢。命中すると毒効果。99本まで束にできる。",           tile:23 },
@@ -527,7 +527,7 @@ export const STONE_T        = { name:"石",       type:"arrow", atk:3, stone:tru
 export const MAGIC_STONE_T  = { name:"魔法の石", type:"arrow", atk:5, magicStone:true, rarity:"D", weight:8,  sellPrice:30,  desc:"10マス以内の最も近い敵にホーミングして命中する石。99個まで束にできる。",                                    count:1, tile:23 };
 export const BOMB_ARROW_T   = { name:"爆弾矢",   type:"arrow", atk:6, bombArrow:true,  rarity:"B", weight:2,  sellPrice:120, desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。",                            count:1, tile:23 };
 export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, specialProjectile:"torpedo",      rarity:"C", weight:4, sellPrice:150, desc:"水上を1マスずつ進み、水中では近くの敵を追尾する。敵に当たると、通常命中と同等の無属性ダメージを着弾点と周囲1マスに1回だけ与える。地上の爆発は自分にも自分の防御力で計算したダメージを与え、水中の爆発はプレイヤーに当たらない。敵に当たらず水の外に出ると、その場にアイテムとして残る。99個まで束にできる。", count:1, tile:23 };
-export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
+export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵を倒すと薬を落とす。", tile:16 };
 export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。投げると周囲の腐敗・焦げた食料を元に戻す。", tile:16 };
@@ -2486,6 +2486,10 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       return "restart";
     }
     case "spin": {
+      if (item?._ephemeralTrapTrigger) {
+        ml.push(`${trap.name}が発動！${resolveItemName(item)}はどこかへ吹き飛んだ！`);
+        return "restart";
+      }
       ml.push(`${trap.name}が発動！${resolveItemName(item)}はどこかへ吹き飛んだ！`);
       if (dg.rooms?.length) {
         const rm = dg.rooms[rng(0, dg.rooms.length - 1)];
@@ -4951,6 +4955,28 @@ function detonateTorpedo(sp, dg, p, ml, luFn, monster = null) {
   doExplosion(sp.x, sp.y, dg, p, ml, null, `${sp.name}の爆発`, null, luFn, false, false, false, false, { playerSafeInWater: _inWater, nonElemental: true, projectileAtk: sp.atk, forcedMonsters: _forceMonster });
 }
 
+function landCrawlingBombAsItem(sp, dg, p, ml) {
+  const _bomb = makeCrawlingBomb(Math.max(1, sp.bundleCount | 0));
+  const _ft = new Set();
+  const _spring = dg.springs?.find(s => s.x === sp.x && s.y === sp.y);
+  if (_spring) {
+    soakItemIntoSpring(_spring, _bomb, ml, dg, null);
+    ml.push(`${sp.name}は泉に入って残った。`);
+    return;
+  }
+  if (dg.map?.[sp.y]?.[sp.x] === T.WATER) {
+    dg.waterItems ||= [];
+    if (!dg.waterItems.some(wi => wi.x === sp.x && wi.y === sp.y)) {
+      const _sunk = soakItem({ ..._bomb, x: sp.x, y: sp.y });
+      dg.waterItems.push({ x: sp.x, y: sp.y, item: _sunk });
+      ml.push(`${sp.name}は水に沈んでその場に残った。`);
+      return;
+    }
+  }
+  placeItemAt(dg, sp.x, sp.y, _bomb, ml, _ft, 0, p);
+  ml.push(`${sp.name}はその場にアイテムとして残った。`);
+}
+
 function landTorpedoAsItem(sp, dg, p, ml) {
   const _torpedo = makeTorpedo(Math.max(1, sp.count | 0));
   const _ft = new Set();
@@ -4958,9 +4984,28 @@ function landTorpedoAsItem(sp, dg, p, ml) {
   ml.push(`${sp.name}は水の外に出て、その場に残った。`);
 }
 
+function chooseSpecialProjectileFloor(dg, p, sp) {
+  const _rooms = dg.rooms || [];
+  for (let i = 0; i < Math.max(20, _rooms.length * 4); i++) {
+    const _room = _rooms.length ? _rooms[rng(0, _rooms.length - 1)] : null;
+    if (!_room) break;
+    const x = rng(_room.x, _room.x + _room.w - 1);
+    const y = rng(_room.y, _room.y + _room.h - 1);
+    if (!specialProjectileCellOpen(dg, x, y)) continue;
+    if (p && p.x === x && p.y === y) continue;
+    if (dg.monsters?.some(m => m.x === x && m.y === y && (m.hp ?? 1) > 0)) continue;
+    if (dg.bigboxes?.some(b => b.x === x && b.y === y)) continue;
+    if (dg.traps?.some(t => t.x === x && t.y === y)) continue;
+    if (statueAt(dg, x, y)) continue;
+    return { x, y };
+  }
+  return { x: sp.x, y: sp.y };
+}
+
 function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
   const _trap = dg.traps?.find(t => t.x === x && t.y === y);
-  if (!_trap) return false;
+  if (!_trap) return { action: "none" };
+  const _effect = _trap.effect;
   const _trigger = {
     ...sp,
     type: "arrow",
@@ -4977,7 +5022,35 @@ function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
   /* spin 等が内部トリガーを床へ置こうとしても、特殊弾は残さない。 */
   if (Array.isArray(dg.items)) dg.items = dg.items.filter(it => it !== _trigger);
   if (Array.isArray(dg.waterItems)) dg.waterItems = dg.waterItems.filter(wi => wi.item !== _trigger);
-  return _result !== "stop";
+  if (_result === "stop" || _effect === "explode" || _effect === "pitfall") {
+    return { action: "destroyed" };
+  }
+  if (_effect === "watergun_trap") {
+    ml.push(`${sp.name}は水鉄砲で消火されて消えた！`);
+    return { action: "destroyed" };
+  }
+  if (_effect === "spin") {
+    const _dest = chooseSpecialProjectileFloor(dg, p, sp);
+    sp.x = _dest.x;
+    sp.y = _dest.y;
+    return { action: "continue" };
+  }
+  if (_effect === "blowback_trap") {
+    const _backDx = -Math.sign(sp.dx || 0);
+    const _backDy = -Math.sign(sp.dy || 0);
+    if (_backDx || _backDy) {
+      for (let i = 0; i < 10; i++) {
+        const _nx = sp.x + _backDx;
+        const _ny = sp.y + _backDy;
+        if (!specialProjectileCellOpen(dg, _nx, _ny)) break;
+        sp.x = _nx;
+        sp.y = _ny;
+      }
+    }
+    detonateCrawlingBomb(sp, dg, p, ml, luFn, `${sp.name}が吹き飛ばされて着弾し、爆発した！`);
+    return { action: "destroyed" };
+  }
+  return { action: "continue" };
 }
 
 function specialProjectileHitMonster(sp, monster, dg, p, ml, luFn) {
@@ -5152,11 +5225,16 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     sp.hasMoved = true;
     sp.turnsLeft--;
     if (_trap) {
-      triggerSpecialProjectileTrap(sp, dg, p, sp.x, sp.y, ml, luFn);
+      const _trapResult = triggerSpecialProjectileTrap(sp, dg, p, sp.x, sp.y, ml, luFn);
+      if (_trapResult.action === "continue" && sp.turnsLeft > 0) _remaining.push(sp);
       continue;
     }
     if (sp.kind === "crawling_bomb" && (_monster || _bigbox || _statue || _player)) {
       detonateCrawlingBomb(sp, dg, p, ml, luFn, `${sp.name}が${_monster?.name || "障害物"}に触れて爆発した！`);
+      continue;
+    }
+    if (sp.kind === "crawling_bomb" && (dg.map?.[_impactY]?.[_impactX] === T.WATER || dg.springs?.some(s => s.x === _impactX && s.y === _impactY))) {
+      landCrawlingBombAsItem(sp, dg, p, ml);
       continue;
     }
     if (_monster) {
