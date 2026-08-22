@@ -20,6 +20,28 @@ describe("かわしモグラ", () => {
     expect(base?.tile).toBe(181);
   });
 
+  it("21階以降の水準へ強化された3段階のパラメータを持つ", () => {
+    const base = MONS.find((m) => m.baseKind === "dodgemole");
+    expect([base.hp, base.atk, base.def, base.exp]).toEqual([86, 30, 10, 100]);
+    expect([base.levels[0].hp, base.levels[0].atk, base.levels[0].def, base.levels[0].exp]).toEqual([135, 42, 15, 165]);
+    expect([base.levels[1].hp, base.levels[1].atk, base.levels[1].def, base.levels[1].exp]).toEqual([210, 58, 21, 260]);
+  });
+
+  it("通過した罠を発動させずに消滅させる", () => {
+    const base = MONS.find((m) => m.baseKind === "dodgemole");
+    const mole = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    const player = makeTarget("プレイヤー", 9, 5, 100);
+    const trap = { id: "trap-1", name: "召喚の罠", effect: "summon_trap", x: 6, y: 5 };
+    const dg = makeEmptyDg({ monsters: [mole], traps: [trap], rooms: [{ x: 1, y: 1, w: 20, h: 10 }] });
+    const ml = [];
+
+    monsterAI(mole, dg, player, ml, { moveOnly: true });
+
+    expect([mole.x, mole.y]).toEqual([6, 5]);
+    expect(dg.traps).toEqual([]);
+    expect(ml).toContain("かわしモグラが召喚の罠を潜って消した！");
+  });
+
   it("封印されていないかわしモグラだけが潜ってかわす", () => {
     expect(monSubmergesProjectiles({ baseKind: "dodgemole" })).toBe(true);
     expect(monSubmergesProjectiles({ baseKind: "dodgemole", sealed: true })).toBe(false);

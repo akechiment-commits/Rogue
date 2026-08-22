@@ -933,11 +933,11 @@ export const MONS = [
       { name: "むちちむち",         hp: 170, atk: 46, def: 31, exp: 175 },
     ],
   },
-  { name: "かわしモグラ", hp: 54, atk: 21, def: 6, exp: 60, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 12, maxFloor: 35, subtype: "dodgemole", dungeonFloors: { intermediate: { min: 13, max: 20 }, advanced: { min: 10, max: 25 } },
+  { name: "かわしモグラ", hp: 86, atk: 30, def: 10, exp: 100, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 12, maxFloor: 35, subtype: "dodgemole", dungeonFloors: { intermediate: { min: 13, max: 20 }, advanced: { min: 10, max: 25 } },
     desc: "通常の投擲物・矢・杖の光弾・魔法・巻物の効果・矢罠・水鉄砲を潜ってかわす。直線型のLv1ブレスもかわすが、Lv2以降の追尾型ブレスは当たる。爆風は当たる。",
     levels: [
-      { name: "ひょいひょいモグラ", hp: 86, atk: 30, def: 10, exp: 100, dungeonFloors: { advanced: { min: 23, max: 27 } } },
-      { name: "ディグダグダグダ", hp: 135, atk: 42, def: 15, exp: 165, dungeonFloors: { advanced: { min: 28, max: 35 } } },
+      { name: "ひょいひょいモグラ", hp: 135, atk: 42, def: 15, exp: 165, dungeonFloors: { advanced: { min: 23, max: 27 } } },
+      { name: "ディグダグダグダ", hp: 210, atk: 58, def: 21, exp: 260, dungeonFloors: { advanced: { min: 28, max: 35 } } },
     ],
   },
   { name: "ハンマーオーガ", hp: 75, atk: 36, def: 9,  exp: 80,  speed: 1,   tile: 116, kind: "humanoid", baseKind: "knocker",      monLevel: 1, minFloor: 15, maxFloor: 50, subtype: "knocker", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 23 } },
@@ -2515,6 +2515,14 @@ function isStationaryGrabber(m) {
   return m && (m.subtype === "grabber" || m.baseKind === "grabber");
 }
 
+/* かわしモグラは通過した罠を作動させず、その場で消滅させる。 */
+function _clearDodgemoleTrap(m, dg, ml, pl) {
+  if (m.baseKind !== "dodgemole") return;
+  const trap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
+  if (!trap) return;
+  removeTrap(dg, trap, ml, { fromStep: true, message: `${m.name}が${trap.name}を潜って消した！`, p: pl });
+}
+
 /* ===== 夢喰い：眠っている敵を起こして回復／睡眠中のプレイヤーから吸収 ===== */
 function findDreamEaterTarget(m, dg) {
   return (dg.monsters || [])
@@ -3229,6 +3237,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
     }
     const moved = m.x !== _sx || m.y !== _sy;
     if (moved) {
+      _clearDodgemoleTrap(m, dg, ml, pl);
       _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
     }
     const movementDisabled =
@@ -3258,6 +3267,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
         /* 9ターン以上同マス停滞、または往復・停滞パターンなら別方向へ */
         if (m._idleStuck >= 9 || stuckHist) {
           if (tryUnstickMove(m, dg, pl, _float)) {
+            _clearDodgemoleTrap(m, dg, ml, pl);
             _checkGravityTrap(m, dg, pl, ml, opts.luFn || (() => {}));
           }
         }
