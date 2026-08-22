@@ -118,10 +118,15 @@ describe("スネークマン系", () => {
     });
     const messages = [];
     const player = makePlayer({ x: 5, y: 10 });
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
 
-    snake.turnAttacks = 0;
-    snake._rangedAttackThisTurn = true;
-    monsterAI(snake, dg, player, messages, { attackOnly: true });
+    try {
+      snake.turnAttacks = 0;
+      snake._rangedAttackThisTurn = true;
+      monsterAI(snake, dg, player, messages, { attackOnly: true });
+    } finally {
+      random.mockRestore();
+    }
 
     expect(reflector.def).toBe(3);
     expect(snake.def).toBe(9);

@@ -59,20 +59,19 @@ describe("アイテムモドキ", () => {
     try {
       monsterAI(mimic, dg, player, messages, { moveOnly: true });
       expect(revealItemMimicAt(dg, 5, 5, player, messages)).toBe(true);
+      const hpAfterReveal = player.hp;
+      monsterAI(mimic, dg, player, messages, { moveOnly: true });
+      expect(mimic._itemMimicRevealed).toBe(true);
+      monsterAI(mimic, dg, player, messages, { attackOnly: true });
+      expect(player.hp).toBe(hpAfterReveal);
+      expect(mimic._itemMimicRevealed).toBeUndefined();
+
+      mimic.turnAttacks = 0;
+      monsterAI(mimic, dg, player, messages, { attackOnly: true });
+      expect(player.hp).toBeLessThan(hpAfterReveal);
     } finally {
       random.mockRestore();
     }
-
-    const hpAfterReveal = player.hp;
-    monsterAI(mimic, dg, player, messages, { moveOnly: true });
-    expect(mimic._itemMimicRevealed).toBe(true);
-    monsterAI(mimic, dg, player, messages, { attackOnly: true });
-    expect(player.hp).toBe(hpAfterReveal);
-    expect(mimic._itemMimicRevealed).toBeUndefined();
-
-    mimic.turnAttacks = 0;
-    monsterAI(mimic, dg, player, messages, { attackOnly: true });
-    expect(player.hp).toBeLessThan(hpAfterReveal);
   });
 
   it("離れたマスへ踏み込もうとした時もプレイヤーを移動させず正体を現す", () => {

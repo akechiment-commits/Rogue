@@ -60,7 +60,12 @@ describe("油膜の劣化防止", () => {
   it("泉に浸した劣化防止装備は＋値を下げず油膜を1回消費する", () => {
     const item = { type: "weapon", name: "短剣", plus: 2, ability: "oil_proof", oilProofUses: 3 };
     const ml = [];
-    soakItemIntoSpring({ contents: [] }, item, ml);
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      soakItemIntoSpring({ contents: [] }, item, ml);
+    } finally {
+      random.mockRestore();
+    }
     expect(item.plus).toBe(2);
     expect(item.oilProofUses).toBe(2);
   });
