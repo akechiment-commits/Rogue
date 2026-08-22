@@ -6,7 +6,10 @@ import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns, applyPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
-import { addArmorBreathBuff, ARMOR_BREATH_DEF_BONUS } from "./monsterBuffs.js";
+import {
+  addArmorBreathBuff, ARMOR_BREATH_DEF_BONUS,
+  addDiamondWeaponBuff, DIAMOND_WEAPON_ATK_BONUS,
+} from "./monsterBuffs.js";
 
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
@@ -1028,6 +1031,13 @@ export const MONS = [
     levels: [
       { name: "リザードマン", hp: 54, atk: 24, def: 9, exp: 78, tile: 203, minFloor: 17, maxFloor: 24, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 23 } } },
       { name: "とかげせんし", hp: 86, atk: 36, def: 14, exp: 128, tile: 204, minFloor: 25, maxFloor: 30, dungeonFloors: { advanced: { min: 24, max: 30 } } },
+    ],
+  },
+  { name: "竜騎士", hp: 32, atk: 14, def: 4, exp: 38, speed: 1, tile: 205, kind: "dragon", baseKind: "dragonknight", monLevel: 1, minFloor: 9, maxFloor: 28, float: true, subtype: "diamondweapon", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 8, max: 16 } },
+    desc: "浮遊する竜騎士。プレイヤーを視界に捉えると、ダイヤモンドウエポンで自分か隣接する敵の攻撃力を10上げることがある。放置すると重ね掛けでどんどん強くなる。強化解除の巻物や封印で解除される。",
+    levels: [
+      { name: "竜騎士04", hp: 54, atk: 24, def: 9, exp: 78, minFloor: 17, maxFloor: 24, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 23 } } },
+      { name: "Mikan", hp: 86, atk: 36, def: 14, exp: 128, minFloor: 25, maxFloor: 30, dungeonFloors: { advanced: { min: 24, max: 30 } } },
     ],
   },
 ];
@@ -2716,11 +2726,19 @@ const _MIMIC_ADJ_SUBTYPES = new Set([
   "itempusher",
 ]);
 
-function armorBreathTargets(m, dg) {
+function supportBreathTargets(m, dg) {
   return (dg.monsters || []).filter((target) =>
     target.hp > 0 &&
     (target === m || Math.max(Math.abs(target.x - m.x), Math.abs(target.y - m.y)) <= 1),
   );
+}
+
+function armorBreathTargets(m, dg) {
+  return supportBreathTargets(m, dg);
+}
+
+function diamondWeaponTargets(m, dg) {
+  return supportBreathTargets(m, dg);
 }
 
 function useArmorBreath(m, dg, ml) {
@@ -2756,6 +2774,42 @@ function useArmorBreath(m, dg, ml) {
   addArmorBreathBuff(target);
   m.turnAttacks++;
   ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が${ARMOR_BREATH_DEF_BONUS}上がった！`);
+  return true;
+}
+
+function useDiamondWeapon(m, dg, ml) {
+  if (inMagicSealRoom(m.x, m.y, dg)) {
+    ml.push(`${m.name}のダイヤモンドウエポンが魔封じの魔法陣で無効になった！`);
+    m.turnAttacks++;
+    return true;
+  }
+  const targets = diamondWeaponTargets(m, dg);
+  if (targets.length === 0) return false;
+  const target = pick(targets);
+  if (inMagicSealRoom(target.x, target.y, dg)) {
+    ml.push(`${m.name}のダイヤモンドウエポンが魔封じの魔法陣で無効になった！`);
+    m.turnAttacks++;
+    return true;
+  }
+  if (monEffectiveMagicImmune(target)) {
+    ml.push(`魔法は${target.name}に効かない！`);
+    m.turnAttacks++;
+    return true;
+  }
+  if (monReflectsMagic(target)) {
+    ml.push(`${target.name}がダイヤモンドウエポンを反射した！`);
+    if (inMagicSealRoom(m.x, m.y, dg) || monEffectiveMagicImmune(m)) {
+      ml.push(`魔法は${m.name}に効かない！`);
+    } else {
+      addDiamondWeaponBuff(m);
+      ml.push(`跳ね返ったダイヤモンドウエポンが${m.name}にかかり、攻撃力が${DIAMOND_WEAPON_ATK_BONUS}上がった！`);
+    }
+    m.turnAttacks++;
+    return true;
+  }
+  addDiamondWeaponBuff(target);
+  m.turnAttacks++;
+  ml.push(`${m.name}がダイヤモンドウエポンを唱えた！${target === m ? "自分" : target.name}の攻撃力が${DIAMOND_WEAPON_ATK_BONUS}上がった！`);
   return true;
 }
 
@@ -2816,6 +2870,9 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   if (subtype === "supporter") return canSee && sameRoom;
   if (subtype === "armorbreath") {
     return canSee && !inMagicSealRoom(src.x, src.y, dg) && armorBreathTargets(m, dg).length > 0;
+  }
+  if (subtype === "diamondweapon") {
+    return canSee && !inMagicSealRoom(src.x, src.y, dg) && diamondWeaponTargets(m, dg).length > 0;
   }
 
   /* アーチャー・水鉄砲：一直線＋射程 */
@@ -3061,6 +3118,11 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   /* ── armorbreath：自分または隣接する味方の防御力を上げる ── */
   if (m.subtype === "armorbreath" && canSee && !inMagicSealRoom(m.x, m.y, dg)) {
     return useArmorBreath(m, dg, ml);
+  }
+
+  /* ── diamondweapon：自分または隣接する味方の攻撃力を上げる ── */
+  if (m.subtype === "diamondweapon" && canSee && !inMagicSealRoom(m.x, m.y, dg)) {
+    return useDiamondWeapon(m, dg, ml);
   }
 
   /* ── ドラゴン／氷竜ブレス ── */
@@ -4490,7 +4552,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _darkBulletRdy0 = m.baseKind === "boss_darkbullet" && !m.sealed && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10;
       const _armorBreathRdy0 = m.subtype === "armorbreath" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
+        !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
+      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -4535,6 +4599,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (m.subtype === "armorbreath" && !m.sealed && _rangedAttackReady &&
           !inMagicSealRoom(m.x, m.y, dg) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         if (useArmorBreath(m, dg, ml)) return;
+      }
+
+      if (m.subtype === "diamondweapon" && !m.sealed && _rangedAttackReady &&
+          !inMagicSealRoom(m.x, m.y, dg) && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        if (useDiamondWeapon(m, dg, ml)) return;
       }
 
       /* ── ものまね師：隣接キャラの特技を模倣（moveOnly 予約があれば再抽選なし） ── */

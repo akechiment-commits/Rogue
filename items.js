@@ -26,7 +26,7 @@ import {
 import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
-import { clearArmorBreathBuff } from './monsterBuffs.js';
+import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -1028,6 +1028,9 @@ export function applyMonsterSeal(target, dg, p, ml, luFn, opts = {}) {
   target.sealed = true;
   if (clearArmorBreathBuff(target) > 0) {
     ml.push(`${target.name}のアーマーブレスの強化が封印で解除された！`);
+  }
+  if (clearDiamondWeaponBuff(target) > 0) {
+    ml.push(`${target.name}のダイヤモンドウエポンの強化が封印で解除された！`);
   }
   const turns = sealedTurns != null
     ? sealedTurns

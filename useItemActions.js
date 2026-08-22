@@ -28,7 +28,7 @@ import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
 import { monSubmergesProjectiles, monReflectsProjectiles } from "./monTraits.js";
-import { clearArmorBreathBuff } from "./monsterBuffs.js";
+import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 
 function skipDodgemoleScroll(mon, ml, label = "巻物の効果") {
   if (!monSubmergesProjectiles(mon)) return false;
@@ -1443,6 +1443,7 @@ export function useItemActions({
               let _removed = [];
               if (_m.atkBuffed) { _m.atk = Math.max(1, _m.atk - 3); _m.atkBuffed = false; _removed.push("攻撃バフ"); }
               if (clearArmorBreathBuff(_m) > 0) _removed.push("アーマーブレス");
+              if (clearDiamondWeaponBuff(_m) > 0) _removed.push("ダイヤモンドウエポン");
               if (_m._enraged) { _m._enraged = false; _removed.push("激昂"); }
               if ((_m.hasteTurns || 0) > 0) { _m.hasteTurns = 0; _removed.push("加速"); }
               // overBoost強化を解除
