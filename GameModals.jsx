@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
@@ -544,6 +544,14 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
       </div>
     </div>
   );
+}
+
+function formatFoodItemDesc(item) {
+  const desc = formatItemDesc(item?.desc);
+  if (item?.type === "food" && item._foodBase && item._foodBase === getFavoriteFoodBase() && !desc.includes("あなたの好物")) {
+    return `${desc}\nあなたの好物だ！`;
+  }
+  return desc;
 }
 
 /* ===== Game Over: map peek ===== */
@@ -3297,7 +3305,7 @@ export function InventoryModal({
                           if (_fRole === "trap") return formatItemDesc(floorTrapDesc(entry) || entry.desc);
                           if (_fRole !== "item") return formatItemDesc(entry.desc);
                           const _kk = getIdentKey(entry);
-                          return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : formatItemDesc(entry.desc);
+                          return (_kk && gs?.ident && !gs.ident.has(_kk)) ? "未識別のためわからない。" : formatFoodItemDesc(entry);
                         })()}</div>
                       </div>
                     )}
@@ -3396,7 +3404,7 @@ export function InventoryModal({
                         {it.type === "pot" && ` — 壺 [${potOccupancyCount(it)}/${it.capacity}]`}
                         {it.type === "ring" && ` — 指輪${["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
-                      <div style={ITEM_DESC_TEXT_STYLE}>{_isUnidentInv ? "未識別のためわからない。" : formatItemDesc(it.desc)}</div>
+                      <div style={ITEM_DESC_TEXT_STYLE}>{_isUnidentInv ? "未識別のためわからない。" : formatFoodItemDesc(it)}</div>
                       {it.ability && (() => {
                         const _ab = [...WEAPON_ABILITIES, ...ARMOR_ABILITIES].find((a) => a.id === it.ability);
                         return _ab ? <div style={{ color: "#fa0", marginTop: 3 }}>【特性】{_ab.name}：{_ab.desc}</div> : null;

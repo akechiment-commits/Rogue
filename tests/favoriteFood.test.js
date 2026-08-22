@@ -57,6 +57,7 @@ describe("makeStarterFoodItem", () => {
   it("不正値はデフォルト名を使う", () => {
     const it = makeStarterFoodItem("", { uidFn: () => "x" });
     expect(it.name).toBe(`満腹の特盛り${DEFAULT_FAVORITE_FOOD}`);
+    expect(it.desc).toContain("あなたの好物だ！");
   });
 });
 
@@ -100,6 +101,8 @@ describe("getFoodBasePool / setFavoriteFoodBase", () => {
       .mockReturnValueOnce(0.2)   // 生食料を選ぶ
       .mockReturnValueOnce(0.005) // 好物の1%抽選に当選
       .mockReturnValue(0);
-    expect(genFood()._foodBase).toBe("おにぎり");
+    const food = genFood();
+    expect(food._foodBase).toBe("おにぎり");
+    expect(food.desc).toContain("あなたの好物だ！");
   });
 });

@@ -63,7 +63,7 @@ export function makeStarterFoodItem(favoriteFood, { uidFn = uid } = {}) {
     type: "food",
     effect: "satiate_food",
     value: 120,
-    desc: FOOD_DESCS.satiate_food || "とても腹持ちが良さそうだ。",
+    desc: `${FOOD_DESCS.satiate_food || "とても腹持ちが良さそうだ。"}\nあなたの好物だ！`,
     tile: 66,
     cooked: true,
     sizeLabel: "特盛り",

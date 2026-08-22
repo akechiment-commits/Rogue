@@ -1393,8 +1393,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (m.hp <= 0) break;
         if (_phase === "moveOnly") {
           const _bx = m.x, _by = m.y;
+          const _wasSleeping = (m.sleepTurns || 0) > 0;
           monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
           if (m.x !== _bx || m.y !== _by) _moveCount++;
+          /* 睡眠はモンスターの速度に関係なく1ターンずつ減らす。
+             目覚めたターンに倍速分の次の行動まで連続実行しない。 */
+          if (_wasSleeping) {
+            m._movedThisTurn = true;
+            break;
+          }
         } else {
           monsterAI(m, dg, pl, ml, opts);
         }

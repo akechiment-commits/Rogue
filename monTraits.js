@@ -47,7 +47,10 @@ export function monReflectsMagic(m) {
 
 /** 通常の投擲物・魔法弾・巻物・杖の効果を潜ってかわす（かわしモグラ） */
 export function monSubmergesProjectiles(m) {
-  return !!(m && !m.sealed && m.baseKind === "dodgemole" && !m._wakkaRingHit);
+  const _incapacitated = (m?.sleepTurns || 0) > 0 || !!m?.paralyzed ||
+    (m?.frozenTurns || 0) > 0 || (m?.immobileTurns || 0) > 0 ||
+    (m?.knockdownTurns || 0) > 0;
+  return !!(m && !_incapacitated && !m.sealed && m.baseKind === "dodgemole" && !m._wakkaRingHit);
 }
 
 /** 封印中は1回行動まで */

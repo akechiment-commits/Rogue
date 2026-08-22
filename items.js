@@ -669,7 +669,10 @@ export function genFood() {
   let hv = ef.e === "satiate_food" ? Math.floor(sz.v * 1.5) : sz.v;
   if (!cooked) hv = Math.max(1, Math.floor(hv / 2));
   const foodCat = FOOD_CAT_MAP.get(fn) || null;
-  return { name:nm, type:"food", effect:ef.e, value:hv, desc:FOOD_DESCS[ef.e], tile: cooked ? 66 : 19, cooked, foodCat, sizeLabel: sz.l, _foodBase: fn, _foodEfLabel: ef.l };
+  const _desc = _favoriteFoodBase && fn === _favoriteFoodBase
+    ? `${FOOD_DESCS[ef.e]}\nあなたの好物だ！`
+    : FOOD_DESCS[ef.e];
+  return { name:nm, type:"food", effect:ef.e, value:hv, desc:_desc, tile: cooked ? 66 : 19, cooked, foodCat, sizeLabel: sz.l, _foodBase: fn, _foodEfLabel: ef.l };
 }
 
 /* ===== WANDS ===== */

@@ -57,6 +57,8 @@ describe("かわしモグラ", () => {
   it("封印されていないかわしモグラだけが潜ってかわす", () => {
     expect(monSubmergesProjectiles({ baseKind: "dodgemole" })).toBe(true);
     expect(monSubmergesProjectiles({ baseKind: "dodgemole", sealed: true })).toBe(false);
+    expect(monSubmergesProjectiles({ baseKind: "dodgemole", sleepTurns: 2 })).toBe(false);
+    expect(monSubmergesProjectiles({ baseKind: "dodgemole", paralyzed: true })).toBe(false);
     expect(monSubmergesProjectiles({ baseKind: "runner" })).toBe(false);
   });
 
