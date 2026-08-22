@@ -32,8 +32,9 @@ import {
   ensureStairsPresent,
 } from './floorObjectPlacement.js';
 
-function changeInventoryPotCapacity(pot, delta, p, dg, ml) {
+function changeInventoryPotCapacity(pot, delta, p, dg, ml, nameFn = null) {
   if (pot?.type !== "pot") return false;
+  const potName = resolveItemName(pot, nameFn);
   const next = Math.max(0, (pot.capacity || 1) + delta);
   delete pot.blessed;
   delete pot.cursed;
@@ -43,12 +44,12 @@ function changeInventoryPotCapacity(pot, delta, p, dg, ml) {
       const ft = new Set();
       for (const content of [...(pot.contents || [])]) placeItemAt(dg, p.x, p.y, content, ml, ft);
       p.inventory.splice(idx, 1);
-      ml.push(`${resolveItemName(pot)}が容量不足で割れ、中身が足元に落ちた！`);
+      ml.push(`${potName}が容量不足で割れ、中身が足元に落ちた！`);
     }
     return true;
   }
   pot.capacity = next;
-  ml.push(`${resolveItemName(pot)}の容量が${delta > 0 ? 1 : -1}${delta > 0 ? "増えた" : "減った"}！(${pot.capacity})`);
+  ml.push(`${potName}の容量が${delta > 0 ? 1 : -1}${delta > 0 ? "増えた" : "減った"}！(${pot.capacity})`);
   return true;
 }
 
@@ -1327,9 +1328,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた祝福の杖→所持品を1つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _t = pick(_inv);
-          if (!changeInventoryPotCapacity(_t, -1, p, dg, ml)) {
+          if (!changeInventoryPotCapacity(_t, -1, p, dg, ml, nameFn)) {
+            const _tName = resolveItemName(_t, nameFn);
             _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
-            ml.push(`${_t.name}が呪われた！【呪】`);
+            ml.push(`${_tName}が呪われた！【呪】`);
           }
         } else {
           // 通常→1つ祝福、祝福→2つ祝福
@@ -1337,9 +1339,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _count = _bwBlessed ? 2 : 1;
           const _pool = shuffle([..._inv]).slice(0, _count);
           for (const _t of _pool) {
-            if (!changeInventoryPotCapacity(_t, 1, p, dg, ml)) {
+            if (!changeInventoryPotCapacity(_t, 1, p, dg, ml, nameFn)) {
+              const _tName = resolveItemName(_t, nameFn);
               _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
-              ml.push(`${_t.name}が祝福された！【祝】`);
+              ml.push(`${_tName}が祝福された！【祝】`);
             }
           }
           if (_bwBlessed) ml.push("（祝福の杖の力で2つ祝福された！）");
@@ -1408,9 +1411,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた呪いの杖→所持品を1つ祝福（反転）
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
           const _t = pick(_inv);
-          if (!changeInventoryPotCapacity(_t, 1, p, dg, ml)) {
+          if (!changeInventoryPotCapacity(_t, 1, p, dg, ml, nameFn)) {
+            const _tName = resolveItemName(_t, nameFn);
             _t.blessed = true; _t.cursed = false; _t.bcKnown = true;
-            ml.push(`${_t.name}が祝福された！【呪→祝】`);
+            ml.push(`${_tName}が祝福された！【呪→祝】`);
           }
         } else {
           // 通常→1つ呪う、祝福→2つ呪う
@@ -1418,9 +1422,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           const _count = _cwBlessed ? 2 : 1;
           const _pool = shuffle([..._inv]).slice(0, _count);
           for (const _t of _pool) {
-            if (!changeInventoryPotCapacity(_t, -1, p, dg, ml)) {
+            if (!changeInventoryPotCapacity(_t, -1, p, dg, ml, nameFn)) {
+              const _tName = resolveItemName(_t, nameFn);
               _t.cursed = true; _t.blessed = false; _t.bcKnown = true;
-              ml.push(`${_t.name}が呪われた！【呪】`);
+              ml.push(`${_tName}が呪われた！【呪】`);
             }
           }
           if (_cwBlessed) ml.push("（祝福された呪いの杖の力で2つ呪われた！）");
@@ -1862,7 +1867,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
   /* 呪われた吹きとばし：魔法弾は飛ばず、プレイヤー自身が逆方向に吹き飛ぶ */
   if (eff === "knockback" && blMult < 1) {
     ml.push("自分が逆方向に吹き飛ばされた！【呪】");
-    applyWandEffect("knockback", "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, 1);
+    applyWandEffect("knockback", "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, 1, nameFn);
     return;
   }
   const _wandColors = {
@@ -1898,7 +1903,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         if (tx <= 0 || tx >= MW - 1 || ty <= 0 || ty >= MH - 1) {
           ml.push("魔法弾が外周の壁に跳ね返った！");
           if (lastX !== p.x || lastY !== p.y) pushAnim({ type:"projectileReturn", fromX:lastX, fromY:lastY, toX:p.x, toY:p.y, color:"#c8a060" });
-          applyWandEffect("soften", "player", p, -dx, -dy, dg, p, ml, luFn, null, blMult);
+          applyWandEffect("soften", "player", p, -dx, -dy, dg, p, ml, luFn, null, blMult, nameFn);
           return;
         }
         /* 内部の壁：1マスをランダムな食料に変化 */
@@ -1931,12 +1936,12 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         // 呪い：跳ね返って自分に当たる → プレイヤーがランダムテレポート
         ml.push("魔法弾が跳ね返って自分に当たった！【呪】");
         if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
-        applyWandEffect(eff, "player", p, -_fdx, -_fdy, dg, p, ml, luFn, bbFn, blMult);
+        applyWandEffect(eff, "player", p, -_fdx, -_fdy, dg, p, ml, luFn, bbFn, blMult, nameFn);
         return;
       }
       ml.push("魔法弾は壁に跳ね返った！");
       if (lastX !== p.x || lastY !== p.y) pushAnim({ type: "projectileReturn", fromX: lastX, fromY: lastY, toX: p.x, toY: p.y, color: _boltClr });
-      applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult);
+      applyWandEffect(eff, "player", p, -dx, -dy, dg, p, ml, luFn, bbFn, blMult, nameFn);
       return;
     }
     /* 氷の杖：射線上の水を凍らせる（通過・命中判定はその後） */
@@ -1953,7 +1958,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       if (monReflectsMagic(mon)) {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
         pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: p.x, toY: p.y, color: _boltClr });
-        applyWandEffect(eff, "player", p, -_fdx, -_fdy, dg, p, ml, luFn, bbFn, blMult);
+        applyWandEffect(eff, "player", p, -_fdx, -_fdy, dg, p, ml, luFn, bbFn, blMult, nameFn);
         return;
       }
       applyWandEffect(eff, "monster", mon, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);

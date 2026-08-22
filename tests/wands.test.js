@@ -63,6 +63,19 @@ describe("applyWandEffect", () => {
     expect(pot.blessed).toBeUndefined();
   });
 
+  it("祝福の杖が未識別所持品を祝福しても偽名を表示する", () => {
+    const p = makePlayer();
+    const target = { name: "回復薬", type: "potion", effect: "heal" };
+    const ml = [];
+    p.inventory = [target];
+    applyWandEffect(
+      "bless_wand", "player", p, 0, 0, makeEmptyDg(), p, ml, noop, null, 1,
+      () => "青い薬",
+    );
+    expect(ml.some(message => message.includes("青い薬が祝福された"))).toBe(true);
+    expect(ml.some(message => message.includes("回復薬が祝福された"))).toBe(false);
+  });
+
   it("呪いの杖は所持中の壺の容量を減らす", () => {
     const p = makePlayer();
     const pot = { name: "ごま油の壺", type: "pot", capacity: 3 };
