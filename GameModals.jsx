@@ -3453,6 +3453,8 @@ export function InventoryModal({
 /* ===== Sidebar Portrait Panel ===== */
 export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = true, setShowScores, setShowSettings }) {
   if (!(!mobile || landscape)) return null;
+  /* reaction_fall_severe だけ被写体が右寄りに大きく描かれているため、全体を収める。 */
+  const fitWideFallPortrait = typeof portraitSrc === "string" && /reaction_fall_severe\.png(?:[?#]|$)/.test(portraitSrc);
   return (
     <div
       style={{
@@ -3476,13 +3478,15 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
               img.dataset.portraitFallbackApplied = "1";
               img.src = fallback;
             }}
-            style={{
-              width: "100%",
-              height: "100%",
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-            }}
+            style={fitWideFallPortrait
+              ? {
+                width: "100%",
+                height: "100%",
+                maxWidth: "100%",
+                maxHeight: "100%",
+                objectFit: "contain",
+              }
+              : { width: "220%", objectFit: "contain" }}
           />
         )}
       </div>
