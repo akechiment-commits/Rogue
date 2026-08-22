@@ -30,11 +30,13 @@ describe("かわしモグラ", () => {
   it("深層相当の出現範囲だけを持つ", () => {
     const base = MONS.find((m) => m.baseKind === "dodgemole");
     expect(base.minFloor).toBe(21);
-    expect(base.maxFloor).toBe(35);
+    expect(base.maxFloor).toBe(27);
     expect(base.dungeonFloors.intermediate).toBeNull();
-    expect(base.dungeonFloors.advanced).toEqual({ min: 21, max: 25 });
-    expect(base.levels[0].dungeonFloors.advanced).toEqual({ min: 23, max: 27 });
-    expect(base.levels[1].dungeonFloors.advanced).toEqual({ min: 28, max: 35 });
+    expect(base.dungeonFloors.advanced).toEqual({ min: 21, max: 27 });
+    expect([base.levels[0].minFloor, base.levels[0].maxFloor]).toEqual([30, 38]);
+    expect(base.levels[0].dungeonFloors.advanced).toEqual({ min: 30, max: 30 });
+    expect([base.levels[1].minFloor, base.levels[1].maxFloor]).toEqual([41, 50]);
+    expect(base.levels[1].dungeonFloors.advanced).toBeNull();
   });
 
   it("通過した罠を発動させずに消滅させる", () => {
