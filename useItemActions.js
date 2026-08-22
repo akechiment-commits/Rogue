@@ -2894,7 +2894,7 @@ export function useItemActions({
               _baLx = tx; _baLy = ty;
             }
             if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
-            doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発", null, lu);
+            doExplosion(_baLx, _baLy, dg, p, ml, _baNF, "爆弾矢の爆発", null, lu, false, false, false, false, { projectileAtk: _arItem.atk || 6 });
           }
           if (p.arrow.count <= 0) {
             const _baEx = p.arrow;
@@ -3501,7 +3501,7 @@ export function useItemActions({
               false,
               false,
               false,
-              { damageBonus: _bundleThrow2 && _baCount2 > 1 ? _baCount2 : 0 },
+              { projectileAtk: _baAtk2 },
             );
           }
           endTurn(sr.current, p, ml);
@@ -4014,7 +4014,7 @@ export function useItemActions({
               });
               _wandFiredEffect = true;
             } else if (it.type === "arrow" && it.bombArrow) {
-              doExplosion(p.x, p.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu);
+              doExplosion(p.x, p.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu, false, false, false, false, { projectileAtk: it.atk || 6 });
             } else {
               const _selfD = Math.max(1, calcProjectileDmg(p, _tdBaseAtk, 0));
               p.hp -= _selfD;
@@ -4055,7 +4055,7 @@ export function useItemActions({
             if (sprHit?.kind === "scatter" && it.type === "arrow" && it.bombArrow) {
               /* 爆弾矢を拡散の大箱に投げた：箱の場所で爆発 */
               ml.push(`${_mkThrowLb()}が${sprHit.name}に命中して爆発した！`);
-              doExplosion(sprHit.x, sprHit.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu);
+                doExplosion(sprHit.x, sprHit.y, dg, p, ml, dnameRef, `${it.name}の爆発`, null, lu, false, false, false, false, { projectileAtk: it.atk || 6 });
               p.inventory.splice(p.inventory.indexOf(it), 1);
             } else if (sprHit?.kind) {
               bigboxAddItem(sprHit, it, dg, ml);

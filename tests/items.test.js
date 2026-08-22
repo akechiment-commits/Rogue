@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { setFavoriteFoodBase } from "../items.js";
 import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T } from "../items.js";
@@ -432,7 +432,7 @@ describe("isFireExplosionNullified", () => {
 });
 
 describe("doExplosion", () => {
-  it("爆発のdamageBonusは通常爆発の敵ダメージに加算される", () => {
+  it("爆弾矢の爆発は射手の攻撃力と対象の防御力で計算する", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const makeDungeon = () => ({
       pentacles: [],
@@ -445,9 +445,13 @@ describe("doExplosion", () => {
     });
     const single = makeDungeon();
     const bundle = makeDungeon();
-    doExplosion(5, 5, single, { x: 0, y: 0, hp: 100, maxHp: 100, inventory: [] }, [], null, "爆弾矢の爆発");
-    doExplosion(5, 5, bundle, { x: 0, y: 0, hp: 100, maxHp: 100, inventory: [] }, [], null, "爆弾矢の爆発", null, null, false, false, false, false, { damageBonus: 3 });
-    expect(bundle.monsters[0].hp).toBe(single.monsters[0].hp - 3);
+    const singlePlayer = { x: 0, y: 0, hp: 100, maxHp: 100, atk: 12, inventory: [] };
+    const bundlePlayer = { x: 0, y: 0, hp: 100, maxHp: 100, atk: 12, inventory: [] };
+    doExplosion(5, 5, single, singlePlayer, [], null, "爆弾矢の爆発", null, null, false, false, false, false, { projectileAtk: 6 });
+    doExplosion(5, 5, bundle, bundlePlayer, [], null, "爆弾矢の爆発", null, null, false, false, false, false, { projectileAtk: 9 });
+    expect(single.monsters[0].hp).toBe(100 - calcProjectileDmg(singlePlayer, 6, 0));
+    expect(bundle.monsters[0].hp).toBe(100 - calcProjectileDmg(bundlePlayer, 9, 0));
+    expect(bundle.monsters[0].hp).toBeLessThan(single.monsters[0].hp);
     vi.restoreAllMocks();
   });
 

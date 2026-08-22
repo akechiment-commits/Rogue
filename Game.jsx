@@ -2669,7 +2669,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         _baLx = _tx; _baLy = _ty;
                       }
                       if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
-                      doExplosion(_baLx, _baLy, dg, p, ml, _srNF, "爆弾矢の爆発", null, lu);
+                      doExplosion(_baLx, _baLy, dg, p, ml, _srNF, "爆弾矢の爆発", null, lu, false, false, false, false, { projectileAtk: _srAr.atk || 6 });
                     }
                   /* ── 通常矢 / 毒矢 / 貫きの矢 ── */
                   } else {
@@ -4211,10 +4211,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               if (!isFireExplosionNullified(dg, p)) {
                 for (const _baMon of [..._scMons]) {
-                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu);
+                  doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { projectileAtk: item.atk || 6 });
                 }
                 if (_scPInRoom) {
-                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu);
+                  doExplosion(p.x, p.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { projectileAtk: item.atk || 6 });
                 }
               } else {
                 announceFireExplosionNullified(dg, p, ml, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`);
