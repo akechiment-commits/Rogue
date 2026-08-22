@@ -1378,11 +1378,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _pcRoom = findRoom(dg.rooms, pc.x, pc.y);
         return _pcRoom && findRoom(dg.rooms, m.x, m.y) === _pcRoom;
       });
+      const _monsterTurnRate = _eqPcM
+        ? (_eqPcM.cursed ? 0.5 : (_eqPcM.blessed ? 2 : 1))
+        : (m.sealed ? 1 : m.speed);
       if (_eqPcM) {
-        m.turnAccum += _eqPcM.cursed ? 0.5 : (_eqPcM.blessed ? 2 : 1);
+        m.turnAccum += _monsterTurnRate;
       } else {
         /* 封印中は倍速・鈍足を無視して等速(1)で行動する */
-        m.turnAccum += m.sealed ? 1 : m.speed;
+        m.turnAccum += _monsterTurnRate;
       }
       m.turnAttacks = 0;
       let _actionCount = 0;
@@ -1396,9 +1399,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const _wasSleeping = (m.sleepTurns || 0) > 0;
           monsterAI(m, dg, pl, ml, { ...opts, moveOnly: true });
           if (m.x !== _bx || m.y !== _by) _moveCount++;
-          /* 睡眠はモンスターの速度に関係なく1ターンずつ減らす。
-             目覚めたターンに倍速分の次の行動まで連続実行しない。 */
-          if (_wasSleeping) {
+          /* 等速の敵だけはプレイヤーと同時に目覚める扱いにして、
+             目覚めたターンの先行行動を防ぐ。倍速敵は起床後に続けて行動できる。 */
+          if (_wasSleeping && _monsterTurnRate === 1) {
             m._movedThisTurn = true;
             break;
           }
