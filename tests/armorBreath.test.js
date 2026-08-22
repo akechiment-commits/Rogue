@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monLevelUp, monsterAI } from "../monsters.js";
+import { applyMonsterSeal } from "../items.js";
+import { addArmorBreathBuff, clearArmorBreathBuff } from "../monsterBuffs.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("スネークマン系", () => {
@@ -54,5 +56,29 @@ describe("スネークマン系", () => {
     expect(ally.def).toBe(13);
     expect(snake.def).toBe(4);
     expect(messages).toContain("スネークマンがアーマーブレスを唱えた！隣の敵の防御力が5上がった！");
+  });
+
+  it("強化解除は重ねがけ分だけを解除する", () => {
+    const mon = { def: 4 };
+    addArmorBreathBuff(mon);
+    addArmorBreathBuff(mon);
+
+    expect(mon.def).toBe(14);
+    expect(clearArmorBreathBuff(mon)).toBe(10);
+    expect(mon.def).toBe(4);
+    expect(mon.armorBreathBuffs).toBeUndefined();
+  });
+
+  it("封印時にもアーマーブレスの強化が解除される", () => {
+    const mon = { name: "スネークマン", x: 5, y: 5, hp: 32, maxHp: 32, def: 4 };
+    addArmorBreathBuff(mon);
+    const messages = [];
+
+    applyMonsterSeal(mon, makeEmptyDg({ monsters: [mon] }), makePlayer(), messages);
+
+    expect(mon.sealed).toBe(true);
+    expect(mon.def).toBe(4);
+    expect(mon.armorBreathBuffs).toBeUndefined();
+    expect(messages).toContain("スネークマンのアーマーブレスの強化が封印で解除された！");
   });
 });

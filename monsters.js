@@ -6,6 +6,7 @@ import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns, applyPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
+import { addArmorBreathBuff, ARMOR_BREATH_DEF_BONUS } from "./monsterBuffs.js";
 
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
@@ -1023,7 +1024,7 @@ export const MONS = [
     ],
   },
   { name: "スネークマン", hp: 32, atk: 14, def: 4, exp: 38, speed: 1, tile: 202, kind: "humanoid", baseKind: "lizardman", monLevel: 1, minFloor: 9, maxFloor: 28, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 8, max: 16 } },
-    desc: "水上・水中を移動する。プレイヤーを視界に捉えると、アーマーブレスで自分か隣接する敵の防御力を5上げることがある。放置すると重ね掛けでどんどん硬くなる。",
+    desc: "水上・水中を移動する。プレイヤーを視界に捉えると、アーマーブレスで自分か隣接する敵の防御力を5上げることがある。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
     levels: [
       { name: "リザードマン", hp: 54, atk: 24, def: 9, exp: 78, tile: 203, minFloor: 17, maxFloor: 24, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 23 } } },
       { name: "とかげせんし", hp: 86, atk: 36, def: 14, exp: 128, tile: 204, minFloor: 25, maxFloor: 30, dungeonFloors: { advanced: { min: 24, max: 30 } } },
@@ -2726,9 +2727,9 @@ function useArmorBreath(m, dg, ml) {
   const targets = armorBreathTargets(m, dg);
   if (targets.length === 0) return false;
   const target = pick(targets);
-  target.def = (target.def || 0) + 5;
+  addArmorBreathBuff(target);
   m.turnAttacks++;
-  ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が5上がった！`);
+  ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が${ARMOR_BREATH_DEF_BONUS}上がった！`);
   return true;
 }
 
