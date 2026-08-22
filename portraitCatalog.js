@@ -159,6 +159,7 @@ const BASE_PORTRAIT_CATEGORIES = [
     slots: [
       { file: "gameover_dead", label: "死亡・ゲームオーバー", group: "death_dead" },
       { file: "gameover_drown", label: "溺死・ゲームオーバー", group: "death_drown" },
+      { file: "gameclear", label: "ゲームクリア・帰還", group: "ending_clear" },
     ],
   },
 ];

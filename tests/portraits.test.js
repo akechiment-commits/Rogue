@@ -21,6 +21,7 @@ import {
   pickMpRevivePortrait,
   pickDamagePortrait,
   pickDeathPortrait,
+  pickClearPortrait,
   isDrownDeath,
   resolvePortraitEvent,
   hpKey,
@@ -56,6 +57,10 @@ describe("portraits", () => {
       lastMsg: "スライムに8ダメージ！",
     });
     expect(event.src).toMatch(/battle_melee/);
+  });
+
+  it("クリア時は専用の一枚絵を選ぶ", () => {
+    expect(pickClearPortrait()).toMatch(/gameclear/);
   });
 
   it("同ターンに倒した／敵反撃があっても近接立ち絵を優先する", () => {

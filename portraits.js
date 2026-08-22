@@ -496,6 +496,12 @@ export function pickDeathPortrait(deathCause, sets = PORTRAIT_SETS, player = nul
   return CHAR_PATH("gameover_dead");
 }
 
+/** クリア時の専用一枚絵。未登録なら喜びの立ち絵へフォールバックする。 */
+export function pickClearPortrait(sets = PORTRAIT_SETS, player = null) {
+  if (sets.ending_clear?.length) return pickPortraitForPlayer("ending_clear", player, sets);
+  return pickPortraitForPlayer("reaction_joy", player, sets);
+}
+
 /**
  * gs 変化時の立ち絵イベントを解決。
  *

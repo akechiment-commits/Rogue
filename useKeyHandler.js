@@ -76,7 +76,7 @@ export function useKeyHandler({
   // refs
   sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
-  gs, dead, showEnding, showScores, gameOverSel, gameOverView, throwMode, showInv, selIdx, invPage, invMenuSel,
+  gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel = 0, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
   markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
@@ -86,7 +86,7 @@ export function useKeyHandler({
   exitHubConfirm, exitHubSel,
   gameOverCanReturn, performGameOverReturnToHub, onDismissEnding,
   // state setters
-  setGs, setMsgs, setGameOverSel, setGameOverView, setShowScores, setFloorSelectMode, setTpSelectMode,
+  setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setFloorSelectMode, setTpSelectMode,
   setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
   setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
   setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
@@ -134,7 +134,30 @@ export function useKeyHandler({
       }
       if (showEnding) {
         e.preventDefault();
-        if (k === "enter" || k === " " || k === "z") onDismissEnding?.();
+        if (showScores) {
+          if (k === "escape" || k === "enter" || k === " " || k === "z") setShowScores(false);
+          return;
+        }
+        if (endingView === "inventory" && (isKeyUp(e) || isKeyDown(e) || isKeyLeft(e) || isKeyRight(e))) {
+          const _scrollDir = isKeyUp(e) || isKeyLeft(e) ? -1 : 1;
+          const _inventoryEl = gameOverInventoryRef?.current;
+          if (_inventoryEl) _inventoryEl.scrollTop = Math.max(0, _inventoryEl.scrollTop + _scrollDir * 96);
+          return;
+        }
+        if (endingView) {
+          setEndingView(null);
+          return;
+        }
+        if (isKeyUp(e) || isKeyLeft(e)) {
+          setEndingSel((p) => (p - 1 + 4) % 4);
+        } else if (isKeyDown(e) || isKeyRight(e)) {
+          setEndingSel((p) => (p + 1) % 4);
+        } else if (k === "enter" || k === " " || k === "z") {
+          if (endingSel === 0) setShowScores(true);
+          else if (endingSel === 1) setEndingView("map");
+          else if (endingSel === 2) setEndingView("inventory");
+          else onDismissEnding?.();
+        }
         return;
       }
       if (miniTip) {
@@ -1873,6 +1896,8 @@ export function useKeyHandler({
       showEnding,
       gameOverSel,
       gameOverView,
+      endingSel,
+      endingView,
       showScores,
       nicknameMode,
       identifyMode,
@@ -1892,6 +1917,8 @@ export function useKeyHandler({
       gameOverCanReturn,
       performGameOverReturnToHub,
       onDismissEnding,
+      setEndingSel,
+      setEndingView,
     ],
   );
   handleKeyRef.current = handleKey;

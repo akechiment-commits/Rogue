@@ -207,6 +207,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const gameOverInventoryRef = useRef(null);
   const [showEnding, setShowEnding] = useState(false);
   const [endingResult, setEndingResult] = useState(null);
+  const [endingSel, setEndingSel] = useState(0);
+  const [endingView, setEndingView] = useState(null);
   const [showSign, setShowSign] = useState(null);
   const [miniTip, setMiniTip] = useState(null);
   const [mobile, setMobile] = useState(false);
@@ -497,6 +499,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setGameOverResult(null);
     setGameOverView(null);
     setGameOverPortrait(null);
+    setShowEnding(false);
+    setEndingResult(null);
+    setEndingSel(0);
+    setEndingView(null);
     setMsgs(["冒険が始まった！"]);
     setShowInv(false);
     setSelIdx(null);
@@ -620,6 +626,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setGameOverResult(null);
       setGameOverView(null);
       setGameOverPortrait(null);
+      setShowEnding(false);
+      setEndingResult(null);
+      setEndingSel(0);
+      setEndingView(null);
       setShowInv(false);
       setSelIdx(null);
       setShowDesc(null);
@@ -2017,6 +2027,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     };
     setExitHubConfirm(false);
     if (_hasGoal) {
+      setEndingSel(0);
+      setEndingView(null);
+      setShowScores(false);
       setEndingResult(payload);
       setShowEnding(true);
     } else {
@@ -2037,6 +2050,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
 
   const performEndingDismiss = useCallback(() => {
     setShowEnding(false);
+    setEndingView(null);
+    setShowScores(false);
     if (onReturnToHub && endingResult) onReturnToHub(endingResult);
   }, [onReturnToHub, endingResult]);
 
@@ -2093,6 +2108,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             return;
           }
           clearGameSave();
+          setEndingSel(0);
+          setEndingView(null);
+          setShowScores(false);
           setEndingResult({ earnedGold: p.gold, depth: 3, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, isTutorial: true, identifiedEffects: [...(sr.current?.ident || [])] });
           setShowEnding(true);
           return;
@@ -4754,7 +4772,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     // refs
     sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
     // state values
-    gs, dead, showEnding, showScores, gameOverSel, gameOverView, throwMode, showInv, selIdx, invPage, invMenuSel,
+    gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
     markerMode, markerMenuSel, markerPage, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
@@ -4766,7 +4784,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     performGameOverReturnToHub,
     onDismissEnding: performEndingDismiss,
     // state setters
-    setGs, setMsgs, setGameOverSel, setGameOverView, setShowScores, setFloorSelectMode, setTpSelectMode,
+    setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setFloorSelectMode, setTpSelectMode,
     setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
     setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
     setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
@@ -6019,7 +6037,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       />
       <GameOverMapView show={dead && gameOverView === "map"} onReopen={() => setGameOverView(null)} mobile={mobile} />
       <GameOverInventoryModal show={dead && gameOverView === "inventory"} p={p} mobile={mobile} iLabel={iLabel} inventoryRef={gameOverInventoryRef} onReopen={() => setGameOverView(null)} />
-      <EndingModal show={showEnding} p={p} endingResult={endingResult} mobile={mobile} onDismiss={performEndingDismiss} />
+      <EndingModal
+        show={showEnding && !endingView}
+        p={p}
+        endingResult={endingResult}
+        endingSel={endingSel}
+        setShowScores={setShowScores}
+        mobile={mobile}
+        onViewMap={() => { setShowScores(false); setEndingView("map"); }}
+        onViewInventory={() => { setShowScores(false); setEndingView("inventory"); gameOverInventoryRef.current = null; }}
+        onDismiss={performEndingDismiss}
+      />
+      <GameOverMapView show={showEnding && endingView === "map"} onReopen={() => setEndingView(null)} mobile={mobile} resultLabel="クリア時" returnLabel="クリア画面" />
+      <GameOverInventoryModal show={showEnding && endingView === "inventory"} p={p} mobile={mobile} iLabel={iLabel} inventoryRef={gameOverInventoryRef} onReopen={() => setEndingView(null)} resultLabel="クリア時" returnLabel="クリア画面" />
       <ScoresModal show={showScores} setShow={setShowScores} mobile={mobile} />
       <SidebarPanel mobile={mobile} landscape={landscape} portraitSrc={portraitSrc} showPortrait={currentTileset === "mon1"} loadPortrait={loadPortrait} clearPortrait={clearPortrait} setShowScores={setShowScores} setShowSettings={setShowSettings} />
       <TileEditorModal show={showTileEditor} setShow={setShowTileEditor} loadCustomTile={loadCustomTile} clearCustomTile={clearCustomTile} setCtLoaded={setCtLoaded} loadTileset={loadTileset} currentTileset={currentTileset} />

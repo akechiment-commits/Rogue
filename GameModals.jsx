@@ -7,7 +7,7 @@ import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./re
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
-import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
+import { pickClearPortrait, pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
@@ -547,7 +547,7 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
 }
 
 /* ===== Game Over: map peek ===== */
-export function GameOverMapView({ show, onReopen, mobile }) {
+export function GameOverMapView({ show, onReopen, mobile, resultLabel = "死亡時", returnLabel = "ゲームオーバー画面" }) {
   if (!show) return null;
   return (
     <div
@@ -563,7 +563,7 @@ export function GameOverMapView({ show, onReopen, mobile }) {
         boxSizing: "border-box",
         cursor: "pointer",
       }}
-      aria-label="状況を見る。クリックまたはキー入力でゲームオーバー画面に戻る"
+      aria-label={`状況を見る。クリックまたはキー入力で${returnLabel}に戻る`}
     >
       <div
         style={{
@@ -577,14 +577,14 @@ export function GameOverMapView({ show, onReopen, mobile }) {
           boxShadow: "0 0 12px rgba(0,0,0,0.6)",
         }}
       >
-        死亡時の状況を表示中 — 何かキーまたは画面を押すとゲームオーバー画面に戻る
+        {resultLabel}の状況を表示中 — 何かキーまたは画面を押すと{returnLabel}に戻る
       </div>
     </div>
   );
 }
 
 /* ===== Game Over: inventory peek ===== */
-export function GameOverInventoryModal({ show, p, mobile, iLabel, inventoryRef, onReopen }) {
+export function GameOverInventoryModal({ show, p, mobile, iLabel, inventoryRef, onReopen, resultLabel = "死亡時", returnLabel = "ゲームオーバー画面" }) {
   if (!show) return null;
   const inventory = p?.inventory || [];
   return (
@@ -616,7 +616,7 @@ export function GameOverInventoryModal({ show, p, mobile, iLabel, inventoryRef, 
         }}
       >
         <div style={{ padding: mobile ? "12px 14px 8px" : "16px 20px 10px", color: "#d8a8ff", fontSize: mobile ? 16 : 19, fontWeight: "bold", borderBottom: "1px solid #30283a" }}>
-          死亡時の持ち物 ({inventory.length})
+          {resultLabel}の持ち物 ({inventory.length})
         </div>
         <div ref={inventoryRef} style={{ padding: mobile ? "8px 10px" : "10px 14px", overflowY: "auto" }}>
           {inventory.length === 0 ? (
@@ -642,13 +642,13 @@ export function GameOverInventoryModal({ show, p, mobile, iLabel, inventoryRef, 
           )}
         </div>
         <div style={{ padding: mobile ? "8px 10px 10px" : "10px 14px 14px", color: "#888", fontSize: 12, textAlign: "center", borderTop: "1px solid #30283a" }}>
-          ↑↓/←→・テンキー8/2/4/6:スクロール　その他のキー:ゲームオーバー画面に戻る
+          ↑↓/←→・テンキー8/2/4/6:スクロール　その他のキー:{returnLabel}に戻る
           <div style={{ marginTop: 8 }}>
             <button
               onClick={onReopen}
               style={{ padding: "8px 22px", background: "#20182c", color: "#d8a8ff", border: "1px solid #8a6aaa", borderRadius: 5, cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}
             >
-              ゲームオーバー画面に戻る
+              {returnLabel}に戻る
             </button>
           </div>
         </div>
@@ -3908,104 +3908,121 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
 }
 
 /* ===== Ending Modal ===== */
-export function EndingModal({ show, p, endingResult, mobile, onDismiss }) {
+export function EndingModal({ show, p, endingResult, mobile, endingSel = 0, setShowScores, onViewMap, onViewInventory, onDismiss }) {
   if (!show) return null;
   const gold  = endingResult?.earnedGold ?? p?.gold ?? 0;
   const depth = endingResult?.depth      ?? p?.depth ?? 1;
   const turns = p?.turns ?? 0;
   const lv    = p?.level ?? 1;
   const isTutorial = endingResult?.isTutorial ?? false;
+  const menuItems = [
+    { label: "スコアを見る", color: "#8cf", action: () => setShowScores(true) },
+    { label: "状況を見る", color: "#8ff", action: onViewMap },
+    { label: "持ち物を見る", color: "#d8a8ff", action: onViewInventory },
+    { label: "地上に戻る", color: "#ffd700", action: onDismiss },
+  ];
   return (
     <div
       style={{
         position: "absolute",
         inset: 0,
-        background: "rgba(0,0,0,0.96)",
+        background: "rgba(0,0,0,0.9)",
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 25,
         borderRadius: 6,
+        padding: mobile ? 8 : 18,
+        boxSizing: "border-box",
+        overflow: "auto",
       }}
     >
-      {/* 星のような装飾 */}
-      <div style={{ color: isTutorial ? "#88ff88" : "#ffd700", fontSize: mobile ? 13 : 16, letterSpacing: 6, marginBottom: 8, textShadow: isTutorial ? "0 0 16px #00cc00" : "0 0 16px #ffa000" }}>
-        ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦
-      </div>
       <div
         style={{
-          color: isTutorial ? "#88ff88" : "#ffd700",
-          fontSize: mobile ? 22 : 32,
-          fontWeight: "bold",
-          textShadow: isTutorial ? "0 0 20px #00cc00, 0 0 40px #008800" : "0 0 20px #ffa000, 0 0 40px #ff8000",
-          marginBottom: 10,
-          letterSpacing: 2,
+          width: mobile ? "min(94%, 440px)" : "min(96%, 1040px)",
+          height: mobile ? "min(94%, 680px)" : "min(92%, 680px)",
+          maxHeight: "100%",
+          display: "grid",
+          gridTemplateColumns: mobile ? "1fr" : "minmax(0, 1.3fr) minmax(285px, 0.7fr)",
+          gridTemplateRows: mobile ? "minmax(0, 1fr) auto" : "1fr",
+          background: "rgba(4, 5, 14, 0.86)",
+          border: `1px solid ${isTutorial ? "#365a36" : "#806020"}`,
+          borderRadius: 10,
+          boxShadow: "0 0 28px rgba(0,0,0,0.7)",
+          overflow: "hidden",
         }}
       >
-        {isTutorial ? "★ チュートリアル完了！★" : "*** 冒険クリア ***"}
-      </div>
-      <div
-        style={{
-          color: isTutorial ? "#ccffcc" : "#ffe080",
-          fontSize: mobile ? 14 : 18,
-          marginBottom: 14,
-          textAlign: "center",
-          lineHeight: 1.8,
-          maxWidth: 320,
-        }}
-      >
-        {isTutorial ? (
-          <>
-            訓練の証を生きて持ち帰った！<br />
-            危険な敵とは戦わず、道具や退路を使ってもいい。<br />
-            次は「初心者ダンジョン」に挑戦しよう。
-          </>
-        ) : (
-          <>
-            古代の遺物を地上へ持ち帰った！<br />
-            遺物の番人を打ち倒し、<br />
-            深淵のダンジョンを踏破した！
-          </>
-        )}
-      </div>
-      <div
-        style={{
-          color: "#c0a060",
-          fontSize: mobile ? 12 : 15,
-          marginBottom: 20,
-          textAlign: "center",
-          lineHeight: 1.9,
-          background: "rgba(80,60,0,0.3)",
-          border: "1px solid #806020",
-          borderRadius: 6,
-          padding: "10px 24px",
-        }}
-      >
-        Lv.{lv} | B{depth}F | {turns}ターン | {gold}G
-      </div>
-      <div style={{ color: isTutorial ? "#88ff88" : "#ffd700", fontSize: mobile ? 13 : 16, letterSpacing: 6, marginBottom: 18, textShadow: isTutorial ? "0 0 16px #00cc00" : "0 0 16px #ffa000" }}>
-        ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦ ✦
-      </div>
-      <button
-        onClick={onDismiss}
-        style={{
-          padding: "12px 36px",
-          background: isTutorial ? "#001a00" : "#1a1000",
-          color: isTutorial ? "#88ff88" : "#ffd700",
-          border: isTutorial ? "2px solid #88ff88" : "2px solid #ffd700",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          fontSize: mobile ? 14 : 17,
-          borderRadius: 6,
-          boxShadow: isTutorial ? "0 0 14px #008800" : "0 0 14px #c09000",
-          letterSpacing: 1,
-        }}
-      >
-        {isTutorial ? "Hubに戻る" : "地上に帰還する"}
-      </button>
-      <div style={{ color: "#8a7440", fontSize: mobile ? 11 : 13, marginTop: 10 }}>
-        Enter / Z / Space: 決定
+        <div
+          style={{
+            minHeight: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: mobile ? 6 : 12,
+            overflow: "hidden",
+            background: "rgba(8, 10, 16, 0.6)",
+          }}
+        >
+          <img
+            src={pickClearPortrait(undefined, p)}
+            alt="clear"
+            onError={(e) => {
+              if (e.currentTarget.dataset.clearFallbackApplied === "1") return;
+              e.currentTarget.dataset.clearFallbackApplied = "1";
+              e.currentTarget.src = "/tiles/Character/reaction_joy.png";
+            }}
+            style={{ width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%", objectFit: "contain", filter: "drop-shadow(0 0 20px #ffd700aa)" }}
+          />
+        </div>
+        <div
+          style={{
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: mobile ? "8px 10px 12px" : "26px 22px",
+            background: "rgba(5, 6, 16, 0.94)",
+            borderLeft: mobile ? "none" : "1px solid #806020",
+            borderTop: mobile ? "1px solid #806020" : "none",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ color: isTutorial ? "#88ff88" : "#ffd700", fontSize: mobile ? 20 : 26, fontWeight: "bold", textShadow: isTutorial ? "0 0 16px #00cc00" : "0 0 16px #ffa000", marginBottom: 6, whiteSpace: "nowrap" }}>
+            {isTutorial ? "★ チュートリアル完了！★" : "*** 冒険クリア ***"}
+          </div>
+          <div style={{ color: isTutorial ? "#ccffcc" : "#ffe080", fontSize: mobile ? 13 : 16, marginBottom: 8, lineHeight: 1.7 }}>
+            {isTutorial ? "訓練の証を生きて持ち帰った！" : "古代の遺物を地上へ持ち帰った！"}
+          </div>
+          <div style={{ color: "#c0a060", fontSize: mobile ? 11 : 14, marginBottom: 10, lineHeight: 1.7, background: "rgba(80,60,0,0.3)", border: "1px solid #806020", borderRadius: 6, padding: "8px 16px" }}>
+            Lv.{lv} | B{depth}F | {turns}ターン | {gold}G
+          </div>
+          <div style={{ color: "#777", fontSize: mobile ? 10 : 12, marginBottom: 10, lineHeight: 1.5 }}>
+            ↑↓/←→/テンキー8・2・4・6:選択 / Enter で決定
+          </div>
+          <div style={{ display: "flex", flexDirection: mobile ? "row" : "column", width: "100%", gap: 8, flexWrap: "wrap", justifyContent: "center", alignItems: "center" }}>
+            {menuItems.map((item, index) => (
+              <button
+                key={item.label}
+                onClick={item.action}
+                style={{
+                  padding: "9px 18px",
+                  width: mobile ? "auto" : "100%",
+                  background: endingSel === index ? "#1a1808" : "#181828",
+                  color: item.color,
+                  border: `1px solid ${endingSel === index ? item.color : "#3a3a48"}`,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: 14,
+                  borderRadius: 6,
+                  boxShadow: endingSel === index ? `0 0 8px ${item.color}` : "none",
+                }}
+              >
+                {endingSel === index ? "▶ " : "　"}{item.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -40,6 +40,7 @@ describe("portraitCatalog", () => {
     expect(sets.hp_low_kneel).toContain("hp_low_kneel");
     expect(sets.hp_critical).toContain("hp_critical");
     expect(sets.death_drown).toEqual(["gameover_drown"]);
+    expect(sets.ending_clear).toContain("gameclear");
     expect(sets.death_dead_unarmored).toEqual(["death_dead_unarmored"]);
     expect(sets.status_soaked).toEqual(["status_soaked"]);
     expect(sets.status_bound).toEqual(["status_bound"]);
