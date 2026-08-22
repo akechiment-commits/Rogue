@@ -33,6 +33,12 @@ describe("first encounter tips", () => {
     expect(tip.text[1]).toContain("豪華な専用報酬");
   });
 
+  it("持ち物いっぱいTipsはFキーではなく道具欄の足元ページを案内する", () => {
+    const tip = getFirstEncounterTip("inventory_full", "beginner", []);
+    expect(tip.text[1]).toContain("道具欄（Xキー）の「足元」ページ");
+    expect(tip.text[1]).not.toContain("Fキー");
+  });
+
   it("攻略上重要な状況を幅広く網羅する", () => {
     expect(Object.keys(FIRST_ENCOUNTER_TIPS).length).toBeGreaterThanOrEqual(40);
     expect(Object.keys(FIRST_ENCOUNTER_TIPS)).toEqual(expect.arrayContaining([
