@@ -28,6 +28,11 @@ describe("first encounter tips", () => {
     expect(getFirstEncounterTip("revival_pentacle", "beginner", [])).toBeTruthy();
   });
 
+  it("ボスTipsに撃破報酬の説明を含める", () => {
+    const tip = getFirstEncounterTip("boss", "beginner", []);
+    expect(tip.text[1]).toContain("豪華な専用報酬");
+  });
+
   it("攻略上重要な状況を幅広く網羅する", () => {
     expect(Object.keys(FIRST_ENCOUNTER_TIPS).length).toBeGreaterThanOrEqual(40);
     expect(Object.keys(FIRST_ENCOUNTER_TIPS)).toEqual(expect.arrayContaining([
