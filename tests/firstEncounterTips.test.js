@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   FIRST_ENCOUNTER_TIPS,
   getFirstEncounterMessageTipKeys,
+  getFirstEncounterPickupTipKeys,
   getFirstEncounterStateTipKeys,
   getFirstEncounterTip,
   getSeenFirstEncounterTips,
@@ -66,6 +67,13 @@ describe("first encounter tips", () => {
     expect(isUnidentifiedEncounterItem({ type: "weapon", name: "短剣" }, new Set())).toBe(false);
   });
 
+  it("祝呪と杖反射のTipsは拾ったアイテムから判定する", () => {
+    expect(getFirstEncounterPickupTipKeys({ type: "potion", effect: "heal", blessed: true }, new Set())).toEqual(["unidentified_item", "blessing_curse"]);
+    expect(getFirstEncounterPickupTipKeys({ type: "wand", effect: "sleep" }, new Set(["w:sleep"]))).toEqual(["wand_wall_reflect"]);
+    expect(getFirstEncounterPickupTipKeys({ type: "food", cursed: true }, new Set())).toEqual(["blessing_curse"]);
+    expect(getFirstEncounterPickupTipKeys({ type: "potion", effect: "heal" }, new Set(["p:heal"]))).toEqual([]);
+  });
+
   it("プレイヤー状態と周辺状況から該当する解説を列挙する", () => {
     const session = {
       allBcKnown: false,
@@ -102,11 +110,6 @@ describe("first encounter tips", () => {
     expect(getFirstEncounterMessageTipKeys(["スケルトンの骨が残った...5ターン後に復活するかもしれない。"])).toEqual(["enemy_bone_revival"]);
     expect(getFirstEncounterMessageTipKeys(["HPがゼロになった！残りMP5でHP5として復活！MPは1000ターン回復しない。"])).toEqual(["mp_revival"]);
     expect(getFirstEncounterMessageTipKeys(["復活の魔方陣の力でHP全回復！"])).toEqual(["revival_pentacle"]);
-  });
-
-  it("祝呪と杖の壁反射メッセージを検出する", () => {
-    expect(getFirstEncounterMessageTipKeys(["青い薬が祝福された！【祝】"])).toEqual(["blessing_curse"]);
-    expect(getFirstEncounterMessageTipKeys(["魔法弾は壁に跳ね返った！"])).toEqual(["wand_wall_reflect"]);
   });
 
   it("図鑑用に表示済みTipsだけを定義順で返す", () => {

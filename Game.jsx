@@ -78,7 +78,7 @@ import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
-import { getFirstEncounterMessageTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip, isUnidentifiedEncounterItem } from "./firstEncounterTips.js";
+import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip } from "./firstEncounterTips.js";
 import { makeRelicGuardian } from "./relicGuardian.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
@@ -419,8 +419,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setMiniTip(next);
   }, []);
   const maybeTipForItem = useCallback((item) => {
-    if (isUnidentifiedEncounterItem(item, sr.current?.ident, sr.current?.allBcKnown)) {
-      showFirstEncounterTip("unidentified_item");
+    for (const key of getFirstEncounterPickupTipKeys(item, sr.current?.ident, sr.current?.allBcKnown)) {
+      showFirstEncounterTip(key);
     }
   }, [showFirstEncounterTip]);
   const triggerMonsterHouseWithTip = useCallback((dg, p, ml) => {

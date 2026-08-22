@@ -81,6 +81,14 @@ export function isUnidentifiedEncounterItem(item, ident, allBcKnown = false) {
   return !(ident instanceof Set ? ident.has(identKey) : (ident || []).includes(identKey));
 }
 
+export function getFirstEncounterPickupTipKeys(item, ident, allBcKnown = false) {
+  const keys = [];
+  if (isUnidentifiedEncounterItem(item, ident, allBcKnown)) keys.push("unidentified_item");
+  if (item?.blessed || item?.cursed) keys.push("blessing_curse");
+  if (item?.type === "wand") keys.push("wand_wall_reflect");
+  return keys;
+}
+
 const SPECIAL_FLOOR_TYPES = new Set(["bigRoom", "middleRoom", "miniRoom", "shoppingMall", "spinFloor", "corridorFloor", "gridRoom", "treasureRoom", "ringCorridorFloor", "caveFloor"]);
 
 export function getFirstEncounterStateTipKeys(session, { isDeepWater = false } = {}) {
@@ -126,8 +134,6 @@ export const FIRST_ENCOUNTER_MESSAGE_RULES = Object.freeze([
   { key: "item_lost", pattern: /を盗んだ！|金貨\d+枚を盗ん|どこかへ飛んでいった|弾き飛ばし/ },
   { key: "equipment_broken", pattern: /が錆びた！|が壊れてしまった！/ },
   { key: "item_destroyed", pattern: /燃えてなくなった|割れてなくなった|水に濡れて白紙になった|文字が消えた！→白紙/ },
-  { key: "blessing_curse", pattern: /が祝福された！|が呪われた！|祝福の光を受け|祝福の水を浴びた|呪いの水を浴びた|【祝】|【呪】/ },
-  { key: "wand_wall_reflect", pattern: /魔法弾(?:は|が).*壁に跳ね返った|魔法弾が跳ね返って自分に当たった/ },
   { key: "reflection", pattern: /跳ね返され|跳ね返した|跳ね返ってきた|反射された/ },
   { key: "revival_pentacle", pattern: /復活の魔方陣の力/ },
   { key: "mp_revival", pattern: /残りMP\d+でHP\d+として復活/ },
