@@ -13,18 +13,18 @@ describe("スネークマン系", () => {
 
     const forms = [1, 2, 3].map((level) => makeMonsterFromBase(base, level, 5, 5));
     expect(forms.map((m) => m.name)).toEqual(["スネークマン", "リザードマン", "とかげせんし"]);
-    expect(forms.map((m) => m.tile)).toEqual([202, 203, 204]);
-    expect(new Set(forms.map((m) => m.tile)).size).toBe(3);
+    expect(forms.map((m) => m.tile)).toEqual([204, 204, 204]);
+    expect(new Set(forms.map((m) => m.tile)).size).toBe(1);
   });
 
-  it("レベルアップ時にスタイル3のタイルも上位形態へ切り替わる", () => {
+  it("レベルアップしてもスタイル3の共通タイルを維持する", () => {
     const base = MONS.find((m) => m.baseKind === "lizardman");
     const mon = makeMonsterFromBase(base, 1, 5, 5);
     const messages = [];
 
     expect(monLevelUp(mon, makeEmptyDg(), messages)).toBe(true);
     expect(mon.name).toBe("リザードマン");
-    expect(mon.tile).toBe(203);
+    expect(mon.tile).toBe(204);
   });
 
   it("視界内でアーマーブレスを予約し、自分または隣接敵の防御を5上げる", () => {
