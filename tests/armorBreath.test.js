@@ -25,7 +25,7 @@ describe("スネークマン系", () => {
     expect(mon.tile).toBe(203);
   });
 
-  it("視界内でアーマーブレスを予約し、自分または隣接敵の防御を10上げる", () => {
+  it("視界内でアーマーブレスを予約し、自分または隣接敵の防御を5上げる", () => {
     const base = MONS.find((m) => m.baseKind === "lizardman");
     const snake = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
     snake.alwaysUseSpecial = true;
@@ -51,8 +51,8 @@ describe("スネークマン系", () => {
       random.mockRestore();
     }
 
-    expect(ally.def).toBe(23);
+    expect(ally.def).toBe(13);
     expect(snake.def).toBe(4);
-    expect(messages).toContain("スネークマンがアーマーブレスを唱えた！隣の敵の防御力が10上がった！");
+    expect(messages).toContain("スネークマンがアーマーブレスを唱えた！隣の敵の防御力が5上がった！");
   });
 });

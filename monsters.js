@@ -1023,7 +1023,7 @@ export const MONS = [
     ],
   },
   { name: "スネークマン", hp: 32, atk: 14, def: 4, exp: 38, speed: 1, tile: 202, kind: "humanoid", baseKind: "lizardman", monLevel: 1, minFloor: 9, maxFloor: 28, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 8, max: 16 } },
-    desc: "水上・水中を移動する。プレイヤーを視界に捉えると、アーマーブレスで自分か隣接する敵の防御力を10上げることがある。放置すると重ね掛けでどんどん硬くなる。",
+    desc: "水上・水中を移動する。プレイヤーを視界に捉えると、アーマーブレスで自分か隣接する敵の防御力を5上げることがある。放置すると重ね掛けでどんどん硬くなる。",
     levels: [
       { name: "リザードマン", hp: 54, atk: 24, def: 9, exp: 78, tile: 203, minFloor: 17, maxFloor: 24, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 23 } } },
       { name: "とかげせんし", hp: 86, atk: 36, def: 14, exp: 128, tile: 204, minFloor: 25, maxFloor: 30, dungeonFloors: { advanced: { min: 24, max: 30 } } },
@@ -2726,9 +2726,9 @@ function useArmorBreath(m, dg, ml) {
   const targets = armorBreathTargets(m, dg);
   if (targets.length === 0) return false;
   const target = pick(targets);
-  target.def = (target.def || 0) + 10;
+  target.def = (target.def || 0) + 5;
   m.turnAttacks++;
-  ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が10上がった！`);
+  ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が5上がった！`);
   return true;
 }
 
