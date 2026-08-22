@@ -387,6 +387,22 @@ describe("特殊飛び道具", () => {
     vi.restoreAllMocks();
   });
 
+  it("吹き飛ばされた這いずり爆弾は進行方向の敵に当たってその場で爆発する", () => {
+    const dg = makeDungeon();
+    const target = { id: "blowback-target", name: "吹き飛ばし先の敵", x: 2, y: 2, hp: 30, maxHp: 30, def: 0 };
+    dg.monsters.push(target);
+    dg.traps.push({ id: "blow-trap-target", name: "吹き飛ばしの罠", effect: "blowback_trap", x: 3, y: 2, permanent: true });
+    const p = makePlayer([makeCrawlingBomb(1)]);
+    const ml = [];
+
+    shootArrow(p, dg, 0, 1, 0, ml, () => {});
+    p.x = 8;
+    advanceSpecialProjectiles(dg, p, ml, () => {});
+
+    expect(dg.specialProjectiles || []).toHaveLength(0);
+    expect(target.hp).toBeLessThanOrEqual(0);
+  });
+
   it("誘導弾は10マス以内の敵へ1マスずつ近づいて命中する", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const dg = makeDungeon();

@@ -5042,16 +5042,36 @@ function triggerSpecialProjectileTrap(sp, dg, p, x, y, ml, luFn) {
   if (_effect === "blowback_trap") {
     const _backDx = -Math.sign(sp.dx || 0);
     const _backDy = -Math.sign(sp.dy || 0);
+    let _blowbackTarget = null;
     if (_backDx || _backDy) {
       for (let i = 0; i < 10; i++) {
         const _nx = sp.x + _backDx;
         const _ny = sp.y + _backDy;
         if (!specialProjectileCellOpen(dg, _nx, _ny)) break;
+        /* 吹き飛ばされた爆弾も、進行方向の敵やプレイヤーをすり抜けない。 */
+        const _bm = specialProjectileMonsterAt(dg, _nx, _ny);
+        const _bp = p && p.x === _nx && p.y === _ny;
+        if (_bm || _bp) {
+          sp.x = _nx;
+          sp.y = _ny;
+          _blowbackTarget = _bm || _bp;
+          break;
+        }
         sp.x = _nx;
         sp.y = _ny;
       }
     }
-    detonateCrawlingBomb(sp, dg, p, ml, luFn, `${sp.name}が吹き飛ばされて着弾し、爆発した！`);
+    const _targetLabel = _blowbackTarget?.name || (_blowbackTarget ? "自分" : null);
+    detonateCrawlingBomb(
+      sp,
+      dg,
+      p,
+      ml,
+      luFn,
+      _targetLabel
+        ? `${sp.name}が吹き飛ばされて${_targetLabel}に当たり、爆発した！`
+        : `${sp.name}が吹き飛ばされて着弾し、爆発した！`,
+    );
     return { action: "destroyed" };
   }
   return { action: "continue" };
