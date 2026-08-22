@@ -1,4 +1,5 @@
-import { INTERMEDIATE_BOSSES, MONS } from "./monsters.js";
+import { BOSSES, INTERMEDIATE_BOSSES, MONS } from "./monsters.js";
+import { NO_ENCYCLOPEDIA_INFO } from "./encyclopediaData.js";
 
 /* 基本種の解説。上位種は同じ生態に、能力値とレベル情報を添えて表示する。 */
 const DESCRIPTION_BY_KIND = Object.freeze({
@@ -14,7 +15,7 @@ const DESCRIPTION_BY_KIND = Object.freeze({
   runner: "プレイヤーから逃げ続ける敵。上位種は投げ物や魔法を反射するため、近接攻撃が有効。",
   zombie: "動きは遅いが体力が高く、炎に弱い。無理に追わず、弱点属性で処理したい。",
   wokka: "石を投げてくる遠距離型。石は敵にも当たるので、射線へ誘導して利用できる。",
-  slime: "倒すと分裂して数が増える。まとめて倒せる爆発や範囲攻撃は、分裂後の数も考えて使おう。",
+  slime: "ダメージを受けたターンに25%の確率で、体力全快の分裂個体を隣へ生み出す。倒す時は周囲の空きマスにも注意。",
   archer: "一直線上から矢を射る。壁や曲がり角を使って射線を切れば接近しやすい。",
   wolf: "素早く接近してくる近接型。通路で一体ずつ相手にすると安全。",
   thief: "隣接すると所持品を盗んで逃げる。盗まれても倒せば取り返せることがある。",
@@ -69,13 +70,23 @@ const DESCRIPTION_BY_KIND = Object.freeze({
   wateri: "水上・水中を好み、水鉄砲で濡らしてくる水の敵。地上へ誘い出すと戦いやすい。",
   starlight: "視界を広げる光を操る敵。明るさを利用しつつ、遠距離攻撃には注意したい。",
   darkness: "周囲の視界を奪う闇の敵。位置を見失う前に明かりや感知を使おう。",
-  tattoobird: "攻撃で状態異常を刻む飛行敵。浮遊特効や状態異常対策が有効。",
+  tattoobird: "浮遊する鳥。近接攻撃を50%で回避し、命中しても50%でフェザーガードが発動してダメージ半減。攻撃は25%で痛恨になる。",
   rakugakima: "足元へ魔方陣を描いて戦場を変える敵。描かれた陣の種類を確認し、魔封じも活用したい。",
   mimic: "隣接する特技持ちの能力をまねる敵。周囲にいる敵の種類を把握してから近づこう。",
   im_boss_salamander: "中級ダンジョン序盤のボス。直線炎ブレスを壁で避け、氷属性で弱点を突くのが基本。",
   im_boss_titan: "中級ダンジョン中盤のボス。高い耐久力と回復力を持つため、強化解除や集中攻撃で押し切りたい。",
   im_boss_kraken: "水中で回復し、墨で暗闇を与えるボス。水上での戦闘を避け、雷属性と水中対策を用意しよう。",
   im_boss_twohead: "中級ダンジョン最深部のボス。圧倒的な攻撃力を持つため、正面戦闘より状態異常と遠距離手段を重ねたい。",
+  boss_blaze: "B5Fのボス。2回攻撃し、命中時35%で混乱させる。状態異常対策を用意して戦いたい。",
+  boss_darkbullet: "B10Fのボス。一直線上から銃撃する。壁や通路の角で射線を切って近づこう。",
+  boss_guardian: "B15Fのボス。毎ターン傷を再生し、3回攻撃で迫る。回復量を上回る火力で短期決戦を狙いたい。",
+  boss_demonking: "B20Fのボス。倍速・3回攻撃で戦い、5ターンごとに手下を召喚する。取り巻きを抑えつつ本体を攻めよう。",
+  boss_warlord: "B25Fのボス。攻撃を受けると30%で防御力を半減させる。長期戦を避け、被弾を減らして戦いたい。",
+  boss_skullking: "B30Fのボス。3ターンごとに手下を2体呼び、攻撃の35%でHPを吸収する。狭い場所で召喚を制限したい。",
+  boss_flamedragon: "B35Fのボス。倍速・3回攻撃で、視界内なら毎ターン40%で油まみれにする。油を落とすか炎耐性で対抗しよう。",
+  boss_voidmonk: "B40Fのボス。毎ターン回復し、5ターンごとに鈍足・混乱・封印のいずれかを使う。回復量を超える火力が必要。",
+  boss_infernoking: "B45Fのボス。周囲4マスを油まみれにし、HP半分以下でさらに加速する。油と毒への対策が重要。",
+  boss_abyssgod: "B50Fの最終ボス。回復・4ターンごとの召喚・金縛り・防御半減をすべて使う。集めた道具を総動員して挑もう。",
 });
 
 const MONSTER_CATALOG = [];
@@ -85,6 +96,7 @@ for (const base of MONS) {
     MONSTER_CATALOG.push({ ...base, ...level, monLevel: index + 2 });
   }
 }
+for (const boss of BOSSES) MONSTER_CATALOG.push(boss);
 for (const boss of INTERMEDIATE_BOSSES) MONSTER_CATALOG.push(boss);
 
 const MONSTER_BY_NAME = new Map(MONSTER_CATALOG.map((monster) => [monster.name, monster]));
@@ -101,7 +113,7 @@ export function getMonsterEncyclopediaEntry(name) {
 export function getMonsterDescription(name) {
   const monster = getMonsterEncyclopediaEntry(name);
   if (!monster) return null;
-  const body = DESCRIPTION_BY_KIND[monster.baseKind] || monster.desc || "この敵の生態はまだ記録されていない。";
+  const body = DESCRIPTION_BY_KIND[monster.baseKind] || monster.desc || NO_ENCYCLOPEDIA_INFO;
   const rank = monster.isBoss
     ? "ボス"
     : monster.monLevel > 1

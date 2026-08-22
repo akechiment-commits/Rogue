@@ -15,7 +15,13 @@ import {
 import { fetchRanking, fetchRankingStats, RANKING_DUNGEONS } from "./rankingClient.js";
 import { formatElapsed } from "./runScore.js";
 import { FIRST_ENCOUNTER_TIPS, getSeenFirstEncounterTips } from "./firstEncounterTips.js";
-import { getItemCatalogEntry, getItemCategoryEntries, ITEM_CATEGORY_DEFS } from "./encyclopediaData.js";
+import {
+  getItemCatalogEntry,
+  getItemCategoryEntries,
+  getKeyItemDescription,
+  ITEM_CATEGORY_DEFS,
+  NO_ENCYCLOPEDIA_INFO,
+} from "./encyclopediaData.js";
 import { getMonsterDescription, getMonsterNumber } from "./monsterEncyclopedia.js";
 
 /* ===== 共通スタイル ===== */
@@ -652,15 +658,17 @@ function EncyclopediaPanel({ saveData, onClose }) {
 
   const lookupDesc = (entry, tabName) => {
     const key = entry.key;
-    if (tabName === "traps") { const t = TRAPS.find(t => t.effect === key || t.name === key); return t?.desc || entry.desc || null; }
-    if (tabName === "bigboxes") { const b = BB_TYPES.find(b => b.kind === key); return b?.desc || entry.desc || null; }
-    if (tabName === "items") { return getItemCatalogEntry(key, entry)?.desc || null; }
-    if (tabName === "monsters") { return getMonsterDescription(entry.name); }
+    if (tabName === "traps") { const t = TRAPS.find(t => t.effect === key || t.name === key); return t?.desc || entry.desc || NO_ENCYCLOPEDIA_INFO; }
+    if (tabName === "bigboxes") { const b = BB_TYPES.find(b => b.kind === key); return b?.desc || entry.desc || NO_ENCYCLOPEDIA_INFO; }
+    if (tabName === "items") {
+      return getItemCatalogEntry(key, entry)?.desc || getKeyItemDescription(entry.name) || entry.desc || NO_ENCYCLOPEDIA_INFO;
+    }
+    if (tabName === "monsters") { return getMonsterDescription(entry.name) || NO_ENCYCLOPEDIA_INFO; }
     if (tabName === "tips") {
       const tip = FIRST_ENCOUNTER_TIPS[key];
-      return tip ? `【表示された状況】\n${tip.trigger}\n\n${tip.text.join("\n")}` : null;
+      return tip ? `【表示された状況】\n${tip.trigger}\n\n${tip.text.join("\n")}` : NO_ENCYCLOPEDIA_INFO;
     }
-    return null;
+    return NO_ENCYCLOPEDIA_INFO;
   };
 
   const sortedList = useMemo(() => {
