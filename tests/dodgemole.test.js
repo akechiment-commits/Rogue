@@ -27,6 +27,16 @@ describe("かわしモグラ", () => {
     expect([base.levels[1].hp, base.levels[1].atk, base.levels[1].def, base.levels[1].exp]).toEqual([210, 58, 21, 260]);
   });
 
+  it("深層相当の出現範囲だけを持つ", () => {
+    const base = MONS.find((m) => m.baseKind === "dodgemole");
+    expect(base.minFloor).toBe(21);
+    expect(base.maxFloor).toBe(35);
+    expect(base.dungeonFloors.intermediate).toBeNull();
+    expect(base.dungeonFloors.advanced).toEqual({ min: 21, max: 25 });
+    expect(base.levels[0].dungeonFloors.advanced).toEqual({ min: 23, max: 27 });
+    expect(base.levels[1].dungeonFloors.advanced).toEqual({ min: 28, max: 35 });
+  });
+
   it("通過した罠を発動させずに消滅させる", () => {
     const base = MONS.find((m) => m.baseKind === "dodgemole");
     const mole = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
