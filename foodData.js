@@ -207,11 +207,14 @@ export const COOKED_FOODS_SAVORY = [
   /* スカンジナビア */
   "スモーブロー","ヤンソンの誘惑","コットブッラル","グラブラックスタルタル",
   "ピッティパンナ","ルーテフィスク","カレリアパイ","マッティヘリング","グラトゥンタウマ",
-  /* ブランド商品（惣菜系） */
-  "カップヌードル","チキンラーメン","ペヤング","赤いきつね","緑のたぬき","どん兵衛",
-  "じゃがりこ","プリングルズ","ドリトス","かっぱえびせん","ベビースターラーメン",
-  "ハッピーターン","柿の種","サッポロポテト","カール","ピザポテト","チップスター",
-  "ビッグマック","チキンマックナゲット","ケンタッキーフライドチキン",
+  /* 日本の定番料理（追加100種のうち惣菜・ごはん・麺・軽食） */
+  "目玉焼き","卵かけご飯","ゆで卵","オムレツ","スクランブルエッグ","卵サンド","納豆巻き","納豆ご飯","焼きおにぎり","赤飯","天むす",
+  "豚丼","そぼろ丼","玉子丼","まぐろ丼","サーモン丼","いくら丼","うな重","ローストビーフ丼","タコライス","そばめし","オムそば","かにめし",
+  "味噌煮込みうどん","釜玉うどん","月見そば","肉そば","きつねそば","鴨南蛮","鴨せいろ","そばがき","油そば","台湾まぜそば","焼きラーメン","冷やしラーメン","にゅうめん","カレーそば",
+  "もつ煮込み","つくね","肉団子","チキンカツ","ハムカツ","ささみカツ","揚げ出し豆腐","ちくわの磯辺揚げ","豚バラ大根","かぼちゃの煮物","里芋の煮っころがし","なすの煮浸し","なす味噌炒め","ほうれん草の胡麻和え","小松菜のおひたし","きゅうりの酢の物","春雨サラダ","マカロニサラダ","コールスロー","豆腐サラダ","冷やしトマト","もやし炒め","豚キムチ","すまし汁","納豆汁","なめこ汁","しじみ汁","あさり汁",
+  "揚げ餅","焼き餅","じゃがバター","焼きとうもろこし","いか焼き","ピザトースト","ホットサンド","ハッシュドポテト","焼きそばパン","ハムサンド","ミックスサンド","カツサンド","アメリカンドッグ","梅おにぎり","海苔弁当",
+  /* さらに追加する45種 */
+  "煮込みハンバーグ","チーズハンバーグ","クリームコロッケ","エビカツ","カニクリームコロッケ","牛すじ煮込み","さんまの塩焼き","さばの塩焼き","ぶりの照り焼き","きのこ炒め","たけのこご飯","きのこご飯","豆ご飯","かしわ飯","焼き鳥丼","ドライカレー","焼きカレー","たらこスパゲッティ","明太子パスタ","ひやむぎ","けんちんうどん","カレー鍋","豆乳鍋","ねぎま","フランクフルト","たこせん","チーズハットグ","かしわ天","ごぼう天うどん","肉巻きおにぎり","手羽先","手羽餃子","もつ焼き","砂肝炒め","とんぺい焼き","ねぎ焼き","明石焼き","鶏ハム","豆腐チャンプルー","焼きなす","ふろふき大根","フライドポテト",
 ];
 
 /* ── スイーツ ── */
@@ -246,6 +249,7 @@ export const COOKED_FOODS_SWEET = [
   /* 中南米スイーツ */
   "トレスレチェス","アルファホーレス","ドゥルセデレチェ","ブリガデイロ",
   "ベイヒーニョ","アロスコンレチェ","チョコレートアビスパ","フラン",
+  "フルーツゼリー","フルーツポンチ","ミルクレープ","エッグタルト",
   /* 和菓子 */
   "たい焼き","どら焼き","大福","羊羹","みたらし団子","わらび餅","カステラ","あんみつ","今川焼き",
   "桜餅","柏餅","水まんじゅう","葛切り","ぜんざい","お汁粉","栗きんとん","練り切り","落雁",
@@ -256,6 +260,7 @@ export const COOKED_FOODS_SWEET = [
   "琥珀糖","道明寺","雪平","利久饅頭","蒸しようかん","切り羊羹","月見団子","菊花まんじゅう",
   "蕎麦ぼうろ","南部煎餅","薄皮饅頭","温泉まんじゅう","生八つ橋",
   "みかん大福","いちご大福","チョコ大福","きなこ大福","抹茶大福","塩大福","豆大福",
+  "焼き芋","大学芋","あんまん","ジャムパン","揚げパン","フルーツサンド","りんご飴","わたあめ","芋けんぴ","かりんとう","歌舞伎揚","きんつば","あんこ餅","きなこ餅","ポップコーン","たまごボーロ","焼きまんじゅう","かるかん","しるこサンド",
   "メロンパン","クリームパン","あんパン","台湾カステラ","みたらしパン","カレーパン","コロッケパン",
   "ドラ焼きアイス","たい焼きアイス","もちアイス","雪見だいふく","わらびもちアイス",
   "紅芋タルト","ちんすこう","サーターアンダギー","ポーポー","からすみ餅","天ぷら饅頭",
@@ -274,12 +279,6 @@ export const COOKED_FOODS_SWEET = [
   /* インド系スイーツ */
   "グラブジャムン","ラドゥー","ジャレビ","バルフィ","ラスマライ",
   "ガジャルハルワ","シュリカンド","ペダ","サンデシュ","チャムチャム","カルフィ",
-  /* ブランド商品（スイーツ系） */
-  "ポッキー","ブラックサンダー","キットカット","チョコパイ","コアラのマーチ",
-  "きのこの山","たけのこの里","カントリーマアム","アルフォート","パイの実",
-  "トッポ","ルマンド","ハーゲンダッツ","ガリガリ君","あずきバー","パピコ",
-  "チロルチョコ","ハイチュウ","ぷっちょ","ミルキー","ブルボンプチ",
-  "ビスコ","たべっ子どうぶつ","プリッツ","エッセルスーパーカップ",
 ];
 
 /* genFood()後方互換用 — 両カテゴリを結合 */
@@ -308,16 +307,14 @@ function _buildFoodCatMap() {
     { cat: "russian",         items: S.slice(S.indexOf("ピロシキ"), S.indexOf("ヒンカリ")) },
     { cat: "georgian",        items: S.slice(S.indexOf("ヒンカリ"), S.indexOf("プロフ")) },
     { cat: "central_asian",   items: S.slice(S.indexOf("プロフ"), S.indexOf("フォンデュ")) },
-    { cat: "other",           items: S.slice(S.indexOf("フォンデュ"), S.indexOf("カップヌードル")) },
-    { cat: "brand_savory",    items: S.slice(S.indexOf("カップヌードル")) },
+    { cat: "other",           items: S.slice(S.indexOf("フォンデュ")) },
   ];
   const W = COOKED_FOODS_SWEET;
   const _catSweet = [
     { cat: "western_sweets",  items: W.slice(0, W.indexOf("たい焼き")) },
     { cat: "japanese_sweets", items: W.slice(W.indexOf("たい焼き"), W.indexOf("杏仁豆腐")) },
     { cat: "asian_sweets",    items: W.slice(W.indexOf("杏仁豆腐"), W.indexOf("バクラヴァ")) },
-    { cat: "mideast_sweets",  items: W.slice(W.indexOf("バクラヴァ"), W.indexOf("ポッキー")) },
-    { cat: "brand_sweet",     items: W.slice(W.indexOf("ポッキー")) },
+    { cat: "mideast_sweets",  items: W.slice(W.indexOf("バクラヴァ")) },
   ];
   for (const { cat, items } of [..._catSavory, ..._catSweet]) {
     for (const name of items) m.set(name, cat);
@@ -334,9 +331,8 @@ export const FOOD_CAT_NAMES = {
   spanish: "スペイン", portuguese: "ポルトガル", middle_eastern: "中東",
   turkish: "トルコ", indian: "インド", russian: "東欧・ロシア",
   georgian: "ジョージア", central_asian: "中央アジア", other: "北欧等",
-  brand_savory: "ブランド惣菜",
   western_sweets: "洋菓子", japanese_sweets: "和菓子", asian_sweets: "アジア菓子",
-  mideast_sweets: "中東菓子", brand_sweet: "ブランド菓子",
+  mideast_sweets: "中東菓子",
   curry: "カレー料理", yoshoku: "洋風日本料理",
   spicy: "辛料理", sesame: "ごま・きなこ料理", garlic: "にんにく料理",
   lemon: "柑橘・酸系料理", choco: "チョコ菓子", yogurt: "ヨーグルト料理",
@@ -348,11 +344,11 @@ export const POT_CAT_BONUS = {
   miso:    ["japanese", "japanese_sweets", "miso"],
   spicy:   ["korean", "caribbean", "chinese", "spicy"],
   curry:   ["indian", "southeast_asian", "central_asian", "curry"],
-  choco:   ["western_sweets", "asian_sweets", "mideast_sweets", "brand_sweet", "choco"],
+  choco:   ["western_sweets", "asian_sweets", "mideast_sweets", "choco"],
   honey:   ["western_sweets", "japanese_sweets", "asian_sweets", "mideast_sweets", "honey"],
   olive:   ["italian", "spanish", "greek", "portuguese", "olive"],
   sesame:  ["chinese", "korean", "sesame"],
-  butter:  ["french", "american", "german", "brand_savory", "yoshoku", "butter"],
+  butter:  ["french", "american", "german", "yoshoku", "butter"],
   yogurt:  ["middle_eastern", "russian", "turkish", "greek", "georgian", "yogurt"],
   coconut: ["southeast_asian", "asian_sweets", "caribbean", "coconut"],
   soy:     ["japanese", "chinese", "korean", "soy"],
@@ -446,11 +442,11 @@ export const POT_CAT_LABELS = {
   miso: "和食・和菓子",
   spicy: "韓国・中華（麻辣系）・カリブ・辛料理（タイ等）",
   curry: "インド・東南アジア・カレー料理（日本カレー含む）",
-  choco: "洋菓子・アジア菓子・中東菓子・ブランド菓子・チョコ菓子",
+  choco: "洋菓子・アジア菓子・中東菓子・チョコ菓子",
   honey: "洋菓子・和菓子・アジア菓子・中東菓子",
   olive: "イタリア・スペイン・ギリシャ・ポルトガル",
   sesame: "中華・韓国・ごま・きなこ料理",
-  butter: "フランス・アメリカ・ドイツ・洋風日本料理・バター菓子・ブランド惣菜",
+  butter: "フランス・アメリカ・ドイツ・洋風日本料理・バター菓子",
   yogurt: "中東・東欧・トルコ・ギリシャ・ヨーグルト料理",
   coconut: "東南アジア・アジア菓子・カリブ",
   soy: "和食・中華・韓国・醤油料理",
@@ -512,6 +508,43 @@ export const FOOD_POT_EXTRA = {
   "エッグベネディクト": ["butter"],
   "カイザーシュマーレン": ["butter"],
   "アドボ": ["soy"],
+  "目玉焼き": ["butter"], "卵かけご飯": ["soy"], "ゆで卵": ["butter"],
+  "オムレツ": ["butter", "yoshoku"], "スクランブルエッグ": ["butter", "yoshoku"], "卵サンド": ["butter", "yoshoku"],
+  "納豆巻き": ["soy"], "納豆ご飯": ["soy"], "焼きおにぎり": ["soy"], "赤飯": ["soy"], "天むす": ["soy"],
+  "豚丼": ["soy"], "そぼろ丼": ["soy"], "玉子丼": ["soy"], "まぐろ丼": ["soy", "lemon"], "サーモン丼": ["soy", "lemon"],
+  "いくら丼": ["soy", "lemon"], "うな重": ["soy"], "ローストビーフ丼": ["soy", "yoshoku"], "タコライス": ["spicy"],
+  "そばめし": ["soy"], "オムそば": ["soy", "yoshoku"], "かにめし": ["soy", "lemon"],
+  "味噌煮込みうどん": ["miso"], "釜玉うどん": ["soy"], "月見そば": ["soy"], "肉そば": ["soy"], "きつねそば": ["soy"],
+  "鴨南蛮": ["soy"], "鴨せいろ": ["soy"], "そばがき": ["soy"], "油そば": ["soy", "garlic"], "台湾まぜそば": ["spicy", "garlic"],
+  "焼きラーメン": ["soy", "garlic"], "冷やしラーメン": ["soy", "lemon"], "にゅうめん": ["soy"], "カレーそば": ["curry"],
+  "もつ煮込み": ["miso", "soy"], "つくね": ["soy"], "肉団子": ["soy"], "チキンカツ": ["yoshoku"], "ハムカツ": ["yoshoku"],
+  "ささみカツ": ["yoshoku"], "揚げ出し豆腐": ["soy"], "ちくわの磯辺揚げ": ["soy"], "豚バラ大根": ["miso", "soy"],
+  "かぼちゃの煮物": ["miso", "soy"], "里芋の煮っころがし": ["miso", "soy"], "なすの煮浸し": ["soy"], "なす味噌炒め": ["miso", "soy"],
+  "ほうれん草の胡麻和え": ["sesame"], "小松菜のおひたし": ["soy"], "きゅうりの酢の物": ["soy", "lemon"],
+  "春雨サラダ": ["soy", "sesame"], "マカロニサラダ": ["yoshoku"], "コールスロー": ["yoshoku", "lemon"], "豆腐サラダ": ["sesame", "soy"],
+  "冷やしトマト": ["soy", "lemon"], "もやし炒め": ["soy", "garlic"], "豚キムチ": ["spicy", "garlic"], "すまし汁": ["soy"],
+  "納豆汁": ["miso", "soy"], "なめこ汁": ["miso", "soy"], "しじみ汁": ["miso", "soy"], "あさり汁": ["miso", "soy"],
+  "揚げ餅": ["soy"], "焼き餅": ["soy"], "じゃがバター": ["butter"], "焼きとうもろこし": ["soy", "butter"], "いか焼き": ["soy", "lemon"],
+  "ピザトースト": ["yoshoku", "butter"], "ホットサンド": ["yoshoku", "butter"], "ハッシュドポテト": ["yoshoku", "butter"],
+  "焼きそばパン": ["yoshoku"], "ハムサンド": ["yoshoku", "butter"], "ミックスサンド": ["yoshoku", "butter"], "カツサンド": ["yoshoku"],
+  "アメリカンドッグ": ["yoshoku", "butter"], "梅おにぎり": ["soy", "lemon"], "海苔弁当": ["soy"],
+  "煮込みハンバーグ": ["yoshoku"], "チーズハンバーグ": ["yoshoku", "butter"], "クリームコロッケ": ["yoshoku", "butter"],
+  "エビカツ": ["yoshoku"], "カニクリームコロッケ": ["yoshoku", "butter"], "牛すじ煮込み": ["miso", "soy"],
+  "さんまの塩焼き": ["soy", "lemon"], "さばの塩焼き": ["soy", "lemon"], "ぶりの照り焼き": ["soy"], "きのこ炒め": ["butter", "soy"],
+  "たけのこご飯": ["soy"], "きのこご飯": ["soy", "butter"], "豆ご飯": ["soy"], "かしわ飯": ["soy"], "焼き鳥丼": ["soy"],
+  "ドライカレー": ["curry", "yoshoku"], "焼きカレー": ["curry", "yoshoku"], "たらこスパゲッティ": ["yoshoku", "butter"],
+  "明太子パスタ": ["spicy", "yoshoku"], "ひやむぎ": ["soy"], "けんちんうどん": ["miso", "soy"], "カレー鍋": ["curry", "spicy"],
+  "豆乳鍋": ["soy"], "ねぎま": ["soy", "garlic"], "フランクフルト": ["yoshoku", "butter"], "たこせん": ["soy"],
+  "チーズハットグ": ["spicy", "yoshoku"], "かしわ天": ["soy", "lemon"], "ごぼう天うどん": ["soy"], "肉巻きおにぎり": ["soy"],
+  "手羽先": ["spicy", "garlic"], "手羽餃子": ["garlic"], "もつ焼き": ["spicy", "garlic"], "砂肝炒め": ["garlic"],
+  "とんぺい焼き": ["butter", "yoshoku"], "ねぎ焼き": ["soy"], "明石焼き": ["soy", "lemon"], "鶏ハム": ["soy"],
+  "豆腐チャンプルー": ["soy", "sesame"], "焼きなす": ["miso", "soy"], "ふろふき大根": ["miso"], "フライドポテト": ["yoshoku", "butter"],
+  "焼き芋": ["honey", "butter"], "大学芋": ["honey", "sesame"], "あんまん": ["honey"], "ジャムパン": ["honey"],
+  "揚げパン": ["honey", "butter"], "フルーツサンド": ["honey", "butter"], "りんご飴": ["honey"], "わたあめ": ["honey"],
+  "芋けんぴ": ["honey"], "かりんとう": ["honey"], "歌舞伎揚": ["soy"], "フルーツゼリー": ["honey", "lemon"],
+  "フルーツポンチ": ["honey", "lemon"], "ミルクレープ": ["butter"], "きんつば": ["honey"], "あんこ餅": ["honey"],
+  "きなこ餅": ["honey", "sesame"], "ポップコーン": ["butter"], "たまごボーロ": ["honey", "butter"], "エッグタルト": ["butter"],
+  "焼きまんじゅう": ["honey"], "かるかん": ["honey"], "しるこサンド": ["honey", "butter"],
 };
 
 /** 壺の味付けと料理の相性（満腹度ボーナス判定） */

@@ -119,11 +119,35 @@ describe("foodData", () => {
 
   it("重複整理後の目標数に揃い、新規料理の相性も個別設定される", () => {
     expect(RAW_FOODS).toHaveLength(400);
-    expect(COOKED_FOODS).toHaveLength(1000);
+    expect(COOKED_FOODS).toHaveLength(1100);
     expect(FOOD_CAT_MAP.get("バインセオ")).toBe("southeast_asian");
     expect(FOOD_CAT_MAP.get("チョリソー")).toBe("spanish");
     expect(FOOD_CAT_MAP.get("パブロバ")).toBe("western_sweets");
     expect(foodMatchesPotCategory({ _foodBase: "カイザーシュマーレン", foodCat: "western_sweets" }, "butter")).toBe(true);
+    expect(COOKED_FOODS).toContain("目玉焼き");
+    expect(COOKED_FOODS).toContain("煮込みハンバーグ");
+    expect(COOKED_FOODS).toContain("しるこサンド");
+    expect(COOKED_FOODS).not.toContain("カップヌードル");
+    expect(COOKED_FOODS).not.toContain("ポッキー");
+    expect(foodMatchesPotCategory({ _foodBase: "味噌煮込みうどん", foodCat: FOOD_CAT_MAP.get("味噌煮込みうどん") }, "miso")).toBe(true);
+    expect(foodMatchesPotCategory({ _foodBase: "ドライカレー", foodCat: FOOD_CAT_MAP.get("ドライカレー") }, "curry")).toBe(true);
+    expect(foodMatchesPotCategory({ _foodBase: "ミルクレープ", foodCat: FOOD_CAT_MAP.get("ミルクレープ") }, "butter")).toBe(true);
+    expect(foodMatchesPotCategory({ _foodBase: "きなこ餅", foodCat: FOOD_CAT_MAP.get("きなこ餅") }, "sesame")).toBe(true);
+  });
+
+  it("ブランド商品を調理済み食料から除外する", () => {
+    const brandFoods = [
+      "カップヌードル", "チキンラーメン", "ペヤング", "赤いきつね", "緑のたぬき", "どん兵衛",
+      "じゃがりこ", "プリングルズ", "ドリトス", "かっぱえびせん", "ベビースターラーメン",
+      "ハッピーターン", "柿の種", "サッポロポテト", "カール", "ピザポテト", "チップスター",
+      "ビッグマック", "チキンマックナゲット", "ケンタッキーフライドチキン",
+      "ポッキー", "ブラックサンダー", "キットカット", "チョコパイ", "コアラのマーチ",
+      "きのこの山", "たけのこの里", "カントリーマアム", "アルフォート", "パイの実",
+      "トッポ", "ルマンド", "ハーゲンダッツ", "ガリガリ君", "あずきバー", "パピコ",
+      "チロルチョコ", "ハイチュウ", "ぷっちょ", "ミルキー", "ブルボンプチ",
+      "ビスコ", "たべっ子どうぶつ", "プリッツ", "エッセルスーパーカップ",
+    ];
+    expect(COOKED_FOODS.filter((name) => brandFoods.includes(name))).toEqual([]);
   });
 
   it("全食料に少なくとも1つの調味料相性がある", () => {
