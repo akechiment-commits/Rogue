@@ -20,19 +20,19 @@ describe("かわしモグラ", () => {
     expect(base?.tile).toBe(181);
   });
 
-  it("21階以降の水準へ強化された3段階のパラメータを持つ", () => {
+  it("Lv1を16階水準にし、Lv2以降のパラメータは維持する", () => {
     const base = MONS.find((m) => m.baseKind === "dodgemole");
-    expect([base.hp, base.atk, base.def, base.exp]).toEqual([86, 30, 10, 100]);
+    expect([base.hp, base.atk, base.def, base.exp]).toEqual([68, 28, 7, 65]);
     expect([base.levels[0].hp, base.levels[0].atk, base.levels[0].def, base.levels[0].exp]).toEqual([135, 42, 15, 165]);
     expect([base.levels[1].hp, base.levels[1].atk, base.levels[1].def, base.levels[1].exp]).toEqual([210, 58, 21, 260]);
   });
 
-  it("深層相当の出現範囲だけを持つ", () => {
+  it("Lv1を16階から出し、Lv2以降の出現範囲は維持する", () => {
     const base = MONS.find((m) => m.baseKind === "dodgemole");
-    expect(base.minFloor).toBe(21);
+    expect(base.minFloor).toBe(16);
     expect(base.maxFloor).toBe(27);
     expect(base.dungeonFloors.intermediate).toBeNull();
-    expect(base.dungeonFloors.advanced).toEqual({ min: 21, max: 27 });
+    expect(base.dungeonFloors.advanced).toEqual({ min: 16, max: 27 });
     expect([base.levels[0].minFloor, base.levels[0].maxFloor]).toEqual([30, 38]);
     expect(base.levels[0].dungeonFloors.advanced).toEqual({ min: 30, max: 30 });
     expect([base.levels[1].minFloor, base.levels[1].maxFloor]).toEqual([41, 50]);

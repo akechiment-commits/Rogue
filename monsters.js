@@ -937,7 +937,7 @@ export const MONS = [
       { name: "むちちむち",         hp: 170, atk: 46, def: 31, exp: 175 },
     ],
   },
-  { name: "かわしモグラ", hp: 86, atk: 30, def: 10, exp: 100, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 21, maxFloor: 27, subtype: "dodgemole", dungeonFloors: { intermediate: null, advanced: { min: 21, max: 27 } },
+  { name: "かわしモグラ", hp: 68, atk: 28, def: 7, exp: 65, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 16, maxFloor: 27, subtype: "dodgemole", dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },
     desc: "通常の投擲物・矢・杖の光弾・魔法・巻物の効果・矢罠・水鉄砲を潜ってかわす。直線型のLv1ブレスもかわすが、Lv2以降の追尾型ブレスは当たる。爆風は当たる。",
     levels: [
       { name: "ひょいひょいモグラ", hp: 135, atk: 42, def: 15, exp: 165, minFloor: 30, maxFloor: 38, dungeonFloors: { advanced: { min: 30, max: 30 } } },
