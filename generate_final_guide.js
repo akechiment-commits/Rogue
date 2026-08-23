@@ -2,7 +2,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
 import { MONS, BOSSES } from './monsters.js';
-import { POT_CAT_LABELS } from './foodData.js';
+import { POT_CAT_LABELS, RAW_FOODS, COOKED_FOODS } from './foodData.js';
+import { FOOD_DESCRIPTIONS, foodGuideDetails } from './foodDescriptions.js';
 import { GOAL_ITEMS } from './dungeon.js';
 import { FIRST_ENCOUNTER_TIPS } from './firstEncounterTips.js';
 
@@ -211,7 +212,7 @@ const indexData = [
   ['10. 罠（転倒含む）', '全罠の効果'],
   ['11. モンスター図鑑（61種+ボス10体）', 'ゲーム内に出現する全敵（各3形態あり）'],
   ['12. 杖 - Wand（22種）', '全杖の通常・祝福・呪い時効果'],
-  ['13. 食べ物（11効果種）', '食べ物の効果・サイズ・状態一覧'],
+  ['13. 食べ物（1500種 + 11効果種）', '食べ物の個別解説・壺相性・効果・サイズ・状態一覧'],
   ['14. 大箱 - BigBox（9種）', '全大箱の効果'],
   ['15. 泉 - Spring', '飲む効果・浸す効果'],
   ['16. 宝石 - Gem（14種）', '基本価格・遠距離ボーナス'],
@@ -681,6 +682,15 @@ for (const sz of COOKED_SIZES) {
   foodItemData.push(['', sz.l, `満腹度+${sz.v}`, sz.w]);
 }
 foodItemData.push(['', '爆盛り', '満腹度+120 ※満腹の大箱で特盛りを強化した場合のみ', '-']);
+
+// 1500種の個別解説。ゲーム内説明は料理の由来・調理法だけにし、壺相性はガイド側だけに記載する。
+foodItemData.push(['', '', '', '']);
+foodItemData.push(['個別解説', '食料名', 'ゲーム内説明', 'ガイド補足（分類・壺相性）']);
+for (const [kind, foods] of [['生', RAW_FOODS], ['調理済み', COOKED_FOODS]]) {
+  for (const name of foods) {
+    foodItemData.push([kind, name, FOOD_DESCRIPTIONS[name], foodGuideDetails(name)]);
+  }
+}
 
 // 特殊状態（静的）
 foodItemData.push(['', '', '', '']);

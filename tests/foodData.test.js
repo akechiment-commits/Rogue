@@ -9,6 +9,7 @@ import {
   FOOD_POT_EXTRA,
   foodMatchesPotCategory,
 } from "../foodData.js";
+import { FOOD_DESCRIPTIONS, foodGuideDescription } from "../foodDescriptions.js";
 
 const dup = (arr) => arr.filter((x, i) => arr.indexOf(x) !== i);
 
@@ -40,6 +41,17 @@ describe("foodData", () => {
   it("生食材と調理済みで名前が被らない", () => {
     expect(RAW_FOODS.filter((n) => COOKED_FOODS.includes(n))).toEqual([]);
     expect(COOKED_FOODS_SAVORY.filter((n) => COOKED_FOODS_SWEET.includes(n))).toEqual([]);
+  });
+
+  it("1500種すべてに個別説明があり、ゲーム内説明へ壺相性を混ぜない", () => {
+    const allFoods = [...RAW_FOODS, ...COOKED_FOODS];
+    expect(Object.keys(FOOD_DESCRIPTIONS).sort()).toEqual([...allFoods].sort());
+    for (const name of allFoods) {
+      expect(FOOD_DESCRIPTIONS[name], name).toMatch(/。/);
+      expect(FOOD_DESCRIPTIONS[name], name).not.toMatch(/壺|相性/);
+    }
+    expect(foodGuideDescription("目玉焼き")).toContain("壺相性：");
+    expect(foodGuideDescription("目玉焼き")).toContain("味噌");
   });
 
   it("同一料理の表記揺れを別の食料として登録しない", () => {

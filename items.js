@@ -108,7 +108,8 @@ import {
   FOOD_CAT_MAP, POT_CAT_BONUS, foodMatchesPotCategory,
   RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS,
 } from './foodData.js';
-export { RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS, RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS };
+import { FOOD_DESCRIPTIONS } from './foodDescriptions.js';
+export { RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS, RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS, FOOD_DESCRIPTIONS };
 
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 let _wandBreakEffectHandler = null;
@@ -671,8 +672,8 @@ export function genFood() {
   if (!cooked) hv = Math.max(1, Math.floor(hv / 2));
   const foodCat = FOOD_CAT_MAP.get(fn) || null;
   const _desc = _favoriteFoodBase && fn === _favoriteFoodBase
-    ? `${FOOD_DESCS[ef.e]}\nあなたの好物だ！`
-    : FOOD_DESCS[ef.e];
+    ? `${FOOD_DESCRIPTIONS[fn] || FOOD_DESCS[ef.e]}\nあなたの好物だ！`
+    : (FOOD_DESCRIPTIONS[fn] || FOOD_DESCS[ef.e]);
   return { name:nm, type:"food", effect:ef.e, value:hv, desc:_desc, tile: cooked ? 66 : 19, cooked, foodCat, sizeLabel: sz.l, _foodBase: fn, _foodEfLabel: ef.l };
 }
 
@@ -899,7 +900,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
       }
       item.smoked = true;
       item.name = "燻製" + item.name;
-      item.desc = POT_FOOD_DESCS.smoke;
+      item.desc = [FOOD_DESCRIPTIONS[item._foodBase] || item.desc, POT_FOOD_DESCS.smoke].filter(Boolean).join("\n");
       ml.push(`${item.name}になった！(食べると最大満腹度UP)`);
       return;
     }
@@ -924,7 +925,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     const _catMatch = _isFavoriteFood || foodMatchesPotCategory(item, pe);
     const _potMul = _catMatch ? 2.0 : 1.3;
     item.value = Math.floor(item.value * _potMul);
-    item.desc = POT_FOOD_DESCS[pe] || item.desc;
+    item.desc = [FOOD_DESCRIPTIONS[item._foodBase] || item.desc, POT_FOOD_DESCS[pe]].filter(Boolean).join("\n");
     ml.push(_catMatch
       ? `${item.name}になった！(相性抜群！満腹度大幅UP)`
       : `${item.name}になった！(満腹度UP)`);
@@ -6549,7 +6550,9 @@ function restoreFoodWithWater(item, ml) {
   const before = item.name;
   if (item.burnt) item.value = Math.max(1, Math.ceil((item.value || 1) / 0.6));
   item.name = (item.cooked ? "焼いた" : "") + _foodSizedName(item);
-  item.desc = FOOD_DESCS[item.effect] || "食べると満腹度が回復する。";
+  item.desc = FOOD_DESCRIPTIONS[item._foodBase || _foodDisplayBaseName(item)]
+    || FOOD_DESCS[item.effect]
+    || "食べると満腹度が回復する。";
   delete item.rotten;
   delete item.burnt;
   delete item.yabai;

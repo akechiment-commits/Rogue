@@ -1,6 +1,7 @@
 /** 好きな食べ物（初期食料の元になる名前）まわり */
 import { uid } from "./utils.js";
 import { FOOD_DESCS } from "./foodData.js";
+import { FOOD_DESCRIPTIONS } from "./foodDescriptions.js";
 
 export const FAVORITE_FOOD_MIN = 1;
 export const FAVORITE_FOOD_MAX = 12;
@@ -63,7 +64,7 @@ export function makeStarterFoodItem(favoriteFood, { uidFn = uid } = {}) {
     type: "food",
     effect: "satiate_food",
     value: 120,
-    desc: `${FOOD_DESCS.satiate_food || "とても腹持ちが良さそうだ。"}\nあなたの好物だ！`,
+    desc: `${FOOD_DESCRIPTIONS[base] || FOOD_DESCS.satiate_food || "とても腹持ちが良さそうだ。"}\nあなたの好物だ！`,
     tile: 66,
     cooked: true,
     sizeLabel: "特盛り",
