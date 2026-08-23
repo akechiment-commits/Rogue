@@ -111,6 +111,12 @@ import {
 import { FOOD_DESCRIPTIONS } from './foodDescriptions.js';
 export { RAW_FOODS, COOKED_FOODS_SAVORY, COOKED_FOODS_SWEET, COOKED_FOODS, RAW_SIZES, COOKED_SIZES, FOOD_EFFECTS, FOOD_DESCS, FOOD_DESCRIPTIONS };
 
+function _foodDescription(item) {
+  const baseDescription = item?._foodBase ? FOOD_DESCRIPTIONS[item._foodBase] : null;
+  const effectDescription = item?.effect ? FOOD_DESCS[item.effect] : null;
+  return [baseDescription, effectDescription].filter(Boolean).join("\n") || item?.desc || "";
+}
+
 /* wands.js に分離した関数を re-export（既存の import 元を維持） */
 let _wandBreakEffectHandler = null;
 export function setWandBreakEffectHandler(handler) {
@@ -671,9 +677,9 @@ export function genFood() {
   let hv = ef.e === "satiate_food" ? Math.floor(sz.v * 1.5) : sz.v;
   if (!cooked) hv = Math.max(1, Math.floor(hv / 2));
   const foodCat = FOOD_CAT_MAP.get(fn) || null;
-  const _desc = _favoriteFoodBase && fn === _favoriteFoodBase
-    ? `${FOOD_DESCRIPTIONS[fn] || FOOD_DESCS[ef.e]}\nあなたの好物だ！`
-    : (FOOD_DESCRIPTIONS[fn] || FOOD_DESCS[ef.e]);
+  const _desc = [_foodDescription({ _foodBase: fn, effect: ef.e }),
+    _favoriteFoodBase && fn === _favoriteFoodBase ? "あなたの好物だ！" : ""]
+    .filter(Boolean).join("\n");
   return { name:nm, type:"food", effect:ef.e, value:hv, desc:_desc, tile: cooked ? 66 : 19, cooked, foodCat, sizeLabel: sz.l, _foodBase: fn, _foodEfLabel: ef.l };
 }
 
@@ -900,7 +906,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
       }
       item.smoked = true;
       item.name = "燻製" + item.name;
-      item.desc = [FOOD_DESCRIPTIONS[item._foodBase] || item.desc, POT_FOOD_DESCS.smoke].filter(Boolean).join("\n");
+      item.desc = [_foodDescription(item), POT_FOOD_DESCS.smoke].filter(Boolean).join("\n");
       ml.push(`${item.name}になった！(食べると最大満腹度UP)`);
       return;
     }
@@ -925,7 +931,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     const _catMatch = _isFavoriteFood || foodMatchesPotCategory(item, pe);
     const _potMul = _catMatch ? 2.0 : 1.3;
     item.value = Math.floor(item.value * _potMul);
-    item.desc = [FOOD_DESCRIPTIONS[item._foodBase] || item.desc, POT_FOOD_DESCS[pe]].filter(Boolean).join("\n");
+    item.desc = [_foodDescription(item), POT_FOOD_DESCS[pe]].filter(Boolean).join("\n");
     ml.push(_catMatch
       ? `${item.name}になった！(相性抜群！満腹度大幅UP)`
       : `${item.name}になった！(満腹度UP)`);

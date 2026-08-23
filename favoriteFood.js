@@ -64,7 +64,8 @@ export function makeStarterFoodItem(favoriteFood, { uidFn = uid } = {}) {
     type: "food",
     effect: "satiate_food",
     value: 120,
-    desc: `${FOOD_DESCRIPTIONS[base] || FOOD_DESCS.satiate_food || "とても腹持ちが良さそうだ。"}\nあなたの好物だ！`,
+    desc: [FOOD_DESCRIPTIONS[base], FOOD_DESCS.satiate_food || "とても腹持ちが良さそうだ。", "あなたの好物だ！"]
+      .filter(Boolean).join("\n"),
     tile: 66,
     cooked: true,
     sizeLabel: "特盛り",

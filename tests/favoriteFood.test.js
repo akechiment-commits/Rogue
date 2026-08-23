@@ -15,6 +15,7 @@ import {
   COOKED_FOODS,
   RAW_FOODS,
 } from "../items.js";
+import { FOOD_DESCS } from "../foodData.js";
 
 describe("normalizeFavoriteFood", () => {
   it("前後空白を除去する", () => {
@@ -57,6 +58,7 @@ describe("makeStarterFoodItem", () => {
   it("不正値はデフォルト名を使う", () => {
     const it = makeStarterFoodItem("", { uidFn: () => "x" });
     expect(it.name).toBe(`満腹の特盛り${DEFAULT_FAVORITE_FOOD}`);
+    expect(it.desc).toContain(FOOD_DESCS.satiate_food);
     expect(it.desc).toContain("あなたの好物だ！");
   });
 });
@@ -103,6 +105,7 @@ describe("getFoodBasePool / setFavoriteFoodBase", () => {
       .mockReturnValue(0);
     const food = genFood();
     expect(food._foodBase).toBe("おにぎり");
+    expect(food.desc).toContain(FOOD_DESCS[food.effect]);
     expect(food.desc).toContain("あなたの好物だ！");
   });
 });
