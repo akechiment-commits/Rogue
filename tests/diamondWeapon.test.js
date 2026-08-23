@@ -8,12 +8,14 @@ describe("竜騎士系", () => {
   it("3形態が同じ浮遊グラフィックを共有する", () => {
     const base = MONS.find((m) => m.baseKind === "dragonknight");
     expect(base).toBeTruthy();
+    expect(base.kind).toBe("dragon");
     expect(base.float).toBe(true);
     expect(base.subtype).toBe("diamondweapon");
 
     const forms = [1, 2, 3].map((level) => makeMonsterFromBase(base, level, 5, 5));
     expect(forms.map((m) => m.name)).toEqual(["竜騎士", "竜騎士04", "Mikan"]);
     expect(forms.map((m) => m.tile)).toEqual([205, 205, 205]);
+    expect(forms.map((m) => m.kind)).toEqual(["dragon", "dragon", "dragon"]);
   });
 
   it("レベルアップしてもグラフィックは変わらない", () => {

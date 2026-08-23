@@ -1026,7 +1026,7 @@ export const MONS = [
       { name: "ものまね帝王",     hp: 88,  atk: 32, def: 14, exp: 175, dungeonFloors: { advanced: { min: 22, max: 30 } } },
     ],
   },
-  { name: "スネークマン", hp: 32, atk: 14, def: 4, exp: 38, speed: 1, tile: 204, kind: "humanoid", baseKind: "lizardman", monLevel: 1, minFloor: 9, maxFloor: 28, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 8, max: 16 } },
+  { name: "スネークマン", hp: 32, atk: 14, def: 4, exp: 38, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 9, maxFloor: 28, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 8, max: 16 } },
     desc: "水上・水中を移動する。プレイヤーを視界に捉えると、アーマーブレスで自分か隣接する敵の防御力を5上げることがある。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
     levels: [
       { name: "リザードマン", hp: 54, atk: 24, def: 9, exp: 78, minFloor: 17, maxFloor: 24, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 23 } } },

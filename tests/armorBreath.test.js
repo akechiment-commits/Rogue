@@ -8,12 +8,14 @@ describe("スネークマン系", () => {
   it("3形態の名前・タイル・水中歩行を持つ", () => {
     const base = MONS.find((m) => m.baseKind === "lizardman");
     expect(base).toBeTruthy();
+    expect(base.kind).toBe("dragon");
     expect(base.waterWalker).toBe(true);
     expect(base.subtype).toBe("armorbreath");
 
     const forms = [1, 2, 3].map((level) => makeMonsterFromBase(base, level, 5, 5));
     expect(forms.map((m) => m.name)).toEqual(["スネークマン", "リザードマン", "とかげせんし"]);
     expect(forms.map((m) => m.tile)).toEqual([204, 204, 204]);
+    expect(forms.map((m) => m.kind)).toEqual(["dragon", "dragon", "dragon"]);
     expect(new Set(forms.map((m) => m.tile)).size).toBe(1);
   });
 
