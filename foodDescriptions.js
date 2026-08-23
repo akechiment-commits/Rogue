@@ -7,6 +7,7 @@ import {
   POT_CAT_BONUS,
   POT_CAT_LABELS,
 } from "./foodData.js";
+import { FOOD_DESCRIPTION_OVERRIDES } from "./foodDescriptionOverrides.js";
 
 /* 生食料は RAW_FOODS の章立てをそのまま説明用の分類として使う。 */
 const RAW_GROUPS = [
@@ -142,14 +143,10 @@ function cookedDescription(name) {
 }
 
 function buildFoodDescriptions() {
-  const descriptions = {};
-  for (const name of RAW_FOODS) {
-    const group = rawGroupFor(name);
-    if (!group) throw new Error(`生食料の説明分類が見つかりません: ${name}`);
-    descriptions[name] = `${name}という${group.label}。${group.detail}`;
-  }
-  for (const name of COOKED_FOODS) descriptions[name] = cookedDescription(name);
-  return descriptions;
+  const allFoods = [...RAW_FOODS, ...COOKED_FOODS];
+  const missing = allFoods.filter((name) => !FOOD_DESCRIPTION_OVERRIDES[name]);
+  if (missing.length) throw new Error(`個別食料説明が未設定: ${missing.join(", ")}`);
+  return Object.fromEntries(allFoods.map((name) => [name, FOOD_DESCRIPTION_OVERRIDES[name]]));
 }
 
 export const FOOD_DESCRIPTIONS = buildFoodDescriptions();

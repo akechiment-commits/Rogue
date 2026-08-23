@@ -46,10 +46,12 @@ describe("foodData", () => {
   it("1500種すべてに個別説明があり、ゲーム内説明へ壺相性を混ぜない", () => {
     const allFoods = [...RAW_FOODS, ...COOKED_FOODS];
     expect(Object.keys(FOOD_DESCRIPTIONS).sort()).toEqual([...allFoods].sort());
+    expect(new Set(Object.values(FOOD_DESCRIPTIONS)).size).toBe(allFoods.length);
     for (const name of allFoods) {
       expect(FOOD_DESCRIPTIONS[name], name).toMatch(/。/);
       expect(FOOD_DESCRIPTIONS[name], name).not.toMatch(/壺|相性/);
     }
+    expect(FOOD_DESCRIPTIONS["うな重"]).toBe("重箱にご飯を詰め、うなぎの蒲焼きを並べてタレをかけた料理。");
     expect(foodGuideDescription("目玉焼き")).toContain("壺相性：");
     expect(foodGuideDescription("目玉焼き")).toContain("味噌");
   });
