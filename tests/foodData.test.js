@@ -129,6 +129,9 @@ describe("foodData", () => {
     expect(COOKED_FOODS).toContain("しるこサンド");
     expect(COOKED_FOODS).not.toContain("カップヌードル");
     expect(COOKED_FOODS).not.toContain("ポッキー");
+    expect(FOOD_CAT_MAP.get("目玉焼き")).toBe("japanese");
+    expect(foodMatchesPotCategory({ _foodBase: "目玉焼き", foodCat: FOOD_CAT_MAP.get("目玉焼き") }, "miso")).toBe(true);
+    expect(foodMatchesPotCategory({ _foodBase: "目玉焼き", foodCat: FOOD_CAT_MAP.get("目玉焼き") }, "lemon")).toBe(false);
     expect(foodMatchesPotCategory({ _foodBase: "味噌煮込みうどん", foodCat: FOOD_CAT_MAP.get("味噌煮込みうどん") }, "miso")).toBe(true);
     expect(foodMatchesPotCategory({ _foodBase: "ドライカレー", foodCat: FOOD_CAT_MAP.get("ドライカレー") }, "curry")).toBe(true);
     expect(foodMatchesPotCategory({ _foodBase: "ミルクレープ", foodCat: FOOD_CAT_MAP.get("ミルクレープ") }, "butter")).toBe(true);
