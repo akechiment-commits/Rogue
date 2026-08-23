@@ -7,8 +7,8 @@ import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns, applyPlayerPoison } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
 import {
-  addArmorBreathBuff, ARMOR_BREATH_DEF_BONUS,
-  addDiamondWeaponBuff, DIAMOND_WEAPON_ATK_BONUS,
+  addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
+  addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
 } from "./monsterBuffs.js";
 
 export { wakeIfDormant } from "./monsterRuntime.js";
@@ -1026,18 +1026,18 @@ export const MONS = [
       { name: "ものまね帝王",     hp: 88,  atk: 32, def: 14, exp: 175, dungeonFloors: { advanced: { min: 22, max: 30 } } },
     ],
   },
-  { name: "スネークマン", hp: 32, atk: 14, def: 4, exp: 38, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 9, maxFloor: 28, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 8, max: 16 } },
-    desc: "水上・水中を移動する。プレイヤーを視界に捉えると、アーマーブレスで自分か隣接する敵の防御力を5上げることがある。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
+  { name: "スネークマン", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 13, maxFloor: 17, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 17 }, advanced: { min: 13, max: 17 } },
+    desc: "水上・水中を移動する。プレイヤーを視界に捉えると、レベルに応じてアーマーブレスで自分か隣接する敵の防御力を5／7／10上げることがある。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
     levels: [
-      { name: "リザードマン", hp: 54, atk: 24, def: 9, exp: 78, minFloor: 17, maxFloor: 24, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 23 } } },
-      { name: "とかげせんし", hp: 86, atk: 36, def: 14, exp: 128, minFloor: 25, maxFloor: 30, dungeonFloors: { advanced: { min: 24, max: 30 } } },
+      { name: "リザードマン", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: { min: 20, max: 20 }, advanced: { min: 20, max: 24 } } },
+      { name: "とかげせんし", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
     ],
   },
-  { name: "竜騎士", hp: 32, atk: 14, def: 4, exp: 38, speed: 1, tile: 205, kind: "dragon", baseKind: "dragonknight", monLevel: 1, minFloor: 9, maxFloor: 28, float: true, subtype: "diamondweapon", dungeonFloors: { beginner: null, intermediate: { min: 10, max: 16 }, advanced: { min: 8, max: 16 } },
-    desc: "浮遊する竜騎士。プレイヤーを視界に捉えると、ダイヤモンドウエポンで自分か隣接する敵の攻撃力を10上げることがある。放置すると重ね掛けでどんどん強くなる。強化解除の巻物や封印で解除される。",
+  { name: "竜騎士", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 205, kind: "dragon", baseKind: "dragonknight", monLevel: 1, minFloor: 13, maxFloor: 17, float: true, subtype: "diamondweapon", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 17 }, advanced: { min: 13, max: 17 } },
+    desc: "浮遊する竜騎士。プレイヤーを視界に捉えると、レベルに応じてダイヤモンドウエポンで自分か隣接する敵の攻撃力を5／7／10上げることがある。放置すると重ね掛けでどんどん強くなる。強化解除の巻物や封印で解除される。",
     levels: [
-      { name: "竜騎士04", hp: 54, atk: 24, def: 9, exp: 78, minFloor: 17, maxFloor: 24, dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 23 } } },
-      { name: "Mikan", hp: 86, atk: 36, def: 14, exp: 128, minFloor: 25, maxFloor: 30, dungeonFloors: { advanced: { min: 24, max: 30 } } },
+      { name: "竜騎士04", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: { min: 20, max: 20 }, advanced: { min: 20, max: 24 } } },
+      { name: "Mikan", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
     ],
   },
 ];
@@ -1073,9 +1073,11 @@ export function monLevelUp(mon, dg, ml) {
   }
   const hpRatio = mon.maxHp > 0 ? mon.hp / mon.maxHp : 1;
   const oldName = mon.name;
+  const armorBreathBonus = mon.armorBreathBuffAmount ?? (mon.armorBreathBuffs || 0) * ARMOR_BREATH_DEF_BONUS;
+  const diamondWeaponBonus = mon.diamondWeaponBuffAmount ?? (mon.diamondWeaponBuffs || 0) * DIAMOND_WEAPON_ATK_BONUS;
   mon.name   = template.name;
-  mon.atk    = template.atk;
-  mon.def    = template.def;
+  mon.atk    = template.atk + diamondWeaponBonus;
+  mon.def    = template.def + armorBreathBonus;
   mon.exp    = template.exp;
   mon.maxHp  = template.hp;
   mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
@@ -1112,9 +1114,11 @@ export function monLevelDown(mon, dg, ml) {
   if (!template) return false;
   const hpRatio = mon.maxHp > 0 ? mon.hp / mon.maxHp : 1;
   const oldName = mon.name;
+  const armorBreathBonus = mon.armorBreathBuffAmount ?? (mon.armorBreathBuffs || 0) * ARMOR_BREATH_DEF_BONUS;
+  const diamondWeaponBonus = mon.diamondWeaponBuffAmount ?? (mon.diamondWeaponBuffs || 0) * DIAMOND_WEAPON_ATK_BONUS;
   mon.name   = template.name;
-  mon.atk    = template.atk;
-  mon.def    = template.def;
+  mon.atk    = template.atk + diamondWeaponBonus;
+  mon.def    = template.def + armorBreathBonus;
   mon.exp    = template.exp;
   mon.maxHp  = template.hp;
   mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
@@ -2742,6 +2746,7 @@ function diamondWeaponTargets(m, dg) {
 }
 
 function useArmorBreath(m, dg, ml) {
+  const bonus = getArmorBreathDefBonus(m);
   if (inMagicSealRoom(m.x, m.y, dg)) {
     ml.push(`${m.name}のアーマーブレスが魔封じの魔法陣で無効になった！`);
     m.turnAttacks++;
@@ -2765,19 +2770,20 @@ function useArmorBreath(m, dg, ml) {
     if (inMagicSealRoom(m.x, m.y, dg) || monEffectiveMagicImmune(m)) {
       ml.push(`魔法は${m.name}に効かない！`);
     } else {
-      addArmorBreathBuff(m);
-      ml.push(`跳ね返ったアーマーブレスが${m.name}にかかり、防御力が${ARMOR_BREATH_DEF_BONUS}上がった！`);
+      addArmorBreathBuff(m, bonus);
+      ml.push(`跳ね返ったアーマーブレスが${m.name}にかかり、防御力が${bonus}上がった！`);
     }
     m.turnAttacks++;
     return true;
   }
-  addArmorBreathBuff(target);
+  addArmorBreathBuff(target, bonus);
   m.turnAttacks++;
-  ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が${ARMOR_BREATH_DEF_BONUS}上がった！`);
+  ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が${bonus}上がった！`);
   return true;
 }
 
 function useDiamondWeapon(m, dg, ml) {
+  const bonus = getDiamondWeaponAtkBonus(m);
   if (inMagicSealRoom(m.x, m.y, dg)) {
     ml.push(`${m.name}のダイヤモンドウエポンが魔封じの魔法陣で無効になった！`);
     m.turnAttacks++;
@@ -2801,15 +2807,15 @@ function useDiamondWeapon(m, dg, ml) {
     if (inMagicSealRoom(m.x, m.y, dg) || monEffectiveMagicImmune(m)) {
       ml.push(`魔法は${m.name}に効かない！`);
     } else {
-      addDiamondWeaponBuff(m);
-      ml.push(`跳ね返ったダイヤモンドウエポンが${m.name}にかかり、攻撃力が${DIAMOND_WEAPON_ATK_BONUS}上がった！`);
+      addDiamondWeaponBuff(m, bonus);
+      ml.push(`跳ね返ったダイヤモンドウエポンが${m.name}にかかり、攻撃力が${bonus}上がった！`);
     }
     m.turnAttacks++;
     return true;
   }
-  addDiamondWeaponBuff(target);
+  addDiamondWeaponBuff(target, bonus);
   m.turnAttacks++;
-  ml.push(`${m.name}がダイヤモンドウエポンを唱えた！${target === m ? "自分" : target.name}の攻撃力が${DIAMOND_WEAPON_ATK_BONUS}上がった！`);
+  ml.push(`${m.name}がダイヤモンドウエポンを唱えた！${target === m ? "自分" : target.name}の攻撃力が${bonus}上がった！`);
   return true;
 }
 

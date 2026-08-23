@@ -19,6 +19,16 @@ describe("スネークマン系", () => {
     expect(new Set(forms.map((m) => m.tile)).size).toBe(1);
   });
 
+  it("13階から出現し、レベル間に空白階を置く", () => {
+    const base = MONS.find((m) => m.baseKind === "lizardman");
+
+    expect([base.hp, base.atk, base.def, base.exp]).toEqual([43, 20, 5, 62]);
+    expect([base.minFloor, base.maxFloor]).toEqual([13, 17]);
+    expect(base.levels.map((level) => [level.minFloor, level.maxFloor])).toEqual([[20, 24], [27, 30]]);
+    expect(base.levels[0].dungeonFloors).toEqual({ intermediate: { min: 20, max: 20 }, advanced: { min: 20, max: 24 } });
+    expect(base.levels[1].dungeonFloors).toEqual({ advanced: { min: 27, max: 30 } });
+  });
+
   it("レベルアップしてもスタイル3の共通タイルを維持する", () => {
     const base = MONS.find((m) => m.baseKind === "lizardman");
     const mon = makeMonsterFromBase(base, 1, 5, 5);
@@ -56,8 +66,32 @@ describe("スネークマン系", () => {
     }
 
     expect(ally.def).toBe(13);
-    expect(snake.def).toBe(4);
+    expect(snake.def).toBe(5);
     expect(messages).toContain("スネークマンがアーマーブレスを唱えた！隣の敵の防御力が5上がった！");
+  });
+
+  it.each([[1, 5], [2, 7], [3, 10]])("Lv%dのアーマーブレスは1回で防御力を%d上げる", (level, bonus) => {
+    const base = MONS.find((m) => m.baseKind === "lizardman");
+    const mon = makeMonsterFromBase(base, level, 5, 5);
+    const initialDef = mon.def;
+
+    expect(addArmorBreathBuff(mon)).toBe(bonus);
+    expect(mon.def).toBe(initialDef + bonus);
+    expect(clearArmorBreathBuff(mon)).toBe(bonus);
+    expect(mon.def).toBe(initialDef);
+  });
+
+  it("レベルアップ後も既存の強化を維持し、次回から新レベル量を使う", () => {
+    const base = MONS.find((m) => m.baseKind === "lizardman");
+    const mon = makeMonsterFromBase(base, 1, 5, 5);
+    addArmorBreathBuff(mon);
+
+    expect(monLevelUp(mon, makeEmptyDg(), [])).toBe(true);
+    expect(mon.def).toBe(14);
+    addArmorBreathBuff(mon);
+    expect(mon.def).toBe(21);
+    expect(clearArmorBreathBuff(mon)).toBe(12);
+    expect(mon.def).toBe(9);
   });
 
   it("強化解除は重ねがけ分だけを解除する", () => {
@@ -131,7 +165,7 @@ describe("スネークマン系", () => {
     }
 
     expect(reflector.def).toBe(3);
-    expect(snake.def).toBe(9);
+    expect(snake.def).toBe(10);
     expect(messages).toContain("魔法反射の敵がアーマーブレスを反射した！");
     expect(messages).toContain("跳ね返ったアーマーブレスがスネークマンにかかり、防御力が5上がった！");
   });

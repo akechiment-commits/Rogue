@@ -18,6 +18,16 @@ describe("竜騎士系", () => {
     expect(forms.map((m) => m.kind)).toEqual(["dragon", "dragon", "dragon"]);
   });
 
+  it("13階から出現し、レベル間に空白階を置く", () => {
+    const base = MONS.find((m) => m.baseKind === "dragonknight");
+
+    expect([base.hp, base.atk, base.def, base.exp]).toEqual([43, 20, 5, 62]);
+    expect([base.minFloor, base.maxFloor]).toEqual([13, 17]);
+    expect(base.levels.map((level) => [level.minFloor, level.maxFloor])).toEqual([[20, 24], [27, 30]]);
+    expect(base.levels[0].dungeonFloors).toEqual({ intermediate: { min: 20, max: 20 }, advanced: { min: 20, max: 24 } });
+    expect(base.levels[1].dungeonFloors).toEqual({ advanced: { min: 27, max: 30 } });
+  });
+
   it("レベルアップしてもグラフィックは変わらない", () => {
     const base = MONS.find((m) => m.baseKind === "dragonknight");
     const mon = makeMonsterFromBase(base, 1, 5, 5);
@@ -28,7 +38,7 @@ describe("竜騎士系", () => {
     expect(mon.tile).toBe(205);
   });
 
-  it("ダイヤモンドウエポンで自分または隣接する味方の攻撃力を10上げる", () => {
+  it("Lv1のダイヤモンドウエポンで自分または隣接する味方の攻撃力を5上げる", () => {
     const base = MONS.find((m) => m.baseKind === "dragonknight");
     const knight = makeMonsterFromBase(base, 1, 5, 5);
     const ally = { id: "ally", name: "隣の敵", hp: 20, maxHp: 20, atk: 3, def: 3, x: 6, y: 5 };
@@ -49,9 +59,33 @@ describe("竜騎士系", () => {
       random.mockRestore();
     }
 
-    expect(knight.atk).toBe(14);
-    expect(ally.atk).toBe(13);
-    expect(messages).toContain("竜騎士がダイヤモンドウエポンを唱えた！隣の敵の攻撃力が10上がった！");
+    expect(knight.atk).toBe(20);
+    expect(ally.atk).toBe(8);
+    expect(messages).toContain("竜騎士がダイヤモンドウエポンを唱えた！隣の敵の攻撃力が5上がった！");
+  });
+
+  it.each([[1, 5], [2, 7], [3, 10]])("Lv%dのダイヤモンドウエポンは1回で攻撃力を%d上げる", (level, bonus) => {
+    const base = MONS.find((m) => m.baseKind === "dragonknight");
+    const mon = makeMonsterFromBase(base, level, 5, 5);
+    const initialAtk = mon.atk;
+
+    expect(addDiamondWeaponBuff(mon)).toBe(bonus);
+    expect(mon.atk).toBe(initialAtk + bonus);
+    expect(clearDiamondWeaponBuff(mon)).toBe(bonus);
+    expect(mon.atk).toBe(initialAtk);
+  });
+
+  it("レベルアップ後も既存の強化を維持し、次回から新レベル量を使う", () => {
+    const base = MONS.find((m) => m.baseKind === "dragonknight");
+    const mon = makeMonsterFromBase(base, 1, 5, 5);
+    addDiamondWeaponBuff(mon);
+
+    expect(monLevelUp(mon, makeEmptyDg(), [])).toBe(true);
+    expect(mon.atk).toBe(34);
+    addDiamondWeaponBuff(mon);
+    expect(mon.atk).toBe(41);
+    expect(clearDiamondWeaponBuff(mon)).toBe(12);
+    expect(mon.atk).toBe(29);
   });
 
   it("強化は重ねがけ分だけ解除でき、封印でも解除される", () => {
@@ -59,8 +93,8 @@ describe("竜騎士系", () => {
     addDiamondWeaponBuff(mon);
     addDiamondWeaponBuff(mon);
 
-    expect(mon.atk).toBe(34);
-    expect(clearDiamondWeaponBuff(mon)).toBe(20);
+    expect(mon.atk).toBe(24);
+    expect(clearDiamondWeaponBuff(mon)).toBe(10);
     expect(mon.atk).toBe(14);
     expect(mon.diamondWeaponBuffs).toBeUndefined();
 
@@ -87,7 +121,7 @@ describe("竜騎士系", () => {
           visible: Array.from({ length: 30 }, () => Array(40).fill(true)),
         });
         const messages = [];
-        knight.atk = 14;
+        knight.atk = 20;
         knight.diamondWeaponBuffs = undefined;
         knight.turnAttacks = 0;
         knight._rangedAttackThisTurn = true;
@@ -97,7 +131,7 @@ describe("竜騎士系", () => {
           expect(messages).toContain("魔法は魔法無効の敵に効かない！");
         } else {
           expect(target.atk).toBe(3);
-          expect(knight.atk).toBe(24);
+          expect(knight.atk).toBe(25);
           expect(messages).toContain("魔法反射の敵がダイヤモンドウエポンを反射した！");
         }
       }
@@ -108,12 +142,12 @@ describe("竜騎士系", () => {
         pentacles: [{ kind: "magic_seal", x: 5, y: 5, blessed: false, cursed: false }],
       });
       const sealedMessages = [];
-      knight.atk = 14;
+      knight.atk = 20;
       knight.diamondWeaponBuffs = undefined;
       knight.turnAttacks = 0;
       knight._rangedAttackThisTurn = true;
       monsterAI(knight, sealedDg, player, sealedMessages, { attackOnly: true });
-      expect(knight.atk).toBe(14);
+      expect(knight.atk).toBe(20);
     } finally {
       random.mockRestore();
     }
