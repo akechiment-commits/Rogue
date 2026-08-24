@@ -16,6 +16,7 @@ import {
   RAW_FOODS,
 } from "../items.js";
 import { FOOD_DESCS } from "../foodData.js";
+import { FOOD_DESCRIPTIONS } from "../foodDescriptions.js";
 
 describe("normalizeFavoriteFood", () => {
   it("前後空白を除去する", () => {
@@ -105,6 +106,7 @@ describe("getFoodBasePool / setFavoriteFoodBase", () => {
       .mockReturnValue(0);
     const food = genFood();
     expect(food._foodBase).toBe("おにぎり");
+    expect(food.desc).toContain(FOOD_DESCRIPTIONS[food._foodBase]);
     expect(food.desc).toContain(FOOD_DESCS[food.effect]);
     expect(food.desc).toContain("あなたの好物だ！");
   });
