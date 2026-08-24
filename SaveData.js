@@ -9,6 +9,7 @@ export const DEFAULT_SAVE = {
   graphicStyle: "",         /* 初回選択: mon1 / dawnlike / default */
   initialSetupComplete: false, /* 名前・食べ物・グラフィックスタイルの初回設定完了 */
   hubGold: 0,
+  carryGold: 0,             /* 次の冒険へ銀行から持ち込む金額 */
   warehouse: [],            /* array of item objects */
   hubInventory: [],         /* items player will carry into dungeon */
   warehouseMax: 100,        /* current max capacity */
@@ -36,6 +37,8 @@ export function loadSave() {
     return {
       ...DEFAULT_SAVE,
       ...data,
+      hubGold: Math.max(0, Math.floor(Number(data.hubGold) || 0)),
+      carryGold: Math.max(0, Math.floor(Number(data.carryGold) || 0)),
       hubInventory: [...(data.hubInventory || [])],
       discovered: {
         items:    { ...(data.discovered?.items    || {}) },

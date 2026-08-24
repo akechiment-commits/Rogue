@@ -542,7 +542,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       nextExp: 10,
       hunger: 100,
       maxHunger: 100,
-      gold: 0,
+      gold: dungeonConfig?.startGold || 0,
       depth: startDepth,
       weapon: null,
       armor: null,

@@ -3,6 +3,22 @@ import { sortWarehouseItems } from "./utils.js";
 /* ===== HUB WAREHOUSE PURE LOGIC =====
    拠点の倉庫・ショップまわりの判定（テスト可能な純関数） */
 
+/** 銀行から次の冒険へ持ち込む金額を、0〜銀行残高の整数へ丸める */
+export function clampCarryGold(bankGold, requestedGold) {
+  const bank = Math.max(0, Math.floor(Number(bankGold) || 0));
+  const requested = Math.max(0, Math.floor(Number(requestedGold) || 0));
+  return Math.min(bank, requested);
+}
+
+/** 冒険中の所持金を帰還時に銀行へ預ける（死亡時の引き継ぎ率にも対応） */
+export function depositDungeonGold(bankGold, dungeonGold, rate = 1) {
+  const bank = Math.max(0, Math.floor(Number(bankGold) || 0));
+  const gold = Math.max(0, Math.floor(Number(dungeonGold) || 0));
+  const safeRate = Math.max(0, Math.min(1, Number(rate) || 0));
+  const deposited = Math.floor(gold * safeRate);
+  return { bankGold: bank + deposited, deposited };
+}
+
 /** 倉庫が容量オーバー状態か（帰還時はオーバー可、通常操作・出発は不可） */
 export function isWarehouseOverCapacity(warehouseCount, maxCapacity) {
   return warehouseCount > (maxCapacity || 100);

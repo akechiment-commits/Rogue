@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { loadSave, writeSave, clearSave, mergeDiscoveries } from "./SaveData.js";
 import { resetDiscoveries } from "./DiscoveryTracker.js";
 import { loadGameState, clearGameSave } from "./GameSave.js";
-import { mergeReturnItemsToWarehouse } from "./hubWarehouse.js";
+import { clampCarryGold, depositDungeonGold, mergeReturnItemsToWarehouse } from "./hubWarehouse.js";
 import { rollHubShopStock } from "./hubShop.js";
 import { submitRunResult, RANKING_DUNGEON_IDS } from "./rankingClient.js";
 import RoguelikeGame from "./Game.jsx";
@@ -31,11 +31,17 @@ export default function App() {
     clearGameSave();
     returnedRef.current = false;
     setResumeState(null);
-    setDungeonConfig({ ...config, _key: Date.now() });
+    const startGold = clampCarryGold(saveData.hubGold, config.startGold ?? saveData.carryGold);
+    setDungeonConfig({ ...config, startGold, _key: Date.now() });
     /* 持参アイテムをダンジョンに移したのでhubInventoryをクリア */
-    updateSave(prev => ({ ...prev, hubInventory: [] }));
+    updateSave(prev => ({
+      ...prev,
+      hubGold: Math.max(0, (prev.hubGold || 0) - startGold),
+      carryGold: 0,
+      hubInventory: [],
+    }));
     setScreen("dungeon");
-  }, [updateSave]);
+  }, [saveData.carryGold, saveData.hubGold, updateSave]);
 
   /* Hub → Dungeon (resume from save) */
   const resumeDungeon = useCallback(() => {
@@ -102,7 +108,7 @@ export default function App() {
       const next = { ...prev };
       /* survived=true: 100% gold; death: 50% gold */
       const goldRate = result.survived ? 1.0 : 0.5;
-      next.hubGold = (prev.hubGold || 0) + Math.floor((result.earnedGold || 0) * goldRate);
+      next.hubGold = depositDungeonGold(prev.hubGold, result.earnedGold, goldRate).bankGold;
       if (!_alreadyRecorded) {
         next.totalRuns = (prev.totalRuns || 0) + 1;
         next.bestDepth = Math.max(prev.bestDepth || 0, result.depth || 0);

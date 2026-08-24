@@ -3,7 +3,7 @@ import { uid, sortWarehouseItems } from "./utils.js";
 import { clearSave } from "./SaveData.js";
 import { hasGameSave } from "./GameSave.js";
 import { itemPrice, ITEMS, WANDS, POTS, RINGS, TRAPS, BB_TYPES, WEAPON_ABILITIES, ARMOR_ABILITIES, potOccupancyCount } from "./items.js";
-import { validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
+import { clampCarryGold, validateHubShopPurchase, validateBulkToWarehouse, canStartAdventure, isWarehouseOverCapacity } from "./hubWarehouse.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { applyPlayerNameToSave, normalizePlayerName, PLAYER_NAME_MAX, playerLabel } from "./playerLabel.js";
 import {
@@ -640,6 +640,100 @@ function ItemManagementPanel({ saveData, updateSave, onClose }) {
   );
 }
 
+/* ===== 銀行パネル ===== */
+function BankPanel({ saveData, updateSave, onClose }) {
+  const bankGold = Math.max(0, Math.floor(Number(saveData.hubGold) || 0));
+  const [carryGold, setCarryGold] = useState(() => clampCarryGold(bankGold, saveData.carryGold));
+  const kbRef = useRef(null);
+
+  const commitCarryGold = (value) => {
+    const next = clampCarryGold(bankGold, value);
+    setCarryGold(next);
+    updateSave(prev => ({
+      ...prev,
+      carryGold: clampCarryGold(prev.hubGold, next),
+    }));
+  };
+
+  useEffect(() => {
+    setCarryGold(clampCarryGold(bankGold, saveData.carryGold));
+  }, [bankGold, saveData.carryGold]);
+
+  kbRef.current = { commitCarryGold, carryGold, onClose };
+  useEffect(() => {
+    const fn = (e) => {
+      const r = kbRef.current;
+      if (e.target?.tagName === "INPUT") return;
+      const k = e.key.toLowerCase();
+      if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
+      if (isKeyUp(e)) { e.preventDefault(); r.commitCarryGold(r.carryGold + 100); }
+      else if (isKeyDown(e)) { e.preventDefault(); r.commitCarryGold(r.carryGold - 100); }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, []);
+
+  const step = (amount) => commitCarryGold(carryGold + amount);
+
+  return (
+    <Panel title="銀行" onClose={onClose}>
+      <div style={{ color:"#8a9ab0", fontSize:11, lineHeight:"1.8em", marginBottom:12 }}>
+        ↑↓/テンキー8・2:持ち込み額を100Gずつ変更　X:閉じる
+      </div>
+      <div style={{ padding:"12px", background:"#0d0d18", border:`1px solid ${BDR}`, borderRadius:5, marginBottom:12 }}>
+        <div style={{ color:GOLD, fontSize:13 }}>銀行残高</div>
+        <div style={{ color:"#fff", fontSize:24, fontWeight:"bold", marginTop:4 }}>
+          {bankGold.toLocaleString()}G
+        </div>
+      </div>
+      <div style={{ padding:"12px", background:"#0d1820", border:"1px solid #2a4a6a", borderRadius:5 }}>
+        <div style={{ color:"#8cf", fontSize:13, marginBottom:8 }}>次の冒険への持ち込み額</div>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+          <input
+            type="number"
+            min="0"
+            max={bankGold}
+            step="1"
+            value={carryGold}
+            onChange={e => commitCarryGold(e.target.value)}
+            style={{ flex:1, minWidth:0, padding:"7px 8px", background:"#080810", color:"#fff",
+              border:"1px solid #406080", borderRadius:4, fontFamily:"monospace", fontSize:16 }}
+          />
+          <span style={{ color:"#8cf", fontWeight:"bold" }}>G</span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max={bankGold}
+          step="1"
+          value={carryGold}
+          onChange={e => commitCarryGold(e.target.value)}
+          style={{ width:"100%", accentColor:"#48a8e8", marginBottom:10 }}
+        />
+        <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+          {[[-1000,"−1000G"],[-100,"−100G"],[100,"+100G"],[1000,"+1000G"]].map(([amount, label]) => (
+            <button key={amount} onClick={() => step(amount)}
+              style={{ ...BTN, padding:"5px 8px", background:"#0d0d18", color:"#8cf", fontSize:11 }}>
+              {label}
+            </button>
+          ))}
+          <button onClick={() => commitCarryGold(0)}
+            style={{ ...BTN, padding:"5px 8px", background:"#0d0d18", color:"#aaa", fontSize:11 }}>
+            0G
+          </button>
+          <button onClick={() => commitCarryGold(bankGold)}
+            style={{ ...BTN, padding:"5px 8px", background:"#081828", color:"#8cf", fontSize:11 }}>
+            全額
+          </button>
+        </div>
+      </div>
+      <div style={{ color:"#777", fontSize:12, lineHeight:"1.6em", marginTop:12 }}>
+        出発時に持ち込み額を銀行から引き出します。地上へ戻ると、ダンジョン内の所持金は銀行へ自動的に預けられます。
+      </div>
+    </Panel>
+  );
+}
+
 /* ===== 図鑑パネル ===== */
 function EncyclopediaPanel({ saveData, onClose }) {
   const TABS = ["items", "monsters", "traps", "bigboxes", "tips"];
@@ -961,6 +1055,8 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
   const noticeTimerRef = useRef(null);
   const kbRef = useRef(null);
   const hubInv   = saveData.hubInventory || [];
+  const bankGold = Math.max(0, Math.floor(Number(saveData.hubGold) || 0));
+  const carryGold = clampCarryGold(bankGold, saveData.carryGold);
   const whCount  = (saveData.warehouse || []).length;
   const whMax    = saveData.warehouseMax || 100;
   const warehouseOver = isWarehouseOverCapacity(whCount, whMax);
@@ -997,7 +1093,7 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
       dungeonType: dtype,
       startDepth:  (isDebug || isTutorial) ? 1 : startDepth,
       maxFloors:   currentType.maxFloors,
-      startGold:   0,
+      startGold:   carryGold,
       startInventory: hubInv,
     });
   };
@@ -1091,6 +1187,13 @@ function DungeonEntrancePanel({ onClose, onStart, saveData }) {
           </div>
         </div>
       )}
+
+      {/* 持ち込み金プレビュー */}
+      <div style={{ marginBottom:10, padding:"8px 10px", background:"#0d1820",
+        border:"1px solid #2a4a6a", borderRadius:4 }}>
+        <div style={{ color:"#8cf", fontSize:12 }}>銀行から持ち込むお金: <strong>{carryGold.toLocaleString()}G</strong></div>
+        <div style={{ color:"#555", fontSize:10, marginTop:3 }}>銀行残高: {bankGold.toLocaleString()}G　※金額は「銀行」で変更できます</div>
+      </div>
 
       {/* 持参アイテムプレビュー */}
       <div style={{ marginBottom:14, padding:"8px 10px", background:"#0d0d18",
@@ -1952,7 +2055,7 @@ function SaveDataPanel({ saveData, updateSave, onClearSave, onClose }) {
 
 /* ===== メインHUBスクリーン ===== */
 export default function HubScreen({ saveData, updateSave, onStartDungeon, onResumeDungeon, onClearSave }) {
-  const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "shop" | "encyclopedia" | "savedata" | "ranking" */
+  const [panel, setPanel] = useState(null); /* "dungeon" | "items" | "bank" | "shop" | "encyclopedia" | "savedata" | "ranking" */
   const [mainFocus, setMainFocus] = useState(0);
   const kbRef = useRef(null);
 
@@ -1964,6 +2067,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   /* 名前 → 好きな食べ物 → グラフィックスタイルの順で初回設定する */
   const needsSetup = needsName || needsFood || needsStyle;
   const hubGold      = saveData.hubGold      || 0;
+  const carryGold    = clampCarryGold(hubGold, saveData.carryGold);
   const hubInvCount  = (saveData.hubInventory || []).length;
   const warehouseCount = (saveData.warehouse  || []).length;
   const warehouseMax     = saveData.warehouseMax || 100;
@@ -1999,7 +2103,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
   const resumeExists = hasGameSave() && !!onResumeDungeon;
   const mainItems = [
     ...(resumeExists                  ? [{ id:"resume" }]       : []),
-    { id:"dungeon" }, { id:"items" }, { id:"shop" },
+    { id:"dungeon" }, { id:"items" }, { id:"bank" }, { id:"shop" },
     { id:"encyclopedia" }, { id:"ranking" }, { id:"savedata" },
   ];
   const activateMain = (id) => {
@@ -2097,7 +2201,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       }}>
         <div style={{ textAlign:"center" }}>
           <div style={{ color:GOLD, fontWeight:"bold", fontSize:18 }}>{hubGold}G</div>
-          <div style={{ color:"#555", fontSize:10 }}>所持金</div>
+          <div style={{ color:"#555", fontSize:10 }}>銀行残高</div>
         </div>
         <div style={{ width:1, background:BDR }} />
         <div style={{ textAlign:"center" }}>
@@ -2160,6 +2264,9 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
         <HubBtn icon="🎒" label="荷物管理" btnId="items"
           sub={`持参${hubInvCount}・倉庫${warehouseCount}`}
           onClick={() => setPanel("items")} color="#8af" />
+        <HubBtn icon="🏦" label="銀行" btnId="bank"
+          sub={`残高${hubGold}G・持込${carryGold}G`}
+          onClick={() => setPanel("bank")} color="#8cf" />
         <HubBtn icon="🏪" label="ショップ" btnId="shop" sub="装備・道具"
           onClick={() => setPanel("shop")} color={GOLD} />
         <HubBtn icon="📖" label="図鑑"     btnId="encyclopedia" sub="発見記録"
@@ -2172,7 +2279,7 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
 
       {/* ヒント */}
       <div style={{ color:"#333", fontSize:11, textAlign:"center" }}>
-        ダンジョンで獲得した金貨の50%が地上に持ち帰られます
+        冒険中のお金は帰還時に銀行へ預けられます（死亡時は50%）
       </div>
       <div style={{ color:"#2a2a2a", fontSize:9, textAlign:"center", marginTop:8 }}>
         Tiles: <a href="https://opengameart.org/content/dawnlike-16x16-universal-rogue-like-tileset-v181" target="_blank" rel="noopener" style={{color:"#3a3a3a"}}>DawnLike</a> by DragonDePlatino / Palette by DawnBringer (CC-BY-SA 3.0)
@@ -2188,6 +2295,13 @@ export default function HubScreen({ saveData, updateSave, onStartDungeon, onResu
       )}
       {panel === "items" && (
         <ItemManagementPanel
+          saveData={saveData}
+          updateSave={updateSave}
+          onClose={() => setPanel(null)}
+        />
+      )}
+      {panel === "bank" && (
+        <BankPanel
           saveData={saveData}
           updateSave={updateSave}
           onClose={() => setPanel(null)}

@@ -1,11 +1,26 @@
 import { describe, it, expect } from "vitest";
 import {
+  clampCarryGold,
+  depositDungeonGold,
   validateHubShopPurchase,
   validateBulkToWarehouse,
   mergeReturnItemsToWarehouse,
   isWarehouseOverCapacity,
   canStartAdventure,
 } from "../hubWarehouse.js";
+
+describe("bank gold", () => {
+  it("持ち込み額を銀行残高以内に制限する", () => {
+    expect(clampCarryGold(1000, 250)).toBe(250);
+    expect(clampCarryGold(1000, 1500)).toBe(1000);
+    expect(clampCarryGold(1000, -1)).toBe(0);
+  });
+
+  it("帰還時に冒険中の所持金を銀行へ預ける", () => {
+    expect(depositDungeonGold(1000, 500, 1)).toEqual({ bankGold: 1500, deposited: 500 });
+    expect(depositDungeonGold(1000, 501, 0.5)).toEqual({ bankGold: 1250, deposited: 250 });
+  });
+});
 
 describe("isWarehouseOverCapacity", () => {
   it("上限ちょうどはオーバーではない", () => {
