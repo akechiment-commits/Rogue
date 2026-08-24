@@ -6194,8 +6194,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         if (p.inventory.length >= (p.maxInventory || 30)) {
           ml.push("食料生成の魔法を唱えた！しかし荷物がいっぱいで持てない！足元に落とした。");
           const _food = { ...genFood(), id: uid() };
-          markItemIdentifiedForDungeon(_food, dg);
-          dg.items.push({ ..._food, x: p.x, y: p.y });
+          placeItemAt(dg, p.x, p.y, _food, ml, new Set(), 0, p, p.x, p.y);
         } else {
           const _food = { ...genFood(), id: uid() };
           p.inventory.push(_food);
