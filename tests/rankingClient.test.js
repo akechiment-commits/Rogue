@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { fetchRanking, submitRunResult, validateSubmitPayload, RANKING_DUNGEON_IDS } from "../rankingClient.js";
+import { fetchRanking, isRankableRun, submitRunResult, validateSubmitPayload, RANKING_DUNGEON_IDS } from "../rankingClient.js";
 
 function makeStorage() {
   return {
@@ -37,6 +37,13 @@ describe("validateSubmitPayload", () => {
     expect(r.ok).toBe(true);
     expect(r.body.score).toBe(100);
     expect(r.body.playerName).toBe("テスト");
+  });
+
+  it("クリアまたは死亡だけをランキング対象にする", () => {
+    expect(isRankableRun({ cleared: true, survived: true })).toBe(true);
+    expect(isRankableRun({ cleared: false, survived: false })).toBe(true);
+    expect(isRankableRun({ cleared: false, survived: true })).toBe(false);
+    expect(validateSubmitPayload({ ...base, survived: true }).ok).toBe(false);
   });
 
   it("debug は拒否", () => {
@@ -85,5 +92,16 @@ describe("validateSubmitPayload", () => {
     });
     expect(ranking.entries).toHaveLength(1);
     expect(ranking.entries[0]).toMatchObject({ cleared: true, elapsedMs: 9000 });
+  });
+
+  it("既存のローカル生還記録も一覧から除外する", async () => {
+    localStorage.setItem("roguelike_ranking_local_v1", JSON.stringify([
+      { playerId: "pid-1", dungeonType: "beginner", cleared: false, survived: true, score: 999 },
+      { ...base, localId: "death", runId: "death" },
+    ]));
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const ranking = await fetchRanking({ board: "score", dungeon: "beginner", mine: true, playerId: "pid-1" });
+    expect(ranking.entries).toHaveLength(1);
+    expect(ranking.entries[0].runId).toBe("death");
   });
 });

@@ -1540,7 +1540,7 @@ function RankingPanel({ saveData, onClose }) {
       )}
       <div style={{ color:"#444", fontSize:10, marginTop:12, lineHeight:1.5 }}>
         スコア＝所持金＋所持品価値。クリアタイムは実時間（タブ非表示中は停止）。
-        結果が出るたびに記録されます。チュートリアルは対象外。
+        クリアまたは死亡時のみ記録されます。クリアアイテムなしの帰還とチュートリアルは対象外。
       </div>
     </Panel>
   );

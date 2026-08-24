@@ -12,6 +12,11 @@ export const RANKING_DUNGEON_IDS = RANKING_DUNGEONS.map((d) => d.id);
 const LOCAL_RANKING_KEY = "roguelike_ranking_local_v1";
 const LOCAL_RANKING_LIMIT = 1000;
 
+/** クリアまたは死亡として確定した結果だけをランキング対象にする。 */
+export function isRankableRun(result) {
+  return result?.cleared === true || result?.survived === false;
+}
+
 /**
  * @param {object} body
  * @returns {{ ok: true, body: object } | { ok: false, error: string }}
@@ -32,6 +37,7 @@ export function validateSubmitPayload(body) {
   if (!Number.isFinite(score) || score < 0) return { ok: false, error: "score invalid" };
   if (!Number.isFinite(turns) || turns < 0) return { ok: false, error: "turns invalid" };
   if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return { ok: false, error: "elapsedMs invalid" };
+  if (!isRankableRun(body)) return { ok: false, error: "only clear or death results can be ranked" };
   return {
     ok: true,
     body: {
@@ -64,7 +70,9 @@ function readLocalRuns() {
   try {
     if (typeof localStorage === "undefined") return [];
     const parsed = JSON.parse(localStorage.getItem(LOCAL_RANKING_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed.filter((entry) => entry && typeof entry === "object") : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((entry) => entry && typeof entry === "object" && isRankableRun(entry))
+      : [];
   } catch {
     return [];
   }
@@ -195,7 +203,7 @@ export async function fetchRanking(opts = {}) {
     if (data.offline) {
       return localOfflineResult(opts, board, dungeon, data.error || "offline");
     }
-    const serverEntries = Array.isArray(data.entries) ? data.entries : [];
+    const serverEntries = Array.isArray(data.entries) ? data.entries.filter(isRankableRun) : [];
     return {
       ok: true,
       offline: false,

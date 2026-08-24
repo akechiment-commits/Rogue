@@ -686,10 +686,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
 
   /* ── 探索実時間タイマー（タブ非表示中は停止・中断セーブで継続） ── */
   useEffect(() => {
-    if (!gs) return;
     const initial = resumeState ? (resumeState.runActiveMs || 0) : 0;
-    /* 既にタイマーがある場合は付け替えない（gs 更新でリセットしない） */
-    if (runTimerRef.current) return undefined;
     const timer = createRunTimer(initial);
     runTimerRef.current = timer;
     const detach = timer.attach();
@@ -697,7 +694,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       detach();
       if (runTimerRef.current === timer) runTimerRef.current = null;
     };
-  }, [gs]);
+  }, []);
 
   /* ── 自動セーブ: ゲーム状態が変わるたびにlocalStorageに保存 ── */
   useEffect(() => {
@@ -2085,6 +2082,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setShowScores(false);
     if (onReturnToHub && endingResult) onReturnToHub(endingResult);
   }, [onReturnToHub, endingResult]);
+
+  /* アイテム効果による強制帰還も、通常の帰還と同じくタイムを確定する。 */
+  const returnToHubFromItem = useCallback((result) => {
+    if (!onReturnToHub || !result) return;
+    runTimerRef.current?.freeze();
+    const p = sr.current?.player;
+    const extras = p ? buildRunResultExtras(p, runTimerRef.current) : {};
+    onReturnToHub({ ...result, ...extras });
+  }, [onReturnToHub]);
 
   const lastMoveAtRef = useRef(0);
   const act = useCallback(
@@ -4849,7 +4855,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setIdentifyMode, setRevealMode, setWishMode,
     lu, endTurn, chgFloor, withPitfallBag,
     dnameRef, bigboxAddItem,
-    onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
+    onReturnToHub: returnToHubFromItem, dropModeRef, setFloorSelectMode, setTpSelectMode,
     floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
   });
   doMarkerWriteRef.current = doMarkerWrite;

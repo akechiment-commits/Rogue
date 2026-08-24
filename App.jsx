@@ -4,7 +4,7 @@ import { resetDiscoveries } from "./DiscoveryTracker.js";
 import { loadGameState, clearGameSave } from "./GameSave.js";
 import { clampCarryGold, depositDungeonGold, mergeReturnItemsToWarehouse } from "./hubWarehouse.js";
 import { rollHubShopStock } from "./hubShop.js";
-import { submitRunResult, RANKING_DUNGEON_IDS } from "./rankingClient.js";
+import { isRankableRun, submitRunResult, RANKING_DUNGEON_IDS } from "./rankingClient.js";
 import RoguelikeGame from "./Game.jsx";
 import HubScreen from "./HubScreen.jsx";
 
@@ -54,6 +54,7 @@ export default function App() {
   }, []);
 
   const submitRankingIfEligible = useCallback((result) => {
+    if (!isRankableRun(result)) return;
     const rankPlayerId = saveData?.playerId || "";
     const rankPlayerName = saveData?.playerName || "";
     const dungeonType = result.dungeonType || dungeonConfig?.dungeonType || "beginner";

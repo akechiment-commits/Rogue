@@ -69,6 +69,10 @@ function parseRunHash(h) {
   };
 }
 
+function isRankableRun(run) {
+  return run?.cleared === true || run?.survived === false;
+}
+
 async function pruneBoard(redis, key, reverse) {
   const n = await redis.zcard(key);
   if (n <= MAX_BOARD) return;
@@ -104,6 +108,7 @@ async function loadEntries(redis, board, dungeon, limit, mine, playerId) {
       const raw = await redis.hgetall(runKey(runId));
       const run = parseRunHash(raw);
       if (!run || run.dungeonType !== dungeon) continue;
+      if (!isRankableRun(run)) continue;
       if (board === "clear" && !run.cleared) continue;
       let rank = null;
       if (board === "clear") {
@@ -144,6 +149,7 @@ async function loadEntries(redis, board, dungeon, limit, mine, playerId) {
     const raw = await redis.hgetall(runKey(id));
     const run = parseRunHash(raw);
     if (!run) continue;
+    if (!isRankableRun(run)) continue;
     entries.push({ ...run, rank: i + 1, total });
   }
   return { entries, total };
@@ -193,9 +199,12 @@ function validateBody(body) {
   const score = Math.floor(Number(body.score));
   const turns = Math.floor(Number(body.turns));
   const elapsedMs = Math.floor(Number(body.elapsedMs));
+  const cleared = !!body.cleared;
+  const survived = !!body.survived;
   if (!Number.isFinite(score) || score < 0 || score > 1e12) return { ok: false, error: "score invalid" };
   if (!Number.isFinite(turns) || turns < 0 || turns > 1e9) return { ok: false, error: "turns invalid" };
   if (!Number.isFinite(elapsedMs) || elapsedMs < 0 || elapsedMs > 1e12) return { ok: false, error: "elapsedMs invalid" };
+  if (!cleared && survived) return { ok: false, error: "only clear or death results can be ranked" };
   return {
     ok: true,
     data: {
@@ -207,8 +216,8 @@ function validateBody(body) {
       elapsedMs,
       depth: Math.max(0, Math.floor(Number(body.depth) || 0)),
       level: Math.max(0, Math.floor(Number(body.level) || 0)),
-      cleared: !!body.cleared,
-      survived: !!body.survived,
+      cleared,
+      survived,
       cause: String(body.cause || "").slice(0, 80),
       gold: Math.max(0, Math.floor(Number(body.gold) || 0)),
       itemsValue: Math.max(0, Math.floor(Number(body.itemsValue) || 0)),
