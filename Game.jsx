@@ -5172,6 +5172,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           </span>
         </span>{" "}
         <span style={{ color: "#ffd700" }}>${p.gold}</span>{" "}
+        <span style={{ color: (p.inventory?.length || 0) >= (p.maxInventory || 30) ? "#ff7070" : "#d6c08a" }}>
+          🎒{p.inventory?.length || 0}/{p.maxInventory || 30}
+        </span>{" "}
         {p.weapon && (
           <span style={{ color: "#ff9966", fontSize: "0.85em" }}>
             ⚔{p.weapon.name}{(p.weapon.plus || 0) !== 0 ? `${p.weapon.plus > 0 ? "+" : ""}${p.weapon.plus}` : ""}
