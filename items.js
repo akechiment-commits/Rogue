@@ -3095,10 +3095,10 @@ export function makeArrowUnitFromStack(stack) {
   return unit;
 }
 
-/* 通常投擲の補正攻撃力。武器・防具は素の値を使い、その他は種別ごとに固定値。 */
+/* 通常投擲の補正攻撃力。武器・防具は＋値込みの実効値を使い、その他は種別ごとに固定値。 */
 export function thrownItemAttack(item) {
-  if (item?.type === "weapon") return item.atk || 3;
-  if (item?.type === "armor") return item.def || 3;
+  if (item?.type === "weapon") return (item.atk || 3) + (item.plus || 0);
+  if (item?.type === "armor") return (item.def || 3) + (item.plus || 0);
   if (item?.type === "ring" || item?.type === "scroll") return 1;
   if (item?.type === "pot") return 5;
   if (item?.type === "bottle") return 3;
