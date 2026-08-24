@@ -80,6 +80,7 @@ import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
 import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip } from "./firstEncounterTips.js";
 import { makeRelicGuardian } from "./relicGuardian.js";
+import { isMonsterSpawnCellAllowed } from "./monsterSpawnRules.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -1755,6 +1756,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (_dg.map[_sy][_sx] !== T.FLOOR) continue;
               if (_sx === p.x && _sy === p.y) continue;
               if (monsterAt(_dg, _sx, _sy)) continue;
+              if (!isMonsterSpawnCellAllowed(_dg, _sx, _sy)) continue;
               /* ビッグルームはプレイヤーから8マス以上離れていれば可 */
               if (_dg.isBigRoom) {
                 if (Math.abs(_sx - p.x) + Math.abs(_sy - p.y) < 8) continue;
@@ -1788,6 +1790,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 if (_dg.map[_gy][_gx] !== T.FLOOR) continue;
                 if (_gx === p.x && _gy === p.y) continue;
                 if (monsterAt(_dg, _gx, _gy)) continue;
+                if (!isMonsterSpawnCellAllowed(_dg, _gx, _gy)) continue;
                 if (_dg.visible[_gy][_gx]) continue;
                 _ghostCands.push([_gx, _gy]);
               }
@@ -1815,6 +1818,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               if (_dg.map[_sy][_sx] !== T.FLOOR) continue;
               if (_sx === p.x && _sy === p.y) continue;
               if (monsterAt(_dg, _sx, _sy)) continue;
+              if (!isMonsterSpawnCellAllowed(_dg, _sx, _sy)) continue;
               if (_dg.isBigRoom) {
                 if (Math.abs(_sx - p.x) + Math.abs(_sy - p.y) < 8) continue;
               } else {
