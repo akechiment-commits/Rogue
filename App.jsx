@@ -4,7 +4,7 @@ import { resetDiscoveries } from "./DiscoveryTracker.js";
 import { loadGameState, clearGameSave } from "./GameSave.js";
 import { clampCarryGold, depositDungeonGold, mergeReturnItemsToWarehouse } from "./hubWarehouse.js";
 import { rollHubShopStock } from "./hubShop.js";
-import { isRankableRun, submitRunResult, RANKING_DUNGEON_IDS } from "./rankingClient.js";
+import { isCarryInRun, isRankableRun, submitRunResult, RANKING_DUNGEON_IDS } from "./rankingClient.js";
 import RoguelikeGame from "./Game.jsx";
 import HubScreen from "./HubScreen.jsx";
 
@@ -58,6 +58,7 @@ export default function App() {
     const rankPlayerId = saveData?.playerId || "";
     const rankPlayerName = saveData?.playerName || "";
     const dungeonType = result.dungeonType || dungeonConfig?.dungeonType || "beginner";
+    const carryIn = result.carryIn ?? isCarryInRun(dungeonConfig);
     if (
       rankPlayerId &&
       rankPlayerName &&
@@ -74,6 +75,7 @@ export default function App() {
         level: result.level ?? 0,
         cleared: !!result.cleared,
         survived: !!result.survived,
+        carryIn,
         cause: result.cause || "",
         gold: result.gold ?? result.earnedGold ?? 0,
         itemsValue: result.itemsValue ?? 0,

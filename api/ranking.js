@@ -1,7 +1,7 @@
 /**
  * Vercel Serverless: オンラインランキング
- * GET  /api/ranking?board=score|clear&dungeon=beginner&limit=50
- * GET  /api/ranking?board=score&dungeon=beginner&mine=1&playerId=...
+ * GET  /api/ranking?board=score|clear&dungeon=beginner&carry=0|1&limit=50
+ * GET  /api/ranking?board=score&dungeon=beginner&carry=0|1&mine=1&playerId=...
  * GET  /api/ranking?stats=1
  * POST /api/ranking  body: run result
  *
@@ -35,11 +35,11 @@ function getRedis() {
   return new Redis({ url, token });
 }
 
-function scoreKey(dungeon) {
-  return `rank:score:${dungeon}`;
+function scoreKey(dungeon, carryIn = false) {
+  return `rank:score:${dungeon}:${carryIn ? "1" : "0"}`;
 }
-function clearKey(dungeon) {
-  return `rank:clear:${dungeon}`;
+function clearKey(dungeon, carryIn = false) {
+  return `rank:clear:${dungeon}:${carryIn ? "1" : "0"}`;
 }
 function runKey(runId) {
   return `run:${runId}`;
@@ -62,6 +62,7 @@ function parseRunHash(h) {
     level: Number(h.level) || 0,
     cleared: h.cleared === true || h.cleared === "true" || h.cleared === 1 || h.cleared === "1",
     survived: h.survived === true || h.survived === "true" || h.survived === 1 || h.survived === "1",
+    carryIn: h.carryIn === true || h.carryIn === "true" || h.carryIn === 1 || h.carryIn === "1",
     cause: h.cause || "",
     gold: Number(h.gold) || 0,
     itemsValue: Number(h.itemsValue) || 0,
@@ -86,29 +87,37 @@ async function pruneBoard(redis, key, reverse) {
   }
 }
 
-async function handleStats(redis, res) {
+async function handleStats(redis, res, url = null) {
   if (!redis) {
     return json(res, 200, { offline: true, totalRuns: 0, clears: {} });
   }
   const totalRuns = Number(await redis.get("stats:totalRuns")) || 0;
   const clears = {};
+  const requestedDungeon = url?.searchParams.get("dungeon");
+  const carryIn = url?.searchParams.get("carry") === "1";
+  if (ALLOWED_DUNGEONS.includes(requestedDungeon)) {
+    clears[requestedDungeon] = Number(await redis.get(`stats:clears:${requestedDungeon}:${carryIn ? "1" : "0"}`)) || 0;
+    return json(res, 200, { offline: false, totalRuns, clears });
+  }
   for (const d of ALLOWED_DUNGEONS) {
-    clears[d] = Number(await redis.get(`stats:clears:${d}`)) || 0;
+    clears[d] = (Number(await redis.get(`stats:clears:${d}:0`)) || 0) +
+      (Number(await redis.get(`stats:clears:${d}:1`)) || 0);
   }
   return json(res, 200, { offline: false, totalRuns, clears });
 }
 
-async function loadEntries(redis, board, dungeon, limit, mine, playerId) {
+async function loadEntries(redis, board, dungeon, carryIn, limit, mine, playerId) {
   if (mine && playerId) {
     const ids = await redis.lrange(playerRunsKey(playerId), 0, MAX_MINE - 1);
     const entries = [];
-    const boardKey = board === "clear" ? clearKey(dungeon) : scoreKey(dungeon);
+    const boardKey = board === "clear" ? clearKey(dungeon, carryIn) : scoreKey(dungeon, carryIn);
     const total = Number(await redis.zcard(boardKey)) || 0;
     for (const runId of ids || []) {
       const raw = await redis.hgetall(runKey(runId));
       const run = parseRunHash(raw);
       if (!run || run.dungeonType !== dungeon) continue;
       if (!isRankableRun(run)) continue;
+      if (run.carryIn !== carryIn) continue;
       if (board === "clear" && !run.cleared) continue;
       let rank = null;
       if (board === "clear") {
@@ -124,7 +133,7 @@ async function loadEntries(redis, board, dungeon, limit, mine, playerId) {
     return { entries, total };
   }
 
-  const boardKey = board === "clear" ? clearKey(dungeon) : scoreKey(dungeon);
+  const boardKey = board === "clear" ? clearKey(dungeon, carryIn) : scoreKey(dungeon, carryIn);
   const total = Number(await redis.zcard(boardKey)) || 0;
   let pairs;
   if (board === "clear") {
@@ -150,6 +159,7 @@ async function loadEntries(redis, board, dungeon, limit, mine, playerId) {
     const run = parseRunHash(raw);
     if (!run) continue;
     if (!isRankableRun(run)) continue;
+    if (run.carryIn !== carryIn) continue;
     entries.push({ ...run, rank: i + 1, total });
   }
   return { entries, total };
@@ -158,10 +168,11 @@ async function loadEntries(redis, board, dungeon, limit, mine, playerId) {
 async function handleGet(req, res, redis) {
   const url = new URL(req.url || "/", "http://localhost");
   if (url.searchParams.get("stats") === "1") {
-    return handleStats(redis, res);
+    return handleStats(redis, res, url);
   }
   const board = url.searchParams.get("board") === "clear" ? "clear" : "score";
   const dungeon = url.searchParams.get("dungeon") || "beginner";
+  const carryIn = url.searchParams.get("carry") === "1";
   if (!ALLOWED_DUNGEONS.includes(dungeon)) {
     return json(res, 400, { error: "invalid dungeon" });
   }
@@ -180,7 +191,7 @@ async function handleGet(req, res, redis) {
   }
 
   try {
-    const { entries, total } = await loadEntries(redis, board, dungeon, limit, mine, playerId);
+    const { entries, total } = await loadEntries(redis, board, dungeon, carryIn, limit, mine, playerId);
     return json(res, 200, { offline: false, board, dungeon, entries, total });
   } catch (e) {
     console.error("ranking GET", e);
@@ -201,6 +212,7 @@ function validateBody(body) {
   const elapsedMs = Math.floor(Number(body.elapsedMs));
   const cleared = !!body.cleared;
   const survived = !!body.survived;
+  const carryIn = body.carryIn === true || body.carryIn === "true" || body.carryIn === 1 || body.carryIn === "1";
   if (!Number.isFinite(score) || score < 0 || score > 1e12) return { ok: false, error: "score invalid" };
   if (!Number.isFinite(turns) || turns < 0 || turns > 1e9) return { ok: false, error: "turns invalid" };
   if (!Number.isFinite(elapsedMs) || elapsedMs < 0 || elapsedMs > 1e12) return { ok: false, error: "elapsedMs invalid" };
@@ -218,6 +230,7 @@ function validateBody(body) {
       level: Math.max(0, Math.floor(Number(body.level) || 0)),
       cleared,
       survived,
+      carryIn,
       cause: String(body.cause || "").slice(0, 80),
       gold: Math.max(0, Math.floor(Number(body.gold) || 0)),
       itemsValue: Math.max(0, Math.floor(Number(body.itemsValue) || 0)),
@@ -265,6 +278,7 @@ async function handlePost(req, res, redis) {
       level: d.level,
       cleared: d.cleared ? "1" : "0",
       survived: d.survived ? "1" : "0",
+      carryIn: d.carryIn ? "1" : "0",
       cause: d.cause,
       gold: d.gold,
       itemsValue: d.itemsValue,
@@ -272,15 +286,15 @@ async function handlePost(req, res, redis) {
     };
 
     await redis.hset(runKey(runId), hash);
-    await redis.zadd(scoreKey(d.dungeonType), { score: d.score, member: runId });
-    await pruneBoard(redis, scoreKey(d.dungeonType), true);
+    await redis.zadd(scoreKey(d.dungeonType, d.carryIn), { score: d.score, member: runId });
+    await pruneBoard(redis, scoreKey(d.dungeonType, d.carryIn), true);
 
     let clearRank = null;
     if (d.cleared) {
-      await redis.zadd(clearKey(d.dungeonType), { score: d.elapsedMs, member: runId });
-      await pruneBoard(redis, clearKey(d.dungeonType), false);
-      await redis.incr(`stats:clears:${d.dungeonType}`);
-      const cr = await redis.zrank(clearKey(d.dungeonType), runId);
+      await redis.zadd(clearKey(d.dungeonType, d.carryIn), { score: d.elapsedMs, member: runId });
+      await pruneBoard(redis, clearKey(d.dungeonType, d.carryIn), false);
+      await redis.incr(`stats:clears:${d.dungeonType}:${d.carryIn ? "1" : "0"}`);
+      const cr = await redis.zrank(clearKey(d.dungeonType, d.carryIn), runId);
       clearRank = cr == null ? null : cr + 1;
     }
 
@@ -288,7 +302,7 @@ async function handlePost(req, res, redis) {
     await redis.ltrim(playerRunsKey(d.playerId), 0, MAX_MINE - 1);
     await redis.incr("stats:totalRuns");
 
-    const sr = await redis.zrevrank(scoreKey(d.dungeonType), runId);
+    const sr = await redis.zrevrank(scoreKey(d.dungeonType, d.carryIn), runId);
     const scoreRank = sr == null ? null : sr + 1;
 
     return json(res, 200, {

@@ -1264,13 +1264,14 @@ function RankingPanel({ saveData, onClose }) {
   const [scope, setScope] = useState("all"); /* all | mine */
   const [board, setBoard] = useState("score"); /* score | clear */
   const [dungeon, setDungeon] = useState("beginner");
+  const [carryMode, setCarryMode] = useState("none"); /* none | carry */
   const [entries, setEntries] = useState([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState({ totalRuns: 0, clears: {} });
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [error, setError] = useState("");
-  /* focusArea: 0=scope 1=board 2=dungeon 3=list */
+  /* focusArea: 0=scope 1=board 2=dungeon 3=carry 4=list */
   const [focusArea, setFocusArea] = useState(0);
   const [listFocus, setListFocus] = useState(0);
   const kbRef = useRef(null);
@@ -1289,11 +1290,12 @@ function RankingPanel({ saveData, onClose }) {
         fetchRanking({
           board,
           dungeon,
+          carryIn: carryMode === "carry",
           limit: 50,
           mine: scope === "mine",
           playerId: scope === "mine" ? playerId : undefined,
         }),
-        fetchRankingStats(),
+        fetchRankingStats({ dungeon, carryIn: carryMode === "carry" }),
       ]);
       if (cancelled) return;
       setOffline(!!(list.offline || st.offline));
@@ -1305,16 +1307,17 @@ function RankingPanel({ saveData, onClose }) {
       setListFocus(0);
     })();
     return () => { cancelled = true; };
-  }, [scope, board, dungeon, playerId]);
+  }, [scope, board, dungeon, carryMode, playerId]);
 
   useEffect(() => {
-    if (focusArea !== 3) return;
+    if (focusArea !== 4) return;
     listRowRefs.current[listFocus]?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   }, [listFocus, focusArea, entries]);
 
   kbRef.current = {
     onClose, focusArea, setFocusArea, listFocus, setListFocus,
-    scope, setScope, board, setBoard, dungeon, setDungeon,
+    scope, setScope, board, setBoard, dungeon, setDungeon, carryMode, setCarryMode,
+    carryModes: ["none", "carry"],
     entries, SCOPES, BOARDS, dungeons: RANKING_DUNGEONS,
   };
 
@@ -1329,9 +1332,9 @@ function RankingPanel({ saveData, onClose }) {
       }
       if (isKeyUp(e)) {
         e.preventDefault();
-        if (r.focusArea === 3) {
+        if (r.focusArea === 4) {
           if (r.listFocus > 0) r.setListFocus(r.listFocus - 1);
-          else r.setFocusArea(2);
+          else r.setFocusArea(3);
         } else {
           r.setFocusArea(a => Math.max(0, a - 1));
         }
@@ -1339,9 +1342,9 @@ function RankingPanel({ saveData, onClose }) {
       }
       if (isKeyDown(e)) {
         e.preventDefault();
-        if (r.focusArea < 3) {
+        if (r.focusArea < 4) {
           r.setFocusArea(a => a + 1);
-          if (r.focusArea + 1 === 3) r.setListFocus(0);
+          if (r.focusArea + 1 === 4) r.setListFocus(0);
         } else if (r.entries.length > 0) {
           r.setListFocus(i => Math.min(r.entries.length - 1, i + 1));
         }
@@ -1360,7 +1363,10 @@ function RankingPanel({ saveData, onClose }) {
           const i = r.dungeons.findIndex(d => d.id === r.dungeon);
           const ni = (i + dir + r.dungeons.length) % r.dungeons.length;
           r.setDungeon(r.dungeons[ni].id);
-        } else if (r.focusArea === 3 && r.entries.length > 0) {
+        } else if (r.focusArea === 3) {
+          const i = r.carryModes.indexOf(r.carryMode);
+          r.setCarryMode(r.carryModes[(i + dir + r.carryModes.length) % r.carryModes.length]);
+        } else if (r.focusArea === 4 && r.entries.length > 0) {
           r.setListFocus(i => {
             const n = r.entries.length;
             return (i + dir + n) % n;
@@ -1369,7 +1375,7 @@ function RankingPanel({ saveData, onClose }) {
         return;
       }
       /* PageUp/PageDown: 一覧を大きく移動 */
-      if (r.focusArea === 3 && r.entries.length > 0) {
+      if (r.focusArea === 4 && r.entries.length > 0) {
         if (k === "pageup") {
           e.preventDefault();
           r.setListFocus(i => Math.max(0, i - 10));
@@ -1457,6 +1463,38 @@ function RankingPanel({ saveData, onClose }) {
           })}
         </div>
       </div>
+      <div style={{ marginBottom:10 }}>
+        <div style={{
+          display:"flex", flexWrap:"wrap", gap:6,
+          padding: focusArea === 3 ? 4 : 0,
+          borderRadius:6,
+          border: focusArea === 4 ? "1px solid #2a4a6a" : "1px solid transparent",
+        }}>
+          {[
+            { id:"none", label:"持ち込みなし" },
+            { id:"carry", label:"持ち込みあり" },
+          ].map((mode) => {
+            const active = carryMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => { setCarryMode(mode.id); setFocusArea(3); }}
+                style={{
+                  ...BTN, padding:"8px 12px", fontSize:12,
+                  background: active ? "#1a2840" : CARD,
+                  color: active ? "#fc8" : "#888",
+                  borderColor: active ? "#a80" : BDR,
+                  fontWeight: active ? "bold" : "normal",
+                  ...focusRing(focusArea === 3 && active),
+                }}
+              >
+                {mode.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div style={{
         display:"flex", gap:16, flexWrap:"wrap", marginBottom:12,
         padding:"8px 10px", background:"#0a0a12", borderRadius:5, fontSize:12, color:"#aaa",
@@ -1474,7 +1512,7 @@ function RankingPanel({ saveData, onClose }) {
       ) : entries.length === 0 ? (
         <div style={{
           color:"#666", padding:20, textAlign:"center",
-          border: focusArea === 3 ? "1px solid #2a4a6a" : "1px solid transparent",
+          border: focusArea === 4 ? "1px solid #2a4a6a" : "1px solid transparent",
           borderRadius:6,
         }}>
           {scope === "mine" ? "まだ自分の記録がありません。" : "まだ記録がありません。"}
@@ -1482,9 +1520,9 @@ function RankingPanel({ saveData, onClose }) {
       ) : (
         <div style={{
           overflowX:"auto",
-          border: focusArea === 3 ? "1px solid #2a4a6a" : "1px solid transparent",
+          border: focusArea === 4 ? "1px solid #2a4a6a" : "1px solid transparent",
           borderRadius:6,
-          padding: focusArea === 3 ? 4 : 0,
+          padding: focusArea === 4 ? 4 : 0,
         }}>
           <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12, color:TXT }}>
             <thead>
@@ -1509,7 +1547,7 @@ function RankingPanel({ saveData, onClose }) {
                   : `${e.score?.toLocaleString?.() ?? e.score}G`;
                 const result = e.cleared ? "クリア" : e.survived ? "生還" : "死亡";
                 const resultColor = e.cleared ? "#8f8" : e.survived ? "#8cf" : "#f88";
-                const rowFocus = focusArea === 3 && listFocus === i;
+                const rowFocus = focusArea === 4 && listFocus === i;
                 return (
                   <tr
                     key={e.runId || i}
@@ -1540,7 +1578,7 @@ function RankingPanel({ saveData, onClose }) {
       )}
       <div style={{ color:"#444", fontSize:10, marginTop:12, lineHeight:1.5 }}>
         スコア＝所持金＋所持品価値。クリアタイムは実時間（タブ非表示中は停止）。
-        クリアまたは死亡時のみ記録されます。クリアアイテムなしの帰還とチュートリアルは対象外。
+        持ち込み区分ごとに分離表示。クリアまたは死亡時のみ記録され、クリアアイテムなしの帰還とチュートリアルは対象外。
       </div>
     </Panel>
   );

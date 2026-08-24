@@ -17,6 +17,11 @@ export function isRankableRun(result) {
   return result?.cleared === true || result?.survived === false;
 }
 
+/** 開始時に持ち込み金または持ち込みアイテムがあった冒険か。 */
+export function isCarryInRun(config) {
+  return Number(config?.startGold) > 0 || (Array.isArray(config?.startInventory) && config.startInventory.length > 0);
+}
+
 /**
  * @param {object} body
  * @returns {{ ok: true, body: object } | { ok: false, error: string }}
@@ -51,6 +56,7 @@ export function validateSubmitPayload(body) {
       level: Number.isFinite(level) ? Math.floor(level) : 0,
       cleared: !!body.cleared,
       survived: !!body.survived,
+      carryIn: body.carryIn === true,
       cause: String(body.cause || "").slice(0, 80),
       itemsValue: Number.isFinite(Number(body.itemsValue)) ? Math.floor(Number(body.itemsValue)) : 0,
       gold: Number.isFinite(Number(body.gold)) ? Math.floor(Number(body.gold)) : 0,
@@ -125,12 +131,14 @@ function localRunSignature(entry) {
     entry.depth,
     entry.level,
     entry.cleared ? 1 : 0,
+    entry.carryIn ? 1 : 0,
   ].join("|");
 }
 
-function getLocalRanking({ board, dungeon, playerId, limit = 50, pendingOnly = false } = {}) {
+function getLocalRanking({ board, dungeon, playerId, carryIn = false, limit = 50, pendingOnly = false } = {}) {
   const runs = readLocalRuns()
     .filter((entry) => entry.playerId === playerId && entry.dungeonType === dungeon)
+    .filter((entry) => carryIn ? entry.carryIn === true : entry.carryIn !== true)
     .filter((entry) => board !== "clear" || entry.cleared)
     .filter((entry) => !pendingOnly || !entry.serverSubmitted);
   runs.sort((a, b) => {
@@ -152,7 +160,7 @@ function getLocalRanking({ board, dungeon, playerId, limit = 50, pendingOnly = f
 
 function localOfflineResult(opts, board, dungeon, error = "offline") {
   const local = opts.mine && opts.playerId
-    ? getLocalRanking({ board, dungeon, playerId: opts.playerId, limit: opts.limit })
+    ? getLocalRanking({ board, dungeon, playerId: opts.playerId, carryIn: opts.carryIn, limit: opts.limit })
     : { entries: [], total: 0 };
   return {
     ok: true,
@@ -172,6 +180,7 @@ function mergePendingLocalEntries(entries, opts, board, dungeon, limit) {
     board,
     dungeon,
     playerId: opts.playerId,
+    carryIn: opts.carryIn,
     limit,
     pendingOnly: true,
   }).entries;
@@ -190,13 +199,14 @@ export async function fetchRanking(opts = {}) {
   const dungeon = RANKING_DUNGEON_IDS.includes(opts.dungeon) ? opts.dungeon : "beginner";
   const limit = Math.min(100, Math.max(1, Number(opts.limit) || 50));
   const params = new URLSearchParams({ board, dungeon, limit: String(limit) });
+  if (opts.carryIn !== undefined) params.set("carry", opts.carryIn ? "1" : "0");
   if (opts.mine && opts.playerId) {
     params.set("mine", "1");
     params.set("playerId", opts.playerId);
   }
   try {
     const res = await fetch(`/api/ranking?${params}`, { method: "GET" });
-    const data = await parseJson(res);
+      const data = await parseJson(res);
     if (!res.ok || !data) {
       return localOfflineResult(opts, board, dungeon, data?.error || "fetch failed");
     }
@@ -218,9 +228,12 @@ export async function fetchRanking(opts = {}) {
 }
 
 /** 全体統計 */
-export async function fetchRankingStats() {
+export async function fetchRankingStats(opts = {}) {
   try {
-    const res = await fetch("/api/ranking?stats=1", { method: "GET" });
+    const params = new URLSearchParams({ stats: "1" });
+    if (RANKING_DUNGEON_IDS.includes(opts.dungeon)) params.set("dungeon", opts.dungeon);
+    if (opts.carryIn !== undefined) params.set("carry", opts.carryIn ? "1" : "0");
+    const res = await fetch(`/api/ranking?${params}`, { method: "GET" });
     const data = await parseJson(res);
     if (!res.ok || !data) {
       return { ok: false, offline: true, totalRuns: 0, clears: {} };

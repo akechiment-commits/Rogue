@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { fetchRanking, isRankableRun, submitRunResult, validateSubmitPayload, RANKING_DUNGEON_IDS } from "../rankingClient.js";
+import { fetchRanking, isCarryInRun, isRankableRun, submitRunResult, validateSubmitPayload, RANKING_DUNGEON_IDS } from "../rankingClient.js";
 
 function makeStorage() {
   return {
@@ -44,6 +44,12 @@ describe("validateSubmitPayload", () => {
     expect(isRankableRun({ cleared: false, survived: false })).toBe(true);
     expect(isRankableRun({ cleared: false, survived: true })).toBe(false);
     expect(validateSubmitPayload({ ...base, survived: true }).ok).toBe(false);
+  });
+
+  it("持ち込み金または持ち込みアイテムの有無を判定する", () => {
+    expect(isCarryInRun({ startGold: 1, startInventory: [] })).toBe(true);
+    expect(isCarryInRun({ startGold: 0, startInventory: [{ name: "短剣" }] })).toBe(true);
+    expect(isCarryInRun({ startGold: 0, startInventory: [] })).toBe(false);
   });
 
   it("debug は拒否", () => {
@@ -103,5 +109,18 @@ describe("validateSubmitPayload", () => {
     const ranking = await fetchRanking({ board: "score", dungeon: "beginner", mine: true, playerId: "pid-1" });
     expect(ranking.entries).toHaveLength(1);
     expect(ranking.entries[0].runId).toBe("death");
+  });
+
+  it("持ち込みあり・なしのローカル記録を分ける", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    await submitRunResult({ ...base, score: 100, carryIn: false });
+    await submitRunResult({ ...base, score: 200, carryIn: true });
+
+    const noCarry = await fetchRanking({ board: "score", dungeon: "beginner", carryIn: false, mine: true, playerId: "pid-1" });
+    const withCarry = await fetchRanking({ board: "score", dungeon: "beginner", carryIn: true, mine: true, playerId: "pid-1" });
+    expect(noCarry.entries).toHaveLength(1);
+    expect(noCarry.entries[0].score).toBe(100);
+    expect(withCarry.entries).toHaveLength(1);
+    expect(withCarry.entries[0].score).toBe(200);
   });
 });
