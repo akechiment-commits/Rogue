@@ -11,7 +11,7 @@ import {
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
-  placeItemAt, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
+  placeItemAt, markItemIdentifiedForDungeon, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
@@ -1092,6 +1092,7 @@ export function useItemActions({
             const [_rx, _ry] = pick(_floorCands);
             gi.x = _rx; gi.y = _ry;
             delete gi.wallEmbedded;
+            markItemIdentifiedForDungeon(gi, dg);
             dg.items.push(gi);
           }
           ml.push(`${_cnt}個のアイテムがフロアに散らばった！【呪】`);
@@ -1146,6 +1147,7 @@ export function useItemActions({
                 if (dg.items.some((i) => i.x === _cx && i.y === _cy)) continue;
                 gi.x = _cx; gi.y = _cy;
                 delete gi.wallEmbedded;
+                markItemIdentifiedForDungeon(gi, dg);
                 dg.items.push(gi);
                 _placed = true;
                 break;

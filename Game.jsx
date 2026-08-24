@@ -22,7 +22,7 @@ import {
   checkShopTheft, declareShopTheft, canCalmShopkeeper, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
-  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear,
+  hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
@@ -600,8 +600,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         ])
       : new Set();
     const _allBcKnown = _dt === "debug" || _dt === "beginner";
+    setDungeonAllBcKnown(d, _allBcKnown);
     if (_allBcKnown) {
-      [...p.inventory, ...d.items].forEach(it => { it.fullIdent = true; it.bcKnown = true; });
+      p.inventory.forEach(it => { it.fullIdent = true; it.bcKnown = true; });
       d.bigboxes?.forEach(bb => trackBigbox(bb));
     } else {
       d.bigboxes?.forEach(bb => { bb.revealed = false; });
@@ -643,10 +644,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (playerName) _resumePlayer.playerName = playerName;
       setActivePlayerName(_resumePlayer.playerName || playerName || "");
       setFavoriteFoodBase(favoriteFood);
+      const _resumeAllBcKnown = resumeState.allBcKnown ??
+        (resumeState.dungeonType === "debug" || resumeState.dungeonType === "beginner");
+      const _resumeDungeon = resumeState.dungeon;
+      const _resumeFloors = resumeState.floors || {};
+      setDungeonAllBcKnown(_resumeDungeon, _resumeAllBcKnown);
+      Object.values(_resumeFloors).forEach(floor => setDungeonAllBcKnown(floor, _resumeAllBcKnown));
       const rs = {
         player: _resumePlayer,
-        dungeon: resumeState.dungeon,
-        floors: resumeState.floors || {},
+        dungeon: _resumeDungeon,
+        floors: _resumeFloors,
         ident: resumeState.ident,
         fakeNames: resumeState.fakeNames,
         bbFakeNames: resumeState.bbFakeNames,
@@ -654,7 +661,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         isDebugRun: resumeState.isDebugRun,
         dungeonType: resumeState.dungeonType,
         maxDepth: resumeState.maxDepth,
-        allBcKnown: resumeState.allBcKnown,
+        allBcKnown: _resumeAllBcKnown,
         floorTurns: resumeState.floorTurns || 0,
         runActiveMs: resumeState.runActiveMs || 0,
         penSpriteMap: resumeState.penSpriteMap || Object.fromEntries([...new Set(ITEMS.filter(i => i.type === 'pen').map(i => i.effect))].map(e => [e, Math.floor(Math.random() * 9) + 1])),
@@ -1551,6 +1558,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     } else {
       d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
     }
+    setDungeonAllBcKnown(d, !!sr.current.allBcKnown);
     /* 最下層：isLastFloor 未設定なら必ずキーアイテムを配置
        （落とし穴プリキャッシュや呪いテレポで _saved が先行生成された場合も救済） */
     if (!_isLastFloorPitfall && _maxD !== null && nd >= _maxD && !d.isLastFloor && sr.current.dungeonType !== "tutorial") {
@@ -1565,12 +1573,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _dt = sr.current.dungeonType || "beginner";
         const _gtmpl = GOAL_ITEMS[_dt] || GOAL_ITEMS.beginner;
         const _goalPos = getLastFloorGoalPosition(d);
-        d.items.push({ ..._gtmpl, id: uid(), x: _goalPos.x, y: _goalPos.y });
+        const _goalItem = { ..._gtmpl, id: uid(), x: _goalPos.x, y: _goalPos.y };
+        markItemIdentifiedForDungeon(_goalItem, d);
+        d.items.push(_goalItem);
       }
     }
-    if (sr.current.allBcKnown) {
-      d.items.forEach(it => { it.fullIdent = true; it.bcKnown = true; });
-    } else {
+    if (!sr.current.allBcKnown) {
       d.bigboxes?.forEach(bb => { if (bb.revealed === undefined) bb.revealed = false; });
     }
     /* 階段欠落の安全網（最深層・宝部屋は下りなし） */

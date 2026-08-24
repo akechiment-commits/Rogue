@@ -3,7 +3,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonster
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
-  GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges,
+  GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, markItemIdentifiedForDungeon,
 } from './items.js';
 import { scatterFloorGimmicks } from './fixtures.js';
 import { pushPlayerTeleportAnim } from './animEvents.js';
@@ -2374,7 +2374,9 @@ export function prepareLastFloor(dg, dungeonType) {
   /* 本来の下り階段位置を記録し、そこへ目標アイテムを配置 */
   dg.lastFloorGoalPos = _goalPos;
   const tmpl = GOAL_ITEMS[dungeonType] || GOAL_ITEMS.beginner;
-  dg.items.push({ ...tmpl, id: uid(), x: _goalPos.x, y: _goalPos.y });
+  const goalItem = { ...tmpl, id: uid(), x: _goalPos.x, y: _goalPos.y };
+  markItemIdentifiedForDungeon(goalItem, dg);
+  dg.items.push(goalItem);
   dg.isLastFloor = true;
 }
 

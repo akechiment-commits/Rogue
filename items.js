@@ -53,6 +53,26 @@ let _trapIdentGetter = () => null;
 export function setTrapIdentGetter(fn) { _trapIdentGetter = fn; }
 export function getTrapIdentSet() { return _trapIdentGetter?.() || null; }
 
+/* 全識別ダンジョンでは、冒険中に新しく生成・落下したアイテムも
+   床に置かれた時点で祝呪と使用回数まで判明させる。 */
+export function markItemIdentifiedForDungeon(item, dg) {
+  if (item && dg?.allBcKnown) {
+    item.fullIdent = true;
+    item.bcKnown = true;
+  }
+  return item;
+}
+
+export function setDungeonAllBcKnown(dg, allBcKnown) {
+  if (!dg) return dg;
+  dg.allBcKnown = !!allBcKnown;
+  if (dg.allBcKnown) {
+    (dg.items || []).forEach(item => markItemIdentifiedForDungeon(item, dg));
+    (dg.waterItems || []).forEach(wi => markItemIdentifiedForDungeon(wi.item, dg));
+  }
+  return dg;
+}
+
 /* ポータル着地時の転送ヘルパー：成功時は placeItemAt の結果、対象なし/失敗時は null */
 function _tryItemPortalWarp(dg, portal, item, ml, ft, dep, p) {
   /* 固定転送：ペアのみ（ペンポータルと非接続） */
@@ -2045,6 +2065,7 @@ export function wallBreakDrop(dg, x, y) {
   else if (r < 0.11) drop = makeStone(1);
   if (!drop) return;
   drop.x = x; drop.y = y;
+  markItemIdentifiedForDungeon(drop, dg);
   dg.items.push(drop);
 }
 
@@ -2911,6 +2932,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           _rfx = _cx; _rfy = _cy; break;
         }
         _rotFoodItem.x = _rfx; _rotFoodItem.y = _rfy;
+        markItemIdentifiedForDungeon(_rotFoodItem, dg);
         dg.items.push(_rotFoodItem);
         ml.push(`${_rtm.name}が腐敗に飲み込まれ${_rotFoodItem.name}に変わった！`);
       }
@@ -3925,6 +3947,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     dg.waterItems = dg.waterItems || [];
     if (!dg.waterItems.some(wi => wi.x === tx && wi.y === ty)) {
       const sunk = soakItem({ ...item, x: tx, y: ty });
+      markItemIdentifiedForDungeon(sunk, dg);
       dg.waterItems.push({ x: tx, y: ty, item: sunk });
       ml.push(sunk.name !== item.name ? `${resolveItemName(item)}が水に濡れて白紙になった！` : `${resolveItemName(item)}が水に沈んだ！`);
       pushItemArcAnim(_animOx, _animOy, tx, ty, item.tile, dep + 1);
@@ -3941,6 +3964,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       dg.waterItems = dg.waterItems || [];
       if (dg.waterItems.some(wi => wi.x === cx && wi.y === cy)) continue;
       const sunk = soakItem({ ...item, x: cx, y: cy });
+      markItemIdentifiedForDungeon(sunk, dg);
       dg.waterItems.push({ x: cx, y: cy, item: sunk });
       ml.push(sunk.name !== item.name ? `${resolveItemName(item)}が水に濡れて白紙になった！` : `${resolveItemName(item)}が水に沈んだ！`);
       pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1);
@@ -3985,6 +4009,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     if (dg.items.some(i => i.x === cx && i.y === cy)) continue;
     item.x = cx;
     item.y = cy;
+    markItemIdentifiedForDungeon(item, dg);
     dg.items.push(item);
     /* itemRef を渡すことで flyingItemsRef はこのアイテム固有オブジェクトのみ隠す */
     pushItemArcAnim(_animOx, _animOy, cx, cy, item.tile, dep + 1, item);
@@ -5955,6 +5980,7 @@ export function freezeWaterTile(dg, x, y, ml = null, nameFn = null) {
       wi.item.x = x;
       wi.item.y = y;
       if (!dg.items) dg.items = [];
+      markItemIdentifiedForDungeon(wi.item, dg);
       dg.items.push(wi.item);
       if (ml) ml.push(`凍った水から${resolveItemName(wi.item, nameFn)}が現れた！`);
     }
@@ -6168,6 +6194,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         if (p.inventory.length >= (p.maxInventory || 30)) {
           ml.push("食料生成の魔法を唱えた！しかし荷物がいっぱいで持てない！足元に落とした。");
           const _food = { ...genFood(), id: uid() };
+          markItemIdentifiedForDungeon(_food, dg);
           dg.items.push({ ..._food, x: p.x, y: p.y });
         } else {
           const _food = { ...genFood(), id: uid() };
