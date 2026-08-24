@@ -46,7 +46,7 @@ import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
-import { pickDeathPortrait } from "./portraits.js";
+import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
@@ -208,6 +208,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const gameOverInventoryRef = useRef(null);
   const [showEnding, setShowEnding] = useState(false);
   const [endingResult, setEndingResult] = useState(null);
+  const [endingPortrait, setEndingPortrait] = useState(null);
   const [endingSel, setEndingSel] = useState(0);
   const [endingView, setEndingView] = useState(null);
   const [showSign, setShowSign] = useState(null);
@@ -502,6 +503,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setGameOverPortrait(null);
     setShowEnding(false);
     setEndingResult(null);
+    setEndingPortrait(null);
     setEndingSel(0);
     setEndingView(null);
     setMsgs(["冒険が始まった！"]);
@@ -630,6 +632,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setGameOverPortrait(null);
       setShowEnding(false);
       setEndingResult(null);
+      setEndingPortrait(null);
       setEndingSel(0);
       setEndingView(null);
       setShowInv(false);
@@ -2057,6 +2060,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setEndingSel(0);
       setEndingView(null);
       setShowScores(false);
+      setEndingPortrait(pickClearPortrait(undefined, p));
       setEndingResult(payload);
       setShowEnding(true);
     } else {
@@ -2138,6 +2142,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           setEndingSel(0);
           setEndingView(null);
           setShowScores(false);
+          setEndingPortrait(pickClearPortrait(undefined, p));
           setEndingResult({ earnedGold: p.gold, depth: 3, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: true, isTutorial: true, identifiedEffects: [...(sr.current?.ident || [])] });
           setShowEnding(true);
           return;
@@ -6071,6 +6076,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         show={showEnding && !endingView}
         p={p}
         endingResult={endingResult}
+        clearPortrait={endingPortrait}
         endingSel={endingSel}
         setShowScores={setShowScores}
         mobile={mobile}

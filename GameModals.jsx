@@ -7,7 +7,7 @@ import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./re
 import { prepareLastFloor } from "./dungeon.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
-import { pickClearPortrait, pickDeathPortrait, isDrownDeath } from "./portraits.js";
+import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
 import { WISH_PRESETS, resolveWishText, getDiscoveredWishCatalog } from "./wish.js";
 import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryLabel, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap, floorTrapDesc } from "./floorInventory.js";
@@ -3921,7 +3921,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
 }
 
 /* ===== Ending Modal ===== */
-export function EndingModal({ show, p, endingResult, mobile, endingSel = 0, setShowScores, onViewMap, onViewInventory, onDismiss }) {
+export function EndingModal({ show, p, endingResult, clearPortrait, mobile, endingSel = 0, setShowScores, onViewMap, onViewInventory, onDismiss }) {
   if (!show) return null;
   const gold  = endingResult?.earnedGold ?? p?.gold ?? 0;
   const depth = endingResult?.depth      ?? p?.depth ?? 1;
@@ -3977,7 +3977,7 @@ export function EndingModal({ show, p, endingResult, mobile, endingSel = 0, setS
           }}
         >
           <img
-            src={pickClearPortrait(undefined, p)}
+            src={clearPortrait || "/tiles/Character/reaction_joy.png"}
             alt="clear"
             onError={(e) => {
               if (e.currentTarget.dataset.clearFallbackApplied === "1") return;
