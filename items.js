@@ -4065,7 +4065,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
 }
 
 export function monsterDrop(m, dg, ml, p = null) {
-  /* 遺物の番人：ボス扱いにせず、金貨と通常枠のランダムアイテムだけを確定で落とす。 */
+  /* 遺物の番人：ボス特性は維持し、戦利品だけ専用の通常枠に置き換える。 */
   if (m.relicGuardian) {
     const _ft = new Set();
     const _stage = Math.max(1, m.guardianStage || 1);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeRelicGuardian, relicGuardianStage, relicGuardianStats } from "../relicGuardian.js";
+import { makeRelicGuardian, relicGuardianStage, relicGuardianStats, restoreRelicGuardianBossTraits } from "../relicGuardian.js";
 import { monsterDrop } from "../items.js";
 import { MW, MH, T } from "../utils.js";
 
@@ -16,12 +16,19 @@ describe("遺物の番人", () => {
     expect(surface.speed).toBe(2);
   });
 
-  it("ボスフラグを持たず、専用の番人として生成される", () => {
+  it("ボス特性を持つ専用の番人として生成される", () => {
     const guardian = makeRelicGuardian({ id: "guardian-test", x: 4, y: 5, maxDepth: 20, currentDepth: 10 });
-    expect(guardian.isBoss).toBe(false);
+    expect(guardian.isBoss).toBe(true);
     expect(guardian.relicGuardian).toBe(true);
     expect(guardian.baseKind).toBe("pursuer");
     expect(guardian.guardianStage).toBe(11);
+  });
+
+  it("旧セーブの番人にもボス特性を復元する", () => {
+    const dungeon = { monsters: [{ relicGuardian: true, isBoss: false }, { relicGuardian: false, isBoss: false }] };
+    restoreRelicGuardianBossTraits(dungeon);
+    expect(dungeon.monsters[0].isBoss).toBe(true);
+    expect(dungeon.monsters[1].isBoss).toBe(false);
   });
 
   it("撃破時は金貨と通常枠のランダムアイテムだけを落とす", () => {
@@ -30,7 +37,7 @@ describe("遺物の番人", () => {
       items: [], traps: [], springs: [], bigboxes: [], pentacles: [], statues: [],
     };
     const messages = [];
-    monsterDrop({ name: "遺物の番人", relicGuardian: true, guardianStage: 3, x: 10, y: 10 }, dg, messages, null);
+    monsterDrop({ name: "遺物の番人", relicGuardian: true, isBoss: true, guardianStage: 3, x: 10, y: 10 }, dg, messages, null);
 
     const drops = dg.items;
     expect(drops).toHaveLength(2);

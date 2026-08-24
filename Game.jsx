@@ -79,7 +79,7 @@ import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
 import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip } from "./firstEncounterTips.js";
-import { makeRelicGuardian } from "./relicGuardian.js";
+import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardian.js";
 import { isMonsterSpawnCellAllowed } from "./monsterSpawnRules.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
@@ -649,6 +649,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         (resumeState.dungeonType === "debug" || resumeState.dungeonType === "beginner");
       const _resumeDungeon = resumeState.dungeon;
       const _resumeFloors = resumeState.floors || {};
+      restoreRelicGuardianBossTraits(_resumeDungeon);
+      Object.values(_resumeFloors).forEach(restoreRelicGuardianBossTraits);
       setDungeonAllBcKnown(_resumeDungeon, _resumeAllBcKnown);
       Object.values(_resumeFloors).forEach(floor => setDungeonAllBcKnown(floor, _resumeAllBcKnown));
       const rs = {

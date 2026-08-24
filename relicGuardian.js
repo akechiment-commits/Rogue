@@ -48,7 +48,8 @@ export function makeRelicGuardian({
     relicGuardian: true,
     guardianStage: stats.stage,
     monLevel: 1,
-    isBoss: false,
+    /* 戦利品だけ monsterDrop 側で専用分岐し、ボスの耐性・状態異常短縮は維持する。 */
+    isBoss: true,
     aware: true,
     x,
     y,
@@ -57,4 +58,12 @@ export function makeRelicGuardian({
     lastPy,
     patrolTarget: null,
   };
+}
+
+/** 旧セーブに残る遺物の番人へ、現行のボス特性を適用する。 */
+export function restoreRelicGuardianBossTraits(dungeon) {
+  for (const monster of dungeon?.monsters || []) {
+    if (monster?.relicGuardian) monster.isBoss = true;
+  }
+  return dungeon;
 }
