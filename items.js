@@ -3095,6 +3095,16 @@ export function makeArrowUnitFromStack(stack) {
   return unit;
 }
 
+/* 通常投擲の補正攻撃力。武器・防具は素の値を使い、その他は種別ごとに固定値。 */
+export function thrownItemAttack(item) {
+  if (item?.type === "weapon") return item.atk || 3;
+  if (item?.type === "armor") return item.def || 3;
+  if (item?.type === "ring" || item?.type === "scroll") return 1;
+  if (item?.type === "pot") return 5;
+  if (item?.type === "bottle") return 3;
+  return 3;
+}
+
 export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
   let r = c;
   for (const i of inv) {
@@ -4516,10 +4526,10 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
      消えたように見える。 */
   let _terminalStop = null;
 
-  /* 通常投擲ダメージ計算（武器は+値含む、それ以外は3+rng(0,3)） */
-  const _projDmg = () => Math.max(1, (item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : 3) + rng(0, 3));
-  /* 壺投擲ダメージ（破損衝撃） */
-  const _potDmg = () => Math.max(1, 3 + rng(0, 3));
+  /* 通常投擲ダメージ計算（防具・指輪・巻物・壺・空き瓶も種別補正を反映） */
+  const _projDmg = (def = 0) => calcProjectileDmg(p, thrownItemAttack(item), def);
+  /* 壺は補正攻撃力5で通常の投擲ダメージ計算を使う */
+  const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
 
   _resolveBolt(shooter, dg, p, ml, luFn, {
     dx, dy,
@@ -4540,7 +4550,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         return;
       }
       weakenOrClearParalysis(mon, mlx);
-      const dmg = _isPot ? _potDmg() : _projDmg();
+      const dmg = _isPot ? _potDmg(mon.def) : _projDmg(mon.def);
       mon.hp -= dmg;
       mlx.push(_isPot ? potHitMsg(mon, dmg) : monHitMsg(mon, dmg));
       /* ヤバイ食料：追加ダメ+状態異常複合 */
@@ -4578,7 +4588,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
         return;
       }
-      let dmg = _isPot ? _potDmg() : _projDmg();
+      let dmg = _isPot ? _potDmg(0) : _projDmg(0);
       dmg = applyFrozenPhysicalMult(dmg, p);
       p.deathCause = deathCausePhrase;
       p.hp -= dmg;

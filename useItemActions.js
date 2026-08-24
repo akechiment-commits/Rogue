@@ -11,7 +11,7 @@ import {
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inCursedMagicSealRoom, inMagicSealRoom, killMonster,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
-  placeItemAt, markItemIdentifiedForDungeon, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
+  placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
@@ -3700,12 +3700,12 @@ export function useItemActions({
                   lx = tx; ly = ty;
                   break;
                 }
-                const _ptd = clampDmgFixed(m, 3 + rng(0, 3), true);
+                const _ptd = clampDmgFixed(m, calcProjectileDmg(p, 5, m.def), true);
                 m.hp -= _ptd;
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
               } else {
-                const _ptd = clampDmgFixed(m, 3 + rng(0, 3), true);
+                const _ptd = clampDmgFixed(m, calcProjectileDmg(p, 5, m.def), true);
                 m.hp -= _ptd;
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
@@ -3745,11 +3745,9 @@ export function useItemActions({
             scatterPotContents(it, dg, lx, ly, p, ml, lu, dnameRef);
           }
         } else {
-          const _tdBaseAtk = it.type === "weapon"
-            ? (it.atk || 3)
-            : it.type === "arrow"
-              ? (it.atk || 3) + (it.count || 1)
-              : 3;
+          const _tdBaseAtk = it.type === "arrow"
+            ? (it.atk || 3) + (it.count || 1)
+            : thrownItemAttack(it);
           /* 投げメッセージ用ラベル生成：武器/防具は+値付き、杖/ペンはチャージ付き、矢は本数付き */
           const _mkThrowLb = () => {
             if (it.type === "arrow") return (it.stone || it.magicStone || it.specialProjectile) ? `${it.name}(${it.count}個)` : `矢の束(${it.count}本)`;
