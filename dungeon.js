@@ -782,9 +782,10 @@ function countRoomEntrances(room, map) {
 /* 特殊フロアではなく、通常の部屋・通路生成にだけ適用する。 */
 export function chooseNormalLayout(roll = Math.random()) {
   const r = Number.isFinite(roll) ? Math.max(0, Math.min(0.999999, roll)) : Math.random();
-  if (r < 0.12) return "centralCross";
-  if (r < 0.23) return "courtyard";
-  if (r < 0.38) return "wideRooms";
+  /* 広い廊下・不規則な出入口の変則型は、通常フロアでは稀に出す。 */
+  if (r < 0.02) return "centralCross";
+  if (r < 0.04) return "courtyard";
+  if (r < 0.10) return "wideRooms";
   return "standard";
 }
 

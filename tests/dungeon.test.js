@@ -74,9 +74,9 @@ describe("genDungeon", () => {
 
   it("通常フロアの変則レイアウト抽選は標準を含む", () => {
     expect(chooseNormalLayout(0.00)).toBe("centralCross");
-    expect(chooseNormalLayout(0.12)).toBe("courtyard");
-    expect(chooseNormalLayout(0.23)).toBe("wideRooms");
-    expect(chooseNormalLayout(0.38)).toBe("standard");
+    expect(chooseNormalLayout(0.02)).toBe("courtyard");
+    expect(chooseNormalLayout(0.04)).toBe("wideRooms");
+    expect(chooseNormalLayout(0.10)).toBe("standard");
   });
 
   it("変則レイアウトも特殊フロア扱いにならない", () => {

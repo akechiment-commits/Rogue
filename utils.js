@@ -500,7 +500,7 @@ export function getVisitedFloors(session, currentDepth) {
 }
 
 /**
- * @param {number} rad 廊下レイキャスト半径
+ * @param {number} rad 廊下レイキャスト半径（マス単位。斜めも同じ2マス扱い）
  * @param {{ roomVision?: boolean }} [opts] roomVision 未指定時は rad>1 で部屋全体表示
  */
 export function computeFOV(map, px, py, rad, vis, exp, rooms = [], opts = {}) {
@@ -523,22 +523,28 @@ export function computeFOV(map, px, py, rad, vis, exp, rooms = [], opts = {}) {
     }
   }
 
-  // 通路視界（レイキャスト）
+  // 通路視界（レイキャスト）。
+  // rad はゲーム上のマス距離。セルの中心から角へ届くぶんだけ余白を足し、
+  // 斜め2マス先は含めつつ、軸方向の3マス先までは含めない。
+  const rayLength = Math.max(0, rad) + 0.49;
+  const rayStep = 0.25;
   for (let a = 0; a < 360; a++) {
     const r = (a * Math.PI) / 180,
       ddx = Math.cos(r),
       ddy = Math.sin(r);
+    /* レイの進行度をチェビシェフ距離にそろえる（斜めでも1マス分）。 */
+    const rayScale = 1 / Math.max(Math.abs(ddx), Math.abs(ddy));
     let x = px + 0.5,
       y = py + 0.5;
-    for (let d = 0; d <= rad; d += 0.5) {
+    for (let d = 0; d <= rayLength; d += rayStep) {
       const ix = Math.floor(x),
         iy = Math.floor(y);
       if (ix < 0 || ix >= MW || iy < 0 || iy >= MH) break;
       vis[iy][ix] = true;
       exp[iy][ix] = true;
       if ((map[iy][ix] === T.WALL || map[iy][ix] === T.BWALL) && !(ix === px && iy === py)) break;
-      x += ddx * 0.5;
-      y += ddy * 0.5;
+      x += ddx * rayScale * rayStep;
+      y += ddy * rayScale * rayStep;
     }
   }
 }

@@ -65,6 +65,18 @@ describe("darkness_ring FOV", () => {
     expect(vis[10][10]).toBe(false);
   });
 
+  it("廊下の斜め2マス先も見えるが、3マス先までは広がらない", () => {
+    const { map, vis, exp } = blankMaps();
+    computeFOV(map, 12, 12, 2, vis, exp, [], { roomVision: false });
+    expect(vis[14][14]).toBe(true);
+    expect(vis[12][15]).toBe(false);
+
+    const farther = blankMaps();
+    computeFOV(farther.map, 12, 12, 6, farther.vis, farther.exp, [], { roomVision: false });
+    expect(farther.vis[18][18]).toBe(true);
+    expect(farther.vis[12][19]).toBe(false);
+  });
+
   it("corridorRange baseline", () => {
     expect(corridorRange(1)).toBe(6);
     expect(corridorRange(2)).toBe(2);
