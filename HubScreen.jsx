@@ -19,6 +19,7 @@ import {
   getItemCatalogEntry,
   getItemCategoryEntries,
   getKeyItemDescription,
+  getFoodDescription,
   ITEM_CATEGORY_DEFS,
   NO_ENCYCLOPEDIA_INFO,
 } from "./encyclopediaData.js";
@@ -758,7 +759,11 @@ function EncyclopediaPanel({ saveData, onClose }) {
     if (tabName === "traps") { const t = TRAPS.find(t => t.effect === key || t.name === key); return t?.desc || entry.desc || NO_ENCYCLOPEDIA_INFO; }
     if (tabName === "bigboxes") { const b = BB_TYPES.find(b => b.kind === key); return b?.desc || entry.desc || NO_ENCYCLOPEDIA_INFO; }
     if (tabName === "items") {
-      return getItemCatalogEntry(key, entry)?.desc || getKeyItemDescription(entry.name) || entry.desc || NO_ENCYCLOPEDIA_INFO;
+      return getFoodDescription(entry)
+        || getItemCatalogEntry(key, entry)?.desc
+        || getKeyItemDescription(entry.name)
+        || entry.desc
+        || NO_ENCYCLOPEDIA_INFO;
     }
     if (tabName === "monsters") { return getMonsterDescription(entry.name) || NO_ENCYCLOPEDIA_INFO; }
     if (tabName === "tips") {

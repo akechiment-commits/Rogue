@@ -19,6 +19,15 @@ describe("DiscoveryTracker", () => {
     expect(getDiscoveries().items["heal"].count).toBe(2);
   });
 
+  it("食品は効果ではなくベース名ごとに記録する", () => {
+    trackItem({ name: "癒しのりんご", type: "food", effect: "heal_food", _foodBase: "りんご", tile: 19 });
+    trackItem({ name: "力のりんご", type: "food", effect: "power_food", _foodBase: "りんご", tile: 19 });
+    trackItem({ name: "癒しのうな重", type: "food", effect: "heal_food", _foodBase: "うな重", tile: 66 });
+    const foods = getDiscoveries().items;
+    expect(foods["food_りんご"].count).toBe(2);
+    expect(foods["food_うな重"].effect).toBe("heal_food");
+  });
+
   it("モンスターと罠も count を加算する", () => {
     trackMonster({ name: "スライム", tile: 1 });
     trackMonster({ name: "スライム", tile: 1 });

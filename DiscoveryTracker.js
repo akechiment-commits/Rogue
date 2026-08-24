@@ -20,8 +20,15 @@ function _bumpEntry(bucket, key, entry) {
 
 export function trackItem(item) {
   if (!item) return;
-  const key = item.effect || (item.type + '_' + item.name);
-  _bumpEntry(_disc.items, key, { name: item.name, tile: item.tile, type: item.type });
+  const key = item.type === "food"
+    ? `food_${item._foodBase || item.name}`
+    : item.effect || (item.type + '_' + item.name);
+  const entry = { name: item.name, tile: item.tile, type: item.type };
+  if (item.type === "food") {
+    entry.effect = item.effect;
+    entry._foodBase = item._foodBase;
+  }
+  _bumpEntry(_disc.items, key, entry);
 }
 
 export function trackMonster(mon) {

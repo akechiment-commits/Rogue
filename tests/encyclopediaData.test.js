@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getItemCategoryEntries,
+  getFoodDescription,
   getKeyItemDescription,
   ITEM_CATEGORY_DEFS,
   NO_ENCYCLOPEDIA_INFO,
@@ -42,5 +43,18 @@ describe("encyclopedia data", () => {
     expect(getKeyItemDescription("深紅の魔石")).toContain("中級者ダンジョン");
     expect(getKeyItemDescription("存在しないキーアイテム")).toBeNull();
     expect(NO_ENCYCLOPEDIA_INFO).toBe("特に情報はない。");
+  });
+
+  it("食品の個別説明と効果説明を提供する", () => {
+    const desc = getFoodDescription({
+      key: "food_うな重",
+      name: "癒しのうな重",
+      type: "food",
+      effect: "heal_food",
+      _foodBase: "うな重",
+    });
+    expect(desc).toContain("重箱にご飯を詰め、うなぎの蒲焼きを並べてタレをかけた料理。");
+    expect(desc).toContain("不思議と体が温まる。");
+    expect(desc).not.toContain("壺相性");
   });
 });
