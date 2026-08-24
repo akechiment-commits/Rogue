@@ -335,6 +335,13 @@ export function applyPortraitTransparency(imageData, options = {}) {
   return imageData;
 }
 
+function hasTransparency(data) {
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) return true;
+  }
+  return false;
+}
+
 /** ブラウザ: data URL → 透過済み PNG data URL */
 export function transparentizeDataUrl(dataUrl, options = {}) {
   return new Promise((resolve, reject) => {
@@ -346,6 +353,11 @@ export function transparentizeDataUrl(dataUrl, options = {}) {
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      /* 透過済み画像は再処理しない。再透過による内部欠損の再発を防ぐ。 */
+      if (hasTransparency(imageData.data)) {
+        resolve(dataUrl);
+        return;
+      }
       applyPortraitTransparency(imageData, options);
       ctx.putImageData(imageData, 0, 0);
       resolve(canvas.toDataURL("image/png"));

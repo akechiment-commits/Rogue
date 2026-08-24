@@ -168,14 +168,20 @@ function portraitApiPlugin() {
             fs.mkdirSync(PORTRAIT_DIR, { recursive: true });
             const files = fs.readdirSync(PORTRAIT_DIR).filter((f) => f.endsWith(".png"));
             let count = 0;
+            let skipped = 0;
             for (const file of files) {
               const full = path.join(PORTRAIT_DIR, file);
-              const out = await transparentizeImageBuffer(fs.readFileSync(full));
+              const input = fs.readFileSync(full);
+              const out = await transparentizeImageBuffer(input);
+              if (out.equals(input)) {
+                skipped++;
+                continue;
+              }
               fs.writeFileSync(full, out);
               count++;
             }
             res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify({ ok: true, count }));
+            res.end(JSON.stringify({ ok: true, count, processed: count, skipped }));
           } catch (e) {
             res.statusCode = 500;
             res.end(JSON.stringify({ error: e.message }));
