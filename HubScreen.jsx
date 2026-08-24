@@ -663,11 +663,14 @@ function BankPanel({ saveData, updateSave, onClose }) {
   useEffect(() => {
     const fn = (e) => {
       const r = kbRef.current;
-      if (e.target?.tagName === "INPUT") return;
       const k = e.key.toLowerCase();
       if (k === "x" || k === "escape") { e.preventDefault(); r.onClose(); return; }
+      if (k === "m") { e.preventDefault(); r.commitCarryGold(Number.MAX_SAFE_INTEGER); return; }
+      if (k === "n") { e.preventDefault(); r.commitCarryGold(0); return; }
       if (isKeyUp(e)) { e.preventDefault(); r.commitCarryGold(r.carryGold + 100); }
       else if (isKeyDown(e)) { e.preventDefault(); r.commitCarryGold(r.carryGold - 100); }
+      else if (isKeyLeft(e)) { e.preventDefault(); r.commitCarryGold(r.carryGold - 1000); }
+      else if (isKeyRight(e)) { e.preventDefault(); r.commitCarryGold(r.carryGold + 1000); }
     };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
@@ -678,7 +681,7 @@ function BankPanel({ saveData, updateSave, onClose }) {
   return (
     <Panel title="銀行" onClose={onClose}>
       <div style={{ color:"#8a9ab0", fontSize:11, lineHeight:"1.8em", marginBottom:12 }}>
-        ↑↓/テンキー8・2:持ち込み額を100Gずつ変更　X:閉じる
+        ↑↓/テンキー8・2:±100G　←→/テンキー4・6:±1000G　M:全額　N:0G　X:閉じる
       </div>
       <div style={{ padding:"12px", background:"#0d0d18", border:`1px solid ${BDR}`, borderRadius:5, marginBottom:12 }}>
         <div style={{ color:GOLD, fontSize:13 }}>銀行残高</div>
