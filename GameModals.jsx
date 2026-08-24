@@ -3478,7 +3478,7 @@ export function SidebarPanel({ mobile, landscape, portraitSrc, showPortrait = tr
         padding: "8px 4px", boxSizing: "border-box", zIndex: 10,
       }}
     >
-      <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "visible", position: "relative" }}>
+      <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
         {showPortrait && (
           <img
             src={portraitSrc || "/tiles/Character/stand_normal.png"}
