@@ -491,7 +491,7 @@ const otherData = [
   ['魔法書名', '習得魔法 id / rarity / sellPrice / 説明'],
 ];
 const _spellMap = new Map(SPELLS.filter(s => !s.debug).map(s => [s.id, s]));
-const spellbookGuideDescription = (sb, spell) => spell?.desc || guideDesc(sb);
+const spellbookGuideDescription = (sb, spell) => sb?.desc || spell?.desc || guideDesc(sb);
 for (const sb of SPELLBOOKS) {
   const sp = _spellMap.get(sb.spell);
   otherData.push([sb.name, `${sb.spell} / ${sb.rarity} / ${sb.sellPrice}G / ${spellbookGuideDescription(sb, sp)}`]);
