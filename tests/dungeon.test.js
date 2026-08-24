@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse } from "../dungeon.js";
+import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -191,6 +191,28 @@ describe("genMiniRoom", () => {
     expect(floor.rooms[0]).toMatchObject({ w: 12, h: 8 });
     expect(floor.map[floor.stairUp.y][floor.stairUp.x]).toBe(T.SU);
     expect(floor.map[floor.stairDown.y][floor.stairDown.x]).toBe(T.SD);
+  });
+});
+
+describe("genGridRoom", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("格子の柱を通路1マス・壁1マスの間隔で配置する", () => {
+    const floor = genGridRoom(8, "intermediate");
+    const { x: rx, y: ry } = floor.rooms[0];
+    expect(floor.map[ry + 1][rx + 1]).toBe(T.WALL);
+    expect(floor.map[ry + 1][rx + 2]).toBe(T.FLOOR);
+    expect(floor.map[ry + 2][rx + 1]).toBe(T.FLOOR);
+    expect(floor.map[ry + 3][rx + 3]).toBe(T.WALL);
+  });
+
+  it("稀に格子の壁へ壁埋めアイテムを配置する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const floor = genGridRoom(8, "intermediate");
+    expect(floor.items.some((item) => item.wallEmbedded)).toBe(true);
+    for (const item of floor.items.filter((entry) => entry.wallEmbedded)) {
+      expect(floor.map[item.y][item.x]).toBe(T.WALL);
+    }
   });
 });
 

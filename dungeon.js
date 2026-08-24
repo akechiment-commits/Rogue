@@ -690,7 +690,7 @@ function genProtrusions(map, rooms) {
 }
 
 /* ===== WALL-EMBEDDED ITEM GENERATOR ===== */
-function genWallItems(map, depth, items, suspicious = new Set()) {
+function genWallItems(map, depth, items, suspicious = new Set(), chance = 0.70) {
   /* 床タイルに2方向以上隣接する壁タイルを候補とする（L字型の出っ張り角など） */
   /* 突起コーナー（suspicious）は重みを高くして選ばれやすくする */
   const wallCands = [];
@@ -707,8 +707,9 @@ function genWallItems(map, depth, items, suspicious = new Set()) {
     }
   }
   if (wallCands.length === 0) return;
-  /* 壁埋めアイテムは控えめ（旧 2〜5 → 0〜3、30%で0） */
-  const count = Math.random() < 0.30 ? 0 : rng(1, Math.min(3, wallCands.length));
+  /* 壁埋めアイテムは控えめ（旧 2〜5 → 0〜3）。 */
+  if (Math.random() >= chance) return;
+  const count = rng(1, Math.min(3, wallCands.length));
   if (count <= 0) return;
   const used = new Set();
   let placed = 0;
@@ -1364,14 +1365,14 @@ export function genCorridorFloor(depth, dungeonType = null) {
 }
 
 /* ===== GRID ROOM (格子状壁の大部屋) ===== */
-function genGridRoom(depth, dungeonType = null) {
+export function genGridRoom(depth, dungeonType = null) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
   const rx = 2, ry = 2, rw = MW - 4, rh = MH - 4;
   for (let dy = 0; dy < rh; dy++)
     for (let dx = 0; dx < rw; dx++) map[ry + dy][rx + dx] = T.FLOOR;
-  /* 格子状に柱を配置（3マスおきに1マスの壁） */
-  for (let gy = ry + 2; gy < ry + rh - 1; gy += 3)
-    for (let gx = rx + 2; gx < rx + rw - 1; gx += 3)
+  /* 格子状に柱を配置（通路1マス・壁1マスの交互配置） */
+  for (let gy = ry + 1; gy < ry + rh - 1; gy += 2)
+    for (let gx = rx + 1; gx < rx + rw - 1; gx += 2)
       map[gy][gx] = T.WALL;
   const room = { x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) };
   const rooms = [room];
@@ -1389,6 +1390,8 @@ function genGridRoom(depth, dungeonType = null) {
   for (let i = 0; i < rng(8, 13) + depth; i++) { const p = rndFloor(); if (p) mons.push(mkMon(depth, p[0], p[1], 0.12, null, null, dungeonType)); }
   const _grPick = buildUniPool(depth, dungeonType);
   for (let i = 0; i < rng(16, 24); i++) { const p = rndFloor(); if (p) { items.push(Object.assign(applyStdMods(_grPick(), depth), { x: p[0], y: p[1] })); } }
+  /* 格子の柱に埋まるアイテムは稀にだけ配置する。 */
+  if (Math.random() < 0.15) genWallItems(map, depth, items, new Set(), 1);
   for (let i = 0; i < rng(12, 18) + depth; i++) { const p = rndFloor(); if (p) traps.push({ ...pickTrap(), id: uid(), x: p[0], y: p[1], revealed: false }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) springs.push({ id: uid(), x: p[0], y: p[1], tile: TI.SPRING, contents: [] }); }
   for (let i = 0; i < rng(2, 4); i++) { const p = rndFloor(); if (p) { const bbt = pickBB(); bigboxes.push({ id: uid(), x: p[0], y: p[1], tile: TI.BIGBOX, kind: bbt.kind, name: bbt.name, capacity: bbt.cap(), contents: [] }); } }
