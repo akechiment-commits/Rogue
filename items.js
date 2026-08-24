@@ -3936,6 +3936,7 @@ function soakItem(item) {
 
 export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false) {
   if (item?._ephemeralTrapTrigger) return false;
+  applyGeneratedRingPlus(item);
   /* 帯電毛玉は所持品または箱・壺の中にだけ存在できる。破壊・散乱などで
      床へ出る経路は、罠や泉などの床効果を発生させず、その場で消滅させる。 */
   if (item?.type === "charged_fuzzball") {
@@ -6349,6 +6350,14 @@ export const RINGS = [
   { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:1200, tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
   { name: "体幹の指輪",     type:"ring", effect:"core_ring",              rarity:"B", weight:2,  sellPrice:3500, tile:60, desc:"装備中、転倒しなくなる。\n敵による吹き飛ばし・引き寄せ・罠への投げつけなど、強制的な移動を防ぐ。" },
 ];
+
+/* 力・守り・命の指輪は、生成時に必ず＋1〜3を持つ。 */
+export function applyGeneratedRingPlus(item, randomFn = Math.random) {
+  if (item?.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect) && (item.plus || 0) < 1) {
+    item.plus = rng(1, 3, randomFn);
+  }
+  return item;
+}
 
 export function hasRingEffect(p, effect) {
   return p.rings?.some(r => r.effect === effect) ?? false;

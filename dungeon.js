@@ -3,7 +3,7 @@ import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES, makeMonster, makeMonster
 import {
   ITEMS, POTS, TRAPS, BB_TYPES, WANDS, WEAPON_ABILITIES, ARMOR_ABILITIES,
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
-  GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, markItemIdentifiedForDungeon,
+  GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
 } from './items.js';
 import { scatterFloorGimmicks } from './fixtures.js';
 import { pushPlayerTeleportAnim } from './animEvents.js';
@@ -16,7 +16,7 @@ function mkOcc(...lists) {
 function makeRing(context = "floor") {
   const t = pickLootFromPool(RINGS, context);
   const ring = { ...t, id: uid() };
-  if (ring.effect === "power_ring" || ring.effect === "defense_ring" || ring.effect === "life_ring") ring.plus = rng(1, 3);
+  applyGeneratedRingPlus(ring);
   const roll = Math.random();
   if (roll < 0.10) ring.blessed = true;
   else if (roll < 0.25) ring.cursed = true;
@@ -955,6 +955,7 @@ function setupShopRoom(room, map, depth, items, mons) {
   }
   const makeShopItem = (base, x, y) => {
     const sit = { ...base, id: uid(), x, y };
+    applyGeneratedRingPlus(sit);
     if (sit.type === 'arrow') sit.count = rng(5, 20);
     if (sit.type === 'pot') sit.capacity = randPotCapacity(sit.potEffect);
     if (sit.type === 'pen') sit.charges = penInitialCharges(sit);
@@ -2542,7 +2543,9 @@ export function genDebugDungeon() {
   /* 指輪：全種類を1つずつ */
   for (const tmpl of RINGS) {
     const p = nextItemPos();
-    items.push({ ...tmpl, id: uid(), x: p.x, y: p.y });
+    const it = { ...tmpl, id: uid(), x: p.x, y: p.y };
+    applyGeneratedRingPlus(it);
+    items.push(it);
   }
 
   /* モンスター隔離部屋 */
@@ -2580,6 +2583,7 @@ export function genDebugDungeonFloor2() {
       const it = { ...tmpl, ...variant, id: uid(), x: p.x, y: p.y };
       if (tmpl.type === 'wand') it.charges = tmpl.maxCharges ?? tmpl.charges ?? 5;
       else if (tmpl.type === 'pen') it.charges = penInitialCharges(it);
+      else if (tmpl.type === 'ring') applyGeneratedRingPlus(it);
       items.push(it);
     }
   }
