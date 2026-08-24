@@ -24,6 +24,7 @@ import {
   pickClearPortrait,
   isDrownDeath,
   resolvePortraitEvent,
+  getActiveStatusPortraitKey,
   hpKey,
   idleStandKey,
   isLightArmorStand,
@@ -536,6 +537,25 @@ describe("portraits", () => {
     const event = resolvePortraitEvent({ player, prev, lastMsg: "からめ鬼に絡め取られた！" });
     expect(event.src).toMatch(/status_bound/);
     expect(event.force).toBe(true);
+  });
+
+  it("状態異常が解けたフレームを通常立ち絵への復帰対象として返す", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      capturedBy: "mon-grabber-1", floating: false,
+    };
+    const player = { ...prev, capturedBy: null };
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "拘束が解けた！" });
+    expect(event.statusCleared).toBe(true);
+    expect(event.holdKey).toBeUndefined();
+  });
+
+  it("浮遊は継続中の状態異常にせず、開始時とダッシュ時だけ専用立ち絵を返す", () => {
+    const player = { hp: 80, maxHp: 100, x: 6, y: 5, level: 3 };
+    const prev = { ...player, x: 5, y: 5, floating: true };
+    expect(getActiveStatusPortraitKey(player, true)).toBeNull();
+    const event = resolvePortraitEvent({ player, prev, floating: true, dashed: true, lastMsg: "" });
+    expect(event.src).toMatch(/status_floating/);
   });
 
   it("拘束中は攻撃など他行動より拘束立ち絵を優先する", () => {

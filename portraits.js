@@ -467,7 +467,6 @@ export function getActiveStatusPortraitKey(p, floating = false) {
   if ((p.mpCooldownTurns || 0) > 0 || (p.sealedTurns || 0) > 0) return "status_sealed";
   if ((p.oilyTurns || 0) > 0) return "status_oiled";
   if ((p.soakedTurns || 0) > 0) return "status_soaked";
-  if (floating) return "status_floating";
   return null;
 }
 
@@ -522,7 +521,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
     return { src: pickDeathPortrait(p.deathCause, PORTRAIT_SETS, p), cooldownUntil: now + 99999, force: true };
   }
   if (!prev) {
-    return { src: pickPortraitForPlayer(idleStandKey(p), p), cooldownUntil: now, force: true };
+    return { src: pickPortraitForPlayer(floating ? "status_floating" : idleStandKey(p), p), cooldownUntil: now, force: true };
   }
 
   const isLow = p.hp / p.maxHp <= 0.25;
@@ -538,6 +537,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   const badFoodKey =
     actionKey === "act_food_yabai" || actionKey === "act_food_rotten" ? actionKey : null;
   const stickyKey = getActiveStatusPortraitKey(p, floating);
+  const previousStickyKey = getActiveStatusPortraitKey(prev, prev.floating);
   const pe = (key, opts = {}) => portraitEvent(key, now, { ...opts, player: p });
 
   /* 召喚の罠は、敵の即時行動や被ダメが同じターンに続いても専用リアクションを優先 */
@@ -564,6 +564,11 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
       force: true,
       holdKey: stickyKey,
     };
+  }
+
+  /* 浮遊は継続状態として固定せず、開始した瞬間だけ専用立ち絵を出す。 */
+  if (floating && !prev.floating) {
+    return pe("status_floating", { force: true });
   }
 
   /* MP消費でのHP0復活 */
@@ -639,9 +644,6 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   if (p.bewitchedTurns > 0 && prev.bewitchedTurns <= 0) {
     return pe("status_bewitched", { force: true });
   }
-  if (floating && !prev.floating) {
-    return pe("status_floating", { force: true });
-  }
   if (p.poisoned && !prev.poisoned) {
     return pe("status_poison", { force: true });
   }
@@ -714,12 +716,12 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   /* ダッシュも低優先（クールダウン尊重） */
   if (dashed && moved) {
     return {
-      src: pickPortraitForPlayer("dash", p),
+      src: pickPortraitForPlayer(floating ? "status_floating" : "dash", p),
       cooldownUntil: now + PORTRAIT_WALK_COOLDOWN_MS,
       force: false,
       lowPriority: true,
     };
   }
 
-  return { isLow, moved, now };
+  return { isLow, moved, now, statusCleared: !!previousStickyKey && !stickyKey };
 }

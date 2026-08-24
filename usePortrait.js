@@ -108,6 +108,7 @@ export function usePortrait({
     const event = resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs, newMsgs, floating, dashed });
 
     if (!event) return;
+    const statusWasHeld = !!heldStatusKeyRef.current || !!event.statusCleared;
 
     /* 状態異常の維持：同じ holdKey なら立ち絵を差し替えない */
     if (event.holdKey) {
@@ -134,6 +135,7 @@ export function usePortrait({
         };
       }
       const canApply =
+        statusWasHeld ||
         event.force ||
         event.bypassCooldown ||
         now >= portraitCooldownRef.current;
@@ -141,6 +143,20 @@ export function usePortrait({
         setPortraitSrc(event.src);
         portraitCooldownRef.current = event.cooldownUntil ?? (now + PORTRAIT_COOLDOWN_MS);
       }
+      return;
+    }
+
+    /* 状態異常が解けたら、保持用クールダウンを無視して即座に通常表示へ戻す。 */
+    if (statusWasHeld) {
+      const nextKey = floating
+        ? "status_floating"
+        : event.moved
+          ? "walk"
+          : idleStandKey(p);
+      heldStatusKeyRef.current = null;
+      setPortraitSrc(pickPortraitForPlayer(nextKey, p));
+      portraitCooldownRef.current = now + PORTRAIT_COOLDOWN_MS;
+      walkStepRef.current = 0;
       return;
     }
 
@@ -156,7 +172,7 @@ export function usePortrait({
       const threshold = PORTRAIT_WALK_STEPS_MIN + Math.floor(Math.random() * PORTRAIT_WALK_STEPS_JITTER);
       if (walkStepRef.current >= threshold) {
         walkStepRef.current = 0;
-        if (tryPortrait("walk")) {
+        if (tryPortrait(floating ? "status_floating" : "walk")) {
           portraitCooldownRef.current = now + PORTRAIT_WALK_COOLDOWN_MS;
         } else if (isLow) {
           forcePortrait(hpKey(p));
@@ -168,7 +184,7 @@ export function usePortrait({
     walkStepRef.current = 0;
 
     /* 立ち止まっているとき：装備に応じた待機立ち絵へ戻す（歩行・ダッシュの張り付き防止） */
-    tryPortrait(idleStandKey(p));
+    tryPortrait(floating ? "status_floating" : idleStandKey(p));
   }, [gs, setPortraitSrc, tryPortrait, forcePortrait]);
 
   return { pauseDynamic, resumeDynamic };
