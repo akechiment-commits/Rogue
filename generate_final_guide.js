@@ -491,9 +491,10 @@ const otherData = [
   ['魔法書名', '習得魔法 id / rarity / sellPrice / 説明'],
 ];
 const _spellMap = new Map(SPELLS.filter(s => !s.debug).map(s => [s.id, s]));
+const spellbookGuideDescription = (sb, spell) => spell?.desc || guideDesc(sb);
 for (const sb of SPELLBOOKS) {
   const sp = _spellMap.get(sb.spell);
-  otherData.push([sb.name, `${sb.spell} / ${sb.rarity} / ${sb.sellPrice}G / ${sp ? sp.desc : ''}`]);
+  otherData.push([sb.name, `${sb.spell} / ${sb.rarity} / ${sb.sellPrice}G / ${spellbookGuideDescription(sb, sp)}`]);
 }
 
 addSheet('08_魔法の筆魔法書', otherData);

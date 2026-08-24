@@ -5616,23 +5616,23 @@ export const SPELLS=[
   {id:"debug_summon_bb",  name:"[debug]大箱召喚", mpCost:0,  fixedMpCost:true, effect:"debug_summon_bb",   needsDir:false, debug:true, desc:"任意の大箱を1つ選んで呼び出す。MP:0"},
 ];
 export const SPELLBOOKS=[
-  {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"C", weight:4,  sellPrice:2500,  desc:"炎の魔法を習得できる。火に弱い。",tile:43},
-  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"氷の魔法を習得できる。火に弱い。",tile:43},
-  {name:"雷の魔法書",       type:"spellbook",spell:"lightning_magic", rarity:"C", weight:4,  sellPrice:3000,  desc:"雷の魔法を習得できる。火に弱い。",tile:43},
-  {name:"眠りの魔法書",     type:"spellbook",spell:"sleep_bolt",      rarity:"C", weight:4,  sellPrice:2500,  desc:"眠りの魔法を習得できる。火に弱い。",tile:43},
-  {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"テレポートの魔法を習得できる。火に弱い。",tile:43},
-  {name:"テレポートアザーの魔法書",type:"spellbook",spell:"teleport_other",rarity:"B", weight:2,  sellPrice:5000,  desc:"テレポートアザーの魔法を習得できる。火に弱い。",tile:43},
-  {name:"毒の魔法書",            type:"spellbook",spell:"poison_bolt",   rarity:"C", weight:4,  sellPrice:2500,  desc:"毒の魔法を習得できる。火に弱い。",tile:43},
-  {name:"透明の魔法書",          type:"spellbook",spell:"invisible_magic",rarity:"A", weight:1,  sellPrice:6000,  desc:"透明の魔法を習得できる。火に弱い。",tile:43},
-  {name:"壁抜けの魔法書",        type:"spellbook",spell:"wallwalk_magic", rarity:"A", weight:1,  sellPrice:8000,  desc:"壁抜けの魔法を習得できる。火に弱い。",tile:43},
-  {name:"回復の魔法書",       type:"spellbook",spell:"heal_magic",       rarity:"B", weight:2,  sellPrice:5000,  desc:"回復の魔法を習得できる。火に弱い。",tile:43},
-  {name:"HP吸収の魔法書",    type:"spellbook",spell:"drain_hp",         rarity:"C", weight:4,  sellPrice:3000,  desc:"HP吸収の魔法を習得できる。火に弱い。",tile:43},
-  {name:"金縛りの魔法書",    type:"spellbook",spell:"paralyze_magic",   rarity:"C", weight:4,  sellPrice:2500,  desc:"金縛りの魔法を習得できる。火に弱い。",tile:43},
-  {name:"食料生成の魔法書",  type:"spellbook",spell:"food_create",       rarity:"C", weight:4,  sellPrice:2000,  desc:"食料生成の魔法を習得できる。火に弱い。",tile:43},
-  {name:"変化の魔法書",      type:"spellbook",spell:"transform_magic",  rarity:"C", weight:4,  sellPrice:2500,  desc:"変化の魔法を習得できる。火に弱い。",tile:43},
-  {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"C", weight:4,  sellPrice:3500,  desc:"識別の魔法を習得できる。火に弱い。",tile:43},
-  {name:"祝福の魔法書",     type:"spellbook",spell:"bless_magic",     rarity:"A", weight:1,  sellPrice:10000, desc:"祝福の魔法を習得できる。火に弱い。",tile:43},
-  {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"呪いの魔法を習得できる。火に弱い。",tile:43},];
+  {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"C", weight:4,  sellPrice:2500,  desc:"炎の弾を撃ち、着弾点で爆発。周囲8マスにも爆風ダメージ。MP:10",tile:43},
+  {name:"氷の魔法書",       type:"spellbook",spell:"ice_bolt",        rarity:"C", weight:4,  sellPrice:2500,  desc:"氷の弾で敵を凍らせスロー。MP:10",tile:43},
+  {name:"雷の魔法書",       type:"spellbook",spell:"lightning_magic", rarity:"C", weight:4,  sellPrice:3000,  desc:"視界内の全ての敵に雷ダメージを与える。MP:12",tile:43},
+  {name:"眠りの魔法書",     type:"spellbook",spell:"sleep_bolt",      rarity:"C", weight:4,  sellPrice:2500,  desc:"眠りの霧を飛ばす。MP:7",tile:43},
+  {name:"テレポートの魔法書",type:"spellbook",spell:"teleport_magic", rarity:"B", weight:2,  sellPrice:5000,  desc:"ランダムな場所に飛ぶ。MP:8",tile:43},
+  {name:"テレポートアザーの魔法書",type:"spellbook",spell:"teleport_other",rarity:"B", weight:2,  sellPrice:5000,  desc:"方向を選び、その先の敵をランダムにテレポートさせる。MP:8",tile:43},
+  {name:"毒の魔法書",            type:"spellbook",spell:"poison_bolt",   rarity:"C", weight:4,  sellPrice:2500,  desc:"方向を選び敵を毒状態にする。ターン毎にダメージ。MP:8",tile:43},
+  {name:"透明の魔法書",          type:"spellbook",spell:"invisible_magic",rarity:"A", weight:1,  sellPrice:6000,  desc:"しばらく透明になり敵に見えなくなる。MP:10",tile:43},
+  {name:"壁抜けの魔法書",        type:"spellbook",spell:"wallwalk_magic", rarity:"A", weight:1,  sellPrice:8000,  desc:"しばらく壁を通り抜けられる。効果切れ時に壁中にいると押し出される。MP:12",tile:43},
+  {name:"回復の魔法書",       type:"spellbook",spell:"heal_magic",       rarity:"B", weight:2,  sellPrice:5000,  desc:"HPを回復する。MP:15",tile:43},
+  {name:"HP吸収の魔法書",    type:"spellbook",spell:"drain_hp",         rarity:"C", weight:4,  sellPrice:3000,  desc:"方向を選び敵のHPを吸い取って自分が回復する。MP:12",tile:43},
+  {name:"金縛りの魔法書",    type:"spellbook",spell:"paralyze_magic",   rarity:"C", weight:4,  sellPrice:2500,  desc:"方向を選び敵を金縛りにする。MP:10",tile:43},
+  {name:"食料生成の魔法書",  type:"spellbook",spell:"food_create",       rarity:"C", weight:4,  sellPrice:2000,  desc:"ランダムな食料をひとつ生成する。MP:8",tile:43},
+  {name:"変化の魔法書",      type:"spellbook",spell:"transform_magic",  rarity:"C", weight:4,  sellPrice:2500,  desc:"対象を同じ階層の敵に変える。MP:10",tile:43},
+  {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"C", weight:4,  sellPrice:3500,  desc:"持ち物から1つ選んで識別する。MP:5",tile:43},
+  {name:"祝福の魔法書",     type:"spellbook",spell:"bless_magic",     rarity:"A", weight:1,  sellPrice:10000, desc:"アイテムを1つ選んで祝福する。MP:18",tile:43},
+  {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"アイテムを1つ選んで呪う。MP:5",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */
