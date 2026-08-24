@@ -68,10 +68,21 @@ describe("first encounter tips", () => {
   });
 
   it("祝呪と杖反射のTipsは拾ったアイテムから判定する", () => {
-    expect(getFirstEncounterPickupTipKeys({ type: "potion", effect: "heal", blessed: true }, new Set())).toEqual(["unidentified_item", "blessing_curse"]);
-    expect(getFirstEncounterPickupTipKeys({ type: "wand", effect: "sleep" }, new Set(["w:sleep"]))).toEqual(["wand_wall_reflect"]);
-    expect(getFirstEncounterPickupTipKeys({ type: "food", cursed: true }, new Set())).toEqual(["blessing_curse"]);
-    expect(getFirstEncounterPickupTipKeys({ type: "potion", effect: "heal" }, new Set(["p:heal"]))).toEqual([]);
+    expect(getFirstEncounterPickupTipKeys({ type: "potion", effect: "heal", blessed: true }, new Set())).toEqual(["unidentified_item", "item_potion", "blessing_curse"]);
+    expect(getFirstEncounterPickupTipKeys({ type: "wand", effect: "sleep" }, new Set(["w:sleep"]))).toEqual(["item_wand", "wand_wall_reflect"]);
+    expect(getFirstEncounterPickupTipKeys({ type: "food", cursed: true }, new Set())).toEqual(["item_food", "blessing_curse"]);
+    expect(getFirstEncounterPickupTipKeys({ type: "potion", effect: "heal" }, new Set(["p:heal"]))).toEqual(["item_potion"]);
+  });
+
+  it("主要なアイテム種別ごとに初取得Tipsを返す", () => {
+    const types = [
+      "potion", "scroll", "weapon", "armor", "arrow", "wand", "pen", "marker",
+      "ring", "spellbook", "pot", "food", "gem", "bottle", "gold",
+    ];
+    for (const type of types) {
+      expect(getFirstEncounterPickupTipKeys({ type }, new Set(["p:known"]))).toContain(`item_${type}`);
+      expect(FIRST_ENCOUNTER_TIPS[`item_${type}`]).toMatchObject({ text: expect.any(Array) });
+    }
   });
 
   it("プレイヤー状態と周辺状況から該当する解説を列挙する", () => {

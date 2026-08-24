@@ -999,11 +999,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (it.type === "sign") { break; }
       if (it.type === "gold") {
         p.gold += it.value;
+        showFirstEncounterTip("item_gold");
         ml.push(`${it.value}枚の金貨を拾った！`);
         removeFloorItem(dg, it);
         go = true;
       } else if (it.type === "arrow" && (it.stone || it.magicStone) && !it.shopPrice) {
         if (addStonesInv(p.inventory, it.count, !!it.magicStone, p.maxInventory || 30)) {
+          showFirstEncounterTip("item_arrow");
           ml.push(`${it.name}(${it.count}個)を拾った。`);
           removeFloorItem(dg, it);
           go = true;
@@ -1014,6 +1016,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       } else if (it.type === "arrow" && !it.shopPrice) {
         const _arrowUnit = it.specialProjectile ? "個" : "本";
         if (addArrowsInv(p.inventory, it.count, !!it.poison, !!it.pierce, p.maxInventory || 30, !!it.bombArrow, !!it.strong, it.specialProjectile || null)) {
+          showFirstEncounterTip("item_arrow");
           ml.push(`${it.name || "矢"}(${it.count}${_arrowUnit})を拾った。`);
           removeFloorItem(dg, it);
           go = true;
@@ -2982,16 +2985,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               setShowSign(_grIt);
             } else if (_grIt.type === "gold") {
               p.gold += _grIt.value;
+              showFirstEncounterTip("item_gold");
               ml.push(`${_grIt.value}枚の金貨を拾った！`);
               removeFloorItem(dg, _grIt);
             } else if (_grIt.type === "arrow" && (_grIt.stone || _grIt.magicStone) && !_grIt.shopPrice) {
               if (addStonesInv(p.inventory, _grIt.count, !!_grIt.magicStone, p.maxInventory || 30)) {
+                showFirstEncounterTip("item_arrow");
                 ml.push(`${_grIt.name}(${_grIt.count}個)を拾った。`);
                 removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");
             } else if (_grIt.type === "arrow" && !_grIt.shopPrice) {
               const _grArrowUnit = _grIt.specialProjectile ? "個" : "本";
               if (addArrowsInv(p.inventory, _grIt.count, !!_grIt.poison, !!_grIt.pierce, p.maxInventory || 30, !!_grIt.bombArrow, !!_grIt.strong, _grIt.specialProjectile || null)) {
+                showFirstEncounterTip("item_arrow");
                 ml.push(`${_grIt.name || "矢"}(${_grIt.count}${_grArrowUnit})を拾った。`);
                 removeFloorItem(dg, _grIt);
               } else ml.push("持ち物がいっぱいだ！");

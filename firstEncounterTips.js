@@ -2,6 +2,21 @@ const MAIN_DUNGEON_TYPES = new Set(["beginner", "intermediate", "advanced", "leg
 
 export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   unidentified_item: { title: "正体不明の道具", trigger: "未識別の薬・巻物・杖・指輪・ペン・壺・魔法書を拾う", text: ["薬・巻物・杖などは、冒険ごとに見た目と正体の対応が変わる。", "使うか鑑定すると正体が判明し、同じ見た目の道具も識別される。"] },
+  item_potion: { title: "薬", trigger: "初めて薬を拾う", text: ["薬は飲むか投げて使い、回復・状態異常・能力変化など種類ごとの効果を発揮する。", "未識別の薬は名前だけでは効果が分からない。安全な場所で試すか、鑑定手段を使おう。"] },
+  item_scroll: { title: "巻物", trigger: "初めて巻物を拾う", text: ["巻物は読むとその場で効果を発揮し、祝福・呪いで結果が変わることもある。", "未識別の巻物は危険な効果を想定し、周囲を整えてから読もう。"] },
+  item_weapon: { title: "武器", trigger: "初めて武器を拾う", text: ["武器を装備すると攻撃力が上がり、特殊能力があれば攻撃にも効果が付く。", "＋値や能力だけでなく呪いにも注意し、より強い武器へ持ち替えよう。"] },
+  item_armor: { title: "防具", trigger: "初めて防具を拾う", text: ["防具を装備すると防御力が上がり、特殊能力があれば属性や罠から身を守る。", "防具にも＋値と呪いがある。敵から攻撃を受ける前に装備を整えよう。"] },
+  item_arrow: { title: "矢", trigger: "初めて矢を拾う", text: ["矢は装備して撃つ飛び道具で、敵と距離を保って攻撃できる。種類によって追加効果もある。", "矢は束で持てるが、使うほど減る。残数と弾道を確認して使おう。"] },
+  item_wand: { title: "杖", trigger: "初めて杖を拾う", text: ["杖は振る方向を選んで対象へ効果を与え、振るたびに充填を1消費する。壊すと別の効果が起きる杖もある。", "杖の魔法弾は壁で反射して自分に当たることがある。狭い場所では弾道を確認しよう。"] },
+  item_pen: { title: "ペン", trigger: "初めてペンを拾う", text: ["ペンは足元に魔方陣を描き、種類によって部屋・敵・道具などへ効果を及ぼす。", "描くたびに充填を消費する。魔方陣は祝福・呪いでも効果が変わる。"] },
+  item_marker: { title: "魔法の筆", trigger: "初めて魔法の筆を拾う", text: ["魔法の筆は白紙の巻物に好きな魔法を書き込み、使える巻物へ変えられる。", "書き込みにはインクを消費する。魔法書への書き込みは通常より多くのインクが必要だ。"] },
+  item_ring: { title: "指輪", trigger: "初めて指輪を拾う", text: ["指輪は2個まで装備でき、装備中は常に特殊効果が働く。＋値の付く指輪もある。", "未識別の指輪は効果も呪いも不明だ。安全な状況で確かめてから装備しよう。"] },
+  item_spellbook: { title: "魔法書", trigger: "初めて魔法書を拾う", text: ["魔法書を読むと、書かれた魔法を習得して使えるようになる。", "未習得なら通常でLv.1、祝福でLv.2を習得し、習得済みならレベルアップする。呪いでは別の魔法を覚えることがある。"] },
+  item_pot: { title: "壺", trigger: "初めて壺を拾う", text: ["壺はアイテムを入れて効果を発揮する。容量があり、入れたものや壺の種類で結果が変わる。", "壺を割ると中身が出る。未識別の壺には大切な道具をいきなり入れず、効果を見極めよう。"] },
+  item_food: { title: "食料", trigger: "初めて食料を拾う", text: ["食料を食べると満腹度が回復する。大きさ・生か調理済みか・状態によって回復量や効果が変わる。", "食料は壺や薬で味付け・加工できる。空腹になる前に、食べるか持ち帰るかを決めよう。"] },
+  item_gem: { title: "宝石", trigger: "初めて宝石を拾う", text: ["宝石は主に店で売って金貨に換えるアイテムで、種類によって価値が違う。", "遠い店ほど高く売れる。すぐに使わず、売却場所と持ち物の空きを考えよう。"] },
+  item_bottle: { title: "空き瓶", trigger: "初めて空き瓶を拾う", text: ["空き瓶は泉に浸すと水になり、薬として飲んだり投げたりできる。", "空き瓶を投げると割れて消える。敵を倒すと薬が出ることもあるので、使い道を考えよう。"] },
+  item_gold: { title: "金貨", trigger: "初めて金貨を拾う", text: ["拾った金貨はこの冒険中の買い物や店主への支払いに使える。", "地上へ戻ると所持金は銀行へ預けられる。次の冒険へ持ち込む額は地上の銀行で決めよう。"] },
   blessing_curse: { title: "祝福と呪い", trigger: "道具や魔方陣が祝福・呪いの影響を受ける", text: ["祝福と呪いは道具ごとに作用が違う。祝福で強化されるものもあれば、呪いで効果が反転したり、壺の容量が変わったりする。", "未識別の道具は祝呪が分からないことがある。識別するまで慎重に扱い、呪いを解く手段も残しておこう。"] },
   trap: { title: "隠れた罠", trigger: "隠れた罠が作動する、罠探しで発見する、または足元から罠を起動する", text: ["罠は普段見えず、踏むと作動して姿を現す。発見済みの罠は通常歩行では作動しない。", "Sキー（モバイルは「罠探し」）で周囲の罠を探せる。怪しい場所では立ち止まって調べよう。"] },
   shop: { title: "ダンジョン内の店", trigger: "ダンジョン内の店へ入る", text: ["商品は拾った時点では未払い。店の出口を守る店主に代金を払う必要がある。", "未払いのまま店の外へ出ると泥棒扱いになる。自分の道具を店内に置けば売却もできる。"] },
@@ -65,7 +80,24 @@ export function getSeenFirstEncounterTips(seenTips = []) {
     .map(([key, tip]) => ({ key, name: tip.title, ...tip }));
 }
 
-const IDENTIFIED_TYPES = new Set(["potion", "scroll", "wand", "ring", "pen", "spellbook", "pot"]);
+const IDENTIFIED_TYPES = new Set(["potion", "scroll", "wand", "ring", "pen", "marker", "spellbook", "pot"]);
+const ITEM_PICKUP_TIP_KEYS = Object.freeze({
+  potion: "item_potion",
+  scroll: "item_scroll",
+  weapon: "item_weapon",
+  armor: "item_armor",
+  arrow: "item_arrow",
+  wand: "item_wand",
+  pen: "item_pen",
+  marker: "item_marker",
+  ring: "item_ring",
+  spellbook: "item_spellbook",
+  pot: "item_pot",
+  food: "item_food",
+  gem: "item_gem",
+  bottle: "item_bottle",
+  gold: "item_gold",
+});
 
 export function isUnidentifiedEncounterItem(item, ident, allBcKnown = false) {
   if (!item || allBcKnown || item.fullIdent || !IDENTIFIED_TYPES.has(item.type)) return false;
@@ -84,6 +116,8 @@ export function isUnidentifiedEncounterItem(item, ident, allBcKnown = false) {
 export function getFirstEncounterPickupTipKeys(item, ident, allBcKnown = false) {
   const keys = [];
   if (isUnidentifiedEncounterItem(item, ident, allBcKnown)) keys.push("unidentified_item");
+  const itemTipKey = ITEM_PICKUP_TIP_KEYS[item?.type];
+  if (itemTipKey) keys.push(itemTipKey);
   if (item?.blessed || item?.cursed) keys.push("blessing_curse");
   if (item?.type === "wand") keys.push("wand_wall_reflect");
   return keys;
