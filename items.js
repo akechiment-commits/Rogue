@@ -6317,15 +6317,35 @@ export function hasRingEffect(p, effect) {
 }
 
 /**
- * ダンジョン入場時の初期装備（短剣・革の鎧）をインベントリに追加して装備する。
- * 所持上限に空きがない場合はそのアイテムは入らない（満杯なら何も入らない）。
- * @returns {{ dagger: object|null, armor: object|null }}
+ * ダンジョン入場時の装備を決める。
+ * 持ち込み装備があれば補給装備は追加せず、武器・防具は数値最大品、
+ * 指輪はインベントリ上から2個を自動装備する。装備品がなければ短剣・革の鎧を追加する。
+ * @returns {{ dagger: object|null, weapon: object|null, armor: object|null, rings: object[] }}
  */
 export function grantDungeonStarterGear(player, { uidFn = uid, catalog = ITEMS } = {}) {
-  if (!player) return { dagger: null, armor: null };
+  if (!player) return { dagger: null, weapon: null, armor: null, rings: [] };
   player.inventory = player.inventory || [];
+  player.rings = player.rings || [];
   const maxInv = player.maxInventory || 30;
-  const result = { dagger: null, armor: null };
+  const result = { dagger: null, weapon: null, armor: null, rings: [] };
+
+  const carriedEquipment = player.inventory.filter((item) =>
+    item?.type === "weapon" || item?.type === "armor" || item?.type === "ring");
+  if (carriedEquipment.length > 0) {
+    const score = (item, stat) => Number(item?.[stat] || 0) + Number(item?.plus || 0);
+    const best = (items, stat) => items.reduce((current, item) =>
+      !current || score(item, stat) > score(current, stat) ? item : current, null);
+    const weapon = best(player.inventory.filter((item) => item?.type === "weapon"), "atk");
+    const armor = best(player.inventory.filter((item) => item?.type === "armor"), "def");
+    const rings = player.inventory.filter((item) => item?.type === "ring").slice(0, 2);
+    player.weapon = weapon;
+    player.armor = armor;
+    player.rings = rings;
+    result.weapon = weapon;
+    result.armor = armor;
+    result.rings = rings;
+    return result;
+  }
 
   const tryAddEquip = (name, slot) => {
     if (player.inventory.length >= maxInv) return null;
@@ -6339,6 +6359,8 @@ export function grantDungeonStarterGear(player, { uidFn = uid, catalog = ITEMS }
 
   result.dagger = tryAddEquip("短剣", "weapon");
   result.armor = tryAddEquip("革の鎧", "armor");
+  result.weapon = player.weapon;
+  result.rings = player.rings;
   return result;
 }
 

@@ -587,7 +587,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (p.inventory.length < (p.maxInventory || 100)) p.inventory.push({ ...it, id: uid() });
       }
     }
-    /* 初期装備：短剣・革の鎧（空きがなければ入らない） */
+    /* 持ち込み装備を優先して自動装備。装備品がなければ短剣・革の鎧を補給する。 */
     grantDungeonStarterGear(p);
     refreshFOV(d, p);
     const _dt = dungeonConfig?.dungeonType || "beginner";
