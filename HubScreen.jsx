@@ -822,7 +822,7 @@ function EncyclopediaPanel({ saveData, onClose }) {
                   <span style={{ color:"#555" }}>{tab === "tips" ? "既読" : `${e.count}回`}</span>
                 </div>
                 {isDesc && desc && (
-                  <div style={{ color:"#8899aa", fontSize:12, marginTop:4, whiteSpace:"pre-wrap", lineHeight:"1.5em" }}>
+                  <div style={{ color:"#b8c5d8", fontSize:12, marginTop:4, whiteSpace:"pre-wrap", lineHeight:"1.5em" }}>
                     {desc}
                   </div>
                 )}
@@ -929,7 +929,7 @@ function HubShopPanel({ saveData, updateSave, onClose }) {
             >
               <span style={{ color: canBuy ? TXT : "#444", flex:1 }}>
                 {item.name}{item.plus ? `+${item.plus}` : ""}
-                <span style={{ color:"#555", fontSize:11, marginLeft:6 }}>{item.desc}</span>
+                <span style={{ color:"#b7c1d2", fontSize:11, marginLeft:6 }}>{item.desc}</span>
               </span>
               <span style={{ color: canBuy ? GOLD : "#444", minWidth:50, textAlign:"right" }}>
                 {price}G
