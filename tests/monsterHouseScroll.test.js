@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { T } from "../utils.js";
 import { applyMonsterScroll, applyMonsterHouseToRoom } from "../dungeon.js";
 import { ITEMS } from "../items.js";
+import { MONS, makeMonsterFromBase } from "../monsters.js";
 
 function makeRoomDg() {
   const map = Array.from({ length: 20 }, () => Array(30).fill(T.WALL));
@@ -128,6 +129,23 @@ describe("モンスターの巻物", () => {
     expect(kept.y).toBe(4);
     expect(dg.monsters.some((m) => m.x === 4 && m.y === 4 && m.id !== "keep-me")).toBe(false);
     expect(dg.monsters.length).toBeGreaterThan(1);
+  });
+
+  it("強モンスターハウスは部屋内のLv3を2段階強化する", () => {
+    const dg = makeRoomDg();
+    const rat = MONS.find((m) => m.baseKind === "rat");
+    const existing = makeMonsterFromBase(rat, 3, 4, 4);
+    const baseAtk = existing.atk;
+    dg.monsters = [existing];
+    const p = { x: 5, y: 5, depth: 5 };
+    const ml = [];
+
+    applyMonsterHouseToRoom(dg, dg.rooms[0], p, ml, { playerInRoom: true, strong: true });
+
+    expect(existing.overBoost).toBeCloseTo(1.44, 5);
+    expect(existing.atk).toBe(Math.round(baseAtk * 1.44));
+    expect(dg.monsters.filter((m) => m.x >= 2 && m.x < 10 && m.y >= 2 && m.y < 8)
+      .every((m) => (m.monLevel || 1) >= 2 || m.overBoost > 1)).toBe(true);
   });
 
   it("既存の大箱・泉・石像・罠・アイテムの上にアイテム/罠/大箱/泉を重ねない", () => {

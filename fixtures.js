@@ -338,8 +338,10 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     return null;
   };
 
-  /* 偽階段 0〜2 */
-  const fakeN = Math.random() < 0.35 ? rng(1, 2) : Math.random() < 0.5 ? 1 : 0;
+  /* 偽階段 0〜2（B16F相当のdepth=15から解禁） */
+  const fakeN = depth >= 15
+    ? (Math.random() < 0.35 ? rng(1, 2) : Math.random() < 0.5 ? 1 : 0)
+    : 0;
   for (let i = 0; i < fakeN; i++) {
     const p = rndFloor();
     if (!p) break;

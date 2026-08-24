@@ -51,6 +51,20 @@ describe("偽階段", () => {
     }
     expect(sawOverlap).toBe(false);
   });
+
+  it("偽階段はB16F相当のdepth=15から生成される", () => {
+    const map = Array.from({ length: 10 }, () => Array(10).fill(T.FLOOR));
+    const rooms = [{ x: 1, y: 1, w: 8, h: 8 }];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      const before = scatterFloorGimmicks(map, rooms, 14);
+      const fromUnlock = scatterFloorGimmicks(map, rooms, 15);
+      expect(before.traps.some((trap) => trap.effect === "fake_stair")).toBe(false);
+      expect(fromUnlock.traps.some((trap) => trap.effect === "fake_stair")).toBe(true);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
 });
 
 describe("風穴", () => {

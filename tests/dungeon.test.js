@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse } from "../dungeon.js";
+import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -95,6 +95,14 @@ describe("genDungeon", () => {
       const { base } = pickMonsterDef(10, "intermediate", false, { excludeItemMimic: true });
       expect(base.baseKind).not.toBe("itemMimic");
     }
+  });
+
+  it("上級者・超上級者のモンスターハウスだけ低確率で強化される", () => {
+    expect(getMonsterHouseGenerationOptions("beginner", {}, () => 0).levelBoost).toBe(0);
+    expect(getMonsterHouseGenerationOptions("intermediate", {}, () => 0).levelBoost).toBe(0);
+    expect(getMonsterHouseGenerationOptions("advanced", {}, () => 0).levelBoost).toBe(1);
+    expect(getMonsterHouseGenerationOptions("legend", {}, () => 0.1).levelBoost).toBe(0);
+    expect(getMonsterHouseGenerationOptions("advanced", { levelBoost: 1 }, () => 0.99).levelBoost).toBe(1);
   });
 });
 
