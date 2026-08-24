@@ -2952,6 +2952,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     }
     case "bone": {
       /* 吹き飛ばした骨が何かにぶつかった時のダメージ */
+      if (item) ml.push(`${resolveItemName(item, nameFn)}は骨にぶつかって消えた。`);
       const _boneM = monsterAt(dg, tx, ty);
       if (_boneM) {
         const _boneDmg = rng(5, 12);
@@ -2964,6 +2965,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         p.hp -= _boneDmg;
         ml.push(`骨が自分に激突！${_boneDmg}ダメージ！`);
       }
+      ml.push("骨が壊れた。");
       dg.traps = dg.traps.filter(t => t !== trap);
       return "destroyed";
     }
