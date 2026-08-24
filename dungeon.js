@@ -2309,17 +2309,8 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         dir: { x: 0, y: 0 }, lastPx: 0, lastPy: 0, patrolTarget: null, dormant: false });
     }
   }
-  /* テスト用: 2階(depth=1)は必ずモンスターハウス */
+  /* 通常フロアでは固定のモンスターハウスを生成しない。 */
   let monsterHouseRoom = null;
-  if (depth === 1) {
-    /* 部屋0(スタート)と最後(ゴール)と店以外から最大の部屋を選ぶ */
-    const mhCands = rooms.filter((r, i) => i !== 0 && i !== rooms.length - 1 && i !== shopRoomIdx);
-    if (mhCands.length > 0) {
-      const mhRoom = mhCands.reduce((best, r) => (r.w * r.h > best.w * best.h ? r : best), mhCands[0]);
-      genMonsterHouseContent(mhRoom, depth, map, mons, items, traps, springs, bigboxes, su, sd, dungeonType);
-      monsterHouseRoom = mhRoom;
-    }
-  }
   const _floor = {
     map,
     rooms,
