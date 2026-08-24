@@ -6,7 +6,7 @@ import {
   RAW_FOODS, COOKED_FOODS,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
-  getIdentKey, randPotCapacity, gemSellPrice,
+  getIdentKey, randPotCapacity, gemSellPrice, sellInventoryItemsToShop,
   extractPotContents, scatterPotContents,
 } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
@@ -1497,11 +1497,7 @@ export function useKeyHandler({
                   const toSell = p2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
                   const _sellShop = getShops(dg2).find(s => s.room && p2.x >= s.room.x && p2.x < s.room.x + s.room.w && p2.y >= s.room.y && p2.y < s.room.y + s.room.h) || getShops(dg2)[0];
                   if (toSell.length > 0 && _sellShop) {
-                    const _calc = (it) => it.type === "gem" ? gemSellPrice(it, p2.depth) : Math.ceil(itemPrice(it) * 0.5);
-                    let _earned = 0;
-                    for (const it of toSell) { const _sv = _calc(it); it.shopPrice = it.type === "gem" ? (it._gemBuyPrice || _sv) + _sv : _sv; it._shopId = _sellShop.id; _earned += _sv; }
-                    p2.gold += _earned;
-                    _sellShop.unpaidTotal += _earned;
+                    const _earned = sellInventoryItemsToShop(toSell, p2, _sellShop);
                     const _sk2 = dg2.monsters.find(m => m.id === _sellShop.shopkeeperId && m.state === "friendly");
                     if (_sk2) _sk2.state = "blocking";
                     setMsgs(prev => [...prev.slice(-80), `所持品 ${toSell.length} 件が店の商品になった。${_earned.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);

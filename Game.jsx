@@ -25,7 +25,7 @@ import {
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
   applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
-  itemPrice, gemSellPrice, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
+  itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
   tickBubbleGold, getFixtureItemDeps,
 } from "./items.js";
@@ -5761,10 +5761,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                           const _toSell = _bp2.inventory.filter(it => it.type !== "gold" && !it.shopPrice);
                           const _bsh2 = getShops(_bd2).find(s => s.room && _bp2.x >= s.room.x && _bp2.x < s.room.x + s.room.w && _bp2.y >= s.room.y && _bp2.y < s.room.y + s.room.h) || getShops(_bd2)[0];
                           if (_toSell.length > 0 && _bsh2) {
-                            const _calcB = (it) => it.type === "gem" ? gemSellPrice(it, _bp2.depth) : Math.ceil(itemPrice(it) * 0.5);
-                            let _earn = 0;
-                            for (const it of _toSell) { const _bv = _calcB(it); it.shopPrice = it.type === "gem" ? (it._gemBuyPrice || _bv) + _bv : _bv; it._shopId = _bsh2.id; _earn += _bv; }
-                            _bp2.gold += _earn; _bsh2.unpaidTotal += _earn;
+                            const _earn = sellInventoryItemsToShop(_toSell, _bp2, _bsh2);
                             const _sk3 = _bd2.monsters.find(m => m.id === _bsh2.shopkeeperId && m.state === "friendly");
                             if (_sk3) _sk3.state = "blocking";
                             setMsgs(prev => [...prev.slice(-80), `所持品 ${_toSell.length} 件が店の商品になった。${_earn.toLocaleString()}Gを受け取った。店主が入口をふさいだ。`]);

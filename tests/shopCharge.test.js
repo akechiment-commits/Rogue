@@ -12,6 +12,7 @@ import {
   peelShopArrowUnit,
   chargeShopItem,
   claimShopItemIfOutside,
+  sellInventoryItemsToShop,
 } from "../items.js";
 import { T, MW, MH } from "../utils.js";
 
@@ -107,6 +108,24 @@ describe("shop charge / refund with markup ring", () => {
     expect(applyShopUnpaidCharge(item, shop, p)).toBe(100);
     expect(applyShopUnpaidCharge(item, shop, p)).toBe(0);
     expect(shop.unpaidTotal).toBe(100);
+  });
+});
+
+describe("bulk inventory sale", () => {
+  it("売却額を受け取り、買い戻しは売値ではなく通常の販売価格で請求する", () => {
+    const { shop } = makeShopRoom();
+    shop.unpaidTotal = 25;
+    const p = { gold: 100, depth: 1, rings: [] };
+    const item = {
+      id: "bulk1", name: "薬", type: "potion", effect: "heal", tile: 16,
+      sellPrice: 100,
+    };
+
+    expect(sellInventoryItemsToShop([item], p, shop)).toBe(50);
+    expect(p.gold).toBe(150);
+    expect(item.shopPrice).toBe(100);
+    expect(item._shopCharge).toBe(100);
+    expect(shop.unpaidTotal).toBe(125);
   });
 });
 

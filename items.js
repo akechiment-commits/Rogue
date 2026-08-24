@@ -6514,6 +6514,29 @@ export function applyShopUnpaidCharge(item, shop, p) {
 }
 
 /**
+ * 所持品を店へ売却する。売却額は受け取り、商品化した品は通常の販売価格で請求する。
+ * すでに所持品にあるため、拾った商品と同じく請求額もこの場で未払いへ計上する。
+ */
+export function sellInventoryItemsToShop(items, p, shop) {
+  if (!Array.isArray(items) || !p || !shop) return 0;
+  let earned = 0;
+  for (const item of items) {
+    if (!item || item.type === "gold" || item.shopPrice) continue;
+    const sellValue = item.type === "gem"
+      ? gemSellPrice(item, p.depth)
+      : Math.ceil(itemPrice(item) * 0.5);
+    item.shopPrice = item.type === "gem"
+      ? (item._gemBuyPrice || sellValue) + sellValue
+      : itemPrice(item);
+    item._shopId = shop.id;
+    earned += sellValue;
+    applyShopUnpaidCharge(item, shop, p);
+  }
+  p.gold += earned;
+  return earned;
+}
+
+/**
  * 1ターンあたりの空腹進行レート（基準: 合計10で満腹度-1 ≒ 通常10ターンに1）。
  * 腹持ち1つにつき ×3/4（胴+指輪1=1/2、胴+指輪2=1/4）。バターでさらに×1/2。
  * 空腹の指輪は軽減後のレートを×2（上書きしない・重ねがけ可）。
