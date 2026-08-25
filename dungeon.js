@@ -1354,7 +1354,8 @@ export function genCorridorFloor(depth, dungeonType = null) {
   for (let ri = 0; ri < roomNodes.length; ri++) {
     const [nc, nr] = roomNodes[ri];
     const cx=nodeX(nc), cy=nodeY(nr);
-    const radius = ri < 2 ? 1 : 0;
+    /* 階段周辺・行き止まりの退避空間はすべて3×3にする。 */
+    const radius = 1;
     for (let dy=-radius; dy<=radius; dy++) {
       for (let dx=-radius; dx<=radius; dx++) {
         const sx=cx+dx, sy=cy+dy;
