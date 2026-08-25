@@ -1573,7 +1573,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     const _hasFireProt = _fireCtx && hasFireResist(p);
     const _oilyMult = oilyDamageMult(dg, p);
     /* 油まみれの地雷だけは、半減×2の理不尽な即死を避けてHP1を残す。 */
-    const _oilyMineSurvival = mineExplosion && _oilyMult > 1 && !_playerHpOne;
+    const _oilyMineSurvival = mineExplosion && _oilyMult > 1 && !_hasFireProt && !_playerHpOne;
     const rawDmg = _oilyMineSurvival ? Math.max(0, _playerHpBefore - 1)
       : _playerHpOne ? Math.max(0, _playerHpBefore - 1)
       : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))

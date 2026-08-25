@@ -469,7 +469,7 @@ describe("doExplosion", () => {
     expect(ml.some(m => m.includes("耐火"))).toBe(true);
   });
 
-  it("地雷爆発は油まみれでもHP1を残す", () => {
+  it("地雷爆発は油まみれなら耐火なしでHP1を残す", () => {
     const dg = { pentacles: [], monsters: [], items: [], map: Array.from({ length: 21 }, () => Array(33).fill(1)), explored: [], visible: [], traps: [] };
     const p = { x: 5, y: 5, hp: 100, maxHp: 100, oilyTurns: 10, inventory: [] };
     const ml = [];
@@ -478,13 +478,14 @@ describe("doExplosion", () => {
     expect(ml.some(m => m.includes("油まみれ") && m.includes("HPが1残った"))).toBe(true);
   });
 
-  it("地雷爆発は油まみれなら耐火の有無にかかわらずHP1を残す", () => {
+  it("地雷爆発は油まみれでも耐火時は通常の軽減計算を使う", () => {
     const dg = { pentacles: [], monsters: [], items: [], map: Array.from({ length: 21 }, () => Array(33).fill(1)), explored: [], visible: [], traps: [] };
     const p = { x: 5, y: 5, hp: 100, maxHp: 100, oilyTurns: 10, armor: { ability: "fire_resist" }, inventory: [] };
     const ml = [];
     doExplosion(5, 5, dg, p, ml, null, "地雷", null, null, true, false, true);
-    expect(p.hp).toBe(1);
-    expect(ml.some(m => m.includes("油まみれ") && m.includes("HPが1残った"))).toBe(true);
+    expect(p.hp).toBe(34);
+    expect(ml.some(m => m.includes("油まみれ×2"))).toBe(true);
+    expect(ml.some(m => m.includes("耐火"))).toBe(true);
   });
 
   it("火薬壺のHP4分の3爆発は油まみれなら即死する", () => {
