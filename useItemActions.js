@@ -20,6 +20,7 @@ import {
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
+import { bbDisplayName } from "./GameHelpers.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -3098,6 +3099,7 @@ export function useItemActions({
         } else {
           ml.push(`${dnameRef(it)}を振った！${_chargesStr}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
           const _wandItemDName = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+          const _wandBigboxDName = (bb) => bbDisplayName(bb, sr.current);
           /* 杖発射前のプレイヤー位置を記録（ワープ系の盗賊判定用） */
           const _preWandPx = p.x, _preWandPy = p.y;
           pushBoltAnim(p.x, p.y, dx, dy, dg, it.effect);
@@ -3182,7 +3184,7 @@ export function useItemActions({
               }
             }
           } else {
-          fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName);
+          fireWandBolt(p, dg, it.effect, dx, dy, ml, lu, bigboxAddItem, _wandBm, _wandItemDName, _wandBigboxDName);
           }
           /* プレイヤー位置が変わった場合、ショップ離脱盗賊チェック */
           if (p.x !== _preWandPx || p.y !== _preWandPy) {

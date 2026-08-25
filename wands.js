@@ -76,7 +76,7 @@ function statueTeleportDest(dg, ox, oy, p) {
  *   2. この関数の switch(eff) に case "effect名": { ... } を追加
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
-export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null) {
+export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null) {
   const _teleportPlayer = (toX, toY) => {
     const _fromX = p.x, _fromY = p.y;
     p.x = toX; p.y = toY;
@@ -433,11 +433,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     if (eff === "transform") {
       const others = BB_TYPES.filter(t => t.kind !== target.kind);
       const nt = pick(others);
-      const oldName = target.name;
-      target.kind = nt.kind;
-      target.name = nt.name;
-      target.capacity = nt.cap();
-      ml.push(`${oldName}は${target.name}に変化した！`);
+      const oldName = bigboxNameFn ? bigboxNameFn(target) : target.name;
+      const transformed = { ...target, kind: nt.kind, name: nt.name, capacity: nt.cap(), revealed: false };
+      const newName = bigboxNameFn ? bigboxNameFn(transformed) : transformed.name;
+      Object.assign(target, transformed);
+      ml.push(`${oldName}は${newName}に変化した！`);
       return;
     }
     if (eff === "bless_wand") {
@@ -1813,7 +1813,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
   }
 }
 
-export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null) {
+export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nameFn = null, bigboxNameFn = null) {
   /* 呪われた軟化：1マス先に壊せる壁を生成（穴掘り呪いと同一挙動） */
   if (eff === "soften" && blMult < 1) {
     const wx = p.x + dx, wy = p.y + dy;
@@ -2021,7 +2021,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const bb = dg.bigboxes?.find(b => b.x === tx && b.y === ty);
     if (bb) {
       if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${bb.name}の前に飛びついた！`); return; }
-      applyWandEffect(eff, "bigbox", bb, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
+      applyWandEffect(eff, "bigbox", bb, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, null, 0, null, bigboxNameFn);
       return;
     }
     /* 石像：飛びつきは前へ。それ以外は applyWandEffect（位置系は壊さず、穴掘り・軟化は敵なし破壊） */

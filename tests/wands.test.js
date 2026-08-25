@@ -130,6 +130,27 @@ describe("applyWandEffect", () => {
     }
   });
 
+  it("変化の杖で未識別になった大箱の真名を表示しない", () => {
+    const p = makePlayer();
+    const bb = {
+      kind: "change", name: "変化の大箱", x: 6, y: 5,
+      capacity: 2, contents: [], revealed: true,
+    };
+    const ml = [];
+    const fakeNames = { synthesis: "赤茶けた大箱" };
+    const bigboxNameFn = (box) => box.revealed ? box.name : (fakeNames[box.kind] || "謎の大箱");
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      applyWandEffect("transform", "bigbox", bb, 1, 0, makeEmptyDg(), p, ml, noop, null, 1, null, 0, null, bigboxNameFn);
+    } finally {
+      randomSpy.mockRestore();
+    }
+
+    expect(bb.revealed).toBe(false);
+    expect(ml).toContain("変化の大箱は赤茶けた大箱に変化した！");
+    expect(ml.some((message) => message.includes("合成の大箱"))).toBe(false);
+  });
+
   it("変化の魔法は現フロアの敵へ同Lvで変化する", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ depth: 0 });
