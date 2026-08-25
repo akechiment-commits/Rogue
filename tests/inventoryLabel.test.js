@@ -38,6 +38,14 @@ describe("formatInventoryItem", () => {
     expect(label(potion, { identified: new Set(["p:heal"]) })).toBe("赤い液体 (HP+20)");
   });
 
+  it("未識別の力・守り・命の指輪は強化値を表示しない", () => {
+    for (const effect of ["power_ring", "defense_ring", "life_ring"]) {
+      const ring = { type: "ring", name: "謎の指輪", effect, plus: 2, identKey: `r:${effect}` };
+      expect(label(ring)).toBe("謎の指輪");
+      expect(label(ring, { identified: new Set([`r:${effect}`]) })).toBe("謎の指輪+2");
+    }
+  });
+
   it("食料、壺、未払い品の補足を表示する", () => {
     expect(label({ type: "food", name: "パン", value: 20, cooked: false, potionEffects: ["heal"] })).toBe("パン(満+20)(生★)");
     expect(label({ type: "pot", name: "壺", identKey: "pot", capacity: 3, contents: [{}], shopPrice: 400 }, { identified: new Set(["pot"]) })).toBe("壺 [1/3] 〔未払:400G〕");

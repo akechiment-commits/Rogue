@@ -75,7 +75,7 @@ export function formatInventoryItem(item, {
     label += item.fullIdent ? ` [${item.charges || 0}回]` : "";
   } else if (item.type === "pot") {
     label += isIdentified ? ` [${potOccupancyCount(item)}/${item.capacity}]` : "";
-  } else if (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect)) {
+  } else if (item.type === "ring" && isIdentified && ["power_ring", "defense_ring", "life_ring"].includes(item.effect)) {
     label += `+${item.plus || 0}`;
   }
   if (item.shopPrice) label += ` 〔未払:${getShopItemCharge(item)}G〕`;

@@ -3412,7 +3412,7 @@ export function InventoryModal({
                         {it.type === "scroll" && " — 巻物"}
                         {it.type === "food" && ` — 食料${it.cooked ? "(調理済)" : "(生)"}`}
                         {it.type === "pot" && ` — 壺 [${potOccupancyCount(it)}/${it.capacity}]`}
-                        {it.type === "ring" && ` — 指輪${["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
+                        {it.type === "ring" && ` — 指輪${!_isUnidentInv && ["power_ring","defense_ring","life_ring"].includes(it.effect) ? ` (+${it.plus || 0})` : ""}`}
                       </div>
                       <div style={ITEM_DESC_TEXT_STYLE}>{_isUnidentInv ? "未識別のためわからない。" : formatFoodItemDesc(it)}</div>
                       {it.ability && (() => {
