@@ -2024,6 +2024,59 @@ export function useItemActions({
     sr.current = { ...sr.current };
     setGs({ ...sr.current });
   }, [lu, endTurn, chgFloor]);
+
+  /* 催眠術による強制行動。UIを開かず、その場で完了する行動だけを候補にする。 */
+  const doHypnotizedAction = useCallback(() => {
+    const st = sr.current;
+    if (!st) return false;
+    const { player: p } = st;
+    if ((p.hypnosisPending || 0) <= 0) return false;
+    if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return false;
+
+    const isEquipped = (it) => p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
+    const candidates = p.inventory.flatMap((it, idx) => {
+      if (!it || it.type === "goal") return [];
+      if (it.type === "food" || it.type === "potion") return [{ it, idx }];
+      if (it.type === "weapon") {
+        if (p.weapon === it ? it.cursed : p.weapon?.cursed) return [];
+        return [{ it, idx }];
+      }
+      if (it.type === "armor") {
+        if (p.armor === it ? it.cursed : p.armor?.cursed) return [];
+        return [{ it, idx }];
+      }
+      if (it.type === "arrow") return [{ it, idx }];
+      if (it.type === "ring") {
+        if (isEquipped(it) && it.cursed) return [];
+        if (!isEquipped(it) && (p.rings || []).length >= 2 && p.rings[p.rings.length - 1]?.cursed) return [];
+        return [{ it, idx }];
+      }
+      return [];
+    });
+
+    p.hypnosisPending = Math.max(0, (p.hypnosisPending || 0) - 1);
+    if (p.hypnosisPending <= 0) delete p.hypnosisPending;
+    setShowInv(false);
+    setSelIdx(null);
+    setShowDesc(null);
+
+    if (candidates.length > 0) {
+      const { idx } = candidates[Math.floor(Math.random() * candidates.length)];
+      setMsgs((prev) => [...prev.slice(-80), "催眠術に操られ、体が勝手に動いた！"]);
+      doUseItem(idx);
+      return true;
+    }
+
+    /* 所持品がない場合も、催眠で1ターンを無駄にする。 */
+    const ml = installPlayerHpMessageHook([], p);
+    ml.push("催眠術に操られたが、実行できる行動がなかった！");
+    endTurn(st, p, ml);
+    setMsgs((prev) => [...prev.slice(-80), ...ml]);
+    sr.current = { ...st };
+    setGs({ ...st });
+    return true;
+  }, [doUseItem, endTurn]);
+
   const doDropItem = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
@@ -4106,7 +4159,7 @@ export function useItemActions({
     [throwMode, lu, endTurn, chgFloor],
   );
   return {
-    doUseItem, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
+    doUseItem, doHypnotizedAction, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
     doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
     execDirection,
   };

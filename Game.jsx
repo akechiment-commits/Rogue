@@ -561,6 +561,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       sleepTurns: 0,
       paralyzeTurns: 0,
       frozenTurns: 0,
+      hypnosisPending: 0,
       slowTurns: 0,
       slowSkip: false,
       hasteTurns: 0,
@@ -2184,6 +2185,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           acted = true;
         }
       };
+      /* 催眠中はキー入力を受け付けず、自動実行される強制行動を待つ。 */
+      if ((p.hypnosisPending || 0) > 0) return;
       if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
       if (type === "inventory") {
         setSpellListMode(false);
@@ -4845,7 +4848,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* callbacks内で sr.current を参照するバージョン */
   const dnameRef = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
   const {
-    doUseItem, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
+    doUseItem, doHypnotizedAction, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
     doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
     execDirection,
   } = useItemActions({
@@ -4858,6 +4861,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     onReturnToHub: returnToHubFromItem, dropModeRef, setFloorSelectMode, setTpSelectMode,
     floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
   });
+  /* 催眠術を受けたら、状態異常による自動ターン処理とは別に1行動を即実行する。 */
+  useEffect(() => {
+    const p = gs?.player;
+    if (!p || (p.hypnosisPending || 0) <= 0 || dead || showEnding || shopMode || miniTip) return;
+    if (hasForcedTurn(p)) return;
+    let timer = null;
+    const run = () => {
+      if (!sr.current) return;
+      if (animBusyRef.current) {
+        timer = setTimeout(run, 50);
+        return;
+      }
+      const currentPlayer = sr.current.player;
+      if ((currentPlayer.hypnosisPending || 0) <= 0 || hasForcedTurn(currentPlayer)) return;
+      doHypnotizedAction();
+    };
+    timer = setTimeout(run, 0);
+    return () => { if (timer !== null) clearTimeout(timer); };
+  }, [gs, dead, showEnding, shopMode, miniTip, doHypnotizedAction]);
   doMarkerWriteRef.current = doMarkerWrite;
   /* ===== 足元ページ用コールバック ===== */
   const _doFloorPickup = (item) => {

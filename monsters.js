@@ -870,6 +870,13 @@ export const MONS = [
       { name: "大眠り術師",         hp: 108, atk: 36, def: 16, exp: 200 },
     ],
   },
+  { name: "催眠術使い",   hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "視界内のプレイヤーに催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
+    dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
+    levels: [
+      { name: "強催眠術使い",     hp: 73,  atk: 30, def: 10, exp: 134, dungeonFloors: { advanced: { min: 28, max: 31 } } },
+      { name: "大催眠術使い",     hp: 114, atk: 40, def: 15, exp: 210, dungeonFloors: { advanced: { min: 32, max: 36 } } },
+    ],
+  },
   { name: "トロル",       hp: 68,  atk: 29, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",         monLevel: 1, minFloor: 25, maxFloor: 50, dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "強トロル",           hp: 108, atk: 40, def: 13, exp: 120 },
@@ -2906,6 +2913,11 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
     return canSee && !plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && !!opts.monsterWandFn;
   }
 
+  /* 催眠術：杖と同じ射線・射程で、次のプレイヤー行動を強制する */
+  if (subtype === "hypnotist") {
+    return canSee && !plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10;
+  }
+
   /* 突進：一直線・距離2以上 */
   if (subtype === "charger") {
     return canSee && inLine && lineLen >= 2;
@@ -3129,6 +3141,18 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   /* ── diamondweapon：自分または隣接する味方の攻撃力を上げる ── */
   if (m.subtype === "diamondweapon" && canSee && !inMagicSealRoom(m.x, m.y, dg)) {
     return useDiamondWeapon(m, dg, ml);
+  }
+
+  /* ── 催眠術使い：プレイヤーの次の行動を奪う ── */
+  if (m.subtype === "hypnotist" && canSee && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10) {
+    m.turnAttacks++;
+    if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
+      ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
+    } else {
+      pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
+      ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+    }
+    return true;
   }
 
   /* ── ドラゴン／氷竜ブレス ── */
@@ -4528,6 +4552,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
       const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
+      const _hypnotistRdy = m.subtype === "hypnotist" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
         (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 2 ? _sameRoom : _rLine));
@@ -4560,7 +4585,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -4778,6 +4803,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           return;
         }
         // 魔封じの部屋・祝福聖域の場合は杖を使えず通常行動へフォールスルー
+      }
+
+      if (m.subtype === "hypnotist" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        m.turnAttacks++;
+        if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
+          ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
+        } else {
+          pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
+          ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
+        }
+        return;
       }
     }
 
