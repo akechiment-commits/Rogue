@@ -25,6 +25,7 @@ const ringData = [
   ['回復の指輪', 'regen_ring', '毎ターンのHP自然回復量が装備個数分+1（2つで+2、再生装備と重複）'],
   ['爆発の指輪', 'explode_ring', '装備時に自分が爆発。装備中もたまに爆発'],
   ['松明の指輪', 'torch_ring', '視界範囲が1マス広がる（useItemActions.js 1404）'],
+  ['鈍亀の指輪', 'slow_ring', '速度が半減する代わりに防御力が2倍になる'],
 ];
 
 addSheet('指輪 - Ring', ringData);

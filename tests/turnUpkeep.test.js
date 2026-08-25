@@ -196,7 +196,7 @@ describe("advanceCoreStatusTimers", () => {
     expect(messages).toEqual(["鈍足が解けた！"]);
   });
 
-  it("鈍足指輪と各状態の解除を処理する", () => {
+  it("鈍亀の指輪と各状態の解除を処理する", () => {
     const player = makePlayer({ rings: [{ effect: "slow_ring" }], confusedTurns: 1, darknessTurns: 1, sureHitTurns: 1 });
     const messages = [];
     advanceCoreStatusTimers(player, messages, { hasRingEffect: (entry, effect) => entry.rings.some((ring) => ring.effect === effect) });

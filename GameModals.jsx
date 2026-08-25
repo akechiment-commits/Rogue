@@ -548,7 +548,10 @@ export function GameOverModal({ dead, p, gameOverSel, setShowScores, init, mobil
 }
 
 function formatFoodItemDesc(item) {
-  let desc = formatItemDesc(item?.desc);
+  const _desc = item?.type === "ring" && item.effect === "slow_ring"
+    ? (RINGS.find((ring) => ring.effect === "slow_ring")?.desc || item?.desc)
+    : item?.desc;
+  let desc = formatItemDesc(_desc);
   const isFavorite = item?.type === "food" && item._foodBase && item._foodBase === getFavoriteFoodBase();
   if (isFavorite) {
     const originalDesc = FOOD_DESCRIPTIONS[item._foodBase];

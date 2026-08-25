@@ -83,7 +83,7 @@ function Panel({ title, onClose, children, wide, sticky }) {
 function hubItemLabel(it) {
   if (!it) return "";
   const bc = it.blessed ? "【祝】" : it.cursed ? "【呪】" : "";
-  let s = it.name;
+  let s = it.effect === "slow_ring" ? "鈍亀の指輪" : it.name;
   if (it.type === "arrow") {
     s += ` (${it.count}${(it.stone || it.magicStone) ? "個" : "本"})`;
   } else if (it.type === "weapon") {

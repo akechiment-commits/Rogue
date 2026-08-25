@@ -24,6 +24,11 @@ describe("アイテム表示名の識別保護", () => {
     expect(message).not.toContain("回復薬");
   });
 
+  it("旧セーブ由来の鈍足の指輪も新名称で表示する", () => {
+    const ring = { type: "ring", effect: "slow_ring", name: "鈍足の指輪" };
+    expect(itemDisplayName(ring, {}, new Set(["r:slow_ring"]), {})).toBe("鈍亀の指輪");
+  });
+
   it("同じカテゴリの未識別名は重複しない", () => {
     const allItems = [...ITEMS, ...WANDS];
     const fakeNames = generateFakeNames(allItems, POTS, SPELLBOOKS, RINGS);

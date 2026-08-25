@@ -1536,7 +1536,9 @@ function calcPlayerDefForProjectile(p) {
     + (p?.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)
     + (hasAbility(p?.weapon, "def_bonus") ? 5 : 0)
     + _misoDef;
+  const _slowTurtleMult = (p?.rings || []).some((r) => r.effect === "slow_ring") ? 2 : 1;
   return Math.floor(_base
+    * _slowTurtleMult
     * ((p?.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
     * ((p?.defDebuffTurns || 0) > 0 ? 0.5 : 1));
 }
@@ -6347,7 +6349,7 @@ export const RINGS = [
   { name: "背水の指輪",     type:"ring", effect:"desperation_ring",       rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"装備中、HPが低いほど会心率が上昇する。\nHP75%以下から発動し、HP20%以下で必ず会心になる。" },
   { name: "射撃の指輪",     type:"ring", effect:"shoot_ring",             rarity:"B", weight:2, sellPrice:4000, tile:60, desc:"装備中、近接攻撃時に装備中の矢を1本消費して追加発射する。\n2個装備で2本発射。" },
   { name: "水中呼吸の指輪", type:"ring", effect:"water_breath_ring",      rarity:"B", weight:2, sellPrice:3500, tile:60, desc:"水の中に入れる。" },
-  { name: "鈍足の指輪",     type:"ring", effect:"slow_ring",              rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、速度が半減する（2ターンに1回しか行動できない）。" },
+  { name: "鈍亀の指輪",     type:"ring", effect:"slow_ring",              rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、速度が半減する（2ターンに1回しか行動できない）が、防御力が2倍になる。" },
   { name: "空腹の指輪",     type:"ring", effect:"hunger_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、空腹の進行が2倍になる。" },
   { name: "足音の指輪",     type:"ring", effect:"footstep_ring",          rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、歩くたびに足音が響き近くの敵が目を覚ます。" },
   { name: "観光客の指輪",   type:"ring", effect:"markup_ring",            rarity:"E", weight:12, sellPrice:1000, tile:60, desc:"装備中、店のアイテムが5割増しで買わされる。" },

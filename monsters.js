@@ -91,7 +91,13 @@ export function scaleMonFireDmg(m, dmg) {
 
 function calcPlayerDef(pl) {
   const _misoDef = (pl.misoDefTurns || 0) > 0 ? 8 : 0;
-  return Math.floor((pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0) + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0) + (hasAbility(pl.weapon, "def_bonus") ? 5 : 0) + _misoDef) * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1) * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
+  const _base = pl.def + (pl.armor?.def || 0) + (pl.armor?.plus || 0)
+    + (pl.rings || []).reduce((s, r) => r.effect === "defense_ring" ? s + (r.plus || 0) : s, 0)
+    + (hasAbility(pl.weapon, "def_bonus") ? 5 : 0) + _misoDef;
+  const _slowTurtleMult = (pl.rings || []).some((r) => r.effect === "slow_ring") ? 2 : 1;
+  return Math.floor(_base * _slowTurtleMult
+    * ((pl.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
+    * ((pl.defDebuffTurns || 0) > 0 ? 0.5 : 1));
 }
 
 /* ===== ドラゴン炎ブレス（風で曲がる物理ブレス） ===== */

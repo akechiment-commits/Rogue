@@ -3,11 +3,17 @@ import { calcShopBuyPrice, shopPriceNote, hasRingEffect, RINGS } from "../items.
 import { computeFOV, refreshFOV, corridorRange, MW, MH } from "../utils.js";
 
 describe("junk rings helpers", () => {
-  it("RINGS に鈍足・空腹・足音・観光客・自慢・暗闇・平和・体幹が含まれる", () => {
+  it("RINGS に鈍亀・空腹・足音・観光客・自慢・暗闇・平和・体幹が含まれる", () => {
     const effects = new Set(RINGS.map(r => r.effect));
     for (const e of ["slow_ring", "hunger_ring", "footstep_ring", "markup_ring", "vanity_ring", "darkness_ring", "peace_ring", "core_ring"]) {
       expect(effects.has(e)).toBe(true);
     }
+  });
+
+  it("slow_ring は鈍亀の指輪として防御力2倍の説明を持つ", () => {
+    const ring = RINGS.find(r => r.effect === "slow_ring");
+    expect(ring.name).toBe("鈍亀の指輪");
+    expect(ring.desc).toContain("防御力が2倍");
   });
 
   it("店用リングの表示名が効果に対応している", () => {
