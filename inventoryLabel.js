@@ -9,6 +9,18 @@ export function formatPlusSuffix(plus) {
   return value === 0 ? "" : `${value > 0 ? "+" : ""}${value}`;
 }
 
+/** 充填時の回数表示。未識別の杖・ペンは追加量と残り回数を隠す。 */
+export function formatRefillMessage(displayName, type, add, charges, identified) {
+  if (type === "pen") {
+    return identified
+      ? `${displayName}のインクが1回分補充された！(${charges}回)`
+      : `${displayName}のインクが補充された！`;
+  }
+  return identified
+    ? `${displayName}の回数が${add}増えた！(${charges}回)`
+    : `${displayName}の回数が増えた！`;
+}
+
 /** インベントリに表示する1アイテム分のラベルを組み立てる。 */
 export function formatInventoryItem(item, {
   player,

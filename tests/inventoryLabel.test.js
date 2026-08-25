@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatInventoryItem, formatPlusSuffix } from "../inventoryLabel.js";
+import { formatInventoryItem, formatPlusSuffix, formatRefillMessage } from "../inventoryLabel.js";
 
 function label(item, overrides = {}) {
   return formatInventoryItem(item, {
@@ -41,5 +41,17 @@ describe("formatInventoryItem", () => {
   it("食料、壺、未払い品の補足を表示する", () => {
     expect(label({ type: "food", name: "パン", value: 20, cooked: false, potionEffects: ["heal"] })).toBe("パン(満+20)(生★)");
     expect(label({ type: "pot", name: "壺", identKey: "pot", capacity: 3, contents: [{}], shopPrice: 400 }, { identified: new Set(["pot"]) })).toBe("壺 [1/3] 〔未払:400G〕");
+  });
+});
+
+describe("formatRefillMessage", () => {
+  it("未識別の杖は追加量と残り回数を表示しない", () => {
+    expect(formatRefillMessage("かなりの杖", "wand", 2, 7, false)).toBe("かなりの杖の回数が増えた！");
+    expect(formatRefillMessage("かなりの杖", "wand", 2, 7, true)).toBe("かなりの杖の回数が2増えた！(7回)");
+  });
+
+  it("未識別のペンもインクの追加量と残り回数を表示しない", () => {
+    expect(formatRefillMessage("青いペン", "pen", 1, 3, false)).toBe("青いペンのインクが補充された！");
+    expect(formatRefillMessage("青いペン", "pen", 1, 3, true)).toBe("青いペンのインクが1回分補充された！(3回)");
   });
 });

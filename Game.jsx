@@ -55,7 +55,7 @@ import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
-import { formatInventoryItem } from "./inventoryLabel.js";
+import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "./turnUpkeep.js";
 import { applyPlayerPoison } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
@@ -4033,7 +4033,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           } else {
             const add = (item.effect === "curse_wand" || item.effect === "bless_wand") ? 1 : rng(1, 3);
             item.charges = (item.charges || 0) + add;
-            ml.push(`${_idn}の回数が${add}増えた！(${item.charges}回)`);
+            const _ik = getIdentKey(item);
+            const _isIdentified = !!item.fullIdent || !!(_ik && sr.current.ident.has(_ik));
+            ml.push(formatRefillMessage(_idn, "wand", add, item.charges, _isIdentified));
           }
         } else if (item.type === "marker") {
           const add = rng(1, 2);
@@ -4041,7 +4043,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ml.push(`${_idn}のインクが${add}回分補充された！(${item.charges}回)`);
         } else if (item.type === "pen") {
           item.charges = (item.charges || 0) + 1;
-          ml.push(`${_idn}のインクが1回分補充された！(${item.charges}回)`);
+          const _ik = getIdentKey(item);
+          const _isIdentified = !!item.fullIdent || !!(_ik && sr.current.ident.has(_ik));
+          ml.push(formatRefillMessage(_idn, "pen", 1, item.charges, _isIdentified));
         } else {
           ml.push(`${_idn}には効果がなかった。`);
         }
