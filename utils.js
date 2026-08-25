@@ -3,6 +3,20 @@ export const MW = 60,
 
 export const T = { WALL: "#", FLOOR: ".", DOOR: "+", SD: ">", SU: "<", BWALL: "B", WATER: "~" };
 
+/* 敵の攻撃中だけHPの根性判定を除外するための一時コンテキスト。 */
+const _enemyDamagePlayers = new WeakSet();
+
+export function withEnemyDamageContext(player, fn) {
+  if (!player || typeof fn !== "function") return fn?.();
+  _enemyDamagePlayers.add(player);
+  try { return fn(); }
+  finally { _enemyDamagePlayers.delete(player); }
+}
+
+export function isEnemyDamageContext(player) {
+  return !!player && _enemyDamagePlayers.has(player);
+}
+
 /* Tile indices in spritesheet (8 cols x 4 rows, 16x16 each) */
 export const TI = {
   WALL: 0,
@@ -699,6 +713,12 @@ export function installPlayerHpReverseHook(p) {
           raw = next;
           return;
         }
+      }
+      /* 最大HP満タン時の根性：敵の攻撃以外で致死量を受けてもHP1で踏みとどまる。
+         絶対値代入（p.hp=0 / p.hp=1）は既存の即死・1残し処理を優先する。 */
+      if (n < raw && raw >= (Number(this.maxHp) || raw) && n <= 0 && !isEnemyDamageContext(this)) {
+        raw = 1;
+        return;
       }
       /* 被ダメ軽減：HP が減る代入に適用。
          p.hp=0 / p.hp=1 のような絶対指定は「即死・1残し」意図なので軽減しない */

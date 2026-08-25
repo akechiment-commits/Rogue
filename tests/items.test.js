@@ -187,18 +187,18 @@ describe("applyPotionEffect", () => {
     expect(ml.some(m => m.includes("回復"))).toBe(true);
   });
 
-  it("祝福の回復薬は1.5倍回復する", () => {
+  it("祝福の回復薬は2倍回復する", () => {
     const p = { hp: 50, maxHp: 100, x: 1, y: 1, inventory: [] };
     const ml = [];
     applyPotionEffect("heal", 30, "player", null, dg, p, ml, () => {}, true, false);
-    expect(p.hp).toBe(95);
+    expect(p.hp).toBe(100);
   });
 
   it("呪われた回復薬はダメージになる", () => {
     const p = { hp: 50, maxHp: 100, x: 1, y: 1, inventory: [] };
     const ml = [];
     applyPotionEffect("heal", 30, "player", null, dg, p, ml, () => {}, false, true);
-    expect(p.hp).toBe(29);
+    expect(p.hp).toBe(20);
     expect(ml.some(m => m.includes("ダメージ"))).toBe(true);
   });
 

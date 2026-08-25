@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { installPlayerHpReverseHook, reduceFinalPlayerDamage, hasAbility } from "../utils.js";
+import { installPlayerHpReverseHook, reduceFinalPlayerDamage, hasAbility, withEnemyDamageContext } from "../utils.js";
 import { MITHRIL_ARMOR_T } from "../items.js";
 import { makePlayer } from "./helpers.js";
 
@@ -32,5 +32,19 @@ describe("dmg_reduce (ミスリル被ダメ軽減)", () => {
     p.hp = 50;
     p.hp = 0;
     expect(p.hp).toBe(0);
+  });
+
+  it("HP満タン時の敵攻撃以外の致死ダメージはHP1で踏みとどまる", () => {
+    const p = makePlayer({ hp: 100, maxHp: 100 });
+    installPlayerHpReverseHook(p);
+    p.hp -= 120;
+    expect(p.hp).toBe(1);
+  });
+
+  it("敵攻撃中は満タン時でも根性が発動しない", () => {
+    const p = makePlayer({ hp: 100, maxHp: 100 });
+    installPlayerHpReverseHook(p);
+    withEnemyDamageContext(p, () => { p.hp -= 120; });
+    expect(p.hp).toBe(-20);
   });
 });

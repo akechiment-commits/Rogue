@@ -374,11 +374,11 @@ export function penInitialCharges(pen, randomFn = Math.random) {
 }
 
 export const ITEMS = [
-  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。HP最大時は最大HP+1。\n呪い：反転して21ダメージ。",                                               tile:16 },
-  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。HP最大時は最大HP+2。\n呪い：反転して42ダメージ。",                                               tile:17 },
-  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。HP最大時は最大HP+3。\n呪い：反転して50ダメージ。", tile:17 },
+  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。",                                               tile:16 },
+  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。",                                               tile:17 },
+  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。", tile:17 },
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
-  { name:"炎の薬",           type:"potion", effect:"fire",     value:20, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと炎ダメージを受ける。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：反転してHP回復。\n投げると炎上し周囲にダメージ。", tile:17 },
+  { name:"炎の薬",           type:"potion", effect:"fire",     value:50, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと45〜55の炎ダメージを受ける。祝福：ダメージ2倍。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：45〜55回復。\n投げると炎上し周囲にダメージ。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
   { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n投げると命中した敵を鈍足にする。", tile:16 },
   { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n投げると命中した敵を金縛りにする。", tile:16 },
@@ -558,7 +558,7 @@ export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, special
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵にぶつけて倒すと薬になる。", tile:16 };
-export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。投げると周囲の腐敗・焦げた食料を元に戻す。", tile:16 };
+export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと何も起こらない。祝福：所持品1つを祝福。呪い：所持品1つを呪う。投げると周囲の腐敗・焦げた食料を元に戻す。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"C", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
 export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"B", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
 
@@ -3168,16 +3168,18 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
   };
   switch (eff) {
-    case "water": // 水は通常のhealと同じ挙動
+    case "water": // 水を敵にぶつけた時の効果は従来どおり
     case "heal_big":
     case "heal":
+      {
+      const _isWater = eff === "water";
       if (cursed) {
         // 反転→ダメージ
-        const d = Math.max(1, Math.round(val * 0.7));
+        const d = Math.max(1, Math.round(val * (_isWater ? 0.7 : 1)));
         if (kind === "monster") { if (!consumeBarrier(target, ml)) { target.hp -= d; ml.push(`${target.name}は変な薬を浴びた！${d}ダメージ！`); _monKill(target); } }
         if (kind === "player") { p.deathCause = "呪われた回復薬の飛散により"; p.hp -= d; ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`); }
       } else {
-        const _mult = blessed ? 1.5 : 1;
+        const _mult = blessed ? (_isWater ? 1.5 : 2) : 1;
         if (kind === "monster") {
           if (target.kind === "undead") {
             const _ud = Math.max(1, Math.round(val * _mult));
@@ -3206,11 +3208,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       }
       break;
+      }
     case "superheal": {
       const _shMult = blessed ? 2 : 1;
       if (cursed) {
-        // 呪い：回復するはずだった量の半分のダメージ
-        const _shd = Math.max(1, Math.round(val * 0.5));
+        // 呪い：回復量と同じ値のダメージ
+        const _shd = Math.max(1, Math.round(val));
         if (kind === "monster") { target.hp -= _shd; ml.push(`${target.name}は変な薬を浴びた！${_shd}ダメージ！`); _monKill(target); }
         if (kind === "player") { p.deathCause = "呪われた超回復薬の飛散により"; p.hp -= _shd; ml.push(`変な薬を浴びた！${_shd}ダメージ！【呪】`); }
       } else if (kind === "monster") {
@@ -3296,29 +3299,30 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         break;
       }
       if (cursed) {
-        // 反転→回復
-        if (kind === "monster") { const h = Math.min(Math.round(val * 0.5), target.maxHp - target.hp); if (h > 0) { target.hp += h; ml.push(`${target.name}は炎の薬で温まった！${h}HP回復`); } }
-        if (kind === "player") { const h = Math.min(val, p.maxHp - p.hp); p.hp += h; ml.push(`体が温まりHP+${h}回復した！【呪→回復】`); }
+        // 呪い：45〜55回復
+        const heal = rng(45, 55);
+        if (kind === "monster") { const h = Math.min(heal, target.maxHp - target.hp); if (h > 0) { target.hp += h; ml.push(`${target.name}は炎の薬で温まった！${h}HP回復`); } }
+        if (kind === "player") { const h = Math.min(heal, p.maxHp - p.hp); p.hp += h; ml.push(`体が温まりHP+${h}回復した！【呪→回復】`); }
       } else {
-        const dmg = val + rng(-5, 5);
+        const dmg = rng(45, 55);
         const _oilyCheck = (char) => (char.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === char.x && t.y === char.y);
         if (kind === "monster") {
           /* 火ダルマは炎で回復（封印中は特性無効で通常ダメ） */
           if (target.baseKind === "firedemon" && !target.sealed) {
-            const _fheal = Math.min(Math.round(dmg * (blessed ? 1.5 : 1)), target.maxHp - target.hp);
+            const _fheal = Math.min(Math.round(dmg * (blessed ? 2 : 1)), target.maxHp - target.hp);
             if (_fheal > 0) { target.hp += _fheal; ml.push(`炎を受けた${target.name}が回復した！(+${_fheal}HP)`); }
             else ml.push(`${target.name}は炎を吸収した！`);
             break;
           }
           const _oilyMult = _oilyCheck(target) ? 2 : 1;
-          const d = scaleMonFireDmg(target, Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult)));
+          const d = scaleMonFireDmg(target, Math.max(1, Math.round(dmg * (blessed ? 2 : 1) * _oilyMult)));
           target.hp -= d;
           ml.push(`${target.name}は炎に包まれた！${d}ダメージ！${blessed ? "(強炎)" : ""}${_oilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
           _monKill(target);
         }
         if (kind === "player") {
           const _oilyMult = _oilyCheck(p) ? 2 : 1;
-          const rd = Math.max(1, Math.round(dmg * (blessed ? 1.5 : 1) * _oilyMult));
+          const rd = Math.max(1, Math.round(dmg * (blessed ? 2 : 1) * _oilyMult));
           const fd = reduceFireDamage(rd, p);
           p.deathCause = "炎の薬の飛散により";
           p.hp -= fd;

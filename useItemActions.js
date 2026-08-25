@@ -126,14 +126,15 @@ export function useItemActions({
       if (it.effect === "heal" || it.effect === "heal_big") {
         const _isReverseHp = (p.reverseTurns || 0) > 0;
         if (it.cursed) {
-          // 呪い：反転→ダメージ
-          const d = Math.max(1, Math.round(it.value * 0.7));
+          // 呪い：回復量と同じ値のダメージ
+          const d = Math.max(1, Math.round(it.value));
           p.deathCause = "呪われた回復薬を飲んで";
           p.hp -= d;
           ml.push(`${_useItemName}を飲んだ。まずい！${d}ダメージ！【呪】`);
         } else {
-          // 通常/祝福：HP回復（祝福=1.5x + 全状態異常回復）
-          const h = Math.min(Math.round(it.value * _potBm), p.maxHp - p.hp);
+          // 通常/祝福：HP回復（祝福=2倍 + 全状態異常回復）
+          const _healMult = it.blessed ? 2 : 1;
+          const h = Math.min(Math.round(it.value * _healMult), p.maxHp - p.hp);
           let _hMsg;
           if (h <= 0) {
             // HPが最大：最大HP上昇（回復薬+1/+2、大回復薬+2/+4）
@@ -164,7 +165,7 @@ export function useItemActions({
         }
       } else if (it.effect === "superheal") {
         if (it.cursed) {
-          const _shd = Math.max(1, Math.round(it.value * 0.5));
+          const _shd = Math.max(1, Math.round(it.value));
           p.deathCause = "呪われた超回復薬を飲んで";
           p.hp -= _shd;
           ml.push(`${_useItemName}を飲んだ。まずい！${_shd}ダメージ！【呪】`);
@@ -208,17 +209,55 @@ export function useItemActions({
             ml.push(`${_useItemName}を飲んだ。${_poison.atkLoss > 0 ? "毒状態になった！攻撃力が下がった！" : "毒状態が続いている！"}`);
           }
         }
+      } else if (it.effect === "water") {
+        /* 水を飲んだ時だけ祝呪を所持品へ移す。投擲時の水の効果は従来処理を維持する。 */
+        const _waterItems = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow");
+        if (it.blessed) {
+          const _blessable = _waterItems.filter(i => i.type === "pot" || !i.blessed);
+          if (_blessable.length > 0) {
+            const _bi = _blessable[Math.floor(Math.random() * _blessable.length)];
+            if (_bi.type === "pot") {
+              _bi.capacity = (_bi.capacity || 0) + 1;
+              ml.push(`${dnameRef(_bi)}が光り輝いた！容量が1増えた！(${_bi.capacity})【祝】`);
+            } else {
+              _bi.blessed = true;
+              _bi.cursed = false;
+              _bi.bcKnown = true;
+              ml.push(`${dnameRef(_bi)}が光り輝いた！祝福された！`);
+            }
+          } else {
+            ml.push(`${_useItemName}を飲んだ。所持品に祝福できるものがなかった。`);
+          }
+        } else if (it.cursed) {
+          const _cursable = _waterItems.filter(i => i.type === "pot" || !i.cursed);
+          if (_cursable.length > 0) {
+            const _ci = _cursable[Math.floor(Math.random() * _cursable.length)];
+            if (_ci.type === "pot") {
+              _ci.capacity = Math.max(0, (_ci.capacity || 1) - 1);
+              ml.push(`${dnameRef(_ci)}が黒く染まった！容量が1減った！(${_ci.capacity})【呪】`);
+            } else {
+              _ci.cursed = true;
+              _ci.blessed = false;
+              _ci.bcKnown = true;
+              ml.push(`${dnameRef(_ci)}が黒く染まった！呪われてしまった！`);
+            }
+          } else {
+            ml.push(`${_useItemName}を飲んだ。呪える所持品がなかった。`);
+          }
+        } else {
+          ml.push(`${_useItemName}を飲んだ。喉が潤った。`);
+        }
       } else if (it.effect === "fire") {
         if (!it.cursed && dg.pentacles?.some(pc => pc.kind === "explosion" && pc.cursed)) {
           ml.push(`${_useItemName}を飲んだが、呪われた爆発の魔方陣が炎を打ち消した！`);
         } else if (it.cursed) {
-          // 呪い：反転→HP回復
-          const h = Math.min(it.value, p.maxHp - p.hp);
+          // 呪い：45〜55回復
+          const h = Math.min(rng(45, 55), p.maxHp - p.hp);
           p.hp += h;
           ml.push(`${_useItemName}を飲んだ。体が温まりHP+${h}回復した！【呪→回復】`);
         } else {
-          // 通常/祝福：炎ダメージ（祝福=1.5x）
-          const rd = Math.max(1, Math.round((it.value + rng(-5, 5)) * _potBm));
+          // 通常/祝福：45〜55の炎ダメージ（祝福=2倍）
+          const rd = Math.max(1, Math.round(rng(45, 55) * (it.blessed ? 2 : 1)));
           const d = reduceFireDamage(rd, p);
           p.deathCause = "炎の薬を飲んで";
           p.hp -= d;

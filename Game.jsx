@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -1689,12 +1689,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
       const _monAnimation = createMonsterTurnAnimation();
       const _monSnap = snapshotMonsterPositions(st.dungeon.monsters);
-      if (!_skipMonAct) moveMons(st.dungeon, p, ml, "moveOnly");
+      if (!_skipMonAct) withEnemyDamageContext(p, () => moveMons(st.dungeon, p, ml, "moveOnly"));
       /* Capture monster position changes for animation + mark movers */
       collectMonsterMoves(_monAnimation, st.dungeon.monsters, _monSnap);
       transitMonstersThroughPortals(st, p, ml, _monSnap, { randomTeleportDest });
       /* 特殊飛び道具：敵の移動後に進め、移動経路との交差も命中扱いにする */
-      advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap);
+      withEnemyDamageContext(p, () => advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap));
       /* プレイヤーがポータルの上で1ターン経過したらワープ（移動・ダッシュで既に転送済みならスキップ） */
       if (!st._portalWarpedThisTurn && p.hp > 0) {
         playerPortalWarp(p, st, ml);
