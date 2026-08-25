@@ -1572,16 +1572,22 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     const _fireCtx = ringExplosion || mineExplosion;
     const _hasFireProt = _fireCtx && hasFireResist(p);
     const _oilyMult = oilyDamageMult(dg, p);
-    const rawDmg = _playerHpOne ? Math.max(0, _playerHpBefore - 1)
+    /* 油まみれの地雷だけは、半減×2の理不尽な即死を避けてHP1を残す。 */
+    const _oilyMineSurvival = mineExplosion && _oilyMult > 1 && !_playerHpOne;
+    const rawDmg = _oilyMineSurvival ? Math.max(0, _playerHpBefore - 1)
+      : _playerHpOne ? Math.max(0, _playerHpBefore - 1)
       : _projectileDmg ?? ((ringExplosion ? Math.max(1, Math.floor(p.hp * 3 / 4))
         : proportional ? Math.max(1, Math.floor(p.hp / 2))
         : rng(10, 20)) * _oilyMult);
-    const dmg = _playerHpOne ? rawDmg : _projectileDmg != null
+    const dmg = _oilyMineSurvival || _playerHpOne ? rawDmg : _projectileDmg != null
       ? _projectileDmg
       : _fireCtx ? reduceFireDamage(rawDmg, p)
       : _applySoakedFireReduction(rawDmg, p);
     p.deathCause = `${srcLabel}により`;
-    if (_playerHpOne) {
+    if (_oilyMineSurvival) {
+      p.hp = 1;
+      ml.push(`${srcLabel}！油まみれのためHPが1残った！`);
+    } else if (_playerHpOne) {
       p.hp = Math.min(_playerHpBefore, 1);
       ml.push(`${srcLabel}！HPが1になった！`);
     } else {

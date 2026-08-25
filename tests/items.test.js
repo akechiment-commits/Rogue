@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { setFavoriteFoodBase } from "../items.js";
 import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T } from "../items.js";
@@ -469,23 +469,30 @@ describe("doExplosion", () => {
     expect(ml.some(m => m.includes("耐火"))).toBe(true);
   });
 
-  it("地雷爆発は油まみれでダメージ2倍になる", () => {
+  it("地雷爆発は油まみれでもHP1を残す", () => {
     const dg = { pentacles: [], monsters: [], items: [], map: Array.from({ length: 21 }, () => Array(33).fill(1)), explored: [], visible: [], traps: [] };
     const p = { x: 5, y: 5, hp: 100, maxHp: 100, oilyTurns: 10, inventory: [] };
     const ml = [];
     doExplosion(5, 5, dg, p, ml, null, "地雷", null, null, true, false, true);
-    expect(p.hp).toBe(0);
-    expect(ml.some(m => m.includes("油まみれ×2"))).toBe(true);
+    expect(p.hp).toBe(1);
+    expect(ml.some(m => m.includes("油まみれ") && m.includes("HPが1残った"))).toBe(true);
   });
 
-  it("地雷爆発は油まみれと耐火の両方が適用される", () => {
+  it("地雷爆発は油まみれなら耐火の有無にかかわらずHP1を残す", () => {
     const dg = { pentacles: [], monsters: [], items: [], map: Array.from({ length: 21 }, () => Array(33).fill(1)), explored: [], visible: [], traps: [] };
     const p = { x: 5, y: 5, hp: 100, maxHp: 100, oilyTurns: 10, armor: { ability: "fire_resist" }, inventory: [] };
     const ml = [];
     doExplosion(5, 5, dg, p, ml, null, "地雷", null, null, true, false, true);
-    expect(p.hp).toBe(34);
-    expect(ml.some(m => m.includes("油まみれ×2"))).toBe(true);
-    expect(ml.some(m => m.includes("耐火"))).toBe(true);
+    expect(p.hp).toBe(1);
+    expect(ml.some(m => m.includes("油まみれ") && m.includes("HPが1残った"))).toBe(true);
+  });
+
+  it("火薬壺のHP4分の3爆発は油まみれなら即死する", () => {
+    const dg = { pentacles: [], monsters: [], items: [], map: Array.from({ length: 21 }, () => Array(33).fill(1)), explored: [], visible: [], traps: [] };
+    const p = { x: 5, y: 5, hp: 100, maxHp: 100, oilyTurns: 10, inventory: [] };
+    const ml = [];
+    doGunpowderExplosion(5, 5, dg, p, ml, () => {});
+    expect(p.hp).toBeLessThanOrEqual(0);
   });
 
   it("炎・爆発不発時は爆発せずメッセージを出す", () => {
