@@ -144,7 +144,8 @@ export function msgToActionKey(msg, recentMsgs = []) {
   if (/^足元に.+を描いた|魔方陣を描いた瞬間|ペンで/.test(msg)) return "act_pen";
   if (/魔法を放/.test(msg)) return "act_magic";
   if (/矢を射|弓/.test(msg)) return "act_bow";
-  if (/投げた|投擲/.test(msg)) return "act_throw";
+  /* 敵の「ワッカが石を投げた」などはプレイヤーの投擲ではない。 */
+  if (/投げた|投擲/.test(msg) && !/^[^！\n]*が.+(?:投げ|投擲)/.test(msg)) return "act_throw";
   /* プレイヤーが壺を操作したときだけ。
    * 「壺〜が爆発で割れた」など副次破壊は除外（自爆の巻物後に壺使用立ち絵になるのを防ぐ） */
   if (/が爆発で割れ|が割れて|が爆発で壊れ/.test(msg)) {

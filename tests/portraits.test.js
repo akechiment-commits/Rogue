@@ -152,6 +152,8 @@ describe("portraits", () => {
     expect(msgToActionKey("みかわしの魔方陣の加護でかわした！")).toBeNull();
     expect(msgToActionKey("ラクガキ魔が足元に回復の魔方陣を描いた！")).toBeNull();
     expect(msgToActionKey("腐った食料を食べさせられた遺物の番人の攻撃力が半減した！")).toBeNull();
+    expect(msgToActionKey("ワッカが石を投げた！")).toBeNull();
+    expect(findItemActionKey(["ワッカが石を投げた！", "ワッカの石が命中！8ダメージ！"])).toBeNull();
   });
 
   it("敵に食べさせた腐敗食料ではプレイヤーの食事立ち絵を出さない", () => {
