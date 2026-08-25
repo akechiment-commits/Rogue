@@ -2480,8 +2480,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 (crit ? "会心！" : "") +
                 (_isBane ? (_baneMult >= 2 ? "上位特効！" : "特効！") : "") +
                 (_hasFireElem && (attackMon.baseKind === "firedemon" || attackMon.elemResist === "fire") ? "（炎半減）" : "") +
-                (_hasFireElem && attackMon.elemWeak === "fire" ? "炎×2！" : "") +
-                (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemResist !== "fire" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? "油まみれ炎×2！" : "") +
+                (_hasFireElem && attackMon.elemWeak === "fire" ? (_hasFireElem2 ? "炎弱点×2！" : "炎弱点×1.5！") : "") +
+                (_hasFireElem && attackMon.baseKind !== "firedemon" && attackMon.elemResist !== "fire" && attackMon.elemWeak !== "fire" && ((attackMon.oilyTurns||0)>0 || dg.oilyTiles?.some(t=>t.x===attackMon.x&&t.y===attackMon.y)) ? `油まみれ炎×${_hasFireElem2 ? "2" : "1.5"}！` : "") +
                 (_hasIceElem && attackMon.elemWeak === "ice" ? (_hasIceElem2 ? "氷弱点×2！" : "氷弱点特効！") : "") +
                 (_hasThunderElem && attackMon.elemWeak === "thunder" ? "雷×2！" : "") +
                 (_atkInWall ? "（壁越し・半減）" : "");
