@@ -752,6 +752,7 @@ addSheet('13_食べ物', foodItemData);
 
 // ===== 大箱（BigBox）=====
 const bigboxData = [['大箱名', 'kind', '容量（rng）', 'レア', '効果']];
+bigboxData.push(['【冒険中の識別】', '', '', '', '一度識別または名付けた大箱のkindは、その冒険中は同種の大箱も識別済みとして表示する。呪いの物知りの杖などで未識別化した場合は、そのkind全体の識別状態を解除する。']);
 for (const b of BB_TYPES) {
   bigboxData.push([b.name, b.kind, String(b.cap()), b.rare ? '★レア' : '', guideDesc(b)]);
 }

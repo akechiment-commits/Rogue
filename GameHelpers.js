@@ -16,10 +16,39 @@ export function _invActCount(it, absIdx, canUseFn, gs) {
   return Math.max(1, n);
 }
 
+/* 冒険中に大箱の種類を識別済みか（個体の revealed は表示状態の互換用にも残す） */
+export function isBigboxKindIdentified(bb, st) {
+  if (!bb) return false;
+  if (!!st?.allBcKnown) return true;
+  const known = st?.identifiedBigboxes;
+  if (known instanceof Set) return known.has(bb.kind);
+  if (Array.isArray(known)) return known.includes(bb.kind);
+  /* 旧セーブやセッション外の一時オブジェクトには個体フラグを使う。 */
+  return bb.revealed === true;
+}
+
+export function markBigboxKindIdentified(st, kindOrBb) {
+  const kind = typeof kindOrBb === "string" ? kindOrBb : kindOrBb?.kind;
+  if (!st || !kind) return;
+  if (!(st.identifiedBigboxes instanceof Set)) {
+    st.identifiedBigboxes = new Set(st.identifiedBigboxes || []);
+  }
+  st.identifiedBigboxes.add(kind);
+}
+
+export function clearBigboxKindIdentified(st, kindOrBb) {
+  const kind = typeof kindOrBb === "string" ? kindOrBb : kindOrBb?.kind;
+  if (!st || !kind) return;
+  if (!(st.identifiedBigboxes instanceof Set)) {
+    st.identifiedBigboxes = new Set(st.identifiedBigboxes || []);
+  }
+  st.identifiedBigboxes.delete(kind);
+}
+
 /* 大箱の表示名を返す共通ヘルパー。未識別時は偽名+ニックネーム、識別済みは実名 */
 export function bbDisplayName(bb, st, withCapacity = false) {
   if (!bb) return "大箱";
-  const isRevealed = bb.revealed === true || !!st?.allBcKnown;
+  const isRevealed = isBigboxKindIdentified(bb, st);
   if (isRevealed) {
     return withCapacity ? `${bb.name}(${bb.contents?.length || 0}/${bb.capacity})` : bb.name;
   }

@@ -411,6 +411,7 @@ B3Fの部屋間廊下には未発見の矢の罠を固定配置し、直前の�
   dungeon: { ... },         // 現在フロアのダンジョンデータ
   floors: { 1: dg, ... },   // 各フロアのキャッシュ
   ident: Set<string>,       // 識別済みキーのセット
+  identifiedBigboxes: Set<string>, // 冒険中に識別・名付け済みの大箱kind
   fakeNames: { ... },       // 偽名テーブル
   bbFakeNames: { ... },     // 大箱偽名テーブル
   nicknames: { ... },       // ユーザーが付けたニックネーム

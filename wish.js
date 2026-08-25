@@ -17,6 +17,7 @@ import {
 import { trackMonster, trackBigbox } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
 import { clearPlayerPoison } from "./statusDuration.js";
+import { markBigboxKindIdentified } from "./GameHelpers.js";
 
 /** 飲む／浸すで願いが発動する確率（各 0.5%） */
 export const WISH_CHANCE_DRINK = 0.005;
@@ -529,6 +530,7 @@ export function grantWish(wish, ctx) {
     }
     if (tmpl.type === "bigbox") {
       const ok = placeBigboxNearPlayer(dg, p, tmpl, ml);
+      if (ok) markBigboxKindIdentified(ctx, tmpl);
       return ok ? { ok: true } : { ok: false, message: "大箱を置けなかった…" };
     }
     const it = makeWishedItem(tmpl, { blessed: !!wish.blessed || !!tmpl._wishBlessed });

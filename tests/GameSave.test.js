@@ -25,6 +25,7 @@ function makeSession() {
     dungeon: { depth: 3, monsters: [], items: [] },
     floors: { 3: { depth: 3 } },
     ident: new Set(["p:heal", "s:teleport"]),
+    identifiedBigboxes: new Set(["refill"]),
     fakeNames: { "p:heal": "赤い液体" },
     bbFakeNames: {},
     nicknames: {},
@@ -61,6 +62,7 @@ describe("GameSave", () => {
     expect(loaded.player.weapon).toBe(loaded.player.inventory[0]);
     expect(loaded.player.armor).toBe(loaded.player.inventory[1]);
     expect(loaded.ident).toEqual(new Set(["p:heal", "s:teleport"]));
+    expect(loaded.identifiedBigboxes).toEqual(new Set(["refill"]));
     expect(loaded.floorTurns).toBe(42);
     expect(loaded.runActiveMs).toBe(12345);
     expect(loaded.penSpriteMap).toEqual({ holy: 3 });
@@ -75,13 +77,16 @@ describe("GameSave", () => {
     const legacy = JSON.parse(localStorage._data.roguelike_dungeon_save_v1);
     legacy.version = 1;
     delete legacy.nicknames;
+    delete legacy.identifiedBigboxes;
     delete legacy.penSpriteMap;
     delete legacy.potionSpriteMap;
+    legacy.dungeon.bigboxes = [{ kind: "refill", name: "充填の大箱", revealed: true }];
     localStorage._data.roguelike_dungeon_save_v1 = JSON.stringify(legacy);
 
     const loaded = loadGameState();
     expect(loaded.player.weapon).toBe(loaded.player.inventory[0]);
     expect(loaded.nicknames).toEqual({});
+    expect(loaded.identifiedBigboxes).toEqual(new Set(["refill"]));
     expect(loaded.penSpriteMap).toEqual({});
     expect(loaded.potionSpriteMap).toEqual({});
   });

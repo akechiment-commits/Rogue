@@ -16,6 +16,7 @@ import { isKeyUp, isKeyDown, isKeyLeft, isKeyRight } from "./inputKeys.js";
 import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLabel, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
+import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -433,6 +434,7 @@ export function useKeyHandler({
           allBcKnown: !!sr.current?.allBcKnown,
           bbFakeNames: sr.current?.bbFakeNames,
           ident: sr.current?.ident,
+          identifiedBigboxes: sr.current?.identifiedBigboxes,
         }) : { items: [], traps: [], all: [] };
         const _flItems2 = _fl2.items;
         const _flTraps2 = _fl2.traps;
@@ -768,7 +770,7 @@ export function useKeyHandler({
             if (_bb) {
               const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
               if (identifyMode.mode === 'identify') {
-                _bb.revealed = true; trackBigbox(_bb);
+                markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
                 _bbMsg = `大箱「${_bb.name}」の正体が明らかになった！`;
               } else if (identifyMode.mode === 'duplicate') {
                 if (identifyMode.cursed) {
@@ -779,8 +781,8 @@ export function useKeyHandler({
                   for (const [_ddx, _ddy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
                     const _nx = _bb.x + _ddx, _ny = _bb.y + _ddy;
                     if (_dg_id.map[_ny]?.[_nx] === T.FLOOR && !_dg_id.bigboxes?.some(b => b.x === _nx && b.y === _ny)) {
-                      const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!identifyMode.blessed };
-                      if (identifyMode.blessed) { trackBigbox(_newBb); }
+                      const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!identifyMode.blessed || isBigboxKindIdentified(_bb, sr.current) };
+                      if (identifyMode.blessed) { markBigboxKindIdentified(sr.current, _newBb); trackBigbox(_newBb); }
                       _dg_id.bigboxes.push(_newBb);
                       _dupPlaced = true;
                       _bbMsg = identifyMode.blessed ? `祝福された${_bb.name}が隣に現れた！【祝】` : `${_bb.name}の複製が隣に現れた！`;
@@ -802,9 +804,11 @@ export function useKeyHandler({
                 const _otherBbs = BB_TYPES.filter(t => t.kind !== _bb.kind);
                 const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
                 if (_newBbT) {
-                  const _oldBbName = _bb.name;
-                  _bb.kind = _newBbT.kind; _bb.name = _newBbT.name; _bb.capacity = _newBbT.cap(); _bb.contents = []; _bb.revealed = false;
-                  _bbMsg = `${_oldBbName}が${_newBbT.name}に変わった！`;
+                  const _oldBbName = isBigboxKindIdentified(_bb, sr.current) ? _bb.name : (sr.current.bbFakeNames?.[_bb.kind] || "謎の大箱");
+                  _bb.kind = _newBbT.kind; _bb.name = _newBbT.name; _bb.capacity = _newBbT.cap(); _bb.contents = []; _bb.revealed = !!identifyMode.blessed || isBigboxKindIdentified(_bb, sr.current);
+                  if (identifyMode.blessed) markBigboxKindIdentified(sr.current, _bb);
+                  const _newBbName = isBigboxKindIdentified(_bb, sr.current) ? _newBbT.name : (sr.current.bbFakeNames?.[_newBbT.kind] || "謎の大箱");
+                  _bbMsg = `${_oldBbName}が${_newBbName}に変わった！`;
                 } else { _bbMsg = "変化しなかった。"; }
               } else if (identifyMode.mode === 'pot_extract') {
                 const _extItems = [...(_bb.contents || [])];

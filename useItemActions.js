@@ -20,7 +20,7 @@ import {
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
-import { bbDisplayName } from "./GameHelpers.js";
+import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
@@ -1548,7 +1548,7 @@ export function useItemActions({
             if (_k) { const _wasU = !sr.current.ident.has(_k); sr.current.ident.add(_k); _ii.fullIdent = true; _ii.bcKnown = true; if (_wasU) trackItem(_ii); }
             else if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') { _ii.fullIdent = true; _ii.bcKnown = true; }
           }
-          if (_scrollFootBb && !_scrollFootBb.revealed) { _scrollFootBb.revealed = true; trackBigbox(_scrollFootBb); ml.push(`大箱「${_scrollFootBb.name}」の正体が明らかになった！`); }
+          if (_scrollFootBb && !_scrollFootBb.revealed) { markBigboxKindIdentified(sr.current, _scrollFootBb); _scrollFootBb.revealed = true; trackBigbox(_scrollFootBb); ml.push(`大箱「${_scrollFootBb.name}」の正体が明らかになった！`); }
           ml.push("全てのアイテムが識別された！");
         } else if (it.cursed) {
           // 識別済みアイテムを1つ選んで未識別に戻す（武器・防具・食料の祝呪も含む）
@@ -3196,8 +3196,8 @@ export function useItemActions({
               // 大箱
               const _sbb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
               if (_sbb) {
-                if (_isCursed) { _sbb.revealed = false; ml.push(`大箱が謎の存在に戻った！【呪】`); }
-                else { _sbb.revealed = true; trackBigbox(_sbb); ml.push(`大箱「${_sbb.name}」の正体が明らかになった！`); }
+                if (_isCursed) { clearBigboxKindIdentified(sr.current, _sbb); _sbb.revealed = false; ml.push(`大箱が謎の存在に戻った！【呪】`); }
+                else { markBigboxKindIdentified(sr.current, _sbb); _sbb.revealed = true; trackBigbox(_sbb); ml.push(`大箱「${_sbb.name}」の正体が明らかになった！`); }
                 break;
               }
               // 地面のアイテム

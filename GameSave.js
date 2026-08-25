@@ -111,6 +111,7 @@ export function saveGameState(session, msgs, dungeonConfig, discoveries) {
         ]),
       ),
       ident: [...(session.ident || [])],       /* Set → Array */
+      identifiedBigboxes: [...(session.identifiedBigboxes || [])], /* Set → Array */
       fakeNames: session.fakeNames,
       bbFakeNames: session.bbFakeNames,
       nicknames: session.nicknames || {},
@@ -140,11 +141,22 @@ export function loadGameState() {
     if (!raw) return null;
     const data = normalizeSaveData(JSON.parse(raw));
     if (!data) return null;
+    const identifiedBigboxes = new Set(data.identifiedBigboxes || []);
+    /* 変更前のセーブには共有識別状態がないため、既に revealed だった種類を引き継ぐ。 */
+    if (!Object.prototype.hasOwnProperty.call(data, "identifiedBigboxes")) {
+      for (const bb of [
+        ...(data.dungeon?.bigboxes || []),
+        ...Object.values(data.floors || {}).flatMap((floor) => floor.bigboxes || []),
+      ]) {
+        if (bb.revealed === true && bb.kind) identifiedBigboxes.add(bb.kind);
+      }
+    }
     return {
       player: deserializePlayer(data.player),
       dungeon: data.dungeon,
       floors: data.floors || {},
       ident: new Set(data.ident || []),         /* Array → Set */
+      identifiedBigboxes,                         /* Array → Set */
       fakeNames: data.fakeNames,
       bbFakeNames: data.bbFakeNames,
       nicknames: data.nicknames || {},

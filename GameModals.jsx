@@ -15,6 +15,7 @@ import { formatPlusSuffix } from "./inventoryLabel.js";
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
+import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -789,6 +790,8 @@ export function NicknameModal({ mode, setMode, input, setInput, gs, sr, setGs })
     const _newNick = (nick ?? '').trim() || null;
     if (_newNick) sr.current.nicknames[_k] = _newNick;
     else delete sr.current.nicknames[_k];
+    /* 一度名前を付けた大箱の種類は、名前を消しても冒険中は識別済みのまま */
+    if (_isBigbox && _newNick) markBigboxKindIdentified(sr.current, _k.slice(3));
     if (_k.startsWith('n:')) {
       const _updatePentacles = (dg) => {
         if (!dg?.pentacles) return;
@@ -994,7 +997,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
   const _p = gs.player;
   const _isBCMode_ui = mode.mode === 'bless' || mode.mode === 'curse';
   const _footBb = mode.bbFootId ? gs?.dungeon?.bigboxes?.find(b => b.id === mode.bbFootId) : null;
-  const _footBbName = _footBb ? ((_footBb.revealed || gs?.allBcKnown) ? _footBb.name : (gs?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
+  const _footBbName = _footBb ? (isBigboxKindIdentified(_footBb, gs) ? _footBb.name : (gs?.bbFakeNames?.[_footBb.kind] || "謎の大箱")) : null;
   const _bbModeOk = _footBb && !_isBCMode_ui && mode.mode !== 'unidentify';
   const _filtered = [
     ...(_bbModeOk ? [{ it: { _isBbTarget: true, _bbId: _footBb.id, name: `${_footBbName}（足元の大箱）` }, i: -1 }] : []),
@@ -1022,11 +1025,11 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
       let _bbMsg = "";
       if (_bb) {
         const _bbT = BB_TYPES.find(t => t.kind === _bb.kind);
-        const _bbDN = (_bb.revealed || sr.current.allBcKnown || mode.mode === 'identify')
+        const _bbDN = (isBigboxKindIdentified(_bb, sr.current) || mode.mode === 'identify')
           ? _bb.name
           : (sr.current.bbFakeNames?.[_bb.kind] || "謎の大箱");
         if (mode.mode === 'identify') {
-          _bb.revealed = true; trackBigbox(_bb);
+          markBigboxKindIdentified(sr.current, _bb); _bb.revealed = true; trackBigbox(_bb);
           _bbMsg = `大箱「${_bb.name}」の正体が明らかになった！`;
         } else if (mode.mode === 'duplicate') {
           if (mode.cursed) {
@@ -1038,8 +1041,8 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             for (const [_ddx, _ddy] of [[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]]) {
               const _nx = _bb.x + _ddx, _ny = _bb.y + _ddy;
               if (_dg_bb.map[_ny]?.[_nx] === T.FLOOR && !_dg_bb.bigboxes?.some(b => b.x === _nx && b.y === _ny)) {
-                const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!mode.blessed };
-                if (mode.blessed) { trackBigbox(_newBb); }
+                const _newBb = { id: uid(), x: _nx, y: _ny, tile: _bb.tile, kind: _bb.kind, name: _bb.name, capacity: _bbT?.cap() ?? _bb.capacity, contents: [], revealed: !!mode.blessed || isBigboxKindIdentified(_bb, sr.current) };
+                if (mode.blessed) { markBigboxKindIdentified(sr.current, _newBb); trackBigbox(_newBb); }
                 _dg_bb.bigboxes.push(_newBb);
                 _dupPlaced = true;
                 _bbMsg = mode.blessed ? `祝福された${_bbDN}が隣に現れた！【祝】` : `${_bbDN}の複製が隣に現れた！`;
@@ -1062,8 +1065,9 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           const _newBbT = _otherBbs[Math.floor(Math.random() * _otherBbs.length)];
           if (_newBbT) {
             const _oldBbName = _bbDN;
-            _bb.kind = _newBbT.kind; _bb.name = _newBbT.name; _bb.capacity = _newBbT.cap(); _bb.contents = []; _bb.revealed = false;
-            const _newBbName = mode.blessed || sr.current.allBcKnown
+            _bb.kind = _newBbT.kind; _bb.name = _newBbT.name; _bb.capacity = _newBbT.cap(); _bb.contents = []; _bb.revealed = mode.blessed || isBigboxKindIdentified(_bb, sr.current);
+            if (mode.blessed) markBigboxKindIdentified(sr.current, _bb);
+            const _newBbName = isBigboxKindIdentified(_bb, sr.current)
               ? _newBbT.name
               : (sr.current.bbFakeNames?.[_newBbT.kind] || "謎の大箱");
             _bbMsg = `${_oldBbName}が${_newBbName}に変わった！`;
@@ -2397,7 +2401,7 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
   if (!mode) return null;
   const _bb = bigboxRef.current;
   const _bbNickKey = _bb ? "bk:" + _bb.kind : null;
-  const _bbIsRevealed = !_bb || _bb.revealed === true || !!gs?.allBcKnown;
+  const _bbIsRevealed = !_bb || isBigboxKindIdentified(_bb, gs);
   const _bbNick = gs?.nicknames?.[_bbNickKey];
   const _bbFake = _bb ? (gs?.bbFakeNames?.[_bb.kind] || "謎の大箱") : "謎の大箱";
   const _bbDisplayName = _bbIsRevealed ? (_bb?.name ?? "大箱") : (_bbNick ? `${_bbFake} (${_bbNick})` : _bbFake);
@@ -3129,6 +3133,7 @@ export function InventoryModal({
     allBcKnown: !!gs?.allBcKnown,
     bbFakeNames: gs?.bbFakeNames,
     ident: gs?.ident,
+    identifiedBigboxes: gs?.identifiedBigboxes,
   });
   const _flItems = _fl.items;
   const _flTraps = _fl.traps;

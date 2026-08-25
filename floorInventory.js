@@ -5,6 +5,7 @@
 
 import { BB_TYPES } from "./items.js";
 import { stairRefAt } from "./floorObjectPlacement.js";
+import { isBigboxKindIdentified } from "./GameHelpers.js";
 
 export const VENT_FLOOR_DESC =
   "一定範囲の物理飛び道具（投擲・矢・石・ブレスなど）の向きを風向きに変える。杖や魔法弾は曲がらない。";
@@ -135,7 +136,7 @@ function pentacleDisplayName(pc, ident) {
  * @param {object|null|undefined} dungeon
  * @param {number} x
  * @param {number} y
- * @param {{ allBcKnown?: boolean, bbFakeNames?: object, ident?: Set|string[] }} [opts]
+ * @param {{ allBcKnown?: boolean, bbFakeNames?: object, ident?: Set|string[], identifiedBigboxes?: Set|string[] }} [opts]
  */
 export function listFloorInventoryEntries(dungeon, x, y, opts = {}) {
   if (!dungeon || !Number.isFinite(x) || !Number.isFinite(y)) {
@@ -181,7 +182,7 @@ export function listFloorInventoryEntries(dungeon, x, y, opts = {}) {
   const bigboxes = (dungeon.bigboxes || [])
     .filter((b) => b.x === x && b.y === y)
     .map((b) => {
-      const revealed = b.revealed === true || !!opts.allBcKnown;
+      const revealed = isBigboxKindIdentified(b, opts);
       const tpl = BB_TYPES.find((t) => t.kind === b.kind);
       const fake = opts.bbFakeNames?.[b.kind];
       return {

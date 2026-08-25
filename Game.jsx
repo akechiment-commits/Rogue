@@ -49,7 +49,7 @@ import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTele
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
 import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
-import { _invActCount, bbDisplayName, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
+import { _invActCount, bbDisplayName, isBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
 import { describeLookCell } from "./lookDescription.js";
 import { applyMessageUpdate } from "./messageLog.js";
@@ -605,17 +605,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       : new Set();
     const _allBcKnown = _dt === "debug" || _dt === "beginner";
     setDungeonAllBcKnown(d, _allBcKnown);
+    const _initialIdentifiedBigboxes = new Set(
+      (d.bigboxes || []).filter(bb => bb.revealed === true).map(bb => bb.kind).filter(Boolean),
+    );
     if (_allBcKnown) {
       p.inventory.forEach(it => { it.fullIdent = true; it.bcKnown = true; });
       d.bigboxes?.forEach(bb => trackBigbox(bb));
     } else {
       d.bigboxes?.forEach(bb => { bb.revealed = false; });
     }
+    const _identifiedBigboxes = _initialIdentifiedBigboxes;
     const _penEffects = [...new Set(ITEMS.filter(i => i.type === 'pen').map(i => i.effect))];
     const _penSpriteMap = Object.fromEntries(_penEffects.map(e => [e, Math.floor(Math.random() * 9) + 1]));
     const _potEffects = [...new Set(ITEMS.filter(i => i.type === 'potion').map(i => i.effect))];
     const _potSpriteMap = Object.fromEntries(_potEffects.map(e => [e, Math.floor(Math.random() * 25) + 1]));
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0, penSpriteMap: _penSpriteMap, potionSpriteMap: _potSpriteMap };
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, identifiedBigboxes: _identifiedBigboxes, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0, penSpriteMap: _penSpriteMap, potionSpriteMap: _potSpriteMap };
     sr.current = s;
     setGs(s);
     if (_dt === "tutorial" && startDepth === 1) {
@@ -657,11 +661,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       Object.values(_resumeFloors).forEach(restoreRelicGuardianBossTraits);
       setDungeonAllBcKnown(_resumeDungeon, _resumeAllBcKnown);
       Object.values(_resumeFloors).forEach(floor => setDungeonAllBcKnown(floor, _resumeAllBcKnown));
+      const _resumeIdentifiedBigboxes = new Set(resumeState.identifiedBigboxes || []);
+      if (!resumeState.identifiedBigboxes) {
+        for (const _bb of [...(_resumeDungeon.bigboxes || []), ...Object.values(_resumeFloors).flatMap(f => f.bigboxes || [])]) {
+          if (_bb.revealed === true && _bb.kind) _resumeIdentifiedBigboxes.add(_bb.kind);
+        }
+      }
       const rs = {
         player: _resumePlayer,
         dungeon: _resumeDungeon,
         floors: _resumeFloors,
         ident: resumeState.ident,
+        identifiedBigboxes: _resumeIdentifiedBigboxes,
         fakeNames: resumeState.fakeNames,
         bbFakeNames: resumeState.bbFakeNames,
         nicknames: resumeState.nicknames || {},
@@ -1563,6 +1574,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       d = genDungeon(nd - 1, sr.current.dungeonType || "beginner");
     }
     setDungeonAllBcKnown(d, !!sr.current.allBcKnown);
+    if (!sr.current.allBcKnown) {
+      d.bigboxes?.forEach(bb => {
+        if (bb.revealed === true) markBigboxKindIdentified(sr.current, bb);
+      });
+    }
     /* 最下層：isLastFloor 未設定なら必ずキーアイテムを配置
        （落とし穴プリキャッシュや呪いテレポで _saved が先行生成された場合も救済） */
     if (!_isLastFloorPitfall && _maxD !== null && nd >= _maxD && !d.isLastFloor && sr.current.dungeonType !== "tutorial") {
@@ -2854,7 +2870,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             const _statueStep = st.dungeon.statues?.find(s => s.x === p.x && s.y === p.y);
             if (_statueStep) ml.push("石像がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
-            if (_bbStep) { ml.push(`${bbDisplayName(_bbStep, sr.current, _bbStep.revealed === true || !!sr.current?.allBcKnown)}がある。`); }
+            if (_bbStep) { ml.push(`${bbDisplayName(_bbStep, sr.current, isBigboxKindIdentified(_bbStep, sr.current))}がある。`); }
             const _sprStep = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
@@ -2993,7 +3009,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             bigboxRef.current = bb2;
             showFirstEncounterTip("bigbox");
             setBigboxMode("menu"); setBigboxMenuSel(0);
-            setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb2, sr.current, bb2.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
+            setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb2, sr.current, isBigboxKindIdentified(bb2, sr.current))}がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
           }
           const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
@@ -3236,7 +3252,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           bigboxRef.current = bb6;
           showFirstEncounterTip("bigbox");
           setBigboxMode("menu"); setBigboxMenuSel(0);
-          setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb6, sr.current, bb6.revealed === true || !!sr.current?.allBcKnown)}がある。どうする？`]);
+          setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb6, sr.current, isBigboxKindIdentified(bb6, sr.current))}がある。どうする？`]);
         } else if (_statueFront) {
           setMsgs((prev) => [...prev.slice(-80), "石像がある。"]);
         } else {
@@ -3458,7 +3474,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
         const _dashBb = _dBbMap.get(_dk(p.x, p.y));
         if (_dashBb) {
-          ml.push(`${bbDisplayName(_dashBb, sr.current, _dashBb.revealed === true || !!sr.current?.allBcKnown)}がある。`);
+          ml.push(`${bbDisplayName(_dashBb, sr.current, isBigboxKindIdentified(_dashBb, sr.current))}がある。`);
           endTurn(st, p, ml);
           break;
         }
@@ -3951,7 +3967,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const wasFull = bb.contents.length >= bb.capacity;
       bb.contents.push(item);
       const _idn = itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
-      const _bbIsRev = bb.revealed === true || !!sr.current?.allBcKnown;
+      const _bbIsRev = isBigboxKindIdentified(bb, sr.current);
       const _bbDN = bbDisplayName(bb, sr.current);
       ml.push(_bbIsRev
         ? `${_idn}を${_bbDN}に入れた。(${bb.contents.length}/${bb.capacity})`
@@ -4382,6 +4398,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       dungeon: dg,
       ml,
       ident: sr.current.ident,
+      identifiedBigboxes: sr.current.identifiedBigboxes,
       luFn: lu,
     });
     if (!res.ok) {
@@ -4950,7 +4967,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     showFirstEncounterTip("bigbox");
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
     setBigboxMode("menu"); setBigboxMenuSel(0);
-    setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb, s, bb.revealed === true || !!s.allBcKnown)}がある。どうする？`]);
+    setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb, s, isBigboxKindIdentified(bb, s))}がある。どうする？`]);
     sr.current = { ...s }; setGs({ ...sr.current });
   };
   /** 足元ページから泉を使う */
@@ -5516,6 +5533,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   allBcKnown: !!sr.current?.allBcKnown,
                   bbFakeNames: sr.current?.bbFakeNames,
                   ident: sr.current?.ident,
+                  identifiedBigboxes: sr.current?.identifiedBigboxes,
                 }) : { items: [], traps: [], all: [] };
                 const _flItems2 = _fl2.items;
                 const _flTraps2 = _fl2.traps;
@@ -5867,6 +5885,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                           allBcKnown: !!sr.current?.allBcKnown,
                           bbFakeNames: sr.current?.bbFakeNames,
                           ident: sr.current?.ident,
+                          identifiedBigboxes: sr.current?.identifiedBigboxes,
                         }) : { items: [], traps: [], all: [] };
                         const _flItems3 = _fl3.items;
                         const _flTraps3 = _fl3.traps;
