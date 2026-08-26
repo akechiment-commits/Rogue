@@ -74,6 +74,7 @@ describe("portraitCatalog", () => {
     const status = PORTRAIT_CATEGORIES.find((c) => c.id === "status");
     expect(status.slots.some((s) => s.file === "status_bound" && s.label === "拘束状態")).toBe(true);
     expect(status.slots.some((s) => s.file === "status_confined" && s.label === "閉じ込め状態")).toBe(true);
+    expect(status.slots.some((s) => s.file === "status_hypnosis" && s.label === "催眠術を受けた時")).toBe(true);
     expect(status.slots.some((s) => s.file === "status_wall_suffocation" && s.label === "壁埋まり・窒息中")).toBe(true);
   });
 

@@ -432,6 +432,7 @@ export function snapshotPlayer(p, opts = {}) {
     soakedTurns: p.soakedTurns || 0,
     paralyzeTurns: p.paralyzeTurns || 0,
     potConfinedTurns: p.potConfinedTurns || 0,
+    hypnosisPending: p.hypnosisPending || 0,
     capturedBy: p.capturedBy || null,
     slowTurns: p.slowTurns || 0,
     bewitchedTurns: p.bewitchedTurns || 0,
@@ -456,6 +457,7 @@ export function getActiveStatusPortraitKey(p, floating = false) {
   if (p._waterSuffocationDamage) return "status_submerged";
   if (p.capturedBy) return "status_bound";
   if ((p.potConfinedTurns || 0) > 0) return "status_confined";
+  if ((p.hypnosisPending || 0) > 0) return "status_hypnosis";
   if ((p.paralyzeTurns || 0) > 0) return "status_paralyze";
   if ((p.sleepTurns || 0) > 0) return "status_sleep";
   if ((p.frozenTurns || 0) > 0) return "status_immobile"; /* 凍結は移動封じ寄り立ち絵を流用 */

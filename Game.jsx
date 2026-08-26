@@ -41,6 +41,7 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
+const HYPNOSIS_ACTION_DELAY_MS = 600;
 setItemMimicDisguiseCatalog([
   ...ITEMS,
   ...WANDS,
@@ -4936,7 +4937,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     onReturnToHub: returnToHubFromItem, dropModeRef, setFloorSelectMode, setTpSelectMode,
     floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
   });
-  /* 催眠術を受けたら、状態異常による自動ターン処理とは別に1行動を即実行する。 */
+  /* 催眠術を受けたら、短い待機の後に状態異常による自動ターン処理とは別に1行動を実行する。 */
   useEffect(() => {
     const p = gs?.player;
     if (!p || (p.hypnosisPending || 0) <= 0 || dead || showEnding || shopMode || miniTip) return;
@@ -4952,7 +4953,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if ((currentPlayer.hypnosisPending || 0) <= 0 || hasForcedTurn(currentPlayer)) return;
       doHypnotizedAction();
     };
-    timer = setTimeout(run, 0);
+    timer = setTimeout(run, HYPNOSIS_ACTION_DELAY_MS);
     return () => { if (timer !== null) clearTimeout(timer); };
   }, [gs, dead, showEnding, shopMode, miniTip, doHypnotizedAction]);
   doMarkerWriteRef.current = doMarkerWrite;

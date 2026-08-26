@@ -541,6 +541,18 @@ describe("portraits", () => {
     expect(event.force).toBe(true);
   });
 
+  it("催眠術を受けている間は催眠術の立ち絵を維持する", () => {
+    const prev = {
+      hp: 80, maxHp: 100, x: 5, y: 5, level: 3,
+      hypnosisPending: 0,
+    };
+    const player = { ...prev, hypnosisPending: 1 };
+    expect(getActiveStatusPortraitKey(player)).toBe("status_hypnosis");
+    const event = resolvePortraitEvent({ player, prev, lastMsg: "催眠術を受けた！" });
+    expect(event.src).toMatch(/status_hypnosis/);
+    expect(event.holdKey).toBe("status_hypnosis");
+  });
+
   it("状態異常が解けたフレームを通常立ち絵への復帰対象として返す", () => {
     const prev = {
       hp: 80, maxHp: 100, x: 5, y: 5, level: 3,

@@ -880,7 +880,7 @@ export const MONS = [
       { name: "大眠り術師",         hp: 108, atk: 36, def: 16, exp: 200 },
     ],
   },
-  { name: "催眠術使い",   hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "視界内のプレイヤーに催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
+  { name: "催眠術使い",   hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
     dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "強催眠術使い",     hp: 73,  atk: 30, def: 10, exp: 134, dungeonFloors: { advanced: { min: 28, max: 31 } } },
@@ -2861,6 +2861,18 @@ export function getAdjacentMimicSources(m, dg) {
   );
 }
 
+/** 催眠術使いのレベル別射程（Lv1/2は隣接、Lv3は視界内の直線10マス） */
+function canHypnotistUse(m, pl, { canSee = false, plOnBlessedSanc = false } = {}) {
+  if (!m || !pl || plOnBlessedSanc) return false;
+  const dx = pl.x - m.x, dy = pl.y - m.y;
+  const distance = Math.max(Math.abs(dx), Math.abs(dy));
+  if ((m.monLevel || 1) >= 3) {
+    const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+    return canSee && inLine && distance >= 1 && distance <= 10;
+  }
+  return distance === 1;
+}
+
 /**
  * ものまね師の位置から見て、コピー元の特技が「実行可能な条件」を満たすか。
  * ラクガキ魔：プレイヤー認識（canSee）ならどこでも試行可（足元失敗は実行時に処理）
@@ -2923,9 +2935,9 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
     return canSee && !plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && !!opts.monsterWandFn;
   }
 
-  /* 催眠術：杖と同じ射線・射程で、次のプレイヤー行動を強制する */
+  /* 催眠術：Lv1/2は隣接、Lv3は視界内の一直線上から次の行動を強制する */
   if (subtype === "hypnotist") {
-    return canSee && !plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10;
+    return canHypnotistUse(src, pl, { canSee, plOnBlessedSanc });
   }
 
   /* 突進：一直線・距離2以上 */
@@ -3155,7 +3167,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   }
 
   /* ── 催眠術使い：プレイヤーの次の行動を奪う ── */
-  if (m.subtype === "hypnotist" && canSee && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10) {
+  if (m.subtype === "hypnotist" && canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc })) {
     m.turnAttacks++;
     if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
       ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
@@ -4566,7 +4578,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
       const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
-      const _hypnotistRdy = m.subtype === "hypnotist" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
+      const _hypnotistRdy = m.subtype === "hypnotist" && !m.sealed && _rAtks &&
+        canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc });
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
         (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 2 ? _sameRoom : _rLine));
@@ -4819,7 +4832,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         // 魔封じの部屋・祝福聖域の場合は杖を使えず通常行動へフォールスルー
       }
 
-      if (m.subtype === "hypnotist" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "hypnotist" && !m.sealed && canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
           ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
