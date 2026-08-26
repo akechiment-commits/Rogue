@@ -2156,7 +2156,20 @@ export function useItemActions({
 
     if (candidates.length > 0) {
       const { it, idx } = candidates[Math.floor(Math.random() * candidates.length)];
-      setMsgs((prev) => [...prev.slice(-80), "催眠術に操られ、体が勝手に動いた！"]);
+      const _hypnosisName = itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames);
+      const _hypnosisVerb = it.type === "food" ? "食べた"
+        : it.type === "potion" ? "飲んだ"
+          : it.type === "scroll" || it.type === "spellbook" ? "読んだ"
+            : it.type === "wand" ? "振った"
+              : it.type === "pot" ? "中身を入れた"
+                : it.type === "marker" || it.type === "pen" ? "使った"
+                  : it.type === "weapon" || it.type === "armor" || it.type === "ring" ? "装備操作をした"
+                    : "使った";
+      setMsgs((prev) => [
+        ...prev.slice(-80),
+        "催眠術に操られ、体が勝手に動いた！",
+        `催眠術で${_hypnosisName}を${_hypnosisVerb}！`,
+      ]);
       if (it.type === "spellbook") doReadSpellbook(idx);
       else if (it.type === "scroll") {
         hypnosisAutoRef.current = { kind: "scroll", idx };
