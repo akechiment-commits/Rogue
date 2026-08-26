@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   monEffectiveFloat, monEffectiveMagicImmune, monReflectsProjectiles,
   monReflectsMagic, monEffectiveMaxAttacks, monEffectiveWallWalker,
-  monEffectiveFixedDamageOnly, monEffectiveSpeed,
+  monEffectiveFixedDamageOnly, monEffectiveSpeed, monCanUseExplosiveAbility,
 } from "../monTraits.js";
 import { clampDmgFixed, consumeBarrier, T } from "../utils.js";
 import { applyMonsterSeal, canMonsterSurviveOnWater, resolveSealedFloatOnWater } from "../items.js";
@@ -22,6 +22,11 @@ describe("中級までのボス用スタイル3画像", () => {
 });
 
 describe("封印中の敵特性無効化", () => {
+  it("爆発・誘爆系特技は封印で無効", () => {
+    expect(monCanUseExplosiveAbility({ sealed: false })).toBe(true);
+    expect(monCanUseExplosiveAbility({ sealed: true })).toBe(false);
+  });
+
   it("浮遊：固有floatは封印で落ち、floatTurnsは残る", () => {
     expect(monEffectiveFloat({ float: true })).toBe(true);
     expect(monEffectiveFloat({ float: true, sealed: true })).toBe(false);

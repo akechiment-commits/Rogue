@@ -15,11 +15,12 @@ export { wakeIfDormant } from "./monsterRuntime.js";
 export {
   monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
   monEffectiveFixedDamageOnly, monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles,
-  monEffectiveMaxAttacks, monEffectiveSpeed,
+  monEffectiveMaxAttacks, monEffectiveSpeed, monCanUseExplosiveAbility,
 } from "./monTraits.js";
 import {
   monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
   monReflectsProjectiles, monReflectsMagic, monSubmergesProjectiles, monEffectiveMaxAttacks,
+  monCanUseExplosiveAbility,
 } from "./monTraits.js";
 
 /* ===== 火ダルマ：移動後に可燃アイテムを燃やす ===== */
@@ -3995,7 +3996,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== ボムスライム：HPが一桁になると警告→次ターンに爆発 ===== */
-  if (m.subtype === "deathbomb" && m.hp > 0 && m.hp <= 9 && !m.deathBombExploded) {
+  if (m.subtype === "deathbomb" && monCanUseExplosiveAbility(m) && m.hp > 0 && m.hp <= 9 && !m.deathBombExploded) {
     if (m.deathBombReady) {
       if (isFireExplosionNullified(dg, pl)) {
         m.deathBombReady = false;
@@ -4014,7 +4015,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
 
   /* ===== 爆弾ゴブリン：プレイヤーに隣接すると確率で自爆、失敗時は通常攻撃 ===== */
-  if (m.subtype === "kamikaze" && !m.sealed && !_moveOnly) {
+  if (m.subtype === "kamikaze" && monCanUseExplosiveAbility(m) && !_moveOnly) {
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
       const _kzChance = (m.monLevel || 1) >= 2 ? 0.50 : 0.25;
       if (m.turnAttacks < monEffectiveMaxAttacks(m) && Math.random() < _kzChance) {

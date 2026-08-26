@@ -9,6 +9,11 @@ export function monIsSealed(m) {
   return !!(m && m.sealed);
 }
 
+/** 爆発系特技（自爆・誘爆を含む）は封印中に無効 */
+export function monCanUseExplosiveAbility(m) {
+  return !!(m && !m.sealed);
+}
+
 /** 実効浮遊（固有 float は封印で無効。floatTurns は有効） */
 export function monEffectiveFloat(m) {
   if (!m) return false;
