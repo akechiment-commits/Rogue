@@ -431,7 +431,7 @@ describe("水の飛散", () => {
 
     expect(rotten).toMatchObject({ name: "おにぎり" });
     expect(rotten.rotten).toBeUndefined();
-    expect(burnt).toMatchObject({ name: "焼いたパン", value: 20 });
+    expect(burnt).toMatchObject({ name: "パン", value: 20 });
     expect(burnt.burnt).toBeUndefined();
     expect(outside.rotten).toBe(true);
     expect(dg.pentacles).toHaveLength(0);

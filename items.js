@@ -6728,7 +6728,8 @@ function restoreFoodWithWater(item, ml) {
   if (item?.type !== "food" || (!item.rotten && !item.burnt && !item.yabai)) return false;
   const before = item.name;
   if (item.burnt) item.value = Math.max(1, Math.ceil((item.value || 1) / 0.6));
-  item.name = (item.cooked ? "焼いた" : "") + _foodSizedName(item);
+  /* 調理済み食料は料理名自体が完成形なので、「焼いた」を付けない。 */
+  item.name = _foodSizedName(item);
   item.desc = FOOD_DESCRIPTIONS[item._foodBase || _foodDisplayBaseName(item)]
     || FOOD_DESCS[item.effect]
     || "食べると満腹度が回復する。";
