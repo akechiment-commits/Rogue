@@ -26,6 +26,9 @@ function rangedSpecialRate(m) {
   if (m?.subtype === "hypnotist") {
     return MONSTER_SPECIAL_RATE.status;
   }
+  if (m?.type === "guard") {
+    return MONSTER_SPECIAL_RATE.status;
+  }
   if (m?.subtype === "armorbreath" || m?.subtype === "diamondweapon") {
     return MONSTER_SPECIAL_RATE.buff;
   }
@@ -3676,11 +3679,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* シオン・ザ・ダークブレット：直線上で銃撃 */
   if (m.baseKind === "boss_darkbullet" && !_moveOnly) {
+    const _dbReady = m._rangedAttackThisTurn;
+    if (_dbReady) delete m._rangedAttackThisTurn;
     const _dbAdx = pl.x - m.x, _dbAdy = pl.y - m.y;
     const _dbLen = Math.max(Math.abs(_dbAdx), Math.abs(_dbAdy));
     const _dbInLine = _dbAdx === 0 || _dbAdy === 0 || Math.abs(_dbAdx) === Math.abs(_dbAdy);
     const _dbLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-    if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+    if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+        (_dbReady || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.ranged)) {
       _resolveBolt(m, dg, pl, ml, _luFn, {
         dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
         baseRange: 10, animColor: "#111111",
