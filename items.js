@@ -726,7 +726,7 @@ export const WANDS = [
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:6, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
   { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
   { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
-  { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n呪い：対象が未識別に戻る。", tile:24 },
+  { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n壊すと周囲のアイテム・大箱にも効果。\n呪い：対象が未識別に戻る。", tile:24 },
   { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
 ];
 
@@ -4602,7 +4602,16 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
         mlx.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
       }
-      if (mon.hp <= 0) killMonster(mon, dg, p, mlx, luFn, false, killerMon);
+      if (mon.hp <= 0) {
+        killMonster(mon, dg, p, mlx, luFn, false, killerMon);
+        if (item.type === "bottle") {
+          const _bottleDrop = makeRandomPotion();
+          const _bottleFt = new Set();
+          placeItemAt(dg, mon.x, mon.y, { ..._bottleDrop, id: uid() }, mlx, _bottleFt, 0, p);
+          const _dropNm = resolveItemName(_bottleDrop, nameFn);
+          mlx.push(`${mon.name}の足元に${_dropNm}が残った！`);
+        }
+      }
       res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
     },
     customPlHit: (mlx) => {
@@ -4633,17 +4642,19 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
           const _poison = applyPlayerPoison(p);
-          mlx.push(`食中毒になった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          mlx.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
         p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
         p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });
-        mlx.push("混乱・鈍足状態になった！");
+        const _yConfuseT = statusTurns("confuse", { kind: "player" });
+        const _ySlowT = statusTurns("slow", { kind: "player" });
+        mlx.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
       } else if (item.type === "food" && item.rotten && !item.yabai) {
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
           const _poison = applyPlayerPoison(p);
-          mlx.push(`腐った食料がぶつかった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          mlx.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
       }
       res.consumed = true; res.x = p.x; res.y = p.y; res.hitPlayer = true;
@@ -6226,8 +6237,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     case "paralyze_magic": {
       if (kind === "monster") {
         if (!isStatusImmune(target, ml, target.name)) {
-          applyMonsterParalyze(target, { ml: null });
-          ml.push(`金縛りの魔法が${target.name}に命中！金縛りになった！`);
+          const _pt = applyMonsterParalyze(target, { ml: null });
+          ml.push(`金縛りの魔法が${target.name}に命中！金縛りになった！${target.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}`);
         }
       } break;
     }

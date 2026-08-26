@@ -1,7 +1,7 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
-  resolveItemName, breakBigboxContents,
+  resolveItemName, getIdentKey, breakBigboxContents,
   killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
@@ -2202,6 +2202,61 @@ function _collectBreakAdjacentTargets(dg, cx, cy, p) {
   return targets;
 }
 
+/* 物知りの杖を壊したときの周囲識別。通常の杖振りと同じく、呪いなら未識別化する。 */
+function _applySageBreakEffect(kind, target, dg, p, ml, sageContext = {}) {
+  const { identSet = null, identState = null, trackItemFn = null, trackBigboxFn = null, nameFn = null, bigboxNameFn = null } = sageContext;
+  const _isCursed = !!sageContext.cursed;
+  if (kind === "item") {
+    const _before = resolveItemName(target, nameFn);
+    const _key = getIdentKey(target);
+    if (_isCursed) {
+      if (_key) identSet?.delete?.(_key);
+      target.fullIdent = false;
+      target.bcKnown = false;
+      ml.push(`${_before}が未識別に戻った！【呪】`);
+    } else {
+      const _wasUnknown = !!(_key && !identSet?.has?.(_key));
+      if (_key) {
+        identSet?.add?.(_key);
+        if (_wasUnknown) trackItemFn?.(target);
+      }
+      target.fullIdent = true;
+      target.bcKnown = true;
+      ml.push(`${resolveItemName(target, nameFn)}が識別された！`);
+    }
+    return;
+  }
+  if (kind === "bigbox") {
+    const _before = bigboxNameFn ? bigboxNameFn(target) : (target.revealed ? target.name : "謎の大箱");
+    if (_isCursed) {
+      identState?.identifiedBigboxes?.delete?.(target.kind);
+      target.revealed = false;
+      ml.push(`${_before}が謎の存在に戻った！【呪】`);
+    } else {
+      identState?.identifiedBigboxes?.add?.(target.kind);
+      target.revealed = true;
+      trackBigboxFn?.(target);
+      ml.push(`大箱「${target.name}」の正体が明らかになった！`);
+    }
+    return;
+  }
+  if (kind === "player") {
+    const _candidates = (p.inventory || []).filter((item) => {
+      if (item.type === "gold" || item.type === "goal") return false;
+      const _key = getIdentKey(item);
+      const _known = !!item.fullIdent || !!item.bcKnown || !!(_key && identSet?.has?.(_key));
+      return _isCursed ? _known : !_known;
+    });
+    if (_candidates.length === 0) {
+      ml.push(`杖の光が${_isCursed ? "識別を解除できるもの" : "識別できるもの"}を見つけられなかった。`);
+      return;
+    }
+    const _target = _candidates[Math.floor(Math.random() * _candidates.length)];
+    _applySageBreakEffect("item", _target, dg, p, ml, sageContext);
+    return;
+  }
+}
+
 function _pitfallBlockedAt(dg, cx, cy) {
   return dg.traps.find(t => t.x === cx && t.y === cy) ||
     dg.items.some(i => i.x === cx && i.y === cy) ||
@@ -2257,7 +2312,15 @@ export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {})
   }
   const times = Math.max(1, Math.ceil((wand.charges ?? 0) / 2));
   const center = { x: cx, y: cy };
-  for (let t = 0; t < times; t++) breakWandAoE(p, dg, wand.effect, ml, luFn, blMult, center);
+  for (let t = 0; t < times; t++) breakWandAoE(p, dg, wand.effect, ml, luFn, blMult, center, {
+    identSet: opts.identSet,
+    identState: opts.identState,
+    trackItemFn: opts.trackItemFn,
+    trackBigboxFn: opts.trackBigboxFn,
+    nameFn: opts.nameFn,
+    bigboxNameFn: opts.bigboxNameFn,
+    cursed: !!wand.cursed,
+  });
   return { triggered: true };
 }
 
@@ -2273,7 +2336,7 @@ export function destroyFloorWand(dg, wand, p, ml, luFn, destroyMsg = null) {
   return true;
 }
 
-export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
+export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sageContext = {}) {
   const cx = center?.x ?? p.x;
   const cy = center?.y ?? p.y;
   if (eff === "leap") { ml.push("杖が壊れたが何も起こらなかった。"); return; }
@@ -2422,6 +2485,14 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null) {
       }
     } else {
       ml.push("杖が壊れたが周囲にモンスターがいなかった。");
+    }
+    return;
+  }
+  if (eff === "sage") {
+    const _sageCenter = _centerWandTarget(dg, cx, cy, p);
+    if (_sageCenter) _applySageBreakEffect(_sageCenter.kind, _sageCenter.t, dg, p, ml, sageContext);
+    for (const { kind, t } of _collectBreakAdjacentTargets(dg, cx, cy, p)) {
+      _applySageBreakEffect(kind, t, dg, p, ml, sageContext);
     }
     return;
   }

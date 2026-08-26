@@ -80,4 +80,17 @@ describe("ワッカの指輪", () => {
     expect(ml.some((message) => message.includes("ホーミング必中"))).toBe(true);
     expect(p.inventory).toHaveLength(0);
   });
+
+  it("ワッカのホーミング投擲でも空き瓶で敵を倒すと薬が残る", () => {
+    const p = makePlayer({ x: 5, y: 5, atk: 12 });
+    const bottle = { name: "空き瓶", type: "bottle", tile: 16 };
+    const target = { id: "bottle-target", name: "弱い敵", x: 7, y: 5, hp: 1, maxHp: 1, def: 0 };
+    const dg = makeEmptyDg({ monsters: [target] });
+    const ml = [];
+
+    throwItemAlongLine(p, dg, bottle, 0, 0, 10, ml, p, null, { homingTarget: target });
+
+    expect(target.hp).toBeLessThanOrEqual(0);
+    expect(dg.items.some((item) => item.type === "potion")).toBe(true);
+  });
 });

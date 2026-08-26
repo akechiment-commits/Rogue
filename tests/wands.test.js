@@ -282,6 +282,32 @@ describe("triggerWandBreakEffect", () => {
     expect(ml.some(m => m.includes("眠"))).toBe(true);
   });
 
+  it("物知りの杖を壊すと周囲のアイテムと大箱も識別する", () => {
+    const dg = makeEmptyDg();
+    const p = makePlayer({ x: 5, y: 5, inventory: [] });
+    const potion = { id: "sage-potion", name: "回復薬", type: "potion", effect: "heal", x: 6, y: 5 };
+    const bigbox = { id: "sage-box", kind: "identify", name: "鑑定の大箱", capacity: 3, contents: [], x: 4, y: 5, revealed: false };
+    dg.items.push(potion);
+    dg.bigboxes.push(bigbox);
+    const ident = new Set();
+    const state = { identifiedBigboxes: new Set() };
+    const ml = [];
+    triggerWandBreakEffect({ type: "wand", effect: "sage", charges: 2 }, 5, 5, dg, p, ml, noop, {
+      identSet: ident,
+      identState: state,
+      trackItemFn: () => {},
+      trackBigboxFn: () => {},
+      nameFn: (item) => ident.has(`p:${item.effect}`) ? item.name : "青い薬",
+      bigboxNameFn: (box) => box.revealed ? box.name : "謎の大箱",
+    });
+    expect(ident.has("p:heal")).toBe(true);
+    expect(potion.fullIdent).toBe(true);
+    expect(bigbox.revealed).toBe(true);
+    expect(state.identifiedBigboxes.has("identify")).toBe(true);
+    expect(ml.some((message) => message.includes("識別された"))).toBe(true);
+    expect(ml.some((message) => message.includes("正体が明らか"))).toBe(true);
+  });
+
   it("中心が隣のモンスターでもプレイヤーが周囲8マスなら巻き込まれる", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ x: 5, y: 5 });

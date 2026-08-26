@@ -30,6 +30,14 @@ describe("scroll target rules", () => {
     expect(isScrollTargetCandidate(mode, pot, 2)).toBe(true);
   });
 
+  it("祝呪不明の識別の巻物は呪いの可能性があっても全アイテムを候補にする", () => {
+    const mode = { mode: "unidentify", scrollIdx: 0, wasUnknown: true };
+    expect(isScrollTargetCandidate(mode, sword, 1)).toBe(true);
+    expect(isScrollTargetCandidate(mode, armor, 2)).toBe(true);
+    expect(isScrollTargetCandidate(mode, potion, 3)).toBe(true);
+    expect(isScrollTargetCandidate(mode, gold, 4)).toBe(false);
+  });
+
   it("識別済みの吸い出しの巻物は壺だけを候補にする", () => {
     const mode = { mode: "pot_extract", scrollIdx: 0, wasUnknown: false };
     expect(isScrollTargetCandidate(mode, pot, 1)).toBe(true);

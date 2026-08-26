@@ -673,7 +673,7 @@ const WAND_DETAILS = {
   fire_wand:    { normal:'rng(20,30)炎ダメ（油まみれ×2）', blessed:'rng(40,60)ダメ（×2）', cursed:'対象HP+rng(20,30)回復（アンデッドには20-30ダメ）' },
   ice_wand:     { normal:'rng(15,25)氷ダメ+5T移動封じ。氷弱点(elemWeak=ice)は×2', blessed:'rng(30,50)ダメ+10T移動封じ（×2）。氷弱点はさらに×2', cursed:'対象HP最大20回復+移動封じ解除' },
   vitality_swap:  { normal:'対象と現在HPを入れ替える', blessed:'交換後に相手HP→1', cursed:'交換後に自分HP→1' },
-  sage:           { normal:'アイテム・大箱を識別 / 壁に跳ね返ると手持ち1個ランダム識別', blessed:'同上', cursed:'対象が未識別に戻る' },
+  sage:           { normal:'アイテム・大箱を識別 / 壁に跳ね返ると手持ち1個ランダム識別 / 壊すと中心と周囲8マスのアイテム・大箱にも識別効果', blessed:'同上', cursed:'対象が未識別に戻る（壊した場合も中心と周囲8マスに適用）' },
   godsparkwand:   { normal:'対象に100ダメージ', blessed:'対象に200ダメージ（×2）', cursed:'対象HP+100回復' },
   wish:           { normal:'願いUIを開く（成功時に回数消費）。生成時charges=1固定。充填・合成で回数増加不可', blessed:'同上', cursed:'同上' },
 };

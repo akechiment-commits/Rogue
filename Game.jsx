@@ -4359,7 +4359,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
                     const _poison = applyPlayerPoison(p);
-                    ml.push(`食中毒になった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                    ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                   }
                   const _yConfuseT = statusTurns("confuse", { kind: "player" });
                   const _ySlowT = statusTurns("slow", { kind: "player" });
@@ -4371,7 +4371,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
                     const _poison = applyPlayerPoison(p);
-                    ml.push(`腐った食料がぶつかった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                    ml.push(`腐った食料がぶつかった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                   }
                 }
               }
@@ -4577,8 +4577,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push(`苦い...！${d}ダメージ！`);
     } else if (r < 0.90) {
       // 毒状態になる
-      const _poison = applyPlayerPoison(p);
-      ml.push(`なんか変な味がした...毒だ！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+      if (hasRingEffect(p, "antidote_ring")) {
+        ml.push("なんか変な味がした...しかし毒消しの指輪が泉の毒を無効化した！");
+      } else {
+        const _poison = applyPlayerPoison(p);
+        ml.push(`なんか変な味がした...毒だ！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+      }
     } else if (r < 0.95) {
       // 所持品がランダムで呪われる（壺は容量-1）
       const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && (i.type === "pot" || !i.cursed));
