@@ -81,6 +81,7 @@ import { getPlayerStairBlockMessage } from "./stairRules.js";
 import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip } from "./firstEncounterTips.js";
 import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardian.js";
 import { isMonsterSpawnCellAllowed } from "./monsterSpawnRules.js";
+import { FloorMapOverlay } from "./FloorMapOverlay.jsx";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -145,6 +146,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const tpSelectModeRef = useRef(null);
   tpSelectModeRef.current = tpSelectMode;
   const lookMode         = modal.type === 'look'         ? modal.data : null;
+  const mapMode          = modal.type === 'map';
   const floorSelectMode  = modal.type === 'floorSelect'  ? modal.data : null;
   const floorSelectModeRef = useRef(null);
   floorSelectModeRef.current = floorSelectMode;
@@ -182,6 +184,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setSpellPage     = (v) => dispatchModal({ type: 'UPDATE', payload: { spellPage: typeof v === 'function' ? v(modal.spellPage) : v } });
   const setTpSelectMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'tpSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setLookMode      = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'look', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setMapMode       = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'map', data: true }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setFloorSelectMode = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'floorSelect', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setIdentifyMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'identify', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setNicknameMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'nickname', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
@@ -2148,6 +2151,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (msgLogModeRef.current) return;
       if (showSettingsRef.current || showTileEditorRef.current) return;
       if (exitHubConfirmRef.current) return;
+      if (mapMode) return;
       if (lookMode) return;
       if (springMode || wishMode) return;
       if (putMode) return;
@@ -3185,6 +3189,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       lu,
       endTurn,
       lookMode,
+      mapMode,
       playAnim,
       maybeTipForItem,
       showFirstEncounterTip,
@@ -3197,7 +3202,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   /* 目の前を調べる（zキー・モバイル調べるボタン共通） */
   const doExamineFront = useCallback(() => {
     if (!sr.current) return;
-    if (lookMode) return;
+    if (lookMode || mapMode) return;
     if (bigboxModeRef.current) return;
     if (nicknameModeRef.current) return;
     const { player: p, dungeon: dg } = sr.current;
@@ -3296,12 +3301,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       }
     }
-  }, [act, lookMode, showFirstEncounterTip]);
+  }, [act, lookMode, mapMode, showFirstEncounterTip]);
   const doDash = useCallback(
     async (dx, dy) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
-      if (springMode || wishMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || tpSelectModeRef.current || identifyModeRef.current) return;
+      if (springMode || wishMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || mapMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
       if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
@@ -3579,6 +3584,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       checkTrap,
       chgFloor,
       endTurn,
+      mapMode,
       showFirstEncounterTip,
       triggerMonsterHouseWithTip,
     ],
@@ -4870,7 +4876,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
     markerMode, markerMenuSel, markerPage, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
     bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
-    tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
+    tpSelectMode, floorSelectMode, lookMode, mapMode, debugSpellMode, debugSpellMenuSel,
     msgLogMode, msgLogScrollTop, msgsRef,
     showSign, miniTip,
     exitHubConfirm, exitHubSel,
@@ -4879,7 +4885,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     onDismissEnding: performEndingDismiss,
     // state setters
     setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setFloorSelectMode, setTpSelectMode,
-    setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
+    setLookMode, setMapMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
     setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
     setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
     setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
@@ -5479,6 +5485,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           maxWidth: "100%",
         }}
       />{" "}
+      {mapMode && <FloorMapOverlay dg={gs?.dungeon} p={gs?.player} mobile={mobile} onClose={() => setMapMode(null)} />}
       <div
         ref={msgRef}
         style={{
@@ -5530,6 +5537,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           {" "}
           <DPad
             onClick={(dx, dy) => {
+              if (mapMode) return;
               if (revealMode) {
                 if (revealMode.pendingMsgs.length) setMsgs(prev => [...prev.slice(-80), ...revealMode.pendingMsgs]);
                 setRevealMode(null);
@@ -5790,7 +5798,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   small
                   label="矢"
                   sub="射る"
-                  onClick={() => { if (spellListMode) return; if (springMode || identifyMode || putMode) return; act("shoot_arrow"); }}
+                  onClick={() => { if (mapMode || spellListMode) return; if (springMode || identifyMode || putMode) return; act("shoot_arrow"); }}
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
@@ -5798,6 +5806,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   label={miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
                   sub={miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
                   onClick={() => {
+                    if (mapMode) return;
                     if (miniTip) { closeMiniTip(); return; }
                     if (showSign) { setShowSign(null); return; }
                     if (spellListMode) { setSpellListMode(false); return; }
@@ -5819,6 +5828,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   label="見"
                   sub="見渡す"
                   onClick={() => {
+                    if (mapMode) return;
                     if (spellListMode) return;
                     if (revealMode) return;
                     if (showInv || springMode || identifyMode || putMode) return;
@@ -5842,6 +5852,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
                   sub={spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
                   onClick={() => {
+                    if (mapMode) return;
                     if (spellListMode) { if (spellConfirmRef.current) spellConfirmRef.current(spellMenuSel); return; }
                     if (bigboxMode === "menu") {
                       const _bbk = bigboxRef.current ? "bk:" + bigboxRef.current.kind : null;
@@ -5994,6 +6005,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   label={bigboxMode === "put" ? "決" : showInv ? "置" : "前"}
                   sub={bigboxMode === "put" ? "決定" : showInv ? "置く" : "調べる"}
                   onClick={() => {
+                    if (mapMode) return;
                     if (spellListMode) return;
                     if (bigboxMode === "put") { bigboxPutItem(bigboxPage * 10 + bigboxMenuSel); return; }
                     if (springMode || identifyMode || putMode) return;
@@ -6002,15 +6014,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   color={bigboxMode === "put" ? "#fc0" : showInv ? (dropMode ? "#f88" : "#fa8") : "#4af"}
                 />
                 <AB
-                  label={showInv ? "整" : "待"}
-                  sub={showInv ? "整理" : "待機"}
-                  onClick={() => { if (spellListMode) return; if (springMode || identifyMode || putMode) return; if (showInv) { sortInventory(); } else { act("wait"); } }}
-                  color={showInv ? "#8f8" : "#666"}
+                  label={showInv ? "整" : mapMode ? "閉" : "地図"}
+                  sub={showInv ? "整理" : mapMode ? "閉じる" : "マップ"}
+                  onClick={() => { if (mapMode) { setMapMode(null); return; } if (spellListMode) return; if (springMode || identifyMode || putMode) return; if (showInv) { sortInventory(); } else { setMapMode(true); } }}
+                  color={showInv ? "#8f8" : mapMode ? "#9ed0ff" : "#6688aa"}
                 />
                 <AB
                   label="罠"
                   sub="探る"
-                  onClick={() => { if (spellListMode) return; if (springMode || identifyMode || putMode) return; act("search_traps"); }}
+                  onClick={() => { if (mapMode || spellListMode) return; if (springMode || identifyMode || putMode) return; act("search_traps"); }}
                   color="#fa0"
                 />
               </div>{" "}
@@ -6018,25 +6030,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 <AB
                   label="走"
                   sub={dashMode ? "ON" : "ダッシュ"}
-                  onClick={() => { if (spellListMode) return; if (revealMode) return; if (springMode || identifyMode || putMode) return; setDashMode((v) => !v); }}
+                  onClick={() => { if (mapMode || spellListMode) return; if (revealMode) return; if (springMode || identifyMode || putMode) return; setDashMode((v) => !v); }}
                   color={dashMode ? "#f44" : "#a8f"}
                 />
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode || springMode || identifyMode || putMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
+                  onClick={() => { if (mapMode) return; if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode || springMode || identifyMode || putMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB
                   label="🎨"
                   sub="タイル"
-                  onClick={() => { if (revealMode) return; setShowTileEditor(true); }}
+                  onClick={() => { if (mapMode || revealMode) return; setShowTileEditor(true); }}
                   color="#888"
                 />
                 <AB
                   label="📜"
                   sub="記録"
-                  onClick={() => { if (revealMode) return; setShowScores(true); }}
+                  onClick={() => { if (mapMode || revealMode) return; setShowScores(true); }}
                   color="#8cf"
                 />
               </div>{" "}
@@ -6095,7 +6107,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             marginTop: 2,
           }}
         >
-          矢印/テンキー:移動　A+矢印/テンキー:ダッシュ　Shift+矢印2方向:斜め移動　.:待機　x:所持品(↑↓で選択/Z:使用/X:閉じる)　w:見渡す　c:魔法
+          矢印/テンキー:移動　A+矢印/テンキー:ダッシュ　Shift+矢印2方向:斜め移動　.:待機　Space:マップ　x:所持品(↑↓で選択/Z:使用/X:閉じる)　w:見渡す　c:魔法
           {"<>"}:階段　q:矢を射る　z:アクション　f:足元(拾う/罠/階段/大箱/泉)　t:向き変更
         </div>
       )}{" "}

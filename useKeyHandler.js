@@ -81,14 +81,14 @@ export function useKeyHandler({
   facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
   markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
   bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
-  tpSelectMode, floorSelectMode, lookMode, debugSpellMode, debugSpellMenuSel,
+  tpSelectMode, floorSelectMode, lookMode, mapMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
   showSign, miniTip,
   exitHubConfirm, exitHubSel,
   gameOverCanReturn, performGameOverReturnToHub, onDismissEnding,
   // state setters
   setGs, setMsgs, setGameOverSel, setGameOverView, setEndingSel, setEndingView, setShowScores, setFloorSelectMode, setTpSelectMode,
-  setLookMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
+  setLookMode, setMapMode, setShowInv, setSelIdx, setInvMenuSel, setShowDesc, setNicknameMode,
   setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
   setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
   setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
@@ -336,6 +336,11 @@ export function useKeyHandler({
         if (isUpML) { setMsgLogScrollTop((s) => Math.max(0, s - 1)); return; }
         if (isDownML) { setMsgLogScrollTop((s) => Math.min(_mlMax, s + 1)); return; }
         if (k === "m" || k === "x" || k === "escape") { setMsgLogMode(false); return; }
+        return;
+      }
+      if (mapMode) {
+        e.preventDefault();
+        if (k === " " || k === "x" || k === "escape") setMapMode(null);
         return;
       }
       if (lookMode) {
@@ -1814,9 +1819,12 @@ export function useKeyHandler({
         setMsgLogMode(true);
         return;
       }
-      if (k === "." || k === " ") {
+      if (k === ".") {
         e.preventDefault();
         act("wait");
+      } else if (k === " ") {
+        e.preventDefault();
+        setMapMode(true);
       } else if (k === "s") {
         e.preventDefault();
         act("search_traps");
@@ -1905,6 +1913,8 @@ export function useKeyHandler({
       tpSelectMode,
       floorSelectMode,
       lookMode,
+      mapMode,
+      setMapMode,
       getLookDesc,
       showSign,
       miniTip,
