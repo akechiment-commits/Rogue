@@ -1,15 +1,14 @@
 import { uid } from "./utils.js";
 
-/** 最深部から何段、地上側へ進んだかを1始まりで返す。 */
-export function relicGuardianStage(maxDepth, currentDepth) {
-  const _maxDepth = Math.max(1, Number(maxDepth) || Number(currentDepth) || 1);
-  const _currentDepth = Math.max(1, Number(currentDepth) || _maxDepth);
-  return Math.max(1, _maxDepth - Math.min(_maxDepth, _currentDepth) + 1);
+/** 遺物の番人の出現回数を段階へ変換する（最大50段階）。 */
+export function relicGuardianStage(spawnCount) {
+  const _count = Number(spawnCount);
+  return Math.max(1, Math.min(50, Number.isFinite(_count) ? Math.floor(_count) : 1));
 }
 
-/** 遺物の番人の段階別ステータス。最深部では控えめ、B1Fで従来の最大値になる。 */
-export function relicGuardianStats(maxDepth, currentDepth) {
-  const stage = relicGuardianStage(maxDepth, currentDepth);
+/** 遺物の番人の段階別ステータス。出現するたびに強くなる。 */
+export function relicGuardianStats(spawnCount) {
+  const stage = relicGuardianStage(spawnCount);
   const speed = stage >= 20 ? 2 : 1;
   return {
     stage,
@@ -24,13 +23,12 @@ export function relicGuardianStats(maxDepth, currentDepth) {
 export function makeRelicGuardian({
   x,
   y,
-  maxDepth,
-  currentDepth,
+  spawnCount = 1,
   lastPx = x,
   lastPy = y,
   id = uid(),
 } = {}) {
-  const stats = relicGuardianStats(maxDepth, currentDepth);
+  const stats = relicGuardianStats(spawnCount);
   return {
     id,
     name: "遺物の番人",
@@ -47,6 +45,7 @@ export function makeRelicGuardian({
     baseKind: "pursuer",
     relicGuardian: true,
     guardianStage: stats.stage,
+    guardianSpawnCount: stats.stage,
     monLevel: 1,
     /* 戦利品だけ monsterDrop 側で専用分岐し、ボスの耐性・状態異常短縮は維持する。 */
     isBoss: true,
@@ -63,7 +62,13 @@ export function makeRelicGuardian({
 /** 旧セーブに残る遺物の番人へ、現行のボス特性を適用する。 */
 export function restoreRelicGuardianBossTraits(dungeon) {
   for (const monster of dungeon?.monsters || []) {
-    if (monster?.relicGuardian) monster.isBoss = true;
+    if (monster?.relicGuardian) {
+      monster.isBoss = true;
+      /* 旧セーブには出現回数がないため、保存されていた段階を暫定的な回数として引き継ぐ。 */
+      if (!Number.isFinite(monster.guardianSpawnCount)) {
+        monster.guardianSpawnCount = relicGuardianStage(monster.guardianStage);
+      }
+    }
   }
   return dungeon;
 }

@@ -33,6 +33,7 @@ function makeSession() {
     dungeonType: "beginner",
     maxDepth: 10,
     allBcKnown: true,
+    relicGuardianSpawnCount: 7,
     floorTurns: 42,
     runActiveMs: 12345,
     penSpriteMap: { holy: 3 },
@@ -63,6 +64,7 @@ describe("GameSave", () => {
     expect(loaded.player.armor).toBe(loaded.player.inventory[1]);
     expect(loaded.ident).toEqual(new Set(["p:heal", "s:teleport"]));
     expect(loaded.identifiedBigboxes).toEqual(new Set(["refill"]));
+    expect(loaded.relicGuardianSpawnCount).toBe(7);
     expect(loaded.floorTurns).toBe(42);
     expect(loaded.runActiveMs).toBe(12345);
     expect(loaded.penSpriteMap).toEqual({ holy: 3 });

@@ -5,7 +5,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns, applyPlayerPoison } from "./statusDuration.js";
-import { pl } from "./playerLabel.js";
+import { plName } from "./playerLabel.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
@@ -2335,7 +2335,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               }
               pl.hp -= _rrdmg;
               pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
-              ml.push(`跳ね返された${boltName}が${pl()}に命中！${playerHpEffectLabel(pl, _rrdmg)}！`);
+              ml.push(`跳ね返された${boltName}が${plName(pl)}に命中！${playerHpEffectLabel(pl, _rrdmg)}！`);
               if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
               if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             }
@@ -3333,7 +3333,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       const _knockFromX = pl.x, _knockFromY = pl.y;
       pl.x = _kx; pl.y = _ky;
       pushPlayerKnockbackAnim(_knockFromX, _knockFromY, pl.x, pl.y, _kdx, _kdy);
-      ml.push(`${m.name}が${pl()}を吹き飛ばした！`);
+      ml.push(`${m.name}が${plName(pl)}を吹き飛ばした！`);
       return true;
     }
     if (m.subtype === "berserker") {
@@ -3628,7 +3628,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (dg.map[_wy]?.[_wx] !== T.FLOOR) continue;
         if (dg.monsters.some(mn => mn !== m && mn.x === _wx && mn.y === _wy)) continue;
         m.x = _wx; m.y = _wy;
-        ml.push(`${m.name}が閃光とともに${pl()}の目前に降り立った！`);
+        ml.push(`${m.name}が閃光とともに${plName(pl)}の目前に降り立った！`);
         _warped = true;
         break;
       }
@@ -4741,13 +4741,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _ttTrap = _ttCands[0];
           m.turnAttacks++;
           if (hasRingEffect(pl, "core_ring")) {
-            ml.push(`${m.name}が${pl()}を${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
+            ml.push(`${m.name}が${plName(pl)}を${_ttTrap.name}に投げようとしたが、体幹の指輪で踏ん張って動かなかった！`);
             return;
           }
           const _throwFromX = pl.x, _throwFromY = pl.y;
           pl.x = _ttTrap.x; pl.y = _ttTrap.y;
           pushPlayerKnockbackAnim(_throwFromX, _throwFromY, pl.x, pl.y);
-          ml.push(`${m.name}が${pl()}を${_ttTrap.name}に向かって放り投げた！`);
+          ml.push(`${m.name}が${plName(pl)}を${_ttTrap.name}に向かって放り投げた！`);
           if ((pl.immobileTurns || 0) > 0) { pl.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
           opts.fireTrapFn(_ttTrap, pl, dg, ml);
           return;
@@ -4793,7 +4793,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             wakeIfDormant(_thrown, ml);
             _thrown.x = _dest.x; _thrown.y = _dest.y;
             _thrown.aware = true;
-            ml.push(`${m.name}が${_thrown.name}を${pl()}の隣に投げた！`);
+            ml.push(`${m.name}が${_thrown.name}を${plName(pl)}の隣に投げた！`);
             return;
           }
         }
@@ -5114,8 +5114,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             /* 杖：「弾いて」「当てた」（apply前にpush） */
             wandHitMsg: (target) => `${m.name}が${_ibN}を弾いて${target.name}に当てた！`,
             /* 反射→プレイヤー命中時の薬瓶/杖前置き */
-            potionPlHitMsg: () => `弾き返された${_ibN}が${pl()}に命中して割れた！`,
-            wandPlHitMsg: () => `弾き返された${_ibN}が${pl()}に当たった！`,
+            potionPlHitMsg: () => `弾き返された${_ibN}が${plName(pl)}に命中して割れた！`,
+            wandPlHitMsg: () => `弾き返された${_ibN}が${plName(pl)}に当たった！`,
             /* 泉/大箱着弾 */
             springLandMsg: () => `${m.name}に${_ibN}を弾かれ泉に落ちた！`,
             bigboxLandMsg: (bb) => `${m.name}に${_ibN}を弾かれ${bb.name}に入った！`,

@@ -4,24 +4,26 @@ import { monsterDrop } from "../items.js";
 import { MW, MH, T } from "../utils.js";
 
 describe("遺物の番人", () => {
-  it("地上に近づくほど段階とステータスが上がる", () => {
-    expect(relicGuardianStage(50, 50)).toBe(1);
-    expect(relicGuardianStage(50, 1)).toBe(50);
+  it("出現回数に応じて段階とステータスが上がる", () => {
+    expect(relicGuardianStage(1)).toBe(1);
+    expect(relicGuardianStage(20)).toBe(20);
+    expect(relicGuardianStage(999)).toBe(50);
 
-    const deep = relicGuardianStats(50, 50);
-    const surface = relicGuardianStats(50, 1);
-    expect(surface.hp).toBeGreaterThan(deep.hp);
-    expect(surface.atk).toBeGreaterThan(deep.atk);
-    expect(surface.def).toBeGreaterThan(deep.def);
-    expect(surface.speed).toBe(2);
+    const first = relicGuardianStats(1);
+    const twentieth = relicGuardianStats(20);
+    expect(twentieth.hp).toBeGreaterThan(first.hp);
+    expect(twentieth.atk).toBeGreaterThan(first.atk);
+    expect(twentieth.def).toBeGreaterThan(first.def);
+    expect(twentieth.speed).toBe(2);
   });
 
   it("ボス特性を持つ専用の番人として生成される", () => {
-    const guardian = makeRelicGuardian({ id: "guardian-test", x: 4, y: 5, maxDepth: 20, currentDepth: 10 });
+    const guardian = makeRelicGuardian({ id: "guardian-test", x: 4, y: 5, spawnCount: 11 });
     expect(guardian.isBoss).toBe(true);
     expect(guardian.relicGuardian).toBe(true);
     expect(guardian.baseKind).toBe("pursuer");
     expect(guardian.guardianStage).toBe(11);
+    expect(guardian.guardianSpawnCount).toBe(11);
   });
 
   it("旧セーブの番人にもボス特性を復元する", () => {

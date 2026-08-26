@@ -622,7 +622,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _penSpriteMap = Object.fromEntries(_penEffects.map(e => [e, Math.floor(Math.random() * 9) + 1]));
     const _potEffects = [...new Set(ITEMS.filter(i => i.type === 'potion').map(i => i.effect))];
     const _potSpriteMap = Object.fromEntries(_potEffects.map(e => [e, Math.floor(Math.random() * 25) + 1]));
-    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, identifiedBigboxes: _identifiedBigboxes, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, floorTurns: 0, penSpriteMap: _penSpriteMap, potionSpriteMap: _potSpriteMap };
+    const s = { player: p, dungeon: d, floors: {}, ident: _allIdentKeys, identifiedBigboxes: _identifiedBigboxes, fakeNames: generateFakeNames([...ITEMS, ...WANDS], POTS, SPELLBOOKS, RINGS), bbFakeNames: generateBbFakeNames(), nicknames: {}, isDebugRun: _dt === "debug", dungeonType: _dt, maxDepth: dungeonConfig?.maxFloors ?? null, allBcKnown: _allBcKnown, relicGuardianSpawnCount: 0, floorTurns: 0, penSpriteMap: _penSpriteMap, potionSpriteMap: _potSpriteMap };
     sr.current = s;
     setGs(s);
     if (_dt === "tutorial" && startDepth === 1) {
@@ -670,6 +670,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (_bb.revealed === true && _bb.kind) _resumeIdentifiedBigboxes.add(_bb.kind);
         }
       }
+      const _savedGuardianCounts = [
+        ...(_resumeDungeon.monsters || []),
+        ...Object.values(_resumeFloors).flatMap((floor) => floor.monsters || []),
+      ].filter((monster) => monster?.relicGuardian).map((monster) => monster.guardianSpawnCount ?? monster.guardianStage ?? 0);
+      const _resumeGuardianSpawnCount = resumeState.relicGuardianSpawnCount ?? Math.max(0, ..._savedGuardianCounts);
       const rs = {
         player: _resumePlayer,
         dungeon: _resumeDungeon,
@@ -683,6 +688,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         dungeonType: resumeState.dungeonType,
         maxDepth: resumeState.maxDepth,
         allBcKnown: _resumeAllBcKnown,
+        relicGuardianSpawnCount: _resumeGuardianSpawnCount,
         floorTurns: resumeState.floorTurns || 0,
         runActiveMs: resumeState.runActiveMs || 0,
         penSpriteMap: resumeState.penSpriteMap || Object.fromEntries([...new Set(ITEMS.filter(i => i.type === 'pen').map(i => i.effect))].map(e => [e, Math.floor(Math.random() * 9) + 1])),
@@ -1654,6 +1660,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (!sr.current.floors) sr.current.floors = {};
     processPitfallBag(_pfBag, sr.current.floors, sr.current.player.depth);
   }, []);
+  const spawnRelicGuardian = useCallback((st, p, dg, ml) => {
+    if (!st || !p || !dg || st.dungeonType === "tutorial" || !p.inventory?.some((item) => item.type === "goal")) return false;
+    const candidates = [];
+    for (let y = 0; y < MH; y++) {
+      for (let x = 0; x < MW; x++) {
+        if (dg.map[y]?.[x] !== T.FLOOR) continue;
+        if (x === p.x && y === p.y) continue;
+        if (dg.monsters?.some((monster) => monster.x === x && monster.y === y)) continue;
+        candidates.push([x, y]);
+      }
+    }
+    if (candidates.length === 0) return false;
+    const [x, y] = pick(candidates);
+    const spawnCount = Math.max(0, Number(st.relicGuardianSpawnCount) || 0) + 1;
+    st.relicGuardianSpawnCount = spawnCount;
+    dg.monsters.push(makeRelicGuardian({ x, y, spawnCount, lastPx: p.x, lastPy: p.y }));
+    ml.push(`キーアイテムを察知した遺物の番人が現れた！（${spawnCount}回目）`);
+    return true;
+  }, []);
   const endTurn = useCallback(
     (st, p, ml) => {
       installPlayerHpMessageHook(ml, p);
@@ -1777,6 +1802,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       applyVisibilityOverrides(st.dungeon, p, { findRoom, inMagicSealRoom });
       {
         const _dg = st.dungeon;
+        /* キーアイテム所持中は、同じフロアでも100ターンごとに番人が再出現する。 */
+        if (st.floorTurns > 0 && st.floorTurns % 100 === 0 && p.hp > 0) {
+          spawnRelicGuardian(st, p, _dg, ml);
+        }
         /* 通常モンスター発生: 30T固定、魔物呼び1個→15T、2個→5T */
         if (
           _dg.nextSpawnTurn !== undefined &&
@@ -1997,7 +2026,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       }
     },
-    [moveMons, lu, triggerMonsterHouseWithTip],
+    [moveMons, lu, spawnRelicGuardian, triggerMonsterHouseWithTip],
   );
 
   /* auto-advance turns while player is sleeping, paralyzed, or slow-skipping */
@@ -2192,28 +2221,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ml.push(`地下${p.depth}階に${dir > 0 ? "降りた" : "昇った"}。`);
           if (nd._firstVisit && FLOOR_TITLES[nd.floorType]) ml.push(FLOOR_TITLES[nd.floorType]);
           /* ── キーアイテム所持中に上昇 → 遺物の番人が出現 ── */
-          if (dir === -1 && st.dungeonType !== "tutorial" && p.inventory.some(it => it.type === "goal")) {
-            let _cands = [];
-            for (let _gy = 0; _gy < MH; _gy++)
-              for (let _gx = 0; _gx < MW; _gx++)
-                if (nd.map[_gy][_gx] === T.FLOOR && !nd.monsters.some(m => m.x === _gx && m.y === _gy))
-                  _cands.push([_gx, _gy]);
-            const _far = _cands.filter(([x,y]) => Math.max(Math.abs(x-p.x),Math.abs(y-p.y)) >= 8);
-            const _mid = _cands.filter(([x,y]) => Math.max(Math.abs(x-p.x),Math.abs(y-p.y)) >= 5);
-            const _pool = _far.length ? _far : _mid.length ? _mid : _cands;
-            if (_pool.length > 0) {
-              const [_px, _py] = pick(_pool);
-              nd.monsters.push(makeRelicGuardian({
-                x: _px,
-                y: _py,
-                maxDepth: sr.current.maxDepth ?? p.depth,
-                currentDepth: p.depth,
-                lastPx: p.x,
-                lastPy: p.y,
-              }));
-              ml.push("キーアイテムを察知した遺物の番人が現れた！");
-            }
-          }
+          if (dir === -1) spawnRelicGuardian(st, p, nd, ml);
           acted = true;
         }
       };
