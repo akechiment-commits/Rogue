@@ -18,7 +18,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { statusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles,
@@ -1064,7 +1064,7 @@ export function applyMonsterSeal(target, dg, p, ml, luFn, opts = {}) {
     : statusTurns("seal", { kind: "monster", blessed, target });
   target.sealedTurns = Math.max(target.sealedTurns || 0, turns);
   if (message) ml.push(message);
-  else ml.push(`${target.name}は封印された！`);
+  else ml.push(`${target.name}は封印された！${isPermanentTurns(turns) ? "(永続)" : `(${turns}ターン)`}`);
   return resolveSealedFloatOnWater(target, dg, p, ml, luFn);
 }
 
@@ -2352,7 +2352,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
           ml.push(`毒矢が命中！${d}ダメージ！しかし指輪が毒を消した！`);
         } else {
           const _poison = applyPlayerPoison(p);
-          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          ml.push(`毒矢が命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
         }
       } else {
         ml.push(`${label}が命中！${d}ダメージ！`);
@@ -2385,7 +2385,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
                 ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！しかし指輪が毒を消した！`);
               } else {
                 const _poison = applyPlayerPoison(p);
-                ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                ml.push(`跳ね返された毒矢が${pl()}に命中！${d}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
               }
             } else {
               ml.push(`跳ね返された${label}が${pl()}に命中！${d}ダメージ！`);
@@ -2611,8 +2611,9 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (_slwm) {
         if (_slwm.isBoss && _slwm._preSlowSpeed === undefined) _slwm._preSlowSpeed = _slwm.speed;
         _slwm.speed = Math.max(0.25, _slwm.speed * 0.5);
-        if (_slwm.isBoss) _slwm.bossSlowTurns = (_slwm.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target: _slwm });
-        ml.push(`${_slwm.name}が鈍足になった！`);
+        const _slowT = _slwm.isBoss ? statusTurns("bossSlow", { kind: "monster", target: _slwm }) : 0;
+        if (_slwm.isBoss) _slwm.bossSlowTurns = (_slwm.bossSlowTurns || 0) + _slowT;
+        ml.push(`${_slwm.name}が鈍足になった！${_slwm.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "しかし防具が鈍足を防いだ！(耐鈍足)" })) {
@@ -2627,8 +2628,10 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _seam = monsterAt(dg, tx, ty);
       if (_seam) {
+        const _sealT = statusTurns("seal", { kind: "monster", target: _seam });
         applyMonsterSeal(_seam, dg, p, ml, luFn, {
-          message: `${_seam.name}の特技が封印された！`,
+          sealedTurns: _sealT,
+          message: `${_seam.name}の特技が封印された！${isPermanentTurns(_sealT) ? "(永続)" : `(${_sealT}ターン)`}`,
         });
       }
       if (p && p.x === tx && p.y === ty) {
@@ -2837,8 +2840,10 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _mam = monsterAt(dg, tx, ty);
       if (_mam) {
+        const _sealT = statusTurns("seal", { kind: "monster", target: _mam });
         applyMonsterSeal(_mam, dg, p, ml, luFn, {
-          message: `${_mam.name}の特技が封印された！`,
+          sealedTurns: _sealT,
+          message: `${_mam.name}の特技が封印された！${isPermanentTurns(_sealT) ? "(永続)" : `(${_sealT}ターン)`}`,
         });
       }
       if (p && p.x === tx && p.y === ty) {
@@ -3266,7 +3271,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             target.atk = Math.max(1, Math.floor(target.atk / 2));
             target.poisonHalfAtk = true;
           }
-          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態になり攻撃力が半減した！${blessed ? "(強毒)" : ""}`);
+          ml.push(`${target.name}は毒を浴びた！${dmg}ダメージ！毒状態(${_poisonTurns}ターン)になり攻撃力が半減した！${blessed ? "(強毒)" : ""}`);
           _monKill(target);
         }
       }
@@ -3284,9 +3289,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           const _poison = applyPlayerPoison(p, { blessed });
           if (blessed) {
-            ml.push(`強烈な毒を浴びた！毒状態になり攻撃力が${_poison.atkLoss}下がった！(強毒)`);
+            ml.push(`強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！(強毒)`);
           } else {
-            ml.push(_poison.atkLoss > 0 ? "毒状態になった！攻撃力が下がった！" : "毒状態が続いている！");
+            ml.push(_poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.turns}ターン)`);
           }
         }
       }
@@ -3373,8 +3378,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") {
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, target.speed * (blessed ? 0.25 : 0.5));
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed, target });
-          ml.push(`${target.name}は鈍足になった！${blessed ? "(強鈍足)" : ""}`);
+          const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed, target }) : 0;
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
+          ml.push(`${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}${blessed ? "(強鈍足)" : ""}`);
         }
         if (kind === "player") {
           if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "鈍足効果を受けたが防具が防いだ！(耐鈍足)" })) {
@@ -3463,8 +3469,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "monster") {
         if (cursed) {
           // 呪い：封印（ボスは有限ターン）
+          const _sealT = statusTurns("seal", { kind: "monster", target });
           applyMonsterSeal(target, dg, p, ml, luFn, {
-            message: target.isBoss ? `${target.name}は封印された！` : `${target.name}は永続的に封印された！【呪→永続封印】`,
+            sealedTurns: _sealT,
+            message: `${target.name}は封印された！${isPermanentTurns(_sealT) ? "(永続)" : `(${_sealT}ターン)`}【呪→封印】`,
           });
           target.mpCooldownTurns = statusTurns("mpCooldown", { kind: "monster", target });
         } else {
@@ -3566,8 +3574,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (blessed && target.hp > 0 && dg.monsters?.includes(target)) {
             if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed, target });
-            ml.push(`さらに${target.name}は鈍足になった！(祝福)`);
+            const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed, target }) : 0;
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
+            ml.push(`さらに${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}(祝福)`);
           }
         }
       }
@@ -4574,14 +4583,18 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         mon.hp -= _yDmg;
         mlx.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
         if (mon.hp > 0) {
+          const _yPoisonT = statusTurns("poison", { kind: "monster", target: mon });
+          const _yConfuseT = statusTurns("confuse", { kind: "monster", target: mon });
+          const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: mon });
           mon.poisoned = true;
-          mon.poisonedTurns = Math.max(mon.poisonedTurns || 0, statusTurns("poison", { kind: "monster", target: mon }));
-          mon.confusedTurns = (mon.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target: mon });
-          mon.fleeingTurns = (mon.fleeingTurns || 0) + statusTurns("bewitch", { kind: "monster", target: mon });
+          mon.poisonedTurns = Math.max(mon.poisonedTurns || 0, _yPoisonT);
+          mon.confusedTurns = (mon.confusedTurns || 0) + _yConfuseT;
+          mon.fleeingTurns = (mon.fleeingTurns || 0) + _yBewitchT;
           if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
           mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
-          if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target: mon });
-          mlx.push(`${mon.name}は毒・混乱・幻惑・鈍足状態になった！`);
+          const _ySlowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
+          if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
+          mlx.push(`${mon.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！`);
         }
       }
       /* 腐/焦げ食料（非ヤバイ）：攻撃力半減 */
@@ -5414,19 +5427,21 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     }
     const _wakkaDmg = clampDmgFixed(_wakkaTarget, calcProjectileDmg(p, _arAtk, _wakkaTarget.def), true);
     _wakkaTarget.hp -= _wakkaDmg;
+    let _wakkaPoisonT = 0;
     if (_isPoison) {
       if (_wakkaTarget.isBoss) {
+        _wakkaPoisonT = _wakkaTarget.bossPoisonHalfAtk ? (_wakkaTarget.bossPoisonHalfAtkTurns || monsterStatusTurns(10, _wakkaTarget)) : monsterStatusTurns(10, _wakkaTarget);
         if (!_wakkaTarget.bossPoisonHalfAtk) {
           _wakkaTarget.bossPoisonOrigAtk = _wakkaTarget.atk;
           _wakkaTarget.bossPoisonHalfAtk = true;
-          _wakkaTarget.bossPoisonHalfAtkTurns = 10;
+          _wakkaTarget.bossPoisonHalfAtkTurns = _wakkaPoisonT;
         }
         _wakkaTarget.atk = Math.max(1, Math.floor(_wakkaTarget.atk / 2));
       } else {
         _wakkaTarget.atk = Math.max(1, Math.floor((_wakkaTarget.atk || 1) / 2));
       }
     }
-    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
+    ml.push(`${_arName}が${_wakkaTarget.name}にホーミング必中！${_wakkaDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${_wakkaTarget.isBoss ? `(${_wakkaPoisonT}ターン)` : "(永続)"}` : ""}`);
     if (_wakkaTarget.hp <= 0) killMonster(_wakkaTarget, dg, p, ml, luFn);
     if (st.bombArrow) {
       if (isFireExplosionNullified(dg, p)) {
@@ -5507,7 +5522,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           p.hp -= _refDmg;
           if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
             const _poison = applyPlayerPoison(p);
-            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+            ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
           } else if (_isPoison) {
             ml.push(`跳ね返された${_arName}が${pl()}に命中！${_refDmg}ダメージ！しかし指輪が毒を消した！`);
           } else {
@@ -5522,15 +5537,17 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
       if (consumeBarrier(m, ml)) { hit = true; break; }
       const _arDmg = clampDmgFixed(m, calcProjectileDmg(p, _arAtk, m.def), true);
       m.hp -= _arDmg;
+      let _poisonT = 0;
       if (_isPoison) {
         if (m.isBoss) {
-          if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = 10; }
+          _poisonT = m.bossPoisonHalfAtk ? (m.bossPoisonHalfAtkTurns || monsterStatusTurns(10, m)) : monsterStatusTurns(10, m);
+          if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = _poisonT; }
           m.atk = Math.max(1, Math.floor(m.atk / 2));
         } else {
           m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
         }
       }
-      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
+      ml.push(`${_arName}が${m.name}に命中！${_arDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${m.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
       if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
       if (!_pierceMode) { hit = true; break; }
     }

@@ -27,7 +27,7 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
 
   for (const monster of dungeon.monsters) {
     if ((monster.oilyTurns || 0) > 0) {
-      monster.oilyTurns = Math.max(0, monster.oilyTurns - (monster.isBoss ? 2 : 1));
+      monster.oilyTurns = Math.max(0, monster.oilyTurns - 1);
       if (monster.oilyTurns <= 0) messages.push(`${monster.name}の油まみれが取れた。`);
     }
     if ((monster.floatTurns || 0) > 0) {

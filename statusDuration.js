@@ -4,17 +4,17 @@
  * ルール:
  * - 同じ状態異常なら、付与原因に関わらず同じ基準ターン（対象種別ごと）
  * - 祝福されたアイテムが原因のときだけ例外: 時間2倍
- * - ボスは tick 側で半減（isBoss ? 2 : 1 減算）。付与時に半分は入れない
+ * - ボスは付与時に持続ターンを半分にする。付与後の減少は通常敵と同じ1ターンずつ
  * - 「永続」になるのは通常敵への封印・金縛りなど。ボスに永続は付けず有限化
  *
  * 金縛り（敵）の特例:
  * - 通常敵: 時間制限なし（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
- * - ボス: 有限 BOSS_PARALYZE_TURNS（50）。祝福時は ×2 の 100T
+ * - ボス: 有限 BOSS_PARALYZE_TURNS（50）の半分から開始（25T）。祝福時は100Tの半分で50T
  */
 
 export const PERMANENT_TURNS = 9999;
 
-/** ボスへの「本来永続」系の有限ターン（封印など） */
+/** ボスへの「本来永続」系の基準有限ターン（封印など）。付与時に半分にする */
 export const BOSS_SEAL_TURNS = 20;
 
 /** ボス金縛りの有限ターン（通常敵は永続＝被ダメ解除） */
@@ -84,7 +84,12 @@ export function statusTurns(status, opts = {}) {
     turns >= PERMANENT_TURNS &&
     BOSS_FINITE_WHEN_PERMANENT.has(status)
   ) {
-    return BOSS_SEAL_TURNS;
+    return Math.max(1, Math.ceil(BOSS_SEAL_TURNS / 2));
+  }
+
+  // ボスは付与時点で半分から始める。奇数は切り上げ、最低1ターンを保証する。
+  if (kind === "monster" && target?.isBoss && turns < PERMANENT_TURNS) {
+    return Math.max(1, Math.ceil(turns / 2));
   }
 
   return turns;
@@ -92,6 +97,12 @@ export function statusTurns(status, opts = {}) {
 
 export function isPermanentTurns(t) {
   return (t || 0) >= PERMANENT_TURNS;
+}
+
+/** STATUS_BASEにないモンスター専用の一時効果にも、ボス半減を適用する。 */
+export function monsterStatusTurns(baseTurns, target) {
+  const turns = Math.max(1, Math.floor(Number(baseTurns) || 0));
+  return target?.isBoss ? Math.max(1, Math.ceil(turns / 2)) : turns;
 }
 
 /**
@@ -132,7 +143,7 @@ export function clearPlayerPoison(player) {
 /**
  * モンスターに金縛りを付与。
  * - 通常敵: 永続（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
- * - ボス: 有限 50T（祝福 100T）。tick 半減あり。被ダメでも解除
+ * - ボス: 有限 50T（祝福 100T）の半分を付与。被ダメでも解除
  * @returns {number} 付与ターン（通常敵の永続は PERMANENT_TURNS）
  */
 export function applyMonsterParalyze(target, { blessed = false, ml = null, name = null } = {}) {

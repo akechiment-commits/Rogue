@@ -23,9 +23,9 @@ describe("advanceMonsterUpkeep", () => {
 
     advance(dungeon, undefined, messages);
 
-    expect(titan).toMatchObject({ hp: 95, oilyTurns: 0 });
+    expect(titan).toMatchObject({ hp: 95, oilyTurns: 1 });
     expect(kraken).toMatchObject({ hp: 90, floatTurns: 0 });
-    expect(messages).toEqual(["巨人の肉体が再生した！(+5HP)", "海魔は水中で体力を回復した！(+20HP)", "巨人の油まみれが取れた。", "海魔の浮遊が解けた！"]);
+    expect(messages).toEqual(["巨人の肉体が再生した！(+5HP)", "海魔は水中で体力を回復した！(+20HP)", "海魔の浮遊が解けた！"]);
   });
 
   it("雷弱点と呪われた雷のアンデッド撃破を処理する", () => {

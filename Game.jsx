@@ -57,7 +57,7 @@ import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from ".
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "./turnUpkeep.js";
-import { applyPlayerPoison } from "./statusDuration.js";
+import { statusTurns, monsterStatusTurns, applyPlayerPoison } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
@@ -1164,20 +1164,32 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               else { _cit.cursed = true; _cit.bcKnown = true; mlx.push(`${_citDN}が呪われた！【呪】`); }
             },
             onMonsterHit: (mon, mlx) => {
+              if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
               mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
-              mlx.push(`呪いの魔法弾が${mon.name}に命中！鈍足になった！`);
+              const _slowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
+              if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _slowT;
+              mlx.push(`呪いの魔法弾が${mon.name}に命中！鈍足になった！${mon.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onWallReflect: (mlx) => {
+              if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
-              mlx.push(`呪いの魔法弾が壁に跳ね返り${m.name}に命中！鈍足になった！`);
+              const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
+              if (m.isBoss) m.bossSlowTurns = (m.bossSlowTurns || 0) + _slowT;
+              mlx.push(`呪いの魔法弾が壁に跳ね返り${m.name}に命中！鈍足になった！${m.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
-              mlx.push(`呪いが${m.name}に反射！鈍足になった！`);
+              const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
+              if (m.isBoss) m.bossSlowTurns = (m.bossSlowTurns || 0) + _slowT;
+              mlx.push(`呪いが${m.name}に反射！鈍足になった！${m.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onPlayerReflect: (mlx) => {
+              if (m.isBoss && m._preSlowSpeed === undefined) m._preSlowSpeed = m.speed;
               m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
-              mlx.push(`呪いが${m.name}に反射！鈍足になった！`);
+              const _slowT = m.isBoss ? statusTurns("bossSlow", { kind: "monster", target: m }) : 0;
+              if (m.isBoss) m.bossSlowTurns = (m.bossSlowTurns || 0) + _slowT;
+              mlx.push(`呪いが${m.name}に反射！鈍足になった！${m.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
             },
             onBigbox: (bb, mlx) => {
               const _hbbDN = _wbBbNameFn(bb);
@@ -1249,25 +1261,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               const _prev = pl.confusedTurns || 0;
-              pl.confusedTurns = _prev + 5;
+              pl.confusedTurns = _prev + statusTurns("confuse", { kind: "player" });
               mlx.push(_prev > 0 ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)` : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
             },
             onMonsterHit: (mon, mlx) => {
               const _prev = mon.confusedTurns || 0;
-              mon.confusedTurns = _prev + 20;
+              mon.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", target: mon });
               mlx.push(_prev > 0 ? `混乱の魔法弾が${mon.name}に命中！混乱が延長された！(混乱${mon.confusedTurns}ターン)` : `混乱の魔法弾が${mon.name}に命中！混乱した！(混乱${mon.confusedTurns}ターン)`);
             },
             onWallReflect: (mlx) => {
-              m.confusedTurns = (m.confusedTurns || 0) + 10;
+              m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target: m });
               mlx.push(`混乱の魔法弾が壁に跳ね返り${m.name}に命中！混乱した！(混乱${m.confusedTurns}ターン)`);
             },
             onMagicReflect: (refl, mlx) => {
-              m.confusedTurns = (m.confusedTurns || 0) + 10;
+              m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target: m });
               mlx.push(`混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
             },
             onPlayerReflect: (mlx) => {
               const _prev = m.confusedTurns || 0;
-              m.confusedTurns = _prev + 10;
+              m.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", target: m });
               mlx.push(_prev > 0 ? `混乱が${m.name}に反射した！混乱が延長された！(混乱${m.confusedTurns}ターン)` : `混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
             },
           });
@@ -1279,25 +1291,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               const _prev = pl.sleepTurns || 0;
-              pl.sleepTurns = _prev + rng(5, 10);
+              pl.sleepTurns = _prev + statusTurns("sleep", { kind: "player" });
               mlx.push(_prev > 0 ? `眠りの魔法弾を受けた！眠りが延長された！(眠り${pl.sleepTurns}ターン)` : `眠りの魔法弾を受けた！眠ってしまった！(眠り${pl.sleepTurns}ターン)`);
             },
             onMonsterHit: (mon, mlx) => {
               const _prev = mon.sleepTurns || 0;
-              mon.sleepTurns = _prev + 20;
+              mon.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", target: mon });
               mlx.push(_prev > 0 ? `眠りの魔法弾が${mon.name}に命中！眠りが延長された！(眠り${mon.sleepTurns}ターン)` : `眠りの魔法弾が${mon.name}に命中！眠ってしまった！(眠り${mon.sleepTurns}ターン)`);
             },
             onWallReflect: (mlx) => {
-              m.sleepTurns = (m.sleepTurns || 0) + 10;
+              m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target: m });
               mlx.push(`眠りの魔法弾が壁に跳ね返り${m.name}に命中！眠ってしまった！(眠り${m.sleepTurns}ターン)`);
             },
             onMagicReflect: (refl, mlx) => {
-              m.sleepTurns = (m.sleepTurns || 0) + 10;
+              m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target: m });
               mlx.push(`眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
             },
             onPlayerReflect: (mlx) => {
               const _prev = m.sleepTurns || 0;
-              m.sleepTurns = _prev + 10;
+              m.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", target: m });
               mlx.push(_prev > 0 ? `眠りが${m.name}に反射した！眠りが延長された！(眠り${m.sleepTurns}ターン)` : `眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
             },
           });
@@ -2552,21 +2564,22 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               /* 武器の状態異常付与（10%） */
               if (attackMon.hp > 0 && p.weapon) {
                 const _inflicts = [
-                  ["inflict_slow",     () => { if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); if (attackMon.isBoss) attackMon.bossSlowTurns = (attackMon.bossSlowTurns || 0) + 10; ml.push(`${attackMon.name}は鈍足になった！${attackMon.isBoss ? "(5ターン)" : "(永続)"}`); }],
-                  ["inflict_paralyze", () => { attackMon.paralyzed = true; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns||0, 25); ml.push(`${attackMon.name}は金縛りになった！${attackMon.isBoss ? "(13ターン)" : "(永続・被弾で解除)"}`); }],
-                  ["inflict_sleep",    () => { attackMon.sleepTurns = (attackMon.sleepTurns || 0) + 6; ml.push(`${attackMon.name}は眠りに落ちた！(${attackMon.isBoss ? 3 : 6}ターン)`); }],
-                  ["inflict_darkness", () => { attackMon.blind = true; attackMon.blindTurns = (attackMon.blindTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は暗闇になった！${attackMon.isBoss ? "(13ターン)" : "(永続)"}`); }],
-                  ["inflict_confuse",  () => { attackMon.confusedTurns = (attackMon.confusedTurns || 0) + (attackMon.isBoss ? 10 : 20); ml.push(`${attackMon.name}は混乱した！(${attackMon.isBoss ? 5 : 20}ターン)`); }],
-                  ["inflict_bewitch",  () => { attackMon.fleeingTurns = (attackMon.fleeingTurns || 0) + (attackMon.isBoss ? 25 : 50); ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${attackMon.isBoss ? 13 : 50}ターン)`); }],
-                  ["inflict_seal",     () => { applyMonsterSeal(attackMon, dg, p, ml, lu, { sealedTurns: attackMon.isBoss ? 25 : 9999, message: `${attackMon.name}は封印された！${attackMon.isBoss ? "(13ターン)" : "(永続)"}` }); }],
+                  ["inflict_slow",     () => { if (attackMon.isBoss && attackMon._preSlowSpeed === undefined) attackMon._preSlowSpeed = attackMon.speed; attackMon.speed = Math.max(0.25, (attackMon.speed || 1) * 0.5); const _st = attackMon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: attackMon }) : 0; if (attackMon.isBoss) attackMon.bossSlowTurns = Math.max(attackMon.bossSlowTurns || 0, _st); ml.push(`${attackMon.name}は鈍足になった！${attackMon.isBoss ? `(${_st}ターン)` : "(永続)"}`); }],
+                  ["inflict_paralyze", () => { attackMon.paralyzed = true; const _pt = attackMon.isBoss ? statusTurns("paralyze", { kind: "monster", target: attackMon }) : 0; if (attackMon.isBoss) attackMon.paralyzeTurns = Math.max(attackMon.paralyzeTurns || 0, _pt); attackMon._paralyzeHp = attackMon.hp; ml.push(`${attackMon.name}は金縛りになった！${attackMon.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}`); }],
+                  ["inflict_sleep",    () => { const _st = statusTurns("sleep", { kind: "monster", target: attackMon }); attackMon.sleepTurns = (attackMon.sleepTurns || 0) + _st; ml.push(`${attackMon.name}は眠りに落ちた！(${_st}ターン)`); }],
+                  ["inflict_darkness", () => { const _dt = statusTurns("darkness", { kind: "monster", target: attackMon }); attackMon.blind = true; attackMon.blindTurns = Math.max(attackMon.blindTurns || 0, _dt); ml.push(`${attackMon.name}は暗闇になった！(${_dt}ターン)`); }],
+                  ["inflict_confuse",  () => { const _ct = statusTurns("confuse", { kind: "monster", target: attackMon }); attackMon.confusedTurns = (attackMon.confusedTurns || 0) + _ct; ml.push(`${attackMon.name}は混乱した！(${_ct}ターン)`); }],
+                  ["inflict_bewitch",  () => { const _bt = statusTurns("bewitch", { kind: "monster", target: attackMon }); attackMon.fleeingTurns = (attackMon.fleeingTurns || 0) + _bt; ml.push(`${attackMon.name}は幻惑状態になり逃げ出した！(${_bt}ターン)`); }],
+                  ["inflict_seal",     () => { applyMonsterSeal(attackMon, dg, p, ml, lu); }],
                 ];
                 for (const [abId, fn] of _inflicts) {
                   if (wabHas(abId) && Math.random() < 0.1) fn();
                 }
                 /* 影縫い：25%の確率で移動封じ3ターン */
                 if (attackMon.hp > 0 && wabHas("inflict_immobile") && Math.random() < 0.25) {
-                  attackMon.immobileTurns = (attackMon.immobileTurns || 0) + (attackMon.isBoss ? 6 : 3);
-                  ml.push(`${attackMon.name}は影に縫い止められた！(3ターン)`);
+                  const _it = statusTurns("immobile", { kind: "monster", target: attackMon });
+                  attackMon.immobileTurns = (attackMon.immobileTurns || 0) + _it;
+                  ml.push(`${attackMon.name}は影に縫い止められた！(${_it}ターン)`);
                 }
               }
               if (attackMon.hp <= 0 && dg.monsters.includes(attackMon)) { trackMonster(attackMon); killMonster(attackMon, dg, p, ml, lu); }
@@ -2755,7 +2768,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       onPlHit: (mlx) => {
                         if (_isPoison && !hasRingEffect(p, "antidote_ring")) {
                           const _poison = applyPlayerPoison(p);
-                          mlx.push(_poison.atkLoss > 0 ? "毒を受けた！攻撃力が下がった！" : "毒を受けた！");
+                          mlx.push(`毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                         }
                         _srPeel();
                       },
@@ -2770,15 +2783,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         const _srDmg = clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true);
                         mon.hp -= _srDmg;
                         if (mon.type === "shopkeeper" && mon.state !== "hostile") { mon.state = "hostile"; mlx.push("店主が怒った！"); }
+                        let _poisonT = 0;
                         if (_isPoison) {
                           if (mon.isBoss) {
-                            if (!mon.bossPoisonHalfAtk) { mon.bossPoisonOrigAtk = mon.atk; mon.bossPoisonHalfAtk = true; mon.bossPoisonHalfAtkTurns = 10; }
+                            _poisonT = mon.bossPoisonHalfAtk ? (mon.bossPoisonHalfAtkTurns || monsterStatusTurns(10, mon)) : monsterStatusTurns(10, mon);
+                            if (!mon.bossPoisonHalfAtk) { mon.bossPoisonOrigAtk = mon.atk; mon.bossPoisonHalfAtk = true; mon.bossPoisonHalfAtkTurns = _poisonT; }
                             mon.atk = Math.max(1, Math.floor(mon.atk / 2));
                           } else {
                             mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
                           }
                         }
-                        mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_isPoison ? "攻撃力が半減した！" : ""}`);
+                        mlx.push(`【射撃の指輪】${_arName}が${mon.name}に命中！${_srDmg}ダメージ！${_isPoison ? `攻撃力が半減した！${mon.isBoss ? `(${_poisonT}ターン)` : "(永続)"}` : ""}`);
                         _ad.damages.push({ type: "damage", x: mon.x, y: mon.y, value: _srDmg, color: _arColor });
                         if (mon.hp <= 0) { _ad.damages.push({ type: "flash", x: mon.x, y: mon.y, color: "#ff2200", duration: 150 }); killMonster(mon, dg, p, mlx, lu, false); }
                         if (!_isPierce) _srPeel();
@@ -4208,13 +4223,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 }
               };
               for (const m of [..._scMons]) {
-                m.oilyTurns = (m.oilyTurns || 0) + 100;
-                ml.push(`${m.name}は油まみれになった！(100ターン)`);
+                const _oilT = statusTurns("oily", { kind: "monster", target: m });
+                m.oilyTurns = (m.oilyTurns || 0) + _oilT;
+                ml.push(`${m.name}は油まみれになった！(${_oilT}ターン)`);
                 _addOilArea(m.x, m.y);
               }
               if (_scPInRoom) {
-                p.oilyTurns = (p.oilyTurns || 0) + 100;
-                ml.push("油を浴びた！炎ダメージが2倍になる！(100ターン)");
+                const _oilT = statusTurns("oily", { kind: "player" });
+                p.oilyTurns = (p.oilyTurns || 0) + _oilT;
+                ml.push(`油を浴びた！炎ダメージが2倍になる！(${_oilT}ターン)`);
                 _addOilArea(p.x, p.y);
               }
               /* 油をbox周囲にも飛散 */
@@ -4292,7 +4309,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 let _msg = `${_idn}が${m.name}に命中！${_itd}ダメージ！`;
                 if (item.type === "arrow" && item.poison) {
                   if (m.isBoss) {
-                    if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = 10; }
+                    if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = monsterStatusTurns(10, m); }
                     m.atk = Math.max(1, Math.floor(m.atk / 2));
                   } else {
                     m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
@@ -4305,11 +4322,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   m.hp -= _yScDmg;
                   ml.push(`ヤバイ食料が${m.name}に食べさせられた！さらに${_yScDmg}ダメージ！`);
                   if (m.hp > 0) {
+                    const _yPoisonT = statusTurns("poison", { kind: "monster", target: m });
+                    const _yConfuseT = statusTurns("confuse", { kind: "monster", target: m });
+                    const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: m });
+                    const _ySlowT = statusTurns("slow", { kind: "monster", target: m });
                     m.poisoned = true;
-                    m.confusedTurns = (m.confusedTurns || 0) + 5;
-                    m.fleeingTurns = (m.fleeingTurns || 0) + 10;
-                    m.slowTurns = (m.slowTurns || 0) + 10;
-                    ml.push(`${m.name}は毒・混乱・幻惑・鈍足状態になった！`);
+                    m.poisonedTurns = Math.max(m.poisonedTurns || 0, _yPoisonT);
+                    m.confusedTurns = (m.confusedTurns || 0) + _yConfuseT;
+                    m.fleeingTurns = (m.fleeingTurns || 0) + _yBewitchT;
+                    m.slowTurns = (m.slowTurns || 0) + _ySlowT;
+                    ml.push(`${m.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
                   }
                 }
                 if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && m.hp > 0) {
@@ -4325,7 +4347,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 let _pmsg = `${_idn}が${pl()}に命中！${_scPDmg}ダメージ！`;
                 if (item.type === "arrow" && item.poison && !hasRingEffect(p, "antidote_ring")) {
                   const _poison = applyPlayerPoison(p);
-                  _pmsg += _poison.atkLoss > 0 ? "毒を受けた！攻撃力が下がった！" : "毒を受けた！";
+                  _pmsg += `毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`;
                 }
                 ml.push(_pmsg);
                 if (item.type === "food" && item.yabai) {
@@ -4339,9 +4361,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     const _poison = applyPlayerPoison(p);
                     ml.push(`食中毒になった！毒状態になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
                   }
-                  p.confusedTurns = (p.confusedTurns || 0) + 5;
-                  p.slowTurns = (p.slowTurns || 0) + 10;
-                  ml.push("混乱・鈍足状態になった！");
+                  const _yConfuseT = statusTurns("confuse", { kind: "player" });
+                  const _ySlowT = statusTurns("slow", { kind: "player" });
+                  p.confusedTurns = (p.confusedTurns || 0) + _yConfuseT;
+                  p.slowTurns = (p.slowTurns || 0) + _ySlowT;
+                  ml.push(`混乱(${_yConfuseT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
                 } else if (item.type === "food" && item.rotten && !item.yabai) {
                   if (hasRingEffect(p, "antidote_ring")) {
                     ml.push("毒消しの指輪が毒を防いだ！");
@@ -4542,8 +4566,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
     } else if (r < 0.76) {
       // 混乱になる
-      p.confusedTurns = (p.confusedTurns || 0) + 10;
-      ml.push("頭がくらくらする...混乱した！(10ターン)");
+      const _springConfuseT = statusTurns("confuse", { kind: "player" });
+      p.confusedTurns = (p.confusedTurns || 0) + _springConfuseT;
+      ml.push(`頭がくらくらする...混乱した！(${_springConfuseT}ターン)`);
     } else if (r < 0.84) {
       // ダメージ
       const d = rng(3, 8);
@@ -4553,7 +4578,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     } else if (r < 0.90) {
       // 毒状態になる
       const _poison = applyPlayerPoison(p);
-      ml.push(`なんか変な味がした...毒だ！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+      ml.push(`なんか変な味がした...毒だ！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
     } else if (r < 0.95) {
       // 所持品がランダムで呪われる（壺は容量-1）
       const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && (i.type === "pot" || !i.cursed));
@@ -5270,7 +5295,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           </span>
         ))}{" "}
         {p.poisoned && (
-          <span style={{ color: "#80ff40" }}>☠毒</span>
+          <span style={{ color: "#80ff40" }}>☠毒{p.poisonedTurns > 0 ? p.poisonedTurns : ""}</span>
         )}{" "}
         {p.sleepTurns > 0 && (
           <span style={{ color: "#af0" }}>💤{p.sleepTurns}</span>

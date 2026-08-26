@@ -512,7 +512,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`煉獄公の爪に毒が！しかし乳酸菌が毒を防いだ！`);
       } else {
         const _poison = applyPlayerPoison(pl);
-        ml.push(`煉獄公の爪に毒が！毒を受けた！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+        ml.push(`煉獄公の爪に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
       }
     }
     if (m.baseKind === "boss_abyssgod") {
@@ -2046,7 +2046,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
       if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       /* ずぶ濡れ＋所持品への水影響（耐水で無効） */
       if (!hasWaterProof(pl)) {
-        applySoakedStatus(pl, ml, 10, "水を浴びてずぶ濡れになった！(10ターン)");
+        applySoakedStatus(pl, ml);
         applyWaterGunToInventory(pl, ml, null);
       } else {
         ml.push("防具が水を弾いた！(耐水)");
@@ -3133,8 +3133,9 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     } else if (_plOnBlessedSanc) {
       ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
     } else {
-      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + statusTurns("defSoftened", { kind: "player" });
-      ml.push(`${m.name}の魔法！防御力が50ターン半減した！`);
+      const _ds = statusTurns("defSoftened", { kind: "player" });
+      pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
+      ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
     }
     return true;
   }
@@ -3336,8 +3337,9 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     }
     if (m.subtype === "berserker") {
       m.turnAttacks++;
-      m.berserkerTurns = (m.berserkerTurns || 0) + 10;
-      ml.push(`${m.name}がバーサークした！`);
+      const _bt = statusTurns("berserker", { kind: "monster", target: m });
+      m.berserkerTurns = (m.berserkerTurns || 0) + _bt;
+      ml.push(`${m.name}がバーサークした！(${_bt}ターン)`);
       monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
       return true;
     }
@@ -3500,17 +3502,17 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 状態異常防止：毎ターンカウントダウン */
   if ((m.statusImmune || 0) > 0) {
-    m.statusImmune = Math.max(0, m.statusImmune - (m.isBoss ? 2 : 1));
+    m.statusImmune = Math.max(0, m.statusImmune - 1);
     if (m.statusImmune <= 0) ml.push(`${m.name}の状態防止が切れた！`);
   }
   /* バーサーク状態：カウントダウン */
   if ((m.berserkerTurns || 0) > 0) {
-    if (!_attackOnly) m.berserkerTurns = Math.max(0, m.berserkerTurns - (m.isBoss ? 2 : 1));
+    if (!_attackOnly) m.berserkerTurns = Math.max(0, m.berserkerTurns - 1);
     if (m.berserkerTurns <= 0) ml.push(`${m.name}のバーサーク状態が解けた！`);
   }
   /* 平和主義状態：攻撃できず、ランダムに1歩移動して終了 */
   if ((m.pacifistTurns || 0) > 0) {
-    if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - (m.isBoss ? 2 : 1));
+    if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - 1);
     if (m.pacifistTurns <= 0) { ml.push(`${m.name}の平和主義状態が解けた！`); m.turnAccum = 0; }
     else if (!_attackOnly) {
       const _pdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -3528,7 +3530,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 毒状態：毎ターン現HP×10%+5ダメージ */
   if ((m.poisonedTurns || 0) > 0 && !_attackOnly) {
-    m.poisonedTurns = Math.max(0, m.poisonedTurns - (m.isBoss ? 2 : 1));
+    m.poisonedTurns = Math.max(0, m.poisonedTurns - 1);
     const _pdmg = Math.floor(m.hp * 0.1) + 5;
     m.hp -= _pdmg;
     ml.push(`毒に侵された${m.name}は${_pdmg}ダメージ！`);
@@ -3540,18 +3542,18 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 盲目状態（ボスのみターン経過で解除） */
   if (m.blind && m.isBoss && !_attackOnly) {
-    m.blindTurns = Math.max(0, ((m.blindTurns || 0) - 2));
+    m.blindTurns = Math.max(0, ((m.blindTurns || 0) - 1));
     if (m.blindTurns <= 0) { m.blind = false; ml.push(`${m.name}の盲目が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
   }
   /* 幻惑状態（ボスのみターン経過で解除） */
   if (m.bewitched && m.isBoss && !_attackOnly) {
-    m.bewitchedTurns = Math.max(0, ((m.bewitchedTurns || 0) - 2));
+    m.bewitchedTurns = Math.max(0, ((m.bewitchedTurns || 0) - 1));
     if (m.bewitchedTurns <= 0) { m.bewitched = false; ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
   }
   /* 封印状態（ボスのみターン経過で解除） */
   if (m.sealed && m.isBoss && !_attackOnly) {
     if ((m.sealedTurns || 0) > 0) {
-      m.sealedTurns = Math.max(0, m.sealedTurns - 2);
+      m.sealedTurns = Math.max(0, m.sealedTurns - 1);
       /* 封印は解除されたターンから通常行動できる。睡眠・金縛りとは異なり、ここでreturnしない。 */
       if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); }
     }
@@ -3568,7 +3570,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   if (m.sleepTurns > 0) {
-    if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - (m.isBoss ? 2 : 1));
+    if (!_attackOnly) m.sleepTurns = Math.max(0, m.sleepTurns - 1);
     if (m.sleepTurns <= 0) { ml.push(`${m.name}の睡眠が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; }
     return;
   }
@@ -3582,7 +3584,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
     return;
   }
-  /* 金縛り: 被ダメで解除。通常敵は時間制限なし。ボスのみ paralyzeTurns で時間解除（tick半減） */
+  /* 金縛り: 被ダメで解除。通常敵は時間制限なし。ボスのみ付与時に半分の paralyzeTurns で時間解除 */
   if (m.paralyzed) {
     if (m._paralyzeHp != null && m.hp < m._paralyzeHp) {
       m.paralyzed = false; m._paralyzeHp = null; m.paralyzeTurns = 0; m.paralyzeHits = 0;
@@ -3590,7 +3592,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       m.turnAccum = 0; m._movedThisTurn = true; return;
     }
     if (m.isBoss && (m.paralyzeTurns || 0) > 0 && !_attackOnly) {
-      m.paralyzeTurns = Math.max(0, m.paralyzeTurns - 2);
+      m.paralyzeTurns = Math.max(0, m.paralyzeTurns - 1);
       if (m.paralyzeTurns <= 0) {
         m.paralyzed = false; m._paralyzeHp = null; m.paralyzeHits = 0;
         ml.push(`${m.name}の金縛りが解けた！`);
@@ -3709,8 +3711,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.baseKind === "boss_flamedragon" && !_moveOnly) {
     const _fdVisible = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_fdVisible && Math.random() < 0.40) {
-      pl.oilyTurns = (pl.oilyTurns || 0) + statusTurns("oily", { kind: "player" });
-      ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(8ターン)`);
+      const _oilT = statusTurns("oily", { kind: "player" });
+      pl.oilyTurns = (pl.oilyTurns || 0) + _oilT;
+      ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(${_oilT}ターン)`);
       return; /* ブレス行動消費 */
     }
   }
@@ -3837,8 +3840,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const _kiDmg = Math.max(1, Math.floor(m.atk * 0.6) - Math.floor(calcPlayerDef(pl) / 3));
           pl.hp -= _kiDmg;
           pl.deathCause = `${m.name}の墨で`;
-          pl.darknessTurns = (pl.darknessTurns || 0) + statusTurns("darkness", { kind: "player" });
-          ml.push(`${m.name}が墨を吐いた！${playerHpEffectLabel(pl, _kiDmg)}！暗闇状態になった！(15ターン)`);
+          const _darkT = statusTurns("darkness", { kind: "player" });
+          pl.darknessTurns = (pl.darknessTurns || 0) + _darkT;
+          ml.push(`${m.name}が墨を吐いた！${playerHpEffectLabel(pl, _kiDmg)}！暗闇状態になった！(${_darkT}ターン)`);
           _onHit?.(_kiDmg, m);
           break;
         }
@@ -3852,7 +3856,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   /* 鈍足（ボスのみターン経過で元の速度に戻る） */
   if (m.isBoss && (m.bossSlowTurns || 0) > 0 && !_attackOnly) {
-    m.bossSlowTurns = Math.max(0, m.bossSlowTurns - 2);
+    m.bossSlowTurns = Math.max(0, m.bossSlowTurns - 1);
     if (m.bossSlowTurns <= 0 && m._preSlowSpeed !== undefined) {
       m.speed = m._preSlowSpeed;
       delete m._preSlowSpeed;
@@ -3862,7 +3866,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 毒矢攻撃力半減（ボス：10ターンで回復） */
   if (m.isBoss && m.bossPoisonHalfAtk && !_attackOnly) {
-    m.bossPoisonHalfAtkTurns = Math.max(0, (m.bossPoisonHalfAtkTurns || 0) - 2);
+    m.bossPoisonHalfAtkTurns = Math.max(0, (m.bossPoisonHalfAtkTurns || 0) - 1);
     if (m.bossPoisonHalfAtkTurns <= 0) {
       m.atk = m.bossPoisonOrigAtk ?? m.atk;
       m.bossPoisonHalfAtk = false;
@@ -3872,14 +3876,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 強化解除巻物デバフ：ATK/DEF半減（50ターン） */
   if ((m.debuffAtkHalfTurns || 0) > 0 && !_attackOnly) {
-    m.debuffAtkHalfTurns = Math.max(0, m.debuffAtkHalfTurns - (m.isBoss ? 2 : 1));
+    m.debuffAtkHalfTurns = Math.max(0, m.debuffAtkHalfTurns - 1);
     if (m.debuffAtkHalfTurns <= 0) {
       if (m._debuffOrigAtk !== undefined) { m.atk = m._debuffOrigAtk; delete m._debuffOrigAtk; }
       ml.push(`${m.name}の攻撃力デバフが解けた！`);
     }
   }
   if ((m.debuffDefHalfTurns || 0) > 0 && !_attackOnly) {
-    m.debuffDefHalfTurns = Math.max(0, m.debuffDefHalfTurns - (m.isBoss ? 2 : 1));
+    m.debuffDefHalfTurns = Math.max(0, m.debuffDefHalfTurns - 1);
     if (m.debuffDefHalfTurns <= 0) {
       if (m._debuffOrigDef !== undefined) { m.def = m._debuffOrigDef; delete m._debuffOrigDef; }
       ml.push(`${m.name}の防御力デバフが解けた！`);
@@ -3887,13 +3891,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   }
   /* 移動封じ（氷の杖・影ぬいなど）：移動はできないが攻撃・特技は可能 */
   if ((m.immobileTurns||0) > 0) {
-    if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - (m.isBoss ? 2 : 1));
+    if (!_attackOnly) m.immobileTurns = Math.max(0, m.immobileTurns - 1);
     if (m.immobileTurns <= 0) { ml.push(`${m.name}の移動封じが解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
     else _attackOnly = true;
   }
   /* ===== 混乱状態：ランダム方向に移動・攻撃 ===== */
   if ((m.confusedTurns || 0) > 0) {
-    if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - (m.isBoss ? 2 : 1));
+    if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - 1);
     if (isStationaryGrabber(m)) { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
@@ -3922,7 +3926,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ===== 暗闇状態：まっすぐ進み途中の者を攻撃 ===== */
   if ((m.darknessTurns || 0) > 0) {
     const _isPerm = m.darknessTurns >= 9999;
-    if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - (m.isBoss ? 2 : 1));
+    if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - 1);
     if (isStationaryGrabber(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (!m.darkDir) {
       const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
@@ -3955,7 +3959,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ===== 幻惑状態：プレイヤーから逃げ回る ===== */
   if ((m.fleeingTurns || 0) > 0) {
     const _isPerm = m.fleeingTurns >= 9999;
-    if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - (m.isBoss ? 2 : 1));
+    if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - 1);
     if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (!_attackOnly) {
       const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat, m.waterWalker);
@@ -5437,8 +5441,9 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             } else if (_plOnBlessedSanc) {
               ml.push("祝福された聖域の加護が防御半減魔法を防いだ！");
             } else {
-              pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + statusTurns("defSoftened", { kind: "player" });
-              ml.push(`${m.name}の魔法！防御力が50ターン半減した！`);
+              const _ds = statusTurns("defSoftened", { kind: "player" });
+              pl.defSoftenedTurns = (pl.defSoftenedTurns || 0) + _ds;
+              ml.push(`${m.name}の魔法！防御力が${_ds}ターン半減した！`);
             }
             return;
           }

@@ -15,8 +15,17 @@ describe("statusTurns", () => {
     expect(statusTurns("oily", { kind: "player" })).toBe(50);
   });
 
-  it("ボスへの永続封印は有限20T", () => {
-    expect(statusTurns("seal", { kind: "monster", target: { isBoss: true } })).toBe(20);
+  it("ボスの有限状態は付与時に半分になり、その値を表示できる", () => {
+    const target = { isBoss: true };
+    expect(statusTurns("sleep", { kind: "monster", target })).toBe(3);
+    expect(statusTurns("confuse", { kind: "monster", target })).toBe(10);
+    expect(statusTurns("darkness", { kind: "monster", target })).toBe(25);
+    expect(statusTurns("bewitch", { kind: "monster", target })).toBe(25);
+    expect(statusTurns("oily", { kind: "monster", target })).toBe(50);
+  });
+
+  it("ボスへの永続封印は付与時に半分の10T", () => {
+    expect(statusTurns("seal", { kind: "monster", target: { isBoss: true } })).toBe(10);
     expect(statusTurns("seal", { kind: "monster", target: { isBoss: false } })).toBe(PERMANENT_TURNS);
   });
 });
@@ -36,13 +45,13 @@ describe("applyMonsterParalyze", () => {
     expect(mon2.paralyzeTurns || 0).toBe(0);
   });
 
-  it("ボスは50T、祝福は100T", () => {
+  it("ボスは付与時に半分の25T、祝福は50T", () => {
     const boss = { name: "ボス", hp: 100, isBoss: true };
-    expect(applyMonsterParalyze(boss)).toBe(BOSS_PARALYZE_TURNS);
-    expect(boss.paralyzeTurns).toBe(50);
+    expect(applyMonsterParalyze(boss)).toBe(BOSS_PARALYZE_TURNS / 2);
+    expect(boss.paralyzeTurns).toBe(25);
 
     const boss2 = { name: "ボス", hp: 100, isBoss: true };
-    expect(applyMonsterParalyze(boss2, { blessed: true })).toBe(100);
-    expect(boss2.paralyzeTurns).toBe(100);
+    expect(applyMonsterParalyze(boss2, { blessed: true })).toBe(BOSS_PARALYZE_TURNS);
+    expect(boss2.paralyzeTurns).toBe(50);
   });
 });

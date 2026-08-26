@@ -714,8 +714,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (isStatusImmune(target, ml, target.name)) break;
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, target.speed * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed: _sBless, target });
-          ml.push(`${target.name}は鈍足になった！`);
+          const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed: _sBless, target }) : 0;
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
+          ml.push(`${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
           if (_sBless) {
             /* 祝福：金縛りも追加（鈍足杖の祝福なので金縛り自体は通常100T） */
             applyMonsterParalyze(target, { ml });
@@ -1032,8 +1033,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (stairsX >= 0) {
           if (kind === "monster") {
             target.x = stairsX; target.y = stairsY;
-            applyMonsterParalyze(target, { ml: null });
-            ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！`);
+            const _pt = applyMonsterParalyze(target, { ml: null });
+            ml.push(`${target.name}は階段の上にテレポートし、金縛りになった！${target.isBoss ? `(${_pt}ターン)` : "(永続・被弾で解除)"}`);
           } else if (kind === "player") {
             const _stOccupied = dg.monsters.some(m => m.x === stairsX && m.y === stairsY);
             if (_stOccupied) {
@@ -1073,7 +1074,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
               ml.push("階段の上にテレポートした！金縛り効果を受けたが防具が防いだ！(耐金縛り)");
             } else {
               p.paralyzeTurns = statusTurns("paralyze", { kind: "player" });
-              ml.push("階段の上にテレポートした！しかし金縛りになった！(10ターン)");
+              ml.push(`階段の上にテレポートした！しかし金縛りになった！(${p.paralyzeTurns}ターン)`);
             }
           } else if (kind === "item" || FLOOR_MOVE_KINDS.has(kind)) {
             if (kind === "trap" && target.permanent) { ml.push(`${target.name}は動かせない！`); break; }
@@ -1246,8 +1247,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (_seBlessed && target.hp > 0 && dg.monsters?.includes(target)) {
             if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
             target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", blessed: _seBlessed, target });
-            ml.push(`さらに${target.name}は鈍足になった！(祝福)`);
+            const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed: _seBlessed, target }) : 0;
+            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
+            ml.push(`さらに${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続・祝福)"}`);
           }
           break;
         }
@@ -1308,8 +1310,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           // 呪われた祝福の杖→敵を鈍足にする
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
-          ml.push(`${target.name}が呪いで鈍足になった！【呪】`);
+          const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", target }) : 0;
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
+          ml.push(`${target.name}が呪いで鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}【呪】`);
         } else {
           const _bh = Math.round(rng(10, 20) * blMult);
           if (target.kind === "undead") {
@@ -1400,8 +1403,9 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         } else {
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
           target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
-          ml.push(`${target.name}が呪いで鈍足になった！`);
+          const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", target }) : 0;
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
+          ml.push(`${target.name}が呪いで鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}`);
         }
         break;
       }
