@@ -2,7 +2,7 @@ import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt,
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName, getIdentKey, breakBigboxContents,
-  killMonster, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
+  killMonster, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom, inCursedMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
@@ -860,6 +860,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         target.x = ox;  target.y = oy;
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${target.name}と位置が入れ替わった！`);
+        if (drownMonsterIfNeeded(target, dg, p, ml, luFn)) break;
         /* 聖域の上に強制移動した敵は即死 */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
           { const _se2 = Math.floor(target.exp * ((p.soyExpTurns||0)>0?1.3:1));

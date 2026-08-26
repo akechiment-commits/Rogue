@@ -1015,6 +1015,15 @@ export function canMonsterSurviveOnWater(mon, dg, x, y) {
   return !!(mon.waterOnly || mon.waterWalker || mon.baseKind === "im_boss_kraken" || monEffectiveFloat(mon));
 }
 
+/** 強制移動の着地点が水上なら、水に適応できない敵を撃破する。 */
+export function drownMonsterIfNeeded(mon, dg, p, ml, luFn) {
+  if (!mon || !dg?.map || !dg.monsters?.includes(mon)) return false;
+  if (canMonsterSurviveOnWater(mon, dg, mon.x, mon.y)) return false;
+  ml.push(`${mon.name}は水没した！`);
+  killMonster(mon, dg, p, ml, luFn);
+  return true;
+}
+
 /**
  * 封印などで浮遊が落ち、深い水上に残った敵を重力と同様に陸へ弾き出す。
  * 逃げ場がなければ即死。
@@ -4863,6 +4872,12 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
       }
     }
     cx = nx; cy = ny;
+    if (kind === "monster") {
+      entity.x = cx; entity.y = cy;
+      if (drownMonsterIfNeeded(entity, dg, p, ml, luFn)) {
+        return { x: cx, y: cy, consumed: false, killed: true };
+      }
+    }
   }
   if (kind === "monster") { entity.x = cx; entity.y = cy; }
   else if (kind === "player") {

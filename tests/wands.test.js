@@ -94,6 +94,30 @@ describe("applyWandEffect", () => {
     expect(ev).toMatchObject({ fromX: 5, fromY: 5, toX: 15, toY: 5, dx: 1, dy: 0 });
   });
 
+  it("吹き飛ばされた非水棲敵が水に入ると水没して撃破される", () => {
+    const localDg = makeEmptyDg();
+    localDg.map[5][7] = T.WATER;
+    const p = makePlayer({ x: 5, y: 5 });
+    const mon = { name: "スライム", hp: 20, maxHp: 20, exp: 5, x: 6, y: 5, atk: 3 };
+    localDg.monsters.push(mon);
+    const ml = [];
+    applyWandEffect("knockback", "monster", mon, 1, 0, localDg, p, ml, noop);
+    expect(localDg.monsters).not.toContain(mon);
+    expect(ml.some((message) => message.includes("水没した"))).toBe(true);
+  });
+
+  it("場所替えで水に移った非水棲敵が水没して撃破される", () => {
+    const localDg = makeEmptyDg();
+    localDg.map[5][5] = T.WATER;
+    const p = makePlayer({ x: 5, y: 5 });
+    const mon = { name: "スライム", hp: 20, maxHp: 20, exp: 5, x: 8, y: 5, atk: 3 };
+    localDg.monsters.push(mon);
+    const ml = [];
+    applyWandEffect("swap", "monster", mon, 1, 0, localDg, p, ml, noop);
+    expect(localDg.monsters).not.toContain(mon);
+    expect(ml.some((message) => message.includes("水没した"))).toBe(true);
+  });
+
   it("プレイヤーのテレポート演出は同じマスでは発行しない", () => {
     drainAnims();
     pushPlayerTeleportAnim(5, 5, 12, 8);
