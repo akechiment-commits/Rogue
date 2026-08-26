@@ -2175,8 +2175,10 @@ export function useItemActions({
       else if (it.type === "pot") {
         const _contents = getHypnosisPotContents(p.inventory, it, p);
         const _content = _contents[Math.floor(Math.random() * _contents.length)];
-        if (_content) hypnosisAutoRef.current = { kind: "pot", potIdx: idx, itemIdx: _content.idx };
-        doUseItem(idx);
+        if (_content) {
+          /* 催眠時は投入画面を開かず、壺と中身を直接既存の投入処理へ渡す。 */
+          doPutItem(_content.idx, { potIdx: idx, hypnosis: true });
+        }
       } else doUseItem(idx);
       return true;
     }
@@ -2598,10 +2600,11 @@ export function useItemActions({
     [markerMode, endTurn],
   );
   const doPutItem = useCallback(
-    (itemIdx) => {
-      if (!sr.current || !putMode) return;
+    (itemIdx, putModeOverride = null) => {
+      const activePutMode = putModeOverride || putMode;
+      if (!sr.current || !activePutMode) return;
       const { player: p, dungeon: dg } = sr.current;
-      const pot = putMode.floorPot || p.inventory[putMode.potIdx];
+      const pot = activePutMode.floorPot || p.inventory[activePutMode.potIdx];
       if (!pot || pot.type !== "pot") {
         setPutMode(null);
         return;
@@ -2637,7 +2640,7 @@ export function useItemActions({
       }
       _forceUnequip(p, it);
       p.inventory.splice(itemIdx, 1);
-      if (!putMode.floorPot && itemIdx < putMode.potIdx) putMode.potIdx--;
+      if (!activePutMode.floorPot && itemIdx < activePutMode.potIdx) activePutMode.potIdx--;
       const ml = installPlayerHpMessageHook([], p);
       if (pot.potEffect === "boil") {
         if (it.type === "potion") {
@@ -2739,7 +2742,7 @@ export function useItemActions({
         ml.push(`${dnameRef(it)}を${dnameRef(pot)}に捧げた…`);
         ml.push("壺が光り輝き、願いを叶えてくれそうだ！");
         /* 壺をインベントリ／床から除去 */
-        if (putMode.floorPot) {
+        if (activePutMode.floorPot) {
           dg.items = (dg.items || []).filter((fi) => fi !== pot);
         } else {
           const _pi = p.inventory.indexOf(pot);
@@ -2764,9 +2767,13 @@ export function useItemActions({
       endTurn(sr.current, p, ml);
       setMsgs((prev) => [...prev.slice(-80), ...ml]);
       if (!_potFull) {
-        setPutMode(putMode.floorPot ? { floorPot: putMode.floorPot } : { potIdx: p.inventory.indexOf(pot) });
-        setPutMenuSel(0);
-        setPutPage(0);
+        if (activePutMode.hypnosis) {
+          setPutMode(null);
+        } else {
+          setPutMode(activePutMode.floorPot ? { floorPot: activePutMode.floorPot } : { potIdx: p.inventory.indexOf(pot) });
+          setPutMenuSel(0);
+          setPutPage(0);
+        }
         sr.current = { ...sr.current };
         setGs({ ...sr.current });
       } else {
@@ -4295,17 +4302,8 @@ export function useItemActions({
       const timer = setTimeout(() => execDirection(pending.dx, pending.dy), 0);
       return () => clearTimeout(timer);
     }
-    if (pending.kind === "pot") {
-      if (!putMode || putMode.potIdx !== pending.potIdx) return undefined;
-      hypnosisAutoRef.current = null;
-      const timer = setTimeout(() => {
-        doPutItem(pending.itemIdx);
-        setPutMode(null);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
     return undefined;
-  }, [throwMode, putMode, execDirection, doPutItem, setPutMode]);
+  }, [throwMode, execDirection]);
   return {
     doUseItem, doHypnotizedAction, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
     doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
