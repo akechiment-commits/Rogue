@@ -31,6 +31,18 @@ import { getMarkerInkCost } from "./markerRules.js";
 import { monSubmergesProjectiles, monReflectsProjectiles } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 
+/* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
+const HYPNOSIS_ITEM_TYPES = new Set([
+  "food", "potion", "scroll", "spellbook", "weapon", "armor", "arrow", "ring",
+  "wand", "marker", "pen", "pot",
+]);
+
+export function getHypnosisItemCandidates(inventory = []) {
+  return inventory.flatMap((it, idx) =>
+    it && HYPNOSIS_ITEM_TYPES.has(it.type) ? [{ it, idx }] : []
+  );
+}
+
 function skipDodgemoleScroll(mon, ml, label = "巻物の効果") {
   if (!monSubmergesProjectiles(mon)) return false;
   ml.push(`${mon.name}が潜って${label}をかわした！`);
@@ -2070,7 +2082,7 @@ export function useItemActions({
     setGs({ ...sr.current });
   }, [lu, endTurn, chgFloor]);
 
-  /* 催眠術による強制行動。UIを開かず、その場で完了する行動だけを候補にする。 */
+  /* 催眠術による強制行動。使用操作のある所持品全種別から1つを選ぶ。 */
   const doHypnotizedAction = useCallback(() => {
     const st = sr.current;
     if (!st) return false;
@@ -2078,26 +2090,7 @@ export function useItemActions({
     if ((p.hypnosisPending || 0) <= 0) return false;
     if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return false;
 
-    const isEquipped = (it) => p.weapon === it || p.armor === it || p.arrow === it || (p.rings || []).includes(it);
-    const candidates = p.inventory.flatMap((it, idx) => {
-      if (!it || it.type === "goal") return [];
-      if (it.type === "food" || it.type === "potion") return [{ it, idx }];
-      if (it.type === "weapon") {
-        if (p.weapon === it ? it.cursed : p.weapon?.cursed) return [];
-        return [{ it, idx }];
-      }
-      if (it.type === "armor") {
-        if (p.armor === it ? it.cursed : p.armor?.cursed) return [];
-        return [{ it, idx }];
-      }
-      if (it.type === "arrow") return [{ it, idx }];
-      if (it.type === "ring") {
-        if (isEquipped(it) && it.cursed) return [];
-        if (!isEquipped(it) && (p.rings || []).length >= 2 && p.rings[p.rings.length - 1]?.cursed) return [];
-        return [{ it, idx }];
-      }
-      return [];
-    });
+    const candidates = getHypnosisItemCandidates(p.inventory);
 
     p.hypnosisPending = Math.max(0, (p.hypnosisPending || 0) - 1);
     if (p.hypnosisPending <= 0) delete p.hypnosisPending;
@@ -2106,9 +2099,12 @@ export function useItemActions({
     setShowDesc(null);
 
     if (candidates.length > 0) {
-      const { idx } = candidates[Math.floor(Math.random() * candidates.length)];
+      const { it, idx } = candidates[Math.floor(Math.random() * candidates.length)];
       setMsgs((prev) => [...prev.slice(-80), "催眠術に操られ、体が勝手に動いた！"]);
-      doUseItem(idx);
+      if (it.type === "spellbook") doReadSpellbook(idx);
+      else if (it.type === "wand") doWaveWand(idx);
+      else if (it.type === "marker") doUseMarker(idx);
+      else doUseItem(idx);
       return true;
     }
 
