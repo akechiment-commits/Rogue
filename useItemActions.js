@@ -1,8 +1,8 @@
-import { useCallback } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
+import { useCallback, useEffect, useRef } from "react";
+import { MW, MH, T, rng, pick, uid, refreshFOV, DRO, monsterAt, getShops, getVisitedFloors, hasAbility, hasGravityPentacle, consumeBarrier, clampDmgFixed, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, applyReverseStatus, installPlayerHpMessageHook, stepProjectile, traceProjectilePath } from "./utils.js";
 import { statueAt, hitStatueWithAction, throwItemBreaksStatue, wandEffectStatueLootOnly } from "./fixtures.js";
 import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel } from "./monsters.js";
-import { applyMonsterScroll } from "./dungeon.js";
+import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap, makeRandomPotion,
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
@@ -41,6 +41,19 @@ export function getHypnosisItemCandidates(inventory = []) {
   return inventory.flatMap((it, idx) =>
     it && HYPNOSIS_ITEM_TYPES.has(it.type) ? [{ it, idx }] : []
   );
+}
+
+export function getHypnosisPotContents(inventory = [], pot, player = null) {
+  if (!pot || pot.type !== "pot" || pot.potEffect === "imprison") return [];
+  if ((pot.contents?.length || 0) >= (pot.capacity || 0)) return [];
+  return inventory.flatMap((it, idx) => {
+    if (!it || it === pot || it.type === "pot" || it.type === "goal") return [];
+    if (it.shopPrice) return [];
+    const isEquipped = player && (player.weapon === it || player.armor === it ||
+      player.arrow === it || (player.rings || []).includes(it));
+    if (isEquipped && it.cursed) return [];
+    return [{ it, idx }];
+  });
 }
 
 function skipDodgemoleScroll(mon, ml, label = "巻物の効果") {
@@ -106,6 +119,7 @@ export function useItemActions({
   onReturnToHub, dropModeRef, setFloorSelectMode, setTpSelectMode,
   floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
 }) {
+  const hypnosisAutoRef = useRef(null);
   const doUseItem = useCallback((idx) => {
     if (!sr.current) return;
     const { player: p, dungeon: dg } = sr.current;
@@ -119,6 +133,7 @@ export function useItemActions({
     const _wasUnknown = !!(_ik_reveal && !sr.current.ident.has(_ik_reveal));
     const _scrollBcKnown = !!(it.fullIdent || it.bcKnown);
     const _scrollChoiceUnknown = _wasUnknown || (it.type === "scroll" && !_scrollBcKnown);
+    const _hypnosisAutoSelect = hypnosisAutoRef.current?.kind === "scroll" && hypnosisAutoRef.current.idx === idx;
     const _revFake = _wasUnknown ? itemDisplayName(it, sr.current.fakeNames, sr.current.ident, sr.current.nicknames) : null;
     const _revReal = _wasUnknown ? it.name : null;
     /* 消費前の表示名を固定する。使用処理の途中で識別状態が変わっても真名を漏らさない。 */
@@ -827,7 +842,7 @@ export function useItemActions({
           if (_tgts.length > 0) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
             setMsgs((prev) => [...prev.slice(-80), _scrollChoiceUnknown ? "どのアイテムを選びますか？" : "どのアイテムの識別を解除する？【呪】"]);
-            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, identKey: _ik_scr || null, revMsg: _revMsg });
+            setIdentifyMode({ mode: 'unidentify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, identKey: _ik_scr || null, revMsg: _revMsg, autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -840,7 +855,7 @@ export function useItemActions({
           if (_tgts.length > 0 || _scrollFootBb) {
             const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
             setMsgs((prev) => [...prev.slice(-80), _scrollChoiceUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]);
-            setIdentifyMode({ mode: 'identify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, showAll: _showAll, identKey: _ik_scr || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
+            setIdentifyMode({ mode: 'identify', sel: 0, scrollIdx: idx, wasUnknown: _scrollChoiceUnknown, showAll: _showAll, identKey: _ik_scr || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -854,7 +869,7 @@ export function useItemActions({
         if (_dupTargets.length > 0 || _scrollFootBb) {
           const _ik_dup = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-          setIdentifyMode({ mode: 'duplicate', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_dup || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
+          setIdentifyMode({ mode: 'duplicate', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_dup || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -872,7 +887,7 @@ export function useItemActions({
         if (_sellTargets.length > 0 || _scrollFootBb) {
           const _ik_sell = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-          setIdentifyMode({ mode: 'sell_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_sell || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
+          setIdentifyMode({ mode: 'sell_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_sell || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -890,7 +905,7 @@ export function useItemActions({
         if (_tsfTargets.length > 0 || _scrollFootBb) {
           const _ik_tsf = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-          setIdentifyMode({ mode: 'transform_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_tsf || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
+          setIdentifyMode({ mode: 'transform_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_tsf || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -908,7 +923,7 @@ export function useItemActions({
         if (_forgeTargets.length > 0 || _scrollFootBb) {
           const _ik_fg = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-          setIdentifyMode({ mode: 'forge_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_fg || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
+          setIdentifyMode({ mode: 'forge_item', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_fg || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -926,7 +941,7 @@ export function useItemActions({
         if (_potTargets.length > 0 || _scrollFootBb) {
           const _ik_pe = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-          setIdentifyMode({ mode: 'pot_extract', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_pe || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
+          setIdentifyMode({ mode: 'pot_extract', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_pe || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -944,7 +959,7 @@ export function useItemActions({
         if (_wupTargets.length > 0 || _scrollFootBb) {
           const _ik_wu = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-          setIdentifyMode({ mode: 'weapon_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_wu || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
+          setIdentifyMode({ mode: 'weapon_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_wu || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -962,7 +977,7 @@ export function useItemActions({
         if (_aupTargets.length > 0 || _scrollFootBb) {
           const _ik_au = getIdentKey(it);
           const _revMsg = (_wasUnknown && _revFake && _revFake !== _revReal) ? `${_revFake}は${_revReal}だった！` : null;
-          setIdentifyMode({ mode: 'armor_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_au || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id });
+          setIdentifyMode({ mode: 'armor_up', blessed: it.blessed || false, cursed: it.cursed || false, scrollIdx: idx, wasUnknown: _wasUnknown, identKey: _ik_au || null, revMsg: _revMsg, bbFootId: _scrollFootBb?.id, autoSelect: _hypnosisAutoSelect });
           setShowInv(false); setSelIdx(null); setShowDesc(null);
           sr.current = { ...sr.current }; setGs({ ...sr.current });
           return;
@@ -984,6 +999,33 @@ export function useItemActions({
           /* キーアイテム所持中は呪いテレポート無効 */
           if (p.inventory.some(i => i.type === "goal")) {
             ml.push("キーアイテムの力が呪いのフロア飛びを阻んだ！【呪】");
+          } else if (_hypnosisAutoSelect) {
+            const _visited = getVisitedFloors(sr.current, p.depth);
+            const _targetFloor = _visited[Math.floor(Math.random() * _visited.length)];
+            if (_targetFloor != null) {
+              if (!sr.current.floors) sr.current.floors = {};
+              sr.current.floors[p.depth] = dg;
+              const _saved = sr.current.floors[_targetFloor];
+              if (_saved) {
+                delete sr.current.floors[_targetFloor];
+                const _maxDTp = sr.current.maxDepth;
+                if (_maxDTp !== null && _targetFloor >= _maxDTp && !_saved.isLastFloor) {
+                  prepareLastFloor(_saved, sr.current.dungeonType || "beginner");
+                }
+                p.depth = _targetFloor;
+                const _rm = _saved.rooms[rng(0, _saved.rooms.length - 1)];
+                p.x = rng(_rm.x, _rm.x + _rm.w - 1);
+                p.y = rng(_rm.y, _rm.y + _rm.h - 1);
+                refreshFOV(_saved, p);
+                _saved.nextSpawnTurn = p.turns + rng(10, 50);
+                sr.current.dungeon = _saved;
+                ml.push(`${_targetFloor}階へテレポートした！【呪】`);
+              } else {
+                ml.push("その階層のデータがなく、テレポートできなかった！【呪】");
+              }
+            } else {
+              ml.push("飛べる階層がない！【呪】");
+            }
           } else {
           setFloorSelectMode({ sel: p.depth });
           { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
@@ -994,6 +1036,17 @@ export function useItemActions({
           return;
           }
         } else if (it.blessed) {
+          if (_hypnosisAutoSelect) {
+            const _tpDst = randomTeleportDest(dg, p.x, p.y);
+            if (_tpDst) {
+              const _tpFromX = p.x, _tpFromY = p.y;
+              p.x = _tpDst.x; p.y = _tpDst.y;
+              pushPlayerTeleportAnim(_tpFromX, _tpFromY, p.x, p.y);
+              ml.push("テレポートした！【祝】");
+            } else {
+              ml.push("テレポート先がなかった！【祝】");
+            }
+          } else {
           setTpSelectMode({ cx: p.x, cy: p.y });
           { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
             setMsgs((prev) => [...prev.slice(-80), ..._rp, "テレポート先を選んでください... (Z/Enter:決定 X:キャンセル→ランダム)"]); }
@@ -1001,6 +1054,7 @@ export function useItemActions({
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
           return;
+          }
         } else {
           const _tpDst = randomTeleportDest(dg, p.x, p.y);
           if (_tpDst) {
@@ -1618,7 +1672,7 @@ export function useItemActions({
           } else {
             { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
               setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, "どのアイテムの識別を解除する？【呪】"]); }
-            setIdentifyMode({ mode: 'unidentify' });
+            setIdentifyMode({ mode: 'unidentify', autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -1634,7 +1688,7 @@ export function useItemActions({
           } else {
             { const _rp = (_wasUnknown && _revFake && _revFake !== _revReal) ? [`${_revFake}は${_revReal}だった！`] : [];
               setMsgs((prev) => [...prev.slice(-80), ..._rp, ...ml, _wasUnknown ? "どのアイテムを選びますか？" : "識別するアイテムを選んでください。"]); }
-            setIdentifyMode({ mode: 'identify', wasUnknown: _wasUnknown });
+            setIdentifyMode({ mode: 'identify', wasUnknown: _wasUnknown, autoSelect: _hypnosisAutoSelect });
             setShowInv(false); setSelIdx(null); setShowDesc(null);
             sr.current = { ...sr.current }; setGs({ ...sr.current });
             return;
@@ -2090,7 +2144,9 @@ export function useItemActions({
     if ((p.hypnosisPending || 0) <= 0) return false;
     if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return false;
 
-    const candidates = getHypnosisItemCandidates(p.inventory);
+    const candidates = getHypnosisItemCandidates(p.inventory).filter(({ it }) =>
+      it.type !== "pot" || getHypnosisPotContents(p.inventory, it, p).length > 0
+    );
 
     p.hypnosisPending = Math.max(0, (p.hypnosisPending || 0) - 1);
     if (p.hypnosisPending <= 0) delete p.hypnosisPending;
@@ -2102,9 +2158,26 @@ export function useItemActions({
       const { it, idx } = candidates[Math.floor(Math.random() * candidates.length)];
       setMsgs((prev) => [...prev.slice(-80), "催眠術に操られ、体が勝手に動いた！"]);
       if (it.type === "spellbook") doReadSpellbook(idx);
-      else if (it.type === "wand") doWaveWand(idx);
+      else if (it.type === "scroll") {
+        hypnosisAutoRef.current = { kind: "scroll", idx };
+        doUseItem(idx);
+        hypnosisAutoRef.current = null;
+      }
+      else if (it.type === "wand") {
+        if ((it.charges ?? 0) > 0) {
+          const _dirs = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+          const [dx, dy] = _dirs[Math.floor(Math.random() * _dirs.length)];
+          hypnosisAutoRef.current = { kind: "wand", idx, dx, dy };
+        }
+        doWaveWand(idx);
+      }
       else if (it.type === "marker") doUseMarker(idx);
-      else doUseItem(idx);
+      else if (it.type === "pot") {
+        const _contents = getHypnosisPotContents(p.inventory, it, p);
+        const _content = _contents[Math.floor(Math.random() * _contents.length)];
+        if (_content) hypnosisAutoRef.current = { kind: "pot", potIdx: idx, itemIdx: _content.idx };
+        doUseItem(idx);
+      } else doUseItem(idx);
       return true;
     }
 
@@ -2770,7 +2843,7 @@ export function useItemActions({
           sr.current = { ...sr.current };
           setGs({ ...sr.current });
           return;
-        }
+          }
 
         /* ── 1マスずつ進む特殊飛び道具 ── */
         if (_arItem.specialProjectile) {
@@ -4212,6 +4285,27 @@ export function useItemActions({
     },
     [throwMode, lu, endTurn, chgFloor],
   );
+  /* 催眠中に選ばれた壺・杖の次の入力も自動で確定する。 */
+  useEffect(() => {
+    const pending = hypnosisAutoRef.current;
+    if (!pending) return undefined;
+    if (pending.kind === "wand") {
+      if (throwMode?.mode !== "wand_wave" || throwMode.idx !== pending.idx) return undefined;
+      hypnosisAutoRef.current = null;
+      const timer = setTimeout(() => execDirection(pending.dx, pending.dy), 0);
+      return () => clearTimeout(timer);
+    }
+    if (pending.kind === "pot") {
+      if (!putMode || putMode.potIdx !== pending.potIdx) return undefined;
+      hypnosisAutoRef.current = null;
+      const timer = setTimeout(() => {
+        doPutItem(pending.itemIdx);
+        setPutMode(null);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [throwMode, putMode, execDirection, doPutItem, setPutMode]);
   return {
     doUseItem, doHypnotizedAction, doDropItem, doThrow, doShoot, doWaveWand, doBreakWand,
     doUseMarker, doReadSpellbook, doMarkerWrite, doPutItem, doBreakPot,
