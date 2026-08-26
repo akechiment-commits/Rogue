@@ -11,6 +11,30 @@ import {
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
 } from "./monsterBuffs.js";
 
+const MONSTER_SPECIAL_RATE = Object.freeze({
+  ranged: 0.50,
+  status: 0.25,
+  steal: 0.50,
+  rust: 0.50,
+  buff: 0.25,
+  barrier: 0.50,
+  heal: 0.50,
+});
+const STATUS_WAND_EFFECTS = new Set(["curse_wand", "confuse_wand", "sleep_wand"]);
+
+function rangedSpecialRate(m) {
+  if (m?.subtype === "hypnotist") {
+    return MONSTER_SPECIAL_RATE.status;
+  }
+  if (m?.subtype === "armorbreath" || m?.subtype === "diamondweapon") {
+    return MONSTER_SPECIAL_RATE.buff;
+  }
+  if (m?.subtype === "wanduser" && STATUS_WAND_EFFECTS.has(m.wandEffect)) {
+    return MONSTER_SPECIAL_RATE.status;
+  }
+  return MONSTER_SPECIAL_RATE.ranged;
+}
+
 export { wakeIfDormant } from "./monsterRuntime.js";
 export {
   monIsSealed, monEffectiveFloat, monEffectiveMagicImmune, monEffectiveWallWalker,
@@ -456,7 +480,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   /* ボス固有攻撃エフェクト */
   if (dmg > 0) {
-    if (m.baseKind === "boss_blaze" && !m.sealed && Math.random() < 0.35) {
+    if (m.baseKind === "boss_blaze" && !m.sealed && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`${m.name}の鋭い爪が頭を掻いた！しかし状態防止中のため混乱しなかった！`);
       } else if ((pl.yogurtImmuneTurns || 0) > 0) {
@@ -467,7 +491,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`${m.name}の鋭い爪で頭を掻かれた！混乱した！(${_ct}ターン)`);
       }
     }
-    if (m.baseKind === "boss_demonking" && Math.random() < 0.25) {
+    if (m.baseKind === "boss_demonking" && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`魔神王の一撃が魂を縛った！しかし状態防止中のため効かなかった！`);
       } else {
@@ -476,7 +500,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`魔神王の一撃が魂を縛った！金縛りになった！(${_pt}ターン)`);
       }
     }
-    if (m.baseKind === "boss_warlord" && Math.random() < 0.30) {
+    if (m.baseKind === "boss_warlord" && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`魔将軍の刃が鎧を砕いた！しかし状態防止中のため効かなかった！`);
       } else {
@@ -498,7 +522,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`油が引火して追加炎ダメージ！${playerHpEffectLabel(pl, _xdmg)}！`);
       }
     }
-    if (m.baseKind === "boss_voidmonk" && Math.random() < 0.25) {
+    if (m.baseKind === "boss_voidmonk" && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`虚無の僧侶の呪いが魔力を封じた！しかし状態防止中のため効かなかった！`);
       } else {
@@ -507,7 +531,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
         ml.push(`虚無の僧侶の呪いが魔力を封じた！魔法が封印された！(${_st}ターン)`);
       }
     }
-    if (m.baseKind === "boss_infernoking" && Math.random() < 0.40) {
+    if (m.baseKind === "boss_infernoking" && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`煉獄公の爪に毒が！しかし状態防止中のため効かなかった！`);
       } else if (hasRingEffect(pl, "antidote_ring")) {
@@ -520,7 +544,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       }
     }
     if (m.baseKind === "boss_abyssgod") {
-      if (Math.random() < 0.35) {
+      if (Math.random() < MONSTER_SPECIAL_RATE.status) {
         if ((pl.statusImmune || 0) > 0) {
           ml.push(`深淵神の一撃が意識を蝕んだ！しかし状態防止中のため効かなかった！`);
         } else {
@@ -529,7 +553,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
           ml.push(`深淵神の一撃が意識を蝕んだ！金縛りになった！(${_pt}ターン)`);
         }
       }
-      if (Math.random() < 0.25) {
+      if (Math.random() < MONSTER_SPECIAL_RATE.status) {
         if ((pl.statusImmune || 0) > 0) {
           ml.push(`深淵神の呪いで防御が崩れた！しかし状態防止中のため効かなかった！`);
         } else {
@@ -540,7 +564,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
       }
     }
     /* 中級ボス固有 on-hit */
-    if (m.baseKind === "im_boss_titan" && Math.random() < 0.35) {
+    if (m.baseKind === "im_boss_titan" && Math.random() < MONSTER_SPECIAL_RATE.status) {
       if ((pl.statusImmune || 0) > 0) {
         ml.push(`${m.name}の強烈な一撃！しかし状態防止中のため移動封じは効かなかった！`);
       } else {
@@ -880,7 +904,7 @@ export const MONS = [
       { name: "大眠り術師",         hp: 108, atk: 36, def: 16, exp: 200 },
     ],
   },
-  { name: "催眠術使い",   hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
+  { name: "催眠術使い",   hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
     dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "強催眠術使い",     hp: 73,  atk: 30, def: 10, exp: 134, dungeonFloors: { advanced: { min: 28, max: 31 } } },
@@ -1044,14 +1068,14 @@ export const MONS = [
     ],
   },
   { name: "スネークマン", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 13, maxFloor: 17, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 17 }, advanced: { min: 13, max: 17 } },
-    desc: "水上・水中を移動する。プレイヤーを視界に捉えると、レベルに応じてアーマーブレスで自分か隣接する敵の防御力を5／7／10上げることがある。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
+    desc: "水上・水中を移動する。プレイヤーを視界に捉えると25%でアーマーブレスを使い、自分か隣接する敵の防御力をレベルに応じて5／7／10上げる。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
     levels: [
       { name: "リザードマン", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: { min: 20, max: 20 }, advanced: { min: 20, max: 24 } } },
       { name: "とかげせんし", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
     ],
   },
   { name: "竜騎士", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 205, kind: "dragon", baseKind: "dragonknight", monLevel: 1, minFloor: 13, maxFloor: 17, float: true, subtype: "diamondweapon", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 17 }, advanced: { min: 13, max: 17 } },
-    desc: "浮遊する竜騎士。プレイヤーを視界に捉えると、レベルに応じてダイヤモンドウエポンで自分か隣接する敵の攻撃力を5／7／10上げることがある。放置すると重ね掛けでどんどん強くなる。強化解除の巻物や封印で解除される。",
+    desc: "浮遊する竜騎士。プレイヤーを視界に捉えると25%でダイヤモンドウエポンを使い、自分か隣接する敵の攻撃力をレベルに応じて5／7／10上げる。放置すると重ね掛けでどんどん強くなる。強化解除の巻物や封印で解除される。",
     levels: [
       { name: "竜騎士04", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: { min: 20, max: 20 }, advanced: { min: 20, max: 24 } } },
       { name: "Mikan", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
@@ -1208,7 +1232,7 @@ export const INTERMEDIATE_BOSSES = [
     speed: 1, tile: 141, kind: "dragon",   baseKind: "im_boss_salamander",
     isBoss: true, bossTier: 1, monLevel: 1, maxAttacks: 2,
     elemWeak: "ice", elemResist: "fire" },
-  /* B10F (depth=9) 攻撃時35%移動封じ＋毎ターン5HP回復 */
+  /* B10F (depth=9) 攻撃時25%移動封じ＋毎ターン5HP回復 */
   { name: "ティターン", hp: 460, atk: 52, def: 27, exp: 1500,
     speed: 1, tile: 142, kind: "humanoid", baseKind: "im_boss_titan",
     isBoss: true, bossTier: 2, monLevel: 1, maxAttacks: 1 },
@@ -2057,7 +2081,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
       }
       /* Lv2以上：追加で食料腐敗 or 武器錆（耐水では防がない＝物理的劣化） */
       const _wLvl = m.monLevel || 1;
-      if (_wLvl >= 2 && Math.random() < 0.5 && !hasWaterProof(pl)) {
+      if (_wLvl >= 2 && Math.random() < MONSTER_SPECIAL_RATE.ranged && !hasWaterProof(pl)) {
         const _foods = pl.inventory.filter(i => i.type === "food" && !i.rotten);
         const _canDegrade = pl.weapon && !hasAbility(pl.weapon, "no_degrade");
         if (_foods.length > 0 && (_canDegrade ? Math.random() < 0.6 : true)) {
@@ -3723,10 +3747,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
   }
-  /* 炎帝竜：毎ターン40%でプレイヤーに油まみれ付与（視界内時）（付与したターンは攻撃しない） */
+  /* 炎帝竜：毎ターン25%でプレイヤーに油まみれ付与（視界内時）（付与したターンは攻撃しない） */
   if (m.baseKind === "boss_flamedragon" && !_moveOnly) {
     const _fdVisible = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-    if (_fdVisible && Math.random() < 0.40) {
+    if (_fdVisible && Math.random() < MONSTER_SPECIAL_RATE.status) {
       const _oilT = statusTurns("oily", { kind: "player" });
       pl.oilyTurns = (pl.oilyTurns || 0) + _oilT;
       ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(${_oilT}ターン)`);
@@ -3825,13 +3849,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
     /* 逃走中はattackOnlyで何もしない */
     if (m._krakFleeing) return;
-    /* 墨吐き：moveOnlyで45%予約→attackOnlyで実行 */
+    /* 墨吐き：moveOnlyで25%予約→attackOnlyで実行 */
     if (_moveOnly) {
       const _kiAdx = pl.x - m.x, _kiAdy = pl.y - m.y;
       const _kiDist = Math.max(Math.abs(_kiAdx), Math.abs(_kiAdy));
       const _kiInLine = _kiAdx === 0 || _kiAdy === 0 || Math.abs(_kiAdx) === Math.abs(_kiAdy);
       const _kiLOS = hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-      if (_kiDist >= 2 && _kiInLine && _kiLOS && m.turnAttacks < Math.max(monEffectiveMaxAttacks(m), m.sealed ? 1 : 2) && Math.random() < 0.45) {
+      if (_kiDist >= 2 && _kiInLine && _kiLOS && m.turnAttacks < Math.max(monEffectiveMaxAttacks(m), m.sealed ? 1 : 2) && Math.random() < MONSTER_SPECIAL_RATE.status) {
         m._krakInkReady = true;
         return; /* 移動しない→attackOnlyで墨発動 */
       }
@@ -4057,7 +4081,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _tmRoom = findRoom(dg.rooms, m.x, m.y);
     const _tmCanPlace = _tmLvl >= 3 ? isWalkable(dg.map, m.x, m.y, dg) : _tmRoom !== null;
     if (_tmCanPlace) {
-      /* Lv2以上は発動確率50%、Lv1は25% */
+      /* Lv1は12.5%、Lv2以上は25% */
       const _tmChance = _tmLvl >= 2 ? 0.25 : 0.125;
       /* 足元に罠以外のものがあれば設置不可 */
       const _tmBlocked =
@@ -4096,7 +4120,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
     if (!_adjPl) {
       /* 自分のバリアが優先：なければ50%で張り直す */
-      if (!m.barrier && rng(0, 1) === 0) {
+      if (!m.barrier && (m.alwaysUseSpecial || rng(0, 1) === 0)) {
         m.barrier = 1;
         ml.push(`${m.name}がバリアを張り直した！（残り1回）`);
         return;
@@ -4106,7 +4130,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _adjTargets = dg.monsters.filter(o =>
           o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1 && !o.barrier && !o.sealed
         );
-        if (_adjTargets.length > 0) {
+        if (_adjTargets.length > 0 && (m.alwaysUseSpecial || rng(0, 1) === 0)) {
           const _bt = _adjTargets[rng(0, _adjTargets.length - 1)];
           _bt.barrier = 1;
           ml.push(`${m.name}が${_bt.name}にバリアを付与した！`);
@@ -4612,12 +4636,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m))) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
-      /* defhalf：同部屋で20%防御半減魔法を予約（移動せず攻撃フェーズで発動） */
-      if (m.subtype === "defhalf" && !m.sealed && _sameRoom && _rAtks && Math.random() < 0.20) {
+      /* defhalf：同部屋で25%防御半減魔法を予約（移動せず攻撃フェーズで発動） */
+      if (m.subtype === "defhalf" && !m.sealed && _sameRoom && _rAtks && Math.random() < MONSTER_SPECIAL_RATE.status) {
         m._defHalfMagicReady = true;
         return;
       }
@@ -4783,7 +4807,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
 
       /* ── 警備員：縦・横の直線上で暗闇の薬投げ ── */
-      if (m.type === "guard" && !m.sealed && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.4)) {
+      if (m.type === "guard" && !m.sealed && !_plOnBlessedSanc && (adx === 0 || ady === 0) && lineLen >= 2 && lineLen <= 8 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
         m.turnAttacks++;
         ml.push(`${m.name}が暗闇の薬を投げた！`);
         pushMonsterBoltAnim(m.x, m.y, Math.sign(pl.x - m.x), Math.sign(pl.y - m.y), dg, pl, "#334466");
@@ -4816,7 +4840,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
 
 
-      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m))) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>
@@ -4832,7 +4856,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         // 魔封じの部屋・祝福聖域の場合は杖を使えず通常行動へフォールスルー
       }
 
-      if (m.subtype === "hypnotist" && !m.sealed && canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "hypnotist" && !m.sealed && canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
         m.turnAttacks++;
         if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
           ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
@@ -4934,7 +4958,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_adj && _moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       if (_adj) {
         /* 50%は様子を見るだけ（無駄行動） */
-        if (Math.random() < 0.50) {
+        if (Math.random() < MONSTER_SPECIAL_RATE.steal) {
           ml.push(`${m.name}はこちらの様子を伺っている…`);
           return;
         }
@@ -5019,7 +5043,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_gtAdj && _moveOnly) return;
       if (_gtAdj) {
         /* 50%は様子を見るだけ */
-        if (Math.random() < 0.50) {
+        if (Math.random() < MONSTER_SPECIAL_RATE.steal) {
           ml.push(`${m.name}はこちらの様子を伺っている…`);
           return;
         }
@@ -5254,7 +5278,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           return;
         }
         const _srStealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
-        if (_srStealable.length > 0 && Math.random() < 0.25) {
+        if (_srStealable.length > 0 && Math.random() < MONSTER_SPECIAL_RATE.steal) {
           const _stolen = pick(_srStealable);
           pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
           const _srFinal = (_stolen.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stolen.plus || 0 } : _stolen;
@@ -5271,46 +5295,45 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     /* ── supporter（シャーマン等）：近くの味方を回復・強化 ── */
-    if (!_moveOnly && m.subtype === "supporter" && (m.alwaysUseSpecial || Math.random() < 0.5)) {
-      /* 傷ついた味方を探す（範囲8マス） */
+    if (!_moveOnly && m.subtype === "supporter") {
+      /* 回復は50%、攻撃バフは25%。まず回復対象を優先する。 */
       const _injured = dg.monsters.filter(o =>
         o !== m && (o.maxHp != null ? o.hp < o.maxHp : false) &&
         Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 8
       );
-      if (_injured.length > 0) {
-        const _healTarget = _injured.reduce((a, b) =>
-          (Math.abs(a.x - m.x) + Math.abs(a.y - m.y)) <=
-          (Math.abs(b.x - m.x) + Math.abs(b.y - m.y)) ? a : b
-        );
-        const _hdist = Math.abs(_healTarget.x - m.x) + Math.abs(_healTarget.y - m.y);
-        if (_hdist <= 1) {
-          /* 隣接：回復（アンデッドには逆にダメージ） */
-          const _heal = rng(5, 12);
-          if (_healTarget.kind === "undead") {
-            _healTarget.hp -= _heal;
-            ml.push(`${m.name}が${_healTarget.name}に回復魔法をかけたが逆効果だ！${_heal}ダメージ！`);
-            if (_healTarget.hp <= 0) killMonster(_healTarget, dg, pl, ml, _luFn);
-          } else {
-            _healTarget.hp = Math.min(_healTarget.maxHp, _healTarget.hp + _heal);
-            ml.push(`${m.name}が${_healTarget.name}を回復した！(+${_heal}HP)`);
-          }
-          return;
+      const _healTarget = _injured.length > 0 ? _injured.reduce((a, b) =>
+        (Math.abs(a.x - m.x) + Math.abs(a.y - m.y)) <=
+        (Math.abs(b.x - m.x) + Math.abs(b.y - m.y)) ? a : b
+      ) : null;
+      const _hdist = _healTarget ? Math.abs(_healTarget.x - m.x) + Math.abs(_healTarget.y - m.y) : Infinity;
+      if (_healTarget && _hdist <= 1 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+        /* 隣接：回復（アンデッドには逆にダメージ） */
+        const _heal = rng(5, 12);
+        if (_healTarget.kind === "undead") {
+          _healTarget.hp -= _heal;
+          ml.push(`${m.name}が${_healTarget.name}に回復魔法をかけたが逆効果だ！${_heal}ダメージ！`);
+          if (_healTarget.hp <= 0) killMonster(_healTarget, dg, pl, ml, _luFn);
         } else {
-          /* 傷ついた味方へ接近 */
-          const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
-          if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
-              !dg.monsters.some(o => o !== m && o.x === _hn.x && o.y === _hn.y)) {
-            m.x = _hn.x; m.y = _hn.y;
-            return;
-          }
+          _healTarget.hp = Math.min(_healTarget.maxHp, _healTarget.hp + _heal);
+          ml.push(`${m.name}が${_healTarget.name}を回復した！(+${_heal}HP)`);
+        }
+        return;
+      }
+      if (_healTarget && _hdist > 1 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.heal)) {
+        /* 傷ついた味方へ接近 */
+        const _hn = bfsNext(map, [], m.x, m.y, _healTarget.x, _healTarget.y, m, 15, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
+        if (_hn && !dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _hn.x && pc.y === _hn.y) &&
+            !dg.monsters.some(o => o !== m && o.x === _hn.x && o.y === _hn.y)) {
+          m.x = _hn.x; m.y = _hn.y;
+          return;
         }
       }
-      /* 傷なし：隣の味方に攻撃バフ（未付与のみ） */
+      /* 傷なし、または回復経路がない場合：隣の味方に攻撃バフ（未付与のみ） */
       const _buffable = dg.monsters.filter(o =>
         o !== m && !o.atkBuffed &&
         Math.abs(o.x - m.x) + Math.abs(o.y - m.y) <= 1
       );
-      if (_buffable.length > 0) {
+      if (_buffable.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.buff)) {
         const _bt = _buffable[rng(0, _buffable.length - 1)];
         const _buffAmt = rng(2, 4);
         _bt.atk += _buffAmt;
@@ -5318,7 +5341,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         ml.push(`${m.name}が${_bt.name}を強化！攻撃力+${_buffAmt}！`);
         return;
       }
-      /* 強化・回復対象なし → 通常行動（プレイヤーへ接近）にフォールスルー */
+      /* 強化・回復対象なし／抽選外 → 通常行動（プレイヤーへ接近）にフォールスルー */
     }
 
     /* ── tripper（足払い鬼等）：隣接時 25% で転ばせ特技 ── */
@@ -5350,7 +5373,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _rstCands = [];
         if (pl.weapon && !hasAbility(pl.weapon, "no_degrade")) _rstCands.push(pl.weapon);
         if (pl.armor  && !hasAbility(pl.armor,  "no_degrade")) _rstCands.push(pl.armor);
-        if (_rstCands.length > 0 && Math.random() < 0.5) {
+        if (_rstCands.length > 0 && Math.random() < MONSTER_SPECIAL_RATE.rust) {
           const _rt = pick(_rstCands);
           const _op = _rt.plus || 0;
           _rt.plus = _op - 1;
@@ -5430,7 +5453,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    /* ── defhalf（キラープラスター等）：同部屋で20%防御半減魔法 ── */
+    /* ── defhalf（キラープラスター等）：同部屋で25%防御半減魔法 ── */
     if (m.subtype === "defhalf" && !m.sealed) {
       /* 攻撃フェーズ */
       if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
