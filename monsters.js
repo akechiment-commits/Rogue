@@ -4126,7 +4126,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
     if (!_adjPl) {
       /* 自分のバリアが優先：なければ50%で張り直す */
-      if (!m.barrier && (m.alwaysUseSpecial || rng(0, 1) === 0)) {
+      if (!m.barrier && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.barrier)) {
         m.barrier = 1;
         ml.push(`${m.name}がバリアを張り直した！（残り1回）`);
         return;
@@ -4136,7 +4136,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _adjTargets = dg.monsters.filter(o =>
           o !== m && Math.abs(o.x - m.x) <= 1 && Math.abs(o.y - m.y) <= 1 && !o.barrier && !o.sealed
         );
-        if (_adjTargets.length > 0 && (m.alwaysUseSpecial || rng(0, 1) === 0)) {
+        if (_adjTargets.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.barrier)) {
           const _bt = _adjTargets[rng(0, _adjTargets.length - 1)];
           _bt.barrier = 1;
           ml.push(`${m.name}が${_bt.name}にバリアを付与した！`);
