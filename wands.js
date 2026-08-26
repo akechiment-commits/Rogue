@@ -10,7 +10,7 @@ import {
   hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, applyMonsterSeal,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
-  pickLootFromPool, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
+  pickLootFromPool, makeChangeBoxItem, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, getFixtureItemDeps,
   setWandBreakEffectHandler,
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
@@ -770,9 +770,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "item") {
         if (target.type === "goal") { ml.push(`${_dname_item(target)}は変化しなかった！`); break; }
-        const _chgPool = ITEMS.filter((i) => i.type !== "gold" && i.type !== "goal");
         const _chgContext = blMult > 1 ? "change_blessed" : blMult < 1 ? "change_cursed" : "change";
-        const nt = pickLootFromPool(_chgPool, _chgContext) || pick(_chgPool);
+        const nt = makeChangeBoxItem(_chgContext);
         const ox = target.x, oy = target.y;
         removeFloorItem(dg, target);
         chargeShopItem(target, dg, ml);

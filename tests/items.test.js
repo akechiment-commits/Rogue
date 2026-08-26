@@ -322,8 +322,35 @@ describe("祝呪系の壺", () => {
 describe("ゴミ箱の破壊報酬", () => {
   it("変化の大箱と同じ系統のアイテムを1個生成する", () => {
     const item = makeChangeBoxItem();
-    expect(["potion", "weapon", "armor", "food", "wand", "arrow", "pot"]).toContain(item.type);
+    expect(["potion", "scroll", "pen", "weapon", "armor", "food", "wand", "arrow", "pot", "ring", "spellbook", "marker", "bottle", "gold"]).toContain(item.type);
     expect(item.id).toBeTruthy();
+  });
+
+  it("変化抽選は宝石・キーアイテム以外の全カテゴリを対象にする", () => {
+    const expected = new Set(["potion", "scroll", "pen", "weapon", "armor", "food", "wand", "arrow", "pot", "ring", "spellbook", "marker", "bottle", "gold"]);
+    const seen = new Set();
+    for (let i = 0; i < 3000; i++) {
+      const item = makeChangeBoxItem();
+      seen.add(item.type);
+      expect(["gem", "goal"]).not.toContain(item.type);
+    }
+    expect(seen).toEqual(expected);
+  });
+
+  it("変化抽選の祝福・呪いでレア度補正を使い分ける", () => {
+    const run = (context, values) => {
+      const randomSpy = vi.spyOn(Math, "random").mockImplementationOnce(() => values[0]).mockImplementationOnce(() => values[1]).mockImplementationOnce(() => values[2] ?? 0);
+      try {
+        return makeChangeBoxItem(context);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    };
+
+    const blessed = run("change_blessed", [0.22, 0, 0]);
+    const cursed = run("change_cursed", [0.22, 0.5, 0]);
+    expect(["C", "B", "A", "S"]).toContain(blessed.rarity);
+    expect(cursed.rarity).toBe("E");
   });
 
   it("ゴミ箱が壊れると中身に加えてランダム品を落とす", () => {

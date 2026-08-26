@@ -733,7 +733,7 @@ export const WANDS = [
 /* ===== BIG BOX TYPES ===== */
 export const BB_TYPES = [
   { kind: "synthesis", name: "合成の大箱", cap: () => 2,          weight: 2, desc: "2つのアイテムを合成する。\n武器/防具同士→能力引継ぎ。杖/ペン同士→チャージ合算。\n杖+装備→異種合成で杖の能力が宿る。\n特定の組み合わせで特殊合成が発生することもある。" },
-  { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れたアイテムがランダムな別のアイテムに変化する。\n何に変わるかは開けるまで不明。キーアイテムは変化しない。" },
+  { kind: "change",    name: "変化の大箱", cap: () => rng(2, 4),  weight: 1, desc: "入れたアイテムがランダムな別のアイテムに変化する。\n何に変わるかは開けるまで不明。宝石・キーアイテムは変化しない。" },
   { kind: "enhance",   name: "強化の大箱", cap: () => rng(1, 2),  weight: 1, desc: "武器・防具の＋値を1上げる。\n力・守り・命の指輪の＋値も増やせる。壺の容量+1。\n他のアイテムには効果がない。" },
   { kind: "satiety",   name: "満腹の大箱", cap: () => rng(2, 4),  weight: 1, desc: "食料のサイズを1段階大きくする。\n生→最大で超特大、調理済み→最大で爆盛り。\n食料以外には効果がない。" },
   { kind: "refill",    name: "充填の大箱", cap: () => rng(1, 3),  weight: 1, desc: "杖・ペン・魔法の筆の使用回数をランダムに回復する。" },
@@ -1162,22 +1162,43 @@ export function makePot(context = "floor") {
   return pot;
 }
 
-/** 変化の大箱と同じ抽選表から、変化後のアイテムを1個作る。 */
-export function makeChangeBoxItem() {
-  const kinds = ["potion", "weapon", "armor", "food", "wand", "arrow", "pot"];
+/**
+ * 変化の大箱・変化の杖で使う通常アイテム抽選。
+ * 宝石とキーアイテム、合成・特殊ドロップ専用アイテムは候補に含めない。
+ */
+export function makeChangeBoxItem(context = "change") {
+  const kinds = [
+    "potion", "scroll", "pen", "weapon", "armor", "food", "wand",
+    "arrow", "pot", "ring", "spellbook", "marker", "bottle", "gold",
+  ];
   const rt = pick(kinds);
   if (rt === "food") return { ...genFood(), id: uid() };
   if (rt === "wand") {
-    const wt = pickLootFromPool(WANDS, "change") || pick(WANDS);
+    const wt = pickLootFromPool(WANDS, context) || pick(WANDS);
     return { ...wt, id: uid() };
   }
-  if (rt === "arrow") return makeArrow(rng(3, 15));
-  if (rt === "pot") return makePot("change");
-  const pool = ITEMS.filter((i) => i.type === rt);
-  const fallback = ITEMS.filter((i) => i.type !== "gold" && i.type !== "charged_fuzzball");
-  const tmpl = (pool.length ? pickLootFromPool(pool, "change") : null)
-    || pickLootFromPool(fallback, "change")
-    || pick(fallback);
+  if (rt === "pot") return makePot(context);
+  if (rt === "ring") {
+    const ring = { ...(pickLootFromPool(RINGS, context) || pick(RINGS)), id: uid() };
+    return applyGeneratedRingPlus(ring);
+  }
+  if (rt === "spellbook") {
+    const sb = pickLootFromPool(SPELLBOOKS, context) || pick(SPELLBOOKS);
+    return { ...sb, id: uid() };
+  }
+  if (rt === "marker") return { ...MAGIC_MARKER, id: uid() };
+  if (rt === "bottle") return { ...EMPTY_BOTTLE, id: uid() };
+  if (rt === "arrow") {
+    const arrowPool = [...ITEMS.filter((i) => i.type === "arrow"), ARROW_T];
+    const at = pickLootFromPool(arrowPool, context) || pick(arrowPool);
+    return { ...at, id: uid(), count: rng(3, 15) };
+  }
+  const pool = rt === "potion"
+    ? [...ITEMS.filter((i) => i.type === "potion"), WATER_BOTTLE]
+    : rt === "gold"
+      ? ITEMS.filter((i) => i.type === "gold")
+      : ITEMS.filter((i) => i.type === rt);
+  const tmpl = pickLootFromPool(pool, context) || pick(pool);
   return { ...tmpl, id: uid() };
 }
 

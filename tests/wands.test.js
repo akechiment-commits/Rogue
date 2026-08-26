@@ -151,6 +151,23 @@ describe("applyWandEffect", () => {
     expect(ml.some((message) => message.includes("合成の大箱"))).toBe(false);
   });
 
+  it("変化の杖は食料を含む通常アイテムへ変化させる", () => {
+    const p = makePlayer();
+    const dg = makeEmptyDg();
+    const target = { name: "変化対象", type: "weapon", x: 6, y: 5, id: "target" };
+    dg.items.push(target);
+    const ml = [];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.36);
+    try {
+      applyWandEffect("transform", "item", target, 1, 0, dg, p, ml, noop);
+    } finally {
+      randomSpy.mockRestore();
+    }
+
+    expect(dg.items).toHaveLength(1);
+    expect(dg.items[0].type).toBe("food");
+  });
+
   it("変化の魔法は現フロアの敵へ同Lvで変化する", () => {
     const dg = makeEmptyDg();
     const p = makePlayer({ depth: 0 });
