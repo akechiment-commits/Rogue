@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -41,6 +41,14 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
+setItemMimicDisguiseCatalog([
+  ...ITEMS,
+  ...WANDS,
+  ...POTS,
+  ...SPELLBOOKS,
+  ...RINGS,
+  ...(WATER_BOTTLE ? [WATER_BOTTLE] : []),
+]);
 import { useGameRenderer } from './useGameRenderer.js';
 import { usePortrait } from './usePortrait.js';
 import { useItemActions } from './useItemActions.js';
@@ -1110,14 +1118,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
     }
   }, [lu, maybeTipForItem, showFirstEncounterTip]);
-  const getLookDesc = useCallback((x, y, dungeon) => describeLookCell({
-    x,
-    y,
-    dungeon,
-    session: sr.current,
-    itemDisplayName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
-    bigboxDisplayName: (bigbox, revealed) => bbDisplayName(bigbox, sr.current, revealed),
-  }), []);
+  const getLookDesc = useCallback((x, y, dungeon) => {
+    ensureItemMimicFloorItems(dungeon);
+    return describeLookCell({
+      x,
+      y,
+      dungeon,
+      session: sr.current,
+      itemDisplayName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
+      bigboxDisplayName: (bigbox, revealed) => bbDisplayName(bigbox, sr.current, revealed),
+    });
+  }, []);
   const checkTrap = useCallback((p, dg, ml, onActivated = null) => {
     const trap = dg.traps.find((t) => t.x === p.x && t.y === p.y);
     if (!trap) return null;

@@ -61,9 +61,19 @@ export function describeLookCell({
   }
 
   const monster = dungeon.visible[y]?.[x] && dungeon.monsters.find((mon) => mon.x === x && mon.y === y);
-  if (monster) parts.push(`${monster.name} HP:${monster.hp}/${monster.maxHp}`);
+  if (monster) {
+    const mimicItem = monster.subtype === "itemMimic" && monster.disguisedAsItem !== false
+      ? dungeon.items?.find((item) => item.itemMimicId === monster.id && item.x === x && item.y === y)
+      : null;
+    if (mimicItem || (monster.subtype === "itemMimic" && monster.disguisedAsItem !== false)) {
+      parts.push(mimicItem?.disguiseName || monster.disguiseName || "アイテム");
+    } else {
+      parts.push(`${monster.name} HP:${monster.hp}/${monster.maxHp}`);
+    }
+  }
 
-  for (const item of dungeon.items.filter((entry) => entry.x === x && entry.y === y && !entry.wallEmbedded)) {
+  for (const item of dungeon.items.filter((entry) =>
+    entry.x === x && entry.y === y && !entry.wallEmbedded && !entry.itemMimicId)) {
     const name = itemDisplayName(item);
     parts.push(item.shopPrice ? `${name}(${item.shopPrice}G)` : name);
   }

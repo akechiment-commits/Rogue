@@ -22,6 +22,8 @@ describe("アイテムモドキ", () => {
       x: 5,
       y: 5,
     });
+    expect(dg.items[0].disguiseName).toBeTruthy();
+    expect(mimic.disguiseName).toBe(dg.items[0].disguiseName);
     expect(dg.items[0].tile).not.toBe(167);
     expect(dg.items[0].disguiseTile).toBe(dg.items[0].tile);
     expect(monsterAt(dg, 5, 5)).toBeUndefined();

@@ -47,4 +47,15 @@ describe("describeLookCell", () => {
     dungeon.items.push({ x: 1, y: 0, name: "短剣", wallEmbedded: true });
     expect(describeCell({ x: 1, y: 0, dungeon })).toBe("壁の中: 表示:短剣");
   });
+
+  it("化けているアイテムモドキは化け先の名前だけを表示する", () => {
+    const dungeon = makeDungeon();
+    dungeon.monsters = [{ id: "mimic-1", subtype: "itemMimic", disguisedAsItem: true, x: 0, y: 0, name: "アイテムモドキ", hp: 38, maxHp: 38 }];
+    dungeon.items = [{ itemMimicId: "mimic-1", type: "item_mimic", name: "アイテムモドキ", disguiseName: "短剣", x: 0, y: 0 }];
+
+    const description = describeCell({ dungeon });
+    expect(description).toBe("短剣 / 罠:眠りの罠 / 泉 / 大箱:true / 魔方陣 / 風穴 / 石像");
+    expect(description).not.toContain("アイテムモドキ");
+    expect(description).not.toContain("HP:38/38");
+  });
 });

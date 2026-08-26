@@ -224,8 +224,38 @@ const ITEM_MIMIC_DISGUISE_TILES = [
   184, 185, 186, 187, 188, 189, 190, 191, 192, 193,
 ];
 
-function pickItemMimicDisguiseTile() {
-  return ITEM_MIMIC_DISGUISE_TILES[Math.floor(Math.random() * ITEM_MIMIC_DISGUISE_TILES.length)];
+const ITEM_MIMIC_FALLBACK_NAMES = Object.freeze({
+  16: "回復薬", 17: "大回復薬", 18: "巻物", 19: "食料", 20: "短剣", 21: "革の鎧",
+  22: "金貨", 23: "矢", 24: "杖", 32: "壺", 41: "魔法の筆", 42: "ペン", 43: "魔法書",
+  60: "指輪", 66: "料理", 87: "アクアマリン", 88: "ルビー", 89: "サファイア",
+  90: "エメラルド", 91: "トパーズ", 92: "アメジスト", 101: "ダイヤモンド", 102: "オパール",
+  184: "ガーネット", 185: "ラピスラズリ", 186: "ターコイズ", 187: "ムーンストーン",
+  188: "ブラックオニキス", 189: "アレキサンドライト", 190: "キーアイテム", 191: "キーアイテム",
+  192: "キーアイテム", 193: "キーアイテム",
+});
+
+let _itemMimicDisguiseCatalog = [];
+
+/** ゲーム側から、化け先名を選ぶためのアイテムカタログを登録する。 */
+export function setItemMimicDisguiseCatalog(catalog) {
+  _itemMimicDisguiseCatalog = Array.isArray(catalog)
+    ? catalog
+      .filter((item) => item?.name && Number.isFinite(Number(item.tile)))
+      .map((item) => ({ name: String(item.name), tile: Number(item.tile) }))
+    : [];
+}
+
+function pickItemMimicDisguise(preferredTile = null) {
+  const tile = Number.isFinite(Number(preferredTile)) ? Number(preferredTile) : null;
+  const catalog = _itemMimicDisguiseCatalog.filter((item) =>
+    ITEM_MIMIC_DISGUISE_TILES.includes(item.tile) && (tile === null || item.tile === tile));
+  if (catalog.length > 0) {
+    return catalog[Math.floor(Math.random() * catalog.length)];
+  }
+  const fallbackTile = tile ?? ITEM_MIMIC_DISGUISE_TILES[
+    Math.floor(Math.random() * ITEM_MIMIC_DISGUISE_TILES.length)
+  ];
+  return { tile: fallbackTile, name: ITEM_MIMIC_FALLBACK_NAMES[fallbackTile] || "アイテム" };
 }
 
 export function destroyItemMimicFloorItem(dg, item) {
@@ -247,14 +277,17 @@ export function ensureItemMimicFloorItems(dg) {
     mimic.disguisedAsItem = true;
     const itemId = mimic.disguiseItemId || `item-mimic-${mimic.id}`;
     let item = dg.items.find(i => i.itemMimicId === mimic.id || i.id === itemId);
+    const preferredTile = mimic.disguiseTile ?? item?.disguiseTile ?? null;
+    const disguise = pickItemMimicDisguise(preferredTile);
     if (!item) {
-      const disguiseTile = mimic.disguiseTile || pickItemMimicDisguiseTile();
+      const disguiseTile = mimic.disguiseTile || disguise.tile;
       item = {
         id: itemId,
         name: "アイテムモドキ",
         type: ITEM_MIMIC_ITEM_TYPE,
         tile: disguiseTile,
         disguiseTile,
+        disguiseName: mimic.disguiseName || disguise.name,
         x: mimic.x,
         y: mimic.y,
         discovered: true,
@@ -262,7 +295,8 @@ export function ensureItemMimicFloorItems(dg) {
       };
       dg.items.unshift(item);
     } else {
-      if (!item.disguiseTile) item.disguiseTile = mimic.disguiseTile || pickItemMimicDisguiseTile();
+      if (!item.disguiseTile) item.disguiseTile = mimic.disguiseTile || disguise.tile;
+      if (!item.disguiseName) item.disguiseName = mimic.disguiseName || disguise.name;
       item.itemMimicId = mimic.id;
       item.type = ITEM_MIMIC_ITEM_TYPE;
       item.name = "アイテムモドキ";
@@ -272,6 +306,7 @@ export function ensureItemMimicFloorItems(dg) {
       mimic.y = item.y;
     }
     mimic.disguiseTile = item.disguiseTile;
+    mimic.disguiseName = item.disguiseName || disguise.name;
     mimic.disguiseItemId = item.id;
     activeIds.add(item.id);
   }
