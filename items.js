@@ -2842,11 +2842,15 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       ml.push(`${trap.name}が発動！`);
       const _dktm = monsterAt(dg, tx, ty);
       if (_dktm) {
-        const _dt = statusTurns("darkness", { kind: "monster", target: _dktm });
-        _dktm.darknessTurns = (_dktm.darknessTurns || 0) + _dt;
-        _dktm.darkDir = null;
-        _dktm.aware = false;
-        ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
+        if (_dktm.type === "guard") {
+          ml.push(`${_dktm.name}には暗闇が効かなかった！`);
+        } else {
+          const _dt = statusTurns("darkness", { kind: "monster", target: _dktm });
+          _dktm.darknessTurns = (_dktm.darknessTurns || 0) + _dt;
+          _dktm.darkDir = null;
+          _dktm.aware = false;
+          ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
+        }
       }
       if (p && p.x === tx && p.y === ty) {
         if (!blockPlayerStatus(p, ml, { proofAbility: "darkness_proof", proofMsg: "しかし防具が暗闇を防いだ！(耐暗闇)" })) {
@@ -3522,6 +3526,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           target.darknessTurns = 0;
           target.darkDir = null;
           ml.push(`${target.name}の暗闇が晴れた！【呪→解除】`);
+        } else if (target.type === "guard") {
+          ml.push(`${target.name}には暗闇が効かなかった！`);
         } else {
           if (!isStatusImmune(target, ml, target.name)) {
             const _dt = statusTurns("darkness", { kind: "monster", blessed, target });

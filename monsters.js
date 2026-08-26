@@ -14,11 +14,13 @@ import {
 const MONSTER_SPECIAL_RATE = Object.freeze({
   ranged: 0.50,
   status: 0.25,
+  defDown: 0.15,
   steal: 0.50,
   rust: 0.50,
   buff: 0.25,
   barrier: 0.50,
   heal: 0.50,
+  selfDestruct: 0.50,
 });
 const STATUS_WAND_EFFECTS = new Set(["curse_wand", "confuse_wand", "sleep_wand"]);
 
@@ -3677,16 +3679,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (!_warped) m._warpCooldown = 1; /* 失敗したらすぐ再試行 */
     }
   }
-  /* シオン・ザ・ダークブレット：直線上で銃撃 */
+  /* シオン・ザ・ダークブレット：射程内の一直線上なら必ず銃撃 */
   if (m.baseKind === "boss_darkbullet" && !_moveOnly) {
-    const _dbReady = m._rangedAttackThisTurn;
-    if (_dbReady) delete m._rangedAttackThisTurn;
+    delete m._rangedAttackThisTurn;
     const _dbAdx = pl.x - m.x, _dbAdy = pl.y - m.y;
     const _dbLen = Math.max(Math.abs(_dbAdx), Math.abs(_dbAdy));
     const _dbInLine = _dbAdx === 0 || _dbAdy === 0 || Math.abs(_dbAdx) === Math.abs(_dbAdy);
     const _dbLOS = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
-    if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) &&
-        (_dbReady || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.ranged)) {
+    if (_dbLOS && _dbInLine && _dbLen >= 2 && _dbLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       _resolveBolt(m, dg, pl, ml, _luFn, {
         dx: Math.sign(pl.x - m.x), dy: Math.sign(pl.y - m.y),
         baseRange: 10, animColor: "#111111",
@@ -4062,7 +4062,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ===== 爆弾ゴブリン：プレイヤーに隣接すると確率で自爆、失敗時は通常攻撃 ===== */
   if (m.subtype === "kamikaze" && monCanUseExplosiveAbility(m) && !_moveOnly) {
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
-      const _kzChance = (m.monLevel || 1) >= 2 ? 0.50 : 0.25;
+      const _kzChance = (m.monLevel || 1) >= 2 ? MONSTER_SPECIAL_RATE.selfDestruct : MONSTER_SPECIAL_RATE.status;
       if (m.turnAttacks < monEffectiveMaxAttacks(m) && Math.random() < _kzChance) {
         m.turnAttacks++;
         if (isFireExplosionNullified(dg, pl)) return;
@@ -4642,12 +4642,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m))) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m))) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
-      /* defhalf：同部屋で25%防御半減魔法を予約（移動せず攻撃フェーズで発動） */
-      if (m.subtype === "defhalf" && !m.sealed && _sameRoom && _rAtks && Math.random() < MONSTER_SPECIAL_RATE.status) {
+      /* defhalf：同部屋で15%防御半減魔法を予約（移動せず攻撃フェーズで発動） */
+      if (m.subtype === "defhalf" && !m.sealed && _sameRoom && _rAtks && Math.random() < MONSTER_SPECIAL_RATE.defDown) {
         m._defHalfMagicReady = true;
         return;
       }
@@ -5459,7 +5459,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    /* ── defhalf（キラープラスター等）：同部屋で25%防御半減魔法 ── */
+    /* ── defhalf（キラープラスター等）：同部屋で15%防御半減魔法 ── */
     if (m.subtype === "defhalf" && !m.sealed) {
       /* 攻撃フェーズ */
       if (!_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {

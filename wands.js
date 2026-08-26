@@ -1481,6 +1481,10 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "monster") {
+        if (target?.type === "guard") {
+          ml.push(`${target.name}には暗闇が効かなかった！`);
+          break;
+        }
         const _dkBaseTurns = statusTurns("darkness", { kind: "monster", blessed: _dkBlessed, target });
         target.darknessTurns = _dkBaseTurns;
         target.darkDir = null;
