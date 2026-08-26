@@ -4872,14 +4872,13 @@ export function pushEntity(dg, x, y, dx, dy, dist, ml, kind, entity, p, luFn, co
       }
     }
     cx = nx; cy = ny;
-    if (kind === "monster") {
-      entity.x = cx; entity.y = cy;
-      if (drownMonsterIfNeeded(entity, dg, p, ml, luFn)) {
-        return { x: cx, y: cy, consumed: false, killed: true };
-      }
+  }
+  if (kind === "monster") {
+    entity.x = cx; entity.y = cy;
+    if (drownMonsterIfNeeded(entity, dg, p, ml, luFn)) {
+      return { x: cx, y: cy, consumed: false, killed: true };
     }
   }
-  if (kind === "monster") { entity.x = cx; entity.y = cy; }
   else if (kind === "player") {
     entity.x = cx; entity.y = cy;
     if (cx !== x || cy !== y) {
