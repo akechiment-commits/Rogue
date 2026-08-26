@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { setFavoriteFoodBase } from "../items.js";
-import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T } from "../items.js";
+import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T, ITEMS, WEAPON_ABILITIES } from "../items.js";
 import { addOilProofAbility, consumeItemDegradeProtection, soakItemIntoSpring } from "../items.js";
 import "../monsters.js";
 
@@ -31,6 +31,21 @@ describe("会心能力の合成", () => {
     expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe", "critical_cat_claw"] })).toBe(0.75);
     expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe"] }, true)).toBe(0.75);
     expect(weaponCriticalRate({ abilities: ["critical_oni_club", "critical_war_god_axe", "critical_cat_claw"] }, true)).toBe(1);
+  });
+
+  it("3種の会心武器はゲーム内説明を共通化する", () => {
+    const criticalIds = ["critical_oni_club", "critical_war_god_axe", "critical_cat_claw"];
+    const abilityDescs = WEAPON_ABILITIES
+      .filter((ability) => criticalIds.includes(ability.id))
+      .map((ability) => ability.desc);
+    const weaponDescs = [
+      ITEMS.find((item) => item.name === "戦神の斧")?.desc,
+      ONI_CLUB_T.desc,
+      CAT_CLAW_T.desc,
+    ];
+
+    expect(new Set(abilityDescs)).toEqual(new Set(["会心の一撃が出やすくなる"]));
+    expect(new Set(weaponDescs)).toEqual(new Set(["会心の一撃が出やすい武器。"]));
   });
 });
 
