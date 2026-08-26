@@ -347,7 +347,7 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
 }
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
-function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
+function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
   const _cannotEvade = isEvasionDisabledByStatus(pl);
   /* dodge: 25% 完全回避 */
@@ -368,7 +368,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     onPlayerMiss?.(m);
     return;
   }
-  const pdef = calcPlayerDef(pl);
+  const pdef = ignoreDefense ? 0 : calcPlayerDef(pl);
   let dmg = calcAtkDefDmg(m.atk, pdef, { defWeight: 1.5 });
   if (!skipVuln) {
     const vulnPc = findVulnPentacle(dg, pl.x, pl.y);
@@ -381,6 +381,9 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* タトゥーバード: 25%で痛恨の一撃（ダメージ2倍） */
   const _tbCrit = m.subtype === "tattoobird" && Math.random() < 0.25;
   if (_tbCrit) dmg *= 2;
+  /* トロル系: 通常攻撃の25%で痛恨の一撃（ダメージ1.5倍） */
+  const _trollCrit = m.baseKind === "troll" && Math.random() < 0.25;
+  if (_trollCrit) dmg = Math.max(1, Math.floor(dmg * 1.5));
   if (damageMultiplier !== 1) dmg = Math.max(1, Math.floor(dmg * damageMultiplier));
   /* 平和の指輪：受ける近接ダメージ半減 */
   if (hasRingEffect(pl, "peace_ring")) dmg = Math.max(1, Math.floor(dmg / 2));
@@ -393,7 +396,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* 痛恨はダメージ数値の前：〜の攻撃！痛恨の一撃！Nダメージ！ */
   let _hitMsg = msgFn(dmg);
   _hitMsg = _hitMsg.replace(`${dmg}ダメージ！`, `${playerHpEffectLabel(pl, dmg)}！`);
-  if (_tbCrit) _hitMsg = _hitMsg.replace(/(\d+)(ダメージ|回復)！/, "痛恨の一撃！$1$2！");
+  if (criticalLabel || _tbCrit || _trollCrit) _hitMsg = _hitMsg.replace(/(\d+)(ダメージ|回復)！/, "痛恨の一撃！$1$2！");
   if (_fzLbl && !_hitMsg.includes("凍結")) _hitMsg = _hitMsg.replace(/(\d+(?:ダメージ|回復)！)/, `$1${_fzLbl}`);
   ml.push(_hitMsg);
   if (!skipThorn && hasAbility(pl.armor, "thorn") && dmg > 0) {
@@ -781,7 +784,7 @@ export const MONS = [
   /* 長居ペナルティ専用：壁抜け・浮遊。等速・特技なしだが、ミラージュを上回る正面戦闘力と低経験値 */
   { name: "刻限の巨像", hp: 260, atk: 68, def: 30, exp: 20, speed: 1, tile: 57, kind: "beast", baseKind: "timeoutPunisher", monLevel: 1, minFloor: 1, maxFloor: 50, wallWalker: true, float: true, penaltyOnly: true,
     desc: "同一フロアに長居したときだけ現れる。等速で特殊能力はないが、非常に頑丈で攻撃力も高い。" },
-  { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 19 } },
+  { name: "オーク",       hp: 41,  atk: 22, def: 7,  exp: 48,  speed: 1,   tile: 11, kind: "humanoid", baseKind: "orc",           monLevel: 1, minFloor: 14, maxFloor: 26, subtype: "powercharge", desc: "隣接時に力を溜めることがある。力を溜めた次のターンだけ、防御力を無視する痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 13, max: 19 }, advanced: { min: 10, max: 19 } },
     levels: [
       { name: "オーク将",           hp: 65,  atk: 31, def: 12, exp: 77,  dungeonFloors: { advanced: { min: 22, max: 24 } } },
       { name: "オーク王",           hp: 101, atk: 40, def: 16, exp: 120, dungeonFloors: { advanced: { min: 25, max: 26 } } },
@@ -884,7 +887,7 @@ export const MONS = [
       { name: "大催眠術使い",     hp: 114, atk: 40, def: 15, exp: 210, dungeonFloors: { advanced: { min: 32, max: 36 } } },
     ],
   },
-  { name: "トロル",       hp: 68,  atk: 29, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",         monLevel: 1, minFloor: 25, maxFloor: 50, dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
+  { name: "トロル",       hp: 68,  atk: 29, def: 9,  exp: 75,  speed: 1,   tile: 13, kind: "humanoid", baseKind: "troll",         monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "trollcrit", desc: "通常攻撃時に25%で1.5倍ダメージの痛恨の一撃を放つ。", dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "強トロル",           hp: 108, atk: 40, def: 13, exp: 120 },
       { name: "覇トロル",           hp: 169, atk: 53, def: 17, exp: 188 },
@@ -5667,6 +5670,34 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           m.x = _dbNext.x; m.y = _dbNext.y;
         }
       }
+      return;
+    }
+
+    /* オーク系の力溜め：隣接中に行動を消費して予約し、次の1ターンだけ防御無視で攻撃する。 */
+    if (m.baseKind === "orc" && m.powerChargeReady && !_moveOnly) {
+      delete m.powerChargeReady;
+      if (_adjPl && !_plInvis && !m.sealed && !_plOnBlessedSanc &&
+          m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, {
+          ignoreDefense: true,
+          criticalLabel: true,
+          onPlayerHit: _onHit,
+          onPlayerMiss: _onMiss,
+          luFn: _luFn,
+        });
+        return;
+      }
+    }
+    if (m.baseKind === "orc" && m.powerChargeReady && _moveOnly && !_adjPl) {
+      delete m.powerChargeReady;
+    }
+    if (m.baseKind === "orc" && !m.powerChargeReady && !_moveOnly && _adjPl && !_plInvis &&
+        !m.sealed && !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+        (m.alwaysUseSpecial || Math.random() < 0.25)) {
+      m.turnAttacks++;
+      m.powerChargeReady = true;
+      ml.push(`${m.name}が力を溜めた！次の攻撃が痛恨の一撃になる！`);
       return;
     }
 

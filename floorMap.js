@@ -77,6 +77,10 @@ export function getFloorMapMarker(dg, p, x, y) {
   const item = (dg.items || []).find((entry) => entry.x === x && entry.y === y && !entry.wallEmbedded);
   if (item && canShowItem(dg, item, x, y)) return "item";
 
+  const disguisedStair = (dg.traps || []).find((entry) =>
+    entry.x === x && entry.y === y && entry.disguise && !entry.revealed);
+  if (disguisedStair) return "stairs";
+
   const trap = (dg.traps || []).find((entry) => entry.x === x && entry.y === y && entry.revealed);
   if (trap) return trap.effect === "bone" ? "bone" : "trap";
 

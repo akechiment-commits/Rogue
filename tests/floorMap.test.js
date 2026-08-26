@@ -47,4 +47,15 @@ describe("フロアマップ", () => {
     const map = buildFloorMap(dg, makePlayer({ x: 1, y: 1 }));
     expect(map.cells[0]).toMatchObject({ x: 0, y: 0, terrain: "unknown", marker: null });
   });
+
+  it("未判明の偽階段も階段マーカーで表示する", () => {
+    const dg = makeEmptyDg({
+      rooms: [],
+      visible: allKnown(),
+      explored: allKnown(),
+      traps: [{ id: "fake-stair", effect: "fake_stair", disguise: "stair_down", revealed: false, x: 14, y: 1 }],
+    });
+
+    expect(getFloorMapMarker(dg, makePlayer({ x: 1, y: 1 }), 14, 1)).toBe("stairs");
+  });
 });
