@@ -3711,8 +3711,7 @@ export function burnFoodItem(item, ml) {
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
   const _dn = dnFn ? dnFn(item) : resolveItemName(item);
   if (eff === "water" && item.type === "food") {
-    restoreFoodWithWater(item, ml);
-    return;
+    return restoreFoodWithWater(item, ml) ? "changed" : undefined;
   }
   /* 火薬壺は炎で誘爆 */
   if (item.type === "pot" && item.potEffect === "gunpowder" && eff === "fire") return "gunpowder_explode";
@@ -3727,6 +3726,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
       item.spell = null;
       item.desc = "魔法が消えてしまった。魔法の筆(5回分)で好きな魔法書に変えられる。";
       ml.push(`魔法書「${oldName}」の文字が消えた！→白紙の魔法書`);
+      return "changed";
     } else {
       ml.push("白紙の魔法書だ。これ以上変化しない。");
     }
@@ -3743,6 +3743,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
       item.effect = "blank";
       item.desc = "何も書かれていない。魔法の筆で書き込める。";
       ml.push(`巻物「${oldName}」の文字が消えた！→白紙の巻物`);
+      return "changed";
     } else {
       ml.push("白紙の巻物だ。これ以上変化しない。");
     }
@@ -3820,7 +3821,9 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
       const br = applyPotionToItem(eff, val, it, dg, ml, cursed, dnFn);
       if (br === "burn") {
         removeFloorItem(dg, it);
-        chargeShopItem(it, dg, ml);
+        chargeShopItem(it, dg, ml, p);
+      } else if (br === "changed") {
+        chargeShopItem(it, dg, ml, p);
       } else if (br === "gunpowder_explode") {
         removeFloorItem(dg, it);
         doGunpowderExplosion(x, y, dg, p, ml, luFn, resolveItemName(it, dnFn));

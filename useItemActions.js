@@ -9,7 +9,7 @@ import {
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
-  inCursedMagicSealRoom, inMagicSealRoom, killMonster,
+  inCursedMagicSealRoom, inMagicSealRoom, killMonster, chargeShopItem,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
@@ -1494,6 +1494,8 @@ export function useItemActions({
           for (const _sdit of dg.items) {
             if (Math.max(Math.abs(_sdit.x - p.x), Math.abs(_sdit.y - p.y)) > _sdR) continue;
             if (_sdit.type === "pot" && _sdit.potEffect === "gunpowder") continue;
+            /* 自爆の巻物で店の商品へ影響を与えた場合も、破壊・変質前に請求する。 */
+            if (_sdit.shopPrice) chargeShopItem(_sdit, dg, ml, p);
             if (_sdit.type === "scroll" || _sdit.type === "spellbook") {
               _sdBlasted.add(_sdit); ml.push(`巻物「${resolveItemName(_sdit, dnameRef)}」が爆風で燃えてなくなった！`);
             } else if (_sdit.type === "potion") {

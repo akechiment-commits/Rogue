@@ -437,6 +437,38 @@ describe("水の飛散", () => {
     expect(dg.pentacles).toHaveLength(0);
   });
 
+  it("店の商品に水をかけて白紙化すると代金を請求する", () => {
+    const shopkeeper = { id: "water-shopkeeper", state: "friendly" };
+    const shop = {
+      id: "water-shop", shopkeeperId: shopkeeper.id, unpaidTotal: 0,
+      room: { x: 4, y: 4, w: 4, h: 4 },
+    };
+    const scroll = {
+      id: "shop-scroll", type: "scroll", effect: "identify", name: "識別の巻物",
+      x: 5, y: 5, shopPrice: 100, _shopId: shop.id,
+    };
+    const spellbook = {
+      id: "shop-spellbook", type: "spellbook", spell: "fire_bolt", name: "炎の魔法書",
+      x: 6, y: 5, shopPrice: 200, _shopId: shop.id,
+    };
+    const dg = {
+      map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
+      items: [scroll, spellbook], monsters: [shopkeeper], traps: [], pentacles: [],
+      springs: [], bigboxes: [], shops: [shop], pendingBombs: [],
+    };
+    const p = { x: 0, y: 0, rings: [] };
+    const ml = [];
+
+    applyWaterSplash(dg, 5, 5, false, false, ml, p, () => {});
+
+    expect(scroll.effect).toBe("blank");
+    expect(spellbook.spell).toBeNull();
+    expect(shop.unpaidTotal).toBe(300);
+    expect(scroll.shopPrice).toBeUndefined();
+    expect(spellbook.shopPrice).toBeUndefined();
+    expect(ml.filter((message) => message.includes("請求された")).length).toBe(2);
+  });
+
   it("祝福・呪いの水は従来どおり着弾マスだけに作用する", () => {
     const center = { type: "weapon", name: "剣", x: 5, y: 5 };
     const adjacent = { type: "weapon", name: "槍", x: 6, y: 5 };
