@@ -15,7 +15,7 @@ import {
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
-  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles,
+  genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
@@ -4351,7 +4351,43 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             }
           } else {
             /* 武器・防具・矢・その他：物理ダメージ＋矢の特殊効果 */
-            if (item.type === "arrow" && item.bombArrow) {
+            if (item.type === "arrow" && item.specialProjectile === "crawling_bomb") {
+              /* 拡散の大箱：這いずり爆弾は対象マスに接触した扱いで即時爆発 */
+              ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
+              for (const _cbMon of [..._scMons]) {
+                if (!dg.monsters.includes(_cbMon) || _cbMon.hp <= 0) continue;
+                detonateCrawlingBomb(
+                  { name: _idn, kind: "crawling_bomb", x: _cbMon.x, y: _cbMon.y, bundleCount: 1 },
+                  dg, p, ml, lu,
+                  `${_idn}が${_cbMon.name}に触れて爆発した！`,
+                );
+              }
+              if (_scPInRoom) {
+                detonateCrawlingBomb(
+                  { name: _idn, kind: "crawling_bomb", x: p.x, y: p.y, bundleCount: 1 },
+                  dg, p, ml, lu,
+                  `${_idn}が${pl()}に触れて爆発した！`,
+                );
+              }
+              _bbExploded = true;
+            } else if (item.type === "arrow" && item.specialProjectile === "torpedo") {
+              /* 拡散の大箱：魚雷は対象マスに着弾した扱いで即時爆発 */
+              ml.push(`${_idn}が部屋中に拡散してそれぞれ着弾した！`);
+              for (const _torMon of [..._scMons]) {
+                if (!dg.monsters.includes(_torMon) || _torMon.hp <= 0) continue;
+                detonateTorpedo(
+                  { name: _idn, kind: "torpedo", x: _torMon.x, y: _torMon.y, atk: item.atk || 1 },
+                  dg, p, ml, lu, _torMon,
+                );
+              }
+              if (_scPInRoom) {
+                detonateTorpedo(
+                  { name: _idn, kind: "torpedo", x: p.x, y: p.y, atk: item.atk || 1 },
+                  dg, p, ml, lu,
+                );
+              }
+              _bbExploded = true;
+            } else if (item.type === "arrow" && item.bombArrow) {
               /* 爆弾矢（インベントリから入れた）：各生き物の場所でそれぞれ爆発＋箱も破壊 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);

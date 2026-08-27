@@ -5117,7 +5117,7 @@ function specialProjectilePathHitMonster(sp, next, dg, monsterSnapshots = null) 
   return null;
 }
 
-function detonateCrawlingBomb(sp, dg, p, ml, luFn, message) {
+export function detonateCrawlingBomb(sp, dg, p, ml, luFn, message) {
   ml.push(message || `${sp.name}が爆発した！`);
   const _bundleCount = Math.max(1, sp.bundleCount | 0);
   /* 初期の1個は半径1、以降は3個増えるごとに半径を1拡大し、10個以上で半径4。 */
@@ -5128,7 +5128,7 @@ function detonateCrawlingBomb(sp, dg, p, ml, luFn, message) {
   );
 }
 
-function detonateTorpedo(sp, dg, p, ml, luFn, monster = null) {
+export function detonateTorpedo(sp, dg, p, ml, luFn, monster = null) {
   const _inWater = dg.map?.[sp.y]?.[sp.x] === T.WATER;
   const _forceMonster = monster && Math.max(Math.abs(monster.x - sp.x), Math.abs(monster.y - sp.y)) > 1
     ? [monster]
