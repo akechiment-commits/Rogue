@@ -421,6 +421,7 @@ export const ITEMS = [
   { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"B", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
   { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"B", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。", tile:20 },
   { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"B", weight:2,  sellPrice:1500, desc:"浮遊している敵に1.5倍ダメージを与える槍。",   tile:20 },
+  { name:"アサメ",           type:"weapon", atk:2,  ability:"magic_power",  rarity:"B", weight:2,  sellPrice:1800, desc:"魔法・杖・巻物で与えるダメージが1.5倍になる武器。", tile:20 },
   { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical_war_god_axe", rarity:"B", weight:2,  sellPrice:2500, desc:"会心の一撃が出やすい武器。",  tile:20 },
   { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"D", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
   { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"C", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
@@ -542,6 +543,7 @@ export const ALLBANE_SWORD_T  = { name:"万能キラー", type:"weapon", atk:11,
 export const IRONMASS_T       = { name:"鉄塊",       type:"weapon", atk:16, ability:"bane_dragon_2",  sellPrice:10000, desc:"ドラゴン系に2倍ダメージを与える上位特効剣。", tile:20 };
 export const SNIPER_T         = { name:"スナイパー", type:"weapon", atk:12, ability:"bane_float_2",   sellPrice:10000, desc:"浮遊している敵に2倍ダメージを与える上位特効剣。", tile:20 };
 export const GODBANE_SWORD_T  = { name:"全能キラー", type:"weapon", atk:18, ability:"bane_dragon_2", abilities:["bane_dragon_2","bane_undead_2","bane_float_2"], sellPrice:30000, desc:"竜・不死・浮遊の全種族に2倍ダメージを与える上位特効剣。", tile:20 };
+export const MAGIC_BANE_T     = { name:"マジックベーン", type:"weapon", atk:6, ability:"magic_power_2", sellPrice:9000, desc:"魔法・杖・巻物で与えるダメージが2倍になる上位武器。", tile:20 };
 export const DIVINE_SHIELD_T  = { name:"神盾の鎧",   type:"armor",  def:12, ability:"thorn",      abilities:["thorn","dodge","wand_reflect"],           sellPrice:15000, desc:"刃反射・みかわし・杖反射を備えた鎧。",       tile:21 };
 export const GODSPARKWAND_T   = { name:"ゴッドスパークの杖", type:"wand", effect:"godsparkwand", charges:3, rarity:"S", sellPrice:15000, desc:"振ると100ダメージを与える究極の杖。\n呪い：100回復。", tile:24 };
 export const GOBLIN_BAT_T     = { name:"ゴブリンバット", type:"weapon", atk:4, rarity:"D", sellPrice:80, desc:"ゴブリンが持っている粗削りな鈍器。", tile:20 };
@@ -1458,6 +1460,8 @@ export const WEAPON_ABILITIES = [
   { id:"ice_elem_2",      name:"上位氷属性",  desc:"氷弱点の敵に2倍ダメージ（上位特効）" },
   { id:"thunder_elem_2",  name:"上位雷属性",  desc:"雷弱点の敵に2倍ダメージ（上位特効）" },
   { id:"def_bonus",       name:"防御強化",  desc:"装備中、防御力が5上がる" },
+  { id:"magic_power",     name:"魔法強化",  desc:"魔法・杖・巻物で敵に与えるダメージが1.5倍になる" },
+  { id:"magic_power_2",   name:"上位魔法強化", desc:"魔法・杖・巻物で敵に与えるダメージが2倍になる（上位能力）" },
   /* 呪い専用デメリット能力 */
   { id:"recoil",          name:"反動",      desc:"攻撃するたびに自分も2〜4ダメージを受ける",        curseOnly:true },
   { id:"gluttony",        name:"大食い",    desc:"装備中、空腹の進みが2倍になる",                  curseOnly:true },
@@ -6128,6 +6132,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
   }
   const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
   const _lvF = 1 + (lv - 1) * 0.2;
+  const _magicDamage = (amount) => multiplyMagicDamage(amount, p?.weapon);
   switch (eff) {
     case "fire_bolt": {
       if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, "炎の魔法"); break; }
@@ -6141,7 +6146,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           else ml.push(`炎の魔法が${target.name}に当たった！しかし炎を吸収した！`);
           break;
         }
-        const _fbDmg = scaleMonFireDmg(target, dmg);
+        const _fbDmg = scaleMonFireDmg(target, _magicDamage(dmg));
         target.hp -= _fbDmg; ml.push(`炎の魔法が${target.name}に命中！${_fbDmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
@@ -6156,6 +6161,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       const _iceFreeze = statusTurns("immobile", { kind: "monster", target });
       if (kind === "monster") {
         if (target.elemWeak === "ice") dmg = Math.floor(dmg * 1.5);
+        dmg = _magicDamage(dmg);
         target.hp -= dmg;
         target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
         ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
@@ -6173,7 +6179,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           if (consumeBarrier(_lm, ml)) continue;
           const _lcmsB = inCursedMagicSealRoom(_lm.x, _lm.y, dg) ? 2 : 1;
           const _lweak = _lm.elemWeak === "thunder" ? 1.5 : 1;
-          const _ld = Math.round(rng(22, 32) * _lvF * _lweak) * _lcmsB;
+          const _ld = _magicDamage(Math.round(rng(22, 32) * _lvF * _lweak) * _lcmsB);
           _lm.hp -= _ld;
           ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}`);
           if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
@@ -6181,7 +6187,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       }
       if (kind === "monster") {
         /* 後方互換（他から直接呼ばれた場合） */
-        const dmg = Math.round(rng(22, 32) * _lvF) * _cmsBoost;
+        const dmg = _magicDamage(Math.round(rng(22, 32) * _lvF) * _cmsBoost);
         target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
@@ -6270,7 +6276,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "drain_hp": {
       if (kind === "monster") {
-        const _drainAmt = Math.min(target.hp, Math.round(rng(15, 25) * _lvF) * _cmsBoost);
+        const _drainAmt = Math.min(target.hp, _magicDamage(Math.round(rng(15, 25) * _lvF) * _cmsBoost));
         target.hp -= _drainAmt;
         const _healAmt = Math.min(_drainAmt, p.maxHp - p.hp);
         p.hp += _healAmt;
@@ -6434,6 +6440,21 @@ export const RINGS = [
   { name: "平和の指輪",     type:"ring", effect:"peace_ring",             rarity:"D", weight:8,  sellPrice:1200, tile:60, desc:"装備中、近接攻撃の与ダメージが1になり、受ける近接ダメージが半分になる。" },
   { name: "体幹の指輪",     type:"ring", effect:"core_ring",              rarity:"B", weight:2,  sellPrice:3500, tile:60, desc:"装備中、転倒しなくなる。\n敵による吹き飛ばし・引き寄せ・罠への投げつけなど、強制的な移動を防ぐ。" },
 ];
+
+/** 装備中の武器が魔法系ダメージへ与える倍率。上位能力を常に優先する。 */
+export function getWeaponMagicDamageMultiplier(weapon) {
+  const abilities = new Set([
+    ...(weapon?.abilities || []),
+    ...(weapon?.ability ? [weapon.ability] : []),
+  ]);
+  if (abilities.has("magic_power_2")) return 2;
+  if (abilities.has("magic_power")) return 1.5;
+  return 1;
+}
+
+export function multiplyMagicDamage(amount, weapon) {
+  return Math.max(1, Math.round(amount * getWeaponMagicDamageMultiplier(weapon)));
+}
 
 /* 力・守り・命の指輪は、生成時に必ず＋1〜3を持つ。 */
 export function applyGeneratedRingPlus(item, randomFn = Math.random) {

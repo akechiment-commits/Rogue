@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { setFavoriteFoodBase } from "../items.js";
-import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T, ITEMS, WEAPON_ABILITIES } from "../items.js";
+import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T, MAGIC_BANE_T, ITEMS, WEAPON_ABILITIES, getWeaponMagicDamageMultiplier, multiplyMagicDamage } from "../items.js";
 import { addOilProofAbility, consumeItemDegradeProtection, soakItemIntoSpring } from "../items.js";
 import "../monsters.js";
 
@@ -46,6 +46,19 @@ describe("会心能力の合成", () => {
 
     expect(new Set(abilityDescs)).toEqual(new Set(["会心の一撃が出やすくなる"]));
     expect(new Set(weaponDescs)).toEqual(new Set(["会心の一撃が出やすい武器。"]));
+  });
+});
+
+describe("魔法強化武器", () => {
+  it("アサメは魔法系ダメージを1.5倍にし、マジックベーンは2倍を優先する", () => {
+    const asame = ITEMS.find((item) => item.name === "アサメ");
+    expect(asame).toMatchObject({ type: "weapon", atk: 2, ability: "magic_power" });
+    expect(getWeaponMagicDamageMultiplier(asame)).toBe(1.5);
+    expect(multiplyMagicDamage(21, asame)).toBe(32);
+
+    expect(MAGIC_BANE_T).toMatchObject({ type: "weapon", atk: 6, ability: "magic_power_2" });
+    expect(getWeaponMagicDamageMultiplier({ abilities: ["magic_power", "magic_power_2"] })).toBe(2);
+    expect(multiplyMagicDamage(21, MAGIC_BANE_T)).toBe(42);
   });
 });
 

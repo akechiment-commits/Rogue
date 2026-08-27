@@ -14,7 +14,7 @@ import {
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
-  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, itemPrice, removeTrap, removeTraps,
+  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, canCalmShopkeeper,
 } from "./items.js";
@@ -1116,6 +1116,7 @@ export function useItemActions({
             let _dmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
             if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             if (_m.elemWeak === "thunder") _dmg = Math.round(_dmg * 1.5);
+            _dmg = multiplyMagicDamage(_dmg, p.weapon);
             _m.hp -= _dmg;
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${_m.elemWeak === "thunder" ? "雷弱点！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
@@ -1154,8 +1155,9 @@ export function useItemActions({
               continue;
             }
             if (consumeBarrier(_m, ml)) continue;
-            _m.hp -= _rdmg;
-            ml.push(`呪いのエネルギーが${_m.name}を直撃！${_rdmg}ダメージ！`);
+            const _monsterDmg = multiplyMagicDamage(_rdmg, p.weapon);
+            _m.hp -= _monsterDmg;
+            ml.push(`呪いのエネルギーが${_m.name}を直撃！${_monsterDmg}ダメージ！`);
             pushExplosionAnim(_m.x, _m.y);
             if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }
@@ -1176,7 +1178,7 @@ export function useItemActions({
             }
             if (_m.kind === "undead") {
               if (consumeBarrier(_m, ml)) continue;
-              const _ud = Math.min(_rh, _m.hp);
+              const _ud = Math.min(multiplyMagicDamage(_rh, p.weapon), _m.hp);
               _m.hp -= _ud; ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
               if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
               continue;
@@ -1382,7 +1384,7 @@ export function useItemActions({
             if (_m.elemWeak === "fire") _flDmg = Math.round(_flDmg * 1.5);
             const _flOily = _flOilyCheck(_m);
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
-            _flDmg = scaleMonFireDmg(_m, _flDmg);
+            _flDmg = scaleMonFireDmg(_m, multiplyMagicDamage(_flDmg, p.weapon));
             _m.hp -= _flDmg;
             ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_m.elemWeak === "fire" ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${monFireDmgLabel(_m)}${it.blessed ? "（祝福）" : ""}`);
             pushExplosionAnim(_m.x, _m.y);
@@ -1476,7 +1478,7 @@ export function useItemActions({
                 if (_m.baseKind === "firedemon") { ml.push(`${_m.name}には爆発が効かない！（炎無効）`); continue; }
                 pushExplosionAnim(_ax, _ay);
                 if (_m.isBoss) {
-                  const _sdBd = Math.max(1, Math.floor(_m.hp / 4));
+                  const _sdBd = multiplyMagicDamage(Math.max(1, Math.floor(_m.hp / 4)), p.weapon);
                   _m.hp -= _sdBd;
                   ml.push(`爆発で${_m.name}は${_sdBd}ダメージ！`);
                   if (_m.hp <= 0) { _sdKilled.add(_m); trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
@@ -3452,7 +3454,7 @@ export function useItemActions({
                 if (Math.max(Math.abs(_fem.x - _fbLand.x), Math.abs(_fem.y - _fbLand.y)) > 1) continue;
                 /* 直撃タイルのモンスターは直撃ダメージ済み（爆弾矢と同様に爆風も当てる） */
                 if (consumeBarrier(_fem, ml)) continue;
-                const _fmd = Math.round(rng(8, 14) * _fbLvF);
+                const _fmd = multiplyMagicDamage(Math.round(rng(8, 14) * _fbLvF), p.weapon);
                 _fem.hp -= _fmd;
                 ml.push(`爆風で${_fem.name}に${_fmd}ダメージ！`);
                 if (_fem.hp <= 0) killMonster(_fem, dg, p, ml, lu);

@@ -17,7 +17,7 @@ import {
   WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER,
   CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T,
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
-  ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T,
+  ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T,
   TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T,
   GOBLIN_BAT_T, ONI_CLUB_T,
   GODSPARKWAND_T,
@@ -46,6 +46,8 @@ const GUIDE_DESC_OVERRIDES = {
   "錬成の巻物": "武器・防具にランダムな能力を付与する。識別済みなら武器・防具だけを候補にするが、未識別の巻物は金貨と使用中の巻物自身を除く全アイテムを候補に表示する。武器・防具以外を選ぶと効果なしで巻物だけ消費する。",
   "吸い出しの巻物": "壺の中身を足元へ吸い出す。識別済みなら壺だけを候補にするが、未識別の巻物は金貨と使用中の巻物自身を除く全アイテムを候補に表示する。壺以外を選ぶと効果なしで巻物だけ消費する。",
   "空き瓶": "泉に浸すと水に変化し、祝福／呪い状態も引き継ぐ。\n投げると命中・ミス・壁への着弾を問わず割れて消滅する。敵に空き瓶をぶつけて投擲ダメージで倒すと、通常の薬一覧からレア度weightによる抽選で1つが敵の足元に出現する（通常はweight抽選、10%の運枠ではD以上から抽選）。",
+  "アサメ": "攻撃力2。装備中、魔法・杖・巻物で敵に与えるダメージが1.5倍になる。アサメ3本を合成するとマジックベーンになる。",
+  "マジックベーン": "攻撃力6。装備中、魔法・杖・巻物で敵に与えるダメージが2倍になる。アサメの1.5倍能力を持っていても上位能力に置き換わり、両方は同時に発動しない。",
   "水": "飲むと満腹度+3。祝福して飲むと所持品（薬など消費前の水自身を除く）から1つをランダムに祝福し、壺なら容量を1増やす。呪われて飲むと所持品1つをランダムに呪い、壺なら容量を1減らす。\n通常：投げると薬と同じ着弾点中心3×3に飛散する。対象の回復、罠・魔方陣・時限爆弾への共通薬液処理、巻物／魔法書への水濡れ処理も通常の薬と同じ。範囲内の腐った・焦げた・ヤバイ食料を元に戻す（腐敗で失われた祝福・呪い・壺味・特殊効果は戻らない）。調理済み食料は「焼いた」を付けず、調理済み本来の名前に戻る。店の商品を変化させた場合は代金を請求して値札を外す。\n祝福／呪いを投げた場合は食料を戻す飛散を行わず、着弾マスのアイテム1つだけを祝福／呪いにする。",
   "回復薬": "飲むとHP30回復。祝福はHP60回復、呪いはHP30ダメージ。HP満タン時は最大HP+1（祝福+2）。投げて浴びせた場合も通常・祝福・呪いの数値を同じように適用する。",
   "大回復薬": "飲むとHP60回復。祝福はHP120回復、呪いはHP60ダメージ。HP満タン時は最大HP+2（祝福+4）。投げて浴びせた場合も同じ数値を適用する。",
@@ -419,7 +421,7 @@ const _armors  = ITEMS.filter(i => i.type === 'armor');
 const _specialWeapons = [
   CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, GOBLIN_BAT_T, ONI_CLUB_T,
   TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T,
-  ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T,
+  ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T,
 ];
 const _specialArmors  = [TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T];
 

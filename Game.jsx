@@ -14,7 +14,7 @@ import {
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
-  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
+  CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles,
   makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, placeItemAt, pickLootFromPool,
@@ -1242,25 +1242,25 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               if (hasGravityPentacle(dg, pl.x, pl.y)) { mlx.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); return; }
-              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, null, null, false);
               if (pl.sleepTurns > 0) { pl.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
               if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; mlx.push("衝撃で金縛りが解けた！"); }
             },
             onMonsterHit: (mon, mlx) => {
-              applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, m);
+              applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, m, null, false);
               if (mon.hp <= 0) { trackMonster(mon); killMonster(mon, dg, pl, mlx, lu, false, m); }
             },
             onWallReflect: (mlx) => {
               mlx.push(`吹き飛ばしの魔法弾が壁に跳ね返り${m.name}に命中！`);
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, null, null, false);
               if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, mlx, lu); }
             },
             onMagicReflect: (refl, mlx) => {
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, null, null, false);
               if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, mlx, lu); }
             },
             onPlayerReflect: (mlx) => {
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, pl.atk || 3);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, pl.atk || 3, null, null, false);
               if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, pl, mlx, lu); }
             },
             onItem: (it, mlx) => {
@@ -3799,6 +3799,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _superBanePairs = [
         ["bane_undead", "bane_undead_2"], ["bane_dragon", "bane_dragon_2"], ["bane_float", "bane_float_2"],
         ["fire_elem", "fire_elem_2"], ["ice_elem", "ice_elem_2"], ["thunder_elem", "thunder_elem_2"],
+        ["magic_power", "magic_power_2"],
       ];
       const _mabs = _mabsRaw.filter(a => !_superBanePairs.some(([n, s]) => a === n && _mabsRaw.includes(s)));
       const merged = {
@@ -3884,6 +3885,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       } else {
         delete merged.trielemMerge;
       }
+      /* アサメマージカウント */
+      if (base.name === "アサメ" && mat.name === "アサメ") {
+        merged.asameMerge = (base.asameMerge || 1) + (mat.asameMerge || 1);
+      } else {
+        delete merged.asameMerge;
+      }
       /* pickaxe能力を持つ場合、耐久値を加算（両方穴掘りなら合計、片方のみなら引き継ぎ） */
       if (_mabs.includes("pickaxe")) {
         const _baseDura = base.durability ?? (hasAbility(base, "pickaxe") ? 30 : 0);
@@ -3959,6 +3966,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         bb.contents.push(_ultima);
         bb.capacity = bb.contents.length;
         ml.push("合成完了！三元の刃3本が融合してアルテマソードに変化した！");
+      /* アサメ3本→マジックベーン */
+      } else if (merged.asameMerge >= 3) {
+        const _magicAbs = [...new Set([..._mabs.filter(a => a !== "magic_power" && a !== "magic_power_2"), MAGIC_BANE_T.ability])];
+        const _magicBane = { ...MAGIC_BANE_T, id: uid(), plus: merged.plus, ability: _magicAbs[0], abilities: _magicAbs };
+        bb.contents.push(_magicBane);
+        bb.capacity = bb.contents.length;
+        ml.push("合成完了！アサメ3本が融合してマジックベーンに変化した！");
       /* 三元素武器：炎・氷・雷属性をすべて持つなら三元の刃に変化（ベースが属性剣のみ） */
       } else if (merged.type === "weapon" &&
                  (base.name === "炎の剣" || base.name === "氷の剣" || base.name === "雷の剣") &&

@@ -46,6 +46,19 @@ describe("applyWandEffect", () => {
     expect(weak.immobileTurns).toBe(5);
   });
 
+  it("アサメは杖のダメージも1.5倍にする", () => {
+    const normal = { name: "スライム", hp: 200, maxHp: 200, x: 6, y: 5, atk: 3 };
+    const boosted = { name: "スライム", hp: 200, maxHp: 200, x: 7, y: 5, atk: 3 };
+    const normalPlayer = makePlayer();
+    const asamePlayer = makePlayer({ weapon: { name: "アサメ", type: "weapon", atk: 2, ability: "magic_power" } });
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    applyWandEffect("lightning", "monster", normal, 1, 0, dg, normalPlayer, [], noop);
+    applyWandEffect("lightning", "monster", boosted, 1, 0, dg, asamePlayer, [], noop);
+    expect(200 - normal.hp).toBe(20);
+    expect(200 - boosted.hp).toBe(30);
+    vi.restoreAllMocks();
+  });
+
   it("呪われた鈍足の杖はプレイヤーを加速させる", () => {
     const p = makePlayer();
     const ml = [];
