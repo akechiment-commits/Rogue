@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
+import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
 import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T, MAGIC_BANE_T, ITEMS, WEAPON_ABILITIES, getWeaponMagicDamageMultiplier, multiplyMagicDamage, getCursedMagicSealDamageMultiplier, multiplyCursedMagicDamage } from "../items.js";
 import { addOilProofAbility, consumeItemDegradeProtection, soakItemIntoSpring } from "../items.js";
@@ -84,6 +85,51 @@ describe("魔法強化武器", () => {
     applySpellEffect("fire_bolt", "monster", target, 1, 0, dg, p, [], () => {});
     expect(200 - target.hp).toBe(40);
     vi.restoreAllMocks();
+  });
+});
+
+describe("投擲命中の共通処理", () => {
+  it("空き瓶で敵を倒すと薬が残り、装備種別ごとの威力を使う", () => {
+    const p = makePlayer({ atk: 10 });
+    const target = { name: "弱い敵", hp: 1, maxHp: 1, def: 0, exp: 1, x: 7, y: 5 };
+    const dg = makeEmptyDg({ monsters: [target] });
+    const ml = [];
+
+    const hit = applyThrownItemToMonster(
+      { name: "空き瓶", type: "bottle" }, target, dg, p, ml, null,
+    );
+
+    expect(hit.killed).toBe(true);
+    expect(dg.monsters).not.toContain(target);
+    expect(dg.items.some((item) => item.type === "potion")).toBe(true);
+    expect(thrownItemAttack({ type: "armor", def: 7, plus: 2 })).toBe(9);
+    expect(thrownItemAttack({ type: "ring" })).toBe(1);
+    expect(thrownItemAttack({ type: "scroll" })).toBe(1);
+    expect(thrownItemAttack({ type: "bottle" })).toBe(3);
+  });
+
+  it("防具・指輪・巻物の命中は共通の投擲計算になる", () => {
+    const p = makePlayer({ atk: 10 });
+    const dg = makeEmptyDg();
+    const damages = [];
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      for (const item of [
+        { name: "防具", type: "armor", def: 7, plus: 2 },
+        { name: "指輪", type: "ring" },
+        { name: "巻物", type: "scroll" },
+      ]) {
+        const target = { name: item.name, hp: 100, maxHp: 100, def: 0, x: 7, y: 5 };
+        dg.monsters.push(target);
+        const ml = [];
+        applyThrownItemToMonster(item, target, dg, p, ml, null);
+        damages.push(100 - target.hp);
+      }
+    } finally {
+      randomSpy.mockRestore();
+    }
+    expect(damages[0]).toBeGreaterThan(damages[1]);
+    expect(damages[1]).toBe(damages[2]);
   });
 });
 

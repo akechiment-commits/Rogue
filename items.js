@@ -3158,6 +3158,83 @@ export function thrownItemAttack(item) {
   return 3;
 }
 
+/**
+ * 投擲物がモンスターに命中したときの共通処理。
+ * 拡散の大箱・通常投擲・敵のアイテム投げで、ダメージと追加効果が
+ * 別々に実装されて再び食い違わないようにする。
+ */
+export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) {
+  if (!item || !mon || !dg) return { blocked: false, killed: false };
+  const {
+    nameFn = null,
+    killerMon = null,
+    hitMessage = (target, dmg) => `${resolveItemName(item, nameFn)}が${target.name}に命中！${dmg}ダメージ！`,
+    onKilled = null,
+  } = opts;
+  weakenOrClearParalysis(mon, ml);
+  if (consumeBarrier(mon, ml)) return { blocked: true, killed: false };
+
+  const dmg = clampDmgFixed(mon, calcProjectileDmg(p, thrownItemAttack(item), mon.def), true);
+  mon.hp -= dmg;
+  ml.push(hitMessage(mon, dmg));
+
+  /* 毒矢：命中時の毒付与と攻撃力半減も通常投擲と同じにする。 */
+  if (item.type === "arrow" && item.poison) {
+    if (mon.isBoss) {
+      if (!mon.bossPoisonHalfAtk) {
+        mon.bossPoisonOrigAtk = mon.atk;
+        mon.bossPoisonHalfAtk = true;
+        mon.bossPoisonHalfAtkTurns = monsterStatusTurns(10, mon);
+      }
+      mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+    } else {
+      mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+    }
+    ml[ml.length - 1] += "攻撃力が半減した！";
+  }
+
+  /* ヤバイ食料：追加ダメージ＋毒・混乱・幻惑・鈍足。 */
+  if (item.type === "food" && item.yabai && mon.hp > 0) {
+    const _yDmg = rng(15, 25);
+    mon.hp -= _yDmg;
+    ml.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
+    if (mon.hp > 0) {
+      const _yPoisonT = statusTurns("poison", { kind: "monster", target: mon });
+      const _yConfuseT = statusTurns("confuse", { kind: "monster", target: mon });
+      const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: mon });
+      mon.poisoned = true;
+      mon.poisonedTurns = Math.max(mon.poisonedTurns || 0, _yPoisonT);
+      mon.confusedTurns = (mon.confusedTurns || 0) + _yConfuseT;
+      mon.fleeingTurns = (mon.fleeingTurns || 0) + _yBewitchT;
+      if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
+      mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
+      const _ySlowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
+      if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
+      ml.push(`${mon.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！`);
+    }
+  }
+
+  /* 腐った／焦げた食料：攻撃力半減（ヤバイ食料を除く）。 */
+  if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && mon.hp > 0) {
+    mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
+    ml.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
+  }
+
+  const killed = mon.hp <= 0;
+  if (killed) {
+    onKilled?.(mon);
+    killMonster(mon, dg, p, ml, luFn, false, killerMon);
+    /* 空き瓶は、敵を倒したときだけランダムな薬に変わる。 */
+    if (item.type === "bottle") {
+      const _bottleDrop = makeRandomPotion();
+      const _bottleFt = new Set();
+      placeItemAt(dg, mon.x, mon.y, _bottleDrop, ml, _bottleFt, 0, p);
+      ml.push(`${mon.name}の足元に${resolveItemName(_bottleDrop, nameFn)}が残った！`);
+    }
+  }
+  return { blocked: false, killed };
+}
+
 export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
   let r = c;
   for (const i of inv) {
@@ -4616,45 +4693,11 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
         return;
       }
-      weakenOrClearParalysis(mon, mlx);
-      const dmg = _isPot ? _potDmg(mon.def) : _projDmg(mon.def);
-      mon.hp -= dmg;
-      mlx.push(_isPot ? potHitMsg(mon, dmg) : monHitMsg(mon, dmg));
-      /* ヤバイ食料：追加ダメ+状態異常複合 */
-      if (item.type === "food" && item.yabai && mon.hp > 0) {
-        const _yDmg = rng(15, 25);
-        mon.hp -= _yDmg;
-        mlx.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
-        if (mon.hp > 0) {
-          const _yPoisonT = statusTurns("poison", { kind: "monster", target: mon });
-          const _yConfuseT = statusTurns("confuse", { kind: "monster", target: mon });
-          const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: mon });
-          mon.poisoned = true;
-          mon.poisonedTurns = Math.max(mon.poisonedTurns || 0, _yPoisonT);
-          mon.confusedTurns = (mon.confusedTurns || 0) + _yConfuseT;
-          mon.fleeingTurns = (mon.fleeingTurns || 0) + _yBewitchT;
-          if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
-          mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
-          const _ySlowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
-          if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
-          mlx.push(`${mon.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！`);
-        }
-      }
-      /* 腐/焦げ食料（非ヤバイ）：攻撃力半減 */
-      if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && mon.hp > 0) {
-        mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
-        mlx.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${mon.name}の攻撃力が半減した！`);
-      }
-      if (mon.hp <= 0) {
-        killMonster(mon, dg, p, mlx, luFn, false, killerMon);
-        if (item.type === "bottle") {
-          const _bottleDrop = makeRandomPotion();
-          const _bottleFt = new Set();
-          placeItemAt(dg, mon.x, mon.y, { ..._bottleDrop, id: uid() }, mlx, _bottleFt, 0, p);
-          const _dropNm = resolveItemName(_bottleDrop, nameFn);
-          mlx.push(`${mon.name}の足元に${_dropNm}が残った！`);
-        }
-      }
+      applyThrownItemToMonster(item, mon, dg, p, mlx, luFn, {
+        nameFn,
+        killerMon,
+        hitMessage: _isPot ? potHitMsg : monHitMsg,
+      });
       res.consumed = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
     },
     customPlHit: (mlx) => {

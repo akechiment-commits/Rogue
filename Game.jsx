@@ -24,12 +24,12 @@ import {
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
   hasLightningResist, reduceLightningDamage, lightningResistDamageLabel, ELEM_RESIST_ABILITIES, consumeItemDegradeProtection,
-  applyPotionEffect, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
+  applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
   tickBubbleGold, getFixtureItemDeps,
 } from "./items.js";
-import { applyWandEffect, monsterFireLightning } from "./wands.js";
+import { applyWandEffect, triggerWandBreakEffect, monsterFireLightning } from "./wands.js";
 import { fireTrapPlayer } from "./traps.js";
 import { statueAt, hitStatueWithAction } from "./fixtures.js";
 import { genDungeon, genDebugDungeon, genDebugDungeonFloor2, genDebugFloorByDepth, triggerMonsterHouse, prepareLastFloor, getLastFloorGoalPosition, genTreasureRoom, genTutorialFloor, GOAL_ITEMS } from "./dungeon.js";
@@ -4213,6 +4213,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ? dg.monsters.filter(m => m.x >= _scRoom.x && m.x < _scRoom.x + _scRoom.w && m.y >= _scRoom.y && m.y < _scRoom.y + _scRoom.h)
           : [];
         const _scPInRoom = _scRoom && p.x >= _scRoom.x && p.x < _scRoom.x + _scRoom.w && p.y >= _scRoom.y && p.y < _scRoom.y + _scRoom.h;
+        const _scDnFn = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
         if (_scMons.length === 0 && !_scPInRoom) {
           ml.push("しかし部屋には誰もいなかった。");
         } else {
@@ -4224,16 +4225,40 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             }
             if (_scPInRoom) applyPotionEffect(item.effect, item.value || 0, "player", p, dg, p, ml, lu, item.blessed || false, item.cursed || false);
           } else if (item.type === "wand") {
-            const _scBm = getBlessMultiplier(item);
-            const _scDnFn = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
             for (const m of [..._scMons]) {
               const _sdx = Math.sign(m.x - bb.x), _sdy = Math.sign(m.y - bb.y);
-              applyWandEffect(item.effect, "monster", m, _sdx || 1, _sdy, dg, p, ml, lu, bigboxAddItem, _scBm, _scDnFn);
-              if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+              if (!dg.monsters.includes(m) || m.hp <= 0) continue;
+              ml.push(`${_idn}が${m.name}に命中！`);
+              triggerWandBreakEffect({
+                type: "wand", effect: item.effect, charges: item.charges ?? 0,
+                blessed: !!item.blessed, cursed: !!item.cursed, name: item.name,
+              }, m.x, m.y, dg, p, ml, lu, {
+                singleTargetKind: "monster", singleTarget: m,
+                effectDx: _sdx || 1, effectDy: _sdy,
+                identSet: sr.current?.ident,
+                identState: sr.current,
+                trackItemFn: trackItem,
+                trackBigboxFn: trackBigbox,
+                nameFn: _scDnFn,
+                bigboxNameFn: (bx) => bbDisplayName(bx, sr.current),
+              });
             }
             if (_scPInRoom) {
               const _sdx = Math.sign(p.x - bb.x), _sdy = Math.sign(p.y - bb.y);
-              applyWandEffect(item.effect, "player", p, _sdx || 1, _sdy, dg, p, ml, lu, bigboxAddItem, _scBm, _scDnFn);
+              ml.push(`${_idn}が${pl()}に命中！`);
+              triggerWandBreakEffect({
+                type: "wand", effect: item.effect, charges: item.charges ?? 0,
+                blessed: !!item.blessed, cursed: !!item.cursed, name: item.name,
+              }, p.x, p.y, dg, p, ml, lu, {
+                singleTargetKind: "player", singleTarget: p,
+                effectDx: -(_sdx || 1), effectDy: -_sdy,
+                identSet: sr.current?.ident,
+                identState: sr.current,
+                trackItemFn: trackItem,
+                trackBigboxFn: trackBigbox,
+                nameFn: _scDnFn,
+                bigboxNameFn: (bx) => bbDisplayName(bx, sr.current),
+              });
             }
           } else if (item.type === "pot") {
             /* 壺：種類に応じた破壊効果（中身は散乱しない） */
@@ -4288,10 +4313,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               ml.push(`${_idn}が割れた！`);
               releaseConfinedMonstersFromPot(item, dg, bb.x, bb.y, p, ml);
             } else {
-              const _potDmg = 3 + rng(0, 3);
+              const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
               const _healPotAmt = item.potEffect === "heal_pot" ? Math.max(0, (item.capacity || 3) - (item.contents?.length || 0)) * 100 : 0;
               for (const m of [..._scMons]) {
-                const _itd = clampDmgFixed(m, _potDmg, true);
+                if (consumeBarrier(m, ml)) continue;
+                const _itd = clampDmgFixed(m, _potDmg(m.def), true);
                 m.hp -= _itd;
                 ml.push(`${_idn}が${m.name}に命中！${_itd}ダメージ！`);
                 if (_healPotAmt > 0) {
@@ -4312,8 +4338,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               }
               if (_scPInRoom) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
-                p.hp -= _potDmg;
-                ml.push(`${_idn}が${pl()}に命中！${_potDmg}ダメージ！`);
+                const _scPotPlayerDmg = _potDmg(0);
+                p.hp -= _scPotPlayerDmg;
+                ml.push(`${_idn}が${pl()}に命中！${_scPotPlayerDmg}ダメージ！`);
                 if (_healPotAmt > 0) {
                   const _prevHp = p.hp;
                   p.hp = Math.min(p.maxHp, p.hp + _healPotAmt);
@@ -4324,12 +4351,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             }
           } else {
             /* 武器・防具・矢・その他：物理ダメージ＋矢の特殊効果 */
-            const _scBaseAtk = item.type === "weapon" ? (item.atk || 3) + (item.plus || 0) : (item.type === "arrow" ? (item.atk || 3) : 3);
-            const _scUseCalc = item.type === "arrow" || item.type === "weapon";
             if (item.type === "arrow" && item.bombArrow) {
               /* 爆弾矢（インベントリから入れた）：各生き物の場所でそれぞれ爆発＋箱も破壊 */
               ml.push(`${_idn}が部屋中に拡散してそれぞれ爆発した！`);
               const _baNF = (gi) => itemDisplayName(gi, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              for (const _baMon of [..._scMons]) {
+                if (!dg.monsters.includes(_baMon) || _baMon.hp <= 0) continue;
+                applyThrownItemToMonster(item, _baMon, dg, p, ml, lu, {
+                  nameFn: _baNF,
+                  hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
+                  onKilled: trackMonster,
+                });
+              }
               if (!isFireExplosionNullified(dg, p)) {
                 for (const _baMon of [..._scMons]) {
                   doExplosion(_baMon.x, _baMon.y, dg, p, ml, _baNF, `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}の爆発`, null, lu, false, false, false, false, { projectileAtk: item.atk || 6 });
@@ -4343,46 +4376,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               _bbExploded = true;
             } else {
               for (const m of [..._scMons]) {
-                const _scRawDmg = _scUseCalc ? calcProjectileDmg(p, _scBaseAtk, m.def) : _scBaseAtk + rng(0, 3);
-                const _itd = clampDmgFixed(m, _scRawDmg, true);
-                m.hp -= _itd;
-                let _msg = `${_idn}が${m.name}に命中！${_itd}ダメージ！`;
-                if (item.type === "arrow" && item.poison) {
-                  if (m.isBoss) {
-                    if (!m.bossPoisonHalfAtk) { m.bossPoisonOrigAtk = m.atk; m.bossPoisonHalfAtk = true; m.bossPoisonHalfAtkTurns = monsterStatusTurns(10, m); }
-                    m.atk = Math.max(1, Math.floor(m.atk / 2));
-                  } else {
-                    m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-                  }
-                  _msg += "攻撃力が半減した！";
-                }
-                ml.push(_msg);
-                if (item.type === "food" && item.yabai && m.hp > 0) {
-                  const _yScDmg = rng(15, 25);
-                  m.hp -= _yScDmg;
-                  ml.push(`ヤバイ食料が${m.name}に食べさせられた！さらに${_yScDmg}ダメージ！`);
-                  if (m.hp > 0) {
-                    const _yPoisonT = statusTurns("poison", { kind: "monster", target: m });
-                    const _yConfuseT = statusTurns("confuse", { kind: "monster", target: m });
-                    const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: m });
-                    const _ySlowT = statusTurns("slow", { kind: "monster", target: m });
-                    m.poisoned = true;
-                    m.poisonedTurns = Math.max(m.poisonedTurns || 0, _yPoisonT);
-                    m.confusedTurns = (m.confusedTurns || 0) + _yConfuseT;
-                    m.fleeingTurns = (m.fleeingTurns || 0) + _yBewitchT;
-                    m.slowTurns = (m.slowTurns || 0) + _ySlowT;
-                    ml.push(`${m.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足(${_ySlowT}ターン)状態になった！`);
-                  }
-                }
-                if (item.type === "food" && (item.rotten || item.burnt) && !item.yabai && m.hp > 0) {
-                  m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
-                  ml.push(`${item.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
-                }
-                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+                if (!dg.monsters.includes(m) || m.hp <= 0) continue;
+                applyThrownItemToMonster(item, m, dg, p, ml, lu, {
+                  nameFn: _scDnFn,
+                  hitMessage: (target, dmg) => `${_idn}が${target.name}に命中！${dmg}ダメージ！`,
+                  onKilled: trackMonster,
+                });
               }
               if (_scPInRoom) {
                 p.deathCause = `${itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}が当たって`;
-                const _scPDmg = _scUseCalc ? calcProjectileDmg(p, _scBaseAtk, 0) : _scBaseAtk + rng(0, 3);
+                const _scPDmg = calcProjectileDmg(p, thrownItemAttack(item), 0);
                 p.hp -= _scPDmg;
                 let _pmsg = `${_idn}が${pl()}に命中！${_scPDmg}ダメージ！`;
                 if (item.type === "arrow" && item.poison && !hasRingEffect(p, "antidote_ring")) {
