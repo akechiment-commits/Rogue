@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { setFavoriteFoodBase } from "../items.js";
-import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T, MAGIC_BANE_T, ITEMS, WEAPON_ABILITIES, getWeaponMagicDamageMultiplier, multiplyMagicDamage } from "../items.js";
+import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T, MAGIC_BANE_T, ITEMS, WEAPON_ABILITIES, getWeaponMagicDamageMultiplier, multiplyMagicDamage, getCursedMagicSealDamageMultiplier, multiplyCursedMagicDamage } from "../items.js";
 import { addOilProofAbility, consumeItemDegradeProtection, soakItemIntoSpring } from "../items.js";
 import "../monsters.js";
 
@@ -59,6 +59,31 @@ describe("魔法強化武器", () => {
     expect(MAGIC_BANE_T).toMatchObject({ type: "weapon", atk: 6, ability: "magic_power_2" });
     expect(getWeaponMagicDamageMultiplier({ abilities: ["magic_power", "magic_power_2"] })).toBe(2);
     expect(multiplyMagicDamage(21, MAGIC_BANE_T)).toBe(42);
+  });
+
+  it("呪われた魔封じの魔方陣の倍率を共通処理で判定する", () => {
+    const dg = {
+      rooms: [{ x: 1, y: 1, w: 5, h: 5 }],
+      pentacles: [{ kind: "magic_seal", cursed: true, x: 2, y: 2 }],
+    };
+    const target = { x: 3, y: 3 };
+    expect(getCursedMagicSealDamageMultiplier(target, dg)).toBe(2);
+    expect(multiplyCursedMagicDamage(21, target, dg)).toBe(42);
+    expect(multiplyMagicDamage(21, { ability: "magic_power" }, target, dg)).toBe(63);
+    expect(multiplyMagicDamage(21, { ability: "magic_power_2" }, target, dg)).toBe(84);
+  });
+
+  it("呪われた魔封じの魔方陣は魔法の直撃ダメージにも適用される", () => {
+    const dg = {
+      rooms: [{ x: 1, y: 1, w: 5, h: 5 }],
+      pentacles: [{ kind: "magic_seal", cursed: true, x: 2, y: 2 }],
+    };
+    const target = { name: "スライム", hp: 200, maxHp: 200, x: 3, y: 3, atk: 3 };
+    const p = { hp: 100, maxHp: 100, weapon: null };
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    applySpellEffect("fire_bolt", "monster", target, 1, 0, dg, p, [], () => {});
+    expect(200 - target.hp).toBe(40);
+    vi.restoreAllMocks();
   });
 });
 

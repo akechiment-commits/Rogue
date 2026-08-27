@@ -421,9 +421,9 @@ export const ITEMS = [
   { name:"ドラゴンキラー",   type:"weapon", atk:8,  ability:"bane_dragon",   rarity:"B", weight:2,  sellPrice:2500, desc:"ドラゴン系に1.5倍ダメージを与える特効剣。",         tile:20 },
   { name:"ゾンビキラー",     type:"weapon", atk:6,  ability:"bane_undead",   rarity:"B", weight:2,  sellPrice:2000, desc:"アンデッド系に1.5倍ダメージを与える聖剣。", tile:20 },
   { name:"バードキラー",     type:"weapon", atk:5,  ability:"bane_float",    rarity:"B", weight:2,  sellPrice:1500, desc:"浮遊している敵に1.5倍ダメージを与える槍。",   tile:20 },
-  { name:"アサメ",           type:"weapon", atk:2,  ability:"magic_power",  rarity:"B", weight:2,  sellPrice:1800, desc:"魔法・杖・巻物で与えるダメージが1.5倍になる武器。", tile:20 },
-  { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical_war_god_axe", rarity:"B", weight:2,  sellPrice:2500, desc:"会心の一撃が出やすい武器。",  tile:20 },
-  { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"D", weight:8, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
+  { name:"アサメ",           type:"weapon", atk:2,  ability:"magic_power",  rarity:"A", weight:1,  sellPrice:1800, desc:"魔法・杖・巻物で与えるダメージが1.5倍になる武器。", tile:20 },
+  { name:"戦神の斧",         type:"weapon", atk:8,  ability:"critical_war_god_axe", rarity:"A", weight:1,  sellPrice:2500, desc:"会心の一撃が出やすい武器。",  tile:20 },
+  { name:"つるはし",         type:"weapon", atk:4,  ability:"pickaxe", durability:30, rarity:"C", weight:4, sellPrice:250, desc:"壁を掘れる。使い過ぎると壊れる。", tile:20 },
   { name:"影縫いの刃",       type:"weapon", atk:6,  ability:"inflict_immobile", rarity:"C", weight:4, sellPrice:1200, desc:"攻撃時25%の確率で敵の移動を2〜3ターン封じる。", tile:20 },
   { name:"炎の剣",           type:"weapon", atk:7,  ability:"fire_elem",     rarity:"C", weight:4,  sellPrice:1500, desc:"炎属性の剣。油まみれ・炎弱点の敵に1.5倍ダメージ。", tile:20 },
   { name:"氷の剣",           type:"weapon", atk:7,  ability:"ice_elem",      rarity:"C", weight:4,  sellPrice:1500, desc:"氷属性の剣。氷弱点の敵に1.5倍ダメージ。",     tile:20 },
@@ -435,8 +435,8 @@ export const ITEMS = [
   { name:"ゴムゴムの胴",     type:"armor",  def:4,  ability:"lightning_resist", rarity:"C", weight:4, sellPrice:1000, desc:"雷ダメージを2/3に軽減（万能耐性併用で半減）。雷によるアイテム破壊を防ぐ。", tile:21 },
   { name:"ドラゴンメイル",   type:"armor",  def:8,  ability:"fire_resist",   rarity:"B", weight:2,  sellPrice:3000, desc:"竜の鱗製。炎ダメージを2/3に軽減（万能耐性併用で半減）。アイテムを炎から守る。", tile:21 },
   { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         rarity:"C", weight:4,  sellPrice:900,  desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
-  { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         rarity:"C", weight:4,  sellPrice:1200, desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
-  { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  rarity:"B", weight:2,  sellPrice:3000, desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
+  { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         rarity:"B", weight:2,  sellPrice:1200, desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
+  { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  rarity:"A", weight:1,  sellPrice:3000, desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
   { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:4,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠も無効化する。",    tile:21 },
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"B", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
@@ -6130,23 +6130,23 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     if (monEffectiveMagicImmune(target)) { ml.push(`魔法は${target.name}に効かない！`); return; }
     if (consumeBarrier(target, ml)) return;
   }
-  const _cmsBoost = kind === "monster" && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
   const _lvF = 1 + (lv - 1) * 0.2;
-  const _magicDamage = (amount) => multiplyMagicDamage(amount, p?.weapon);
+  const _enemyMagicDamage = (amount, victim = target) => multiplyMagicDamage(amount, p?.weapon, victim, dg);
+  const _targetMagicDamage = (amount, victim = target) => multiplyCursedMagicDamage(amount, victim, dg);
   switch (eff) {
     case "fire_bolt": {
       if (isFireExplosionNullified(dg, p)) { announceFireExplosionNullified(dg, p, ml, "炎の魔法"); break; }
       const _fbOilyMult = kind === "monster" && ((target.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === target.x && t.y === target.y)) ? 2 : 1;
-      const dmg = Math.round(rng(20, 30) * _lvF) * _cmsBoost * _fbOilyMult;
+      const dmg = Math.round(rng(20, 30) * _lvF) * _fbOilyMult;
       if (kind === "monster") {
         /* 火ダルマは炎の魔法で回復（封印中は特性無効） */
         if (target.baseKind === "firedemon" && !target.sealed) {
-          const _fheal = Math.min(dmg, target.maxHp - target.hp);
+          const _fheal = Math.min(_targetMagicDamage(dmg), target.maxHp - target.hp);
           if (_fheal > 0) { target.hp += _fheal; ml.push(`炎の魔法が${target.name}に当たった！炎を吸収して回復した！(+${_fheal}HP)`); }
           else ml.push(`炎の魔法が${target.name}に当たった！しかし炎を吸収した！`);
           break;
         }
-        const _fbDmg = scaleMonFireDmg(target, _magicDamage(dmg));
+        const _fbDmg = scaleMonFireDmg(target, _enemyMagicDamage(dmg));
         target.hp -= _fbDmg; ml.push(`炎の魔法が${target.name}に命中！${_fbDmg}ダメージ！${_fbOilyMult > 1 ? "(油まみれ×2)" : ""}${monFireDmgLabel(target)}`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
@@ -6157,11 +6157,11 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       } break;
     }
     case "ice_bolt": {
-      let dmg = Math.round(rng(15, 22) * _lvF) * _cmsBoost;
+      let dmg = Math.round(rng(15, 22) * _lvF);
       const _iceFreeze = statusTurns("immobile", { kind: "monster", target });
       if (kind === "monster") {
         if (target.elemWeak === "ice") dmg = Math.floor(dmg * 1.5);
-        dmg = _magicDamage(dmg);
+        dmg = _enemyMagicDamage(dmg);
         target.hp -= dmg;
         target.immobileTurns = (target.immobileTurns || 0) + _iceFreeze;
         ml.push(`氷の魔法が${target.name}に命中！${dmg}ダメージ！${_iceFreeze}ターン移動封じ！${target.elemWeak === "ice" ? "氷弱点特効！" : ""}`);
@@ -6177,9 +6177,8 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         for (const _lm of _ltTargets) {
           if (_lm.hp <= 0) continue;
           if (consumeBarrier(_lm, ml)) continue;
-          const _lcmsB = inCursedMagicSealRoom(_lm.x, _lm.y, dg) ? 2 : 1;
           const _lweak = _lm.elemWeak === "thunder" ? 1.5 : 1;
-          const _ld = _magicDamage(Math.round(rng(22, 32) * _lvF * _lweak) * _lcmsB);
+          const _ld = _enemyMagicDamage(Math.round(rng(22, 32) * _lvF * _lweak), _lm);
           _lm.hp -= _ld;
           ml.push(`雷の魔法が${_lm.name}に命中！${_ld}ダメージ！${_lweak > 1 ? "雷弱点！" : ""}`);
           if (_lm.hp <= 0) killMonster(_lm, dg, p, ml, luFn);
@@ -6187,7 +6186,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       }
       if (kind === "monster") {
         /* 後方互換（他から直接呼ばれた場合） */
-        const dmg = _magicDamage(Math.round(rng(22, 32) * _lvF) * _cmsBoost);
+        const dmg = _enemyMagicDamage(Math.round(rng(22, 32) * _lvF));
         target.hp -= dmg; ml.push(`雷の魔法が${target.name}に命中！${dmg}ダメージ！`);
         if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
       }
@@ -6276,7 +6275,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     case "drain_hp": {
       if (kind === "monster") {
-        const _drainAmt = Math.min(target.hp, _magicDamage(Math.round(rng(15, 25) * _lvF) * _cmsBoost));
+        const _drainAmt = Math.min(target.hp, _enemyMagicDamage(Math.round(rng(15, 25) * _lvF)));
         target.hp -= _drainAmt;
         const _healAmt = Math.min(_drainAmt, p.maxHp - p.hp);
         p.hp += _healAmt;
@@ -6349,9 +6348,9 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
         const _rfLvF = 1 + (lv - 1) * 0.2;
         switch (spell.effect) {
-          case "fire_bolt": { const _rd = Math.round(rng(20, 30) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された炎の魔法で"; ml.push(`炎の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
-          case "ice_bolt": { const _rd = Math.round(rng(15, 22) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された氷の魔法で"; ml.push(`氷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
-          case "lightning_magic": { const _rd = Math.round(rng(22, 32) * _rfLvF); p.hp -= _rd; p.deathCause = "反射された雷の魔法で"; ml.push(`雷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
+          case "fire_bolt": { const _rd = multiplyCursedMagicDamage(Math.round(rng(20, 30) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射された炎の魔法で"; ml.push(`炎の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
+          case "ice_bolt": { const _rd = multiplyCursedMagicDamage(Math.round(rng(15, 22) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射された氷の魔法で"; ml.push(`氷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
+          case "lightning_magic": { const _rd = multiplyCursedMagicDamage(Math.round(rng(22, 32) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射された雷の魔法で"; ml.push(`雷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "sleep_bolt": {
             const _rt = statusTurns("sleep", { kind: "player" });
             if ((p.statusImmune || 0) > 0) { ml.push("眠りの魔法が跳ね返ってきた！しかし状態防止中のため効かなかった！"); }
@@ -6391,7 +6390,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
             }
             break;
           }
-          case "drain_hp": { const _rd = Math.round(rng(15, 25) * _rfLvF); p.hp -= _rd; p.deathCause = "反射されたHP吸収の魔法で"; ml.push(`HP吸収の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
+          case "drain_hp": { const _rd = multiplyCursedMagicDamage(Math.round(rng(15, 25) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射されたHP吸収の魔法で"; ml.push(`HP吸収の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "transform_magic": { const _th = rng(-10, 10); p.hp += _th; if (_th < 0) p.deathCause = "反射された変化の魔法で"; ml.push(`変化の魔法が跳ね返ってきた！${_th >= 0 ? `体に変化が...HP+${_th}` : `体に異変が...HP${_th}`}`); break; }
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
@@ -6452,8 +6451,19 @@ export function getWeaponMagicDamageMultiplier(weapon) {
   return 1;
 }
 
-export function multiplyMagicDamage(amount, weapon) {
-  return Math.max(1, Math.round(amount * getWeaponMagicDamageMultiplier(weapon)));
+/** 呪われた魔封じの魔方陣がある部屋では、魔法系ダメージが2倍になる。 */
+export function getCursedMagicSealDamageMultiplier(target, dg) {
+  return target?.x != null && target?.y != null && inCursedMagicSealRoom(target.x, target.y, dg) ? 2 : 1;
+}
+
+export function multiplyCursedMagicDamage(amount, target, dg) {
+  return Math.max(1, Math.round(amount * getCursedMagicSealDamageMultiplier(target, dg)));
+}
+
+export function multiplyMagicDamage(amount, weapon, target = null, dg = null) {
+  return Math.max(1, Math.round(
+    amount * getWeaponMagicDamageMultiplier(weapon) * getCursedMagicSealDamageMultiplier(target, dg),
+  ));
 }
 
 /* 力・守り・命の指輪は、生成時に必ず＋1〜3を持つ。 */

@@ -59,6 +59,22 @@ describe("applyWandEffect", () => {
     vi.restoreAllMocks();
   });
 
+  it("呪われた魔封じの魔方陣は炎の杖のダメージも2倍にする", () => {
+    const localDg = makeEmptyDg({
+      rooms: [{ x: 1, y: 1, w: 5, h: 5 }],
+      pentacles: [{ kind: "magic_seal", cursed: true, x: 2, y: 2 }],
+    });
+    const normal = { name: "スライム", hp: 200, maxHp: 200, x: 8, y: 5, atk: 3 };
+    const boosted = { name: "スライム", hp: 200, maxHp: 200, x: 3, y: 3, atk: 3 };
+    const p = makePlayer();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    applyWandEffect("fire_wand", "monster", normal, 1, 0, localDg, p, [], noop);
+    applyWandEffect("fire_wand", "monster", boosted, 1, 0, localDg, p, [], noop);
+    expect(200 - normal.hp).toBe(20);
+    expect(200 - boosted.hp).toBe(40);
+    vi.restoreAllMocks();
+  });
+
   it("呪われた鈍足の杖はプレイヤーを加速させる", () => {
     const p = makePlayer();
     const ml = [];

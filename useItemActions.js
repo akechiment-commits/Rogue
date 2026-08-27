@@ -9,12 +9,12 @@ import {
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
-  inCursedMagicSealRoom, inMagicSealRoom, killMonster, chargeShopItem,
+  inMagicSealRoom, killMonster, chargeShopItem,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
-  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, itemPrice, removeTrap, removeTraps,
+  hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, canCalmShopkeeper,
 } from "./items.js";
@@ -1105,7 +1105,7 @@ export function useItemActions({
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
               let _rdmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
-              if (inCursedMagicSealRoom(p.x, p.y, dg)) _rdmg *= 2;
+              _rdmg = multiplyCursedMagicDamage(_rdmg, p, dg);
               p.hp -= _rdmg;
               p.deathCause = `${_m.name}に雷を跳ね返されて`;
               ml.push(`${_m.name}が雷を跳ね返した！${_rdmg}ダメージ！`);
@@ -1114,9 +1114,8 @@ export function useItemActions({
             }
             if (consumeBarrier(_m, ml)) continue;
             let _dmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
-            if (inCursedMagicSealRoom(_m.x, _m.y, dg)) _dmg *= 2;
             if (_m.elemWeak === "thunder") _dmg = Math.round(_dmg * 1.5);
-            _dmg = multiplyMagicDamage(_dmg, p.weapon);
+            _dmg = multiplyMagicDamage(_dmg, p.weapon, _m, dg);
             _m.hp -= _dmg;
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${_m.elemWeak === "thunder" ? "雷弱点！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
@@ -1124,7 +1123,7 @@ export function useItemActions({
           }
           // 呪い：自分にも同ダメージの雷が落ちる
           if (it.cursed) {
-            const _selfDmg = Math.max(1, rng(30, 40));
+            const _selfDmg = multiplyCursedMagicDamage(Math.max(1, rng(30, 40)), p, dg);
             p.hp -= _selfDmg;
             p.deathCause = "呪われた雷の巻物で";
             ml.push(`呪われた雷が自分にも落ちた！${_selfDmg}ダメージ！【呪】`);
@@ -1136,15 +1135,16 @@ export function useItemActions({
         if (it.cursed) {
           // 呪い：自分含め視界内全員に35ダメージ
           const _rdmg = 35;
-          p.hp -= _rdmg;
+          const _selfDmg = multiplyCursedMagicDamage(_rdmg, p, dg);
+          p.hp -= _selfDmg;
           p.deathCause = "呪われた回復の巻物で";
-          ml.push(`呪いのエネルギーが爆発した！${_rdmg}ダメージ！【呪】`);
+          ml.push(`呪いのエネルギーが爆発した！${_selfDmg}ダメージ！【呪】`);
           pushExplosionAnim(p.x, p.y);
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (skipDodgemoleScroll(_m, ml, "呪いのエネルギー")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
-              const _refC = Math.min(_rdmg, p.maxHp - p.hp);
+              const _refC = Math.min(multiplyCursedMagicDamage(_rdmg, p, dg), p.maxHp - p.hp);
               if (_refC > 0) { p.hp += _refC; ml.push(`${_m.name}がエネルギーを跳ね返した！HP+${_refC}！`); pushHealAnim(p.x, p.y); }
               else ml.push(`${_m.name}がエネルギーを跳ね返したが効果がなかった。`);
               continue;
@@ -1155,7 +1155,7 @@ export function useItemActions({
               continue;
             }
             if (consumeBarrier(_m, ml)) continue;
-            const _monsterDmg = multiplyMagicDamage(_rdmg, p.weapon);
+            const _monsterDmg = multiplyMagicDamage(_rdmg, p.weapon, _m, dg);
             _m.hp -= _monsterDmg;
             ml.push(`呪いのエネルギーが${_m.name}を直撃！${_monsterDmg}ダメージ！`);
             pushExplosionAnim(_m.x, _m.y);
@@ -1178,7 +1178,7 @@ export function useItemActions({
             }
             if (_m.kind === "undead") {
               if (consumeBarrier(_m, ml)) continue;
-              const _ud = Math.min(multiplyMagicDamage(_rh, p.weapon), _m.hp);
+              const _ud = Math.min(multiplyMagicDamage(_rh, p.weapon, _m, dg), _m.hp);
               _m.hp -= _ud; ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
               if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
               continue;
@@ -1370,7 +1370,7 @@ export function useItemActions({
             if (skipDodgemoleScroll(_m, ml, "炎の効果")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (_m.subtype === "magicreflect") {
-              const _refFlDmg = Math.max(1, Math.round(rng(15, 25) * _scrBm));
+              const _refFlDmg = multiplyCursedMagicDamage(Math.max(1, Math.round(rng(15, 25) * _scrBm)), p, dg);
               p.hp -= _refFlDmg; p.deathCause = `${_m.name}に炎を跳ね返されて`;
               ml.push(`${_m.name}が炎を跳ね返した！${_refFlDmg}ダメージ！`); pushExplosionAnim(p.x, p.y); continue;
             }
@@ -1384,7 +1384,7 @@ export function useItemActions({
             if (_m.elemWeak === "fire") _flDmg = Math.round(_flDmg * 1.5);
             const _flOily = _flOilyCheck(_m);
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }
-            _flDmg = scaleMonFireDmg(_m, multiplyMagicDamage(_flDmg, p.weapon));
+            _flDmg = scaleMonFireDmg(_m, multiplyMagicDamage(_flDmg, p.weapon, _m, dg));
             _m.hp -= _flDmg;
             ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_m.elemWeak === "fire" ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${monFireDmgLabel(_m)}${it.blessed ? "（祝福）" : ""}`);
             pushExplosionAnim(_m.x, _m.y);
@@ -1392,7 +1392,7 @@ export function useItemActions({
           }
         }
         if (it.cursed) {
-          const _flSelfDmg = Math.max(1, rng(30, 40));
+          const _flSelfDmg = multiplyCursedMagicDamage(Math.max(1, rng(30, 40)), p, dg);
           p.hp -= _flSelfDmg; p.deathCause = "呪われた炎の巻物で";
           ml.push(`呪われた炎が爆発した！${_flSelfDmg}ダメージ！【呪】`); pushExplosionAnim(p.x, p.y);
         }
@@ -1478,7 +1478,7 @@ export function useItemActions({
                 if (_m.baseKind === "firedemon") { ml.push(`${_m.name}には爆発が効かない！（炎無効）`); continue; }
                 pushExplosionAnim(_ax, _ay);
                 if (_m.isBoss) {
-                  const _sdBd = multiplyMagicDamage(Math.max(1, Math.floor(_m.hp / 4)), p.weapon);
+                  const _sdBd = multiplyMagicDamage(Math.max(1, Math.floor(_m.hp / 4)), p.weapon, _m, dg);
                   _m.hp -= _sdBd;
                   ml.push(`爆発で${_m.name}は${_sdBd}ダメージ！`);
                   if (_m.hp <= 0) { _sdKilled.add(_m); trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
@@ -3442,7 +3442,7 @@ export function useItemActions({
               if (_fbLand.hitType !== "void") ml.push("爆発！");
               /* プレイヤー爆風 */
               if (Math.max(Math.abs(p.x - _fbLand.x), Math.abs(p.y - _fbLand.y)) <= 1) {
-                const _fpd = Math.round(rng(10, 15) * _fbLvF);
+                const _fpd = multiplyCursedMagicDamage(Math.round(rng(10, 15) * _fbLvF), p, dg);
                 p.deathCause = "炎の魔法の爆風で";
                 p.hp -= _fpd;
                 ml.push(`爆風を受けた！${_fpd}ダメージ！`);
@@ -3454,7 +3454,7 @@ export function useItemActions({
                 if (Math.max(Math.abs(_fem.x - _fbLand.x), Math.abs(_fem.y - _fbLand.y)) > 1) continue;
                 /* 直撃タイルのモンスターは直撃ダメージ済み（爆弾矢と同様に爆風も当てる） */
                 if (consumeBarrier(_fem, ml)) continue;
-                const _fmd = multiplyMagicDamage(Math.round(rng(8, 14) * _fbLvF), p.weapon);
+                const _fmd = multiplyMagicDamage(Math.round(rng(8, 14) * _fbLvF), p.weapon, _fem, dg);
                 _fem.hp -= _fmd;
                 ml.push(`爆風で${_fem.name}に${_fmd}ダメージ！`);
                 if (_fem.hp <= 0) killMonster(_fem, dg, p, ml, lu);
