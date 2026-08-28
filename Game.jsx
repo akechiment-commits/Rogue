@@ -83,6 +83,7 @@ import { pl, setActivePlayerName } from "./playerLabel.js";
 import { makeStarterFoodItem } from "./favoriteFood.js";
 import { buildRunResultExtras } from "./runScore.js";
 import { createRunTimer } from "./runTimer.js";
+import { SPRING_CONFUSION_TURNS, springGoldRange } from "./springRules.js";
 import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR_INFO_ROLES, isNonSteppableFloorTrap } from "./floorInventory.js";
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
@@ -4602,14 +4603,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       // 水の瓶が飛び出す
       const _wb = { ...WATER_BOTTLE, id: uid() };
       const _ft = new Set();
-      placeItemAt(dg, p.x, p.y, _wb, ml, _ft);
+      placeItemAt(dg, p.x, p.y, _wb, ml, _ft, 0, p, p.x, p.y, false, true);
       ml.push("泉の水が勢いよく飛び出した！水の瓶が転がっている。");
     } else if (r < 0.58) {
       // 金貨が飛び出す
-      const _gv = rng(15, 60);
+      const _goldRange = springGoldRange(p.depth);
+      const _gv = rng(_goldRange.min, _goldRange.max);
       const _gc = { name: `${_gv}枚の金貨`, type: "gold", value: _gv, tile: 22, id: uid() };
       const _ft2 = new Set();
-      placeItemAt(dg, p.x, p.y, _gc, ml, _ft2);
+      placeItemAt(dg, p.x, p.y, _gc, ml, _ft2, 0, p, p.x, p.y, false, true);
       ml.push(`泉の底から金貨が${_gv}枚流れ出てきた！`);
     } else if (r < 0.63) {
       // 所持品がランダムで祝福される（壺は容量+1）
@@ -4646,7 +4648,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
     } else if (r < 0.76) {
       // 混乱になる
-      const _springConfuseT = statusTurns("confuse", { kind: "player" });
+      const _springConfuseT = SPRING_CONFUSION_TURNS;
       p.confusedTurns = (p.confusedTurns || 0) + _springConfuseT;
       ml.push(`頭がくらくらする...混乱した！(${_springConfuseT}ターン)`);
     } else if (r < 0.84) {

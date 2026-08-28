@@ -4106,7 +4106,7 @@ function soakItem(item) {
   return item;
 }
 
-export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false) {
+export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = null, _oy = null, _fromPortal = false, _avoidOriginSpring = false) {
   if (item?._ephemeralTrapTrigger) return false;
   applyGeneratedRingPlus(item);
   /* 帯電毛玉は所持品または箱・壺の中にだけ存在できる。破壊・散乱などで
@@ -4144,6 +4144,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     const cx = tx + dx, cy = ty + dy;
     if (cx < 0 || cx >= MW || cy < 0 || cy >= MH ||
         dg.map[cy][cx] === T.WALL || dg.map[cy][cx] === T.BWALL || dg.map[cy][cx] === T.SD || dg.map[cy][cx] === T.SU) continue;
+    if (_avoidOriginSpring && dx === 0 && dy === 0 && dg.springs?.some(s => s.x === cx && s.y === cy)) continue;
     /* 水タイルに落ちる場合：同マスに既に沈没アイテムがなければ沈没 */
     if (dg.map[cy][cx] === T.WATER) {
       dg.waterItems = dg.waterItems || [];
