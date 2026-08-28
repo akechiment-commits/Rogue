@@ -177,6 +177,8 @@ const UNARMORED_ALREADY_SEPARATE = new Set([
   "walk_unarmored",
   "stand_light_armor",
   "stand_unarmored",
+  /* 未設定の防具装備バリエーションは作らない */
+  "act_equip_armor",
 ]);
 
 function addUnarmoredSituationSlots(categories) {

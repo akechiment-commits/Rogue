@@ -77,48 +77,6 @@
       "group": "damage_gun"
     },
     {
-      "file": "action_equip_armor_2",
-      "label": "防具を装備（胸当て拾い）",
-      "categoryId": "action",
-      "afterFile": "action_equip_armor",
-      "group": "act_equip_armor"
-    },
-    {
-      "file": "action_equip_armor_3",
-      "label": "防具を装備（胴締め）",
-      "categoryId": "action",
-      "afterFile": "action_equip_armor_2",
-      "group": "act_equip_armor"
-    },
-    {
-      "file": "action_equip_armor_4",
-      "label": "防具を装備（脚鎧）",
-      "categoryId": "action",
-      "afterFile": "action_equip_armor_3",
-      "group": "act_equip_armor"
-    },
-    {
-      "file": "action_equip_armor_5",
-      "label": "防具を装備（脚外し）",
-      "categoryId": "action",
-      "afterFile": "action_equip_armor_4",
-      "group": "act_equip_armor"
-    },
-    {
-      "file": "action_equip_armor_6",
-      "label": "防具を装備（手袋）",
-      "categoryId": "action",
-      "afterFile": "action_equip_armor_5",
-      "group": "act_equip_armor"
-    },
-    {
-      "file": "action_equip_armor_7",
-      "label": "防具を装備（ほぼ完了）",
-      "categoryId": "action",
-      "afterFile": "action_equip_armor_6",
-      "group": "act_equip_armor"
-    },
-    {
       "file": "reaction_fall_mild",
       "label": "転倒（軽い）",
       "categoryId": "reaction",
