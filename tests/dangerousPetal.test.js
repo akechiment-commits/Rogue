@@ -54,6 +54,27 @@ describe("危険な花びら", () => {
     expect(player.sleepTurns).toBe(6);
   });
 
+  it("特技使用率は隣接25%、遠距離12.5%で予約する", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.2);
+    try {
+      const adjacentPlayer = makePlayer({ x: 6, y: 5 });
+      const adjacent = makePetal(1, 5, 5);
+      const adjacentDg = makeRoomBattlefield(adjacent, adjacentPlayer);
+      adjacent.turnAttacks = 0;
+      monsterAI(adjacent, adjacentDg, adjacentPlayer, [], { moveOnly: true });
+      expect(adjacent._rangedAttackThisTurn).toBe(true);
+
+      const distantPlayer = makePlayer({ x: 10, y: 5 });
+      const distant = makePetal(2, 5, 5);
+      const distantDg = makeRoomBattlefield(distant, distantPlayer);
+      distant.turnAttacks = 0;
+      monsterAI(distant, distantDg, distantPlayer, [], { moveOnly: true });
+      expect(distant._rangedAttackThisTurn).toBeUndefined();
+    } finally {
+      random.mockRestore();
+    }
+  });
+
   it("倒されると25%で隣接するプレイヤーを眠らせる", () => {
     const player = makePlayer({ x: 6, y: 5 });
     const petal = makePetal(1, 5, 5);

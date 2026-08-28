@@ -23,14 +23,21 @@ const MONSTER_SPECIAL_RATE = Object.freeze({
   heal: 0.50,
   selfDestruct: 0.50,
 });
+const DANGEROUS_PETAL_SPECIAL_RATE = Object.freeze({ adjacent: 0.25, ranged: 0.125 });
 const STATUS_WAND_EFFECTS = new Set(["curse_wand", "confuse_wand", "sleep_wand"]);
 
-function rangedSpecialRate(m) {
+function dangerousPetalSpecialRate(m, pl) {
+  if (!pl) return DANGEROUS_PETAL_SPECIAL_RATE.ranged;
+  const distance = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
+  return distance <= 1 ? DANGEROUS_PETAL_SPECIAL_RATE.adjacent : DANGEROUS_PETAL_SPECIAL_RATE.ranged;
+}
+
+function rangedSpecialRate(m, pl = null) {
   if (m?.subtype === "hypnotist") {
     return MONSTER_SPECIAL_RATE.status;
   }
   if (m?.subtype === "dangerousPetal") {
-    return MONSTER_SPECIAL_RATE.status;
+    return dangerousPetalSpecialRate(m, pl);
   }
   if (m?.type === "guard") {
     return MONSTER_SPECIAL_RATE.status;
@@ -770,7 +777,7 @@ export const MONS = [
     ],
   },
   { name: "危険な花びら", hp: 28,  atk: 15, def: 3,  exp: 45,  speed: 1, tile: 206, kind: "beast", baseKind: "dangerousPetal", monLevel: 1, minFloor: 15, maxFloor: 35, stationary: true, subtype: "dangerousPetal", sleepOnDeath: true, dungeonFloors: { beginner: null, intermediate: { min: 16, max: 20 }, advanced: { min: 13, max: 24 } },
-    desc: "自分からは移動しない。隣接時に眠りの花粉をまき、倒されると25%で周囲にも眠りを広げる。レベル2は遠距離一直線、レベル3は同じ部屋まで届く。",
+    desc: "自分からは移動しない。睡眠の花粉は隣接時25%、遠距離時12.5%で使う。倒されると25%で周囲にも眠りを広げる。レベル2は遠距離一直線、レベル3は同じ部屋まで届く。",
     levels: [
       { name: "破滅の花びら", hp: 50, atk: 24, def: 7, exp: 86, dungeonFloors: { advanced: { min: 25, max: 29 } } },
       { name: "超危険な花びら", hp: 80, atk: 36, def: 12, exp: 145, dungeonFloors: { advanced: { min: 30, max: 35 } } },
@@ -4713,7 +4720,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m))) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -4917,7 +4924,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
 
 
-      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m))) {
+      if (m.subtype === "wanduser" && !m.sealed && inLine && lineLen >= 1 && lineLen <= 10 && opts.monsterWandFn && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
         const _wRoom = findRoom(rooms, m.x, m.y);
         const _wSeal = (dg.pentacles?.some(pc => pc.kind === "magic_seal" && pc.blessed)) ||
           (_wRoom && dg.pentacles?.some(pc =>
@@ -4946,7 +4953,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
 
       if (m.subtype === "dangerousPetal" && !m.sealed && canDangerousPetalUse(m, pl, {
         canSee, sameRoom: _sameRoom, plOnBlessedSanc: _plOnBlessedSanc, dg,
-      }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
+      }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < dangerousPetalSpecialRate(m, pl))) {
         useDangerousPetalSleep(m, dg, pl, ml);
         return;
       }
