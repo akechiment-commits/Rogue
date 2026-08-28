@@ -2146,7 +2146,7 @@ export function useItemActions({
     if (!st) return false;
     const { player: p } = st;
     if ((p.hypnosisPending || 0) <= 0) return false;
-    if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return false;
+    if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return false;
 
     const candidates = getHypnosisItemCandidates(p.inventory).filter(({ it }) =>
       it.type !== "pot" || getHypnosisPotContents(p.inventory, it, p).length > 0

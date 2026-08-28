@@ -5,6 +5,7 @@ import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns, applyPlayerPoison } from "./statusDuration.js";
+import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
@@ -26,6 +27,9 @@ const STATUS_WAND_EFFECTS = new Set(["curse_wand", "confuse_wand", "sleep_wand"]
 
 function rangedSpecialRate(m) {
   if (m?.subtype === "hypnotist") {
+    return MONSTER_SPECIAL_RATE.status;
+  }
+  if (m?.subtype === "dangerousPetal") {
     return MONSTER_SPECIAL_RATE.status;
   }
   if (m?.type === "guard") {
@@ -173,7 +177,7 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     pl.hp -= dmg;
     onPlayerHit?.(dmg, m);
     ml.push(`${m.name}が炎ブレスを吐いた！${playerHpEffectLabel(pl, dmg)}！${fireResistDamageLabel(pl)}${_oilyMult > 1 ? "(油まみれ×2)" : ""}`);
-    if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("熱さで目が覚めた！"); }
+    interruptPlayerSleep(pl, ml, "熱さで目が覚めた！");
     if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("熱さで金縛りが解けた！"); }
     if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true);
   };
@@ -434,7 +438,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
     ml.push(`反射で${m.name}に${td}ダメージ！`);
     if (m.hp <= 0) killMonster(m, dg, pl, ml, luFn);
   }
-  if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+  interruptPlayerSleep(pl, ml);
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
   if (m.baseKind === "firedemon" && dmg > 0) {
@@ -626,6 +630,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect, penaltyOnly
  *        subtype の選択肢: "archer" | "stonethrow" | "wanduser" | "supporter"
  *                         | "thief" | "goldthief" | "runner" | "itemblast" | "stealthrower"
+ *                         | "dangerousPetal"（静止・睡眠の花粉）
  *                         (特殊AIが必要なら monsterAI に追記)
  *        wandEffect: subtype:"wanduser" のとき使う杖エフェクト名
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
@@ -762,6 +767,13 @@ export const MONS = [
     levels: [
       { name: "パタペン",             hp: 52,  atk: 23, def: 7,  exp: 78,  dungeonFloors: { advanced: { min: 18, max: 23 } } },
       { name: "ゴゴペン",             hp: 82,  atk: 31, def: 11, exp: 125, dungeonFloors: { advanced: { min: 24, max: 30 } } },
+    ],
+  },
+  { name: "危険な花びら", hp: 28,  atk: 15, def: 3,  exp: 45,  speed: 1, tile: 206, kind: "beast", baseKind: "dangerousPetal", monLevel: 1, minFloor: 15, maxFloor: 35, stationary: true, subtype: "dangerousPetal", sleepOnDeath: true, dungeonFloors: { beginner: null, intermediate: { min: 16, max: 20 }, advanced: { min: 13, max: 24 } },
+    desc: "自分からは移動しない。隣接時に眠りの花粉をまき、倒されると25%で周囲にも眠りを広げる。レベル2は遠距離一直線、レベル3は同じ部屋まで届く。",
+    levels: [
+      { name: "破滅の花びら", hp: 50, atk: 24, def: 7, exp: 86, dungeonFloors: { advanced: { min: 25, max: 29 } } },
+      { name: "超危険な花びら", hp: 80, atk: 36, def: 12, exp: 145, dungeonFloors: { advanced: { min: 30, max: 35 } } },
     ],
   },
   { name: "夢喰い",       hp: 46,  atk: 21, def: 6,  exp: 66,  speed: 1,   tile: 178, kind: "beast",    baseKind: "dreamEater",  monLevel: 1, minFloor: 15, maxFloor: 35, subtype: "dreamEater", dungeonFloors: { intermediate: { min: 16, max: 20 }, advanced: { min: 13, max: 24 } },
@@ -1897,7 +1909,7 @@ function monsterThrowStone(m, dg, pl, ml) {
     pl.deathCause = `${m.name}の石投げで`;
     pl.hp -= dmg;
     ml.push(`${m.name}の${stoneName}が命中！${playerHpEffectLabel(pl, dmg)}！`);
-    if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+    interruptPlayerSleep(pl, ml);
     if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   };
 
@@ -2075,7 +2087,7 @@ function monsterShootWaterGun(m, dg, pl, ml, luFn = null) {
       pl.deathCause = `${m.name}の水鉄砲で`;
       pl.hp -= dmg;
       ml.push(`${m.name}の水鉄砲が命中！${playerHpEffectLabel(pl, dmg)}！`);
-      if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+      interruptPlayerSleep(pl, ml);
       if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       /* ずぶ濡れ＋所持品への水影響（耐水で無効） */
       if (!hasWaterProof(pl)) {
@@ -2334,7 +2346,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
         pl.hp -= _dmg;
         pl.deathCause = deathCause ?? `${m.name}の${boltName}で`;
         ml.push(`${_shooterPrefix}${boltName}が命中！${playerHpEffectLabel(pl, _dmg)}！`);
-        if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+        interruptPlayerSleep(pl, ml);
         if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       }
       if (onPlHit) onPlHit(ml);
@@ -2368,7 +2380,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
               pl.hp -= _rrdmg;
               pl.deathCause = `${_mon.name}に跳ね返された${boltName}で`;
               ml.push(`跳ね返された${boltName}が${plName(pl)}に命中！${playerHpEffectLabel(pl, _rrdmg)}！`);
-              if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+              interruptPlayerSleep(pl, ml);
               if (wakeParalyze && pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
             }
             if (onPlHit) onPlHit(ml);
@@ -2585,6 +2597,10 @@ function isStationaryGrabber(m) {
   return m && (m.subtype === "grabber" || m.baseKind === "grabber");
 }
 
+function isStationaryMonster(m) {
+  return !!m?.stationary;
+}
+
 /* かわしモグラは通過した罠を作動させず、その場で消滅させる。 */
 function _clearDodgemoleTrap(m, dg, ml, pl) {
   if (m.baseKind !== "dodgemole") return;
@@ -2724,7 +2740,7 @@ function isPentacleDrawBlocked(dg, x, y) {
 /** 長時間停滞／往復時に別方向へ1歩逃がす */
 function tryUnstickMove(m, dg, pl, float = false) {
   if (!m || !dg) return false;
-  if (isStationaryGrabber(m) || m.type === "shopkeeper" || m.dormant || m.dormantHouse) return false;
+  if (isStationaryGrabber(m) || isStationaryMonster(m) || m.type === "shopkeeper" || m.dormant || m.dormantHouse) return false;
   const map = dg.map;
   const recent = new Set((m.posHistory || []).map(p => p.x + p.y * MW));
   recent.add(m.x + m.y * MW);
@@ -2902,6 +2918,40 @@ function canHypnotistUse(m, pl, { canSee = false, plOnBlessedSanc = false } = {}
   return distance === 1;
 }
 
+/** 危険な花びらのレベル別睡眠特技の射程。Lv1は隣接、Lv2は直線、Lv3は同じ部屋。 */
+function canDangerousPetalUse(m, pl, { canSee = false, sameRoom = false, plOnBlessedSanc = false, dg = null } = {}) {
+  if (!m || !pl || plOnBlessedSanc) return false;
+  const dx = pl.x - m.x, dy = pl.y - m.y;
+  const distance = Math.max(Math.abs(dx), Math.abs(dy));
+  if (distance < 1) return false;
+  if ((m.monLevel || 1) >= 3) return canSee && sameRoom;
+  if ((m.monLevel || 1) >= 2) {
+    const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+    return canSee && inLine && distance <= 10 && (!dg || hasLOS(dg.map, m.x, m.y, pl.x, pl.y));
+  }
+  return canSee && distance === 1;
+}
+
+function useDangerousPetalSleep(m, dg, pl, ml) {
+  m.turnAttacks++;
+  if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
+    ml.push(`${m.name}が眠りの花粉をまこうとしたが、魔封じの魔方陣で封じられた！`);
+    return true;
+  }
+  if ((pl.statusImmune || 0) > 0) {
+    ml.push(`${m.name}が眠りの花粉をまいた！しかし状態防止中のため眠らなかった！`);
+    return true;
+  }
+  if (hasAbility(pl.armor, "sleep_proof")) {
+    ml.push(`${m.name}が眠りの花粉をまいた！しかし防具が睡眠を防いだ！`);
+    return true;
+  }
+  const turns = statusTurns("sleep", { kind: "player" });
+  pl.sleepTurns = (pl.sleepTurns || 0) + turns;
+  ml.push(`${m.name}が眠りの花粉をまいた！眠ってしまった！(${turns}ターン)`);
+  return true;
+}
+
 /**
  * ものまね師の位置から見て、コピー元の特技が「実行可能な条件」を満たすか。
  * ラクガキ魔：プレイヤー認識（canSee）ならどこでも試行可（足元失敗は実行時に処理）
@@ -2967,6 +3017,11 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   /* 催眠術：Lv1/2は隣接、Lv3は視界内の一直線上から次の行動を強制する */
   if (subtype === "hypnotist") {
     return canHypnotistUse(src, pl, { canSee, plOnBlessedSanc });
+  }
+
+  /* 危険な花びら：レベルごとの睡眠特技の射程をそのまま模倣する */
+  if (subtype === "dangerousPetal") {
+    return canDangerousPetalUse(src, pl, { canSee, sameRoom, plOnBlessedSanc, dg });
   }
 
   /* 突進：一直線・距離2以上 */
@@ -3207,6 +3262,13 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     return true;
   }
 
+  /* ── 危険な花びら：レベル別射程の眠りの花粉 ── */
+  if (m.subtype === "dangerousPetal" && canDangerousPetalUse(m, pl, {
+    canSee, sameRoom: _sameRoom, plOnBlessedSanc: _plOnBlessedSanc, dg,
+  })) {
+    return useDangerousPetalSleep(m, dg, pl, ml);
+  }
+
   /* ── ドラゴン／氷竜ブレス ── */
   if ((m.baseKind === "dragon" || m.baseKind === "im_boss_salamander" || m.baseKind === "icedragon") && !_plOnBlessedSanc) {
     const _dfLvl = m.monLevel || 1;
@@ -3436,8 +3498,8 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
   try {
     _monsterAIBody(m, dg, pl, ml, opts);
   } finally {
-    /* からめ鬼：AI中のスワップ等で動いたら必ず元位置へ（未発見歩行の原因） */
-    if (isStationaryGrabber(m) && (m.x !== _sx || m.y !== _sy)) {
+    /* 静止型モンスター：AI中に位置が変わっても必ず元位置へ戻す */
+    if ((isStationaryGrabber(m) || isStationaryMonster(m)) && (m.x !== _sx || m.y !== _sy)) {
       m.x = _sx; m.y = _sy;
       m.dir = { x: 0, y: 0 };
     }
@@ -3450,13 +3512,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.paralyzed ||
       (m.sleepTurns || 0) > 0 ||
       (m.immobileTurns || 0) > 0 ||
-      (m.knockdownTurns || 0) > 0;
+      (m.knockdownTurns || 0) > 0 ||
+      isStationaryMonster(m);
     if (movementDisabled) {
       m._idleStuck = 0;
       m.posHistory = [];
     }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && m.type !== "shopkeeper" &&
+    if (!movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && m.type !== "shopkeeper" &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&
@@ -3559,6 +3622,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.pacifistTurns || 0) > 0) {
     if (!_attackOnly) m.pacifistTurns = Math.max(0, m.pacifistTurns - 1);
     if (m.pacifistTurns <= 0) { ml.push(`${m.name}の平和主義状態が解けた！`); m.turnAccum = 0; }
+    else if (isStationaryMonster(m)) return;
     else if (!_attackOnly) {
       const _pdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
       const _pshuf = [..._pdirs].sort(() => Math.random() - 0.5);
@@ -3945,6 +4009,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if ((m.confusedTurns || 0) > 0) {
     if (!_attackOnly) m.confusedTurns = Math.max(0, m.confusedTurns - 1);
     if (isStationaryGrabber(m)) { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
+    if (isStationaryMonster(m)) { if (m.confusedTurns <= 0) ml.push(`${m.name}の混乱が解けた！`); return; }
     const _cdirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
     const _rd = pick(_cdirs);
     const _cnx = m.x + _rd[0], _cny = m.y + _rd[1];
@@ -3974,6 +4039,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _isPerm = m.darknessTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.darknessTurns = Math.max(0, m.darknessTurns - 1);
     if (isStationaryGrabber(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
+    if (isStationaryMonster(m)) { if (!_isPerm && m.darknessTurns <= 0) ml.push(`${m.name}の暗闇が晴れた！`); return; }
     if (!m.darkDir) {
       const _ddirs = [[-1,0],[1,0],[0,-1],[0,1]];
       m.darkDir = pick(_ddirs);
@@ -4007,6 +4073,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const _isPerm = m.fleeingTurns >= 9999;
     if (!_isPerm && !_attackOnly) m.fleeingTurns = Math.max(0, m.fleeingTurns - 1);
     if (isStationaryGrabber(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
+    if (isStationaryMonster(m)) { if (!_isPerm && m.fleeingTurns <= 0) ml.push(`${m.name}の幻惑が解けた！`); return; }
     if (!_attackOnly) {
       const _fleeStep = fleeFromPlayerStep(m, dg, pl, _effFloat, m.waterWalker);
       if (_fleeStep && _canMoveTo(_fleeStep.x, _fleeStep.y)) {
@@ -4446,7 +4513,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           pl.capturedBy = m.id;
           _justCaptured = true;
           ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
-          if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+          interruptPlayerSleep(pl, ml);
           if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
         }
         if (!_justCaptured && !_plOnSanc) {
@@ -4610,6 +4677,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
       const _hypnotistRdy = m.subtype === "hypnotist" && !m.sealed && _rAtks &&
         canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc });
+      const _petalRdy = m.subtype === "dangerousPetal" && !m.sealed && _rAtks &&
+        canDangerousPetalUse(m, pl, {
+          canSee, sameRoom: _sameRoom, plOnBlessedSanc: _plOnBlessedSanc, dg,
+        });
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
         (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 2 ? _sameRoom : _rLine));
@@ -4642,7 +4713,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m))) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m))) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -4870,6 +4941,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           pl.hypnosisPending = (pl.hypnosisPending || 0) + 1;
           ml.push(`${m.name}が催眠術をかけた！次の行動を勝手に行ってしまう！`);
         }
+        return;
+      }
+
+      if (m.subtype === "dangerousPetal" && !m.sealed && canDangerousPetalUse(m, pl, {
+        canSee, sameRoom: _sameRoom, plOnBlessedSanc: _plOnBlessedSanc, dg,
+      }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
+        useDangerousPetalSleep(m, dg, pl, ml);
         return;
       }
     }
@@ -5406,7 +5484,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             pl.x = _pnx; pl.y = _pny;
             pushPlayerKnockbackAnim(_pullFromX, _pullFromY, pl.x, pl.y, _puldx, _puldy);
             ml.push(`${m.name}に引き寄せられた！`);
-            if (pl.sleepTurns > 0) { pl.sleepTurns = 0; ml.push("引っ張られて目が覚めた！"); }
+            interruptPlayerSleep(pl, ml, "引っ張られて目が覚めた！");
             if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("引っ張られて金縛りが解けた！"); }
           }
         }
@@ -5757,6 +5835,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
 
     if (_attackOnly) return; /* attackOnlyフェーズ：移動しない */
+    if (isStationaryMonster(m)) return; /* 静止型は通常移動しない */
 
     /* move toward target */
     /* BFSで最短経路を求める。部屋内での壁ぶつかりを防ぎ、通路への最適経路を辿る。 */
@@ -5904,6 +5983,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   } else if (!_attackOnly) {
     /* ===== 未覚醒：パトロール ===== */
+    if (isStationaryMonster(m)) return;
     /* waterOnlyモンスターは水上のみ移動可能なため、未覚醒時はその場で待機 */
     if (m.waterOnly) return;
     /* grabberは覚醒前も動かない */

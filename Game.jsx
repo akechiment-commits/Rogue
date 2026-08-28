@@ -65,7 +65,7 @@ import { applyMessageUpdate } from "./messageLog.js";
 import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from "./inventoryRules.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
-import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase } from "./turnUpkeep.js";
+import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
@@ -571,6 +571,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       spellLevels: {},
       turns: 0,
       sleepTurns: 0,
+      sleepInterruptedTurns: 0,
       paralyzeTurns: 0,
       frozenTurns: 0,
       hypnosisPending: 0,
@@ -1243,7 +1244,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             onPlayerHit: (mlx) => {
               if (hasGravityPentacle(dg, pl.x, pl.y)) { mlx.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); return; }
               applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, null, null, false);
-              if (pl.sleepTurns > 0) { pl.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
+              interruptPlayerSleep(pl, mlx);
               if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; mlx.push("衝撃で金縛りが解けた！"); }
             },
             onMonsterHit: (mon, mlx) => {
@@ -2239,7 +2240,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       };
       /* 催眠中はキー入力を受け付けず、自動実行される強制行動を待つ。 */
       if ((p.hypnosisPending || 0) > 0) return;
-      if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
+      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.frozenTurns || 0) > 0 || p.slowSkip || (p.potConfinedTurns || 0) > 0) return;
       if (type === "inventory") {
         setSpellListMode(false);
         setShowInv((v) => {
@@ -3331,7 +3332,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
-      if (p.sleepTurns > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
+      if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
       const ml = installPlayerHpMessageHook([], p);
       let steps = 0;
       let dashMimicRevealed = false;

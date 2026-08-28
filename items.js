@@ -27,6 +27,7 @@ import { pl } from './playerLabel.js';
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
+import { interruptPlayerSleep } from './turnUpkeep.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -4519,6 +4520,33 @@ export function applyFireInventoryDamage(p, ml) {
   ml.push(`爆発の熱で所持していた「${resolveItemName(victim)}」が${verb}！`);
 }
 
+/** 危険な花びら：倒されたとき、確率で隣接する生物へ睡眠を広げる。 */
+function triggerPetalDeathSleep(mon, dg, p, ml) {
+  if (!mon.sleepOnDeath || mon.sealed || Math.random() >= 0.25) return;
+  ml.push(`${mon.name}が散り際に眠りの花粉をまき散らした！`);
+  const targets = [p, ...(dg.monsters || [])].filter((target, index, all) =>
+    target && target !== mon && (target.hp || 0) > 0 && all.indexOf(target) === index &&
+    Math.max(Math.abs(target.x - mon.x), Math.abs(target.y - mon.y)) <= 1,
+  );
+  for (const target of targets) {
+    if (inMagicSealRoom(target.x, target.y, dg)) {
+      ml.push(`${target === p ? "眠りの花粉" : target.name}は魔封じの魔方陣に守られた！`);
+      continue;
+    }
+    if (isStatusImmune(target, ml, target === p ? null : target.name)) continue;
+    if (target === p && hasAbility(p.armor, "sleep_proof")) {
+      ml.push("防具が眠りの花粉を防いだ！");
+      continue;
+    }
+    const turns = statusTurns("sleep", {
+      kind: target === p ? "player" : "monster",
+      target: target === p ? null : target,
+    });
+    target.sleepTurns = (target.sleepTurns || 0) + turns;
+    ml.push(`${target === p ? "プレイヤー" : target.name}が眠りに落ちた！(${turns}ターン)`);
+  }
+}
+
 /** プレイヤーがモンスターを倒した時の共通処理。
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
 export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false) {
@@ -4556,6 +4584,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   /* 先に撃破対象を消す。ドロップが骨の上に落ちて骨を壊しても、
      既に倒れた同じモンスターを骨の衝突対象として再処理しない。 */
   removeMonster(dg, mon);
+  triggerPetalDeathSleep(mon, dg, p, ml);
   /* 拾い投げ系：投げる前に倒された場合は、持っていた床アイテムを落とす */
   if (mon.carriedItem) {
     const _held = mon.carriedItem;
@@ -4717,7 +4746,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       p.hp -= dmg;
       const _plHit = (_isPot ? potPlHitMsg(dmg) : plHitMsg(dmg)) + frozenPhysicalLabel(p);
       mlx.push(_plHit);
-      if (p.sleepTurns > 0) { p.sleepTurns = 0; mlx.push("衝撃で目が覚めた！"); }
+      interruptPlayerSleep(p, mlx);
       /* ヤバイ食料：追加ダメ+状態異常複合 */
       if (item.type === "food" && item.yabai) {
         const _yDmg = rng(15, 25);
@@ -5055,7 +5084,7 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
   p.deathCause = `${reflector.name}に跳ね返された${stoneName}で`;
   ml.push(`${stoneName}が${reflector.name}に弾き返された！`);
   ml.push(`跳ね返された${stoneName}が${pl()}にホーミング命中！${dmg}ダメージ！消滅した。`);
-  if (p.sleepTurns > 0) { p.sleepTurns = 0; ml.push("衝撃で目が覚めた！"); }
+  interruptPlayerSleep(p, ml);
   if (p.paralyzeTurns > 0) { p.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   return dmg;
 }

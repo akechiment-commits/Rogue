@@ -86,10 +86,23 @@ export function advancePentacleWear(player, dungeon, messages) {
 /** プレイヤー操作を受け付けず、ターンだけを進める状態かを返す。 */
 export function hasForcedTurn(player) {
   return (player.sleepTurns || 0) > 0 ||
+    (player.sleepInterruptedTurns || 0) > 0 ||
     (player.paralyzeTurns || 0) > 0 ||
     (player.frozenTurns || 0) > 0 ||
     !!player.slowSkip ||
     (player.potConfinedTurns || 0) > 0;
+}
+
+/**
+ * ダメージで睡眠から起きたことを記録する。
+ * 自然に目覚めた場合と区別し、次のプレイヤーターンを行動不能にする。
+ */
+export function interruptPlayerSleep(player, messages, wakeMessage = "衝撃で目が覚めた！") {
+  if (!player || (player.sleepTurns || 0) <= 0) return false;
+  player.sleepTurns = 0;
+  player.sleepInterruptedTurns = Math.max(player.sleepInterruptedTurns || 0, 1);
+  messages?.push(wakeMessage);
+  return true;
 }
 
 /**
@@ -100,6 +113,11 @@ export function advanceForcedTurn(player, messages) {
   if ((player.sleepTurns || 0) > 0) {
     player.sleepTurns--;
     messages.push(player.sleepTurns > 0 ? `眠っている...あと${player.sleepTurns}ターン` : "目が覚めた！");
+    return { advanced: true, exitPotAfterTurn: false };
+  }
+  if ((player.sleepInterruptedTurns || 0) > 0) {
+    player.sleepInterruptedTurns--;
+    messages.push("目が覚めたが、体が動かなかった！");
     return { advanced: true, exitPotAfterTurn: false };
   }
   if ((player.paralyzeTurns || 0) > 0) {
