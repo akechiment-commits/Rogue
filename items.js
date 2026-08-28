@@ -158,6 +158,12 @@ export function isStatusImmune(entity, ml, name = null) {
   return true;
 }
 
+/** ボスに即死系の環境効果を当てたときの代替ダメージ（爆発と同じ現在HPの1/4）。 */
+export function bossInstantDeathDamage(mon) {
+  if (!mon?.isBoss || !(mon.hp > 0)) return 0;
+  return Math.max(1, Math.floor(mon.hp / 4));
+}
+
 /**
  * プレイヤーへの状態異常を防ぐ（statusImmune → 防具耐性）。
  * @returns {boolean} true = 防いだ
@@ -397,7 +403,7 @@ export const ITEMS = [
   { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。", tile:18 },
   { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:4,  sellPrice:300,  desc:"半径10の壁を全て壊す。\n祝福：外周以外のフロア内の壁を全て壊す。\n呪い：周囲を壁に変える。", tile:18 },
   { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"C", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。", tile:18 },
-  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:1,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。\n呪い：自分が弾き出され踏むと即死。", tile:42 },
+  { name:"聖域のペン",       type:"pen",    effect:"sanctuary",     charges:2, rarity:"A", weight:1,  sellPrice:4000, desc:"足元に聖域の魔方陣を描く。\nモンスターは通過・攻撃できなくなる。\n呪い：自分が弾き出され踏むと即死。強制移動されたボスは現在HPの1/4ダメージ。", tile:42 },
   { name:"脆弱のペン",       type:"pen",    effect:"vulnerability", charges:2, rarity:"C", weight:4,  sellPrice:1200,  desc:"足元に脆弱の魔方陣を描く。\n同じ部屋にいる者全員の受けるダメージが2倍になる。", tile:42 },
   { name:"魔封じのペン",     type:"pen",    effect:"magic_seal",    charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に魔封じの魔方陣を描く。\n部屋内では一切の魔法が無効になる。外からの魔法弾も消える。", tile:42 },
   { name:"雷のペン",         type:"pen",    effect:"thunder_trap",  charges:2, rarity:"D", weight:8,  sellPrice:600,  desc:"足元に雷の魔方陣を描く。真上にいると毎ターン25ダメージ。\n呪い：逆に毎ターン25回復。", tile:42 },
@@ -410,7 +416,7 @@ export const ITEMS = [
   { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"C", weight:4,  sellPrice:1500, desc:"足元に爆発の魔方陣を描く。\n部屋内で倒された敵が爆発し周囲8マスにHP3/4ダメージ。壁・罠・大箱・魔方陣も破壊。\n呪い：炎・雷を不発に。", tile:42 },
   { name:"囮のペン",         type:"pen",    effect:"decoy",         charges:2, rarity:"A", weight:1,  sellPrice:4000,  desc:"足元に囮の魔方陣を描く。\n部屋内の敵がプレイヤーを無視して魔方陣に集まり、陣取ると動かなくなる。\n近づいた敵同士は互いに攻撃し合う。", tile:42 },
   { name:"ただのペン",       type:"pen",    effect:"plain",         charges:2, rarity:"E", weight:12, sellPrice:50,   desc:"何も起こらない魔方陣を描く。\n他のペンに合成してインクを補充できる。", tile:42 },
-  { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に重力の魔方陣を描く。\n部屋内：浮遊不可・敵が罠にかかる・吹飛ばし/飛びつき無効。\n水上の浮遊系敵は即死。\n呪い：全員浮遊状態。", tile:42 },
+  { name:"重力のペン",       type:"pen",    effect:"gravity",       charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に重力の魔方陣を描く。\n部屋内：浮遊不可・敵が罠にかかる・吹飛ばし/飛びつき無効。\n水上の浮遊系敵は即死（ボスは現在HPの1/4ダメージ）。\n呪い：全員浮遊状態。", tile:42 },
   { name:"みかわしのペン",   type:"pen",    effect:"dodge",         charges:2, rarity:"B", weight:2,  sellPrice:3500, desc:"足元にみかわしの魔方陣を描く。\n部屋内で投げ物・矢・石が必ず外れる(魔法・炎は除く)。\n呪い：逆に必ず命中。", tile:42 },
   { name:"等速のペン",       type:"pen",    effect:"equal_speed",   charges:2, rarity:"C", weight:4,  sellPrice:1800, desc:"足元に等速の魔方陣を描く。\n部屋内の全員が速度に関わらず1回行動になる。\n呪い：全員鈍足。", tile:42 },
   { name:"回復のペン",       type:"pen",    effect:"heal_aura",     charges:2, rarity:"C", weight:4,  sellPrice:1500,  desc:"足元に回復の魔方陣を描く。\n部屋内の全員が毎ターン5HP回復。アンデッドには逆効果。\n呪い：逆に5ダメージ。", tile:42 },
@@ -728,7 +734,7 @@ export const WANDS = [
   { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:6, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
   { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
-  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
+  { name:"体力交換の杖",   type:"wand", effect:"vitality_swap", charges:4, rarity:"C", weight:4,  sellPrice:800,  desc:"振ると相手と現在HPを入れ替える。ボスには現在HPの1/4ダメージを与え、プレイヤーHPをそのダメージと同値にする。\n呪い：自分のHPを1に。\n自分に振ると交換なしだが祝福・呪い効果は発動。\n壊すと隣接する最大HPの敵とHP交換。", tile:24 },
   { name:"物知りの杖",     type:"wand", effect:"sage",          charges:4, rarity:"D", weight:8,  sellPrice:700,  desc:"アイテム・大箱に当てると識別。敵：HP・攻撃力・防御力を表示。\n壁に跳ね返り自分に当たると手持ち1個ランダム識別。\n壊すと周囲のアイテム・大箱にも効果。\n呪い：対象が未識別に戻る。", tile:24 },
   { name:"願いの杖",       type:"wand", effect:"wish",          charges:1, rarity:"S", weight:0.05,  sellPrice:15000, noChargeBoost: true, desc:"振ると願いを一つ叶えてくれる。\n回数は常に1で、増やすことはできない。", tile:24 },
 ];
@@ -1022,6 +1028,13 @@ export function canMonsterSurviveOnWater(mon, dg, x, y) {
 export function drownMonsterIfNeeded(mon, dg, p, ml, luFn) {
   if (!mon || !dg?.map || !dg.monsters?.includes(mon)) return false;
   if (canMonsterSurviveOnWater(mon, dg, mon.x, mon.y)) return false;
+  if (mon.isBoss) {
+    const _bd = bossInstantDeathDamage(mon);
+    mon.hp -= _bd;
+    ml.push(`${mon.name}は水没に耐えたが${_bd}ダメージを受けた！`);
+    if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn);
+    return true;
+  }
   ml.push(`${mon.name}は水没した！`);
   killMonster(mon, dg, p, ml, luFn);
   return true;
@@ -1029,8 +1042,8 @@ export function drownMonsterIfNeeded(mon, dg, p, ml, luFn) {
 
 /**
  * 封印などで浮遊が落ち、深い水上に残った敵を重力と同様に陸へ弾き出す。
- * 逃げ場がなければ即死。
- * @returns {"ejected"|"killed"|"ok"|null}
+ * 逃げ場がなければ通常敵は即死、ボスは現在HPの1/4ダメージ。
+ * @returns {"ejected"|"damaged"|"killed"|"ok"|null}
  */
 export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
   if (!m || !dg?.map || !ml) return null;
@@ -1052,6 +1065,16 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
     m.y = ny;
     ml.push(`封印で浮遊が解け、${m.name}が水上から弾き出された！`);
     return "ejected";
+  }
+  if (m.isBoss) {
+    const _bd = bossInstantDeathDamage(m);
+    m.hp -= _bd;
+    ml.push(`封印で浮遊が解け、${m.name}は水没に耐えたが${_bd}ダメージを受けた！`);
+    if (m.hp <= 0) {
+      killMonster(m, dg, p, ml, luFn);
+      return "killed";
+    }
+    return "damaged";
   }
   ml.push(`封印で浮遊が解け、${m.name}は逃げ場がなく即死した！`);
   killMonster(m, dg, p, ml, luFn);
@@ -1528,7 +1551,7 @@ export const TRAPS = [
   { name:"盗みの罠",       effect:"steal_trap",    tile:49,  rarity:"C", weight:4,  desc:"踏むと所持品が1つランダムにフロアのどこかへ飛ばされる。\nアイテムで起動した場合もそのアイテムが飛ばされる。\nロングソードは10%でソボロ助広に変化する。\nキーアイテムは盗まれない。" },
   { name:"影ぬいの罠",     effect:"shadow_stitch", tile:71,  rarity:"E", weight:12, desc:"踏むと5ターン移動不能になる。\n攻撃やアイテム使用は可能。" },
   { name:"惑わしの罠",     effect:"bewitch_trap",  tile:84,  rarity:"C", weight:4,  desc:"踏むと50ターン幻惑状態。\n周囲の見た目と、見渡すで得られる情報が狂う。" },
-  { name:"腐敗の罠",       effect:"rot_trap",      tile:94,  rarity:"C", weight:4,  desc:"踏むと所持品の食料が1つランダムに腐る。\n腐った食料は満腹回復が0.4倍に。" },
+  { name:"腐敗の罠",       effect:"rot_trap",      tile:94,  rarity:"C", weight:4,  desc:"踏むと所持品の食料が1つランダムに腐る。敵が踏むと通常敵は食料に変わり、ボスは現在HPの1/4ダメージを受ける。\n腐った食料は満腹回復が0.4倍に。" },
   { name:"鳴動の罠",       effect:"alarm_trap",     tile:125, rarity:"C", weight:4,  desc:"踏むとフロア中の敵が一斉に気づく。\nダメージはないが危険。敵が踏んでも警報が鳴る。" },
   /* B: レア（危険） */
   { name:"地雷",           effect:"explode",       tile:25,  rarity:"C", weight:4,  desc:"踏むと周囲8マスが大爆発（敵ターン後）。敵は即死、プレイヤーはHP半減（耐火で軽減）。\n壁・罠・大箱・床のアイテムも破壊される。隣の地雷は誘爆する。" },
@@ -1685,7 +1708,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (consumeBarrier(m, ml)) continue;
           if (m.isBoss) {
-            let _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
+            let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
             _bd = scaleMonFireDmg(m, _bd);
             m.hp -= _bd;
             ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}${monFireDmgLabel(m)}`);
@@ -1880,7 +1903,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
               continue;
             }
             if (m.isBoss) {
-              const _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
+              const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`${srcLabel}の爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);
@@ -2031,7 +2054,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
           continue;
         }
         if (m.isBoss) {
-          const _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
+          const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
           m.hp -= _bd;
           ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
           if (m.hp <= 0) { _killed.add(m); killMonster(m, dg, p, ml, luFn); }
@@ -2491,7 +2514,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       if (_pfm) {
         if (_pfm.isBoss) {
           /* ボス：落とし穴は無効、現在HPの4分の1ダメージ */
-          const _bd = Math.max(1, Math.floor(_pfm.hp / 4));
+          const _bd = bossInstantDeathDamage(_pfm);
           _pfm.hp -= _bd;
           ml.push(`${_pfm.name}は落とし穴をものともしなかった！${_bd}ダメージ！`);
           if (_pfm.hp <= 0) killMonster(_pfm, dg, p, ml, luFn);
@@ -2969,24 +2992,31 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       }
       const _rtm = monsterAt(dg, tx, ty);
       if (_rtm) {
-        dg.monsters = dg.monsters.filter(m => m !== _rtm);
-        const _rotFoodItem = { ...genFood(), id: uid() };
-        rotFood(_rotFoodItem);
-        /* 罠と重ならないよう空きマスに配置（DROで中心を除いた広域探索） */
-        let _rfx = tx, _rfy = ty;
-        for (const [_rdx, _rdy] of DRO) {
-          if (_rdx === 0 && _rdy === 0) continue;
-          const _cx = tx + _rdx, _cy = ty + _rdy;
-          if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
-          if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL) continue;
-          if (dg.items.some(i => i.x === _cx && i.y === _cy)) continue;
-          if (dg.traps.some(t => t.x === _cx && t.y === _cy)) continue;
-          _rfx = _cx; _rfy = _cy; break;
+        if (_rtm.isBoss) {
+          const _bd = bossInstantDeathDamage(_rtm);
+          _rtm.hp -= _bd;
+          ml.push(`${_rtm.name}は腐敗に耐えたが${_bd}ダメージを受けた！`);
+          if (_rtm.hp <= 0) killMonster(_rtm, dg, p, ml, luFn);
+        } else {
+          dg.monsters = dg.monsters.filter(m => m !== _rtm);
+          const _rotFoodItem = { ...genFood(), id: uid() };
+          rotFood(_rotFoodItem);
+          /* 罠と重ならないよう空きマスに配置（DROで中心を除いた広域探索） */
+          let _rfx = tx, _rfy = ty;
+          for (const [_rdx, _rdy] of DRO) {
+            if (_rdx === 0 && _rdy === 0) continue;
+            const _cx = tx + _rdx, _cy = ty + _rdy;
+            if (_cx < 0 || _cx >= MW || _cy < 0 || _cy >= MH) continue;
+            if (dg.map[_cy][_cx] === T.WALL || dg.map[_cy][_cx] === T.BWALL) continue;
+            if (dg.items.some(i => i.x === _cx && i.y === _cy)) continue;
+            if (dg.traps.some(t => t.x === _cx && t.y === _cy)) continue;
+            _rfx = _cx; _rfy = _cy; break;
+          }
+          _rotFoodItem.x = _rfx; _rotFoodItem.y = _rfy;
+          markItemIdentifiedForDungeon(_rotFoodItem, dg);
+          dg.items.push(_rotFoodItem);
+          ml.push(`${_rtm.name}が腐敗に飲み込まれ${_rotFoodItem.name}に変わった！`);
         }
-        _rotFoodItem.x = _rfx; _rotFoodItem.y = _rfy;
-        markItemIdentifiedForDungeon(_rotFoodItem, dg);
-        dg.items.push(_rotFoodItem);
-        ml.push(`${_rtm.name}が腐敗に飲み込まれ${_rotFoodItem.name}に変わった！`);
       }
       if (p && p.x === tx && p.y === ty && p.inventory) {
         const _rAllFoods = p.inventory.filter(i => i.type === "food" && !i.yabai);
@@ -4440,7 +4470,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
                 break;
               }
             } else if (m.isBoss) {
-              const _bd = Math.max(1, Math.floor(m.hp / 4)) * oilyDamageMult(dg, m);
+              const _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
               m.hp -= _bd;
               ml.push(`爆発で${m.name}は${_bd}ダメージ！${oilyDamageLabel(dg, m)}`);
               if (m.hp <= 0) killMonster(m, dg, p, ml, luFn);

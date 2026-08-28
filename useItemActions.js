@@ -9,7 +9,7 @@ import {
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
-  inMagicSealRoom, killMonster, chargeShopItem,
+  inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
@@ -1478,7 +1478,7 @@ export function useItemActions({
                 if (_m.baseKind === "firedemon") { ml.push(`${_m.name}には爆発が効かない！（炎無効）`); continue; }
                 pushExplosionAnim(_ax, _ay);
                 if (_m.isBoss) {
-                  const _sdBd = multiplyMagicDamage(Math.max(1, Math.floor(_m.hp / 4)), p.weapon, _m, dg);
+                  const _sdBd = multiplyMagicDamage(bossInstantDeathDamage(_m), p.weapon, _m, dg);
                   _m.hp -= _sdBd;
                   ml.push(`爆発で${_m.name}は${_sdBd}ダメージ！`);
                   if (_m.hp <= 0) { _sdKilled.add(_m); trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
@@ -1973,8 +1973,15 @@ export function useItemActions({
                 }
               }
               if (!_gpushed) {
-                ml.push(`重力の力で${_gm.name}は逃げ場がなく即死した！`);
-                killMonster(_gm, dg, p, ml, lu);
+                if (_gm.isBoss) {
+                  const _bd = bossInstantDeathDamage(_gm);
+                  _gm.hp -= _bd;
+                  ml.push(`重力の力で${_gm.name}は水没に耐えたが${_bd}ダメージを受けた！`);
+                  if (_gm.hp <= 0) killMonster(_gm, dg, p, ml, lu);
+                } else {
+                  ml.push(`重力の力で${_gm.name}は逃げ場がなく即死した！`);
+                  killMonster(_gm, dg, p, ml, lu);
+                }
               }
             }
           }

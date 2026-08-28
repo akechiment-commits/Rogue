@@ -2,7 +2,7 @@ import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt,
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
   resolveItemName, getIdentKey, breakBigboxContents,
-  killMonster, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
+  killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
@@ -536,10 +536,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         ml.push(`${target.name}は吹き飛ばされた！`);
         target.hp -= _kbDmg;
         pushEntity(dg, target.x, target.y, dx, dy, d, ml, "monster", target, p, luFn, collisionAtk);
-        /* 聖域の上に強制移動した敵は即死（壁激突によるHP0チェックより先に判定） */
+        /* 聖域の上に強制移動した敵は通常即死、ボスは割合ダメージ（壁激突によるHP0チェックより先に判定） */
         if (dg.monsters.includes(target) &&
             dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
-          if (killerMon) {
+          if (target.isBoss) {
+            const _bd = bossInstantDeathDamage(target);
+            target.hp -= _bd;
+            ml.push(`${target.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
+            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
+          } else if (killerMon) {
             ml.push(`${target.name}は聖域に吹き飛ばされ消滅した！`);
             monsterDrop(target, dg, ml, p);
             removeMonster(dg, target);
@@ -865,8 +870,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
         ml.push(`${target.name}と位置が入れ替わった！`);
         if (drownMonsterIfNeeded(target, dg, p, ml, luFn)) break;
-        /* 聖域の上に強制移動した敵は即死 */
+        /* 聖域の上に強制移動した敵は通常即死、ボスは割合ダメージ */
         if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === target.x && pc.y === target.y)) {
+          if (target.isBoss) {
+            const _bd = bossInstantDeathDamage(target);
+            target.hp -= _bd;
+            ml.push(`${target.name}は聖域の力に耐えたが${_bd}ダメージを受けた！`);
+            if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
+            break;
+          }
           { const _se2 = Math.floor(target.exp * ((p.soyExpTurns||0)>0?1.3:1));
           ml.push(`${target.name}は聖域に踏み込み消滅した！(+${_se2}exp${(p.soyExpTurns||0)>0?" 醤油効果!":""})`);
           p.exp += _se2; }
@@ -1795,9 +1807,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       if (kind === "monster") {
         if (target.isBoss) {
           /* ボス：HP交換は無効、現在HPの4分の1ダメージだけ与える */
-          const _bossDmg = _magicDamage(Math.max(1, Math.floor(target.hp / 4)));
+          const _bossDmg = _magicDamage(bossInstantDeathDamage(target));
           target.hp -= _bossDmg;
-          ml.push(`${target.name}は体力交換を跳ね返した！${_bossDmg}ダメージ！`);
+          const _oldPlayerHp = p.hp;
+          p.hp = Math.min(p.maxHp, _bossDmg);
+          ml.push(`${target.name}は体力交換を跳ね返した！${_bossDmg}ダメージ！プレイヤーのHPが${_oldPlayerHp}→${p.hp}になった！`);
           if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           break;
         }
