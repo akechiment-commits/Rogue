@@ -375,7 +375,7 @@ describe("new weird traps", () => {
     fireTrapItem(trap, { name: "石", type: "arrow" }, dg, 5, 5, ml, new Set(), p);
     fireTrapItem(trapB, { name: "石", type: "arrow" }, dg, 6, 6, ml, new Set(), p);
     expect(mon.floatTurns).toBe(30);
-    expect(boss.floatTurns).toBe(30);
+    expect(boss.floatTurns).toBe(15);
   });
 
   it("未識別の罠を敵が踏むと混乱する", () => {
