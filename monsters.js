@@ -2953,8 +2953,13 @@ function useDangerousPetalSleep(m, dg, pl, ml) {
     ml.push(`${m.name}が眠りの花粉をまいた！しかし防具が睡眠を防いだ！`);
     return true;
   }
+  /* 眠っている間に花粉を重ねられても、睡眠を延長して永久化させない。 */
+  if ((pl.sleepTurns || 0) > 0) {
+    ml.push(`${m.name}が眠りの花粉をまいた！しかしすでに眠っている。`);
+    return true;
+  }
   const turns = statusTurns("sleep", { kind: "player" });
-  pl.sleepTurns = (pl.sleepTurns || 0) + turns;
+  pl.sleepTurns = turns;
   ml.push(`${m.name}が眠りの花粉をまいた！眠ってしまった！(${turns}ターン)`);
   return true;
 }

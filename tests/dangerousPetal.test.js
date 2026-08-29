@@ -54,6 +54,21 @@ describe("危険な花びら", () => {
     expect(player.sleepTurns).toBe(6);
   });
 
+  it("眠っている間に花粉が再命中しても睡眠を延長しない", () => {
+    const player = makePlayer({ x: 6, y: 5 });
+    const petal = makePetal(1, 5, 5);
+    const dungeon = makeRoomBattlefield(petal, player);
+    petal.alwaysUseSpecial = true;
+    petal.turnAttacks = 0;
+
+    monsterAI(petal, dungeon, player, [], { attackOnly: true });
+    expect(player.sleepTurns).toBe(6);
+
+    petal.turnAttacks = 0;
+    monsterAI(petal, dungeon, player, [], { attackOnly: true });
+    expect(player.sleepTurns).toBe(6);
+  });
+
   it("特技使用率は隣接25%、遠距離12.5%で予約する", () => {
     const random = vi.spyOn(Math, "random").mockReturnValue(0.2);
     try {
