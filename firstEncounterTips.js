@@ -33,7 +33,8 @@ export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   action_disabled: { title: "行動不能", trigger: "睡眠・金縛り状態になる", text: ["睡眠や金縛り中は自分で行動できず、ターンが自動で進む。敵に囲まれていると特に危険だ。", "対応する耐性防具や状態防止効果があれば、付与そのものを防げる。"] },
   slow: { title: "鈍足", trigger: "鈍足状態になる", text: ["鈍足中は2ターンに1回しか行動できない。普段の間合いでも敵に連続攻撃されやすい。", "通路へ退く、敵を止める、遠距離から対処するなど正面戦闘を避けよう。"] },
   immobile: { title: "移動不能・拘束", trigger: "移動封じ・凍結・敵の拘束を受ける", text: ["移動できなくても、攻撃や道具使用など別の行動はできる場合がある。", "テレポートや吹き飛ばしで位置が変わると解除できることもある。状況に合う脱出手段を探そう。"] },
-  magic_seal: { title: "魔法封印", trigger: "封印状態またはMP封印状態になる", text: ["封印中は巻物・魔法書・魔法・杖などを使えない。試しても発動せずターンだけ失うことがある。", "物理攻撃、投擲、薬や食料など、魔法ではない手段へ切り替えよう。"] },
+  magic_seal: { title: "魔法封印", trigger: "魔法封印状態になる", text: ["封印中は巻物・魔法書・魔法・杖などを使えない。試しても発動せずターンだけ失うことがある。", "物理攻撃、投擲、薬や食料など、魔法ではない手段へ切り替えよう。"] },
+  mp_recovery_block: { title: "MP回復禁止", trigger: "MP回復禁止状態になる", text: ["MP回復禁止中は、自然回復・薬・泉・食料など、どの方法でもMPが回復しない。ただし杖・巻物・魔法の使用自体は制限されない。", "HP0からMPで復活した後は1000ターン続き、通常は時間経過だけで解除される。呪われた封印の薬だけはすぐに解除できる。"] },
   darkness: { title: "暗闇", trigger: "暗闇状態になる", text: ["暗闇中は視界が1マスになり、巻物も読めない。見えていない敵へ不用意に近づくのは危険だ。", "壁沿いに退くか、治療・明かり・モンスター感知で状況を取り戻そう。"] },
   bewitch: { title: "幻惑", trigger: "幻惑状態になる", text: ["幻惑中は周囲の見た目や「見渡す」で得る情報が信用できなくなる。", "記憶している地形を頼りに安全な場所へ退くか、効果が切れるまで慎重に行動しよう。"] },
   floating: { title: "浮遊", trigger: "浮遊状態になる", text: ["浮遊中は床の罠と深い水を避けられる一方、階段を使えない。", "効果が水上で切れると危険なため、残りターンと着地点を確認しよう。"] },
@@ -142,7 +143,8 @@ export function getFirstEncounterStateTipKeys(session, { isDeepWater = false } =
   if ((p.sleepTurns || 0) > 0 || (p.paralyzeTurns || 0) > 0) keys.push("action_disabled");
   if ((p.slowTurns || 0) > 0 || p.slowSkip) keys.push("slow");
   if ((p.immobileTurns || 0) > 0 || (p.frozenTurns || 0) > 0 || p.capturedBy) keys.push("immobile");
-  if ((p.sealedTurns || 0) > 0 || (p.mpCooldownTurns || 0) > 0 || (p.mpSealTurns || 0) > 0) keys.push("magic_seal");
+  if ((p.sealedTurns || 0) > 0) keys.push("magic_seal");
+  if ((p.mpCooldownTurns || 0) > 0 || (p.mpSealTurns || 0) > 0) keys.push("mp_recovery_block");
   if ((p.darknessTurns || 0) > 0) keys.push("darkness");
   if ((p.bewitchedTurns || 0) > 0) keys.push("bewitch");
   if ((p.floatTurns || 0) > 0) keys.push("floating");

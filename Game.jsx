@@ -88,6 +88,7 @@ import { listFloorInventoryEntries, floorEntryRole, floorEntryActionCount, FLOOR
 import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from "./revivalRules.js";
 import { ensureStairsPresent } from "./floorObjectPlacement.js";
 import { getPlayerStairBlockMessage } from "./stairRules.js";
+import { isMpRecoveryBlocked, mpRecoveryBlockTurns, MP_REVIVAL_SEAL_TURNS } from "./mpRules.js";
 import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFirstEncounterStateTipKeys, getFirstEncounterTip } from "./firstEncounterTips.js";
 import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardian.js";
 import { isMonsterSpawnCellAllowed } from "./monsterSpawnRules.js";
@@ -551,6 +552,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       maxHp: dungeonConfig?.dungeonType === "debug" ? 200 : 30,
       mp: dungeonConfig?.dungeonType === "debug" ? 200 : 20,
       maxMp: dungeonConfig?.dungeonType === "debug" ? 200 : 20,
+      mpSealTurns: 0,
       atk: 5,
       def: 0,
       level: 1,
@@ -1933,8 +1935,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const revHp = p.mp;
           p.hp = revHp;
           p.mp = 0;
-          p.mpSealTurns = 1000;
-          ml.push(`HPがゼロになった！残りMP${revHp}でHP${revHp}として復活！MPは1000ターン回復しない。`);
+          p.mpSealTurns = MP_REVIVAL_SEAL_TURNS;
+          ml.push(`HPがゼロになった！残りMP${revHp}でHP${revHp}として復活！MPは${MP_REVIVAL_SEAL_TURNS}ターン回復しない。`);
         } else {
           if (_reviveBlocked) ml.push(REVIVAL_SUPPRESS_MSG);
           ml.push("あなたは死んだ...ゲームオーバー。");
@@ -4592,7 +4594,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push("喉が潤った。");
     } else if (r < 0.45) {
       // MP回復
-      if ((p.maxMp || 0) > 0) {
+      if (isMpRecoveryBlocked(p)) {
+        ml.push(`魔力が戻ってきたが、MP回復禁止中のため効果がない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
+      } else if ((p.maxMp || 0) > 0) {
         const _mr = Math.min(10, (p.maxMp || 0) - (p.mp || 0));
         p.mp = (p.mp || 0) + _mr;
         ml.push(`魔力が戻ってきた！MP+${_mr}`);
@@ -5328,11 +5332,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         </span>{" "}
         <span>
           MP:
-          <span style={{ color: (p.mpCooldownTurns || 0) > 0 ? "#888" : "#60c0ff" }}>
+          <span style={{ color: isMpRecoveryBlocked(p) ? "#888" : "#60c0ff" }}>
             {p.mp || 0}/{p.maxMp || 0}
           </span>
-          {(p.mpCooldownTurns || 0) > 0 && (
-            <span style={{ color: "#f84", fontSize: "0.8em" }}> 封印:{p.mpCooldownTurns}</span>
+          {isMpRecoveryBlocked(p) && (
+            <span style={{ color: "#f84", fontSize: "0.8em" }}> 回復禁止:{mpRecoveryBlockTurns(p)}</span>
           )}
         </span>{" "}
         <span>

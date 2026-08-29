@@ -1252,8 +1252,15 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
+          const _hadCooldown = (p.mpCooldownTurns || 0) > 0;
           p.mpCooldownTurns = 0;
-          ml.push("MP封印が解けた！【呪→解封】");
+          if (_hadCooldown) {
+            ml.push("通常のMP封印が解けた！【呪→解封】");
+          } else if ((p.mpSealTurns || 0) > 0) {
+            ml.push("復活後のMP回復禁止は、呪われた封印の薬でのみ解除できる！【呪】");
+          } else {
+            ml.push("MP封印はかかっていなかった。【呪→解封】");
+          }
           break;
         }
       } else {

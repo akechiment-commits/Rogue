@@ -28,6 +28,7 @@ import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
+import { isMpRecoveryBlocked, mpRecoveryBlockTurns, clearMpRecoveryBlockFromCursedSealPotion } from './mpRules.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -3597,8 +3598,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           const _mt = statusTurns("mpCooldown", { kind: "player" });
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
           ml.push(`魔力が封じられた！(MP封印${_mt}ターン)【呪】`);
-        } else if ((p.mpCooldownTurns || 0) > 0) {
-          ml.push(`MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
+        } else if (isMpRecoveryBlocked(p)) {
+          ml.push(`MP回復禁止中のため回復できない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
           const add = Math.min(Math.round(val * (blessed ? 1.5 : 1)), (p.maxMp || 20) - (p.mp || 0));
           if (add <= 0) {
@@ -3731,8 +3732,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "player") {
         if (cursed) {
           // 呪い：MP封印解除
-          p.mpCooldownTurns = 0;
-          ml.push("MP封印が解けた！【呪→解封】");
+          const _wasMpBlocked = clearMpRecoveryBlockFromCursedSealPotion(p);
+          ml.push(`${_wasMpBlocked ? "MP回復禁止が解けた！" : "MP封印はかかっていなかった。"}【呪→解封】`);
         } else if (!blockPlayerStatus(p, ml, { proofAbility: "seal_proof", proofMsg: "封印効果を受けたが防具が防いだ！(耐封印)" })) {
           // 通常/祝福：MP封印（祝福：さらに鈍足）
           const _mt = statusTurns("mpCooldown", { kind: "player", blessed });

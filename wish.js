@@ -18,6 +18,7 @@ import { trackMonster, trackBigbox } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
 import { clearPlayerPoison } from "./statusDuration.js";
 import { markBigboxKindIdentified } from "./GameHelpers.js";
+import { isMpRecoveryBlocked } from "./mpRules.js";
 
 /** 飲む／浸すで願いが発動する確率（各 0.5%） */
 export const WISH_CHANCE_DRINK = 0.005;
@@ -459,11 +460,14 @@ export function grantWish(wish, ctx) {
     switch (wish.id) {
       case "full_restore": {
         p.hp = p.maxHp;
-        if ((p.maxMp || 0) > 0) p.mp = p.maxMp;
+        const _wishMpBlocked = isMpRecoveryBlocked(p);
+        if ((p.maxMp || 0) > 0 && !_wishMpBlocked) p.mp = p.maxMp;
         p.hunger = p.maxHunger || 100;
         clearMajorDebuffs(p);
         if (p.hunger > 0) delete p._hungerDmgStarted;
-        ml.push("体中に力が戻ってきた！全快し、腹も満たされた！");
+        ml.push(_wishMpBlocked
+          ? "体中に力が戻ってきた！HPが全快し、腹も満たされた！（MP回復禁止中）"
+          : "体中に力が戻ってきた！全快し、腹も満たされた！");
         return { ok: true };
       }
       case "level_up": {

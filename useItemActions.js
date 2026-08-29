@@ -30,6 +30,7 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
 import { monSubmergesProjectiles, monReflectsProjectiles } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
+import { isMpRecoveryBlocked, mpRecoveryBlockTurns, clearMpRecoveryBlockFromCursedSealPotion } from "./mpRules.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -386,8 +387,8 @@ export function useItemActions({
           const _mt = statusTurns("mpCooldown", { kind: "player" });
           p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
           ml.push(`${_useItemName}を飲んだ。魔力が封じられた！(MP封印${_mt}ターン)【呪】`);
-        } else if ((p.mpCooldownTurns || 0) > 0) {
-          ml.push(`${_useItemName}を飲んだ。MPが封印中のため回復できない！(残り${p.mpCooldownTurns}ターン)`);
+        } else if (isMpRecoveryBlocked(p)) {
+          ml.push(`${_useItemName}を飲んだ。MP回復禁止中のため回復できない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
           // 通常/祝福：MP回復（祝福=1.5x）。MP最大時は最大MP増加
           const _madd = Math.min(Math.round(it.value * _potBm), (p.maxMp || 20) - (p.mp || 0));
@@ -404,8 +405,8 @@ export function useItemActions({
       } else if (it.effect === "seal") {
         if (it.cursed) {
           // 呪い：MP封印解除
-          p.mpCooldownTurns = 0;
-          ml.push(`${_useItemName}を飲んだ。MP封印が解けた！【呪→解封】`);
+          const _wasMpBlocked = clearMpRecoveryBlockFromCursedSealPotion(p);
+          ml.push(`${_useItemName}を飲んだ。${_wasMpBlocked ? "MP回復禁止が解けた！" : "MP封印はかかっていなかった。"}【呪→解封】`);
         } else {
           // 通常/祝福：MP封印（祝福：さらに鈍足）
           const _mt = statusTurns("mpCooldown", { kind: "player", blessed: !!it.blessed });
@@ -647,8 +648,8 @@ export function useItemActions({
             p.atk += 2;
             ml.push("強化効果で攻撃力+2！");
           } else if (pe === "mana") {
-            if ((p.mpCooldownTurns || 0) > 0) {
-              ml.push(`MP封印中のため魔力効果は発揮されなかった！(残り${p.mpCooldownTurns}ターン)`);
+            if (isMpRecoveryBlocked(p)) {
+              ml.push(`MP回復禁止中のため魔力効果は発揮されなかった！(残り${mpRecoveryBlockTurns(p)}ターン)`);
             } else {
               const _mpRec = Math.min(10, (p.maxMp || 0) - (p.mp || 0));
               p.mp = (p.mp || 0) + _mpRec;
@@ -721,8 +722,11 @@ export function useItemActions({
             p.mpCooldownTurns = (p.mpCooldownTurns || 0) + statusTurns("mpCooldown", { kind: "player" });
             ml.push("封魔成分が！MP封印50ターン！");
           } else if (pe === "c_seal") {
+            const _hadCooldown = (p.mpCooldownTurns || 0) > 0;
             p.mpCooldownTurns = 0;
-            ml.push("解封成分が！MP封印が解けた！");
+            if (_hadCooldown) ml.push("解封成分が！通常のMP封印が解けた！");
+            else if ((p.mpSealTurns || 0) > 0) ml.push("解封成分では復活後のMP回復禁止は解けない！");
+            else ml.push("解封成分が入っていたが、MP封印はかかっていなかった。");
           }
         }
       }
@@ -780,9 +784,13 @@ export function useItemActions({
             if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; ml.push("乳酸菌が混乱を鎮めた！"); }
             ml.push("乳酸菌パワーで毒・混乱を寄せ付けない！(100ターン)");
           } else if (_pf === "coconut") {
-            const _ccMp = Math.min(10, (p.maxMp || 50) - (p.mp || 0));
-            p.mp = (p.mp || 0) + _ccMp;
-            ml.push(_ccMp > 0 ? `ココナッツの力でMP+${_ccMp}回復！` : "ココナッツの力…MPは満タンだ。");
+            if (isMpRecoveryBlocked(p)) {
+              ml.push(`ココナッツの力が湧いたが、MP回復禁止中のため効果がない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
+            } else {
+              const _ccMp = Math.min(10, (p.maxMp || 50) - (p.mp || 0));
+              p.mp = (p.mp || 0) + _ccMp;
+              ml.push(_ccMp > 0 ? `ココナッツの力でMP+${_ccMp}回復！` : "ココナッツの力…MPは満タンだ。");
+            }
           } else if (_pf === "soy") {
             p.soyExpTurns = (p.soyExpTurns || 0) + 100;
             ml.push("醤油の旨味で集中力UP！経験値1.3倍(100ターン)");

@@ -3,6 +3,7 @@
  * 依存する装備判定は注入し、ゲーム UI や敵行動には依存しない。
  */
 import { statusTurns } from "./statusDuration.js";
+import { isMpRecoveryBlocked } from "./mpRules.js";
 
 export function advancePlayerUpkeep(player, messages, {
   hasAbility,
@@ -154,7 +155,8 @@ export function advanceForcedTurn(player, messages) {
 /** 敵行動より前に減少する、地形に依存しない状態タイマーを更新する。 */
 export function advanceEarlyStatusTimers(player, messages) {
   if ((player.mpCooldownTurns || 0) > 0) player.mpCooldownTurns--;
-  if (player.turns % 100 === 0 && (player.mpCooldownTurns || 0) === 0 && (player.mp || 0) < (player.maxMp || 0)) {
+  if ((player.mpSealTurns || 0) > 0) player.mpSealTurns--;
+  if (player.turns % 100 === 0 && !isMpRecoveryBlocked(player) && (player.mp || 0) < (player.maxMp || 0)) {
     player.mp = Math.min(player.mp + 1, player.maxMp);
   }
   if ((player.sealedTurns || 0) > 0) {

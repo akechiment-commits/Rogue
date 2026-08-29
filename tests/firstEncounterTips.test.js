@@ -29,6 +29,18 @@ describe("first encounter tips", () => {
     expect(getFirstEncounterTip("revival_pentacle", "beginner", [])).toBeTruthy();
   });
 
+  it("MP回復禁止は魔法封印とは別のTipsになる", () => {
+    const session = {
+      allBcKnown: false,
+      player: { hp: 10, maxHp: 30, mp: 0, maxMp: 20, mpSealTurns: 1000, inventory: [], rings: [] },
+      dungeon: { monsters: [], pentacles: [], visible: [] },
+    };
+    const keys = getFirstEncounterStateTipKeys(session);
+    expect(keys).toContain("mp_recovery_block");
+    expect(keys).not.toContain("magic_seal");
+    expect(FIRST_ENCOUNTER_TIPS.mp_recovery_block.text[0]).toContain("杖・巻物・魔法の使用自体は制限されない");
+  });
+
   it("ボスTipsに撃破報酬の説明を含める", () => {
     const tip = getFirstEncounterTip("boss", "beginner", []);
     expect(tip.text[1]).toContain("豪華な専用報酬");
