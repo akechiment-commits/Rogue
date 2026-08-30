@@ -3831,6 +3831,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     for (const t of TRAPS) entries.push({ label: t.name, value: { ...t } });
   } else if (effect === "debug_summon_bb") {
     for (const bb of BB_TYPES) entries.push({ label: bb.name, value: { ...bb, _debugObject: "bigbox" } });
+  } else if (effect === "debug_summon_object") {
     entries.push({ label: "ガチャマシーン", value: { _debugObject: "gacha" } });
     entries.push({ label: "泉", value: { _debugObject: "spring" } });
     entries.push({ label: "風穴", value: { _debugObject: "vent" } });
@@ -3846,7 +3847,8 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   const title = effect === "debug_summon_mon" ? "敵を選択"
     : effect === "debug_get_item" ? (category ? `アイテムを選択（${_DBG_ITEM_CATS.find(c=>c.key===category)?.label}）` : "カテゴリを選択")
     : effect === "debug_create_trap" ? "罠を選択"
-    : "大箱・ギミックを選択";
+    : effect === "debug_summon_bb" ? "大箱を選択"
+    : "オブジェクトを選択";
 
   const doSelect = (entry) => {
     /* カテゴリ選択 */
@@ -3918,9 +3920,9 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         break;
       }
       if (!placed) ml.push("作る場所がない！");
-    } else if (effect === "debug_summon_bb") {
+    } else if (effect === "debug_summon_bb" || effect === "debug_summon_object") {
       const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],[0,0]];
-      const objectKind = entry.value._debugObject || "bigbox";
+      const objectKind = effect === "debug_summon_object" ? entry.value._debugObject : "bigbox";
       const occupied = (x, y) =>
         dg.map[y]?.[x] !== T.FLOOR ||
         (x === p.x && y === p.y) ||

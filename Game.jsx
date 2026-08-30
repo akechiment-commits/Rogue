@@ -578,7 +578,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         makeStarterFoodItem(favoriteFood),
       ],
       spells: dungeonConfig?.dungeonType === "debug"
-        ? ["debug_summon_mon","debug_get_item","debug_create_trap","debug_summon_bb","bless_magic","curse_magic"]
+        ? ["debug_summon_mon","debug_get_item","debug_create_trap","debug_summon_bb","debug_summon_object","bless_magic","curse_magic"]
         : [],
       spellLevels: {},
       turns: 0,
