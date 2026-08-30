@@ -93,7 +93,7 @@ import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFir
 import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardian.js";
 import { isMonsterSpawnCellAllowed } from "./monsterSpawnRules.js";
 import { FloorMapOverlay } from "./FloorMapOverlay.jsx";
-import { GACHA_COST, rollGachaJackpot } from "./gachaRules.js";
+import { GACHA_COST, rollGachaRarity } from "./gachaRules.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -5124,11 +5124,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     const ml = installPlayerHpMessageHook([], p2);
     p2.gold -= GACHA_COST;
-    const jackpot = rollGachaJackpot();
-    const prize = makeGachaPrize(jackpot);
+    const prizeRarity = rollGachaRarity();
+    const prize = makeGachaPrize(prizeRarity);
     placeItemAt(dg2, machine.x, machine.y, prize, ml, new Set(), 0, p2);
-    ml.push(jackpot
-      ? `ガチャマシーンから大当たり！${itemDisplayName(prize, s.fakeNames, s.ident, s.nicknames)}が出てきた！`
+    const resultLabel = prize.rarity === "A" ? "大当たり！" : prize.rarity === "B" ? "当たり！" : "";
+    ml.push(resultLabel
+      ? `ガチャマシーンから${resultLabel}${itemDisplayName(prize, s.fakeNames, s.ident, s.nicknames)}が出てきた！`
       : `ガチャマシーンから${itemDisplayName(prize, s.fakeNames, s.ident, s.nicknames)}が出てきた。`);
     endTurn(s, p2, ml);
     setGachaMode(null);

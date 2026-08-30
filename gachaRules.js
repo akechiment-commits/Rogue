@@ -1,6 +1,6 @@
 /** ガチャマシーンの共通ルール。ゲーム本体から独立させ、抽選条件を一か所で管理する。 */
 export const GACHA_COST = 1000;
-export const GACHA_JACKPOT_RATE = 0.03;
+export const GACHA_RARITY_RATES = Object.freeze({ A: 0.02, B: 0.05, C: 0.10 });
 export const GACHA_SPAWN_RATE = 0.05;
 
 export function isGachaMachine(value) {
@@ -18,8 +18,13 @@ export function isInsideGachaShop(machine, dungeon, x = machine?.x, y = machine?
   return isInsideRoom(shop?.room, x, y);
 }
 
-export function rollGachaJackpot(randomFn = Math.random) {
-  return randomFn() < GACHA_JACKPOT_RATE;
+/** ガチャ抽選のレア度を決める。null はD/E枠を表す。 */
+export function rollGachaRarity(randomFn = Math.random) {
+  const roll = randomFn();
+  if (roll < GACHA_RARITY_RATES.A) return "A";
+  if (roll < GACHA_RARITY_RATES.A + GACHA_RARITY_RATES.B) return "B";
+  if (roll < GACHA_RARITY_RATES.A + GACHA_RARITY_RATES.B + GACHA_RARITY_RATES.C) return "C";
+  return null;
 }
 
 /**

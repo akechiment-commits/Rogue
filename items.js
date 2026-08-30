@@ -1239,14 +1239,13 @@ export function makeChangeBoxItem(context = "change") {
   return { ...tmpl, id: uid() };
 }
 
-/** ガチャマシーンの景品を生成する。通常は全通常品、当たりはC以上の品から抽選する。 */
-export function makeGachaPrize(jackpot = false) {
+/** ガチャマシーンの景品を生成する。指定レア度はそのレア度、未指定はD/Eから抽選する。 */
+export function makeGachaPrize(rarity = null) {
   const all = [...ITEMS, ...WANDS, ...POTS, ...SPELLBOOKS, ...RINGS,
     EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, ARROW_T]
     .filter((item) => item && item.type !== "gem" && item.type !== "goal" && item.effect !== "wish" && item.potEffect !== "wish_pot");
-  const pool = jackpot
-    ? all.filter((item) => (RARITY_RANK[item.rarity] ?? -1) >= RARITY_RANK.C && (RARITY_RANK[item.rarity] ?? -1) < RARITY_RANK.S)
-    : all;
+  const targetRarities = ["A", "B", "C", "D", "E"].includes(rarity) ? [rarity] : ["D", "E"];
+  const pool = all.filter((item) => targetRarities.includes(item.rarity));
   const tmpl = pickGachaTemplate(pool.length ? pool : all) || makeChangeBoxItem("floor");
   if (tmpl.type === "food") return { ...genFood(), id: uid() };
   if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], capacity: randPotCapacity(tmpl.potEffect) };
@@ -1264,7 +1263,7 @@ export function breakGachaMachine(machine, dg, ml, p = null, nameFn = null) {
   if (machine.shopId != null && p) {
     declareShopTheft(p, dg, ml, { forceAll: true, message: "店内のガチャマシーンを壊した！泥棒扱いになった！" });
   }
-  const prize = makeGachaPrize(false);
+  const prize = makeGachaPrize();
   const ft = new Set();
   placeItemAt(dg, x, y, prize, ml, ft, 0, p);
   ml.push(`${machine.name || "ガチャマシーン"}が壊れた！${resolveItemName(prize, nameFn)}が1個落ちた！`);

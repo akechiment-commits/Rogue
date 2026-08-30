@@ -2733,7 +2733,7 @@ export function GachaModal({ mode, setMode, gs, gachaRef, menuSel, setMenuSel, o
         <button onClick={close} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div style={{ color: "#d8c080", fontSize: 13, marginBottom: 8 }}>
-        1000Gで1回。ほとんどは普通の景品だが、3%で大当たり。
+        1000Gで1回。ほとんどは大した物が出ないが、Aは大当たり（2%）、Bは当たり（5%）。
       </div>
       {mode === "menu" && options.map((option, index) => (
         <button key={option.label} onClick={option.disabled ? undefined : option.fn}

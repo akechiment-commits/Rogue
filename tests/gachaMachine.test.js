@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MH, MW, T } from "../utils.js";
-import { GACHA_JACKPOT_RATE, isInsideGachaShop, pickGachaTemplate, rollGachaJackpot } from "../gachaRules.js";
+import { GACHA_RARITY_RATES, isInsideGachaShop, pickGachaTemplate, rollGachaRarity } from "../gachaRules.js";
 import { placeGachaMachine } from "../dungeon.js";
 import { breakGachaMachine, makeGachaPrize } from "../items.js";
 
@@ -13,10 +13,14 @@ function emptyDungeon() {
 }
 
 describe("ガチャマシーン", () => {
-  it("抽選率は3%で境界を正しく判定する", () => {
-    expect(GACHA_JACKPOT_RATE).toBe(0.03);
-    expect(rollGachaJackpot(() => 0.029)).toBe(true);
-    expect(rollGachaJackpot(() => 0.03)).toBe(false);
+  it("レア度別の抽選率と境界を正しく判定する", () => {
+    expect(GACHA_RARITY_RATES).toEqual({ A: 0.02, B: 0.05, C: 0.10 });
+    expect(rollGachaRarity(() => 0.019)).toBe("A");
+    expect(rollGachaRarity(() => 0.02)).toBe("B");
+    expect(rollGachaRarity(() => 0.069)).toBe("B");
+    expect(rollGachaRarity(() => 0.07)).toBe("C");
+    expect(rollGachaRarity(() => 0.169)).toBe("C");
+    expect(rollGachaRarity(() => 0.17)).toBeNull();
   });
 
   it("重み付き景品候補を抽選できる", () => {
@@ -51,8 +55,9 @@ describe("ガチャマシーン", () => {
     expect(ml.join("\n")).toContain("ガチャマシーンが壊れた");
   });
 
-  it("大当たり景品はC〜Aレア度から選ばれる", () => {
-    const prize = makeGachaPrize(true);
-    expect(["C", "B", "A"]).toContain(prize.rarity);
+  it("指定レア度の景品だけを選ぶ", () => {
+    for (const rarity of ["A", "B", "C", "D", "E"]) {
+      expect(makeGachaPrize(rarity).rarity).toBe(rarity);
+    }
   });
 });
