@@ -8,6 +8,7 @@ import {
 import { scatterFloorGimmicks } from './fixtures.js';
 import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
+import { GACHA_SPAWN_RATE } from './gachaRules.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -1916,13 +1917,64 @@ function genBossFloor(depth, dungeonType = null) {
   };
 }
 
-/** 偽階段・風穴・石像・固定転送をフロアにばら撒く */
+/** ガチャマシーンを床へ1台だけ配置する（約20フロアに1回）。 */
+export function placeGachaMachine(dg, randomFn = Math.random) {
+  if (!dg?.map || ["tutorialFloor", "debugDungeon", "treasureRoom"].includes(dg.floorType) || dg.dungeonType === "tutorial" || dg.isTreasureRoom) return null;
+  dg.gachaMachines ||= [];
+  if (dg.gachaMachines.length > 0 || randomFn() >= GACHA_SPAWN_RATE) return null;
+  const shops = getShops(dg).filter((shop) => shop?.room);
+  const occupied = (x, y) =>
+    dg.map[y]?.[x] !== T.FLOOR ||
+    dg.monsters?.some((m) => m.x === x && m.y === y) ||
+    dg.items?.some((item) => item.x === x && item.y === y) ||
+    dg.traps?.some((trap) => trap.x === x && trap.y === y) ||
+    dg.springs?.some((spring) => spring.x === x && spring.y === y) ||
+    dg.bigboxes?.some((box) => box.x === x && box.y === y) ||
+    dg.pentacles?.some((pentacle) => pentacle.x === x && pentacle.y === y) ||
+    dg.statues?.some((statue) => statue.x === x && statue.y === y) ||
+    dg.vents?.some((vent) => vent.x === x && vent.y === y) ||
+    dg.gachaMachines.some((machine) => machine.x === x && machine.y === y) ||
+    (dg.stairUp && dg.stairUp.x === x && dg.stairUp.y === y) ||
+    (dg.stairDown && dg.stairDown.x === x && dg.stairDown.y === y);
+  const inRoom = (room, x, y) => x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
+  const cellsIn = (room = null) => {
+    const cells = [];
+    for (let y = 1; y < MH - 1; y++) for (let x = 1; x < MW - 1; x++) {
+      if (room && !inRoom(room, x, y)) continue;
+      if (!occupied(x, y)) cells.push({ x, y });
+    }
+    return cells;
+  };
+  /* 店内個体も発生させる。店内に空きがなければ通常の床へフォールバック。 */
+  let shop = null;
+  let cells = [];
+  if (shops.length > 0 && randomFn() < 0.25) {
+    const shuffledShops = shuffle([...shops]);
+    for (const candidate of shuffledShops) {
+      cells = cellsIn(candidate.room);
+      if (cells.length > 0) { shop = candidate; break; }
+    }
+  }
+  if (cells.length === 0) cells = cellsIn();
+  if (cells.length === 0) return null;
+  const cell = cells[Math.floor(randomFn() * cells.length)];
+  const machine = {
+    id: uid(), x: cell.x, y: cell.y, tile: TI.GACHA,
+    type: "gacha", kind: "gacha_machine", name: "ガチャマシーン",
+    shopId: shop?.id ?? null,
+  };
+  dg.gachaMachines.push(machine);
+  return machine;
+}
+
+/** 偽階段・風穴・石像・固定転送・ガチャマシーンをフロアにばら撒く */
 function attachFloorGimmicks(dg, depth) {
   if (!dg) return dg;
   dg.vents = dg.vents || [];
   dg.statues = dg.statues || [];
   dg.pentacles = dg.pentacles || [];
   dg.traps = dg.traps || [];
+  dg.gachaMachines = dg.gachaMachines || [];
   const g = scatterFloorGimmicks(dg.map, dg.rooms || [], depth, {
     traps: dg.traps,
     springs: dg.springs || [],
@@ -1936,6 +1988,7 @@ function attachFloorGimmicks(dg, depth) {
   if (g.vents?.length) dg.vents.push(...g.vents);
   if (g.statues?.length) dg.statues.push(...g.statues);
   if (g.pentacles?.length) dg.pentacles.push(...g.pentacles);
+  placeGachaMachine(dg);
   return dg;
 }
 

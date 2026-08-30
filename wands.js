@@ -1,7 +1,7 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
-  resolveItemName, getIdentKey, breakBigboxContents,
+  resolveItemName, getIdentKey, breakBigboxContents, breakGachaMachine, checkGachaShopTheft,
   killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
   soakItemIntoSpring, splashPotion, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
@@ -65,6 +65,7 @@ function statueTeleportDest(dg, ox, oy, p) {
     !dg.items?.some(i => i.x === x && i.y === y) &&
     !dg.traps?.some(t => t.x === x && t.y === y) &&
     !dg.springs?.some(s => s.x === x && s.y === y) &&
+    !dg.gachaMachines?.some(g => g.x === x && g.y === y) &&
     !dg.pentacles?.some(pc => pc.x === x && pc.y === y) &&
     !dg.vents?.some(v => v.x === x && v.y === y) &&
     !dg.oilyTiles?.some(t => t.x === x && t.y === y)
@@ -488,6 +489,51 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     } else {
       ml.push(`${resolveItemName(target, nameFn)}が壊れた！`);
     }
+    return;
+  }
+
+  /* ── ガチャマシーン pre-handler ──
+   * 破壊系の杖は1個の景品を残して壊し、位置系の杖は大箱と同じように扱う。 */
+  if (kind === "gacha") {
+    const _gachaName = target.name || "ガチャマシーン";
+    if (["fire_wand", "ice_wand", "lightning", "godsparkwand", "dig", "soften"].includes(eff)) {
+      breakGachaMachine(target, dg, ml, p, nameFn);
+      return;
+    }
+    if (eff === "swap") {
+      const [ox, oy] = [p.x, p.y];
+      _swapPlayerTo(target.x, target.y);
+      target.x = ox; target.y = oy;
+      checkGachaShopTheft(target, dg, p, ml);
+      ml.push(`${_gachaName}と位置が入れ替わった！`);
+      return;
+    }
+    if (eff === "warp" || eff === "leap") {
+      const _dest = pickFreeFloorObjectCell(dg, target, p, target.x, target.y);
+      if (!_dest) { ml.push(`${_gachaName}は動かなかった。`); return; }
+      target.x = _dest.x; target.y = _dest.y;
+      checkGachaShopTheft(target, dg, p, ml);
+      ml.push(`${_gachaName}はどこかへ飛んだ！`);
+      return;
+    }
+    if (eff === "knockback") {
+      const _maxDist = blMult > 1 ? 100 : 10;
+      let _gx = target.x, _gy = target.y;
+      for (let i = 0; i < _maxDist; i++) {
+        const _nx = _gx + dx, _ny = _gy + dy;
+        if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
+          breakGachaMachine(target, dg, ml, p, nameFn);
+          return;
+        }
+        if (isFloorOccupancyBlocked(dg, _nx, _ny, { ignore: target, allowPlayer: true, allowMonster: true })) break;
+        _gx = _nx; _gy = _ny;
+      }
+      target.x = _gx; target.y = _gy;
+      checkGachaShopTheft(target, dg, p, ml);
+      ml.push(`${_gachaName}が吹き飛んだ！`);
+      return;
+    }
+    ml.push(`${_gachaName}には効果がなかった。`);
     return;
   }
 
@@ -2061,6 +2107,12 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       applyWandEffect(eff, "bigbox", bb, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, null, 0, null, bigboxNameFn);
       return;
     }
+    const gacha = dg.gachaMachines?.find(g => g.x === tx && g.y === ty);
+    if (gacha) {
+      if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${gacha.name}の前に飛びついた！`); return; }
+      applyWandEffect(eff, "gacha", gacha, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, null, 0, null, null, true);
+      return;
+    }
     /* 石像：飛びつきは前へ。それ以外は applyWandEffect（位置系は壊さず、穴掘り・軟化は敵なし破壊） */
     if (statueAt(dg, tx, ty)) {
       const st = statueAt(dg, tx, ty);
@@ -2179,6 +2231,11 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       applyWandEffect("lightning", "bigbox", bb, dx, dy, dg, pl, ml, luFn, bbFn);
       return;
     }
+    const gacha = dg.gachaMachines?.find(g => g.x === tx && g.y === ty);
+    if (gacha) {
+      applyWandEffect("lightning", "gacha", gacha, dx, dy, dg, pl, ml, luFn, bbFn);
+      return;
+    }
   }
   ml.push("魔法弾は虚空に消えた。");
 }
@@ -2206,6 +2263,8 @@ function _centerWandTarget(dg, cx, cy, p) {
   if (trap) { trap.revealed = true; return { kind: "trap", t: trap }; }
   const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
   if (bb) return { kind: "bigbox", t: bb };
+  const gacha = dg.gachaMachines?.find(g => g.x === cx && g.y === cy);
+  if (gacha) return { kind: "gacha", t: gacha };
   const st = dg.statues?.find(s => s.x === cx && s.y === cy);
   if (st) return { kind: "statue", t: st };
   return null;
@@ -2229,6 +2288,8 @@ function _collectBreakAdjacentTargets(dg, cx, cy, p) {
     if (trap) { trap.revealed = true; targets.push({ kind: "trap", t: trap, dx: adx, dy: ady }); continue; }
     const bb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
     if (bb) { targets.push({ kind: "bigbox", t: bb, dx: adx, dy: ady }); continue; }
+    const gacha = dg.gachaMachines?.find(g => g.x === ax && g.y === ay);
+    if (gacha) { targets.push({ kind: "gacha", t: gacha, dx: adx, dy: ady }); continue; }
     const st = statueAt(dg, ax, ay);
     if (st) targets.push({ kind: "statue", t: st, dx: adx, dy: ady });
   }
@@ -2295,6 +2356,7 @@ function _pitfallBlockedAt(dg, cx, cy) {
     dg.items.some(i => i.x === cx && i.y === cy) ||
     dg.springs?.some(s => s.x === cx && s.y === cy) ||
     dg.bigboxes?.some(b => b.x === cx && b.y === cy) ||
+    dg.gachaMachines?.some(g => g.x === cx && g.y === cy) ||
     dg.pentacles?.some(pc => pc.x === cx && pc.y === cy) ||
     dg.oilyTiles?.some(t => t.x === cx && t.y === cy) ||
     statueAt(dg, cx, cy) ||
@@ -2482,6 +2544,8 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       if (_sfbTrap) { _sfbTrap.revealed = true; applyWandEffect("soften", "trap", _sfbTrap, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbBb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
       if (_sfbBb) { applyWandEffect("soften", "bigbox", _sfbBb, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      const _sfbGacha = dg.gachaMachines?.find(g => g.x === ax && g.y === ay);
+      if (_sfbGacha) { applyWandEffect("soften", "gacha", _sfbGacha, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbSt = statueAt(dg, ax, ay);
       if (_sfbSt) applyWandEffect("soften", "statue", _sfbSt, adx, ady, dg, p, ml, luFn, null, blMult);
     }

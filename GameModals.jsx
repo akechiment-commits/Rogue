@@ -16,6 +16,7 @@ import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
+import { GACHA_COST } from "./gachaRules.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -2712,6 +2713,42 @@ export function BigboxModal({ mode, setMode, gs, setMsgs, bigboxRef, page, setPa
   );
 }
 
+/* ===== Gacha Machine Modal ===== */
+export function GachaModal({ mode, setMode, gs, gachaRef, menuSel, setMenuSel, onDraw, mobile }) {
+  if (!mode) return null;
+  const machine = gachaRef.current;
+  const gold = gs?.player?.gold || 0;
+  const close = () => { setMode(null); gachaRef.current = null; };
+  const options = [
+    { label: "ガチャを回す", desc: `${GACHA_COST}G（所持金: ${gold}G）`, disabled: gold < GACHA_COST, fn: onDraw },
+    { label: "やめる", desc: "", disabled: false, fn: close },
+  ];
+  return (
+    <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
+      background: "#17140a", border: "1px solid #8a6a20", padding: mobile ? 10 : 14,
+      zIndex: 11, borderRadius: 8, boxShadow: "0 4px 20px rgba(90,60,0,0.7)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ color: "#ffd34d", fontSize: 13, fontWeight: "bold" }}>🎰 {machine?.name || "ガチャマシーン"}</span>
+        <button onClick={close} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+      </div>
+      <div style={{ color: "#d8c080", fontSize: 13, marginBottom: 8 }}>
+        1000Gで1回。ほとんどは普通の景品だが、3%で大当たり。
+      </div>
+      {mode === "menu" && options.map((option, index) => (
+        <button key={option.label} onClick={option.disabled ? undefined : option.fn}
+          style={{ display: "block", width: "100%", padding: "8px 12px", margin: "6px 0",
+            background: option.disabled ? "#1b1b1b" : menuSel === index ? "#4a3510" : "#211b0a",
+            color: option.disabled ? "#555" : menuSel === index ? "#ffe89a" : "#d7bb70",
+            border: `1px solid ${menuSel === index ? "#d0a832" : "#634d1b"}`, borderRadius: 5,
+            cursor: option.disabled ? "not-allowed" : "pointer", fontSize: 14, textAlign: "left", opacity: option.disabled ? 0.6 : 1 }}>
+          {index + 1}. {option.label}{option.desc && <span style={{ color: menuSel === index ? "#ffe9a8" : "#a89158", marginLeft: 8 }}>— {option.desc}</span>}
+        </button>
+      ))}
+      <div style={{ color: "#8899aa", fontSize: 12, marginTop: 4 }}>↑↓:選択　Z:決定　X:閉じる</div>
+    </div>
+  );
+}
+
 /* ===== Teleport Select Modal ===== */
 export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, mobile }) {
   if (!mode) return null;
@@ -3145,7 +3182,7 @@ export function InventoryModal({
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
   containerRef, penMergeMode,
-  doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorItemAction, doFloorOpenPutMode, doFloorPen, doFloorWaveWand,
+  doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorItemAction, doFloorOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
@@ -3183,6 +3220,10 @@ export function InventoryModal({
     ];
     if (_role === "spring") return [
       { label: floorUseLabel(entry, p), fn: () => doFloorSpring?.(entry) },
+      _descAct,
+    ];
+    if (_role === "gacha") return [
+      { label: floorUseLabel(entry, p), fn: () => doFloorGacha?.(entry) },
       _descAct,
     ];
     if (FLOOR_INFO_ROLES.has(_role)) return [

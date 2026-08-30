@@ -73,7 +73,7 @@ export const FLOOR_TITLES = {
   tutorialFloor:     "チュートリアルの間へようこそ！看板を読んで進もう。",
 };
 
-export const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, markerPage: 0, spellMenuSel: 0, spellPage: 0, nicknameInput: '', data: null };
+export const MODAL_INIT = { type: null, springMenuSel: 0, springPage: 0, bigboxMenuSel: 0, bigboxPage: 0, gachaMenuSel: 0, shopMenuSel: 0, putMenuSel: 0, putPage: 0, markerMenuSel: 0, markerPage: 0, spellMenuSel: 0, spellPage: 0, nicknameInput: '', data: null };
 
 export function modalReducer(state, action) {
   switch (action.type) {

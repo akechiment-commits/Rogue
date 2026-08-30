@@ -46,6 +46,7 @@ export function describeLookCell({
     if (spring) parts.push("何かの水たまり");
     const bigbox = dungeon.bigboxes?.find((entry) => entry.x === x && entry.y === y);
     if (bigbox) parts.push("何か大きな箱のようなもの");
+    if (dungeon.gachaMachines?.some((entry) => entry.x === x && entry.y === y)) parts.push("何かの機械");
     if (dungeon.pentacles?.some((entry) => entry.x === x && entry.y === y)) parts.push("床の模様");
     if (dungeon.vents?.some((entry) => entry.x === x && entry.y === y)) parts.push("風穴");
     if (dungeon.statues?.some((entry) => entry.x === x && entry.y === y)) parts.push("石像");
@@ -84,6 +85,8 @@ export function describeLookCell({
   if (spring) parts.push(spring.name || "泉");
   const bigbox = dungeon.bigboxes?.find((entry) => entry.x === x && entry.y === y);
   if (bigbox) parts.push(bigboxDisplayName(bigbox, bigbox.revealed === true || !!session?.allBcKnown));
+  const gacha = dungeon.gachaMachines?.find((entry) => entry.x === x && entry.y === y);
+  if (gacha) parts.push(gacha.name || "ガチャマシーン");
   if (dungeon.pentacles?.some((entry) => entry.x === x && entry.y === y)) parts.push(dungeon.pentacles.find((entry) => entry.x === x && entry.y === y).name);
   if (dungeon.vents?.some((entry) => entry.x === x && entry.y === y)) parts.push("風穴");
   if (dungeon.statues?.some((entry) => entry.x === x && entry.y === y)) parts.push("石像");

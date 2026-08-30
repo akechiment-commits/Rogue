@@ -112,6 +112,7 @@ function _freeNeighborOffStatue(dg, x, y) {
     if (dg.traps?.some(t => t.x === nx && t.y === ny)) continue;
     if (dg.springs?.some(s => s.x === nx && s.y === ny)) continue;
     if (dg.bigboxes?.some(b => b.x === nx && b.y === ny)) continue;
+    if (dg.gachaMachines?.some(g => g.x === nx && g.y === ny)) continue;
     if (dg.pentacles?.some(pc => pc.x === nx && pc.y === ny)) continue;
     if (dg.vents?.some(v => v.x === nx && v.y === ny)) continue;
     if (dg.oilyTiles?.some(t => t.x === nx && t.y === ny)) continue;

@@ -2166,6 +2166,8 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  * onBigbox(bb, lx, ly, ml): 大箱命中時のコールバック（矢を大箱に入れる等）。
  *   未指定なら大箱を素通り（シオン銃弾など、アイテムでない弾向け）。
  *   pierce/farcastでない場合はbigboxで弾道終了（onBigbox指定時のみ）。
+ * onGacha(machine, lx, ly, ml): ガチャマシーン命中時のコールバック。
+ *   指定時は大箱と同様に弾道を止める。
  * onSpring(spr, lx, ly, ml): 泉命中時のコールバック（矢を泉に沈める等）。
  *   未指定なら泉を素通り。pierce/farcastでない場合はspringで弾道終了（onSpring指定時のみ）。
  * onTrap(trap, lx, ly, ml) => string|undefined: 罠命中時のコールバック（押し出されアイテムが罠を踏む等）。
@@ -2192,6 +2194,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     onMonHit = null,
     onMiss = null,
     onBigbox = null,
+    onGacha = null,
     onSpring = null,
     onTrap = null,
     onStatue = null,
@@ -2432,6 +2435,14 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       const _bb = dg.bigboxes?.find(b => b.x === _tx && b.y === _ty);
       if (_bb) {
         onBigbox(_bb, _tx, _ty, ml);
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
+      }
+    }
+    /* ガチャマシーン命中（onGacha未指定なら素通り）。遠投中は無視して素通り */
+    if (onGacha && !_isFc) {
+      const _gacha = dg.gachaMachines?.find(g => g.x === _tx && g.y === _ty);
+      if (_gacha) {
+        onGacha(_gacha, _tx, _ty, ml);
         if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; } return;
       }
     }

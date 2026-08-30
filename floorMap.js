@@ -8,6 +8,7 @@ export const FLOOR_MAP_MARKERS = Object.freeze({
   trap: { color: "#ff9f43", label: "罠" },
   spring: { color: "#3de2ff", label: "泉" },
   bigbox: { color: "#c88cff", label: "大箱" },
+  gacha: { color: "#ffd34d", label: "ガチャ" },
   pentacle: { color: "#e35cff", label: "魔方陣" },
   statue: { color: "#c58b5b", label: "石像" },
   vent: { color: "#70f0b0", label: "風穴" },
@@ -87,6 +88,7 @@ export function getFloorMapMarker(dg, p, x, y) {
   if ((dg.map?.[y]?.[x] === T.SD) || (dg.map?.[y]?.[x] === T.SU)) return "stairs";
   if ((dg.springs || []).some((entry) => entry.x === x && entry.y === y)) return "spring";
   if ((dg.bigboxes || []).some((entry) => entry.x === x && entry.y === y)) return "bigbox";
+  if ((dg.gachaMachines || []).some((entry) => entry.x === x && entry.y === y)) return "gacha";
   const pentacle = (dg.pentacles || []).find((entry) => entry.x === x && entry.y === y);
   if (pentacle) return pentacle.kind === "fixed_portal" ? "portal" : "pentacle";
   if ((dg.statues || []).some((entry) => entry.x === x && entry.y === y)) return "statue";

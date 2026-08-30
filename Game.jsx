@@ -27,7 +27,7 @@ import {
   applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, getBlessMultiplier, doGunpowderExplosion, getFarcastMode, calcProjectileDmg, reflectMagicStoneToPlayer,
   itemPrice, gemSellPrice, sellInventoryItemsToShop, setPortalFloorsGetter, setTrapIdentGetter, removeTrap, removeTraps, runMineExplosion,
   releaseConfinedMonstersFromPot, resolveImprisonPotExit, potOccupancyCount,
-  tickBubbleGold, getFixtureItemDeps,
+  tickBubbleGold, getFixtureItemDeps, makeGachaPrize,
 } from "./items.js";
 import { applyWandEffect, triggerWandBreakEffect, monsterFireLightning } from "./wands.js";
 import { fireTrapPlayer } from "./traps.js";
@@ -56,7 +56,7 @@ import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
-import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, isBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
@@ -93,6 +93,7 @@ import { getFirstEncounterMessageTipKeys, getFirstEncounterPickupTipKeys, getFir
 import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardian.js";
 import { isMonsterSpawnCellAllowed } from "./monsterSpawnRules.js";
 import { FloorMapOverlay } from "./FloorMapOverlay.jsx";
+import { GACHA_COST, rollGachaJackpot } from "./gachaRules.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -135,6 +136,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const bigboxRef = useRef(null);
   const bigboxModeRef = useRef(null);
   bigboxModeRef.current = bigboxMode;
+  const gachaMode      = modal.type === 'gacha'       ? modal.data : null;
+  const gachaMenuSel   = modal.gachaMenuSel;
+  const gachaRef = useRef(null);
+  const gachaDrawRef = useRef(null);
+  const gachaModeRef = useRef(null);
+  gachaModeRef.current = gachaMode;
   const identifyConfirmRef = useRef(null);
   const identifyCancelRef = useRef(null);
   const spellConfirmRef = useRef(null);
@@ -177,6 +184,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setBigboxMode    = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'bigbox', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setBigboxMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxMenuSel: typeof v === 'function' ? v(modal.bigboxMenuSel) : v } });
   const setBigboxPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxPage: typeof v === 'function' ? v(modal.bigboxPage) : v } });
+  const setGachaMode     = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'gacha', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setGachaMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { gachaMenuSel: typeof v === 'function' ? v(modal.gachaMenuSel) : v } });
   const shopModeRef = useRef(null); /* React再レンダリング前でも同期参照できるよう維持 */
   shopModeRef.current = shopMode;
   const setShopMode = (v) => {
@@ -2186,7 +2195,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         lastMoveAtRef.current = now;
       }
       if (revealModeRef.current) return;
-      if (bigboxModeRef.current) return;
+      if (bigboxModeRef.current || gachaModeRef.current) return;
       if (nicknameModeRef.current) return;
       if (showSignRef.current) return;
       if (miniTipRef.current) return;
@@ -2198,7 +2207,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (exitHubConfirmRef.current) return;
       if (mapMode) return;
       if (lookMode) return;
-      if (springMode || wishMode) return;
+      if (springMode || wishMode || gachaModeRef.current) return;
       if (putMode) return;
       if (markerMode) return;
       if (spellListMode) return;
@@ -2914,6 +2923,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             if (_statueStep) ml.push("石像がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
             if (_bbStep) { ml.push(`${bbDisplayName(_bbStep, sr.current, isBigboxKindIdentified(_bbStep, sr.current))}がある。`); }
+            const _gachaStep = st.dungeon.gachaMachines?.find(g => g.x === p.x && g.y === p.y);
+            if (_gachaStep) ml.push("ガチャマシーンがある。");
             const _sprStep = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
@@ -3046,7 +3057,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             doStair(-1);
           }
         } else {
-          /* 足元の大箱チェック（前方は除く） */
+          /* 足元の床ギミックチェック（前方は除く） */
+          const gacha2 = dg.gachaMachines?.find((g) => g.x === p.x && g.y === p.y);
+          if (gacha2) {
+            gachaRef.current = gacha2;
+            showFirstEncounterTip("gacha_machine");
+            setGachaMode("menu"); setGachaMenuSel(0);
+            setMsgs((prev) => [...prev.slice(-80), "ガチャマシーンがある。どうする？"]);
+            sr.current = { ...st }; setGs({ ...st }); return;
+          }
           const bb2 = dg.bigboxes?.find((b) => b.x === p.x && b.y === p.y);
           if (bb2) {
             bigboxRef.current = bb2;
@@ -3227,7 +3246,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const doExamineFront = useCallback(() => {
     if (!sr.current) return;
     if (lookMode || mapMode) return;
-    if (bigboxModeRef.current) return;
+    if (bigboxModeRef.current || gachaModeRef.current) return;
     if (nicknameModeRef.current) return;
     const { player: p, dungeon: dg } = sr.current;
     const fd = p.facing || { dx: 0, dy: 1 };
@@ -3286,6 +3305,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       } else {
         const spr = dg.springs?.find((s) => s.x === nx && s.y === ny);
         const bb6 = dg.bigboxes?.find((b) => b.x === nx && b.y === ny);
+        const gacha6 = dg.gachaMachines?.find((g) => g.x === nx && g.y === ny);
         const _statueFront = dg.statues?.find((s) => s.x === nx && s.y === ny);
         if (spr) {
           springTargetRef.current = spr;
@@ -3297,6 +3317,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           showFirstEncounterTip("bigbox");
           setBigboxMode("menu"); setBigboxMenuSel(0);
           setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb6, sr.current, isBigboxKindIdentified(bb6, sr.current))}がある。どうする？`]);
+        } else if (gacha6) {
+          gachaRef.current = gacha6;
+          showFirstEncounterTip("gacha_machine");
+          setGachaMode("menu"); setGachaMenuSel(0);
+          setMsgs((prev) => [...prev.slice(-80), "ガチャマシーンがある。どうする？"]);
         } else if (_statueFront) {
           setMsgs((prev) => [...prev.slice(-80), "石像がある。"]);
         } else {
@@ -3330,9 +3355,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     async (dx, dy) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
-      if (springMode || wishMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || mapMode || tpSelectModeRef.current || identifyModeRef.current) return;
+      if (springMode || wishMode || gachaModeRef.current || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || mapMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
-      if (shopModeRef.current || bigboxModeRef.current || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
+      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
@@ -4950,12 +4975,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   }, [markerMode]);
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
     // state values
     gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
     markerMode, markerMenuSel, markerPage, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
-    bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
+    bigboxMode, bigboxMenuSel, bigboxPage, gachaMode, gachaMenuSel, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, mapMode, debugSpellMode, debugSpellMenuSel,
     msgLogMode, msgLogScrollTop, msgsRef,
     showSign, miniTip,
@@ -4969,7 +4994,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
     setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
     setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
-    setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
+    setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setGachaMode, setGachaMenuSel, setIdentifyMode,
     setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
     setMsgLogMode, setMsgLogScrollTop,
     setShowSign, closeMiniTip,
@@ -5083,6 +5108,45 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
     setBigboxMode("menu"); setBigboxMenuSel(0);
     setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb, s, isBigboxKindIdentified(bb, s))}がある。どうする？`]);
+    sr.current = { ...s }; setGs({ ...sr.current });
+  };
+  const doGachaDraw = useCallback(() => {
+    const s = sr.current;
+    const machine = gachaRef.current;
+    if (!s || !machine || !s.dungeon?.gachaMachines?.includes(machine)) return;
+    const p2 = s.player, dg2 = s.dungeon;
+    if ((p2.gold || 0) < GACHA_COST) {
+      setMsgs((prev) => [...prev.slice(-80), `お金が足りない！（必要: ${GACHA_COST}G）`]);
+      return;
+    }
+    const ml = installPlayerHpMessageHook([], p2);
+    p2.gold -= GACHA_COST;
+    const jackpot = rollGachaJackpot();
+    const prize = makeGachaPrize(jackpot);
+    placeItemAt(dg2, machine.x, machine.y, prize, ml, new Set(), 0, p2);
+    ml.push(jackpot
+      ? `ガチャマシーンから大当たり！${itemDisplayName(prize, s.fakeNames, s.ident, s.nicknames)}が出てきた！`
+      : `ガチャマシーンから${itemDisplayName(prize, s.fakeNames, s.ident, s.nicknames)}が出てきた。`);
+    endTurn(s, p2, ml);
+    setGachaMode(null);
+    gachaRef.current = null;
+    setMsgs((prev) => [...prev.slice(-80), ...ml]);
+    sr.current = { ...s };
+    setGs({ ...sr.current });
+  }, [endTurn]);
+  gachaDrawRef.current = doGachaDraw;
+  /** 足元ページからガチャマシーンを調べる */
+  const _doFloorGacha = (gachaEntry) => {
+    const s = sr.current; if (!s) return;
+    const _dg = s.dungeon;
+    const machine = _dg.gachaMachines?.find((g) =>
+      (gachaEntry.id != null && g.id === gachaEntry.id) || (g.x === gachaEntry.x && g.y === gachaEntry.y)
+    ) || gachaEntry;
+    gachaRef.current = machine;
+    showFirstEncounterTip("gacha_machine");
+    setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
+    setGachaMode("menu"); setGachaMenuSel(0);
+    setMsgs((prev) => [...prev.slice(-80), "ガチャマシーンがある。どうする？"]);
     sr.current = { ...s }; setGs({ ...sr.current });
   };
   /** 足元ページから泉を使う */
@@ -5215,7 +5279,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setShowDesc(null);
     }
   };
-  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
+  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorGacha: _doFloorGacha, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
   /* fixtures.js 等（render 循環回避）から未識別名でメッセージを出す用 */
   globalThis.__rogueItemNameFn = (it) =>
     itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -5883,8 +5947,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 />
                 <AB
                   small
-                  label={miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
+                  label={miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
                   onClick={() => {
                     if (mapMode) return;
                     if (miniTip) { closeMiniTip(); return; }
@@ -5895,13 +5959,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (putMode) { cancelPutMode(); return; }
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
+                    if (gachaMode) { setGachaMode(null); gachaRef.current = null; return; }
                     if (showInv && invMenuSel !== null) { setInvMenuSel(null); return; }
                     if (springMode === "soak") { setSpringMode("menu"); setSpringMenuSel(0); setSpringPage(0); return; }
                     if (springMode) { setSpringMode(null); setSpringMenuSel(0); return; }
                     if (identifyMode) { identifyCancelRef.current?.(); setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     act("inventory");
                   }}
-                  color={miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu") ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
+                  color={miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
                 />
                 <AB
                   small
@@ -5929,8 +5994,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
-                  sub={spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
+                  label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
+                  sub={spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
                   onClick={() => {
                     if (mapMode) return;
                     if (spellListMode) { if (spellConfirmRef.current) spellConfirmRef.current(spellMenuSel); return; }
@@ -5941,6 +6006,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       else if (bigboxMenuSel === 1) { setBigboxMode(null); bigboxRef.current = null; setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
                       else if (bigboxMenuSel === 2) { setBigboxMode("desc"); setBigboxMenuSel(0); }
                       else if (bigboxMenuSel === 3 && _bbk) { setBigboxMode(null); setNicknameMode({ identKey: _bbk }); setNicknameInput(gs?.nicknames?.[_bbk] || ""); }
+                      return;
+                    }
+                    if (gachaMode) {
+                      if (gachaMenuSel === 0) doGachaDraw();
+                      else { setGachaMode(null); gachaRef.current = null; setMsgs(prev => [...prev.slice(-80), "やめた。"]); }
                       return;
                     }
                     if (shopMode === "browse" || shopMode === "browseConfirm") {
@@ -6031,6 +6101,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                             } else if (_fRole3 === "spring") {
                               _fns3.push(() => invActRef.current?.floorSpring?.(_fle3));
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
+                            } else if (_fRole3 === "gacha") {
+                              _fns3.push(() => invActRef.current?.floorGacha?.(_fle3));
+                              _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else if (FLOOR_INFO_ROLES.has(_fRole3)) {
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else {
@@ -6079,15 +6152,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       }
                     } else { act("interact"); }
                   }}
-                  color={spellListMode ? "#fc0" : bigboxMode === "menu" ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : "#0ff"}
+                  color={spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : "#0ff"}
                 />
                 <AB
-                  label={bigboxMode === "put" ? "決" : showInv ? "置" : "前"}
-                  sub={bigboxMode === "put" ? "決定" : showInv ? "置く" : "調べる"}
+                  label={bigboxMode === "put" ? "決" : gachaMode ? "戻" : showInv ? "置" : "前"}
+                  sub={bigboxMode === "put" ? "決定" : gachaMode ? "閉じる" : showInv ? "置く" : "調べる"}
                   onClick={() => {
                     if (mapMode) return;
                     if (spellListMode) return;
                     if (bigboxMode === "put") { bigboxPutItem(bigboxPage * 10 + bigboxMenuSel); return; }
+                    if (gachaMode) { setGachaMode(null); gachaRef.current = null; return; }
                     if (springMode || identifyMode || putMode) return;
                     if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); } else { doExamineFront(); }
                   }}
@@ -6188,7 +6262,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }}
         >
           矢印/テンキー:移動　A+矢印/テンキー:ダッシュ　Shift+矢印2方向:斜め移動　.:待機　Space:マップ　x:所持品(↑↓で選択/Z:使用/X:閉じる)　w:見渡す　c:魔法
-          {"<>"}:階段　q:矢を射る　z:アクション　f:足元(拾う/罠/階段/大箱/泉)　t:向き変更
+          {"<>"}:階段　q:矢を射る　z:アクション　f:足元(拾う/罠/階段/大箱/泉/ガチャ)　t:向き変更
         </div>
       )}{" "}
       {!mobile && throwMode && (
@@ -6225,11 +6299,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <MsgLogModal show={msgLogMode} msgs={msgs} scrollTop={msgLogScrollTop} setScrollTop={setMsgLogScrollTop} onClose={() => setMsgLogMode(false)} mobile={mobile} />
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
+      <GachaModal mode={gachaMode} setMode={setGachaMode} gs={gs} gachaRef={gachaRef} menuSel={gachaMenuSel} setMenuSel={setGachaMenuSel} onDraw={doGachaDraw} mobile={mobile} />
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} identifyConfirmRef={identifyConfirmRef} identifyCancelRef={identifyCancelRef} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <WishModal mode={wishMode} setMode={setWishMode} onConfirm={confirmWish} onCancel={cancelWish} mobile={mobile} />{" "}
-      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
+      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorGacha={_doFloorGacha} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
       <GameOverModal
         dead={dead && !gameOverView}
         p={p}

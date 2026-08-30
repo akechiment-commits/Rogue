@@ -29,6 +29,7 @@ import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns, clearMpRecoveryBlockFromCursedSealPotion } from './mpRules.js';
+import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -1238,6 +1239,54 @@ export function makeChangeBoxItem(context = "change") {
   return { ...tmpl, id: uid() };
 }
 
+/** ガチャマシーンの景品を生成する。通常は全通常品、当たりはC以上の品から抽選する。 */
+export function makeGachaPrize(jackpot = false) {
+  const all = [...ITEMS, ...WANDS, ...POTS, ...SPELLBOOKS, ...RINGS,
+    EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, ARROW_T]
+    .filter((item) => item && item.type !== "gem" && item.type !== "goal" && item.effect !== "wish" && item.potEffect !== "wish_pot");
+  const pool = jackpot
+    ? all.filter((item) => (RARITY_RANK[item.rarity] ?? -1) >= RARITY_RANK.C && (RARITY_RANK[item.rarity] ?? -1) < RARITY_RANK.S)
+    : all;
+  const tmpl = pickGachaTemplate(pool.length ? pool : all) || makeChangeBoxItem("floor");
+  if (tmpl.type === "food") return { ...genFood(), id: uid() };
+  if (tmpl.type === "pot") return { ...tmpl, id: uid(), contents: [], capacity: randPotCapacity(tmpl.potEffect) };
+  if (tmpl.type === "ring") return applyGeneratedRingPlus({ ...tmpl, id: uid() });
+  if (tmpl.type === "arrow") return { ...tmpl, id: uid(), count: rng(3, 15) };
+  if (tmpl.type === "pen" || tmpl.type === "marker") return { ...tmpl, id: uid(), charges: penInitialCharges(tmpl) };
+  return { ...tmpl, id: uid() };
+}
+
+/** ガチャマシーンを破壊し、景品を1個だけ通常の床配置ルールで落とす。 */
+export function breakGachaMachine(machine, dg, ml, p = null, nameFn = null) {
+  if (!isGachaMachine(machine) || !dg?.gachaMachines?.includes(machine)) return false;
+  const x = machine.x, y = machine.y;
+  dg.gachaMachines = dg.gachaMachines.filter((entry) => entry !== machine);
+  if (machine.shopId != null && p) {
+    declareShopTheft(p, dg, ml, { forceAll: true, message: "店内のガチャマシーンを壊した！泥棒扱いになった！" });
+  }
+  const prize = makeGachaPrize(false);
+  const ft = new Set();
+  placeItemAt(dg, x, y, prize, ml, ft, 0, p);
+  ml.push(`${machine.name || "ガチャマシーン"}が壊れた！${resolveItemName(prize, nameFn)}が1個落ちた！`);
+  return true;
+}
+
+function breakGachaMachinesInRadius(dg, cx, cy, radius, ml, p = null, nameFn = null) {
+  for (const machine of [...(dg?.gachaMachines || [])]) {
+    if (Math.max(Math.abs(machine.x - cx), Math.abs(machine.y - cy)) <= radius) {
+      breakGachaMachine(machine, dg, ml, p, nameFn);
+    }
+  }
+}
+
+/** 店内のガチャマシーンを店外へ動かした時点で泥棒扱いにする。 */
+export function checkGachaShopTheft(machine, dg, p, ml) {
+  if (!isGachaMachine(machine) || machine.shopId == null || !p) return false;
+  if (isInsideGachaShop(machine, dg)) return false;
+  declareShopTheft(p, dg, ml, { forceAll: true, message: "店内のガチャマシーンを店外へ出した！泥棒扱いになった！" });
+  return true;
+}
+
 /** 大箱が壊れたときの共通処理。ゴミ箱だけは追加で変化抽選品を落とす。 */
 export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dropY = null) {
   if (!bb || !dg) return;
@@ -1779,6 +1828,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     }
   }
   if (_blastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_blastedBB.includes(b));
+  breakGachaMachinesInRadius(dg, cx, cy, _blastRadius, ml, p, nameFn);
   for (const it of blasted) destroyItemMimicFloorItem(dg, it);
   if (blasted.size > 0) dg.items = dg.items.filter(it => !blasted.has(it));
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
@@ -1961,6 +2011,7 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       }
     }
     if (_gpBlastedBB.length > 0) dg.bigboxes = dg.bigboxes.filter(b => !_gpBlastedBB.includes(b));
+    breakGachaMachinesInRadius(dg, cx, cy, 2, ml, p);
     /* 範囲内の床上 火薬壺 を先に除去してから連鎖爆発 */
     const _chainPots = dg.items.filter(it =>
       it.type === "pot" && it.potEffect === "gunpowder" &&
@@ -2095,6 +2146,7 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
   }
   for (const it of blasted) destroyItemMimicFloorItem(dg, it);
   if (blasted.size > 0) dg.items = dg.items.filter(i => !blasted.has(i));
+  breakGachaMachinesInRadius(dg, cx, cy, R, ml, p, nameFn);
   dg.monsters = dg.monsters.filter(m => m.hp > 0);
   /* 範囲内の地雷を連鎖爆発 */
   const _chainMines = (dg.traps || []).filter(t =>
@@ -3903,6 +3955,13 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
         tiles.push({ x:tx, y:ty });
     }
   for (const { x, y } of tiles) {
+    /* 炎・毒、または呪われた回復薬のダメージはガチャマシーンを壊す。 */
+    const _gachaPotionDamage = (!cursed && (eff === "fire" || eff === "poison")) ||
+      (cursed && ["heal", "heal_big", "superheal"].includes(eff));
+    if (_gachaPotionDamage) {
+      const _gacha = dg.gachaMachines?.find((machine) => machine.x === x && machine.y === y);
+      if (_gacha) breakGachaMachine(_gacha, dg, ml, p, dnFn);
+    }
     const mon = monsterAt(dg, x, y);
     if (mon) {
       weakenOrClearParalysis(mon, ml);
@@ -4182,6 +4241,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
       return true;
     }
     if (dg.bigboxes?.some(b => b.x === cx && b.y === cy)) continue;
+    if (dg.gachaMachines?.some(g => g.x === cx && g.y === cy)) continue;
     /* 石像：上にアイテムを重ねない */
     if (statueAt(dg, cx, cy)) continue;
     /* ペンタクル：ポータルなら warp 起動、それ以外は通常通りスキップ */
@@ -4532,6 +4592,7 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
     }
     for (const it of blasted) destroyItemMimicFloorItem(dg, it);
     dg.items = dg.items.filter(i => !blasted.has(i));
+    breakGachaMachinesInRadius(dg, mx, my, 1, ml, p);
     /* 破壊された火薬壺の連鎖爆発 */
     for (const _gp of [...blasted].filter(it => it.type === "pot" && it.potEffect === "gunpowder")) {
       doGunpowderExplosion(_gp.x, _gp.y, dg, p, ml, luFn, resolveItemName(_gp));
@@ -4683,7 +4744,7 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
  * shooter: 投擲元 ({x, y, name, hp?, atk?})。hp未定義の場合は仮想射手扱いで反射時のダメージを適用しない（押し出し用）
  * item: 投げられるアイテム（type別に命中時挙動が分岐：potion→splash、pot→中身散乱、wand→効果発動、他→投擲ダメージ）
  * range: 飛距離（壁・敵・スプリング等で停止）
- * 戻り値: {x, y, consumed, splash?, spring?, bigbox?, hitMonster?, hitPlayer?}
+ * 戻り値: {x, y, consumed, splash?, spring?, bigbox?, gacha?, hitMonster?, hitPlayer?}
  *   shop chargeなどの post-processing は呼び出し側で行う
  *
  * 用途例:
@@ -4715,6 +4776,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     /* 着弾位置別メッセージ（指定があれば push） */
     springLandMsg = null,        /* (spr, lx, ly) => string|null */
     bigboxLandMsg = null,        /* (bb, lx, ly) => string|null */
+    gachaLandMsg = null,         /* (machine, lx, ly) => string|null */
     noHitLandMsg = null,         /* (lx, ly, item) => string|null（壁/末端で何にも当たらず着地時） */
     deathCausePhrase = `飛んできた${resolveItemName(item)}に`,
   } = opts;
@@ -4816,6 +4878,10 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       if (bigboxLandMsg) { const _m = bigboxLandMsg(bb, lx, ly); if (_m) mlx.push(_m); }
       res.consumed = true; res.bigbox = bb; res.x = lx; res.y = ly;
     },
+    onGacha: _isPotion ? (machine, lx, ly, mlx) => {
+      if (gachaLandMsg) { const _m = gachaLandMsg(machine, lx, ly); if (_m) mlx.push(_m); }
+      res.consumed = true; res.gacha = machine; res.x = lx; res.y = ly;
+    } : null,
     onStatue: (statue, lx, ly) => {
       /* 石像に当たった投擲物は、石像を壊した時点で消費する。 */
       res.consumed = true; res.hitStatue = statue; res.x = lx; res.y = ly;
@@ -4853,19 +4919,22 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 
   /* 偽アイテムが命中・泉・大箱などで消費された場合は、紐付いた本体も消す。
      何にも当たらず着地する場合だけ、偽アイテムとして床に残す。 */
-  if (item.itemMimicId && (res.consumed || res.spring || res.bigbox || res.hitStatue)) {
+  if (item.itemMimicId && (res.consumed || res.spring || res.bigbox || res.gacha || res.hitStatue)) {
     destroyItemMimicFloorItem(dg, item);
     dg.items = dg.items.filter(i => i !== item);
   }
 
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
-  const _noHit = !res.spring && !res.bigbox && !res.hitMonster && !res.hitPlayer && !res.hitStatue;
+  const _noHit = !res.spring && !res.bigbox && !res.gacha && !res.hitMonster && !res.hitPlayer && !res.hitStatue;
   if (res.spring) {
     soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
   } else if (res.bigbox) {
     if (bbFn) bbFn(res.bigbox, item, dg, ml);
     else { const ft = new Set(); placeItemAt(dg, res.x, res.y, item, ml, ft); }
+  } else if (res.gacha) {
+    /* ガチャマシーンには薬瓶だけが着弾対象になる。通常の薬液処理で破壊判定も行う。 */
+    splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);
   } else if (_isPotion) {
     if (_noHit && noHitLandMsg) { const _m = noHitLandMsg(res.x, res.y, item); if (_m) ml.push(_m); }
     splashPotion(dg, res.x, res.y, item.effect, item.value || 0, p, ml, luFn, item.blessed || false, item.cursed || false, nameFn, killerMon);

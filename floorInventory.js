@@ -1,6 +1,6 @@
 /**
  * 道具欄「足元」ページに載せる床オブジェクト一覧。
- * アイテム・罠に加え、風穴・魔方陣・泉・大箱を含める。
+ * アイテム・罠に加え、風穴・魔方陣・泉・大箱・ガチャマシーンを含める。
  */
 
 import { BB_TYPES } from "./items.js";
@@ -18,6 +18,9 @@ export const SPRING_FLOOR_DESC =
 
 export const BIGBOX_UNKNOWN_DESC =
   "正体不明の大箱。開けると中にアイテムを入れたり取り出したりできる。";
+
+export const GACHA_FLOOR_DESC =
+  "調べると1000Gで1回引ける。通常は普通のアイテムだが、3%で少しレアな景品が出る。ダメージ系の杖・薬や爆発で壊れる。";
 
 /** 未識別の魔方陣（描いたペンの種類が未判明） */
 export const PENTACLE_UNKNOWN_DESC =
@@ -73,7 +76,7 @@ export const PENTACLE_FLOOR_DESCS = {
 export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle"]);
 
 /** 足元から「使う／降りる等」できるロール（説明と合わせて2アクション） */
-export const FLOOR_USABLE_ROLES = new Set(["spring", "bigbox", "stair"]);
+export const FLOOR_USABLE_ROLES = new Set(["spring", "bigbox", "gacha", "stair"]);
 
 /** スケルトンの骨（罠扱いだが踏んでも発動しない） */
 export const BONE_FLOOR_DESC =
@@ -196,11 +199,21 @@ export function listFloorInventoryEntries(dungeon, x, y, opts = {}) {
       };
     });
 
+  const gachaMachines = (dungeon.gachaMachines || [])
+    .filter((g) => g.x === x && g.y === y)
+    .map((g) => ({
+      ...g,
+      _floorRole: "gacha",
+      name: g.name || "ガチャマシーン",
+      desc: g.desc || GACHA_FLOOR_DESC,
+      tile: g.tile ?? 118,
+    }));
+
   const stairs = [];
   const stair = stairRefAt(dungeon, x, y);
   if (stair) stairs.push(stair);
 
-  const fixtures = [...vents, ...pentacles, ...springs, ...bigboxes, ...stairs];
+  const fixtures = [...vents, ...pentacles, ...springs, ...bigboxes, ...gachaMachines, ...stairs];
   return {
     items,
     traps,
@@ -227,6 +240,7 @@ export function floorEntryLabel(entry, items, traps, itemLabelFn) {
   if (role === "pentacle") return `【魔方陣】${entry.name || "魔方陣"}`;
   if (role === "spring") return `【泉】${entry.name || "泉"}`;
   if (role === "bigbox") return `【大箱】${entry.name || "大箱"}`;
+  if (role === "gacha") return `【ガチャ】${entry.name || "ガチャマシーン"}`;
   if (role === "stair") return `【階段】${entry.name || "階段"}`;
   return entry.name || "？";
 }
@@ -241,6 +255,7 @@ export function floorUseLabel(entry, player) {
   if (role === "trap") return "踏む";
   if (role === "spring") return "使う";
   if (role === "bigbox") return "調べる";
+  if (role === "gacha") return "調べる";
   if (role === "stair") {
     if (entry.stairDir === "up") {
       return player?.depth === 1 ? "出る" : "上る";

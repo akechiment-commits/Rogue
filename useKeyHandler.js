@@ -75,12 +75,12 @@ export { isDuplicateDirectionEvent, directionFamily };
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
   gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel = 0, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
   markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
-  bigboxMode, bigboxMenuSel, bigboxPage, nicknameMode, identifyMode, revealMode,
+  bigboxMode, bigboxMenuSel, bigboxPage, gachaMode, gachaMenuSel, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, mapMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
   showSign, miniTip,
@@ -92,7 +92,7 @@ export function useKeyHandler({
   setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
   setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
   setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
-  setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setIdentifyMode,
+  setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setGachaMode, setGachaMenuSel, setIdentifyMode,
   setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
   setMsgLogMode, setMsgLogScrollTop,
   setShowSign, closeMiniTip,
@@ -530,6 +530,12 @@ export function useKeyHandler({
           if (_role2 === "spring") {
             return [
               { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorSpring?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "gacha") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorGacha?.(entry) },
               _descAct,
             ];
           }
@@ -1615,6 +1621,26 @@ export function useKeyHandler({
         }
         return;
       }
+      if (gachaMode) {
+        e.preventDefault();
+        const isUpGacha = k === "arrowup" || e.code === "Numpad8";
+        const isDownGacha = k === "arrowdown" || e.code === "Numpad2";
+        if (isUpGacha || isDownGacha) {
+          setGachaMenuSel((p) => (p + (isDownGacha ? 1 : -1) + 2) % 2);
+          return;
+        }
+        if (k === "enter" || k === "z" || k === "1" || k === "2") {
+          const selected = k === "1" ? 0 : k === "2" ? 1 : gachaMenuSel;
+          if (selected === 0) gachaDrawRef.current?.();
+          else { setGachaMode(null); gachaRef.current = null; setMsgs((prev) => [...prev.slice(-80), "やめた。"]); }
+          return;
+        }
+        if (k === "x" || k === "escape") {
+          setGachaMode(null); gachaRef.current = null;
+          setMsgs((prev) => [...prev.slice(-80), "やめた。"]);
+        }
+        return;
+      }
       if (wishMode) {
         /* WishModal が capture で処理。ここではゲーム操作を止めるだけ */
         return;
@@ -1722,7 +1748,7 @@ export function useKeyHandler({
         if (km[k]) {
           e.preventDefault();
           if (isNumpadEvent(e)) return;
-          if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode) {
+          if (bigboxMode || gachaMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode) {
             return;
           }
           /* Shift+矢印：2方向同時押しで斜め方向選択 */
@@ -1748,7 +1774,7 @@ export function useKeyHandler({
       }
       if (showInv) return;
       /* ===== ダンジョン移動（テンキー・矢印をここで一度だけ処理） ===== */
-      if (bigboxMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode || (shopModeRef?.current ?? shopMode) || throwMode !== null) {
+      if (bigboxMode || gachaMode || springMode || putMode || markerMode || spellListMode || debugSpellMode || msgLogMode || (shopModeRef?.current ?? shopMode) || throwMode !== null) {
         /* 投擲方向は throwMode ブロック側。ここでは移動しない */
       } else {
         const npm = {
@@ -1802,7 +1828,7 @@ export function useKeyHandler({
           return;
         }
       }
-      if (k === "w" && !showInv && !bigboxMode && !springMode && !throwMode && !putMode) {
+      if (k === "w" && !showInv && !bigboxMode && !gachaMode && !springMode && !throwMode && !putMode) {
         e.preventDefault();
         const { player: _lp, dungeon: _ld } = sr.current || {};
         if (_lp && _ld) {
@@ -1812,7 +1838,7 @@ export function useKeyHandler({
         }
         return;
       }
-      if (k === "m" && !showInv && !bigboxMode && !springMode && !throwMode && !putMode && !spellListMode && !debugSpellMode) {
+      if (k === "m" && !showInv && !bigboxMode && !gachaMode && !springMode && !throwMode && !putMode && !spellListMode && !debugSpellMode) {
         e.preventDefault();
         const _mlTotal = msgsRef.current.length;
         setMsgLogScrollTop(Math.max(0, _mlTotal - 20));
@@ -1836,6 +1862,7 @@ export function useKeyHandler({
         k === "z" &&
         !showInv &&
         !bigboxMode &&
+        !gachaMode &&
         !springMode &&
         !throwMode &&
         !putMode
@@ -1888,6 +1915,12 @@ export function useKeyHandler({
       bigboxMenuSel,
       bigboxPutItem,
       bigboxPage,
+      gachaMode,
+      gachaMenuSel,
+      setGachaMode,
+      setGachaMenuSel,
+      gachaRef,
+      gachaDrawRef,
       sortInventory,
       putPage,
       markerMode,

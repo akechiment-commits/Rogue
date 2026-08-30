@@ -29,6 +29,7 @@ export function isFloorOccupancyBlocked(dg, x, y, opts = {}) {
   if (dg.traps?.some((t) => t !== ignore && t.x === x && t.y === y)) return true;
   if (dg.springs?.some((s) => s !== ignore && s.x === x && s.y === y)) return true;
   if (dg.bigboxes?.some((b) => b !== ignore && b.x === x && b.y === y)) return true;
+  if (dg.gachaMachines?.some((g) => g !== ignore && g.x === x && g.y === y)) return true;
   if (dg.pentacles?.some((pc) => pc !== ignore && pc.x === x && pc.y === y)) return true;
   if (dg.vents?.some((v) => v !== ignore && v.x === x && v.y === y)) return true;
   if (dg.oilyTiles?.some((t) => t !== ignore && t.x === x && t.y === y)) return true;

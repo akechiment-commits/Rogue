@@ -129,6 +129,7 @@ export const TILE_NAMES = {
   115: "crystalslime",
   116: "hammerogre",
   117: "berserker",
+  118: "gacha_machine",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -228,6 +229,7 @@ export const TILE_RENDER = {
   93: { bg: null, fg: "#20c0ff", ch: "W" },
   94: { bg: null, fg: "#8b4513", ch: "^" },
   120: { bg: null, fg: "#5080e8", ch: "^" },
+  118: { bg: "#20202c", fg: "#ffd34d", ch: "G" },
   87:  { bg: null, fg: "#00ccee", ch: "*" }, /* アクアマリン (C) */
   88:  { bg: null, fg: "#ee2244", ch: "*" }, /* ルビー       (B) */
   89:  { bg: null, fg: "#4488ff", ch: "*" }, /* サファイア   (B) */
