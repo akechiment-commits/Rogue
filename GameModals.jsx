@@ -2,9 +2,10 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
-import { T, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
+import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
 import { prepareLastFloor } from "./dungeon.js";
+import { makeVent, makeStatue } from "./fixtures.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
@@ -3829,7 +3830,11 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   } else if (effect === "debug_create_trap") {
     for (const t of TRAPS) entries.push({ label: t.name, value: { ...t } });
   } else if (effect === "debug_summon_bb") {
-    for (const bb of BB_TYPES) entries.push({ label: bb.name, value: { ...bb } });
+    for (const bb of BB_TYPES) entries.push({ label: bb.name, value: { ...bb, _debugObject: "bigbox" } });
+    entries.push({ label: "ガチャマシーン", value: { _debugObject: "gacha" } });
+    entries.push({ label: "泉", value: { _debugObject: "spring" } });
+    entries.push({ label: "風穴", value: { _debugObject: "vent" } });
+    entries.push({ label: "石像", value: { _debugObject: "statue" } });
   }
 
   /* --- ページネーション --- */
@@ -3841,7 +3846,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   const title = effect === "debug_summon_mon" ? "敵を選択"
     : effect === "debug_get_item" ? (category ? `アイテムを選択（${_DBG_ITEM_CATS.find(c=>c.key===category)?.label}）` : "カテゴリを選択")
     : effect === "debug_create_trap" ? "罠を選択"
-    : "大箱を選択";
+    : "大箱・ギミックを選択";
 
   const doSelect = (entry) => {
     /* カテゴリ選択 */
@@ -3915,15 +3920,49 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
       if (!placed) ml.push("作る場所がない！");
     } else if (effect === "debug_summon_bb") {
       const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],[0,0]];
+      const objectKind = entry.value._debugObject || "bigbox";
+      const occupied = (x, y) =>
+        dg.map[y]?.[x] !== T.FLOOR ||
+        (x === p.x && y === p.y) ||
+        dg.monsters?.some(m => m.x === x && m.y === y) ||
+        dg.items?.some(i => i.x === x && i.y === y) ||
+        dg.traps?.some(t => t.x === x && t.y === y) ||
+        dg.springs?.some(s => s.x === x && s.y === y) ||
+        dg.bigboxes?.some(b => b.x === x && b.y === y) ||
+        dg.gachaMachines?.some(g => g.x === x && g.y === y) ||
+        dg.vents?.some(v => v.x === x && v.y === y) ||
+        dg.statues?.some(s => s.x === x && s.y === y) ||
+        dg.pentacles?.some(pc => pc.x === x && pc.y === y) ||
+        dg.oilyTiles?.some(o => o.x === x && o.y === y) ||
+        (dg.stairUp && dg.stairUp.x === x && dg.stairUp.y === y) ||
+        (dg.stairDown && dg.stairDown.x === x && dg.stairDown.y === y);
       let placed = false;
       for (const [ddx, ddy] of dirs) {
         const nx = p.x + ddx, ny = p.y + ddy;
         if (nx < 0 || ny < 0 || nx >= dg.map[0].length || ny >= dg.map.length) continue;
-        if (dg.map[ny][nx] !== "." && dg.map[ny][nx] !== "+" && dg.map[ny][nx] !== "<" && dg.map[ny][nx] !== ">") continue;
-        if (dg.bigboxes?.some(b => b.x === nx && b.y === ny)) continue;
-        const bb = { id: uid(), x: nx, y: ny, tile: 41, kind: entry.value.kind, name: entry.value.name, capacity: entry.value.cap(), contents: [] };
-        (dg.bigboxes || (dg.bigboxes = [])).push(bb);
-        ml.push(`${bb.name}を設置した！`);
+        if (occupied(nx, ny)) continue;
+        if (objectKind === "gacha") {
+          const gacha = { id: uid(), x: nx, y: ny, tile: TI.GACHA, type: "gacha", kind: "gacha_machine", name: "ガチャマシーン" };
+          (dg.gachaMachines || (dg.gachaMachines = [])).push(gacha);
+          ml.push("ガチャマシーンを設置した！");
+        } else if (objectKind === "spring") {
+          const spring = { id: uid(), x: nx, y: ny, tile: TI.SPRING, contents: [] };
+          (dg.springs || (dg.springs = [])).push(spring);
+          ml.push("泉を設置した！");
+        } else if (objectKind === "vent") {
+          const facing = p.facing || { dx: 0, dy: 1 };
+          const vent = makeVent(nx, ny, facing.dx, facing.dy);
+          (dg.vents || (dg.vents = [])).push(vent);
+          ml.push(`風穴を設置した！（風向き: ${vent.dx},${vent.dy}）`);
+        } else if (objectKind === "statue") {
+          const statue = makeStatue(nx, ny);
+          (dg.statues || (dg.statues = [])).push(statue);
+          ml.push("石像を設置した！");
+        } else {
+          const bb = { id: uid(), x: nx, y: ny, tile: 41, kind: entry.value.kind, name: entry.value.name, capacity: entry.value.cap(), contents: [] };
+          (dg.bigboxes || (dg.bigboxes = [])).push(bb);
+          ml.push(`${bb.name}を設置した！`);
+        }
         placed = true;
         break;
       }
