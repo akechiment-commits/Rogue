@@ -20,7 +20,7 @@ export const BIGBOX_UNKNOWN_DESC =
   "正体不明の大箱。開けると中にアイテムを入れたり取り出したりできる。";
 
 export const GACHA_FLOOR_DESC =
-  "調べると1000Gで1回引ける。通常は普通のアイテムだが、3%で少しレアな景品が出る。ダメージ系の杖・薬や爆発で壊れる。";
+  "1000Gで一回ガチャが回せる。";
 
 /** 未識別の魔方陣（描いたペンの種類が未判明） */
 export const PENTACLE_UNKNOWN_DESC =
