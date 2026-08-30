@@ -1316,6 +1316,8 @@ export function useKeyHandler({
           _dsTotalEntries = TRAPS.length;
         } else if (_dsEff === "debug_summon_bb") {
           _dsTotalEntries = BB_TYPES.length;
+        } else if (_dsEff === "debug_summon_object") {
+          _dsTotalEntries = 4;
         }
         const _dsIsCategory = _dsEff === "debug_get_item" && !_dsCat;
         const _dsPageSize = _dsIsCategory ? _dsTotalEntries : 10;
