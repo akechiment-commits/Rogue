@@ -322,6 +322,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         paths.push(`/tiles/${TILE_NAMES[id]}.png`);
       } else if (name === 'dawnlike' && TILE_NAMES[id] && !VENT_TILE_IDS.has(id)) {
         paths.push(`/tiles/${TILE_NAMES[id]}.png`);
+      } else if (id === 118 && TILE_NAMES[id]) {
+        /* ガチャマシーンはプリセット側に画像がないため共通画像を使う */
+        paths.push(`/tiles/${TILE_NAMES[id]}.png`);
       }
       const tryPath = (pathIndex) => {
         if (pathIndex >= paths.length) { res(); return; }
