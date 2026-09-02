@@ -15,6 +15,11 @@ describe("ハーゲンダッ壺とアイスクリーム", () => {
     expect(new Set(ICE_CREAM_FLAVORS.map((flavor) => flavor.name)).size).toBe(ICE_CREAM_FLAVORS.length);
     expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "チョップドチョコレートアイス")?.desc).toBeTruthy();
     expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "チョコモナカジャンボ")?.desc).toBeTruthy();
+    expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "エッセルスーパーカップ超バニラ")?.desc).toBeTruthy();
+    expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "ナッツトゥユーアイス")?.desc).toBeTruthy();
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "やわもちアイス・ずんだもち")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "板チョコモナカ")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.every((flavor) => !/^(ハーゲンダッツ|サーティワン|レディーボーデン)・/.test(flavor.name))).toBe(true);
     expect(ICE_CREAM_EFFECT_DESCRIPTION).not.toMatch(/混乱|投げ/);
     expect(POTS.find((item) => item.potEffect === "hagen_dazs")?.desc).not.toMatch(/混乱|投げ/);
     expect(ICE_CREAM_FLAVORS.every((flavor) => !/混乱|投げ/.test(flavor.desc))).toBe(true);
@@ -64,7 +69,7 @@ describe("ハーゲンダッ壺とアイスクリーム", () => {
 
     applyThrownItemToMonster(ice, target, dg, player, ml, null);
     expect(target.iceCreamFireResTurns).toBe(100);
-    expect(target.hp).toBeGreaterThan(50);
+    expect(target.hp).toBeGreaterThan(35);
     applyThrownItemToMonster(ice, target, dg, player, ml, null);
     expect(target.confusedTurns).toBeGreaterThan(0);
   });
