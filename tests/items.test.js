@@ -154,10 +154,10 @@ describe("胡椒・マヨネーズの壺", () => {
       );
 
       expect(player.darknessTurns).toBe(20);
-      expect(center.blind).toBe(true);
-      expect(center.blindTurns).toBe(50);
-      expect(adjacent.blind).toBe(true);
-      expect(outside.blind).toBeUndefined();
+      expect(center.darknessTurns).toBe(50);
+      expect(center.darkDir).toBe(null);
+      expect(adjacent.darknessTurns).toBe(50);
+      expect(outside.darknessTurns).toBeUndefined();
       expect(ml.some((message) => message.includes("暗闇に包まれた"))).toBe(true);
     }
   });

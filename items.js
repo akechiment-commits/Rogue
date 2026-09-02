@@ -1348,8 +1348,8 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
           ml.push(`${mon.name}には暗闇が効かなかった！(状態防止中)`);
         } else {
           const _dt = statusTurns("darkness", { kind: "monster", target: mon });
-          mon.blind = true;
-          mon.blindTurns = Math.max(mon.blindTurns || 0, _dt);
+          mon.darknessTurns = (mon.darknessTurns || 0) + _dt;
+          mon.darkDir = null;
           ml.push(`${mon.name}は暗闇になった！(${_dt}ターン)`);
         }
       }
