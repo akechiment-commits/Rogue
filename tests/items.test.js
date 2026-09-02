@@ -27,6 +27,12 @@ describe("ハーゲンダッ壺とアイスクリーム", () => {
     expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "板チョコアイス")).toBe(true);
     expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "パリッテ・バニラ＆ショコラ")).toBe(true);
     expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "アイスの実・ぶどうマスカット")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "宝石箱")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "ビエネッタ")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "カレーアイス")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "ダブルソーダ")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "ムギ茶＆バニラアイス")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "納豆アイス")).toBe(true);
     expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "チャイアイス")?.desc).toBeTruthy();
     expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "モンブランアイス")?.desc).toBeTruthy();
     expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "ぜんざいアイス")?.desc).toBeTruthy();
