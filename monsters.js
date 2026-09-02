@@ -117,7 +117,7 @@ function canEnter(map, x, y, float = false, dg = null, waterWalker = false) {
 /* ===== プレイヤー防御力計算ヘルパー ===== */
 /** モンスターの炎耐性倍率（elemResist:"fire" → 半減）。火ダルマの吸収は別処理 */
 export function monFireDmgMult(m) {
-  if (m?.elemResist === "fire") return 0.5;
+  if (m?.elemResist === "fire" || (m?.iceCreamFireResTurns || 0) > 0) return 0.5;
   return 1;
 }
 export function monFireDmgLabel(m) {
@@ -177,7 +177,6 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     if (_vulnPc) dmg = _vulnPc.cursed ? Math.max(1, Math.floor(dmg / 2)) : dmg * (_vulnPc.blessed ? 4 : 2);
     const _hasFireProt = hasFireResist(pl);
     dmg = reduceFireDamage(dmg, pl);
-    if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) dmg *= 2;
     pl.deathCause = `${m.name}の炎ブレスで`;
@@ -430,6 +429,8 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   /* 凍結：物理ダメージ2倍 */
   const _fzLbl = frozenPhysicalLabel(pl);
   dmg = applyFrozenPhysicalMult(dmg, pl);
+  /* 火ダルマの通常攻撃は炎属性。アイスやカレーの一時耐火も先に適用する。 */
+  if (m.baseKind === "firedemon") dmg = reduceFireDamage(dmg, pl);
   pl.deathCause = `${m.name}の攻撃で`;
   pl.hp -= dmg;
   onPlayerHit?.(dmg, m);
@@ -449,7 +450,6 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
   if (m.baseKind === "firedemon" && dmg > 0) {
-    if ((pl.curryFireResTurns || 0) > 0) dmg = Math.max(1, Math.floor(dmg / 2));
     if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true);
     const _oilyMult = (pl.oilyTurns || 0) > 0 || dg.oilyTiles?.some(t => t.x === pl.x && t.y === pl.y) ? 2 : 1;
     if (_oilyMult > 1) {

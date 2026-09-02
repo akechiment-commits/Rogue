@@ -1690,7 +1690,11 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           chargeShopItem(target, dg, ml);
           ml.push(`炎で${_dname_item(target)}が燃えた！`);
         } else if (target.type === "food") {
-          if (!target.cooked) {
+          if (target.iceCream) {
+            removeFloorItem(dg, target);
+            chargeShopItem(target, dg, ml, p);
+            ml.push(`${_dname_item(target)}が炎で溶けて消滅した！`);
+          } else if (!target.cooked) {
             target.value *= 2;
             cookFoodMeta(target);
             target.name = "焼いた" + target.name;

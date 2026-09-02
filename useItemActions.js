@@ -5,7 +5,7 @@ import { findRoom, spawnMonsters, _resolveBolt, scaleMonFireDmg, monFireDmgLabel
 import { applyMonsterScroll, prepareLastFloor } from "./dungeon.js";
 import {
   EMPTY_BOTTLE, SPELLS, TRAPS, pickTrap, makeRandomPotion,
-  applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, hasFireResist, reduceFireDamage, fireResistDamageLabel,
+  applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
   getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
@@ -493,7 +493,10 @@ export function useItemActions({
     } else if (it.type === "food") {
       const _foodBm = getBlessMultiplier(it);
       /* ヤバイ食料：満腹度0.2倍、大ダメージ、毒、混乱 */
-      if (it.yabai) {
+      if (it.iceCream && !it.yabai && !it.rotten && !it.burnt) {
+        p.inventory.splice(idx, 1);
+        applyIceCreamEffect(p, "player", ml, { name: _useItemName });
+      } else if (it.yabai) {
         const _yabaiHunger = Math.max(1, Math.round(it.value * _foodBm * 0.2));
         p.inventory.splice(idx, 1);
         if (p.hunger < 0) p.hunger = 0;
@@ -4200,6 +4203,9 @@ export function useItemActions({
                       ml.push(`${m.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足(永続)状態になった！`);
                     }
                   }
+                  if (it.type === "food" && it.iceCream && !it.yabai && !it.rotten && !it.burnt && m.hp > 0) {
+                    applyIceCreamEffect(m, "monster", ml, { name: dnameRef(it) });
+                  }
                   if (it.type === "food" && (it.rotten || it.burnt) && !it.yabai && m.hp > 0) {
                     m.atk = Math.max(1, Math.floor((m.atk || 1) / 2));
                     ml.push(`${it.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
@@ -4244,7 +4250,9 @@ export function useItemActions({
               p.hp -= _selfD;
               p.deathCause = "風に煽られた投げ物に当たって";
               ml.push(`${_selfD}ダメージ！`);
-              if (it.type === "food" && it.yabai) {
+              if (it.type === "food" && it.iceCream && !it.yabai && !it.rotten && !it.burnt) {
+                applyIceCreamEffect(p, "player", ml, { name: dnameRef(it) });
+              } else if (it.type === "food" && it.yabai) {
                 const _poison = applyPlayerPoison(p);
                 p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
                 ml.push(`ヤバイ食料の影響で毒(${_poison.turns}ターン)・混乱した！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);

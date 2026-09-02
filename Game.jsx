@@ -600,6 +600,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       poisonAtkLoss: 0,
       sealedTurns: 0,
       fireExplosionNullTurns: 0,
+      iceCreamFireResTurns: 0,
       invisibleTurns: 0,
       potConfinedTurns: 0,
       wallWalkTurns: 0,
@@ -5507,6 +5508,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {(p.curryFireResTurns || 0) > 0 && (
           <span style={{ color: "#e07020" }}>🍛{p.curryFireResTurns}</span>
+        )}{" "}
+        {(p.iceCreamFireResTurns || 0) > 0 && (
+          <span style={{ color: "#b0e8ff" }}>🍦{p.iceCreamFireResTurns}</span>
         )}{" "}
         {(p.misoDefTurns || 0) > 0 && (
           <span style={{ color: "#a06030" }}>🫘{p.misoDefTurns}</span>

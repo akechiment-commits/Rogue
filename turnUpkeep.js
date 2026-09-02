@@ -233,6 +233,7 @@ export function advanceConsumableBuffTimers(player, messages) {
     ["pacifistTurns", "平和主義状態が解けた！攻撃できるようになった。"],
     ["reverseTurns", "逆転状態が解けた！ダメージと回復が元に戻った。"],
     ["curryFireResTurns", "カレーの炎耐性が切れた！"],
+    ["iceCreamFireResTurns", "アイスの耐火効果が切れた！"],
     ["misoDefTurns", "味噌の防御ブーストが切れた！"],
     ["oliveEvasionTurns", "オリーブオイルの回避効果が切れた！"],
     ["sesameCritTurns", "ごまの会心ブーストが切れた！"],

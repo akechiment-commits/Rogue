@@ -30,6 +30,9 @@ import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js'
 import { interruptPlayerSleep } from './turnUpkeep.js';
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns, clearMpRecoveryBlockFromCursedSealPotion } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
+import { convertToIceCream } from './iceCreamData.js';
+
+export { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
 
 export {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
@@ -202,7 +205,7 @@ export function clearPitfallBag() { _pitfallBag = null; }
 
 /* ===== ITEM TILES ===== */
 export const ITEM_TILES = {
-  potion_heal: 16, potion_big: 17, scroll: 18, food: 19,
+  potion_heal: 16, potion_big: 17, scroll: 18, food: 19, food_icecream: 209,
   weapon: 20, armor: 21, gold: 22, arrow: 23, wand: 24,
 };
 
@@ -797,6 +800,7 @@ export const POTS = [
   { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"B", weight:2,  sellPrice:3500, desc:"入れると閉じ込められる。敵に投げても使える。", tile:32 },
   { name:"願いの壺",         type:"pot", potEffect:"wish_pot", capacity:3, rarity:"S", weight:0.05,  sellPrice:12000, desc:"アイテムを入れると願いが叶う。\n入れた物は消え、壺も一回で壊れる。", tile:32 },
   { name:"クラインの壺",     type:"pot", potEffect:"klein",   capacity:3, rarity:"B", weight:2,  sellPrice:5000, desc:"アイテムを入れると消え、20ターン逆転状態になる。\nダメージが回復に、回復がダメージに反転する。", tile:32 },
+  { name:"ハーゲンダッ壺",   type:"pot", potEffect:"hagen_dazs", capacity:3, rarity:"C", weight:4, sellPrice:1800, desc:"中に入れたアイテムが、豊富なフレーバーのアイスクリームになる。\n食べるとHP・満腹度+15、100ターン耐火と所持品耐炎。", tile:32 },
 ];
 
 export const POT_FOOD_PREFIX = {
@@ -877,6 +881,11 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
   const pe = pot.potEffect;
   if (pe === "imprison") { ml.push(`${_pn}にはアイテムは入れられない。`); return; }
   if (pe === "none" || pe === "greed") { ml.push(`${_in}を${_pn}に入れた。`); return; }
+  if (pe === "hagen_dazs") {
+    convertToIceCream(item);
+    ml.push(`${_in}が${item.name}になった！`);
+    return;
+  }
   if (pe === "boil") { /* 実効果はGame.jsx側で処理 */ return; }
   if (pe === "enhance") {
     if (item.type === "weapon" || item.type === "armor" || (item.type === "ring" && ["power_ring", "defense_ring", "life_ring"].includes(item.effect))) {
@@ -1791,7 +1800,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
         } else if (it.type === "potion") {
           blasted.add(it); ml.push(`薬「${resolveItemName(it, nameFn)}」が割れてなくなった！`);
         } else if (it.type === "food") {
-          if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it, nameFn)}が炎で溶けて消滅した！`); }
+          else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
@@ -1976,7 +1986,8 @@ export function doGunpowderExplosion(cx, cy, dg, p, ml, luFn, srcLabel = "火薬
       } else if (it.type === "potion") {
         _blasted.add(it); ml.push(`薬「${resolveItemName(it)}」が爆風で割れてなくなった！`);
       } else if (it.type === "food") {
-        if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+        if (it.iceCream) { _blasted.add(it); ml.push(`${resolveItemName(it)}が炎で溶けて消滅した！`); }
+        else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
         else { burnFoodItem(it, ml); }
       } else if (it.type === "pot") {
         _blasted.add(it);
@@ -2125,7 +2136,8 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
         } else if (it.type === "potion") {
           blasted.add(it); ml.push(`薬「${resolveItemName(it, nameFn)}」が割れてなくなった！`);
         } else if (it.type === "food") {
-          if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
+          if (it.iceCream) { blasted.add(it); ml.push(`${resolveItemName(it, nameFn)}が炎で溶けて消滅した！`); }
+          else if (!it.cooked) { it.value *= 2; cookFoodMeta(it); it.name = "焼いた" + it.name; ml.push(`${it.name}になった！`); }
           else { burnFoodItem(it, ml); }
         } else if (it.type === "pot") {
           blasted.add(it);
@@ -3241,6 +3253,40 @@ export function thrownItemAttack(item) {
   return 3;
 }
 
+/** アイスクリームを食べさせたときの共通効果。敵への投擲にも使う。 */
+export function applyIceCreamEffect(target, kind, ml, { name = "アイスクリーム" } = {}) {
+  if (!target) return { hp: 0, hunger: 0, confused: false };
+  const isPlayer = kind === "player";
+  const maxHp = Math.max(0, Number(target.maxHp ?? target.hp ?? 0));
+  const hpGain = Math.max(0, Math.min(15, maxHp - (Number(target.hp) || 0)));
+  target.hp = (Number(target.hp) || 0) + hpGain;
+  let hungerGain = 0;
+  if (isPlayer) {
+    const maxHunger = Math.max(0, Number(target.maxHunger ?? 100));
+    hungerGain = Math.max(0, Math.min(15, maxHunger - (Number(target.hunger) || 0)));
+    target.hunger = Math.min(maxHunger, (Number(target.hunger) || 0) + 15);
+    if (target.hunger > 0) delete target._hungerDmgStarted;
+  }
+  const alreadyProtected = (target.iceCreamFireResTurns || 0) > 0;
+  if (alreadyProtected) {
+    const canConfuse = isPlayer
+      ? (target.statusImmune || 0) <= 0 && !hasAbility(target.armor, "confuse_proof")
+      : (target.statusImmune || 0) <= 0;
+    if (canConfuse) {
+      const turns = statusTurns("confuse", { kind, target });
+      target.confusedTurns = (target.confusedTurns || 0) + turns;
+      ml?.push(`${name}の冷たさで頭がキーンと痛くなり、${isPlayer ? "混乱した" : `${target.name || "敵"}は混乱した`}！(${turns}ターン)`);
+    } else {
+      ml?.push(`${name}の冷たさで頭が痛くなったが、混乱は防がれた！`);
+    }
+  } else {
+    target.iceCreamFireResTurns = 100;
+    ml?.push(`${name}の冷たさが体に染みた！炎ダメージ半減・所持品への炎を防ぐ状態になった。(100ターン)`);
+  }
+  if (hpGain > 0 && Number.isFinite(target.x) && Number.isFinite(target.y)) pushHealAnim(target.x, target.y);
+  return { hp: hpGain, hunger: hungerGain, confused: alreadyProtected };
+}
+
 /**
  * 投擲物がモンスターに命中したときの共通処理。
  * 拡散の大箱・通常投擲・敵のアイテム投げで、ダメージと追加効果が
@@ -3295,6 +3341,11 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
       if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
       ml.push(`${mon.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！`);
     }
+  }
+
+  /* アイスクリーム：通常投擲ダメージ後に、食べたときと同じ効果を与える。 */
+  if (item.type === "food" && item.iceCream && !item.yabai && !item.rotten && !item.burnt && mon.hp > 0) {
+    applyIceCreamEffect(mon, "monster", ml, { name: resolveItemName(item, nameFn) });
   }
 
   /* 腐った／焦げた食料：攻撃力半減（ヤバイ食料を除く）。 */
@@ -3874,6 +3925,10 @@ export function burnFoodItem(item, ml) {
 
 export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
   const _dn = dnFn ? dnFn(item) : resolveItemName(item);
+  if (item.iceCream && (eff === "water" || eff === "fire")) {
+    ml.push(`${_dn}が${eff === "water" ? "水" : "炎"}の影響で溶けて消滅した！`);
+    return "burn";
+  }
   if (eff === "water" && item.type === "food") {
     return restoreFoodWithWater(item, ml) ? "changed" : undefined;
   }
@@ -4014,7 +4069,11 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
   pushSplashAnim(cx, cy, blessed ? "#aaddff" : "#aa88ff");
   const it = itemAt(dg, cx, cy);
   if (!it) { if (blessed || cursed) ml.push("着弾点にアイテムがなかった…"); return; }
-  if (it.type === "pot") {
+  if (it.iceCream) {
+    removeFloorItem(dg, it);
+    chargeShopItem(it, dg, ml, p);
+    ml.push(`${resolveItemName(it, dnFn)}が水の影響で溶けて消滅した！`);
+  } else if (it.type === "pot") {
     if (blessed) {
       it.capacity = (it.capacity || 1) + 1;
       ml.push(`${resolveItemName(it)}が祝福の水を浴びた！(容量+1 → ${it.capacity})【祝】`);
@@ -4044,6 +4103,10 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
 export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
   const _dn = (it) => dnFn ? dnFn(it) : resolveItemName(it);
   spr.contents = spr.contents || [];
+  if (item.iceCream) {
+    ml.push(`${_dn(item)}が泉に落ちて溶けて消滅した！`);
+    return;
+  }
   if (item.type === "bottle") {
     const wb = { ...WATER_BOTTLE, id:uid() };
     if (item.blessed) { wb.blessed = true; wb.bcKnown = true; }
@@ -4174,6 +4237,10 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     ml?.push(`${resolveItemName(item)}は床に落ちると消えてしまった！`);
     return false;
   }
+  if (item?.iceCream && dg.map[ty]?.[tx] === T.WATER) {
+    ml?.push(`${resolveItemName(item)}が水に落ちて溶けて消滅した！`);
+    return false;
+  }
   if (dep > 30) { ml.push(`${resolveItemName(item)}は消えてしまった！`); return false; }
   /* ポータルの魔方陣：着地点がポータルなら次のポータルへ転送（再帰防止に _fromPortal フラグ）
      キーアイテム自体はポータルを通過させない */
@@ -4206,6 +4273,10 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     if (_avoidOriginSpring && dx === 0 && dy === 0 && dg.springs?.some(s => s.x === cx && s.y === cy)) continue;
     /* 水タイルに落ちる場合：同マスに既に沈没アイテムがなければ沈没 */
     if (dg.map[cy][cx] === T.WATER) {
+      if (item.iceCream) {
+        ml?.push(`${resolveItemName(item)}が水に落ちて溶けて消滅した！`);
+        return false;
+      }
       dg.waterItems = dg.waterItems || [];
       if (dg.waterItems.some(wi => wi.x === cx && wi.y === cy)) continue;
       const sunk = soakItem({ ...item, x: cx, y: cy });
@@ -4604,11 +4675,11 @@ function _triggerExplosionPentacle(mx, my, dg, p, ml, luFn) {
 /* 炎によるインベントリ損傷（巻物・薬・魔法書・帯電毛玉のどれか1つをランダムに消去） */
 export function applyFireInventoryDamage(p, ml) {
   if (hasFireResist(p)) return;
-  const burnables = p.inventory.filter(i => i.type === "scroll" || i.type === "potion" || i.type === "spellbook" || i.type === "charged_fuzzball");
+  const burnables = p.inventory.filter(i => i.type === "scroll" || i.type === "potion" || i.type === "spellbook" || i.type === "charged_fuzzball" || (i.type === "food" && i.iceCream));
   if (burnables.length === 0) return;
   const victim = burnables[Math.floor(Math.random() * burnables.length)];
   p.inventory = p.inventory.filter(i => i !== victim);
-  const verb = victim.type === "potion" ? "割れてなくなった" : victim.type === "charged_fuzzball" ? "炎で消滅した" : "燃えてなくなった";
+  const verb = victim.type === "potion" ? "割れてなくなった" : victim.type === "charged_fuzzball" || victim.iceCream ? "炎で消滅した" : "燃えてなくなった";
   ml.push(`爆発の熱で所持していた「${resolveItemName(victim)}」が${verb}！`);
 }
 
@@ -4841,7 +4912,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       mlx.push(_plHit);
       interruptPlayerSleep(p, mlx);
       /* ヤバイ食料：追加ダメ+状態異常複合 */
-      if (item.type === "food" && item.yabai) {
+      if (item.type === "food" && item.iceCream && !item.yabai && !item.rotten && !item.burnt) {
+        applyIceCreamEffect(p, "player", mlx, { name: resolveItemName(item, nameFn) });
+      } else if (item.type === "food" && item.yabai) {
         const _yDmg = rng(15, 25);
         p.hp -= _yDmg;
         p.deathCause = "跳ね返されたヤバイ食料に当たって";
@@ -5936,7 +6009,8 @@ export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */
 export function hasFireResist(p) {
-  return hasAbility(p?.armor, "fire_resist") || hasAbility(p?.armor, "all_resist");
+  return hasAbility(p?.armor, "fire_resist") || hasAbility(p?.armor, "all_resist")
+    || (p?.curryFireResTurns || 0) > 0 || (p?.iceCreamFireResTurns || 0) > 0;
 }
 
 /** 防具の雷耐性（万能耐性も対象）— 所持品破損防止用 */
@@ -6032,6 +6106,7 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
   }
   const vulnerable = p.inventory.filter((it) => {
     if (it.type === "charged_fuzzball") return true;
+    if (it.type === "food" && it.iceCream) return true;
     if (it.type === "scroll" && it.effect !== "blank") return true;
     if (it.type === "spellbook" && it.spell) return true;
     if (it.type === "food") return true;
@@ -6047,6 +6122,11 @@ export function applyWaterGunToInventory(p, ml, nameFn = null) {
     return blankScrollOrSpellbook(victim, ml, nameFn);
   }
   if (victim.type === "food") {
+    if (victim.iceCream) {
+      p.inventory = p.inventory.filter((it) => it !== victim);
+      if (ml) ml.push(`水を浴びて${resolveItemName(victim, nameFn)}が溶けて消滅した！`);
+      return true;
+    }
     return shrinkFoodOneStep(victim, ml, nameFn);
   }
   if (victim.type === "charged_fuzzball") {
@@ -6121,10 +6201,15 @@ function _soakedLightningLabel(p) {
 export function reduceFireDamage(dmg, p, opts = {}) {
   const mult = _elemResistMult(p, "fire_resist", opts);
   let d = mult == null ? dmg : Math.max(1, Math.floor(dmg * mult));
+  if ((p?.curryFireResTurns || 0) > 0 || (p?.iceCreamFireResTurns || 0) > 0) {
+    d = Math.max(1, Math.floor(d * 0.5));
+  }
   return _applySoakedFireReduction(d, p);
 }
 export function fireResistDamageLabel(p, opts = {}) {
-  return _elemResistLabel("耐火", p, "fire_resist", opts) + _soakedFireLabel(p);
+  const base = _elemResistLabel("耐火", p, "fire_resist", opts);
+  const temporary = (p?.curryFireResTurns || 0) > 0 || (p?.iceCreamFireResTurns || 0) > 0;
+  return `${base}${temporary ? "（炎半減）" : ""}${_soakedFireLabel(p)}`;
 }
 
 function _applySoakedIceBoost(dmg, p) {
@@ -6293,6 +6378,9 @@ export function applyLightningToInventory(p, dg, ml, luFn, nameFn = null, isFire
     p.inventory = p.inventory.filter((_, i) => i !== idx);
     const verb = victim.type === "potion" ? "割れてなくなった" : "燃えてなくなった";
     ml.push(`所持していた「${dn(victim)}」が${verb}！`);
+  } else if (isFireContext && victim.type === "food" && victim.iceCream) {
+    p.inventory = p.inventory.filter((_, i) => i !== idx);
+    ml.push(`所持していた「${dn(victim)}」が炎で溶けて消滅した！`);
   } else {
     ml.push(isFireContext ? `所持していた「${dn(victim)}」は炎に当たったが無事だった。` : `所持していた「${dn(victim)}」に雷が走ったが無事だった。`);
   }
@@ -6956,6 +7044,8 @@ function _stripFoodEnchantments(item) {
   delete item.potionEffects;
   delete item.potFlavors;
   delete item.smoked;
+  delete item.iceCream;
+  delete item.iceCreamFlavor;
   delete item.effect;
   delete item._foodEfLabel;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -8,6 +8,81 @@ import { addOilProofAbility, consumeItemDegradeProtection, soakItemIntoSpring } 
 import "../monsters.js";
 
 afterEach(() => setFavoriteFoodBase(""));
+
+describe("ハーゲンダッ壺とアイスクリーム", () => {
+  it("基本から店舗・商品系まで全フレーバーに個別説明がある", () => {
+    expect(ICE_CREAM_FLAVORS.length).toBeGreaterThanOrEqual(100);
+    expect(new Set(ICE_CREAM_FLAVORS.map((flavor) => flavor.name)).size).toBe(ICE_CREAM_FLAVORS.length);
+    expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "チョップドチョコレートアイス")?.desc).toBeTruthy();
+    expect(ICE_CREAM_FLAVORS.find((flavor) => flavor.name === "チョコモナカジャンボ")?.desc).toBeTruthy();
+    expect(ICE_CREAM_EFFECT_DESCRIPTION).not.toMatch(/混乱|投げ/);
+    expect(POTS.find((item) => item.potEffect === "hagen_dazs")?.desc).not.toMatch(/混乱|投げ/);
+    expect(ICE_CREAM_FLAVORS.every((flavor) => !/混乱|投げ/.test(flavor.desc))).toBe(true);
+  });
+
+  it("投入物をアイスクリームへ変換し、元の種別固有データを外す", () => {
+    const pot = POTS.find((item) => item.potEffect === "hagen_dazs");
+    const item = { id: "weapon-1", name: "短剣", type: "weapon", atk: 3, blessed: true, x: 4, y: 5 };
+    const ml = [];
+
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      applyPotEffect(pot, item, ml);
+    } finally {
+      randomSpy.mockRestore();
+    }
+
+    expect(item).toMatchObject({ id: "weapon-1", type: "food", name: "バニラアイス", value: 15, iceCream: true, tile: 209, cooked: true, blessed: true, x: 4, y: 5 });
+    expect(item.atk).toBeUndefined();
+    expect(item.desc).toContain("炎ダメージを半減");
+    expect(ml.at(-1)).toContain("バニラアイス");
+  });
+
+  it("食べる効果はHP・満腹度・耐火を与え、効果中の再使用だけ混乱させる", () => {
+    const player = makePlayer({ hp: 50, hunger: 40 });
+    const ml = [];
+
+    applyIceCreamEffect(player, "player", ml, { name: "バニラアイス" });
+    expect(player.hp).toBe(65);
+    expect(player.hunger).toBe(55);
+    expect(player.iceCreamFireResTurns).toBe(100);
+    expect(player.confusedTurns || 0).toBe(0);
+
+    applyIceCreamEffect(player, "player", ml, { name: "チョコモナカジャンボ" });
+    expect(player.hp).toBe(80);
+    expect(player.hunger).toBe(70);
+    expect(player.iceCreamFireResTurns).toBe(100);
+    expect(player.confusedTurns).toBeGreaterThan(0);
+  });
+
+  it("敵への投擲でも耐火を与え、効果中なら混乱させる", () => {
+    const player = makePlayer({ atk: 10 });
+    const target = { name: "敵", hp: 50, maxHp: 100, def: 0, exp: 1, x: 7, y: 5 };
+    const dg = makeEmptyDg({ monsters: [target] });
+    const ice = { id: "ice-1", name: "バニラアイス", type: "food", value: 15, tile: 209, iceCream: true };
+    const ml = [];
+
+    applyThrownItemToMonster(ice, target, dg, player, ml, null);
+    expect(target.iceCreamFireResTurns).toBe(100);
+    expect(target.hp).toBeGreaterThan(50);
+    applyThrownItemToMonster(ice, target, dg, player, ml, null);
+    expect(target.confusedTurns).toBeGreaterThan(0);
+  });
+
+  it("炎・水の影響では所持品・床上アイスが消滅する", () => {
+    const player = makePlayer({ inventory: [{ id: "ice-inv", name: "バニラアイス", type: "food", iceCream: true }] });
+    const dg = makeEmptyDg({ items: [{ id: "ice-floor", name: "チョコモナカジャンボ", type: "food", iceCream: true, x: 5, y: 5 }] });
+    const ml = [];
+
+    expect(hasFireResist({ ...player, iceCreamFireResTurns: 100 })).toBe(true);
+    expect(reduceFireDamage(20, { ...player, iceCreamFireResTurns: 100 })).toBe(10);
+    applyLightningToInventory(player, dg, ml, null, null, true);
+    expect(player.inventory).toHaveLength(0);
+
+    applyWaterSplash(dg, 5, 5, true, false, ml, player);
+    expect(dg.items).toHaveLength(0);
+  });
+});
 
 describe("好物の調味料相性", () => {
   it("好物はすべての味付け壺で相性抜群になる", () => {
