@@ -28,7 +28,7 @@ import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
-import { monSubmergesProjectiles, monReflectsProjectiles } from "./monTraits.js";
+import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns, clearMpRecoveryBlockFromCursedSealPotion } from "./mpRules.js";
 
@@ -1120,7 +1120,7 @@ export function useItemActions({
             if (_m.hp <= 0) continue;
             if (skipDodgemoleScroll(_m, ml)) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-            if (_m.subtype === "magicreflect") {
+            if (monReflectsMagic(_m)) {
               let _rdmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
               _rdmg = multiplyCursedMagicDamage(_rdmg, p, dg);
               p.hp -= _rdmg;
@@ -1160,7 +1160,7 @@ export function useItemActions({
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (skipDodgemoleScroll(_m, ml, "呪いのエネルギー")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-            if (_m.subtype === "magicreflect") {
+            if (monReflectsMagic(_m)) {
               const _refC = Math.min(multiplyCursedMagicDamage(_rdmg, p, dg), p.maxHp - p.hp);
               if (_refC > 0) { p.hp += _refC; ml.push(`${_m.name}がエネルギーを跳ね返した！HP+${_refC}！`); pushHealAnim(p.x, p.y); }
               else ml.push(`${_m.name}がエネルギーを跳ね返したが効果がなかった。`);
@@ -1187,7 +1187,7 @@ export function useItemActions({
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (skipDodgemoleScroll(_m, ml, "回復の効果")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-            if (_m.subtype === "magicreflect") {
+            if (monReflectsMagic(_m)) {
               const _refN = Math.min(_rh, p.maxHp - p.hp);
               if (_refN > 0) { p.hp += _refN; ml.push(`${_m.name}が回復魔法を跳ね返した！HP+${_refN}！`); pushHealAnim(p.x, p.y); }
               else ml.push(`${_m.name}が回復魔法を跳ね返したが効果がなかった。`);
@@ -1297,7 +1297,7 @@ export function useItemActions({
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (skipDodgemoleScroll(_m, ml, "眠りの効果")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-            if (_m.subtype === "magicreflect") {
+            if (monReflectsMagic(_m)) {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
               if (hasAbility(p.armor, "sleep_proof")) { ml.push(`${_m.name}が眠りを跳ね返したが、防具が防いだ！(耐眠)`); continue; }
               p.sleepTurns = (p.sleepTurns || 0) + _pst;
@@ -1317,9 +1317,9 @@ export function useItemActions({
             ml.push(it.blessed ? "眠気が漂うが、フロアに敵はいない。【祝】" : "眠気が漂うが、視界に敵はいない。");
           } else {
             for (const _m of _sSleep) {
-              if (skipDodgemoleScroll(_m, ml, "眠りの効果")) continue;
-              if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-              if (_m.subtype === "magicreflect") {
+            if (skipDodgemoleScroll(_m, ml, "眠りの効果")) continue;
+            if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
+              if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が眠りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "sleep_proof")) { ml.push(`${_m.name}が眠りを跳ね返したが、防具が防いだ！(耐眠)`); continue; }
                 p.sleepTurns = (p.sleepTurns || 0) + _stPl;
@@ -1343,7 +1343,7 @@ export function useItemActions({
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (skipDodgemoleScroll(_m, ml, "混乱ガス")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-            if (_m.subtype === "magicreflect") {
+            if (monReflectsMagic(_m)) {
               if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
               if (hasAbility(p.armor, "confuse_proof")) { ml.push(`${_m.name}が混乱を跳ね返したが、防具が防いだ！(耐混乱)`); continue; }
               p.confusedTurns = (p.confusedTurns || 0) + _pct;
@@ -1363,7 +1363,7 @@ export function useItemActions({
             for (const _m of _cfTgts) {
               if (skipDodgemoleScroll(_m, ml, "混乱ガス")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-              if (_m.subtype === "magicreflect") {
+              if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が混乱を跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "confuse_proof")) { ml.push(`${_m.name}が混乱を跳ね返したが、防具が防いだ！(耐混乱)`); continue; }
                 p.confusedTurns = (p.confusedTurns || 0) + _ctPl;
@@ -1386,7 +1386,7 @@ export function useItemActions({
             if (_m.hp <= 0) continue;
             if (skipDodgemoleScroll(_m, ml, "炎の効果")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-            if (_m.subtype === "magicreflect") {
+            if (monReflectsMagic(_m)) {
               const _refFlDmg = multiplyCursedMagicDamage(Math.max(1, Math.round(rng(15, 25) * _scrBm)), p, dg);
               p.hp -= _refFlDmg; p.deathCause = `${_m.name}に炎を跳ね返されて`;
               ml.push(`${_m.name}が炎を跳ね返した！${_refFlDmg}ダメージ！`); pushExplosionAnim(p.x, p.y); continue;
@@ -1426,7 +1426,7 @@ export function useItemActions({
             for (const _m of _bsCurTgts) {
               if (skipDodgemoleScroll(_m, ml, "平和の効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-              if (_m.subtype === "magicreflect") {
+              if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が平和を跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.pacifistTurns = (p.pacifistTurns || 0) + 20;
                 ml.push(`${_m.name}が平和を跳ね返した！自分も20ターン平和主義状態になった…【呪】`); continue;
@@ -1449,7 +1449,7 @@ export function useItemActions({
             for (const _m of _bsTgts) {
               if (skipDodgemoleScroll(_m, ml, "バーサークの効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-              if (_m.subtype === "magicreflect") {
+              if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}がバーサークを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 50;
                 ml.push(`${_m.name}がバーサークを跳ね返した！自分が50ターン攻撃力1.5倍になった！`); continue;
@@ -1567,7 +1567,7 @@ export function useItemActions({
             for (const _m of _dbTgts) {
               if (skipDodgemoleScroll(_m, ml, "解除の効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-            if (_m.subtype === "magicreflect") {
+            if (monReflectsMagic(_m)) {
                 // 反射：自分に攻撃力半減・防御力半減デバフ
                 p.atkDebuffTurns = Math.max(p.atkDebuffTurns || 0, 50);
                 p.defDebuffTurns = Math.max(p.defDebuffTurns || 0, 50);
@@ -1659,7 +1659,7 @@ export function useItemActions({
             for (const _m of _btTgts) {
               if (skipDodgemoleScroll(_m, ml, "金縛りの効果")) continue;
               if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
-            if (_m.subtype === "magicreflect") {
+            if (monReflectsMagic(_m)) {
                 if ((p.statusImmune || 0) > 0) { ml.push(`${_m.name}が金縛りを跳ね返したが、状態防止中のため効かなかった！`); continue; }
                 if (hasAbility(p.armor, "paralyze_proof")) { ml.push(`${_m.name}が金縛りを跳ね返したが、防具が防いだ！`); continue; }
                 const _rt = statusTurns("paralyze", { kind: "player" }); p.paralyzeTurns = (p.paralyzeTurns || 0) + _rt;
@@ -1747,7 +1747,7 @@ export function useItemActions({
             for (const _sm of _inRoom) {
               if (skipDodgemoleScroll(_sm, ml, "召喚の呪い")) continue;
               if (_sm.magicImmune) { ml.push(`魔法は${_sm.name}に効かない！`); continue; }
-              if (_sm.subtype === "magicreflect") { ml.push(`${_sm.name}が呪いの召喚を跳ね返した！`); _reflectedToPlayer = true; continue; }
+              if (monReflectsMagic(_sm)) { ml.push(`${_sm.name}が呪いの召喚を跳ね返した！`); _reflectedToPlayer = true; continue; }
               if (consumeBarrier(_sm, ml)) continue;
               const _tr = pick(_otherRooms);
               if (!_tr) continue;
@@ -2930,7 +2930,7 @@ export function useItemActions({
             if (!_msTarget) {
               ml.push(`近くに敵がいない！${_stName}は消えた。`);
               _stPeelIfNeeded();
-            } else if (_msTarget.subtype === "reflector") {
+            } else if (monReflectsProjectiles(_msTarget)) {
               pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
               reflectMagicStoneToPlayer(p, _msTarget, _stName, _arItem.atk || 5, ml);
               _stPeelIfNeeded();
@@ -2988,7 +2988,7 @@ export function useItemActions({
               _stPeelIfNeeded();
             } else if (_stM) {
               /* ── reflector：石をプレイヤーへ跳ね返す ── */
-              if (_stM.subtype === "reflector") {
+              if (monReflectsProjectiles(_stM)) {
                 ml.push(`${_stName}が${_stM.name}に弾き返された！`);
                 const _stRdx = Math.sign(p.x - _stLx), _stRdy = Math.sign(p.y - _stLy);
                 let _stRx = _stLx, _stRy = _stLy;
@@ -3089,7 +3089,7 @@ export function useItemActions({
                   continue;
                 }
                 /* reflector：爆弾矢を跳ね返す（爆発はそのまま発生） */
-                if (_baM.subtype === "reflector") {
+                if (monReflectsProjectiles(_baM)) {
                   ml.push(`${_baName}が${_baM.name}に弾き返された！`);
                   const _baRdx = Math.sign(p.x - tx), _baRdy = Math.sign(p.y - ty);
                   let _baRx = tx, _baRy = ty;
@@ -3589,7 +3589,7 @@ export function useItemActions({
             if (!_msTarget2) {
               ml.push(`近くに敵がいない！${_invStName}は消えた。`);
               _invStPeel();
-            } else if (_msTarget2.subtype === "reflector") {
+            } else if (monReflectsProjectiles(_msTarget2)) {
               pushAnim({ type: "projectileReturn", fromX: _msTarget2.x, fromY: _msTarget2.y, toX: p.x, toY: p.y, color: "#cc88ff" });
               reflectMagicStoneToPlayer(p, _msTarget2, _invStName, _invStAtk, ml);
               _invStPeel();
@@ -3632,6 +3632,32 @@ export function useItemActions({
                 breaks: true,
                 itemDeps: getFixtureItemDeps(),
               });
+              _invStPeel();
+            } else if (_stM2 && monReflectsProjectiles(_stM2)) {
+              ml.push(`${_invStName}が${_stM2.name}に弾き返された！`);
+              const _stRdx2 = Math.sign(p.x - _stLx2), _stRdy2 = Math.sign(p.y - _stLy2);
+              let _stRx2 = _stLx2, _stRy2 = _stLy2, _stRHit2 = false;
+              for (let _stri2 = 1; _stri2 <= 20; _stri2++) {
+                const _stNx2 = _stRx2 + _stRdx2, _stNy2 = _stRy2 + _stRdy2;
+                if (_stNx2 < 0 || _stNx2 >= MW || _stNy2 < 0 || _stNy2 >= MH) break;
+                if (dg.map[_stNy2][_stNx2] === T.WALL || dg.map[_stNy2][_stNx2] === T.BWALL) break;
+                if (_stNx2 === p.x && _stNy2 === p.y) { _stRHit2 = true; break; }
+                _stRx2 = _stNx2; _stRy2 = _stNy2;
+              }
+              const _stRToX2 = _stRHit2 ? p.x : _stRx2;
+              const _stRToY2 = _stRHit2 ? p.y : _stRy2;
+              if (_stRToX2 !== _stLx2 || _stRToY2 !== _stLy2) {
+                pushAnim({ type: "projectileReturn", fromX: _stLx2, fromY: _stLy2, toX: _stRToX2, toY: _stRToY2, color: "#aaaaaa" });
+              }
+              if (_stRHit2) {
+                const _stRefDmg2 = calcProjectileDmg(p, _invStAtk, 0);
+                p.hp -= _stRefDmg2;
+                p.deathCause = `${_stM2.name}に跳ね返された${_invStName}で`;
+                ml.push(`跳ね返された${_invStName}が${pl()}に命中！${_stRefDmg2}ダメージ！消滅した。`);
+              } else if (_stRx2 !== _stLx2 || _stRy2 !== _stLy2) {
+                const _stRft2 = new Set();
+                withPitfallBag(() => placeItemAt(dg, _stRx2, _stRy2, _invStDrop(), ml, _stRft2));
+              }
               _invStPeel();
             } else if (_stM2) {
               const _stDodgePcMode2 = getDodgePentacleMode(dg, _stM2.x, _stM2.y);
@@ -3699,6 +3725,21 @@ export function useItemActions({
                   ml.push(_baM2.name + "が潜って爆弾矢をかわした！");
                   _baLx2 = tx; _baLy2 = ty;
                   continue;
+                }
+                if (monReflectsProjectiles(_baM2)) {
+                  ml.push(`${_baName2}が${_baM2.name}に弾き返された！`);
+                  const _baRdx2 = Math.sign(p.x - tx), _baRdy2 = Math.sign(p.y - ty);
+                  let _baRx2 = tx, _baRy2 = ty;
+                  for (let _bari2 = 1; _bari2 <= 20; _bari2++) {
+                    const _barnx2 = _baRx2 + _baRdx2, _barny2 = _baRy2 + _baRdy2;
+                    if (_barnx2 < 0 || _barnx2 >= MW || _barny2 < 0 || _barny2 >= MH) break;
+                    if (dg.map[_barny2][_barnx2] === T.WALL || dg.map[_barny2][_barnx2] === T.BWALL) break;
+                    _baRx2 = _barnx2; _baRy2 = _barny2;
+                    if (_barnx2 === p.x && _barny2 === p.y) break;
+                  }
+                  pushAnim({ type: "projectileReturn", fromX: tx, fromY: ty, toX: _baRx2, toY: _baRy2, color: "#ff6622" });
+                  _baLx2 = _baRx2; _baLy2 = _baRy2;
+                  break;
                 }
                 const _baDmg2 = calcProjectileDmg(p, _baAtk2, _baM2.def);
                 _baM2.hp -= _baDmg2;
@@ -3798,7 +3839,7 @@ export function useItemActions({
                 bigboxAddItem(m.synthBox, it, dg, ml);
                 _synthMonsterSpeedup(m, ml);
                 lx = tx; ly = ty; _fdBurned = true; break;
-              } else if (m.subtype === "reflector") {
+              } else if (monReflectsProjectiles(m)) {
                 /* ミラーゴーレム：薬をプレイヤーに向かって跳ね返す */
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
                 pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
@@ -3889,7 +3930,7 @@ export function useItemActions({
                 _synthMonsterSpeedup(m, ml);
                 lx = tx; ly = ty; _potFdBurned = true; break;
               }
-              if (!_isFarcast && m.subtype === "reflector") {
+              if (!_isFarcast && monReflectsProjectiles(m)) {
                 /* ミラーゴーレム：壺をプレイヤーの足元に跳ね返す */
                 ml.push(`${dnameRef(it)}が${m.name}に弾き返された！`);
                 pushItemReturnAnim(tx, ty, p.x, p.y, it.tile);
@@ -4083,7 +4124,7 @@ export function useItemActions({
                 break;
               }
               /* ── reflector（ミラーゴーレム等）：投げたアイテムをプレイヤーに向かって跳ね返す ── */
-              if (!_isFarcast && m.subtype === "reflector") {
+              if (!_isFarcast && monReflectsProjectiles(m)) {
                 const lb = _mkThrowLb();
                 ml.push(`${lb}が${m.name}に弾き返された！`);
                 const _rfdx = Math.sign(p.x - tx), _rfdy = Math.sign(p.y - ty);

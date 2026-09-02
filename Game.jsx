@@ -11,6 +11,7 @@ import {
   MONS,
   _resolveBolt,
   _resolveMonsterWandBolt,
+  monReflectsProjectiles,
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
@@ -2699,7 +2700,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       _srPeel();
                     } else {
                     const _stM = monsterAt(dg, _stLx, _stLy);
-                    if (_stM && _stM.subtype === "reflector" && !_stM.sealed) {
+                    if (_stM && monReflectsProjectiles(_stM)) {
                       ml.push(`${_arName}が${_stM.name}に弾き返された！`);
                       const _stRdx = Math.sign(p.x - _stLx), _stRdy = Math.sign(p.y - _stLy);
                       let _stRx = _stLx, _stRy = _stLy, _stRHit = false;
@@ -2740,7 +2741,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (!_msTarget) {
                       ml.push(`近くに敵がいない！${_arName}は消えた。`);
                       _srPeel();
-                    } else if (_msTarget.subtype === "reflector" && !_msTarget.sealed) {
+                    } else if (monReflectsProjectiles(_msTarget)) {
                       pushAnim({ type: "projectileReturn", fromX: _msTarget.x, fromY: _msTarget.y, toX: p.x, toY: p.y, color: "#cc88ff" });
                       reflectMagicStoneToPlayer(p, _msTarget, _arName, _srAr.atk || 5, ml);
                       _srPeel();
