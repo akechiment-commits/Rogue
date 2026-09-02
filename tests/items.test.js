@@ -110,7 +110,7 @@ describe("ハーゲンダッ壺とアイスクリーム", () => {
 describe("好物の調味料相性", () => {
   it("好物はすべての味付け壺で相性抜群になる", () => {
     setFavoriteFoodBase("好物の名前");
-    const potEffects = ["choco", "spicy", "honey", "curry", "miso", "olive", "sesame", "butter", "yogurt", "coconut", "soy", "garlic", "lemon"];
+    const potEffects = ["choco", "spicy", "honey", "curry", "miso", "olive", "sesame", "butter", "mayonnaise", "yogurt", "coconut", "soy", "garlic", "lemon", "pepper"];
     for (const potEffect of potEffects) {
       const item = { type: "food", name: "好物の名前", _foodBase: "好物の名前", value: 20 };
       const ml = [];
@@ -118,6 +118,81 @@ describe("好物の調味料相性", () => {
       expect(item.value, potEffect).toBe(32);
       expect(ml.at(-1), potEffect).toContain("相性抜群");
     }
+  });
+});
+
+describe("胡椒・マヨネーズの壺", () => {
+  it("食料をそれぞれの味に変え、相性タグも判定する", () => {
+    const pepperFood = { type: "food", name: "鶏肉", _foodBase: "鶏肉", value: 20 };
+    const mayoFood = { type: "food", name: "鶏卵", _foodBase: "鶏卵", value: 20 };
+    const pepperMessages = [];
+    const mayoMessages = [];
+
+    applyPotEffect(POTS.find((pot) => pot.potEffect === "pepper"), pepperFood, pepperMessages);
+    applyPotEffect(POTS.find((pot) => pot.potEffect === "mayonnaise"), mayoFood, mayoMessages);
+
+    expect(pepperFood.name).toBe("胡椒風味の鶏肉");
+    expect(pepperFood.potFlavors).toEqual(["pepper"]);
+    expect(pepperMessages.at(-1)).toContain("相性抜群");
+    expect(mayoFood.name).toBe("マヨネーズ風味の鶏卵");
+    expect(mayoFood.potFlavors).toEqual(["mayonnaise"]);
+    expect(mayoMessages.at(-1)).toContain("相性抜群");
+  });
+
+  it("容量が残った唐辛子・胡椒の壺は周囲9マスを暗闇にする", () => {
+    for (const potEffect of ["spicy", "pepper"]) {
+      const player = makePlayer({ x: 4, y: 4 });
+      const center = { name: "中央の敵", hp: 30, maxHp: 30, x: 5, y: 5, atk: 5, def: 0 };
+      const adjacent = { name: "隣の敵", hp: 30, maxHp: 30, x: 6, y: 5, atk: 5, def: 0 };
+      const outside = { name: "外の敵", hp: 30, maxHp: 30, x: 7, y: 5, atk: 5, def: 0 };
+      const dg = makeEmptyDg({ monsters: [center, adjacent, outside] });
+      const ml = [];
+
+      scatterPotContents(
+        { name: `${potEffect}の壺`, potEffect, capacity: 3, contents: [] },
+        dg, 5, 5, player, ml, null,
+      );
+
+      expect(player.darknessTurns).toBe(20);
+      expect(center.blind).toBe(true);
+      expect(center.blindTurns).toBe(50);
+      expect(adjacent.blind).toBe(true);
+      expect(outside.blind).toBeUndefined();
+      expect(ml.some((message) => message.includes("暗闇に包まれた"))).toBe(true);
+    }
+  });
+
+  it("容量を使い切った壺は割れても暗闇を広げない", () => {
+    const player = makePlayer({ x: 5, y: 5 });
+    const enemy = { name: "敵", hp: 30, maxHp: 30, x: 6, y: 5, atk: 5, def: 0 };
+    const dg = makeEmptyDg({ monsters: [enemy] });
+    const ml = [];
+    const contents = [
+      { type: "gold", name: "金貨", value: 1 },
+      { type: "gold", name: "金貨", value: 1 },
+      { type: "gold", name: "金貨", value: 1 },
+    ];
+
+    scatterPotContents({ name: "胡椒の壺", potEffect: "pepper", capacity: 3, contents }, dg, 5, 5, player, ml, null);
+
+    expect(player.darknessTurns).toBeUndefined();
+    expect(enemy.blind).toBeUndefined();
+    expect(ml.some((message) => message.includes("暗闇に包まれた"))).toBe(false);
+  });
+
+  it("容量が残ったマヨネーズの壺は油を周囲に飛散させる", () => {
+    const player = makePlayer({ x: 5, y: 5 });
+    const dg = makeEmptyDg();
+    const ml = [];
+
+    scatterPotContents(
+      { name: "マヨネーズの壺", potEffect: "mayonnaise", capacity: 3, contents: [] },
+      dg, 5, 5, player, ml, null,
+    );
+
+    expect(dg.oilyTiles).toHaveLength(9);
+    expect(player.oilyTurns).toBe(50);
+    expect(ml.some((message) => message.includes("マヨネーズが飛び散った"))).toBe(true);
   });
 });
 

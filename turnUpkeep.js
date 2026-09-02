@@ -238,6 +238,7 @@ export function advanceConsumableBuffTimers(player, messages) {
     ["oliveEvasionTurns", "オリーブオイルの回避効果が切れた！"],
     ["sesameCritTurns", "ごまの会心ブーストが切れた！"],
     ["butterHungerTurns", "バターの腹持ち効果が切れた！"],
+    ["mayonnaiseWaterProofTurns", "マヨネーズの耐水効果が切れた！"],
     ["yogurtImmuneTurns", "ヨーグルトの免疫効果が切れた！"],
     ["soyExpTurns", "醤油の経験値ブーストが切れた！"],
     ["garlicDmgTurns", "にんにくの追加ダメージが切れた！"],

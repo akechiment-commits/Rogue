@@ -761,11 +761,11 @@ export function useItemActions({
             if (_chCured.length > 0) _chMsg += `${_chCured.join("・")}が回復した！`;
             ml.push(_chMsg);
           } else if (_pf === "spicy") {
-            p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 50;
-            ml.push("辛さでパワーアップ！直接攻撃・矢ダメージ1.5倍(50ターン)");
+            p.spicyAtkTurns = (p.spicyAtkTurns || 0) + 100;
+            ml.push("辛さでパワーアップ！直接攻撃・矢ダメージ1.5倍(100ターン)");
           } else if (_pf === "honey") {
-            p.honeyRegenTurns = (p.honeyRegenTurns || 0) + 80;
-            ml.push("蜂蜜パワーでHPが自然回復する！(80ターン)");
+            p.honeyRegenTurns = (p.honeyRegenTurns || 0) + 100;
+            ml.push("蜂蜜パワーでHPが自然回復する！(100ターン)");
           } else if (_pf === "curry") {
             p.curryFireResTurns = (p.curryFireResTurns || 0) + 100;
             ml.push("カレーの熱で炎耐性がついた！(100ターン)");
@@ -773,14 +773,17 @@ export function useItemActions({
             p.misoDefTurns = (p.misoDefTurns || 0) + 100;
             ml.push("味噌の滋養で守りが固くなった！防御+8(100ターン)");
           } else if (_pf === "olive") {
-            p.oliveEvasionTurns = (p.oliveEvasionTurns || 0) + 80;
-            ml.push("オリーブオイルで身のこなしが滑らかに！回避率UP(80ターン)");
+            p.oliveEvasionTurns = (p.oliveEvasionTurns || 0) + 100;
+            ml.push("オリーブオイルで身のこなしが滑らかに！回避率UP(100ターン)");
           } else if (_pf === "sesame") {
-            p.sesameCritTurns = (p.sesameCritTurns || 0) + 80;
-            ml.push("ごまパワーで会心が出やすい！(80ターン)");
+            p.sesameCritTurns = (p.sesameCritTurns || 0) + 100;
+            ml.push("ごまパワーで会心が出やすい！(100ターン)");
           } else if (_pf === "butter") {
             p.butterHungerTurns = (p.butterHungerTurns || 0) + 100;
             ml.push("バターのカロリーで腹持ち抜群！満腹度減少半減(100ターン)");
+          } else if (_pf === "mayonnaise") {
+            p.mayonnaiseWaterProofTurns = (p.mayonnaiseWaterProofTurns || 0) + 100;
+            ml.push("マヨネーズの油分が水を弾く！耐水状態になった。(100ターン)");
           } else if (_pf === "yogurt") {
             p.yogurtImmuneTurns = (p.yogurtImmuneTurns || 0) + 100;
             if (p.poisoned) { clearPlayerPoison(p); ml.push("乳酸菌が毒を中和した！"); }
@@ -798,11 +801,14 @@ export function useItemActions({
             p.soyExpTurns = (p.soyExpTurns || 0) + 100;
             ml.push("醤油の旨味で集中力UP！経験値1.3倍(100ターン)");
           } else if (_pf === "garlic") {
-            p.garlicDmgTurns = (p.garlicDmgTurns || 0) + 80;
-            ml.push("にんにくパワーで攻撃に+5追加ダメージ！(80ターン)");
+            p.garlicDmgTurns = (p.garlicDmgTurns || 0) + 100;
+            ml.push("にんにくパワーで攻撃に+5追加ダメージ！(100ターン)");
           } else if (_pf === "lemon") {
-            p.lemonThrowTurns = (p.lemonThrowTurns || 0) + 80;
-            ml.push("レモンの爽快感で投擲が冴える！投擲ダメ1.5倍(80ターン)");
+            p.lemonThrowTurns = (p.lemonThrowTurns || 0) + 100;
+            ml.push("レモンの爽快感で投擲が冴える！投擲ダメ1.5倍(100ターン)");
+          } else if (_pf === "pepper") {
+            p.sureHitTurns = (p.sureHitTurns || 0) + 100;
+            ml.push("胡椒の刺激で狙いが研ぎ澄まされた！必中状態になった。(100ターン)");
           }
         }
       }

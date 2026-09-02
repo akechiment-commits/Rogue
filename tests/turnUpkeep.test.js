@@ -207,11 +207,11 @@ describe("advanceCoreStatusTimers", () => {
 
 describe("advanceConsumableBuffTimers", () => {
   it("食料由来の強化を減らし、蜂蜜は回復して終了を通知する", () => {
-    const player = makePlayer({ hp: 90, spicyAtkTurns: 1, curryFireResTurns: 1, honeyRegenTurns: 1 });
+    const player = makePlayer({ hp: 90, spicyAtkTurns: 1, curryFireResTurns: 1, mayonnaiseWaterProofTurns: 1, honeyRegenTurns: 1 });
     const messages = [];
     advanceConsumableBuffTimers(player, messages);
     expect(player.hp).toBe(92);
-    expect(messages).toEqual(["辛さによるダメージブーストが切れた！", "カレーの炎耐性が切れた！", "蜂蜜の自然回復が切れた！"]);
+    expect(messages).toEqual(["辛さによるダメージブーストが切れた！", "カレーの炎耐性が切れた！", "マヨネーズの耐水効果が切れた！", "蜂蜜の自然回復が切れた！"]);
   });
 
   it("毒中は蜂蜜の自然回復も停止する", () => {

@@ -775,8 +775,8 @@ export const BB_FAKE_NAMES = [
 /* ===== POTS ===== */
 export const POTS = [
   { name:"チョコの壺",         type:"pot", potEffect:"choco",     capacity:3, rarity:"D", weight:8,  sellPrice:600,  desc:"食料を入れるとチョコがけになる。食べるとHP35回復＋状態異常回復。",  tile:32 },
-  { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"C", weight:4,  sellPrice:900,  desc:"食料を入れると激辛になる。食べると直接攻撃・矢ダメージ1.5倍(50ターン)。",     tile:32 },
-  { name:"蜂蜜の壺",           type:"pot", potEffect:"honey",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとはちみつ漬けになる。食べると毎ターンHP+2自然回復(80ターン)。",   tile:32 },
+  { name:"唐辛子の壺",         type:"pot", potEffect:"spicy",     capacity:3, rarity:"C", weight:4,  sellPrice:900,  desc:"食料を入れると激辛になる。食べると直接攻撃・矢ダメージ1.5倍(100ターン)。容量が残って割れると周囲を暗闇にする。",     tile:32 },
+  { name:"蜂蜜の壺",           type:"pot", potEffect:"honey",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとはちみつ漬けになる。食べると毎ターンHP+2自然回復(100ターン)。",   tile:32 },
   { name:"保存の壺",           type:"pot", potEffect:"none",      capacity:5, rarity:"C", weight:4,  sellPrice:1500, desc:"アイテムを安全に保管できる。",         tile:32 },
   { name:"強化の壺",           type:"pot", potEffect:"enhance",   capacity:2, rarity:"B", weight:2,  sellPrice:4000, desc:"装備品の性能が上がる。",               tile:32 },
   { name:"弱化の壺",           type:"pot", potEffect:"weaken",    capacity:3, rarity:"D", weight:8,  sellPrice:150,  desc:"入れた装備品が劣化する呪いの壺。",     tile:32 },
@@ -787,16 +787,18 @@ export const POTS = [
   { name:"呪いの壺",           type:"pot", potEffect:"curse_pot", capacity:3, rarity:"A", weight:1,  sellPrice:2000, desc:"入れたアイテムを呪う。",               tile:32 },
   { name:"加熱の壺",           type:"pot", potEffect:"boil",      capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"薬を入れると部屋中に薬効が広がる。\n生の食料を入れると焼いた状態になる。\nその他のものは保管できる。", tile:32 },
   { name:"火薬壺",             type:"pot", potEffect:"gunpowder", capacity:3, rarity:"C", weight:4,  sellPrice:700,  desc:"割れると5×5マスを巻き込む大爆発を起こす。\n炎・雷・爆発でも誘爆する。泉に浸すと保存の壺に変化。\n中身は爆発で消える。", tile:32 },
-  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。\n食べると被攻撃15%回避(80ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。", tile:32 },
-  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。\n食べると会心率UP(80ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。",         tile:32 },
+  { name:"オリーブオイルの壺", type:"pot", potEffect:"olive",     capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとオリーブオイル漬けになる。\n食べると被攻撃15%回避(100ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。", tile:32 },
+  { name:"ごま油の壺",         type:"pot", potEffect:"sesame",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとごま油風味になる。\n食べると会心率UP(100ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。",         tile:32 },
   { name:"バターの壺",         type:"pot", potEffect:"butter",    capacity:3, rarity:"D", weight:8,  sellPrice:550,  desc:"食料を入れるとバター風味になる。\n食べると満腹度減少速度半減(100ターン)。\n武器・防具を入れると油膜が付き、錆・劣化を3回防ぐ。\n割れると周囲に油が飛散する。",         tile:32 },
+  { name:"マヨネーズの壺",     type:"pot", potEffect:"mayonnaise", capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとマヨネーズ風味になる。\n食べると耐水状態になる(100ターン)。\n容量が残って割れると周囲に油が飛散する。", tile:32 },
   { name:"ヨーグルトの壺",     type:"pot", potEffect:"yogurt",    capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとヨーグルト漬けになる。食べると毒・混乱免疫(100ターン)。",   tile:32 },
   { name:"ココナッツの壺",     type:"pot", potEffect:"coconut",   capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れるとココナッツ風味になる。食べるとMP+10回復。",   tile:32 },
   { name:"強欲な壺",           type:"pot", potEffect:"greed",    capacity:4, rarity:"C", weight:4,  sellPrice:1200, desc:"アイテムを入れても何も起きない。割ると中身に加え残り容量の数だけランダムなアイテムが飛び出す。", tile:32 },
   { name:"回復の壺",           type:"pot", potEffect:"heal_pot", capacity:3, rarity:"C", weight:4,  sellPrice:2000, desc:"アイテムを入れると消滅するが、プレイヤーのHPが100回復する。容量分だけ使える。", tile:32 },
   { name:"醤油の壺",           type:"pot", potEffect:"soy",      capacity:3, rarity:"D", weight:8,  sellPrice:500,  desc:"食料を入れると醤油味になる。食べると経験値1.3倍(100ターン)。", tile:32 },
-  { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(80ターン)。", tile:32 },
-  { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(80ターン)。", tile:32 },
+  { name:"にんにくの壺",       type:"pot", potEffect:"garlic",   capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとにんにく風味になる。食べると攻撃時に固定追加ダメージ+5(100ターン)。", tile:32 },
+  { name:"レモンの壺",         type:"pot", potEffect:"lemon",    capacity:3, rarity:"C", weight:4,  sellPrice:800,  desc:"食料を入れるとレモン風味になる。食べると投擲ダメージ1.5倍(100ターン)。", tile:32 },
+  { name:"胡椒の壺",           type:"pot", potEffect:"pepper",   capacity:3, rarity:"C", weight:4,  sellPrice:900,  desc:"食料を入れると胡椒風味になる。食べると必中状態になる(100ターン)。容量が残って割れると周囲を暗闇にする。", tile:32 },
   { name:"とじこめの壺",     type:"pot", potEffect:"imprison", capacity:3, rarity:"B", weight:2,  sellPrice:3500, desc:"入れると閉じ込められる。敵に投げても使える。", tile:32 },
   { name:"願いの壺",         type:"pot", potEffect:"wish_pot", capacity:3, rarity:"S", weight:0.05,  sellPrice:12000, desc:"アイテムを入れると願いが叶う。\n入れた物は消え、壺も一回で壊れる。", tile:32 },
   { name:"クラインの壺",     type:"pot", potEffect:"klein",   capacity:3, rarity:"B", weight:2,  sellPrice:5000, desc:"アイテムを入れると消え、20ターン逆転状態になる。\nダメージが回復に、回復がダメージに反転する。", tile:32 },
@@ -818,6 +820,8 @@ export const POT_FOOD_PREFIX = {
   soy:     "醤油味の",
   garlic:  "にんにく風味の",
   lemon:   "レモン風味の",
+  mayonnaise: "マヨネーズ風味の",
+  pepper:  "胡椒風味の",
 };
 
 export const POT_FOOD_DESCS = {
@@ -835,6 +839,8 @@ export const POT_FOOD_DESCS = {
   soy:     "醤油の深い風味がする。",
   garlic:  "にんにくの香りが漂う。",
   lemon:   "爽やかなレモンの香り。",
+  mayonnaise: "まろやかなコクと酸味がある。",
+  pepper:  "胡椒の香りが鼻に抜ける。",
 };
 
 export const OIL_PROOF_ABILITY = "oil_proof";
@@ -1311,6 +1317,47 @@ export function breakBigboxContents(bb, dg, ml, nameFn = null, dropX = null, dro
   dg.bigboxes = (dg.bigboxes || []).filter((b) => b !== bb);
 }
 
+/** 唐辛子・胡椒の壺：容量が残ったまま割れたとき、周囲のキャラを暗闇にする。 */
+function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
+  if (!pot || !["spicy", "pepper"].includes(pot.potEffect)) return false;
+  if ((pot.contents?.length || 0) >= (pot.capacity || 3)) return false;
+
+  const _label = pot.potEffect === "pepper" ? "胡椒" : "唐辛子";
+  ml.push(`${resolveItemName(pot, nameFn)}が割れて${_label}の粉が舞い、周囲が暗闇に包まれた！`);
+  pushSplashAnim(px, py, "#6666aa");
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const tx = px + dx, ty = py + dy;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
+
+      if (p && p.x === tx && p.y === ty) {
+        if (hasAbility(p.armor, "darkness_proof")) {
+          ml.push("防具が粉を防いだ！暗闇にならなかった。(耐暗闇)");
+        } else if ((p.statusImmune || 0) > 0) {
+          ml.push("状態防止の力で暗闇にならなかった！");
+        } else {
+          const _dt = statusTurns("darkness", { kind: "player" });
+          p.darknessTurns = (p.darknessTurns || 0) + _dt;
+          ml.push(`粉を浴びて暗闇になった！視界が1マスになる！(${_dt}ターン)`);
+        }
+      }
+
+      const mon = monsterAt(dg, tx, ty);
+      if (mon) {
+        if ((mon.statusImmune || 0) > 0) {
+          ml.push(`${mon.name}には暗闇が効かなかった！(状態防止中)`);
+        } else {
+          const _dt = statusTurns("darkness", { kind: "monster", target: mon });
+          mon.blind = true;
+          mon.blindTurns = Math.max(mon.blindTurns || 0, _dt);
+          ml.push(`${mon.name}は暗闇になった！(${_dt}ターン)`);
+        }
+      }
+    }
+  }
+  return true;
+}
+
 export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) {
   const _pn = resolveItemName(pot, nameFn);
   /* 強欲な壺：中身＋残り容量分のランダムアイテムを出す */
@@ -1336,6 +1383,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     releaseConfinedMonstersFromPot(pot, dg, px, py, p, ml);
     return;
   }
+  applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn);
   /* 回復の壺：命中した対象を回復（アンデッドはダメージ） */
   if (pot.potEffect === "heal_pot") {
     const _hpAmt = Math.max(0, (pot.capacity || 3) - (pot.contents?.length || 0)) * 100;
@@ -1377,7 +1425,7 @@ export function scatterPotContents(pot, dg, px, py, p, ml, luFn, nameFn = null) 
     return;
   }
   /* 油系壺：満タンでない場合は周囲8マスに油が飛散 */
-  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター" };
+  const _oilEffects = { olive: "オリーブオイル", sesame: "ごま油", butter: "バター", mayonnaise: "マヨネーズ" };
   if (_oilEffects[pot.potEffect] && (pot.contents?.length || 0) < (pot.capacity || 3)) {
     ml.push(`${_pn}が割れて${_oilEffects[pot.potEffect]}が飛び散った！`);
     pushSplashAnim(px, py, "#ccaa44");
@@ -6020,7 +6068,7 @@ export function hasLightningResist(p) {
 
 /** 防具の耐水（水鉄砲・ずぶ濡れ・所持品の水被害） */
 export function hasWaterProof(p) {
-  return hasAbility(p?.armor, "water_proof");
+  return hasAbility(p?.armor, "water_proof") || (p?.mayonnaiseWaterProofTurns || 0) > 0;
 }
 
 /** 食料サイズ1段階縮小（水鉄砲など）。最小サイズなら false */

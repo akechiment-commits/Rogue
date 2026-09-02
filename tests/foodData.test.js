@@ -205,6 +205,10 @@ describe("foodData", () => {
     expect(foodMatchesPotCategory(mk("チョコ大福", "japanese_sweets"), "choco")).toBe(true);
     expect(foodMatchesPotCategory(mk("バターチキンカレー", "indian"), "butter")).toBe(true);
     expect(foodMatchesPotCategory(mk("アドボ", "southeast_asian"), "soy")).toBe(true);
+    expect(foodMatchesPotCategory(mk("鶏肉", null), "pepper")).toBe(true);
+    expect(foodMatchesPotCategory(mk("鶏卵", null), "mayonnaise")).toBe(true);
+    expect(foodMatchesPotCategory(mk("ハンバーグ", "japanese"), "mayonnaise")).toBe(true);
+    expect(foodMatchesPotCategory(mk("寿司", "japanese"), "mayonnaise")).toBe(false);
   });
 
   it("日式中華は中華欄に入る", () => {
