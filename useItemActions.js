@@ -329,12 +329,12 @@ export function useItemActions({
         }
       } else if (it.effect === "power") {
         if (it.cursed) {
-          // 呪い：反転→攻撃力減少
-          const _pv = Math.max(1, Math.round(it.value * 0.5));
+          // 呪い：反転→攻撃力減少（通常の増加量と同じ）
+          const _pv = Math.max(1, Math.round(it.value));
           p.atk = Math.max(1, p.atk - _pv);
           ml.push(`${_useItemName}を飲んだ。力が抜けた...攻撃力-${_pv}【呪】`);
         } else {
-          // 通常/祝福：攻撃力増加（祝福=1.5x）
+          // 通常/祝福：攻撃力増加（祝福=2x）
           const _pv = Math.max(1, Math.round(it.value * _potBm));
           p.atk += _pv;
           ml.push(`${_useItemName}を飲んだ。力が湧いてきた！攻撃力+${_pv}${it.blessed ? "（祝福）" : ""}`);
@@ -399,7 +399,7 @@ export function useItemActions({
         } else if (isMpRecoveryBlocked(p)) {
           ml.push(`${_useItemName}を飲んだ。MP回復禁止中のため回復できない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
-          // 通常/祝福：MP回復（祝福=1.5x）。MP最大時は最大MP増加
+          // 通常/祝福：MP回復（祝福=2x）。MP最大時は最大MP増加
           const _madd = Math.min(Math.round(it.value * _potBm), (p.maxMp || 20) - (p.mp || 0));
           if (_madd <= 0) {
             const _maxMpGain = it.blessed ? 2 : 1;
@@ -1157,8 +1157,8 @@ export function useItemActions({
         } // end hasCursedExplosionPentacle else
       } else if (it.effect === "recovery") {
         if (it.cursed) {
-          // 呪い：自分含め視界内全員に35ダメージ
-          const _rdmg = 35;
+          // 呪い：自分含め視界内全員に、通常回復量と同じ50ダメージ
+          const _rdmg = 50;
           const _selfDmg = multiplyCursedMagicDamage(_rdmg, p, dg);
           p.hp -= _selfDmg;
           p.deathCause = "呪われた回復の巻物で";
@@ -4054,7 +4054,7 @@ export function useItemActions({
               const lb = _mkThrowLb();
               ml.push(`${lb}が石像に命中！`);
               if (it.type === "wand") {
-                const _stBl = it.blessed ? 1.5 : it.cursed ? 0.5 : 1;
+                const _stBl = getBlessMultiplier(it);
                 if (it.effect === "leap" && _stBl >= 1) {
                   if (hasGravityPentacle(dg, p.x, p.y)) {
                     ml.push("重力の魔方陣の力で飛びつきが無効になった！");

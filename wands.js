@@ -698,7 +698,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
       }
-      /* 祝福：ダメ2倍 (blMult=1.5→×2にオーバーライド) */
+      /* 祝福：ダメ2倍 */
       const _lBlessMult = blMult > 1 ? 2 : 1;
       let dmg = Math.max(1, Math.round(rng(20, 30) * _lBlessMult));
       if (kind === "monster") {
@@ -1746,14 +1746,14 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "ice_wand": {
       const _iwBlessed = blMult > 1, _iwCursed = blMult < 1;
       if (_iwCursed) {
-        /* 呪い：対象を回復し、移動封じ状態なら解除（アンデッドは回復が逆にダメージ） */
+        /* 呪い：通常ダメージと同じ幅で回復し、移動封じ状態なら解除（アンデッドは回復が逆にダメージ） */
         if (kind === "monster") {
           if (target.kind === "undead") {
-            const _iwd = _magicDamage(20);
+            const _iwd = _magicDamage(rng(15, 25));
             target.hp -= _iwd; ml.push(`${target.name}はアンデッドのため${_iwd}ダメージを受けた！【呪】`);
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
-            const _iwh = Math.min(20, target.maxHp - target.hp);
+            const _iwh = Math.min(rng(15, 25), target.maxHp - target.hp);
             if (_iwh > 0) { target.hp += _iwh; ml.push(`${target.name}のHPが${_iwh}回復した！【呪】`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
             else ml.push(`${target.name}には効果がなかった。`);
           }
@@ -1761,7 +1761,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
-          const _iwh = Math.min(20, p.maxHp - p.hp);
+          const _iwh = Math.min(rng(15, 25), p.maxHp - p.hp);
           if (_iwh > 0) { p.hp += _iwh; ml.push(`癒しの氷に包まれた！HP+${_iwh}【呪】`); }
           else ml.push("HPは既に満タンだ。");
           if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解除された！【呪】"); }
@@ -2461,7 +2461,7 @@ function _damageWandBreakCenter(dg, p, cx, cy, baseDmg, deathCause, ml, luFn, la
 export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {}) {
   const { skipSealCheck = false, singleTargetKind = null, singleTarget = null, effectDx = 0, effectDy = 0 } = opts;
   if (!wand || wand.type !== "wand") return { triggered: false };
-  const blMult = wand.blessed ? 1.5 : wand.cursed ? 0.5 : 1;
+  const blMult = wand.blessed ? 2 : wand.cursed ? 0.5 : 1;
   if ((wand.charges ?? 0) <= 0) {
     if (!singleTargetKind || !singleTarget) return { triggered: false };
     if (!skipSealCheck && inMagicSealRoom(cx, cy, dg)) {

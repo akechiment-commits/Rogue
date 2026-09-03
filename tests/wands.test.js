@@ -23,7 +23,7 @@ describe("applyWandEffect", () => {
     const mon = { name: "スライム", hp: 20, maxHp: 20, x: 6, y: 5, atk: 3 };
     const p = makePlayer();
     const ml = [];
-    applyWandEffect("sleep", "monster", mon, 1, 0, dg, p, ml, noop, null, 1.5);
+    applyWandEffect("sleep", "monster", mon, 1, 0, dg, p, ml, noop, null, 2);
     expect(mon.sleepTurns).toBe(12);
   });
 
@@ -44,6 +44,17 @@ describe("applyWandEffect", () => {
     expect(dmgWeak).toBeLessThanOrEqual(50);
     expect(ml2.some(m => m.includes("氷弱点"))).toBe(true);
     expect(weak.immobileTurns).toBe(5);
+  });
+
+  it("呪われた氷の杖は通常ダメージと同じ幅で回復する", () => {
+    const mon = { name: "スライム", hp: 10, maxHp: 200, x: 6, y: 5, atk: 3 };
+    const p = makePlayer();
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    applyWandEffect("ice_wand", "monster", mon, 1, 0, dg, p, ml, noop, null, 0.5);
+    expect(mon.hp).toBe(25);
+    expect(ml.some(m => m.includes("回復"))).toBe(true);
+    vi.restoreAllMocks();
   });
 
   it("アサメは杖のダメージも1.5倍にする", () => {
@@ -332,7 +343,7 @@ describe("applyWandEffect", () => {
     dg.monsters.push(mon);
     const p = makePlayer({ x: 5, y: 5 });
     const ml = [];
-    fireWandBolt(p, dg, "leap", 1, 0, ml, noop, null, 1.5);
+    fireWandBolt(p, dg, "leap", 1, 0, ml, noop, null, 2);
     expect(p.x).toBe(9);
     expect(p.y).toBe(5);
     expect(mon.paralyzed).toBe(true);

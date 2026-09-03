@@ -402,7 +402,7 @@ export const ITEMS = [
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
   { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ防具・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
   { name:"雷の巻物",         type:"scroll", effect:"thunder",            rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵全てに雷ダメージ(30-40)。\n呪い：自分にも同ダメージ。", tile:18 },
-  { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"D", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。\n呪い：自分含め視界内全員に35ダメージ。", tile:18 },
+  { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"D", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。\n呪い：自分含め視界内全員に50ダメージ。", tile:18 },
   { name:"道具寄せの巻物",   type:"scroll", effect:"item_gather",        rarity:"C", weight:4,  sellPrice:400,  desc:"フロアのアイテムを自分の周りに引き寄せる。\n呪い：アイテムをフロアにランダム散布。",     tile:18 },
   { name:"眠りの巻物",       type:"scroll", effect:"sleep_scroll",       rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵を6ターン眠らせる。", tile:18 },
   { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。", tile:18 },
@@ -509,7 +509,7 @@ export function makeRandomPotion(randomFn = Math.random) {
 
 export function getBlessMultiplier(it) {
   if (!it) return 1;
-  if (it.blessed) return 1.5;
+  if (it.blessed) return 2;
   if (it.cursed)  return 0.5;
   return 1;
 }
@@ -3810,12 +3810,12 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       {
       const _isWater = eff === "water";
       if (cursed) {
-        // 反転→ダメージ
-        const d = Math.max(1, Math.round(val * (_isWater ? 0.7 : 1)));
+        // 反転→ダメージ（通常の回復量と同じ）
+        const d = Math.max(1, Math.round(val));
         if (kind === "monster") { if (!consumeBarrier(target, ml)) { target.hp -= d; ml.push(`${target.name}は変な薬を浴びた！${d}ダメージ！`); _monKill(target); } }
         if (kind === "player") { p.deathCause = "呪われた回復薬の飛散により"; p.hp -= d; ml.push(`変な薬を浴びた！${d}ダメージ！【呪】`); }
       } else {
-        const _mult = blessed ? (_isWater ? 1.5 : 2) : 1;
+        const _mult = blessed ? 2 : 1;
         if (kind === "monster") {
           if (target.kind === "undead") {
             const _ud = Math.max(1, Math.round(val * _mult));
@@ -3890,8 +3890,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "poison": {
       if (kind === "monster") {
         if (cursed) {
-          // 反転→モンスター回復（アンデッドはさらに反転してダメージ）
-          const _ph = Math.max(1, Math.round(val * 0.5));
+          // 反転→モンスター回復（通常ダメージ量と同じ。アンデッドはさらに反転してダメージ）
+          const _ph = Math.max(1, Math.round(val));
           if (target.kind === "undead") {
             target.hp -= _ph; ml.push(`${target.name}はアンデッドのため${_ph}ダメージを受けた！`); _monKill(target);
           } else {
@@ -3899,7 +3899,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             if (h > 0) { target.hp += h; ml.push(`${target.name}は変な薬で回復した！${h}HP`); }
           }
         } else {
-          const dmg = Math.max(1, Math.round((val + rng(-3, 3)) * (blessed ? 1.5 : 1)));
+          const dmg = Math.max(1, Math.round((val + rng(-3, 3)) * (blessed ? 2 : 1)));
           target.hp -= dmg;
           const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
           target.poisonedTurns = Math.max(target.poisonedTurns || 0, _poisonTurns);
@@ -3993,11 +3993,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     }
     case "power":
       if (cursed) {
-        // 反転→攻撃力減少
-        if (kind === "monster") { const _pv = Math.max(1, Math.round(val * 0.5)); target.atk = Math.max(1, target.atk - _pv); ml.push(`${target.name}の攻撃力が下がった！`); }
-        if (kind === "player") { const _pv = Math.max(1, Math.round(val * 0.5)); p.atk = Math.max(1, p.atk - _pv); ml.push(`力が抜けた...攻撃力-${_pv}【呪】`); }
+        // 反転→攻撃力減少（通常の増加量と同じ）
+        if (kind === "monster") { const _pv = Math.max(1, Math.round(val)); target.atk = Math.max(1, target.atk - _pv); ml.push(`${target.name}の攻撃力が下がった！`); }
+        if (kind === "player") { const _pv = Math.max(1, Math.round(val)); p.atk = Math.max(1, p.atk - _pv); ml.push(`力が抜けた...攻撃力-${_pv}【呪】`); }
       } else {
-        const _pv = Math.max(1, Math.round(val * (blessed ? 1.5 : 1)));
+        const _pv = Math.max(1, Math.round(val * (blessed ? 2 : 1)));
         if (kind === "monster") { target.atk += _pv; ml.push(`${target.name}の攻撃力が上がった！`); }
         if (kind === "player") { p.atk += _pv; ml.push(`攻撃力が${_pv}上がった！${blessed ? "(祝福)" : ""}`); }
       }
@@ -4090,7 +4090,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else if (isMpRecoveryBlocked(p)) {
           ml.push(`MP回復禁止中のため回復できない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
-          const add = Math.min(Math.round(val * (blessed ? 1.5 : 1)), (p.maxMp || 20) - (p.mp || 0));
+          const add = Math.min(Math.round(val * (blessed ? 2 : 1)), (p.maxMp || 20) - (p.mp || 0));
           if (add <= 0) {
             const _maxMpGain = blessed ? 2 : 1;
             p.maxMp = (p.maxMp || 20) + _maxMpGain;

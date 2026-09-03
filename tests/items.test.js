@@ -406,7 +406,7 @@ describe("itemPrice", () => {
 
 describe("getBlessMultiplier", () => {
   it("祝福・呪い・通常の倍率を返す", () => {
-    expect(getBlessMultiplier({ blessed: true })).toBe(1.5);
+    expect(getBlessMultiplier({ blessed: true })).toBe(2);
     expect(getBlessMultiplier({ cursed: true })).toBe(0.5);
     expect(getBlessMultiplier({})).toBe(1);
     expect(getBlessMultiplier(null)).toBe(1);
@@ -491,6 +491,51 @@ describe("applyPotionEffect", () => {
     const ml = [];
     applyPotionEffect("heal", 30, "monster", mon, dg, p, ml, () => {});
     expect(mon.hp).toBe(10);
+  });
+
+  it("祝福の力の薬は攻撃力を2倍増やす", () => {
+    const p = { hp: 100, maxHp: 100, atk: 10, x: 1, y: 1, inventory: [] };
+    const ml = [];
+    applyPotionEffect("power", 3, "player", null, dg, p, ml, () => {}, true, false);
+    expect(p.atk).toBe(16);
+  });
+
+  it("呪われた力の薬は通常増加分だけ攻撃力を下げる", () => {
+    const p = { hp: 100, maxHp: 100, atk: 10, x: 1, y: 1, inventory: [] };
+    const ml = [];
+    applyPotionEffect("power", 3, "player", null, dg, p, ml, () => {}, false, true);
+    expect(p.atk).toBe(7);
+  });
+
+  it("呪われた毒薬を敵に浴びせると通常のvalと同じ量だけ回復する", () => {
+    const mon = { name: "スライム", kind: "slime", hp: 10, maxHp: 40, x: 2, y: 2, atk: 5 };
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    const ml = [];
+    applyPotionEffect("poison", 15, "monster", mon, dg, p, ml, () => {}, false, true);
+    expect(mon.hp).toBe(25);
+  });
+
+  it("祝福の水は2倍回復する", () => {
+    const mon = { name: "スライム", kind: "slime", hp: 10, maxHp: 40, x: 2, y: 2, atk: 5 };
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    const ml = [];
+    applyPotionEffect("water", 10, "monster", mon, dg, p, ml, () => {}, true, false);
+    expect(mon.hp).toBe(30);
+  });
+
+  it("呪われた水を敵に浴びせると通常回復量と同じダメージになる", () => {
+    const mon = { name: "スライム", kind: "slime", hp: 20, maxHp: 40, x: 2, y: 2, atk: 5 };
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    const ml = [];
+    applyPotionEffect("water", 10, "monster", mon, dg, p, ml, () => {}, false, true);
+    expect(mon.hp).toBe(10);
+  });
+
+  it("祝福のマナ回復薬は2倍回復する", () => {
+    const p = { hp: 100, maxHp: 100, mp: 0, maxMp: 50, x: 1, y: 1, inventory: [] };
+    const ml = [];
+    applyPotionEffect("mana", 20, "player", null, dg, p, ml, () => {}, true, false);
+    expect(p.mp).toBe(40);
   });
 
   it("投擲された封印の薬でも魔法封印は50ターンになる", () => {
