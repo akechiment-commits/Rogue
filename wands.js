@@ -2066,7 +2066,13 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
         lastX = tx; lastY = ty;
         continue;
       }
-      if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${mon.name}の前に飛びついた！`); return; }
+      if (eff === "leap" && blMult >= 1) {
+        _landPlayer(lastX, lastY, _fdx, _fdy);
+        if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); }
+        ml.push(`${mon.name}の前に飛びついた！`);
+        if (blMult > 1) applyMonsterParalyze(mon, { ml });
+        return;
+      }
       /* 魔法反射：魔法ボルトをプレイヤーに跳ね返す */
       if (monReflectsMagic(mon)) {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
@@ -2341,6 +2347,31 @@ function _collectBreakAdjacentTargets(dg, cx, cy, p) {
   return targets;
 }
 
+/** 物知りの杖が自分に当たったときの所持品候補。祝福なら count=2。 */
+export function takeRandomSageInventoryItems(inventory, identSet, opts = {}) {
+  const { cursed = false, count = 1 } = opts;
+  const cand = (inventory || []).filter((item) => {
+    if (item.type === "gold" || item.type === "goal") return false;
+    if (cursed) {
+      const key = getIdentKey(item);
+      return (key && identSet?.has?.(key)) || item.fullIdent || item.bcKnown;
+    }
+    if (item.type === "weapon" || item.type === "armor" || item.type === "food") {
+      return !item.fullIdent || !item.bcKnown;
+    }
+    const key = getIdentKey(item);
+    return key && (!identSet?.has?.(key) || !item.fullIdent || !item.bcKnown);
+  });
+  const picked = [];
+  const pool = [...cand];
+  const n = Math.max(0, count);
+  for (let i = 0; i < n && pool.length > 0; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    picked.push(pool.splice(idx, 1)[0]);
+  }
+  return picked;
+}
+
 /* 物知りの杖を壊したときの周囲識別。通常の杖振りと同じく、呪いなら未識別化する。 */
 function _applySageBreakEffect(kind, target, dg, p, ml, sageContext = {}) {
   const { identSet = null, identState = null, trackItemFn = null, trackBigboxFn = null, nameFn = null, bigboxNameFn = null } = sageContext;
@@ -2380,18 +2411,13 @@ function _applySageBreakEffect(kind, target, dg, p, ml, sageContext = {}) {
     return;
   }
   if (kind === "player") {
-    const _candidates = (p.inventory || []).filter((item) => {
-      if (item.type === "gold" || item.type === "goal") return false;
-      const _key = getIdentKey(item);
-      const _known = !!item.fullIdent || !!item.bcKnown || !!(_key && identSet?.has?.(_key));
-      return _isCursed ? _known : !_known;
-    });
-    if (_candidates.length === 0) {
+    const _count = (!_isCursed && sageContext.blessed) ? 2 : 1;
+    const _picked = takeRandomSageInventoryItems(p.inventory, identSet, { cursed: _isCursed, count: _count });
+    if (_picked.length === 0) {
       ml.push(`杖の光が${_isCursed ? "識別を解除できるもの" : "識別できるもの"}を見つけられなかった。`);
       return;
     }
-    const _target = _candidates[Math.floor(Math.random() * _candidates.length)];
-    _applySageBreakEffect("item", _target, dg, p, ml, sageContext);
+    for (const _target of _picked) _applySageBreakEffect("item", _target, dg, p, ml, sageContext);
     return;
   }
 }
@@ -2461,6 +2487,7 @@ export function triggerWandBreakEffect(wand, cx, cy, dg, p, ml, luFn, opts = {})
     nameFn: opts.nameFn,
     bigboxNameFn: opts.bigboxNameFn,
     cursed: !!wand.cursed,
+    blessed: !!wand.blessed,
   });
   return { triggered: true };
 }

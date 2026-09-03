@@ -19,7 +19,7 @@ import {
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, calmShopkeeperIfFullyHealed,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
 } from "./items.js";
-import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
+import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
@@ -3396,21 +3396,14 @@ export function useItemActions({
                 if (_bx < 0 || _bx >= MW || _by < 0 || _by >= MH || dg.map[_by][_bx] === T.WALL || dg.map[_by][_bx] === T.BWALL) { _hitsPlayer = false; break; }
               }
               if (_hitsPlayer) {
-                // 手持ちからランダム1個識別
-                const _candInv = p.inventory.filter(ii => {
-                  if (_isCursed) {
-                    const _k2 = getIdentKey(ii);
-                    return (_k2 && _identSet.has(_k2)) || ii.fullIdent || ii.bcKnown;
-                  } else {
-                    if (ii.type === 'weapon' || ii.type === 'armor' || ii.type === 'food') return !ii.fullIdent || !ii.bcKnown;
-                    const _k2 = getIdentKey(ii);
-                    return _k2 && (!_identSet.has(_k2) || !ii.fullIdent || !ii.bcKnown);
-                  }
+                const _identCount = (!_isCursed && it.blessed) ? 2 : 1;
+                const _picked = takeRandomSageInventoryItems(p.inventory, _identSet, {
+                  cursed: _isCursed,
+                  count: _identCount,
                 });
-                if (_candInv.length > 0) {
-                  const _ri = _candInv[Math.floor(Math.random() * _candInv.length)];
+                if (_picked.length > 0) {
                   ml.push("杖の光が壁に跳ね返り自分に当たった！");
-                  _sageIdentItem(_ri);
+                  for (const _ri of _picked) _sageIdentItem(_ri);
                 } else {
                   ml.push("杖の光が壁に跳ね返ったが、識別できるものがなかった。");
                 }

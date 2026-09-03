@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { applyWandEffect, triggerWandBreakEffect, fireWandBolt } from "../wands.js";
+import { applyWandEffect, triggerWandBreakEffect, fireWandBolt, takeRandomSageInventoryItems } from "../wands.js";
 import { applySpellEffect, breakAltar } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -321,6 +321,47 @@ describe("applyWandEffect", () => {
     expect(p.y).toBe(5);
     expect(dg.statues.length).toBe(1);
     expect(ml.some(m => m.includes("飛びついた"))).toBe(true);
+  });
+
+  it("祝福された飛びつきの杖は敵の前に着地したあと金縛りにする", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [], traps: [],
+    });
+    const mon = { name: "ゴブリン", hp: 20, maxHp: 20, x: 10, y: 5, atk: 3 };
+    dg.monsters.push(mon);
+    const p = makePlayer({ x: 5, y: 5 });
+    const ml = [];
+    fireWandBolt(p, dg, "leap", 1, 0, ml, noop, null, 1.5);
+    expect(p.x).toBe(9);
+    expect(p.y).toBe(5);
+    expect(mon.paralyzed).toBe(true);
+    expect(ml.some(m => m.includes("飛びついた"))).toBe(true);
+    expect(ml.some(m => m.includes("金縛り"))).toBe(true);
+  });
+
+  it("通常の飛びつきの杖は敵を金縛りにしない", () => {
+    const dg = makeEmptyDg({
+      map: Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR)),
+      items: [], monsters: [], statues: [], traps: [],
+    });
+    const mon = { name: "ゴブリン", hp: 20, maxHp: 20, x: 10, y: 5, atk: 3 };
+    dg.monsters.push(mon);
+    const p = makePlayer({ x: 5, y: 5 });
+    fireWandBolt(p, dg, "leap", 1, 0, [], noop, null, 1);
+    expect(mon.paralyzed).toBeFalsy();
+  });
+
+  it("祝福された物知りの杖は自分に当たると未識別を2個選ぶ", () => {
+    const ident = new Set();
+    const a = { id: "a", name: "回復薬", type: "potion", effect: "heal" };
+    const b = { id: "b", name: "睡眠薬", type: "potion", effect: "sleep" };
+    const c = { id: "c", name: "識別済み", type: "potion", effect: "heal_big", fullIdent: true, bcKnown: true };
+    ident.add("p:heal_big");
+    const picked = takeRandomSageInventoryItems([a, b, c], ident, { blessed: true, count: 2 });
+    expect(picked).toHaveLength(2);
+    expect(picked.every((item) => item.id === "a" || item.id === "b")).toBe(true);
+    expect(takeRandomSageInventoryItems([a, b, c], ident, { count: 1 })).toHaveLength(1);
   });
 
   it("祭壇に破壊系の杖を当てると祭壇が壊れ、壊したプレイヤーだけが罰を受ける", () => {
