@@ -60,6 +60,20 @@ describe("portraits", () => {
     expect(event.src).toMatch(/battle_melee/);
   });
 
+  it("再挑戦後は死亡立ち絵ではなく待機立ち絵に戻す", () => {
+    const prev = { hp: 0, maxHp: 100, x: 5, y: 5, deathCause: "ゴブリンの攻撃により" };
+    const player = { hp: 200, maxHp: 200, x: 5, y: 5, armor: null, weapon: null };
+    const event = resolvePortraitEvent({
+      player,
+      prev,
+      lastMsg: "冒険が始まった！",
+      newMsgs: ["冒険が始まった！"],
+    });
+    expect(event.force).toBe(true);
+    expect(event.src).toMatch(/stand_unarmored/);
+    expect(event.src).not.toMatch(/gameover/);
+  });
+
   it("クリア時は専用の一枚絵を選ぶ", () => {
     expect(pickClearPortrait()).toMatch(/gameclear/);
   });

@@ -525,6 +525,10 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   if (!prev) {
     return { src: pickPortraitForPlayer(floating ? "status_floating" : idleStandKey(p), p), cooldownUntil: now, force: true };
   }
+  /* ゲームオーバー後の再挑戦：死亡スナップショットを引き継ぐと死亡立ち絵の長クールダウンが残る */
+  if ((prev.hp || 0) <= 0 && p.hp > 0) {
+    return { src: pickPortraitForPlayer(floating ? "status_floating" : idleStandKey(p), p), cooldownUntil: now, force: true };
+  }
 
   const isLow = p.hp / p.maxHp <= 0.25;
   const hasNewMsgBatch = Array.isArray(newMsgs);
