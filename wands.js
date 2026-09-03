@@ -7,7 +7,7 @@ import {
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
   hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, cookFoodMeta, genFood, removeTrap,
-  hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, applyMonsterSeal,
+  hasFireResist, hasLightningResist, hasIceResist, hasRingEffect, applyMonsterSeal, applyPlayerSeal,
   multiplyMagicDamage, multiplyCursedMagicDamage,
   reduceFireDamage, reduceIceDamage, reduceLightningDamage,
   fireResistDamageLabel, iceResistDamageLabel, lightningResistDamageLabel,
@@ -1291,21 +1291,18 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "seal": {
       const _seBlessed = blMult > 1, _seCursed = blMult < 1;
       if (_seCursed) {
-        // 呪い：敵→特技使用率100%、プレイヤー→MP封印解除
+        // 呪い：敵→特技使用率100%、プレイヤー→魔法封印解除
         if (kind === "monster") {
           target.alwaysUseSpecial = true;
           ml.push(`${target.name}の特技使用率が100%になった！【呪】`);
           break;
         }
         if (kind === "player") {
-          const _hadCooldown = (p.mpCooldownTurns || 0) > 0;
-          p.mpCooldownTurns = 0;
-          if (_hadCooldown) {
-            ml.push("通常のMP封印が解けた！【呪→解封】");
-          } else if ((p.mpSealTurns || 0) > 0) {
-            ml.push("復活後のMP回復禁止は、呪われた封印の薬でのみ解除できる！【呪】");
+          if ((p.sealedTurns || 0) > 0) {
+            p.sealedTurns = 0;
+            ml.push("魔法封印が解けた！【呪→解封】");
           } else {
-            ml.push("MP封印はかかっていなかった。【呪→解封】");
+            ml.push("魔法封印はかかっていなかった。【呪→解封】");
           }
           break;
         }
@@ -1323,16 +1320,20 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
-          const _mt = statusTurns("mpCooldown", { kind: "player", blessed: _seBlessed });
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
-          ml.push(`魔力が封じられた！(MP封印${_mt}ターン)`);
-          if (_seBlessed) {
-            if (hasAbility(p.armor, "slow_proof")) {
-              ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
-            } else {
-              const _st = statusTurns("slow", { kind: "player" });
-              p.slowTurns = (p.slowTurns || 0) + _st;
-              ml.push(`さらに鈍足${_st}ターン！(祝福)`);
+          const _st = applyPlayerSeal(p, ml, {
+            blessed: _seBlessed,
+            proofMsg: "しかし防具が封印を防いだ！(耐封印)",
+          });
+          if (_st) {
+            ml.push(`魔法が封印された！(${_st}ターン)`);
+            if (_seBlessed) {
+              if (hasAbility(p.armor, "slow_proof")) {
+                ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
+              } else {
+                const _slowT = statusTurns("slow", { kind: "player" });
+                p.slowTurns = (p.slowTurns || 0) + _slowT;
+                ml.push(`さらに鈍足${_slowT}ターン！(祝福)`);
+              }
             }
           }
           break;

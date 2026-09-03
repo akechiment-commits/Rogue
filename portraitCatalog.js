@@ -107,7 +107,7 @@ const BASE_PORTRAIT_CATEGORIES = [
       { file: "status_hypnosis", label: "催眠術を受けた時", group: "status_hypnosis" },
       { file: "status_wall_suffocation", label: "壁埋まり・窒息中", group: "status_wall_suffocation" },
       { file: "status_slow", label: "鈍足", group: "status_slow" },
-      { file: "status_sealed", label: "封印・MP封印", group: "status_sealed" },
+      { file: "status_sealed", label: "魔法封印", group: "status_sealed" },
       { file: "status_bewitched", label: "幻惑", group: "status_bewitched" },
       { file: "status_immobile", label: "移動不能・影ぬい", group: "status_immobile" },
       { file: "status_floating", label: "浮遊", group: "status_floating" },

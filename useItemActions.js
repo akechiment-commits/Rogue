@@ -17,6 +17,7 @@ import {
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, canCalmShopkeeper,
+  applyPlayerSeal, curePlayerSealWithCursedPotion,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -30,7 +31,7 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
 import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
-import { isMpRecoveryBlocked, mpRecoveryBlockTurns, clearMpRecoveryBlockFromCursedSealPotion } from "./mpRules.js";
+import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -383,10 +384,8 @@ export function useItemActions({
         }
       } else if (it.effect === "mana") {
         if (it.cursed) {
-          // 呪い：反転→MP封印
-          const _mt = statusTurns("mpCooldown", { kind: "player" });
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
-          ml.push(`${_useItemName}を飲んだ。魔力が封じられた！(MP封印${_mt}ターン)【呪】`);
+          const _st = applyPlayerSeal(p, ml, { proofMsg: `${_useItemName}を飲んだ。しかし防具が封印を防いだ！(耐封印)` });
+          if (_st) ml.push(`${_useItemName}を飲んだ。魔力が封じられた！魔法封印${_st}ターン【呪】`);
         } else if (isMpRecoveryBlocked(p)) {
           ml.push(`${_useItemName}を飲んだ。MP回復禁止中のため回復できない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
@@ -404,24 +403,25 @@ export function useItemActions({
         }
       } else if (it.effect === "seal") {
         if (it.cursed) {
-          // 呪い：MP封印解除
-          const _wasMpBlocked = clearMpRecoveryBlockFromCursedSealPotion(p);
-          ml.push(`${_useItemName}を飲んだ。${_wasMpBlocked ? "MP回復禁止が解けた！" : "MP封印はかかっていなかった。"}【呪→解封】`);
+          ml.push(`${_useItemName}を飲んだ。${curePlayerSealWithCursedPotion(p)}【呪→解封】`);
         } else {
-          // 通常/祝福：MP封印（祝福：さらに鈍足）
-          const _mt = statusTurns("mpCooldown", { kind: "player", blessed: !!it.blessed });
-          p.mpCooldownTurns = (p.mpCooldownTurns || 0) + _mt;
-          let _seMsg = `${_useItemName}を飲んだ。魔力が封じられた！(MP封印${_mt}ターン)${it.blessed ? "（祝福）" : ""}`;
-          if (it.blessed) {
-            if (hasAbility(p.armor, "slow_proof")) {
-              _seMsg += " 鈍足は防具が防いだ！(耐鈍足)";
-            } else {
-              const _st = statusTurns("slow", { kind: "player" });
-              p.slowTurns = (p.slowTurns || 0) + _st;
-              _seMsg += ` さらに鈍足${_st}ターン！`;
+          const _st = applyPlayerSeal(p, ml, {
+            blessed: !!it.blessed,
+            proofMsg: `${_useItemName}を飲んだ。しかし防具が封印を防いだ！(耐封印)`,
+          });
+          if (_st) {
+            let _seMsg = `${_useItemName}を飲んだ。魔法が封印された！(${_st}ターン)${it.blessed ? "（祝福）" : ""}`;
+            if (it.blessed) {
+              if (hasAbility(p.armor, "slow_proof")) {
+                _seMsg += " 鈍足は防具が防いだ！(耐鈍足)";
+              } else {
+                const _slowT = statusTurns("slow", { kind: "player" });
+                p.slowTurns = (p.slowTurns || 0) + _slowT;
+                _seMsg += ` さらに鈍足${_slowT}ターン！`;
+              }
             }
+            ml.push(_seMsg);
           }
-          ml.push(_seMsg);
         }
       } else if (it.effect === "darkness") {
         if (it.cursed) {
@@ -619,8 +619,8 @@ export function useItemActions({
       } else if (fe === "satiate_food") {
         ml.push("とても腹持ちが良い！");
       } else if (fe === "mp_food") {
-        if ((p.mpCooldownTurns || 0) > 0) {
-          ml.push(`魔力が湧いてきたが、MP封印中のため効果がない！(残り${p.mpCooldownTurns}ターン)`);
+        if (isMpRecoveryBlocked(p)) {
+          ml.push(`魔力が湧いてきたが、MP回復禁止中のため効果がない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
           const _mpRange = [[2,6],[5,9],[8,13],[11,16],[15,20],[21,28]][_fTier];
           const _mpGain = rng(_mpRange[0], _mpRange[1]);
@@ -696,8 +696,8 @@ export function useItemActions({
             p.atk = Math.max(1, p.atk - 2);
             ml.push("弱化成分が！攻撃力-2...");
           } else if (pe === "c_mana") {
-            p.mpCooldownTurns = (p.mpCooldownTurns || 0) + statusTurns("mpCooldown", { kind: "player" });
-            ml.push("封印成分が！MP封印50ターン！");
+            const _st = applyPlayerSeal(p, ml, { proofMsg: "封印成分！しかし防具が防いだ！(耐封印)" });
+            if (_st) ml.push(`封印成分が！魔法が封印された！(${_st}ターン)`);
           } else if (pe === "c_confuse") {
             p.sureHitTurns = (p.sureHitTurns || 0) + statusTurns("sureHit", { kind: "player" });
             ml.push("必中成分が！必中状態になった！(100ターン)");
@@ -722,14 +722,15 @@ export function useItemActions({
             p.atk = Math.max(1, p.atk - 2);
             ml.push("退化成分が！攻撃力-2...");
           } else if (pe === "seal") {
-            p.mpCooldownTurns = (p.mpCooldownTurns || 0) + statusTurns("mpCooldown", { kind: "player" });
-            ml.push("封魔成分が！MP封印50ターン！");
+            const _st = applyPlayerSeal(p, ml, { proofMsg: "封魔成分！しかし防具が防いだ！(耐封印)" });
+            if (_st) ml.push(`封魔成分が！魔法が封印された！(${_st}ターン)`);
           } else if (pe === "c_seal") {
-            const _hadCooldown = (p.mpCooldownTurns || 0) > 0;
-            p.mpCooldownTurns = 0;
-            if (_hadCooldown) ml.push("解封成分が！通常のMP封印が解けた！");
-            else if ((p.mpSealTurns || 0) > 0) ml.push("解封成分では復活後のMP回復禁止は解けない！");
-            else ml.push("解封成分が入っていたが、MP封印はかかっていなかった。");
+            if ((p.sealedTurns || 0) > 0) {
+              p.sealedTurns = 0;
+              ml.push("解封成分が！魔法封印が解けた！");
+            } else {
+              ml.push("解封成分が入っていたが、封印はかかっていなかった。");
+            }
           }
         }
       }

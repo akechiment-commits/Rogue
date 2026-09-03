@@ -145,7 +145,7 @@ export function getFirstEncounterStateTipKeys(session, { isDeepWater = false } =
   if ((p.slowTurns || 0) > 0 || p.slowSkip) keys.push("slow");
   if ((p.immobileTurns || 0) > 0 || (p.frozenTurns || 0) > 0 || p.capturedBy) keys.push("immobile");
   if ((p.sealedTurns || 0) > 0) keys.push("magic_seal");
-  if ((p.mpCooldownTurns || 0) > 0 || (p.mpSealTurns || 0) > 0) keys.push("mp_recovery_block");
+  if ((p.mpSealTurns || 0) > 0) keys.push("mp_recovery_block");
   if ((p.darknessTurns || 0) > 0) keys.push("darkness");
   if ((p.bewitchedTurns || 0) > 0) keys.push("bewitch");
   if ((p.floatTurns || 0) > 0) keys.push("floating");

@@ -35,7 +35,6 @@ export const STATUS_BASE = {
   darkness:      { player: 20,  monster: 50 },
   bewitch:       { player: 20,  monster: 50 }, // 敵は fleeingTurns
   seal:          { player: 50,  monster: PERMANENT_TURNS },
-  mpCooldown:    { player: 50,  monster: PERMANENT_TURNS },
   immobile:      { player: 5,   monster: 5 },
   poison:        { player: 5,   monster: 5 },
   haste:         { player: 10,  monster: 10 },
@@ -52,7 +51,7 @@ export const STATUS_BASE = {
 };
 
 /** ベースが永続のとき、ボスへは有限化するステータス */
-const BOSS_FINITE_WHEN_PERMANENT = new Set(["seal", "mpCooldown"]);
+const BOSS_FINITE_WHEN_PERMANENT = new Set(["seal"]);
 
 /**
  * @param {string} status STATUS_BASE のキー

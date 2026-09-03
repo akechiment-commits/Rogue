@@ -493,7 +493,7 @@ describe("applyPotionEffect", () => {
     expect(mon.hp).toBe(10);
   });
 
-  it("投擲された封印の薬でもMP封印は50ターンになる", () => {
+  it("投擲された封印の薬でも魔法封印は50ターンになる", () => {
     const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
     const splashDungeon = {
       ...dg,
@@ -504,8 +504,9 @@ describe("applyPotionEffect", () => {
 
     splashPotion(splashDungeon, p.x, p.y, "seal", 0, p, ml, () => {});
 
-    expect(p.mpCooldownTurns).toBe(50);
-    expect(ml.some(m => m.includes("MP封印50ターン"))).toBe(true);
+    expect(p.sealedTurns).toBe(50);
+    expect(p.mpCooldownTurns || 0).toBe(0);
+    expect(ml.some(m => m.includes("魔法が封印された") && m.includes("50ターン"))).toBe(true);
   });
 
   it("逆転状態で満タンの回復の壺は回復量分のダメージになる", () => {

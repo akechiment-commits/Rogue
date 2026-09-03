@@ -50,10 +50,10 @@ describe("HP0からのMP復活後の回復禁止", () => {
     expect(player.mp).toBe(0);
   });
 
-  it("呪われた封印の薬だけが通常封印と復活後の回復禁止を解除する", () => {
-    const player = makePlayer({ mpCooldownTurns: 12, mpSealTurns: MP_REVIVAL_SEAL_TURNS });
+  it("呪われた封印の薬だけが魔法封印と復活後の回復禁止を解除する", () => {
+    const player = makePlayer({ sealedTurns: 50, mpSealTurns: MP_REVIVAL_SEAL_TURNS });
     applyPotionEffect("seal", 0, "player", null, makeEmptyDg(), player, [], () => {}, false, true);
-    expect(player.mpCooldownTurns).toBe(0);
+    expect(player.sealedTurns).toBe(0);
     expect(player.mpSealTurns).toBe(0);
     expect(isMpRecoveryBlocked(player)).toBe(false);
   });

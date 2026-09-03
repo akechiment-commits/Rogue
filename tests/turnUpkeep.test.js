@@ -231,14 +231,14 @@ describe("advanceEarlyStatusTimers", () => {
     expect(messages).toEqual(["封印が解けた！", "炎と爆発の不発効果が切れた！", "油が落ちた。炎への弱点が消えた。", "体が乾いた。ずぶ濡れが解けた。", "浮遊が解けた！", "透明が解けた！敵に見えるようになった。"]);
   });
 
-  it("100ターン目はMPを自然回復し、クールダウン中は回復しない", () => {
+  it("100ターン目はMPを自然回復し、復活後の回復禁止中は回復しない", () => {
     const player = makePlayer({ turns: 100, mp: 2, maxMp: 4 });
     advanceEarlyStatusTimers(player, []);
     expect(player.mp).toBe(3);
-    player.mpCooldownTurns = 2;
+    player.mpSealTurns = 2;
     advanceEarlyStatusTimers(player, []);
     expect(player.mp).toBe(3);
-    expect(player.mpCooldownTurns).toBe(1);
+    expect(player.mpSealTurns).toBe(1);
   });
 
   it("毒は付与時に攻撃力を下げ、効果中は毎ターンダメージを与える", () => {

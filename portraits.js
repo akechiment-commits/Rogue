@@ -438,7 +438,6 @@ export function snapshotPlayer(p, opts = {}) {
     bewitchedTurns: p.bewitchedTurns || 0,
     immobileTurns: p.immobileTurns || 0,
     frozenTurns: p.frozenTurns || 0,
-    mpCooldownTurns: p.mpCooldownTurns || 0,
     sealedTurns: p.sealedTurns || 0,
     wallSuffocationDamage: !!p._wallSuffocationDamage,
     waterSuffocationDamage: !!p._waterSuffocationDamage,
@@ -467,7 +466,7 @@ export function getActiveStatusPortraitKey(p, floating = false) {
   if ((p.darknessTurns || 0) > 0) return "status_blind";
   if ((p.bewitchedTurns || 0) > 0) return "status_bewitched";
   if ((p.slowTurns || 0) > 0) return "status_slow";
-  if ((p.mpCooldownTurns || 0) > 0 || (p.sealedTurns || 0) > 0) return "status_sealed";
+  if ((p.sealedTurns || 0) > 0) return "status_sealed";
   if ((p.oilyTurns || 0) > 0) return "status_oiled";
   if ((p.soakedTurns || 0) > 0) return "status_soaked";
   return null;
@@ -638,10 +637,7 @@ export function resolvePortraitEvent({ player: p, prev, lastMsg, recentMsgs = []
   if (p.slowTurns > 0 && prev.slowTurns <= 0) {
     return pe("status_slow", { force: true });
   }
-  if (
-    (p.mpCooldownTurns > 0 && prev.mpCooldownTurns <= 0) ||
-    (p.sealedTurns > 0 && prev.sealedTurns <= 0)
-  ) {
+  if (p.sealedTurns > 0 && prev.sealedTurns <= 0) {
     return pe("status_sealed", { force: true });
   }
   if (p.bewitchedTurns > 0 && prev.bewitchedTurns <= 0) {
