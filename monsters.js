@@ -51,6 +51,22 @@ function isAdjacentPlayerSpecial(m) {
     (m.subtype === "dangerousPetal" && level < 2);
 }
 
+/* 通常の聖域は、プレイヤーへ直接届く隣接1マス特技を防ぐ。
+ * 遠距離・部屋範囲・フロア範囲の特技は通常聖域を貫通し、祝福聖域だけが防ぐ。 */
+const ADJACENT_PLAYER_SPECIAL_SUBTYPES = new Set([
+  "grabber", "thief", "goldthief", "itemblast", "stealthrower",
+  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater",
+]);
+
+function isAdjacentPlayerSpecial(m) {
+  if (!m) return false;
+  const level = m.monLevel || 1;
+  return ADJACENT_PLAYER_SPECIAL_SUBTYPES.has(m.subtype) ||
+    m.subtype === "itempusher" ||
+    (m.subtype === "hypnotist" && level < 3) ||
+    (m.subtype === "dangerousPetal" && level < 2);
+}
+
 function dangerousPetalSpecialRate(m, pl) {
   if (!pl) return DANGEROUS_PETAL_SPECIAL_RATE.ranged;
   const distance = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
@@ -5523,6 +5539,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _srAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       const _srDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
       const _srStraight = pl.x === m.x || pl.y === m.y || Math.abs(pl.x - m.x) === Math.abs(pl.y - m.y);
+      /* 祝福聖域は、隣接外からの盗投も防ぐ。投げずにその場で行動終了する。 */
+      if (!_moveOnly && _srHeldItem && _plOnBlessedSanc && canSee && _srDist <= 8) {
+        m.turnAttacks++;
+        ml.push(`祝福された聖域の加護が${m.name}の投擲を防いだ！`);
+        return;
+      }
       /* moveOnlyフェーズ：アイテム持ちで射程内の直線上なら移動せず（攻撃フェーズで投げる） */
       if (_moveOnly && _srHeldItem && canSee && _srDist > 1 && _srDist <= 8 && _srStraight) {
         /* 遮蔽物があっても投擲物はそこで止まって落ちるため、射線の確保だけで

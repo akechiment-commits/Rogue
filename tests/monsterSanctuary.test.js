@@ -183,7 +183,6 @@ describe("敵の特技と聖域", () => {
     expect(messages.some((message) => message.includes("盗みを防いだ"))).toBe(false);
     expect(messages.some((message) => message.includes("攻撃"))).toBe(true);
   });
-
   it("祝福された聖域は遠距離特技も防ぐ", () => {
     const base = MONS.find((monster) => monster.baseKind === "hypnotist");
     const monster = makeMonsterFromBase(base, 3, 5, 5, { aware: true });
