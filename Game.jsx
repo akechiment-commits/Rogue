@@ -43,9 +43,9 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
-const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
+const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208, 210, 211, 212, 213]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
-const SHARED_FIXTURE_ASSET_VERSION = "20260902-v6";
+const SHARED_FIXTURE_ASSET_VERSION = "20260904-v7";
 const HYPNOSIS_ACTION_DELAY_MS = 600;
 
 function markWanderingMerchantHostile(monster, dungeon, player, messages) {
