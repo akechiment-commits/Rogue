@@ -625,7 +625,7 @@ function monTraits(m) {
   if (m.maxAttacks >= 3) t.push('3回攻撃');
   else if (m.maxAttacks >= 2) t.push('2回攻撃');
   if (m.subtype === 'wanduser') {
-    t.push(`${m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect) ? '呪い・混乱・眠りの杖をランダムに使用（25%）' : '遠距離系50%で杖を使う'}`);
+    t.push(`${m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect) ? '呪い・混乱・眠り・テレポートの杖をランダムに使用（25%）。距離3を保つ' : '遠距離系50%で杖を使う'}`);
   }
   if (m.baseKind === 'barriermage') t.push('バリアの張り直し・味方へのバリア付与は50%');
   if (m.baseKind === 'boss_darkbullet') t.push('視界内の一直線上で射程内なら100%の銃撃');

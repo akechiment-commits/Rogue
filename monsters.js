@@ -24,7 +24,7 @@ const MONSTER_SPECIAL_RATE = Object.freeze({
   selfDestruct: 0.50,
 });
 const DANGEROUS_PETAL_SPECIAL_RATE = Object.freeze({ adjacent: 0.25, ranged: 0.125 });
-export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", "sleep_wand"]);
+export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", "sleep_wand", "teleport_wand"]);
 
 export function isStatusWandUser(m) {
   return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
@@ -668,7 +668,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *                         | "thief" | "goldthief" | "runner" | "itemblast" | "stealthrower"
  *                         | "dangerousPetal"（静止・睡眠の花粉）
  *                         (特殊AIが必要なら monsterAI に追記)
- *        wandEffect: subtype:"wanduser" の固定杖。randomStatusWands なら呪い・混乱・眠りから毎回抽選
+ *        wandEffect: subtype:"wanduser" の固定杖。randomStatusWands なら呪い・混乱・眠り・テレポートから毎回抽選
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
  *      (省略するとレベルアップ不可)
  *   3. 特殊AIが必要なら monsterAI() の subtype 判定ブロックに追加
@@ -897,7 +897,7 @@ export const MONS = [
       { name: "よく頑張っタイガー", hp: 95,  atk: 36, def: 13, exp: 138 },
     ],
   },
-  { name: "術師",         hp: 34,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "wanduser", randomStatusWands: true, desc: "呪い・混乱・眠りの杖をランダムに振る。", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 14, max: 27 } },
+  { name: "術師",         hp: 34,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "wanduser", randomStatusWands: true, desc: "呪い・混乱・眠り・テレポートの杖をランダムに振る。距離3を保って近づかない。", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 14, max: 29 } },
     levels: [
       { name: "強術師",             hp: 54,  atk: 24, def: 9,  exp: 88  },
       { name: "大術師",             hp: 85,  atk: 29, def: 13, exp: 138 },
@@ -962,12 +962,6 @@ export const MONS = [
     levels: [
       { name: "獄炎ダルマ",         hp: 119, atk: 50, def: 10, exp: 176 },
       { name: "煉獄ダルマ",         hp: 189, atk: 67, def: 14, exp: 275 },
-    ],
-  },
-  { name: "転移術師",     hp: 47,  atk: 24, def: 6,  exp: 90,  speed: 1,   tile: 83, kind: "humanoid", baseKind: "warpmage",      monLevel: 1, minFloor: 26, maxFloor: 50, subtype: "wanduser", wandEffect: "teleport_wand", dungeonFloors: { advanced: { min: 19, max: 29 } },
-    levels: [
-      { name: "強転移術師",         hp: 76,  atk: 31, def: 10, exp: 144 },
-      { name: "大転移術師",         hp: 117, atk: 38, def: 16, exp: 225 },
     ],
   },
   { name: "ガーゴイル",   hp: 88,  atk: 32, def: 16, exp: 90,  speed: 0.5, tile: 179, kind: "undead",   baseKind: "gargoyle",      monLevel: 1, minFloor: 26, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 19, max: 29 } },
@@ -6069,6 +6063,64 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (_newDist >= 2 && !dg.monsters.some(o => o !== m && o.x === _dbNext.x && o.y === _dbNext.y)) {
           m.dir = { x: _dbNext.x - m.x, y: _dbNext.y - m.y };
           m.x = _dbNext.x; m.y = _dbNext.y;
+        }
+      }
+      return;
+    }
+
+    /* ── 術師：プレイヤーから距離3を保ち、それ以上近づかない ── */
+    if (!_attackOnly && canSee && m.randomStatusWands) {
+      const _keep = 3;
+      const _sdx = pl.x - m.x, _sdy = pl.y - m.y;
+      const _sDist = Math.max(Math.abs(_sdx), Math.abs(_sdy));
+      const _sLined = (dx, dy) => dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
+      const _sCands = (pred) => {
+        const list = [];
+        for (const [_mx, _my] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
+          const _nx = m.x + _mx, _ny = m.y + _my;
+          if (!isWalkable(map, _nx, _ny, dg)) continue;
+          if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _nx && pc.y === _ny)) continue;
+          if (dg.monsters.some(o => o !== m && o.x === _nx && o.y === _ny)) continue;
+          if (_nx === pl.x && _ny === pl.y) continue;
+          const _ndx = pl.x - _nx, _ndy = pl.y - _ny;
+          const _nd = Math.max(Math.abs(_ndx), Math.abs(_ndy));
+          if (pred(_nd, _ndx, _ndy)) list.push({ x: _nx, y: _ny, dist: _nd, lined: _sLined(_ndx, _ndy) });
+        }
+        return list;
+      };
+      if (_sDist < _keep) {
+        const _far = _sCands((nd) => nd > _sDist);
+        _far.sort((a, b) => b.dist - a.dist || (b.lined ? 1 : 0) - (a.lined ? 1 : 0));
+        if (_far.length > 0 && _far[0].dist > _sDist) {
+          const _fc = _far[0];
+          m.dir = { x: _fc.x - m.x, y: _fc.y - m.y };
+          m.x = _fc.x; m.y = _fc.y;
+          return;
+        }
+        if (!_moveOnly && _sDist <= 1 && !_plOnSanc &&
+            m.turnAttacks < monEffectiveMaxAttacks(m)) {
+          m.turnAttacks++;
+          monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+        }
+        return;
+      }
+      if (_sDist === _keep) {
+        if (!_sLined(_sdx, _sdy)) {
+          const _align = _sCands((nd, ndx, ndy) => nd === _keep && _sLined(ndx, ndy));
+          if (_align.length > 0) {
+            const _ab = _align[Math.floor(Math.random() * _align.length)];
+            m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
+            m.x = _ab.x; m.y = _ab.y;
+          }
+        }
+        return;
+      }
+      const _sNext = bfsNext(map, [], m.x, m.y, pl.x, pl.y, m, 40, dg.pentacles, _effFloat, null, false, dg.rooms, dg);
+      if (_sNext) {
+        const _newDist = Math.max(Math.abs(pl.x - _sNext.x), Math.abs(pl.y - _sNext.y));
+        if (_newDist >= _keep && !dg.monsters.some(o => o !== m && o.x === _sNext.x && o.y === _sNext.y)) {
+          m.dir = { x: _sNext.x - m.x, y: _sNext.y - m.y };
+          m.x = _sNext.x; m.y = _sNext.y;
         }
       }
       return;
