@@ -248,7 +248,7 @@ export function useItemActions({
           if (it.blessed) {
             ml.push(`${_useItemName}を飲んだ。強烈な毒を浴びた！毒状態(${_poison.turns}ターン)になり攻撃力が${_poison.atkLoss}下がった！【祝=強毒】`);
           } else {
-            ml.push(`${_useItemName}を飲んだ。${_poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.turns}ターン)`}`);
+            ml.push(`${_useItemName}を飲んだ。${_poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.remaining}ターン)`}`);
           }
         }
       } else if (it.effect === "water") {

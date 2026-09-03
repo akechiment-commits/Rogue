@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   statusTurns, STATUS_BASE, PERMANENT_TURNS, BOSS_PARALYZE_TURNS,
-  isPermanentTurns, applyMonsterParalyze, applyYabaiPoison, clearStatusEffectsOnHpZero,
+  isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero,
 } from "../statusDuration.js";
 
 describe("statusTurns", () => {
@@ -30,6 +30,19 @@ describe("statusTurns", () => {
   });
 });
 
+describe("applyPlayerPoison", () => {
+  it("再付与は持続を加算し、攻撃力低下は重ねない", () => {
+    const p = { atk: 8, poisoned: false, poisonedTurns: 0 };
+    const first = applyPlayerPoison(p);
+    expect(first).toMatchObject({ newlyApplied: true, atkLoss: 1, turns: 5, remaining: 5 });
+    expect(p.atk).toBe(7);
+    const again = applyPlayerPoison(p);
+    expect(again).toMatchObject({ newlyApplied: false, atkLoss: 0, turns: 5, remaining: 10 });
+    expect(p.atk).toBe(7);
+    expect(p.poisonedTurns).toBe(10);
+  });
+});
+
 describe("applyYabaiPoison", () => {
   it("プレイヤーは攻撃力-2、毒持続10ターン", () => {
     const p = { atk: 8, poisoned: false, poisonedTurns: 0 };
@@ -51,6 +64,11 @@ describe("applyYabaiPoison", () => {
     const bossResult = applyYabaiPoison(boss, "monster");
     expect(bossResult.turns).toBe(5);
     expect(boss.atk).toBe(18);
+
+    const stacked = { atk: 12, poisoned: true, poisonedTurns: 4, poisonHalfAtk: true, poisonOrigAtk: 12 };
+    const stackedResult = applyYabaiPoison(stacked, "monster");
+    expect(stackedResult).toMatchObject({ newlyApplied: false, atkLoss: 0, remaining: 14 });
+    expect(stacked.atk).toBe(12);
   });
 });
 

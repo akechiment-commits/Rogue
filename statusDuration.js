@@ -107,15 +107,15 @@ export function monsterStatusTurns(baseTurns, target) {
 
 /**
  * プレイヤーへ毒を付与する。
- * 毒の再付与では攻撃力低下を重ねず、持続時間だけ更新する。
+ * 毒の再付与では攻撃力低下を重ねず、持続だけ加算する。
  * 攻撃力低下は解毒処理で戻すため poisonAtkLoss に記録する。
  */
 export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOverride } = {}) {
-  if (!player) return { newlyApplied: false, atkLoss: 0, turns: 0 };
+  if (!player) return { newlyApplied: false, atkLoss: 0, turns: 0, remaining: 0 };
   const newlyApplied = !player.poisoned;
   const turns = statusTurns("poison", { kind: "player", blessed });
   player.poisoned = true;
-  player.poisonedTurns = Math.max(player.poisonedTurns || 0, turns);
+  player.poisonedTurns = (player.poisonedTurns || 0) + turns;
 
   let atkLoss = 0;
   if (newlyApplied) {
@@ -124,7 +124,7 @@ export function applyPlayerPoison(player, { blessed = false, atkLoss: atkLossOve
     player.atk = Math.max(1, (player.atk || 1) - atkLoss);
     player.poisonAtkLoss = (player.poisonAtkLoss || 0) + atkLoss;
   }
-  return { newlyApplied, atkLoss, turns };
+  return { newlyApplied, atkLoss, turns, remaining: player.poisonedTurns };
 }
 
 /** ヤバイ食料の毒。攻撃力-2、持続は通常毒の2倍。 */
@@ -136,7 +136,7 @@ export function applyYabaiPoison(entity, kind, opts = {}) {
   const newlyApplied = !entity.poisoned;
   const turns = statusTurns("poison", { kind: "monster", blessed: true, target });
   entity.poisoned = true;
-  entity.poisonedTurns = Math.max(entity.poisonedTurns || 0, turns);
+  entity.poisonedTurns = (entity.poisonedTurns || 0) + turns;
   let atkLoss = 0;
   if (newlyApplied && !entity.poisonHalfAtk) {
     entity.poisonOrigAtk = entity.atk;
@@ -144,7 +144,7 @@ export function applyYabaiPoison(entity, kind, opts = {}) {
     entity.atk = Math.max(1, (entity.atk || 1) - atkLoss);
     entity.poisonHalfAtk = true;
   }
-  return { newlyApplied, atkLoss, turns };
+  return { newlyApplied, atkLoss, turns, remaining: entity.poisonedTurns };
 }
 
 /** プレイヤーの毒と、それに紐づく攻撃力低下をまとめて解除する。 */
