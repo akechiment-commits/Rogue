@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -450,6 +450,14 @@ describe("rollElementScrollDamage", () => {
   });
 });
 
+describe("recoveryScrollAmount", () => {
+  it("呪いの回復の巻物は通常回復量50の正反対で、祝福は100", () => {
+    expect(recoveryScrollAmount({})).toBe(50);
+    expect(recoveryScrollAmount({ blessed: true })).toBe(100);
+    expect(recoveryScrollAmount({ cursed: true })).toBe(50);
+  });
+});
+
 describe("gemSellPrice", () => {
   it("全種類の基本価格が重複しない", () => {
     const prices = GEM_TYPES.map(gem => gem.basePrice);
@@ -564,6 +572,20 @@ describe("applyPotionEffect", () => {
     vi.restoreAllMocks();
   });
 
+  it("通常の水を敵にかけても何も起きない", () => {
+    const mon = { name: "スライム", kind: "slime", hp: 20, maxHp: 40, x: 2, y: 2, atk: 5 };
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    applyPotionEffect("water", 10, "monster", mon, dg, p, [], () => {});
+    expect(mon.hp).toBe(20);
+  });
+
+  it("通常の水は火ダルマにだけダメージを与える", () => {
+    const mon = { name: "火ダルマ", baseKind: "firedemon", hp: 30, maxHp: 40, x: 2, y: 2, atk: 5 };
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    applyPotionEffect("water", 10, "monster", mon, dg, p, [], () => {});
+    expect(mon.hp).toBe(20);
+  });
+
   it("祝福の水は2倍回復する", () => {
     const mon = { name: "スライム", kind: "slime", hp: 10, maxHp: 40, x: 2, y: 2, atk: 5 };
     const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
@@ -578,6 +600,13 @@ describe("applyPotionEffect", () => {
     const ml = [];
     applyPotionEffect("water", 10, "monster", mon, dg, p, ml, () => {}, false, true);
     expect(mon.hp).toBe(10);
+  });
+
+  it("呪われた水は火ダルマを回復する", () => {
+    const mon = { name: "火ダルマ", baseKind: "firedemon", hp: 10, maxHp: 40, x: 2, y: 2, atk: 5 };
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    applyPotionEffect("water", 10, "monster", mon, dg, p, [], () => {}, false, true);
+    expect(mon.hp).toBe(20);
   });
 
   it("祝福のマナ回復薬は2倍回復する", () => {
@@ -824,12 +853,23 @@ describe("水の飛散", () => {
   it("祝福・呪いの水は従来どおり着弾マスだけに作用する", () => {
     const center = { type: "weapon", name: "剣", x: 5, y: 5 };
     const adjacent = { type: "weapon", name: "槍", x: 6, y: 5 };
-    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)), items: [center, adjacent] };
+    const dg = { map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)), items: [center, adjacent], monsters: [] };
 
     applyWaterSplash(dg, 5, 5, true, false, []);
 
     expect(center.blessed).toBe(true);
     expect(adjacent.blessed).toBeUndefined();
+  });
+
+  it("呪われた水を敵に投げると通常の回復量と同じダメージになる", () => {
+    const mon = { name: "スライム", kind: "slime", hp: 20, maxHp: 40, x: 5, y: 5, atk: 5 };
+    const dg = {
+      map: Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR)),
+      items: [], monsters: [mon], traps: [], pentacles: [], pendingBombs: [],
+    };
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    applyWaterSplash(dg, 5, 5, false, true, [], p, () => {});
+    expect(mon.hp).toBe(10);
   });
 });
 

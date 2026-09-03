@@ -8,7 +8,7 @@ import {
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
-  getBlessMultiplier, blessAmountMul, rollElementScrollDamage, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
+  getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
@@ -1157,18 +1157,17 @@ export function useItemActions({
         } // end hasCursedExplosionPentacle else
       } else if (it.effect === "recovery") {
         if (it.cursed) {
-          // 呪い：自分含め視界内全員に、通常回復量と同じ50ダメージ
-          const _rdmg = 50;
-          const _selfDmg = multiplyCursedMagicDamage(_rdmg, p, dg);
-          p.hp -= _selfDmg;
+          // 呪い：自分含め視界内全員に、通常回復量と同じ50ダメージ（魔法倍率は掛けない）
+          const _rdmg = recoveryScrollAmount({ cursed: true });
+          p.hp -= _rdmg;
           p.deathCause = "呪われた回復の巻物で";
-          ml.push(`呪いのエネルギーが爆発した！${_selfDmg}ダメージ！【呪】`);
+          ml.push(`呪いのエネルギーが爆発した！${_rdmg}ダメージ！【呪】`);
           pushExplosionAnim(p.x, p.y);
           for (const _m of dg.monsters.filter((m) => dg.visible[m.y]?.[m.x])) {
             if (skipDodgemoleScroll(_m, ml, "呪いのエネルギー")) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
-              const _refC = Math.min(multiplyCursedMagicDamage(_rdmg, p, dg), p.maxHp - p.hp);
+              const _refC = Math.min(_rdmg, p.maxHp - p.hp);
               if (_refC > 0) { p.hp += _refC; ml.push(`${_m.name}がエネルギーを跳ね返した！HP+${_refC}！`); pushHealAnim(p.x, p.y); }
               else ml.push(`${_m.name}がエネルギーを跳ね返したが効果がなかった。`);
               continue;
@@ -1179,14 +1178,13 @@ export function useItemActions({
               continue;
             }
             if (consumeBarrier(_m, ml)) continue;
-            const _monsterDmg = multiplyMagicDamage(_rdmg, p.weapon, _m, dg);
-            _m.hp -= _monsterDmg;
-            ml.push(`呪いのエネルギーが${_m.name}を直撃！${_monsterDmg}ダメージ！`);
+            _m.hp -= _rdmg;
+            ml.push(`呪いのエネルギーが${_m.name}を直撃！${_rdmg}ダメージ！`);
             pushExplosionAnim(_m.x, _m.y);
             if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
           }
         } else {
-          const _rh = it.blessed ? 100 : 50;
+          const _rh = recoveryScrollAmount({ blessed: !!it.blessed });
           const _ra = Math.min(_rh, p.maxHp - p.hp);
           p.hp += _ra;
           pushHealAnim(p.x, p.y);
@@ -3835,8 +3833,8 @@ export function useItemActions({
               if (_isFarcast) {
                 /* 遠投：splash せず個別に薬効果を適用、貫通 */
                 _potHits.push(m);
-              } else if (m.baseKind === "firedemon") {
-                /* 火ダルマ：非遠投の薬を燃やして消滅 */
+              } else if (m.baseKind === "firedemon" && it.effect !== "water") {
+                /* 火ダルマ：非遠投の薬を燃やして消滅（水は消火できるので着弾する） */
                 ml.push(`${dnameRef(it)}が${m.name}に触れて燃えてなくなった！`);
                 lx = tx; ly = ty; _fdBurned = true; break;
               } else if (m.baseKind === "synthmonster") {

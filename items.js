@@ -403,7 +403,7 @@ export const ITEMS = [
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
   { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ防具・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
   { name:"雷の巻物",         type:"scroll", effect:"thunder",            rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵全てに雷ダメージ(30-40)。\n祝福：フロア全体・ダメージ2倍。\n呪い：自分にも同ダメージ。", tile:18 },
-  { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"D", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。\n呪い：自分含め視界内全員に50ダメージ。", tile:18 },
+  { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"D", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。祝福：100回復。\n呪い：自分含め視界内全員に50ダメージ。", tile:18 },
   { name:"道具寄せの巻物",   type:"scroll", effect:"item_gather",        rarity:"C", weight:4,  sellPrice:400,  desc:"フロアのアイテムを自分の周りに引き寄せる。\n呪い：アイテムをフロアにランダム散布。",     tile:18 },
   { name:"眠りの巻物",       type:"scroll", effect:"sleep_scroll",       rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵を6ターン眠らせる。", tile:18 },
   { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。", tile:18 },
@@ -531,6 +531,13 @@ export function rollElementScrollDamage(it) {
   return Math.max(1, Math.round(rng(30, 40) * blessAmountMul(it?.blessed)));
 }
 
+/** 回復の巻物の基礎回復量。呪いは同じ数値のダメージに反転する。 */
+export const RECOVERY_SCROLL_HEAL = 50;
+
+export function recoveryScrollAmount({ blessed = false, cursed = false } = {}) {
+  return cursed ? RECOVERY_SCROLL_HEAL : RECOVERY_SCROLL_HEAL * blessAmountMul(blessed);
+}
+
 export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical_cat_claw", sellPrice:3000, desc:"会心の一撃が出やすい武器。", tile:20 };
 export const SOBURO_T       = { name:"ソボロ助広",     type:"weapon", atk:8,  ability:"double_strike", sellPrice:3000, desc:"連撃の刀。", tile:20 };
 /** カラペン系が押し付ける、置くことも投げることもできない敵専用アイテム */
@@ -591,7 +598,7 @@ export const TORPEDO_T      = { name:"魚雷",     type:"arrow", atk:70, special
 export const CRAWLING_BOMB_T= { name:"這いずり爆弾", type:"arrow", atk:6, specialProjectile:"crawling_bomb", rarity:"B", weight:2, sellPrice:250, desc:"床を1マスずつ這い、敵・壁・罠に触れると強力な爆発を起こす爆弾。地雷を起動すると地雷の爆発後に自身も誘爆する。水に入るとその場に沈んで残り、泉では泉に入る。投げる（束）では束数に応じて爆発範囲が広がり、2個以上なら自分のHPが1になる。99個まで束にできる。", count:1, tile:23 };
 export const HOMING_SHOT_T  = { name:"誘導弾",   type:"arrow", atk:7, specialProjectile:"homing",        rarity:"B", weight:2, sellPrice:220, desc:"近くの敵を追尾し、1ターンに1マスずつ進んで重なる弾。99個まで束にできる。", count:1, tile:23 };
 export const EMPTY_BOTTLE = { name:"空き瓶",      type:"bottle",                         rarity:"E", weight:12, sellPrice:5,    desc:"泉に浸すと水になる。敵にぶつけて倒すと薬になる。", tile:16 };
-export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと何も起こらない。祝福：所持品1つを祝福。呪い：所持品1つを呪う。投げると周囲の腐敗・焦げた食料を元に戻す。", tile:16 };
+export const WATER_BOTTLE = { name:"水", type:"potion", effect:"water", value:10,        rarity:"E", weight:12, sellPrice:5,    desc:"泉の水。飲むと何も起こらない。祝福：所持品1つを祝福。呪い：所持品1つを呪う。\n投げると腐敗・焦げた食料を戻す。敵には効かないが、火ダルマにはダメージ。呪い：敵にダメージ。", tile:16 };
 export const BLANK_SCROLL  = { name:"白紙の巻物",    type:"scroll", effect:"blank",      rarity:"C", weight:4,  sellPrice:400,  desc:"何も書かれていない。魔法の筆で書き込める。", tile:18 };
 export const MAGIC_MARKER  = { name:"魔法の筆", type:"marker", charges:1,          rarity:"B", weight:2,  sellPrice:1500, desc:"白紙の巻物に好きな魔法を書き込める。\n充填の大箱で回数を増やせる。筆同士の合成で容量合算。", tile:41 };
 
@@ -3821,11 +3828,55 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
   };
   switch (eff) {
-    case "water": // 水を敵にぶつけた時の効果は従来どおり
+    case "water": {
+      const amt = Math.max(1, Math.round(val * (cursed ? 1 : blessAmountMul(blessed))));
+      if (kind === "monster") {
+        const isFireDemon = target.baseKind === "firedemon";
+        if (isFireDemon) {
+          if (cursed) {
+            const h = Math.min(amt, target.maxHp - target.hp);
+            if (h > 0) { target.hp += h; ml.push(`${target.name}は変な水で回復した！${h}HP`); pushHealAnim(target.x, target.y); }
+          } else if (!consumeBarrier(target, ml)) {
+            target.hp -= amt;
+            ml.push(`${target.name}は水を浴びて${amt}ダメージを受けた！${blessed ? "(祝福)" : ""}`);
+            _monKill(target);
+          }
+          break;
+        }
+        if (!blessed && !cursed) break;
+        if (cursed) {
+          if (target.kind === "undead") {
+            const h = Math.min(amt, target.maxHp - target.hp);
+            if (h > 0) { target.hp += h; ml.push(`${target.name}はアンデッドのため${h}HP回復した！`); pushHealAnim(target.x, target.y); }
+          } else if (!consumeBarrier(target, ml)) {
+            target.hp -= amt;
+            ml.push(`${target.name}は変な薬を浴びた！${amt}ダメージ！`);
+            _monKill(target);
+          }
+        } else if (target.kind === "undead") {
+          target.hp -= amt;
+          ml.push(`${target.name}はアンデッドのため${amt}ダメージを受けた！`);
+          _monKill(target);
+        } else {
+          const h = Math.min(amt, target.maxHp - target.hp);
+          if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); pushHealAnim(target.x, target.y); }
+        }
+      }
+      if (kind === "player") {
+        if (cursed) {
+          p.deathCause = "呪われた水の飛散により";
+          p.hp -= amt;
+          ml.push(`変な薬を浴びた！${amt}ダメージ！【呪】`);
+        } else {
+          const h = Math.min(amt, p.maxHp - p.hp);
+          if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
+        }
+      }
+      break;
+    }
     case "heal_big":
     case "heal":
       {
-      const _isWater = eff === "water";
       if (cursed) {
         // 反転→ダメージ（通常の回復量と同じ）
         const d = Math.max(1, Math.round(val));
@@ -3840,14 +3891,14 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           } else {
             const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp);
             if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); pushHealAnim(target.x, target.y); }
-            else if (eff === "heal" || eff === "heal_big") { const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1); target.maxHp += _up; target.hp += _up; ml.push(`${target.name}のHP最大値が${_up}上昇した！`); pushHealAnim(target.x, target.y); }
-            if (blessed && !_isWater) appendCuredAilments(ml, cureBlessedHealAilments(target, "monster"));
+            else { const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1); target.maxHp += _up; target.hp += _up; ml.push(`${target.name}のHP最大値が${_up}上昇した！`); pushHealAnim(target.x, target.y); }
+            if (blessed) appendCuredAilments(ml, cureBlessedHealAilments(target, "monster"));
           }
         }
         if (kind === "player") {
           const h = Math.min(Math.round(val * _mult), p.maxHp - p.hp);
           if (h > 0) { p.hp += h; ml.push(`HPが${h}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(p.x, p.y); }
-          else if (eff === "heal" || eff === "heal_big") {
+          else {
             const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1);
             if ((p.reverseTurns || 0) > 0) {
               p.hp += _up;
@@ -3859,9 +3910,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             }
             pushHealAnim(p.x, p.y);
           }
-          if (blessed && !_isWater && (h > 0 || eff === "heal" || eff === "heal_big")) {
-            appendCuredAilments(ml, cureBlessedHealAilments(p, "player"));
-          }
+          if (blessed) appendCuredAilments(ml, cureBlessedHealAilments(p, "player"));
         }
       }
       break;
@@ -4453,8 +4502,26 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
   }
 }
 
+function applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn = null) {
+  for (let dy2 = -1; dy2 <= 1; dy2++) {
+    for (let dx2 = -1; dx2 <= 1; dx2++) {
+      const tx = cx + dx2, ty = cy + dy2;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
+      if (dg.map[ty]?.[tx] === T.WALL || dg.map[ty]?.[tx] === T.BWALL) continue;
+      const mon = monsterAt(dg, tx, ty);
+      if (mon) {
+        weakenOrClearParalysis(mon, ml);
+        applyPotionEffect("water", WATER_BOTTLE.value, "monster", mon, dg, p, ml, luFn, blessed, cursed);
+      }
+      if (p && tx === p.x && ty === p.y) {
+        applyPotionEffect("water", WATER_BOTTLE.value, "player", p, dg, p, ml, luFn, blessed, cursed);
+      }
+    }
+  }
+}
+
 /* 通常の水は薬と同じ3×3の共通飛散処理を行い、食料を元に戻す。
-   祝福・呪いの水だけは着弾点のアイテム1つのみに祝呪効果（周囲8マス無効）。 */
+   祝福・呪いの水は着弾点のアイテム1つだけを祝呪し、生き物への水効果は3×3に飛散する。 */
 export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn = null, dnFn = null) {
   if (!blessed && !cursed) {
     splashPotion(dg, cx, cy, "water", WATER_BOTTLE.value, p, ml, luFn, false, false, dnFn);
@@ -4463,8 +4530,9 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
   ml.push("瓶が割れた！");
   pushSplashAnim(cx, cy, blessed ? "#aaddff" : "#aa88ff");
   const it = itemAt(dg, cx, cy);
-  if (!it) { if (blessed || cursed) ml.push("着弾点にアイテムがなかった…"); return; }
-  if (it.iceCream) {
+  if (!it) {
+    if (!monsterAt(dg, cx, cy) && !(p && p.x === cx && p.y === cy)) ml.push("着弾点にアイテムがなかった…");
+  } else if (it.iceCream) {
     removeFloorItem(dg, it);
     chargeShopItem(it, dg, ml, p);
     ml.push(`${resolveItemName(it, dnFn)}が水の影響で溶けて消滅した！`);
@@ -4493,6 +4561,7 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
       ml.push(`${resolveItemName(it)}が呪いの水を浴びた！【呪】`);
     }
   }
+  applyWaterToCreatures(dg, cx, cy, p, ml, luFn, blessed, cursed, dnFn);
 }
 
 export function soakItemIntoSpring(spr, item, ml, dg = null, dnFn = null) {
