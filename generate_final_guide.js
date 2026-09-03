@@ -606,6 +606,7 @@ function monTraits(m) {
   if (m.baseKind === 'boss_infernoking') t.push('周囲を油まみれにする。近接攻撃命中時25%で毒');
   if (m.baseKind === 'boss_abyssgod') t.push('毎ターン回復。4ターンごとに手下を2体召喚。近接攻撃命中時、金縛り25%・防御半減25%');
   if (m.baseKind === 'im_boss_titan') t.push('近接攻撃命中時25%で移動封じ。毎ターン回復');
+  if (m.baseKind === 'serpent') t.push('近接攻撃命中時に毒（毒薬と同じ攻撃力-1と毎ターンダメージ）。再付与は持続加算。封印中は発動しない');
   if (m.isBoss) t.push('封印は解除ターンから通常行動（睡眠・金縛りは解除ターン行動なし）');
   if (m.isBoss && m.tile >= 137 && m.tile <= 144) t.push(`スタイル3専用画像（tile_${m.tile}.png）`);
   if (m.float) t.push('浮遊');

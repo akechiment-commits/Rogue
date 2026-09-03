@@ -477,6 +477,18 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
   }
   interruptPlayerSleep(pl, ml);
   if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+  if (m.baseKind === "serpent" && !m.sealed && dmg > 0) {
+    if ((pl.statusImmune || 0) > 0) {
+      ml.push(`${m.name}の牙に毒が！しかし状態防止中のため効かなかった！`);
+    } else if (hasRingEffect(pl, "antidote_ring")) {
+      ml.push(`${m.name}の牙に毒が！しかし指輪が毒を消した！`);
+    } else if ((pl.yogurtImmuneTurns || 0) > 0) {
+      ml.push(`${m.name}の牙に毒が！しかし乳酸菌が毒を防いだ！`);
+    } else {
+      const _poison = applyPlayerPoison(pl);
+      ml.push(`${m.name}の牙に毒が！毒を受けた！(${_poison.turns}ターン)${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+    }
+  }
   /* 火ダルマ：炎属性攻撃 — 所持品への火ダメ＋油まみれボーナス */
   if (m.baseKind === "firedemon" && dmg > 0) {
     if (!hasFireResist(pl)) applyLightningToInventory(pl, dg, ml, null, null, true);
@@ -885,7 +897,7 @@ export const MONS = [
       { name: "罠の覇者",           hp: 85,  atk: 32, def: 12, exp: 120 },
     ],
   },
-  { name: "大蛇",         hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, maxAttacks: 2, dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 22 } },
+  { name: "大蛇",         hp: 47,  atk: 24, def: 5,  exp: 52,  speed: 1,   tile: 161, kind: "beast",    baseKind: "serpent",       monLevel: 1, minFloor: 17, maxFloor: 50, maxAttacks: 2, desc: "攻撃が命中すると毒を与える（攻撃力-1、毎ターンダメージ）。", dungeonFloors: { intermediate: { min: 15, max: 19 }, advanced: { min: 12, max: 22 } },
     levels: [
       { name: "強大蛇",             hp: 76,  atk: 32, def: 9,  exp: 83  },
       { name: "覇大蛇",             hp: 119, atk: 42, def: 13, exp: 130 },
