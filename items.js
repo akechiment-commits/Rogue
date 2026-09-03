@@ -388,9 +388,9 @@ export function penInitialCharges(pen, randomFn = Math.random) {
 }
 
 export const ITEMS = [
-  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。",                                               tile:16 },
-  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。",                                               tile:17 },
-  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。", tile:17 },
+  { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。",                                               tile:16 },
+  { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。",                                               tile:17 },
+  { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。", tile:17 },
   { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:50, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと45〜55の炎ダメージを受ける。祝福：ダメージ2倍。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：45〜55回復。\n投げると炎上し周囲にダメージ。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
@@ -730,13 +730,13 @@ export const WANDS = [
   { name:"飛びつきの杖",   type:"wand", effect:"leap",      charges:5, rarity:"D", weight:8,  sellPrice:250,  desc:"振ると対象の目の前に瞬間移動する。壊しても何も起こらない。",                     tile:24 },
   { name:"テレポートの杖", type:"wand", effect:"warp",      charges:6, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象をランダムな場所にテレポートさせる。壊すと周囲全員をテレポート。",     tile:24 },
   { name:"金縛りの杖",     type:"wand", effect:"paralyze",  charges:5, rarity:"B", weight:2,  sellPrice:500, desc:"振ると対象を金縛りにする。何かアクションを受けるまで動けなくなる。", tile:24 },
-  { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"C", weight:4,  sellPrice:400,  desc:"振ると対象を眠りに落とす。眠りの罠と同様の効果。",                                   tile:24 },
+  { name:"眠りの杖",       type:"wand", effect:"sleep",     charges:5, rarity:"C", weight:4,  sellPrice:400,  desc:"振ると対象を眠りに落とす。\n呪い：自分はフロアの敵が見える。敵に当たると眠り解除。",                                   tile:24 },
   { name:"祝福の杖",       type:"wand", effect:"bless_wand",charges:1, rarity:"A", weight:1,  sellPrice:8000, desc:"振ると対象のアイテムを祝福する。壊すと周囲のアイテム全てを祝福する。",                 tile:24 },
   { name:"呪いの杖",       type:"wand", effect:"curse_wand",charges:1, rarity:"A", weight:1,  sellPrice:1500, desc:"振ると対象のアイテムを呪う。壊すと周囲のアイテム全てを呪う。",                         tile:24 },
   { name:"レベルアップの杖", type:"wand", effect:"levelup", charges:3, rarity:"B", weight:2,  sellPrice:12000, desc:"振ると対象をレベルアップさせる。\n自分：1レベルUP。敵：次の形態に変化。\n呪い：自分は1階上へワープ、敵はレベルダウン。", tile:24 },
   { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。\n自分：5ターン、敵：20ターン混乱。", tile:24 },
-  { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:4, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：フロア全体が見える。", tile:24 },
-  { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n呪い：罠が全て見える。", tile:24 },
+  { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:4, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：自分はフロア全体が見える。敵に当たると暗闇解除。", tile:24 },
+  { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n呪い：自分は罠が見える。敵に当たると幻惑解除。", tile:24 },
   { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"D", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：魔法封印50T。\n呪い：敵の特技100%化、自分は封印解除。", tile:24 },
   { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:6, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
@@ -3761,6 +3761,38 @@ export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30
   return true;
 }
 
+/** 祝福された回復薬の状態異常回復。飲む・飛沫で共通。 */
+export function cureBlessedHealAilments(entity, kind = "player") {
+  if (!entity) return [];
+  const cured = [];
+  if ((entity.sleepTurns || 0) > 0) { entity.sleepTurns = 0; cured.push("睡眠"); }
+  if ((entity.confusedTurns || 0) > 0) { entity.confusedTurns = 0; cured.push("混乱"); }
+  if ((entity.slowTurns || 0) > 0) { entity.slowTurns = 0; cured.push("鈍足"); }
+  if (kind === "player") {
+    if (entity.poisoned) {
+      clearPlayerPoison(entity);
+      cured.push("毒");
+    } else if ((entity.poisonAtkLoss || 0) > 0) {
+      clearPlayerPoison(entity);
+      cured.push("毒による攻撃力低下");
+    }
+  } else if (entity.poisoned || (entity.poisonedTurns || 0) > 0) {
+    entity.poisoned = false;
+    entity.poisonedTurns = 0;
+    if (entity.poisonHalfAtk) {
+      entity.atk = entity.poisonOrigAtk ?? entity.atk;
+      delete entity.poisonHalfAtk;
+      delete entity.poisonOrigAtk;
+    }
+    cured.push("毒");
+  }
+  return cured;
+}
+
+function appendCuredAilments(ml, cured) {
+  if (cured?.length && ml?.length) ml[ml.length - 1] += ` ${cured.join("・")}も解消！`;
+}
+
 export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null) {
   if (kind === "monster") wakeIfDormant(target, ml);
   const _beforeMonsterHp = kind === "monster" ? target?.hp : null;
@@ -3788,6 +3820,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             const h = Math.min(Math.round(val * _mult), target.maxHp - target.hp);
             if (h > 0) { target.hp += h; ml.push(`${target.name}のHPが${h}回復した！`); pushHealAnim(target.x, target.y); }
             else if (eff === "heal" || eff === "heal_big") { const _up = (eff === "heal_big" ? 2 : 1) * (blessed ? 2 : 1); target.maxHp += _up; target.hp += _up; ml.push(`${target.name}のHP最大値が${_up}上昇した！`); pushHealAnim(target.x, target.y); }
+            if (blessed && !_isWater) appendCuredAilments(ml, cureBlessedHealAilments(target, "monster"));
           }
         }
         if (kind === "player") {
@@ -3804,6 +3837,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
               ml.push(`HPが満タンだったのでHP最大値が${_up}上昇した！${blessed ? "(祝福)" : ""}`);
             }
             pushHealAnim(p.x, p.y);
+          }
+          if (blessed && !_isWater && (h > 0 || eff === "heal" || eff === "heal_big")) {
+            appendCuredAilments(ml, cureBlessedHealAilments(p, "player"));
           }
         }
       }
@@ -3825,6 +3861,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           const _shh = Math.min(_shHeal, target.maxHp - target.hp);
           if (_shh > 0) { target.hp += _shh; ml.push(`${target.name}のHPが${_shh}回復した！${blessed ? "(祝福)" : ""}`); pushHealAnim(target.x, target.y); }
           else { const _shUp = blessed ? 6 : 3; target.maxHp += _shUp; target.hp += _shUp; ml.push(`${target.name}のHP最大値が${_shUp}上昇した！`); pushHealAnim(target.x, target.y); }
+          if (blessed) appendCuredAilments(ml, cureBlessedHealAilments(target, "monster"));
         }
       } else if (kind === "player") {
         const _shHeal = Math.round(val * _shMult);
@@ -3842,6 +3879,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           }
           pushHealAnim(p.x, p.y);
         }
+        if (blessed) appendCuredAilments(ml, cureBlessedHealAilments(p, "player"));
       }
       break;
     }

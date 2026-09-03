@@ -1266,11 +1266,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "sleep": {
       const _slBlessed = blMult > 1, _slCursed = blMult < 1;
       if (_slCursed) {
-        // 呪い→透視（眠りの薬の呪い効果と同じ）
-        dg.monsterSenseActive = true;
-        if (kind === "monster") ml.push(`${target.name}への眠り効果が反転！フロアの敵が全て見え続ける！【呪→透視】`);
-        else if (kind === "player") ml.push("眠り効果が反転！フロアの敵が全て見え続ける！【呪→透視】");
-        else ml.push("魔法弾は効果なく消えた。");
+        if (kind === "monster") {
+          target.sleepTurns = 0;
+          ml.push(`${target.name}が目を覚ました！(覚醒)`);
+          break;
+        }
+        if (kind === "player") {
+          dg.monsterSenseActive = true;
+          ml.push("眠り効果が反転！フロアの敵が全て見え続ける！【呪→透視】");
+          break;
+        }
+        ml.push("魔法弾は効果なく消えた。");
         break;
       }
       if (kind === "monster") {
@@ -1554,9 +1560,18 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "darkness": {
       const _dkBlessed = blMult > 1, _dkCursed = blMult < 1;
       if (_dkCursed) {
-        for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
-        if (kind === "player") ml.push("呪われた暗闇の杖！フロア全体が見えた！【呪→透視】");
-        else ml.push("呪われた魔法弾がフロアを照らした！【呪→透視】");
+        if (kind === "monster") {
+          target.darknessTurns = 0;
+          target.darkDir = null;
+          ml.push(`${target.name}の暗闇が晴れた！【呪→解除】`);
+          break;
+        }
+        if (kind === "player") {
+          for (let _ry = 0; _ry < MH; _ry++) for (let _rx = 0; _rx < MW; _rx++) dg.explored[_ry][_rx] = true;
+          ml.push("呪われた暗闇の杖！フロア全体が見えた！【呪→透視】");
+          break;
+        }
+        ml.push("魔法弾は効果なく消えた。");
         break;
       }
       if (kind === "monster") {
@@ -1587,8 +1602,17 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     case "bewitch": {
       const _bwBlessed = blMult > 1, _bwCursed = blMult < 1;
       if (_bwCursed) {
-        dg.traps.forEach(t => t.revealed = true);
-        ml.push("呪われた惑わしの杖！フロアの罠が全て見えた！【呪→罠看破】");
+        if (kind === "monster") {
+          target.fleeingTurns = 0;
+          ml.push(`${target.name}の幻惑が解けた！【呪→解除】`);
+          break;
+        }
+        if (kind === "player") {
+          dg.traps.forEach(t => t.revealed = true);
+          ml.push("呪われた惑わしの杖！フロアの罠が全て見えた！【呪→罠看破】");
+          break;
+        }
+        ml.push("魔法弾は効果なく消えた。");
         break;
       }
       if (kind === "monster") {

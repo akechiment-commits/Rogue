@@ -17,7 +17,7 @@ import {
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, calmShopkeeperIfFullyHealed,
-  applyPlayerSeal, curePlayerSealWithCursedPotion,
+  applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
@@ -193,12 +193,7 @@ export function useItemActions({
             _hMsg = `${_useItemName}を飲んだ。HP+${h}${it.blessed ? "（祝福）" : ""}`;
           }
           if (it.blessed) {
-            const _cured = [];
-            if ((p.sleepTurns || 0) > 0) { p.sleepTurns = 0; _cured.push("睡眠"); }
-            if ((p.confusedTurns || 0) > 0) { p.confusedTurns = 0; _cured.push("混乱"); }
-            if ((p.slowTurns || 0) > 0) { p.slowTurns = 0; _cured.push("鈍足"); }
-            if (_curePoison()) _cured.push("毒");
-            if (!p.poisoned && (p.poisonAtkLoss || 0) > 0) { clearPlayerPoison(p); _cured.push("毒による攻撃力低下"); }
+            const _cured = cureBlessedHealAilments(p, "player");
             if (_cured.length > 0) _hMsg += ` ${_cured.join("・")}も解消！`;
           }
           ml.push(_hMsg);
@@ -213,19 +208,25 @@ export function useItemActions({
           const _shMult = it.blessed ? 2 : 1;
           const _shHeal = Math.round(it.value * _shMult);
           const _shh = Math.min(_shHeal, p.maxHp - p.hp);
+          let _shMsg;
           if (_shh > 0) {
             p.hp += _shh;
-            ml.push(`${_useItemName}を飲んだ。HP+${_shh}！${it.blessed ? "（祝福）" : ""}`);
+            _shMsg = `${_useItemName}を飲んだ。HP+${_shh}！${it.blessed ? "（祝福）" : ""}`;
           } else {
             const _shUp = it.blessed ? 6 : 3;
             if ((p.reverseTurns || 0) > 0) {
               p.hp += _shUp;
-              ml.push(`${_useItemName}を飲んだ。HPが最大なので${_shUp}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`);
+              _shMsg = `${_useItemName}を飲んだ。HPが最大なので${_shUp}ダメージを受けた！${it.blessed ? "（祝福）" : ""}`;
             } else {
               p.maxHp += _shUp; p.hp += _shUp;
-              ml.push(`${_useItemName}を飲んだ。HPが最大なのでHP最大値+${_shUp}！${it.blessed ? "（祝福）" : ""}`);
+              _shMsg = `${_useItemName}を飲んだ。HPが最大なのでHP最大値+${_shUp}！${it.blessed ? "（祝福）" : ""}`;
             }
           }
+          if (it.blessed) {
+            const _cured = cureBlessedHealAilments(p, "player");
+            if (_cured.length > 0) _shMsg += ` ${_cured.join("・")}も解消！`;
+          }
+          ml.push(_shMsg);
         }
       } else if (it.effect === "poison") {
         if (it.cursed) {
