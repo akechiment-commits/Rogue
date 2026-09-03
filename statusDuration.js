@@ -280,3 +280,20 @@ export function applyMonsterParalyze(target, { blessed = false, ml = null, name 
   }
   return PERMANENT_TURNS;
 }
+
+/** 敵の暗闇。再付与は持続を加算し、直進方向は維持する。 */
+export function applyMonsterDarkness(monster, turns) {
+  if (!monster || !(turns > 0)) return 0;
+  const wasDark = (monster.darknessTurns || 0) > 0;
+  monster.darknessTurns = (monster.darknessTurns || 0) + turns;
+  monster.aware = false;
+  if (!wasDark) monster.darkDir = null;
+  return monster.darknessTurns;
+}
+
+/** 敵の幻惑。再付与は逃走タイマーを加算する。 */
+export function applyMonsterBewitch(monster, turns) {
+  if (!monster || !(turns > 0)) return 0;
+  monster.fleeingTurns = (monster.fleeingTurns || 0) + turns;
+  return monster.fleeingTurns;
+}

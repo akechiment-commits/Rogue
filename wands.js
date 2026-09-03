@@ -18,7 +18,7 @@ import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
-import { statusTurns, isPermanentTurns, applyMonsterParalyze, applyAttackSeal } from './statusDuration.js';
+import { statusTurns, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyAttackSeal } from './statusDuration.js';
 import { grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } from './monTraits.js';
 import { pl } from './playerLabel.js';
@@ -1574,9 +1574,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         const _dkBaseTurns = statusTurns("darkness", { kind: "monster", blessed: _dkBlessed, target });
-        target.darknessTurns = _dkBaseTurns;
-        target.darkDir = null;
-        target.aware = false;
+        applyMonsterDarkness(target, _dkBaseTurns);
         ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dkBaseTurns) ? "(永続)" : `(${_dkBaseTurns}ターン)`}`);
         break;
       }
@@ -1611,7 +1609,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       }
       if (kind === "monster") {
         const _bwBaseTurns = statusTurns("bewitch", { kind: "monster", blessed: _bwBlessed, target });
-        target.fleeingTurns = _bwBaseTurns;
+        applyMonsterBewitch(target, _bwBaseTurns);
         ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bwBaseTurns) ? "(永続)" : `(${_bwBaseTurns}ターン)`}`);
         break;
       }

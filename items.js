@@ -20,7 +20,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles,
@@ -1433,8 +1433,7 @@ function applySpiceDarknessSplash(pot, dg, px, py, p, ml, nameFn = null) {
           ml.push(`${mon.name}には暗闇が効かなかった！(状態防止中)`);
         } else {
           const _dt = statusTurns("darkness", { kind: "monster", target: mon });
-          mon.darknessTurns = (mon.darknessTurns || 0) + _dt;
-          mon.darkDir = null;
+          applyMonsterDarkness(mon, _dt);
           ml.push(`${mon.name}は暗闇になった！(${_dt}ターン)`);
         }
       }
@@ -3275,9 +3274,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_dktm.name}には暗闇が効かなかった！`);
         } else {
           const _dt = statusTurns("darkness", { kind: "monster", target: _dktm });
-          _dktm.darknessTurns = (_dktm.darknessTurns || 0) + _dt;
-          _dktm.darkDir = null;
-          _dktm.aware = false;
+          applyMonsterDarkness(_dktm, _dt);
           ml.push(`${_dktm.name}が暗闇に包まれた！(${_dt}ターン)`);
         }
       }
@@ -4145,9 +4142,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else {
           if (!isStatusImmune(target, ml, target.name)) {
             const _dt = statusTurns("darkness", { kind: "monster", blessed, target });
-            target.darknessTurns = _dt;
-            target.darkDir = null;
-            target.aware = false;
+            applyMonsterDarkness(target, _dt);
             ml.push(`${target.name}は暗闇に包まれた！${isPermanentTurns(_dt) ? "(永続)" : `(${_dt}ターン)`}`);
           }
         }
@@ -4172,7 +4167,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`${target.name}の幻惑が解けた！【呪→解除】`);
         } else {
           const _bt = statusTurns("bewitch", { kind: "monster", blessed, target });
-          target.fleeingTurns = _bt;
+          applyMonsterBewitch(target, _bt);
           ml.push(`${target.name}は幻惑状態になり逃げ出した！${isPermanentTurns(_bt) ? "(永続)" : `(${_bt}ターン)`}`);
         }
       }

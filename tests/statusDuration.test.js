@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   statusTurns, STATUS_BASE, PERMANENT_TURNS, BOSS_PARALYZE_TURNS,
-  isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero,
+  isPermanentTurns, applyMonsterParalyze, applyMonsterDarkness, applyMonsterBewitch,
+  applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero,
 } from "../statusDuration.js";
 
 describe("statusTurns", () => {
@@ -27,6 +28,24 @@ describe("statusTurns", () => {
   it("ボスへの永続封印は付与時に半分の10T", () => {
     expect(statusTurns("seal", { kind: "monster", target: { isBoss: true } })).toBe(10);
     expect(statusTurns("seal", { kind: "monster", target: { isBoss: false } })).toBe(PERMANENT_TURNS);
+  });
+});
+
+describe("applyMonsterDarkness / applyMonsterBewitch", () => {
+  it("暗闇の再付与は持続を加算し、直進方向は維持する", () => {
+    const mon = { darknessTurns: 0, aware: true };
+    applyMonsterDarkness(mon, 50);
+    expect(mon).toMatchObject({ darknessTurns: 50, aware: false, darkDir: null });
+    mon.darkDir = [1, 0];
+    applyMonsterDarkness(mon, 50);
+    expect(mon.darknessTurns).toBe(100);
+    expect(mon.darkDir).toEqual([1, 0]);
+  });
+
+  it("幻惑の再付与は逃走タイマーを加算する", () => {
+    const mon = { fleeingTurns: 20 };
+    expect(applyMonsterBewitch(mon, 50)).toBe(70);
+    expect(mon.fleeingTurns).toBe(70);
   });
 });
 
