@@ -18,7 +18,7 @@ import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
-import { statusTurns, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
+import { statusTurns, isPermanentTurns, applyMonsterParalyze, applyAttackSeal } from './statusDuration.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import {
@@ -1310,11 +1310,12 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
-          if ((p.sealedTurns || 0) > 0) {
+          if ((p.sealedTurns || 0) > 0 || (p.attackSealTurns || 0) > 0) {
             p.sealedTurns = 0;
-            ml.push("魔法封印が解けた！【呪→解封】");
+            p.attackSealTurns = 0;
+            ml.push("封印が解けた！【呪→解封】");
           } else {
-            ml.push("魔法封印はかかっていなかった。【呪→解封】");
+            ml.push("封印はかかっていなかった。【呪→解封】");
           }
           break;
         }
@@ -1323,11 +1324,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (isStatusImmune(target, ml, target.name)) break;
           applyMonsterSeal(target, dg, p, ml, luFn, { blessed: _seBlessed });
           if (_seBlessed && target.hp > 0 && dg.monsters?.includes(target)) {
-            if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
-            target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-            const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed: _seBlessed, target }) : 0;
-            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
-            ml.push(`さらに${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続・祝福)"}`);
+            const _at = applyAttackSeal(target, { kind: "monster", target });
+            ml.push(`さらに${target.name}は攻撃封印になった！(${_at}ターン)(祝福)`);
           }
           break;
         }
@@ -1339,13 +1337,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           if (_st) {
             ml.push(`魔法が封印された！(${_st}ターン)`);
             if (_seBlessed) {
-              if (hasAbility(p.armor, "slow_proof")) {
-                ml.push("鈍足効果を受けたが防具が防いだ！(耐鈍足)");
-              } else {
-                const _slowT = statusTurns("slow", { kind: "player" });
-                p.slowTurns = (p.slowTurns || 0) + _slowT;
-                ml.push(`さらに鈍足${_slowT}ターン！(祝福)`);
-              }
+              const _at = applyAttackSeal(p, { kind: "player" });
+              ml.push(`さらに攻撃が封印された！(${_at}ターン)(祝福)`);
             }
           }
           break;

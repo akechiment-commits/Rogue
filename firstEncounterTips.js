@@ -38,6 +38,7 @@ export const FIRST_ENCOUNTER_TIPS = Object.freeze({
   slow: { title: "鈍足", trigger: "鈍足状態になる", text: ["鈍足中は2ターンに1回しか行動できない。普段の間合いでも敵に連続攻撃されやすい。", "通路へ退く、敵を止める、遠距離から対処するなど正面戦闘を避けよう。"] },
   immobile: { title: "移動不能・拘束", trigger: "移動封じ・凍結・敵の拘束を受ける", text: ["移動できなくても、攻撃や道具使用など別の行動はできる場合がある。", "テレポートや吹き飛ばしで位置が変わると解除できることもある。状況に合う脱出手段を探そう。"] },
   magic_seal: { title: "魔法封印", trigger: "魔法封印状態になる", text: ["封印中は巻物・魔法書・魔法・杖などを使えない。試しても発動せずターンだけ失うことがある。", "物理攻撃、投擲、薬や食料など、魔法ではない手段へ切り替えよう。"] },
+  attack_seal: { title: "攻撃封印", trigger: "攻撃封印状態になる", text: ["攻撃封印中は通常の近接攻撃ができない。杖・投擲・道具は使える。", "祝福された封印の薬や杖で付く。10ターンで自然に解ける。"] },
   mp_recovery_block: { title: "MP回復禁止", trigger: "MP回復禁止状態になる", text: ["MP回復禁止中は、自然回復・薬・泉・食料など、どの方法でもMPが回復しない。ただし杖・巻物・魔法の使用自体は制限されない。", "HP0からMPで復活した後は1000ターン続き、通常は時間経過だけで解除される。呪われた封印の薬だけはすぐに解除できる。"] },
   darkness: { title: "暗闇", trigger: "暗闇状態になる", text: ["暗闇中は視界が1マスになり、巻物も読めない。見えていない敵へ不用意に近づくのは危険だ。", "壁沿いに退くか、治療・明かり・モンスター感知で状況を取り戻そう。"] },
   bewitch: { title: "幻惑", trigger: "幻惑状態になる", text: ["幻惑中は周囲の見た目や「見渡す」で得る情報が信用できなくなる。", "記憶している地形を頼りに安全な場所へ退くか、効果が切れるまで慎重に行動しよう。"] },
@@ -148,6 +149,7 @@ export function getFirstEncounterStateTipKeys(session, { isDeepWater = false } =
   if ((p.slowTurns || 0) > 0 || p.slowSkip) keys.push("slow");
   if ((p.immobileTurns || 0) > 0 || (p.frozenTurns || 0) > 0 || p.capturedBy) keys.push("immobile");
   if ((p.sealedTurns || 0) > 0) keys.push("magic_seal");
+  if ((p.attackSealTurns || 0) > 0) keys.push("attack_seal");
   if ((p.mpSealTurns || 0) > 0) keys.push("mp_recovery_block");
   if ((p.darknessTurns || 0) > 0) keys.push("darkness");
   if ((p.bewitchedTurns || 0) > 0) keys.push("bewitch");

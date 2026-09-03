@@ -25,7 +25,7 @@ import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } fr
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
-import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from "./statusDuration.js";
+import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison, applyAttackSeal } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
@@ -422,13 +422,8 @@ export function useItemActions({
           if (_st) {
             let _seMsg = `${_useItemName}を飲んだ。魔法が封印された！(${_st}ターン)${it.blessed ? "（祝福）" : ""}`;
             if (it.blessed) {
-              if (hasAbility(p.armor, "slow_proof")) {
-                _seMsg += " 鈍足は防具が防いだ！(耐鈍足)";
-              } else {
-                const _slowT = statusTurns("slow", { kind: "player" });
-                p.slowTurns = (p.slowTurns || 0) + _slowT;
-                _seMsg += ` さらに鈍足${_slowT}ターン！`;
-              }
+              const _at = applyAttackSeal(p, { kind: "player" });
+              _seMsg += ` さらに攻撃封印${_at}ターン！`;
             }
             ml.push(_seMsg);
           }
@@ -768,6 +763,7 @@ export function useItemActions({
             if ((p.defDebuffTurns || 0) > 0) { p.defDebuffTurns = 0; _chCured.push("防御力低下"); }
             if ((p.defSoftenedTurns || 0) > 0) { p.defSoftenedTurns = 0; _chCured.push("防御軟化"); }
             if ((p.sealedTurns || 0) > 0) { p.sealedTurns = 0; _chCured.push("封印"); }
+            if ((p.attackSealTurns || 0) > 0) { p.attackSealTurns = 0; _chCured.push("攻撃封印"); }
             let _chMsg = _chAh > 0 ? `チョコの甘さでHP+${_chAh}回復！` : "チョコの甘さ…HPは満タンだ。";
             if (_chCured.length > 0) _chMsg += `${_chCured.join("・")}が回復した！`;
             ml.push(_chMsg);

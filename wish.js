@@ -403,6 +403,7 @@ function clearMajorDebuffs(p) {
   p.bewitchedTurns = 0;
   p.oilyTurns = 0;
   p.sealedTurns = 0;
+  p.attackSealTurns = 0;
   p.mpSealTurns = 0;
   p.immobileTurns = 0;
   p.atkDebuffTurns = 0;

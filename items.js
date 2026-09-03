@@ -20,7 +20,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison, clearStatusEffectsOnHpZero } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles,
@@ -456,7 +456,7 @@ export const ITEMS = [
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
   { name:"アーマーガッパ",   type:"armor",  def:4,  ability:"water_proof",   rarity:"C", weight:4,  sellPrice:1400, desc:"河童の甲羅を模した鎧。水鉄砲・ずぶ濡れを無効化する。\n所持品が水で白紙化・縮小・インク減りしない。", tile:21 },
   { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
-  { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"D", weight:8,  sellPrice:200,  desc:"飲むと50ターン魔法が封印される。\n呪い：封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
+  { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"D", weight:8,  sellPrice:200,  desc:"飲むと50ターン魔法が封印される。\n祝福：さらに10ターン通常攻撃も封じる。\n呪い：封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱(祝：40T、呪：混乱解除)。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：反転してモンスター感知100ターン。\n投げると敵を50ターン暗闇に(祝：永続、呪：暗闇解除)。", tile:16 },
   { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：反転してフロアの罠を全て看破。\n投げると敵を50ターン逃走させる(祝：永続、呪：逃走解除)。", tile:16 },
@@ -737,7 +737,7 @@ export const WANDS = [
   { name:"混乱の杖",       type:"wand", effect:"confuse",   charges:5, rarity:"D", weight:8,  sellPrice:300,  desc:"振ると対象を混乱させる。\n自分：5ターン、敵：20ターン混乱。", tile:24 },
   { name:"暗闇の杖",       type:"wand", effect:"darkness",  charges:4, rarity:"C", weight:4,  sellPrice:500,  desc:"振ると対象を暗闇状態にする。\n自分：視界1マス(20T)。敵：50T認識不可で壁まで直進。\n呪い：自分はフロア全体が見える。敵に当たると暗闇解除。", tile:24 },
   { name:"惑わしの杖",     type:"wand", effect:"bewitch",   charges:4, rarity:"C", weight:4,  sellPrice:600,  desc:"振ると対象を幻惑状態にする。\n自分：50T見た目が狂う。敵：50T逃げ回る。\n呪い：自分は罠が見える。敵に当たると幻惑解除。", tile:24 },
-  { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"D", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：魔法封印50T。\n呪い：敵の特技100%化、自分は封印解除。", tile:24 },
+  { name:"封印の杖",       type:"wand", effect:"seal",      charges:5, rarity:"D", weight:8,  sellPrice:350,  desc:"振ると対象を封印状態にする。自分：魔法封印50T。\n祝福：さらに10ターン通常攻撃も封じる。\n呪い：敵の特技100%化、自分は封印解除。", tile:24 },
   { name:"軟化の杖",       type:"wand", effect:"soften",    charges:5, rarity:"C", weight:4,  sellPrice:700,  desc:"振ると対象の防御力を半減する。\nアイテム・罠・大箱に当てると破壊。壁→食料に変化。\n呪い：1マス先に壊せる壁を生成。", tile:24 },
   { name:"炎の杖",         type:"wand", effect:"fire_wand", charges:6, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると炎の弾が飛ぶ。油まみれの対象はダメージ2倍。\n自分に当たると炎でアイテムが傷つくことがある。床の食料は焼ける。\n呪い：対象を回復。", tile:24 },
   { name:"氷の杖",         type:"wand", effect:"ice_wand",      charges:5, rarity:"D", weight:8,  sellPrice:600,  desc:"振ると氷の弾が飛ぶ。氷属性ダメージと移動封じを与える。\n氷弱点の敵にはダメージ2倍。\n呪い：対象を回復。", tile:24 },
@@ -1138,17 +1138,21 @@ export function applyPlayerSeal(p, ml, opts = {}) {
   return turns;
 }
 
-/** 呪われた封印の薬：魔法封印と、復活後のMP回復禁止を解除する。 */
+/** 呪われた封印の薬：魔法封印・攻撃封印と、復活後のMP回復禁止を解除する。 */
 export function curePlayerSealWithCursedPotion(p) {
   const hadMagic = (p?.sealedTurns || 0) > 0;
+  const hadAttack = (p?.attackSealTurns || 0) > 0;
   const hadMp = (p?.mpSealTurns || 0) > 0;
   if (p) {
     p.sealedTurns = 0;
+    p.attackSealTurns = 0;
     p.mpSealTurns = 0;
   }
-  if (hadMagic && hadMp) return "魔法封印とMP回復禁止が解けた！";
-  if (hadMagic) return "魔法封印が解けた！";
-  if (hadMp) return "MP回復禁止が解けた！";
+  const parts = [];
+  if (hadMagic) parts.push("魔法封印");
+  if (hadAttack) parts.push("攻撃封印");
+  if (hadMp) parts.push("MP回復禁止");
+  if (parts.length) return `${parts.join("と")}が解けた！`;
   return "封印はかかっていなかった。";
 }
 
@@ -4202,14 +4206,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           target.alwaysUseSpecial = true;
           ml.push(`${target.name}の特技使用率が100%になった！【呪】`);
         } else {
-          // 通常/祝福：封印状態（祝福：さらに鈍足）
           applyMonsterSeal(target, dg, p, ml, luFn, { blessed });
           if (blessed && target.hp > 0 && dg.monsters?.includes(target)) {
-            if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
-            target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
-            const _slowT = target.isBoss ? statusTurns("bossSlow", { kind: "monster", blessed, target }) : 0;
-            if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + _slowT;
-            ml.push(`さらに${target.name}は鈍足になった！${target.isBoss ? `(${_slowT}ターン)` : "(永続)"}(祝福)`);
+            const _at = applyAttackSeal(target, { kind: "monster", target });
+            ml.push(`さらに${target.name}は攻撃封印になった！(${_at}ターン)(祝福)`);
           }
         }
       }
@@ -4221,11 +4221,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           if (_st) {
             ml.push(`魔法が封印された！(${_st}ターン)${blessed ? "(祝福)" : ""}`);
             if (blessed) {
-              if (!blockPlayerStatus(p, ml, { proofAbility: "slow_proof", proofMsg: "鈍足効果を受けたが防具が防いだ！(耐鈍足)" })) {
-                const _slowT = statusTurns("slow", { kind: "player" });
-                p.slowTurns = (p.slowTurns || 0) + _slowT;
-                ml.push(`さらに鈍足${_slowT}ターン！`);
-              }
+              const _at = applyAttackSeal(p, { kind: "player" });
+              ml.push(`さらに攻撃が封印された！(${_at}ターン)`);
             }
           }
         }

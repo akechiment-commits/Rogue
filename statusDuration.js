@@ -35,6 +35,7 @@ export const STATUS_BASE = {
   darkness:      { player: 20,  monster: 50 },
   bewitch:       { player: 20,  monster: 50 }, // 敵は fleeingTurns
   seal:          { player: 50,  monster: PERMANENT_TURNS },
+  attackSeal:    { player: 10,  monster: 10 },
   immobile:      { player: 5,   monster: 5 },
   poison:        { player: 5,   monster: 5 },
   haste:         { player: 10,  monster: 10 },
@@ -153,7 +154,7 @@ export function clearStatusEffectsOnHpZero(entity) {
     entity.sleepTurns, entity.sleepInterruptedTurns, entity.paralyzeTurns,
     entity.paralyzed, entity.frozenTurns, entity.slowTurns, entity.slowSkip,
     entity.confusedTurns, entity.poisoned, entity.poisonedTurns,
-    entity.sealedTurns, entity.sealed, entity.darknessTurns, entity.blind,
+    entity.sealedTurns, entity.sealed, entity.attackSealTurns, entity.darknessTurns, entity.blind,
     entity.blindTurns, entity.bewitchedTurns, entity.fleeingTurns,
     entity.immobileTurns, entity.knockdownTurns, entity.potConfinedTurns,
     entity.capturedBy, entity.oilyTurns, entity.soakedTurns,
@@ -187,6 +188,7 @@ export function clearStatusEffectsOnHpZero(entity) {
   entity.poisonedTurns = 0;
   entity.sealedTurns = 0;
   entity.sealed = false;
+  entity.attackSealTurns = 0;
   entity.darknessTurns = 0;
   entity.blind = false;
   entity.blindTurns = 0;
@@ -212,6 +214,19 @@ export function clearStatusEffectsOnHpZero(entity) {
   delete entity._dashInterrupt;
 
   return hadStatus;
+}
+
+export function isAttackSealed(entity) {
+  return (entity?.attackSealTurns || 0) > 0;
+}
+
+/** 祝福された封印の追加効果。通常攻撃を封じる。祝福倍率はかけない（10T固定、ボスは半分）。 */
+export function applyAttackSeal(entity, opts = {}) {
+  const { kind = "player", target = entity } = opts;
+  if (!entity) return 0;
+  const turns = statusTurns("attackSeal", { kind, target: kind === "monster" ? target : null });
+  entity.attackSealTurns = (entity.attackSealTurns || 0) + turns;
+  return turns;
 }
 
 /**

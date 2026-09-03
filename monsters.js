@@ -4,7 +4,7 @@ import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayer
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
 import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
-import { statusTurns, applyPlayerPoison } from "./statusDuration.js";
+import { statusTurns, applyPlayerPoison, isAttackSealed } from "./statusDuration.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
 import {
@@ -403,6 +403,10 @@ function monsterThrowPotion(m, dg, pl, ml, bbFn) {
 
 /* ===== モンスター近接攻撃ヘルパー ===== */
 function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn = false, damageMultiplier = 1, ignoreDefense = false, criticalLabel = false, onPlayerHit, onPlayerMiss, luFn = null } = {}) {
+  if (isAttackSealed(m)) {
+    ml.push(`${m.name}は攻撃が封印されていて殴れない！`);
+    return;
+  }
   pl._dashInterrupt = true; /* 攻撃試行（ミス含む）でダッシュ中断 */
   const _cannotEvade = isEvasionDisabledByStatus(pl);
   /* dodge: 25% 完全回避 */
@@ -3848,6 +3852,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.bewitched && m.isBoss && !_attackOnly) {
     m.bewitchedTurns = Math.max(0, ((m.bewitchedTurns || 0) - 1));
     if (m.bewitchedTurns <= 0) { m.bewitched = false; ml.push(`${m.name}の幻惑が解けた！`); m.turnAccum = 0; m._movedThisTurn = true; return; }
+  }
+  if ((m.attackSealTurns || 0) > 0 && !_attackOnly) {
+    m.attackSealTurns = Math.max(0, m.attackSealTurns - 1);
+    if (m.attackSealTurns <= 0) ml.push(`${m.name}の攻撃封印が解けた！`);
   }
   /* 封印状態（ボスのみターン経過で解除） */
   if (m.sealed && m.isBoss && !_attackOnly) {

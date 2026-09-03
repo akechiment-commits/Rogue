@@ -162,6 +162,10 @@ export function advanceEarlyStatusTimers(player, messages) {
     player.sealedTurns--;
     if (player.sealedTurns === 0) messages.push("封印が解けた！");
   }
+  if ((player.attackSealTurns || 0) > 0) {
+    player.attackSealTurns--;
+    if (player.attackSealTurns === 0) messages.push("攻撃封印が解けた！");
+  }
   if ((player.fireExplosionNullTurns || 0) > 0) {
     player.fireExplosionNullTurns--;
     if (player.fireExplosionNullTurns === 0) messages.push("炎と爆発の不発効果が切れた！");

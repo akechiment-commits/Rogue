@@ -80,7 +80,7 @@ import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from ".
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
-import { statusTurns, monsterStatusTurns, applyPlayerPoison, clearStatusEffectsOnHpZero } from "./statusDuration.js";
+import { statusTurns, monsterStatusTurns, applyPlayerPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
@@ -645,6 +645,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       poisonedTurns: 0,
       poisonAtkLoss: 0,
       sealedTurns: 0,
+      attackSealTurns: 0,
       fireExplosionNullTurns: 0,
       iceCreamFireResTurns: 0,
       invisibleTurns: 0,
@@ -2488,6 +2489,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   ml.push("店主：「いらっしゃいませ！」");
                 }
               }
+            } else if (isAttackSealed(p)) {
+              ml.push(`攻撃が封印されている！(残り${p.attackSealTurns}ターン)`);
+              acted = true;
             } else if ((p.pacifistTurns || 0) > 0) {
               ml.push(`平和主義状態のため攻撃できない！(残り${p.pacifistTurns}ターン)`);
               acted = true;
@@ -5744,6 +5748,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {(p.sealedTurns || 0) > 0 && (
           <span style={{ color: "#8040e0" }}>🔒{p.sealedTurns}</span>
+        )}{" "}
+        {(p.attackSealTurns || 0) > 0 && (
+          <span style={{ color: "#c05050" }} title="攻撃封印">⚔🔒{p.attackSealTurns}</span>
         )}{" "}
         {(p.bubbleGoldQueue?.length > 0) && (
           <span style={{ color: "#e0c040" }} title="あぶく銭">

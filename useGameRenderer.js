@@ -83,6 +83,7 @@ function drawMonsterOverlays(ctx, mon, px, py, sz) {
   if ((mon.knockdownTurns || 0) > 0)                              _sts.push("#d09050"); // 転倒：橙茶
   if ((mon.poisonedTurns || 0) > 0)                              _sts.push("#b040d0"); // 毒：紫
   if (mon.sealed || (mon.sealedTurns || 0) > 0)                  _sts.push("#909090"); // 封印：灰
+  if ((mon.attackSealTurns || 0) > 0)                            _sts.push("#c05050"); // 攻撃封印：赤灰
   if ((mon.darknessTurns || 0) > 0 && mon.darknessTurns < 9999)  _sts.push("#604878"); // 暗闇：暗紫
   if (mon.baseSpeed != null && (mon.speed ?? 1) > mon.baseSpeed)  _sts.push("#ff4040"); // 倍速：赤
   if (mon.baseSpeed != null && (mon.speed ?? 1) < mon.baseSpeed)  _sts.push("#20b8a0"); // 鈍足：青緑
