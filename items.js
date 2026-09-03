@@ -485,7 +485,7 @@ export const ITEMS = [
   { name:"モンスターの巻物", type:"scroll", effect:"monster_house", rarity:"B", weight:2, sellPrice:900,
     desc:"読んだ部屋がモンスターハウスになり、敵・アイテム・罠が新たに配置される。\n廊下や店など部屋外で読むと、どこかの部屋へテレポートしてから発動する（テレポート不能時は自分は動かず別部屋がハウス化）。\n祝福：強モンスターハウス（敵が1レベル上がった状態）。\n呪い：同部屋の敵を全て別の部屋へテレポートさせる。", tile:18 },
   { name:"あぶく銭の巻物", type:"scroll", effect:"bubble_gold", rarity:"C", weight:4, sellPrice:500,
-    desc:"読むと大金が手に入るが、しばらくすると消える。\n呪い：先に減って、しばらくすると戻る。", tile:18 },
+    desc:"読むと大金が手に入るが、しばらくすると消える。\n呪い：先に大きく減って、しばらくすると一部戻る。", tile:18 },
   { name:"爆弾矢", type:"arrow", atk:6, bombArrow:true, count:3,  rarity:"B", weight:2,  sellPrice:120,
     desc:"着弾点で爆発する矢。周囲8マスに地雷と同じ爆発効果。\n99本まで束にできる。", tile:23 },
   { name:"魚雷", type:"arrow", atk:64, specialProjectile:"torpedo", count:3, rarity:"C", weight:4, sellPrice:150,
@@ -6318,7 +6318,7 @@ export function frozenPhysicalLabel(p) {
  * あぶく銭の巻物。
  * 通常: +10000 → 10ターン後 -10000
  * 祝福: +20000 → 10ターン後 -20000
- * 呪い: -10000（0未満にしない）→ 10ターン後 +10000
+ * 呪い: -20000（0未満にしない）→ 10ターン後 +10000
  * 複数回読むとキューに積む。
  * @returns {number} 即時に変化した金額（増は正・減は負。減が足りない場合は実際の減額）
  */
@@ -6327,9 +6327,11 @@ export function applyBubbleGoldScroll(p, ml, { blessed = false, cursed = false }
   const amount = blessed ? 20000 : 10000;
   p.bubbleGoldQueue = p.bubbleGoldQueue || [];
   if (cursed && !blessed) {
-    const lost = Math.min(Math.max(0, p.gold || 0), amount);
+    const lose = 20000;
+    const refund = 10000;
+    const lost = Math.min(Math.max(0, p.gold || 0), lose);
     p.gold = Math.max(0, (p.gold || 0) - lost);
-    p.bubbleGoldQueue.push({ turns: 10, delta: amount }); // 後で増える
+    p.bubbleGoldQueue.push({ turns: 10, delta: refund }); // 後で増える
     if (ml) {
       if (lost > 0) ml.push(`${lost}G失った！【呪】`);
       else ml.push("所持金が0のため減らせなかった…【呪】");

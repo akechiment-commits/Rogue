@@ -39,8 +39,8 @@ describe("あぶく銭の巻物", () => {
     expect(p.gold).toBe(0);
   });
 
-  it("呪いは即時10000G減り、10ターン後に10000G増える", () => {
-    const p = { gold: 15000 };
+  it("呪いは即時20000G減り、10ターン後に10000G増える", () => {
+    const p = { gold: 25000 };
     const ml = [];
     applyBubbleGoldScroll(p, ml, { cursed: true });
     expect(p.gold).toBe(5000);
@@ -48,6 +48,7 @@ describe("あぶく銭の巻物", () => {
     expect(p.bubbleGoldQueue[0].delta).toBe(10000);
     expect(p.bubbleGoldQueue[0].turns).toBe(10);
     expect(ml.some((m) => m.includes("【呪】"))).toBe(true);
+    expect(ml.some((m) => m.includes("20000G"))).toBe(true);
 
     for (let i = 0; i < 10; i++) tickBubbleGold(p, ml);
     expect(p.gold).toBe(15000);
