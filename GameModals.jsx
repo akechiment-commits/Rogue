@@ -4010,6 +4010,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
           dir: { x: 0, y: 1 }, lastPx: 0, lastPy: 0, patrolTarget: null,
           ...(base.subtype ? { subtype: base.subtype } : {}),
           ...(base.wandEffect ? { wandEffect: base.wandEffect } : {}),
+          ...(base.randomStatusWands ? { randomStatusWands: true } : {}),
           ...(base.wallWalker ? { wallWalker: base.wallWalker } : {}),
           ...(base.float ? { float: base.float } : {}),
           ...(base.maxAttacks ? { maxAttacks: base.maxAttacks } : {}),

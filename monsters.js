@@ -24,7 +24,16 @@ const MONSTER_SPECIAL_RATE = Object.freeze({
   selfDestruct: 0.50,
 });
 const DANGEROUS_PETAL_SPECIAL_RATE = Object.freeze({ adjacent: 0.25, ranged: 0.125 });
-const STATUS_WAND_EFFECTS = new Set(["curse_wand", "confuse_wand", "sleep_wand"]);
+export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", "sleep_wand"]);
+
+export function isStatusWandUser(m) {
+  return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
+}
+
+export function resolveMonsterWandEffect(m) {
+  if (m?.randomStatusWands) return pick(STATUS_WAND_EFFECTS);
+  return m?.wandEffect || "lightning";
+}
 
 /* 通常の聖域は、プレイヤーへ直接届く隣接1マス特技を防ぐ。
  * 遠距離・部屋範囲・フロア範囲の特技は通常聖域を貫通し、祝福聖域だけが防ぐ。 */
@@ -61,7 +70,7 @@ function rangedSpecialRate(m, pl = null) {
   if (m?.subtype === "armorbreath" || m?.subtype === "diamondweapon") {
     return MONSTER_SPECIAL_RATE.buff;
   }
-  if (m?.subtype === "wanduser" && STATUS_WAND_EFFECTS.has(m.wandEffect)) {
+  if (isStatusWandUser(m)) {
     return MONSTER_SPECIAL_RATE.status;
   }
   return MONSTER_SPECIAL_RATE.ranged;
@@ -654,12 +663,12 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  * 新しい敵を追加する手順:
  *   1. MONS配列に新しいエントリを追加（出現階層順で挿入）
  *      必須: name, hp, atk, def, exp, speed, tile, kind, baseKind, monLevel:1
- *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect, penaltyOnly
+ *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect, randomStatusWands, penaltyOnly
  *        subtype の選択肢: "archer" | "stonethrow" | "wanduser" | "supporter"
  *                         | "thief" | "goldthief" | "runner" | "itemblast" | "stealthrower"
  *                         | "dangerousPetal"（静止・睡眠の花粉）
  *                         (特殊AIが必要なら monsterAI に追記)
- *        wandEffect: subtype:"wanduser" のとき使う杖エフェクト名
+ *        wandEffect: subtype:"wanduser" の固定杖。randomStatusWands なら呪い・混乱・眠りから毎回抽選
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
  *      (省略するとレベルアップ不可)
  *   3. 特殊AIが必要なら monsterAI() の subtype 判定ブロックに追加
@@ -888,10 +897,10 @@ export const MONS = [
       { name: "よく頑張っタイガー", hp: 95,  atk: 36, def: 13, exp: 138 },
     ],
   },
-  { name: "呪術師",       hp: 34,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "wanduser", wandEffect: "curse_wand", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 14, max: 24 } },
+  { name: "術師",         hp: 34,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "wanduser", randomStatusWands: true, desc: "呪い・混乱・眠りの杖をランダムに振る。", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 14, max: 27 } },
     levels: [
-      { name: "強呪術師",           hp: 54,  atk: 24, def: 9,  exp: 88  },
-      { name: "大呪術師",           hp: 85,  atk: 29, def: 13, exp: 138 },
+      { name: "強術師",             hp: 54,  atk: 24, def: 9,  exp: 88  },
+      { name: "大術師",             hp: 85,  atk: 29, def: 13, exp: 138 },
     ],
   },
   { name: "解装士",       hp: 38,  atk: 20, def: 5,  exp: 58,  speed: 1,   tile: 156, kind: "humanoid", baseKind: "disarmer",      monLevel: 1, minFloor: 19, maxFloor: 50, subtype: "disarmer", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
@@ -930,22 +939,10 @@ export const MONS = [
       { name: "風の覇者",           hp: 95,  atk: 36, def: 13, exp: 163 },
     ],
   },
-  { name: "混乱術師",     hp: 41,  atk: 20, def: 5,  exp: 72,  speed: 1,   tile: 173, kind: "humanoid", baseKind: "confusemage",   monLevel: 1, minFloor: 23, maxFloor: 50, subtype: "wanduser", wandEffect: "confuse_wand", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 17, max: 27 } },
-    levels: [
-      { name: "強混乱術師",         hp: 65,  atk: 28, def: 9,  exp: 115 },
-      { name: "大混乱術師",         hp: 101, atk: 35, def: 13, exp: 180 },
-    ],
-  },
   { name: "引きダコ",     hp: 61,  atk: 24, def: 6,  exp: 75,  speed: 1,   tile: 177, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, subtype: "puller", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
     levels: [
       { name: "強引きダコ",         hp: 97,  atk: 32, def: 10, exp: 120 },
       { name: "覇引きダコ",         hp: 153, atk: 43, def: 14, exp: 188 },
-    ],
-  },
-  { name: "眠り術師",     hp: 43,  atk: 22, def: 6,  exp: 80,  speed: 1,   tile: 178, kind: "humanoid", baseKind: "sleepmage",     monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "wanduser", wandEffect: "sleep_wand", dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
-    levels: [
-      { name: "強眠り術師",         hp: 69,  atk: 29, def: 10, exp: 128 },
-      { name: "大眠り術師",         hp: 108, atk: 36, def: 16, exp: 200 },
     ],
   },
   { name: "催眠術使い",   hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
@@ -3313,6 +3310,7 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
   const bak = {
     subtype: m.subtype,
     wandEffect: m.wandEffect,
+    randomStatusWands: m.randomStatusWands,
     baseKind: m.baseKind,
     monLevel: m.monLevel,
     type: m.type,
@@ -3320,6 +3318,7 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
   };
   m.subtype = src.subtype;
   m.wandEffect = src.wandEffect;
+  m.randomStatusWands = src.randomStatusWands;
   m.baseKind = src.baseKind;
   m.monLevel = src.monLevel || 1;
   if (src.type === "guard") m.type = "guard";
@@ -3336,6 +3335,7 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
   } finally {
     m.subtype = bak.subtype;
     m.wandEffect = bak.wandEffect;
+    m.randomStatusWands = bak.randomStatusWands;
     m.baseKind = bak.baseKind;
     m.monLevel = bak.monLevel;
     m.type = bak.type;

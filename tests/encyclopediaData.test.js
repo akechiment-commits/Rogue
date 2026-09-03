@@ -37,6 +37,7 @@ describe("encyclopedia data", () => {
     expect(getMonsterDescription("分裂スライム")).toContain("25%の確率");
     expect(getMonsterDescription("タトゥーバード")).toContain("フェザーガード");
     expect(getMonsterDescription("深淵神")).toContain("最終ボス");
+    expect(getMonsterDescription("術師")).toContain("呪い・混乱・眠り");
   });
 
   it("キーアイテムの解説と未設定時の共通文を提供する", () => {

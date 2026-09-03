@@ -1,7 +1,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
-import { MONS, BOSSES } from './monsters.js';
+import { MONS, BOSSES, STATUS_WAND_EFFECTS } from './monsters.js';
 import { POT_CAT_LABELS, RAW_FOODS, COOKED_FOODS } from './foodData.js';
 import { FOOD_DESCRIPTIONS, foodGuideDetails } from './foodDescriptions.js';
 import { ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from './iceCreamData.js';
@@ -625,7 +625,7 @@ function monTraits(m) {
   if (m.maxAttacks >= 3) t.push('3回攻撃');
   else if (m.maxAttacks >= 2) t.push('2回攻撃');
   if (m.subtype === 'wanduser') {
-    t.push(`${['curse_wand', 'confuse_wand', 'sleep_wand'].includes(m.wandEffect) ? '状態異常系25%' : '遠距離系50%'}で杖を使う`);
+    t.push(`${m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect) ? '呪い・混乱・眠りの杖をランダムに使用（25%）' : '遠距離系50%で杖を使う'}`);
   }
   if (m.baseKind === 'barriermage') t.push('バリアの張り直し・味方へのバリア付与は50%');
   if (m.baseKind === 'boss_darkbullet') t.push('視界内の一直線上で射程内なら100%の銃撃');

@@ -12,6 +12,7 @@ import {
   _resolveBolt,
   _resolveMonsterWandBolt,
   monReflectsProjectiles,
+  resolveMonsterWandEffect,
 } from "./monsters.js";
 import {
   ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
@@ -1230,7 +1231,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         return _tr;
       },
       monsterWandFn: (m, dx, dy) => {
-        const _we = m.wandEffect || "lightning";
+        const _we = resolveMonsterWandEffect(m);
         const _wbItemNameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
         const _wbBbNameFn = (bb) => bbDisplayName(bb, sr.current);
         if (_we === "lightning") {

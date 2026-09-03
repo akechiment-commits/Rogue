@@ -471,8 +471,8 @@ describe("portraits", () => {
 
   it("敵の杖振りをプレイヤーの杖使用として扱わず、呪われたログを優先する", () => {
     expect(msgToActionKey("炎の杖を振った！")).toBe("act_wand");
-    expect(msgToActionKey("呪術師が眠りの杖を振った！")).toBeNull();
-    expect(msgToActionKey("呪術師が呪いの杖を振った！")).toBeNull();
+    expect(msgToActionKey("術師が眠りの杖を振った！")).toBeNull();
+    expect(msgToActionKey("術師が呪いの杖を振った！")).toBeNull();
     expect(isCursedAcquireMsg("緑色の指輪が呪われた！【呪】")).toBe(true);
 
     const player = { hp: 77, maxHp: 106, x: 5, y: 5, level: 16 };
@@ -481,7 +481,7 @@ describe("portraits", () => {
       player,
       prev: { ...player },
       lastMsg: cursedMsg,
-      newMsgs: ["呪術師が呪いの杖を振った！", cursedMsg],
+      newMsgs: ["術師が呪いの杖を振った！", cursedMsg],
     });
     expect(event.src).toMatch(/status_cursed/);
     expect(event.force).toBe(true);
