@@ -4,6 +4,7 @@
  */
 import { statusTurns } from "./statusDuration.js";
 import { isMpRecoveryBlocked } from "./mpRules.js";
+import { maintainPlayerHaste } from "./actionClock.js";
 
 export function advancePlayerUpkeep(player, messages, {
   hasAbility,
@@ -283,7 +284,7 @@ export function advancePlayerSpeedPhase(player, dungeon, messages, {
   });
 
   if (equalSpeedPentacle?.blessed) {
-    player.hasteTurns = Math.max(player.hasteTurns || 0, 2);
+    maintainPlayerHaste(player, 2);
   }
   advanceCoreStatusTimers(player, messages, { hasRingEffect, isSlowAutoAdvance });
   advanceConsumableBuffTimers(player, messages);

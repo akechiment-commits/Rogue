@@ -9,9 +9,10 @@ export function resolveTurnHazards(state, player, messages, {
   getItemName,
   lu,
   ident,
+  tickTimedEffects = true,
 }) {
   const dungeon = state.dungeon;
-  if (player.hp > 0 && hasRingEffect(player, "explode_ring") && random() < 0.05) {
+  if (tickTimedEffects && player.hp > 0 && hasRingEffect(player, "explode_ring") && random() < 0.05) {
     messages.push("指輪が爆発した！");
     doExplosion(player.x, player.y, dungeon, player, messages, getItemName, "爆発の指輪", null, null, false, true);
   }
@@ -27,7 +28,7 @@ export function resolveTurnHazards(state, player, messages, {
     runMineExplosion(dungeon, pendingMine, player, messages, lu);
   }
 
-  if (dungeon.pendingBombs?.length > 0 && player.hp > 0) {
+  if (tickTimedEffects && dungeon.pendingBombs?.length > 0 && player.hp > 0) {
     const remaining = [];
     for (const bomb of dungeon.pendingBombs) {
       bomb.turnsLeft--;

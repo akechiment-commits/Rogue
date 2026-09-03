@@ -81,6 +81,7 @@ import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from ".
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
+import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
@@ -641,6 +642,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       slowSkip: false,
       hasteTurns: 0,
       hasteUsed: false,
+      actionTime: 0,
       confusedTurns: 0,
       poisoned: false,
       poisonedTurns: 0,
@@ -1509,17 +1511,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       const _monsterTurnRate = _eqPcM
         ? (_eqPcM.cursed ? 0.5 : (_eqPcM.blessed ? 2 : 1))
         : (m.sealed ? 1 : m.speed);
-      if (_eqPcM) {
-        m.turnAccum += _monsterTurnRate;
-      } else {
-        /* 封印中は倍速・鈍足を無視して等速(1)で行動する */
-        m.turnAccum += _monsterTurnRate;
-      }
       m.turnAttacks = 0;
+      const _due = takeDueActions(m, pl.actionTime || 0, _monsterTurnRate);
       let _actionCount = 0;
       let _moveCount = 0; /* 実際に位置が変わったアクション数 */
-      while (m.turnAccum >= 1) {
-        m.turnAccum -= 1;
+      for (let _ai = 0; _ai < _due; _ai++) {
         _actionCount++;
         if (m.hp <= 0) break;
         if (_phase === "moveOnly") {
@@ -1762,57 +1758,63 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     return true;
   }, []);
   const endTurn = useCallback(
-    (st, p, ml) => {
+    (st, p, ml, extraOpts = {}) => {
       installPlayerHpMessageHook(ml, p);
-      st.floorTurns = (st.floorTurns || 0) + 1;
-      const _activatedVaults = activateDimensionalVaults(st.dungeon, p, ml);
-      if (_activatedVaults.size > 0) showFirstEncounterTip("dimensional_vault");
-      advanceDimensionalVaults(st.dungeon, ml, {
-        skipVaultIds: _activatedVaults,
-        itemName: (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames),
-      });
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
       setPitfallBag(_etPfBag);
       const _etStartHp = p.hp;
-      advancePlayerUpkeep(p, ml, {
-        hasAbility,
-        hasRingEffect,
-        calcHungerDrainRate,
-        onHungerDamageStarted: signalHungerWarn,
-      });
-      /* 闘気防具：毎ターン隣接する敵全員に2ダメージ */
-      applyArmorAura(p, st.dungeon, ml, {
-        hasAbility,
-        killMonster: (monster) => killMonster(monster, st.dungeon, p, ml, lu),
-      });
-      advanceEarlyStatusTimers(p, ml);
-      advancePlayerTerrainEffects(p, st.dungeon, ml);
-      resolvePlayerPentacleEffects(p, st.dungeon, ml, {
-        inMagicSealRoom,
-        inCursedMagicSealRoom,
-        hasCursedExplosionPentacle,
-        hasLightningResist,
-        reduceLightningDamage,
-        lightningResistDamageLabel,
-        applyLightningToInventory,
-        lu,
-        getItemName: (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames),
-      });
-      /* ===== 魔方陣の消耗：上に乗っていると30ターンで消滅（固定転送は対象外） ===== */
-      advancePentacleWear(p, st.dungeon, ml);
-      checkShopTheft(p, st.dungeon, ml);
-      advancePlayerSpeedPhase(p, st.dungeon, ml, {
-        findRoom,
-        inMagicSealRoom,
-        hasRingEffect,
-        tickBubbleGold,
-      });
+      const _clock = beginPlayerTurnClock(p, { idleBeat: !!extraOpts.idleBeat });
+      const _worldTick = _clock.worldTicks > 0;
+      if (_worldTick) {
+        st.floorTurns = (st.floorTurns || 0) + 1;
+        const _activatedVaults = activateDimensionalVaults(st.dungeon, p, ml);
+        if (_activatedVaults.size > 0) showFirstEncounterTip("dimensional_vault");
+        advanceDimensionalVaults(st.dungeon, ml, {
+          skipVaultIds: _activatedVaults,
+          itemName: (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames),
+        });
+        advancePlayerUpkeep(p, ml, {
+          hasAbility,
+          hasRingEffect,
+          calcHungerDrainRate,
+          onHungerDamageStarted: signalHungerWarn,
+        });
+        /* 闘気防具：毎ターン隣接する敵全員に2ダメージ */
+        applyArmorAura(p, st.dungeon, ml, {
+          hasAbility,
+          killMonster: (monster) => killMonster(monster, st.dungeon, p, ml, lu),
+        });
+        advanceEarlyStatusTimers(p, ml);
+        advancePlayerTerrainEffects(p, st.dungeon, ml);
+        resolvePlayerPentacleEffects(p, st.dungeon, ml, {
+          inMagicSealRoom,
+          inCursedMagicSealRoom,
+          hasCursedExplosionPentacle,
+          hasLightningResist,
+          reduceLightningDamage,
+          lightningResistDamageLabel,
+          applyLightningToInventory,
+          lu,
+          getItemName: (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames),
+        });
+        /* ===== 魔方陣の消耗：上に乗っていると30ターンで消滅（固定転送は対象外） ===== */
+        advancePentacleWear(p, st.dungeon, ml);
+        checkShopTheft(p, st.dungeon, ml);
+        advancePlayerSpeedPhase(p, st.dungeon, ml, {
+          findRoom,
+          inMagicSealRoom,
+          hasRingEffect,
+          tickBubbleGold,
+        });
+      }
       /* モンスターハウストリガー：毎ターン冒頭で確認（ダッシュ・通常移動どちらでも確実に発動） */
       triggerMonsterHouseWithTip(st.dungeon, p, ml);
-      /* 初めて踏み入れたフロアは敵が行動しない（階段降り直後の理不尽攻撃を防ぐ） */
-      let _skipMonAct = !!st.dungeon._firstVisit;
-      if (_skipMonAct) st.dungeon._firstVisit = false;
+      /* 倍速付与でその拍の敵行動を全キャンセル。初回訪問も敵は動かない。 */
+      const _freeze = finishPlayerTurnClock(p, st.dungeon.monsters);
+      let _skipMonAct = _freeze || !!st.dungeon._firstVisit;
+      if (st.dungeon._firstVisit) st.dungeon._firstVisit = false;
+      if (_skipMonAct) syncActorsToClock(st.dungeon.monsters, p.actionTime || 0);
       /* ===== 4フェーズターン制 ===== */
       /* Phase 2: モンスター移動フェーズ（攻撃なし） */
       const _monAnimation = createMonsterTurnAnimation();
@@ -1822,12 +1824,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       collectMonsterMoves(_monAnimation, st.dungeon.monsters, _monSnap);
       transitMonstersThroughPortals(st, p, ml, _monSnap, { randomTeleportDest });
       /* 特殊飛び道具：敵の移動後に進め、移動経路との交差も命中扱いにする */
-      withEnemyDamageContext(p, () => advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap));
-      /* プレイヤーがポータルの上で1ターン経過したらワープ（移動・ダッシュで既に転送済みならスキップ） */
-      if (!st._portalWarpedThisTurn && p.hp > 0) {
-        playerPortalWarp(p, st, ml);
+      if (!_skipMonAct || _worldTick) {
+        withEnemyDamageContext(p, () => advanceSpecialProjectiles(st.dungeon, p, ml, lu, _monSnap));
       }
-      delete st._portalWarpedThisTurn;
+      /* プレイヤーがポータルの上で1ターン経過したらワープ（移動・ダッシュで既に転送済みならスキップ） */
+      if (_worldTick) {
+        if (!st._portalWarpedThisTurn && p.hp > 0) {
+          playerPortalWarp(p, st, ml);
+        }
+        delete st._portalWarpedThisTurn;
+      }
       /* Phase 3: 罠・爆発の発火フェーズ（敵移動後、攻撃前） */
       const { spinFired: _spinFired } = resolveTurnHazards(st, p, ml, {
         hasRingEffect,
@@ -1838,6 +1844,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         getItemName: (item) => itemDisplayName(item, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames),
         lu,
         ident: sr.current?.ident,
+        tickTimedEffects: _worldTick,
       });
       /* Phase 4: モンスター攻撃フェーズ（移動なし） */
       const _attackPhase = runMonsterAttackPhase(st.dungeon, p, ml, {
@@ -1851,39 +1858,41 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         collectMonsterAttackEvents(_monAnimation, _attackPhase.hitEvents, _attackPhase.lunges, _attackPhase.hadActualHit, p);
       }
       monMovesRef.current = _monAnimation;
-      advanceMonsterUpkeep(st.dungeon, p, ml, {
-        hasCursedExplosionPentacle,
-        inMagicSealRoom,
-        inCursedMagicSealRoom,
-        onMonsterDefeated: (monster) => {
-          trackMonster(monster);
-          killMonster(monster, st.dungeon, p, ml, lu);
-        },
-      });
-      /* ===== 新ペン魔方陣の毎ターン効果 ===== */
-      if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
-        const _dg2 = st.dungeon;
-        for (const _pc of _dg2.pentacles) {
-          resolveTeleportAndTrapPentacleEffect(_pc, _dg2, p, ml, {
-            findRoom, inMagicSealRoom, random: Math.random, randomTeleportDest,
-            pick, rng, T, pickTrap, uid, removeTrap,
-          });
-          resolveStoneAndHealingPentacleEffect(_pc, _dg2, p, ml, {
-            findRoom,
-            inMagicSealRoom,
-            inCursedMagicSealRoom,
-            random: Math.random,
-            pick,
-            rng,
-            T,
-            hasAbility,
-            makeMagicStone,
-            placeItemAt,
-            onMonsterDefeated: (monster) => {
-              trackMonster(monster);
-              killMonster(monster, _dg2, p, ml, lu);
-            },
-          });
+      if (_worldTick) {
+        advanceMonsterUpkeep(st.dungeon, p, ml, {
+          hasCursedExplosionPentacle,
+          inMagicSealRoom,
+          inCursedMagicSealRoom,
+          onMonsterDefeated: (monster) => {
+            trackMonster(monster);
+            killMonster(monster, st.dungeon, p, ml, lu);
+          },
+        });
+        /* ===== 新ペン魔方陣の毎ターン効果 ===== */
+        if (st.dungeon.pentacles?.length > 0 && p.hp > 0) {
+          const _dg2 = st.dungeon;
+          for (const _pc of _dg2.pentacles) {
+            resolveTeleportAndTrapPentacleEffect(_pc, _dg2, p, ml, {
+              findRoom, inMagicSealRoom, random: Math.random, randomTeleportDest,
+              pick, rng, T, pickTrap, uid, removeTrap,
+            });
+            resolveStoneAndHealingPentacleEffect(_pc, _dg2, p, ml, {
+              findRoom,
+              inMagicSealRoom,
+              inCursedMagicSealRoom,
+              random: Math.random,
+              pick,
+              rng,
+              T,
+              hasAbility,
+              makeMagicStone,
+              placeItemAt,
+              onMonsterDefeated: (monster) => {
+                trackMonster(monster);
+                killMonster(monster, _dg2, p, ml, lu);
+              },
+            });
+          }
         }
       }
       /* そのターン中の転送・強制移動で後から内部区画へ入った場合も、
@@ -1892,7 +1901,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (_lateActivatedVaults.size > 0) showFirstEncounterTip("dimensional_vault");
       refreshFOV(st.dungeon, p);
       applyVisibilityOverrides(st.dungeon, p, { findRoom, inMagicSealRoom });
-      {
+      if (_worldTick) {
         const _dg = st.dungeon;
         /* キーアイテム所持中は、同じフロアでも100ターンごとに番人が再出現する。 */
         if (st.floorTurns > 0 && st.floorTurns % 100 === 0 && p.hp > 0) {
@@ -2072,7 +2081,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       }
       /* 骨のカウントダウン：0になったらスケルトン復活（真上に誰かいたら先延ばし） */
-      if (st.dungeon.traps && p.hp > 0) {
+      if (_worldTick && st.dungeon.traps && p.hp > 0) {
         const _reviveBones = st.dungeon.traps.filter(t => t.effect === "bone" && t.reviveIn !== undefined);
         for (const _bone of _reviveBones) {
           if (_bone.reviveIn > 0) { _bone.reviveIn--; continue; }
@@ -2147,7 +2156,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (p.hp <= 0 || !hasForcedTurn(p)) return;
       const ml = installPlayerHpMessageHook([], p);
       const _forcedTurn = advanceForcedTurn(p, ml);
-      endTurn(st, p, ml);
+      endTurn(st, p, ml, { idleBeat: true });
       if (_forcedTurn.exitPotAfterTurn) {
         p.potConfinedTurns = 0;
         ml.push("壺から出た！動けるようになった。");
@@ -3269,15 +3278,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (acted) {
         /* モンスターハウストリガー */
         triggerMonsterHouseWithTip(st.dungeon, p, ml);
-        /* 2倍速：1回目の行動はendTurnせず、2回目でendTurn */
-        if ((p.hasteTurns || 0) > 0 && !p.hasteUsed) {
-          p.hasteUsed = true;
-          /* FOVだけ更新して行動完了（モンスターは動かない） */
-          refreshFOV(st.dungeon, p);
-        } else {
-          if (p.hasteUsed) p.hasteUsed = false;
-          endTurn(st, p, ml);
-        }
+        endTurn(st, p, ml);
       }
       if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
       /* Collect monster animation data from endTurn */

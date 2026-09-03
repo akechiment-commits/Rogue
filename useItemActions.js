@@ -32,6 +32,7 @@ import { getMarkerInkCost } from "./markerRules.js";
 import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic } from "./monTraits.js";
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
+import { grantPlayerHaste } from "./actionClock.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -343,7 +344,7 @@ export function useItemActions({
         if (it.cursed) {
           // 呪い：反転→2倍速
           const _ht = statusTurns("haste", { kind: "player" });
-          p.hasteTurns = (p.hasteTurns || 0) + _ht;
+          grantPlayerHaste(p, _ht);
           ml.push(`${_useItemName}を飲んだ。体が軽くなった！(2倍速${_ht}ターン)【呪→加速】`);
         } else {
           // 通常/祝福：鈍足（祝福=2倍ターン）
@@ -580,7 +581,7 @@ export function useItemActions({
       } else if (fe === "speed_food") {
         if (p.sleepTurns > 0) { p.sleepTurns = 0; ml.push("目が覚めた！"); }
         const _spTurns = 5 + _fTier * 4;
-        p.hasteTurns = (p.hasteTurns || 0) + _spTurns;
+        grantPlayerHaste(p, _spTurns);
         ml.push(`体が軽くなった！${_spTurns}ターン間、倍速で行動できる！`);
       } else if (fe === "def_food") {
         const _defUp = _fTier >= 5 ? 2 : 1;
@@ -695,7 +696,7 @@ export function useItemActions({
               ml.push("解毒成分が！毒が消えた！攻撃力も回復！");
             } else ml.push("解毒成分が入っていたが毒ではなかった。");
           } else if (pe === "c_sleep") {
-            p.hasteTurns = (p.hasteTurns || 0) + statusTurns("haste", { kind: "player" });
+            grantPlayerHaste(p, statusTurns("haste", { kind: "player" }));
             ml.push("覚醒成分が！体が覚醒した！(2倍速5ターン)");
           } else if (pe === "c_power") {
             p.atk = Math.max(1, p.atk - 2);
@@ -707,7 +708,7 @@ export function useItemActions({
             p.sureHitTurns = (p.sureHitTurns || 0) + statusTurns("sureHit", { kind: "player" });
             ml.push("必中成分が！必中状態になった！(100ターン)");
           } else if (pe === "c_slow") {
-            p.hasteTurns = (p.hasteTurns || 0) + statusTurns("haste", { kind: "player" });
+            grantPlayerHaste(p, statusTurns("haste", { kind: "player" }));
             ml.push("加速成分が！体が軽くなった！(2倍速10ターン)");
           } else if (pe === "c_darkness") {
             p.monsterSenseTurns = (p.monsterSenseTurns || 0) + statusTurns("monsterSense", { kind: "player" });

@@ -30,6 +30,7 @@ import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
+import { grantPlayerHaste } from './actionClock.js';
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
@@ -2516,7 +2517,7 @@ export function raisePlayerSpeedOneStage(p, ml) {
     return true;
   }
   const ht = statusTurns("haste", { kind: "player" });
-  p.hasteTurns = (p.hasteTurns || 0) + ht;
+  grantPlayerHaste(p, ht);
   if (ml) ml.push(`体が加速した！(2倍速${ht}ターン)`);
   return true;
 }
@@ -4006,7 +4007,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") { target.speed = Math.min(2, (target.speed || 1) * 1.5); ml.push(`${target.name}は素早くなった！(覚醒)`); }
         if (kind === "player") {
           const _ht = statusTurns("haste", { kind: "player" });
-          p.hasteTurns = (p.hasteTurns || 0) + _ht;
+          grantPlayerHaste(p, _ht);
           ml.push(`体が軽くなった！(2倍速${_ht}ターン)【呪→加速】`);
         }
       } else {

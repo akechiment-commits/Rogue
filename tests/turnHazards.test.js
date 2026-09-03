@@ -49,4 +49,18 @@ describe("resolveTurnHazards", () => {
     expect(calls).toEqual([spin]);
     expect(state._pendingSpin).toBeUndefined();
   });
+
+  it("倍速の追加拍では時限爆弾を進めず、遅延地雷は発火する", () => {
+    const mine = { name: "地雷" };
+    const bomb = { x: 2, y: 3, turnsLeft: 2 };
+    const state = { dungeon: { _pendingMineExplosion: mine, pendingBombs: [bomb] } };
+    const calls = [];
+    resolveTurnHazards(state, { x: 1, y: 1, hp: 20 }, [], dependencies({
+      runMineExplosion: (_dungeon, pending) => calls.push(["mine", pending]),
+      doTimeBombExplosion: () => calls.push("bomb"),
+      tickTimedEffects: false,
+    }));
+    expect(calls).toEqual([["mine", mine]]);
+    expect(state.dungeon.pendingBombs).toEqual([{ x: 2, y: 3, turnsLeft: 2 }]);
+  });
 });
