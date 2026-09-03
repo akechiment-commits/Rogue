@@ -1,4 +1,4 @@
-import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
+import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
 import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
@@ -25,6 +25,22 @@ const MONSTER_SPECIAL_RATE = Object.freeze({
 });
 const DANGEROUS_PETAL_SPECIAL_RATE = Object.freeze({ adjacent: 0.25, ranged: 0.125 });
 const STATUS_WAND_EFFECTS = new Set(["curse_wand", "confuse_wand", "sleep_wand"]);
+
+/* 通常の聖域は、プレイヤーへ直接届く隣接1マス特技を防ぐ。
+ * 遠距離・部屋範囲・フロア範囲の特技は通常聖域を貫通し、祝福聖域だけが防ぐ。 */
+const ADJACENT_PLAYER_SPECIAL_SUBTYPES = new Set([
+  "grabber", "thief", "goldthief", "itemblast", "stealthrower",
+  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater",
+]);
+
+function isAdjacentPlayerSpecial(m) {
+  if (!m) return false;
+  const level = m.monLevel || 1;
+  return ADJACENT_PLAYER_SPECIAL_SUBTYPES.has(m.subtype) ||
+    m.subtype === "itempusher" ||
+    (m.subtype === "hypnotist" && level < 3) ||
+    (m.subtype === "dangerousPetal" && level < 2);
+}
 
 function dangerousPetalSpecialRate(m, pl) {
   if (!pl) return DANGEROUS_PETAL_SPECIAL_RATE.ranged;
@@ -1582,6 +1598,33 @@ export function findRoom(rooms, x, y) {
   );
 }
 
+/** 現在のAI状態でモンスターを引き寄せる、通常／祝福の囮を返す。 */
+function recognizedDecoyForMonster(m, dg, pl) {
+  if (!m || !dg || !pl || inMagicSealRoom(m.x, m.y, dg) ||
+      pl.x === m.x && pl.y === m.y) return null;
+  const decoy = dg.pentacles?.find((pc) => pc.kind === "decoy" && !pc.cursed);
+  if (!decoy || (pl.x === decoy.x && pl.y === decoy.y)) return null;
+  if (decoy.blessed) return decoy;
+  const decoyRoom = findRoom(dg.rooms || [], decoy.x, decoy.y);
+  const monsterRoom = findRoom(dg.rooms || [], m.x, m.y);
+  return decoyRoom && monsterRoom && decoyRoom.x === monsterRoom.x && decoyRoom.y === monsterRoom.y
+    ? decoy
+    : null;
+}
+
+/** プレイヤーを通らずに囮へ到達できる経路があるか。 */
+function hasOpenDecoyPath(m, dg, pl, decoy, float = false) {
+  if (!decoy) return false;
+  if (m.x === decoy.x && m.y === decoy.y) return true;
+  const tileFilter = (x, y) =>
+    (x === pl.x && y === pl.y) ? false : canEnter(dg.map, x, y, float, dg, m.waterWalker);
+  const maxDist = decoy.blessed ? 120 : 40;
+  return !!bfsNext(
+    dg.map, dg.monsters || [], m.x, m.y, decoy.x, decoy.y, m,
+    maxDist, dg.pentacles, float, tileFilter, false, dg.rooms, dg,
+  );
+}
+
 export function getOpenDirs(map, x, y, float = false, dg = null) {
   const res = [];
   const ds = [
@@ -1620,6 +1663,124 @@ export function getRoomExits(map, room, dg = null, float = false, waterWalker = 
     tryAdd(room.x + room.w, y);
   }
   return exits;
+}
+
+/* ===== 行商人の目的地巡回 ===== */
+const MERCHANT_PATROL_DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+function merchantTargetIsFree(x, y, m, dg, pl) {
+  if (!canEnter(dg.map, x, y, false, dg)) return false;
+  if (pl && pl.x === x && pl.y === y) return false;
+  if (dg.monsters?.some((other) => other !== m && other.x === x && other.y === y)) return false;
+  if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some((pc) => pc.kind === "sanctuary" && pc.x === x && pc.y === y)) return false;
+  return true;
+}
+
+function merchantRoomPoint(room, m, dg, pl) {
+  if (!room) return null;
+  const cx = room.cx ?? room.x + Math.floor((room.w - 1) / 2);
+  const cy = room.cy ?? room.y + Math.floor((room.h - 1) / 2);
+  const cells = [];
+  for (let y = room.y; y < room.y + room.h; y++) {
+    for (let x = room.x; x < room.x + room.w; x++) {
+      cells.push({ x, y, distance: Math.abs(x - cx) + Math.abs(y - cy) });
+    }
+  }
+  cells.sort((a, b) => a.distance - b.distance);
+  return cells.find(({ x, y }) => merchantTargetIsFree(x, y, m, dg, pl)) || null;
+}
+
+function merchantFallbackPoint(m, dg, pl) {
+  const candidates = [];
+  for (let y = 0; y < MH; y++) {
+    for (let x = 0; x < MW; x++) {
+      if (!merchantTargetIsFree(x, y, m, dg, pl)) continue;
+      const distance = Math.abs(x - m.x) + Math.abs(y - m.y);
+      const previous = m.lastPatrolTarget;
+      const previousDistance = previous ? Math.abs(x - previous.x) + Math.abs(y - previous.y) : -1;
+      candidates.push({ x, y, distance, previousDistance });
+    }
+  }
+  candidates.sort((a, b) =>
+    b.distance - a.distance || b.previousDistance - a.previousDistance || a.y - b.y || a.x - b.x
+  );
+  return candidates[0] || null;
+}
+
+/** 行商人が次に巡回する部屋・床を決める。部屋間の移動は必ず廊下経由のBFSになる。 */
+export function chooseMerchantPatrolTarget(m, dg, pl) {
+  const rooms = (dg.rooms || []).filter((room) => room && room.w > 0 && room.h > 0);
+  const currentRoom = findRoom(rooms, m.x, m.y);
+  const currentRoomIndex = currentRoom ? rooms.indexOf(currentRoom) : -1;
+  const previousRoomIndex = Number.isInteger(m.merchantPatrolRoomIndex)
+    ? m.merchantPatrolRoomIndex
+    : currentRoomIndex;
+
+  if (rooms.length > 1) {
+    const start = previousRoomIndex >= 0 ? previousRoomIndex : 0;
+    for (let offset = 1; offset <= rooms.length; offset++) {
+      const roomIndex = (start + offset) % rooms.length;
+      if (roomIndex === currentRoomIndex) continue;
+      const point = merchantRoomPoint(rooms[roomIndex], m, dg, pl);
+      if (!point) continue;
+      m.merchantPatrolRoomIndex = roomIndex;
+      return { ...point, roomIndex };
+    }
+  }
+
+  /* 部屋が1つしかないフロアでは、その部屋の出口を往復して廊下にも出る。 */
+  if (currentRoom) {
+    const exits = getRoomExits(dg.map, currentRoom, dg).filter(({ x, y }) => merchantTargetIsFree(x, y, m, dg, pl));
+    if (exits.length > 0) {
+      const previous = m.lastPatrolTarget;
+      exits.sort((a, b) => {
+        const ad = previous ? Math.abs(a.x - previous.x) + Math.abs(a.y - previous.y) : 0;
+        const bd = previous ? Math.abs(b.x - previous.x) + Math.abs(b.y - previous.y) : 0;
+        return bd - ad || a.y - b.y || a.x - b.x;
+      });
+      return exits[0];
+    }
+  }
+
+  /* 廊下しかないフロアや、特殊配置で部屋を目標にできない場合の決定的な遠距離巡回。 */
+  return merchantFallbackPoint(m, dg, pl);
+}
+
+/** 行商人専用の4方向BFS。斜め抜けを許さず、部屋と廊下を自然に歩かせる。 */
+function merchantBfsNext(m, dg, pl, target) {
+  if (!target || (m.x === target.x && m.y === target.y)) return null;
+  const occupied = new Set((dg.monsters || [])
+    .filter((other) => other !== m)
+    .map((other) => other.x + other.y * MW));
+  const queue = [{ x: m.x, y: m.y, first: null }];
+  const visited = new Set([m.x + m.y * MW]);
+  let head = 0;
+  const dirs = [...MERCHANT_PATROL_DIRS].sort((a, b) =>
+    (Math.abs(target.x - (m.x + a[0])) + Math.abs(target.y - (m.y + a[1]))) -
+    (Math.abs(target.x - (m.x + b[0])) + Math.abs(target.y - (m.y + b[1])))
+  );
+  const canWalk = (x, y) => {
+    if (!canEnter(dg.map, x, y, false, dg)) return false;
+    if (pl && pl.x === x && pl.y === y) return false;
+    if (occupied.has(x + y * MW)) return false;
+    if (!inMagicSealRoom(m.x, m.y, dg) && dg.pentacles?.some((pc) => pc.kind === "sanctuary" && pc.x === x && pc.y === y)) return false;
+    return true;
+  };
+  while (head < queue.length) {
+    const current = queue[head++];
+    for (const [dx, dy] of dirs) {
+      const x = current.x + dx;
+      const y = current.y + dy;
+      if (!canWalk(x, y)) continue;
+      const key = x + y * MW;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      const first = current.first || { x, y };
+      if (x === target.x && y === target.y) return first;
+      queue.push({ x, y, first });
+    }
+  }
+  return null;
 }
 
 /**
@@ -2925,7 +3086,7 @@ export function getAdjacentMimicSources(m, dg) {
 }
 
 /** 催眠術使いのレベル別射程（Lv1/2は隣接、Lv3は視界内の直線10マス） */
-function canHypnotistUse(m, pl, { canSee = false, plOnBlessedSanc = false } = {}) {
+function canHypnotistUse(m, pl, { canSee = false, plOnSanc = false, plOnBlessedSanc = false } = {}) {
   if (!m || !pl || plOnBlessedSanc) return false;
   const dx = pl.x - m.x, dy = pl.y - m.y;
   const distance = Math.max(Math.abs(dx), Math.abs(dy));
@@ -2933,11 +3094,11 @@ function canHypnotistUse(m, pl, { canSee = false, plOnBlessedSanc = false } = {}
     const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
     return canSee && inLine && distance >= 1 && distance <= 10;
   }
-  return distance === 1;
+  return distance === 1 && !plOnSanc;
 }
 
 /** 危険な花びらのレベル別睡眠特技の射程。Lv1は隣接、Lv2は直線、Lv3は同じ部屋。 */
-function canDangerousPetalUse(m, pl, { canSee = false, sameRoom = false, plOnBlessedSanc = false, dg = null } = {}) {
+function canDangerousPetalUse(m, pl, { canSee = false, sameRoom = false, plOnSanc = false, plOnBlessedSanc = false, dg = null } = {}) {
   if (!m || !pl || plOnBlessedSanc) return false;
   const dx = pl.x - m.x, dy = pl.y - m.y;
   const distance = Math.max(Math.abs(dx), Math.abs(dy));
@@ -2947,7 +3108,7 @@ function canDangerousPetalUse(m, pl, { canSee = false, sameRoom = false, plOnBle
     const inLine = dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy);
     return canSee && inLine && distance <= 10 && (!dg || hasLOS(dg.map, m.x, m.y, pl.x, pl.y));
   }
-  return canSee && distance === 1;
+  return canSee && distance === 1 && !plOnSanc;
 }
 
 function useDangerousPetalSleep(m, dg, pl, ml) {
@@ -2989,6 +3150,7 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   if (src.sealed) return false;
   const canSee = !!ctx.canSee;
   const sameRoom = !!ctx.sameRoom;
+  const plOnSanc = !!ctx.plOnSanc;
   const plOnBlessedSanc = !!ctx.plOnBlessedSanc;
   const subtype = src.subtype;
   const baseKind = src.baseKind;
@@ -3039,17 +3201,17 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
 
   /* 催眠術：Lv1/2は隣接、Lv3は視界内の一直線上から次の行動を強制する */
   if (subtype === "hypnotist") {
-    return canHypnotistUse(src, pl, { canSee, plOnBlessedSanc });
+    return canHypnotistUse(src, pl, { canSee, plOnSanc, plOnBlessedSanc });
   }
 
   /* 危険な花びら：レベルごとの睡眠特技の射程をそのまま模倣する */
   if (subtype === "dangerousPetal") {
-    return canDangerousPetalUse(src, pl, { canSee, sameRoom, plOnBlessedSanc, dg });
+    return canDangerousPetalUse(src, pl, { canSee, sameRoom, plOnSanc, plOnBlessedSanc, dg });
   }
 
   /* 突進：一直線・距離2以上 */
   if (subtype === "charger") {
-    return canSee && inLine && lineLen >= 2;
+    return canSee && !plOnSanc && inLine && lineLen >= 2;
   }
 
   /* ドラゴン／氷竜：Lv1一直線 / Lv2同部屋 / Lv3同フロア（距離2以上） */
@@ -3068,13 +3230,13 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
 
   /* 隣接限定特技 */
   if (subtype && _MIMIC_ADJ_SUBTYPES.has(subtype)) {
-    if (subtype === "itempusher") return adjPl && !plOnBlessedSanc && hasInventorySpaceForMonsterGift(pl);
-    return adjPl;
+    if (subtype === "itempusher") return adjPl && !plOnSanc && !plOnBlessedSanc && hasInventorySpaceForMonsterGift(pl);
+    return adjPl && !plOnSanc && !plOnBlessedSanc;
   }
 
   /* 罠投げ：隣接＋射程内に罠 */
   if (subtype === "trapthrower") {
-    if (!adjPl || !opts.fireTrapFn) return false;
+    if (!adjPl || plOnSanc || plOnBlessedSanc || !opts.fireTrapFn) return false;
     const range = monLevel >= 3 ? 10 : monLevel >= 2 ? 5 : 3;
     return !!(dg.traps?.some((t) =>
       t.revealed &&
@@ -3183,6 +3345,7 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
 function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   if (m.turnAttacks >= monEffectiveMaxAttacks(m)) return false;
   const canSee = !!ctx.canSee;
+  const _plOnSanc = !!ctx.plOnSanc;
   const _plOnBlessedSanc = !!ctx.plOnBlessedSanc;
   const _sameRoom = !!ctx.sameRoom;
   const _onHit = opts.onPlayerHit;
@@ -3194,7 +3357,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   const inLine = adx === 0 || ady === 0 || Math.abs(adx) === Math.abs(ady);
   const adjPl = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
 
-  if (m.subtype === "itempusher" && adjPl && !_plOnBlessedSanc && hasInventorySpaceForMonsterGift(pl)) {
+  if (m.subtype === "itempusher" && adjPl && !_plOnSanc && !_plOnBlessedSanc && hasInventorySpaceForMonsterGift(pl)) {
     m.turnAttacks++;
     pushChargedFuzzball(m, pl, ml);
     return true;
@@ -3274,7 +3437,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
   }
 
   /* ── 催眠術使い：プレイヤーの次の行動を奪う ── */
-  if (m.subtype === "hypnotist" && canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc })) {
+  if (m.subtype === "hypnotist" && canHypnotistUse(m, pl, { canSee, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc })) {
     m.turnAttacks++;
     if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
       ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
@@ -3287,7 +3450,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
 
   /* ── 危険な花びら：レベル別射程の眠りの花粉 ── */
   if (m.subtype === "dangerousPetal" && canDangerousPetalUse(m, pl, {
-    canSee, sameRoom: _sameRoom, plOnBlessedSanc: _plOnBlessedSanc, dg,
+    canSee, sameRoom: _sameRoom, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc, dg,
   })) {
     return useDangerousPetalSleep(m, dg, pl, ml);
   }
@@ -3447,7 +3610,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       }
       return true;
     }
-    if (m.subtype === "knocker" && !_plOnBlessedSanc) {
+    if (m.subtype === "knocker" && !_plOnSanc && !_plOnBlessedSanc) {
       m.turnAttacks++;
       const _kdx = Math.sign(pl.x - m.x) || (Math.random() < 0.5 ? -1 : 1);
       const _kdy = Math.sign(pl.y - m.y);
@@ -3465,7 +3628,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       ml.push(`${m.name}が${plName(pl)}を吹き飛ばした！`);
       return true;
     }
-    if (m.subtype === "berserker") {
+    if (m.subtype === "berserker" && !_plOnSanc && !_plOnBlessedSanc) {
       m.turnAttacks++;
       const _bt = statusTurns("berserker", { kind: "monster", target: m });
       m.berserkerTurns = (m.berserkerTurns || 0) + _bt;
@@ -3542,7 +3705,7 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       m.posHistory = [];
     }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && m.type !== "shopkeeper" &&
+    if (!movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || m.isWanderingMerchant) &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&
@@ -3591,6 +3754,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _onHit = opts.onPlayerHit;
   const _onMiss = opts.onPlayerMiss;
   const _plPotHidden = (pl.potConfinedTurns || 0) > 0;
+  /* 聖域チェック（魔封じの魔方陣が同部屋にあれば聖域効果は無効） */
+  const _sanctSuppressed = inMagicSealRoom(pl.x, pl.y, dg);
+  const _plOnSanc = !_sanctSuppressed && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
+  const _plOnBlessedSanc = !_sanctSuppressed && _plOnSanc && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
   /* 重力の魔方陣：浮遊系モンスターの実効float（魔法無効モンスターは重力の影響を受けない）
    * floatTurns: 浮遊の罠など一時浮遊。封印中は固有float無効 */
   const _hasFloatFlag = monEffectiveFloat(m);
@@ -3767,7 +3934,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
   /* シオン・ザ・ダークブレット：射程内の一直線上なら必ず銃撃 */
-  if (m.baseKind === "boss_darkbullet" && !_moveOnly) {
+  /* 専用の先行分岐は囮誘導より前に実行されるため、ここでも囮の経路を確認する。 */
+  const _earlyDecoy = recognizedDecoyForMonster(m, dg, pl);
+  const _earlyDecoyPathOpen = _earlyDecoy && hasOpenDecoyPath(m, dg, pl, _earlyDecoy, _effFloat);
+  if (_earlyDecoyPathOpen) delete m._rangedAttackThisTurn;
+  if (m.baseKind === "boss_darkbullet" && !_moveOnly && !_earlyDecoyPathOpen) {
     delete m._rangedAttackThisTurn;
     const _dbAdx = pl.x - m.x, _dbAdy = pl.y - m.y;
     const _dbLen = Math.max(Math.abs(_dbAdx), Math.abs(_dbAdy));
@@ -3844,6 +4015,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   if (m.baseKind === "boss_flamedragon" && !_moveOnly) {
     const _fdVisible = (dg.visible?.[m.y]?.[m.x] ?? false) && hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
     if (_fdVisible && Math.random() < MONSTER_SPECIAL_RATE.status) {
+      if (_plOnBlessedSanc) {
+        ml.push(`祝福された聖域の加護が${m.name}の炎の息を防いだ！`);
+        return;
+      }
       const _oilT = statusTurns("oily", { kind: "player" });
       pl.oilyTurns = (pl.oilyTurns || 0) + _oilT;
       ml.push(`${m.name}が炎の息を吐き散らした！油まみれになった！(${_oilT}ターン)`);
@@ -3857,6 +4032,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m._statusCooldown = (m._statusCooldown || 0) - 1;
     if (m._statusCooldown <= 0) {
       m._statusCooldown = 5;
+      if (_plOnBlessedSanc) {
+        ml.push(`祝福された聖域の加護が${m.name}の呪いを防いだ！`);
+        return;
+      }
       const _r = Math.random();
       if (_r < 0.33) { const _st = statusTurns("slow", { kind: "player" }); pl.slowTurns = (pl.slowTurns || 0) + _st; ml.push(`${m.name}の呪いで足が重くなった！(${_st}ターン)`); }
       else if (_r < 0.66) {
@@ -3949,6 +4128,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _kiInLine = _kiAdx === 0 || _kiAdy === 0 || Math.abs(_kiAdx) === Math.abs(_kiAdy);
       const _kiLOS = hasLOS(dg.map, m.x, m.y, pl.x, pl.y);
       if (_kiDist >= 2 && _kiInLine && _kiLOS && m.turnAttacks < Math.max(monEffectiveMaxAttacks(m), m.sealed ? 1 : 2) && Math.random() < MONSTER_SPECIAL_RATE.status) {
+        if (_plOnBlessedSanc) return;
         m._krakInkReady = true;
         return; /* 移動しない→attackOnlyで墨発動 */
       }
@@ -3956,6 +4136,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     } else if (m._krakInkReady) {
       /* attackOnlyフェーズ：予約済み墨吐きを実行 */
       delete m._krakInkReady;
+      if (_plOnBlessedSanc) {
+        m.turnAttacks++;
+        ml.push(`祝福された聖域の加護が${m.name}の墨を防いだ！`);
+        return;
+      }
       const _kidx = Math.sign(pl.x - m.x), _kidy = Math.sign(pl.y - m.y);
       for (let _ki2 = 1; _ki2 < 20; _ki2++) {
         const _ktx = m.x + _kidx * _ki2, _kty = m.y + _kidy * _ki2;
@@ -4152,6 +4337,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* ===== 爆弾ゴブリン：プレイヤーに隣接すると確率で自爆、失敗時は通常攻撃 ===== */
   if (m.subtype === "kamikaze" && monCanUseExplosiveAbility(m) && !_moveOnly) {
     if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) {
+      if (_plOnSanc) {
+        if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+        return;
+      }
       const _kzChance = (m.monLevel || 1) >= 2 ? MONSTER_SPECIAL_RATE.selfDestruct : MONSTER_SPECIAL_RATE.status;
       if (m.turnAttacks < monEffectiveMaxAttacks(m) && Math.random() < _kzChance) {
         m.turnAttacks++;
@@ -4292,8 +4481,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   /* プレイヤーに隣接していれば詰まり扱いしない（攻撃ターンは正常） */
   if (_forceAlt && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1) _forceAlt = false;
 
-  /* shopkeeper */
-  if (m.type === "shopkeeper") {
+  /* shopkeeper（行商人は友好的な間も徘徊するため通常AIへ流す） */
+  if (m.type === "shopkeeper" && !m.isWanderingMerchant) {
     if (m.state === "friendly") {
       /* 聖域の魔法陣の上にいる場合は隣接フロアタイルに退く（魔封じで無効） */
       const _skSanctSupp = inMagicSealRoom(m.x, m.y, dg);
@@ -4347,6 +4536,29 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     }
   }
 
+  /* 行商人：友好的な間はプレイヤーを攻撃せず、部屋を順番に巡回する。 */
+  if (m.isWanderingMerchant && m.state === "friendly") {
+    if (opts.attackOnly) return;
+    const _arrived = m.patrolTarget && m.x === m.patrolTarget.x && m.y === m.patrolTarget.y;
+    if (_arrived) {
+      m.lastPatrolTarget = { x: m.patrolTarget.x, y: m.patrolTarget.y };
+      if (Number.isInteger(m.patrolTarget.roomIndex)) m.merchantPatrolRoomIndex = m.patrolTarget.roomIndex;
+      m.patrolTarget = null;
+    }
+    if (!m.patrolTarget) m.patrolTarget = chooseMerchantPatrolTarget(m, dg, pl);
+    const _next = merchantBfsNext(m, dg, pl, m.patrolTarget);
+    if (_next && merchantTargetIsFree(_next.x, _next.y, m, dg, pl)) {
+      m.dir = { x: _next.x - m.x, y: _next.y - m.y };
+      m.x = _next.x;
+      m.y = _next.y;
+      return;
+    }
+    /* プレイヤーや他の敵に道を塞がれた場合は、次のAIターンで別の部屋を選び直す。 */
+    m.lastPatrolTarget = m.patrolTarget ? { x: m.patrolTarget.x, y: m.patrolTarget.y } : null;
+    m.patrolTarget = null;
+    return;
+  }
+
   const map = dg.map,
     rooms = dg.rooms;
   const dist = Math.abs(pl.x - m.x) + Math.abs(pl.y - m.y);
@@ -4374,10 +4586,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.lastPx = m.x;
     m.lastPy = m.y;
   }
-  /* 聖域チェック（魔封じの魔方陣が同部屋にあれば聖域効果は無効） */
-  const _sanctSuppressed = inMagicSealRoom(pl.x, pl.y, dg);
-  const _plOnSanc = !_sanctSuppressed && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === pl.x && pc.y === pl.y);
-  const _plOnBlessedSanc = !_sanctSuppressed && _plOnSanc && dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.blessed && pc.x === pl.x && pc.y === pl.y);
+  /* 通常聖域上の隣接1マス特技は各ハンドラで使用率を抽選したあと防ぐ。
+   * ここでは予約フラグだけ消し、移動フェーズではその場に留まる。 */
+  if (_plOnSanc && _adjPl && isAdjacentPlayerSpecial(m)) {
+    delete m._rangedAttackThisTurn;
+    delete m._defHalfMagicReady;
+    delete m._pentacleDrawReady;
+    delete m._mimicReady;
+    delete m._mimicSourceId;
+    if (_moveOnly) return;
+  }
 
   if (canSee) {
     m.aware = true;
@@ -4504,7 +4722,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     /* ── 夢喰い：睡眠中のプレイヤーを倍打撃＋吸収。いなければ眠った敵を起こして自身を回復 ── */
     if (m.subtype === "dreamEater" && !m.sealed && !inMagicSealRoom(m.x, m.y, dg)) {
       const _dePlayerAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
-      const _dePlayerSleep = _dePlayerAdj && (pl.sleepTurns || 0) > 0 && !_plOnBlessedSanc;
+      const _dePlayerSleep = _dePlayerAdj && (pl.sleepTurns || 0) > 0 && !_plOnSanc;
       if (_dePlayerSleep && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         if (_moveOnly) {
           m._dreamEaterStrikeReady = true;
@@ -4532,7 +4750,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     if (isStationaryGrabber(m)) {
       if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
         let _justCaptured = false;
-        if (!pl.capturedBy) {
+        if (!pl.capturedBy && !_plOnSanc) {
           pl.capturedBy = m.id;
           _justCaptured = true;
           ml.push(`${m.name}に絡め取られた！倒さなければ逃げられない！`);
@@ -4669,6 +4887,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           dg.items = dg.items.filter(i => i !== _itTarget);
           delete _itTarget.x;
           delete _itTarget.y;
+          clearDimensionalVaultItemCounter(_itTarget);
           m.carriedItem = _itTarget;
           m._itemThrowerPickedThisTurn = true;
           ml.push(`${m.name}が${resolveItemName(_itTarget)}を拾った！`);
@@ -4686,6 +4905,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
+    /* 囮の経路が開いている間は、予約済み／先行分岐の遠距離特技も
+       プレイヤーへ向けて実行しない。囮判定より先に走るボス特技との混線を防ぐ。 */
+    const _recognizedDecoy = recognizedDecoyForMonster(m, dg, pl);
+    if (_recognizedDecoy && hasOpenDecoyPath(m, dg, pl, _recognizedDecoy, _effFloat)) {
+      delete m._rangedAttackThisTurn;
+      return;
+    }
+
     /* ── ranged special attacks (only when player is visible) ── */
     /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
     if (_moveOnly && canSee) {
@@ -4699,10 +4926,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
       const _hypnotistRdy = m.subtype === "hypnotist" && !m.sealed && _rAtks &&
-        canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc });
+        canHypnotistUse(m, pl, { canSee, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc });
       const _petalRdy = m.subtype === "dangerousPetal" && !m.sealed && _rAtks &&
         canDangerousPetalUse(m, pl, {
-          canSee, sameRoom: _sameRoom, plOnBlessedSanc: _plOnBlessedSanc, dg,
+          canSee, sameRoom: _sameRoom, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc, dg,
         });
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
@@ -4754,6 +4981,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (m.subtype === "mimic" && !m.sealed && _rAtks) {
         if (tryReserveMimicSkill(m, dg, pl, opts, {
           canSee,
+          plOnSanc: _plOnSanc,
           plOnBlessedSanc: _plOnBlessedSanc,
           sameRoom: _sameRoom,
         })) return;
@@ -4797,6 +5025,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           sameRoom: _sameRoom,
           forceReady: !!m._mimicReady,
           preferredSourceId: m._mimicSourceId,
+          plOnSanc: _plOnSanc,
         })) return;
       }
 
@@ -4877,7 +5106,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           Math.max(Math.abs(b.x - pl.x), Math.abs(b.y - pl.y)) -
           Math.max(Math.abs(a.x - pl.x), Math.abs(a.y - pl.y))
         );
-        if (_ttCands.length > 0 && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (_ttCands.length > 0 && !_plOnSanc && !_plOnBlessedSanc && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
           const _ttTrap = _ttCands[0];
           m.turnAttacks++;
           if (hasRingEffect(pl, "core_ring")) {
@@ -4953,10 +5182,14 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           opts.monsterWandFn(m, Math.sign(adx), Math.sign(ady));
           return;
         }
-        // 魔封じの部屋・祝福聖域の場合は杖を使えず通常行動へフォールスルー
+        /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
+        m.turnAttacks++;
+        if (_wSeal) ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
+        else ml.push(`祝福された聖域の加護が${m.name}の魔法を防いだ！`);
+        return;
       }
 
-      if (m.subtype === "hypnotist" && !m.sealed && canHypnotistUse(m, pl, { canSee, plOnBlessedSanc: _plOnBlessedSanc }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
+      if (m.subtype === "hypnotist" && !m.sealed && canHypnotistUse(m, pl, { canSee, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.status)) {
         m.turnAttacks++;
         if (inMagicSealRoom(m.x, m.y, dg) || inMagicSealRoom(pl.x, pl.y, dg)) {
           ml.push(`${m.name}が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！`);
@@ -4968,7 +5201,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
 
       if (m.subtype === "dangerousPetal" && !m.sealed && canDangerousPetalUse(m, pl, {
-        canSee, sameRoom: _sameRoom, plOnBlessedSanc: _plOnBlessedSanc, dg,
+        canSee, sameRoom: _sameRoom, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc, dg,
       }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < dangerousPetalSpecialRate(m, pl))) {
         useDangerousPetalSleep(m, dg, pl, ml);
         return;
@@ -5037,8 +5270,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         monsterThrowChargedFuzzball(m, dg, pl, ml, _luFn);
         return;
       }
-      if (_ipAdj && !_plOnBlessedSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+      if (_ipAdj && m.turnAttacks < monEffectiveMaxAttacks(m) &&
           hasInventorySpaceForMonsterGift(pl) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+        if (_plOnSanc || _plOnBlessedSanc) {
+          m.turnAttacks++;
+          return;
+        }
         m.turnAttacks++;
         pushChargedFuzzball(m, pl, ml);
         return;
@@ -5065,15 +5302,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_adj && _moveOnly) return; /* moveOnlyフェーズ：隣接済みなので移動しない */
       if (_adj) {
         /* 50%は様子を見るだけ（無駄行動） */
-        if (Math.random() < MONSTER_SPECIAL_RATE.steal) {
+        if (!m.alwaysUseSpecial && Math.random() < MONSTER_SPECIAL_RATE.steal) {
           ml.push(`${m.name}はこちらの様子を伺っている…`);
           return;
         }
         const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
-        if (_hasAntiSteal) {
-          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
-          /* 盗めないので通常攻撃（聖域上なら不可） */
-          if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        if (_hasAntiSteal || _plOnSanc) {
+          if (_hasAntiSteal) ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+          /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
+          if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
         }
         const _stealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
@@ -5150,14 +5387,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (_gtAdj && _moveOnly) return;
       if (_gtAdj) {
         /* 50%は様子を見るだけ */
-        if (Math.random() < MONSTER_SPECIAL_RATE.steal) {
+        if (!m.alwaysUseSpecial && Math.random() < MONSTER_SPECIAL_RATE.steal) {
           ml.push(`${m.name}はこちらの様子を伺っている…`);
           return;
         }
         const _gtAntiSteal = hasAbility(pl.armor, "anti_steal");
-        if (_gtAntiSteal) {
-          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
-          if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        if (_gtAntiSteal || _plOnSanc) {
+          if (_gtAntiSteal) ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+          /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
+          if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
         }
         if (pl.gold > 0) {
@@ -5174,7 +5412,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           return;
         }
         /* ゴールドがなければ通常攻撃 */
-        if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
         return;
       }
     }
@@ -5190,6 +5428,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (pl.armor  && !pl.armor.cursed)  _ueSlots.push({ slot: "armor",  it: pl.armor  });
         for (const ring of (pl.rings || [])) {
           if (!ring.cursed) _ueSlots.push({ slot: "ring", it: ring });
+        }
+        if (_plOnSanc) {
+          if (_ueSlots.length > 0 && m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+          return;
         }
         if (_ueSlots.length > 0) {
           const _ueCount = m.monLevel || 1; /* Lv1:1個, Lv2:2個, Lv3:3個 */
@@ -5222,15 +5464,16 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ibAdj = Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1;
       if (_ibAdj && _moveOnly) return;
       if (_ibAdj) {
-        const _ibAntiSteal = hasAbility(pl.armor, "anti_steal");
-        if (_ibAntiSteal) {
-          ml.push(`護盗の鎧が${m.name}の弾き飛ばしを防いだ！`);
-          if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        /* 25%で特技発動、75%は通常攻撃。防げる状態でも抽選は先に行う。 */
+        if (!m.alwaysUseSpecial && Math.random() >= 0.25) {
+          if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
           return;
         }
-        /* 25%で特技発動、75%は通常攻撃 */
-        if (!m.alwaysUseSpecial && Math.random() >= 0.25) {
-          if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        const _ibAntiSteal = hasAbility(pl.armor, "anti_steal");
+        if (_ibAntiSteal || _plOnSanc) {
+          if (_ibAntiSteal) ml.push(`護盗の鎧が${m.name}の弾き飛ばしを防いだ！`);
+          /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
+          if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
         }
         const _ibCands = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
@@ -5296,6 +5539,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (!_moveOnly && _srHeldItem && canSee && _srDist <= 8) {
         const _srDx = Math.sign(pl.x - m.x), _srDy = Math.sign(pl.y - m.y);
         if (_srStraight) {
+          if (_plOnBlessedSanc && _srDist >= 2) {
+            m.turnAttacks++;
+            ml.push(`祝福された聖域の加護が${m.name}の投擲を防いだ！`);
+            return;
+          }
           /* 経路チェック：障害物があれば投げない、途中に敵がいればそちらに命中 */
           let _srHitMon = null, _srHitStatue = false, _srPathBlocked = false;
           let _cx = m.x + _srDx, _cy = m.y + _srDy;
@@ -5378,14 +5626,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       /* 盗みフェーズ：隣接かつ手ぶら（moveOnlyはフォールスルー）。
        * 手持ち中はここへ絶対に入らず、投擲・死亡まで1個限定。 */
       if (!_moveOnly && _srAdj && !_srHeldItem) {
-        const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
-        if (_srAntiSteal) {
-          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
-          if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
-          return;
-        }
         const _srStealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
-        if (_srStealable.length > 0 && Math.random() < MONSTER_SPECIAL_RATE.steal) {
+        if (_srStealable.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal)) {
+          const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
+          if (_srAntiSteal || _plOnSanc) {
+            if (_srAntiSteal) ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+            /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
+            if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+            return;
+          }
           const _stolen = pick(_srStealable);
           pl.inventory.splice(pl.inventory.indexOf(_stolen), 1);
           const _srFinal = (_stolen.name === "ロングソード" && Math.random() < 0.10) ? { ...SOBURO_T, id: uid(), plus: _stolen.plus || 0 } : _stolen;
@@ -5395,8 +5644,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           ml.push(`${m.name}が${_stolen.name}を盗んだ！次のターンに投げてくるぞ！${_srSoboroMsg}`);
           return;
         }
-        /* 25%外れまたは盗むものなし：通常攻撃 */
-        if (m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
+        /* 特技不発または盗むものなし：通常攻撃 */
+        if (!_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m)) { m.turnAttacks++; monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn }); }
         return;
       }
     }
@@ -5497,8 +5746,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _pullRange = _pullLvl >= 3 ? 8 : _pullLvl >= 2 ? 6 : 4;
       const _pulDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
       if (_pulDist >= 2 && _pulDist <= _pullRange) {
+        if (_plOnBlessedSanc) {
+          if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+          ml.push(`祝福された聖域の加護が${m.name}の引き寄せを防いだ！`);
+          return;
+        }
         if (hasRingEffect(pl, "core_ring")) {
           ml.push(`${m.name}に引き寄せられそうになったが、体幹の指輪で踏ん張った！`);
+          if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
+          return;
         } else {
           const _puldx = Math.sign(m.x - pl.x), _puldy = Math.sign(m.y - pl.y);
           const _pnx = pl.x + _puldx, _pny = pl.y + _puldy;
@@ -5594,10 +5850,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
             }
             return;
           }
-          /* 魔封じで無効 → 隣接なら通常攻撃へフォールスルー */
+          /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
           ml.push(`${m.name}の魔法が魔封じの魔方陣に封じられた！`);
+          m.turnAttacks++;
+          return;
         }
-        /* 魔法不発 or 魔封じ → 隣接かつ聖域外なら通常攻撃 */
+        /* 魔法不発時だけ通常行動へ進む。 */
         if (Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && !_plOnSanc) {
           m.turnAttacks++;
           monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
