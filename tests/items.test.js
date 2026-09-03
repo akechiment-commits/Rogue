@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -413,6 +413,43 @@ describe("getBlessMultiplier", () => {
   });
 });
 
+describe("blessAmountMul", () => {
+  it("祝福の数値効果は2倍で、呪いは通常値のまま", () => {
+    expect(blessAmountMul(true)).toBe(2);
+    expect(blessAmountMul(false)).toBe(1);
+    expect(Math.round(3 * blessAmountMul(true))).toBe(6);
+    expect(Math.round(3 * 1.5)).toBe(5);
+    expect(Math.round(20 * blessAmountMul(true))).toBe(40);
+    expect(Math.round(20 * 1.5)).toBe(30);
+  });
+});
+
+describe("poisonContactAmount", () => {
+  it("祝福は通常出目の2倍で、1.5倍にはならない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    expect(poisonContactAmount(15)).toBe(15);
+    expect(poisonContactAmount(15, { blessed: true })).toBe(30);
+    vi.restoreAllMocks();
+  });
+
+  it("呪いは通常と同じ出目で反転し、半分にはしない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    expect(poisonContactAmount(15, { cursed: true })).toBe(15);
+    expect(poisonContactAmount(15, { cursed: true })).not.toBe(8);
+    vi.restoreAllMocks();
+  });
+});
+
+describe("rollElementScrollDamage", () => {
+  it("祝福の炎・雷の巻物は30-40の2倍で、1.5倍にはならない", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    expect(rollElementScrollDamage({})).toBe(30);
+    expect(rollElementScrollDamage({ blessed: true })).toBe(60);
+    expect(rollElementScrollDamage({ cursed: true })).toBe(30);
+    vi.restoreAllMocks();
+  });
+});
+
 describe("gemSellPrice", () => {
   it("全種類の基本価格が重複しない", () => {
     const prices = GEM_TYPES.map(gem => gem.basePrice);
@@ -507,12 +544,24 @@ describe("applyPotionEffect", () => {
     expect(p.atk).toBe(7);
   });
 
-  it("呪われた毒薬を敵に浴びせると通常のvalと同じ量だけ回復する", () => {
+  it("呪われた毒薬を敵に浴びせると通常ダメージと同じ出目だけ回復する", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
     const mon = { name: "スライム", kind: "slime", hp: 10, maxHp: 40, x: 2, y: 2, atk: 5 };
     const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
     const ml = [];
     applyPotionEffect("poison", 15, "monster", mon, dg, p, ml, () => {}, false, true);
     expect(mon.hp).toBe(25);
+    vi.restoreAllMocks();
+  });
+
+  it("祝福の毒薬を敵に浴びせると通常出目の2倍ダメージになる", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const mon = { name: "スライム", kind: "slime", hp: 40, maxHp: 40, x: 2, y: 2, atk: 5 };
+    const p = { hp: 100, maxHp: 100, x: 1, y: 1, inventory: [] };
+    const ml = [];
+    applyPotionEffect("poison", 15, "monster", mon, dg, p, ml, () => {}, true, false);
+    expect(mon.hp).toBe(10);
+    vi.restoreAllMocks();
   });
 
   it("祝福の水は2倍回復する", () => {

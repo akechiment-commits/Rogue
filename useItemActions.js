@@ -8,7 +8,7 @@ import {
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
-  getBlessMultiplier, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
+  getBlessMultiplier, blessAmountMul, rollElementScrollDamage, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
@@ -151,7 +151,6 @@ export function useItemActions({
     /* 消費前の表示名を固定する。使用処理の途中で識別状態が変わっても真名を漏らさない。 */
     const _useItemName = _wasUnknown ? _revFake : dnameRef(it);
     if (it.type === "potion") {
-      const _potBm = getBlessMultiplier(it);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
       /* 飲むと種類にかかわらず満腹度+3 */
@@ -336,7 +335,7 @@ export function useItemActions({
           ml.push(`${_useItemName}を飲んだ。力が抜けた...攻撃力-${_pv}【呪】`);
         } else {
           // 通常/祝福：攻撃力増加（祝福=2x）
-          const _pv = Math.max(1, Math.round(it.value * _potBm));
+          const _pv = Math.max(1, Math.round(it.value * blessAmountMul(it.blessed)));
           p.atk += _pv;
           ml.push(`${_useItemName}を飲んだ。力が湧いてきた！攻撃力+${_pv}${it.blessed ? "（祝福）" : ""}`);
         }
@@ -401,7 +400,7 @@ export function useItemActions({
           ml.push(`${_useItemName}を飲んだ。MP回復禁止中のため回復できない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
           // 通常/祝福：MP回復（祝福=2x）。MP最大時は最大MP増加
-          const _madd = Math.min(Math.round(it.value * _potBm), (p.maxMp || 20) - (p.mp || 0));
+          const _madd = Math.min(Math.round(it.value * blessAmountMul(it.blessed)), (p.maxMp || 20) - (p.mp || 0));
           if (_madd <= 0) {
             const _maxMpGain = it.blessed ? 2 : 1;
             p.maxMp = (p.maxMp || 20) + _maxMpGain;
@@ -1013,7 +1012,7 @@ export function useItemActions({
           endTurn(sr.current, p, ml); sr.current = { ...sr.current }; setGs({ ...sr.current }); setMsgs((prev) => [...prev.slice(-80), ...ml]); setShowInv(false); setSelIdx(null); setShowDesc(null); return;
         }
       }
-      const _scrBm = getBlessMultiplier(it);
+      const _scrBm = blessAmountMul(it.blessed);
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
       if (it.effect === "teleport") {
@@ -1129,7 +1128,7 @@ export function useItemActions({
             if (skipDodgemoleScroll(_m, ml)) continue;
             if (_m.magicImmune) { ml.push(`魔法は${_m.name}に効かない！`); continue; }
             if (monReflectsMagic(_m)) {
-              let _rdmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
+              let _rdmg = rollElementScrollDamage(it);
               _rdmg = multiplyCursedMagicDamage(_rdmg, p, dg);
               p.hp -= _rdmg;
               p.deathCause = `${_m.name}に雷を跳ね返されて`;
@@ -1138,7 +1137,7 @@ export function useItemActions({
               continue;
             }
             if (consumeBarrier(_m, ml)) continue;
-            let _dmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
+            let _dmg = rollElementScrollDamage(it);
             if (_m.elemWeak === "thunder") _dmg = Math.round(_dmg * 1.5);
             _dmg = multiplyMagicDamage(_dmg, p.weapon, _m, dg);
             _m.hp -= _dmg;
@@ -1405,7 +1404,7 @@ export function useItemActions({
               if (_flHeal > 0) { _m.hp += _flHeal; ml.push(`炎が${_m.name}を癒した！HP+${_flHeal}`); } else ml.push(`${_m.name}には効果がなかった。`);
               continue;
             }
-            let _flDmg = Math.max(1, Math.round(rng(30, 40) * _scrBm));
+            let _flDmg = rollElementScrollDamage(it);
             if (_m.elemWeak === "fire") _flDmg = Math.round(_flDmg * 1.5);
             const _flOily = _flOilyCheck(_m);
             if (_flOily) { _flDmg *= 2; _m.oilyTurns = 0; }

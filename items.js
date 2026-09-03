@@ -392,22 +392,22 @@ export const ITEMS = [
   { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。",                                               tile:16 },
   { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。",                                               tile:17 },
   { name:"超回復薬",         type:"potion", effect:"superheal", value:100, rarity:"B", weight:2,  sellPrice:1200, desc:"HPを100回復する。祝福：200回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+3（祝福+6）。\n呪い：100ダメージ。", tile:17 },
-  { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
+  { name:"毒薬",             type:"potion", effect:"poison",   value:15, rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと攻撃力が下がり、毒の間は自然回復せず毎ターンHPが減る。\n祝福：投げダメージ2倍。呪い：反転して解毒+攻撃力回復。\n投げると毒液が飛散する。", tile:16 },
   { name:"炎の薬",           type:"potion", effect:"fire",     value:50, rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと45〜55の炎ダメージを受ける。祝福：ダメージ2倍。耐火装備で軽減（個別or万能2/3・両方半減）。\n呪い：45〜55回復。\n投げると炎上し周囲にダメージ。", tile:17 },
   { name:"睡眠薬",           type:"potion", effect:"sleep",    value:4,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと6ターン眠る。\n投げると命中した敵を眠らせる。",           tile:16 },
   { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n投げると命中した敵を鈍足にする。", tile:16 },
   { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n投げると命中した敵を金縛りにする。", tile:16 },
-  { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"B", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。",           tile:17 },
+  { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"B", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。祝福：+6。呪い：-3。",           tile:17 },
   { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"D", weight:8, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：この冒険で訪れた階層を選んで移動できる。",                         tile:18 },
   { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"C", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
   { name:"防具強化の巻物",   type:"scroll", effect:"armor_up",           rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ防具・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
-  { name:"雷の巻物",         type:"scroll", effect:"thunder",            rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵全てに雷ダメージ(30-40)。\n呪い：自分にも同ダメージ。", tile:18 },
+  { name:"雷の巻物",         type:"scroll", effect:"thunder",            rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵全てに雷ダメージ(30-40)。\n祝福：フロア全体・ダメージ2倍。\n呪い：自分にも同ダメージ。", tile:18 },
   { name:"回復の巻物",       type:"scroll", effect:"recovery",           rarity:"D", weight:8,  sellPrice:100,  desc:"自分と視界内全員がHP+50回復。\n呪い：自分含め視界内全員に50ダメージ。", tile:18 },
   { name:"道具寄せの巻物",   type:"scroll", effect:"item_gather",        rarity:"C", weight:4,  sellPrice:400,  desc:"フロアのアイテムを自分の周りに引き寄せる。\n呪い：アイテムをフロアにランダム散布。",     tile:18 },
   { name:"眠りの巻物",       type:"scroll", effect:"sleep_scroll",       rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵を6ターン眠らせる。", tile:18 },
   { name:"混乱の巻物",       type:"scroll", effect:"confusion",           rarity:"C", weight:4,  sellPrice:500,  desc:"視界内の敵を20ターン混乱させる。", tile:18 },
-  { name:"炎の巻物",         type:"scroll", effect:"flame",               rarity:"C", weight:4,  sellPrice:550,  desc:"視界内の敵に炎ダメージ(30-40)。油まみれの対象は2倍。\n呪い：自分にも同ダメージ。", tile:18 },
+  { name:"炎の巻物",         type:"scroll", effect:"flame",               rarity:"C", weight:4,  sellPrice:550,  desc:"視界内の敵に炎ダメージ(30-40)。油まみれの対象は2倍。\n祝福：フロア全体・ダメージ2倍。\n呪い：自分にも同ダメージ。", tile:18 },
   { name:"強化解除の巻物",   type:"scroll", effect:"debuff",              rarity:"C", weight:4,  sellPrice:600,  desc:"視界内の敵のバフを全て解除する。", tile:18 },
   { name:"壁崩しの巻物",     type:"scroll", effect:"break_wall",          rarity:"C", weight:4,  sellPrice:300,  desc:"半径10の壁を全て壊す。\n祝福：外周以外のフロア内の壁を全て壊す。\n呪い：周囲を壁に変える。", tile:18 },
   { name:"金縛りの巻物",     type:"scroll", effect:"bind",                rarity:"C", weight:4,  sellPrice:600,  desc:"周囲8マスの敵を金縛りにする。", tile:18 },
@@ -456,7 +456,7 @@ export const ITEMS = [
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"B", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
   { name:"アーマーガッパ",   type:"armor",  def:4,  ability:"water_proof",   rarity:"C", weight:4,  sellPrice:1400, desc:"河童の甲羅を模した鎧。水鉄砲・ずぶ濡れを無効化する。\n所持品が水で白紙化・縮小・インク減りしない。", tile:21 },
-  { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。MP最大時は最大MP+1。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
+  { name:"マナ回復薬",       type:"potion", effect:"mana",     value:20, rarity:"D", weight:8,  sellPrice:120,  desc:"MPを20回復する。祝福：40回復。MP最大時は最大MP+1（祝福+2）。\n投げると敵に特技常用化(呪：永続封印)。",                 tile:16 },
   { name:"封印の薬",         type:"potion", effect:"seal",     value:0,  rarity:"D", weight:8,  sellPrice:200,  desc:"飲むと50ターン魔法が封印される。\n祝福：さらに10ターン通常攻撃も封じる。\n呪い：封印を解除。\n投げると命中した敵を封印状態にする。", tile:16 },
   { name:"混乱の薬",         type:"potion", effect:"confuse",  value:5,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと5ターン混乱する。\n投げると敵を20ターン混乱(祝：40T、呪：混乱解除)。", tile:16 },
   { name:"暗闇の薬",         type:"potion", effect:"darkness",           rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと視界が1マスになる(20ターン)。\n呪い：反転してモンスター感知100ターン。\n投げると敵を50ターン暗闇に(祝：永続、呪：暗闇解除)。", tile:16 },
@@ -513,6 +513,22 @@ export function getBlessMultiplier(it) {
   if (it.blessed) return 2;
   if (it.cursed)  return 0.5;
   return 1;
+}
+
+/** 祝福の数値効果は2倍。呪いの反転は通常値のまま（×0.5しない）。 */
+export function blessAmountMul(blessed) {
+  return blessed ? 2 : 1;
+}
+
+/** 毒薬の飛散HP増減。通常/祝福はダメージ、呪いは同じ出目で回復。 */
+export function poisonContactAmount(val, { blessed = false, cursed = false } = {}) {
+  const rolled = (Number(val) || 0) + rng(-3, 3);
+  return Math.max(1, Math.round(rolled * (cursed ? 1 : blessAmountMul(blessed))));
+}
+
+/** 炎・雷の巻物の基礎ダメージ。祝福は2倍、呪いは通常と同じ出目。 */
+export function rollElementScrollDamage(it) {
+  return Math.max(1, Math.round(rng(30, 40) * blessAmountMul(it?.blessed)));
 }
 
 export const CAT_CLAW_T     = { name:"猫の爪",         type:"weapon", atk:13, ability:"critical_cat_claw", sellPrice:3000, desc:"会心の一撃が出やすい武器。", tile:20 };
@@ -3891,8 +3907,8 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "poison": {
       if (kind === "monster") {
         if (cursed) {
-          // 反転→モンスター回復（通常ダメージ量と同じ。アンデッドはさらに反転してダメージ）
-          const _ph = Math.max(1, Math.round(val));
+          // 反転→モンスター回復（通常ダメージと同じ出目。アンデッドはさらに反転してダメージ）
+          const _ph = poisonContactAmount(val, { cursed: true });
           if (target.kind === "undead") {
             target.hp -= _ph; ml.push(`${target.name}はアンデッドのため${_ph}ダメージを受けた！`); _monKill(target);
           } else {
@@ -3900,7 +3916,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
             if (h > 0) { target.hp += h; ml.push(`${target.name}は変な薬で回復した！${h}HP`); }
           }
         } else {
-          const dmg = Math.max(1, Math.round((val + rng(-3, 3)) * (blessed ? 2 : 1)));
+          const dmg = poisonContactAmount(val, { blessed });
           target.hp -= dmg;
           const _poisonTurns = statusTurns("poison", { kind: "monster", blessed, target });
           target.poisonedTurns = (target.poisonedTurns || 0) + _poisonTurns;
@@ -3998,7 +4014,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "monster") { const _pv = Math.max(1, Math.round(val)); target.atk = Math.max(1, target.atk - _pv); ml.push(`${target.name}の攻撃力が下がった！`); }
         if (kind === "player") { const _pv = Math.max(1, Math.round(val)); p.atk = Math.max(1, p.atk - _pv); ml.push(`力が抜けた...攻撃力-${_pv}【呪】`); }
       } else {
-        const _pv = Math.max(1, Math.round(val * (blessed ? 2 : 1)));
+        const _pv = Math.max(1, Math.round(val * blessAmountMul(blessed)));
         if (kind === "monster") { target.atk += _pv; ml.push(`${target.name}の攻撃力が上がった！`); }
         if (kind === "player") { p.atk += _pv; ml.push(`攻撃力が${_pv}上がった！${blessed ? "(祝福)" : ""}`); }
       }
@@ -4091,7 +4107,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         } else if (isMpRecoveryBlocked(p)) {
           ml.push(`MP回復禁止中のため回復できない！(残り${mpRecoveryBlockTurns(p)}ターン)`);
         } else {
-          const add = Math.min(Math.round(val * (blessed ? 2 : 1)), (p.maxMp || 20) - (p.mp || 0));
+          const add = Math.min(Math.round(val * blessAmountMul(blessed)), (p.maxMp || 20) - (p.mp || 0));
           if (add <= 0) {
             const _maxMpGain = blessed ? 2 : 1;
             p.maxMp = (p.maxMp || 20) + _maxMpGain;
