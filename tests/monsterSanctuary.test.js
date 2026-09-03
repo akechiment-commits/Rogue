@@ -62,7 +62,7 @@ describe("敵の特技と聖域", () => {
     expect(messages.some((message) => message.includes("魔封じの魔方陣に封じられた"))).toBe(true);
   });
 
-  it("通常の聖域では隣接特技を使わず、通常攻撃もしない", () => {
+  it("通常の聖域では隣接特技を試行せず、通常攻撃もしない", () => {
     const base = MONS.find((monster) => monster.baseKind === "itempusher");
     const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
     monster.alwaysUseSpecial = true;
@@ -73,12 +73,47 @@ describe("敵の特技と聖域", () => {
       monsters: [monster],
       pentacles: [{ kind: "sanctuary", x: 6, y: 5, blessed: false }],
     });
+    const messages = [];
 
-    monsterAI(monster, dungeon, player, [], { attackOnly: true });
+    monsterAI(monster, dungeon, player, messages, { attackOnly: true });
 
     expect(player.hp).toBe(player.maxHp);
     expect(player.inventory).toHaveLength(0);
-    expect(monster.turnAttacks).toBe(1);
+    expect(monster.turnAttacks).toBe(0);
+    expect(messages).toEqual([]);
+  });
+
+  it.each([
+    ["thief", "盗みを防いだ"],
+    ["goldthief", "盗みを防いだ"],
+    ["itemblast", "弾き飛ばしを防いだ"],
+    ["stealthrower", "盗みを防いだ"],
+  ])("聖域上では%sの隣接特技を試行せず防御メッセージも出ない", (subtype, messagePart) => {
+    const base = MONS.find((monster) => monster.subtype === subtype);
+    const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+    monster.alwaysUseSpecial = true;
+    monster.turnAttacks = 0;
+    const player = makePlayer({
+      x: 6,
+      y: 5,
+      armor: { name: "護盗の鎧", ability: "anti_steal" },
+      inventory: [{ id: "item-1", name: "パン", type: "food" }],
+      gold: 1000,
+    });
+    const dungeon = makeEmptyDg({
+      rooms: [],
+      monsters: [monster],
+      pentacles: [{ kind: "sanctuary", x: 6, y: 5, blessed: false }],
+    });
+    const messages = [];
+
+    monsterAI(monster, dungeon, player, messages, { attackOnly: true });
+
+    expect(player.hp).toBe(player.maxHp);
+    expect(player.inventory).toHaveLength(1);
+    expect(player.gold).toBe(1000);
+    expect(monster.turnAttacks).toBe(0);
+    expect(messages.some((message) => message.includes(messagePart))).toBe(false);
   });
 
   it("通常の聖域は遠距離特技を防がない", () => {

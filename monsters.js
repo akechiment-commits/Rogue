@@ -4586,15 +4586,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m.lastPx = m.x;
     m.lastPy = m.y;
   }
-  /* 通常聖域上の隣接1マス特技は各ハンドラで使用率を抽選したあと防ぐ。
-   * ここでは予約フラグだけ消し、移動フェーズではその場に留まる。 */
-  if (_plOnSanc && _adjPl && isAdjacentPlayerSpecial(m)) {
+  /* 通常聖域上の相手には隣接1マス特技を試行しない。
+   * 防御メッセージも出さず、通常攻撃も聖域で届かない。バーサーカーは他敵攻撃のため除外。 */
+  if (_plOnSanc && _adjPl && isAdjacentPlayerSpecial(m) && m.subtype !== "berserker") {
     delete m._rangedAttackThisTurn;
     delete m._defHalfMagicReady;
     delete m._pentacleDrawReady;
     delete m._mimicReady;
     delete m._mimicSourceId;
-    if (_moveOnly) return;
+    return;
   }
 
   if (canSee) {
@@ -5270,12 +5270,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         monsterThrowChargedFuzzball(m, dg, pl, ml, _luFn);
         return;
       }
-      if (_ipAdj && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+      if (_ipAdj && !_plOnSanc && m.turnAttacks < monEffectiveMaxAttacks(m) &&
           hasInventorySpaceForMonsterGift(pl) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
-        if (_plOnSanc || _plOnBlessedSanc) {
-          m.turnAttacks++;
-          return;
-        }
         m.turnAttacks++;
         pushChargedFuzzball(m, pl, ml);
         return;
@@ -5307,8 +5303,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           return;
         }
         const _hasAntiSteal = hasAbility(pl.armor, "anti_steal");
-        if (_hasAntiSteal || _plOnSanc) {
-          if (_hasAntiSteal) ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+        if (_hasAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
           /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
           if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
@@ -5392,8 +5388,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           return;
         }
         const _gtAntiSteal = hasAbility(pl.armor, "anti_steal");
-        if (_gtAntiSteal || _plOnSanc) {
-          if (_gtAntiSteal) ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+        if (_gtAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
           /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
           if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
@@ -5428,10 +5424,6 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (pl.armor  && !pl.armor.cursed)  _ueSlots.push({ slot: "armor",  it: pl.armor  });
         for (const ring of (pl.rings || [])) {
           if (!ring.cursed) _ueSlots.push({ slot: "ring", it: ring });
-        }
-        if (_plOnSanc) {
-          if (_ueSlots.length > 0 && m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
-          return;
         }
         if (_ueSlots.length > 0) {
           const _ueCount = m.monLevel || 1; /* Lv1:1個, Lv2:2個, Lv3:3個 */
@@ -5470,8 +5462,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           return;
         }
         const _ibAntiSteal = hasAbility(pl.armor, "anti_steal");
-        if (_ibAntiSteal || _plOnSanc) {
-          if (_ibAntiSteal) ml.push(`護盗の鎧が${m.name}の弾き飛ばしを防いだ！`);
+        if (_ibAntiSteal) {
+          ml.push(`護盗の鎧が${m.name}の弾き飛ばしを防いだ！`);
           /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
           if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
           return;
@@ -5629,8 +5621,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         const _srStealable = pl.inventory.filter(i => i.type !== "gold" && i.type !== "goal");
         if (_srStealable.length > 0 && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.steal)) {
           const _srAntiSteal = hasAbility(pl.armor, "anti_steal");
-          if (_srAntiSteal || _plOnSanc) {
-            if (_srAntiSteal) ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
+          if (_srAntiSteal) {
+            ml.push(`護盗の鎧が${m.name}の盗みを防いだ！`);
             /* 防がれた特技で行動終了。通常攻撃へは落とさない。 */
             if (m.turnAttacks < monEffectiveMaxAttacks(m)) m.turnAttacks++;
             return;
