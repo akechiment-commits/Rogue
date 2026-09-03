@@ -5,10 +5,11 @@ import {
   SPELLBOOKS, MAGIC_MARKER, ARROW_T, genFood, makePot, randPotCapacity, itemPrice, pickLootFromPool, pickTrap, RINGS,
   GEM_TYPES, RAW_FOODS, COOKED_FOODS, penInitialCharges, markItemIdentifiedForDungeon, applyGeneratedRingPlus,
 } from './items.js';
-import { scatterFloorGimmicks } from './fixtures.js';
+import { scatterFloorGimmicks, makeAltar } from './fixtures.js';
 import { pushPlayerTeleportAnim } from './animEvents.js';
 import { monSubmergesProjectiles } from './monTraits.js';
 import { GACHA_SPAWN_RATE } from './gachaRules.js';
+import { specialFixtureRate } from './specialFixtures.js';
 
 function mkOcc(...lists) {
   return (x, y) => lists.some(l => l.some(e => e.x === x && e.y === y));
@@ -1934,6 +1935,8 @@ export function placeGachaMachine(dg, randomFn = Math.random) {
     dg.statues?.some((statue) => statue.x === x && statue.y === y) ||
     dg.vents?.some((vent) => vent.x === x && vent.y === y) ||
     dg.gachaMachines.some((machine) => machine.x === x && machine.y === y) ||
+    dg.altars?.some((altar) => altar.x === x && altar.y === y) ||
+    dg.dimensionalVaults?.some((vault) => vault.x === x && vault.y === y) ||
     (dg.stairUp && dg.stairUp.x === x && dg.stairUp.y === y) ||
     (dg.stairDown && dg.stairDown.x === x && dg.stairDown.y === y);
   const inRoom = (room, x, y) => x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
@@ -1967,6 +1970,556 @@ export function placeGachaMachine(dg, randomFn = Math.random) {
   return machine;
 }
 
+function isInsideRoom(room, x, y) {
+  return !!room && x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
+}
+
+/* 次元宝物庫は既存の部屋の内側に、未発動時は床だけの区画として予約する。 */
+function shapeDimensionalVaultRoom(dg, room, occupied, randomFn = Math.random) {
+  /* 部屋の大きさに応じて内部区画を広げる。大型部屋では、宝物庫も
+   * 11×9まで拡張して複数の迂回路を作れるようにする。 */
+  const innerSize = room.w >= 18 && room.h >= 14
+    ? { w: 11, h: 9 }
+    : room.w >= 14 && room.h >= 11
+      ? { w: 9, h: 7 }
+      : room.w >= 11 && room.h >= 9
+        ? { w: 7, h: 7 }
+        : room.w >= 9 && room.h >= 7
+          ? { w: 5, h: 5 }
+          : { w: 3, h: 3 };
+  const innerW = innerSize.w;
+  const innerH = innerSize.h;
+  const outer = {
+    x: room.x + Math.floor((room.w - innerW - 2) / 2),
+    y: room.y + Math.floor((room.h - innerH - 2) / 2),
+    w: innerW + 2,
+    h: innerH + 2,
+  };
+  const inner = { x: outer.x + 1, y: outer.y + 1, w: innerW, h: innerH };
+  const entrance = { x: outer.x, y: outer.y + Math.floor(outer.h / 2) };
+  const walls = [];
+  const wallKeys = new Set();
+  const water = [];
+  const waterKeys = new Set();
+  const key = (x, y) => `${x},${y}`;
+  const inOuter = (x, y) => x >= outer.x && x < outer.x + outer.w && y >= outer.y && y < outer.y + outer.h;
+  const inInner = (x, y) => x >= inner.x && x < inner.x + inner.w && y >= inner.y && y < inner.y + inner.h;
+  const canReserve = (x, y) => dg.map[y]?.[x] === T.FLOOR && !occupied(x, y);
+  /* 区画同士をつなぐ開口。水場はこの床を塞がない。 */
+  const branchKeys = new Set([key(inner.x, entrance.y)]);
+  const protectOpening = (x, y) => {
+    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (inInner(x + dx, y + dy)) branchKeys.add(key(x + dx, y + dy));
+    }
+  };
+  const addWall = (x, y) => {
+    if (!inOuter(x, y) || (x === entrance.x && y === entrance.y) || !canReserve(x, y)) return false;
+    const k = key(x, y);
+    if (wallKeys.has(k)) return true;
+    wallKeys.add(k);
+    walls.push({ x, y });
+    return true;
+  };
+  const addWater = (x, y) => {
+    if (!inInner(x, y) || wallKeys.has(key(x, y)) || branchKeys.has(key(x, y)) || !canReserve(x, y)) return false;
+    const k = key(x, y);
+    if (waterKeys.has(k)) return true;
+    waterKeys.add(k);
+    water.push({ x, y });
+    return true;
+  };
+
+  /* 外周は入口1マスだけ開ける。ここではまだマップを書き換えない。 */
+  for (let x = outer.x; x < outer.x + outer.w; x++) {
+    if (!addWall(x, outer.y) || !addWall(x, outer.y + outer.h - 1)) return null;
+  }
+  for (let y = outer.y + 1; y < outer.y + outer.h - 1; y++) {
+    if (y !== entrance.y && !addWall(outer.x, y)) return null;
+    if (!addWall(outer.x + outer.w - 1, y)) return null;
+  }
+
+  /* 内部を区画に分け、開口を分岐状にする。各区画はどこか1か所から
+   * 入れるため完全な袋小路にはならず、一本道で全区画をなぞる構造にもならない。 */
+  const openings = [];
+  const layoutStyle = randomFn() < 0.34
+    ? "wall_branch"
+    : randomFn() < 0.50
+      ? "water_gates"
+      : "edge_detour";
+  const verticalOffsets = [];
+  const horizontalOffsets = [];
+  if (innerW >= 5 && innerH >= 5) {
+    for (let offset = 2; offset < innerW - 1; offset += 4) verticalOffsets.push(offset);
+    for (let offset = 2; offset < innerH - 1; offset += 4) horizontalOffsets.push(offset);
+    const rowSegments = [];
+    let rowStart = inner.y;
+    for (const offset of horizontalOffsets) {
+      rowSegments.push({ start: rowStart, end: inner.y + offset - 1 });
+      rowStart = inner.y + offset + 1;
+    }
+    rowSegments.push({ start: rowStart, end: inner.y + inner.h - 1 });
+    const firstColSegment = { start: inner.x, end: inner.x + verticalOffsets[0] - 1 };
+    const pickGap = (segment, edgeBias = false) => {
+      if (edgeBias && randomFn() < 0.72) {
+        return randomFn() < 0.5 ? segment.start : segment.end;
+      }
+      return rng(segment.start, segment.end, randomFn);
+    };
+    const rowGapYs = rowSegments.map((segment) => pickGap(segment, layoutStyle === "edge_detour"));
+    const horizontalGapXs = horizontalOffsets.map(() => pickGap(firstColSegment, layoutStyle === "edge_detour"));
+    const barrierUsesWater = (axisIndex) => layoutStyle === "water_gates"
+      ? randomFn() < 0.72
+      : layoutStyle === "edge_detour"
+        ? randomFn() < 0.35
+        : randomFn() < 0.16;
+    const addBarrier = (x, y, useWater) => useWater ? addWater(x, y) : addWall(x, y);
+    for (let i = 0; i < verticalOffsets.length; i++) {
+      const x = inner.x + verticalOffsets[i];
+      for (const y of rowGapYs) {
+        protectOpening(x, y);
+        openings.push({ x, y });
+      }
+      const useWater = barrierUsesWater(i);
+      for (let y = inner.y; y < inner.y + inner.h; y++) {
+        if (rowGapYs.includes(y) || (useWater && branchKeys.has(key(x, y)))) continue;
+        if (!addBarrier(x, y, useWater)) return null;
+      }
+    }
+    for (let i = 0; i < horizontalOffsets.length; i++) {
+      const y = inner.y + horizontalOffsets[i];
+      const gapX = horizontalGapXs[i];
+      protectOpening(gapX, y);
+      openings.push({ x: gapX, y });
+      const useWater = barrierUsesWater(verticalOffsets.length + i);
+      for (let x = inner.x; x < inner.x + inner.w; x++) {
+        if (x === gapX || (useWater && branchKeys.has(key(x, y)))) continue;
+        if (!addBarrier(x, y, useWater)) return null;
+      }
+    }
+  } else {
+    /* 3×3区画でも、入口から見通せない最低限の遮蔽を入れる。 */
+    if (!addWall(inner.x + 1, inner.y + 1)) return null;
+    openings.push({ x: inner.x + 1, y: inner.y });
+  }
+
+  /* 水は区画ごとに複数置く。壁と組み合わせて、単純な直進では
+   * 全部を拾えない配置にする。 */
+  const waterCandidates = innerW >= 9 && innerH >= 7
+    ? [
+      { x: inner.x + 1, y: inner.y + 1 },
+      { x: inner.x + 4, y: inner.y + 1 },
+      { x: inner.x + inner.w - 2, y: inner.y + 1 },
+      { x: inner.x + 1, y: inner.y + inner.h - 2 },
+      { x: inner.x + 4, y: inner.y + inner.h - 2 },
+      { x: inner.x + inner.w - 2, y: inner.y + inner.h - 2 },
+      { x: inner.x + inner.w - 2, y: inner.y + 3 },
+    ]
+    : innerW >= 7 && innerH >= 7
+      ? [
+        { x: inner.x + 1, y: inner.y + 1 },
+        { x: inner.x + inner.w - 2, y: inner.y + 1 },
+        { x: inner.x + 1, y: inner.y + inner.h - 2 },
+        { x: inner.x + inner.w - 2, y: inner.y + inner.h - 2 },
+        { x: inner.x + 3, y: inner.y + 3 },
+      ]
+      : innerW >= 5 && innerH >= 5
+        ? [
+          { x: inner.x + inner.w - 2, y: inner.y + 1 },
+          { x: inner.x + 1, y: inner.y + inner.h - 2 },
+          { x: inner.x + inner.w - 2, y: inner.y + inner.h - 2 },
+        ]
+    : [
+      { x: inner.x + inner.w - 1, y: inner.y },
+      { x: inner.x, y: inner.y + inner.h - 1 },
+    ];
+  /* 水の仕切り主体だけでなく、他の型にも小さな水場を追加する。
+   * ただし入口や開口は addWater 側で保護され、歩行可能な道は残す。 */
+  const extraWaterCandidates = innerW >= 7 && innerH >= 7
+    ? layoutStyle === "water_gates"
+      ? [
+        { x: inner.x + 2, y: inner.y + 3 },
+        { x: inner.x + inner.w - 3, y: inner.y + 3 },
+        { x: inner.x + 2, y: inner.y + inner.h - 4 },
+        { x: inner.x + inner.w - 3, y: inner.y + inner.h - 4 },
+        { x: inner.x + Math.floor(inner.w / 2), y: inner.y + 1 },
+        { x: inner.x + Math.floor(inner.w / 2), y: inner.y + inner.h - 2 },
+      ]
+      : layoutStyle === "edge_detour"
+        ? [
+          { x: inner.x + 1, y: inner.y + 3 },
+          { x: inner.x + inner.w - 2, y: inner.y + 3 },
+          { x: inner.x + 3, y: inner.y + 1 },
+          { x: inner.x + 3, y: inner.y + inner.h - 2 },
+        ]
+        : [
+          { x: inner.x + 2, y: inner.y + 1 },
+          { x: inner.x + inner.w - 3, y: inner.y + inner.h - 2 },
+        ]
+    : [];
+  for (const pos of [...waterCandidates, ...extraWaterCandidates]) addWater(pos.x, pos.y);
+
+  /* 入口側の連結した枝だけを宝物候補にする。区画ごとの入口は
+   * 残したまま、ひとつの一本道で全てを回収できない構造にする。 */
+  const collectReachableCells = () => {
+    const start = { x: inner.x, y: entrance.y };
+    const canWalk = (x, y) => inInner(x, y) && dg.map[y]?.[x] === T.FLOOR &&
+      !wallKeys.has(key(x, y)) && !waterKeys.has(key(x, y)) && canReserve(x, y);
+    if (!canWalk(start.x, start.y)) return [];
+    const seen = new Set([key(start.x, start.y)]);
+    const queue = [start];
+    for (let qi = 0; qi < queue.length; qi++) {
+      const current = queue[qi];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const x = current.x + dx;
+        const y = current.y + dy;
+        const k = key(x, y);
+        if (seen.has(k) || !canWalk(x, y)) continue;
+        seen.add(k);
+        queue.push({ x, y });
+      }
+    }
+    return queue;
+  };
+  const removeWaterAt = (x, y) => {
+    const k = key(x, y);
+    if (!waterKeys.delete(k)) return false;
+    const index = water.findIndex((cell) => cell.x === x && cell.y === y);
+    if (index >= 0) water.splice(index, 1);
+    return true;
+  };
+  let itemCells = collectReachableCells();
+  /* 入口から続く本線だけは水で切断しない。区画の開口は残し、
+   * 上側・下側のどちらを狙うかという選択を残す。 */
+  for (let repair = 0; repair < water.length && itemCells.length < 4; repair++) {
+    const reachableKeys = new Set(itemCells.map((cell) => key(cell.x, cell.y)));
+    let bridge = null;
+    /* 水を1マス外して、入口側の宝物候補を4マス以上確保する。 */
+    for (const current of itemCells) {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const x = current.x + dx;
+        const y = current.y + dy;
+        const beyondX = x + dx;
+        const beyondY = y + dy;
+        if (!inInner(x, y) || !waterKeys.has(key(x, y)) ||
+            !inInner(beyondX, beyondY) || !canReserve(beyondX, beyondY) ||
+            wallKeys.has(key(beyondX, beyondY)) || waterKeys.has(key(beyondX, beyondY)) ||
+            reachableKeys.has(key(beyondX, beyondY))) continue;
+        bridge = { x, y, kind: "water" };
+        break;
+      }
+      if (bridge) break;
+    }
+    if (!bridge) break;
+    removeWaterAt(bridge.x, bridge.y);
+    openings.push({ x: bridge.x, y: bridge.y });
+    itemCells = collectReachableCells();
+  }
+  if (itemCells.length < 4) return null;
+  /* まず各区画の中央付近を候補に並べ、実際の宝物配置でも上・下・
+   * 左右の枝へ分散する。小区画では通常の全候補にフォールバックする。 */
+  const makeSegments = (start, size, offsets) => {
+    const segments = [];
+    let segmentStart = start;
+    for (const offset of offsets) {
+      segments.push({ start: segmentStart, end: start + offset - 1 });
+      segmentStart = start + offset + 1;
+    }
+    segments.push({ start: segmentStart, end: start + size - 1 });
+    return segments;
+  };
+  const rowSegments = makeSegments(inner.y, inner.h, horizontalOffsets);
+  const colSegments = makeSegments(inner.x, inner.w, verticalOffsets);
+  const reachableKeys = new Set(itemCells.map((cell) => key(cell.x, cell.y)));
+  const treasureSeeds = [];
+  for (const row of rowSegments) {
+    for (const col of colSegments) {
+      const cell = {
+        x: Math.floor((col.start + col.end) / 2),
+        y: Math.floor((row.start + row.end) / 2),
+      };
+      if (reachableKeys.has(key(cell.x, cell.y))) treasureSeeds.push(cell);
+    }
+  }
+  return {
+    layout: "enclosed_maze",
+    style: layoutStyle,
+    outer,
+    room: inner,
+    entrance,
+    walls,
+    water,
+    itemCells,
+    treasureSeeds,
+    openings: [entrance, ...openings],
+  };
+}
+
+function makeMerchantStock(depth) {
+  const pool = [
+    ...ITEMS.filter((item) => item.type !== "gold" && item.type !== "goal"),
+    ...WANDS,
+    ...POTS,
+    ...RINGS,
+    ...SPELLBOOKS,
+  ];
+  const stock = [];
+  for (let i = 0; i < rng(6, 9); i++) {
+    const template = pickLootFromPool(pool, "shop") || pick(pool);
+    if (!template) continue;
+    const item = { ...template, id: uid() };
+    if (item.type === "food") {
+      /* 食料は各商品を個別生成し、同名でも別の品として扱う。 */
+      Object.assign(item, genFood(), { id: item.id });
+    }
+    if (item.type === "pot") {
+      item.capacity = randPotCapacity(item.potEffect);
+      item.contents = [];
+    }
+    if (item.type === "wand") {
+      item.charges = item.effect === "curse_wand" || item.effect === "bless_wand" || item.effect === "wish" || item.noChargeBoost
+        ? 1
+        : Math.max(1, (item.charges ?? 5) + rng(-1, 1));
+    }
+    if (item.type === "pen") item.charges = penInitialCharges(item);
+    if (item.type === "arrow") item.count = rng(5, 20);
+    if (item.type === "ring") applyGeneratedRingPlus(item);
+    applyGeneratedBlessCurse(item, 0.10, 0.25);
+    stock.push(item);
+  }
+  return stock;
+}
+
+function dimensionalVaultOccupied(dg) {
+  return (x, y) =>
+    dg.map[y]?.[x] !== T.FLOOR ||
+    dg.monsters?.some((monster) => monster.x === x && monster.y === y) ||
+    dg.items?.some((item) => item.x === x && item.y === y) ||
+    dg.traps?.some((trap) => trap.x === x && trap.y === y) ||
+    dg.springs?.some((spring) => spring.x === x && spring.y === y) ||
+    dg.bigboxes?.some((box) => box.x === x && box.y === y) ||
+    dg.gachaMachines?.some((machine) => machine.x === x && machine.y === y) ||
+    dg.pentacles?.some((pentacle) => pentacle.x === x && pentacle.y === y) ||
+    dg.statues?.some((statue) => statue.x === x && statue.y === y) ||
+    dg.vents?.some((vent) => vent.x === x && vent.y === y) ||
+    dg.altars?.some((altar) => altar.x === x && altar.y === y) ||
+    dg.dimensionalVaults?.some((vault) => vault.x === x && vault.y === y) ||
+    (dg.stairUp && dg.stairUp.x === x && dg.stairUp.y === y) ||
+    (dg.stairDown && dg.stairDown.x === x && dg.stairDown.y === y);
+}
+
+/** 予約した区画から次元宝物庫を作る。壁・水・アイテムは入室時まで生成しない。 */
+export function createDimensionalVaultAt(dg, room, depth, randomFn = Math.random, plannedLayout = null) {
+  if (!dg?.map || !room) return null;
+  dg.dimensionalVaults ||= [];
+  const occupied = dimensionalVaultOccupied(dg);
+  const layout = plannedLayout || shapeDimensionalVaultRoom(dg, room, occupied, randomFn);
+  if (!layout) return null;
+  const vaultId = uid();
+  const pendingItems = [];
+  const seededPositions = [...(layout.treasureSeeds || [])];
+  for (let i = seededPositions.length - 1; i > 0; i--) {
+    const j = Math.floor(randomFn() * (i + 1));
+    [seededPositions[i], seededPositions[j]] = [seededPositions[j], seededPositions[i]];
+  }
+  const seededKeys = new Set(seededPositions.map((cell) => `${cell.x},${cell.y}`));
+  const remainingPositions = [...layout.itemCells].filter((cell) => !seededKeys.has(`${cell.x},${cell.y}`));
+  for (let i = remainingPositions.length - 1; i > 0; i--) {
+    const j = Math.floor(randomFn() * (i + 1));
+    [remainingPositions[i], remainingPositions[j]] = [remainingPositions[j], remainingPositions[i]];
+  }
+  const positions = [...seededPositions, ...remainingPositions];
+  const count = Math.min(positions.length, rng(4, 7, randomFn));
+  const itemPositions = positions.splice(0, count);
+  /* 罠は宝物と同じ到達可能な床から少数だけ選ぶ。宝物が4個未満に
+   * ならないよう、候補が少ない小区画では罠を置かない。 */
+  const trapCount = positions.length >= 6
+    ? (randomFn() < 0.20 ? 2 : randomFn() < 0.35 ? 1 : 0)
+    : 0;
+  const trapPositions = positions.splice(0, trapCount);
+  const pendingTraps = [];
+  const vaultTrapTemplates = TRAPS.filter((trap) => ["blowback_trap", "shadow_stitch", "confuse_trap"].includes(trap.effect));
+  for (let i = 0; i < trapPositions.length; i++) {
+    const template = pick(vaultTrapTemplates, randomFn);
+    if (!template) continue;
+    pendingTraps.push({
+      ...template,
+      id: uid(),
+      x: trapPositions[i].x,
+      y: trapPositions[i].y,
+      dimensionalVaultId: vaultId,
+      revealed: false,
+    });
+  }
+  const pickVaultItem = buildUniPool(depth, dg.dungeonType);
+  /* 宝物庫には最低1個、B以上の品を保証する。候補は通常の道具から
+   * 抽選するため、同じ景品の固定配置にはしない。 */
+  const guaranteedHighPool = ITEMS.filter((item) =>
+    ["B", "A", "S"].includes(item.rarity) &&
+    !["food", "gold", "goal"].includes(item.type)
+  );
+  for (let i = 0; i < itemPositions.length; i++) {
+    const template = i === 0
+      ? pickLootFromPool(guaranteedHighPool, "floor", randomFn)
+      : pickVaultItem();
+    const item = template ? applyStdMods({ ...template }, depth) : null;
+    if (!item || item.type === "goal") continue;
+    item.id = uid();
+    item.x = itemPositions[i].x;
+    item.y = itemPositions[i].y;
+    item.dimensionalVaultId = vaultId;
+    pendingItems.push(item);
+  }
+  const vault = {
+    id: vaultId,
+    x: layout.entrance.x,
+    y: layout.entrance.y,
+    room: layout.room,
+    tile: TI.DIMENSIONAL_VAULT,
+    name: "次元宝物庫",
+    desc: "区画に入ると宝物の消滅カウントが始まる。残りターン以内に拾わないと消える。",
+    active: false,
+    layout: layout.layout,
+    layoutStyle: layout.style || "wall_branch",
+    layoutOpenings: layout.openings,
+    outerRoom: layout.outer,
+    entrance: layout.entrance,
+    walls: layout.walls,
+    water: layout.water,
+    reachableCells: layout.itemCells,
+    treasureSeeds: layout.treasureSeeds || [],
+    pendingItems,
+    pendingTraps,
+    treasureItemIds: pendingItems.map((item) => item.id),
+  };
+  dg.dimensionalVaults.push(vault);
+  return vault;
+}
+
+/** 次元宝物庫を既存の部屋1つに予約配置する。入室時に内部を実体化する。 */
+export function placeDimensionalVault(dg, depth, randomFn = Math.random) {
+  if (!dg?.map || dg.dungeonType === "tutorial" || dg.isTreasureRoom) return null;
+  dg.dimensionalVaults ||= [];
+  if (dg.dimensionalVaults.length > 0 || randomFn() >= specialFixtureRate("dimensionalVault", dg)) return null;
+  const shops = getShops(dg);
+  const candidates = (dg.rooms || []).filter((room) =>
+    room && room.w >= 11 && room.h >= 9 &&
+    !shops.some((shop) => isInsideRoom(shop.room, room.cx, room.cy)) &&
+    !room.isDimensionalVault,
+  );
+  const planned = candidates
+    .map((room) => ({ room, layout: shapeDimensionalVaultRoom(dg, room, dimensionalVaultOccupied(dg), randomFn) }))
+    .filter((entry) => entry.layout);
+  const selected = planned.length ? pick(planned, randomFn) : null;
+  const room = selected?.room || null;
+  if (!room) return null;
+  const vault = createDimensionalVaultAt(dg, room, depth, randomFn, selected.layout);
+  if (!vault) return null;
+  room.isDimensionalVault = true;
+  return vault;
+}
+
+/** 行商人を部屋内へ配置する。商品は床には置かず、話しかけた時に売買する。 */
+export function placeWanderingMerchant(dg, depth, randomFn = Math.random) {
+  if (!dg?.map || dg.dungeonType === "tutorial" || dg.isTreasureRoom) return null;
+  dg.merchantShops ||= [];
+  if (dg.merchantShops.length > 0 || randomFn() >= specialFixtureRate("wanderingMerchant", dg)) return null;
+  const shops = getShops(dg);
+  const rooms = (dg.rooms || []).filter((room) => room && !room.isDimensionalVault &&
+    !shops.some((shop) => isInsideRoom(shop.room, room.cx, room.cy)));
+  const allCells = [];
+  for (const room of rooms.length ? rooms : [{ x: 1, y: 1, w: MW - 2, h: MH - 2 }]) {
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (dg.map[y]?.[x] !== T.FLOOR) continue;
+        if (dg.monsters?.some((monster) => monster.x === x && monster.y === y)) continue;
+        if (dg.items?.some((item) => item.x === x && item.y === y)) continue;
+        if (dg.traps?.some((trap) => trap.x === x && trap.y === y)) continue;
+        if (dg.springs?.some((spring) => spring.x === x && spring.y === y)) continue;
+        if (dg.bigboxes?.some((box) => box.x === x && box.y === y)) continue;
+        if (dg.altars?.some((altar) => altar.x === x && altar.y === y)) continue;
+        allCells.push({ x, y });
+      }
+    }
+  }
+  if (!allCells.length) return null;
+  const cell = pick(allCells, randomFn);
+  const merchantId = uid();
+  const shop = { id: uid(), merchantId, merchant: true, stock: makeMerchantStock(depth) };
+  const merchant = {
+    id: merchantId,
+    name: "行商人",
+    hp: 200,
+    maxHp: 200,
+    atk: 100,
+    def: 100,
+    exp: 0,
+    speed: 0.5,
+    baseSpeed: 0.5,
+    tile: TI.SHOPKEEPER,
+    type: "shopkeeper",
+    state: "friendly",
+    isWanderingMerchant: true,
+    merchantShopId: shop.id,
+    x: cell.x,
+    y: cell.y,
+    turnAccum: 0,
+    aware: false,
+    dir: { x: 0, y: 1 },
+    lastPx: cell.x,
+    lastPy: cell.y,
+    patrolTarget: null,
+    sleepTurns: 0,
+  };
+  shop.room = { x: cell.x, y: cell.y, w: 1, h: 1 };
+  dg.merchantShops.push(shop);
+  dg.monsters.push(merchant);
+  return merchant;
+}
+
+/** デバッグダンジョン用に祭壇を1つ配置する（通常の他ギミック抽選は増やさない）。 */
+function placeDebugAltar(dg, randomFn = Math.random) {
+  if (!dg?.map || !dg.isDebugDungeon || dg.isTreasureRoom) return null;
+  dg.altars ||= [];
+  if (dg.altars.length > 0 || randomFn() >= specialFixtureRate("altar", dg)) return null;
+  const shops = getShops(dg);
+  const candidates = [];
+  for (const room of dg.rooms || []) {
+    if (!room || shops.some((shop) => isInsideRoom(shop.room, room.cx, room.cy))) continue;
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (dg.map[y]?.[x] !== T.FLOOR) continue;
+        if (dg.stairUp && x === dg.stairUp.x && y === dg.stairUp.y) continue;
+        if (dg.stairDown && x === dg.stairDown.x && y === dg.stairDown.y) continue;
+        if (dg.monsters?.some((monster) => monster.x === x && monster.y === y)) continue;
+        if (dg.items?.some((item) => item.x === x && item.y === y)) continue;
+        if (dg.traps?.some((trap) => trap.x === x && trap.y === y)) continue;
+        if (dg.springs?.some((spring) => spring.x === x && spring.y === y)) continue;
+        if (dg.bigboxes?.some((box) => box.x === x && box.y === y)) continue;
+        if (dg.altars.some((altar) => altar.x === x && altar.y === y)) continue;
+        candidates.push({ x, y });
+      }
+    }
+  }
+  if (!candidates.length) return null;
+  const cell = pick(candidates, randomFn);
+  const altar = makeAltar(cell.x, cell.y);
+  dg.altars.push(altar);
+  return altar;
+}
+
+/** デバッグダンジョンの固定テストフロアにも、対象の3ギミックだけを高確率で追加する。 */
+function attachDebugSpecialFixtures(dg, depth) {
+  if (!dg) return dg;
+  dg.isDebugDungeon = true;
+  dg.altars ||= [];
+  dg.dimensionalVaults ||= [];
+  dg.merchantShops ||= [];
+  placeDebugAltar(dg, Math.random);
+  placeDimensionalVault(dg, depth, Math.random);
+  placeWanderingMerchant(dg, depth, Math.random);
+  return dg;
+}
+
 /** 偽階段・風穴・石像・固定転送・ガチャマシーンをフロアにばら撒く */
 function attachFloorGimmicks(dg, depth) {
   if (!dg) return dg;
@@ -1975,12 +2528,17 @@ function attachFloorGimmicks(dg, depth) {
   dg.pentacles = dg.pentacles || [];
   dg.traps = dg.traps || [];
   dg.gachaMachines = dg.gachaMachines || [];
+  dg.altars = dg.altars || [];
+  dg.dimensionalVaults = dg.dimensionalVaults || [];
+  dg.merchantShops = dg.merchantShops || [];
   const g = scatterFloorGimmicks(dg.map, dg.rooms || [], depth, {
     traps: dg.traps,
     springs: dg.springs || [],
     bigboxes: dg.bigboxes || [],
     pentacles: dg.pentacles,
     items: dg.items || [],
+    altars: dg.altars,
+    altarRate: specialFixtureRate("altar", dg),
     stairUp: dg.stairUp,
     stairDown: dg.stairDown,
   });
@@ -1988,6 +2546,9 @@ function attachFloorGimmicks(dg, depth) {
   if (g.vents?.length) dg.vents.push(...g.vents);
   if (g.statues?.length) dg.statues.push(...g.statues);
   if (g.pentacles?.length) dg.pentacles.push(...g.pentacles);
+  if (g.altars?.length) dg.altars.push(...g.altars);
+  placeDimensionalVault(dg, depth);
+  placeWanderingMerchant(dg, depth);
   placeGachaMachine(dg);
   return dg;
 }
@@ -2020,7 +2581,11 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
       rh,
       isL = false;
     if (normalLayout === "wideRooms") {
-      if (roll < 0.28) {
+      if (roll < 0.08) {
+        /* 変則レイアウトでも大型の宝物庫候補を稀に確保する。 */
+        rw = rng(16, Math.min(22, MW - 4));
+        rh = rng(11, Math.min(15, MH - 4));
+      } else if (roll < 0.28) {
         rw = rng(10, Math.min(14, MW - 4));
         rh = rng(6, Math.min(9, MH - 4));
       } else if (roll < 0.44) {
@@ -2031,13 +2596,17 @@ export function genDungeon(depth, dungeonType = "beginner", _retries = 0) {
         rw = rng(5, 10);
         rh = rng(4, 7);
       }
-    } else if (roll < 0.06) {
+    } else if (roll < 0.04) {
+      /* 通常フロアにも、宝物庫を成立させられる大型部屋を低確率で混ぜる。 */
+      rw = rng(16, Math.min(22, MW - 4));
+      rh = rng(11, Math.min(15, MH - 4));
+    } else if (roll < 0.10) {
       rw = rng(3, 4);
       rh = rng(3, 4);
-    } else if (roll < 0.12) {
+    } else if (roll < 0.16) {
       rw = rng(12, Math.min(15, MW - 4));
       rh = rng(8, Math.min(10, MH - 4));
-    } else if (roll < 0.2) {
+    } else if (roll < 0.24) {
       isL = true;
       rw = rng(6, 10);
       rh = rng(5, 8);
@@ -2624,13 +3193,14 @@ export function genDebugDungeon() {
       if (map[_wy]?.[_wx] === T.FLOOR) map[_wy][_wx] = T.WATER;
 
   const { visible, explored } = mkVis();
-  return {
+  const dungeon = {
     map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored,
     shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [],
     isBigRoom: true, floorType: "debugDungeon",
     noNaturalSpawn: true,
   };
+  return attachDebugSpecialFixtures(dungeon, 0);
 }
 
 /* ===== DEBUG DUNGEON B2F以降 (祝福・呪いアイテム + 敵は隔離部屋) ===== */
@@ -2683,29 +3253,31 @@ export function genDebugDungeonFloor2() {
   }
 
   const { visible, explored } = mkVis();
-  return {
+  const dungeon = {
     map, rooms, monsters: mons, items, traps, springs, bigboxes,
     stairUp: su, stairDown: sd, visible, explored,
     shop: null, hiddenRooms: [], monsterHouseRoom: null, waterItems: [],
     isBigRoom: true, floorType: "debugDungeon",
   };
+  return attachDebugSpecialFixtures(dungeon, 1);
 }
 
 /* ===== DEBUG DUNGEON フロア別生成 (2F=店, 3-4F=特殊, 5F=ボス) ===== */
 export function genDebugFloorByDepth(nd, dungeonType = "beginner") {
   /* nd は実際の階数 (2,3,4,5...) */
   if (nd === 2) {
-    const d = genShoppingMall(1, dungeonType); d.dungeonType = dungeonType; return d;
+    const d = genShoppingMall(1, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);
   }
   if (nd === 3 || nd === 4) {
     const specials = [genBigRoom, genMiddleRoom, genMiniRoom, genSpinFloor, genCorridorFloor, genGridRoom, genRingCorridorFloor, genCaveFloor];
-    const d = pick(specials)(nd - 1, dungeonType); d.dungeonType = dungeonType; return d;
+    const d = pick(specials)(nd - 1, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);
   }
   if (nd === 5) {
-    const d = genBossFloor(4, dungeonType); d.dungeonType = dungeonType; return d;
+    const d = genBossFloor(4, dungeonType); d.dungeonType = dungeonType; return attachDebugSpecialFixtures(d, nd - 1);
   }
   /* 6階以降は通常生成 */
-  return genDungeon(nd - 1, dungeonType);
+  const d = genDungeon(nd - 1, dungeonType);
+  return attachDebugSpecialFixtures(d, nd - 1);
 }
 
 /* ===== TUTORIAL DUNGEON (全3階固定コンテンツ) ===== */

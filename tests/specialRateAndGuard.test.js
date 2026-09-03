@@ -32,6 +32,25 @@ describe("特技発動率と警備員の暗闇耐性", () => {
     expect(messages.some((message) => message.includes("銃撃した"))).toBe(true);
   });
 
+  it("囮への経路が開いている間、シオンは主人公を銃撃しない", () => {
+    const sionBase = BOSSES.find((monster) => monster.baseKind === "boss_darkbullet");
+    const sion = makeMonsterFromBase(sionBase, 1, 5, 5, { aware: true });
+    sion.turnAttacks = 0;
+    const player = makePlayer({ x: 8, y: 5 });
+    const dg = makeEmptyDg({
+      rooms: [{ x: 1, y: 1, w: 20, h: 10 }],
+      monsters: [sion],
+      visible: makeVisible(),
+      pentacles: [{ kind: "decoy", x: 15, y: 5, blessed: true, cursed: false }],
+    });
+    const messages = [];
+
+    monsterAI(sion, dg, player, messages, { attackOnly: true });
+
+    expect(player.hp).toBe(player.maxHp);
+    expect(messages.some((message) => message.includes("銃撃した"))).toBe(false);
+  });
+
   it("防御半減魔法は15%判定で発動する", () => {
     const defhalfBase = MONS.find((monster) => monster.subtype === "defhalf");
     const caster = makeMonsterFromBase(defhalfBase, 1, 5, 5, { aware: true });

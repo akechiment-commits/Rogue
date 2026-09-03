@@ -149,6 +149,7 @@ describe("advanceForcedTurn", () => {
     expect(slowed._eqSpeedSlowPending).toBeUndefined();
     expect(slowMessages).toEqual(["等速の魔方陣によりターンがスキップされた..."]);
   });
+
 });
 
 describe("advancePlayerSpeedPhase", () => {

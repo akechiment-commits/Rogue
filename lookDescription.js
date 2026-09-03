@@ -47,6 +47,8 @@ export function describeLookCell({
     const bigbox = dungeon.bigboxes?.find((entry) => entry.x === x && entry.y === y);
     if (bigbox) parts.push("何か大きな箱のようなもの");
     if (dungeon.gachaMachines?.some((entry) => entry.x === x && entry.y === y)) parts.push("何かの機械");
+    if (dungeon.altars?.some((entry) => entry.x === x && entry.y === y)) parts.push("何かの祭壇");
+    if (dungeon.dimensionalVaults?.some((entry) => entry.x === x && entry.y === y)) parts.push("何かの宝物庫");
     if (dungeon.pentacles?.some((entry) => entry.x === x && entry.y === y)) parts.push("床の模様");
     if (dungeon.vents?.some((entry) => entry.x === x && entry.y === y)) parts.push("風穴");
     if (dungeon.statues?.some((entry) => entry.x === x && entry.y === y)) parts.push("石像");
@@ -87,6 +89,10 @@ export function describeLookCell({
   if (bigbox) parts.push(bigboxDisplayName(bigbox, bigbox.revealed === true || !!session?.allBcKnown));
   const gacha = dungeon.gachaMachines?.find((entry) => entry.x === x && entry.y === y);
   if (gacha) parts.push(gacha.name || "ガチャマシーン");
+  const altar = dungeon.altars?.find((entry) => entry.x === x && entry.y === y);
+  if (altar) parts.push(altar.name || "祭壇");
+  const vault = dungeon.dimensionalVaults?.find((entry) => entry.x === x && entry.y === y);
+  if (vault) parts.push(vault.name || "次元宝物庫");
   if (dungeon.pentacles?.some((entry) => entry.x === x && entry.y === y)) parts.push(dungeon.pentacles.find((entry) => entry.x === x && entry.y === y).name);
   if (dungeon.vents?.some((entry) => entry.x === x && entry.y === y)) parts.push("風穴");
   if (dungeon.statues?.some((entry) => entry.x === x && entry.y === y)) parts.push("石像");

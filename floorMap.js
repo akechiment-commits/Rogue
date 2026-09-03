@@ -1,20 +1,23 @@
 import { MH, MW, T } from "./utils.js";
 
 export const FLOOR_MAP_MARKERS = Object.freeze({
-  player: { color: "#fff06a", label: "自分" },
-  item: { color: "#3b9cff", label: "アイテム" },
-  enemy: { color: "#ff4b5a", label: "敵" },
-  stairs: { color: "#9eff62", label: "階段" },
-  trap: { color: "#ff9f43", label: "罠" },
-  spring: { color: "#3de2ff", label: "泉" },
-  bigbox: { color: "#c88cff", label: "大箱" },
-  gacha: { color: "#ffd34d", label: "ガチャ" },
-  pentacle: { color: "#e35cff", label: "魔方陣" },
-  statue: { color: "#c58b5b", label: "石像" },
-  vent: { color: "#70f0b0", label: "風穴" },
-  portal: { color: "#ffd15c", label: "転送" },
-  oil: { color: "#b88a20", label: "油" },
-  bone: { color: "#b8b8b8", label: "骨" },
+  player: { color: "#ffffff", label: "自分" },
+  item: { color: "#38bdf8", label: "アイテム" },
+  enemy: { color: "#ef4444", label: "敵" },
+  merchant: { color: "#fb923c", label: "行商人" },
+  stairs: { color: "#84cc16", label: "階段" },
+  trap: { color: "#eab308", label: "罠" },
+  spring: { color: "#06b6d4", label: "泉" },
+  bigbox: { color: "#f59e0b", label: "大箱" },
+  gacha: { color: "#10b981", label: "ガチャ" },
+  altar: { color: "#ec4899", label: "祭壇" },
+  dimensionalVault: { color: "#7c3aed", label: "宝物庫" },
+  pentacle: { color: "#d946ef", label: "魔方陣" },
+  statue: { color: "#a16207", label: "石像" },
+  vent: { color: "#14b8a6", label: "風穴" },
+  portal: { color: "#2563eb", label: "転送" },
+  oil: { color: "#854d0e", label: "油" },
+  bone: { color: "#d1d5db", label: "骨" },
 });
 
 export const FLOOR_MAP_TERRAIN = Object.freeze({
@@ -72,7 +75,7 @@ export function getFloorMapMarker(dg, p, x, y) {
   const monster = (dg.monsters || []).find((entry) => entry.x === x && entry.y === y && entry.hp > 0);
   if (monster && canShowSensedMonster(dg, p, x, y) &&
       !(monster.subtype === "itemMimic" && monster.disguisedAsItem !== false)) {
-    return "enemy";
+    return monster.isWanderingMerchant ? "merchant" : "enemy";
   }
 
   const item = (dg.items || []).find((entry) => entry.x === x && entry.y === y && !entry.wallEmbedded);
@@ -89,6 +92,8 @@ export function getFloorMapMarker(dg, p, x, y) {
   if ((dg.springs || []).some((entry) => entry.x === x && entry.y === y)) return "spring";
   if ((dg.bigboxes || []).some((entry) => entry.x === x && entry.y === y)) return "bigbox";
   if ((dg.gachaMachines || []).some((entry) => entry.x === x && entry.y === y)) return "gacha";
+  if ((dg.altars || []).some((entry) => entry.x === x && entry.y === y)) return "altar";
+  if ((dg.dimensionalVaults || []).some((entry) => entry.x === x && entry.y === y)) return "dimensionalVault";
   const pentacle = (dg.pentacles || []).find((entry) => entry.x === x && entry.y === y);
   if (pentacle) return pentacle.kind === "fixed_portal" ? "portal" : "pentacle";
   if ((dg.statues || []).some((entry) => entry.x === x && entry.y === y)) return "statue";

@@ -1,3 +1,5 @@
+import { clearStatusEffectsOnHpZero } from "./statusDuration.js";
+
 export const MW = 60,
   MH = 30;
 
@@ -47,6 +49,9 @@ export const TI = {
   BONES: 107,
   STATUE: 129,
   FIXED_PORTAL: 130,
+  /* 202〜206 are reserved for additional monster sprites. */
+  ALTAR: 207,
+  DIMENSIONAL_VAULT: 208,
   ITEM_POTION: 4001,
   ITEM_BOTTLE: 4002,
   ITEM_PEN: 4003,
@@ -319,6 +324,13 @@ export const removeFloorItem = (dg, item, { preserveItemMimic = false } = {}) =>
   dg.items = dg.items.filter(i => i !== item);
   if (item?.itemMimicId && !preserveItemMimic) destroyItemMimicFloorItem(dg, item);
 };
+/* 次元宝物庫の残りターン表示は、アイテムを一度拾った時点で終了する。 */
+export function clearDimensionalVaultItemCounter(item) {
+  if (!item) return item;
+  delete item.vaultTurnsLeft;
+  delete item.dimensionalVaultId;
+  return item;
+}
 export const monsterAt = (dg, x, y) => {
   ensureItemMimicFloorItems(dg);
   return dg.monsters.find(m => !m.disguisedAsItem && m.x === x && m.y === y);
@@ -747,6 +759,7 @@ export function installPlayerHpReverseHook(p) {
             this.deathCause = "逆転状態での回復により";
           }
           raw = next;
+          if (raw <= 0) clearStatusEffectsOnHpZero(this);
           return;
         }
       }
@@ -767,6 +780,9 @@ export function installPlayerHpReverseHook(p) {
         }
       }
       raw = n;
+      /* HP0になった瞬間に状態異常を解除する。祭壇の罰など、ダメージ後に
+         後続処理が走る場合も、自動ターンの残り物が状態を延長しないようにする。 */
+      if (raw <= 0) clearStatusEffectsOnHpZero(this);
     },
   });
   p._hpReverseHook = true;

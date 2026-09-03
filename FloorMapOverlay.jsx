@@ -1,6 +1,6 @@
 import { buildFloorMap, FLOOR_MAP_MARKERS, FLOOR_MAP_TERRAIN } from "./floorMap.js";
 
-const LEGEND_ORDER = ["player", "item", "enemy", "stairs", "trap", "spring", "bigbox", "pentacle", "statue", "vent", "portal", "oil", "bone"];
+const LEGEND_ORDER = ["player", "item", "enemy", "merchant", "stairs", "trap", "spring", "bigbox", "gacha", "altar", "dimensionalVault", "pentacle", "statue", "vent", "portal", "oil", "bone"];
 
 export function FloorMapOverlay({ dg, p, mobile, onClose }) {
   if (!dg || !p) return null;

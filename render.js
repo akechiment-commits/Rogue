@@ -130,6 +130,8 @@ export const TILE_NAMES = {
   116: "hammerogre",
   117: "berserker",
   118: "gacha_machine",
+  207: "altar",
+  208: "dimensional_vault",
   209: "ice_cream",
   210: "trap_trap",
   211: "trap_item_monster",
@@ -138,6 +140,8 @@ export const TILE_NAMES = {
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
+/* 店主・警備員・祭壇・宝物庫は1マスに収めつつ、主人公と釣り合う存在感で描く。 */
+const LARGE_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 export function clearCustomTileImages() {
   for (const k of Object.keys(customTileImages)) delete customTileImages[k];
 }
@@ -235,6 +239,8 @@ export const TILE_RENDER = {
   94: { bg: null, fg: "#8b4513", ch: "^" },
   120: { bg: null, fg: "#5080e8", ch: "^" },
   118: { bg: "#20202c", fg: "#ffd34d", ch: "G" },
+  207: { bg: "#24152f", fg: "#d58cff", ch: "A" },
+  208: { bg: "#24152f", fg: "#b874ff", ch: "V" },
   209: { bg: null, fg: "#f7b6d2", ch: "I" },
   210: { bg: null, fg: "#ff5050", ch: "^" },
   211: { bg: null, fg: "#c060ff", ch: "^" },
@@ -333,7 +339,12 @@ export const TILE_RENDER = {
 export function drawTile(ctx, ts, idx, dx, dy, sz) {
   const ci = customTileImages[idx];
   if (ci) {
-    ctx.drawImage(ci, dx, dy, sz, sz);
+    if (LARGE_FIXTURE_TILE_IDS.has(idx)) {
+      const drawSz = sz * 1.25;
+      ctx.drawImage(ci, dx - (drawSz - sz) / 2, dy - (drawSz - sz), drawSz, drawSz);
+    } else {
+      ctx.drawImage(ci, dx, dy, sz, sz);
+    }
     return;
   }
   if (idx === TI.SPRING) {

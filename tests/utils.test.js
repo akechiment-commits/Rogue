@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createSeededRng, getShops, hasAbility, isEvasionDisabledByStatus, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
+import { clearDimensionalVaultItemCounter, createSeededRng, getShops, hasAbility, installPlayerHpReverseHook, isEvasionDisabledByStatus, pick, rng, shuffle, sortWarehouseItems } from "../utils.js";
 
 describe("sortWarehouseItems", () => {
   it("種別順→名前順でソートする", () => {
@@ -29,6 +29,42 @@ describe("isEvasionDisabledByStatus", () => {
       { paralyzed: true }, { sleepTurns: 1 }, { frozenTurns: 1 },
     ]) expect(isEvasionDisabledByStatus(target)).toBe(true);
     expect(isEvasionDisabledByStatus({})).toBe(false);
+  });
+});
+
+describe("installPlayerHpReverseHook", () => {
+  it("HPが0になった瞬間に行動阻害状態を解除する", () => {
+    const player = {
+      hp: 9,
+      maxHp: 10,
+      sleepTurns: 4,
+      slowTurns: 5,
+      slowSkip: true,
+      confusedTurns: 3,
+      poisoned: true,
+      poisonedTurns: 2,
+      atk: 4,
+      poisonAtkLoss: 1,
+    };
+    installPlayerHpReverseHook(player);
+
+    player.hp -= 9;
+
+    expect(player.hp).toBe(0);
+    expect(player.sleepTurns).toBe(0);
+    expect(player.slowTurns).toBe(0);
+    expect(player.slowSkip).toBe(false);
+    expect(player.confusedTurns).toBe(0);
+    expect(player.poisoned).toBe(false);
+    expect(player.atk).toBe(5);
+  });
+});
+
+describe("clearDimensionalVaultItemCounter", () => {
+  it("拾った宝物から消滅カウントと宝物庫紐付けを消す", () => {
+    const item = { name: "薬", dimensionalVaultId: "vault", vaultTurnsLeft: 7, rarity: "A" };
+    expect(clearDimensionalVaultItemCounter(item)).toBe(item);
+    expect(item).toEqual({ name: "薬", rarity: "A" });
   });
 });
 

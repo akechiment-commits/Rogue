@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { applyWandEffect, triggerWandBreakEffect, fireWandBolt } from "../wands.js";
-import { applySpellEffect } from "../items.js";
+import { applySpellEffect, breakAltar } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
-import { makeStatue } from "../fixtures.js";
+import { makeStatue, makeAltar } from "../fixtures.js";
 import { drainAnims, pushPlayerTeleportAnim } from "../animEvents.js";
 
 describe("applyWandEffect", () => {
@@ -321,6 +321,81 @@ describe("applyWandEffect", () => {
     expect(p.y).toBe(5);
     expect(dg.statues.length).toBe(1);
     expect(ml.some(m => m.includes("飛びついた"))).toBe(true);
+  });
+
+  it("祭壇に破壊系の杖を当てると祭壇が壊れ、壊したプレイヤーだけが罰を受ける", () => {
+    const altar = makeAltar(8, 5);
+    const other = { name: "隣の敵", hp: 100, maxHp: 100, x: 8, y: 4, atk: 3 };
+    const dg = makeEmptyDg({ altars: [altar], monsters: [other] });
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100 });
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      applyWandEffect("lightning", "altar", altar, 1, 0, dg, p, ml, noop);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(dg.altars).toHaveLength(0);
+    expect(p.hp).toBe(80);
+    expect(p.sleepTurns).toBe(6);
+    expect(p.confusedTurns).toBe(5);
+    expect(p.paralyzeTurns).toBe(10);
+    expect(p.slowTurns).toBe(10);
+    expect(other.hp).toBe(100);
+    expect(ml.some(message => message.includes("祭壇の罰"))).toBe(true);
+  });
+
+  it("祭壇の位置系の杖は壊さず、破壊者に罰を与えない", () => {
+    const altar = makeAltar(8, 5);
+    const dg = makeEmptyDg({ altars: [altar] });
+    const p = makePlayer({ x: 5, y: 5, hp: 100, maxHp: 100 });
+    const ml = [];
+    applyWandEffect("swap", "altar", altar, 1, 0, dg, p, ml, noop);
+    expect(dg.altars).toHaveLength(1);
+    expect(p.hp).toBe(100);
+    expect(altar.x).toBe(5);
+    expect(altar.y).toBe(5);
+    expect(p.sleepTurns).toBeUndefined();
+  });
+
+  it("祭壇を壊したモンスター本人に罰を返せる", () => {
+    const altar = makeAltar(8, 5);
+    const breaker = { name: "杖使い", hp: 100, maxHp: 100, x: 5, y: 5, atk: 3 };
+    const dg = makeEmptyDg({ altars: [altar], monsters: [breaker] });
+    const p = makePlayer({ x: 1, y: 1, hp: 100, maxHp: 100 });
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      breakAltar(altar, dg, ml, p, breaker);
+    } finally {
+      vi.restoreAllMocks();
+    }
+    expect(breaker.hp).toBe(80);
+    expect(breaker.sleepTurns).toBe(6);
+    expect(breaker.confusedTurns).toBe(20);
+    expect(breaker.slowTurns).toBe(10);
+    expect(p.hp).toBe(100);
+  });
+
+  it("祭壇の罰でプレイヤーのHPが0以下になった場合は状態異常を付与しない", () => {
+    const altar = makeAltar(8, 5);
+    const p = makePlayer({
+      x: 5, y: 5, hp: 10, maxHp: 100,
+      sleepTurns: 4, slowTurns: 5, confusedTurns: 3,
+    });
+    const dg = makeEmptyDg({ altars: [altar] });
+    const ml = [];
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      breakAltar(altar, dg, ml, p);
+    } finally {
+      vi.restoreAllMocks();
+    }
+
+    expect(p.hp).toBeLessThanOrEqual(0);
+    expect(p.sleepTurns).toBe(0);
+    expect(p.slowTurns).toBe(0);
+    expect(p.confusedTurns).toBe(0);
   });
 });
 

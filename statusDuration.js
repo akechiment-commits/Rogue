@@ -140,6 +140,81 @@ export function clearPlayerPoison(player) {
 }
 
 /**
+ * HPが0以下になった瞬間に解除する状態異常。
+ *
+ * HP0後に蘇生する場合でも、眠り・鈍足などの行動阻害が残ると
+ * 自動ターン処理だけが進み続けるため、HP代入フックから共通で呼ぶ。
+ * MP回復禁止（mpSealTurns。HP0復活の1000ターンのみ）や有利な効果は対象外。
+ */
+export function clearStatusEffectsOnHpZero(entity) {
+  if (!entity) return false;
+
+  const hadStatus = [
+    entity.sleepTurns, entity.sleepInterruptedTurns, entity.paralyzeTurns,
+    entity.paralyzed, entity.frozenTurns, entity.slowTurns, entity.slowSkip,
+    entity.confusedTurns, entity.poisoned, entity.poisonedTurns,
+    entity.sealedTurns, entity.sealed, entity.darknessTurns, entity.blind,
+    entity.blindTurns, entity.bewitchedTurns, entity.fleeingTurns,
+    entity.immobileTurns, entity.knockdownTurns, entity.potConfinedTurns,
+    entity.capturedBy, entity.oilyTurns, entity.soakedTurns,
+    entity.defSoftenedTurns, entity.atkDebuffTurns, entity.defDebuffTurns,
+    entity.pacifistTurns, entity.hypnosisPending,
+  ].some((value) => typeof value === "boolean" ? value : (value || 0) > 0);
+
+  /* プレイヤーの毒による攻撃力低下を戻す。 */
+  if ((entity.poisonAtkLoss || 0) > 0) {
+    entity.atk = (Number(entity.atk) || 0) + entity.poisonAtkLoss;
+    entity.poisonAtkLoss = 0;
+  }
+  /* モンスターの毒による攻撃力半減を戻す。 */
+  if (entity.poisonHalfAtk) {
+    entity.atk = entity.poisonOrigAtk ?? entity.atk;
+    delete entity.poisonHalfAtk;
+    delete entity.poisonOrigAtk;
+  }
+
+  entity.sleepTurns = 0;
+  entity.sleepInterruptedTurns = 0;
+  entity.paralyzeTurns = 0;
+  entity.paralyzed = false;
+  entity._paralyzeHp = null;
+  entity.paralyzeHits = 0;
+  entity.frozenTurns = 0;
+  entity.slowTurns = 0;
+  entity.slowSkip = false;
+  entity.confusedTurns = 0;
+  entity.poisoned = false;
+  entity.poisonedTurns = 0;
+  entity.sealedTurns = 0;
+  entity.sealed = false;
+  entity.darknessTurns = 0;
+  entity.blind = false;
+  entity.blindTurns = 0;
+  entity.bewitchedTurns = 0;
+  entity.fleeingTurns = 0;
+  entity.immobileTurns = 0;
+  entity.knockdownTurns = 0;
+  entity.potConfinedTurns = 0;
+  entity.potConfinedPotId = null;
+  entity.capturedBy = null;
+  entity.oilyTurns = 0;
+  entity.soakedTurns = 0;
+  entity.defSoftenedTurns = 0;
+  entity.atkDebuffTurns = 0;
+  entity.defDebuffTurns = 0;
+  entity.pacifistTurns = 0;
+  entity.hypnosisPending = 0;
+
+  /* 自動スキップ・次回行動予約の残骸も状態異常と一緒に捨てる。 */
+  delete entity._slowAutoAdv;
+  delete entity._eqSpeedAutoAdv;
+  delete entity._eqSpeedSlowPending;
+  delete entity._dashInterrupt;
+
+  return hadStatus;
+}
+
+/**
  * モンスターに金縛りを付与。
  * - 通常敵: 永続（被ダメで解除）。祝福時は paralyzeHits=2（2回被ダメが必要）
  * - ボス: 有限 50T（祝福 100T）の半分を付与。被ダメでも解除

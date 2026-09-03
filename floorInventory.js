@@ -22,6 +22,12 @@ export const BIGBOX_UNKNOWN_DESC =
 export const GACHA_FLOOR_DESC =
   "1000Gで一回ガチャが回せる。";
 
+export const ALTAR_FLOOR_DESC =
+  "食料だけを捧げられる祭壇。捧げた数が増えるほど、レアな返礼品が出やすくなる。";
+
+export const DIMENSIONAL_VAULT_FLOOR_DESC =
+  "次元宝物庫。部屋に入ると中のアイテムの消滅カウントが始まり、残りターン以内に拾わないと消える。";
+
 /** 未識別の魔方陣（描いたペンの種類が未判明） */
 export const PENTACLE_UNKNOWN_DESC =
   "正体不明の魔方陣。何の効果があるのか分からない。";
@@ -73,10 +79,10 @@ export const PENTACLE_FLOOR_DESCS = {
 };
 
 /** 説明のみ（踏む・使うなし）の足元ロール */
-export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle"]);
+export const FLOOR_INFO_ROLES = new Set(["vent", "pentacle", "dimensionalVault"]);
 
 /** 足元から「使う／降りる等」できるロール（説明と合わせて2アクション） */
-export const FLOOR_USABLE_ROLES = new Set(["spring", "bigbox", "gacha", "stair"]);
+export const FLOOR_USABLE_ROLES = new Set(["spring", "bigbox", "gacha", "altar", "stair"]);
 
 /** スケルトンの骨（罠扱いだが踏んでも発動しない） */
 export const BONE_FLOOR_DESC =
@@ -209,11 +215,31 @@ export function listFloorInventoryEntries(dungeon, x, y, opts = {}) {
       tile: g.tile ?? 118,
     }));
 
+  const altars = (dungeon.altars || [])
+    .filter((a) => a.x === x && a.y === y)
+    .map((a) => ({
+      ...a,
+      _floorRole: "altar",
+      name: a.name || "祭壇",
+      desc: a.desc || ALTAR_FLOOR_DESC,
+      tile: a.tile ?? 207,
+    }));
+
+  const dimensionalVaults = (dungeon.dimensionalVaults || [])
+    .filter((v) => v.x === x && v.y === y)
+    .map((v) => ({
+      ...v,
+      _floorRole: "dimensionalVault",
+      name: v.name || "次元宝物庫",
+      desc: v.desc || DIMENSIONAL_VAULT_FLOOR_DESC,
+      tile: v.tile ?? 208,
+    }));
+
   const stairs = [];
   const stair = stairRefAt(dungeon, x, y);
   if (stair) stairs.push(stair);
 
-  const fixtures = [...vents, ...pentacles, ...springs, ...bigboxes, ...gachaMachines, ...stairs];
+  const fixtures = [...vents, ...pentacles, ...springs, ...bigboxes, ...gachaMachines, ...altars, ...dimensionalVaults, ...stairs];
   return {
     items,
     traps,
@@ -241,6 +267,8 @@ export function floorEntryLabel(entry, items, traps, itemLabelFn) {
   if (role === "spring") return `【泉】${entry.name || "泉"}`;
   if (role === "bigbox") return `【大箱】${entry.name || "大箱"}`;
   if (role === "gacha") return `【ガチャ】${entry.name || "ガチャマシーン"}`;
+  if (role === "altar") return `【祭壇】${entry.name || "祭壇"}`;
+  if (role === "dimensionalVault") return `【宝物庫】${entry.name || "次元宝物庫"}`;
   if (role === "stair") return `【階段】${entry.name || "階段"}`;
   return entry.name || "？";
 }
@@ -256,6 +284,7 @@ export function floorUseLabel(entry, player) {
   if (role === "spring") return "使う";
   if (role === "bigbox") return "調べる";
   if (role === "gacha") return "調べる";
+  if (role === "altar") return "捧げる";
   if (role === "stair") {
     if (entry.stairDir === "up") {
       return player?.depth === 1 ? "出る" : "上る";

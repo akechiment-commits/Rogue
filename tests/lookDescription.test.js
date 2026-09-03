@@ -12,6 +12,9 @@ function makeDungeon() {
     traps: [{ x: 0, y: 0, name: "眠りの罠", revealed: true }],
     springs: [{ x: 0, y: 0 }],
     bigboxes: [{ x: 0, y: 0, name: "大箱", revealed: true }],
+    gachaMachines: [],
+    altars: [{ x: 0, y: 0, name: "祭壇" }],
+    dimensionalVaults: [{ x: 0, y: 0, name: "次元宝物庫" }],
     pentacles: [{ x: 0, y: 0, name: "魔方陣" }],
     vents: [{ x: 0, y: 0 }],
     statues: [{ x: 0, y: 0 }],
@@ -37,7 +40,7 @@ describe("describeLookCell", () => {
 
   it("可視のマスにある対象を表示順どおりまとめる", () => {
     expect(describeCell()).toBe(
-      "ゴブリン HP:3/5 / 表示:回復薬(80G) / 罠:眠りの罠 / 泉 / 大箱:true / 魔方陣 / 風穴 / 石像",
+      "ゴブリン HP:3/5 / 表示:回復薬(80G) / 罠:眠りの罠 / 泉 / 大箱:true / 祭壇 / 次元宝物庫 / 魔方陣 / 風穴 / 石像",
     );
   });
 
@@ -54,7 +57,7 @@ describe("describeLookCell", () => {
     dungeon.items = [{ itemMimicId: "mimic-1", type: "item_mimic", name: "アイテムモドキ", disguiseName: "短剣", x: 0, y: 0 }];
 
     const description = describeCell({ dungeon });
-    expect(description).toBe("短剣 / 罠:眠りの罠 / 泉 / 大箱:true / 魔方陣 / 風穴 / 石像");
+    expect(description).toBe("短剣 / 罠:眠りの罠 / 泉 / 大箱:true / 祭壇 / 次元宝物庫 / 魔方陣 / 風穴 / 石像");
     expect(description).not.toContain("アイテムモドキ");
     expect(description).not.toContain("HP:38/38");
   });

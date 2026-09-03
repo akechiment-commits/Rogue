@@ -16,12 +16,15 @@ describe("フロアマップ", () => {
       traps: [{ id: "trap", effect: "land_mine", x: 4, y: 1, revealed: true }, { id: "bone", effect: "bone", x: 5, y: 1, revealed: true }],
       springs: [{ x: 6, y: 1, revealed: true }],
       bigboxes: [{ x: 7, y: 1, revealed: true }],
-      pentacles: [{ x: 8, y: 1, kind: "magic_seal", revealed: true }, { x: 9, y: 1, kind: "fixed_portal", revealed: true }],
-      statues: [{ x: 10, y: 1, revealed: true }],
-      vents: [{ x: 11, y: 1, revealed: true }],
-      oilyTiles: [{ x: 12, y: 1 }],
+      gachaMachines: [{ x: 8, y: 1 }],
+      altars: [{ x: 9, y: 1 }],
+      dimensionalVaults: [{ x: 10, y: 1 }],
+      pentacles: [{ x: 11, y: 1, kind: "magic_seal", revealed: true }, { x: 12, y: 1, kind: "fixed_portal", revealed: true }],
+      statues: [{ x: 13, y: 1, revealed: true }],
+      vents: [{ x: 14, y: 1, revealed: true }],
+      oilyTiles: [{ x: 15, y: 1 }],
     });
-    dg.map[1][13] = T.SD;
+    dg.map[1][16] = T.SD;
     const player = makePlayer({ x: 1, y: 1 });
 
     expect(getFloorMapMarker(dg, player, 1, 1)).toBe("player");
@@ -31,12 +34,23 @@ describe("フロアマップ", () => {
     expect(getFloorMapMarker(dg, player, 5, 1)).toBe("bone");
     expect(getFloorMapMarker(dg, player, 6, 1)).toBe("spring");
     expect(getFloorMapMarker(dg, player, 7, 1)).toBe("bigbox");
-    expect(getFloorMapMarker(dg, player, 8, 1)).toBe("pentacle");
-    expect(getFloorMapMarker(dg, player, 9, 1)).toBe("portal");
-    expect(getFloorMapMarker(dg, player, 10, 1)).toBe("statue");
-    expect(getFloorMapMarker(dg, player, 11, 1)).toBe("vent");
-    expect(getFloorMapMarker(dg, player, 12, 1)).toBe("oil");
-    expect(getFloorMapMarker(dg, player, 13, 1)).toBe("stairs");
+    expect(getFloorMapMarker(dg, player, 8, 1)).toBe("gacha");
+    expect(getFloorMapMarker(dg, player, 9, 1)).toBe("altar");
+    expect(getFloorMapMarker(dg, player, 10, 1)).toBe("dimensionalVault");
+    expect(getFloorMapMarker(dg, player, 11, 1)).toBe("pentacle");
+    expect(getFloorMapMarker(dg, player, 12, 1)).toBe("portal");
+    expect(getFloorMapMarker(dg, player, 13, 1)).toBe("statue");
+    expect(getFloorMapMarker(dg, player, 14, 1)).toBe("vent");
+    expect(getFloorMapMarker(dg, player, 15, 1)).toBe("oil");
+    expect(getFloorMapMarker(dg, player, 16, 1)).toBe("stairs");
+  });
+
+  it("友好的な行商人は敵と別のマーカーにする", () => {
+    const dg = makeEmptyDg({
+      rooms: [], visible: allKnown(), explored: allKnown(),
+      monsters: [{ id: "merchant", name: "行商人", hp: 90, x: 4, y: 1, isWanderingMerchant: true }],
+    });
+    expect(getFloorMapMarker(dg, makePlayer({ x: 1, y: 1 }), 4, 1)).toBe("merchant");
   });
 
   it("未探索セルには地形もマーカーも表示しない", () => {

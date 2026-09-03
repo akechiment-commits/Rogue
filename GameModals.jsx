@@ -4,8 +4,8 @@ import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
 import { TILE_NAMES, TILE_RENDER, customTileImages, itemDisplayName } from "./render.js";
-import { prepareLastFloor } from "./dungeon.js";
-import { makeVent, makeStatue } from "./fixtures.js";
+import { prepareLastFloor, createDimensionalVaultAt } from "./dungeon.js";
+import { makeVent, makeStatue, makeAltar } from "./fixtures.js";
 import { getDiscoveries, trackItem } from "./DiscoveryTracker.js";
 import { loadSave } from "./SaveData.js";
 import { pickDeathPortrait, isDrownDeath } from "./portraits.js";
@@ -2750,6 +2750,123 @@ export function GachaModal({ mode, setMode, gs, gachaRef, menuSel, setMenuSel, o
   );
 }
 
+/* ===== Altar Modal ===== */
+export function AltarModal({ mode, setMode, p, menuSel, setMenuSel, onOffer, mobile, dname }) {
+  if (!mode || !p) return null;
+  const foods = p.inventory.map((item, index) => ({ item, index })).filter(({ item }) => item.type === "food");
+  const rows = [
+    ...foods.map(({ item }) => ({ label: dname(item), desc: "捧げる" })),
+    { label: "やめる", desc: "" },
+  ];
+  const close = () => setMode(null);
+  return (
+    <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
+      background: "#160d20", border: "1px solid #8b58a8", padding: mobile ? 10 : 14,
+      zIndex: 11, borderRadius: 8, boxShadow: "0 4px 20px rgba(80,30,100,0.7)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ color: "#e0a8ff", fontSize: 13, fontWeight: "bold" }}>✦ 祭壇</span>
+        <button onClick={close} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+      </div>
+      <div style={{ color: "#d4b8e8", fontSize: 13, marginBottom: 8 }}>捧げる食料を選んでください。</div>
+      {foods.length === 0 && <div style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>捧げられる食料を持っていない。</div>}
+      {rows.map((row, index) => (
+        <button key={`${row.label}-${index}`} onClick={() => index < foods.length ? onOffer(foods[index].item) : close()}
+          style={{ display: "block", width: "100%", padding: "7px 12px", margin: "5px 0", textAlign: "left",
+            background: menuSel === index ? "#422050" : "#24152d", color: menuSel === index ? "#ffe8ff" : "#d4b8e8",
+            border: `1px solid ${menuSel === index ? "#d58cff" : "#68447c"}`, borderRadius: 5, cursor: "pointer", fontSize: 13 }}>
+          {index + 1}. {row.label}{row.desc && <span style={{ color: "#a987b8", marginLeft: 8 }}>— {row.desc}</span>}
+        </button>
+      ))}
+      <div style={{ color: "#8e7098", fontSize: 11, marginTop: 4 }}>↑↓/テンキー8・2:選択　Z/Enter:決定　X:閉じる</div>
+    </div>
+  );
+}
+
+/* ===== Wandering Merchant Modal ===== */
+export function MerchantModal({ mode, setMode, gs, merchantRef, menuSel, setMenuSel, onBuy, onSell, mobile, dname }) {
+  if (!mode || !gs?.player) return null;
+  const merchant = merchantRef.current;
+  const shop = gs.dungeon?.merchantShops?.find((entry) => entry.id === merchant?.merchantShopId);
+  if (!merchant || !shop || merchant.state === "hostile") return null;
+  const p = gs.player;
+  const sellable = p.inventory.map((item, index) => ({ item, index })).filter(({ item }) =>
+    item.type !== "gold" && item.type !== "goal" && p.weapon !== item && p.armor !== item && p.arrow !== item && !(p.rings || []).includes(item)
+  );
+  const pageSize = 10;
+  const source = mode === "buy" ? (shop.stock || []) : sellable;
+  const itemCount = mode === "menu" ? 0 : source.length;
+  const totalPages = Math.max(1, Math.ceil(itemCount / pageSize));
+  const currentPage = mode === "menu"
+    ? 0
+    : Math.min(totalPages - 1, menuSel >= itemCount ? totalPages - 1 : Math.floor(menuSel / pageSize));
+  const pageStart = currentPage * pageSize;
+  const pageItems = source.slice(pageStart, pageStart + pageSize);
+  const selectedLocal = mode === "menu"
+    ? menuSel
+    : menuSel >= itemCount ? pageItems.length : menuSel - pageStart;
+  const close = () => { setMode(null); merchantRef.current = null; };
+  const rows = mode === "menu"
+    ? ["買う", "売る", "やめる"].map((label) => ({ label }))
+    : [
+      ...pageItems.map((entry) => {
+        const item = mode === "buy" ? entry : entry.item;
+        return {
+          label: `${dname(item)}　${Math.max(1, mode === "buy" ? itemPrice(item) : Math.ceil(itemPrice(item) * 0.5))}G`,
+        };
+      }),
+      ...(currentPage === totalPages - 1 ? [{ label: "戻る" }] : []),
+    ];
+  const select = (index) => {
+    if (mode === "menu") {
+      if (index === 0) { setMode("buy"); setMenuSel(0); }
+      else if (index === 1) { setMode("sell"); setMenuSel(0); }
+      else close();
+    } else if (index < pageItems.length) {
+      if (mode === "buy") onBuy(pageStart + index);
+      else onSell(pageItems[index].index);
+    } else {
+      setMode("menu"); setMenuSel(0);
+    }
+  };
+  const movePage = (delta) => {
+    const nextPage = (currentPage + delta + totalPages) % totalPages;
+    /* ページを開いた直後は、そのページの先頭商品を選択する。戻るは上下で選ぶ。 */
+    setMenuSel(Math.min(nextPage * pageSize, itemCount));
+  };
+  return (
+    <div style={{ position: "absolute", top: mobile ? 8 : 28, left: mobile ? 4 : 16, right: mobile ? 4 : 16,
+      background: "#1a0e00", border: "1px solid #b07a30", padding: mobile ? 10 : 14,
+      zIndex: 11, borderRadius: 8, boxShadow: "0 4px 20px rgba(90,40,0,0.7)", maxHeight: mobile ? "70dvh" : "80%", overflowY: "auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ color: "#ffc36b", fontSize: 13, fontWeight: "bold" }}>🧳 行商人</span>
+        <button onClick={close} style={{ background: "#333", color: "#aaa", border: "1px solid #555", borderRadius: 4, padding: "3px 12px", cursor: "pointer", fontSize: 13 }}>✕</button>
+      </div>
+      {mode === "menu" && <div style={{ color: "#edc88d", fontSize: 13, marginBottom: 8 }}>行商人：「何かお探しかい？」（所持金：{p.gold}G）</div>}
+      {mode !== "menu" && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#edc88d", fontSize: 13, marginBottom: 8 }}>
+          <span>{mode === "buy" ? `買う（所持金：${p.gold}G）` : "売る"}</span>
+          {totalPages > 1 && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <button onClick={() => movePage(-1)} style={{ background: "#2a1a00", color: "#ffc36b", border: "1px solid #74501e", borderRadius: 3, padding: "1px 7px", cursor: "pointer" }}>◀</button>
+              <span>{currentPage + 1}/{totalPages}</span>
+              <button onClick={() => movePage(1)} style={{ background: "#2a1a00", color: "#ffc36b", border: "1px solid #74501e", borderRadius: 3, padding: "1px 7px", cursor: "pointer" }}>▶</button>
+            </span>
+          )}
+        </div>
+      )}
+      {rows.map((row, index) => (
+        <button key={`${row.label}-${index}`} onClick={() => select(index)}
+          style={{ display: "block", width: "100%", padding: "7px 12px", margin: "5px 0", textAlign: "left",
+            background: selectedLocal === index ? "#4a2a00" : "#2a1a00", color: selectedLocal === index ? "#ffe9b0" : "#edc88d",
+            border: `1px solid ${selectedLocal === index ? "#ffc36b" : "#74501e"}`, borderRadius: 5, cursor: "pointer", fontSize: 13 }}>
+          {index + 1}. {row.label}
+        </button>
+      ))}
+      <div style={{ color: "#8d7050", fontSize: 11, marginTop: 4 }}>↑↓/テンキー8・2:選択　←→:ページ　Z/Enter:決定　X:閉じる</div>
+    </div>
+  );
+}
+
 /* ===== Teleport Select Modal ===== */
 export function TpSelectModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, mobile }) {
   if (!mode) return null;
@@ -3183,7 +3300,7 @@ export function InventoryModal({
   sortInventory, canUse, useLabel, iLabel,
   doUseItem, doReadSpellbook, doShoot, doWaveWand, doBreakWand, doUseMarker, doBreakPot, doDropItem, doThrow,
   containerRef, penMergeMode,
-  doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorItemAction, doFloorOpenPutMode, doFloorPen, doFloorWaveWand,
+  doFloorPickup, doFloorTrap, doFloorStair, doFloorBigbox, doFloorSpring, doFloorGacha, doFloorAltar, doFloorItemAction, doFloorOpenPutMode, doFloorPen, doFloorWaveWand,
 }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   if (!show) return null;
@@ -3227,6 +3344,11 @@ export function InventoryModal({
       { label: floorUseLabel(entry, p), fn: () => doFloorGacha?.(entry) },
       _descAct,
     ];
+    if (_role === "altar") return [
+      { label: floorUseLabel(entry, p), fn: () => doFloorAltar?.(entry) },
+      _descAct,
+    ];
+    if (_role === "dimensionalVault") return [_descAct];
     if (FLOOR_INFO_ROLES.has(_role)) return [
       _descAct,
     ];
@@ -3342,6 +3464,8 @@ export function InventoryModal({
               : _fRole === "vent" ? "#8cf"
               : _fRole === "spring" ? "#6af"
               : _fRole === "bigbox" ? "#da8"
+              : _fRole === "altar" ? "#d58cff"
+              : _fRole === "dimensionalVault" ? "#b874ff"
               : _fRole === "pentacle" ? "#ca8"
               : _fRole === "stair" ? "#8a8"
               : "#aaa";
@@ -3836,6 +3960,8 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     entries.push({ label: "泉", value: { _debugObject: "spring" } });
     entries.push({ label: "風穴", value: { _debugObject: "vent" } });
     entries.push({ label: "石像", value: { _debugObject: "statue" } });
+    entries.push({ label: "祭壇", value: { _debugObject: "altar" } });
+    entries.push({ label: "次元宝物庫", value: { _debugObject: "dimensionalVault" } });
   }
 
   /* --- ページネーション --- */
@@ -3932,6 +4058,8 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         dg.springs?.some(s => s.x === x && s.y === y) ||
         dg.bigboxes?.some(b => b.x === x && b.y === y) ||
         dg.gachaMachines?.some(g => g.x === x && g.y === y) ||
+        dg.altars?.some(a => a.x === x && a.y === y) ||
+        dg.dimensionalVaults?.some(v => v.x === x && v.y === y) ||
         dg.vents?.some(v => v.x === x && v.y === y) ||
         dg.statues?.some(s => s.x === x && s.y === y) ||
         dg.pentacles?.some(pc => pc.x === x && pc.y === y) ||
@@ -3960,6 +4088,38 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
           const statue = makeStatue(nx, ny);
           (dg.statues || (dg.statues = [])).push(statue);
           ml.push("石像を設置した！");
+        } else if (objectKind === "altar") {
+          const altar = makeAltar(nx, ny);
+          (dg.altars || (dg.altars = [])).push(altar);
+          ml.push("祭壇を設置した！");
+        } else if (objectKind === "dimensionalVault") {
+          /* 召喚地点を入口に合わせ、壁・水・アイテムは入室時まで保留する。 */
+          const outerCandidates = [];
+          const summonRoomW = 20;
+          const summonRoomH = 15;
+          for (let radius = 0; radius <= 8; radius++) {
+            for (let oy = -radius; oy <= radius; oy++) {
+              for (let ox = -radius; ox <= radius; ox++) {
+                if (Math.max(Math.abs(ox), Math.abs(oy)) !== radius) continue;
+                const outerRoom = {
+                  x: Math.max(1, Math.min(dg.map[0].length - summonRoomW - 2, nx + ox)),
+                  y: Math.max(1, Math.min(dg.map.length - summonRoomH - 2, ny - Math.floor(summonRoomH / 2) + oy)),
+                  w: summonRoomW, h: summonRoomH,
+                };
+                const key = `${outerRoom.x},${outerRoom.y}`;
+                if (!outerCandidates.some((candidate) => candidate.key === key)) {
+                  outerCandidates.push({ key, room: outerRoom });
+                }
+              }
+            }
+          }
+          let vault = null;
+          for (const candidate of outerCandidates) {
+            vault = createDimensionalVaultAt(dg, candidate.room, p.depth || 1, Math.random);
+            if (vault) break;
+          }
+          if (vault) ml.push("次元宝物庫を設置した！入口に宝物庫の印がある。");
+          else ml.push("次元宝物庫を設置できる場所がない！");
         } else {
           const bb = { id: uid(), x: nx, y: ny, tile: 41, kind: entry.value.kind, name: entry.value.name, capacity: entry.value.cap(), contents: [] };
           (dg.bigboxes || (dg.bigboxes = [])).push(bb);

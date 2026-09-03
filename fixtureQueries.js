@@ -29,6 +29,20 @@ export function wandEffectBreaksStatue(effect) {
   return !safeEffects.has(effect);
 }
 
+/* ガチャマシーン・祭壇など、杖の有害効果で壊れる床ギミックの共通条件 */
+export const FLOOR_FIXTURE_BREAKING_WAND_EFFECTS = new Set([
+  "fire_wand",
+  "ice_wand",
+  "lightning",
+  "godsparkwand",
+  "dig",
+  "soften",
+]);
+
+export function wandEffectBreaksFloorFixture(effect) {
+  return FLOOR_FIXTURE_BREAKING_WAND_EFFECTS.has(effect);
+}
+
 export function wandEffectStatueLootOnly(effect) {
   return effect === "dig" || effect === "soften";
 }

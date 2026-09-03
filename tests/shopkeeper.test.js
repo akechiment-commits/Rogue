@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { T, MW, MH, removeFloorItem } from "../utils.js";
 import { monsterAI } from "../monsters.js";
-import { applyShopUnpaidCharge, checkShopTheft, declareShopTheft, canCalmShopkeeper } from "../items.js";
+import { applyShopUnpaidCharge, checkShopTheft, declareShopTheft, canCalmShopkeeper, applyPotionEffect, killMonster } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 function makeShopDg() {
@@ -154,5 +154,73 @@ describe("shopkeeper blocking AI", () => {
     const { dg, sk } = makeShopDg();
     const p = makePlayer({ x: 12, y: 12 });
     expect(() => monsterAI(sk, dg, p, [], { moveOnly: true })).not.toThrow();
+  });
+});
+
+describe("wandering merchant", () => {
+  it("部屋を次の目的地に選び、斜め抜けせず廊下を通って移動する", () => {
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+    for (let y = 8; y < 13; y++) {
+      for (let x = 4; x < 9; x++) map[y][x] = T.FLOOR;
+      for (let x = 16; x < 22; x++) map[y][x] = T.FLOOR;
+    }
+    for (let x = 9; x < 16; x++) map[10][x] = T.FLOOR;
+    const merchant = {
+      id: "wm-route", name: "行商人", hp: 200, maxHp: 200, atk: 100, def: 100,
+      speed: 0.5, baseSpeed: 0.5, tile: 37, type: "shopkeeper", state: "friendly",
+      isWanderingMerchant: true, x: 6, y: 10, turnAccum: 0, aware: false,
+      dir: { x: 0, y: 1 }, lastPx: 6, lastPy: 10, patrolTarget: null,
+    };
+    const dg = makeEmptyDg({
+      map,
+      rooms: [
+        { x: 4, y: 8, w: 5, h: 5, cx: 6, cy: 10 },
+        { x: 16, y: 8, w: 6, h: 5, cx: 18, cy: 10 },
+      ],
+      monsters: [merchant],
+    });
+    const p = makePlayer({ x: 1, y: 1 });
+
+    monsterAI(merchant, dg, p, [], { moveOnly: true });
+    expect(merchant.patrolTarget.roomIndex).toBe(1);
+    expect([merchant.x, merchant.y]).toEqual([7, 10]);
+
+    for (let t = 0; t < 7; t++) monsterAI(merchant, dg, p, [], { moveOnly: true });
+    expect(merchant.y).toBe(10);
+    expect(merchant.x).toBeGreaterThan(7);
+    expect(merchant.x).toBeLessThan(16);
+  });
+
+  it("友好時は攻撃せず徘徊し、敵対化すると店主相当の速度へ戻る", () => {
+    const merchant = {
+      id: "wm1", name: "行商人", hp: 200, maxHp: 200, atk: 100, def: 100,
+      speed: 0.5, baseSpeed: 0.5, tile: 37, type: "shopkeeper", state: "friendly",
+      isWanderingMerchant: true, merchantShopId: "wm-shop", x: 5, y: 5,
+      turnAccum: 0, aware: false, dir: { x: 0, y: 1 }, lastPx: 5, lastPy: 5,
+    };
+    const dg = makeEmptyDg({
+      monsters: [merchant],
+      merchantShops: [{ id: "wm-shop", merchantId: "wm1", stock: [] }],
+    });
+    const p = makePlayer({ x: 1, y: 1 });
+    monsterAI(merchant, dg, p, [], { moveOnly: true });
+    expect(merchant.hp).toBe(200);
+    expect([merchant.x, merchant.y]).not.toEqual([5, 5]);
+
+    declareShopTheft(p, dg, [], { merchantId: merchant.id, angerOnly: true, message: "行商人が怒った！" });
+    expect(merchant.state).toBe("hostile");
+    expect(merchant.speed).toBe(1);
+    expect(dg.shopTheft).not.toBe(true);
+    expect(p.isThief).not.toBe(true);
+    merchant.hp = 100;
+    expect(canCalmShopkeeper(merchant, dg, p)).toBe(false);
+    applyPotionEffect("heal", 100, "monster", merchant, dg, p, [], () => {});
+    expect(merchant.state).toBe("friendly");
+    expect(merchant.speed).toBe(0.5);
+
+    merchant.hp = 0;
+    killMonster(merchant, dg, p, [], () => {}, true);
+    expect(dg.shopTheft).toBe(true);
+    expect(p.isThief).toBe(true);
   });
 });

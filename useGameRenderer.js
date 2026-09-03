@@ -599,6 +599,8 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
     const _sprMap = new Map(); if (dg.springs) for (const s of dg.springs) _sprMap.set(_k(s.x, s.y), s);
     const _bbMap = new Map(); if (dg.bigboxes) for (const b of dg.bigboxes) _bbMap.set(_k(b.x, b.y), b);
     const _gachaMap = new Map(); if (dg.gachaMachines) for (const g of dg.gachaMachines) _gachaMap.set(_k(g.x, g.y), g);
+    const _altarMap = new Map(); if (dg.altars) for (const a of dg.altars) _altarMap.set(_k(a.x, a.y), a);
+    const _vaultMap = new Map(); if (dg.dimensionalVaults) for (const v of dg.dimensionalVaults) _vaultMap.set(_k(v.x, v.y), v);
     const _pentMap = new Map(); if (dg.pentacles) for (const pc of dg.pentacles) _pentMap.set(_k(pc.x, pc.y), pc);
     const _ventMap = new Map(); if (dg.vents) for (const v of dg.vents) _ventMap.set(_k(v.x, v.y), v);
     const _statueMap = new Map(); if (dg.statues) for (const s of dg.statues) _statueMap.set(_k(s.x, s.y), s);
@@ -831,6 +833,18 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           drawTile(ctx, ts, _gachaTile, px2, py2, sz);
           if (!vis) ctx.globalAlpha = 1;
         }
+        const altar = _altarMap.get(_k(x, y));
+        if (altar && (vis || exp2)) {
+          if (!vis) ctx.globalAlpha = 0.4;
+          drawTile(ctx, ts, altar.tile ?? TI.ALTAR, px2, py2, sz);
+          if (!vis) ctx.globalAlpha = 1;
+        }
+        const vault = _vaultMap.get(_k(x, y));
+        if (vault && (vis || exp2)) {
+          if (!vis) ctx.globalAlpha = 0.4;
+          drawTile(ctx, ts, vault.tile ?? TI.DIMENSIONAL_VAULT, px2, py2, sz);
+          if (!vis) ctx.globalAlpha = 1;
+        }
         /* Pentacle */
         const _pent = _pentMap.get(_k(x, y));
         if (_pent && vis) {
@@ -992,6 +1006,18 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
               ? [16, 17, 18, 20, 21, 22, 23, 24, 32][(x * 11 + y * 19) % 9]
               : _spriteTile(it);
             drawTile(ctx, ts, _itTile, px2, py2, sz);
+            if (it.vaultTurnsLeft != null && vis) {
+              ctx.save();
+              ctx.font = `bold ${Math.max(7, Math.floor(sz * 0.42))}px monospace`;
+              ctx.textAlign = "right";
+              ctx.textBaseline = "top";
+              ctx.strokeStyle = "rgba(0,0,0,0.95)";
+              ctx.lineWidth = Math.max(2, Math.floor(sz * 0.08));
+              ctx.strokeText(String(it.vaultTurnsLeft), px2 + sz - 1, py2 + 1);
+              ctx.fillStyle = it.vaultTurnsLeft <= 3 ? "#ff5050" : "#e5b8ff";
+              ctx.fillText(String(it.vaultTurnsLeft), px2 + sz - 1, py2 + 1);
+              ctx.restore();
+            }
             continue;
           }
           /* Trap */

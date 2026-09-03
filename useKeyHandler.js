@@ -75,12 +75,12 @@ export { isDuplicateDirectionEvent, directionFamily };
 
 export function useKeyHandler({
   // refs
-  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+  sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
   // state values
   gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel = 0, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
   facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
   markerMode, markerMenuSel, markerPage = 0, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel, pastIdent = [], discoveredItems = {},
-  bigboxMode, bigboxMenuSel, bigboxPage, gachaMode, gachaMenuSel, nicknameMode, identifyMode, revealMode,
+  bigboxMode, bigboxMenuSel, bigboxPage, gachaMode, gachaMenuSel, altarMode, altarMenuSel, merchantMode, merchantMenuSel, nicknameMode, identifyMode, revealMode,
   tpSelectMode, floorSelectMode, lookMode, mapMode, debugSpellMode, debugSpellMenuSel,
   msgLogMode, msgLogScrollTop, msgsRef,
   showSign, miniTip,
@@ -92,14 +92,14 @@ export function useKeyHandler({
   setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
   setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
   setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
-  setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setGachaMode, setGachaMenuSel, setIdentifyMode,
+  setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setGachaMode, setGachaMenuSel, setAltarMode, setAltarMenuSel, setMerchantMode, setMerchantMenuSel, setIdentifyMode,
   setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
   setMsgLogMode, setMsgLogScrollTop,
   setShowSign, closeMiniTip,
   setExitHubConfirm, setExitHubSel, performExitToHub,
   // callbacks
   init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
-  bigboxPutItem, sortInventory, getLookDesc, lu,
+  bigboxPutItem, sortInventory, getLookDesc, lu, doOfferFood, doMerchantBuy, doMerchantSell,
 }) {
   /* handleKey を ref 経由で呼び、listener を1本に固定 */
   const handleKeyRef = useRef(null);
@@ -536,6 +536,12 @@ export function useKeyHandler({
           if (_role2 === "gacha") {
             return [
               { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorGacha?.(entry) },
+              _descAct,
+            ];
+          }
+          if (_role2 === "altar") {
+            return [
+              { label: floorUseLabel(entry, gs?.player), fn: () => invActRef.current?.floorAltar?.(entry) },
               _descAct,
             ];
           }
@@ -1317,7 +1323,8 @@ export function useKeyHandler({
         } else if (_dsEff === "debug_summon_bb") {
           _dsTotalEntries = BB_TYPES.length;
         } else if (_dsEff === "debug_summon_object") {
-          _dsTotalEntries = 4;
+          /* オブジェクト召喚はガチャ・泉・風穴・石像・祭壇・次元宝物庫の6項目。 */
+          _dsTotalEntries = 6;
         }
         const _dsIsCategory = _dsEff === "debug_get_item" && !_dsCat;
         const _dsPageSize = _dsIsCategory ? _dsTotalEntries : 10;
@@ -1527,6 +1534,71 @@ export function useKeyHandler({
             return;
           }
           return;
+        }
+        return;
+      }
+      if (merchantMode) {
+        e.preventDefault();
+        const up = isKeyUp(e), down = isKeyDown(e);
+        if (k === "escape" || k === "x") {
+          setMerchantMode(null);
+          if (merchantRef) merchantRef.current = null;
+          return;
+        }
+        const merchant = merchantRef?.current;
+        const shop = sr.current?.dungeon?.merchantShops?.find((entry) => entry.id === merchant?.merchantShopId);
+        const stockLen = shop?.stock?.length || 0;
+        const sellLen = (sr.current?.player?.inventory || []).filter((item) =>
+          item.type !== "gold" && item.type !== "goal" && sr.current.player.weapon !== item && sr.current.player.armor !== item && sr.current.player.arrow !== item && !(sr.current.player.rings || []).includes(item)
+        ).length;
+        const itemCount = merchantMode === "buy" ? stockLen : sellLen;
+        const pageCount = Math.max(1, Math.ceil(itemCount / 10));
+        if (merchantMode !== "menu" && (isKeyLeft(e) || isKeyRight(e))) {
+          e.preventDefault();
+          setMerchantMenuSel((value) => {
+            const currentPage = value >= itemCount ? pageCount - 1 : Math.floor(value / 10);
+            const nextPage = (currentPage + (isKeyRight(e) ? 1 : -1) + pageCount) % pageCount;
+            return Math.min(nextPage * 10, itemCount);
+          });
+          return;
+        }
+        const len = merchantMode === "menu" ? 3 : itemCount + 1;
+        if ((up || down) && len > 0) {
+          setMerchantMenuSel((value) => (value + (down ? 1 : -1) + len) % len);
+          return;
+        }
+        if (k === "enter" || k === "z" || /^[1-9]$/.test(k)) {
+          const selected = /^[1-9]$/.test(k) ? Number(k) - 1 : merchantMenuSel;
+          if (merchantMode === "menu") {
+            if (selected === 0) { setMerchantMode("buy"); setMerchantMenuSel(0); }
+            else if (selected === 1) { setMerchantMode("sell"); setMerchantMenuSel(0); }
+            else { setMerchantMode(null); if (merchantRef) merchantRef.current = null; }
+          } else if (merchantMode === "buy") {
+            if (selected < stockLen) doMerchantBuy?.(selected);
+            else { setMerchantMode("menu"); setMerchantMenuSel(0); }
+          } else if (merchantMode === "sell") {
+            if (selected < sellLen) {
+              const sellable = (sr.current?.player?.inventory || []).map((item, index) => ({ item, index })).filter(({ item }) =>
+                item.type !== "gold" && item.type !== "goal" && sr.current.player.weapon !== item && sr.current.player.armor !== item && sr.current.player.arrow !== item && !(sr.current.player.rings || []).includes(item)
+              );
+              if (sellable[selected]) doMerchantSell?.(sellable[selected].index);
+            } else { setMerchantMode("menu"); setMerchantMenuSel(0); }
+          }
+          return;
+        }
+        return;
+      }
+      if (altarMode) {
+        e.preventDefault();
+        const up = isKeyUp(e), down = isKeyDown(e);
+        if (k === "escape" || k === "x") { setAltarMode(null); if (altarRef) altarRef.current = null; return; }
+        const foods = (sr.current?.player?.inventory || []).map((item, index) => ({ item, index })).filter(({ item }) => item.type === "food");
+        const len = foods.length + 1;
+        if (up || down) { setAltarMenuSel((value) => (value + (down ? 1 : -1) + len) % len); return; }
+        if (k === "enter" || k === "z" || /^[1-9]$/.test(k)) {
+          const selected = /^[1-9]$/.test(k) ? Number(k) - 1 : altarMenuSel;
+          if (selected < foods.length) doOfferFood?.(foods[selected].item);
+          else { setAltarMode(null); if (altarRef) altarRef.current = null; }
         }
         return;
       }
@@ -1923,6 +1995,19 @@ export function useKeyHandler({
       setGachaMenuSel,
       gachaRef,
       gachaDrawRef,
+      altarRef,
+      merchantRef,
+      altarMode,
+      altarMenuSel,
+      merchantMode,
+      merchantMenuSel,
+      setAltarMode,
+      setAltarMenuSel,
+      setMerchantMode,
+      setMerchantMenuSel,
+      doOfferFood,
+      doMerchantBuy,
+      doMerchantSell,
       sortInventory,
       putPage,
       markerMode,

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions } from "../dungeon.js";
+import { genDungeon, genDebugDungeon, genTutorialFloor, genCorridorFloor, genGridRoom, genMiniRoom, prepareLastFloor, GOAL_ITEMS, populateHiddenRoom, chooseNormalLayout, applyGeneratedBlessCurse, getMonsterHouseGenerationOptions, placeDimensionalVault, placeWanderingMerchant } from "../dungeon.js";
 import { pickMonsterDef } from "../monsters.js";
 import { T, MW, MH } from "../utils.js";
+import { activateDimensionalVaults } from "../specialFixtures.js";
 
 function makeHiddenRoomMap(hr) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
@@ -103,6 +104,109 @@ describe("genDungeon", () => {
     expect(getMonsterHouseGenerationOptions("advanced", {}, () => 0).levelBoost).toBe(1);
     expect(getMonsterHouseGenerationOptions("legend", {}, () => 0.1).levelBoost).toBe(0);
     expect(getMonsterHouseGenerationOptions("advanced", { levelBoost: 1 }, () => 0.99).levelBoost).toBe(1);
+  });
+});
+
+describe("極稀なフロアギミック", () => {
+  function emptyFeatureDungeon() {
+    const map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+    for (let y = 3; y < 12; y++) for (let x = 3; x < 18; x++) map[y][x] = T.FLOOR;
+    return {
+      map,
+      rooms: [{ x: 3, y: 3, w: 15, h: 9, cx: 10, cy: 7 }],
+      dungeonType: "advanced",
+      items: [], monsters: [], traps: [], springs: [], bigboxes: [],
+      pentacles: [], statues: [], vents: [], gachaMachines: [], altars: [],
+      dimensionalVaults: [], merchantShops: [], shops: [], shop: null,
+      stairUp: null, stairDown: null,
+    };
+  }
+
+  it("次元宝物庫は部屋の内側へ予約され、入室時に区画を実体化する", () => {
+    const dg = emptyFeatureDungeon();
+    const vault = placeDimensionalVault(dg, 20, () => 0);
+    expect(vault?.name).toBe("次元宝物庫");
+    expect(dg.dimensionalVaults).toHaveLength(1);
+    expect(dg.items).toHaveLength(0);
+    expect(vault.pendingItems.length).toBeGreaterThanOrEqual(1);
+    expect(vault.pendingItems.every((item) => item.dimensionalVaultId === vault.id)).toBe(true);
+    expect(vault.pendingTraps.every((trap) => ["blowback_trap", "shadow_stitch", "confuse_trap"].includes(trap.effect))).toBe(true);
+    expect(vault.layout).toBe("enclosed_maze");
+    expect(dg.map[4][9]).toBe(T.FLOOR);
+
+    const messages = [];
+    activateDimensionalVaults(dg, { x: vault.room.x, y: vault.room.y }, messages);
+    expect(vault.active).toBe(true);
+    expect(dg.items.length).toBeGreaterThanOrEqual(1);
+    expect(dg.traps.every((trap) => trap.dimensionalVaultId === vault.id)).toBe(true);
+    expect(vault.walls.some(({ x, y }) => dg.map[y][x] === T.WALL)).toBe(true);
+    expect(vault.water.some(({ x, y }) => dg.map[y][x] === T.WATER)).toBe(true);
+    const start = { x: vault.room.x, y: vault.room.y + Math.floor(vault.room.h / 2) };
+    const reached = new Set([`${start.x},${start.y}`]);
+    const queue = [start];
+    for (let i = 0; i < queue.length; i++) {
+      const { x, y } = queue[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        const k = `${nx},${ny}`;
+        if (reached.has(k) || nx < vault.room.x || nx >= vault.room.x + vault.room.w ||
+            ny < vault.room.y || ny >= vault.room.y + vault.room.h || dg.map[ny][nx] !== T.FLOOR) continue;
+        reached.add(k);
+        queue.push({ x: nx, y: ny });
+      }
+    }
+    expect(dg.items.every((item) => reached.has(`${item.x},${item.y}`))).toBe(true);
+    expect(messages).toContain("次元宝物庫に入った！宝物が消え始めた！");
+  });
+
+  it("大型部屋の次元宝物庫は内部区画と障害物が拡張される", () => {
+    const dg = emptyFeatureDungeon();
+    dg.map = Array.from({ length: MH }, () => Array(MW).fill(T.WALL));
+    for (let y = 3; y < 18; y++) for (let x = 3; x < 25; x++) dg.map[y][x] = T.FLOOR;
+    dg.rooms = [{ x: 3, y: 3, w: 22, h: 15, cx: 14, cy: 10 }];
+
+    const vault = placeDimensionalVault(dg, 20, () => 0);
+    expect(vault?.room).toMatchObject({ w: 11, h: 9 });
+    expect(vault?.walls.length).toBeGreaterThan(40);
+    expect(vault?.water.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("次元宝物庫には最低1個B以上のアイテムが含まれる", () => {
+    const dg = emptyFeatureDungeon();
+    const vault = placeDimensionalVault(dg, 20, () => 0);
+    expect(vault?.pendingItems.some((item) => ["B", "A", "S"].includes(item.rarity))).toBe(true);
+  });
+
+  it("次元宝物庫は壁主体・水の仕切り・端へ寄せた迂回型を抽選する", () => {
+    const makeVault = (randomValue) => {
+      const dg = emptyFeatureDungeon();
+      let calls = 0;
+      const vault = placeDimensionalVault(dg, 20, () => calls++ === 0 ? 0 : randomValue);
+      expect(vault).not.toBeNull();
+      return vault;
+    };
+
+    const wallBranch = makeVault(0);
+    const waterGates = makeVault(0.4);
+    const edgeDetour = makeVault(0.9);
+    expect(wallBranch.layoutStyle).toBe("wall_branch");
+    expect(waterGates.layoutStyle).toBe("water_gates");
+    expect(edgeDetour.layoutStyle).toBe("edge_detour");
+    expect(waterGates.water.length).toBeGreaterThan(wallBranch.water.length);
+    expect(new Set([
+      wallBranch.layoutStyle,
+      waterGates.layoutStyle,
+      edgeDetour.layoutStyle,
+    ]).size).toBe(3);
+  });
+
+  it("行商人は商品在庫と紐づいた友好的な個体を配置する", () => {
+    const dg = emptyFeatureDungeon();
+    const merchant = placeWanderingMerchant(dg, 20, () => 0);
+    expect(merchant).toMatchObject({ name: "行商人", type: "shopkeeper", state: "friendly", isWanderingMerchant: true });
+    expect(dg.merchantShops).toHaveLength(1);
+    expect(dg.merchantShops[0].stock.length).toBeGreaterThan(0);
+    expect(dg.merchantShops[0].merchantId).toBe(merchant.id);
   });
 });
 

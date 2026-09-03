@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   statusTurns, STATUS_BASE, PERMANENT_TURNS, BOSS_PARALYZE_TURNS,
-  isPermanentTurns, applyMonsterParalyze,
+  isPermanentTurns, applyMonsterParalyze, clearStatusEffectsOnHpZero,
 } from "../statusDuration.js";
 
 describe("statusTurns", () => {
@@ -53,5 +53,91 @@ describe("applyMonsterParalyze", () => {
     const boss2 = { name: "ボス", hp: 100, isBoss: true };
     expect(applyMonsterParalyze(boss2, { blessed: true })).toBe(BOSS_PARALYZE_TURNS);
     expect(boss2.paralyzeTurns).toBe(50);
+  });
+});
+
+describe("clearStatusEffectsOnHpZero", () => {
+  it("HP0時に行動阻害・デバフ・毒を解除し、毒の攻撃力低下も戻す", () => {
+    const player = {
+      hp: 0,
+      atk: 7,
+      poisonAtkLoss: 2,
+      sleepTurns: 4,
+      sleepInterruptedTurns: 1,
+      paralyzeTurns: 3,
+      frozenTurns: 2,
+      slowTurns: 5,
+      slowSkip: true,
+      confusedTurns: 6,
+      poisoned: true,
+      poisonedTurns: 4,
+      sealedTurns: 7,
+      darknessTurns: 8,
+      immobileTurns: 2,
+      oilyTurns: 9,
+      soakedTurns: 3,
+      defSoftenedTurns: 4,
+      atkDebuffTurns: 5,
+      defDebuffTurns: 6,
+      potConfinedTurns: 2,
+      hypnosisPending: 1,
+      mpSealTurns: 1000,
+    };
+
+    expect(clearStatusEffectsOnHpZero(player)).toBe(true);
+    expect(player).toMatchObject({
+      atk: 9,
+      sleepTurns: 0,
+      sleepInterruptedTurns: 0,
+      paralyzeTurns: 0,
+      frozenTurns: 0,
+      slowTurns: 0,
+      slowSkip: false,
+      confusedTurns: 0,
+      poisoned: false,
+      poisonedTurns: 0,
+      poisonAtkLoss: 0,
+      sealedTurns: 0,
+      darknessTurns: 0,
+      immobileTurns: 0,
+      oilyTurns: 0,
+      soakedTurns: 0,
+      defSoftenedTurns: 0,
+      atkDebuffTurns: 0,
+      defDebuffTurns: 0,
+      potConfinedTurns: 0,
+      hypnosisPending: 0,
+      mpSealTurns: 1000,
+    });
+  });
+
+  it("モンスターのHP0時は毒の攻撃力半減と敵専用状態も解除する", () => {
+    const monster = {
+      hp: 0,
+      atk: 10,
+      poisonHalfAtk: true,
+      poisonOrigAtk: 20,
+      paralyzed: true,
+      paralyzeHits: 2,
+      blind: true,
+      blindTurns: 5,
+      fleeingTurns: 9999,
+      sealed: true,
+      sealedTurns: 10,
+    };
+
+    clearStatusEffectsOnHpZero(monster);
+    expect(monster).toMatchObject({
+      atk: 20,
+      paralyzed: false,
+      paralyzeHits: 0,
+      blind: false,
+      blindTurns: 0,
+      fleeingTurns: 0,
+      sealed: false,
+      sealedTurns: 0,
+    });
+    expect(monster.poisonHalfAtk).toBeUndefined();
+    expect(monster.poisonOrigAtk).toBeUndefined();
   });
 });

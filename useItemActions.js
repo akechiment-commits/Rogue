@@ -16,7 +16,7 @@ import {
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
-  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, canCalmShopkeeper,
+  makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, calmShopkeeperIfFullyHealed,
   applyPlayerSeal, curePlayerSealWithCursedPotion,
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect } from "./wands.js";
@@ -38,6 +38,15 @@ const HYPNOSIS_ITEM_TYPES = new Set([
   "food", "potion", "scroll", "spellbook", "weapon", "armor", "arrow", "ring",
   "wand", "marker", "pen", "pot",
 ]);
+
+function markWanderingMerchantHostile(monster, dungeon, player, messages) {
+  if (!monster?.isWanderingMerchant || monster.state === "hostile") return;
+  declareShopTheft(player, dungeon, messages, {
+    merchantId: monster.id,
+    angerOnly: true,
+    message: "行商人が怒った！",
+  });
+}
 
 export function getHypnosisItemCandidates(inventory = []) {
   return inventory.flatMap((it, idx) =>
@@ -2954,6 +2963,7 @@ export function useItemActions({
                 ml.push(`${_stName}が${_msTarget.name}に飲み込まれた！（攻撃力×${_msTarget._gelBoost.toFixed(2)}→${_msTarget.atk}）`);
               } else {
                 _msTarget.hp -= _msDmg;
+                markWanderingMerchantHostile(_msTarget, dg, p, ml);
                 ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
                 if (_msTarget.hp <= 0) { trackMonster(_msTarget); killMonster(_msTarget, dg, p, ml, lu); }
                 _stPeelIfNeeded();
@@ -3036,6 +3046,7 @@ export function useItemActions({
               } else {
                 const _stDmg = calcProjectileDmg(p, _stAtk, _stM.def);
                 _stM.hp -= _stDmg;
+                markWanderingMerchantHostile(_stM, dg, p, ml);
                 ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
                 if (_stM.hp <= 0) { trackMonster(_stM); killMonster(_stM, dg, p, ml, lu); }
                 _stPeelIfNeeded();
@@ -3109,6 +3120,7 @@ export function useItemActions({
                 }
                 const _baDmg = calcProjectileDmg(p, _arItem.atk || 6, _baM.def);
                 _baM.hp -= _baDmg;
+                markWanderingMerchantHostile(_baM, dg, p, ml);
                 ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
                 if (_baM.hp <= 0) { trackMonster(_baM); killMonster(_baM, dg, p, ml, lu); }
                 _baLx = tx; _baLy = ty;
@@ -3215,6 +3227,7 @@ export function useItemActions({
             /* 命中 */
             const _dmg = calcProjectileDmg(p, _arBaseAtk, mon.def);
             mon.hp -= _dmg;
+            markWanderingMerchantHostile(mon, dg, p, mlx);
             if (_arIsPoison) mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
             mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
             if (mon.hp <= 0) { trackMonster(mon); killMonster(mon, dg, p, mlx, lu); }
@@ -3605,6 +3618,7 @@ export function useItemActions({
               } else {
                 const _msDmg2 = calcProjectileDmg(p, _invStAtk, _msTarget2.def);
                 _msTarget2.hp -= _msDmg2;
+                markWanderingMerchantHostile(_msTarget2, dg, p, ml);
                 ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
                 if (_msTarget2.hp <= 0) { trackMonster(_msTarget2); killMonster(_msTarget2, dg, p, ml, lu); }
                 _invStPeel();
@@ -3671,6 +3685,7 @@ export function useItemActions({
               } else {
                 const _stDmg2 = calcProjectileDmg(p, _invStAtk, _stM2.def);
                 _stM2.hp -= _stDmg2;
+                markWanderingMerchantHostile(_stM2, dg, p, ml);
                 ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
                 if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
                 _invStPeel();
@@ -3744,6 +3759,7 @@ export function useItemActions({
                 }
                 const _baDmg2 = calcProjectileDmg(p, _baAtk2, _baM2.def);
                 _baM2.hp -= _baDmg2;
+                markWanderingMerchantHostile(_baM2, dg, p, ml);
                 ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
                 if (_baM2.hp <= 0) { trackMonster(_baM2); killMonster(_baM2, dg, p, ml, lu); }
                 _baLx2 = tx; _baLy2 = ty;
@@ -4209,6 +4225,7 @@ export function useItemActions({
               }
               if (it.type === "wand") {
                 if (!_wandFiredEffect) {
+                  markWanderingMerchantHostile(m, dg, p, ml);
                   ml.push(`${lb}が${m.name}に命中！`);
                   const _twSnap = { type: "wand", effect: it.effect, charges: it.charges ?? 0, blessed: !!it.blessed, cursed: !!it.cursed, name: it.name };
                   triggerWandBreakEffect(_twSnap, tx, ty, dg, p, ml, lu, {
@@ -4234,6 +4251,7 @@ export function useItemActions({
                 else {
                   const _itd = clampDmgFixed(m, calcProjectileDmg(p, _tdBaseAtk, m.def), true);
                   m.hp -= _itd;
+                  markWanderingMerchantHostile(m, dg, p, ml);
                   ml.push(`${lb}が${m.name}に命中！${_itd}ダメージ！`);
                   if (it.type === "food" && it.yabai && m.hp > 0) {
                     const _yThrowDmg = rng(15, 25);
@@ -4321,6 +4339,7 @@ export function useItemActions({
                 : (lx === p.x && ly === p.y)
                   ? { singleTargetKind: "player", singleTarget: p, effectDx: -dx || 1, effectDy: -dy || 0 }
                   : {};
+              if (_fcMon) markWanderingMerchantHostile(_fcMon, dg, p, ml);
               triggerWandBreakEffect(_fcSnap, lx, ly, dg, p, ml, lu, _fcOpts);
               _wandFiredEffect = true;
             }
@@ -4353,10 +4372,10 @@ export function useItemActions({
       for (const { m, hp } of _skSnap) {
         if (m.hp < hp && m.state !== "hostile") {
           m.state = "hostile";
-          ml.push("店主が怒った！");
-        } else if (canCalmShopkeeper(m, dg, p)) {
-          m.state = "friendly";
-          ml.push("店主のHPが全快した！敵対状態が解除された。");
+          if (m.isWanderingMerchant) m.speed = 1;
+          ml.push(`${m.isWanderingMerchant ? "行商人" : "店主"}が怒った！`);
+        } else {
+          calmShopkeeperIfFullyHealed(m, dg, p, ml);
         }
       }
       endTurn(sr.current, p, ml);

@@ -25,7 +25,20 @@ export const FIXTURE_TILE = {
   vent: 128,
   statue: 129,
   fixedPortal: 130,
+  altar: 207,
 };
+
+export function makeAltar(x, y) {
+  return {
+    id: uid(),
+    type: "altar",
+    x, y,
+    tile: FIXTURE_TILE.altar,
+    name: "祭壇",
+    desc: "食料だけを捧げられる祭壇。捧げた数が多いほど、レアな返礼品が出やすくなる。",
+    offerCount: 0,
+  };
+}
 
 /** 罠として生成する偽階段（未看破時は階段に見える） */
 export function makeFakeStairTrap(x, y, dir = "down") {
@@ -113,6 +126,7 @@ function _freeNeighborOffStatue(dg, x, y) {
     if (dg.springs?.some(s => s.x === nx && s.y === ny)) continue;
     if (dg.bigboxes?.some(b => b.x === nx && b.y === ny)) continue;
     if (dg.gachaMachines?.some(g => g.x === nx && g.y === ny)) continue;
+    if (dg.altars?.some(a => a.x === nx && a.y === ny)) continue;
     if (dg.pentacles?.some(pc => pc.x === nx && pc.y === ny)) continue;
     if (dg.vents?.some(v => v.x === nx && v.y === ny)) continue;
     if (dg.oilyTiles?.some(t => t.x === nx && t.y === ny)) continue;
@@ -289,7 +303,7 @@ export function makeFixedPortalPair(x1, y1, x2, y2, depth) {
 
 /**
  * 床にギミックをばら撒く（通常生成の末尾で呼ぶ）
- * @returns {{ vents, statues, fakeStairs, portals }}
+ * @returns {{ vents, statues, altars, fakeStairs, portals }}
  */
 export function scatterFloorGimmicks(map, rooms, depth, {
   traps = [],
@@ -297,6 +311,8 @@ export function scatterFloorGimmicks(map, rooms, depth, {
   bigboxes = [],
   pentacles = [],
   items = [],
+  altars = [],
+  altarRate = 0.05,
   stairUp = null,
   stairDown = null,
   occ = null,
@@ -317,6 +333,7 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     if (pentacles.some((pc) => pc.x === x && pc.y === y)) return true;
     if (addedPentacles.some((pc) => pc.x === x && pc.y === y)) return true;
     if (vents.some((v) => v.x === x && v.y === y)) return true;
+    if (altars.some((a) => a.x === x && a.y === y)) return true;
     if (statues.some((s) => s.x === x && s.y === y)) return true;
     /* 偽階段などは未看破時もアイテムと重ならないようにする */
     if (items.some((it) => it.x === x && it.y === y)) return true;
@@ -368,6 +385,14 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     statues.push(makeStatue(p[0], p[1]));
   }
 
+  /* 祭壇 0〜1（約5%）。食料を捧げると別の道具を返す。 */
+  const altarN = Math.random() < altarRate ? 1 : 0;
+  for (let i = 0; i < altarN; i++) {
+    const p = rndFloor();
+    if (!p) break;
+    altars.push(makeAltar(p[0], p[1]));
+  }
+
   /* 固定転送ペア 0〜1 */
   if (Math.random() < 0.22) {
     const a = rndFloor();
@@ -378,5 +403,5 @@ export function scatterFloorGimmicks(map, rooms, depth, {
     }
   }
 
-  return { vents, statues, traps: addedTraps, pentacles: addedPentacles };
+  return { vents, statues, altars, traps: addedTraps, pentacles: addedPentacles };
 }

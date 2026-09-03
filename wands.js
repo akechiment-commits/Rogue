@@ -1,8 +1,8 @@
 import { rng, pick, uid, MW, MH, T, TI, DRO, removeFloorItem, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, consumeBarrier, randomTeleportDest, shuffle, stepProjectile } from './utils.js';
 import { monLevelUp, monLevelDown, pickTransformMonsterDef, wakeIfDormant, scaleMonFireDmg, monFireDmgLabel } from './monsters.js';
 import {
-  resolveItemName, getIdentKey, breakBigboxContents, breakGachaMachine, checkGachaShopTheft,
-  killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop,
+  resolveItemName, getIdentKey, breakBigboxContents, breakGachaMachine, breakAltar, checkGachaShopTheft,
+  killMonster, bossInstantDeathDamage, drownMonsterIfNeeded, pushEntity, throwItemAlongLine, placeItemAt, scatterPotContents, monsterDrop, calmShopkeeperIfFullyHealed,
   soakItemIntoSpring, splashPotion, inMagicSealRoom,
   getFarcastMode, ITEMS, WANDS, BB_TYPES, TRAPS, pickTrap, isStatusImmune, weakenOrClearParalysis,
   chargeShopItem, claimShopItemIfOutside, burnFoodItem, applyLightningToInventory, wallBreakDrop, fireTrapItem,
@@ -16,7 +16,7 @@ import {
 } from "./items.js";
 import { fireTrapPlayer } from './traps.js';
 import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from './fixtures.js';
-import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly } from './fixtureQueries.js';
+import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, isPermanentTurns, applyMonsterParalyze } from './statusDuration.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } from './monTraits.js';
@@ -78,7 +78,7 @@ function statueTeleportDest(dg, ox, oy, p) {
  *   2. この関数の switch(eff) に case "effect名": { ... } を追加
  *      ※ 追加し忘れると console.warn が出て効果が発動しない
  */
-export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true) {
+export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn, blMult = 1, nameFn = null, collisionAtk = 0, killerMon = null, bigboxNameFn = null, sourceIsPlayer = true, breaker = null) {
   const _magicDamage = (amount, victim = target) =>
     kind === "monster" && sourceIsPlayer
       ? multiplyMagicDamage(amount, p?.weapon, victim, dg)
@@ -492,28 +492,33 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     return;
   }
 
-  /* ── ガチャマシーン pre-handler ──
-   * 破壊系の杖は1個の景品を残して壊し、位置系の杖は大箱と同じように扱う。 */
-  if (kind === "gacha") {
-    const _gachaName = target.name || "ガチャマシーン";
-    if (["fire_wand", "ice_wand", "lightning", "godsparkwand", "dig", "soften"].includes(eff)) {
-      breakGachaMachine(target, dg, ml, p, nameFn);
+  /* ── ガチャマシーン／祭壇 pre-handler ──
+   * 破壊系の杖は同じ条件で壊し、位置系の杖は床物体として動かす。 */
+  if (kind === "gacha" || kind === "altar") {
+    const _isAltar = kind === "altar";
+    const _fixtureName = target.name || (_isAltar ? "祭壇" : "ガチャマシーン");
+    if (wandEffectBreaksFloorFixture(eff)) {
+      if (_isAltar) {
+        breakAltar(target, dg, ml, p, breaker || (sourceIsPlayer ? p : killerMon), luFn);
+      } else {
+        breakGachaMachine(target, dg, ml, p, nameFn);
+      }
       return;
     }
     if (eff === "swap") {
       const [ox, oy] = [p.x, p.y];
       _swapPlayerTo(target.x, target.y);
       target.x = ox; target.y = oy;
-      checkGachaShopTheft(target, dg, p, ml);
-      ml.push(`${_gachaName}と位置が入れ替わった！`);
+      if (!_isAltar) checkGachaShopTheft(target, dg, p, ml);
+      ml.push(`${_fixtureName}と位置が入れ替わった！`);
       return;
     }
     if (eff === "warp" || eff === "leap") {
       const _dest = pickFreeFloorObjectCell(dg, target, p, target.x, target.y);
-      if (!_dest) { ml.push(`${_gachaName}は動かなかった。`); return; }
+      if (!_dest) { ml.push(`${_fixtureName}は動かなかった。`); return; }
       target.x = _dest.x; target.y = _dest.y;
-      checkGachaShopTheft(target, dg, p, ml);
-      ml.push(`${_gachaName}はどこかへ飛んだ！`);
+      if (!_isAltar) checkGachaShopTheft(target, dg, p, ml);
+      ml.push(`${_fixtureName}はどこかへ飛んだ！`);
       return;
     }
     if (eff === "knockback") {
@@ -522,18 +527,19 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       for (let i = 0; i < _maxDist; i++) {
         const _nx = _gx + dx, _ny = _gy + dy;
         if (_nx < 0 || _nx >= MW || _ny < 0 || _ny >= MH || dg.map[_ny][_nx] === T.WALL || dg.map[_ny][_nx] === T.BWALL) {
-          breakGachaMachine(target, dg, ml, p, nameFn);
+          if (_isAltar) breakAltar(target, dg, ml, p, breaker || (sourceIsPlayer ? p : killerMon), luFn);
+          else breakGachaMachine(target, dg, ml, p, nameFn);
           return;
         }
         if (isFloorOccupancyBlocked(dg, _nx, _ny, { ignore: target, allowPlayer: true, allowMonster: true })) break;
         _gx = _nx; _gy = _ny;
       }
       target.x = _gx; target.y = _gy;
-      checkGachaShopTheft(target, dg, p, ml);
-      ml.push(`${_gachaName}が吹き飛んだ！`);
+      if (!_isAltar) checkGachaShopTheft(target, dg, p, ml);
+      ml.push(`${_fixtureName}が吹き飛んだ！`);
       return;
     }
-    ml.push(`${_gachaName}には効果がなかった。`);
+    ml.push(`${_fixtureName}には効果がなかった。`);
     return;
   }
 
@@ -680,7 +686,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
             const _lheal = Math.min(rng(20, 30), target.maxHp - target.hp);
-            if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); }
+            if (_lheal > 0) { target.hp += _lheal; ml.push(`${target.name}のHPが${_lheal}回復した！`); pushHealAnim(target.x, target.y); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
             else ml.push(`${target.name}には効果がなかった。`);
           }
           break;
@@ -1391,6 +1397,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           } else {
             target.hp = Math.min(target.maxHp, target.hp + _bh);
             ml.push(`${target.name}は祝福の光を浴び、HPが${_bh}回復した！${_bwBlessed ? "（祝福）" : ""}`);
+            calmShopkeeperIfFullyHealed(target, dg, p, ml);
           }
         }
         break;
@@ -1469,6 +1476,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           } else {
             target.hp = Math.min(target.maxHp, target.hp + _ch);
             ml.push(`${target.name}は呪いの魔法で回復した！${_ch}HP【呪→回復】`);
+            calmShopkeeperIfFullyHealed(target, dg, p, ml);
           }
         } else {
           if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
@@ -1644,7 +1652,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
             const _fwh = Math.min(rng(20, 30), target.maxHp - target.hp);
-            if (_fwh > 0) { target.hp += _fwh; ml.push(`${target.name}のHPが${_fwh}回復した！【呪】`); }
+            if (_fwh > 0) { target.hp += _fwh; ml.push(`${target.name}のHPが${_fwh}回復した！【呪】`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
             else ml.push(`${target.name}には効果がなかった。`);
           }
           break;
@@ -1662,7 +1670,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 火ダルマ：回復（封印中は特性無効） */
         if (target.baseKind === "firedemon" && !target.sealed) {
           const _fwHeal = Math.min(Math.round(rng(20,30) * _fwBlessMult), target.maxHp - target.hp);
-          if (_fwHeal > 0) { target.hp += _fwHeal; ml.push(`炎が${target.name}を癒した！HP+${_fwHeal}`); }
+          if (_fwHeal > 0) { target.hp += _fwHeal; ml.push(`炎が${target.name}を癒した！HP+${_fwHeal}`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
           else ml.push(`${target.name}には効果がなかった。`);
           break;
         }
@@ -1729,7 +1737,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn);
           } else {
             const _iwh = Math.min(20, target.maxHp - target.hp);
-            if (_iwh > 0) { target.hp += _iwh; ml.push(`${target.name}のHPが${_iwh}回復した！【呪】`); }
+            if (_iwh > 0) { target.hp += _iwh; ml.push(`${target.name}のHPが${_iwh}回復した！【呪】`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
             else ml.push(`${target.name}には効果がなかった。`);
           }
           if ((target.immobileTurns||0) > 0) { target.immobileTurns = 0; ml.push(`${target.name}の移動封じが解除された！【呪】`); }
@@ -1783,7 +1791,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         /* 呪い：対象を100回復 */
         if (kind === "monster") {
           const _gsh = Math.min(100, target.maxHp - target.hp);
-          if (_gsh > 0) { target.hp += _gsh; ml.push(`${target.name}のHPが${_gsh}回復した！【呪】`); }
+          if (_gsh > 0) { target.hp += _gsh; ml.push(`${target.name}のHPが${_gsh}回復した！【呪】`); calmShopkeeperIfFullyHealed(target, dg, p, ml); }
           else ml.push(`${target.name}には効果がなかった。`);
           break;
         }
@@ -2118,6 +2126,12 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
       applyWandEffect(eff, "gacha", gacha, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, null, 0, null, null, true);
       return;
     }
+    const altar = dg.altars?.find(a => a.x === tx && a.y === ty);
+    if (altar) {
+      if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${altar.name}の前に飛びついた！`); return; }
+      applyWandEffect(eff, "altar", altar, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult, null, 0, null, null, true, p);
+      return;
+    }
     /* 石像：飛びつきは前へ。それ以外は applyWandEffect（位置系は壊さず、穴掘り・軟化は敵なし破壊） */
     if (statueAt(dg, tx, ty)) {
       const st = statueAt(dg, tx, ty);
@@ -2241,6 +2255,11 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
       applyWandEffect("lightning", "gacha", gacha, dx, dy, dg, pl, ml, luFn, bbFn);
       return;
     }
+    const altar = dg.altars?.find(a => a.x === tx && a.y === ty);
+    if (altar) {
+      applyWandEffect("lightning", "altar", altar, dx, dy, dg, pl, ml, luFn, bbFn, 1, null, 0, killerMon, null, false, killerMon);
+      return;
+    }
   }
   ml.push("魔法弾は虚空に消えた。");
 }
@@ -2270,6 +2289,8 @@ function _centerWandTarget(dg, cx, cy, p) {
   if (bb) return { kind: "bigbox", t: bb };
   const gacha = dg.gachaMachines?.find(g => g.x === cx && g.y === cy);
   if (gacha) return { kind: "gacha", t: gacha };
+  const altar = dg.altars?.find(a => a.x === cx && a.y === cy);
+  if (altar) return { kind: "altar", t: altar };
   const st = dg.statues?.find(s => s.x === cx && s.y === cy);
   if (st) return { kind: "statue", t: st };
   return null;
@@ -2295,6 +2316,8 @@ function _collectBreakAdjacentTargets(dg, cx, cy, p) {
     if (bb) { targets.push({ kind: "bigbox", t: bb, dx: adx, dy: ady }); continue; }
     const gacha = dg.gachaMachines?.find(g => g.x === ax && g.y === ay);
     if (gacha) { targets.push({ kind: "gacha", t: gacha, dx: adx, dy: ady }); continue; }
+    const altar = dg.altars?.find(a => a.x === ax && a.y === ay);
+    if (altar) { targets.push({ kind: "altar", t: altar, dx: adx, dy: ady }); continue; }
     const st = statueAt(dg, ax, ay);
     if (st) targets.push({ kind: "statue", t: st, dx: adx, dy: ady });
   }
@@ -2521,6 +2544,9 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
     } else if (_sfcEnt?.kind === "statue") {
       applyWandEffect("soften", "statue", _sfcEnt.t, 0, 0, dg, p, ml, luFn, null, blMult);
       ml.push("軟化の杖が壊れた！");
+    } else if (_sfcEnt?.kind === "gacha" || _sfcEnt?.kind === "altar") {
+      applyWandEffect("soften", _sfcEnt.kind, _sfcEnt.t, 0, 0, dg, p, ml, luFn, null, blMult, null, 0, null, null, true, p);
+      ml.push("軟化の杖が壊れた！");
     } else {
       ml.push("軟化の杖が壊れた！");
     }
@@ -2551,6 +2577,8 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       if (_sfbBb) { applyWandEffect("soften", "bigbox", _sfbBb, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbGacha = dg.gachaMachines?.find(g => g.x === ax && g.y === ay);
       if (_sfbGacha) { applyWandEffect("soften", "gacha", _sfbGacha, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      const _sfbAltar = dg.altars?.find(a => a.x === ax && a.y === ay);
+      if (_sfbAltar) { applyWandEffect("soften", "altar", _sfbAltar, adx, ady, dg, p, ml, luFn, null, blMult, null, 0, null, null, true, p); continue; }
       const _sfbSt = statueAt(dg, ax, ay);
       if (_sfbSt) applyWandEffect("soften", "statue", _sfbSt, adx, ady, dg, p, ml, luFn, null, blMult);
     }

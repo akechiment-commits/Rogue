@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -14,13 +14,13 @@ import {
   monReflectsProjectiles,
 } from "./monsters.js";
 import {
-  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, pickTrap,
+  ITEMS, WATER_BOTTLE, SPELLBOOKS, WANDS, POTS, RINGS, TRAPS, ARROW_T, MAGIC_MARKER, pickTrap,
   CAT_CLAW_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, MAGIC_BANE_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T,
   genFood, setFavoriteFoodBase, makeArrow, makePoisonArrow, makePiercingArrow, makeStone, makeMagicStone, makeBombArrow, addArrowsInv, addStonesInv, advanceSpecialProjectiles, detonateCrawlingBomb, detonateTorpedo,
   makeArrowUnitFromStack, peelShopArrowUnit,
   wallBreakDrop, makePot, makeChangeBoxItem, breakBigboxContents, placeItemAt, pickLootFromPool,
   setPitfallBag, clearPitfallBag,
-  checkShopTheft, declareShopTheft, canCalmShopkeeper, applyLightningToInventory,
+  checkShopTheft, declareShopTheft, calmShopkeeperIfFullyHealed, applyLightningToInventory,
   WEAPON_ABILITIES, ARMOR_ABILITIES, weaponCriticalRate, inMagicSealRoom, inCursedMagicSealRoom,
   monsterDrop, killMonster, getIdentKey, generateFakeNames, generateBbFakeNames,
   hasCursedExplosionPentacle, isFireExplosionNullified, announceFireExplosionNullified, hasRingEffect, calcHungerDrainRate, calcShopBuyPrice, shopPriceNote, applyShopUnpaidCharge, getShopItemCharge, isPlayerFloating, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, doExplosion, doTimeBombExplosion, rotFood, applyMonsterSeal, grantDungeonStarterGear, markItemIdentifiedForDungeon, setDungeonAllBcKnown,
@@ -42,7 +42,20 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
+const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
+/* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
+const SHARED_FIXTURE_ASSET_VERSION = "20260902-v6";
 const HYPNOSIS_ACTION_DELAY_MS = 600;
+
+function markWanderingMerchantHostile(monster, dungeon, player, messages) {
+  if (!monster?.isWanderingMerchant || monster.state === "hostile") return false;
+  declareShopTheft(player, dungeon, messages, {
+    merchantId: monster.id,
+    angerOnly: true,
+    message: "行商人が怒った！",
+  });
+  return true;
+}
 setItemMimicDisguiseCatalog([
   ...ITEMS,
   ...WANDS,
@@ -57,7 +70,7 @@ import { useItemActions } from './useItemActions.js';
 import { useKeyHandler } from './useKeyHandler.js';
 import { drainAnims, pushMonsterBoltAnim, pushAnim, pushBoltAnim, pushPlayerTeleportAnim, drainItemArcs, signalHungerWarn, drainHungerWarn, signalPinchAlert, drainPinchAlert } from './animEvents.js';
 import { pickClearPortrait, pickDeathPortrait } from "./portraits.js";
-import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
+import { TileEditorModal, GameOverModal, GameOverMapView, GameOverInventoryModal, ScoresModal, NicknameModal, IdentifyModal, ShopModal, SpringModal, WishModal, BigboxModal, GachaModal, AltarModal, MerchantModal, TpSelectModal, PotPutModal, MarkerModal, SpellListModal, MsgLogModal, InventoryModal, SidebarPanel, FloorSelectModal, DebugSpellModal, EndingModal, SignModal, MiniTipModal, SettingsModal, ExitHubConfirmModal } from "./GameModals.jsx";
 import { MobileBtn, B, AB, DPad } from "./GameButtons.jsx";
 import { _invActCount, bbDisplayName, isBigboxKindIdentified, FLOOR_TITLES, MODAL_INIT, modalReducer } from "./GameHelpers.js";
 import { rollWishChance, grantWish } from "./wish.js";
@@ -67,7 +80,7 @@ import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from ".
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
-import { statusTurns, monsterStatusTurns, applyPlayerPoison } from "./statusDuration.js";
+import { statusTurns, monsterStatusTurns, applyPlayerPoison, clearStatusEffectsOnHpZero } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
@@ -95,6 +108,7 @@ import { makeRelicGuardian, restoreRelicGuardianBossTraits } from "./relicGuardi
 import { isMonsterSpawnCellAllowed } from "./monsterSpawnRules.js";
 import { FloorMapOverlay } from "./FloorMapOverlay.jsx";
 import { GACHA_COST, rollGachaRarity } from "./gachaRules.js";
+import { activateDimensionalVaults, advanceDimensionalVaults, pickAltarRewardTemplate } from "./specialFixtures.js";
 
 export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOverRecorded, pastIdent = [], discoveredItems = {}, resumeState = null, playerName = "", favoriteFood = "", seenMiniTips = [], onMiniTipSeen = null } = {}) {
   const [gs, setGs] = useState(null);
@@ -143,6 +157,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const gachaDrawRef = useRef(null);
   const gachaModeRef = useRef(null);
   gachaModeRef.current = gachaMode;
+  const altarMode      = modal.type === 'altar'       ? modal.data : null;
+  const altarMenuSel   = modal.altarMenuSel ?? 0;
+  const altarRef = useRef(null);
+  const merchantMode   = modal.type === 'merchant'    ? modal.data : null;
+  const merchantMenuSel = modal.merchantMenuSel ?? 0;
+  const merchantRef = useRef(null);
   const identifyConfirmRef = useRef(null);
   const identifyCancelRef = useRef(null);
   const spellConfirmRef = useRef(null);
@@ -187,6 +207,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const setBigboxPage    = (v) => dispatchModal({ type: 'UPDATE', payload: { bigboxPage: typeof v === 'function' ? v(modal.bigboxPage) : v } });
   const setGachaMode     = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'gacha', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
   const setGachaMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { gachaMenuSel: typeof v === 'function' ? v(modal.gachaMenuSel) : v } });
+  const setAltarMode     = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'altar', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setAltarMenuSel  = (v) => dispatchModal({ type: 'UPDATE', payload: { altarMenuSel: typeof v === 'function' ? v(modal.altarMenuSel ?? 0) : v } });
+  const setMerchantMode  = (v) => v ? dispatchModal({ type: 'SET_MODAL', modal: 'merchant', data: v }) : dispatchModal({ type: 'CLOSE_MODAL' });
+  const setMerchantMenuSel = (v) => dispatchModal({ type: 'UPDATE', payload: { merchantMenuSel: typeof v === 'function' ? v(modal.merchantMenuSel ?? 0) : v } });
   const shopModeRef = useRef(null); /* React再レンダリング前でも同期参照できるよう維持 */
   shopModeRef.current = shopMode;
   const setShopMode = (v) => {
@@ -301,6 +325,20 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
 
     if (name === 'default') {
+      /* デフォルトの手続き描画でも、視認性を優先した共通ギミック画像を使う。 */
+      await Promise.all([...SHARED_FIXTURE_TILE_IDS].map((id) => new Promise((res) => {
+        const tileName = TILE_NAMES[id];
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width; canvas.height = img.height;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          customTileImages[id] = canvas;
+          res();
+        };
+        img.onerror = () => res();
+        img.src = `/tiles/${tileName}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
+      })));
       setCurrentTileset('default');
       localStorage.setItem('roguelike_tileset', 'default');
       setCtLoaded(c => c + 1);
@@ -318,14 +356,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _loadTile = (id) => new Promise((res) => {
       /* mon1のtile 42はpenSpriteMapで別途上書きするのでスキップ */
       if (name === 'mon1' && id === 42) { res(); return; }
-      const paths = [`/tiles/sprites/${name}/tile_${id}.png`];
+      /* 店主・警備員・祭壇・宝物庫は共通の視認性重視画像を全タイルセットで優先する。 */
+      const paths = SHARED_FIXTURE_TILE_IDS.has(id) && TILE_NAMES[id]
+        ? [`/tiles/${TILE_NAMES[id]}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`, `/tiles/sprites/${name}/tile_${id}.png`]
+        : [`/tiles/sprites/${name}/tile_${id}.png`];
       if (name === 'mon1' && VENT_TILE_IDS.has(id) && TILE_NAMES[id]) {
         paths.push(`/tiles/${TILE_NAMES[id]}.png`);
       } else if (name === 'dawnlike' && TILE_NAMES[id] && !VENT_TILE_IDS.has(id)) {
-        paths.push(`/tiles/${TILE_NAMES[id]}.png`);
+        paths.push(`/tiles/${TILE_NAMES[id]}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`);
       } else if (id === 118 && TILE_NAMES[id]) {
         /* ガチャマシーンはプリセット側に画像がないため共通画像を使う */
-        paths.push(`/tiles/${TILE_NAMES[id]}.png`);
+        paths.push(`/tiles/${TILE_NAMES[id]}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`);
       }
       const tryPath = (pathIndex) => {
         if (pathIndex >= paths.length) { res(); return; }
@@ -520,7 +561,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           i2.src = saved;
         }
       };
-      img.src = `/tiles/${name}.png`;
+      img.src = SHARED_FIXTURE_TILE_IDS.has(iidx)
+        ? `/tiles/${name}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`
+        : `/tiles/${name}.png`;
     });
   }, []);
   const init = useCallback(() => {
@@ -539,6 +582,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setShowDesc(null);
     setThrowMode(null);
     setSpringMode(null);
+    setAltarMode(null);
+    setMerchantMode(null);
     setPutMode(null);
     setDashMode(false);
     resetDiscoveries();
@@ -675,6 +720,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setShowDesc(null);
       setThrowMode(null);
       setSpringMode(null);
+      setAltarMode(null);
+      setMerchantMode(null);
       setPutMode(null);
       setDashMode(false);
       /* DiscoveryTracker に前回の発見データを復元 */
@@ -1040,6 +1087,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (p.inventory.length < (p.maxInventory || 30)) {
             if (sr.current.allBcKnown) { _sunk.fullIdent = true; _sunk.bcKnown = true; }
             if (!['potion','scroll','wand','ring','pen','marker','spellbook','pot'].includes(_sunk.type)) trackItem(_sunk);
+            clearDimensionalVaultItemCounter(_sunk);
             p.inventory.push(_sunk);
             maybeTipForItem(_sunk);
             ml.push(`${itemDisplayName(_sunk, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames)}を水底から拾った。`);
@@ -1084,6 +1132,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       } else if (it.type === "goal") {
         trackItem(it);
+        clearDimensionalVaultItemCounter(it);
         p.inventory.push(it);
         showFirstEncounterTip("goal_item");
         ml.push(`★${it.name}を手に入れた！地上に持ち帰ろう！★`);
@@ -1096,6 +1145,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         if (sr.current.allBcKnown) { it.fullIdent = true; it.bcKnown = true; }
         /* 識別が必要なタイプは識別時に登録するため拾い時はスキップ */
         if (!['potion','scroll','wand','ring','pen','marker','spellbook','pot'].includes(it.type)) trackItem(it);
+        clearDimensionalVaultItemCounter(it);
         p.inventory.push(it);
         maybeTipForItem(it);
         {
@@ -1713,6 +1763,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     (st, p, ml) => {
       installPlayerHpMessageHook(ml, p);
       st.floorTurns = (st.floorTurns || 0) + 1;
+      const _activatedVaults = activateDimensionalVaults(st.dungeon, p, ml);
+      if (_activatedVaults.size > 0) showFirstEncounterTip("dimensional_vault");
+      advanceDimensionalVaults(st.dungeon, ml, {
+        skipVaultIds: _activatedVaults,
+        itemName: (item) => itemDisplayName(item, st.fakeNames, st.ident, st.nicknames),
+      });
       /* 落とし穴バッグをセット — moveMons内のmonsterDropなどで発動した落とし穴を収集 */
       const _etPfBag = [];
       setPitfallBag(_etPfBag);
@@ -1828,6 +1884,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           });
         }
       }
+      /* そのターン中の転送・強制移動で後から内部区画へ入った場合も、
+       * 入口アイコンを踏んだかどうかに関係なく即時に発動させる。 */
+      const _lateActivatedVaults = activateDimensionalVaults(st.dungeon, p, ml);
+      if (_lateActivatedVaults.size > 0) showFirstEncounterTip("dimensional_vault");
       refreshFOV(st.dungeon, p);
       applyVisibilityOverrides(st.dungeon, p, { findRoom, inMagicSealRoom });
       {
@@ -1929,6 +1989,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       }
       if (p.hp <= 0) {
+        /* HP0になった時点で状態異常をすべて解除する。蘇生の有無に関係なく、
+           眠り・鈍足などが自動ターンを連鎖させないようにする。 */
+        clearStatusEffectsOnHpZero(p);
         /* 呪われた復活の魔方陣：同部屋の蘇りをすべて封じる */
         const _reviveBlocked = isRevivalSuppressedAt(st.dungeon, p.x, p.y);
         /* 復活の魔方陣チェック：魔方陣上/同部屋（祝福）にいればHP全回復で復活（使い捨て） */
@@ -2056,12 +2119,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         }
       }
     },
-    [moveMons, lu, spawnRelicGuardian, triggerMonsterHouseWithTip],
+    [moveMons, lu, spawnRelicGuardian, triggerMonsterHouseWithTip, showFirstEncounterTip],
   );
 
   /* auto-advance turns while player is sleeping, paralyzed, or slow-skipping */
   useEffect(() => {
     if (!gs?.player) return;
+    /* HP0後に残った状態異常があっても、死亡処理中に自動ターンを再実行しない。 */
+    if (gs.player.hp <= 0) return;
     if (shopMode) return;
     if (miniTip) return;
     if (!hasForcedTurn(gs.player)) return;
@@ -2077,7 +2142,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       const st = sr.current;
       const { player: p, dungeon: dg } = st;
-      if (!hasForcedTurn(p)) return;
+      if (p.hp <= 0 || !hasForcedTurn(p)) return;
       const ml = installPlayerHpMessageHook([], p);
       const _forcedTurn = advanceForcedTurn(p, ml);
       endTurn(st, p, ml);
@@ -2212,7 +2277,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       if (exitHubConfirmRef.current) return;
       if (mapMode) return;
       if (lookMode) return;
-      if (springMode || wishMode || gachaModeRef.current) return;
+      if (springMode || wishMode || gachaModeRef.current || altarMode || merchantMode) return;
       if (putMode) return;
       if (markerMode) return;
       if (spellListMode) return;
@@ -2392,7 +2457,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               attackMon.type === "shopkeeper" &&
               attackMon.state !== "hostile"
             ) {
-              const _bumpShop = getShops(dg).find(s => s.shopkeeperId === attackMon.id);
+              if (attackMon.isWanderingMerchant) {
+                /* 体当たりでは会話せず、行商人と位置を入れ替えて進む。 */
+                if (Math.max(Math.abs(attackMon.x - p.x), Math.abs(attackMon.y - p.y)) === 1) {
+                  attackMon.x = p.x;
+                  attackMon.y = p.y;
+                  p.x = nx;
+                  p.y = ny;
+                  _ad.playerMove = { fromX: _oldPx, fromY: _oldPy, toX: nx, toY: ny };
+                  ml.push("行商人と場所を入れ替えた。");
+                } else {
+                  ml.push("行商人には体当たりできない。前を調べて話しかけよう。");
+                }
+                acted = true;
+              }
+              const _bumpShop = !attackMon.isWanderingMerchant && getShops(dg).find(s => s.shopkeeperId === attackMon.id);
               if (_bumpShop) {
                 const _bumpFis = dg.items.filter(
                   (i) => !i.shopPrice && i.x >= _bumpShop.room.x && i.x < _bumpShop.room.x + _bumpShop.room.w &&
@@ -2527,8 +2606,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               }
               attackMon.hp -= d;
               if (attackMon.type === "shopkeeper" && attackMon.state !== "hostile") {
-                attackMon.state = "hostile";
-                ml.push("店主が怒った！");
+                if (!markWanderingMerchantHostile(attackMon, dg, p, ml)) {
+                  attackMon.state = "hostile";
+                  ml.push("店主が怒った！");
+                }
               }
               const atkSfx =
                 (crit ? "会心！" : "") +
@@ -2723,7 +2804,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     } else if (_stM && !_srForceMiss && (isEvasionDisabledByStatus(_stM) || Math.random() < 0.90)) {
                       const _stDmg = clampDmgFixed(_stM, calcProjectileDmg(p, _srAr.atk || 3, _stM.def), true);
                       _stM.hp -= _stDmg; ml.push(`${_arName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                      if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { _stM.state = "hostile"; ml.push("店主が怒った！"); }
+                      if (_stM.type === "shopkeeper" && _stM.state !== "hostile") { if (!markWanderingMerchantHostile(_stM, dg, p, ml)) { _stM.state = "hostile"; ml.push("店主が怒った！"); } }
                       _ad.damages.push({ type: "damage", x: _stM.x, y: _stM.y, value: _stDmg, color: "#aaaaaa" });
                       if (_stM.hp <= 0) { _ad.damages.push({ type: "flash", x: _stM.x, y: _stM.y, color: "#ff2200", duration: 150 }); killMonster(_stM, dg, p, ml, lu, false); }
                       _srPeel();
@@ -2773,7 +2854,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         if (_baM && !_srForceMiss) {
                           const _baDmg = calcProjectileDmg(p, _srAr.atk || 6, _baM.def);
                           _baM.hp -= _baDmg; ml.push(`${_arName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                          if (_baM.type === "shopkeeper" && _baM.state !== "hostile") { _baM.state = "hostile"; ml.push("店主が怒った！"); }
+                          if (_baM.type === "shopkeeper" && _baM.state !== "hostile") { if (!markWanderingMerchantHostile(_baM, dg, p, ml)) { _baM.state = "hostile"; ml.push("店主が怒った！"); } }
                           _ad.damages.push({ type: "damage", x: _baM.x, y: _baM.y, value: _baDmg, color: "#ff6622" });
                           if (_baM.hp <= 0) { _ad.damages.push({ type: "flash", x: _baM.x, y: _baM.y, color: "#ff2200", duration: 150 }); killMonster(_baM, dg, p, ml, lu, false); }
                           _baLx = _tx; _baLy = _ty; break;
@@ -2824,7 +2905,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                         }
                         const _srDmg = clampDmgFixed(mon, calcProjectileDmg(p, _srBaseAtk, mon.def), true);
                         mon.hp -= _srDmg;
-                        if (mon.type === "shopkeeper" && mon.state !== "hostile") { mon.state = "hostile"; mlx.push("店主が怒った！"); }
+                        if (mon.type === "shopkeeper" && mon.state !== "hostile") { if (!markWanderingMerchantHostile(mon, dg, p, mlx)) { mon.state = "hostile"; mlx.push("店主が怒った！"); } }
                         let _poisonT = 0;
                         if (_isPoison) {
                           if (mon.isBoss) {
@@ -2934,6 +3015,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             if (_sprStep) ml.push("泉がある。");
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
             if (_pentStep) ml.push(`${_pentStep.name}の上にいる。`);
+            const _altarStep = st.dungeon.altars?.find((a) => a.x === p.x && a.y === p.y);
+            if (_altarStep) ml.push("祭壇がある。");
             /* 隠し部屋／宝物庫の発見メッセージ */
             const _hrFound = st.dungeon.hiddenRooms?.find(hr =>
               !hr.discovered &&
@@ -3071,6 +3154,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             setMsgs((prev) => [...prev.slice(-80), "ガチャマシーンがある。どうする？"]);
             sr.current = { ...st }; setGs({ ...st }); return;
           }
+          const altar2 = dg.altars?.find((a) => a.x === p.x && a.y === p.y);
+          if (altar2) {
+            altarRef.current = altar2;
+            showFirstEncounterTip("altar");
+            setAltarMode("menu"); setAltarMenuSel(0);
+            setMsgs((prev) => [...prev.slice(-80), "祭壇がある。何を捧げる？"]);
+            sr.current = { ...st }; setGs({ ...st }); return;
+          }
           const bb2 = dg.bigboxes?.find((b) => b.x === p.x && b.y === p.y);
           if (bb2) {
             bigboxRef.current = bb2;
@@ -3115,6 +3206,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             } else if (p.inventory.length >= (p.maxInventory || 30)) ml.push("持ち物がいっぱいだ！");
             else {
               if (sr.current.allBcKnown) { _grIt.fullIdent = true; _grIt.bcKnown = true; }
+              clearDimensionalVaultItemCounter(_grIt);
               p.inventory.push(_grIt);
               if (_grIt.type === "goal") showFirstEncounterTip("goal_item");
               else if (!_grIt.shopPrice) maybeTipForItem(_grIt);
@@ -3228,6 +3320,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       showInv,
       throwMode,
       springMode,
+      altarMode,
+      merchantMode,
       putMode,
       markerMode,
       moveMons,
@@ -3259,6 +3353,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const mon = monsterAt(dg, nx, ny);
     if (mon) {
       if (mon.type === "shopkeeper" && mon.state !== "hostile") {
+        if (mon.isWanderingMerchant) {
+          merchantRef.current = mon;
+          setMerchantMode("menu");
+          setMerchantMenuSel(0);
+          showFirstEncounterTip("wandering_merchant");
+          setMsgs((prev) => [...prev.slice(-80), "行商人：「何かお探しかい？」"]);
+          return;
+        }
         const dg6 = sr.current.dungeon;
         const _talkShop = getShops(dg6).find(s => s.shopkeeperId === mon.id);
         if (_talkShop) {
@@ -3311,6 +3413,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const spr = dg.springs?.find((s) => s.x === nx && s.y === ny);
         const bb6 = dg.bigboxes?.find((b) => b.x === nx && b.y === ny);
         const gacha6 = dg.gachaMachines?.find((g) => g.x === nx && g.y === ny);
+        const altar6 = dg.altars?.find((a) => a.x === nx && a.y === ny);
+        const vault6 = dg.dimensionalVaults?.find((v) => v.x === nx && v.y === ny);
         const _statueFront = dg.statues?.find((s) => s.x === nx && s.y === ny);
         if (spr) {
           springTargetRef.current = spr;
@@ -3327,6 +3431,17 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           showFirstEncounterTip("gacha_machine");
           setGachaMode("menu"); setGachaMenuSel(0);
           setMsgs((prev) => [...prev.slice(-80), "ガチャマシーンがある。どうする？"]);
+        } else if (altar6) {
+          altarRef.current = altar6;
+          showFirstEncounterTip("altar");
+          setAltarMode("menu"); setAltarMenuSel(0);
+          setMsgs((prev) => [...prev.slice(-80), "祭壇がある。何を捧げる？"]);
+        } else if (vault6) {
+          p.x = nx;
+          p.y = ny;
+          acted = true;
+          showFirstEncounterTip("dimensional_vault");
+          ml.push(`${vault6.name || "次元宝物庫"}の入口に入った。`);
         } else if (_statueFront) {
           setMsgs((prev) => [...prev.slice(-80), "石像がある。"]);
         } else {
@@ -3360,9 +3475,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     async (dx, dy) => {
       if (dead || !sr.current) return;
       if (animBusyRef.current) return;
-      if (springMode || wishMode || gachaModeRef.current || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || mapMode || tpSelectModeRef.current || identifyModeRef.current) return;
+      if (springMode || wishMode || gachaModeRef.current || altarMode || merchantMode || putMode || markerMode || spellListMode || debugSpellModeRef.current || throwMode || showInv || lookMode || mapMode || tpSelectModeRef.current || identifyModeRef.current) return;
       /* act()と同じモーダルガード（店・大箱・ニックネーム・看板・メッセージ待ち・階層選択・ログ中のダッシュ防止） */
-      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
+      if (shopModeRef.current || bigboxModeRef.current || gachaModeRef.current || altarMode || merchantMode || nicknameModeRef.current || showSignRef.current || miniTipRef.current || revealModeRef.current || floorSelectModeRef.current || msgLogModeRef.current || showSettingsRef.current || showTileEditorRef.current || exitHubConfirmRef.current) return;
       const st = sr.current,
         { player: p, dungeon: dg } = st;
       if (p.sleepTurns > 0 || (p.sleepInterruptedTurns || 0) > 0 || p.paralyzeTurns > 0 || (p.slowTurns || 0) > 0 || (p.confusedTurns || 0) > 0) return;
@@ -3460,6 +3575,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         else if (_wasInAnyShopD && !_isNowInShopD) ml.push("お店をあとにした。");
         applySoakedFromWaterWalk(p, dg, ml);
         steps++;
+        /* この歩で未発動の宝物庫が発動したかを、通常のターン処理の前後で確認する。 */
+        const _dashInactiveVaults = new Set((dg.dimensionalVaults || []).filter((vault) => !vault.active));
         const tr = checkTrap(p, dg, ml, (trap) => {
           dashTrapWaitEffect = trap.effect;
         });
@@ -3552,6 +3669,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           endTurn(st, p, ml);
           break;
         }
+        const _dashAltar = dg.altars?.find((altar) => altar.x === p.x && altar.y === p.y);
+        if (_dashAltar) {
+          ml.push("祭壇がある。");
+          endTurn(st, p, ml);
+          break;
+        }
         const _dashPc = _dPentMap.get(_dk(p.x, p.y));
         if (_dashPc) {
           if (_dashPc.kind === "portal" || _dashPc.kind === "fixed_portal") {
@@ -3584,7 +3707,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         const _poisBefore    = !!p.poisoned;
         const _invLenBefore  = p.inventory.length;
         const _goldBefore    = p.gold;
-        p._dashInterrupt = false;
         triggerMonsterHouseWithTip(st.dungeon, p, ml);
         endTurn(st, p, ml);
         /* 各ステップの状態をキャンバスに一瞬描画（ダッシュ高速移動演出） */
@@ -3595,13 +3717,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         gsOverrideRef.current = null;
         animBusyRef.current = false;
         await waitForDashTrap();
+        const _dashActivatedVault = [..._dashInactiveVaults].some((vault) => vault.active);
         if (p.hp <= 0 || p.hp < _hpBefore || p.sleepTurns > 0 || p.paralyzeTurns > 0 ||
             (p.confusedTurns||0) > _confBefore || (p.slowTurns||0) > _slowBefore ||
             (p.sealedTurns||0) > _sealBefore   || (p.immobileTurns||0) > _immBefore ||
             (p.darknessTurns||0) > _darkBefore  || (p.oilyTurns||0) > _oilyBefore ||
             (p.bewitchedTurns||0) > _bewBefore  || (!!p.poisoned && !_poisBefore) ||
             p.inventory.length < _invLenBefore  || p.gold < _goldBefore ||
-            p._dashInterrupt) break;
+            _dashActivatedVault) break;
         /* endTurn後にモンスターが移動している可能性があるため再チェック */
         const blockedAfter = blocked || !!monsterAt(dg, fnx, fny);
         if (startInRoom) {
@@ -4362,10 +4485,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     const _hpPrev = m.hp;
                     m.hp = Math.min(m.maxHp, m.hp + _healPotAmt);
                     ml.push(`${m.name}のHPが${m.hp - _hpPrev}回復した！`);
-                    if (canCalmShopkeeper(m, dg, p)) {
-                      m.state = "friendly";
-                      ml.push("店主のHPが全快した！敵対状態が解除された。");
-                    }
+                  calmShopkeeperIfFullyHealed(m, dg, p, ml);
                   }
                 }
                 if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
@@ -4934,6 +5054,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   const floorWandRef = useRef(null);
   const floorPotRef = useRef(null);
   const floorArrowRef = useRef(null);
+  /* 宣言位置が後ろにある祭壇・行商人操作を、キー処理へ安全に橋渡しする。 */
+  const doOfferFoodRef = useRef(null);
+  const doMerchantBuyRef = useRef(null);
+  const doMerchantSellRef = useRef(null);
+  const doOfferFoodProxy = useCallback((...args) => doOfferFoodRef.current?.(...args), []);
+  const doMerchantBuyProxy = useCallback((...args) => doMerchantBuyRef.current?.(...args), []);
+  const doMerchantSellProxy = useCallback((...args) => doMerchantSellRef.current?.(...args), []);
   useEffect(() => {
     const onUp = (e) => {
       if (e.key === "Shift") { shiftRef.current = false; arrowHeldRef.current = {}; }
@@ -4980,12 +5107,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
   }, [markerMode]);
   useKeyHandler({
     // refs
-    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
+    sr, shiftRef, aRef, arrowHeldRef, execRef, invActRef, doMarkerWriteRef, bigboxRef, gachaRef, gachaDrawRef, altarRef, merchantRef, dropModeRef, revealModeRef, shopModeRef, identifyCancelRef, gameOverInventoryRef,
     // state values
     gs, dead, showEnding, showScores, gameOverSel, gameOverView, endingSel, endingView, throwMode, showInv, selIdx, invPage, invMenuSel,
     facingMode, springMode, springMenuSel, springPage, wishMode, putMode, putMenuSel, putPage,
     markerMode, markerMenuSel, markerPage, spellListMode, spellMenuSel, spellPage, shopMode, shopMenuSel,
-    bigboxMode, bigboxMenuSel, bigboxPage, gachaMode, gachaMenuSel, nicknameMode, identifyMode, revealMode,
+    bigboxMode, bigboxMenuSel, bigboxPage, gachaMode, gachaMenuSel, altarMode, altarMenuSel, merchantMode, merchantMenuSel, nicknameMode, identifyMode, revealMode,
     tpSelectMode, floorSelectMode, lookMode, mapMode, debugSpellMode, debugSpellMenuSel,
     msgLogMode, msgLogScrollTop, msgsRef,
     showSign, miniTip,
@@ -4999,7 +5126,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setNicknameInput, setInvPage, setDropMode, setFacingMode, setThrowMode,
     setSpringMode, setSpringMenuSel, setSpringPage, setPutMode, setPutMenuSel, setPutPage,
     setMarkerMode, setMarkerMenuSel, setMarkerPage, setSpellListMode, setSpellMenuSel, setSpellPage, setShopMode,
-    setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setGachaMode, setGachaMenuSel, setIdentifyMode,
+    setShopMenuSel, setBigboxMode, setBigboxMenuSel, setBigboxPage, setGachaMode, setGachaMenuSel, setAltarMode, setAltarMenuSel, setMerchantMode, setMerchantMenuSel, setIdentifyMode,
     setRevealMode, setDebugSpellMode, setDebugSpellMenuSel,
     setMsgLogMode, setMsgLogScrollTop,
     setShowSign, closeMiniTip,
@@ -5007,6 +5134,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     // callbacks
     init, act, doDash, doExamineFront, endTurn, springDrink, springDoSoak,
     bigboxPutItem, sortInventory, getLookDesc, lu,
+    doOfferFood: doOfferFoodProxy, doMerchantBuy: doMerchantBuyProxy, doMerchantSell: doMerchantSellProxy,
     pastIdent, discoveredItems,
   });
   const useLabel = (item) => getInventoryUseLabel(item, gs?.player);
@@ -5027,6 +5155,119 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     onReturnToHub: returnToHubFromItem, dropModeRef, setFloorSelectMode, setTpSelectMode,
     floorPenDropRef, floorWandRef, floorPotRef, floorArrowRef,
   });
+  const doOfferFood = useCallback((foodRef) => {
+    const s = sr.current;
+    const altarRefItem = altarRef.current;
+    const altar = s?.dungeon?.altars?.find((entry) =>
+      entry === altarRefItem ||
+      (altarRefItem?.id != null && entry.id === altarRefItem.id) ||
+      (altarRefItem && entry.x === altarRefItem.x && entry.y === altarRefItem.y)
+    );
+    if (!s || !altar) {
+      setMsgs((prev) => [...prev.slice(-80), "祭壇を見失った。"]);
+      return;
+    }
+    const p = s.player;
+    /* モーダル描画時の配列番号は、直前のターンや整頓でずれることがある。
+       個体ID（または参照）を優先して現在の所持品から解決する。 */
+    const food = foodRef && typeof foodRef === "object"
+      ? p.inventory.find((item) => item === foodRef || (foodRef.id != null && item.id === foodRef.id))
+      : typeof foodRef === "string"
+        ? p.inventory.find((item) => item.id === foodRef)
+        : p.inventory[foodRef];
+    if (!food || food.type !== "food") {
+      setMsgs((prev) => [...prev.slice(-80), "祭壇に捧げられるのは食料だけだ。"]);
+      return;
+    }
+    const inventoryIndex = p.inventory.indexOf(food);
+    p.inventory.splice(inventoryIndex, 1);
+    altar.offerCount = (altar.offerCount || 0) + 1;
+    const rewardPool = [
+      ...ITEMS.filter((item) => item.type !== "gold" && item.type !== "goal" && item.type !== "food"),
+      ...WANDS,
+      ...POTS,
+      ...RINGS,
+      ...SPELLBOOKS,
+      { ...ARROW_T },
+      { ...MAGIC_MARKER },
+    ];
+    const template = pickAltarRewardTemplate(rewardPool, altar.offerCount);
+    const reward = template ? { ...template, id: uid() } : null;
+    if (reward?.type === "pot") reward.contents = [];
+    if (reward?.type === "arrow") reward.count = rng(3, 12);
+    if (reward?.type === "wand") reward.charges = reward.effect === "curse_wand" || reward.effect === "bless_wand" || reward.effect === "wish" ? 1 : Math.max(1, reward.charges || 5);
+    if (reward?.type === "pen") reward.charges = reward.charges || 3;
+    if (reward?.type === "ring") {
+      reward.plus = reward.plus ?? (reward.effect === "power_ring" || reward.effect === "defense_ring" || reward.effect === "life_ring" ? rng(1, 3) : reward.plus);
+    }
+    const ml = [`${itemDisplayName(food, s.fakeNames, s.ident, s.nicknames)}を祭壇に捧げた。（${altar.offerCount}回目）`];
+    if (reward) {
+      if (p.inventory.length < (p.maxInventory || 30)) {
+        p.inventory.push(reward);
+        ml.push(`${itemDisplayName(reward, s.fakeNames, s.ident, s.nicknames)}が返ってきた！`);
+      } else {
+        placeItemAt(s.dungeon, altar.x, altar.y, reward, ml, new Set(), 0, p);
+        ml.push("持ち物がいっぱいなので返礼品が足元に落ちた！");
+      }
+    }
+    endTurn(s, p, ml);
+    altarRef.current = altar;
+    setAltarMode(null);
+    setAltarMenuSel(0);
+    setMsgs((prev) => [...prev.slice(-80), ...ml]);
+    sr.current = { ...s };
+    setGs({ ...sr.current });
+  }, [endTurn]);
+  const doMerchantBuy = useCallback((stockIndex) => {
+    const s = sr.current;
+    const merchant = merchantRef.current;
+    const shop = s?.dungeon?.merchantShops?.find((entry) => entry.id === merchant?.merchantShopId);
+    const item = shop?.stock?.[stockIndex];
+    if (!s || !merchant || merchant.state === "hostile" || !shop || !item) return;
+    const p = s.player;
+    if (p.inventory.length >= (p.maxInventory || 30)) {
+      setMsgs((prev) => [...prev.slice(-80), "持ち物がいっぱいだ！"]);
+      return;
+    }
+    const price = Math.max(1, itemPrice(item));
+    if (p.gold < price) {
+      setMsgs((prev) => [...prev.slice(-80), "お金が足りない！"]);
+      return;
+    }
+    p.gold -= price;
+    const bought = { ...item, id: uid() };
+    if (bought.contents) bought.contents = bought.contents.map((content) => ({ ...content }));
+    shop.stock.splice(stockIndex, 1);
+    p.inventory.push(bought);
+    setMsgs((prev) => [...prev.slice(-80), `${itemDisplayName(bought, s.fakeNames, s.ident, s.nicknames)}を${price}Gで購入した。`]);
+    setMerchantMenuSel(0);
+    sr.current = { ...s };
+    setGs({ ...sr.current });
+  }, []);
+  const doMerchantSell = useCallback((inventoryIndex) => {
+    const s = sr.current;
+    const merchant = merchantRef.current;
+    const shop = s?.dungeon?.merchantShops?.find((entry) => entry.id === merchant?.merchantShopId);
+    const item = s?.player?.inventory?.[inventoryIndex];
+    if (!s || !merchant || merchant.state === "hostile" || !shop || !item || item.type === "gold" || item.type === "goal") return;
+    const p = s.player;
+    const equipped = p.weapon === item || p.armor === item || p.arrow === item || (p.rings || []).includes(item);
+    if (equipped) {
+      setMsgs((prev) => [...prev.slice(-80), "装備中の道具は売れない。"]);
+      return;
+    }
+    const price = Math.max(1, Math.ceil(itemPrice(item) * 0.5));
+    p.inventory.splice(inventoryIndex, 1);
+    shop.stock.push({ ...item, id: uid() });
+    p.gold += price;
+    setMsgs((prev) => [...prev.slice(-80), `${itemDisplayName(item, s.fakeNames, s.ident, s.nicknames)}を${price}Gで売った。`]);
+    setMerchantMenuSel(0);
+    sr.current = { ...s };
+    setGs({ ...sr.current });
+  }, []);
+  doOfferFoodRef.current = doOfferFood;
+  doMerchantBuyRef.current = doMerchantBuy;
+  doMerchantSellRef.current = doMerchantSell;
   /* 催眠術を受けたら、短い待機の後に状態異常による自動ターン処理とは別に1行動を実行する。 */
   useEffect(() => {
     const p = gs?.player;
@@ -5060,6 +5301,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     if (_p.inventory.length >= (_p.maxInventory || 30)) { setMsgs(prev => [...prev.slice(-80), "持ちきれない！"]); return; }
     _dg.items = _dg.items.filter(i => i !== item);
+    clearDimensionalVaultItemCounter(item);
     _p.inventory.push(item);
     if (item.type === "goal") showFirstEncounterTip("goal_item");
     else if (!item.shopPrice) maybeTipForItem(item);
@@ -5155,6 +5397,19 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     setMsgs((prev) => [...prev.slice(-80), "ガチャマシーンがある。どうする？"]);
     sr.current = { ...s }; setGs({ ...sr.current });
   };
+  /** 足元ページから祭壇を調べる */
+  const _doFloorAltar = (altarEntry) => {
+    const s = sr.current; if (!s) return;
+    const altar = s.dungeon.altars?.find((a) =>
+      (altarEntry.id != null && a.id === altarEntry.id) || (a.x === altarEntry.x && a.y === altarEntry.y)
+    ) || altarEntry;
+    altarRef.current = altar;
+    showFirstEncounterTip("altar");
+    setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
+    setAltarMode("menu"); setAltarMenuSel(0);
+    setMsgs((prev) => [...prev.slice(-80), "祭壇がある。何を捧げる？"]);
+    sr.current = { ...s }; setGs({ ...sr.current });
+  };
   /** 足元ページから泉を使う */
   const _doFloorSpring = (sprEntry) => {
     const s = sr.current; if (!s) return;
@@ -5193,6 +5448,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     /* 店のアイテムを床から直接使う場合は代金を請求 */
     _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
+    clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
     _p.inventory.push(item);
     if (keepInInventory) {
@@ -5238,6 +5494,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     const _p = s.player, _dg = s.dungeon;
     _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
+    clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
     _p.inventory.push(item);
     floorWandRef.current = item;
@@ -5251,6 +5508,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (blanks.length === 0) { setMsgs(prev => [...prev.slice(-80), "白紙の巻物も白紙の魔法書もない。"]); return; }
     _chargeShopFloorItem(item, _p, _dg, s);
     _dg.items = _dg.items.filter(i => i !== item);
+    clearDimensionalVaultItemCounter(item);
     const _idx = _p.inventory.length;
     _p.inventory.push(item);
     floorPenDropRef.current = item;
@@ -5285,7 +5543,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       setShowDesc(null);
     }
   };
-  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorGacha: _doFloorGacha, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
+  invActRef.current = { use: doUseItem, drop: doDropItem, throw: doThrow, shoot: doShoot, wave: doWaveWand, breakWand: doBreakWand, breakPot: doBreakPot, put: doPutItem, useMarker: doUseMarker, readSpellbook: doReadSpellbook, floorPickup: _doFloorPickup, floorTrap: _doFloorTrap, floorStair: _doFloorStair, floorBigbox: _doFloorBigbox, floorSpring: _doFloorSpring, floorGacha: _doFloorGacha, floorAltar: _doFloorAltar, floorItemAction: _doFloorItemAction, floorOpenPutMode: _doFloorOpenPutMode, floorPen: _doFloorPen, floorWaveWand: _doFloorWaveWand, cancelPut: cancelPutMode };
   /* fixtures.js 等（render 循環回避）から未識別名でメッセージを出す用 */
   globalThis.__rogueItemNameFn = (it) =>
     itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -5713,6 +5971,30 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 setTpSelectMode({ cx: Math.max(0, Math.min(MW - 1, tpSelectMode.cx + dx)), cy: Math.max(0, Math.min(MH - 1, tpSelectMode.cy + dy)) });
                 return;
               }
+              if (merchantMode) {
+                const _merchant = merchantRef.current;
+                const _mshop = sr.current?.dungeon?.merchantShops?.find((entry) => entry.id === _merchant?.merchantShopId);
+                const _sellCount = (sr.current?.player?.inventory || []).filter((item) => item.type !== "gold" && item.type !== "goal" && sr.current.player.weapon !== item && sr.current.player.armor !== item && sr.current.player.arrow !== item && !(sr.current.player.rings || []).includes(item)).length;
+                const _merchantItems = merchantMode === "buy" ? (_mshop?.stock?.length || 0) : _sellCount;
+                const _merchantPages = Math.max(1, Math.ceil(_merchantItems / 10));
+                if (dx !== 0 && merchantMode !== "menu") {
+                  setMerchantMenuSel((value) => {
+                    const currentPage = value >= _merchantItems ? _merchantPages - 1 : Math.floor(value / 10);
+                    const nextPage = (currentPage + (dx > 0 ? 1 : -1) + _merchantPages) % _merchantPages;
+                    return Math.min(nextPage * 10, _merchantItems);
+                  });
+                } else if (dy !== 0) {
+                  const _merchantLen = merchantMode === "menu" ? 3 : _merchantItems + 1;
+                  if (_merchantLen > 0) setMerchantMenuSel((value) => (value + dy + _merchantLen) % _merchantLen);
+                }
+                return;
+              }
+              if (altarMode) {
+                const _altarFoods = (sr.current?.player?.inventory || []).filter((item) => item.type === "food").length;
+                const _altarLen = _altarFoods + 1;
+                if (dy !== 0) setAltarMenuSel((value) => (value + dy + _altarLen) % _altarLen);
+                return;
+              }
               /* === インベントリ表示中 === */
               if (showInv) {
                 const inv = sr.current?.player?.inventory || [];
@@ -5951,13 +6233,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   small
                   label="矢"
                   sub="射る"
-                  onClick={() => { if (mapMode || spellListMode) return; if (springMode || identifyMode || putMode) return; act("shoot_arrow"); }}
+                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; act("shoot_arrow"); }}
                   color={p.arrow ? "#fc0" : "#555"}
                 />
                 <AB
                   small
-                  label={miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
-                  sub={miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
+                  label={miniTip ? "閉" : showSign ? "閉" : spellListMode ? "閉" : (putMode || bigboxMode === "put") ? "戻" : (bigboxMode === "menu") ? "閉" : gachaMode ? "閉" : altarMode ? "閉" : merchantMode ? "閉" : (showInv && invMenuSel !== null) ? "戻" : showInv ? "閉" : springMode === "soak" ? "戻" : springMode ? "閉" : identifyMode ? "閉" : "袋"}
+                  sub={miniTip ? "閉じる" : showSign ? "閉じる" : spellListMode ? "閉じる" : (putMode || bigboxMode === "put") ? "キャンセル" : (bigboxMode === "menu") ? "閉じる" : gachaMode ? "閉じる" : altarMode ? "閉じる" : merchantMode ? "閉じる" : (showInv && invMenuSel !== null) ? "戻る" : showInv ? "閉じる" : springMode === "soak" ? "戻る" : springMode ? "閉じる" : identifyMode ? "閉じる" : "道具"}
                   onClick={() => {
                     if (mapMode) return;
                     if (miniTip) { closeMiniTip(); return; }
@@ -5969,13 +6251,15 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                     if (bigboxMode === "put") { setBigboxMode("menu"); setBigboxMenuSel(0); return; }
                     if (bigboxMode === "menu") { setBigboxMode(null); bigboxRef.current = null; return; }
                     if (gachaMode) { setGachaMode(null); gachaRef.current = null; return; }
+                    if (altarMode) { setAltarMode(null); altarRef.current = null; return; }
+                    if (merchantMode) { setMerchantMode(null); merchantRef.current = null; return; }
                     if (showInv && invMenuSel !== null) { setInvMenuSel(null); return; }
                     if (springMode === "soak") { setSpringMode("menu"); setSpringMenuSel(0); setSpringPage(0); return; }
                     if (springMode) { setSpringMode(null); setSpringMenuSel(0); return; }
                     if (identifyMode) { identifyCancelRef.current?.(); setIdentifyMode(null); setMsgs(prev => [...prev.slice(-80), "やめた。"]); return; }
                     act("inventory");
                   }}
-                  color={miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
+                  color={miniTip ? "#f88" : showSign ? "#f88" : spellListMode ? "#f88" : (putMode || bigboxMode === "put" || bigboxMode === "menu" || gachaMode || altarMode || merchantMode) ? "#f88" : showInv ? "#f88" : (springMode || identifyMode) ? "#f88" : "#ff0"}
                 />
                 <AB
                   small
@@ -6003,10 +6287,33 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               </div>{" "}
               <div style={{ display: "flex", gap: 3 }}>
                 <AB
-                  label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
-                  sub={spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
+                  label={spellListMode ? "決" : showInv ? "決" : bigboxMode === "menu" ? "決" : gachaMode ? "決" : altarMode || merchantMode ? "選" : putMode ? "決" : springMode ? "決" : identifyMode ? "決" : "足"}
+                  sub={spellListMode ? "詠唱" : showInv ? "決定" : bigboxMode === "menu" ? "決定" : gachaMode ? "決定" : altarMode || merchantMode ? "決定" : putMode ? "決定" : springMode ? "決定" : identifyMode ? "決定" : "足元"}
                   onClick={() => {
                     if (mapMode) return;
+                    if (altarMode) {
+                      const _foods = (sr.current?.player?.inventory || []).map((it, i) => ({ it, i })).filter(({ it }) => it.type === "food");
+                      if (altarMenuSel < _foods.length) doOfferFood(_foods[altarMenuSel].it);
+                      else { setAltarMode(null); altarRef.current = null; }
+                      return;
+                    }
+                    if (merchantMode) {
+                      const _merchant = merchantRef.current;
+                      const _mshop = sr.current?.dungeon?.merchantShops?.find((entry) => entry.id === _merchant?.merchantShopId);
+                      if (merchantMode === "menu") {
+                        if (merchantMenuSel === 0) { setMerchantMode("buy"); setMerchantMenuSel(0); }
+                        else if (merchantMenuSel === 1) { setMerchantMode("sell"); setMerchantMenuSel(0); }
+                        else { setMerchantMode(null); merchantRef.current = null; }
+                      } else if (merchantMode === "buy") {
+                        if (merchantMenuSel < (_mshop?.stock?.length || 0)) doMerchantBuy(merchantMenuSel);
+                        else { setMerchantMode("menu"); setMerchantMenuSel(0); }
+                      } else {
+                        const _sellable = (sr.current?.player?.inventory || []).map((it, i) => ({ it, i })).filter(({ it }) => it.type !== "gold" && it.type !== "goal" && sr.current.player.weapon !== it && sr.current.player.armor !== it && sr.current.player.arrow !== it && !(sr.current.player.rings || []).includes(it));
+                        if (merchantMenuSel < _sellable.length) doMerchantSell(_sellable[merchantMenuSel].i);
+                        else { setMerchantMode("menu"); setMerchantMenuSel(0); }
+                      }
+                      return;
+                    }
                     if (spellListMode) { if (spellConfirmRef.current) spellConfirmRef.current(spellMenuSel); return; }
                     if (bigboxMode === "menu") {
                       const _bbk = bigboxRef.current ? "bk:" + bigboxRef.current.kind : null;
@@ -6113,6 +6420,9 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                             } else if (_fRole3 === "gacha") {
                               _fns3.push(() => invActRef.current?.floorGacha?.(_fle3));
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
+                            } else if (_fRole3 === "altar") {
+                              _fns3.push(() => invActRef.current?.floorAltar?.(_fle3));
+                              _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else if (FLOOR_INFO_ROLES.has(_fRole3)) {
                               _fns3.push(() => setShowDesc(d => d === 10000 + selIdx ? null : 10000 + selIdx));
                             } else {
@@ -6161,16 +6471,18 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                       }
                     } else { act("interact"); }
                   }}
-                  color={spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : "#0ff"}
+                  color={spellListMode ? "#fc0" : bigboxMode === "menu" || gachaMode || altarMode || merchantMode ? "#fc0" : showInv ? "#fc0" : (putMode || springMode || identifyMode) ? "#fc0" : "#0ff"}
                 />
                 <AB
-                  label={bigboxMode === "put" ? "決" : gachaMode ? "戻" : showInv ? "置" : "前"}
-                  sub={bigboxMode === "put" ? "決定" : gachaMode ? "閉じる" : showInv ? "置く" : "調べる"}
+                  label={bigboxMode === "put" ? "決" : gachaMode ? "戻" : altarMode || merchantMode ? "戻" : showInv ? "置" : "前"}
+                  sub={bigboxMode === "put" ? "決定" : gachaMode ? "閉じる" : altarMode || merchantMode ? "閉じる" : showInv ? "置く" : "調べる"}
                   onClick={() => {
                     if (mapMode) return;
                     if (spellListMode) return;
                     if (bigboxMode === "put") { bigboxPutItem(bigboxPage * 10 + bigboxMenuSel); return; }
                     if (gachaMode) { setGachaMode(null); gachaRef.current = null; return; }
+                    if (altarMode) { setAltarMode(null); altarRef.current = null; return; }
+                    if (merchantMode) { setMerchantMode(null); merchantRef.current = null; return; }
                     if (springMode || identifyMode || putMode) return;
                     if (showInv) { const _nd = !dropModeRef.current; dropModeRef.current = _nd; setDropMode(_nd); } else { doExamineFront(); }
                   }}
@@ -6179,13 +6491,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 <AB
                   label={showInv ? "整" : mapMode ? "閉" : "地図"}
                   sub={showInv ? "整理" : mapMode ? "閉じる" : "マップ"}
-                  onClick={() => { if (mapMode) { setMapMode(null); return; } if (spellListMode) return; if (springMode || identifyMode || putMode) return; if (showInv) { sortInventory(); } else { setMapMode(true); } }}
+                  onClick={() => { if (mapMode) { setMapMode(null); return; } if (spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; if (showInv) { sortInventory(); } else { setMapMode(true); } }}
                   color={showInv ? "#8f8" : mapMode ? "#9ed0ff" : "#6688aa"}
                 />
                 <AB
                   label="罠"
                   sub="探る"
-                  onClick={() => { if (mapMode || spellListMode) return; if (springMode || identifyMode || putMode) return; act("search_traps"); }}
+                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (springMode || identifyMode || putMode) return; act("search_traps"); }}
                   color="#fa0"
                 />
               </div>{" "}
@@ -6193,13 +6505,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 <AB
                   label="走"
                   sub={dashMode ? "ON" : "ダッシュ"}
-                  onClick={() => { if (mapMode || spellListMode) return; if (revealMode) return; if (springMode || identifyMode || putMode) return; setDashMode((v) => !v); }}
+                  onClick={() => { if (mapMode || spellListMode || altarMode || merchantMode) return; if (revealMode) return; if (springMode || identifyMode || putMode) return; setDashMode((v) => !v); }}
                   color={dashMode ? "#f44" : "#a8f"}
                 />
                 <AB
                   label="魔"
                   sub="魔法"
-                  onClick={() => { if (mapMode) return; if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode || springMode || identifyMode || putMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
+                  onClick={() => { if (mapMode || altarMode || merchantMode) return; if (spellListMode) { setSpellListMode(false); return; } if (revealMode || showInv || lookMode || springMode || identifyMode || putMode) return; setSpellListMode(true); setSpellMenuSel(0); }}
                   color={spellListMode ? "#4af" : "#60a0e0"}
                 />
                 <AB
@@ -6309,11 +6621,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       <ShopModal mode={shopMode} setMode={setShopMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} menuSel={shopMenuSel} setMenuSel={setShopMenuSel} mobile={mobile} />
       <BigboxModal mode={bigboxMode} setMode={setBigboxMode} gs={gs} setMsgs={setMsgs} bigboxRef={bigboxRef} page={bigboxPage} setPage={setBigboxPage} menuSel={bigboxMenuSel} setMenuSel={setBigboxMenuSel} bigboxPutItem={bigboxPutItem} iLabel={iLabel} mobile={mobile} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} />
       <GachaModal mode={gachaMode} setMode={setGachaMode} gs={gs} gachaRef={gachaRef} menuSel={gachaMenuSel} setMenuSel={setGachaMenuSel} onDraw={doGachaDraw} mobile={mobile} />
+      <AltarModal mode={altarMode} setMode={setAltarMode} p={p} menuSel={altarMenuSel} setMenuSel={setAltarMenuSel} onOffer={doOfferFood} mobile={mobile} dname={dnameRef} />
+      <MerchantModal mode={merchantMode} setMode={setMerchantMode} gs={gs} merchantRef={merchantRef} menuSel={merchantMenuSel} setMenuSel={setMerchantMenuSel} onBuy={doMerchantBuy} onSell={doMerchantSell} mobile={mobile} dname={dnameRef} />
       <IdentifyModal mode={identifyMode} setMode={setIdentifyMode} gs={gs} sr={sr} setGs={setGs} setMsgs={setMsgs} endTurn={endTurn} iLabel={iLabel} mobile={mobile} identifyConfirmRef={identifyConfirmRef} identifyCancelRef={identifyCancelRef} />
       <NicknameModal mode={nicknameMode} setMode={setNicknameMode} input={nicknameInput} setInput={setNicknameInput} gs={gs} sr={sr} setGs={setGs} />
       <SpringModal mode={springMode} setMode={setSpringMode} gs={gs} menuSel={springMenuSel} setMenuSel={setSpringMenuSel} page={springPage} setPage={setSpringPage} springDrink={springDrink} springDoSoak={springDoSoak} iLabel={iLabel} mobile={mobile} />{" "}
       <WishModal mode={wishMode} setMode={setWishMode} onConfirm={confirmWish} onCancel={cancelWish} mobile={mobile} />{" "}
-      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorGacha={_doFloorGacha} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
+      <InventoryModal show={showInv} p={p} gs={gs} mobile={mobile} dropMode={dropMode} dropModeRef={dropModeRef} invPage={invPage} selIdx={selIdx} showDesc={showDesc} invMenuSel={invMenuSel} setShowInv={setShowInv} setDropMode={setDropMode} setSelIdx={setSelIdx} setShowDesc={setShowDesc} setInvPage={setInvPage} setInvMenuSel={setInvMenuSel} setNicknameMode={setNicknameMode} setNicknameInput={setNicknameInput} sortInventory={sortInventory} canUse={canUse} useLabel={useLabel} iLabel={iLabel} doUseItem={doUseItem} doReadSpellbook={doReadSpellbook} doShoot={doShoot} doWaveWand={doWaveWand} doBreakWand={doBreakWand} doUseMarker={doUseMarker} doBreakPot={doBreakPot} doDropItem={doDropItem} doThrow={doThrow} containerRef={ref} doFloorPickup={_doFloorPickup} doFloorTrap={_doFloorTrap} doFloorStair={_doFloorStair} doFloorBigbox={_doFloorBigbox} doFloorSpring={_doFloorSpring} doFloorGacha={_doFloorGacha} doFloorAltar={_doFloorAltar} doFloorItemAction={_doFloorItemAction} doFloorOpenPutMode={_doFloorOpenPutMode} doFloorPen={_doFloorPen} doFloorWaveWand={_doFloorWaveWand} />{" "}
       <GameOverModal
         dead={dead && !gameOverView}
         p={p}
