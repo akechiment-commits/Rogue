@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   statusTurns, STATUS_BASE, PERMANENT_TURNS, BOSS_PARALYZE_TURNS,
-  isPermanentTurns, applyMonsterParalyze, clearStatusEffectsOnHpZero,
+  isPermanentTurns, applyMonsterParalyze, applyYabaiPoison, clearStatusEffectsOnHpZero,
 } from "../statusDuration.js";
 
 describe("statusTurns", () => {
@@ -27,6 +27,30 @@ describe("statusTurns", () => {
   it("ボスへの永続封印は付与時に半分の10T", () => {
     expect(statusTurns("seal", { kind: "monster", target: { isBoss: true } })).toBe(10);
     expect(statusTurns("seal", { kind: "monster", target: { isBoss: false } })).toBe(PERMANENT_TURNS);
+  });
+});
+
+describe("applyYabaiPoison", () => {
+  it("プレイヤーは攻撃力-2、毒持続10ターン", () => {
+    const p = { atk: 8, poisoned: false, poisonedTurns: 0 };
+    const result = applyYabaiPoison(p, "player");
+    expect(result).toMatchObject({ newlyApplied: true, atkLoss: 2, turns: 10 });
+    expect(p.atk).toBe(6);
+    expect(p.poisonedTurns).toBe(10);
+    expect(p.poisonAtkLoss).toBe(2);
+  });
+
+  it("モンスターは攻撃力-2、毒持続10ターン（ボスは5ターン）", () => {
+    const mon = { atk: 12, poisoned: false };
+    const result = applyYabaiPoison(mon, "monster");
+    expect(result).toMatchObject({ newlyApplied: true, atkLoss: 2, turns: 10 });
+    expect(mon.atk).toBe(10);
+    expect(mon.poisonedTurns).toBe(10);
+
+    const boss = { atk: 20, isBoss: true, poisoned: false };
+    const bossResult = applyYabaiPoison(boss, "monster");
+    expect(bossResult.turns).toBe(5);
+    expect(boss.atk).toBe(18);
   });
 });
 

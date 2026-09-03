@@ -80,7 +80,7 @@ import { canUseInventoryItem, getInventoryUseLabel, sortInventoryItems } from ".
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
-import { statusTurns, monsterStatusTurns, applyPlayerPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
+import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
 import { collectChargerMoves, collectMonsterAttackEvents, collectMonsterMoves, createMonsterTurnAnimation, snapshotMonsterPositions } from "./monsterTurnAnimation.js";
@@ -4595,8 +4595,8 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                   if (hasRingEffect(p, "antidote_ring")) {
                     ml.push("毒消しの指輪が毒を防いだ！");
                   } else {
-                    const _poison = applyPlayerPoison(p);
-                    ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                    const _poison = applyYabaiPoison(p, "player");
+                    ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
                   }
                   const _yConfuseT = statusTurns("confuse", { kind: "player" });
                   const _ySlowT = statusTurns("slow", { kind: "player" });

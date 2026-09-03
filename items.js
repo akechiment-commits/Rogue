@@ -20,7 +20,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, clearStatusEffectsOnHpZero, applyAttackSeal } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles,
@@ -3677,18 +3677,16 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
     mon.hp -= _yDmg;
     ml.push(`ヤバイ食料が${mon.name}に食べさせられた！さらに${_yDmg}ダメージ！`);
     if (mon.hp > 0) {
-      const _yPoisonT = statusTurns("poison", { kind: "monster", target: mon });
+      const _yPoison = applyYabaiPoison(mon, "monster");
       const _yConfuseT = statusTurns("confuse", { kind: "monster", target: mon });
       const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: mon });
-      mon.poisoned = true;
-      mon.poisonedTurns = Math.max(mon.poisonedTurns || 0, _yPoisonT);
       mon.confusedTurns = (mon.confusedTurns || 0) + _yConfuseT;
       mon.fleeingTurns = (mon.fleeingTurns || 0) + _yBewitchT;
       if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
       mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
       const _ySlowT = mon.isBoss ? statusTurns("bossSlow", { kind: "monster", target: mon }) : 0;
       if (mon.isBoss) mon.bossSlowTurns = (mon.bossSlowTurns || 0) + _ySlowT;
-      ml.push(`${mon.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！`);
+      ml.push(`${mon.name}は毒(${_yPoison.turns}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足${mon.isBoss ? `(${_ySlowT}ターン)` : "(永続)"}状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`);
     }
   }
 
@@ -5315,8 +5313,8 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
         if (hasRingEffect(p, "antidote_ring")) {
           mlx.push("毒消しの指輪が毒を防いだ！");
         } else {
-          const _poison = applyPlayerPoison(p);
-          mlx.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          const _poison = applyYabaiPoison(p, "player");
+          mlx.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
         }
         p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
         p.slowTurns = (p.slowTurns || 0) + statusTurns("slow", { kind: "player" });

@@ -25,7 +25,7 @@ import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } fr
 import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
-import { statusTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison, applyAttackSeal } from "./statusDuration.js";
+import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, applyAttackSeal } from "./statusDuration.js";
 import { pl } from "./playerLabel.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost } from "./markerRules.js";
@@ -515,8 +515,8 @@ export function useItemActions({
         if (hasRingEffect(p, "antidote_ring")) {
           ml.push("毒消しの指輪が毒を防いだ！");
         } else {
-          const _poison = applyPlayerPoison(p);
-          ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+          const _poison = applyYabaiPoison(p, "player");
+          ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
         }
         if ((p.yogurtImmuneTurns || 0) > 0) {
           ml.push("乳酸菌が混乱を防いだ！");
@@ -4161,8 +4161,8 @@ export function useItemActions({
                     if (hasRingEffect(p, "antidote_ring")) {
                       ml.push("毒消しの指輪が毒を防いだ！");
                     } else {
-                      const _poison = applyPlayerPoison(p);
-                      ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                      const _poison = applyYabaiPoison(p, "player");
+                      ml.push(`食中毒になった！毒状態(${_poison.turns}ターン)になった！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
                     }
                     const _rfConfuseT = statusTurns("confuse", { kind: "player" });
                     const _rfSlowT = statusTurns("slow", { kind: "player" });
@@ -4248,15 +4248,13 @@ export function useItemActions({
                     m.hp -= _yThrowDmg;
                     ml.push(`ヤバイ食料が${m.name}に食べさせられた！さらに${_yThrowDmg}ダメージ！`);
                     if (m.hp > 0) {
-                      const _yPoisonT = statusTurns("poison", { kind: "monster", target: m });
+                      const _yPoison = applyYabaiPoison(m, "monster");
                       const _yConfuseT = statusTurns("confuse", { kind: "monster", target: m });
                       const _yBewitchT = statusTurns("bewitch", { kind: "monster", target: m });
-                      m.poisoned = true;
-                      m.poisonedTurns = Math.max(m.poisonedTurns || 0, _yPoisonT);
                       m.confusedTurns = (m.confusedTurns || 0) + _yConfuseT;
                       m.fleeingTurns = (m.fleeingTurns || 0) + _yBewitchT;
                       m.speed = Math.max(0.25, (m.speed || 1) * 0.5);
-                      ml.push(`${m.name}は毒(${_yPoisonT}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足(永続)状態になった！`);
+                      ml.push(`${m.name}は毒(${_yPoison.turns}ターン)・混乱(${_yConfuseT}ターン)・幻惑(${_yBewitchT}ターン)・鈍足(永続)状態になった！${_yPoison.atkLoss > 0 ? `攻撃力-${_yPoison.atkLoss}！` : ""}`);
                     }
                   }
                   if (it.type === "food" && it.iceCream && !it.yabai && !it.rotten && !it.burnt && m.hp > 0) {
@@ -4309,9 +4307,9 @@ export function useItemActions({
               if (it.type === "food" && it.iceCream && !it.yabai && !it.rotten && !it.burnt) {
                 applyIceCreamEffect(p, "player", ml, { name: dnameRef(it) });
               } else if (it.type === "food" && it.yabai) {
-                const _poison = applyPlayerPoison(p);
+                const _poison = applyYabaiPoison(p, "player");
                 p.confusedTurns = (p.confusedTurns || 0) + statusTurns("confuse", { kind: "player" });
-                ml.push(`ヤバイ食料の影響で毒(${_poison.turns}ターン)・混乱した！${_poison.atkLoss > 0 ? "攻撃力が下がった！" : ""}`);
+                ml.push(`ヤバイ食料の影響で毒(${_poison.turns}ターン)・混乱した！${_poison.atkLoss > 0 ? `攻撃力が${_poison.atkLoss}下がった！` : ""}`);
               } else if (it.type === "food" && it.rotten) {
                 if (!hasRingEffect(p, "antidote_ring")) {
                   const _poison = applyPlayerPoison(p);
