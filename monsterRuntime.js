@@ -28,6 +28,14 @@ export function spawnMonsters(...args) {
   return requireRuntime("spawnMonsters")(...args);
 }
 
+export function pickMonsterDef(...args) {
+  return requireRuntime("pickMonsterDef")(...args);
+}
+
+export function makeMonsterFromBase(...args) {
+  return requireRuntime("makeMonsterFromBase")(...args);
+}
+
 export function monLevelUp(...args) {
   return requireRuntime("monLevelUp")(...args);
 }

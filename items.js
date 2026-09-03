@@ -5,6 +5,8 @@ import { stageBigbox } from './DiscoveryTracker.js';
 import {
   findMonsterRoom as findRoom,
   pickTransformMonsterDef,
+  pickMonsterDef,
+  makeMonsterFromBase,
   monLevelDown,
   monLevelUp,
   monsterFireDamageLabel as monFireDmgLabel,
@@ -18,7 +20,7 @@ import {
   LOOT_LUCK, LOOT_UNIFORM_CHANCE, MONSTER_RANDOM_DROP_RATE, RARITY_ORDER, RARITY_RANK, RARITY_WEIGHT,
   isRarityAtLeast, monsterRandomDropChance, pickByWeight, pickLootFromPool, pickWeighted, rarityAtLeast,
 } from './lootRules.js';
-import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison } from './statusDuration.js';
+import { statusTurns, monsterStatusTurns, PERMANENT_TURNS, isPermanentTurns, applyMonsterParalyze, applyPlayerPoison, clearPlayerPoison, clearStatusEffectsOnHpZero } from './statusDuration.js';
 import {
   monEffectiveMagicImmune, monReflectsProjectiles, monReflectsMagic, monEffectiveFloat,
   monEffectiveFixedDamageOnly, monSubmergesProjectiles,
@@ -449,7 +451,7 @@ export const ITEMS = [
   { name:"刃の鎧",           type:"armor",  def:4,  ability:"thorn",         rarity:"C", weight:4,  sellPrice:900,  desc:"近接攻撃で受けたダメージの1/3を反射する。",       tile:21 },
   { name:"みかわしの服",     type:"armor",  def:2,  ability:"dodge",         rarity:"B", weight:2,  sellPrice:1200, desc:"軽くて動きやすく、25%の確率で攻撃を回避する。",   tile:21 },
   { name:"反射の鎧",         type:"armor",  def:5,  ability:"wand_reflect",  rarity:"A", weight:1,  sellPrice:3000, desc:"モンスターの杖魔法を反射する神秘の鎧。",          tile:21 },
-  { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:4,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠も無効化する。",    tile:21 },
+  { name:"護盗の鎧",         type:"armor",  def:3,  ability:"anti_steal",    rarity:"C", weight:4,  sellPrice:500,  desc:"装備するとコソドロに所持品を盗まれなくなる。\n盗みの罠と装備外しの罠も無効化する。",    tile:21 },
   { name:"ゴールドメイル",   type:"armor",  def:6,  ability:"no_degrade",    rarity:"B", weight:2,  sellPrice:2500, desc:"錆びず＋値が下がらない黄金の鎧。",               tile:21 },
   { name:"氷竜のウロコ",     type:"armor",  def:5,  ability:"ice_resist",    rarity:"C", weight:4,  sellPrice:1500, desc:"氷竜の鱗製。氷ダメージを2/3に軽減（万能耐性併用で半減）。\n氷による移動封じ・鈍足を防ぐ。",  tile:21 },
   { name:"アーマーガッパ",   type:"armor",  def:4,  ability:"water_proof",   rarity:"C", weight:4,  sellPrice:1400, desc:"河童の甲羅を模した鎧。水鉄砲・ずぶ濡れを無効化する。\n所持品が水で白紙化・縮小・インク減りしない。", tile:21 },
@@ -1285,6 +1287,54 @@ export function breakGachaMachine(machine, dg, ml, p = null, nameFn = null) {
   return true;
 }
 
+/** 祭壇を壊し、杖を当てた破壊者本人へ罰を与える。 */
+export function breakAltar(altar, dg, ml, p = null, breaker = null, luFn = null) {
+  if (!altar || !dg?.altars?.includes(altar)) return false;
+  const victim = breaker || p;
+  dg.altars = dg.altars.filter((entry) => entry !== altar && entry.id !== altar.id);
+  ml.push(`${altar.name || "祭壇"}が壊れた！`);
+  if (!victim) return true;
+
+  const victimName = victim.name || (victim === p ? "あなた" : "破壊者");
+  const damage = rng(20, 30);
+  if (victim === p) {
+    p.deathCause = "祭壇の罰により";
+    p.hp -= damage;
+  } else {
+    victim.hp -= damage;
+  }
+  ml.push(`${victimName}に祭壇の罰が下った！${damage}ダメージ！`);
+
+  /* HP0になった対象には罰の状態異常を重ねない。プレイヤーの自動ターンや
+     モンスターの撃破後処理に、睡眠・鈍足などを持ち越させない。 */
+  if (victim.hp <= 0) {
+    clearStatusEffectsOnHpZero(victim);
+    if (victim !== p) killMonster(victim, dg, p, ml, luFn, true);
+    return true;
+  }
+
+  if (isStatusImmune(victim, ml, victimName)) return true;
+  const statusKind = victim === p ? "player" : "monster";
+  const sleepTurns = statusTurns("sleep", { kind: statusKind, target: victim });
+  const confuseTurns = statusTurns("confuse", { kind: statusKind, target: victim });
+  const slowTurns = statusTurns("slow", { kind: statusKind, target: victim });
+  victim.sleepTurns = Math.max(victim.sleepTurns || 0, sleepTurns);
+  victim.confusedTurns = Math.max(victim.confusedTurns || 0, confuseTurns);
+  victim.slowTurns = Math.max(victim.slowTurns || 0, slowTurns);
+  if (victim === p) {
+    const paralyzeTurns = statusTurns("paralyze", { kind: "player" });
+    victim.paralyzeTurns = Math.max(victim.paralyzeTurns || 0, paralyzeTurns);
+    ml.push(`${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns}/${slowTurns}ターン)`);
+  } else {
+    const paralyzeTurns = applyMonsterParalyze(victim, { ml: null });
+    ml.push(`${victimName}は眠り・混乱・金縛り・鈍足になった！(${sleepTurns}/${confuseTurns}/${paralyzeTurns >= PERMANENT_TURNS ? "永続" : `${paralyzeTurns}ターン`}/${slowTurns}ターン)`);
+  }
+  if (victim.hp <= 0 && victim !== p) {
+    killMonster(victim, dg, p, ml, luFn, true);
+  }
+  return true;
+}
+
 function breakGachaMachinesInRadius(dg, cx, cy, radius, ml, p = null, nameFn = null) {
   for (const machine of [...(dg?.gachaMachines || [])]) {
     if (Math.max(Math.abs(machine.x - cx), Math.abs(machine.y - cy)) <= radius) {
@@ -1609,7 +1659,7 @@ export const ARMOR_ABILITIES = [
   { id:"lightning_resist", name:"雷耐性",   desc:"雷ダメージ2/3（万能耐性併用で半減）。アイテムが雷で壊れなくなる" },
   { id:"dodge",            name:"みかわし", desc:"25%の確率で攻撃を完全回避する" },
   { id:"wand_reflect",     name:"魔法反射", desc:"モンスターの杖魔法を反射する" },
-  { id:"anti_steal",       name:"護盗",     desc:"コソドロに所持品を盗まれなくなる" },
+  { id:"anti_steal",       name:"護盗",     desc:"コソドロに所持品を盗まれなくなる。盗みの罠・装備外しの罠も無効" },
   { id:"no_degrade",       name:"不錆",     desc:"錆の罠や泉に落ちても＋値が下がらない" },
   { id:"oil_proof",        name:"油膜",     desc:"錆・劣化を3回防ぐ。防ぐたび残り回数が減り、0回で能力が消える" },
   { id:"slow_proof",       name:"耐鈍足",   desc:"鈍足効果を無効化する" },
@@ -1666,6 +1716,10 @@ export const TRAPS = [
   { name:"増殖の罠",       effect:"multiply_trap",  tile:126, rarity:"B", weight:2,  desc:"踏むと、同じ部屋の敵がそれぞれ1体ずつ分裂する。\nボス・店主には無効。作動後の破損率50%。" },
   { name:"水鉄砲の罠",     effect:"watergun_trap",  tile:132, rarity:"C", weight:4,  desc:"踏むと水鉄砲を浴びる。ずぶ濡れになり、所持品に水の影響が出る。\n巻物・魔法書は白紙化、食料はサイズ1段階縮小、ペンはインク-1。\nアーマーガッパ（耐水）で防げる。" },
   { name:"転倒の罠",       effect:"trip_trap",      tile:133, rarity:"D", weight:8,  desc:"踏むと転んで小ダメージを受け、所持品が数個ランダムに周囲へ落ちる。\n装備中の武器・防具・指輪とキーアイテムは落ちない。\n落ちた先の罠・泉・水にも作用する。\n体幹の指輪で無効。" },
+  { name:"罠の罠",         effect:"trap_trap",      tile:210, rarity:"B", weight:2,  desc:"踏むと同じフロアに大量の新しい罠ができる。\n罠の罠自体はできない。発動すると必ず壊れる。" },
+  { name:"道具魔物化の罠", effect:"item_monster_trap", tile:211, rarity:"B", weight:2, desc:"踏むと同じ部屋の床のアイテムがすべてモンスターに変わる。\n発動すると必ず壊れる。" },
+  { name:"加速の罠",       effect:"haste_trap",     tile:212, rarity:"C", weight:4,  desc:"踏むと同じ部屋の敵の速度が1段階上がる。\n敵が踏むと、同じ部屋にいれば自分の速度が上がる。\nアイテムなどで発動すると部屋内の全員が加速する。" },
+  { name:"装備外しの罠",   effect:"unequip_trap",   tile:213, rarity:"C", weight:4,  desc:"踏むと装備中の武器・防具・指輪のうち1つが外れる。\n護盗の能力で防げる。\n敵が踏むと攻撃力と防御力が少し下がる（重ねがけ可）。" },
 ];
 
 /**
@@ -2267,8 +2321,9 @@ export function removeTrap(dg, trap, ml, opts = {}) {
   if (!fromStep && !skipLoot) dropTrapBreakLoot(dg, trap, ml, ft, p);
 }
 
-/** 踏んだ後に罠が壊れる確率（盗み・召喚は50%、それ以外25%） */
+/** 踏んだ後に罠が壊れる確率（罠の罠・道具魔物化は必ず、盗み・召喚・増殖は50%、それ以外25%） */
 export function trapStepBreakChance(trap) {
+  if (trap?.effect === "trap_trap" || trap?.effect === "item_monster_trap") return 1;
   return (trap?.effect === "steal_trap" || trap?.effect === "summon_trap" || trap?.effect === "multiply_trap") ? 0.5 : 0.25;
 }
 
@@ -2403,6 +2458,191 @@ export function multiplyRoomMonsters(dg, cx, cy, ml, p = null) {
   if (n > 0) ml.push(`部屋の敵が分裂した！(+${n}体)`);
   else ml.push("しかし分裂する場所がなかった。");
   return n;
+}
+
+const SPEED_STAGES = [0.25, 0.5, 1, 2, 3];
+
+export function raiseSpeedOneStage(entity) {
+  if (!entity) return false;
+  const cur = entity.speed ?? 1;
+  let idx = 0;
+  for (let i = 0; i < SPEED_STAGES.length; i++) {
+    if (cur + 0.001 >= SPEED_STAGES[i]) idx = i;
+  }
+  if (idx >= SPEED_STAGES.length - 1) return false;
+  entity.speed = SPEED_STAGES[idx + 1];
+  return true;
+}
+
+export function raisePlayerSpeedOneStage(p, ml) {
+  if (!p) return false;
+  if ((p.slowTurns || 0) > 0) {
+    p.slowTurns = 0;
+    if (ml) ml.push("鈍足が解けて体が軽くなった！");
+    return true;
+  }
+  const ht = statusTurns("haste", { kind: "player" });
+  p.hasteTurns = (p.hasteTurns || 0) + ht;
+  if (ml) ml.push(`体が加速した！(2倍速${ht}ターン)`);
+  return true;
+}
+
+function unitsInRoom(dg, cx, cy, p = null) {
+  const room = findRoom(dg.rooms || [], cx, cy);
+  if (!room) return { room: null, monsters: [], playerInRoom: false };
+  const monsters = (dg.monsters || []).filter((m) =>
+    m && m.x >= room.x && m.x < room.x + room.w && m.y >= room.y && m.y < room.y + room.h);
+  const playerInRoom = !!(p && p.x >= room.x && p.x < room.x + room.w && p.y >= room.y && p.y < room.y + room.h);
+  return { room, monsters, playerInRoom };
+}
+
+/** 罠の罠：同じフロアに大量の新しい罠を置く（罠の罠自身は出さない） */
+export function scatterNewTrapsOnFloor(dg, p, ml, originTrap = null) {
+  const want = rng(12, 20);
+  const pool = TRAPS.filter((t) => t.effect !== "trap_trap");
+  let placed = 0;
+  for (let i = 0; i < want * 8 && placed < want; i++) {
+    let x, y;
+    if (dg.rooms?.length) {
+      const room = dg.rooms[rng(0, dg.rooms.length - 1)];
+      x = rng(room.x, room.x + room.w - 1);
+      y = rng(room.y, room.y + room.h - 1);
+    } else {
+      x = rng(1, MW - 2);
+      y = rng(1, MH - 2);
+    }
+    if (originTrap && x === originTrap.x && y === originTrap.y) continue;
+    if (isFloorOccupancyBlocked(dg, x, y, { p, allowMonster: true })) continue;
+    const tmpl = pickTrap(pool);
+    if (!tmpl || tmpl.effect === "trap_trap") continue;
+    dg.traps = dg.traps || [];
+    dg.traps.push({ ...tmpl, id: uid(), x, y, revealed: false });
+    placed++;
+  }
+  if (placed > 0) ml.push(`フロアに罠が大量に出現した！(${placed}個)`);
+  else ml.push("しかし置く場所がなかった。");
+  return placed;
+}
+
+/** 道具魔物化：同じ部屋の床アイテムをモンスターへ変える */
+export function convertRoomFloorItemsToMonsters(dg, cx, cy, p, ml) {
+  const room = findRoom(dg.rooms || [], cx, cy);
+  if (!room) {
+    ml.push("しかし変化する道具がなかった。");
+    return 0;
+  }
+  const items = (dg.items || []).filter((it) =>
+    it && it.x != null && it.y != null &&
+    it.type !== "goal" && it.type !== "gold" && !it.shopId && !it.itemMimicId &&
+    it.x >= room.x && it.x < room.x + room.w && it.y >= room.y && it.y < room.y + room.h);
+  if (items.length === 0) {
+    ml.push("しかし変化する道具がなかった。");
+    return 0;
+  }
+  const depth = Math.max(0, (typeof p?.depth === "number" ? p.depth - 1 : 0));
+  let n = 0;
+  for (const it of items) {
+    const picked = pickMonsterDef(depth, dg.dungeonType, false, { excludeItemMimic: true });
+    if (!picked?.base) continue;
+    let mx = it.x, my = it.y;
+    const blocked = (x, y) =>
+      (p && p.x === x && p.y === y) ||
+      (dg.monsters || []).some((m) => m.x === x && m.y === y);
+    if (blocked(mx, my)) {
+      let found = false;
+      for (const [ox, oy] of [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const nx = it.x + ox, ny = it.y + oy;
+        if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
+        if (dg.map[ny]?.[nx] === T.WALL || dg.map[ny]?.[nx] === T.BWALL) continue;
+        if (blocked(nx, ny)) continue;
+        mx = nx; my = ny; found = true; break;
+      }
+      if (!found) continue;
+    }
+    removeFloorItem(dg, it);
+    const mon = makeMonsterFromBase(picked.base, picked.spawnLevel, mx, my, {
+      aware: true,
+      lastPx: p?.x || mx,
+      lastPy: p?.y || my,
+    });
+    dg.monsters.push(mon);
+    n++;
+  }
+  if (n > 0) ml.push(`床の道具がモンスターに変わった！(${n}体)`);
+  else ml.push("しかし変化する道具がなかった。");
+  return n;
+}
+
+/**
+ * stepper: "player" | "monster" | "other"
+ * プレイヤーが踏む→部屋の敵加速 / 敵が踏む→同室ならプレイヤー加速 / それ以外→部屋の全員
+ */
+export function applyHasteTrap(dg, cx, cy, p, ml, stepper = "other") {
+  const { monsters, playerInRoom, room } = unitsInRoom(dg, cx, cy, p);
+  if (!room) {
+    ml.push("しかし同じ部屋に対象がいなかった。");
+    return;
+  }
+  let did = false;
+  if (stepper === "player") {
+    for (const m of monsters) {
+      if (raiseSpeedOneStage(m)) {
+        ml.push(`${m.name}の速度が上がった！`);
+        did = true;
+      }
+    }
+  } else if (stepper === "monster") {
+    if (playerInRoom && raisePlayerSpeedOneStage(p, ml)) did = true;
+  } else {
+    for (const m of monsters) {
+      if (raiseSpeedOneStage(m)) {
+        ml.push(`${m.name}の速度が上がった！`);
+        did = true;
+      }
+    }
+    if (playerInRoom && raisePlayerSpeedOneStage(p, ml)) did = true;
+  }
+  if (!did) ml.push("しかし速度が上がる相手がいなかった。");
+}
+
+export function applyUnequipTrapToPlayer(p, ml, nameFn = null) {
+  if (hasAbility(p?.armor, "anti_steal")) {
+    ml.push("しかし防具が装備外しを防いだ！(護盗)");
+    return false;
+  }
+  const slots = [];
+  if (p.weapon && !p.weapon.cursed) slots.push({ slot: "weapon", it: p.weapon });
+  if (p.armor && !p.armor.cursed) slots.push({ slot: "armor", it: p.armor });
+  for (const ring of (p.rings || [])) {
+    if (ring && !ring.cursed) slots.push({ slot: "ring", it: ring });
+  }
+  if (slots.length === 0) {
+    if (p.weapon || p.armor || (p.rings || []).length) ml.push("呪われた装備は外せなかった！");
+    else ml.push("しかし外す装備がなかった。");
+    return false;
+  }
+  const pickSlot = slots[rng(0, slots.length - 1)];
+  if (pickSlot.slot === "weapon") p.weapon = null;
+  else if (pickSlot.slot === "armor") p.armor = null;
+  else if (pickSlot.slot === "ring") {
+    p.rings = (p.rings || []).filter((r) => r !== pickSlot.it);
+    if (pickSlot.it.effect === "life_ring") {
+      const bonus = (pickSlot.it.plus || 0) * 5;
+      p.maxHp = Math.max(1, p.maxHp - bonus);
+      p.hp = Math.min(p.hp, p.maxHp);
+    }
+    if (pickSlot.it.effect === "torch_ring") p.visionBonus = Math.max(0, (p.visionBonus || 0) - 1);
+  }
+  ml.push(`${resolveItemName(pickSlot.it, nameFn)}の装備が外れた！`);
+  return true;
+}
+
+export function applyUnequipTrapToMonster(m, ml) {
+  if (!m) return false;
+  m.atk = Math.max(1, (m.atk || 1) - 2);
+  m.def = Math.max(0, (m.def || 0) - 2);
+  ml.push(`${m.name}の攻撃力と防御力が下がった！`);
+  return true;
 }
 
 /** 単一アイテムを未識別にする（種別キーを外し、祝呪既知も落とす） */
@@ -3144,6 +3384,33 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       }
       return "restart";
     }
+    case "trap_trap": {
+      ml.push(`${trap.name}が発動！`);
+      scatterNewTrapsOnFloor(dg, p, ml, trap);
+      maybeBreakTrapAfterStep(trap, dg, ml, { p });
+      return "restart";
+    }
+    case "item_monster_trap": {
+      ml.push(`${trap.name}が発動！`);
+      convertRoomFloorItemsToMonsters(dg, tx, ty, p, ml);
+      maybeBreakTrapAfterStep(trap, dg, ml, { p });
+      return "restart";
+    }
+    case "haste_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _hm = monsterAt(dg, tx, ty);
+      const stepper = _hm ? "monster" : (p && p.x === tx && p.y === ty ? "player" : "other");
+      applyHasteTrap(dg, tx, ty, p, ml, stepper);
+      return "restart";
+    }
+    case "unequip_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _um = monsterAt(dg, tx, ty);
+      if (_um) applyUnequipTrapToMonster(_um, ml);
+      if (p && p.x === tx && p.y === ty) applyUnequipTrapToPlayer(p, ml, nameFn);
+      if (!_um && !(p && p.x === tx && p.y === ty)) ml.push("しかし誰もいなかった。");
+      return "restart";
+    }
     case "bone": {
       /* 吹き飛ばした骨が何かにぶつかった時のダメージ */
       if (item) ml.push(`${resolveItemName(item, nameFn)}は骨にぶつかって消えた。`);
@@ -3466,6 +3733,7 @@ export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30
 
 export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, blessed = false, cursed = false, killerMon = null) {
   if (kind === "monster") wakeIfDormant(target, ml);
+  const _beforeMonsterHp = kind === "monster" ? target?.hp : null;
   const _monKill = (mon) => {
     if (mon.hp <= 0) killMonster(mon, dg, p, ml, luFn, false, killerMon);
   };
@@ -3902,6 +4170,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     default:
       /* 未登録の effect が渡された場合は警告 (items.js ITEMS への追加を忘れずに) */
       console.warn(`[applyPotionEffect] 未登録の effect: "${eff}" — applyPotionEffect の switch に case を追加してください`);
+  }
+  if (kind === "monster" && Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
+    calmShopkeeperIfFullyHealed(target, dg, p, ml);
   }
 }
 
@@ -4360,6 +4631,8 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
     }
     if (dg.bigboxes?.some(b => b.x === cx && b.y === cy)) continue;
     if (dg.gachaMachines?.some(g => g.x === cx && g.y === cy)) continue;
+    if (dg.altars?.some(a => a.x === cx && a.y === cy)) continue;
+    if (dg.dimensionalVaults?.some(v => v.x === cx && v.y === cy)) continue;
     /* 石像：上にアイテムを重ねない */
     if (statueAt(dg, cx, cy)) continue;
     /* ペンタクル：ポータルなら warp 起動、それ以外は通常通りスキップ */
@@ -4762,6 +5035,14 @@ function triggerPetalDeathSleep(mon, dg, p, ml) {
  *  killerMon を渡すとモンスター同士の撃破扱い（経験値はプレイヤーに入らずkillerMonがレベルアップ） */
 export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = null, noRevive = false) {
   const mx = mon.x, my = mon.y;
+  /* HP0になったモンスターの状態異常を、復活判定や撃破演出より先に消す。 */
+  if (mon.hp <= 0) clearStatusEffectsOnHpZero(mon);
+  if (mon.isWanderingMerchant && p && !killerMon) {
+    const _alreadyThief = !!(dg.shopTheft || p.isThief);
+    dg.shopTheft = true;
+    p.isThief = true;
+    if (!_alreadyThief) ml.push("行商人を倒した！この階では泥棒扱いになった！");
+  }
   /* 呪われた復活の魔方陣：同部屋の蘇りを封じる（復活魔方陣・骨残しなど） */
   const _reviveBlocked = isRevivalSuppressedAt(dg, mx, my);
   /* 復活の魔方陣チェック：魔方陣上/同部屋内でHPゼロになったら全回復で復活（使い捨て） */
@@ -4924,6 +5205,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
     animColor,
     pierce: _isPierceArrow,
     onMonHit: (mon, mlx) => {
+      if (mon.isWanderingMerchant && mon.state !== "hostile") {
+        declareShopTheft(p, dg, mlx, { merchantId: mon.id, angerOnly: true, message: "行商人が怒った！" });
+      }
       if (_isPotion) {
         if (potionHitMsg) { const _m = potionHitMsg(mon); if (_m) mlx.push(_m); }
         res.consumed = true; res.splash = true; res.x = mon.x; res.y = mon.y; res.hitMonster = mon;
@@ -5521,6 +5805,9 @@ function specialProjectileHitMonster(sp, monster, dg, p, ml, luFn) {
   if (consumeBarrier(monster, ml)) return;
   const _dmg = clampDmgFixed(monster, calcProjectileDmg(p, sp.atk || 1, monster.def), true);
   monster.hp -= _dmg;
+  if (monster.isWanderingMerchant && monster.state !== "hostile") {
+    declareShopTheft(p, dg, ml, { merchantId: monster.id, angerOnly: true, message: "行商人が怒った！" });
+  }
   ml.push(`${sp.name}が${monster.name}に命中！${_dmg}ダメージ！`);
   if (monster.hp <= 0) killMonster(monster, dg, p, ml, luFn);
 }
@@ -5939,9 +6226,35 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
  */
 export function declareShopTheft(p, dg, ml, opts = {}) {
   if (!dg || !p) return false;
+  /* 行商人への攻撃は、撃破されるまでは店泥棒にしない。店主と同じく
+     いったん怒るだけに留め、HP全快で友好へ戻せる。 */
+  if (opts.angerOnly && opts.merchantId) {
+    const merchant = dg.monsters?.find((monster) => monster.id === opts.merchantId && monster.isWanderingMerchant);
+    if (merchant) {
+      const wasHostile = merchant.state === "hostile";
+      merchant.state = "hostile";
+      merchant.speed = 1;
+      merchant.aware = true;
+      merchant.lastPx = p.x;
+      merchant.lastPy = p.y;
+      if (!wasHostile && ml && opts.message !== null) ml.push(opts.message || "行商人が怒った！");
+      return false;
+    }
+  }
   const wasThief = !!(dg.shopTheft || p.isThief);
   dg.shopTheft = true;
   p.isThief = true;
+  if (opts.merchantId) {
+    const merchant = dg.monsters?.find((monster) => monster.id === opts.merchantId && monster.isWanderingMerchant);
+    if (merchant) {
+      merchant.state = "hostile";
+      /* 行商人は平時だけ半速。敵対した瞬間から店主と同じ等速へ戻る。 */
+      merchant.speed = 1;
+      merchant.aware = true;
+      merchant.lastPx = p.x;
+      merchant.lastPy = p.y;
+    }
+  }
   /* 未払い商品の値札を外す（支払い対象は unpaidTotal 側に残る） */
   for (const it of p.inventory || []) {
     if (it.shopPrice != null || it._shopId != null) {
@@ -5998,6 +6311,15 @@ export function canCalmShopkeeper(m, dg, p) {
   return m.hp >= m.maxHp;
 }
 
+/** 店主・行商人をHP全快で友好状態へ戻す共通処理。 */
+export function calmShopkeeperIfFullyHealed(m, dg, p, ml) {
+  if (!canCalmShopkeeper(m, dg, p)) return false;
+  m.state = "friendly";
+  if (m.isWanderingMerchant) m.speed = m.baseSpeed ?? 0.5;
+  if (ml) ml.push(`${m.isWanderingMerchant ? "行商人" : "店主"}のHPが全快した！敵対状態が解除された。`);
+  return true;
+}
+
 /* 支払い後に店主を空きマスへ戻す（homePos が塞がっている場合は店内の別フロアタイルへ） */
 export function moveShopkeeperHome(sk, shop, dg) {
   sk.state = "friendly";
@@ -6033,7 +6355,7 @@ export const SPELLS=[
   {id:"debug_get_item",   name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",   needsDir:false, debug:true, desc:"任意のアイテムを1個選んで入手する。MP:0"},
   {id:"debug_create_trap",name:"[debug]罠生成",   mpCost:0,  fixedMpCost:true, effect:"debug_create_trap", needsDir:false, debug:true, desc:"任意の罠を1つ選んで足元に作る。MP:0"},
   {id:"debug_summon_bb",  name:"[debug]大箱召喚", mpCost:0,  fixedMpCost:true, effect:"debug_summon_bb",   needsDir:false, debug:true, desc:"任意の大箱を1つ選んで呼び出す。MP:0"},
-  {id:"debug_summon_object", name:"[debug]オブジェクト召喚", mpCost:0, fixedMpCost:true, effect:"debug_summon_object", needsDir:false, debug:true, desc:"ガチャマシーン・泉・風穴・石像を1つ選んで呼び出す。MP:0"},
+  {id:"debug_summon_object", name:"[debug]オブジェクト召喚", mpCost:0, fixedMpCost:true, effect:"debug_summon_object", needsDir:false, debug:true, desc:"ガチャマシーン・泉・風穴・石像・祭壇・次元宝物庫を1つ選んで呼び出す。MP:0"},
 ];
 export const SPELLBOOKS=[
   {name:"炎の魔法書",       type:"spellbook",spell:"fire_bolt",       rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと炎の弾を撃ち、着弾点で爆発させる魔法を習得する。周囲8マスにも爆風ダメージ。MP:10",tile:43},
@@ -6441,6 +6763,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     if (monEffectiveMagicImmune(target)) { ml.push(`魔法は${target.name}に効かない！`); return; }
     if (consumeBarrier(target, ml)) return;
   }
+  const _beforeMonsterHp = kind === "monster" ? target?.hp : null;
   const _lvF = 1 + (lv - 1) * 0.2;
   const _enemyMagicDamage = (amount, victim = target) => multiplyMagicDamage(amount, p?.weapon, victim, dg);
   const _targetMagicDamage = (amount, victim = target) => multiplyCursedMagicDamage(amount, victim, dg);
@@ -6617,6 +6940,9 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     }
     default: ml.push("魔法弾は効果なく消えた。");
   }
+  if (kind === "monster" && Number.isFinite(_beforeMonsterHp) && target.hp > _beforeMonsterHp) {
+    calmShopkeeperIfFullyHealed(target, dg, p, ml);
+  }
 }
 export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
   let _lx = p.x, _ly = p.y;
@@ -6706,6 +7032,9 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
           default: ml.push("魔法が跳ね返ってきた！しかし効果はなかった。"); break;
         }
       } else {
+        if (mon.isWanderingMerchant && mon.state !== "hostile") {
+          declareShopTheft(p, dg, ml, { merchantId: mon.id, angerOnly: true, message: "行商人が怒った！" });
+        }
         applySpellEffect(spell.effect, "monster", mon, _fdx, _fdy, dg, p, ml, luFn, lv);
       }
       return { x: tx, y: ty, hitType: "monster" };

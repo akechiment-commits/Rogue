@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
@@ -323,6 +323,26 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
       }
       break;
     }
+    case "trap_trap": {
+      ml.push(`${trap.name}が発動！`);
+      scatterNewTrapsOnFloor(dg, p, ml, trap);
+      break;
+    }
+    case "item_monster_trap": {
+      ml.push(`${trap.name}が発動！`);
+      convertRoomFloorItemsToMonsters(dg, trap.x, trap.y, p, ml);
+      break;
+    }
+    case "haste_trap": {
+      ml.push(`${trap.name}が発動！`);
+      applyHasteTrap(dg, trap.x, trap.y, p, ml, "player");
+      break;
+    }
+    case "unequip_trap": {
+      ml.push(`${trap.name}が発動！`);
+      applyUnequipTrapToPlayer(p, ml, nameFn);
+      break;
+    }
     case "bone": {
       /* 骨の上を歩いても罠としては発動しない（拾えないアイテム扱い） */
       noBreak = true;
@@ -330,7 +350,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     }
   }
 
-  const _breakChance = (trap.effect === "steal_trap" || trap.effect === "summon_trap") ? 0.5 : 0.25;
+  const _breakChance = trapStepBreakChance(trap);
   if (!noBreak && !trap.permanent && Math.random() < _breakChance) {
     removeTrap(dg, trap, ml, { fromStep: true, message: `${trap.name}は壊れた。` });
   }
