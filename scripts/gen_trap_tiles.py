@@ -261,6 +261,113 @@ def trap_trip():
     return im
 
 
+def spike(im, cx, cy, col):
+    """Small 3x3 caret, tip at (cx, cy)."""
+    put(im, cx, cy, col)
+    put(im, cx - 1, cy + 1, col)
+    put(im, cx, cy + 1, col)
+    put(im, cx + 1, cy + 1, col)
+    put(im, cx - 1, cy + 2, col)
+    put(im, cx + 1, cy + 2, col)
+
+
+def trap_trap():
+    """Many small trap spikes scattered on the floor."""
+    im = blank()
+    spike(im, 3, 2, "rd")
+    spike(im, 10, 1, "or")
+    spike(im, 13, 5, "yl")
+    spike(im, 5, 7, "or")
+    spike(im, 9, 9, "rd")
+    put(im, 1, 12, "dk")
+    put(im, 6, 13, "dk")
+    put(im, 12, 13, "dk")
+    return im
+
+
+def trap_item_monster():
+    """Floor item morphing into a monster."""
+    im = blank()
+    # potion / bag
+    put(im, 3, 3, "or")
+    put(im, 4, 3, "or")
+    put(im, 3, 4, "br")
+    put(im, 4, 4, "br")
+    fill_rect(im, 2, 5, 5, 11, "br")
+    outline_rect(im, 2, 5, 5, 11, "out")
+    put(im, 3, 7, "yl")
+    # morph spark
+    put(im, 7, 7, "yl")
+    put(im, 8, 8, "or")
+    put(im, 7, 9, "yl")
+    put(im, 8, 6, "lt")
+    # monster blob
+    fill_rect(im, 9, 5, 13, 11, "pu")
+    put(im, 10, 4, "pu")
+    put(im, 11, 4, "pu")
+    put(im, 12, 4, "pu")
+    put(im, 10, 7, "lt")
+    put(im, 12, 7, "lt")
+    put(im, 11, 9, "rd")
+    return im
+
+
+def chevron(im, x, y0, col):
+    """Right-pointing 5-tall chevron, left column at x."""
+    put(im, x, y0, col)
+    put(im, x, y0 + 4, col)
+    put(im, x + 1, y0 + 1, col)
+    put(im, x + 1, y0 + 3, col)
+    put(im, x + 2, y0 + 2, col)
+    put(im, x, y0 + 1, col)
+    put(im, x, y0 + 3, col)
+    put(im, x + 1, y0 + 2, col)
+
+
+def trap_haste():
+    """Speed chevrons racing right."""
+    im = blank()
+    chevron(im, 1, 5, "yl")
+    chevron(im, 6, 5, "or")
+    chevron(im, 11, 5, "lt")
+    put(im, 4, 4, "cy")
+    put(im, 9, 4, "cy")
+    put(im, 4, 10, "cy")
+    put(im, 9, 10, "cy")
+    return im
+
+
+def trap_unequip():
+    """Sword and armor popping apart."""
+    im = blank()
+    # sword blade (diagonal)
+    for i in range(5):
+        put(im, 2 + i, 3 + i, "yl")
+        put(im, 3 + i, 3 + i, "lt")
+    put(im, 2, 3, "wh")
+    # hilt
+    put(im, 2, 7, "br")
+    put(im, 1, 8, "br")
+    put(im, 3, 8, "br")
+    put(im, 2, 8, "or")
+    put(im, 2, 9, "br")
+    # burst
+    put(im, 7, 6, "yl")
+    put(im, 8, 7, "or")
+    put(im, 7, 8, "yl")
+    put(im, 8, 5, "lt")
+    # chestplate
+    fill_rect(im, 10, 5, 14, 11, "sl")
+    outline_rect(im, 10, 5, 14, 11, "out")
+    put(im, 11, 4, "sl")
+    put(im, 12, 4, "sl")
+    put(im, 13, 4, "sl")
+    put(im, 10, 6, "lt")
+    put(im, 12, 7, "dk")
+    put(im, 12, 8, "dk")
+    return im
+
+
 DESIGNS = {
     "trap_mp_absorb": trap_mp_absorb,
     "trap_confuse": trap_confuse,
@@ -275,6 +382,10 @@ DESIGNS = {
     "trap_multiply": trap_multiply,
     "trap_watergun": trap_watergun,
     "trap_trip": trap_trip,
+    "trap_trap": trap_trap,
+    "trap_item_monster": trap_item_monster,
+    "trap_haste": trap_haste,
+    "trap_unequip": trap_unequip,
 }
 
 

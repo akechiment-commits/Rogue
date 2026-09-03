@@ -43,3 +43,10 @@
 
 ダンジョン上で見える罠チップは `public/tiles/trap_*.png`。
 生成スクリプト: `scripts/gen_trap_tiles.py`（欠けていた新規罠用）。
+
+| ファイル | 罠 | tile |
+|----------|-----|------|
+| trap_trap | 罠の罠 | 210 |
+| trap_item_monster | 道具魔物化の罠 | 211 |
+| trap_haste | 加速の罠 | 212 |
+| trap_unequip | 装備外しの罠 | 213 |

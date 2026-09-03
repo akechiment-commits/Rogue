@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { describe, it, expect, vi } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
 import {
@@ -7,6 +8,7 @@ import {
 import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
+import { TILE_NAMES } from "../render.js";
 
 function bigRoomDg(extra = {}) {
   const map = Array.from({ length: MH }, () => Array(MW).fill(T.FLOOR));
@@ -24,6 +26,20 @@ describe("新罠の定義", () => {
     expect(trapStepBreakChance({ effect: "trap_trap" })).toBe(1);
     expect(trapStepBreakChance({ effect: "item_monster_trap" })).toBe(1);
     expect(trapStepBreakChance({ effect: "haste_trap" })).toBe(0.25);
+  });
+
+  it("4種に16x16マップタイルとTILE_NAMESがある", () => {
+    const names = {
+      trap_trap: 210,
+      trap_item_monster: 211,
+      trap_haste: 212,
+      trap_unequip: 213,
+    };
+    for (const [name, id] of Object.entries(names)) {
+      expect(TILE_NAMES[id]).toBe(name);
+      expect(existsSync(`public/tiles/${name}.png`)).toBe(true);
+      expect(TRAPS.find((x) => x.tile === id)?.effect).toBeTruthy();
+    }
   });
 });
 

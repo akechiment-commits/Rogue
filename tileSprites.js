@@ -1003,6 +1003,10 @@ D[126] = trapTile("#e040e0", "#b020b0"); // Multiply
 D[127] = trapTile("#e0e040", "#b0b020"); // Confuse
 D[132] = trapTile("#40a0e0", "#2080c0"); // Watergun
 D[133] = trapTile("#c09050", "#906030"); // Trip / fall
+D[210] = trapTile("#ff5050", "#cc3030"); // Trap trap
+D[211] = trapTile("#c060ff", "#9040c0"); // Item monster
+D[212] = trapTile("#40ffc0", "#20c090"); // Haste
+D[213] = trapTile("#d0b060", "#a08040"); // Unequip
 
 /* ===== SPECIAL ===== */
 
