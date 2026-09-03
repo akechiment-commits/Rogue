@@ -5971,6 +5971,40 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     const tx = canSee ? pl.x : m.lastPx;
     const ty = canSee ? pl.y : m.lastPy;
 
+    /* ── わてり：水上限定のため、部屋内では射線合わせを優先する ── */
+    if (!_attackOnly && canSee && _sameRoom &&
+        m.subtype === "watergunner" && !m.sealed) {
+      const _ralDx = pl.x - m.x, _ralDy = pl.y - m.y;
+      const _inLineNow = _ralDx === 0 || _ralDy === 0 || Math.abs(_ralDx) === Math.abs(_ralDy);
+      if (!_inLineNow) {
+        const _alignCands = [];
+        for (const [_amx, _amy] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]) {
+          const _anx = m.x + _amx, _any = m.y + _amy;
+          if (m.waterOnly) {
+            if (!inBounds(_anx, _any)) continue;
+            if (map[_any][_anx] !== T.WATER && !dg.springs?.some(s => s.x === _anx && s.y === _any)) continue;
+          } else {
+            if (!isWalkable(map, _anx, _any, dg)) continue;
+          }
+          if (dg.pentacles?.some(pc => pc.kind === "sanctuary" && pc.x === _anx && pc.y === _any)) continue;
+          if (dg.monsters.some(o => o !== m && o.x === _anx && o.y === _any)) continue;
+          if (_anx === pl.x && _any === pl.y) continue;
+          const _dx2 = pl.x - _anx, _dy2 = pl.y - _any;
+          if (_dx2 === 0 || _dy2 === 0 || Math.abs(_dx2) === Math.abs(_dy2)) {
+            _alignCands.push({ x: _anx, y: _any, dist: Math.max(Math.abs(_dx2), Math.abs(_dy2)) });
+          }
+        }
+        if (_alignCands.length > 0) {
+          _alignCands.sort((a, b) => a.dist - b.dist);
+          const _ab = _alignCands[0];
+          m.dir = { x: _ab.x - m.x, y: _ab.y - m.y };
+          m.x = _ab.x; m.y = _ab.y;
+          if (_forceAlt) m.posHistory = [];
+          return;
+        }
+      }
+    }
+
     /* ── シオン・ザ・ダークブレット：プレイヤーから距離2を保つ ── */
     if (!_attackOnly && canSee && m.baseKind === "boss_darkbullet") {
       const _dbDx = pl.x - m.x, _dbDy = pl.y - m.y;

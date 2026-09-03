@@ -48,6 +48,21 @@ describe("遠距離敵の移動", () => {
     expect({ x: m.x, y: m.y }).toEqual({ x: 7, y: 7 });
   });
 
+  it("わてりは水上で射線合わせを優先する", () => {
+    const m = makeRanged("watergunner", 6, 8);
+    m.waterOnly = true;
+    m.baseKind = "wateri";
+    const pl = makePlayer({ x: 10, y: 5 });
+    const dg = openBattlefield(m);
+    for (let y = 5; y <= 10; y++) {
+      for (let x = 4; x <= 10; x++) dg.map[y][x] = T.WATER;
+    }
+    monsterAI(m, dg, pl, [], { moveOnly: true });
+    const dx = pl.x - m.x, dy = pl.y - m.y;
+    expect(dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)).toBe(true);
+    expect({ x: m.x, y: m.y }).not.toEqual({ x: 7, y: 7 });
+  });
+
   it("シオンは距離2を保とうとする", () => {
     const m = {
       name: "シオン・ザ・ダークブレット",
