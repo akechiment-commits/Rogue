@@ -181,6 +181,11 @@ describe("advancePlayerSpeedPhase", () => {
     const messages = advanceSpeed(hasted, null);
     expect(hasted).toMatchObject({ hasteTurns: 0, hasteUsed: false });
     expect(messages).toEqual(["2倍速が解けた！"]);
+
+    const triple = makePlayer({ x: 5, y: 5, hasteTurns: 1, hasteSpeed: 3 });
+    const tripleMessages = advanceSpeed(triple, null);
+    expect(triple.hasteSpeed).toBeUndefined();
+    expect(tripleMessages).toEqual(["3倍速が解けた！"]);
   });
 });
 

@@ -3,7 +3,8 @@ import { describe, it, expect, vi } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
 import {
   TRAPS, fireTrapItem, trapStepBreakChance,
-  raiseSpeedOneStage, applyUnequipTrapToMonster,
+  raiseSpeedOneStage, raisePlayerSpeedOneStage, applyUnequipTrapToMonster,
+  shootArrow,
 } from "../items.js";
 import "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
@@ -113,6 +114,29 @@ describe("加速の罠", () => {
     raiseSpeedOneStage(m);
     expect(m.speed).toBe(3);
     expect(raiseSpeedOneStage(m)).toBe(false);
+  });
+
+  it("射った矢が罠に当たると部屋の全員が加速する", () => {
+    const arrow = { id: "a1", name: "木の矢", type: "arrow", count: 5, atk: 3 };
+    const p = makePlayer({ x: 2, y: 5, inventory: [arrow], arrow });
+    const mon = { id: "m1", name: "ネズミ", x: 8, y: 8, hp: 10, speed: 1 };
+    const trap = { effect: "haste_trap", name: "加速の罠", x: 5, y: 5, id: "h4" };
+    const dg = bigRoomDg({ traps: [trap], monsters: [mon] });
+    shootArrow(p, dg, 0, 1, 0, [], null, null);
+    expect(p.hasteTurns).toBeGreaterThan(0);
+    expect(mon.speed).toBe(2);
+  });
+
+  it("プレイヤーは倍速に重ねると3倍速になり、それ以上は上がらない", () => {
+    const p = makePlayer();
+    raisePlayerSpeedOneStage(p, []);
+    expect(p.hasteSpeed || 2).toBe(2);
+    raisePlayerSpeedOneStage(p, []);
+    expect(p.hasteSpeed).toBe(3);
+    const turns = p.hasteTurns;
+    raisePlayerSpeedOneStage(p, []);
+    expect(p.hasteSpeed).toBe(3);
+    expect(p.hasteTurns).toBeGreaterThan(turns);
   });
 });
 

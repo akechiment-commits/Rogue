@@ -30,7 +30,7 @@ import { isRevivalSuppressedAt, REVIVAL_SUPPRESS_MSG } from './revivalRules.js';
 import { isFloorOccupancyBlocked } from './floorObjectPlacement.js';
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from './monsterBuffs.js';
 import { interruptPlayerSleep } from './turnUpkeep.js';
-import { grantPlayerHaste } from './actionClock.js';
+import { grantPlayerHaste, hasteDurationLabel, playerHasteStage } from './actionClock.js';
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from './mpRules.js';
 import { isGachaMachine, isInsideGachaShop, pickGachaTemplate } from './gachaRules.js';
 import { convertToIceCream } from './iceCreamData.js';
@@ -2517,8 +2517,13 @@ export function raisePlayerSpeedOneStage(p, ml) {
     return true;
   }
   const ht = statusTurns("haste", { kind: "player" });
+  const from = playerHasteStage(p);
   grantPlayerHaste(p, ht);
-  if (ml) ml.push(`体が加速した！(2倍速${ht}ターン)`);
+  if (ml) {
+    const to = playerHasteStage(p);
+    if (to >= 3 && from < 3) ml.push("体がさらに加速した！(3倍速)");
+    else ml.push(`体が加速した！(${hasteDurationLabel(p, ht)})`);
+  }
   return true;
 }
 
@@ -4008,7 +4013,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         if (kind === "player") {
           const _ht = statusTurns("haste", { kind: "player" });
           grantPlayerHaste(p, _ht);
-          ml.push(`体が軽くなった！(2倍速${_ht}ターン)【呪→加速】`);
+          ml.push(`体が軽くなった！(${hasteDurationLabel(p, _ht)})【呪→加速】`);
         }
       } else {
         if (kind === "monster") {
@@ -6116,7 +6121,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     if (_wakkaDodgeMode === "dodge") {
       ml.push(`みかわしの魔方陣の加護で${_wakkaTarget.name}に${_arName}が当たらなかった！`);
       const _wakkaFt = new Set();
-      placeItemAt(dg, _wakkaTarget.x, _wakkaTarget.y, _dropItem(), ml, _wakkaFt);
+      placeItemAt(dg, _wakkaTarget.x, _wakkaTarget.y, _dropItem(), ml, _wakkaFt, 0, p);
       return;
     }
     if (monReflectsProjectiles(_wakkaTarget)) {
@@ -6192,7 +6197,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         if (_pierceMode) continue;
         ml.push(`${_arName}は${m.name}に外れ、足元に落ちた！`);
         const _missFt = new Set();
-        placeItemAt(dg, tx, ty, _dropItem(), ml, _missFt);
+        placeItemAt(dg, tx, ty, _dropItem(), ml, _missFt, 0, p);
         hit = true;
         break;
       }
@@ -6229,7 +6234,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
           }
         } else if (_rx !== tx || _ry !== ty) {
           const _rft = new Set();
-          placeItemAt(dg, _rx, _ry, _dropItem(), ml, _rft);
+          placeItemAt(dg, _rx, _ry, _dropItem(), ml, _rft, 0, p);
         }
         hit = true; break;
       }
@@ -6256,7 +6261,14 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
         ml.push(`${_arName}を射った。`);
         const _ar = _dropItem();
         if (bbFn) bbFn(bb, _ar, dg, ml);
-        else { const ft = new Set(); placeItemAt(dg, tx, ty, _ar, ml, ft); }
+        else { const ft = new Set(); placeItemAt(dg, tx, ty, _ar, ml, ft, 0, p); }
+        hit = true; break;
+      }
+      const trap = dg.traps?.find(t => t.x === tx && t.y === ty);
+      if (trap) {
+        ml.push(`${_arName}を射った。`);
+        const ft = new Set();
+        placeItemAt(dg, tx, ty, _dropItem(), ml, ft, 0, p);
         hit = true; break;
       }
     }
@@ -6272,7 +6284,7 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
   } else if (!hit) {
     ml.push(`${_arName}を射った。`);
     const ft = new Set();
-    placeItemAt(dg, lx, ly, _dropItem(), ml, ft);
+    placeItemAt(dg, lx, ly, _dropItem(), ml, ft, 0, p);
   } else {
     /* 命中で落ちなかった場合も店フラグ請求を1本分分離 */
     _ensureShopPeeled();

@@ -7,6 +7,7 @@ import {
   finishPlayerTurnClock,
   grantPlayerHaste,
   maintainPlayerHaste,
+  playerHasteStage,
   takeDueActions,
 } from "../actionClock.js";
 
@@ -87,11 +88,29 @@ describe("actionClock", () => {
     expect(takeDueActions(triple, player.actionTime, 3)).toBe(2);
   });
 
-  it("既に倍速の延長では凍結しない", () => {
-    const player = { hasteTurns: 4, actionTime: 0 };
+  it("倍速に重ねると3倍速になり、その行動の敵は止まる", () => {
+    const player = { hasteTurns: 4, hasteSpeed: 2, actionTime: 0 };
     expect(grantPlayerHaste(player, 10)).toBe(true);
+    expect(player.hasteSpeed).toBe(3);
+    expect(playerHasteStage(player)).toBe(3);
+    expect(player._hasteGrantFreeze).toBe(true);
+    expect(player.hasteTurns).toBe(14);
+  });
+
+  it("既に3倍速なら持続だけ延び、凍結しない", () => {
+    const player = { hasteTurns: 4, hasteSpeed: 3, actionTime: 0 };
+    expect(grantPlayerHaste(player, 10)).toBe(true);
+    expect(player.hasteSpeed).toBe(3);
     expect(player._hasteGrantFreeze).toBeFalsy();
     expect(player.hasteTurns).toBe(14);
+  });
+
+  it("3倍速の行動コストは4で、3行動で世界時間が1進む", () => {
+    const player = { hasteTurns: 10, hasteSpeed: 3, actionTime: 0 };
+    expect(beginPlayerTurnClock(player).worldTicks).toBe(0);
+    expect(beginPlayerTurnClock(player).worldTicks).toBe(0);
+    expect(beginPlayerTurnClock(player).worldTicks).toBe(1);
+    expect(player.actionTime).toBe(ACTION_TIME_BASE);
   });
 
   it("等速の魔方陣で新たに倍速になると凍結する", () => {

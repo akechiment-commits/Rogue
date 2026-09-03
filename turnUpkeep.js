@@ -294,7 +294,9 @@ export function advancePlayerSpeedPhase(player, dungeon, messages, {
     player.hasteTurns--;
     if (player.hasteTurns <= 0) {
       player.hasteUsed = false;
-      if (!equalSpeedPentacle?.blessed) messages.push("2倍速が解けた！");
+      const wasTriple = (player.hasteSpeed || 2) >= 3;
+      delete player.hasteSpeed;
+      if (!equalSpeedPentacle?.blessed) messages.push(wasTriple ? "3倍速が解けた！" : "2倍速が解けた！");
     }
   }
   if (equalSpeedPentacle?.cursed && !isEqualSpeedAutoAdvance) {

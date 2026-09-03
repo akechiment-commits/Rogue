@@ -5728,7 +5728,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           <span style={{ color: "#80c0ff" }}>🐢{p.slowTurns}</span>
         )}{" "}
         {(p.hasteTurns || 0) > 0 && (
-          <span style={{ color: "#ff4040" }}>⚡{p.hasteTurns}</span>
+          <span style={{ color: "#ff4040" }}>⚡{(p.hasteSpeed || 2) >= 3 ? "3x" : ""}{p.hasteTurns}</span>
         )}{" "}
         {(p.confusedTurns || 0) > 0 && (
           <span style={{ color: "#ff9020" }}>🌀{p.confusedTurns}</span>

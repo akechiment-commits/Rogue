@@ -12,25 +12,37 @@ export function actionCost(speed) {
   return ACTION_TIME_BASE / value;
 }
 
-export function playerActionSpeed(player, { idleBeat = false, hasteGrantFreeze = false } = {}) {
-  if (idleBeat || hasteGrantFreeze) return 1;
-  if ((player?.hasteTurns || 0) > 0) return 2;
-  return 1;
+export function playerHasteStage(player) {
+  if ((player?.hasteTurns || 0) <= 0) return 1;
+  return (player.hasteSpeed || 2) >= 3 ? 3 : 2;
 }
 
-/** 等速から倍速へ入るときだけ立てる。その行動の敵行動を全キャンセルする。 */
-export function markHasteGrant(player) {
+export function playerActionSpeed(player, { idleBeat = false, hasteGrantFreeze = false } = {}) {
+  if (idleBeat || hasteGrantFreeze) return 1;
+  return playerHasteStage(player);
+}
+
+/** 速度が上がった行動だけ立てる。その拍の敵行動を全キャンセルする。 */
+export function markHasteGrant(player, { evenIfHasted = false } = {}) {
   if (!player) return false;
-  if ((player.hasteTurns || 0) > 0) return false;
+  if (!evenIfHasted && playerHasteStage(player) > 1) return false;
   player._hasteGrantFreeze = true;
   return true;
 }
 
 export function grantPlayerHaste(player, turns) {
   if (!player || !(turns > 0)) return false;
-  markHasteGrant(player);
+  const from = playerHasteStage(player);
+  if (from < 3) {
+    player.hasteSpeed = from < 2 ? 2 : 3;
+    player._hasteGrantFreeze = true;
+  }
   player.hasteTurns = (player.hasteTurns || 0) + turns;
   return true;
+}
+
+export function hasteDurationLabel(player, addedTurns) {
+  return playerHasteStage(player) >= 3 ? "3倍速" : `2倍速${addedTurns}ターン`;
 }
 
 export function maintainPlayerHaste(player, minTurns) {
@@ -38,6 +50,7 @@ export function maintainPlayerHaste(player, minTurns) {
   const was = player.hasteTurns || 0;
   player.hasteTurns = Math.max(was, minTurns);
   if (was <= 0 && player.hasteTurns > 0) {
+    if (!player.hasteSpeed) player.hasteSpeed = 2;
     player._hasteGrantFreeze = true;
     return true;
   }

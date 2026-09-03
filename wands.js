@@ -19,7 +19,7 @@ import { tryBreakStatueAt, hitStatueWithAction, displaceObjectsFromStatue } from
 import { statueAt, wandEffectBreaksStatue, wandEffectStatueLootOnly, wandEffectBreaksFloorFixture } from './fixtureQueries.js';
 import { pushAnim, pushMonsterBoltAnim, pushLightningAnim, pushHealAnim, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from './animEvents.js';
 import { statusTurns, isPermanentTurns, applyMonsterParalyze, applyAttackSeal } from './statusDuration.js';
-import { grantPlayerHaste } from './actionClock.js';
+import { grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } from './monTraits.js';
 import { pl } from './playerLabel.js';
 import {
@@ -768,7 +768,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         if (kind === "player") {
           const _ht = statusTurns("haste", { kind: "player" });
           grantPlayerHaste(p, _ht);
-          ml.push(`体が軽くなった！(2倍速${_ht}ターン)【呪】`);
+          ml.push(`体が軽くなった！(${hasteDurationLabel(p, _ht)})【呪】`);
           break;
         }
       } else {
