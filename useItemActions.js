@@ -1795,7 +1795,7 @@ export function useItemActions({
         if (it.cursed) {
           removeTraps(dg, dg.traps.filter(t => !t.permanent), ml, { message: "罠の巻物を読んだ！フロア内の全ての罠が消えた！【呪】", p });
         } else {
-          const _tCount = it.blessed ? rng(15, 25) : rng(8, 15);
+          const _tCount = it.blessed ? rng(16, 30) : rng(8, 15);
           let _placed = 0;
           for (let _ti = 0; _ti < _tCount * 3 && _placed < _tCount; _ti++) {
             const _tr = dg.rooms[rng(0, dg.rooms.length - 1)];
