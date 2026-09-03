@@ -43,9 +43,11 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 
 /* 風穴の方向別画像はスタイル3（mon1）だけで使う。 */
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
-const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208, 210, 211, 212, 213]);
+const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
-const SHARED_FIXTURE_ASSET_VERSION = "20260904-v7";
+const SHARED_FIXTURE_ASSET_VERSION = "20260904-v8";
+/* DawnLike等に番号が無い新規罠。public/tiles の絵を後から載せる。 */
+const PUBLIC_TRAP_TILE_IDS = [210, 211, 212, 213];
 const HYPNOSIS_ACTION_DELAY_MS = 600;
 
 function markWanderingMerchantHostile(monster, dungeon, player, messages) {
@@ -326,6 +328,21 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       customTileImages[parseInt(idx)] = canvas;
     }
 
+    const loadPublicNamedTiles = (ids) => Promise.all(ids.map((id) => new Promise((res) => {
+      const tileName = TILE_NAMES[id];
+      if (!tileName) { res(); return; }
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width; canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        customTileImages[id] = canvas;
+        res();
+      };
+      img.onerror = () => res();
+      img.src = `/tiles/${tileName}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
+    })));
+
     if (name === 'default') {
       /* デフォルトの手続き描画でも、視認性を優先した共通ギミック画像を使う。 */
       await Promise.all([...SHARED_FIXTURE_TILE_IDS].map((id) => new Promise((res) => {
@@ -341,6 +358,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         img.onerror = () => res();
         img.src = `/tiles/${tileName}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
       })));
+      await loadPublicNamedTiles(PUBLIC_TRAP_TILE_IDS);
       setCurrentTileset('default');
       localStorage.setItem('roguelike_tileset', 'default');
       setCtLoaded(c => c + 1);
@@ -397,6 +415,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
         }
       }
+      await loadPublicNamedTiles(PUBLIC_TRAP_TILE_IDS);
       setCurrentTileset(name);
       localStorage.setItem('roguelike_tileset', name);
       setCtLoaded(c => c + 1);
