@@ -51,22 +51,6 @@ function isAdjacentPlayerSpecial(m) {
     (m.subtype === "dangerousPetal" && level < 2);
 }
 
-/* 通常の聖域は、プレイヤーへ直接届く隣接1マス特技を防ぐ。
- * 遠距離・部屋範囲・フロア範囲の特技は通常聖域を貫通し、祝福聖域だけが防ぐ。 */
-const ADJACENT_PLAYER_SPECIAL_SUBTYPES = new Set([
-  "grabber", "thief", "goldthief", "itemblast", "stealthrower",
-  "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater",
-]);
-
-function isAdjacentPlayerSpecial(m) {
-  if (!m) return false;
-  const level = m.monLevel || 1;
-  return ADJACENT_PLAYER_SPECIAL_SUBTYPES.has(m.subtype) ||
-    m.subtype === "itempusher" ||
-    (m.subtype === "hypnotist" && level < 3) ||
-    (m.subtype === "dangerousPetal" && level < 2);
-}
-
 function dangerousPetalSpecialRate(m, pl) {
   if (!pl) return DANGEROUS_PETAL_SPECIAL_RATE.ranged;
   const distance = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
