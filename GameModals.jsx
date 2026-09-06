@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
@@ -3809,6 +3810,8 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
               }
               const _ml = [];
               if (!sr.current.floors) sr.current.floors = {};
+              const _floorChanged = f !== _p.depth;
+              if (_floorChanged) suspendFloor(sr.current.dungeon, _p);
               sr.current.floors[_p.depth] = sr.current.dungeon;
               const _saved = sr.current.floors[f];
               if (!_saved) {
@@ -3827,6 +3830,7 @@ export function FloorSelectModal({ mode, setMode, sr, setGs, setMsgs, endTurn, g
               if (_tpDst) { _p.x = _tpDst.x; _p.y = _tpDst.y; }
               else { _p.x = _d.stairUp.x; _p.y = _d.stairUp.y; }
               pushPlayerTeleportAnim(_tpFromX, _tpFromY, _p.x, _p.y);
+              if (_floorChanged) resumeFloor(_d, _p);
               refreshFOV(_d, _p);
               _d.nextSpawnTurn = _p.turns + rng(10, 50);
               sr.current.dungeon = _d;

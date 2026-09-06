@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { MW, MH, T, rng, uid, refreshFOV, getShops, getVisitedFloors } from "./utils.js";
 import { itemDisplayName } from "./render.js";
 import {
@@ -247,6 +248,8 @@ export function useKeyHandler({
           }
           const _ml = [];
           if (!sr.current.floors) sr.current.floors = {};
+          const _floorChanged = _f !== _fsp.depth;
+          if (_floorChanged) suspendFloor(sr.current.dungeon, _fsp);
           sr.current.floors[_fsp.depth] = sr.current.dungeon;
           const _saved = sr.current.floors[_f];
           if (!_saved) {
@@ -263,6 +266,7 @@ export function useKeyHandler({
           const _rm = _d.rooms[rng(0, _d.rooms.length - 1)];
           _fsp.x = rng(_rm.x, _rm.x + _rm.w - 1);
           _fsp.y = rng(_rm.y, _rm.y + _rm.h - 1);
+          if (_floorChanged) resumeFloor(_d, _fsp);
           refreshFOV(_d, _fsp);
           _d.nextSpawnTurn = _fsp.turns + rng(10, 50);
           sr.current.dungeon = _d;

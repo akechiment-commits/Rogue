@@ -84,6 +84,7 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { formatInventoryItem, formatRefillMessage } from "./inventoryLabel.js";
 import { advanceEarlyStatusTimers, advancePlayerUpkeep, applyArmorAura, advancePentacleWear, advanceForcedTurn, hasForcedTurn, advancePlayerSpeedPhase, interruptPlayerSleep } from "./turnUpkeep.js";
 import { beginPlayerTurnClock, finishPlayerTurnClock, syncActorsToClock, takeDueActions } from "./actionClock.js";
+import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 import { statusTurns, monsterStatusTurns, applyPlayerPoison, applyYabaiPoison, clearStatusEffectsOnHpZero, isAttackSealed } from "./statusDuration.js";
 import { advancePlayerTerrainEffects } from "./playerTerrainEffects.js";
 import { resolvePlayerPentacleEffects } from "./playerPentacleEffects.js";
@@ -1638,12 +1639,14 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       p.x = _dest.portal.x; p.y = _dest.portal.y;
       ml.push(`ポータルから${_dest.portal.name}へ抜けた！`);
     } else {
+      suspendFloor(sr.current.dungeon, p);
       sr.current.floors[p.depth] = sr.current.dungeon;
       delete sr.current.floors[_dest.depth];
       sr.current.dungeon = _dest.dg;
       st.dungeon = _dest.dg;
       p.depth = _dest.depth;
       p.x = _dest.portal.x; p.y = _dest.portal.y;
+      resumeFloor(_dest.dg, p);
       refreshFOV(_dest.dg, p);
       ml.push(`ポータルから地下${_dest.depth}階の${_dest.portal.name}へ抜けた！`);
     }
@@ -1656,7 +1659,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     return true;
   }, []);
-  const chgFloor = useCallback((pl, dir, pitfall = false) => {
+  const chgFloor = useCallback((pl, dir, pitfall = false, { stairs = false } = {}) => {
     const _pitfallFromX = pl.x, _pitfallFromY = pl.y;
     const nd = pl.depth + dir;
     if (nd < 1) return null;
@@ -1673,6 +1676,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     if (_hasUnpaidItems || _wasInUnpaidShop) {
       declareShopTheft(pl, sr.current.dungeon, null, { message: null });
     }
+    suspendFloor(sr.current.dungeon, pl, { stairs });
     sr.current.floors[pl.depth] = sr.current.dungeon;
     const _saved = sr.current.floors[nd];
     let d;
@@ -1741,6 +1745,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       pl.x = _stTarget.x;
       pl.y = _stTarget.y;
     }
+    if (_saved) resumeFloor(d, pl);
     refreshFOV(d, pl);
     /* 落とし穴・ランダム階層移動は同座標でも、落下してから出現する待機を必ず入れる */
     if (pitfall) pushPlayerTeleportAnim(_pitfallFromX, _pitfallFromY, pl.x, pl.y, true);
@@ -2340,7 +2345,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           setShowEnding(true);
           return;
         }
-        const nd = chgFloor(p, dir);
+        const nd = chgFloor(p, dir, false, { stairs: true });
         if (nd) {
           st.dungeon = nd;
           ml.push(`地下${p.depth}階に${dir > 0 ? "降りた" : "昇った"}。`);

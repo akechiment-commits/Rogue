@@ -33,6 +33,7 @@ import { monSubmergesProjectiles, monReflectsProjectiles, monReflectsMagic } fro
 import { clearArmorBreathBuff, clearDiamondWeaponBuff } from "./monsterBuffs.js";
 import { isMpRecoveryBlocked, mpRecoveryBlockTurns } from "./mpRules.js";
 import { grantPlayerHaste, hasteDurationLabel } from "./actionClock.js";
+import { suspendFloor, resumeFloor } from "./floorAbsence.js";
 
 /* 催眠で選ばれる「使う」操作のある所持品。金貨・大事なもの・空き瓶は投擲専用なので除外する。 */
 const HYPNOSIS_ITEM_TYPES = new Set([
@@ -1028,6 +1029,7 @@ export function useItemActions({
             const _targetFloor = _visited[Math.floor(Math.random() * _visited.length)];
             if (_targetFloor != null) {
               if (!sr.current.floors) sr.current.floors = {};
+              if (_targetFloor !== p.depth) suspendFloor(dg, p);
               sr.current.floors[p.depth] = dg;
               const _saved = sr.current.floors[_targetFloor];
               if (_saved) {
@@ -1040,6 +1042,7 @@ export function useItemActions({
                 const _rm = _saved.rooms[rng(0, _saved.rooms.length - 1)];
                 p.x = rng(_rm.x, _rm.x + _rm.w - 1);
                 p.y = rng(_rm.y, _rm.y + _rm.h - 1);
+                if (_saved !== dg) resumeFloor(_saved, p);
                 refreshFOV(_saved, p);
                 _saved.nextSpawnTurn = p.turns + rng(10, 50);
                 sr.current.dungeon = _saved;
