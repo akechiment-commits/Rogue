@@ -2,11 +2,98 @@
    Module-level singleton so any game code can track discoveries
    without threading refs through deeply nested callbacks.         */
 
-let _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {} };
+/* 敵名変更前の図鑑キーを、現行名へ一度だけ移行する。 */
+export const MONSTER_DISCOVERY_MIGRATION_VERSION = 1;
+const MONSTER_DISCOVERY_NAME_ALIASES_V1 = Object.freeze({
+  "大ムカデ": "巨大ムカデ",
+  "覇ムカデ": "重装甲ムカデ",
+  "盗投士": "ひったくり",
+  "大盗投士": "分捕り",
+  "覇盗投士": "根刮ぎ",
+  "強スケルトン": "骸骨戦士",
+  "アンデッドナイト": "アンデッドナイ",
+  "強水晶スライム": "プラチナスライム",
+  "覇水晶スライム": "ダマスカスライム",
+  "強ゼラチンキューブ": "大ゼラチンキューブ",
+  "覇ゼラチンキューブ": "暴食ゼラチンキューブ",
+  "術師": "杖術師",
+  "強術師": "杖魔人",
+  "大術師": "杖ゴミ",
+  "解装士": "強引タヌキ",
+  "強解装士": "無理矢理タヌキ",
+  "覇解装士": "すっぽんタヌキ",
+  "シールド蟹": "どこにも居場所がカニ",
+  "強引きダコ": "ひっぱりダコ",
+  "覇引きダコ": "吸い込みダコ",
+  "催眠術使い": "土下座鈴木右衛門",
+  "強催眠術使い": "飛翔土下座鈴木右衛門",
+  "大催眠術使い": "焼き土下座鈴木右衛門",
+  "強ゴーレム": "ゴーレムLv2",
+  "覇ゴーレム": "ゴーレムーガ",
+  "強からめ鬼": "がんじがらめ鬼",
+  "覇からめ鬼": "こんがらマッチョ",
+  "強突進角獣": "激突角獣",
+  "覇突進角獣": "猪突角獣",
+  "むちちむち": "モチチモチ",
+  "強ハンマーオーガ": "ボンバーオーガ",
+  "覇ハンマーオーガ": "オーガキング",
+  "魔法反射師": "ミラーマン",
+  "強魔法反射師": "全反射マン",
+  "覇魔法反射師": "ペルセウスマン",
+  "ラプラス": "ナンチュウ",
+  "キラープラスター": "ラプラス",
+});
+
+let _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {}, monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION };
 let _pendingBigboxes = {}; /* 今回の冒険で壊した大箱（ゲームオーバー/帰還時に確定） */
 
+function countOf(entry) {
+  const count = Number(entry?.count);
+  return Number.isFinite(count) ? count : 1;
+}
+
+function renameMonsterDiscoveryEntries(entries) {
+  const result = {};
+  for (const [key, rawEntry] of Object.entries(entries || {})) {
+    const entry = rawEntry && typeof rawEntry === "object"
+      ? rawEntry
+      : { name: key, count: 1 };
+    const sourceName = entry.name || key;
+    const targetName = MONSTER_DISCOVERY_NAME_ALIASES_V1[sourceName]
+      || MONSTER_DISCOVERY_NAME_ALIASES_V1[key]
+      || sourceName;
+    const existing = result[targetName];
+    const incomingIsCanonical = sourceName === targetName && key === targetName;
+    const merged = existing
+      ? (incomingIsCanonical ? { ...existing, ...entry } : { ...entry, ...existing })
+      : { ...entry };
+    result[targetName] = {
+      ...merged,
+      name: targetName,
+      count: (existing ? countOf(existing) : 0) + countOf(entry),
+    };
+  }
+  return result;
+}
+
+export function migrateMonsterDiscoveries(entries, version = 0) {
+  const fromVersion = Number.isInteger(version) ? version : 0;
+  return fromVersion < MONSTER_DISCOVERY_MIGRATION_VERSION
+    ? renameMonsterDiscoveryEntries(entries)
+    : { ...(entries || {}) };
+}
+
+export function normalizeDiscoveryData(data) {
+  if (!data) return null;
+  return {
+    ...data,
+    monsters: migrateMonsterDiscoveries(data.monsters, data.monsterNameMigrationVersion),
+    monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION,
+  };
+}
+
 export function resetDiscoveries() {
-  _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {} };
+  _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {}, monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION };
   _pendingBigboxes = {};
 }
 
@@ -68,11 +155,13 @@ export function commitPendingBigboxes() {
 
 export function restoreDiscoveries(data) {
   if (!data) return;
+  const normalized = normalizeDiscoveryData(data);
   _disc = {
-    items:    { ...(data.items || {}) },
-    monsters: { ...(data.monsters || {}) },
-    traps:    { ...(data.traps || {}) },
-    bigboxes: { ...(data.bigboxes || {}) },
+    items:    { ...(normalized.items || {}) },
+    monsters: { ...(normalized.monsters || {}) },
+    traps:    { ...(normalized.traps || {}) },
+    bigboxes: { ...(normalized.bigboxes || {}) },
+    monsterNameMigrationVersion: normalized.monsterNameMigrationVersion,
   };
 }
 
@@ -82,5 +171,6 @@ export function getDiscoveries() {
     monsters: { ..._disc.monsters },
     traps:    { ..._disc.traps },
     bigboxes: { ..._disc.bigboxes },
+    monsterNameMigrationVersion: _disc.monsterNameMigrationVersion,
   };
 }

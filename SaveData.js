@@ -1,4 +1,9 @@
 /* ===== SAVE DATA PERSISTENCE ===== */
+import {
+  MONSTER_DISCOVERY_MIGRATION_VERSION,
+  migrateMonsterDiscoveries,
+} from "./DiscoveryTracker.js";
+
 const SAVE_KEY = 'roguelike_hub_v1';
 
 export const DEFAULT_SAVE = {
@@ -18,6 +23,7 @@ export const DEFAULT_SAVE = {
     monsters: {},           /* { name: { name, tile, count } } */
     traps:    {},           /* { effectKey: { name, tile, count } } */
     bigboxes: {},           /* { kind: { name, kind, tile, count } } */
+    monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION,
   },
   identifiedEffects: [],    /* 永続的に識別済みの巻物・魔法書のeffectキー（魔法の筆用） */
   seenMiniTips: [],         /* 本編の初遭遇ミニ解説を表示済みのキー */
@@ -33,6 +39,7 @@ export function loadSave() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return structuredClone(DEFAULT_SAVE);
     const data = JSON.parse(raw);
+    const savedDiscovered = data.discovered || {};
     /* merge missing keys from DEFAULT_SAVE */
     return {
       ...DEFAULT_SAVE,
@@ -42,9 +49,10 @@ export function loadSave() {
       hubInventory: [...(data.hubInventory || [])],
       discovered: {
         items:    { ...(data.discovered?.items    || {}) },
-        monsters: { ...(data.discovered?.monsters || {}) },
+        monsters: migrateMonsterDiscoveries(savedDiscovered.monsters, savedDiscovered.monsterNameMigrationVersion),
         traps:    { ...(data.discovered?.traps    || {}) },
         bigboxes: { ...(data.discovered?.bigboxes || {}) },
+        monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION,
       },
       identifiedEffects: [...(data.identifiedEffects || [])],
       seenMiniTips:       [...new Set(data.seenMiniTips || [])],
@@ -66,19 +74,24 @@ export function clearSave() {
 
 /* Merge one run's discoveries into save's discovered map */
 export function mergeDiscoveries(saveDiscovered, runDiscovered) {
+  const saved = saveDiscovered || {};
+  const run = runDiscovered || {};
+  const savedMonsters = migrateMonsterDiscoveries(saved.monsters, saved.monsterNameMigrationVersion);
+  const runMonsters = migrateMonsterDiscoveries(run.monsters, run.monsterNameMigrationVersion);
   const result = {
-    items:    { ...saveDiscovered.items },
-    monsters: { ...saveDiscovered.monsters },
-    traps:    { ...saveDiscovered.traps },
-    bigboxes: { ...saveDiscovered.bigboxes },
+    items:    { ...(saved.items || {}) },
+    monsters: { ...savedMonsters },
+    traps:    { ...(saved.traps || {}) },
+    bigboxes: { ...(saved.bigboxes || {}) },
+    monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION,
   };
-  for (const [k, v] of Object.entries(runDiscovered.items || {}))
+  for (const [k, v] of Object.entries(run.items || {}))
     result.items[k] = { ...v, count: ((result.items[k]?.count) || 0) + (v.count || 1) };
-  for (const [k, v] of Object.entries(runDiscovered.monsters || {}))
+  for (const [k, v] of Object.entries(runMonsters))
     result.monsters[k] = { ...v, count: ((result.monsters[k]?.count) || 0) + (v.count || 1) };
-  for (const [k, v] of Object.entries(runDiscovered.traps || {}))
+  for (const [k, v] of Object.entries(run.traps || {}))
     result.traps[k] = { ...v, count: ((result.traps[k]?.count) || 0) + (v.count || 1) };
-  for (const [k, v] of Object.entries(runDiscovered.bigboxes || {}))
+  for (const [k, v] of Object.entries(run.bigboxes || {}))
     result.bigboxes[k] = { ...v, count: ((result.bigboxes[k]?.count) || 0) + (v.count || 1) };
   return result;
 }

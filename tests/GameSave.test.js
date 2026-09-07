@@ -123,6 +123,19 @@ describe("GameSave", () => {
     expect(loadGameState()).toBeNull();
   });
 
+  it("途中セーブ内の旧名モンスター図鑑も読み込み時に移行する", () => {
+    const discoveries = {
+      monsters: {
+        "解装士": { name: "解装士", tile: 156, count: 1 },
+        "強引タヌキ": { name: "強引タヌキ", tile: 214, count: 2 },
+      },
+    };
+    expect(saveGameState(makeSession(), [], null, discoveries)).toBe(true);
+    const monsters = loadGameState().discoveries.monsters;
+    expect(monsters["強引タヌキ"].count).toBe(3);
+    expect(monsters["解装士"]).toBeUndefined();
+  });
+
   it("clearGameSave で削除される", () => {
     saveGameState(makeSession(), [], null, null);
     clearGameSave();

@@ -6,6 +6,7 @@ import {
   trackTrap,
   stageBigbox,
   commitPendingBigboxes,
+  restoreDiscoveries,
   getDiscoveries,
 } from "../DiscoveryTracker.js";
 
@@ -43,5 +44,22 @@ describe("DiscoveryTracker", () => {
     expect(getDiscoveries().bigboxes.identify).toBeUndefined();
     commitPendingBigboxes();
     expect(getDiscoveries().bigboxes.identify.name).toBe("識別の大箱");
+  });
+
+  it("旧名のモンスター図鑑を現行名へ合算する", () => {
+    restoreDiscoveries({
+      monsters: {
+        "盗投士": { name: "盗投士", tile: 153, count: 2 },
+        "ひったくり": { name: "ひったくり", tile: 153, count: 3 },
+        "ラプラス": { name: "ラプラス", tile: 160, count: 4 },
+        "キラープラスター": { name: "キラープラスター", tile: 160, count: 5 },
+      },
+    });
+    const monsters = getDiscoveries().monsters;
+    expect(monsters["ひったくり"].count).toBe(5);
+    expect(monsters["ナンチュウ"].count).toBe(4);
+    expect(monsters["ラプラス"].count).toBe(5);
+    expect(monsters["盗投士"]).toBeUndefined();
+    expect(getDiscoveries().monsterNameMigrationVersion).toBe(1);
   });
 });

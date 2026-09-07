@@ -81,4 +81,18 @@ describe("loadSave", () => {
     expect(save.playerName).toBe("冒険者");
     expect(save.playerId).toBe("abc");
   });
+
+  it("旧名のモンスター図鑑を読み込み時に現行名へ移行する", () => {
+    localStorage.setItem("roguelike_hub_v1", JSON.stringify({
+      discovered: {
+        monsters: {
+          "催眠術使い": { name: "催眠術使い", tile: 175, count: 2 },
+          "土下座鈴木右衛門": { name: "土下座鈴木右衛門", tile: 215, count: 3 },
+        },
+      },
+    }));
+    const monsters = loadSave().discovered.monsters;
+    expect(monsters["土下座鈴木右衛門"].count).toBe(5);
+    expect(monsters["催眠術使い"]).toBeUndefined();
+  });
 });

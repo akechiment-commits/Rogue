@@ -3,6 +3,7 @@
    装備品はインベントリ内のインデックスで参照を保持する。   */
 
 import { installPlayerHpReverseHook } from "./utils.js";
+import { normalizeDiscoveryData } from "./DiscoveryTracker.js";
 
 const GAME_SAVE_KEY = 'roguelike_dungeon_save_v1';
 const GAME_SAVE_VERSION = 2;
@@ -172,7 +173,7 @@ export function loadGameState() {
       potionSpriteMap: data.potionSpriteMap || {},
       msgs: data.msgs || [],
       dungeonConfig: data.dungeonConfig || null,
-      discoveries: data.discoveries || null,
+      discoveries: normalizeDiscoveryData(data.discoveries),
     };
   } catch (e) {
     console.warn('GameSave: load failed', e);
