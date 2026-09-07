@@ -1010,7 +1010,7 @@ export const MONS = [
   { name: "ほっちもぺ",   hp: 68, atk: 24, def: 18, exp: 70, speed: 1,   tile: 169, kind: "beast",   baseKind: "reflector",     monLevel: 1, minFloor: 12, maxFloor: 45, subtype: "reflector", dungeonFloors: { intermediate: { min: 12, max: 18 }, advanced: { min: 9, max: 18 } },
     levels: [
       { name: "ほっちんもっぺ",     hp: 109, atk: 35, def: 24, exp: 112, dungeonFloors: { advanced: { min: 22, max: 26 } } },
-      { name: "モチチモチ",         hp: 170, atk: 46, def: 31, exp: 175 },
+      { name: "モチチモチ？",       hp: 170, atk: 46, def: 31, exp: 175 },
     ],
   },
   { name: "かわしモグラ", hp: 68, atk: 28, def: 7, exp: 65, speed: 1, tile: 181, kind: "beast", baseKind: "dodgemole", monLevel: 1, minFloor: 16, maxFloor: 27, subtype: "dodgemole", dungeonFloors: { intermediate: null, advanced: { min: 16, max: 27 } },

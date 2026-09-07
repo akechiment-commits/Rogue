@@ -64,4 +64,9 @@ describe("敵同士の撃破によるレベルアップ", () => {
     expect(charger.monLevel).toBe(2);
     expect(charger.name).toBe("激突角獣");
   });
+
+  it("ほっちもぺのLv3名は疑問符付き", () => {
+    const base = MONS.find((m) => m.baseKind === "reflector");
+    expect(base.levels[1].name).toBe("モチチモチ？");
+  });
 });

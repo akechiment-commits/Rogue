@@ -60,6 +60,16 @@ describe("DiscoveryTracker", () => {
     expect(monsters["ナンチュウ"].count).toBe(4);
     expect(monsters["ラプラス"].count).toBe(5);
     expect(monsters["盗投士"]).toBeUndefined();
-    expect(getDiscoveries().monsterNameMigrationVersion).toBe(1);
+    expect(getDiscoveries().monsterNameMigrationVersion).toBe(2);
+  });
+
+  it("中間名のモチチモチも最終名へ移行する", () => {
+    restoreDiscoveries({
+      monsterNameMigrationVersion: 1,
+      monsters: {
+        "モチチモチ": { name: "モチチモチ", tile: 169, count: 2 },
+      },
+    });
+    expect(getDiscoveries().monsters["モチチモチ？"].count).toBe(2);
   });
 });

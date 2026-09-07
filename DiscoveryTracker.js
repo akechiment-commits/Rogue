@@ -3,7 +3,7 @@
    without threading refs through deeply nested callbacks.         */
 
 /* 敵名変更前の図鑑キーを、現行名へ一度だけ移行する。 */
-export const MONSTER_DISCOVERY_MIGRATION_VERSION = 1;
+export const MONSTER_DISCOVERY_MIGRATION_VERSION = 2;
 const MONSTER_DISCOVERY_NAME_ALIASES_V1 = Object.freeze({
   "大ムカデ": "巨大ムカデ",
   "覇ムカデ": "重装甲ムカデ",
@@ -43,6 +43,10 @@ const MONSTER_DISCOVERY_NAME_ALIASES_V1 = Object.freeze({
   "ラプラス": "ナンチュウ",
   "キラープラスター": "ラプラス",
 });
+const MONSTER_DISCOVERY_NAME_ALIASES_V2 = Object.freeze({
+  "むちちむち": "モチチモチ？",
+  "モチチモチ": "モチチモチ？",
+});
 
 let _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {}, monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION };
 let _pendingBigboxes = {}; /* 今回の冒険で壊した大箱（ゲームオーバー/帰還時に確定） */
@@ -52,15 +56,15 @@ function countOf(entry) {
   return Number.isFinite(count) ? count : 1;
 }
 
-function renameMonsterDiscoveryEntries(entries) {
+function renameMonsterDiscoveryEntries(entries, aliases) {
   const result = {};
   for (const [key, rawEntry] of Object.entries(entries || {})) {
     const entry = rawEntry && typeof rawEntry === "object"
       ? rawEntry
       : { name: key, count: 1 };
     const sourceName = entry.name || key;
-    const targetName = MONSTER_DISCOVERY_NAME_ALIASES_V1[sourceName]
-      || MONSTER_DISCOVERY_NAME_ALIASES_V1[key]
+    const targetName = aliases[sourceName]
+      || aliases[key]
       || sourceName;
     const existing = result[targetName];
     const incomingIsCanonical = sourceName === targetName && key === targetName;
@@ -78,9 +82,10 @@ function renameMonsterDiscoveryEntries(entries) {
 
 export function migrateMonsterDiscoveries(entries, version = 0) {
   const fromVersion = Number.isInteger(version) ? version : 0;
-  return fromVersion < MONSTER_DISCOVERY_MIGRATION_VERSION
-    ? renameMonsterDiscoveryEntries(entries)
-    : { ...(entries || {}) };
+  let migrated = { ...(entries || {}) };
+  if (fromVersion < 1) migrated = renameMonsterDiscoveryEntries(migrated, MONSTER_DISCOVERY_NAME_ALIASES_V1);
+  if (fromVersion < 2) migrated = renameMonsterDiscoveryEntries(migrated, MONSTER_DISCOVERY_NAME_ALIASES_V2);
+  return migrated;
 }
 
 export function normalizeDiscoveryData(data) {
