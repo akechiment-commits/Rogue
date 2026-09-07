@@ -22,7 +22,7 @@ import {
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
 import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
-import { trackMonster, trackBigbox, trackItem, getDiscoveries } from "./DiscoveryTracker.js";
+import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
 import { pushBoltAnim, pushProjectileAnim, pushExplosionAnim, pushAnim, pushLightningAnim, pushHealAnim, pushSplashAnim, pushItemFlyAnim, pushItemReturnAnim, pushItemFlyAnimAlongWind, pushPlayerTeleportAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { statusTurns, applyMonsterParalyze, applyPlayerPoison, applyYabaiPoison, clearPlayerPoison, applyAttackSeal } from "./statusDuration.js";
@@ -445,7 +445,7 @@ export function useItemActions({
         }
       } else if (it.effect === "bewitch") {
         if (it.cursed) {
-          dg.traps.forEach(t => t.revealed = true);
+          dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
           ml.push(`${_useItemName}を飲んだ。フロアの罠が全て見えた！【呪→罠看破】`);
         } else if (hasAbility(p.armor, "bewitch_proof")) {
           ml.push(`${_useItemName}を飲んだ。しかし防具が幻惑を防いだ！(耐惑わし)`);
@@ -465,7 +465,6 @@ export function useItemActions({
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
               sr.current = { ...sr.current };
               clearGameSave();
-              p.inventory.forEach(i => trackItem(i));
               const _hasGoalP = p.inventory.some(i => i.type === "goal");
               onReturnToHub({ earnedGold: p.gold, depth: p.depth, discoveries: getDiscoveries(), survived: true, returnItems: [...p.inventory], cleared: _hasGoalP });
               return;
@@ -493,6 +492,7 @@ export function useItemActions({
         ml.push("足元に空き瓶が残った。");
       } else if (p.inventory.length < (p.maxInventory || 30)) {
         const bottle = { ...EMPTY_BOTTLE, id: uid() };
+        trackItem(bottle);
         p.inventory.push(bottle);
         ml.push("空き瓶が残った。");
       }
@@ -604,7 +604,7 @@ export function useItemActions({
       } else if (fe === "reveal_food") {
         for (let y2 = 0; y2 < MH; y2++)
           for (let x2 = 0; x2 < MW; x2++) dg.explored[y2][x2] = true;
-        dg.traps.forEach((t2) => (t2.revealed = true));
+        dg.traps.forEach((t2) => { t2.revealed = true; trackTrap(t2); });
         ml.push("目が冴えてフロア全体が見えた！");
       } else if (fe === "antidote_food") {
         const _acured = [];
@@ -714,7 +714,7 @@ export function useItemActions({
             p.monsterSenseTurns = (p.monsterSenseTurns || 0) + statusTurns("monsterSense", { kind: "player" });
             ml.push("感知成分が！フロアのモンスターが見えるようになった！(100ターン)");
           } else if (pe === "c_bewitch") {
-            dg.traps.forEach(t => t.revealed = true);
+            dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
             ml.push("看破成分が！フロアの罠が全て見えた！");
           } else if (pe === "c_paralyze") {
             p.statusImmune = (p.statusImmune || 0) + statusTurns("statusImmune", { kind: "player" });
@@ -1102,7 +1102,7 @@ export function useItemActions({
         } else {
           for (let y = 0; y < MH; y++)
             for (let x = 0; x < MW; x++) dg.explored[y][x] = true;
-          dg.traps.forEach((t) => (t.revealed = true));
+          dg.traps.forEach((t) => { t.revealed = true; trackTrap(t); });
           if (it.blessed) {
             // 祝福：全開示＋アイテム・敵の位置も地図に常時表示
             dg.itemsRevealed = true;
@@ -1146,7 +1146,7 @@ export function useItemActions({
             _m.hp -= _dmg;
             ml.push(`雷が${_m.name}を直撃！${_dmg}ダメージ！${_m.elemWeak === "thunder" ? "雷弱点！" : ""}${it.blessed ? "（祝福）" : it.cursed ? "（呪い）" : ""}`);
             pushLightningAnim(_m.x, _m.y);
-            if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
+            if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
           }
           // 呪い：自分にも同ダメージの雷が落ちる
           if (it.cursed) {
@@ -1184,7 +1184,7 @@ export function useItemActions({
             _m.hp -= _rdmg;
             ml.push(`呪いのエネルギーが${_m.name}を直撃！${_rdmg}ダメージ！`);
             pushExplosionAnim(_m.x, _m.y);
-            if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
+            if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
           }
         } else {
           const _rh = recoveryScrollAmount({ blessed: !!it.blessed });
@@ -1205,7 +1205,7 @@ export function useItemActions({
               if (consumeBarrier(_m, ml)) continue;
               const _ud = Math.min(multiplyMagicDamage(_rh, p.weapon, _m, dg), _m.hp);
               _m.hp -= _ud; ml.push(`${_m.name}はアンデッドのため${_ud}ダメージを受けた！`);
-              if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
+              if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
               continue;
             }
             const _mra = Math.min(_rh, _m.maxHp - _m.hp);
@@ -1245,6 +1245,7 @@ export function useItemActions({
               p.gold += gi.value;
               _goldTotal += gi.value;
             } else if (p.inventory.length < (p.maxInventory || 30)) {
+              trackItem(gi);
               p.inventory.push(gi);
               _picked++;
             } else {
@@ -1413,7 +1414,7 @@ export function useItemActions({
             _m.hp -= _flDmg;
             ml.push(`炎が${_m.name}を焼いた！${_flDmg}ダメージ！${_m.elemWeak === "fire" ? "炎弱点！" : ""}${_flOily ? "油まみれ×2！" : ""}${monFireDmgLabel(_m)}${it.blessed ? "（祝福）" : ""}`);
             pushExplosionAnim(_m.x, _m.y);
-            if (_m.hp <= 0) { trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
+            if (_m.hp <= 0) { killMonster(_m, dg, p, ml, lu); }
           }
         }
         if (it.cursed) {
@@ -1506,12 +1507,11 @@ export function useItemActions({
                   const _sdBd = multiplyMagicDamage(bossInstantDeathDamage(_m), p.weapon, _m, dg);
                   _m.hp -= _sdBd;
                   ml.push(`爆発で${_m.name}は${_sdBd}ダメージ！`);
-                  if (_m.hp <= 0) { _sdKilled.add(_m); trackMonster(_m); killMonster(_m, dg, p, ml, lu); }
+                  if (_m.hp <= 0) { _sdKilled.add(_m); killMonster(_m, dg, p, ml, lu); }
                   continue;
                 }
                 _m.hp = 0;
                 _sdKilled.add(_m);
-                trackMonster(_m);
                 killMonster(_m, dg, p, ml, lu);
               }
             }
@@ -2413,7 +2413,6 @@ export function useItemActions({
             if (_bwNd) sr.current.dungeon = _bwNd;
           } else if (onReturnToHub) {
             clearGameSave();
-            p.inventory.forEach(i => trackItem(i));
             const _hasGoalBw = p.inventory.some(i => i.type === "goal");
             setMsgs((prev) => [...prev.slice(-80), ...ml]);
             sr.current = { ...sr.current };
@@ -2730,7 +2729,6 @@ export function useItemActions({
               if (_boilWarpNd) sr.current.dungeon = _boilWarpNd;
             } else if (onReturnToHub) {
               clearGameSave();
-              p.inventory.forEach(i => trackItem(i));
               const _hasGoalBoil = p.inventory.some(i => i.type === "goal");
               endTurn(sr.current, p, ml);
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -2963,7 +2961,7 @@ export function useItemActions({
                 _msTarget.hp -= _msDmg;
                 markWanderingMerchantHostile(_msTarget, dg, p, ml);
                 ml.push(`${_stName}が${_msTarget.name}にホーミング命中！${_msDmg}ダメージ！`);
-                if (_msTarget.hp <= 0) { trackMonster(_msTarget); killMonster(_msTarget, dg, p, ml, lu); }
+                if (_msTarget.hp <= 0) { killMonster(_msTarget, dg, p, ml, lu); }
                 _stPeelIfNeeded();
               }
             }
@@ -3046,7 +3044,7 @@ export function useItemActions({
                 _stM.hp -= _stDmg;
                 markWanderingMerchantHostile(_stM, dg, p, ml);
                 ml.push(`${_stName}が${_stM.name}に命中！${_stDmg}ダメージ！`);
-                if (_stM.hp <= 0) { trackMonster(_stM); killMonster(_stM, dg, p, ml, lu); }
+                if (_stM.hp <= 0) { killMonster(_stM, dg, p, ml, lu); }
                 _stPeelIfNeeded();
               }
               }
@@ -3120,7 +3118,7 @@ export function useItemActions({
                 _baM.hp -= _baDmg;
                 markWanderingMerchantHostile(_baM, dg, p, ml);
                 ml.push(`${_baName}が${_baM.name}に命中！${_baDmg}ダメージ！`);
-                if (_baM.hp <= 0) { trackMonster(_baM); killMonster(_baM, dg, p, ml, lu); }
+                if (_baM.hp <= 0) { killMonster(_baM, dg, p, ml, lu); }
                 _baLx = tx; _baLy = ty;
                 break;
               }
@@ -3228,7 +3226,7 @@ export function useItemActions({
             markWanderingMerchantHostile(mon, dg, p, mlx);
             if (_arIsPoison) mon.atk = Math.max(1, Math.floor((mon.atk || 1) / 2));
             mlx.push(`${_arName}が${mon.name}に命中！${_dmg}ダメージ！${_arIsPoison ? "攻撃力が半減した！" : ""}`);
-            if (mon.hp <= 0) { trackMonster(mon); killMonster(mon, dg, p, mlx, lu); }
+            if (mon.hp <= 0) { killMonster(mon, dg, p, mlx, lu); }
             if (!_arIsPierce) _arPeelIfNeeded();
           },
           onBigbox: _arIsPierce ? null : (bb, lx, ly, mlx) => {
@@ -3435,7 +3433,6 @@ export function useItemActions({
               if (_warpNd) sr.current.dungeon = _warpNd;
             } else if (onReturnToHub) {
               clearGameSave();
-              p.inventory.forEach(i => trackItem(i));
               const _hasGoalWv = p.inventory.some(i => i.type === "goal");
               endTurn(sr.current, p, ml);
               setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -3611,7 +3608,7 @@ export function useItemActions({
                 _msTarget2.hp -= _msDmg2;
                 markWanderingMerchantHostile(_msTarget2, dg, p, ml);
                 ml.push(`${_invStName}が${_msTarget2.name}にホーミング命中！${_msDmg2}ダメージ！`);
-                if (_msTarget2.hp <= 0) { trackMonster(_msTarget2); killMonster(_msTarget2, dg, p, ml, lu); }
+                if (_msTarget2.hp <= 0) { killMonster(_msTarget2, dg, p, ml, lu); }
                 _invStPeel();
               }
             }
@@ -3678,7 +3675,7 @@ export function useItemActions({
                 _stM2.hp -= _stDmg2;
                 markWanderingMerchantHostile(_stM2, dg, p, ml);
                 ml.push(`${_invStName}が${_stM2.name}に命中！${_stDmg2}ダメージ！`);
-                if (_stM2.hp <= 0) { trackMonster(_stM2); killMonster(_stM2, dg, p, ml, lu); }
+                if (_stM2.hp <= 0) { killMonster(_stM2, dg, p, ml, lu); }
                 _invStPeel();
               }
             } else if (_stSpr2) {
@@ -3752,7 +3749,7 @@ export function useItemActions({
                 _baM2.hp -= _baDmg2;
                 markWanderingMerchantHostile(_baM2, dg, p, ml);
                 ml.push(`${_baName2}が${_baM2.name}に命中！${_baDmg2}ダメージ！`);
-                if (_baM2.hp <= 0) { trackMonster(_baM2); killMonster(_baM2, dg, p, ml, lu); }
+                if (_baM2.hp <= 0) { killMonster(_baM2, dg, p, ml, lu); }
                 _baLx2 = tx; _baLy2 = ty;
                 break;
               }
@@ -3877,7 +3874,7 @@ export function useItemActions({
             if (_potHits.length > 0) {
               for (const _pm of _potHits) {
                 applyPotionEffect(it.effect, it.value || 0, "monster", _pm, dg, p, ml, lu, it.blessed || false, it.cursed || false);
-                if (_pm.hp <= 0) { trackMonster(_pm); killMonster(_pm, dg, p, ml, lu); }
+                if (_pm.hp <= 0) { killMonster(_pm, dg, p, ml, lu); }
               }
             }
             ml.push(`${dnameRef(it)}は消滅した。`);
@@ -3976,12 +3973,12 @@ export function useItemActions({
                 const _ptd = clampDmgFixed(m, calcProjectileDmg(p, 5, m.def), true);
                 m.hp -= _ptd;
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
-                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+                if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
               } else {
                 const _ptd = clampDmgFixed(m, calcProjectileDmg(p, 5, m.def), true);
                 m.hp -= _ptd;
                 ml.push(`${dnameRef(it)}が${m.name}に命中！${_ptd}ダメージ！`);
-                if (m.hp <= 0) { trackMonster(m); killMonster(m, dg, p, ml, lu); }
+                if (m.hp <= 0) { killMonster(m, dg, p, ml, lu); }
               }
               if (!_isFarcast) { lx = tx; ly = ty; break; }
             }
@@ -4228,7 +4225,6 @@ export function useItemActions({
                     if (p.depth > 1) { const _wn = chgFloor(p, -1, true); if (_wn) sr.current.dungeon = _wn; }
                     else if (onReturnToHub) {
                       clearGameSave();
-                      p.inventory.forEach(i => trackItem(i));
                       const _hasGoalTw = p.inventory.some(i => i.type === "goal");
                       setMsgs((prev) => [...prev.slice(-80), ...ml]);
                       sr.current = { ...sr.current };
@@ -4266,7 +4262,6 @@ export function useItemActions({
                     ml.push(`${it.rotten ? "腐った" : "焦げた"}食料を食べさせられた${m.name}の攻撃力が半減した！`);
                   }
                   if (m.hp <= 0) {
-                    trackMonster(m);
                     killMonster(m, dg, p, ml, lu);
                     if (it.type === "bottle") {
                       const _bottleDrop = makeRandomPotion();

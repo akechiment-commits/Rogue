@@ -904,6 +904,7 @@ export function useKeyHandler({
               const _rmIdx_tsf = _p_id.inventory.indexOf(_selIt);
               if (_rmIdx_tsf !== -1) {
                 _p_id.inventory.splice(_rmIdx_tsf, 1, _newIt);
+                trackItem(_newIt);
               }
               const _selDisp = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               const _newDisp = itemDisplayName(_newIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -1011,10 +1012,11 @@ export function useKeyHandler({
                   return { ..._tpl, id: uid() };
                 }
                 /* その他（薬・巻物・食料・矢など）は名前と種別を保ち新品として生成 */
-                const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, ...rest } = _selIt;
+                const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, _encyclopediaTracked: _tracked, ...rest } = _selIt;
                 return { ...rest, id: uid() };
               };
               const _newIt = _makeFresh();
+              delete _newIt._encyclopediaTracked;
               if (identifyMode.blessed) {
                 if (_newIt.type === "pot") {
                   _newIt.capacity = (_newIt.capacity || 3) + 1;
@@ -1026,6 +1028,7 @@ export function useKeyHandler({
                   _newIt.bcKnown = true;
                 }
               }
+              trackItem(_newIt);
               _p_id.inventory.push(_newIt);
               const _dupDispName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
               _msgResult = identifyMode.blessed ? `祝福された${_dupDispName}が1つ増えた！【祝】` : `${_dupDispName}が1つ増えた！`;

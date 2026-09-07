@@ -7,6 +7,7 @@ import { registerMonsterRuntime, wakeIfDormant } from "./monsterRuntime.js";
 import { statusTurns, applyPlayerPoison, isAttackSealed } from "./statusDuration.js";
 import { interruptPlayerSleep } from "./turnUpkeep.js";
 import { plName } from "./playerLabel.js";
+import { trackItem, trackTrap } from "./DiscoveryTracker.js";
 import {
   addArmorBreathBuff, getArmorBreathDefBonus, ARMOR_BREATH_DEF_BONUS,
   addDiamondWeaponBuff, getDiamondWeaponAtkBonus, DIAMOND_WEAPON_ATK_BONUS,
@@ -1416,7 +1417,9 @@ function detachPlayerEquipment(pl, item) {
 
 function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯電毛玉を押し付けてきた！`) {
   if (!hasInventorySpaceForMonsterGift(player)) return false;
-  player.inventory.push({ ...CHARGED_FUZZBALL_T, id: uid() });
+  const gift = { ...CHARGED_FUZZBALL_T, id: uid() };
+  trackItem(gift);
+  player.inventory.push(gift);
   messages.push(message);
   return true;
 }
@@ -2287,6 +2290,7 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
   const trap = dg.traps?.find(t => t.x === m.x && t.y === m.y);
   if (!trap) return;
   trap.revealed = true;
+  trackTrap(trap);
   ml.push(`重力の力で${m.name}が${trap.name}を踏んだ！`);
   fireTrapItem(
     trap,
@@ -2758,7 +2762,7 @@ export function _resolveMonsterWandBolt(m, dg, pl, ml, opts) {
     const _tr = dg.traps?.find(t => t.x === _tx && t.y === _ty);
     if (_tr) {
       if (onTrap) onTrap(_tr, ml);
-      else { _tr.revealed = true; ml.push(`${wandLabel}の魔法弾が${_tr.name}に命中したが効果がなかった。`); }
+      else { _tr.revealed = true; trackTrap(_tr); ml.push(`${wandLabel}の魔法弾が${_tr.name}に命中したが効果がなかった。`); }
       _hit = true; break;
     }
   }

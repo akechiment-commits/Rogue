@@ -4,19 +4,23 @@ import {
   trackItem,
   trackMonster,
   trackTrap,
+  trackBigbox,
   stageBigbox,
   commitPendingBigboxes,
   restoreDiscoveries,
   getDiscoveries,
 } from "../DiscoveryTracker.js";
+import { killMonster } from "../items.js";
+import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("DiscoveryTracker", () => {
   beforeEach(() => resetDiscoveries());
 
-  it("同じアイテムを再発見すると count が増える", () => {
-    const item = { name: "回復薬", type: "potion", effect: "heal", tile: 16 };
+  it("同じアイテム個体は再発見しても一度だけ数える", () => {
+    const item = { id: "item-1", name: "回復薬", type: "potion", effect: "heal", tile: 16 };
     trackItem(item);
     trackItem(item);
+    trackItem({ id: "item-2", name: "回復薬", type: "potion", effect: "heal", tile: 16 });
     expect(getDiscoveries().items["heal"].count).toBe(2);
   });
 
@@ -30,20 +34,54 @@ describe("DiscoveryTracker", () => {
   });
 
   it("モンスターと罠も count を加算する", () => {
-    trackMonster({ name: "スライム", tile: 1 });
-    trackMonster({ name: "スライム", tile: 1 });
-    trackTrap({ name: "鈍足の罠", effect: "slow_trap", tile: 47 });
-    trackTrap({ name: "鈍足の罠", effect: "slow_trap", tile: 47 });
+    const monster = { id: "monster-1", name: "スライム", tile: 1 };
+    const trap = { id: "trap-1", name: "鈍足の罠", effect: "slow_trap", tile: 47 };
+    trackMonster(monster);
+    trackMonster(monster);
+    trackMonster({ id: "monster-2", name: "スライム", tile: 1 });
+    trackTrap(trap);
+    trackTrap(trap);
+    trackTrap({ id: "trap-2", name: "鈍足の罠", effect: "slow_trap", tile: 47 });
     const d = getDiscoveries();
     expect(d.monsters["スライム"].count).toBe(2);
     expect(d.traps["slow_trap"].count).toBe(2);
   });
 
-  it("大箱は帰還時に確定する", () => {
-    stageBigbox({ kind: "identify", name: "識別の大箱" });
+  it("復活しなかった敵の撃破だけを共通撃破処理で数える", () => {
+    const monster = {
+      id: "monster-1", name: "スライム", tile: 1, baseKind: "slime",
+      hp: 0, maxHp: 10, exp: 0, x: 5, y: 5,
+    };
+    const dg = makeEmptyDg({
+      monsters: [monster],
+      pentacles: [{ kind: "revival", x: 5, y: 5, cursed: false }],
+    });
+    const player = makePlayer({ x: 10, y: 10 });
+    killMonster(monster, dg, player, [], null, true);
+    expect(getDiscoveries().monsters["スライム"]).toBeUndefined();
+
+    dg.pentacles = [];
+    monster.hp = 0;
+    killMonster(monster, dg, player, [], null, true);
+    expect(getDiscoveries().monsters["スライム"].count).toBe(1);
+  });
+
+  it("大箱も同じ個体は一度だけ、別個体は帰還時にそれぞれ確定する", () => {
+    const first = { id: "bigbox-1", kind: "identify", name: "識別の大箱" };
+    const second = { id: "bigbox-2", kind: "identify", name: "識別の大箱" };
+    stageBigbox(first);
+    stageBigbox(first);
+    stageBigbox(second);
     expect(getDiscoveries().bigboxes.identify).toBeUndefined();
     commitPendingBigboxes();
-    expect(getDiscoveries().bigboxes.identify.name).toBe("識別の大箱");
+    expect(getDiscoveries().bigboxes.identify).toMatchObject({ name: "識別の大箱", count: 2 });
+  });
+
+  it("直接発見した大箱も同じ個体は一度だけ数える", () => {
+    const bigbox = { id: "bigbox-1", kind: "identify", name: "識別の大箱" };
+    trackBigbox(bigbox);
+    trackBigbox(bigbox);
+    expect(getDiscoveries().bigboxes.identify.count).toBe(1);
   });
 
   it("旧名のモンスター図鑑を現行名へ合算する", () => {

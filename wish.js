@@ -14,7 +14,7 @@ import {
   MAGIC_MARKER, WATER_BOTTLE, BLANK_SCROLL,
   getIdentKey, placeItemAt, killMonster,
 } from "./items.js";
-import { trackMonster, trackBigbox } from "./DiscoveryTracker.js";
+import { trackBigbox, trackItem, trackTrap } from "./DiscoveryTracker.js";
 import { uid, MW, MH, T, TI, DRO, rng } from "./utils.js";
 import { clearPlayerPoison } from "./statusDuration.js";
 import { markBigboxKindIdentified } from "./GameHelpers.js";
@@ -336,6 +336,7 @@ export function makeWishedItem(tmpl, opts = {}) {
 function giveItemToPlayer(p, dg, it, ml) {
   const maxInv = p.maxInventory || 30;
   if (p.inventory.length < maxInv) {
+    trackItem(it);
     p.inventory.push(it);
     ml.push(`${it.name}を手に入れた！`);
     return;
@@ -430,7 +431,7 @@ function revealFloor(dg) {
       if (dg.explored?.[y]) dg.explored[y][x] = true;
     }
   }
-  dg.traps?.forEach((t) => { t.revealed = true; });
+  dg.traps?.forEach((t) => { t.revealed = true; trackTrap(t); });
 }
 
 function uncurseAll(p) {
@@ -503,7 +504,6 @@ export function grantWish(wish, ctx) {
         for (const mon of mons) {
           if (!dg.monsters?.includes(mon)) continue; /* 連鎖爆発等で既に消えている */
           mon.hp = 0;
-          trackMonster(mon);
           /* 経験値・ドロップは通常撃破扱いだが、復活の魔方陣では蘇らせない */
           killMonster(mon, dg, p, ml, luFn, false, null, true);
         }

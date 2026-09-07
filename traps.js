@@ -4,6 +4,7 @@ import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
 import { pushPlayerKnockbackAnim, pushPlayerTeleportAnim } from "./animEvents.js";
+import { trackMonster, trackTrap } from "./DiscoveryTracker.js";
 
 export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx = null) {
   /* 偽階段：ランダムな通常罠に化けてから再発動 */
@@ -13,6 +14,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapPlayer(trap, p, dg, ml, nameFn, luFn, ctx);
   }
+  trackTrap(trap);
   trap.revealed = true;
   let r = null;
   let noBreak = false; /* trueのとき作動後の30%破壊チェックをスキップ */
@@ -310,6 +312,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
           ml.push(`${_bbHitMon.name}に激突！お互いに10ダメージ！`);
           if (_bbHitMon.hp <= 0) {
             ml.push(`${_bbHitMon.name}は倒れた！`);
+            trackMonster(_bbHitMon);
             removeMonster(dg, _bbHitMon);
           }
         } else if ((p.immobileTurns || 0) > 0) {

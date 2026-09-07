@@ -49,7 +49,9 @@ const MONSTER_DISCOVERY_NAME_ALIASES_V2 = Object.freeze({
 });
 
 let _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {}, monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION };
-let _pendingBigboxes = {}; /* 今回の冒険で壊した大箱（ゲームオーバー/帰還時に確定） */
+let _pendingBigboxes = []; /* 今回の冒険で壊した大箱（ゲームオーバー/帰還時に確定） */
+let _trackedEntities = new WeakSet();
+let _pendingBigboxEntities = new WeakSet();
 
 function countOf(entry) {
   const count = Number(entry?.count);
@@ -99,7 +101,19 @@ export function normalizeDiscoveryData(data) {
 
 export function resetDiscoveries() {
   _disc = { items: {}, monsters: {}, traps: {}, bigboxes: {}, monsterNameMigrationVersion: MONSTER_DISCOVERY_MIGRATION_VERSION };
-  _pendingBigboxes = {};
+  _pendingBigboxes = [];
+  _trackedEntities = new WeakSet();
+  _pendingBigboxEntities = new WeakSet();
+}
+
+/* 図鑑の回数は個体単位。セーブ後も維持できるよう印をエンティティに残し、
+   凍結されたテスト用オブジェクトなどには WeakSet だけで対応する。 */
+function markEntityTracked(entity) {
+  if (!entity || typeof entity !== "object") return false;
+  if (entity._encyclopediaTracked || _trackedEntities.has(entity)) return false;
+  _trackedEntities.add(entity);
+  try { entity._encyclopediaTracked = true; } catch { /* frozen object */ }
+  return true;
 }
 
 function _bumpEntry(bucket, key, entry) {
@@ -111,7 +125,7 @@ function _bumpEntry(bucket, key, entry) {
 }
 
 export function trackItem(item) {
-  if (!item) return;
+  if (!markEntityTracked(item)) return;
   const key = item.type === "food"
     ? `food_${item._foodBase || item.name}`
     : item.effect || (item.type + '_' + item.name);
@@ -124,38 +138,41 @@ export function trackItem(item) {
 }
 
 export function trackMonster(mon) {
-  if (!mon) return;
+  if (!markEntityTracked(mon)) return;
   const key = mon.name;
   _bumpEntry(_disc.monsters, key, { name: mon.name, tile: mon.tile });
 }
 
 export function trackTrap(trap) {
-  if (!trap) return;
+  if (!markEntityTracked(trap)) return;
   const key = trap.effect || trap.name;
   _bumpEntry(_disc.traps, key, { name: trap.name, tile: trap.tile });
 }
 
 export function trackBigbox(bb) {
-  if (!bb?.kind || !bb?.name) return;
+  if (!bb?.kind || !bb?.name || !markEntityTracked(bb)) return;
   const key = bb.kind;
   _bumpEntry(_disc.bigboxes, key, { name: bb.name, tile: 38, kind: bb.kind });
 }
 
 /* 今回の冒険で壊した大箱を一時ステージ（ゲームオーバー/帰還時に確定） */
 export function stageBigbox(bb) {
-  if (!bb?.kind || !bb?.name) return;
-  const key = bb.kind;
-  if (!_pendingBigboxes[key]) {
-    _pendingBigboxes[key] = { name: bb.name, tile: 38, kind: bb.kind, count: 1 };
-  }
+  if (!bb?.kind || !bb?.name || typeof bb !== "object") return;
+  if (_trackedEntities.has(bb) || _pendingBigboxEntities.has(bb)) return;
+  _pendingBigboxEntities.add(bb);
+  _pendingBigboxes.push({
+    entity: bb,
+    entry: { name: bb.name, tile: 38, kind: bb.kind },
+  });
 }
 
 /* ステージ中の大箱を図鑑に確定する */
 export function commitPendingBigboxes() {
-  for (const [key, val] of Object.entries(_pendingBigboxes)) {
-    if (!_disc.bigboxes[key]) _disc.bigboxes[key] = val;
+  for (const { entity, entry } of _pendingBigboxes) {
+    if (markEntityTracked(entity)) _bumpEntry(_disc.bigboxes, entry.kind, entry);
   }
-  _pendingBigboxes = {};
+  _pendingBigboxes = [];
+  _pendingBigboxEntities = new WeakSet();
 }
 
 export function restoreDiscoveries(data) {

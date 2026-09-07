@@ -22,6 +22,7 @@ import { statusTurns, isPermanentTurns, applyMonsterParalyze, applyMonsterDarkne
 import { grantPlayerHaste, hasteDurationLabel } from './actionClock.js';
 import { monEffectiveMagicImmune, monReflectsMagic, monSubmergesProjectiles } from './monTraits.js';
 import { pl } from './playerLabel.js';
+import { trackBigbox, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import {
   isFloorOccupancyBlocked,
   pickFreeFloorObjectCell,
@@ -99,6 +100,8 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
     p.x = toX; p.y = toY;
     pushPlayerTeleportAnim(_fromX, _fromY, p.x, p.y);
   };
+  if (kind === "trap") trackTrap(target);
+  if (kind === "bigbox") trackBigbox(target);
   /* 石像：位置系は壊さず効果発動。穴掘り・軟化は敵なし破壊。それ以外は有害なら破壊 */
   if (kind === "statue") {
     if (wandEffectStatueLootOnly(eff)) {
@@ -599,6 +602,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             if (target.hp <= 0) killMonster(target, dg, p, ml, luFn, false, killerMon);
           } else if (killerMon) {
             ml.push(`${target.name}は聖域に吹き飛ばされ消滅した！`);
+            trackMonster(target);
             monsterDrop(target, dg, ml, p);
             removeMonster(dg, target);
             monLevelUp(killerMon, dg, ml);
@@ -606,6 +610,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
             { const _se = Math.floor(target.exp * ((p.soyExpTurns||0)>0?1.3:1));
             ml.push(`${target.name}は聖域に吹き飛ばされ消滅した！(+${_se}exp${(p.soyExpTurns||0)>0?" 醤油効果!":""})`);
             p.exp += _se; }
+            trackMonster(target);
             monsterDrop(target, dg, ml, p);
             removeMonster(dg, target);
             luFn(p, ml);
@@ -935,6 +940,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           { const _se2 = Math.floor(target.exp * ((p.soyExpTurns||0)>0?1.3:1));
           ml.push(`${target.name}は聖域に踏み込み消滅した！(+${_se2}exp${(p.soyExpTurns||0)>0?" 醤油効果!":""})`);
           p.exp += _se2; }
+          trackMonster(target);
           monsterDrop(target, dg, ml, p);
           removeMonster(dg, target);
           luFn(p, ml);
@@ -1600,7 +1606,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
           break;
         }
         if (kind === "player") {
-          dg.traps.forEach(t => t.revealed = true);
+          dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
           ml.push("呪われた惑わしの杖！フロアの罠が全て見えた！【呪→罠看破】");
           break;
         }
@@ -2099,6 +2105,7 @@ export function fireWandBolt(p, dg, eff, dx, dy, ml, luFn, bbFn, blMult = 1, nam
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
+      trackTrap(trap);
       if (eff === "leap" && blMult >= 1) { _landPlayer(lastX, lastY, _fdx, _fdy); if ((p.immobileTurns||0) > 0) { p.immobileTurns = 0; ml.push("移動封じが解けた！"); } ml.push(`${trap.name}の前に飛びついた！`); return; }
       applyWandEffect(eff, "trap", trap, _fdx, _fdy, dg, p, ml, luFn, bbFn, blMult);
       return;
@@ -2257,6 +2264,7 @@ export function monsterFireLightning(cx, cy, dg, pl, dx, dy, ml, luFn, bbFn, mon
     const trap = dg.traps.find(t => t.x === tx && t.y === ty);
     if (trap) {
       trap.revealed = true;
+      trackTrap(trap);
       applyWandEffect("lightning", "trap", trap, dx, dy, dg, pl, ml, luFn, bbFn);
       return;
     }
@@ -2306,7 +2314,7 @@ function _centerWandTarget(dg, cx, cy, p) {
   const it = itemAt(dg, cx, cy);
   if (it) return { kind: "item", t: it };
   const trap = dg.traps?.find(t => t.x === cx && t.y === cy);
-  if (trap) { trap.revealed = true; return { kind: "trap", t: trap }; }
+  if (trap) { trap.revealed = true; trackTrap(trap); return { kind: "trap", t: trap }; }
   const bb = dg.bigboxes?.find(b => b.x === cx && b.y === cy);
   if (bb) return { kind: "bigbox", t: bb };
   const gacha = dg.gachaMachines?.find(g => g.x === cx && g.y === cy);
@@ -2333,7 +2341,7 @@ function _collectBreakAdjacentTargets(dg, cx, cy, p) {
     const it = itemAt(dg, ax, ay);
     if (it) { targets.push({ kind: "item", t: it, dx: adx, dy: ady }); continue; }
     const trap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
-    if (trap) { trap.revealed = true; targets.push({ kind: "trap", t: trap, dx: adx, dy: ady }); continue; }
+    if (trap) { trap.revealed = true; trackTrap(trap); targets.push({ kind: "trap", t: trap, dx: adx, dy: ady }); continue; }
     const bb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
     if (bb) { targets.push({ kind: "bigbox", t: bb, dx: adx, dy: ady }); continue; }
     const gacha = dg.gachaMachines?.find(g => g.x === ax && g.y === ay);
@@ -2615,7 +2623,7 @@ export function breakWandAoE(p, dg, eff, ml, luFn, blMult = 1, center = null, sa
       const _sfbIt = itemAt(dg, ax, ay);
       if (_sfbIt) { applyWandEffect("soften", "item", _sfbIt, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbTrap = dg.traps.find(t2 => t2.x === ax && t2.y === ay);
-      if (_sfbTrap) { _sfbTrap.revealed = true; applyWandEffect("soften", "trap", _sfbTrap, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
+      if (_sfbTrap) { _sfbTrap.revealed = true; trackTrap(_sfbTrap); applyWandEffect("soften", "trap", _sfbTrap, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbBb = dg.bigboxes?.find(b => b.x === ax && b.y === ay);
       if (_sfbBb) { applyWandEffect("soften", "bigbox", _sfbBb, adx, ady, dg, p, ml, luFn, null, blMult); continue; }
       const _sfbGacha = dg.gachaMachines?.find(g => g.x === ax && g.y === ay);

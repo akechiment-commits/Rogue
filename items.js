@@ -1,7 +1,7 @@
 import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
-import { stageBigbox } from './DiscoveryTracker.js';
+import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
 import {
   findMonsterRoom as findRoom,
   pickTransformMonsterDef,
@@ -2414,6 +2414,7 @@ export function runMineExplosion(dg, pme, p, ml, luFn, opts = {}) {
   if (trap?.id != null && dg._mineDetonatedIds?.has(trap.id)) return;
   if (trap) {
     trap.revealed = true;
+    trackTrap(trap);
     if (trap.id != null) {
       if (!dg._mineDetonatedIds) dg._mineDetonatedIds = new Set();
       dg._mineDetonatedIds.add(trap.id);
@@ -2447,6 +2448,7 @@ export function applyRockfallEffect(dg, tx, ty, trap, ml, ft, p = null) {
     ml.push(`${_rfm.name}に岩が命中！${_rfd2}ダメージ！`);
     if (_rfm.hp <= 0) {
       ml.push(`${_rfm.name}は倒れた！`);
+      trackMonster(_rfm);
       monsterDrop(_rfm, dg, ml, p);
       removeMonster(dg, _rfm);
     }
@@ -2884,6 +2886,7 @@ export function fireTrapArrowFromFacing(trap, p, dg, ml, { poison = false, stron
         }
         if (m.hp <= 0) {
           ml.push(`${m.name}は倒れた！`);
+          trackMonster(m);
           monsterDrop(m, dg, ml, p);
           removeMonster(dg, m);
         }
@@ -2911,6 +2914,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
     ml.push(`${_was}が罠に化けた！（${trap.name}）`);
     return fireTrapItem(trap, item, dg, tx, ty, ml, ft, p, nameFn, luFn, identSet);
   }
+  trackTrap(trap);
   switch (trap.effect) {
     case "explode": {
       ml.push(`${trap.name}が発動！${resolveItemName(item, nameFn)}は爆発で消し飛んだ！`);
@@ -3232,6 +3236,8 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_bbm.name}が吹き飛ばされた！`);
           if (_bbHitWall) { _bbm.hp -= 10; ml.push(`${_bbm.name}が壁に激突！10ダメージ！`); }
           if (_bbHitOther) { _bbm.hp -= 10; _bbHitOther.hp -= 10; ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！お互いに10ダメージ！`); }
+          if (_bbm.hp <= 0) trackMonster(_bbm);
+          if (_bbHitOther?.hp <= 0) trackMonster(_bbHitOther);
           dg.monsters = dg.monsters.filter(m => m.hp > 0);
         }
       }
@@ -3249,7 +3255,13 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
         }
         ml.push(`向いていた方向と逆に吹き飛ばされた！`);
         if (_pHitWall) { p.deathCause = `${trap.name}による壁への衝突により`; p.hp -= 10; ml.push("壁に激突！10ダメージ！"); }
-        else if (_pHitMon) { p.hp -= 10; _pHitMon.hp -= 10; ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`); dg.monsters = dg.monsters.filter(m => m.hp > 0); }
+        else if (_pHitMon) {
+          p.hp -= 10;
+          _pHitMon.hp -= 10;
+          ml.push(`${_pHitMon.name}に激突！お互いに10ダメージ！`);
+          if (_pHitMon.hp <= 0) trackMonster(_pHitMon);
+          dg.monsters = dg.monsters.filter(m => m.hp > 0);
+        }
         else if ((p.immobileTurns || 0) > 0) { p.immobileTurns = 0; ml.push("吹き飛ばされて移動封じが解けた！"); }
         pushPlayerKnockbackAnim(_blowFromX, _blowFromY, p.x, p.y, _pbdx, _pbdy);
       }
@@ -3410,6 +3422,7 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_rtm.name}は腐敗に耐えたが${_bd}ダメージを受けた！`);
           if (_rtm.hp <= 0) killMonster(_rtm, dg, p, ml, luFn);
         } else {
+          trackMonster(_rtm);
           dg.monsters = dg.monsters.filter(m => m !== _rtm);
           const _rotFoodItem = { ...genFood(), id: uid() };
           rotFood(_rotFoodItem);
@@ -3729,8 +3742,9 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
 
   const killed = mon.hp <= 0;
   if (killed) {
-    onKilled?.(mon);
+    const wasInDungeon = dg.monsters?.includes(mon);
     killMonster(mon, dg, p, ml, luFn, false, killerMon);
+    if (wasInDungeon && !dg.monsters?.includes(mon)) onKilled?.(mon);
     /* 空き瓶は、敵を倒したときだけランダムな薬に変わる。 */
     if (item.type === "bottle") {
       const _bottleDrop = makeRandomPotion();
@@ -4216,7 +4230,7 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
     case "bewitch":
       if (kind === "player") {
         if (cursed) {
-          dg.traps.forEach(t => t.revealed = true);
+          dg.traps.forEach(t => { t.revealed = true; trackTrap(t); });
           ml.push("呪われた薬！フロアの罠が全て見えた！【呪→罠看破】");
         } else {
           if (!blockPlayerStatus(p, ml, { proofAbility: "bewitch_proof", proofMsg: "幻惑効果を受けたが防具が防いだ！(耐惑わし)" })) {
@@ -4472,6 +4486,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
         removeTrap(dg, trap, ml, { message: `${trap.name}は薬液で壊れた！`, p });
       }
       trap.revealed = true;
+      trackTrap(trap);
     }
     const _splPc = dg.pentacles?.find(pc => pc.x === x && pc.y === y);
     if (_splPc) {
@@ -5208,6 +5223,8 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       return;
     }
   }
+  /* 実際に撃破が確定した個体だけを、共通の撃破処理で一度だけ記録する。 */
+  trackMonster(mon);
   if (killerMon) {
     ml.push(`${mon.name}は${killerMon.name}に倒された！`);
   } else if (noExp || !p) {
@@ -7085,6 +7102,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
           placeItemAt(dg, p.x, p.y, _food, ml, new Set(), 0, p, p.x, p.y);
         } else {
           const _food = { ...genFood(), id: uid() };
+          trackItem(_food);
           p.inventory.push(_food);
           ml.push(`食料生成の魔法を唱えた！「${_food.name}」が現れた！`);
         }
@@ -7306,6 +7324,7 @@ export function grantDungeonStarterGear(player, { uidFn = uid, catalog = ITEMS }
     const tmpl = catalog.find((i) => i.name === name);
     if (!tmpl) return null;
     const it = { ...tmpl, id: uidFn(), plus: 0 };
+    trackItem(it);
     player.inventory.push(it);
     player[slot] = it;
     return it;

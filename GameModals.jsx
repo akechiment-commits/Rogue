@@ -1184,6 +1184,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
           if (_p_tsf.weapon === _selIt) _p_tsf.weapon = null;
           if (_p_tsf.armor === _selIt) _p_tsf.armor = null;
           _p_tsf.inventory.splice(_rmIdx_tsf, 1, _newIt);
+          trackItem(_newIt);
           // splice(idx, 1, newItem) は置換なので配列長は変わらず scrollIdx の調整不要
         }
         const _newItDN = itemDisplayName(_newIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
@@ -1317,12 +1318,13 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         }
       } else {
         const _makeFreshM = () => {
-          const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, ...rest } = _selIt;
+          const { blessed: _b, cursed: _c, bcKnown: _bck, fullIdent: _fi, plus: _pl, _encyclopediaTracked: _tracked, ...rest } = _selIt;
           const _copy = { ...rest, id: uid() };
           if (_copy.contents) _copy.contents = []; // 壺複製は中身なしの空壺
           return _copy;
         };
         const _newItM = _makeFreshM();
+        delete _newItM._encyclopediaTracked;
         if (mode.blessed) {
           if (_newItM.type === "pot") {
             _newItM.capacity = (_newItM.capacity || 3) + 1;
@@ -1334,6 +1336,7 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
             _newItM.bcKnown = true;
           }
         }
+        trackItem(_newItM);
         _p_dup.inventory.push(_newItM);
         const _dupDispName = iLabel(_selIt);
         _msgResult = mode.blessed ? `祝福された${_dupDispName}が1つ増えた！【祝】` : `${_dupDispName}が1つ増えた！`;
@@ -4033,6 +4036,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         if (it.type === "wand") it.charges = it.maxCharges ?? it.charges ?? 5;
         if (it.type === "pot") it.contents = [];
         if (it.type === "arrow") it.count = 20;
+        trackItem(it);
         p.inventory.push(it);
         ml.push(`${it.name}を手に入れた！`);
       }
