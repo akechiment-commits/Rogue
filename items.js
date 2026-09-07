@@ -78,6 +78,9 @@ export function setDungeonAllBcKnown(dg, allBcKnown) {
   if (dg.allBcKnown) {
     (dg.items || []).forEach(item => markItemIdentifiedForDungeon(item, dg));
     (dg.waterItems || []).forEach(wi => markItemIdentifiedForDungeon(wi.item, dg));
+    (dg.merchantShops || []).forEach(shop => {
+      (shop.stock || []).forEach(item => markItemIdentifiedForDungeon(item, dg));
+    });
   }
   return dg;
 }

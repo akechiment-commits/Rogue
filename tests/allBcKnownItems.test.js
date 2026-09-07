@@ -51,4 +51,15 @@ describe("全識別ダンジョンの新規アイテム識別", () => {
       expect(item.bcKnown).toBe(true);
     }
   });
+
+  it("行商人の商品棚も全識別の対象にする", () => {
+    const stockWand = { type: "wand", charges: 4 };
+    const dg = makeDungeon(false);
+    dg.merchantShops = [{ stock: [stockWand] }];
+
+    setDungeonAllBcKnown(dg, true);
+
+    expect(stockWand.fullIdent).toBe(true);
+    expect(stockWand.bcKnown).toBe(true);
+  });
 });

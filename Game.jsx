@@ -5282,6 +5282,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     }
     p.gold -= price;
     const bought = { ...item, id: uid() };
+    if (s.allBcKnown) { bought.fullIdent = true; bought.bcKnown = true; }
     delete bought._encyclopediaTracked;
     if (bought.contents) bought.contents = bought.contents.map((content) => ({ ...content }));
     shop.stock.splice(stockIndex, 1);
