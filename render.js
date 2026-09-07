@@ -113,6 +113,8 @@ export const TILE_NAMES = {
   4001: "item_potion_category",
   4002: "item_bottle",
   4003: "item_pen_category",
+  214: "tanuki",
+  215: "floating_eye",
   87: "aquamarine", 88: "ruby", 89: "sapphire", 90: "emerald", 91: "topaz", 92: "amethyst", 101: "diamond", 102: "opal",
   184: "garnet", 185: "lapis_lazuli", 186: "turquoise", 187: "moonstone", 188: "black_onyx", 189: "alexandrite",
   181: "dodgemole",
@@ -333,6 +335,8 @@ export const TILE_RENDER = {
   180: { bg: null, fg: "#ff7020", ch: "B" }, /* バーサーカー */
   181: { bg: null, fg: "#b08050", ch: "M" }, /* かわしモグラ */
   183: { bg: null, fg: "#80e0ff", ch: "P" }, /* カラペン系 */
+  214: { bg: null, fg: "#b97840", ch: "T" }, /* 強引タヌキ */
+  215: { bg: null, fg: "#ff3344", ch: "E" }, /* 土下座鈴木右衛門 */
 };
 
 /* Canvas drawing helper */

@@ -903,7 +903,7 @@ export const MONS = [
       { name: "杖ゴミ",             hp: 85,  atk: 29, def: 13, exp: 138 },
     ],
   },
-  { name: "強引タヌキ",   hp: 38,  atk: 20, def: 5,  exp: 58,  speed: 1,   tile: 156, kind: "humanoid", baseKind: "disarmer",      monLevel: 1, minFloor: 19, maxFloor: 50, subtype: "disarmer", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
+  { name: "強引タヌキ",   hp: 38,  atk: 20, def: 5,  exp: 58,  speed: 1,   tile: 214, kind: "humanoid", baseKind: "disarmer",      monLevel: 1, minFloor: 19, maxFloor: 50, subtype: "disarmer", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
     levels: [
       { name: "無理矢理タヌキ",     hp: 61,  atk: 28, def: 9,  exp: 93  },
       { name: "すっぽんタヌキ",     hp: 95,  atk: 36, def: 13, exp: 145 },
@@ -945,7 +945,7 @@ export const MONS = [
       { name: "吸い込みダコ",       hp: 153, atk: 43, def: 14, exp: 188 },
     ],
   },
-  { name: "土下座鈴木右衛門", hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
+  { name: "土下座鈴木右衛門", hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 215, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
     dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "飛翔土下座鈴木右衛門", hp: 73,  atk: 30, def: 10, exp: 134, dungeonFloors: { advanced: { min: 28, max: 31 } } },
