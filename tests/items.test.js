@@ -11,7 +11,7 @@ afterEach(() => setFavoriteFoodBase(""));
 
 describe("ハーゲンダッ壺とアイスクリーム", () => {
   it("基本から店舗・商品系まで全フレーバーに個別説明がある", () => {
-    expect(ICE_CREAM_FLAVORS.length).toBeGreaterThanOrEqual(450);
+    expect(ICE_CREAM_FLAVORS.length).toBeGreaterThanOrEqual(525);
     expect(new Set(ICE_CREAM_FLAVORS.map((flavor) => flavor.name)).size).toBe(ICE_CREAM_FLAVORS.length);
     expect(new Set(ICE_CREAM_FLAVORS.map((flavor) => flavor.category))).toEqual(new Set([
       "定番", "果物", "ナッツ・菓子", "ジェラート・創作", "店舗・商品",
@@ -20,6 +20,8 @@ describe("ハーゲンダッ壺とアイスクリーム", () => {
     expect(ICE_CREAM_FLAVORS.every((flavor) => flavor.desc)).toBe(true);
     expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "カスタードプディングアイス")).toBe(true);
     expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "クリスピーサンド カプチーノ")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "クリーミーミントアイス")).toBe(true);
+    expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "クリスピーサンド クアトロフォルマッジ")).toBe(true);
     expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "もも太郎アイス")).toBe(true);
     expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "ブラックモンブランアイス")).toBe(true);
     expect(ICE_CREAM_FLAVORS.some((flavor) => flavor.name === "わたぼうしアイス")).toBe(true);
