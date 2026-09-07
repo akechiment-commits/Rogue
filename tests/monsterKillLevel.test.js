@@ -62,6 +62,6 @@ describe("敵同士の撃破によるレベルアップ", () => {
     monsterAI(charger, dg, p, ml, { attackOnly: true });
     expect(dg.monsters).not.toContain(target);
     expect(charger.monLevel).toBe(2);
-    expect(charger.name).toBe("強突進角獣");
+    expect(charger.name).toBe("激突角獣");
   });
 });

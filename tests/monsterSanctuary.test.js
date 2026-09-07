@@ -11,7 +11,7 @@ describe("敵の特技と聖域", () => {
     ["thief", "コソドロの盗み"],
     ["goldthief", "レプラコーンの盗み"],
     ["itemblast", "弾き飛ばし"],
-    ["stealthrower", "盗投士の盗み"],
+    ["stealthrower", "ひったくりの盗み"],
   ])("%sの特技を護盗の鎧で防ぐと通常攻撃へ移らない", (subtype, messagePart) => {
     const base = MONS.find((monster) => monster.subtype === subtype);
     const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
@@ -159,7 +159,7 @@ describe("敵の特技と聖域", () => {
     expect(messages.some((message) => message.includes("攻撃"))).toBe(true);
   });
 
-  it("護盗の鎧があっても盗投士の不発時は通常攻撃する", () => {
+  it("護盗の鎧があってもひったくりの不発時は通常攻撃する", () => {
     const base = MONS.find((monster) => monster.subtype === "stealthrower");
     const monster = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
     monster.turnAttacks = 0;

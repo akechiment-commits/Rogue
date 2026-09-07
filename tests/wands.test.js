@@ -187,7 +187,7 @@ describe("applyWandEffect", () => {
   });
 
   it("魔法無効のモンスターには杖が効かない", () => {
-    const mon = { name: "キラープラスター", magicImmune: true, hp: 50, maxHp: 50, x: 6, y: 5 };
+    const mon = { name: "ラプラス", magicImmune: true, hp: 50, maxHp: 50, x: 6, y: 5 };
     const p = makePlayer();
     const ml = [];
     applyWandEffect("sleep", "monster", mon, 1, 0, dg, p, ml, noop);
@@ -203,7 +203,7 @@ describe("applyWandEffect", () => {
       const mon = { name: "対象", hp: 20, maxHp: 20, x: 6, y: 5, monLevel: sourceLevel };
       applyWandEffect("transform", "monster", mon, 1, 0, dg, p, [], noop, null, blMult);
       expect(mon.monLevel).toBe(expectedLevel);
-      const namesByLevel = [floorOneNames, ["殺人ネズミ", "青バット", "大ムカデ"], ["ものすごいネズミ", "ゴルァバット", "覇ムカデ"]];
+      const namesByLevel = [floorOneNames, ["殺人ネズミ", "青バット", "巨大ムカデ"], ["ものすごいネズミ", "ゴルァバット", "重装甲ムカデ"]];
       expect(namesByLevel[expectedLevel - 1]).toContain(mon.name);
     }
   });
@@ -252,7 +252,7 @@ describe("applyWandEffect", () => {
     const mon = { name: "対象", hp: 20, maxHp: 20, x: 6, y: 5, monLevel: 2 };
     applySpellEffect("transform_magic", "monster", mon, 1, 0, dg, p, [], noop);
     expect(mon.monLevel).toBe(2);
-    expect(["殺人ネズミ", "青バット", "大ムカデ"]).toContain(mon.name);
+    expect(["殺人ネズミ", "青バット", "巨大ムカデ"]).toContain(mon.name);
   });
 
   it("自分に跳ね返った変化の杖は最大HPを変化させ、減少時は死因を記録する", () => {

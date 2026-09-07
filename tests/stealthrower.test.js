@@ -4,7 +4,7 @@ import { CHARGED_FUZZBALL_T, killMonster, throwItemAlongLine } from "../items.js
 import { makeStatue, makeVent } from "../fixtures.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
-describe("盗投士", () => {
+describe("ひったくり", () => {
   it("手持ち中は配列が再初期化されても追加で盗まず、最初のアイテムを保持する", () => {
     const base = MONS.find((m) => m.baseKind === "stealthrower");
     const first = { id: "first", name: "手投げの指輪", type: "ring", effect: "power_ring" };
@@ -70,7 +70,7 @@ describe("盗投士", () => {
     expect(messages.join(" ")).toContain("地面に落ちた");
   });
 
-  it("風で盗投士自身に戻った投擲物は地面に落ちず消滅する", () => {
+  it("風でひったくり自身に戻った投擲物は地面に落ちず消滅する", () => {
     const base = MONS.find((m) => m.baseKind === "stealthrower");
     const thief = makeMonsterFromBase(base, 1, 4, 4, { aware: true });
     const player = makePlayer({ x: 1, y: 1 });
@@ -134,7 +134,7 @@ describe("盗投士", () => {
     expect(messages.join(" ")).not.toContain("undefined");
   });
 
-  it("盗投士が外した帯電毛玉は床に残らず消滅する", () => {
+  it("ひったくりが外した帯電毛玉は床に残らず消滅する", () => {
     const base = MONS.find((m) => m.baseKind === "stealthrower");
     const thief = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
     const player = makePlayer({ x: 5, y: 8 });
@@ -159,7 +159,7 @@ describe("盗投士", () => {
     expect(messages.join(" ")).toContain("帯電毛玉は床に落ちると消えてしまった！");
   });
 
-  it("盗投士の帯電毛玉が大箱に当たると大箱へ収納される", () => {
+  it("ひったくりの帯電毛玉が大箱に当たると大箱へ収納される", () => {
     const base = MONS.find((m) => m.baseKind === "stealthrower");
     const thief = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
     const player = makePlayer({ x: 5, y: 8 });

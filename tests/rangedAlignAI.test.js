@@ -63,11 +63,11 @@ describe("遠距離敵の移動", () => {
     expect({ x: m.x, y: m.y }).not.toEqual({ x: 7, y: 7 });
   });
 
-  it("術師は隣接すると離れる", () => {
+  it("杖術師は隣接すると離れる", () => {
     const m = makeRanged("wanduser", 10, 5);
     m.randomStatusWands = true;
     m.baseKind = "witchdoc";
-    m.name = "術師";
+    m.name = "杖術師";
     const pl = makePlayer({ x: 10, y: 6 });
     const dg = openBattlefield(m);
     monsterAI(m, dg, pl, [], { moveOnly: true });
@@ -75,11 +75,11 @@ describe("遠距離敵の移動", () => {
     expect(dist).toBeGreaterThan(1);
   });
 
-  it("術師は距離3未満へは踏み込まない", () => {
+  it("杖術師は距離3未満へは踏み込まない", () => {
     const m = makeRanged("wanduser", 10, 8);
     m.randomStatusWands = true;
     m.baseKind = "witchdoc";
-    m.name = "術師";
+    m.name = "杖術師";
     const pl = makePlayer({ x: 10, y: 5 });
     const dg = openBattlefield(m);
     monsterAI(m, dg, pl, [], { moveOnly: true });

@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
-describe("催眠術使い", () => {
+describe("土下座鈴木右衛門", () => {
   it("3形態が同じ画像を共有し、レベルが上がるほど出現階が後ろになる", () => {
     const base = MONS.find((m) => m.baseKind === "hypnotist");
     expect(base).toBeTruthy();
     expect([base.name, ...base.levels.map((level) => level.name)]).toEqual([
-      "催眠術使い",
-      "強催眠術使い",
-      "大催眠術使い",
+      "土下座鈴木右衛門",
+      "飛翔土下座鈴木右衛門",
+      "焼き土下座鈴木右衛門",
     ]);
     expect([1, 2, 3].map((level) => makeMonsterFromBase(base, level, 5, 5).tile)).toEqual([175, 175, 175]);
     expect(base.dungeonFloors).toEqual({ intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } });
@@ -36,7 +36,7 @@ describe("催眠術使い", () => {
 
     expect(player.hypnosisPending).toBe(1);
     expect(hypnotist.turnAttacks).toBe(1);
-    expect(messages).toContain("大催眠術使いが催眠術をかけた！次の行動を勝手に行ってしまう！");
+    expect(messages).toContain("焼き土下座鈴木右衛門が催眠術をかけた！次の行動を勝手に行ってしまう！");
   });
 
   it("Lv1/2は隣接時だけ催眠術をかける", () => {
@@ -85,6 +85,6 @@ describe("催眠術使い", () => {
     monsterAI(hypnotist, dg, player, messages, { attackOnly: true });
 
     expect(player.hypnosisPending).toBeUndefined();
-    expect(messages).toContain("大催眠術使いが催眠術をかけようとしたが、魔封じの魔方陣で封じられた！");
+    expect(messages).toContain("焼き土下座鈴木右衛門が催眠術をかけようとしたが、魔封じの魔方陣で封じられた！");
   });
 });

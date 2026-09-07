@@ -6,12 +6,12 @@ import {
   resolveMonsterWandEffect,
 } from "../monsters.js";
 
-describe("状態異常術師", () => {
-  it("呪術師・混乱術師・眠り術師・転移術師は術師1種にまとまっている", () => {
+describe("状態異常杖術師", () => {
+  it("呪術師・混乱術師・眠り術師・転移術師は杖術師1種にまとまっている", () => {
     const statusMages = MONS.filter((m) => m.randomStatusWands);
-    expect(statusMages.map((m) => m.name)).toEqual(["術師"]);
+    expect(statusMages.map((m) => m.name)).toEqual(["杖術師"]);
     expect(MONS.some((m) => ["confusemage", "sleepmage", "warpmage"].includes(m.baseKind))).toBe(false);
-    expect(statusMages[0].levels.map((lv) => lv.name)).toEqual(["強術師", "大術師"]);
+    expect(statusMages[0].levels.map((lv) => lv.name)).toEqual(["杖魔人", "杖ゴミ"]);
     expect(STATUS_WAND_EFFECTS).toEqual(["curse_wand", "confuse_wand", "sleep_wand", "teleport_wand"]);
   });
 
