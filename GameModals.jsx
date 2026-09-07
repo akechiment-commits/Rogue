@@ -3596,7 +3596,7 @@ export function InventoryModal({
                         {it.type === "weapon" && ` — 武器 (攻+${it.atk})`}
                         {it.type === "armor" && ` — 防具 (防+${it.def})`}
                         {it.type === "arrow" && ` — 矢 (攻${it.atk}, ${it.count}本)`}
-                        {it.type === "wand" && gs?.ident?.has(getIdentKey(it)) && ` — 杖 [残${it.charges}回]`}
+                        {it.type === "wand" && it.fullIdent && gs?.ident?.has(getIdentKey(it)) && ` — 杖 [残${it.charges}回]`}
                         {it.type === "marker" && ` [残${it.charges}回]`}
                         {it.type === "potion" && " — 薬"}
                         {it.type === "bottle" && " — 瓶"}

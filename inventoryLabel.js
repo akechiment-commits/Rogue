@@ -9,7 +9,7 @@ export function formatPlusSuffix(plus) {
   return value === 0 ? "" : `${value > 0 ? "+" : ""}${value}`;
 }
 
-/** 充填時の回数表示。未識別の杖・ペンは追加量と残り回数を隠す。 */
+/** 充填時の回数表示。残り回数未判明の杖・ペンは追加量と残り回数を隠す。 */
 export function formatRefillMessage(displayName, type, add, charges, identified) {
   if (type === "pen") {
     return identified
@@ -19,6 +19,11 @@ export function formatRefillMessage(displayName, type, add, charges, identified)
   return identified
     ? `${displayName}の回数が${add}増えた！(${charges}回)`
     : `${displayName}の回数が増えた！`;
+}
+
+/** 杖を振った直後の残り回数。回数未判明なら表示しない。 */
+export function formatWandUseSuffix(item) {
+  return item?.fullIdent ? `[残${item.charges}回]` : "";
 }
 
 /** インベントリに表示する1アイテム分のラベルを組み立てる。 */
@@ -68,7 +73,7 @@ export function formatInventoryItem(item, {
       label += ")";
     }
   } else if (item.type === "wand") {
-    label += item.fullIdent ? ` [${item.charges}回]` : (!isIdentified && item._usedCount ? ` (-${item._usedCount})` : "");
+    label += item.fullIdent ? ` [${item.charges}回]` : (item._usedCount ? ` (-${item._usedCount})` : "");
   } else if (item.type === "marker") {
     label += ` [${item.charges}回]`;
   } else if (item.type === "pen") {

@@ -4308,8 +4308,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           } else {
             const add = (item.effect === "curse_wand" || item.effect === "bless_wand") ? 1 : rng(1, 3);
             item.charges = (item.charges || 0) + add;
-            const _ik = getIdentKey(item);
-            const _isIdentified = !!item.fullIdent || !!(_ik && sr.current.ident.has(_ik));
+            const _isIdentified = !!item.fullIdent;
             ml.push(formatRefillMessage(_idn, "wand", add, item.charges, _isIdentified));
           }
         } else if (item.type === "marker") {
@@ -4318,8 +4317,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ml.push(`${_idn}のインクが${add}回分補充された！(${item.charges}回)`);
         } else if (item.type === "pen") {
           item.charges = (item.charges || 0) + 1;
-          const _ik = getIdentKey(item);
-          const _isIdentified = !!item.fullIdent || !!(_ik && sr.current.ident.has(_ik));
+          const _isIdentified = !!item.fullIdent;
           ml.push(formatRefillMessage(_idn, "pen", 1, item.charges, _isIdentified));
         } else {
           ml.push(`${_idn}には効果がなかった。`);
@@ -6605,7 +6603,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 {tmI ? dname(tmI) : "?"}
                 {tmI?.type === "arrow"
                   ? ` (${tmI.count}本)`
-                  : tmI?.type === "wand"
+                  : tmI?.type === "wand" && tmI.fullIdent
                     ? ` [${tmI.charges}回]`
                     : ""}
               </div>{" "}
@@ -6661,7 +6659,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           <span style={{ fontWeight: "bold" }}>{tmL}</span>
           <span style={{ color: "#a66", marginLeft: 8 }}>
             [{tmI ? dname(tmI) : "?"}
-            {tmI?.type === "wand" ? ` ${tmI.charges}回` : ""}]
+            {tmI?.type === "wand" && tmI.fullIdent ? ` ${tmI.charges}回` : ""}]
           </span>
           <span style={{ color: "#666", marginLeft: 8 }}>
             方向キー — Esc/x:キャンセル

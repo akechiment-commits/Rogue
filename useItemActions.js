@@ -21,6 +21,7 @@ import {
 } from "./items.js";
 import { applyWandEffect, breakWandAoE, fireWandBolt, triggerWandBreakEffect, takeRandomSageInventoryItems } from "./wands.js";
 import { _itemPickupSuffix, itemDisplayName } from "./render.js";
+import { formatWandUseSuffix } from "./inventoryLabel.js";
 import { bbDisplayName, markBigboxKindIdentified, clearBigboxKindIdentified } from "./GameHelpers.js";
 import { trackBigbox, trackItem, trackTrap, getDiscoveries } from "./DiscoveryTracker.js";
 import { clearGameSave } from "./GameSave.js";
@@ -3321,11 +3322,10 @@ export function useItemActions({
           return;
         } else {
         const _wandBm = getBlessMultiplier(it);
-        const _wandIK = getIdentKey(it);
-        const _wandIsIdent = !!(_wandIK && sr.current.ident.has(_wandIK));
+        const _wandChargesIdentified = !!it.fullIdent;
         it.charges--;
-        if (!_wandIsIdent) it._usedCount = (it._usedCount || 0) + 1;
-        const _chargesStr = _wandIsIdent ? `[残${it.charges}回]` : "";
+        if (!_wandChargesIdentified) it._usedCount = (it._usedCount || 0) + 1;
+        const _chargesStr = formatWandUseSuffix(it);
         if (inMagicSealRoom(p.x, p.y, dg) || (p.sealedTurns || 0) > 0) {
           ml.push(`${dnameRef(it)}を振ったが、魔法が封印されている！${_chargesStr}`);
         } else {

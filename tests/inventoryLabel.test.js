@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatInventoryItem, formatPlusSuffix, formatRefillMessage } from "../inventoryLabel.js";
+import { formatInventoryItem, formatPlusSuffix, formatRefillMessage, formatWandUseSuffix } from "../inventoryLabel.js";
 
 function label(item, overrides = {}) {
   return formatInventoryItem(item, {
@@ -49,6 +49,15 @@ describe("formatInventoryItem", () => {
   it("食料、壺、未払い品の補足を表示する", () => {
     expect(label({ type: "food", name: "パン", value: 20, cooked: false, potionEffects: ["heal"] })).toBe("パン(満+20)(生★)");
     expect(label({ type: "pot", name: "壺", identKey: "pot", capacity: 3, contents: [{}], shopPrice: 400 }, { identified: new Set(["pot"]) })).toBe("壺 [1/3] 〔未払:400G〕");
+  });
+
+  it("残り回数未判明の杖は使用回数だけを表示する", () => {
+    const wand = { type: "wand", name: "テレポートの杖", charges: 4, identKey: "w:teleport", _usedCount: 2 };
+    const identifiedName = new Set(["w:teleport"]);
+    expect(label(wand, { identified: identifiedName })).toBe("テレポートの杖 (-2)");
+    expect(formatWandUseSuffix(wand)).toBe("");
+    expect(formatWandUseSuffix({ ...wand, fullIdent: true })).toBe("[残4回]");
+    expect(label({ ...wand, fullIdent: true }, { identified: identifiedName })).toBe("テレポートの杖 [4回]");
   });
 });
 
