@@ -12,6 +12,12 @@ describe("grantDungeonStarterGear", () => {
     expect(p.inventory).toHaveLength(2);
     expect(p.inventory).toContain(r.dagger);
     expect(p.inventory).toContain(r.armor);
+    expect(r.dagger).toMatchObject({ fullIdent: true, bcKnown: true });
+    expect(r.armor).toMatchObject({ fullIdent: true, bcKnown: true });
+    expect(r.dagger).not.toHaveProperty("blessed");
+    expect(r.dagger).not.toHaveProperty("cursed");
+    expect(r.armor).not.toHaveProperty("blessed");
+    expect(r.armor).not.toHaveProperty("cursed");
   });
 
   it("満杯なら何も入らない", () => {

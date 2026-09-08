@@ -7350,7 +7350,9 @@ export function grantDungeonStarterGear(player, { uidFn = uid, catalog = ITEMS }
     if (player.inventory.length >= maxInv) return null;
     const tmpl = catalog.find((i) => i.name === name);
     if (!tmpl) return null;
-    const it = { ...tmpl, id: uidFn(), plus: 0 };
+    const it = { ...tmpl, id: uidFn(), plus: 0, fullIdent: true, bcKnown: true };
+    delete it.blessed;
+    delete it.cursed;
     trackItem(it);
     player.inventory.push(it);
     player[slot] = it;

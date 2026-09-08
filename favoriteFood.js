@@ -71,6 +71,8 @@ export function makeStarterFoodItem(favoriteFood, { uidFn = uid } = {}) {
     sizeLabel: "特盛り",
     _foodBase: base,
     _foodEfLabel: "満腹の",
+    fullIdent: true,
+    bcKnown: true,
     id: uidFn(),
   };
 }

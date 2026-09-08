@@ -54,6 +54,10 @@ describe("makeStarterFoodItem", () => {
     expect(it.cooked).toBe(true);
     expect(it._foodBase).toBe("カレー");
     expect(it.id).toBe("id1");
+    expect(it.fullIdent).toBe(true);
+    expect(it.bcKnown).toBe(true);
+    expect(it).not.toHaveProperty("blessed");
+    expect(it).not.toHaveProperty("cursed");
   });
 
   it("不正値はデフォルト名を使う", () => {
