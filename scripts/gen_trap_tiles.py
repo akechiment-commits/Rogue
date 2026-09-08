@@ -272,16 +272,24 @@ def spike(im, cx, cy, col):
 
 
 def trap_trap():
-    """Many small trap spikes scattered on the floor."""
+    """A master trap surrounded by several unmistakable smaller traps."""
     im = blank()
-    spike(im, 3, 2, "rd")
-    spike(im, 10, 1, "or")
-    spike(im, 13, 5, "yl")
-    spike(im, 5, 7, "or")
-    spike(im, 9, 9, "rd")
-    put(im, 1, 12, "dk")
-    put(im, 6, 13, "dk")
-    put(im, 12, 13, "dk")
+    fill_rect(im, 5, 6, 10, 10, "rd")
+    outline_rect(im, 5, 6, 10, 10, "out")
+    put(im, 7, 7, "yl")
+    put(im, 8, 7, "yl")
+    put(im, 6, 8, "yl")
+    put(im, 7, 8, "or")
+    put(im, 8, 8, "or")
+    put(im, 9, 8, "yl")
+    put(im, 7, 9, "yl")
+    put(im, 8, 9, "yl")
+    spike(im, 3, 2, "lt")
+    spike(im, 12, 2, "lt")
+    spike(im, 2, 11, "or")
+    spike(im, 13, 11, "or")
+    for x, y in [(4, 4), (11, 4), (4, 13), (11, 13)]:
+        put(im, x, y, "rd")
     return im
 
 
@@ -338,33 +346,31 @@ def trap_haste():
 
 
 def trap_unequip():
-    """Sword and armor popping apart."""
+    """A sword and shield/armor visibly separating from a burst."""
     im = blank()
     # sword blade (diagonal)
     for i in range(5):
-        put(im, 2 + i, 3 + i, "yl")
-        put(im, 3 + i, 3 + i, "lt")
+        put(im, 2 + i, 3 + i, "lt")
+        put(im, 3 + i, 3 + i, "wh")
     put(im, 2, 3, "wh")
     # hilt
-    put(im, 2, 7, "br")
+    put(im, 2, 7, "or")
     put(im, 1, 8, "br")
     put(im, 3, 8, "br")
-    put(im, 2, 8, "or")
+    put(im, 2, 8, "yl")
     put(im, 2, 9, "br")
     # burst
-    put(im, 7, 6, "yl")
-    put(im, 8, 7, "or")
-    put(im, 7, 8, "yl")
-    put(im, 8, 5, "lt")
-    # chestplate
-    fill_rect(im, 10, 5, 14, 11, "sl")
-    outline_rect(im, 10, 5, 14, 11, "out")
-    put(im, 11, 4, "sl")
-    put(im, 12, 4, "sl")
-    put(im, 13, 4, "sl")
-    put(im, 10, 6, "lt")
-    put(im, 12, 7, "dk")
-    put(im, 12, 8, "dk")
+    for x, y, col in [(7, 6, "yl"), (8, 7, "or"), (7, 8, "yl"), (8, 5, "lt"), (6, 7, "or"), (9, 7, "or")]:
+        put(im, x, y, col)
+    # blue shield / armor
+    fill_rect(im, 11, 5, 14, 10, "bl")
+    fill_rect(im, 12, 4, 13, 4, "cy")
+    fill_rect(im, 12, 11, 13, 11, "bl")
+    outline_rect(im, 11, 5, 14, 10, "out")
+    put(im, 12, 6, "lt")
+    put(im, 13, 7, "cy")
+    put(im, 12, 8, "cy")
+    put(im, 12, 9, "dk")
     return im
 
 
