@@ -88,6 +88,13 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   const room = findRoom(dungeon.rooms, pc.x, pc.y);
   if (!room || inMagicSealRoom(pc.x, pc.y, dungeon)) return;
 
+  /* 石飛ばしの魔方陣は15個の弾薬を持ち、命中して消えた石は消費しない。 */
+  if (pc.kind === "stone_throw") {
+    const _ammo = pc.stoneAmmo == null ? 15 : Number(pc.stoneAmmo);
+    pc.stoneAmmo = Number.isFinite(_ammo) ? Math.max(0, Math.floor(_ammo)) : 15;
+    if (pc.stoneAmmo <= 0) return;
+  }
+
   const playerRoom = findRoom(dungeon.rooms, player.x, player.y);
 
   if (pc.kind === "heal_aura") {
@@ -147,7 +154,9 @@ export function resolveStoneAndHealingPentacleEffect(pc, dungeon, player, messag
   const targetY = target.kind === "player" ? player.y : targetMonster.y;
   const baseAmount = rng(5, 10);
   const dropStoneAt = (x = targetX, y = targetY) => {
-    placeItemAt(dungeon, x, y, makeMagicStone(1), messages, new Set());
+    const _placed = placeItemAt(dungeon, x, y, makeMagicStone(1), messages, new Set());
+    if (_placed === true) pc.stoneAmmo--;
+    return _placed;
   };
 
   let dodged = false;

@@ -3429,7 +3429,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
     const [_ppKind, _ppName] = pick(_ppPool);
     const _ppCursed = _ppLv >= 3;
     dg.pentacles = dg.pentacles || [];
-    dg.pentacles.push({ x: m.x, y: m.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed });
+    dg.pentacles.push({ x: m.x, y: m.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed, ...(_ppKind === "stone_throw" ? { stoneAmmo: 15 } : {}) });
     ml.push(`${m.name}が足元に${_ppName}を描いた！`);
     return true;
   }
@@ -5983,7 +5983,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
           const [_ppKind, _ppName] = pick(_ppPool);
           const _ppCursed = _ppLv >= 3;
           dg.pentacles = dg.pentacles || [];
-          dg.pentacles.push({ x: m.x, y: m.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed });
+          dg.pentacles.push({ x: m.x, y: m.y, kind: _ppKind, name: _ppName, blessed: false, cursed: _ppCursed, ...(_ppKind === "stone_throw" ? { stoneAmmo: 15 } : {}) });
           ml.push(`${m.name}が足元に${_ppName}を描いた！`);
           return;
         }

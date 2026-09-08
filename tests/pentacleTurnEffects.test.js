@@ -37,6 +37,7 @@ function effectDeps(overrides = {}) {
     makeMagicStone: () => ({ name: "魔法の石", magicStone: true }),
     placeItemAt: (dg, x, y, item) => {
       dg.items.push({ ...item, x, y });
+      return true;
     },
     onMonsterDefeated: () => {},
     ...overrides,
@@ -145,7 +146,7 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
   });
 
   it("祝福された石飛ばしはプレイヤーへ2倍ダメージを与える", () => {
-    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", blessed: true, x: 2, y: 2 };
+    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", blessed: true, stoneAmmo: 15, x: 2, y: 2 };
     const player = { x: 2, y: 2, hp: 30, maxHp: 30 };
     const messages = [];
 
@@ -158,12 +159,13 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     );
 
     expect(player.hp).toBe(16);
+    expect(pc.stoneAmmo).toBe(15);
     expect(player.deathCause).toBe("石飛ばしの魔方陣の魔法の石により");
     expect(messages).toContain("石飛ばしの魔方陣の魔法の石がプレイヤーに当たった！14ダメージ！");
   });
 
   it("みかわしの魔方陣は通常の魔法の石を回避して足元へ落とす", () => {
-    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", x: 2, y: 2 };
+    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", stoneAmmo: 15, x: 2, y: 2 };
     const dodge = { kind: "dodge", name: "みかわしの魔方陣", x: 3, y: 2 };
     const player = { x: 2, y: 2, hp: 20, maxHp: 20 };
     const dg = dungeon({ pentacles: [pc, dodge] });
@@ -171,7 +173,58 @@ describe("resolveStoneAndHealingPentacleEffect", () => {
     resolveStoneAndHealingPentacleEffect(pc, dg, player, [], effectDeps({ random: () => 0 }));
 
     expect(player.hp).toBe(20);
+    expect(pc.stoneAmmo).toBe(14);
     expect(dg.items).toContainEqual({ name: "魔法の石", magicStone: true, x: 2, y: 2 });
+  });
+
+  it("石が当たって消えるだけなら弾薬を消費しない", () => {
+    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", stoneAmmo: 1, x: 2, y: 2 };
+    const player = { x: 2, y: 2, hp: 20, maxHp: 20 };
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dungeon({ pentacles: [pc] }),
+      player,
+      [],
+      effectDeps({ random: () => 0, rng: () => 5 }),
+    );
+
+    expect(pc.stoneAmmo).toBe(1);
+  });
+
+  it("石を地面へ置けなかった場合も弾薬を消費しない", () => {
+    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", stoneAmmo: 1, x: 2, y: 2 };
+    const dodge = { kind: "dodge", name: "みかわしの魔方陣", x: 3, y: 2 };
+    const player = { x: 2, y: 2, hp: 20, maxHp: 20 };
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dungeon({ pentacles: [pc, dodge] }),
+      player,
+      [],
+      effectDeps({ random: () => 0, placeItemAt: () => false }),
+    );
+
+    expect(pc.stoneAmmo).toBe(1);
+  });
+
+  it("弾薬が尽きた石飛ばしの魔方陣は発動しない", () => {
+    const pc = { kind: "stone_throw", name: "石飛ばしの魔方陣", stoneAmmo: 0, x: 2, y: 2 };
+    const player = { x: 2, y: 2, hp: 20, maxHp: 20 };
+    const random = vi.fn(() => 0);
+    const messages = [];
+
+    resolveStoneAndHealingPentacleEffect(
+      pc,
+      dungeon({ pentacles: [pc] }),
+      player,
+      messages,
+      effectDeps({ random }),
+    );
+
+    expect(random).not.toHaveBeenCalled();
+    expect(messages).toEqual([]);
+    expect(player.hp).toBe(20);
   });
 
   it("呪われた魔法の石は生物を回復するがアンデッドにはダメージを与える", () => {
