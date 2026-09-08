@@ -824,7 +824,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         Object.assign(target, { ...nt, id:target.id, x:ox, y:oy, maxHp:nt.hp,
           turnAccum:0, aware:target.aware, dir:target.dir,
           lastPx:target.lastPx, lastPy:target.lastPy,
-          subtype:nt.subtype, wandEffect:nt.wandEffect, wallWalker:nt.wallWalker });
+          subtype:nt.subtype, wandEffect:nt.wandEffect, randomStatusWands:nt.randomStatusWands, randomElementalWands:nt.randomElementalWands, wallWalker:nt.wallWalker });
         break;
       }
       if (kind === "player") {

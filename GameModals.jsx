@@ -4018,6 +4018,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
           ...(base.subtype ? { subtype: base.subtype } : {}),
           ...(base.wandEffect ? { wandEffect: base.wandEffect } : {}),
           ...(base.randomStatusWands ? { randomStatusWands: true } : {}),
+          ...(base.randomElementalWands ? { randomElementalWands: true } : {}),
           ...(base.wallWalker ? { wallWalker: base.wallWalker } : {}),
           ...(base.float ? { float: base.float } : {}),
           ...(base.maxAttacks ? { maxAttacks: base.maxAttacks } : {}),

@@ -4963,14 +4963,13 @@ export function monsterDrop(m, dg, ml, p = null) {
     }
     m.synthBox.contents = [];
   }
-  /* 矢・石・杖は5%でドロップ */
-  if (m.subtype === "archer" && Math.random() < 0.05) {
-    const _aLv = m.monLevel || 1;
-    drops.push(_aLv >= 3 ? makePiercingArrow(rng(2, 5)) : _aLv >= 2 ? makeStrongArrow(rng(3, 6)) : makeArrow(rng(3, 8)));
+  /* 矢・石は、残弾がある個体だけ5%で残り全量をドロップ */
+  const _projectileAmmoCount = Number(m.projectileAmmo?.count) || 0;
+  if (_projectileAmmoCount > 0 && m.subtype === "archer" && Math.random() < 0.05) {
+    drops.push({ ...m.projectileAmmo, id: uid(), count: _projectileAmmoCount });
   }
-  if (m.subtype === "stonethrow" && Math.random() < 0.05) {
-    const lvl = m.monLevel || 1;
-    drops.push(lvl >= 3 ? makeMagicStone(rng(1, 3)) : makeStone(rng(2, 5)));
+  if (_projectileAmmoCount > 0 && m.subtype === "stonethrow" && Math.random() < 0.05) {
+    drops.push({ ...m.projectileAmmo, id: uid(), count: _projectileAmmoCount });
   }
   if (m.subtype === "wanduser" && Math.random() < 0.05) {
     const _wt = pick(WANDS);
@@ -7016,7 +7015,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
       if (kind === "monster") {
         if (target.isBoss) { ml.push(`${target.name}には変化の魔法が効かなかった！`); break; }
         const nt = pickTransformMonsterDef(p.depth, dg.dungeonType ?? null, target.monLevel || 1); const prevName = target.name; const ox = target.x, oy = target.y;
-        Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, wallWalker: nt.wallWalker });
+        Object.assign(target, { ...nt, id: target.id, x: ox, y: oy, maxHp: nt.hp, turnAccum: 0, aware: target.aware, dir: target.dir, lastPx: target.lastPx, lastPy: target.lastPy, subtype: nt.subtype, wandEffect: nt.wandEffect, randomStatusWands: nt.randomStatusWands, randomElementalWands: nt.randomElementalWands, wallWalker: nt.wallWalker });
         ml.push(`${prevName}は${target.name}に変化した！`);
       } break;
     }

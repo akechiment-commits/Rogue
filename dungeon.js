@@ -3249,6 +3249,7 @@ export function genDebugDungeonFloor2() {
         ...(tmpl.subtype ? { subtype: tmpl.subtype } : {}),
         ...(tmpl.wandEffect ? { wandEffect: tmpl.wandEffect } : {}),
         ...(tmpl.randomStatusWands ? { randomStatusWands: true } : {}),
+        ...(tmpl.randomElementalWands ? { randomElementalWands: true } : {}),
       });
     }
   }

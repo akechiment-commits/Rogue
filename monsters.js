@@ -25,13 +25,15 @@ const MONSTER_SPECIAL_RATE = Object.freeze({
   selfDestruct: 0.50,
 });
 const DANGEROUS_PETAL_SPECIAL_RATE = Object.freeze({ adjacent: 0.25, ranged: 0.125 });
-export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", "sleep_wand", "teleport_wand"]);
+export const STATUS_WAND_EFFECTS = Object.freeze(["curse_wand", "confuse_wand", "sleep_wand", "teleport_wand", "slow_wand"]);
+export const ELEMENTAL_WAND_EFFECTS = Object.freeze(["fire_wand", "lightning", "ice_wand"]);
 
 export function isStatusWandUser(m) {
   return m?.subtype === "wanduser" && (m.randomStatusWands || STATUS_WAND_EFFECTS.includes(m.wandEffect));
 }
 
 export function resolveMonsterWandEffect(m) {
+  if (m?.randomElementalWands) return pick(ELEMENTAL_WAND_EFFECTS);
   if (m?.randomStatusWands) return pick(STATUS_WAND_EFFECTS);
   return m?.wandEffect || "lightning";
 }
@@ -664,12 +666,12 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  * 新しい敵を追加する手順:
  *   1. MONS配列に新しいエントリを追加（出現階層順で挿入）
  *      必須: name, hp, atk, def, exp, speed, tile, kind, baseKind, monLevel:1
- *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect, randomStatusWands, penaltyOnly
+ *      特殊: float, wallWalker, maxAttacks, subtype, wandEffect, randomStatusWands, randomElementalWands, penaltyOnly
  *        subtype の選択肢: "archer" | "stonethrow" | "wanduser" | "supporter"
  *                         | "thief" | "goldthief" | "runner" | "itemblast" | "stealthrower"
  *                         | "dangerousPetal"（静止・睡眠の花粉）
  *                         (特殊AIが必要なら monsterAI に追記)
- *        wandEffect: subtype:"wanduser" の固定杖。randomStatusWands なら呪い・混乱・眠り・テレポートから毎回抽選
+ *        wandEffect: subtype:"wanduser" の固定杖。randomStatusWands なら状態異常杖、randomElementalWands なら炎・雷・氷から毎回抽選
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
  *      (省略するとレベルアップ不可)
  *   3. 特殊AIが必要なら monsterAI() の subtype 判定ブロックに追加
@@ -794,7 +796,7 @@ export const MONS = [
       { name: "覇足払い鬼",         hp: 68,  atk: 28, def: 10, exp: 100 },
     ],
   },
-  { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", wandEffect: "lightning", dungeonFloors: { intermediate: { min: 11, max: 17 }, advanced: { min: 9, max: 17 } },
+  { name: "ウィザード",   hp: 24,  atk: 17, def: 3,  exp: 42,  speed: 1,   tile: 175, kind: "humanoid", baseKind: "wizard",        monLevel: 1, minFloor: 11, maxFloor: 24, subtype: "wanduser", randomElementalWands: true, dungeonFloors: { intermediate: { min: 11, max: 17 }, advanced: { min: 9, max: 17 } },
     levels: [
       { name: "強ウィザード",       hp: 39,  atk: 24, def: 7,  exp: 67,  dungeonFloors: { advanced: { min: 22, max: 25 } } },
       { name: "大魔導士",           hp: 61,  atk: 29, def: 12, exp: 105 },
@@ -898,7 +900,7 @@ export const MONS = [
       { name: "よく頑張っタイガー", hp: 95,  atk: 36, def: 13, exp: 138 },
     ],
   },
-  { name: "杖術師",       hp: 34,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "wanduser", randomStatusWands: true, desc: "呪い・混乱・眠り・テレポートの杖をランダムに振る。距離3を保って近づかない。", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 14, max: 29 } },
+  { name: "杖術師",       hp: 34,  atk: 17, def: 5,  exp: 55,  speed: 1,   tile: 44, kind: "humanoid", baseKind: "witchdoc",      monLevel: 1, minFloor: 18, maxFloor: 50, subtype: "wanduser", randomStatusWands: true, desc: "呪い・混乱・眠り・テレポート・鈍足の杖をランダムに振る。距離3を保って近づかない。", dungeonFloors: { intermediate: { min: 17, max: 20 }, advanced: { min: 14, max: 29 } },
     levels: [
       { name: "杖魔人",             hp: 54,  atk: 24, def: 9,  exp: 88  },
       { name: "杖ゴミ",             hp: 85,  atk: 29, def: 13, exp: 138 },
@@ -928,7 +930,7 @@ export const MONS = [
       { name: "覇合成獣",           hp: 135, atk: 38, def: 13, exp: 200 },
     ],
   },
-  { name: "バリア蟹",     hp: 43,  atk: 20, def: 3,  exp: 68,  speed: 1,   tile: 147, kind: "humanoid", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, barrier: 1, dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 16, max: 27 } },
+  { name: "バリア蟹",     hp: 43,  atk: 20, def: 3,  exp: 68,  speed: 1,   tile: 147, kind: "humanoid", baseKind: "barriermage",   monLevel: 1, minFloor: 22, maxFloor: 50, barrier: 1, waterWalker: true, dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 16, max: 27 } },
     levels: [
       { name: "どこにも居場所がカニ", hp: 69,  atk: 28, def: 6,  exp: 109, barrier: 2 },
       { name: "なんでも無効蟹",     hp: 108, atk: 36, def: 9,  exp: 170, barrier: 3 },
@@ -940,13 +942,13 @@ export const MONS = [
       { name: "風の覇者",           hp: 95,  atk: 36, def: 13, exp: 163 },
     ],
   },
-  { name: "引きダコ",     hp: 61,  atk: 24, def: 6,  exp: 75,  speed: 1,   tile: 177, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, subtype: "puller", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
+  { name: "引きダコ",     hp: 61,  atk: 24, def: 6,  exp: 75,  speed: 1,   tile: 177, kind: "beast",    baseKind: "puller",        monLevel: 1, minFloor: 24, maxFloor: 50, waterWalker: true, subtype: "puller", dungeonFloors: { intermediate: { min: 18, max: 20 }, advanced: { min: 15, max: 25 } },
     levels: [
       { name: "ひっぱりダコ",       hp: 97,  atk: 32, def: 10, exp: 120 },
       { name: "吸い込みダコ",       hp: 153, atk: 43, def: 14, exp: 188 },
     ],
   },
-  { name: "土下座鈴木右衛門", hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 215, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
+  { name: "土下座鈴木右衛門", hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 215, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, float: true, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
     dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "飛翔土下座鈴木右衛門", hp: 73,  atk: 30, def: 10, exp: 134, dungeonFloors: { advanced: { min: 28, max: 31 } } },
@@ -1424,12 +1426,40 @@ function pushChargedFuzzball(mon, player, messages, message = `${mon.name}が帯
   return true;
 }
 
+const MONSTER_PROJECTILE_SUBTYPES = new Set(["archer", "stonethrow"]);
+
+/* 矢・石を投げる敵は、生成時に8〜12個の弾薬スタックを持つ。 */
+function createMonsterProjectileAmmo(mon) {
+  if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return null;
+  const count = rng(8, 12);
+  if (mon.subtype === "archer") {
+    const level = mon.monLevel || 1;
+    return level >= 3 ? makePiercingArrow(count) : level >= 2 ? makeStrongArrow(count) : makeArrow(count);
+  }
+  return (mon.monLevel || 1) >= 3 ? makeMagicStone(count) : makeStone(count);
+}
+
+/* 旧セーブやものまね用に弾薬が未保存でも、最初の使用時に遅延初期化する。 */
+function ensureMonsterProjectileAmmo(mon) {
+  if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return null;
+  if (!mon.projectileAmmo) mon.projectileAmmo = createMonsterProjectileAmmo(mon);
+  return mon.projectileAmmo;
+}
+
+export function hasMonsterProjectileAmmo(mon) {
+  if (!MONSTER_PROJECTILE_SUBTYPES.has(mon?.subtype)) return false;
+  /* 手作りのテスト個体や旧セーブは、攻撃直前に遅延初期化する。 */
+  return !mon.projectileAmmo || (Number(mon.projectileAmmo.count) || 0) > 0;
+}
+
 /** ランダムにモンスター1体を生成してオブジェクトを返す */
 export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0, immediateAct = false, dungeonType = null, excludeWaterOnly = false } = {}) {
   const { base, spawnLevel } = pickMonsterDef(depth, dungeonType, excludeWaterOnly);
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
+  const projectileAmmo = createMonsterProjectileAmmo(st);
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: immediateAct ? -(st.speed ?? 1) : 0, aware, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
 
@@ -1437,7 +1467,9 @@ export function makeMonster(depth, x, y, { aware = false, lastPx = 0, lastPy = 0
 export function makeMonsterFromBase(base, spawnLevel, x, y, { aware = false, lastPx = 0, lastPy = 0, dormant = false } = {}) {
   const st = buildMonStats(base, spawnLevel);
   const id = uid();
+  const projectileAmmo = createMonsterProjectileAmmo(st);
   return { ...st, id, x, y, maxHp: st.hp, baseSpeed: st.speed ?? 1, turnAccum: 0, aware, dormant, dir: { x: 0, y: 0 }, lastPx, lastPy, patrolTarget: null,
+    ...(projectileAmmo ? { projectileAmmo } : {}),
     ...(st.subtype === "itemMimic" ? { disguisedAsItem: true, disguiseItemId: `item-mimic-${id}` } : {}) };
 }
 
@@ -1937,13 +1969,16 @@ function _monDropWithSpring(pos, item, dg, ml) {
 
 /* ===== MONSTER ARROW SHOT ===== */
 function monsterShootArrow(m, dg, pl, ml, opts) {
+  const _ammo = ensureMonsterProjectileAmmo(m);
+  if (!_ammo || (Number(_ammo.count) || 0) <= 0) return false;
+  _ammo.count--;
   /* レベル別矢の種類: lv1=矢, lv2=強矢, lv3=貫きの矢 */
-  const _mLv = m.monLevel || 1;
-  const _isPierce = _mLv >= 3;
-  const _makeAr = () => _mLv >= 3 ? makePiercingArrow(1) : _mLv >= 2 ? makeStrongArrow(1) : makeArrow(1);
-  const _arName = _mLv >= 3 ? "貫きの矢" : _mLv >= 2 ? "強矢" : "矢";
-  const _arColor = _mLv >= 3 ? "#ff8844" : _mLv >= 2 ? "#ffcc44" : "#d0a050";
-  const _arAtkBonus = _mLv >= 3 ? 5 : _mLv >= 2 ? 8 : 3;
+  const _isPierce = !!_ammo.pierce;
+  const _isStrong = !!_ammo.strong;
+  const _makeAr = () => _isPierce ? makePiercingArrow(1) : _isStrong ? makeStrongArrow(1) : makeArrow(1);
+  const _arName = _isPierce ? "貫きの矢" : _isStrong ? "強矢" : "矢";
+  const _arColor = _isPierce ? "#ff8844" : _isStrong ? "#ffcc44" : "#d0a050";
+  const _arAtkBonus = _isPierce ? 5 : _isStrong ? 8 : 3;
   const _maxDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
   /* 矢落下：pierceなら消滅、それ以外は地面/泉に落とす */
   const _dropAr = (px, py, mlx) => {
@@ -2026,8 +2061,10 @@ function monsterThrowChargedFuzzball(m, dg, pl, ml, luFn) {
 
 /* ===== MONSTER STONE THROW (ワッカ) — ホーミング。風は本来の着弾点にあるときだけ曲がる ===== */
 function monsterThrowStone(m, dg, pl, ml) {
-  const lvl = m.monLevel || 1;
-  const isMagic = lvl >= 3;
+  const ammo = ensureMonsterProjectileAmmo(m);
+  if (!ammo || (Number(ammo.count) || 0) <= 0) return false;
+  ammo.count--;
+  const isMagic = !!ammo.magicStone;
   const hitChance = 0.80;
   const stoneName = isMagic ? "魔法の石" : "石";
   const dropStone = () => isMagic ? makeMagicStone(1) : makeStone(1);
@@ -3173,7 +3210,7 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
 
   /* アーチャー・水鉄砲：一直線＋射程 */
   if (subtype === "archer") {
-    return canSee && !plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10;
+    return hasMonsterProjectileAmmo(src) && canSee && !plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10;
   }
   if (subtype === "watergunner") {
     return canSee && !plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 8;
@@ -3182,7 +3219,7 @@ export function canMimicSourceSkill(src, m, dg, pl, opts = {}, ctx = {}) {
   /* ワッカ系：射程内（ホーミングなので一直線不要） */
   if (subtype === "stonethrow") {
     const range = monLevel >= 3 ? 10 : monLevel >= 2 ? 5 : 3;
-    return canSee && !plOnBlessedSanc && lineLen <= range;
+    return hasMonsterProjectileAmmo(src) && canSee && !plOnBlessedSanc && lineLen <= range;
   }
 
   /* 薬投げ：一直線＋射程 */
@@ -3309,6 +3346,7 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
     subtype: m.subtype,
     wandEffect: m.wandEffect,
     randomStatusWands: m.randomStatusWands,
+    randomElementalWands: m.randomElementalWands,
     baseKind: m.baseKind,
     monLevel: m.monLevel,
     type: m.type,
@@ -3317,6 +3355,7 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
   m.subtype = src.subtype;
   m.wandEffect = src.wandEffect;
   m.randomStatusWands = src.randomStatusWands;
+  m.randomElementalWands = src.randomElementalWands;
   m.baseKind = src.baseKind;
   m.monLevel = src.monLevel || 1;
   if (src.type === "guard") m.type = "guard";
@@ -3334,6 +3373,7 @@ export function tryMimicAdjacentSkill(m, dg, pl, ml, opts = {}, ctx = {}) {
     m.subtype = bak.subtype;
     m.wandEffect = bak.wandEffect;
     m.randomStatusWands = bak.randomStatusWands;
+    m.randomElementalWands = bak.randomElementalWands;
     m.baseKind = bak.baseKind;
     m.monLevel = bak.monLevel;
     m.type = bak.type;
@@ -3480,7 +3520,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
 
   /* 遠距離特技（視界あり前提が多い） */
   if (canSee) {
-    if (m.subtype === "archer" && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10) {
+    if (m.subtype === "archer" && hasMonsterProjectileAmmo(m) && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10) {
       m.turnAttacks++;
       monsterShootArrow(m, dg, pl, ml, opts);
       return true;
@@ -3490,7 +3530,7 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
       monsterShootWaterGun(m, dg, pl, ml, _luFn);
       return true;
     }
-    if (m.subtype === "stonethrow" && !_plOnBlessedSanc) {
+    if (m.subtype === "stonethrow" && hasMonsterProjectileAmmo(m) && !_plOnBlessedSanc) {
       const _stLvl = m.monLevel || 1;
       const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
       if (lineLen <= _stRange) {
@@ -4926,10 +4966,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _rLen = Math.max(Math.abs(_radx), Math.abs(_rady));
       const _rLine = _radx === 0 || _rady === 0 || Math.abs(_radx) === Math.abs(_rady);
       const _rAtks = m.turnAttacks < monEffectiveMaxAttacks(m);
-      const _archerRdy = m.subtype === "archer" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
+      const _archerRdy = m.subtype === "archer" && hasMonsterProjectileAmmo(m) && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && _rAtks;
       const _stLvlR = m.monLevel || 1;
       const _stRangeR = _stLvlR >= 3 ? 10 : _stLvlR >= 2 ? 5 : 3;
-      const _stoneRdy = m.subtype === "stonethrow" && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
+      const _stoneRdy = m.subtype === "stonethrow" && hasMonsterProjectileAmmo(m) && !m.sealed && _rAtks && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _stRangeR;
       const _wandRdy = m.subtype === "wanduser" && !m.sealed && _rLine && _rLen >= 1 && _rLen <= 10 && opts.monsterWandFn && _rAtks;
       const _hypnotistRdy = m.subtype === "hypnotist" && !m.sealed && _rAtks &&
         canHypnotistUse(m, pl, { canSee, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc });
@@ -5076,7 +5116,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
 
-      if (m.subtype === "archer" && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (m.subtype === "archer" && hasMonsterProjectileAmmo(m) && !m.sealed && !_plOnBlessedSanc && inLine && lineLen >= 1 && lineLen <= 10 && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < 0.5)) {
         m.turnAttacks++;
         monsterShootArrow(m, dg, pl, ml, opts);
         return;
@@ -5089,7 +5129,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         return;
       }
 
-      if (m.subtype === "stonethrow" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+      if (m.subtype === "stonethrow" && hasMonsterProjectileAmmo(m) && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
         const _stLvl = m.monLevel || 1;
         const _stRange = _stLvl >= 3 ? 10 : _stLvl >= 2 ? 5 : 3;
         const _stDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));

@@ -1263,28 +1263,51 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       },
       monsterWandFn: (m, dx, dy) => {
         const _we = resolveMonsterWandEffect(m);
+        const _wandBlessed = (m.monLevel || 1) >= 3;
+        const _wandBlMult = _wandBlessed ? 2 : 1;
         const _wbItemNameFn = (it) => itemDisplayName(it, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
         const _wbBbNameFn = (bb) => bbDisplayName(bb, sr.current);
+        const _applyMonsterWandEffect = (effect, kind, target, effectDx, effectDy, mlx) =>
+          applyWandEffect(effect, kind, target, effectDx, effectDy, dg, pl, mlx, lu, bigboxAddItem,
+            _wandBlMult, _wbItemNameFn, m.atk, m, _wbBbNameFn, false, m);
         if (_we === "lightning") {
-          const _lBlessed = (m.monLevel || 1) >= 3;
-          ml.push(_lBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
+          ml.push(_wandBlessed ? `${m.name}が祝福された雷の杖を振った！` : `${m.name}が雷の杖を振った！`);
           monsterFireLightning(m.x, m.y, dg, pl, dx, dy, ml, lu, bigboxAddItem, m.name,
-            _wbItemNameFn, m, _lBlessed);
+            _wbItemNameFn, m, _wandBlessed);
+        } else if (_we === "fire_wand" || _we === "ice_wand") {
+          const _wandLabel = _we === "fire_wand" ? "炎" : "氷";
+          const _wandColor = _we === "fire_wand" ? "#ff6622" : "#80ddff";
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: _we, reflectColor: _wandColor, wandLabel: _wandLabel,
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}${_wandLabel}の杖を振った！`,
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => _applyMonsterWandEffect(_we, "player", pl, dx, dy, mlx),
+            onMonsterHit: (mon, mlx) => _applyMonsterWandEffect(_we, "monster", mon, dx, dy, mlx),
+            onWallReflect: (mlx) => _applyMonsterWandEffect(_we, "monster", m, -dx, -dy, mlx),
+            onMagicReflect: (refl, mlx) => _applyMonsterWandEffect(_we, "monster", m, -dx, -dy, mlx),
+            onPlayerReflect: (mlx) => _applyMonsterWandEffect(_we, "monster", m, -dx, -dy, mlx),
+            onBigbox: (bb, mlx) => _applyMonsterWandEffect(_we, "bigbox", bb, dx, dy, mlx),
+            onItem: (it, mlx) => _applyMonsterWandEffect(_we, "item", it, dx, dy, mlx),
+            onTrap: (trap, mlx) => _applyMonsterWandEffect(_we, "trap", trap, dx, dy, mlx),
+          });
+        } else if (_we === "slow_wand") {
+          _resolveMonsterWandBolt(m, dg, pl, ml, {
+            dx, dy, boltColor: "slow_wand", reflectColor: "#80ff80", wandLabel: "鈍足",
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}鈍足の杖を振った！`,
+            proofAbility: "slow_proof",
+            itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
+            onPlayerHit: (mlx) => _applyMonsterWandEffect("slow", "player", pl, dx, dy, mlx),
+            onMonsterHit: (mon, mlx) => _applyMonsterWandEffect("slow", "monster", mon, dx, dy, mlx),
+            onWallReflect: (mlx) => _applyMonsterWandEffect("slow", "monster", m, -dx, -dy, mlx),
+            onMagicReflect: (refl, mlx) => _applyMonsterWandEffect("slow", "monster", m, -dx, -dy, mlx),
+            onPlayerReflect: (mlx) => _applyMonsterWandEffect("slow", "monster", m, -dx, -dy, mlx),
+          });
         } else if (_we === "curse_wand") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "curse_wand", reflectColor: "#9020b0", wandLabel: "呪い",
-            fireMsg: `${m.name}が呪いの杖を振った！`,
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}呪いの杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
-            onPlayerHit: (mlx) => {
-              /* ランダムな所持品を呪う（金貨・矢を除く） */
-              const _inv = pl.inventory.filter(i => i.type !== "gold" && i.type !== "arrow");
-              if (_inv.length === 0) { mlx.push("所持品がないので呪いは無効だった。"); return; }
-              const _cit = pick(_inv);
-              const _citDN = _wbItemNameFn(_cit);
-              if (_cit.cursed) mlx.push(`${_citDN}は既に呪われていた！（効果なし）`);
-              else if (_cit.blessed) { _cit.blessed = false; _cit.bcKnown = true; mlx.push(`${_citDN}の祝福が解けた！`); }
-              else { _cit.cursed = true; _cit.bcKnown = true; mlx.push(`${_citDN}が呪われた！【呪】`); }
-            },
+            onPlayerHit: (mlx) => _applyMonsterWandEffect("curse_wand", "player", pl, dx, dy, mlx),
             onMonsterHit: (mon, mlx) => {
               if (mon.isBoss && mon._preSlowSpeed === undefined) mon._preSlowSpeed = mon.speed;
               mon.speed = Math.max(0.25, (mon.speed || 1) * 0.5);
@@ -1340,100 +1363,100 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         } else if (_we === "blowback_wand") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "blowback_wand", reflectColor: "#20e0c0", wandLabel: "吹き飛ばし",
-            fireMsg: `${m.name}が吹き飛ばしの杖を振った！`,
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}吹き飛ばしの杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               if (hasGravityPentacle(dg, pl.x, pl.y)) { mlx.push("重力の魔方陣の力で吹き飛ばしが無効になった！"); return; }
-              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, null, null, false);
+              applyWandEffect("knockback", "player", pl, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
               interruptPlayerSleep(pl, mlx);
               if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; mlx.push("衝撃で金縛りが解けた！"); }
             },
             onMonsterHit: (mon, mlx) => {
-              applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, m, null, false);
+              applyWandEffect("knockback", "monster", mon, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, m, null, false);
               if (mon.hp <= 0) { killMonster(mon, dg, pl, mlx, lu, false, m); }
             },
             onWallReflect: (mlx) => {
               mlx.push(`吹き飛ばしの魔法弾が壁に跳ね返り${m.name}に命中！`);
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, null, null, false);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
               if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onMagicReflect: (refl, mlx) => {
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk, null, null, false);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk, null, null, false);
               if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onPlayerReflect: (mlx) => {
-              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, pl.atk || 3, null, null, false);
+              applyWandEffect("knockback", "monster", m, -dx, -dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, pl.atk || 3, null, null, false);
               if (m.hp <= 0) { killMonster(m, dg, pl, mlx, lu); }
             },
             onItem: (it, mlx) => {
-              applyWandEffect("knockback", "item", it, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              applyWandEffect("knockback", "item", it, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
             },
             onBigbox: (bb, mlx) => {
-              applyWandEffect("knockback", "bigbox", bb, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              applyWandEffect("knockback", "bigbox", bb, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
             },
             onTrap: (trap, mlx) => {
               trap.revealed = true;
               trackTrap(trap);
-              applyWandEffect("knockback", "trap", trap, dx, dy, dg, pl, mlx, lu, bigboxAddItem, 1, _wbItemNameFn, m.atk);
+              applyWandEffect("knockback", "trap", trap, dx, dy, dg, pl, mlx, lu, bigboxAddItem, _wandBlMult, _wbItemNameFn, m.atk);
             },
           });
         } else if (_we === "confuse_wand") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "confuse_wand", reflectColor: "#dd44ff", wandLabel: "混乱",
-            fireMsg: `${m.name}が混乱の杖を振った！`,
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}混乱の杖を振った！`,
             proofAbility: "confuse_proof",
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               const _prev = pl.confusedTurns || 0;
-              pl.confusedTurns = _prev + statusTurns("confuse", { kind: "player" });
+              pl.confusedTurns = _prev + statusTurns("confuse", { kind: "player", blessed: _wandBlessed });
               mlx.push(_prev > 0 ? `混乱の魔法弾を受けた！混乱が延長された！(混乱${pl.confusedTurns}ターン)` : `混乱の魔法弾を受けた！頭がくらくらする！(混乱${pl.confusedTurns}ターン)`);
             },
             onMonsterHit: (mon, mlx) => {
               const _prev = mon.confusedTurns || 0;
-              mon.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", target: mon });
+              mon.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: mon });
               mlx.push(_prev > 0 ? `混乱の魔法弾が${mon.name}に命中！混乱が延長された！(混乱${mon.confusedTurns}ターン)` : `混乱の魔法弾が${mon.name}に命中！混乱した！(混乱${mon.confusedTurns}ターン)`);
             },
             onWallReflect: (mlx) => {
-              m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target: m });
+              m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`混乱の魔法弾が壁に跳ね返り${m.name}に命中！混乱した！(混乱${m.confusedTurns}ターン)`);
             },
             onMagicReflect: (refl, mlx) => {
-              m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target: m });
+              m.confusedTurns = (m.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
             },
             onPlayerReflect: (mlx) => {
               const _prev = m.confusedTurns || 0;
-              m.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", target: m });
+              m.confusedTurns = _prev + statusTurns("confuse", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(_prev > 0 ? `混乱が${m.name}に反射した！混乱が延長された！(混乱${m.confusedTurns}ターン)` : `混乱が${m.name}に反射した！(混乱${m.confusedTurns}ターン)`);
             },
           });
         } else if (_we === "sleep_wand") {
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "sleep_wand", reflectColor: "#44ff88", wandLabel: "眠り",
-            fireMsg: `${m.name}が眠りの杖を振った！`,
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}眠りの杖を振った！`,
             proofAbility: "sleep_proof",
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
               const _prev = pl.sleepTurns || 0;
-              pl.sleepTurns = _prev + statusTurns("sleep", { kind: "player" });
+              pl.sleepTurns = _prev + statusTurns("sleep", { kind: "player", blessed: _wandBlessed });
               mlx.push(_prev > 0 ? `眠りの魔法弾を受けた！眠りが延長された！(眠り${pl.sleepTurns}ターン)` : `眠りの魔法弾を受けた！眠ってしまった！(眠り${pl.sleepTurns}ターン)`);
             },
             onMonsterHit: (mon, mlx) => {
               const _prev = mon.sleepTurns || 0;
-              mon.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", target: mon });
+              mon.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: mon });
               mlx.push(_prev > 0 ? `眠りの魔法弾が${mon.name}に命中！眠りが延長された！(眠り${mon.sleepTurns}ターン)` : `眠りの魔法弾が${mon.name}に命中！眠ってしまった！(眠り${mon.sleepTurns}ターン)`);
             },
             onWallReflect: (mlx) => {
-              m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target: m });
+              m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`眠りの魔法弾が壁に跳ね返り${m.name}に命中！眠ってしまった！(眠り${m.sleepTurns}ターン)`);
             },
             onMagicReflect: (refl, mlx) => {
-              m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target: m });
+              m.sleepTurns = (m.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(`眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
             },
             onPlayerReflect: (mlx) => {
               const _prev = m.sleepTurns || 0;
-              m.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", target: m });
+              m.sleepTurns = _prev + statusTurns("sleep", { kind: "monster", blessed: _wandBlessed, target: m });
               mlx.push(_prev > 0 ? `眠りが${m.name}に反射した！眠りが延長された！(眠り${m.sleepTurns}ターン)` : `眠りが${m.name}に反射した！(眠り${m.sleepTurns}ターン)`);
             },
           });
@@ -1444,9 +1467,13 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               !(x === pl.x && y === pl.y));
           _resolveMonsterWandBolt(m, dg, pl, ml, {
             dx, dy, boltColor: "teleport_wand", reflectColor: "#ff9900", wandLabel: "テレポート",
-            fireMsg: `${m.name}がテレポートの杖を振った！`,
+            fireMsg: `${m.name}が${_wandBlessed ? "祝福された" : ""}テレポートの杖を振った！`,
             itemNameFn: _wbItemNameFn, bbNameFn: _wbBbNameFn,
             onPlayerHit: (mlx) => {
+              if (_wandBlessed) {
+                _applyMonsterWandEffect("warp", "player", pl, dx, dy, mlx);
+                return;
+              }
               if (dg.pentacles?.some(pc => pc.kind === "teleport" && pc.cursed)) {
                 mlx.push("呪われたテレポートの魔方陣がテレポートを阻んだ！"); return;
               }
@@ -1460,20 +1487,36 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               else mlx.push("テレポートに失敗した。");
             },
             onMonsterHit: (mon, mlx) => {
+              if (_wandBlessed) {
+                _applyMonsterWandEffect("warp", "monster", mon, dx, dy, mlx);
+                return;
+              }
               const _rp = _tpRand(mon.x, mon.y);
               if (_rp) { mon.x = _rp.x; mon.y = _rp.y; mlx.push(`テレポートの魔法弾が${mon.name}に命中！どこかへテレポートした！`); }
               else mlx.push("テレポートに失敗した。");
             },
             onWallReflect: (mlx) => {
+              if (_wandBlessed) {
+                _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
+                return;
+              }
               const _rp = _tpRand(m.x, m.y);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中！どこかへテレポートした！`); }
               else mlx.push(`テレポートの魔法弾が壁に跳ね返り${m.name}に命中したが失敗した！`);
             },
             onMagicReflect: (refl, mlx) => {
+              if (_wandBlessed) {
+                _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
+                return;
+              }
               const _rp = _tpRand(m.x, m.y);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
             onPlayerReflect: (mlx) => {
+              if (_wandBlessed) {
+                _applyMonsterWandEffect("warp", "monster", m, -dx, -dy, mlx);
+                return;
+              }
               const _rp = _tpRand(m.x, m.y);
               if (_rp) { m.x = _rp.x; m.y = _rp.y; mlx.push(`テレポートが${m.name}に反射した！どこかへテレポートした！`); }
             },
