@@ -43,7 +43,7 @@ export function formatInventoryItem(item, {
         : (player?.rings || []).includes(item) ? "【指輪】" : "";
   const identKey = getIdentKey(item);
   const isIdentified = !identKey || identified?.has(identKey);
-  const needsFullIdentification = !!identKey || ["weapon", "armor", "ring", "food"].includes(item.type);
+  const needsFullIdentification = !!identKey || ["weapon", "armor", "ring", "food", "gold_nugget"].includes(item.type);
   const showBlessCurse = needsFullIdentification ? (item.fullIdent || item.bcKnown) : true;
   const blessCurse = showBlessCurse ? (item.blessed ? "【祝】" : item.cursed ? "【呪】" : "") : "";
   let label = equipped + blessCurse + displayName(item);

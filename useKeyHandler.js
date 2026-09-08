@@ -7,7 +7,7 @@ import {
   RAW_FOODS, COOKED_FOODS,
   WEAPON_ABILITIES, ARMOR_ABILITIES,
   itemPrice, placeItemAt, applySpellEffect, inMagicSealRoom,
-  getIdentKey, randPotCapacity, gemSellPrice, sellInventoryItemsToShop,
+  getIdentKey, isBcInstanceType, randPotCapacity, gemSellPrice, sellInventoryItemsToShop,
   extractPotContents, scatterPotContents,
 } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
@@ -1047,13 +1047,16 @@ export function useKeyHandler({
             }
             _msgResult = _selIt.type === "pot" ? _ml_pe : `${_selIt.name}には効果がなかった。巻物は消えた。`;
           } else {
-            const _isBcOnly = _selIt.type === 'weapon' || _selIt.type === 'armor' || _selIt.type === 'food';
+            const _isBcOnly = isBcInstanceType(_selIt);
             const _selKey = _isBcOnly ? null : getIdentKey(_selIt);
             if (identifyMode.mode === 'identify') {
               const _wasAlreadyNamed = !_isBcOnly && _selKey && sr.current.ident.has(_selKey);
               if (_selKey) sr.current.ident.add(_selKey);
               _selIt.fullIdent = true; _selIt.bcKnown = true;
-              _msgResult = (_isBcOnly || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
+              const _knownName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+              _msgResult = _selIt.type === "gold_nugget"
+                ? `${_knownName}の正体が判明した！`
+                : ((_isBcOnly || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`);
             } else {
               if (_selKey) sr.current.ident.delete(_selKey);
               _selIt.fullIdent = false; _selIt.bcKnown = false;
@@ -1248,7 +1251,7 @@ export function useKeyHandler({
               endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
             } else if (spell.effect === "identify_magic") {
               const _idt = p2.inventory.filter(_ii => {
-                if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return !_ii.fullIdent && !_ii.bcKnown;
+                if (isBcInstanceType(_ii)) return !_ii.fullIdent && !_ii.bcKnown;
                 const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
               });
               if (_idt.length === 0) {

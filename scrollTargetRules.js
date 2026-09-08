@@ -1,7 +1,7 @@
 import { getIdentKey } from "./items.js";
 
 const PLUS_RING_EFFECTS = new Set(["power_ring", "defense_ring", "life_ring"]);
-const BC_ONLY_TYPES = new Set(["weapon", "armor", "food"]);
+const BC_ONLY_TYPES = new Set(["weapon", "armor", "food", "gold_nugget"]);
 
 /**
  * 選択式の巻物で表示・選択できるインベントリアイテムを判定する。
@@ -10,6 +10,7 @@ const BC_ONLY_TYPES = new Set(["weapon", "armor", "food"]);
  */
 export function isScrollTargetCandidate(mode, item, index, ident = new Set()) {
   if (!mode || !item || item.type === "gold" || index === mode.scrollIdx) return false;
+  if ((mode.mode === "bless" || mode.mode === "curse") && item.type === "gold_nugget") return false;
   if (mode.wasUnknown) return true;
 
   switch (mode.mode) {

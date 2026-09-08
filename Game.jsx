@@ -4415,7 +4415,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ml.push(`${_idn}が分裂した！${_cName}が現れた！`);
         }
       } else if (bb.kind === "bless") {
-        if (item.type === "goal") {
+        if (item.type === "goal" || item.type === "gold_nugget") {
           ml.push(`${_idn}には効果がなかった。`);
         } else if (item.type === "pot") {
           item.capacity = (item.capacity || 1) + 1;
@@ -4427,7 +4427,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           ml.push(`${_idn}が祝福された！【祝】`);
         }
       } else if (bb.kind === "curse") {
-        if (item.type === "goal" || item.type === "gold") {
+        if (item.type === "goal" || item.type === "gold" || item.type === "gold_nugget") {
           ml.push(`${_idn}には効果がなかった。`);
         } else if (item.type === "pot") {
           const _newCap = Math.max(0, (item.capacity || 1) - 1);
@@ -4856,7 +4856,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       ml.push(`泉の底から金貨が${_gv}枚流れ出てきた！`);
     } else if (r < 0.63) {
       // 所持品がランダムで祝福される（壺は容量+1）
-      const _blessable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && (i.type === "pot" || !i.blessed));
+      const _blessable = p.inventory.filter(i => i.type !== "gold" && i.type !== "gold_nugget" && i.type !== "arrow" && (i.type === "pot" || !i.blessed));
       if (_blessable.length > 0) {
         const _bi = _blessable[Math.floor(Math.random() * _blessable.length)];
         if (_bi.type === "pot") {
@@ -4874,6 +4874,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     } else if (r < 0.68) {
       // ランダムな未識別アイテムが識別される
       const _unident = p.inventory.filter(i => {
+        if (i.type === "gold_nugget") return !i.fullIdent && !i.bcKnown;
         const _k = getIdentKey(i);
         return _k && !sr.current.ident.has(_k);
       });
@@ -4908,7 +4909,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
     } else if (r < 0.95) {
       // 所持品がランダムで呪われる（壺は容量-1）
-      const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow" && (i.type === "pot" || !i.cursed));
+      const _cursable = p.inventory.filter(i => i.type !== "gold" && i.type !== "gold_nugget" && i.type !== "arrow" && (i.type === "pot" || !i.cursed));
       if (_cursable.length > 0) {
         const _ci = _cursable[Math.floor(Math.random() * _cursable.length)];
         if (_ci.type === "pot") {

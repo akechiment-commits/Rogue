@@ -312,6 +312,9 @@ export function resolveItemName(it, nameFn = null) {
   if (typeof globalThis !== "undefined" && typeof globalThis.__rogueItemNameFn === "function") {
     try { return globalThis.__rogueItemNameFn(it); } catch (_) { /* fall through */ }
   }
+  if (it.type === "gold_nugget") {
+    return it.fullIdent || it.bcKnown ? (it.isFake ? "偽物の金塊" : "金塊") : "金塊";
+  }
   return it.name || "?";
 }
 
@@ -328,10 +331,10 @@ export function formatSoldItemMessage(item, earned, blessed = false, cursed = fa
 
 /**
  * 種別の未識別（偽名）はないが、インスタンス単位で祝呪の既知/不明があるタイプ。
- * 武器・防具・食料は getIdentKey が null でも fullIdent/bcKnown で祝呪表示を制御する。
+ * 武器・防具・食料・金塊は getIdentKey が null でも fullIdent/bcKnown で表示を制御する。
  */
 export function isBcInstanceType(it) {
-  return !!it && (it.type === "weapon" || it.type === "armor" || it.type === "food");
+  return !!it && (it.type === "weapon" || it.type === "armor" || it.type === "food" || it.type === "gold_nugget");
 }
 
 /** 祝呪（と装備の完全識別）が判明しているか */
@@ -391,6 +394,15 @@ export function penInitialCharges(pen, randomFn = Math.random) {
   return rng(2, 3, randomFn);
 }
 
+/* 金塊は通常のアイテム抽選には混ぜず、壁掘りの追加抽選からだけ出現させる。 */
+export const GOLD_NUGGET_T = {
+  name: "金塊", type: "gold_nugget", rarity: "S", weight: 0.05, wallDropOnly: true,
+  sellPrice: 6000, desc: "鑑定するまで本物かどうか分からない金塊。", tile: 22,
+};
+export const FAKE_GOLD_NUGGET_T = {
+  ...GOLD_NUGGET_T, isFake: true, sellPrice: 10,
+};
+
 export const ITEMS = [
   { name:"回復薬",           type:"potion", effect:"heal",      value:30,  rarity:"E", weight:12, sellPrice:100,  desc:"HPを30回復する。祝福：60回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+1（祝福+2）。\n呪い：30ダメージ。",                                               tile:16 },
   { name:"大回復薬",         type:"potion", effect:"heal_big",  value:60,  rarity:"C", weight:4,  sellPrice:350,  desc:"HPを60回復する。祝福：120回復し、睡眠・混乱・鈍足・毒も治る。HP最大時は最大HP+2（祝福+4）。\n呪い：60ダメージ。",                                               tile:17 },
@@ -422,7 +434,7 @@ export const ITEMS = [
   { name:"明かりのペン",     type:"pen",    effect:"light",         charges:2, rarity:"C", weight:4,  sellPrice:700,  desc:"足元に明かりの魔方陣を描く。\n同じ部屋の地形・敵・アイテムが全て見える。\n呪い：視界1マスに。", tile:42 },
   { name:"テレポートのペン", type:"pen",    effect:"teleport_trap", charges:2, rarity:"C", weight:4,  sellPrice:1200,  desc:"足元にテレポートの魔方陣を描く。\n描いた瞬間ランダムテレポート。部屋内で毎ターン確率でTP。\n呪い：テレポート無効化。", tile:42 },
   { name:"罠のペン",         type:"pen",    effect:"trap_gen",      charges:2, rarity:"C", weight:4, sellPrice:300,  desc:"足元に罠の魔方陣を描く。\n毎ターン確率で部屋に罠が増える（別部屋でも発動）。\n呪い：毎ターン高確率で罠が消える。", tile:42 },
-  { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, rarity:"C", weight:4,  sellPrice:800,  desc:"足元に石飛ばしの魔方陣を描く。\n魔法の石は15個まで。誰かに当たって消えると減らず、回避などで地面に落ちた時だけ減る。\n部屋内のキャラに毎ターン25%で飛ぶ（命中100%）。呪い：回復効果。", tile:42 },
+  { name:"石飛ばしのペン",   type:"pen",    effect:"stone_throw",   charges:2, rarity:"C", weight:4,  sellPrice:800,  desc:"足元に石飛ばしの魔方陣を描く。\n部屋内のキャラに毎ターン25%で魔法の石が飛ぶ（命中100%）。\n回避はみかわし魔方陣・みかわしの服・オリーブ油のみ。\n呪い：回復効果。", tile:42 },
   { name:"吹き飛ばしのペン", type:"pen",    effect:"knockback_aura",charges:2, rarity:"B", weight:2,  sellPrice:3500,  desc:"足元に吹き飛ばしの魔方陣を描く。\n部屋内で近接攻撃を受けた者が5マス吹き飛ぶ。\n呪い：1マスだけ。", tile:42 },
   { name:"爆発のペン",       type:"pen",    effect:"explosion",     charges:2, rarity:"C", weight:4,  sellPrice:1500, desc:"足元に爆発の魔方陣を描く。\n部屋内で倒された敵が爆発し周囲8マスにHP3/4ダメージ。壁・罠・大箱・魔方陣も破壊。\n呪い：炎・雷を不発に。", tile:42 },
   { name:"囮のペン",         type:"pen",    effect:"decoy",         charges:2, rarity:"A", weight:1,  sellPrice:4000,  desc:"足元に囮の魔方陣を描く。\n部屋内の敵がプレイヤーを無視して魔方陣に集まり、陣取ると動かなくなる。\n近づいた敵同士は互いに攻撃し合う。", tile:42 },
@@ -466,6 +478,7 @@ export const ITEMS = [
   { name:"惑わしの薬",       type:"potion", effect:"bewitch",            rarity:"C", weight:4,  sellPrice:300,  desc:"飲むと50ターン周囲の見た目が狂う。\n呪い：反転してフロアの罠を全て看破。\n投げると敵を50ターン逃走させる(祝：永続、呪：逃走解除)。", tile:16 },
   { name:"レベルアップの薬", type:"potion", effect:"levelup",            rarity:"A", weight:1,  sellPrice:5000, desc:"飲むとレベルが1上がる。\n呪い：1階上にワープ。\n投げると敵がレベルアップ(祝：2段階、呪：レベルダウン)。", tile:17 },
   { name:"金貨",             type:"gold",   value:1,                     desc:"金貨。",                           tile:22 },
+  { ...GOLD_NUGGET_T },
   { name:"識別の巻物", type:"scroll", effect:"identify",          rarity:"D", weight:8,  sellPrice:250,
     desc:"持ち物から1つ選んで識別する。\n呪い：識別を解除。", tile:18 },
   { name:"複製の巻物", type:"scroll", effect:"duplicate",         rarity:"A", weight:1,  sellPrice:6000,
@@ -632,6 +645,10 @@ export function gemSellPrice(gem, currentDepth) {
 }
 
 export function itemPrice(it) {
+  if (it.type === "gold_nugget") {
+    /* 内部価格は通常の店ルール（売却額は半額）に合わせる。未鑑定の本物も偽物と同額。 */
+    return it.fullIdent || it.bcKnown ? (it.isFake ? 10 : 6000) : 10;
+  }
   const _bcMult = it.type === "gem"
     ? (it.blessed ? 1.5 : it.cursed ? 0.5 : 1)
     : (it.blessed ? 1.1 : it.cursed ? 0.9 : 1);
@@ -944,6 +961,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     return;
   }
   if (pe === "bless_pot") {
+    if (item.type === "gold_nugget") { ml.push(`${_in}には効果がなかった。`); return; }
     if (item.type === "pot") {
       delete item.blessed;
       delete item.cursed;
@@ -958,6 +976,7 @@ export function applyPotEffect(pot, item, ml, nameFn = null) {
     return;
   }
   if (pe === "curse_pot") {
+    if (item.type === "gold_nugget") { ml.push(`${_in}には効果がなかった。`); return; }
     if (item.type === "arrow") { ml.push(`${_in}は呪いを受け付けない。`); return; }
     if (item.type === "pot") {
       delete item.blessed;
@@ -2349,12 +2368,14 @@ export function doTimeBombExplosion(cx, cy, dg, p, ml, luFn, nameFn = null) {
   }
 }
 
-/** 壁破壊時の石ドロップ共通処理。方法を問わず 10%で石、1%で魔法の石 */
+/** 壁破壊時のドロップ共通処理。石10%、魔法の石1%に加えて金塊系を合計1%で抽選する。 */
 export function wallBreakDrop(dg, x, y) {
   const r = Math.random();
   let drop = null;
-  if (r < 0.01) drop = makeMagicStone(1);
-  else if (r < 0.11) drop = makeStone(1);
+  if (r < 0.005) drop = makeGoldNugget(false);
+  else if (r < 0.01) drop = makeGoldNugget(true);
+  else if (r < 0.02) drop = makeMagicStone(1);
+  else if (r < 0.12) drop = makeStone(1);
   if (!drop) return;
   drop.x = x; drop.y = y;
   markItemIdentifiedForDungeon(drop, dg);
@@ -3533,6 +3554,10 @@ export function makeStone(c = 1) {
   return { ...STONE_T, id:uid(), count:Math.min(99, c) };
 }
 
+export function makeGoldNugget(isFake = false) {
+  return { ...(isFake ? FAKE_GOLD_NUGGET_T : GOLD_NUGGET_T), id: uid() };
+}
+
 export function makeBombArrow(c = 1) {
   return { ...BOMB_ARROW_T, id:uid(), count:Math.min(99, c) };
 }
@@ -4570,7 +4595,7 @@ export function applyWaterSplash(dg, cx, cy, blessed, cursed, ml, p = null, luFn
         ml.push(`${resolveItemName(it)}が呪いの水を浴びた！(容量-1 → ${it.capacity})【呪】`);
       }
     }
-  } else if (it.type !== "gold" && it.type !== "arrow") {
+  } else if (it.type !== "gold" && it.type !== "gold_nugget" && it.type !== "arrow") {
     if (blessed) {
       it.blessed = true; it.cursed = false; it.bcKnown = true;
       ml.push(`${resolveItemName(it)}が祝福の水を浴びた！【祝】`);

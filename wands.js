@@ -1358,6 +1358,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _bwBlessed = blMult > 1;
       const _bwCursed  = blMult < 1;
       if (kind === "item") {
+        if (target.type === "gold_nugget") { ml.push(`${_dname_item(target)}には効果がなかった。`); break; }
         if (_bwCursed) {
           // 呪われた祝福の杖→落ちてるアイテムを呪う
           if (target.type === "pot") {
@@ -1409,7 +1410,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        const _inv = (p.inventory || []).filter(i => i.type !== "gold" && i.type !== "arrow");
+        const _inv = (p.inventory || []).filter(i => i.type !== "gold" && i.type !== "gold_nugget" && i.type !== "arrow");
         if (_bwCursed) {
           // 呪われた祝福の杖→所持品を1つ呪う
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }
@@ -1442,6 +1443,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
       const _cwBlessed = blMult > 1;
       const _cwCursed  = blMult < 1;
       if (kind === "item") {
+        if (target.type === "gold_nugget") { ml.push(`${_dname_item(target)}には効果がなかった。`); break; }
         if (_cwCursed) {
           // 呪われた呪いの杖→落ちてるアイテムを祝福する（反転）
           if (target.type === "pot") {
@@ -1494,7 +1496,7 @@ export function applyWandEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, bbFn
         break;
       }
       if (kind === "player") {
-        const _inv = (p.inventory || []).filter(i => i.type !== "gold" && i.type !== "arrow");
+        const _inv = (p.inventory || []).filter(i => i.type !== "gold" && i.type !== "gold_nugget" && i.type !== "arrow");
         if (_cwCursed) {
           // 呪われた呪いの杖→所持品を1つ祝福（反転）
           if (_inv.length === 0) { ml.push("所持品がないので効果がなかった。"); break; }

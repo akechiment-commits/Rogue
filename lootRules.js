@@ -15,7 +15,7 @@ export function isRarityAtLeast(item, minRarity) {
 
 /** weight フィールドを使った重み付き抽選 */
 export function pickWeighted(items, randomFn = Math.random) {
-  const pool = items.filter((item) => (item.weight ?? 1) > 0);
+  const pool = items.filter((item) => !item.wallDropOnly && (item.weight ?? 1) > 0);
   if (pool.length === 0) return items[Math.floor(randomFn() * items.length)];
   const total = pool.reduce((sum, item) => sum + (item.weight ?? 1), 0);
   let roll = randomFn() * total;

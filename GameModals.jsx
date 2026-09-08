@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { suspendFloor, resumeFloor } from "./floorAbsence.js";
-import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
+import { ITEMS, POTS, BB_TYPES, SPELLS, SPELLBOOKS, TRAPS, WANDS, RINGS, WEAPON_ABILITIES, ARMOR_ABILITIES, itemPrice, getIdentKey, isBcInstanceType, getFavoriteFoodBase, placeItemAt, applySpellEffect, extractPotContents, scatterPotContents, potOccupancyCount, CAT_CLAW_T, SOBURO_T, EXCALIBUR_T, GOLDEN_AXE_T, TRIELEM_SWORD_T, FLAMBERGE_T, ICESWORD_T, CHIDORI_T, ULTIMA_SWORD_T, ALLBANE_SWORD_T, IRONMASS_T, SNIPER_T, GODBANE_SWORD_T, TRIELEM_ARMOR_T, MITHRIL_ARMOR_T, STOMACH_ARMOR_T, DIVINE_SHIELD_T, GODSPARKWAND_T, GOBLIN_BAT_T, ONI_CLUB_T, ARROW_T, STONE_T, MAGIC_STONE_T, EMPTY_BOTTLE, WATER_BOTTLE, BLANK_SCROLL, MAGIC_MARKER, RAW_FOODS, COOKED_FOODS, FOOD_DESCS, FOOD_DESCRIPTIONS, gemSellPrice, moveShopkeeperHome, pickLootFromPool, getShopItemCharge, formatSoldItemMessage } from "./items.js";
 import { inMagicSealRoom } from "./items.js";
 import { MONS, MON_LEVELS, BOSSES, INTERMEDIATE_BOSSES } from "./monsters.js";
 import { T, TI, uid, rng, refreshFOV, getShops, randomTeleportDest, getVisitedFloors } from "./utils.js";
@@ -40,8 +40,8 @@ function isPotEffective(potEffect, item) {
   if (potEffect === "none") return true;
   if (potEffect === "enhance") return item.type === "weapon" || item.type === "armor" || (item.type === "ring" && _PLUS_RING_EFFECTS.includes(item.effect));
   if (potEffect === "weaken") return item.type === "weapon" || item.type === "armor";
-  if (potEffect === "bless_pot") return item.type !== "gold";
-  if (potEffect === "curse_pot") return item.type !== "gold" && item.type !== "arrow";
+  if (potEffect === "bless_pot") return item.type !== "gold" && item.type !== "gold_nugget";
+  if (potEffect === "curse_pot") return item.type !== "gold" && item.type !== "gold_nugget" && item.type !== "arrow";
   if (potEffect === "boil") return item.type === "potion" || item.type === "food";
   if (potEffect === "gunpowder") return false;
   if (potEffect === "greed" || potEffect === "heal_pot" || potEffect === "wish_pot" || potEffect === "klein") return true;
@@ -57,8 +57,8 @@ function isBbEffective(kind, item, bb) {
   if (kind === "refill") return item.type === "wand" || item.type === "pen" || item.type === "marker";
   if (kind === "identify") return true;
   if (kind === "split") return item.type !== "gold" && item.type !== "goal";
-  if (kind === "bless") return item.type !== "goal";
-  if (kind === "curse") return item.type !== "gold" && item.type !== "goal";
+  if (kind === "bless") return item.type !== "goal" && item.type !== "gold_nugget";
+  if (kind === "curse") return item.type !== "gold" && item.type !== "gold_nugget" && item.type !== "goal";
   if (kind === "scatter") return true;
   if (kind === "synthesis") {
     const existing = bb?.contents || [];
@@ -91,7 +91,7 @@ function isSpringEffective(item) {
 /* ===== Tile Icon (inventory) ===== */
 const TYPE_TILE_FALLBACK = {
   potion: 16, scroll: 18, food: 19, weapon: 20, armor: 21,
-  gold: 22, arrow: 23, wand: 24, pen: 42, spellbook: 43, ring: 60, gem: 87,
+  gold: 22, gold_nugget: 22, arrow: 23, wand: 24, pen: 42, spellbook: 43, ring: 60, gem: 87,
 };
 function TileIcon({ item, size = 16 }) {
   const tileIdx = item.tile ?? TYPE_TILE_FALLBACK[item.type];
@@ -1342,13 +1342,16 @@ export function IdentifyModal({ mode, setMode, gs, sr, setGs, setMsgs, endTurn, 
         _msgResult = mode.blessed ? `祝福された${_dupDispName}が1つ増えた！【祝】` : `${_dupDispName}が1つ増えた！`;
       }
     } else {
-      const _isBcOnly = _selIt.type === 'weapon' || _selIt.type === 'armor' || _selIt.type === 'food';
+      const _isBcOnly = isBcInstanceType(_selIt);
       const _selKey = _isBcOnly ? null : getIdentKey(_selIt);
       if (mode.mode === 'identify') {
         const _wasAlreadyNamed = !_isBcOnly && _selKey && sr.current.ident.has(_selKey);
         if (_selKey) { sr.current.ident.add(_selKey); if (!_wasAlreadyNamed) trackItem(_selIt); }
         _selIt.fullIdent = true; _selIt.bcKnown = true;
-        _msgResult = (_isBcOnly || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`;
+        const _knownName = itemDisplayName(_selIt, sr.current?.fakeNames, sr.current?.ident, sr.current?.nicknames);
+        _msgResult = _selIt.type === "gold_nugget"
+          ? `${_knownName}の正体が判明した！`
+          : ((_isBcOnly || _wasAlreadyNamed) ? `${_selIt.name}の祝呪が判明した！` : `${_selIt.name}と判明した！`);
       } else {
         if (_selKey) sr.current.ident.delete(_selKey);
         _selIt.fullIdent = false; _selIt.bcKnown = false;
@@ -3146,7 +3149,7 @@ export function SpellListModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel,
         endTurn(sr.current, p2, ml2); setMsgs((prev) => [...prev.slice(-80), ...ml2]); sr.current = { ...sr.current }; setGs({ ...sr.current });
       } else if (spell.effect === "identify_magic") {
         const _idt = p2.inventory.filter(_ii => {
-          if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return !_ii.fullIdent && !_ii.bcKnown;
+          if (isBcInstanceType(_ii)) return !_ii.fullIdent && !_ii.bcKnown;
           const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
         });
         if (_idt.length === 0) {
@@ -3547,9 +3550,12 @@ export function InventoryModal({
               acts.push({ label: "名付ける", fn: () => { setNicknameMode({ identKey: _nik }); setNicknameInput(gs?.nicknames?.[_nik] || ''); setShowInv(false); setSelIdx(null); setShowDesc(null); setInvMenuSel(null); } });
             }
           }
-          const _isUnidentInv = (() => { const _kk = getIdentKey(it); return !!(_kk && gs?.ident && !gs.ident.has(_kk)); })();
+          const _isUnidentInv = (() => {
+            if (it.type === "gold_nugget") return !it.fullIdent && !it.bcKnown;
+            const _kk = getIdentKey(it); return !!(_kk && gs?.ident && !gs.ident.has(_kk));
+          })();
           const _isIdentBCUnknown = (() => {
-            if (it.type === 'weapon' || it.type === 'armor' || it.type === 'food') return !it.fullIdent && !it.bcKnown;
+            if (isBcInstanceType(it)) return !it.fullIdent && !it.bcKnown;
             const _kk = getIdentKey(it); return !!(_kk && gs?.ident?.has(_kk) && !it.fullIdent && !it.bcKnown);
           })();
           return (

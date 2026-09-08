@@ -8,7 +8,7 @@ import {
   applyLightningToInventory, applyPotEffect, applyPotionEffect, applyPotionToItem, applyIceCreamEffect, hasFireResist, reduceFireDamage, fireResistDamageLabel,
   applyWaterSplash, burnFoodItem,
   castSpellBolt, doExplosion, doGunpowderExplosion, fireTrapItem, trapStepBreakChance,
-  getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, hasCursedExplosionPentacle, isFireExplosionNullified,
+  getBlessMultiplier, blessAmountMul, rollElementScrollDamage, recoveryScrollAmount, getFarcastMode, getIdentKey, isBcInstanceType, hasCursedExplosionPentacle, isFireExplosionNullified,
   inMagicSealRoom, killMonster, bossInstantDeathDamage, chargeShopItem,
   makeArrow, makeMagicStone, makePiercingArrow, makePoisonArrow, makeStone,
   placeItemAt, markItemIdentifiedForDungeon, thrownItemAttack, breakBigboxContents, scatterPotContents, shootArrow, throwItemAlongLine, soakItemIntoSpring, splashPotion,
@@ -254,7 +254,7 @@ export function useItemActions({
         }
       } else if (it.effect === "water") {
         /* 水を飲んだ時だけ祝呪を所持品へ移す。投擲時の水の効果は従来処理を維持する。 */
-        const _waterItems = p.inventory.filter(i => i.type !== "gold" && i.type !== "arrow");
+        const _waterItems = p.inventory.filter(i => i.type !== "gold" && i.type !== "gold_nugget" && i.type !== "arrow");
         if (it.blessed) {
           const _blessable = _waterItems.filter(i => i.type === "pot" || !i.blessed);
           if (_blessable.length > 0) {
@@ -1687,14 +1687,14 @@ export function useItemActions({
           for (const _ii of p.inventory) {
             const _k = getIdentKey(_ii);
             if (_k) { const _wasU = !sr.current.ident.has(_k); sr.current.ident.add(_k); _ii.fullIdent = true; _ii.bcKnown = true; if (_wasU) trackItem(_ii); }
-            else if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') { _ii.fullIdent = true; _ii.bcKnown = true; }
+            else if (isBcInstanceType(_ii)) { _ii.fullIdent = true; _ii.bcKnown = true; }
           }
           if (_scrollFootBb && !_scrollFootBb.revealed) { markBigboxKindIdentified(sr.current, _scrollFootBb); _scrollFootBb.revealed = true; trackBigbox(_scrollFootBb); ml.push(`大箱「${_scrollFootBb.name}」の正体が明らかになった！`); }
           ml.push("全てのアイテムが識別された！");
         } else if (it.cursed) {
           // 識別済みアイテムを1つ選んで未識別に戻す（武器・防具・食料の祝呪も含む）
           const _targets = p.inventory.filter(_ii => {
-            if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return _ii.fullIdent || _ii.bcKnown;
+            if (isBcInstanceType(_ii)) return _ii.fullIdent || _ii.bcKnown;
             const _k = getIdentKey(_ii); return _k && sr.current.ident.has(_k);
           });
           if (_targets.length === 0) {
@@ -1710,7 +1710,7 @@ export function useItemActions({
         } else {
           // 通常: 1つ選んで識別（武器・防具・食料の祝呪も含む）
           const _targets = p.inventory.filter(_ii => {
-            if (_ii.type === 'weapon' || _ii.type === 'armor' || _ii.type === 'food') return !_ii.fullIdent && !_ii.bcKnown;
+            if (isBcInstanceType(_ii)) return !_ii.fullIdent && !_ii.bcKnown;
             const _k = getIdentKey(_ii); return !!_k && (!sr.current.ident.has(_k) || (!_ii.fullIdent && !_ii.bcKnown));
           });
           if (_targets.length === 0) {
@@ -3567,18 +3567,23 @@ export function useItemActions({
         }
 
         /* ── インベントリから投げる石／魔法の石 専用処理 ── */
-        if (it.type === "arrow" && (it.stone || it.magicStone)) {
+        if ((it.type === "arrow" && (it.stone || it.magicStone)) || it.type === "gold_nugget") {
           /* スタックから1個だけ使う */
-          it.count--;
-          if (it.count <= 0) p.inventory.splice(idx, 1);
-          const _invStName = it.name;
+          const _isGoldNugget = it.type === "gold_nugget";
+          if (_isGoldNugget) p.inventory.splice(idx, 1);
+          else {
+            it.count--;
+            if (it.count <= 0) p.inventory.splice(idx, 1);
+          }
+          const _invStName = dnameRef(it);
           const _invStAtk = it.atk || (it.magicStone ? 5 : 3);
           let _invStUnit = null;
           const _invStDrop = () => {
+            if (_isGoldNugget) return it;
             if (!_invStUnit) _invStUnit = makeArrowUnitFromStack(it);
             return _invStUnit;
           };
-          const _invStPeel = () => { if (!_invStUnit) peelShopArrowUnit(it); };
+          const _invStPeel = () => { if (!_isGoldNugget && !_invStUnit) peelShopArrowUnit(it); };
           if (_isFarcast) {
             ml.push(`${_invStName}を投げた。${_invStName}は消滅した。`);
             _invStPeel();
