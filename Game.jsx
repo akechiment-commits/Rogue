@@ -3096,11 +3096,11 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
             const _statueStep = st.dungeon.statues?.find(s => s.x === p.x && s.y === p.y);
             if (_statueStep) ml.push("石像がある。");
             const _bbStep = st.dungeon.bigboxes?.find(b => b.x === p.x && b.y === p.y);
-            if (_bbStep) { trackBigbox(_bbStep); ml.push(`${bbDisplayName(_bbStep, sr.current, isBigboxKindIdentified(_bbStep, sr.current))}がある。`); }
+            if (_bbStep) { trackBigbox(_bbStep); showFirstEncounterTip("bigbox"); ml.push(`${bbDisplayName(_bbStep, sr.current, isBigboxKindIdentified(_bbStep, sr.current))}がある。`); }
             const _gachaStep = st.dungeon.gachaMachines?.find(g => g.x === p.x && g.y === p.y);
             if (_gachaStep) ml.push("ガチャマシーンがある。");
             const _sprStep = st.dungeon.springs?.find((s) => s.x === p.x && s.y === p.y);
-            if (_sprStep) ml.push("泉がある。");
+            if (_sprStep) { showFirstEncounterTip("spring"); ml.push("泉がある。"); }
             const _pentStep = st.dungeon.pentacles?.find((pc) => pc.x === p.x && pc.y === p.y);
             if (_pentStep) ml.push(`${_pentStep.name}の上にいる。`);
             const _altarStep = st.dungeon.altars?.find((a) => a.x === p.x && a.y === p.y);
@@ -3255,7 +3255,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           if (bb2) {
             trackBigbox(bb2);
             bigboxRef.current = bb2;
-            showFirstEncounterTip("bigbox");
             setBigboxMode("menu"); setBigboxMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb2, sr.current, isBigboxKindIdentified(bb2, sr.current))}がある。どうする？`]);
             sr.current = { ...st }; setGs({ ...st }); return;
@@ -3263,7 +3262,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           const spr = dg.springs?.find((s) => s.x === p.x && s.y === p.y);
           if (spr) {
             springTargetRef.current = spr;
-            showFirstEncounterTip("spring");
             setSpringMode("menu"); setSpringMenuSel(0);
             setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);
             sr.current = { ...st }; setGs({ ...st }); return;
@@ -5447,7 +5445,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
     ) || bbEntry;
     trackBigbox(bb);
     bigboxRef.current = bb;
-    showFirstEncounterTip("bigbox");
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
     setBigboxMode("menu"); setBigboxMenuSel(0);
     setMsgs((prev) => [...prev.slice(-80), `${bbDisplayName(bb, s, isBigboxKindIdentified(bb, s))}がある。どうする？`]);
@@ -5514,7 +5511,6 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       (sprEntry.id != null && sp.id === sprEntry.id) || (sp.x === sprEntry.x && sp.y === sprEntry.y)
     ) || sprEntry;
     springTargetRef.current = spr;
-    showFirstEncounterTip("spring");
     setShowInv(false); setSelIdx(null); setInvPage(0); setInvMenuSel(null); setShowDesc(null);
     setSpringMode("menu"); setSpringMenuSel(0);
     setMsgs((prev) => [...prev.slice(-80), "泉がある。どうする？"]);

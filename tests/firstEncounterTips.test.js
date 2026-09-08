@@ -71,6 +71,13 @@ describe("first encounter tips", () => {
     }
   });
 
+  it("泉・大箱は乗るか横から存在を確認した時の初遭遇として扱う", () => {
+    expect(FIRST_ENCOUNTER_TIPS.spring.trigger).toContain("上に乗る");
+    expect(FIRST_ENCOUNTER_TIPS.spring.trigger).toContain("横から");
+    expect(FIRST_ENCOUNTER_TIPS.bigbox.trigger).toContain("上に乗る");
+    expect(FIRST_ENCOUNTER_TIPS.bigbox.trigger).toContain("横から");
+  });
+
   it("未識別道具だけを判定する", () => {
     const potion = { type: "potion", effect: "heal" };
     expect(isUnidentifiedEncounterItem(potion, new Set())).toBe(true);
