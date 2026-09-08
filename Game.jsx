@@ -47,7 +47,7 @@ const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
 const SHARED_FIXTURE_ASSET_VERSION = "20260904-v8";
 /* DawnLike等に番号が無い新規罠。public/tiles の絵を後から載せる。 */
-const PUBLIC_TRAP_TILE_IDS = [210, 211, 212, 213];
+const PUBLIC_TRAP_TILE_IDS = [210, 211, 212, 213, 216];
 const HYPNOSIS_ACTION_DELAY_MS = 600;
 
 function markWanderingMerchantHostile(monster, dungeon, player, messages) {

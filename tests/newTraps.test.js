@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { fireTrapPlayer } from "../traps.js";
 import {
   TRAPS, fireTrapItem, trapStepBreakChance,
-  raiseSpeedOneStage, raisePlayerSpeedOneStage, applyUnequipTrapToMonster,
+  raiseSpeedOneStage, raisePlayerSpeedOneStage, applyUnequipTrapToMonster, applyPlayerLevelDown,
   shootArrow,
 } from "../items.js";
 import "../monsters.js";
@@ -18,8 +18,8 @@ function bigRoomDg(extra = {}) {
 }
 
 describe("新罠の定義", () => {
-  it("4種が TRAPS にあり、罠の罠と道具魔物化は必ず壊れる", () => {
-    for (const effect of ["trap_trap", "item_monster_trap", "haste_trap", "unequip_trap"]) {
+  it("5種が TRAPS にあり、罠の罠と道具魔物化は必ず壊れる", () => {
+    for (const effect of ["trap_trap", "item_monster_trap", "haste_trap", "unequip_trap", "level_down_trap"]) {
       const t = TRAPS.find((x) => x.effect === effect);
       expect(t, effect).toBeTruthy();
       expect(t.weight).toBeGreaterThan(0);
@@ -29,12 +29,13 @@ describe("新罠の定義", () => {
     expect(trapStepBreakChance({ effect: "haste_trap" })).toBe(0.25);
   });
 
-  it("4種に16x16マップタイルとTILE_NAMESがある", () => {
+  it("5種に16x16マップタイルとTILE_NAMESがある", () => {
     const names = {
       trap_trap: 210,
       trap_item_monster: 211,
       trap_haste: 212,
       trap_unequip: 213,
+      trap_level_down: 216,
     };
     for (const [name, id] of Object.entries(names)) {
       expect(TILE_NAMES[id]).toBe(name);

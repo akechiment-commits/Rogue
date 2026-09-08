@@ -139,6 +139,7 @@ export const TILE_NAMES = {
   211: "trap_item_monster",
   212: "trap_haste",
   213: "trap_unequip",
+  216: "trap_level_down",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -248,6 +249,7 @@ export const TILE_RENDER = {
   211: { bg: null, fg: "#c060ff", ch: "^" },
   212: { bg: null, fg: "#40ffc0", ch: "^" },
   213: { bg: null, fg: "#d0b060", ch: "^" },
+  216: { bg: null, fg: "#ffd040", ch: "^" },
   87:  { bg: null, fg: "#00ccee", ch: "*" }, /* アクアマリン (C) */
   88:  { bg: null, fg: "#ee2244", ch: "*" }, /* ルビー       (B) */
   89:  { bg: null, fg: "#4488ff", ch: "*" }, /* サファイア   (B) */

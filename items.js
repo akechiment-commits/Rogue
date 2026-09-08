@@ -1799,6 +1799,7 @@ export const TRAPS = [
   { name:"道具魔物化の罠", effect:"item_monster_trap", tile:211, rarity:"B", weight:2, desc:"踏むと同じ部屋の床のアイテムがすべてモンスターに変わる。\n発動すると必ず壊れる。" },
   { name:"加速の罠",       effect:"haste_trap",     tile:212, rarity:"C", weight:4,  desc:"踏むと同じ部屋の敵の速度が1段階上がる。\n敵が踏むと、同じ部屋にいれば自分の速度が上がる。\nアイテムなどで発動すると部屋内の全員が加速する。" },
   { name:"装備外しの罠",   effect:"unequip_trap",   tile:213, rarity:"C", weight:4,  desc:"踏むと装備中の武器・防具・指輪のうち1つが外れる。\n護盗の能力で防げる。\n敵が踏むと攻撃力と防御力が少し下がる（重ねがけ可）。" },
+  { name:"レベルダウンの罠", effect:"level_down_trap", tile:216, rarity:"B", weight:2, desc:"踏むとレベルが1下がる。\nレベル1では何も起こらない。\n敵が踏んでもレベルが1下がる。" },
 ];
 
 /**
@@ -2406,6 +2407,33 @@ export function removeTrap(dg, trap, ml, opts = {}) {
 export function trapStepBreakChance(trap) {
   if (trap?.effect === "trap_trap" || trap?.effect === "item_monster_trap") return 1;
   return (trap?.effect === "steal_trap" || trap?.effect === "summon_trap" || trap?.effect === "multiply_trap") ? 0.5 : 0.25;
+}
+
+/** プレイヤーのレベルを1下げ、レベルアップ時に増えた能力値も戻す。 */
+export function applyPlayerLevelDown(p, ml) {
+  if (!p || !ml) return false;
+  const currentLevel = Math.max(1, p.level || 1);
+  if (currentLevel <= 1) {
+    ml.push("しかしレベル1なので何も起こらなかった。");
+    return false;
+  }
+
+  p.level = currentLevel - 1;
+  p.maxHp = Math.max(1, (p.maxHp || 1) - 5);
+  p.hp = Math.min(p.hp ?? p.maxHp, p.maxHp);
+  p.atk = Math.max(1, (p.atk || 1) - 1);
+  /* Game.jsx のレベルアップ処理はLv3,6,...到達時だけ防御力と最大MPを増やす。 */
+  if (currentLevel % 3 === 0) {
+    p.def = Math.max(0, (p.def || 0) - 1);
+    p.maxMp = Math.max(0, (p.maxMp || 0) - 1);
+    p.mp = Math.min(p.mp ?? p.maxMp, p.maxMp);
+  }
+  if (Number.isFinite(p.nextExp)) {
+    p.nextExp = Math.max(1, Math.floor(p.nextExp / 1.5));
+    p.exp = Math.min(Math.max(0, p.exp || 0), p.nextExp - 1);
+  }
+  ml.push(`レベルが1下がった！Lv.${p.level}！`);
+  return true;
 }
 
 /** 罠発動後のランダム破壊（fromStep=true で戦利品ドロップなし） */
@@ -3122,6 +3150,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`体が重くなった...(鈍足${_st}ターン)`);
         }
       }
+      return "restart";
+    }
+    case "level_down_trap": {
+      ml.push(`${trap.name}が発動！`);
+      const _ldm = monsterAt(dg, tx, ty);
+      if (_ldm) monLevelDown(_ldm, dg, ml);
+      if (p && p.x === tx && p.y === ty) applyPlayerLevelDown(p, ml);
+      if (!_ldm && !(p && p.x === tx && p.y === ty)) ml.push("しかし誰もいなかった。");
       return "restart";
     }
     case "seal_trap": {
@@ -6544,9 +6580,9 @@ export const SPELLS=[
   {id:"paralyze_magic", name:"金縛りの魔法",      mpCost:10, effect:"paralyze_magic",  range:10,  needsDir:true,  desc:"方向を選び敵を金縛りにする。MP:10"},
   {id:"food_create",    name:"食料生成の魔法",    mpCost:8,  effect:"food_create",                needsDir:false, desc:"ランダムな食料をひとつ生成する。MP:8"},
   {id:"transform_magic",name:"変化の魔法",        mpCost:10, effect:"transform_magic", range:10,  needsDir:true,  desc:"対象を同じ階層の敵に変える。MP:10"},
-  {id:"identify_magic", name:"識別の魔法",        mpCost:5,  effect:"identify_magic",             needsDir:false, desc:"持ち物から1つ選んで識別する。MP:5"},
+  {id:"identify_magic", name:"識別の魔法",        mpCost:12, effect:"identify_magic",             needsDir:false, desc:"持ち物から1つ選んで識別する。MP:12"},
   {id:"bless_magic",    name:"祝福の魔法",        mpCost:18, effect:"bless_magic",                needsDir:false, desc:"アイテムを1つ選んで祝福する。MP:18"},
-  {id:"curse_magic",    name:"呪いの魔法",        mpCost:5,  effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:5"},
+  {id:"curse_magic",    name:"呪いの魔法",        mpCost:15, effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:15"},
   {id:"debug_summon_mon", name:"[debug]敵召喚",   mpCost:0,  fixedMpCost:true, effect:"debug_summon_mon",  needsDir:false, debug:true, desc:"任意の敵を1体選んで呼び出す。MP:0"},
   {id:"debug_get_item",   name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",   needsDir:false, debug:true, desc:"任意のアイテムを1個選んで入手する。MP:0"},
   {id:"debug_create_trap",name:"[debug]罠生成",   mpCost:0,  fixedMpCost:true, effect:"debug_create_trap", needsDir:false, debug:true, desc:"任意の罠を1つ選んで足元に作る。MP:0"},
@@ -6568,9 +6604,9 @@ export const SPELLBOOKS=[
   {name:"金縛りの魔法書",    type:"spellbook",spell:"paralyze_magic",   rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと方向を選び、敵を金縛りにする魔法を習得する。MP:10",tile:43},
   {name:"食料生成の魔法書",  type:"spellbook",spell:"food_create",       rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとランダムな食料をひとつ生成する魔法を習得する。MP:8",tile:43},
   {name:"変化の魔法書",      type:"spellbook",spell:"transform_magic",  rarity:"C", weight:4,  sellPrice:2500,  desc:"読むと対象を同じ階層の敵に変える魔法を習得する。MP:10",tile:43},
-  {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"C", weight:4,  sellPrice:3500,  desc:"読むと持ち物から1つ選んで識別する魔法を習得する。MP:5",tile:43},
+  {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"C", weight:4,  sellPrice:3500,  desc:"読むと持ち物から1つ選んで識別する魔法を習得する。MP:12",tile:43},
   {name:"祝福の魔法書",     type:"spellbook",spell:"bless_magic",     rarity:"A", weight:1,  sellPrice:10000, desc:"読むとアイテムを1つ選んで祝福する魔法を習得する。MP:18",tile:43},
-  {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとアイテムを1つ選んで呪う魔法を習得する。MP:5",tile:43},];
+  {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとアイテムを1つ選んで呪う魔法を習得する。MP:15",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */

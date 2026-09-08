@@ -368,6 +368,28 @@ def trap_unequip():
     return im
 
 
+def trap_level_down():
+    """Descending gold/orange chevrons on a pressure plate."""
+    im = blank()
+    # Pressure plate, using the same compact floor-object silhouette as trap_unequip.
+    fill_rect(im, 3, 11, 12, 13, "dk")
+    fill_rect(im, 4, 10, 11, 10, "mid")
+    outline_rect(im, 3, 10, 12, 13, "out")
+    # Bright downward arrow.
+    fill_rect(im, 7, 2, 8, 7, "yl")
+    put(im, 6, 6, "yl")
+    put(im, 9, 6, "yl")
+    fill_rect(im, 5, 7, 10, 8, "or")
+    put(im, 6, 9, "or")
+    put(im, 7, 9, "yl")
+    put(im, 8, 9, "yl")
+    put(im, 9, 9, "or")
+    # Cyan sparks make the descending direction readable at 16px.
+    for x, y in [(5, 4), (10, 4), (4, 5), (11, 5), (5, 6), (10, 6)]:
+        put(im, x, y, "cy")
+    return im
+
+
 DESIGNS = {
     "trap_mp_absorb": trap_mp_absorb,
     "trap_confuse": trap_confuse,
@@ -386,6 +408,7 @@ DESIGNS = {
     "trap_item_monster": trap_item_monster,
     "trap_haste": trap_haste,
     "trap_unequip": trap_unequip,
+    "trap_level_down": trap_level_down,
 }
 
 
