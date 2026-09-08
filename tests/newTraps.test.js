@@ -41,6 +41,7 @@ describe("新罠の定義", () => {
       expect(TILE_NAMES[id]).toBe(name);
       expect(existsSync(`public/tiles/${name}.png`)).toBe(true);
       expect(existsSync(`tiles/sprites/dawnlike/tile_${id}.png`)).toBe(true);
+      if (id === 216) expect(existsSync(`tiles/sprites/mon1/tile_${id}.png`)).toBe(true);
       expect(TRAPS.find((x) => x.tile === id)?.effect).toBeTruthy();
     }
   });

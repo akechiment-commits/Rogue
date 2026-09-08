@@ -416,7 +416,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           }
         }
       }
-      /* スタイル3(mon1)は専用のtile_210〜213を優先し、
+      /* スタイル3(mon1)は専用のtile_210〜216を優先し、
        * DawnLike／デフォルトだけpublic/tilesの16pxマップアイコンを使う。 */
       if (name !== 'mon1') await loadPublicNamedTiles(PUBLIC_TRAP_TILE_IDS);
       setCurrentTileset(name);
