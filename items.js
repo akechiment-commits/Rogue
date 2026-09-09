@@ -3059,6 +3059,12 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
       fireTrapArrowFromFacing({ ...trap, x: tx, y: ty }, p, dg, ml, { poison: false, ft });
       return "restart";
     }
+    case "watergun_trap": {
+      ml.push(`${trap.name}が発動！`);
+      /* 特殊飛び道具と同じく、通常の投擲物も水鉄砲で消火して消滅する。 */
+      if (!item?._ephemeralTrapTrigger) ml.push(`${resolveItemName(item, nameFn)}は水鉄砲で消えた！`);
+      return "destroyed";
+    }
     case "spin": {
       if (item?._ephemeralTrapTrigger) {
         ml.push(`${trap.name}が発動！${resolveItemName(item)}はどこかへ吹き飛んだ！`);

@@ -5,6 +5,8 @@ import {
   ITEMS,
   hasWaterProof,
   applyWaterGunToInventory,
+  throwItemAlongLine,
+  makeStone,
   applySoakedStatus,
   applySoakedFromWaterWalk,
   shrinkFoodOneStep,
@@ -20,6 +22,7 @@ import { fireTrapPlayer } from "../traps.js";
 import { msgToActionKey } from "../portraits.js";
 import { PORTRAIT_CATEGORIES } from "../portraitCatalog.js";
 import { T } from "../utils.js";
+import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("水鉄砲・耐水", () => {
   it("水鉄砲の罠が TRAPS にある", () => {
@@ -144,6 +147,20 @@ describe("水鉄砲・耐水", () => {
     expect(p.soakedTurns).toBe(0);
     expect(p.inventory[0].effect).toBe("teleport");
     expect(ml.some((m) => m.includes("耐水"))).toBe(true);
+  });
+
+  it("投げた石が水鉄砲の罠を起動すると石も消える", () => {
+    const trap = { ...TRAPS.find((t) => t.effect === "watergun_trap"), x: 3, y: 2, id: "watergun-projectile" };
+    const dg = makeEmptyDg({ traps: [trap] });
+    const p = makePlayer({ x: 1, y: 2 });
+    const stone = makeStone(1);
+    const ml = [];
+
+    const result = throwItemAlongLine(p, dg, stone, 1, 0, 5, ml, p, () => {});
+
+    expect(result.consumed).toBe(true);
+    expect(dg.items).not.toContain(stone);
+    expect(ml.filter((message) => message.includes("水鉄砲")).length).toBe(2);
   });
 });
 
