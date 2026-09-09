@@ -45,7 +45,7 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
 const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
-const SHARED_FIXTURE_ASSET_VERSION = "20260909-v10";
+const SHARED_FIXTURE_ASSET_VERSION = "20260909-v11";
 /* DawnLike等に番号が無い新規罠。public/tiles の絵を後から載せる。 */
 const PUBLIC_TRAP_TILE_IDS = [210, 211, 212, 213, 216];
 const PUBLIC_SPECIAL_PROJECTILE_TILE_IDS = [218, 219];
