@@ -5433,10 +5433,10 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
       ml.push(`${mon.name}の骨が残った...5ターン後に復活するかもしれない。`);
     }
   }
-  /* からめ鬼が死んだ場合：捕獲状態を解除 */
-  if (mon.subtype === "grabber" && p && p.capturedBy === mon.id) {
+  /* 拘束していた敵が死んだ場合：拘束状態を解除 */
+  if ((mon.subtype === "grabber" || mon.subtype === "giantEel") && p && p.capturedBy === mon.id) {
     p.capturedBy = null;
-    ml.push("捕獲から解放された！");
+    ml.push(mon.subtype === "giantEel" ? "拘束から解放された！" : "捕獲から解放された！");
   }
   if (killerMon) {
     monLevelUp(killerMon, dg, ml);

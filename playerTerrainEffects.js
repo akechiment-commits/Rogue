@@ -57,6 +57,17 @@ export function advancePlayerTerrainEffects(player, dungeon, messages) {
   const onSpring = !!dungeon.springs?.some((spring) => spring.x === player.x && spring.y === player.y);
   const confinedInPot = (player.potConfinedTurns || 0) > 0;
   const canWalkWater = canPlayerWalkOnWater(player, dungeon);
+  const _captor = player.capturedBy
+    ? dungeon.monsters?.find((monster) => monster.id === player.capturedBy)
+    : null;
+  const _boundByGiantEel = _captor?.subtype === "giantEel";
+  if (_boundByGiantEel && !hasWaterBreathRing(player) && player.hp > 0) {
+    const damage = 15;
+    player.hp -= damage;
+    player._waterSuffocationDamage = true;
+    messages.push(`${_captor.name}に拘束されて溺れて苦しい！${damage}ダメージ！`);
+    if (player.hp <= 0) player.deathCause = "水没により";
+  }
   if (onDeepWater && !canWalkWater && player.hp > 0) {
     if (!confinedInPot) {
       for (const [dx, dy] of ADJACENT_DIRS) {
@@ -72,7 +83,7 @@ export function advancePlayerTerrainEffects(player, dungeon, messages) {
       }
     }
     const stillDeepWater = dungeon.map[player.y]?.[player.x] === T.WATER;
-    if (stillDeepWater && !canPlayerWalkOnWater(player, dungeon) && player.hp > 0) {
+    if (stillDeepWater && !canPlayerWalkOnWater(player, dungeon) && !_boundByGiantEel && player.hp > 0) {
       const damage = 15;
       player.hp -= damage;
       player._waterSuffocationDamage = true;

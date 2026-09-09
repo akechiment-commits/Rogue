@@ -2491,7 +2491,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
               const _capTarget = monsterAt(dg, _capNx, _capNy);
               if (!_capTarget) {
                 /* 敵がいない方向への移動は不可（隣接する敵への攻撃は可） */
-                ml.push(`${_capMon.name}に捕まっている！倒さなければ逃げられない！`);
+                ml.push(`${_capMon.name}に${_capMon.subtype === "giantEel" ? "拘束されている" : "捕まっている"}！倒さなければ逃げられない！`);
                 endTurn(st, p, ml);
                 setMsgs((prev) => [...prev.slice(-80), ...ml]);
                 sr.current = { ...st };

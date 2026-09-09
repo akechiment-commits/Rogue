@@ -43,7 +43,7 @@ export function resolveMonsterWandEffect(m) {
 /* 通常の聖域は、プレイヤーへ直接届く隣接1マス特技を防ぐ。
  * 遠距離・部屋範囲・フロア範囲の特技は通常聖域を貫通し、祝福聖域だけが防ぐ。 */
 const ADJACENT_PLAYER_SPECIAL_SUBTYPES = new Set([
-  "grabber", "thief", "goldthief", "itemblast", "stealthrower",
+  "grabber", "giantEel", "thief", "goldthief", "itemblast", "stealthrower",
   "disarmer", "berserker", "trapthrower", "knocker", "ruster", "dreamEater",
 ]);
 
@@ -714,6 +714,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *                         | "thief" | "goldthief" | "runner" | "itemblast" | "stealthrower"
  *                         | "dangerousPetal"（静止・睡眠の花粉）
  *                         | "waterFlower"（静止・敵誘導弾）
+ *                         | "giantEel"（隣接・拘束）
  *                         (特殊AIが必要なら monsterAI に追記)
  *        wandEffect: subtype:"wanduser" の固定杖。randomStatusWands なら状態異常杖、randomElementalWands なら炎・雷・氷から毎回抽選
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
@@ -1114,6 +1115,12 @@ export const MONS = [
     levels: [
       { name: "水中サボテン", hp: 70,  atk: 31, def: 9,  exp: 95  },
       { name: "水中巾着",   hp: 112, atk: 43, def: 14, exp: 155 },
+    ],
+  },
+  { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 161, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 28 } },
+    levels: [
+      { name: "大ウナギ",     hp: 131, atk: 40, def: 12, exp: 148, dungeonFloors: { advanced: { min: 29, max: 36 } } },
+      { name: "深海ウナギ",   hp: 207, atk: 54, def: 17, exp: 232, dungeonFloors: { advanced: { min: 37, max: 50 } } },
     ],
   },
   /* ===== 視界操作モンスター ===== */
@@ -3971,15 +3978,15 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       if (m.sealedTurns <= 0) { m.sealed = false; ml.push(`${m.name}の封印が解けた！`); }
     }
   }
-  /* ── grabber捕獲解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
-  if (m.subtype === "grabber" && pl.capturedBy === m.id) {
+  /* ── 拘束解除チェック：プレイヤーが1マス超離れた or 捕獲者が状態異常 ── */
+  if ((m.subtype === "grabber" || m.subtype === "giantEel") && pl.capturedBy === m.id) {
     const _gRelDist = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
     const _gBadStatus = (m.sleepTurns || 0) > 0 || m.paralyzed || (m.confusedTurns || 0) > 0 ||
       (m.darknessTurns || 0) > 0 || (m.fleeingTurns || 0) > 0 || m.sealed || m.bewitched ||
       (m.poisonedTurns || 0) > 0 || (m.immobileTurns || 0) > 0 || (m.knockdownTurns || 0) > 0 || m.blind || (m.oilyTurns || 0) > 0;
     if (_gRelDist > 1 || _gBadStatus) {
       pl.capturedBy = null;
-      ml.push(`${m.name}の捕獲が解けた！`);
+      ml.push(m.subtype === "giantEel" ? `${m.name}の拘束が解けた！` : `${m.name}の捕獲が解けた！`);
     }
   }
   if (m.sleepTurns > 0) {
@@ -4894,6 +4901,23 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         }
       }
       return; /* からめ鬼は絶対に移動しない（スワップも finally で差し戻し） */
+    }
+
+    /* ── giantEel（巨大ウナギ等）：隣接時にプレイヤーを拘束する ── */
+    if (m.subtype === "giantEel" && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 && canSee) {
+      let _justBound = false;
+      if (!pl.capturedBy && !_plOnSanc) {
+        pl.capturedBy = m.id;
+        _justBound = true;
+        ml.push(`${m.name}に締め付けられた！倒さなければ逃げられない！`);
+        interruptPlayerSleep(pl, ml);
+        if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
+      }
+      if (!_justBound && pl.capturedBy === m.id && !_plOnSanc && !_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      }
+      return;
     }
 
     /* ===== 囮のペン（通常・祝福）: 特技含む全行動を囮に誘導 ===== */
