@@ -160,7 +160,8 @@ describe("水鉄砲・耐水", () => {
 
     expect(result.consumed).toBe(true);
     expect(dg.items).not.toContain(stone);
-    expect(ml.filter((message) => message.includes("水鉄砲")).length).toBe(2);
+    expect(ml.some((message) => message.includes("水鉄砲の罠が発動"))).toBe(true);
+    expect(ml.filter((message) => message.includes("水鉄砲で消えた")).length).toBe(1);
   });
 });
 
