@@ -277,4 +277,55 @@ describe("かわしモグラ", () => {
     expect(attacker.aware).toBe(true);
     expect(attacker.x !== beforeMove.x || attacker.y !== beforeMove.y).toBe(true);
   });
+
+  it.each([
+    ["dragon", 2, 0.19, true],
+    ["dragon", 2, 0.20, false],
+    ["icedragon", 2, 0.19, true],
+    ["icedragon", 2, 0.20, false],
+    ["dragon", 3, 0.09, true],
+    ["dragon", 3, 0.10, false],
+    ["icedragon", 3, 0.09, true],
+    ["icedragon", 3, 0.10, false],
+  ])("%s Lv%dのブレス発射率は境界値で%s", (baseKind, level, randomValue, shouldReserve) => {
+    const base = MONS.find((monster) => monster.baseKind === baseKind);
+    const attacker = makeMonsterFromBase(base, level, 3, 5, { aware: true });
+    attacker.turnAttacks = 0;
+    const player = makePlayer({ x: level >= 3 ? 20 : 8, y: level >= 3 ? 15 : 7 });
+    const rooms = level >= 3
+      ? [{ x: 1, y: 1, w: 10, h: 10 }, { x: 15, y: 12, w: 12, h: 10 }]
+      : [{ x: 1, y: 1, w: 20, h: 15 }];
+    const dg = makeEmptyDg({ monsters: [attacker], rooms });
+    const random = vi.spyOn(Math, "random").mockReturnValue(randomValue);
+    try {
+      monsterAI(attacker, dg, player, [], { moveOnly: true });
+    } finally {
+      random.mockRestore();
+    }
+    expect(!!attacker._rangedAttackThisTurn).toBe(shouldReserve);
+  });
+
+  it.each([
+    ["dragon", 2, 0.19, true],
+    ["dragon", 2, 0.20, false],
+    ["icedragon", 3, 0.09, true],
+    ["icedragon", 3, 0.10, false],
+  ])("%s Lv%dは予約なしの攻撃フェーズでも指定率を使う", (baseKind, level, randomValue, shouldHit) => {
+    drainAnims();
+    const base = MONS.find((monster) => monster.baseKind === baseKind);
+    const attacker = makeMonsterFromBase(base, level, 3, 5, { aware: true });
+    attacker.turnAttacks = 0;
+    const player = makePlayer({ x: level >= 3 ? 20 : 8, y: level >= 3 ? 15 : 7 });
+    const rooms = level >= 3
+      ? [{ x: 1, y: 1, w: 10, h: 10 }, { x: 15, y: 12, w: 12, h: 10 }]
+      : [{ x: 1, y: 1, w: 20, h: 15 }];
+    const dg = makeEmptyDg({ monsters: [attacker], rooms });
+    const random = vi.spyOn(Math, "random").mockReturnValue(randomValue);
+    try {
+      monsterAI(attacker, dg, player, [], { attackOnly: true });
+    } finally {
+      random.mockRestore();
+    }
+    expect(player.hp < player.maxHp).toBe(shouldHit);
+  });
 });

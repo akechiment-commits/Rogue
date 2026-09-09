@@ -15,6 +15,8 @@ import {
 
 const MONSTER_SPECIAL_RATE = Object.freeze({
   ranged: 0.50,
+  room: 0.20,
+  floor: 0.10,
   status: 0.25,
   defDown: 0.15,
   steal: 0.50,
@@ -76,6 +78,13 @@ function rangedSpecialRate(m, pl = null) {
   if (isStatusWandUser(m)) {
     return MONSTER_SPECIAL_RATE.status;
   }
+  return MONSTER_SPECIAL_RATE.ranged;
+}
+
+function dragonBreathSpecialRate(m) {
+  const level = m?.monLevel || 1;
+  if (level >= 3) return MONSTER_SPECIAL_RATE.floor;
+  if (level >= 2) return MONSTER_SPECIAL_RATE.room;
   return MONSTER_SPECIAL_RATE.ranged;
 }
 
@@ -4808,12 +4817,12 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
   const _canUseFloorBreath = (m.baseKind === "dragon" || m.baseKind === "icedragon") &&
     _floorBreathLevel >= 3 && !m.sealed &&
     Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) >= 2 && !_plOnBlessedSanc;
-  if (_canUseFloorBreath && !m.aware && (m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
+  if (_canUseFloorBreath && !m.aware && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.floor)) {
     m.aware = true;
     m.lastPx = pl.x;
     m.lastPy = pl.y;
+    m._rangedAttackThisTurn = true;
     if (_moveOnly) {
-      m._rangedAttackThisTurn = true;
       return;
     }
   }
@@ -5053,6 +5062,8 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
         ((m.monLevel || 1) >= 3 ? true : (m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
+      const _dragonBreathRdy = _dragonRdy0 || _iceDragonRdy0;
+      const _specialRate = _dragonBreathRdy ? dragonBreathSpecialRate(m) : rangedSpecialRate(m, pl);
       const _itempusherLvl0 = m.monLevel || 1;
       const _itempusherRdy = m.subtype === "itempusher" && _itempusherLvl0 >= 3 && !m.sealed &&
         !_plOnBlessedSanc && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10 &&
@@ -5063,7 +5074,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < _specialRate)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -5087,10 +5098,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         })) return;
       }
     }
-    /* Lv3のフロアブレス：視界外でも通常の遠距離特技率で発射を予約 */
+    /* Lv3のフロアブレス：視界外でも10%で発射を予約 */
     if (_moveOnly && m.aware && !canSee && (m.baseKind === "dragon" || m.baseKind === "icedragon") && !m.sealed && (m.monLevel || 1) >= 3) {
       const _dfDist3 = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-      if (_dfDist3 >= 2 && m.turnAttacks < monEffectiveMaxAttacks(m) && (m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
+      if (_dfDist3 >= 2 && m.turnAttacks < monEffectiveMaxAttacks(m) && (m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.floor)) {
         m._rangedAttackThisTurn = true;
         return;
       }
@@ -5308,7 +5319,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── ドラゴン炎ブレス（Lv1:一直線 / Lv2:同部屋 / Lv3:同フロア）＋サラマンダー ── */
+    /* ── ドラゴン炎ブレス（Lv1:一直線50% / Lv2:同部屋20% / Lv3:同フロア10%）＋サラマンダー ── */
     if (!_moveOnly && (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       const _dfAdx = pl.x - m.x, _dfAdy = pl.y - m.y;
       const _dfDist = Math.max(Math.abs(_dfAdx), Math.abs(_dfAdy));
@@ -5328,7 +5339,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       const _dragonRdy = m._rangedAttackThisTurn;
       if (_dragonRdy) delete m._rangedAttackThisTurn;
-      if (_canFire && !_plOnBlessedSanc) {
+      if (_canFire && !_plOnBlessedSanc && (_dragonRdy || m.alwaysUseSpecial || Math.random() < dragonBreathSpecialRate(m))) {
         if (_dfLvl >= 3) {
           m.aware = true;
           m.lastPx = pl.x;
@@ -5340,7 +5351,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
     }
 
-    /* ── 氷竜ブレス（Lv1:一直線 / Lv2:同部屋 / Lv3:同フロア） ── */
+    /* ── 氷竜ブレス（Lv1:一直線50% / Lv2:同部屋20% / Lv3:同フロア10%） ── */
     if (!_moveOnly && m.baseKind === "icedragon" && !m.sealed && m.turnAttacks < monEffectiveMaxAttacks(m)) {
       const _ibAdx = pl.x - m.x, _ibAdy = pl.y - m.y;
       const _ibDist = Math.max(Math.abs(_ibAdx), Math.abs(_ibAdy));
@@ -5353,7 +5364,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       }
       const _ibRdy = m._rangedAttackThisTurn;
       if (_ibRdy) delete m._rangedAttackThisTurn;
-      if (_ibCanFire && !_plOnBlessedSanc) {
+      if (_ibCanFire && !_plOnBlessedSanc && (_ibRdy || m.alwaysUseSpecial || Math.random() < dragonBreathSpecialRate(m))) {
         if (_ibLvl >= 3) {
           m.aware = true;
           m.lastPx = pl.x;
