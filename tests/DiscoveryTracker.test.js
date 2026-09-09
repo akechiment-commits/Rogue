@@ -10,7 +10,7 @@ import {
   restoreDiscoveries,
   getDiscoveries,
 } from "../DiscoveryTracker.js";
-import { killMonster } from "../items.js";
+import { addStonesInv, killMonster, makeStone } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("DiscoveryTracker", () => {
@@ -22,6 +22,24 @@ describe("DiscoveryTracker", () => {
     trackItem(item);
     trackItem({ id: "item-2", name: "回復薬", type: "potion", effect: "heal", tile: 16 });
     expect(getDiscoveries().items["heal"].count).toBe(2);
+  });
+
+  it("矢・石の拾得失敗では所持数も図鑑回数も変えず、成功時は統合先へ印を引き継ぐ", () => {
+    const fullInventory = [makeStone(90), ...Array.from({ length: 29 }, (_, i) => ({ type: "misc", id: `misc-${i}` }))];
+    const rejected = makeStone(15);
+    expect(addStonesInv(fullInventory, rejected.count, false, 30, rejected)).toBe(false);
+    expect(fullInventory[0].count).toBe(90);
+    expect(rejected._encyclopediaTracked).toBeUndefined();
+    expect(getDiscoveries().items).toEqual({});
+
+    const inventory = [makeStone(90)];
+    const picked = makeStone(15);
+    expect(addStonesInv(inventory, picked.count, false, 30, picked)).toBe(true);
+    expect(inventory[0].count).toBe(99);
+    expect(inventory[1].count).toBe(6);
+    expect(picked._encyclopediaTracked).toBe(true);
+    expect(inventory[0]._encyclopediaTracked).toBe(true);
+    expect(getDiscoveries().items["arrow_石"].count).toBe(1);
   });
 
   it("食品は効果ではなくベース名ごとに記録する", () => {

@@ -3820,38 +3820,73 @@ export function applyThrownItemToMonster(item, mon, dg, p, ml, luFn, opts = {}) 
   return { blocked: false, killed };
 }
 
-export function addStonesInv(inv, c, isMagic = false, maxInv = 30) {
-  let r = c;
+function finalizePickedStack(sourceItem, changedStacks) {
+  if (!sourceItem) return;
+  /* 拾得に成功した時点でだけ発見回数を確定する。 */
+  trackItem(sourceItem);
+  /* 床の個体を既存スタックへ統合した場合も、再び床へ出た時に二重計上しない。 */
+  if (sourceItem._encyclopediaTracked) {
+    const target = changedStacks.find(Boolean);
+    if (target) target._encyclopediaTracked = true;
+  }
+}
+
+function canAddStackCount(inv, c, matches, maxInv) {
+  const requested = Math.max(0, Number(c) || 0);
+  const compatibleCapacity = inv.reduce((total, item) => (
+    matches(item) ? total + Math.max(0, 99 - (Number(item.count) || 0)) : total
+  ), 0);
+  const newStacks = Math.ceil(Math.max(0, requested - compatibleCapacity) / 99);
+  return inv.length + newStacks <= maxInv;
+}
+
+export function addStonesInv(inv, c, isMagic = false, maxInv = 30, sourceItem = null) {
+  const matches = (i) => i.type === "arrow" && !!i.stone === !isMagic && !!i.magicStone === isMagic;
+  if (!canAddStackCount(inv, c, matches, maxInv)) return false;
+  let r = Math.max(0, Number(c) || 0);
+  const changedStacks = [];
   for (const i of inv) {
-    if (i.type === "arrow" && !!i.stone === !isMagic && !!i.magicStone === isMagic && i.count < 99) {
+    if (matches(i) && i.count < 99) {
       const a = Math.min(r, 99 - i.count);
       i.count += a;
       r -= a;
-      if (r <= 0) return true;
+      changedStacks.push(i);
+      if (r <= 0) {
+        finalizePickedStack(sourceItem, changedStacks);
+        return true;
+      }
     }
   }
   while (r > 0) {
-    if (inv.length >= maxInv) return false;
     const n = Math.min(r, 99);
-    inv.push(isMagic ? makeMagicStone(n) : makeStone(n));
+    const added = isMagic ? makeMagicStone(n) : makeStone(n);
+    inv.push(added);
+    changedStacks.push(added);
     r -= n;
   }
+  finalizePickedStack(sourceItem, changedStacks);
   return true;
 }
 
-export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false, strong = false, specialProjectile = null) {
-  let r = c;
+export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30, bomb = false, strong = false, specialProjectile = null, sourceItem = null) {
   const _special = specialProjectile || null;
+  const matches = (i) => i.type === "arrow" && !i.stone && !i.magicStone && (i.specialProjectile || null) === _special && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && !!i.strong === strong;
+  if (!canAddStackCount(inv, c, matches, maxInv)) return false;
+  let r = Math.max(0, Number(c) || 0);
+  const changedStacks = [];
   for (const i of inv) {
-    if (i.type === "arrow" && !i.stone && !i.magicStone && (i.specialProjectile || null) === _special && !!i.poison === poison && !!i.pierce === pierce && !!i.bombArrow === bomb && !!i.strong === strong && i.count < 99) {
+    if (matches(i) && i.count < 99) {
       const a = Math.min(r, 99 - i.count);
       i.count += a;
       r -= a;
-      if (r <= 0) return true;
+      changedStacks.push(i);
+      if (r <= 0) {
+        finalizePickedStack(sourceItem, changedStacks);
+        return true;
+      }
     }
   }
   while (r > 0) {
-    if (inv.length >= maxInv) return false;
     const n = Math.min(r, 99);
     const _new = _special === "torpedo" ? makeTorpedo(n)
       : _special === "crawling_bomb" ? makeCrawlingBomb(n)
@@ -3862,8 +3897,10 @@ export function addArrowsInv(inv, c, poison = false, pierce = false, maxInv = 30
       : strong ? makeStrongArrow(n)
       : makeArrow(n);
     inv.push(_new);
+    changedStacks.push(_new);
     r -= n;
   }
+  finalizePickedStack(sourceItem, changedStacks);
   return true;
 }
 
