@@ -3838,8 +3838,9 @@ function finalizePickedStack(sourceItem, changedStacks) {
   trackItem(sourceItem);
   /* 床の個体を既存スタックへ統合した場合も、再び床へ出た時に二重計上しない。 */
   if (sourceItem._encyclopediaTracked) {
-    const target = changedStacks.find(Boolean);
-    if (target) target._encyclopediaTracked = true;
+    for (const target of changedStacks) {
+      if (target) target._encyclopediaTracked = true;
+    }
   }
 }
 

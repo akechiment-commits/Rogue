@@ -39,6 +39,7 @@ describe("DiscoveryTracker", () => {
     expect(inventory[1].count).toBe(6);
     expect(picked._encyclopediaTracked).toBe(true);
     expect(inventory[0]._encyclopediaTracked).toBe(true);
+    expect(inventory[1]._encyclopediaTracked).toBe(true);
     expect(getDiscoveries().items["arrow_石"].count).toBe(1);
   });
 
