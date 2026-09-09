@@ -1127,6 +1127,13 @@ export const MONS = [
 export const MON_LEVELS = Object.fromEntries(
   MONS.filter(m => m.levels?.length).map(m => [m.baseKind, m.levels]));
 
+function levelTemplateSpeed(mon, template, level) {
+  /* 一部の形態変化は、レベル表に書かれていない固有の速度変化を持つ。 */
+  if (mon.baseKind === "gelcube" && level === 3) return 1;
+  const baseTemplate = MONS.find(m => m.baseKind === mon.baseKind && m.monLevel === 1);
+  return template?.speed ?? baseTemplate?.speed ?? mon.speed ?? 1;
+}
+
 /** モンスターのレベルを1上げ、次形態に変化させる。変化した場合 true を返す */
 export function monLevelUp(mon, dg, ml) {
   if (!mon.baseKind) return false;
@@ -1161,14 +1168,13 @@ export function monLevelUp(mon, dg, ml) {
   mon.maxHp  = template.hp;
   mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
   mon.monLevel = nextLevel;
+  mon.speed = levelTemplateSpeed(mon, template, nextLevel);
+  mon.baseSpeed = mon.speed;
   if (template.tile !== undefined) mon.tile = template.tile;
   if (template.barrier !== undefined) mon.barrier = template.barrier;
   if (mon.baseKind === "gelcube" && nextLevel === 3) {
-    mon.speed = 1;
     ml.push(`${oldName}がレベルアップして${mon.name}になった！動きが等速になった！`);
   } else if (mon.baseKind === "tattoobird" && nextLevel === 3) {
-    mon.speed = 2;
-    mon.baseSpeed = 2;
     ml.push(`${oldName}がレベルアップして${mon.name}になった！速度が2倍になった！`);
   } else {
     ml.push(`${oldName}がレベルアップして${mon.name}になった！`);
@@ -1202,6 +1208,8 @@ export function monLevelDown(mon, dg, ml) {
   mon.maxHp  = template.hp;
   mon.hp     = Math.max(1, Math.round(template.hp * hpRatio));
   mon.monLevel = prevLevel;
+  mon.speed = levelTemplateSpeed(mon, template, prevLevel);
+  mon.baseSpeed = mon.speed;
   if (template.tile !== undefined) mon.tile = template.tile;
   ml.push(`${oldName}がレベルダウンして${mon.name}になった！`);
   return true;

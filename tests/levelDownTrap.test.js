@@ -3,7 +3,7 @@ import { fireTrapPlayer } from "../traps.js";
 import {
   TRAPS, SPELLS, SPELLBOOKS, fireTrapItem, applyPlayerLevelDown,
 } from "../items.js";
-import { MONS, makeMonsterFromBase } from "../monsters.js";
+import { MONS, makeMonsterFromBase, monLevelDown, monLevelUp } from "../monsters.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 const levelDownTrap = TRAPS.find((trap) => trap.effect === "level_down_trap");
@@ -61,6 +61,26 @@ describe("レベルダウンの罠", () => {
     fireTrapItem(levelDownTrap, { name: "石", type: "misc" }, dg, 6, 5, ml2, new Set(), p);
     expect(levelOne.monLevel).toBe(1);
     expect(ml2.some((message) => message.includes("最弱形態"))).toBe(true);
+  });
+
+  it("敵の形態変化で各レベルの速度へ戻る", () => {
+    const ghostBase = MONS.find((monster) => monster.baseKind === "rockspirit");
+    const ghost = makeMonsterFromBase(ghostBase, 2, 5, 5);
+    expect(ghost.speed).toBe(1);
+    expect(monLevelUp(ghost, makeEmptyDg(), [])).toBe(true);
+    expect(ghost.name).toBe("ミラージュ");
+    expect(ghost.speed).toBe(3);
+    expect(ghost.baseSpeed).toBe(3);
+    expect(monLevelDown(ghost, makeEmptyDg(), [])).toBe(true);
+    expect(ghost.name).toBe("ファントム");
+    expect(ghost.speed).toBe(1);
+    expect(ghost.baseSpeed).toBe(1);
+
+    const tattooBase = MONS.find((monster) => monster.baseKind === "tattoobird");
+    const tattoo = makeMonsterFromBase(tattooBase, 2, 5, 5);
+    expect(monLevelUp(tattoo, makeEmptyDg(), [])).toBe(true);
+    expect(tattoo.speed).toBe(2);
+    expect(tattoo.baseSpeed).toBe(2);
   });
 });
 
