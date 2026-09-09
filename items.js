@@ -5908,10 +5908,11 @@ export function reflectMagicStoneToPlayer(p, reflector, stoneName, stoneAtk, ml)
 const SPECIAL_PROJECTILE_COLORS = {
   torpedo: "#48c8ff",
   crawling_bomb: "#ff6848",
-  homing: "#d08cff",
+  homing: "#4d9dff",
 };
 
-function specialProjectileColor(kind) {
+function specialProjectileColor(kind, owner = null) {
+  if (kind === "homing" && owner === "monster") return "#ff5868";
   return SPECIAL_PROJECTILE_COLORS[kind] || "#d0a050";
 }
 
@@ -5925,6 +5926,10 @@ function isEnemyHomingProjectile(sp) {
 
 function isHomingProjectile(sp) {
   return sp?.kind === "homing";
+}
+
+function homingProjectileSide(sp) {
+  return isEnemyHomingProjectile(sp) ? "enemy" : "player";
 }
 
 function homingProjectileCellKey(x, y) {
@@ -6281,6 +6286,7 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
   dg.specialProjectiles ||= [];
   dg.specialProjectiles.push({
     id: uid(), kind: _kind, name: _displayName,
+    owner: _kind === "homing" ? "player" : null,
     /* 束投げは通常の矢束と同じく、束全体を1発にまとめて攻撃力へ加算する。 */
     atk: _launchAtk,
     x: p.x, y: p.y, dx: _first.dx, dy: _first.dy,
@@ -6297,16 +6303,52 @@ function launchSpecialProjectile(p, dg, idx, dx, dy, ml, { forceMiss = false, lu
 export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = null) {
   if (!dg?.specialProjectiles?.length) return;
   const _remaining = [];
-  const _homingOccupied = new Set(
-    dg.specialProjectiles
-      .filter(isHomingProjectile)
-      .map((sp) => homingProjectileCellKey(sp.x, sp.y)),
-  );
+  const _homingOccupied = new Map();
+  const _destroyedHoming = new Set();
+  const _addHoming = (sp) => {
+    const key = homingProjectileCellKey(sp.x, sp.y);
+    const occupants = _homingOccupied.get(key) || [];
+    if (!occupants.includes(sp)) occupants.push(sp);
+    _homingOccupied.set(key, occupants);
+  };
+  const _removeHoming = (sp) => {
+    const key = homingProjectileCellKey(sp.x, sp.y);
+    const occupants = _homingOccupied.get(key);
+    if (!occupants) return;
+    const index = occupants.indexOf(sp);
+    if (index >= 0) occupants.splice(index, 1);
+    if (occupants.length === 0) _homingOccupied.delete(key);
+  };
+  const _findHomingAt = (x, y, side = null) => {
+    const occupants = _homingOccupied.get(homingProjectileCellKey(x, y)) || [];
+    return occupants.find((candidate) => !side || homingProjectileSide(candidate) === side) || null;
+  };
+  const _collideHoming = (a, b) => {
+    _destroyedHoming.add(a);
+    _destroyedHoming.add(b);
+    _removeHoming(a);
+    _removeHoming(b);
+    const remainingIndex = _remaining.indexOf(b);
+    if (remainingIndex >= 0) _remaining.splice(remainingIndex, 1);
+    ml.push(`${a.name || "誘導弾"}と${b.name || "誘導弾"}がぶつかって消滅した！`);
+  };
   for (const sp of dg.specialProjectiles) {
+    if (isHomingProjectile(sp) && (sp.turnsLeft ?? 0) > 0) _addHoming(sp);
+  }
+  for (const sp of dg.specialProjectiles) {
+    if (_destroyedHoming.has(sp)) continue;
     if ((sp.turnsLeft ?? 0) <= 0) continue;
     const _isEnemyHoming = isEnemyHomingProjectile(sp);
     const _isHomingProjectile = isHomingProjectile(sp);
-    if (_isHomingProjectile) _homingOccupied.delete(homingProjectileCellKey(sp.x, sp.y));
+    const _homingSide = _isHomingProjectile ? homingProjectileSide(sp) : null;
+    if (_isHomingProjectile) {
+      _removeHoming(sp);
+      const _currentOpponent = _findHomingAt(sp.x, sp.y, _homingSide === "enemy" ? "player" : "enemy");
+      if (_currentOpponent) {
+        _collideHoming(sp, _currentOpponent);
+        continue;
+      }
+    }
     /* 敵の移動で弾の現在位置に重なった場合も、すり抜けずここで処理する。 */
     if (sp.hasMoved) {
       const _currentMonster = specialProjectileMonsterAt(dg, sp.x, sp.y);
@@ -6342,14 +6384,21 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
       if (!_target) _target = nearestSpecialProjectileTarget(dg, sp.x, sp.y, 10);
       if (_target?.id != null) sp.targetId = _target.id;
     }
+    const _blockedHoming = _isHomingProjectile ? new Set(
+      [..._homingOccupied.entries()]
+        .filter(([, occupants]) => occupants.some((candidate) => homingProjectileSide(candidate) === _homingSide))
+        .map(([key]) => key),
+    ) : null;
     const _next = _isHoming
-      ? chooseHomingStep(sp, _target, dg, _isHomingProjectile ? _homingOccupied : null)
+      ? chooseHomingStep(sp, _target, dg, _blockedHoming)
       : stepProjectile(dg, sp.x, sp.y, sp.dx, sp.dy);
     if (!_next || !specialProjectileCellOpen(dg, _next.x, _next.y)) {
       if (_isHomingProjectile) {
-        _homingOccupied.add(homingProjectileCellKey(sp.x, sp.y));
         sp.turnsLeft--;
-        if (sp.turnsLeft > 0) _remaining.push(sp);
+        if (sp.turnsLeft > 0) {
+          _addHoming(sp);
+          _remaining.push(sp);
+        }
         continue;
       }
       if (sp.kind === "crawling_bomb") {
@@ -6358,6 +6407,22 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
         ml.push(`${sp.name}は進めず消えた。`);
       }
       continue;
+    }
+    if (_isHomingProjectile) {
+      const _nextOpponent = _findHomingAt(_next.x, _next.y, _homingSide === "enemy" ? "player" : "enemy");
+      if (_nextOpponent) {
+        pushAnim({
+          type: "projectile",
+          fromX: sp.x,
+          fromY: sp.y,
+          toX: _next.x,
+          toY: _next.y,
+          color: specialProjectileColor(sp.kind, sp.owner),
+          path: [{ x: sp.x, y: sp.y }, { x: _next.x, y: _next.y }],
+        });
+        _collideHoming(sp, _nextOpponent);
+        continue;
+      }
     }
     sp.dx = _next.dx ?? sp.dx;
     sp.dy = _next.dy ?? sp.dy;
@@ -6369,11 +6434,10 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     const _statue = statueAt(dg, _impactX, _impactY);
     const _player = p && p.x === _impactX && p.y === _impactY;
     const _trap = sp.kind === "crawling_bomb" && dg.traps?.some(t => t.x === _impactX && t.y === _impactY);
-    pushAnim({ type: "projectile", fromX: sp.x, fromY: sp.y, toX: _impactX, toY: _impactY, color: specialProjectileColor(sp.kind), path: [{ x: sp.x, y: sp.y }, { x: _impactX, y: _impactY }] });
+    pushAnim({ type: "projectile", fromX: sp.x, fromY: sp.y, toX: _impactX, toY: _impactY, color: specialProjectileColor(sp.kind, sp.owner), path: [{ x: sp.x, y: sp.y }, { x: _impactX, y: _impactY }] });
     sp.x = _impactX; sp.y = _impactY;
     sp.hasMoved = true;
     sp.turnsLeft--;
-    if (_isHomingProjectile) _homingOccupied.add(homingProjectileCellKey(sp.x, sp.y));
     if (_trap) {
       const _trapResult = triggerSpecialProjectileTrap(sp, dg, p, sp.x, sp.y, ml, luFn);
       if (_trapResult.action === "continue" && sp.turnsLeft > 0) _remaining.push(sp);
@@ -6407,7 +6471,10 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
       landTorpedoAsItem(sp, dg, p, ml);
       continue;
     }
-    if (sp.turnsLeft > 0) _remaining.push(sp);
+    if (sp.turnsLeft > 0) {
+      if (_isHomingProjectile) _addHoming(sp);
+      _remaining.push(sp);
+    }
   }
   dg.specialProjectiles = _remaining;
 }

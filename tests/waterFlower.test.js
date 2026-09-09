@@ -160,6 +160,22 @@ describe("水中花系", () => {
     const cells = dg.specialProjectiles.map((sp) => `${sp.x},${sp.y}`);
     expect(new Set(cells).size).toBe(cells.length);
   });
+
+  it("敵味方の誘導弾が重なると双方とも消滅する", () => {
+    const dg = makeEmptyDg({
+      specialProjectiles: [
+        { id: "enemy-shot", kind: "homing", owner: "monster", name: "敵の誘導弾", x: 2, y: 2, dx: 1, dy: 1, turnsLeft: 10, hasMoved: false },
+        { id: "player-shot", kind: "homing", owner: "player", name: "味方の誘導弾", x: 4, y: 2, dx: -1, dy: 1, turnsLeft: 10, hasMoved: false },
+      ],
+    });
+    const player = makePlayer({ x: 8, y: 8 });
+    const ml = [];
+
+    advanceSpecialProjectiles(dg, player, ml, () => {});
+
+    expect(dg.specialProjectiles).toHaveLength(0);
+    expect(ml.some((message) => message.includes("ぶつかって消滅した"))).toBe(true);
+  });
 });
 
 describe("敵の誘導弾への対抗", () => {
