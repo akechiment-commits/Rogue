@@ -4803,6 +4803,21 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
     m._waterlessWarned = false;
   }
 
+  /* Lv3のフロア追尾ブレスは未認識でも発射でき、発射時にこちらを認識する。 */
+  const _floorBreathLevel = m.monLevel || 1;
+  const _canUseFloorBreath = (m.baseKind === "dragon" || m.baseKind === "icedragon") &&
+    _floorBreathLevel >= 3 && !m.sealed &&
+    Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) >= 2 && !_plOnBlessedSanc;
+  if (_canUseFloorBreath && !m.aware && (m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
+    m.aware = true;
+    m.lastPx = pl.x;
+    m.lastPy = pl.y;
+    if (_moveOnly) {
+      m._rangedAttackThisTurn = true;
+      return;
+    }
+  }
+
   if (m.aware) {
     /* ── 夢喰い：睡眠中のプレイヤーを倍打撃＋吸収。いなければ眠った敵を起こして自身を回復 ── */
     if (m.subtype === "dreamEater" && !m.sealed && !inMagicSealRoom(m.x, m.y, dg)) {
@@ -4998,7 +5013,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       return;
     }
 
-    /* ── ranged special attacks (only when player is visible) ── */
+    /* ── ranged special attacks ── */
     /* moveOnlyフェーズ：ランダムで攻撃か移動かを決定。攻撃の場合は移動せずreturn */
     if (_moveOnly && canSee) {
       const _radx = pl.x - m.x, _rady = pl.y - m.y;
@@ -5018,7 +5033,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         });
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
-        (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 2 ? _sameRoom : _rLine));
+        (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 3 ? true : _dfLvl0 >= 2 ? _sameRoom : _rLine));
       const _ttLvl0 = m.monLevel || 1;
       const _ttRange0 = _ttLvl0 >= 3 ? 10 : _ttLvl0 >= 2 ? 5 : 3;
       const _ttRdy0 = m.subtype === "trapthrower" && !m.sealed && _rAtks && opts.fireTrapFn &&
@@ -5037,7 +5052,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ptRange0 = _ptLvl0 >= 3 ? 10 : _ptLvl0 >= 2 ? 7 : 5;
       const _ptRdy0 = m.subtype === "potionthrow" && !m.sealed && _rAtks && canSee && _rLine && Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y)) <= _ptRange0;
       const _iceDragonRdy0 = m.baseKind === "icedragon" && !m.sealed && _rAtks && _rLen >= 2 &&
-        ((m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
+        ((m.monLevel || 1) >= 3 ? true : (m.monLevel || 1) >= 2 ? _sameRoom : _rLine);
       const _itempusherLvl0 = m.monLevel || 1;
       const _itempusherRdy = m.subtype === "itempusher" && _itempusherLvl0 >= 3 && !m.sealed &&
         !_plOnBlessedSanc && _rAtks && _rLine && _rLen >= 2 && _rLen <= 10 &&
@@ -5072,10 +5087,10 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         })) return;
       }
     }
-    /* ドラゴンLv3：canSee不要なので別途判定 */
-    if (_moveOnly && m.aware && m.baseKind === "dragon" && !m.sealed && (m.monLevel || 1) >= 3) {
+    /* Lv3のフロアブレス：視界外でも通常の遠距離特技率で発射を予約 */
+    if (_moveOnly && m.aware && !canSee && (m.baseKind === "dragon" || m.baseKind === "icedragon") && !m.sealed && (m.monLevel || 1) >= 3) {
       const _dfDist3 = Math.max(Math.abs(pl.x - m.x), Math.abs(pl.y - m.y));
-      if (_dfDist3 >= 2 && m.turnAttacks < monEffectiveMaxAttacks(m) && (m.alwaysUseSpecial || Math.random() < 0.5)) {
+      if (_dfDist3 >= 2 && m.turnAttacks < monEffectiveMaxAttacks(m) && (m.alwaysUseSpecial || Math.random() < rangedSpecialRate(m, pl))) {
         m._rangedAttackThisTurn = true;
         return;
       }
@@ -5314,6 +5329,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _dragonRdy = m._rangedAttackThisTurn;
       if (_dragonRdy) delete m._rangedAttackThisTurn;
       if (_canFire && !_plOnBlessedSanc) {
+        if (_dfLvl >= 3) {
+          m.aware = true;
+          m.lastPx = pl.x;
+          m.lastPy = pl.y;
+        }
         m.turnAttacks++;
         monsterDragonFire(m, dg, pl, ml, _onHit);
         return;
@@ -5334,6 +5354,11 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
       const _ibRdy = m._rangedAttackThisTurn;
       if (_ibRdy) delete m._rangedAttackThisTurn;
       if (_ibCanFire && !_plOnBlessedSanc) {
+        if (_ibLvl >= 3) {
+          m.aware = true;
+          m.lastPx = pl.x;
+          m.lastPy = pl.y;
+        }
         m.turnAttacks++;
         monsterIceBreath(m, dg, pl, ml, _onHit);
         return;

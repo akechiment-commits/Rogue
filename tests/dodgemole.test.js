@@ -240,4 +240,41 @@ describe("かわしモグラ", () => {
     expect(projectile?.path?.some((point) => point.x === 5 && point.y === 7)).toBe(true);
     expect(messages.some((message) => message.includes(`${element}ブレスを吐いた`))).toBe(true);
   });
+
+  it.each(["dragon", "icedragon"])("%s Lv3は未認識でもフロア追尾ブレスを吐き、発射時に認識する", (baseKind) => {
+    drainAnims();
+    const base = MONS.find((monster) => monster.baseKind === baseKind);
+    const attacker = makeMonsterFromBase(base, 3, 3, 5, { aware: false });
+    attacker.turnAttacks = 0;
+    const player = makePlayer({ x: 20, y: 15 });
+    const dg = makeEmptyDg({
+      monsters: [attacker],
+      rooms: [{ x: 1, y: 1, w: 10, h: 10 }, { x: 15, y: 12, w: 12, h: 10 }],
+    });
+    const messages = [];
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    try {
+      monsterAI(attacker, dg, player, messages, { moveOnly: true });
+      expect(attacker.aware).toBe(true);
+      expect(attacker._rangedAttackThisTurn).toBe(true);
+      monsterAI(attacker, dg, player, messages, { attackOnly: true });
+    } finally {
+      random.mockRestore();
+    }
+
+    expect(player.hp).toBeLessThan(100);
+    expect(messages.some((message) => message.includes("ブレスを吐いた"))).toBe(true);
+    expect([attacker.lastPx, attacker.lastPy]).toEqual([player.x, player.y]);
+
+    attacker.turnAttacks = 0;
+    const beforeMove = { x: attacker.x, y: attacker.y };
+    const noSpecial = vi.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      monsterAI(attacker, dg, player, messages, { moveOnly: true });
+    } finally {
+      noSpecial.mockRestore();
+    }
+    expect(attacker.aware).toBe(true);
+    expect(attacker.x !== beforeMove.x || attacker.y !== beforeMove.y).toBe(true);
+  });
 });
