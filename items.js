@@ -3631,15 +3631,19 @@ export function makeMagicStone(c = 1) {
  */
 export function makeBasicArrowUnit(stack) {
   if (!stack || stack.type !== "arrow") return makeArrow(1);
-  if (stack.specialProjectile === "torpedo") return makeTorpedo(1);
-  if (stack.specialProjectile === "crawling_bomb") return makeCrawlingBomb(1);
-  if (stack.specialProjectile === "homing") return makeHomingShot(1);
-  if (stack.magicStone) return makeMagicStone(1);
-  if (stack.stone) return makeStone(1);
-  if (stack.bombArrow) return makeBombArrow(1);
-  if (stack.pierce) return makePiercingArrow(1);
-  if (stack.poison) return makePoisonArrow(1);
-  if (stack.strong) return makeStrongArrow(1);
+  const copyDiscoveryMark = (unit) => {
+    if (stack._encyclopediaTracked) unit._encyclopediaTracked = true;
+    return unit;
+  };
+  if (stack.specialProjectile === "torpedo") return copyDiscoveryMark(makeTorpedo(1));
+  if (stack.specialProjectile === "crawling_bomb") return copyDiscoveryMark(makeCrawlingBomb(1));
+  if (stack.specialProjectile === "homing") return copyDiscoveryMark(makeHomingShot(1));
+  if (stack.magicStone) return copyDiscoveryMark(makeMagicStone(1));
+  if (stack.stone) return copyDiscoveryMark(makeStone(1));
+  if (stack.bombArrow) return copyDiscoveryMark(makeBombArrow(1));
+  if (stack.pierce) return copyDiscoveryMark(makePiercingArrow(1));
+  if (stack.poison) return copyDiscoveryMark(makePoisonArrow(1));
+  if (stack.strong) return copyDiscoveryMark(makeStrongArrow(1));
   const u = makeArrow(1);
   if (stack.name) u.name = stack.name;
   if (stack.atk != null) u.atk = stack.atk;
@@ -3648,7 +3652,7 @@ export function makeBasicArrowUnit(stack) {
   if (stack.sellPrice != null) u.sellPrice = stack.sellPrice;
   if (stack.blessed) u.blessed = true;
   if (stack.cursed) u.cursed = true;
-  return u;
+  return copyDiscoveryMark(u);
 }
 
 /**

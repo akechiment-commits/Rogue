@@ -10,7 +10,7 @@ import {
   restoreDiscoveries,
   getDiscoveries,
 } from "../DiscoveryTracker.js";
-import { addStonesInv, killMonster, makeStone } from "../items.js";
+import { addStonesInv, killMonster, makeArrow, makeArrowUnitFromStack, makeStone } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
 describe("DiscoveryTracker", () => {
@@ -41,6 +41,18 @@ describe("DiscoveryTracker", () => {
     expect(inventory[0]._encyclopediaTracked).toBe(true);
     expect(inventory[1]._encyclopediaTracked).toBe(true);
     expect(getDiscoveries().items["arrow_石"].count).toBe(1);
+  });
+
+  it("束ねた矢から射出した1本を拾い直しても同じ個体として扱う", () => {
+    const stack = makeArrow(5);
+    trackItem(stack);
+    stack.count--;
+    const shot = makeArrowUnitFromStack(stack);
+    trackItem(shot);
+
+    expect(stack.count).toBe(4);
+    expect(shot._encyclopediaTracked).toBe(true);
+    expect(getDiscoveries().items["arrow_矢"].count).toBe(1);
   });
 
   it("食品は効果ではなくベース名ごとに記録する", () => {
