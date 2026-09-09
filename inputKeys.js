@@ -4,21 +4,17 @@
    開発ルール: CLAUDE.md「キーボード操作」参照。 */
 
 export function isKeyUp(e) {
-  const k = e.key?.toLowerCase();
-  return k === "arrowup" || k === "h" || e.code === "Numpad8";
+  return e.key?.toLowerCase() === "arrowup" || e.code === "Numpad8";
 }
 
 export function isKeyDown(e) {
-  const k = e.key?.toLowerCase();
-  return k === "arrowdown" || k === "l" || e.code === "Numpad2";
+  return e.key?.toLowerCase() === "arrowdown" || e.code === "Numpad2";
 }
 
 export function isKeyLeft(e) {
-  const k = e.key?.toLowerCase();
-  return k === "arrowleft" || k === "h" || e.code === "Numpad4";
+  return e.key?.toLowerCase() === "arrowleft" || e.code === "Numpad4";
 }
 
 export function isKeyRight(e) {
-  const k = e.key?.toLowerCase();
-  return k === "arrowright" || k === "l" || e.code === "Numpad6";
+  return e.key?.toLowerCase() === "arrowright" || e.code === "Numpad6";
 }

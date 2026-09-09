@@ -18,5 +18,12 @@ describe("inputKeys", () => {
   it("無関係なキーは false", () => {
     expect(isKeyUp(ev("a", "KeyA"))).toBe(false);
     expect(isKeyDown(ev("z", "KeyZ"))).toBe(false);
+    for (const key of ["h", "j", "k", "l"]) {
+      const event = ev(key, `Key${key.toUpperCase()}`);
+      expect(isKeyUp(event)).toBe(false);
+      expect(isKeyDown(event)).toBe(false);
+      expect(isKeyLeft(event)).toBe(false);
+      expect(isKeyRight(event)).toBe(false);
+    }
   });
 });
