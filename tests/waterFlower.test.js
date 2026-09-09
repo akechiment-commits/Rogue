@@ -86,6 +86,80 @@ describe("水中花系", () => {
     expect([flower.x, flower.y]).toEqual([5, 5]);
     expect(dg.specialProjectiles || []).toHaveLength(0);
   });
+
+  it("壁に直進でぶつからず、毎ターン経路を探してプレイヤーを追尾する", () => {
+    const dg = makeEmptyDg({
+      specialProjectiles: [{
+        id: "enemy-shot",
+        kind: "homing",
+        owner: "monster",
+        name: "誘導弾",
+        sourceName: "水中花",
+        x: 3,
+        y: 3,
+        dx: 1,
+        dy: 0,
+        turnsLeft: 30,
+        hasMoved: false,
+      }],
+    });
+    const player = makePlayer({ x: 8, y: 3 });
+    for (let y = 2; y <= 4; y++) dg.map[y][5] = T.WALL;
+    const ml = [];
+
+    for (let i = 0; i < 8 && dg.specialProjectiles.length > 0; i++) {
+      advanceSpecialProjectiles(dg, player, ml, () => {});
+    }
+
+    expect(player.hp).toBeLessThan(player.maxHp);
+    expect(dg.specialProjectiles).toHaveLength(0);
+  });
+
+  it("敵の誘導弾が別の敵に当たる", () => {
+    const source = { id: "flower", name: "水中花", x: 3, y: 3, hp: 40, maxHp: 40, atk: 10, def: 1 };
+    const target = { id: "target", name: "標的", x: 4, y: 4, hp: 100, maxHp: 100, atk: 1, def: 0, exp: 1 };
+    const dg = makeEmptyDg({
+      monsters: [source, target],
+      specialProjectiles: [{
+        id: "enemy-shot",
+        kind: "homing",
+        owner: "monster",
+        name: "誘導弾",
+        sourceId: source.id,
+        sourceName: source.name,
+        atk: 30,
+        x: source.x,
+        y: source.y,
+        dx: 1,
+        dy: 1,
+        turnsLeft: 10,
+        hasMoved: false,
+      }],
+    });
+    const player = makePlayer({ x: 8, y: 8 });
+    const ml = [];
+
+    advanceSpecialProjectiles(dg, player, ml, () => {});
+
+    expect(target.hp).toBeLessThan(100);
+    expect(dg.specialProjectiles).toHaveLength(0);
+    expect(ml.some((message) => message.includes("水中花の誘導弾が標的に命中"))).toBe(true);
+  });
+
+  it("誘導弾同士は同じマスに重ならない", () => {
+    const dg = makeEmptyDg({
+      specialProjectiles: [
+        { id: "shot-a", kind: "homing", owner: "monster", x: 2, y: 2, dx: 1, dy: 1, turnsLeft: 10, hasMoved: false },
+        { id: "shot-b", kind: "homing", owner: "monster", x: 4, y: 2, dx: -1, dy: 1, turnsLeft: 10, hasMoved: false },
+      ],
+    });
+    const player = makePlayer({ x: 3, y: 6 });
+
+    advanceSpecialProjectiles(dg, player, [], () => {});
+
+    const cells = dg.specialProjectiles.map((sp) => `${sp.x},${sp.y}`);
+    expect(new Set(cells).size).toBe(cells.length);
+  });
 });
 
 describe("敵の誘導弾への対抗", () => {

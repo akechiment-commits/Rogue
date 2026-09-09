@@ -15,7 +15,7 @@ import {
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
-  resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost,
+  resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, calmShopkeeperIfFullyHealed,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
 } from "./items.js";
@@ -3621,11 +3621,16 @@ export function useItemActions({
             const _stRange2 = _isCursedFc ? 1 : 3;
             let _stLx2 = p.x, _stLy2 = p.y;
             let _stHitStatue2 = false;
+            let _stHitEnemyProjectile2 = false;
             for (let d = 1; d <= _stRange2; d++) {
               const tx = p.x + dx * d, ty = p.y + dy * d;
               if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
               _stLx2 = tx; _stLy2 = ty;
+              if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, _invStName)) {
+                _stHitEnemyProjectile2 = true;
+                break;
+              }
               if (statueAt(dg, tx, ty)) { _stHitStatue2 = true; break; }
               if (dg.bigboxes?.some(b => b.x === tx && b.y === ty)) break;
               if (dg.springs?.some(s => s.x === tx && s.y === ty)) break;
@@ -3634,7 +3639,9 @@ export function useItemActions({
             const _stBB2 = dg.bigboxes?.find(b => b.x === _stLx2 && b.y === _stLy2);
             const _stSpr2 = dg.springs?.find(s => s.x === _stLx2 && s.y === _stLy2);
             ml.push(`${_invStName}を投げた！`);
-            if (_stHitStatue2) {
+            if (_stHitEnemyProjectile2) {
+              _invStPeel();
+            } else if (_stHitStatue2) {
               ml.push(`${_invStName}が石像に命中！`);
               hitStatueWithAction(dg, _stLx2, _stLy2, p, ml, lu, p?.depth, {
                 breaks: true,
@@ -3723,11 +3730,17 @@ export function useItemActions({
             ml.push(`${_baName2}は消滅した。`);
           } else {
             let _baLx2 = p.x, _baLy2 = p.y;
+            let _baHitEnemyProjectile2 = false;
             const _baMaxR2 = _isCursedFc ? 1 : 10;
             for (let d = 1; d <= _baMaxR2; d++) {
               const tx = p.x + dx * d, ty = p.y + dy * d;
               if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
               if (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL) break;
+              if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, _baName2)) {
+                _baHitEnemyProjectile2 = true;
+                _baLx2 = tx; _baLy2 = ty;
+                break;
+              }
               const _baM2 = monsterAt(dg, tx, ty);
               if (_baM2) {
                 if (monSubmergesProjectiles(_baM2)) {
@@ -3766,23 +3779,25 @@ export function useItemActions({
               }
               _baLx2 = tx; _baLy2 = ty;
             }
-            if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
-            doExplosion(
-              _baLx2,
-              _baLy2,
-              dg,
-              p,
-              ml,
-              _baNF2,
-              "爆弾矢の爆発",
-              null,
-              lu,
-              false,
-              false,
-              false,
-              false,
-              { projectileAtk: _baAtk2 },
-            );
+            if (!_baHitEnemyProjectile2) {
+              if (!isFireExplosionNullified(dg, p)) ml.push("爆発！");
+              doExplosion(
+                _baLx2,
+                _baLy2,
+                dg,
+                p,
+                ml,
+                _baNF2,
+                "爆弾矢の爆発",
+                null,
+                lu,
+                false,
+                false,
+                false,
+                false,
+                { projectileAtk: _baAtk2 },
+              );
+            }
           }
           endTurn(sr.current, p, ml);
           if (ml.length) setMsgs((prev) => [...prev.slice(-80), ...ml]);
@@ -3803,7 +3818,7 @@ export function useItemActions({
         }
         if (it.type === "potion") {
           ml.push(`${dnameRef(it)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false, _hitSelf = false;
+          let lx = p.x, ly = p.y, sprHit = null, _fdBurned = false, _hitSelf = false, _hitEnemyProjectile = false;
           const _potHits = []; /* 遠投時：軌道上のモンスターを全て記録 */
           let _tFdx = dx, _tFdy = dy, _tCx = p.x, _tCy = p.y, _tWind = false;
           for (let d = 1; d <= _maxRange; d++) {
@@ -3814,6 +3829,9 @@ export function useItemActions({
             _tCx = tx; _tCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+            if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, dnameRef(it))) {
+              lx = tx; ly = ty; _hitEnemyProjectile = true; break;
+            }
             /* 風で曲がって自分に当たった */
             if (tx === p.x && ty === p.y) {
               lx = tx; ly = ty; _hitSelf = true; break;
@@ -3868,7 +3886,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_hitSelf) {
+          if (_hitEnemyProjectile) {
+            /* 敵の誘導弾に当たって、薬も誘導弾も消滅する。 */
+          } else if (_hitSelf) {
             ml.push(`風に煽られた${dnameRef(it)}が自分に当たった！`);
             if (it.effect === "water") applyWaterSplash(dg, p.x, p.y, it.blessed || false, it.cursed || false, ml, p, lu, dnameRef);
             else splashPotion(dg, p.x, p.y, it.effect, it.value || 0, p, ml, lu, it.blessed || false, it.cursed || false, dnameRef);
@@ -3897,7 +3917,7 @@ export function useItemActions({
           }
         } else if (it.type === "pot") {
           ml.push(`${dnameRef(it)}${_itemPickupSuffix(it, sr.current?.ident)}を投げた！`);
-          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false, _potHitSelf = false;
+          let lx = p.x, ly = p.y, sprHit = null, _potFdBurned = false, _potImprisoned = false, _potHitSelf = false, _potHitEnemyProjectile = false;
           let _pFdx = dx, _pFdy = dy, _pCx = p.x, _pCy = p.y, _pWind = false;
           for (let d = 1; d <= _maxRange; d++) {
             const _ps = stepProjectile(dg, _pCx, _pCy, _pFdx, _pFdy);
@@ -3907,6 +3927,9 @@ export function useItemActions({
             _pCx = tx; _pCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+            if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, dnameRef(it))) {
+              lx = tx; ly = ty; _potHitEnemyProjectile = true; break;
+            }
             if (tx === p.x && ty === p.y) { lx = tx; ly = ty; _potHitSelf = true; break; }
             if (!_isFarcast && statueAt(dg, tx, ty)) {
               lx = tx; ly = ty;
@@ -3995,7 +4018,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_potFdBurned) {
+          if (_potHitEnemyProjectile) {
+            /* 敵の誘導弾に当たって、壺も誘導弾も消滅する。 */
+          } else if (_potFdBurned) {
             /* 火ダルマに燃やされた：何もしない */
           } else if (_isFarcast) {
             /* 遠投：壺は消滅（中身もろとも） */
@@ -4037,7 +4062,7 @@ export function useItemActions({
             }
             return `${_tnm}${_itemPickupSuffix(it, sr.current?.ident)}`;
           };
-          let lx = p.x, ly = p.y, hit = false, sprHit = null, _genHitSelf = false;
+          let lx = p.x, ly = p.y, hit = false, sprHit = null, _genHitSelf = false, _genHitEnemyProjectile = false;
           let _wandFiredEffect = false; /* 杖が実際に効果を発動したか */
           let _wandPlacedOnMiss = false; /* ミス時の杖を既に着地させたか */
           let _gFdx = dx, _gFdy = dy, _gCx = p.x, _gCy = p.y, _gWind = false;
@@ -4050,6 +4075,11 @@ export function useItemActions({
             _gCx = tx; _gCy = ty;
             if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
             if (!_isFarcast && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
+            if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, _mkThrowLb())) {
+              lx = tx; ly = ty; _genHitEnemyProjectile = true; hit = true;
+              if (it.type === "wand") _wandFiredEffect = true;
+              break;
+            }
             if (tx === p.x && ty === p.y) { lx = tx; ly = ty; _genHitSelf = true; hit = true; break; }
             /* 石像：杖は位置系を壊さず発動／穴掘り・軟化は敵なし破壊／その他は通常破壊 */
             if (!_isFarcast && statueAt(dg, tx, ty)) {
@@ -4289,7 +4319,9 @@ export function useItemActions({
             }
             lx = tx; ly = ty;
           }
-          if (_genHitSelf) {
+          if (_genHitEnemyProjectile) {
+            /* 敵の誘導弾に当たって、投擲物も誘導弾も消滅する。 */
+          } else if (_genHitSelf) {
             const lb = _mkThrowLb();
             ml.push(`風に煽られた${lb}が自分に当たった！`);
             if (it.type === "wand") {
