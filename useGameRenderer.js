@@ -902,20 +902,13 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           const _spAt = _specialProjectileMap.get(_k(x, y));
         if (_spAt && vis) {
           const _spColor = _spAt.kind === "torpedo" ? "#48c8ff" : _spAt.kind === "crawling_bomb" ? "#ff6848" : _spAt.owner === "monster" ? "#ff5868" : "#4d9dff";
-          const _spTile = _spAt.kind === "homing" ? 218 : _spAt.kind === "crawling_bomb" ? 219 : null;
+          const _spTile = _spAt.kind === "homing" ? (_spAt.owner === "monster" ? 220 : 218) : _spAt.kind === "crawling_bomb" ? 219 : null;
           const _spCx = px2 + sz / 2, _spCy = py2 + sz / 2;
           ctx.save();
           ctx.shadowColor = _spColor;
           ctx.shadowBlur = Math.max(2, sz * 0.12);
           if (_spTile && customTileImages[_spTile]) {
             drawTile(ctx, ts, _spTile, px2, py2, sz);
-            if (_spAt.kind === "homing") {
-              ctx.globalCompositeOperation = "source-atop";
-              ctx.globalAlpha = 0.75;
-              ctx.fillStyle = _spColor;
-              ctx.fillRect(px2, py2, sz, sz);
-              ctx.globalCompositeOperation = "source-over";
-            }
           } else if (_spAt.kind === "torpedo") {
             ctx.fillStyle = "#214d78";
             ctx.beginPath();

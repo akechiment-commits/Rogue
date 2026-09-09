@@ -143,6 +143,7 @@ export const TILE_NAMES = {
   217: "water_flower",
   218: "homing_projectile",
   219: "crawling_bomb_rolling",
+  220: "homing_projectile_enemy",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -254,8 +255,9 @@ export const TILE_RENDER = {
   213: { bg: null, fg: "#d0b060", ch: "^" },
   216: { bg: null, fg: "#ffd040", ch: "^" },
   217: { bg: null, fg: "#50e0d0", ch: "F" },
-  218: { bg: null, fg: "#d08cff", ch: "*" },
+  218: { bg: null, fg: "#4d9dff", ch: "*" },
   219: { bg: null, fg: "#ff6848", ch: "o" },
+  220: { bg: null, fg: "#ff5868", ch: "*" },
   87:  { bg: null, fg: "#00ccee", ch: "*" }, /* アクアマリン (C) */
   88:  { bg: null, fg: "#ee2244", ch: "*" }, /* ルビー       (B) */
   89:  { bg: null, fg: "#4488ff", ch: "*" }, /* サファイア   (B) */

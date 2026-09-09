@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import {
   advanceSpecialProjectiles,
+  makeHomingShot,
   shootArrow,
   throwItemAlongLine,
 } from "../items.js";
@@ -175,6 +176,15 @@ describe("水中花系", () => {
 
     expect(dg.specialProjectiles).toHaveLength(0);
     expect(ml.some((message) => message.includes("ぶつかって消滅した"))).toBe(true);
+  });
+
+  it("プレイヤーが発射した誘導弾は味方弾として記録される", () => {
+    const player = makePlayer({ inventory: [makeHomingShot(1)] });
+    const dg = makeEmptyDg();
+
+    shootArrow(player, dg, 0, 1, 0, [], () => {});
+
+    expect(dg.specialProjectiles[0]).toMatchObject({ kind: "homing", owner: "player" });
   });
 });
 
