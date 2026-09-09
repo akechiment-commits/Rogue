@@ -12,7 +12,7 @@ describe("巨大ウナギ", () => {
       waterOnly: true,
       subtype: "giantEel",
     });
-    expect(base.levels.map((level) => level.name)).toEqual(["大ウナギ", "深海ウナギ"]);
+    expect(base.levels.map((level) => level.name)).toEqual(["大王ウナギ", "深海大王ウナギ"]);
   });
 
   it("隣接するとプレイヤーを拘束する", () => {

@@ -1117,10 +1117,10 @@ export const MONS = [
       { name: "水中巾着",   hp: 112, atk: 43, def: 14, exp: 155 },
     ],
   },
-  { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 161, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 28 } },
+  { name: "巨大ウナギ",   hp: 82,  atk: 29, def: 8,  exp: 92,  speed: 1,   tile: 221, kind: "beast",    baseKind: "giantEel",     monLevel: 1, minFloor: 24, maxFloor: 50, waterOnly: true, subtype: "giantEel", desc: "水中にのみ出現する。隣接するとプレイヤーを拘束し、拘束中は水中呼吸の指輪がなければ毎ターン溺水ダメージを受ける。", dungeonFloors: { beginner: null, intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 28 } },
     levels: [
-      { name: "大ウナギ",     hp: 131, atk: 40, def: 12, exp: 148, dungeonFloors: { advanced: { min: 29, max: 36 } } },
-      { name: "深海ウナギ",   hp: 207, atk: 54, def: 17, exp: 232, dungeonFloors: { advanced: { min: 37, max: 50 } } },
+      { name: "大王ウナギ",       hp: 131, atk: 40, def: 12, exp: 148, dungeonFloors: { advanced: { min: 29, max: 36 } } },
+      { name: "深海大王ウナギ",   hp: 207, atk: 54, def: 17, exp: 232, dungeonFloors: { advanced: { min: 37, max: 50 } } },
     ],
   },
   /* ===== 視界操作モンスター ===== */
