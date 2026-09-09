@@ -305,7 +305,7 @@ B3Fの部屋間廊下には未発見の矢の罠を固定配置し、直前の�
 | 4002 | 空き瓶 | `tiles/sprites/mon1/tile_4002.png` |
 | 4003 | ペンカテゴリ | `tiles/sprites/mon1/tile_4003.png` |
 
-敵のうち、既存の汎用画像では名前との不一致が大きかったもの、同じ画像を共有していたものはスタイル3専用ID 145〜180へ分離している。カラペン系は共通の専用ID 183（`tiles/sprites/mon1/tile_183.png`）、竜騎士系は共通の専用ID 205（`tiles/sprites/mon1/tile_205.png`）を使う。対応は `monsters.js` と `tilesetMap.js` を参照する。
+敵のうち、既存の汎用画像では名前との不一致が大きかったもの、同じ画像を共有していたものはスタイル3専用ID 145〜180へ分離している。カラペン系は共通の専用ID 183（`tiles/sprites/mon1/tile_183.png`）、竜騎士系は共通の専用ID 205（`tiles/sprites/mon1/tile_205.png`）、水中花系は共通の専用ID 217（`tiles/sprites/mon1/tile_217.png`）を使う。誘導弾の移動中画像はID 218（`homing_projectile.png`）、這いずり爆弾の移動中画像はID 219（`crawling_bomb_rolling.png`）を使う。対応は `monsters.js` と `tilesetMap.js` を参照する。
 
 **スタイル1/2では画像が読み込まれないため、レンダラーで必ず `customTileImages[vi]` の存在チェックをしてフォールバックすること。**
 

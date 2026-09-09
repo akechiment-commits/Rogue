@@ -45,9 +45,10 @@ import { MONSTER_SHEET_MAP, PLAYER_SHEET_MAP, DAWNLIKE_FALLBACKS } from "./tiles
 const VENT_TILE_IDS = new Set([194, 195, 196, 197, 198, 199, 200, 201]);
 const SHARED_FIXTURE_TILE_IDS = new Set([37, 59, 207, 208]);
 /* 画像を差し替えた際に、ブラウザが以前の小さなPNGを使い続けないよう世代をURLへ付ける。 */
-const SHARED_FIXTURE_ASSET_VERSION = "20260909-v9";
+const SHARED_FIXTURE_ASSET_VERSION = "20260909-v10";
 /* DawnLike等に番号が無い新規罠。public/tiles の絵を後から載せる。 */
 const PUBLIC_TRAP_TILE_IDS = [210, 211, 212, 213, 216];
+const PUBLIC_SPECIAL_PROJECTILE_TILE_IDS = [218, 219];
 const HYPNOSIS_ACTION_DELAY_MS = 600;
 
 function markWanderingMerchantHostile(monster, dungeon, player, messages) {
@@ -359,7 +360,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         img.onerror = () => res();
         img.src = `/tiles/${tileName}.png?v=${SHARED_FIXTURE_ASSET_VERSION}`;
       })));
-      await loadPublicNamedTiles(PUBLIC_TRAP_TILE_IDS);
+      await loadPublicNamedTiles([...PUBLIC_TRAP_TILE_IDS, ...PUBLIC_SPECIAL_PROJECTILE_TILE_IDS]);
       setCurrentTileset('default');
       localStorage.setItem('roguelike_tileset', 'default');
       setCtLoaded(c => c + 1);
@@ -418,7 +419,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       }
       /* スタイル3(mon1)は専用のtile_210〜216を優先し、
        * DawnLike／デフォルトだけpublic/tilesの16pxマップアイコンを使う。 */
-      if (name !== 'mon1') await loadPublicNamedTiles(PUBLIC_TRAP_TILE_IDS);
+      if (name !== 'mon1') await loadPublicNamedTiles([...PUBLIC_TRAP_TILE_IDS, ...PUBLIC_SPECIAL_PROJECTILE_TILE_IDS]);
       setCurrentTileset(name);
       localStorage.setItem('roguelike_tileset', name);
       setCtLoaded(c => c + 1);

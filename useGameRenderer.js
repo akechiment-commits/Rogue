@@ -899,14 +899,17 @@ export function useGameRenderer(canvasRef, gs, mobile, landscape, ctLoaded, tpSe
           }
         }
         /* 1ターン1マスで進む特殊飛び道具 */
-        const _spAt = _specialProjectileMap.get(_k(x, y));
+          const _spAt = _specialProjectileMap.get(_k(x, y));
         if (_spAt && vis) {
           const _spColor = _spAt.kind === "torpedo" ? "#48c8ff" : _spAt.kind === "crawling_bomb" ? "#ff6848" : "#d08cff";
+          const _spTile = _spAt.kind === "homing" ? 218 : _spAt.kind === "crawling_bomb" ? 219 : null;
           const _spCx = px2 + sz / 2, _spCy = py2 + sz / 2;
           ctx.save();
           ctx.shadowColor = _spColor;
           ctx.shadowBlur = Math.max(2, sz * 0.12);
-          if (_spAt.kind === "torpedo") {
+          if (_spTile && customTileImages[_spTile]) {
+            drawTile(ctx, ts, _spTile, px2, py2, sz);
+          } else if (_spAt.kind === "torpedo") {
             ctx.fillStyle = "#214d78";
             ctx.beginPath();
             ctx.ellipse(_spCx, _spCy, sz * 0.34, sz * 0.18, 0, 0, Math.PI * 2);
