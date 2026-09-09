@@ -1,5 +1,5 @@
 import { rng, pick, uid, MW, MH, T, DRO, removeFloorItem, clearDimensionalVaultItemCounter, itemAt, ensureItemMimicFloorItems, clamp, findVulnPentacle, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, getDodgePentacleMode, isEvasionDisabledByStatus, shuffle, randomTeleportDest, consumeBarrier, calcAtkDefDmg, stepProjectile, getWindAt, playerHpEffectLabel } from "./utils.js";
-import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip } from "./items.js";
+import { resolveItemName, getFarcastMode, placeItemAt, makeStone, makeMagicStone, makeArrow, makeStrongArrow, makePiercingArrow, applyLightningToInventory, hasFireResist, hasIceResist, reduceFireDamage, reduceIceDamage, fireResistDamageLabel, iceResistDamageLabel, hasCursedExplosionPentacle, isFireExplosionNullified, hasCursedTeleportPentacle, killMonster, doExplosion, fireTrapItem, cookFoodMeta, soakItemIntoSpring, TRAPS, pickTrap, rotFood, burnFoodItem, splashPotion, scatterPotContents, getBlessMultiplier, hasRingEffect, SOBURO_T, CHARGED_FUZZBALL_T, throwItemAlongLine, inMagicSealRoom, removeTrap, trapStepBreakChance, maybeBreakTrapAfterStep, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, freezeWaterTile, applyWaterIceFreeze, isPlayerOnWater, applyFrozenPhysicalMult, frozenPhysicalLabel, getFixtureItemDeps, applyPlayerTrip, launchMonsterHomingProjectile, destroyEnemyHomingProjectileAt } from "./items.js";
 import { pushMonsterBoltAnim, pushSplashAnim, pushBoltAnim, pushAnim, pushPlayerKnockbackAnim } from "./animEvents.js";
 import { hitStatueWithAction, setStatueSpawnHandler } from "./fixtures.js";
 import { statueAt } from "./fixtureQueries.js";
@@ -65,6 +65,9 @@ function dangerousPetalSpecialRate(m, pl) {
 function rangedSpecialRate(m, pl = null) {
   if (m?.subtype === "hypnotist") {
     return MONSTER_SPECIAL_RATE.status;
+  }
+  if (m?.subtype === "waterFlower") {
+    return MONSTER_SPECIAL_RATE.room;
   }
   if (m?.subtype === "dangerousPetal") {
     return dangerousPetalSpecialRate(m, pl);
@@ -710,6 +713,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *        subtype の選択肢: "archer" | "stonethrow" | "wanduser" | "supporter"
  *                         | "thief" | "goldthief" | "runner" | "itemblast" | "stealthrower"
  *                         | "dangerousPetal"（静止・睡眠の花粉）
+ *                         | "waterFlower"（静止・敵誘導弾）
  *                         (特殊AIが必要なら monsterAI に追記)
  *        wandEffect: subtype:"wanduser" の固定杖。randomStatusWands なら状態異常杖、randomElementalWands なら炎・雷・氷から毎回抽選
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
@@ -1104,6 +1108,12 @@ export const MONS = [
     levels: [
       { name: "わてに",             hp: 64,  atk: 29, def: 10, exp: 77  },
       { name: "わてさん",           hp: 100, atk: 38, def: 14, exp: 120 },
+    ],
+  },
+  { name: "水中花",       hp: 42,  atk: 22, def: 5,  exp: 55, speed: 1,   tile: 217, kind: "beast",    baseKind: "waterFlower",   monLevel: 1, minFloor: 15, maxFloor: 35, waterOnly: true, stationary: true, subtype: "waterFlower", desc: "水中にのみ出現し、移動しない。同じ部屋にいると誘導弾を射ってくる。", dungeonFloors: { beginner: null, intermediate: { min: 16, max: 20 }, advanced: { min: 13, max: 24 } },
+    levels: [
+      { name: "水中サボテン", hp: 70,  atk: 31, def: 9,  exp: 95  },
+      { name: "水中巾着",   hp: 112, atk: 43, def: 14, exp: 155 },
     ],
   },
   /* ===== 視界操作モンスター ===== */
@@ -2415,8 +2425,9 @@ function _checkGravityTrap(m, dg, pl, ml, luFn) {
  *   未指定なら泉を素通り。pierce/farcastでない場合はspringで弾道終了（onSpring指定時のみ）。
  * onTrap(trap, lx, ly, ml) => string|undefined: 罠命中時のコールバック（押し出されアイテムが罠を踏む等）。
  *   未指定なら罠を素通り。"destroyed"を返すとアイテム消滅、それ以外は弾道はそこで終了。
- * onStatue(statue, lx, ly, ml): 物理弾が石像に命中した時のコールバック。
- * onSelfHit(mon, lx, ly, ml): 風などで敵の飛び道具が射手自身に命中した時のコールバック。
+  * onStatue(statue, lx, ly, ml): 物理弾が石像に命中した時のコールバック。
+  * onSelfHit(mon, lx, ly, ml): 風などで敵の飛び道具が射手自身に命中した時のコールバック。
+  * onEnemyProjectileHit(projectile, lx, ly, ml): プレイヤーの弾が敵の誘導弾に命中した時のコールバック。
  * onWallStop(lx, ly, ml): pierce/farcast以外で壁にぶつかって止まった時のコールバック
  * onFlyOff(lx, ly, ml): 飛距離を使い切って何にも当たらず終了した時のコールバック
  * isPlayerShooter: プレイヤーが射手の場合true（mにplを渡す）。dodge魔方陣の早期returnをスキップ、
@@ -2442,6 +2453,7 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
     onTrap = null,
     onStatue = null,
     onSelfHit = null,
+    onEnemyProjectileHit = null,
     onWallStop = null,
     onFlyOff = null,
     hitChance = 1.0,
@@ -2533,6 +2545,14 @@ export function _resolveBolt(m, dg, pl, ml, luFn, opts) {
       if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
       if (onWallStop) onWallStop(_lx, _ly, ml);
       return;
+    }
+    if (isPlayerShooter) {
+      const _enemyProjectile = destroyEnemyHomingProjectileAt(dg, _tx, _ty, ml, boltName);
+      if (_enemyProjectile) {
+        onEnemyProjectileHit?.(_enemyProjectile, _tx, _ty, ml);
+        if (_passthrough) { _cx = _tx; _cy = _ty; _lx = _tx; _ly = _ty; continue; }
+        return;
+      }
     }
     /* 石像：物理弾は破壊 */
     const _statue = statueAt(dg, _tx, _ty);
@@ -5040,6 +5060,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         canDangerousPetalUse(m, pl, {
           canSee, sameRoom: _sameRoom, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc, dg,
         });
+      const _waterFlowerRdy = m.subtype === "waterFlower" && !m.sealed && _sameRoom && _rAtks;
       const _dfLvl0 = m.monLevel || 1;
       const _dragonRdy0 = (m.baseKind === "dragon" || m.baseKind === "im_boss_salamander") && !m.sealed && _rAtks && _rLen >= 2 &&
         (m.baseKind === "im_boss_salamander" ? (canSee && _rLine) : (_dfLvl0 >= 3 ? true : _dfLvl0 >= 2 ? _sameRoom : _rLine));
@@ -5074,7 +5095,7 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && armorBreathTargets(m, dg).length > 0;
       const _diamondWeaponRdy0 = m.subtype === "diamondweapon" && !m.sealed &&
         !inMagicSealRoom(m.x, m.y, dg) && _rAtks && diamondWeaponTargets(m, dg).length > 0;
-      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < _specialRate)) {
+      if ((_archerRdy || _stoneRdy || _wandRdy || _hypnotistRdy || _petalRdy || _waterFlowerRdy || _dragonRdy0 || _ttRdy0 || _mtRdy0 || _chargerRdy || _wgRdy || _ptRdy0 || _iceDragonRdy0 || _itempusherRdy || _guardDarkRdy0 || _darkBulletRdy0 || _armorBreathRdy0 || _diamondWeaponRdy0) && (m.baseKind === "boss_darkbullet" || m.alwaysUseSpecial || Math.random() < _specialRate)) {
         m._rangedAttackThisTurn = true;
         return; /* 攻撃ターンと決定→移動しない。attackOnlyフェーズで攻撃する */
       }
@@ -5315,6 +5336,13 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         canSee, sameRoom: _sameRoom, plOnSanc: _plOnSanc, plOnBlessedSanc: _plOnBlessedSanc, dg,
       }) && m.turnAttacks < monEffectiveMaxAttacks(m) && (_rdy || m.alwaysUseSpecial || Math.random() < dangerousPetalSpecialRate(m, pl))) {
         useDangerousPetalSleep(m, dg, pl, ml);
+        return;
+      }
+
+      if (m.subtype === "waterFlower" && !m.sealed && _sameRoom && m.turnAttacks < monEffectiveMaxAttacks(m) &&
+          (_rdy || m.alwaysUseSpecial || Math.random() < MONSTER_SPECIAL_RATE.room)) {
+        m.turnAttacks++;
+        launchMonsterHomingProjectile(m, dg, pl, ml);
         return;
       }
     }

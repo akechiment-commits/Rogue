@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -3622,6 +3622,30 @@ export function makeHomingShot(c = 1) {
   return { ...HOMING_SHOT_T, id:uid(), count:Math.min(99, c) };
 }
 
+/** 敵が発射する誘導弾を床上の特殊弾として登録する。 */
+export function launchMonsterHomingProjectile(monster, dg, player, ml) {
+  if (!monster || !dg || !player) return false;
+  const dx = Math.sign(player.x - monster.x);
+  const dy = Math.sign(player.y - monster.y);
+  dg.specialProjectiles ||= [];
+  dg.specialProjectiles.push({
+    id: uid(),
+    kind: "homing",
+    owner: "monster",
+    sourceId: monster.id ?? null,
+    sourceName: monster.name || "敵",
+    atk: Math.max(1, monster.atk || 1),
+    x: monster.x,
+    y: monster.y,
+    dx: dx || 1,
+    dy,
+    turnsLeft: 20,
+    hasMoved: false,
+  });
+  ml?.push(`${monster.name}が誘導弾を射った！`);
+  return true;
+}
+
 export function makeMagicStone(c = 1) {
   return { ...MAGIC_STONE_T, id:uid(), count:Math.min(99, c) };
 }
@@ -5477,6 +5501,7 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
   const _potDmg = (def = 0) => calcProjectileDmg(p, 5, def);
 
   _resolveBolt(shooter, dg, p, ml, luFn, {
+    isPlayerShooter: shooter === p,
     dx, dy,
     baseRange: range,
     reflectorRange,
@@ -5573,6 +5598,9 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
       /* 風で射手自身に戻った場合も、敵に実際に命中したので消費する。 */
       res.consumed = true; res.hitMonster = mon; res.x = lx; res.y = ly;
     },
+    onEnemyProjectileHit: (projectile, lx, ly) => {
+      res.consumed = true; res.hitEnemyProjectile = projectile; res.x = lx; res.y = ly;
+    },
     onTrap: (trap, lx, ly, mlx) => {
       if (_isPotion) {
         res.consumed = true; res.splash = true; res.x = lx; res.y = ly;
@@ -5602,14 +5630,14 @@ export function throwItemAlongLine(shooter, dg, item, dx, dy, range, ml, p, luFn
 
   /* 偽アイテムが命中・泉・大箱などで消費された場合は、紐付いた本体も消す。
      何にも当たらず着地する場合だけ、偽アイテムとして床に残す。 */
-  if (item.itemMimicId && (res.consumed || res.spring || res.bigbox || res.gacha || res.hitStatue)) {
+  if (item.itemMimicId && (res.consumed || res.spring || res.bigbox || res.gacha || res.hitStatue || res.hitEnemyProjectile)) {
     destroyItemMimicFloorItem(dg, item);
     dg.items = dg.items.filter(i => i !== item);
   }
 
   /* 着弾後のアイテム種別ごとの処理 */
   /* noHitLandMsg：何も命中せず着地（壁/末端）した時のメッセージ。spring/bigbox は専用msg利用、対象命中時は不要 */
-  const _noHit = !res.spring && !res.bigbox && !res.gacha && !res.hitMonster && !res.hitPlayer && !res.hitStatue;
+  const _noHit = !res.spring && !res.bigbox && !res.gacha && !res.hitMonster && !res.hitPlayer && !res.hitStatue && !res.hitEnemyProjectile;
   if (res.spring) {
     soakItemIntoSpring(res.spring, item, ml, dg, nameFn);
   } else if (res.bigbox) {
@@ -5887,6 +5915,21 @@ function specialProjectileMonsterAt(dg, x, y) {
   return (dg.monsters || []).find(m => m.x === x && m.y === y && (m.hp ?? 1) > 0) || null;
 }
 
+function isEnemyHomingProjectile(sp) {
+  return sp?.kind === "homing" && sp.owner === "monster";
+}
+
+/** プレイヤーの飛び道具・投擲物が敵の誘導弾に当たった時の破壊処理。 */
+export function destroyEnemyHomingProjectileAt(dg, x, y, ml, hitName = "飛び道具") {
+  const index = (dg?.specialProjectiles || []).findIndex((sp) =>
+    isEnemyHomingProjectile(sp) && sp.x === x && sp.y === y,
+  );
+  if (index < 0) return null;
+  const [projectile] = dg.specialProjectiles.splice(index, 1);
+  ml?.push(`${hitName}が${projectile.name || "敵の誘導弾"}に命中して消し去った！`);
+  return projectile;
+}
+
 function nearestSpecialProjectileTarget(dg, x, y, range = 10) {
   return (dg.monsters || [])
     .filter(m => (m.hp ?? 1) > 0 && Math.max(Math.abs(m.x - x), Math.abs(m.y - y)) <= range)
@@ -6099,6 +6142,20 @@ function specialProjectilePlayerHit(sp, p, ml) {
   ml.push(`${sp.name}が自分に当たった！${_dmg}ダメージ！`);
 }
 
+function enemyHomingProjectileHitPlayer(sp, dg, p, ml) {
+  if (!p) return;
+  const dodgeMode = getDodgePentacleMode(dg, p.x, p.y);
+  if (dodgeMode === "dodge") {
+    ml.push(`みかわしの魔方陣の加護で${sp.name || "誘導弾"}をかわした！`);
+    return;
+  }
+  const damage = calcAtkDefDmg(sp.atk || 1, calcPlayerDefForProjectile(p), { defWeight: 1.5 });
+  p.hp -= damage;
+  p.deathCause = `${sp.sourceName || "敵"}の${sp.name || "誘導弾"}に当たって`;
+  ml.push(`${sp.sourceName || "敵"}の${sp.name || "誘導弾"}が命中！${playerHpEffectLabel(p, damage)}！`);
+  interruptPlayerSleep(p, ml);
+}
+
 function chooseHomingStep(sp, target, dg) {
   const _dirs = [
     [sp.dx, sp.dy], [1, 0], [-1, 0], [0, 1], [0, -1],
@@ -6201,6 +6258,7 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
   const _remaining = [];
   for (const sp of dg.specialProjectiles) {
     if ((sp.turnsLeft ?? 0) <= 0) continue;
+    const _isEnemyHoming = isEnemyHomingProjectile(sp);
     /* 敵の移動で弾の現在位置に重なった場合も、すり抜けずここで処理する。 */
     if (sp.hasMoved) {
       const _currentMonster = specialProjectileMonsterAt(dg, sp.x, sp.y);
@@ -6209,12 +6267,16 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
         detonateCrawlingBomb(sp, dg, p, ml, luFn, `${sp.name}が${_currentMonster?.name || "自分"}に触れて爆発した！`);
         continue;
       }
-      if (_currentMonster) {
+      if (_currentMonster && !_isEnemyHoming) {
         if (sp.kind === "torpedo") {
           detonateTorpedo(sp, dg, p, ml, luFn, _currentMonster);
           continue;
         }
         specialProjectileHitMonster(sp, _currentMonster, dg, p, ml, luFn);
+        continue;
+      }
+      if (_currentPlayer && _isEnemyHoming) {
+        enemyHomingProjectileHitPlayer(sp, dg, p, ml);
         continue;
       }
       if (_currentPlayer && sp.kind !== "homing") {
@@ -6224,8 +6286,10 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     }
     let _target = null;
     const _isWaterTorpedo = sp.kind === "torpedo" && dg.map?.[sp.y]?.[sp.x] === T.WATER;
-    const _isHoming = sp.kind === "homing" || _isWaterTorpedo;
-    if (_isHoming) {
+    const _isHoming = _isEnemyHoming || sp.kind === "homing" || _isWaterTorpedo;
+    if (_isEnemyHoming) {
+      _target = p;
+    } else if (_isHoming) {
       if (sp.targetId) _target = (dg.monsters || []).find(m => m.id === sp.targetId && (m.hp ?? 1) > 0) || null;
       if (!_target) _target = nearestSpecialProjectileTarget(dg, sp.x, sp.y, 10);
       if (_target?.id != null) sp.targetId = _target.id;
@@ -6243,10 +6307,10 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
     }
     sp.dx = _next.dx ?? sp.dx;
     sp.dy = _next.dy ?? sp.dy;
-    const _pathHit = specialProjectilePathHitMonster(sp, _next, dg, monsterSnapshots);
+    const _pathHit = _isEnemyHoming ? null : specialProjectilePathHitMonster(sp, _next, dg, monsterSnapshots);
     const _impactX = _pathHit?.x ?? _next.x;
     const _impactY = _pathHit?.y ?? _next.y;
-    const _monster = _pathHit?.monster || specialProjectileMonsterAt(dg, _impactX, _impactY);
+    const _monster = _isEnemyHoming ? null : _pathHit?.monster || specialProjectileMonsterAt(dg, _impactX, _impactY);
     const _bigbox = dg.bigboxes?.some(b => b.x === _impactX && b.y === _impactY);
     const _statue = statueAt(dg, _impactX, _impactY);
     const _player = p && p.x === _impactX && p.y === _impactY;
@@ -6274,6 +6338,10 @@ export function advanceSpecialProjectiles(dg, p, ml, luFn, monsterSnapshots = nu
         continue;
       }
       specialProjectileHitMonster(sp, _monster, dg, p, ml, luFn);
+      continue;
+    }
+    if (_isEnemyHoming && _player) {
+      enemyHomingProjectileHitPlayer(sp, dg, p, ml);
       continue;
     }
     if (_player && sp.kind !== "homing") {
@@ -6384,6 +6452,10 @@ export function shootArrow(p, dg, idx, dx, dy, ml, luFn, bbFn, animFn = null, ou
     if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
     if (!_pierceMode && (dg.map[ty][tx] === T.WALL || dg.map[ty][tx] === T.BWALL)) break;
     _path.push({ x: tx, y: ty });
+    if (destroyEnemyHomingProjectileAt(dg, tx, ty, ml, _arName)) {
+      hit = true;
+      break;
+    }
     /* 風で曲がって自分に当たった */
     if (tx === p.x && ty === p.y) {
       const _selfD = calcProjectileDmg(p, _arAtk, 0);
