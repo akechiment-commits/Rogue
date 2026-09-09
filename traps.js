@@ -1,5 +1,5 @@
 import { rng, T, MW, MH, uid, clamp, monsterAt, removeMonster, hasAbility, randomTeleportDest, getDodgePentacleMode } from "./utils.js";
-import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer } from "./items.js";
+import { resolveItemName, ARROW_T, makeArrow, makePoisonArrow, placeItemAt, doExplosion, hasCursedExplosionPentacle, hasRingEffect, doTimeBombExplosion, rotFood, genFood, applyRockfallEffect, removeTrap, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, applyWaterGunToInventory, applySoakedStatus, hasWaterProof, getFixtureItemDeps, applyPlayerTrip, applyPlayerLevelDown, blockPlayerStatus, maybeLongswordToSoboro, pickRandomFloorInRooms, consumeItemDegradeProtection, trapStepBreakChance, scatterNewTrapsOnFloor, convertRoomFloorItemsToMonsters, applyHasteTrap, applyUnequipTrapToPlayer, monsterDrop } from "./items.js";
 import { MONS, spawnMonsters } from "./monsters.js";
 import { materializeFakeStair } from "./fixtures.js";
 import { statusTurns } from "./statusDuration.js";
@@ -317,6 +317,7 @@ export function fireTrapPlayer(trap, p, dg, ml, nameFn = null, luFn = null, ctx 
           if (_bbHitMon.hp <= 0) {
             ml.push(`${_bbHitMon.name}は倒れた！`);
             trackMonster(_bbHitMon);
+            monsterDrop(_bbHitMon, dg, ml, p);
             removeMonster(dg, _bbHitMon);
           }
         } else if ((p.immobileTurns || 0) > 0) {

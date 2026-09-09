@@ -3,6 +3,7 @@ import { fireTrapPlayer } from "../traps.js";
 import { fireTrapItem, placeItemAt, removeTrap, runMineExplosion, mineExplosionPending, fireTrapArrowFromFacing, multiplyRoomMonsters, unidentPlayerItems, TRAPS, trapStepBreakChance, maybeLongswordToSoboro, SOBURO_T } from "../items.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T, MW, MH } from "../utils.js";
+import { MONS, makeMonsterFromBase } from "../monsters.js";
 import { vi } from "vitest";
 import { drainAnims } from "../animEvents.js";
 
@@ -27,6 +28,41 @@ describe("fireTrapPlayer", () => {
     fireTrapPlayer(trap, p, dg, []);
     const ev = drainAnims().find(e => e.type === "playerKnockback");
     expect(ev).toMatchObject({ fromX: 5, fromY: 5, toX: 0, toY: 5, dx: -1, dy: 0 });
+  });
+
+  it("吹き飛ばしで倒れた敵は通常のドロップを落とす", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const runnerBase = MONS.find((monster) => monster.subtype === "runner");
+    const runner = makeMonsterFromBase(runnerBase, 1, 4, 5);
+    runner.hp = 1;
+    const p = makePlayer({ x: 5, y: 5, facing: { dx: 1, dy: 0 } });
+    const dg = makeEmptyDg({ monsters: [runner] });
+    const ml = [];
+    const trap = { effect: "blowback_trap", name: "吹き飛ばしの罠", x: 5, y: 5, id: "blowback-drop" };
+
+    fireTrapPlayer(trap, p, dg, ml);
+
+    expect(dg.monsters).not.toContain(runner);
+    expect(dg.items.length).toBeGreaterThan(0);
+    vi.restoreAllMocks();
+  });
+
+  it("投擲物で吹き飛ばされて倒れた敵も通常のドロップを落とす", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const runnerBase = MONS.find((monster) => monster.subtype === "runner");
+    const runner = makeMonsterFromBase(runnerBase, 1, 5, 5);
+    runner.hp = 1;
+    runner.dir = { x: 1, y: 0 };
+    const dg = makeEmptyDg({ monsters: [runner] });
+    const p = makePlayer({ x: 1, y: 1 });
+    const ml = [];
+    const trap = { effect: "blowback_trap", name: "吹き飛ばしの罠", x: 5, y: 5, id: "blowback-item-drop" };
+
+    fireTrapItem(trap, { name: "石", type: "misc" }, dg, 5, 5, ml, new Set(), p);
+
+    expect(dg.monsters).not.toContain(runner);
+    expect(dg.items.length).toBeGreaterThan(0);
+    vi.restoreAllMocks();
   });
 
   it("鈍足の罠でプレイヤーが鈍足になる", () => {

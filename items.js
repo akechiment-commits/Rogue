@@ -3302,8 +3302,14 @@ export function fireTrapItem(trap, item, dg, tx, ty, ml, ft, p = null, nameFn = 
           ml.push(`${_bbm.name}が吹き飛ばされた！`);
           if (_bbHitWall) { _bbm.hp -= 10; ml.push(`${_bbm.name}が壁に激突！10ダメージ！`); }
           if (_bbHitOther) { _bbm.hp -= 10; _bbHitOther.hp -= 10; ml.push(`${_bbm.name}が${_bbHitOther.name}に激突！お互いに10ダメージ！`); }
-          if (_bbm.hp <= 0) trackMonster(_bbm);
-          if (_bbHitOther?.hp <= 0) trackMonster(_bbHitOther);
+          if (_bbm.hp <= 0) {
+            trackMonster(_bbm);
+            monsterDrop(_bbm, dg, ml, p);
+          }
+          if (_bbHitOther?.hp <= 0) {
+            trackMonster(_bbHitOther);
+            monsterDrop(_bbHitOther, dg, ml, p);
+          }
           dg.monsters = dg.monsters.filter(m => m.hp > 0);
         }
       }
