@@ -633,6 +633,10 @@ function monTraits(m) {
   if (m.baseKind === 'boss_abyssgod') t.push('毎ターン回復。4ターンごとに手下を2体召喚。近接攻撃命中時、金縛り25%・防御半減25%');
   if (m.baseKind === 'im_boss_titan') t.push('近接攻撃命中時25%で移動封じ。毎ターン回復');
   if (m.baseKind === 'serpent') t.push('隣接時25%で毒撃（1回攻撃）。命中時は毒薬と同じ攻撃力-1と毎ターンダメージ。不発時は通常の二回攻撃。封印中は毒撃なし');
+  if (m.baseKind === 'dragon' || m.baseKind === 'icedragon') {
+    const breath = m.baseKind === 'dragon' ? '炎' : '氷';
+    t.push(`${breath}ブレス（Lv1は一直線、Lv2は同部屋、Lv3は同フロア。Lv2/Lv3は1マスごとにプレイヤーを追尾）`);
+  }
   if (m.isBoss) t.push('封印は解除ターンから通常行動（睡眠・金縛りは解除ターン行動なし）');
   if (m.isBoss && m.tile >= 137 && m.tile <= 144) t.push(`スタイル3専用画像（tile_${m.tile}.png）`);
   if (m.float) t.push('浮遊');

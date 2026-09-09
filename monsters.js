@@ -181,7 +181,12 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
   const _fLvl = m.monLevel || 1;
   let _fdx = Math.sign(pl.x - m.x), _fdy = Math.sign(pl.y - m.y);
   if (_fdx === 0 && _fdy === 0) _fdy = 1;
-  pushMonsterBoltAnim(m.x, m.y, _fdx, _fdy, dg, pl, "#ff6622");
+  const _breathPath = [{ x: m.x, y: m.y }];
+  const _emitBreathAnim = () => {
+    if (_breathPath.length <= 1) return;
+    const end = _breathPath[_breathPath.length - 1];
+    pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: end.x, toY: end.y, color: "#ff6622", path: _breathPath });
+  };
   let _cx = m.x, _cy = m.y, _windMsg = false;
   const _applyFireToMon = (_fBlock) => {
     wakeIfDormant(_fBlock, ml);
@@ -216,16 +221,24 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
     if (!_hasFireProt) applyLightningToInventory(pl, dg, ml, null, null, true);
   };
   for (let _fi = 1; _fi < MW + MH; _fi++) {
+    /* Lv2以上は1マスごとにプレイヤーへ向きを更新する（同部屋／同フロア追尾）。 */
+    if (_fLvl >= 2) {
+      _fdx = Math.sign(pl.x - _cx);
+      _fdy = Math.sign(pl.y - _cy);
+      if (_fdx === 0 && _fdy === 0) _fdy = 1;
+    }
     const _st = stepProjectile(dg, _cx, _cy, _fdx, _fdy, { wind: true });
     if (_st.bent && !_windMsg) { ml.push("風穴の風が炎ブレスを曲げた！"); _windMsg = true; }
     _fdx = _st.dx; _fdy = _st.dy;
     const _fx = _st.x, _fy = _st.y;
     _cx = _fx; _cy = _fy;
-    if (_fx < 0 || _fx >= MW || _fy < 0 || _fy >= MH) return;
-    if (_fLvl < 3 && (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL)) return;
+    if (_fx < 0 || _fx >= MW || _fy < 0 || _fy >= MH) { _emitBreathAnim(); return; }
+    if (_fLvl < 3 && (dg.map[_fy]?.[_fx] === T.WALL || dg.map[_fy]?.[_fx] === T.BWALL)) { _emitBreathAnim(); return; }
+    _breathPath.push({ x: _fx, y: _fy });
     /* 風で自分に戻った */
     if (_fx === m.x && _fy === m.y) {
       _applyFireToMon(m);
+      _emitBreathAnim();
       return;
     }
     if (statueAt(dg, _fx, _fy)) {
@@ -234,9 +247,10 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
         breaks: true,
         itemDeps: getFixtureItemDeps(),
       });
+      _emitBreathAnim();
       return;
     }
-    if (_fx === pl.x && _fy === pl.y) { _applyFireToPlayer(); return; }
+    if (_fx === pl.x && _fy === pl.y) { _applyFireToPlayer(); _emitBreathAnim(); return; }
     const _fBlock = dg.monsters.find(o => o !== m && o.x === _fx && o.y === _fy);
     if (_fBlock) {
       if (monSubmergesProjectiles(_fBlock) && _fLvl <= 1) {
@@ -244,9 +258,11 @@ function monsterDragonFire(m, dg, pl, ml, onPlayerHit) {
         continue;
       }
       _applyFireToMon(_fBlock);
+      _emitBreathAnim();
       return;
     }
   }
+  _emitBreathAnim();
 }
 
 /* ===== 氷竜ブレス（風で曲がる物理ブレス） ===== */
@@ -254,7 +270,12 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
   const _iLvl = m.monLevel || 1;
   let _idx = Math.sign(pl.x - m.x), _idy = Math.sign(pl.y - m.y);
   if (_idx === 0 && _idy === 0) _idy = 1;
-  pushMonsterBoltAnim(m.x, m.y, _idx, _idy, dg, pl, "#80ddff");
+  const _breathPath = [{ x: m.x, y: m.y }];
+  const _emitBreathAnim = () => {
+    if (_breathPath.length <= 1) return;
+    const end = _breathPath[_breathPath.length - 1];
+    pushAnim({ type: "monProjectile", fromX: m.x, fromY: m.y, toX: end.x, toY: end.y, color: "#80ddff", path: _breathPath });
+  };
   let _cx = m.x, _cy = m.y, _windMsg = false;
   const _hitIceMon = (_iBlock) => {
     let _iDmg = calcAtkDefDmg(m.atk, _iBlock.def || 0, { defWeight: 1 });
@@ -290,25 +311,33 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
     }
   };
   for (let _ii = 1; _ii < MW + MH; _ii++) {
+    /* Lv2以上は1マスごとにプレイヤーへ向きを更新する（同部屋／同フロア追尾）。 */
+    if (_iLvl >= 2) {
+      _idx = Math.sign(pl.x - _cx);
+      _idy = Math.sign(pl.y - _cy);
+      if (_idx === 0 && _idy === 0) _idy = 1;
+    }
     const _st = stepProjectile(dg, _cx, _cy, _idx, _idy, { wind: true });
     if (_st.bent && !_windMsg) { ml.push("風穴の風が氷ブレスを曲げた！"); _windMsg = true; }
     _idx = _st.dx; _idy = _st.dy;
     const _ix = _st.x, _iy = _st.y;
     _cx = _ix; _cy = _iy;
-    if (_ix < 0 || _ix >= MW || _iy < 0 || _iy >= MH) return;
+    if (_ix < 0 || _ix >= MW || _iy < 0 || _iy >= MH) { _emitBreathAnim(); return; }
     /* 氷の杖と同様：射線上の水を凍らせる（止まらない） */
     freezeWaterTile(dg, _ix, _iy, ml);
-    if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) return;
-    if (_ix === m.x && _iy === m.y) { _hitIceMon(m); return; }
+    if (_iLvl < 3 && (dg.map[_iy]?.[_ix] === T.WALL || dg.map[_iy]?.[_ix] === T.BWALL)) { _emitBreathAnim(); return; }
+    _breathPath.push({ x: _ix, y: _iy });
+    if (_ix === m.x && _iy === m.y) { _hitIceMon(m); _emitBreathAnim(); return; }
     if (statueAt(dg, _ix, _iy)) {
       ml.push(`${m.name}の氷ブレスが石像に命中！`);
       hitStatueWithAction(dg, _ix, _iy, pl, ml, null, pl?.depth, {
         breaks: true,
         itemDeps: getFixtureItemDeps(),
       });
+      _emitBreathAnim();
       return;
     }
-    if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); return; }
+    if (_ix === pl.x && _iy === pl.y) { _hitIcePl(); _emitBreathAnim(); return; }
     const _iBlock = dg.monsters.find(o => o !== m && o.x === _ix && o.y === _iy);
     if (_iBlock) {
       if (monSubmergesProjectiles(_iBlock) && _iLvl <= 1) {
@@ -316,9 +345,11 @@ function monsterIceBreath(m, dg, pl, ml, onPlayerHit) {
         continue;
       }
       _hitIceMon(_iBlock);
+      _emitBreathAnim();
       return;
     }
   }
+  _emitBreathAnim();
 }
 
 /* ===== 薬投げ ===== */

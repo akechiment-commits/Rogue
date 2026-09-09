@@ -5,6 +5,7 @@ import { castSpellBolt, fireTrapArrowFromFacing, shootArrow } from "../items.js"
 import { fireWandBolt } from "../wands.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { T } from "../utils.js";
+import { drainAnims } from "../animEvents.js";
 
 const noop = () => {};
 
@@ -211,5 +212,32 @@ describe("かわしモグラ", () => {
 
     expect(homingMole.hp).toBeLessThan(120);
     expect(homingMessages.some((message) => message.includes("追尾ブレスのかわしモグラ") && message.includes("命中"))).toBe(true);
+  });
+
+  it.each([
+    ["dragon", 2, "炎"],
+    ["dragon", 3, "炎"],
+    ["icedragon", 2, "氷"],
+    ["icedragon", 3, "氷"],
+  ])("%s Lv%dの%sブレスは射線外の同部屋・同フロアのプレイヤーを追尾する", (baseKind, level, element) => {
+    drainAnims();
+    const base = MONS.find((monster) => monster.baseKind === baseKind);
+    const attacker = makeMonsterFromBase(base, level, 3, 5, { aware: true });
+    attacker.alwaysUseSpecial = true;
+    attacker.turnAttacks = 0;
+    const player = makePlayer({ x: level >= 3 ? 20 : 8, y: level >= 3 ? 15 : 7 });
+    const rooms = level >= 3
+      ? [{ x: 1, y: 1, w: 10, h: 10 }, { x: 15, y: 12, w: 12, h: 10 }]
+      : [{ x: 1, y: 1, w: 20, h: 15 }];
+    const dg = makeEmptyDg({ monsters: [attacker], rooms });
+    const messages = [];
+
+    monsterAI(attacker, dg, player, messages, { attackOnly: true });
+
+    expect(player.hp).toBeLessThan(100);
+    const projectile = drainAnims().find((event) => event.type === "monProjectile");
+    expect(projectile?.path?.at(-1)).toEqual({ x: player.x, y: player.y });
+    expect(projectile?.path?.some((point) => point.x === 5 && point.y === 7)).toBe(true);
+    expect(messages.some((message) => message.includes(`${element}ブレスを吐いた`))).toBe(true);
   });
 });
