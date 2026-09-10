@@ -258,6 +258,19 @@ export function advanceConsumableBuffTimers(player, messages) {
       if (player[key] <= 0) messages.push(message);
     }
   }
+  /* ドーピングは強化終了後にだけ副作用へ移行する。移行したターンは
+     副作用を消費せず、次のターンから50ターンを数える。 */
+  if ((player.dopingTurns || 0) > 0) {
+    player.dopingTurns--;
+    if (player.dopingTurns <= 0 && player.dopingAftereffectPending) {
+      player.dopingAftereffectTurns = 50;
+      player.dopingAftereffectPending = false;
+      messages.push("ドーピングの効果が切れ、副作用で攻撃力と防御力が半減した！(50ターン)");
+    }
+  } else if ((player.dopingAftereffectTurns || 0) > 0) {
+    player.dopingAftereffectTurns--;
+    if (player.dopingAftereffectTurns <= 0) messages.push("ドーピングの副作用が切れた！攻撃力と防御力が戻った！");
+  }
   if ((player.honeyRegenTurns || 0) > 0) {
     if (!player.poisoned) {
       const heal = Math.min(2, player.maxHp - player.hp);

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
-import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
+import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook, playerDopingMultiplier } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
 import { weaponCriticalRate, ONI_CLUB_T, CAT_CLAW_T, MAGIC_BANE_T, ITEMS, WEAPON_ABILITIES, getWeaponMagicDamageMultiplier, multiplyMagicDamage, getCursedMagicSealDamageMultiplier, multiplyCursedMagicDamage } from "../items.js";
@@ -122,6 +122,110 @@ describe("ハーゲンダッ壺とアイスクリーム", () => {
 
     applyWaterSplash(dg, 5, 5, true, false, ml, player);
     expect(dg.items).toHaveLength(0);
+  });
+});
+
+describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ）", () => {
+  it("万能薬はMP回復禁止を残して全状態異常を解除する", () => {
+    const player = makePlayer({
+      atk: 9,
+      poisoned: true,
+      poisonedTurns: 3,
+      poisonAtkLoss: 1,
+      sleepTurns: 2,
+      paralyzeTurns: 2,
+      slowTurns: 2,
+      confusedTurns: 2,
+      darknessTurns: 2,
+      bewitchedTurns: 2,
+      sealedTurns: 2,
+      oilyTurns: 2,
+      soakedTurns: 2,
+      immobileTurns: 2,
+      frozenTurns: 2,
+      potConfinedTurns: 2,
+      mpSealTurns: 99,
+    });
+    const messages = [];
+
+    applyPotionEffect("panacea", 0, "player", null, makeEmptyDg(), player, messages, () => {});
+
+    expect(player).toMatchObject({
+      atk: 10,
+      poisoned: false,
+      sleepTurns: 0,
+      paralyzeTurns: 0,
+      slowTurns: 0,
+      confusedTurns: 0,
+      darknessTurns: 0,
+      bewitchedTurns: 0,
+      sealedTurns: 0,
+      oilyTurns: 0,
+      soakedTurns: 0,
+      immobileTurns: 0,
+      frozenTurns: 0,
+      potConfinedTurns: 0,
+      mpSealTurns: 99,
+    });
+  });
+
+  it("祝福された万能薬は状態異常免疫を追加し、呪われた万能薬は7種を付与する", () => {
+    const blessed = makePlayer({ sleepTurns: 2 });
+    applyPotionEffect("panacea", 0, "player", null, makeEmptyDg(), blessed, [], () => {}, true, false);
+    expect(blessed).toMatchObject({ sleepTurns: 0, statusImmune: 200 });
+
+    const cursed = makePlayer({ atk: 10 });
+    applyPotionEffect("panacea", 0, "player", null, makeEmptyDg(), cursed, [], () => {}, false, true);
+    expect(cursed.poisoned).toBe(true);
+    expect(cursed.sleepTurns).toBe(6);
+    expect(cursed.confusedTurns).toBe(5);
+    expect(cursed.slowTurns).toBe(10);
+    expect(cursed.darknessTurns).toBe(20);
+    expect(cursed.bewitchedTurns).toBe(20);
+    expect(cursed.sealedTurns).toBe(50);
+  });
+
+  it("牛乳の飲用量と食料加工を通常・祝福・呪いで分ける", () => {
+    const normal = makePlayer({ hunger: 40 });
+    applyPotionEffect("milk", 15, "player", null, makeEmptyDg(), normal, [], () => {});
+    expect(normal.hunger).toBe(55);
+
+    const blessed = makePlayer({ hunger: 40 });
+    applyPotionEffect("milk", 15, "player", null, makeEmptyDg(), blessed, [], () => {}, true, false);
+    expect(blessed.hunger).toBe(70);
+
+    const cursed = makePlayer({ hunger: 40 });
+    applyPotionEffect("milk", 15, "player", null, makeEmptyDg(), cursed, [], () => {}, false, true);
+    expect(cursed.hunger).toBe(25);
+    expect(cursed.poisoned).toBe(true);
+
+    const food = { name: "おにぎり", type: "food", value: 35 };
+    applyPotionToItem("milk", 15, food, makeEmptyDg(), [], false);
+    expect(food).toMatchObject({ name: "ミルク風味のおにぎり", value: 52, potionEffects: ["milk"] });
+
+    const cursedFood = { name: "パン", type: "food", value: 35 };
+    applyPotionToItem("milk", 15, cursedFood, makeEmptyDg(), [], true);
+    expect(cursedFood).toMatchObject({ name: "猛毒のパン", value: 28, potionEffects: ["c_milk"] });
+  });
+
+  it("ドーピングコンソメは通常・祝福・呪いの倍率状態を設定する", () => {
+    const normal = makePlayer();
+    applyPotionEffect("doping", 50, "player", null, makeEmptyDg(), normal, [], () => {});
+    expect(normal).toMatchObject({ dopingTurns: 50, dopingAftereffectTurns: 0, dopingAftereffectPending: true });
+    expect(playerDopingMultiplier(normal)).toBe(2);
+
+    const blessed = makePlayer();
+    applyPotionEffect("doping", 50, "player", null, makeEmptyDg(), blessed, [], () => {}, true, false);
+    expect(blessed).toMatchObject({ dopingTurns: 50, dopingAftereffectTurns: 0, dopingAftereffectPending: false });
+
+    const cursed = makePlayer();
+    applyPotionEffect("doping", 50, "player", null, makeEmptyDg(), cursed, [], () => {}, false, true);
+    expect(cursed).toMatchObject({ dopingTurns: 0, dopingAftereffectTurns: 50, dopingAftereffectPending: false });
+    expect(playerDopingMultiplier(cursed)).toBe(0.5);
+
+    const food = { name: "ステーキ", type: "food", value: 35 };
+    applyPotionToItem("doping", 50, food, makeEmptyDg(), [], false);
+    expect(food).toMatchObject({ name: "ドーピングコンソメのステーキ", potionEffects: ["doping"], value: 28 });
   });
 });
 
@@ -927,7 +1031,7 @@ describe("水の飛散", () => {
 
 describe("空き瓶の薬ドロップ", () => {
   it("通常の薬をレア度重み付きで新しいIDとして生成する", () => {
-    const potion = makeRandomPotion(() => 0.99);
+    const potion = makeRandomPotion(() => 0.999);
 
     expect(potion.type).toBe("potion");
     expect(potion.effect).not.toBe("water");

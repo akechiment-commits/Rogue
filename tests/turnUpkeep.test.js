@@ -236,6 +236,21 @@ describe("advanceConsumableBuffTimers", () => {
     expect(player).toMatchObject({ luckTurns: 0, unluckTurns: 0 });
     expect(messages).toEqual(["幸運の効果が切れた！", "不運の効果が切れた！"]);
   });
+
+  it("ドーピング終了後だけ副作用へ移行し、副作用も50ターンで切れる", () => {
+    const player = makePlayer({ dopingTurns: 1, dopingAftereffectPending: true });
+    const messages = [];
+
+    advanceConsumableBuffTimers(player, messages);
+    expect(player).toMatchObject({ dopingTurns: 0, dopingAftereffectTurns: 50, dopingAftereffectPending: false });
+    expect(messages).toEqual(["ドーピングの効果が切れ、副作用で攻撃力と防御力が半減した！(50ターン)"]);
+
+    for (let i = 0; i < 49; i++) advanceConsumableBuffTimers(player, messages);
+    expect(player.dopingAftereffectTurns).toBe(1);
+    advanceConsumableBuffTimers(player, messages);
+    expect(player.dopingAftereffectTurns).toBe(0);
+    expect(messages.at(-1)).toBe("ドーピングの副作用が切れた！攻撃力と防御力が戻った！");
+  });
 });
 
 describe("advanceEarlyStatusTimers", () => {

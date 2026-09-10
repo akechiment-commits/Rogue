@@ -163,8 +163,11 @@ export function useItemActions({
     if (it.type === "potion") {
       p.inventory.splice(idx, 1);
       { const _ik = getIdentKey(it); if (_ik) { sr.current.ident.add(_ik); if (_wasUnknown) trackItem(it); } }
-      /* 飲むと種類にかかわらず満腹度+3 */
-      p.hunger = Math.min(p.maxHunger || 100, (p.hunger || 0) + 3);
+      /* 薬は従来どおり満腹度+3。牛乳だけは指定量をそのまま適用する。 */
+      const _potionHunger = it.effect === "milk"
+        ? (it.cursed ? -15 : it.blessed ? 30 : 15)
+        : 3;
+      p.hunger = Math.max(0, Math.min(p.maxHunger || 100, (p.hunger || 0) + _potionHunger));
       if (p.hunger > 0) delete p._hungerDmgStarted;
       // 毒回復ヘルパー
       const _curePoison = () => {
@@ -262,6 +265,21 @@ export function useItemActions({
         }
       } else if (it.effect === "luck") {
         applyPotionEffect("luck", it.value || LUCK_POTION_TURNS.normal, "player", p, dg, p, ml, lu, !!it.blessed, !!it.cursed);
+      } else if (it.effect === "panacea") {
+        applyPotionEffect("panacea", it.value || 0, "player", p, dg, p, ml, lu, !!it.blessed, !!it.cursed);
+      } else if (it.effect === "milk") {
+        if (it.cursed) {
+          if (hasRingEffect(p, "antidote_ring")) {
+            ml.push(`${_useItemName}を飲んだ。お腹を壊したが、毒消しの指輪が毒を防いだ！満腹度-15【呪】`);
+          } else {
+            const _milkPoison = applyPlayerPoison(p);
+            ml.push(`${_useItemName}を飲んだ。お腹を壊して毒になった！満腹度-15（毒${_milkPoison.turns}ターン）【呪】`);
+          }
+        } else {
+          ml.push(`${_useItemName}を飲んだ。満腹度+${it.blessed ? 30 : 15}${it.blessed ? "【祝福】" : ""}`);
+        }
+      } else if (it.effect === "doping") {
+        applyPotionEffect("doping", it.value || 50, "player", p, dg, p, ml, lu, !!it.blessed, !!it.cursed);
       } else if (it.effect === "water") {
         /* 水を飲んだ時だけ祝呪を所持品へ移す。投擲時の水の効果は従来処理を維持する。 */
         const _waterItems = p.inventory.filter(i => i.type !== "gold" && i.type !== "gold_nugget" && i.type !== "arrow");
@@ -750,6 +768,23 @@ export function useItemActions({
             applyLuckFoodGold(p, _fTier, ml);
           } else if (pe === "c_luck") {
             applyPotionEffect("luck", LUCK_POTION_TURNS.cursed, "player", p, dg, p, ml, lu, false, true);
+          } else if (pe === "panacea") {
+            applyPotionEffect("panacea", 0, "player", p, dg, p, ml, lu, false, false);
+          } else if (pe === "c_panacea") {
+            applyPotionEffect("panacea", 0, "player", p, dg, p, ml, lu, false, true);
+          } else if (pe === "milk") {
+            ml.push("ミルク風味で食べやすくなった！");
+          } else if (pe === "c_milk") {
+            if (hasRingEffect(p, "antidote_ring")) {
+              ml.push("猛毒の効果があったが、毒消しの指輪が毒を防いだ！");
+            } else {
+              const _milkFoodPoison = applyPlayerPoison(p);
+              ml.push(`猛毒の効果で毒になった！(${_milkFoodPoison.turns}ターン)`);
+            }
+          } else if (pe === "doping") {
+            applyPotionEffect("doping", 50, "player", p, dg, p, ml, lu, false, false);
+          } else if (pe === "c_doping") {
+            applyPotionEffect("doping", 50, "player", p, dg, p, ml, lu, false, true);
           }
         }
       }

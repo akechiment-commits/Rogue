@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
-import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog } from "./utils.js";
+import { MW, MH, T, rng, pick, uid, refreshFOV, removeFloorItem, clearDimensionalVaultItemCounter, monsterAt, itemAt, getShops, hasAbility, hasGravityPentacle, clampDmgFixed, randomTeleportDest, consumeBarrier, installPlayerHpReverseHook, installPlayerHpMessageHook, calcAtkDefDmg, isEvasionDisabledByStatus, withEnemyDamageContext, ensureItemMimicFloorItems, setItemMimicDisguiseCatalog, playerDopingMultiplier } from "./utils.js";
 import {
   findRoom,
   monsterAI,
@@ -2594,7 +2594,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
                 ml.push(`${attackMon.name}の金縛りが解けた！`);
               }
               const _ringPowerBonus = (p.rings || []).reduce((s, r) => r.effect === "power_ring" ? s + (r.plus || 0) : s, 0);
-              let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)));
+              let ap = Math.max(1, Math.floor((p.atk + (p.weapon?.atk || 0) + (p.weapon?.plus || 0) + _ringPowerBonus) * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1) * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1) * playerDopingMultiplier(p)));
               if ((p.garlicDmgTurns || 0) > 0) ap += 5;
               const _getBaneMult = (a) => {
                 if (!a?.startsWith("bane_")) return 0;
@@ -5767,16 +5767,16 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           攻:
           {(p.poisonAtkLoss || 0) > 0 ? (
             <span style={{ color: "#fa0" }}>
-              {p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)}/
-              <span style={{ color: "#aaa", fontSize: "0.9em" }}>{p.atk + (p.poisonAtkLoss || 0) + (p.weapon?.atk || 0)}</span>
+              {Math.floor((p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)) * playerDopingMultiplier(p))}/
+              <span style={{ color: "#aaa", fontSize: "0.9em" }}>{Math.floor((p.atk + (p.poisonAtkLoss || 0) + (p.weapon?.atk || 0)) * playerDopingMultiplier(p))}</span>
             </span>
           ) : (
-            <span style={{ color: "#fa0" }}>{p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)}</span>
+            <span style={{ color: "#fa0" }}>{Math.floor((p.atk + (p.weapon?.atk || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="power_ring"?s+(r.plus||0):s,0)) * playerDopingMultiplier(p))}</span>
           )}
         </span>{" "}
         <span>
           防:
-          <span style={{ color: "#08f" }}>{(p.def + (p.armor?.def || 0) + (p.armor?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="defense_ring"?s+(r.plus||0):s,0) + (p.weapon?.ability==="def_bonus"||p.weapon?.abilities?.includes("def_bonus") ? 5 : 0) + ((p.misoDefTurns || 0) > 0 ? 8 : 0)) * ((p.rings || []).some(r => r.effect === "slow_ring") ? 2 : 1)}</span>
+          <span style={{ color: "#08f" }}>{Math.floor((p.def + (p.armor?.def || 0) + (p.armor?.plus || 0) + (p.rings||[]).reduce((s,r)=>r.effect==="defense_ring"?s+(r.plus||0):s,0) + (p.weapon?.ability==="def_bonus"||p.weapon?.abilities?.includes("def_bonus") ? 5 : 0) + ((p.misoDefTurns || 0) > 0 ? 8 : 0)) * ((p.rings || []).some(r => r.effect === "slow_ring") ? 2 : 1) * playerDopingMultiplier(p))}</span>
         </span>{" "}
         <span>
           食:
@@ -5840,6 +5840,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         )}{" "}
         {(p.unluckTurns || 0) > 0 && (
           <span style={{ color: "#d06060" }} title="不運：敵がアイテムを落とさない">☠{p.unluckTurns}</span>
+        )}{" "}
+        {(p.dopingTurns || 0) > 0 && (
+          <span style={{ color: "#ff80c0" }} title="ドーピング：攻撃力・防御力2倍">🧪×2{p.dopingTurns}</span>
+        )}{" "}
+        {(p.dopingAftereffectTurns || 0) > 0 && (
+          <span style={{ color: "#a080c0" }} title="ドーピング副作用：攻撃力・防御力半減">🧪↓{p.dopingAftereffectTurns}</span>
         )}{" "}
         {(p.bewitchedTurns || 0) > 0 && (
           <span style={{ color: "#c040c0" }}>👁{p.bewitchedTurns}</span>

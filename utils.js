@@ -109,6 +109,13 @@ export function calcAtkDefDmg(atk, def, {
   return base;
 }
 
+/** ドーピングコンソメの実効攻撃力・防御力倍率。攻防の計算箇所で共通利用する。 */
+export function playerDopingMultiplier(player) {
+  if ((player?.dopingTurns || 0) > 0) return 2;
+  if ((player?.dopingAftereffectTurns || 0) > 0) return 0.5;
+  return 1;
+}
+
 /** 風穴 5x5 内なら風向き、なければ null（dg.vents 依存・循環 import 回避のため utils に置く） */
 export function getWindAt(dg, x, y) {
   for (const v of dg?.vents || []) {

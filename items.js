@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -414,6 +414,9 @@ export const ITEMS = [
   { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n投げると命中した敵を金縛りにする。", tile:16 },
   { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"B", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。祝福：+6。呪い：-3。",           tile:17 },
   { name:"幸運の薬",         type:"potion", effect:"luck",     value:20, rarity:"C", weight:4,  sellPrice:500,  desc:"飲むと20ターン、敵を倒した時に追加ドロップ判定が発生する。祝福：40ターン。呪い：20ターン、敵がアイテムを落とさなくなる。\n食べ物にかけると幸運の食べ物になる。呪い：不運の食べ物になる。", tile:17 },
+  { name:"万能薬",           type:"potion", effect:"panacea", value:0, rarity:"B", weight:2,  sellPrice:2500, desc:"飲むとMP回復禁止以外の状態異常を全て治す。祝福：さらに状態異常を防ぐ。呪い：毒・眠り・混乱・鈍足・暗闇・幻惑・封印になる。\n食べ物にかけると万能の効果。呪い：疫病の効果。", tile:17 },
+  { name:"牛乳",             type:"potion", effect:"milk",    value:15, rarity:"D", weight:8,  sellPrice:100,  desc:"飲むと満腹度+15。祝福：+30。呪い：お腹を壊して毒になり、満腹度-15。\n食べ物にかけるとミルク風味になり大きさ1.5倍。呪い：猛毒の効果。", tile:16 },
+  { name:"ドーピングコンソメスープ", type:"potion", effect:"doping", value:50, rarity:"A", weight:1, sellPrice:3000, desc:"飲むと50ターン攻撃力と防御力が2倍になり、終了後50ターン半減する。祝福：副作用なし。呪い：副作用だけ出る。\n食べ物にかけるとドーピングコンソメの効果。呪い：衰弱の効果。", tile:17 },
   { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"D", weight:8, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：この冒険で訪れた階層を選んで移動できる。",                         tile:18 },
   { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"C", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
@@ -538,6 +541,7 @@ export function blessAmountMul(blessed) {
 }
 
 export const LUCK_POTION_TURNS = Object.freeze({ normal: 20, blessed: 40, cursed: 20 });
+export const DOPING_POTION_TURNS = Object.freeze({ active: 50, aftereffect: 50 });
 
 /** 毒薬の飛散HP増減。通常/祝福はダメージ、呪いは同じ出目で回復。 */
 export function poisonContactAmount(val, { blessed = false, cursed = false } = {}) {
@@ -1841,7 +1845,8 @@ function calcPlayerDefForProjectile(p) {
   return Math.floor(_base
     * _slowTurtleMult
     * ((p?.defSoftenedTurns || 0) > 0 ? 0.5 : 1)
-    * ((p?.defDebuffTurns || 0) > 0 ? 0.5 : 1));
+    * ((p?.defDebuffTurns || 0) > 0 ? 0.5 : 1)
+    * playerDopingMultiplier(p));
 }
 
 /**
@@ -4487,6 +4492,113 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       break;
     }
+    case "panacea": {
+      if (kind === "player") {
+        if (cursed) {
+          const _poison = hasRingEffect(p, "antidote_ring")
+            ? null
+            : applyPlayerPoison(p);
+          const _sleep = statusTurns("sleep", { kind: "player" });
+          const _confuse = statusTurns("confuse", { kind: "player" });
+          const _slow = statusTurns("slow", { kind: "player" });
+          const _dark = statusTurns("darkness", { kind: "player" });
+          const _bewitch = statusTurns("bewitch", { kind: "player" });
+          const _seal = statusTurns("seal", { kind: "player" });
+          p.sleepTurns = (p.sleepTurns || 0) + _sleep;
+          p.confusedTurns = (p.confusedTurns || 0) + _confuse;
+          p.slowTurns = (p.slowTurns || 0) + _slow;
+          p.darknessTurns = (p.darknessTurns || 0) + _dark;
+          p.bewitchedTurns = (p.bewitchedTurns || 0) + _bewitch;
+          p.sealedTurns = (p.sealedTurns || 0) + _seal;
+          ml.push(`万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`);
+        } else {
+          const _wasStatus = clearStatusEffectsOnHpZero(p);
+          if (blessed) {
+            const _immune = statusTurns("statusImmune", { kind: "player" });
+            p.statusImmune = Math.max(p.statusImmune || 0, _immune);
+            ml.push(`万能薬を飲んだ。${_wasStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}さらに状態異常免疫になった！(${_immune}ターン)【祝福】`);
+          } else {
+            ml.push(`万能薬を飲んだ。${_wasStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}`);
+          }
+        }
+      } else if (kind === "monster") {
+        if (cursed) {
+          target.poisoned = true;
+          target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
+          if (!target.poisonHalfAtk) {
+            target.poisonOrigAtk = target.atk;
+            target.atk = Math.max(1, Math.floor(target.atk / 2));
+            target.poisonHalfAtk = true;
+          }
+          target.sleepTurns = (target.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target });
+          target.confusedTurns = (target.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target });
+          target.slowTurns = (target.slowTurns || 0) + statusTurns("slow", { kind: "monster", target });
+          target.darknessTurns = (target.darknessTurns || 0) + statusTurns("darkness", { kind: "monster", target });
+          target.fleeingTurns = (target.fleeingTurns || 0) + statusTurns("bewitch", { kind: "monster", target });
+          applyMonsterSeal(target, dg, p, ml, luFn);
+          ml.push(`${target.name}は万能薬の呪いで毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！【呪】`);
+        } else {
+          const _wasStatus = clearStatusEffectsOnHpZero(target);
+          if (blessed) {
+            const _immune = statusTurns("statusImmune", { kind: "monster", target });
+            target.statusImmune = Math.max(target.statusImmune || 0, _immune);
+          }
+          ml.push(`${target.name}の状態異常が全て治った！${blessed ? `状態異常免疫(${target.statusImmune}ターン)！` : ""}${_wasStatus ? "" : "（異常なし）"}`);
+        }
+      }
+      break;
+    }
+    case "milk": {
+      if (kind === "player") {
+        const _delta = cursed ? -15 : blessed ? 30 : 15;
+        const _before = p.hunger || 0;
+        p.hunger = Math.max(0, Math.min(p.maxHunger || 100, _before + _delta));
+        if (p.hunger > 0) delete p._hungerDmgStarted;
+        if (cursed) {
+          if (hasRingEffect(p, "antidote_ring")) {
+            ml.push(`牛乳でお腹を壊したが、防具が毒を防いだ！満腹度${_delta}`);
+          } else {
+            const _poison = applyPlayerPoison(p);
+            ml.push(`牛乳でお腹を壊した！毒状態(${_poison.turns}ターン)になった！満腹度${_delta}【呪】`);
+          }
+        } else {
+          ml.push(`牛乳を飲んだ。満腹度+${_delta}${blessed ? "【祝福】" : ""}`);
+        }
+      } else if (kind === "monster" && cursed) {
+        target.poisoned = true;
+        target.poisonedTurns = (target.poisonedTurns || 0) + statusTurns("poison", { kind: "monster", target });
+        if (!target.poisonHalfAtk) {
+          target.poisonOrigAtk = target.atk;
+          target.atk = Math.max(1, Math.floor(target.atk / 2));
+          target.poisonHalfAtk = true;
+        }
+        ml.push(`${target.name}は牛乳でお腹を壊し、毒になった！`);
+      }
+      break;
+    }
+    case "doping": {
+      const _active = DOPING_POTION_TURNS.active;
+      const _after = DOPING_POTION_TURNS.aftereffect;
+      if (kind === "player") {
+        if (cursed) {
+          p.dopingTurns = 0;
+          p.dopingAftereffectTurns = _after;
+          p.dopingAftereffectPending = false;
+          ml.push(`ドーピングコンソメスープの呪い！攻撃力と防御力が半減した！(${_after}ターン)【呪】`);
+        } else {
+          p.dopingTurns = _active;
+          p.dopingAftereffectTurns = 0;
+          p.dopingAftereffectPending = !blessed;
+          ml.push(`攻撃力と防御力が2倍になった！(${_active}ターン)${blessed ? "副作用なし【祝福】" : "効果後に副作用が出る"}`);
+        }
+      } else if (kind === "monster") {
+        target.dopingTurns = cursed ? 0 : _active;
+        target.dopingAftereffectTurns = cursed ? _after : 0;
+        target.dopingAftereffectPending = !blessed && !cursed;
+        ml.push(`${target.name}の攻防が${cursed ? "半減" : "2倍"}になった！`);
+      }
+      break;
+    }
     default:
       /* 未登録の effect が渡された場合は警告 (items.js ITEMS への追加を忘れずに) */
       console.warn(`[applyPotionEffect] 未登録の effect: "${eff}" — applyPotionEffect の switch に case を追加してください`);
@@ -4513,6 +4625,9 @@ export const POTION_FOOD_PREFIX = {
   levelup:  "経験の",
   seal:     "封魔の",
   luck:     "幸運の",
+  panacea:  "万能の",
+  milk:     "ミルク風味の",
+  doping:   "ドーピングコンソメの",
   // 呪い（食べた時の効果が反転）
   c_heal:      "猛毒の",
   c_superheal: "猛毒の",
@@ -4529,6 +4644,9 @@ export const POTION_FOOD_PREFIX = {
   c_levelup:   "退化の",
   c_seal:      "解封の",
   c_luck:      "不運の",
+  c_panacea:   "疫病の",
+  c_milk:      "猛毒の",
+  c_doping:    "衰弱の",
 };
 
 /** 生の食料を調理済みにする共通ヘルパー（cooked/tile/sizeLabel を更新） */
@@ -4624,6 +4742,19 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
     } else {
       burnFoodItem(item, ml);
     }
+    return;
+  }
+  /* 牛乳だけは食料の大きさを減らさず、通常・祝福なら1.5倍にする。 */
+  if (eff === "milk" && !cursed) {
+    const key = "milk";
+    if (item.potionEffects.includes(key)) {
+      ml.push(`${item.name}は既にミルク風味だ。`);
+      return;
+    }
+    item.potionEffects.push(key);
+    item.name = POTION_FOOD_PREFIX[key] + item.name;
+    item.value = Math.max(1, Math.floor(item.value * 1.5));
+    ml.push(`${item.name}になった！(大きさ1.5倍)`);
     return;
   }
   /* 幸運の薬は通常・祝福とも既存の「幸運の食べ物」効果にする。 */
@@ -5948,6 +6079,7 @@ export function calcProjectileDmg(p, arAtk, def = 0) {
     * ((p.spicyAtkTurns || 0) > 0 ? 1.5 : 1)
     * ((p.atkDebuffTurns || 0) > 0 ? 0.5 : 1)
     * ((p.lemonThrowTurns || 0) > 0 ? 1.5 : 1)
+    * playerDopingMultiplier(p)
   ));
   return calcAtkDefDmg(ap, def, { defWeight: 1 });
 }
