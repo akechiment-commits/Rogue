@@ -5842,10 +5842,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
           <span style={{ color: "#d06060" }} title="不運：敵がアイテムを落とさない">☠{p.unluckTurns}</span>
         )}{" "}
         {(p.dopingTurns || 0) > 0 && (
-          <span style={{ color: "#ff80c0" }} title="ドーピング：攻撃力・防御力2倍">🧪×2({p.dopingTurns}T)</span>
+          <span style={{ color: "#ff80c0" }} title="ドーピング：攻撃力・防御力2倍、残りターン">🧪×2・{p.dopingTurns}</span>
         )}{" "}
         {(p.dopingAftereffectTurns || 0) > 0 && (
-          <span style={{ color: "#a080c0" }} title="ドーピング副作用：攻撃力・防御力半減">🧪÷2({p.dopingAftereffectTurns}T)</span>
+          <span style={{ color: "#a080c0" }} title="ドーピング副作用：攻撃力・防御力半減、残りターン">🧪÷2・{p.dopingAftereffectTurns}</span>
         )}{" "}
         {(p.bewitchedTurns || 0) > 0 && (
           <span style={{ color: "#c040c0" }}>👁{p.bewitchedTurns}</span>
