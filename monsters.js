@@ -715,6 +715,7 @@ function monsterAttackPlayer(m, dg, pl, ml, msgFn, { skipVuln = false, skipThorn
  *                         | "dangerousPetal"（静止・睡眠の花粉）
  *                         | "waterFlower"（静止・敵誘導弾）
  *                         | "giantEel"（隣接・拘束）
+ *                         | "seaDevil"（隣接・3回攻撃）
  *                         (特殊AIが必要なら monsterAI に追記)
  *        wandEffect: subtype:"wanduser" の固定杖。randomStatusWands なら状態異常杖、randomElementalWands なら炎・雷・氷から毎回抽選
  *   2. 同じエントリの levels: [...] にLv2・Lv3のテンプレートを記述
@@ -1121,6 +1122,12 @@ export const MONS = [
     levels: [
       { name: "大王ウナギ",       hp: 131, atk: 40, def: 12, exp: 148, dungeonFloors: { advanced: { min: 29, max: 36 } } },
       { name: "深海大王ウナギ",   hp: 207, atk: 54, def: 17, exp: 232, dungeonFloors: { advanced: { min: 37, max: 50 } } },
+    ],
+  },
+  { name: "うみのあくま", hp: 78,  atk: 18, def: 7,  exp: 105, speed: 1,   tile: 222, kind: "beast",    baseKind: "seaDevil",   monLevel: 1, minFloor: 29, maxFloor: 50, maxAttacks: 3, waterOnly: true, subtype: "seaDevil", desc: "水中にのみ出現・移動し、隣接時は1回の行動で3回攻撃する。", dungeonFloors: { beginner: null, intermediate: { min: 20, max: 20 }, advanced: { min: 25, max: 34 } },
+    levels: [
+      { name: "ゲルショッカー", hp: 126, atk: 27, def: 11, exp: 175, dungeonFloors: { advanced: { min: 35, max: 42 } } },
+      { name: "アンキケン",     hp: 201, atk: 39, def: 16, exp: 270, dungeonFloors: { advanced: { min: 43, max: 50 } } },
     ],
   },
   /* ===== 視界操作モンスター ===== */
@@ -3071,7 +3078,7 @@ function isPosHistoryStuck(m) {
 /* ===== ものまね師：隣接キャラの特技コピー ===== */
 const _MIMIC_SKIP_SUBTYPES = new Set([
   "mimic", "runner", "deathbomb", "kamikaze", "reflector", "magicreflect", "guardian",
-  "splitter", "tattoobird", /* パッシブ寄り／コピー実装なし */
+  "splitter", "tattoobird", "seaDevil", /* パッシブ寄り／コピー実装なし */
 ]);
 
 /** 隣接限定かつコピー実行実装済みの特技（プレイヤー隣接時のみ真似る） */
@@ -4914,6 +4921,25 @@ function _monsterAIBody(m, dg, pl, ml, opts = {}) {
         if (pl.paralyzeTurns > 0) { pl.paralyzeTurns = 0; ml.push("衝撃で金縛りが解けた！"); }
       }
       if (!_justBound && pl.capturedBy === m.id && !_plOnSanc && !_moveOnly && m.turnAttacks < monEffectiveMaxAttacks(m)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+      }
+      return;
+    }
+
+    /* ── seaDevil（うみのあくま等）：1回の行動で3回の近接攻撃 ── */
+    if (m.subtype === "seaDevil" && _adjPl && !_plInvis) {
+      if (_moveOnly || _plOnSanc) return;
+      m.turnAttacks = m.turnAttacks || 0;
+      const _seaAttackLimit = monEffectiveMaxAttacks(m);
+      if (m.turnAttacks >= _seaAttackLimit) return;
+      /* 攻撃封印中は通常の封印済み攻撃1回分だけ消費する。 */
+      if (isAttackSealed(m)) {
+        m.turnAttacks++;
+        monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
+        return;
+      }
+      while (m.turnAttacks < _seaAttackLimit && m.hp > 0 && pl.hp > 0) {
         m.turnAttacks++;
         monsterAttackPlayer(m, dg, pl, ml, d => `${m.name}の攻撃！${d}ダメージ！`, { onPlayerHit: _onHit, onPlayerMiss: _onMiss, luFn: _luFn });
       }

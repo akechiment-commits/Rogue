@@ -145,6 +145,7 @@ export const TILE_NAMES = {
   219: "crawling_bomb_rolling",
   220: "homing_projectile_enemy",
   221: "giant_eel",
+  222: "sea_devil",
 };
 export const CUSTOM_TILE_PATH = "./tiles";
 export const customTileImages = {};
@@ -257,6 +258,7 @@ export const TILE_RENDER = {
   216: { bg: null, fg: "#ffd040", ch: "^" },
   217: { bg: null, fg: "#50e0d0", ch: "F" },
   221: { bg: null, fg: "#d0a040", ch: "E" }, /* 巨大ウナギ */
+  222: { bg: null, fg: "#d060d0", ch: "S" }, /* うみのあくま */
   218: { bg: null, fg: "#4d9dff", ch: "*" },
   219: { bg: null, fg: "#ff6848", ch: "o" },
   220: { bg: null, fg: "#ff5868", ch: "*" },
