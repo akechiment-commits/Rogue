@@ -594,6 +594,16 @@ describe("applyPotionEffect", () => {
     expect(cursedFood).toMatchObject({ name: "不運のパン", potionEffects: ["c_luck"] });
   });
 
+  it("大回復薬を食べ物にかけると回復薬と同じ効果になる", () => {
+    const normalFood = { name: "おにぎり", type: "food", value: 35 };
+    applyPotionToItem("heal_big", 60, normalFood, dg, [], false);
+    expect(normalFood).toMatchObject({ name: "回復のおにぎり", potionEffects: ["heal"] });
+
+    const cursedFood = { name: "パン", type: "food", value: 35 };
+    applyPotionToItem("heal_big", 60, cursedFood, dg, [], true);
+    expect(cursedFood).toMatchObject({ name: "猛毒のパン", potionEffects: ["c_heal"] });
+  });
+
   it("呪われた毒薬を敵に浴びせると通常ダメージと同じ出目だけ回復する", () => {
     vi.spyOn(Math, "random").mockReturnValue(0.5);
     const mon = { name: "スライム", kind: "slime", hp: 10, maxHp: 40, x: 2, y: 2, atk: 5 };

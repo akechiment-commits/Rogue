@@ -4611,8 +4611,8 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
   }
   if (item.type !== "food") return;
   if (!item.potionEffects) item.potionEffects = [];
-  // 超回復薬は食べ物への効果が回復薬と同じ
-  const _foodEff = eff === "superheal" ? "heal" : eff;
+  // 大回復薬・超回復薬は食べ物への効果を回復薬と同じにする
+  const _foodEff = (eff === "heal_big" || eff === "superheal") ? "heal" : eff;
   if (_foodEff !== eff) eff = _foodEff;
   if (eff === "fire") {
     // 呪いでも通常でも同じ（焼き調理）
