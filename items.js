@@ -4467,11 +4467,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "player") {
         if (cursed) {
           p.luckTurns = 0;
-          p.unluckTurns = _turns;
+          p.unluckTurns = (p.unluckTurns || 0) + _turns;
           ml.push(`不運になった！敵がアイテムを落とさなくなる！(${_turns}ターン)【呪】`);
         } else {
           p.unluckTurns = 0;
-          p.luckTurns = _turns;
+          p.luckTurns = (p.luckTurns || 0) + _turns;
           ml.push(`幸運になった！敵を倒すたび追加ドロップ判定！(${_turns}ターン)${blessed ? "【祝福】" : ""}`);
         }
       }
@@ -4512,13 +4512,19 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           p.sealedTurns = (p.sealedTurns || 0) + _seal;
           ml.push(`万能薬の呪い！毒・眠り・混乱・鈍足・暗闇・幻惑・封印になった！${_poison ? `毒(${_poison.turns}ターン)` : ""}【呪】`);
         } else {
+          const _hadDopingAftereffect = (p.dopingAftereffectTurns || 0) > 0;
+          if (_hadDopingAftereffect) {
+            p.dopingAftereffectTurns = 0;
+            if ((p.dopingTurns || 0) <= 0) p.dopingAftereffectPending = false;
+          }
           const _wasStatus = clearStatusEffectsOnHpZero(p);
+          const _dopingCuredMsg = _hadDopingAftereffect ? " ドーピングの副作用も消えた！" : "";
           if (blessed) {
             const _immune = statusTurns("statusImmune", { kind: "player" });
             p.statusImmune = Math.max(p.statusImmune || 0, _immune);
-            ml.push(`万能薬を飲んだ。${_wasStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}さらに状態異常免疫になった！(${_immune}ターン)【祝福】`);
+            ml.push(`万能薬を飲んだ。${_wasStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}${_dopingCuredMsg}さらに状態異常免疫になった！(${_immune}ターン)【祝福】`);
           } else {
-            ml.push(`万能薬を飲んだ。${_wasStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}`);
+            ml.push(`万能薬を飲んだ。${_wasStatus ? "全ての状態異常が治った！" : "状態異常はなかった。"}${_dopingCuredMsg}`);
           }
         }
       } else if (kind === "monster") {
@@ -4582,11 +4588,11 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       if (kind === "player") {
         if (cursed) {
           p.dopingTurns = 0;
-          p.dopingAftereffectTurns = _after;
+          p.dopingAftereffectTurns = (p.dopingAftereffectTurns || 0) + _after;
           p.dopingAftereffectPending = false;
           ml.push(`ドーピングコンソメスープの呪い！攻撃力と防御力が半減した！(${_after}ターン)【呪】`);
         } else {
-          p.dopingTurns = _active;
+          p.dopingTurns = (p.dopingTurns || 0) + _active;
           p.dopingAftereffectTurns = 0;
           p.dopingAftereffectPending = !blessed;
           ml.push(`攻撃力と防御力が2倍になった！(${_active}ターン)${blessed ? "副作用なし【祝福】" : "効果後に副作用が出る"}`);

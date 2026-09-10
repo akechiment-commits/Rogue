@@ -144,6 +144,7 @@ describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ�
       immobileTurns: 2,
       frozenTurns: 2,
       potConfinedTurns: 2,
+      dopingAftereffectTurns: 20,
       mpSealTurns: 99,
     });
     const messages = [];
@@ -165,6 +166,7 @@ describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ�
       immobileTurns: 0,
       frozenTurns: 0,
       potConfinedTurns: 0,
+      dopingAftereffectTurns: 0,
       mpSealTurns: 99,
     });
   });
@@ -211,7 +213,8 @@ describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ�
   it("ドーピングコンソメは通常・祝福・呪いの倍率状態を設定する", () => {
     const normal = makePlayer();
     applyPotionEffect("doping", 50, "player", null, makeEmptyDg(), normal, [], () => {});
-    expect(normal).toMatchObject({ dopingTurns: 50, dopingAftereffectTurns: 0, dopingAftereffectPending: true });
+    applyPotionEffect("doping", 50, "player", null, makeEmptyDg(), normal, [], () => {});
+    expect(normal).toMatchObject({ dopingTurns: 100, dopingAftereffectTurns: 0, dopingAftereffectPending: true });
     expect(playerDopingMultiplier(normal)).toBe(2);
 
     const blessed = makePlayer();
@@ -674,10 +677,11 @@ describe("applyPotionEffect", () => {
     expect(p.atk).toBe(7);
   });
 
-  it("幸運の薬は通常20ターン、祝福40ターン、呪いは不運20ターンになる", () => {
+  it("幸運の薬は重ね掛けで加算され、祝福40ターン、呪いは不運20ターンになる", () => {
     const normal = makePlayer();
     applyPotionEffect("luck", 20, "player", null, dg, normal, [], () => {});
-    expect(normal).toMatchObject({ luckTurns: 20, unluckTurns: 0 });
+    applyPotionEffect("luck", 20, "player", null, dg, normal, [], () => {});
+    expect(normal).toMatchObject({ luckTurns: 40, unluckTurns: 0 });
 
     const blessed = makePlayer();
     applyPotionEffect("luck", 20, "player", null, dg, blessed, [], () => {}, true, false);
