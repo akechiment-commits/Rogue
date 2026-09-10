@@ -6,7 +6,7 @@ import {
 } from "../monTraits.js";
 import { clampDmgFixed, consumeBarrier, T } from "../utils.js";
 import { applyMonsterSeal, canMonsterSurviveOnWater, resolveSealedFloatOnWater } from "../items.js";
-import { BOSSES, INTERMEDIATE_BOSSES, makeMonsterFromBase } from "../monsters.js";
+import { BOSSES, INTERMEDIATE_BOSSES, MONS, makeMonsterFromBase, monsterAI } from "../monsters.js";
 import { MONSTER_SHEET_MAP } from "../tilesetMap.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -135,5 +135,42 @@ describe("封印中の敵特性無効化", () => {
     const kraken = makeMonsterFromBase(base, 1, 4, 4);
     expect(kraken.float).not.toBe(true);
     expect(kraken.waterWalker).toBe(true);
+  });
+
+  it("飛行専用の4系統は重力下で移動せず、攻撃と特技は使える", () => {
+    const map = Array.from({ length: 30 }, () => Array(60).fill(T.FLOOR));
+    const rooms = [{ x: 1, y: 1, w: 20, h: 14 }];
+    const gravity = { kind: "gravity", name: "重力の魔方陣", x: 5, y: 5 };
+    const baseKinds = ["bat", "hypnotist", "starlight", "darkness"];
+    const p = makePlayer({ x: 10, y: 5 });
+
+    for (const baseKind of baseKinds) {
+      const base = MONS.find((mon) => mon.baseKind === baseKind);
+      expect(base).toMatchObject({ float: true, flightOnly: true });
+      const m = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
+      const dg = makeEmptyDg({ map, rooms, monsters: [m], items: [], pentacles: [gravity] });
+      const before = { x: m.x, y: m.y };
+
+      monsterAI(m, dg, p, [], { moveOnly: true });
+
+      expect({ x: m.x, y: m.y }).toEqual(before);
+      expect(m.flightOnly).toBe(true);
+    }
+
+    const bat = makeMonsterFromBase(MONS.find((mon) => mon.baseKind === "bat"), 1, 5, 5, { aware: true });
+    bat.turnAttacks = 0;
+    const attackPlayer = makePlayer({ x: 6, y: 5 });
+    const attackDg = makeEmptyDg({ map, rooms, monsters: [bat], items: [], pentacles: [gravity] });
+    const hpBefore = attackPlayer.hp;
+    monsterAI(bat, attackDg, attackPlayer, [], { attackOnly: true });
+    expect(attackPlayer.hp).toBeLessThan(hpBefore);
+
+    const hypnotist = makeMonsterFromBase(MONS.find((mon) => mon.baseKind === "hypnotist"), 1, 5, 5, { aware: true });
+    hypnotist.turnAttacks = 0;
+    hypnotist.alwaysUseSpecial = true;
+    const specialPlayer = makePlayer({ x: 6, y: 5 });
+    const specialDg = makeEmptyDg({ map, rooms, monsters: [hypnotist], items: [], pentacles: [gravity] });
+    monsterAI(hypnotist, specialDg, specialPlayer, [], { attackOnly: true });
+    expect(specialPlayer.hypnosisPending).toBe(1);
   });
 });

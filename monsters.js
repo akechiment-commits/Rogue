@@ -734,7 +734,7 @@ export const MONS = [
       { name: "ものすごいネズミ",   hp: 52,  atk: 21, def: 7,  exp: 32, dungeonFloors: { advanced: { min: 14, max: 15 } } },
     ],
   },
-  { name: "バット",       hp: 8,   atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true, dungeonFloors: { beginner: { min: 1, max: 4 }, intermediate: { min: 1, max: 7 }, advanced: { min: 1, max: 4 } },
+  { name: "バット",       hp: 8,   atk: 5,  def: 0,  exp: 4,   speed: 1,   tile: 103, kind: "beast",   baseKind: "bat",           monLevel: 1, minFloor: 1,  maxFloor: 9,  float: true, flightOnly: true, dungeonFloors: { beginner: { min: 1, max: 4 }, intermediate: { min: 1, max: 7 }, advanced: { min: 1, max: 4 } },
     levels: [
       { name: "青バット",               hp: 30,  atk: 14, def: 3,  exp: 16, dungeonFloors: { advanced: { min: 7, max: 9 } } },
       { name: "ゴルァバット",           hp: 46,  atk: 20, def: 6,  exp: 28, dungeonFloors: { advanced: { min: 13, max: 15 } } },
@@ -994,7 +994,7 @@ export const MONS = [
       { name: "吸い込みダコ",       hp: 153, atk: 43, def: 14, exp: 188 },
     ],
   },
-  { name: "土下座鈴木右衛門", hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 215, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, float: true, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
+  { name: "土下座鈴木右衛門", hp: 46,  atk: 22, def: 6,  exp: 84,  speed: 1,   tile: 215, kind: "humanoid", baseKind: "hypnotist",    monLevel: 1, minFloor: 25, maxFloor: 50, float: true, flightOnly: true, subtype: "hypnotist", desc: "Lv1/2は隣接時、Lv3は視界内の一直線上から25%で催眠術をかけ、次のターンに実行可能な行動をランダムに1つ強制する。",
     dungeonFloors: { intermediate: { min: 19, max: 20 }, advanced: { min: 17, max: 27 } },
     levels: [
       { name: "飛翔土下座鈴木右衛門", hp: 73,  atk: 30, def: 10, exp: 134, dungeonFloors: { advanced: { min: 28, max: 31 } } },
@@ -1131,14 +1131,14 @@ export const MONS = [
     ],
   },
   /* ===== 視界操作モンスター ===== */
-  { name: "スターライト", hp: 55,  atk: 26, def: 8,  exp: 80,  speed: 1,   tile: 165, kind: "beast",   baseKind: "starlight",     monLevel: 1, minFloor: 15, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 16, max: 27 } },
+  { name: "スターライト", hp: 55,  atk: 26, def: 8,  exp: 80,  speed: 1,   tile: 165, kind: "beast",   baseKind: "starlight",     monLevel: 1, minFloor: 15, maxFloor: 50, float: true, flightOnly: true, dungeonFloors: { advanced: { min: 16, max: 27 } },
     desc: "同じ部屋にいるだけで周囲を明るく照らし続ける光の精霊。",
     levels: [
       { name: "スターライトⅡ",     hp: 88,  atk: 38, def: 12, exp: 128 },
       { name: "スターライトⅢ",     hp: 138, atk: 50, def: 17, exp: 200 },
     ],
   },
-  { name: "ダークネス",   hp: 65,  atk: 30, def: 10, exp: 95,  speed: 1,   tile: 152, kind: "beast",   baseKind: "darkness",      monLevel: 1, minFloor: 20, maxFloor: 50, float: true, dungeonFloors: { advanced: { min: 21, max: 30 } },
+  { name: "ダークネス",   hp: 65,  atk: 30, def: 10, exp: 95,  speed: 1,   tile: 152, kind: "beast",   baseKind: "darkness",      monLevel: 1, minFloor: 20, maxFloor: 50, float: true, flightOnly: true, dungeonFloors: { advanced: { min: 21, max: 30 } },
     desc: "同じ部屋にいると周囲の光を喰らい、プレイヤーの視界を1マスに狭める闇の精霊。",
     levels: [
       { name: "ダークネスⅡ",       hp: 104, atk: 43, def: 15, exp: 152 },
@@ -3801,11 +3801,21 @@ function forceMonsterCopiedSpecial(m, dg, pl, ml, opts = {}, ctx = {}) {
 /** モンスターAI。移動後は重力罠。長時間動けなければ別方向へ強制移動。 */
 export function monsterAI(m, dg, pl, ml, opts = {}) {
   const _sx = m.x, _sy = m.y;
+  const _movedThisTurn = m._movedThisTurn;
+  const _gravityLocksFlightOnly = !!(m.flightOnly && !monEffectiveMagicImmune(m) &&
+    !opts.attackOnly && hasGravityPentacle(dg, m.x, m.y));
   const _float = monEffectiveFloat(m) &&
     (monEffectiveMagicImmune(m) || !hasGravityPentacle(dg, m.x, m.y));
   try {
     _monsterAIBody(m, dg, pl, ml, opts);
   } finally {
+    /* 飛行専用の敵は重力下で自発移動できない。攻撃フェーズ・特技処理は通す。 */
+    if (_gravityLocksFlightOnly && (m.x !== _sx || m.y !== _sy)) {
+      m.x = _sx;
+      m.y = _sy;
+      if (_movedThisTurn === undefined) delete m._movedThisTurn;
+      else m._movedThisTurn = _movedThisTurn;
+    }
     /* 静止型モンスター：AI中に位置が変わっても必ず元位置へ戻す */
     if ((isStationaryGrabber(m) || isStationaryMonster(m)) && (m.x !== _sx || m.y !== _sy)) {
       m.x = _sx; m.y = _sy;
@@ -3821,13 +3831,14 @@ export function monsterAI(m, dg, pl, ml, opts = {}) {
       (m.sleepTurns || 0) > 0 ||
       (m.immobileTurns || 0) > 0 ||
       (m.knockdownTurns || 0) > 0 ||
+      _gravityLocksFlightOnly ||
       isStationaryMonster(m);
     if (movementDisabled) {
       m._idleStuck = 0;
       m.posHistory = [];
     }
     /* 攻撃専用フェーズでは詰まりカウントしない（移動フェーズのみ） */
-    if (!movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || m.isWanderingMerchant) &&
+    if (!_gravityLocksFlightOnly && !movementDisabled && !opts.attackOnly && !isStationaryGrabber(m) && !isStationaryMonster(m) && (m.type !== "shopkeeper" || m.isWanderingMerchant) &&
         !m.dormant && !m.dormantHouse) {
       /* プレイヤーと隣接中は戦闘優先：詰まり脱出で変な移動をしない */
       const _adjPl = pl && Math.abs(pl.x - m.x) <= 1 && Math.abs(pl.y - m.y) <= 1 &&

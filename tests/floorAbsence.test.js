@@ -142,6 +142,16 @@ describe("不在フロアの巡回と復帰", () => {
     }
   });
 
+  it("重力下の飛行専用敵は不在巡回でも移動しない", () => {
+    const { monster, dungeon, player } = setup({ float: true, flightOnly: true });
+    dungeon.pentacles = [{ kind: "gravity", blessed: true, cursed: false, x: 5, y: 5 }];
+    suspendFloor(dungeon, player);
+    player.actionTime += 4800;
+
+    expect(resumeFloor(dungeon, player, { random: () => 0.99 })).toBe(0);
+    expect({ x: monster.x, y: monster.y }).toEqual({ x: 5, y: 5 });
+  });
+
   it("セーブ・ロード後も待ち伏せ情報と不在時間が残り、復帰は一度だけ", () => {
     const { dungeon, player } = setup({ aware: true });
     suspendFloor(dungeon, player, { stairs: true });

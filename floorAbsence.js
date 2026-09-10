@@ -28,9 +28,10 @@ export function suspendFloor(dungeon, player, { stairs = false } = {}) {
   }
 }
 
-function canPatrol(monster) {
+function canPatrol(monster, dungeon) {
   return monster.hp > 0 && !monster.waitDuringAbsence && !monster.dormant &&
     !monster.stationary && !monster.paralyzed && !monster.waterOnly &&
+    !(monster.flightOnly && !monEffectiveMagicImmune(monster) && hasGravityPentacle(dungeon, monster.x, monster.y)) &&
     monster.subtype !== "grabber" && monster.baseKind !== "grabber" &&
     !(monster.subtype === "itemMimic" && monster.disguisedAsItem !== false) &&
     !(monster.type === "shopkeeper" && !monster.isWanderingMerchant) &&
@@ -91,7 +92,7 @@ export function resumeFloor(dungeon, player, { random = Math.random } = {}) {
     const beats = Number.isFinite(since) ? Math.max(0, (now - since) / ACTION_TIME_BASE) : 0;
     const distance = Math.min(ABSENCE_PATROL_MAX_DISTANCE,
       Math.floor(beats * monEffectiveSpeed(monster) / ABSENCE_PATROL_INTERVAL));
-    if (distance > 0 && canPatrol(monster)) {
+    if (distance > 0 && canPatrol(monster, dungeon)) {
       const destination = patrolDestination(monster, dungeon, occupied, blocked, distance, random);
       if (destination) {
         occupied.delete(key(monster.x, monster.y));
