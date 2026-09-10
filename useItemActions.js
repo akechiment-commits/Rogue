@@ -15,6 +15,7 @@ import {
   imprisonPotRemainingCapacity, canConfineMonsterInImprisonPot, confineMonsterInImprisonPot,
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
+  LUCK_POTION_TURNS,
   resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, calmShopkeeperIfFullyHealed,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
@@ -49,6 +50,13 @@ function markWanderingMerchantHostile(monster, dungeon, player, messages) {
     angerOnly: true,
     message: "行商人が怒った！",
   });
+}
+
+function applyLuckFoodGold(player, foodTier, messages) {
+  const goldRange = [[30,70],[80,150],[180,320],[350,550],[600,900],[850,1200]][foodTier];
+  const gold = rng(goldRange[0], goldRange[1]);
+  player.gold += gold;
+  messages.push(`幸運だ！${gold}ゴールドを見つけた。`);
 }
 
 export function getHypnosisItemCandidates(inventory = []) {
@@ -252,6 +260,8 @@ export function useItemActions({
             ml.push(`${_useItemName}を飲んだ。${_poison.atkLoss > 0 ? `毒状態になった！(${_poison.turns}ターン)攻撃力が下がった！` : `毒状態が続いている！(あと${_poison.remaining}ターン)`}`);
           }
         }
+      } else if (it.effect === "luck") {
+        applyPotionEffect("luck", it.value || LUCK_POTION_TURNS.normal, "player", p, dg, p, ml, lu, !!it.blessed, !!it.cursed);
       } else if (it.effect === "water") {
         /* 水を飲んだ時だけ祝呪を所持品へ移す。投擲時の水の効果は従来処理を維持する。 */
         const _waterItems = p.inventory.filter(i => i.type !== "gold" && i.type !== "gold_nugget" && i.type !== "arrow");
@@ -598,10 +608,7 @@ export function useItemActions({
         ml.push(`知恵が付いた。経験値+${ex}`);
         lu(p, ml);
       } else if (fe === "luck_food") {
-        const _goldRange = [[30,70],[80,150],[180,320],[350,550],[600,900],[850,1200]][_fTier];
-        const g = rng(_goldRange[0], _goldRange[1]);
-        p.gold += g;
-        ml.push(`幸運だ！${g}ゴールドを見つけた。`);
+        applyLuckFoodGold(p, _fTier, ml);
       } else if (fe === "reveal_food") {
         for (let y2 = 0; y2 < MH; y2++)
           for (let x2 = 0; x2 < MW; x2++) dg.explored[y2][x2] = true;
@@ -738,6 +745,11 @@ export function useItemActions({
             } else {
               ml.push("解封成分が入っていたが、封印はかかっていなかった。");
             }
+          } else if (pe === "luck") {
+            /* 幸運の薬をかけた食料は、既存の幸運の食べ物と同じゴールド効果。 */
+            applyLuckFoodGold(p, _fTier, ml);
+          } else if (pe === "c_luck") {
+            applyPotionEffect("luck", LUCK_POTION_TURNS.cursed, "player", p, dg, p, ml, lu, false, true);
           }
         }
       }
@@ -2712,7 +2724,7 @@ export function useItemActions({
               (fi) => fi.x >= _boilRoom.x && fi.x < _boilRoom.x + _boilRoom.w &&
                       fi.y >= _boilRoom.y && fi.y < _boilRoom.y + _boilRoom.h,
             )) {
-              const _br = applyPotionToItem(it.effect, it.value || 0, _bi, dg, ml, it.cursed || false, dnameRef);
+              const _br = applyPotionToItem(it.effect, it.value || 0, _bi, dg, ml, it.cursed || false, dnameRef, it.blessed || false);
               if (_br === "burn") _boilBurnSet.push(_bi);
             }
             if (_boilBurnSet.length > 0) dg.items = dg.items.filter((fi) => !_boilBurnSet.includes(fi));

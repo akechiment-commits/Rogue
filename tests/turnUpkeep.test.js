@@ -226,6 +226,16 @@ describe("advanceConsumableBuffTimers", () => {
     expect(player.hp).toBe(90);
     expect(player.honeyRegenTurns).toBe(0);
   });
+
+  it("幸運と不運の残りターンを減らし、終了を通知する", () => {
+    const player = makePlayer({ luckTurns: 1, unluckTurns: 1 });
+    const messages = [];
+
+    advanceConsumableBuffTimers(player, messages);
+
+    expect(player).toMatchObject({ luckTurns: 0, unluckTurns: 0 });
+    expect(messages).toEqual(["幸運の効果が切れた！", "不運の効果が切れた！"]);
+  });
 });
 
 describe("advanceEarlyStatusTimers", () => {

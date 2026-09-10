@@ -5835,6 +5835,12 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         {(p.monsterSenseTurns || 0) > 0 && (
           <span style={{ color: "#ff6060" }}>👁‍🗨{p.monsterSenseTurns}</span>
         )}{" "}
+        {(p.luckTurns || 0) > 0 && (
+          <span style={{ color: "#70d070" }} title="幸運：敵の追加ドロップ判定">🍀{p.luckTurns}</span>
+        )}{" "}
+        {(p.unluckTurns || 0) > 0 && (
+          <span style={{ color: "#d06060" }} title="不運：敵がアイテムを落とさない">☠{p.unluckTurns}</span>
+        )}{" "}
         {(p.bewitchedTurns || 0) > 0 && (
           <span style={{ color: "#c040c0" }}>👁{p.bewitchedTurns}</span>
         )}{" "}

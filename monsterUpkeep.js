@@ -34,6 +34,8 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
       monster.floatTurns--;
       if (monster.floatTurns <= 0) messages.push(`${monster.name}の浮遊が解けた！`);
     }
+    if ((monster.dropLuckTurns || 0) > 0) monster.dropLuckTurns--;
+    if ((monster.dropNoItemTurns || 0) > 0) monster.dropNoItemTurns--;
   }
 
   if (!dungeon.pentacles?.some((pentacle) => pentacle.kind === "thunder_trap") || hasCursedExplosionPentacle(dungeon)) return;

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -568,6 +568,30 @@ describe("applyPotionEffect", () => {
     const ml = [];
     applyPotionEffect("power", 3, "player", null, dg, p, ml, () => {}, false, true);
     expect(p.atk).toBe(7);
+  });
+
+  it("幸運の薬は通常20ターン、祝福40ターン、呪いは不運20ターンになる", () => {
+    const normal = makePlayer();
+    applyPotionEffect("luck", 20, "player", null, dg, normal, [], () => {});
+    expect(normal).toMatchObject({ luckTurns: 20, unluckTurns: 0 });
+
+    const blessed = makePlayer();
+    applyPotionEffect("luck", 20, "player", null, dg, blessed, [], () => {}, true, false);
+    expect(blessed).toMatchObject({ luckTurns: 40, unluckTurns: 0 });
+
+    const cursed = makePlayer();
+    applyPotionEffect("luck", 20, "player", null, dg, cursed, [], () => {}, false, true);
+    expect(cursed).toMatchObject({ luckTurns: 0, unluckTurns: 20 });
+  });
+
+  it("幸運の薬を食べ物にかけると幸運、呪いなら不運になる", () => {
+    const normalFood = { name: "おにぎり", type: "food", value: 35 };
+    applyPotionToItem("luck", 20, normalFood, dg, [], false, null, true);
+    expect(normalFood).toMatchObject({ name: "幸運のおにぎり", potionEffects: ["luck"] });
+
+    const cursedFood = { name: "パン", type: "food", value: 35 };
+    applyPotionToItem("luck", 20, cursedFood, dg, [], true);
+    expect(cursedFood).toMatchObject({ name: "不運のパン", potionEffects: ["c_luck"] });
   });
 
   it("呪われた毒薬を敵に浴びせると通常ダメージと同じ出目だけ回復する", () => {

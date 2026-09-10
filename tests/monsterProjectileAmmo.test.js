@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { makeMonsterFromBase, MONS, monsterAI } from "../monsters.js";
-import { monsterDrop } from "../items.js";
+import { applyPotionEffect, monsterDrop } from "../items.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -76,5 +76,41 @@ describe("投擲物を使う敵の弾薬", () => {
 
     expect(dg.items.some((item) => item.type === "arrow")).toBe(false);
     vi.restoreAllMocks();
+  });
+
+  it("幸運中は通常ドロップとは別に追加ドロップ判定を行う", () => {
+    const monster = makeMonsterFromBase(MONS.find((m) => m.baseKind === "archer"), 1, 5, 5);
+    monster.projectileAmmo.count = 0;
+    const dg = makeEmptyDg();
+    const player = makePlayer({ luckTurns: 20 });
+    vi.spyOn(Math, "random")
+      .mockReturnValueOnce(0.99) // 通常ドロップ失敗
+      .mockReturnValueOnce(0.01) // 幸運の追加ドロップ成功
+      .mockReturnValue(0.99);
+
+    monsterDrop(monster, dg, [], player);
+
+    expect(dg.items).toHaveLength(1);
+    vi.restoreAllMocks();
+  });
+
+  it("不運中は固有・通常を含めてアイテムを落とさない", () => {
+    const monster = makeMonsterFromBase(MONS.find((m) => m.baseKind === "archer"), 1, 5, 5);
+    monster.projectileAmmo.count = 3;
+    const dg = makeEmptyDg();
+    const player = makePlayer({ unluckTurns: 20 });
+
+    monsterDrop(monster, dg, [], player);
+
+    expect(dg.items).toHaveLength(0);
+  });
+
+  it("敵に投げた幸運の薬は、その敵の撃破時の追加判定になる", () => {
+    const monster = makeMonsterFromBase(MONS.find((m) => m.baseKind === "archer"), 1, 5, 5);
+    monster.projectileAmmo.count = 0;
+    const player = makePlayer();
+    const dg = makeEmptyDg();
+    applyPotionEffect("luck", 20, "monster", monster, dg, player, [], () => {});
+    expect(monster.dropLuckTurns).toBe(20);
   });
 });

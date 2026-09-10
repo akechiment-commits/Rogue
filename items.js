@@ -413,6 +413,7 @@ export const ITEMS = [
   { name:"鈍足の薬",         type:"potion", effect:"slow",     value:0,  rarity:"D", weight:8,  sellPrice:150,  desc:"飲むと10ターン鈍足になる（速度×0.5）。\n投げると命中した敵を鈍足にする。", tile:16 },
   { name:"金縛りの薬",       type:"potion", effect:"paralyze", value:0,  rarity:"D", weight:8,  sellPrice:180,  desc:"飲むと10ターン金縛りになる。\n投げると命中した敵を金縛りにする。", tile:16 },
   { name:"力の薬",           type:"potion", effect:"power",    value:3,  rarity:"B", weight:2,  sellPrice:1500, desc:"飲むと攻撃力+3。祝福：+6。呪い：-3。",           tile:17 },
+  { name:"幸運の薬",         type:"potion", effect:"luck",     value:20, rarity:"C", weight:4,  sellPrice:500,  desc:"飲むと20ターン、敵を倒した時に追加ドロップ判定が発生する。祝福：40ターン。呪い：20ターン、敵がアイテムを落とさなくなる。\n食べ物にかけると幸運の食べ物になる。呪い：不運の食べ物になる。", tile:17 },
   { name:"テレポートの巻物", type:"scroll", effect:"teleport",           rarity:"D", weight:8, sellPrice:150,  desc:"ランダムな場所にテレポートする。\n呪い：この冒険で訪れた階層を選んで移動できる。",                         tile:18 },
   { name:"マップの巻物",     type:"scroll", effect:"reveal",             rarity:"C", weight:4,  sellPrice:500,  desc:"フロア全体と罠が明らかになる。\n呪い：マップと罠の位置を全て忘れる。", tile:18 },
   { name:"武器強化の巻物",   type:"scroll", effect:"weapon_up",          rarity:"B", weight:2,  sellPrice:800,  desc:"選んだ武器・または＋値のつく指輪の＋値を1上げる。",  tile:18 },
@@ -535,6 +536,8 @@ export function getBlessMultiplier(it) {
 export function blessAmountMul(blessed) {
   return blessed ? 2 : 1;
 }
+
+export const LUCK_POTION_TURNS = Object.freeze({ normal: 20, blessed: 40, cursed: 20 });
 
 /** 毒薬の飛散HP増減。通常/祝福はダメージ、呪いは同じ出目で回復。 */
 export function poisonContactAmount(val, { blessed = false, cursed = false } = {}) {
@@ -4452,6 +4455,34 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
         }
       }
       break;
+    case "luck": {
+      const _turns = cursed
+        ? LUCK_POTION_TURNS.cursed
+        : blessed ? LUCK_POTION_TURNS.blessed : LUCK_POTION_TURNS.normal;
+      if (kind === "player") {
+        if (cursed) {
+          p.luckTurns = 0;
+          p.unluckTurns = _turns;
+          ml.push(`不運になった！敵がアイテムを落とさなくなる！(${_turns}ターン)【呪】`);
+        } else {
+          p.unluckTurns = 0;
+          p.luckTurns = _turns;
+          ml.push(`幸運になった！敵を倒すたび追加ドロップ判定！(${_turns}ターン)${blessed ? "【祝福】" : ""}`);
+        }
+      }
+      if (kind === "monster") {
+        if (cursed) {
+          target.dropLuckTurns = 0;
+          target.dropNoItemTurns = _turns;
+          ml.push(`${target.name}は不運になり、アイテムを落とさなくなった！(${_turns}ターン)【呪】`);
+        } else {
+          target.dropNoItemTurns = 0;
+          target.dropLuckTurns = _turns;
+          ml.push(`${target.name}は幸運になった！倒されると追加ドロップ判定！(${_turns}ターン)${blessed ? "【祝福】" : ""}`);
+        }
+      }
+      break;
+    }
     default:
       /* 未登録の effect が渡された場合は警告 (items.js ITEMS への追加を忘れずに) */
       console.warn(`[applyPotionEffect] 未登録の effect: "${eff}" — applyPotionEffect の switch に case を追加してください`);
@@ -4477,6 +4508,7 @@ export const POTION_FOOD_PREFIX = {
   paralyze: "金縛りの",
   levelup:  "経験の",
   seal:     "封魔の",
+  luck:     "幸運の",
   // 呪い（食べた時の効果が反転）
   c_heal:      "猛毒の",
   c_superheal: "猛毒の",
@@ -4492,6 +4524,7 @@ export const POTION_FOOD_PREFIX = {
   c_paralyze:  "予防の",
   c_levelup:   "退化の",
   c_seal:      "解封の",
+  c_luck:      "不運の",
 };
 
 /** 生の食料を調理済みにする共通ヘルパー（cooked/tile/sizeLabel を更新） */
@@ -4527,7 +4560,7 @@ export function burnFoodItem(item, ml) {
   return true;
 }
 
-export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null) {
+export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn = null, blessed = false) {
   const _dn = dnFn ? dnFn(item) : resolveItemName(item);
   if (item.iceCream && (eff === "water" || eff === "fire")) {
     ml.push(`${_dn}が${eff === "water" ? "水" : "炎"}の影響で溶けて消滅した！`);
@@ -4589,6 +4622,7 @@ export function applyPotionToItem(eff, val, item, dg, ml, cursed = false, dnFn =
     }
     return;
   }
+  /* 幸運の薬は通常・祝福とも既存の「幸運の食べ物」効果にする。 */
   const key = cursed ? `c_${eff}` : eff;
   const pf = POTION_FOOD_PREFIX[key];
   if (!pf) return;
@@ -4649,7 +4683,7 @@ export function splashPotion(dg, cx, cy, eff, val, p, ml, luFn, blessed = false,
     }
     const it = itemAt(dg, x, y);
     if (it) {
-      const br = applyPotionToItem(eff, val, it, dg, ml, cursed, dnFn);
+      const br = applyPotionToItem(eff, val, it, dg, ml, cursed, dnFn, blessed);
       if (br === "burn") {
         removeFloorItem(dg, it);
         chargeShopItem(it, dg, ml, p);
@@ -4995,7 +5029,15 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
   return false;
 }
 
+export function monsterItemDropsSuppressed(m, p = null) {
+  return (p?.unluckTurns || 0) > 0 || (m?.dropNoItemTurns || 0) > 0;
+}
+
 export function monsterDrop(m, dg, ml, p = null) {
+  if (monsterItemDropsSuppressed(m, p)) {
+    ml.push(`${m.name}は不運でアイテムを落とさなかった！`);
+    return;
+  }
   /* 遺物の番人：ボス特性は維持し、戦利品だけ専用の通常枠に置き換える。 */
   if (m.relicGuardian) {
     const _ft = new Set();
@@ -5136,6 +5178,18 @@ export function monsterDrop(m, dg, ml, p = null) {
   /* 一般ランダムドロップ（固有ドロップは上で別処理）
    * 特技なし・分裂敵: 2%、特技持ち: 5% */
   if (Math.random() < monsterRandomDropChance(m)) {
+    const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
+    const _t = pickLootFromPool(_pool, "drop");
+    if (_t) {
+      const _di = { ..._t, id: uid() };
+      if (_di.type === "pen")  _di.charges = penInitialCharges(_di);
+      else if (_di.type === "wand") _di.charges = Math.max(1, (_di.charges || 1) + rng(-1, 1));
+      drops.push(_di);
+    }
+  }
+  /* 幸運：既存の通常ドロップ判定とは別に、もう1回だけ抽選する。 */
+  if (((p?.luckTurns || 0) > 0 || (m.dropLuckTurns || 0) > 0) &&
+      Math.random() < monsterRandomDropChance(m)) {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
     const _t = pickLootFromPool(_pool, "drop");
     if (_t) {
@@ -5388,9 +5442,11 @@ export function killMonster(mon, dg, p, ml, luFn, noExp = false, killerMon = nul
   if (mon.carriedItem) {
     const _held = mon.carriedItem;
     delete mon.carriedItem;
-    const _ft = new Set();
-    placeItemAt(dg, mx, my, _held, ml, _ft, 0, p);
-    ml.push(`${mon.name}が持っていた${resolveItemName(_held)}を落とした！`);
+    if (!monsterItemDropsSuppressed(mon, p)) {
+      const _ft = new Set();
+      placeItemAt(dg, mx, my, _held, ml, _ft, 0, p);
+      ml.push(`${mon.name}が持っていた${resolveItemName(_held)}を落とした！`);
+    }
   }
   monsterDrop(mon, dg, ml, p);
   /* スケルトン：50%で骨を残し5ターン後に復活（復活抑制下では骨を残さない） */

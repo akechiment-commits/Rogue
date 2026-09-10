@@ -245,6 +245,8 @@ export function advanceConsumableBuffTimers(player, messages) {
     ["mayonnaiseWaterProofTurns", "マヨネーズの耐水効果が切れた！"],
     ["yogurtImmuneTurns", "ヨーグルトの免疫効果が切れた！"],
     ["soyExpTurns", "醤油の経験値ブーストが切れた！"],
+    ["luckTurns", "幸運の効果が切れた！"],
+    ["unluckTurns", "不運の効果が切れた！"],
     ["garlicDmgTurns", "にんにくの追加ダメージが切れた！"],
     ["lemonThrowTurns", "レモンの投擲ブーストが切れた！"],
     ["atkDebuffTurns", "攻撃力の半減デバフが解けた！"],
