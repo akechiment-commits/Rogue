@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { makeMonsterFromBase, MONS, monsterAI } from "../monsters.js";
 import { applyPotionEffect, monsterDrop } from "../items.js";
+import { advanceMonsterUpkeep } from "../monsterUpkeep.js";
 import { T } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -111,6 +112,20 @@ describe("投擲物を使う敵の弾薬", () => {
     const player = makePlayer();
     const dg = makeEmptyDg();
     applyPotionEffect("luck", 20, "monster", monster, dg, player, [], () => {});
-    expect(monster.dropLuckTurns).toBe(20);
+    expect(monster).toMatchObject({ dropExtraItem: true, dropItemsSuppressed: false });
+
+    dg.monsters.push(monster);
+    for (let turn = 0; turn < 50; turn++) advanceMonsterUpkeep(dg, player, [], {});
+    expect(monster.dropExtraItem).toBe(true);
+  });
+
+  it("敵に投げた呪われた幸運の薬は、その敵をアイテムドロップなしにする", () => {
+    const monster = makeMonsterFromBase(MONS.find((m) => m.baseKind === "archer"), 1, 5, 5);
+    const player = makePlayer();
+    const dg = makeEmptyDg();
+
+    applyPotionEffect("luck", 20, "monster", monster, dg, player, [], () => {}, false, true);
+
+    expect(monster).toMatchObject({ dropExtraItem: false, dropItemsSuppressed: true });
   });
 });

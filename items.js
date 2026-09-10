@@ -4472,13 +4472,17 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
       }
       if (kind === "monster") {
         if (cursed) {
-          target.dropLuckTurns = 0;
-          target.dropNoItemTurns = _turns;
-          ml.push(`${target.name}は不運になり、アイテムを落とさなくなった！(${_turns}ターン)【呪】`);
+          target.dropExtraItem = false;
+          target.dropItemsSuppressed = true;
+          delete target.dropLuckTurns;
+          delete target.dropNoItemTurns;
+          ml.push(`${target.name}は不運になり、倒された時にアイテムを落とさなくなった！【呪】`);
         } else {
-          target.dropNoItemTurns = 0;
-          target.dropLuckTurns = _turns;
-          ml.push(`${target.name}は幸運になった！倒されると追加ドロップ判定！(${_turns}ターン)${blessed ? "【祝福】" : ""}`);
+          target.dropItemsSuppressed = false;
+          target.dropExtraItem = true;
+          delete target.dropLuckTurns;
+          delete target.dropNoItemTurns;
+          ml.push(`${target.name}は幸運になった！倒された時に追加ドロップ判定！${blessed ? "【祝福】" : ""}`);
         }
       }
       break;
@@ -5030,7 +5034,7 @@ export function placeItemAt(dg, tx, ty, item, ml, ft, dep = 0, p = null, _ox = n
 }
 
 export function monsterItemDropsSuppressed(m, p = null) {
-  return (p?.unluckTurns || 0) > 0 || (m?.dropNoItemTurns || 0) > 0;
+  return (p?.unluckTurns || 0) > 0 || !!m?.dropItemsSuppressed || (m?.dropNoItemTurns || 0) > 0;
 }
 
 export function monsterDrop(m, dg, ml, p = null) {
@@ -5188,7 +5192,7 @@ export function monsterDrop(m, dg, ml, p = null) {
     }
   }
   /* 幸運：既存の通常ドロップ判定とは別に、もう1回だけ抽選する。 */
-  if (((p?.luckTurns || 0) > 0 || (m.dropLuckTurns || 0) > 0) &&
+  if (((p?.luckTurns || 0) > 0 || m.dropExtraItem || (m.dropLuckTurns || 0) > 0) &&
       Math.random() < monsterRandomDropChance(m)) {
     const _pool = [...ITEMS.filter(i => i.type !== "gold"), ...WANDS, ...RINGS];
     const _t = pickLootFromPool(_pool, "drop");
