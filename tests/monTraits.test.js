@@ -6,7 +6,7 @@ import {
 } from "../monTraits.js";
 import { clampDmgFixed, consumeBarrier, T } from "../utils.js";
 import { applyMonsterSeal, canMonsterSurviveOnWater, resolveSealedFloatOnWater } from "../items.js";
-import { BOSSES, INTERMEDIATE_BOSSES } from "../monsters.js";
+import { BOSSES, INTERMEDIATE_BOSSES, makeMonsterFromBase } from "../monsters.js";
 import { MONSTER_SHEET_MAP } from "../tilesetMap.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 
@@ -124,5 +124,16 @@ describe("封印中の敵特性無効化", () => {
     expect(canMonsterSurviveOnWater(w, dg, 4, 4)).toBe(true);
     expect(resolveSealedFloatOnWater(w, dg, p, ml, null)).toBe("ok");
     expect({ x: w.x, y: w.y }).toEqual({ x: 4, y: 4 });
+  });
+
+  it("クラーケンは浮遊ではなく水中歩行として扱う", () => {
+    const base = INTERMEDIATE_BOSSES.find((boss) => boss.baseKind === "im_boss_kraken");
+    expect(base).toBeTruthy();
+    expect(base.float).not.toBe(true);
+    expect(base.waterWalker).toBe(true);
+
+    const kraken = makeMonsterFromBase(base, 1, 4, 4);
+    expect(kraken.float).not.toBe(true);
+    expect(kraken.waterWalker).toBe(true);
   });
 });

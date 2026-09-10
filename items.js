@@ -1086,7 +1086,7 @@ export function canMonsterSurviveOnWater(mon, dg, x, y) {
   const onWater = tile === T.WATER || onSpring;
   if (!onWater) return true;
   /* 実効浮遊（封印で固有floatは無効）・水生・水中歩行のみ生存 */
-  return !!(mon.waterOnly || mon.waterWalker || mon.baseKind === "im_boss_kraken" || monEffectiveFloat(mon));
+  return !!(mon.waterOnly || mon.waterWalker || monEffectiveFloat(mon));
 }
 
 /** 強制移動の着地点が水上なら、水に適応できない敵を撃破する。 */
@@ -1115,7 +1115,7 @@ export function resolveSealedFloatOnWater(m, dg, p, ml, luFn) {
   if (!m.sealed) return null;
   /* まだ浮遊できている（一時floatTurns等）なら何もしない */
   if (monEffectiveFloat(m)) return "ok";
-  if (m.waterOnly || m.waterWalker || m.baseKind === "im_boss_kraken") return "ok";
+  if (m.waterOnly || m.waterWalker) return "ok";
   if (dg.map[m.y]?.[m.x] !== T.WATER) return "ok";
 
   const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
