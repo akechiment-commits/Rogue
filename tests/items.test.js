@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS } from "../items.js";
+import { getIdentKey, itemPrice, applyPotionEffect, applyPotionToItem, applyThrownItemToMonster, thrownItemAttack, applySpellEffect, applyWaterSplash, splashPotion, applyPotEffect, applyIceCreamEffect, getBlessMultiplier, blessAmountMul, poisonContactAmount, rollElementScrollDamage, recoveryScrollAmount, gemSellPrice, GEM_TYPES, makeRandomPotion, rotFood, isFireExplosionNullified, announceFireExplosionNullified, doExplosion, doGunpowderExplosion, calcProjectileDmg, hasFireResist, hasLightningResist, applyLightningToInventory, reduceFireDamage, reduceLightningDamage, reduceIceDamage, imprisonPotRemainingCapacity, potOccupancyCount, canConfineMonsterInImprisonPot, confinePlayerInImprisonPot, confineMonsterInImprisonPot, releaseConfinedMonstersFromPot, scatterPotContents, resolveImprisonPotExit, canMonsterSurviveOnWater, canPlayerWalkOnWater, hasWaterBreathRing, applySoakedFromWaterWalk, isSoaked, reflectMagicStoneToPlayer, shootArrow, makeChangeBoxItem, breakBigboxContents, penInitialCharges, killMonster, POTS, ICE_CREAM_EFFECT_DESCRIPTION, ICE_CREAM_FLAVORS, getSpellPowerMultiplier } from "../items.js";
 import { MW, MH, T, applyReverseStatus, installPlayerHpReverseHook, playerDopingMultiplier } from "../utils.js";
 import { makeEmptyDg, makePlayer } from "./helpers.js";
 import { setFavoriteFoodBase } from "../items.js";
@@ -392,6 +392,14 @@ describe("魔法強化武器", () => {
     applySpellEffect("fire_bolt", "monster", target, 1, 0, dg, p, [], () => {});
     expect(200 - target.hp).toBe(40);
     vi.restoreAllMocks();
+  });
+});
+
+describe("魔法レベルの威力倍率", () => {
+  it("Lvごとに基礎威力を30%ずつ増やす", () => {
+    expect([1, 2, 3, 4, 5, 6].map(getSpellPowerMultiplier)).toEqual([
+      1, 1.3, 1.6, 1.9, 2.2, 2.5,
+    ]);
   });
 });
 

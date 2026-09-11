@@ -16,7 +16,7 @@ import {
   confinePlayerInImprisonPot,
   hasRingEffect, cookFoodMeta, rotFood, calcProjectileDmg, reflectMagicStoneToPlayer, multiplyMagicDamage, multiplyCursedMagicDamage, itemPrice, removeTrap, removeTraps,
   LUCK_POTION_TURNS,
-  resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt,
+  resolveItemName, applyBubbleGoldScroll, getFixtureItemDeps, getShopUsedCost, destroyEnemyHomingProjectileAt, getSpellPowerMultiplier,
   makeArrowUnitFromStack, peelShopArrowUnit, declareShopTheft, calmShopkeeperIfFullyHealed,
   applyPlayerSeal, curePlayerSealWithCursedPotion, cureBlessedHealAilments,
 } from "./items.js";
@@ -3508,7 +3508,7 @@ export function useItemActions({
           if (spellDef.id === "fire_bolt") {
             /* 炎の魔法：着弾点で爆発（周囲8マスにも爆風） */
             pushBoltAnim(p.x, p.y, dx, dy, dg, "#ff4400");
-            const _fbLvF = 1 + (_csLv - 1) * 0.2;
+            const _fbLvF = getSpellPowerMultiplier(_csLv);
             const _fbLand = castSpellBolt(p, dg, spellDef, dx, dy, ml, lu, _csLv);
             if (_fbLand.hitType !== "sealed" && !isFireExplosionNullified(dg, p)) {
               pushExplosionAnim(_fbLand.x, _fbLand.y);

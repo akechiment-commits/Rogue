@@ -7015,6 +7015,11 @@ export function moveShopkeeperHome(sk, shop, dg) {
   sk.x = hp.x; sk.y = hp.y; /* フォールバック */
 }
 
+export function getSpellPowerMultiplier(level = 1) {
+  const _level = Number.isFinite(level) ? Math.max(1, level) : 1;
+  return 1 + (_level - 1) * 0.3;
+}
+
 export const SPELLS=[
   {id:"fire_bolt",      name:"炎の魔法",         mpCost:10, effect:"fire_bolt",       damage:25, range:10, needsDir:true,  desc:"炎の弾を撃ち、着弾点で爆発。周囲8マスにも爆風ダメージ。MP:10"},
   {id:"ice_bolt",       name:"氷の魔法",          mpCost:10, effect:"ice_bolt",        damage:18, range:10, needsDir:true,  desc:"氷の弾で敵を凍らせスロー。MP:10"},
@@ -7448,7 +7453,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
     if (consumeBarrier(target, ml)) return;
   }
   const _beforeMonsterHp = kind === "monster" ? target?.hp : null;
-  const _lvF = 1 + (lv - 1) * 0.2;
+  const _lvF = getSpellPowerMultiplier(lv);
   const _enemyMagicDamage = (amount, victim = target) => multiplyMagicDamage(amount, p?.weapon, victim, dg);
   const _targetMagicDamage = (amount, victim = target) => multiplyCursedMagicDamage(amount, victim, dg);
   switch (eff) {
@@ -7668,7 +7673,7 @@ export function castSpellBolt(p, dg, spell, dx, dy, ml, luFn, lv = 1) {
         ml.push(`魔法は${mon.name}に効かない！`);
       } else if (monReflectsMagic(mon)) {
         ml.push(`${mon.name}が魔法を跳ね返した！`);
-        const _rfLvF = 1 + (lv - 1) * 0.2;
+        const _rfLvF = getSpellPowerMultiplier(lv);
         switch (spell.effect) {
           case "fire_bolt": { const _rd = multiplyCursedMagicDamage(Math.round(rng(20, 30) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射された炎の魔法で"; ml.push(`炎の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
           case "ice_bolt": { const _rd = multiplyCursedMagicDamage(Math.round(rng(15, 22) * _rfLvF), p, dg); p.hp -= _rd; p.deathCause = "反射された氷の魔法で"; ml.push(`氷の魔法が跳ね返ってきた！${_rd}ダメージ！`); break; }
