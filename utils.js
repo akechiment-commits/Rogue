@@ -116,6 +116,24 @@ export function playerDopingMultiplier(player) {
   return 1;
 }
 
+/** 敵に付与されたドーピングの実効攻防値を更新する。元値は効果終了時に復元する。 */
+export function applyMonsterDopingStats(monster, multiplier) {
+  if (!monster) return;
+  if (monster._dopingBaseAtk === undefined) monster._dopingBaseAtk = Number(monster.atk) || 0;
+  if (monster._dopingBaseDef === undefined) monster._dopingBaseDef = Number(monster.def) || 0;
+  monster.atk = Math.max(1, Math.floor(monster._dopingBaseAtk * multiplier));
+  monster.def = Math.max(0, Math.floor(monster._dopingBaseDef * multiplier));
+}
+
+/** 敵のドーピング終了時に、付与前の攻防値へ戻す。 */
+export function restoreMonsterDopingStats(monster) {
+  if (!monster) return;
+  if (monster._dopingBaseAtk !== undefined) monster.atk = monster._dopingBaseAtk;
+  if (monster._dopingBaseDef !== undefined) monster.def = monster._dopingBaseDef;
+  delete monster._dopingBaseAtk;
+  delete monster._dopingBaseDef;
+}
+
 /** 風穴 5x5 内なら風向き、なければ null（dg.vents 依存・循環 import 回避のため utils に置く） */
 export function getWindAt(dg, x, y) {
   for (const v of dg?.vents || []) {

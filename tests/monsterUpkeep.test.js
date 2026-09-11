@@ -46,4 +46,21 @@ describe("advanceMonsterUpkeep", () => {
     expect(defeated).toEqual([undead]);
     expect(messages).toEqual(["雷の魔方陣が鳥を打った！38ダメージ！雷弱点！", "呪われた雷の力が骸骨を傷つけた！25ダメージ！(アンデッド)"]);
   });
+
+  it("敵のドーピングは強化終了後に副作用へ移行し、50ターン後に元へ戻る", () => {
+    const monster = {
+      name: "敵", x: 0, y: 0, hp: 100, maxHp: 100,
+      atk: 20, def: 8, dopingTurns: 1, dopingAftereffectPending: true,
+      _dopingBaseAtk: 10, _dopingBaseDef: 4,
+    };
+    const dungeon = { monsters: [monster], map: [[T.FLOOR]], pentacles: [] };
+    const messages = [];
+
+    advance(dungeon, undefined, messages);
+    expect(monster).toMatchObject({ dopingTurns: 0, dopingAftereffectTurns: 50, atk: 5, def: 2 });
+
+    for (let i = 0; i < 50; i++) advance(dungeon, undefined, messages);
+    expect(monster).toMatchObject({ dopingAftereffectTurns: 0, atk: 10, def: 4 });
+    expect(messages.at(-1)).toBe("敵のドーピング副作用が切れた！攻撃力と防御力が戻った！");
+  });
 });

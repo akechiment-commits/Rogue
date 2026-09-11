@@ -185,6 +185,11 @@ describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ�
     expect(cursed.darknessTurns).toBe(20);
     expect(cursed.bewitchedTurns).toBe(20);
     expect(cursed.sealedTurns).toBe(50);
+
+    const cursedMonster = { name: "敵", hp: 100, maxHp: 100, atk: 10, def: 4, speed: 1, x: 2, y: 2 };
+    applyPotionEffect("panacea", 0, "monster", cursedMonster, makeEmptyDg(), cursed, [], () => {}, false, true);
+    expect(cursedMonster.slowTurns).toBe(10);
+    expect(cursedMonster.speed).toBe(0.5);
   });
 
   it("牛乳の飲用量と食料加工を通常・祝福・呪いで分ける", () => {
@@ -225,6 +230,10 @@ describe("追加薬（万能薬・牛乳・ドーピングコンソメスープ�
     applyPotionEffect("doping", 50, "player", null, makeEmptyDg(), cursed, [], () => {}, false, true);
     expect(cursed).toMatchObject({ dopingTurns: 0, dopingAftereffectTurns: 50, dopingAftereffectPending: false });
     expect(playerDopingMultiplier(cursed)).toBe(0.5);
+
+    const monster = { name: "敵", hp: 100, maxHp: 100, atk: 10, def: 4, x: 2, y: 2 };
+    applyPotionEffect("doping", 50, "monster", monster, makeEmptyDg(), normal, [], () => {});
+    expect(monster).toMatchObject({ atk: 20, def: 8, dopingTurns: 50, dopingAftereffectTurns: 0 });
 
     const food = { name: "ステーキ", type: "food", value: 35 };
     applyPotionToItem("doping", 50, food, makeEmptyDg(), [], false);

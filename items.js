@@ -1,4 +1,4 @@
-import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier } from './utils.js';
+import { rng, pick, uid, clamp, MW, MH, T, TI, DRO, removeFloorItem, destroyItemMimicFloorItem, ensureItemMimicFloorItems, monsterAt, itemAt, removeMonster, getShops, hasAbility, hasGravityPentacle, hasCursedGravityPentacle, consumeBarrier, clampDmgFixed, shuffle, randomTeleportDest, getDodgePentacleMode, isEvasionDisabledByStatus, calcAtkDefDmg, stepProjectile, playerHpEffectLabel, playerDopingMultiplier, applyMonsterDopingStats } from './utils.js';
 import { materializeFakeStair, tryBreakStatueAt, hitStatueWithAction } from './fixtures.js';
 import { findFixedPortalPair, statueAt } from './fixtureQueries.js';
 import { stageBigbox, trackItem, trackMonster, trackTrap } from './DiscoveryTracker.js';
@@ -4539,6 +4539,9 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           target.sleepTurns = (target.sleepTurns || 0) + statusTurns("sleep", { kind: "monster", target });
           target.confusedTurns = (target.confusedTurns || 0) + statusTurns("confuse", { kind: "monster", target });
           target.slowTurns = (target.slowTurns || 0) + statusTurns("slow", { kind: "monster", target });
+          if (target.isBoss && target._preSlowSpeed === undefined) target._preSlowSpeed = target.speed;
+          target.speed = Math.max(0.25, (target.speed || 1) * 0.5);
+          if (target.isBoss) target.bossSlowTurns = (target.bossSlowTurns || 0) + statusTurns("bossSlow", { kind: "monster", target });
           target.darknessTurns = (target.darknessTurns || 0) + statusTurns("darkness", { kind: "monster", target });
           target.fleeingTurns = (target.fleeingTurns || 0) + statusTurns("bewitch", { kind: "monster", target });
           applyMonsterSeal(target, dg, p, ml, luFn);
@@ -4598,9 +4601,10 @@ export function applyPotionEffect(eff, val, kind, target, dg, p, ml, luFn, bless
           ml.push(`攻撃力と防御力が2倍になった！(${_active}ターン)${blessed ? "副作用なし【祝福】" : "効果後に副作用が出る"}`);
         }
       } else if (kind === "monster") {
-        target.dopingTurns = cursed ? 0 : _active;
-        target.dopingAftereffectTurns = cursed ? _after : 0;
+        target.dopingTurns = cursed ? 0 : (target.dopingTurns || 0) + _active;
+        target.dopingAftereffectTurns = cursed ? (target.dopingAftereffectTurns || 0) + _after : 0;
         target.dopingAftereffectPending = !blessed && !cursed;
+        applyMonsterDopingStats(target, cursed ? 0.5 : 2);
         ml.push(`${target.name}の攻防が${cursed ? "半減" : "2倍"}になった！`);
       }
       break;

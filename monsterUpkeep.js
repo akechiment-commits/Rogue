@@ -1,4 +1,4 @@
-import { T } from "./utils.js";
+import { T, applyMonsterDopingStats, restoreMonsterDopingStats } from "./utils.js";
 
 /** 攻撃後のモンスター回復・状態タイマー・雷の魔方陣効果を進める。 */
 export function advanceMonsterUpkeep(dungeon, player, messages, {
@@ -26,6 +26,26 @@ export function advanceMonsterUpkeep(dungeon, player, messages, {
   }
 
   for (const monster of dungeon.monsters) {
+    if ((monster.dopingTurns || 0) > 0) {
+      monster.dopingTurns--;
+      if (monster.dopingTurns <= 0) {
+        if (monster.dopingAftereffectPending) {
+          monster.dopingAftereffectTurns = 50;
+          monster.dopingAftereffectPending = false;
+          applyMonsterDopingStats(monster, 0.5);
+          messages.push(`${monster.name}のドーピング効果が切れ、副作用で攻撃力と防御力が半減した！(50ターン)`);
+        } else {
+          restoreMonsterDopingStats(monster);
+          messages.push(`${monster.name}のドーピング効果が切れた！攻撃力と防御力が戻った！`);
+        }
+      }
+    } else if ((monster.dopingAftereffectTurns || 0) > 0) {
+      monster.dopingAftereffectTurns--;
+      if (monster.dopingAftereffectTurns <= 0) {
+        restoreMonsterDopingStats(monster);
+        messages.push(`${monster.name}のドーピング副作用が切れた！攻撃力と防御力が戻った！`);
+      }
+    }
     if ((monster.oilyTurns || 0) > 0) {
       monster.oilyTurns = Math.max(0, monster.oilyTurns - 1);
       if (monster.oilyTurns <= 0) messages.push(`${monster.name}の油まみれが取れた。`);
