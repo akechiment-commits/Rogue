@@ -1161,7 +1161,7 @@ export function applyMonsterSeal(target, dg, p, ml, luFn, opts = {}) {
   const { blessed = false, sealedTurns = null, message = null } = opts;
   target.sealed = true;
   if (clearArmorBreathBuff(target) > 0) {
-    ml.push(`${target.name}のアーマーブレスの強化が封印で解除された！`);
+    ml.push(`${target.name}のロックアーマーの強化が封印で解除された！`);
   }
   if (clearDiamondWeaponBuff(target) > 0) {
     ml.push(`${target.name}のダイヤモンドウエポンの強化が封印で解除された！`);

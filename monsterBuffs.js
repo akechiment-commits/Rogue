@@ -16,7 +16,7 @@ export function getDiamondWeaponAtkBonus(mon) {
   return levelBuffAmount(mon);
 }
 
-/** アーマーブレスの上昇分を、防御力本体と分けて記録する。 */
+/** ロックアーマーの上昇分を、防御力本体と分けて記録する。 */
 export function addArmorBreathBuff(mon, bonus = getArmorBreathDefBonus(mon)) {
   if (!mon) return 0;
   mon.def = (mon.def || 0) + bonus;
@@ -29,7 +29,7 @@ export function addArmorBreathBuff(mon, bonus = getArmorBreathDefBonus(mon)) {
   return bonus;
 }
 
-/** アーマーブレスの重ねがけ分だけを取り除き、元の防御力を保つ。 */
+/** ロックアーマーの重ねがけ分だけを取り除き、元の防御力を保つ。 */
 export function clearArmorBreathBuff(mon) {
   const stacks = Math.max(0, Number(mon?.armorBreathBuffs) || 0);
   if (!mon || stacks === 0) return 0;

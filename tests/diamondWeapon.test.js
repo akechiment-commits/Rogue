@@ -105,7 +105,7 @@ describe("竜騎士系", () => {
     expect(messages).toContain("竜騎士のダイヤモンドウエポンの強化が封印で解除された！");
   });
 
-  it("魔法無効・魔法反射・魔封じをアーマーブレスと同様に扱う", () => {
+  it("魔法無効・魔法反射・魔封じをロックアーマーと同様に扱う", () => {
     const base = MONS.find((m) => m.baseKind === "dragonknight");
     const knight = makeMonsterFromBase(base, 1, 5, 5);
     const immune = { id: "immune", name: "魔法無効の敵", hp: 20, maxHp: 20, atk: 3, def: 3, magicImmune: true, x: 6, y: 5 };

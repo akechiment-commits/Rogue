@@ -1171,7 +1171,7 @@ export const MONS = [
     ],
   },
   { name: "スネークマン", hp: 43, atk: 20, def: 5, exp: 62, speed: 1, tile: 204, kind: "dragon", baseKind: "lizardman", monLevel: 1, minFloor: 13, maxFloor: 17, waterWalker: true, subtype: "armorbreath", dungeonFloors: { beginner: null, intermediate: { min: 13, max: 17 }, advanced: { min: 13, max: 17 } },
-    desc: "水上・水中を移動する。プレイヤーを視界に捉えると25%でアーマーブレスを使い、自分か隣接する敵の防御力をレベルに応じて5／7／10上げる。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
+    desc: "水上・水中を移動する。プレイヤーを視界に捉えると25%でロックアーマーを使い、自分か隣接する敵の防御力をレベルに応じて5／7／10上げる。放置すると重ね掛けでどんどん硬くなる。強化解除の巻物や封印で解除される。",
     levels: [
       { name: "リザードマン", hp: 69, atk: 29, def: 9, exp: 100, minFloor: 20, maxFloor: 24, dungeonFloors: { intermediate: { min: 20, max: 20 }, advanced: { min: 20, max: 24 } } },
       { name: "とかげせんし", hp: 108, atk: 40, def: 14, exp: 158, minFloor: 27, maxFloor: 30, dungeonFloors: { advanced: { min: 27, max: 30 } } },
@@ -3106,7 +3106,7 @@ function diamondWeaponTargets(m, dg) {
 function useArmorBreath(m, dg, ml) {
   const bonus = getArmorBreathDefBonus(m);
   if (inMagicSealRoom(m.x, m.y, dg)) {
-    ml.push(`${m.name}のアーマーブレスが魔封じの魔法陣で無効になった！`);
+    ml.push(`${m.name}のロックアーマーが魔封じの魔法陣で無効になった！`);
     m.turnAttacks++;
     return true;
   }
@@ -3114,7 +3114,7 @@ function useArmorBreath(m, dg, ml) {
   if (targets.length === 0) return false;
   const target = pick(targets);
   if (inMagicSealRoom(target.x, target.y, dg)) {
-    ml.push(`${m.name}のアーマーブレスが魔封じの魔法陣で無効になった！`);
+    ml.push(`${m.name}のロックアーマーが魔封じの魔法陣で無効になった！`);
     m.turnAttacks++;
     return true;
   }
@@ -3124,19 +3124,19 @@ function useArmorBreath(m, dg, ml) {
     return true;
   }
   if (monReflectsMagic(target)) {
-    ml.push(`${target.name}がアーマーブレスを反射した！`);
+    ml.push(`${target.name}がロックアーマーを反射した！`);
     if (inMagicSealRoom(m.x, m.y, dg) || monEffectiveMagicImmune(m)) {
       ml.push(`魔法は${m.name}に効かない！`);
     } else {
       addArmorBreathBuff(m, bonus);
-      ml.push(`跳ね返ったアーマーブレスが${m.name}にかかり、防御力が${bonus}上がった！`);
+      ml.push(`跳ね返ったロックアーマーが${m.name}にかかり、防御力が${bonus}上がった！`);
     }
     m.turnAttacks++;
     return true;
   }
   addArmorBreathBuff(target, bonus);
   m.turnAttacks++;
-  ml.push(`${m.name}がアーマーブレスを唱えた！${target === m ? "自分" : target.name}の防御力が${bonus}上がった！`);
+  ml.push(`${m.name}がロックアーマーを唱えた！${target === m ? "自分" : target.name}の防御力が${bonus}上がった！`);
   return true;
 }
 

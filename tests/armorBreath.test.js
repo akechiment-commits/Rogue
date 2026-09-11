@@ -39,7 +39,7 @@ describe("スネークマン系", () => {
     expect(mon.tile).toBe(204);
   });
 
-  it("視界内でアーマーブレスを予約し、自分または隣接敵の防御を5上げる", () => {
+  it("視界内でロックアーマーを予約し、自分または隣接敵の防御を5上げる", () => {
     const base = MONS.find((m) => m.baseKind === "lizardman");
     const snake = makeMonsterFromBase(base, 1, 5, 5, { aware: true });
     snake.alwaysUseSpecial = true;
@@ -67,10 +67,10 @@ describe("スネークマン系", () => {
 
     expect(ally.def).toBe(13);
     expect(snake.def).toBe(5);
-    expect(messages).toContain("スネークマンがアーマーブレスを唱えた！隣の敵の防御力が5上がった！");
+    expect(messages).toContain("スネークマンがロックアーマーを唱えた！隣の敵の防御力が5上がった！");
   });
 
-  it.each([[1, 5], [2, 7], [3, 10]])("Lv%dのアーマーブレスは1回で防御力を%d上げる", (level, bonus) => {
+  it.each([[1, 5], [2, 7], [3, 10]])("Lv%dのロックアーマーは1回で防御力を%d上げる", (level, bonus) => {
     const base = MONS.find((m) => m.baseKind === "lizardman");
     const mon = makeMonsterFromBase(base, level, 5, 5);
     const initialDef = mon.def;
@@ -105,7 +105,7 @@ describe("スネークマン系", () => {
     expect(mon.armorBreathBuffs).toBeUndefined();
   });
 
-  it("封印時にもアーマーブレスの強化が解除される", () => {
+  it("封印時にもロックアーマーの強化が解除される", () => {
     const mon = { name: "スネークマン", x: 5, y: 5, hp: 32, maxHp: 32, def: 4 };
     addArmorBreathBuff(mon);
     const messages = [];
@@ -115,7 +115,7 @@ describe("スネークマン系", () => {
     expect(mon.sealed).toBe(true);
     expect(mon.def).toBe(4);
     expect(mon.armorBreathBuffs).toBeUndefined();
-    expect(messages).toContain("スネークマンのアーマーブレスの強化が封印で解除された！");
+    expect(messages).toContain("スネークマンのロックアーマーの強化が封印で解除された！");
   });
 
   it("魔法無効の対象には効かない", () => {
@@ -166,8 +166,8 @@ describe("スネークマン系", () => {
 
     expect(reflector.def).toBe(3);
     expect(snake.def).toBe(10);
-    expect(messages).toContain("魔法反射の敵がアーマーブレスを反射した！");
-    expect(messages).toContain("跳ね返ったアーマーブレスがスネークマンにかかり、防御力が5上がった！");
+    expect(messages).toContain("魔法反射の敵がロックアーマーを反射した！");
+    expect(messages).toContain("跳ね返ったロックアーマーがスネークマンにかかり、防御力が5上がった！");
   });
 
   it("魔封じの魔法陣の中では発動しない", () => {
