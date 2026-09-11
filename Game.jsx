@@ -652,7 +652,7 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
         makeStarterFoodItem(favoriteFood),
       ],
       spells: dungeonConfig?.dungeonType === "debug"
-        ? ["debug_summon_mon","debug_get_item","debug_create_trap","debug_summon_bb","debug_summon_object","bless_magic","curse_magic"]
+        ? ["debug_summon_mon","debug_get_item","debug_get_blessed_item","debug_get_cursed_item","debug_create_trap","debug_summon_bb","debug_summon_object","bless_magic","curse_magic"]
         : [],
       spellLevels: {},
       turns: 0,
@@ -755,6 +755,10 @@ export default function RoguelikeGame({ dungeonConfig, onReturnToHub, onGameOver
       /* DiscoveryTracker に前回の発見データを復元 */
       restoreDiscoveries(resumeState.discoveries);
       const _resumePlayer = resumeState.player;
+      if (resumeState.dungeonType === "debug") {
+        const _debugItemSpells = ["debug_get_blessed_item", "debug_get_cursed_item"];
+        _resumePlayer.spells = [...new Set([...(Array.isArray(_resumePlayer.spells) ? _resumePlayer.spells : []), ..._debugItemSpells])];
+      }
       if (playerName) _resumePlayer.playerName = playerName;
       setActivePlayerName(_resumePlayer.playerName || playerName || "");
       setFavoriteFoodBase(favoriteFood);

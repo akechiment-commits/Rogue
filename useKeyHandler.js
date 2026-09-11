@@ -18,6 +18,7 @@ import { listFloorInventoryEntries, floorEntryRole, FLOOR_INFO_ROLES, floorUseLa
 import { pushPlayerTeleportAnim } from "./animEvents.js";
 import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
+import { isDebugItemGetEffect } from "./debugSpellRules.js";
 
 /** KeyboardEvent.DOM_KEY_LOCATION_NUMPAD */
 const LOC_NUMPAD = 3;
@@ -1295,10 +1296,11 @@ export function useKeyHandler({
         const _dsEff = debugSpellMode.effect;
         const _dsPage = debugSpellMode.page ?? 0;
         const _dsCat = debugSpellMode.category ?? null;
+        const _dsIsItemGet = isDebugItemGetEffect(_dsEff);
 
         /* X/Escape: カテゴリ選択中なら戻る、そうでなければ閉じる */
         if (k === "escape" || k === "x") {
-          if (_dsEff === "debug_get_item" && _dsCat) {
+          if (_dsIsItemGet && _dsCat) {
             setDebugSpellMode({ ...debugSpellMode, category: null, page: 0 });
             setDebugSpellMenuSel(0);
           } else {
@@ -1312,7 +1314,7 @@ export function useKeyHandler({
         if (_dsEff === "debug_summon_mon") {
           for (const m of MONS) { _dsTotalEntries++; const lvs = MON_LEVELS[m.baseKind]; if (lvs) { if (lvs[0]) _dsTotalEntries++; if (lvs[1]) _dsTotalEntries++; } }
           _dsTotalEntries += BOSSES.length + INTERMEDIATE_BOSSES.length;
-        } else if (_dsEff === "debug_get_item") {
+        } else if (_dsIsItemGet) {
           if (!_dsCat) { _dsTotalEntries = 14; } // カテゴリ数（special_synth追加済み）
           else if (_dsCat === "potions")      _dsTotalEntries = ITEMS.filter(x=>x.type==="potion").length + 1;
           else if (_dsCat === "scrolls")      _dsTotalEntries = ITEMS.filter(x=>x.type==="scroll").length + 1;
@@ -1336,7 +1338,7 @@ export function useKeyHandler({
           /* オブジェクト召喚はガチャ・泉・風穴・石像・祭壇・次元宝物庫の6項目。 */
           _dsTotalEntries = 6;
         }
-        const _dsIsCategory = _dsEff === "debug_get_item" && !_dsCat;
+        const _dsIsCategory = _dsIsItemGet && !_dsCat;
         const _dsPageSize = _dsIsCategory ? _dsTotalEntries : 10;
         const _dsTotalPages = _dsIsCategory ? 1 : Math.max(1, Math.ceil(_dsTotalEntries / _dsPageSize));
         const _dsSafePage = Math.min(_dsPage, _dsTotalPages - 1);

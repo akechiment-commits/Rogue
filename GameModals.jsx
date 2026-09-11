@@ -19,6 +19,7 @@ import { isScrollTargetCandidate } from "./scrollTargetRules.js";
 import { getMarkerInkCost, MARKER_SPELLBOOK_INK_COST } from "./markerRules.js";
 import { isBigboxKindIdentified, markBigboxKindIdentified } from "./GameHelpers.js";
 import { GACHA_COST } from "./gachaRules.js";
+import { isDebugItemGetEffect, prepareDebugItem } from "./debugSpellRules.js";
 
 /* 壺・大箱に入れたとき効果があるアイテムか判定 */
 const _PLUS_RING_EFFECTS = ["power_ring","defense_ring","life_ring"];
@@ -3931,7 +3932,8 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   if (!mode || !gs) return null;
   const { effect } = mode;
   const page = mode.page ?? 0;
-  const category = mode.category ?? null; // null = カテゴリ選択中 (debug_get_item のみ)
+  const category = mode.category ?? null; // null = カテゴリ選択中 (アイテム取得系)
+  const isDebugItemGet = isDebugItemGetEffect(effect);
 
   /* --- エントリ構築 --- */
   let entries = [];
@@ -3956,7 +3958,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
     for (const b of INTERMEDIATE_BOSSES) {
       entries.push({ label: `${b.name} (中級ボス)`, value: { base: b, lv: 1 } });
     }
-  } else if (effect === "debug_get_item") {
+  } else if (isDebugItemGet) {
     if (!category) {
       isPickingCategory = true;
       entries = _DBG_ITEM_CATS.map(c => ({ label: c.label, value: c.key, isCategory: true }));
@@ -3984,7 +3986,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
   const safeSel = Math.min(menuSel, Math.max(0, pageEntries.length - 1));
 
   const title = effect === "debug_summon_mon" ? "敵を選択"
-    : effect === "debug_get_item" ? (category ? `アイテムを選択（${_DBG_ITEM_CATS.find(c=>c.key===category)?.label}）` : "カテゴリを選択")
+    : isDebugItemGet ? (category ? `アイテムを選択（${_DBG_ITEM_CATS.find(c=>c.key===category)?.label}）` : "カテゴリを選択")
     : effect === "debug_create_trap" ? "罠を選択"
     : effect === "debug_summon_bb" ? "大箱を選択"
     : "オブジェクトを選択";
@@ -4035,17 +4037,18 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         break;
       }
       if (!placed) ml.push("召喚する場所がない！");
-    } else if (effect === "debug_get_item") {
+    } else if (isDebugItemGet) {
       if (p.inventory.length >= (p.maxInventory || 30)) {
         ml.push("持ち物がいっぱいだ！");
       } else {
-        const it = { ...entry.value, id: uid(), fullIdent: true, bcKnown: true };
+        const it = prepareDebugItem(entry.value, effect, uid());
         if (it.type === "wand") it.charges = it.maxCharges ?? it.charges ?? 5;
         if (it.type === "pot") it.contents = [];
         if (it.type === "arrow") it.count = 20;
         trackItem(it);
         p.inventory.push(it);
-        ml.push(`${it.name}を手に入れた！`);
+        const bcPrefix = it.blessed ? "祝福された" : it.cursed ? "呪われた" : "";
+        ml.push(`${bcPrefix}${it.name}を手に入れた！`);
       }
     } else if (effect === "debug_create_trap") {
       const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1],[0,0]];
@@ -4198,7 +4201,7 @@ export function DebugSpellModal({ mode, setMode, gs, sr, setGs, setMsgs, menuSel
         </div>
       )}
       <div style={{ color: "#304060", fontSize: 12, marginTop: 6 }}>
-        ↑↓:選択  Z:決定  {totalPages > 1 ? "←→:ページ  " : ""}{effect === "debug_get_item" && category ? "X:カテゴリに戻る" : "X:閉じる"}
+        ↑↓:選択  Z:決定  {totalPages > 1 ? "←→:ページ  " : ""}{isDebugItemGet && category ? "X:カテゴリに戻る" : "X:閉じる"}
       </div>
     </div>
   );
