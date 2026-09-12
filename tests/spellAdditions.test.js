@@ -138,8 +138,8 @@ describe("追加魔法", () => {
     expect(clone.cloneTurns).toBe(70);
   });
 
-  it("分身は敵を攻撃し、撃破してもプレイヤーに経験値を与えない", () => {
-    const target = { name: "敵", hp: 100, maxHp: 100, atk: 5, def: 0, exp: 50, x: 7, y: 5 };
+  it("分身は敵を攻撃し、撃破するとプレイヤーだけが経験値を得る", () => {
+    const target = { name: "敵", hp: 1, maxHp: 1, atk: 5, def: 0, exp: 50, x: 7, y: 5 };
     const player = makePlayer({ x: 5, y: 5, exp: 0 });
     const clone = makePlayerClone(player, 6, 5, 30);
     const dungeon = makeEmptyDg({ monsters: [clone, target] });
@@ -147,8 +147,10 @@ describe("追加魔法", () => {
 
     monsterAI(clone, dungeon, player, messages);
 
-    expect(target.hp).toBeLessThan(100);
-    expect(player.exp).toBe(0);
+    expect(player.exp).toBe(50);
+    expect(dungeon.monsters).not.toContain(target);
+    expect(clone.monLevel).toBe(1);
+    expect(clone.overBoost).toBeUndefined();
   });
 
   it("敵はプレイヤーより近い分身を優先して攻撃する", () => {

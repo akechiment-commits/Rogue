@@ -3925,7 +3925,8 @@ function playerCloneAI(m, dg, pl, ml, opts = {}) {
     const _damage = Math.max(1, calcAtkDefDmg(m.atk, _target.def || 0, { defWeight: 1 }));
     _target.hp -= _damage;
     ml.push(`分身が${_target.name}を攻撃！${_damage}ダメージ！`);
-    if (_target.hp <= 0) killMonster(_target, dg, pl, ml, opts.luFn || null, true, m);
+    /* 分身はプレイヤーの代わりに戦うため、撃破報酬はプレイヤーへ入り、分身は強化されない。 */
+    if (_target.hp <= 0) killMonster(_target, dg, pl, ml, opts.luFn || null);
     return;
   }
   if (_attackOnly) return;
