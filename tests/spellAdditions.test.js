@@ -108,7 +108,8 @@ describe("追加魔法", () => {
     applySpellEffect("self_destruct_magic", "self", null, 0, 0, dungeon, player, [], noop, level);
 
     expect(player.hp).toBe(1);
-    expect(near.hp).toBeLessThan(100);
+    expect(near.hp).toBe(0);
+    expect(dungeon.monsters).not.toContain(near);
     if (farX > 5 + radius) expect(far.hp).toBe(100);
   });
 });

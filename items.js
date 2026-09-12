@@ -1854,6 +1854,7 @@ function calcPlayerDefForProjectile(p) {
  * cx, cy: 爆発の中心。options.radius（既定1）の正方形範囲を処理する。
  * excludeItem: アイテム破壊から除外するアイテム（罠を踏んだアイテム自身など）
  * mineExplosion: true のとき地雷モード（炎無効でない敵は消滅＋範囲内地雷を連鎖爆発）
+ * options.instantMonsterKill: true のとき通常敵を即死させ、ボスには現在HPの1/4ダメージ
  */
 let _mineExplosionDepth = 0;
 export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発", excludeItem = null, luFn = null, proportional = false, ringExplosion = false, mineExplosion = false, noExpKills = false, options = {}) {
@@ -1868,6 +1869,7 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
     _mineExplosionDepth++;
   }
   const _blastRadius = Math.max(1, Math.floor(Number.isFinite(options.radius) ? options.radius : 1));
+  const _instantMonsterKill = options.instantMonsterKill === true;
   pushExplosionAnim(cx, cy);
   /* プレイヤーへのダメージ（中心含む爆発範囲内） */
   const _playerSafeInWater = options.playerSafeInWater && dg.map?.[cy]?.[cx] === T.WATER;
@@ -1952,8 +1954,8 @@ export function doExplosion(cx, cy, dg, p, ml, nameFn = null, srcLabel = "爆発
           }
           continue;
         }
-        if (_hasExPentacle || ringExplosion || mineExplosion) {
-          /* 爆発の魔方陣 or 指輪爆発 or 地雷：炎無効でない敵は消滅（ボスは現在HPの4分の1ダメージ） */
+        if (_hasExPentacle || ringExplosion || mineExplosion || _instantMonsterKill) {
+          /* 即死系爆発：炎無効でない通常敵は消滅（ボスは現在HPの4分の1ダメージ） */
           if (consumeBarrier(m, ml)) continue;
           if (m.isBoss) {
             let _bd = bossInstantDeathDamage(m) * oilyDamageMult(dg, m);
@@ -7047,7 +7049,7 @@ export const SPELLS=[
   {id:"guard_magic",    name:"守護の魔法",        mpCost:10, effect:"guard_magic",                needsDir:false, desc:"50ターン防御力が10上がる。Lvごとに持続+5ターン。MP:10"},
   {id:"reflect_magic",  name:"反射の魔法",        mpCost:10, effect:"reflect_magic",              needsDir:false, desc:"50ターン魔法反射状態になる。Lvごとに持続+5ターン。MP:10"},
   {id:"dig_magic",      name:"穴掘りの魔法",      mpCost:8,  effect:"dig_magic",       range:10,  needsDir:true,  desc:"方向を選び、10マスまで壁を掘る。MP:8"},
-  {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲1マスを爆発に巻き込む。Lv3で周囲2マス、Lv5で周囲3マス。MP:7"},
+  {id:"self_destruct_magic", name:"自爆の魔法",   mpCost:7,  effect:"self_destruct_magic",        needsDir:false, desc:"自爆してHPが1になり、周囲1マスの敵を即死させる（ボスは現在HPの1/4ダメージ）。Lv3で周囲2マス、Lv5で周囲3マス。MP:7"},
   {id:"debug_summon_mon", name:"[debug]敵召喚",   mpCost:0,  fixedMpCost:true, effect:"debug_summon_mon",  needsDir:false, debug:true, desc:"任意の敵を1体選んで呼び出す。MP:0"},
   {id:"debug_get_item",   name:"[debug]アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_item",   needsDir:false, debug:true, desc:"任意のアイテムを1個選んで入手する。MP:0"},
   {id:"debug_get_blessed_item", name:"[debug]祝福アイテム取得",mpCost:0,fixedMpCost:true,effect:"debug_get_blessed_item", needsDir:false, debug:true, desc:"祝福された任意のアイテムを1個選んで入手する。MP:0"},
@@ -7078,7 +7080,7 @@ export const SPELLBOOKS=[
   {name:"守護の魔法書",     type:"spellbook",spell:"guard_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン防御力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"反射の魔法書",     type:"spellbook",spell:"reflect_magic",   rarity:"A", weight:1,  sellPrice:8000,  desc:"読むと50ターン魔法反射状態になる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"穴掘りの魔法書",   type:"spellbook",spell:"dig_magic",       rarity:"C", weight:4,  sellPrice:2000,  desc:"読むと方向を選び、10マスまで壁を掘る魔法を習得する。MP:8",tile:43},
-  {name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲を爆発に巻き込む魔法を習得する。MP:7",tile:43},];
+  {name:"自爆の魔法書",     type:"spellbook",spell:"self_destruct_magic", rarity:"B", weight:2, sellPrice:3000, desc:"読むと自爆してHPが1になり、周囲の敵を即死させる魔法を習得する。ボスには現在HPの1/4ダメージ。MP:7",tile:43},];
 export function burnInventorySpellbooks(p,ml){const burned=p.inventory.filter(i=>i.type==="spellbook"&&Math.random()<0.5);if(burned.length>0){p.inventory=p.inventory.filter(i=>!burned.includes(i));burned.forEach(b=>ml.push(`所持していた「${b.name}」が燃えてなくなった！`));}}
 
 /** 防具の耐火（個別耐火・万能耐性）— 所持品破損防止用 */
@@ -7521,6 +7523,7 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         doExplosion(p.x, p.y, dg, p, ml, null, "自爆の魔法", null, luFn, false, false, false, false, {
           radius: _radius,
           playerHpOne: true,
+          instantMonsterKill: true,
         });
       }
       break;
