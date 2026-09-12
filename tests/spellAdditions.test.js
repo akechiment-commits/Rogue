@@ -17,8 +17,8 @@ import { monsterFireLightning } from "../wands.js";
 const noop = () => {};
 
 describe("追加魔法", () => {
-  it("6種の魔法と対応する魔法書を登録する", () => {
-    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic"];
+  it("7種の魔法と対応する魔法書を登録する", () => {
+    const ids = ["power_magic", "guard_magic", "reflect_magic", "dig_magic", "self_destruct_magic", "clone_magic", "haste_magic"];
     expect(ids.every((id) => SPELLS.some((spell) => spell.id === id))).toBe(true);
     expect(ids.every((id) => SPELLBOOKS.some((book) => book.spell === id))).toBe(true);
   });
@@ -151,6 +151,22 @@ describe("追加魔法", () => {
     expect(dungeon.monsters).not.toContain(target);
     expect(clone.monLevel).toBe(1);
     expect(clone.overBoost).toBeUndefined();
+  });
+
+  it("加速の魔法は鈍足を解除し、重ね掛けで速度段階と持続を伸ばす", () => {
+    const dungeon = makeEmptyDg();
+    const player = makePlayer({ slowTurns: 5 });
+    const messages = [];
+
+    applySpellEffect("haste_magic", "self", null, 0, 0, dungeon, player, messages, noop, 6);
+    expect(player.slowTurns).toBe(0);
+    expect(player.hasteTurns || 0).toBe(0);
+
+    applySpellEffect("haste_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
+    expect(player).toMatchObject({ hasteSpeed: 2, hasteTurns: 10 });
+
+    applySpellEffect("haste_magic", "self", null, 0, 0, dungeon, player, messages, noop, 1);
+    expect(player).toMatchObject({ hasteSpeed: 3, hasteTurns: 20 });
   });
 
   it("敵はプレイヤーより近い分身を優先して攻撃する", () => {

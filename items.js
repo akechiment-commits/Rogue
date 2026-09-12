@@ -7086,6 +7086,7 @@ export const SPELLS=[
   {id:"identify_magic", name:"識別の魔法",        mpCost:12, effect:"identify_magic",             needsDir:false, desc:"持ち物から1つ選んで識別する。MP:12"},
   {id:"bless_magic",    name:"祝福の魔法",        mpCost:18, effect:"bless_magic",                needsDir:false, desc:"アイテムを1つ選んで祝福する。MP:18"},
   {id:"curse_magic",    name:"呪いの魔法",        mpCost:15, effect:"curse_magic",                needsDir:false, desc:"アイテムを1つ選んで呪う。MP:15"},
+  {id:"haste_magic",    name:"加速の魔法",        mpCost:8,  effect:"haste_magic",                needsDir:false, desc:"鈍足を解除し、速度を1段階上げる。基本10ターン。重ね掛けで3倍速になる。MP:8"},
   {id:"power_magic",    name:"剛力の魔法",        mpCost:10, effect:"power_magic",                needsDir:false, desc:"50ターン攻撃力が10上がる。Lvごとに持続+5ターン。MP:10"},
   {id:"guard_magic",    name:"守護の魔法",        mpCost:10, effect:"guard_magic",                needsDir:false, desc:"50ターン防御力が10上がる。Lvごとに持続+5ターン。MP:10"},
   {id:"reflect_magic",  name:"反射の魔法",        mpCost:10, effect:"reflect_magic",              needsDir:false, desc:"50ターン魔法反射状態になる。Lvごとに持続+5ターン。MP:10"},
@@ -7118,6 +7119,7 @@ export const SPELLBOOKS=[
   {name:"識別の魔法書",     type:"spellbook",spell:"identify_magic",  rarity:"C", weight:4,  sellPrice:3500,  desc:"読むと持ち物から1つ選んで識別する魔法を習得する。MP:12",tile:43},
   {name:"祝福の魔法書",     type:"spellbook",spell:"bless_magic",     rarity:"A", weight:1,  sellPrice:10000, desc:"読むとアイテムを1つ選んで祝福する魔法を習得する。MP:18",tile:43},
   {name:"呪いの魔法書",     type:"spellbook",spell:"curse_magic",     rarity:"C", weight:4,  sellPrice:2000,  desc:"読むとアイテムを1つ選んで呪う魔法を習得する。MP:15",tile:43},
+  {name:"加速の魔法書",     type:"spellbook",spell:"haste_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと鈍足を解除し、速度を1段階上げる魔法を習得する。基本10ターン。重ね掛けで3倍速になる。MP:8",tile:43},
   {name:"剛力の魔法書",     type:"spellbook",spell:"power_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン攻撃力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"守護の魔法書",     type:"spellbook",spell:"guard_magic",     rarity:"B", weight:2,  sellPrice:3500,  desc:"読むと50ターン防御力が10上がる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
   {name:"反射の魔法書",     type:"spellbook",spell:"reflect_magic",   rarity:"A", weight:1,  sellPrice:8000,  desc:"読むと50ターン魔法反射状態になる魔法を習得する。Lvごとに持続+5ターン。MP:10",tile:43},
@@ -7604,6 +7606,10 @@ export function applySpellEffect(eff, kind, target, dx, dy, dg, p, ml, luFn, lv 
         dg.monsters.push(makePlayerClone(p, _spot.x, _spot.y, _turns));
         ml.push(`分身が現れた！(${_turns}ターン)`);
       }
+      break;
+    }
+    case "haste_magic": {
+      if (kind === "self") raisePlayerSpeedOneStage(p, ml);
       break;
     }
     case "fire_bolt": {
